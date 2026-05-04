@@ -15,7 +15,9 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
+	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // EmitFunc bridges journal events to whatever transport the host
@@ -52,15 +54,19 @@ type Deps struct {
 }
 
 type App struct {
-	System  *system.Service
-	Config  *config.Service
-	Sfr     *sfr.Service
-	Journal *journal.Service
-	Csv     *csv.Service
+	System   *system.Service
+	Config   *config.Service
+	Sfr      *sfr.Service
+	Journal  *journal.Service
+	Csv      *csv.Service
+	Template *template.Service
+	Storage  *storage.Service
 
-	journalManager *journal.Manager
-	emitter        *emitterRelay
-	deps           Deps
+	templateManager *template.Manager
+	storageManager  *storage.Manager
+	journalManager  *journal.Manager
+	emitter         *emitterRelay
+	deps            Deps
 }
 
 func New(d Deps) (*App, error) {
@@ -83,6 +89,28 @@ func New(d Deps) (*App, error) {
 	sfrM := sfr.NewManager(sysM, d.Logger)
 	csvM := csv.NewManager(sysM, d.Logger)
 
+	// Template manager — rooted at the active context's templates path
+	// (absolute, from config's VFS). On profile/context switch the
+	// composition root is rebuilt; that's outside the scope of this story.
+	templatesPath, err := cfgM.GetContextTemplatesPath()
+	if err != nil {
+		return nil, err
+	}
+	tplM := template.NewManager(sysM, templatesPath, d.Logger)
+	tplStorageLocator := func(name string) string {
+		if info := cfgM.GetTemplateStorageInfo(name); info != nil {
+			return info.Path
+		}
+		return ""
+	}
+
+	// Storage manager — rooted at the active context's storage path.
+	storagePath, err := cfgM.GetContextStoragePath()
+	if err != nil {
+		return nil, err
+	}
+	stoM := storage.NewManager(sysM, sfrM, tplM, storagePath, d.Logger)
+
 	emitter := &emitterRelay{}
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
@@ -102,14 +130,18 @@ func New(d Deps) (*App, error) {
 	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
 
 	return &App{
-		System:         system.NewService(sysM),
-		Config:         config.NewService(cfgM),
-		Sfr:            sfr.NewService(sfrM),
-		Journal:        journal.NewService(jrnM),
-		Csv:            csv.NewService(csvM),
-		journalManager: jrnM,
-		emitter:        emitter,
-		deps:           d,
+		System:          system.NewService(sysM),
+		Config:          config.NewService(cfgM),
+		Sfr:             sfr.NewService(sfrM),
+		Journal:         journal.NewService(jrnM),
+		Csv:             csv.NewService(csvM),
+		Template:        template.NewService(tplM, tplStorageLocator),
+		Storage:         storage.NewService(stoM),
+		templateManager: tplM,
+		storageManager:  stoM,
+		journalManager:  jrnM,
+		emitter:         emitter,
+		deps:            d,
 	}, nil
 }
 

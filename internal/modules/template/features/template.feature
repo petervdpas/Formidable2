@@ -1,0 +1,181 @@
+Feature: Template management
+  Templates are YAML files at <context>/templates/<name>.yaml that
+  declare a form's fields. The template module owns CRUD plus
+  validation (duplicate keys, loop pairing/nesting, single tags field,
+  api-field shape, collection-mode requires a GUID field).
+
+  Background:
+    Given a system manager rooted at a temp directory
+    And a template manager rooted under "templates"
+
+  Scenario: First run on an empty templates folder returns nothing
+    When I list templates
+    Then the template list is empty
+
+  Scenario: Save then list shows the new file
+    When I save a template named "basic.yaml" with the following yaml:
+      """
+      name: Basic Form
+      filename: basic.yaml
+      fields:
+        - key: title
+          type: text
+          label: Title
+      """
+    Then the template list contains "basic.yaml"
+
+  Scenario: Save then load round-trips the template
+    When I save a template named "basic.yaml" with the following yaml:
+      """
+      name: Basic Form
+      filename: basic.yaml
+      fields:
+        - key: title
+          type: text
+          label: Title
+      """
+    Then loading "basic.yaml" returns a template named "Basic Form"
+    And the template has 1 field
+    And field 0 has key "title" and type "text"
+
+  Scenario: Loading a missing template returns an error
+    When I load template "ghost.yaml"
+    Then the load returns an error
+
+  Scenario: Delete removes the template file
+    Given a template "basic.yaml" exists
+    When I delete template "basic.yaml"
+    Then the template list does not contain "basic.yaml"
+
+  Scenario: Validate flags duplicate field keys
+    Given a template with fields:
+      | key   | type |
+      | name  | text |
+      | name  | text |
+    Then validation reports a "duplicate-keys" error
+
+  Scenario: Validate ignores duplicate keys in matched loop pairs
+    Given a template with fields:
+      | key   | type      |
+      | items | loopstart |
+      | x     | text      |
+      | items | loopstop  |
+    Then validation reports no errors
+
+  Scenario: Validate flags an unmatched loopstart
+    Given a template with fields:
+      | key   | type      |
+      | items | loopstart |
+      | x     | text      |
+    Then validation reports an "unmatched-loopstart" error
+
+  Scenario: Validate flags an unmatched loopstop
+    Given a template with fields:
+      | key   | type     |
+      | x     | text     |
+      | items | loopstop |
+    Then validation reports an "unmatched-loopstop" error
+
+  Scenario: Validate flags loop key mismatch
+    Given a template with fields:
+      | key   | type      |
+      | a     | loopstart |
+      | x     | text      |
+      | b     | loopstop  |
+    Then validation reports a "loop-key-mismatch" error
+
+  Scenario: Validate flags excessive loop nesting (>2 levels)
+    Given a template with fields:
+      | key | type      |
+      | l1  | loopstart |
+      | l2  | loopstart |
+      | l3  | loopstart |
+      | x   | text      |
+      | l3  | loopstop  |
+      | l2  | loopstop  |
+      | l1  | loopstop  |
+    Then validation reports an "excessive-loop-nesting" error
+
+  Scenario: Validate flags collections without a guid field
+    Given a template with collections enabled and fields:
+      | key  | type |
+      | name | text |
+    Then validation reports a "missing-guid-for-collection" error
+
+  Scenario: Validate accepts collections with a guid field
+    Given a template with collections enabled and fields:
+      | key  | type |
+      | id   | guid |
+      | name | text |
+    Then validation reports no errors
+
+  Scenario: Validate flags multiple tags fields
+    Given a template with fields:
+      | key  | type |
+      | t1   | tags |
+      | t2   | tags |
+    Then validation reports a "multiple-tags-fields" error
+
+  Scenario: Validate flags an api field without a collection
+    Given a template with an api field with no collection
+    Then validation reports an "api-collection-required" error
+
+  Scenario: Seed basic creates basic.yaml when templates folder is empty
+    When I seed the basic template
+    Then the template list contains "basic.yaml"
+    And loading "basic.yaml" returns a template named "Basic Form"
+
+  Scenario: Seed basic skips when a template already exists
+    Given a template "other.yaml" exists
+    When I seed the basic template
+    Then the template list does not contain "basic.yaml"
+
+  Scenario: Item fields lists top-level text fields only
+    Given a template with fields:
+      | key       | type      |
+      | title     | text      |
+      | tag       | tags      |
+      | items     | loopstart |
+      | inner     | text      |
+      | items     | loopstop  |
+      | tail      | text      |
+    Then the item fields are "title,tail"
+
+  Scenario: GetTemplateDescriptor returns name + parsed yaml + storage path
+    Given a template "basic.yaml" exists
+    When I request the descriptor for "basic.yaml"
+    Then the descriptor name is "basic.yaml"
+    And the descriptor has a non-empty storage location
+
+  Scenario: Loading malformed YAML returns an error
+    Given the file "templates/broken.yaml" with content "name: [invalid yaml here\nfields"
+    When I load template "broken.yaml"
+    Then the load returns an error
+
+  Scenario: GetTemplateDescriptor on a missing template returns an error
+    When I request the descriptor for "ghost.yaml"
+    Then the descriptor request returned an error
+
+  Scenario: Validate flags an api map entry with empty key
+    Given a template with an api field with map keys "" "name"
+    Then validation reports an "api-map-key-required" error
+
+  Scenario: Validate flags duplicate api map keys (case-insensitive)
+    Given a template with an api field with map keys "Name" "name"
+    Then validation reports an "api-map-duplicate-keys" error
+
+  Scenario: Listing templates when the folder doesn't exist returns empty
+    When I list templates from a nonexistent folder
+    Then the template list is empty
+
+  Scenario: Save with empty name is rejected
+    When I save the test template with empty name
+    Then the save returned an error
+
+  Scenario: Save with a nil template is rejected
+    When I save a nil template named "x.yaml"
+    Then the save returned an error
+
+  Scenario: GetItemFields on a missing template returns an error
+    When I request item fields for "ghost.yaml"
+    Then the item fields request returned an error

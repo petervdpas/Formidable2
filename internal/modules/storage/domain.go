@@ -1,0 +1,231 @@
+package storage
+
+import (
+	"errors"
+	"fmt"
+	"log/slog"
+	"path/filepath"
+	"strings"
+
+	"github.com/petervdpas/formidable2/internal/modules/sfr"
+	"github.com/petervdpas/formidable2/internal/modules/template"
+)
+
+// fs is the narrow filesystem surface storage needs (beyond sfr).
+type fs interface {
+	ResolvePath(segments ...string) string
+	JoinPath(segments ...string) string
+	EnsureDirectory(path string) error
+	FileExists(path string) bool
+	SaveFile(path string, content string) error
+	ListFiles(dir string) ([]string, error)
+}
+
+// templateLoader is the narrow interface the storage module needs from
+// template — load by filename. Mirrors template.Manager.LoadTemplate.
+type templateLoader interface {
+	LoadTemplate(name string) (*template.Template, error)
+}
+
+const (
+	formExt   = ".meta.json"
+	imagesDir = "images"
+)
+
+// Manager owns CRUD over the per-template storage tree.
+type Manager struct {
+	fs        fs
+	sfr       *sfr.Manager
+	templates templateLoader
+	log       *slog.Logger
+	storageDir string // base storage path (absolute or relative to fs root)
+}
+
+// NewManager builds the manager. storageDir is the storage root
+// (e.g. "<context>/storage" — the composition root resolves it).
+// log may be nil.
+func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, storageDir string, log *slog.Logger) *Manager {
+	if log == nil {
+		log = slog.Default()
+	}
+	if storageDir == "" {
+		storageDir = "storage"
+	}
+	return &Manager{
+		fs:         filesystem,
+		sfr:        sfrM,
+		templates:  templates,
+		log:        log,
+		storageDir: storageDir,
+	}
+}
+
+// EnsureFormDir creates <storage>/<template-name>/ if missing.
+func (m *Manager) EnsureFormDir(templateFilename string) error {
+	dir := m.templateDir(templateFilename)
+	return m.fs.EnsureDirectory(dir)
+}
+
+// ListForms returns the .meta.json filenames inside the template's
+// storage folder. Missing folder → empty slice.
+func (m *Manager) ListForms(templateFilename string) ([]string, error) {
+	dir := m.templateDir(templateFilename)
+	if !m.fs.FileExists(dir) {
+		return []string{}, nil
+	}
+	files, err := m.sfr.ListFiles(dir, formExt)
+	if err != nil {
+		return nil, fmt.Errorf("storage: list %q: %w", templateFilename, err)
+	}
+	return files, nil
+}
+
+// LoadForm reads + sanitizes a form. Returns nil if the file is missing
+// or malformed (mirrors JS — frontend treats null as "not found").
+func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
+	if datafile == "" {
+		return nil
+	}
+	dir := m.templateDir(templateFilename)
+	raw, err := m.sfr.LoadFromBase(dir, datafile, sfr.Options{})
+	if err != nil {
+		return nil
+	}
+	rawMap, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	fields := m.fieldsFor(templateFilename)
+	out := Sanitize(rawMap, fields, SanitizeOptions{
+		TemplateName: strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename)),
+	})
+	return &out
+}
+
+// SaveForm sanitizes the input against the template's fields and writes
+// the resulting envelope as JSON.
+func (m *Manager) SaveForm(templateFilename, datafile string, data map[string]any) SaveResult {
+	if datafile == "" {
+		return SaveResult{Success: false, Error: "empty datafile"}
+	}
+	if strings.ContainsAny(datafile, `/\`) || strings.Contains(datafile, "..") {
+		return SaveResult{Success: false, Error: fmt.Sprintf("invalid datafile %q", datafile)}
+	}
+	dir := m.templateDir(templateFilename)
+	if err := m.fs.EnsureDirectory(dir); err != nil {
+		return SaveResult{Success: false, Error: err.Error()}
+	}
+
+	fields := m.fieldsFor(templateFilename)
+	templateName := strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename))
+
+	// Preserve previously-set id / created across edits by reading the
+	// existing form (if any) and feeding its meta into Sanitize options.
+	prev := m.LoadForm(templateFilename, datafile)
+	opts := SanitizeOptions{TemplateName: templateName}
+	if prev != nil {
+		opts.ID = prev.Meta.ID
+		opts.Created = prev.Meta.Created
+		opts.AuthorName = prev.Meta.AuthorName
+		opts.AuthorEmail = prev.Meta.AuthorEmail
+	}
+
+	envelope := Sanitize(data, fields, opts)
+	r := m.sfr.SaveFromBase(dir, datafile, envelope, sfr.Options{})
+	return SaveResult{Success: r.Success, Path: r.Path, Error: r.Error}
+}
+
+// DeleteForm removes the form file. Missing is a no-op.
+func (m *Manager) DeleteForm(templateFilename, datafile string) error {
+	if datafile == "" {
+		return errors.New("storage: empty datafile")
+	}
+	dir := m.templateDir(templateFilename)
+	return m.sfr.DeleteFromBase(dir, datafile, sfr.Options{})
+}
+
+// SaveImageFile writes raw bytes to <storage>/<template-name>/images/<name>.
+// Returns SaveResult with the absolute path on success.
+func (m *Manager) SaveImageFile(templateFilename, name string, content []byte) SaveResult {
+	if name == "" {
+		return SaveResult{Success: false, Error: "empty image name"}
+	}
+	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return SaveResult{Success: false, Error: fmt.Sprintf("invalid image name %q", name)}
+	}
+	dir := filepath.Join(m.templateDir(templateFilename), imagesDir)
+	if err := m.fs.EnsureDirectory(dir); err != nil {
+		return SaveResult{Success: false, Error: err.Error()}
+	}
+	full := filepath.Join(dir, name)
+	if err := m.fs.SaveFile(full, string(content)); err != nil {
+		return SaveResult{Success: false, Error: err.Error()}
+	}
+	return SaveResult{Success: true, Path: full}
+}
+
+// ExtendedListForms returns each form summary with title resolved from
+// item_field (if set) and any expression-flagged data carried for the
+// sidebar mini-expression evaluator.
+func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, error) {
+	files, err := m.ListForms(templateFilename)
+	if err != nil {
+		return nil, err
+	}
+	tpl, _ := m.templates.LoadTemplate(templateFilename)
+	itemFieldKey := ""
+	var fields []template.Field
+	if tpl != nil {
+		itemFieldKey = tpl.ItemField
+		fields = tpl.Fields
+	}
+
+	out := make([]FormSummary, 0, len(files))
+	for _, filename := range files {
+		f := m.LoadForm(templateFilename, filename)
+		if f == nil {
+			continue
+		}
+		title := filename
+		if itemFieldKey != "" {
+			if v, ok := f.Data[itemFieldKey]; ok {
+				if s, ok := v.(string); ok && s != "" {
+					title = s
+				}
+			}
+		}
+		expressionItems := map[string]any{}
+		for _, fld := range fields {
+			if !fld.ExpressionItem {
+				continue
+			}
+			if v, ok := f.Data[fld.Key]; ok && v != nil && v != "" {
+				expressionItems[fld.Key] = v
+			}
+		}
+		out = append(out, FormSummary{
+			Filename:        filename,
+			Meta:            f.Meta,
+			Title:           title,
+			ExpressionItems: expressionItems,
+		})
+	}
+	return out, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────
+
+func (m *Manager) templateDir(templateFilename string) string {
+	name := strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename))
+	return filepath.Join(m.storageDir, name)
+}
+
+func (m *Manager) fieldsFor(templateFilename string) []template.Field {
+	tpl, err := m.templates.LoadTemplate(templateFilename)
+	if err != nil || tpl == nil {
+		return nil
+	}
+	return tpl.Fields
+}

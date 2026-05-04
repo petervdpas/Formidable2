@@ -154,7 +154,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 
 ## Epic 3 — Template & Storage
 
-### F-301 — `template` module  [size: L] [TODO]
+### F-301 — `template` module  [size: L] [DONE]
 - Mirrors `controls/templateManager.js` (526 lines).
 - Owns `<context>/templates/<name>.yaml` files.
 - Methods (frontend-visible names match old `api.templates.*`): `ListTemplates`, `LoadTemplate`, `SaveTemplate`, `DeleteTemplate`, `ValidateTemplate`, `GetTemplateDescriptor`, `GetItemFields`, `SeedBasicIfEmpty`, `EnsureTemplateDirectory`.
@@ -162,7 +162,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 - HTTP routes for read paths.
 - Depends on F-101 (system), F-102 (config).
 
-### F-302 — `storage` module  [size: L] [TODO]
+### F-302 — `storage` module  [size: L] [DONE]
 - Mirrors `controls/formManager.js`.
 - Owns `<context>/storage/<template-name>/` — form `.meta.json` files + `images/` subfolder.
 - **Storage format**: JSON `.meta.json` (NOT YAML). Filename derived from `slugify(data[item_field])` with numeric collision suffix; falls back to GUID.

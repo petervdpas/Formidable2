@@ -11,5 +11,7 @@ func (a *App) WailsServices() []application.Service {
 		application.NewService(a.Sfr),
 		application.NewService(a.Journal),
 		application.NewService(a.Csv),
+		application.NewService(a.Template),
+		application.NewService(a.Storage),
 	}
 }
