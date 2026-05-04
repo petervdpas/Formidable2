@@ -195,14 +195,23 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 
 ## Epic 5 — Smaller Services
 
-### F-501 — `csv` module  [size: M] [TODO]
-- Methods: `csvPreview`, `csvImportRow`, `csvWrite`. Use `encoding/csv`.
-- HTTP routes.
+### F-501 — `csv` module  [size: M] [DONE]
+- Methods: `Preview`, `Write`. Uses stdlib `encoding/csv` with LF line endings (not CRLF) to match the JS source.
+- `csv-import-row` IPC is intentionally not in this module — it routes to formManager.saveForm in the original; storage will own that under F-302.
+- Wails-only — Epic 8 export endpoints will call into this manager from their HTTP handlers; no `handlers.go` here.
 
-### F-502 — `encrypt` module  [size: M] [TODO]
-- Methods: `encrypt`, `decrypt`, `encryptionAvailable`.
-- OS keyring for key material via `zalando/go-keyring` (already a Wails CLI transitive dep).
-- Wails-only (no HTTP).
+### F-502 — `encrypt` module  [size: M] [DEFERRED]
+
+**Status (2026-05-05): user confirmed encryption is never used in practice. Not porting.**
+
+The original `controls/encryption.js` ships AES-256-CBC with an all-zero IV (deterministic, leaks structure of repeated plaintext) and a key stored in plaintext in `user.json` (not actually secret). Round-trip-compatible port would inherit those weaknesses. No backend modules or shipped plugins consume the IPC, and the user reports never using it from code fields either.
+
+**The `encryption_key` field stays in the config schema** (backward compat with existing `user.json` files in user data dirs) but no module reads it.
+
+**If encryption needs to come back**, do a clean redesign rather than a port:
+- Secrets-at-rest (e.g. the GiGot token, gitconfig credentials) → OS keyring via `zalando/go-keyring`.
+- In-app field encryption (if a real use case appears) → AES-GCM with a random 12-byte nonce stored alongside the ciphertext. Authenticated. Per-blob nonce.
+- Key material → derived from a passphrase the user enters at unlock time, not stored on disk.
 
 ### F-503 — `help` module  [size: S] [TODO]
 - Methods: `listHelpTopics`, `getHelpTopic`. Read from embedded `help/` markdown.

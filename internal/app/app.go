@@ -12,6 +12,7 @@ import (
 
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/config"
+	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/system"
@@ -55,6 +56,7 @@ type App struct {
 	Config  *config.Service
 	Sfr     *sfr.Service
 	Journal *journal.Service
+	Csv     *csv.Service
 
 	journalManager *journal.Manager
 	emitter        *emitterRelay
@@ -79,6 +81,7 @@ func New(d Deps) (*App, error) {
 	}
 
 	sfrM := sfr.NewManager(sysM, d.Logger)
+	csvM := csv.NewManager(sysM, d.Logger)
 
 	emitter := &emitterRelay{}
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
@@ -103,6 +106,7 @@ func New(d Deps) (*App, error) {
 		Config:         config.NewService(cfgM),
 		Sfr:            sfr.NewService(sfrM),
 		Journal:        journal.NewService(jrnM),
+		Csv:            csv.NewService(csvM),
 		journalManager: jrnM,
 		emitter:        emitter,
 		deps:           d,

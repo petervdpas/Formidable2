@@ -6,7 +6,7 @@ Maps each `window.api.*` and `window.electron.*` group from `/home/peter/Project
 
 | Electron group | Module | HTTP handlers? | Notes |
 |---|---|---|---|
-| `encrypt` | `internal/modules/encrypt` | no | OS keyring via `zalando/go-keyring`; `crypto/aes` for blob crypto. |
+| `encrypt` | DEFERRED — not ported (see F-502 in backlog) | n/a | Original used static-IV AES-CBC with key-in-plaintext; never used in practice. Frontend call sites will be removed during the renderer port. |
 | `internalServer` | (not a module) | n/a | Lifecycle controls live on `internal/server`; service exposes start/stop/status. |
 | `plugin` | `internal/modules/plugin` | tbd | DEFERRED — Epic X. |
 | `help` | `internal/modules/help` | yes | Static-ish topic list and content. |
