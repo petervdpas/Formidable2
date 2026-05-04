@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 
+	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 )
 
@@ -24,16 +25,18 @@ type App struct {
 }
 
 func New(d Deps) *App {
-	if d.Logger == nil {
-		d.Logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	}
 	if d.AppRoot == "" {
 		if cwd, err := os.Getwd(); err == nil {
 			d.AppRoot = cwd
 		}
 	}
+	if d.Logger == nil {
+		d.Logger = applog.New(applog.Options{AppRoot: d.AppRoot})
+	}
 
 	sysM := system.NewManager(d.AppRoot, d.Logger)
+
+	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
 
 	return &App{
 		System: system.NewService(sysM),
