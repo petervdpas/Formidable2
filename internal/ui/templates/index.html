@@ -1,0 +1,19 @@
+{{define "page.index"}}
+<h1>Templates</h1>
+
+{{if .Templates}}
+<ul class="template-list">
+    {{range .Templates}}
+    <li class="template-card">
+        <a href="/template/{{.Filename}}">{{.Name}}</a>
+        <span class="muted small">{{.Filename}} · {{.FormCount}} form{{if ne .FormCount 1}}s{{end}}</span>
+    </li>
+    {{end}}
+</ul>
+{{else}}
+<div class="empty-state">
+    <p>No templates yet.</p>
+    <p class="small">The first run seeds <code>basic.yaml</code> automatically. If you're seeing this on a fresh start the app will create one shortly.</p>
+</div>
+{{end}}
+{{end}}
