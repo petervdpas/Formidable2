@@ -33,6 +33,7 @@ type sfrWorld struct {
 	m          *Manager
 	saveResult SaveResult
 	listResult []string
+	listErr    error
 	loadResult any
 	loadErr    error
 }
@@ -113,20 +114,12 @@ func initSfrScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^I list files under "([^"]*)"$`, func(dir string) error {
-		out, err := w.m.ListFiles(dir, "")
-		if err != nil {
-			return err
-		}
-		w.listResult = out
+		w.listResult, w.listErr = w.m.ListFiles(dir, "")
 		return nil
 	})
 
 	ctx.Step(`^I list files under "([^"]*)" with extension "([^"]*)"$`, func(dir, ext string) error {
-		out, err := w.m.ListFiles(dir, ext)
-		if err != nil {
-			return err
-		}
-		w.listResult = out
+		w.listResult, w.listErr = w.m.ListFiles(dir, ext)
 		return nil
 	})
 
@@ -201,6 +194,13 @@ func initSfrScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the save result is a failure$`, func() error {
 		if w.saveResult.Success {
 			return fmt.Errorf("expected save failure, got success: %+v", w.saveResult)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the list returns an error$`, func() error {
+		if w.listErr == nil {
+			return fmt.Errorf("expected list error, got nil; result=%v", w.listResult)
 		}
 		return nil
 	})

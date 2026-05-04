@@ -8,12 +8,42 @@ package app
 import (
 	"log/slog"
 	"os"
+	"sync"
 
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/config"
+	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 )
+
+// EmitFunc bridges journal events to whatever transport the host
+// app uses (Wails, stdout, …). main.go installs the Wails-backed
+// implementation via App.SetEmit after the Wails app is built.
+type EmitFunc func(name string, data any)
+
+// emitterRelay is the journal.EventEmitter the journal manager holds
+// for its lifetime. The actual transport (Wails) is installed later
+// because the Wails app doesn't exist when journal.NewManager runs.
+type emitterRelay struct {
+	mu sync.RWMutex
+	fn EmitFunc
+}
+
+func (e *emitterRelay) Emit(name string, data any) {
+	e.mu.RLock()
+	fn := e.fn
+	e.mu.RUnlock()
+	if fn != nil {
+		fn(name, data)
+	}
+}
+
+func (e *emitterRelay) set(fn EmitFunc) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.fn = fn
+}
 
 type Deps struct {
 	AppRoot string
@@ -21,11 +51,14 @@ type Deps struct {
 }
 
 type App struct {
-	System *system.Service
-	Config *config.Service
-	Sfr    *sfr.Service
+	System  *system.Service
+	Config  *config.Service
+	Sfr     *sfr.Service
+	Journal *journal.Service
 
-	deps Deps
+	journalManager *journal.Manager
+	emitter        *emitterRelay
+	deps           Deps
 }
 
 func New(d Deps) (*App, error) {
@@ -47,14 +80,42 @@ func New(d Deps) (*App, error) {
 
 	sfrM := sfr.NewManager(sysM, d.Logger)
 
+	emitter := &emitterRelay{}
+	jrnM := journal.NewManager(sysM, d.Logger, emitter)
+
+	// Wire journal as the emitter for system FS mutations and as the
+	// configurer that listens to context-folder/backend changes from config.
+	sysM.SetJournal(jrnM)
+	cfgM.SetJournal(jrnM)
+
+	// Trigger an initial Configure so the journal picks up the freshly
+	// loaded config without waiting for the next save.
+	if cfg, err := cfgM.LoadUserConfig(); err == nil {
+		_ = jrnM.Configure(cfg.ContextFolder, cfg.RemoteBackend)
+		// Best-effort baseline seed; harmless if log already exists.
+		_ = jrnM.Init()
+	}
+
 	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
 
 	return &App{
-		System: system.NewService(sysM),
-		Config: config.NewService(cfgM),
-		Sfr:    sfr.NewService(sfrM),
-		deps:   d,
+		System:         system.NewService(sysM),
+		Config:         config.NewService(cfgM),
+		Sfr:            sfr.NewService(sfrM),
+		Journal:        journal.NewService(jrnM),
+		journalManager: jrnM,
+		emitter:        emitter,
+		deps:           d,
 	}, nil
+}
+
+// SetEmit installs the transport that journal events flow through.
+// main.go calls this after building the Wails application.
+func (a *App) SetEmit(fn EmitFunc) {
+	if a == nil || a.emitter == nil {
+		return
+	}
+	a.emitter.set(fn)
 }
 
 func (a *App) Logger() *slog.Logger { return a.deps.Logger }

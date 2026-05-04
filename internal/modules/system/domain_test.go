@@ -48,6 +48,23 @@ func TestEnsureDirectory_CreatesNested(t *testing.T) {
 	}
 }
 
+func TestAppendFile_CreatesAndAppends(t *testing.T) {
+	m, _ := newTestManager(t)
+	if err := m.AppendFile("log/x.log", "line1\n"); err != nil {
+		t.Fatalf("first AppendFile: %v", err)
+	}
+	if err := m.AppendFile("log/x.log", "line2\n"); err != nil {
+		t.Fatalf("second AppendFile: %v", err)
+	}
+	got, err := m.LoadFile("log/x.log")
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	if got != "line1\nline2\n" {
+		t.Fatalf("AppendFile content = %q, want %q", got, "line1\nline2\n")
+	}
+}
+
 func TestSaveLoadFile_RoundTrip(t *testing.T) {
 	m, _ := newTestManager(t)
 	const content = "hello\nworld\n"

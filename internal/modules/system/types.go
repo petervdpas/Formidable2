@@ -10,6 +10,7 @@ type FS interface {
 	FileExists(path string) bool
 	LoadFile(path string) (string, error)
 	SaveFile(path string, content string) error
+	AppendFile(path string, content string) error
 	DeleteFile(path string) error
 	DeleteFolder(path string) error
 	EmptyFolder(path string) error

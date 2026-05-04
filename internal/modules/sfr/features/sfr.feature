@@ -65,3 +65,19 @@ Feature: SingleFileRepository (SFR)
   Scenario: Empty base filename is rejected
     When I save under "storage/basic" with base "" and data {"x":1}
     Then the save result is a failure
+
+  Scenario: Backslash in base filename is rejected
+    When I save under "storage/basic" with base "win\\path" and data {"x":1}
+    Then the save result is a failure
+
+  Scenario: Lone dot as base filename is rejected
+    When I save under "storage/basic" with base "." and data {"x":1}
+    Then the save result is a failure
+
+  Scenario: Delete on a missing entry is a no-op (no error)
+    When I delete under "storage/basic" with base "ghost"
+    Then the file "storage/basic/ghost.meta.json" does not exist
+
+  Scenario: Listing a missing directory returns an error
+    When I list files under "never/created"
+    Then the list returns an error

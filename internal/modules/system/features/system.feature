@@ -43,3 +43,27 @@ Feature: System filesystem operations
     And I save "j.txt" with content "second"
     And I delete "j.txt"
     Then the journal recorded operations create, update, delete
+
+  Scenario: Loading a missing file returns an error
+    When I load "missing.txt"
+    Then the load returns an error
+
+  Scenario: AppendFile creates a missing file then appends to it
+    When I append to "log/x.log" the content "line1\n"
+    Then the file "log/x.log" exists
+    When I append to "log/x.log" the content "line2\n"
+    Then loading "log/x.log" returns "line1\nline2\n"
+
+  Scenario: EmptyFolder errors when the directory does not exist
+    When I empty the folder "nope"
+    Then an error occurred
+
+  Scenario: DeleteFolder removes a tree recursively
+    Given the file "tree/a.txt" with content "a"
+    And the file "tree/sub/b.txt" with content "b"
+    When I delete the folder "tree"
+    Then the folder "tree" does not exist
+
+  Scenario: ExecuteCommand rejects an empty command
+    When I execute the command "   "
+    Then an error occurred

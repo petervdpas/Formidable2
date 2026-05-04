@@ -413,19 +413,15 @@ func TestImportUserProfile_ExistsWithoutOverwrite(t *testing.T) {
 
 type stubJournal struct {
 	configures int
-	inits      int
 	lastCtx    string
 	lastBack   string
 }
 
-func (s *stubJournal) Configure(ctx, backend string) {
+func (s *stubJournal) Configure(ctx, backend string) error {
 	s.configures++
 	s.lastCtx = ctx
 	s.lastBack = backend
-}
-func (s *stubJournal) Init() (bool, int, string) {
-	s.inits++
-	return false, 0, "no-op"
+	return nil
 }
 
 func TestJournalSyncOnLoad(t *testing.T) {

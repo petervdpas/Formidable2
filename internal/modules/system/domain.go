@@ -105,6 +105,25 @@ func (m *Manager) SaveFile(path string, content string) error {
 	return nil
 }
 
+// AppendFile opens path in append mode (creating it if missing) and writes
+// content. Used by journal-style append-only logs. Does not emit a journal
+// op of its own — journals control their own emission policy.
+func (m *Manager) AppendFile(path string, content string) error {
+	full := m.ResolvePath(path)
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.WriteString(content); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (m *Manager) DeleteFile(path string) error {
 	full := m.ResolvePath(path)
 	if !fileExists(full) {

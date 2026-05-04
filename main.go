@@ -6,11 +6,18 @@ import (
 	"os"
 
 	"github.com/petervdpas/formidable2/internal/app"
+	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+func init() {
+	// Register journal events with the Wails binding generator so the
+	// frontend gets typed signatures.
+	application.RegisterEvent[journal.Entry](journal.EventChanged)
+}
 
 func main() {
 	cwd, _ := os.Getwd()
@@ -30,6 +37,11 @@ func main() {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
+	})
+
+	// Bridge journal events into Wails events.
+	a.SetEmit(func(name string, data any) {
+		wapp.Event.Emit(name, data)
 	})
 
 	wapp.Window.NewWithOptions(application.WebviewWindowOptions{

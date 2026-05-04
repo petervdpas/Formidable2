@@ -208,7 +208,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 - Methods: `listHelpTopics`, `getHelpTopic`. Read from embedded `help/` markdown.
 - HTTP routes.
 
-### F-504 — `journal` module  [size: S] [TODO]
+### F-504 — `journal` module  [size: S] [DONE]
 - Methods: `journalPending`, `journalCursor`. Mirrors `controls/changeJournal.js`.
 - HTTP routes.
 

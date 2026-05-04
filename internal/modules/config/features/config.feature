@@ -56,3 +56,36 @@ Feature: User configuration management
     Then the virtual structure contains template "basic"
     And the folder "storage/basic" exists
     And the folder "storage/basic/images" exists
+
+  Scenario: Deleting a non-existent profile returns not_found
+    When I delete the profile "ghost.json"
+    Then the delete result is failure with code "not_found"
+
+  Scenario: Exporting a non-existent profile returns not_found
+    When I export the profile "ghost.json" to "exports/out.json"
+    Then the export result is failure with code "not_found"
+
+  Scenario: Importing the same profile twice without overwrite is rejected
+    Given an external profile file "import.json" exists with theme "dark"
+    When I import the profile from "import.json" as "alt.json"
+    Then the import result is success with filename "alt.json"
+    When I import the profile from "import.json" as "alt.json"
+    Then the import result is failure with code "exists"
+
+  Scenario: Importing boot.json as a profile is rejected
+    Given an external profile file "import.json" exists with theme "dark"
+    When I import the profile from "import.json" as "boot.json"
+    Then the import result is failure with code "boot_forbidden"
+
+  Scenario: Importing an invalid file is rejected
+    Given an external file "bad.json" exists with content "not json {[}"
+    When I import the profile from "bad.json" as "alt.json"
+    Then the import result is failure with code "invalid_config"
+
+  Scenario: Loading a config with missing fields fills defaults and rewrites the file
+    Given the file "config/user.json" with content '{"theme":"dark"}'
+    When I load the config
+    Then the loaded config has theme "dark"
+    And the loaded config has language "en"
+    And the loaded config has internal_server_port 8383
+    And the disk file "config/user.json" reflects theme "dark"

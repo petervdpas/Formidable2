@@ -94,6 +94,10 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		return w.sys.SaveFile(path, content)
 	})
 
+	ctx.Step(`^the file "([^"]*)" with content '([^']*)'$`, func(path, content string) error {
+		return w.sys.SaveFile(path, content)
+	})
+
 	// ── Whens ─────────────────────────────────────────────────────────
 
 	ctx.Step(`^I update the config with theme "([^"]*)" and font_size (\d+)$`, func(theme string, size int) error {
@@ -114,6 +118,36 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I delete the profile "([^"]*)"$`, func(filename string) error {
 		w.deleteResult = w.m.DeleteUserProfile(filename)
 		return nil
+	})
+
+	ctx.Step(`^I export the profile "([^"]*)" to "([^"]*)"$`, func(filename, target string) error {
+		w.exportResult = w.m.ExportUserProfile(filename, filepath.Join(w.tmp, target), false)
+		return nil
+	})
+
+	ctx.Step(`^I import the profile from "([^"]*)" as "([^"]*)"$`, func(source, name string) error {
+		w.importResult = w.m.ImportUserProfile(filepath.Join(w.tmp, source), name, false)
+		return nil
+	})
+
+	ctx.Step(`^I load the config$`, func() error {
+		_, w.lastErr = w.m.LoadUserConfig()
+		return nil
+	})
+
+	ctx.Step(`^an external profile file "([^"]*)" exists with theme "([^"]*)"$`, func(filename, theme string) error {
+		alt := defaultConfig()
+		alt.Theme = theme
+		bytes, err := json.MarshalIndent(alt, "", "  ")
+		if err != nil {
+			return err
+		}
+		return w.sys.SaveFile(filename, string(bytes))
+	})
+
+	ctx.Step(`^an external file "([^"]*)" exists with content "([^"]*)"$`, func(filename, content string) error {
+		decoded := strings.ReplaceAll(content, `\n`, "\n")
+		return w.sys.SaveFile(filename, decoded)
 	})
 
 	ctx.Step(`^I list available profiles$`, func() error {
@@ -238,6 +272,36 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		}
 		if w.deleteResult.Code != code {
 			return fmt.Errorf("delete code = %q, want %q", w.deleteResult.Code, code)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the export result is failure with code "([^"]*)"$`, func(code string) error {
+		if w.exportResult.Success {
+			return fmt.Errorf("expected failure, got success: %+v", w.exportResult)
+		}
+		if w.exportResult.Code != code {
+			return fmt.Errorf("export code = %q, want %q", w.exportResult.Code, code)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the import result is success with filename "([^"]*)"$`, func(filename string) error {
+		if !w.importResult.Success {
+			return fmt.Errorf("expected success, got: %+v", w.importResult)
+		}
+		if w.importResult.Filename != filename {
+			return fmt.Errorf("import filename = %q, want %q", w.importResult.Filename, filename)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the import result is failure with code "([^"]*)"$`, func(code string) error {
+		if w.importResult.Success {
+			return fmt.Errorf("expected failure, got success: %+v", w.importResult)
+		}
+		if w.importResult.Code != code {
+			return fmt.Errorf("import code = %q, want %q", w.importResult.Code, code)
 		}
 		return nil
 	})

@@ -694,13 +694,8 @@ func (m *Manager) syncJournal(cfg *Config) {
 	if j == nil {
 		return
 	}
-	j.Configure(cfg.ContextFolder, cfg.RemoteBackend)
-	created, entries, reason := j.Init()
-	if created {
-		m.log.Info("journal initialized",
-			"context", cfg.ContextFolder, "entries", entries)
-	} else {
-		m.log.Debug("journal init skipped", "reason", reason)
+	if err := j.Configure(cfg.ContextFolder, cfg.RemoteBackend); err != nil {
+		m.log.Warn("journal configure failed", "err", err, "context", cfg.ContextFolder)
 	}
 }
 

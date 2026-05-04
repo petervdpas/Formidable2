@@ -126,9 +126,13 @@ type ProfileResult struct {
 }
 
 // JournalConfigurer lets the journal module observe config changes
-// without config depending on it. Wired in `internal/app/app.go`
-// once F-504 lands. Nil journal is treated as a no-op throughout.
+// without config depending on it. Wired in `internal/app/app.go`.
+// Nil journal is treated as a no-op throughout.
+//
+// Init/baseline seeding is intentionally NOT part of this interface —
+// the composition root calls journal.Manager.Init() once at startup
+// and again on profile/context switches, since the timing rules differ
+// from "every config load."
 type JournalConfigurer interface {
-	Configure(contextFolder, backend string)
-	Init() (created bool, entries int, reason string)
+	Configure(contextFolder, backend string) error
 }

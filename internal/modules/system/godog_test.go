@@ -109,6 +109,27 @@ func initSystemScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^I delete the folder "([^"]*)"$`, func(path string) error {
+		w.lastErr = w.m.DeleteFolder(path)
+		return nil
+	})
+
+	ctx.Step(`^I append to "([^"]*)" the content "([^"]*)"$`, func(path, content string) error {
+		decoded := strings.ReplaceAll(content, `\n`, "\n")
+		w.lastErr = w.m.AppendFile(path, decoded)
+		return nil
+	})
+
+	ctx.Step(`^I load "([^"]*)"$`, func(path string) error {
+		_, w.lastErr = w.m.LoadFile(path)
+		return nil
+	})
+
+	ctx.Step(`^I execute the command "([^"]*)"$`, func(cmd string) error {
+		_, w.lastErr = w.m.ExecuteCommand(cmd)
+		return nil
+	})
+
 	// ── Thens ─────────────────────────────────────────────────────────
 
 	ctx.Step(`^the file "([^"]*)" exists$`, func(path string) error {
@@ -130,8 +151,9 @@ func initSystemScenario(ctx *godog.ScenarioContext) {
 		if err != nil {
 			return err
 		}
-		if got != want {
-			return fmt.Errorf("loaded %q, want %q", got, want)
+		decoded := strings.ReplaceAll(want, `\n`, "\n")
+		if got != decoded {
+			return fmt.Errorf("loaded %q, want %q", got, decoded)
 		}
 		w.lastLoad = got
 		return nil
@@ -140,6 +162,28 @@ func initSystemScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^no error occurred$`, func() error {
 		if w.lastErr != nil {
 			return fmt.Errorf("expected no error, got: %v", w.lastErr)
+		}
+		return nil
+	})
+
+	ctx.Step(`^an error occurred$`, func() error {
+		if w.lastErr == nil {
+			return fmt.Errorf("expected an error, got nil")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the load returns an error$`, func() error {
+		if w.lastErr == nil {
+			return fmt.Errorf("expected load error, got nil")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the folder "([^"]*)" does not exist$`, func(path string) error {
+		full := w.m.ResolvePath(path)
+		if _, err := os.Stat(full); err == nil {
+			return fmt.Errorf("expected folder %q to NOT exist", path)
 		}
 		return nil
 	})
