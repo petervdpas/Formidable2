@@ -30,7 +30,7 @@ Maps each `window.api.*` and `window.electron.*` group from `/home/peter/Project
 | `devtools.toggle` | webview window method |
 | `window.{reload,minimize,maximize,close}` | `WebviewWindow.*` methods |
 | `clipboard.{writeText,readText}` | `application.Clipboard` |
-| `sfr.*` | `internal/modules/sfr` (storage-from-relative; Wails-only, no HTTP) |
+| `sfr.*` | `internal/modules/sfr` (SingleFileRepository; Wails-only, no HTTP) |
 
 ## Frontend bindings paths
 
@@ -64,7 +64,7 @@ config  ←  templates  ←  forms ──┐
 internal/server  ────────────────┘  (wiki + REST mount points)
 
 system   (FS primitive — used by everything else)
-sfr      (storage-from-relative; depends on system + config)
+sfr      (SingleFileRepository; depends on system)
 git      (depends on system; reads repo path from config)
 gigot    (depends on system, config, journal; pure HTTP client to remote GiGot server)
 journal  (depends on config; append-only log + per-backend cursor)

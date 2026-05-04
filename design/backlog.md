@@ -63,8 +63,8 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 - [ ] `ConfigReader` interface exposed for downstream modules.
 - [ ] Tests for load/save/cache invalidation, profile switching, virtual-structure rebuild.
 
-### F-103 — `sfr` module skeleton  [size: S] [TODO]
-**As a** developer, **I want** the storage-from-relative helpers, **so that** the frontend can read/write within profile-relative paths.
+### F-103 — `sfr` module skeleton  [size: S] [DONE]
+**As a** developer, **I want** the SingleFileRepository (SFR) helpers, **so that** the frontend can read/write blob files in a directory by base filename without worrying about extension or format details.
 
 **Acceptance**
 - [ ] Module folder, Wails-only (no HTTP).

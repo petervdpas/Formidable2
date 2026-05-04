@@ -11,6 +11,7 @@ import (
 
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/config"
+	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 )
 
@@ -22,6 +23,7 @@ type Deps struct {
 type App struct {
 	System *system.Service
 	Config *config.Service
+	Sfr    *sfr.Service
 
 	deps Deps
 }
@@ -43,11 +45,14 @@ func New(d Deps) (*App, error) {
 		return nil, err
 	}
 
+	sfrM := sfr.NewManager(sysM, d.Logger)
+
 	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
 
 	return &App{
 		System: system.NewService(sysM),
 		Config: config.NewService(cfgM),
+		Sfr:    sfr.NewService(sfrM),
 		deps:   d,
 	}, nil
 }
