@@ -32,6 +32,7 @@ See [architecture.md](architecture.md), [migration-plan.md](migration-plan.md), 
 | F-006 | Deep-read of Formidable + findings doc + source-docs copy | M | DONE |
 | F-007 | Git init + first commit + push to private GitHub remote (user) | S | DONE |
 | F-008 | Remove greet demo module + frontend wiring | S | DONE |
+| F-009 | Switch default `task dev` to a watcher-less build+run pipeline so window close exits cleanly. Old behavior moved to `task dev:watch`. | S | DONE |
 
 ---
 

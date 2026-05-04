@@ -30,7 +30,18 @@ tasks:
       - task: "{{OS}}:run"
 
   dev:
-    summary: Runs the application in development mode
+    summary: Build and run the app; closing the window exits cleanly (no watcher)
+    cmds:
+      - wails3 generate bindings -clean=true -ts
+      - task: "{{OS}}:common:install:frontend:deps"
+      - task: "common:build:frontend"
+        vars: {DEV: "true"}
+      - task: "{{OS}}:build"
+        vars: {DEV: "true"}
+      - task: "{{OS}}:run"
+
+  dev:watch:
+    summary: Hot-reload dev mode via wails3 dev (window close requires Ctrl-C to stop watcher)
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
