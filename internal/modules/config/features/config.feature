@@ -84,6 +84,7 @@ Feature: User configuration management
 
   Scenario: Loading a config with missing fields fills defaults and rewrites the file
     Given the file "config/user.json" with content '{"theme":"dark"}'
+    And I invalidate the config cache
     When I load the config
     Then the loaded config has theme "dark"
     And the loaded config has language "en"

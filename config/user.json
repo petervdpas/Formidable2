@@ -12,7 +12,7 @@
   "logging_enabled": false,
   "enable_plugins": false,
   "context_mode": "template",
-  "context_folder": "./",
+  "context_folder": "./Examples",
   "selected_template": "basic.yaml",
   "selected_data_file": "",
   "author_name": "unknown",

@@ -22,6 +22,21 @@ func newTestManager(t *testing.T) (*Manager, *system.Manager, string) {
 	return m, sys, root
 }
 
+// newTestManagerRootContext is like newTestManager but overrides the
+// first-run "./Examples" default to "./" so legacy tests using
+// root-relative paths (templates/..., storage/...) keep working.
+// Use this for VFS / journal / placement tests that don't care about
+// the default context folder. Use newTestManager for first-run / default
+// behavior tests.
+func newTestManagerRootContext(t *testing.T) (*Manager, *system.Manager, string) {
+	t.Helper()
+	m, sys, root := newTestManager(t)
+	if _, err := m.UpdateUserConfig(map[string]any{"context_folder": "./"}); err != nil {
+		t.Fatalf("override context_folder: %v", err)
+	}
+	return m, sys, root
+}
+
 // ----- Initialization & defaults -------------------------------------
 
 func TestNewManager_SeedsBootAndUserConfig(t *testing.T) {
@@ -44,6 +59,17 @@ func TestNewManager_SeedsBootAndUserConfig(t *testing.T) {
 	}
 	if cfg.WindowBounds.Width != 1024 {
 		t.Errorf("WindowBounds.Width default = %d, want 1024", cfg.WindowBounds.Width)
+	}
+}
+
+func TestNewManager_FirstRunContextFolderIsExamples(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if cfg.ContextFolder != "./Examples" {
+		t.Errorf("first-run context_folder = %q, want %q", cfg.ContextFolder, "./Examples")
 	}
 }
 
@@ -152,7 +178,7 @@ func TestInvalidateConfigCache_ReloadsFromDisk(t *testing.T) {
 // ----- Virtual structure --------------------------------------------
 
 func TestVirtualStructure_AutoCreatesContextDirs(t *testing.T) {
-	m, sys, root := newTestManager(t)
+	m, sys, root := newTestManagerRootContext(t)
 	_, err := m.GetVirtualStructure()
 	if err != nil {
 		t.Fatalf("GetVirtualStructure: %v", err)
@@ -167,7 +193,7 @@ func TestVirtualStructure_AutoCreatesContextDirs(t *testing.T) {
 }
 
 func TestVirtualStructure_ScansTemplatesAndCreatesStorageFolders(t *testing.T) {
-	m, sys, root := newTestManager(t)
+	m, sys, root := newTestManagerRootContext(t)
 
 	// Seed two templates.
 	_ = sys.SaveFile("templates/basic.yaml", "name: Basic\nfields: []\n")
@@ -196,7 +222,7 @@ func TestVirtualStructure_ScansTemplatesAndCreatesStorageFolders(t *testing.T) {
 }
 
 func TestVirtualStructure_ListsMetaAndImageFiles(t *testing.T) {
-	m, sys, _ := newTestManager(t)
+	m, sys, _ := newTestManagerRootContext(t)
 	_ = sys.SaveFile("templates/basic.yaml", "name: Basic")
 	// Ensure folders exist via first call
 	_, _ = m.GetVirtualStructure()
@@ -217,13 +243,18 @@ func TestVirtualStructure_ListsMetaAndImageFiles(t *testing.T) {
 }
 
 func TestVirtualStructure_TTLRebuild(t *testing.T) {
-	m, sys, _ := newTestManager(t)
+	m, sys, _ := newTestManagerRootContext(t)
 
 	clock := time.Date(2026, 5, 4, 22, 0, 0, 0, time.UTC)
 	m.SetNowFn(func() time.Time { return clock })
 	m.SetTTL(5 * time.Second)
 
 	_ = sys.SaveFile("templates/basic.yaml", "name: Basic")
+	// Force the very first GetVirtualStructure to rebuild against the
+	// frozen clock — without this, the lastBuilt timestamp comes from
+	// real time.Now() at construction, which throws off the staleness
+	// math under the injected clock.
+	m.DirtyVirtualStructure()
 	v1, _ := m.GetVirtualStructure()
 	if _, ok := v1.TemplateStorageFolders["basic"]; !ok {
 		t.Fatal("basic missing from initial VFS")
@@ -245,7 +276,7 @@ func TestVirtualStructure_TTLRebuild(t *testing.T) {
 }
 
 func TestDirtyVirtualStructure_ForcesRebuild(t *testing.T) {
-	m, sys, _ := newTestManager(t)
+	m, sys, _ := newTestManagerRootContext(t)
 	_ = sys.SaveFile("templates/basic.yaml", "name: Basic")
 	_, _ = m.GetVirtualStructure()
 	_ = sys.SaveFile("templates/added.yaml", "name: Added")
@@ -437,8 +468,8 @@ func TestJournalSyncOnLoad(t *testing.T) {
 	if j.configures < 1 {
 		t.Errorf("expected at least one Configure call, got %d", j.configures)
 	}
-	if j.lastCtx != "./" {
-		t.Errorf("ctx forwarded = %q, want \"./\"", j.lastCtx)
+	if j.lastCtx != "./Examples" {
+		t.Errorf("ctx forwarded = %q, want \"./Examples\"", j.lastCtx)
 	}
 	if j.lastBack != "none" {
 		t.Errorf("backend forwarded = %q, want \"none\"", j.lastBack)

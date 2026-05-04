@@ -75,6 +75,14 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		if err != nil {
 			return err
 		}
+		// Scenarios use root-relative paths (templates/..., storage/...)
+		// for readability. The first-run default is "./Examples"; override
+		// to "./" so the VFS scanner finds files at the repo root.
+		// The "first-run uses ./Examples" promise is exercised by a
+		// dedicated unit test (TestNewManager_FirstRunContextFolderIsExamples).
+		if _, err := m.UpdateUserConfig(map[string]any{"context_folder": "./"}); err != nil {
+			return err
+		}
 		w.m = m
 		return nil
 	})
@@ -132,6 +140,11 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I load the config$`, func() error {
 		_, w.lastErr = w.m.LoadUserConfig()
+		return nil
+	})
+
+	ctx.Step(`^I invalidate the config cache$`, func() error {
+		w.m.InvalidateConfigCache()
 		return nil
 	})
 

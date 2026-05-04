@@ -5,8 +5,22 @@ frontend/node_modules
 build/linux/appimage/build
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 
-formidable.log                                                                
-.DS_Store       
+# Runtime user data: lives under context_folder which defaults to ./Examples
+# in dev. The Examples/ tree is dev-only sample data and never tracked.
+Examples/
+
+# Local config (per-machine; first-run default points at Examples/).
+config/
+
+# Stale roots from earlier dev runs before context_folder defaulted to
+# Examples — keep ignored so we don't accidentally commit them.
+/templates/
+/storage/
+/.changes.log
+/.changes.cursor
+
+formidable.log
+.DS_Store
 .idea/
 .vscode/
-*.swp 
+*.swp

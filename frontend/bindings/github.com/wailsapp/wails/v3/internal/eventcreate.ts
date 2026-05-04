@@ -6,4 +6,17 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
-Object.freeze($Create.Events);
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as journal$0 from "../../../../petervdpas/formidable2/internal/modules/journal/models.js";
+
+function configure() {
+    Object.freeze(Object.assign($Create.Events, {
+        "journal:changed": $$createType0,
+    }));
+}
+
+// Private type creation functions
+const $$createType0 = journal$0.Entry.createFrom;
+
+configure();
