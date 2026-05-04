@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=Formidable
+Comment=Editor for templates and Markdown forms
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/formidable2 %u
+Terminal=false
+Type=Application
+Icon=formidable2
+Categories=Utility;
+StartupWMClass=formidable2
+
+ 

@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "3.0.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "3.0.0",
+			"CompanyName": "Peter van de Pas",
+			"FileDescription": "Editor for templates and Markdown forms",
+			"LegalCopyright": "© 2026, My Company",
+			"ProductName": "Formidable",
+			"Comments": "This is a comment"
+		}
+	}
+}

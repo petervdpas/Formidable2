@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MsixPackagingToolTemplate
+    xmlns="http://schemas.microsoft.com/msix/packaging/msixpackagingtool/template/2022">
+    <Settings
+        AllowTelemetry="false"
+        ApplyACLsToPackageFiles="true"
+        GenerateCommandLineFile="true"
+        AllowPromptForPassword="false">
+    </Settings>
+    <Installer
+        Path="formidable2"
+        Arguments=""
+        InstallLocation="C:\Program Files\Peter van de Pas\Formidable">
+    </Installer>
+    <PackageInformation
+        PackageName="Formidable"
+        PackageDisplayName="Formidable"
+        PublisherName="CN=Peter van de Pas"
+        PublisherDisplayName="Peter van de Pas"
+        Version="3.0.0.0"
+        PackageDescription="Editor for templates and Markdown forms">
+        <Capabilities>
+            <Capability Name="runFullTrust" />
+            
+        </Capabilities>
+        <Applications>
+            <Application
+                Id="com.formidable.editor"
+                Description="Editor for templates and Markdown forms"
+                DisplayName="Formidable"
+                ExecutableName="formidable2"
+                EntryPoint="Windows.FullTrustApplication">
+                
+            </Application>
+        </Applications>
+        <Resources>
+            <Resource Language="en-us" />
+        </Resources>
+        <Dependencies>
+            <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+        </Dependencies>
+        <Properties>
+            <Framework>false</Framework>
+            <DisplayName>Formidable</DisplayName>
+            <PublisherDisplayName>Peter van de Pas</PublisherDisplayName>
+            <Description>Editor for templates and Markdown forms</Description>
+            <Logo>Assets\AppIcon.png</Logo>
+        </Properties>
+    </PackageInformation>
+    <SaveLocation PackagePath="formidable2.msix" />
+    <PackageIntegrity>
+        <CertificatePath></CertificatePath>
+    </PackageIntegrity>
+</MsixPackagingToolTemplate>
