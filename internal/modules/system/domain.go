@@ -3,7 +3,6 @@ package system
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -378,7 +377,3 @@ func fileExists(p string) bool {
 
 // guard: *Manager must satisfy FS.
 var _ FS = (*Manager)(nil)
-
-// Build-time guard kept here to avoid an unused-import warning if fmt
-// becomes unreferenced elsewhere in this package.
-var _ = fmt.Sprintf

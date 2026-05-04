@@ -29,6 +29,9 @@ See [architecture.md](architecture.md), [migration-plan.md](migration-plan.md), 
 | F-003 | Move greet demo into `internal/services/greet` | S | DONE |
 | F-004 | Save context to memory (Formidable→Wails3 port) | S | DONE |
 | F-005 | Author design docs (architecture, migration-plan, ipc-mapping, backlog) | S | DONE |
+| F-006 | Deep-read of Formidable + findings doc + source-docs copy | M | DONE |
+| F-007 | Git init + first commit + push to private GitHub remote (user) | S | DONE |
+| F-008 | Remove greet demo module + frontend wiring | S | DONE |
 
 ---
 
@@ -36,7 +39,7 @@ See [architecture.md](architecture.md), [migration-plan.md](migration-plan.md), 
 
 Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 
-### F-101 — `system` module skeleton  [size: M] [TODO]
+### F-101 — `system` module skeleton  [size: M] [DONE]
 **As a** developer, **I want** a `system` module that wraps filesystem operations, **so that** other modules can depend on a clean FS interface instead of `os` directly.
 
 **Acceptance**
@@ -76,7 +79,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 - [ ] Log level configurable from env (`FORMIDABLE_LOG_LEVEL`).
 - [ ] `nodeLogger.js` references in ported frontend swap to `console.*` or a thin `log` binding.
 
-### F-105 — Composition root scaffold  [size: M] [TODO]
+### F-105 — Composition root scaffold  [size: M] [DONE]
 **As a** developer, **I want** `internal/app/{app,services,routes}.go` in place, **so that** new modules drop into a single registration list.
 
 **Acceptance**
@@ -148,24 +151,27 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 
 ---
 
-## Epic 3 — Templates & Forms
+## Epic 3 — Template & Storage
 
-### F-301 — `templates` module  [size: L] [TODO]
+### F-301 — `template` module  [size: L] [TODO]
 - Mirrors `controls/templateManager.js` (526 lines).
-- Methods from `api.templates.*`: `listTemplates`, `loadTemplate`, `saveTemplate`, `deleteTemplate`, `validateTemplate`, `getTemplateDescriptor`, `getItemFields`.
+- Owns `<context>/templates/<name>.yaml` files.
+- Methods (frontend-visible names match old `api.templates.*`): `ListTemplates`, `LoadTemplate`, `SaveTemplate`, `DeleteTemplate`, `ValidateTemplate`, `GetTemplateDescriptor`, `GetItemFields`, `SeedBasicIfEmpty`, `EnsureTemplateDirectory`.
+- Schema validation matches `Formidable/schemas/template.schema.js` + `field.schema.js` (20 field types, type-specific normalization for code/latex/api/textarea, etc.).
 - HTTP routes for read paths.
 - Depends on F-101 (system), F-102 (config).
 
-### F-302 — `forms` module  [size: L] [TODO]
+### F-302 — `storage` module  [size: L] [TODO]
 - Mirrors `controls/formManager.js`.
-- **Storage format**: JSON `.meta.json` files at `<context>/storage/<template-name>/<form>.meta.json`. Filename derived from `slugify(data[item_field])` with numeric collision suffix, falling back to GUID.
-- Methods from `api.forms.*`: `ensureFormDir`, `listForms`, `extendedListForms`, `loadForm`, `saveForm`, `saveImageFile`, `deleteForm`.
+- Owns `<context>/storage/<template-name>/` — form `.meta.json` files + `images/` subfolder.
+- **Storage format**: JSON `.meta.json` (NOT YAML). Filename derived from `slugify(data[item_field])` with numeric collision suffix; falls back to GUID.
+- Methods (frontend-visible names match old `api.forms.*`): `EnsureFormDir`, `ListForms`, `ExtendedListForms`, `LoadForm`, `SaveForm`, `SaveImageFile`, `DeleteForm`.
 - HTTP routes for read + create.
-- Every mutation must call `config.dirtyVirtualStructure()` to invalidate the VFS cache.
+- Every mutation calls `config.dirtyVirtualStructure()` to invalidate the VFS cache.
 - Depends on F-101, F-102, F-301.
 
 ### F-303 — Frontend wire-up: editor flow  [size: M] [TODO]
-- Switch the template editor and form renderer to use new `templates.Service` + `forms.Service` bindings.
+- Switch the template editor and form renderer to use new `template.Service` + `storage.Service` bindings.
 - End-to-end smoke test: open a template, render a form, save a form, reload, verify content.
 
 ---
@@ -324,7 +330,7 @@ This is **not deferrable** — Formidable's local server is a real product surfa
   - Create `config/boot.json` and `config/user.json` with defaults if missing.
   - Copy bundled `examples/` to user data dir on first run.
   - Set `context_folder` default to `./examples`.
-- Templates seeded via `templates.SeedBasicIfEmpty()`.
+- Templates seeded via `template.SeedBasicIfEmpty()`.
 
 ### F-901 — Linux deb + AppImage  [size: M] [TODO]
 - Verify Wails-generated `.desktop`, icon, AppImage build.

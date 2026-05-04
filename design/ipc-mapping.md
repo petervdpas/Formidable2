@@ -14,8 +14,8 @@ Maps each `window.api.*` and `window.electron.*` group from `/home/peter/Project
 | `gigot` | `internal/modules/gigot` | no | **Remote sync** to a GiGot HTTP server with bearer auth. Wails-only — sync transport never goes through the local server. |
 | `journal` | `internal/modules/journal` | yes | `pending`, `cursor`. |
 | `config` | `internal/modules/config` | yes | Profiles, paths, virtual structure (TTL cache lives here). |
-| `templates` | `internal/modules/templates` | yes | List/load/save/delete/validate, descriptors, item fields, meta+image files. **Storage format is YAML** at `templates/<name>.yaml`. |
-| `forms` | `internal/modules/forms` | yes | List/load/save/delete + image save. **Storage format is JSON `.meta.json` files** under `storage/<template>/`, not YAML. |
+| `templates` | `internal/modules/template` | yes | List/load/save/delete/validate, descriptors, item fields. **Storage format is YAML** at `<context>/templates/<name>.yaml`. Module name singular per data-model concept. |
+| `forms` | `internal/modules/storage` | yes | List/load/save/delete + image save. **Storage format is JSON `.meta.json` files** under `<context>/storage/<template-name>/`, not YAML. Module renamed `storage` (the disk concept), not `forms` (the IPC group). |
 | `csv` | `internal/modules/csv` | yes | `encoding/csv` for preview/import/write. |
 | `transform` | `internal/modules/transform` | yes | Markdown/HTML/frontmatter/mini-expr. JS-side rendering preferred (see migration-plan). |
 | `system` | `internal/modules/system` | **no** | Raw filesystem + `proxyFetchRemote`. Keep Wails-only — too sensitive for HTTP. |
