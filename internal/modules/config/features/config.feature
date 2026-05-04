@@ -1,0 +1,58 @@
+Feature: User configuration management
+  Formidable2 keeps user preferences in a JSON profile file under
+  config/, with boot.json pointing at the active profile. The config
+  manager seeds defaults on first run and supports multiple profiles.
+
+  Background:
+    Given a config manager rooted at a fresh temp directory
+
+  Scenario: First run seeds defaults
+    Then the file "config/boot.json" exists
+    And the file "config/user.json" exists
+    And the active profile filename is "user.json"
+    And the loaded config has theme "light"
+    And the loaded config has language "en"
+    And the loaded config has internal_server_port 8383
+    And the loaded config has font_size 14
+
+  Scenario: Update merges into the cached config and persists
+    When I update the config with theme "dark" and font_size 16
+    Then the loaded config has theme "dark"
+    And the loaded config has font_size 16
+    And the loaded config has language "en"
+    And the disk file "config/user.json" reflects theme "dark"
+
+  Scenario: Switching profiles loads the new one
+    Given a profile "work.json" exists with theme "purplish"
+    When I switch the active profile to "work.json"
+    Then the active profile filename is "work.json"
+    And the loaded config has theme "purplish"
+    And boot.json's active_profile is "work.json"
+
+  Scenario: Active profile cannot be deleted
+    When I delete the profile "user.json"
+    Then the delete result is failure with code "active_profile"
+
+  Scenario: boot.json cannot be deleted
+    When I delete the profile "boot.json"
+    Then the delete result is failure with code "boot_forbidden"
+
+  Scenario: Listing profiles excludes boot.json
+    Given a profile "work.json" exists with theme "dark"
+    When I list available profiles
+    Then the profile list contains "user.json"
+    And the profile list contains "work.json"
+    And the profile list does not contain "boot.json"
+
+  Scenario: Virtual structure auto-creates context layout
+    When I request the virtual structure
+    Then the folder "templates" exists
+    And the folder "storage" exists
+
+  Scenario: Virtual structure picks up new templates after dirty marker
+    Given the file "templates/basic.yaml" with content "name: Basic"
+    When I dirty the virtual structure
+    And I request the virtual structure
+    Then the virtual structure contains template "basic"
+    And the folder "storage/basic" exists
+    And the folder "storage/basic/images" exists

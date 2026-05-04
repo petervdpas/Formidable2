@@ -15,7 +15,10 @@ var assets embed.FS
 func main() {
 	cwd, _ := os.Getwd()
 
-	a := app.New(app.Deps{AppRoot: cwd})
+	a, err := app.New(app.Deps{AppRoot: cwd})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	wapp := application.New(application.Options{
 		Name:        "Formidable2",
@@ -40,7 +43,7 @@ func main() {
 		URL:              "/",
 	})
 
-	if err := wapp.Run(); err != nil {
+	if err = wapp.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

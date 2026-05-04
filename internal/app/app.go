@@ -10,6 +10,7 @@ import (
 	"os"
 
 	applog "github.com/petervdpas/formidable2/internal/log"
+	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 )
 
@@ -20,11 +21,12 @@ type Deps struct {
 
 type App struct {
 	System *system.Service
+	Config *config.Service
 
 	deps Deps
 }
 
-func New(d Deps) *App {
+func New(d Deps) (*App, error) {
 	if d.AppRoot == "" {
 		if cwd, err := os.Getwd(); err == nil {
 			d.AppRoot = cwd
@@ -36,12 +38,18 @@ func New(d Deps) *App {
 
 	sysM := system.NewManager(d.AppRoot, d.Logger)
 
+	cfgM, err := config.NewManager(sysM, d.Logger)
+	if err != nil {
+		return nil, err
+	}
+
 	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
 
 	return &App{
 		System: system.NewService(sysM),
+		Config: config.NewService(cfgM),
 		deps:   d,
-	}
+	}, nil
 }
 
 func (a *App) Logger() *slog.Logger { return a.deps.Logger }

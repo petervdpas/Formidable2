@@ -49,7 +49,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 - [ ] `domain_test.go` covers happy-path + error cases for file ops using `t.TempDir()`.
 - [ ] Service registered in `internal/app/app.go`; binding regenerates as `system.Service`.
 
-### F-102 — `config` module skeleton  [size: L] [TODO]
+### F-102 — `config` module skeleton  [size: L] [DONE]
 **As a** developer, **I want** a `config` module that mirrors the old `configManager.js`, **so that** profile and path resolution is centralized.
 
 **Acceptance**
@@ -71,7 +71,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 - [ ] Path traversal protection (no `..` escape outside base).
 - [ ] Tests cover normal + traversal-attempt paths.
 
-### F-104 — Structured logging  [size: S] [TODO]
+### F-104 — Structured logging  [size: S] [DONE]
 **As a** developer, **I want** `log/slog` writing JSON to `formidable.log` in the same folder as the old app, **so that** I keep observability continuity.
 
 **Acceptance**

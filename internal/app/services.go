@@ -7,5 +7,6 @@ import "github.com/wailsapp/wails/v3/pkg/application"
 func (a *App) WailsServices() []application.Service {
 	return []application.Service{
 		application.NewService(a.System),
+		application.NewService(a.Config),
 	}
 }
