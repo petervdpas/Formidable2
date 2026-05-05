@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 
 	applog "github.com/petervdpas/formidable2/internal/log"
@@ -18,6 +19,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/form"
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
@@ -68,10 +70,12 @@ type App struct {
 	Form     *form.Service
 	I18n     *i18n.Service
 	Dialog   *dialog.Service
+	Render   *render.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
 	formManager     *form.Manager
+	renderManager   *render.Manager
 	journalManager  *journal.Manager
 	emitter         *emitterRelay
 	deps            Deps
@@ -124,6 +128,15 @@ func New(d Deps) (*App, error) {
 	// thin shim so config doesn't have to depend on form's types.
 	formM := form.NewManager(tplM, stoM, &configAdapter{cfg: cfgM}, d.Logger)
 
+	// Render manager — Handlebars→Markdown→HTML pipeline shared by the
+	// Storage workspace's Render button and the future internal HTTP
+	// server. Image URLs resolve to file:// against the on-disk storage
+	// path; the HTTP server replaces this strategy at construction.
+	renderM := render.NewManager(tplM, stoM, func(templateFilename, name string) string {
+		dir := stoM.TemplateImageDir(templateFilename)
+		return "file://" + filepath.ToSlash(filepath.Join(dir, name))
+	}, d.Logger)
+
 	i18nM, err := i18n.NewManager(d.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("init i18n: %w", err)
@@ -158,9 +171,11 @@ func New(d Deps) (*App, error) {
 		Form:            form.NewService(formM),
 		I18n:            i18n.NewService(i18nM),
 		Dialog:          dialog.NewService(),
+		Render:          render.NewService(renderM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
+		renderManager:   renderM,
 		journalManager:  jrnM,
 		emitter:         emitter,
 		deps:            d,

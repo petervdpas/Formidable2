@@ -282,6 +282,14 @@ func (m *Manager) templateDir(templateFilename string) string {
 	return filepath.Join(m.storageDir, name)
 }
 
+// TemplateImageDir returns the absolute filesystem path of the
+// `<storage>/<template>/images/` folder. Public so the render module
+// (and future internal HTTP server) can build URLs without re-deriving
+// storage layout.
+func (m *Manager) TemplateImageDir(templateFilename string) string {
+	return filepath.Join(m.templateDir(templateFilename), imagesDir)
+}
+
 func (m *Manager) fieldsFor(templateFilename string) []template.Field {
 	tpl, err := m.templates.LoadTemplate(templateFilename)
 	if err != nil || tpl == nil {
