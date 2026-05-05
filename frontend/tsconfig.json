@@ -5,17 +5,21 @@
     "noEmit": true,
     "skipLibCheck": true,
 
+    "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    "jsx": "preserve",
 
     "lib": [
       "DOM",
       "DOM.Iterable",
       "ESNext",
     ],
+
+    "types": ["vite/client"],
 
     "strict": true,
     "noUnusedLocals": true,
@@ -24,5 +28,5 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
   },
-  "include": ["src", "bindings"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "bindings"]
 }
