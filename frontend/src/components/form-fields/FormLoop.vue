@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import draggable from "vuedraggable";
 import FormLoopFields from "./FormLoopFields.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
@@ -26,6 +27,12 @@ const emit = defineEmits<{ (e: "update:modelValue", v: unknown[]): void }>();
 // Each item's collapsed state is local UI — independent per item,
 // initialized from the group's default and never persisted.
 const collapsed = ref<boolean[]>(props.modelValue.map(() => props.group.default_collapsed));
+
+// DnD scope — unique per loop instance. Prevents Sortable from
+// accepting items dragged from a sibling or nested loop. The
+// loopstart's start_index is unique within a template, and
+// loop-{key}-{start_index} survives nesting cleanly.
+const dndScope = computed(() => `loop-${props.group.key}-${props.group.start_index}`);
 
 // Coerce any entry to a plain Record for FormLoopFields to bind to.
 function asEntry(v: unknown): Record<string, unknown> {
@@ -91,6 +98,26 @@ function entryProxy(i: number): Record<string, unknown> {
   });
 }
 
+// Writable model for vuedraggable's v-model — get returns the
+// computed entries; set re-emits up the tree. The same one-way
+// flow we used for setEntry, just driven by the array reorder.
+const draggableEntries = computed<Record<string, unknown>[]>({
+  get: () => entries.value,
+  set: (next) => emitEntries(next),
+});
+
+// vuedraggable @change fires after a successful drag. We use
+// `moved` to keep collapsed[] aligned with the new entry order so
+// per-item collapse state travels with the item.
+function onDragChange(evt: { moved?: { oldIndex: number; newIndex: number } }) {
+  if (!evt.moved) return;
+  const { oldIndex, newIndex } = evt.moved;
+  const next = collapsed.value.slice();
+  const [item] = next.splice(oldIndex, 1);
+  next.splice(newIndex, 0, item);
+  collapsed.value = next;
+}
+
 function summaryFor(entry: Record<string, unknown>): string {
   const key = props.group.summary_field_key;
   if (!key) return "";
@@ -114,46 +141,64 @@ function summaryFor(entry: Record<string, unknown>): string {
       (No entries — click + to add one)
     </div>
 
-    <div v-else class="form-loop-list">
-      <div
-        v-for="(entry, i) in entries"
-        :key="i"
-        :class="['form-loop-item', { collapsed: collapsed[i] }]"
-      >
-        <div class="form-loop-item-header">
-          <button
-            type="button"
-            class="form-loop-toggle"
-            :aria-expanded="!collapsed[i]"
-            @click="toggleCollapsed(i)"
-          >{{ collapsed[i] ? '▶' : '▼' }}</button>
+    <draggable
+      v-else
+      v-model="draggableEntries"
+      tag="div"
+      class="form-loop-list"
+      :data-dnd-scope="dndScope"
+      :group="dndScope"
+      handle=".form-loop-handle"
+      :animation="150"
+      ghost-class="form-loop-item-ghost"
+      chosen-class="form-loop-item-chosen"
+      drag-class="form-loop-item-drag"
+      :item-key="(_e: Record<string, unknown>, i: number) => i"
+      @change="onDragChange"
+    >
+      <template #item="{ index: i, element: entry }">
+        <div :class="['form-loop-item', { collapsed: collapsed[i] }]">
+          <div class="form-loop-item-header">
+            <span
+              class="form-loop-handle"
+              :title="'Drag to reorder'"
+              aria-hidden="true"
+            >⠿</span>
 
-          <span class="form-loop-item-index">#{{ i + 1 }}</span>
+            <button
+              type="button"
+              class="form-loop-toggle"
+              :aria-expanded="!collapsed[i]"
+              @click="toggleCollapsed(i)"
+            >{{ collapsed[i] ? '▶' : '▼' }}</button>
 
-          <span v-if="collapsed[i]" class="form-loop-item-summary">
-            {{ summaryFor(entry) || '(empty)' }}
-          </span>
+            <span class="form-loop-item-index">#{{ i + 1 }}</span>
 
-          <span class="form-loop-item-spacer"></span>
+            <span v-if="collapsed[i]" class="form-loop-item-summary">
+              {{ summaryFor(entry) || '(empty)' }}
+            </span>
 
-          <button
-            type="button"
-            class="form-loop-remove"
-            :aria-label="'Remove item ' + (i + 1)"
-            @click="removeItem(i)"
-          >−</button>
+            <span class="form-loop-item-spacer"></span>
+
+            <button
+              type="button"
+              class="form-loop-remove"
+              :aria-label="'Remove item ' + (i + 1)"
+              @click="removeItem(i)"
+            >−</button>
+          </div>
+
+          <div v-if="!collapsed[i]" class="form-loop-item-body">
+            <FormLoopFields
+              :fields="innerFields"
+              :start-offset="innerStartOffset"
+              :values="entryProxy(i)"
+              :loop-groups="loopGroups"
+            />
+          </div>
         </div>
-
-        <div v-if="!collapsed[i]" class="form-loop-item-body">
-          <FormLoopFields
-            :fields="innerFields"
-            :start-offset="innerStartOffset"
-            :values="entryProxy(i)"
-            :loop-groups="loopGroups"
-          />
-        </div>
-      </div>
-    </div>
+      </template>
+    </draggable>
 
     <button type="button" class="form-loop-add" @click="addItem">+ Add</button>
   </div>
@@ -222,7 +267,28 @@ function summaryFor(entry: Record<string, unknown>): string {
     text-overflow: ellipsis;
     max-width: 60%;
 }
+.form-loop-handle {
+    cursor: grab;
+    user-select: none;
+    font-size: 16px;
+    line-height: 1;
+    opacity: 0.7;
+    padding: 0 2px;
+}
+.form-loop-handle:active { cursor: grabbing; }
 .form-loop-item-spacer { flex: 1 1 auto; }
+
+/* Sortable.js visual states (vuedraggable forwards class names). */
+.form-loop-item-ghost {
+    opacity: 0.35;
+    filter: saturate(0.4);
+}
+.form-loop-item-chosen {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.form-loop-item-drag {
+    cursor: grabbing;
+}
 .form-loop-toggle,
 .form-loop-remove,
 .form-loop-add {

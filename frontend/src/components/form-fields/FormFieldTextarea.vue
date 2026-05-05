@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { TextareaField } from "../fields";
-import CodeEditor from "../CodeEditor.vue";
+import MarkdownEditor from "../MarkdownEditor.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -16,16 +16,15 @@ const value = computed<string>({
   set: (v) => emit("update:modelValue", v),
 });
 
-// "markdown" → CodeMirror markdown view; "plain" → plain textarea
-// (matches the original's EasyMDE vs. plain split).
+// "markdown" → MarkdownEditor (toolbar + status bar, CodeMirror-backed,
+// matches the original's EasyMDE UX). "plain" → plain textarea.
 const isMarkdown = computed(() => (props.field.format ?? "markdown") === "markdown");
 </script>
 
 <template>
-  <CodeEditor
+  <MarkdownEditor
     v-if="isMarkdown"
     v-model="value"
-    lang="markdown"
     :readonly="field.readonly"
   />
   <TextareaField

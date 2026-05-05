@@ -12,6 +12,7 @@
   "logging_enabled": false,
   "enable_plugins": false,
   "context_mode": "template",
+  "context_ribbon": "settings",
   "context_folder": "./Examples",
   "selected_template": "basic.yaml",
   "selected_data_file": "",
@@ -22,7 +23,7 @@
   "use_git": false,
   "git_root": "",
   "git_branch": "",
-  "remote_backend": "git",
+  "remote_backend": "gigot",
   "gigot_base_url": "",
   "gigot_repo_name": "",
   "gigot_token": "",
@@ -32,8 +33,7 @@
     "width": 1024,
     "height": 800
   },
-  "template_sidebar_width": 300,
-  "storage_sidebar_width": 300,
+  "sidebar_width": 280,
   "status_buttons": {
     "reloader": true,
     "charpicker": true,
