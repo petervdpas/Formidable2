@@ -10,6 +10,7 @@ import FormFieldDate from "./FormFieldDate.vue";
 import FormFieldMultioption from "./FormFieldMultioption.vue";
 import FormFieldRadio from "./FormFieldRadio.vue";
 import FormFieldList from "./FormFieldList.vue";
+import FormFieldTable from "./FormFieldTable.vue";
 import FormFieldGuid from "./FormFieldGuid.vue";
 import FormFieldTags from "./FormFieldTags.vue";
 import FormFieldUnknown from "./FormFieldUnknown.vue";
@@ -36,6 +37,7 @@ const DISPATCH: Record<string, Component> = {
   multioption: FormFieldMultioption,
   radio: FormFieldRadio,
   list: FormFieldList,
+  table: FormFieldTable,
   guid: FormFieldGuid,
   tags: FormFieldTags,
 };
