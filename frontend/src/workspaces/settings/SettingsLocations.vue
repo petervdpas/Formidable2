@@ -14,6 +14,7 @@ const backends = computed(() => [
   { value: "gigot", label: t("backend.gigot") },
 ]);
 
+const isGit = computed(() => cfg.value.remote_backend === "git");
 const isGigot = computed(() => cfg.value.remote_backend === "gigot");
 </script>
 
@@ -37,6 +38,21 @@ const isGigot = computed(() => cfg.value.remote_backend === "gigot");
         :model-value="cfg.remote_backend"
         @update:model-value="(v) => update({ remote_backend: v })"
         :options="backends"
+      />
+    </FormRow>
+
+    <FormRow v-if="isGit" :label="t('settings.field.git_root_directory')">
+      <TextField
+        :model-value="cfg.git_root"
+        @update:model-value="(v) => update({ git_root: v })"
+        placeholder="/path/to/repo"
+      />
+    </FormRow>
+    <FormRow v-if="isGit" :label="t('settings.field.git_branch')">
+      <TextField
+        :model-value="cfg.git_branch"
+        @update:model-value="(v) => update({ git_branch: v })"
+        placeholder="main"
       />
     </FormRow>
 
