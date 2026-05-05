@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
+import CodeEditor from "../components/CodeEditor.vue";
 import {
   FormSection,
   FormRow,
@@ -202,10 +203,10 @@ setTopbarMenu(() => [
             :label="t('workspace.templates.setup.template_code')"
             :description="t('workspace.templates.setup.template_code_help')"
           >
-            <TextareaField
+            <CodeEditor
               v-model="draft.markdown_template"
-              :rows="10"
-              class="template-code-textarea"
+              lang="markdown"
+              :height="260"
             />
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.sidebar_expression')">
@@ -360,13 +361,6 @@ setTopbarMenu(() => [
     grid-column: 1 / -1;
 }
 
-/* Template-code textarea — monospace + a touch tighter so it reads as
-   code. CodeMirror swaps in here in Step 3d. */
-.template-code-textarea {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    line-height: 1.5;
-}
 
 /* Field rows — Formidable's "label (TYPE) … Edit Delete" look. */
 .field-rows {
