@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { FormSection, FormRow, TextField, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
+const { t } = useI18n();
 const { config, update } = useConfig();
 const cfg = computed(() => config.value!);
 
@@ -12,26 +14,29 @@ function patchHistory(partial: Record<string, unknown>) {
 </script>
 
 <template>
-  <p class="section-info">Configure history settings like enabled, persist and max size.</p>
+  <p class="section-info">{{ t('settings.history.info') }}</p>
 
   <FormSection>
-    <FormRow label="History">
+    <FormRow :label="t('config.history.enabled')">
       <SwitchField
         :model-value="cfg.history.enabled"
         @update:model-value="(v) => patchHistory({ enabled: v })"
-        on-label="On"
-        off-label="Off"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
       />
     </FormRow>
-    <FormRow label="Persist History" description="Keep undo/redo history across sessions.">
+    <FormRow
+      :label="t('config.history.persist')"
+      :description="t('settings.desc.persist_history')"
+    >
       <SwitchField
         :model-value="cfg.history.persist"
         @update:model-value="(v) => patchHistory({ persist: v })"
-        on-label="On"
-        off-label="Off"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
       />
     </FormRow>
-    <FormRow label="History Max Size">
+    <FormRow :label="t('config.history.max_size')">
       <TextField
         type="number"
         :model-value="String(cfg.history.max_size)"

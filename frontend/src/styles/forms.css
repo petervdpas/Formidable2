@@ -6,23 +6,37 @@
     padding: var(--space-3) var(--space-4);
     background: var(--color-bg);
     margin: 0 0 var(--space-3);
+
+    /* Section is the grid; rows use subgrid so labels share the
+       longest-content column width across the whole section.
+       Labels can be as long as needed and still stay aligned. */
+    display: grid;
+    grid-template-columns: minmax(140px, max-content) 1fr;
+    column-gap: var(--space-3);
 }
 
 .form-section + .form-section { margin-top: var(--space-3); }
 
 .form-section-title {
+    grid-column: 1 / -1;
     font-weight: 600;
     margin: 0 0 var(--space-3);
     font-size: var(--font-size-md);
 }
 
-/* Two-column row: label on left, control on right. */
+/* Row inherits the section's two columns so labels line up. */
 .form-row {
     display: grid;
-    grid-template-columns: var(--form-label-width, 160px) 1fr;
-    column-gap: var(--space-3);
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
     align-items: start;
     padding: var(--space-2) 0;
+}
+
+/* Standalone (non-sectioned) row fallback: explicit column widths. */
+.form-row:not(.form-section > .form-row) {
+    grid-template-columns: var(--form-label-width, 160px) 1fr;
+    column-gap: var(--space-3);
 }
 
 .form-row + .form-row { border-top: 1px dashed var(--color-border); }
@@ -32,6 +46,7 @@
     text-align: right;
     padding-top: 7px; /* line up with input baseline */
     color: var(--color-text);
+    white-space: nowrap;
 }
 
 .form-control {

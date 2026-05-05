@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+
+const { t } = useI18n();
 
 const menus = ["File", "Edit", "Sync", "View"];
 function newProfile() { /* TODO */ }
@@ -7,25 +10,25 @@ function newProfile() { /* TODO */ }
 
 <template>
   <Teleport defer to="#topbar-content">
-    <nav class="topmenu" aria-label="Profiles menu">
+    <nav class="topmenu" :aria-label="t('workspace.profiles.title')">
       <button v-for="m in menus" :key="m" class="topmenu-item" type="button">
         {{ m }}
       </button>
     </nav>
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
-      <button class="tool-btn primary" @click="newProfile">+ New Profile</button>
+      <button class="tool-btn primary" @click="newProfile">+ {{ t('ribbon.profiles') }}</button>
     </div>
   </Teleport>
 
   <SplitPane>
     <template #sidebar>
-      <h2 class="sidebar-title">Profiles</h2>
-      <p class="muted small">Profile list goes here.</p>
+      <h2 class="sidebar-title">{{ t('workspace.profiles.sidebar_title') }}</h2>
+      <p class="muted small">{{ t('workspace.profiles.placeholder_side') }}</p>
     </template>
     <template #main>
-      <h1 class="workspace-heading">Profiles</h1>
-      <p class="muted">Switch the active profile or edit profile-scoped settings.</p>
+      <h1 class="workspace-heading">{{ t('workspace.profiles.title') }}</h1>
+      <p class="muted">{{ t('workspace.profiles.placeholder_main') }}</p>
     </template>
   </SplitPane>
 </template>

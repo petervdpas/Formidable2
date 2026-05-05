@@ -6,6 +6,7 @@
 package app
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
+	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
@@ -61,6 +63,7 @@ type App struct {
 	Csv      *csv.Service
 	Template *template.Service
 	Storage  *storage.Service
+	I18n     *i18n.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -111,6 +114,11 @@ func New(d Deps) (*App, error) {
 	}
 	stoM := storage.NewManager(sysM, sfrM, tplM, storagePath, d.Logger)
 
+	i18nM, err := i18n.NewManager(d.Logger)
+	if err != nil {
+		return nil, fmt.Errorf("init i18n: %w", err)
+	}
+
 	emitter := &emitterRelay{}
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
@@ -137,6 +145,7 @@ func New(d Deps) (*App, error) {
 		Csv:             csv.NewService(csvM),
 		Template:        template.NewService(tplM, tplStorageLocator),
 		Storage:         storage.NewService(stoM),
+		I18n:            i18n.NewService(i18nM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		journalManager:  jrnM,

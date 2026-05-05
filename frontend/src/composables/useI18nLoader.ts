@@ -1,0 +1,76 @@
+import { ref, watch } from "vue";
+import { Service as I18nSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/i18n";
+import { i18n } from "../i18n";
+import { useConfig } from "./useConfig";
+
+const loaded = new Set<string>();
+const availableLocales = ref<string[]>([]);
+const defaultLocale = ref<string>("en");
+let bootPromise: Promise<void> | null = null;
+
+async function ensureLocale(locale: string): Promise<void> {
+  if (loaded.has(locale)) return;
+  const bundle = await I18nSvc.LoadBundle(locale);
+  i18n.global.setLocaleMessage(locale, bundle as Record<string, unknown>);
+  loaded.add(locale);
+}
+
+async function boot(): Promise<void> {
+  if (bootPromise) return bootPromise;
+  bootPromise = (async () => {
+    const [locales, def] = await Promise.all([
+      I18nSvc.AvailableLocales(),
+      I18nSvc.DefaultLocale(),
+    ]);
+    availableLocales.value = locales;
+    defaultLocale.value = def;
+
+    // Always preload the default; that's the fallback for any missing key.
+    await ensureLocale(def);
+
+    // Then preload whatever the active config says — config may not be
+    // ready yet, in which case the watcher below picks it up.
+    const { config } = useConfig();
+    const wantLocale = config.value?.language;
+    if (wantLocale && wantLocale !== def && locales.includes(wantLocale)) {
+      await ensureLocale(wantLocale);
+    }
+    setActive(wantLocale ?? def);
+  })();
+  return bootPromise;
+}
+
+function setActive(locale: string) {
+  if (loaded.has(locale)) {
+    i18n.global.locale.value = locale;
+  } else {
+    // Lazy-load on demand, then activate.
+    ensureLocale(locale)
+      .then(() => { i18n.global.locale.value = locale; })
+      .catch(() => { i18n.global.locale.value = defaultLocale.value; });
+  }
+}
+
+// Wire config.language → active locale. Single subscription at module
+// scope so additional component callers don't multiply the watcher.
+const { config } = useConfig();
+watch(
+  () => config.value?.language,
+  (lang) => {
+    if (!lang) return;
+    if (!availableLocales.value.includes(lang)) return;
+    setActive(lang);
+  },
+  { immediate: false },
+);
+
+export function useI18nLoader() {
+  // Calling this kicks off the boot once. Components that need to wait
+  // for the first bundle can `await ensureI18nReady()`.
+  if (!bootPromise) boot();
+  return {
+    availableLocales,
+    defaultLocale,
+    ensureI18nReady: () => boot(),
+  };
+}

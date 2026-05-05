@@ -22,7 +22,7 @@
   "use_git": false,
   "git_root": "",
   "git_branch": "",
-  "remote_backend": "none",
+  "remote_backend": "git",
   "gigot_base_url": "",
   "gigot_repo_name": "",
   "gigot_token": "",

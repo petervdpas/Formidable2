@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { FormSection, FormRow, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
+const { t } = useI18n();
 const { config, update } = useConfig();
 const cfg = computed(() => config.value!);
 
@@ -15,47 +17,47 @@ function patchButtons(partial: Record<string, unknown>) {
 </script>
 
 <template>
-  <p class="section-info">Enable or disable individual status buttons.</p>
+  <p class="section-info">{{ t('settings.status_buttons.info') }}</p>
 
   <FormSection>
-    <FormRow label="Reload Button">
+    <FormRow :label="t('settings.field.reload_button')">
       <SwitchField
         :model-value="cfg.status_buttons.reloader"
         @update:model-value="(v) => patchButtons({ reloader: v })"
-        on-label="On"
-        off-label="Off"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
       />
     </FormRow>
-    <FormRow label="Character Picker">
+    <FormRow :label="t('settings.field.character_picker')">
       <SwitchField
         :model-value="cfg.status_buttons.charpicker"
         @update:model-value="(v) => patchButtons({ charpicker: v })"
-        on-label="On"
-        off-label="Off"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
       />
     </FormRow>
-    <FormRow label="Git Quick Actions">
+    <FormRow :label="t('settings.field.git_quick_actions')">
       <div class="row-with-badge">
         <SwitchField
           :model-value="cfg.status_buttons.gitquick"
           @update:model-value="(v) => patchButtons({ gitquick: v })"
           :disabled="!gitEnabled"
-          on-label="On"
-          off-label="Off"
+          :on-label="t('common.on')"
+          :off-label="t('common.off')"
         />
-        <span v-if="!gitEnabled" class="badge badge-warn">Requires Git backend.</span>
+        <span v-if="!gitEnabled" class="badge badge-warn">{{ t('settings.requires.git_backend') }}</span>
       </div>
     </FormRow>
-    <FormRow label="GiGot Load Indicator">
+    <FormRow :label="t('settings.field.gigot_load_indicator')">
       <div class="row-with-badge">
         <SwitchField
           :model-value="cfg.status_buttons.gigotload"
           @update:model-value="(v) => patchButtons({ gigotload: v })"
           :disabled="!gigotEnabled"
-          on-label="On"
-          off-label="Off"
+          :on-label="t('common.on')"
+          :off-label="t('common.off')"
         />
-        <span v-if="!gigotEnabled" class="badge badge-warn">Requires GiGot backend.</span>
+        <span v-if="!gigotEnabled" class="badge badge-warn">{{ t('settings.requires.gigot_backend') }}</span>
       </div>
     </FormRow>
   </FormSection>

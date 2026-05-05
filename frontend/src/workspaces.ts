@@ -16,16 +16,16 @@ export type WorkspaceId =
 
 export interface WorkspaceDef {
   id: WorkspaceId;
-  label: string;
+  labelKey: string;
   icon: string;
   component: Component;
 }
 
 export const WORKSPACES: WorkspaceDef[] = [
-  { id: "templates", label: "Templates", icon: "T", component: TemplatesWorkspace },
-  { id: "storage",   label: "Storage",   icon: "S", component: StorageWorkspace },
-  { id: "profiles",  label: "Profiles",  icon: "P", component: ProfilesWorkspace },
-  { id: "settings",  label: "Settings",  icon: "⚙", component: SettingsWorkspace },
-  { id: "plugins",   label: "Plugins",   icon: "◧", component: PluginsWorkspace },
-  { id: "about",     label: "About",     icon: "i", component: AboutWorkspace },
+  { id: "templates", labelKey: "ribbon.templates", icon: "T", component: TemplatesWorkspace },
+  { id: "storage",   labelKey: "ribbon.storage",   icon: "S", component: StorageWorkspace },
+  { id: "profiles",  labelKey: "ribbon.profiles",  icon: "P", component: ProfilesWorkspace },
+  { id: "settings",  labelKey: "ribbon.settings",  icon: "⚙", component: SettingsWorkspace },
+  { id: "plugins",   labelKey: "ribbon.plugins",   icon: "◧", component: PluginsWorkspace },
+  { id: "about",     labelKey: "ribbon.about",     icon: "i", component: AboutWorkspace },
 ];

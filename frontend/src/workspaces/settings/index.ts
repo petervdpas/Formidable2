@@ -18,16 +18,16 @@ export type SettingsCategoryId =
 
 export interface SettingsCategory {
   id: SettingsCategoryId;
-  label: string;
+  labelKey: string;
   component: Component;
 }
 
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
-  { id: "general",         label: "General",         component: SettingsGeneral },
-  { id: "history",         label: "History",         component: SettingsHistory },
-  { id: "display",         label: "Display",         component: SettingsDisplay },
-  { id: "locations",       label: "Locations",       component: SettingsLocations },
-  { id: "internal-server", label: "Internal Server", component: SettingsInternalServer },
-  { id: "advanced",        label: "Advanced",        component: SettingsAdvanced },
-  { id: "status-buttons",  label: "Status Buttons",  component: SettingsStatusButtons },
+  { id: "general",         labelKey: "settings.categories.general",         component: SettingsGeneral },
+  { id: "history",         labelKey: "settings.categories.history",         component: SettingsHistory },
+  { id: "display",         labelKey: "settings.categories.display",         component: SettingsDisplay },
+  { id: "locations",       labelKey: "settings.categories.locations",       component: SettingsLocations },
+  { id: "internal-server", labelKey: "settings.categories.internal_server", component: SettingsInternalServer },
+  { id: "advanced",        labelKey: "settings.categories.advanced",        component: SettingsAdvanced },
+  { id: "status-buttons",  labelKey: "settings.categories.status_buttons",  component: SettingsStatusButtons },
 ];

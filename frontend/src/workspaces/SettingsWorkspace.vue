@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import { useConfig } from "../composables/useConfig";
-import {
-  SETTINGS_CATEGORIES,
-  type SettingsCategoryId,
-} from "./settings";
+import { SETTINGS_CATEGORIES, type SettingsCategoryId } from "./settings";
+
+const { t } = useI18n();
 
 const menus = ["File", "Theme", "Advanced"];
 
@@ -20,7 +20,7 @@ const activeCategory = computed(
 
 <template>
   <Teleport defer to="#topbar-content">
-    <nav class="topmenu" aria-label="Settings menu">
+    <nav class="topmenu" :aria-label="t('ribbon.settings')">
       <button v-for="m in menus" :key="m" class="topmenu-item" type="button">
         {{ m }}
       </button>
@@ -28,13 +28,15 @@ const activeCategory = computed(
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
       <span v-if="profileFilename" class="badge badge-accent">{{ profileFilename }}</span>
-      <button class="tool-btn" @click="reload" title="Reload from disk">Refresh</button>
+      <button class="tool-btn" @click="reload" :title="t('settings.reload_tooltip')">
+        {{ t('common.refresh') }}
+      </button>
     </div>
   </Teleport>
 
   <SplitPane :initial="200" :min="160" :max="320">
     <template #sidebar>
-      <h2 class="sidebar-title">Settings</h2>
+      <h2 class="sidebar-title">{{ t('settings.title') }}</h2>
       <ul class="sidebar-list">
         <li
           v-for="c in SETTINGS_CATEGORIES"
@@ -42,17 +44,17 @@ const activeCategory = computed(
           :class="['sidebar-list-item', { active: c.id === activeId }]"
           @click="activeId = c.id"
         >
-          {{ c.label }}
+          {{ t(c.labelKey) }}
         </li>
       </ul>
     </template>
 
     <template #main>
-      <h1 class="workspace-heading">{{ activeCategory.label }}</h1>
+      <h1 class="workspace-heading">{{ t(activeCategory.labelKey) }}</h1>
       <div v-if="loaded">
         <component :is="activeCategory.component" />
       </div>
-      <p v-else class="muted">Loading config…</p>
+      <p v-else class="muted">{{ t('settings.loading_config') }}</p>
     </template>
   </SplitPane>
 </template>

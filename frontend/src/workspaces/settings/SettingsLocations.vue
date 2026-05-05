@@ -1,25 +1,30 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { FormSection, FormRow, TextField, SelectField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
+const { t } = useI18n();
 const { config, update } = useConfig();
 const cfg = computed(() => config.value!);
 
-const backends = [
-  { value: "none",  label: "None" },
-  { value: "git",   label: "Git" },
-  { value: "gigot", label: "GiGot" },
-];
+const backends = computed(() => [
+  { value: "none",  label: t("backend.none") },
+  { value: "git",   label: t("backend.git") },
+  { value: "gigot", label: t("backend.gigot") },
+]);
 
 const isGigot = computed(() => cfg.value.remote_backend === "gigot");
 </script>
 
 <template>
-  <p class="section-info">Configure the context folder and the optional remote backend (Git or GiGot).</p>
+  <p class="section-info">{{ t('settings.locations.info') }}</p>
 
   <FormSection>
-    <FormRow label="Context Directory" description="Root folder for templates and form storage.">
+    <FormRow
+      :label="t('settings.field.context_directory')"
+      :description="t('settings.desc.context_directory')"
+    >
       <TextField
         :model-value="cfg.context_folder"
         @update:model-value="(v) => update({ context_folder: v })"
@@ -27,7 +32,7 @@ const isGigot = computed(() => cfg.value.remote_backend === "gigot");
       />
     </FormRow>
 
-    <FormRow label="Remote Backend">
+    <FormRow :label="t('settings.field.remote_backend')">
       <SelectField
         :model-value="cfg.remote_backend"
         @update:model-value="(v) => update({ remote_backend: v })"
@@ -35,20 +40,20 @@ const isGigot = computed(() => cfg.value.remote_backend === "gigot");
       />
     </FormRow>
 
-    <FormRow v-if="isGigot" label="GiGot Base URL">
+    <FormRow v-if="isGigot" :label="t('settings.field.gigot_base_url')">
       <TextField
         :model-value="cfg.gigot_base_url"
         @update:model-value="(v) => update({ gigot_base_url: v })"
         placeholder="https://gigot.example.com"
       />
     </FormRow>
-    <FormRow v-if="isGigot" label="GiGot Repository">
+    <FormRow v-if="isGigot" :label="t('settings.field.gigot_repository')">
       <TextField
         :model-value="cfg.gigot_repo_name"
         @update:model-value="(v) => update({ gigot_repo_name: v })"
       />
     </FormRow>
-    <FormRow v-if="isGigot" label="GiGot Subscription Token">
+    <FormRow v-if="isGigot" :label="t('settings.field.gigot_subscription_token')">
       <TextField
         type="password"
         :model-value="cfg.gigot_token"
