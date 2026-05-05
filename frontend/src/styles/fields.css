@@ -20,6 +20,23 @@
     height: 34px;
 }
 
+/* Native <select> on Linux/Chromium ignores our padding for the
+   rendered value — text ends up below center. Disabling the platform
+   widget gives us input-equivalent layout, but then we have to draw
+   the caret ourselves. SVG is inline so it themes via the color stop;
+   a neutral mid-grey reads fine across light/dark/purplish. */
+.field-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 28px;
+    background-image:
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%23808080'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 6px;
+}
+
 .field-textarea {
     min-height: 4rem;
     resize: vertical;
