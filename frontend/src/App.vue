@@ -3,6 +3,7 @@ import { computed } from "vue";
 import Ribbon from "./components/Ribbon.vue";
 import Topbar from "./components/Topbar.vue";
 import Footer from "./components/Footer.vue";
+import ToastContainer from "./components/ToastContainer.vue";
 import { WORKSPACES } from "./workspaces";
 import { useTheme } from "./composables/useTheme";
 import { useActiveWorkspace } from "./composables/useActiveWorkspace";
@@ -31,5 +32,6 @@ const ready = computed(() => bootConfig.value !== null);
       <component v-if="ready" :is="activeWorkspace.component" />
     </main>
     <Footer />
+    <ToastContainer />
   </div>
 </template>

@@ -139,6 +139,8 @@
   "toast.profile.importSuccess": "Profiel succesvol geïmporteerd.",
   "toast.profile.invalidName": "Gebruik kleine letters, koppeltekens en eindig met .json",
   "toast.profile.switchFailed": "Wisselen van profiel mislukt.",
+  "toast.refresh.error": "Vernieuwen mislukt: {0}",
+  "toast.refresh.success": "Vernieuwd.",
   "toast.save.failed": "{0} kon niet worden opgeslagen.",
   "toast.save.success": "{0} is succesvol opgeslagen.",
   "toast.server.AlreadyRunning": "Interne server is al actief.",

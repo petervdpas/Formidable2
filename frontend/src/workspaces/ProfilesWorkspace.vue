@@ -11,6 +11,7 @@ import { useRestartGate } from "../composables/useRestartGate";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useDialog } from "../composables/useDialog";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useToast } from "../composables/useToast";
 
 const { t } = useI18n();
 
@@ -19,6 +20,16 @@ const { config } = useConfig();
 const { bootConfig } = useRestartGate();
 const { setActive } = useActiveWorkspace();
 const { chooseFile, chooseSaveFile } = useDialog();
+const toast = useToast();
+
+async function doRefresh() {
+  try {
+    await refresh();
+    toast.success("toast.refresh.success");
+  } catch (err) {
+    toast.error("toast.refresh.error", [String(err)]);
+  }
+}
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
@@ -246,7 +257,7 @@ setTopbarMenu(() => [
       {
         id: "refresh",
         labelKey: "common.refresh",
-        onClick: refresh,
+        onClick: doRefresh,
       },
     ],
   },

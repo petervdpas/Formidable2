@@ -139,6 +139,8 @@
   "toast.profile.importSuccess": "Profile imported successfully.",
   "toast.profile.invalidName": "Use lowercase, hyphens, and end with .json",
   "toast.profile.switchFailed": "Failed to switch profile.",
+  "toast.refresh.error": "Refresh failed: {0}",
+  "toast.refresh.success": "Refreshed.",
   "toast.save.failed": "{0} could not be saved.",
   "toast.save.success": "{0} was saved successfully.",
   "toast.server.AlreadyRunning": "Internal server is already running.",

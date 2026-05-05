@@ -9,6 +9,7 @@ import { useRestartGate } from "../composables/useRestartGate";
 // (bootConfig comes from useRestartGate so sidebar width stays frozen
 // for the session — same rule as Templates/Storage.)
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useToast } from "../composables/useToast";
 import { SETTINGS_CATEGORIES, type SettingsCategoryId } from "./settings";
 import { Service as System } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 
@@ -16,8 +17,18 @@ const { t } = useI18n();
 
 const { config, profileFilename, reload } = useConfig();
 const { needsRestart, bootConfig } = useRestartGate();
+const toast = useToast();
 const loaded = computed(() => config.value !== null);
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
+
+async function doRefresh() {
+  try {
+    await reload();
+    toast.success("toast.refresh.success");
+  } catch (err) {
+    toast.error("toast.refresh.error", [String(err)]);
+  }
+}
 
 const activeId = ref<SettingsCategoryId>("general");
 const activeCategory = computed(
@@ -56,7 +67,7 @@ setTopbarMenu(() => [
       {
         id: "refresh",
         labelKey: "common.refresh",
-        onClick: reload,
+        onClick: doRefresh,
       },
     ],
   },
