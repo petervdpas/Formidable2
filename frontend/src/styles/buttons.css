@@ -26,11 +26,8 @@
     border-left-color: var(--color-accent);
 }
 
-.ribbon-icon {
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    line-height: 1;
-}
+/* .ribbon-icon used to size FA glyphs; SVG illustrations now flow
+   through the Icon component which sets explicit pixel size. */
 
 /* Top-menu items inside the topbar (workspace-owned). */
 .topmenu-item {

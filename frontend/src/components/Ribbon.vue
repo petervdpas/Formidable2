@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import { WORKSPACES, type WorkspaceId } from "../workspaces";
+import Icon from "./Icon.vue";
 
 defineProps<{ active: WorkspaceId }>();
 const emit = defineEmits<{ (e: "select", id: WorkspaceId): void }>();
@@ -20,7 +21,7 @@ const { t } = useI18n();
       :aria-current="w.id === active ? 'page' : undefined"
       @click="emit('select', w.id)"
     >
-      <span class="ribbon-icon" aria-hidden="true">{{ w.icon }}</span>
+      <Icon :name="w.iconName" :size="36" />
     </button>
   </nav>
 </template>

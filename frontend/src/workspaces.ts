@@ -17,15 +17,18 @@ export type WorkspaceId =
 export interface WorkspaceDef {
   id: WorkspaceId;
   labelKey: string;
-  icon: string;
+  /** SVG basename in src/assets/icons/. Icon component resolves it
+   *  via Vite's import.meta.glob — Flaticon illustrations keep their
+   *  built-in colors, no theme tokens are applied. */
+  iconName: string;
   component: Component;
 }
 
 export const WORKSPACES: WorkspaceDef[] = [
-  { id: "templates", labelKey: "ribbon.templates", icon: "T", component: TemplatesWorkspace },
-  { id: "storage",   labelKey: "ribbon.storage",   icon: "S", component: StorageWorkspace },
-  { id: "profiles",  labelKey: "ribbon.profiles",  icon: "P", component: ProfilesWorkspace },
-  { id: "settings",  labelKey: "ribbon.settings",  icon: "⚙", component: SettingsWorkspace },
-  { id: "plugins",   labelKey: "ribbon.plugins",   icon: "◧", component: PluginsWorkspace },
-  { id: "about",     labelKey: "ribbon.about",     icon: "i", component: AboutWorkspace },
+  { id: "templates", labelKey: "ribbon.templates", iconName: "design-thinking", component: TemplatesWorkspace },
+  { id: "storage",   labelKey: "ribbon.storage",   iconName: "database",        component: StorageWorkspace },
+  { id: "profiles",  labelKey: "ribbon.profiles",  iconName: "programmer",      component: ProfilesWorkspace },
+  { id: "settings",  labelKey: "ribbon.settings",  iconName: "settings",        component: SettingsWorkspace },
+  { id: "plugins",   labelKey: "ribbon.plugins",   iconName: "web-plugin",      component: PluginsWorkspace },
+  { id: "about",     labelKey: "ribbon.about",     iconName: "info",            component: AboutWorkspace },
 ];
