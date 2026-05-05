@@ -1,52 +1,36 @@
 package config
 
-// Service is the api layer over Manager. Methods map 1:1 with the old
-// Electron `window.api.config.*` IPC group (camelCase'd → PascalCase).
+// Service is the Wails-bound surface of the config module — what the
+// Vue SPA can actually call. Deliberately narrow:
 //
-// Wails-only: no handlers.go in this module. Raw config is too sensitive
-// for the loopback HTTP API surface.
+//   - Profile config read/write (the Settings UI)
+//   - Profile management (the Profiles workspace)
+//
+// The richer Manager surface (VirtualStructure scan, per-template
+// storage info, cache invalidation hooks) is intentionally NOT exposed
+// here. Those primitives are for backend-internal consumers — most
+// notably the future opt-in internal HTTP server (wiki view + REST
+// collections API + OpenAPI), which will use Manager directly.
+//
+// The frontend covers what little it needs of the file tree through
+// the focused per-module services (template.Service.ListTemplates,
+// storage.Service.ListForms, etc.). Adding a VFS hop on top would
+// duplicate scanning and create two ways to ask the same question.
 type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }
 
-// Reads ----------------------------------------------------------------
+// ─── Reads ───────────────────────────────────────────────────────────
 
 func (s *Service) LoadUserConfig() (*Config, error) { return s.m.LoadUserConfig() }
 
-func (s *Service) GetVirtualStructure() (*VirtualStructure, error) {
-	return s.m.GetVirtualStructure()
-}
-
-func (s *Service) GetContextPath() (string, error)       { return s.m.GetContextPath() }
-func (s *Service) GetTemplatesFolder() (string, error)   { return s.m.GetContextTemplatesPath() }
-func (s *Service) GetStorageFolder() (string, error)     { return s.m.GetContextStoragePath() }
-
-func (s *Service) GetTemplateStorageInfo(templateFilename string) *TemplateStorageFolder {
-	return s.m.GetTemplateStorageInfo(templateFilename)
-}
-func (s *Service) GetTemplateStorageFolder(templateFilename string) string {
-	return s.m.GetTemplateStoragePath(templateFilename)
-}
-func (s *Service) GetTemplateMetaFiles(templateFilename string) []string {
-	return s.m.GetTemplateMetaFiles(templateFilename)
-}
-func (s *Service) GetTemplateImageFiles(templateFilename string) []string {
-	return s.m.GetTemplateImageFiles(templateFilename)
-}
-func (s *Service) GetSingleTemplateEntry(templateName string) *SingleTemplateEntry {
-	return s.m.GetSingleTemplateEntry(templateName)
-}
-
-// Writes ---------------------------------------------------------------
+// ─── Writes ──────────────────────────────────────────────────────────
 
 func (s *Service) UpdateUserConfig(partial map[string]any) (*Config, error) {
 	return s.m.UpdateUserConfig(partial)
 }
 
-func (s *Service) InvalidateConfigCache()  { s.m.InvalidateConfigCache() }
-func (s *Service) DirtyVirtualStructure()  { s.m.DirtyVirtualStructure() }
-
-// Profiles -------------------------------------------------------------
+// ─── Profiles ────────────────────────────────────────────────────────
 
 func (s *Service) SwitchUserProfile(profileFilename string) (*Config, error) {
 	return s.m.SwitchUserProfile(profileFilename)

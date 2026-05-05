@@ -377,6 +377,73 @@ func TestSwitchUserProfile(t *testing.T) {
 	}
 }
 
+// TestSwitchUserProfile_SerializedAgainstUpdate fires N updates and N
+// switches concurrently and verifies the final state is internally
+// consistent: the active config equals one of the profile files on
+// disk, and that file's content matches the active config. Without
+// updateMu, an Update could run halfway through a Switch and write
+// merged data into the wrong file.
+func TestSwitchUserProfile_SerializedAgainstUpdate(t *testing.T) {
+	t.Parallel()
+	m, sys, root := newTestManager(t)
+
+	// Seed three alternates plus the default.
+	for _, name := range []string{"a.json", "b.json", "c.json"} {
+		seed := defaultConfig()
+		seed.ProfileName = "P-" + name
+		buf, _ := json.Marshal(seed)
+		_ = sys.SaveFile(filepath.Join("config", name), string(buf))
+	}
+
+	const N = 30
+	profiles := []string{"user.json", "a.json", "b.json", "c.json"}
+	var wg sync.WaitGroup
+
+	// Switch storm.
+	for i := range N {
+		wg.Go(func() {
+			_, _ = m.SwitchUserProfile(profiles[i%len(profiles)])
+		})
+	}
+
+	// Update storm — every goroutine touches a different field so a
+	// lost merge becomes detectable as a missing field after settling.
+	tweaks := []string{"author_name", "author_email", "git_root", "encryption_key"}
+	for i := range N {
+		wg.Go(func() {
+			_, _ = m.UpdateUserConfig(map[string]any{tweaks[i%len(tweaks)]: "v" + string(rune('A'+i%26))})
+		})
+	}
+	wg.Wait()
+
+	// After the storm: the on-disk active profile and the in-memory
+	// cache must agree.
+	curName := m.CurrentProfileFilename()
+	if curName == "" {
+		t.Fatalf("no current profile after storm")
+	}
+	cur, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+
+	diskRaw, err := os.ReadFile(filepath.Join(root, "config", curName))
+	if err != nil {
+		t.Fatalf("read active profile from disk: %v", err)
+	}
+	var disk Config
+	if err := json.Unmarshal(diskRaw, &disk); err != nil {
+		t.Fatalf("parse active profile: %v", err)
+	}
+	if disk.AuthorName != cur.AuthorName ||
+		disk.AuthorEmail != cur.AuthorEmail ||
+		disk.GitRoot != cur.GitRoot ||
+		disk.EncryptionKey != cur.EncryptionKey {
+		t.Errorf("on-disk %q diverges from cache after concurrent storm:\n disk=%+v\n  mem=%+v",
+			curName, disk, cur)
+	}
+}
+
 func TestListAvailableProfiles_OmitsBoot(t *testing.T) {
 	m, sys, _ := newTestManager(t)
 

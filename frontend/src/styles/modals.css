@@ -1,0 +1,121 @@
+/* Modal dialog and confirm-style overlays. */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: var(--space-4);
+}
+
+.modal-dialog {
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.30);
+    max-width: 100%;
+    max-height: 90vh;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-dialog:focus { outline: none; }
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-title {
+    flex: 1 1 auto;
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+.modal-close {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--color-text-muted);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius-md);
+}
+
+.modal-close:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+}
+
+.modal-body {
+    padding: var(--space-4);
+    flex: 1 1 auto;
+}
+
+.modal-footer {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--color-border);
+}
+
+.tool-btn.danger {
+    background: var(--color-error);
+    border-color: var(--color-error);
+    color: #ffffff;
+}
+
+.tool-btn.danger:hover { filter: brightness(0.95); }
+
+.tool-btn:disabled,
+.tool-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.confirm-message {
+    margin: 0 0 var(--space-3);
+}
+
+/* Transition: fade backdrop, light scale on dialog. */
+.modal-enter-from .modal-dialog,
+.modal-leave-to .modal-dialog {
+    transform: scale(0.95);
+    opacity: 0;
+}
+
+.modal-enter-active,
+.modal-leave-active {
+    transition: opacity 0.15s ease;
+}
+
+.modal-enter-active .modal-dialog,
+.modal-leave-active .modal-dialog {
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .modal-enter-active,
+    .modal-leave-active,
+    .modal-enter-active .modal-dialog,
+    .modal-leave-active .modal-dialog {
+        transition: none;
+    }
+}

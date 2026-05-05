@@ -29,9 +29,21 @@ async function reload(): Promise<void> {
   await load();
 }
 
+// switchProfile flips boot.json to the given filename via the backend
+// (which is serialized against UpdateUserConfig under updateMu) and
+// then refreshes our reactive cache. Watchers on config.theme,
+// config.language, etc. fire automatically — no full window reload.
+async function switchProfile(filename: string): Promise<void> {
+  const updated = await ConfigSvc.SwitchUserProfile(filename);
+  if (updated) {
+    config.value = updated;
+    profileFilename.value = await ConfigSvc.CurrentProfileFilename();
+  }
+}
+
 export function useConfig() {
   if (!loadPromise) load();
-  return { config, profileFilename, update, reload };
+  return { config, profileFilename, update, reload, switchProfile };
 }
 
 export { Config };

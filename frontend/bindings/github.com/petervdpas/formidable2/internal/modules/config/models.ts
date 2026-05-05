@@ -283,59 +283,6 @@ export class ProfileResult {
     }
 }
 
-/**
- * SingleTemplateEntry wraps a TemplateStorageFolder with an "id" field
- * for use by frontend list managers.
- */
-export class SingleTemplateEntry {
-    "id": string;
-    "name": string;
-    "filename": string;
-    "path": string;
-    "metaFiles": string[];
-    "imageFiles": string[];
-
-    /** Creates a new SingleTemplateEntry instance. */
-    constructor($$source: Partial<SingleTemplateEntry> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("filename" in $$source)) {
-            this["filename"] = "";
-        }
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
-        if (!("metaFiles" in $$source)) {
-            this["metaFiles"] = [];
-        }
-        if (!("imageFiles" in $$source)) {
-            this["imageFiles"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new SingleTemplateEntry instance from a string or object.
-     */
-    static createFrom($$source: any = {}): SingleTemplateEntry {
-        const $$createField4_0 = $$createType4;
-        const $$createField5_0 = $$createType4;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("metaFiles" in $$parsedSource) {
-            $$parsedSource["metaFiles"] = $$createField4_0($$parsedSource["metaFiles"]);
-        }
-        if ("imageFiles" in $$parsedSource) {
-            $$parsedSource["imageFiles"] = $$createField5_0($$parsedSource["imageFiles"]);
-        }
-        return new SingleTemplateEntry($$parsedSource as Partial<SingleTemplateEntry>);
-    }
-}
-
 export class StatusButtons {
     "reloader": boolean;
     "charpicker": boolean;
@@ -366,98 +313,6 @@ export class StatusButtons {
     static createFrom($$source: any = {}): StatusButtons {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new StatusButtons($$parsedSource as Partial<StatusButtons>);
-    }
-}
-
-/**
- * TemplateStorageFolder is one entry in VirtualStructure.TemplateStorageFolders.
- * Name is the bare template id (e.g. "basic"); Filename is the YAML file ("basic.yaml").
- */
-export class TemplateStorageFolder {
-    "name": string;
-    "filename": string;
-    "path": string;
-    "metaFiles": string[];
-    "imageFiles": string[];
-
-    /** Creates a new TemplateStorageFolder instance. */
-    constructor($$source: Partial<TemplateStorageFolder> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("filename" in $$source)) {
-            this["filename"] = "";
-        }
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
-        if (!("metaFiles" in $$source)) {
-            this["metaFiles"] = [];
-        }
-        if (!("imageFiles" in $$source)) {
-            this["imageFiles"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new TemplateStorageFolder instance from a string or object.
-     */
-    static createFrom($$source: any = {}): TemplateStorageFolder {
-        const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType4;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("metaFiles" in $$parsedSource) {
-            $$parsedSource["metaFiles"] = $$createField3_0($$parsedSource["metaFiles"]);
-        }
-        if ("imageFiles" in $$parsedSource) {
-            $$parsedSource["imageFiles"] = $$createField4_0($$parsedSource["imageFiles"]);
-        }
-        return new TemplateStorageFolder($$parsedSource as Partial<TemplateStorageFolder>);
-    }
-}
-
-/**
- * VirtualStructure is the materialised view of the on-disk Formidable
- * layout under <context_folder>. Mirrors `configManager.buildVirtualStructure`
- * in the Electron app. Per-template storage folders are auto-created and
- * scanned for `.meta.json` (forms) and image files.
- */
-export class VirtualStructure {
-    "context": string;
-    "templates": string;
-    "storage": string;
-    "templateStorageFolders": { [_ in string]?: TemplateStorageFolder };
-
-    /** Creates a new VirtualStructure instance. */
-    constructor($$source: Partial<VirtualStructure> = {}) {
-        if (!("context" in $$source)) {
-            this["context"] = "";
-        }
-        if (!("templates" in $$source)) {
-            this["templates"] = "";
-        }
-        if (!("storage" in $$source)) {
-            this["storage"] = "";
-        }
-        if (!("templateStorageFolders" in $$source)) {
-            this["templateStorageFolders"] = {};
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new VirtualStructure instance from a string or object.
-     */
-    static createFrom($$source: any = {}): VirtualStructure {
-        const $$createField3_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("templateStorageFolders" in $$parsedSource) {
-            $$parsedSource["templateStorageFolders"] = $$createField3_0($$parsedSource["templateStorageFolders"]);
-        }
-        return new VirtualStructure($$parsedSource as Partial<VirtualStructure>);
     }
 }
 
@@ -498,6 +353,3 @@ const $$createType0 = WindowBounds.createFrom;
 const $$createType1 = StatusButtons.createFrom;
 const $$createType2 = History.createFrom;
 const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = TemplateStorageFolder.createFrom;
-const $$createType6 = $Create.Map($Create.Any, $$createType5);

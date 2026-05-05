@@ -11,9 +11,6 @@ export {
     History,
     ProfileEntry,
     ProfileResult,
-    SingleTemplateEntry,
     StatusButtons,
-    TemplateStorageFolder,
-    VirtualStructure,
     WindowBounds
 } from "./models.js";
