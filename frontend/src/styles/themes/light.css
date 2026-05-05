@@ -26,5 +26,24 @@
     --list-active-bg:     var(--color-accent);
     --list-active-fg:     var(--color-accent-fg);
 
+    /* Inputs */
+    --input-bg:           #ffffff;
+    --input-fg:           #1f2933;
+    --input-border:       #cbd2d9;
+    --input-focus-border: #2563eb;
+    --input-focus-ring:   rgba(37, 99, 235, 0.22);
+    --input-disabled-bg:  #f3f4f6;
+    --input-disabled-fg:  #9ca3af;
+    --input-readonly-bg:  #f8f9fa;
+    --input-readonly-fg:  #6b7280;
+    --input-placeholder:  #9ca3af;
+    --input-invalid-border: #b91c1c;
+
+    /* Switch */
+    --switch-track-bg:         #b6bec9;
+    --switch-track-bg-checked: #15803d;
+    --switch-knob-bg:          #ffffff;
+    --switch-focus-ring:       rgba(21, 128, 61, 0.30);
+
     color-scheme: light;
 }

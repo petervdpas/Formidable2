@@ -25,5 +25,22 @@
     --list-active-bg:     var(--color-accent);
     --list-active-fg:     var(--color-accent-fg);
 
+    --input-bg:           #0b1220;
+    --input-fg:           #e2e8f0;
+    --input-border:       #334155;
+    --input-focus-border: #60a5fa;
+    --input-focus-ring:   rgba(96, 165, 250, 0.30);
+    --input-disabled-bg:  #1e293b;
+    --input-disabled-fg:  #64748b;
+    --input-readonly-bg:  #111a2e;
+    --input-readonly-fg:  #94a3b8;
+    --input-placeholder:  #64748b;
+    --input-invalid-border: #f87171;
+
+    --switch-track-bg:         #475569;
+    --switch-track-bg-checked: #4ade80;
+    --switch-knob-bg:          #f1f5f9;
+    --switch-focus-ring:       rgba(74, 222, 128, 0.30);
+
     color-scheme: dark;
 }

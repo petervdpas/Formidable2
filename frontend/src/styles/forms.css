@@ -1,0 +1,54 @@
+/* Form layout primitives — sections, rows, labels, descriptions, errors. */
+
+.form-section {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg);
+    margin: 0 0 var(--space-3);
+}
+
+.form-section + .form-section { margin-top: var(--space-3); }
+
+.form-section-title {
+    font-weight: 600;
+    margin: 0 0 var(--space-3);
+    font-size: var(--font-size-md);
+}
+
+/* Two-column row: label on left, control on right. */
+.form-row {
+    display: grid;
+    grid-template-columns: var(--form-label-width, 160px) 1fr;
+    column-gap: var(--space-3);
+    align-items: start;
+    padding: var(--space-2) 0;
+}
+
+.form-row + .form-row { border-top: 1px dashed var(--color-border); }
+
+.form-label {
+    font-weight: 600;
+    text-align: right;
+    padding-top: 7px; /* line up with input baseline */
+    color: var(--color-text);
+}
+
+.form-control {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.form-description {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.form-error {
+    margin: 0;
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+}

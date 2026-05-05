@@ -1,0 +1,150 @@
+/* Theme-aware field controls. All values driven by tokens. */
+
+.field-input,
+.field-textarea,
+.field-select {
+    width: 100%;
+    font: inherit;
+    font-size: var(--font-size-md);
+    color: var(--input-fg);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    padding: 6px 10px;
+    line-height: 1.4;
+    transition: border-color 0.1s, box-shadow 0.1s;
+}
+
+.field-input,
+.field-select {
+    height: 34px;
+}
+
+.field-textarea {
+    min-height: 4rem;
+    resize: vertical;
+}
+
+.field-input::placeholder,
+.field-textarea::placeholder {
+    color: var(--input-placeholder);
+}
+
+.field-input:focus,
+.field-textarea:focus,
+.field-select:focus {
+    outline: none;
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+.field-input[readonly],
+.field-textarea[readonly] {
+    background: var(--input-readonly-bg);
+    color: var(--input-readonly-fg);
+    font-style: italic;
+}
+
+.field-input:disabled,
+.field-textarea:disabled,
+.field-select:disabled {
+    background: var(--input-disabled-bg);
+    color: var(--input-disabled-fg);
+    cursor: not-allowed;
+}
+
+.field-input.invalid,
+.field-textarea.invalid,
+.field-select.invalid {
+    border-color: var(--input-invalid-border);
+}
+
+/* ─── Switch ─────────────────────────────────────────────────────── */
+.field-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    user-select: none;
+}
+
+.field-switch input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.field-switch-track {
+    position: relative;
+    width: 42px;
+    height: 22px;
+    background: var(--switch-track-bg);
+    border-radius: 999px;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    flex: 0 0 auto;
+}
+
+.field-switch-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    background: var(--switch-knob-bg);
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.field-switch input:checked + .field-switch-track {
+    background: var(--switch-track-bg-checked);
+}
+
+.field-switch input:checked + .field-switch-track .field-switch-knob {
+    transform: translateX(20px);
+}
+
+.field-switch input:focus-visible + .field-switch-track {
+    box-shadow: 0 0 0 3px var(--switch-focus-ring);
+}
+
+.field-switch input:disabled ~ * {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.field-switch-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+/* ─── Checkbox ───────────────────────────────────────────────────── */
+.field-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    user-select: none;
+}
+
+.field-checkbox input[type="checkbox"] {
+    accent-color: var(--color-accent);
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.field-checkbox input:disabled {
+    cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .field-input,
+    .field-textarea,
+    .field-select,
+    .field-switch-track,
+    .field-switch-knob {
+        transition: none;
+    }
+}
