@@ -27,6 +27,14 @@ export function DeleteForm(templateFilename: string, datafile: string): $Cancell
     return $Call.ByID(1928536102, templateFilename, datafile);
 }
 
+/**
+ * DeleteImageFile removes the named image from this template's images
+ * folder. Missing file is a no-op.
+ */
+export function DeleteImageFile(templateFilename: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(1324306651, templateFilename, name);
+}
+
 export function EnsureFormDir(templateFilename: string): $CancellablePromise<void> {
     return $Call.ByID(1010574690, templateFilename);
 }
@@ -57,6 +65,13 @@ export function LoadForm(templateFilename: string, datafile: string): $Cancellab
     return $Call.ByID(1569422289, templateFilename, datafile).then(($result: any) => {
         return $$createType5($result);
     });
+}
+
+/**
+ * LoadImageFile returns the named image as a base64 data URL.
+ */
+export function LoadImageFile(templateFilename: string, name: string): $CancellablePromise<string> {
+    return $Call.ByID(2646918510, templateFilename, name);
 }
 
 export function SaveForm(templateFilename: string, datafile: string, data: { [_ in string]?: any }): $CancellablePromise<$models.SaveResult> {

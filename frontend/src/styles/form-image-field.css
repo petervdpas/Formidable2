@@ -1,0 +1,44 @@
+/* FormFieldImage — picker button + preview thumb + filename caption.
+   File picker is hidden; we surface a styled .tool-btn instead. */
+
+.image-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.image-field-hidden {
+    display: none;
+}
+
+.image-field-preview-wrap {
+    display: inline-block;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: 4px;
+    max-width: 220px;
+    align-self: flex-start;
+}
+
+.image-field-preview {
+    display: block;
+    max-width: 200px;
+    max-height: 200px;
+    width: auto;
+    height: auto;
+    border-radius: 4px;
+}
+
+.image-field-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.image-field-filename {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+}

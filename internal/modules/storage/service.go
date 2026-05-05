@@ -42,6 +42,17 @@ func (s *Service) SaveImageFile(templateFilename, name string, content []byte) S
 	return s.m.SaveImageFile(templateFilename, name, content)
 }
 
+// LoadImageFile returns the named image as a base64 data URL.
+func (s *Service) LoadImageFile(templateFilename, name string) (string, error) {
+	return s.m.LoadImageFile(templateFilename, name)
+}
+
+// DeleteImageFile removes the named image from this template's images
+// folder. Missing file is a no-op.
+func (s *Service) DeleteImageFile(templateFilename, name string) error {
+	return s.m.DeleteImageFile(templateFilename, name)
+}
+
 // ImportCsvRow is the storage-side of the old `csv-import-row` IPC.
 // The frontend pre-parsed CSV and now wants each row stored as a form.
 func (s *Service) ImportCsvRow(templateFilename, datafile string, data map[string]any) SaveResult {

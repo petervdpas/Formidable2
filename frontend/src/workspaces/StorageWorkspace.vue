@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
@@ -23,6 +23,14 @@ const { view, draft, dirty, open, close, save, reset, remove } = useFormView();
 const toast = useToast();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
+
+// Active template's filename — provided downward so per-type field
+// components that need it (image saves into <storage>/<tplName>/images/,
+// for example) can inject without prop-drilling through the renderer.
+const currentTemplateFilename = computed(
+  () => draft.value?.template?.filename ?? "",
+);
+provide("templateFilename", currentTemplateFilename);
 
 // ── Active template selection ────────────────────────────────────────
 // Drive off config.context_ribbon-style state — selected_template is

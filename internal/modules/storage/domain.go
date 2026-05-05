@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -17,7 +18,9 @@ type fs interface {
 	JoinPath(segments ...string) string
 	EnsureDirectory(path string) error
 	FileExists(path string) bool
+	LoadFile(path string) (string, error)
 	SaveFile(path string, content string) error
+	DeleteFile(path string) error
 	ListFiles(dir string) ([]string, error)
 }
 
@@ -142,6 +145,63 @@ func (m *Manager) DeleteForm(templateFilename, datafile string) error {
 	}
 	dir := m.templateDir(templateFilename)
 	return m.sfr.DeleteFromBase(dir, datafile, sfr.Options{})
+}
+
+// LoadImageFile reads <storage>/<template-name>/images/<name> and returns
+// it as a base64 data URL ("data:image/png;base64,…") suitable for direct
+// use as an <img src=""> on the frontend. Missing file → empty string +
+// nil error (mirrors LoadForm's "missing isn't an error" semantics).
+func (m *Manager) LoadImageFile(templateFilename, name string) (string, error) {
+	if name == "" {
+		return "", errors.New("storage: empty image name")
+	}
+	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return "", fmt.Errorf("storage: invalid image name %q", name)
+	}
+	full := filepath.Join(m.templateDir(templateFilename), imagesDir, name)
+	if !m.fs.FileExists(full) {
+		return "", nil
+	}
+	raw, err := m.fs.LoadFile(full)
+	if err != nil {
+		return "", fmt.Errorf("storage: read image %q: %w", name, err)
+	}
+	mime := imageMIMEFromName(name)
+	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString([]byte(raw)), nil
+}
+
+// imageMIMEFromName maps an image filename's extension to a MIME type.
+// Falls back to application/octet-stream for unknown extensions.
+func imageMIMEFromName(name string) string {
+	ext := strings.ToLower(filepath.Ext(name))
+	switch ext {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	case ".svg":
+		return "image/svg+xml"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+// DeleteImageFile removes <storage>/<template-name>/images/<name>.
+// Missing file is a no-op (mirrors DeleteForm). Used when the user
+// clears an image field.
+func (m *Manager) DeleteImageFile(templateFilename, name string) error {
+	if name == "" {
+		return errors.New("storage: empty image name")
+	}
+	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return fmt.Errorf("storage: invalid image name %q", name)
+	}
+	full := filepath.Join(m.templateDir(templateFilename), imagesDir, name)
+	return m.fs.DeleteFile(full)
 }
 
 // SaveImageFile writes raw bytes to <storage>/<template-name>/images/<name>.

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
@@ -226,6 +227,112 @@ func TestSaveImageFile_RejectsEmptyName(t *testing.T) {
 	r := m.SaveImageFile("basic.yaml", "", []byte("x"))
 	if r.Success {
 		t.Errorf("expected failure, got %+v", r)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// LoadImageFile — reads <storage>/<template>/images/<name> and returns
+// a data URL ready for direct use in <img src="">.
+// ─────────────────────────────────────────────────────────────────────
+
+func TestLoadImageFile_RoundTripsPNG(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	// PNG magic bytes — enough to look like a real PNG to mime sniffers.
+	png := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00}
+	if r := m.SaveImageFile("basic.yaml", "logo.png", png); !r.Success {
+		t.Fatalf("save: %v", r.Error)
+	}
+	url, err := m.LoadImageFile("basic.yaml", "logo.png")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	want := "data:image/png;base64,"
+	if !strings.HasPrefix(url, want) {
+		t.Errorf("want data URL prefix %q, got %q", want, url[:min(40, len(url))])
+	}
+}
+
+func TestLoadImageFile_RoundTripsJPEG(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	jpeg := []byte{0xFF, 0xD8, 0xFF, 0xE0}
+	if r := m.SaveImageFile("basic.yaml", "photo.jpg", jpeg); !r.Success {
+		t.Fatalf("save: %v", r.Error)
+	}
+	url, err := m.LoadImageFile("basic.yaml", "photo.jpg")
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if !strings.HasPrefix(url, "data:image/jpeg;base64,") {
+		t.Errorf("expected jpeg data URL, got %q", url[:min(40, len(url))])
+	}
+}
+
+func TestLoadImageFile_MissingReturnsEmpty(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	url, err := m.LoadImageFile("basic.yaml", "ghost.png")
+	if err != nil {
+		t.Errorf("missing should not error, got: %v", err)
+	}
+	if url != "" {
+		t.Errorf("missing should return empty, got %q", url)
+	}
+}
+
+func TestLoadImageFile_RejectsTraversal(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if _, err := m.LoadImageFile("basic.yaml", "../escape.png"); err == nil {
+		t.Errorf("expected error on traversal, got nil")
+	}
+}
+
+func TestLoadImageFile_RejectsEmptyName(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if _, err := m.LoadImageFile("basic.yaml", ""); err == nil {
+		t.Errorf("expected error on empty name, got nil")
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// DeleteImageFile — removes the file under <storage>/<template>/images/.
+// Missing is a no-op (mirrors DeleteForm).
+// ─────────────────────────────────────────────────────────────────────
+
+func TestDeleteImageFile_RemovesPersistedFile(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	png := []byte{0x89, 0x50, 0x4E, 0x47}
+	if r := m.SaveImageFile("basic.yaml", "logo.png", png); !r.Success {
+		t.Fatalf("save: %v", r.Error)
+	}
+	if err := m.DeleteImageFile("basic.yaml", "logo.png"); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	url, err := m.LoadImageFile("basic.yaml", "logo.png")
+	if err != nil {
+		t.Fatalf("load after delete: %v", err)
+	}
+	if url != "" {
+		t.Errorf("expected empty after delete, got %q", url)
+	}
+}
+
+func TestDeleteImageFile_MissingIsNoOp(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if err := m.DeleteImageFile("basic.yaml", "ghost.png"); err != nil {
+		t.Errorf("delete missing should be no-op, got %v", err)
+	}
+}
+
+func TestDeleteImageFile_RejectsTraversal(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if err := m.DeleteImageFile("basic.yaml", "../escape.png"); err == nil {
+		t.Errorf("expected error on traversal, got nil")
+	}
+}
+
+func TestDeleteImageFile_RejectsEmptyName(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if err := m.DeleteImageFile("basic.yaml", ""); err == nil {
+		t.Errorf("expected error on empty name, got nil")
 	}
 }
 

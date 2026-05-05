@@ -34,6 +34,7 @@
 @import "./form-list-field.css";
 @import "./form-table-field.css";
 @import "./form-tags-field.css";
+@import "./form-image-field.css";
 @import "./form-misc-fields.css";
 
 /* Per-workspace stylesheets. */
