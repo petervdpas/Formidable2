@@ -1,0 +1,13 @@
+/* Settings workspace — only the categories sidebar list. The rest
+   is forms.css / fields.css (each settings page is plain FormSections
+   and FormRows). */
+
+.sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+/* Settings category items use shared .sidebar-row from sidebar.css.
+   This file owns nothing else right now; kept for parity with the
+   other workspace stylesheets and as a hook for future tweaks. */

@@ -47,19 +47,3 @@ const value = computed<number>({
   </div>
 </template>
 
-<style scoped>
-.range-field {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-}
-.range-field input[type="range"] {
-    flex: 1 1 auto;
-}
-.range-display {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    min-width: 3ch;
-    text-align: right;
-}
-</style>

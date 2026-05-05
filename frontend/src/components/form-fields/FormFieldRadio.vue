@@ -46,16 +46,3 @@ const options = computed(() => {
   </div>
 </template>
 
-<style scoped>
-.radio-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-}
-.radio-cell {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    cursor: pointer;
-}
-</style>

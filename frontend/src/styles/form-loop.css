@@ -1,0 +1,79 @@
+/* FormLoop — outer container for one loopstart/loopstop pair.
+   Each loop-item recursively contains FormLoopFields. Drag handle,
+   ghost/chosen/drag states come from dnd.css; small toggle/remove
+   buttons from buttons.css (.btn-ghost-icon variants). */
+
+.form-loop {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    margin: var(--space-3) 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+}
+
+/* Nested (depth = 2) loops indent + tint so the hierarchy is visible. */
+.form-loop[data-depth="2"] {
+    background: var(--color-surface-2);
+    margin-left: var(--space-3);
+}
+
+.form-loop-title {
+    margin: 0;
+    font-size: var(--font-size-md);
+    font-weight: 600;
+}
+.form-loop-description {
+    margin: 4px 0 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
+.form-loop-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.form-loop-item {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+}
+
+.form-loop-item-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.form-loop-item.collapsed .form-loop-item-header {
+    border-bottom: 0;
+    border-radius: var(--radius-md);
+}
+
+.form-loop-item-index {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+.form-loop-item-summary {
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}
+.form-loop-item-spacer { flex: 1 1 auto; }
+
+.form-loop-item-body {
+    padding: 0 var(--space-3) var(--space-2);
+}
+
+.form-loop-empty { padding: 8px 0; }

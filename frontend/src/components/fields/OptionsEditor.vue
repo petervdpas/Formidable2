@@ -95,7 +95,7 @@ function getCell(row: OptionRow, col: ColumnDef): string {
         </template>
         <button
           type="button"
-          class="options-row-btn remove"
+          class="btn-ghost-icon"
           @click="removeRow(i)"
           title="Remove option"
           aria-label="Remove option"
@@ -104,65 +104,10 @@ function getCell(row: OptionRow, col: ColumnDef): string {
     </div>
     <button
       type="button"
-      class="options-row-btn add"
+      class="btn-ghost-block"
       @click="addRow"
       title="Add option"
       aria-label="Add option"
     >+</button>
   </div>
 </template>
-
-<style scoped>
-.options-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 6px;
-    background: var(--color-bg);
-}
-
-/* Rows-only scrollable region; ~2.5 rows tall (40px per row × 2.5). */
-.options-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 100px;
-    overflow-y: auto;
-}
-
-.options-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-
-.options-cell {
-    flex: 1 1 0;
-    min-width: 0;
-}
-
-.options-row-btn {
-    flex: 0 0 auto;
-    width: 32px;
-    height: 34px;
-    appearance: none;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
-    font-weight: 600;
-}
-
-.options-row-btn:hover { background: var(--color-surface-2); }
-
-/* The + button is pinned outside the scroll region so it's always
-   reachable, and stretches to the editor's full width. */
-.options-row-btn.add {
-    width: 100%;
-}
-</style>

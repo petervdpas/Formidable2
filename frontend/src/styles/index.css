@@ -1,4 +1,7 @@
-/* Order: structural tokens → themes → base → component layers. */
+/* Order: structural tokens → themes → base → utilities → component
+   layers → workspace stylesheets. Component files re-use button /
+   form / dnd / sidebar utilities so styles stay DRY. */
+
 @import "./tokens.css";
 @import "./themes/light.css";
 @import "./themes/dark.css";
@@ -8,6 +11,8 @@
 @import "./shell.css";
 @import "./splitter.css";
 @import "./workspace.css";
+
+/* Utilities (buttons / forms / fields / modals / menus / dnd / sidebar). */
 @import "./buttons.css";
 @import "./forms.css";
 @import "./fields.css";
@@ -15,4 +20,23 @@
 @import "./modals.css";
 @import "./menus.css";
 @import "./toasts.css";
+@import "./dnd.css";
+@import "./sidebar.css";
+
+/* Component-specific (named after the component they style). */
+@import "./code-editor.css";
+@import "./markdown-editor.css";
+@import "./options-editor.css";
+@import "./field-edit-modal.css";
 @import "./field-types.css";
+@import "./form-loop.css";
+@import "./form-list-field.css";
+@import "./form-table-field.css";
+@import "./form-tags-field.css";
+@import "./form-misc-fields.css";
+
+/* Per-workspace stylesheets. */
+@import "./workspace-templates.css";
+@import "./workspace-profiles.css";
+@import "./workspace-settings.css";
+@import "./workspace-storage.css";

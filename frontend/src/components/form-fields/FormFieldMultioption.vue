@@ -56,16 +56,3 @@ function toggle(value: string) {
   </div>
 </template>
 
-<style scoped>
-.multioption {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.multioption-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    cursor: pointer;
-}
-</style>

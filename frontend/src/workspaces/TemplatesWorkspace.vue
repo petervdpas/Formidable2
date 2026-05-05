@@ -340,7 +340,7 @@ setTopbarMenu(() => [
         <li
           v-for="f in filenames"
           :key="f"
-          :class="['template-list-item', { active: f === selectedFilename }]"
+          :class="['sidebar-row', 'sidebar-row--stack', { active: f === selectedFilename }]"
           @click="selectedFilename = f"
         >
           <span class="template-display">{{ displayName(f) }}</span>
@@ -408,16 +408,16 @@ setTopbarMenu(() => [
             v-model="draft.fields"
             tag="ul"
             class="field-rows"
-            handle=".field-drag-handle"
+            handle=".dnd-handle"
             :animation="150"
-            ghost-class="field-row-ghost"
-            chosen-class="field-row-chosen"
-            drag-class="field-row-drag"
+            ghost-class="dnd-ghost"
+            chosen-class="dnd-chosen"
+            drag-class="dnd-drag"
             item-key="key"
           >
             <template #item="{ element: f, index: i }">
               <li class="field-row" :data-type="f.type">
-                <span class="field-drag-handle" aria-hidden="true">☰</span>
+                <span class="dnd-handle" aria-hidden="true">☰</span>
                 <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
                 <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
                 <span v-if="f.primary_key" class="badge badge-ok small">PRIMARY</span>
@@ -455,8 +455,8 @@ setTopbarMenu(() => [
     :title="t('workspace.templates.create.title')"
     @close="createOpen = false"
   >
-    <label class="create-row">
-      <span class="create-label">{{ t('workspace.templates.create.label') }}</span>
+    <label class="dialog-row">
+      <span class="dialog-row-label">{{ t('workspace.templates.create.label') }}</span>
       <input
         class="field-input"
         v-model="createInput"
@@ -464,7 +464,7 @@ setTopbarMenu(() => [
         @keydown.enter="submitCreate"
       />
     </label>
-    <p class="muted small create-help">
+    <p class="muted small dialog-row-help">
       {{ t('workspace.templates.create.help') }}
     </p>
     <p v-if="createError" class="form-error">{{ createError }}</p>
@@ -513,172 +513,3 @@ setTopbarMenu(() => [
   />
 </template>
 
-<style scoped>
-/* Sidebar list — same visual language as the profile list. */
-.template-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.template-list-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: var(--space-2);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    color: var(--color-text);
-    background: transparent;
-}
-
-.template-list-item:hover { background: var(--list-hover-bg); }
-
-.template-list-item.active {
-    background: var(--list-active-bg);
-    color: var(--list-active-fg);
-}
-
-.template-display { font-weight: 600; }
-
-.template-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    flex-wrap: wrap;
-    justify-content: flex-end;     /* badges float to bottom-right */
-}
-
-.template-filename {
-    font-family: var(--font-mono);
-    font-size: 11px;
-}
-
-/* Main panel — heading row keeps the title beside its meta pills. */
-.workspace-heading-row {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-3);
-    flex-wrap: wrap;
-    margin-bottom: var(--space-3);
-}
-
-/* The .workspace-heading inside the row drops its own bottom margin
-   so spacing is governed by the parent flex row + the global
-   margin-bottom on .workspace-heading-row. */
-.workspace-heading-row .workspace-heading {
-    margin: 0;
-}
-
-/* Field Information section's content needs to span the FormSection's
-   2-column grid so rows fill the panel width. */
-.fields-content {
-    grid-column: 1 / -1;
-}
-
-
-/* Field rows — Formidable's "label (TYPE) … Edit Delete" look. */
-.field-rows {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.field-row {
-    /* Layout only — color/background/border live in
-       styles/field-types.css so the per-type palette can win without
-       fighting :scoped specificity. */
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: 8px var(--space-3);
-    border-radius: var(--radius-md);
-}
-
-.field-drag-handle {
-    cursor: grab;
-    user-select: none;
-    font-size: 16px;
-    line-height: 1;
-    opacity: 0.85;
-}
-
-.field-drag-handle:active {
-    cursor: grabbing;
-}
-
-.field-row-label {
-    font-weight: 600;
-    font-size: var(--font-size-md);
-}
-
-.field-row-type {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    padding: 2px 8px;
-    border-radius: 999px;
-    line-height: 1.4;
-    font-weight: 600;
-}
-
-.field-row-spacer {
-    flex: 1 1 auto;
-}
-
-.field-row-actions {
-    display: flex;
-    gap: 6px;
-}
-
-.field-action-btn {
-    appearance: none;
-    border: 0;
-    padding: 4px 12px;
-    border-radius: var(--radius-md);
-    font: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    color: #ffffff;
-    line-height: 1.4;
-}
-
-.field-action-btn.edit {
-    background: #f59e0b;            /* warning amber — Edit */
-}
-.field-action-btn.delete {
-    background: #dc2626;            /* danger red — Delete */
-}
-
-.field-action-btn:hover:not(:disabled) {
-    filter: brightness(1.08);
-}
-
-.field-action-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* Create modal */
-.create-row {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.create-label {
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-}
-
-.create-help {
-    margin: var(--space-2) 0 0;
-}
-</style>

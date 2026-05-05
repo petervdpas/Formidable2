@@ -148,16 +148,16 @@ function isInvalid(row: string): boolean {
       tag="div"
       class="list-rows"
       :group="dndScope"
-      handle=".list-row-handle"
+      handle=".dnd-handle"
       :animation="150"
-      ghost-class="list-row-ghost"
-      chosen-class="list-row-chosen"
-      drag-class="list-row-drag"
+      ghost-class="dnd-ghost"
+      chosen-class="dnd-chosen"
+      drag-class="dnd-drag"
       :item-key="(_e: string, i: number) => i"
     >
       <template #item="{ index: i, element: item }">
         <div class="list-row">
-          <span class="list-row-handle" :title="'Drag to reorder'" aria-hidden="true">⠿</span>
+          <span class="dnd-handle" :title="'Drag to reorder'" aria-hidden="true">⠿</span>
 
           <!-- Free text (no options OR custom-only) -->
           <TextField
@@ -198,7 +198,7 @@ function isInvalid(row: string): boolean {
           <button
             v-if="!field.readonly"
             type="button"
-            class="list-btn remove"
+            class="btn-ghost-icon"
             @click="remove(i)"
             aria-label="Remove item"
           >−</button>
@@ -209,75 +209,8 @@ function isInvalid(row: string): boolean {
     <button
       v-if="!field.readonly"
       type="button"
-      class="list-btn add"
+      class="btn-ghost-block"
       @click="add('')"
     >+</button>
   </div>
 </template>
-
-<style scoped>
-.list-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.list-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.list-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-}
-.list-row-handle {
-    cursor: grab;
-    user-select: none;
-    font-size: 16px;
-    line-height: 1;
-    opacity: 0.7;
-    padding: 0 2px;
-    flex: 0 0 auto;
-}
-.list-row-handle:active { cursor: grabbing; }
-
-.list-row > :deep(.field-input),
-.list-row > :deep(.select-field-control),
-.list-row > :deep(select) {
-    flex: 1 1 auto;
-}
-.list-btn {
-    flex: 0 0 auto;
-    width: 32px;
-    height: 34px;
-    appearance: none;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
-    font-weight: 600;
-}
-.list-btn:hover { background: var(--color-surface-2); }
-.list-btn.add { width: 100%; }
-
-/* Sortable.js visual states (vuedraggable forwards class names). */
-.list-row-ghost {
-    opacity: 0.35;
-    filter: saturate(0.4);
-}
-.list-row-chosen {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-.list-row-drag { cursor: grabbing; }
-
-/* Fixed-only mode: highlight rows whose value isn't in the allowed
-   set (mirrors the original's "⚠ Not in list" affordance). */
-.list-row :deep(.invalid),
-.list-row :deep(select.invalid) {
-    border-color: var(--color-danger, #dc2626);
-}
-</style>

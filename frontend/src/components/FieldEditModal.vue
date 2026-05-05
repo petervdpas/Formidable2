@@ -297,19 +297,3 @@ const dialogStyle = computed<Record<string, string>>(() => {
   </Modal>
 </template>
 
-<style scoped>
-/* Type badge next to the modal title — pops on the tinted dialog
-   floor by using the badge token rather than the row bg. */
-.field-type-pill {
-    display: inline-block;
-    margin-left: var(--space-2);
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    line-height: 1.4;
-    vertical-align: middle;
-}
-</style>

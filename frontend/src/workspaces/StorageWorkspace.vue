@@ -250,7 +250,7 @@ setTopbarMenu(() => [
         <li
           v-for="s in visibleSummaries"
           :key="s.filename"
-          :class="['form-list-item', { active: s.filename === selectedDataFile }]"
+          :class="['sidebar-row', 'sidebar-row--stack', { active: s.filename === selectedDataFile }]"
           @click="pickForm(s.filename)"
         >
           <span class="form-list-title">{{ s.title || s.filename }}</span>
@@ -332,8 +332,8 @@ setTopbarMenu(() => [
     :title="t('workspace.storage.new.title')"
     @close="newOpen = false"
   >
-    <label class="new-row">
-      <span class="new-label">{{ t('workspace.storage.new.label') }}</span>
+    <label class="dialog-row">
+      <span class="dialog-row-label">{{ t('workspace.storage.new.label') }}</span>
       <input
         class="field-input"
         v-model="newName"
@@ -341,7 +341,7 @@ setTopbarMenu(() => [
         @keydown.enter="submitNew"
       />
     </label>
-    <p class="muted small new-help">
+    <p class="muted small dialog-row-help">
       {{ t('workspace.storage.new.help') }}
     </p>
     <p v-if="newError" class="form-error">{{ newError }}</p>
@@ -369,104 +369,3 @@ setTopbarMenu(() => [
   />
 </template>
 
-<style scoped>
-.sidebar-section { margin-bottom: var(--space-3); }
-.sidebar-section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 4px;
-}
-.sidebar-label {
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-    color: var(--color-text);
-}
-.sidebar-toolbar { margin-bottom: 6px; }
-
-.form-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-.form-list-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: var(--space-2);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    color: var(--color-text);
-}
-.form-list-item:hover { background: var(--list-hover-bg); }
-.form-list-item.active {
-    background: var(--list-active-bg);
-    color: var(--list-active-fg);
-}
-.form-list-title {
-    font-weight: 600;
-}
-.form-list-filename {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    opacity: 0.75;
-}
-
-/* Form fields list — single column, full panel width, in template
-   order. Each FormFieldRow lays out label/input itself. */
-.form-fields {
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    background: var(--color-bg);
-    padding: var(--space-2) var(--space-4);
-    margin: 0 0 var(--space-3);
-}
-
-/* Meta block — minimal scaffold; full polish later. */
-.meta-grid {
-    display: grid;
-    grid-template-columns: minmax(120px, 18%) 1fr;
-    column-gap: var(--space-3);
-    row-gap: 4px;
-    grid-column: 1 / -1;
-}
-.meta-row { display: contents; }
-.meta-key { font-weight: 600; }
-.meta-value.mono { font-family: var(--font-mono); }
-.meta-value.small { font-size: var(--font-size-sm); }
-
-.meta-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: var(--space-3);
-    grid-column: 1 / -1;
-}
-
-.tool-btn.danger {
-    background: #dc2626;
-    color: #fff;
-    border: 0;
-}
-.tool-btn.danger:hover:not(:disabled) {
-    filter: brightness(1.08);
-}
-
-/* New entry modal */
-.new-row {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.new-label {
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-}
-.new-help {
-    margin: var(--space-2) 0 0;
-}
-</style>

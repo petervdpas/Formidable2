@@ -144,18 +144,18 @@ function asNumber(v: unknown): number {
         v-model="rows"
         tag="tbody"
         :group="dndScope"
-        handle=".ff-table-handle"
+        handle=".dnd-handle"
         :animation="150"
-        ghost-class="ff-table-row-ghost"
-        chosen-class="ff-table-row-chosen"
-        drag-class="ff-table-row-drag"
+        ghost-class="dnd-ghost"
+        chosen-class="dnd-chosen"
+        drag-class="dnd-drag"
         :item-key="(_e: unknown[], i: number) => i"
       >
         <template #item="{ index: ri, element: row }">
           <tr>
             <td class="ff-table-col-tiny">
               <span
-                class="ff-table-handle"
+                class="dnd-handle"
                 :title="'Drag to reorder'"
                 aria-hidden="true"
               >⠿</span>
@@ -199,7 +199,7 @@ function asNumber(v: unknown): number {
               <button
                 v-if="!field.readonly"
                 type="button"
-                class="ff-table-remove"
+                class="btn-ghost-icon btn-sm"
                 :aria-label="'Remove row ' + (ri + 1)"
                 @click="removeRow(ri)"
               >−</button>
@@ -216,98 +216,9 @@ function asNumber(v: unknown): number {
     <button
       v-if="!field.readonly && columns.length > 0"
       type="button"
-      class="ff-table-add"
+      class="btn-ghost-block"
       @click="addRow"
     >+ Add row</button>
   </div>
 </template>
 
-<style scoped>
-.table-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.ff-table {
-    width: 100%;
-    border-collapse: collapse;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    background: var(--color-bg);
-}
-.ff-table thead {
-    background: var(--color-surface);
-}
-.ff-table th,
-.ff-table td {
-    border-bottom: 1px solid var(--color-border);
-    padding: 4px 6px;
-    text-align: left;
-    font-size: var(--font-size-sm);
-    vertical-align: middle;
-}
-.ff-table th {
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-    color: var(--color-text);
-}
-.ff-table tbody tr:last-child td { border-bottom: 0; }
-.ff-table-col-tiny {
-    width: 28px;
-    text-align: center;
-    padding: 4px 2px !important;
-}
-.ff-table-handle {
-    cursor: grab;
-    user-select: none;
-    opacity: 0.6;
-    font-size: 14px;
-}
-.ff-table-handle:active { cursor: grabbing; }
-
-/* Sortable.js visual states (vuedraggable forwards class names). */
-.ff-table-row-ghost {
-    opacity: 0.35;
-    filter: saturate(0.4);
-}
-.ff-table-row-chosen {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-.ff-table-row-drag { cursor: grabbing; }
-.ff-table-remove {
-    appearance: none;
-    width: 24px;
-    height: 24px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text);
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    line-height: 1;
-    font-weight: 600;
-}
-.ff-table-remove:hover { background: var(--color-surface-2); }
-
-.ff-table-add {
-    appearance: none;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    padding: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    width: 100%;
-}
-.ff-table-add:hover { background: var(--color-surface-2); }
-
-/* Inputs inside cells take full width and trim down padding so the
-   table reads compact. */
-.ff-table td :deep(.field-input) {
-    padding: 4px 8px;
-    width: 100%;
-}
-</style>

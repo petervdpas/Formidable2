@@ -287,7 +287,8 @@ setTopbarMenu(() => [
           v-for="p in profiles"
           :key="p.value"
           :class="[
-            'profile-list-item',
+            'sidebar-row',
+            'sidebar-row--stack',
             { active: p.value === selectedFilename },
           ]"
           @click="selectedFilename = p.value"
@@ -372,8 +373,8 @@ setTopbarMenu(() => [
     :title="t('workspace.profiles.create.title')"
     @close="createOpen = false"
   >
-    <label class="create-row">
-      <span class="create-label">{{ t('workspace.profiles.create.label') }}</span>
+    <label class="dialog-row">
+      <span class="dialog-row-label">{{ t('workspace.profiles.create.label') }}</span>
       <input
         class="field-input"
         v-model="createInput"
@@ -381,7 +382,7 @@ setTopbarMenu(() => [
         @keydown.enter="submitCreate"
       />
     </label>
-    <p class="muted small create-help">
+    <p class="muted small dialog-row-help">
       {{ t('workspace.profiles.create.help') }}
     </p>
     <p v-if="createError" class="form-error">{{ createError }}</p>
@@ -437,77 +438,3 @@ setTopbarMenu(() => [
   />
 </template>
 
-<style scoped>
-.profile-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.profile-list-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: var(--space-2) var(--space-2);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    color: var(--color-text);
-    background: transparent;
-}
-
-.profile-list-item:hover { background: var(--list-hover-bg); }
-
-.profile-list-item.active {
-    background: var(--list-active-bg);
-    color: var(--list-active-fg);
-}
-
-.profile-display { font-weight: 600; }
-
-.profile-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1);
-    flex-wrap: wrap;
-    justify-content: flex-end;     /* badges float to bottom-right */
-}
-
-.profile-filename {
-    font-family: var(--font-mono);
-    font-size: 11px;
-}
-
-.profile-detail-meta {
-    display: flex;
-    gap: var(--space-2);
-    margin-bottom: var(--space-3);
-    flex-wrap: wrap;
-}
-
-.profile-kv { margin-bottom: var(--space-4); }
-
-.profile-actions {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-    margin-top: var(--space-3);
-}
-
-.create-row {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.create-label {
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-}
-
-.create-help {
-    margin: var(--space-2) 0 0;
-}
-</style>

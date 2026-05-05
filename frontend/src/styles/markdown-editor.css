@@ -1,0 +1,52 @@
+/* MarkdownEditor — wraps EasyMDE.
+   Wrapper rules (own classes) plus the global token-bridge that
+   reaches into EasyMDE's outer DOM (.EasyMDEContainer). EasyMDE
+   appends its chrome OUTSIDE the Vue component subtree, so we can't
+   scope these rules — they are intentionally global. */
+
+.md-editor {
+    /* Containing block for EasyMDE's chrome — width control lives
+       here, height is governed by minHeight + content. */
+    display: block;
+}
+
+/* The textarea is invisible after EasyMDE swaps it for CodeMirror.
+   Hide for SSR / pre-mount flash. */
+.md-textarea { display: none; }
+
+/* ── EasyMDE token bridge ────────────────────────────────────────── */
+
+:root[data-theme="light"] .EasyMDEContainer .editor-toolbar,
+:root[data-theme="dark"] .EasyMDEContainer .editor-toolbar,
+:root[data-theme="purplish"] .EasyMDEContainer .editor-toolbar {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+}
+
+:root[data-theme="dark"] .EasyMDEContainer .editor-toolbar a,
+:root[data-theme="purplish"] .EasyMDEContainer .editor-toolbar a {
+    color: var(--color-text) !important;
+}
+.EasyMDEContainer .editor-toolbar a:hover {
+    background: var(--color-surface-2) !important;
+    border-color: var(--color-border) !important;
+}
+
+.EasyMDEContainer .editor-statusbar {
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.EasyMDEContainer .CodeMirror {
+    border-color: var(--color-border);
+    background: var(--input-bg);
+    color: var(--color-text);
+}
+
+/* In dark / purplish, the monokai theme owns inner colors; we only
+   touch the outer frame. */
+:root[data-theme="dark"] .EasyMDEContainer .CodeMirror,
+:root[data-theme="purplish"] .EasyMDEContainer .CodeMirror {
+    border-color: var(--color-border);
+}

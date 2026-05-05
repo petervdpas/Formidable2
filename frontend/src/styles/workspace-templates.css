@@ -1,0 +1,107 @@
+/* Templates workspace — sidebar list + main panel field-information
+   row chrome. Per-type tinting lives in field-types.css; the drag
+   handle + ghost/chosen/drag states use dnd.css utilities. */
+
+/* ── Sidebar list ────────────────────────────────────────────────── */
+.template-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* The template-list-item layout uses the shared .sidebar-row stack
+   variant (sidebar.css); only the meta cells need extra rules. */
+.template-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.template-display { font-weight: 600; }
+.template-filename {
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+/* ── Main panel ──────────────────────────────────────────────────── */
+.workspace-heading-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-3);
+}
+.workspace-heading-row .workspace-heading { margin: 0; }
+
+/* Field Information section's content needs to span the FormSection's
+   2-column grid so rows fill the panel width. */
+.fields-content { grid-column: 1 / -1; }
+
+/* ── Field-information rows ──────────────────────────────────────── */
+.field-rows {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field-row {
+    /* Layout only — color/background/border live in field-types.css. */
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 8px var(--space-3);
+    border-radius: var(--radius-md);
+}
+
+.field-row-label {
+    font-weight: 600;
+    font-size: var(--font-size-md);
+}
+
+.field-row-type {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.field-row-spacer { flex: 1 1 auto; }
+
+.field-row-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* Edit/Delete coloured action buttons — these don't fit the ghost
+   button pattern (they're solid-colored), so they get their own
+   class set. */
+.field-action-btn {
+    appearance: none;
+    border: 0;
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #ffffff;
+    line-height: 1.4;
+}
+.field-action-btn.edit   { background: var(--color-warn,   #f59e0b); }
+.field-action-btn.delete { background: var(--color-error); }
+.field-action-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.field-action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}

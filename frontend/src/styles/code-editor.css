@@ -1,0 +1,38 @@
+/* CodeEditor — vue-codemirror wrapper used by the Templates editor's
+   "Template Code" field and any other YAML/code surface. */
+
+.code-editor {
+    position: relative;
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    overflow: hidden;
+    /* User can drag the corner to grow the editor; CodeMirror's
+       theme extension binds & to height: 100% so it follows. */
+    resize: vertical;
+    min-height: 80px;
+}
+
+.code-editor.fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    border: 0;
+    border-radius: 0;
+    resize: none;
+    height: auto !important;
+    width: auto !important;
+}
+
+.code-editor .cm-scroller {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.code-editor .cm-editor.cm-focused { outline: none; }
+
+.code-editor:focus-within {
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px var(--input-focus-ring);
+}

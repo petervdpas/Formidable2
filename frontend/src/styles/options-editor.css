@@ -1,0 +1,33 @@
+/* OptionsEditor — small grid for editing field.options[] in the
+   FieldEditModal. Add/remove buttons reuse .btn-ghost-icon /
+   .btn-ghost-block from buttons.css. */
+
+.options-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 6px;
+    background: var(--color-bg);
+}
+
+/* Rows-only scrollable region; ~2.5 rows tall (40px per row × 2.5). */
+.options-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.options-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.options-cell {
+    flex: 1 1 0;
+    min-width: 0;
+}

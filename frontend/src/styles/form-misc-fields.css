@@ -1,0 +1,63 @@
+/* Small form-field types — Range / Radio / Multioption / Unknown.
+   Each is small enough not to merit its own file. */
+
+/* ── Range ───────────────────────────────────────────────────────── */
+.range-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.range-field input[type="range"] { flex: 1 1 auto; }
+.range-display {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    min-width: 3ch;
+    text-align: right;
+}
+
+/* ── Multioption (stacked checkboxes) ────────────────────────────── */
+.multioption {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.multioption-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+}
+
+/* ── Radio (inline group) ────────────────────────────────────────── */
+.radio-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+}
+.radio-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    cursor: pointer;
+}
+
+/* ── Unknown placeholder (renderer pending) ──────────────────────── */
+.unknown-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 8px var(--space-2);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+.unknown-pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--color-surface-2);
+    color: var(--color-text);
+}

@@ -1,0 +1,27 @@
+/* Sidebar list-row base — shared by Templates / Profiles / Storage /
+   Settings sidebars. Per-workspace stylesheets only own the parts that
+   actually differ (additional layout for title + meta rows, etc). */
+
+.sidebar-row {
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    color: var(--color-text);
+    background: transparent;
+}
+.sidebar-row:hover { background: var(--list-hover-bg); }
+.sidebar-row.active {
+    background: var(--list-active-bg);
+    color: var(--list-active-fg);
+    font-weight: 600;
+}
+
+/* Two-line variant used by Templates / Profiles / Storage:
+   title on top, meta line(s) below. Workspace-specific stylesheets
+   format the meta children. */
+.sidebar-row--stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.sidebar-row--stack.active { font-weight: normal; } /* title cell handles the bold */

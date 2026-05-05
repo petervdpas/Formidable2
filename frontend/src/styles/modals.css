@@ -89,6 +89,28 @@
     margin: 0 0 var(--space-3);
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Dialog form rows — used by the create/new-entry dialogs across
+   workspaces (Templates "New Template", Profiles "Create Profile",
+   Storage "New Entry", etc.). Replaces the duplicated .create-row /
+   .new-row pairs.
+   ───────────────────────────────────────────────────────────────────── */
+
+.dialog-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dialog-row-label {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+
+.dialog-row-help {
+    margin: var(--space-2) 0 0;
+}
+
 /* Transition: fade backdrop, light scale on dialog. */
 .modal-enter-from .modal-dialog,
 .modal-leave-to .modal-dialog {

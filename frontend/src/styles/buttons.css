@@ -85,3 +85,56 @@
 }
 
 .tool-toggle input { accent-color: var(--color-accent); }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Ghost icon / block buttons.
+
+   Used by Options editor, List/Table/Loop renderers' add+remove rows,
+   FieldEditModal action chips, etc. Three sizes via modifier class;
+   .btn-ghost-block stretches to 100% width for the "+" Add buttons.
+   ───────────────────────────────────────────────────────────────────── */
+
+.btn-ghost-icon {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 34px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 600;
+}
+.btn-ghost-icon:hover { background: var(--color-surface-2); }
+
+.btn-ghost-icon.btn-sm {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+}
+.btn-ghost-icon.btn-md {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+}
+
+.btn-ghost-block {
+    appearance: none;
+    width: 100%;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    padding: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+}
+.btn-ghost-block:hover { background: var(--color-surface-2); }
+
+/* `.tool-btn.danger` lives in modals.css (kept there because modals
+   use it heavily; nothing else does). */

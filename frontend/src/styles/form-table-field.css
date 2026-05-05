@@ -1,0 +1,47 @@
+/* FormFieldTable — table chrome + per-cell layout. Drag handle,
+   ghost/chosen/drag come from dnd.css; add row uses .btn-ghost-block
+   from buttons.css. */
+
+.table-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ff-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-bg);
+}
+
+.ff-table thead { background: var(--color-surface); }
+
+.ff-table th,
+.ff-table td {
+    border-bottom: 1px solid var(--color-border);
+    padding: 4px 6px;
+    text-align: left;
+    font-size: var(--font-size-sm);
+    vertical-align: middle;
+}
+.ff-table th {
+    font-weight: 600;
+    color: var(--color-text);
+}
+.ff-table tbody tr:last-child td { border-bottom: 0; }
+
+.ff-table-col-tiny {
+    width: 28px;
+    text-align: center;
+    padding: 4px 2px !important;
+}
+
+/* Inputs inside cells take full width and trim down padding so the
+   table reads compact. */
+.ff-table td .field-input {
+    padding: 4px 8px;
+    width: 100%;
+}

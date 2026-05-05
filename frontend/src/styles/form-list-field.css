@@ -1,0 +1,32 @@
+/* FormFieldList — drag handle, ghost/chosen/drag come from dnd.css;
+   add/remove buttons from buttons.css. This file owns the per-row
+   layout and the "value not in allowed set" highlight. */
+
+.list-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.list-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.list-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.list-row > .field-input,
+.list-row > .field-select,
+.list-row > select {
+    flex: 1 1 auto;
+}
+
+/* Fixed-only mode: highlight rows whose value isn't in the allowed
+   set (mirrors the original's "⚠ Not in list" affordance). */
+.list-row .field-input.invalid,
+.list-row .field-select.invalid,
+.list-row select.invalid {
+    border-color: var(--color-error);
+}

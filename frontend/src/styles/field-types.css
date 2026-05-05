@@ -184,22 +184,9 @@
     border-color: color-mix(in oklab, currentColor 25%, transparent);
 }
 
-/* Drag-and-drop visual states (Sortable.js classes via vuedraggable). */
-
-/* The placeholder that marks where the dragged item will land. */
-.field-row.field-row-ghost {
-    opacity: 0.35;
-    filter: saturate(0.4);
-}
-
-/* The actual dragged element while the user is holding it. */
-.field-row.field-row-chosen {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-
-.field-row.field-row-drag {
-    cursor: grabbing;
-}
+/* Drag-and-drop visual states are shared globally — see dnd.css.
+   .dnd-ghost / .dnd-chosen / .dnd-drag apply to a type-tinted
+   .field-row exactly the same as to any other draggable. */
 
 .field-row .field-row-key {
     color: inherit;

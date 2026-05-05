@@ -102,7 +102,7 @@ setTopbarMenu(() => [
         <li
           v-for="c in SETTINGS_CATEGORIES"
           :key="c.id"
-          :class="['sidebar-list-item', { active: c.id === activeId }]"
+          :class="['sidebar-row', { active: c.id === activeId }]"
           @click="activeId = c.id"
         >
           {{ t(c.labelKey) }}
@@ -138,22 +138,3 @@ setTopbarMenu(() => [
   />
 </template>
 
-<style scoped>
-.sidebar-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.sidebar-list-item {
-    padding: 6px var(--space-2);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    color: var(--color-text);
-}
-.sidebar-list-item:hover { background: var(--list-hover-bg); }
-.sidebar-list-item.active {
-    background: var(--list-active-bg);
-    color: var(--list-active-fg);
-    font-weight: 600;
-}
-</style>
