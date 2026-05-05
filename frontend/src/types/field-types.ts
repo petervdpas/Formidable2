@@ -72,7 +72,7 @@ export const FIELD_TYPES: FieldTypeDef[] = [
     id: "boolean",
     labelKey: "workspace.templates.field_type.boolean",
     defaultValue: () => false,
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "options", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
+    hiddenRows: ["summary_field", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
   },
   {
     id: "dropdown",

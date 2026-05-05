@@ -9,7 +9,10 @@ import {
   TextareaField,
   SelectField,
   SwitchField,
+  OptionsEditor,
 } from "./fields";
+import type { OptionRow } from "./fields/OptionsEditor.vue";
+import { columnsFor, SUPPORTED_OPTION_TYPES } from "../types/option-presets";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   isRowHidden,
@@ -82,18 +85,30 @@ const defaultAsString = computed({
   },
 });
 
-// Options — original Formidable stores as array. We keep CSV in the
-// textarea for v1; the dedicated options editor is a follow-up.
-const optionsAsCsv = computed({
+// Options — per-type column structure (boolean uses [value,label],
+// list uses [type,value,label], table uses [key,type,label], etc.).
+// Types not in the supported set get a "not available" message.
+const optionsSupported = computed(() => SUPPORTED_OPTION_TYPES.has(draft.value?.type || ""));
+
+const optionColumns = computed(() => columnsFor(draft.value?.type || "") ?? []);
+
+const optionRows = computed<OptionRow[]>({
   get: () => {
     const opts = draft.value?.options ?? [];
-    if (!Array.isArray(opts)) return "";
-    return opts.map((o) => (typeof o === "string" ? o : JSON.stringify(o))).join(", ");
+    if (!Array.isArray(opts)) return [];
+    // Normalize each entry into a row object. Strings become {value, label}
+    // pairs (single-column would lose label, so default to value=label).
+    return opts.map((o) => {
+      if (o && typeof o === "object" && !Array.isArray(o)) {
+        return { ...(o as Record<string, unknown>) };
+      }
+      const s = String(o);
+      return { value: s, label: s };
+    });
   },
-  set: (v: string) => {
+  set: (rows) => {
     if (!draft.value) return;
-    const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
-    draft.value.options = parts;
+    draft.value.options = rows;
   },
 });
 
@@ -200,9 +215,15 @@ function submit() {
         <FormRow
           v-if="showRow('options')"
           :label="t('workspace.templates.field_edit.row.options')"
-          :description="t('workspace.templates.field_edit.row.options_help')"
         >
-          <TextareaField v-model="optionsAsCsv" :rows="2" />
+          <OptionsEditor
+            v-if="optionsSupported"
+            v-model="optionRows"
+            :columns="optionColumns"
+          />
+          <p v-else class="muted small options-unavailable">
+            {{ t('workspace.templates.field_edit.row.options_unavailable') }}
+          </p>
         </FormRow>
       </FormSection>
     </div>

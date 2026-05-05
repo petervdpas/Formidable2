@@ -119,6 +119,7 @@
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Options",
   "workspace.templates.field_edit.row.options_help": "Comma-separated. Dedicated options editor lands in a later step.",
+  "workspace.templates.field_edit.row.options_unavailable": "Options not available for this field type.",
   "workspace.templates.field_edit.row.readonly": "Read-only",
   "workspace.templates.field_edit.row.two_column": "Two columns",
   "workspace.templates.field_edit.row.type": "Field Type",

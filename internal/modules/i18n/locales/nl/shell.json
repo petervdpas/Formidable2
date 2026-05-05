@@ -118,6 +118,7 @@
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Opties",
   "workspace.templates.field_edit.row.options_help": "Door komma's gescheiden. Aparte optie-editor komt in een volgende stap.",
+  "workspace.templates.field_edit.row.options_unavailable": "Opties niet beschikbaar voor dit veldtype.",
   "workspace.templates.field_edit.row.readonly": "Alleen-lezen",
   "workspace.templates.field_edit.row.two_column": "Twee kolommen",
   "workspace.templates.field_edit.row.type": "Veldtype",
