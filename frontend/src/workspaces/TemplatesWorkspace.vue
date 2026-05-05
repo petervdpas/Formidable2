@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import CodeEditor from "../components/CodeEditor.vue";
@@ -226,38 +227,46 @@ setTopbarMenu(() => [
           <p v-if="!draft.fields || draft.fields.length === 0" class="muted small">
             {{ t('workspace.templates.fields.empty') }}
           </p>
-          <ul v-else class="field-rows">
-            <li
-              v-for="(f, i) in draft.fields"
-              :key="(f.key || '') + ':' + i"
-              class="field-row"
-              :data-type="f.type"
-            >
-              <span class="field-drag-handle" aria-hidden="true">☰</span>
-              <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
-              <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
-              <span v-if="f.primary_key" class="badge badge-ok small">PRIMARY</span>
-              <span class="field-row-spacer"></span>
-              <div class="field-row-actions">
-                <button
-                  type="button"
-                  class="field-action-btn edit"
-                  :disabled="f.type === 'loopstop'"
-                  title="Edit field — wired in next step"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  class="field-action-btn delete"
-                  :disabled="f.type === 'loopstop'"
-                  title="Delete field — wired in next step"
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          </ul>
+          <draggable
+            v-else
+            v-model="draft.fields"
+            tag="ul"
+            class="field-rows"
+            handle=".field-drag-handle"
+            :animation="150"
+            ghost-class="field-row-ghost"
+            chosen-class="field-row-chosen"
+            drag-class="field-row-drag"
+            item-key="key"
+          >
+            <template #item="{ element: f, index: i }">
+              <li class="field-row" :data-type="f.type">
+                <span class="field-drag-handle" aria-hidden="true">☰</span>
+                <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
+                <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
+                <span v-if="f.primary_key" class="badge badge-ok small">PRIMARY</span>
+                <span class="field-row-spacer"></span>
+                <div class="field-row-actions">
+                  <button
+                    type="button"
+                    class="field-action-btn edit"
+                    :disabled="f.type === 'loopstop'"
+                    title="Edit field — wired in next step"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="field-action-btn delete"
+                    :disabled="f.type === 'loopstop'"
+                    title="Delete field — wired in next step"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            </template>
+          </draggable>
           </div>
         </FormSection>
       </template>
