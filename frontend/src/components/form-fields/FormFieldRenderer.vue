@@ -14,6 +14,7 @@ import FormFieldTable from "./FormFieldTable.vue";
 import FormFieldGuid from "./FormFieldGuid.vue";
 import FormFieldTags from "./FormFieldTags.vue";
 import FormFieldImage from "./FormFieldImage.vue";
+import FormFieldLink from "./FormFieldLink.vue";
 import FormFieldUnknown from "./FormFieldUnknown.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -42,6 +43,7 @@ const DISPATCH: Record<string, Component> = {
   guid: FormFieldGuid,
   tags: FormFieldTags,
   image: FormFieldImage,
+  link: FormFieldLink,
 };
 
 const component = computed<Component>(

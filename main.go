@@ -7,6 +7,7 @@ import (
 
 	"github.com/petervdpas/formidable2/internal/app"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -17,6 +18,7 @@ func init() {
 	// Register journal events with the Wails binding generator so the
 	// frontend gets typed signatures.
 	application.RegisterEvent[journal.Entry](journal.EventChanged)
+	application.RegisterEvent[*nav.Target](nav.EventChanged)
 }
 
 func main() {

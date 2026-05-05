@@ -8,11 +8,15 @@ import type { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import type * as journal$0 from "../../../../petervdpas/formidable2/internal/modules/journal/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import type * as nav$0 from "../../../../petervdpas/formidable2/internal/modules/nav/models.js";
 
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "journal:changed": journal$0.Entry;
+            "nav:changed": nav$0.Target | null;
         }
     }
 }

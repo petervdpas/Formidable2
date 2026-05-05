@@ -19,6 +19,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/form"
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
@@ -71,11 +72,13 @@ type App struct {
 	I18n     *i18n.Service
 	Dialog   *dialog.Service
 	Render   *render.Service
+	Nav      *nav.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
 	formManager     *form.Manager
 	renderManager   *render.Manager
+	navManager      *nav.Manager
 	journalManager  *journal.Manager
 	emitter         *emitterRelay
 	deps            Deps
@@ -145,6 +148,13 @@ func New(d Deps) (*App, error) {
 	emitter := &emitterRelay{}
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
+	// Nav manager — owns formidable:// URL resolution. Validates the
+	// (template, datafile) pair against the same managers the rest of
+	// the app uses, persists the selection to config, and emits a
+	// nav:changed event so the frontend's global listener can flip the
+	// active workspace.
+	navM := nav.NewManager(tplM, stoM, &configWriterAdapter{cfg: cfgM}, emitter, d.Logger)
+
 	// Wire journal as the emitter for system FS mutations and as the
 	// configurer that listens to context-folder/backend changes from config.
 	sysM.SetJournal(jrnM)
@@ -172,10 +182,12 @@ func New(d Deps) (*App, error) {
 		I18n:            i18n.NewService(i18nM),
 		Dialog:          dialog.NewService(),
 		Render:          render.NewService(renderM),
+		Nav:             nav.NewService(navM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
 		renderManager:   renderM,
+		navManager:      navM,
 		journalManager:  jrnM,
 		emitter:         emitter,
 		deps:            d,

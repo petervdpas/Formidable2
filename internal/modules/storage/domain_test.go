@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -171,6 +172,31 @@ func TestSanitize_LoopFieldsPreserved(t *testing.T) {
 	}
 	if _, leaked := out.Data["name"]; leaked {
 		t.Error("loop child key 'name' leaked to top-level")
+	}
+}
+
+func TestSanitize_LinkValueShapesRoundTrip(t *testing.T) {
+	// Vue emits {href, text} for non-empty links and "" for cleared
+	// ones; legacy strings (older saves) should also pass through.
+	fields := []template.Field{{Key: "ref", Type: "link"}}
+
+	cases := []struct {
+		name string
+		in   any
+		want any
+	}{
+		{"object", map[string]any{"href": "formidable://t.yaml:e.meta.json", "text": "Open"}, map[string]any{"href": "formidable://t.yaml:e.meta.json", "text": "Open"}},
+		{"empty-string", "", ""},
+		{"legacy-string", "https://example.com", "https://example.com"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := Sanitize(map[string]any{"ref": c.in}, fields, SanitizeOptions{})
+			got := out.Data["ref"]
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("ref = %#v, want %#v", got, c.want)
+			}
+		})
 	}
 }
 

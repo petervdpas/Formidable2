@@ -17,5 +17,6 @@ func (a *App) WailsServices() []application.Service {
 		application.NewService(a.I18n),
 		application.NewService(a.Dialog),
 		application.NewService(a.Render),
+		application.NewService(a.Nav),
 	}
 }

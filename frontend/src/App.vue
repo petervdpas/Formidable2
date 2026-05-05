@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, watch } from "vue";
+import { Events } from "@wailsio/runtime";
 import Ribbon from "./components/Ribbon.vue";
 import Topbar from "./components/Topbar.vue";
 import Footer from "./components/Footer.vue";
@@ -14,7 +15,7 @@ useTheme(); // installs the data-theme attribute reactively
 
 const { active, setActive } = useActiveWorkspace();
 const { bootConfig } = useRestartGate();
-const { update } = useConfig();
+const { update, reload } = useConfig();
 
 const activeWorkspace = computed(
   () => WORKSPACES.find((w) => w.id === active.value) ?? WORKSPACES[0],
@@ -50,6 +51,25 @@ watch(
 watch(active, (id) => {
   if (!restored) return;
   void update({ context_ribbon: id });
+});
+
+// nav:changed — backend (nav.Manager) emits this after a successful
+// formidable:// navigation. Backend already wrote the new selection
+// to config; we refresh the local cache so workspace watchers fire,
+// then flip the active workspace to Storage. The event payload is
+// { template, datafile, fragment? }.
+let unsubNav: (() => void) | null = null;
+onMounted(() => {
+  unsubNav = Events.On("nav:changed", () => {
+    void reload();
+    if (active.value !== "storage") {
+      setActive("storage");
+    }
+  });
+});
+onBeforeUnmount(() => {
+  unsubNav?.();
+  unsubNav = null;
 });
 </script>
 

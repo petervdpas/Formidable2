@@ -9,14 +9,20 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as journal$0 from "../../../../petervdpas/formidable2/internal/modules/journal/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as nav$0 from "../../../../petervdpas/formidable2/internal/modules/nav/models.js";
 
 function configure() {
     Object.freeze(Object.assign($Create.Events, {
         "journal:changed": $$createType0,
+        "nav:changed": $$createType2,
     }));
 }
 
 // Private type creation functions
 const $$createType0 = journal$0.Entry.createFrom;
+const $$createType1 = nav$0.Target.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
 
 configure();
