@@ -1,40 +1,483 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+import Modal from "../components/Modal.vue";
+import ConfirmDialog from "../components/ConfirmDialog.vue";
+import { FormSection, SelectField, TextField, SwitchField } from "../components/fields";
+import { FormFieldRow } from "../components/form-fields";
 import { useRestartGate } from "../composables/useRestartGate";
+import { useTemplates } from "../composables/useTemplates";
+import { useFormView } from "../composables/useFormView";
+import { useConfig } from "../composables/useConfig";
+import { useToast } from "../composables/useToast";
+import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
+import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
+const { config, update: updateConfig } = useConfig();
+const { filenames: templateFilenames, cache: templateCache } = useTemplates();
+const { view, draft, dirty, open, close, save, reset, remove } = useFormView();
+const toast = useToast();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
+// ── Active template selection ────────────────────────────────────────
+// Drive off config.context_ribbon-style state — selected_template is
+// already the persisted template key (set by the Templates workspace
+// or by user picking from the dropdown here).
+const selectedTemplate = computed<string>({
+  get: () => config.value?.selected_template ?? "",
+  set: (v) => {
+    void updateConfig({ selected_template: v, selected_data_file: "" });
+  },
+});
+
+const templateOptions = computed(() =>
+  templateFilenames.value.map((f) => {
+    const tpl = templateCache.value.get(f);
+    return { value: f, label: tpl?.name?.trim() || f.replace(/\.yaml$/, "") };
+  }),
+);
+
+// ── Form list (sidebar) ──────────────────────────────────────────────
+const summaries = ref<FormSummary[]>([]);
+const listError = ref("");
+
+// Field types that don't render in the form body. Guid is shown only
+// in the meta block (matches the original — the user never edits a
+// guid; it's identity, not data). Loop markers render via their
+// container, not as standalone rows.
+const HIDDEN_FIELD_TYPES = new Set(["guid", "loopstart", "loopstop"]);
+function isFieldVisible(type: string): boolean {
+  return !HIDDEN_FIELD_TYPES.has(type);
+}
+
+async function refreshList() {
+  if (!selectedTemplate.value) {
+    summaries.value = [];
+    return;
+  }
+  listError.value = "";
+  try {
+    await FormSvc.EnsureFormDir(selectedTemplate.value);
+    summaries.value = await FormSvc.ListForms(selectedTemplate.value);
+  } catch (err) {
+    listError.value = String(err);
+    summaries.value = [];
+  }
+}
+
+watch(selectedTemplate, async () => {
+  await refreshList();
+  // When the template changes, drop any open form to avoid showing
+  // stale fields belonging to a different schema.
+  close();
+}, { immediate: true });
+
+// ── Selected datafile (persisted in config) ──────────────────────────
+const selectedDataFile = computed<string>({
+  get: () => config.value?.selected_data_file ?? "",
+  set: (v) => { void updateConfig({ selected_data_file: v }); },
+});
+
+watch([selectedTemplate, selectedDataFile], async ([tpl, df]) => {
+  if (!tpl || !df) {
+    close();
+    return;
+  }
+  await open(tpl, df);
+}, { immediate: true });
+
+function pickForm(filename: string) {
+  selectedDataFile.value = filename;
+}
+
+// ── Sidebar filters (chrome only for v1 — patch behaviour later) ────
 const showAll = ref(false);
-function newEntry() { /* TODO */ }
-function refresh()  { /* TODO */ }
+const tagFilter = ref("");
+const visibleSummaries = computed(() => {
+  // Marked-only filter is a no-op until storage exposes flagged in the
+  // summary; the toggle stays so the layout matches the original.
+  return summaries.value;
+});
+
+// ── New Entry dialog ─────────────────────────────────────────────────
+const newOpen = ref(false);
+const newName = ref("");
+const newError = ref("");
+
+function openNew() {
+  if (!selectedTemplate.value) return;
+  newName.value = "";
+  newError.value = "";
+  newOpen.value = true;
+}
+
+async function submitNew() {
+  const raw = newName.value.trim();
+  if (!raw) {
+    newError.value = t("workspace.storage.new.invalid");
+    return;
+  }
+  // Coerce to ".meta.json" if the user didn't include the extension.
+  const filename = raw.endsWith(".meta.json") ? raw : `${raw}.meta.json`;
+  if (!/^[a-zA-Z0-9._-]+\.meta\.json$/.test(filename)) {
+    newError.value = t("workspace.storage.new.invalid_chars");
+    return;
+  }
+  if (summaries.value.some((s) => s.filename === filename)) {
+    newError.value = t("workspace.storage.new.exists");
+    return;
+  }
+  // Open an unsaved view, set selection — persist happens on first Save.
+  selectedDataFile.value = filename;
+  await open(selectedTemplate.value, filename);
+  newOpen.value = false;
+  toast.success("workspace.storage.new.opened", [filename]);
+}
+
+// ── Save / Reset / Delete ────────────────────────────────────────────
+async function doSave() {
+  if (!draft.value) return;
+  const result = await save();
+  if (result.ok) {
+    toast.success("workspace.storage.save.success", [draft.value?.datafile ?? "?"]);
+    await refreshList();
+  } else {
+    toast.error("workspace.storage.save.error", [result.message ?? "?"]);
+  }
+}
+
+const deleteOpen = ref(false);
+function askDelete() {
+  if (view.value?.saved) deleteOpen.value = true;
+}
+async function confirmDelete() {
+  deleteOpen.value = false;
+  const filename = view.value?.datafile ?? "";
+  const result = await remove();
+  if (result.ok) {
+    toast.success("workspace.storage.delete.success", [filename]);
+    selectedDataFile.value = "";
+    await refreshList();
+  } else {
+    toast.error("workspace.storage.delete.error", [result.message ?? "?"]);
+  }
+}
+
+// ── Topbar menu ──────────────────────────────────────────────────────
+setTopbarMenu(() => [
+  {
+    type: "group",
+    id: "file",
+    labelKey: "menu.file",
+    items: [
+      {
+        id: "save",
+        labelKey: "workspace.storage.save",
+        disabled: !dirty.value,
+        onClick: doSave,
+      },
+      {
+        id: "reset",
+        labelKey: "workspace.storage.reset",
+        disabled: !dirty.value,
+        onClick: reset,
+      },
+      { type: "separator", id: "sep" },
+      {
+        id: "refresh",
+        labelKey: "common.refresh",
+        onClick: refreshList,
+      },
+    ],
+  },
+]);
 </script>
 
 <template>
   <Teleport defer to="#topbar-content">
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
-      <button class="tool-btn primary" @click="newEntry">+ Entry</button>
-      <label class="tool-toggle">
-        <input type="checkbox" v-model="showAll" />
-        <span>{{ showAll ? t('common.show') : 'Marked' }}</span>
-      </label>
-      <button class="tool-btn" @click="refresh">{{ t('common.refresh') }}</button>
+      <span v-if="dirty" class="badge badge-warn">
+        {{ t('workspace.storage.dirty_indicator') }}
+      </span>
+      <button
+        class="tool-btn primary"
+        :disabled="!selectedTemplate"
+        @click="openNew"
+      >
+        + {{ t('workspace.storage.new_entry') }}
+      </button>
     </div>
   </Teleport>
 
   <SplitPane :initial="sidebarWidth">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.storage.sidebar_title') }}</h2>
-      <p class="muted small">{{ t('workspace.storage.placeholder_side') }}</p>
+
+      <div class="sidebar-section">
+        <label class="sidebar-label">{{ t('workspace.storage.template_picker') }}</label>
+        <SelectField
+          v-model="selectedTemplate"
+          :options="templateOptions"
+        />
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-head">
+          <span class="sidebar-label">{{ t('workspace.storage.forms_heading') }}</span>
+          <span class="muted small">{{ summaries.length }}</span>
+        </div>
+
+        <div class="sidebar-toolbar">
+          <SwitchField
+            v-model="showAll"
+            :on-label="t('workspace.storage.show_all')"
+            :off-label="t('workspace.storage.show_marked')"
+          />
+        </div>
+
+        <TextField
+          v-model="tagFilter"
+          :placeholder="t('workspace.storage.tag_filter_placeholder')"
+        />
+      </div>
+
+      <p v-if="!selectedTemplate" class="muted small">
+        {{ t('workspace.storage.no_template_selected') }}
+      </p>
+      <p v-else-if="listError" class="form-error small">{{ listError }}</p>
+      <p v-else-if="visibleSummaries.length === 0" class="muted small">
+        {{ t('workspace.storage.empty') }}
+      </p>
+
+      <ul v-else class="form-list">
+        <li
+          v-for="s in visibleSummaries"
+          :key="s.filename"
+          :class="['form-list-item', { active: s.filename === selectedDataFile }]"
+          @click="pickForm(s.filename)"
+        >
+          <span class="form-list-title">{{ s.title || s.filename }}</span>
+          <span class="form-list-filename">{{ s.filename }}</span>
+        </li>
+      </ul>
     </template>
+
     <template #main>
-      <h1 class="workspace-heading">{{ t('workspace.storage.title') }}</h1>
-      <p class="muted">{{ t('workspace.storage.placeholder_main') }}</p>
+      <p v-if="!selectedTemplate" class="muted">
+        {{ t('workspace.storage.placeholder_main') }}
+      </p>
+      <p v-else-if="!view || !draft" class="muted">
+        {{ t('workspace.storage.unselected') }}
+      </p>
+
+      <template v-else>
+        <!-- Meta scaffold — full polish patched in later. -->
+        <FormSection>
+          <div class="meta-grid">
+            <div class="meta-row" v-if="draft.datafile">
+              <span class="meta-key">{{ t('workspace.storage.meta.filename') }}</span>
+              <span class="meta-value mono">{{ draft.datafile }}</span>
+            </div>
+            <div class="meta-row" v-if="draft.meta?.id">
+              <span class="meta-key">{{ t('workspace.storage.meta.id') }}</span>
+              <span class="meta-value mono">{{ draft.meta.id }}</span>
+            </div>
+            <div class="meta-row" v-if="draft.meta?.tags?.length">
+              <span class="meta-key">{{ t('workspace.storage.meta.tags') }}</span>
+              <span class="meta-value">{{ draft.meta.tags.join(', ') }}</span>
+            </div>
+            <div class="meta-row" v-if="draft.meta?.author_name">
+              <span class="meta-key">{{ t('workspace.storage.meta.author') }}</span>
+              <span class="meta-value">{{ draft.meta.author_name }}</span>
+            </div>
+            <div class="meta-row" v-if="draft.meta?.created">
+              <span class="meta-key">{{ t('workspace.storage.meta.created') }}</span>
+              <span class="meta-value mono small">{{ draft.meta.created }}</span>
+            </div>
+            <div class="meta-row" v-if="draft.meta?.updated">
+              <span class="meta-key">{{ t('workspace.storage.meta.updated') }}</span>
+              <span class="meta-value mono small">{{ draft.meta.updated }}</span>
+            </div>
+          </div>
+
+          <div class="meta-actions">
+            <button class="tool-btn primary" :disabled="!dirty" @click="doSave">
+              {{ t('workspace.storage.save') }}
+            </button>
+            <button
+              class="tool-btn danger"
+              :disabled="!view.saved"
+              @click="askDelete"
+            >
+              {{ t('workspace.storage.delete') }}
+            </button>
+          </div>
+        </FormSection>
+
+        <!-- Plain wrapper — NOT FormSection — so each row spans the
+             full panel width. FormSection's own grid would tile rows
+             into its label/value columns and pair them up. -->
+        <div v-if="draft.template" class="form-fields">
+          <FormFieldRow
+            v-for="(field, i) in draft.template.fields"
+            :key="field.key + ':' + i"
+            v-show="isFieldVisible(field.type)"
+            :field="field"
+            :model-value="draft.values[field.key]"
+            @update:model-value="(v: unknown) => (draft && (draft.values[field.key] = v))"
+          />
+        </div>
+      </template>
     </template>
   </SplitPane>
+
+  <!-- New entry dialog -->
+  <Modal
+    :open="newOpen"
+    :title="t('workspace.storage.new.title')"
+    @close="newOpen = false"
+  >
+    <label class="new-row">
+      <span class="new-label">{{ t('workspace.storage.new.label') }}</span>
+      <input
+        class="field-input"
+        v-model="newName"
+        :placeholder="t('workspace.storage.new.placeholder')"
+        @keydown.enter="submitNew"
+      />
+    </label>
+    <p class="muted small new-help">
+      {{ t('workspace.storage.new.help') }}
+    </p>
+    <p v-if="newError" class="form-error">{{ newError }}</p>
+
+    <template #footer>
+      <button class="tool-btn" type="button" @click="newOpen = false">
+        {{ t('common.cancel') }}
+      </button>
+      <button class="tool-btn primary" type="button" @click="submitNew">
+        {{ t('workspace.storage.new_entry') }}
+      </button>
+    </template>
+  </Modal>
+
+  <!-- Delete confirm -->
+  <ConfirmDialog
+    :open="deleteOpen"
+    :title="t('workspace.storage.delete.title')"
+    :message="t('workspace.storage.delete.confirm', [view?.datafile ?? ''])"
+    :confirm-label="t('workspace.storage.delete.button')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="deleteOpen = false"
+    @confirm="confirmDelete"
+  />
 </template>
+
+<style scoped>
+.sidebar-section { margin-bottom: var(--space-3); }
+.sidebar-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.sidebar-label {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+}
+.sidebar-toolbar { margin-bottom: 6px; }
+
+.form-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.form-list-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    color: var(--color-text);
+}
+.form-list-item:hover { background: var(--list-hover-bg); }
+.form-list-item.active {
+    background: var(--list-active-bg);
+    color: var(--list-active-fg);
+}
+.form-list-title {
+    font-weight: 600;
+}
+.form-list-filename {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+/* Form fields list — single column, full panel width, in template
+   order. Each FormFieldRow lays out label/input itself. */
+.form-fields {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    padding: var(--space-2) var(--space-4);
+    margin: 0 0 var(--space-3);
+}
+
+/* Meta block — minimal scaffold; full polish later. */
+.meta-grid {
+    display: grid;
+    grid-template-columns: minmax(120px, 18%) 1fr;
+    column-gap: var(--space-3);
+    row-gap: 4px;
+    grid-column: 1 / -1;
+}
+.meta-row { display: contents; }
+.meta-key { font-weight: 600; }
+.meta-value.mono { font-family: var(--font-mono); }
+.meta-value.small { font-size: var(--font-size-sm); }
+
+.meta-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: var(--space-3);
+    grid-column: 1 / -1;
+}
+
+.tool-btn.danger {
+    background: #dc2626;
+    color: #fff;
+    border: 0;
+}
+.tool-btn.danger:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+/* New entry modal */
+.new-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.new-label {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+.new-help {
+    margin: var(--space-2) 0 0;
+}
+</style>

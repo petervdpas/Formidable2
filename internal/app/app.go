@@ -15,6 +15,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/dialog"
+	"github.com/petervdpas/formidable2/internal/modules/form"
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
@@ -64,11 +65,13 @@ type App struct {
 	Csv      *csv.Service
 	Template *template.Service
 	Storage  *storage.Service
+	Form     *form.Service
 	I18n     *i18n.Service
 	Dialog   *dialog.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
+	formManager     *form.Manager
 	journalManager  *journal.Manager
 	emitter         *emitterRelay
 	deps            Deps
@@ -116,6 +119,11 @@ func New(d Deps) (*App, error) {
 	}
 	stoM := storage.NewManager(sysM, sfrM, tplM, storagePath, d.Logger)
 
+	// Form manager — orchestrates template + storage + config defaults
+	// for the Storage workspace's per-form view. configAdapter is a
+	// thin shim so config doesn't have to depend on form's types.
+	formM := form.NewManager(tplM, stoM, &configAdapter{cfg: cfgM}, d.Logger)
+
 	i18nM, err := i18n.NewManager(d.Logger)
 	if err != nil {
 		return nil, fmt.Errorf("init i18n: %w", err)
@@ -147,10 +155,12 @@ func New(d Deps) (*App, error) {
 		Csv:             csv.NewService(csvM),
 		Template:        template.NewService(tplM, tplStorageLocator),
 		Storage:         storage.NewService(stoM),
+		Form:            form.NewService(formM),
 		I18n:            i18n.NewService(i18nM),
 		Dialog:          dialog.NewService(),
 		templateManager: tplM,
 		storageManager:  stoM,
+		formManager:     formM,
 		journalManager:  jrnM,
 		emitter:         emitter,
 		deps:            d,
