@@ -57,6 +57,14 @@ async function exportTo(filename: string, targetPath: string, overwrite: boolean
   return ConfigSvc.ExportUserProfile(filename, targetPath, overwrite);
 }
 
+async function importFrom(sourcePath: string, overwrite: boolean): Promise<ProfileResult> {
+  const result = await ConfigSvc.ImportUserProfile(sourcePath, "", overwrite);
+  if (result?.success) {
+    await refresh();
+  }
+  return result;
+}
+
 const FILENAME_RE = /^[a-z0-9-]+\.json$/;
 
 /** Strict validation matching the original Formidable UI. */
@@ -75,6 +83,7 @@ export function useProfiles() {
     create,
     remove,
     exportTo,
+    importFrom,
     reloadConfig,
     lastError,
   };

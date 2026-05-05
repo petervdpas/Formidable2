@@ -34,7 +34,7 @@ const activeCategory = computed(
     </div>
   </Teleport>
 
-  <SplitPane :initial="200" :min="160" :max="320">
+  <SplitPane :initial="260" :min="180" :max="360">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('settings.title') }}</h2>
       <ul class="sidebar-list">

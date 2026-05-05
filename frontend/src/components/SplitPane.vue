@@ -7,7 +7,7 @@ const props = withDefaults(
     min?: number;
     max?: number;
   }>(),
-  { initial: 240, min: 140, max: 600 },
+  { initial: 280, min: 160, max: 600 },
 );
 
 const width = ref(props.initial);

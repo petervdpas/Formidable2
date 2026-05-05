@@ -38,8 +38,7 @@ func defaultConfig() Config {
 			Width:  1024,
 			Height: 800,
 		},
-		TemplateSidebarWidth: 300,
-		StorageSidebarWidth:  300,
+		SidebarWidth: 280,
 		StatusButtons: StatusButtons{
 			Reloader:   true,
 			Charpicker: true,

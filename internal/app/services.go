@@ -14,5 +14,6 @@ func (a *App) WailsServices() []application.Service {
 		application.NewService(a.Template),
 		application.NewService(a.Storage),
 		application.NewService(a.I18n),
+		application.NewService(a.Dialog),
 	}
 }

@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+import { useConfig } from "../composables/useConfig";
 
 const { t } = useI18n();
+const { config } = useConfig();
+
+const sidebarWidth = computed(() => config.value?.sidebar_width || 280);
 
 const menus = ["File", "Edit", "Filter", "Render", "View", "Help"];
 const showAll = ref(false);
@@ -29,7 +33,7 @@ function refresh()  { /* TODO */ }
     </div>
   </Teleport>
 
-  <SplitPane>
+  <SplitPane :initial="sidebarWidth">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.storage.sidebar_title') }}</h2>
       <p class="muted small">{{ t('workspace.storage.placeholder_side') }}</p>

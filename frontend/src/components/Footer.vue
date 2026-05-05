@@ -1,9 +1,23 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { useConfig } from "../composables/useConfig";
 
 defineProps<{ status?: string; profile?: string }>();
 
 const { t } = useI18n();
+const { config, profileFilename } = useConfig();
+
+// Mirrors the fallback the Go side uses in ListAvailableProfiles:
+// profile_name → author_name → filename → em-dash placeholder.
+const activeProfileLabel = computed(() => {
+  const name = config.value?.profile_name?.trim();
+  if (name) return name;
+  const author = config.value?.author_name?.trim();
+  if (author) return author;
+  if (profileFilename.value) return profileFilename.value;
+  return t("footer.user_profile_unknown");
+});
 </script>
 
 <template>
@@ -12,7 +26,7 @@ const { t } = useI18n();
     <span class="footer-spacer" />
     <span class="profile muted">
       {{ t("footer.user_profile_label") }}
-      {{ profile ?? t("footer.user_profile_unknown") }}
+      {{ profile ?? activeProfileLabel }}
     </span>
   </footer>
 </template>

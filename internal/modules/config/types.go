@@ -37,11 +37,10 @@ type Config struct {
 	GigotToken           string         `json:"gigot_token"`
 	EnableInternalServer bool           `json:"enable_internal_server"`
 	InternalServerPort   int            `json:"internal_server_port"`
-	WindowBounds         WindowBounds   `json:"window_bounds"`
-	TemplateSidebarWidth int            `json:"template_sidebar_width"`
-	StorageSidebarWidth  int            `json:"storage_sidebar_width"`
-	StatusButtons        StatusButtons  `json:"status_buttons"`
-	History              History        `json:"history"`
+	WindowBounds  WindowBounds  `json:"window_bounds"`
+	SidebarWidth  int           `json:"sidebar_width"`
+	StatusButtons StatusButtons `json:"status_buttons"`
+	History       History       `json:"history"`
 }
 
 // WindowBounds — X/Y are pointers so absent (centered) is distinguishable

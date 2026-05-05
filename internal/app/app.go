@@ -14,6 +14,7 @@ import (
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
+	"github.com/petervdpas/formidable2/internal/modules/dialog"
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
@@ -64,6 +65,7 @@ type App struct {
 	Template *template.Service
 	Storage  *storage.Service
 	I18n     *i18n.Service
+	Dialog   *dialog.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -146,6 +148,7 @@ func New(d Deps) (*App, error) {
 		Template:        template.NewService(tplM, tplStorageLocator),
 		Storage:         storage.NewService(stoM),
 		I18n:            i18n.NewService(i18nM),
+		Dialog:          dialog.NewService(),
 		templateManager: tplM,
 		storageManager:  stoM,
 		journalManager:  jrnM,

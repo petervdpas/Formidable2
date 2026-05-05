@@ -11,6 +11,12 @@ withDefaults(defineProps<{
   invalid?: boolean;
   id?: string;
   autocomplete?: string;
+  /** Forwarded to the underlying input for type="number" / "date". */
+  min?: number | string;
+  /** Forwarded to the underlying input for type="number" / "date". */
+  max?: number | string;
+  /** Forwarded to the underlying input for type="number". */
+  step?: number | string;
 }>(), {
   type: "text",
 });
@@ -24,6 +30,9 @@ withDefaults(defineProps<{
     :disabled="disabled"
     :readonly="readonly"
     :autocomplete="autocomplete"
+    :min="min"
+    :max="max"
+    :step="step"
     :class="['field-input', { invalid }]"
     v-model="model"
   />

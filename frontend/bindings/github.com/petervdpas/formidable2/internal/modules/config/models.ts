@@ -41,8 +41,7 @@ export class Config {
     "enable_internal_server": boolean;
     "internal_server_port": number;
     "window_bounds": WindowBounds;
-    "template_sidebar_width": number;
-    "storage_sidebar_width": number;
+    "sidebar_width": number;
     "status_buttons": StatusButtons;
     "history": History;
 
@@ -138,11 +137,8 @@ export class Config {
         if (!("window_bounds" in $$source)) {
             this["window_bounds"] = (new WindowBounds());
         }
-        if (!("template_sidebar_width" in $$source)) {
-            this["template_sidebar_width"] = 0;
-        }
-        if (!("storage_sidebar_width" in $$source)) {
-            this["storage_sidebar_width"] = 0;
+        if (!("sidebar_width" in $$source)) {
+            this["sidebar_width"] = 0;
         }
         if (!("status_buttons" in $$source)) {
             this["status_buttons"] = (new StatusButtons());
@@ -159,17 +155,17 @@ export class Config {
      */
     static createFrom($$source: any = {}): Config {
         const $$createField29_0 = $$createType0;
-        const $$createField32_0 = $$createType1;
-        const $$createField33_0 = $$createType2;
+        const $$createField31_0 = $$createType1;
+        const $$createField32_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("window_bounds" in $$parsedSource) {
             $$parsedSource["window_bounds"] = $$createField29_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField32_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField31_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField33_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField32_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

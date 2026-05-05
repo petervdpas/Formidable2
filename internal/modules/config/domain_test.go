@@ -122,6 +122,44 @@ func TestNormalizeProfileFilename(t *testing.T) {
 
 // ----- Load / Update / cache invalidation ----------------------------
 
+// TestUpdateUserConfig_WindowBoundsRoundTrip exercises the path
+// main.go uses to persist window geometry on close: pass a populated
+// WindowBounds via the partial map; expect the values back on reload.
+// Pointer fields (X, Y) must survive the JSON round-trip intact.
+func TestUpdateUserConfig_WindowBoundsRoundTrip(t *testing.T) {
+	t.Parallel()
+	m, _, _ := newTestManager(t)
+
+	x, y := 137, 42
+	bounds := WindowBounds{
+		Width:     1280,
+		Height:    900,
+		X:         &x,
+		Y:         &y,
+		Maximized: false,
+	}
+	if _, err := m.UpdateUserConfig(map[string]any{
+		"window_bounds": bounds,
+	}); err != nil {
+		t.Fatalf("UpdateUserConfig: %v", err)
+	}
+
+	m.InvalidateConfigCache()
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if cfg.WindowBounds.Width != 1280 || cfg.WindowBounds.Height != 900 {
+		t.Errorf("size = %dx%d, want 1280x900", cfg.WindowBounds.Width, cfg.WindowBounds.Height)
+	}
+	if cfg.WindowBounds.X == nil || *cfg.WindowBounds.X != 137 {
+		t.Errorf("X = %v, want 137", cfg.WindowBounds.X)
+	}
+	if cfg.WindowBounds.Y == nil || *cfg.WindowBounds.Y != 42 {
+		t.Errorf("Y = %v, want 42", cfg.WindowBounds.Y)
+	}
+}
+
 func TestUpdateUserConfig_PartialMerge(t *testing.T) {
 	m, _, root := newTestManager(t)
 

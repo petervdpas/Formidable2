@@ -34,6 +34,8 @@
   "settings.desc.context_directory": "Hoofdmap voor sjablonen en formulieropslag.",
   "settings.desc.decryption_key": "Wordt gebruikt om gevoelige velden in formuliergegevens te ontsleutelen.",
   "settings.desc.persist_history": "Bewaar undo/redo-geschiedenis tussen sessies.",
+  "settings.desc.sidebar_width": "Breedte in pixels (180–500). Handmatig slepen geldt alleen voor de huidige sessie en wijzigt deze waarde niet.",
+  "settings.desc.window_size_apply_on_launch": "Wordt toegepast bij de volgende start.",
   "settings.display.info": "Configureer het weergavethema en de zichtbaarheid van UI-elementen.",
   "settings.field.character_picker": "Tekenkiezer",
   "settings.field.collapse_list_table": "Lijst/Tabel-velden inklappen",
@@ -51,6 +53,8 @@
   "settings.field.paste_data": "Plakken op lijsten/tabellen",
   "settings.field.reload_button": "Herlaadknop",
   "settings.field.remote_backend": "Remote backend",
+  "settings.field.sidebar_width": "Zijbalkbreedte",
+  "settings.field.window_size": "Venstergrootte",
   "settings.general.info": "Configureer auteurgegevens zoals naam, e-mail en taal.",
   "settings.history.info": "Configureer geschiedenisinstellingen zoals ingeschakeld, behouden en maximale grootte.",
   "settings.internal_server.info": "Configureer de ingebouwde server en stel de luisterpoort in.",
@@ -60,5 +64,7 @@
   "settings.requires.gigot_backend": "Vereist GiGot-backend.",
   "settings.requires.git_backend": "Vereist Git-backend.",
   "settings.status_buttons.info": "Schakel afzonderlijke statusknoppen in of uit.",
-  "settings.title": "Instellingen"
+  "settings.title": "Instellingen",
+  "settings.window_preset.custom_label": "Aangepast ({0}×{1})",
+  "settings.window_preset.fullscreen": "Volledig scherm"
 }

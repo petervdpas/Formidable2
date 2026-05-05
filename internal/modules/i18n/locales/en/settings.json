@@ -34,6 +34,8 @@
   "settings.desc.context_directory": "Root folder for templates and form storage.",
   "settings.desc.decryption_key": "Used to decrypt sensitive fields stored in form data.",
   "settings.desc.persist_history": "Keep undo/redo history across sessions.",
+  "settings.desc.sidebar_width": "Width in pixels (180–500). Manual drag is session-only and won't change this value.",
+  "settings.desc.window_size_apply_on_launch": "Applies on next launch.",
   "settings.display.info": "Configure the display theme and visibility of UI elements.",
   "settings.field.character_picker": "Character Picker",
   "settings.field.collapse_list_table": "Collapse List/Table Fields",
@@ -51,6 +53,8 @@
   "settings.field.paste_data": "Paste-data on Lists/Tables",
   "settings.field.reload_button": "Reload Button",
   "settings.field.remote_backend": "Remote Backend",
+  "settings.field.sidebar_width": "Sidebar width",
+  "settings.field.window_size": "Window Size",
   "settings.general.info": "Configure author details like name, email and language.",
   "settings.history.info": "Configure history settings like enabled, persist and max size.",
   "settings.internal_server.info": "Configure the built-in server and set the listening port.",
@@ -60,5 +64,7 @@
   "settings.requires.gigot_backend": "Requires GiGot backend.",
   "settings.requires.git_backend": "Requires Git backend.",
   "settings.status_buttons.info": "Enable or disable individual status buttons.",
-  "settings.title": "Settings"
+  "settings.title": "Settings",
+  "settings.window_preset.custom_label": "Custom ({0}×{1})",
+  "settings.window_preset.fullscreen": "Fullscreen"
 }

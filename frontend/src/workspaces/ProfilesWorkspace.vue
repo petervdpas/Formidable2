@@ -4,17 +4,24 @@ import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
+import AlertDialog from "../components/AlertDialog.vue";
 import { useProfiles, isValidProfileFilename } from "../composables/useProfiles";
 import { useConfig } from "../composables/useConfig";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
+import { useDialog } from "../composables/useDialog";
 
 const { t } = useI18n();
 
 const menus = ["File", "Edit", "Sync", "View"];
 
-const { profiles, activeFilename, refresh, activate, create, remove } = useProfiles();
+const { profiles, activeFilename, refresh, activate, create, remove, exportTo, importFrom } = useProfiles();
 const { config } = useConfig();
 const { setActive } = useActiveWorkspace();
+const { chooseFile, chooseSaveFile } = useDialog();
+
+const jsonFilters = computed(() => [
+  { displayName: t('workspace.profiles.import.filter_name'), pattern: '*.json' },
+]);
 
 // Sidebar selection — separate from "active" so the user can browse
 // without flipping the live profile.
@@ -95,6 +102,111 @@ async function submitDelete() {
   deleteOpen.value = false;
 }
 
+// ── Alert dialog (single-OK feedback) ────────────────────────────────
+const alertOpen = ref(false);
+const alertTitle = ref<string>("");
+const alertMessage = ref<string>("");
+const alertVariant = ref<"default" | "danger">("default");
+
+function showAlert(title: string, message: string, variant: "default" | "danger" = "default") {
+  alertTitle.value = title;
+  alertMessage.value = message;
+  alertVariant.value = variant;
+  alertOpen.value = true;
+}
+
+// ── Import flow ──────────────────────────────────────────────────────
+const overwriteOpen = ref(false);
+const overwriteFilename = ref<string>("");
+const overwriteSourcePath = ref<string>("");
+
+async function importProfile() {
+  const path = await chooseFile(jsonFilters.value);
+  if (!path) return; // user cancelled
+  await runImport(path, false);
+}
+
+async function runImport(sourcePath: string, overwrite: boolean) {
+  const result = await importFrom(sourcePath, overwrite);
+  if (result?.success) {
+    if (result.filename) selectedFilename.value = result.filename;
+    showAlert(
+      t('common.alert_title'),
+      t('workspace.profiles.import.success', [result.filename ?? '?']),
+    );
+    return;
+  }
+  switch (result?.code) {
+    case 'exists':
+      overwriteFilename.value = result.filename ?? '?';
+      overwriteSourcePath.value = sourcePath;
+      overwriteOpen.value = true;
+      return;
+    case 'not_found':
+      showAlert(t('common.error_title'), t('workspace.profiles.import.error_not_found'), 'danger');
+      return;
+    case 'invalid_name':
+      showAlert(t('common.error_title'), t('workspace.profiles.import.error_invalid_name'), 'danger');
+      return;
+    case 'boot_forbidden':
+      showAlert(t('common.error_title'), t('workspace.profiles.import.error_boot_forbidden'), 'danger');
+      return;
+    case 'invalid_config':
+      showAlert(t('common.error_title'), t('workspace.profiles.import.error_invalid_config'), 'danger');
+      return;
+    case 'copy_failed':
+      showAlert(
+        t('common.error_title'),
+        t('workspace.profiles.import.error_copy_failed', [result?.error ?? '?']),
+        'danger',
+      );
+      return;
+    default:
+      showAlert(
+        t('common.error_title'),
+        t('workspace.profiles.import.error_generic', [result?.error ?? '?']),
+        'danger',
+      );
+  }
+}
+
+async function confirmOverwrite() {
+  overwriteOpen.value = false;
+  await runImport(overwriteSourcePath.value, true);
+}
+
+// ── Export flow ──────────────────────────────────────────────────────
+async function exportProfile() {
+  const target = selectedFilename.value;
+  if (!target) return;
+  const path = await chooseSaveFile(target, jsonFilters.value);
+  if (!path) return;
+  // Save dialog already obtained user consent for overwrite, so pass true.
+  const result = await exportTo(target, path, true);
+  if (result?.success) {
+    showAlert(t('common.alert_title'), t('workspace.profiles.export.success', [path]));
+    return;
+  }
+  switch (result?.code) {
+    case 'not_found':
+      showAlert(t('common.error_title'), t('workspace.profiles.export.error_not_found'), 'danger');
+      return;
+    case 'copy_failed':
+      showAlert(
+        t('common.error_title'),
+        t('workspace.profiles.export.error_copy_failed', [result?.error ?? '?']),
+        'danger',
+      );
+      return;
+    default:
+      showAlert(
+        t('common.error_title'),
+        t('workspace.profiles.export.error_generic', [result?.error ?? '?']),
+        'danger',
+      );
+  }
+}
+
 // ── Edit in Settings: activate (if needed) then jump ─────────────────
 async function editInSettings() {
   if (!isActiveSelected.value) {
@@ -120,12 +232,7 @@ async function activateSelected() {
       <button class="tool-btn primary" @click="openCreate">
         + {{ t('workspace.profiles.new_profile') }}
       </button>
-      <button
-        class="tool-btn"
-        type="button"
-        disabled
-        :title="t('workspace.profiles.import_tooltip')"
-      >
+      <button class="tool-btn" type="button" @click="importProfile">
         {{ t('workspace.profiles.import') }}
       </button>
       <button class="tool-btn" type="button" @click="refresh">
@@ -134,7 +241,7 @@ async function activateSelected() {
     </div>
   </Teleport>
 
-  <SplitPane :initial="240" :min="180" :max="380">
+  <SplitPane :initial="300" :min="200" :max="420">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.profiles.sidebar_title') }}</h2>
 
@@ -214,12 +321,7 @@ async function activateSelected() {
           >
             {{ t('workspace.profiles.action.activate') }}
           </button>
-          <button
-            class="tool-btn"
-            type="button"
-            disabled
-            :title="t('workspace.profiles.action.export_unavailable')"
-          >
+          <button class="tool-btn" type="button" @click="exportProfile">
             {{ t('workspace.profiles.action.export') }}
           </button>
           <button
@@ -279,6 +381,30 @@ async function activateSelected() {
     </p>
     <p v-if="deleteError" class="form-error">{{ deleteError }}</p>
   </ConfirmDialog>
+
+  <!-- Import: overwrite confirm --------------------------------------->
+  <ConfirmDialog
+    :open="overwriteOpen"
+    :title="t('workspace.profiles.import.overwrite_title')"
+    :confirm-label="t('workspace.profiles.import.overwrite_button')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="overwriteOpen = false"
+    @confirm="confirmOverwrite"
+  >
+    <p class="confirm-message">
+      {{ t('workspace.profiles.import.overwrite_confirm', [overwriteFilename]) }}
+    </p>
+  </ConfirmDialog>
+
+  <!-- Generic alert (success / error feedback) ------------------------->
+  <AlertDialog
+    :open="alertOpen"
+    :title="alertTitle"
+    :message="alertMessage"
+    :variant="alertVariant"
+    @close="alertOpen = false"
+  />
 </template>
 
 <style scoped>
