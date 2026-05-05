@@ -12,11 +12,14 @@ const { t } = useI18n();
 
 const isGroup = computed(() => props.entry.type === "group");
 
-// A group is disabled when every actionable child is disabled — opening
-// it would just show an empty list of greyed-out items, so we save the
-// click. Separators don't count toward "actionable."
+// A group is disabled when every actionable child is disabled —
+// opening it would just show an empty list of greyed-out items, so we
+// save the click. Separators don't count toward "actionable." Groups
+// can opt out via `alwaysEnabled: true` if discoverability matters
+// more than the saved click.
 const groupDisabled = computed(() => {
   if (props.entry.type !== "group") return false;
+  if (props.entry.alwaysEnabled) return false;
   const actions = props.entry.items.filter(
     (i): i is MenuAction => i.type !== "separator",
   );

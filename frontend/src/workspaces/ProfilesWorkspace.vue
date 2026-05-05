@@ -10,6 +10,7 @@ import { useConfig } from "../composables/useConfig";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useDialog } from "../composables/useDialog";
+import { setTopbarMenu } from "../composables/useTopbarMenu";
 
 const { t } = useI18n();
 
@@ -220,6 +221,36 @@ async function editInSettings() {
 async function activateSelected() {
   await activate(selectedFilename.value);
 }
+
+// Topbar menu — File group with Import (always enabled) and Export
+// (disabled when no profile is selected). The Apply auto-disable rule
+// keeps the File button itself enabled as long as Import works.
+setTopbarMenu(() => [
+  {
+    type: "group",
+    id: "file",
+    labelKey: "menu.file",
+    items: [
+      {
+        id: "import",
+        labelKey: "workspace.profiles.import",
+        onClick: importProfile,
+      },
+      {
+        id: "export",
+        labelKey: "workspace.profiles.action.export",
+        disabled: !selectedEntry.value,
+        onClick: exportProfile,
+      },
+      { type: "separator", id: "sep-refresh" },
+      {
+        id: "refresh",
+        labelKey: "common.refresh",
+        onClick: refresh,
+      },
+    ],
+  },
+]);
 </script>
 
 <template>
@@ -228,12 +259,6 @@ async function activateSelected() {
     <div class="topbar-actions">
       <button class="tool-btn primary" @click="openCreate">
         + {{ t('workspace.profiles.new_profile') }}
-      </button>
-      <button class="tool-btn" type="button" @click="importProfile">
-        {{ t('workspace.profiles.import') }}
-      </button>
-      <button class="tool-btn" type="button" @click="refresh">
-        {{ t('common.refresh') }}
       </button>
     </div>
   </Teleport>
@@ -317,9 +342,6 @@ async function activateSelected() {
             @click="activateSelected"
           >
             {{ t('workspace.profiles.action.activate') }}
-          </button>
-          <button class="tool-btn" type="button" @click="exportProfile">
-            {{ t('workspace.profiles.action.export') }}
           </button>
           <button
             class="tool-btn danger"

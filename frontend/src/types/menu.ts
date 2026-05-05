@@ -19,6 +19,13 @@ export interface MenuGroup {
   id: string;
   labelKey: string;
   items: Array<MenuAction | MenuSeparator>;
+  /**
+   * Bypass the "auto-disable when every child is disabled" rule. Use
+   * for groups that should stay clickable for discoverability — e.g.
+   * a File menu where seeing greyed-out items helps the user understand
+   * what operations exist, even if none currently apply.
+   */
+  alwaysEnabled?: boolean;
 }
 
 /** A horizontal divider inside a group. */

@@ -50,6 +50,18 @@ async function confirmRestart() {
 setTopbarMenu(() => [
   {
     type: "group",
+    id: "file",
+    labelKey: "menu.file",
+    items: [
+      {
+        id: "refresh",
+        labelKey: "common.refresh",
+        onClick: reload,
+      },
+    ],
+  },
+  {
+    type: "group",
     id: "apply",
     labelKey: "settings.menu.apply",
     items: [
@@ -69,9 +81,6 @@ setTopbarMenu(() => [
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
       <span v-if="profileFilename" class="badge badge-accent">{{ profileFilename }}</span>
-      <button class="tool-btn" @click="reload" :title="t('settings.reload_tooltip')">
-        {{ t('common.refresh') }}
-      </button>
     </div>
   </Teleport>
 
