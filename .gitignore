@@ -3,7 +3,8 @@ bin
 # Stray root binary from `go build .` (without -o) — module name is
 # lowercase formidable2 so plain go build drops it here.
 /formidable2
-frontend/dist
+frontend/dist/*
+!frontend/dist/.gitkeep
 frontend/node_modules
 build/linux/appimage/build
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
