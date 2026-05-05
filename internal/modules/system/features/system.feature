@@ -67,3 +67,19 @@ Feature: System filesystem operations
   Scenario: ExecuteCommand rejects an empty command
     When I execute the command "   "
     Then an error occurred
+
+  Scenario: Save leaves no temp residue (atomic write discipline)
+    When I save "atomic/one.txt" with content "ok"
+    Then the file "atomic/one.txt" exists
+    And the directory "atomic" contains exactly 1 entry
+
+  Scenario: Save over an existing file replaces it without temp residue
+    Given the file "atomic/two.txt" with content "v1"
+    When I save "atomic/two.txt" with content "v2"
+    Then loading "atomic/two.txt" returns "v2"
+    And the directory "atomic" contains exactly 1 entry
+
+  Scenario: Saving over a path that is a directory returns an error
+    Given the directory "occupied"
+    When I save "occupied" with content "oops"
+    Then an error occurred

@@ -53,6 +53,13 @@ type Manager struct {
 	virtualStructureBuilt time.Time
 	ttl                  time.Duration
 	nowFn                func() time.Time
+
+	// updateMu serializes the read-modify-write cycle of UpdateUserConfig
+	// (and any other future "atomic mutation" of the active profile) so
+	// concurrent callers can't both read the same baseline and clobber
+	// each other. Held independently of mu so cache READS stay non-
+	// blocking during a long update.
+	updateMu sync.Mutex
 }
 
 // NewManager constructs and initializes the config manager. Initialization
@@ -240,7 +247,16 @@ func (m *Manager) persist(cfg *Config, rebuildVFS bool) {
 
 // UpdateUserConfig merges a partial map into the current config and saves.
 // Top-level keys are replaced wholesale (mirrors JS shallow-merge).
+//
+// The full read-merge-write cycle is serialized via updateMu so concurrent
+// updates from different fields cannot both read the same baseline and
+// clobber each other (the "lost update" race the auto-save UI exposes).
+// Reads (LoadUserConfig, GetVirtualStructure, …) keep using mu.RLock and
+// are NOT blocked while an update is in flight; only other writers wait.
 func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
+	m.updateMu.Lock()
+	defer m.updateMu.Unlock()
+
 	cur, err := m.LoadUserConfig()
 	if err != nil {
 		return nil, err

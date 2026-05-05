@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -146,6 +147,62 @@ func TestUpdateUserConfig_PartialMerge(t *testing.T) {
 	_ = json.Unmarshal(raw, &disk)
 	if disk["theme"] != "dark" || disk["font_size"] != float64(16) {
 		t.Errorf("disk not updated: %v", disk)
+	}
+}
+
+// TestUpdateUserConfig_NoLostUpdatesUnderConcurrency fires N writers
+// that each set a DISTINCT top-level field. Without serialization, two
+// writers can both load the same baseline and the later writer's
+// merge-and-write silently undoes the earlier one ("lost update"). With
+// updateMu, every writer's change must be present at the end.
+func TestUpdateUserConfig_NoLostUpdatesUnderConcurrency(t *testing.T) {
+	t.Parallel()
+	m, _, _ := newTestManager(t)
+
+	type write struct{ field, value string }
+	writes := []write{
+		{"profile_name",     "Goro_PN"},
+		{"theme",            "purplish"},
+		{"language",         "nl"},
+		{"author_name",      "Goro_AN"},
+		{"author_email",     "goro@example.com"},
+		{"encryption_key",   "Goro_EK"},
+		{"gigot_base_url",   "https://goro.example/u"},
+		{"gigot_repo_name",  "Goro_REPO"},
+		{"gigot_token",      "Goro_TOKEN"},
+		{"git_root",         "/goro/root"},
+		{"git_branch",       "goro-branch"},
+		{"remote_backend",   "git"},
+		{"selected_data_file", "goro.meta.json"},
+	}
+
+	var wg sync.WaitGroup
+	for _, w := range writes {
+		wg.Go(func() {
+			if _, err := m.UpdateUserConfig(map[string]any{w.field: w.value}); err != nil {
+				t.Errorf("UpdateUserConfig(%s): %v", w.field, err)
+			}
+		})
+	}
+	wg.Wait()
+
+	final, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	b, _ := json.Marshal(final)
+	finalMap := map[string]any{}
+	_ = json.Unmarshal(b, &finalMap)
+
+	for _, w := range writes {
+		got, ok := finalMap[w.field]
+		if !ok {
+			t.Errorf("field %s missing from final config", w.field)
+			continue
+		}
+		if got != w.value {
+			t.Errorf("field %s = %v, want %q (lost update)", w.field, got, w.value)
+		}
 	}
 }
 

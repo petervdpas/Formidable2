@@ -94,7 +94,7 @@ func (m *Manager) SaveFile(path string, content string) error {
 		return err
 	}
 	existed := fileExists(full)
-	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+	if err := atomicWriteFile(full, []byte(content), 0o644); err != nil {
 		return err
 	}
 	op := "create"
@@ -192,14 +192,14 @@ func (m *Manager) CopyFile(from, to string, overwrite bool) error {
 	}
 	defer in.Close()
 	existed := fileExists(dst)
-	out, err := os.Create(dst)
-	if err != nil {
+
+	if err := atomicWriteStream(dst, 0o644, func(w io.Writer) error {
+		_, err := io.Copy(w, in)
+		return err
+	}); err != nil {
 		return err
 	}
-	defer out.Close()
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
+
 	op := "create"
 	if existed {
 		op = "update"

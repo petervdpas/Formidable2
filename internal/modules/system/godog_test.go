@@ -81,6 +81,10 @@ func initSystemScenario(ctx *godog.ScenarioContext) {
 		return w.m.SaveFile(path, content)
 	})
 
+	ctx.Step(`^the directory "([^"]*)"$`, func(path string) error {
+		return w.m.EnsureDirectory(path)
+	})
+
 	ctx.Step(`^a journal stub is wired$`, func() error {
 		w.journal = &captureJournal{}
 		w.m.SetJournal(w.journal)
@@ -207,6 +211,21 @@ func initSystemScenario(ctx *godog.ScenarioContext) {
 		}
 		if len(entries) != 0 {
 			return fmt.Errorf("expected empty, got %d entries", len(entries))
+		}
+		return nil
+	})
+
+	ctx.Step(`^the directory "([^"]*)" contains exactly (\d+) (?:entry|entries)$`, func(path string, n int) error {
+		entries, err := os.ReadDir(w.m.ResolvePath(path))
+		if err != nil {
+			return err
+		}
+		if len(entries) != n {
+			names := make([]string, 0, len(entries))
+			for _, e := range entries {
+				names = append(names, e.Name())
+			}
+			return fmt.Errorf("entries in %q = %d, want %d (%v)", path, len(entries), n, names)
 		}
 		return nil
 	})
