@@ -18,6 +18,7 @@ func defaultConfig() Config {
 		LoggingEnabled:       false,
 		EnablePlugins:        false,
 		ContextMode:          "template",
+		ContextRibbon:        "templates",
 		ContextFolder:        "./Examples",
 		SelectedTemplate:     "basic.yaml",
 		SelectedDataFile:     "",

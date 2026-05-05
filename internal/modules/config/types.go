@@ -21,6 +21,7 @@ type Config struct {
 	LoggingEnabled       bool           `json:"logging_enabled"`
 	EnablePlugins        bool           `json:"enable_plugins"`
 	ContextMode          string         `json:"context_mode"`
+	ContextRibbon        string         `json:"context_ribbon"`
 	ContextFolder        string         `json:"context_folder"`
 	SelectedTemplate     string         `json:"selected_template"`
 	SelectedDataFile     string         `json:"selected_data_file"`

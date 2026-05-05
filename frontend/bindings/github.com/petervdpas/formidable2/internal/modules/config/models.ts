@@ -24,6 +24,7 @@ export class Config {
     "logging_enabled": boolean;
     "enable_plugins": boolean;
     "context_mode": string;
+    "context_ribbon": string;
     "context_folder": string;
     "selected_template": string;
     "selected_data_file": string;
@@ -85,6 +86,9 @@ export class Config {
         }
         if (!("context_mode" in $$source)) {
             this["context_mode"] = "";
+        }
+        if (!("context_ribbon" in $$source)) {
+            this["context_ribbon"] = "";
         }
         if (!("context_folder" in $$source)) {
             this["context_folder"] = "";
@@ -154,18 +158,18 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField29_0 = $$createType0;
-        const $$createField31_0 = $$createType1;
-        const $$createField32_0 = $$createType2;
+        const $$createField30_0 = $$createType0;
+        const $$createField32_0 = $$createType1;
+        const $$createField33_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField29_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField30_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField31_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField32_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField32_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField33_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

@@ -20,10 +20,13 @@ import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useConfig } from "../composables/useConfig";
+import { watch } from "vue";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
+const { update: updateConfig } = useConfig();
 const toast = useToast();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
@@ -39,6 +42,31 @@ const {
 } = useTemplates();
 
 const { draft, dirty, itemFieldOptions, save, reset } = useTemplateEditor();
+
+// Restore the persisted template selection once the filename list is
+// populated. Watch the list (not bootConfig) because templates may
+// load before or after config — whichever comes second triggers this.
+let selectionRestored = false;
+watch(
+  () => filenames.value,
+  (list) => {
+    if (selectionRestored) return;
+    if (!list.length) return;
+    const want = bootConfig.value?.selected_template;
+    if (want && list.includes(want)) {
+      selectedFilename.value = want;
+    }
+    selectionRestored = true;
+  },
+  { immediate: true },
+);
+
+// Persist the user's selection — but only after restore has run, so we
+// don't overwrite the saved value with an empty initial state.
+watch(selectedFilename, (fn) => {
+  if (!selectionRestored) return;
+  void updateConfig({ selected_template: fn });
+});
 
 function displayName(filename: string): string {
   const cached = cache.value.get(filename);
