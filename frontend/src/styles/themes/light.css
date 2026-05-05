@@ -1,0 +1,30 @@
+/* Light theme — also serves as the default when no data-theme attribute is set. */
+:root,
+:root[data-theme="light"] {
+    --color-bg:           #ffffff;
+    --color-surface:      #f5f5f5;
+    --color-surface-2:    #ebebeb;
+    --color-border:       #d4d4d4;
+
+    --color-text:         #1f2933;
+    --color-text-muted:   #6b7280;
+
+    --color-accent:       #2563eb;
+    --color-accent-fg:    #ffffff;
+    --color-accent-soft:  #dbeafe;
+
+    --color-error:        #b91c1c;
+    --color-warning:      #b45309;
+    --color-success:      #15803d;
+
+    --ribbon-bg:          #1f2933;
+    --ribbon-fg:          #c5cbd3;
+    --ribbon-fg-active:   #ffffff;
+    --ribbon-hover-bg:    #2a3540;
+
+    --list-hover-bg:      var(--color-surface-2);
+    --list-active-bg:     var(--color-accent);
+    --list-active-fg:     var(--color-accent-fg);
+
+    color-scheme: light;
+}

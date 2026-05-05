@@ -1,0 +1,81 @@
+/* The fixed chrome around workspaces: ribbon, topbar, footer. */
+.app-shell {
+    display: grid;
+    grid-template-columns: var(--ribbon-width) 1fr;
+    grid-template-rows: var(--topbar-height) 1fr var(--footer-height);
+    grid-template-areas:
+        "ribbon topbar"
+        "ribbon main"
+        "footer footer";
+    height: 100%;
+    width: 100%;
+}
+
+.app-main {
+    grid-area: main;
+    overflow: hidden;
+    background: var(--color-bg);
+}
+
+/* ─── Ribbon ──────────────────────────────────────────────────────── */
+.ribbon {
+    grid-area: ribbon;
+    background: var(--ribbon-bg);
+    color: var(--ribbon-fg);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-1) 0;
+    gap: 2px;
+}
+
+/* ─── Topbar ──────────────────────────────────────────────────────── */
+.topbar {
+    grid-area: topbar;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+}
+
+.topbar-content {
+    display: flex;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 var(--space-2);
+    gap: var(--space-1);
+}
+
+.topmenu {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex: 0 0 auto;
+}
+
+.topbar-spacer { flex: 1 1 auto; min-width: var(--space-2); }
+
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--space-1);
+    flex: 0 0 auto;
+}
+
+/* ─── Footer ──────────────────────────────────────────────────────── */
+.footer {
+    grid-area: footer;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-3);
+    font-size: var(--font-size-sm);
+    gap: var(--space-2);
+}
+
+.footer-spacer { flex: 1 1 auto; }

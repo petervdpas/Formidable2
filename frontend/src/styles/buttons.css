@@ -1,0 +1,81 @@
+/* Buttons & menu items. */
+
+/* Ribbon icon buttons. */
+.ribbon-item {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--ribbon-fg);
+    height: var(--ribbon-width);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 3px solid transparent;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.ribbon-item:hover {
+    background: var(--ribbon-hover-bg);
+    color: var(--ribbon-fg-active);
+}
+
+.ribbon-item.active {
+    background: var(--ribbon-hover-bg);
+    color: var(--ribbon-fg-active);
+    border-left-color: var(--color-accent);
+}
+
+.ribbon-icon {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* Top-menu items inside the topbar (workspace-owned). */
+.topmenu-item {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0 var(--space-3);
+    cursor: pointer;
+    color: var(--color-text);
+    border-radius: 0;
+}
+
+.topmenu-item:hover { background: var(--color-surface-2); }
+
+/* Workspace toolbar buttons. */
+.tool-btn {
+    appearance: none;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 4px 10px;
+    cursor: pointer;
+    color: var(--color-text);
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.tool-btn:hover { background: var(--color-surface-2); }
+
+.tool-btn.primary {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-fg);
+}
+
+.tool-btn.primary:hover { filter: brightness(0.95); }
+
+.tool-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+    font-size: 13px;
+    padding: 0 6px;
+}
+
+.tool-toggle input { accent-color: var(--color-accent); }

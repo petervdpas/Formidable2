@@ -1,0 +1,35 @@
+/* Resets, font, utilities. */
+@font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 400;
+    src: local(""), url("/Inter-Medium.ttf") format("truetype");
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; margin: 0; }
+
+body {
+    overflow: hidden;
+    font-family: var(--font-stack);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+    color: var(--color-text);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+button { font: inherit; color: inherit; }
+
+a {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+a:hover { text-decoration: underline; }
+
+.muted { color: var(--color-text-muted); }
+.small { font-size: var(--font-size-sm); }
+.error { color: var(--color-error); }

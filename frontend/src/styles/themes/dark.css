@@ -1,0 +1,29 @@
+/* Dark theme — first-cut values, tune later. */
+:root[data-theme="dark"] {
+    --color-bg:           #0f172a;
+    --color-surface:      #1e293b;
+    --color-surface-2:    #273449;
+    --color-border:       #334155;
+
+    --color-text:         #e2e8f0;
+    --color-text-muted:   #94a3b8;
+
+    --color-accent:       #3b82f6;
+    --color-accent-fg:    #ffffff;
+    --color-accent-soft:  #1e3a8a;
+
+    --color-error:        #f87171;
+    --color-warning:      #fbbf24;
+    --color-success:      #4ade80;
+
+    --ribbon-bg:          #0b1220;
+    --ribbon-fg:          #94a3b8;
+    --ribbon-fg-active:   #ffffff;
+    --ribbon-hover-bg:    #1a2233;
+
+    --list-hover-bg:      var(--color-surface-2);
+    --list-active-bg:     var(--color-accent);
+    --list-active-fg:     var(--color-accent-fg);
+
+    color-scheme: dark;
+}

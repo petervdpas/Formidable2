@@ -1,0 +1,11 @@
+/* Order: structural tokens → themes → base → component layers. */
+@import "./tokens.css";
+@import "./themes/light.css";
+@import "./themes/dark.css";
+@import "./themes/purplish.css";
+
+@import "./base.css";
+@import "./shell.css";
+@import "./splitter.css";
+@import "./workspace.css";
+@import "./buttons.css";

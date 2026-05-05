@@ -4,6 +4,9 @@ import Ribbon from "./components/Ribbon.vue";
 import Topbar from "./components/Topbar.vue";
 import Footer from "./components/Footer.vue";
 import { WORKSPACES, type WorkspaceId } from "./workspaces";
+import { useTheme } from "./composables/useTheme";
+
+useTheme(); // installs the data-theme attribute reactively
 
 const active = ref<WorkspaceId>("templates");
 const activeWorkspace = computed(

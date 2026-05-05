@@ -1,0 +1,31 @@
+/* Draggable vertical splitter between sidebar and main inside a workspace. */
+.split-pane {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    width: 100%;
+    min-height: 0;
+}
+
+.split-handle {
+    flex: 0 0 auto;
+    width: 5px;
+    margin: 0 -2px;
+    cursor: col-resize;
+    background: transparent;
+    position: relative;
+    z-index: 1;
+}
+
+.split-handle:hover,
+.split-handle:focus-visible,
+.split-pane.dragging .split-handle {
+    background: var(--color-accent);
+    outline: none;
+}
+
+body.is-resizing-x,
+body.is-resizing-x * {
+    cursor: col-resize !important;
+    user-select: none !important;
+}

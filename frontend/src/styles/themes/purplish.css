@@ -1,0 +1,29 @@
+/* Purplish theme — first-cut values, tune later. */
+:root[data-theme="purplish"] {
+    --color-bg:           #1a1230;
+    --color-surface:      #2a1f4a;
+    --color-surface-2:    #362860;
+    --color-border:       #4b3a82;
+
+    --color-text:         #ede9fe;
+    --color-text-muted:   #a5a0c4;
+
+    --color-accent:       #a855f7;
+    --color-accent-fg:    #ffffff;
+    --color-accent-soft:  #5b21b6;
+
+    --color-error:        #fb7185;
+    --color-warning:      #fbbf24;
+    --color-success:      #86efac;
+
+    --ribbon-bg:          #120a26;
+    --ribbon-fg:          #a5a0c4;
+    --ribbon-fg-active:   #ffffff;
+    --ribbon-hover-bg:    #261945;
+
+    --list-hover-bg:      var(--color-surface-2);
+    --list-active-bg:     var(--color-accent);
+    --list-active-fg:     var(--color-accent-fg);
+
+    color-scheme: dark;
+}
