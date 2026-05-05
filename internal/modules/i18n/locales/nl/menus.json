@@ -24,6 +24,9 @@
   "menu.server.stop": "Stop server",
   "menu.sync.gigot": "GiGot Synchronisatie...",
   "menu.sync.git": "Git Besturing...",
+  "menu.template": "Sjabloon",
+  "menu.template.create": "Aanmaken…",
+  "menu.template.delete": "Verwijderen…",
   "menu.view.devtools": "Ontwikkelaarstools",
   "menu.view.reload": "Herladen"
 }

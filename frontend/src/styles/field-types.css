@@ -325,7 +325,8 @@
 }
 
 .field-row[data-type="loopstart"],
-.field-row[data-type="loopstop"] {
+.field-row[data-type="loopstop"],
+.field-row[data-type="looper"] {
     background: var(--field-type-looper-bg);
     border-left-color: var(--field-type-looper-border);
     color: var(--field-type-looper-text);

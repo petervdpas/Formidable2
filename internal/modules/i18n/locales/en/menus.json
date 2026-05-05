@@ -23,5 +23,8 @@
   "menu.server.stop": "Stop Server",
   "menu.sync.gigot": "GiGot Sync...",
   "menu.sync.git": "Git Control...",
+  "menu.template": "Template",
+  "menu.template.create": "Create…",
+  "menu.template.delete": "Delete…",
   "menu.view.devtools": "Toggle DevTools"
 }

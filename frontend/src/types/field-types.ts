@@ -114,7 +114,9 @@ export const FIELD_TYPES: FieldTypeDef[] = [
     id: "range",
     labelKey: "workspace.templates.field_type.range",
     defaultValue: () => 50,
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "options", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
+    // Options are min/max/step pairs (value=key, label=number) — uses
+    // the default OptionsEditor columns.
+    hiddenRows: ["summary_field", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
   },
   {
     id: "date",
@@ -164,9 +166,26 @@ export const FIELD_TYPES: FieldTypeDef[] = [
     defaultValue: () => ({ id: "", overrides: {} }),
     hiddenRows: ["summary_field", "default", "options", "format", "expression_item", "two_column", "collapsible", "readonly", ...HIDE_CODE, ...HIDE_LATEX],
   },
-  // Loop pair — kept around so the type dropdown can echo "Loop Start"
-  // for an existing loopstart row, but they're not user-selectable
-  // (looper synthesis creates them as a pair).
+  // Looper — UI-only meta type. Picking it in the Type dropdown
+  // synthesizes a loopstart/loopstop pair on confirm; "looper" itself
+  // never lands in the saved YAML.
+  {
+    id: "looper",
+    labelKey: "workspace.templates.field_type.looper",
+    metaOnly: true,
+    hiddenRows: [
+      "default",
+      "options",
+      "expression_item",
+      "two_column",
+      "collapsible",
+      "readonly",
+      "format",
+      ...HIDE_CODE,
+      ...HIDE_LATEX,
+      ...HIDE_API,
+    ],
+  },
   {
     id: "loopstart",
     labelKey: "workspace.templates.field_type.loopstart",
@@ -193,14 +212,21 @@ export function isRowHidden(typeId: string, rowId: FieldEditRowId): boolean {
   return def.hiddenRows.includes(rowId);
 }
 
-/** Type IDs eligible to appear in the Edit modal's Type dropdown. We
- *  hide loopstart/loopstop unless the current field already has that
- *  type — those come from the synthetic "looper" creation, not from
- *  changing an existing field's type. */
-export function selectableTypes(currentType: string): FieldTypeDef[] {
+/** Type IDs eligible to appear in the Edit modal's Type dropdown.
+ *
+ *  - For new fields (isNew): include `looper` (synthesizes a
+ *    loopstart/loopstop pair on confirm); hide loopstart/loopstop.
+ *  - For existing loopstart/loopstop: lock to that same type — the
+ *    user can't "convert" half of a pair into something else.
+ *  - For other existing fields: hide `looper`, `loopstart`, `loopstop`. */
+export function selectableTypes(currentType: string, isNew = false): FieldTypeDef[] {
   return FIELD_TYPES.filter((t) => {
-    const isLoop = t.id === "loopstart" || t.id === "loopstop";
-    if (isLoop) return t.id === currentType;
+    if (t.id === "loopstart" || t.id === "loopstop") {
+      return t.id === currentType;
+    }
+    if (t.id === "looper") {
+      return isNew;
+    }
     return true;
   });
 }

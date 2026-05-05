@@ -35,6 +35,7 @@ const {
   selectedTemplate,
   refresh,
   create,
+  remove,
 } = useTemplates();
 
 const { draft, dirty, itemFieldOptions, save, reset } = useTemplateEditor();
@@ -112,29 +113,60 @@ async function submitCreate() {
   createOpen.value = false;
 }
 
-// ── Field edit + delete ──────────────────────────────────────────────
+// ── Field edit / add ─────────────────────────────────────────────────
+// editIndex === -1 means "creating" (no existing field at that index);
+// editField is the field being edited, or null for create.
 const editOpen = ref(false);
 const editIndex = ref<number>(-1);
 const editField = ref<Field | null>(null);
+const editIsNew = ref(false);
 
 function openEdit(index: number) {
   if (!draft.value || !draft.value.fields) return;
   editIndex.value = index;
   editField.value = draft.value.fields[index] ?? null;
+  editIsNew.value = false;
+  editOpen.value = true;
+}
+
+function openAddField() {
+  if (!draft.value) return;
+  editIndex.value = -1;
+  editField.value = null;
+  editIsNew.value = true;
   editOpen.value = true;
 }
 
 function applyEdit(updated: Field) {
-  if (!draft.value || editIndex.value < 0) return;
-  // Replace the array element so reactivity fires.
-  draft.value.fields = [
-    ...draft.value.fields.slice(0, editIndex.value),
-    updated,
-    ...draft.value.fields.slice(editIndex.value + 1),
-  ];
+  if (!draft.value) return;
+  const fields = draft.value.fields ?? [];
+
+  // Looper synthesis — picking "looper" creates a loopstart/loopstop
+  // pair sharing the same key/label. Only valid in create mode.
+  if (updated.type === "looper") {
+    const key = (updated.key || "").trim();
+    const label = updated.label || key;
+    const start = { key, label, type: "loopstart" } as Field;
+    const stop = { key, label, type: "loopstop" } as Field;
+    if (editIsNew.value) {
+      draft.value.fields = [...fields, start, stop];
+    }
+  } else if (editIsNew.value) {
+    // Append a fresh field at the end.
+    draft.value.fields = [...fields, updated];
+  } else if (editIndex.value >= 0) {
+    // In-place replace.
+    draft.value.fields = [
+      ...fields.slice(0, editIndex.value),
+      updated,
+      ...fields.slice(editIndex.value + 1),
+    ];
+  }
+
   editOpen.value = false;
   editField.value = null;
   editIndex.value = -1;
+  editIsNew.value = false;
 }
 
 const deleteOpen = ref(false);
@@ -177,6 +209,32 @@ function confirmDelete() {
   deleteIndex.value = -1;
 }
 
+// ── Delete template ──────────────────────────────────────────────────
+const deleteTplOpen = ref(false);
+
+function openDeleteTemplate() {
+  if (!selectedFilename.value) return;
+  deleteTplOpen.value = true;
+}
+
+const deleteTplName = computed(() => {
+  const f = selectedFilename.value;
+  if (!f) return "";
+  return displayName(f);
+});
+
+async function confirmDeleteTemplate() {
+  const f = selectedFilename.value;
+  deleteTplOpen.value = false;
+  if (!f) return;
+  const result = await remove(f);
+  if (result.ok) {
+    toast.success("workspace.templates.delete.success", [f.replace(/\.yaml$/, "")]);
+  } else {
+    toast.error("workspace.templates.delete.error", [result.message ?? "?"]);
+  }
+}
+
 // ── Topbar menu ──────────────────────────────────────────────────────
 setTopbarMenu(() => [
   {
@@ -204,6 +262,24 @@ setTopbarMenu(() => [
       },
     ],
   },
+  {
+    type: "group",
+    id: "template",
+    labelKey: "menu.template",
+    items: [
+      {
+        id: "create",
+        labelKey: "menu.template.create",
+        onClick: openCreate,
+      },
+      {
+        id: "delete",
+        labelKey: "menu.template.delete",
+        disabled: !selectedFilename.value,
+        onClick: openDeleteTemplate,
+      },
+    ],
+  },
 ]);
 </script>
 
@@ -214,8 +290,12 @@ setTopbarMenu(() => [
       <span v-if="dirty" class="badge badge-warn">
         {{ t('workspace.templates.dirty_indicator') }}
       </span>
-      <button class="tool-btn primary" @click="openCreate">
-        + {{ t('workspace.templates.new_template') }}
+      <button
+        class="tool-btn primary"
+        :disabled="!draft"
+        @click="openAddField"
+      >
+        + {{ t('workspace.templates.new_field') }}
       </button>
     </div>
   </Teleport>
@@ -371,15 +451,16 @@ setTopbarMenu(() => [
     </template>
   </Modal>
 
-  <!-- Field edit modal -->
+  <!-- Field edit / add modal -->
   <FieldEditModal
     :open="editOpen"
     :field="editField"
+    :is-new="editIsNew"
     @close="editOpen = false"
     @confirm="applyEdit"
   />
 
-  <!-- Delete confirm -->
+  <!-- Delete-field confirm -->
   <ConfirmDialog
     :open="deleteOpen"
     :title="t('workspace.templates.field_edit.delete_title')"
@@ -389,6 +470,18 @@ setTopbarMenu(() => [
     variant="danger"
     @cancel="deleteOpen = false"
     @confirm="confirmDelete"
+  />
+
+  <!-- Delete-template confirm -->
+  <ConfirmDialog
+    :open="deleteTplOpen"
+    :title="t('workspace.templates.delete.title')"
+    :message="t('workspace.templates.delete.confirm', [deleteTplName])"
+    :confirm-label="t('workspace.profiles.action.delete')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="deleteTplOpen = false"
+    @confirm="confirmDeleteTemplate"
   />
 </template>
 

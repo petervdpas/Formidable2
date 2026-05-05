@@ -22,8 +22,12 @@ import {
 
 const props = defineProps<{
   open: boolean;
-  /** The field being edited. Pass undefined when creating. */
+  /** The field being edited. Null/undefined opens the modal in
+   *  create mode with an empty draft. */
   field: Field | null;
+  /** True when adding a new field — surfaces `looper` in the type
+   *  dropdown and changes the title to "Add Field". */
+  isNew?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -37,12 +41,24 @@ const { t } = useI18n();
 // commit changes when the user clicks Confirm.
 const draft = ref<Field | null>(null);
 
+function emptyDraft(): Field {
+  // Sensible starting shape — text type, blank key/label.
+  return {
+    key: "",
+    type: "text",
+    label: "",
+  } as Field;
+}
+
 watch(
   () => props.open,
   (open) => {
-    if (open && props.field) {
+    if (!open) return;
+    if (props.field) {
       // Deep-copy so cancelling discards cleanly.
       draft.value = JSON.parse(JSON.stringify(props.field));
+    } else {
+      draft.value = emptyDraft();
     }
   },
   { immediate: true },
@@ -50,11 +66,25 @@ watch(
 
 const typeOptions = computed(() => {
   if (!draft.value) return [];
-  return selectableTypes(draft.value.type || "text").map((td) => ({
+  return selectableTypes(draft.value.type || "text", props.isNew).map((td) => ({
     value: td.id,
     label: t(td.labelKey),
   }));
 });
+
+// Type-driven defaults. When the user (or the initial seed) lands on
+// textarea, Format should be "markdown" — that's what the dropdown
+// shows by default, and it's what the original Formidable saves to
+// YAML. Without this, an empty draft confirms with format unset.
+watch(
+  () => draft.value?.type,
+  (type) => {
+    if (!draft.value) return;
+    if (type === "textarea" && !draft.value.format) {
+      draft.value.format = "markdown";
+    }
+  },
+);
 
 function showRow(row: FieldEditRowId): boolean {
   if (!draft.value) return false;
@@ -143,7 +173,9 @@ const dialogStyle = computed<Record<string, string>>(() => {
     @close="emit('close')"
   >
     <template #title>
-      <span>{{ t('workspace.templates.field_edit.title') }}</span>
+      <span>{{ isNew
+          ? t('workspace.templates.field_edit.title_create')
+          : t('workspace.templates.field_edit.title') }}</span>
       <span
         v-if="draft"
         class="field-type-pill"

@@ -47,6 +47,17 @@ async function create(filename: string): Promise<{ ok: boolean; code?: string; m
   }
 }
 
+async function remove(filename: string): Promise<{ ok: boolean; message?: string }> {
+  try {
+    await TemplateSvc.DeleteTemplate(filename);
+    if (selectedFilename.value === filename) selectedFilename.value = "";
+    await refresh();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: String(err) };
+  }
+}
+
 async function ensureLoaded(): Promise<void> {
   if (!loaded) await refresh();
 }
@@ -71,5 +82,6 @@ export function useTemplates() {
     refresh,
     load,
     create,
+    remove,
   };
 }
