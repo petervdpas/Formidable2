@@ -1,0 +1,267 @@
+/* Per-field-type theming.
+ *
+ * Ports Formidable's exact palette (from `assets/common.css`):
+ * each type gets row-bg, border-bg (visible as the row's left rail
+ * when used), badge-bg (the (TYPE) pill, slightly lighter than the
+ * row), and text color. The same tokens are reused later by the
+ * field-edit modal (Step 3b) for its tinted dialog header.
+ */
+
+:root {
+    /* Loop pair (loopstart / loopstop / synthetic looper) */
+    --field-type-looper-bg:     #b9e2c0;
+    --field-type-looper-border: #999999;
+    --field-type-looper-badge:  #999999;
+    --field-type-looper-text:   #222222;
+
+    /* Text */
+    --field-type-text-bg:     #1565c0;
+    --field-type-text-border: #2196f3;
+    --field-type-text-badge:  #1976d2;
+    --field-type-text-text:   #ffffff;
+
+    /* Boolean */
+    --field-type-boolean-bg:     #2e7d32;
+    --field-type-boolean-border: #4caf50;
+    --field-type-boolean-badge:  #43a047;
+    --field-type-boolean-text:   #ffffff;
+
+    /* Dropdown */
+    --field-type-dropdown-bg:     #5e178b;
+    --field-type-dropdown-border: #ba68c8;
+    --field-type-dropdown-badge:  #a05db5;
+    --field-type-dropdown-text:   #ffffff;
+
+    /* Multioption */
+    --field-type-multioption-bg:     #4e729a;
+    --field-type-multioption-border: #5bc0de;
+    --field-type-multioption-badge:  #5bc0de;
+    --field-type-multioption-text:   #ffffff;
+
+    /* Radio */
+    --field-type-radio-bg:     #cc4417;
+    --field-type-radio-border: #ff7043;
+    --field-type-radio-badge:  #f46333;
+    --field-type-radio-text:   #ffffff;
+
+    /* Textarea */
+    --field-type-textarea-bg:     #6c4ab0;
+    --field-type-textarea-border: #9575cd;
+    --field-type-textarea-badge:  #8567b9;
+    --field-type-textarea-text:   #ffffff;
+
+    /* Number */
+    --field-type-number-bg:     #3a94e4;
+    --field-type-number-border: #64b5f6;
+    --field-type-number-badge:  #5aaae9;
+    --field-type-number-text:   #ffffff;
+
+    /* Range */
+    --field-type-range-bg:     #3c3f77;
+    --field-type-range-border: #7986cb;
+    --field-type-range-badge:  #7986cb;
+    --field-type-range-text:   #ffffff;
+
+    /* Date */
+    --field-type-date-bg:     #229388;
+    --field-type-date-border: #4dd0e1;
+    --field-type-date-badge:  #44c5d1;
+    --field-type-date-text:   #ffffff;
+
+    /* List */
+    --field-type-list-bg:     #6fbf73;
+    --field-type-list-border: #aed581;
+    --field-type-list-badge:  #9dcf6e;
+    --field-type-list-text:   #ffffff;
+
+    /* Table */
+    --field-type-table-bg:     #ee9b84;
+    --field-type-table-border: #ffccbc;
+    --field-type-table-badge:  #f5bfa9;
+    --field-type-table-text:   #222222;
+
+    /* Image */
+    --field-type-image-bg:     #bdbdbd;
+    --field-type-image-border: #cfd8dc;
+    --field-type-image-badge:  #cfd8dc;
+    --field-type-image-text:   #222222;
+
+    /* Link */
+    --field-type-link-bg:     #7b1e3a;
+    --field-type-link-border: #d46a85;
+    --field-type-link-badge:  #d46a85;
+    --field-type-link-text:   #ffffff;
+
+    /* Tags */
+    --field-type-tags-bg:     #4caf50;
+    --field-type-tags-border: #81c784;
+    --field-type-tags-badge:  #66bb6a;
+    --field-type-tags-text:   #ffffff;
+
+    /* GUID */
+    --field-type-guid-bg:     #444c54;
+    --field-type-guid-border: #888c95;
+    --field-type-guid-badge:  #888c95;
+    --field-type-guid-text:   #ffffff;
+
+    /* Code */
+    --field-type-code-bg:     #e67e22;
+    --field-type-code-border: #ffb74d;
+    --field-type-code-badge:  #ffa64d;
+    --field-type-code-text:   #ffffff;
+
+    /* LaTeX */
+    --field-type-latex-bg:     #9aa5ff;
+    --field-type-latex-border: #3f51b5;
+    --field-type-latex-badge:  #7b88e0;
+    --field-type-latex-text:   #ffffff;
+
+    /* API (Collection) */
+    --field-type-api-bg:     #29434e;
+    --field-type-api-border: #80deea;
+    --field-type-api-badge:  #4dd0e1;
+    --field-type-api-text:   #f7fbfc;
+}
+
+/* ── Field row in the Field Information list ─────────────────────── */
+
+.field-row {
+    transition: filter 0.1s ease;
+    border-left: 4px solid transparent;
+    color: #ffffff;
+}
+
+.field-row:hover {
+    filter: brightness(1.06);
+}
+
+.field-row .field-row-key {
+    color: inherit;
+}
+
+.field-row .field-row-type {
+    /* The (TYPE) pill — uses the per-type badge color and inherits the
+       row's text color. */
+    background: var(--field-row-badge-bg, rgba(255, 255, 255, 0.2));
+    color: inherit;
+    border: 0;
+}
+
+/* ── Per-type rows ───────────────────────────────────────────────── */
+
+.field-row[data-type="text"] {
+    background: var(--field-type-text-bg);
+    border-left-color: var(--field-type-text-border);
+    color: var(--field-type-text-text);
+    --field-row-badge-bg: var(--field-type-text-badge);
+}
+.field-row[data-type="boolean"] {
+    background: var(--field-type-boolean-bg);
+    border-left-color: var(--field-type-boolean-border);
+    color: var(--field-type-boolean-text);
+    --field-row-badge-bg: var(--field-type-boolean-badge);
+}
+.field-row[data-type="dropdown"] {
+    background: var(--field-type-dropdown-bg);
+    border-left-color: var(--field-type-dropdown-border);
+    color: var(--field-type-dropdown-text);
+    --field-row-badge-bg: var(--field-type-dropdown-badge);
+}
+.field-row[data-type="multioption"] {
+    background: var(--field-type-multioption-bg);
+    border-left-color: var(--field-type-multioption-border);
+    color: var(--field-type-multioption-text);
+    --field-row-badge-bg: var(--field-type-multioption-badge);
+}
+.field-row[data-type="radio"] {
+    background: var(--field-type-radio-bg);
+    border-left-color: var(--field-type-radio-border);
+    color: var(--field-type-radio-text);
+    --field-row-badge-bg: var(--field-type-radio-badge);
+}
+.field-row[data-type="textarea"] {
+    background: var(--field-type-textarea-bg);
+    border-left-color: var(--field-type-textarea-border);
+    color: var(--field-type-textarea-text);
+    --field-row-badge-bg: var(--field-type-textarea-badge);
+}
+.field-row[data-type="number"] {
+    background: var(--field-type-number-bg);
+    border-left-color: var(--field-type-number-border);
+    color: var(--field-type-number-text);
+    --field-row-badge-bg: var(--field-type-number-badge);
+}
+.field-row[data-type="range"] {
+    background: var(--field-type-range-bg);
+    border-left-color: var(--field-type-range-border);
+    color: var(--field-type-range-text);
+    --field-row-badge-bg: var(--field-type-range-badge);
+}
+.field-row[data-type="date"] {
+    background: var(--field-type-date-bg);
+    border-left-color: var(--field-type-date-border);
+    color: var(--field-type-date-text);
+    --field-row-badge-bg: var(--field-type-date-badge);
+}
+.field-row[data-type="list"] {
+    background: var(--field-type-list-bg);
+    border-left-color: var(--field-type-list-border);
+    color: var(--field-type-list-text);
+    --field-row-badge-bg: var(--field-type-list-badge);
+}
+.field-row[data-type="table"] {
+    background: var(--field-type-table-bg);
+    border-left-color: var(--field-type-table-border);
+    color: var(--field-type-table-text);
+    --field-row-badge-bg: var(--field-type-table-badge);
+}
+.field-row[data-type="image"] {
+    background: var(--field-type-image-bg);
+    border-left-color: var(--field-type-image-border);
+    color: var(--field-type-image-text);
+    --field-row-badge-bg: var(--field-type-image-badge);
+}
+.field-row[data-type="link"] {
+    background: var(--field-type-link-bg);
+    border-left-color: var(--field-type-link-border);
+    color: var(--field-type-link-text);
+    --field-row-badge-bg: var(--field-type-link-badge);
+}
+.field-row[data-type="tags"] {
+    background: var(--field-type-tags-bg);
+    border-left-color: var(--field-type-tags-border);
+    color: var(--field-type-tags-text);
+    --field-row-badge-bg: var(--field-type-tags-badge);
+}
+.field-row[data-type="guid"] {
+    background: var(--field-type-guid-bg);
+    border-left-color: var(--field-type-guid-border);
+    color: var(--field-type-guid-text);
+    --field-row-badge-bg: var(--field-type-guid-badge);
+}
+.field-row[data-type="code"] {
+    background: var(--field-type-code-bg);
+    border-left-color: var(--field-type-code-border);
+    color: var(--field-type-code-text);
+    --field-row-badge-bg: var(--field-type-code-badge);
+}
+.field-row[data-type="latex"] {
+    background: var(--field-type-latex-bg);
+    border-left-color: var(--field-type-latex-border);
+    color: var(--field-type-latex-text);
+    --field-row-badge-bg: var(--field-type-latex-badge);
+}
+.field-row[data-type="api"] {
+    background: var(--field-type-api-bg);
+    border-left-color: var(--field-type-api-border);
+    color: var(--field-type-api-text);
+    --field-row-badge-bg: var(--field-type-api-badge);
+}
+
+.field-row[data-type="loopstart"],
+.field-row[data-type="loopstop"] {
+    background: var(--field-type-looper-bg);
+    border-left-color: var(--field-type-looper-border);
+    color: var(--field-type-looper-text);
+    --field-row-badge-bg: var(--field-type-looper-badge);
+}

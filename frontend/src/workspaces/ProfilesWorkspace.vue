@@ -472,6 +472,7 @@ setTopbarMenu(() => [
     align-items: center;
     gap: var(--space-1);
     flex-wrap: wrap;
+    justify-content: flex-end;     /* badges float to bottom-right */
 }
 
 .profile-filename {

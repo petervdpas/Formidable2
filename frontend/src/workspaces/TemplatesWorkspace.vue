@@ -3,8 +3,16 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
-import { FormSection, FormRow } from "../components/fields";
+import {
+  FormSection,
+  FormRow,
+  TextField,
+  TextareaField,
+  SelectField,
+  SwitchField,
+} from "../components/fields";
 import { useTemplates, isValidTemplateFilename } from "../composables/useTemplates";
+import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
@@ -24,6 +32,8 @@ const {
   create,
 } = useTemplates();
 
+const { draft, dirty, itemFieldOptions, save, reset } = useTemplateEditor();
+
 function displayName(filename: string): string {
   const cached = cache.value.get(filename);
   if (cached?.name && cached.name.trim()) return cached.name;
@@ -39,6 +49,35 @@ async function doRefresh() {
     toast.error("toast.refresh.error", [String(err)]);
   }
 }
+
+// ── Save / Reset ─────────────────────────────────────────────────────
+async function doSave() {
+  if (!draft.value || !selectedFilename.value) return;
+  const result = await save();
+  if (result.ok) {
+    toast.success(
+      "workspace.templates.save_success",
+      [draft.value?.name || selectedFilename.value],
+    );
+  } else {
+    toast.error("workspace.templates.save_error", [result.message ?? "?"]);
+  }
+}
+
+function doReset() {
+  reset();
+}
+
+// ── Item Field options for the Setup dropdown ─────────────────────────
+const itemFieldSelectOptions = computed(() => {
+  const opts: { value: string; label: string }[] = [
+    { value: "", label: t("workspace.templates.item_field_none") },
+  ];
+  for (const f of itemFieldOptions.value) {
+    opts.push({ value: f.key, label: `${f.label} (${f.key})` });
+  }
+  return opts;
+});
 
 // ── Create modal ─────────────────────────────────────────────────────
 const createOpen = ref(false);
@@ -76,6 +115,19 @@ setTopbarMenu(() => [
     labelKey: "menu.file",
     items: [
       {
+        id: "save",
+        labelKey: "workspace.templates.save",
+        disabled: !dirty.value,
+        onClick: doSave,
+      },
+      {
+        id: "reset",
+        labelKey: "workspace.templates.reset",
+        disabled: !dirty.value,
+        onClick: doReset,
+      },
+      { type: "separator", id: "sep" },
+      {
         id: "refresh",
         labelKey: "common.refresh",
         onClick: doRefresh,
@@ -89,6 +141,9 @@ setTopbarMenu(() => [
   <Teleport defer to="#topbar-content">
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
+      <span v-if="dirty" class="badge badge-warn">
+        {{ t('workspace.templates.dirty_indicator') }}
+      </span>
       <button class="tool-btn primary" @click="openCreate">
         + {{ t('workspace.templates.new_template') }}
       </button>
@@ -119,49 +174,90 @@ setTopbarMenu(() => [
     </template>
 
     <template #main>
-      <p v-if="!selectedTemplate" class="muted">
+      <p v-if="!selectedTemplate || !draft" class="muted">
         {{ t('workspace.templates.unselected') }}
       </p>
 
       <template v-else>
-        <h1 class="workspace-heading">{{ selectedTemplate.name || selectedFilename }}</h1>
-        <div class="template-detail-meta">
+        <div class="workspace-heading-row">
+          <h1 class="workspace-heading">{{ draft.name || selectedFilename }}</h1>
           <span class="badge badge-accent">{{ selectedFilename }}</span>
+          <span v-if="dirty" class="badge badge-warn">
+            {{ t('workspace.templates.dirty_indicator') }}
+          </span>
         </div>
 
         <FormSection :title="t('workspace.templates.setup.title')">
           <FormRow :label="t('workspace.templates.setup.template_name')">
-            <span class="readout">{{ selectedTemplate.name || '—' }}</span>
+            <TextField v-model="draft.name" />
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.item_field')">
-            <span class="readout">{{ selectedTemplate.item_field || '—' }}</span>
+            <SelectField
+              :model-value="draft.item_field || ''"
+              @update:model-value="(v) => (draft && (draft.item_field = v))"
+              :options="itemFieldSelectOptions"
+            />
+          </FormRow>
+          <FormRow
+            :label="t('workspace.templates.setup.template_code')"
+            :description="t('workspace.templates.setup.template_code_help')"
+          >
+            <TextareaField
+              v-model="draft.markdown_template"
+              :rows="10"
+              class="template-code-textarea"
+            />
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.sidebar_expression')">
-            <span class="readout">
-              <code v-if="selectedTemplate.sidebar_expression">{{ selectedTemplate.sidebar_expression }}</code>
-              <template v-else>—</template>
-            </span>
+            <TextareaField v-model="draft.sidebar_expression" :rows="3" />
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.enable_collection')">
-            <span class="readout">{{ selectedTemplate.enable_collection ? t('common.enabled') : t('common.disabled') }}</span>
+            <SwitchField
+              v-model="draft.enable_collection"
+              :on-label="t('common.enabled')"
+              :off-label="t('common.disabled')"
+            />
           </FormRow>
         </FormSection>
 
         <FormSection :title="t('workspace.templates.fields.title')">
-          <p v-if="!selectedTemplate.fields || selectedTemplate.fields.length === 0" class="muted small">
+          <div class="fields-content">
+          <p v-if="!draft.fields || draft.fields.length === 0" class="muted small">
             {{ t('workspace.templates.fields.empty') }}
           </p>
           <ul v-else class="field-rows">
             <li
-              v-for="(f, i) in selectedTemplate.fields"
+              v-for="(f, i) in draft.fields"
               :key="(f.key || '') + ':' + i"
               class="field-row"
+              :data-type="f.type"
             >
-              <span class="field-row-key">{{ f.key || `(field ${i + 1})` }}</span>
-              <span class="badge field-row-type">{{ (f.type || '').toUpperCase() }}</span>
+              <span class="field-drag-handle" aria-hidden="true">☰</span>
+              <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
+              <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
               <span v-if="f.primary_key" class="badge badge-ok small">PRIMARY</span>
+              <span class="field-row-spacer"></span>
+              <div class="field-row-actions">
+                <button
+                  type="button"
+                  class="field-action-btn edit"
+                  :disabled="f.type === 'loopstop'"
+                  title="Edit field — wired in next step"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  class="field-action-btn delete"
+                  :disabled="f.type === 'loopstop'"
+                  title="Delete field — wired in next step"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           </ul>
+          </div>
         </FormSection>
       </template>
     </template>
@@ -234,6 +330,7 @@ setTopbarMenu(() => [
     align-items: center;
     gap: var(--space-1);
     flex-wrap: wrap;
+    justify-content: flex-end;     /* badges float to bottom-right */
 }
 
 .template-filename {
@@ -241,29 +338,37 @@ setTopbarMenu(() => [
     font-size: 11px;
 }
 
-/* Main panel */
-.template-detail-meta {
+/* Main panel — heading row keeps the title beside its meta pills. */
+.workspace-heading-row {
     display: flex;
-    gap: var(--space-2);
-    margin-bottom: var(--space-3);
+    align-items: baseline;
+    gap: var(--space-3);
     flex-wrap: wrap;
+    margin-bottom: var(--space-3);
 }
 
-.readout {
-    color: var(--color-text);
-    padding-top: 7px;            /* line up with adjacent inputs in mixed forms */
-    line-height: 1.4;
+/* The .workspace-heading inside the row drops its own bottom margin
+   so spacing is governed by the parent flex row + the global
+   margin-bottom on .workspace-heading-row. */
+.workspace-heading-row .workspace-heading {
+    margin: 0;
 }
 
-.readout code {
+/* Field Information section's content needs to span the FormSection's
+   2-column grid so rows fill the panel width. */
+.fields-content {
+    grid-column: 1 / -1;
+}
+
+/* Template-code textarea — monospace + a touch tighter so it reads as
+   code. CodeMirror swaps in here in Step 3d. */
+.template-code-textarea {
     font-family: var(--font-mono);
     font-size: 13px;
-    background: var(--color-surface);
-    padding: 1px 6px;
-    border-radius: var(--radius-sm);
+    line-height: 1.5;
 }
 
-/* Field rows — Formidable's "key (TYPE) … primary" look. */
+/* Field rows — Formidable's "label (TYPE) … Edit Delete" look. */
 .field-rows {
     list-style: none;
     padding: 0;
@@ -274,26 +379,79 @@ setTopbarMenu(() => [
 }
 
 .field-row {
+    /* Layout only — color/background/border live in
+       styles/field-types.css so the per-type palette can win without
+       fighting :scoped specificity. */
     display: flex;
     align-items: center;
     gap: var(--space-2);
     padding: 8px var(--space-3);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
 }
 
-.field-row-key {
+.field-drag-handle {
+    cursor: grab;
+    user-select: none;
+    font-size: 16px;
+    line-height: 1;
+    opacity: 0.85;
+}
+
+.field-drag-handle:active {
+    cursor: grabbing;
+}
+
+.field-row-label {
     font-weight: 600;
-    flex: 1 1 auto;
-    font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: var(--font-size-md);
 }
 
 .field-row-type {
     font-family: var(--font-mono);
     font-size: 11px;
     letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    line-height: 1.4;
+    font-weight: 600;
+}
+
+.field-row-spacer {
+    flex: 1 1 auto;
+}
+
+.field-row-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.field-action-btn {
+    appearance: none;
+    border: 0;
+    padding: 4px 12px;
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #ffffff;
+    line-height: 1.4;
+}
+
+.field-action-btn.edit {
+    background: #f59e0b;            /* warning amber — Edit */
+}
+.field-action-btn.delete {
+    background: #dc2626;            /* danger red — Delete */
+}
+
+.field-action-btn:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.field-action-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* Create modal */
