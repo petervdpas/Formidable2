@@ -9,6 +9,10 @@ const props = withDefaults(
     closeOnEsc?: boolean;
     /** Width override for the dialog box (CSS value, e.g. "480px"). */
     width?: string;
+    /** Optional class added to the dialog (e.g. for type-tinting). */
+    dialogClass?: string;
+    /** Optional inline style merged into the dialog (e.g. CSS vars). */
+    dialogStyle?: Record<string, string>;
   }>(),
   {
     closeOnBackdrop: true,
@@ -64,8 +68,8 @@ onBeforeUnmount(() => {
       <div v-if="open" class="modal-backdrop" @click.self="onBackdropClick">
         <div
           ref="dialog"
-          class="modal-dialog"
-          :style="{ width }"
+          :class="['modal-dialog', dialogClass]"
+          :style="{ width, ...(dialogStyle || {}) }"
           role="dialog"
           aria-modal="true"
           :aria-label="title"

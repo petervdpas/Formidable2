@@ -135,6 +135,55 @@
     filter: brightness(1.06);
 }
 
+/* ── Field-edit modal tint ─────────────────────────────────────────
+ * The dialog floor takes the per-type colour. Inputs keep their own
+ * --input-bg/fg so they're always readable; everything else inherits
+ * the type text color via currentColor.                              */
+
+.modal-dialog.field-edit-tinted {
+    background: var(--type-bg);
+    color: var(--type-text);
+    border-color: var(--type-border);
+}
+
+.modal-dialog.field-edit-tinted .modal-header,
+.modal-dialog.field-edit-tinted .modal-footer {
+    border-color: color-mix(in oklab, currentColor 25%, transparent);
+}
+
+.modal-dialog.field-edit-tinted .modal-title,
+.modal-dialog.field-edit-tinted .modal-close {
+    color: inherit;
+}
+
+.modal-dialog.field-edit-tinted .modal-close:hover {
+    background: color-mix(in oklab, currentColor 15%, transparent);
+}
+
+/* Form section frame — transparent so the floor color shows through. */
+.modal-dialog.field-edit-tinted .form-section {
+    background: transparent;
+    border-color: color-mix(in oklab, currentColor 25%, transparent);
+}
+
+/* Labels + descriptions inherit the tint text color. */
+.modal-dialog.field-edit-tinted .form-label,
+.modal-dialog.field-edit-tinted .form-description,
+.modal-dialog.field-edit-tinted .options-unavailable {
+    color: inherit;
+}
+
+/* Form-row dashed separator — tone-matched. */
+.modal-dialog.field-edit-tinted .form-row + .form-row {
+    border-top-color: color-mix(in oklab, currentColor 25%, transparent);
+}
+
+/* OptionsEditor frame — transparent, just a tone-matched outline. */
+.modal-dialog.field-edit-tinted .options-editor {
+    background: color-mix(in oklab, currentColor 6%, transparent);
+    border-color: color-mix(in oklab, currentColor 25%, transparent);
+}
+
 /* Drag-and-drop visual states (Sortable.js classes via vuedraggable). */
 
 /* The placeholder that marks where the dragged item will land. */

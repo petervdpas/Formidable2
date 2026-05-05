@@ -275,7 +275,7 @@ setTopbarMenu(() => [
             <CodeEditor
               v-model="draft.markdown_template"
               lang="markdown"
-              :height="260"
+              :height="120"
             />
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.sidebar_expression')">

@@ -61,13 +61,6 @@ function showRow(row: FieldEditRowId): boolean {
   return !isRowHidden(draft.value.type || "text", row);
 }
 
-// Type-tinted left border on the dialog — uses the per-type token from
-// styles/field-types.css.
-const tintColor = computed(() => {
-  const type = draft.value?.type || "text";
-  return `var(--field-type-${type}-bg, var(--color-accent))`;
-});
-
 // Default value editor — type-aware. For string types, plain input.
 // For booleans, the "default" doesn't really exist (omit). For lists/
 // tables/tags it's a textarea (CSV / JSON, free-form for now).
@@ -116,16 +109,49 @@ function submit() {
   if (!draft.value) return;
   emit("confirm", draft.value);
 }
+
+// Badge in the modal header — uses the per-type badge color so it
+// pops on the type-tinted dialog floor.
+const typePillStyle = computed(() => {
+  const type = draft.value?.type || "text";
+  return {
+    background: `var(--field-type-${type}-badge, var(--color-accent))`,
+    color: `var(--field-type-${type}-text, #fff)`,
+  };
+});
+
+// Per-type dialog tint — the modal's full background takes the field
+// type color, matching the original Formidable UX. Form labels +
+// borders pick the right contrast via .modal-dialog.tinted overrides
+// in styles/field-types.css.
+const dialogStyle = computed<Record<string, string>>(() => {
+  const type = draft.value?.type || "text";
+  return {
+    "--type-bg":     `var(--field-type-${type}-bg, var(--color-bg))`,
+    "--type-text":   `var(--field-type-${type}-text, var(--color-text))`,
+    "--type-border": `var(--field-type-${type}-border, var(--color-border))`,
+  };
+});
 </script>
 
 <template>
   <Modal
     :open="open"
-    :title="t('workspace.templates.field_edit.title')"
     width="640px"
+    dialog-class="field-edit-tinted"
+    :dialog-style="dialogStyle"
     @close="emit('close')"
   >
-    <div v-if="draft" class="field-edit" :style="{ '--field-tint': tintColor }">
+    <template #title>
+      <span>{{ t('workspace.templates.field_edit.title') }}</span>
+      <span
+        v-if="draft"
+        class="field-type-pill"
+        :style="typePillStyle"
+      >({{ (draft.type || '').toUpperCase() }})</span>
+    </template>
+
+    <div v-if="draft" class="field-edit">
       <FormSection>
         <FormRow
           v-if="showRow('key')"
@@ -240,11 +266,18 @@ function submit() {
 </template>
 
 <style scoped>
-/* Type-tinted left border — uses the per-type bg token registered by
-   styles/field-types.css. Subtle accent, not a flooded background. */
-.field-edit {
-    border-left: 6px solid var(--field-tint);
-    padding-left: var(--space-3);
-    margin-left: calc(-1 * var(--space-3));
+/* Type badge next to the modal title — pops on the tinted dialog
+   floor by using the badge token rather than the row bg. */
+.field-type-pill {
+    display: inline-block;
+    margin-left: var(--space-2);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+    vertical-align: middle;
 }
 </style>

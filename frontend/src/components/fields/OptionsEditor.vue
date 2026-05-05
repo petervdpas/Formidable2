@@ -54,7 +54,6 @@ function removeRow(idx: number) {
 
 function setCell(idx: number, col: ColumnDef, value: string) {
   const next = model.value.map((r, i) => (i === idx ? { ...r, [col.key]: value } : r));
-  // Run column onChange hook (e.g. list's custom-locking behavior).
   if (col.type === "dropdown" && col.onChange) {
     next[idx] = col.onChange(value, next[idx], next);
   }
@@ -72,46 +71,44 @@ function getCell(row: OptionRow, col: ColumnDef): string {
 
 <template>
   <div class="options-editor">
-    <div
-      v-for="(row, i) in visibleRows"
-      :key="i"
-      class="options-row"
-    >
-      <template v-for="col in columns" :key="col.key">
-        <TextField
-          v-if="col.type === 'text'"
-          :model-value="getCell(row, col)"
-          @update:model-value="(v) => setCell(i, col, v)"
-          :placeholder="col.placeholder"
-          class="options-cell"
-        />
-        <SelectField
-          v-else-if="col.type === 'dropdown'"
-          :model-value="getCell(row, col)"
-          @update:model-value="(v) => setCell(i, col, v)"
-          :options="col.options.map((o) => ({ value: o, label: o }))"
-          class="options-cell"
-        />
-      </template>
-      <button
-        type="button"
-        class="options-row-btn remove"
-        @click="removeRow(i)"
-        title="Remove option"
-        aria-label="Remove option"
-      >−</button>
+    <div class="options-rows">
+      <div
+        v-for="(row, i) in visibleRows"
+        :key="i"
+        class="options-row"
+      >
+        <template v-for="col in columns" :key="col.key">
+          <TextField
+            v-if="col.type === 'text'"
+            :model-value="getCell(row, col)"
+            @update:model-value="(v) => setCell(i, col, v)"
+            :placeholder="col.placeholder"
+            class="options-cell"
+          />
+          <SelectField
+            v-else-if="col.type === 'dropdown'"
+            :model-value="getCell(row, col)"
+            @update:model-value="(v) => setCell(i, col, v)"
+            :options="col.options.map((o) => ({ value: o, label: o }))"
+            class="options-cell"
+          />
+        </template>
+        <button
+          type="button"
+          class="options-row-btn remove"
+          @click="removeRow(i)"
+          title="Remove option"
+          aria-label="Remove option"
+        >−</button>
+      </div>
     </div>
-
-    <div class="options-row options-row-add">
-      <span class="options-add-spacer" :style="{ flex: columns.length }"></span>
-      <button
-        type="button"
-        class="options-row-btn add"
-        @click="addRow"
-        title="Add option"
-        aria-label="Add option"
-      >+</button>
-    </div>
+    <button
+      type="button"
+      class="options-row-btn add"
+      @click="addRow"
+      title="Add option"
+      aria-label="Add option"
+    >+</button>
   </div>
 </template>
 
@@ -124,6 +121,15 @@ function getCell(row: OptionRow, col: ColumnDef): string {
     border-radius: var(--radius-md);
     padding: 6px;
     background: var(--color-bg);
+}
+
+/* Rows-only scrollable region; ~2.5 rows tall (40px per row × 2.5). */
+.options-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 100px;
+    overflow-y: auto;
 }
 
 .options-row {
@@ -154,12 +160,9 @@ function getCell(row: OptionRow, col: ColumnDef): string {
 
 .options-row-btn:hover { background: var(--color-surface-2); }
 
+/* The + button is pinned outside the scroll region so it's always
+   reachable, and stretches to the editor's full width. */
 .options-row-btn.add {
-    flex: 1 1 auto;
-    width: auto;
-}
-
-.options-add-spacer {
-    flex: 1 1 0;
+    width: 100%;
 }
 </style>

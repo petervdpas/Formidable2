@@ -19,7 +19,7 @@ const props = withDefaults(
     /** Default editor height (px). User can drag the corner to resize. */
     height?: number;
   }>(),
-  { lang: "markdown", tabSize: 2, readonly: false, height: 240 },
+  { lang: "markdown", tabSize: 2, readonly: false, height: 120 },
 );
 
 const model = defineModel<string>({ default: "" });
@@ -59,26 +59,43 @@ const fullscreenKey = Prec.highest(
   ]),
 );
 
+// CodeMirror 6 grows to content unless you set a height via a theme
+// extension. We anchor `&` (the editor root) to 100% of its host
+// element — the wrapper's CSS height (which the user can drag) then
+// becomes the visible editor height; longer content scrolls inside
+// `.cm-scroller`.
+const heightExtension = EditorView.theme({
+  "&": { height: "100%" },
+  ".cm-scroller": { overflow: "auto" },
+});
+
 const extensions = computed(() => [
   ...langExtension.value,
   ...themeExtension.value,
+  heightExtension,
   fullscreenKey,
   EditorView.lineWrapping,
 ]);
 
-const styleObj = computed(() =>
-  fullscreen.value ? { height: "100%" } : { height: `${props.height}px` },
+// Wrapper height is the source of truth (it's what `resize: vertical`
+// drags). Fullscreen mode uses the fixed-position overlay; the wrapper
+// expands to inset:0 via the .fullscreen class so we don't override
+// height inline in that case.
+const wrapperStyle = computed(() =>
+  fullscreen.value ? {} : { height: `${props.height}px` },
 );
 </script>
 
 <template>
-  <div :class="['code-editor', { fullscreen, readonly }]">
+  <div
+    :class="['code-editor', { fullscreen, readonly }]"
+    :style="wrapperStyle"
+  >
     <Codemirror
       v-model="model"
       :tab-size="tabSize"
       :extensions="extensions"
       :disabled="readonly"
-      :style="styleObj"
       :indent-with-tab="true"
       placeholder="Type your template here. Ctrl+Enter to toggle full-screen."
     />
@@ -92,10 +109,10 @@ const styleObj = computed(() =>
     border-radius: var(--radius-md);
     background: var(--input-bg);
     overflow: hidden;
-    /* User can drag the corner to grow the editor. CodeMirror's
-       inner viewport follows because :deep(.cm-editor) is height:100%. */
+    /* User can drag the corner to grow the editor; CodeMirror's
+       theme extension binds & to height: 100% so it follows. */
     resize: vertical;
-    min-height: 120px;
+    min-height: 80px;
 }
 
 .code-editor.fullscreen {
@@ -105,10 +122,8 @@ const styleObj = computed(() =>
     border: 0;
     border-radius: 0;
     resize: none;
-}
-
-.code-editor :deep(.cm-editor) {
-    height: 100%;
+    height: auto !important;
+    width: auto !important;
 }
 
 .code-editor :deep(.cm-scroller) {
