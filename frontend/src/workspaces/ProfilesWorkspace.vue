@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SplitPane from "../components/SplitPane.vue";
+
 const menus = ["File", "Edit", "Sync", "View"];
 function newProfile() { /* TODO */ }
 </script>
@@ -16,14 +18,14 @@ function newProfile() { /* TODO */ }
     </div>
   </Teleport>
 
-  <div class="workspace">
-    <aside class="workspace-sidebar">
+  <SplitPane>
+    <template #sidebar>
       <h2 class="sidebar-title">Profiles</h2>
       <p class="muted small">Profile list goes here.</p>
-    </aside>
-    <section class="workspace-main">
+    </template>
+    <template #main>
       <h1 class="workspace-heading">Profiles</h1>
       <p class="muted">Switch the active profile or edit profile-scoped settings.</p>
-    </section>
-  </div>
+    </template>
+  </SplitPane>
 </template>

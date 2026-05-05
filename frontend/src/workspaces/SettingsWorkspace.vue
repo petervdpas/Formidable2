@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SplitPane from "../components/SplitPane.vue";
+
 const menus = ["File", "Theme", "Advanced"];
 function save()  { /* TODO */ }
 function reset() { /* TODO */ }
@@ -18,14 +20,14 @@ function reset() { /* TODO */ }
     </div>
   </Teleport>
 
-  <div class="workspace">
-    <aside class="workspace-sidebar">
+  <SplitPane>
+    <template #sidebar>
       <h2 class="sidebar-title">Settings</h2>
       <p class="muted small">Categories: General, Theme, Sync, Plugins…</p>
-    </aside>
-    <section class="workspace-main">
+    </template>
+    <template #main>
       <h1 class="workspace-heading">Settings</h1>
       <p class="muted">Pick a category from the sidebar.</p>
-    </section>
-  </div>
+    </template>
+  </SplitPane>
 </template>

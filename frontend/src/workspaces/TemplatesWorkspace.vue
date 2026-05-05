@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SplitPane from "../components/SplitPane.vue";
+
 const menus = ["File", "Edit", "Fields", "Validate", "View", "Help"];
 function newTemplate()    { /* TODO */ }
 function importTemplate() { /* TODO */ }
@@ -20,14 +22,14 @@ function refreshList()    { /* TODO */ }
     </div>
   </Teleport>
 
-  <div class="workspace">
-    <aside class="workspace-sidebar">
+  <SplitPane>
+    <template #sidebar>
       <h2 class="sidebar-title">Templates</h2>
       <p class="muted small">Template list goes here.</p>
-    </aside>
-    <section class="workspace-main">
+    </template>
+    <template #main>
       <h1 class="workspace-heading">Templates</h1>
       <p class="muted">Select a template from the sidebar to edit it.</p>
-    </section>
-  </div>
+    </template>
+  </SplitPane>
 </template>

@@ -188,22 +188,51 @@ a:hover { text-decoration: underline; }
     background: var(--color-bg);
 }
 
-.workspace {
-    display: grid;
-    grid-template-columns: var(--sidebar-width) 1fr;
+.split-pane {
+    display: flex;
+    flex-direction: row;
     height: 100%;
+    width: 100%;
+    min-height: 0;
 }
 
 .workspace-sidebar {
+    flex: 0 0 auto;
     border-right: 1px solid var(--color-border);
     background: var(--color-surface);
     padding: 12px;
     overflow: auto;
+    min-width: 0;
 }
 
 .workspace-main {
+    flex: 1 1 auto;
     padding: 16px 20px;
     overflow: auto;
+    min-width: 0;
+}
+
+.split-handle {
+    flex: 0 0 auto;
+    width: 5px;
+    margin: 0 -2px;
+    cursor: col-resize;
+    background: transparent;
+    position: relative;
+    z-index: 1;
+}
+
+.split-handle:hover,
+.split-handle:focus-visible,
+.split-pane.dragging .split-handle {
+    background: var(--color-accent);
+    outline: none;
+}
+
+body.is-resizing-x,
+body.is-resizing-x * {
+    cursor: col-resize !important;
+    user-select: none !important;
 }
 
 .sidebar-title {

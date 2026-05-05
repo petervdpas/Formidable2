@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SplitPane from "../components/SplitPane.vue";
+
 const menus = ["File", "Registry", "View"];
 function install() { /* TODO */ }
 function refresh() { /* TODO */ }
@@ -18,14 +20,14 @@ function refresh() { /* TODO */ }
     </div>
   </Teleport>
 
-  <div class="workspace">
-    <aside class="workspace-sidebar">
+  <SplitPane>
+    <template #sidebar>
       <h2 class="sidebar-title">Plugins</h2>
       <p class="muted small">Installed plugin list goes here.</p>
-    </aside>
-    <section class="workspace-main">
+    </template>
+    <template #main>
       <h1 class="workspace-heading">Plugins</h1>
       <p class="muted">Manage frontend plugins and their settings.</p>
-    </section>
-  </div>
+    </template>
+  </SplitPane>
 </template>

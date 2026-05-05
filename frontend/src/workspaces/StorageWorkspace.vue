@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import SplitPane from "../components/SplitPane.vue";
 
 const menus = ["File", "Edit", "Filter", "Render", "View", "Help"];
 const showAll = ref(false);
@@ -25,14 +26,14 @@ function refresh()  { /* TODO */ }
     </div>
   </Teleport>
 
-  <div class="workspace">
-    <aside class="workspace-sidebar">
+  <SplitPane>
+    <template #sidebar>
       <h2 class="sidebar-title">Forms</h2>
       <p class="muted small">Form list (per template) goes here.</p>
-    </aside>
-    <section class="workspace-main">
+    </template>
+    <template #main>
       <h1 class="workspace-heading">Storage</h1>
       <p class="muted">Pick a form from the sidebar to view or edit its data.</p>
-    </section>
-  </div>
+    </template>
+  </SplitPane>
 </template>
