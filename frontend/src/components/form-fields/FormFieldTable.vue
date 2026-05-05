@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import { TextField, SelectField, SwitchField, type SelectOption } from "../fields";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+
+const { t } = useI18n();
 
 // DnD scope — unique per component instance so drags don't cross
 // table fields when multiple are rendered (e.g. inside loop entries).
@@ -156,7 +159,7 @@ function asNumber(v: unknown): number {
             <td class="ff-table-col-tiny">
               <span
                 class="dnd-handle"
-                :title="'Drag to reorder'"
+                :title="t('workspace.storage.field.drag_to_reorder')"
                 aria-hidden="true"
               >⠿</span>
             </td>
@@ -200,7 +203,7 @@ function asNumber(v: unknown): number {
                 v-if="!field.readonly"
                 type="button"
                 class="btn-ghost-icon btn-sm"
-                :aria-label="'Remove row ' + (ri + 1)"
+                :aria-label="t('workspace.storage.field.remove_row')"
                 @click="removeRow(ri)"
               >−</button>
             </td>
@@ -210,15 +213,17 @@ function asNumber(v: unknown): number {
     </table>
 
     <p v-else class="muted small">
-      No columns defined — set this field's options in the Templates editor.
+      {{ t('workspace.storage.field.table_no_columns') }}
     </p>
 
     <button
       v-if="!field.readonly && columns.length > 0"
       type="button"
-      class="btn-ghost-block"
+      class="btn-ghost-icon"
+      :aria-label="t('workspace.storage.field.add_row')"
+      :title="t('workspace.storage.field.add_row')"
       @click="addRow"
-    >+ Add row</button>
+    >+</button>
   </div>
 </template>
 

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import { TextField, SelectField } from "../fields";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+
+const { t } = useI18n();
 
 // Local narrow shape — `SelectField`'s SelectOption union also allows
 // plain strings; we always build the object form here.
@@ -157,7 +160,7 @@ function isInvalid(row: string): boolean {
     >
       <template #item="{ index: i, element: item }">
         <div class="list-row">
-          <span class="dnd-handle" :title="'Drag to reorder'" aria-hidden="true">⠿</span>
+          <span class="dnd-handle" :title="t('workspace.storage.field.drag_to_reorder')" aria-hidden="true">⠿</span>
 
           <!-- Free text (no options OR custom-only) -->
           <TextField
@@ -200,7 +203,7 @@ function isInvalid(row: string): boolean {
             type="button"
             class="btn-ghost-icon"
             @click="remove(i)"
-            aria-label="Remove item"
+            :aria-label="t('workspace.storage.field.remove_item')"
           >−</button>
         </div>
       </template>
@@ -209,7 +212,9 @@ function isInvalid(row: string): boolean {
     <button
       v-if="!field.readonly"
       type="button"
-      class="btn-ghost-block"
+      class="btn-ghost-icon"
+      :aria-label="t('workspace.storage.field.add_item')"
+      :title="t('workspace.storage.field.add_item')"
       @click="add('')"
     >+</button>
   </div>

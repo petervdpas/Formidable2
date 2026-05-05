@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import FormLoopFields from "./FormLoopFields.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
+
+const { t } = useI18n();
 
 // FormLoop renders one loopstart/loopstop pair as a list of items.
 // Each item's value is a Record<string, unknown> with the inner
@@ -138,7 +141,7 @@ function summaryFor(entry: Record<string, unknown>): string {
     </div>
 
     <div v-if="entries.length === 0" class="form-loop-empty muted small">
-      (No entries — click + to add one)
+      {{ t('workspace.storage.field.loop_empty') }}
     </div>
 
     <draggable
@@ -161,7 +164,7 @@ function summaryFor(entry: Record<string, unknown>): string {
           <div class="form-loop-item-header">
             <span
               class="dnd-handle"
-              :title="'Drag to reorder'"
+              :title="t('workspace.storage.field.drag_to_reorder')"
               aria-hidden="true"
             >⠿</span>
 
@@ -183,7 +186,7 @@ function summaryFor(entry: Record<string, unknown>): string {
             <button
               type="button"
               class="btn-ghost-icon btn-md"
-              :aria-label="'Remove item ' + (i + 1)"
+              :aria-label="t('workspace.storage.field.remove_item')"
               @click="removeItem(i)"
             >−</button>
           </div>
@@ -200,7 +203,11 @@ function summaryFor(entry: Record<string, unknown>): string {
       </template>
     </draggable>
 
-    <button type="button" class="btn-ghost-block" @click="addItem">+ Add</button>
+    <div class="form-loop-actions">
+      <button type="button" class="tool-btn primary" @click="addItem">
+        + {{ t('workspace.storage.field.add_loop_item') }}
+      </button>
+    </div>
   </div>
 </template>
 

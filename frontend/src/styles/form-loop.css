@@ -77,3 +77,9 @@
 }
 
 .form-loop-empty { padding: 8px 0; }
+
+/* Add-loop-item button is small and left-aligned (matches the
+   original "+ Add Loop Item" affordance), not full-width. */
+.form-loop-actions {
+    display: flex;
+}
