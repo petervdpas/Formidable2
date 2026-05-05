@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+import { useRestartGate } from "../composables/useRestartGate";
 
 const { t } = useI18n();
+const { bootConfig } = useRestartGate();
+
+const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
 function install() { /* TODO */ }
 function refresh() { /* TODO */ }
@@ -17,7 +22,7 @@ function refresh() { /* TODO */ }
     </div>
   </Teleport>
 
-  <SplitPane>
+  <SplitPane :initial="sidebarWidth">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.plugins.sidebar_title') }}</h2>
       <p class="muted small">{{ t('workspace.plugins.placeholder_side') }}</p>

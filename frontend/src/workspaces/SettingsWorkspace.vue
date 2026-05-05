@@ -6,6 +6,8 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import AlertDialog from "../components/AlertDialog.vue";
 import { useConfig } from "../composables/useConfig";
 import { useRestartGate } from "../composables/useRestartGate";
+// (bootConfig comes from useRestartGate so sidebar width stays frozen
+// for the session — same rule as Templates/Storage.)
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { SETTINGS_CATEGORIES, type SettingsCategoryId } from "./settings";
 import { Service as System } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
@@ -13,8 +15,9 @@ import { Service as System } from "../../bindings/github.com/petervdpas/formidab
 const { t } = useI18n();
 
 const { config, profileFilename, reload } = useConfig();
-const { needsRestart } = useRestartGate();
+const { needsRestart, bootConfig } = useRestartGate();
 const loaded = computed(() => config.value !== null);
+const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
 const activeId = ref<SettingsCategoryId>("general");
 const activeCategory = computed(
@@ -72,7 +75,7 @@ setTopbarMenu(() => [
     </div>
   </Teleport>
 
-  <SplitPane :initial="260" :min="180" :max="360">
+  <SplitPane :initial="sidebarWidth">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('settings.title') }}</h2>
       <ul class="sidebar-list">

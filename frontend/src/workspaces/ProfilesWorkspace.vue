@@ -7,6 +7,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import AlertDialog from "../components/AlertDialog.vue";
 import { useProfiles, isValidProfileFilename } from "../composables/useProfiles";
 import { useConfig } from "../composables/useConfig";
+import { useRestartGate } from "../composables/useRestartGate";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useDialog } from "../composables/useDialog";
 
@@ -14,8 +15,11 @@ const { t } = useI18n();
 
 const { profiles, activeFilename, refresh, activate, create, remove, exportTo, importFrom } = useProfiles();
 const { config } = useConfig();
+const { bootConfig } = useRestartGate();
 const { setActive } = useActiveWorkspace();
 const { chooseFile, chooseSaveFile } = useDialog();
+
+const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
 const jsonFilters = computed(() => [
   { displayName: t('workspace.profiles.import.filter_name'), pattern: '*.json' },
@@ -234,7 +238,7 @@ async function activateSelected() {
     </div>
   </Teleport>
 
-  <SplitPane :initial="300" :min="200" :max="420">
+  <SplitPane :initial="sidebarWidth">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.profiles.sidebar_title') }}</h2>
 

@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+import { useRestartGate } from "../composables/useRestartGate";
 import { Service as System } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 
 const { t } = useI18n();
+const { bootConfig } = useRestartGate();
+
+const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
 const appRoot = ref<string>("");
 const error = ref<string>("");
@@ -23,7 +27,7 @@ onMounted(async () => {
     <span class="topbar-spacer"></span>
   </Teleport>
 
-  <SplitPane>
+  <SplitPane :initial="sidebarWidth">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.about.sidebar_title') }}</h2>
       <p class="muted small">{{ t('workspace.about.placeholder_side') }}</p>
