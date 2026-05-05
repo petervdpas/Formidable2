@@ -4,6 +4,8 @@ import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
+import ConfirmDialog from "../components/ConfirmDialog.vue";
+import FieldEditModal from "../components/FieldEditModal.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import {
   FormSection,
@@ -18,6 +20,7 @@ import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
@@ -107,6 +110,71 @@ async function submitCreate() {
   }
   toast.success("workspace.templates.create.success", [name.replace(/\.yaml$/, "")]);
   createOpen.value = false;
+}
+
+// ── Field edit + delete ──────────────────────────────────────────────
+const editOpen = ref(false);
+const editIndex = ref<number>(-1);
+const editField = ref<Field | null>(null);
+
+function openEdit(index: number) {
+  if (!draft.value || !draft.value.fields) return;
+  editIndex.value = index;
+  editField.value = draft.value.fields[index] ?? null;
+  editOpen.value = true;
+}
+
+function applyEdit(updated: Field) {
+  if (!draft.value || editIndex.value < 0) return;
+  // Replace the array element so reactivity fires.
+  draft.value.fields = [
+    ...draft.value.fields.slice(0, editIndex.value),
+    updated,
+    ...draft.value.fields.slice(editIndex.value + 1),
+  ];
+  editOpen.value = false;
+  editField.value = null;
+  editIndex.value = -1;
+}
+
+const deleteOpen = ref(false);
+const deleteIndex = ref<number>(-1);
+
+function openDelete(index: number) {
+  deleteIndex.value = index;
+  deleteOpen.value = true;
+}
+
+const deleteFieldName = computed(() => {
+  if (!draft.value || deleteIndex.value < 0) return "";
+  const f = draft.value.fields[deleteIndex.value];
+  return f?.label || f?.key || "";
+});
+
+function confirmDelete() {
+  if (!draft.value || deleteIndex.value < 0) {
+    deleteOpen.value = false;
+    return;
+  }
+  const idx = deleteIndex.value;
+  const fields = draft.value.fields;
+  const removed = fields[idx];
+  let next = [...fields.slice(0, idx), ...fields.slice(idx + 1)];
+
+  // Loopstart/loopstop pairing — if we removed one half, drop its
+  // partner so the YAML stays valid.
+  if (removed && (removed.type === "loopstart" || removed.type === "loopstop")) {
+    const partnerType = removed.type === "loopstart" ? "loopstop" : "loopstart";
+    const partnerIdx = next.findIndex(
+      (f) => f.key === removed.key && f.type === partnerType,
+    );
+    if (partnerIdx !== -1) {
+      next = [...next.slice(0, partnerIdx), ...next.slice(partnerIdx + 1)];
+    }
+  }
+  draft.value.fields = next;
+  deleteOpen.value = false;
+  deleteIndex.value = -1;
 }
 
 // ── Topbar menu ──────────────────────────────────────────────────────
@@ -251,7 +319,7 @@ setTopbarMenu(() => [
                     type="button"
                     class="field-action-btn edit"
                     :disabled="f.type === 'loopstop'"
-                    title="Edit field — wired in next step"
+                    @click="openEdit(i)"
                   >
                     Edit
                   </button>
@@ -259,7 +327,7 @@ setTopbarMenu(() => [
                     type="button"
                     class="field-action-btn delete"
                     :disabled="f.type === 'loopstop'"
-                    title="Delete field — wired in next step"
+                    @click="openDelete(i)"
                   >
                     Delete
                   </button>
@@ -302,6 +370,26 @@ setTopbarMenu(() => [
       </button>
     </template>
   </Modal>
+
+  <!-- Field edit modal -->
+  <FieldEditModal
+    :open="editOpen"
+    :field="editField"
+    @close="editOpen = false"
+    @confirm="applyEdit"
+  />
+
+  <!-- Delete confirm -->
+  <ConfirmDialog
+    :open="deleteOpen"
+    :title="t('workspace.templates.field_edit.delete_title')"
+    :message="t('workspace.templates.field_edit.delete_confirm', [deleteFieldName])"
+    :confirm-label="t('workspace.profiles.action.delete')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="deleteOpen = false"
+    @confirm="confirmDelete"
+  />
 </template>
 
 <style scoped>
