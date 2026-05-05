@@ -111,6 +111,24 @@
     margin: var(--space-2) 0 0;
 }
 
+/* Two-column grid for compact form dialogs (e.g. New Entry). Labels
+   sit in the left column, right-aligned, vertically centered against
+   their input. Each row is one logical (label, control) pair. */
+.dialog-grid {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: var(--space-3);
+    row-gap: var(--space-3);
+    align-items: center;
+}
+
+.dialog-grid > .dialog-grid-label {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    text-align: right;
+    white-space: nowrap;
+}
+
 /* Transition: fade backdrop, light scale on dialog. */
 .modal-enter-from .modal-dialog,
 .modal-leave-to .modal-dialog {

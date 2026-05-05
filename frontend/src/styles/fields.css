@@ -76,6 +76,22 @@
     border-color: var(--input-invalid-border);
 }
 
+/* Native date picker — style the calendar-indicator pill so it
+   matches the input chrome instead of the browser default. The
+   popup itself is the OS/browser native widget (matches original
+   Formidable). */
+.field-input[type="date"]::-webkit-calendar-picker-indicator {
+    background-color: var(--input-readonly-bg);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    cursor: pointer;
+    opacity: 0.85;
+}
+
+.field-input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
 /* ─── Switch ─────────────────────────────────────────────────────── */
 .field-switch {
     display: inline-flex;

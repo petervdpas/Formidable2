@@ -29,6 +29,7 @@
   "workspace.storage.meta.id": "ID",
   "workspace.storage.meta.tags": "Tags",
   "workspace.storage.meta.updated": "Updated",
+  "workspace.storage.new.append_date": "Append date (YYYYMMDD)",
   "workspace.storage.new.exists": "A form with that filename already exists.",
   "workspace.storage.new.help": "Letters, digits, dashes and dots — extension “.meta.json” is added automatically.",
   "workspace.storage.new.invalid": "Filename is required.",

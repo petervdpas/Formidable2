@@ -17,6 +17,19 @@ export default defineConfig({
     // pathologically.
     chunkSizeWarningLimit: 750,
     rollupOptions: {
+      // @vueuse/core (pulled in transitively by VueDatePicker) ships
+      // /* #__PURE__ */ annotations in spots Rollup can't parse —
+      // harmless but noisy. Pass them through silently; surface every
+      // other warning untouched.
+      onwarn(warning, warn) {
+        if (
+          warning.code === "INVALID_ANNOTATION" &&
+          (warning.id ?? "").includes("@vueuse/core")
+        ) {
+          return;
+        }
+        warn(warning);
+      },
       output: {
         // Pre-split heavy vendors so each lib gets its own chunk.
         // Dev rebuilds stay fast (only the chunks whose source changed
@@ -36,6 +49,7 @@ export default defineConfig({
           easymde: ["easymde"],
           fontawesome: ["@fortawesome/fontawesome-free"],
           dnd: ["vuedraggable"],
+          datepicker: ["@vuepic/vue-datepicker", "date-fns"],
         },
       },
     },

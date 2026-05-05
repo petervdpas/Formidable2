@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
-import { TextField, SelectField, SwitchField, type SelectOption } from "../fields";
+import { TextField, SelectField, SwitchField, DateInput, type SelectOption } from "../fields";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const { t } = useI18n();
@@ -177,9 +177,8 @@ function asNumber(v: unknown): number {
                 @update:model-value="(v) => setCell(ri, ci, asNumber(v))"
                 :readonly="field.readonly"
               />
-              <TextField
+              <DateInput
                 v-else-if="col.type === 'date'"
-                type="date"
                 :model-value="asString(row[ci])"
                 @update:model-value="(v) => setCell(ri, ci, v)"
                 :readonly="field.readonly"

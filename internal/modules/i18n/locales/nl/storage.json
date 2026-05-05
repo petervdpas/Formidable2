@@ -29,6 +29,7 @@
   "workspace.storage.meta.id": "ID",
   "workspace.storage.meta.tags": "Tags",
   "workspace.storage.meta.updated": "Bijgewerkt",
+  "workspace.storage.new.append_date": "Datum toevoegen (JJJJMMDD)",
   "workspace.storage.new.exists": "Er bestaat al een formulier met die bestandsnaam.",
   "workspace.storage.new.help": "Letters, cijfers, streepjes en punten — extensie “.meta.json” wordt automatisch toegevoegd.",
   "workspace.storage.new.invalid": "Bestandsnaam is verplicht.",

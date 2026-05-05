@@ -1,0 +1,86 @@
+/* FormFieldDate / VueDatePicker — bridge from VueDatePicker's
+   --dp-* tokens to our theme tokens.
+
+   Important: VueDatePicker defines color vars inside its own
+   .dp__theme_light / .dp__theme_dark classes (not :root), so
+   :root overrides lose the cascade against the more-specific
+   class selector. We override on those classes themselves so
+   the var values come from OUR theme tokens regardless of which
+   internal theme dp picked. Layout vars (sizes, paddings) can
+   still be on :root since dp doesn't redefine them per theme. */
+
+:root {
+    --dp-font-family: var(--font-stack);
+    --dp-border-radius: var(--radius-md);
+    --dp-cell-border-radius: var(--radius-sm);
+    --dp-input-padding: 6px 10px;
+    --dp-font-size: var(--font-size-md);
+    --dp-preview-font-size: var(--font-size-sm);
+    --dp-time-font-size: var(--font-size-sm);
+}
+
+.dp__theme_light,
+.dp__theme_dark {
+    /* Surfaces */
+    --dp-background-color: var(--input-bg);
+    --dp-text-color: var(--input-fg);
+    --dp-hover-color: var(--list-hover-bg);
+    --dp-hover-text-color: var(--input-fg);
+    --dp-hover-icon-color: var(--input-fg);
+    --dp-menu-border-color: var(--color-border);
+    --dp-border-color: var(--input-border);
+    --dp-border-color-hover: var(--input-focus-border);
+    --dp-border-color-focus: var(--input-focus-border);
+
+    /* Selection */
+    --dp-primary-color: var(--color-accent);
+    --dp-primary-text-color: var(--color-accent-fg);
+    --dp-primary-disabled-color: var(--color-accent-soft);
+
+    /* Disabled / muted */
+    --dp-secondary-color: var(--color-text-muted);
+    --dp-disabled-color: var(--input-disabled-bg);
+    --dp-disabled-color-text: var(--input-disabled-fg);
+    --dp-icon-color: var(--input-fg);
+    --dp-scroll-bar-background: var(--color-surface-2);
+    --dp-scroll-bar-color: var(--color-border);
+
+    /* Misc */
+    --dp-success-color: var(--color-success);
+    --dp-success-color-disabled: var(--color-accent-soft);
+    --dp-danger-color: var(--color-error);
+    --dp-marker-color: var(--color-warning);
+    --dp-tooltip-color: var(--color-surface-2);
+    --dp-highlight-color: var(--color-accent);
+    --dp-current-text-color: var(--input-fg);
+}
+
+.date-field {
+    width: 100%;
+}
+
+.date-field .dp__input {
+    height: 36px;
+    border-color: var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-fg);
+    border-radius: var(--radius-md);
+}
+
+.date-field .dp__input::placeholder {
+    color: var(--input-placeholder);
+}
+
+.date-field .dp__input_focus {
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 2px var(--input-focus-ring);
+}
+
+.dp__menu {
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.dp__action_buttons .dp__action_button {
+    border-radius: var(--radius-sm);
+}

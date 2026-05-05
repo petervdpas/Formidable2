@@ -5,5 +5,6 @@ export { default as TextareaField } from "./TextareaField.vue";
 export { default as SelectField } from "./SelectField.vue";
 export { default as SwitchField } from "./SwitchField.vue";
 export { default as CheckboxField } from "./CheckboxField.vue";
+export { default as DateInput } from "./DateInput.vue";
 export { default as OptionsEditor } from "./OptionsEditor.vue";
 export type { SelectOption } from "./SelectField.vue";

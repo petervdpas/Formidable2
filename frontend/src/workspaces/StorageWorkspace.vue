@@ -123,12 +123,24 @@ const visibleSummaries = computed(() => {
 const newOpen = ref(false);
 const newName = ref("");
 const newError = ref("");
+const newAppendDate = ref(false);
 
 function openNew() {
   if (!selectedTemplate.value) return;
   newName.value = "";
   newError.value = "";
+  newAppendDate.value = false;
   newOpen.value = true;
+}
+
+// "YYYYMMDD" suffix from today's date (local time — matches the
+// original Formidable, which also uses local-zone date for filenames).
+function todayYYYYMMDD(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}${m}${day}`;
 }
 
 async function submitNew() {
@@ -137,8 +149,11 @@ async function submitNew() {
     newError.value = t("workspace.storage.new.invalid");
     return;
   }
-  // Coerce to ".meta.json" if the user didn't include the extension.
-  const filename = raw.endsWith(".meta.json") ? raw : `${raw}.meta.json`;
+  const stem = raw.endsWith(".meta.json")
+    ? raw.slice(0, -".meta.json".length)
+    : raw;
+  const dated = newAppendDate.value ? `${stem}-${todayYYYYMMDD()}` : stem;
+  const filename = `${dated}.meta.json`;
   if (!/^[a-zA-Z0-9._-]+\.meta\.json$/.test(filename)) {
     newError.value = t("workspace.storage.new.invalid_chars");
     return;
@@ -220,6 +235,22 @@ setTopbarMenu(() => [
       <span v-if="dirty" class="badge badge-warn">
         {{ t('workspace.storage.dirty_indicator') }}
       </span>
+      <button
+        v-if="view"
+        class="tool-btn primary"
+        :disabled="!dirty"
+        @click="doSave"
+      >
+        {{ t('workspace.storage.save') }}
+      </button>
+      <button
+        v-if="view"
+        class="tool-btn danger"
+        :disabled="!view.saved"
+        @click="askDelete"
+      >
+        {{ t('workspace.storage.delete') }}
+      </button>
       <button
         class="tool-btn primary"
         :disabled="!selectedTemplate"
@@ -322,18 +353,6 @@ setTopbarMenu(() => [
             </div>
           </div>
 
-          <div class="meta-actions">
-            <button class="tool-btn primary" :disabled="!dirty" @click="doSave">
-              {{ t('workspace.storage.save') }}
-            </button>
-            <button
-              class="tool-btn danger"
-              :disabled="!view.saved"
-              @click="askDelete"
-            >
-              {{ t('workspace.storage.delete') }}
-            </button>
-          </div>
         </FormSection>
 
         <!-- Plain wrapper — NOT FormSection — so each row spans the
@@ -357,18 +376,23 @@ setTopbarMenu(() => [
     :title="t('workspace.storage.new.title')"
     @close="newOpen = false"
   >
-    <label class="dialog-row">
-      <span class="dialog-row-label">{{ t('workspace.storage.new.label') }}</span>
+    <div class="dialog-grid">
+      <label class="dialog-grid-label" for="new-entry-name">
+        {{ t('workspace.storage.new.label') }}
+      </label>
       <input
+        id="new-entry-name"
         class="field-input"
         v-model="newName"
         :placeholder="t('workspace.storage.new.placeholder')"
         @keydown.enter="submitNew"
       />
-    </label>
-    <p class="muted small dialog-row-help">
-      {{ t('workspace.storage.new.help') }}
-    </p>
+
+      <span class="dialog-grid-label">
+        {{ t('workspace.storage.new.append_date') }}
+      </span>
+      <SwitchField v-model="newAppendDate" />
+    </div>
     <p v-if="newError" class="form-error">{{ newError }}</p>
 
     <template #footer>

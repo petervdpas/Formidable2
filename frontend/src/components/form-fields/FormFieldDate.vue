@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { TextField } from "../fields";
+import { DateInput } from "../fields";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -17,5 +17,5 @@ const value = computed<string>({
 </script>
 
 <template>
-  <TextField type="date" v-model="value" :readonly="field.readonly" />
+  <DateInput v-model="value" :readonly="field.readonly" />
 </template>
