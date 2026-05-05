@@ -5,7 +5,7 @@ import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import { FormSection, SelectField, TextField, SwitchField } from "../components/fields";
-import { FormFieldRow } from "../components/form-fields";
+import FormLoopFields from "../components/form-fields/FormLoopFields.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useTemplates } from "../composables/useTemplates";
 import { useFormView } from "../composables/useFormView";
@@ -45,15 +45,6 @@ const templateOptions = computed(() =>
 // ── Form list (sidebar) ──────────────────────────────────────────────
 const summaries = ref<FormSummary[]>([]);
 const listError = ref("");
-
-// Field types that don't render in the form body. Guid is shown only
-// in the meta block (matches the original — the user never edits a
-// guid; it's identity, not data). Loop markers render via their
-// container, not as standalone rows.
-const HIDDEN_FIELD_TYPES = new Set(["guid", "loopstart", "loopstop"]);
-function isFieldVisible(type: string): boolean {
-  return !HIDDEN_FIELD_TYPES.has(type);
-}
 
 async function refreshList() {
   if (!selectedTemplate.value) {
@@ -324,13 +315,11 @@ setTopbarMenu(() => [
              full panel width. FormSection's own grid would tile rows
              into its label/value columns and pair them up. -->
         <div v-if="draft.template" class="form-fields">
-          <FormFieldRow
-            v-for="(field, i) in draft.template.fields"
-            :key="field.key + ':' + i"
-            v-show="isFieldVisible(field.type)"
-            :field="field"
-            :model-value="draft.values[field.key]"
-            @update:model-value="(v: unknown) => (draft && (draft.values[field.key] = v))"
+          <FormLoopFields
+            :fields="draft.template.fields"
+            :start-offset="0"
+            :values="draft.values"
+            :loop-groups="draft.loop_groups"
           />
         </div>
       </template>
