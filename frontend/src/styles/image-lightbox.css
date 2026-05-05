@@ -1,0 +1,56 @@
+/* ImageLightbox — fullscreen pan/zoom viewer. Teleported to <body>
+   so it overlays the entire app, including modals if any. */
+
+.image-lightbox-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    background: rgba(0, 0, 0, 0.85);
+    overflow: hidden;
+    cursor: grab;
+}
+
+.image-lightbox-img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* Initial transform is just centering — script sets translate +
+       scale via the inline `transform` style. We pre-translate by
+       -50% so scale & pan compose around the image's centre. */
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    max-width: 90vw;
+    max-height: 90vh;
+    user-select: none;
+    -webkit-user-drag: none;
+    cursor: grab;
+    /* The Vue component overrides `transform` inline. The pre-baked
+       -50% above is appended to the inline value via wrapping the
+       script's transform with translate(-50%,-50%) — see component. */
+}
+
+.image-lightbox-img.is-grabbing { cursor: grabbing; }
+
+.image-lightbox-help {
+    position: fixed;
+    top: var(--space-3);
+    right: var(--space-3);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: var(--font-size-sm);
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    padding: 6px 10px;
+    pointer-events: none;
+    line-height: 1.6;
+}
+
+.image-lightbox-help kbd {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+}

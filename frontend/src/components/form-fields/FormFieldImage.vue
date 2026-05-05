@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch, type ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
+import ImageLightbox from "../ImageLightbox.vue";
 import { Service as StorageSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -137,6 +138,12 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+// ── Lightbox (click preview → fullscreen pan/zoom) ──────────────────
+const lightboxOpen = ref(false);
+function openLightbox() {
+  if (dataUrl.value) lightboxOpen.value = true;
+}
+
 async function clear() {
   pickError.value = "";
   if (!filename.value) return;
@@ -172,6 +179,8 @@ async function clear() {
         :src="dataUrl"
         :alt="filename"
         class="image-field-preview"
+        :title="t('image_lightbox.click_to_zoom')"
+        @click="openLightbox"
       />
     </div>
 
@@ -201,5 +210,12 @@ async function clear() {
 
     <p v-if="pickError" class="form-error small">{{ pickError }}</p>
     <p v-else-if="loadError" class="form-error small">{{ loadError }}</p>
+
+    <ImageLightbox
+      :open="lightboxOpen"
+      :src="dataUrl"
+      :alt="filename"
+      @close="lightboxOpen = false"
+    />
   </div>
 </template>

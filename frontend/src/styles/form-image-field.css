@@ -28,6 +28,8 @@
     width: auto;
     height: auto;
     border-radius: 4px;
+    /* Hover hint: clicking opens the fullscreen pan/zoom lightbox. */
+    cursor: zoom-in;
 }
 
 .image-field-actions {
