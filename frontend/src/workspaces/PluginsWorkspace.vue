@@ -4,18 +4,12 @@ import SplitPane from "../components/SplitPane.vue";
 
 const { t } = useI18n();
 
-const menus = ["File", "Registry", "View"];
 function install() { /* TODO */ }
 function refresh() { /* TODO */ }
 </script>
 
 <template>
   <Teleport defer to="#topbar-content">
-    <nav class="topmenu" :aria-label="t('workspace.plugins.title')">
-      <button v-for="m in menus" :key="m" class="topmenu-item" type="button">
-        {{ m }}
-      </button>
-    </nav>
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
       <button class="tool-btn primary" @click="install">Install…</button>

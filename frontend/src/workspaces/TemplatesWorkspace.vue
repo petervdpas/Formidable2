@@ -2,17 +2,16 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
-import { useConfig } from "../composables/useConfig";
+import { useRestartGate } from "../composables/useRestartGate";
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { bootConfig } = useRestartGate();
 
-// Sidebar width comes from settings; the SplitPane mounts fresh each
-// time the user enters this workspace, so the current value is always
-// honored. Drag stays session-only (doesn't write back).
-const sidebarWidth = computed(() => config.value?.sidebar_width || 280);
+// Sidebar width is "applies on next launch" — read from the boot
+// snapshot so editing it in Settings doesn't change the layout
+// mid-session (that would lie about what the Apply button means).
+const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
-const menus = ["File", "Edit", "Fields", "Validate", "View", "Help"];
 function newTemplate()    { /* TODO */ }
 function importTemplate() { /* TODO */ }
 function refreshList()    { /* TODO */ }
@@ -20,11 +19,6 @@ function refreshList()    { /* TODO */ }
 
 <template>
   <Teleport defer to="#topbar-content">
-    <nav class="topmenu" :aria-label="t('workspace.templates.title')">
-      <button v-for="m in menus" :key="m" class="topmenu-item" type="button">
-        {{ m }}
-      </button>
-    </nav>
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
       <button class="tool-btn primary" @click="newTemplate">+ {{ t('workspace.templates.title') }}</button>

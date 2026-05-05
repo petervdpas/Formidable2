@@ -65,8 +65,38 @@ export function ProxyFetchRemote(url: string, opts: $models.FetchOptions): $Canc
     });
 }
 
+/**
+ * Quit is the soft-shutdown counterpart — used by future File → Quit
+ * menu wiring. Exposed today so the Wails surface stays stable when
+ * the menu lands.
+ */
+export function Quit(): $CancellablePromise<void> {
+    return $Call.ByID(4144929294);
+}
+
 export function ResolvePath(segments: string[]): $CancellablePromise<string> {
     return $Call.ByID(3616364684, segments);
+}
+
+/**
+ * Restart spawns a fresh copy of this binary with the same arguments,
+ * then quits the current process after a short grace period. Used by
+ * the "Apply changes & restart" button in Settings when the user has
+ * changed a setting that only takes effect at launch (today: window
+ * size).
+ * 
+ * On Linux/macOS the spawned child is detached from the parent's
+ * terminal/process group as soon as the parent exits — Go's runtime
+ * re-parents to PID 1 (init/launchd). On Windows the child gets a
+ * fresh console attachment by default. Either way, no orphaned
+ * goroutines or zombie processes are left behind.
+ * 
+ * Returns nil if the spawn succeeds; the actual quit happens
+ * asynchronously, so callers should treat success as "restart is in
+ * progress."
+ */
+export function Restart(): $CancellablePromise<void> {
+    return $Call.ByID(259480292);
 }
 
 export function SaveFile(path: string, content: string): $CancellablePromise<void> {

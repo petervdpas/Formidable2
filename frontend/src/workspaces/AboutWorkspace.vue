@@ -6,7 +6,6 @@ import { Service as System } from "../../bindings/github.com/petervdpas/formidab
 
 const { t } = useI18n();
 
-const menus = ["Info", "Links", "License"];
 const appRoot = ref<string>("");
 const error = ref<string>("");
 
@@ -21,11 +20,6 @@ onMounted(async () => {
 
 <template>
   <Teleport defer to="#topbar-content">
-    <nav class="topmenu" :aria-label="t('workspace.about.title')">
-      <button v-for="m in menus" :key="m" class="topmenu-item" type="button">
-        {{ m }}
-      </button>
-    </nav>
     <span class="topbar-spacer"></span>
   </Teleport>
 

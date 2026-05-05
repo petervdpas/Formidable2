@@ -8,6 +8,7 @@
   "menu.context.option.template": "Sjabloon",
   "menu.data.export": "CSV exporteren...",
   "menu.data.import": "CSV importeren...",
+  "menu.file": "Bestand",
   "menu.file.openPluginsFolder": "Open pluginmap",
   "menu.file.openStorageFolder": "Open opslagmap",
   "menu.file.openTemplateFolder": "Open sjablonenmap",

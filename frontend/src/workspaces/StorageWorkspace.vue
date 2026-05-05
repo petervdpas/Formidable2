@@ -2,14 +2,13 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
-import { useConfig } from "../composables/useConfig";
+import { useRestartGate } from "../composables/useRestartGate";
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { bootConfig } = useRestartGate();
 
-const sidebarWidth = computed(() => config.value?.sidebar_width || 280);
+const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
-const menus = ["File", "Edit", "Filter", "Render", "View", "Help"];
 const showAll = ref(false);
 function newEntry() { /* TODO */ }
 function refresh()  { /* TODO */ }
@@ -17,11 +16,6 @@ function refresh()  { /* TODO */ }
 
 <template>
   <Teleport defer to="#topbar-content">
-    <nav class="topmenu" :aria-label="t('workspace.storage.title')">
-      <button v-for="m in menus" :key="m" class="topmenu-item" type="button">
-        {{ m }}
-      </button>
-    </nav>
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
       <button class="tool-btn primary" @click="newEntry">+ Entry</button>

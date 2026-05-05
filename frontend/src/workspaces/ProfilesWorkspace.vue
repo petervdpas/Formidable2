@@ -12,8 +12,6 @@ import { useDialog } from "../composables/useDialog";
 
 const { t } = useI18n();
 
-const menus = ["File", "Edit", "Sync", "View"];
-
 const { profiles, activeFilename, refresh, activate, create, remove, exportTo, importFrom } = useProfiles();
 const { config } = useConfig();
 const { setActive } = useActiveWorkspace();
@@ -222,11 +220,6 @@ async function activateSelected() {
 
 <template>
   <Teleport defer to="#topbar-content">
-    <nav class="topmenu" :aria-label="t('workspace.profiles.title')">
-      <button v-for="m in menus" :key="m" class="topmenu-item" type="button">
-        {{ m }}
-      </button>
-    </nav>
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
       <button class="tool-btn primary" @click="openCreate">
