@@ -28,8 +28,7 @@ function refresh() { /* TODO */ }
       <p class="muted small">{{ t('workspace.plugins.placeholder_side') }}</p>
     </template>
     <template #main>
-      <h1 class="workspace-heading">{{ t('workspace.plugins.title') }}</h1>
-      <p class="muted">{{ t('workspace.plugins.placeholder_main') }}</p>
+      <p class="workspace-empty">{{ t('workspace.plugins.placeholder_main') }}</p>
     </template>
   </SplitPane>
 </template>

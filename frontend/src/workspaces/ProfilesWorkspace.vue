@@ -308,7 +308,7 @@ setTopbarMenu(() => [
     <template #main>
       <p
         v-if="!selectedEntry"
-        class="muted"
+        class="workspace-empty"
       >{{ t('workspace.profiles.unselected') }}</p>
 
       <template v-else>

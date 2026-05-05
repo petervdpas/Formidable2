@@ -26,7 +26,7 @@ import type { Field } from "../../bindings/github.com/petervdpas/formidable2/int
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
-const { update: updateConfig } = useConfig();
+const { config, update: updateConfig } = useConfig();
 const toast = useToast();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
@@ -43,28 +43,30 @@ const {
 
 const { draft, dirty, itemFieldOptions, save, reset } = useTemplateEditor();
 
-// Restore the persisted template selection once the filename list is
-// populated. Watch the list (not bootConfig) because templates may
-// load before or after config — whichever comes second triggers this.
-let selectionRestored = false;
+// Two-way sync between the sidebar selection and config. Config is
+// the single source of truth — Storage's dropdown writes there too,
+// so any cross-workspace change propagates here live.
+//
+// Direction 1: config.selected_template → sidebar highlight. Fires
+// whenever the config value or the loaded filenames list changes
+// (need both — config can name a template that hasn't loaded yet
+// during early boot).
 watch(
-  () => filenames.value,
-  (list) => {
-    if (selectionRestored) return;
-    if (!list.length) return;
-    const want = bootConfig.value?.selected_template;
-    if (want && list.includes(want)) {
-      selectedFilename.value = want;
-    }
-    selectionRestored = true;
+  [() => config.value?.selected_template ?? "", filenames],
+  ([want, list]) => {
+    if (!list.length || !want) return;
+    if (!list.includes(want)) return;
+    if (selectedFilename.value !== want) selectedFilename.value = want;
   },
   { immediate: true },
 );
 
-// Persist the user's selection — but only after restore has run, so we
-// don't overwrite the saved value with an empty initial state.
+// Direction 2: sidebar click → config. Skip when config already
+// reflects this choice (avoids a redundant write triggered by the
+// mirror watcher above).
 watch(selectedFilename, (fn) => {
-  if (!selectionRestored) return;
+  if (!fn) return;
+  if (config.value?.selected_template === fn) return;
   void updateConfig({ selected_template: fn });
 });
 
@@ -352,7 +354,7 @@ setTopbarMenu(() => [
     </template>
 
     <template #main>
-      <p v-if="!selectedTemplate || !draft" class="muted">
+      <p v-if="!selectedTemplate || !draft" class="workspace-empty">
         {{ t('workspace.templates.unselected') }}
       </p>
 

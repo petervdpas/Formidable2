@@ -33,15 +33,21 @@ const currentTemplateFilename = computed(
 provide("templateFilename", currentTemplateFilename);
 
 // ── Active template selection ────────────────────────────────────────
-// Drive off config.context_ribbon-style state — selected_template is
-// already the persisted template key (set by the Templates workspace
-// or by user picking from the dropdown here).
-const selectedTemplate = computed<string>({
-  get: () => config.value?.selected_template ?? "",
-  set: (v) => {
-    void updateConfig({ selected_template: v, selected_data_file: "" });
-  },
-});
+// Read-only computed off config — onTemplateChange below writes back
+// when the dropdown fires. Switching templates also clears the
+// selected datafile so we don't try to open a form whose schema no
+// longer matches.
+const selectedTemplate = computed<string>(
+  () => config.value?.selected_template ?? "",
+);
+
+function onTemplateChange(filename: string) {
+  if (filename === selectedTemplate.value) return;
+  void updateConfig({
+    selected_template: filename,
+    selected_data_file: "",
+  });
+}
 
 const templateOptions = computed(() =>
   templateFilenames.value.map((f) => {
@@ -69,11 +75,13 @@ async function refreshList() {
   }
 }
 
+// Template change → refresh the sidebar list. The combined watcher
+// below owns the open/close lifecycle of the form view; we don't
+// touch it here, otherwise the close() races with the open() that
+// the combined watcher dispatches on initial mount with a persisted
+// (template, datafile) pair.
 watch(selectedTemplate, async () => {
   await refreshList();
-  // When the template changes, drop any open form to avoid showing
-  // stale fields belonging to a different schema.
-  close();
 }, { immediate: true });
 
 // ── Selected datafile (persisted in config) ──────────────────────────
@@ -82,13 +90,21 @@ const selectedDataFile = computed<string>({
   set: (v) => { void updateConfig({ selected_data_file: v }); },
 });
 
-watch([selectedTemplate, selectedDataFile], async ([tpl, df]) => {
-  if (!tpl || !df) {
-    close();
-    return;
-  }
-  await open(tpl, df);
-}, { immediate: true });
+watch(
+  [selectedTemplate, selectedDataFile],
+  async ([tpl, df], oldVals) => {
+    if (!tpl || !df) {
+      close();
+      return;
+    }
+    // If the template changed, drop the prior form (different schema)
+    // before loading the new one so we never render stale fields.
+    const prevTpl = oldVals?.[0];
+    if (prevTpl && prevTpl !== tpl) close();
+    await open(tpl, df);
+  },
+  { immediate: true },
+);
 
 function pickForm(filename: string) {
   selectedDataFile.value = filename;
@@ -221,7 +237,8 @@ setTopbarMenu(() => [
       <div class="sidebar-section">
         <label class="sidebar-label">{{ t('workspace.storage.template_picker') }}</label>
         <SelectField
-          v-model="selectedTemplate"
+          :model-value="selectedTemplate"
+          @update:model-value="onTemplateChange"
           :options="templateOptions"
         />
       </div>
@@ -268,10 +285,10 @@ setTopbarMenu(() => [
     </template>
 
     <template #main>
-      <p v-if="!selectedTemplate" class="muted">
+      <p v-if="!selectedTemplate" class="workspace-empty">
         {{ t('workspace.storage.placeholder_main') }}
       </p>
-      <p v-else-if="!view || !draft" class="muted">
+      <p v-else-if="!view || !draft" class="workspace-empty">
         {{ t('workspace.storage.unselected') }}
       </p>
 

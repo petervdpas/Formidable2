@@ -49,3 +49,20 @@
     padding: 1px 6px;
     border-radius: var(--radius-sm);
 }
+
+/* Empty-state placeholder shown in the main panel when nothing is
+   selected ("Pick a form from the sidebar.", "Select a template…",
+   etc). Centred in the panel, larger and softer than body text. */
+.workspace-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 100%;
+    min-height: 240px;
+    padding: var(--space-5);
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xl);
+    line-height: 1.5;
+}
