@@ -44,12 +44,15 @@ function close() {
       >
         <header class="right-slideout-header">
           <h3 class="right-slideout-title">{{ title }}</h3>
-          <button
-            type="button"
-            class="right-slideout-close"
-            aria-label="Close"
-            @click="close"
-          >×</button>
+          <div class="right-slideout-header-actions">
+            <slot name="header-actions" />
+            <button
+              type="button"
+              class="right-slideout-close"
+              aria-label="Close"
+              @click="close"
+            >×</button>
+          </div>
         </header>
         <div class="right-slideout-body">
           <slot />

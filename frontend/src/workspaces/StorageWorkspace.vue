@@ -252,6 +252,16 @@ watch([htmlOpen, markdown], async ([open]) => {
   else html.value = "";
 });
 
+async function copyToClipboard(text: string, successKey: string) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(successKey);
+  } catch {
+    toast.error("workspace.storage.preview.copy_error");
+  }
+}
+
 // ── Topbar menu ──────────────────────────────────────────────────────
 setTopbarMenu(() => [
   {
@@ -433,6 +443,18 @@ setTopbarMenu(() => [
       :handle-label="t('workspace.storage.preview.markdown_handle')"
       offset-top="var(--space-3)"
     >
+      <template #header-actions>
+        <button
+          type="button"
+          class="right-slideout-action"
+          :disabled="!markdown"
+          :title="t('workspace.storage.preview.copy_markdown')"
+          :aria-label="t('workspace.storage.preview.copy_markdown')"
+          @click="copyToClipboard(markdown, 'workspace.storage.preview.copied_markdown')"
+        >
+          <i class="fa-solid fa-copy"></i>
+        </button>
+      </template>
       <pre v-if="markdown" class="preview-markdown">{{ markdown }}</pre>
       <p v-else class="muted small">{{ t('workspace.storage.preview.markdown_empty') }}</p>
     </RightSlideout>
@@ -442,6 +464,18 @@ setTopbarMenu(() => [
       :handle-label="t('workspace.storage.preview.html_handle')"
       offset-top="calc(var(--space-3) + var(--right-slideout-handle-h) + 1px)"
     >
+      <template #header-actions>
+        <button
+          type="button"
+          class="right-slideout-action"
+          :disabled="!html"
+          :title="t('workspace.storage.preview.copy_html')"
+          :aria-label="t('workspace.storage.preview.copy_html')"
+          @click="copyToClipboard(html, 'workspace.storage.preview.copied_html')"
+        >
+          <i class="fa-solid fa-copy"></i>
+        </button>
+      </template>
       <div v-if="html" class="preview-html formidable-prose" v-html="html" />
       <p v-else class="muted small">{{ t('workspace.storage.preview.html_empty') }}</p>
     </RightSlideout>

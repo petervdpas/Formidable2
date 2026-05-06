@@ -94,6 +94,34 @@
     font-weight: 600;
 }
 
+.right-slideout-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Compact icon-only action button used in the header-actions slot
+   (e.g. "copy markdown" / "copy html"). */
+.right-slideout-action {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 13px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.right-slideout-action:hover {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text);
+}
+
 .right-slideout-close {
     appearance: none;
     background: transparent;
