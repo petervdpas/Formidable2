@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/cucumber/godog"
+	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 )
 
 func TestFeatures(t *testing.T) {
@@ -34,14 +37,20 @@ func colorWriter() io.Writer {
 }
 
 // world is the per-scenario state — kept tiny on purpose. The manager
-// under test, the second one used for the port-conflict scenario, and
-// the loose values we thread between Given/When/Then.
+// under test, the second one used for the port-conflict scenario, the
+// loose values we thread between Given/When/Then, and (Slice 2) the
+// wiki handler under test plus its last-recorded HTTP response.
 type world struct {
 	m            *Manager
 	mSecond      *Manager
 	startErr     error
 	stopErr      error
 	rememberPort int
+
+	// Slice 2 — read-path routes
+	handler  http.Handler
+	stub     *stubProvider
+	resp     *httptest.ResponseRecorder
 }
 
 func (w *world) reset() {
@@ -219,6 +228,82 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		}
 		if s.Port != 0 {
 			return fmt.Errorf("port = %d, want 0", s.Port)
+		}
+		return nil
+	})
+
+	// ── Slice 2: read-path routes ────────────────────────────────────
+
+	ctx.Step(`^a wiki handler over a stub dataprovider with two templates$`, func() error {
+		w.stub = newStubProvider()
+		// Trim the stub's seeded forms so a downstream "the dataprovider
+		// has forms for X: ..." step shapes them explicitly.
+		w.stub.forms = map[string][]dataprovider.FormSummary{}
+		w.handler = NewHandler(w.stub)
+		return nil
+	})
+
+	ctx.Step(`^the dataprovider has forms for "([^"]*)": "([^"]*)", "([^"]*)"$`,
+		func(template, a, b string) error {
+			if w.stub == nil {
+				return fmt.Errorf("stub not initialised")
+			}
+			w.stub.forms[template] = []dataprovider.FormSummary{
+				{Template: template, Filename: a, Title: a},
+				{Template: template, Filename: b, Title: b},
+			}
+			return nil
+		})
+
+	ctx.Step(`^I GET "([^"]*)"$`, func(path string) error {
+		w.resp = httptest.NewRecorder()
+		w.handler.ServeHTTP(w.resp, httptest.NewRequest(http.MethodGet, path, nil))
+		return nil
+	})
+
+	ctx.Step(`^I POST "([^"]*)"$`, func(path string) error {
+		w.resp = httptest.NewRecorder()
+		w.handler.ServeHTTP(w.resp, httptest.NewRequest(http.MethodPost, path, nil))
+		return nil
+	})
+
+	ctx.Step(`^the response status is (\d+)$`, func(want int) error {
+		if w.resp == nil {
+			return fmt.Errorf("no response recorded")
+		}
+		if w.resp.Code != want {
+			return fmt.Errorf("status = %d, want %d", w.resp.Code, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the response content-type is "([^"]*)"$`, func(want string) error {
+		got := w.resp.Header().Get("Content-Type")
+		if got != want {
+			return fmt.Errorf("content-type = %q, want %q", got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the html links to "([^"]*)"$`, func(href string) error {
+		body := w.resp.Body.String()
+		needle := `href="` + href + `"`
+		if !strings.Contains(body, needle) {
+			return fmt.Errorf("body missing %q", needle)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the html shows the template name "([^"]*)"$`, func(name string) error {
+		if !strings.Contains(w.resp.Body.String(), name) {
+			return fmt.Errorf("body missing template name %q", name)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the html body contains "([^"]*)"$`, func(needle string) error {
+		if !strings.Contains(w.resp.Body.String(), needle) {
+			return fmt.Errorf("body missing %q", needle)
 		}
 		return nil
 	})
