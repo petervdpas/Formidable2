@@ -1,0 +1,53 @@
+# Local fork notes
+
+This is `aymerick/raymond` v2.0.2 with the following patch applied for
+Formidable2's render pipeline. The upstream repo has been dormant since
+2018, so the fix lives here and is wired in via a `replace` directive in
+the parent `go.mod`.
+
+## Patch: standalone-tag whitespace control
+
+`parser/whitespace.go` — `isPrevWhitespaceProgram` and
+`isNextWhitespaceProgram` now check `node.Original` instead of
+`node.Value`. The reference implementation
+(handlebars.js's `whitespace-control.js`) tests `prev.original`, but the
+original raymond port read the live (post-strip) value.
+
+### Symptom that motivated the patch
+
+Two adjacent standalone block tags on consecutive lines, e.g.
+
+```handlebars
+{{/with}}
+{{#each rows}}
+```
+
+The `{{/with}}` close-standalone strips the leading `\n` off the
+inter-block content `\n  ` → leaves `  `. When the visitor later asks
+"is `{{#each}}` preceded by whitespace?", the post-strip `node.Value`
+no longer matches the regex (which wants `\r?\n\s*$`). So `{{#each}}`
+loses its standalone classification and emits stray indent + a blank
+line between the two blocks, plus a blank line per `{{#each}}` iteration
+(its program body keeps its leading `\n`).
+
+Reading `node.Original` instead — which still holds `\n  ` — restores
+the spec-correct behaviour and makes block-after-block templates
+(like the recipe template's `{{#with}}`-then-`{{#each}}` for table
+header + data rows) render contiguously.
+
+### Regression coverage
+
+`handlebars/whitespace_test.go` adds an "adjacent standalone block
+tags" case to `whitespaceControlTests`. Output expected:
+
+```
+|hdr|
+|a|
+|b|
+```
+
+(no blank lines between the with-body and the each-body, no blank
+lines between each iterations).
+
+The full upstream `handlebars/whitespace_test.go` suite still passes,
+i.e. the fix doesn't regress existing whitespace behaviour.

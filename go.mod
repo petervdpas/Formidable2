@@ -61,3 +61,9 @@ require (
 	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
+
+// Local fork of aymerick/raymond v2.0.2 with the standalone-tag
+// whitespace-control bug fixed (see third_party/raymond/CHANGES.md
+// and the regression test in third_party/raymond/handlebars/whitespace_test.go).
+// Kept in-repo so CI / `go build` works without external network.
+replace github.com/aymerick/raymond => ./third_party/raymond
