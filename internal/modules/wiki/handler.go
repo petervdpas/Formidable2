@@ -24,25 +24,38 @@ type Provider interface {
 	RenderForm(ctx context.Context, template, datafile string) (*dataprovider.RenderedPage, error)
 }
 
+// Storage is the bytes-side surface the wiki uses for `/storage/*`.
+// The real `*storage.Manager.OpenImageFile` satisfies it; tests pass
+// in a stub. Returns nil bytes (not an error) when the file is
+// missing — mirrors LoadForm's "missing isn't an error" semantics
+// and lets the handler decide on the 404 status.
+type Storage interface {
+	// OpenImage returns the raw bytes + MIME type for an image, or
+	// (nil, "", nil) when the file is missing.
+	OpenImage(templateFilename, name string) ([]byte, string, error)
+}
+
 // Handler owns the read-path routes. NewHandler returns an
 // http.Handler the wiki Manager can SetHandler with — keeping the
 // router shape internal to this file so route signatures stay
 // changeable without rippling out.
 type Handler struct {
 	dp Provider
+	st Storage
 }
 
 // NewHandler builds the read-path handler. Returns an http.Handler
 // (the underlying *http.ServeMux), so callers compose it through the
 // standard handler interface — no wiki-specific glue at the seam.
-func NewHandler(dp Provider) http.Handler {
-	h := &Handler{dp: dp}
+func NewHandler(dp Provider, st Storage) http.Handler {
+	h := &Handler{dp: dp, st: st}
 	mux := http.NewServeMux()
 	// Go 1.22+ typed patterns — method + path-segment captures, no
 	// extra router dependency.
 	mux.HandleFunc("GET /{$}", h.index)
 	mux.HandleFunc("GET /template/{tpl}", h.template)
 	mux.HandleFunc("GET /template/{tpl}/form/{datafile}", h.form)
+	mux.HandleFunc("GET /storage/{tpl}/images/{name}", h.image)
 	return mux
 }
 
@@ -212,6 +225,33 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 		Body:     page.HTML,
 		BackHref: "/template/" + stem,
 	})
+}
+
+// image serves a per-template image from storage. The wiki context
+// uses regular HTTP image URLs so the browser can cache them and so
+// the page HTML stays slim. The in-app slideout uses base64 data
+// URLs (set by the composition root's render locator); both flow
+// through the same render pipeline — only the image strategy
+// differs.
+func (h *Handler) image(w http.ResponseWriter, r *http.Request) {
+	stem := r.PathValue("tpl")
+	name := r.PathValue("name")
+	if !validSegment(stem) || !validSegment(name) {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	templateFilename := stem + ".yaml"
+	raw, mime, err := h.st.OpenImage(templateFilename, name)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if raw == nil {
+		writeError(w, http.StatusNotFound, "image not found")
+		return
+	}
+	w.Header().Set("Content-Type", mime)
+	_, _ = w.Write(raw)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────

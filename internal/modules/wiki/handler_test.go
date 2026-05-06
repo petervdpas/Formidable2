@@ -58,6 +58,39 @@ func (s *stubProvider) RenderForm(_ context.Context, template, datafile string) 
 	return nil, errors.New("not configured")
 }
 
+// stubStorage is the bytes-side counterpart to stubProvider — keeps
+// the handler tests free of disk and the storage manager.
+type stubStorage struct {
+	// images keyed by "<templateFilename>/<name>"
+	images map[string][]byte
+	// returnError simulates an unexpected error path.
+	returnError error
+}
+
+func (s *stubStorage) OpenImage(templateFilename, name string) ([]byte, string, error) {
+	if s.returnError != nil {
+		return nil, "", s.returnError
+	}
+	key := templateFilename + "/" + name
+	raw, ok := s.images[key]
+	if !ok {
+		return nil, "", nil
+	}
+	mime := "image/png"
+	if strings.HasSuffix(name, ".svg") {
+		mime = "image/svg+xml"
+	}
+	return raw, mime, nil
+}
+
+func newStubStorage() *stubStorage {
+	return &stubStorage{
+		images: map[string][]byte{
+			"basic.yaml/logo.png": []byte("PNGBYTES"),
+		},
+	}
+}
+
 func newStubProvider() *stubProvider {
 	return &stubProvider{
 		templates: []dataprovider.TemplateSummary{
@@ -84,7 +117,7 @@ func newStubProvider() *stubProvider {
 func newTestHandler(t *testing.T) (http.Handler, *stubProvider) {
 	t.Helper()
 	sp := newStubProvider()
-	h := NewHandler(sp)
+	h := NewHandler(sp, newStubStorage())
 	return h, sp
 }
 
@@ -189,9 +222,65 @@ func TestForm_RenderError500(t *testing.T) {
 	sp.render = func(_, _ string) (*dataprovider.RenderedPage, error) {
 		return nil, errors.New("boom")
 	}
-	h := NewHandler(sp)
+	h := NewHandler(sp, newStubStorage())
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic/form/x.meta.json", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+// ── /storage/{tpl}/images/{name} ───────────────────────────────────
+
+func TestStorage_ServesExistingImage(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/storage/basic/images/logo.png", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "image/png" {
+		t.Errorf("content-type = %q, want image/png", ct)
+	}
+	if w.Body.String() != "PNGBYTES" {
+		t.Errorf("body = %q, want PNGBYTES", w.Body.String())
+	}
+}
+
+func TestStorage_MissingImage404(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/storage/basic/images/ghost.png", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestStorage_PostReturns405(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/storage/basic/images/logo.png", nil))
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want 405", w.Code)
+	}
+}
+
+func TestStorage_RejectsTraversalInImageName(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/storage/basic/images/..secret", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestStorage_StorageErrorReturns500(t *testing.T) {
+	sp := newStubProvider()
+	st := newStubStorage()
+	st.returnError = errors.New("boom")
+	h := NewHandler(sp, st)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/storage/basic/images/logo.png", nil))
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", w.Code)
 	}
@@ -211,7 +300,7 @@ func TestUnknownPath404(t *testing.T) {
 // Live integration through Manager — exercises SetHandler + Serve.
 func TestHandlerWiredToManager(t *testing.T) {
 	sp := newStubProvider()
-	h := NewHandler(sp)
+	h := NewHandler(sp, newStubStorage())
 	m := NewManager(nil)
 	m.SetHandler(h)
 	if err := m.Start(0); err != nil {

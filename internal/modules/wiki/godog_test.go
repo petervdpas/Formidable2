@@ -48,9 +48,12 @@ type world struct {
 	rememberPort int
 
 	// Slice 2 — read-path routes
-	handler  http.Handler
-	stub     *stubProvider
-	resp     *httptest.ResponseRecorder
+	handler http.Handler
+	stub    *stubProvider
+	resp    *httptest.ResponseRecorder
+
+	// Slice 3 — /storage/*
+	stubSt *stubStorage
 }
 
 func (w *world) reset() {
@@ -239,7 +242,30 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		// Trim the stub's seeded forms so a downstream "the dataprovider
 		// has forms for X: ..." step shapes them explicitly.
 		w.stub.forms = map[string][]dataprovider.FormSummary{}
-		w.handler = NewHandler(w.stub)
+		w.stubSt = newStubStorage()
+		w.handler = NewHandler(w.stub, w.stubSt)
+		return nil
+	})
+
+	// ── Slice 3: /storage/* static handler ────────────────────────────
+
+	ctx.Step(`^a wiki handler with a stub storage holding "([^"]*)" → "([^"]*)" of "([^"]*)"$`,
+		func(stem, name, body string) error {
+			w.stub = newStubProvider()
+			w.stubSt = &stubStorage{
+				images: map[string][]byte{
+					stem + ".yaml/" + name: []byte(body),
+				},
+			}
+			w.handler = NewHandler(w.stub, w.stubSt)
+			return nil
+		})
+
+	ctx.Step(`^the response body is "([^"]*)"$`, func(want string) error {
+		got := w.resp.Body.String()
+		if got != want {
+			return fmt.Errorf("body = %q, want %q", got, want)
+		}
 		return nil
 	})
 

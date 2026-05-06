@@ -187,22 +187,37 @@ func (m *Manager) DeleteForm(templateFilename, datafile string) error {
 // use as an <img src=""> on the frontend. Missing file → empty string +
 // nil error (mirrors LoadForm's "missing isn't an error" semantics).
 func (m *Manager) LoadImageFile(templateFilename, name string) (string, error) {
+	raw, mime, err := m.OpenImageFile(templateFilename, name)
+	if err != nil {
+		return "", err
+	}
+	if raw == nil {
+		return "", nil
+	}
+	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(raw), nil
+}
+
+// OpenImageFile reads the raw image bytes + MIME type without the
+// data-URL framing. Used by the wiki HTTP server which streams the
+// bytes directly through `/storage/<tpl>/images/<name>` — encoding to
+// base64 and decoding in the browser would just bloat the response.
+// Missing file → nil bytes + nil error (mirrors LoadImageFile).
+func (m *Manager) OpenImageFile(templateFilename, name string) ([]byte, string, error) {
 	if name == "" {
-		return "", errors.New("storage: empty image name")
+		return nil, "", errors.New("storage: empty image name")
 	}
 	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
-		return "", fmt.Errorf("storage: invalid image name %q", name)
+		return nil, "", fmt.Errorf("storage: invalid image name %q", name)
 	}
 	full := filepath.Join(m.templateDir(templateFilename), imagesDir, name)
 	if !m.fs.FileExists(full) {
-		return "", nil
+		return nil, "", nil
 	}
 	raw, err := m.fs.LoadFile(full)
 	if err != nil {
-		return "", fmt.Errorf("storage: read image %q: %w", name, err)
+		return nil, "", fmt.Errorf("storage: read image %q: %w", name, err)
 	}
-	mime := imageMIMEFromName(name)
-	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString([]byte(raw)), nil
+	return []byte(raw), imageMIMEFromName(name), nil
 }
 
 // imageMIMEFromName maps an image filename's extension to a MIME type.
