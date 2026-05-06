@@ -1,0 +1,204 @@
+/* Wiki-style content presentation, scoped to the .formidable-prose
+   container. Mirrors the original Formidable internal-wiki look
+   (base.css + content.css from /assets/internal-server/css).
+   Apply to any element wrapping rendered Markdown HTML — the storage
+   slideout uses it for its preview, and the future internal wiki
+   service can re-use it on its <body> or page wrapper.
+
+   Container styling stays minimal so callers control padding/sizing
+   from outside (the wiki page wraps its own header; the slideout
+   wraps in its own panel chrome). */
+
+.formidable-prose {
+    font-family: system-ui, sans-serif;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* ── Headings ───────────────────────────────────────────────── */
+.formidable-prose h1 {
+    color: #4a90e2;
+    margin-top: 0;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+.formidable-prose h2,
+.formidable-prose h3,
+.formidable-prose h4 {
+    color: #333;
+    margin: 1.5em 0 0.5em;
+    font-weight: 600;
+}
+
+/* ── Paragraphs + links ────────────────────────────────────── */
+.formidable-prose p { margin: 0 0 1em; }
+.formidable-prose a {
+    color: #4a90e2;
+    text-decoration: none;
+}
+.formidable-prose a:hover { text-decoration: underline; }
+
+/* ── Code & preformatted ───────────────────────────────────── */
+.formidable-prose code {
+    background: #eee;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: Consolas, ui-monospace, Menlo, monospace;
+    font-size: 0.95em;
+}
+.formidable-prose pre {
+    background: #eee;
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+.formidable-prose pre code {
+    background: transparent;
+    padding: 0;
+}
+/* highlight.js / chroma frame harmonization */
+.formidable-prose .hljs { background: transparent; }
+.formidable-prose pre.hljs,
+.formidable-prose pre.chroma {
+    background: #f6f8fa;
+    border-radius: 6px;
+    padding: 1em;
+    overflow-x: auto;
+}
+.formidable-prose pre.hljs code,
+.formidable-prose pre.chroma code { background: transparent; padding: 0; }
+
+/* ── Tables ────────────────────────────────────────────────── */
+.formidable-prose table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+.formidable-prose th,
+.formidable-prose td {
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    text-align: left;
+}
+.formidable-prose th { background: #f0f0f0; }
+
+/* ── Lists ─────────────────────────────────────────────────── */
+.formidable-prose ul {
+    list-style: disc;
+    margin: 1em 0;
+    padding-left: 2em;
+}
+.formidable-prose ul ul { list-style: circle; }
+.formidable-prose ol {
+    list-style: decimal;
+    margin: 1em 0;
+    padding-left: 2em;
+}
+.formidable-prose ol ol { list-style: lower-alpha; margin-top: 0.5em; }
+.formidable-prose ul li,
+.formidable-prose ol li { margin-bottom: 0.5em; }
+
+/* ── Blockquote ────────────────────────────────────────────── */
+.formidable-prose blockquote {
+    margin: 1em 0;
+    padding: 0.4em 1em;
+    border-left: 3px solid #cfd4da;
+    color: #555;
+    background: #f3f4f6;
+    border-radius: 4px;
+}
+
+/* ── Images ────────────────────────────────────────────────── */
+.formidable-prose img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5em auto;
+}
+
+/* ── Wiki link chips + quiet links (used by emitter output) ── */
+.formidable-prose .link-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid #dbe5ff;
+    background: #f7faff;
+    color: #2a62e0;
+}
+.formidable-prose .link-chip::before {
+    content: "↗";
+    opacity: 0.6;
+    font-weight: 700;
+}
+.formidable-prose .link-chip:hover {
+    background: #eff5ff;
+    border-color: #c9d8ff;
+    color: #1b4fcf;
+}
+.formidable-prose .quiet-link {
+    color: #2a62e0;
+    border-bottom: 1px dashed #c9d8ff;
+    text-decoration: none;
+}
+.formidable-prose .quiet-link:hover {
+    background: #f7faff;
+    color: #1b4fcf;
+}
+.formidable-prose a.wiki-link {
+    color: #6a2fb8;
+    font-weight: 600;
+    border-bottom: 1px dashed #aaa;
+}
+.formidable-prose a.wiki-link:hover {
+    color: #4a90e2;
+    background: #f2f2ff;
+}
+
+/* ── Expression classes (mini-expression parser output) ──── */
+.formidable-prose .expr-text-green  { color: green; }
+.formidable-prose .expr-text-blue   { color: blue; }
+.formidable-prose .expr-text-red    { color: red; }
+.formidable-prose .expr-text-orange { color: orange; }
+.formidable-prose .expr-text-yellow { color: goldenrod; }
+.formidable-prose .expr-text-black  { color: black; }
+.formidable-prose .expr-text-white  { color: white; }
+.formidable-prose .expr-text-gray   { color: gray; }
+.formidable-prose .expr-text-darkgray  { color: #444; }
+.formidable-prose .expr-text-lightgray { color: #ccc; }
+.formidable-prose .expr-text-purple { color: purple; }
+.formidable-prose .expr-text-pink   { color: hotpink; }
+.formidable-prose .expr-text-cyan   { color: cyan; }
+.formidable-prose .expr-text-teal   { color: teal; }
+.formidable-prose .expr-text-brown  { color: brown; }
+.formidable-prose .expr-text-gold   { color: gold; }
+.formidable-prose .expr-text-silver { color: silver; }
+
+.formidable-prose .expr-bold      { font-weight: bold; }
+.formidable-prose .expr-italic    { font-style: italic; }
+.formidable-prose .expr-underline { text-decoration: underline; }
+
+@keyframes formidable-prose-blink {
+    0%   { opacity: 1; }
+    49%  { opacity: 0; }
+    100% { opacity: 1; }
+}
+.formidable-prose .expr-blinking { animation: formidable-prose-blink 1.2s infinite; }
+
+.formidable-prose .expr-ticker-container {
+    overflow: hidden;
+    position: relative;
+    max-width: 100%;
+}
+.formidable-prose .expr-ticker {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* Hide the in-text tag badges — wiki convention. */
+.formidable-prose .tag-badges,
+.formidable-prose .inline-tag { display: none !important; }

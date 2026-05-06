@@ -1,4 +1,7 @@
-/* Content styles for the storage workspace's two preview slideouts. */
+/* Slideout-only preview styles. The HTML preview itself uses
+   .formidable-prose (shared with the future internal wiki); this
+   file only carries the slideout-specific framing — markdown source
+   block and panel padding. */
 
 .preview-markdown {
     margin: 0;
@@ -10,87 +13,10 @@
     word-break: break-word;
 }
 
+/* When .formidable-prose lives inside a slideout panel, give it a
+   little surface chrome so the wiki "page" reads as a card. */
 .preview-html {
-    color: var(--color-text);
-    line-height: 1.55;
-}
-
-.preview-html h1,
-.preview-html h2,
-.preview-html h3,
-.preview-html h4 {
-    margin: var(--space-3) 0 var(--space-2);
-    font-weight: 600;
-}
-
-.preview-html h1 { font-size: var(--font-size-xl); }
-.preview-html h2 { font-size: var(--font-size-lg); }
-.preview-html h3 { font-size: var(--font-size-md); }
-
-.preview-html p {
-    margin: 0 0 var(--space-2);
-}
-
-.preview-html ul,
-.preview-html ol {
-    margin: 0 0 var(--space-2) var(--space-4);
-}
-
-.preview-html code {
-    font-family: var(--font-mono);
-    font-size: 0.92em;
-    background: var(--color-bg);
-    padding: 1px 6px;
+    background: #f9f9f9;
+    padding: 1.25rem 1.5rem;
     border-radius: var(--radius-sm);
-}
-
-.preview-html pre {
-    margin: var(--space-2) 0;
-    padding: var(--space-2) var(--space-3);
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    overflow-x: auto;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    line-height: 1.5;
-}
-
-.preview-html pre code {
-    background: transparent;
-    padding: 0;
-}
-
-.preview-html blockquote {
-    margin: var(--space-2) 0;
-    padding-left: var(--space-3);
-    border-left: 3px solid var(--color-border);
-    color: var(--color-text-muted);
-}
-
-.preview-html table {
-    border-collapse: collapse;
-    margin: var(--space-2) 0;
-    font-size: var(--font-size-sm);
-}
-
-.preview-html th,
-.preview-html td {
-    border: 1px solid var(--color-border);
-    padding: 4px 8px;
-}
-
-.preview-html th {
-    background: var(--color-bg);
-    font-weight: 600;
-}
-
-.preview-html a {
-    color: var(--color-accent);
-    text-decoration: underline;
-}
-
-.preview-html img {
-    max-width: 100%;
-    height: auto;
 }

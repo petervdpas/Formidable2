@@ -442,7 +442,7 @@ setTopbarMenu(() => [
       :handle-label="t('workspace.storage.preview.html_handle')"
       offset-top="calc(var(--space-3) + var(--right-slideout-handle-h) + 1px)"
     >
-      <div v-if="html" class="preview-html" v-html="html" />
+      <div v-if="html" class="preview-html formidable-prose" v-html="html" />
       <p v-else class="muted small">{{ t('workspace.storage.preview.html_empty') }}</p>
     </RightSlideout>
   </template>
