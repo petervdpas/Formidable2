@@ -4,7 +4,7 @@ import StorageWorkspace from "./workspaces/StorageWorkspace.vue";
 import ProfilesWorkspace from "./workspaces/ProfilesWorkspace.vue";
 import SettingsWorkspace from "./workspaces/SettingsWorkspace.vue";
 import PluginsWorkspace from "./workspaces/PluginsWorkspace.vue";
-import AboutWorkspace from "./workspaces/AboutWorkspace.vue";
+import InformationWorkspace from "./workspaces/InformationWorkspace.vue";
 
 export type WorkspaceId =
   | "templates"
@@ -12,7 +12,7 @@ export type WorkspaceId =
   | "profiles"
   | "settings"
   | "plugins"
-  | "about";
+  | "information";
 
 export interface WorkspaceDef {
   id: WorkspaceId;
@@ -30,5 +30,5 @@ export const WORKSPACES: WorkspaceDef[] = [
   { id: "profiles",  labelKey: "ribbon.profiles",  iconName: "programmer",      component: ProfilesWorkspace },
   { id: "settings",  labelKey: "ribbon.settings",  iconName: "settings",        component: SettingsWorkspace },
   { id: "plugins",   labelKey: "ribbon.plugins",   iconName: "web-plugin",      component: PluginsWorkspace },
-  { id: "about",     labelKey: "ribbon.about",     iconName: "info",            component: AboutWorkspace },
+  { id: "information", labelKey: "ribbon.information", iconName: "info",          component: InformationWorkspace },
 ];
