@@ -1,0 +1,131 @@
+/* Edge-anchored slide-out panel + always-visible vertical handle.
+   Renders inline in its parent component (no Teleport, so lifecycle
+   is fully owned by the parent), but is positioned with fixed coords
+   pinned to the app-main box (ribbon → right edge, topbar → footer)
+   so it spans the whole workspace up to the ribbon. */
+
+:root {
+    --right-slideout-handle-w: 32px;
+    --right-slideout-handle-h: 110px;
+}
+
+.right-slideout {
+    position: fixed;
+    top: var(--topbar-height);
+    bottom: var(--footer-height);
+    left: var(--ribbon-width);
+    right: 0;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.right-slideout-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    pointer-events: auto;
+    z-index: 2;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: var(--right-slideout-handle-w);
+    height: var(--right-slideout-handle-h);
+    padding: 0;
+    border: 1px solid var(--color-border);
+    border-right: none;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    box-shadow: -1px 1px 2px rgba(0, 0, 0, 0.04);
+
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.right-slideout-handle:hover {
+    background: var(--color-surface-hover, var(--color-surface));
+    color: var(--color-accent);
+}
+
+.right-slideout-handle.is-open {
+    background: var(--color-accent);
+    color: var(--color-accent-fg, #fff);
+    border-color: var(--color-accent);
+}
+
+.right-slideout-handle-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    letter-spacing: 0.04em;
+}
+
+.right-slideout-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: var(--right-slideout-handle-w);
+    bottom: 0;
+    pointer-events: auto;
+
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border-left: 1px solid var(--color-border);
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
+    min-width: 0;
+}
+
+.right-slideout-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
+}
+
+.right-slideout-title {
+    margin: 0;
+    font-size: var(--font-size-md);
+    font-weight: 600;
+}
+
+.right-slideout-close {
+    appearance: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-size: 20px;
+    line-height: 1;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+}
+
+.right-slideout-close:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.right-slideout-body {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: var(--space-3);
+    min-height: 0;
+}
+
+/* Slide-in transition (Vue <Transition name="right-slideout">). */
+.right-slideout-enter-active,
+.right-slideout-leave-active {
+    transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.right-slideout-enter-from,
+.right-slideout-leave-to {
+    transform: translateX(100%);
+    opacity: 0;
+}

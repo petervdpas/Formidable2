@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
+import RightSlideout from "../components/RightSlideout.vue";
 import { FormSection, SelectField, TextField, SwitchField } from "../components/fields";
 import FormLoopFields from "../components/form-fields/FormLoopFields.vue";
 import { useRestartGate } from "../composables/useRestartGate";
@@ -198,6 +199,10 @@ async function confirmDelete() {
   }
 }
 
+// ── Preview slideouts ────────────────────────────────────────────────
+const mdOpen = ref(false);
+const htmlOpen = ref(false);
+
 // ── Topbar menu ──────────────────────────────────────────────────────
 setTopbarMenu(() => [
   {
@@ -369,6 +374,21 @@ setTopbarMenu(() => [
       </template>
     </template>
   </SplitPane>
+
+  <!-- Right-edge preview slideouts: teleported to #app-main so they
+       span the entire workspace width (sidebar + main) up to the ribbon. -->
+  <RightSlideout
+    v-model:open="mdOpen"
+    :title="t('workspace.storage.preview.markdown')"
+    :handle-label="t('workspace.storage.preview.markdown_handle')"
+    offset-top="var(--space-3)"
+  />
+  <RightSlideout
+    v-model:open="htmlOpen"
+    :title="t('workspace.storage.preview.html')"
+    :handle-label="t('workspace.storage.preview.html_handle')"
+    offset-top="calc(var(--space-3) + var(--right-slideout-handle-h) + 1px)"
+  />
 
   <!-- New entry dialog -->
   <Modal

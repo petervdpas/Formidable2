@@ -77,7 +77,7 @@ onBeforeUnmount(() => {
   <div class="app-shell">
     <Ribbon :active="active" @select="setActive" />
     <Topbar />
-    <main class="app-main">
+    <main id="app-main" class="app-main">
       <component v-if="ready" :is="activeWorkspace.component" />
     </main>
     <Footer />

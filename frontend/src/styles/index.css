@@ -43,6 +43,7 @@
 @import "./form-date-field.css";
 @import "./image-lightbox.css";
 @import "./form-misc-fields.css";
+@import "./right-slideout.css";
 
 /* Per-workspace stylesheets. */
 @import "./workspace-templates.css";
