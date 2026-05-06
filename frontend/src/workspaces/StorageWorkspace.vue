@@ -78,6 +78,22 @@ async function refreshList() {
   }
 }
 
+// User-triggered refresh — same backend path as the watch-driven
+// refreshList, but surfaces success/failure as a toast (refreshList
+// itself is silent because it runs on every template change).
+async function doRefresh() {
+  try {
+    await refreshList();
+    if (listError.value) {
+      toast.error("toast.refresh.error", [listError.value]);
+    } else {
+      toast.success("toast.refresh.success");
+    }
+  } catch (err) {
+    toast.error("toast.refresh.error", [String(err)]);
+  }
+}
+
 // Template change → refresh the sidebar list. The combined watcher
 // below owns the open/close lifecycle of the form view; we don't
 // touch it here, otherwise the close() races with the open() that
@@ -305,7 +321,7 @@ setTopbarMenu(() => [
       {
         id: "refresh",
         labelKey: "common.refresh",
-        onClick: refreshList,
+        onClick: doRefresh,
       },
     ],
   },
