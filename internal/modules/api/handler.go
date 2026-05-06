@@ -402,21 +402,29 @@ func stringify(v any) string {
 	return fmt.Sprint(v)
 }
 
-// itemAny dispatches /api/collections/{tpl}/{id} to the GET or HEAD
-// handler. Other methods → 405. Centralised so the route only needs
-// one mux pattern (avoids the GET/HEAD/{id} vs GET/count ambiguity
-// Go 1.22's strict mux flags).
+// itemAny dispatches /api/collections/{tpl}/{id} across all five
+// item-level methods. Centralised so the route only needs one mux
+// pattern (avoids the literal-vs-wildcard ambiguity Go 1.22's strict
+// mux flags between /{id} and the peer literals /count, /design,
+// /export.*, /batch).
 func (h *Handler) itemAny(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		h.item(w, r)
 	case http.MethodHead:
 		h.itemHead(w, r)
+	case http.MethodPut:
+		h.itemPut(w, r)
+	case http.MethodPatch:
+		h.itemPatch(w, r)
+	case http.MethodDelete:
+		h.itemDelete(w, r)
 	default:
-		w.Header().Set("Allow", "GET, HEAD")
+		w.Header().Set("Allow", "GET, HEAD, PUT, PATCH, DELETE")
 		writeJSONError(w, http.StatusMethodNotAllowed, "method-not-allowed")
 	}
 }
+
 
 // item answers GET /api/collections/{tpl}/{id}. Returns the full
 // stored form (meta + data) plus the navigation links — same shape
@@ -548,6 +556,24 @@ func writeStatusForMethod(w http.ResponseWriter, r *http.Request, status int, co
 	}
 	writeJSONError(w, status, code)
 }
+
+// collectionAny dispatches /api/collections/{tpl} to GET (list) or
+// POST (create). Other methods → 405. One pattern, one method-switch
+// — same shape as itemAny so Go's mux stays unambiguous and the
+// /count, /design, /export.* literals at the next path position
+// still work.
+func (h *Handler) collectionAny(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		h.list(w, r)
+	case http.MethodPost:
+		h.create(w, r)
+	default:
+		w.Header().Set("Allow", "GET, POST")
+		writeJSONError(w, http.StatusMethodNotAllowed, "method-not-allowed")
+	}
+}
+
 
 // list answers GET /api/collections/{tpl}. Supports limit / offset / q
 // / tags as query params, and participates in HTTP caching via ETag +

@@ -185,6 +185,56 @@ func newStubStorage() *stubStorage {
 	return &stubStorage{forms: map[string]*storage.Form{}}
 }
 
+// stubWriter is a small in-memory write surface. Tests can peek
+// `saves`/`deletes` to assert side-effects. When `st` is set, writes
+// are mirrored into the read store so a subsequent GET sees the
+// fresh state.
+type stubWriter struct {
+	st      *stubStorage
+	saves   []stubWrite
+	deletes []stubWrite
+	saveErr string
+	delErr  error
+}
+
+type stubWrite struct {
+	Template string
+	Datafile string
+	Envelope map[string]any
+}
+
+func (w *stubWriter) SaveForm(templateFilename, datafile string, data map[string]any) storage.SaveResult {
+	w.saves = append(w.saves, stubWrite{Template: templateFilename, Datafile: datafile, Envelope: data})
+	if w.saveErr != "" {
+		return storage.SaveResult{Success: false, Error: w.saveErr}
+	}
+	if w.st != nil {
+		raw, err := json.Marshal(data)
+		if err != nil {
+			return storage.SaveResult{Success: false, Error: err.Error()}
+		}
+		var f storage.Form
+		if err := json.Unmarshal(raw, &f); err != nil {
+			return storage.SaveResult{Success: false, Error: err.Error()}
+		}
+		w.st.forms[templateFilename+"/"+datafile] = &f
+	}
+	return storage.SaveResult{Success: true, Path: datafile}
+}
+
+func (w *stubWriter) DeleteForm(templateFilename, datafile string) error {
+	w.deletes = append(w.deletes, stubWrite{Template: templateFilename, Datafile: datafile})
+	if w.delErr != nil {
+		return w.delErr
+	}
+	if w.st != nil {
+		delete(w.st.forms, templateFilename+"/"+datafile)
+	}
+	return nil
+}
+
+func newStubWriter() *stubWriter { return &stubWriter{} }
+
 // stubTemplates is a minimal Templates impl. Tests register full
 // *template.Template values per filename — missing entries return a
 // not-found error so the handler's 404 branch is reachable.
@@ -238,7 +288,7 @@ func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 }
 
 func TestListCollections_OmitsNonCollectionTemplates(t *testing.T) {
-	h := NewHandler(newStub(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -265,7 +315,7 @@ func TestListCollections_OmitsNonCollectionTemplates(t *testing.T) {
 func TestListCollections_NameFromYamlOrStem(t *testing.T) {
 	sp := newStub()
 	sp.templates[1].Name = "" // recepten without yaml name
-	h := NewHandler(sp, newStubStorage(), newStubTemplates())
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates())
 	rows := decode[[]TemplateRow](t, do(t, h, http.MethodGet, "/api/collections"))
 	for _, r := range rows {
 		if r.ID == "recepten" && r.Name != "recepten" {
@@ -275,7 +325,7 @@ func TestListCollections_NameFromYamlOrStem(t *testing.T) {
 }
 
 func TestCount_OK(t *testing.T) {
-	h := NewHandler(newStub(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten/count")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
@@ -287,7 +337,7 @@ func TestCount_OK(t *testing.T) {
 }
 
 func TestCount_DisabledTemplateReturns403(t *testing.T) {
-	h := NewHandler(newStub(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/basic/count")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rec.Code)
@@ -300,7 +350,7 @@ func TestCount_DisabledTemplateReturns403(t *testing.T) {
 
 func TestCount_UnknownTemplateReturns403(t *testing.T) {
 	// Unknown == disabled (don't leak existence via 404).
-	h := NewHandler(newStub(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/ghost/count")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rec.Code)
@@ -310,7 +360,7 @@ func TestCount_UnknownTemplateReturns403(t *testing.T) {
 func TestCount_InternalErrorOnListFailure(t *testing.T) {
 	sp := newStub()
 	sp.listCollectionErr = errFake("boom")
-	h := NewHandler(sp, newStubStorage(), newStubTemplates())
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten/count")
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
@@ -320,6 +370,119 @@ func TestCount_InternalErrorOnListFailure(t *testing.T) {
 type errFake string
 
 func (e errFake) Error() string { return string(e) }
+
+// ── B1: POST + GUID endpoint ─────────────────────────────────────────
+
+func TestGUID_ReturnsFreshUUID(t *testing.T) {
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates())
+	rec := do(t, h, http.MethodGet, "/api/guid")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	g, _ := body["guid"].(string)
+	if len(g) < 30 {
+		t.Errorf("guid looks short: %q", g)
+	}
+}
+
+func TestPOST_AutoGeneratesGUID(t *testing.T) {
+	sp := newStub()
+	st := newStubStorage()
+	wr := newStubWriter()
+	wr.st = st
+	tpl := newStubTemplates()
+	tpl.by["recepten.yaml"] = &template.Template{
+		Name: "Recepten", Filename: "recepten.yaml", EnableCollection: true,
+		Fields: []template.Field{{Key: "guid", Type: "guid"}, {Key: "naam", Type: "text"}},
+	}
+	h := NewHandler(sp, st, wr, tpl)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/collections/recepten",
+		strings.NewReader(`{"data":{"naam":"Pasta"}}`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, body = %q", rec.Code, rec.Body.String())
+	}
+	if len(wr.saves) != 1 {
+		t.Fatalf("saves = %d", len(wr.saves))
+	}
+	envelope := wr.saves[0].Envelope
+	data, _ := envelope["data"].(map[string]any)
+	guid, _ := data["guid"].(string)
+	if len(guid) < 30 {
+		t.Errorf("auto-minted guid looks short: %q", guid)
+	}
+}
+
+func TestPOST_RejectsExistingByDefault(t *testing.T) {
+	sp := newStub()
+	sp.forms["recepten.yaml"] = []dataprovider.FormSummary{
+		{Template: "recepten.yaml", Filename: "brood.meta.json", ID: "g-abc", Title: "Brood"},
+	}
+	tpl := newStubTemplates()
+	tpl.by["recepten.yaml"] = &template.Template{
+		Name: "Recepten", Filename: "recepten.yaml", EnableCollection: true,
+		Fields: []template.Field{{Key: "guid", Type: "guid"}},
+	}
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), tpl)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/collections/recepten",
+		strings.NewReader(`{"data":{"guid":"g-abc"}}`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusConflict {
+		t.Errorf("status = %d, want 409", rec.Code)
+	}
+}
+
+func TestPOST_UpsertOverwrites(t *testing.T) {
+	sp := newStub()
+	sp.forms["recepten.yaml"] = []dataprovider.FormSummary{
+		{Template: "recepten.yaml", Filename: "brood.meta.json", ID: "g-abc", Title: "Brood"},
+	}
+	wr := newStubWriter()
+	tpl := newStubTemplates()
+	tpl.by["recepten.yaml"] = &template.Template{
+		Name: "Recepten", Filename: "recepten.yaml", EnableCollection: true,
+		Fields: []template.Field{{Key: "guid", Type: "guid"}, {Key: "naam", Type: "text"}},
+	}
+	h := NewHandler(sp, newStubStorage(), wr, tpl)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/collections/recepten?upsert=true",
+		strings.NewReader(`{"data":{"guid":"g-abc","naam":"Brood 2"}}`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", rec.Code)
+	}
+	if len(wr.saves) != 1 {
+		t.Fatalf("saves = %d", len(wr.saves))
+	}
+	if wr.saves[0].Datafile != "brood.meta.json" {
+		t.Errorf("filename = %q, want brood.meta.json (existing)", wr.saves[0].Datafile)
+	}
+}
+
+func TestSlugify(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"Brood", "brood"},
+		{"Brood Met Zaden", "brood-met-zaden"},
+		{"Café Au Lait", "cafe-au-lait"},
+		{"  multi   space  ", "multi-space"},
+		{"!!!", ""},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := slugify(c.in); got != c.want {
+			t.Errorf("slugify(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
 
 // ── A2: paged list ───────────────────────────────────────────────────
 
@@ -335,7 +498,7 @@ func newStubWithTags() *stubProvider {
 }
 
 func TestList_Default(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -356,7 +519,7 @@ func TestList_Default(t *testing.T) {
 }
 
 func TestList_Pagination(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten?limit=1&offset=1")
 	page := decode[dataprovider.CollectionPage](t, rec)
 	if page.Total != 3 || page.Limit != 1 || page.Offset != 1 || len(page.Items) != 1 {
@@ -365,7 +528,7 @@ func TestList_Pagination(t *testing.T) {
 }
 
 func TestList_QFilter(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten?q=BROOD")
 	page := decode[dataprovider.CollectionPage](t, rec)
 	if page.Total != 1 || len(page.Items) != 1 {
@@ -374,7 +537,7 @@ func TestList_QFilter(t *testing.T) {
 }
 
 func TestList_TagsAND(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten?tags=italian,wb")
 	page := decode[dataprovider.CollectionPage](t, rec)
 	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].ID != "g-5678" {
@@ -383,7 +546,7 @@ func TestList_TagsAND(t *testing.T) {
 }
 
 func TestList_IfNoneMatchReturns304(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	first := do(t, h, http.MethodGet, "/api/collections/recepten")
 	etag := first.Header().Get("ETag")
 	if etag == "" {
@@ -405,7 +568,7 @@ func TestList_IfNoneMatchReturns304(t *testing.T) {
 }
 
 func TestList_StaleIfNoneMatchReturns200(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	req := httptest.NewRequest(http.MethodGet, "/api/collections/recepten", nil)
 	req.Header.Set("If-None-Match", `W/"stale"`)
 	rec := httptest.NewRecorder()
@@ -416,7 +579,7 @@ func TestList_StaleIfNoneMatchReturns200(t *testing.T) {
 }
 
 func TestList_DisabledTemplate(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/basic")
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("status = %d, want 403", rec.Code)
@@ -424,7 +587,7 @@ func TestList_DisabledTemplate(t *testing.T) {
 }
 
 func TestList_UnknownTemplate(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubTemplates())
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/ghost")
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("status = %d, want 403", rec.Code)
@@ -434,7 +597,7 @@ func TestList_UnknownTemplate(t *testing.T) {
 func TestList_RevErrorReturns500(t *testing.T) {
 	sp := newStubWithTags()
 	sp.collectionRevErr = errFake("rev boom")
-	h := NewHandler(sp, newStubStorage(), newStubTemplates())
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates())
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten")
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", rec.Code)

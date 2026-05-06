@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,11 +45,12 @@ func colorWriter() io.Writer {
 // world holds per-scenario state. Tiny by design — godog steps share
 // it through closure capture, just like the wiki package's tests.
 type world struct {
-	stub     *stubProvider
-	stubSt   *stubStorage
-	stubTpl  *stubTemplates
-	handler  http.Handler
-	resp     *httptest.ResponseRecorder
+	stub    *stubProvider
+	stubSt  *stubStorage
+	stubWr  *stubWriter
+	stubTpl *stubTemplates
+	handler http.Handler
+	resp    *httptest.ResponseRecorder
 
 	// Decoded JSON for "the JSON …" assertions. Decoded lazily on the
 	// first json-related step so plain-status scenarios stay cheap.
@@ -96,6 +98,11 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 		func(table *godog.Table) error {
 			w.stub = &stubProvider{forms: map[string][]dataprovider.FormSummary{}}
 			w.stubSt = newStubStorage()
+			w.stubWr = newStubWriter()
+			// Plumb writer → storage so a POST followed by a GET sees
+			// the freshly-written form (mirrors the production
+			// indexer-hook flow without requiring real SQLite).
+			w.stubWr.st = w.stubSt
 			w.stubTpl = newStubTemplates()
 			// Skip the header row.
 			for _, row := range table.Rows[1:] {
@@ -122,7 +129,7 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 					EnableCollection: enable,
 				}
 			}
-			w.handler = NewHandler(w.stub, w.stubSt, w.stubTpl)
+			w.handler = NewHandler(w.stub, w.stubSt, w.stubWr, w.stubTpl)
 			return nil
 		})
 
@@ -310,6 +317,102 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^I POST "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		w.resp = httptest.NewRecorder()
+		w.jsonOnce = false
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body.Content))
+		req.Header.Set("Content-Type", "application/json")
+		w.handler.ServeHTTP(w.resp, req)
+		return nil
+	})
+
+	ctx.Step(`^I PUT "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		w.resp = httptest.NewRecorder()
+		w.jsonOnce = false
+		req := httptest.NewRequest(http.MethodPut, path, strings.NewReader(body.Content))
+		req.Header.Set("Content-Type", "application/json")
+		w.handler.ServeHTTP(w.resp, req)
+		return nil
+	})
+
+	ctx.Step(`^I PATCH "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		w.resp = httptest.NewRecorder()
+		w.jsonOnce = false
+		req := httptest.NewRequest(http.MethodPatch, path, strings.NewReader(body.Content))
+		req.Header.Set("Content-Type", "application/json")
+		w.handler.ServeHTTP(w.resp, req)
+		return nil
+	})
+
+	ctx.Step(`^I PATCH "([^"]*)" with header "([^"]*)" matching the captured ETag and body:$`,
+		func(path, header string, body *godog.DocString) error {
+			if w.capturedETag == "" {
+				return fmt.Errorf("no ETag captured yet")
+			}
+			req := httptest.NewRequest(http.MethodPatch, path, strings.NewReader(body.Content))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(header, w.capturedETag)
+			w.resp = httptest.NewRecorder()
+			w.jsonOnce = false
+			w.handler.ServeHTTP(w.resp, req)
+			return nil
+		})
+
+	ctx.Step(`^I PATCH "([^"]*)" with header "([^"]*)" "([^"]*)" and body:$`,
+		func(path, header, value string, body *godog.DocString) error {
+			req := httptest.NewRequest(http.MethodPatch, path, strings.NewReader(body.Content))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(header, value)
+			w.resp = httptest.NewRecorder()
+			w.jsonOnce = false
+			w.handler.ServeHTTP(w.resp, req)
+			return nil
+		})
+
+	ctx.Step(`^the writer recorded (\d+) save[s]?$`, func(want int) error {
+		got := len(w.stubWr.saves)
+		if got != want {
+			return fmt.Errorf("writer saves = %d, want %d", got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I DELETE "([^"]*)"$`, func(path string) error {
+		w.resp = httptest.NewRecorder()
+		w.jsonOnce = false
+		w.handler.ServeHTTP(w.resp, httptest.NewRequest(http.MethodDelete, path, nil))
+		return nil
+	})
+
+	ctx.Step(`^the writer recorded (\d+) delete[s]?$`, func(want int) error {
+		got := len(w.stubWr.deletes)
+		if got != want {
+			return fmt.Errorf("writer deletes = %d, want %d", got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the writer fails the next delete with "([^"]*)"$`, func(msg string) error {
+		w.stubWr.delErr = errors.New(msg)
+		return nil
+	})
+
+	ctx.Step(`^the JSON has a non-empty "([^"]*)" field$`, func(field string) error {
+		obj, err := jsonAsObject(w)
+		if err != nil {
+			return err
+		}
+		v, ok := obj[field]
+		if !ok {
+			return fmt.Errorf("missing field %q", field)
+		}
+		s := fmt.Sprint(v)
+		if strings.TrimSpace(s) == "" {
+			return fmt.Errorf("field %q is empty", field)
+		}
+		return nil
+	})
+
 	// ── Thens (status + headers) ──────────────────────────────────────
 
 	ctx.Step(`^the response status is (\d+)$`, func(want int) error {
@@ -366,6 +469,51 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 		}
 		return nil
 	})
+
+	ctx.Step(`^the spec path "([^"]*)" has method "([^"]*)" with summary "([^"]*)"$`,
+		func(path, method, want string) error {
+			obj, err := jsonAsObject(w)
+			if err != nil {
+				return err
+			}
+			paths, ok := obj["paths"].(map[string]any)
+			if !ok {
+				return fmt.Errorf("response has no `paths` object")
+			}
+			entry, ok := paths[path].(map[string]any)
+			if !ok {
+				return fmt.Errorf("path %q not in spec", path)
+			}
+			op, ok := entry[method].(map[string]any)
+			if !ok {
+				return fmt.Errorf("path %q has no %q operation", path, method)
+			}
+			got, _ := op["summary"].(string)
+			if got != want {
+				return fmt.Errorf("summary = %q, want %q", got, want)
+			}
+			return nil
+		})
+
+	ctx.Step(`^the spec path "([^"]*)" has method "([^"]*)"$`,
+		func(path, method string) error {
+			obj, err := jsonAsObject(w)
+			if err != nil {
+				return err
+			}
+			paths, ok := obj["paths"].(map[string]any)
+			if !ok {
+				return fmt.Errorf("response has no `paths` object")
+			}
+			entry, ok := paths[path].(map[string]any)
+			if !ok {
+				return fmt.Errorf("path %q not in spec", path)
+			}
+			if _, found := entry[method]; !found {
+				return fmt.Errorf("path %q has no %q operation (have %v)", path, method, mapKeys(entry))
+			}
+			return nil
+		})
 
 	ctx.Step(`^the JSON does NOT have schema "([^"]*)"$`, func(name string) error {
 		obj, err := jsonAsObject(w)
@@ -581,6 +729,26 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 		}
 		if fmt.Sprint(got) != want {
 			return fmt.Errorf("%s = %q, want %q", path, fmt.Sprint(got), want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the JSON nested "([^"]*)" == (\d+)$`, func(path string, want int) error {
+		obj, err := jsonAsObject(w)
+		if err != nil {
+			return err
+		}
+		got, ok := getIndexed(obj, path)
+		if !ok {
+			return fmt.Errorf("path %q not found", path)
+		}
+		// JSON numbers decode as float64.
+		f, ok := got.(float64)
+		if !ok {
+			return fmt.Errorf("%s = %v (%T), want number", path, got, got)
+		}
+		if int(f) != want {
+			return fmt.Errorf("%s = %v, want %d", path, f, want)
 		}
 		return nil
 	})

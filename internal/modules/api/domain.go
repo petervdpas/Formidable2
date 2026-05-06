@@ -29,6 +29,17 @@ type Storage interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
+// Writer is the write-side surface used by the POST/PUT/PATCH/DELETE
+// endpoints. Kept separate from Storage so a future security audit
+// can grep "Writer" to find every write path. The real *storage.Manager
+// satisfies both — the indexer hook attached to SaveForm/DeleteForm
+// keeps SQLite consistent without the api module having to know about
+// the index at all.
+type Writer interface {
+	SaveForm(templateFilename, datafile string, data map[string]any) storage.SaveResult
+	DeleteForm(templateFilename, datafile string) error
+}
+
 // Templates is the surface the API needs to answer the design
 // endpoint: the full parsed template (fields + metadata). The real
 // *template.Manager already exposes LoadTemplate with this signature.
@@ -43,6 +54,7 @@ type Templates interface {
 type Handler struct {
 	dp  Provider
 	st  Storage
+	wr  Writer
 	tpl Templates
 }
 
@@ -50,8 +62,8 @@ type Handler struct {
 // http.Handler so callers compose it through the standard interface;
 // route shapes stay private to this file and can be evolved without
 // rippling out.
-func NewHandler(dp Provider, st Storage, tpl Templates) http.Handler {
-	h := &Handler{dp: dp, st: st, tpl: tpl}
+func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates) http.Handler {
+	h := &Handler{dp: dp, st: st, wr: wr, tpl: tpl}
 	mux := http.NewServeMux()
 	// Go 1.22+ typed patterns. Full paths (incl. "/api") so the
 	// composition root can mount this at the root mux without
@@ -63,14 +75,22 @@ func NewHandler(dp Provider, st Storage, tpl Templates) http.Handler {
 	// branches on r.Method itself and returns 405 for unsupported
 	// methods.
 	mux.HandleFunc("/api/openapi.json", h.openapi)
+	// Server-minted UUID v4. Lets clients hit one endpoint to obtain a
+	// fresh GUID for create flows instead of bundling a UUID library.
+	// POST /api/collections/{tpl} also auto-mints when the body's
+	// data[guidKey] is empty, so this endpoint is a convenience, not
+	// a requirement.
+	mux.HandleFunc("/api/guid", h.guid)
 	// Swagger UI — `/api/docs` redirects to the trailing-slash form so
 	// the embedded HTML's relative `/api/docs/<asset>` script tags work
 	// (mux uses literal pattern matching on the directory boundary).
 	mux.HandleFunc("/api/docs", h.docsRedirect)
 	mux.HandleFunc("/api/docs/", h.docs)
 	mux.HandleFunc("/api/collections", h.listCollections)
-	mux.HandleFunc("/api/collections/{tpl}", h.list)
+	mux.HandleFunc("/api/collections/{tpl}", h.collectionAny)
 	mux.HandleFunc("/api/collections/{tpl}/count", h.count)
+	mux.HandleFunc("/api/collections/{tpl}/batch", h.batch)
+	mux.HandleFunc("/api/collections/{tpl}/{id}/field/{key}", h.fieldPatch)
 	// Design lives at /{tpl}/design (peer to /count) rather than the
 	// original Formidable's /design/{tpl}. Putting "design" and "count"
 	// at the same path position avoids Go 1.22's strict-mux conflict

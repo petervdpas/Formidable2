@@ -25,6 +25,8 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	enabledStems := []string{}
 	dataSchemas := map[string]any{}
 	itemSchemas := map[string]any{}
+	upsertSchemas := map[string]any{}
+	upsertPartialSchemas := map[string]any{}
 	for _, t := range tps {
 		if !t.EnableCollection || t.GuidField == "" {
 			continue
@@ -52,20 +54,64 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 				},
 			},
 		}
+		// Full-replace request body — mirrors POST/PUT shape.
+		upsertSchemas["Upsert_"+stem] = map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"meta": map[string]any{"type": "object", "additionalProperties": true},
+				"data": map[string]any{"$ref": "#/components/schemas/Data_" + stem},
+			},
+			"required": []string{"data"},
+		}
+		// Partial-merge request body — same Data_<stem> properties but
+		// nothing required (PATCH allows omitting any subset).
+		dataSchema := dataSchemas["Data_"+stem].(map[string]any)
+		partialProps := dataSchema["properties"]
+		upsertPartialSchemas["UpsertPartial_"+stem] = map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"meta": map[string]any{"type": "object", "additionalProperties": true},
+				"data": map[string]any{
+					"type":                 "object",
+					"additionalProperties": true,
+					"properties":           partialProps,
+				},
+			},
+		}
 		enabledStems = append(enabledStems, stem)
 	}
 
 	schemas := map[string]any{
-		"ItemBase":     schemaItemBase(),
-		"ItemSummary":  schemaItemSummary(),
-		"TemplateRow":  schemaTemplateRow(),
-		"CountResponse": schemaCountResponse(),
-		"ListResponse": schemaListResponse(),
+		"ItemBase":       schemaItemBase(),
+		"ItemSummary":    schemaItemSummary(),
+		"TemplateRow":    schemaTemplateRow(),
+		"CountResponse":  schemaCountResponse(),
+		"ListResponse":   schemaListResponse(),
 		"TemplateField":  schemaTemplateField(),
 		"TemplateDesign": schemaTemplateDesign(),
+		"GUIDResponse":   schemaGUIDResponse(),
+		"FieldPatchBody": schemaFieldPatchBody(),
+		"BatchRequest":   schemaBatchRequest(),
+		"BatchResponse":  schemaBatchResponse(),
+		"BatchResultRow": schemaBatchResultRow(),
+		"BatchErrorRow":  schemaBatchErrorRow(),
 	}
 	maps.Copy(schemas, dataSchemas)
 	maps.Copy(schemas, itemSchemas)
+	maps.Copy(schemas, upsertSchemas)
+	maps.Copy(schemas, upsertPartialSchemas)
+
+	// Build oneOf-refs across the per-template schemas — used by the
+	// write paths so a single POST/PUT body schema covers all enabled
+	// templates without having to duplicate the path definition.
+	upsertRefs := []any{}
+	upsertPartialRefs := []any{}
+	itemRefs := []any{}
+	for _, stem := range enabledStems {
+		upsertRefs = append(upsertRefs, map[string]any{"$ref": "#/components/schemas/Upsert_" + stem})
+		upsertPartialRefs = append(upsertPartialRefs, map[string]any{"$ref": "#/components/schemas/UpsertPartial_" + stem})
+		itemRefs = append(itemRefs, map[string]any{"$ref": "#/components/schemas/Item_" + stem})
+	}
 
 	templateParam := map[string]any{
 		"name":     "template",
@@ -84,6 +130,13 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 		"schema":   map[string]any{"type": "string"},
 		"description": "Item GUID",
 	}
+	keyParam := map[string]any{
+		"name":     "key",
+		"in":       "path",
+		"required": true,
+		"schema":   map[string]any{"type": "string"},
+		"description": "Field key within the template",
+	}
 
 	return map[string]any{
 		"openapi": "3.0.3",
@@ -100,11 +153,199 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 			"parameters": map[string]any{
 				"TemplateParam": templateParam,
 				"IdParam":       idParam,
+				"KeyParam":      keyParam,
 			},
 			"schemas": schemas,
 		},
-		"paths": pathsForReadAPI(),
+		"paths": pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs),
 	}, nil
+}
+
+// pathsForFullAPI declares every route the package serves — read +
+// write. Refs into components/parameters keep the bodies short and
+// the templated values stay deduped. The per-template upsertRefs /
+// upsertPartialRefs / itemRefs slices are used as `oneOf` lists so
+// one path covers every enabled template.
+func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]any {
+	paths := pathsForReadAPI()
+
+	param := func(name string) map[string]any {
+		return map[string]any{"$ref": "#/components/parameters/" + name}
+	}
+	jsonOK := func(refName string) map[string]any {
+		return map[string]any{
+			"description": "OK",
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{"$ref": "#/components/schemas/" + refName},
+				},
+			},
+		}
+	}
+	itemOneOf := func(desc string) map[string]any {
+		return map[string]any{
+			"description": desc,
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{"oneOf": itemRefs},
+				},
+			},
+		}
+	}
+	upsertBody := func() map[string]any {
+		return map[string]any{
+			"required": true,
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{"oneOf": upsertRefs},
+				},
+			},
+		}
+	}
+	upsertPartialBody := func() map[string]any {
+		return map[string]any{
+			"required": true,
+			"content": map[string]any{
+				"application/json": map[string]any{
+					"schema": map[string]any{"oneOf": upsertPartialRefs},
+				},
+			},
+		}
+	}
+	upsertQuery := []any{
+		map[string]any{
+			"name":     "upsert",
+			"in":       "query",
+			"required": false,
+			"schema":   map[string]any{"type": "boolean", "default": false},
+			"description": "Allow create when the item is missing.",
+		},
+	}
+
+	// /api/guid utility.
+	paths["/guid"] = map[string]any{
+		"get": map[string]any{
+			"summary":   "Mint a fresh UUID v4",
+			"responses": map[string]any{"200": jsonOK("GUIDResponse")},
+		},
+	}
+
+	// /collections/{template} — extend the existing GET entry with POST.
+	if entry, ok := paths["/collections/{template}"].(map[string]any); ok {
+		entry["post"] = map[string]any{
+			"summary":     "Create item (or upsert with ?upsert=true)",
+			"description": "Auto-mints a GUID server-side when the body's data[guidKey] is empty.",
+			"parameters":  append([]any{param("TemplateParam")}, upsertQuery...),
+			"requestBody": upsertBody(),
+			"responses": map[string]any{
+				"200": itemOneOf("Replaced (only with ?upsert=true)"),
+				"201": itemOneOf("Created"),
+				"400": errResp("invalid-json"),
+				"403": errResp("collection-disabled"),
+				"409": errResp("already-exists"),
+			},
+		}
+	}
+
+	// /collections/{template}/{id} — extend the existing GET/HEAD with
+	// PUT/PATCH/DELETE.
+	if entry, ok := paths["/collections/{template}/{id}"].(map[string]any); ok {
+		entry["put"] = map[string]any{
+			"summary":    "Replace item by GUID (or upsert)",
+			"parameters": append([]any{param("TemplateParam"), param("IdParam")}, upsertQuery...),
+			"requestBody": upsertBody(),
+			"responses": map[string]any{
+				"200": itemOneOf("Replaced"),
+				"201": itemOneOf("Created (only with ?upsert=true and missing)"),
+				"400": errResp("invalid-json"),
+				"403": errResp("collection-disabled"),
+				"404": errResp("not-found"),
+				"409": errResp("guid-mismatch"),
+			},
+		}
+		entry["patch"] = map[string]any{
+			"summary":    "Merge update (partial) by GUID",
+			"parameters": []any{param("TemplateParam"), param("IdParam")},
+			"requestBody": upsertPartialBody(),
+			"responses": map[string]any{
+				"200": itemOneOf("OK"),
+				"400": errResp("invalid-json"),
+				"403": errResp("collection-disabled"),
+				"404": errResp("not-found"),
+				"409": errResp("guid-mismatch"),
+				"412": errResp("precondition-failed"),
+			},
+		}
+		entry["delete"] = map[string]any{
+			"summary":    "Delete item by GUID",
+			"parameters": []any{param("TemplateParam"), param("IdParam")},
+			"responses": map[string]any{
+				"204": map[string]any{"description": "No Content"},
+				"403": errResp("collection-disabled"),
+				"404": errResp("not-found"),
+			},
+		}
+	}
+
+	// /collections/{template}/{id}/field/{key} — single-field PATCH.
+	paths["/collections/{template}/{id}/field/{key}"] = map[string]any{
+		"patch": map[string]any{
+			"summary":    "Update a single field by key",
+			"parameters": []any{param("TemplateParam"), param("IdParam"), param("KeyParam")},
+			"requestBody": map[string]any{
+				"required": true,
+				"content": map[string]any{
+					"application/json": map[string]any{
+						"schema": map[string]any{"$ref": "#/components/schemas/FieldPatchBody"},
+					},
+				},
+			},
+			"responses": map[string]any{
+				"200": jsonOK("ItemBase"),
+				"400": errResp("unknown-field"),
+				"403": errResp("collection-disabled"),
+				"404": errResp("not-found"),
+				"409": errResp("guid-immutable"),
+			},
+		},
+	}
+
+	// /collections/{template}/batch — bulk apply.
+	paths["/collections/{template}/batch"] = map[string]any{
+		"post": map[string]any{
+			"summary":     "Bulk create / replace / merge",
+			"description": "Per-item failures are collected in `errors` rather than aborting the batch.",
+			"parameters": []any{
+				param("TemplateParam"),
+				map[string]any{
+					"name":     "mode",
+					"in":       "query",
+					"required": false,
+					"schema": map[string]any{
+						"type":    "string",
+						"enum":    []string{"create", "replace", "merge"},
+						"default": "create",
+					},
+					"description": "create = fail on existing; replace = full upsert; merge = partial upsert.",
+				},
+			},
+			"requestBody": map[string]any{
+				"required": true,
+				"content": map[string]any{
+					"application/json": map[string]any{
+						"schema": map[string]any{"$ref": "#/components/schemas/BatchRequest"},
+					},
+				},
+			},
+			"responses": map[string]any{
+				"200": jsonOK("BatchResponse"),
+				"400": errResp("items-missing or invalid-mode"),
+				"403": errResp("collection-disabled"),
+			},
+		},
+	}
+
+	return paths
 }
 
 // pathsForReadAPI declares every GET/HEAD route the package serves.
@@ -555,6 +796,112 @@ func schemaTemplateField() map[string]any {
 			},
 		},
 		"required": []string{"key", "type", "label"},
+	}
+}
+
+func schemaGUIDResponse() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"guid": map[string]any{"type": "string", "description": "Fresh UUID v4"},
+		},
+		"required": []string{"guid"},
+	}
+}
+
+func schemaFieldPatchBody() map[string]any {
+	return map[string]any{
+		"description": "Either { value: ... } or a raw JSON value.",
+		"oneOf": []any{
+			map[string]any{
+				"type":                 "object",
+				"required":             []string{"value"},
+				"additionalProperties": false,
+				"properties": map[string]any{
+					"value": map[string]any{},
+				},
+			},
+			map[string]any{"type": "string"},
+			map[string]any{"type": "number"},
+			map[string]any{"type": "boolean"},
+			map[string]any{"type": "array", "items": map[string]any{}},
+			map[string]any{"type": "object"},
+		},
+	}
+}
+
+func schemaBatchRequest() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"items"},
+		"properties": map[string]any{
+			"items": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type":     "object",
+					"required": []string{"data"},
+					"properties": map[string]any{
+						"meta": map[string]any{"type": "object", "additionalProperties": true},
+						"data": map[string]any{
+							"type":                 "object",
+							"additionalProperties": true,
+							"description":          "Must include the template's GUID field.",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schemaBatchResultRow() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"id":       map[string]any{"type": "string"},
+			"filename": map[string]any{"type": "string"},
+		},
+		"required": []string{"id", "filename"},
+	}
+}
+
+func schemaBatchErrorRow() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"index":   map[string]any{"type": "integer"},
+			"id":      map[string]any{"type": "string"},
+			"error":   map[string]any{"type": "string"},
+			"message": map[string]any{"type": "string"},
+		},
+		"required": []string{"index", "error"},
+	}
+}
+
+func schemaBatchResponse() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"template": map[string]any{"type": "string"},
+			"mode": map[string]any{
+				"type": "string",
+				"enum": []string{"create", "replace", "merge"},
+			},
+			"totalItems": map[string]any{"type": "integer"},
+			"created": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"$ref": "#/components/schemas/BatchResultRow"},
+			},
+			"updated": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"$ref": "#/components/schemas/BatchResultRow"},
+			},
+			"errors": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"$ref": "#/components/schemas/BatchErrorRow"},
+			},
+		},
+		"required": []string{"template", "mode", "totalItems", "created", "updated", "errors"},
 	}
 }
 

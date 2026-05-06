@@ -268,7 +268,9 @@ func New(d Deps) (*App, error) {
 	// wiki HTML chrome on the same loopback listener; Go's mux routes
 	// `/api/*` to the api handler and everything else to wiki by
 	// longest-prefix match.
-	apiHandler := api.NewHandler(dpM, stoM, tplM)
+	// stoM appears twice — once as Storage (LoadForm), once as Writer
+	// (SaveForm/DeleteForm). Same instance, narrow per-concern interfaces.
+	apiHandler := api.NewHandler(dpM, stoM, stoM, tplM)
 	top := http.NewServeMux()
 	top.Handle("/api/", apiHandler)
 	top.Handle("/", wikiHandler)
