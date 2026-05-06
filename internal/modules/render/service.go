@@ -22,3 +22,11 @@ func (s *Service) RenderMarkdown(templateName, datafile string) (string, error) 
 func (s *Service) RenderHTML(markdown string) (string, error) {
 	return s.m.RenderHTMLOnly(markdown)
 }
+
+// RenderFullHTML — self-contained HTML document (DOCTYPE + head + body)
+// with the formidable-prose stylesheet inlined. Used by the storage
+// workspace's "Copy HTML" action so what the user pastes into a .html
+// file renders identically to the in-app preview.
+func (s *Service) RenderFullHTML(templateName, datafile string) (string, error) {
+	return s.m.RenderFullHTML(templateName, datafile)
+}

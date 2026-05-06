@@ -8,6 +8,10 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     strictPort: true,
+    // Allow imports from the parent (repo root) so frontend stylesheets
+    // can pull from a single source of truth shared with Go embed —
+    // e.g. internal/modules/render/assets/formidable-prose.css.
+    fs: { allow: [".."] },
   },
   build: {
     // CodeMirror 6 alone is ~620KB minified — that's a known fixed

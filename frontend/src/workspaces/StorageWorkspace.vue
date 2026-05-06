@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { Clipboard } from "@wailsio/runtime";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
@@ -252,11 +253,30 @@ watch([htmlOpen, markdown], async ([open]) => {
   else html.value = "";
 });
 
+// Webviews block navigator.clipboard outside secure contexts; route
+// through Wails' Clipboard runtime which calls into the native
+// platform API.
 async function copyToClipboard(text: string, successKey: string) {
   if (!text) return;
   try {
-    await navigator.clipboard.writeText(text);
+    await Clipboard.SetText(text);
     toast.success(successKey);
+  } catch {
+    toast.error("workspace.storage.preview.copy_error");
+  }
+}
+
+// "Copy HTML" doesn't ship the in-app fragment — it asks the backend
+// for a self-contained document (DOCTYPE + head + inlined CSS + body)
+// so the result pastes cleanly into a .html file and renders the same.
+async function copyFullHtml() {
+  const tplName = draft.value?.template?.filename;
+  const datafile = draft.value?.datafile;
+  if (!tplName || !datafile || !view.value?.saved) return;
+  try {
+    const full = await RenderSvc.RenderFullHTML(tplName, datafile);
+    await Clipboard.SetText(full);
+    toast.success("workspace.storage.preview.copied_html");
   } catch {
     toast.error("workspace.storage.preview.copy_error");
   }
@@ -471,7 +491,7 @@ setTopbarMenu(() => [
           :disabled="!html"
           :title="t('workspace.storage.preview.copy_html')"
           :aria-label="t('workspace.storage.preview.copy_html')"
-          @click="copyToClipboard(html, 'workspace.storage.preview.copied_html')"
+          @click="copyFullHtml"
         >
           <i class="fa-solid fa-copy"></i>
         </button>

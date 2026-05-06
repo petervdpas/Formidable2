@@ -44,7 +44,9 @@
 @import "./image-lightbox.css";
 @import "./form-misc-fields.css";
 @import "./right-slideout.css";
-@import "./formidable-prose.css";
+/* Single source of truth — shared with Go's embedded full-HTML doc
+   exporter (internal/modules/render/fulldoc.go). */
+@import "../../../internal/modules/render/assets/formidable-prose.css";
 @import "./slideout-preview.css";
 
 /* Per-workspace stylesheets. */

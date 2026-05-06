@@ -143,6 +143,78 @@ func TestManager_DesktopFileURLStrategy(t *testing.T) {
 	}
 }
 
+func TestManager_RenderFullHTML(t *testing.T) {
+	// Markdown carries a frontmatter title that should land in <title>;
+	// the rendered fragment lands in <body class="formidable-prose">.
+	tpl := &template.Template{
+		MarkdownTemplate: "---\ntitle: Spaanse Groentenschotel\n---\n# Body\n",
+	}
+	form := &storage.Form{Data: map[string]any{}}
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil)
+
+	out, err := m.RenderFullHTML("tpl", "df.meta.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{
+		"<!DOCTYPE html>",
+		`<html lang="en">`,
+		`<meta charset="utf-8">`,
+		"<title>Spaanse Groentenschotel</title>",
+		"<style>",                          // inlined CSS
+		".formidable-prose",                // a known selector from the embedded sheet
+		`<body class="formidable-prose">`,
+		"</body>",
+		"</html>",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\nfull:\n%s", want, out)
+		}
+	}
+	// The H1 from the markdown body must be in the document.
+	if !strings.Contains(out, "<h1") {
+		t.Errorf("expected rendered <h1>, got: %s", out)
+	}
+}
+
+func TestManager_RenderFullHTML_TitleFallback(t *testing.T) {
+	// No frontmatter title → fall back to the datafile stem.
+	tpl := &template.Template{MarkdownTemplate: "# only body\n"}
+	form := &storage.Form{Data: map[string]any{}}
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil)
+
+	out, err := m.RenderFullHTML("tpl", "groene-tapenade.meta.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "<title>groene-tapenade</title>") {
+		t.Errorf("title fallback wrong; got: %s", out)
+	}
+}
+
+func TestManager_RenderFullHTML_FrontmatterIsStrippedFromBody(t *testing.T) {
+	// The frontmatter line should appear only in <title>, not as text
+	// in the body (RenderHTML already strips it; this guards regression).
+	tpl := &template.Template{MarkdownTemplate: "---\ntitle: My Doc\n---\n# heading\n"}
+	form := &storage.Form{Data: map[string]any{}}
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil)
+
+	out, err := m.RenderFullHTML("tpl", "df.meta.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Title in <title>, fine. But the literal "title: My Doc" line
+	// shouldn't leak into the body output.
+	bodyIdx := strings.Index(out, "<body")
+	if bodyIdx < 0 {
+		t.Fatal("no body")
+	}
+	if strings.Contains(out[bodyIdx:], "title: My Doc") {
+		t.Errorf("frontmatter leaked into body: %s", out)
+	}
+}
+
 func TestManager_NoStrategyFallsBackToRelativeImagesPath(t *testing.T) {
 	// nil ImageURLFunc — emitter falls back to `images/<name>`. This
 	// keeps RenderMarkdown usable for export tooling that has no

@@ -26,6 +26,16 @@ export function RenderForm(templateName: string, datafile: string): $Cancellable
 }
 
 /**
+ * RenderFullHTML — self-contained HTML document (DOCTYPE + head + body)
+ * with the formidable-prose stylesheet inlined. Used by the storage
+ * workspace's "Copy HTML" action so what the user pastes into a .html
+ * file renders identically to the in-app preview.
+ */
+export function RenderFullHTML(templateName: string, datafile: string): $CancellablePromise<string> {
+    return $Call.ByID(3308919126, templateName, datafile);
+}
+
+/**
  * RenderHTML — re-render arbitrary markdown (Vue's editor preview).
  */
 export function RenderHTML(markdown: string): $CancellablePromise<string> {
