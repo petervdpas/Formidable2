@@ -1,6 +1,7 @@
 package template
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -85,6 +86,82 @@ func TestValidate_ApiMapDuplicateKeysCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestValidate_MultipleGuidFieldsFlagged(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "id", Type: "guid"},
+			{Key: "alt", Type: "guid"},
+		},
+	})
+	var got *ValidationError
+	for i := range errs {
+		if errs[i].Type == "multiple-guid-fields" {
+			got = &errs[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("expected multiple-guid-fields; got %+v", errs)
+	}
+	if len(got.Keys) != 2 || got.Keys[0] != "id" || got.Keys[1] != "alt" {
+		t.Errorf("expected keys [id alt]; got %v", got.Keys)
+	}
+	if !strings.Contains(got.Message, "id") || !strings.Contains(got.Message, "alt") {
+		t.Errorf("message should mention both keys; got %q", got.Message)
+	}
+}
+
+func TestValidate_SingleGuidFieldIsFine(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "id", Type: "guid"},
+			{Key: "title", Type: "text"},
+		},
+	})
+	for _, e := range errs {
+		if e.Type == "multiple-guid-fields" {
+			t.Errorf("single guid should not flag; got %+v", errs)
+		}
+	}
+}
+
+func TestValidate_NoGuidFieldIsFine(t *testing.T) {
+	// missing-guid-for-collection only fires when EnableCollection is true;
+	// a plain template with zero guids must be silent.
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "title", Type: "text"},
+		},
+	})
+	for _, e := range errs {
+		if e.Type == "multiple-guid-fields" {
+			t.Errorf("no guid should not flag multiple-guid-fields; got %+v", errs)
+		}
+	}
+}
+
+func TestValidate_MultipleGuidWithEmptyKeyUsesPlaceholder(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "", Type: "guid"},
+			{Key: "id", Type: "guid"},
+		},
+	})
+	var got *ValidationError
+	for i := range errs {
+		if errs[i].Type == "multiple-guid-fields" {
+			got = &errs[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("expected multiple-guid-fields; got %+v", errs)
+	}
+	if len(got.Keys) != 2 || got.Keys[0] != "(no key)" {
+		t.Errorf("empty key should render as placeholder; got %v", got.Keys)
+	}
+}
+
 func TestValidate_NestedLoopsAtMaxDepthAreFine(t *testing.T) {
 	errs := Validate(&Template{
 		Fields: []Field{
@@ -129,6 +206,71 @@ func TestSaveTemplate_BackfillsFilename(t *testing.T) {
 	body, _ := sys.LoadFile("templates/x.yaml")
 	if !strings.Contains(body, "filename: x.yaml") {
 		t.Errorf("filename not persisted: %q", body)
+	}
+}
+
+func TestSaveTemplate_RejectsValidationFailure(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	tmpl := &Template{
+		Name:     "Bad",
+		Filename: "bad.yaml",
+		Fields: []Field{
+			{Key: "id", Type: "guid"},
+			{Key: "alt", Type: "guid"},
+		},
+	}
+	err := m.SaveTemplate("bad.yaml", tmpl)
+	if err == nil {
+		t.Fatal("expected validation error, got nil")
+	}
+	var verr *ValidationFailedError
+	if !errors.As(err, &verr) {
+		t.Fatalf("expected *ValidationFailedError, got %T: %v", err, err)
+	}
+	found := false
+	for _, ve := range verr.Errors {
+		if ve.Type == "multiple-guid-fields" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected multiple-guid-fields in errors; got %+v", verr.Errors)
+	}
+	if sys.FileExists("templates/bad.yaml") {
+		t.Error("validation failure must not write the file to disk")
+	}
+}
+
+func TestSaveTemplate_AcceptsEmptyFieldsTemplate(t *testing.T) {
+	// Empty templates are valid drafts — the editor creates them when
+	// the user hits "New Template" before adding any fields.
+	m, sys, _ := newTestManager(t)
+	tmpl := &Template{Name: "Draft", Filename: "draft.yaml"}
+	if err := m.SaveTemplate("draft.yaml", tmpl); err != nil {
+		t.Fatalf("empty template should save: %v", err)
+	}
+	if !sys.FileExists("templates/draft.yaml") {
+		t.Error("file not written")
+	}
+}
+
+func TestSaveTemplate_DoesNotFireIndexerOnValidationFailure(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	idx := &recordingIndexer{}
+	m.SetIndexer(idx)
+	tmpl := &Template{
+		Name:     "Bad",
+		Filename: "bad.yaml",
+		Fields: []Field{
+			{Key: "t1", Type: "tags"},
+			{Key: "t2", Type: "tags"},
+		},
+	}
+	if err := m.SaveTemplate("bad.yaml", tmpl); err == nil {
+		t.Fatal("expected validation error")
+	}
+	if len(idx.changed) != 0 {
+		t.Errorf("indexer fired on validation failure: %v", idx.changed)
 	}
 }
 

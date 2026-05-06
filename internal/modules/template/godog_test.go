@@ -2,6 +2,7 @@ package template
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -218,6 +219,11 @@ fields:
 		return nil
 	})
 
+	ctx.Step(`^I save the current template as "([^"]*)"$`, func(name string) error {
+		w.saveErr = w.m.SaveTemplate(name, w.tmpl)
+		return nil
+	})
+
 	ctx.Step(`^I request item fields for "([^"]*)"$`, func(name string) error {
 		w.items, w.itemsErr = w.m.GetItemFields(name)
 		return nil
@@ -364,6 +370,22 @@ fields:
 			return fmt.Errorf("expected save error, got nil")
 		}
 		return nil
+	})
+
+	ctx.Step(`^the save returned a validation error of type "([^"]*)"$`, func(want string) error {
+		if w.saveErr == nil {
+			return fmt.Errorf("expected save error, got nil")
+		}
+		var verr *ValidationFailedError
+		if !errors.As(w.saveErr, &verr) {
+			return fmt.Errorf("expected *ValidationFailedError, got %T: %v", w.saveErr, w.saveErr)
+		}
+		for _, ve := range verr.Errors {
+			if ve.Type == want {
+				return nil
+			}
+		}
+		return fmt.Errorf("expected error type %q in %v", want, summarizeErrors(verr.Errors))
 	})
 
 	ctx.Step(`^the item fields request returned an error$`, func() error {

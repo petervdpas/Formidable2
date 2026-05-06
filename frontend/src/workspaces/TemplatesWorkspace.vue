@@ -95,9 +95,22 @@ async function doSave() {
       "workspace.templates.save_success",
       [draft.value?.name || selectedFilename.value],
     );
-  } else {
-    toast.error("workspace.templates.save_error", [result.message ?? "?"]);
+    return;
   }
+  if (result.reason === "validation") {
+    // One toast per error — same shape the original Formidable used.
+    // formatError already produced i18n {key, args} pairs.
+    for (const err of result.errors) {
+      toast.error(err.key, err.args);
+    }
+    return;
+  }
+  if (result.reason === "exception") {
+    toast.error("workspace.templates.save_error", [result.message]);
+    return;
+  }
+  // "no-draft" — guarded by the early return at top, but kept exhaustive.
+  toast.error("workspace.templates.save_error", ["?"]);
 }
 
 function doReset() {

@@ -6,6 +6,8 @@
 // api-field shape rules, collection-mode requires a guid field.
 package template
 
+import "strings"
+
 // Template is the on-disk shape of a template YAML file.
 type Template struct {
 	Name              string  `yaml:"name" json:"name"`
@@ -78,6 +80,33 @@ type ValidationError struct {
 	Field   *Field         `json:"field,omitempty"`
 	Index   int            `json:"index,omitempty"`
 	Detail  map[string]any `json:"detail,omitempty"`
+}
+
+// ValidationFailedError wraps a slice of ValidationError. SaveTemplate
+// returns this when validation finds issues so programmatic callers can
+// errors.As to the structured set; the Wails layer just relays Error()
+// to the frontend, which has its own pre-validation gate.
+type ValidationFailedError struct {
+	Errors []ValidationError
+}
+
+func (e *ValidationFailedError) Error() string {
+	if e == nil || len(e.Errors) == 0 {
+		return "template: validation failed"
+	}
+	parts := make([]string, 0, len(e.Errors))
+	for _, ve := range e.Errors {
+		if ve.Message != "" {
+			parts = append(parts, ve.Message)
+		} else {
+			parts = append(parts, ve.Type)
+		}
+	}
+	return "template: validation failed: " + joinSemicolon(parts)
+}
+
+func joinSemicolon(parts []string) string {
+	return strings.Join(parts, "; ")
 }
 
 // Descriptor is the {name, yaml, storageLocation} bundle returned by

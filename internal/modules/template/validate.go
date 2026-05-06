@@ -40,6 +40,9 @@ func Validate(t *Template) []ValidationError {
 	if e := singleTagsError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
+	if e := singleGuidError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
 	errs = append(errs, unknownTypeErrors(t.Fields)...)
 	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
@@ -274,6 +277,31 @@ func singleTagsError(fields []Field) *ValidationError {
 			Type:    "multiple-tags-fields",
 			Keys:    keys,
 			Message: fmt.Sprintf("Only one 'tags' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
+		}
+	}
+	return nil
+}
+
+// singleGuidError flags more than one `guid` field in a template.
+// Mirror of singleTagsError — a template's GUID is the addressable
+// identity used by the wiki/API resolver, so two guid fields would
+// make IsCollectionEnabled / ResolveByID ambiguous.
+func singleGuidError(fields []Field) *ValidationError {
+	var keys []string
+	for _, f := range fields {
+		if f.Type == "guid" {
+			k := f.Key
+			if k == "" {
+				k = "(no key)"
+			}
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) > 1 {
+		return &ValidationError{
+			Type:    "multiple-guid-fields",
+			Keys:    keys,
+			Message: fmt.Sprintf("Only one 'guid' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
 		}
 	}
 	return nil

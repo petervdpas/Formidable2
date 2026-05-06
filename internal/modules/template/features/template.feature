@@ -116,6 +116,22 @@ Feature: Template management
       | t2   | tags |
     Then validation reports a "multiple-tags-fields" error
 
+  Scenario: Validate flags multiple guid fields
+    Given a template with fields:
+      | key  | type |
+      | g1   | guid |
+      | g2   | guid |
+    Then validation reports a "multiple-guid-fields" error
+
+  Scenario: Save refuses an invalid template
+    Given a template with fields:
+      | key  | type |
+      | g1   | guid |
+      | g2   | guid |
+    When I save the current template as "bad.yaml"
+    Then the save returned a validation error of type "multiple-guid-fields"
+    And the template list does not contain "bad.yaml"
+
   Scenario: Validate flags an api field without a collection
     Given a template with an api field with no collection
     Then validation reports an "api-collection-required" error

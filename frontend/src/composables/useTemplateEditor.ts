@@ -3,8 +3,10 @@ import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/for
 import type {
   ItemField,
   Template,
+  ValidationError,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useTemplates } from "./useTemplates";
+import { formatError, type FormattedError } from "../utils/templateValidation";
 
 // Module-scope singleton — there's at most one template being edited
 // at a time, and several components (workspace, modal, future toolbar)
@@ -49,16 +51,37 @@ watch(
   { immediate: true },
 );
 
-async function save(): Promise<{ ok: boolean; message?: string }> {
+// SaveOutcome is the union the workspace receives after a save attempt.
+// "validation" carries the structured errors so the caller can render
+// each one as a localized toast via formatError + vue-i18n.
+export type SaveOutcome =
+  | { ok: true }
+  | { ok: false; reason: "no-draft" }
+  | { ok: false; reason: "validation"; errors: FormattedError[] }
+  | { ok: false; reason: "exception"; message: string };
+
+async function save(): Promise<SaveOutcome> {
   if (!draft.value || !selectedFilename.value) {
-    return { ok: false, message: "no draft" };
+    return { ok: false, reason: "no-draft" };
   }
   try {
+    // Backend validation is the source of truth — see
+    // internal/modules/template/validate.go. We surface the result
+    // here before SaveTemplate so a misshapen template never lands
+    // on disk just because the editor allowed it.
+    const errors: ValidationError[] = await TemplateSvc.ValidateTemplate(draft.value);
+    if (errors && errors.length > 0) {
+      return {
+        ok: false,
+        reason: "validation",
+        errors: errors.map(formatError),
+      };
+    }
     await TemplateSvc.SaveTemplate(selectedFilename.value, draft.value);
     await refresh(); // pull canonical version back into cache
     return { ok: true };
   } catch (err) {
-    return { ok: false, message: String(err) };
+    return { ok: false, reason: "exception", message: String(err) };
   }
 }
 
