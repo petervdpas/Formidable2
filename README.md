@@ -7,7 +7,9 @@ original Electron build — same templates, same field types, same
 "auditability by design" stance, but a smaller native binary, a
 proper Go backend, and a real REST API.
 
-![Formidable](build/appicon.png)
+<p align="center">
+  <img src="build/appicon.png" alt="Formidable" width="180" />
+</p>
 
 > 💠 Dedicated to **Elly** — who lived with strength, humor and clarity.
 > _"Sleep, don't weep — My sweet love"_ — Damien Rice
