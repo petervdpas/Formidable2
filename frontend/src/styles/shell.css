@@ -12,7 +12,6 @@
 }
 
 .app-main {
-    position: relative;
     grid-area: main;
     overflow: hidden;
     background: var(--color-bg);
