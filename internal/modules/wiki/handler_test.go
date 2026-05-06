@@ -286,6 +286,139 @@ func TestStorage_StorageErrorReturns500(t *testing.T) {
 	}
 }
 
+// ── /_/<path> static asset route ───────────────────────────────────
+
+func TestStatic_ServesEmbeddedCSS(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_/css/base.css", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/css") {
+		t.Errorf("content-type = %q, want text/css", ct)
+	}
+	if w.Body.Len() == 0 {
+		t.Error("empty body")
+	}
+}
+
+func TestStatic_ServesEmbeddedJS(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_/js/crumbs.js", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/javascript") {
+		t.Errorf("content-type = %q, want text/javascript", ct)
+	}
+}
+
+func TestStatic_ServesLogoPNG(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_/img/logo.png", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "image/png" {
+		t.Errorf("content-type = %q, want image/png", ct)
+	}
+}
+
+func TestStatic_FormidableProse_StreamsRenderModuleCSS(t *testing.T) {
+	// /_/css/formidable-prose.css must come from render.ProseCSS so
+	// the wiki view stays byte-identical to the in-app slideout's
+	// rendered preview. Asserts we hit the special-case branch.
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_/css/formidable-prose.css", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, ".formidable-prose") {
+		t.Errorf("body missing .formidable-prose selector; got %d bytes", len(body))
+	}
+}
+
+func TestStatic_TraversalReturns404(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_/css/..%2Fsecrets.txt", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestStatic_MissingFile404(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_/css/ghost.css", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", w.Code)
+	}
+}
+
+// ── topbar + meta in HTML pages ───────────────────────────────────
+
+func TestPages_LinkTopbarAssets(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := w.Body.String()
+	for _, want := range []string{
+		`/_/css/base.css`,
+		`/_/css/header.css`,
+		`/_/css/content.css`,
+		`/_/css/formidable-prose.css`,
+		`/_/js/crumbs.js`,
+		`/_/js/filter.js`,
+		`id="topbar"`,
+		`id="crumbs"`,
+		`id="q"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q", want)
+		}
+	}
+}
+
+func TestTemplatePage_EmitsDataTagsForFilter(t *testing.T) {
+	sp := newStubProvider()
+	sp.forms["basic.yaml"] = []dataprovider.FormSummary{
+		{Template: "basic.yaml", Filename: "x.meta.json", Title: "X", Tags: []string{"alpha", "beta"}},
+		{Template: "basic.yaml", Filename: "y.meta.json", Title: "Y", Tags: []string{}},
+	}
+	h := NewHandler(sp, newStubStorage())
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	body := w.Body.String()
+	if !strings.Contains(body, `data-tags="alpha,beta"`) {
+		t.Errorf("missing data-tags=alpha,beta; body=%q", body)
+	}
+	if !strings.Contains(body, `data-tags=""`) {
+		t.Errorf("expected empty data-tags for tagless form")
+	}
+}
+
+func TestFormPage_EmitsMetaForCrumbs(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic/form/x.meta.json", nil))
+	body := w.Body.String()
+	if !strings.Contains(body, `window.__FORMIDABLE__`) {
+		t.Error("missing window.__FORMIDABLE__ assignment")
+	}
+	if !strings.Contains(body, `"templateId": "basic"`) {
+		t.Errorf("meta missing templateId; body=%q", body)
+	}
+	if !strings.Contains(body, `"formFile": "x.meta.json"`) {
+		t.Errorf("meta missing formFile; body=%q", body)
+	}
+}
+
 // ── 404 / negative cases ───────────────────────────────────────────
 
 func TestUnknownPath404(t *testing.T) {

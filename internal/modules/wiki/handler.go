@@ -3,12 +3,16 @@ package wiki
 import (
 	"context"
 	_ "embed"
+	"embed"
 	"errors"
 	"html/template"
+	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/render"
 )
 
 // Provider is the narrow read-only surface the wiki handler needs
@@ -55,36 +59,102 @@ func NewHandler(dp Provider, st Storage) http.Handler {
 	mux.HandleFunc("GET /template/{tpl}", h.template)
 	mux.HandleFunc("GET /template/{tpl}/form/{datafile}", h.form)
 	mux.HandleFunc("GET /storage/{tpl}/images/{name}", h.image)
+	// Embedded chrome (CSS / JS / images) the wiki templates reference.
+	// `/_/css/formidable-prose.css` is a special pseudo-file: it streams
+	// the bytes from render.ProseCSS() so the same stylesheet that
+	// styles the in-app slideout body styles wiki form bodies — single
+	// source of truth (see render/fulldoc.go and DRY commitment).
+	mux.HandleFunc("GET /_/{path...}", h.static)
 	return mux
 }
 
+// staticFS holds the embedded `templates/static/` tree (CSS, JS, img).
+// Served at /_/<path>. The fs.Sub strips the leading "templates/static/"
+// so URLs map cleanly: /_/css/base.css → templates/static/css/base.css.
+//
+//go:embed templates/static
+var staticEmbed embed.FS
+
+var staticFS = func() fs.FS {
+	sub, err := fs.Sub(staticEmbed, "templates/static")
+	if err != nil {
+		// embed.FS guarantees the dir exists at compile time, so this
+		// branch is unreachable. Panic anyway so a future structural
+		// rename surfaces immediately.
+		panic("wiki: static fs setup: " + err.Error())
+	}
+	return sub
+}()
+
 // ── HTML view layer ──────────────────────────────────────────────────
 //
-// The chrome (page wrapper, sidebar, breadcrumb) is rendered with
-// html/template — wiki owns this; the form *body* always comes from
-// render.Manager via dataprovider.RenderForm. Keeping the chrome
-// templates alongside the handler keeps view+route co-located.
+// Each page template (`index`, `template`, `form`) overrides the
+// `title`, `meta`, and `content` blocks defined in the shared
+// `layout.html`. Layout owns the topbar (logo + breadcrumbs + search)
+// and the <link>/<script> tags pointing at the embedded chrome assets.
+// The form *body* always comes from render.Manager — wiki never
+// invokes raymond/goldmark itself.
 
-//go:embed templates/index.html
-var tplIndexSrc string
+//go:embed templates/layout.html templates/index.html templates/template.html templates/form.html
+var tplFiles embed.FS
 
-//go:embed templates/template.html
-var tplTemplateSrc string
+// templateFuncs are the shared funcs every page template needs.
+//
+//   - safeHTML: lets a pre-rendered body string bypass html/template's
+//     auto-escape — used only for `dataprovider.RenderedPage.HTML`,
+//     which came out of goldmark and is therefore trusted.
+//   - jsonString: emits a Go string as a JSON-quoted literal so the
+//     `meta` block can produce valid JSON without ad-hoc escaping
+//     (used by crumbs.js' window.__FORMIDABLE__).
+var templateFuncs = template.FuncMap{
+	"safeHTML":   func(s string) template.HTML { return template.HTML(s) },
+	"jsonString": jsonString,
+}
 
-//go:embed templates/form.html
-var tplFormSrc string
+func parsePage(name string) *template.Template {
+	t := template.Must(template.New("layout.html").Funcs(templateFuncs).
+		ParseFS(tplFiles, "templates/layout.html", "templates/"+name+".html"))
+	return t
+}
 
 var (
-	tplIndex    = template.Must(template.New("index").Parse(tplIndexSrc))
-	tplTemplate = template.Must(template.New("template").Parse(tplTemplateSrc))
-	tplForm     = template.Must(template.New("form").Funcs(template.FuncMap{
-		// `safe` lets the form body bypass html/template's auto-escaping —
-		// the body already came out of render.Manager, which produces
-		// trusted (Goldmark-rendered) HTML. This is the one and only
-		// `template.HTML` cast in the wiki module.
-		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
-	}).Parse(tplFormSrc))
+	tplIndex    = parsePage("index")
+	tplTemplate = parsePage("template")
+	tplForm     = parsePage("form")
 )
+
+// jsonString produces `"escaped"` for a string. Cheap hand-roll —
+// pulling encoding/json just for this is overkill and would require
+// trimming the leading/trailing newline anyway.
+func jsonString(s string) template.JS {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		default:
+			if r < 0x20 {
+				b.WriteString(`\u00`)
+				const hex = "0123456789abcdef"
+				b.WriteByte(hex[r>>4])
+				b.WriteByte(hex[r&0xf])
+			} else {
+				b.WriteRune(r)
+			}
+		}
+	}
+	b.WriteByte('"')
+	return template.JS(b.String())
+}
 
 // indexView is what the index.html template binds against.
 type indexView struct {
@@ -97,18 +167,22 @@ type indexTemplateRow struct {
 	Href string
 }
 
-// templateView is what template.html binds against.
+// templateView is what template.html binds against. BackHref is gone
+// — the topbar's history nav-buttons handle it now.
 type templateView struct {
-	Title    string
-	Stem     string
-	Name     string
-	Forms    []templateFormRow
-	BackHref string
+	Title string
+	Stem  string
+	Name  string
+	Forms []templateFormRow
 }
 type templateFormRow struct {
 	Filename string
 	Title    string
 	Href     string
+	// TagsAttr is the comma-joined tag list emitted into the
+	// `data-tags="..."` attribute. filter.js reads this to drive the
+	// live tag/text filter on the forms list.
+	TagsAttr string
 }
 
 // formView is what form.html binds against.
@@ -117,7 +191,6 @@ type formView struct {
 	Stem     string
 	Filename string
 	Body     string // raw HTML from the render pipeline
-	BackHref string
 }
 
 // ── handlers ─────────────────────────────────────────────────────────
@@ -171,14 +244,14 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 			Filename: f.Filename,
 			Title:    pickFormTitle(f),
 			Href:     "/template/" + stem + "/form/" + f.Filename,
+			TagsAttr: strings.Join(f.Tags, ","),
 		})
 	}
 	writeHTML(w, tplTemplate, templateView{
-		Title:    pickName(*t),
-		Stem:     stem,
-		Name:     pickName(*t),
-		Forms:    rows,
-		BackHref: "/",
+		Title: pickName(*t),
+		Stem:  stem,
+		Name:  pickName(*t),
+		Forms: rows,
 	})
 }
 
@@ -222,8 +295,53 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 		Stem:     stem,
 		Filename: datafile,
 		Body:     page.HTML,
-		BackHref: "/template/" + stem,
 	})
+}
+
+// static serves the embedded chrome assets (CSS / JS / logo) at /_/.
+// The path is captured wholesale via the {path...} pattern; we then
+// guard against traversal (Go's mux already cleans, but explicit
+// rejection is cheap and audit-friendly), special-case
+// /_/css/formidable-prose.css to stream from render.ProseCSS, and
+// otherwise serve the embedded byte slice with the right MIME.
+func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
+	rel := r.PathValue("path")
+	if rel == "" || strings.Contains(rel, "..") {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	if rel == "css/formidable-prose.css" {
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = w.Write([]byte(render.ProseCSS()))
+		return
+	}
+	data, err := fs.ReadFile(staticFS, rel)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	w.Header().Set("Content-Type", staticMIME(rel))
+	_, _ = w.Write(data)
+}
+
+// staticMIME maps the file extension to a MIME type. Limited to the
+// types we actually ship; unknown extensions get the generic
+// application/octet-stream so nothing crashes on a stray file.
+func staticMIME(rel string) string {
+	switch path.Ext(rel) {
+	case ".css":
+		return "text/css; charset=utf-8"
+	case ".js":
+		return "text/javascript; charset=utf-8"
+	case ".png":
+		return "image/png"
+	case ".svg":
+		return "image/svg+xml"
+	case ".ico":
+		return "image/x-icon"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 // image serves a per-template image from storage. The wiki context

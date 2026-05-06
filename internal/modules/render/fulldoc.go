@@ -16,6 +16,13 @@ import (
 //go:embed assets/formidable-prose.css
 var proseStylesheet string
 
+// ProseCSS returns the embedded `formidable-prose` stylesheet bytes.
+// Public so consumers that produce their own HTML envelopes (the wiki
+// HTTP server, future export tools, …) can serve or inline the same
+// stylesheet without re-embedding the file. Single source of truth
+// stays in this module.
+func ProseCSS() string { return proseStylesheet }
+
 // RenderFullHTML returns a self-contained HTML document with:
 //   - DOCTYPE + html/head/body scaffolding
 //   - <title> sourced from the markdown's frontmatter "title:" key,

@@ -1,0 +1,42 @@
+{{- /* Wiki page layout — topbar + content slot.
+       Shared by index / template / form pages. The "content" block is
+       the per-page body; "title" is the <title>, "metaJSON" is the JSON
+       blob crumbs.js consumes via window.__FORMIDABLE__.
+*/ -}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{block "title" .}}Wiki{{end}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="/_/img/logo.png">
+  <link rel="stylesheet" href="/_/css/base.css">
+  <link rel="stylesheet" href="/_/css/header.css">
+  <link rel="stylesheet" href="/_/css/content.css">
+  <link rel="stylesheet" href="/_/css/formidable-prose.css">
+  <script>
+    window.__FORMIDABLE__ = {{block "meta" .}}null{{end}};
+  </script>
+</head>
+<body>
+  <header id="topbar">
+    <div class="left">
+      <button class="nav-btn" type="button" onclick="history.back()" aria-label="Back">‹</button>
+      <button class="nav-btn" type="button" onclick="history.forward()" aria-label="Forward">›</button>
+      <span class="logo" aria-hidden="true"></span>
+      <nav id="crumbs"></nav>
+    </div>
+    <div class="right">
+      <input id="q" type="search" placeholder="Press / to search… (#tag, text)" aria-label="Search">
+      <span class="kbd">/</span>
+    </div>
+  </header>
+
+  <main class="page-wrap">
+    {{block "content" .}}{{end}}
+  </main>
+
+  <script src="/_/js/crumbs.js" defer></script>
+  <script src="/_/js/filter.js" defer></script>
+</body>
+</html>

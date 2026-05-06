@@ -345,6 +345,14 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^the html body has element id "([^"]*)"$`, func(id string) error {
+		needle := `id="` + id + `"`
+		if !strings.Contains(w.resp.Body.String(), needle) {
+			return fmt.Errorf("body missing %q", needle)
+		}
+		return nil
+	})
+
 	// ── Slice 4: Service surface ─────────────────────────────────────
 
 	ctx.Step(`^a wiki service over a stub dataprovider and a configured port$`, func() error {
