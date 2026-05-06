@@ -40,6 +40,9 @@ type tmplWorld struct {
 	items      []ItemField
 	itemsErr   error
 	saveErr    error
+	registry   []FieldTypeDef
+	yamlBlob   []byte
+	reloaded   *Template
 }
 
 func initTemplateScenario(ctx *godog.ScenarioContext) {
@@ -366,6 +369,146 @@ fields:
 	ctx.Step(`^the item fields request returned an error$`, func() error {
 		if w.itemsErr == nil {
 			return fmt.Errorf("expected item-fields error, got %+v", w.items)
+		}
+		return nil
+	})
+
+	// ── Field-type registry + per-type validation ────────────────────
+
+	ctx.Step(`^a template with one guid field "([^"]*)" with collapsible true$`,
+		func(key string) error {
+			b := true
+			w.tmpl = &Template{
+				Name: "T", Filename: "t.yaml",
+				Fields: []Field{{Key: key, Type: "guid", Collapsible: &b}},
+			}
+			return nil
+		})
+
+	ctx.Step(`^a template with one number field "([^"]*)" with format "([^"]*)"$`,
+		func(key, format string) error {
+			w.tmpl = &Template{
+				Name: "T", Filename: "t.yaml",
+				Fields: []Field{{Key: key, Type: "number", Format: format}},
+			}
+			return nil
+		})
+
+	ctx.Step(`^a template with one text field "([^"]*)" with run_mode "([^"]*)"$`,
+		func(key, mode string) error {
+			w.tmpl = &Template{
+				Name: "T", Filename: "t.yaml",
+				Fields: []Field{{Key: key, Type: "text", RunMode: mode}},
+			}
+			return nil
+		})
+
+	ctx.Step(`^a template with one list field "([^"]*)" with collapsible true$`,
+		func(key string) error {
+			b := true
+			w.tmpl = &Template{
+				Name: "T", Filename: "t.yaml",
+				Fields: []Field{{Key: key, Type: "list", Collapsible: &b}},
+			}
+			return nil
+		})
+
+	ctx.Step(`^a template with a loopstart field "([^"]*)" carrying summary_field "([^"]*)"$`,
+		func(key, summary string) error {
+			w.tmpl = &Template{
+				Name: "T", Filename: "t.yaml",
+				Fields: []Field{
+					{Key: key, Type: "loopstart", SummaryField: summary},
+					{Key: "name", Type: "text"},
+					{Key: key, Type: "loopstop"},
+				},
+			}
+			return nil
+		})
+
+	ctx.Step(`^validation reports a "([^"]*)" error for key "([^"]*)" and attr "([^"]*)"$`,
+		func(kind, key, attr string) error {
+			w.errors = w.m.Validate(w.tmpl)
+			for _, e := range w.errors {
+				if e.Type != kind || e.Key != key {
+					continue
+				}
+				if got, _ := e.Detail["attr"].(string); got == attr {
+					return nil
+				}
+			}
+			return fmt.Errorf("expected %s/%s/%s, got %v",
+				kind, key, attr, summarizeErrors(w.errors))
+		})
+
+	// ── Field-type registry surface ──────────────────────────────────
+
+	ctx.Step(`^I read the field-type registry$`, func() error {
+		w.registry = AllFieldTypes()
+		return nil
+	})
+
+	ctx.Step(`^the registry contains "([^"]*)"$`, func(id string) error {
+		for _, d := range w.registry {
+			if d.ID == id {
+				return nil
+			}
+		}
+		return fmt.Errorf("registry missing %q", id)
+	})
+
+	ctx.Step(`^the registry first id is "([^"]*)"$`, func(want string) error {
+		if len(w.registry) == 0 {
+			return fmt.Errorf("registry is empty")
+		}
+		if w.registry[0].ID != want {
+			return fmt.Errorf("first id = %q, want %q", w.registry[0].ID, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the registry size is (\d+)$`, func(want int) error {
+		if len(w.registry) != want {
+			return fmt.Errorf("registry size = %d, want %d", len(w.registry), want)
+		}
+		return nil
+	})
+
+	// ── YAML round-trip ──────────────────────────────────────────────
+
+	ctx.Step(`^I marshal the template and reload it$`, func() error {
+		b, err := marshalYAML(w.tmpl)
+		if err != nil {
+			return err
+		}
+		w.yamlBlob = b
+		var got Template
+		if err := unmarshalYAML(b, &got); err != nil {
+			return err
+		}
+		w.reloaded = &got
+		return nil
+	})
+
+	ctx.Step(`^the loaded field "([^"]*)" has collapsible true$`, func(key string) error {
+		if w.reloaded == nil {
+			return fmt.Errorf("no reloaded template")
+		}
+		for _, f := range w.reloaded.Fields {
+			if f.Key != key {
+				continue
+			}
+			if f.Collapsible == nil || !*f.Collapsible {
+				return fmt.Errorf("collapsible = %v, want true", f.Collapsible)
+			}
+			return nil
+		}
+		return fmt.Errorf("field %q not in reloaded fields", key)
+	})
+
+	ctx.Step(`^the marshaled YAML does not contain "([^"]*)"$`, func(unwanted string) error {
+		if strings.Contains(string(w.yamlBlob), unwanted) {
+			return fmt.Errorf("YAML should not contain %q; got:\n%s", unwanted, w.yamlBlob)
 		}
 		return nil
 	})

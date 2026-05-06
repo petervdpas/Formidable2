@@ -179,3 +179,56 @@ Feature: Template management
   Scenario: GetItemFields on a missing template returns an error
     When I request item fields for "ghost.yaml"
     Then the item fields request returned an error
+
+  # ── Field-type registry + per-type validation ─────────────────────
+
+  Scenario: Validate flags an unknown field type
+    Given a template with fields:
+      | key | type    |
+      | x   | mystery |
+    Then validation reports an "unknown-field-type" error
+
+  Scenario: Validate flags a forbidden attribute on a guid field
+    Given a template with one guid field "g" with collapsible true
+    Then validation reports a "forbidden-attribute" error for key "g" and attr "collapsible"
+
+  Scenario: Validate flags a forbidden format attribute on a number field
+    Given a template with one number field "n" with format "markdown"
+    Then validation reports a "forbidden-attribute" error for key "n" and attr "format"
+
+  Scenario: Validate flags a forbidden code-group attribute on a text field
+    Given a template with one text field "x" with run_mode "manual"
+    Then validation reports a "forbidden-attribute" error for key "x" and attr "code"
+
+  Scenario: List/table allow collapsible
+    Given a template with one list field "li" with collapsible true
+    Then validation reports no errors
+
+  Scenario: Loopstart allows summary_field
+    Given a template with a loopstart field "items" carrying summary_field "name"
+    Then validation reports no errors
+
+  # ── Field-type registry surface ───────────────────────────────────
+
+  Scenario: AllFieldTypes exposes a stable, populated registry
+    When I read the field-type registry
+    Then the registry contains "text"
+    And the registry contains "list"
+    And the registry contains "table"
+    And the registry contains "loopstart"
+    And the registry first id is "text"
+    And the registry size is 21
+
+  # ── Collapsible YAML round-trip ───────────────────────────────────
+
+  Scenario: Collapsible true survives YAML round-trip
+    Given a template with one list field "li" with collapsible true
+    When I marshal the template and reload it
+    Then the loaded field "li" has collapsible true
+
+  Scenario: Collapsible absent stays absent
+    Given a template with fields:
+      | key | type |
+      | t   | text |
+    When I marshal the template and reload it
+    Then the marshaled YAML does not contain "collapsible"

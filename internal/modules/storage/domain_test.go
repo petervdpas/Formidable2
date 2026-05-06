@@ -240,6 +240,27 @@ func TestSaveForm_RejectsPathSeparatorsInDatafile(t *testing.T) {
 	}
 }
 
+func TestTemplateImageDir_StripsYAMLExtension(t *testing.T) {
+	// newTestStack constructs the Manager with `storageDir: "storage"`
+	// (relative). The path-composition rule (strip `.yaml`, append
+	// `images`) is what we verify here — the absolute prefix is the
+	// composition root's job (see app.go) and is not under test.
+	m, _, _, _ := newTestStack(t)
+	cases := []struct {
+		in, want string
+	}{
+		{"basic.yaml", "storage/basic/images"},
+		{"basic", "storage/basic/images"},
+		{"recepten.yaml", "storage/recepten/images"},
+	}
+	for _, c := range cases {
+		got := m.TemplateImageDir(c.in)
+		if got != c.want {
+			t.Errorf("TemplateImageDir(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
 func TestSaveImageFile_RejectsTraversal(t *testing.T) {
 	m, _, _, _ := newTestStack(t)
 	r := m.SaveImageFile("basic.yaml", "../escape.png", []byte("x"))
