@@ -94,6 +94,19 @@ Feature: Markdown render pipeline
     When I render html from a 2-row markdown table
     Then the html contains "<table"
 
+  Scenario: Table helper emits a contiguous markdown table
+    Given a template with markdown "{{table \"ingredients\"}}"
+    And the table field "ingredients" has columns "name:Ingredient,qty:Quantity"
+    And the form table "ingredients" has rows:
+      | Olive oil | 4 tbsp       |
+      | Lemon     | juice of one |
+    When I render markdown
+    Then the markdown contains "| Ingredient | Quantity |"
+    And the markdown contains "| --- | --- |"
+    And the markdown contains "| Olive oil | 4 tbsp |"
+    And the markdown contains "| Lemon | juice of one |"
+    And the markdown does not contain "\n\n|"
+
   Scenario: Frontmatter parses and round-trips
     When I parse frontmatter from "---\ntitle: Hello\ncount: 3\n---\n# body\n"
     Then the frontmatter title is "Hello"

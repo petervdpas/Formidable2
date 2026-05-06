@@ -135,6 +135,37 @@ func initRenderScenario(ctx *godog.ScenarioContext) {
 			return nil
 		})
 
+	ctx.Step(`^the table field "([^"]*)" has columns "([^"]*)"$`,
+		func(key, csv string) error {
+			opts := []any{}
+			for _, pair := range strings.Split(csv, ",") {
+				kv := strings.SplitN(pair, ":", 2)
+				if len(kv) != 2 {
+					return fmt.Errorf("bad column pair %q", pair)
+				}
+				opts = append(opts, map[string]any{"value": kv[0], "label": kv[1]})
+			}
+			w.tpl.Fields = append(w.tpl.Fields, template.Field{
+				Key: key, Type: "table", Options: opts,
+			})
+			rebuild()
+			return nil
+		})
+
+	ctx.Step(`^the form table "([^"]*)" has rows:$`, func(key string, table *godog.Table) error {
+		// Each gherkin row is a list of cell values; no header row.
+		rows := []any{}
+		for _, r := range table.Rows {
+			cells := make([]any, len(r.Cells))
+			for i, c := range r.Cells {
+				cells[i] = c.Value
+			}
+			rows = append(rows, cells)
+		}
+		w.form.Data[key] = rows
+		return nil
+	})
+
 	ctx.Step(`^a loop "([^"]*)" with field "([^"]*)" of type "([^"]*)"$`,
 		func(loopKey, innerKey, innerType string) error {
 			w.tpl.Fields = []template.Field{
@@ -265,6 +296,14 @@ func initRenderScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the html contains "([^"]*)"$`, func(want string) error {
 		if !strings.Contains(w.html, want) {
 			return fmt.Errorf("html missing %q; got: %q", want, w.html)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the markdown does not contain "([^"]*)"$`, func(unwantedRaw string) error {
+		unwanted := strings.ReplaceAll(unwantedRaw, `\n`, "\n")
+		if strings.Contains(w.markdown, unwanted) {
+			return fmt.Errorf("markdown should not contain %q; got: %q", unwanted, w.markdown)
 		}
 		return nil
 	})

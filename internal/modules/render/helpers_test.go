@@ -198,6 +198,84 @@ func TestHelper_Cell(t *testing.T) {
 	}
 }
 
+// TestHelper_Table covers the table helper that emits a full markdown
+// table — header row, separator, and data rows — joined with single
+// newlines. The motivation is to avoid the blank-line-between-rows
+// problem the manual {{#each}} approach hits in raymond, which breaks
+// goldmark's GFM table parser. See helpers.go for the helper itself.
+func TestHelper_Table(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{
+			Key: "ingredients", Type: "table",
+			Options: []any{
+				map[string]any{"value": "name", "label": "Ingredient"},
+				map[string]any{"value": "qty", "label": "Quantity"},
+			},
+		}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"ingredients": []any{
+			[]any{"Olive oil", "4 tbsp"},
+			[]any{"Lemon", "juice of one"},
+		},
+	})
+	got := renderWithCtx(t, `{{table "ingredients"}}`, ctx)
+	want := "| Ingredient | Quantity |\n| --- | --- |\n| Olive oil | 4 tbsp |\n| Lemon | juice of one |\n"
+	if got != want {
+		t.Errorf("table helper output mismatch.\n got: %q\nwant: %q", got, want)
+	}
+}
+
+func TestHelper_Table_NoRows(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{
+			Key: "ingredients", Type: "table",
+			Options: []any{"name", "qty"},
+		}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"ingredients": []any{},
+	})
+	got := renderWithCtx(t, `{{table "ingredients"}}`, ctx)
+	want := "| name | qty |\n| --- | --- |\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestHelper_Table_UnknownField(t *testing.T) {
+	tpl := &template.Template{Fields: []template.Field{}}
+	ctx := ctxFromTemplate(tpl, map[string]any{})
+	got := renderWithCtx(t, `{{table "missing"}}`, ctx)
+	if got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestHelper_Table_NonTableField(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"title": "x"})
+	got := renderWithCtx(t, `{{table "title"}}`, ctx)
+	if got != "" {
+		t.Errorf("table on non-table field should return empty, got %q", got)
+	}
+}
+
+func TestHelper_Table_NoOptions(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "grid", Type: "table"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"grid": []any{[]any{"a", "b"}},
+	})
+	got := renderWithCtx(t, `{{table "grid"}}`, ctx)
+	if got != "" {
+		t.Errorf("table without options should return empty, got %q", got)
+	}
+}
+
 func TestHelper_SetGetVar(t *testing.T) {
 	got := renderWithCtx(t, `{{setVar "x" 42}}{{getVar "x"}}`, map[string]any{})
 	if got != "42" {

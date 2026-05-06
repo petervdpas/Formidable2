@@ -302,6 +302,51 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 		return strings.Join(out, "\n")
 	})
 
+	// ── table ────────────────────────────────────────────────────
+	// Emits a complete markdown table for a `table` field: header
+	// row from field.Options (label, falling back to value), the
+	// `--- | ---` separator, and one data row per stored entry. All
+	// lines are joined with single `\n` so goldmark's GFM table
+	// parser sees a contiguous block (the manual {{#each}} pattern
+	// emits blank lines between iterations, which breaks parsing).
+	tpl.RegisterHelper("table", func(key string, options *raymond.Options) string {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		field := findField(options.Ctx(), key)
+		if field == nil || field.Type != "table" || len(field.Options) == 0 {
+			return ""
+		}
+
+		headers := make([]string, len(field.Options))
+		seps := make([]string, len(field.Options))
+		for i, opt := range field.Options {
+			_, label := optionPair(opt)
+			headers[i] = label
+			seps[i] = "---"
+		}
+
+		var sb strings.Builder
+		sb.WriteString("| " + strings.Join(headers, " | ") + " |\n")
+		sb.WriteString("| " + strings.Join(seps, " | ") + " |\n")
+
+		if rows, ok := ctx[key].([]any); ok {
+			for _, row := range rows {
+				cells, ok := row.([]any)
+				if !ok {
+					continue
+				}
+				strs := make([]string, len(cells))
+				for i, c := range cells {
+					strs[i] = stringify(c)
+				}
+				sb.WriteString("| " + strings.Join(strs, " | ") + " |\n")
+			}
+		}
+		return sb.String()
+	})
+
 	// ── stats ────────────────────────────────────────────────────
 	tpl.RegisterHelper("stats", func(table any, colIndex int, options *raymond.Options) string {
 		rows, ok := table.([]any)
