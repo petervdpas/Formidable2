@@ -199,6 +199,25 @@
     white-space: nowrap;
 }
 
-/* Hide the in-text tag badges — wiki convention. */
-.formidable-prose .tag-badges,
-.formidable-prose .inline-tag { display: none !important; }
+/* In-text tag badges. The post-processor in render/html.go wraps any
+ * `#kebab-tag` outside of code blocks in `<span class="inline-tag">`.
+ * The base style is a visible badge (mirrors the original Formidable's
+ * #render-preview rule). The wiki HTTP server, which renders the same
+ * prose into a navigation context, overrides this to `display:none`
+ * since tags surface in its sidebar — but that override lives in the
+ * wiki module's own stylesheet, not here.
+ */
+.formidable-prose .inline-tag {
+    display: inline-block;
+    background-color: var(--tag-bg, #3d5a3d);
+    color: var(--tag-text, #f0fff0);
+    border: 1px solid var(--tag-border, #81c784);
+    padding: 2px 6px;
+    margin: 0 4px 2px 0;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+/* `tag-badges` is the metadata sidebar block — that one stays hidden
+ * inside prose because the workspace's own metadata panel renders it. */
+.formidable-prose .tag-badges { display: none !important; }

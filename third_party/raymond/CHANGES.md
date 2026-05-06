@@ -51,3 +51,44 @@ lines between each iterations).
 
 The full upstream `handlebars/whitespace_test.go` suite still passes,
 i.e. the fix doesn't regress existing whitespace behaviour.
+
+## Patch: options-only variadic helpers
+
+`eval.go` — `callFunc` now special-cases helpers declared as
+`func(opts *Options) any`: if the helper takes only `*Options`, raymond
+calls it with options regardless of how many positional args the
+template passed. The helper reads positional args from `opts.Params()`
+itself.
+
+### Symptom that motivated the patch
+
+The original JS Formidable's `field` helper supports both
+`{{field "key"}}` (1-arg, mode defaults to "label") and
+`{{field "key" "mode"}}` (2-arg, explicit mode). Handlebars.js handles
+this via JS's loose arity — the helper signature `function(key, mode,
+options)` accepts a variable number of positional args.
+
+Raymond's arity check is strict: a helper with declared signature
+`(key string, options *Options)` rejects 2-positional calls with
+`Helper field called with argument 1 with type string but it should be
+*raymond.Options`. There's no way to declare a polymorphic-arity
+helper in upstream raymond.
+
+### Workaround / fix
+
+Helpers that need handlebars.js's variable-arity behaviour register as
+`func(opts *Options) any` and read positional args via `opts.Params()`.
+The patch is a 4-line guard in `callFunc` that returns early when the
+helper takes only `*Options`, skipping the arity check.
+
+Affected helper: `internal/modules/render/helpers.go`'s `field`. Other
+helpers (`fieldRaw`, `fieldMeta`, `cell`, `loop`, …) keep their typed
+signatures.
+
+### Regression coverage
+
+Existing raymond tests assume helpers with declared positional
+parameters reject extra args — none of them register an options-only
+helper, so this guard doesn't affect their paths. The Formidable2
+render module's `helpers_test.go` covers both the 1-arg and 2-arg
+`{{field …}}` invocations.

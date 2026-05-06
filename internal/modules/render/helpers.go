@@ -193,7 +193,32 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 	})
 
 	// ── field value (the workhorse) ──────────────────────────────
-	tpl.RegisterHelper("field", func(key string, options *raymond.Options) any {
+	// Polymorphic helper — supports both `{{field "key"}}` (mode
+	// defaults to "label") and `{{field "key" "mode"}}` (explicit
+	// positional mode). The original JS Handlebars supports both;
+	// raymond's strict arity rejects the 2-positional call when the
+	// helper declares typed positional params, so we register as
+	// options-only (see third_party/raymond/CHANGES.md "options-only
+	// variadic helpers") and read positional args ourselves.
+	tpl.RegisterHelper("field", func(options *raymond.Options) any {
+		params := options.Params()
+		var key, mode string
+		if len(params) > 0 {
+			key, _ = params[0].(string)
+		}
+		if len(params) > 1 {
+			mode, _ = params[1].(string)
+		}
+		// hash form `mode=` still wins if both forms are present —
+		// matches the JS helper's hash precedence.
+		if h := options.HashStr("mode"); h != "" {
+			mode = h
+		}
+		mode = strings.ToLower(mode)
+		if mode == "" {
+			mode = "label"
+		}
+
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
 			return ""
@@ -201,10 +226,6 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 		field := findField(options.Ctx(), key)
 		if field == nil {
 			return "(unknown field: " + key + ")"
-		}
-		mode := strings.ToLower(options.HashStr("mode"))
-		if mode == "" {
-			mode = "label"
 		}
 		value := ctx[key]
 
@@ -302,8 +323,23 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 		return strings.Join(out, "\n")
 	})
 
-	// ── stats ────────────────────────────────────────────────────
-	tpl.RegisterHelper("stats", func(table any, colIndex int, options *raymond.Options) string {
+	// `stats` is polymorphic: `{{stats t}}` (colIndex defaults to 1) and
+	// `{{stats t 2}}` are both valid in the original JS. Options-only
+	// signature so we can default colIndex when absent.
+	tpl.RegisterHelper("stats", func(options *raymond.Options) string {
+		params := options.Params()
+		var table any
+		colIndex := 1
+		if len(params) > 0 {
+			table = params[0]
+		}
+		if len(params) > 1 {
+			if i, ok := params[1].(int); ok {
+				colIndex = i
+			} else {
+				colIndex = int(toFloat(params[1]))
+			}
+		}
 		rows, ok := table.([]any)
 		if !ok {
 			return "_no data_"
@@ -341,7 +377,15 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 	})
 
 	// ── tags ─────────────────────────────────────────────────────
-	tpl.RegisterHelper("tags", func(arr any, options *raymond.Options) string {
+	// `tags` is polymorphic: `{{tags}}` (default array []) and
+	// `{{tags arr withHash=true}}` are both valid in the original JS.
+	// Options-only signature lets us read positional args manually
+	// (see third_party/raymond/CHANGES.md "options-only variadic").
+	tpl.RegisterHelper("tags", func(options *raymond.Options) string {
+		var arr any
+		if params := options.Params(); len(params) > 0 {
+			arr = params[0]
+		}
 		withHash := true
 		if raw := options.HashProp("withHash"); raw != nil {
 			if b, ok := raw.(bool); ok {

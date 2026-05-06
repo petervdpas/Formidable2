@@ -591,6 +591,20 @@ func (v *evalVisitor) callFunc(name string, funcVal reflect.Value, options *Opti
 	addOptions := false
 	numIn := funcType.NumIn()
 
+	// Local fork patch — see CHANGES.md "options-only variadic helpers".
+	// Helpers declared as `func(opts *Options) any` accept any number of
+	// positional args; the helper reads them from opts.Params() itself.
+	// Without this, any call `{{helper "x" "y"}}` fails the arity check
+	// because raymond tries to map "x" into the *Options slot. Mirrors
+	// handlebars.js's "any positional + options" calling convention.
+	//
+	// The match must be EXACT-type — `*Options` is assignable to `any`,
+	// so a generic helper like `func(value any) any` would otherwise
+	// be (mis)routed through this fast path.
+	if numIn == 1 && funcType.In(0) == reflect.TypeOf(options) {
+		return funcVal.Call([]reflect.Value{reflect.ValueOf(options)})[0]
+	}
+
 	if numIn == len(params)+1 {
 		lastArgType := funcType.In(numIn - 1)
 		if reflect.TypeOf(options).AssignableTo(lastArgType) {

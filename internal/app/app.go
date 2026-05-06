@@ -141,11 +141,17 @@ func New(d Deps) (*App, error) {
 
 	// Render manager — Handlebars→Markdown→HTML pipeline shared by the
 	// Storage workspace's Render button and the future internal HTTP
-	// server. Image URLs resolve to file:// against the on-disk storage
-	// path; the HTTP server replaces this strategy at construction.
+	// server. Image URLs resolve to base64 data: URLs so the Wails
+	// webview can render them inline (the webview blocks file:// for
+	// security; Electron's renderer used to trust them, but Wails 3
+	// does not). The wiki HTTP server, when it lands, will install its
+	// own locator that produces /storage/<tpl>/images/<name> URLs.
 	renderM := render.NewManager(tplM, stoM, func(templateFilename, name string) string {
-		dir := stoM.TemplateImageDir(templateFilename)
-		return "file://" + filepath.ToSlash(filepath.Join(dir, name))
+		dataURL, err := stoM.LoadImageFile(templateFilename, name)
+		if err != nil || dataURL == "" {
+			return ""
+		}
+		return dataURL
 	}, d.Logger)
 
 	i18nM, err := i18n.NewManager(d.Logger)

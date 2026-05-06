@@ -142,6 +142,45 @@ func TestHelper_FieldDropdownValueMode(t *testing.T) {
 	}
 }
 
+// Original Formidable's basic.yaml uses `{{field "key" "value"}}` —
+// 2 positional args where the second is the mode. Raymond's strict
+// arity rejected that until the options-only helper patch landed.
+// See third_party/raymond/CHANGES.md "options-only variadic helpers".
+func TestHelper_FieldDropdownPositionalMode(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{
+			Key: "color", Type: "dropdown",
+			Options: []any{
+				map[string]any{"value": "r", "label": "Red"},
+			},
+		}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"color": "r"})
+	got := renderWithCtx(t, `{{field "color" "value"}}`, ctx)
+	if got != "r" {
+		t.Errorf("positional mode: got %q, want r", got)
+	}
+}
+
+func TestHelper_FieldHashWinsOverPositional(t *testing.T) {
+	// When both forms are provided, the hash mode= takes precedence —
+	// matches the JS helper's hash precedence and is what the editor
+	// relies on for "force a mode override".
+	tpl := &template.Template{
+		Fields: []template.Field{{
+			Key: "color", Type: "dropdown",
+			Options: []any{
+				map[string]any{"value": "r", "label": "Red"},
+			},
+		}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"color": "r"})
+	got := renderWithCtx(t, `{{field "color" "value" mode="label"}}`, ctx)
+	if got != "Red" {
+		t.Errorf("hash should win: got %q, want Red", got)
+	}
+}
+
 func TestHelper_FieldRaw(t *testing.T) {
 	ctx := map[string]any{"x": 42}
 	got := renderWithCtx(t, `{{fieldRaw "x"}}`, ctx)
@@ -246,6 +285,16 @@ func TestHelper_TagsNoHash(t *testing.T) {
 	}
 }
 
+func TestHelper_TagsZeroArg(t *testing.T) {
+	// {{tags}} with no positional arg — JS defaults array to []. Go now
+	// matches via the options-only signature; should return empty string,
+	// not error.
+	got := renderWithCtx(t, `[{{tags}}]`, map[string]any{})
+	if got != "[]" {
+		t.Errorf("got %q, want []", got)
+	}
+}
+
 func TestHelper_IsSelected(t *testing.T) {
 	got := renderWithCtx(t, `{{#isSelected items "x"}}yes{{else}}no{{/isSelected}}`, map[string]any{
 		"items": []any{"a", "x"},
@@ -274,5 +323,20 @@ func TestHelper_Stats(t *testing.T) {
 	got := renderWithCtx(t, `{{stats rows 1}}`, ctx)
 	if !strings.Contains(got, "min=1") || !strings.Contains(got, "max=3") {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_Stats_DefaultColIndex(t *testing.T) {
+	// {{stats rows}} with no colIndex — JS defaults to 1. Go now matches.
+	ctx := map[string]any{
+		"rows": []any{
+			[]any{"a", 1},
+			[]any{"b", 2},
+			[]any{"c", 3},
+		},
+	}
+	got := renderWithCtx(t, `{{stats rows}}`, ctx)
+	if !strings.Contains(got, "min=1") || !strings.Contains(got, "max=3") {
+		t.Errorf("default colIndex should be 1; got %q", got)
 	}
 }
