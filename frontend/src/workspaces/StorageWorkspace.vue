@@ -14,6 +14,7 @@ import { useConfig } from "../composables/useConfig";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
+import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 
 const { t } = useI18n();
@@ -177,6 +178,7 @@ async function doSave() {
   if (result.ok) {
     toast.success("workspace.storage.save.success", [draft.value?.datafile ?? "?"]);
     await refreshList();
+    await refreshMarkdown();
   } else {
     toast.error("workspace.storage.save.error", [result.message ?? "?"]);
   }
@@ -200,8 +202,55 @@ async function confirmDelete() {
 }
 
 // ── Preview slideouts ────────────────────────────────────────────────
+// Markdown is rendered eagerly: refreshed when a saved form opens and
+// after each successful save. HTML is derived from the markdown only
+// when the HTML slideout is open (and re-derived if markdown changes
+// while it's open).
 const mdOpen = ref(false);
 const htmlOpen = ref(false);
+const markdown = ref("");
+const html = ref("");
+
+async function refreshMarkdown() {
+  if (!view.value?.saved || !draft.value?.template?.filename || !draft.value?.datafile) {
+    markdown.value = "";
+    return;
+  }
+  try {
+    markdown.value = await RenderSvc.RenderMarkdown(
+      draft.value.template.filename,
+      draft.value.datafile,
+    );
+  } catch {
+    markdown.value = "";
+  }
+}
+
+async function refreshHtml() {
+  if (!markdown.value) {
+    html.value = "";
+    return;
+  }
+  try {
+    html.value = await RenderSvc.RenderHTML(markdown.value);
+  } catch {
+    html.value = "";
+  }
+}
+
+watch(
+  () => [view.value?.saved, draft.value?.template?.filename, draft.value?.datafile] as const,
+  () => { void refreshMarkdown(); },
+  { immediate: true },
+);
+
+// HTML lazily — only when its slideout is open. Re-derive if either
+// the open state flips on, or the underlying markdown changes while
+// the slideout is open.
+watch([htmlOpen, markdown], async ([open]) => {
+  if (open) await refreshHtml();
+  else html.value = "";
+});
 
 // ── Topbar menu ──────────────────────────────────────────────────────
 setTopbarMenu(() => [
@@ -377,18 +426,26 @@ setTopbarMenu(() => [
 
   <!-- Right-edge preview slideouts: teleported to #app-main so they
        span the entire workspace width (sidebar + main) up to the ribbon. -->
-  <RightSlideout
-    v-model:open="mdOpen"
-    :title="t('workspace.storage.preview.markdown')"
-    :handle-label="t('workspace.storage.preview.markdown_handle')"
-    offset-top="var(--space-3)"
-  />
-  <RightSlideout
-    v-model:open="htmlOpen"
-    :title="t('workspace.storage.preview.html')"
-    :handle-label="t('workspace.storage.preview.html_handle')"
-    offset-top="calc(var(--space-3) + var(--right-slideout-handle-h) + 1px)"
-  />
+  <template v-if="view">
+    <RightSlideout
+      v-model:open="mdOpen"
+      :title="t('workspace.storage.preview.markdown')"
+      :handle-label="t('workspace.storage.preview.markdown_handle')"
+      offset-top="var(--space-3)"
+    >
+      <pre v-if="markdown" class="preview-markdown">{{ markdown }}</pre>
+      <p v-else class="muted small">{{ t('workspace.storage.preview.markdown_empty') }}</p>
+    </RightSlideout>
+    <RightSlideout
+      v-model:open="htmlOpen"
+      :title="t('workspace.storage.preview.html')"
+      :handle-label="t('workspace.storage.preview.html_handle')"
+      offset-top="calc(var(--space-3) + var(--right-slideout-handle-h) + 1px)"
+    >
+      <div v-if="html" class="preview-html" v-html="html" />
+      <p v-else class="muted small">{{ t('workspace.storage.preview.html_empty') }}</p>
+    </RightSlideout>
+  </template>
 
   <!-- New entry dialog -->
   <Modal
