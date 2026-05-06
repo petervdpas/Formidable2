@@ -1,15 +1,28 @@
-// Field-type registry. Mirrors `utils/fieldTypes.js` from the original
-// Formidable: each entry declares which rows in the Edit Field modal
-// are HIDDEN for that type. The modal renders the union of all rows;
-// per-type visibility is data-driven from `hiddenRows` so adding a new
-// type is one entry, no component changes.
+// Field-type registry — single source of truth lives in Go
+// (internal/modules/template/field_registry.go). This module loads
+// the backend data on first call and merges it with the few
+// frontend-only display concerns: i18n labelKey + per-type "default
+// value when creating a new field".
+//
+// Public surface intentionally matches the previous static
+// `FIELD_TYPES`: getFieldTypeDef / isRowHidden / selectableTypes /
+// FIELD_TYPES — so existing consumers keep working without changes.
+//
+// Boot ordering: useFieldTypesLoader (in main.ts) kicks off load()
+// before the app mounts, so by the time any component calls
+// selectableTypes() the registry is populated. If the call beats the
+// load (shouldn't happen in normal flow), the helpers degrade
+// gracefully — the dropdown is empty and isRowHidden returns false.
+
+import { ref, type Ref } from "vue";
+import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 /** Stable IDs for every row the Edit Field modal can render. */
 export type FieldEditRowId =
   | "key"
   | "type"
-  | "format"               // textarea-only — markdown vs plain
-  | "summary_field"        // loopstart-only — pick a child key as label
+  | "format"
+  | "summary_field"
   | "expression_item"
   | "two_column"
   | "collapsible"
@@ -18,196 +31,127 @@ export type FieldEditRowId =
   | "description"
   | "default"
   | "options"
-  | "code_group"           // run_mode / allow_run / hide_field / input_mode / api_mode / api_pick
-  | "latex_group"          // use_fenced / rows
-  | "api_group";           // collection / use_picker / id / allowed_ids / map
+  | "code_group"
+  | "latex_group"
+  | "api_group";
 
 export interface FieldTypeDef {
   /** YAML/JSON `type` value (e.g. "text"). */
   id: string;
-  /** Human label used in the Type dropdown — i18n key is preferred but
-   *  fallback to this when no translation exists. */
+  /** Human label key for the Type dropdown. */
   labelKey: string;
-  /** Default for newly created fields of this type. */
+  /** Default value for newly created fields of this type. */
   defaultValue?: () => unknown;
-  /** Rows to HIDE in the Edit Field modal. */
+  /** Rows to HIDE in the Edit Field modal — derived from the
+   *  backend's forbidden attributes for this type. */
   hiddenRows: FieldEditRowId[];
-  /** True when this type is a marker (no input value of its own). */
+  /** True for marker types (looper, loopstart, loopstop) that
+   *  don't carry a stored value. */
   metaOnly?: boolean;
 }
 
-/** Code-specific rows are toggled as a group, not individually. */
-const HIDE_CODE: FieldEditRowId[] = ["code_group"];
-const HIDE_LATEX: FieldEditRowId[] = ["latex_group"];
-const HIDE_API: FieldEditRowId[] = ["api_group"];
+// Frontend-only display concerns. Keys must align with backend type IDs.
+const LABEL_KEYS: Record<string, string> = {
+  text: "workspace.templates.field_type.text",
+  boolean: "workspace.templates.field_type.boolean",
+  dropdown: "workspace.templates.field_type.dropdown",
+  multioption: "workspace.templates.field_type.multioption",
+  radio: "workspace.templates.field_type.radio",
+  textarea: "workspace.templates.field_type.textarea",
+  number: "workspace.templates.field_type.number",
+  range: "workspace.templates.field_type.range",
+  date: "workspace.templates.field_type.date",
+  list: "workspace.templates.field_type.list",
+  table: "workspace.templates.field_type.table",
+  image: "workspace.templates.field_type.image",
+  link: "workspace.templates.field_type.link",
+  tags: "workspace.templates.field_type.tags",
+  latex: "workspace.templates.field_type.latex",
+  code: "workspace.templates.field_type.code",
+  api: "workspace.templates.field_type.api",
+  guid: "workspace.templates.field_type.guid",
+  looper: "workspace.templates.field_type.looper",
+  loopstart: "workspace.templates.field_type.loopstart",
+  loopstop: "workspace.templates.field_type.loopstop",
+};
 
-export const FIELD_TYPES: FieldTypeDef[] = [
-  {
-    id: "guid",
-    labelKey: "workspace.templates.field_type.guid",
-    defaultValue: () => "",
-    hiddenRows: [
-      "label",
-      "description",
-      "default",
-      "options",
-      "summary_field",
-      "expression_item",
-      "two_column",
-      "collapsible",
-      "readonly",
-      "format",
-      ...HIDE_CODE,
-      ...HIDE_LATEX,
-      ...HIDE_API,
-    ],
-  },
-  {
-    id: "text",
-    labelKey: "workspace.templates.field_type.text",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "boolean",
-    labelKey: "workspace.templates.field_type.boolean",
-    defaultValue: () => false,
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "dropdown",
-    labelKey: "workspace.templates.field_type.dropdown",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "multioption",
-    labelKey: "workspace.templates.field_type.multioption",
-    defaultValue: () => [],
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "radio",
-    labelKey: "workspace.templates.field_type.radio",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "textarea",
-    labelKey: "workspace.templates.field_type.textarea",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "latex",
-    labelKey: "workspace.templates.field_type.latex",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "expression_item", "two_column", "options", ...HIDE_CODE, ...HIDE_API],
-  },
-  {
-    id: "number",
-    labelKey: "workspace.templates.field_type.number",
-    defaultValue: () => 0,
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "options", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "range",
-    labelKey: "workspace.templates.field_type.range",
-    defaultValue: () => 50,
-    // Options are min/max/step pairs (value=key, label=number) — uses
-    // the default OptionsEditor columns.
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "date",
-    labelKey: "workspace.templates.field_type.date",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "options", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "list",
-    labelKey: "workspace.templates.field_type.list",
-    defaultValue: () => [],
-    hiddenRows: ["summary_field", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "table",
-    labelKey: "workspace.templates.field_type.table",
-    defaultValue: () => [],
-    hiddenRows: ["summary_field", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "image",
-    labelKey: "workspace.templates.field_type.image",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "options", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "link",
-    labelKey: "workspace.templates.field_type.link",
-    defaultValue: () => ({ href: "", text: "" }),
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "options", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "tags",
-    labelKey: "workspace.templates.field_type.tags",
-    defaultValue: () => [],
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "options", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "code",
-    labelKey: "workspace.templates.field_type.code",
-    defaultValue: () => "",
-    hiddenRows: ["summary_field", "collapsible", "readonly", "format", "expression_item", "two_column", ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "api",
-    labelKey: "workspace.templates.field_type.api",
-    defaultValue: () => ({ id: "", overrides: {} }),
-    hiddenRows: ["summary_field", "default", "options", "format", "expression_item", "two_column", "collapsible", "readonly", ...HIDE_CODE, ...HIDE_LATEX],
-  },
-  // Looper — UI-only meta type. Picking it in the Type dropdown
-  // synthesizes a loopstart/loopstop pair on confirm; "looper" itself
-  // never lands in the saved YAML.
-  {
-    id: "looper",
-    labelKey: "workspace.templates.field_type.looper",
-    metaOnly: true,
-    hiddenRows: [
-      "default",
-      "options",
-      "expression_item",
-      "two_column",
-      "collapsible",
-      "readonly",
-      "format",
-      ...HIDE_CODE,
-      ...HIDE_LATEX,
-      ...HIDE_API,
-    ],
-  },
-  {
-    id: "loopstart",
-    labelKey: "workspace.templates.field_type.loopstart",
-    metaOnly: true,
-    hiddenRows: ["default", "options", "expression_item", "two_column", "collapsible", "readonly", "format", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-  {
-    id: "loopstop",
-    labelKey: "workspace.templates.field_type.loopstop",
-    metaOnly: true,
-    hiddenRows: ["description", "default", "options", "expression_item", "two_column", "collapsible", "readonly", "format", "summary_field", ...HIDE_CODE, ...HIDE_LATEX, ...HIDE_API],
-  },
-];
+const DEFAULT_FACTORY: Record<string, () => unknown> = {
+  text: () => "",
+  boolean: () => false,
+  dropdown: () => "",
+  multioption: () => [],
+  radio: () => "",
+  textarea: () => "",
+  number: () => 0,
+  range: () => 50,
+  date: () => "",
+  list: () => [],
+  table: () => [],
+  image: () => "",
+  link: () => ({ href: "", text: "" }),
+  tags: () => [],
+  latex: () => "",
+  code: () => "",
+  api: () => ({ id: "", overrides: {} }),
+  guid: () => "",
+};
 
-const BY_ID = new Map(FIELD_TYPES.map((t) => [t.id, t]));
+// Map backend forbidden-attribute names to frontend row IDs. The
+// backend uses bare group names ("code", "latex", "api"); the modal
+// renders these as single rows named "<g>_group". Anything not in
+// the map is assumed to be 1:1 with a row id (label, description,
+// default, options, summary_field, expression_item, two_column,
+// collapsible, readonly, format).
+function attrToRow(attr: string): FieldEditRowId | null {
+  switch (attr) {
+    case "code":  return "code_group";
+    case "latex": return "latex_group";
+    case "api":   return "api_group";
+    case "primary_key": return null; // no FE row for this
+    default: return attr as FieldEditRowId;
+  }
+}
+
+// Module-scope cache. Populated by load(); drives all the helper
+// functions below. Reactive so any component reading `FIELD_TYPES`
+// (or any helper that derives from it) sees the populated array as
+// soon as the load resolves.
+const registry: Ref<FieldTypeDef[]> = ref([]);
+let loadPromise: Promise<void> | null = null;
+
+async function load(): Promise<void> {
+  const defs = (await TemplateSvc.FieldTypes()) ?? [];
+  registry.value = defs.map((d) => ({
+    id: d.id,
+    labelKey: LABEL_KEYS[d.id] ?? d.id,
+    defaultValue: DEFAULT_FACTORY[d.id],
+    metaOnly: d.meta_only,
+    hiddenRows: (d.forbidden_attributes ?? [])
+      .map(attrToRow)
+      .filter((r): r is FieldEditRowId => r !== null),
+  }));
+}
+
+/** Kicked off by main.ts before mount so components see a populated
+ *  registry on first render. Idempotent. */
+export function ensureFieldTypesLoaded(): Promise<void> {
+  if (!loadPromise) loadPromise = load();
+  return loadPromise;
+}
+
+/** Reactive registry array — same shape as the old FIELD_TYPES
+ *  constant. Consumers that need to iterate (e.g. dropdown options)
+ *  read this; it'll re-render once load() completes. */
+export const FIELD_TYPES = registry;
 
 export function getFieldTypeDef(id: string): FieldTypeDef | undefined {
-  return BY_ID.get(id);
+  // Reads through the ref so callers inside computed/templates
+  // re-run when load() resolves.
+  return registry.value.find((d) => d.id === id);
 }
 
 export function isRowHidden(typeId: string, rowId: FieldEditRowId): boolean {
-  const def = BY_ID.get(typeId);
+  const def = getFieldTypeDef(typeId);
   if (!def) return false;
   return def.hiddenRows.includes(rowId);
 }
@@ -220,7 +164,7 @@ export function isRowHidden(typeId: string, rowId: FieldEditRowId): boolean {
  *    user can't "convert" half of a pair into something else.
  *  - For other existing fields: hide `looper`, `loopstart`, `loopstop`. */
 export function selectableTypes(currentType: string, isNew = false): FieldTypeDef[] {
-  return FIELD_TYPES.filter((t) => {
+  return registry.value.filter((t) => {
     if (t.id === "loopstart" || t.id === "loopstop") {
       return t.id === currentType;
     }

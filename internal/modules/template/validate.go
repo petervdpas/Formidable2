@@ -41,7 +41,75 @@ func Validate(t *Template) []ValidationError {
 		errs = append(errs, *e)
 	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
+	errs = append(errs, unknownTypeErrors(t.Fields)...)
+	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
 
+	return errs
+}
+
+// unknownTypeErrors flags fields whose `type` is not in the registry.
+// Catches typos in hand-edited YAML and would-be-foreign types from
+// migrations or plugins.
+func unknownTypeErrors(fields []Field) []ValidationError {
+	var errs []ValidationError
+	for i := range fields {
+		f := fields[i]
+		if f.Type == "" {
+			ff := f
+			errs = append(errs, ValidationError{
+				Type:    "missing-field-type",
+				Field:   &ff,
+				Index:   i,
+				Key:     f.Key,
+				Message: "Field is missing a type",
+			})
+			continue
+		}
+		if !IsKnownFieldType(f.Type) {
+			ff := f
+			errs = append(errs, ValidationError{
+				Type:    "unknown-field-type",
+				Field:   &ff,
+				Index:   i,
+				Key:     f.Key,
+				Detail:  map[string]any{"type": f.Type},
+				Message: "Unknown field type: " + f.Type,
+			})
+		}
+	}
+	return errs
+}
+
+// forbiddenAttributeErrors flags fields that carry properties the
+// registry forbids for their type. Mirrors the original Formidable's
+// `disabledAttributes` UI hide list, but enforced at save-time so
+// hand-edited YAML can't sneak meaningless data past the editor.
+func forbiddenAttributeErrors(fields []Field) []ValidationError {
+	var errs []ValidationError
+	for i := range fields {
+		f := fields[i]
+		def, ok := fieldTypeRegistry[f.Type]
+		if !ok {
+			// Unknown type already reported by unknownTypeErrors —
+			// skip the per-attr check so the user sees one error per
+			// problem, not a flood.
+			continue
+		}
+		for _, attr := range def.ForbiddenAttributes {
+			if !propertyIsSet(f, attr) {
+				continue
+			}
+			ff := f
+			errs = append(errs, ValidationError{
+				Type:    "forbidden-attribute",
+				Field:   &ff,
+				Index:   i,
+				Key:     f.Key,
+				Detail:  map[string]any{"attr": attr, "type": f.Type},
+				Message: "Attribute " + attr + " is not allowed on field type " + f.Type,
+			})
+		}
+	}
 	return errs
 }
 

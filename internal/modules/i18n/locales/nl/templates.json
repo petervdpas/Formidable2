@@ -22,6 +22,7 @@
   "workspace.templates.field_edit.row.description": "Beschrijving",
   "workspace.templates.field_edit.row.expression_item": "Expressie-veld",
   "workspace.templates.field_edit.row.format": "Formaat",
+  "workspace.templates.field_edit.row.collapsible": "Inklapbaar",
   "workspace.templates.field_edit.row.key": "Sleutel",
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Opties",

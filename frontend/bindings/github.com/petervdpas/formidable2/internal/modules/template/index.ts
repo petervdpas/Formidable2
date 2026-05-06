@@ -10,6 +10,7 @@ export {
     APIMap,
     Descriptor,
     Field,
+    FieldTypeDef,
     ItemField,
     Template,
     ValidationError

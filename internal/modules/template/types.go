@@ -95,26 +95,5 @@ type ItemField struct {
 	Label string `json:"label"`
 }
 
-// Known field types from `schemas/field.schema.js`.
-var KnownFieldTypes = map[string]bool{
-	"guid":        true,
-	"loopstart":   true,
-	"loopstop":    true,
-	"text":        true,
-	"boolean":     true,
-	"dropdown":    true,
-	"multioption": true,
-	"radio":       true,
-	"textarea":    true,
-	"latex":       true,
-	"number":      true,
-	"range":       true,
-	"date":        true,
-	"list":        true,
-	"table":       true,
-	"image":       true,
-	"link":        true,
-	"tags":        true,
-	"code":        true,
-	"api":         true,
-}
+// Known field types live in field_registry.go's fieldTypeRegistry.
+// Use IsKnownFieldType(t) to check membership.

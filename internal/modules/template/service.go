@@ -34,3 +34,10 @@ func (s *Service) GetTemplateDescriptor(name string) (Descriptor, error) {
 func (s *Service) GetItemFields(name string) ([]ItemField, error) { return s.m.GetItemFields(name) }
 func (s *Service) SeedBasicIfEmpty() error                        { return s.m.SeedBasicIfEmpty() }
 func (s *Service) EnsureTemplateDirectory() error                 { return s.m.EnsureTemplateDirectory() }
+
+// FieldTypes returns the registry of known field types and their
+// forbidden attribute lists. The frontend uses this as the single
+// source of truth for the "Type" dropdown and for editor-row
+// visibility, so adding/changing a type happens in one place
+// (field_registry.go).
+func (s *Service) FieldTypes() []FieldTypeDef { return AllFieldTypes() }

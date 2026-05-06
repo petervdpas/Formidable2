@@ -180,6 +180,49 @@ export class Field {
 }
 
 /**
+ * FieldTypeDef declares a known field type and the optional Field
+ * properties it forbids. `MetaOnly` flags the marker types (looper,
+ * loopstart, loopstop) that don't carry a stored value but still
+ * participate in validation.
+ * 
+ * JSON tags are present because FieldTypeDef is also the Wails-facing
+ * shape returned by Service.FieldTypes — the frontend uses it as the
+ * single source of truth for "what types exist and what they forbid".
+ */
+export class FieldTypeDef {
+    "id": string;
+    "meta_only": boolean;
+    "forbidden_attributes": string[];
+
+    /** Creates a new FieldTypeDef instance. */
+    constructor($$source: Partial<FieldTypeDef> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("meta_only" in $$source)) {
+            this["meta_only"] = false;
+        }
+        if (!("forbidden_attributes" in $$source)) {
+            this["forbidden_attributes"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldTypeDef instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldTypeDef {
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("forbidden_attributes" in $$parsedSource) {
+            $$parsedSource["forbidden_attributes"] = $$createField2_0($$parsedSource["forbidden_attributes"]);
+        }
+        return new FieldTypeDef($$parsedSource as Partial<FieldTypeDef>);
+    }
+}
+
+/**
  * ItemField is one row in the "possible item fields" picker (top-level
  * non-loop text fields, used to choose a collection's primary identifier).
  */

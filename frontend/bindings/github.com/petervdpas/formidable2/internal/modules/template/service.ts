@@ -27,27 +27,40 @@ export function EnsureTemplateDirectory(): $CancellablePromise<void> {
     return $Call.ByID(2374943147);
 }
 
+/**
+ * FieldTypes returns the registry of known field types and their
+ * forbidden attribute lists. The frontend uses this as the single
+ * source of truth for the "Type" dropdown and for editor-row
+ * visibility, so adding/changing a type happens in one place
+ * (field_registry.go).
+ */
+export function FieldTypes(): $CancellablePromise<$models.FieldTypeDef[]> {
+    return $Call.ByID(3365796277).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function GetItemFields(name: string): $CancellablePromise<$models.ItemField[]> {
     return $Call.ByID(2544545530, name).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
 export function GetTemplateDescriptor(name: string): $CancellablePromise<$models.Descriptor> {
     return $Call.ByID(3235934315, name).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
 export function ListTemplates(): $CancellablePromise<string[]> {
     return $Call.ByID(3379098355).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 export function LoadTemplate(name: string): $CancellablePromise<$models.Template | null> {
     return $Call.ByID(2817786054, name).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -61,16 +74,18 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
 
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.ItemField.createFrom;
+const $$createType0 = $models.FieldTypeDef.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.Descriptor.createFrom;
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = $models.Template.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.ValidationError.createFrom;
-const $$createType7 = $Create.Array($$createType6);
+const $$createType2 = $models.ItemField.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.Descriptor.createFrom;
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = $models.Template.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = $models.ValidationError.createFrom;
+const $$createType9 = $Create.Array($$createType8);

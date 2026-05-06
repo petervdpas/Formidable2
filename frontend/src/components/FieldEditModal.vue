@@ -94,6 +94,16 @@ function showRow(row: FieldEditRowId): boolean {
 // Default value editor — type-aware. For string types, plain input.
 // For booleans, the "default" doesn't really exist (omit). For lists/
 // tables/tags it's a textarea (CSV / JSON, free-form for now).
+// Field.collapsible is nullable (*bool on the Go side, omitempty),
+// so SwitchField's `boolean` model needs a coercing wrapper.
+const collapsibleBool = computed<boolean>({
+  get: () => draft.value?.collapsible === true,
+  set: (v: boolean) => {
+    if (!draft.value) return;
+    draft.value.collapsible = v;
+  },
+});
+
 const defaultAsString = computed({
   get: () => {
     const v = draft.value?.default;
@@ -233,6 +243,17 @@ const dialogStyle = computed<Record<string, string>>(() => {
         >
           <SwitchField
             v-model="draft.two_column"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
+        </FormRow>
+
+        <FormRow
+          v-if="showRow('collapsible')"
+          :label="t('workspace.templates.field_edit.row.collapsible')"
+        >
+          <SwitchField
+            v-model="collapsibleBool"
             :on-label="t('common.on')"
             :off-label="t('common.off')"
           />
