@@ -231,8 +231,12 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "template not found")
 		return
 	}
+	// Match the storage workspace's order — filesystem readdir is
+	// alphabetical-by-filename, and that's what the original
+	// Formidable wiki used too. Both views render the same template's
+	// forms in the same order; the user's mental model stays stable.
 	forms, err := h.dp.ListForms(r.Context(), filename, dataprovider.ListOpts{
-		OrderBy: "updated_desc",
+		OrderBy: "filename_asc",
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
