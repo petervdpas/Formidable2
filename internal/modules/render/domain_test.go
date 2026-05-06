@@ -37,7 +37,7 @@ func TestManager_RenderForm(t *testing.T) {
 		},
 	}
 	form := &storage.Form{Data: map[string]any{"title": "Hello"}}
-	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil)
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil, nil)
 
 	res, err := m.RenderForm("tpl", "data")
 	if err != nil {
@@ -52,7 +52,7 @@ func TestManager_RenderForm(t *testing.T) {
 }
 
 func TestManager_RenderForm_TemplateError(t *testing.T) {
-	m := NewManager(&fakeTemplateLoader{err: errors.New("boom")}, &fakeFormStore{}, nil, nil)
+	m := NewManager(&fakeTemplateLoader{err: errors.New("boom")}, &fakeFormStore{}, nil, nil, nil)
 	_, err := m.RenderForm("tpl", "data")
 	if err == nil {
 		t.Fatal("expected err")
@@ -62,7 +62,7 @@ func TestManager_RenderForm_TemplateError(t *testing.T) {
 func TestManager_RenderForm_MissingForm(t *testing.T) {
 	tpl := &template.Template{MarkdownTemplate: `{{x}}`}
 	// nil form → render with empty values (mirror form.Manager.BuildView).
-	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: nil}, nil, nil)
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: nil}, nil, nil, nil)
 	res, err := m.RenderForm("tpl", "data")
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -74,13 +74,113 @@ func TestManager_RenderForm_MissingForm(t *testing.T) {
 
 func TestManager_RenderMarkdown_NoDatafile(t *testing.T) {
 	tpl := &template.Template{MarkdownTemplate: `static`}
-	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{}, nil, nil)
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{}, nil, nil, nil)
 	got, err := m.RenderMarkdown("tpl", "")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if got != "static" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestManager_FormidableLinkURLStrategy_Wiki(t *testing.T) {
+	// Wiki context: the FormidableLinkURL strategy rewrites
+	// formidable://<tpl>:<df> hrefs at the source. Goldmark sees
+	// already-rewritten URLs and emits plain `<a href="/template/.../">`
+	// — no post-process regex required at the wiki handler.
+	tpl := &template.Template{
+		MarkdownTemplate: `{{field "ref"}}`,
+		Fields:           []template.Field{{Key: "ref", Type: "link"}},
+	}
+	form := &storage.Form{Data: map[string]any{
+		"ref": map[string]any{
+			"href": "formidable://recepten.yaml:groene-tapenade.meta.json",
+			"text": "Tapenade",
+		},
+	}}
+	m := NewManager(
+		&fakeTemplateLoader{tpl: tpl},
+		&fakeFormStore{form: form},
+		nil,
+		func(templateFilename, datafile string) string {
+			stem := strings.TrimSuffix(templateFilename, ".yaml")
+			return "/template/" + stem + "/form/" + datafile
+		},
+		nil, // log
+	)
+	res, err := m.RenderForm("tpl.yaml", "df")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := "[Tapenade](/template/recepten/form/groene-tapenade.meta.json)"
+	if res.Markdown != want {
+		t.Errorf("markdown = %q, want %q", res.Markdown, want)
+	}
+}
+
+func TestManager_FormidableLinkURLStrategy_Slideout(t *testing.T) {
+	// Slideout context: no FormidableLinkURL → formidable:// URLs
+	// pass through unchanged, the Vue click interceptor handles
+	// them in-app via the Nav service.
+	tpl := &template.Template{
+		MarkdownTemplate: `{{field "ref"}}`,
+		Fields:           []template.Field{{Key: "ref", Type: "link"}},
+	}
+	form := &storage.Form{Data: map[string]any{
+		"ref": map[string]any{
+			"href": "formidable://recepten.yaml:groene-tapenade.meta.json",
+			"text": "Tapenade",
+		},
+	}}
+	m := NewManager(
+		&fakeTemplateLoader{tpl: tpl},
+		&fakeFormStore{form: form},
+		nil,
+		nil, // formidable link URL — passthrough
+		nil, // log
+	)
+	res, err := m.RenderForm("tpl.yaml", "df")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := "[Tapenade](formidable://recepten.yaml:groene-tapenade.meta.json)"
+	if res.Markdown != want {
+		t.Errorf("markdown = %q, want %q", res.Markdown, want)
+	}
+}
+
+func TestManager_FormidableLinkURLStrategy_MalformedFallsBack(t *testing.T) {
+	// A formidable:// URL with no `:` separator can't be parsed;
+	// resolveLinkHref must keep the original href and not call the
+	// strategy with empty parts (which could yield a malformed URL).
+	tpl := &template.Template{
+		MarkdownTemplate: `{{field "ref"}}`,
+		Fields:           []template.Field{{Key: "ref", Type: "link"}},
+	}
+	form := &storage.Form{Data: map[string]any{
+		"ref": map[string]any{
+			"href": "formidable://no-colon-here",
+			"text": "broken",
+		},
+	}}
+	m := NewManager(
+		&fakeTemplateLoader{tpl: tpl},
+		&fakeFormStore{form: form},
+		nil,
+		func(templateFilename, datafile string) string {
+			t.Errorf("strategy should not be called for malformed URLs (tpl=%q df=%q)", templateFilename, datafile)
+			return "/should/not/appear"
+		},
+		nil,
+	)
+	res, err := m.RenderForm("tpl.yaml", "df")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "[broken](formidable://no-colon-here)"
+	if res.Markdown != want {
+		t.Errorf("markdown = %q, want %q", res.Markdown, want)
 	}
 }
 
@@ -96,7 +196,8 @@ func TestManager_ImagePathStrategy(t *testing.T) {
 		func(templateFilename, name string) string {
 			return "/storage/" + templateFilename + "/images/" + name
 		},
-		nil,
+		nil, // formidable link URL
+		nil, // log
 	)
 	res, err := m.RenderForm("tpl.yaml", "df")
 	if err != nil {
@@ -125,7 +226,8 @@ func TestManager_DesktopFileURLStrategy(t *testing.T) {
 		func(templateFilename, name string) string {
 			return "file:///abs/storage/" + templateFilename + "/images/" + name
 		},
-		nil,
+		nil, // formidable link URL
+		nil, // log
 	)
 	res, err := m.RenderForm("recepten.yaml", "df")
 	if err != nil {
@@ -150,7 +252,7 @@ func TestManager_RenderFullHTML(t *testing.T) {
 		MarkdownTemplate: "---\ntitle: Spaanse Groentenschotel\n---\n# Body\n",
 	}
 	form := &storage.Form{Data: map[string]any{}}
-	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil)
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil, nil)
 
 	out, err := m.RenderFullHTML("tpl", "df.meta.json")
 	if err != nil {
@@ -182,7 +284,7 @@ func TestManager_RenderFullHTML_TitleFallback(t *testing.T) {
 	// No frontmatter title → fall back to the datafile stem.
 	tpl := &template.Template{MarkdownTemplate: "# only body\n"}
 	form := &storage.Form{Data: map[string]any{}}
-	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil)
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil, nil)
 
 	out, err := m.RenderFullHTML("tpl", "groene-tapenade.meta.json")
 	if err != nil {
@@ -198,7 +300,7 @@ func TestManager_RenderFullHTML_FrontmatterIsStrippedFromBody(t *testing.T) {
 	// in the body (RenderHTML already strips it; this guards regression).
 	tpl := &template.Template{MarkdownTemplate: "---\ntitle: My Doc\n---\n# heading\n"}
 	form := &storage.Form{Data: map[string]any{}}
-	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil)
+	m := NewManager(&fakeTemplateLoader{tpl: tpl}, &fakeFormStore{form: form}, nil, nil, nil)
 
 	out, err := m.RenderFullHTML("tpl", "df.meta.json")
 	if err != nil {
@@ -227,8 +329,9 @@ func TestManager_NoStrategyFallsBackToRelativeImagesPath(t *testing.T) {
 	m := NewManager(
 		&fakeTemplateLoader{tpl: tpl},
 		&fakeFormStore{form: form},
-		nil,
-		nil,
+		nil, // image URL
+		nil, // formidable link URL
+		nil, // log
 	)
 	res, err := m.RenderForm("tpl.yaml", "df")
 	if err != nil {

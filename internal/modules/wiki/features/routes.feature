@@ -34,6 +34,16 @@ Feature: Read-path routes
     And the response content-type is "text/html; charset=utf-8"
     And the html body contains "rendered:x.meta.json"
 
+  Scenario: Form page exposes pre-rewritten in-wiki link hrefs
+    # The wiki's render.Manager is constructed with a FormidableLinkURL
+    # strategy, so links arrive at the handler already rewritten —
+    # there's no post-process step. This scenario confirms the wiki
+    # passes through whatever the dataprovider returned.
+    Given the dataprovider renders "x.meta.json" with body containing a wiki link to "basic" "y.meta.json"
+    When I GET "/template/basic/form/x.meta.json"
+    Then the response status is 200
+    And the html body contains "/template/basic/form/y.meta.json"
+
   Scenario: Unknown form returns 404
     When I GET "/template/basic/form/ghost.meta.json"
     Then the response status is 404

@@ -14,8 +14,9 @@
 package render
 
 // Options carries per-render configuration. URL strategies are funcs so
-// the desktop and HTTP-server consumers can plug different schemes
-// without leaking storage paths into this package.
+// each consumer (in-app slideout, wiki HTTP server, future Azure/GitHub
+// wiki exporters, …) can plug a different scheme without leaking
+// transport details into this package.
 type Options struct {
 	// ImageURL resolves an image filename (stored under the template's
 	// images/ folder) to a URL. Desktop returns "file:///abs/path";
@@ -28,6 +29,14 @@ type Options struct {
 	// passed through unchanged before this is called. If nil, the
 	// emitter returns the href unchanged.
 	LinkURL func(href string) string
+
+	// FormidableLinkURL rewrites `formidable://<template>:<datafile>`
+	// hrefs into transport-specific URLs. The renderer parses the URL
+	// into its (template, datafile) pair before calling this; nil =
+	// keep the formidable:// URL as-is (slideout uses this — its Vue
+	// click interceptor handles the click). Empty-string return =
+	// fall back to the original formidable:// URL.
+	FormidableLinkURL func(templateFilename, datafile string) string
 }
 
 // Result is the dual-stage output of RenderForm.

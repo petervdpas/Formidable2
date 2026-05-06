@@ -203,21 +203,33 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 	tpl.RegisterHelper("field", func(options *raymond.Options) any {
 		params := options.Params()
 		var key, mode string
+		modeExplicit := false
 		if len(params) > 0 {
 			key, _ = params[0].(string)
 		}
 		if len(params) > 1 {
-			mode, _ = params[1].(string)
+			if s, ok := params[1].(string); ok && s != "" {
+				mode = s
+				modeExplicit = true
+			}
 		}
 		// hash form `mode=` still wins if both forms are present —
 		// matches the JS helper's hash precedence.
 		if h := options.HashStr("mode"); h != "" {
 			mode = h
+			modeExplicit = true
 		}
 		mode = strings.ToLower(mode)
-		if mode == "" {
-			mode = "label"
-		}
+		// Default mode is type-dependent:
+		//   - link fields: "default" (emit a Markdown link). The
+		//     original JS used `mode = "label"` as a function-arg
+		//     default, but handlebars.js' arity behaviour passed the
+		//     options hash into the mode slot, so unannotated calls
+		//     `{{field "k"}}` fell through to the markdown-link
+		//     branch. We emulate that intentional accident: bare
+		//     calls produce links, explicit `mode="label"` still
+		//     gives label-only.
+		//   - everything else: "label" (the documented default).
 
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -228,6 +240,15 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 			return "(unknown field: " + key + ")"
 		}
 		value := ctx[key]
+
+		if mode == "" {
+			if field.Type == "link" {
+				mode = "default"
+			} else {
+				mode = "label"
+			}
+		}
+		_ = modeExplicit // reserved for future per-field defaults
 
 		switch field.Type {
 		case "multioption":

@@ -70,7 +70,8 @@ func initRenderScenario(ctx *godog.ScenarioContext) {
 			&fakeTemplateLoader{tpl: w.tpl},
 			&fakeFormStore{form: w.form},
 			w.imageURL,
-			nil,
+			nil, // formidable link URL
+			nil, // log
 		)
 	}
 

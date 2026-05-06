@@ -294,6 +294,10 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 	if title == "" {
 		title = datafile
 	}
+	// `page.HTML` already carries `/template/<stem>/form/<datafile>`
+	// hrefs because the wiki's render.Manager was constructed with a
+	// FormidableLinkURL strategy that rewrites at the source (see
+	// internal/app/app.go's `wikiRender`). No post-process needed.
 	writeHTML(w, tplForm, formView{
 		Title:    title,
 		Stem:     stem,

@@ -146,6 +146,48 @@ func TestHelper_FieldDropdownValueMode(t *testing.T) {
 // 2 positional args where the second is the mode. Raymond's strict
 // arity rejected that until the options-only helper patch landed.
 // See third_party/raymond/CHANGES.md "options-only variadic helpers".
+// `{{field "linkkey"}}` (no mode) on a link field must emit a
+// Markdown link, not the label alone — matches the original JS's
+// behaviour where the function's mode-default got shadowed by
+// handlebars.js's arity quirk and fell through to the markdown-link
+// branch. Without this default, recipe-style `Gerelateerde recepten`
+// blocks render as plain text and the wiki/ slideout interceptors
+// have no <a> to hook into.
+func TestHelper_FieldLinkDefaultIsMarkdownLink(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "ref", Type: "link"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"ref": map[string]any{
+			"href": "formidable://other.yaml:other.meta.json",
+			"text": "See other",
+		},
+	})
+	got := renderWithCtx(t, `{{field "ref"}}`, ctx)
+	if got != "[See other](formidable://other.yaml:other.meta.json)" {
+		t.Errorf("link default should be markdown link; got %q", got)
+	}
+}
+
+// Explicit `mode="label"` should still produce label-only output.
+// The default-only fallthrough must not strip the user's ability to
+// ask for the label.
+func TestHelper_FieldLinkExplicitLabelStillTextOnly(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "ref", Type: "link"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"ref": map[string]any{
+			"href": "formidable://other.yaml:y.meta.json",
+			"text": "Hello",
+		},
+	})
+	got := renderWithCtx(t, `{{field "ref" "label"}}`, ctx)
+	if got != "Hello" {
+		t.Errorf("explicit mode=label should return text only; got %q", got)
+	}
+}
+
 func TestHelper_FieldDropdownPositionalMode(t *testing.T) {
 	tpl := &template.Template{
 		Fields: []template.Field{{

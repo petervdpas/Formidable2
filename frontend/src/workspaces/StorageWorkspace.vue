@@ -14,6 +14,7 @@ import { useFormView } from "../composables/useFormView";
 import { useConfig } from "../composables/useConfig";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useFormidableLink } from "../composables/useFormidableLink";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -282,6 +283,35 @@ async function copyToClipboard(text: string, successKey: string) {
   }
 }
 
+// formidable:// click interceptor for the HTML preview slideout.
+// The rendered body can include `<a href="formidable://tpl.yaml:datafile">`
+// (link fields). The webview can't resolve the custom scheme, so we
+// catch the click here, route through the Nav service (it parses,
+// validates, persists the selection, and emits nav:changed), and
+// close the slideout — App.vue's global nav:changed listener flips
+// to the target form.
+const formidableLink = useFormidableLink();
+async function onHtmlPreviewClick(e: MouseEvent) {
+  // Walk up the click path to the nearest <a>. Anchors inside the
+  // rendered prose can wrap inline content (img, span, code …) so a
+  // direct e.target check isn't enough.
+  let el = e.target as HTMLElement | null;
+  while (el && el !== e.currentTarget) {
+    if (el.tagName === "A") break;
+    el = el.parentElement;
+  }
+  if (!el || el.tagName !== "A") return;
+  const href = (el as HTMLAnchorElement).getAttribute("href") || "";
+  if (!href.startsWith("formidable://")) return;
+  e.preventDefault();
+  const handled = await formidableLink.follow(href);
+  if (handled) {
+    // Slideout would obscure the new form view; close it so the
+    // user lands on the freshly-loaded record cleanly.
+    htmlOpen.value = false;
+  }
+}
+
 // "Copy HTML" doesn't ship the in-app fragment — it asks the backend
 // for a self-contained document (DOCTYPE + head + inlined CSS + body)
 // so the result pastes cleanly into a .html file and renders the same.
@@ -512,7 +542,12 @@ setTopbarMenu(() => [
           <i class="fa-solid fa-copy"></i>
         </button>
       </template>
-      <div v-if="html" class="preview-html formidable-prose" v-html="html" />
+      <div
+        v-if="html"
+        class="preview-html formidable-prose"
+        v-html="html"
+        @click="onHtmlPreviewClick"
+      />
       <p v-else class="muted small">{{ t('workspace.storage.preview.html_empty') }}</p>
     </RightSlideout>
   </template>

@@ -129,6 +129,16 @@ function summaryFor(entry: Record<string, unknown>): string {
   if (typeof v === "string") {
     return v.split("\n")[0].trim() || "";
   }
+  // Link field shape `{href, text}` — prefer the human-readable text,
+  // fall back to the href so the row never collapses to "[object
+  // Object]". Other object shapes (rare in the summary slot) get
+  // JSON-stringified for at least *some* signal in the row header.
+  if (typeof v === "object") {
+    const obj = v as Record<string, unknown>;
+    if (typeof obj.text === "string" && obj.text.trim()) return obj.text.trim();
+    if (typeof obj.href === "string" && obj.href.trim()) return obj.href.trim();
+    return JSON.stringify(v);
+  }
   return String(v);
 }
 </script>

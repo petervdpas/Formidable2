@@ -28,21 +28,43 @@ type formStore interface {
 // path so static markdown export still works.
 type ImageURLFunc func(templateFilename, name string) string
 
-// Manager is the entry point Vue + the future HTTP server use to
-// render a (template, datafile) pair to markdown + HTML.
+// FormidableLinkURLFunc rewrites `formidable://<template>:<datafile>`
+// hrefs into transport-specific URLs. Each export target plugs its
+// own:
+//
+//   - in-app slideout: nil → keep formidable://, Vue interceptor handles
+//   - internal wiki: "/template/<stem>/form/<datafile>"
+//   - Azure DevOps wiki: relative `<page>.md` slug
+//   - GitHub wiki: wiki page slug
+//
+// Empty string return = fall back to the original formidable:// URL
+// (lets the rewriter punt on a malformed input without dropping it).
+type FormidableLinkURLFunc func(templateFilename, datafile string) string
+
+// Manager is the entry point Vue + the wiki HTTP server use to render
+// a (template, datafile) pair to markdown + HTML. Per-target URL
+// strategies are configured at construction; one Manager per target.
 type Manager struct {
-	templates templateLoader
-	storage   formStore
-	imageURL  ImageURLFunc
-	log       *slog.Logger
+	templates         templateLoader
+	storage           formStore
+	imageURL          ImageURLFunc
+	formidableLinkURL FormidableLinkURLFunc
+	log               *slog.Logger
 }
 
-// NewManager constructs a render Manager. log may be nil.
-func NewManager(t templateLoader, s formStore, imgURL ImageURLFunc, log *slog.Logger) *Manager {
+// NewManager constructs a render Manager. log may be nil. Pass nil
+// for either URL strategy to get the unrewritten passthrough.
+func NewManager(t templateLoader, s formStore, imgURL ImageURLFunc, linkURL FormidableLinkURLFunc, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Manager{templates: t, storage: s, imageURL: imgURL, log: log}
+	return &Manager{
+		templates:         t,
+		storage:           s,
+		imageURL:          imgURL,
+		formidableLinkURL: linkURL,
+		log:               log,
+	}
 }
 
 // RenderForm returns both the Handlebars-rendered markdown and the
@@ -85,16 +107,23 @@ func (m *Manager) RenderHTMLOnly(markdown string) (string, error) {
 	return RenderHTML(markdown)
 }
 
-// optionsFor builds the per-template Options bundle. It captures the
-// template filename in the closure so emitters resolve image URLs
-// against this template's images dir.
+// optionsFor builds the per-template Options bundle. Captures the
+// template filename in closures so the emitters don't need to thread
+// it through. Both URL strategies fall back to nil-passthrough when
+// the manager wasn't given them.
 func (m *Manager) optionsFor(templateName string) *Options {
-	if m.imageURL == nil {
-		return &Options{}
-	}
-	return &Options{
-		ImageURL: func(name string) string {
+	opts := &Options{}
+	if m.imageURL != nil {
+		opts.ImageURL = func(name string) string {
 			return m.imageURL(templateName, name)
-		},
+		}
 	}
+	if m.formidableLinkURL != nil {
+		// Note: this is invoked by resolveLinkHref AFTER it parses the
+		// formidable:// URL, so the closure receives the template+
+		// datafile pair from the URL itself, not the renderer's
+		// `templateName` (a link can point cross-template).
+		opts.FormidableLinkURL = m.formidableLinkURL
+	}
+	return opts
 }

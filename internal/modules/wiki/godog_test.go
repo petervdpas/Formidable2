@@ -353,6 +353,33 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^the html body does not contain "([^"]*)"$`, func(needle string) error {
+		if strings.Contains(w.resp.Body.String(), needle) {
+			return fmt.Errorf("body should not contain %q", needle)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the dataprovider renders "([^"]*)" with body containing a wiki link to "([^"]*)" "([^"]*)"$`,
+		func(currentDatafile, linkStem, linkDatafile string) error {
+			if w.stub == nil {
+				return fmt.Errorf("stub not initialised")
+			}
+			// The wiki context's render.Manager already rewrote the
+			// href before the handler sees it — that's what these
+			// scenarios verify the handler doesn't unintentionally
+			// undo.
+			href := "/template/" + linkStem + "/form/" + linkDatafile
+			w.stub.render = func(_, datafile string) (*dataprovider.RenderedPage, error) {
+				return &dataprovider.RenderedPage{
+					Filename: datafile,
+					Title:    "scenario",
+					HTML:     `<p>see <a href="` + href + `">other</a></p>`,
+				}, nil
+			}
+			return nil
+		})
+
 	// ── Slice 4: Service surface ─────────────────────────────────────
 
 	ctx.Step(`^a wiki service over a stub dataprovider and a configured port$`, func() error {

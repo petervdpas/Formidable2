@@ -142,20 +142,46 @@ func New(d Deps) (*App, error) {
 	// thin shim so config doesn't have to depend on form's types.
 	formM := form.NewManager(tplM, stoM, &configAdapter{cfg: cfgM}, d.Logger)
 
-	// Render manager — Handlebars→Markdown→HTML pipeline shared by the
-	// Storage workspace's Render button and the future internal HTTP
-	// server. Image URLs resolve to base64 data: URLs so the Wails
-	// webview can render them inline (the webview blocks file:// for
-	// security; Electron's renderer used to trust them, but Wails 3
-	// does not). The wiki HTTP server, when it lands, will install its
-	// own locator that produces /storage/<tpl>/images/<name> URLs.
-	renderM := render.NewManager(tplM, stoM, func(templateFilename, name string) string {
+	// Render — two managers, one per transport target. The render
+	// pipeline is identical (Handlebars → Markdown → HTML); only the
+	// URL strategies differ. Each consumer instantiates its own
+	// (image, link) pair so future export targets (Azure DevOps wiki,
+	// GitHub wiki, …) just plug in their own strategies without
+	// teaching the render module about transports.
+	//
+	//   slideoutRender — Storage workspace preview slideout + the
+	//     Wails Render service. Images come back as `data:` URLs (the
+	//     Wails webview blocks file://); formidable:// URLs pass
+	//     through, the Vue click interceptor in StorageWorkspace
+	//     resolves them via the Nav service.
+	//
+	//   wikiRender — wiki HTTP server (and dataprovider, which the
+	//     wiki consumes). Images come back as `/storage/<tpl>/images/
+	//     <name>` so the browser caches them; formidable:// URLs are
+	//     rewritten to `/template/<stem>/form/<datafile>` at the
+	//     source so links work natively as plain HTML anchors.
+	slideoutImageURL := func(templateFilename, name string) string {
 		dataURL, err := stoM.LoadImageFile(templateFilename, name)
 		if err != nil || dataURL == "" {
 			return ""
 		}
 		return dataURL
-	}, d.Logger)
+	}
+	slideoutRender := render.NewManager(tplM, stoM, slideoutImageURL, nil /*linkURL*/, d.Logger)
+
+	wikiImageURL := func(templateFilename, name string) string {
+		stem := strings.TrimSuffix(templateFilename, ".yaml")
+		return "/storage/" + stem + "/images/" + name
+	}
+	wikiLinkURL := func(templateFilename, datafile string) string {
+		stem := strings.TrimSuffix(templateFilename, ".yaml")
+		return "/template/" + stem + "/form/" + datafile
+	}
+	wikiRender := render.NewManager(tplM, stoM, wikiImageURL, wikiLinkURL, d.Logger)
+
+	// `renderM` is the slideout-context manager; the Render Wails
+	// service binds to it. Most code below references `renderM`.
+	renderM := slideoutRender
 
 	i18nM, err := i18n.NewManager(d.Logger)
 	if err != nil {
@@ -220,9 +246,12 @@ func New(d Deps) (*App, error) {
 	}
 
 	// Dataprovider — read-only facade over the index + render. The
-	// future wiki HTTP server consumes this; Vue continues to call the
-	// per-module Wails services directly.
-	dpM := dataprovider.NewManager(idxM, renderM)
+	// wiki HTTP server consumes this and gets `wikiRender` so its
+	// rendered output already carries `/template/.../form/...` and
+	// `/storage/.../images/...` URLs (no post-process regex needed).
+	// Vue continues to call the per-module Wails services directly,
+	// which use `slideoutRender` (formidable:// + data: URLs).
+	dpM := dataprovider.NewManager(idxM, wikiRender)
 
 	// Wiki — runtime-controllable HTTP server that serves rendered
 	// templates+forms from dataprovider and images from storage. The

@@ -191,12 +191,30 @@ func emitTags(v any, withHash bool) string {
 	return strings.Join(out, ", ")
 }
 
-// resolveLinkHref mirrors the relative-link branch of the original
-// link/field helpers: absolute URLs and `file:` URIs are passthrough,
-// otherwise the LinkURL strategy resolves the relative href.
+// resolveLinkHref decides the final href for a link field's value.
+// Three branches:
+//
+//   - `formidable://<template>:<datafile>` URLs go through the
+//     transport-specific rewriter when one is installed (wiki HTTP →
+//     /template/<stem>/form/<datafile>, future Azure/GitHub exports →
+//     their own slug schemes). nil hook = pass through untouched
+//     (slideout case — Vue click interceptor handles clicks in-app).
+//   - Absolute URLs (http/https/etc.) and `file:` URIs are passthrough.
+//   - Otherwise it's a relative path: LinkURL resolves it against
+//     template storage if provided.
 func resolveLinkHref(href string, opts *Options) string {
 	if href == "" {
 		return ""
+	}
+	if strings.HasPrefix(href, "formidable://") {
+		if opts != nil && opts.FormidableLinkURL != nil {
+			if tpl, df, ok := parseFormidableURL(href); ok {
+				if rewritten := opts.FormidableLinkURL(tpl, df); rewritten != "" {
+					return rewritten
+				}
+			}
+		}
+		return href
 	}
 	if isAbsoluteURL(href) || strings.HasPrefix(href, "file:") {
 		return href
@@ -205,6 +223,22 @@ func resolveLinkHref(href string, opts *Options) string {
 		return opts.LinkURL(href)
 	}
 	return href
+}
+
+// parseFormidableURL splits `formidable://<tpl>:<df>` into its parts.
+// Returns ok=false on malformed input so the caller can fall back to
+// the original href instead of producing a half-broken URL.
+func parseFormidableURL(href string) (template, datafile string, ok bool) {
+	const prefix = "formidable://"
+	if !strings.HasPrefix(href, prefix) {
+		return "", "", false
+	}
+	rest := href[len(prefix):]
+	idx := strings.Index(rest, ":")
+	if idx <= 0 || idx == len(rest)-1 {
+		return "", "", false
+	}
+	return rest[:idx], rest[idx+1:], true
 }
 
 // emitLink accepts `string` or `{href, text}`. Returns a Markdown
