@@ -126,10 +126,39 @@ func TestNew_RespectsLevel(t *testing.T) {
 
 func TestNew_OpenFailureFallsBackToStderr(t *testing.T) {
 	// Force open to fail; logger should still be usable.
-	prev := openAppendFile
-	t.Cleanup(func() { openAppendFile = prev })
-	openAppendFile = func(string) (*os.File, error) { return nil, os.ErrPermission }
+	prev := openLogFile
+	t.Cleanup(func() { openLogFile = prev })
+	openLogFile = func(string) (*os.File, error) { return nil, os.ErrPermission }
 
 	l := New(Options{AppRoot: t.TempDir()})
 	l.Info("still alive") // must not panic
+}
+
+// TestNew_TruncatesPreviousRun verifies that each call to New() with
+// file logging on starts the log file from scratch. Prevents the log
+// from growing across app restarts (and matches user expectation when
+// reading "fresh" logs after launching).
+func TestNew_TruncatesPreviousRun(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, defaultFileName)
+
+	// Pre-existing log content from a "previous run".
+	if err := os.WriteFile(path, []byte("OLD entry from a previous run\n"), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	l := New(Options{AppRoot: dir})
+	l.Info("fresh entry")
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	s := string(body)
+	if strings.Contains(s, "OLD entry") {
+		t.Errorf("log file should be wiped on New(); got: %q", s)
+	}
+	if !strings.Contains(s, "fresh entry") {
+		t.Errorf("expected fresh entry in: %q", s)
+	}
 }

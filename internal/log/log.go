@@ -1,10 +1,11 @@
 // Package log builds the application's structured logger.
 //
 // The logger always writes to stderr and (by default) tees to
-// <AppRoot>/formidable.log. Level can be set programmatically via
-// Options.Level or via the FORMIDABLE_LOG_LEVEL environment variable.
-// File output can be disabled by setting FORMIDABLE_LOG_FILE to "0",
-// "false", or "off".
+// <AppRoot>/formidable.log. The log file is truncated on every
+// New() call, so each app start begins with a fresh log. Level can
+// be set programmatically via Options.Level or via the
+// FORMIDABLE_LOG_LEVEL environment variable. File output can be
+// disabled by setting FORMIDABLE_LOG_FILE to "0", "false", or "off".
 package log
 
 import (
@@ -56,7 +57,7 @@ func New(opts Options) *slog.Logger {
 			fileName = defaultFileName
 		}
 		path := filepath.Join(opts.AppRoot, fileName)
-		if f, err := openAppendFile(path); err == nil {
+		if f, err := openLogFile(path); err == nil {
 			writer = io.MultiWriter(os.Stderr, f)
 		}
 	}
@@ -103,14 +104,16 @@ func pickUseFile(explicit *bool) bool {
 	return true
 }
 
-// openAppendFile is a var so tests can override file-open behaviour without
-// touching the filesystem. Uses an internal mutex to avoid the rare race of
-// two New() calls opening the same path concurrently in tests.
+// openLogFile opens the log file for the current process, truncating
+// any previous content so each app start gets a fresh log. Exposed as
+// a var so tests can override file-open behaviour without touching the
+// filesystem. The mutex avoids a rare race when two New() calls hit the
+// same path concurrently (tests).
 var (
-	openMu        sync.Mutex
-	openAppendFile = func(path string) (*os.File, error) {
+	openMu      sync.Mutex
+	openLogFile = func(path string) (*os.File, error) {
 		openMu.Lock()
 		defer openMu.Unlock()
-		return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		return os.OpenFile(path, os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0o644)
 	}
 )
