@@ -73,6 +73,18 @@ async function refreshList() {
   try {
     await FormSvc.EnsureFormDir(selectedTemplate.value);
     summaries.value = await FormSvc.ListForms(selectedTemplate.value);
+    // Drop a stale `selected_data_file` if it doesn't exist in the
+    // current template's storage. Without this, switching templates
+    // (or coming back later after the form was deleted on disk by
+    // sync/external means) leaves the workspace pointing at a
+    // phantom file: the form view then renders default values under
+    // the orphan filename, which looks broken. The config field is
+    // global rather than per-template, so this guard is the only
+    // place it can be reconciled.
+    const df = selectedDataFile.value;
+    if (df && !summaries.value.some((s) => s.filename === df)) {
+      selectedDataFile.value = "";
+    }
   } catch (err) {
     listError.value = String(err);
     summaries.value = [];
