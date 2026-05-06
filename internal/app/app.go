@@ -30,6 +30,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/template"
+	"github.com/petervdpas/formidable2/internal/modules/wiki"
 )
 
 // EmitFunc bridges journal events to whatever transport the host
@@ -78,6 +79,7 @@ type App struct {
 	Dialog   *dialog.Service
 	Render   *render.Service
 	Nav      *nav.Service
+	Wiki     *wiki.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -88,6 +90,7 @@ type App struct {
 	indexManager    *index.Manager
 	indexEvents     *index.EventHandler
 	dataProvider    *dataprovider.Manager
+	wikiManager     *wiki.Manager
 	emitter         *emitterRelay
 	deps            Deps
 }
@@ -221,6 +224,34 @@ func New(d Deps) (*App, error) {
 	// per-module Wails services directly.
 	dpM := dataprovider.NewManager(idxM, renderM)
 
+	// Wiki — runtime-controllable HTTP server that serves rendered
+	// templates+forms from dataprovider and images from storage. The
+	// in-app About workspace toggles it on/off via Wiki service. The
+	// window-opener hook is installed by main.go after the Wails
+	// application exists; until then OpenInternalWiki returns an error.
+	wikiM := wiki.NewManager(d.Logger)
+	wikiHandler := wiki.NewHandler(dpM, stoM)
+	wikiM.SetHandler(wikiHandler)
+	wikiSvc := wiki.NewService(wikiM,
+		func() int {
+			cfg, err := cfgM.LoadUserConfig()
+			if err != nil || cfg.InternalServerPort == 0 {
+				return 8383
+			}
+			return cfg.InternalServerPort
+		},
+		openInDefaultBrowser,
+		nil, // window opener installed via App.SetWindowOpener
+	)
+
+	// Auto-start when the user's config asks for it. Best-effort:
+	// failure is logged so the rest of the app still boots.
+	if cfg, err := cfgM.LoadUserConfig(); err == nil && cfg.EnableInternalServer {
+		if err := wikiSvc.StartServer(); err != nil {
+			d.Logger.Warn("wiki: auto-start failed", "err", err)
+		}
+	}
+
 	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -236,6 +267,7 @@ func New(d Deps) (*App, error) {
 		Dialog:          dialog.NewService(),
 		Render:          render.NewService(renderM),
 		Nav:             nav.NewService(navM),
+		Wiki:            wikiSvc,
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
@@ -245,9 +277,21 @@ func New(d Deps) (*App, error) {
 		indexManager:    idxM,
 		indexEvents:     ehM,
 		dataProvider:    dpM,
+		wikiManager:     wikiM,
 		emitter:         emitter,
 		deps:            d,
 	}, nil
+}
+
+// SetWindowOpener installs the Wails-aware function used by
+// Wiki.OpenInternalWiki to spawn an in-app webview window. main.go
+// calls this after the Wails application is built (the application
+// pointer doesn't exist when New() runs). Pass nil to disable.
+func (a *App) SetWindowOpener(fn func(url string) error) {
+	if a == nil || a.Wiki == nil {
+		return
+	}
+	wiki.InstallWindowOpener(a.Wiki, fn)
 }
 
 // SetEmit installs the transport that journal events flow through.

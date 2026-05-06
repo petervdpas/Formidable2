@@ -54,6 +54,14 @@ type world struct {
 
 	// Slice 3 — /storage/*
 	stubSt *stubStorage
+
+	// Slice 4 — Service surface
+	svc            *Service
+	configPort     int
+	rememberSvcPort int
+	browserURL     string
+	windowURL      string
+	actionErr      error
 }
 
 func (w *world) reset() {
@@ -62,6 +70,9 @@ func (w *world) reset() {
 	}
 	if w.mSecond != nil {
 		_ = w.mSecond.Stop()
+	}
+	if w.svc != nil {
+		_ = w.svc.StopServer()
 	}
 	*w = world{}
 }
@@ -330,6 +341,149 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the html body contains "([^"]*)"$`, func(needle string) error {
 		if !strings.Contains(w.resp.Body.String(), needle) {
 			return fmt.Errorf("body missing %q", needle)
+		}
+		return nil
+	})
+
+	// ── Slice 4: Service surface ─────────────────────────────────────
+
+	ctx.Step(`^a wiki service over a stub dataprovider and a configured port$`, func() error {
+		w.stub = newStubProvider()
+		w.stubSt = newStubStorage()
+		w.handler = NewHandler(w.stub, w.stubSt)
+		w.m = NewManager(nil)
+		w.m.SetHandler(w.handler)
+		w.svc = NewService(w.m, func() int { return w.configPort },
+			func(url string) error { w.browserURL = url; return nil },
+			nil) // window opener installed only when scenario asks
+		return nil
+	})
+
+	ctx.Step(`^the configured port is (\d+)$`, func(p int) error {
+		w.configPort = p
+		return nil
+	})
+
+	ctx.Step(`^the configured port changes to (\d+)$`, func(p int) error {
+		w.configPort = p
+		return nil
+	})
+
+	ctx.Step(`^the service has started the server$`, func() error {
+		return w.svc.StartServer()
+	})
+
+	ctx.Step(`^I StartServer through the service$`, func() error {
+		w.actionErr = w.svc.StartServer()
+		return nil
+	})
+
+	ctx.Step(`^I StopServer through the service$`, func() error {
+		w.actionErr = w.svc.StopServer()
+		return nil
+	})
+
+	ctx.Step(`^I OpenInBrowser through the service$`, func() error {
+		w.actionErr = w.svc.OpenInBrowser()
+		return nil
+	})
+
+	ctx.Step(`^I OpenInternalWiki through the service$`, func() error {
+		w.actionErr = w.svc.OpenInternalWiki()
+		return nil
+	})
+
+	ctx.Step(`^a window opener is installed$`, func() error {
+		InstallWindowOpener(w.svc, func(url string) error {
+			w.windowURL = url
+			return nil
+		})
+		return nil
+	})
+
+	ctx.Step(`^I remember the service port$`, func() error {
+		w.rememberSvcPort = w.svc.GetServerStatus().Port
+		return nil
+	})
+
+	ctx.Step(`^the service reports running$`, func() error {
+		if !w.svc.GetServerStatus().Running {
+			return fmt.Errorf("service not running")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the service reports not running$`, func() error {
+		if w.svc.GetServerStatus().Running {
+			return fmt.Errorf("service unexpectedly running")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the service-reported port is non-zero$`, func() error {
+		if got := w.svc.GetServerStatus().Port; got == 0 {
+			return fmt.Errorf("service port = 0")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the service-reported port is zero$`, func() error {
+		if got := w.svc.GetServerStatus().Port; got != 0 {
+			return fmt.Errorf("service port = %d, want 0", got)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the new service-reported port differs from the remembered one$`, func() error {
+		got := w.svc.GetServerStatus().Port
+		if got == w.rememberSvcPort {
+			return fmt.Errorf("port did not change: still %d", got)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the service action returned an error containing "([^"]*)"$`, func(needle string) error {
+		if w.actionErr == nil {
+			return fmt.Errorf("expected error, got nil")
+		}
+		if !strings.Contains(w.actionErr.Error(), needle) {
+			return fmt.Errorf("error %q missing %q", w.actionErr.Error(), needle)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the registered browser opener was invoked with the loopback URL$`, func() error {
+		want := fmt.Sprintf("http://127.0.0.1:%d/", w.svc.GetServerStatus().Port)
+		if w.browserURL != want {
+			return fmt.Errorf("browser url = %q, want %q", w.browserURL, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the registered window opener was invoked with the loopback URL$`, func() error {
+		want := fmt.Sprintf("http://127.0.0.1:%d/", w.svc.GetServerStatus().Port)
+		if w.windowURL != want {
+			return fmt.Errorf("window url = %q, want %q", w.windowURL, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I HTTP GET the service root URL$`, func() error {
+		port := w.svc.GetServerStatus().Port
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", port))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		w.resp = httptest.NewRecorder()
+		w.resp.Code = resp.StatusCode
+		_, _ = io.Copy(w.resp.Body, resp.Body)
+		return nil
+	})
+
+	ctx.Step(`^the live response status is (\d+)$`, func(want int) error {
+		if w.resp.Code != want {
+			return fmt.Errorf("status = %d, want %d", w.resp.Code, want)
 		}
 		return nil
 	})

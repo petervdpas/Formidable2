@@ -45,6 +45,21 @@ func main() {
 		wapp.Event.Emit(name, data)
 	})
 
+	// Install the Wails-aware window opener so wiki.OpenInternalWiki
+	// can spawn an in-app webview window pointed at the loopback
+	// server. Composition root left this as nil because the Wails
+	// application doesn't exist yet at App.New() time.
+	a.SetWindowOpener(func(url string) error {
+		wapp.Window.NewWithOptions(application.WebviewWindowOptions{
+			Title:    "Formidable2 — Wiki",
+			Width:    1024,
+			Height:   800,
+			MinWidth: 600,
+			URL:      url,
+		})
+		return nil
+	})
+
 	winOpts := application.WebviewWindowOptions{
 		Title:     "Formidable2",
 		Width:     1024,

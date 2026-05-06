@@ -25,14 +25,13 @@ type Provider interface {
 }
 
 // Storage is the bytes-side surface the wiki uses for `/storage/*`.
-// The real `*storage.Manager.OpenImageFile` satisfies it; tests pass
-// in a stub. Returns nil bytes (not an error) when the file is
-// missing — mirrors LoadForm's "missing isn't an error" semantics
-// and lets the handler decide on the 404 status.
+// The method shape mirrors `*storage.Manager.OpenImageFile` so the
+// real manager satisfies it without an adapter; tests pass in a
+// stub. Returns nil bytes (not an error) when the file is missing —
+// mirrors LoadForm's "missing isn't an error" semantics and lets
+// the handler decide on the 404 status.
 type Storage interface {
-	// OpenImage returns the raw bytes + MIME type for an image, or
-	// (nil, "", nil) when the file is missing.
-	OpenImage(templateFilename, name string) ([]byte, string, error)
+	OpenImageFile(templateFilename, name string) ([]byte, string, error)
 }
 
 // Handler owns the read-path routes. NewHandler returns an
@@ -241,7 +240,7 @@ func (h *Handler) image(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	templateFilename := stem + ".yaml"
-	raw, mime, err := h.st.OpenImage(templateFilename, name)
+	raw, mime, err := h.st.OpenImageFile(templateFilename, name)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -67,7 +67,7 @@ type stubStorage struct {
 	returnError error
 }
 
-func (s *stubStorage) OpenImage(templateFilename, name string) ([]byte, string, error) {
+func (s *stubStorage) OpenImageFile(templateFilename, name string) ([]byte, string, error) {
 	if s.returnError != nil {
 		return nil, "", s.returnError
 	}
