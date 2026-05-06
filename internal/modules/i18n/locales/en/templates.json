@@ -19,6 +19,7 @@
   "workspace.templates.field_edit.delete_confirm": "Permanently delete the field “{0}”? This action can't be undone until you Save.",
   "workspace.templates.field_edit.delete_title": "Delete field",
   "workspace.templates.field_edit.row.default": "Default value",
+  "workspace.templates.field_edit.row.collapsible": "Collapsible",
   "workspace.templates.field_edit.row.description": "Description",
   "workspace.templates.field_edit.row.expression_item": "Expression field",
   "workspace.templates.field_edit.row.format": "Format",
