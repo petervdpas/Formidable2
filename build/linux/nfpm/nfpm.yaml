@@ -3,7 +3,7 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "formidable2"
+name: "formidable"
 arch: ${GOARCH}
 platform: "linux"
 version: "3.0.0"
@@ -17,12 +17,17 @@ license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/formidable2"
-    dst: "/usr/local/bin/formidable2"
+  # All install paths use the same PascalCase as APP_NAME so they line
+  # up with what Wails actually emits (bin/Formidable,
+  # build/linux/Formidable.desktop) and with the Wails-generated
+  # .desktop's Exec=Formidable / Icon=Formidable. No rename steps,
+  # no case-sensitivity surprises on the Linux packaging path.
+  - src: "./bin/Formidable"
+    dst: "/usr/local/bin/Formidable"
   - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/formidable2.png"
-  - src: "./build/linux/formidable2.desktop"
-    dst: "/usr/share/applications/formidable2.desktop"
+    dst: "/usr/share/icons/hicolor/128x128/apps/Formidable.png"
+  - src: "./build/linux/Formidable.desktop"
+    dst: "/usr/share/applications/Formidable.desktop"
 
 # Default dependencies for Debian 12/Ubuntu 22.04+ with WebKit 4.1
 depends:

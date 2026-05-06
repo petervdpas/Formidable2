@@ -1,4 +1,4 @@
-// Package app is Formidable2's composition root.
+// Package app is Formidable's composition root.
 //
 // It constructs every domain module with its dependencies, exposes the
 // Wails service list to main.go, and (later) registers the loopback
@@ -252,7 +252,7 @@ func New(d Deps) (*App, error) {
 		}
 	}
 
-	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
+	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
 		System:          system.NewService(sysM),

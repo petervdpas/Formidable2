@@ -1,4 +1,4 @@
-// Package csv reads and writes CSV files for Formidable2. Mirrors
+// Package csv reads and writes CSV files for Formidable. Mirrors
 // `controls/csvManager.js` semantics — header row first, RFC-4180
 // quoting, configurable delimiter, LF line endings.
 //

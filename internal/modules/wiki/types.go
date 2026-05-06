@@ -1,4 +1,4 @@
-// Package wiki owns Formidable2's runtime-controllable HTTP server.
+// Package wiki owns Formidable's runtime-controllable HTTP server.
 //
 // The original Formidable's `controls/internalServer.js` exposed the
 // templates + storage tree as a small wiki + JSON API for plugins,

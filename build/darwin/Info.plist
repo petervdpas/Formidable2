@@ -6,7 +6,7 @@
         <key>CFBundleName</key>
             <string>Formidable</string>
         <key>CFBundleExecutable</key>
-            <string>formidable2</string>
+            <string>Formidable</string>
         <key>CFBundleIdentifier</key>
             <string>com.formidable.editor</string>
         <key>CFBundleVersion</key>

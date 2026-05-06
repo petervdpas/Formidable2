@@ -1,4 +1,4 @@
-// Package form is Formidable2's form-view orchestrator. It sits above
+// Package form is Formidable's form-view orchestrator. It sits above
 // the template + storage modules and exposes the single object Vue
 // needs to render and round-trip one (template, datafile) pair.
 //

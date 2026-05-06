@@ -30,7 +30,7 @@ func main() {
 	}
 
 	wapp := application.New(application.Options{
-		Name:        "Formidable2",
+		Name:        "Formidable",
 		Description: "Editor for templates and Markdown forms",
 		Services:    a.WailsServices(),
 		Assets: application.AssetOptions{
@@ -51,7 +51,7 @@ func main() {
 	// application doesn't exist yet at App.New() time.
 	a.SetWindowOpener(func(url string) error {
 		wapp.Window.NewWithOptions(application.WebviewWindowOptions{
-			Title:    "Formidable2 — Wiki",
+			Title:    "Formidable — Wiki",
 			Width:    1024,
 			Height:   800,
 			MinWidth: 600,
@@ -61,7 +61,7 @@ func main() {
 	})
 
 	winOpts := application.WebviewWindowOptions{
-		Title:     "Formidable2",
+		Title:     "Formidable",
 		Width:     1024,
 		Height:    800,
 		MinWidth:  800,

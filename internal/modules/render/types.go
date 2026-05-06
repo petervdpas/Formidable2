@@ -1,4 +1,4 @@
-// Package render is Formidable2's two-stage Handlebars→Markdown→HTML
+// Package render is Formidable's two-stage Handlebars→Markdown→HTML
 // pipeline. It mirrors the original `controls/markdownRenderer.js` +
 // `controls/htmlRenderer.js` and is shared by the Storage workspace's
 // "Render" button and the future internal HTTP server.

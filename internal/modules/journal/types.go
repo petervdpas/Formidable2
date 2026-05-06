@@ -1,4 +1,4 @@
-// Package journal is Formidable2's append-only change journal. It
+// Package journal is Formidable's append-only change journal. It
 // records mutations under a context folder's templates/ and storage/
 // trees plus per-backend (git, gigot) sync markers, and tracks the
 // "pending changes" set in memory so reads are O(1).
