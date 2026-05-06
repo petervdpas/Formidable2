@@ -12,12 +12,17 @@ import (
 	"path/filepath"
 	"sync"
 
+	"context"
+	"strings"
+
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
+	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/dialog"
 	"github.com/petervdpas/formidable2/internal/modules/form"
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
+	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/petervdpas/formidable2/internal/modules/render"
@@ -80,6 +85,9 @@ type App struct {
 	renderManager   *render.Manager
 	navManager      *nav.Manager
 	journalManager  *journal.Manager
+	indexManager    *index.Manager
+	indexEvents     *index.EventHandler
+	dataProvider    *dataprovider.Manager
 	emitter         *emitterRelay
 	deps            Deps
 }
@@ -168,6 +176,45 @@ func New(d Deps) (*App, error) {
 		_ = jrnM.Init()
 	}
 
+	// Index — per-profile SQLite cache that backs the future wiki/API.
+	// Lives at <AppRoot>/index/<profile-stem>.db. Read-side never
+	// touches disk; writes go through the manager hooks below and via
+	// RescanAll on startup (catches sync/external edits we missed).
+	contextRoot, err := cfgM.GetContextPath()
+	if err != nil {
+		return nil, fmt.Errorf("init index: resolve context: %w", err)
+	}
+	profileStem := strings.TrimSuffix(cfgM.CurrentProfileFilename(), filepath.Ext(cfgM.CurrentProfileFilename()))
+	if profileStem == "" {
+		profileStem = "default"
+	}
+	indexDBPath := filepath.Join(d.AppRoot, "index", profileStem+".db")
+	idxM, err := index.NewManager(indexDBPath)
+	if err != nil {
+		return nil, fmt.Errorf("init index: open %q: %w", indexDBPath, err)
+	}
+
+	// EventHandler bridges template/storage save+delete events into the
+	// index. The loader adapter wraps the existing managers with the
+	// stat() call the index needs for mtime/size tracking.
+	loaderAdapter := newIndexLoaderAdapter(tplM, stoM)
+	ehM := index.NewEventHandler(idxM, loaderAdapter, loaderAdapter)
+	ehM.SetRoot(contextRoot)
+	tplM.SetIndexer(ehM)
+	stoM.SetIndexer(ehM)
+
+	// First-boot reconcile — picks up anything that landed on disk
+	// while the app was off (gigot pull, manual edits, etc.). Logged-
+	// best-effort: the index is a derived view, app boots regardless.
+	if err := ehM.RescanAll(context.Background()); err != nil {
+		d.Logger.Warn("index initial RescanAll failed", "err", err)
+	}
+
+	// Dataprovider — read-only facade over the index + render. The
+	// future wiki HTTP server consumes this; Vue continues to call the
+	// per-module Wails services directly.
+	dpM := dataprovider.NewManager(idxM, renderM)
+
 	d.Logger.Info("formidable2 starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -189,6 +236,9 @@ func New(d Deps) (*App, error) {
 		renderManager:   renderM,
 		navManager:      navM,
 		journalManager:  jrnM,
+		indexManager:    idxM,
+		indexEvents:     ehM,
+		dataProvider:    dpM,
 		emitter:         emitter,
 		deps:            d,
 	}, nil

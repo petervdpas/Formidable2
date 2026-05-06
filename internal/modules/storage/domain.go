@@ -35,6 +35,15 @@ const (
 	imagesDir = "images"
 )
 
+// Indexer is the post-write hook surface a downstream cache plugs
+// into for forms (the SQLite index used by the wiki/API). Failures
+// are logged at the manager and never propagated — the index is a
+// derived view, never authoritative.
+type Indexer interface {
+	OnFormChanged(templateFilename, datafile string) error
+	OnFormDeleted(templateFilename, datafile string) error
+}
+
 // Manager owns CRUD over the per-template storage tree.
 type Manager struct {
 	fs        fs
@@ -42,6 +51,7 @@ type Manager struct {
 	templates templateLoader
 	log       *slog.Logger
 	storageDir string // base storage path (absolute or relative to fs root)
+	indexer   Indexer
 }
 
 // NewManager builds the manager. storageDir is the storage root
@@ -62,6 +72,16 @@ func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, stor
 		storageDir: storageDir,
 	}
 }
+
+// SetIndexer installs the post-write hook for form save/delete.
+// Composition root calls this after building the index event handler.
+// Pass nil to disable.
+func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
+
+// StorageDir returns the absolute storage root, used by the
+// composition root to stat form files (mtime + size for the index
+// loader adapter).
+func (m *Manager) StorageDir() string { return m.storageDir }
 
 // EnsureFormDir creates <storage>/<template-name>/ if missing.
 func (m *Manager) EnsureFormDir(templateFilename string) error {
@@ -135,6 +155,12 @@ func (m *Manager) SaveForm(templateFilename, datafile string, data map[string]an
 
 	envelope := Sanitize(data, fields, opts)
 	r := m.sfr.SaveFromBase(dir, datafile, envelope, sfr.Options{})
+	if r.Success && m.indexer != nil {
+		if err := m.indexer.OnFormChanged(templateFilename, datafile); err != nil {
+			m.log.Warn("storage indexer save hook failed",
+				"template", templateFilename, "datafile", datafile, "err", err)
+		}
+	}
 	return SaveResult{Success: r.Success, Path: r.Path, Error: r.Error}
 }
 
@@ -144,7 +170,16 @@ func (m *Manager) DeleteForm(templateFilename, datafile string) error {
 		return errors.New("storage: empty datafile")
 	}
 	dir := m.templateDir(templateFilename)
-	return m.sfr.DeleteFromBase(dir, datafile, sfr.Options{})
+	if err := m.sfr.DeleteFromBase(dir, datafile, sfr.Options{}); err != nil {
+		return err
+	}
+	if m.indexer != nil {
+		if err := m.indexer.OnFormDeleted(templateFilename, datafile); err != nil {
+			m.log.Warn("storage indexer delete hook failed",
+				"template", templateFilename, "datafile", datafile, "err", err)
+		}
+	}
+	return nil
 }
 
 // LoadImageFile reads <storage>/<template-name>/images/<name> and returns

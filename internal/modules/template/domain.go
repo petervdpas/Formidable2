@@ -26,12 +26,22 @@ const (
 	basicYAMLName  = "basic.yaml"
 )
 
+// Indexer is the post-write hook surface a downstream cache (e.g. the
+// SQLite index used by the wiki/API) plugs into. Manager fires it
+// after a successful Save/Delete; failures are logged at the manager
+// and never propagated — the index is a derived view, never authoritative.
+type Indexer interface {
+	OnTemplateChanged(filename string) error
+	OnTemplateDeleted(filename string) error
+}
+
 // Manager holds the template directory binding.
 // Stateless beyond its dependencies (no caching — config owns the VFS cache).
 type Manager struct {
 	fs           fs
 	log          *slog.Logger
 	templatesDir string
+	indexer      Indexer
 }
 
 // NewManager constructs a template manager rooted at <templatesDir> under
@@ -45,6 +55,16 @@ func NewManager(filesystem fs, templatesDir string, log *slog.Logger) *Manager {
 	}
 	return &Manager{fs: filesystem, log: log, templatesDir: templatesDir}
 }
+
+// SetIndexer installs the post-write hook. Composition root calls this
+// after building both the template manager and the index event handler.
+// Pass nil to disable.
+func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
+
+// TemplatesDir returns the absolute path of the templates folder.
+// Used by the composition root to stat individual template files
+// (mtime + size for the index loader adapter).
+func (m *Manager) TemplatesDir() string { return m.templatesDir }
 
 // EnsureTemplateDirectory creates the templates folder if missing.
 func (m *Manager) EnsureTemplateDirectory() error {
@@ -114,7 +134,15 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 		return fmt.Errorf("template: marshal: %w", err)
 	}
 	full := m.fs.JoinPath(m.templatesDir, name)
-	return m.fs.SaveFile(full, string(bytes))
+	if err := m.fs.SaveFile(full, string(bytes)); err != nil {
+		return err
+	}
+	if m.indexer != nil {
+		if err := m.indexer.OnTemplateChanged(name); err != nil {
+			m.log.Warn("template indexer save hook failed", "name", name, "err", err)
+		}
+	}
+	return nil
 }
 
 // DeleteTemplate removes the named template file. Missing file is a no-op
@@ -124,7 +152,15 @@ func (m *Manager) DeleteTemplate(name string) error {
 		return errors.New("template: empty name")
 	}
 	full := m.fs.JoinPath(m.templatesDir, name)
-	return m.fs.DeleteFile(full)
+	if err := m.fs.DeleteFile(full); err != nil {
+		return err
+	}
+	if m.indexer != nil {
+		if err := m.indexer.OnTemplateDeleted(name); err != nil {
+			m.log.Warn("template indexer delete hook failed", "name", name, "err", err)
+		}
+	}
+	return nil
 }
 
 // Validate runs the validation pipeline on an in-memory template.
