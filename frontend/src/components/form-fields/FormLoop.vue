@@ -3,10 +3,23 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import FormLoopFields from "./FormLoopFields.vue";
+import { useToast } from "../../composables/useToast";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 
 const { t } = useI18n();
+const toast = useToast();
+
+// Block a drag attempt on an expanded row at the mousedown layer —
+// vuedraggable hasn't started its drag tracking yet, so e.preventDefault
+// on the mousedown bubbling up from the handle stops it cleanly. Toast
+// gives the user immediate feedback on why nothing moved.
+function onHandleMousedown(e: MouseEvent, i: number) {
+  if (collapsed.value[i]) return;
+  e.preventDefault();
+  e.stopPropagation();
+  toast.warn("workspace.storage.field.drag_collapse_first");
+}
 
 // FormLoop renders one loopstart/loopstop pair as a list of items.
 // Each item's value is a Record<string, unknown> with the inner
@@ -172,10 +185,21 @@ function summaryFor(entry: Record<string, unknown>): string {
       <template #item="{ index: i, element: entry }">
         <div :class="['form-loop-item', { collapsed: collapsed[i] }]">
           <div class="form-loop-item-header">
+            <!--
+              Drag handle is always visible. When the row is expanded
+              we intercept mousedown on the handle, prevent the drag,
+              and toast a hint to collapse first. Keeps the row
+              layout stable instead of the handle disappearing
+              mid-edit.
+            -->
             <span
               class="dnd-handle"
-              :title="t('workspace.storage.field.drag_to_reorder')"
+              :class="{ disabled: !collapsed[i] }"
+              :title="collapsed[i]
+                ? t('workspace.storage.field.drag_to_reorder')
+                : t('workspace.storage.field.drag_collapse_first')"
               aria-hidden="true"
+              @mousedown="onHandleMousedown($event, i)"
             >⠿</span>
 
             <button

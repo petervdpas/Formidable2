@@ -10,6 +10,7 @@
   "workspace.storage.field.add_item": "Add item",
   "workspace.storage.field.add_loop_item": "Add Loop Item",
   "workspace.storage.field.add_row": "Add row",
+  "workspace.storage.field.drag_collapse_first": "Collapse the loop item before dragging it.",
   "workspace.storage.field.drag_to_reorder": "Drag to reorder",
   "workspace.storage.field.image_choose": "Choose image…",
   "workspace.storage.field.image_clear": "Clear",

@@ -10,6 +10,7 @@
   "workspace.storage.field.add_item": "Item toevoegen",
   "workspace.storage.field.add_loop_item": "Lus-item toevoegen",
   "workspace.storage.field.add_row": "Rij toevoegen",
+  "workspace.storage.field.drag_collapse_first": "Klap het loop-item eerst in om het te kunnen slepen.",
   "workspace.storage.field.drag_to_reorder": "Sleep om te herordenen",
   "workspace.storage.field.image_choose": "Afbeelding kiezen…",
   "workspace.storage.field.image_clear": "Wissen",
