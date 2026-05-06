@@ -106,13 +106,48 @@ func (s *Service) OpenInternalWiki() error {
 	return s.openWindow(url)
 }
 
+// OpenAPIDocsInBrowser opens the Swagger UI page in the host
+// platform's default browser. Same machinery as OpenInBrowser; only
+// the URL path differs ("/api/docs/" vs "/"). Server must be running.
+func (s *Service) OpenAPIDocsInBrowser() error {
+	url, err := s.urlFor("/api/docs/")
+	if err != nil {
+		return err
+	}
+	if s.openBrowser == nil {
+		return errors.New("wiki: OpenAPIDocsInBrowser not supported on this build")
+	}
+	return s.openBrowser(url)
+}
+
+// OpenAPIDocsInWindow spawns the in-app webview window at the
+// Swagger UI URL. Mirrors OpenInternalWiki; the docs become a
+// separate window the user can leave open while editing.
+func (s *Service) OpenAPIDocsInWindow() error {
+	url, err := s.urlFor("/api/docs/")
+	if err != nil {
+		return err
+	}
+	if s.openWindow == nil {
+		return errors.New("wiki: OpenAPIDocsInWindow not wired up")
+	}
+	return s.openWindow(url)
+}
+
 // rootURL builds the loopback URL for the running server. Returns
 // an error when the server is not running — opening a URL that
 // would 502 isn't useful UX.
 func (s *Service) rootURL() (string, error) {
+	return s.urlFor("/")
+}
+
+// urlFor builds a loopback URL with the given path. Centralised so
+// "server-not-running" handling stays in one place — every opener
+// reuses this and surfaces the same error message.
+func (s *Service) urlFor(path string) (string, error) {
 	st := s.m.Status()
 	if !st.Running {
 		return "", errors.New("wiki: server is not running")
 	}
-	return fmt.Sprintf("http://127.0.0.1:%d/", st.Port), nil
+	return fmt.Sprintf("http://127.0.0.1:%d%s", st.Port, path), nil
 }

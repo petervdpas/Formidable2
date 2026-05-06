@@ -8,6 +8,7 @@ package app
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"strings"
 
 	applog "github.com/petervdpas/formidable2/internal/log"
+	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
@@ -260,7 +262,17 @@ func New(d Deps) (*App, error) {
 	// application exists; until then OpenInternalWiki returns an error.
 	wikiM := wiki.NewManager(d.Logger)
 	wikiHandler := wiki.NewHandler(dpM, stoM)
-	wikiM.SetHandler(wikiHandler)
+
+	// REST API peer surface — `/api/...` routes (collections CRUD-read,
+	// design, exports, OpenAPI spec, Swagger UI). Mounted alongside the
+	// wiki HTML chrome on the same loopback listener; Go's mux routes
+	// `/api/*` to the api handler and everything else to wiki by
+	// longest-prefix match.
+	apiHandler := api.NewHandler(dpM, stoM, tplM)
+	top := http.NewServeMux()
+	top.Handle("/api/", apiHandler)
+	top.Handle("/", wikiHandler)
+	wikiM.SetHandler(top)
 	wikiSvc := wiki.NewService(wikiM,
 		func() int {
 			cfg, err := cfgM.LoadUserConfig()

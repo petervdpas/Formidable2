@@ -6,7 +6,15 @@ import { useToast } from "../../composables/useToast";
 
 const { t } = useI18n();
 const toast = useToast();
-const { status, start, stop, openBrowser, openInternal } = useWikiServer();
+const {
+  status,
+  start,
+  stop,
+  openBrowser,
+  openInternal,
+  openAPIDocsInBrowser,
+  openAPIDocsInWindow,
+} = useWikiServer();
 
 const running = computed(() => status.value?.running === true);
 const port = computed(() => status.value?.port ?? 0);
@@ -44,6 +52,20 @@ async function doOpenBrowser() {
 
 async function doOpenInternal() {
   const r = await openInternal();
+  if (!r.ok) {
+    toast.error("workspace.information.server.toast_action_failed", [r.message]);
+  }
+}
+
+async function doOpenAPIDocsBrowser() {
+  const r = await openAPIDocsInBrowser();
+  if (!r.ok) {
+    toast.error("workspace.information.server.toast_action_failed", [r.message]);
+  }
+}
+
+async function doOpenAPIDocsWindow() {
+  const r = await openAPIDocsInWindow();
   if (!r.ok) {
     toast.error("workspace.information.server.toast_action_failed", [r.message]);
   }
@@ -92,6 +114,25 @@ async function doOpenInternal() {
     </button>
   </div>
 
+  <div class="server-action-row">
+    <span class="action-row-label">{{ t('workspace.information.server.api_docs_label') }}</span>
+    <span class="server-action-spacer"></span>
+    <button
+      class="tool-btn"
+      :disabled="!running"
+      @click="doOpenAPIDocsBrowser"
+    >
+      {{ t('workspace.information.server.open_api_docs_browser') }}
+    </button>
+    <button
+      class="tool-btn"
+      :disabled="!running"
+      @click="doOpenAPIDocsWindow"
+    >
+      {{ t('workspace.information.server.open_api_docs_window') }}
+    </button>
+  </div>
+
   <p class="muted small">
     {{ t('workspace.information.server.config_hint') }}
   </p>
@@ -127,5 +168,12 @@ async function doOpenInternal() {
 }
 .server-action-spacer {
   flex: 1;
+}
+.action-row-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--color-muted-text, #495057);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 </style>

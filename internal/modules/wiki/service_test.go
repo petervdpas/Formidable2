@@ -162,6 +162,62 @@ func TestService_InstallWindowOpener_NilSafe(t *testing.T) {
 	}
 }
 
+func TestService_OpenAPIDocsInBrowser(t *testing.T) {
+	m := NewManager(nil)
+	if err := m.Start(0); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	var got string
+	svc := NewService(m, stubPortFunc(0), func(url string) error { got = url; return nil }, nil)
+	if err := svc.OpenAPIDocsInBrowser(); err != nil {
+		t.Fatal(err)
+	}
+	want := "http://127.0.0.1:" + intStr(m.Status().Port) + "/api/docs/"
+	if got != want {
+		t.Errorf("opener url = %q, want %q", got, want)
+	}
+}
+
+func TestService_OpenAPIDocsInBrowser_NotRunning(t *testing.T) {
+	m := NewManager(nil)
+	svc := NewService(m, stubPortFunc(0), func(string) error { return nil }, nil)
+	if err := svc.OpenAPIDocsInBrowser(); err == nil {
+		t.Error("expected error when server not running")
+	}
+}
+
+func TestService_OpenAPIDocsInWindow(t *testing.T) {
+	m := NewManager(nil)
+	if err := m.Start(0); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+
+	var got string
+	svc := NewService(m, stubPortFunc(0), nil, func(url string) error { got = url; return nil })
+	if err := svc.OpenAPIDocsInWindow(); err != nil {
+		t.Fatal(err)
+	}
+	want := "http://127.0.0.1:" + intStr(m.Status().Port) + "/api/docs/"
+	if got != want {
+		t.Errorf("window-opener url = %q, want %q", got, want)
+	}
+}
+
+func TestService_OpenAPIDocsInWindow_NoOpener(t *testing.T) {
+	m := NewManager(nil)
+	if err := m.Start(0); err != nil {
+		t.Fatal(err)
+	}
+	defer m.Stop()
+	svc := NewService(m, stubPortFunc(0), nil, nil)
+	if err := svc.OpenAPIDocsInWindow(); err == nil {
+		t.Error("expected error when window opener is unset")
+	}
+}
+
 func TestService_NilManagerSafe(t *testing.T) {
 	// Defense-in-depth: NewService should refuse a nil manager rather
 	// than panicking deep in a method.

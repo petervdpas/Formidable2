@@ -32,6 +32,24 @@ export function GetServerStatus(): $CancellablePromise<$models.ServerStatus> {
 }
 
 /**
+ * OpenAPIDocsInBrowser opens the Swagger UI page in the host
+ * platform's default browser. Same machinery as OpenInBrowser; only
+ * the URL path differs ("/api/docs/" vs "/"). Server must be running.
+ */
+export function OpenAPIDocsInBrowser(): $CancellablePromise<void> {
+    return $Call.ByID(3982694854);
+}
+
+/**
+ * OpenAPIDocsInWindow spawns the in-app webview window at the
+ * Swagger UI URL. Mirrors OpenInternalWiki; the docs become a
+ * separate window the user can leave open while editing.
+ */
+export function OpenAPIDocsInWindow(): $CancellablePromise<void> {
+    return $Call.ByID(642485134);
+}
+
+/**
  * OpenInBrowser asks the host platform's default browser to load the
  * wiki root URL. Requires the server to be running so the URL
  * actually responds. The opener function is platform-specific (xdg-

@@ -1,0 +1,85 @@
+package api
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/storage"
+	"github.com/petervdpas/formidable2/internal/modules/template"
+)
+
+// Provider is the narrow read surface the API handler needs from the
+// dataprovider. Declared as an interface so unit tests can supply a
+// hand-rolled stub without standing up SQLite + the real index. The
+// real *dataprovider.Manager satisfies this without an adapter.
+type Provider interface {
+	ListTemplates(ctx context.Context) ([]dataprovider.TemplateSummary, error)
+	IsCollectionEnabled(ctx context.Context, template string) bool
+	ListCollection(ctx context.Context, template string, opts dataprovider.CollectionListOpts) (*dataprovider.CollectionPage, error)
+	CollectionRev(ctx context.Context, template string) (int64, error)
+	ResolveCollectionByID(ctx context.Context, template, id string) (*dataprovider.CollectionItem, bool, error)
+}
+
+// Storage is the bytes-side surface the API needs for /api/collections/{tpl}/{id}:
+// loading a form's full meta + data block. The real *storage.Manager
+// satisfies this without an adapter — same trick wiki.Storage uses for
+// OpenImageFile.
+type Storage interface {
+	LoadForm(templateFilename, datafile string) *storage.Form
+}
+
+// Templates is the surface the API needs to answer the design
+// endpoint: the full parsed template (fields + metadata). The real
+// *template.Manager already exposes LoadTemplate with this signature.
+type Templates interface {
+	LoadTemplate(name string) (*template.Template, error)
+}
+
+// Handler exposes the /api/* routes as an http.Handler. The composition
+// root mounts the returned handler at the root mux's "/api/" prefix —
+// the api mux itself uses fully-qualified paths so no StripPrefix is
+// needed.
+type Handler struct {
+	dp  Provider
+	st  Storage
+	tpl Templates
+}
+
+// NewHandler builds the API handler. Returns the underlying mux as
+// http.Handler so callers compose it through the standard interface;
+// route shapes stay private to this file and can be evolved without
+// rippling out.
+func NewHandler(dp Provider, st Storage, tpl Templates) http.Handler {
+	h := &Handler{dp: dp, st: st, tpl: tpl}
+	mux := http.NewServeMux()
+	// Go 1.22+ typed patterns. Full paths (incl. "/api") so the
+	// composition root can mount this at the root mux without
+	// StripPrefix. Literal segments take precedence over param
+	// segments, so /count is matched before /{id}.
+	// Patterns are registered without method prefix so HEAD on
+	// /{tpl}/{id} doesn't theoretically overlap with GET on
+	// /{tpl}/count under Go's strict mux ambiguity check. Each handler
+	// branches on r.Method itself and returns 405 for unsupported
+	// methods.
+	mux.HandleFunc("/api/openapi.json", h.openapi)
+	// Swagger UI — `/api/docs` redirects to the trailing-slash form so
+	// the embedded HTML's relative `/api/docs/<asset>` script tags work
+	// (mux uses literal pattern matching on the directory boundary).
+	mux.HandleFunc("/api/docs", h.docsRedirect)
+	mux.HandleFunc("/api/docs/", h.docs)
+	mux.HandleFunc("/api/collections", h.listCollections)
+	mux.HandleFunc("/api/collections/{tpl}", h.list)
+	mux.HandleFunc("/api/collections/{tpl}/count", h.count)
+	// Design lives at /{tpl}/design (peer to /count) rather than the
+	// original Formidable's /design/{tpl}. Putting "design" and "count"
+	// at the same path position avoids Go 1.22's strict-mux conflict
+	// — `/design/{tpl}` and `/{tpl}/count` would otherwise both match
+	// `/collections/design/count` with equal precedence. Tooling that
+	// previously hit /design/<id> just swaps to /<id>/design.
+	mux.HandleFunc("/api/collections/{tpl}/design", h.design)
+	mux.HandleFunc("/api/collections/{tpl}/export.ndjson", h.exportNDJSON)
+	mux.HandleFunc("/api/collections/{tpl}/export.csv", h.exportCSV)
+	mux.HandleFunc("/api/collections/{tpl}/{id}", h.itemAny)
+	return mux
+}

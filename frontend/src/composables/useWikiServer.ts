@@ -90,6 +90,28 @@ export function useWikiServer() {
     }
   }
 
+  async function openAPIDocsInBrowser() {
+    lastError.value = "";
+    try {
+      await WikiSvc.OpenAPIDocsInBrowser();
+      return { ok: true as const };
+    } catch (err) {
+      lastError.value = String(err);
+      return { ok: false as const, message: String(err) };
+    }
+  }
+
+  async function openAPIDocsInWindow() {
+    lastError.value = "";
+    try {
+      await WikiSvc.OpenAPIDocsInWindow();
+      return { ok: true as const };
+    } catch (err) {
+      lastError.value = String(err);
+      return { ok: false as const, message: String(err) };
+    }
+  }
+
   return {
     status,
     lastError,
@@ -98,5 +120,7 @@ export function useWikiServer() {
     stop,
     openBrowser,
     openInternal,
+    openAPIDocsInBrowser,
+    openAPIDocsInWindow,
   };
 }
