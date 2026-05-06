@@ -1,149 +1,157 @@
-# 🧾 Formidable — The Dynamic Form & Template Designer
+# Formidable — The Dynamic Form & Template Designer
 
-**Formidable** is a modular Electron desktop application for creating, managing, and rendering dynamic forms and Markdown documents from YAML-based templates. It combines a visual form editor with a powerful Handlebars-style rendering engine, a built-in virtual file system (VFS), profile switching, and optional Git integration — designed for professionals who need structured content management, versioning, and auditability.
+**Formidable** is a desktop app for designing YAML-based form templates,
+filling them out, and rendering the result through a Handlebars +
+Markdown pipeline. It's the Wails 3 + Go + Vue 3 successor to the
+original Electron build — same templates, same field types, same
+"auditability by design" stance, but a smaller native binary, a
+proper Go backend, and a real REST API.
 
-![Formidable](assets/formidable.png)
+![Formidable](build/appicon.png)
 
-> 💠 Dedicated to **Elly** — who lived with strength, humor and clarity.  
-> _"Sleep, don't weep - My sweet love"_ — Damien Rice  
+> 💠 Dedicated to **Elly** — who lived with strength, humor and clarity.
+> _"Sleep, don't weep — My sweet love"_ — Damien Rice
 >
-> 🌌 And to **Aaron Swartz** — who refused to back down when it mattered.  
+> 🌌 And to **Aaron Swartz** — who refused to back down when it mattered.
 > _"We are all made of stardust, and we are all made of stories."_ — Aaron Swartz
 
 ---
 
-## 🚀 Release
+## Status
 
-> See the [latest release notes](https://github.com/petervdpas/Formidable/releases/latest) for details.
+Alpha. Working today:
 
-**Latest Installers**:
+- Template designer + form editor (17 stored field types, full Handlebars rendering, live slideout preview)
+- Per-profile context folders, profile switching, VFS resolution
+- Internal HTTP server with two surfaces:
+  - **Wiki** — `/`, `/template/{stem}`, `/template/{stem}/form/{datafile}`
+  - **REST API** — full CRUD on collection-enabled templates + Swagger UI at `/api/docs/`
+- SQLite-backed per-profile index for sub-millisecond list/search
+- Append-only system-level journal recording every FS mutation (groundwork for git/gigot sync)
 
-- 🪟 Windows: 👉 [Formidable.Setup.exe](https://github.com/petervdpas/Formidable/releases/latest/download/Formidable.Setup.exe)
-- 🐧 Linux (amd64 .deb): 👉 [formidable_amd64.deb](https://github.com/petervdpas/Formidable/releases/latest/download/formidable_amd64.deb)
-- 🥧 Linux ARM64 .deb (Raspberry Pi): 👉 [formidable_arm64.deb](https://github.com/petervdpas/Formidable/releases/latest/download/formidable_arm64.deb)
+WIP:
 
----
-
-## 📚 Documentation
-
-Comprehensive documentation covering all aspects of Formidable's architecture:
-
-### Architecture & Core Systems
-
-- **[EventBus System](docs/EVENTBUS-SYSTEM.md)** - Event-driven architecture and communication
-- **[Handler Pattern](docs/HANDLER-PATTERN.md)** - Domain-specific event handler organization
-- **[IPC Bridge](docs/IPC-BRIDGE.md)** - Main ↔ Renderer process communication
-- **[Plugin System](docs/PLUGIN-SYSTEM.md)** - Extensible plugin architecture
-- **[Virtual File System](docs/VFS-SYSTEM.md)** - Storage organization, auto-sync, and context folders
-- **[Modal System](docs/MODAL-SYSTEM.md)** - Resizable modals, split-view, and popup management
-
-### Form & Template Systems
-
-- **[Template & Schema System](docs/TEMPLATE-SCHEMA-SYSTEM.md)** - Form templates and 20+ field types
-- **[Form System](docs/FORM-SYSTEM.md)** - Form rendering, validation, and operations
-- **[Field GUID System](docs/FIELD-GUID-SYSTEM.md)** - Dynamic field identification and manipulation
-- **[Template Helpers](docs/TEMPLATE-HELPERS.md)** - Handlebars helpers for rendering (field, loop, math, stats)
-- **[Configuration System](docs/CONFIGURATION-SYSTEM.md)** - Settings, themes, and profiles
-
-### API Reference
-
-- **[Global API System](docs/GLOBAL-API-SYSTEM.md)** - FGA, CFA, and window.api reference
-- **[Documentation Index](docs/README.md)** - Complete documentation hub with quick start guide
-
-> 📖 **50,000+ words** of documentation with **200+ code examples**
+- Frontend journal viewer + git/gigot sync triggers (backend journal records; no UI yet)
+- Plugin system (placeholder workspace; not ported)
+- Per-template ACL on the API write surface
+- Per-user data dir resolver for installed builds (XDG/AppData paths)
 
 ---
 
-## ✨ Key Features
+## Architecture
 
-- **⚙️ Dynamic Template & Form System**
+Composition root in `internal/app/app.go` wires every module once at boot.
 
-  - YAML-based templates with 20+ field types
-  - Schema validation and sanitization
-  - Visual form editor with live preview
-  - Full Markdown renderer using Handlebars-style syntax
-  - Field GUID system for dynamic updates
+**Backend (`internal/modules/`)**
 
-- **🧩 Event-Driven Architecture**
+| Module          | Role                                                                  |
+| --------------- | --------------------------------------------------------------------- |
+| `system`        | Atomic FS primitives (`temp+fsync+rename`); journals every mutation   |
+| `sfr`           | Sanitize-Filename-Read wrapper for safe content r/w                   |
+| `config`        | User config, boot profile, virtual file structure resolution          |
+| `journal`       | Append-only change log; emits `journal:changed`                       |
+| `template`      | YAML template load/save/validate; 17 field types in a registry        |
+| `storage`       | Form `.meta.json` r/w, image bytes, per-template storage layout       |
+| `form`          | Storage workspace orchestration (template + storage + config defaults)|
+| `index`         | Per-profile SQLite cache of template/form metadata                    |
+| `dataprovider`  | Read-only facade composing index + render — used by wiki/api          |
+| `render`        | raymond Handlebars + goldmark + chroma; per-target URL strategies     |
+| `nav`           | `formidable://` URL resolver; persists active selection               |
+| `wiki`          | Runtime HTTP server hosting `/`, `/template/...`, `/storage/...`      |
+| `api`           | `/api/collections/*` REST + OpenAPI 3.0.3 spec + Swagger UI           |
+| `csv`           | CSV import/export helpers                                             |
+| `i18n`          | Backend-rooted localization served to vue-i18n                        |
+| `dialog`        | Native file/folder pickers via Wails                                  |
 
-  - Centralized EventBus for decoupled communication
-  - 30+ domain-specific handler modules
-  - Event-driven field operations (CFA.field API)
-  - Async request-response patterns
+**Frontend (`frontend/src/`)**
 
-- **🔌 Extensible Plugin System**
+Vue 3 SPA with workspaces for **Templates**, **Storage**, **Profiles**,
+**Settings**, **Information** (server lifecycle, monitoring), and
+**Plugins** (placeholder). Calls the backend via Wails service bindings
+generated from each module's `Service` type — no IPC, no `window.api`
+shim. UI strings flow through vue-i18n from `internal/modules/i18n/locales/`.
 
-  - Backend, frontend, and hybrid plugins
-  - Declarative IPC registration
-  - Hot-reloadable plugin architecture
-  - Plugin SDK with full API access
+**Render pipeline**
 
-- **🎯 Global APIs**
-
-  - **FGA** (Formidable Global API) - Form and field operations
-  - **CFA** (CodeField API) - Dynamic field manipulation from code
-  - **window.api** - Secure IPC bridge (100+ methods)
-  - **EventBus** - Direct event system access
-
-- **👥 Profile Switching**
-
-  - Easily switch between multiple user profiles
-  - Profiles store their own author name, email, context folder, preferences
-  - Supports collaborative and multi-project use
-
-- **📁 Virtual File System (VFS)** → [Docs](docs/VFS-SYSTEM.md)
-
-  - Organized storage by context and template
-  - Full control over storage folders, paths, and metadata
-  - Auto-synced view of the VFS in the sidebar
-  - Cache management and event-driven updates
-
-- **🔀 Git Integration (Optional)**
-
-  - Branch selection in Settings → Locations
-  - Commit, push, pull, sync, and conflict resolution from the Git Control modal
-  - Supports Azure DevOps workflows (credential.helper + useHttpPath)
-
-- **📦 GiGot Integration (Optional)**
-
-  - Token-based remote-sync alternative to Git, with a tamper-evident server-side audit log — see [GiGot](https://github.com/petervdpas/GiGot)
-  - Configure base URL, repo name, and token in Settings → Locations
-  - Push, pull, and sync without a full Git workflow
-
-- **🖥️ Clean, Modern UI** → [Modal Docs](docs/MODAL-SYSTEM.md)
-
-  - Resizable, ESC-closable modals with backdrop click dismiss
-  - **Markdown & Preview modal** — live output with split/closable panes
-  - Full light/dark theming, configurable icon or label buttons
-  - Split-view for template editing and form data
-  - Inert background and disabled state support
-
-- **🔗 Internal Linking & Wiki Support**
-
-  - Support for internal form links (`formIdLink` fields)
-  - Future-proof architecture for internal wiki server (localhost)
-
-- **🔎 Designed for Auditability**
-
-  - "Auditability by Design" approach: trackable metadata, version control, profile isolation
-  - Suitable for regulated environments, audit preparation, compliance
+Transport-neutral. Each consumer constructs its own `render.Manager`
+with a `(imageURLFunc, formidableLinkURLFunc)` pair so the same
+Handlebars output can target the in-app slideout (data: URLs +
+`formidable://` for the Vue interceptor), the wiki HTTP server
+(`/storage/.../images/...` + `/template/.../form/...`), or future
+exports (Azure DevOps Wiki, GitHub Wiki, plain MD) without a single
+branch inside the render module.
 
 ---
 
-## 🧠 Template Syntax
+## Field types
 
-Formidable uses a Handlebars-inspired syntax for rendering:
+17 stored types + 4 system/container, all driven from
+`internal/modules/template/field_registry.go`:
+
+- **Identity**: `guid`
+- **Text**: `text`, `textarea`, `latex`, `code`
+- **Numeric**: `number`, `range`
+- **Boolean**: `boolean`
+- **Choice**: `dropdown`, `radio`, `multioption`
+- **Date**: `date`
+- **Collections**: `list`, `table`, `tags`
+- **Media**: `image`, `link`
+- **API-linked**: `api` (selection from a sibling collection with mapped fields)
+- **Containers**: `loopstart` / `loopstop` (and the `looper` virtual type — repeating sections, max nesting depth 2)
+
+Templates with `enable_collection: true` AND a `guid` field become
+addressable via `/api/collections/{stem}/{guid}` and surface in
+`/api/collections`.
+
+---
+
+## REST API
+
+`GET /api/docs/` for the live Swagger UI; `GET /api/openapi.json` for
+the spec (rebuilt per request from current templates). Endpoints:
+
+```
+GET    /api/guid                                     — server-minted UUID v4
+GET    /api/collections                              — list collection-enabled templates
+GET    /api/collections/{tpl}                        — paged list (limit/offset/q/tags + ETag)
+GET    /api/collections/{tpl}/count                  — total
+GET    /api/collections/{tpl}/design                 — fields with normalized options
+GET    /api/collections/{tpl}/{id}                   — full meta+data (ETag)
+HEAD   /api/collections/{tpl}/{id}                   — ETag-only freshness check
+POST   /api/collections/{tpl}                        — create (?upsert=true to overwrite)
+PUT    /api/collections/{tpl}/{id}                   — replace (?upsert=true to create)
+PATCH  /api/collections/{tpl}/{id}                   — shallow-merge (optional If-Match → 412)
+PATCH  /api/collections/{tpl}/{id}/field/{key}       — single-field update
+DELETE /api/collections/{tpl}/{id}                   — 204
+POST   /api/collections/{tpl}/batch?mode=...         — bulk create|replace|merge
+GET    /api/collections/{tpl}/export.ndjson          — full streamed export
+GET    /api/collections/{tpl}/export.csv             — id/filename/title/tags
+```
+
+`{id}` is always the GUID value (the field whose `type: guid`),
+never the filename. Filenames are derived from the template's
+`item_field` via slugify with collision suffix (`brood.meta.json`,
+`brood-2.meta.json`, …) and fall back to `<guid>.meta.json`.
+
+POST auto-mints a GUID server-side when the body's `data[guidKey]` is
+empty, so callers don't need a UUID library.
+
+---
+
+## Template syntax
+
+raymond (vendored fork in `third_party/raymond/`) + goldmark + chroma:
 
 ```handlebars
 # {{field "title"}}
 
 {{#if (fieldRaw "check")}}
-✅ Enabled
+Enabled
 {{else}}
-❌ Disabled
+Disabled
 {{/if}}
 
-## List
+## Tags
 {{#each (fieldRaw "tags")}}
 - {{this}}
 {{/each}}
@@ -153,214 +161,95 @@ Formidable uses a Handlebars-inspired syntax for rendering:
 | Col1 | Col2 |
 |------|------|
 {{#each (fieldRaw "rows")}}
-|{{this.0}}|{{this.1}}|
+| {{this.0}} | {{this.1}} |
 {{/each}}
 {{/if}}
 ```
 
-Reference helpers:
-
-- `{{field "key"}}` → formatted value
-- `{{fieldRaw "key"}}` → raw JS value
-- `{{fieldMeta "key" "property"}}` → field metadata access
+Helpers: `field`, `fieldRaw`, `fieldMeta`, `tags`, `stats`, plus the
+math/comparison families. See `internal/modules/render/helpers.go`.
 
 ---
 
-## 📋 Supported Field Types
+## Build & run
 
-Formidable supports 20+ field types with full schema validation:
-
-| Type | Description | Documentation |
-| -- | -- | -- |
-| `text` | Single-line input | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `textarea` | Multi-line text block (Markdown/Plain) | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#text-area-type-textarea) |
-| `boolean` | Checkbox toggle | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `dropdown` | Select from list | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#dropdownradiomultioption) |
-| `multioption` | Multiple choice (checkbox group) | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#dropdownradiomultioption) |
-| `radio` | Radio button group | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#dropdownradiomultioption) |
-| `number` | Numeric input | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `range` | Range slider | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `date` | ISO-style date picker | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `list` | Dynamic list input | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `table` | Editable table grid (JSON) | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `image` | Upload & preview image | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `link` | Text input for URL or link | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `tags` | Tag input field | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#field-types) |
-| `latex` | LaTeX editor with preview | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#latex-type-latex) |
-| `code` | Code editor with execution | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#code-field-type-code) |
-| `api` | API-linked field with mapping | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#api-field-type-api) |
-| `loopstart` / `loopstop` | Define repeating sections | [Docs](docs/TEMPLATE-SCHEMA-SYSTEM.md#loop-fields) |
-
-See [Template & Schema System](docs/TEMPLATE-SCHEMA-SYSTEM.md) for complete field documentation.
-
----
-
-## ⚙️ Configuration (user.json)
-
-Saved to: `./config/user.json`
-
-```json
-{
-  "theme": "dark",
-  "font_size": 14,
-  "logging_enabled": true,
-  "context_mode": "storage",
-  "context_folder": "./",
-  "selected_template": "my-template.yaml",
-  "selected_data_file": "example.meta.json",
-  "author_name": "Regular User",
-  "author_email": "regular@example.com",
-  "use_git": true,
-  "git_root": "./",
-  "git_branch": "master",
-  "show_icon_buttons": true,
-  "window_bounds": {
-    "width": 1280,
-    "height": 900,
-    "x": 100,
-    "y": 80
-  }
-}
-```
-
-- Values are validated and auto-repaired on load.
-- UI updates are event-driven (`config:update`).
-
----
-
-## 🚀 Getting Started
-
-### Quick Start
+Requires Go 1.25+, Node 20+, and the Wails 3 CLI:
 
 ```bash
-git clone https://github.com/petervdpas/formidable.git
-cd formidable
-npm install
-npm start
+go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 ```
 
-### Building
-
-To build the Windows executable:
+Then via [Task](https://taskfile.dev/):
 
 ```bash
-npm run build
+task dev          # build + run; clean exit on window close
+task dev:watch    # hot-reload via vite + wails3 dev
+task build        # build the binary into ./bin/Formidable
+task package      # platform installer (.deb / .rpm / .dmg / .exe)
 ```
 
-> **Note:** Current packaging targets Windows.
-> Linux and Mac packaging will be added in future.
-
-### Learn More
-
-- **New to Formidable?** Start with the [Documentation Index](docs/README.md)
-- **Building plugins?** Check out the [Plugin System Guide](docs/PLUGIN-SYSTEM.md)
-- **Working with forms?** See the [Form System](docs/FORM-SYSTEM.md) and [Field GUID System](docs/FIELD-GUID-SYSTEM.md)
-- **Understanding architecture?** Read about [EventBus](docs/EVENTBUS-SYSTEM.md) and [Handler Pattern](docs/HANDLER-PATTERN.md)
+Linux packaging is .deb / .rpm / Arch via nfpm; the binary runs as
+`/usr/local/bin/Formidable` and the `.desktop` entry as `Formidable`.
 
 ---
 
-## 🧑‍💻 Development Notes
+## Tests
 
-### Quick Tips
+TDD throughout — every behavior has either a unit test or a Gherkin
+scenario before the implementation lands.
 
-- **CTRL+ENTER** → toggle fullscreen on template editor
-- Templates = `.yaml`, Data = `.meta.json`, Images = `.jpg`/`.png`
-- VFS auto-updates on create/save/delete
-- Profile switching triggers full config refresh and context rehydration
-- Markdown & Preview modal: supports split view and pane closing
-- Modals: resizable, ESC-closable, backdrop click dismiss
-- Git config per repo is cached
-
-### Architecture Highlights
-
-- **Event-Driven**: All operations flow through EventBus
-- **Handler Pattern**: 30+ domain-specific handler modules
-- **IPC Bridge**: Secure main ↔ renderer communication via contextBridge
-- **Plugin System**: Hot-reloadable with declarative IPC
-- **Field GUIDs**: Every field has a unique identifier for dynamic updates
-- **Schema Validation**: All data validated and sanitized on load
-
-### API Examples
-
-**Field Manipulation (from code fields)**:
-
-```javascript
-// Get field value
-const price = await CFA.field.getValue({ key: "price" });
-
-// Set field value
-await CFA.field.setValue({ key: "total", value: price * 1.2 });
-
-// Update field options
-await CFA.field.updateOptions({ 
-  key: "status", 
-  options: ["New", "Active", "Completed"] 
-});
+```bash
+go test -race ./...                              # whole tree, race detector on
+go test -race -v ./internal/modules/api/...      # one module, verbose
 ```
 
-**Event-Driven Operations**:
-
-```javascript
-// Save form
-await EventBus.emit("form:save", { 
-  template: "my-template", 
-  data: formData 
-});
-
-// Listen to events
-EventBus.on("form:saved", (data) => {
-  console.log("Form saved:", data);
-});
-```
-
-**Plugin Development**:
-
-```javascript
-// plugin.json
-{
-  "name": "MyPlugin",
-  "ipc": { "process": "handleProcess" }
-}
-
-// plugin.js
-module.exports = {
-  async run(context) {
-    // Plugin logic
-    return { success: true };
-  },
-  async handleProcess(event, payload) {
-    // IPC handler
-    return { result: "done" };
-  }
-};
-```
-
-See [Documentation](docs/README.md) for complete guides and examples.
+The api module alone ships 104 godog scenarios + 682 steps; the wiki
+module 39; render 88; storage and template each well into the dozens.
+Feature files live under each module's `features/` folder.
 
 ---
 
-## 📜 License
+## Layout
 
-MIT © 2025 Peter van de Pas
+```
+internal/
+  app/                       — composition root (single boot wiring)
+  log/                       — slog setup
+  modules/                   — domain modules (table above)
+frontend/
+  src/                       — Vue 3 SPA
+  bindings/                  — generated Wails service stubs
+build/                       — Wails per-platform targets, nfpm.yaml, appicon.png
+third_party/raymond/         — vendored Handlebars fork (whitespace + options-only patches)
+Examples/                    — sample templates & storage (basic, loopie, recepten)
+design/                      — port findings, source docs (read-only reference)
+main.go                      — Wails app entry point
+Taskfile.yml                 — task entry points
+```
 
 ---
 
-## 🙏 Acknowledgments
+## License
 
-Built with:
-
-- [Electron](https://www.electronjs.org/) - Cross-platform desktop framework
-- [CodeMirror](https://codemirror.net/) - Code editor component
-- [EasyMDE](https://github.com/Ionaru/easy-markdown-editor) - Markdown editor
-- [Handlebars](https://handlebarsjs.com/) - Template rendering
-
-Special thanks to the open-source community.
+MIT © 2026 Peter van de Pas
 
 ---
 
-## 🔗 Links
+## Acknowledgments
 
-- **[GitHub Repository](https://github.com/petervdpas/Formidable)**
-- **[Documentation Hub](docs/README.md)**
-- **[Latest Release](https://github.com/petervdpas/Formidable/releases)**
-- **[Issue Tracker](https://github.com/petervdpas/Formidable/issues)**
+- [Wails](https://wails.io/) — Go + webview desktop framework
+- [Vue 3](https://vuejs.org/) — frontend framework
+- [raymond](https://github.com/aymerick/raymond) — Handlebars-for-Go (vendored fork)
+- [goldmark](https://github.com/yuin/goldmark) — CommonMark in Go
+- [chroma](https://github.com/alecthomas/chroma) — syntax highlighting
+- [godog](https://github.com/cucumber/godog) — Gherkin BDD for Go
+- [Swagger UI](https://swagger.io/tools/swagger-ui/) — bundled API explorer
+- [modernc.org/sqlite](https://gitlab.com/cznic/sqlite) — pure-Go SQLite
+
+---
+
+## Links
+
+- **Repo**: https://github.com/petervdpas/Formidable2
+- **Original (Electron) Formidable**: https://github.com/petervdpas/Formidable
+- **GiGot** (token-based remote sync, future integration): https://github.com/petervdpas/GiGot
