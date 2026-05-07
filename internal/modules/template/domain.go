@@ -140,6 +140,19 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 	}
 	Normalize(t)
 	if errs := Validate(t); len(errs) > 0 {
+		// Surface each validation error to formidable.log so the failure
+		// has a paper trail beyond the toast. The frontend pre-validates
+		// too, so anything reaching this branch is either a programmatic
+		// caller (HTTP/sync) or a stale cache — both worth recording.
+		for _, e := range errs {
+			m.log.Warn("template validation rejected save",
+				"name", name,
+				"type", e.Type,
+				"key", e.Key,
+				"message", e.Message,
+				"detail", e.Detail,
+			)
+		}
 		return &ValidationFailedError{Errors: errs}
 	}
 	bytes, err := marshalYAML(t)

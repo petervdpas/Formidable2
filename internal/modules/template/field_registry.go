@@ -47,8 +47,11 @@ type FieldTypeDef struct {
 var fieldTypeRegistry = map[string]FieldTypeDef{
 	"guid": {
 		ID: "guid",
+		// Allowed on guid: label, description, primary_key — a guid field
+		// is the natural primary key of a collection-enabled template,
+		// and the editor lets the user label it ("GUID") and describe it.
 		ForbiddenAttributes: []string{
-			attrPrimaryKey, attrLabel, attrDescription, attrDefault,
+			attrDefault,
 			attrOptions, attrSummaryField, attrExpressionItem, attrTwoColumn,
 			attrCollapsible, attrReadonly, attrFormat,
 			attrCodeGroup, attrLatexGroup, attrAPIGroup,
@@ -241,6 +244,34 @@ func AllFieldTypes() []FieldTypeDef {
 	return out
 }
 
+// defaultIsPopulated reports whether a Field.Default value should be
+// treated as "explicitly set" by the user. Nil/empty-string/zero-number/
+// false-bool are quiet zeros that arrive via YAML round-trip even when
+// the user never typed a default — flagging them as forbidden creates
+// false positives on guid/loopstart/loopstop seed fields.
+func defaultIsPopulated(v any) bool {
+	if v == nil {
+		return false
+	}
+	switch x := v.(type) {
+	case string:
+		return x != ""
+	case bool:
+		return x
+	case int:
+		return x != 0
+	case int64:
+		return x != 0
+	case float64:
+		return x != 0
+	case []any:
+		return len(x) > 0
+	case map[string]any:
+		return len(x) > 0
+	}
+	return true
+}
+
 // propertyIsSet reports whether `attr` has a non-zero value on f.
 // Group names ("code", "latex", "api") return true if any member of
 // the group is set.
@@ -255,7 +286,11 @@ func propertyIsSet(f Field, attr string) bool {
 	case attrDescription:
 		return f.Description != ""
 	case attrDefault:
-		return f.Default != nil
+		// YAML `default: ""` (or `default: 0` / `default: false`) is the
+		// editor's quiet zero — not "default explicitly set". Only flag
+		// truly-populated defaults so seed templates with empty defaults
+		// don't trip the forbidden-attribute rule on guid/loop fields.
+		return defaultIsPopulated(f.Default)
 	case attrOptions:
 		return len(f.Options) > 0
 	case attrExpressionItem:
