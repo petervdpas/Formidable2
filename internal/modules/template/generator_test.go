@@ -371,6 +371,65 @@ func TestGenerate_FrontmatterSkipsLoopMarkers(t *testing.T) {
 	}
 }
 
+// ─── API field ────────────────────────────────────────────────────────
+//
+// API-typed fields stamp `{guid, ...projected_columns}` into host data
+// at picker time; the generator emits {{apiSection}} for shapes that
+// expand fields into prose (Report/Minimal), the standard JSON dump
+// for the Table shape (one row per host field), and skips the field
+// for Frontmatter (it doesn't fit a YAML metadata block).
+
+func TestGenerate_ReportEmitsAPISectionHelper(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeReport, defaultOpts(), []Field{
+		{Key: "ref", Type: "api", Label: "Reference",
+			Collection: "addresses.yaml",
+			Map: []APIMap{{Key: "name", Label: "Naam"}}},
+	})
+	if !strings.Contains(got, `{{apiSection "ref"}}`) {
+		t.Errorf("report must emit apiSection for api field; got:\n%s", got)
+	}
+	// And NOT the generic {{field "ref"}} fallback (which would render
+	// the whole {guid, ...} object as JSON in prose).
+	if strings.Contains(got, `{{field "ref"}}`) {
+		t.Errorf("report must not fall back to generic field helper; got:\n%s", got)
+	}
+}
+
+func TestGenerate_MinimalEmitsAPISectionHelper(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeMinimal, defaultOpts(), []Field{
+		{Key: "ref", Type: "api", Label: "Reference"},
+	})
+	if !strings.Contains(got, `{{apiSection "ref"}}`) {
+		t.Errorf("minimal must emit apiSection for api field; got:\n%s", got)
+	}
+}
+
+func TestGenerate_FrontmatterSkipsAPIFields(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeFrontmatter, defaultOpts(), []Field{
+		{Key: "title", Type: "text"},
+		{Key: "ref", Type: "api"},
+		{Key: "tags", Type: "tags"},
+	})
+	if strings.Contains(got, "ref") {
+		t.Errorf("frontmatter must skip api fields; got:\n%s", got)
+	}
+	if !strings.Contains(got, "title:") || !strings.Contains(got, "tags:") {
+		t.Errorf("other fields must still surface; got:\n%s", got)
+	}
+}
+
+func TestGenerate_TableShapeKeepsJSONForAPI(t *testing.T) {
+	// Table shape already had a {{json (fieldRaw "k")}} branch for
+	// "list", "multioption", "table", "api" — confirm api is still
+	// covered after the refactor.
+	got := GenerateMarkdownTemplate(ShapeTable, defaultOpts(), []Field{
+		{Key: "ref", Type: "api", Label: "Reference"},
+	})
+	if !strings.Contains(got, `{{json (fieldRaw "ref")}}`) {
+		t.Errorf("table must dump api as JSON; got:\n%s", got)
+	}
+}
+
 // ─── Catalogs ─────────────────────────────────────────────────────────
 
 func TestShapes_ReturnsAllFour(t *testing.T) {

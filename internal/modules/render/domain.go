@@ -154,5 +154,14 @@ func (m *Manager) optionsFor(templateName string) *Options {
 		// `templateName` (a link can point cross-template).
 		opts.FormidableLinkURL = m.formidableLinkURL
 	}
+	if m.templates != nil {
+		opts.LoadTemplate = func(name string) *template.Template {
+			t, err := m.templates.LoadTemplate(name)
+			if err != nil {
+				return nil
+			}
+			return t
+		}
+	}
 	return opts
 }

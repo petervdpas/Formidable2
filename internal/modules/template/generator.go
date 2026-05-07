@@ -297,6 +297,14 @@ _No tags specified_
 			"{{#if (fieldRaw \"%s\")}}\n![%s](%s)\n{{else}}\n_No image uploaded for %s_\n{{/if}}",
 			key, label, imageHelperCall(key, imgMode), label,
 		)
+	case "api":
+		// {{apiSection}} renders the embedded card in markdown:
+		// "**<host label>** _(<source>)_" header + per-column rows
+		// (block-shaped for table/list, inline for scalars). Single-
+		// helper output keeps the generator's job simple — runtime
+		// resolution of column types and source-side rename safety
+		// happens inside the helper.
+		return fmt.Sprintf(`{{apiSection "%s"}}`, key)
 	default:
 		return fmt.Sprintf(`{{field "%s"}}`, key)
 	}
@@ -468,10 +476,12 @@ func generateFrontmatter(fields []Field) string {
 		if depth > 0 || seen[key] {
 			continue
 		}
-		// Per user's choice: image fields don't fit a YAML metadata
-		// block, so frontmatter shape skips them entirely (regardless
-		// of imgMode).
-		if t == "image" {
+		// Image fields don't fit a YAML metadata block (they're binary-
+		// shaped), so frontmatter skips them. Api fields are also
+		// skipped — their value is a `{guid, ...denormalised_columns}`
+		// object, which clutters frontmatter; the host can read the
+		// guid via {{apiGuid}} elsewhere if it really needs it.
+		if t == "image" || t == "api" {
 			continue
 		}
 		seen[key] = true

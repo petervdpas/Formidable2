@@ -232,6 +232,40 @@ Feature: Default markdown-template generator
     Then the output contains "{{loopItemBefore}}"
     And the output contains "{{loopItemAfter}}"
 
+  # ── API field per shape ─────────────────────────────────────────────
+
+  Scenario: Report shape emits apiSection for api fields
+    Given the fields:
+      | key | type | label     |
+      | ref | api  | Reference |
+    When I generate with shape "report"
+    Then the output contains "{{apiSection \"ref\"}}"
+
+  Scenario: Minimal shape emits apiSection for api fields
+    Given the fields:
+      | key | type | label     |
+      | ref | api  | Reference |
+    When I generate with shape "minimal"
+    Then the output contains "{{apiSection \"ref\"}}"
+
+  Scenario: Frontmatter shape skips api fields
+    Given the fields:
+      | key   | type | label |
+      | title | text |       |
+      | ref   | api  |       |
+      | tags  | tags |       |
+    When I generate with shape "frontmatter"
+    Then the output contains "title:"
+    And the output contains "tags:"
+    And the output does not contain "ref"
+
+  Scenario: Table shape dumps api fields as JSON
+    Given the fields:
+      | key | type | label     |
+      | ref | api  | Reference |
+    When I generate with shape "table"
+    Then the output contains "{{json (fieldRaw \"ref\")}}"
+
   # ── Robustness ──────────────────────────────────────────────────────
 
   Scenario: Unknown shape falls back to report

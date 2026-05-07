@@ -13,6 +13,8 @@
 // + datafile through narrow interfaces and returns both stages.
 package render
 
+import "github.com/petervdpas/formidable2/internal/modules/template"
+
 // Options carries per-render configuration. URL strategies are funcs so
 // each consumer (in-app slideout, wiki HTTP server, future Azure/GitHub
 // wiki exporters, …) can plug a different scheme without leaking
@@ -45,6 +47,15 @@ type Options struct {
 	// click interceptor handles the click). Empty-string return =
 	// fall back to the original formidable:// URL.
 	FormidableLinkURL func(templateFilename, datafile string) string
+
+	// LoadTemplate resolves a template by filename, used by api-field
+	// helpers to read the source template's field roster (column types,
+	// option-label headers for table-typed projections). Returns nil
+	// for unknown / unloadable templates; the helpers degrade gracefully
+	// (apiBlock falls back to JSON.stringify, apiSection skips type-
+	// aware blocks). May be nil on targets that don't render api fields
+	// (plain MD export); api helpers then return safe fallbacks.
+	LoadTemplate func(name string) *template.Template
 }
 
 // Result is the dual-stage output of RenderForm.
