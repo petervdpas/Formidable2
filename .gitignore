@@ -14,7 +14,8 @@ build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 Examples/
 
 # Local config (per-machine; first-run default points at Examples/).
-config/
+# Anchored to repo root so internal/modules/config/ stays tracked.
+/config/
 
 # Stale roots from earlier dev runs before context_folder defaulted to
 # Examples — keep ignored so we don't accidentally commit them.
