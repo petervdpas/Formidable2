@@ -12,6 +12,8 @@ export {
     Field,
     FieldTypeDef,
     ItemField,
+    Shape,
+    ShapeInfo,
     Template,
     ValidationError
 } from "./models.js";

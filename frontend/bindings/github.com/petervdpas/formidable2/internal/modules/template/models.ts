@@ -252,6 +252,59 @@ export class ItemField {
 }
 
 /**
+ * Shape selects an output style for the markdown-template generator.
+ * 
+ * Why a string-typed enum: the value crosses the Wails boundary and is
+ * chosen by the user in a Vue dialog. Bare strings keep the binding
+ * simple — no per-shape constructor on the frontend.
+ */
+export enum Shape {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    ShapeReport = "report",
+    ShapeMinimal = "minimal",
+    ShapeTable = "table",
+    ShapeFrontmatter = "frontmatter",
+};
+
+/**
+ * ShapeInfo is a UI-facing record so the frontend doesn't have to
+ * hardcode shape labels — vue-i18n would also work but the dialog has
+ * a small static set, so descriptions live next to the implementation.
+ */
+export class ShapeInfo {
+    "id": Shape;
+    "label": string;
+    "description": string;
+
+    /** Creates a new ShapeInfo instance. */
+    constructor($$source: Partial<ShapeInfo> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = Shape.$zero;
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ShapeInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ShapeInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ShapeInfo($$parsedSource as Partial<ShapeInfo>);
+    }
+}
+
+/**
  * Template is the on-disk shape of a template YAML file.
  */
 export class Template {

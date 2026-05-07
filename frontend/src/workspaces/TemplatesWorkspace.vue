@@ -6,7 +6,9 @@ import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
+import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
+import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   FormSection,
   FormRow,
@@ -220,6 +222,20 @@ function openDelete(index: number) {
   deleteOpen.value = true;
 }
 
+// ── Generate-template dialog ─────────────────────────────────────────
+const generateOpen = ref(false);
+
+async function applyGenerated(shape: string) {
+  generateOpen.value = false;
+  if (!draft.value) return;
+  try {
+    const out = await TemplateSvc.GenerateMarkdown(shape, draft.value.fields ?? []);
+    draft.value.markdown_template = out ?? "";
+  } catch (err) {
+    toast.error(t('workspace.templates.generate.error', [String(err)]));
+  }
+}
+
 const deleteFieldName = computed(() => {
   if (!draft.value || deleteIndex.value < 0) return "";
   const f = draft.value.fields[deleteIndex.value];
@@ -400,6 +416,18 @@ setTopbarMenu(() => [
               lang="markdown"
               :height="120"
             />
+            <div
+              v-if="!draft.markdown_template || !draft.markdown_template.trim()"
+              class="generate-template-row"
+            >
+              <button
+                class="tool-btn"
+                type="button"
+                @click="generateOpen = true"
+              >
+                {{ t('workspace.templates.generate.button') }}
+              </button>
+            </div>
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.sidebar_expression')">
             <TextareaField v-model="draft.sidebar_expression" :rows="3" />
@@ -526,5 +554,20 @@ setTopbarMenu(() => [
     @cancel="deleteTplOpen = false"
     @confirm="confirmDeleteTemplate"
   />
+
+  <!-- Generate-template shape picker -->
+  <GenerateTemplateDialog
+    :open="generateOpen"
+    @cancel="generateOpen = false"
+    @confirm="applyGenerated"
+  />
 </template>
+
+<style scoped>
+.generate-template-row {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-start;
+}
+</style>
 
