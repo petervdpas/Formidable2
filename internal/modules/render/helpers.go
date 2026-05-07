@@ -351,6 +351,17 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 	})
 
 	// ── loop block helper ───────────────────────────────────────
+	//
+	// Hash options:
+	//   class="extra1 extra2"  — added to the auto-wrap section's class
+	//   wrap=false             — opt out of the auto <section> wrapper
+	//
+	// Default: each iteration is wrapped in
+	//   <section class="loop-item …" data-loop="<key>" data-index="N">
+	//
+	// blank line + iteration body + blank line + </section>. Goldmark
+	// treats the opening/closing tags as block-level raw HTML and still
+	// renders the inner content as markdown thanks to the blank lines.
 	tpl.RegisterHelper("loop", func(key string, options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -374,20 +385,79 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 		tplPtr, _ := ctx["_template"].(*template.Template)
 		groups, _ := ctx["_loopGroups"].(map[string][]template.Field)
 
+		// Hash options. Raymond exposes hash values via HashStr / HashProp.
+		extraClass := strings.TrimSpace(options.HashStr("class"))
+		wrap := true
+		if v := options.HashProp("wrap"); v != nil {
+			if b, ok := v.(bool); ok {
+				wrap = b
+			}
+		}
+
 		out := make([]string, 0, len(items))
 		for i, raw := range items {
 			entry, _ := raw.(map[string]any)
-			sub := make(map[string]any, len(entry)+4)
+			sub := make(map[string]any, len(entry)+6)
 			for k, v := range entry {
 				sub[k] = v
 			}
 			sub[key+"_index"] = i + 1
+			sub["_loopKey"] = key
+			sub["_loopIndex"] = i + 1
 			sub["_fields"] = combined
 			sub["_template"] = tplPtr
 			sub["_loopGroups"] = groups
-			out = append(out, options.FnWith(sub))
+			body := options.FnWith(sub)
+			if wrap {
+				out = append(out, wrapLoopIteration(key, i+1, extraClass, body))
+			} else {
+				out = append(out, body)
+			}
 		}
 		return strings.Join(out, "\n")
+	})
+
+	// {{loopKey}} — current loop's key. Empty outside a loop body.
+	tpl.RegisterHelper("loopKey", func(options *raymond.Options) string {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		k, _ := ctx["_loopKey"].(string)
+		return k
+	})
+
+	// {{loopIndex}} — current iteration's 1-based index. 0 outside.
+	tpl.RegisterHelper("loopIndex", func(options *raymond.Options) string {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		switch v := ctx["_loopIndex"].(type) {
+		case int:
+			return strconv.Itoa(v)
+		case int64:
+			return strconv.FormatInt(v, 10)
+		case float64:
+			return strconv.Itoa(int(v))
+		}
+		return ""
+	})
+
+	// {{loopItemClass [extra1] [extra2] …}} — variadic class composer.
+	// Always emits "loop-item" as the base; each non-empty extra arg is
+	// appended space-separated. Used inside `wrap=false` bodies where
+	// the user builds their own <article>/<div>/etc. wrapper.
+	tpl.RegisterHelper("loopItemClass", func(options *raymond.Options) string {
+		parts := []string{"loop-item"}
+		for _, p := range options.Params() {
+			s, _ := p.(string)
+			s = strings.TrimSpace(s)
+			if s != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, " ")
 	})
 
 	// `stats` is polymorphic: `{{stats t}}` (colIndex defaults to 1) and
@@ -494,6 +564,22 @@ func contextFields(ctx any) []template.Field {
 		return out
 	}
 	return nil
+}
+
+// wrapLoopIteration wraps an iteration's rendered body in a goldmark-
+// friendly raw-HTML <section>. The blank lines after the opening tag
+// and before the closing tag are load-bearing — they tell goldmark to
+// suspend HTML-block mode so the inner content is processed as
+// markdown rather than treated as opaque HTML.
+func wrapLoopIteration(loopKey string, index int, extraClass, body string) string {
+	classAttr := "loop-item"
+	if extraClass != "" {
+		classAttr += " " + extraClass
+	}
+	return fmt.Sprintf(
+		"<section class=%q data-loop=%q data-index=%q>\n\n%s\n\n</section>",
+		classAttr, loopKey, strconv.Itoa(index), body,
+	)
 }
 
 // findField returns a pointer to the field with key in the current

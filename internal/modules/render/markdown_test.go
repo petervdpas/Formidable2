@@ -64,8 +64,18 @@ func TestRenderMarkdown_Loop(t *testing.T) {
 			map[string]any{"name": "b"},
 		},
 	}, tpl, &Options{})
-	if got != "- a\n- b" {
-		t.Errorf("got %q", got)
+	// Each iteration is wrapped in a <section class="loop-item" …> for
+	// the slideout / wiki to style; assert the visible markdown shows
+	// up rather than pinning the exact wrapper bytes.
+	for _, want := range []string{
+		`<section class="loop-item" data-loop="items" data-index="1">`,
+		`- a`,
+		`<section class="loop-item" data-loop="items" data-index="2">`,
+		`- b`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
 	}
 }
 

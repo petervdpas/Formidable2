@@ -256,7 +256,10 @@ func TestHelper_Loop(t *testing.T) {
 			map[string]any{"name": "b"},
 		},
 	})
-	got := renderWithCtx(t, `{{#loop "items"}}- {{field "name"}} ({{items_index}}){{/loop}}`, ctx)
+	// wrap=false keeps the original behavior — terse asserts on plain
+	// joined output. The auto-wrap variant is exercised by the
+	// dedicated TestLoop_* cases below.
+	got := renderWithCtx(t, `{{#loop "items" wrap=false}}- {{field "name"}} ({{items_index}}){{/loop}}`, ctx)
 	want := "- a (1)\n- b (2)"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
@@ -521,5 +524,224 @@ func TestHelper_ImageBase64_EmptyValueReturnsEmpty(t *testing.T) {
 	})
 	if got != "" {
 		t.Errorf("empty value: want empty, got %q", got)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Loop iteration wrapping
+//
+// {{#loop "items"}}…{{/loop}} auto-wraps each iteration in
+// <section class="loop-item" data-loop="items" data-index="N">…</section>
+// (with blank lines around the tags so goldmark still processes the
+// inner markdown as markdown). Slideout + wiki CSS pick the visual
+// treatment off `.loop-item` and `[data-index]`.
+//
+// Opt-out via `wrap=false`. Adds custom classes via `class="…"`.
+// Companion helpers ({{loopKey}}, {{loopIndex}}, {{loopItemClass}})
+// let users build their own wrappers when wrap=false.
+// ─────────────────────────────────────────────────────────────────────
+
+func loopCtxFor(tpl *template.Template, items []any) map[string]any {
+	return ctxFromTemplate(tpl, map[string]any{"items": items})
+}
+
+func TestLoop_AutoWrapsEachIteration(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{
+			{Key: "items", Type: "loopstart"},
+			{Key: "name", Type: "text"},
+			{Key: "items", Type: "loopstop"},
+		},
+	}
+	ctx := loopCtxFor(tpl, []any{
+		map[string]any{"name": "a"},
+		map[string]any{"name": "b"},
+	})
+
+	got := renderWithCtx(t, `{{#loop "items"}}- {{field "name"}}{{/loop}}`, ctx)
+
+	for _, want := range []string{
+		`<section class="loop-item" data-loop="items" data-index="1">`,
+		`<section class="loop-item" data-loop="items" data-index="2">`,
+		`</section>`,
+		"- a",
+		"- b",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestLoop_ClassHashAddsExtraClasses(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{
+			{Key: "items", Type: "loopstart"},
+			{Key: "name", Type: "text"},
+			{Key: "items", Type: "loopstop"},
+		},
+	}
+	ctx := loopCtxFor(tpl, []any{map[string]any{"name": "x"}})
+
+	got := renderWithCtx(t,
+		`{{#loop "items" class="recipe-step highlight"}}- {{field "name"}}{{/loop}}`,
+		ctx,
+	)
+	if !strings.Contains(got, `class="loop-item recipe-step highlight"`) {
+		t.Errorf("class hash not applied; got:\n%s", got)
+	}
+}
+
+func TestLoop_WrapFalseSkipsWrapping(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{
+			{Key: "items", Type: "loopstart"},
+			{Key: "name", Type: "text"},
+			{Key: "items", Type: "loopstop"},
+		},
+	}
+	ctx := loopCtxFor(tpl, []any{
+		map[string]any{"name": "a"},
+		map[string]any{"name": "b"},
+	})
+
+	got := renderWithCtx(t,
+		`{{#loop "items" wrap=false}}- {{field "name"}}{{/loop}}`,
+		ctx,
+	)
+	if strings.Contains(got, "<section") || strings.Contains(got, "loop-item") {
+		t.Errorf("wrap=false must not emit section wrapper; got:\n%s", got)
+	}
+	if got != "- a\n- b" {
+		t.Errorf("wrap=false: want %q, got %q", "- a\n- b", got)
+	}
+}
+
+func TestLoop_NestedLoopsUseInnerKey(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{
+			{Key: "outer", Type: "loopstart"},
+			{Key: "inner", Type: "loopstart"},
+			{Key: "leaf", Type: "text"},
+			{Key: "inner", Type: "loopstop"},
+			{Key: "outer", Type: "loopstop"},
+		},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"outer": []any{
+			map[string]any{
+				"inner": []any{
+					map[string]any{"leaf": "L"},
+				},
+			},
+		},
+	})
+	got := renderWithCtx(t,
+		`{{#loop "outer"}}{{#loop "inner"}}{{field "leaf"}}{{/loop}}{{/loop}}`,
+		ctx,
+	)
+	if !strings.Contains(got, `data-loop="outer"`) {
+		t.Errorf("nested: outer wrapper missing; got:\n%s", got)
+	}
+	if !strings.Contains(got, `data-loop="inner"`) {
+		t.Errorf("nested: inner wrapper missing; got:\n%s", got)
+	}
+}
+
+// ─── Helpers usable inside any loop body ──────────────────────────────
+
+func TestHelper_LoopKey_ReturnsCurrentLoopKey(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{
+			{Key: "items", Type: "loopstart"},
+			{Key: "name", Type: "text"},
+			{Key: "items", Type: "loopstop"},
+		},
+	}
+	ctx := loopCtxFor(tpl, []any{map[string]any{"name": "x"}})
+
+	got := renderWithCtx(t,
+		`{{#loop "items" wrap=false}}[{{loopKey}}]{{/loop}}`,
+		ctx,
+	)
+	if got != "[items]" {
+		t.Errorf("loopKey: want %q, got %q", "[items]", got)
+	}
+}
+
+func TestHelper_LoopIndex_OneBased(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{
+			{Key: "items", Type: "loopstart"},
+			{Key: "name", Type: "text"},
+			{Key: "items", Type: "loopstop"},
+		},
+	}
+	ctx := loopCtxFor(tpl, []any{
+		map[string]any{"name": "a"},
+		map[string]any{"name": "b"},
+		map[string]any{"name": "c"},
+	})
+
+	got := renderWithCtx(t,
+		`{{#loop "items" wrap=false}}{{loopIndex}};{{/loop}}`,
+		ctx,
+	)
+	if got != "1;\n2;\n3;" {
+		t.Errorf("loopIndex sequence: want %q, got %q", "1;\n2;\n3;", got)
+	}
+}
+
+func TestHelper_LoopItemClass_DefaultBaseClass(t *testing.T) {
+	got := renderWithCtx(t, `{{loopItemClass}}`, map[string]any{})
+	if got != "loop-item" {
+		t.Errorf("default: want %q, got %q", "loop-item", got)
+	}
+}
+
+func TestHelper_LoopItemClass_AppendsExtras(t *testing.T) {
+	got := renderWithCtx(t,
+		`{{loopItemClass "recipe-step" "highlight"}}`,
+		map[string]any{},
+	)
+	if got != "loop-item recipe-step highlight" {
+		t.Errorf("variadic: want %q, got %q", "loop-item recipe-step highlight", got)
+	}
+}
+
+func TestHelper_LoopItemClass_IgnoresEmpties(t *testing.T) {
+	got := renderWithCtx(t,
+		`{{loopItemClass "" "step"}}`,
+		map[string]any{},
+	)
+	if got != "loop-item step" {
+		t.Errorf("empty extras should be skipped: got %q", got)
+	}
+}
+
+func TestLoop_WrapFalseAllowsCustomWrapper(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{
+			{Key: "items", Type: "loopstart"},
+			{Key: "name", Type: "text"},
+			{Key: "items", Type: "loopstop"},
+		},
+	}
+	ctx := loopCtxFor(tpl, []any{
+		map[string]any{"name": "a"},
+		map[string]any{"name": "b"},
+	})
+
+	got := renderWithCtx(t,
+		`{{#loop "items" wrap=false}}<article class="{{loopItemClass "step"}}" data-index="{{loopIndex}}" data-loop="{{loopKey}}">{{field "name"}}</article>{{/loop}}`,
+		ctx,
+	)
+	for _, want := range []string{
+		`<article class="loop-item step" data-index="1" data-loop="items">a</article>`,
+		`<article class="loop-item step" data-index="2" data-loop="items">b</article>`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
 	}
 }
