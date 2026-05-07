@@ -28,22 +28,27 @@ func TestFeatures(t *testing.T) {
 }
 
 type tmplWorld struct {
-	tmp        string
-	sys        *system.Manager
-	m          *Manager
-	list       []string
-	loaded     *Template
-	loadErr    error
-	tmpl       *Template
-	errors     []ValidationError
-	desc       Descriptor
-	descErr    error
-	items      []ItemField
-	itemsErr   error
-	saveErr    error
-	registry   []FieldTypeDef
-	yamlBlob   []byte
-	reloaded   *Template
+	tmp      string
+	sys      *system.Manager
+	m        *Manager
+	list     []string
+	loaded   *Template
+	loadErr  error
+	tmpl     *Template
+	errors   []ValidationError
+	desc     Descriptor
+	descErr  error
+	items    []ItemField
+	itemsErr error
+	saveErr  error
+	registry []FieldTypeDef
+	yamlBlob []byte
+	reloaded *Template
+
+	// Generator state (used by generator.feature only)
+	genFields []Field
+	genOut    string
+	genShapes []ShapeInfo
 }
 
 func initTemplateScenario(ctx *godog.ScenarioContext) {
@@ -534,6 +539,99 @@ fields:
 		}
 		return nil
 	})
+
+	// ── Generator (generator.feature) ────────────────────────────────
+
+	ctx.Step(`^a fresh generator world$`, func() error {
+		w.genFields = nil
+		w.genOut = ""
+		w.genShapes = nil
+		return nil
+	})
+
+	ctx.Step(`^no fields$`, func() error {
+		w.genFields = nil
+		return nil
+	})
+
+	ctx.Step(`^the fields:$`, func(table *godog.Table) error {
+		w.genFields = tableToFields(table)
+		return nil
+	})
+
+	ctx.Step(`^I generate with shape "([^"]*)"$`, func(shape string) error {
+		w.genOut = GenerateMarkdownTemplate(Shape(shape), w.genFields)
+		return nil
+	})
+
+	ctx.Step(`^I read the shape catalog$`, func() error {
+		w.genShapes = Shapes()
+		return nil
+	})
+
+	ctx.Step(`^the generated output is empty$`, func() error {
+		if w.genOut != "" {
+			return fmt.Errorf("expected empty output, got %q", w.genOut)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the catalog has (\d+) entries$`, func(want int) error {
+		if len(w.genShapes) != want {
+			return fmt.Errorf("catalog len = %d, want %d", len(w.genShapes), want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the catalog contains shape "([^"]*)"$`, func(id string) error {
+		for _, s := range w.genShapes {
+			if string(s.ID) == id {
+				return nil
+			}
+		}
+		return fmt.Errorf("catalog missing shape %q", id)
+	})
+
+	ctx.Step(`^every catalog entry has a non-empty label and description$`, func() error {
+		for _, s := range w.genShapes {
+			if s.Label == "" || s.Description == "" {
+				return fmt.Errorf("shape %q has empty label or description", s.ID)
+			}
+		}
+		return nil
+	})
+
+	ctx.Step(`^the output starts with "(.*)"$`, func(prefix string) error {
+		decoded := decodeFeatureLiteral(prefix)
+		if !strings.HasPrefix(w.genOut, decoded) {
+			return fmt.Errorf("output does not start with %q; got:\n%s", decoded, w.genOut)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the output does not start with "(.*)"$`, func(prefix string) error {
+		decoded := decodeFeatureLiteral(prefix)
+		if strings.HasPrefix(w.genOut, decoded) {
+			return fmt.Errorf("output should NOT start with %q; got:\n%s", decoded, w.genOut)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the output contains "(.*)"$`, func(needle string) error {
+		decoded := decodeFeatureLiteral(needle)
+		if !strings.Contains(w.genOut, decoded) {
+			return fmt.Errorf("output missing %q; got:\n%s", decoded, w.genOut)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the output does not contain "(.*)"$`, func(needle string) error {
+		decoded := decodeFeatureLiteral(needle)
+		if strings.Contains(w.genOut, decoded) {
+			return fmt.Errorf("output should NOT contain %q; got:\n%s", decoded, w.genOut)
+		}
+		return nil
+	})
 }
 
 func tableToFields(table *godog.Table) []Field {
@@ -554,9 +652,21 @@ func tableToFields(table *godog.Table) []Field {
 		if i, ok := headers["type"]; ok {
 			f.Type = r.Cells[i].Value
 		}
+		if i, ok := headers["label"]; ok {
+			f.Label = r.Cells[i].Value
+		}
 		out = append(out, f)
 	}
 	return out
+}
+
+// decodeFeatureLiteral unescapes \n and \" in a step parameter so
+// generator scenarios can quote handlebars helpers naturally
+// (godog's gherkin parser does not unescape these by default).
+func decodeFeatureLiteral(s string) string {
+	s = strings.ReplaceAll(s, `\n`, "\n")
+	s = strings.ReplaceAll(s, `\"`, `"`)
+	return s
 }
 
 func summarizeErrors(errs []ValidationError) []string {

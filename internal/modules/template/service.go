@@ -41,3 +41,17 @@ func (s *Service) EnsureTemplateDirectory() error                 { return s.m.E
 // visibility, so adding/changing a type happens in one place
 // (field_registry.go).
 func (s *Service) FieldTypes() []FieldTypeDef { return AllFieldTypes() }
+
+// GeneratorShapes returns the catalog the frontend uses to populate
+// the "Generate Template" dialog.
+func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }
+
+// GenerateMarkdown produces a default markdown_template body for the
+// given fields in the chosen shape. Pass an empty/unknown shape to
+// fall back to "report" (the original Formidable behavior).
+//
+// The fields argument comes from the unsaved Vue draft, so callers
+// don't need to save before generating.
+func (s *Service) GenerateMarkdown(shape string, fields []Field) string {
+	return GenerateMarkdownTemplate(Shape(shape), fields)
+}
