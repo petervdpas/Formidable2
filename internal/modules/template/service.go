@@ -46,16 +46,13 @@ func (s *Service) FieldTypes() []FieldTypeDef { return AllFieldTypes() }
 // the "Generate Template" dialog's shape picker.
 func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }
 
-// GeneratorImageModes returns the catalog used for the dialog's
-// secondary picker (linked URL vs inline base64 for image fields).
-func (s *Service) GeneratorImageModes() []ImgModeInfo { return ImgModes() }
-
 // GenerateMarkdown produces a default markdown_template body for the
-// given fields in the chosen shape and image mode. Empty/unknown shape
-// falls back to "report"; empty/unknown image mode falls back to "url".
+// given fields in the chosen shape, with per-shape sub-options. Empty/
+// unknown shape falls back to "report"; empty/unknown image mode falls
+// back to "url".
 //
 // The fields argument comes from the unsaved Vue draft, so callers
 // don't need to save before generating.
-func (s *Service) GenerateMarkdown(shape, imgMode string, fields []Field) string {
-	return GenerateMarkdownTemplate(Shape(shape), ImgMode(imgMode), fields)
+func (s *Service) GenerateMarkdown(shape string, opts GeneratorOptions, fields []Field) string {
+	return GenerateMarkdownTemplate(Shape(shape), opts, fields)
 }

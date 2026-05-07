@@ -7,10 +7,6 @@ import (
 )
 
 // Shape selects an output style for the markdown-template generator.
-//
-// Why a string-typed enum: the value crosses the Wails boundary and is
-// chosen by the user in a Vue dialog. Bare strings keep the binding
-// simple — no per-shape constructor on the frontend.
 type Shape string
 
 const (
@@ -22,12 +18,10 @@ const (
 
 // ImgMode selects how image fields are emitted.
 //
-//	url    — `![Label]({{imageURL "key"}})`. The runtime helper resolves
-//	         to whatever the consumer's render.Manager is wired to
-//	         (slideout: /api/images/<stem>/<file>; wiki: /storage/...).
-//	inline — `![Label]({{imageBase64 "key"}})`. The bytes are inlined as
-//	         a `data:<mime>;base64,…` URL at render time. Use for
-//	         self-contained exports (single-file HTML/PDF/wiki import).
+//	url    — `![Label]({{imageURL "key"}})`. Resolved at render time
+//	         per the consumer's render.Manager (slideout, wiki, …).
+//	inline — `![Label]({{imageBase64 "key"}})`. Bytes inlined as a
+//	         `data:<mime>;base64,…` URL. For self-contained exports.
 type ImgMode string
 
 const (
@@ -35,20 +29,23 @@ const (
 	ImgInline ImgMode = "inline"
 )
 
-// ShapeInfo is a UI-facing record so the frontend doesn't have to
-// hardcode shape labels — vue-i18n would also work but the dialog has
-// a small static set, so descriptions live next to the implementation.
+// GeneratorOptions carries the per-shape sub-choices the dialog
+// surfaces. Bag-of-bools so adding a new option doesn't require
+// signature changes throughout the call chain (Service ↔ generator ↔
+// Wails binding).
+//
+// Defaults match the dialog's defaults: linked URL for images, auto-
+// wrapped loop iterations.
+type GeneratorOptions struct {
+	ImgMode   ImgMode `json:"img_mode"`
+	WrapLoops bool    `json:"wrap_loops"`
+}
+
+// ShapeInfo is the catalog record for the dialog's shape picker.
 type ShapeInfo struct {
 	ID          Shape  `json:"id"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
-}
-
-// ImgModeInfo is the corresponding catalog entry for image modes.
-type ImgModeInfo struct {
-	ID          ImgMode `json:"id"`
-	Label       string  `json:"label"`
-	Description string  `json:"description"`
 }
 
 // Shapes returns the catalog used by the dialog picker.
@@ -77,46 +74,30 @@ func Shapes() []ShapeInfo {
 	}
 }
 
-// ImgModes returns the catalog used by the dialog's image-mode picker.
-func ImgModes() []ImgModeInfo {
-	return []ImgModeInfo{
-		{
-			ID:          ImgURL,
-			Label:       "Linked URL",
-			Description: "Images render as `![alt](/api/images/<stem>/<file>)` via the {{imageURL}} helper. Loads from the api route — clean markdown source, lighter exports.",
-		},
-		{
-			ID:          ImgInline,
-			Label:       "Inline (base64)",
-			Description: "Images render as a `data:<mime>;base64,…` URL via the {{imageBase64}} helper. Heavier markdown but self-contained — useful for single-file HTML/PDF exports.",
-		},
-	}
-}
-
 // GenerateMarkdownTemplate produces default Handlebars-flavored markdown
-// for the given fields, in the requested shape and image mode.
+// for the given fields, in the requested shape and options.
 //
 // Empty/nil fields → empty string. Unknown shape → falls back to report
 // so a stale frontend doesn't produce nothing. Unknown image mode →
 // falls back to ImgURL.
-func GenerateMarkdownTemplate(shape Shape, imgMode ImgMode, fields []Field) string {
+func GenerateMarkdownTemplate(shape Shape, opts GeneratorOptions, fields []Field) string {
 	if len(fields) == 0 {
 		return ""
 	}
-	if imgMode != ImgURL && imgMode != ImgInline {
-		imgMode = ImgURL
+	if opts.ImgMode != ImgURL && opts.ImgMode != ImgInline {
+		opts.ImgMode = ImgURL
 	}
 	switch shape {
 	case ShapeMinimal:
-		return generateMinimal(fields, imgMode)
+		return generateMinimal(fields, opts)
 	case ShapeTable:
-		return generateTable(fields, imgMode)
+		return generateTable(fields, opts.ImgMode)
 	case ShapeFrontmatter:
 		return generateFrontmatter(fields)
 	case ShapeReport:
-		return generateReport(fields, imgMode)
+		return generateReport(fields, opts)
 	default:
-		return generateReport(fields, imgMode)
+		return generateReport(fields, opts)
 	}
 }
 
@@ -131,9 +112,21 @@ func imageHelperCall(key string, mode ImgMode) string {
 	}
 }
 
+// loopBodyWrap inserts {{loopItemBefore}} / {{loopItemAfter}} around
+// an inner loop body when WrapLoops is on. The loop opener stays bare
+// (`{{#loop "key"}}`) regardless — wrap state lives in the body so a
+// reader of the generated source can see at a glance whether iteration
+// wrapping is in effect.
+func loopBodyWrap(body string, wrap bool) string {
+	if !wrap {
+		return body
+	}
+	return "{{loopItemBefore}}\n" + body + "\n{{loopItemAfter}}"
+}
+
 // ─── Report shape (port of templateGenerator.js) ──────────────────────
 
-func generateReport(fields []Field, imgMode ImgMode) string {
+func generateReport(fields []Field, opts GeneratorOptions) string {
 	frontmatter := strings.Join([]string{
 		"---",
 		"title: Auto-generated Report",
@@ -147,14 +140,14 @@ func generateReport(fields []Field, imgMode ImgMode) string {
 	}, "\n")
 
 	var topLevelLogs []string
-	body := renderFieldBlocks(fields, 2, &topLevelLogs, imgMode)
+	body := renderFieldBlocks(fields, 2, &topLevelLogs, opts)
 	content := strings.Join(body, "\n---\n\n")
 	logSection := buildLogSection(topLevelLogs)
 
 	return frontmatter + "\n" + content + logSection
 }
 
-func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string, imgMode ImgMode) []string {
+func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string, opts GeneratorOptions) []string {
 	result := make([]string, 0, len(fields))
 	seen := map[string]bool{}
 
@@ -195,12 +188,13 @@ func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string, imgMode
 			inner = append([]Field{indexField}, inner...)
 
 			var loopLogs []string
-			loopBody := strings.Join(renderFieldBlocks(inner, headingLevel+1, &loopLogs, imgMode), "\n---\n\n")
+			loopBody := strings.Join(renderFieldBlocks(inner, headingLevel+1, &loopLogs, opts), "\n---\n\n")
 			loopLogBlock := buildLogSection(loopLogs)
 
 			result = append(result, fmt.Sprintf(
 				"\n%s Loop: %s\n\n{{#loop \"%s\"}}\n%s%s\n{{/loop}}\n",
-				strings.Repeat("#", headingLevel), loopKey, loopKey, loopBody, loopLogBlock,
+				strings.Repeat("#", headingLevel), loopKey, loopKey,
+				loopBodyWrap(loopBody, opts.WrapLoops), loopLogBlock,
 			))
 			seen[loopKey+"_index"] = true
 			continue
@@ -209,7 +203,7 @@ func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string, imgMode
 		if t == "loopstop" || seen[key] {
 			continue
 		}
-		result = append(result, generateSingleFieldBlock(f, headingLevel, logs, imgMode))
+		result = append(result, generateSingleFieldBlock(f, headingLevel, logs, opts.ImgMode))
 		seen[key] = true
 	}
 	return result
@@ -335,12 +329,12 @@ func buildLogSection(logs []string) string {
 
 // ─── Minimal shape ────────────────────────────────────────────────────
 
-func generateMinimal(fields []Field, imgMode ImgMode) string {
-	parts := renderMinimalBlocks(fields, 2, imgMode)
+func generateMinimal(fields []Field, opts GeneratorOptions) string {
+	parts := renderMinimalBlocks(fields, 2, opts)
 	return strings.Join(parts, "\n\n") + "\n"
 }
 
-func renderMinimalBlocks(fields []Field, headingLevel int, imgMode ImgMode) []string {
+func renderMinimalBlocks(fields []Field, headingLevel int, opts GeneratorOptions) []string {
 	out := make([]string, 0, len(fields))
 	seen := map[string]bool{}
 	heading := strings.Repeat("#", headingLevel)
@@ -372,8 +366,9 @@ func renderMinimalBlocks(fields []Field, headingLevel int, imgMode ImgMode) []st
 				i++
 			}
 			i--
-			body := strings.Join(renderMinimalBlocks(inner, headingLevel+1, imgMode), "\n\n")
-			out = append(out, fmt.Sprintf("%s Loop: %s\n\n{{#loop \"%s\"}}\n%s\n{{/loop}}", heading, loopKey, loopKey, body))
+			body := strings.Join(renderMinimalBlocks(inner, headingLevel+1, opts), "\n\n")
+			out = append(out, fmt.Sprintf("%s Loop: %s\n\n{{#loop \"%s\"}}\n%s\n{{/loop}}",
+				heading, loopKey, loopKey, loopBodyWrap(body, opts.WrapLoops)))
 			continue
 		}
 		if t == "loopstop" || seen[key] {
@@ -384,7 +379,7 @@ func renderMinimalBlocks(fields []Field, headingLevel int, imgMode ImgMode) []st
 		if label == "" {
 			label = key
 		}
-		out = append(out, fmt.Sprintf("%s %s\n\n%s", heading, label, renderFieldValueBlock(key, label, t, imgMode)))
+		out = append(out, fmt.Sprintf("%s %s\n\n%s", heading, label, renderFieldValueBlock(key, label, t, opts.ImgMode)))
 	}
 	return out
 }

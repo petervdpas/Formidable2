@@ -352,16 +352,15 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 
 	// ── loop block helper ───────────────────────────────────────
 	//
-	// Hash options:
-	//   class="extra1 extra2"  — added to the auto-wrap section's class
-	//   wrap=false             — opt out of the auto <section> wrapper
+	// Plain iterator — same shape as the original Formidable's helper.
+	// Iteration wrapping is opt-in: place {{loopItemBefore}} and
+	// {{loopItemAfter}} inside the body to wrap each iteration in
+	// `<section class="loop-item" …>`. The generator emits those calls
+	// when the user toggles "Wrap loop iterations" on.
 	//
-	// Default: each iteration is wrapped in
-	//   <section class="loop-item …" data-loop="<key>" data-index="N">
-	//
-	// blank line + iteration body + blank line + </section>. Goldmark
-	// treats the opening/closing tags as block-level raw HTML and still
-	// renders the inner content as markdown thanks to the blank lines.
+	// Each iteration's context carries `_loopKey` and `_loopIndex` so
+	// the before/after helpers (and {{loopKey}} / {{loopIndex}}) can
+	// read them without scanning.
 	tpl.RegisterHelper("loop", func(key string, options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -385,15 +384,6 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 		tplPtr, _ := ctx["_template"].(*template.Template)
 		groups, _ := ctx["_loopGroups"].(map[string][]template.Field)
 
-		// Hash options. Raymond exposes hash values via HashStr / HashProp.
-		extraClass := strings.TrimSpace(options.HashStr("class"))
-		wrap := true
-		if v := options.HashProp("wrap"); v != nil {
-			if b, ok := v.(bool); ok {
-				wrap = b
-			}
-		}
-
 		out := make([]string, 0, len(items))
 		for i, raw := range items {
 			entry, _ := raw.(map[string]any)
@@ -407,14 +397,58 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 			sub["_fields"] = combined
 			sub["_template"] = tplPtr
 			sub["_loopGroups"] = groups
-			body := options.FnWith(sub)
-			if wrap {
-				out = append(out, wrapLoopIteration(key, i+1, extraClass, body))
-			} else {
-				out = append(out, body)
-			}
+			out = append(out, options.FnWith(sub))
 		}
 		return strings.Join(out, "\n")
+	})
+
+	// {{loopItemBefore [extra-classes…]}} — emits the section opener
+	// for the current iteration. Variadic extras are appended after
+	// the base "loop-item" class, so the user can theme individual
+	// loops without touching the helper.
+	//
+	// Outside a loop body (no _loopKey) → empty string.
+	tpl.RegisterHelper("loopItemBefore", func(options *raymond.Options) raymond.SafeString {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		key, _ := ctx["_loopKey"].(string)
+		if key == "" {
+			return ""
+		}
+		idx := loopIndexFromCtx(ctx)
+		extras := []string{}
+		for _, p := range options.Params() {
+			if s, ok := p.(string); ok {
+				if s = strings.TrimSpace(s); s != "" {
+					extras = append(extras, s)
+				}
+			}
+		}
+		classAttr := "loop-item"
+		if len(extras) > 0 {
+			classAttr += " " + strings.Join(extras, " ")
+		}
+		return raymond.SafeString(fmt.Sprintf(
+			"<section class=%q data-loop=%q data-index=%q>\n\n",
+			classAttr, key, strconv.Itoa(idx),
+		))
+	})
+
+	// {{loopItemAfter}} — pairs with {{loopItemBefore}}. The leading
+	// blank line is what tells goldmark to close the HTML block above
+	// and resume markdown parsing. Outside a loop → empty.
+	tpl.RegisterHelper("loopItemAfter", func(options *raymond.Options) raymond.SafeString {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		key, _ := ctx["_loopKey"].(string)
+		if key == "" {
+			return ""
+		}
+		return raymond.SafeString("\n\n</section>")
 	})
 
 	// {{loopKey}} — current loop's key. Empty outside a loop body.
@@ -566,20 +600,19 @@ func contextFields(ctx any) []template.Field {
 	return nil
 }
 
-// wrapLoopIteration wraps an iteration's rendered body in a goldmark-
-// friendly raw-HTML <section>. The blank lines after the opening tag
-// and before the closing tag are load-bearing — they tell goldmark to
-// suspend HTML-block mode so the inner content is processed as
-// markdown rather than treated as opaque HTML.
-func wrapLoopIteration(loopKey string, index int, extraClass, body string) string {
-	classAttr := "loop-item"
-	if extraClass != "" {
-		classAttr += " " + extraClass
+// loopIndexFromCtx coerces _loopIndex to int. Per-iteration context
+// is built by the loop helper so the value is always set; this is
+// defensive for hand-rolled callers.
+func loopIndexFromCtx(ctx map[string]any) int {
+	switch v := ctx["_loopIndex"].(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
 	}
-	return fmt.Sprintf(
-		"<section class=%q data-loop=%q data-index=%q>\n\n%s\n\n</section>",
-		classAttr, loopKey, strconv.Itoa(index), body,
-	)
+	return 0
 }
 
 // findField returns a pointer to the field with key in the current

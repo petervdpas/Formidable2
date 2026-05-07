@@ -2,49 +2,46 @@
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
-import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import type {
-  ShapeInfo,
-  ImgModeInfo,
+import SwitchField from "./fields/SwitchField.vue";
+import {
+  Service as TemplateSvc,
+  GeneratorOptions,
+  ImgMode,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { ShapeInfo } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
   open: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "confirm", shape: string, imgMode: string): void;
+  (e: "confirm", shape: string, opts: GeneratorOptions): void;
   (e: "cancel"): void;
 }>();
 
 const { t } = useI18n();
 
 const shapes = ref<ShapeInfo[]>([]);
-const imgModes = ref<ImgModeInfo[]>([]);
 const selectedShape = ref<string>("report");
-const selectedImgMode = ref<string>("url");
+
+// Options section — booleans rather than radios so the dialog stays
+// scannable when more options land later. Defaults match the backend
+// defaults: linked URL for images, auto-wrap for loops.
+const inlineImages = ref(false);
+const wrapLoops = ref(true);
+
 const loading = ref(false);
 
-// Lazy-load the two catalogs when the dialog opens. Both are static
-// (driven by Go constants) so we could cache once per session — but
-// the calls are cheap and Vue doesn't have a global cache helper here.
 watch(
   () => props.open,
   async (isOpen) => {
     if (!isOpen) return;
     loading.value = true;
     try {
-      const [shapeList, modeList] = await Promise.all([
-        TemplateSvc.GeneratorShapes(),
-        TemplateSvc.GeneratorImageModes(),
-      ]);
-      shapes.value = shapeList ?? [];
-      imgModes.value = modeList ?? [];
+      const list = await TemplateSvc.GeneratorShapes();
+      shapes.value = list ?? [];
       if (shapes.value.length && !shapes.value.some((s) => s.id === selectedShape.value)) {
         selectedShape.value = shapes.value[0].id ?? "report";
-      }
-      if (imgModes.value.length && !imgModes.value.some((m) => m.id === selectedImgMode.value)) {
-        selectedImgMode.value = imgModes.value[0].id ?? "url";
       }
     } finally {
       loading.value = false;
@@ -54,7 +51,11 @@ watch(
 );
 
 function onConfirm() {
-  emit("confirm", selectedShape.value, selectedImgMode.value);
+  const opts = GeneratorOptions.createFrom({
+    img_mode: inlineImages.value ? ImgMode.ImgInline : ImgMode.ImgURL,
+    wrap_loops: wrapLoops.value,
+  });
+  emit("confirm", selectedShape.value, opts);
 }
 </script>
 
@@ -96,25 +97,42 @@ function onConfirm() {
       </fieldset>
 
       <fieldset class="generate-fieldset">
-        <legend>{{ t('workspace.templates.generate.imgmode_legend') }}</legend>
-        <div class="generate-shape-list" role="radiogroup">
-          <label
-            v-for="mode in imgModes"
-            :key="mode.id"
-            class="generate-shape-row"
-            :class="{ selected: selectedImgMode === mode.id }"
-          >
-            <input
-              type="radio"
-              name="generate-imgmode"
-              :value="mode.id"
-              v-model="selectedImgMode"
-            />
-            <span class="generate-shape-text">
-              <span class="generate-shape-label">{{ mode.label }}</span>
-              <span class="generate-shape-desc muted small">{{ mode.description }}</span>
+        <legend>{{ t('workspace.templates.generate.options_legend') }}</legend>
+
+        <div class="generate-option-row">
+          <div class="generate-option-text">
+            <span class="generate-option-label">
+              {{ t('workspace.templates.generate.inline_images.label') }}
             </span>
-          </label>
+            <span class="generate-option-desc muted small">
+              {{ inlineImages
+                ? t('workspace.templates.generate.inline_images.desc_on')
+                : t('workspace.templates.generate.inline_images.desc_off') }}
+            </span>
+          </div>
+          <SwitchField
+            v-model="inlineImages"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
+        </div>
+
+        <div class="generate-option-row">
+          <div class="generate-option-text">
+            <span class="generate-option-label">
+              {{ t('workspace.templates.generate.wrap_loops.label') }}
+            </span>
+            <span class="generate-option-desc muted small">
+              {{ wrapLoops
+                ? t('workspace.templates.generate.wrap_loops.desc_on')
+                : t('workspace.templates.generate.wrap_loops.desc_off') }}
+            </span>
+          </div>
+          <SwitchField
+            v-model="wrapLoops"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
         </div>
       </fieldset>
     </template>
@@ -126,7 +144,7 @@ function onConfirm() {
       <button
         class="tool-btn primary"
         type="button"
-        :disabled="loading || !selectedShape || !selectedImgMode"
+        :disabled="loading || !selectedShape"
         @click="onConfirm"
       >
         {{ t('workspace.templates.generate.confirm') }}
@@ -187,6 +205,29 @@ function onConfirm() {
   font-weight: 600;
 }
 .generate-shape-desc {
+  line-height: 1.35;
+}
+.generate-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.2rem;
+  border-top: 1px solid var(--border-color-faint, rgba(0, 0, 0, 0.05));
+}
+.generate-option-row:first-of-type {
+  border-top: none;
+}
+.generate-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.generate-option-label {
+  font-weight: 600;
+}
+.generate-option-desc {
   line-height: 1.35;
 }
 </style>

@@ -198,6 +198,40 @@ Feature: Default markdown-template generator
     When I generate with shape "report" and image mode "bogus"
     Then the output contains "{{imageURL \"cover\"}}"
 
+  # ── WrapLoops sub-option ────────────────────────────────────────────
+
+  Scenario: Default wrap-on emits before/after helpers in the body
+    Given the fields:
+      | key   | type      | label |
+      | items | loopstart |       |
+      | name  | text      | Name  |
+      | items | loopstop  |       |
+    When I generate with shape "report"
+    Then the output contains "{{#loop \"items\"}}"
+    And the output contains "{{loopItemBefore}}"
+    And the output contains "{{loopItemAfter}}"
+
+  Scenario: WrapLoops=false omits the before/after helpers
+    Given the fields:
+      | key   | type      | label |
+      | items | loopstart |       |
+      | name  | text      | Name  |
+      | items | loopstop  |       |
+    When I generate with shape "report" and wrap loops "false"
+    Then the output contains "{{#loop \"items\"}}"
+    And the output does not contain "loopItemBefore"
+    And the output does not contain "loopItemAfter"
+
+  Scenario: Minimal shape with wrap-on emits the helpers
+    Given the fields:
+      | key   | type      | label |
+      | items | loopstart |       |
+      | name  | text      |       |
+      | items | loopstop  |       |
+    When I generate with shape "minimal" and wrap loops "true"
+    Then the output contains "{{loopItemBefore}}"
+    And the output contains "{{loopItemAfter}}"
+
   # ── Robustness ──────────────────────────────────────────────────────
 
   Scenario: Unknown shape falls back to report

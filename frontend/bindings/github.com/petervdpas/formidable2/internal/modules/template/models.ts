@@ -223,14 +223,46 @@ export class FieldTypeDef {
 }
 
 /**
+ * GeneratorOptions carries the per-shape sub-choices the dialog
+ * surfaces. Bag-of-bools so adding a new option doesn't require
+ * signature changes throughout the call chain (Service ↔ generator ↔
+ * Wails binding).
+ * 
+ * Defaults match the dialog's defaults: linked URL for images, auto-
+ * wrapped loop iterations.
+ */
+export class GeneratorOptions {
+    "img_mode": ImgMode;
+    "wrap_loops": boolean;
+
+    /** Creates a new GeneratorOptions instance. */
+    constructor($$source: Partial<GeneratorOptions> = {}) {
+        if (!("img_mode" in $$source)) {
+            this["img_mode"] = ImgMode.$zero;
+        }
+        if (!("wrap_loops" in $$source)) {
+            this["wrap_loops"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GeneratorOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GeneratorOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GeneratorOptions($$parsedSource as Partial<GeneratorOptions>);
+    }
+}
+
+/**
  * ImgMode selects how image fields are emitted.
  * 
- * 	url    — `![Label]({{imageURL "key"}})`. The runtime helper resolves
- * 	         to whatever the consumer's render.Manager is wired to
- * 	         (slideout: /api/images/<stem>/<file>; wiki: /storage/...).
- * 	inline — `![Label]({{imageBase64 "key"}})`. The bytes are inlined as
- * 	         a `data:<mime>;base64,…` URL at render time. Use for
- * 	         self-contained exports (single-file HTML/PDF/wiki import).
+ * 	url    — `![Label]({{imageURL "key"}})`. Resolved at render time
+ * 	         per the consumer's render.Manager (slideout, wiki, …).
+ * 	inline — `![Label]({{imageBase64 "key"}})`. Bytes inlined as a
+ * 	         `data:<mime>;base64,…` URL. For self-contained exports.
  */
 export enum ImgMode {
     /**
@@ -241,38 +273,6 @@ export enum ImgMode {
     ImgURL = "url",
     ImgInline = "inline",
 };
-
-/**
- * ImgModeInfo is the corresponding catalog entry for image modes.
- */
-export class ImgModeInfo {
-    "id": ImgMode;
-    "label": string;
-    "description": string;
-
-    /** Creates a new ImgModeInfo instance. */
-    constructor($$source: Partial<ImgModeInfo> = {}) {
-        if (!("id" in $$source)) {
-            this["id"] = ImgMode.$zero;
-        }
-        if (!("label" in $$source)) {
-            this["label"] = "";
-        }
-        if (!("description" in $$source)) {
-            this["description"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ImgModeInfo instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ImgModeInfo {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ImgModeInfo($$parsedSource as Partial<ImgModeInfo>);
-    }
-}
 
 /**
  * ItemField is one row in the "possible item fields" picker (top-level
@@ -305,10 +305,6 @@ export class ItemField {
 
 /**
  * Shape selects an output style for the markdown-template generator.
- * 
- * Why a string-typed enum: the value crosses the Wails boundary and is
- * chosen by the user in a Vue dialog. Bare strings keep the binding
- * simple — no per-shape constructor on the frontend.
  */
 export enum Shape {
     /**
@@ -323,9 +319,7 @@ export enum Shape {
 };
 
 /**
- * ShapeInfo is a UI-facing record so the frontend doesn't have to
- * hardcode shape labels — vue-i18n would also work but the dialog has
- * a small static set, so descriptions live next to the implementation.
+ * ShapeInfo is the catalog record for the dialog's shape picker.
  */
 export class ShapeInfo {
     "id": Shape;

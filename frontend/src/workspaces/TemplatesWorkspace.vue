@@ -8,7 +8,10 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
-import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import {
+  Service as TemplateSvc,
+  GeneratorOptions,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   FormSection,
   FormRow,
@@ -225,11 +228,11 @@ function openDelete(index: number) {
 // ── Generate-template dialog ─────────────────────────────────────────
 const generateOpen = ref(false);
 
-async function applyGenerated(shape: string, imgMode: string) {
+async function applyGenerated(shape: string, opts: GeneratorOptions) {
   generateOpen.value = false;
   if (!draft.value) return;
   try {
-    const out = await TemplateSvc.GenerateMarkdown(shape, imgMode, draft.value.fields ?? []);
+    const out = await TemplateSvc.GenerateMarkdown(shape, opts, draft.value.fields ?? []);
     draft.value.markdown_template = out ?? "";
   } catch (err) {
     toast.error(t('workspace.templates.generate.error', [String(err)]));
@@ -555,11 +558,11 @@ setTopbarMenu(() => [
     @confirm="confirmDeleteTemplate"
   />
 
-  <!-- Generate-template shape + image-mode picker -->
+  <!-- Generate-template dialog: shape + sub-options -->
   <GenerateTemplateDialog
     :open="generateOpen"
     @cancel="generateOpen = false"
-    @confirm="(shape, imgMode) => applyGenerated(shape, imgMode)"
+    @confirm="(shape, opts) => applyGenerated(shape, opts)"
   />
 </template>
 
