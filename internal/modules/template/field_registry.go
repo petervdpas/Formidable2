@@ -8,8 +8,8 @@ package template
 // programmatic writer can't leave meaningless data on a field.
 
 // Property names used across the registry. Stable strings — referenced
-// by tests and by the ValidationError detail. Group names (code/
-// latex/api) check the union of their members.
+// by tests and by the ValidationError detail. The "api" group name
+// checks the union of its members.
 const (
 	attrSummaryField   = "summary_field"
 	attrPrimaryKey     = "primary_key"
@@ -22,9 +22,7 @@ const (
 	attrCollapsible    = "collapsible"
 	attrReadonly       = "readonly"
 	attrFormat         = "format"
-	attrCodeGroup      = "code"  // run_mode / allow_run / hide_field / input_mode / api_mode / api_pick
-	attrLatexGroup     = "latex" // rows / use_fenced
-	attrAPIGroup       = "api"   // collection / id / map / use_picker / allowed_ids
+	attrAPIGroup       = "api" // collection / id / map / use_picker / allowed_ids
 )
 
 // FieldTypeDef declares a known field type and the optional Field
@@ -54,7 +52,7 @@ var fieldTypeRegistry = map[string]FieldTypeDef{
 			attrDefault,
 			attrOptions, attrSummaryField, attrExpressionItem, attrTwoColumn,
 			attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"looper": {
@@ -62,7 +60,7 @@ var fieldTypeRegistry = map[string]FieldTypeDef{
 		ForbiddenAttributes: []string{
 			attrDefault, attrOptions, attrExpressionItem, attrTwoColumn,
 			attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"loopstart": {
@@ -70,7 +68,7 @@ var fieldTypeRegistry = map[string]FieldTypeDef{
 		ForbiddenAttributes: []string{
 			attrDefault, attrOptions, attrExpressionItem, attrTwoColumn,
 			attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"loopstop": {
@@ -78,121 +76,105 @@ var fieldTypeRegistry = map[string]FieldTypeDef{
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrDescription, attrDefault, attrOptions,
 			attrExpressionItem, attrTwoColumn, attrCollapsible, attrReadonly,
-			attrFormat, attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrFormat, attrAPIGroup,
 		},
 	},
 	"text": {
 		ID: "text",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"boolean": {
 		ID: "boolean",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"dropdown": {
 		ID: "dropdown",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"multioption": {
 		ID: "multioption",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"radio": {
 		ID: "radio",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"textarea": {
 		ID: "textarea",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"number": {
 		ID: "number",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"range": {
 		ID: "range",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"date": {
 		ID: "date",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"list": {
 		ID: "list",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"table": {
 		ID: "table",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"image": {
 		ID: "image",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"link": {
 		ID: "link",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"tags": {
 		ID: "tags",
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrCodeGroup, attrLatexGroup, attrAPIGroup,
-		},
-	},
-	"code": {
-		ID: "code",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrExpressionItem, attrTwoColumn,
-			attrLatexGroup, attrAPIGroup,
-		},
-	},
-	"latex": {
-		ID: "latex",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrExpressionItem, attrTwoColumn,
-			attrCodeGroup, attrAPIGroup,
+			attrAPIGroup,
 		},
 	},
 	"api": {
@@ -200,7 +182,6 @@ var fieldTypeRegistry = map[string]FieldTypeDef{
 		ForbiddenAttributes: []string{
 			attrSummaryField, attrDefault, attrOptions, attrFormat,
 			attrExpressionItem, attrTwoColumn, attrCollapsible, attrReadonly,
-			attrCodeGroup, attrLatexGroup,
 		},
 	},
 }
@@ -219,7 +200,7 @@ var orderedTypes = []string{
 	"text", "boolean", "dropdown", "multioption", "radio",
 	"textarea", "number", "range", "date",
 	"list", "table", "image", "link", "tags",
-	"latex", "code", "api", "guid",
+	"api", "guid",
 	"looper", "loopstart", "loopstop",
 }
 
@@ -273,8 +254,7 @@ func defaultIsPopulated(v any) bool {
 }
 
 // propertyIsSet reports whether `attr` has a non-zero value on f.
-// Group names ("code", "latex", "api") return true if any member of
-// the group is set.
+// The "api" group name returns true if any member of the group is set.
 func propertyIsSet(f Field, attr string) bool {
 	switch attr {
 	case attrSummaryField:
@@ -303,11 +283,6 @@ func propertyIsSet(f Field, attr string) bool {
 		return f.Readonly
 	case attrFormat:
 		return f.Format != ""
-	case attrCodeGroup:
-		return f.RunMode != "" || f.AllowRun != nil || f.HideField != nil ||
-			f.InputMode != "" || f.APIMode != "" || len(f.APIPick) > 0
-	case attrLatexGroup:
-		return f.Rows != nil || f.UseFenced != nil
 	case attrAPIGroup:
 		return f.Collection != "" || f.ID != "" || len(f.Map) > 0 ||
 			f.UsePicker != nil || len(f.AllowedIDs) > 0

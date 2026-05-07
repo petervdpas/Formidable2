@@ -16,8 +16,8 @@ func (s *Service) BuildView(templateName, datafile string) (*FormView, error) {
 }
 
 // SaveValues persists the form (storage.Sanitize handles the heavy
-// lifting; this layer adds LaTeX coercion + author injection from
-// config, then re-builds the view from disk).
+// lifting; this layer adds author injection from config, then
+// re-builds the view from disk).
 func (s *Service) SaveValues(templateName string, payload SavePayload) (*FormView, error) {
 	return s.m.SaveValues(templateName, payload)
 }

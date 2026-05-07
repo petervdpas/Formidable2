@@ -1,8 +1,8 @@
 // Package template owns Formidable's templates: schema-driven YAML files
 // at <context>/templates/<name>.yaml that declare a form's fields.
 //
-// Mirrors `controls/templateManager.js` semantics. 20 known field types,
-// loop pairing/nesting validation (max depth 2), single tags-field rule,
+// Mirrors `controls/templateManager.js` semantics. Loop
+// pairing/nesting validation (max depth 2), single tags-field rule,
 // api-field shape rules, collection-mode requires a guid field.
 package template
 
@@ -40,24 +40,11 @@ type Field struct {
 	// textarea-specific
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 
-	// latex-specific
-	Rows        *int   `yaml:"rows,omitempty" json:"rows,omitempty"`
-	UseFenced   *bool  `yaml:"use_fenced,omitempty" json:"use_fenced,omitempty"`
-	Placeholder string `yaml:"placeholder,omitempty" json:"placeholder,omitempty"`
-
-	// code-specific
-	RunMode   string   `yaml:"run_mode,omitempty" json:"run_mode,omitempty"`
-	AllowRun  *bool    `yaml:"allow_run,omitempty" json:"allow_run,omitempty"`
-	HideField *bool    `yaml:"hide_field,omitempty" json:"hide_field,omitempty"`
-	InputMode string   `yaml:"input_mode,omitempty" json:"input_mode,omitempty"`
-	APIMode   string   `yaml:"api_mode,omitempty" json:"api_mode,omitempty"`
-	APIPick   []string `yaml:"api_pick,omitempty" json:"api_pick,omitempty"`
-
 	// api-specific
-	Collection string  `yaml:"collection,omitempty" json:"collection,omitempty"`
-	ID         string  `yaml:"id,omitempty" json:"id,omitempty"`
+	Collection string   `yaml:"collection,omitempty" json:"collection,omitempty"`
+	ID         string   `yaml:"id,omitempty" json:"id,omitempty"`
 	Map        []APIMap `yaml:"map,omitempty" json:"map,omitempty"`
-	UsePicker  *bool   `yaml:"use_picker,omitempty" json:"use_picker,omitempty"`
+	UsePicker  *bool    `yaml:"use_picker,omitempty" json:"use_picker,omitempty"`
 	AllowedIDs []string `yaml:"allowed_ids,omitempty" json:"allowed_ids,omitempty"`
 
 	// Extra fields preserved verbatim (e.g. plugin-specific metadata).

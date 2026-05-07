@@ -87,11 +87,11 @@ branch inside the render module.
 
 ## Field types
 
-17 stored types + 4 system/container, all driven from
+15 stored types + 4 system/container, all driven from
 `internal/modules/template/field_registry.go`:
 
 - **Identity**: `guid`
-- **Text**: `text`, `textarea`, `latex`, `code`
+- **Text**: `text`, `textarea`
 - **Numeric**: `number`, `range`
 - **Boolean**: `boolean`
 - **Choice**: `dropdown`, `radio`, `multioption`

@@ -14,7 +14,6 @@ export const SUPPORTED_OPTION_TYPES = new Set([
   "range",
   "list",
   "table",
-  "code",
 ]);
 
 const DEFAULT_COLUMNS: ColumnDef[] = [

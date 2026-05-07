@@ -158,7 +158,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 - Mirrors `controls/templateManager.js` (526 lines).
 - Owns `<context>/templates/<name>.yaml` files.
 - Methods (frontend-visible names match old `api.templates.*`): `ListTemplates`, `LoadTemplate`, `SaveTemplate`, `DeleteTemplate`, `ValidateTemplate`, `GetTemplateDescriptor`, `GetItemFields`, `SeedBasicIfEmpty`, `EnsureTemplateDirectory`.
-- Schema validation matches `Formidable/schemas/template.schema.js` + `field.schema.js` (20 field types, type-specific normalization for code/latex/api/textarea, etc.).
+- Schema validation matches `Formidable/schemas/template.schema.js` + `field.schema.js`. Formidable2 ships 19 field types — the original's `code` and `latex` types were dropped in the port (see strip 2026-05-07).
 - HTTP routes for read paths.
 - Depends on F-101 (system), F-102 (config).
 
@@ -204,7 +204,7 @@ Goal: every module can be built on top of `system`, `config`, `sfr`, and `slog`.
 
 **Status (2026-05-05): user confirmed encryption is never used in practice. Not porting.**
 
-The original `controls/encryption.js` ships AES-256-CBC with an all-zero IV (deterministic, leaks structure of repeated plaintext) and a key stored in plaintext in `user.json` (not actually secret). Round-trip-compatible port would inherit those weaknesses. No backend modules or shipped plugins consume the IPC, and the user reports never using it from code fields either.
+The original `controls/encryption.js` ships AES-256-CBC with an all-zero IV (deterministic, leaks structure of repeated plaintext) and a key stored in plaintext in `user.json` (not actually secret). Round-trip-compatible port would inherit those weaknesses. No backend modules or shipped plugins consume the IPC, and the user reports never having used it from the original's code fields either (and code fields are no longer a Formidable2 type).
 
 **The `encryption_key` field stays in the config schema** (backward compat with existing `user.json` files in user data dirs) but no module reads it.
 
@@ -309,7 +309,7 @@ This is **not deferrable** — Formidable's local server is a real product surfa
 
 ### F-804 — OpenAPI generation  [size: M] [BLOCKED on F-803]
 - `GET /api/openapi.json` — generates OpenAPI 3 spec dynamically by walking each template's fields and mapping types (`fieldToProperty` in `apiCollections.js:54-187`). Each field type → JSON Schema property:
-  - `text/textarea/latex/code/guid` → `string`
+  - `text/textarea/guid` → `string`
   - `number` → `number`
   - `boolean` → `boolean`
   - `date` → `string` format `date`

@@ -212,10 +212,6 @@ Feature: Template management
     Given a template with one number field "n" with format "markdown"
     Then validation reports a "forbidden-attribute" error for key "n" and attr "format"
 
-  Scenario: Validate flags a forbidden code-group attribute on a text field
-    Given a template with one text field "x" with run_mode "manual"
-    Then validation reports a "forbidden-attribute" error for key "x" and attr "code"
-
   Scenario: List/table allow collapsible
     Given a template with one list field "li" with collapsible true
     Then validation reports no errors
@@ -233,7 +229,7 @@ Feature: Template management
     And the registry contains "table"
     And the registry contains "loopstart"
     And the registry first id is "text"
-    And the registry size is 21
+    And the registry size is 19
 
   # ── Collapsible YAML round-trip ───────────────────────────────────
 

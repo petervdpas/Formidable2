@@ -57,8 +57,8 @@ export function ListForms(templateName: string): $CancellablePromise<storage$0.F
 
 /**
  * SaveValues persists the form (storage.Sanitize handles the heavy
- * lifting; this layer adds LaTeX coercion + author injection from
- * config, then re-builds the view from disk).
+ * lifting; this layer adds author injection from config, then
+ * re-builds the view from disk).
  */
 export function SaveValues(templateName: string, payload: $models.SavePayload): $CancellablePromise<$models.FormView | null> {
     return $Call.ByID(3432782407, templateName, payload).then(($result: any) => {

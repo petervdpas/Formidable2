@@ -421,15 +421,6 @@ fields:
 			return nil
 		})
 
-	ctx.Step(`^a template with one text field "([^"]*)" with run_mode "([^"]*)"$`,
-		func(key, mode string) error {
-			w.tmpl = &Template{
-				Name: "T", Filename: "t.yaml",
-				Fields: []Field{{Key: key, Type: "text", RunMode: mode}},
-			}
-			return nil
-		})
-
 	ctx.Step(`^a template with one list field "([^"]*)" with collapsible true$`,
 		func(key string) error {
 			b := true

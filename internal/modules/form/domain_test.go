@@ -272,23 +272,6 @@ func TestSaveValues_PersistsAndReturnsRoundTrippedView(t *testing.T) {
 	}
 }
 
-func TestSaveValues_LatexValueCoercedBeforeSave(t *testing.T) {
-	m, tpls, store, _ := newTestManager()
-	tpls.byName["t.yaml"] = &template.Template{
-		Fields: []template.Field{{Key: "math", Type: "latex", Default: "$x$"}},
-	}
-	_, err := m.SaveValues("t.yaml", SavePayload{
-		Datafile: "row.meta.json",
-		Values:   map[string]any{"math": "user-typed"},
-	})
-	if err != nil {
-		t.Fatalf("SaveValues: %v", err)
-	}
-	if got := store.saves[0].Data["math"]; got != "$x$" {
-		t.Errorf("latex not coerced before save: %v", got)
-	}
-}
-
 func TestSaveValues_AuthorInjectedFromConfigWhenEmpty(t *testing.T) {
 	m, tpls, store, cfg := newTestManager()
 	cfg.authorName = "Cfg User"

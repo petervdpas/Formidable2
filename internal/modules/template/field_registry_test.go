@@ -19,8 +19,8 @@ func TestValidate_KnownTypesNotFlaggedAsUnknown(t *testing.T) {
 	known := []string{
 		"guid", "loopstart", "loopstop", "looper",
 		"text", "boolean", "dropdown", "multioption", "radio",
-		"textarea", "latex", "number", "range", "date",
-		"list", "table", "image", "link", "tags", "code", "api",
+		"textarea", "number", "range", "date",
+		"list", "table", "image", "link", "tags", "api",
 	}
 	for _, ty := range known {
 		f := Field{Key: "k", Type: ty}
@@ -49,24 +49,6 @@ func TestValidate_ForbiddenFormatOnNonTextarea(t *testing.T) {
 	})
 	if !hasForbidden(errs, "n", "format") {
 		t.Errorf("expected forbidden-attribute(format) on number; got %+v", errs)
-	}
-}
-
-func TestValidate_ForbiddenCodeGroupOnText(t *testing.T) {
-	errs := Validate(&Template{
-		Fields: []Field{{Key: "x", Type: "text", RunMode: "manual"}},
-	})
-	if !hasForbidden(errs, "x", "code") {
-		t.Errorf("expected forbidden-attribute(code) on text; got %+v", errs)
-	}
-}
-
-func TestValidate_ForbiddenLatexGroupOnText(t *testing.T) {
-	errs := Validate(&Template{
-		Fields: []Field{{Key: "x", Type: "text", UseFenced: boolPtr(true)}},
-	})
-	if !hasForbidden(errs, "x", "latex") {
-		t.Errorf("expected forbidden-attribute(latex) on text; got %+v", errs)
 	}
 }
 
@@ -127,24 +109,6 @@ func TestValidate_TextareaWithFormat_OK(t *testing.T) {
 	})
 	if anyForbiddenFor(errs, "body") {
 		t.Errorf("textarea.format is allowed; got %+v", errs)
-	}
-}
-
-func TestValidate_CodeWithRunMode_OK(t *testing.T) {
-	errs := Validate(&Template{
-		Fields: []Field{{Key: "c", Type: "code", RunMode: "manual"}},
-	})
-	if anyForbiddenFor(errs, "c") {
-		t.Errorf("code.run_mode is allowed; got %+v", errs)
-	}
-}
-
-func TestValidate_LatexWithRows_OK(t *testing.T) {
-	errs := Validate(&Template{
-		Fields: []Field{{Key: "l", Type: "latex", Rows: intPtr(8), UseFenced: boolPtr(true)}},
-	})
-	if anyForbiddenFor(errs, "l") {
-		t.Errorf("latex.rows + use_fenced are allowed; got %+v", errs)
 	}
 }
 

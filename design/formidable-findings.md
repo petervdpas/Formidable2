@@ -1,5 +1,7 @@
 # Formidable — Findings From a Deep Read
 
+> **Port status (Formidable2, 2026-05-07):** This document is a faithful snapshot of the **original Formidable**. The Formidable2 port has since diverged in some places. Most relevant here: the `code` and `latex` field types described below (sections referring to CodeMirror code execution, `run_mode` / `allow_run` / `input_mode` / `api_mode` / `api_pick`, the `window.CFA` CodeField API, `use_fenced` / `rows` on latex, etc.) have been **removed from Formidable2**. Treat those passages as historical context for the source app, not as the current Formidable2 design.
+
 What Formidable actually is, what it does, and what about it I had wrong before. Sourced from a full read of `/home/peter/Projects/Formidable/{docs,controls,modules,schemas,plugins,main.js,preload.js,renderer.js,index.html}`. Citations are `path:line`.
 
 ## 1. What it is

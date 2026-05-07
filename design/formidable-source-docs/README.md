@@ -1,5 +1,7 @@
 # Formidable System Documentation
 
+> **Port status (Formidable2, 2026-05-07):** Every document in this folder describes the **original Electron-based Formidable**. They are reference material copied verbatim and are NOT updated as Formidable2 evolves. Notable divergence: Formidable2 has **dropped the `code` and `latex` field types**, so anything below describing `type: "code"` / `type: "latex"`, `run_mode` / `allow_run` / `input_mode` / `api_mode` / `api_pick`, `use_fenced` / `rows`, the `data-code-field` attribute, the `window.CFA` (CodeField API) global, the `code:execute` EventBus channel, or the `getPluginCode` IPC route applies only to the original app. See the project README and `internal/modules/template/field_registry.go` for the live field-type registry.
+
 ## Overview
 
 Welcome to the **Formidable System Documentation**. This collection provides comprehensive guides covering all major aspects of the Formidable application architecture.

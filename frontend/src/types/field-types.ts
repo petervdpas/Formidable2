@@ -31,8 +31,6 @@ export type FieldEditRowId =
   | "description"
   | "default"
   | "options"
-  | "code_group"
-  | "latex_group"
   | "api_group";
 
 export interface FieldTypeDef {
@@ -66,8 +64,6 @@ const LABEL_KEYS: Record<string, string> = {
   image: "workspace.templates.field_type.image",
   link: "workspace.templates.field_type.link",
   tags: "workspace.templates.field_type.tags",
-  latex: "workspace.templates.field_type.latex",
-  code: "workspace.templates.field_type.code",
   api: "workspace.templates.field_type.api",
   guid: "workspace.templates.field_type.guid",
   looper: "workspace.templates.field_type.looper",
@@ -90,23 +86,19 @@ const DEFAULT_FACTORY: Record<string, () => unknown> = {
   image: () => "",
   link: () => ({ href: "", text: "" }),
   tags: () => [],
-  latex: () => "",
-  code: () => "",
   api: () => ({ id: "", overrides: {} }),
   guid: () => "",
 };
 
 // Map backend forbidden-attribute names to frontend row IDs. The
-// backend uses bare group names ("code", "latex", "api"); the modal
-// renders these as single rows named "<g>_group". Anything not in
-// the map is assumed to be 1:1 with a row id (label, description,
-// default, options, summary_field, expression_item, two_column,
-// collapsible, readonly, format).
+// backend uses the bare group name "api"; the modal renders this as
+// a single row named "api_group". Anything not in the map is
+// assumed to be 1:1 with a row id (label, description, default,
+// options, summary_field, expression_item, two_column, collapsible,
+// readonly, format).
 function attrToRow(attr: string): FieldEditRowId | null {
   switch (attr) {
-    case "code":  return "code_group";
-    case "latex": return "latex_group";
-    case "api":   return "api_group";
+    case "api":         return "api_group";
     case "primary_key": return null; // no FE row for this
     default: return attr as FieldEditRowId;
   }

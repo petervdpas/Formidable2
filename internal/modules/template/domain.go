@@ -116,11 +116,11 @@ func (m *Manager) LoadTemplate(name string) (*Template, error) {
 
 // SaveTemplate writes the template to disk in deterministic field order.
 // Runs Normalize first so type-specific properties (textarea Format,
-// later code/latex/api defaults) are coerced to the canonical shape
-// before they hit YAML, then Validate to refuse broken shapes (duplicate
-// keys, multiple guid/tags fields, mismatched loop pairs, …). The
-// frontend pre-validates the same way; this is defense-in-depth for any
-// caller that bypasses the editor (HTTP, sync, scripts).
+// later api defaults) are coerced to the canonical shape before they
+// hit YAML, then Validate to refuse broken shapes (duplicate keys,
+// multiple guid/tags fields, mismatched loop pairs, …). The frontend
+// pre-validates the same way; this is defense-in-depth for any caller
+// that bypasses the editor (HTTP, sync, scripts).
 func (m *Manager) SaveTemplate(name string, t *Template) error {
 	if name == "" {
 		return errors.New("template: empty name")

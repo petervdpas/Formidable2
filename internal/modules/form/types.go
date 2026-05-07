@@ -5,7 +5,7 @@
 // Mirrors the original `modules/formRenderer.js` + `modules/formActions.js`
 // pipeline, with all of the type-specific render rules pushed down into
 // Vue components and only the glue (default injection, loop pairing,
-// LaTeX coercion, eventual API live-fetch) left in Go.
+// eventual API live-fetch) left in Go.
 package form
 
 import (

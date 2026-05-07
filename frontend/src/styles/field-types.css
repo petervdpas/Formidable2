@@ -104,18 +104,6 @@
     --field-type-guid-badge:  #888c95;
     --field-type-guid-text:   #ffffff;
 
-    /* Code */
-    --field-type-code-bg:     #e67e22;
-    --field-type-code-border: #ffb74d;
-    --field-type-code-badge:  #ffa64d;
-    --field-type-code-text:   #ffffff;
-
-    /* LaTeX */
-    --field-type-latex-bg:     #9aa5ff;
-    --field-type-latex-border: #3f51b5;
-    --field-type-latex-badge:  #7b88e0;
-    --field-type-latex-text:   #ffffff;
-
     /* API (Collection) */
     --field-type-api-bg:     #29434e;
     --field-type-api-border: #80deea;
@@ -291,18 +279,6 @@
     border-left-color: var(--field-type-guid-border);
     color: var(--field-type-guid-text);
     --field-row-badge-bg: var(--field-type-guid-badge);
-}
-.field-row[data-type="code"] {
-    background: var(--field-type-code-bg);
-    border-left-color: var(--field-type-code-border);
-    color: var(--field-type-code-text);
-    --field-row-badge-bg: var(--field-type-code-badge);
-}
-.field-row[data-type="latex"] {
-    background: var(--field-type-latex-bg);
-    border-left-color: var(--field-type-latex-border);
-    color: var(--field-type-latex-text);
-    --field-row-badge-bg: var(--field-type-latex-badge);
 }
 .field-row[data-type="api"] {
     background: var(--field-type-api-bg);

@@ -96,23 +96,6 @@ export class Field {
     "format"?: string;
 
     /**
-     * latex-specific
-     */
-    "rows"?: number | null;
-    "use_fenced"?: boolean | null;
-    "placeholder"?: string;
-
-    /**
-     * code-specific
-     */
-    "run_mode"?: string;
-    "allow_run"?: boolean | null;
-    "hide_field"?: boolean | null;
-    "input_mode"?: string;
-    "api_mode"?: string;
-    "api_pick"?: string[];
-
-    /**
      * api-specific
      */
     "collection"?: string;
@@ -159,21 +142,17 @@ export class Field {
      */
     static createFrom($$source: any = {}): Field {
         const $$createField10_0 = $$createType2;
-        const $$createField21_0 = $$createType3;
-        const $$createField24_0 = $$createType5;
-        const $$createField26_0 = $$createType3;
+        const $$createField15_0 = $$createType4;
+        const $$createField17_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField10_0($$parsedSource["options"]);
         }
-        if ("api_pick" in $$parsedSource) {
-            $$parsedSource["api_pick"] = $$createField21_0($$parsedSource["api_pick"]);
-        }
         if ("map" in $$parsedSource) {
-            $$parsedSource["map"] = $$createField24_0($$parsedSource["map"]);
+            $$parsedSource["map"] = $$createField15_0($$parsedSource["map"]);
         }
         if ("allowed_ids" in $$parsedSource) {
-            $$parsedSource["allowed_ids"] = $$createField26_0($$parsedSource["allowed_ids"]);
+            $$parsedSource["allowed_ids"] = $$createField17_0($$parsedSource["allowed_ids"]);
         }
         return new Field($$parsedSource as Partial<Field>);
     }
@@ -213,7 +192,7 @@ export class FieldTypeDef {
      * Creates a new FieldTypeDef instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldTypeDef {
-        const $$createField2_0 = $$createType3;
+        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forbidden_attributes" in $$parsedSource) {
             $$parsedSource["forbidden_attributes"] = $$createField2_0($$parsedSource["forbidden_attributes"]);
@@ -427,7 +406,7 @@ export class ValidationError {
      * Creates a new ValidationError instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationError {
-        const $$createField3_0 = $$createType3;
+        const $$createField3_0 = $$createType5;
         const $$createField4_0 = $$createType8;
         const $$createField6_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -448,9 +427,9 @@ export class ValidationError {
 const $$createType0 = Template.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = APIMap.createFrom;
-const $$createType5 = $Create.Array($$createType4);
+const $$createType3 = APIMap.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $Create.Array($Create.Any);
 const $$createType6 = Field.createFrom;
 const $$createType7 = $Create.Array($$createType6);
 const $$createType8 = $Create.Nullable($$createType6);

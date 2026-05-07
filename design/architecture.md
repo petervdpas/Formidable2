@@ -10,9 +10,9 @@ See `formidable-findings.md` for the full picture of what the existing app actua
 
 ## Frontend stays event-driven (do not flatten this)
 
-The current Formidable renderer is built around an **EventBus** — `EventBus.emit("form:save", payload)` resolves through 30 domain handler modules in `modules/handlers/`, some of which stay in renderer (cache, field, modal, theme, status, history, render, markdown) and some of which call `window.api.*` to cross to the main process. Two global APIs sit on top: `window.FGA` (form/context/util) and `window.CFA` (CodeField API for code-type fields to manipulate other fields by GUID).
+The current Formidable renderer is built around an **EventBus** — `EventBus.emit("form:save", payload)` resolves through 30 domain handler modules in `modules/handlers/`, some of which stay in renderer (cache, field, modal, theme, status, history, render, markdown) and some of which call `window.api.*` to cross to the main process. The original ships a `window.FGA` (form/context/util) global and a `window.CFA` (CodeField API) used by `code`-type fields to manipulate other fields by GUID.
 
-The Wails port **preserves this whole shape on the frontend**. `modules/eventBus.js`, `modules/eventRouter.js`, the 30 handler modules, FGA, and CFA all come over essentially untouched. The change is what the *cross-process* handlers do internally: instead of `window.api.config.loadUserConfig()` they call `import { Service as Config } from ".../bindings/.../config"` and `await Config.LoadUserConfig()`. The event-driven contract stays the same.
+The Wails port **preserves this whole shape on the frontend**. `modules/eventBus.js`, `modules/eventRouter.js`, the 30 handler modules, and FGA come over essentially untouched. The change is what the *cross-process* handlers do internally: instead of `window.api.config.loadUserConfig()` they call `import { Service as Config } from ".../bindings/.../config"` and `await Config.LoadUserConfig()`. The event-driven contract stays the same. CFA does **not** port — Formidable2 dropped the `code` and `latex` field types, so the CodeField API has no consumer.
 
 ## Module shape
 

@@ -118,8 +118,7 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 	if payload.Datafile == "" {
 		return nil, errors.New("form: empty datafile")
 	}
-	tpl, err := m.templates.LoadTemplate(templateName)
-	if err != nil {
+	if _, err := m.templates.LoadTemplate(templateName); err != nil {
 		return nil, fmt.Errorf("form: load template %q: %w", templateName, err)
 	}
 
@@ -127,7 +126,6 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 	if values == nil {
 		values = map[string]any{}
 	}
-	Normalize(values, tpl.Fields)
 
 	// Compose the bare-payload shape storage.Sanitize expects:
 	//   {...values, _meta:{...}}
