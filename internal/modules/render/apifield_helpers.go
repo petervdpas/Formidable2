@@ -300,7 +300,14 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// emitAPISection renders the full embedded-card markdown:
+// emitAPISection renders the full embedded-card markdown wrapped in
+// a `<section class="api-card">` container so the goldmark output
+// carries card chrome that formidable-prose.css can style. The blank
+// lines around the `<section>` tags hit goldmark's "type 6" HTML-
+// block rule, which leaves the inner markdown to be parsed normally
+// (same trick the loop-item wrappers rely on).
+//
+// The card body is:
 //
 //	**<host label>** _(<source filename>)_
 //
@@ -320,6 +327,12 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 	}
 
 	var b strings.Builder
+	// Open card. The data-source attribute is exposed for theming /
+	// devtools and matches the in-app .api-field-card naming.
+	b.WriteString(`<section class="api-card" data-source="`)
+	b.WriteString(hostField.Collection)
+	b.WriteString("\">\n\n")
+
 	b.WriteString("**")
 	b.WriteString(hostLabel)
 	b.WriteString("** _(")
@@ -351,7 +364,11 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 		b.WriteString(emitAPIColumnBlock(v, src))
 		b.WriteString("\n")
 	}
-	return strings.TrimRight(b.String(), "\n")
+
+	// Close card with a blank-line gap so goldmark resumes block
+	// parsing cleanly after the section.
+	b.WriteString("\n</section>")
+	return b.String()
 }
 
 func isAPIBlockType(src *template.Field) bool {

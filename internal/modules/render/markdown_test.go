@@ -99,9 +99,9 @@ func apiTestSetup() (*template.Template, *Options) {
 			{Key: "ref", Type: "api", Label: "Ref",
 				Collection: "addresses.yaml",
 				Map: []template.APIMap{
-					{Key: "name", Label: "Naam"},
+					{Key: "name", Label: "Name"},
 					{Key: "tagz", Label: "Tagz"},
-					{Key: "owners", Label: "Eigenaren"},
+					{Key: "owners", Label: "OwnersAlias"},
 				},
 			},
 		},
@@ -183,12 +183,19 @@ func TestRenderMarkdown_APISection_FullCard(t *testing.T) {
 	host, opts := apiTestSetup()
 	host.MarkdownTemplate = `{{apiSection "ref"}}`
 	got, _ := RenderMarkdown(apiTestRow(), host, opts)
+	// Card wrapper for goldmark to lift into <section class="api-card">
+	if !strings.Contains(got, `<section class="api-card" data-source="addresses.yaml">`) {
+		t.Errorf("missing card wrapper; got:\n%s", got)
+	}
+	if !strings.Contains(got, "</section>") {
+		t.Errorf("missing card closer; got:\n%s", got)
+	}
 	// Header
 	if !strings.Contains(got, "**Ref** _(addresses.yaml)_") {
 		t.Errorf("missing header; got:\n%s", got)
 	}
 	// Inline scalar row
-	if !strings.Contains(got, "- **Naam**: Buckingham Palace") {
+	if !strings.Contains(got, "- **Name**: Buckingham Palace") {
 		t.Errorf("missing scalar inline row; got:\n%s", got)
 	}
 	// Tags block (block-shaped header + content on its own lines)

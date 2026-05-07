@@ -35,10 +35,18 @@ const (
 // Wails binding).
 //
 // Defaults match the dialog's defaults: linked URL for images, auto-
-// wrapped loop iterations.
+// wrapped loop iterations, lazy api-card output (one-liner per api
+// field).
 type GeneratorOptions struct {
 	ImgMode   ImgMode `json:"img_mode"`
 	WrapLoops bool    `json:"wrap_loops"`
+	// ExpandAPI flips api-field output between two visible shapes:
+	//   false → `{{apiSection "key"}}`        (lazy one-liner)
+	//   true  → per-column `- **<label>**: {{apiBlock "key" "col"}}`
+	// Same "visible toggle" rule as ImgMode/WrapLoops — the choice
+	// must materialise in the generated source so the user can see
+	// what they picked at a glance.
+	ExpandAPI bool `json:"expand_api"`
 }
 
 // ShapeInfo is the catalog record for the dialog's shape picker.
@@ -203,13 +211,13 @@ func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string, opts Ge
 		if t == "loopstop" || seen[key] {
 			continue
 		}
-		result = append(result, generateSingleFieldBlock(f, headingLevel, logs, opts.ImgMode))
+		result = append(result, generateSingleFieldBlock(f, headingLevel, logs, opts))
 		seen[key] = true
 	}
 	return result
 }
 
-func generateSingleFieldBlock(f Field, headingLevel int, logs *[]string, imgMode ImgMode) string {
+func generateSingleFieldBlock(f Field, headingLevel int, logs *[]string, opts GeneratorOptions) string {
 	key := f.Key
 	if key == "" {
 		key = "unknown"
@@ -224,13 +232,26 @@ func generateSingleFieldBlock(f Field, headingLevel int, logs *[]string, imgMode
 
 	heading := strings.Repeat("#", headingLevel)
 	header := fmt.Sprintf("%s %s\n\n_{{fieldDescription \"%s\"}}_\n", heading, label, key)
-	return header + "\n" + renderFieldValueBlock(key, label, t, imgMode)
+	return header + "\n" + renderFieldValueBlock(f, opts)
 }
 
 // renderFieldValueBlock returns the Handlebars body for one field —
 // shared between report and minimal shapes (minimal just drops the
-// surrounding header and debug logs).
-func renderFieldValueBlock(key, label, typ string, imgMode ImgMode) string {
+// surrounding header and debug logs). Takes the full Field so type-
+// specific branches can read shape-bearing properties (the api branch
+// reads f.Map[] when ExpandAPI is on; the image branch is type/key-
+// only). opts carries the per-shape sub-choices.
+func renderFieldValueBlock(f Field, opts GeneratorOptions) string {
+	key := f.Key
+	if key == "" {
+		key = "unknown"
+	}
+	label := f.Label
+	if label == "" {
+		label = key
+	}
+	typ := strings.ToLower(f.Type)
+	imgMode := opts.ImgMode
 	switch typ {
 	case "boolean", "checkbox":
 		return fmt.Sprintf(
@@ -298,12 +319,39 @@ _No tags specified_
 			key, label, imageHelperCall(key, imgMode), label,
 		)
 	case "api":
-		// {{apiSection}} renders the embedded card in markdown:
-		// "**<host label>** _(<source>)_" header + per-column rows
-		// (block-shaped for table/list, inline for scalars). Single-
-		// helper output keeps the generator's job simple — runtime
-		// resolution of column types and source-side rename safety
-		// happens inside the helper.
+		// Two visible shapes per the ExpandAPI toggle:
+		//   • OFF → {{apiSection "key"}} — runtime helper renders the
+		//     full embedded card with header + per-column rows. Lazy.
+		//   • ON  → per-column block, wrapped in <section class="api-card">
+		//     so the user can hand-tune individual columns or delete
+		//     some. Each column uses a "header paragraph + value
+		//     paragraph" layout (header on its own line, blank line,
+		//     {{apiBlock}} on the next paragraph). That layout is
+		//     uniform across scalar and block-typed source columns —
+		//     scalars render inline-ish, table/list columns get the
+		//     blank line goldmark needs to lift a markdown table or
+		//     bullet list out into its own block. Without this two-
+		//     paragraph form a {{apiBlock}} that returns a multi-line
+		//     table gets gobbled into the surrounding paragraph and
+		//     the pipes render as literal text.
+		// Empty Map[] → fall back to apiSection (no columns to expand).
+		if opts.ExpandAPI && len(f.Map) > 0 {
+			var b strings.Builder
+			b.WriteString(fmt.Sprintf(
+				"<section class=\"api-card\" data-source=\"%s\">\n\n",
+				f.Collection,
+			))
+			for _, m := range f.Map {
+				colLabel := strings.TrimSpace(m.Label)
+				if colLabel == "" {
+					colLabel = m.Key
+				}
+				b.WriteString(fmt.Sprintf("**%s**:\n\n", colLabel))
+				b.WriteString(fmt.Sprintf("{{apiBlock \"%s\" \"%s\"}}\n\n", key, m.Key))
+			}
+			b.WriteString("</section>")
+			return b.String()
+		}
 		return fmt.Sprintf(`{{apiSection "%s"}}`, key)
 	default:
 		return fmt.Sprintf(`{{field "%s"}}`, key)
@@ -387,7 +435,7 @@ func renderMinimalBlocks(fields []Field, headingLevel int, opts GeneratorOptions
 		if label == "" {
 			label = key
 		}
-		out = append(out, fmt.Sprintf("%s %s\n\n%s", heading, label, renderFieldValueBlock(key, label, t, opts.ImgMode)))
+		out = append(out, fmt.Sprintf("%s %s\n\n%s", heading, label, renderFieldValueBlock(f, opts)))
 	}
 	return out
 }

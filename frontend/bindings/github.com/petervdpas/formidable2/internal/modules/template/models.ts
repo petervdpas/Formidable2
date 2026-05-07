@@ -216,11 +216,22 @@ export class FieldTypeDef {
  * Wails binding).
  * 
  * Defaults match the dialog's defaults: linked URL for images, auto-
- * wrapped loop iterations.
+ * wrapped loop iterations, lazy api-card output (one-liner per api
+ * field).
  */
 export class GeneratorOptions {
     "img_mode": ImgMode;
     "wrap_loops": boolean;
+
+    /**
+     * ExpandAPI flips api-field output between two visible shapes:
+     *   false → `{{apiSection "key"}}`        (lazy one-liner)
+     *   true  → per-column `- **<label>**: {{apiBlock "key" "col"}}`
+     * Same "visible toggle" rule as ImgMode/WrapLoops — the choice
+     * must materialise in the generated source so the user can see
+     * what they picked at a glance.
+     */
+    "expand_api": boolean;
 
     /** Creates a new GeneratorOptions instance. */
     constructor($$source: Partial<GeneratorOptions> = {}) {
@@ -229,6 +240,9 @@ export class GeneratorOptions {
         }
         if (!("wrap_loops" in $$source)) {
             this["wrap_loops"] = false;
+        }
+        if (!("expand_api" in $$source)) {
+            this["expand_api"] = false;
         }
 
         Object.assign(this, $$source);

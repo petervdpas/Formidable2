@@ -383,7 +383,7 @@ func TestGenerate_ReportEmitsAPISectionHelper(t *testing.T) {
 	got := GenerateMarkdownTemplate(ShapeReport, defaultOpts(), []Field{
 		{Key: "ref", Type: "api", Label: "Reference",
 			Collection: "addresses.yaml",
-			Map: []APIMap{{Key: "name", Label: "Naam"}}},
+			Map: []APIMap{{Key: "name", Label: "NameAlias"}}},
 	})
 	if !strings.Contains(got, `{{apiSection "ref"}}`) {
 		t.Errorf("report must emit apiSection for api field; got:\n%s", got)
@@ -415,6 +415,102 @@ func TestGenerate_FrontmatterSkipsAPIFields(t *testing.T) {
 	}
 	if !strings.Contains(got, "title:") || !strings.Contains(got, "tags:") {
 		t.Errorf("other fields must still surface; got:\n%s", got)
+	}
+}
+
+// ExpandAPI toggle — when true, generator emits per-column
+// {{apiBlock}} rows so the user can hand-tune individual columns
+// without first deconstructing {{apiSection}}. When false (default),
+// the lazy one-liner stays.
+
+func TestGenerate_ExpandAPI_FalseEmitsApiSection(t *testing.T) {
+	opts := GeneratorOptions{ImgMode: ImgURL, WrapLoops: true, ExpandAPI: false}
+	got := GenerateMarkdownTemplate(ShapeReport, opts, []Field{
+		{Key: "ref", Type: "api", Label: "Reference",
+			Collection: "addresses.yaml",
+			Map: []APIMap{
+				{Key: "name", Label: "NameAlias"},
+				{Key: "street", Label: "StreetAlias"},
+			}},
+	})
+	if !strings.Contains(got, `{{apiSection "ref"}}`) {
+		t.Errorf("ExpandAPI=false must keep apiSection; got:\n%s", got)
+	}
+	if strings.Contains(got, `apiBlock`) {
+		t.Errorf("ExpandAPI=false must not emit apiBlock; got:\n%s", got)
+	}
+}
+
+func TestGenerate_ExpandAPI_TrueEmitsPerColumnApiBlock(t *testing.T) {
+	opts := GeneratorOptions{ImgMode: ImgURL, WrapLoops: true, ExpandAPI: true}
+	got := GenerateMarkdownTemplate(ShapeReport, opts, []Field{
+		{Key: "ref", Type: "api", Label: "Reference",
+			Collection: "addresses.yaml",
+			Map: []APIMap{
+				{Key: "name", Label: "NameAlias"},
+				{Key: "owners", Label: "OwnersAlias"},
+			}},
+	})
+	if strings.Contains(got, `{{apiSection "ref"}}`) {
+		t.Errorf("ExpandAPI=true must replace apiSection; got:\n%s", got)
+	}
+	// Card wrapper — same chrome as apiSection's output.
+	if !strings.Contains(got, `<section class="api-card" data-source="addresses.yaml">`) {
+		t.Errorf("expected card wrapper; got:\n%s", got)
+	}
+	if !strings.Contains(got, `</section>`) {
+		t.Errorf("expected card closer; got:\n%s", got)
+	}
+	// Each column emits a header paragraph + value paragraph
+	// (blank-line separated) so block-typed apiBlock output (table /
+	// list) doesn't get gobbled into the header's paragraph.
+	if !strings.Contains(got, "**NameAlias**:\n\n{{apiBlock \"ref\" \"name\"}}") {
+		t.Errorf("expected two-paragraph layout for name; got:\n%s", got)
+	}
+	if !strings.Contains(got, "**OwnersAlias**:\n\n{{apiBlock \"ref\" \"owners\"}}") {
+		t.Errorf("expected two-paragraph layout for owners; got:\n%s", got)
+	}
+	// And NOT the broken list-item form (which puts a multi-line
+	// table inside <li> and breaks goldmark's rendering).
+	if strings.Contains(got, `- **`) && strings.Contains(got, `apiBlock`) {
+		t.Errorf("must not nest apiBlock inside list items; got:\n%s", got)
+	}
+}
+
+func TestGenerate_ExpandAPI_TrueFallsBackWhenMapEmpty(t *testing.T) {
+	// No Map[] entries → no columns to expand → keep the apiSection
+	// shortcut so the user gets something sensible (rather than an
+	// empty placeholder).
+	opts := GeneratorOptions{ImgMode: ImgURL, WrapLoops: true, ExpandAPI: true}
+	got := GenerateMarkdownTemplate(ShapeReport, opts, []Field{
+		{Key: "ref", Type: "api", Label: "Reference"},
+	})
+	if !strings.Contains(got, `{{apiSection "ref"}}`) {
+		t.Errorf("ExpandAPI=true with empty Map must fall back to apiSection; got:\n%s", got)
+	}
+}
+
+func TestGenerate_ExpandAPI_AppliesToMinimalShapeToo(t *testing.T) {
+	opts := GeneratorOptions{ImgMode: ImgURL, WrapLoops: true, ExpandAPI: true}
+	got := GenerateMarkdownTemplate(ShapeMinimal, opts, []Field{
+		{Key: "ref", Type: "api", Label: "Reference",
+			Map: []APIMap{{Key: "name", Label: "NameAlias"}}},
+	})
+	if !strings.Contains(got, "**NameAlias**:\n\n{{apiBlock \"ref\" \"name\"}}") {
+		t.Errorf("ExpandAPI must also apply in minimal shape; got:\n%s", got)
+	}
+}
+
+func TestGenerate_ExpandAPI_FallbackColumnLabelIsKey(t *testing.T) {
+	// Map entry with no Label → fall back to Key (mirrors the runtime
+	// helper's same fallback rule).
+	opts := GeneratorOptions{ImgMode: ImgURL, WrapLoops: true, ExpandAPI: true}
+	got := GenerateMarkdownTemplate(ShapeReport, opts, []Field{
+		{Key: "ref", Type: "api",
+			Map: []APIMap{{Key: "phone"}}}, // no Label
+	})
+	if !strings.Contains(got, "**phone**:\n\n{{apiBlock \"ref\" \"phone\"}}") {
+		t.Errorf("expected key fallback; got:\n%s", got)
 	}
 }
 

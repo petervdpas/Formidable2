@@ -26,9 +26,11 @@ const selectedShape = ref<string>("report");
 
 // Options section — booleans rather than radios so the dialog stays
 // scannable when more options land later. Defaults match the backend
-// defaults: linked URL for images, auto-wrap for loops.
+// defaults: linked URL for images, auto-wrap for loops, lazy api-card
+// (one-liner per api field).
 const inlineImages = ref(false);
 const wrapLoops = ref(true);
+const expandAPI = ref(false);
 
 const loading = ref(false);
 
@@ -54,6 +56,7 @@ function onConfirm() {
   const opts = GeneratorOptions.createFrom({
     img_mode: inlineImages.value ? ImgMode.ImgInline : ImgMode.ImgURL,
     wrap_loops: wrapLoops.value,
+    expand_api: expandAPI.value,
   });
   emit("confirm", selectedShape.value, opts);
 }
@@ -130,6 +133,24 @@ function onConfirm() {
           </div>
           <SwitchField
             v-model="wrapLoops"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
+        </div>
+
+        <div class="generate-option-row">
+          <div class="generate-option-text">
+            <span class="generate-option-label">
+              {{ t('workspace.templates.generate.expand_api.label') }}
+            </span>
+            <span class="generate-option-desc muted small">
+              {{ expandAPI
+                ? t('workspace.templates.generate.expand_api.desc_on')
+                : t('workspace.templates.generate.expand_api.desc_off') }}
+            </span>
+          </div>
+          <SwitchField
+            v-model="expandAPI"
             :on-label="t('common.on')"
             :off-label="t('common.off')"
           />

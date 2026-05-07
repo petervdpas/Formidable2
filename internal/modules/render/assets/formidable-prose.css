@@ -266,3 +266,61 @@
     --loop-accent: var(--color-border, #e3e3e3);
     margin-left: 0.25rem;
 }
+
+/* Api-field card. The {{apiSection}} helper wraps its output in
+ * <section class="api-card" data-source="<template>">, so the
+ * rendered HTML carries the same chrome as the in-app FormFieldAPI
+ * card — visible boundary, gentle background, source attribution
+ * in the corner. Override the variables to theme; override the
+ * rules to disable.
+ */
+.formidable-prose .api-card {
+    --api-card-border: var(--color-border, #d0d4dd);
+    --api-card-bg: var(--color-bg-muted, rgba(74, 144, 226, 0.04));
+    --api-card-source-fg: var(--color-text-muted, #888);
+    position: relative;
+    border: 1px solid var(--api-card-border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem 0.5rem;
+    margin: 1em 0;
+    background: var(--api-card-bg);
+}
+/* Source attribution chip — uses the data-source attribute the
+ * helper emits. Lives in the top-right corner so it doesn't
+ * compete with the bold header line. */
+.formidable-prose .api-card::before {
+    content: attr(data-source);
+    position: absolute;
+    top: 0.4rem;
+    right: 0.65rem;
+    font-size: 0.72em;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--api-card-source-fg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.02em;
+}
+/* The header line "**Label** _(source.yaml)_" comes through as the
+ * first <p>; the data-source chip already shows the source so we
+ * tighten the lead and de-emphasise the duplicate "_(source)_". */
+.formidable-prose .api-card > p:first-child {
+    margin: 0 0 0.5em;
+    padding-right: 7em; /* keep clear of the corner chip */
+}
+.formidable-prose .api-card > p:first-child em {
+    color: var(--api-card-source-fg);
+    font-style: normal;
+    font-size: 0.85em;
+}
+/* Tighten projected-column lists + tables: the card already pads,
+ * so the inner content shouldn't double-pad. */
+.formidable-prose .api-card > ul {
+    margin: 0 0 0.5em;
+    padding-left: 1.25em;
+}
+.formidable-prose .api-card > ul > li {
+    margin-bottom: 0.15em;
+}
+.formidable-prose .api-card > table {
+    margin: 0.25em 0 0.5em;
+}

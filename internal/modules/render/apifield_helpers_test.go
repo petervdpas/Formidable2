@@ -141,9 +141,9 @@ func TestEmitAPISection_HeaderAndRows(t *testing.T) {
 		Type:       "api",
 		Collection: "addresses.yaml",
 		Map: []template.APIMap{
-			{Key: "name", Label: "Naam"},
-			{Key: "street", Label: "Adres"},
-			{Key: "owners", Label: "Eigenaren"},
+			{Key: "name", Label: "NameAlias"},
+			{Key: "street", Label: "StreetAlias"},
+			{Key: "owners", Label: "OwnersAlias"},
 		},
 	}
 	row := map[string]any{
@@ -177,19 +177,28 @@ func TestEmitAPISection_HeaderAndRows(t *testing.T) {
 
 	got := emitAPISection(row, host, opts)
 
+	// Wrapper — opens with <section class="api-card" data-source="..."> and
+	// closes with </section>. Blank lines around let goldmark fall back to
+	// "type 6" HTML block, so inner markdown still parses.
+	if !strings.HasPrefix(got, `<section class="api-card" data-source="addresses.yaml">`) {
+		t.Errorf("missing card wrapper opener; got:\n%s", got)
+	}
+	if !strings.HasSuffix(got, "</section>") {
+		t.Errorf("missing card wrapper closer; got:\n%s", got)
+	}
 	// Header
 	if !strings.Contains(got, "**Testapi** _(addresses.yaml)_") {
 		t.Errorf("missing header; got:\n%s", got)
 	}
 	// Inline rows for scalars (Map.Label takes precedence over source label)
-	if !strings.Contains(got, "- **Naam**: Buckingham Palace") {
+	if !strings.Contains(got, "- **NameAlias**: Buckingham Palace") {
 		t.Errorf("missing scalar inline row; got:\n%s", got)
 	}
-	if !strings.Contains(got, "- **Adres**: Buckingham Palace Road") {
+	if !strings.Contains(got, "- **StreetAlias**: Buckingham Palace Road") {
 		t.Errorf("missing scalar inline row; got:\n%s", got)
 	}
 	// Block row for table — header on its own line, then markdown table block
-	if !strings.Contains(got, "- **Eigenaren**:") {
+	if !strings.Contains(got, "- **OwnersAlias**:") {
 		t.Errorf("missing table-column header; got:\n%s", got)
 	}
 	if !strings.Contains(got, "| Firstname | Lastname |") {
