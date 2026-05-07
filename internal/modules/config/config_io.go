@@ -200,6 +200,7 @@ func (m *Manager) persistConfig(cfg *Config) error {
 	}
 	m.mu.Unlock()
 
+	m.ensureContextFolder(cfg)
 	m.syncJournal(cfg)
 	return nil
 }
