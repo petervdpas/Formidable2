@@ -21,12 +21,16 @@ type Provider interface {
 	ResolveCollectionByID(ctx context.Context, template, id string) (*dataprovider.CollectionItem, bool, error)
 }
 
-// Storage is the bytes-side surface the API needs for /api/collections/{tpl}/{id}:
-// loading a form's full meta + data block. The real *storage.Manager
-// satisfies this without an adapter — same trick wiki.Storage uses for
-// OpenImageFile.
+// Storage is the bytes-side surface the API needs:
+//   - LoadForm: meta + data block for /api/collections/{tpl}/{id}
+//   - OpenImageFile: raw image bytes + MIME for /api/images/{tpl}/{filename}
+//
+// The real *storage.Manager satisfies this without an adapter.
+// OpenImageFile returns (nil, "", nil) for a missing file so the api
+// handler can map that to 404 without sniffing the error string.
 type Storage interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
+	OpenImageFile(templateFilename, name string) ([]byte, string, error)
 }
 
 // Writer is the write-side surface used by the POST/PUT/PATCH/DELETE
@@ -101,5 +105,9 @@ func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates) http.Handler 
 	mux.HandleFunc("/api/collections/{tpl}/export.ndjson", h.exportNDJSON)
 	mux.HandleFunc("/api/collections/{tpl}/export.csv", h.exportCSV)
 	mux.HandleFunc("/api/collections/{tpl}/{id}", h.itemAny)
+	// Image bytes (or data-URL string with ?format=url). Reused by the
+	// slideout's <img src=…> via Wails AssetMiddleware so the markdown
+	// stays free of inlined base64.
+	mux.HandleFunc("/api/images/{tpl}/{filename}", h.imageBytes)
 	return mux
 }

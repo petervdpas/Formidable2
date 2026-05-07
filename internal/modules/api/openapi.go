@@ -230,6 +230,46 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
+	// /api/images/{template}/{filename} — image bytes (or data URL).
+	paths["/images/{template}/{filename}"] = map[string]any{
+		"get": map[string]any{
+			"summary":     "Fetch image bytes (or data URL)",
+			"description": "Returns the raw image bytes by default, or the `data:<mime>;base64,…` URL string when `?format=url` is set. The slideout's `<img src=…>` reaches this route through Wails AssetMiddleware so the markdown stays free of inlined base64.",
+			"parameters": []any{
+				param("TemplateParam"),
+				map[string]any{
+					"name":     "filename",
+					"in":       "path",
+					"required": true,
+					"schema":   map[string]any{"type": "string"},
+				},
+				map[string]any{
+					"name":        "format",
+					"in":          "query",
+					"required":    false,
+					"description": "raw (default) returns image bytes with the file's MIME type; url returns the `data:` URL string.",
+					"schema": map[string]any{
+						"type":    "string",
+						"enum":    []any{"raw", "url"},
+						"default": "raw",
+					},
+				},
+			},
+			"responses": map[string]any{
+				"200": map[string]any{
+					"description": "Image bytes or data URL string.",
+					"content": map[string]any{
+						"image/*":                  map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}},
+						"text/plain; charset=utf-8": map[string]any{"schema": map[string]any{"type": "string"}},
+					},
+				},
+				"400": errResp("bad-format"),
+				"404": errResp("not-found"),
+				"405": errResp("method-not-allowed"),
+			},
+		},
+	}
+
 	// /collections/{template} — extend the existing GET entry with POST.
 	if entry, ok := paths["/collections/{template}"].(map[string]any); ok {
 		entry["post"] = map[string]any{

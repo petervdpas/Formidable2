@@ -340,6 +340,84 @@ func TestLoadImageFile_RejectsEmptyName(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// OpenImageFile — raw bytes + MIME type, no data-URL framing.
+// Used by the api /api/images/{tpl}/{filename} route and by the
+// asset middleware that serves the slideout's <img src=…>.
+// ─────────────────────────────────────────────────────────────────────
+
+func TestOpenImageFile_RoundTripsPNG(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	png := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01, 0x02}
+	if r := m.SaveImageFile("basic.yaml", "logo.png", png); !r.Success {
+		t.Fatalf("save: %v", r.Error)
+	}
+	bytes, mime, err := m.OpenImageFile("basic.yaml", "logo.png")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if mime != "image/png" {
+		t.Errorf("mime = %q, want image/png", mime)
+	}
+	if string(bytes) != string(png) {
+		t.Errorf("bytes mismatch: got %v, want %v", bytes, png)
+	}
+}
+
+func TestOpenImageFile_MIMEByExtension(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	cases := map[string]string{
+		"a.png":  "image/png",
+		"b.jpg":  "image/jpeg",
+		"c.jpeg": "image/jpeg",
+		"d.gif":  "image/gif",
+		"e.webp": "image/webp",
+		"f.svg":  "image/svg+xml",
+		"g.bin":  "application/octet-stream",
+	}
+	for name, want := range cases {
+		if r := m.SaveImageFile("basic.yaml", name, []byte("x")); !r.Success {
+			t.Fatalf("save %s: %v", name, r.Error)
+		}
+		_, mime, err := m.OpenImageFile("basic.yaml", name)
+		if err != nil {
+			t.Errorf("open %s: %v", name, err)
+			continue
+		}
+		if mime != want {
+			t.Errorf("%s: mime = %q, want %q", name, mime, want)
+		}
+	}
+}
+
+func TestOpenImageFile_MissingReturnsNil(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	bytes, mime, err := m.OpenImageFile("basic.yaml", "ghost.png")
+	if err != nil {
+		t.Errorf("missing should not error, got %v", err)
+	}
+	if bytes != nil {
+		t.Errorf("missing should return nil bytes, got %d bytes", len(bytes))
+	}
+	if mime != "" {
+		t.Errorf("missing should return empty mime, got %q", mime)
+	}
+}
+
+func TestOpenImageFile_RejectsTraversal(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if _, _, err := m.OpenImageFile("basic.yaml", "../escape.png"); err == nil {
+		t.Errorf("expected error on traversal, got nil")
+	}
+}
+
+func TestOpenImageFile_RejectsEmptyName(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if _, _, err := m.OpenImageFile("basic.yaml", ""); err == nil {
+		t.Errorf("expected error on empty name, got nil")
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // DeleteImageFile — removes the file under <storage>/<template>/images/.
 // Missing is a no-op (mirrors DeleteForm).
 // ─────────────────────────────────────────────────────────────────────

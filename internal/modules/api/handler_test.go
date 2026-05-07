@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -172,17 +173,60 @@ func (s *stubProvider) ResolveCollectionByID(_ context.Context, template, id str
 
 // stubStorage is the bytes-side counterpart to stubProvider. Loaded
 // forms are keyed by "<templateFilename>/<datafile>" so the test can
-// place arbitrary content per form.
+// place arbitrary content per form. Images are keyed by
+// "<templateFilename>/<filename>" so a single stub satisfies both the
+// form-load surface and the image-bytes surface used by /api/images.
 type stubStorage struct {
-	forms map[string]*storage.Form
+	forms  map[string]*storage.Form
+	images map[string][]byte
 }
 
 func (s *stubStorage) LoadForm(templateFilename, datafile string) *storage.Form {
 	return s.forms[templateFilename+"/"+datafile]
 }
 
+// OpenImageFile mirrors *storage.Manager.OpenImageFile semantics:
+// missing file → nil bytes + nil error; traversal/empty rejected.
+// MIME comes from the filename extension, matching the production
+// imageMIMEFromName helper closely enough for the api unit tests.
+func (s *stubStorage) OpenImageFile(templateFilename, name string) ([]byte, string, error) {
+	if name == "" {
+		return nil, "", errors.New("storage: empty image name")
+	}
+	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return nil, "", fmt.Errorf("storage: invalid image name %q", name)
+	}
+	bytes, ok := s.images[templateFilename+"/"+name]
+	if !ok {
+		return nil, "", nil
+	}
+	return bytes, stubImageMIME(name), nil
+}
+
+func (s *stubStorage) putImage(templateFilename, name string, bytes []byte) {
+	s.images[templateFilename+"/"+name] = bytes
+}
+
+func stubImageMIME(name string) string {
+	lower := strings.ToLower(name)
+	switch {
+	case strings.HasSuffix(lower, ".png"):
+		return "image/png"
+	case strings.HasSuffix(lower, ".jpg"), strings.HasSuffix(lower, ".jpeg"):
+		return "image/jpeg"
+	case strings.HasSuffix(lower, ".gif"):
+		return "image/gif"
+	case strings.HasSuffix(lower, ".webp"):
+		return "image/webp"
+	case strings.HasSuffix(lower, ".svg"):
+		return "image/svg+xml"
+	default:
+		return "application/octet-stream"
+	}
+}
+
 func newStubStorage() *stubStorage {
-	return &stubStorage{forms: map[string]*storage.Form{}}
+	return &stubStorage{forms: map[string]*storage.Form{}, images: map[string][]byte{}}
 }
 
 // stubWriter is a small in-memory write surface. Tests can peek

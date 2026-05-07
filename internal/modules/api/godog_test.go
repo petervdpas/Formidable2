@@ -455,6 +455,33 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^the response body equals "([^"]*)"$`, func(want string) error {
+		got := w.resp.Body.String()
+		if got != want {
+			return fmt.Errorf("body = %q, want %q", got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the response body starts with "([^"]*)"$`, func(prefix string) error {
+		got := w.resp.Body.String()
+		if !strings.HasPrefix(got, prefix) {
+			return fmt.Errorf("body does not start with %q (got %q)", prefix, got)
+		}
+		return nil
+	})
+
+	// ── Image-route givens ───────────────────────────────────────────
+
+	ctx.Step(`^the storage has image "([^"]*)":"([^"]*)" with bytes "([^"]*)"$`,
+		func(template, filename, body string) error {
+			if w.stubSt == nil {
+				return fmt.Errorf("stubSt not initialised")
+			}
+			w.stubSt.putImage(template, filename, []byte(body))
+			return nil
+		})
+
 	ctx.Step(`^the JSON has path "([^"]*)"$`, func(path string) error {
 		obj, err := jsonAsObject(w)
 		if err != nil {
