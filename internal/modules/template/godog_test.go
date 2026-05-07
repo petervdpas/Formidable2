@@ -560,9 +560,17 @@ fields:
 	})
 
 	ctx.Step(`^I generate with shape "([^"]*)"$`, func(shape string) error {
-		w.genOut = GenerateMarkdownTemplate(Shape(shape), w.genFields)
+		// Default mode for the generic step is url; explicit imgMode
+		// scenarios use the dedicated step below.
+		w.genOut = GenerateMarkdownTemplate(Shape(shape), ImgURL, w.genFields)
 		return nil
 	})
+
+	ctx.Step(`^I generate with shape "([^"]*)" and image mode "([^"]*)"$`,
+		func(shape, mode string) error {
+			w.genOut = GenerateMarkdownTemplate(Shape(shape), ImgMode(mode), w.genFields)
+			return nil
+		})
 
 	ctx.Step(`^I read the shape catalog$`, func() error {
 		w.genShapes = Shapes()

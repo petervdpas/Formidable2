@@ -382,3 +382,144 @@ func TestHelper_Stats_DefaultColIndex(t *testing.T) {
 		t.Errorf("default colIndex should be 1; got %q", got)
 	}
 }
+
+// renderWithOpts is like renderWithCtx but lets the test inject a
+// custom *Options bundle — needed for the image-URL helpers since the
+// generator emits markdown that depends on Options.ImageURL /
+// Options.ImageBase64URL being wired by the caller.
+func renderWithOpts(t *testing.T, src string, ctx map[string]any, opts *Options) string {
+	t.Helper()
+	tpl, err := raymond.Parse(src)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	registerHelpers(tpl, opts, map[string]any{})
+	out, err := tpl.Exec(ctx)
+	if err != nil {
+		t.Fatalf("exec: %v", err)
+	}
+	return out
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// {{imageURL "key"}}
+//
+// Resolves an image field's filename to its target-specific URL via
+// Options.ImageURL. The generator emits this in url-mode markdown so
+// the URL pattern is visible at the source level rather than buried
+// inside the polymorphic {{field}} helper.
+// ─────────────────────────────────────────────────────────────────────
+
+func TestHelper_ImageURL_RoutesThroughOptions(t *testing.T) {
+	tpl := &template.Template{
+		Filename: "recepten.yaml",
+		Fields:   []template.Field{{Key: "cover", Type: "image"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"cover": "cake.png"})
+
+	opts := &Options{
+		ImageURL: func(name string) string { return "/api/images/recepten/" + name },
+	}
+	got := renderWithOpts(t, `{{imageURL "cover"}}`, ctx, opts)
+	if got != "/api/images/recepten/cake.png" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_ImageURL_NilOptionFallsBackToImagesPath(t *testing.T) {
+	tpl := &template.Template{
+		Filename: "recepten.yaml",
+		Fields:   []template.Field{{Key: "cover", Type: "image"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"cover": "cake.png"})
+
+	got := renderWithOpts(t, `{{imageURL "cover"}}`, ctx, &Options{})
+	if got != "images/cake.png" {
+		t.Errorf("nil ImageURL: want fallback, got %q", got)
+	}
+}
+
+func TestHelper_ImageURL_EmptyValueReturnsEmpty(t *testing.T) {
+	tpl := &template.Template{
+		Filename: "recepten.yaml",
+		Fields:   []template.Field{{Key: "cover", Type: "image"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"cover": ""})
+
+	got := renderWithOpts(t, `{{imageURL "cover"}}`, ctx, &Options{
+		ImageURL: func(name string) string { return "/api/images/recepten/" + name },
+	})
+	if got != "" {
+		t.Errorf("empty value: want empty, got %q", got)
+	}
+}
+
+func TestHelper_ImageURL_UnknownFieldReturnsEmpty(t *testing.T) {
+	tpl := &template.Template{
+		Filename: "recepten.yaml",
+		Fields:   []template.Field{{Key: "cover", Type: "image"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{})
+
+	got := renderWithOpts(t, `{{imageURL "ghost"}}`, ctx, &Options{
+		ImageURL: func(name string) string { return "/api/images/recepten/" + name },
+	})
+	if got != "" {
+		t.Errorf("missing field: want empty, got %q", got)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// {{imageBase64 "key"}}
+//
+// Resolves an image field's filename to a `data:<mime>;base64,…` URL
+// via Options.ImageBase64URL. Used by the generator's "inline" mode
+// so generated markdown is portable (single-file HTML / PDF / wiki
+// import where embedding the bytes directly is required).
+// ─────────────────────────────────────────────────────────────────────
+
+func TestHelper_ImageBase64_RoutesThroughOptions(t *testing.T) {
+	tpl := &template.Template{
+		Filename: "recepten.yaml",
+		Fields:   []template.Field{{Key: "cover", Type: "image"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"cover": "cake.png"})
+
+	opts := &Options{
+		ImageBase64URL: func(name string) string {
+			return "data:image/png;base64,FAKE-" + name
+		},
+	}
+	got := renderWithOpts(t, `{{imageBase64 "cover"}}`, ctx, opts)
+	if got != "data:image/png;base64,FAKE-cake.png" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_ImageBase64_NilOptionReturnsEmpty(t *testing.T) {
+	tpl := &template.Template{
+		Filename: "recepten.yaml",
+		Fields:   []template.Field{{Key: "cover", Type: "image"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"cover": "cake.png"})
+
+	got := renderWithOpts(t, `{{imageBase64 "cover"}}`, ctx, &Options{})
+	if got != "" {
+		t.Errorf("nil ImageBase64URL: want empty, got %q", got)
+	}
+}
+
+func TestHelper_ImageBase64_EmptyValueReturnsEmpty(t *testing.T) {
+	tpl := &template.Template{
+		Filename: "recepten.yaml",
+		Fields:   []template.Field{{Key: "cover", Type: "image"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"cover": ""})
+
+	got := renderWithOpts(t, `{{imageBase64 "cover"}}`, ctx, &Options{
+		ImageBase64URL: func(name string) string { return "data:image/png;base64,X" },
+	})
+	if got != "" {
+		t.Errorf("empty value: want empty, got %q", got)
+	}
+}

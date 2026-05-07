@@ -184,6 +184,52 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 			return ""
 		}
 	})
+	// imageURL resolves a field's stored filename to its target URL via
+	// Options.ImageURL. The slideout's imageURLFunc returns
+	// `/api/images/<stem>/<file>`, the wiki's returns `/storage/<stem>/
+	// images/<file>` — same helper, different transport. Returns "" for
+	// unknown fields or empty values; falls back to "images/<name>"
+	// when no ImageURL func is wired (matches emitImage's defaults).
+	tpl.RegisterHelper("imageURL", func(key string, options *raymond.Options) string {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		name, ok := ctx[key].(string)
+		if !ok || name == "" {
+			return ""
+		}
+		if isAbsoluteURL(name) || strings.HasPrefix(name, "file:") {
+			return name
+		}
+		if opts != nil && opts.ImageURL != nil {
+			return opts.ImageURL(name)
+		}
+		return "images/" + name
+	})
+
+	// imageBase64 resolves a field's stored filename to a
+	// `data:<mime>;base64,<bytes>` URL via Options.ImageBase64URL. Used
+	// by the generator's "inline" image mode for self-contained
+	// markdown exports. Returns "" when the func isn't wired or the
+	// field value is empty — distinct from imageURL's `images/<name>`
+	// fallback because there's no sensible default for an inlined byte
+	// stream.
+	tpl.RegisterHelper("imageBase64", func(key string, options *raymond.Options) string {
+		if opts == nil || opts.ImageBase64URL == nil {
+			return ""
+		}
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		name, ok := ctx[key].(string)
+		if !ok || name == "" {
+			return ""
+		}
+		return opts.ImageBase64URL(name)
+	})
+
 	tpl.RegisterHelper("fieldDescription", func(key string, options *raymond.Options) string {
 		f := findField(options.Ctx(), key)
 		if f == nil {

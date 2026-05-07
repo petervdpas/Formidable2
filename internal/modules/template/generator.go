@@ -20,6 +20,21 @@ const (
 	ShapeFrontmatter Shape = "frontmatter"
 )
 
+// ImgMode selects how image fields are emitted.
+//
+//	url    — `![Label]({{imageURL "key"}})`. The runtime helper resolves
+//	         to whatever the consumer's render.Manager is wired to
+//	         (slideout: /api/images/<stem>/<file>; wiki: /storage/...).
+//	inline — `![Label]({{imageBase64 "key"}})`. The bytes are inlined as
+//	         a `data:<mime>;base64,…` URL at render time. Use for
+//	         self-contained exports (single-file HTML/PDF/wiki import).
+type ImgMode string
+
+const (
+	ImgURL    ImgMode = "url"
+	ImgInline ImgMode = "inline"
+)
+
 // ShapeInfo is a UI-facing record so the frontend doesn't have to
 // hardcode shape labels — vue-i18n would also work but the dialog has
 // a small static set, so descriptions live next to the implementation.
@@ -27,6 +42,13 @@ type ShapeInfo struct {
 	ID          Shape  `json:"id"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
+}
+
+// ImgModeInfo is the corresponding catalog entry for image modes.
+type ImgModeInfo struct {
+	ID          ImgMode `json:"id"`
+	Label       string  `json:"label"`
+	Description string  `json:"description"`
 }
 
 // Shapes returns the catalog used by the dialog picker.
@@ -50,39 +72,68 @@ func Shapes() []ShapeInfo {
 		{
 			ID:          ShapeFrontmatter,
 			Label:       "Frontmatter only",
-			Description: "Emit fields as a YAML data block. Useful when downstream tooling reads only metadata.",
+			Description: "Emit fields as a YAML data block. Image fields are skipped — they don't fit a metadata block.",
+		},
+	}
+}
+
+// ImgModes returns the catalog used by the dialog's image-mode picker.
+func ImgModes() []ImgModeInfo {
+	return []ImgModeInfo{
+		{
+			ID:          ImgURL,
+			Label:       "Linked URL",
+			Description: "Images render as `![alt](/api/images/<stem>/<file>)` via the {{imageURL}} helper. Loads from the api route — clean markdown source, lighter exports.",
+		},
+		{
+			ID:          ImgInline,
+			Label:       "Inline (base64)",
+			Description: "Images render as a `data:<mime>;base64,…` URL via the {{imageBase64}} helper. Heavier markdown but self-contained — useful for single-file HTML/PDF exports.",
 		},
 	}
 }
 
 // GenerateMarkdownTemplate produces default Handlebars-flavored markdown
-// for the given fields, in the requested shape. Mirrors
-// utils/templateGenerator.js (the report shape is a 1:1 port);
-// the other three shapes are new in Formidable2.
+// for the given fields, in the requested shape and image mode.
 //
 // Empty/nil fields → empty string. Unknown shape → falls back to report
-// so a stale frontend doesn't produce nothing.
-func GenerateMarkdownTemplate(shape Shape, fields []Field) string {
+// so a stale frontend doesn't produce nothing. Unknown image mode →
+// falls back to ImgURL.
+func GenerateMarkdownTemplate(shape Shape, imgMode ImgMode, fields []Field) string {
 	if len(fields) == 0 {
 		return ""
 	}
+	if imgMode != ImgURL && imgMode != ImgInline {
+		imgMode = ImgURL
+	}
 	switch shape {
 	case ShapeMinimal:
-		return generateMinimal(fields)
+		return generateMinimal(fields, imgMode)
 	case ShapeTable:
-		return generateTable(fields)
+		return generateTable(fields, imgMode)
 	case ShapeFrontmatter:
 		return generateFrontmatter(fields)
 	case ShapeReport:
-		return generateReport(fields)
+		return generateReport(fields, imgMode)
 	default:
-		return generateReport(fields)
+		return generateReport(fields, imgMode)
+	}
+}
+
+// imageHelperCall returns the Handlebars expression used to resolve an
+// image field's URL according to the current ImgMode.
+func imageHelperCall(key string, mode ImgMode) string {
+	switch mode {
+	case ImgInline:
+		return fmt.Sprintf(`{{imageBase64 "%s"}}`, key)
+	default:
+		return fmt.Sprintf(`{{imageURL "%s"}}`, key)
 	}
 }
 
 // ─── Report shape (port of templateGenerator.js) ──────────────────────
 
-func generateReport(fields []Field) string {
+func generateReport(fields []Field, imgMode ImgMode) string {
 	frontmatter := strings.Join([]string{
 		"---",
 		"title: Auto-generated Report",
@@ -96,14 +147,14 @@ func generateReport(fields []Field) string {
 	}, "\n")
 
 	var topLevelLogs []string
-	body := renderFieldBlocks(fields, 2, &topLevelLogs)
+	body := renderFieldBlocks(fields, 2, &topLevelLogs, imgMode)
 	content := strings.Join(body, "\n---\n\n")
 	logSection := buildLogSection(topLevelLogs)
 
 	return frontmatter + "\n" + content + logSection
 }
 
-func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string) []string {
+func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string, imgMode ImgMode) []string {
 	result := make([]string, 0, len(fields))
 	seen := map[string]bool{}
 
@@ -144,7 +195,7 @@ func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string) []strin
 			inner = append([]Field{indexField}, inner...)
 
 			var loopLogs []string
-			loopBody := strings.Join(renderFieldBlocks(inner, headingLevel+1, &loopLogs), "\n---\n\n")
+			loopBody := strings.Join(renderFieldBlocks(inner, headingLevel+1, &loopLogs, imgMode), "\n---\n\n")
 			loopLogBlock := buildLogSection(loopLogs)
 
 			result = append(result, fmt.Sprintf(
@@ -158,13 +209,13 @@ func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string) []strin
 		if t == "loopstop" || seen[key] {
 			continue
 		}
-		result = append(result, generateSingleFieldBlock(f, headingLevel, logs))
+		result = append(result, generateSingleFieldBlock(f, headingLevel, logs, imgMode))
 		seen[key] = true
 	}
 	return result
 }
 
-func generateSingleFieldBlock(f Field, headingLevel int, logs *[]string) string {
+func generateSingleFieldBlock(f Field, headingLevel int, logs *[]string, imgMode ImgMode) string {
 	key := f.Key
 	if key == "" {
 		key = "unknown"
@@ -179,13 +230,13 @@ func generateSingleFieldBlock(f Field, headingLevel int, logs *[]string) string 
 
 	heading := strings.Repeat("#", headingLevel)
 	header := fmt.Sprintf("%s %s\n\n_{{fieldDescription \"%s\"}}_\n", heading, label, key)
-	return header + "\n" + renderFieldValueBlock(key, label, t)
+	return header + "\n" + renderFieldValueBlock(key, label, t, imgMode)
 }
 
 // renderFieldValueBlock returns the Handlebars body for one field —
 // shared between report and minimal shapes (minimal just drops the
 // surrounding header and debug logs).
-func renderFieldValueBlock(key, label, typ string) string {
+func renderFieldValueBlock(key, label, typ string, imgMode ImgMode) string {
 	switch typ {
 	case "boolean", "checkbox":
 		return fmt.Sprintf(
@@ -249,8 +300,8 @@ _No tags specified_
 {{/if}}`, key, key, key, key, key)
 	case "image":
 		return fmt.Sprintf(
-			"{{#if (fieldRaw \"%s\")}}\n![%s]({{field \"%s\"}})\n{{else}}\n_No image uploaded for %s_\n{{/if}}",
-			key, label, key, label,
+			"{{#if (fieldRaw \"%s\")}}\n![%s](%s)\n{{else}}\n_No image uploaded for %s_\n{{/if}}",
+			key, label, imageHelperCall(key, imgMode), label,
 		)
 	default:
 		return fmt.Sprintf(`{{field "%s"}}`, key)
@@ -284,12 +335,12 @@ func buildLogSection(logs []string) string {
 
 // ─── Minimal shape ────────────────────────────────────────────────────
 
-func generateMinimal(fields []Field) string {
-	parts := renderMinimalBlocks(fields, 2)
+func generateMinimal(fields []Field, imgMode ImgMode) string {
+	parts := renderMinimalBlocks(fields, 2, imgMode)
 	return strings.Join(parts, "\n\n") + "\n"
 }
 
-func renderMinimalBlocks(fields []Field, headingLevel int) []string {
+func renderMinimalBlocks(fields []Field, headingLevel int, imgMode ImgMode) []string {
 	out := make([]string, 0, len(fields))
 	seen := map[string]bool{}
 	heading := strings.Repeat("#", headingLevel)
@@ -321,7 +372,7 @@ func renderMinimalBlocks(fields []Field, headingLevel int) []string {
 				i++
 			}
 			i--
-			body := strings.Join(renderMinimalBlocks(inner, headingLevel+1), "\n\n")
+			body := strings.Join(renderMinimalBlocks(inner, headingLevel+1, imgMode), "\n\n")
 			out = append(out, fmt.Sprintf("%s Loop: %s\n\n{{#loop \"%s\"}}\n%s\n{{/loop}}", heading, loopKey, loopKey, body))
 			continue
 		}
@@ -333,14 +384,14 @@ func renderMinimalBlocks(fields []Field, headingLevel int) []string {
 		if label == "" {
 			label = key
 		}
-		out = append(out, fmt.Sprintf("%s %s\n\n%s", heading, label, renderFieldValueBlock(key, label, t)))
+		out = append(out, fmt.Sprintf("%s %s\n\n%s", heading, label, renderFieldValueBlock(key, label, t, imgMode)))
 	}
 	return out
 }
 
 // ─── Table shape ──────────────────────────────────────────────────────
 
-func generateTable(fields []Field) string {
+func generateTable(fields []Field, imgMode ImgMode) string {
 	rows := make([]string, 0, len(fields))
 	rows = append(rows, "| Field | Value |")
 	rows = append(rows, "|-------|-------|")
@@ -371,12 +422,12 @@ func generateTable(fields []Field) string {
 			continue
 		}
 		seen[key] = true
-		rows = append(rows, tableRowForField(f, key))
+		rows = append(rows, tableRowForField(f, key, imgMode))
 	}
 	return strings.Join(rows, "\n") + "\n"
 }
 
-func tableRowForField(f Field, key string) string {
+func tableRowForField(f Field, key string, imgMode ImgMode) string {
 	label := f.Label
 	if label == "" {
 		label = key
@@ -384,7 +435,9 @@ func tableRowForField(f Field, key string) string {
 	switch strings.ToLower(f.Type) {
 	case "tags":
 		return fmt.Sprintf(`| %s | {{tags (fieldRaw "%s")}} |`, label, key)
-	case "list", "multioption", "table", "image", "api":
+	case "image":
+		return fmt.Sprintf(`| %s | ![%s](%s) |`, label, label, imageHelperCall(key, imgMode))
+	case "list", "multioption", "table", "api":
 		return fmt.Sprintf(`| %s | {{json (fieldRaw "%s")}} |`, label, key)
 	default:
 		return fmt.Sprintf(`| %s | {{field "%s"}} |`, label, key)
@@ -418,6 +471,12 @@ func generateFrontmatter(fields []Field) string {
 			continue
 		}
 		if depth > 0 || seen[key] {
+			continue
+		}
+		// Per user's choice: image fields don't fit a YAML metadata
+		// block, so frontmatter shape skips them entirely (regardless
+		// of imgMode).
+		if t == "image" {
 			continue
 		}
 		seen[key] = true

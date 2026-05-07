@@ -35,6 +35,12 @@ func main() {
 		Services:    a.WailsServices(),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
+			// Route /api/* requests from the in-app webview to the api
+			// handler so the slideout's <img src="/api/images/…"> works
+			// regardless of whether the optional wiki/api HTTP server
+			// is running. Everything else falls through to the embedded
+			// Vue dist.
+			Middleware: application.Middleware(app.APIAssetMiddleware(a.APIHandler())),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,

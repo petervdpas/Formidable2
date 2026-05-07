@@ -93,6 +93,7 @@ type App struct {
 	indexEvents     *index.EventHandler
 	dataProvider    *dataprovider.Manager
 	wikiManager     *wiki.Manager
+	apiHandler      http.Handler
 	emitter         *emitterRelay
 	deps            Deps
 }
@@ -162,14 +163,27 @@ func New(d Deps) (*App, error) {
 	//     <name>` so the browser caches them; formidable:// URLs are
 	//     rewritten to `/template/<stem>/form/<datafile>` at the
 	//     source so links work natively as plain HTML anchors.
+	// The slideout's <img src=…> reaches /api/images/<stem>/<file>
+	// through Wails' AssetMiddleware (see APIAssetMiddleware) — the
+	// markdown stays free of inlined base64 and the same URL works
+	// from external HTTP callers when the wiki/api server is on.
 	slideoutImageURL := func(templateFilename, name string) string {
+		stem := strings.TrimSuffix(templateFilename, ".yaml")
+		return "/api/images/" + stem + "/" + name
+	}
+	// Inline-image mode for the generator's "inline" choice — reads
+	// the bytes via storage and returns the data URL (which
+	// LoadImageFile already produces). Wired only on the slideout
+	// manager; the wiki manager keeps url-only output.
+	slideoutImageBase64 := func(templateFilename, name string) string {
 		dataURL, err := stoM.LoadImageFile(templateFilename, name)
-		if err != nil || dataURL == "" {
+		if err != nil {
 			return ""
 		}
 		return dataURL
 	}
 	slideoutRender := render.NewManager(tplM, stoM, slideoutImageURL, nil /*linkURL*/, d.Logger)
+	slideoutRender.SetImageBase64URL(slideoutImageBase64)
 
 	wikiImageURL := func(templateFilename, name string) string {
 		stem := strings.TrimSuffix(templateFilename, ".yaml")
@@ -321,9 +335,22 @@ func New(d Deps) (*App, error) {
 		indexEvents:     ehM,
 		dataProvider:    dpM,
 		wikiManager:     wikiM,
+		apiHandler:      apiHandler,
 		emitter:         emitter,
 		deps:            d,
 	}, nil
+}
+
+// APIHandler returns the api module's http.Handler. main.go feeds this
+// into the Wails AssetServer middleware so /api/* requests from the
+// in-app webview reach the api handler even when the optional wiki/api
+// HTTP server is OFF (the same handler also runs behind the loopback
+// HTTP server when the user enables it via the Information workspace).
+func (a *App) APIHandler() http.Handler {
+	if a == nil {
+		return nil
+	}
+	return a.apiHandler
 }
 
 // SetWindowOpener installs the Wails-aware function used by

@@ -139,6 +139,65 @@ Feature: Default markdown-template generator
     Then the output contains "items: {{json (fieldRaw \"items\")}}"
     And the output does not contain "name:"
 
+  # ── Image mode (per-shape sub-choice) ───────────────────────────────
+
+  Scenario: Report shape url-mode uses imageURL helper
+    Given the fields:
+      | key   | type  | label |
+      | cover | image | Cover |
+    When I generate with shape "report" and image mode "url"
+    Then the output contains "![Cover]({{imageURL \"cover\"}})"
+    And the output does not contain "imageBase64"
+
+  Scenario: Report shape inline-mode uses imageBase64 helper
+    Given the fields:
+      | key   | type  | label |
+      | cover | image | Cover |
+    When I generate with shape "report" and image mode "inline"
+    Then the output contains "![Cover]({{imageBase64 \"cover\"}})"
+    And the output does not contain "imageURL"
+
+  Scenario: Minimal shape inline-mode uses imageBase64 helper
+    Given the fields:
+      | key   | type  | label |
+      | cover | image | Cover |
+    When I generate with shape "minimal" and image mode "inline"
+    Then the output contains "![Cover]({{imageBase64 \"cover\"}})"
+
+  Scenario: Table shape url-mode emits a markdown image cell
+    Given the fields:
+      | key   | type  | label |
+      | cover | image | Cover |
+    When I generate with shape "table" and image mode "url"
+    Then the output contains "| Cover | ![Cover]({{imageURL \"cover\"}}) |"
+
+  Scenario: Frontmatter shape always skips image fields (url mode)
+    Given the fields:
+      | key   | type  | label |
+      | title | text  |       |
+      | cover | image |       |
+      | tags  | tags  |       |
+    When I generate with shape "frontmatter" and image mode "url"
+    Then the output contains "title:"
+    And the output contains "tags:"
+    And the output does not contain "cover"
+
+  Scenario: Frontmatter shape always skips image fields (inline mode)
+    Given the fields:
+      | key   | type  | label |
+      | title | text  |       |
+      | cover | image |       |
+    When I generate with shape "frontmatter" and image mode "inline"
+    Then the output contains "title:"
+    And the output does not contain "cover"
+
+  Scenario: Unknown image mode falls back to url
+    Given the fields:
+      | key   | type  | label |
+      | cover | image | Cover |
+    When I generate with shape "report" and image mode "bogus"
+    Then the output contains "{{imageURL \"cover\"}}"
+
   # ── Robustness ──────────────────────────────────────────────────────
 
   Scenario: Unknown shape falls back to report

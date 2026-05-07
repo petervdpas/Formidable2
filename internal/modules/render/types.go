@@ -24,6 +24,14 @@ type Options struct {
 	// If nil, the emitter returns "images/<name>".
 	ImageURL func(name string) string
 
+	// ImageBase64URL resolves an image filename to a `data:<mime>;
+	// base64,<bytes>` URL. Used by the generator's "inline" mode and
+	// by self-contained-export targets. Independent of ImageURL so a
+	// single Manager can serve both `<img src="/api/images/…">` (via
+	// ImageURL) and inlined data URLs (via ImageBase64URL).
+	// If nil, the {{imageBase64}} helper returns "".
+	ImageBase64URL func(name string) string
+
 	// LinkURL resolves a relative link href against the template
 	// storage. Absolute URLs and `file:`/`mailto:`/`tel:` schemes are
 	// passed through unchanged before this is called. If nil, the

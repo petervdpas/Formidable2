@@ -28,6 +28,14 @@ type formStore interface {
 // path so static markdown export still works.
 type ImageURLFunc func(templateFilename, name string) string
 
+// ImageBase64URLFunc resolves an image filename to a
+// `data:<mime>;base64,<bytes>` URL. Wired separately from ImageURLFunc
+// so a single render.Manager can serve both `<img src="/api/images/…">`
+// (via ImageURL) and the generator's inline-image mode (via
+// ImageBase64URL). May be nil — inline-mode markdown then renders the
+// {{imageBase64}} helper as an empty string.
+type ImageBase64URLFunc func(templateFilename, name string) string
+
 // FormidableLinkURLFunc rewrites `formidable://<template>:<datafile>`
 // hrefs into transport-specific URLs. Each export target plugs its
 // own:
@@ -48,12 +56,17 @@ type Manager struct {
 	templates         templateLoader
 	storage           formStore
 	imageURL          ImageURLFunc
+	imageBase64URL    ImageBase64URLFunc
 	formidableLinkURL FormidableLinkURLFunc
 	log               *slog.Logger
 }
 
 // NewManager constructs a render Manager. log may be nil. Pass nil
 // for either URL strategy to get the unrewritten passthrough.
+//
+// imageBase64URL is wired separately via SetImageBase64URL to keep the
+// constructor signature stable across consumers that don't need
+// inline-image mode (the wiki HTTP server, plain MD export, …).
 func NewManager(t templateLoader, s formStore, imgURL ImageURLFunc, linkURL FormidableLinkURLFunc, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
@@ -65,6 +78,17 @@ func NewManager(t templateLoader, s formStore, imgURL ImageURLFunc, linkURL Form
 		formidableLinkURL: linkURL,
 		log:               log,
 	}
+}
+
+// SetImageBase64URL wires the data-URL image strategy after construction.
+// Use this only on Managers whose consumers actually want inline-mode
+// (today: the slideout's render Manager, supplied by the composition
+// root). Pass nil to disable.
+func (m *Manager) SetImageBase64URL(fn ImageBase64URLFunc) {
+	if m == nil {
+		return
+	}
+	m.imageBase64URL = fn
 }
 
 // RenderForm returns both the Handlebars-rendered markdown and the
@@ -116,6 +140,11 @@ func (m *Manager) optionsFor(templateName string) *Options {
 	if m.imageURL != nil {
 		opts.ImageURL = func(name string) string {
 			return m.imageURL(templateName, name)
+		}
+	}
+	if m.imageBase64URL != nil {
+		opts.ImageBase64URL = func(name string) string {
+			return m.imageBase64URL(templateName, name)
 		}
 	}
 	if m.formidableLinkURL != nil {

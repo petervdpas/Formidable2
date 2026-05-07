@@ -225,11 +225,11 @@ function openDelete(index: number) {
 // ── Generate-template dialog ─────────────────────────────────────────
 const generateOpen = ref(false);
 
-async function applyGenerated(shape: string) {
+async function applyGenerated(shape: string, imgMode: string) {
   generateOpen.value = false;
   if (!draft.value) return;
   try {
-    const out = await TemplateSvc.GenerateMarkdown(shape, draft.value.fields ?? []);
+    const out = await TemplateSvc.GenerateMarkdown(shape, imgMode, draft.value.fields ?? []);
     draft.value.markdown_template = out ?? "";
   } catch (err) {
     toast.error(t('workspace.templates.generate.error', [String(err)]));
@@ -555,11 +555,11 @@ setTopbarMenu(() => [
     @confirm="confirmDeleteTemplate"
   />
 
-  <!-- Generate-template shape picker -->
+  <!-- Generate-template shape + image-mode picker -->
   <GenerateTemplateDialog
     :open="generateOpen"
     @cancel="generateOpen = false"
-    @confirm="applyGenerated"
+    @confirm="(shape, imgMode) => applyGenerated(shape, imgMode)"
   />
 </template>
 
