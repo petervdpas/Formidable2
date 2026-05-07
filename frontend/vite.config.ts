@@ -1,10 +1,37 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import wails from "@wailsio/runtime/plugins/vite";
+import { resolve } from "node:path";
+
+// Vite's watcher only watches files inside the project root by default.
+// Our `frontend/src/styles/index.css` `@import`s an upstream CSS file
+// from outside (`internal/modules/render/assets/formidable-prose.css`,
+// the same file Go `//go:embed`s into the wiki HTTP server's output).
+// Without this plugin, edits to that upstream file silently miss HMR
+// and the slideout / wiki preview keep serving stale CSS until the dev
+// server is fully restarted. The plugin tells chokidar about the
+// extra path and triggers a full reload when it changes.
+function watchProseCSS(): Plugin {
+  const externalCss = resolve(
+    __dirname,
+    "../internal/modules/render/assets/formidable-prose.css",
+  );
+  return {
+    name: "formidable:watch-prose-css",
+    configureServer(server) {
+      server.watcher.add(externalCss);
+      server.watcher.on("change", (file) => {
+        if (file === externalCss) {
+          server.ws.send({ type: "full-reload", path: "*" });
+        }
+      });
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue(), wails("./bindings")],
+  plugins: [vue(), wails("./bindings"), watchProseCSS()],
   server: {
     host: "127.0.0.1",
     strictPort: true,

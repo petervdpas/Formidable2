@@ -224,29 +224,70 @@
 
 /* Loop iterations are wrapped by render's {{#loop}} helper in
  * <section class="loop-item" data-loop="<key>" data-index="<n>">.
- * The styling below is intentionally restrained — a thin left
- * accent + a tiny index chip in the corner — so iterations are
- * distinguishable without shouting. Override the variables to
- * theme it; override the rules to disable.
+ *
+ * Same "soft, rounded, theme-aware" family as .api-card but with
+ * its own identity: a stronger left accent rail communicates
+ * "iteration / one of many" while the soft full frame + index chip
+ * give it the same comfortable card-ish boundary. Color-mix against
+ * currentColor means the chrome adapts to dark/light themes
+ * without hardcoded greys. Override variables to theme; override
+ * rules to disable.
  */
 .formidable-prose .loop-item {
-    --loop-accent: var(--color-border-strong, #cfcfcf);
-    --loop-chip-bg: var(--color-bg-muted, rgba(0, 0, 0, 0.04));
-    --loop-chip-fg: var(--color-text-muted, #888);
+    --loop-accent: color-mix(in oklab, currentColor 28%, transparent);
+    --loop-frame: color-mix(in oklab, currentColor 10%, transparent);
+    --loop-bg: color-mix(in oklab, currentColor 2.5%, transparent);
+    --loop-chip-bg: color-mix(in oklab, currentColor 8%, transparent);
+    --loop-chip-fg: color-mix(in oklab, currentColor 55%, transparent);
     position: relative;
-    padding: 0.25rem 0 0.25rem 0.85rem;
-    margin: 0 0 0.6rem 0;
-    border-left: 2px solid var(--loop-accent);
+    /* flow-root contains the floated index chip so it doesn't
+     * bleed into the next iteration when the loop body is short. */
+    display: flow-root;
+    /* Asymmetric padding: top tight (the floated chip + heading
+     * already absorb vertical space), bottom roomy so block
+     * content (tables, lists, paragraphs) has visible breathing
+     * room above the section's bottom border instead of butting
+     * against it. */
+    padding: 0.5rem 0.95rem 1rem 0.95rem;
+    margin: 0 0 0.85rem 0;
+    border: 1px solid var(--loop-frame);
+    border-left: 3px solid var(--loop-accent);
+    border-radius: 8px;
+    background: var(--loop-bg);
 }
+/* Collapse the first/last child's outer margins so the section's
+ * own padding controls vertical spacing. Without this, an inner
+ * <h3>/<h4> field heading inherits `margin: 1.5em 0 0.5em` from
+ * the global heading rule and you get a noticeable gap above the
+ * iteration's first content. Headings get their own explicit
+ * override (higher specificity than the generic h-tag rule) plus
+ * the generic :first-child fallback for non-heading content. */
+.formidable-prose .loop-item > h1,
+.formidable-prose .loop-item > h2,
+.formidable-prose .loop-item > h3,
+.formidable-prose .loop-item > h4,
+.formidable-prose .loop-item > h5,
+.formidable-prose .loop-item > h6 {
+    margin-top: 0;
+}
+.formidable-prose .loop-item > :first-child {
+    margin-top: 0;
+}
+.formidable-prose .loop-item > :last-child {
+    margin-bottom: 0;
+}
+/* Index chip floated into the heading's line — no corner-space
+ * reservation, no extra padding-top to budget. The first inner
+ * block (typically a heading) flows around the float on its
+ * left, so the chip ends up at the right end of that line. */
 .formidable-prose .loop-item::before {
     content: attr(data-index);
-    position: absolute;
-    top: 0.35rem;
-    right: 0;
+    float: right;
+    margin: 0.15rem 0 0.25rem 0.6rem;
     font-size: 0.72em;
     font-weight: 600;
     line-height: 1;
-    padding: 2px 6px;
+    padding: 2px 7px;
     color: var(--loop-chip-fg);
     background: var(--loop-chip-bg);
     border-radius: 999px;
@@ -259,29 +300,38 @@
 .formidable-prose th .loop-item::before {
     display: none;
 }
-/* Nested loop: dimmer accent so the inner section reads as a
- * sub-iteration of its parent instead of a peer. Depth-2 is the
- * template validator's hard cap, so a single override suffices. */
+/* Nested loop: dimmer accent + slightly tighter radius + INDENTED
+ * from the parent's content edge so the depth-1 → depth-2
+ * hierarchy is visually obvious. Top-level iterations stay flush
+ * with the surrounding prose; the indent is reserved for nesting
+ * (depth-2 is the template validator's hard cap, so a single
+ * override suffices). */
 .formidable-prose .loop-item .loop-item {
-    --loop-accent: var(--color-border, #e3e3e3);
-    margin-left: 0.25rem;
+    --loop-accent: color-mix(in oklab, currentColor 18%, transparent);
+    --loop-frame: color-mix(in oklab, currentColor 7%, transparent);
+    --loop-bg: color-mix(in oklab, currentColor 3.5%, transparent);
+    --loop-indent: 1.25rem;
+    margin: 0.4rem 0 0.5rem var(--loop-indent);
+    border-radius: 6px;
 }
 
 /* Api-field card. The {{apiSection}} helper wraps its output in
  * <section class="api-card" data-source="<template>">, so the
  * rendered HTML carries the same chrome as the in-app FormFieldAPI
- * card — visible boundary, gentle background, source attribution
- * in the corner. Override the variables to theme; override the
- * rules to disable.
+ * card — soft boundary, gentle tinted background, source attribution
+ * in the corner. Border + bg use color-mix against currentColor so
+ * the card auto-adapts to dark/light themes without any hardcoded
+ * greys. Override the variables to theme; override the rules to
+ * disable.
  */
 .formidable-prose .api-card {
-    --api-card-border: var(--color-border, #d0d4dd);
-    --api-card-bg: var(--color-bg-muted, rgba(74, 144, 226, 0.04));
-    --api-card-source-fg: var(--color-text-muted, #888);
+    --api-card-border: color-mix(in oklab, currentColor 12%, transparent);
+    --api-card-bg: color-mix(in oklab, currentColor 3%, transparent);
+    --api-card-source-fg: color-mix(in oklab, currentColor 50%, transparent);
     position: relative;
     border: 1px solid var(--api-card-border);
-    border-radius: 6px;
-    padding: 0.75rem 1rem 0.5rem;
+    border-radius: 12px;
+    padding: 0.9rem 1.15rem 0.65rem;
     margin: 1em 0;
     background: var(--api-card-bg);
 }
@@ -291,8 +341,8 @@
 .formidable-prose .api-card::before {
     content: attr(data-source);
     position: absolute;
-    top: 0.4rem;
-    right: 0.65rem;
+    top: 0.5rem;
+    right: 0.8rem;
     font-size: 0.72em;
     font-weight: 500;
     line-height: 1;
@@ -323,4 +373,21 @@
 }
 .formidable-prose .api-card > table {
     margin: 0.25em 0 0.5em;
+}
+/* Soften the inner table to match the card's frame — the global
+ * .formidable-prose table rule is fine for full-width prose tables
+ * but feels harsh nested inside the card's softer boundary. We
+ * mirror the card's own border treatment (color-mix on currentColor)
+ * so the same "soft" reads through every layer. */
+.formidable-prose .api-card table {
+    border-color: var(--api-card-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.formidable-prose .api-card th,
+.formidable-prose .api-card td {
+    border-color: var(--api-card-border);
+}
+.formidable-prose .api-card th {
+    background: color-mix(in oklab, currentColor 5%, transparent);
 }
