@@ -2,9 +2,9 @@ package dataprovider
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/petervdpas/formidable2/internal/modules/index"
 )
@@ -23,11 +23,12 @@ var (
 // template at picker time.
 //
 // Resolves (sourceTemplate, guid) → datafile via the index, loads the
-// form's data via storage, and returns a flat map keyed by columnKey
-// where each value is either a passthrough scalar or — for any non-
-// scalar source value — a JSON-marshalled string. Scalars covered:
-// string, bool, int/int64/float64, nil. Everything else flattens to
-// JSON so the host form's storage stays scalar.
+// form's data via storage, and returns a map keyed by columnKey
+// carrying each requested source value VERBATIM. Scalars (string /
+// bool / number) pass through; complex shapes (slices, maps) ride
+// across as themselves. The host's .meta.json is already JSON, so a
+// projected `tags: ["a","b"]` lands as a real array — not as a
+// JSON-encoded string nested inside the host JSON.
 //
 // The returned map always contains an entry for every requested
 // columnKey; absent source keys produce nil values (so callers can
@@ -96,11 +97,7 @@ func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid str
 			row[key] = nil
 			continue
 		}
-		flat, err := flattenAPIValue(raw)
-		if err != nil {
-			return nil, fmt.Errorf("api-field: flatten %q: %w", key, err)
-		}
-		row[key] = flat
+		row[key] = raw
 	}
 	return row, nil
 }
@@ -153,55 +150,12 @@ func (m *Manager) RefetchAPIFieldRow(ctx context.Context, sourceTemplate, guid s
 	return &APIFieldRefetchResult{Row: row, Drift: drift}, nil
 }
 
-// apiFieldValuesEqual is the per-column equality rule. nil == nil;
-// scalars compare by `==`; anything else (slice/map) is compared by
-// its JSON-flattened string. Both inputs are expected to come from
-// either flattenAPIValue or the caller's stored row (which itself was
-// stamped through flattenAPIValue), so non-scalars are normally
-// already strings — the json.Marshal fallback only covers the unusual
-// case where a stored row carries a raw map/slice from somewhere else.
+// apiFieldValuesEqual is the per-column equality rule used by the
+// drift detector. Both stored and current values arrive as JSON-shaped
+// Go data (the host's stored value was JSON-decoded from the form's
+// .meta.json; the current value came back through Wails which round-
+// trips via JSON too). reflect.DeepEqual handles scalars, slices, and
+// maps consistently for that family.
 func apiFieldValuesEqual(a, b any) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	if isAPIScalar(a) && isAPIScalar(b) {
-		return a == b
-	}
-	as, aerr := flattenAPIValue(a)
-	bs, berr := flattenAPIValue(b)
-	if aerr != nil || berr != nil {
-		return false
-	}
-	return as == bs
-}
-
-func isAPIScalar(v any) bool {
-	switch v.(type) {
-	case string, bool, int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64,
-		float32, float64:
-		return true
-	}
-	return false
-}
-
-// flattenAPIValue is the host-storage scalarisation rule: scalars
-// (string/number/bool/nil) pass through; anything else is rendered as
-// a JSON string. Keeps host-form storage flat regardless of how
-// complex the source field's type was.
-func flattenAPIValue(v any) (any, error) {
-	switch v.(type) {
-	case nil, string, bool, int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64,
-		float32, float64:
-		return v, nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	return string(b), nil
+	return reflect.DeepEqual(a, b)
 }

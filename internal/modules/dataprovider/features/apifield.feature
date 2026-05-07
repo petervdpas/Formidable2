@@ -9,8 +9,10 @@ Feature: API-field row fetching
 
   The picker always references the source by GUID. Source templates that
   don't have collection enabled are not pickable — the same rule the
-  wiki's /api/collections/* layer enforces. Non-scalar source values are
-  JSON-flattened to a string so the host form's storage stays scalar.
+  wiki's /api/collections/* layer enforces. Source values stamp into the
+  host's row in their native JSON shape — scalars stay scalars, slices
+  stay slices, maps stay maps. The host's .meta.json is itself JSON, so
+  no flatten-to-string is needed.
 
   Background:
     Given a fresh dataprovider world
@@ -34,20 +36,20 @@ Feature: API-field row fetching
     Then the row has column "name" string-valued "Alice"
     And the row has column "email" with no value
 
-  # ── JSON flatten ─────────────────────────────────────────────────────
+  # ── Native shape passthrough ─────────────────────────────────────────
 
-  Scenario: Tags column flattens to JSON string
+  Scenario: Tags column passes through as a native array
     Given a collection-enabled template "people.yaml" with form "alice.meta.json" guid "g-1" tags column "tags":
       | a |
       | b |
       | c |
     When I fetch api-field row from "people.yaml" guid "g-1" columns "tags"
-    Then the row has column "tags" json-valued `["a","b","c"]`
+    Then the row column "tags" is a list of 3 items
 
-  Scenario: Map column flattens to JSON string
+  Scenario: Map column passes through as a native object
     Given a collection-enabled template "people.yaml" with form "alice.meta.json" guid "g-1" map column "address" with key "street" value "1 Main"
     When I fetch api-field row from "people.yaml" guid "g-1" columns "address"
-    Then the row has column "address" json-valued `{"street":"1 Main"}`
+    Then the row column "address" is an object with key "street" string-valued "1 Main"
 
   # ── Unhappy paths ────────────────────────────────────────────────────
 

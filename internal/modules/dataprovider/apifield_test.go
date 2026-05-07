@@ -10,69 +10,12 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────
-// flattenAPIValue — pure helper.
-// Scalars (string/number/bool/nil) pass through; everything else is
-// json.Marshal'd into a string. Keeps host-form storage flat.
-// ─────────────────────────────────────────────────────────────────────
-
-func TestFlattenAPIValue_Scalars(t *testing.T) {
-	cases := []struct {
-		name string
-		in   any
-		want any
-	}{
-		{"string", "hello", "hello"},
-		{"empty-string", "", ""},
-		{"int", 42, 42},
-		{"float", 3.14, 3.14},
-		{"bool-true", true, true},
-		{"bool-false", false, false},
-		{"nil", nil, nil},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := flattenAPIValue(tc.in)
-			if err != nil {
-				t.Fatalf("err = %v", err)
-			}
-			if got != tc.want {
-				t.Errorf("got %#v, want %#v", got, tc.want)
-			}
-		})
-	}
-}
-
-func TestFlattenAPIValue_SlicesAndMapsBecomeJSONStrings(t *testing.T) {
-	cases := []struct {
-		name string
-		in   any
-		want string
-	}{
-		{"string-slice", []string{"a", "b", "c"}, `["a","b","c"]`},
-		{"any-slice", []any{"a", 1, true}, `["a",1,true]`},
-		{"map", map[string]any{"k": "v"}, `{"k":"v"}`},
-		{"empty-slice", []any{}, `[]`},
-		{"empty-map", map[string]any{}, `{}`},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := flattenAPIValue(tc.in)
-			if err != nil {
-				t.Fatalf("err = %v", err)
-			}
-			s, ok := got.(string)
-			if !ok {
-				t.Fatalf("expected string, got %T (%#v)", got, got)
-			}
-			if s != tc.want {
-				t.Errorf("got %q, want %q", s, tc.want)
-			}
-		})
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────
 // FetchAPIFieldRow — manager method.
+//
+// Source values stamp into the host form in their NATIVE JSON shape:
+// scalars pass through, slices stay slices, maps stay maps. The host's
+// .meta.json is JSON, so encoding inside the encoded form is just
+// noise — every consumer would have to undo it.
 // ─────────────────────────────────────────────────────────────────────
 
 // fakeStorage is the minimal storage adapter dataprovider needs for
@@ -137,20 +80,34 @@ func TestFetchAPIFieldRow_ScalarsPassThrough(t *testing.T) {
 	}
 }
 
-func TestFetchAPIFieldRow_TagsFlattenedToJSON(t *testing.T) {
+func TestFetchAPIFieldRow_NonScalarPassesThroughNatively(t *testing.T) {
 	m, idx, sto := newAPIFieldWorld()
 	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
 	sto.forms["people.yaml/alice.meta.json"] = &storage.Form{
-		Data: map[string]any{"tags": []any{"a", "b", "c"}},
+		Data: map[string]any{
+			"tags":  []any{"a", "b", "c"},
+			"addr":  map[string]any{"city": "Amsterdam"},
+			"table": []any{[]any{"r1c1", "r1c2"}, []any{"r2c1", "r2c2"}},
+		},
 	}
 
 	row, err := m.FetchAPIFieldRow(context.Background(),
-		"people.yaml", "g-1", []string{"tags"})
+		"people.yaml", "g-1", []string{"tags", "addr", "table"})
 	if err != nil {
 		t.Fatalf("FetchAPIFieldRow: %v", err)
 	}
-	if got := row["tags"]; got != `["a","b","c"]` {
-		t.Errorf("tags: %#v, want JSON string", got)
+	if got, ok := row["tags"].([]any); !ok || len(got) != 3 || got[0] != "a" {
+		t.Errorf("tags: %#v, want native []any{\"a\",\"b\",\"c\"}", row["tags"])
+	}
+	if got, ok := row["addr"].(map[string]any); !ok || got["city"] != "Amsterdam" {
+		t.Errorf("addr: %#v, want native map", row["addr"])
+	}
+	tbl, ok := row["table"].([]any)
+	if !ok || len(tbl) != 2 {
+		t.Fatalf("table: %#v, want native [][]any with 2 rows", row["table"])
+	}
+	if r0, ok := tbl[0].([]any); !ok || r0[0] != "r1c1" {
+		t.Errorf("table[0]: %#v, want native row", tbl[0])
 	}
 }
 

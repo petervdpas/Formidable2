@@ -468,17 +468,36 @@ func initScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	ctx.Step("^the row has column \"([^\"]*)\" json-valued `([^`]*)`$",
-		func(col, want string) error {
+	ctx.Step(`^the row column "([^"]*)" is a list of (\d+) items$`,
+		func(col string, want int) error {
 			if w.apiErr != nil {
 				return fmt.Errorf("unexpected error: %v", w.apiErr)
 			}
-			got, ok := w.apiRow[col].(string)
+			arr, ok := w.apiRow[col].([]any)
 			if !ok {
-				return fmt.Errorf("column %q: not a string (%T %v)", col, w.apiRow[col], w.apiRow[col])
+				return fmt.Errorf("column %q: not a list (%T %v)", col, w.apiRow[col], w.apiRow[col])
+			}
+			if len(arr) != want {
+				return fmt.Errorf("column %q: %d items, want %d (%v)", col, len(arr), want, arr)
+			}
+			return nil
+		})
+
+	ctx.Step(`^the row column "([^"]*)" is an object with key "([^"]*)" string-valued "([^"]*)"$`,
+		func(col, key, want string) error {
+			if w.apiErr != nil {
+				return fmt.Errorf("unexpected error: %v", w.apiErr)
+			}
+			obj, ok := w.apiRow[col].(map[string]any)
+			if !ok {
+				return fmt.Errorf("column %q: not a map (%T %v)", col, w.apiRow[col], w.apiRow[col])
+			}
+			got, ok := obj[key].(string)
+			if !ok {
+				return fmt.Errorf("column %q.%q: not a string (%T %v)", col, key, obj[key], obj[key])
 			}
 			if got != want {
-				return fmt.Errorf("column %q: %q, want %q", col, got, want)
+				return fmt.Errorf("column %q.%q: %q, want %q", col, key, got, want)
 			}
 			return nil
 		})
