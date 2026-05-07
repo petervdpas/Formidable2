@@ -126,7 +126,7 @@ func newManagerWithFakes(idx *fakeIndex, ren *fakeRenderer) *Manager {
 	if ren == nil {
 		ren = &fakeRenderer{markdown: "# Hi", html: "<h1>Hi</h1>"}
 	}
-	return NewManager(idx, ren)
+	return NewManager(idx, ren, nil)
 }
 
 func sortedNames(in []string) []string {

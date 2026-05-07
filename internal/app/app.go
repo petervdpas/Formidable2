@@ -79,9 +79,10 @@ type App struct {
 	Form     *form.Service
 	I18n     *i18n.Service
 	Dialog   *dialog.Service
-	Render   *render.Service
-	Nav      *nav.Service
-	Wiki     *wiki.Service
+	Render       *render.Service
+	Nav          *nav.Service
+	Wiki         *wiki.Service
+	Dataprovider *dataprovider.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -267,7 +268,7 @@ func New(d Deps) (*App, error) {
 	// `/storage/.../images/...` URLs (no post-process regex needed).
 	// Vue continues to call the per-module Wails services directly,
 	// which use `slideoutRender` (formidable:// + data: URLs).
-	dpM := dataprovider.NewManager(idxM, wikiRender)
+	dpM := dataprovider.NewManager(idxM, wikiRender, stoM)
 
 	// Wiki — runtime-controllable HTTP server that serves rendered
 	// templates+forms from dataprovider and images from storage. The
@@ -325,6 +326,7 @@ func New(d Deps) (*App, error) {
 		Render:          render.NewService(renderM),
 		Nav:             nav.NewService(navM),
 		Wiki:            wikiSvc,
+		Dataprovider:    dataprovider.NewService(dpM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,

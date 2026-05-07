@@ -11,6 +11,7 @@ import {
   SwitchField,
   OptionsEditor,
 } from "./fields";
+import APIFieldEditor from "./APIFieldEditor.vue";
 import type { OptionRow } from "./fields/OptionsEditor.vue";
 import { columnsFor, SUPPORTED_OPTION_TYPES } from "../types/option-presets";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -304,6 +305,13 @@ const dialogStyle = computed<Record<string, string>>(() => {
             {{ t('workspace.templates.field_edit.row.options_unavailable') }}
           </p>
         </FormRow>
+      </FormSection>
+
+      <FormSection
+        v-if="draft.type === 'api'"
+        :title="t('workspace.templates.api_editor.section')"
+      >
+        <APIFieldEditor :field="draft" />
       </FormSection>
     </div>
 

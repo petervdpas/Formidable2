@@ -6,12 +6,22 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * APIMap is one entry in an api field's map[].
+ * APIMap is one column projected from the source template into the
+ * host form's api-field row at fetch time.
+ * 
+ *   - Key: source-template field key (must reference a level-0 field).
+ *     The same key is used as the column name in the host form's
+ *     stored row. Required.
+ *   - Label: optional display header for that column. When empty, the
+ *     editor / wiki falls back to the source field's Label.
+ * 
+ * Type is intentionally absent — it is derived live from the source
+ * template (`source.Fields[Key].Type`). Storing it here would invite
+ * drift if the source template's field type changes.
  */
 export class APIMap {
     "key": string;
-    "path"?: string;
-    "mode"?: string;
+    "label"?: string;
 
     /** Creates a new APIMap instance. */
     constructor($$source: Partial<APIMap> = {}) {
@@ -96,13 +106,15 @@ export class Field {
     "format"?: string;
 
     /**
-     * api-specific
+     * api-specific. Collection is the source template (filename or
+     * name). Map is the column list — each entry projects one
+     * level-0 source field into the host form's row at fetch time.
+     * Type is not stored; it is resolved live from the source
+     * template (`source.Fields[Map[i].Key].Type`) so a source-side
+     * rename or type change can't drift a stale cache.
      */
     "collection"?: string;
-    "id"?: string;
     "map"?: APIMap[];
-    "use_picker"?: boolean | null;
-    "allowed_ids"?: string[];
 
     /** Creates a new Field instance. */
     constructor($$source: Partial<Field> = {}) {
@@ -142,17 +154,13 @@ export class Field {
      */
     static createFrom($$source: any = {}): Field {
         const $$createField10_0 = $$createType2;
-        const $$createField15_0 = $$createType4;
-        const $$createField17_0 = $$createType5;
+        const $$createField14_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField10_0($$parsedSource["options"]);
         }
         if ("map" in $$parsedSource) {
-            $$parsedSource["map"] = $$createField15_0($$parsedSource["map"]);
-        }
-        if ("allowed_ids" in $$parsedSource) {
-            $$parsedSource["allowed_ids"] = $$createField17_0($$parsedSource["allowed_ids"]);
+            $$parsedSource["map"] = $$createField14_0($$parsedSource["map"]);
         }
         return new Field($$parsedSource as Partial<Field>);
     }

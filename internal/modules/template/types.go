@@ -40,22 +40,34 @@ type Field struct {
 	// textarea-specific
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 
-	// api-specific
+	// api-specific. Collection is the source template (filename or
+	// name). Map is the column list — each entry projects one
+	// level-0 source field into the host form's row at fetch time.
+	// Type is not stored; it is resolved live from the source
+	// template (`source.Fields[Map[i].Key].Type`) so a source-side
+	// rename or type change can't drift a stale cache.
 	Collection string   `yaml:"collection,omitempty" json:"collection,omitempty"`
-	ID         string   `yaml:"id,omitempty" json:"id,omitempty"`
 	Map        []APIMap `yaml:"map,omitempty" json:"map,omitempty"`
-	UsePicker  *bool    `yaml:"use_picker,omitempty" json:"use_picker,omitempty"`
-	AllowedIDs []string `yaml:"allowed_ids,omitempty" json:"allowed_ids,omitempty"`
 
 	// Extra fields preserved verbatim (e.g. plugin-specific metadata).
 	Extra map[string]any `yaml:",inline" json:"-"`
 }
 
-// APIMap is one entry in an api field's map[].
+// APIMap is one column projected from the source template into the
+// host form's api-field row at fetch time.
+//
+//   - Key: source-template field key (must reference a level-0 field).
+//     The same key is used as the column name in the host form's
+//     stored row. Required.
+//   - Label: optional display header for that column. When empty, the
+//     editor / wiki falls back to the source field's Label.
+//
+// Type is intentionally absent — it is derived live from the source
+// template (`source.Fields[Key].Type`). Storing it here would invite
+// drift if the source template's field type changes.
 type APIMap struct {
-	Key  string `yaml:"key" json:"key"`
-	Path string `yaml:"path,omitempty" json:"path,omitempty"`
-	Mode string `yaml:"mode,omitempty" json:"mode,omitempty"`
+	Key   string `yaml:"key" json:"key"`
+	Label string `yaml:"label,omitempty" json:"label,omitempty"`
 }
 
 // ValidationError is one issue found by Validate.

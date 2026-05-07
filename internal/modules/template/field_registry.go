@@ -284,8 +284,7 @@ func propertyIsSet(f Field, attr string) bool {
 	case attrFormat:
 		return f.Format != ""
 	case attrAPIGroup:
-		return f.Collection != "" || f.ID != "" || len(f.Map) > 0 ||
-			f.UsePicker != nil || len(f.AllowedIDs) > 0
+		return f.Collection != "" || len(f.Map) > 0
 	}
 	return false
 }

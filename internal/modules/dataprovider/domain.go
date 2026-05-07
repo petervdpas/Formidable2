@@ -3,6 +3,7 @@ package dataprovider
 import (
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/render"
+	"github.com/petervdpas/formidable2/internal/modules/storage"
 )
 
 // Index is what dataprovider needs from the index module. We declare
@@ -24,15 +25,26 @@ type Renderer interface {
 	RenderForm(templateName, datafile string) (*render.Result, error)
 }
 
+// Storage is what dataprovider needs from the storage module to read
+// raw form data — only used by FetchAPIFieldRow today (api-field
+// projection at picker time). Returns nil for missing forms, matching
+// storage.Manager.LoadForm semantics.
+type Storage interface {
+	LoadForm(template, datafile string) *storage.Form
+}
+
 // Manager is the dataprovider's only stateful object. It holds the
 // composed dependencies; instances are cheap to create.
 type Manager struct {
 	idx Index
 	ren Renderer
+	sto Storage
 }
 
 // NewManager wires the facade. The composition root creates one per
-// active profile (alongside the per-profile index.Manager).
-func NewManager(idx Index, ren Renderer) *Manager {
-	return &Manager{idx: idx, ren: ren}
+// active profile (alongside the per-profile index.Manager). Storage
+// may be nil when the caller doesn't need api-field reads (e.g. unit
+// tests that only exercise the index/render paths).
+func NewManager(idx Index, ren Renderer, sto Storage) *Manager {
+	return &Manager{idx: idx, ren: ren, sto: sto}
 }

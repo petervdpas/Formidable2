@@ -116,11 +116,27 @@ func TestValidate_ApiWithMap_OK(t *testing.T) {
 	errs := Validate(&Template{
 		Fields: []Field{{
 			Key: "a", Type: "api", Collection: "c",
-			Map: []APIMap{{Key: "k"}}, UsePicker: boolPtr(true),
+			Map: []APIMap{{Key: "k", Label: "K"}},
 		}},
 	})
 	if anyForbiddenFor(errs, "a") {
 		t.Errorf("api fields are allowed their group; got %+v", errs)
+	}
+}
+
+// Label is optional — falls back to the source field's label at
+// render time. Validation must not flag empty Label.
+func TestValidate_ApiMapEmptyLabel_OK(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{{
+			Key: "a", Type: "api", Collection: "c",
+			Map: []APIMap{{Key: "name"}},
+		}},
+	})
+	for _, e := range errs {
+		if e.Type == "api-map-label-required" {
+			t.Errorf("Label should be optional; got %+v", e)
+		}
 	}
 }
 

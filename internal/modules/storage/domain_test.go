@@ -200,6 +200,90 @@ func TestSanitize_LinkValueShapesRoundTrip(t *testing.T) {
 	}
 }
 
+// API-field value shape: a single object {guid, ...projected_columns}.
+// Multiplicity comes from wrapping the field in a loopstart/loopstop
+// pair — the api field itself is always one record's projection.
+
+func TestSanitize_ApiFieldUnsetDefaultsToNil(t *testing.T) {
+	// User hasn't picked a record yet — sanitize should produce nil
+	// (NOT empty string, which would be a type-confused stand-in and
+	// would force every consumer to guard against `""` vs `map`).
+	fields := []template.Field{
+		{Key: "ref", Type: "api", Collection: "people.yaml"},
+	}
+	out := Sanitize(map[string]any{}, fields, SanitizeOptions{})
+	if got := out.Data["ref"]; got != nil {
+		t.Errorf("unset api field default = %#v, want nil", got)
+	}
+}
+
+func TestSanitize_ApiFieldObjectRoundTrip(t *testing.T) {
+	// Once the picker stamps a record, the field's value is a flat
+	// {guid, ...projected_columns} map. Sanitize must preserve it
+	// verbatim (no key reshuffle, no string-coercion).
+	fields := []template.Field{
+		{Key: "ref", Type: "api", Collection: "people.yaml"},
+	}
+	value := map[string]any{
+		"guid":  "g-1",
+		"name":  "Alice",
+		"email": "alice@a.com",
+	}
+	out := Sanitize(map[string]any{"ref": value}, fields, SanitizeOptions{})
+	got, ok := out.Data["ref"].(map[string]any)
+	if !ok {
+		t.Fatalf("ref not a map: %T", out.Data["ref"])
+	}
+	if !reflect.DeepEqual(got, value) {
+		t.Errorf("ref round-trip: got %#v, want %#v", got, value)
+	}
+}
+
+func TestSanitize_ApiFieldInsideLoopPreservesPerIteration(t *testing.T) {
+	// Multi-record case: the api field lives inside a loopstart/loopstop
+	// pair; each iteration carries its own {guid, ...} map. The loop
+	// preservation rule already exists for any field type — this test
+	// pins the api-shaped payload to it.
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+		{Key: "addrs", Type: "loopstart"},
+		{Key: "ref", Type: "api", Collection: "people.yaml"},
+		{Key: "addrs", Type: "loopstop"},
+	}
+	raw := map[string]any{
+		"title": "X",
+		"addrs": []any{
+			map[string]any{"ref": map[string]any{"guid": "g-1", "name": "A"}},
+			map[string]any{"ref": map[string]any{"guid": "g-2", "name": "B"}},
+		},
+	}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	loop, ok := out.Data["addrs"].([]any)
+	if !ok {
+		t.Fatalf("addrs not preserved: %T", out.Data["addrs"])
+	}
+	if len(loop) != 2 {
+		t.Fatalf("loop len = %d, want 2", len(loop))
+	}
+	for i, want := range []string{"g-1", "g-2"} {
+		iter, ok := loop[i].(map[string]any)
+		if !ok {
+			t.Fatalf("iteration %d not a map: %T", i, loop[i])
+		}
+		ref, ok := iter["ref"].(map[string]any)
+		if !ok {
+			t.Fatalf("iter[%d].ref not a map: %T", i, iter["ref"])
+		}
+		if ref["guid"] != want {
+			t.Errorf("iter[%d].ref.guid = %v, want %q", i, ref["guid"], want)
+		}
+	}
+	// Top-level shouldn't carry the inner key.
+	if _, leaked := out.Data["ref"]; leaked {
+		t.Error("loop child key 'ref' leaked to top-level")
+	}
+}
+
 func TestSanitize_FlaggedHonorsRawMeta(t *testing.T) {
 	fields := []template.Field{{Key: "title", Type: "text"}}
 	raw := map[string]any{

@@ -231,6 +231,11 @@ func defaultForType(t string) any {
 		return 50
 	case "multioption", "list", "table":
 		return []any{}
+	case "api":
+		// Unset api field has no record picked yet. nil distinguishes
+		// "no value" from a stamped {guid, ...} map; consumers can
+		// treat it as the picker's empty state.
+		return nil
 	default:
 		return ""
 	}

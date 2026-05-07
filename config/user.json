@@ -14,7 +14,7 @@
   "context_mode": "template",
   "context_ribbon": "templates",
   "context_folder": "./Examples",
-  "selected_template": "recepten.yaml",
+  "selected_template": "basic.yaml",
   "selected_data_file": "sane-20250530.meta.json",
   "author_name": "unknown",
   "author_email": "unknown@example.com",

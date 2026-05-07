@@ -2,6 +2,7 @@ package dataprovider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/petervdpas/formidable2/internal/modules/index"
+	"github.com/petervdpas/formidable2/internal/modules/storage"
 )
 
 func TestFeatures(t *testing.T) {
@@ -18,6 +20,7 @@ func TestFeatures(t *testing.T) {
 			Format:   "pretty",
 			Paths:    []string{"features"},
 			TestingT: t,
+			Strict:   true, // fail on undefined/pending steps
 		},
 	}
 	if suite.Run() != 0 {
@@ -29,6 +32,7 @@ func TestFeatures(t *testing.T) {
 type world struct {
 	idx *fakeIndex
 	ren *fakeRenderer
+	sto *fakeStorage
 	m   *Manager
 
 	// Latest results — assertion steps inspect these.
@@ -43,9 +47,13 @@ type world struct {
 
 	rendered *RenderedPage
 
-	collPage     *CollectionPage
-	collItem     *CollectionItem
-	collItemHit  bool
+	collPage    *CollectionPage
+	collItem    *CollectionItem
+	collItemHit bool
+
+	// API-field row results for the apifield.feature scenarios.
+	apiRow map[string]any
+	apiErr error
 }
 
 func initScenario(ctx *godog.ScenarioContext) {
@@ -54,9 +62,10 @@ func initScenario(ctx *godog.ScenarioContext) {
 	ctx.Before(func(c context.Context, _ *godog.Scenario) (context.Context, error) {
 		w.idx = &fakeIndex{forms: map[string][]index.FormRow{}}
 		w.ren = &fakeRenderer{markdown: "# default", html: "<h1>default</h1>"}
-		w.m = NewManager(w.idx, w.ren)
+		w.sto = &fakeStorage{forms: map[string]*storage.Form{}}
+		w.m = NewManager(w.idx, w.ren, w.sto)
 		// reset captured results
-		*w = world{idx: w.idx, ren: w.ren, m: w.m}
+		*w = world{idx: w.idx, ren: w.ren, sto: w.sto, m: w.m}
 		return c, nil
 	})
 
@@ -346,6 +355,161 @@ func initScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the collection item self-href is "([^"]*)"$`, func(want string) error {
 		if w.collItem.HrefSelf != want {
 			return fmt.Errorf("hrefSelf = %q, want %q", w.collItem.HrefSelf, want)
+		}
+		return nil
+	})
+
+	// ── API-field row ───────────────────────────────────────────────
+
+	// No-op marker step — the Before hook already resets the world,
+	// this just lets a feature say "Given a fresh dataprovider world"
+	// before scenarios that seed everything inline.
+	ctx.Step(`^a fresh dataprovider world$`, func() error { return nil })
+
+	ctx.Step(`^a collection-enabled template "([^"]*)"$`, func(tpl string) error {
+		w.idx.templates = append(w.idx.templates, index.TemplateRow{
+			Filename: tpl, EnableCollection: true, GuidField: "id",
+		})
+		return nil
+	})
+
+	ctx.Step(`^a non-collection template "([^"]*)"$`, func(tpl string) error {
+		w.idx.templates = append(w.idx.templates, index.TemplateRow{
+			Filename: tpl, EnableCollection: false,
+		})
+		return nil
+	})
+
+	ctx.Step(`^a collection-enabled template "([^"]*)" with form "([^"]*)" guid "([^"]*)" data:$`,
+		func(tpl, datafile, guid string, table *godog.Table) error {
+			w.idx.templates = append(w.idx.templates, index.TemplateRow{
+				Filename: tpl, EnableCollection: true, GuidField: "id",
+			})
+			w.idx.forms[tpl] = append(w.idx.forms[tpl], index.FormRow{
+				Filename: datafile, ID: guid,
+			})
+			data := map[string]any{}
+			for _, row := range tableRows(table) {
+				data[row["key"]] = row["value"]
+			}
+			w.sto.forms[tpl+"/"+datafile] = &storage.Form{Data: data}
+			return nil
+		})
+
+	ctx.Step(`^a collection-enabled template "([^"]*)" with form "([^"]*)" guid "([^"]*)" tags column "([^"]*)":$`,
+		func(tpl, datafile, guid, col string, table *godog.Table) error {
+			w.idx.templates = append(w.idx.templates, index.TemplateRow{
+				Filename: tpl, EnableCollection: true, GuidField: "id",
+			})
+			w.idx.forms[tpl] = append(w.idx.forms[tpl], index.FormRow{
+				Filename: datafile, ID: guid,
+			})
+			tags := []any{}
+			// Single-column table — each row's first cell is one tag.
+			for _, r := range table.Rows {
+				if len(r.Cells) > 0 {
+					tags = append(tags, r.Cells[0].Value)
+				}
+			}
+			w.sto.forms[tpl+"/"+datafile] = &storage.Form{
+				Data: map[string]any{col: tags},
+			}
+			return nil
+		})
+
+	ctx.Step(`^a collection-enabled template "([^"]*)" with form "([^"]*)" guid "([^"]*)" map column "([^"]*)" with key "([^"]*)" value "([^"]*)"$`,
+		func(tpl, datafile, guid, col, mk, mv string) error {
+			w.idx.templates = append(w.idx.templates, index.TemplateRow{
+				Filename: tpl, EnableCollection: true, GuidField: "id",
+			})
+			w.idx.forms[tpl] = append(w.idx.forms[tpl], index.FormRow{
+				Filename: datafile, ID: guid,
+			})
+			w.sto.forms[tpl+"/"+datafile] = &storage.Form{
+				Data: map[string]any{col: map[string]any{mk: mv}},
+			}
+			return nil
+		})
+
+	ctx.Step(`^I fetch api-field row from "([^"]*)" guid "([^"]*)" columns "([^"]*)"$`,
+		func(tpl, guid, csv string) error {
+			cols := splitCommaList(csv)
+			row, err := w.m.FetchAPIFieldRow(context.Background(), tpl, guid, cols)
+			w.apiRow, w.apiErr = row, err
+			return nil
+		})
+
+	ctx.Step(`^the row has column "([^"]*)" string-valued "([^"]*)"$`,
+		func(col, want string) error {
+			if w.apiErr != nil {
+				return fmt.Errorf("unexpected error: %v", w.apiErr)
+			}
+			got, ok := w.apiRow[col]
+			if !ok {
+				return fmt.Errorf("column %q absent in row %v", col, w.apiRow)
+			}
+			if got != want {
+				return fmt.Errorf("column %q: %v, want %q", col, got, want)
+			}
+			return nil
+		})
+
+	ctx.Step(`^the row has column "([^"]*)" with no value$`, func(col string) error {
+		if w.apiErr != nil {
+			return fmt.Errorf("unexpected error: %v", w.apiErr)
+		}
+		v, ok := w.apiRow[col]
+		if !ok {
+			return fmt.Errorf("column %q should be present (with nil value); was missing", col)
+		}
+		if v != nil {
+			return fmt.Errorf("column %q: %v, want nil", col, v)
+		}
+		return nil
+	})
+
+	ctx.Step("^the row has column \"([^\"]*)\" json-valued `([^`]*)`$",
+		func(col, want string) error {
+			if w.apiErr != nil {
+				return fmt.Errorf("unexpected error: %v", w.apiErr)
+			}
+			got, ok := w.apiRow[col].(string)
+			if !ok {
+				return fmt.Errorf("column %q: not a string (%T %v)", col, w.apiRow[col], w.apiRow[col])
+			}
+			if got != want {
+				return fmt.Errorf("column %q: %q, want %q", col, got, want)
+			}
+			return nil
+		})
+
+	ctx.Step(`^the row has (\d+) columns$`, func(n int) error {
+		if w.apiErr != nil {
+			return fmt.Errorf("unexpected error: %v", w.apiErr)
+		}
+		if len(w.apiRow) != n {
+			return fmt.Errorf("row has %d columns, want %d (%v)", len(w.apiRow), n, w.apiRow)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the fetch errors with kind "([^"]*)"$`, func(kind string) error {
+		if w.apiErr == nil {
+			return fmt.Errorf("expected error of kind %q, got nil", kind)
+		}
+		var want error
+		switch kind {
+		case "template-not-found":
+			want = ErrAPIFieldTemplateNotFound
+		case "collection-disabled":
+			want = ErrAPIFieldCollectionDisabled
+		case "guid-not-found":
+			want = ErrAPIFieldGuidNotFound
+		default:
+			return fmt.Errorf("unknown error kind %q", kind)
+		}
+		if !errors.Is(w.apiErr, want) {
+			return fmt.Errorf("err = %v; want kind %q (%v)", w.apiErr, kind, want)
 		}
 		return nil
 	})
