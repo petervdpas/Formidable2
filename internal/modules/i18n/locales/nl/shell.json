@@ -57,8 +57,17 @@
   "workspace.information.sidebar_title": "Informatie",
   "workspace.information.subtitle": "Wails 3 herschrijving van Formidable.",
   "workspace.information.title": "Informatie",
-  "workspace.plugins.placeholder_main": "Beheer frontend-plugins en hun instellingen.",
-  "workspace.plugins.placeholder_side": "Lijst met geïnstalleerde plugins komt hier.",
+  "workspace.plugins.empty_main": "Selecteer een plugin in de zijbalk om de commando's te zien.",
+  "workspace.plugins.empty_side": "Geen plugins geïnstalleerd. Plaats een plugin-map onder <code>{0}</code> en klik Vernieuwen.",
+  "workspace.plugins.error_command_not_found": "Commando niet gevonden: {0}",
+  "workspace.plugins.error_plugin_not_found": "Plugin niet gevonden: {0}",
+  "workspace.plugins.error_runtime": "Plugin-fout",
+  "workspace.plugins.logs_title": "Log",
+  "workspace.plugins.no_output": "(geen retourwaarde)",
+  "workspace.plugins.output_title": "Resultaat",
+  "workspace.plugins.run": "Uitvoeren",
+  "workspace.plugins.running": "Bezig…",
   "workspace.plugins.sidebar_title": "Plugins",
-  "workspace.plugins.title": "Plugins"
+  "workspace.plugins.title": "Plugins",
+  "workspace.plugins.version_label": "v{0}"
 }

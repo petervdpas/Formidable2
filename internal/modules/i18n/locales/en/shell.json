@@ -58,8 +58,17 @@
   "workspace.information.sidebar_title": "Information",
   "workspace.information.subtitle": "Wails 3 rewrite of Formidable.",
   "workspace.information.title": "Information",
-  "workspace.plugins.placeholder_main": "Manage frontend plugins and their settings.",
-  "workspace.plugins.placeholder_side": "Installed plugin list goes here.",
+  "workspace.plugins.empty_main": "Select a plugin from the sidebar to view its commands.",
+  "workspace.plugins.empty_side": "No plugins installed. Drop a plugin folder under <code>{0}</code> and click Refresh.",
+  "workspace.plugins.error_command_not_found": "Command not found: {0}",
+  "workspace.plugins.error_plugin_not_found": "Plugin not found: {0}",
+  "workspace.plugins.error_runtime": "Plugin error",
+  "workspace.plugins.logs_title": "Log",
+  "workspace.plugins.no_output": "(no return value)",
+  "workspace.plugins.output_title": "Result",
+  "workspace.plugins.run": "Run",
+  "workspace.plugins.running": "Running…",
   "workspace.plugins.sidebar_title": "Plugins",
-  "workspace.plugins.title": "Plugins"
+  "workspace.plugins.title": "Plugins",
+  "workspace.plugins.version_label": "v{0}"
 }

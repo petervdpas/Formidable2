@@ -1,0 +1,73 @@
+/* Plugins workspace — sidebar list of installed plugins + main
+   panel with one card per command (run button, output pane, logs). */
+
+.plugin-name { font-weight: 600; }
+.plugin-meta { margin-top: var(--space-1); }
+
+.plugin-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.plugin-header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.plugin-description {
+    margin-top: var(--space-2);
+    max-width: 60ch;
+}
+
+.command-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+}
+
+.command-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.command-header h3 { margin: 0; }
+
+.command-result {
+    margin-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.command-result h4 {
+    margin: var(--space-2) 0 var(--space-1) 0;
+    font-size: var(--font-size-md);
+    font-weight: 600;
+}
+
+.command-result .error-heading {
+    color: var(--color-error);
+}
+
+.command-result .result-output,
+.command-result .result-logs {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 24rem;
+    overflow: auto;
+}
+
+.command-result .error-output {
+    background: color-mix(in oklab, var(--color-error) 8%, var(--color-surface-2));
+}

@@ -27,6 +27,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
+	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
@@ -83,6 +84,7 @@ type App struct {
 	Nav          *nav.Service
 	Wiki         *wiki.Service
 	Dataprovider *dataprovider.Service
+	Plugin       *plugin.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -94,6 +96,7 @@ type App struct {
 	indexEvents     *index.EventHandler
 	dataProvider    *dataprovider.Manager
 	wikiManager     *wiki.Manager
+	pluginManager   *plugin.Manager
 	apiHandler      http.Handler
 	emitter         *emitterRelay
 	deps            Deps
@@ -310,6 +313,27 @@ func New(d Deps) (*App, error) {
 		}
 	}
 
+	// Plugin module — Lua-scripted on-demand commands. Lives at
+	// <AppRoot>/plugins/<id>/{plugin.json,main.lua}; per-plugin K/V
+	// at <AppRoot>/plugins/.kv/<id>.json. Discovery runs once at
+	// boot; the workspace's Refresh button re-scans at runtime.
+	pluginsDir := filepath.Join(d.AppRoot, "plugins")
+	pluginKV := plugin.NewKV(sysM, filepath.Join(pluginsDir, ".kv"))
+	pluginM := plugin.NewManager(plugin.ManagerDeps{
+		PluginsDir: pluginsDir,
+		Logger:     d.Logger,
+		KV:         pluginKV,
+		Template:   pluginTemplateAdapter{dp: dpM, tpl: tplM},
+		Collection: pluginCollectionAdapter{dp: dpM},
+		Form:       pluginFormAdapter{sto: stoM},
+		Render:     pluginRenderAdapter{rdr: renderM},
+		FS:         plugin.OSFS{},
+		Exec:       plugin.OSExec{},
+	})
+	if err := pluginM.Refresh(); err != nil {
+		d.Logger.Warn("plugin: initial refresh failed", "err", err)
+	}
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -327,6 +351,7 @@ func New(d Deps) (*App, error) {
 		Nav:             nav.NewService(navM),
 		Wiki:            wikiSvc,
 		Dataprovider:    dataprovider.NewService(dpM),
+		Plugin:          plugin.NewService(pluginM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
@@ -337,6 +362,7 @@ func New(d Deps) (*App, error) {
 		indexEvents:     ehM,
 		dataProvider:    dpM,
 		wikiManager:     wikiM,
+		pluginManager:   pluginM,
 		apiHandler:      apiHandler,
 		emitter:         emitter,
 		deps:            d,
