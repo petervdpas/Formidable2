@@ -11,6 +11,8 @@ export {
     Descriptor,
     Field,
     FieldTypeDef,
+    ImgMode,
+    ImgModeInfo,
     ItemField,
     Shape,
     ShapeInfo,

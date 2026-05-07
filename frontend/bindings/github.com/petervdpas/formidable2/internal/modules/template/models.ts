@@ -223,6 +223,58 @@ export class FieldTypeDef {
 }
 
 /**
+ * ImgMode selects how image fields are emitted.
+ * 
+ * 	url    — `![Label]({{imageURL "key"}})`. The runtime helper resolves
+ * 	         to whatever the consumer's render.Manager is wired to
+ * 	         (slideout: /api/images/<stem>/<file>; wiki: /storage/...).
+ * 	inline — `![Label]({{imageBase64 "key"}})`. The bytes are inlined as
+ * 	         a `data:<mime>;base64,…` URL at render time. Use for
+ * 	         self-contained exports (single-file HTML/PDF/wiki import).
+ */
+export enum ImgMode {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    ImgURL = "url",
+    ImgInline = "inline",
+};
+
+/**
+ * ImgModeInfo is the corresponding catalog entry for image modes.
+ */
+export class ImgModeInfo {
+    "id": ImgMode;
+    "label": string;
+    "description": string;
+
+    /** Creates a new ImgModeInfo instance. */
+    constructor($$source: Partial<ImgModeInfo> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = ImgMode.$zero;
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImgModeInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImgModeInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImgModeInfo($$parsedSource as Partial<ImgModeInfo>);
+    }
+}
+
+/**
  * ItemField is one row in the "possible item fields" picker (top-level
  * non-loop text fields, used to choose a collection's primary identifier).
  */

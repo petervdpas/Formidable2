@@ -42,47 +42,57 @@ export function FieldTypes(): $CancellablePromise<$models.FieldTypeDef[]> {
 
 /**
  * GenerateMarkdown produces a default markdown_template body for the
- * given fields in the chosen shape. Pass an empty/unknown shape to
- * fall back to "report" (the original Formidable behavior).
+ * given fields in the chosen shape and image mode. Empty/unknown shape
+ * falls back to "report"; empty/unknown image mode falls back to "url".
  * 
  * The fields argument comes from the unsaved Vue draft, so callers
  * don't need to save before generating.
  */
-export function GenerateMarkdown(shape: string, fields: $models.Field[]): $CancellablePromise<string> {
-    return $Call.ByID(4165831074, shape, fields);
+export function GenerateMarkdown(shape: string, imgMode: string, fields: $models.Field[]): $CancellablePromise<string> {
+    return $Call.ByID(4165831074, shape, imgMode, fields);
+}
+
+/**
+ * GeneratorImageModes returns the catalog used for the dialog's
+ * secondary picker (linked URL vs inline base64 for image fields).
+ */
+export function GeneratorImageModes(): $CancellablePromise<$models.ImgModeInfo[]> {
+    return $Call.ByID(792927246).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 /**
  * GeneratorShapes returns the catalog the frontend uses to populate
- * the "Generate Template" dialog.
+ * the "Generate Template" dialog's shape picker.
  */
 export function GeneratorShapes(): $CancellablePromise<$models.ShapeInfo[]> {
     return $Call.ByID(3991434615).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 export function GetItemFields(name: string): $CancellablePromise<$models.ItemField[]> {
     return $Call.ByID(2544545530, name).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
 export function GetTemplateDescriptor(name: string): $CancellablePromise<$models.Descriptor> {
     return $Call.ByID(3235934315, name).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
 export function ListTemplates(): $CancellablePromise<string[]> {
     return $Call.ByID(3379098355).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
 export function LoadTemplate(name: string): $CancellablePromise<$models.Template | null> {
     return $Call.ByID(2817786054, name).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -96,20 +106,22 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
 
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.FieldTypeDef.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.ShapeInfo.createFrom;
+const $$createType2 = $models.ImgModeInfo.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.ItemField.createFrom;
+const $$createType4 = $models.ShapeInfo.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.Descriptor.createFrom;
-const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = $models.Template.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = $models.ValidationError.createFrom;
-const $$createType11 = $Create.Array($$createType10);
+const $$createType6 = $models.ItemField.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.Descriptor.createFrom;
+const $$createType9 = $Create.Array($Create.Any);
+const $$createType10 = $models.Template.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = $models.ValidationError.createFrom;
+const $$createType13 = $Create.Array($$createType12);
