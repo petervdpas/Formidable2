@@ -87,16 +87,41 @@ async function formatLua(src: string, indent: number): Promise<string> {
   });
 }
 
+// Markdown (and our handlebars templates, which are just MD with
+// {{...}} expressions left as text) via prettier standalone +
+// markdown plugin. Lazy-imported. Tab size flows through to
+// list-bullet indents. Handlebars blocks pass through verbatim
+// because prettier's markdown parser treats {{...}} as inline
+// text.
+async function formatMarkdown(src: string, indent: number): Promise<string> {
+  const [{ format }, mdPlugin] = await Promise.all([
+    import("prettier/standalone"),
+    import("prettier/plugins/markdown"),
+  ]);
+  return format(src, {
+    parser: "markdown",
+    plugins: [mdPlugin],
+    tabWidth: indent,
+    proseWrap: "preserve",
+  });
+}
+
 async function format() {
   const view = editorView.value;
   if (!view) return;
   const cur = view.state.doc.toString();
   let next: string;
   try {
-    next =
-      props.lang === "lua"
-        ? await formatLua(cur, props.tabSize)
-        : tidy(cur);
+    if (props.lang === "lua") {
+      next = await formatLua(cur, props.tabSize);
+    } else if (props.lang === "markdown") {
+      next = await formatMarkdown(cur, props.tabSize);
+    } else {
+      // YAML — no parser-based formatter wired; basic tidy keeps
+      // the file syntactically intact (touching indent without a
+      // YAML parser would be too risky).
+      next = tidy(cur);
+    }
   } catch {
     // Parse failure → fall back to basic tidy so the user at
     // least sees whitespace cleanup instead of nothing happening.
