@@ -6,6 +6,7 @@ import "github.com/wailsapp/wails/v3/pkg/application"
 // application options. Order is not significant.
 func (a *App) WailsServices() []application.Service {
 	return []application.Service{
+		application.NewService(a.About),
 		application.NewService(a.System),
 		application.NewService(a.Config),
 		application.NewService(a.Sfr),

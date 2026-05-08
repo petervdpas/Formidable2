@@ -3,7 +3,10 @@ package main
 import (
 	"embed"
 	"log"
+	"net/url"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/petervdpas/formidable2/internal/app"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
@@ -31,7 +34,7 @@ func main() {
 
 	wapp := application.New(application.Options{
 		Name:        "Formidable",
-		Description: "Editor for templates and Markdown forms",
+		Description: "A System for Templates and Markdown Forms",
 		Services:    a.WailsServices(),
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
@@ -66,12 +69,34 @@ func main() {
 		return nil
 	})
 
+	// Splash window — pure-HTML page in frontend/public. Loads
+	// immediately, masks the SPA boot. Identity (name/version/tagline/
+	// author) is passed via URL query params so the page itself stays
+	// dependency-free (no Wails runtime, no Vue).
+	info := a.About.GetInfo()
+	splashQ := url.Values{}
+	splashQ.Set("n", info.Name)
+	splashQ.Set("v", info.Version)
+	splashQ.Set("t", info.Tagline)
+	splashQ.Set("a", info.Author)
+	splash := wapp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:            info.Name,
+		Width:            580,
+		Height:           320,
+		Frameless:        true,
+		AlwaysOnTop:      true,
+		DisableResize:    true,
+		BackgroundColour: application.NewRGB(26, 18, 48),
+		URL:              "/splash.html?" + splashQ.Encode(),
+	})
+
 	winOpts := application.WebviewWindowOptions{
 		Title:     "Formidable",
 		Width:     1024,
 		Height:    800,
 		MinWidth:  800,
 		MinHeight: 600,
+		Hidden:    true, // shown after splash dismissal
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
@@ -97,7 +122,29 @@ func main() {
 		}
 	}
 
-	wapp.Window.NewWithOptions(winOpts)
+	mainWin := wapp.Window.NewWithOptions(winOpts)
+
+	// Dismiss the splash on whichever happens first: the SPA emits
+	// `spa:ready` after Vue mounts, or a 10-second fallback fires in
+	// case the SPA never reaches that point. sync.Once guards against
+	// the swap running twice.
+	var swapOnce sync.Once
+	dismissSplash := func(reason string) {
+		swapOnce.Do(func() {
+			if splash != nil {
+				splash.Close()
+			}
+			mainWin.Show()
+			a.Logger().Info("splash dismissed", "reason", reason)
+		})
+	}
+	wapp.Event.On("spa:ready", func(_ *application.CustomEvent) {
+		dismissSplash("spa:ready")
+	})
+	go func() {
+		time.Sleep(10 * time.Second)
+		dismissSplash("timeout")
+	}()
 
 	if err = wapp.Run(); err != nil {
 		log.Fatal(err)

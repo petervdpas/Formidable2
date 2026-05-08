@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	applog "github.com/petervdpas/formidable2/internal/log"
+	"github.com/petervdpas/formidable2/internal/modules/about"
 	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/credential"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
@@ -72,6 +73,7 @@ type Deps struct {
 }
 
 type App struct {
+	About    *about.Service
 	System   *system.Service
 	Config   *config.Service
 	Sfr      *sfr.Service
@@ -362,6 +364,7 @@ func New(d Deps) (*App, error) {
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
+		About:           about.NewService(),
 		System:          system.NewService(sysM),
 		Config:          config.NewService(cfgM),
 		Sfr:             sfr.NewService(sfrM),

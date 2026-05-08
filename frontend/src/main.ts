@@ -1,5 +1,6 @@
 import "./styles/index.css";
 import { createApp } from "vue";
+import { Events } from "@wailsio/runtime";
 import App from "./App.vue";
 import { i18n } from "./i18n";
 import { useI18nLoader } from "./composables/useI18nLoader";
@@ -17,3 +18,10 @@ useI18nLoader();
 void ensureFieldTypesLoaded();
 
 createApp(App).use(i18n).mount("#app");
+
+// Tell Go the SPA is mounted so it can dismiss the splash window and
+// reveal the (currently hidden) main window. Sent on the next frame so
+// the first paint has actually happened.
+requestAnimationFrame(() => {
+  void Events.Emit("spa:ready");
+});
