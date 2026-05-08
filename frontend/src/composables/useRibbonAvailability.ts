@@ -24,12 +24,15 @@ let booted = false;
 // fallbackFor: where to send the user when their active workspace
 // becomes unavailable. Each entry encodes "you can't do X without
 // first doing Y" — Storage needs a template, Settings needs a
-// profile, Plugins needs the feature flag (toggled in Settings).
-// Add new entries here as more conditional ribbon items land.
+// profile, Plugins needs the feature flag (toggled in Settings),
+// Collaboration needs a remote backend (configured in Settings →
+// Locations). Add new entries here as more conditional ribbon items
+// land.
 const FALLBACK: Partial<Record<WorkspaceId, WorkspaceId>> = {
   storage: "templates",
   settings: "profiles",
   plugins: "settings",
+  collaboration: "settings",
 };
 
 export function useRibbonAvailability() {
@@ -54,6 +57,13 @@ export function useRibbonAvailability() {
     if (id === "storage") return !hasTemplates.value;
     if (id === "settings") return !hasProfiles.value;
     if (id === "plugins") return !config.value?.enable_plugins;
+    // Collaboration is meaningful only when a remote backend is
+    // configured. "none" (the default) means the user is purely
+    // local — ghost the ribbon and redirect them to Settings →
+    // Locations to pick Git or GiGot first.
+    if (id === "collaboration") {
+      return (config.value?.remote_backend ?? "none") === "none";
+    }
     return false;
   }
 
