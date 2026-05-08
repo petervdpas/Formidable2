@@ -13,9 +13,6 @@ const backends = computed(() => [
   { value: "git",   label: t("backend.git") },
   { value: "gigot", label: t("backend.gigot") },
 ]);
-
-const isGit = computed(() => cfg.value.remote_backend === "git");
-const isGigot = computed(() => cfg.value.remote_backend === "gigot");
 </script>
 
 <template>
@@ -33,47 +30,14 @@ const isGigot = computed(() => cfg.value.remote_backend === "gigot");
       />
     </FormRow>
 
-    <FormRow :label="t('settings.field.remote_backend')">
+    <FormRow
+      :label="t('settings.field.remote_backend')"
+      :description="t('settings.desc.remote_backend')"
+    >
       <SelectField
         :model-value="cfg.remote_backend"
         @update:model-value="(v) => update({ remote_backend: v })"
         :options="backends"
-      />
-    </FormRow>
-
-    <FormRow v-if="isGit" :label="t('settings.field.git_root_directory')">
-      <TextField
-        :model-value="cfg.git_root"
-        @update:model-value="(v) => update({ git_root: v })"
-        placeholder="/path/to/repo"
-      />
-    </FormRow>
-    <FormRow v-if="isGit" :label="t('settings.field.git_branch')">
-      <TextField
-        :model-value="cfg.git_branch"
-        @update:model-value="(v) => update({ git_branch: v })"
-        placeholder="main"
-      />
-    </FormRow>
-
-    <FormRow v-if="isGigot" :label="t('settings.field.gigot_base_url')">
-      <TextField
-        :model-value="cfg.gigot_base_url"
-        @update:model-value="(v) => update({ gigot_base_url: v })"
-        placeholder="https://gigot.example.com"
-      />
-    </FormRow>
-    <FormRow v-if="isGigot" :label="t('settings.field.gigot_repository')">
-      <TextField
-        :model-value="cfg.gigot_repo_name"
-        @update:model-value="(v) => update({ gigot_repo_name: v })"
-      />
-    </FormRow>
-    <FormRow v-if="isGigot" :label="t('settings.field.gigot_subscription_token')">
-      <TextField
-        type="password"
-        :model-value="cfg.gigot_token"
-        @update:model-value="(v) => update({ gigot_token: v })"
       />
     </FormRow>
   </FormSection>

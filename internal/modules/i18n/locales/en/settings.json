@@ -61,6 +61,7 @@
   "settings.field.paste_data": "Paste-data on Lists/Tables",
   "settings.field.reload_button": "Reload Button",
   "settings.field.remote_backend": "Remote Backend",
+  "settings.desc.remote_backend": "Configure the backend's connection details in the Collaboration workspace.",
   "settings.field.sidebar_width": "Sidebar width",
   "settings.field.window_size": "Window Size",
   "settings.general.info": "Configure author details like name, email and language.",

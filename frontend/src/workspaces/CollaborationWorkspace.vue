@@ -6,9 +6,7 @@ import { useRestartGate } from "../composables/useRestartGate";
 import { useConfig } from "../composables/useConfig";
 import {
   COLLABORATION_SECTIONS,
-  COLLABORATION_BACKEND_VIEWS,
   type CollaborationSectionId,
-  type CollaborationBackend,
 } from "./collaboration";
 
 const { t } = useI18n();
@@ -24,16 +22,13 @@ const activeSection = computed(
     COLLABORATION_SECTIONS[0],
 );
 
-// "none" is the empty-main case — defensive only, since ribbon
-// ghosting + App.vue redirect should prevent landing here. Anything
-// outside {git, gigot} also collapses to null so we render the
-// fallback rather than blow up.
-const backend = computed<CollaborationBackend | null>(() => {
+// Defensive empty-main: ribbon ghosting + App.vue redirect should
+// keep "none" out of reach, but render a clear fallback if it ever
+// happens (deleted config, race condition, manual nav).
+const hasBackend = computed(() => {
   const b = config.value?.remote_backend;
-  return b === "git" || b === "gigot" ? b : null;
+  return b === "git" || b === "gigot";
 });
-
-const backendView = computed(() => (backend.value ? COLLABORATION_BACKEND_VIEWS[backend.value] : null));
 </script>
 
 <template>
@@ -58,13 +53,13 @@ const backendView = computed(() => (backend.value ? COLLABORATION_BACKEND_VIEWS[
 
     <template #main>
       <p
-        v-if="!backendView"
+        v-if="!hasBackend"
         class="workspace-empty"
         v-html="t('workspace.collaboration.no_backend')"
       ></p>
       <template v-else>
         <h1 class="workspace-heading">{{ t(activeSection.labelKey) }}</h1>
-        <component :is="backendView" />
+        <component :is="activeSection.component" />
       </template>
     </template>
   </SplitPane>

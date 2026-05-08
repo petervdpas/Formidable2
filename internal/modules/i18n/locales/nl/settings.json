@@ -61,6 +61,7 @@
   "settings.field.paste_data": "Plakken op lijsten/tabellen",
   "settings.field.reload_button": "Herlaadknop",
   "settings.field.remote_backend": "Remote backend",
+  "settings.desc.remote_backend": "Stel de verbindingsgegevens van de backend in via de Samenwerken-werkruimte.",
   "settings.field.sidebar_width": "Zijbalkbreedte",
   "settings.field.window_size": "Venstergrootte",
   "settings.general.info": "Configureer auteurgegevens zoals naam, e-mail en taal.",
