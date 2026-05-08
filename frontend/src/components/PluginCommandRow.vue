@@ -13,24 +13,10 @@ import type { Command } from "../../bindings/github.com/petervdpas/formidable2/i
 // because Vue 3 keeps nested-prop reactivity intact (same pattern
 // the templates workspace uses for its field rows). The only
 // outbound event is `delete`.
-const props = defineProps<{ command: Command }>();
+defineProps<{ command: Command }>();
 defineEmits<{ (e: "delete"): void }>();
 
 const { t } = useI18n();
-
-// Show Log and Log as Toast are mutually exclusive: turning one
-// on snaps the other off. The two flags carry different meanings
-// (inline panel vs. live notifications), so showing both at once
-// is just noise — pick one.
-function setShowLog(v: boolean) {
-  props.command.hide_log = !v;
-  if (v) props.command.log_as_toast = false;
-}
-
-function setLogAsToast(v: boolean) {
-  props.command.log_as_toast = v;
-  if (v) props.command.hide_log = true;
-}
 </script>
 
 <template>
@@ -86,7 +72,7 @@ function setLogAsToast(v: boolean) {
         <span>{{ t('workspace.plugins.commands.show_log') }}</span>
         <SwitchField
           :model-value="!command.hide_log"
-          @update:model-value="setShowLog"
+          @update:model-value="(v) => (command.hide_log = !v)"
         />
       </label>
       <label
@@ -94,10 +80,7 @@ function setLogAsToast(v: boolean) {
         :title="t('workspace.plugins.commands.log_as_toast_title')"
       >
         <span>{{ t('workspace.plugins.commands.log_as_toast') }}</span>
-        <SwitchField
-          :model-value="command.log_as_toast"
-          @update:model-value="setLogAsToast"
-        />
+        <SwitchField v-model="command.log_as_toast" />
       </label>
     </div>
   </li>
