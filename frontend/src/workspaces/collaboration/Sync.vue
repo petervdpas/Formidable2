@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import GitStatus from "../../components/collaboration/GitStatus.vue";
+import AuthorIdentityDialog from "../../components/collaboration/AuthorIdentityDialog.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
 import {
   FormSection,
@@ -11,6 +12,7 @@ import {
 import { Service as GitSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { useConfig } from "../../composables/useConfig";
+import { isValidAuthor } from "../../composables/useAuthorValidation";
 import { useToast } from "../../composables/useToast";
 
 // Sync workspace — combined status + commit screen for the active
@@ -34,7 +36,7 @@ type Status = {
 };
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { config, update } = useConfig();
 const toast = useToast();
 
 const gitRoot = computed(() => config.value?.git_root ?? "");
@@ -99,6 +101,9 @@ watch(gitRoot, () => load(false));
 
 // Commit is enabled when there's something to commit, the message
 // is non-empty, and the worktree is on a branch (not detached).
+// We do NOT gate on the author identity here: the click handler
+// intercepts an invalid identity and opens AuthorIdentityDialog,
+// which is a much better UX than silently disabling the button.
 const canCommit = computed(() => {
   if (inFlight.value) return false;
   if (!status.value) return false;
@@ -106,6 +111,11 @@ const canCommit = computed(() => {
   if (status.value.detached) return false;
   return message.value.trim() !== "";
 });
+
+// Author-identity dialog state. Open on Commit click when the active
+// profile's name/email fails the shared validators; on Save we write
+// to config and resume the commit automatically.
+const authorDialogOpen = ref(false);
 
 // Fetch updates the remote-tracking refs so ahead/behind reflects
 // reality. Read-only against the worktree; ahead/behind in the
@@ -160,6 +170,15 @@ async function commit() {
   if (!canCommit.value) return;
   const c = cfg.value;
   if (!c) return;
+
+  // Intercept invalid identity: open the dialog instead. The save
+  // handler writes to config and re-invokes commit() so the user's
+  // click feels like one continuous action.
+  if (!isValidAuthor(c.author_name, c.author_email)) {
+    authorDialogOpen.value = true;
+    return;
+  }
+
   inFlight.value = true;
   try {
     const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
@@ -179,6 +198,12 @@ async function commit() {
   } finally {
     inFlight.value = false;
   }
+}
+
+async function saveAuthorAndCommit(name: string, email: string) {
+  await update({ author_name: name, author_email: email });
+  authorDialogOpen.value = false;
+  await commit();
 }
 
 // Discard flow: GitStatus emits the file path → we open a confirm
@@ -265,6 +290,14 @@ async function confirmDiscard() {
       {{ pushing ? t('workspace.collaboration.push.running') : t('workspace.collaboration.push.button') }}
     </button>
   </div>
+
+  <AuthorIdentityDialog
+    :open="authorDialogOpen"
+    :initial-name="cfg?.author_name ?? ''"
+    :initial-email="cfg?.author_email ?? ''"
+    @cancel="authorDialogOpen = false"
+    @save="saveAuthorAndCommit"
+  />
 
   <ConfirmDialog
     :open="discardOpen"
