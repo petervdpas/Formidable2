@@ -94,6 +94,38 @@ func (m *Manager) ResolveAbsolutePath(p string) (string, error) {
 	return filepath.Abs(p)
 }
 
+// MakeAppRootRelative collapses an absolute path under AppRoot to
+// the project's "./<rel>" form so config values stay portable
+// across machines that share the AppRoot convention. Paths outside
+// AppRoot are returned unchanged — relativizing them would yield
+// "../../foo"-style traversals that defeat the readability win and
+// break the "value is either ./<sub> or absolute" round-trip rule.
+//
+// Empty input passes through; already-relative input is treated as
+// trusted and returned as-is. The root itself collapses to ".".
+func (m *Manager) MakeAppRootRelative(p string) string {
+	if p == "" || !filepath.IsAbs(p) {
+		return p
+	}
+	root := m.AppRoot()
+	if root == "" {
+		return p
+	}
+	rel, err := filepath.Rel(root, filepath.Clean(p))
+	if err != nil {
+		return p
+	}
+	// filepath.Rel returns ".." prefixes when p is outside root; we
+	// only want to relativize true descendants (and root itself).
+	if rel == "." {
+		return "."
+	}
+	if strings.HasPrefix(rel, "..") {
+		return p
+	}
+	return "./" + rel
+}
+
 func (m *Manager) ResolvePath(segments ...string) string {
 	joined := filepath.Join(segments...)
 	if filepath.IsAbs(joined) {

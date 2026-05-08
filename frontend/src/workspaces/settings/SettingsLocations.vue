@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { FormSection, FormRow, TextField, SelectField } from "../../components/fields";
+import { FormSection, FormRow, FolderPathField, SelectField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
 const { t } = useI18n();
@@ -23,7 +23,7 @@ const backends = computed(() => [
       :label="t('settings.field.context_directory')"
       :description="t('settings.desc.context_directory')"
     >
-      <TextField
+      <FolderPathField
         :model-value="cfg.context_folder"
         @update:model-value="(v) => update({ context_folder: v })"
         placeholder="/path/to/context"

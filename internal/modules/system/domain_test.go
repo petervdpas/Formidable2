@@ -34,6 +34,67 @@ func TestResolvePath_AbsolutePathPreserved(t *testing.T) {
 	}
 }
 
+func TestMakeAppRootRelative_UnderRootBecomesDotSlash(t *testing.T) {
+	// Picker output is always absolute; if it lands under AppRoot we
+	// store the human-friendly "./<rel>" form so the same profile
+	// stays portable across machines that share the AppRoot
+	// convention.
+	m, root := newTestManager(t)
+	in := filepath.Join(root, "Examples")
+	got := m.MakeAppRootRelative(in)
+	want := "./Examples"
+	if got != want {
+		t.Fatalf("MakeAppRootRelative(%q) = %q, want %q", in, got, want)
+	}
+}
+
+func TestMakeAppRootRelative_NestedPath(t *testing.T) {
+	m, root := newTestManager(t)
+	in := filepath.Join(root, "data", "templates", "x")
+	got := m.MakeAppRootRelative(in)
+	want := "./" + filepath.Join("data", "templates", "x")
+	if got != want {
+		t.Fatalf("MakeAppRootRelative(%q) = %q, want %q", in, got, want)
+	}
+}
+
+func TestMakeAppRootRelative_RootItselfBecomesDot(t *testing.T) {
+	m, root := newTestManager(t)
+	got := m.MakeAppRootRelative(root)
+	if got != "." {
+		t.Fatalf("MakeAppRootRelative(root) = %q, want %q", got, ".")
+	}
+}
+
+func TestMakeAppRootRelative_OutsideRootStaysAbsolute(t *testing.T) {
+	// A folder that doesn't sit under AppRoot must round-trip
+	// unchanged — collapsing to "../../foo" would be brittle and
+	// breaks the "absolute path = picker output" guarantee.
+	m, _ := newTestManager(t)
+	outside := filepath.Join(t.TempDir(), "elsewhere")
+	got := m.MakeAppRootRelative(outside)
+	if got != outside {
+		t.Fatalf("MakeAppRootRelative(%q) = %q, want unchanged", outside, got)
+	}
+}
+
+func TestMakeAppRootRelative_EmptyStaysEmpty(t *testing.T) {
+	m, _ := newTestManager(t)
+	if got := m.MakeAppRootRelative(""); got != "" {
+		t.Fatalf("MakeAppRootRelative(\"\") = %q, want empty", got)
+	}
+}
+
+func TestMakeAppRootRelative_AlreadyRelativeReturnsAsIs(t *testing.T) {
+	// Defensive: if a relative path leaks in (UI bug, future
+	// migration), return it untouched rather than misinterpret it
+	// as an absolute path outside AppRoot.
+	m, _ := newTestManager(t)
+	if got := m.MakeAppRootRelative("./Examples"); got != "./Examples" {
+		t.Fatalf("got %q, want unchanged", got)
+	}
+}
+
 func TestResolveAbsolutePath_Empty(t *testing.T) {
 	// Empty in, empty out — never coerce nothing into a path. The
 	// path-field components rely on this so a freshly created field

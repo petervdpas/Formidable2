@@ -55,6 +55,10 @@ export function LoadFile(path: string): $CancellablePromise<string> {
     return $Call.ByID(1206697591, path);
 }
 
+export function MakeAppRootRelative(p: string): $CancellablePromise<string> {
+    return $Call.ByID(3727980318, p);
+}
+
 export function OpenExternal(target: string): $CancellablePromise<void> {
     return $Call.ByID(359230718, target);
 }

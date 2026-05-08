@@ -6,6 +6,7 @@
   "codeeditor.format": "Opmaken",
   "codeeditor.format_title": "Whitespace opschonen, regeleinden normaliseren, afsluitende nieuwe regel toevoegen (Shift+Alt+F)",
   "codeeditor.placeholder": "Typ hier je template. Ctrl+Enter wisselt naar volledig scherm.",
+  "common.browse": "Bladeren…",
   "common.cancel": "Annuleren",
   "common.close": "Sluiten",
   "common.delete": "Verwijderen",

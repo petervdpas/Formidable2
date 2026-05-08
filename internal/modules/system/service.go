@@ -13,6 +13,7 @@ func NewService(m *Manager) *Service { return &Service{m: m} }
 func (s *Service) GetAppRoot() string                                   { return s.m.AppRoot() }
 func (s *Service) ResolvePath(segments []string) string                 { return s.m.ResolvePath(segments...) }
 func (s *Service) ResolveAbsolutePath(p string) (string, error)         { return s.m.ResolveAbsolutePath(p) }
+func (s *Service) MakeAppRootRelative(p string) string                  { return s.m.MakeAppRootRelative(p) }
 func (s *Service) EnsureDirectory(path string) error                    { return s.m.EnsureDirectory(path) }
 func (s *Service) FileExists(path string) bool                          { return s.m.FileExists(path) }
 func (s *Service) LoadFile(path string) (string, error)                 { return s.m.LoadFile(path) }

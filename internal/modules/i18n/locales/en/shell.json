@@ -6,6 +6,7 @@
   "codeeditor.format": "Format",
   "codeeditor.format_title": "Tidy whitespace, normalize line endings, ensure trailing newline (Shift+Alt+F)",
   "codeeditor.placeholder": "Type your template here. Ctrl+Enter to toggle full-screen.",
+  "common.browse": "Browse…",
   "common.cancel": "Cancel",
   "common.close": "Close",
   "common.delete": "Delete",
