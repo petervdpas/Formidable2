@@ -1,25 +1,33 @@
 -- `run` is invoked when the user clicks Plugin → Run → Run.
--- Return any JSON-shaped value (number, string, table, nil).
+-- Returns the plugin snapshot so you can see Result gating too.
 function run(ctx)
-  -- whole snapshot in one shot — manifest fields + parsed form
-  formidable.log.info(formidable.json.encode(formidable.plugin))
+  -- 4 log levels — gated by Show Log + Show log as toast
+  formidable.log.info("info ping")
+  formidable.log.warn("warn ping")
+  formidable.log.error("error ping")
+  formidable.log.debug("debug ping")
 
-  -- or pick fields and the ctx the user just filled in
-  formidable.log.info("id=", formidable.plugin.id,
-                     " name=", formidable.plugin.name,
-                     " version=", formidable.plugin.version,
-                     " mode=", formidable.plugin.mode,
-                     " command=", formidable.plugin.command,
-                     " debug=", tostring(formidable.plugin.debug))
+  -- 4 toast levels — always shown
+  formidable.toast.info("toast: info")
+  formidable.toast.success("toast: success")
+  formidable.toast.warn("toast: warn")
+  formidable.toast.error("toast: error")
 
-  -- iterate the form fields if any
+  -- richer log content (still gated by Show Log)
+  formidable.log.info("id=", formidable.plugin.id, "mode=", formidable.plugin.mode, "cmd=", formidable.plugin.command)
+
   for i, f in ipairs(formidable.plugin.form) do
-    formidable.log.info(string.format("field %d: %s (%s)", i, f.label or
-f.key, f.type))
+    formidable.log.info(string.format("field %d: %s (%s)", i, f.label or f.key, f.type))
   end
 
-  -- ctx (what the user typed) — only in form mode
-  formidable.log.info("ctx=", formidable.json.encode(ctx))
+  if ctx and next(ctx) ~= nil then
+    formidable.log.info("ctx=", formidable.json.encode(ctx))
+  end
 
-  return formidable.plugin
+  -- Returned value — gated by Show Result.
+  return {
+    ok = true,
+    plugin = formidable.plugin.id,
+    mode = formidable.plugin.mode
+  }
 end

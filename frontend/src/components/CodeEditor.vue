@@ -29,6 +29,15 @@ const props = withDefaults(
 
 const model = defineModel<string>({ default: "" });
 
+// vue-codemirror doesn't expose its EditorView via the component
+// ref — it emits a `ready` event with the view once mounted.
+// Capture it there so format() can dispatch a transaction
+// directly, avoiding any v-model round-trip staleness.
+const editorView = ref<EditorView | null>(null);
+function onReady(payload: { view: EditorView }) {
+  editorView.value = payload.view;
+}
+
 const { theme } = useTheme();
 
 // One-Dark looks at home for dark/purplish; light theme uses CM6's
@@ -49,11 +58,11 @@ const langExtension = computed(() => {
 // the root: fixed-position overlay over the whole webview.
 const fullscreen = ref(false);
 
-// Tidy: language-agnostic text cleanup. Normalizes line endings,
-// strips trailing whitespace per line, collapses runs of >2 blank
-// lines, and ensures exactly one trailing newline. Deliberately
-// non-invasive — no syntactic re-indenting — so it's safe across
-// every language CodeEditor handles (lua/markdown/yaml).
+// Tidy: minimal text cleanup used as the formatter for non-Lua
+// langs (markdown / yaml — touching their structure without a
+// real parser is dangerous). Normalizes line endings, strips
+// trailing whitespace, collapses runs of >2 blank lines, ensures
+// exactly one trailing newline.
 function tidy(src: string): string {
   let out = src.replace(/\r\n?/g, "\n");
   out = out
@@ -65,11 +74,38 @@ function tidy(src: string): string {
   return out;
 }
 
-function format() {
-  const next = tidy(model.value);
-  if (next !== model.value) {
-    model.value = next;
+// Lua: real reformat via lua-fmt (luaparse-based). Lazy-imported
+// so the ~100KB chunk only loads when the user clicks Format.
+async function formatLua(src: string, indent: number): Promise<string> {
+  const mod = await import("lua-fmt");
+  return mod.formatText(src, {
+    useTabs: false,
+    indentCount: indent,
+    lineWidth: 120,
+    quotemark: "double",
+    writeMode: mod.WriteMode.Replace,
+  });
+}
+
+async function format() {
+  const view = editorView.value;
+  if (!view) return;
+  const cur = view.state.doc.toString();
+  let next: string;
+  try {
+    next =
+      props.lang === "lua"
+        ? await formatLua(cur, props.tabSize)
+        : tidy(cur);
+  } catch {
+    // Parse failure → fall back to basic tidy so the user at
+    // least sees whitespace cleanup instead of nothing happening.
+    next = tidy(cur);
   }
+  if (next === cur) return;
+  view.dispatch({
+    changes: { from: 0, to: cur.length, insert: next },
+  });
 }
 
 const fullscreenKey = Prec.highest(
@@ -152,7 +188,8 @@ const wrapperStyle = computed(() =>
       :extensions="extensions"
       :disabled="readonly"
       :indent-with-tab="true"
-      placeholder="Type your template here. Ctrl+Enter to toggle full-screen."
+      :placeholder="t('codeeditor.placeholder')"
+      @ready="onReady"
     />
   </div>
 </template>
