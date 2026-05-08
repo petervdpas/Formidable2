@@ -25,6 +25,14 @@ type Status struct {
 	// Clean is true when the worktree has no modifications,
 	// untracked files, or staged changes.
 	Clean bool `json:"clean"`
+	// Ahead is the number of local commits on this branch that
+	// aren't on Tracking. 0 when there's no tracking ref.
+	Ahead int `json:"ahead"`
+	// Behind is the number of remote commits on Tracking that
+	// aren't on this branch. 0 when there's no tracking ref.
+	// Reflects the last-known state of Tracking — call Fetch to
+	// update the remote-tracking ref before reading this.
+	Behind int `json:"behind"`
 
 	Modified   []string `json:"modified"`
 	Untracked  []string `json:"untracked"`
@@ -92,4 +100,75 @@ type CloneResult struct {
 	Dest   string `json:"dest"`
 	Head   string `json:"head"`
 	Branch string `json:"branch"`
+}
+
+// CommitOptions describes a commit request. Path is any path inside
+// the worktree; Author/Email come from the active profile's config.
+//
+// v1 stages every change in the worktree (modified, untracked,
+// deleted) before committing — matching the "commit everything I
+// touched in this session" mental model. Per-file selection arrives
+// in a later iteration once the UI grows checkboxes.
+type CommitOptions struct {
+	Path    string `json:"path"`
+	Message string `json:"message"`
+	Author  string `json:"author"`
+	Email   string `json:"email"`
+}
+
+// CommitResult is the success envelope for a commit: the new commit's
+// full hash plus a 7-char short form for display.
+type CommitResult struct {
+	Hash  string `json:"hash"`
+	Short string `json:"short"`
+}
+
+// FetchOptions describes a fetch request. Path is any path inside
+// the worktree; Remote defaults to "origin" when empty. PAT is the
+// HTTP Basic password (transient — never persisted by the manager,
+// same convention as Clone).
+type FetchOptions struct {
+	Path   string `json:"path"`
+	Remote string `json:"remote"`
+	PAT    string `json:"pat"`
+}
+
+// FetchResult signals whether the remote-tracking refs actually
+// moved. AlreadyUpToDate=true means there was nothing new to
+// pull; the UI can collapse this to "you're current."
+type FetchResult struct {
+	AlreadyUpToDate bool `json:"already_up_to_date"`
+}
+
+// PushOptions describes a push request. The current branch's HEAD
+// is pushed to the matching ref on Remote (default "origin"); we
+// don't expose explicit refspecs in v1.
+type PushOptions struct {
+	Path   string `json:"path"`
+	Remote string `json:"remote"`
+	PAT    string `json:"pat"`
+}
+
+// PushResult signals whether the push actually advanced the remote.
+// AlreadyUpToDate=true means the remote already had every commit;
+// the UI surfaces this as info, not an error.
+type PushResult struct {
+	AlreadyUpToDate bool `json:"already_up_to_date"`
+}
+
+// DiscardOptions targets a single worktree file for "throw away the
+// local change to this file." The semantics depend on the file's
+// current status:
+//   - tracked + modified  → worktree restored from HEAD's blob
+//   - tracked + deleted   → file recreated from HEAD's blob
+//   - staged add (no HEAD blob) → unstaged + removed from worktree
+//   - untracked           → removed from worktree
+//
+// Path is any path inside the worktree; File is the worktree-relative
+// path of the file to discard. Path-traversal segments ("..") are
+// rejected so the frontend can pass values straight from Status()
+// without re-validating.
+type DiscardOptions struct {
+	Path string `json:"path"`
+	File string `json:"file"`
 }

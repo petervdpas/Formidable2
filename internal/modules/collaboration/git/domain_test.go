@@ -631,3 +631,117 @@ func TestClone_PAT_AzureDevOpsURLShape(t *testing.T) {
 		t.Errorf("Authorization for ADO URL = %q, want %q", got, want)
 	}
 }
+
+// ─── Commit ────────────────────────────────────────────────────────────
+
+// TestCommit_PropagatesAuthor verifies that the commit metadata
+// reflects the supplied author + email — important because the UI
+// reads these from config.author_name / config.author_email and we
+// want to surface "this came from this user" in the log.
+func TestCommit_PropagatesAuthor(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+
+	// Make a change so commit has something to do.
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("v2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Commit(CommitOptions{
+		Path:    dir,
+		Message: "second",
+		Author:  "Alice",
+		Email:   "alice@example.com",
+	})
+	if err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if res == nil || res.Hash == "" {
+		t.Fatalf("expected non-empty commit result, got %+v", res)
+	}
+	if len(res.Short) != 7 {
+		t.Errorf("Short = %q, want 7 chars", res.Short)
+	}
+
+	// Walk the commit object and assert author propagated.
+	c, err := r.CommitObject(plumbing.NewHash(res.Hash))
+	if err != nil {
+		t.Fatalf("CommitObject: %v", err)
+	}
+	if c.Author.Name != "Alice" || c.Author.Email != "alice@example.com" {
+		t.Errorf("author = %s <%s>, want Alice <alice@example.com>",
+			c.Author.Name, c.Author.Email)
+	}
+	if c.Message != "second" {
+		t.Errorf("Message = %q, want %q", c.Message, "second")
+	}
+}
+
+// TestDiscard_StagedAddRemovesFromWorktreeAndIndex covers the
+// "I added a new file to the index but want to throw it away"
+// path. The file isn't in HEAD, so Discard must remove it from
+// both the worktree and the index — not just unstage it.
+func TestDiscard_StagedAddRemovesFromWorktreeAndIndex(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "anchor", "first")
+
+	// Stage a new file without committing.
+	if err := os.WriteFile(filepath.Join(dir, "new.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := r.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("new.txt"); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	if err := m.Discard(DiscardOptions{Path: dir, File: "new.txt"}); err != nil {
+		t.Fatalf("Discard: %v", err)
+	}
+
+	// File should be gone from the worktree.
+	if _, err := os.Stat(filepath.Join(dir, "new.txt")); !os.IsNotExist(err) {
+		t.Errorf("expected new.txt absent, stat err = %v", err)
+	}
+	// And status should report a clean tree (apart from the original commit).
+	s, err := m.Status(dir)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !s.Clean {
+		t.Errorf("expected clean status post-discard, got %+v", s)
+	}
+}
+
+// TestCommit_RefusesDetachedHEAD covers the headless-checkout path —
+// not exposed by our UI today, but cheap to lock down so a future
+// "checkout this commit" feature has to make an explicit decision
+// about whether to allow committing detached.
+func TestCommit_RefusesDetachedHEAD(t *testing.T) {
+	dir, r := newRepo(t)
+	h := addCommit(t, dir, r, "a.txt", "v1", "first")
+
+	// Detach HEAD by pointing it at the commit hash directly.
+	if err := r.Storer.SetReference(plumbing.NewHashReference(plumbing.HEAD, h)); err != nil {
+		t.Fatalf("SetReference: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("v2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	_, err := m.Commit(CommitOptions{
+		Path:    dir,
+		Message: "second",
+		Author:  "Alice",
+		Email:   "alice@example.com",
+	})
+	if err == nil {
+		t.Error("expected error when committing on detached HEAD")
+	}
+}

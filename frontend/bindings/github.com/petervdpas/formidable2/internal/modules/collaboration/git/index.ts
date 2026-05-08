@@ -11,6 +11,9 @@ export {
     CloneOptions,
     CloneResult,
     Commit,
+    CommitOptions,
+    CommitResult,
+    DiscardOptions,
     Remote,
     RemoteInfo,
     Status

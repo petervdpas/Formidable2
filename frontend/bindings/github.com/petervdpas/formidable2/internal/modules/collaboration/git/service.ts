@@ -34,19 +34,29 @@ export function Clone(opts: $models.CloneOptions): $CancellablePromise<$models.C
     });
 }
 
+export function Commit(opts: $models.CommitOptions): $CancellablePromise<$models.CommitResult | null> {
+    return $Call.ByID(2190917583, opts).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+export function Discard(opts: $models.DiscardOptions): $CancellablePromise<void> {
+    return $Call.ByID(106030516, opts);
+}
+
 export function IsGitRepo(path: string): $CancellablePromise<boolean> {
     return $Call.ByID(685777186, path);
 }
 
 export function Log(path: string, limit: number): $CancellablePromise<$models.Commit[]> {
     return $Call.ByID(3722488696, path, limit).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
 export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
     return $Call.ByID(1356102196, path).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -56,7 +66,7 @@ export function RepoRoot(path: string): $CancellablePromise<string> {
 
 export function Status(path: string): $CancellablePromise<$models.Status | null> {
     return $Call.ByID(3686552508, path).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -65,9 +75,11 @@ const $$createType0 = $models.Branches.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.CloneResult.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.Commit.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.RemoteInfo.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = $models.Status.createFrom;
+const $$createType4 = $models.CommitResult.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $models.Commit.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.RemoteInfo.createFrom;
 const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = $models.Status.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);

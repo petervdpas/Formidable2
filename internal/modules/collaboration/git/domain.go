@@ -3,7 +3,9 @@ package git
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -347,4 +349,172 @@ func (m *Manager) Clone(opts CloneOptions) (*CloneResult, error) {
 		branch = head.Name().Short()
 	}
 	return &CloneResult{Dest: opts.Dest, Head: head.Hash().String(), Branch: branch}, nil
+}
+
+// Commit stages every change in the worktree (modified, untracked,
+// deleted) and creates a commit on the current branch with the given
+// author/email/message.
+//
+// Refuses on:
+//   - empty message / empty author / empty email — these are UI bugs
+//     and silently no-op'ing leaves the user wondering why nothing
+//     happened.
+//   - a clean worktree — go-git would happily make an empty commit
+//     otherwise; explicit error lets the UI greylist the button.
+//   - detached HEAD — committing detached needs explicit branch
+//     decisions we don't surface yet.
+func (m *Manager) Commit(opts CommitOptions) (*CommitResult, error) {
+	if strings.TrimSpace(opts.Message) == "" {
+		return nil, errors.New("git: commit: message required")
+	}
+	if strings.TrimSpace(opts.Author) == "" || strings.TrimSpace(opts.Email) == "" {
+		return nil, errors.New("git: commit: author and email required")
+	}
+
+	r, err := m.open(opts.Path)
+	if err != nil {
+		return nil, fmt.Errorf("git: commit: open: %w", err)
+	}
+
+	// Detached-HEAD guard. Empty repo (no HEAD yet) is allowed — the
+	// first commit on a fresh init lands on the default branch.
+	head, err := r.Head()
+	if err == nil {
+		if !head.Name().IsBranch() {
+			return nil, errors.New("git: commit: HEAD is detached")
+		}
+	} else if !errors.Is(err, plumbing.ErrReferenceNotFound) {
+		return nil, fmt.Errorf("git: commit: head: %w", err)
+	}
+
+	wt, err := r.Worktree()
+	if err != nil {
+		return nil, fmt.Errorf("git: commit: worktree: %w", err)
+	}
+
+	st, err := wt.Status()
+	if err != nil {
+		return nil, fmt.Errorf("git: commit: status: %w", err)
+	}
+	if st.IsClean() {
+		return nil, errors.New("git: commit: nothing to commit")
+	}
+
+	// Stage every change. Untracked / modified → Add; deleted →
+	// Remove. Per-file iteration (vs AddWithOptions{All: true}) keeps
+	// us robust across go-git versions where AddGlob/AddWithOptions
+	// has shifted in behavior, and lets us be explicit about deletes.
+	for f, fs := range st {
+		if fs.Worktree == gogit.Deleted {
+			if _, err := wt.Remove(f); err != nil {
+				return nil, fmt.Errorf("git: commit: remove %q: %w", f, err)
+			}
+			continue
+		}
+		if _, err := wt.Add(f); err != nil {
+			return nil, fmt.Errorf("git: commit: add %q: %w", f, err)
+		}
+	}
+
+	h, err := wt.Commit(opts.Message, &gogit.CommitOptions{
+		Author: &object.Signature{
+			Name:  opts.Author,
+			Email: opts.Email,
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("git: commit: %w", err)
+	}
+	hash := h.String()
+	short := hash
+	if len(short) > 7 {
+		short = short[:7]
+	}
+	return &CommitResult{Hash: hash, Short: short}, nil
+}
+
+// Discard throws away the local change to a single file. The right
+// action depends on the file's current state:
+//
+//   - tracked + worktree-modified → restore worktree from HEAD blob,
+//     then re-add so the index matches.
+//   - tracked + worktree-deleted  → recreate the file from HEAD blob.
+//   - staged add (file not in HEAD) → remove from index AND worktree.
+//   - untracked                   → remove from worktree.
+//
+// Path-traversal segments ("..") are rejected up-front; File must be
+// a clean relative path inside the worktree. Missing files (already
+// gone, raced with a manual delete) are not an error — the desired
+// end state is "discarded," and a missing untracked file already is.
+func (m *Manager) Discard(opts DiscardOptions) error {
+	if strings.TrimSpace(opts.File) == "" {
+		return errors.New("git: discard: file required")
+	}
+	clean := filepath.Clean(opts.File)
+	if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return errors.New("git: discard: invalid file path")
+	}
+
+	r, err := m.open(opts.Path)
+	if err != nil {
+		return fmt.Errorf("git: discard: open: %w", err)
+	}
+	wt, err := r.Worktree()
+	if err != nil {
+		return fmt.Errorf("git: discard: worktree: %w", err)
+	}
+
+	// Look up the file's blob in HEAD if it's there. A nil headBlob
+	// means "this file isn't tracked at HEAD" — either untracked or
+	// a staged add. Either way: discard = remove.
+	var headBlob *object.Blob
+	if h, herr := r.Head(); herr == nil {
+		if commit, cerr := r.CommitObject(h.Hash()); cerr == nil {
+			if tree, terr := commit.Tree(); terr == nil {
+				if entry, eerr := tree.File(clean); eerr == nil {
+					if blob, berr := r.BlobObject(entry.Hash); berr == nil {
+						headBlob = blob
+					}
+				}
+			}
+		}
+	}
+
+	fullPath := filepath.Join(wt.Filesystem.Root(), clean)
+
+	if headBlob != nil {
+		// Restore-from-HEAD path. Read the blob, write it to the
+		// worktree, then Add() to refresh the index entry.
+		reader, err := headBlob.Reader()
+		if err != nil {
+			return fmt.Errorf("git: discard: blob reader: %w", err)
+		}
+		content, err := io.ReadAll(reader)
+		_ = reader.Close()
+		if err != nil {
+			return fmt.Errorf("git: discard: read blob: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+			return fmt.Errorf("git: discard: mkdir: %w", err)
+		}
+		if err := os.WriteFile(fullPath, content, 0o644); err != nil {
+			return fmt.Errorf("git: discard: write: %w", err)
+		}
+		if _, err := wt.Add(clean); err != nil {
+			return fmt.Errorf("git: discard: refresh index: %w", err)
+		}
+		return nil
+	}
+
+	// File not in HEAD — drop it. wt.Remove handles the staged-add
+	// case (delete from worktree + index). For an untracked file,
+	// wt.Remove fails because the index has no entry, so we fall
+	// back to a plain os.Remove.
+	if _, rmErr := wt.Remove(clean); rmErr != nil {
+		if rmErr := os.Remove(fullPath); rmErr != nil && !os.IsNotExist(rmErr) {
+			return fmt.Errorf("git: discard: remove: %w", rmErr)
+		}
+	}
+	return nil
 }

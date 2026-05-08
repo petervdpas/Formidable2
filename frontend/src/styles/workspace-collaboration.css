@@ -2,8 +2,108 @@
    Currently only the Git Clone form needs custom layout (action
    button alignment under the connection form). */
 
-.git-clone-actions {
+.git-clone-actions,
+.git-commit-actions {
     display: flex;
     justify-content: flex-end;
     margin-top: var(--space-3);
+}
+
+/* Repository status panel — read-only summary of the worktree state
+   shown beneath the connection form on Current Service. Native
+   <details>/<summary> drives bucket collapsibility so we don't carry
+   per-bucket open state in component refs. */
+.git-status {
+    margin-top: var(--space-3);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.git-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.git-status-title {
+    margin: 0;
+    font-size: var(--font-size-md);
+    font-weight: 600;
+}
+
+.git-status-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+}
+
+.git-status-tracking {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted, var(--color-text));
+}
+
+.git-status-summary {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-sm);
+}
+
+.git-status-bucket {
+    margin-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-2);
+}
+
+.git-status-bucket > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: var(--space-1) 0;
+    list-style: none;
+}
+
+.git-status-bucket > summary::-webkit-details-marker {
+    display: none;
+}
+
+.git-status-bucket > summary::before {
+    content: "▶";
+    display: inline-block;
+    width: 1em;
+    margin-right: var(--space-1);
+    font-size: 0.7em;
+    transition: transform 0.1s ease;
+}
+
+.git-status-bucket[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.git-status-files {
+    margin: var(--space-1) 0 0;
+    padding-left: calc(var(--space-3) + var(--space-1));
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm);
+    list-style: none;
+}
+
+.git-status-files li {
+    padding: 1px 0;
+    word-break: break-all;
+}
+
+.git-status-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+}
+
+.git-status-file-path {
+    flex: 1 1 auto;
+    min-width: 0;
 }

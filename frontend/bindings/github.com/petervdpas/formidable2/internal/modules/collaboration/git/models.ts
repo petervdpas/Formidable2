@@ -170,6 +170,116 @@ export class Commit {
 }
 
 /**
+ * CommitOptions describes a commit request. Path is any path inside
+ * the worktree; Author/Email come from the active profile's config.
+ * 
+ * v1 stages every change in the worktree (modified, untracked,
+ * deleted) before committing — matching the "commit everything I
+ * touched in this session" mental model. Per-file selection arrives
+ * in a later iteration once the UI grows checkboxes.
+ */
+export class CommitOptions {
+    "path": string;
+    "message": string;
+    "author": string;
+    "email": string;
+
+    /** Creates a new CommitOptions instance. */
+    constructor($$source: Partial<CommitOptions> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("email" in $$source)) {
+            this["email"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CommitOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CommitOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CommitOptions($$parsedSource as Partial<CommitOptions>);
+    }
+}
+
+/**
+ * CommitResult is the success envelope for a commit: the new commit's
+ * full hash plus a 7-char short form for display.
+ */
+export class CommitResult {
+    "hash": string;
+    "short": string;
+
+    /** Creates a new CommitResult instance. */
+    constructor($$source: Partial<CommitResult> = {}) {
+        if (!("hash" in $$source)) {
+            this["hash"] = "";
+        }
+        if (!("short" in $$source)) {
+            this["short"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CommitResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CommitResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CommitResult($$parsedSource as Partial<CommitResult>);
+    }
+}
+
+/**
+ * DiscardOptions targets a single worktree file for "throw away the
+ * local change to this file." The semantics depend on the file's
+ * current status:
+ *   - tracked + modified  → worktree restored from HEAD's blob
+ *   - tracked + deleted   → file recreated from HEAD's blob
+ *   - staged add (no HEAD blob) → unstaged + removed from worktree
+ *   - untracked           → removed from worktree
+ * 
+ * Path is any path inside the worktree; File is the worktree-relative
+ * path of the file to discard. Path-traversal segments ("..") are
+ * rejected so the frontend can pass values straight from Status()
+ * without re-validating.
+ */
+export class DiscardOptions {
+    "path": string;
+    "file": string;
+
+    /** Creates a new DiscardOptions instance. */
+    constructor($$source: Partial<DiscardOptions> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("file" in $$source)) {
+            this["file"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DiscardOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DiscardOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DiscardOptions($$parsedSource as Partial<DiscardOptions>);
+    }
+}
+
+/**
  * Remote is one configured remote with all its push/fetch URLs.
  */
 export class Remote {

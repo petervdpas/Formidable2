@@ -1,8 +1,9 @@
 import type { Component } from "vue";
 import CurrentService from "./CurrentService.vue";
+import Sync from "./Sync.vue";
 import GitClone from "./GitClone.vue";
 
-export type CollaborationSectionId = "current-service" | "git-clone";
+export type CollaborationSectionId = "current-service" | "git-sync" | "git-clone";
 export type CollaborationBackend = "git" | "gigot";
 
 export interface CollaborationSection {
@@ -24,6 +25,12 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
     id: "current-service",
     labelKey: "workspace.collaboration.section.current_service",
     component: CurrentService,
+  },
+  {
+    id: "git-sync",
+    labelKey: "workspace.collaboration.section.sync",
+    component: Sync,
+    backend: "git",
   },
   {
     id: "git-clone",

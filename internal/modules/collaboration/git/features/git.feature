@@ -121,3 +121,75 @@ Feature: Git collaboration backend
     Given an HTTP test server that returns 401
     When I attempt to clone path "/myorg/myproject/_git/myrepo" with PAT "ado-pat-xyz"
     Then the captured Authorization header is BasicAuth for username "x-access-token" and password "ado-pat-xyz"
+
+  # ── Commit ───────────────────────────────────────────────────────────
+
+  Scenario: Commit creates a new commit with modified files
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And "a.txt" is rewritten to "v2"
+    When I commit with message "second"
+    And I read the log with limit 0
+    Then the commit succeeded
+    And the log has 2 commits
+    And log entry 0 has subject "second"
+
+  Scenario: Commit picks up untracked files
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And the file "new.txt" exists with content "x"
+    When I commit with message "add new"
+    Then the commit succeeded
+    And after commit status reports clean
+
+  Scenario: Commit picks up deleted files
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And "a.txt" is removed from the worktree
+    When I commit with message "drop a"
+    Then the commit succeeded
+    And after commit status reports clean
+
+  Scenario: Commit refuses an empty message
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And "a.txt" is rewritten to "v2"
+    When I commit with message ""
+    Then the operation returned an error
+
+  Scenario: Commit refuses a clean worktree
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    When I commit with message "no-op"
+    Then the operation returned an error
+
+  Scenario: Commit refuses an empty author
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And "a.txt" is rewritten to "v2"
+    When I commit with message "x" and empty author
+    Then the operation returned an error
+
+  # ── Discard ──────────────────────────────────────────────────────────
+
+  Scenario: Discard restores a modified file from HEAD
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And "a.txt" is rewritten to "v2"
+    When I discard "a.txt"
+    Then file "a.txt" exists with content "v1"
+
+  Scenario: Discard removes an untracked file
+    Given the temp dir is a git repo
+    And the file "junk.txt" exists with content "x"
+    When I discard "junk.txt"
+    Then file "junk.txt" does not exist
+
+  Scenario: Discard restores a worktree-deleted file
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And "a.txt" is removed from the worktree
+    When I discard "a.txt"
+    Then file "a.txt" exists with content "v1"
+
+  Scenario: Discard refuses an empty file path
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    When I discard ""
+    Then the operation returned an error
+
+  Scenario: Discard refuses a traversal path
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    When I discard "../escape"
+    Then the operation returned an error

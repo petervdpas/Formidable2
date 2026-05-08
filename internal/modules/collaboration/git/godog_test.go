@@ -44,6 +44,7 @@ type gitWorld struct {
 	branches *Branches
 	log      []Commit
 	clone    *CloneResult
+	commit   *CommitResult
 	repoRoot string
 	boolRes  bool
 	lastErr  error
@@ -74,6 +75,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.branches = nil
 		w.log = nil
 		w.clone = nil
+		w.commit = nil
 		w.repoRoot = ""
 		w.boolRes = false
 		w.lastErr = nil
@@ -136,6 +138,10 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^the file "([^"]*)" exists with content "([^"]*)"$`, func(name, content string) error {
 		return os.WriteFile(filepath.Join(w.tmp, name), []byte(content), 0o644)
+	})
+
+	ctx.Step(`^"([^"]*)" is removed from the worktree$`, func(name string) error {
+		return os.Remove(filepath.Join(w.tmp, name))
 	})
 
 	ctx.Step(`^a local branch "([^"]*)" pointing at HEAD$`, func(name string) error {
@@ -244,6 +250,31 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 			URL:  w.authServer.URL + "/repo.git",
 			Dest: dest,
 		})
+		return nil
+	})
+
+	ctx.Step(`^I commit with message "([^"]*)"$`, func(msg string) error {
+		w.commit, w.lastErr = w.m.Commit(CommitOptions{
+			Path:    w.tmp,
+			Message: msg,
+			Author:  "Test",
+			Email:   "test@example.com",
+		})
+		return nil
+	})
+
+	ctx.Step(`^I commit with message "([^"]*)" and empty author$`, func(msg string) error {
+		w.commit, w.lastErr = w.m.Commit(CommitOptions{
+			Path:    w.tmp,
+			Message: msg,
+			Author:  "",
+			Email:   "",
+		})
+		return nil
+	})
+
+	ctx.Step(`^I discard "([^"]*)"$`, func(file string) error {
+		w.lastErr = w.m.Discard(DiscardOptions{Path: w.tmp, File: file})
 		return nil
 	})
 
@@ -379,6 +410,50 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.capturedAuthM.Unlock()
 		if got != want {
 			return fmt.Errorf("Authorization = %q, want %q", got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the commit succeeded$`, func() error {
+		if w.lastErr != nil {
+			return fmt.Errorf("commit failed: %v", w.lastErr)
+		}
+		if w.commit == nil || w.commit.Hash == "" {
+			return fmt.Errorf("commit result is nil or has empty hash")
+		}
+		return nil
+	})
+
+	ctx.Step(`^file "([^"]*)" exists with content "([^"]*)"$`, func(name, want string) error {
+		got, err := os.ReadFile(filepath.Join(w.tmp, name))
+		if err != nil {
+			return fmt.Errorf("read %q: %w", name, err)
+		}
+		if string(got) != want {
+			return fmt.Errorf("file %q content = %q, want %q", name, string(got), want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^file "([^"]*)" does not exist$`, func(name string) error {
+		_, err := os.Stat(filepath.Join(w.tmp, name))
+		if err == nil {
+			return fmt.Errorf("expected %q to be absent, but it exists", name)
+		}
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("stat %q: %w", name, err)
+		}
+		return nil
+	})
+
+	ctx.Step(`^after commit status reports clean$`, func() error {
+		// Refetch status to confirm the post-commit worktree is clean.
+		s, err := w.m.Status(w.tmp)
+		if err != nil {
+			return fmt.Errorf("post-commit status: %w", err)
+		}
+		if !s.Clean {
+			return fmt.Errorf("expected clean post-commit, got %+v", s)
 		}
 		return nil
 	})
