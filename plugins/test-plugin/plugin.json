@@ -1,0 +1,12 @@
+{
+  "manifest_version": 1,
+  "id": "test-plugin",
+  "name": "Test Plugin",
+  "version": "0.1.0",
+  "commands": [
+    {
+      "id": "run",
+      "label": "Run"
+    }
+  ]
+}

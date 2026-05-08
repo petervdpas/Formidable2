@@ -91,4 +91,5 @@ var (
 	ErrManifestInvalid = errors.New("plugin: invalid manifest")
 	ErrPluginNotFound  = errors.New("plugin: not found")
 	ErrCommandNotFound = errors.New("plugin: command not found")
+	ErrPluginExists    = errors.New("plugin: already exists")
 )

@@ -323,6 +323,10 @@ func New(d Deps) (*App, error) {
 		PluginsDir: pluginsDir,
 		Logger:     d.Logger,
 		KV:         pluginKV,
+		// Editor uses *system.Manager so plugin.json + main.lua get
+		// the same atomic+fsync write semantics every other write in
+		// the codebase enjoys.
+		Editor:     sysM,
 		Template:   pluginTemplateAdapter{dp: dpM, tpl: tplM},
 		Collection: pluginCollectionAdapter{dp: dpM},
 		Form:       pluginFormAdapter{sto: stoM},

@@ -16,6 +16,35 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * Create scaffolds a new plugin folder and returns the new list.
+ * Errors map to the editor sentinels (ErrManifestInvalid,
+ * ErrPluginExists) — the caller surfaces them as i18n'd toasts.
+ */
+export function Create(id: string): $CancellablePromise<$models.ListResult[]> {
+    return $Call.ByID(2899368391, id).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * Delete removes the plugin folder and KV file, returning the
+ * updated list.
+ */
+export function Delete(id: string): $CancellablePromise<$models.ListResult[]> {
+    return $Call.ByID(3327307900, id).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * GetSource returns the plugin's main.lua content. Used by the
+ * workspace to populate the Lua editor when a plugin is selected.
+ */
+export function GetSource(id: string): $CancellablePromise<string> {
+    return $Call.ByID(4259078820, id);
+}
+
+/**
  * List returns every discovered plugin, sorted by id.
  */
 export function List(): $CancellablePromise<$models.ListResult[]> {
@@ -44,6 +73,16 @@ export function Refresh(): $CancellablePromise<$models.ListResult[]> {
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {
     return $Call.ByID(2749798520, pluginID, commandID, ctx).then(($result: any) => {
         return $$createType2($result);
+    });
+}
+
+/**
+ * Save writes plugin.json + main.lua for an existing plugin and
+ * returns the updated list.
+ */
+export function Save(id: string, manifest: $models.Manifest, luaSource: string): $CancellablePromise<$models.ListResult[]> {
+    return $Call.ByID(2781827402, id, manifest, luaSource).then(($result: any) => {
+        return $$createType1($result);
     });
 }
 

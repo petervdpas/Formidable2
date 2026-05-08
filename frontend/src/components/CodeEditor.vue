@@ -3,15 +3,17 @@ import { computed, ref } from "vue";
 import { Codemirror } from "vue-codemirror";
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
+import { StreamLanguage } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
 import { yaml } from "@codemirror/lang-yaml";
+import { lua as luaMode } from "@codemirror/legacy-modes/mode/lua";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useTheme } from "../composables/useTheme";
 
 const props = withDefaults(
   defineProps<{
-    /** Language hint: 'markdown' (default — Handlebars/MD), 'yaml'. */
-    lang?: "markdown" | "yaml";
+    /** Language hint: 'markdown' (default — Handlebars/MD), 'yaml', 'lua'. */
+    lang?: "markdown" | "yaml" | "lua";
     /** Tab indentation size. Default 2. */
     tabSize?: number;
     /** Disable editing. */
@@ -30,7 +32,14 @@ const { theme } = useTheme();
 // default light styling (no extension).
 const themeExtension = computed(() => (theme.value === "light" ? [] : [oneDark]));
 
-const langExtension = computed(() => (props.lang === "yaml" ? [yaml()] : [markdown()]));
+// Lua uses a legacy stream parser (no first-class lang package
+// exists) wrapped via StreamLanguage. yaml/markdown have proper
+// LR parsers so we keep those on the dedicated packages.
+const langExtension = computed(() => {
+  if (props.lang === "yaml") return [yaml()];
+  if (props.lang === "lua") return [StreamLanguage.define(luaMode)];
+  return [markdown()];
+});
 
 // Ctrl+Enter / Cmd+Enter toggles full-screen mode — same gesture
 // Formidable uses for "Template Code". Implemented as a CSS class on

@@ -1,24 +1,69 @@
-/* Plugins workspace — sidebar list of installed plugins + main
-   panel with one card per command (run button, output pane, logs). */
+/* Plugins workspace — sidebar list of installed plugins + main panel
+   manifest editor + Lua source editor. The Run modal reuses the
+   `.command-card` / `.command-result` styles below. */
 
+/* ── Sidebar ─────────────────────────────────────────────────────── */
 .plugin-name { font-weight: 600; }
-.plugin-meta { margin-top: var(--space-1); }
-
-.plugin-detail {
+.plugin-meta {
+    margin-top: var(--space-1);
     display: flex;
-    flex-direction: column;
-    gap: var(--space-5);
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
 }
 
-.plugin-header {
+/* ── Commands list editor (in main pane) ────────────────────────── */
+.cmd-rows {
+    list-style: none;
+    padding: 0;
+    margin: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: var(--space-2);
+    grid-column: 1 / -1;
 }
 
-.plugin-description {
+.cmd-row {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+}
+
+/* Three text fields side-by-side on wide layouts; collapse to a
+   single column when the panel is narrow. The delete button trails
+   the row regardless. */
+.cmd-row-grid {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) auto;
+    gap: var(--space-2);
+    align-items: end;
+}
+
+.cmd-row-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cmd-add-row {
+    grid-column: 1 / -1;
     margin-top: var(--space-2);
-    max-width: 60ch;
+}
+
+@media (max-width: 720px) {
+    .cmd-row-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Run modal — command cards + output panes ───────────────────── */
+.run-modal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-height: 60vh;
+    overflow-y: auto;
 }
 
 .command-card {

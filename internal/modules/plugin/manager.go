@@ -16,11 +16,17 @@ import (
 // disabled," and Lua calls into it surface a clear error.
 //
 // Logger may be nil (defaults to slog.Default).
+//
+// Editor is the fs surface used by Create/Save/Delete/GetSource —
+// the workspace's CRUD methods. *system.Manager satisfies it; tests
+// pass an in-test shim. When Editor is nil, CRUD methods return
+// "editor fs not configured" instead of touching disk.
 type ManagerDeps struct {
 	PluginsDir string
 	Logger     *slog.Logger
 
 	KV         *KV
+	Editor     editorFS
 	Template   TemplateAccess
 	Collection CollectionAccess
 	Form       FormAccess

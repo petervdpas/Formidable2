@@ -56,6 +56,40 @@ type RunResultDTO struct {
 	LogLines []string `json:"logLines,omitempty"`
 }
 
+// Create scaffolds a new plugin folder and returns the new list.
+// Errors map to the editor sentinels (ErrManifestInvalid,
+// ErrPluginExists) — the caller surfaces them as i18n'd toasts.
+func (s *Service) Create(id string) ([]ListResult, error) {
+	if err := s.m.Create(id); err != nil {
+		return nil, err
+	}
+	return s.List(), nil
+}
+
+// Save writes plugin.json + main.lua for an existing plugin and
+// returns the updated list.
+func (s *Service) Save(id string, manifest Manifest, luaSource string) ([]ListResult, error) {
+	if err := s.m.Save(id, manifest, luaSource); err != nil {
+		return nil, err
+	}
+	return s.List(), nil
+}
+
+// Delete removes the plugin folder and KV file, returning the
+// updated list.
+func (s *Service) Delete(id string) ([]ListResult, error) {
+	if err := s.m.Delete(id); err != nil {
+		return nil, err
+	}
+	return s.List(), nil
+}
+
+// GetSource returns the plugin's main.lua content. Used by the
+// workspace to populate the Lua editor when a plugin is selected.
+func (s *Service) GetSource(id string) (string, error) {
+	return s.m.GetSource(id)
+}
+
 // Run invokes a command. ctx is an optional plain-JSON table that
 // arrives in Lua as the function's single argument. Errors are
 // classified rather than returned directly so the frontend can

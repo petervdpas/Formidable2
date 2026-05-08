@@ -27,6 +27,10 @@ func (kvTestFS) SaveFile(p, content string) error {
 	return os.WriteFile(p, []byte(content), 0o644)
 }
 func (kvTestFS) DeleteFile(p string) error { return os.Remove(p) }
+func (kvTestFS) DeleteFolder(p string) error {
+	// RemoveAll is silent on missing — same shape as system.Manager.DeleteFolder.
+	return os.RemoveAll(p)
+}
 
 func newTestKV(t *testing.T) *KV {
 	t.Helper()
