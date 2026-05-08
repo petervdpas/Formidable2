@@ -260,3 +260,11 @@ Feature: Git collaboration backend
     And "seed.txt" is rewritten to "dirty" inside "client"
     When I pull from "client"
     Then the operation returned an error
+
+  Scenario: Pull refuses divergent history
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And the bare repo gains another commit
+    And a new commit "local.txt" with content "local" in "client"
+    When I pull from "client"
+    Then the operation returned an error

@@ -100,6 +100,8 @@
   "workspace.collaboration.pull.behind_summary": "{0} commit(s) klaar om te pullen.",
   "workspace.collaboration.pull.dirty_title": "Commit eerst je wijzigingen",
   "workspace.collaboration.pull.dirty_message": "Je werkboom bevat niet-gecommite wijzigingen. Commit of verwerp ze en probeer Pull opnieuw.",
+  "workspace.collaboration.pull.divergent_title": "Branch is uiteengelopen met remote",
+  "workspace.collaboration.pull.divergent_message": "Je lokale branch en de remote hebben beide nieuwe commits. Automatisch mergen wordt nog niet ondersteund — los het op via een git CLI (of push als je lokale commits moeten winnen) en probeer opnieuw.",
   "workspace.collaboration.pull.disabled_detached": "Losgekoppelde HEAD — check eerst een branch uit.",
   "workspace.collaboration.pull.disabled_no_tracking": "Geen upstream branch geconfigureerd.",
   "workspace.collaboration.pull.disabled_up_to_date": "Al actueel met remote.",

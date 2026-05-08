@@ -1114,6 +1114,84 @@ func TestPull_RefusesNonRepoPath(t *testing.T) {
 	}
 }
 
+func TestPull_RefusesDivergentHistory(t *testing.T) {
+	// go-git's Worktree.Pull is fast-forward only. When local and
+	// remote both have unique commits since their merge base, Pull
+	// returns an error and the local HEAD must NOT move — partial
+	// merge would be a data-loss footgun. The frontend uses a
+	// separate AlertDialog to explain this to the user before they
+	// even try; this test locks the backend contract so any future
+	// caller can rely on it.
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Advance the remote.
+	pusher := t.TempDir()
+	pr, err := gogit.PlainClone(pusher, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pusher, "remote.txt"), []byte("r"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pwt, err := pr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pwt.Add("remote.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pwt.Commit("remote-side", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := pr.Push(&gogit.PushOptions{RemoteName: "origin"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Advance the local without first fetching the remote — branch
+	// is now diverged from origin/master by one commit each side.
+	if err := os.WriteFile(filepath.Join(work, "local.txt"), []byte("l"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := wr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("local.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("local-side", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	beforePull, err := wr.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Pull(PullOptions{Path: work})
+	if err == nil {
+		t.Errorf("expected error pulling on divergent history, got result=%+v", res)
+	}
+
+	afterPull, err := wr.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforePull.Hash() != afterPull.Hash() {
+		t.Errorf("HEAD moved despite divergent pull: before=%s after=%s",
+			beforePull.Hash(), afterPull.Hash())
+	}
+}
+
 func TestPull_RefusesDirtyWorktree(t *testing.T) {
 	// go-git's worktree pull rejects a worktree with unstaged changes
 	// rather than auto-stashing. The frontend pre-empts this with an

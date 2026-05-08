@@ -103,6 +103,8 @@
   "workspace.collaboration.pull.disabled_no_tracking": "No upstream branch configured.",
   "workspace.collaboration.pull.dirty_title": "Commit your changes first",
   "workspace.collaboration.pull.dirty_message": "Your worktree has uncommitted changes. Commit or discard them, then try Pull again.",
+  "workspace.collaboration.pull.divergent_title": "Branch has diverged from remote",
+  "workspace.collaboration.pull.divergent_message": "Your local branch and the remote both have new commits. Automatic merge isn't supported yet — resolve via a git CLI (or push if your local commits should win), then try again.",
   "workspace.collaboration.pull.disabled_up_to_date": "Already up-to-date with remote.",
   "workspace.collaboration.push.disabled_detached": "Detached HEAD — check out a branch first.",
   "workspace.collaboration.push.disabled_no_tracking": "No upstream branch configured.",

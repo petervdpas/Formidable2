@@ -164,6 +164,11 @@ const canPull = computed(() => {
 // to commit or discard first.
 const pullDirtyOpen = ref(false);
 
+// Pulling on divergent history (ahead > 0 AND behind > 0) trips
+// go-git's fast-forward-only Pull. Same loud-prompt pattern: warn
+// the user up-front instead of letting the backend error bubble.
+const pullDivergentOpen = ref(false);
+
 async function push() {
   if (!canPush.value) return;
   pushing.value = true;
@@ -190,6 +195,13 @@ async function pull() {
   // before pulling.
   if (status.value && !status.value.clean) {
     pullDirtyOpen.value = true;
+    return;
+  }
+  // Pre-flight: divergent history → go-git's fast-forward-only Pull
+  // would refuse anyway. Surface a clear "needs manual resolution"
+  // alert instead of the raw backend error.
+  if (status.value && status.value.ahead > 0 && status.value.behind > 0) {
+    pullDivergentOpen.value = true;
     return;
   }
   pulling.value = true;
@@ -328,6 +340,13 @@ async function confirmDiscard() {
     :title="t('workspace.collaboration.pull.dirty_title')"
     :message="t('workspace.collaboration.pull.dirty_message')"
     @close="pullDirtyOpen = false"
+  />
+
+  <AlertDialog
+    :open="pullDivergentOpen"
+    :title="t('workspace.collaboration.pull.divergent_title')"
+    :message="t('workspace.collaboration.pull.divergent_message')"
+    @close="pullDivergentOpen = false"
   />
 
   <AuthorIdentityDialog
