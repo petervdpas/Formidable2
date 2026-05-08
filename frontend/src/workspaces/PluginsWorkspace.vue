@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
@@ -571,34 +572,43 @@ setTopbarMenu(() => [
           <p v-if="draftForm.length === 0" class="muted small">
             {{ t('workspace.plugins.form.empty') }}
           </p>
-          <ul v-else class="field-rows">
-            <li
-              v-for="(f, i) in draftForm"
-              :key="i"
-              class="field-row"
-              :data-type="f.type"
-            >
-              <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
-              <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
-              <span class="field-row-spacer"></span>
-              <div class="field-row-actions">
-                <button
-                  type="button"
-                  class="field-action-btn edit"
-                  @click="openFieldEdit(i)"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  class="field-action-btn delete"
-                  @click="askDeleteField(i)"
-                >
-                  {{ t('workspace.plugins.commands.delete') }}
-                </button>
-              </div>
-            </li>
-          </ul>
+          <draggable
+            v-else
+            v-model="draftForm"
+            tag="ul"
+            class="field-rows"
+            handle=".dnd-handle"
+            :animation="150"
+            ghost-class="dnd-ghost"
+            chosen-class="dnd-chosen"
+            drag-class="dnd-drag"
+            item-key="key"
+          >
+            <template #item="{ element: f, index: i }">
+              <li class="field-row" :data-type="f.type">
+                <span class="dnd-handle" aria-hidden="true">☰</span>
+                <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
+                <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
+                <span class="field-row-spacer"></span>
+                <div class="field-row-actions">
+                  <button
+                    type="button"
+                    class="field-action-btn edit"
+                    @click="openFieldEdit(i)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="field-action-btn delete"
+                    @click="askDeleteField(i)"
+                  >
+                    {{ t('workspace.plugins.commands.delete') }}
+                  </button>
+                </div>
+              </li>
+            </template>
+          </draggable>
           <div class="form-add-row">
             <button class="tool-btn" type="button" @click="openFieldAdd">
               + {{ t('workspace.plugins.form.add') }}
