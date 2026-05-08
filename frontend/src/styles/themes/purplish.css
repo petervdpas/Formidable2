@@ -1,6 +1,7 @@
 /* Purplish theme — first-cut values, tune later. */
 :root[data-theme="purplish"] {
     --color-bg:           #1a1230;
+    --color-bg-sunken:    #120a26;
     --color-surface:      #2a1f4a;
     --color-surface-2:    #362860;
     --color-border:       #4b3a82;

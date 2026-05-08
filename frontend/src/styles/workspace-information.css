@@ -1,0 +1,85 @@
+/* Information workspace — About panel layout. Mirrors the splash card
+   shape (logo left, identity right) but bound to the active theme's
+   tokens, not a fixed brand palette. */
+.about-card {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 24px 8px;
+  max-width: 720px;
+}
+
+.about-card .logo {
+  flex: 0 0 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-card .logo img {
+  max-width: 100%;
+  max-height: 100%;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+}
+
+.about-card .identity {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.about-card .name {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  color: var(--color-text);
+}
+
+.about-card .tagline {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 10px;
+}
+
+.about-card .version {
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.about-card .author {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+/* Dedicatory cards under the About card. Slightly darker than the
+   workspace background so they read as quiet inset notes rather than
+   competing with the identity block above. */
+.about-section {
+  max-width: 720px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--color-bg-sunken);
+  border-radius: 8px;
+  color: var(--color-text);
+}
+
+.about-section .text {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.about-section .text strong {
+  font-weight: 700;
+}
+
+.about-section .quote {
+  margin-top: 4px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-text-muted);
+}

@@ -1,6 +1,6 @@
 {
   "profile_name": "Default Profile",
-  "theme": "dark",
+  "theme": "light",
   "show_icon_buttons": false,
   "show_paste_buttons": true,
   "use_expressions": false,
@@ -12,7 +12,7 @@
   "logging_enabled": false,
   "enable_plugins": true,
   "context_mode": "template",
-  "context_ribbon": "settings",
+  "context_ribbon": "information",
   "context_folder": "/home/peter/Documents/Example",
   "selected_template": "basic.yaml",
   "selected_data_file": "sane-20250530.meta.json",

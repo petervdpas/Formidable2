@@ -1,6 +1,7 @@
 /* Dark theme — first-cut values, tune later. */
 :root[data-theme="dark"] {
     --color-bg:           #0f172a;
+    --color-bg-sunken:    #0a1020;
     --color-surface:      #1e293b;
     --color-surface-2:    #273449;
     --color-border:       #334155;

@@ -1,27 +1,48 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import { Service as System } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
+import { Service as About, Info } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/about";
 
 const { t } = useI18n();
-const appRoot = ref<string>("");
-const error = ref<string>("");
+const info = ref<Info | null>(null);
 
 onMounted(async () => {
-  try {
-    appRoot.value = await System.GetAppRoot();
-  } catch (err) {
-    error.value = String(err);
-  }
+  info.value = await About.GetInfo();
 });
 </script>
 
 <template>
-  <p>{{ t('workspace.information.subtitle') }}</p>
-  <dl class="kv">
-    <dt>{{ t('workspace.information.app_root') }}</dt>
-    <dd v-if="error" class="error">{{ t('workspace.information.boot_failed', [error]) }}</dd>
-    <dd v-else-if="appRoot"><code>{{ appRoot }}</code></dd>
-    <dd v-else class="muted">{{ t('workspace.information.loading') }}</dd>
-  </dl>
+  <div class="about-card" v-if="info">
+    <div class="logo">
+      <img src="/formidable.svg" alt="" />
+    </div>
+    <div class="identity">
+      <div class="name">{{ info.name }}</div>
+      <div class="tagline">{{ t('workspace.information.about.tagline') }}</div>
+      <div class="version">{{ t('workspace.information.about.version', [info.version]) }}</div>
+      <div class="author">{{ t('workspace.information.about.author', [info.author]) }}</div>
+    </div>
+  </div>
+
+  <section class="about-section">
+    <div class="text">
+      <i18n-t keypath="workspace.information.about.elly_text" tag="span">
+        <template #name>
+          <strong>{{ t('workspace.information.about.elly_name') }}</strong>
+        </template>
+      </i18n-t>
+    </div>
+    <div class="quote">{{ t('workspace.information.about.elly_quote') }}</div>
+  </section>
+
+  <section class="about-section">
+    <div class="text">
+      <i18n-t keypath="workspace.information.about.aaron_text" tag="span">
+        <template #name>
+          <strong>{{ t('workspace.information.about.aaron_name') }}</strong>
+        </template>
+      </i18n-t>
+    </div>
+    <div class="quote">{{ t('workspace.information.about.aaron_quote') }}</div>
+  </section>
 </template>
