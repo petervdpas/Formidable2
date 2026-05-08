@@ -143,6 +143,42 @@ func (m *Manager) Get(id string) (Plugin, bool) {
 	return p, ok
 }
 
+// SaveFormValues writes each entry as its own KV slot keyed by
+// the form field's id, so plugin authors read the same value
+// from Lua via formidable.kv.get(fieldKey). Untouched keys in
+// the plugin's bag (anything outside `values`) are preserved.
+// Silent no-op when KV is unavailable.
+func (m *Manager) SaveFormValues(pluginID string, values map[string]any) error {
+	if m.deps.KV == nil {
+		return nil
+	}
+	for k, v := range values {
+		if err := m.deps.KV.Set(pluginID, k, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// LoadFormValues returns the values previously stored under each
+// of `fieldKeys`. Missing keys are absent from the result so the
+// caller (the Run modal seeder) can fall back to field defaults
+// for fields the user has never touched.
+func (m *Manager) LoadFormValues(pluginID string, fieldKeys []string) map[string]any {
+	out := map[string]any{}
+	if m.deps.KV == nil {
+		return out
+	}
+	for _, k := range fieldKeys {
+		v, ok, err := m.deps.KV.Get(pluginID, k)
+		if err != nil || !ok {
+			continue
+		}
+		out[k] = v
+	}
+	return out
+}
+
 // Run executes a command from a discovered plugin. ctx is the
 // optional argument table passed to the Lua function (nil =
 // no argument). Returns the function's converted return value
@@ -175,10 +211,25 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 	if ctx != nil {
 		arg = ctx
 	}
+	mode := p.Manifest.RunMode
+	if mode == "" {
+		mode = RunModeModal
+	}
 	return runScript(scriptOpts{
-		Source:     string(src),
-		Fn:         FnNameFor(*cmd),
-		Arg:        arg,
+		Source: string(src),
+		Fn:     FnNameFor(*cmd),
+		Arg:    arg,
+		Plugin: PluginInfo{
+			ID:                     p.Manifest.ID,
+			Name:                   p.Manifest.Name,
+			Version:                p.Manifest.Version,
+			Author:                 p.Manifest.Author,
+			Description:            p.Manifest.Description,
+			Mode:                   mode,
+			Command:                cmd.ID,
+			RequiresInternalServer: p.Manifest.RequiresInternalServer,
+			Debug:                  p.Manifest.Debug,
+		},
 		PluginID:   pluginID,
 		KV:         m.deps.KV,
 		Template:   m.deps.Template,

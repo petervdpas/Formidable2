@@ -98,6 +98,8 @@
   "workspace.plugins.error_server_not_running": "Plugin vereist de interne server, maar die is gestopt. Start hem via de Informatie-werkruimte en probeer opnieuw.",
   "workspace.plugins.logs_title": "Log",
   "workspace.plugins.manifest.author": "Auteur",
+  "workspace.plugins.manifest.debug": "Debug",
+  "workspace.plugins.manifest.debug_help": "Wanneer aan toont het run-venster een uitklapbaar debug-paneel met de uitvoer en logregels per commando.",
   "workspace.plugins.manifest.description": "Beschrijving",
   "workspace.plugins.manifest.name": "Naam",
   "workspace.plugins.manifest.requires_internal_server": "Vereist interne server",
@@ -118,6 +120,8 @@
   "workspace.plugins.save_error": "Plugin opslaan mislukt: {0}",
   "workspace.plugins.save_success": "Plugin '{0}' opgeslagen.",
   "workspace.plugins.sidebar_title": "Plugins",
+  "workspace.plugins.debug.not_enabled": "Niet ingeschakeld",
+  "workspace.plugins.debug.title": "Debug",
   "workspace.plugins.form.add": "Veld toevoegen",
   "workspace.plugins.form.delete_confirm": "Veld '{0}' verwijderen?",
   "workspace.plugins.form.delete_title": "Veld verwijderen",
@@ -126,8 +130,8 @@
   "workspace.plugins.source.help": "main.lua — globale functies zijn beschikbaar als commando-doel. Ctrl+Enter wisselt naar volledig scherm.",
   "workspace.plugins.source.title": "Lua-broncode",
   "workspace.plugins.tab.commands": "Commando's",
-  "workspace.plugins.tab.form": "Formuliereditor",
-  "workspace.plugins.tab.source": "Lua-broncode",
+  "workspace.plugins.tab.form": "Formulier Editor",
+  "workspace.plugins.tab.source": "Lua Broncode",
   "workspace.plugins.title": "Plugins",
   "workspace.plugins.version_label": "v{0}"
 }

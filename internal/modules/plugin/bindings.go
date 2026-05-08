@@ -436,3 +436,23 @@ func buildJSONTable(L *lua.LState) *lua.LTable {
 	}))
 	return t
 }
+
+// buildPluginTable exposes the running plugin's own metadata as
+// a read-only Lua table at formidable.plugin. Fields that aren't
+// set in PluginInfo come through as their zero values (empty
+// string, false) — never nil — so plugin authors can sniff them
+// without nil-checking. The table is a fresh per-invocation
+// snapshot; mutating it from Lua is harmless and ignored.
+func buildPluginTable(L *lua.LState, info PluginInfo) *lua.LTable {
+	t := L.NewTable()
+	t.RawSetString("id", lua.LString(info.ID))
+	t.RawSetString("name", lua.LString(info.Name))
+	t.RawSetString("version", lua.LString(info.Version))
+	t.RawSetString("author", lua.LString(info.Author))
+	t.RawSetString("description", lua.LString(info.Description))
+	t.RawSetString("mode", lua.LString(info.Mode))
+	t.RawSetString("command", lua.LString(info.Command))
+	t.RawSetString("requires_internal_server", lua.LBool(info.RequiresInternalServer))
+	t.RawSetString("debug", lua.LBool(info.Debug))
+	return t
+}

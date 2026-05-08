@@ -102,6 +102,22 @@ func (s *Service) GetSource(id string) (string, error) {
 	return s.m.GetSource(id)
 }
 
+// LoadFormValues returns the values stored under each of the
+// supplied field keys. Frontend calls this on Run-modal open to
+// pre-populate the form from the plugin's KV bag — same bag the
+// Lua side reads via formidable.kv.get().
+func (s *Service) LoadFormValues(pluginID string, fieldKeys []string) map[string]any {
+	return s.m.LoadFormValues(pluginID, fieldKeys)
+}
+
+// SaveFormValues writes each (fieldKey, value) entry into the
+// plugin's KV bag. Frontend calls this when a command is run so
+// the values persist across sessions and stay readable from Lua
+// scripts via formidable.kv.get(fieldKey).
+func (s *Service) SaveFormValues(pluginID string, values map[string]any) error {
+	return s.m.SaveFormValues(pluginID, values)
+}
+
 // Run invokes a command. ctx is an optional plain-JSON table that
 // arrives in Lua as the function's single argument. Errors are
 // classified rather than returned directly so the frontend can

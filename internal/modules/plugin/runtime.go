@@ -53,6 +53,7 @@ type runtimeDeps struct {
 	LogSink    *[]string
 	ToastSink  *[]ToastEvent
 	PluginID   string
+	Plugin     PluginInfo
 	KV         *KV
 	Template   TemplateAccess
 	Collection CollectionAccess
@@ -75,6 +76,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("json", buildJSONTable(L))
 	f.RawSetString("api", buildAPITable(L, deps.API))
 	f.RawSetString("kv", buildKVTable(L, deps.PluginID, deps.KV))
+	f.RawSetString("plugin", buildPluginTable(L, deps.Plugin))
 	f.RawSetString("template", buildTemplateTable(L, deps.Template))
 	f.RawSetString("collection", buildCollectionTable(L, deps.Collection))
 	f.RawSetString("form", buildFormTable(L, deps.Form))
@@ -139,6 +141,7 @@ type scriptOpts struct {
 	// Access deps — leave nil to disable a namespace; calls into
 	// it from Lua then raise a "<namespace>: not configured" error.
 	PluginID   string
+	Plugin     PluginInfo
 	KV         *KV
 	Template   TemplateAccess
 	Collection CollectionAccess
@@ -165,6 +168,7 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		LogSink:    &logs,
 		ToastSink:  &toasts,
 		PluginID:   opts.PluginID,
+		Plugin:     opts.Plugin,
 		KV:         opts.KV,
 		Template:   opts.Template,
 		Collection: opts.Collection,

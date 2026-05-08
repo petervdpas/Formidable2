@@ -263,3 +263,92 @@ func TestManager_Run_KVScopedToPluginID(t *testing.T) {
 		t.Fatalf("isolation broken: a=%v b=%v", gotA.Value, gotB.Value)
 	}
 }
+
+func TestManager_FormValues_EmptyOnFreshPlugin(t *testing.T) {
+	m, _ := newTestManager(t)
+	got := m.LoadFormValues("never-saved", []string{"input", "what"})
+	if got == nil {
+		t.Fatal("LoadFormValues should return empty map, not nil")
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected empty map, got %v", got)
+	}
+}
+
+func TestManager_FormValues_RoundTrip(t *testing.T) {
+	m, _ := newTestManager(t)
+	want := map[string]any{
+		"input": "/tmp/x.bat",
+		"what":  "hello",
+		"flag":  true,
+	}
+	if err := m.SaveFormValues("p", want); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	got := m.LoadFormValues("p", []string{"input", "what", "flag"})
+	for k, v := range want {
+		if got[k] != v {
+			t.Fatalf("key %q: got %v, want %v", k, got[k], v)
+		}
+	}
+}
+
+func TestManager_FormValues_PerPluginIsolation(t *testing.T) {
+	m, _ := newTestManager(t)
+	_ = m.SaveFormValues("a", map[string]any{"x": "from-a"})
+	_ = m.SaveFormValues("b", map[string]any{"x": "from-b"})
+	if m.LoadFormValues("a", []string{"x"})["x"] != "from-a" {
+		t.Fatalf("a leaked")
+	}
+	if m.LoadFormValues("b", []string{"x"})["x"] != "from-b" {
+		t.Fatalf("b leaked")
+	}
+}
+
+func TestManager_FormValues_VisibleFromLuaKV(t *testing.T) {
+	m, pluginsDir := newTestManager(t)
+	// Save form values via the Vue path, then have a Lua script
+	// read them back via formidable.kv.get(fieldKey). They must
+	// land in the same KV bag — that's the whole point of the
+	// shared key namespace.
+	_ = m.SaveFormValues("p", map[string]any{
+		"input": "/tmp/x.bat",
+		"what":  "hello",
+	})
+	writePlugin(t, pluginsDir, "p", `{
+		"manifest_version": 1, "id": "p", "name": "P",
+		"version": "0.1.0",
+		"commands": [{"id": "read", "label": "read"}]
+	}`, `
+		function read(ctx)
+			return {
+				input = formidable.kv.get("input"),
+				what  = formidable.kv.get("what"),
+			}
+		end`)
+	_ = m.Refresh()
+	res, err := m.Run("p", "read", nil)
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	got, ok := res.Value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map, got %T (%v)", res.Value, res.Value)
+	}
+	if got["input"] != "/tmp/x.bat" || got["what"] != "hello" {
+		t.Fatalf("Lua kv.get didn't see SaveFormValues entries: %v", got)
+	}
+}
+
+func TestManager_FormValues_PreservesUnrelatedKVEntries(t *testing.T) {
+	m, _ := newTestManager(t)
+	// Plugin author had set "counter" via Lua kv.set. SaveFormValues
+	// should write only the form fields it was given and leave any
+	// other plugin-authored slots untouched.
+	_ = m.deps.KV.Set("p", "counter", 42)
+	_ = m.SaveFormValues("p", map[string]any{"input": "/tmp/x"})
+	got, ok, _ := m.deps.KV.Get("p", "counter")
+	if !ok || got != float64(42) && got != 42 {
+		t.Fatalf("counter clobbered: %v ok=%v", got, ok)
+	}
+}

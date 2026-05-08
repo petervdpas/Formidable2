@@ -50,15 +50,19 @@ const LuaAPIVersion = 1
 //     it renders at the top of the Run modal and every command
 //     receives the current form values as ctx.
 type Manifest struct {
-	ManifestVersion         int       `json:"manifest_version"`
-	ID                      string    `json:"id"`
-	Name                    string    `json:"name"`
-	Version                 string    `json:"version"`
-	Description             string    `json:"description,omitempty"`
-	Author                  string    `json:"author,omitempty"`
-	RunMode                 string    `json:"run_mode,omitempty"`
-	RequiresInternalServer  bool      `json:"requires_internal_server,omitempty"`
-	Commands                []Command `json:"commands,omitempty"`
+	ManifestVersion        int       `json:"manifest_version"`
+	ID                     string    `json:"id"`
+	Name                   string    `json:"name"`
+	Version                string    `json:"version"`
+	Description            string    `json:"description,omitempty"`
+	Author                 string    `json:"author,omitempty"`
+	RunMode                string    `json:"run_mode,omitempty"`
+	RequiresInternalServer bool      `json:"requires_internal_server,omitempty"`
+	// Debug toggles the collapsible debug/output panel at the bottom
+	// of the Run modal. Off by default — plugin authors flip it on
+	// while iterating, then turn it off when shipping.
+	Debug    bool      `json:"debug"`
+	Commands []Command `json:"commands,omitempty"`
 }
 
 // RunMode* — the closed enum of values RunMode accepts. Empty is
@@ -104,6 +108,23 @@ type Command struct {
 type Plugin struct {
 	Manifest Manifest `json:"manifest"`
 	Dir      string   `json:"dir"`
+}
+
+// PluginInfo is the immutable snapshot Lua scripts read via
+// formidable.plugin.*. Built once per Run from the manifest plus
+// the command being dispatched, so a script can branch on its
+// own identity, mode, or current command without going through
+// the bound Vue services.
+type PluginInfo struct {
+	ID                     string
+	Name                   string
+	Version                string
+	Author                 string
+	Description            string
+	Mode                   string // "form" or "modal"
+	Command                string // command id currently running
+	RequiresInternalServer bool
+	Debug                  bool
 }
 
 // ToastEvent is one user-facing toast a plugin script asked the

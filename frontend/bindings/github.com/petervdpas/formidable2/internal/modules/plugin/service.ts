@@ -64,6 +64,18 @@ export function List(): $CancellablePromise<$models.ListResult[]> {
 }
 
 /**
+ * LoadFormValues returns the values stored under each of the
+ * supplied field keys. Frontend calls this on Run-modal open to
+ * pre-populate the form from the plugin's KV bag — same bag the
+ * Lua side reads via formidable.kv.get().
+ */
+export function LoadFormValues(pluginID: string, fieldKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
+    return $Call.ByID(3599671491, pluginID, fieldKeys).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * Refresh re-scans the plugins folder. Returns the new list so
  * Vue can update without a follow-up call.
  */
@@ -82,7 +94,7 @@ export function Refresh(): $CancellablePromise<$models.ListResult[]> {
  */
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {
     return $Call.ByID(2749798520, pluginID, commandID, ctx).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -97,7 +109,18 @@ export function Save(id: string, manifest: $models.Manifest, luaSource: string, 
     });
 }
 
+/**
+ * SaveFormValues writes each (fieldKey, value) entry into the
+ * plugin's KV bag. Frontend calls this when a command is run so
+ * the values persist across sessions and stay readable from Lua
+ * scripts via formidable.kv.get(fieldKey).
+ */
+export function SaveFormValues(pluginID: string, values: { [_ in string]?: any }): $CancellablePromise<void> {
+    return $Call.ByID(3584261938, pluginID, values);
+}
+
 // Private type creation functions
 const $$createType0 = $models.ListResult.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.RunResultDTO.createFrom;
+const $$createType2 = $Create.Map($Create.Any, $Create.Any);
+const $$createType3 = $models.RunResultDTO.createFrom;

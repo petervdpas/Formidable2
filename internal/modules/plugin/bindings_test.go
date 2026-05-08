@@ -440,3 +440,79 @@ func TestBindings_NilDepsErrorClearly(t *testing.T) {
 		})
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.plugin — runtime self-introspection
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_Plugin_FieldsAvailable(t *testing.T) {
+	res := run(t, `
+		function run()
+			return {
+				id      = formidable.plugin.id,
+				name    = formidable.plugin.name,
+				version = formidable.plugin.version,
+				author  = formidable.plugin.author,
+				desc    = formidable.plugin.description,
+				mode    = formidable.plugin.mode,
+				cmd     = formidable.plugin.command,
+				server  = formidable.plugin.requires_internal_server,
+				debug   = formidable.plugin.debug,
+			}
+		end
+	`, scriptOpts{
+		Plugin: PluginInfo{
+			ID:                     "test-plugin",
+			Name:                   "Test Plugin",
+			Version:                "0.1.0",
+			Author:                 "Peter",
+			Description:            "This is a test",
+			Mode:                   "form",
+			Command:                "start",
+			RequiresInternalServer: true,
+			Debug:                  true,
+		},
+	})
+	got, ok := res.Value.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map, got %T", res.Value)
+	}
+	want := map[string]any{
+		"id":      "test-plugin",
+		"name":    "Test Plugin",
+		"version": "0.1.0",
+		"author":  "Peter",
+		"desc":    "This is a test",
+		"mode":    "form",
+		"cmd":     "start",
+		"server":  true,
+		"debug":   true,
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Fatalf("plugin.%s: got %v, want %v", k, got[k], v)
+		}
+	}
+}
+
+func TestBindings_Plugin_ZeroValuesWhenUnset(t *testing.T) {
+	// No PluginInfo passed — everything reads as zero/empty without
+	// raising an error so plugin authors can sniff for fields without
+	// nil-checking.
+	res := run(t, `
+		function run()
+			return {
+				id   = formidable.plugin.id,
+				mode = formidable.plugin.mode,
+				srv  = formidable.plugin.requires_internal_server,
+			}
+		end
+	`, scriptOpts{})
+	got := res.Value.(map[string]any)
+	if got["id"] != "" || got["mode"] != "" {
+		t.Fatalf("expected empty strings, got %v", got)
+	}
+	if got["srv"] != false {
+		t.Fatalf("expected false, got %v", got["srv"])
+	}
+}

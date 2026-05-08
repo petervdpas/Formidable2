@@ -7,6 +7,7 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import PluginCommandRow from "../components/PluginCommandRow.vue";
+import PluginResultPanel from "../components/PluginResultPanel.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import FormFieldRow from "../components/form-fields/FormFieldRow.vue";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -180,8 +181,31 @@ watch(
   { immediate: true, deep: true },
 );
 
-function openRun() {
+async function openRun() {
   if (!selectedPlugin.value) return;
+  // Pre-populate the form from the plugin's KV bag so the user
+  // sees whatever they entered last session. Keys come straight
+  // from the form schema, so plugin authors who set kv via Lua
+  // also flow into the modal automatically — same namespace.
+  const fields = draftForm.value ?? [];
+  const keys = fields.map((f) => f.key).filter((k): k is string => !!k);
+  if (selectedPlugin.value && keys.length > 0) {
+    try {
+      const saved = await PluginSvc.LoadFormValues(
+        selectedPlugin.value.id,
+        keys,
+      );
+      const merged: Record<string, unknown> = { ...runValues.value };
+      for (const k of keys) {
+        if (saved && saved[k] !== undefined) {
+          merged[k] = saved[k];
+        }
+      }
+      runValues.value = merged;
+    } catch {
+      /* fall back to whatever the watcher seeded */
+    }
+  }
   runOpen.value = true;
 }
 
@@ -238,6 +262,17 @@ async function runCommand(p: ListResult, cmd: Command) {
       runMode.value === "form"
         ? { ...runValues.value }
         : ({} as Record<string, unknown>);
+    // Persist form values to the plugin's KV bag (keyed by field
+    // id) before running, so they survive restarts AND so Lua
+    // scripts see them via formidable.kv.get(fieldKey). Modal
+    // mode skips this — there are no form values to save.
+    if (runMode.value === "form") {
+      try {
+        await PluginSvc.SaveFormValues(p.id, { ...runValues.value });
+      } catch {
+        /* persistence is best-effort; don't block the run */
+      }
+    }
     const res = await PluginSvc.Run(p.id, cmd.id, ctx);
     runResults.value[cmd.id] = res;
     // Dispatch any formidable.toast.* events the script emitted.
@@ -270,43 +305,6 @@ async function runCommand(p: ListResult, cmd: Command) {
   } finally {
     runningCmd.value = "";
   }
-}
-
-// True when there's at least one piece of result content to render
-// for `cmd` — non-hidden output, or non-hidden non-empty logs. When
-// the user opts both hide_output and hide_log (often paired with
-// log_as_toast=true so the log surfaces as a toast instead) the
-// result block is dropped entirely so we don't show a bare title.
-function shouldShowResult(
-  cmd: Command,
-  result: RunResultDTO | undefined,
-): boolean {
-  if (!result) return false;
-  const hasOutput = !cmd.hide_output;
-  const logCount = result.logLines?.length ?? 0;
-  const hasLogs = !cmd.hide_log && logCount > 0;
-  return hasOutput || hasLogs;
-}
-
-function prettyValue(v: unknown): string {
-  if (v === undefined || v === null) {
-    return t("workspace.plugins.no_output");
-  }
-  if (typeof v === "string") return v;
-  return JSON.stringify(v, null, 2);
-}
-
-function errorLabel(kind: string, message: string): string {
-  if (kind === "plugin_not_found") {
-    return t("workspace.plugins.error_plugin_not_found", [message]);
-  }
-  if (kind === "command_not_found") {
-    return t("workspace.plugins.error_command_not_found", [message]);
-  }
-  if (kind === "server_not_running") {
-    return t("workspace.plugins.error_server_not_running");
-  }
-  return t("workspace.plugins.error_runtime");
 }
 
 // ── Form-editor field operations ─────────────────────────────────────
@@ -532,6 +530,13 @@ setTopbarMenu(() => [
               ]"
             />
           </FormRow>
+          <FormSwitchRow
+            v-model="draftManifest.debug"
+            :label="t('workspace.plugins.manifest.debug')"
+            :description="t('workspace.plugins.manifest.debug_help')"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
           <FormSwitchRow
             v-model="draftManifest.requires_internal_server"
             :label="t('workspace.plugins.manifest.requires_internal_server')"
@@ -766,32 +771,6 @@ setTopbarMenu(() => [
           </button>
         </div>
 
-        <div
-          v-for="cmd in visibleCommands"
-          :key="`r-${cmd.id}`"
-          class="run-form-result"
-          v-show="shouldShowResult(cmd, runResults[cmd.id])"
-        >
-          <template v-if="runResults[cmd.id]">
-            <h4 class="run-form-result-title">{{ cmd.label || cmd.id }}</h4>
-            <template v-if="!cmd.hide_output">
-              <template v-if="runResults[cmd.id]!.kind === 'ok'">
-                <pre class="result-output">{{ prettyValue(runResults[cmd.id]!.value) }}</pre>
-              </template>
-              <template v-else>
-                <h5 class="error-heading">
-                  {{ errorLabel(runResults[cmd.id]!.kind, runResults[cmd.id]!.message ?? '') }}
-                </h5>
-                <pre class="result-output error-output">{{ runResults[cmd.id]!.message }}</pre>
-              </template>
-            </template>
-            <template
-              v-if="!cmd.hide_log && (runResults[cmd.id]!.logLines?.length ?? 0) > 0"
-            >
-              <pre class="result-logs">{{ runResults[cmd.id]!.logLines!.join('\n') }}</pre>
-            </template>
-          </template>
-        </div>
       </section>
 
       <template v-if="runMode !== 'form'">
@@ -814,34 +793,14 @@ setTopbarMenu(() => [
           </button>
         </div>
 
-        <div v-if="runResults[cmd.id]" class="command-result">
-          <template v-if="!cmd.hide_output">
-            <template v-if="runResults[cmd.id]!.kind === 'ok'">
-              <h4>{{ t('workspace.plugins.output_title') }}</h4>
-              <pre class="result-output">{{ prettyValue(runResults[cmd.id]!.value) }}</pre>
-            </template>
-            <template v-else>
-              <h4 class="error-heading">
-                {{
-                  errorLabel(
-                    runResults[cmd.id]!.kind,
-                    runResults[cmd.id]!.message ?? '',
-                  )
-                }}
-              </h4>
-              <pre class="result-output error-output">{{ runResults[cmd.id]!.message }}</pre>
-            </template>
-          </template>
-
-          <template
-            v-if="!cmd.hide_log && (runResults[cmd.id]!.logLines?.length ?? 0) > 0"
-          >
-            <h4>{{ t('workspace.plugins.logs_title') }}</h4>
-            <pre class="result-logs">{{ runResults[cmd.id]!.logLines!.join('\n') }}</pre>
-          </template>
-        </div>
       </section>
       </template>
+
+      <PluginResultPanel
+        :commands="visibleCommands"
+        :results="runResults"
+        :enabled="!!draftManifest?.debug"
+      />
     </div>
 
     <template #footer>

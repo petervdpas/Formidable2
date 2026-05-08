@@ -129,6 +129,13 @@ export class Manifest {
     "author"?: string;
     "run_mode"?: string;
     "requires_internal_server"?: boolean;
+
+    /**
+     * Debug toggles the collapsible debug/output panel at the bottom
+     * of the Run modal. Off by default — plugin authors flip it on
+     * while iterating, then turn it off when shipping.
+     */
+    "debug": boolean;
     "commands"?: Command[];
 
     /** Creates a new Manifest instance. */
@@ -145,6 +152,9 @@ export class Manifest {
         if (!("version" in $$source)) {
             this["version"] = "";
         }
+        if (!("debug" in $$source)) {
+            this["debug"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -153,10 +163,10 @@ export class Manifest {
      * Creates a new Manifest instance from a string or object.
      */
     static createFrom($$source: any = {}): Manifest {
-        const $$createField8_0 = $$createType2;
+        const $$createField9_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField8_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField9_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }
