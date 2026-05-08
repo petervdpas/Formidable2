@@ -103,8 +103,7 @@
   "workspace.plugins.save_success": "Plugin '{0}' saved.",
   "workspace.plugins.sidebar_title": "Plugins",
   "workspace.plugins.source.help": "main.lua — global functions are exposed as command targets. Ctrl+Enter toggles fullscreen.",
-  "workspace.plugins.source.label": "Lua source",
-  "workspace.plugins.source.title": "Source",
+  "workspace.plugins.source.title": "Lua Source",
   "workspace.plugins.title": "Plugins",
   "workspace.plugins.version_label": "v{0}"
 }

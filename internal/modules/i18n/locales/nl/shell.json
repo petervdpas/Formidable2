@@ -102,8 +102,7 @@
   "workspace.plugins.save_success": "Plugin '{0}' opgeslagen.",
   "workspace.plugins.sidebar_title": "Plugins",
   "workspace.plugins.source.help": "main.lua — globale functies zijn beschikbaar als commando-doel. Ctrl+Enter wisselt naar volledig scherm.",
-  "workspace.plugins.source.label": "Lua-broncode",
-  "workspace.plugins.source.title": "Broncode",
+  "workspace.plugins.source.title": "Lua-broncode",
   "workspace.plugins.title": "Plugins",
   "workspace.plugins.version_label": "v{0}"
 }

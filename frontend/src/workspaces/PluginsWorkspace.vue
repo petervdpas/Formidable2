@@ -351,12 +351,10 @@ setTopbarMenu(() => [
         </FormSection>
 
         <FormSection :title="t('workspace.plugins.source.title')">
-          <FormRow
-            :label="t('workspace.plugins.source.label')"
-            :description="t('workspace.plugins.source.help')"
-          >
+          <div class="plugin-source">
             <CodeEditor v-model="draftSource" lang="lua" :height="360" />
-          </FormRow>
+            <p class="muted small">{{ t('workspace.plugins.source.help') }}</p>
+          </div>
         </FormSection>
       </template>
     </template>
