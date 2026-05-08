@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -229,6 +230,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 			Command:                cmd.ID,
 			RequiresInternalServer: p.Manifest.RequiresInternalServer,
 			Debug:                  p.Manifest.Debug,
+			Form:                   loadFormFields(p.Dir),
 		},
 		PluginID:   pluginID,
 		KV:         m.deps.KV,
@@ -240,6 +242,32 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Exec:       m.deps.Exec,
 		API:        m.deps.API,
 	})
+}
+
+// loadFormFields reads <pluginDir>/form.json and returns its
+// parsed field array. Tolerates two on-disk shapes:
+//   - bare array of fields (canonical)
+//   - {fields:[...]} object (legacy/experimental)
+//
+// Returns nil on any I/O or parse failure — Lua scripts then see
+// an empty `formidable.plugin.form` table rather than a runtime
+// error mid-call.
+func loadFormFields(pluginDir string) []map[string]any {
+	raw, err := os.ReadFile(filepath.Join(pluginDir, "form.json"))
+	if err != nil {
+		return nil
+	}
+	var arr []map[string]any
+	if json.Unmarshal(raw, &arr) == nil {
+		return arr
+	}
+	var obj struct {
+		Fields []map[string]any `json:"fields"`
+	}
+	if json.Unmarshal(raw, &obj) == nil {
+		return obj.Fields
+	}
+	return nil
 }
 
 func findCommand(cmds []Command, id string) *Command {

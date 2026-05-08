@@ -125,6 +125,12 @@ type PluginInfo struct {
 	Command                string // command id currently running
 	RequiresInternalServer bool
 	Debug                  bool
+	// Form is the parsed contents of form.json — an array of field
+	// definitions when the plugin has one, or nil/empty when it
+	// doesn't. Surfaces in Lua as `formidable.plugin.form` so
+	// scripts can introspect the schema (and dump it via
+	// formidable.json.encode for debugging).
+	Form []map[string]any
 }
 
 // ToastEvent is one user-facing toast a plugin script asked the

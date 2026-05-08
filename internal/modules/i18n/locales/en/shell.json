@@ -3,6 +3,8 @@
   "backend.git": "Git",
   "backend.none": "None",
   "common.alert_title": "Notice",
+  "codeeditor.format": "Format",
+  "codeeditor.format_title": "Tidy whitespace, normalize line endings, ensure trailing newline (Shift+Alt+F)",
   "common.cancel": "Cancel",
   "common.close": "Close",
   "common.delete": "Delete",

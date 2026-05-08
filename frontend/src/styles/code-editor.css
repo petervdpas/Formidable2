@@ -7,10 +7,58 @@
     border-radius: var(--radius-md);
     background: var(--input-bg);
     overflow: hidden;
+    /* Toolbar above + CodeMirror filling the rest. The user-resized
+       wrapper height is the source of truth; flex lets the editor
+       absorb whatever's left after the toolbar. */
+    display: flex;
+    flex-direction: column;
     /* User can drag the corner to grow the editor; CodeMirror's
        theme extension binds & to height: 100% so it follows. */
     resize: vertical;
     min-height: 80px;
+}
+
+/* Thin action bar across the top of every CodeEditor. Currently
+   carries the Format button; pin extra actions here as we add
+   them globally (run, copy, lint…). */
+.code-editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    background: var(--color-surface-2);
+    border-bottom: 1px solid var(--input-border);
+    flex: 0 0 auto;
+}
+
+.code-editor-action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 2px var(--space-2);
+    background: transparent;
+    color: var(--color-text-muted, var(--color-text));
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+}
+.code-editor-action:hover:not(:disabled) {
+    background: var(--list-hover-bg, var(--color-surface));
+    color: var(--color-text);
+    border-color: var(--input-border);
+}
+.code-editor-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.code-editor .cm-editor {
+    /* Editor takes whatever vertical space the toolbar didn't. */
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .code-editor.fullscreen {

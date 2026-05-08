@@ -454,5 +454,14 @@ func buildPluginTable(L *lua.LState, info PluginInfo) *lua.LTable {
 	t.RawSetString("command", lua.LString(info.Command))
 	t.RawSetString("requires_internal_server", lua.LBool(info.RequiresInternalServer))
 	t.RawSetString("debug", lua.LBool(info.Debug))
+	// `form` is a Lua table (1-indexed) of field definitions, or
+	// an empty table when the plugin has no form.json. goToLua
+	// recursively converts the Go shape so json.encode round-trips
+	// it back to identical JSON.
+	if len(info.Form) == 0 {
+		t.RawSetString("form", L.NewTable())
+	} else {
+		t.RawSetString("form", goToLua(L, info.Form))
+	}
 	return t
 }

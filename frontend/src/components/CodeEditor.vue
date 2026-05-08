@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { Codemirror } from "vue-codemirror";
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
@@ -9,6 +10,8 @@ import { yaml } from "@codemirror/lang-yaml";
 import { lua as luaMode } from "@codemirror/legacy-modes/mode/lua";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useTheme } from "../composables/useTheme";
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -46,6 +49,29 @@ const langExtension = computed(() => {
 // the root: fixed-position overlay over the whole webview.
 const fullscreen = ref(false);
 
+// Tidy: language-agnostic text cleanup. Normalizes line endings,
+// strips trailing whitespace per line, collapses runs of >2 blank
+// lines, and ensures exactly one trailing newline. Deliberately
+// non-invasive — no syntactic re-indenting — so it's safe across
+// every language CodeEditor handles (lua/markdown/yaml).
+function tidy(src: string): string {
+  let out = src.replace(/\r\n?/g, "\n");
+  out = out
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+$/, ""))
+    .join("\n");
+  out = out.replace(/\n{3,}/g, "\n\n");
+  out = out.replace(/\n+$/, "") + "\n";
+  return out;
+}
+
+function format() {
+  const next = tidy(model.value);
+  if (next !== model.value) {
+    model.value = next;
+  }
+}
+
 const fullscreenKey = Prec.highest(
   keymap.of([
     {
@@ -63,6 +89,14 @@ const fullscreenKey = Prec.highest(
           return true;
         }
         return false;
+      },
+    },
+    // Shift+Alt+F mirrors VS Code's "Format Document" gesture.
+    {
+      key: "Shift-Alt-f",
+      run: () => {
+        format();
+        return true;
       },
     },
   ]),
@@ -100,6 +134,18 @@ const wrapperStyle = computed(() =>
     :class="['code-editor', { fullscreen, readonly }]"
     :style="wrapperStyle"
   >
+    <div class="code-editor-toolbar">
+      <button
+        type="button"
+        class="code-editor-action"
+        :disabled="readonly"
+        :title="t('codeeditor.format_title')"
+        @click="format"
+      >
+        <i class="fa-solid fa-broom" aria-hidden="true"></i>
+        <span>{{ t('codeeditor.format') }}</span>
+      </button>
+    </div>
     <Codemirror
       v-model="model"
       :tab-size="tabSize"
