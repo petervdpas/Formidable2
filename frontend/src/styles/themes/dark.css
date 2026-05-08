@@ -14,10 +14,13 @@
 
     --color-error:        #f87171;
     --color-error-fg:     #0f172a;
+    --color-error-soft:   #450a0a;
     --color-warning:      #fbbf24;
     --color-warning-fg:   #0f172a;
+    --color-warning-soft: #451a03;
     --color-success:      #4ade80;
     --color-success-fg:   #0f172a;
+    --color-success-soft: #052e16;
 
     --ribbon-bg:          #0b1220;
     --ribbon-fg:          #94a3b8;

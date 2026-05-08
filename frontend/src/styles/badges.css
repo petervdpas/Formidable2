@@ -32,16 +32,44 @@
     border-color: var(--color-success, #15803d);
 }
 
-/* Per-category info banner inside a settings page. */
-.section-info {
+/* Per-category info/severity banner inside a settings page or
+   modal. Shared structural rules; the variant class swaps the
+   background tint and border-left colour. .section-danger aliases
+   .section-error since the codebase treats danger and error as
+   the same severity (see .tool-btn.danger). */
+.section-info,
+.section-error,
+.section-warning,
+.section-success,
+.section-danger {
     margin: 0 0 var(--space-3);
     padding: var(--space-2) var(--space-3);
-    background: var(--color-accent-soft);
     color: var(--color-text);
-    border-left: 3px solid var(--color-accent);
+    border-left: 3px solid;
     border-radius: var(--radius-md);
     font-style: italic;
     font-size: var(--font-size-md);
+}
+
+.section-info {
+    background: var(--color-accent-soft);
+    border-left-color: var(--color-accent);
+}
+
+.section-error,
+.section-danger {
+    background: var(--color-error-soft);
+    border-left-color: var(--color-error);
+}
+
+.section-warning {
+    background: var(--color-warning-soft);
+    border-left-color: var(--color-warning);
+}
+
+.section-success {
+    background: var(--color-success-soft);
+    border-left-color: var(--color-success);
 }
 
 /* Toggle row that has a trailing badge (e.g. "Requires X backend"). */

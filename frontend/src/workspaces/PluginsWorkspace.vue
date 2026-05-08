@@ -16,6 +16,7 @@ import {
   RunResultDTO,
   type ListResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
+import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import {
   FormSection,
   FormRow,
@@ -188,6 +189,29 @@ function openRun() {
 // always serialize "modal" or "form".
 const runMode = computed(
   () => (selectedPlugin.value?.manifest.run_mode || "modal") as "modal" | "form",
+);
+
+// Manifest description rendered through goldmark (RenderHTML) so
+// plugin authors can use Markdown — bold, links, lists, code spans —
+// in the run-modal callout. We re-render whenever the draft text
+// changes so the live editor reflects the formatted output.
+const descriptionHTML = ref<string>("");
+watch(
+  () => draftManifest.value?.description ?? "",
+  async (md) => {
+    if (!md.trim()) {
+      descriptionHTML.value = "";
+      return;
+    }
+    try {
+      descriptionHTML.value = await RenderSvc.RenderHTML(md);
+    } catch {
+      // Fallback to plain text on render failure so the user still
+      // sees their description rather than nothing.
+      descriptionHTML.value = md;
+    }
+  },
+  { immediate: true },
 );
 
 async function runCommand(p: ListResult, cmd: Command) {
@@ -660,18 +684,24 @@ setTopbarMenu(() => [
   <!-- Run modal -->
   <Modal
     :open="runOpen && !!selectedPlugin"
-    :title="selectedPlugin ? t('workspace.plugins.run_title', [selectedPlugin.manifest.name]) : ''"
+    :title="
+      runMode === 'form'
+        ? (draftManifest?.name ?? selectedPlugin?.manifest.name ?? '')
+        : t('workspace.plugins.run_title', [draftManifest?.name ?? selectedPlugin?.manifest.name ?? ''])
+    "
     width="640px"
     @close="runOpen = false"
   >
     <div v-if="selectedPlugin" class="run-modal">
       <section
-        v-if="runMode === 'form' && draftForm.length > 0"
+        v-if="runMode === 'form'"
         class="run-form"
       >
-        <h3 class="run-form-title">
-          {{ t('workspace.plugins.run_form_title') }}
-        </h3>
+        <div
+          v-if="descriptionHTML"
+          class="section-info"
+          v-html="descriptionHTML"
+        ></div>
         <FormFieldRow
           v-for="(f, i) in draftForm"
           :key="f.key || i"

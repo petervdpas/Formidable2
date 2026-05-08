@@ -106,7 +106,6 @@
   "workspace.plugins.manifest.run_mode_help": "Modal: elk commando als kaart; ctx is leeg. Form: het formulier van de plugin is het startpunt en elk commando ontvangt de waarden als ctx.",
   "workspace.plugins.manifest.title": "Manifest",
   "workspace.plugins.manifest.version": "Versie",
-  "workspace.plugins.run_form_title": "Formulier",
   "workspace.plugins.run_mode.form": "Formulier",
   "workspace.plugins.run_mode.modal": "Modal",
   "workspace.plugins.no_output": "(geen retourwaarde)",

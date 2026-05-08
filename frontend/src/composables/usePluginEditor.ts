@@ -72,7 +72,18 @@ watch(
     try {
       const raw = await PluginSvc.GetForm(p.id);
       const parsed = JSON.parse(raw || "[]");
-      if (Array.isArray(parsed)) formFields = parsed;
+      // Tolerate both shapes so an old experimental object form
+      // ({fields:[...]}) doesn't silently drop the field list on
+      // load. Canonical write is still a bare array.
+      if (Array.isArray(parsed)) {
+        formFields = parsed;
+      } else if (
+        parsed &&
+        typeof parsed === "object" &&
+        Array.isArray((parsed as { fields?: unknown }).fields)
+      ) {
+        formFields = (parsed as { fields: Field[] }).fields;
+      }
     } catch {
       formFields = [];
     }
@@ -97,7 +108,15 @@ async function save(): Promise<SaveOutcome> {
   }
   try {
     const payload = new Manifest(clone(draftManifest.value));
-    const formJSON = JSON.stringify(draftForm.value, null, 2) + "\n";
+    // Only ship form.json when the field list actually changed.
+    // Backend treats empty string as "leave untouched" — so mode
+    // toggles / description edits / source edits never reach the
+    // form file. Hard belt-and-suspenders against ever wiping
+    // user-authored form data via an unrelated save.
+    const formChanged = !deepEqual(draftForm.value, baselineForm);
+    const formJSON = formChanged
+      ? JSON.stringify(draftForm.value, null, 2) + "\n"
+      : "";
     await PluginSvc.Save(
       selectedID.value,
       payload,
