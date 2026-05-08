@@ -67,6 +67,21 @@
     color: var(--color-text-muted, var(--color-text));
 }
 
+/* Ahead/behind pill — informational, not a call to action, so we
+   override the default badge's bold weight and tone the colour down
+   to match .git-status-tracking. The arrows still read clearly at
+   normal weight. */
+.git-status-divergence {
+    font-weight: 400;
+    color: var(--color-text-muted, var(--color-text));
+    background: transparent;
+}
+
+.git-status-divergence .fa-arrow-up,
+.git-status-divergence .fa-arrow-down {
+    font-size: 11px;
+}
+
 .git-status-summary {
     margin: 0 0 var(--space-2);
     font-size: var(--font-size-sm);

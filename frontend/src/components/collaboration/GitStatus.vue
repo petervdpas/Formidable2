@@ -101,8 +101,8 @@ function bucketLabel(key: string, count: number): string {
           }}
         </span>
         <span
-          v-if="status.tracking && (status.ahead > 0 || status.behind > 0)"
-          class="badge"
+          v-if="status.tracking"
+          class="badge git-status-divergence"
           :title="t('workspace.collaboration.status.divergence_help')"
         >
           <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
