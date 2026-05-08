@@ -359,6 +359,19 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^the clone result branch is one of "([^"]*)"$`, func(csv string) error {
+		if w.clone == nil {
+			return fmt.Errorf("clone result is nil")
+		}
+		want := strings.Split(csv, ",")
+		for _, b := range want {
+			if w.clone.Branch == strings.TrimSpace(b) {
+				return nil
+			}
+		}
+		return fmt.Errorf("clone branch %q not in %v", w.clone.Branch, want)
+	})
+
 	ctx.Step(`^the captured Authorization header is BasicAuth for username "([^"]*)" and password "([^"]*)"$`, func(user, pass string) error {
 		want := "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+pass))
 		w.capturedAuthM.Lock()

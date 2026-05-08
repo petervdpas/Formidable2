@@ -88,13 +88,17 @@ export class CloneOptions {
 }
 
 /**
- * CloneResult is the success envelope: the worktree we cloned into
- * and the commit HEAD now points at. The frontend uses Dest to flip
- * git_root once a clone completes.
+ * CloneResult is the success envelope: the worktree we cloned into,
+ * the commit HEAD now points at, and the branch HEAD now sits on.
+ * Branch is empty when the clone produced a detached HEAD (rare —
+ * happens when the requested ref isn't a branch). The frontend uses
+ * Dest to flip git_root and Branch to flip git_branch once a clone
+ * completes, so Current Service reflects what was actually fetched.
  */
 export class CloneResult {
     "dest": string;
     "head": string;
+    "branch": string;
 
     /** Creates a new CloneResult instance. */
     constructor($$source: Partial<CloneResult> = {}) {
@@ -103,6 +107,9 @@ export class CloneResult {
         }
         if (!("head" in $$source)) {
             this["head"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
         }
 
         Object.assign(this, $$source);

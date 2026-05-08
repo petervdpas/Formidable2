@@ -22,7 +22,6 @@
   "config.show_meta_section": "Show Meta Section",
   "config.theme": "Theme",
   "config.use_expressions": "Expressions",
-  "config.use_git": "Git Support",
   "settings.advanced.info": "Advanced system options. Use with caution.",
   "settings.apply_changes": "Apply and Restart",
   "settings.apply_confirm.body": "Some changes you made only take effect at launch. Formidable will close and reopen.",

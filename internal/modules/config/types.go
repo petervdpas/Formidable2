@@ -29,10 +29,9 @@ type Config struct {
 	AuthorEmail          string         `json:"author_email"`
 	Language             string         `json:"language"`
 	EncryptionKey        string         `json:"encryption_key"`
-	UseGit               bool           `json:"use_git"`
+	RemoteBackend        string         `json:"remote_backend"`
 	GitRoot              string         `json:"git_root"`
 	GitBranch            string         `json:"git_branch"`
-	RemoteBackend        string         `json:"remote_backend"`
 	GigotBaseURL         string         `json:"gigot_base_url"`
 	GigotRepoName        string         `json:"gigot_repo_name"`
 	GigotToken           string         `json:"gigot_token"`

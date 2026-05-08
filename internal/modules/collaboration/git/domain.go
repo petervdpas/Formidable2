@@ -339,5 +339,12 @@ func (m *Manager) Clone(opts CloneOptions) (*CloneResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("git: clone: head: %w", err)
 	}
-	return &CloneResult{Dest: opts.Dest, Head: head.Hash().String()}, nil
+	// Branch is the short name when HEAD points at a branch (the
+	// usual case for a fresh clone). Detached HEAD leaves it empty —
+	// the UI then keeps git_branch unchanged rather than writing "".
+	branch := ""
+	if head.Name().IsBranch() {
+		branch = head.Name().Short()
+	}
+	return &CloneResult{Dest: opts.Dest, Head: head.Hash().String(), Branch: branch}, nil
 }

@@ -22,7 +22,6 @@
   "config.show_meta_section": "Toon Meta Sectie",
   "config.theme": "Thema",
   "config.use_expressions": "Expressies",
-  "config.use_git": "Git-ondersteuning",
   "settings.advanced.info": "Geavanceerde systeemopties. Gebruik met voorzichtigheid.",
   "settings.apply_changes": "Toepassen en herstarten",
   "settings.apply_confirm.body": "Sommige van je wijzigingen worden pas actief bij de volgende start. Formidable wordt afgesloten en opnieuw geopend.",

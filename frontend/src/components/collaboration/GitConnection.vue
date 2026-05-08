@@ -20,6 +20,13 @@ const cfg = computed(() => config.value!);
 
 <template>
   <FormSection v-if="cfg">
+    <FormRow :label="t('settings.field.context_directory')">
+      <FolderPathField
+        :model-value="cfg.context_folder"
+        @update:model-value="(v) => update({ context_folder: v })"
+        placeholder="./Examples"
+      />
+    </FormRow>
     <FormRow :label="t('settings.field.git_root_directory')">
       <FolderPathField
         :model-value="cfg.git_root"

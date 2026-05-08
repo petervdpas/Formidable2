@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { FormSection, FormRow, TextField } from "../fields";
+import { FormSection, FormRow, TextField, FolderPathField } from "../fields";
 import { useConfig } from "../../composables/useConfig";
 
 // Self-contained GiGot connection form. Same role as GitConnection
@@ -15,6 +15,13 @@ const cfg = computed(() => config.value!);
 
 <template>
   <FormSection v-if="cfg">
+    <FormRow :label="t('settings.field.context_directory')">
+      <FolderPathField
+        :model-value="cfg.context_folder"
+        @update:model-value="(v) => update({ context_folder: v })"
+        placeholder="./Examples"
+      />
+    </FormRow>
     <FormRow :label="t('settings.field.gigot_base_url')">
       <TextField
         :model-value="cfg.gigot_base_url"

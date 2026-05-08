@@ -91,6 +91,7 @@ Feature: Git collaboration backend
     When I clone the source into "cloned" inside temp
     Then the destination is a git repo
     And the clone result head has 40 characters
+    And the clone result branch is one of "master,main"
 
   Scenario: Clone refuses a non-empty destination
     Given a source repo with a commit

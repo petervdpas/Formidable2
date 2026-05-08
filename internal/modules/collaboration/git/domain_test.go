@@ -421,6 +421,9 @@ func TestClone_HappyPath(t *testing.T) {
 	if len(res.Head) != 40 {
 		t.Errorf("Head len = %d, want 40", len(res.Head))
 	}
+	if res.Branch != "master" && res.Branch != "main" {
+		t.Errorf("Branch = %q, want master|main", res.Branch)
+	}
 	if !m.IsGitRepo(dest) {
 		t.Error("destination is not a git repo after clone")
 	}
@@ -436,8 +439,12 @@ func TestClone_PicksExplicitBranch(t *testing.T) {
 
 	m := NewManager()
 	dest := filepath.Join(t.TempDir(), "cloned")
-	if _, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest, Branch: "feature"}); err != nil {
+	res, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest, Branch: "feature"})
+	if err != nil {
 		t.Fatalf("Clone: %v", err)
+	}
+	if res.Branch != "feature" {
+		t.Errorf("result.Branch = %q, want feature", res.Branch)
 	}
 	st, err := m.Status(dest)
 	if err != nil {
@@ -453,7 +460,8 @@ func TestClone_DefaultsToRemoteHead(t *testing.T) {
 	addCommit(t, srcDir, srcRepo, "a.txt", "hello", "first")
 	m := NewManager()
 	dest := filepath.Join(t.TempDir(), "cloned")
-	if _, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest}); err != nil {
+	res, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest})
+	if err != nil {
 		t.Fatalf("Clone: %v", err)
 	}
 	st, _ := m.Status(dest)
@@ -461,6 +469,9 @@ func TestClone_DefaultsToRemoteHead(t *testing.T) {
 	// resilient to go-git release defaults.
 	if st.Branch != "master" && st.Branch != "main" {
 		t.Errorf("Branch = %q, want master|main (remote HEAD default)", st.Branch)
+	}
+	if res.Branch != st.Branch {
+		t.Errorf("result.Branch = %q, want %q (matches checked-out branch)", res.Branch, st.Branch)
 	}
 }
 

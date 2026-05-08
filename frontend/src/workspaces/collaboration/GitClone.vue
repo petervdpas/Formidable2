@@ -53,9 +53,15 @@ async function clone() {
       pat: pat.value,
     });
     if (result?.dest) {
-      // Store the human-friendly form in git_root.
+      // Store the human-friendly form in git_root, and the actual
+      // checked-out branch in git_branch — backend reports it from
+      // repo.Head() so this also covers the "no Branch input → got
+      // remote default" case. Empty branch means detached HEAD;
+      // skip the write so we don't blank the user's setting.
       const display = await SystemSvc.MakeAppRootRelative(result.dest);
-      await update({ git_root: display || result.dest });
+      const patch: Record<string, string> = { git_root: display || result.dest };
+      if (result.branch) patch.git_branch = result.branch;
+      await update(patch);
 
       // If the user opted in, persist the PAT to the OS keychain.
       // Account name is namespaced "<profile>:git:<remote_url>" so
