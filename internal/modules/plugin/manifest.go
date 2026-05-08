@@ -35,6 +35,7 @@ func LoadManifest(dir string) (Manifest, error) {
 			ErrManifestVersion, m.ManifestVersion, ManifestSchemaVersion)
 	}
 
+	normalizeManifest(&m)
 	if err := validateManifest(&m); err != nil {
 		return Manifest{}, err
 	}
@@ -57,6 +58,23 @@ func FnNameFor(c Command) string {
 // validateManifest enforces the field-level invariants documented
 // on Manifest/Command. Errors wrap ErrManifestInvalid so callers
 // can branch with errors.Is.
+// normalizeManifest snaps invariants the UI also enforces, so a
+// hand-edited plugin.json (or a stale Save round-trip) lands in
+// a consistent state. Mutates m in place.
+//
+// Currently:
+//   - log_as_toast=true forces hide_log=true. The two flags are
+//     mutually exclusive — toasts are the alternative surface
+//     for log lines, so showing them in the result panel too
+//     would just be noise.
+func normalizeManifest(m *Manifest) {
+	for i := range m.Commands {
+		if m.Commands[i].LogAsToast {
+			m.Commands[i].HideLog = true
+		}
+	}
+}
+
 func validateManifest(m *Manifest) error {
 	if !validID(m.ID) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, m.ID)

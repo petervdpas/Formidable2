@@ -101,6 +101,15 @@ func goToLua(L *lua.LState, v any) lua.LValue {
 			t.Append(goToLua(L, item))
 		}
 		return t
+	case []map[string]any:
+		// Concretely-typed slices (e.g. parsed form.json) don't
+		// match []any. Convert each element so ipairs works on
+		// the resulting Lua table.
+		t := L.NewTable()
+		for _, item := range x {
+			t.Append(goToLua(L, item))
+		}
+		return t
 	case map[string]any:
 		t := L.NewTable()
 		for k, val := range x {

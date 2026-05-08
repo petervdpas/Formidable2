@@ -24,13 +24,12 @@ const props = defineProps<{
 
 const collapsed = ref(true);
 
-// Two gates, two purposes:
-//   - manifest.debug (the `enabled` prop) gates whether the panel
-//     is rendered at all. Authors flip it on while iterating.
-//   - per-command hide_output / hide_log gate the data shown
-//     INSIDE the panel — when both are off the block collapses
-//     to a single "Label: Not enabled" line so the user still
-//     sees the command ran without empty boxes underneath.
+// Single gate: manifest.debug (the `enabled` prop). When on the
+// panel renders every command's full output and logs regardless
+// of the per-command hide_output / hide_log flags — those flags
+// are end-user UX choices, but a developer with debug on wants
+// to see everything. log_as_toast still surfaces lines as toasts;
+// the panel just additionally shows them inline.
 const cmdsWithResults = computed(() =>
   props.commands.filter((c) => props.results[c.id]),
 );
@@ -79,34 +78,20 @@ function errorLabel(kind: string, message: string): string {
         :key="cmd.id"
         class="plugin-result-block"
       >
-        <h4
-          v-if="cmd.hide_output && cmd.hide_log"
-          class="plugin-result-block-title plugin-result-block-title--inline"
-        >
-          {{ cmd.label || cmd.id }}:
-          <span class="plugin-result-not-enabled">
-            {{ t('workspace.plugins.debug.not_enabled') }}
-          </span>
-        </h4>
-        <template v-else>
-          <h4 class="plugin-result-block-title">{{ cmd.label || cmd.id }}</h4>
-          <template v-if="!cmd.hide_output">
-            <template v-if="results[cmd.id]!.kind === 'ok'">
-              <pre class="result-output">{{ prettyValue(results[cmd.id]!.value) }}</pre>
-            </template>
-            <template v-else>
-              <h5 class="error-heading">
-                {{ errorLabel(results[cmd.id]!.kind, results[cmd.id]!.message ?? '') }}
-              </h5>
-              <pre class="result-output error-output">{{ results[cmd.id]!.message }}</pre>
-            </template>
-          </template>
+        <h4 class="plugin-result-block-title">{{ cmd.label || cmd.id }}</h4>
 
-          <template
-            v-if="!cmd.hide_log && (results[cmd.id]!.logLines?.length ?? 0) > 0"
-          >
-            <pre class="result-logs">{{ results[cmd.id]!.logLines!.join('\n') }}</pre>
-          </template>
+        <template v-if="results[cmd.id]!.kind === 'ok'">
+          <pre class="result-output">{{ prettyValue(results[cmd.id]!.value) }}</pre>
+        </template>
+        <template v-else>
+          <h5 class="error-heading">
+            {{ errorLabel(results[cmd.id]!.kind, results[cmd.id]!.message ?? '') }}
+          </h5>
+          <pre class="result-output error-output">{{ results[cmd.id]!.message }}</pre>
+        </template>
+
+        <template v-if="(results[cmd.id]!.logLines?.length ?? 0) > 0">
+          <pre class="result-logs">{{ results[cmd.id]!.logLines!.join('\n') }}</pre>
         </template>
       </div>
     </div>

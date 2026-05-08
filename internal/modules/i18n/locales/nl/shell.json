@@ -92,7 +92,7 @@
   "workspace.plugins.delete.success": "Plugin '{0}' verwijderd.",
   "workspace.plugins.delete.title": "Plugin verwijderen",
   "workspace.plugins.dirty_indicator": "Niet-opgeslagen wijzigingen",
-  "workspace.plugins.empty_main": "Selecteer een plugin in de zijbalk, of maak er een aan via Plugin → Aanmaken.",
+  "workspace.plugins.empty_main": "Selecteer een plugin in de zijbalk,<br>of maak er een aan via Plugin → Aanmaken.",
   "workspace.plugins.empty_side": "Geen plugins geïnstalleerd. Plaats een plugin-map onder <code>{0}</code> en klik Vernieuwen, of maak er een aan via Plugin → Aanmaken.",
   "workspace.plugins.error_command_not_found": "Commando niet gevonden: {0}",
   "workspace.plugins.error_plugin_not_found": "Plugin niet gevonden: {0}",

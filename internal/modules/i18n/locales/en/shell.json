@@ -93,7 +93,7 @@
   "workspace.plugins.delete.success": "Plugin '{0}' deleted.",
   "workspace.plugins.delete.title": "Delete plugin",
   "workspace.plugins.dirty_indicator": "Unsaved changes",
-  "workspace.plugins.empty_main": "Select a plugin from the sidebar, or create a new one via Plugin → Create.",
+  "workspace.plugins.empty_main": "Select a plugin from the sidebar,<br>or create a new one via Plugin → Create.",
   "workspace.plugins.empty_side": "No plugins installed. Drop a plugin folder under <code>{0}</code> and click Refresh, or create one via Plugin → Create.",
   "workspace.plugins.error_command_not_found": "Command not found: {0}",
   "workspace.plugins.error_plugin_not_found": "Plugin not found: {0}",

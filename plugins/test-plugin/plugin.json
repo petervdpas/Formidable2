@@ -19,9 +19,9 @@
     {
       "id": "run",
       "label": "Start",
-      "hide_output": true,
-      "hide_log": true,
-      "log_as_toast": true,
+      "hide_output": false,
+      "hide_log": false,
+      "log_as_toast": false,
       "form_button": true
     }
   ]

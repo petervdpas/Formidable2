@@ -495,6 +495,48 @@ func TestBindings_Plugin_FieldsAvailable(t *testing.T) {
 	}
 }
 
+func TestBindings_Plugin_FormFields(t *testing.T) {
+	res := run(t, `
+		function run()
+			local out = {}
+			for i, f in ipairs(formidable.plugin.form) do
+				out[i] = (f.label or f.key) .. ":" .. f.type
+			end
+			return out
+		end
+	`, scriptOpts{
+		Plugin: PluginInfo{
+			Form: []map[string]any{
+				{"key": "what", "type": "text", "label": "What?"},
+				{"key": "input", "type": "file-path", "label": "Input"},
+			},
+		},
+	})
+	got, ok := res.Value.([]any)
+	if !ok {
+		t.Fatalf("expected []any, got %T", res.Value)
+	}
+	if len(got) != 2 || got[0] != "What?:text" || got[1] != "Input:file-path" {
+		t.Fatalf("unexpected form payload: %v", got)
+	}
+}
+
+func TestBindings_Plugin_FormEmptyWhenAbsent(t *testing.T) {
+	// No Form supplied — Lua sees an empty table, not nil. Means
+	// `for _, f in ipairs(formidable.plugin.form)` is always safe,
+	// no nil-checks needed in plugin code.
+	res := run(t, `
+		function run()
+			local n = 0
+			for _ in ipairs(formidable.plugin.form) do n = n + 1 end
+			return n
+		end
+	`, scriptOpts{})
+	if res.Value != float64(0) && res.Value != 0 {
+		t.Fatalf("expected 0, got %v", res.Value)
+	}
+}
+
 func TestBindings_Plugin_ZeroValuesWhenUnset(t *testing.T) {
 	// No PluginInfo passed — everything reads as zero/empty without
 	// raising an error so plugin authors can sniff for fields without

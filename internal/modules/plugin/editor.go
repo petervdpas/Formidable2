@@ -127,6 +127,7 @@ func (m *Manager) Save(id string, manifest Manifest, luaSource, formJSON string)
 		return fmt.Errorf("%w: got %d, want %d",
 			ErrManifestVersion, manifest.ManifestVersion, ManifestSchemaVersion)
 	}
+	normalizeManifest(&manifest)
 	if err := validateManifest(&manifest); err != nil {
 		return err
 	}

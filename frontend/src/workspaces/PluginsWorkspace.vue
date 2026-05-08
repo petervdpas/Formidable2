@@ -486,9 +486,11 @@ setTopbarMenu(() => [
     </template>
 
     <template #main>
-      <p v-if="!selectedPlugin || !draftManifest" class="workspace-empty">
-        {{ t('workspace.plugins.empty_main') }}
-      </p>
+      <p
+        v-if="!selectedPlugin || !draftManifest"
+        class="workspace-empty"
+        v-html="t('workspace.plugins.empty_main')"
+      ></p>
 
       <template v-else>
         <div class="workspace-heading-row">
