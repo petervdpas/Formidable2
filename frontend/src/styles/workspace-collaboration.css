@@ -9,6 +9,19 @@
     margin-top: var(--space-3);
 }
 
+.git-push-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+.git-push-summary {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted, var(--color-text));
+}
+
 /* Repository status panel — read-only summary of the worktree state
    shown beneath the connection form on Current Service. Native
    <details>/<summary> drives bucket collapsibility so we don't carry
@@ -27,6 +40,12 @@
     justify-content: space-between;
     gap: var(--space-2);
     margin-bottom: var(--space-2);
+}
+
+.git-status-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
 }
 
 .git-status-title {

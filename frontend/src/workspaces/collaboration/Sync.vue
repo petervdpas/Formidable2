@@ -23,6 +23,8 @@ type Status = {
   tracking: string;
   detached: boolean;
   clean: boolean;
+  ahead: number;
+  behind: number;
   modified: string[];
   untracked: string[];
   staged: string[];
@@ -45,6 +47,13 @@ const errorMsg = ref<string>("");
 
 const message = ref("");
 const inFlight = ref(false);
+const pushing = ref(false);
+const fetching = ref(false);
+
+// PAT lookup is server-side: GitSvc.Push / Fetch resolve the stored
+// PAT from the OS keychain when we send pat="". The frontend never
+// touches the secret — the credential.Service intentionally does not
+// expose Get to Wails.
 
 // Race guard for status fetches — only the latest result wins.
 let reqId = 0;
@@ -97,6 +106,55 @@ const canCommit = computed(() => {
   if (status.value.detached) return false;
   return message.value.trim() !== "";
 });
+
+// Fetch updates the remote-tracking refs so ahead/behind reflects
+// reality. Read-only against the worktree; ahead/behind in the
+// status panel re-renders after the follow-up local refresh.
+async function fetchRemote() {
+  if (fetching.value) return;
+  fetching.value = true;
+  try {
+    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
+    const result = await GitSvc.Fetch({ path: abs, remote: "origin", pat: "" });
+    if (result?.already_up_to_date) {
+      toast.info("workspace.collaboration.fetch.up_to_date");
+    } else {
+      toast.success("workspace.collaboration.fetch.success");
+    }
+    await load(false);
+  } catch (err) {
+    toast.error("workspace.collaboration.fetch.error", [String(err)]);
+  } finally {
+    fetching.value = false;
+  }
+}
+
+const canPush = computed(() => {
+  if (pushing.value) return false;
+  if (!status.value) return false;
+  if (status.value.detached) return false;
+  if (!status.value.tracking) return false;
+  return status.value.ahead > 0;
+});
+
+async function push() {
+  if (!canPush.value) return;
+  pushing.value = true;
+  try {
+    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
+    const result = await GitSvc.Push({ path: abs, remote: "origin", pat: "" });
+    if (result?.already_up_to_date) {
+      toast.info("workspace.collaboration.push.up_to_date");
+    } else {
+      toast.success("workspace.collaboration.push.success");
+    }
+    await load(false);
+  } catch (err) {
+    toast.error("workspace.collaboration.push.error", [String(err)]);
+  } finally {
+    pushing.value = false;
+  }
+}
 
 async function commit() {
   if (!canCommit.value) return;
@@ -162,6 +220,7 @@ async function confirmDiscard() {
     :not-a-repo="notARepo"
     :error-msg="errorMsg"
     @refresh="load(true)"
+    @fetch="fetchRemote"
     @discard="askDiscard"
   />
 
@@ -186,6 +245,24 @@ async function confirmDiscard() {
       @click="commit"
     >
       {{ inFlight ? t('workspace.collaboration.commit.running') : t('workspace.collaboration.commit.button') }}
+    </button>
+  </div>
+
+  <div
+    v-if="status && !status.detached && status.tracking"
+    class="git-push-actions"
+  >
+    <span v-if="status.ahead > 0" class="git-push-summary">
+      {{ t('workspace.collaboration.push.ahead_summary', [status.ahead]) }}
+    </span>
+    <button
+      type="button"
+      class="tool-btn primary"
+      :disabled="!canPush"
+      @click="push"
+    >
+      <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+      {{ pushing ? t('workspace.collaboration.push.running') : t('workspace.collaboration.push.button') }}
     </button>
   </div>
 

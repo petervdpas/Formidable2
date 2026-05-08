@@ -678,6 +678,504 @@ func TestCommit_PropagatesAuthor(t *testing.T) {
 	}
 }
 
+// ─── Status: ahead / behind ────────────────────────────────────────────
+
+// setupTrackedBranch wires up a local repo with a tracking config
+// so Status() can compute ahead/behind. The "remote" is faked: we
+// just plant a refs/remotes/origin/master ref pointing at <at> and
+// register origin in branch config. Mirrors what a real clone would
+// produce on disk, without any network.
+func setupTrackedBranch(t *testing.T, r *gogit.Repository, at plumbing.Hash) {
+	t.Helper()
+	// Plant the remote-tracking ref at the chosen hash.
+	trackRef := plumbing.NewRemoteReferenceName("origin", "master")
+	if err := r.Storer.SetReference(plumbing.NewHashReference(trackRef, at)); err != nil {
+		t.Fatalf("plant tracking ref: %v", err)
+	}
+	// Wire branch.master to track it. Without these two values the
+	// Branch.Validate() inside go-git's config writer rejects the
+	// entry, so be sure to set both.
+	cfg, err := r.Config()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Branches["master"] = &config.Branch{
+		Name:   "master",
+		Remote: "origin",
+		Merge:  plumbing.NewBranchReferenceName("master"),
+	}
+	if err := r.SetConfig(cfg); err != nil {
+		t.Fatalf("SetConfig: %v", err)
+	}
+}
+
+func TestStatus_AheadBehindWithNoTracking(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+
+	m := NewManager()
+	s, err := m.Status(dir)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if s.Ahead != 0 || s.Behind != 0 {
+		t.Errorf("ahead/behind = %d/%d, want 0/0 with no tracking", s.Ahead, s.Behind)
+	}
+}
+
+func TestStatus_AheadCountsLocalCommits(t *testing.T) {
+	dir, r := newRepo(t)
+	h := addCommit(t, dir, r, "a.txt", "v1", "first")
+	setupTrackedBranch(t, r,h)
+
+	// Advance HEAD by two commits.
+	addCommit(t, dir, r, "a.txt", "v2", "second")
+	addCommit(t, dir, r, "a.txt", "v3", "third")
+
+	m := NewManager()
+	s, err := m.Status(dir)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if s.Ahead != 2 || s.Behind != 0 {
+		t.Errorf("ahead/behind = %d/%d, want 2/0", s.Ahead, s.Behind)
+	}
+}
+
+func TestStatus_BehindCountsRemoteCommits(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+	h2 := addCommit(t, dir, r, "a.txt", "v2", "second")
+	h3 := addCommit(t, dir, r, "a.txt", "v3", "third")
+
+	// Rewind the master branch ref to h2 so HEAD (symbolic →
+	// refs/heads/master) resolves to h2. The tracking ref stays at
+	// h3 — making the local 1 commit behind remote.
+	if err := r.Storer.SetReference(plumbing.NewHashReference(
+		plumbing.NewBranchReferenceName("master"), h2,
+	)); err != nil {
+		t.Fatal(err)
+	}
+	setupTrackedBranch(t, r,h3)
+
+	m := NewManager()
+	s, err := m.Status(dir)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if s.Ahead != 0 || s.Behind != 1 {
+		t.Errorf("ahead/behind = %d/%d, want 0/1", s.Ahead, s.Behind)
+	}
+}
+
+// ─── Push ──────────────────────────────────────────────────────────────
+
+// makeBareRepo creates a bare repo and seeds it with one commit so
+// it's a valid push target with a default branch HEAD points at.
+func makeBareRepo(t *testing.T) string {
+	t.Helper()
+	bare := t.TempDir()
+	if _, err := gogit.PlainInit(bare, true); err != nil {
+		t.Fatal(err)
+	}
+	// Seed the bare repo by cloning a non-bare working repo into it
+	// via a temporary intermediate repo. Easiest: make a non-bare,
+	// commit, then push. But we don't have Push yet at the test-helper
+	// level — go-git's clone supports bare though.
+	// Simplest path: init bare, then clone-from-it-and-push-back is a
+	// chicken-and-egg. Instead, create a working repo, push to bare
+	// using go-git directly here.
+	work := t.TempDir()
+	wr, err := gogit.PlainInit(work, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("seed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := wr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("seed.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("seed", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wr.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{bare},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := wr.Push(&gogit.PushOptions{RemoteName: "origin"}); err != nil {
+		t.Fatalf("seed bare via push: %v", err)
+	}
+	return bare
+}
+
+func TestPush_AdvancesRemote(t *testing.T) {
+	bare := makeBareRepo(t)
+
+	// Clone the bare into a working copy via go-git directly so we
+	// don't depend on Manager.Clone's specifics here.
+	work := t.TempDir()
+	wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make a local commit.
+	if err := os.WriteFile(filepath.Join(work, "new.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := wr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("new.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("local", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Push(PushOptions{Path: work})
+	if err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+	if res == nil || res.AlreadyUpToDate {
+		t.Errorf("expected push to advance remote, got %+v", res)
+	}
+
+	// Verify bare repo now has the new commit by reading its HEAD.
+	br, err := gogit.PlainOpen(bare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bh, err := br.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bh.Hash() == plumbing.ZeroHash {
+		t.Error("bare HEAD is zero — push did not advance remote")
+	}
+}
+
+func TestPush_AlreadyUpToDate(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Push(PushOptions{Path: work})
+	if err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+	if res == nil || !res.AlreadyUpToDate {
+		t.Errorf("expected AlreadyUpToDate=true, got %+v", res)
+	}
+}
+
+func TestPush_RefusesDetachedHEAD(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := wr.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := wr.Storer.SetReference(plumbing.NewHashReference(plumbing.HEAD, h.Hash())); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	_, err = m.Push(PushOptions{Path: work})
+	if err == nil {
+		t.Error("expected error when pushing on detached HEAD")
+	}
+}
+
+func TestPush_NonExistentRemote(t *testing.T) {
+	// Repo without an "origin" remote. go-git's Push should fail
+	// with an error, not crash, not return AlreadyUpToDate.
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+
+	m := NewManager()
+	res, err := m.Push(PushOptions{Path: dir})
+	if err == nil {
+		t.Errorf("expected error pushing without origin, got result=%+v", res)
+	}
+}
+
+func TestPush_RefusesEmptyPath(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Push(PushOptions{Path: ""}); err == nil {
+		t.Error("expected error for empty path")
+	}
+	if _, err := m.Push(PushOptions{Path: "   "}); err == nil {
+		t.Error("expected error for whitespace-only path")
+	}
+}
+
+func TestPush_AuthFailureIsAnError(t *testing.T) {
+	// The 401-server contract: push must surface the auth failure as
+	// a real error so the toast layer can show it. Specifically NOT
+	// AlreadyUpToDate, which the UI treats as a benign "you're current."
+	srv, _ := captureAuthHeader(t)
+
+	work := t.TempDir()
+	wr, err := gogit.PlainInit(work, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "x.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := wr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("x.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("c", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wr.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{srv.URL + "/repo.git"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Push(PushOptions{Path: work, PAT: "wrong"})
+	if err == nil {
+		t.Errorf("expected error on auth failure, got result=%+v", res)
+	}
+}
+
+func TestPush_RefusesNonRepoPath(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Push(PushOptions{Path: t.TempDir()}); err == nil {
+		t.Error("expected error pushing on a non-repo dir")
+	}
+}
+
+func TestPush_PAT_BasicAuth(t *testing.T) {
+	srv, getAuth := captureAuthHeader(t)
+
+	// Set up a local working repo with the test server as origin so
+	// the push attempt actually fires HTTPS auth. The server returns
+	// 401 — we just want to capture the Authorization header.
+	work := t.TempDir()
+	wr, err := gogit.PlainInit(work, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "x.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := wr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("x.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("c", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wr.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{srv.URL + "/repo.git"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	_, _ = m.Push(PushOptions{Path: work, PAT: "push-pat-xyz"})
+
+	want := "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte("x-access-token:push-pat-xyz"),
+	)
+	if got := getAuth(); got != want {
+		t.Errorf("Authorization for push = %q, want %q", got, want)
+	}
+}
+
+// ─── Fetch ─────────────────────────────────────────────────────────────
+
+func TestFetch_RefusesEmptyPath(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Fetch(FetchOptions{Path: ""}); err == nil {
+		t.Error("expected error for empty path")
+	}
+	if _, err := m.Fetch(FetchOptions{Path: "  "}); err == nil {
+		t.Error("expected error for whitespace-only path")
+	}
+}
+
+func TestFetch_RefusesNonRepoPath(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Fetch(FetchOptions{Path: t.TempDir()}); err == nil {
+		t.Error("expected error fetching on a non-repo dir")
+	}
+}
+
+func TestFetch_NonExistentRemote(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+
+	m := NewManager()
+	res, err := m.Fetch(FetchOptions{Path: dir})
+	if err == nil {
+		t.Errorf("expected error fetching without origin, got result=%+v", res)
+	}
+}
+
+func TestFetch_AuthFailureIsAnError(t *testing.T) {
+	srv, _ := captureAuthHeader(t)
+
+	work := t.TempDir()
+	if _, err := gogit.PlainInit(work, false); err != nil {
+		t.Fatal(err)
+	}
+	wr, err := gogit.PlainOpen(work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wr.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{srv.URL + "/repo.git"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	if _, err := m.Fetch(FetchOptions{Path: work, PAT: "wrong"}); err == nil {
+		t.Error("expected error on auth failure")
+	}
+}
+
+func TestFetch_PAT_BasicAuth(t *testing.T) {
+	// Mirrors TestPush_PAT_BasicAuth — the 401 server captures the
+	// Authorization header from the very first /info/refs call,
+	// independent of which Smart-HTTP service the client requested.
+	srv, getAuth := captureAuthHeader(t)
+
+	work := t.TempDir()
+	if _, err := gogit.PlainInit(work, false); err != nil {
+		t.Fatal(err)
+	}
+	wr, err := gogit.PlainOpen(work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wr.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{srv.URL + "/repo.git"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	_, _ = m.Fetch(FetchOptions{Path: work, PAT: "fetch-pat-xyz"})
+
+	want := "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte("x-access-token:fetch-pat-xyz"),
+	)
+	if got := getAuth(); got != want {
+		t.Errorf("Authorization for fetch = %q, want %q", got, want)
+	}
+}
+
+// ─── Status: more ahead/behind cases ──────────────────────────────────
+
+func TestStatus_AheadBehindDivergent(t *testing.T) {
+	// Local and remote share an ancestor but each have unique
+	// commits afterwards — the classic "needs merge" shape. Both
+	// counts must be > 0.
+	dir, r := newRepo(t)
+	hShared := addCommit(t, dir, r, "a.txt", "v1", "shared")
+
+	// Build a "remote" branch by pointing the tracking ref at a
+	// commit reachable from a separate branch.
+	wt, err := r.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Branch "remote-side" off shared, advance it by one commit.
+	if err := r.Storer.SetReference(plumbing.NewHashReference(
+		plumbing.NewBranchReferenceName("remote-side"), hShared,
+	)); err != nil {
+		t.Fatal(err)
+	}
+	if err := wt.Checkout(&gogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("remote-side"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	hRemote := addCommit(t, dir, r, "remote.txt", "r", "remote-only")
+
+	// Back to master and add a unique commit there too.
+	if err := wt.Checkout(&gogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("master"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	addCommit(t, dir, r, "local.txt", "l", "local-only")
+
+	setupTrackedBranch(t, r, hRemote)
+
+	m := NewManager()
+	s, err := m.Status(dir)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if s.Ahead != 1 || s.Behind != 1 {
+		t.Errorf("ahead/behind = %d/%d, want 1/1", s.Ahead, s.Behind)
+	}
+}
+
+func TestStatus_EmptyRepoHasNoAheadBehind(t *testing.T) {
+	// Fresh repo, no commits yet. Status must succeed with zero
+	// counts — empty/HEAD-less repos are an early-onboarding state
+	// the UI hits before the first commit.
+	dir, _ := newRepo(t)
+
+	m := NewManager()
+	s, err := m.Status(dir)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if s.Ahead != 0 || s.Behind != 0 {
+		t.Errorf("ahead/behind = %d/%d, want 0/0 for empty repo", s.Ahead, s.Behind)
+	}
+	if s.Branch != "" {
+		t.Errorf("Branch = %q, want empty for headless repo", s.Branch)
+	}
+}
+
+// ─── Discard internals ──────────────────────────────────────────────────
+
 // TestDiscard_StagedAddRemovesFromWorktreeAndIndex covers the
 // "I added a new file to the index but want to throw it away"
 // path. The file isn't in HEAD, so Discard must remove it from

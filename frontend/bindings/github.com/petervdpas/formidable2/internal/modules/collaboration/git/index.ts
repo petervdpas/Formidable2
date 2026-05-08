@@ -14,6 +14,10 @@ export {
     CommitOptions,
     CommitResult,
     DiscardOptions,
+    FetchOptions,
+    FetchResult,
+    PushOptions,
+    PushResult,
     Remote,
     RemoteInfo,
     Status

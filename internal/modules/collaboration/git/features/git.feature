@@ -193,3 +193,43 @@ Feature: Git collaboration backend
     Given the temp dir has a commit on "a.txt" with content "v1"
     When I discard "../escape"
     Then the operation returned an error
+
+  # ── Fetch / Push (file:// — no network) ──────────────────────────────
+
+  Scenario: Push advances the remote
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a new commit "x.txt" with content "x" in "client"
+    When I push from "client"
+    Then the push succeeded
+    And push is not already-up-to-date
+
+  Scenario: Push reports already-up-to-date when nothing to send
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    When I push from "client"
+    Then the push succeeded
+    And push is already-up-to-date
+
+  Scenario: Push refuses an empty path
+    When I push with an empty path
+    Then the operation returned an error
+
+  Scenario: Fetch updates the tracking ref after the source advances
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And the bare repo gains another commit
+    When I fetch from "client"
+    Then the fetch succeeded
+    And fetch is not already-up-to-date
+
+  Scenario: Fetch on an unchanged remote reports already-up-to-date
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    When I fetch from "client"
+    Then the fetch succeeded
+    And fetch is already-up-to-date
+
+  Scenario: Fetch refuses an empty path
+    When I fetch with an empty path
+    Then the operation returned an error

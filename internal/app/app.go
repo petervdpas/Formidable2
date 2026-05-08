@@ -380,7 +380,7 @@ func New(d Deps) (*App, error) {
 		Wiki:            wikiSvc,
 		Dataprovider:    dataprovider.NewService(dpM),
 		Plugin:          plugin.NewService(pluginM),
-		Git:             git.NewService(gitM),
+		Git:             git.NewService(gitM, credentialM, cfgM),
 		Credential:      credential.NewService(credentialM),
 		templateManager: tplM,
 		storageManager:  stoM,

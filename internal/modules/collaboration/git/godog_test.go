@@ -15,6 +15,7 @@ import (
 
 	"github.com/cucumber/godog"
 	gogit "github.com/go-git/go-git/v5"
+	gogitcfg "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
@@ -45,9 +46,14 @@ type gitWorld struct {
 	log      []Commit
 	clone    *CloneResult
 	commit   *CommitResult
+	push     *PushResult
+	fetch    *FetchResult
 	repoRoot string
 	boolRes  bool
 	lastErr  error
+
+	// Bare repo path used by push/fetch scenarios.
+	bareDir string
 
 	// Source repo for clone scenarios (created via "a source repo
 	// with a commit").
@@ -76,9 +82,12 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.log = nil
 		w.clone = nil
 		w.commit = nil
+		w.push = nil
+		w.fetch = nil
 		w.repoRoot = ""
 		w.boolRes = false
 		w.lastErr = nil
+		w.bareDir = ""
 		w.srcDir = ""
 		w.authServer = nil
 		w.capturedAuth = ""
@@ -94,6 +103,9 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		}
 		if w.srcDir != "" {
 			_ = os.RemoveAll(w.srcDir)
+		}
+		if w.bareDir != "" {
+			_ = os.RemoveAll(w.bareDir)
 		}
 		return ctx, nil
 	})
@@ -278,6 +290,113 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	// ── Push / Fetch setup ───────────────────────────────────────────
+
+	ctx.Step(`^a bare repo seeded with one commit$`, func() error {
+		bare, err := os.MkdirTemp("", "git-godog-bare-")
+		if err != nil {
+			return err
+		}
+		w.bareDir = bare
+		if _, err := gogit.PlainInit(bare, true); err != nil {
+			return err
+		}
+		// Seed via a working clone-and-push.
+		work, err := os.MkdirTemp("", "git-godog-seed-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(work)
+		wr, err := gogit.PlainInit(work, false)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("seed"), 0o644); err != nil {
+			return err
+		}
+		wt, err := wr.Worktree()
+		if err != nil {
+			return err
+		}
+		if _, err := wt.Add("seed.txt"); err != nil {
+			return err
+		}
+		if _, err := wt.Commit("seed", &gogit.CommitOptions{
+			Author: &object.Signature{Name: "Test", Email: "t@example.com", When: time.Now()},
+		}); err != nil {
+			return err
+		}
+		if _, err := wr.CreateRemote(&gogitcfg.RemoteConfig{
+			Name: "origin",
+			URLs: []string{bare},
+		}); err != nil {
+			return err
+		}
+		return wr.Push(&gogit.PushOptions{RemoteName: "origin"})
+	})
+
+	ctx.Step(`^a clone of the bare repo at "([^"]*)" inside temp$`, func(rel string) error {
+		dest := filepath.Join(w.tmp, rel)
+		_, err := gogit.PlainClone(dest, false, &gogit.CloneOptions{URL: w.bareDir})
+		return err
+	})
+
+	ctx.Step(`^a new commit "([^"]*)" with content "([^"]*)" in "([^"]*)"$`, func(name, content, rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		return commitInRepo(dir, name, content, "godog: "+name)
+	})
+
+	ctx.Step(`^the bare repo gains another commit$`, func() error {
+		// Push a new commit into the bare from a fresh ephemeral clone.
+		work, err := os.MkdirTemp("", "git-godog-advance-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(work)
+		wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: w.bareDir})
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(work, "remote.txt"), []byte("remote"), 0o644); err != nil {
+			return err
+		}
+		wt, err := wr.Worktree()
+		if err != nil {
+			return err
+		}
+		if _, err := wt.Add("remote.txt"); err != nil {
+			return err
+		}
+		if _, err := wt.Commit("remote-side commit", &gogit.CommitOptions{
+			Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+		}); err != nil {
+			return err
+		}
+		return wr.Push(&gogit.PushOptions{RemoteName: "origin"})
+	})
+
+	ctx.Step(`^I push from "([^"]*)"$`, func(rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		w.push, w.lastErr = w.m.Push(PushOptions{Path: dir})
+		return nil
+	})
+
+	ctx.Step(`^I push with an empty path$`, func() error {
+		w.push, w.lastErr = w.m.Push(PushOptions{Path: ""})
+		return nil
+	})
+
+	ctx.Step(`^I fetch from "([^"]*)"$`, func(rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		w.fetch, w.lastErr = w.m.Fetch(FetchOptions{Path: dir})
+		return nil
+	})
+
+	ctx.Step(`^I fetch with an empty path$`, func() error {
+		w.fetch, w.lastErr = w.m.Fetch(FetchOptions{Path: ""})
+		return nil
+	})
+
 	ctx.Step(`^I attempt to clone path "([^"]*)" with PAT "([^"]*)"$`, func(path, pat string) error {
 		dest := filepath.Join(w.tmp, "ado-clone")
 		_, w.lastErr = w.m.Clone(CloneOptions{
@@ -442,6 +561,54 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		}
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("stat %q: %w", name, err)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the push succeeded$`, func() error {
+		if w.lastErr != nil {
+			return fmt.Errorf("push failed: %v", w.lastErr)
+		}
+		if w.push == nil {
+			return fmt.Errorf("push result is nil")
+		}
+		return nil
+	})
+
+	ctx.Step(`^push is already-up-to-date$`, func() error {
+		if w.push == nil || !w.push.AlreadyUpToDate {
+			return fmt.Errorf("expected AlreadyUpToDate=true, got %+v", w.push)
+		}
+		return nil
+	})
+
+	ctx.Step(`^push is not already-up-to-date$`, func() error {
+		if w.push == nil || w.push.AlreadyUpToDate {
+			return fmt.Errorf("expected AlreadyUpToDate=false, got %+v", w.push)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the fetch succeeded$`, func() error {
+		if w.lastErr != nil {
+			return fmt.Errorf("fetch failed: %v", w.lastErr)
+		}
+		if w.fetch == nil {
+			return fmt.Errorf("fetch result is nil")
+		}
+		return nil
+	})
+
+	ctx.Step(`^fetch is already-up-to-date$`, func() error {
+		if w.fetch == nil || !w.fetch.AlreadyUpToDate {
+			return fmt.Errorf("expected AlreadyUpToDate=true, got %+v", w.fetch)
+		}
+		return nil
+	})
+
+	ctx.Step(`^fetch is not already-up-to-date$`, func() error {
+		if w.fetch == nil || w.fetch.AlreadyUpToDate {
+			return fmt.Errorf("expected AlreadyUpToDate=false, got %+v", w.fetch)
 		}
 		return nil
 	})

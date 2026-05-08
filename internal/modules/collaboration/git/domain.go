@@ -114,6 +114,20 @@ func (m *Manager) Status(path string) (*Status, error) {
 		return nil, fmt.Errorf("git: head: %w", err)
 	}
 
+	// Ahead / behind counts vs the tracking ref. Cheap when the
+	// repo's small; on huge histories this still bounds at the
+	// number of commits in the symmetric difference, which is
+	// usually tiny in practice for an active workspace.
+	if out.Tracking != "" {
+		if trackRef, terr := r.Reference(plumbing.ReferenceName(out.Tracking), true); terr == nil {
+			ahead, behind, abErr := aheadBehind(r, head.Hash(), trackRef.Hash())
+			if abErr == nil {
+				out.Ahead = ahead
+				out.Behind = behind
+			}
+		}
+	}
+
 	for f, st := range s {
 		// Conflicts (both sides modified, etc.) — go-git surfaces
 		// these via the worktree code 'U' / 'A' / 'D' pairs.
@@ -432,6 +446,136 @@ func (m *Manager) Commit(opts CommitOptions) (*CommitResult, error) {
 		short = short[:7]
 	}
 	return &CommitResult{Hash: hash, Short: short}, nil
+}
+
+// aheadBehind walks both sides of the local branch ↔ tracking ref
+// pair and returns (ahead, behind). "Ahead" is the count of commits
+// reachable from headHash but not from trackHash; "behind" is the
+// reverse. We materialise both reachable sets and take the
+// symmetric difference — costs O(history) memory in the worst case,
+// but in an active workspace the divergence is small.
+func aheadBehind(r *gogit.Repository, headHash, trackHash plumbing.Hash) (int, int, error) {
+	headSet := make(map[plumbing.Hash]struct{})
+	if err := walkReachable(r, headHash, headSet); err != nil {
+		return 0, 0, err
+	}
+	trackSet := make(map[plumbing.Hash]struct{})
+	if err := walkReachable(r, trackHash, trackSet); err != nil {
+		return 0, 0, err
+	}
+	ahead := 0
+	for h := range headSet {
+		if _, ok := trackSet[h]; !ok {
+			ahead++
+		}
+	}
+	behind := 0
+	for h := range trackSet {
+		if _, ok := headSet[h]; !ok {
+			behind++
+		}
+	}
+	return ahead, behind, nil
+}
+
+func walkReachable(r *gogit.Repository, from plumbing.Hash, into map[plumbing.Hash]struct{}) error {
+	if from == plumbing.ZeroHash {
+		return nil
+	}
+	iter, err := r.Log(&gogit.LogOptions{From: from})
+	if err != nil {
+		return err
+	}
+	defer iter.Close()
+	return iter.ForEach(func(c *object.Commit) error {
+		into[c.Hash] = struct{}{}
+		return nil
+	})
+}
+
+// Push sends the current branch's HEAD to the named remote (default
+// "origin"). Returns AlreadyUpToDate=true when go-git reports there
+// was nothing to send — that's an info-level outcome, not an error,
+// so the UI can surface it as "you're current."
+//
+// Refuses on detached HEAD: the ref to push is computed from
+// head.Name().Short(), which has no sensible default for headless
+// checkouts. Empty PAT means anonymous (works for public read or
+// pre-authed transports like SSH; HTTPS pushes to private repos
+// will return a 401 the caller surfaces).
+func (m *Manager) Push(opts PushOptions) (*PushResult, error) {
+	if strings.TrimSpace(opts.Path) == "" {
+		return nil, errors.New("git: push: path required")
+	}
+	r, err := m.open(opts.Path)
+	if err != nil {
+		return nil, fmt.Errorf("git: push: open: %w", err)
+	}
+	head, err := r.Head()
+	if err != nil {
+		return nil, fmt.Errorf("git: push: head: %w", err)
+	}
+	if !head.Name().IsBranch() {
+		return nil, errors.New("git: push: HEAD is detached")
+	}
+
+	remote := opts.Remote
+	if remote == "" {
+		remote = "origin"
+	}
+
+	pushOpts := &gogit.PushOptions{RemoteName: remote}
+	if opts.PAT != "" {
+		pushOpts.Auth = &githttp.BasicAuth{
+			Username: "x-access-token",
+			Password: opts.PAT,
+		}
+	}
+
+	err = r.Push(pushOpts)
+	if errors.Is(err, gogit.NoErrAlreadyUpToDate) {
+		return &PushResult{AlreadyUpToDate: true}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("git: push: %w", err)
+	}
+	return &PushResult{AlreadyUpToDate: false}, nil
+}
+
+// Fetch updates the remote-tracking refs for the named remote
+// (default "origin"). The local worktree isn't touched; ahead/behind
+// counts in subsequent Status() calls reflect the new state of the
+// remote-tracking ref. AlreadyUpToDate=true mirrors the Push contract.
+func (m *Manager) Fetch(opts FetchOptions) (*FetchResult, error) {
+	if strings.TrimSpace(opts.Path) == "" {
+		return nil, errors.New("git: fetch: path required")
+	}
+	r, err := m.open(opts.Path)
+	if err != nil {
+		return nil, fmt.Errorf("git: fetch: open: %w", err)
+	}
+
+	remote := opts.Remote
+	if remote == "" {
+		remote = "origin"
+	}
+
+	fetchOpts := &gogit.FetchOptions{RemoteName: remote}
+	if opts.PAT != "" {
+		fetchOpts.Auth = &githttp.BasicAuth{
+			Username: "x-access-token",
+			Password: opts.PAT,
+		}
+	}
+
+	err = r.Fetch(fetchOpts)
+	if errors.Is(err, gogit.NoErrAlreadyUpToDate) {
+		return &FetchResult{AlreadyUpToDate: true}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("git: fetch: %w", err)
+	}
+	return &FetchResult{AlreadyUpToDate: false}, nil
 }
 
 // Discard throws away the local change to a single file. The right

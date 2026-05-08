@@ -280,6 +280,127 @@ export class DiscardOptions {
 }
 
 /**
+ * FetchOptions describes a fetch request. Path is any path inside
+ * the worktree; Remote defaults to "origin" when empty. PAT is the
+ * HTTP Basic password (transient — never persisted by the manager,
+ * same convention as Clone).
+ */
+export class FetchOptions {
+    "path": string;
+    "remote": string;
+    "pat": string;
+
+    /** Creates a new FetchOptions instance. */
+    constructor($$source: Partial<FetchOptions> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("remote" in $$source)) {
+            this["remote"] = "";
+        }
+        if (!("pat" in $$source)) {
+            this["pat"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FetchOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FetchOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FetchOptions($$parsedSource as Partial<FetchOptions>);
+    }
+}
+
+/**
+ * FetchResult signals whether the remote-tracking refs actually
+ * moved. AlreadyUpToDate=true means there was nothing new to
+ * pull; the UI can collapse this to "you're current."
+ */
+export class FetchResult {
+    "already_up_to_date": boolean;
+
+    /** Creates a new FetchResult instance. */
+    constructor($$source: Partial<FetchResult> = {}) {
+        if (!("already_up_to_date" in $$source)) {
+            this["already_up_to_date"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FetchResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FetchResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FetchResult($$parsedSource as Partial<FetchResult>);
+    }
+}
+
+/**
+ * PushOptions describes a push request. The current branch's HEAD
+ * is pushed to the matching ref on Remote (default "origin"); we
+ * don't expose explicit refspecs in v1.
+ */
+export class PushOptions {
+    "path": string;
+    "remote": string;
+    "pat": string;
+
+    /** Creates a new PushOptions instance. */
+    constructor($$source: Partial<PushOptions> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("remote" in $$source)) {
+            this["remote"] = "";
+        }
+        if (!("pat" in $$source)) {
+            this["pat"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PushOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PushOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PushOptions($$parsedSource as Partial<PushOptions>);
+    }
+}
+
+/**
+ * PushResult signals whether the push actually advanced the remote.
+ * AlreadyUpToDate=true means the remote already had every commit;
+ * the UI surfaces this as info, not an error.
+ */
+export class PushResult {
+    "already_up_to_date": boolean;
+
+    /** Creates a new PushResult instance. */
+    constructor($$source: Partial<PushResult> = {}) {
+        if (!("already_up_to_date" in $$source)) {
+            this["already_up_to_date"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PushResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PushResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PushResult($$parsedSource as Partial<PushResult>);
+    }
+}
+
+/**
  * Remote is one configured remote with all its push/fetch URLs.
  */
 export class Remote {
@@ -368,6 +489,20 @@ export class Status {
      * untracked files, or staged changes.
      */
     "clean": boolean;
+
+    /**
+     * Ahead is the number of local commits on this branch that
+     * aren't on Tracking. 0 when there's no tracking ref.
+     */
+    "ahead": number;
+
+    /**
+     * Behind is the number of remote commits on Tracking that
+     * aren't on this branch. 0 when there's no tracking ref.
+     * Reflects the last-known state of Tracking — call Fetch to
+     * update the remote-tracking ref before reading this.
+     */
+    "behind": number;
     "modified": string[];
     "untracked": string[];
     "staged": string[];
@@ -388,6 +523,12 @@ export class Status {
         }
         if (!("clean" in $$source)) {
             this["clean"] = false;
+        }
+        if (!("ahead" in $$source)) {
+            this["ahead"] = 0;
+        }
+        if (!("behind" in $$source)) {
+            this["behind"] = 0;
         }
         if (!("modified" in $$source)) {
             this["modified"] = [];
@@ -415,30 +556,30 @@ export class Status {
      * Creates a new Status instance from a string or object.
      */
     static createFrom($$source: any = {}): Status {
-        const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
         const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
+        const $$createField11_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("modified" in $$parsedSource) {
-            $$parsedSource["modified"] = $$createField4_0($$parsedSource["modified"]);
+            $$parsedSource["modified"] = $$createField6_0($$parsedSource["modified"]);
         }
         if ("untracked" in $$parsedSource) {
-            $$parsedSource["untracked"] = $$createField5_0($$parsedSource["untracked"]);
+            $$parsedSource["untracked"] = $$createField7_0($$parsedSource["untracked"]);
         }
         if ("staged" in $$parsedSource) {
-            $$parsedSource["staged"] = $$createField6_0($$parsedSource["staged"]);
+            $$parsedSource["staged"] = $$createField8_0($$parsedSource["staged"]);
         }
         if ("deleted" in $$parsedSource) {
-            $$parsedSource["deleted"] = $$createField7_0($$parsedSource["deleted"]);
+            $$parsedSource["deleted"] = $$createField9_0($$parsedSource["deleted"]);
         }
         if ("renamed" in $$parsedSource) {
-            $$parsedSource["renamed"] = $$createField8_0($$parsedSource["renamed"]);
+            $$parsedSource["renamed"] = $$createField10_0($$parsedSource["renamed"]);
         }
         if ("conflicted" in $$parsedSource) {
-            $$parsedSource["conflicted"] = $$createField9_0($$parsedSource["conflicted"]);
+            $$parsedSource["conflicted"] = $$createField11_0($$parsedSource["conflicted"]);
         }
         return new Status($$parsedSource as Partial<Status>);
     }

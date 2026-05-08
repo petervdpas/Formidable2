@@ -11,6 +11,8 @@ type Status = {
   tracking: string;
   detached: boolean;
   clean: boolean;
+  ahead: number;
+  behind: number;
   modified: string[];
   untracked: string[];
   staged: string[];
@@ -28,6 +30,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "refresh"): void;
+  (e: "fetch"): void;
   (e: "discard", file: string): void;
 }>();
 
@@ -55,14 +58,25 @@ function bucketLabel(key: string, count: number): string {
   <div class="git-status">
     <div class="git-status-header">
       <h3 class="git-status-title">{{ t('workspace.collaboration.status.title') }}</h3>
-      <button
-        type="button"
-        class="tool-btn"
-        :disabled="loading"
-        @click="emit('refresh')"
-      >
-        {{ t('workspace.collaboration.status.refresh') }}
-      </button>
+      <div class="git-status-actions">
+        <button
+          type="button"
+          class="tool-btn"
+          :disabled="loading"
+          @click="emit('fetch')"
+        >
+          <i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>
+          {{ t('workspace.collaboration.status.fetch') }}
+        </button>
+        <button
+          type="button"
+          class="tool-btn"
+          :disabled="loading"
+          @click="emit('refresh')"
+        >
+          {{ t('workspace.collaboration.status.refresh') }}
+        </button>
+      </div>
     </div>
 
     <p v-if="notARepo" class="section-warning">
@@ -85,6 +99,16 @@ function bucketLabel(key: string, count: number): string {
               ? t('workspace.collaboration.status.tracking', [status.tracking])
               : t('workspace.collaboration.status.tracking_none')
           }}
+        </span>
+        <span
+          v-if="status.tracking && (status.ahead > 0 || status.behind > 0)"
+          class="badge"
+          :title="t('workspace.collaboration.status.divergence_help')"
+        >
+          <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+          {{ status.ahead }}
+          <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+          {{ status.behind }}
         </span>
         <span v-if="status.clean" class="badge badge-ok">
           {{ t('workspace.collaboration.status.clean') }}
