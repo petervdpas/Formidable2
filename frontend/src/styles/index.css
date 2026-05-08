@@ -37,6 +37,7 @@
 @import "./form-tags-field.css";
 @import "./form-image-field.css";
 @import "./form-link-field.css";
+@import "./form-path-field.css";
 @import "./plugin-command-row.css";
 /* VueDatePicker's vendor CSS first — our overrides in form-date-field.css
    intentionally come AFTER so :root --dp-* mappings to our theme tokens

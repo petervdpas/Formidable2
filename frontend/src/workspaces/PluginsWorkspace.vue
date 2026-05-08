@@ -548,11 +548,20 @@ setTopbarMenu(() => [
     @confirm="confirmDelete"
   />
 
-  <!-- Form-editor: add/edit field -->
+  <!-- Form-editor: add/edit field. Plugins use a curated subset of
+       field types — workflow-irrelevant types (image, list, table,
+       link, api, guid, looper, tags) are hidden from the dropdown
+       so plugin authors only see types that make sense for run-once
+       input forms. -->
   <FieldEditModal
     :open="fieldEditOpen"
     :field="fieldEditTarget"
     :is-new="fieldEditIsNew"
+    :allowed-types="[
+      'text', 'textarea', 'number', 'boolean', 'dropdown',
+      'multioption', 'radio', 'date', 'range',
+      'file-path', 'folder-path',
+    ]"
     @close="fieldEditOpen = false"
     @confirm="applyFieldEdit"
   />

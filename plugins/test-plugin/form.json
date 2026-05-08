@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "key": "input",
+    "type": "file-path",
+    "label": "Input",
+    "readonly": true,
+    "description": "Test input",
+    "options": [
+      {
+        "label": "Batchfiles",
+        "pattern": "*.bat"
+      }
+    ]
+  },
+  {
+    "key": "what",
+    "type": "text",
+    "label": "What?",
+    "two_column": true,
+    "description": "What is the matter?"
+  }
+]

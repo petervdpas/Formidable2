@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, type Component } from "vue";
 import FormFieldText from "./FormFieldText.vue";
+import FormFieldFilePath from "./FormFieldFilePath.vue";
+import FormFieldFolderPath from "./FormFieldFolderPath.vue";
 import FormFieldBoolean from "./FormFieldBoolean.vue";
 import FormFieldDropdown from "./FormFieldDropdown.vue";
 import FormFieldTextarea from "./FormFieldTextarea.vue";
@@ -31,6 +33,8 @@ defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 // handles them at the iteration level (loop containers).
 const DISPATCH: Record<string, Component> = {
   text: FormFieldText,
+  "file-path": FormFieldFilePath,
+  "folder-path": FormFieldFolderPath,
   boolean: FormFieldBoolean,
   dropdown: FormFieldDropdown,
   textarea: FormFieldTextarea,

@@ -51,6 +51,8 @@ export interface FieldTypeDef {
 // Frontend-only display concerns. Keys must align with backend type IDs.
 const LABEL_KEYS: Record<string, string> = {
   text: "workspace.templates.field_type.text",
+  "file-path": "workspace.templates.field_type.file_path",
+  "folder-path": "workspace.templates.field_type.folder_path",
   boolean: "workspace.templates.field_type.boolean",
   dropdown: "workspace.templates.field_type.dropdown",
   multioption: "workspace.templates.field_type.multioption",
@@ -73,6 +75,8 @@ const LABEL_KEYS: Record<string, string> = {
 
 const DEFAULT_FACTORY: Record<string, () => unknown> = {
   text: () => "",
+  "file-path": () => "",
+  "folder-path": () => "",
   boolean: () => false,
   dropdown: () => "",
   multioption: () => [],

@@ -34,6 +34,73 @@ func TestResolvePath_AbsolutePathPreserved(t *testing.T) {
 	}
 }
 
+func TestResolveAbsolutePath_Empty(t *testing.T) {
+	// Empty in, empty out — never coerce nothing into a path. The
+	// path-field components rely on this so a freshly created field
+	// keeps an unset value rather than auto-populating to cwd.
+	m, _ := newTestManager(t)
+	got, err := m.ResolveAbsolutePath("")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("got %q, want empty", got)
+	}
+}
+
+func TestResolveAbsolutePath_AbsoluteIsCleaned(t *testing.T) {
+	m, _ := newTestManager(t)
+	got, err := m.ResolveAbsolutePath("/var/log/../tmp/x")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got != "/var/tmp/x" {
+		t.Fatalf("got %q, want /var/tmp/x", got)
+	}
+}
+
+func TestResolveAbsolutePath_TildeExpands(t *testing.T) {
+	// `~` and `~/sub` expand to the user's home dir. Anything else
+	// starting with `~` (e.g. `~someuser`) is left alone — that's
+	// shell-only sugar we're not trying to reimplement.
+	m, _ := newTestManager(t)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no user home in this env")
+	}
+	tilde, err := m.ResolveAbsolutePath("~")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if tilde != home {
+		t.Fatalf("`~` = %q, want %q", tilde, home)
+	}
+	sub, err := m.ResolveAbsolutePath("~/Documents")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := filepath.Join(home, "Documents")
+	if sub != want {
+		t.Fatalf("`~/Documents` = %q, want %q", sub, want)
+	}
+}
+
+func TestResolveAbsolutePath_RelativeUsesCwd(t *testing.T) {
+	m, _ := newTestManager(t)
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	got, err := m.ResolveAbsolutePath("foo/bar")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := filepath.Join(cwd, "foo/bar")
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
 func TestEnsureDirectory_CreatesNested(t *testing.T) {
 	m, root := newTestManager(t)
 	if err := m.EnsureDirectory("a/b/c"); err != nil {

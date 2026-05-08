@@ -29,6 +29,12 @@ const props = defineProps<{
   /** True when adding a new field — surfaces `looper` in the type
    *  dropdown and changes the title to "Add Field". */
   isNew?: boolean;
+  /** Optional whitelist of type ids the user is allowed to pick.
+   *  Templates pass nothing → every selectable type is offered.
+   *  Plugins pass a curated subset (text-shaped + path pickers)
+   *  so workflow-irrelevant types (image, list, api, …) are
+   *  hidden from the dropdown. */
+  allowedTypes?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -67,7 +73,17 @@ watch(
 
 const typeOptions = computed(() => {
   if (!draft.value) return [];
-  return selectableTypes(draft.value.type || "text", props.isNew).map((td) => ({
+  let types = selectableTypes(draft.value.type || "text", props.isNew);
+  if (props.allowedTypes && props.allowedTypes.length > 0) {
+    const allow = new Set(props.allowedTypes);
+    // Always keep the current type even if it's outside the
+    // whitelist — switching away from it is fine, but we shouldn't
+    // hide the row's own type label while it's still selected.
+    types = types.filter(
+      (t) => allow.has(t.id) || t.id === draft.value?.type,
+    );
+  }
+  return types.map((td) => ({
     value: td.id,
     label: t(td.labelKey),
   }));

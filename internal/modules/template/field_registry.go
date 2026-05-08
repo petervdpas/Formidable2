@@ -86,6 +86,26 @@ var fieldTypeRegistry = map[string]FieldTypeDef{
 			attrAPIGroup,
 		},
 	},
+	"file-path": {
+		// Path-shaped text input — a plain string value paired with a
+		// Browse button (native file picker). Options carry extension
+		// globs ("*.json", "*.md;*.markdown") that become FileFilter
+		// entries in the picker dropdown.
+		ID: "file-path",
+		ForbiddenAttributes: []string{
+			attrSummaryField, attrCollapsible, attrFormat,
+			attrAPIGroup,
+		},
+	},
+	"folder-path": {
+		// As file-path but the picker accepts a directory. No filters
+		// apply to a directory picker, so options are forbidden here.
+		ID: "folder-path",
+		ForbiddenAttributes: []string{
+			attrSummaryField, attrCollapsible, attrFormat,
+			attrAPIGroup, attrOptions,
+		},
+	},
 	"boolean": {
 		ID: "boolean",
 		ForbiddenAttributes: []string{
@@ -197,8 +217,9 @@ func IsKnownFieldType(t string) bool {
 // in a predictable order. Mirrors the original JS map declaration
 // order so existing user habits don't shuffle.
 var orderedTypes = []string{
-	"text", "boolean", "dropdown", "multioption", "radio",
-	"textarea", "number", "range", "date",
+	"text", "textarea", "number", "range", "date",
+	"boolean", "dropdown", "multioption", "radio",
+	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
 	"api", "guid",
 	"looper", "loopstart", "loopstop",

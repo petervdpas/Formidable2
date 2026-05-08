@@ -229,7 +229,7 @@ Feature: Template management
     And the registry contains "table"
     And the registry contains "loopstart"
     And the registry first id is "text"
-    And the registry size is 19
+    And the registry size is 21
 
   # ── Collapsible YAML round-trip ───────────────────────────────────
 

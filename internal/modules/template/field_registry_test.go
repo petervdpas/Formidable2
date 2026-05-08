@@ -20,6 +20,7 @@ func TestValidate_KnownTypesNotFlaggedAsUnknown(t *testing.T) {
 		"guid", "loopstart", "loopstop", "looper",
 		"text", "boolean", "dropdown", "multioption", "radio",
 		"textarea", "number", "range", "date",
+		"file-path", "folder-path",
 		"list", "table", "image", "link", "tags", "api",
 	}
 	for _, ty := range known {

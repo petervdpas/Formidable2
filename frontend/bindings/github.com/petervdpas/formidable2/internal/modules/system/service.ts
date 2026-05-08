@@ -74,6 +74,10 @@ export function Quit(): $CancellablePromise<void> {
     return $Call.ByID(4144929294);
 }
 
+export function ResolveAbsolutePath(p: string): $CancellablePromise<string> {
+    return $Call.ByID(3744968301, p);
+}
+
 export function ResolvePath(segments: string[]): $CancellablePromise<string> {
     return $Call.ByID(3616364684, segments);
 }

@@ -49,6 +49,8 @@
   "workspace.templates.field_type.boolean": "Checkbox",
   "workspace.templates.field_type.date": "Date",
   "workspace.templates.field_type.dropdown": "Dropdown",
+  "workspace.templates.field_type.file_path": "File Path",
+  "workspace.templates.field_type.folder_path": "Folder Path",
   "workspace.templates.field_type.guid": "Guid",
   "workspace.templates.field_type.image": "Image Upload",
   "workspace.templates.field_type.link": "Link",

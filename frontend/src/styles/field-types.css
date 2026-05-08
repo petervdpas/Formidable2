@@ -20,6 +20,18 @@
     --field-type-text-badge:  #1976d2;
     --field-type-text-text:   #ffffff;
 
+    /* File path — amber shade, distinct from radio's reddish-orange. */
+    --field-type-file-path-bg:     #c2620a;
+    --field-type-file-path-border: #f59e0b;
+    --field-type-file-path-badge:  #d97706;
+    --field-type-file-path-text:   #ffffff;
+
+    /* Folder path — deeper amber, sits next to file-path on the row palette. */
+    --field-type-folder-path-bg:     #8a4509;
+    --field-type-folder-path-border: #c2620a;
+    --field-type-folder-path-badge:  #a3580d;
+    --field-type-folder-path-text:   #ffffff;
+
     /* Boolean */
     --field-type-boolean-bg:     #2e7d32;
     --field-type-boolean-border: #4caf50;
@@ -195,6 +207,18 @@
     border-left-color: var(--field-type-text-border);
     color: var(--field-type-text-text);
     --field-row-badge-bg: var(--field-type-text-badge);
+}
+.field-row[data-type="file-path"] {
+    background: var(--field-type-file-path-bg);
+    border-left-color: var(--field-type-file-path-border);
+    color: var(--field-type-file-path-text);
+    --field-row-badge-bg: var(--field-type-file-path-badge);
+}
+.field-row[data-type="folder-path"] {
+    background: var(--field-type-folder-path-bg);
+    border-left-color: var(--field-type-folder-path-border);
+    color: var(--field-type-folder-path-text);
+    --field-row-badge-bg: var(--field-type-folder-path-badge);
 }
 .field-row[data-type="boolean"] {
     background: var(--field-type-boolean-bg);

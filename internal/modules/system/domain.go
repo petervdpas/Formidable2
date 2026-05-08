@@ -57,6 +57,43 @@ func (m *Manager) JoinPath(segments ...string) string {
 	return filepath.Join(append([]string{m.AppRoot()}, segments...)...)
 }
 
+// ResolveAbsolutePath turns a user-typed path string into a clean
+// absolute path, independent of AppRoot. Used by the path-field
+// components to coerce hand-typed input on blur so values stored in
+// form data are always full paths (matching what the OS picker
+// already returns for picked paths).
+//
+// Behavior:
+//   - empty in → empty out (never invent a path).
+//   - "~" or "~/sub" → expand to the OS user's home dir. Other
+//     tilde forms ("~someuser") are left untouched — that's shell
+//     sugar we don't reimplement.
+//   - already absolute → cleaned via filepath.Clean.
+//   - relative → resolved against the process's working dir via
+//     filepath.Abs.
+func (m *Manager) ResolveAbsolutePath(p string) (string, error) {
+	if p == "" {
+		return "", nil
+	}
+	// Tilde-expansion: only the bare "~" and "~/" forms. Lookups for
+	// "~someuser" need an OS-specific PAM/getpwnam call we don't pull
+	// in; users wanting that can type the absolute path.
+	if p == "~" || strings.HasPrefix(p, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		if p == "~" {
+			return home, nil
+		}
+		return filepath.Join(home, p[2:]), nil
+	}
+	if filepath.IsAbs(p) {
+		return filepath.Clean(p), nil
+	}
+	return filepath.Abs(p)
+}
+
 func (m *Manager) ResolvePath(segments ...string) string {
 	joined := filepath.Join(segments...)
 	if filepath.IsAbs(joined) {

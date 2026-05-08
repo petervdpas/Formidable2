@@ -49,6 +49,8 @@
   "workspace.templates.field_type.boolean": "Aanvinkvakje",
   "workspace.templates.field_type.date": "Datum",
   "workspace.templates.field_type.dropdown": "Keuzelijst",
+  "workspace.templates.field_type.file_path": "Bestandspad",
+  "workspace.templates.field_type.folder_path": "Folderpad",
   "workspace.templates.field_type.guid": "Guid",
   "workspace.templates.field_type.image": "Afbeelding",
   "workspace.templates.field_type.link": "Link",
