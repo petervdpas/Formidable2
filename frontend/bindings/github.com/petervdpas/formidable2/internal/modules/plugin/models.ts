@@ -14,17 +14,26 @@ import { Create as $Create } from "@wailsio/runtime";
  * 
  * HideOutput and HideLog let a command opt out of showing the
  * corresponding panel in the Run dialog — useful for "fire and
- * forget" actions whose return value is irrelevant. Default false =
- * panels visible (today's behavior). Both are omitempty so the
- * majority of commands (which want both panels) leave the manifest
- * shape unchanged.
+ * forget" actions whose return value is irrelevant. LogAsToast
+ * additionally surfaces every formidable.log.* line as a live
+ * toast, useful while developing a plugin. FormButton marks the
+ * command as a button to be rendered inside the plugin's form
+ * (when one exists) — the form runtime reads this when wiring its
+ * action bar; it's a manifest hint with no behavior yet on the
+ * Run modal side.
+ * 
+ * All four boolean flags are written explicitly (no omitempty) so
+ * hand-editors see every available option at a glance and diffs
+ * stay legible (a change reads "true → false", not "added field").
  */
 export class Command {
     "id": string;
     "label": string;
     "fn"?: string;
-    "hide_output"?: boolean;
-    "hide_log"?: boolean;
+    "hide_output": boolean;
+    "hide_log": boolean;
+    "log_as_toast": boolean;
+    "form_button": boolean;
 
     /** Creates a new Command instance. */
     constructor($$source: Partial<Command> = {}) {
@@ -33,6 +42,18 @@ export class Command {
         }
         if (!("label" in $$source)) {
             this["label"] = "";
+        }
+        if (!("hide_output" in $$source)) {
+            this["hide_output"] = false;
+        }
+        if (!("hide_log" in $$source)) {
+            this["hide_log"] = false;
+        }
+        if (!("log_as_toast" in $$source)) {
+            this["log_as_toast"] = false;
+        }
+        if (!("form_button" in $$source)) {
+            this["form_button"] = false;
         }
 
         Object.assign(this, $$source);

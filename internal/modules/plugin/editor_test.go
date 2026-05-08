@@ -419,10 +419,10 @@ func TestService_GetSource(t *testing.T) {
 
 // ── DefaultManifest serialization round-trip ─────────────────────────
 
-func TestSerializeManifest_OmitsHideFlagsByDefault(t *testing.T) {
-	// Default-false hide flags must not appear in the serialized
-	// JSON — keeps fresh manifests minimal and avoids polluting
-	// unrelated plugins with the new fields.
+func TestSerializeManifest_AlwaysWritesBoolFlags(t *testing.T) {
+	// All four command boolean flags are written explicitly (no
+	// omitempty) so hand-editors see every option at a glance and
+	// diffs read "true → false" rather than "field appeared".
 	in := Manifest{
 		ManifestVersion: 1, ID: "x", Name: "X", Version: "0.1.0",
 		Commands: []Command{{ID: "run", Label: "Run"}},
@@ -431,8 +431,10 @@ func TestSerializeManifest_OmitsHideFlagsByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("serialize: %v", err)
 	}
-	if strings.Contains(string(raw), "hide_output") || strings.Contains(string(raw), "hide_log") {
-		t.Fatalf("default-false flags leaked into manifest: %s", raw)
+	for _, f := range []string{"hide_output", "hide_log", "log_as_toast", "form_button"} {
+		if !strings.Contains(string(raw), f) {
+			t.Fatalf("expected %q in manifest, got: %s", f, raw)
+		}
 	}
 }
 

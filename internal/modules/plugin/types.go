@@ -60,16 +60,25 @@ type Manifest struct {
 //
 // HideOutput and HideLog let a command opt out of showing the
 // corresponding panel in the Run dialog — useful for "fire and
-// forget" actions whose return value is irrelevant. Default false =
-// panels visible (today's behavior). Both are omitempty so the
-// majority of commands (which want both panels) leave the manifest
-// shape unchanged.
+// forget" actions whose return value is irrelevant. LogAsToast
+// additionally surfaces every formidable.log.* line as a live
+// toast, useful while developing a plugin. FormButton marks the
+// command as a button to be rendered inside the plugin's form
+// (when one exists) — the form runtime reads this when wiring its
+// action bar; it's a manifest hint with no behavior yet on the
+// Run modal side.
+//
+// All four boolean flags are written explicitly (no omitempty) so
+// hand-editors see every available option at a glance and diffs
+// stay legible (a change reads "true → false", not "added field").
 type Command struct {
 	ID         string `json:"id"`
 	Label      string `json:"label"`
 	Fn         string `json:"fn,omitempty"`
-	HideOutput bool   `json:"hide_output,omitempty"`
-	HideLog    bool   `json:"hide_log,omitempty"`
+	HideOutput bool   `json:"hide_output"`
+	HideLog    bool   `json:"hide_log"`
+	LogAsToast bool   `json:"log_as_toast"`
+	FormButton bool   `json:"form_button"`
 }
 
 // Plugin is a discovered, validated plugin entry held by the

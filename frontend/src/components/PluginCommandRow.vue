@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
+import SwitchField from "./fields/SwitchField.vue";
 import type { Command } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 
-// One compact row for editing a single Command in the manifest. The
-// parent passes the Command instance directly — we mutate its
-// fields in place, which works because Vue 3 makes nested props
-// reactive (same pattern as the inline editor we replaced). The
-// only outbound event is `delete`; everything else flows via the
-// shared object.
+// One row for editing a single Command in the manifest. Top line:
+// labelled Id / Label / Lua-function inputs + a delete button.
+// Bottom line: Result + Log toggle-switches that map to the
+// command's hide_output / hide_log flags (inverted — the user sees
+// "Show, ON by default", JSON stores hide_*).
+//
+// We mutate the passed-in `command` object directly, which works
+// because Vue 3 keeps nested-prop reactivity intact (same pattern
+// the templates workspace uses for its field rows). The only
+// outbound event is `delete`.
 defineProps<{ command: Command }>();
 defineEmits<{ (e: "delete"): void }>();
 
@@ -15,53 +20,68 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <li class="cmd-row cmd-row--compact">
-    <input
-      class="field-input cmd-input cmd-input--id"
-      v-model="command.id"
-      :placeholder="t('workspace.plugins.commands.id')"
-      :title="t('workspace.plugins.commands.id')"
-    />
-    <input
-      class="field-input cmd-input cmd-input--label"
-      v-model="command.label"
-      :placeholder="t('workspace.plugins.commands.label')"
-      :title="t('workspace.plugins.commands.label')"
-    />
-    <input
-      class="field-input cmd-input cmd-input--fn"
-      v-model="command.fn"
-      :placeholder="command.id || t('workspace.plugins.commands.fn')"
-      :title="t('workspace.plugins.commands.fn')"
-    />
-    <label
-      class="cmd-toggle"
-      :title="t('workspace.plugins.commands.show_output_title')"
-    >
-      <input
-        type="checkbox"
-        :checked="!command.hide_output"
-        @change="(e) => (command.hide_output = !(e.target as HTMLInputElement).checked)"
-      />
-      <span>{{ t('workspace.plugins.commands.show_output_short') }}</span>
-    </label>
-    <label
-      class="cmd-toggle"
-      :title="t('workspace.plugins.commands.show_log_title')"
-    >
-      <input
-        type="checkbox"
-        :checked="!command.hide_log"
-        @change="(e) => (command.hide_log = !(e.target as HTMLInputElement).checked)"
-      />
-      <span>{{ t('workspace.plugins.commands.show_log_short') }}</span>
-    </label>
-    <button
-      type="button"
-      class="cmd-delete-btn"
-      :title="t('workspace.plugins.commands.delete')"
-      :aria-label="t('workspace.plugins.commands.delete')"
-      @click="$emit('delete')"
-    >×</button>
+  <li class="cmd-row">
+    <div class="cmd-row-grid">
+      <label class="cmd-field">
+        <span class="cmd-field-label">{{ t('workspace.plugins.commands.id') }}</span>
+        <input class="field-input cmd-input" v-model="command.id" />
+      </label>
+      <label class="cmd-field">
+        <span class="cmd-field-label">{{ t('workspace.plugins.commands.label') }}</span>
+        <input class="field-input cmd-input" v-model="command.label" />
+      </label>
+      <label class="cmd-field">
+        <span class="cmd-field-label">{{ t('workspace.plugins.commands.fn') }}</span>
+        <input
+          class="field-input cmd-input"
+          v-model="command.fn"
+          :placeholder="command.id || t('workspace.plugins.commands.fn_placeholder')"
+        />
+      </label>
+      <button
+        type="button"
+        class="cmd-delete-btn"
+        :title="t('workspace.plugins.commands.delete')"
+        :aria-label="t('workspace.plugins.commands.delete')"
+        @click="$emit('delete')"
+      >×</button>
+    </div>
+
+    <div class="cmd-toggles-row">
+      <label
+        class="cmd-toggle"
+        :title="t('workspace.plugins.commands.form_button_title')"
+      >
+        <span>{{ t('workspace.plugins.commands.form_button') }}</span>
+        <SwitchField v-model="command.form_button" />
+      </label>
+      <label
+        class="cmd-toggle"
+        :title="t('workspace.plugins.commands.show_output_title')"
+      >
+        <span>{{ t('workspace.plugins.commands.show_output') }}</span>
+        <SwitchField
+          :model-value="!command.hide_output"
+          @update:model-value="(v) => (command.hide_output = !v)"
+        />
+      </label>
+      <label
+        class="cmd-toggle"
+        :title="t('workspace.plugins.commands.show_log_title')"
+      >
+        <span>{{ t('workspace.plugins.commands.show_log') }}</span>
+        <SwitchField
+          :model-value="!command.hide_log"
+          @update:model-value="(v) => (command.hide_log = !v)"
+        />
+      </label>
+      <label
+        class="cmd-toggle"
+        :title="t('workspace.plugins.commands.log_as_toast_title')"
+      >
+        <span>{{ t('workspace.plugins.commands.log_as_toast') }}</span>
+        <SwitchField v-model="command.log_as_toast" />
+      </label>
+    </div>
   </li>
 </template>

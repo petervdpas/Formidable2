@@ -3,10 +3,16 @@
   "id": "test-plugin",
   "name": "test-plugin",
   "version": "0.1.0",
+  "description": "This is a test",
+  "author": "Peter van de Pas",
   "commands": [
     {
       "id": "run",
-      "label": "Run"
+      "label": "Run",
+      "hide_output": false,
+      "hide_log": false,
+      "log_as_toast": true,
+      "form_button": false
     }
   ]
 }

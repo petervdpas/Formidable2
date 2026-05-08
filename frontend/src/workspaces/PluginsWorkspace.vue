@@ -159,6 +159,21 @@ async function runCommand(p: ListResult, cmd: Command) {
       const fn = toast[ev.level as "info" | "success" | "warn" | "error"];
       if (fn) fn(ev.message);
     }
+    // log_as_toast on the command turns each formidable.log.* line
+    // into a toast as well. Lines arrive as "[level] message"; we
+    // parse the prefix to pick a matching toast variant (debug → info).
+    if (cmd.log_as_toast) {
+      for (const line of res.logLines ?? []) {
+        const m = /^\[(\w+)\]\s*(.*)$/.exec(line);
+        const level = (m?.[1] ?? "info").toLowerCase();
+        const msg = m?.[2] ?? line;
+        const variant: "info" | "success" | "warn" | "error" =
+          level === "warn" ? "warn"
+          : level === "error" ? "error"
+          : "info";
+        toast[variant](msg);
+      }
+    }
   } catch (err) {
     runResults.value[cmd.id] = new RunResultDTO({
       kind: "runtime_error",
