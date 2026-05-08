@@ -67,6 +67,7 @@
   "settings.history.info": "Configureer geschiedenisinstellingen zoals ingeschakeld, behouden en maximale grootte.",
   "settings.internal_server.info": "Configureer de ingebouwde server en stel de luisterpoort in.",
   "settings.loading_config": "Configuratie laden…",
+  "settings.no_profile": "Kies een profiel in de Profielen-werkruimte,<br>of maak er een aan.",
   "settings.locations.info": "Configureer de contextmap en de optionele remote backend (Git of GiGot).",
   "settings.menu.apply": "Toepassen",
   "settings.reload_tooltip": "Opnieuw laden vanaf schijf",

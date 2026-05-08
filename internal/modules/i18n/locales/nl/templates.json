@@ -102,5 +102,5 @@
   "workspace.templates.setup.title": "Instellingen",
   "workspace.templates.sidebar_title": "Sjablonen",
   "workspace.templates.title": "Sjablonen",
-  "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk."
+  "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan."
 }

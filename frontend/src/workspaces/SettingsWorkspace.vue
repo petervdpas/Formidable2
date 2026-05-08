@@ -6,6 +6,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import AlertDialog from "../components/AlertDialog.vue";
 import { useConfig } from "../composables/useConfig";
 import { useRestartGate } from "../composables/useRestartGate";
+import { useRibbonAvailability } from "../composables/useRibbonAvailability";
 // (bootConfig comes from useRestartGate so sidebar width stays frozen
 // for the session — same rule as Templates/Storage.)
 import { setTopbarMenu } from "../composables/useTopbarMenu";
@@ -17,6 +18,7 @@ const { t } = useI18n();
 
 const { config, profileFilename, reload } = useConfig();
 const { needsRestart, bootConfig } = useRestartGate();
+const { hasProfiles } = useRibbonAvailability();
 const toast = useToast();
 const loaded = computed(() => config.value !== null);
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
@@ -111,11 +113,18 @@ setTopbarMenu(() => [
     </template>
 
     <template #main>
-      <h1 class="workspace-heading">{{ t(activeCategory.labelKey) }}</h1>
-      <div v-if="loaded">
-        <component :is="activeCategory.component" />
-      </div>
-      <p v-else class="muted">{{ t('settings.loading_config') }}</p>
+      <p
+        v-if="!hasProfiles"
+        class="workspace-empty"
+        v-html="t('settings.no_profile')"
+      ></p>
+      <template v-else>
+        <h1 class="workspace-heading">{{ t(activeCategory.labelKey) }}</h1>
+        <div v-if="loaded">
+          <component :is="activeCategory.component" />
+        </div>
+        <p v-else class="muted">{{ t('settings.loading_config') }}</p>
+      </template>
     </template>
   </SplitPane>
 

@@ -102,5 +102,5 @@
   "workspace.templates.setup.title": "Setup Information",
   "workspace.templates.sidebar_title": "Templates",
   "workspace.templates.title": "Templates",
-  "workspace.templates.unselected": "Pick a template from the sidebar."
+  "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one."
 }

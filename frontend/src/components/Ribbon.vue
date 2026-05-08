@@ -1,52 +1,14 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { WORKSPACES, type WorkspaceId } from "../workspaces";
-import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { Service as ConfigSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/config";
-import { useTemplates } from "../composables/useTemplates";
-import { useProfiles } from "../composables/useProfiles";
-import { useConfig } from "../composables/useConfig";
+import { useRibbonAvailability } from "../composables/useRibbonAvailability";
 import Icon from "./Icon.vue";
 
 defineProps<{ active: WorkspaceId }>();
 const emit = defineEmits<{ (e: "select", id: WorkspaceId): void }>();
 
 const { t } = useI18n();
-
-// Backend owns the rule. Each ribbon dependency maps to a single
-// boolean check on its module's Service. We re-fetch when the
-// frontend composable list of templates/profiles changes (which
-// happens after create/delete) so the ribbon stays in sync without
-// us mirroring backend logic on the frontend.
-const { filenames: templateFilenames } = useTemplates();
-const { profiles } = useProfiles();
-const { config } = useConfig();
-
-const hasTemplates = ref(true);
-const hasProfiles = ref(true);
-
-async function refreshAvailability() {
-  [hasTemplates.value, hasProfiles.value] = await Promise.all([
-    TemplateSvc.HasTemplates(),
-    ConfigSvc.HasUserProfiles(),
-  ]);
-}
-
-void refreshAvailability();
-watch([templateFilenames, profiles], () => void refreshAvailability(), {
-  deep: true,
-});
-
-function isDisabled(id: WorkspaceId): boolean {
-  if (id === "storage") return !hasTemplates.value;
-  if (id === "settings") return !hasProfiles.value;
-  // Plugins workspace is gated by the user-config flag (Settings →
-  // Advanced → Plugins). Reading config.value reactively means
-  // toggling the flag immediately ghosts/un-ghosts the ribbon item.
-  if (id === "plugins") return !config.value?.enable_plugins;
-  return false;
-}
+const { isDisabled } = useRibbonAvailability();
 
 function onClick(id: WorkspaceId) {
   if (isDisabled(id)) return;

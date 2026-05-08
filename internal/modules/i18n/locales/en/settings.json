@@ -67,6 +67,7 @@
   "settings.history.info": "Configure history settings like enabled, persist and max size.",
   "settings.internal_server.info": "Configure the built-in server and set the listening port.",
   "settings.loading_config": "Loading config…",
+  "settings.no_profile": "Pick a profile from the Profiles workspace,<br>or create a new one.",
   "settings.locations.info": "Configure the context folder and the optional remote backend (Git or GiGot).",
   "settings.menu.apply": "Apply",
   "settings.reload_tooltip": "Reload from disk",
