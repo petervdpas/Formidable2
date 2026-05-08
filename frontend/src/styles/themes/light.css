@@ -14,8 +14,11 @@
     --color-accent-soft:  #dbeafe;
 
     --color-error:        #b91c1c;
+    --color-error-fg:     #ffffff;
     --color-warning:      #b45309;
+    --color-warning-fg:   #ffffff;
     --color-success:      #15803d;
+    --color-success-fg:   #ffffff;
 
     --ribbon-bg:          #1f2933;
     --ribbon-fg:          #c5cbd3;

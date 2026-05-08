@@ -72,6 +72,56 @@
 
 .tool-btn.primary:hover { filter: brightness(0.95); }
 
+/* Semantic-fill variants. The variant class is the action verb
+   (danger / success / warning) while the token under it is the
+   state name (error / success / warning) — same idea as
+   primary → accent. Foregrounds use per-theme *-fg tokens so
+   contrast stays right when the bg flips between dark and light. */
+.tool-btn.danger {
+    background: var(--color-error);
+    border-color: var(--color-error);
+    color: var(--color-error-fg);
+}
+
+.tool-btn.danger:hover { filter: brightness(0.95); }
+
+.tool-btn.success {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: var(--color-success-fg);
+}
+
+.tool-btn.success:hover { filter: brightness(0.95); }
+
+.tool-btn.warning {
+    background: var(--color-warning);
+    border-color: var(--color-warning);
+    color: var(--color-warning-fg);
+}
+
+.tool-btn.warning:hover { filter: brightness(0.95); }
+
+.tool-btn:disabled,
+.tool-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Modifier: tool-btn that pairs an icon glyph with its text. Lays
+   them out inline-flex with a small gap; icon size is dialled down
+   to sit nicely with the 13px button text. */
+.tool-btn--icon {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.tool-btn--icon .fa-solid,
+.tool-btn--icon .fa-regular,
+.tool-btn--icon .fa-brands {
+    font-size: 11px;
+}
+
 .tool-toggle {
     display: inline-flex;
     align-items: center;
@@ -133,5 +183,3 @@
 }
 .btn-ghost-block:hover { background: var(--color-surface-2); }
 
-/* `.tool-btn.danger` lives in modals.css (kept there because modals
-   use it heavily; nothing else does). */

@@ -1,7 +1,7 @@
 {
   "manifest_version": 1,
   "id": "test-plugin",
-  "name": "test-plugin",
+  "name": "Test Plugin",
   "version": "0.1.0",
   "description": "This is a test",
   "author": "Peter van de Pas",
@@ -10,7 +10,7 @@
       "id": "run",
       "label": "Run",
       "hide_output": false,
-      "hide_log": false,
+      "hide_log": true,
       "log_as_toast": true,
       "form_button": false
     }

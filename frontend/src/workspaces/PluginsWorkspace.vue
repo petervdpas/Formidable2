@@ -220,25 +220,15 @@ function removeCommand(idx: number) {
 }
 
 // ── Topbar menu ──────────────────────────────────────────────────────
+// Save + Discard live as buttons on the right side of the topbar
+// (see template) — same shape Storage uses. The File menu only
+// keeps Refresh now; everything else is in the Plugin menu.
 setTopbarMenu(() => [
   {
     type: "group",
     id: "file",
     labelKey: "menu.file",
     items: [
-      {
-        id: "save",
-        labelKey: "workspace.plugins.save",
-        disabled: !dirty.value,
-        onClick: doSave,
-      },
-      {
-        id: "reset",
-        labelKey: "workspace.plugins.reset",
-        disabled: !dirty.value,
-        onClick: doReset,
-      },
-      { type: "separator", id: "sep" },
       {
         id: "refresh",
         labelKey: "common.refresh",
@@ -262,17 +252,6 @@ setTopbarMenu(() => [
         disabled: !selectedID.value,
         onClick: openDelete,
       },
-      { type: "separator", id: "sep-run" },
-      {
-        id: "run",
-        labelKey: "menu.plugin.run",
-        // Run is meaningful only when a plugin is selected and has
-        // at least one command on it.
-        disabled:
-          !selectedPlugin.value ||
-          (selectedPlugin.value.manifest.commands?.length ?? 0) === 0,
-        onClick: openRun,
-      },
     ],
   },
 ]);
@@ -285,6 +264,32 @@ setTopbarMenu(() => [
       <span v-if="dirty" class="badge badge-warn">
         {{ t('workspace.plugins.dirty_indicator') }}
       </span>
+      <button
+        v-if="selectedPlugin"
+        class="tool-btn success tool-btn--icon"
+        :disabled="(selectedPlugin.manifest.commands?.length ?? 0) === 0"
+        :title="t('menu.plugin.run')"
+        @click="openRun"
+      >
+        <i class="fa-solid fa-play"></i>
+        <span>{{ t('workspace.plugins.run') }}</span>
+      </button>
+      <button
+        v-if="selectedPlugin"
+        class="tool-btn danger"
+        :disabled="!dirty"
+        @click="doReset"
+      >
+        {{ t('workspace.plugins.reset') }}
+      </button>
+      <button
+        v-if="selectedPlugin"
+        class="tool-btn primary"
+        :disabled="!dirty"
+        @click="doSave"
+      >
+        {{ t('workspace.plugins.save') }}
+      </button>
     </div>
   </Teleport>
 
@@ -317,9 +322,6 @@ setTopbarMenu(() => [
         <div class="workspace-heading-row">
           <h1 class="workspace-heading">{{ draftManifest.name || selectedID }}</h1>
           <span class="badge badge-accent">{{ selectedID }}</span>
-          <span v-if="dirty" class="badge badge-warn">
-            {{ t('workspace.plugins.dirty_indicator') }}
-          </span>
         </div>
 
         <FormSection :title="t('workspace.plugins.manifest.title')">

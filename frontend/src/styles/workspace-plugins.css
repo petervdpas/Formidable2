@@ -1,7 +1,10 @@
 /* Plugins workspace — sidebar list of installed plugins + main panel
    manifest editor + Lua source editor + Commands editor. The tab
-   strip + tab-pane chrome lives in tabs.css; this file holds only
-   the commands list, the Lua-source pane, and the Run modal. */
+   strip + tab-pane chrome lives in tabs.css; the topbar Run button
+   uses the generic .tool-btn--icon modifier from buttons.css. This
+   file holds only the commands list, the Lua-source pane, and the
+   Run modal. */
+
 
 /* ── Sidebar ─────────────────────────────────────────────────────── */
 .plugin-name { font-weight: 600; }

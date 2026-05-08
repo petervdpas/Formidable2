@@ -13,8 +13,11 @@
     --color-accent-soft:  #5b21b6;
 
     --color-error:        #fb7185;
+    --color-error-fg:     #1a0f33;
     --color-warning:      #fbbf24;
+    --color-warning-fg:   #1a0f33;
     --color-success:      #86efac;
+    --color-success-fg:   #1a0f33;
 
     --ribbon-bg:          #120a26;
     --ribbon-fg:          #a5a0c4;
