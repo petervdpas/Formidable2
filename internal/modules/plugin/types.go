@@ -42,6 +42,13 @@ const LuaAPIVersion = 1
 // Versionable surface: extra unknown fields are tolerated by
 // json.Unmarshal so plugins authored against a newer Formidable
 // don't silently break here — they just don't use the new fields.
+//
+// RunMode controls how the user interacts with the plugin:
+//   - "" (default) / "modal" — Run modal lists each command as a
+//     card; ctx is empty for every call.
+//   - "form" — the plugin's form (form.json) is the entry point;
+//     it renders at the top of the Run modal and every command
+//     receives the current form values as ctx.
 type Manifest struct {
 	ManifestVersion int       `json:"manifest_version"`
 	ID              string    `json:"id"`
@@ -49,8 +56,17 @@ type Manifest struct {
 	Version         string    `json:"version"`
 	Description     string    `json:"description,omitempty"`
 	Author          string    `json:"author,omitempty"`
+	RunMode         string    `json:"run_mode,omitempty"`
 	Commands        []Command `json:"commands,omitempty"`
 }
+
+// RunMode* — the closed enum of values RunMode accepts. Empty is
+// also tolerated and behaves like RunModeModal so legacy manifests
+// don't need a backfill.
+const (
+	RunModeModal = "modal"
+	RunModeForm  = "form"
+)
 
 // Command is one user-runnable entry exposed by the plugin. `ID`
 // is referenced by Manager.Run; `Fn` is the Lua function name

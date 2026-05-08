@@ -179,6 +179,62 @@ func TestFnNameFor_ExplicitOverridesID(t *testing.T) {
 	}
 }
 
+func TestLoadManifest_RunModeRoundtrip(t *testing.T) {
+	// Manifest.RunMode tells the runtime whether the plugin's form
+	// is the entry point ("form") or whether commands are run from
+	// the modal directly ("modal"). Empty/missing = "modal".
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"run_mode": "form",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got.RunMode != "form" {
+		t.Fatalf("RunMode = %q, want %q", got.RunMode, "form")
+	}
+}
+
+func TestLoadManifest_RunModeDefaultsEmpty(t *testing.T) {
+	// A manifest without run_mode loads with RunMode == "" — the
+	// frontend treats that as "modal" without writing a default
+	// into older manifests.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got.RunMode != "" {
+		t.Fatalf("RunMode = %q, want empty default", got.RunMode)
+	}
+}
+
+func TestLoadManifest_RunModeRejectsUnknown(t *testing.T) {
+	// Reserved enum — keeps the contract tight. A typo like
+	// "Form" or "Modal" should fail loading rather than silently
+	// fall back to a default and surprise the author later.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"run_mode": "FORMULAIC",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	_, err := LoadManifest(dir)
+	if !errors.Is(err, ErrManifestInvalid) {
+		t.Fatalf("want ErrManifestInvalid, got %v", err)
+	}
+}
+
 func TestLoadManifest_PreservesCommandHideFlags(t *testing.T) {
 	// A command can opt out of showing its Result/Log panels in the
 	// Run modal — useful for "fire and forget" actions where the

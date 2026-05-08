@@ -70,6 +70,17 @@ func validateManifest(m *Manifest) error {
 	if len(m.Commands) == 0 {
 		return fmt.Errorf("%w: at least one command required", ErrManifestInvalid)
 	}
+	// run_mode is optional — empty behaves like "modal" — but if set
+	// it must name one of the known constants. Catches typos like
+	// "Form" / "Modal" early so authors get a load-time error
+	// rather than a silent fallback at runtime.
+	switch m.RunMode {
+	case "", RunModeModal, RunModeForm:
+		// ok
+	default:
+		return fmt.Errorf("%w: bad run_mode %q (want %q or %q)",
+			ErrManifestInvalid, m.RunMode, RunModeModal, RunModeForm)
+	}
 	for i, c := range m.Commands {
 		if strings.TrimSpace(c.ID) == "" {
 			return fmt.Errorf("%w: command[%d] empty id", ErrManifestInvalid, i)

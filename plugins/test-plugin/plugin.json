@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "description": "This is a test",
   "author": "Peter van de Pas",
+  "run_mode": "form",
   "commands": [
     {
       "id": "run",

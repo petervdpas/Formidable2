@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
@@ -7,7 +7,9 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import PluginCommandRow from "../components/PluginCommandRow.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
+import FormFieldRow from "../components/form-fields/FormFieldRow.vue";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { getFieldTypeDef } from "../types/field-types";
 import {
   Service as PluginSvc,
   Command,
@@ -19,6 +21,7 @@ import {
   FormRow,
   TextField,
   TextareaField,
+  SelectField,
 } from "../components/fields";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
@@ -144,15 +147,59 @@ const runOpen = ref(false);
 const runResults = ref<Record<string, RunResultDTO>>({});
 const runningCmd = ref<string>("");
 
+// Live form values bound to the FormFieldRow inputs in the Run
+// modal. Whatever the user types ends up here, and we pass a clone
+// as the `ctx` argument to every Lua call so scripts can read
+// `ctx.<field.key>`. Re-seeded on plugin selection (or when the
+// form schema changes) using each field's stored default + the
+// per-type fallback from field-types.ts.
+const runValues = ref<Record<string, unknown>>({});
+
+function initialRunValues(fields: Field[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of fields) {
+    if (!f.key) continue;
+    if (f.default !== undefined && f.default !== null) {
+      out[f.key] = f.default;
+      continue;
+    }
+    const def = getFieldTypeDef(f.type)?.defaultValue?.();
+    out[f.key] = def !== undefined ? def : "";
+  }
+  return out;
+}
+
+watch(
+  () => draftForm.value,
+  (fields) => {
+    runValues.value = initialRunValues(fields ?? []);
+  },
+  { immediate: true, deep: true },
+);
+
 function openRun() {
   if (!selectedPlugin.value) return;
   runOpen.value = true;
 }
 
+// Manifests written by older builds may not carry run_mode; treat
+// missing/empty as "modal". The selector ensures fresh manifests
+// always serialize "modal" or "form".
+const runMode = computed(
+  () => (selectedPlugin.value?.manifest.run_mode || "modal") as "modal" | "form",
+);
+
 async function runCommand(p: ListResult, cmd: Command) {
   runningCmd.value = cmd.id;
   try {
-    const res = await PluginSvc.Run(p.id, cmd.id, {});
+    // ctx is empty in modal mode; in form mode the user-filled
+    // form values flow into the Lua function so scripts read
+    // ctx.<field-key> directly.
+    const ctx =
+      runMode.value === "form"
+        ? { ...runValues.value }
+        : ({} as Record<string, unknown>);
+    const res = await PluginSvc.Run(p.id, cmd.id, ctx);
     runResults.value[cmd.id] = res;
     // Dispatch any formidable.toast.* events the script emitted.
     // useToast accepts plain text, so the message goes through
@@ -406,6 +453,19 @@ setTopbarMenu(() => [
           <FormRow :label="t('workspace.plugins.manifest.description')">
             <TextareaField v-model="draftManifest.description" :rows="3" />
           </FormRow>
+          <FormRow
+            :label="t('workspace.plugins.manifest.run_mode')"
+            :description="t('workspace.plugins.manifest.run_mode_help')"
+          >
+            <SelectField
+              :model-value="draftManifest.run_mode || 'modal'"
+              @update:model-value="(v: string) => (draftManifest && (draftManifest.run_mode = v))"
+              :options="[
+                { value: 'modal', label: t('workspace.plugins.run_mode.modal') },
+                { value: 'form',  label: t('workspace.plugins.run_mode.form')  },
+              ]"
+            />
+          </FormRow>
         </FormSection>
 
         <nav class="tabs" role="tablist">
@@ -586,6 +646,22 @@ setTopbarMenu(() => [
     @close="runOpen = false"
   >
     <div v-if="selectedPlugin" class="run-modal">
+      <section
+        v-if="runMode === 'form' && draftForm.length > 0"
+        class="run-form"
+      >
+        <h3 class="run-form-title">
+          {{ t('workspace.plugins.run_form_title') }}
+        </h3>
+        <FormFieldRow
+          v-for="(f, i) in draftForm"
+          :key="f.key || i"
+          :field="f"
+          :model-value="runValues[f.key]"
+          @update:model-value="(v: unknown) => (runValues[f.key] = v)"
+        />
+      </section>
+
       <section
         v-for="cmd in selectedPlugin.manifest.commands"
         :key="cmd.id"

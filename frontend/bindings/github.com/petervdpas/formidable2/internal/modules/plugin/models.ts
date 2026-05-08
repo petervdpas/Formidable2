@@ -112,6 +112,13 @@ export class ListResult {
  * Versionable surface: extra unknown fields are tolerated by
  * json.Unmarshal so plugins authored against a newer Formidable
  * don't silently break here — they just don't use the new fields.
+ * 
+ * RunMode controls how the user interacts with the plugin:
+ *   - "" (default) / "modal" — Run modal lists each command as a
+ *     card; ctx is empty for every call.
+ *   - "form" — the plugin's form (form.json) is the entry point;
+ *     it renders at the top of the Run modal and every command
+ *     receives the current form values as ctx.
  */
 export class Manifest {
     "manifest_version": number;
@@ -120,6 +127,7 @@ export class Manifest {
     "version": string;
     "description"?: string;
     "author"?: string;
+    "run_mode"?: string;
     "commands"?: Command[];
 
     /** Creates a new Manifest instance. */
@@ -144,10 +152,10 @@ export class Manifest {
      * Creates a new Manifest instance from a string or object.
      */
     static createFrom($$source: any = {}): Manifest {
-        const $$createField6_0 = $$createType2;
+        const $$createField7_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField6_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField7_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }
