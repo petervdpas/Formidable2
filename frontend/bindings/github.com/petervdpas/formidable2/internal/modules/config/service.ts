@@ -45,6 +45,10 @@ export function ExportUserProfile(profileFilename: string, targetPath: string, o
     });
 }
 
+export function HasUserProfiles(): $CancellablePromise<boolean> {
+    return $Call.ByID(3861580185);
+}
+
 export function ImportUserProfile(sourcePath: string, profileFilename: string, overwrite: boolean): $CancellablePromise<$models.ProfileResult> {
     return $Call.ByID(2301543843, sourcePath, profileFilename, overwrite).then(($result: any) => {
         return $$createType0($result);

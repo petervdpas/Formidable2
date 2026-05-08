@@ -294,6 +294,30 @@ func TestListTemplates_FiltersNonYAML(t *testing.T) {
 	}
 }
 
+func TestHasTemplates_FalseOnEmptyAndMissingDir(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	// Directory not yet created.
+	if m.HasTemplates() {
+		t.Error("expected false for missing templates dir")
+	}
+}
+
+func TestHasTemplates_TrueAfterYAMLAdded(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	_ = sys.SaveFile("templates/a.yaml", "name: A\nfields: []\n")
+	if !m.HasTemplates() {
+		t.Error("expected true after adding a.yaml")
+	}
+}
+
+func TestHasTemplates_IgnoresNonYAML(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	_ = sys.SaveFile("templates/notes.txt", "x")
+	if m.HasTemplates() {
+		t.Error("expected false when only non-YAML files exist")
+	}
+}
+
 func TestSeedBasicIfEmpty_PreservesExisting(t *testing.T) {
 	m, sys, _ := newTestManager(t)
 	_ = sys.SaveFile("templates/other.yaml", "name: Other\nfields: []\n")

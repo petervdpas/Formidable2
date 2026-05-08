@@ -42,6 +42,19 @@ func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error) {
 	return m.LoadUserConfig()
 }
 
+// HasUserProfiles reports whether at least one user profile exists
+// under config/ (boot.json excluded). Used by the ribbon to ghost
+// workspaces that require a profile to be meaningful (Settings).
+// Errors collapse to false — an unreadable config dir is treated
+// as "no profiles available".
+func (m *Manager) HasUserProfiles() bool {
+	profiles, err := m.ListAvailableProfiles()
+	if err != nil {
+		return false
+	}
+	return len(profiles) > 0
+}
+
 // ListAvailableProfiles enumerates *.json under config/ except
 // boot.json, returning {value, display} entries for the picker.
 // Display falls back from profile_name → author_name → "(unnamed)".

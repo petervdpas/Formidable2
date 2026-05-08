@@ -75,6 +75,10 @@ export function GetTemplateDescriptor(name: string): $CancellablePromise<$models
     });
 }
 
+export function HasTemplates(): $CancellablePromise<boolean> {
+    return $Call.ByID(1263920259);
+}
+
 export function ListTemplates(): $CancellablePromise<string[]> {
     return $Call.ByID(3379098355).then(($result: any) => {
         return $$createType7($result);

@@ -504,6 +504,24 @@ func TestListAvailableProfiles_OmitsBoot(t *testing.T) {
 	}
 }
 
+func TestHasUserProfiles_TrueAfterSeed(t *testing.T) {
+	// newTestManager seeds user.json by default → at least one
+	// profile exists.
+	m, _, _ := newTestManager(t)
+	if !m.HasUserProfiles() {
+		t.Error("expected true after first-run seed")
+	}
+}
+
+func TestHasUserProfiles_FalseWhenOnlyBoot(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	// Remove the seeded user.json so only boot.json remains.
+	_ = sys.DeleteFile(sys.JoinPath("config", "user.json"))
+	if m.HasUserProfiles() {
+		t.Error("expected false when only boot.json exists")
+	}
+}
+
 func TestExportUserProfile(t *testing.T) {
 	m, _, root := newTestManager(t)
 	target := filepath.Join(root, "exports", "out.json")

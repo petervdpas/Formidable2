@@ -40,6 +40,8 @@ func (s *Service) ListUserProfiles() ([]ProfileEntry, error) {
 	return s.m.ListAvailableProfiles()
 }
 
+func (s *Service) HasUserProfiles() bool { return s.m.HasUserProfiles() }
+
 func (s *Service) CurrentProfileFilename() string { return s.m.CurrentProfileFilename() }
 
 func (s *Service) ExportUserProfile(profileFilename, targetPath string, overwrite bool) ProfileResult {

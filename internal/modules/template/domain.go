@@ -90,6 +90,19 @@ func (m *Manager) ListTemplates() ([]string, error) {
 	return out, nil
 }
 
+// HasTemplates reports whether at least one *.yaml file exists in
+// the templates folder. Used by the ribbon to ghost workspaces that
+// require a template to be meaningful (Storage). Errors collapse to
+// false — a missing dir, unreadable folder, or any other I/O issue
+// is treated as "no templates available".
+func (m *Manager) HasTemplates() bool {
+	files, err := m.ListTemplates()
+	if err != nil {
+		return false
+	}
+	return len(files) > 0
+}
+
 // LoadTemplate reads <name> from the templates folder, parses YAML,
 // and returns a sanitized Template.
 func (m *Manager) LoadTemplate(name string) (*Template, error) {

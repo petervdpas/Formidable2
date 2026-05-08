@@ -12,7 +12,7 @@
   "logging_enabled": false,
   "enable_plugins": false,
   "context_mode": "template",
-  "context_ribbon": "plugins",
+  "context_ribbon": "storage",
   "context_folder": "./Examples",
   "selected_template": "addresses.yaml",
   "selected_data_file": "abbey-road-studios.meta.json",

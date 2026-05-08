@@ -22,6 +22,7 @@ func NewService(m *Manager, storageLocator func(string) string) *Service {
 }
 
 func (s *Service) ListTemplates() ([]string, error)            { return s.m.ListTemplates() }
+func (s *Service) HasTemplates() bool                          { return s.m.HasTemplates() }
 func (s *Service) LoadTemplate(name string) (*Template, error) { return s.m.LoadTemplate(name) }
 func (s *Service) SaveTemplate(name string, t *Template) error { return s.m.SaveTemplate(name, t) }
 func (s *Service) DeleteTemplate(name string) error            { return s.m.DeleteTemplate(name) }

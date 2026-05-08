@@ -26,6 +26,22 @@
     border-left-color: var(--color-accent);
 }
 
+/* Ghost state: a ribbon item whose workspace is unavailable
+   (e.g. Storage with no templates). Click is a no-op; the icon
+   dims and the cursor signals "blocked". Hover stays neutral so
+   the row doesn't pretend to be interactive. */
+.ribbon-item.disabled,
+.ribbon-item:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+}
+
+.ribbon-item.disabled:hover,
+.ribbon-item:disabled:hover {
+    background: transparent;
+    color: var(--ribbon-fg);
+}
+
 /* .ribbon-icon used to size FA glyphs; SVG illustrations now flow
    through the Icon component which sets explicit pixel size. */
 
