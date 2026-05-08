@@ -47,6 +47,7 @@ type gitWorld struct {
 	clone    *CloneResult
 	commit   *CommitResult
 	push     *PushResult
+	pull     *PullResult
 	fetch    *FetchResult
 	repoRoot string
 	boolRes  bool
@@ -83,6 +84,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.clone = nil
 		w.commit = nil
 		w.push = nil
+		w.pull = nil
 		w.fetch = nil
 		w.repoRoot = ""
 		w.boolRes = false
@@ -346,6 +348,10 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		return commitInRepo(dir, name, content, "godog: "+name)
 	})
 
+	ctx.Step(`^"([^"]*)" is rewritten to "([^"]*)" inside "([^"]*)"$`, func(name, content, rel string) error {
+		return os.WriteFile(filepath.Join(w.tmp, rel, name), []byte(content), 0o644)
+	})
+
 	ctx.Step(`^the bare repo gains another commit$`, func() error {
 		// Push a new commit into the bare from a fresh ephemeral clone.
 		work, err := os.MkdirTemp("", "git-godog-advance-")
@@ -394,6 +400,17 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I fetch with an empty path$`, func() error {
 		w.fetch, w.lastErr = w.m.Fetch(FetchOptions{Path: ""})
+		return nil
+	})
+
+	ctx.Step(`^I pull from "([^"]*)"$`, func(rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		w.pull, w.lastErr = w.m.Pull(PullOptions{Path: dir})
+		return nil
+	})
+
+	ctx.Step(`^I pull with an empty path$`, func() error {
+		w.pull, w.lastErr = w.m.Pull(PullOptions{Path: ""})
 		return nil
 	})
 
@@ -585,6 +602,30 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^push is not already-up-to-date$`, func() error {
 		if w.push == nil || w.push.AlreadyUpToDate {
 			return fmt.Errorf("expected AlreadyUpToDate=false, got %+v", w.push)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the pull succeeded$`, func() error {
+		if w.lastErr != nil {
+			return fmt.Errorf("pull failed: %v", w.lastErr)
+		}
+		if w.pull == nil {
+			return fmt.Errorf("pull result is nil")
+		}
+		return nil
+	})
+
+	ctx.Step(`^pull is already-up-to-date$`, func() error {
+		if w.pull == nil || !w.pull.AlreadyUpToDate {
+			return fmt.Errorf("expected AlreadyUpToDate=true, got %+v", w.pull)
+		}
+		return nil
+	})
+
+	ctx.Step(`^pull is not already-up-to-date$`, func() error {
+		if w.pull == nil || w.pull.AlreadyUpToDate {
+			return fmt.Errorf("expected AlreadyUpToDate=false, got %+v", w.pull)
 		}
 		return nil
 	})

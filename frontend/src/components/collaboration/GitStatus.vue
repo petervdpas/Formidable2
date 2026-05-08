@@ -26,11 +26,19 @@ const props = defineProps<{
   loading: boolean;
   notARepo: boolean;
   errorMsg: string;
+  /** Sync workspace gates these on tracking/ahead/behind/in-flight
+   *  state — we only render the buttons; the parent owns the rules. */
+  canPull: boolean;
+  canPush: boolean;
+  pulling: boolean;
+  pushing: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "refresh"): void;
   (e: "fetch"): void;
+  (e: "pull"): void;
+  (e: "push"): void;
   (e: "discard", file: string): void;
 }>();
 
@@ -52,6 +60,31 @@ const buckets = computed(() => {
 function bucketLabel(key: string, count: number): string {
   return t(`workspace.collaboration.status.bucket.${key}`, [count]);
 }
+
+// Tooltip on the Pull button: when canPull is false we explain the
+// most likely "why" so the user knows what to fix. Sync.vue's
+// canPull rule order is detached → no-tracking → dirty → up-to-date,
+// and we mirror that priority here.
+const pullTooltip = computed<string | undefined>(() => {
+  if (props.canPull) return undefined;
+  const s = props.status;
+  if (!s) return undefined;
+  if (s.detached) return t("workspace.collaboration.pull.disabled_detached");
+  if (!s.tracking) return t("workspace.collaboration.pull.disabled_no_tracking");
+  if (!s.clean) return t("workspace.collaboration.pull.disabled_dirty");
+  if (s.behind === 0) return t("workspace.collaboration.pull.disabled_up_to_date");
+  return undefined;
+});
+
+const pushTooltip = computed<string | undefined>(() => {
+  if (props.canPush) return undefined;
+  const s = props.status;
+  if (!s) return undefined;
+  if (s.detached) return t("workspace.collaboration.push.disabled_detached");
+  if (!s.tracking) return t("workspace.collaboration.push.disabled_no_tracking");
+  if (s.ahead === 0) return t("workspace.collaboration.push.disabled_up_to_date");
+  return undefined;
+});
 </script>
 
 <template>
@@ -63,18 +96,39 @@ function bucketLabel(key: string, count: number): string {
           type="button"
           class="tool-btn"
           :disabled="loading"
-          @click="emit('fetch')"
+          @click="emit('refresh')"
         >
-          <i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>
-          {{ t('workspace.collaboration.status.fetch') }}
+          {{ t('workspace.collaboration.status.refresh') }}
         </button>
         <button
           type="button"
           class="tool-btn"
           :disabled="loading"
-          @click="emit('refresh')"
+          @click="emit('fetch')"
         >
-          {{ t('workspace.collaboration.status.refresh') }}
+          <i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>
+          {{ t('workspace.collaboration.status.fetch') }}
+        </button>
+        <span class="git-status-actions-sep" aria-hidden="true"></span>
+        <button
+          type="button"
+          class="tool-btn"
+          :disabled="!canPull"
+          :title="pullTooltip"
+          @click="emit('pull')"
+        >
+          <i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i>
+          {{ pulling ? t('workspace.collaboration.pull.running') : t('workspace.collaboration.pull.button') }}
+        </button>
+        <button
+          type="button"
+          class="tool-btn"
+          :disabled="!canPush"
+          :title="pushTooltip"
+          @click="emit('push')"
+        >
+          <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+          {{ pushing ? t('workspace.collaboration.push.running') : t('workspace.collaboration.push.button') }}
         </button>
       </div>
     </div>

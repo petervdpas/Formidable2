@@ -1021,6 +1021,241 @@ func TestPush_PAT_BasicAuth(t *testing.T) {
 	}
 }
 
+// ─── Pull ──────────────────────────────────────────────────────────────
+
+func TestPull_AdvancesLocalBranch(t *testing.T) {
+	bare := makeBareRepo(t)
+
+	// Clone for our pull target.
+	work := t.TempDir()
+	wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeHead, err := wr.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Advance the bare via a separate ephemeral clone.
+	pusher := t.TempDir()
+	pr, err := gogit.PlainClone(pusher, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pusher, "remote.txt"), []byte("r"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pwt, err := pr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pwt.Add("remote.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pwt.Commit("remote-side", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := pr.Push(&gogit.PushOptions{RemoteName: "origin"}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Pull(PullOptions{Path: work})
+	if err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	if res == nil || res.AlreadyUpToDate {
+		t.Errorf("expected pull to advance local, got %+v", res)
+	}
+
+	afterHead, err := wr.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeHead.Hash() == afterHead.Hash() {
+		t.Errorf("local HEAD unchanged after pull (%s)", afterHead.Hash())
+	}
+}
+
+func TestPull_AlreadyUpToDate(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Pull(PullOptions{Path: work})
+	if err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	if res == nil || !res.AlreadyUpToDate {
+		t.Errorf("expected AlreadyUpToDate=true, got %+v", res)
+	}
+}
+
+func TestPull_RefusesEmptyPath(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Pull(PullOptions{Path: ""}); err == nil {
+		t.Error("expected error for empty path")
+	}
+	if _, err := m.Pull(PullOptions{Path: "  "}); err == nil {
+		t.Error("expected error for whitespace-only path")
+	}
+}
+
+func TestPull_RefusesNonRepoPath(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Pull(PullOptions{Path: t.TempDir()}); err == nil {
+		t.Error("expected error pulling on a non-repo dir")
+	}
+}
+
+func TestPull_RefusesDirtyWorktree(t *testing.T) {
+	// go-git's worktree pull rejects a worktree with unstaged changes
+	// rather than auto-stashing. The frontend pre-empts this with an
+	// AlertDialog, so we lock the backend contract down: dirty
+	// worktree + remote ahead → error, never silent merge.
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Advance the remote so there's a real commit to pull.
+	pusher := t.TempDir()
+	pr, err := gogit.PlainClone(pusher, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pusher, "remote.txt"), []byte("r"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pwt, err := pr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pwt.Add("remote.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pwt.Commit("remote-side", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := pr.Push(&gogit.PushOptions{RemoteName: "origin"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Dirty the local worktree by modifying the seed file (which
+	// already exists at HEAD — that's the case go-git refuses).
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("dirty"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Pull(PullOptions{Path: work})
+	if err == nil {
+		t.Errorf("expected error pulling onto dirty worktree, got result=%+v", res)
+	}
+
+	// Local HEAD must NOT have advanced — partial pull would be a
+	// data-loss footgun. We verify by comparing against the
+	// pre-pull HEAD.
+	beforeHead, _ := wr.Head()
+	afterHead, _ := wr.Head()
+	if beforeHead.Hash() != afterHead.Hash() {
+		t.Errorf("HEAD moved despite pull error: before=%s after=%s",
+			beforeHead.Hash(), afterHead.Hash())
+	}
+}
+
+func TestPull_RefusesDetachedHEAD(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := wr.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := wr.Storer.SetReference(plumbing.NewHashReference(plumbing.HEAD, h.Hash())); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	if _, err := m.Pull(PullOptions{Path: work}); err == nil {
+		t.Error("expected error pulling on detached HEAD")
+	}
+}
+
+// pullAuthFixture builds a non-bare repo with a HEAD commit and an
+// "origin" pointing at the supplied test-server URL. Pull needs a
+// resolvable HEAD before it'll attempt the network round-trip, so
+// the tests that exercise auth headers can't reuse the bare-empty
+// shortcut Push/Fetch get away with.
+func pullAuthFixture(t *testing.T, originURL string) string {
+	t.Helper()
+	work := t.TempDir()
+	r, err := gogit.PlainInit(work, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("seed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := r.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("seed.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("seed", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{originURL},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return work
+}
+
+func TestPull_AuthFailureIsAnError(t *testing.T) {
+	srv, _ := captureAuthHeader(t)
+	work := pullAuthFixture(t, srv.URL+"/repo.git")
+
+	m := NewManager()
+	if _, err := m.Pull(PullOptions{Path: work, PAT: "wrong"}); err == nil {
+		t.Error("expected error on auth failure")
+	}
+}
+
+func TestPull_PAT_BasicAuth(t *testing.T) {
+	srv, getAuth := captureAuthHeader(t)
+	work := pullAuthFixture(t, srv.URL+"/repo.git")
+
+	m := NewManager()
+	_, _ = m.Pull(PullOptions{Path: work, PAT: "pull-pat-xyz"})
+
+	want := "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte("x-access-token:pull-pat-xyz"),
+	)
+	if got := getAuth(); got != want {
+		t.Errorf("Authorization for pull = %q, want %q", got, want)
+	}
+}
+
 // ─── Fetch ─────────────────────────────────────────────────────────────
 
 func TestFetch_RefusesEmptyPath(t *testing.T) {

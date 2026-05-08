@@ -233,3 +233,30 @@ Feature: Git collaboration backend
   Scenario: Fetch refuses an empty path
     When I fetch with an empty path
     Then the operation returned an error
+
+  Scenario: Pull advances the local branch when remote has new commits
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And the bare repo gains another commit
+    When I pull from "client"
+    Then the pull succeeded
+    And pull is not already-up-to-date
+
+  Scenario: Pull reports already-up-to-date when remote is unchanged
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    When I pull from "client"
+    Then the pull succeeded
+    And pull is already-up-to-date
+
+  Scenario: Pull refuses an empty path
+    When I pull with an empty path
+    Then the operation returned an error
+
+  Scenario: Pull refuses a dirty worktree
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And the bare repo gains another commit
+    And "seed.txt" is rewritten to "dirty" inside "client"
+    When I pull from "client"
+    Then the operation returned an error

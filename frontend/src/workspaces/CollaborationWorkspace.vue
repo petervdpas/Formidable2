@@ -8,6 +8,7 @@ import { useConfig } from "../composables/useConfig";
 import { useCredentialAccount } from "../composables/useCredentialAccount";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { backendErrMessage } from "../utils/backendError";
 import { Service as GitSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import { Service as CredentialSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/credential";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
@@ -84,7 +85,7 @@ async function openRemoteInBrowser() {
     }
     await SystemSvc.OpenExternal(url);
   } catch (err) {
-    toast.error("workspace.collaboration.open_remote.error", [String(err)]);
+    toast.error("workspace.collaboration.open_remote.error", [backendErrMessage(err)]);
   }
 }
 
@@ -115,7 +116,7 @@ async function confirmForgetToken() {
     await CredentialSvc.Delete(account);
     toast.success("workspace.collaboration.forget_token.success");
   } catch (err) {
-    toast.error("workspace.collaboration.forget_token.error", [String(err)]);
+    toast.error("workspace.collaboration.forget_token.error", [backendErrMessage(err)]);
   }
 }
 

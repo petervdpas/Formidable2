@@ -542,6 +542,60 @@ func (m *Manager) Push(opts PushOptions) (*PushResult, error) {
 	return &PushResult{AlreadyUpToDate: false}, nil
 }
 
+// Pull fetches from the named remote (default "origin") and merges
+// the upstream branch into the current local branch. Refuses on
+// detached HEAD; on a non-fast-forward merge with conflicts the
+// caller gets a wrapped error from go-git's worktree pull. Empty
+// PAT means anonymous (works for public repos and SSH).
+//
+// AlreadyUpToDate=true mirrors Push/Fetch — info, not error.
+func (m *Manager) Pull(opts PullOptions) (*PullResult, error) {
+	if strings.TrimSpace(opts.Path) == "" {
+		return nil, errors.New("git: pull: path required")
+	}
+	r, err := m.open(opts.Path)
+	if err != nil {
+		return nil, fmt.Errorf("git: pull: open: %w", err)
+	}
+	head, err := r.Head()
+	if err != nil {
+		return nil, fmt.Errorf("git: pull: head: %w", err)
+	}
+	if !head.Name().IsBranch() {
+		return nil, errors.New("git: pull: HEAD is detached")
+	}
+
+	wt, err := r.Worktree()
+	if err != nil {
+		return nil, fmt.Errorf("git: pull: worktree: %w", err)
+	}
+
+	remote := opts.Remote
+	if remote == "" {
+		remote = "origin"
+	}
+
+	pullOpts := &gogit.PullOptions{
+		RemoteName:    remote,
+		ReferenceName: head.Name(),
+	}
+	if opts.PAT != "" {
+		pullOpts.Auth = &githttp.BasicAuth{
+			Username: "x-access-token",
+			Password: opts.PAT,
+		}
+	}
+
+	err = wt.Pull(pullOpts)
+	if errors.Is(err, gogit.NoErrAlreadyUpToDate) {
+		return &PullResult{AlreadyUpToDate: true}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("git: pull: %w", err)
+	}
+	return &PullResult{AlreadyUpToDate: false}, nil
+}
+
 // Fetch updates the remote-tracking refs for the named remote
 // (default "origin"). The local worktree isn't touched; ahead/behind
 // counts in subsequent Status() calls reflect the new state of the

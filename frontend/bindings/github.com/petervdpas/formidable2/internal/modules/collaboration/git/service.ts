@@ -69,18 +69,28 @@ export function Log(path: string, limit: number): $CancellablePromise<$models.Co
 }
 
 /**
+ * Pull fetches + merges the upstream branch. Same keychain auto-fill
+ * behavior as Fetch / Push.
+ */
+export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.PullResult | null> {
+    return $Call.ByID(2931175689, opts).then(($result: any) => {
+        return $$createType11($result);
+    });
+}
+
+/**
  * Push sends commits to the named remote. Same keychain auto-fill
  * behavior as Fetch.
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
 export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
     return $Call.ByID(1356102196, path).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
 }
 
@@ -90,7 +100,7 @@ export function RepoRoot(path: string): $CancellablePromise<string> {
 
 export function Status(path: string): $CancellablePromise<$models.Status | null> {
     return $Call.ByID(3686552508, path).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
@@ -105,9 +115,11 @@ const $$createType6 = $models.FetchResult.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = $models.Commit.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.PushResult.createFrom;
+const $$createType10 = $models.PullResult.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.RemoteInfo.createFrom;
+const $$createType12 = $models.PushResult.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $models.Status.createFrom;
+const $$createType14 = $models.RemoteInfo.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = $models.Status.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);

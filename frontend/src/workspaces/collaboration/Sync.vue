@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import GitStatus from "../../components/collaboration/GitStatus.vue";
 import AuthorIdentityDialog from "../../components/collaboration/AuthorIdentityDialog.vue";
+import AlertDialog from "../../components/AlertDialog.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
 import {
   FormSection,
@@ -14,6 +15,7 @@ import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/fo
 import { useConfig } from "../../composables/useConfig";
 import { isValidAuthor } from "../../composables/useAuthorValidation";
 import { useToast } from "../../composables/useToast";
+import { backendErrMessage } from "../../utils/backendError";
 
 // Sync workspace — combined status + commit screen for the active
 // Git repository. Owns the status-fetch lifecycle so the commit
@@ -50,6 +52,7 @@ const errorMsg = ref<string>("");
 const message = ref("");
 const inFlight = ref(false);
 const pushing = ref(false);
+const pulling = ref(false);
 const fetching = ref(false);
 
 // PAT lookup is server-side: GitSvc.Push / Fetch resolve the stored
@@ -88,9 +91,9 @@ async function load(announce: boolean) {
     if (announce) toast.success("workspace.collaboration.status.refreshed");
   } catch (err) {
     if (my !== reqId) return;
-    errorMsg.value = String(err);
+    errorMsg.value = backendErrMessage(err);
     status.value = null;
-    if (announce) toast.error("workspace.collaboration.status.error", [String(err)]);
+    if (announce) toast.error("workspace.collaboration.status.error", [backendErrMessage(err)]);
   } finally {
     if (my === reqId) loading.value = false;
   }
@@ -133,7 +136,7 @@ async function fetchRemote() {
     }
     await load(false);
   } catch (err) {
-    toast.error("workspace.collaboration.fetch.error", [String(err)]);
+    toast.error("workspace.collaboration.fetch.error", [backendErrMessage(err)]);
   } finally {
     fetching.value = false;
   }
@@ -146,6 +149,20 @@ const canPush = computed(() => {
   if (!status.value.tracking) return false;
   return status.value.ahead > 0;
 });
+
+const canPull = computed(() => {
+  if (pulling.value) return false;
+  if (!status.value) return false;
+  if (status.value.detached) return false;
+  if (!status.value.tracking) return false;
+  return status.value.behind > 0;
+});
+
+// Pulling onto a dirty worktree fails inside go-git with a
+// "worktree contains unstaged changes" error. We intercept the
+// click and pop a clear AlertDialog instead — the user just needs
+// to commit or discard first.
+const pullDirtyOpen = ref(false);
 
 async function push() {
   if (!canPush.value) return;
@@ -160,9 +177,35 @@ async function push() {
     }
     await load(false);
   } catch (err) {
-    toast.error("workspace.collaboration.push.error", [String(err)]);
+    toast.error("workspace.collaboration.push.error", [backendErrMessage(err)]);
   } finally {
     pushing.value = false;
+  }
+}
+
+async function pull() {
+  if (!canPull.value) return;
+  // Pre-flight: dirty worktree → friendly alert instead of a
+  // confusing backend error. The user must commit or discard
+  // before pulling.
+  if (status.value && !status.value.clean) {
+    pullDirtyOpen.value = true;
+    return;
+  }
+  pulling.value = true;
+  try {
+    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
+    const result = await GitSvc.Pull({ path: abs, remote: "origin", pat: "" });
+    if (result?.already_up_to_date) {
+      toast.info("workspace.collaboration.pull.up_to_date");
+    } else {
+      toast.success("workspace.collaboration.pull.success");
+    }
+    await load(false);
+  } catch (err) {
+    toast.error("workspace.collaboration.pull.error", [backendErrMessage(err)]);
+  } finally {
+    pulling.value = false;
   }
 }
 
@@ -194,7 +237,7 @@ async function commit() {
       await load(false);
     }
   } catch (err) {
-    toast.error("workspace.collaboration.commit.error", [String(err)]);
+    toast.error("workspace.collaboration.commit.error", [backendErrMessage(err)]);
   } finally {
     inFlight.value = false;
   }
@@ -229,7 +272,7 @@ async function confirmDiscard() {
     toast.success("workspace.collaboration.status.discarded", [file]);
     await load(false);
   } catch (err) {
-    toast.error("workspace.collaboration.status.discard_error", [file, String(err)]);
+    toast.error("workspace.collaboration.status.discard_error", [file, backendErrMessage(err)]);
   } finally {
     discardFile.value = "";
   }
@@ -244,8 +287,14 @@ async function confirmDiscard() {
     :loading="loading"
     :not-a-repo="notARepo"
     :error-msg="errorMsg"
+    :can-pull="canPull"
+    :can-push="canPush"
+    :pulling="pulling"
+    :pushing="pushing"
     @refresh="load(true)"
     @fetch="fetchRemote"
+    @pull="pull"
+    @push="push"
     @discard="askDiscard"
   />
 
@@ -260,36 +309,26 @@ async function confirmDiscard() {
         :rows="3"
       />
     </FormRow>
+    <FormRow>
+      <div class="git-commit-actions">
+        <button
+          type="button"
+          class="tool-btn primary"
+          :disabled="!canCommit"
+          @click="commit"
+        >
+          {{ inFlight ? t('workspace.collaboration.commit.running') : t('workspace.collaboration.commit.button') }}
+        </button>
+      </div>
+    </FormRow>
   </FormSection>
 
-  <div v-if="status && !status.clean && !status.detached" class="git-commit-actions">
-    <button
-      type="button"
-      class="tool-btn primary"
-      :disabled="!canCommit"
-      @click="commit"
-    >
-      {{ inFlight ? t('workspace.collaboration.commit.running') : t('workspace.collaboration.commit.button') }}
-    </button>
-  </div>
-
-  <div
-    v-if="status && !status.detached && status.tracking"
-    class="git-push-actions"
-  >
-    <span v-if="status.ahead > 0" class="git-push-summary">
-      {{ t('workspace.collaboration.push.ahead_summary', [status.ahead]) }}
-    </span>
-    <button
-      type="button"
-      class="tool-btn primary"
-      :disabled="!canPush"
-      @click="push"
-    >
-      <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
-      {{ pushing ? t('workspace.collaboration.push.running') : t('workspace.collaboration.push.button') }}
-    </button>
-  </div>
+  <AlertDialog
+    :open="pullDirtyOpen"
+    :title="t('workspace.collaboration.pull.dirty_title')"
+    :message="t('workspace.collaboration.pull.dirty_message')"
+    @close="pullDirtyOpen = false"
+  />
 
   <AuthorIdentityDialog
     :open="authorDialogOpen"

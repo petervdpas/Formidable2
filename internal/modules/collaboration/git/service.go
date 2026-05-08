@@ -68,6 +68,15 @@ func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 	return s.m.Push(opts)
 }
 
+// Pull fetches + merges the upstream branch. Same keychain auto-fill
+// behavior as Fetch / Push.
+func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
+	if opts.PAT == "" {
+		opts.PAT = s.resolvePAT(opts.Path)
+	}
+	return s.m.Pull(opts)
+}
+
 // resolvePAT looks up the stored token for the repo's "origin"
 // remote, scoped by active profile. Any failure (missing creds dep,
 // no profile, no origin, keychain miss / error) collapses to "" so

@@ -341,6 +341,67 @@ export class FetchResult {
 }
 
 /**
+ * PullOptions describes a pull request — a fetch followed by a
+ * merge of the tracking ref into the current branch. Default merge
+ * strategy (no rebase). Path is any path inside the worktree;
+ * Remote defaults to "origin"; PAT is the HTTPS Basic password
+ * (transient, same as Clone).
+ */
+export class PullOptions {
+    "path": string;
+    "remote": string;
+    "pat": string;
+
+    /** Creates a new PullOptions instance. */
+    constructor($$source: Partial<PullOptions> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("remote" in $$source)) {
+            this["remote"] = "";
+        }
+        if (!("pat" in $$source)) {
+            this["pat"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PullOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PullOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PullOptions($$parsedSource as Partial<PullOptions>);
+    }
+}
+
+/**
+ * PullResult mirrors PushResult / FetchResult: AlreadyUpToDate=true
+ * means there were no new commits to merge.
+ */
+export class PullResult {
+    "already_up_to_date": boolean;
+
+    /** Creates a new PullResult instance. */
+    constructor($$source: Partial<PullResult> = {}) {
+        if (!("already_up_to_date" in $$source)) {
+            this["already_up_to_date"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PullResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PullResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PullResult($$parsedSource as Partial<PullResult>);
+    }
+}
+
+/**
  * PushOptions describes a push request. The current branch's HEAD
  * is pushed to the matching ref on Remote (default "origin"); we
  * don't expose explicit refspecs in v1.

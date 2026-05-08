@@ -16,6 +16,8 @@ export {
     DiscardOptions,
     FetchOptions,
     FetchResult,
+    PullOptions,
+    PullResult,
     PushOptions,
     PushResult,
     Remote,

@@ -14,6 +14,7 @@ import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/fo
 import { useConfig } from "../../composables/useConfig";
 import { useCredentialAccount } from "../../composables/useCredentialAccount";
 import { useToast } from "../../composables/useToast";
+import { backendErrMessage } from "../../utils/backendError";
 
 // One-shot Git clone form. PAT is held in a local ref only — never
 // persisted, never written to config. The Wails service receives it
@@ -73,7 +74,7 @@ async function clone() {
           const account = accountFor("git", url.value.trim());
           await CredentialSvc.Set(account, pat.value);
         } catch (err) {
-          toast.error("workspace.collaboration.clone.save_token_error", [String(err)]);
+          toast.error("workspace.collaboration.clone.save_token_error", [backendErrMessage(err)]);
         }
       }
 
@@ -85,7 +86,7 @@ async function clone() {
       saveToken.value = false;
     }
   } catch (err) {
-    toast.error("workspace.collaboration.clone.error", [String(err)]);
+    toast.error("workspace.collaboration.clone.error", [backendErrMessage(err)]);
   } finally {
     // PAT is always wiped — even on error, we don't want it to
     // linger in component state across navigation.

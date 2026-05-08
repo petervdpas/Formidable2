@@ -140,6 +140,23 @@ type FetchResult struct {
 	AlreadyUpToDate bool `json:"already_up_to_date"`
 }
 
+// PullOptions describes a pull request — a fetch followed by a
+// merge of the tracking ref into the current branch. Default merge
+// strategy (no rebase). Path is any path inside the worktree;
+// Remote defaults to "origin"; PAT is the HTTPS Basic password
+// (transient, same as Clone).
+type PullOptions struct {
+	Path   string `json:"path"`
+	Remote string `json:"remote"`
+	PAT    string `json:"pat"`
+}
+
+// PullResult mirrors PushResult / FetchResult: AlreadyUpToDate=true
+// means there were no new commits to merge.
+type PullResult struct {
+	AlreadyUpToDate bool `json:"already_up_to_date"`
+}
+
 // PushOptions describes a push request. The current branch's HEAD
 // is pushed to the matching ref on Remote (default "origin"); we
 // don't expose explicit refspecs in v1.
