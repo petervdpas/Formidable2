@@ -192,6 +192,19 @@ const runMode = computed(
   () => (selectedPlugin.value?.manifest.run_mode || "modal") as "modal" | "form",
 );
 
+// Commands split by visibility rule: in form mode only the
+// form_button commands are surfaced (as inline buttons inside
+// the form area); in modal mode only non-form-button commands
+// appear (as the existing cards). A command flagged form_button
+// in a modal-mode plugin is intentionally hidden — author opt-in.
+const visibleCommands = computed(() => {
+  const all = selectedPlugin.value?.manifest.commands ?? [];
+  if (runMode.value === "form") {
+    return all.filter((c) => c.form_button);
+  }
+  return all.filter((c) => !c.form_button);
+});
+
 // Manifest description rendered through goldmark (RenderHTML) so
 // plugin authors can use Markdown — bold, links, lists, code spans —
 // in the run-modal callout. We re-render whenever the draft text
@@ -257,6 +270,22 @@ async function runCommand(p: ListResult, cmd: Command) {
   } finally {
     runningCmd.value = "";
   }
+}
+
+// True when there's at least one piece of result content to render
+// for `cmd` — non-hidden output, or non-hidden non-empty logs. When
+// the user opts both hide_output and hide_log (often paired with
+// log_as_toast=true so the log surfaces as a toast instead) the
+// result block is dropped entirely so we don't show a bare title.
+function shouldShowResult(
+  cmd: Command,
+  result: RunResultDTO | undefined,
+): boolean {
+  if (!result) return false;
+  const hasOutput = !cmd.hide_output;
+  const logCount = result.logLines?.length ?? 0;
+  const hasLogs = !cmd.hide_log && logCount > 0;
+  return hasOutput || hasLogs;
 }
 
 function prettyValue(v: unknown): string {
@@ -719,10 +748,55 @@ setTopbarMenu(() => [
           :model-value="runValues[f.key]"
           @update:model-value="(v: unknown) => (runValues[f.key] = v)"
         />
+        <div
+          v-if="visibleCommands.length > 0"
+          class="run-form-buttons"
+        >
+          <button
+            v-for="cmd in visibleCommands"
+            :key="cmd.id"
+            class="tool-btn primary"
+            :disabled="runningCmd === cmd.id"
+            @click="runCommand(selectedPlugin, cmd)"
+          >
+            <span v-if="runningCmd === cmd.id">
+              {{ t('workspace.plugins.running') }}
+            </span>
+            <span v-else>{{ cmd.label || cmd.id }}</span>
+          </button>
+        </div>
+
+        <div
+          v-for="cmd in visibleCommands"
+          :key="`r-${cmd.id}`"
+          class="run-form-result"
+          v-show="shouldShowResult(cmd, runResults[cmd.id])"
+        >
+          <template v-if="runResults[cmd.id]">
+            <h4 class="run-form-result-title">{{ cmd.label || cmd.id }}</h4>
+            <template v-if="!cmd.hide_output">
+              <template v-if="runResults[cmd.id]!.kind === 'ok'">
+                <pre class="result-output">{{ prettyValue(runResults[cmd.id]!.value) }}</pre>
+              </template>
+              <template v-else>
+                <h5 class="error-heading">
+                  {{ errorLabel(runResults[cmd.id]!.kind, runResults[cmd.id]!.message ?? '') }}
+                </h5>
+                <pre class="result-output error-output">{{ runResults[cmd.id]!.message }}</pre>
+              </template>
+            </template>
+            <template
+              v-if="!cmd.hide_log && (runResults[cmd.id]!.logLines?.length ?? 0) > 0"
+            >
+              <pre class="result-logs">{{ runResults[cmd.id]!.logLines!.join('\n') }}</pre>
+            </template>
+          </template>
+        </div>
       </section>
 
+      <template v-if="runMode !== 'form'">
       <section
-        v-for="cmd in selectedPlugin.manifest.commands"
+        v-for="cmd in visibleCommands"
         :key="cmd.id"
         class="command-card"
       >
@@ -767,6 +841,7 @@ setTopbarMenu(() => [
           </template>
         </div>
       </section>
+      </template>
     </div>
 
     <template #footer>
