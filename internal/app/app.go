@@ -18,6 +18,7 @@ import (
 
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/api"
+	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
@@ -85,6 +86,7 @@ type App struct {
 	Wiki         *wiki.Service
 	Dataprovider *dataprovider.Service
 	Plugin       *plugin.Service
+	Git          *git.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -97,6 +99,7 @@ type App struct {
 	dataProvider    *dataprovider.Manager
 	wikiManager     *wiki.Manager
 	pluginManager   *plugin.Manager
+	gitManager      *git.Manager
 	apiHandler      http.Handler
 	emitter         *emitterRelay
 	deps            Deps
@@ -342,6 +345,11 @@ func New(d Deps) (*App, error) {
 		d.Logger.Warn("plugin: initial refresh failed", "err", err)
 	}
 
+	// Collaboration → Git. Stateless read-only manager backed by
+	// pure go-git — no system git binary or credential helper
+	// required. Network/auth ops arrive in a later pass.
+	gitM := git.NewManager()
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -360,6 +368,7 @@ func New(d Deps) (*App, error) {
 		Wiki:            wikiSvc,
 		Dataprovider:    dataprovider.NewService(dpM),
 		Plugin:          plugin.NewService(pluginM),
+		Git:             git.NewService(gitM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
@@ -371,6 +380,7 @@ func New(d Deps) (*App, error) {
 		dataProvider:    dpM,
 		wikiManager:     wikiM,
 		pluginManager:   pluginM,
+		gitManager:      gitM,
 		apiHandler:      apiHandler,
 		emitter:         emitter,
 		deps:            d,
