@@ -71,6 +71,27 @@ func TestService_Run_CommandNotFound(t *testing.T) {
 	}
 }
 
+func TestService_Run_PassesThroughToasts(t *testing.T) {
+	s, _ := newTestServiceWithPlugin(t, `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, `function run()
+		formidable.toast.success("yay")
+		formidable.toast.error("nope")
+	end`)
+	dto := s.Run("demo", "run", nil)
+	if dto.Kind != "ok" {
+		t.Fatalf("got %+v", dto)
+	}
+	if len(dto.Toasts) != 2 {
+		t.Fatalf("toasts: %+v", dto.Toasts)
+	}
+	if dto.Toasts[0].Level != "success" || dto.Toasts[1].Level != "error" {
+		t.Fatalf("levels: %+v", dto.Toasts)
+	}
+}
+
 func TestService_Run_RuntimeError(t *testing.T) {
 	s, _ := newTestServiceWithPlugin(t, `{
 		"manifest_version": 1, "id": "demo", "name": "Demo",

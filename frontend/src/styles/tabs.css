@@ -1,0 +1,59 @@
+/* Horizontal tab strip — used by workspaces that need to swap
+   between sub-views (e.g. Plugins: Lua Source / Commands / Form
+   Editor). Tab buttons sit in a row, an active underline marks the
+   selected tab, and the matching .tab-pane below holds its content.
+   Tokens come from tokens.css + themes/*.css; no hard-coded colors. */
+
+.tabs {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-weight: 500;
+    padding: var(--space-2) var(--space-4);
+    cursor: pointer;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+
+    /* Active-state underline lives in a 2px bottom border that
+       overlaps the strip's bottom border so the active tab visually
+       continues into its pane. */
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+
+    transition: background 80ms linear, color 80ms linear;
+}
+
+.tab:hover:not(.active) {
+    background: var(--color-surface);
+}
+
+.tab.active {
+    color: var(--color-accent, var(--color-text));
+    border-bottom-color: var(--color-accent, var(--color-text));
+    font-weight: 600;
+}
+
+.tab:focus-visible {
+    outline: 2px solid var(--color-accent, var(--color-text));
+    outline-offset: 2px;
+}
+
+/* Pane: thin wrapper holding the active tab's content. Borrows the
+   form-section's framed-card look so all editor surfaces feel
+   consistent. */
+.tab-pane {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    padding: var(--space-3) var(--space-4);
+    margin: 0 0 var(--space-3);
+}

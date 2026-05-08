@@ -65,6 +65,10 @@
   "workspace.plugins.commands.fn_placeholder": "(standaard: id)",
   "workspace.plugins.commands.id": "Id",
   "workspace.plugins.commands.label": "Label",
+  "workspace.plugins.commands.show_log_short": "Log",
+  "workspace.plugins.commands.show_log_title": "Toon het logvenster na uitvoeren",
+  "workspace.plugins.commands.show_output_short": "Resultaat",
+  "workspace.plugins.commands.show_output_title": "Toon het resultaatvenster na uitvoeren",
   "workspace.plugins.commands.title": "Commando's",
   "workspace.plugins.create.error": "Plugin aanmaken mislukt: {0}",
   "workspace.plugins.create.exists": "Er bestaat al een plugin met dat id.",
@@ -101,8 +105,12 @@
   "workspace.plugins.save_error": "Plugin opslaan mislukt: {0}",
   "workspace.plugins.save_success": "Plugin '{0}' opgeslagen.",
   "workspace.plugins.sidebar_title": "Plugins",
+  "workspace.plugins.form.placeholder": "De visuele formulier-bouwer komt eraan — dit tabblad is voorlopig een placeholder.",
   "workspace.plugins.source.help": "main.lua — globale functies zijn beschikbaar als commando-doel. Ctrl+Enter wisselt naar volledig scherm.",
   "workspace.plugins.source.title": "Lua-broncode",
+  "workspace.plugins.tab.commands": "Commando's",
+  "workspace.plugins.tab.form": "Formuliereditor",
+  "workspace.plugins.tab.source": "Lua-broncode",
   "workspace.plugins.title": "Plugins",
   "workspace.plugins.version_label": "v{0}"
 }

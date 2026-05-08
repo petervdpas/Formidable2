@@ -10,5 +10,6 @@ export {
     Command,
     ListResult,
     Manifest,
-    RunResultDTO
+    RunResultDTO,
+    ToastEvent
 } from "./models.js";

@@ -48,12 +48,15 @@ func (s *Service) Refresh() ([]ListResult, error) {
 
 // RunResultDTO is the JSON envelope for Run. Kind is "ok" on
 // success or one of the error sentinels' kinds — Vue branches on
-// Kind, never on Message text.
+// Kind, never on Message text. Toasts pass through whatever
+// formidable.toast.* emitted during the call so the workspace can
+// dispatch them to useToast.
 type RunResultDTO struct {
-	Kind     string   `json:"kind"`
-	Message  string   `json:"message,omitempty"`
-	Value    any      `json:"value,omitempty"`
-	LogLines []string `json:"logLines,omitempty"`
+	Kind     string       `json:"kind"`
+	Message  string       `json:"message,omitempty"`
+	Value    any          `json:"value,omitempty"`
+	LogLines []string     `json:"logLines,omitempty"`
+	Toasts   []ToastEvent `json:"toasts,omitempty"`
 }
 
 // Create scaffolds a new plugin folder and returns the new list.
@@ -98,14 +101,19 @@ func (s *Service) GetSource(id string) (string, error) {
 func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultDTO {
 	res, err := s.m.Run(pluginID, commandID, ctx)
 	if err == nil {
-		return RunResultDTO{Kind: "ok", Value: res.Value, LogLines: res.LogLines}
+		return RunResultDTO{
+			Kind:     "ok",
+			Value:    res.Value,
+			LogLines: res.LogLines,
+			Toasts:   res.Toasts,
+		}
 	}
 	switch {
 	case errors.Is(err, ErrPluginNotFound):
-		return RunResultDTO{Kind: "plugin_not_found", Message: err.Error(), LogLines: res.LogLines}
+		return RunResultDTO{Kind: "plugin_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrCommandNotFound):
-		return RunResultDTO{Kind: "command_not_found", Message: err.Error(), LogLines: res.LogLines}
+		return RunResultDTO{Kind: "command_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	default:
-		return RunResultDTO{Kind: "runtime_error", Message: err.Error(), LogLines: res.LogLines}
+		return RunResultDTO{Kind: "runtime_error", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	}
 }

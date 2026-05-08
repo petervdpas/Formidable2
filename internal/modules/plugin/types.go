@@ -57,10 +57,19 @@ type Manifest struct {
 // inside main.lua that gets called. When Fn is empty the command
 // ID itself is used as the function name (so a command with
 // id="export" calls global function `export(ctx)` in Lua).
+//
+// HideOutput and HideLog let a command opt out of showing the
+// corresponding panel in the Run dialog — useful for "fire and
+// forget" actions whose return value is irrelevant. Default false =
+// panels visible (today's behavior). Both are omitempty so the
+// majority of commands (which want both panels) leave the manifest
+// shape unchanged.
 type Command struct {
-	ID    string `json:"id"`
-	Label string `json:"label"`
-	Fn    string `json:"fn,omitempty"`
+	ID         string `json:"id"`
+	Label      string `json:"label"`
+	Fn         string `json:"fn,omitempty"`
+	HideOutput bool   `json:"hide_output,omitempty"`
+	HideLog    bool   `json:"hide_log,omitempty"`
 }
 
 // Plugin is a discovered, validated plugin entry held by the
@@ -71,14 +80,25 @@ type Plugin struct {
 	Dir      string   `json:"dir"`
 }
 
+// ToastEvent is one user-facing toast a plugin script asked the
+// frontend to show via formidable.toast.{info,success,warn,error}.
+// Collected during a Run; surfaced on RunResult.Toasts so Vue can
+// dispatch them through useToast verbatim.
+type ToastEvent struct {
+	Level   string `json:"level"`
+	Message string `json:"message"`
+}
+
 // RunResult is the JSON-shaped envelope returned to Vue. Value
 // holds the Lua function's return value after lvalue→Go
 // conversion; LogLines collects formidable.log.* output emitted
 // during the call so the workspace panel can show it next to the
-// result.
+// result; Toasts collects formidable.toast.* events for the
+// frontend to surface as live notifications.
 type RunResult struct {
-	Value    any      `json:"value"`
-	LogLines []string `json:"logLines,omitempty"`
+	Value    any          `json:"value"`
+	LogLines []string     `json:"logLines,omitempty"`
+	Toasts   []ToastEvent `json:"toasts,omitempty"`
 }
 
 // ─────────────────────────────────────────────────────────────────

@@ -61,6 +61,27 @@ func TestManager_Create_GeneratesValidPlugin(t *testing.T) {
 	}
 }
 
+func TestManager_Create_ScaffoldsEmptyFormJSON(t *testing.T) {
+	// Plugins get a form.json next to plugin.json + main.lua so the
+	// future visual builder always has something to load. Default
+	// content is an empty JSON array — "no fields yet."
+	m, dir := newEditorTestManager(t)
+	if err := m.Create("hello"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "hello", "form.json"))
+	if err != nil {
+		t.Fatalf("form.json missing: %v", err)
+	}
+	var fields []any
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		t.Fatalf("form.json must parse as JSON array: %v (got %q)", err, raw)
+	}
+	if len(fields) != 0 {
+		t.Fatalf("default form.json should be empty, got %d fields", len(fields))
+	}
+}
+
 func TestManager_Create_RejectsInvalidID(t *testing.T) {
 	m, _ := newEditorTestManager(t)
 	cases := []string{"", "..", "a/b", "Demo", "has space"}
@@ -397,6 +418,23 @@ func TestService_GetSource(t *testing.T) {
 }
 
 // ── DefaultManifest serialization round-trip ─────────────────────────
+
+func TestSerializeManifest_OmitsHideFlagsByDefault(t *testing.T) {
+	// Default-false hide flags must not appear in the serialized
+	// JSON — keeps fresh manifests minimal and avoids polluting
+	// unrelated plugins with the new fields.
+	in := Manifest{
+		ManifestVersion: 1, ID: "x", Name: "X", Version: "0.1.0",
+		Commands: []Command{{ID: "run", Label: "Run"}},
+	}
+	raw, err := SerializeManifest(in)
+	if err != nil {
+		t.Fatalf("serialize: %v", err)
+	}
+	if strings.Contains(string(raw), "hide_output") || strings.Contains(string(raw), "hide_log") {
+		t.Fatalf("default-false flags leaked into manifest: %s", raw)
+	}
+}
 
 func TestSerializeManifest_RoundTrip(t *testing.T) {
 	in := Manifest{

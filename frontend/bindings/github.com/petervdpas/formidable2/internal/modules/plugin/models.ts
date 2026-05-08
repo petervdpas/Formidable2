@@ -11,11 +11,20 @@ import { Create as $Create } from "@wailsio/runtime";
  * inside main.lua that gets called. When Fn is empty the command
  * ID itself is used as the function name (so a command with
  * id="export" calls global function `export(ctx)` in Lua).
+ * 
+ * HideOutput and HideLog let a command opt out of showing the
+ * corresponding panel in the Run dialog — useful for "fire and
+ * forget" actions whose return value is irrelevant. Default false =
+ * panels visible (today's behavior). Both are omitempty so the
+ * majority of commands (which want both panels) leave the manifest
+ * shape unchanged.
  */
 export class Command {
     "id": string;
     "label": string;
     "fn"?: string;
+    "hide_output"?: boolean;
+    "hide_log"?: boolean;
 
     /** Creates a new Command instance. */
     constructor($$source: Partial<Command> = {}) {
@@ -126,13 +135,16 @@ export class Manifest {
 /**
  * RunResultDTO is the JSON envelope for Run. Kind is "ok" on
  * success or one of the error sentinels' kinds — Vue branches on
- * Kind, never on Message text.
+ * Kind, never on Message text. Toasts pass through whatever
+ * formidable.toast.* emitted during the call so the workspace can
+ * dispatch them to useToast.
  */
 export class RunResultDTO {
     "kind": string;
     "message"?: string;
     "value"?: any;
     "logLines"?: string[];
+    "toasts"?: ToastEvent[];
 
     /** Creates a new RunResultDTO instance. */
     constructor($$source: Partial<RunResultDTO> = {}) {
@@ -148,11 +160,46 @@ export class RunResultDTO {
      */
     static createFrom($$source: any = {}): RunResultDTO {
         const $$createField3_0 = $$createType3;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("logLines" in $$parsedSource) {
             $$parsedSource["logLines"] = $$createField3_0($$parsedSource["logLines"]);
         }
+        if ("toasts" in $$parsedSource) {
+            $$parsedSource["toasts"] = $$createField4_0($$parsedSource["toasts"]);
+        }
         return new RunResultDTO($$parsedSource as Partial<RunResultDTO>);
+    }
+}
+
+/**
+ * ToastEvent is one user-facing toast a plugin script asked the
+ * frontend to show via formidable.toast.{info,success,warn,error}.
+ * Collected during a Run; surfaced on RunResult.Toasts so Vue can
+ * dispatch them through useToast verbatim.
+ */
+export class ToastEvent {
+    "level": string;
+    "message": string;
+
+    /** Creates a new ToastEvent instance. */
+    constructor($$source: Partial<ToastEvent> = {}) {
+        if (!("level" in $$source)) {
+            this["level"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ToastEvent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ToastEvent {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ToastEvent($$parsedSource as Partial<ToastEvent>);
     }
 }
 
@@ -161,3 +208,5 @@ const $$createType0 = Manifest.createFrom;
 const $$createType1 = Command.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = ToastEvent.createFrom;
+const $$createType5 = $Create.Array($$createType4);

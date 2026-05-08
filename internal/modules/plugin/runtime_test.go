@@ -265,3 +265,61 @@ func TestRunScript_LogLinesCaptured(t *testing.T) {
 		t.Fatalf("logs[1]: %q", res.LogLines[1])
 	}
 }
+
+func TestRunScript_ToastEventsCollected(t *testing.T) {
+	// The four toast levels (info/success/warn/error) must each
+	// surface as a structured event in RunResult.Toasts so the
+	// frontend can dispatch them through useToast verbatim.
+	res, err := runScript(scriptOpts{
+		Source: `function run(ctx)
+			formidable.toast.info("FYI")
+			formidable.toast.success("Saved!")
+			formidable.toast.warn("watch out")
+			formidable.toast.error("Boom")
+			return true
+		end`,
+		Fn: "run",
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(res.Toasts) != 4 {
+		t.Fatalf("got %d toasts, want 4: %+v", len(res.Toasts), res.Toasts)
+	}
+	want := []struct {
+		level string
+		msg   string
+	}{
+		{"info", "FYI"},
+		{"success", "Saved!"},
+		{"warn", "watch out"},
+		{"error", "Boom"},
+	}
+	for i, w := range want {
+		if res.Toasts[i].Level != w.level || res.Toasts[i].Message != w.msg {
+			t.Fatalf("toast[%d] = %+v, want level=%q msg=%q",
+				i, res.Toasts[i], w.level, w.msg)
+		}
+	}
+}
+
+func TestRunScript_ToastIgnoresExtraArgs(t *testing.T) {
+	// Multiple positional args concat with a space, mirroring
+	// formidable.log.* — keeps the API consistent.
+	res, err := runScript(scriptOpts{
+		Source: `function run(ctx)
+			formidable.toast.success("hello", "world", 42)
+			return true
+		end`,
+		Fn: "run",
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(res.Toasts) != 1 {
+		t.Fatalf("got %d toasts, want 1", len(res.Toasts))
+	}
+	if res.Toasts[0].Message != "hello world 42" {
+		t.Fatalf("got %q", res.Toasts[0].Message)
+	}
+}

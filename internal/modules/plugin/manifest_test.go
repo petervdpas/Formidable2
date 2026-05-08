@@ -178,3 +178,29 @@ func TestFnNameFor_ExplicitOverridesID(t *testing.T) {
 		t.Fatal("explicit Fn should win")
 	}
 }
+
+func TestLoadManifest_PreservesCommandHideFlags(t *testing.T) {
+	// A command can opt out of showing its Result/Log panels in the
+	// Run modal — useful for "fire and forget" actions where the
+	// return value is irrelevant. Default (omitted) = both visible.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [
+			{"id": "loud", "label": "Loud"},
+			{"id": "silent", "label": "Silent", "hide_output": true, "hide_log": true}
+		]
+	}`, "function loud() end\nfunction silent() end")
+
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got.Commands[0].HideOutput || got.Commands[0].HideLog {
+		t.Fatalf("loud command should default to visible: %+v", got.Commands[0])
+	}
+	if !got.Commands[1].HideOutput || !got.Commands[1].HideLog {
+		t.Fatalf("silent command should preserve hide flags: %+v", got.Commands[1])
+	}
+}

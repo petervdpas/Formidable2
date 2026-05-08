@@ -58,6 +58,12 @@ function run(ctx)
 end
 `
 
+// defaultFormJSON is the empty form definition written alongside a
+// fresh plugin. The visual form builder reads/writes this file; an
+// empty JSON array means "no input fields yet". Created up front so
+// the builder never has to handle a missing file.
+const defaultFormJSON = "[]\n"
+
 // Create scaffolds a new plugin folder at <PluginsDir>/<id> with a
 // default manifest and a hello-world main.lua. Refreshes the
 // registry on success so the Plugins workspace sees the new entry
@@ -91,6 +97,9 @@ func (m *Manager) Create(id string) error {
 	}
 	if err := m.deps.Editor.SaveFile(filepath.Join(dir, "main.lua"), defaultMainLua); err != nil {
 		return fmt.Errorf("plugin: write main.lua: %w", err)
+	}
+	if err := m.deps.Editor.SaveFile(filepath.Join(dir, "form.json"), defaultFormJSON); err != nil {
+		return fmt.Errorf("plugin: write form.json: %w", err)
 	}
 	return m.Refresh()
 }

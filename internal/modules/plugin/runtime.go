@@ -51,6 +51,7 @@ func newSandboxedState() *lua.LState {
 // loud and makes wiring gaps in app.go obvious.
 type runtimeDeps struct {
 	LogSink    *[]string
+	ToastSink  *[]ToastEvent
 	PluginID   string
 	KV         *KV
 	Template   TemplateAccess
@@ -69,6 +70,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f := L.NewTable()
 	f.RawSetString("api_version", lua.LNumber(LuaAPIVersion))
 	f.RawSetString("log", buildLogTable(L, deps.LogSink))
+	f.RawSetString("toast", buildToastTable(L, deps.ToastSink))
 	f.RawSetString("kv", buildKVTable(L, deps.PluginID, deps.KV))
 	f.RawSetString("template", buildTemplateTable(L, deps.Template))
 	f.RawSetString("collection", buildCollectionTable(L, deps.Collection))
@@ -77,6 +79,28 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
 	f.RawSetString("exec", buildExecValue(L, deps.Exec))
 	L.SetGlobal("formidable", f)
+}
+
+func buildToastTable(L *lua.LState, sink *[]ToastEvent) *lua.LTable {
+	t := L.NewTable()
+	for _, level := range []string{"info", "success", "warn", "error"} {
+		lvl := level
+		t.RawSetString(level, L.NewFunction(func(L *lua.LState) int {
+			top := L.GetTop()
+			parts := make([]string, 0, top)
+			for i := 1; i <= top; i++ {
+				parts = append(parts, lua.LVAsString(L.Get(i)))
+			}
+			if sink != nil {
+				*sink = append(*sink, ToastEvent{
+					Level:   lvl,
+					Message: strings.Join(parts, " "),
+				})
+			}
+			return 0
+		}))
+	}
+	return t
 }
 
 func buildLogTable(L *lua.LState, sink *[]string) *lua.LTable {
@@ -132,8 +156,10 @@ func runScript(opts scriptOpts) (RunResult, error) {
 	defer L.Close()
 
 	var logs []string
+	var toasts []ToastEvent
 	installFormidable(L, runtimeDeps{
 		LogSink:    &logs,
+		ToastSink:  &toasts,
 		PluginID:   opts.PluginID,
 		KV:         opts.KV,
 		Template:   opts.Template,
@@ -145,12 +171,12 @@ func runScript(opts scriptOpts) (RunResult, error) {
 	})
 
 	if err := L.DoString(opts.Source); err != nil {
-		return RunResult{LogLines: logs}, fmt.Errorf("plugin: load script: %w", err)
+		return RunResult{LogLines: logs, Toasts: toasts}, fmt.Errorf("plugin: load script: %w", err)
 	}
 
 	fn := L.GetGlobal(opts.Fn)
 	if fn == lua.LNil {
-		return RunResult{LogLines: logs}, fmt.Errorf("plugin: function '%s' not defined", opts.Fn)
+		return RunResult{LogLines: logs, Toasts: toasts}, fmt.Errorf("plugin: function '%s' not defined", opts.Fn)
 	}
 
 	args := []lua.LValue{}
@@ -162,10 +188,10 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		NRet:    1,
 		Protect: true,
 	}, args...); err != nil {
-		return RunResult{LogLines: logs}, fmt.Errorf("plugin: call: %w", err)
+		return RunResult{LogLines: logs, Toasts: toasts}, fmt.Errorf("plugin: call: %w", err)
 	}
 
 	ret := L.Get(-1)
 	L.Pop(1)
-	return RunResult{Value: luaToGo(ret), LogLines: logs}, nil
+	return RunResult{Value: luaToGo(ret), LogLines: logs, Toasts: toasts}, nil
 }

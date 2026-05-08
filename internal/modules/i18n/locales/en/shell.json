@@ -66,6 +66,10 @@
   "workspace.plugins.commands.fn_placeholder": "(defaults to id)",
   "workspace.plugins.commands.id": "Id",
   "workspace.plugins.commands.label": "Label",
+  "workspace.plugins.commands.show_log_short": "Log",
+  "workspace.plugins.commands.show_log_title": "Show the log panel after running",
+  "workspace.plugins.commands.show_output_short": "Result",
+  "workspace.plugins.commands.show_output_title": "Show the result panel after running",
   "workspace.plugins.commands.title": "Commands",
   "workspace.plugins.create.error": "Failed to create plugin: {0}",
   "workspace.plugins.create.exists": "A plugin with that id already exists.",
@@ -102,8 +106,12 @@
   "workspace.plugins.save_error": "Failed to save plugin: {0}",
   "workspace.plugins.save_success": "Plugin '{0}' saved.",
   "workspace.plugins.sidebar_title": "Plugins",
+  "workspace.plugins.form.placeholder": "Visual form builder is coming next — for now this tab is a placeholder.",
   "workspace.plugins.source.help": "main.lua — global functions are exposed as command targets. Ctrl+Enter toggles fullscreen.",
   "workspace.plugins.source.title": "Lua Source",
+  "workspace.plugins.tab.commands": "Commands",
+  "workspace.plugins.tab.form": "Form Editor",
+  "workspace.plugins.tab.source": "Lua Source",
   "workspace.plugins.title": "Plugins",
   "workspace.plugins.version_label": "v{0}"
 }

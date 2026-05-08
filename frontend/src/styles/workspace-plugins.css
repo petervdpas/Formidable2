@@ -1,6 +1,7 @@
 /* Plugins workspace — sidebar list of installed plugins + main panel
-   manifest editor + Lua source editor. The Run modal reuses the
-   `.command-card` / `.command-result` styles below. */
+   manifest editor + Lua source editor + Commands editor. The tab
+   strip + tab-pane chrome lives in tabs.css; this file holds only
+   the commands list, the Lua-source pane, and the Run modal. */
 
 /* ── Sidebar ─────────────────────────────────────────────────────── */
 .plugin-name { font-weight: 600; }
@@ -12,7 +13,10 @@
     flex-wrap: wrap;
 }
 
-/* ── Commands list editor (in main pane) ────────────────────────── */
+/* ── Commands list editor ────────────────────────────────────────
+   The .cmd-row + per-input + toggle styles live in
+   plugin-command-row.css. Only the list wrapper + add-row footer
+   stay here (workspace-level layout). */
 .cmd-rows {
     list-style: none;
     padding: 0;
@@ -20,51 +24,16 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    grid-column: 1 / -1;
-}
-
-.cmd-row {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--space-2) var(--space-3);
-    background: var(--color-surface);
-}
-
-/* Three text fields side-by-side on wide layouts; collapse to a
-   single column when the panel is narrow. The delete button trails
-   the row regardless. */
-.cmd-row-grid {
-    display: grid;
-    grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) auto;
-    gap: var(--space-2);
-    align-items: end;
-}
-
-.cmd-row-label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
 }
 
 .cmd-add-row {
-    grid-column: 1 / -1;
     margin-top: var(--space-2);
 }
 
-/* Lua source pane spans both grid columns of the surrounding
-   form-section so the editor uses the full panel width — the
-   FormSection title is the only label. */
 .plugin-source {
-    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-}
-
-@media (max-width: 720px) {
-    .cmd-row-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* ── Run modal — command cards + output panes ───────────────────── */

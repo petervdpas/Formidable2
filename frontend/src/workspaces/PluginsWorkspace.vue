@@ -5,6 +5,7 @@ import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
+import PluginCommandRow from "../components/PluginCommandRow.vue";
 import {
   Service as PluginSvc,
   Command,
@@ -39,6 +40,13 @@ const {
 } = usePlugins();
 
 const { draftManifest, draftSource, dirty, save, reset } = usePluginEditor();
+
+// Tabs below the Manifest section. Lua Source first (where the
+// most editing happens); Commands edits the manifest's command
+// list; Form Editor is a placeholder until the visual builder
+// lands in the next slice.
+type PluginTab = "source" | "commands" | "form";
+const activeTab = ref<PluginTab>("source");
 
 // ── Refresh ──────────────────────────────────────────────────────────
 async function doRefresh() {
@@ -142,7 +150,15 @@ function openRun() {
 async function runCommand(p: ListResult, cmd: Command) {
   runningCmd.value = cmd.id;
   try {
-    runResults.value[cmd.id] = await PluginSvc.Run(p.id, cmd.id, {});
+    const res = await PluginSvc.Run(p.id, cmd.id, {});
+    runResults.value[cmd.id] = res;
+    // Dispatch any formidable.toast.* events the script emitted.
+    // useToast accepts plain text, so the message goes through
+    // verbatim — no i18n key resolution.
+    for (const ev of res.toasts ?? []) {
+      const fn = toast[ev.level as "info" | "success" | "warn" | "error"];
+      if (fn) fn(ev.message);
+    }
   } catch (err) {
     runResults.value[cmd.id] = new RunResultDTO({
       kind: "runtime_error",
@@ -306,56 +322,65 @@ setTopbarMenu(() => [
           </FormRow>
         </FormSection>
 
-        <FormSection :title="t('workspace.plugins.commands.title')">
+        <nav class="tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            :class="['tab', { active: activeTab === 'source' }]"
+            :aria-selected="activeTab === 'source'"
+            @click="activeTab = 'source'"
+          >
+            {{ t('workspace.plugins.tab.source') }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :class="['tab', { active: activeTab === 'commands' }]"
+            :aria-selected="activeTab === 'commands'"
+            @click="activeTab = 'commands'"
+          >
+            {{ t('workspace.plugins.tab.commands') }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            :class="['tab', { active: activeTab === 'form' }]"
+            :aria-selected="activeTab === 'form'"
+            @click="activeTab = 'form'"
+          >
+            {{ t('workspace.plugins.tab.form') }}
+          </button>
+        </nav>
+
+        <section v-show="activeTab === 'source'" class="tab-pane">
+          <div class="plugin-source">
+            <CodeEditor v-model="draftSource" lang="lua" :height="420" />
+            <p class="muted small">{{ t('workspace.plugins.source.help') }}</p>
+          </div>
+        </section>
+
+        <section v-show="activeTab === 'commands'" class="tab-pane">
           <p v-if="!draftManifest.commands || draftManifest.commands.length === 0" class="muted small">
             {{ t('workspace.plugins.commands.empty') }}
           </p>
           <ul v-else class="cmd-rows">
-            <li
+            <PluginCommandRow
               v-for="(c, i) in draftManifest.commands"
               :key="i"
-              class="cmd-row"
-            >
-              <div class="cmd-row-grid">
-                <label class="cmd-row-label">
-                  <span class="muted small">{{ t('workspace.plugins.commands.id') }}</span>
-                  <input class="field-input" v-model="c.id" />
-                </label>
-                <label class="cmd-row-label">
-                  <span class="muted small">{{ t('workspace.plugins.commands.label') }}</span>
-                  <input class="field-input" v-model="c.label" />
-                </label>
-                <label class="cmd-row-label">
-                  <span class="muted small">{{ t('workspace.plugins.commands.fn') }}</span>
-                  <input
-                    class="field-input"
-                    v-model="c.fn"
-                    :placeholder="c.id || t('workspace.plugins.commands.fn_placeholder')"
-                  />
-                </label>
-                <button
-                  type="button"
-                  class="field-action-btn delete"
-                  @click="removeCommand(i)"
-                >
-                  {{ t('workspace.plugins.commands.delete') }}
-                </button>
-              </div>
-            </li>
+              :command="c"
+              @delete="removeCommand(i)"
+            />
           </ul>
           <div class="cmd-add-row">
             <button class="tool-btn" type="button" @click="addCommand">
               + {{ t('workspace.plugins.commands.add') }}
             </button>
           </div>
-        </FormSection>
+        </section>
 
-        <FormSection :title="t('workspace.plugins.source.title')">
-          <div class="plugin-source">
-            <CodeEditor v-model="draftSource" lang="lua" :height="360" />
-            <p class="muted small">{{ t('workspace.plugins.source.help') }}</p>
-          </div>
-        </FormSection>
+        <section v-show="activeTab === 'form'" class="tab-pane">
+          <p class="muted small">{{ t('workspace.plugins.form.placeholder') }}</p>
+        </section>
       </template>
     </template>
   </SplitPane>
@@ -430,23 +455,27 @@ setTopbarMenu(() => [
         </div>
 
         <div v-if="runResults[cmd.id]" class="command-result">
-          <template v-if="runResults[cmd.id]!.kind === 'ok'">
-            <h4>{{ t('workspace.plugins.output_title') }}</h4>
-            <pre class="result-output">{{ prettyValue(runResults[cmd.id]!.value) }}</pre>
-          </template>
-          <template v-else>
-            <h4 class="error-heading">
-              {{
-                errorLabel(
-                  runResults[cmd.id]!.kind,
-                  runResults[cmd.id]!.message ?? '',
-                )
-              }}
-            </h4>
-            <pre class="result-output error-output">{{ runResults[cmd.id]!.message }}</pre>
+          <template v-if="!cmd.hide_output">
+            <template v-if="runResults[cmd.id]!.kind === 'ok'">
+              <h4>{{ t('workspace.plugins.output_title') }}</h4>
+              <pre class="result-output">{{ prettyValue(runResults[cmd.id]!.value) }}</pre>
+            </template>
+            <template v-else>
+              <h4 class="error-heading">
+                {{
+                  errorLabel(
+                    runResults[cmd.id]!.kind,
+                    runResults[cmd.id]!.message ?? '',
+                  )
+                }}
+              </h4>
+              <pre class="result-output error-output">{{ runResults[cmd.id]!.message }}</pre>
+            </template>
           </template>
 
-          <template v-if="(runResults[cmd.id]!.logLines?.length ?? 0) > 0">
+          <template
+            v-if="!cmd.hide_log && (runResults[cmd.id]!.logLines?.length ?? 0) > 0"
+          >
             <h4>{{ t('workspace.plugins.logs_title') }}</h4>
             <pre class="result-logs">{{ runResults[cmd.id]!.logLines!.join('\n') }}</pre>
           </template>
