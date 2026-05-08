@@ -41,7 +41,7 @@
   "workspace.collaboration.sidebar_title": "Samenwerken",
   "workspace.collaboration.section.current_service": "Huidige service",
   "workspace.collaboration.section.clone": "Repository klonen",
-  "workspace.collaboration.clone.info": "Kloon een bestaande Git-repository. De PAT wordt eenmalig gebruikt en niet opgeslagen.",
+  "workspace.collaboration.clone.info": "Kloon een bestaande Git-repository. De PAT wordt na het klonen verwijderd, tenzij 'Token bewaren voor synchronisatie' aan staat — dan wordt hij opgeslagen in de OS-sleutelbos zodat volgende pulls en pushes niet opnieuw vragen.",
   "workspace.collaboration.clone.url": "Repository-URL",
   "workspace.collaboration.clone.pat": "Persoonlijk toegangstoken",
   "workspace.collaboration.clone.pat_help": "Optioneel. Vereist voor privé HTTPS-clones; leeg laten voor publieke repos.",

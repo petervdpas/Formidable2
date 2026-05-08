@@ -1,8 +1,12 @@
 package git
 
 import (
+	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -505,5 +509,114 @@ func TestClone_ErrorOnInvalidURL(t *testing.T) {
 	dest := filepath.Join(t.TempDir(), "x")
 	if _, err := m.Clone(CloneOptions{URL: "file:///definitely/not/a/repo", Dest: dest}); err == nil {
 		t.Error("expected error for invalid URL")
+	}
+}
+
+// ─── Clone auth (HTTP) ────────────────────────────────────────────────
+//
+// httptest spins up a real HTTP server in-process. We don't speak the
+// full Git smart-HTTP protocol — just capture the Authorization
+// header on the very first /info/refs request and 401 it. That's
+// enough to prove go-git's BasicAuth wiring puts the PAT on the wire
+// in the right shape, and works the same way for any provider
+// (GitHub, GitLab, Gitea, Bitbucket, Azure DevOps) since they all
+// use the same HTTP Basic auth pattern.
+
+// captureAuthHeader returns a test HTTP server that records the
+// Authorization header from the first request to /info/refs and
+// responds 401. The clone fails (intentionally), but Clone() will
+// have already sent the auth header by then.
+func captureAuthHeader(t *testing.T) (*httptest.Server, func() string) {
+	t.Helper()
+	var mu sync.Mutex
+	var captured string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		if captured == "" {
+			captured = r.Header.Get("Authorization")
+		}
+		mu.Unlock()
+		w.Header().Set("WWW-Authenticate", `Basic realm="Git"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(srv.Close)
+	get := func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		return captured
+	}
+	return srv, get
+}
+
+func TestClone_PAT_SendsBasicAuthHeader(t *testing.T) {
+	srv, getAuth := captureAuthHeader(t)
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "x")
+	// Expected to fail (server returns 401) — we only care that the
+	// header was put on the wire correctly.
+	_, _ = m.Clone(CloneOptions{
+		URL:  srv.URL + "/contoso/repo.git",
+		Dest: dest,
+		PAT:  "azure-devops-test-pat",
+	})
+
+	want := "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte("x-access-token:azure-devops-test-pat"),
+	)
+	if got := getAuth(); got != want {
+		t.Errorf("Authorization = %q, want %q", got, want)
+	}
+}
+
+func TestClone_NoPAT_SendsNoAuthHeader(t *testing.T) {
+	srv, getAuth := captureAuthHeader(t)
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "x")
+	_, _ = m.Clone(CloneOptions{
+		URL:  srv.URL + "/repo.git",
+		Dest: dest,
+		// PAT intentionally empty — anonymous clone.
+	})
+
+	if got := getAuth(); got != "" {
+		t.Errorf("Authorization = %q, want empty for anonymous clone", got)
+	}
+}
+
+func TestClone_PAT_ReturnsErrorOn401(t *testing.T) {
+	// Wrong PAT (or any 401 from the server) must surface as an
+	// error from Clone — UI relies on this to show the failure
+	// toast and not advance state as if the clone succeeded.
+	srv, _ := captureAuthHeader(t)
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "x")
+	if _, err := m.Clone(CloneOptions{
+		URL:  srv.URL + "/repo.git",
+		Dest: dest,
+		PAT:  "wrong-token",
+	}); err == nil {
+		t.Error("expected error when server returns 401")
+	}
+}
+
+func TestClone_PAT_AzureDevOpsURLShape(t *testing.T) {
+	// Sanity check: an Azure-DevOps-shaped URL flows through the
+	// same code path as GitHub / GitLab. The username is still the
+	// placeholder "x-access-token"; Azure DevOps treats any
+	// non-empty username as fine, so this works there.
+	srv, getAuth := captureAuthHeader(t)
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "x")
+	_, _ = m.Clone(CloneOptions{
+		URL:  srv.URL + "/myorg/myproject/_git/myrepo",
+		Dest: dest,
+		PAT:  "ado-pat-xyz",
+	})
+
+	want := "Basic " + base64.StdEncoding.EncodeToString(
+		[]byte("x-access-token:ado-pat-xyz"),
+	)
+	if got := getAuth(); got != want {
+		t.Errorf("Authorization for ADO URL = %q, want %q", got, want)
 	}
 }

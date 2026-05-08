@@ -7,11 +7,28 @@
 // to persist a PAT or token across sessions without writing it to
 // disk in plaintext.
 //
-// Account naming: Git uses the remote URL ("https://github.com/foo
-// /bar.git") so a PAT is bound to the repo it was issued for.
-// GiGot will use its own scheme when wired. The service name
-// ("Formidable") is the keychain "vendor" namespace shared by all
-// backends so all credentials show up grouped in the OS UI.
+// # Account naming convention
+//
+// All callers — both Vue and any future backend sync ops — must
+// produce keychain account strings of the form:
+//
+//	<profile_filename>:<backend>:<identifier>
+//
+// where:
+//   - profile_filename is the active profile's basename (e.g.
+//     "default.json"). Profile namespacing keeps "personal" and
+//     "work" tokens separate even when both reference the same
+//     remote repo.
+//   - backend is "git" or "gigot".
+//   - identifier is per-backend: a remote URL for Git, a repo
+//     name for GiGot.
+//
+// The frontend implements this in
+// frontend/src/composables/useCredentialAccount.ts; keep both
+// definitions aligned if either side changes.
+//
+// The keychain "service" name ("Formidable") is shared by all
+// entries so they show up grouped in the OS UI.
 package credential
 
 // Has-result for "is there an entry for this account" queries.

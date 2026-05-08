@@ -42,7 +42,7 @@
   "workspace.collaboration.sidebar_title": "Collaboration",
   "workspace.collaboration.section.current_service": "Current Service",
   "workspace.collaboration.section.clone": "Clone Repository",
-  "workspace.collaboration.clone.info": "Clone an existing Git repository. The PAT is used once and never stored on disk.",
+  "workspace.collaboration.clone.info": "Clone an existing Git repository. The PAT is discarded after cloning unless 'Save token for sync' is on — in which case it's stored in the OS keychain so future pulls and pushes don't re-prompt.",
   "workspace.collaboration.clone.url": "Repository URL",
   "workspace.collaboration.clone.pat": "Personal Access Token",
   "workspace.collaboration.clone.pat_help": "Optional. Required for private HTTPS clones; left blank for public repos.",

@@ -12,6 +12,7 @@ import { Service as GitSvc } from "../../../bindings/github.com/petervdpas/formi
 import { Service as CredentialSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/credential";
 import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { useConfig } from "../../composables/useConfig";
+import { useCredentialAccount } from "../../composables/useCredentialAccount";
 import { useToast } from "../../composables/useToast";
 
 // One-shot Git clone form. PAT is held in a local ref only — never
@@ -23,6 +24,7 @@ import { useToast } from "../../composables/useToast";
 // PAT field is cleared regardless of outcome (transient by design).
 const { t } = useI18n();
 const { update } = useConfig();
+const { accountFor } = useCredentialAccount();
 const toast = useToast();
 
 const url = ref("");
@@ -55,14 +57,15 @@ async function clone() {
       const display = await SystemSvc.MakeAppRootRelative(result.dest);
       await update({ git_root: display || result.dest });
 
-      // If the user opted in, persist the PAT to the OS keychain
-      // keyed by the remote URL so future sync ops can read it
-      // without re-prompting. Errors here don't undo the clone —
-      // we surface them as a separate toast and let the user
-      // retry the save (or not).
+      // If the user opted in, persist the PAT to the OS keychain.
+      // Account name is namespaced "<profile>:git:<remote_url>" so
+      // multiple profiles cloning the same repo each get their own
+      // entry. Errors here don't undo the clone — we surface them
+      // as a separate toast and let the user retry the save.
       if (saveToken.value && pat.value !== "") {
         try {
-          await CredentialSvc.Set(url.value.trim(), pat.value);
+          const account = accountFor("git", url.value.trim());
+          await CredentialSvc.Set(account, pat.value);
         } catch (err) {
           toast.error("workspace.collaboration.clone.save_token_error", [String(err)]);
         }
