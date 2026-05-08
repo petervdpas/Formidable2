@@ -1,24 +1,34 @@
 import type { Component } from "vue";
 import CurrentService from "./CurrentService.vue";
+import GitClone from "./GitClone.vue";
 
-export type CollaborationSectionId = "current-service";
+export type CollaborationSectionId = "current-service" | "git-clone";
+export type CollaborationBackend = "git" | "gigot";
 
 export interface CollaborationSection {
   id: CollaborationSectionId;
   labelKey: string;
   component: Component;
+  /** Backend filter — when set, the row is only shown if
+   *  config.remote_backend matches. Omit for backend-agnostic rows
+   *  like "Current Service". */
+  backend?: CollaborationBackend;
 }
 
-// Sidebar rows. For now there's a single "Current Service" row whose
-// main pane content adapts to the active remote backend (read from
-// config.remote_backend) inside CurrentService.vue. When real Git-/
-// GiGot-specific operations land they'll come in as additional
-// sections, optionally tagged with a backend filter so the sidebar
-// stays scoped to the active service.
+// Sidebar rows. "Current Service" is the always-visible overview;
+// the rest are operations scoped to a specific backend (the workspace
+// filters by config.remote_backend). When real GiGot operations land
+// they take a backend: "gigot" tag and slot in alongside.
 export const COLLABORATION_SECTIONS: CollaborationSection[] = [
   {
     id: "current-service",
     labelKey: "workspace.collaboration.section.current_service",
     component: CurrentService,
+  },
+  {
+    id: "git-clone",
+    labelKey: "workspace.collaboration.section.clone",
+    component: GitClone,
+    backend: "git",
   },
 ];

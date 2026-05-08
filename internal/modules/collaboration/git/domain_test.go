@@ -392,3 +392,118 @@ func TestRemoteInfo_ErrorOnNonRepo(t *testing.T) {
 		t.Error("expected error for non-repo dir")
 	}
 }
+
+// ─── Clone ────────────────────────────────────────────────────────────
+
+// fileURL turns a local repo path into a file:// URL go-git accepts.
+// Used as the source for clone tests so they don't touch the network.
+func fileURL(path string) string {
+	return "file://" + path
+}
+
+func TestClone_HappyPath(t *testing.T) {
+	srcDir, srcRepo := newRepo(t)
+	addCommit(t, srcDir, srcRepo, "a.txt", "hello", "first")
+
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "cloned")
+	res, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest})
+	if err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+	if res.Dest != dest {
+		t.Errorf("Dest = %q, want %q", res.Dest, dest)
+	}
+	if len(res.Head) != 40 {
+		t.Errorf("Head len = %d, want 40", len(res.Head))
+	}
+	if !m.IsGitRepo(dest) {
+		t.Error("destination is not a git repo after clone")
+	}
+}
+
+func TestClone_PicksExplicitBranch(t *testing.T) {
+	srcDir, srcRepo := newRepo(t)
+	h := addCommit(t, srcDir, srcRepo, "a.txt", "hello", "first")
+	// Create a `feature` branch on the source.
+	if err := srcRepo.Storer.SetReference(plumbing.NewHashReference(plumbing.NewBranchReferenceName("feature"), h)); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "cloned")
+	if _, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest, Branch: "feature"}); err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+	st, err := m.Status(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Branch != "feature" {
+		t.Errorf("Branch = %q, want feature", st.Branch)
+	}
+}
+
+func TestClone_DefaultsToRemoteHead(t *testing.T) {
+	srcDir, srcRepo := newRepo(t)
+	addCommit(t, srcDir, srcRepo, "a.txt", "hello", "first")
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "cloned")
+	if _, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest}); err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+	st, _ := m.Status(dest)
+	// PlainInit defaults to "master"; accept either to stay
+	// resilient to go-git release defaults.
+	if st.Branch != "master" && st.Branch != "main" {
+		t.Errorf("Branch = %q, want master|main (remote HEAD default)", st.Branch)
+	}
+}
+
+func TestClone_RejectsNonEmptyDestination(t *testing.T) {
+	srcDir, srcRepo := newRepo(t)
+	addCommit(t, srcDir, srcRepo, "a.txt", "hello", "first")
+
+	m := NewManager()
+	dest := t.TempDir()
+	// Pre-populate dest with a file so it's non-empty.
+	if err := os.WriteFile(filepath.Join(dest, "leftover"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest})
+	if err == nil {
+		t.Error("expected error cloning into non-empty dir")
+	}
+}
+
+func TestClone_AllowsEmptyExistingDestination(t *testing.T) {
+	srcDir, srcRepo := newRepo(t)
+	addCommit(t, srcDir, srcRepo, "a.txt", "hello", "first")
+	m := NewManager()
+	dest := t.TempDir() // exists, empty
+	if _, err := m.Clone(CloneOptions{URL: fileURL(srcDir), Dest: dest}); err != nil {
+		t.Errorf("Clone into empty existing dir failed: %v", err)
+	}
+}
+
+func TestClone_ErrorOnEmptyURL(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Clone(CloneOptions{URL: "", Dest: t.TempDir()}); err == nil {
+		t.Error("expected error for empty URL")
+	}
+}
+
+func TestClone_ErrorOnEmptyDest(t *testing.T) {
+	m := NewManager()
+	if _, err := m.Clone(CloneOptions{URL: "https://example.com/repo.git", Dest: ""}); err == nil {
+		t.Error("expected error for empty Dest")
+	}
+}
+
+func TestClone_ErrorOnInvalidURL(t *testing.T) {
+	m := NewManager()
+	dest := filepath.Join(t.TempDir(), "x")
+	if _, err := m.Clone(CloneOptions{URL: "file:///definitely/not/a/repo", Dest: dest}); err == nil {
+		t.Error("expected error for invalid URL")
+	}
+}

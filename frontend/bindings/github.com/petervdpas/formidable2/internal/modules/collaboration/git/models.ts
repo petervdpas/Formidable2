@@ -41,6 +41,83 @@ export class Branches {
 }
 
 /**
+ * CloneOptions describes a clone request. URL and Dest are required;
+ * Branch picks an initial checkout (empty = remote's default HEAD).
+ * 
+ * PAT is the Personal Access Token used as the password in HTTP Basic
+ * auth (with username "x-access-token" — the GitHub-PAT convention,
+ * also accepted by Gitea/GitLab/Bitbucket as long as the username is
+ * non-empty). Empty PAT means anonymous (public repos / SSH).
+ * 
+ * IMPORTANT: PAT is read-only at the call site and never persisted by
+ * the manager. The frontend keeps it transient — pasted into the
+ * clone form, sent over the Wails bridge once, and discarded as soon
+ * as the response returns. SSH-based auth lives in a follow-up.
+ */
+export class CloneOptions {
+    "url": string;
+    "dest": string;
+    "branch": string;
+    "pat": string;
+
+    /** Creates a new CloneOptions instance. */
+    constructor($$source: Partial<CloneOptions> = {}) {
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("dest" in $$source)) {
+            this["dest"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("pat" in $$source)) {
+            this["pat"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CloneOptions instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CloneOptions {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CloneOptions($$parsedSource as Partial<CloneOptions>);
+    }
+}
+
+/**
+ * CloneResult is the success envelope: the worktree we cloned into
+ * and the commit HEAD now points at. The frontend uses Dest to flip
+ * git_root once a clone completes.
+ */
+export class CloneResult {
+    "dest": string;
+    "head": string;
+
+    /** Creates a new CloneResult instance. */
+    constructor($$source: Partial<CloneResult> = {}) {
+        if (!("dest" in $$source)) {
+            this["dest"] = "";
+        }
+        if (!("head" in $$source)) {
+            this["head"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CloneResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CloneResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CloneResult($$parsedSource as Partial<CloneResult>);
+    }
+}
+
+/**
  * Commit is a JSON-friendly view of a git commit. Time is RFC3339
  * in the commit author's stored offset.
  */

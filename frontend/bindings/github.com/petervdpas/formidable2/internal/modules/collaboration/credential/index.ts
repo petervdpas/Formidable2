@@ -7,11 +7,5 @@ export {
 };
 
 export {
-    Branches,
-    CloneOptions,
-    CloneResult,
-    Commit,
-    Remote,
-    RemoteInfo,
-    Status
+    LookupResult
 } from "./models.js";

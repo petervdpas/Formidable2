@@ -28,19 +28,25 @@ export function Branches(path: string): $CancellablePromise<$models.Branches | n
     });
 }
 
+export function Clone(opts: $models.CloneOptions): $CancellablePromise<$models.CloneResult | null> {
+    return $Call.ByID(3869084983, opts).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 export function IsGitRepo(path: string): $CancellablePromise<boolean> {
     return $Call.ByID(685777186, path);
 }
 
 export function Log(path: string, limit: number): $CancellablePromise<$models.Commit[]> {
     return $Call.ByID(3722488696, path, limit).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
     return $Call.ByID(1356102196, path).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -50,16 +56,18 @@ export function RepoRoot(path: string): $CancellablePromise<string> {
 
 export function Status(path: string): $CancellablePromise<$models.Status | null> {
     return $Call.ByID(3686552508, path).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.Branches.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.Commit.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.RemoteInfo.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.Status.createFrom;
+const $$createType2 = $models.CloneResult.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $models.Commit.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.RemoteInfo.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = $models.Status.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);

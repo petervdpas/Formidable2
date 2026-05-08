@@ -62,3 +62,30 @@ type Remote struct {
 	Name string   `json:"name"`
 	URLs []string `json:"urls"`
 }
+
+// CloneOptions describes a clone request. URL and Dest are required;
+// Branch picks an initial checkout (empty = remote's default HEAD).
+//
+// PAT is the Personal Access Token used as the password in HTTP Basic
+// auth (with username "x-access-token" — the GitHub-PAT convention,
+// also accepted by Gitea/GitLab/Bitbucket as long as the username is
+// non-empty). Empty PAT means anonymous (public repos / SSH).
+//
+// IMPORTANT: PAT is read-only at the call site and never persisted by
+// the manager. The frontend keeps it transient — pasted into the
+// clone form, sent over the Wails bridge once, and discarded as soon
+// as the response returns. SSH-based auth lives in a follow-up.
+type CloneOptions struct {
+	URL    string `json:"url"`
+	Dest   string `json:"dest"`
+	Branch string `json:"branch"`
+	PAT    string `json:"pat"`
+}
+
+// CloneResult is the success envelope: the worktree we cloned into
+// and the commit HEAD now points at. The frontend uses Dest to flip
+// git_root once a clone completes.
+type CloneResult struct {
+	Dest string `json:"dest"`
+	Head string `json:"head"`
+}

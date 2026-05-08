@@ -18,6 +18,7 @@ import (
 
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/api"
+	"github.com/petervdpas/formidable2/internal/modules/collaboration/credential"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
@@ -87,6 +88,7 @@ type App struct {
 	Dataprovider *dataprovider.Service
 	Plugin       *plugin.Service
 	Git          *git.Service
+	Credential   *credential.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -98,8 +100,9 @@ type App struct {
 	indexEvents     *index.EventHandler
 	dataProvider    *dataprovider.Manager
 	wikiManager     *wiki.Manager
-	pluginManager   *plugin.Manager
-	gitManager      *git.Manager
+	pluginManager     *plugin.Manager
+	gitManager        *git.Manager
+	credentialManager *credential.Manager
 	apiHandler      http.Handler
 	emitter         *emitterRelay
 	deps            Deps
@@ -350,6 +353,12 @@ func New(d Deps) (*App, error) {
 	// required. Network/auth ops arrive in a later pass.
 	gitM := git.NewManager()
 
+	// Collaboration → Credentials. Thin wrapper over the OS
+	// keychain (zalando/go-keyring). Used by the Clone form's
+	// "Save token for sync" opt-in and (later) by sync ops that
+	// need to read the stored PAT to talk to the remote.
+	credentialM := credential.NewManager()
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -369,6 +378,7 @@ func New(d Deps) (*App, error) {
 		Dataprovider:    dataprovider.NewService(dpM),
 		Plugin:          plugin.NewService(pluginM),
 		Git:             git.NewService(gitM),
+		Credential:      credential.NewService(credentialM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
@@ -380,8 +390,9 @@ func New(d Deps) (*App, error) {
 		dataProvider:    dpM,
 		wikiManager:     wikiM,
 		pluginManager:   pluginM,
-		gitManager:      gitM,
-		apiHandler:      apiHandler,
+		gitManager:        gitM,
+		credentialManager: credentialM,
+		apiHandler:        apiHandler,
 		emitter:         emitter,
 		deps:            d,
 	}, nil

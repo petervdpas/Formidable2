@@ -3,6 +3,7 @@ package git
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
 // Manager is the read-only entry point into a Git repository.
@@ -286,3 +288,56 @@ func (m *Manager) RemoteInfo(path string) (*RemoteInfo, error) {
 // call site (e.g. SetRemote) doesn't trigger an "unused import"
 // dance during partial implementation.
 var _ = config.RemoteConfig{}
+
+// Clone fetches a remote repository into opts.Dest. URL + Dest are
+// required; opts.Branch picks the initial checkout (empty = remote
+// HEAD); opts.PAT enables HTTP basic auth (transient — never
+// persisted by the manager).
+//
+// Refuses to clone into an existing non-empty directory. The
+// frontend folder picker can hand us a fresh path; we surface a
+// clear error rather than letting go-git's "repository already
+// exists" message bubble up.
+//
+// SSH-based auth and clone progress streaming arrive in a later
+// pass; this iteration covers HTTPS + PAT, which covers GitHub /
+// GitLab / Gitea / Bitbucket the same way the JS version did.
+func (m *Manager) Clone(opts CloneOptions) (*CloneResult, error) {
+	if strings.TrimSpace(opts.URL) == "" {
+		return nil, errors.New("git: clone: URL required")
+	}
+	if strings.TrimSpace(opts.Dest) == "" {
+		return nil, errors.New("git: clone: destination required")
+	}
+
+	// Refuse to clone into a non-empty existing dir. A missing dir
+	// is fine (go-git creates it), an empty existing dir is fine.
+	if entries, err := os.ReadDir(opts.Dest); err == nil && len(entries) > 0 {
+		return nil, fmt.Errorf("git: clone: destination not empty: %s", opts.Dest)
+	}
+
+	cloneOpts := &gogit.CloneOptions{URL: opts.URL}
+	if opts.Branch != "" {
+		cloneOpts.ReferenceName = plumbing.NewBranchReferenceName(opts.Branch)
+		cloneOpts.SingleBranch = true
+	}
+	if opts.PAT != "" {
+		// "x-access-token" is a sentinel username many providers
+		// accept (GitHub mandates a non-empty username; Gitea/GitLab
+		// don't care what it is, only that the password is the PAT).
+		cloneOpts.Auth = &githttp.BasicAuth{
+			Username: "x-access-token",
+			Password: opts.PAT,
+		}
+	}
+
+	repo, err := gogit.PlainClone(opts.Dest, false, cloneOpts)
+	if err != nil {
+		return nil, fmt.Errorf("git: clone: %w", err)
+	}
+	head, err := repo.Head()
+	if err != nil {
+		return nil, fmt.Errorf("git: clone: head: %w", err)
+	}
+	return &CloneResult{Dest: opts.Dest, Head: head.Hash().String()}, nil
+}

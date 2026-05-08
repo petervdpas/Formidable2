@@ -19,3 +19,4 @@ func (s *Service) Status(path string) (*Status, error)         { return s.m.Stat
 func (s *Service) Branches(path string) (*Branches, error)     { return s.m.Branches(path) }
 func (s *Service) Log(path string, limit int) ([]Commit, error) { return s.m.Log(path, limit) }
 func (s *Service) RemoteInfo(path string) (*RemoteInfo, error) { return s.m.RemoteInfo(path) }
+func (s *Service) Clone(opts CloneOptions) (*CloneResult, error) { return s.m.Clone(opts) }

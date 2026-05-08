@@ -22,5 +22,6 @@ func (a *App) WailsServices() []application.Service {
 		application.NewService(a.Dataprovider),
 		application.NewService(a.Plugin),
 		application.NewService(a.Git),
+		application.NewService(a.Credential),
 	}
 }

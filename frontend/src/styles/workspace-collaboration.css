@@ -1,0 +1,9 @@
+/* Collaboration workspace — operations under each remote backend.
+   Currently only the Git Clone form needs custom layout (action
+   button alignment under the connection form). */
+
+.git-clone-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--space-3);
+}
