@@ -1,5 +1,6 @@
 export { default as FormSection } from "./FormSection.vue";
 export { default as FormRow } from "./FormRow.vue";
+export { default as FormSwitchRow } from "./FormSwitchRow.vue";
 export { default as TextField } from "./TextField.vue";
 export { default as TextareaField } from "./TextareaField.vue";
 export { default as SelectField } from "./SelectField.vue";

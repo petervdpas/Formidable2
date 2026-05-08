@@ -73,6 +73,8 @@
   "workspace.plugins.commands.show_log_title": "Toon het logvenster na uitvoeren",
   "workspace.plugins.commands.show_output": "Toon Resultaat",
   "workspace.plugins.commands.show_output_title": "Toon het resultaatvenster na uitvoeren",
+  "workspace.plugins.behavior.subtitle": "Run-modus en interne-server vereiste",
+  "workspace.plugins.behavior.title": "Gedrag",
   "workspace.plugins.commands.title": "Commando's",
   "workspace.plugins.create.error": "Plugin aanmaken mislukt: {0}",
   "workspace.plugins.create.exists": "Er bestaat al een plugin met dat id.",

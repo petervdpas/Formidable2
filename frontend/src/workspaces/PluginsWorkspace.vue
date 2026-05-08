@@ -19,10 +19,10 @@ import {
 import {
   FormSection,
   FormRow,
+  FormSwitchRow,
   TextField,
   TextareaField,
   SelectField,
-  SwitchField,
 } from "../components/fields";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
@@ -457,6 +457,14 @@ setTopbarMenu(() => [
           <FormRow :label="t('workspace.plugins.manifest.description')">
             <TextareaField v-model="draftManifest.description" :rows="3" />
           </FormRow>
+        </FormSection>
+
+        <FormSection
+          :title="t('workspace.plugins.behavior.title')"
+          :subtitle="t('workspace.plugins.behavior.subtitle')"
+          collapsible
+          default-collapsed
+        >
           <FormRow
             :label="t('workspace.plugins.manifest.run_mode')"
             :description="t('workspace.plugins.manifest.run_mode_help')"
@@ -470,16 +478,13 @@ setTopbarMenu(() => [
               ]"
             />
           </FormRow>
-          <FormRow
+          <FormSwitchRow
+            v-model="draftManifest.requires_internal_server"
             :label="t('workspace.plugins.manifest.requires_internal_server')"
             :description="t('workspace.plugins.manifest.requires_internal_server_help')"
-          >
-            <SwitchField
-              v-model="draftManifest.requires_internal_server"
-              :on-label="t('common.on')"
-              :off-label="t('common.off')"
-            />
-          </FormRow>
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
         </FormSection>
 
         <nav class="tabs" role="tablist">

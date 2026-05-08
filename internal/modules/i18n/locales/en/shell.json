@@ -74,6 +74,8 @@
   "workspace.plugins.commands.show_log_title": "Show the log panel after running",
   "workspace.plugins.commands.show_output": "Show Result",
   "workspace.plugins.commands.show_output_title": "Show the result panel after running",
+  "workspace.plugins.behavior.subtitle": "Run mode and internal-server requirement",
+  "workspace.plugins.behavior.title": "Behavior",
   "workspace.plugins.commands.title": "Commands",
   "workspace.plugins.create.error": "Failed to create plugin: {0}",
   "workspace.plugins.create.exists": "A plugin with that id already exists.",

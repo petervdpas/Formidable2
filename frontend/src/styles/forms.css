@@ -24,6 +24,45 @@
     font-size: var(--font-size-md);
 }
 
+/* Clickable title for collapsible sections. The chevron sits left
+   of the label and rotates between ▼/▶ via the v-if in Vue. */
+.form-section-title--toggle {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.form-section-title--toggle:focus-visible {
+    outline: 2px solid var(--color-accent, var(--color-text));
+    outline-offset: 2px;
+}
+.form-section-chevron {
+    font-size: 11px;
+    color: var(--color-text-muted, var(--color-text));
+}
+
+/* Inline hint next to the title — same colour family as a help
+   description but rendered on the title row so collapsible sections
+   can advertise their contents without expanding. */
+.form-section-subtitle {
+    font-weight: 400;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted, var(--color-text));
+    margin-left: var(--space-2);
+}
+
+/* Collapsed form-section: drop the bottom margin so a stack of
+   collapsed sections doesn't leave a gap, and hide every direct
+   row child. The title stays visible. */
+.form-section--collapsed {
+    margin-bottom: var(--space-2);
+}
+.form-section--collapsed > .form-row,
+.form-section--collapsed > .form-switch-row {
+    display: none;
+}
+
 /* Row inherits the section's two columns so labels line up. */
 .form-row {
     display: grid;
@@ -47,6 +86,51 @@
     padding-top: 7px; /* line up with input baseline */
     color: var(--color-text);
     white-space: nowrap;
+}
+
+/* FormSwitchRow — purpose-built layout for SwitchField rows.
+   Two grid rows under the section's subgrid columns:
+     row 1: label | switch  (centred horizontally on the label line)
+     row 2: (blank) | description  (muted help text under the toggle)
+   Avoids the visual pushing-up that happens when a description is
+   stacked inside a generic FormRow's form-control. */
+.form-switch-row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    grid-template-rows: auto auto;
+    align-items: center;
+    padding: var(--space-2) 0;
+    column-gap: var(--space-3);
+    row-gap: 4px;
+}
+
+.form-switch-row + .form-row,
+.form-row + .form-switch-row,
+.form-switch-row + .form-switch-row {
+    border-top: 1px dashed var(--color-border);
+}
+
+.form-switch-row > .form-label {
+    /* The global .form-label adds padding-top to align with text
+       inputs; the switch row centres its own row so we drop it. */
+    padding-top: 0;
+}
+
+.form-switch-row-control {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.form-switch-row-description {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    color: var(--color-text-muted, var(--color-text));
+    font-size: var(--font-size-sm);
 }
 
 .form-control {
