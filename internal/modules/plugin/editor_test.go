@@ -120,6 +120,67 @@ func TestManager_Create_RejectsTraversalUp(t *testing.T) {
 
 // ── Save ──────────────────────────────────────────────────────────────
 
+func TestManager_Save_RoundtripsFormJSON(t *testing.T) {
+	// form.json must persist through Save and reload. Backend treats
+	// it as opaque JSON text — schema lives in the frontend's
+	// FieldEditModal / template.Field shape.
+	m, dir := newEditorTestManager(t)
+	if err := m.Create("demo"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	mf := Manifest{
+		ManifestVersion: 1, ID: "demo", Name: "Demo",
+		Version: "0.1.0",
+		Commands: []Command{{ID: "run", Label: "Run"}},
+	}
+	formJSON := `[{"key":"name","type":"text","label":"Name"}]`
+	if err := m.Save("demo", mf, "function run() end", formJSON); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "demo", "form.json"))
+	if err != nil {
+		t.Fatalf("form.json missing: %v", err)
+	}
+	if string(raw) != formJSON {
+		t.Fatalf("form.json mismatch: got %q want %q", raw, formJSON)
+	}
+	got, err := m.GetForm("demo")
+	if err != nil {
+		t.Fatalf("get form: %v", err)
+	}
+	if got != formJSON {
+		t.Fatalf("GetForm mismatch: got %q want %q", got, formJSON)
+	}
+}
+
+func TestManager_GetForm_DefaultsToEmptyArray(t *testing.T) {
+	// A plugin folder without form.json (legacy or hand-edited)
+	// should still return a usable JSON value, not an error. The
+	// frontend's editor renders an empty list off "[]".
+	m, dir := newEditorTestManager(t)
+	if err := m.Create("demo"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// Remove the scaffolded form.json to simulate a missing file.
+	if err := os.Remove(filepath.Join(dir, "demo", "form.json")); err != nil {
+		t.Fatalf("rm form.json: %v", err)
+	}
+	got, err := m.GetForm("demo")
+	if err != nil {
+		t.Fatalf("get form: %v", err)
+	}
+	if got != "[]\n" && got != "[]" {
+		t.Fatalf("expected empty-array fallback, got %q", got)
+	}
+}
+
+func TestManager_GetForm_NotFound(t *testing.T) {
+	m, _ := newEditorTestManager(t)
+	if _, err := m.GetForm("ghost"); !errors.Is(err, ErrPluginNotFound) {
+		t.Fatalf("want ErrPluginNotFound, got %v", err)
+	}
+}
+
 func TestManager_Save_RoundtripsManifestAndSource(t *testing.T) {
 	m, _ := newEditorTestManager(t)
 	if err := m.Create("demo"); err != nil {
@@ -138,7 +199,7 @@ func TestManager_Save_RoundtripsManifestAndSource(t *testing.T) {
 		},
 	}
 	src := "function main() return 'hi' end\nfunction do_extra() return 1 end\n"
-	if err := m.Save("demo", updated, src); err != nil {
+	if err := m.Save("demo", updated, src, ""); err != nil {
 		t.Fatalf("save: %v", err)
 	}
 	// Read it back via the Manager (registry stays consistent).
@@ -173,7 +234,7 @@ func TestManager_Save_RejectsIDMismatch(t *testing.T) {
 		Version:         "0.1.0",
 		Commands:        []Command{{ID: "run", Label: "Run"}},
 	}
-	err := m.Save("demo", bogus, "function run() end")
+	err := m.Save("demo", bogus, "function run() end", "")
 	if !errors.Is(err, ErrManifestInvalid) {
 		t.Fatalf("want ErrManifestInvalid for id mismatch, got %v", err)
 	}
@@ -208,7 +269,7 @@ func TestManager_Save_RejectsInvalidManifest(t *testing.T) {
 	}
 	for name, mf := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := m.Save("demo", mf, "function run() end")
+			err := m.Save("demo", mf, "function run() end", "")
 			if err == nil {
 				t.Fatalf("expected error for %s", name)
 			}
@@ -222,7 +283,7 @@ func TestManager_Save_NotFound(t *testing.T) {
 		ManifestVersion: 1, ID: "ghost", Name: "X",
 		Version: "0.1.0", Commands: []Command{{ID: "run", Label: "Run"}},
 	}
-	err := m.Save("ghost", mf, "function run() end")
+	err := m.Save("ghost", mf, "function run() end", "")
 	if !errors.Is(err, ErrPluginNotFound) {
 		t.Fatalf("want ErrPluginNotFound, got %v", err)
 	}
@@ -234,7 +295,7 @@ func TestManager_Save_RejectsBadID(t *testing.T) {
 		ManifestVersion: 1, ID: "..", Name: "X",
 		Version: "0.1.0", Commands: []Command{{ID: "run", Label: "Run"}},
 	}
-	err := m.Save("..", mf, "function run() end")
+	err := m.Save("..", mf, "function run() end", "")
 	if !errors.Is(err, ErrManifestInvalid) {
 		t.Fatalf("want ErrManifestInvalid, got %v", err)
 	}
@@ -378,7 +439,7 @@ func TestService_Save_Roundtrip(t *testing.T) {
 		ManifestVersion: 1, ID: "demo", Name: "Edited",
 		Version: "0.3.0", Commands: []Command{{ID: "run", Label: "Go"}},
 	}
-	got, err := s.Save("demo", mf, "function run() return 1 end")
+	got, err := s.Save("demo", mf, "function run() return 1 end", "")
 	if err != nil {
 		t.Fatalf("save: %v", err)
 	}

@@ -104,16 +104,19 @@ func (m *Manager) Create(id string) error {
 	return m.Refresh()
 }
 
-// Save writes plugin.json + main.lua for an existing plugin. The
-// path-side id and manifest.ID must agree — renames go through
-// Delete + Create, not Save.
+// Save writes plugin.json + main.lua + form.json for an existing
+// plugin. The path-side id and manifest.ID must agree — renames go
+// through Delete + Create, not Save. formJSON is the raw text of
+// the field schema; the backend treats it as opaque (the schema
+// lives on the frontend, shared with template fields), and an
+// empty string is interpreted as "leave form.json untouched."
 //
 // Errors:
 //   - ErrManifestInvalid when id is malformed, ids disagree, or the
 //     manifest itself fails validation.
 //   - ErrManifestVersion when manifest.ManifestVersion is unsupported.
 //   - ErrPluginNotFound when no folder exists at <PluginsDir>/<id>.
-func (m *Manager) Save(id string, manifest Manifest, luaSource string) error {
+func (m *Manager) Save(id string, manifest Manifest, luaSource, formJSON string) error {
 	if !validID(id) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, id)
 	}
@@ -144,7 +147,39 @@ func (m *Manager) Save(id string, manifest Manifest, luaSource string) error {
 	if err := m.deps.Editor.SaveFile(filepath.Join(dir, "main.lua"), luaSource); err != nil {
 		return fmt.Errorf("plugin: write main.lua: %w", err)
 	}
+	// Empty formJSON = "no change to form.json" so callers that don't
+	// touch the form schema can skip a redundant write.
+	if formJSON != "" {
+		if err := m.deps.Editor.SaveFile(filepath.Join(dir, "form.json"), formJSON); err != nil {
+			return fmt.Errorf("plugin: write form.json: %w", err)
+		}
+	}
 	return m.Refresh()
+}
+
+// GetForm reads <PluginsDir>/<id>/form.json. Returns the default
+// empty-array placeholder when the file is missing — keeps callers
+// (the visual builder) free of "is the file here yet?" branches.
+func (m *Manager) GetForm(id string) (string, error) {
+	if !validID(id) {
+		return "", fmt.Errorf("%w: bad id %q", ErrManifestInvalid, id)
+	}
+	if m.deps.Editor == nil {
+		return "", fmt.Errorf("plugin: editor fs not configured")
+	}
+	dir := filepath.Join(m.deps.PluginsDir, id)
+	if !m.deps.Editor.FileExists(dir) {
+		return "", fmt.Errorf("%w: %s", ErrPluginNotFound, id)
+	}
+	formPath := filepath.Join(dir, "form.json")
+	if !m.deps.Editor.FileExists(formPath) {
+		return defaultFormJSON, nil
+	}
+	src, err := m.deps.Editor.LoadFile(formPath)
+	if err != nil {
+		return "", fmt.Errorf("plugin: read form.json: %w", err)
+	}
+	return src, nil
 }
 
 // Delete removes <PluginsDir>/<id> and the plugin's KV file.

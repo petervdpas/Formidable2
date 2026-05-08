@@ -69,13 +69,22 @@ func (s *Service) Create(id string) ([]ListResult, error) {
 	return s.List(), nil
 }
 
-// Save writes plugin.json + main.lua for an existing plugin and
-// returns the updated list.
-func (s *Service) Save(id string, manifest Manifest, luaSource string) ([]ListResult, error) {
-	if err := s.m.Save(id, manifest, luaSource); err != nil {
+// Save writes plugin.json + main.lua + form.json for an existing
+// plugin and returns the updated list. formJSON is the raw text
+// of the field schema; pass "" to leave form.json untouched.
+func (s *Service) Save(id string, manifest Manifest, luaSource, formJSON string) ([]ListResult, error) {
+	if err := s.m.Save(id, manifest, luaSource, formJSON); err != nil {
 		return nil, err
 	}
 	return s.List(), nil
+}
+
+// GetForm returns the raw form.json text for an existing plugin.
+// If form.json is missing (legacy or hand-edited folder), returns
+// the default empty-array placeholder so callers don't have to
+// special-case the absence.
+func (s *Service) GetForm(id string) (string, error) {
+	return s.m.GetForm(id)
 }
 
 // Delete removes the plugin folder and KV file, returning the

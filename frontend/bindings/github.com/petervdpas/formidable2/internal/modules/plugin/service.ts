@@ -37,6 +37,16 @@ export function Delete(id: string): $CancellablePromise<$models.ListResult[]> {
 }
 
 /**
+ * GetForm returns the raw form.json text for an existing plugin.
+ * If form.json is missing (legacy or hand-edited folder), returns
+ * the default empty-array placeholder so callers don't have to
+ * special-case the absence.
+ */
+export function GetForm(id: string): $CancellablePromise<string> {
+    return $Call.ByID(3310235139, id);
+}
+
+/**
  * GetSource returns the plugin's main.lua content. Used by the
  * workspace to populate the Lua editor when a plugin is selected.
  */
@@ -77,11 +87,12 @@ export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: 
 }
 
 /**
- * Save writes plugin.json + main.lua for an existing plugin and
- * returns the updated list.
+ * Save writes plugin.json + main.lua + form.json for an existing
+ * plugin and returns the updated list. formJSON is the raw text
+ * of the field schema; pass "" to leave form.json untouched.
  */
-export function Save(id: string, manifest: $models.Manifest, luaSource: string): $CancellablePromise<$models.ListResult[]> {
-    return $Call.ByID(2781827402, id, manifest, luaSource).then(($result: any) => {
+export function Save(id: string, manifest: $models.Manifest, luaSource: string, formJSON: string): $CancellablePromise<$models.ListResult[]> {
+    return $Call.ByID(2781827402, id, manifest, luaSource, formJSON).then(($result: any) => {
         return $$createType1($result);
     });
 }

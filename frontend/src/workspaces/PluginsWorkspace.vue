@@ -6,6 +6,8 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import PluginCommandRow from "../components/PluginCommandRow.vue";
+import FieldEditModal from "../components/FieldEditModal.vue";
+import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   Service as PluginSvc,
   Command,
@@ -39,7 +41,7 @@ const {
   remove,
 } = usePlugins();
 
-const { draftManifest, draftSource, dirty, save, reset } = usePluginEditor();
+const { draftManifest, draftSource, draftForm, dirty, save, reset } = usePluginEditor();
 
 // Tabs below the Manifest section. Lua Source first (where the
 // most editing happens); Commands edits the manifest's command
@@ -200,6 +202,73 @@ function errorLabel(kind: string, message: string): string {
     return t("workspace.plugins.error_command_not_found", [message]);
   }
   return t("workspace.plugins.error_runtime");
+}
+
+// ── Form-editor field operations ─────────────────────────────────────
+// The Form Editor tab manages draftForm: an array of Field objects
+// matching the template-side schema (so the same FormFieldRenderer
+// can later render plugin forms). Add/edit reuse FieldEditModal;
+// delete walks behind a confirm dialog like the template fields do.
+const fieldEditOpen = ref(false);
+const fieldEditIndex = ref<number>(-1);
+const fieldEditTarget = ref<Field | null>(null);
+const fieldEditIsNew = ref(false);
+
+function openFieldEdit(idx: number) {
+  fieldEditIndex.value = idx;
+  fieldEditTarget.value = draftForm.value[idx] ?? null;
+  fieldEditIsNew.value = false;
+  fieldEditOpen.value = true;
+}
+
+function openFieldAdd() {
+  fieldEditIndex.value = -1;
+  fieldEditTarget.value = null;
+  fieldEditIsNew.value = true;
+  fieldEditOpen.value = true;
+}
+
+function applyFieldEdit(updated: Field) {
+  // Looper synthesis is template-specific; plugins don't use loops
+  // in their input forms, so we just append (create) or replace
+  // (edit). Type guards in FieldEditModal still keep the user from
+  // picking unsupported types.
+  const list = draftForm.value ?? [];
+  if (fieldEditIsNew.value) {
+    draftForm.value = [...list, updated];
+  } else if (fieldEditIndex.value >= 0) {
+    draftForm.value = [
+      ...list.slice(0, fieldEditIndex.value),
+      updated,
+      ...list.slice(fieldEditIndex.value + 1),
+    ];
+  }
+  fieldEditOpen.value = false;
+  fieldEditTarget.value = null;
+  fieldEditIndex.value = -1;
+  fieldEditIsNew.value = false;
+}
+
+const fieldDeleteOpen = ref(false);
+const fieldDeleteIndex = ref<number>(-1);
+
+function askDeleteField(idx: number) {
+  fieldDeleteIndex.value = idx;
+  fieldDeleteOpen.value = true;
+}
+
+const fieldDeleteName = computed(() => {
+  const f = draftForm.value[fieldDeleteIndex.value];
+  return f?.label || f?.key || "";
+});
+
+function confirmDeleteField() {
+  const idx = fieldDeleteIndex.value;
+  fieldDeleteOpen.value = false;
+  fieldDeleteIndex.value = -1;
+  if (idx < 0) return;
+  const list = draftForm.value ?? [];
+  draftForm.value = [...list.slice(0, idx), ...list.slice(idx + 1)];
 }
 
 // ── Commands list editing ────────────────────────────────────────────
@@ -396,7 +465,42 @@ setTopbarMenu(() => [
         </section>
 
         <section v-show="activeTab === 'form'" class="tab-pane">
-          <p class="muted small">{{ t('workspace.plugins.form.placeholder') }}</p>
+          <p v-if="draftForm.length === 0" class="muted small">
+            {{ t('workspace.plugins.form.empty') }}
+          </p>
+          <ul v-else class="field-rows">
+            <li
+              v-for="(f, i) in draftForm"
+              :key="i"
+              class="field-row"
+              :data-type="f.type"
+            >
+              <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
+              <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
+              <span class="field-row-spacer"></span>
+              <div class="field-row-actions">
+                <button
+                  type="button"
+                  class="field-action-btn edit"
+                  @click="openFieldEdit(i)"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  class="field-action-btn delete"
+                  @click="askDeleteField(i)"
+                >
+                  {{ t('workspace.plugins.commands.delete') }}
+                </button>
+              </div>
+            </li>
+          </ul>
+          <div class="form-add-row">
+            <button class="tool-btn" type="button" @click="openFieldAdd">
+              + {{ t('workspace.plugins.form.add') }}
+            </button>
+          </div>
         </section>
       </template>
     </template>
@@ -442,6 +546,27 @@ setTopbarMenu(() => [
     variant="danger"
     @cancel="deleteOpen = false"
     @confirm="confirmDelete"
+  />
+
+  <!-- Form-editor: add/edit field -->
+  <FieldEditModal
+    :open="fieldEditOpen"
+    :field="fieldEditTarget"
+    :is-new="fieldEditIsNew"
+    @close="fieldEditOpen = false"
+    @confirm="applyFieldEdit"
+  />
+
+  <!-- Form-editor: delete-field confirm -->
+  <ConfirmDialog
+    :open="fieldDeleteOpen"
+    :title="t('workspace.plugins.form.delete_title')"
+    :message="t('workspace.plugins.form.delete_confirm', [fieldDeleteName])"
+    :confirm-label="t('workspace.profiles.action.delete')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="fieldDeleteOpen = false"
+    @confirm="confirmDeleteField"
   />
 
   <!-- Run modal -->
