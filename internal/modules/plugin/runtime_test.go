@@ -303,6 +303,121 @@ func TestRunScript_ToastEventsCollected(t *testing.T) {
 	}
 }
 
+// fakeAPI is the test stand-in for an APIAccess. running controls
+// whether the precheck sees the server as up; calls records every
+// Fetch invocation; resp is what Fetch returns. Mirrors the
+// kvTestFS / OSFS pattern in this package.
+type fakeAPI struct {
+	running bool
+	calls   []apiCall
+	resp    apiResp
+	err     error
+}
+
+type apiCall struct {
+	method, path, body string
+	headers            map[string]string
+}
+
+type apiResp struct {
+	status  int
+	body    string
+	headers map[string]string
+}
+
+func (a *fakeAPI) IsAvailable() bool { return a.running }
+func (a *fakeAPI) Fetch(method, path, body string, headers map[string]string) (HTTPResponse, error) {
+	a.calls = append(a.calls, apiCall{method, path, body, headers})
+	if a.err != nil {
+		return HTTPResponse{}, a.err
+	}
+	return HTTPResponse{Status: a.resp.status, Body: a.resp.body, Headers: a.resp.headers}, nil
+}
+
+func TestRunScript_FormidableAPI_FetchRoundtrips(t *testing.T) {
+	api := &fakeAPI{
+		running: true,
+		resp: apiResp{
+			status:  200,
+			body:    `{"ok":true}`,
+			headers: map[string]string{"content-type": "application/json"},
+		},
+	}
+	res, err := runScript(scriptOpts{
+		Source: `function run(ctx)
+			local r = formidable.api.fetch("GET", "/api/templates", nil, nil)
+			return { s = r.status, b = r.body }
+		end`,
+		Fn:  "run",
+		API: api,
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	if got["s"] != float64(200) || got["b"] != `{"ok":true}` {
+		t.Fatalf("got %+v", got)
+	}
+	if len(api.calls) != 1 || api.calls[0].method != "GET" || api.calls[0].path != "/api/templates" {
+		t.Fatalf("calls: %+v", api.calls)
+	}
+}
+
+func TestRunScript_FormidableAPI_NotConfiguredErrors(t *testing.T) {
+	// When deps.API is nil, the api namespace is absent — calls
+	// fail loudly so plugin authors notice they forgot the flag.
+	_, err := runScript(scriptOpts{
+		Source: `function run(ctx)
+			return formidable.api.fetch("GET", "/x", nil, nil)
+		end`,
+		Fn: "run",
+	})
+	if err == nil {
+		t.Fatal("expected error when api is not configured")
+	}
+}
+
+func TestRunScript_FormidableJSON_EncodeDecodeRoundtrip(t *testing.T) {
+	res, err := runScript(scriptOpts{
+		Source: `function run(ctx)
+			local enc = formidable.json.encode({ a = 1, b = "hi", c = { 10, 20 } })
+			local dec = formidable.json.decode(enc)
+			return dec
+		end`,
+		Fn: "run",
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	if got["a"] != float64(1) || got["b"] != "hi" {
+		t.Fatalf("got %+v", got)
+	}
+	c := got["c"].([]any)
+	if len(c) != 2 || c[0] != float64(10) {
+		t.Fatalf("array c: %+v", c)
+	}
+}
+
+func TestRunScript_FormidableJSON_DecodeBadStringErrors(t *testing.T) {
+	res, err := runScript(scriptOpts{
+		Source: `function run(ctx)
+			local ok, err = pcall(function()
+				formidable.json.decode("{not json")
+			end)
+			return { ok = ok, err = tostring(err) }
+		end`,
+		Fn: "run",
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	got := res.Value.(map[string]any)
+	if got["ok"] != false {
+		t.Fatalf("expected pcall to fail; got %+v", got)
+	}
+}
+
 func TestRunScript_ToastIgnoresExtraArgs(t *testing.T) {
 	// Multiple positional args concat with a space, mirroring
 	// formidable.log.* — keeps the API consistent.

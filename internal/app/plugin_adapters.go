@@ -6,9 +6,12 @@ import (
 	"fmt"
 
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
+	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/template"
+	"github.com/petervdpas/formidable2/internal/modules/wiki"
 )
 
 // Adapters between the plugin module's access interfaces and the
@@ -133,4 +136,44 @@ func (a pluginRenderAdapter) RenderHTML(templateFilename, datafile string) (stri
 		return "", err
 	}
 	return a.rdr.RenderHTMLOnly(md)
+}
+
+// pluginHTTPAdapter wires plugin.HTTPClient to the running wiki
+// HTTP server. IsAvailable mirrors wiki.Status().Running; Fetch
+// proxies via system.ProxyFetchRemote against the loopback URL on
+// the wiki server's actual port. The plugin module stays unaware
+// of either dependency — both are composed here.
+type pluginHTTPAdapter struct {
+	wiki *wiki.Manager
+	sys  *system.Manager
+}
+
+func (a pluginHTTPAdapter) IsAvailable() bool {
+	if a.wiki == nil {
+		return false
+	}
+	return a.wiki.Status().Running
+}
+
+func (a pluginHTTPAdapter) Fetch(method, path, body string, headers map[string]string) (plugin.HTTPResponse, error) {
+	st := a.wiki.Status()
+	if !st.Running || st.Port == 0 {
+		return plugin.HTTPResponse{}, fmt.Errorf("internal server not running")
+	}
+	url := fmt.Sprintf("http://127.0.0.1:%d%s", st.Port, path)
+	res, err := a.sys.ProxyFetchRemote(url, system.FetchOptions{
+		Method:       method,
+		Headers:      headers,
+		Body:         body,
+		TimeoutSecs:  30,
+		FollowRedirs: true,
+	})
+	if err != nil {
+		return plugin.HTTPResponse{}, err
+	}
+	return plugin.HTTPResponse{
+		Status:  res.StatusCode,
+		Body:    res.Body,
+		Headers: res.Headers,
+	}, nil
 }

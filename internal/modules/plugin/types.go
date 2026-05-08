@@ -50,14 +50,15 @@ const LuaAPIVersion = 1
 //     it renders at the top of the Run modal and every command
 //     receives the current form values as ctx.
 type Manifest struct {
-	ManifestVersion int       `json:"manifest_version"`
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Version         string    `json:"version"`
-	Description     string    `json:"description,omitempty"`
-	Author          string    `json:"author,omitempty"`
-	RunMode         string    `json:"run_mode,omitempty"`
-	Commands        []Command `json:"commands,omitempty"`
+	ManifestVersion         int       `json:"manifest_version"`
+	ID                      string    `json:"id"`
+	Name                    string    `json:"name"`
+	Version                 string    `json:"version"`
+	Description             string    `json:"description,omitempty"`
+	Author                  string    `json:"author,omitempty"`
+	RunMode                 string    `json:"run_mode,omitempty"`
+	RequiresInternalServer  bool      `json:"requires_internal_server,omitempty"`
+	Commands                []Command `json:"commands,omitempty"`
 }
 
 // RunMode* — the closed enum of values RunMode accepts. Empty is
@@ -132,9 +133,31 @@ type RunResult struct {
 // ─────────────────────────────────────────────────────────────────
 
 var (
-	ErrManifestVersion = errors.New("plugin: unsupported manifest_version")
-	ErrManifestInvalid = errors.New("plugin: invalid manifest")
-	ErrPluginNotFound  = errors.New("plugin: not found")
-	ErrCommandNotFound = errors.New("plugin: command not found")
-	ErrPluginExists    = errors.New("plugin: already exists")
+	ErrManifestVersion    = errors.New("plugin: unsupported manifest_version")
+	ErrManifestInvalid    = errors.New("plugin: invalid manifest")
+	ErrPluginNotFound     = errors.New("plugin: not found")
+	ErrCommandNotFound    = errors.New("plugin: command not found")
+	ErrPluginExists       = errors.New("plugin: already exists")
+	ErrServerNotRunning   = errors.New("plugin: requires the internal server, but it's stopped")
 )
+
+// HTTPResponse is what formidable.api.fetch returns to Lua. Body
+// is the raw response text (plugin authors decode JSON via
+// formidable.json.decode); Headers maps lowercased header names
+// to joined values.
+type HTTPResponse struct {
+	Status  int               `json:"status"`
+	Body    string            `json:"body"`
+	Headers map[string]string `json:"headers,omitempty"`
+}
+
+// HTTPClient is the interface the runtime needs to expose
+// formidable.api to Lua scripts. The plugin module is intentionally
+// unaware of *what* the client points at — production wraps the
+// wiki HTTP server in app.go, but the contract is just "an HTTP
+// transport." IsAvailable is queried in the Run preflight when
+// manifest.RequiresInternalServer is true; tests pass a small fake.
+type HTTPClient interface {
+	IsAvailable() bool
+	Fetch(method, path, body string, headers map[string]string) (HTTPResponse, error)
+}

@@ -122,6 +122,8 @@ func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultD
 		return RunResultDTO{Kind: "plugin_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrCommandNotFound):
 		return RunResultDTO{Kind: "command_not_found", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
+	case errors.Is(err, ErrServerNotRunning):
+		return RunResultDTO{Kind: "server_not_running", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	default:
 		return RunResultDTO{Kind: "runtime_error", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	}

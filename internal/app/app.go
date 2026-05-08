@@ -333,6 +333,10 @@ func New(d Deps) (*App, error) {
 		Render:     pluginRenderAdapter{rdr: renderM},
 		FS:         plugin.OSFS{},
 		Exec:       plugin.OSExec{},
+		// HTTPClient is satisfied by a wiki+system adapter — plugins
+		// that flag requires_internal_server in their manifest get
+		// formidable.api.fetch wired against the running wiki server.
+		API:        pluginHTTPAdapter{wiki: wikiM, sys: sysM},
 	})
 	if err := pluginM.Refresh(); err != nil {
 		d.Logger.Warn("plugin: initial refresh failed", "err", err)

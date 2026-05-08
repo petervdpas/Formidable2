@@ -185,6 +185,57 @@ func TestManager_Run_ExplicitFnOverridesID(t *testing.T) {
 	}
 }
 
+func TestManager_Run_RequiresInternalServer_FailsWhenDown(t *testing.T) {
+	// Manifest declares it needs the internal server, but the
+	// HTTPClient reports it as unavailable. Run must fail before
+	// loading the script, with ErrServerNotRunning so the
+	// frontend can dispatch a clean "start the server" toast.
+	root := t.TempDir()
+	pluginsDir := filepath.Join(root, "plugins")
+	api := &fakeAPI{running: false}
+	m := NewManager(ManagerDeps{
+		PluginsDir: pluginsDir,
+		KV:         NewKV(kvTestFS{}, filepath.Join(pluginsDir, ".kv")),
+		API:        api,
+	})
+	writePlugin(t, pluginsDir, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"requires_internal_server": true,
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() return 1 end")
+	_ = m.Refresh()
+	_, err := m.Run("demo", "run", nil)
+	if !errors.Is(err, ErrServerNotRunning) {
+		t.Fatalf("got %v, want ErrServerNotRunning", err)
+	}
+}
+
+func TestManager_Run_RequiresInternalServer_PassesWhenUp(t *testing.T) {
+	root := t.TempDir()
+	pluginsDir := filepath.Join(root, "plugins")
+	api := &fakeAPI{running: true}
+	m := NewManager(ManagerDeps{
+		PluginsDir: pluginsDir,
+		KV:         NewKV(kvTestFS{}, filepath.Join(pluginsDir, ".kv")),
+		API:        api,
+	})
+	writePlugin(t, pluginsDir, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"requires_internal_server": true,
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() return 'ok' end")
+	_ = m.Refresh()
+	res, err := m.Run("demo", "run", nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.Value != "ok" {
+		t.Fatalf("got %v", res.Value)
+	}
+}
+
 func TestManager_Run_KVScopedToPluginID(t *testing.T) {
 	// A plugin's KV is keyed by the plugin id; two plugins setting
 	// the same key see independent values.

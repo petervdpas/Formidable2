@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"encoding/json"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
@@ -359,4 +360,79 @@ func buildExecValue(L *lua.LState, runner ExecRunner) lua.LValue {
 		L.Push(out)
 		return 1
 	})
+}
+
+// buildAPITable mounts formidable.api.fetch when an HTTPClient is
+// wired. With no client, the namespace exists but every call
+// raises "api: not configured" — same shape as every other
+// namespace nil-guard. Manifests that declare requires_internal_server
+// also gate availability through a Run-time precheck (Manager.Run).
+func buildAPITable(L *lua.LState, client HTTPClient) *lua.LTable {
+	t := L.NewTable()
+	if client == nil {
+		t.RawSetString("fetch", L.NewFunction(nilGuard("api")))
+		return t
+	}
+	t.RawSetString("fetch", L.NewFunction(func(L *lua.LState) int {
+		method := L.CheckString(1)
+		path := L.CheckString(2)
+		body := ""
+		if v := L.Get(3); v.Type() == lua.LTString {
+			body = lua.LVAsString(v)
+		}
+		var headers map[string]string
+		if v, ok := L.Get(4).(*lua.LTable); ok {
+			headers = map[string]string{}
+			v.ForEach(func(k, v lua.LValue) {
+				headers[lua.LVAsString(k)] = lua.LVAsString(v)
+			})
+		}
+		res, err := client.Fetch(method, path, body, headers)
+		if err != nil {
+			L.RaiseError("api.fetch: %v", err)
+			return 0
+		}
+		out := L.NewTable()
+		out.RawSetString("status", lua.LNumber(res.Status))
+		out.RawSetString("body", lua.LString(res.Body))
+		if len(res.Headers) > 0 {
+			h := L.NewTable()
+			for k, v := range res.Headers {
+				h.RawSetString(k, lua.LString(v))
+			}
+			out.RawSetString("headers", h)
+		}
+		L.Push(out)
+		return 1
+	}))
+	return t
+}
+
+// buildJSONTable mounts formidable.json.encode/decode. Always
+// available — pure utility, no host deps. Round-trips through
+// goToLua / luaToGo so the same lvalue conversion the rest of the
+// runtime uses governs shape.
+func buildJSONTable(L *lua.LState) *lua.LTable {
+	t := L.NewTable()
+	t.RawSetString("encode", L.NewFunction(func(L *lua.LState) int {
+		v := L.Get(1)
+		raw, err := json.Marshal(luaToGo(v))
+		if err != nil {
+			L.RaiseError("json.encode: %v", err)
+			return 0
+		}
+		L.Push(lua.LString(raw))
+		return 1
+	}))
+	t.RawSetString("decode", L.NewFunction(func(L *lua.LState) int {
+		s := L.CheckString(1)
+		var v any
+		if err := json.Unmarshal([]byte(s), &v); err != nil {
+			L.RaiseError("json.decode: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, v))
+		return 1
+	}))
+	return t
 }

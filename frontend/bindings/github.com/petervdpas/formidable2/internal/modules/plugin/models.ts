@@ -128,6 +128,7 @@ export class Manifest {
     "description"?: string;
     "author"?: string;
     "run_mode"?: string;
+    "requires_internal_server"?: boolean;
     "commands"?: Command[];
 
     /** Creates a new Manifest instance. */
@@ -152,10 +153,10 @@ export class Manifest {
      * Creates a new Manifest instance from a string or object.
      */
     static createFrom($$source: any = {}): Manifest {
-        const $$createField7_0 = $$createType2;
+        const $$createField8_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField7_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField8_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }

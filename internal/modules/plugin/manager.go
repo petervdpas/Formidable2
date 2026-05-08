@@ -33,6 +33,7 @@ type ManagerDeps struct {
 	Render     RenderAccess
 	FS         FSAccess
 	Exec       ExecRunner
+	API        HTTPClient
 }
 
 // Manager owns the discovered plugin registry and runs commands.
@@ -156,6 +157,15 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 	if cmd == nil {
 		return RunResult{}, fmt.Errorf("%w: %s.%s", ErrCommandNotFound, pluginID, commandID)
 	}
+	// Preflight: a plugin that asked for the internal HTTP server
+	// must have one available before any Lua loads. Failing here
+	// surfaces a clean error in the Run modal instead of dying mid-
+	// script on the first formidable.api.fetch call.
+	if p.Manifest.RequiresInternalServer {
+		if m.deps.API == nil || !m.deps.API.IsAvailable() {
+			return RunResult{}, ErrServerNotRunning
+		}
+	}
 	src, err := os.ReadFile(filepath.Join(p.Dir, "main.lua"))
 	if err != nil {
 		return RunResult{}, fmt.Errorf("plugin: read main.lua: %w", err)
@@ -177,6 +187,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Render:     m.deps.Render,
 		FS:         m.deps.FS,
 		Exec:       m.deps.Exec,
+		API:        m.deps.API,
 	})
 }
 

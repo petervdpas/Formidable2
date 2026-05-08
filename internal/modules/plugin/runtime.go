@@ -60,6 +60,7 @@ type runtimeDeps struct {
 	Render     RenderAccess
 	FS         FSAccess
 	Exec       ExecRunner
+	API        HTTPClient
 }
 
 // installFormidable mounts the `formidable` global table on an
@@ -71,6 +72,8 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("api_version", lua.LNumber(LuaAPIVersion))
 	f.RawSetString("log", buildLogTable(L, deps.LogSink))
 	f.RawSetString("toast", buildToastTable(L, deps.ToastSink))
+	f.RawSetString("json", buildJSONTable(L))
+	f.RawSetString("api", buildAPITable(L, deps.API))
 	f.RawSetString("kv", buildKVTable(L, deps.PluginID, deps.KV))
 	f.RawSetString("template", buildTemplateTable(L, deps.Template))
 	f.RawSetString("collection", buildCollectionTable(L, deps.Collection))
@@ -143,6 +146,7 @@ type scriptOpts struct {
 	Render     RenderAccess
 	FS         FSAccess
 	Exec       ExecRunner
+	API        HTTPClient
 }
 
 // runScript spawns a fresh sandboxed state, loads Source, calls
@@ -168,6 +172,7 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		Render:     opts.Render,
 		FS:         opts.FS,
 		Exec:       opts.Exec,
+		API:        opts.API,
 	})
 
 	if err := L.DoString(opts.Source); err != nil {

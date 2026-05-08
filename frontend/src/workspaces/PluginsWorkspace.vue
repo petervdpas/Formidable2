@@ -22,6 +22,7 @@ import {
   TextField,
   TextareaField,
   SelectField,
+  SwitchField,
 } from "../components/fields";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
@@ -248,6 +249,9 @@ function errorLabel(kind: string, message: string): string {
   if (kind === "command_not_found") {
     return t("workspace.plugins.error_command_not_found", [message]);
   }
+  if (kind === "server_not_running") {
+    return t("workspace.plugins.error_server_not_running");
+  }
   return t("workspace.plugins.error_runtime");
 }
 
@@ -464,6 +468,16 @@ setTopbarMenu(() => [
                 { value: 'modal', label: t('workspace.plugins.run_mode.modal') },
                 { value: 'form',  label: t('workspace.plugins.run_mode.form')  },
               ]"
+            />
+          </FormRow>
+          <FormRow
+            :label="t('workspace.plugins.manifest.requires_internal_server')"
+            :description="t('workspace.plugins.manifest.requires_internal_server_help')"
+          >
+            <SwitchField
+              v-model="draftManifest.requires_internal_server"
+              :on-label="t('common.on')"
+              :off-label="t('common.off')"
             />
           </FormRow>
         </FormSection>
