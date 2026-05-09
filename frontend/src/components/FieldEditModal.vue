@@ -15,6 +15,8 @@ import APIFieldEditor from "./APIFieldEditor.vue";
 import type { OptionRow } from "./fields/OptionsEditor.vue";
 import { columnsFor, SUPPORTED_OPTION_TYPES } from "../types/option-presets";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { useToast } from "../composables/useToast";
+import { formatError } from "../utils/templateValidation";
 import {
   isRowHidden,
   selectableTypes,
@@ -43,10 +45,28 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const toast = useToast();
 
 // Local working copy. We don't mutate props.field directly — only
 // commit changes when the user clicks Confirm.
 const draft = ref<Field | null>(null);
+
+watch(
+  () => draft.value?.expression_item,
+  (now, prev) => {
+    if (!draft.value) return;
+    if (!now || prev) return;
+    const scope = draft.value.level_scope ?? 0;
+    if (scope === 0) return;
+    draft.value.expression_item = false;
+    const formatted = formatError({
+      type: "expression-item-non-root",
+      key: draft.value.key,
+      detail: { levelScope: scope },
+    } as never);
+    toast.error(formatted.key, formatted.args);
+  },
+);
 
 function emptyDraft(): Field {
   // Sensible starting shape — text type, blank key/label.

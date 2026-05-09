@@ -17,7 +17,7 @@ func Validate(t *Template) []ValidationError {
 		}}
 	}
 
-	t.Fields = assignLevelScopes(t.Fields)
+	canonical := assignLevelScopes(t.Fields)
 
 	var errs []ValidationError
 
@@ -48,7 +48,8 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, apiFieldErrors(t.Fields)...)
 	errs = append(errs, unknownTypeErrors(t.Fields)...)
 	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
-	errs = append(errs, expressionItemLevelScopeErrors(t.Fields)...)
+	errs = append(errs, levelScopeMismatchErrors(t.Fields, canonical)...)
+	errs = append(errs, expressionItemLevelScopeErrors(canonical)...)
 
 	return errs
 }

@@ -22,6 +22,41 @@ func assignLevelScopes(fields []Field) []Field {
 	return out
 }
 
+func anyLevelScopeSet(fields []Field) bool {
+	for _, f := range fields {
+		if f.LevelScope != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func levelScopeMismatchErrors(got, canonical []Field) []ValidationError {
+	if !anyLevelScopeSet(got) {
+		return nil
+	}
+	var errs []ValidationError
+	n := len(got)
+	if len(canonical) < n {
+		n = len(canonical)
+	}
+	for i := 0; i < n; i++ {
+		if got[i].LevelScope == canonical[i].LevelScope {
+			continue
+		}
+		ff := got[i]
+		errs = append(errs, ValidationError{
+			Type:    "level-scope-mismatch",
+			Field:   &ff,
+			Index:   i,
+			Key:     got[i].Key,
+			Detail:  map[string]any{"got": got[i].LevelScope, "want": canonical[i].LevelScope},
+			Message: "Field " + got[i].Key + " has level_scope " + itoa(got[i].LevelScope) + " but order implies " + itoa(canonical[i].LevelScope),
+		})
+	}
+	return errs
+}
+
 func expressionItemLevelScopeErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	for i := range fields {

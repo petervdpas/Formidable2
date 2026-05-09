@@ -123,6 +123,62 @@ func TestNormalize_AssignsLevelScopes(t *testing.T) {
 	}
 }
 
+func TestLevelScopeMismatchErrors_AllZeroSkipped(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "L", Type: "loopstart"},
+			{Key: "inner", Type: "text"},
+			{Key: "L", Type: "loopstop"},
+		},
+	})
+	for _, e := range errs {
+		if e.Type == "level-scope-mismatch" {
+			t.Errorf("all-zero input should skip mismatch, got %+v", e)
+		}
+	}
+}
+
+func TestLevelScopeMismatchErrors_StampedAndCorrect(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "L", Type: "loopstart", LevelScope: 0},
+			{Key: "inner", Type: "text", LevelScope: 1},
+			{Key: "L", Type: "loopstop", LevelScope: 0},
+		},
+	})
+	for _, e := range errs {
+		if e.Type == "level-scope-mismatch" {
+			t.Errorf("did not expect level-scope-mismatch, got %+v", e)
+		}
+	}
+}
+
+func TestLevelScopeMismatchErrors_StampedButWrong(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "L", Type: "loopstart", LevelScope: 0},
+			{Key: "inner", Type: "text", LevelScope: 2},
+			{Key: "L", Type: "loopstop", LevelScope: 0},
+		},
+	})
+	var got *ValidationError
+	for i := range errs {
+		if errs[i].Type == "level-scope-mismatch" && errs[i].Key == "inner" {
+			got = &errs[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("expected level-scope-mismatch on 'inner', got %+v", errs)
+	}
+	if d, _ := got.Detail["got"].(int); d != 2 {
+		t.Errorf("got detail.got=%v, want 2", got.Detail["got"])
+	}
+	if d, _ := got.Detail["want"].(int); d != 1 {
+		t.Errorf("got detail.want=%v, want 1", got.Detail["want"])
+	}
+}
+
 func TestExpressionItemLevelScopeErrors_RootIsOK(t *testing.T) {
 	errs := Validate(&Template{
 		Fields: []Field{

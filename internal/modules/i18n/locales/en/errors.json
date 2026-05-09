@@ -11,6 +11,8 @@
   "error.field.unmatched_loop": "Loop {0} for key \"{1}\" has no matching partner.",
   "error.template.duplicate_keys": "Duplicate keys: {0}",
   "error.template.excessive_loop_nesting": "Too many nested loops: {0}. Max depth is {1}.",
+  "error.template.expression_item_non_root": "Expression fields must sit at the root level — \"{0}\" is at level {1}.",
+  "error.template.level_scope_mismatch": "Field \"{0}\" has level_scope {1} but the field order implies {2}.",
   "error.template.invalid": "Invalid template: {0}",
   "error.template.loop_key_mismatch": "Loopstop key \"{0}\" does not match loopstart key \"{1}\"",
   "error.template.missing_guid_for_collection": "`Enable Collection` requires at least one GUID field in the template.",

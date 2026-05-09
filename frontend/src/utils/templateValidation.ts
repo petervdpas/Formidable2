@@ -95,6 +95,22 @@ export function formatError(error: ValidationError): FormattedError {
         args: [(error.detail?.dup as string) || ""],
       };
 
+    case "expression-item-non-root":
+      return {
+        key: "error.template.expression_item_non_root",
+        args: [error.key || "?", String(error.detail?.levelScope ?? "?")],
+      };
+
+    case "level-scope-mismatch":
+      return {
+        key: "error.template.level_scope_mismatch",
+        args: [
+          error.key || "?",
+          String(error.detail?.got ?? "?"),
+          String(error.detail?.want ?? "?"),
+        ],
+      };
+
     default:
       return {
         key: "error.template.unknown",
