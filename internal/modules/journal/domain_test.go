@@ -292,6 +292,39 @@ func TestRecordOp_ConcurrentSafety(t *testing.T) {
 	}
 }
 
+// Configure sweeps any leftover .changes.stash/ from a previous
+// crashed PullWithStash run (or a pre-fix codebase). The journal
+// curates the .changes.* family, so cleanup of the transient stash
+// dir lives here too — covers boot, context-switch, and re-Configure.
+func TestConfigure_SweepsStaleStashDirectory(t *testing.T) {
+	m, _, root := newTestManager(t)
+	stashPath := filepath.Join(root, ".changes.stash")
+	staleFile := filepath.Join(stashPath, "storage", "x", "ghost.meta.json")
+	if err := os.MkdirAll(filepath.Dir(staleFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(staleFile, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.Configure(root, "git"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(stashPath); !os.IsNotExist(err) {
+		t.Errorf("Configure should sweep stale .changes.stash, but it still exists: %v", err)
+	}
+}
+
+// Configure tolerates a missing .changes.stash directory. No-op in
+// the common case (fresh checkout, no prior crash).
+func TestConfigure_NoStashDirectoryIsHarmless(t *testing.T) {
+	m, _, root := newTestManager(t)
+	if err := m.Configure(root, "git"); err != nil {
+		t.Fatalf("Configure failed without stash dir: %v", err)
+	}
+}
+
 func TestConfigure_SwitchingContextResetsState(t *testing.T) {
 	m, _, root := newTestManager(t)
 	_ = m.Configure(root, "git")

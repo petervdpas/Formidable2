@@ -30,6 +30,13 @@ const (
 	logFileName    = ".changes.log"
 	cursorFileName = ".changes.cursor"
 
+	// stashDirName is the transient working directory PullWithStash
+	// creates when it auto-stashes pending file contents. Owned by the
+	// git module's PullWithStash flow but managed alongside the other
+	// .changes.* artifacts here so journal.Configure can sweep stale
+	// copies left over from a crashed pull or a pre-fix codebase.
+	stashDirName = ".changes.stash"
+
 	// Tracked top-level dirs under the context folder.
 	templatesDir = "templates"
 	storageDir   = "storage"

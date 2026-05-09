@@ -89,6 +89,7 @@ func (m *Manager) Configure(contextFolder, backend string) error {
 	}
 
 	m.ensureGitignorePatterns()
+	m.sweepStaleStash()
 
 	cursors, err := m.loadCursors()
 	if err != nil {
@@ -409,6 +410,34 @@ func (m *Manager) resolveGitignoreTarget(ctx string) (string, bool) {
 		return "", false
 	}
 	return filepath.Join(repoRoot, ".gitignore"), true
+}
+
+// sweepStaleStash removes any leftover .changes.stash/ directory
+// inside the context folder. Owned-by-git but family-managed-here:
+// the journal already curates .changes.log + .changes.cursor +
+// .gitignore patches, so taking responsibility for the transient
+// .changes.stash artifact keeps every "files starting with .changes"
+// concern in one module.
+//
+// Called from Configure (boot / context switch). PullWithStash also
+// removes its own stash dir at the end of every run, but a process
+// crash mid-pull or a pre-fix codebase can leave one behind. Best-
+// effort: any RemoveAll error is logged at warn but does not block
+// boot — the user can always delete it by hand and the next pull
+// will sweep it on its own start.
+func (m *Manager) sweepStaleStash() {
+	ctx := m.contextFolderLocked()
+	if ctx == "" {
+		return
+	}
+	stashPath := filepath.Join(ctx, stashDirName)
+	if !m.fs.FileExists(stashPath) {
+		return
+	}
+	if err := os.RemoveAll(stashPath); err != nil {
+		m.log.Warn("journal: stale stash sweep failed",
+			"err", err, "path", stashPath)
+	}
 }
 
 // findGitRepoRoot walks up from start (inclusive), returning the

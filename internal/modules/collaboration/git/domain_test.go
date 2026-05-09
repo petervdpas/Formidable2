@@ -2141,6 +2141,144 @@ func TestPullWithStash_AutoMergeOnRecord(t *testing.T) {
 	}
 }
 
+// TestPullWithStash_AutoMergeMixedRecords — two records in one pull:
+//
+//   - record A: yours edits one field, theirs edits a DIFFERENT field
+//     of the same record. recmerge takes the changed side per field;
+//     both edits survive.
+//   - record B: yours and theirs edit the SAME field with different
+//     values. recmerge falls to LWW on meta.updated — yours's stamp
+//     is newer, so yours wins for that field. The other field that
+//     only theirs changed still goes to theirs (LWW only kicks in
+//     for both-changed).
+//
+// Single pull, single PullWithStash call — the run produces two
+// AutoMerged entries, no Overridden, no Restored conflicts.
+func TestPullWithStash_AutoMergeMixedRecords(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	// Seed both records on master via a side advance, then pull into
+	// the client so the local clone starts from the same baseline.
+	pathA := "storage/notes/recA.meta.json"
+	pathB := "storage/notes/recB.meta.json"
+	baseA := `{"meta":{"id":"A","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-01-01T00:00:00Z"},"data":{"title":"OrigA","body":"OrigBodyA"}}`
+	baseB := `{"meta":{"id":"B","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-01-01T00:00:00Z"},"data":{"title":"OrigB","body":"OrigBodyB"}}`
+	advanceBare(t, bare, []string{pathA, pathB}, []string{baseA, baseB})
+	if _, err := w0PullFromBare(work); err != nil {
+		t.Fatalf("seed pull: %v", err)
+	}
+
+	// User edits — locally on disk:
+	//   recA: change `title` only (theirs will change `body`).
+	//   recB: change `title` (theirs will change `title` differently).
+	// Yours's meta.updated is newer than theirs's so the LWW tiebreak
+	// in record B picks yours.
+	yoursA := `{"meta":{"id":"A","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-03-01T00:00:00Z"},"data":{"title":"YoursA","body":"OrigBodyA"}}`
+	yoursB := `{"meta":{"id":"B","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-03-01T00:00:00Z"},"data":{"title":"YoursB","body":"OrigBodyB"}}`
+	if err := os.WriteFile(filepath.Join(work, pathA), []byte(yoursA), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, pathB), []byte(yoursB), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Remote edits — pushed into bare via a side clone:
+	//   recA: change `body` only (disjoint vs yours).
+	//   recB: change `title` differently AND change `body` (overlap on
+	//     title; body is theirs-only).
+	theirsA := `{"meta":{"id":"A","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-02-01T00:00:00Z"},"data":{"title":"OrigA","body":"TheirsBodyA"}}`
+	theirsB := `{"meta":{"id":"B","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-02-01T00:00:00Z"},"data":{"title":"TheirsB","body":"TheirsBodyB"}}`
+	advanceBare(t, bare, []string{pathA, pathB}, []string{theirsA, theirsB})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending: []StashPathPending{
+			{Path: pathA, Op: "update"},
+			{Path: pathB, Op: "update"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Overridden) != 0 {
+		t.Fatalf("unexpected overrides on clean per-field merge: %v", res.Overridden)
+	}
+	if len(res.AutoMerged) != 2 {
+		t.Fatalf("expected 2 auto-merges, got %v", res.AutoMerged)
+	}
+
+	// recA: disjoint fields. yours's title + theirs's body both survive.
+	gotA, _ := os.ReadFile(filepath.Join(work, pathA))
+	if !strings.Contains(string(gotA), `"title":"YoursA"`) {
+		t.Errorf("recA: expected yours's title (yours-only field), got %s", string(gotA))
+	}
+	if !strings.Contains(string(gotA), `"body":"TheirsBodyA"`) {
+		t.Errorf("recA: expected theirs's body (theirs-only field), got %s", string(gotA))
+	}
+
+	// recB: same-field overlap on `title` resolves via LWW. yours has
+	// the newer meta.updated, so yours wins for `title`. `body` was
+	// theirs-only so it goes to theirs regardless.
+	gotB, _ := os.ReadFile(filepath.Join(work, pathB))
+	if !strings.Contains(string(gotB), `"title":"YoursB"`) {
+		t.Errorf("recB: LWW should pick yours's title (newer updated), got %s", string(gotB))
+	}
+	if !strings.Contains(string(gotB), `"body":"TheirsBodyB"`) {
+		t.Errorf("recB: theirs-only body should still land, got %s", string(gotB))
+	}
+
+	// And the symmetric LWW: when theirs has the newer meta.updated,
+	// theirs wins the same-field tiebreak. Sanity-check this in a
+	// follow-up scenario by flipping the timestamps. (Asserted below
+	// via the merged meta.updated being max(yours, theirs).)
+}
+
+// TestPullWithStash_AutoMergeSameFieldTheirsWins — symmetric LWW:
+// when theirs has the newer meta.updated, the shared field falls to
+// theirs. Locks the contract that LWW is symmetric, not yours-biased.
+func TestPullWithStash_AutoMergeSameFieldTheirsWins(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	path := "storage/notes/r.meta.json"
+	base := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-01-01T00:00:00Z"},"data":{"title":"Old"}}`
+	advanceBare(t, bare, []string{path}, []string{base})
+	if _, err := w0PullFromBare(work); err != nil {
+		t.Fatalf("seed pull: %v", err)
+	}
+
+	// Yours: older meta.updated.
+	yours := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-02-01T00:00:00Z"},"data":{"title":"YoursTitle"}}`
+	if err := os.WriteFile(filepath.Join(work, path), []byte(yours), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Theirs: newer meta.updated → wins LWW on the shared field.
+	theirs := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-06-01T00:00:00Z"},"data":{"title":"TheirsTitle"}}`
+	advanceBare(t, bare, []string{path}, []string{theirs})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: path, Op: "update"}},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.AutoMerged) != 1 {
+		t.Fatalf("expected auto-merge, got %+v", res)
+	}
+
+	got, _ := os.ReadFile(filepath.Join(work, path))
+	if !strings.Contains(string(got), `"title":"TheirsTitle"`) {
+		t.Errorf("LWW should pick theirs's title (newer updated), got %s", string(got))
+	}
+	// Merged meta.updated should be max(yours, theirs) = theirs.
+	if !strings.Contains(string(got), `"updated":"2025-06-01T00:00:00Z"`) {
+		t.Errorf("merged meta.updated should be max, got %s", string(got))
+	}
+}
+
 // TestPullWithStash_OverrideOnImmutableMeta — both sides changed the
 // `created` field (an immutable meta key). recmerge returns
 // RecordConflict; we fall through to "pull wins, drop user, capture
@@ -2204,6 +2342,40 @@ func w0PullFromBare(work string) (*PullResult, error) {
 	}
 	h, _ := r.Head()
 	return &PullResult{NewHead: h.Hash().String()}, nil
+}
+
+// TestPullWithStash_SweepsLeftoverStashAtStart — a previous run that
+// crashed mid-flow can leave a .changes.stash/ behind. PullWithStash
+// nukes it before phase 1 so stale snapshot files don't mix with the
+// fresh manifest.
+func TestPullWithStash_SweepsLeftoverStashAtStart(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+	advanceBare(t, bare, []string{"new.txt"}, []string{"x"})
+
+	// Plant a stale stash directory with a ghost file the current
+	// pending list won't include.
+	stashGhost := filepath.Join(work, stashSubdir, "storage", "ghost", "old.meta.json")
+	if err := os.MkdirAll(filepath.Dir(stashGhost), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stashGhost, []byte(`{"meta":{},"data":{}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	if _, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     nil,
+	}); err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+
+	// The leftover ghost file (and the whole .changes.stash/) must be
+	// gone after the run — sweep at start + no fresh entries to write
+	// = no stash dir survives.
+	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
+		t.Errorf("PullWithStash did not sweep leftover .changes.stash: %v", err)
+	}
 }
 
 // TestPullWithStash_AlreadyUpToDate — pending changes exist but the

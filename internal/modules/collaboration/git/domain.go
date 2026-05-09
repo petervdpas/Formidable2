@@ -653,6 +653,15 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 	repoRoot := wt.Filesystem.Root()
 	stashRoot := filepath.Join(repoRoot, stashSubdir)
 
+	// Defensive sweep: if a previous PullWithStash crashed mid-flow
+	// (or this is the first run after a pre-fix codebase upgrade),
+	// the leftover .changes.stash/ would otherwise mix stale content
+	// into our fresh snapshot. Always start from a clean slate. Best-
+	// effort: a removal error means the snapshot writes happen on
+	// top of whatever's there, which the journal pending list will
+	// eventually re-cover anyway.
+	_ = os.RemoveAll(stashRoot)
+
 	// Phase 1: snapshot. We keep entries even when there's nothing to
 	// stash so the pull-only branch (no pending) is reachable in one
 	// path; an empty Pending slice produces an empty entries list.
