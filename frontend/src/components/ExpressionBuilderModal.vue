@@ -14,6 +14,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
 import Tabs, { type TabItem } from "./Tabs.vue";
+import { SwitchField } from "./fields";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -45,6 +46,20 @@ const selectedField = computed<Field | null>(
   () => expressionFields.value.find((f) => f.key === selectedKey.value) ?? null,
 );
 
+// Per-field "Display" toggle. Lives in the State tab and gates the
+// Display tab — a field doesn't enter the chip until the user opts
+// it in here. Defaults to off.
+const canBeDisplayed = ref<Record<string, boolean>>({});
+
+const displayAllowed = computed(() => {
+  if (!selectedKey.value) return false;
+  // Display tab disabled = (state-bearing AND toggle off). The
+  // toggle only exists in the State tab, which non-state-bearing
+  // types can't reach, so it must not gate them.
+  if (!stateAvailable.value) return true;
+  return !!canBeDisplayed.value[selectedKey.value];
+});
+
 // Configure pane is split into horizontal tabs. State leads — it's
 // where the rules tree lives — and Display is the styling-side
 // second. Order matches the conceptual flow: decide what state the
@@ -61,12 +76,25 @@ const STATE_BEARING_TYPES = new Set([
   "radio",
   "number",
   "range",
-  "date",
 ]);
 
 const stateAvailable = computed(() => {
   const t = (selectedField.value?.type || "").toLowerCase();
   return STATE_BEARING_TYPES.has(t);
+});
+
+// Date routes to its own tab (helpers like isOverdue, normalizeDate,
+// ageInDays). Transform handles value-level shaping for everything
+// else — case, truncation, decimals, yes/no swap, option-label
+// lookup, etc.
+const isDate = computed(() => {
+  const t = (selectedField.value?.type || "").toLowerCase();
+  return t === "date";
+});
+
+const transformAvailable = computed(() => {
+  if (!selectedField.value) return false;
+  return !isDate.value;
 });
 
 const configTabs = computed<TabItem[]>(() => [
@@ -78,6 +106,17 @@ const configTabs = computed<TabItem[]>(() => [
   {
     id: "display",
     label: t("workspace.templates.expression_builder.tab.display"),
+    disabled: !displayAllowed.value,
+  },
+  {
+    id: "transform",
+    label: t("workspace.templates.expression_builder.tab.transform"),
+    disabled: !transformAvailable.value,
+  },
+  {
+    id: "date",
+    label: t("workspace.templates.expression_builder.tab.date"),
+    disabled: !isDate.value,
   },
 ]);
 
@@ -85,6 +124,11 @@ watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return;
+    // Reset per-field state so a previous open's choices don't bleed
+    // into a fresh template selection.
+    const flags: Record<string, boolean> = {};
+    for (const f of expressionFields.value) flags[f.key] = false;
+    canBeDisplayed.value = flags;
     selectedKey.value = expressionFields.value[0]?.key ?? "";
     activeTab.value = stateAvailable.value ? "state" : "display";
   },
@@ -96,6 +140,14 @@ watch(
 // active tab.
 watch(selectedKey, () => {
   activeTab.value = stateAvailable.value ? "state" : "display";
+});
+
+// Flipping the Display toggle off while the Display tab is active
+// would leave it stuck on a disabled tab; bounce back to State.
+watch(displayAllowed, (allowed) => {
+  if (!allowed && activeTab.value === "display") {
+    activeTab.value = "state";
+  }
 });
 
 function pickField(key: string) {
@@ -169,7 +221,19 @@ function onApply() {
         </p>
 
         <Tabs v-else v-model="activeTab" :items="configTabs">
-          <!-- Tab content lands here, one slice at a time. -->
+          <template #state>
+            <div class="expr-builder-state-row">
+              <span class="expr-builder-state-row-label">
+                {{ t('workspace.templates.expression_builder.state.can_be_displayed') }}
+              </span>
+              <SwitchField
+                v-if="selectedKey"
+                v-model="canBeDisplayed[selectedKey]"
+                :on-label="t('common.on')"
+                :off-label="t('common.off')"
+              />
+            </div>
+          </template>
         </Tabs>
       </fieldset>
     </div>
