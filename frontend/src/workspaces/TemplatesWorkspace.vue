@@ -122,6 +122,23 @@ function doReset() {
   reset();
 }
 
+// hasGuidField gates the Enable Collection switch — collection mode
+// requires a record-level guid for the wiki/API resolver, so we don't
+// let users flip the toggle on without one. Mirrors backend
+// validation.collectionGuidError; without this gate, the user reaches
+// "Save" only to be rejected after the fact.
+//
+// Asymmetric: when Collection is already ON we let the user toggle it
+// OFF even without a guid (recovery path for templates that somehow
+// got into the broken state — e.g. a guid field was removed manually).
+const hasGuidField = computed(() => {
+  const fields = draft.value?.fields ?? [];
+  return fields.some((f: Field) => f.type === "guid");
+});
+const collectionToggleDisabled = computed(() => {
+  return !hasGuidField.value && !draft.value?.enable_collection;
+});
+
 // ── Item Field options for the Setup dropdown ─────────────────────────
 const itemFieldSelectOptions = computed(() => {
   const opts: { value: string; label: string }[] = [
@@ -438,11 +455,20 @@ setTopbarMenu(() => [
             <TextareaField v-model="draft.sidebar_expression" :rows="3" />
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.enable_collection')">
-            <SwitchField
-              v-model="draft.enable_collection"
-              :on-label="t('common.enabled')"
-              :off-label="t('common.disabled')"
-            />
+            <div class="collection-toggle">
+              <SwitchField
+                v-model="draft.enable_collection"
+                :on-label="t('common.enabled')"
+                :off-label="t('common.disabled')"
+                :disabled="collectionToggleDisabled"
+              />
+              <p
+                v-if="collectionToggleDisabled"
+                class="muted small"
+              >
+                {{ t('workspace.templates.setup.enable_collection_needs_guid') }}
+              </p>
+            </div>
           </FormRow>
         </FormSection>
 

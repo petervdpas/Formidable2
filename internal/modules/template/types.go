@@ -9,9 +9,19 @@ package template
 import "strings"
 
 // Template is the on-disk shape of a template YAML file.
+//
+// AuthorName / AuthorEmail mirror the per-record author identity that
+// storage/<tpl>/<n>.meta.json carries in its meta envelope. They sit at
+// the YAML root (templates have no separate meta block) and are
+// auto-filled from config.author_name / config.author_email by
+// SaveTemplate when the caller leaves them empty. Purpose: PullWithStash
+// can name "who last touched this template" without walking git log,
+// matching how it identifies record overrides.
 type Template struct {
 	Name              string  `yaml:"name" json:"name"`
 	Filename          string  `yaml:"filename" json:"filename"`
+	AuthorName        string  `yaml:"author_name,omitempty" json:"author_name,omitempty"`
+	AuthorEmail       string  `yaml:"author_email,omitempty" json:"author_email,omitempty"`
 	ItemField         string  `yaml:"item_field,omitempty" json:"item_field"`
 	MarkdownTemplate  string  `yaml:"markdown_template,omitempty" json:"markdown_template"`
 	SidebarExpression string  `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`

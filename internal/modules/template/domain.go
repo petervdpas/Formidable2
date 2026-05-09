@@ -35,6 +35,24 @@ type Indexer interface {
 	OnTemplateDeleted(filename string) error
 }
 
+// AuthorReader yields the active profile's identity. SaveTemplate uses
+// it to stamp Template.AuthorName / Template.AuthorEmail when the
+// caller leaves them empty (mirrors how record .meta.json files carry
+// meta.author_name / meta.author_email). Composition root wires this
+// to config.Manager. Nil disables the auto-fill — saves still succeed
+// but the fields stay empty.
+type AuthorReader interface {
+	Author() (name, email string)
+}
+
+// AuthorFunc adapts a closure to the AuthorReader interface so the
+// composition root can pass `template.AuthorFunc(func() ...)` instead
+// of declaring a tiny struct wrapper around config.Manager.
+type AuthorFunc func() (name, email string)
+
+// Author satisfies AuthorReader.
+func (f AuthorFunc) Author() (string, string) { return f() }
+
 // Manager holds the template directory binding.
 // Stateless beyond its dependencies (no caching — config owns the VFS cache).
 type Manager struct {
@@ -42,6 +60,7 @@ type Manager struct {
 	log          *slog.Logger
 	templatesDir string
 	indexer      Indexer
+	author       AuthorReader
 }
 
 // NewManager constructs a template manager rooted at <templatesDir> under
@@ -60,6 +79,11 @@ func NewManager(filesystem fs, templatesDir string, log *slog.Logger) *Manager {
 // after building both the template manager and the index event handler.
 // Pass nil to disable.
 func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
+
+// SetAuthorReader installs the AuthorReader that SaveTemplate uses to
+// auto-fill missing AuthorName / AuthorEmail. Composition root wires
+// this to the config manager. Pass nil to disable auto-fill.
+func (m *Manager) SetAuthorReader(a AuthorReader) { m.author = a }
 
 // TemplatesDir returns the absolute path of the templates folder.
 // Used by the composition root to stat individual template files
@@ -151,6 +175,22 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 		// drafts the editor produces during template creation.
 		t.Fields = []Field{}
 	}
+	// Stamp the author identity from the active profile when missing.
+	// Explicitly-set values pass through unchanged so a template
+	// authored by Alice keeps Alice's identity even when Bob saves
+	// it (meaningful for sync round-trips: only the next save FROM
+	// scratch picks up the saver's identity).
+	if m.author != nil {
+		if t.AuthorName == "" || t.AuthorEmail == "" {
+			name, email := m.author.Author()
+			if t.AuthorName == "" {
+				t.AuthorName = name
+			}
+			if t.AuthorEmail == "" {
+				t.AuthorEmail = email
+			}
+		}
+	}
 	Normalize(t)
 	if errs := Validate(t); len(errs) > 0 {
 		// Surface each validation error to formidable.log so the failure
@@ -212,16 +252,75 @@ func (m *Manager) Validate(t *Template) []ValidationError {
 // template. storageLocation is supplied by the caller (config module
 // owns the VFS path resolution; passing it in keeps this module
 // independent of config).
+//
+// Open-time author backfill: if the loaded template is missing
+// AuthorName / AuthorEmail and an AuthorReader is wired, we stamp the
+// active profile's identity in memory AND write the stamped YAML back
+// to disk as a best-effort. The first user to OPEN an unstamped
+// template gets the credit — no need to wait for an explicit save.
+// Failures (read-only filesystem, etc.) log a warning but never block
+// the descriptor from returning; the editor still gets the in-memory
+// stamp.
+//
+// The write-back bypasses Validate so a template that's broken for
+// other reasons (e.g. duplicate keys) still backfills its author.
+// SaveTemplate would refuse those, which would be punitive on open —
+// the user opened the template to fix the broken state, not to be
+// blocked by it.
 func (m *Manager) GetDescriptor(name, storageLocation string) (Descriptor, error) {
 	t, err := m.LoadTemplate(name)
 	if err != nil {
 		return Descriptor{}, err
+	}
+	if m.maybeStampAuthor(t) {
+		if writeErr := m.writeYAMLDirect(name, t); writeErr != nil {
+			m.log.Warn("template author backfill write failed",
+				"name", name, "err", writeErr)
+		}
 	}
 	return Descriptor{
 		Name:            name,
 		YAML:            t,
 		StorageLocation: storageLocation,
 	}, nil
+}
+
+// maybeStampAuthor fills in t.AuthorName and t.AuthorEmail from the
+// wired AuthorReader if either is empty. Returns true when the
+// template was modified (caller decides whether to persist). No-op
+// when no reader is wired or when both fields are already set.
+func (m *Manager) maybeStampAuthor(t *Template) bool {
+	if t == nil || m.author == nil {
+		return false
+	}
+	if t.AuthorName != "" && t.AuthorEmail != "" {
+		return false
+	}
+	name, email := m.author.Author()
+	changed := false
+	if t.AuthorName == "" && name != "" {
+		t.AuthorName = name
+		changed = true
+	}
+	if t.AuthorEmail == "" && email != "" {
+		t.AuthorEmail = email
+		changed = true
+	}
+	return changed
+}
+
+// writeYAMLDirect serialises a template and writes it via the
+// filesystem, skipping Validate / Normalize. Open-time backfill uses
+// this so a broken-but-openable template still gets its author
+// stamped on disk. The indexer hook is intentionally NOT fired —
+// nothing semantic changed for downstream consumers.
+func (m *Manager) writeYAMLDirect(name string, t *Template) error {
+	bytes, err := marshalYAML(t)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+	full := m.fs.JoinPath(m.templatesDir, name)
+	return m.fs.SaveFile(full, string(bytes))
 }
 
 // GetItemFields returns the top-level (non-loop) text fields in a template.

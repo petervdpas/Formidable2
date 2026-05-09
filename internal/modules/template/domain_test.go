@@ -209,6 +209,171 @@ func TestSaveTemplate_BackfillsFilename(t *testing.T) {
 	}
 }
 
+// SaveTemplate stamps the active profile's identity onto AuthorName
+// and AuthorEmail when the caller leaves them empty. PullWithStash's
+// override path reads these to surface "who last touched this template"
+// in the same way it reads meta.author_name from records.
+func TestSaveTemplate_FillsAuthorFromConfigWhenMissing(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	m.SetAuthorReader(AuthorFunc(func() (string, string) {
+		return "Alice", "alice@example.com"
+	}))
+
+	tmpl := &Template{Name: "X", Filename: "x.yaml", Fields: []Field{{Key: "a", Type: "text"}}}
+	if err := m.SaveTemplate("x.yaml", tmpl); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := sys.LoadFile("templates/x.yaml")
+	if !strings.Contains(body, "author_name: Alice") {
+		t.Errorf("author_name not persisted: %q", body)
+	}
+	if !strings.Contains(body, "author_email: alice@example.com") {
+		t.Errorf("author_email not persisted: %q", body)
+	}
+	// Round-trip: reload and compare.
+	loaded, err := m.LoadTemplate("x.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.AuthorName != "Alice" || loaded.AuthorEmail != "alice@example.com" {
+		t.Errorf("loaded author = %q/%q, want Alice/alice@example.com",
+			loaded.AuthorName, loaded.AuthorEmail)
+	}
+}
+
+// Explicitly-set author values pass through unchanged — important for
+// sync round-trips where a template authored by Alice should keep
+// Alice's identity even when Bob saves it via a backend that bypassed
+// the editor (HTTP write, indexer reconcile).
+func TestSaveTemplate_PreservesExplicitAuthor(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	m.SetAuthorReader(AuthorFunc(func() (string, string) {
+		return "Bob", "bob@example.com"
+	}))
+
+	tmpl := &Template{
+		Name:        "X",
+		Filename:    "x.yaml",
+		AuthorName:  "Alice",
+		AuthorEmail: "alice@example.com",
+		Fields:      []Field{{Key: "a", Type: "text"}},
+	}
+	if err := m.SaveTemplate("x.yaml", tmpl); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := sys.LoadFile("templates/x.yaml")
+	if !strings.Contains(body, "author_name: Alice") {
+		t.Errorf("explicit author_name not preserved: %q", body)
+	}
+	if strings.Contains(body, "Bob") || strings.Contains(body, "bob@example.com") {
+		t.Errorf("config-author leaked into explicit-author template: %q", body)
+	}
+}
+
+// Without a wired AuthorReader, save still succeeds — fields stay
+// empty, omitempty drops them from the YAML.
+func TestSaveTemplate_NilAuthorReader_LeavesFieldsEmpty(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	// No SetAuthorReader call.
+	tmpl := &Template{Name: "X", Filename: "x.yaml", Fields: []Field{{Key: "a", Type: "text"}}}
+	if err := m.SaveTemplate("x.yaml", tmpl); err != nil {
+		t.Fatal(err)
+	}
+	body, _ := sys.LoadFile("templates/x.yaml")
+	if strings.Contains(body, "author_name") || strings.Contains(body, "author_email") {
+		t.Errorf("author fields leaked despite nil reader: %q", body)
+	}
+}
+
+// GetDescriptor backfills missing author fields the first time a
+// template is opened — first opener gets the credit. Subsequent loads
+// see the stamped values on disk and don't overwrite them.
+func TestGetDescriptor_BackfillsAuthorOnFirstOpen(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	// Seed an unstamped template directly to disk so it's truly
+	// "imported / pre-existing" as far as the manager is concerned.
+	if err := sys.SaveFile("templates/x.yaml",
+		"name: X\nfilename: x.yaml\nfields:\n  - key: a\n    type: text\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	m.SetAuthorReader(AuthorFunc(func() (string, string) {
+		return "Alice", "alice@example.com"
+	}))
+
+	desc, err := m.GetDescriptor("x.yaml", "/tmp/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if desc.YAML.AuthorName != "Alice" || desc.YAML.AuthorEmail != "alice@example.com" {
+		t.Errorf("descriptor not stamped, got %q/%q",
+			desc.YAML.AuthorName, desc.YAML.AuthorEmail)
+	}
+	// On-disk file should now carry the stamp too.
+	body, _ := sys.LoadFile("templates/x.yaml")
+	if !strings.Contains(body, "author_name: Alice") {
+		t.Errorf("author_name not persisted on first open: %q", body)
+	}
+	if !strings.Contains(body, "author_email: alice@example.com") {
+		t.Errorf("author_email not persisted on first open: %q", body)
+	}
+}
+
+// Second opener (with a different identity) does NOT overwrite the
+// existing stamp. Author identity is sticky — first one wins.
+func TestGetDescriptor_DoesNotOverwriteExistingAuthor(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	if err := sys.SaveFile("templates/x.yaml",
+		"name: X\nfilename: x.yaml\nauthor_name: Alice\nauthor_email: alice@example.com\nfields:\n  - key: a\n    type: text\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	m.SetAuthorReader(AuthorFunc(func() (string, string) {
+		return "Bob", "bob@example.com"
+	}))
+
+	desc, err := m.GetDescriptor("x.yaml", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if desc.YAML.AuthorName != "Alice" {
+		t.Errorf("author_name overwritten: got %q, want Alice", desc.YAML.AuthorName)
+	}
+	body, _ := sys.LoadFile("templates/x.yaml")
+	if strings.Contains(body, "Bob") || strings.Contains(body, "bob@example.com") {
+		t.Errorf("Bob's identity leaked into Alice's template: %q", body)
+	}
+}
+
+// GetDescriptor backfills even when the template has other validation
+// errors — opening shouldn't be punitive. SaveTemplate would refuse
+// such a template, but the YAML write here bypasses Validate.
+func TestGetDescriptor_BackfillsEvenWhenTemplateInvalid(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	// Two guid fields = "multiple-guid-fields" validation error.
+	if err := sys.SaveFile("templates/broken.yaml",
+		"name: B\nfilename: broken.yaml\nfields:\n  - key: id1\n    type: guid\n  - key: id2\n    type: guid\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	m.SetAuthorReader(AuthorFunc(func() (string, string) {
+		return "Alice", "alice@example.com"
+	}))
+
+	desc, err := m.GetDescriptor("broken.yaml", "")
+	if err != nil {
+		t.Fatalf("GetDescriptor must succeed even on broken template: %v", err)
+	}
+	if desc.YAML.AuthorName != "Alice" {
+		t.Errorf("descriptor not stamped on broken template, got %q",
+			desc.YAML.AuthorName)
+	}
+	body, _ := sys.LoadFile("templates/broken.yaml")
+	if !strings.Contains(body, "author_name: Alice") {
+		t.Errorf("backfill skipped on validation-failing template: %q", body)
+	}
+}
+
 func TestSaveTemplate_RejectsValidationFailure(t *testing.T) {
 	m, sys, _ := newTestManager(t)
 	tmpl := &Template{

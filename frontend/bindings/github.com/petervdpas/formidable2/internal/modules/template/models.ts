@@ -353,10 +353,20 @@ export class ShapeInfo {
 
 /**
  * Template is the on-disk shape of a template YAML file.
+ * 
+ * AuthorName / AuthorEmail mirror the per-record author identity that
+ * storage/<tpl>/<n>.meta.json carries in its meta envelope. They sit at
+ * the YAML root (templates have no separate meta block) and are
+ * auto-filled from config.author_name / config.author_email by
+ * SaveTemplate when the caller leaves them empty. Purpose: PullWithStash
+ * can name "who last touched this template" without walking git log,
+ * matching how it identifies record overrides.
  */
 export class Template {
     "name": string;
     "filename": string;
+    "author_name"?: string;
+    "author_email"?: string;
     "item_field": string;
     "markdown_template": string;
     "sidebar_expression": string;
@@ -394,10 +404,10 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField6_0 = $$createType7;
+        const $$createField8_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField6_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField8_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }

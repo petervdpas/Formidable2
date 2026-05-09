@@ -341,6 +341,50 @@ export class FetchResult {
 }
 
 /**
+ * OverriddenPath names a single path where the user's change was
+ * silently dropped in favor of pull's content, plus the commit info
+ * for whoever made the remote change so the user knows who to contact.
+ * Author/Email/Time come from the most recent commit on the post-pull
+ * branch that touched this path.
+ */
+export class OverriddenPath {
+    "path": string;
+    "author": string;
+    "email": string;
+    "time": string;
+    "commit": string;
+
+    /** Creates a new OverriddenPath instance. */
+    constructor($$source: Partial<OverriddenPath> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("email" in $$source)) {
+            this["email"] = "";
+        }
+        if (!("time" in $$source)) {
+            this["time"] = "";
+        }
+        if (!("commit" in $$source)) {
+            this["commit"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OverriddenPath instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OverriddenPath {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OverriddenPath($$parsedSource as Partial<OverriddenPath>);
+    }
+}
+
+/**
  * PullOptions describes a pull request — a fetch followed by a
  * merge of the tracking ref into the current branch. Default merge
  * strategy (no rebase). Path is any path inside the worktree;
@@ -537,19 +581,23 @@ export class RemoteInfo {
 /**
  * StashedPullResult is the outcome of PullWithStash. Pull is the
  * underlying merge result; Restored lists paths whose stashed content
- * we re-applied cleanly; Conflicts lists paths where pull moved the
- * file out from under the stash (the user must resolve manually).
+ * we re-applied cleanly; AutoMerged lists paths where the structured
+ * recmerge.Merge succeeded; Overridden lists paths where pull won and
+ * the user's local change was discarded (with the post-pull commit
+ * author/email/time captured so the UI can tell the user who to
+ * contact).
  * 
- * On Conflicts != [], the .changes.stash directory is left in place
- * so the user has a recovery point. On clean restore the directory is
- * removed.
+ * Policy: pull always wins on disk. Auto-merge for storage/<tpl>/<n>.meta.json
+ * when recmerge can reconcile; otherwise drop the user's change.
+ * .changes.stash is always cleaned up — the Overridden list is the
+ * only signal the user gets that something was lost.
  */
 export class StashedPullResult {
     "pull": PullResult | null;
     "stashed": string[];
     "restored": string[];
-    "conflicts": string[];
-    "stash_dir": string;
+    "auto_merged": string[];
+    "overridden": OverriddenPath[];
 
     /** Creates a new StashedPullResult instance. */
     constructor($$source: Partial<StashedPullResult> = {}) {
@@ -562,11 +610,11 @@ export class StashedPullResult {
         if (!("restored" in $$source)) {
             this["restored"] = [];
         }
-        if (!("conflicts" in $$source)) {
-            this["conflicts"] = [];
+        if (!("auto_merged" in $$source)) {
+            this["auto_merged"] = [];
         }
-        if (!("stash_dir" in $$source)) {
-            this["stash_dir"] = "";
+        if (!("overridden" in $$source)) {
+            this["overridden"] = [];
         }
 
         Object.assign(this, $$source);
@@ -580,6 +628,7 @@ export class StashedPullResult {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pull" in $$parsedSource) {
             $$parsedSource["pull"] = $$createField0_0($$parsedSource["pull"]);
@@ -590,8 +639,11 @@ export class StashedPullResult {
         if ("restored" in $$parsedSource) {
             $$parsedSource["restored"] = $$createField2_0($$parsedSource["restored"]);
         }
-        if ("conflicts" in $$parsedSource) {
-            $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
+        if ("auto_merged" in $$parsedSource) {
+            $$parsedSource["auto_merged"] = $$createField3_0($$parsedSource["auto_merged"]);
+        }
+        if ("overridden" in $$parsedSource) {
+            $$parsedSource["overridden"] = $$createField4_0($$parsedSource["overridden"]);
         }
         return new StashedPullResult($$parsedSource as Partial<StashedPullResult>);
     }
@@ -728,3 +780,5 @@ const $$createType1 = Remote.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = PullResult.createFrom;
 const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = OverriddenPath.createFrom;
+const $$createType6 = $Create.Array($$createType5);

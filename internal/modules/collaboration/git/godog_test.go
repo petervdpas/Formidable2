@@ -896,43 +896,63 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		return fmt.Errorf("Restored = %v, want to contain %q", w.pullStash.Restored, path)
 	})
 
-	ctx.Step(`^the stash result has (\d+) conflicts?$`, func(n int) error {
+	ctx.Step(`^the stash result has (\d+) overrides?$`, func(n int) error {
 		if w.pullStash == nil {
 			return fmt.Errorf("no stash result")
 		}
-		if len(w.pullStash.Conflicts) != n {
-			return fmt.Errorf("Conflicts = %v, want %d", w.pullStash.Conflicts, n)
+		if len(w.pullStash.Overridden) != n {
+			return fmt.Errorf("Overridden = %v, want %d", w.pullStash.Overridden, n)
 		}
 		return nil
 	})
 
-	ctx.Step(`^the stash result has "([^"]*)" in conflicts$`, func(path string) error {
+	ctx.Step(`^the stash result has "([^"]*)" in overrides$`, func(path string) error {
 		if w.pullStash == nil {
 			return fmt.Errorf("no stash result")
 		}
-		for _, p := range w.pullStash.Conflicts {
+		for _, p := range w.pullStash.Overridden {
+			if p.Path == path {
+				return nil
+			}
+		}
+		return fmt.Errorf("Overridden = %v, want to contain %q", w.pullStash.Overridden, path)
+	})
+
+	ctx.Step(`^the override for "([^"]*)" names an author$`, func(path string) error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		for _, p := range w.pullStash.Overridden {
+			if p.Path == path {
+				if p.Author == "" {
+					return fmt.Errorf("override for %q has empty Author", path)
+				}
+				return nil
+			}
+		}
+		return fmt.Errorf("no override entry for %q", path)
+	})
+
+	ctx.Step(`^the stash result has (\d+) auto-merges?$`, func(n int) error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		if len(w.pullStash.AutoMerged) != n {
+			return fmt.Errorf("AutoMerged = %v, want %d", w.pullStash.AutoMerged, n)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the stash result has "([^"]*)" auto-merged$`, func(path string) error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		for _, p := range w.pullStash.AutoMerged {
 			if p == path {
 				return nil
 			}
 		}
-		return fmt.Errorf("Conflicts = %v, want to contain %q", w.pullStash.Conflicts, path)
-	})
-
-	ctx.Step(`^the stash directory is reported$`, func() error {
-		if w.pullStash == nil || w.pullStash.StashDir == "" {
-			return fmt.Errorf("expected non-empty StashDir")
-		}
-		return nil
-	})
-
-	ctx.Step(`^the stash directory is empty in the result$`, func() error {
-		if w.pullStash == nil {
-			return fmt.Errorf("no stash result")
-		}
-		if w.pullStash.StashDir != "" {
-			return fmt.Errorf("expected empty StashDir on clean restore, got %q", w.pullStash.StashDir)
-		}
-		return nil
+		return fmt.Errorf("AutoMerged = %v, want to contain %q", w.pullStash.AutoMerged, path)
 	})
 
 	ctx.Step(`^file "([^"]*)" inside "([^"]*)" has content "([^"]*)"$`, func(name, rel, want string) error {

@@ -165,12 +165,21 @@ const canPull = computed(() => {
 // than `git status`, so external dirt is left alone).
 const pullDirtyOpen = ref(false);
 
-// Conflict dialog: PullWithStash succeeded but pull touched some
-// of the stashed paths under us. Stash content lives in
-// .changes.stash/ for manual recovery.
-const stashConflictOpen = ref(false);
-const stashConflictPaths = ref<string[]>([]);
-const stashConflictDir = ref<string>("");
+// Override notification: PullWithStash succeeded but some of the
+// user's local changes were dropped because pull's content won (the
+// path is non-mergeable, or recmerge hit immutable-meta divergence).
+// We surface the post-pull commit author so the user knows who to
+// coordinate with offline. Stash dir is always trashed — this list
+// is the only signal something was lost.
+type OverriddenPath = {
+  path: string;
+  author: string;
+  email: string;
+  time: string;
+  commit: string;
+};
+const overrideOpen = ref(false);
+const overridePaths = ref<OverriddenPath[]>([]);
 
 // Pulling on divergent history (ahead > 0 AND behind > 0) trips
 // go-git's fast-forward-only Pull. Same loud-prompt pattern: warn
@@ -228,27 +237,33 @@ async function pull() {
   }
 }
 
-// pullWithStash drives the journal-aware auto-stash flow. The backend
-// reads its own pending set; we just hand it the worktree path. On
-// conflicts we surface a follow-up dialog pointing at .changes.stash/
-// for manual recovery — the file on disk is the remote's version, the
-// stash contains the user's pre-pull content.
+// pullWithStash drives the journal-aware auto-stash flow.
+//
+// Outcomes (silent except for overrides):
+//   - all paths cleanly restored / no pending  → toast "pulled".
+//   - some paths auto-merged via recmerge      → toast "pulled and merged N".
+//   - some paths overridden (pull won)         → AlertDialog naming the
+//     other authors so the user can coordinate offline. Stash dir is
+//     always trashed; no manual-recovery path.
 async function pullWithStash() {
   pullDirtyOpen.value = false;
   pulling.value = true;
   try {
     const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
     const result = await GitSvc.PullWithStash({ path: abs, remote: "origin", pat: "" });
-    if (result?.conflicts && result.conflicts.length > 0) {
-      stashConflictPaths.value = [...result.conflicts];
-      stashConflictDir.value = result.stash_dir ?? "";
-      stashConflictOpen.value = true;
+
+    const overridden = (result?.overridden ?? []) as OverriddenPath[];
+    const merged = (result?.auto_merged ?? []) as string[];
+
+    if (overridden.length > 0) {
+      overridePaths.value = overridden;
+      overrideOpen.value = true;
+    } else if (merged.length > 0) {
+      toast.success("workspace.collaboration.pull.merge_success", [String(merged.length)]);
     } else if (result?.pull?.already_up_to_date) {
       toast.info("workspace.collaboration.pull.up_to_date");
     } else {
-      toast.success("workspace.collaboration.pull.stash_success", [
-        String(result?.restored?.length ?? 0),
-      ]);
+      toast.success("workspace.collaboration.pull.success");
     }
     await load(false);
   } catch (err) {
@@ -383,10 +398,10 @@ async function confirmDiscard() {
   />
 
   <AlertDialog
-    :open="stashConflictOpen"
-    :title="t('workspace.collaboration.pull.stash_conflict_title')"
-    :message="t('workspace.collaboration.pull.stash_conflict_message', [stashConflictPaths.join(', '), stashConflictDir])"
-    @close="stashConflictOpen = false"
+    :open="overrideOpen"
+    :title="t('workspace.collaboration.pull.override_title')"
+    :message="t('workspace.collaboration.pull.override_message', [overridePaths.map(p => `${p.path} (${p.author || 'unknown'}${p.email ? ` <${p.email}>` : ''})`).join('; ')])"
+    @close="overrideOpen = false"
   />
 
   <AlertDialog

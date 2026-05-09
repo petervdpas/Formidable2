@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"gopkg.in/yaml.v3"
+
+	"github.com/petervdpas/formidable2/internal/modules/collaboration/recmerge"
 )
 
 // Manager is the read-only entry point into a Git repository.
@@ -672,29 +676,24 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 	pullRes, pullErr := m.Pull(opts.PullOptions)
 	if pullErr != nil {
 		// Pull failed (network, auth, divergent, ...). Worktree paths
-		// are reset; the stash dir survives so the user can recover.
-		// We try to restore stashed content as a courtesy — a failed
-		// pull should never silently lose user data.
+		// are reset; restore stashed content so user data isn't lost,
+		// then clean up the stash dir. Surface the pull error.
 		restored, _ := m.stashRestoreOnFailure(repoRoot, entries)
-		stashedPaths := stashedPathList(entries)
-		// Only keep the stash dir if not everything was restored —
-		// otherwise the on-disk state matches the user's pre-pull
-		// content and the stash is redundant.
-		dirToReport := stashRoot
-		if len(restored) == len(entries) {
-			_ = os.RemoveAll(stashRoot)
-			dirToReport = ""
-		}
+		_ = os.RemoveAll(stashRoot)
 		return &StashedPullResult{
-			Pull:      pullRes,
-			Stashed:   stashedPaths,
-			Restored:  restored,
-			Conflicts: nil,
-			StashDir:  dirToReport,
+			Pull:     pullRes,
+			Stashed:  stashedPathList(entries),
+			Restored: restored,
 		}, fmt.Errorf("git: pull-with-stash: %w", pullErr)
 	}
 
-	// Phase 4: restore. Re-open repo + HEAD so we read post-pull tree.
+	// Phase 4: restore + merge. Re-open repo + HEAD so we read
+	// post-pull tree. For each entry, compare pre-pull and post-pull
+	// blob hashes. Same hash → pull didn't touch, restore stash
+	// content. Different hash → try structured merge for .meta.json;
+	// fall back to "pull wins, drop user version" otherwise. Stash
+	// directory is always removed at the end — the Overridden list is
+	// the only signal that something was lost.
 	r2, err := m.open(opts.Path)
 	if err != nil {
 		return nil, fmt.Errorf("git: pull-with-stash: reopen: %w", err)
@@ -703,27 +702,21 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 	if err != nil {
 		return nil, fmt.Errorf("git: pull-with-stash: head after pull: %w", err)
 	}
-	restored, conflicts, err := m.stashRestore(r2, head2, repoRoot, entries)
+	restored, autoMerged, overridden, err := m.stashMergeOrOverride(r2, head2, repoRoot, entries)
 	if err != nil {
 		return nil, fmt.Errorf("git: pull-with-stash: restore: %w", err)
 	}
 
-	stashedPaths := stashedPathList(entries)
-	dirToReport := ""
-	if len(conflicts) > 0 {
-		// Keep the stash dir for manual recovery; surface its path.
-		dirToReport = stashRoot
-	} else {
-		// Clean restore — remove the directory.
-		_ = os.RemoveAll(stashRoot)
-	}
+	// Stash dir always trashed: clean restore, auto-merge, and override
+	// all converged on a final on-disk state we want to keep.
+	_ = os.RemoveAll(stashRoot)
 
 	return &StashedPullResult{
-		Pull:      pullRes,
-		Stashed:   stashedPaths,
-		Restored:  restored,
-		Conflicts: conflicts,
-		StashDir:  dirToReport,
+		Pull:       pullRes,
+		Stashed:    stashedPathList(entries),
+		Restored:   restored,
+		AutoMerged: autoMerged,
+		Overridden: overridden,
 	}, nil
 }
 
@@ -732,10 +725,20 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 // the pre-pull HEAD blob hash so the restore step can detect whether
 // pull moved the path out from under the stash.
 //
-// Pending is the journal's view; we filter to only paths under the
-// repo root and skip any traversal-shaped input. A delete-op entry has
-// no content to snapshot — we record the marker and the HEAD hash so
-// the restore step can re-delete (or report a conflict) post-pull.
+// Pending is the journal's view of "files Formidable mutated since
+// the last sync". The journal is conservative — it logs every write
+// through system.SaveFile, including no-op saves and writes that were
+// later locally committed (the cursor only advances on sync, not on
+// commit). So the manifest can include "stale" entries: paths the
+// journal claims are dirty but where on-disk content already matches
+// HEAD. Stashing those would be a double waste — pure clutter, plus
+// it'd trip a false-positive conflict if pull happens to touch one
+// (post-pull blob hash differs from pre-pull, but the user has nothing
+// to restore).
+//
+// We filter at snapshot: a pending entry is kept only when on-disk
+// content actually differs from the HEAD blob. Real working-tree dirt
+// gets stashed; stale-but-clean entries are silently skipped.
 func (m *Manager) stashSnapshot(r *gogit.Repository, head *plumbing.Reference, repoRoot, stashRoot string, pending []StashPathPending) ([]StashEntry, error) {
 	if len(pending) == 0 {
 		return []StashEntry{}, nil
@@ -766,6 +769,14 @@ func (m *Manager) stashSnapshot(r *gogit.Repository, head *plumbing.Reference, r
 		// Record pre-pull HEAD blob hash for conflict detection later.
 		oldHash := blobHashAt(headTree, clean)
 
+		keep, content, err := shouldStash(r, repoRoot, clean, op, oldHash)
+		if err != nil {
+			return nil, fmt.Errorf("filter %q: %w", clean, err)
+		}
+		if !keep {
+			continue
+		}
+
 		// For delete-ops there's no file content to snapshot; the
 		// marker plus oldHash is enough to drive restore semantics.
 		if op == "delete" {
@@ -775,18 +786,8 @@ func (m *Manager) stashSnapshot(r *gogit.Repository, head *plumbing.Reference, r
 			continue
 		}
 
-		// create / update: read the worktree file and copy it into
-		// .changes.stash/<clean>. Missing source (raced with an
-		// external delete) is silently dropped — the restore step
-		// will report it as "we have nothing to restore."
-		src := filepath.Join(repoRoot, clean)
-		content, err := os.ReadFile(src)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, fmt.Errorf("read %q: %w", clean, err)
-		}
+		// create / update: stash the captured content under
+		// .changes.stash/<clean>.
 		stashPath := filepath.Join(stashRoot, clean)
 		if err := os.MkdirAll(filepath.Dir(stashPath), 0o755); err != nil {
 			return nil, fmt.Errorf("mkdir stash %q: %w", clean, err)
@@ -803,6 +804,71 @@ func (m *Manager) stashSnapshot(r *gogit.Repository, head *plumbing.Reference, r
 		})
 	}
 	return entries, nil
+}
+
+// shouldStash decides whether a journal-pending entry actually needs
+// snapshotting. The journal logs every write through system.SaveFile;
+// it doesn't know whether a write left the file content-equal to HEAD
+// (committed-but-unpushed paths sit in pending until the next sync,
+// even though their disk state matches HEAD). Stashing those would
+// pollute .changes.stash and risk false-positive conflicts if pull
+// happens to advance HEAD on one of them.
+//
+// Returns (keep, content, err):
+//   - keep == false → the journal entry is stale; skip the snapshot.
+//   - keep == true, op=="delete" → marker-only stash; content is nil.
+//   - keep == true, op∈{create,update} → content holds the worktree
+//     bytes the caller writes into .changes.stash/.
+//
+// Decision matrix:
+//   delete + file present → stale (file came back). Skip.
+//   delete + file absent + oldHash != "" → real delete. Keep.
+//   delete + file absent + oldHash == "" → nothing to delete. Skip.
+//   create/update + file absent → nothing to capture. Skip.
+//   create/update + oldHash == "" → brand-new file (not in HEAD). Keep.
+//   create/update + disk == HEAD blob → stale write. Skip.
+//   create/update + disk != HEAD blob → real edit. Keep.
+func shouldStash(r *gogit.Repository, repoRoot, path, op, oldHash string) (bool, []byte, error) {
+	full := filepath.Join(repoRoot, path)
+	disk, readErr := os.ReadFile(full)
+	diskPresent := readErr == nil
+	if readErr != nil && !os.IsNotExist(readErr) {
+		return false, nil, fmt.Errorf("read worktree: %w", readErr)
+	}
+
+	if op == "delete" {
+		if diskPresent || oldHash == "" {
+			return false, nil, nil
+		}
+		return true, nil, nil
+	}
+
+	// op is create or update.
+	if !diskPresent {
+		return false, nil, nil
+	}
+	if oldHash == "" {
+		// Untracked-in-HEAD: any disk content is a real new file.
+		return true, disk, nil
+	}
+	blob, err := r.BlobObject(plumbing.NewHash(oldHash))
+	if err != nil {
+		// Couldn't resolve HEAD blob — be conservative and stash.
+		return true, disk, nil
+	}
+	reader, err := blob.Reader()
+	if err != nil {
+		return true, disk, nil
+	}
+	headContent, err := io.ReadAll(reader)
+	_ = reader.Close()
+	if err != nil {
+		return true, disk, nil
+	}
+	if bytes.Equal(disk, headContent) {
+		return false, nil, nil
+	}
+	return true, disk, nil
 }
 
 // stashReset clears each snapshotted path so the worktree is clean
@@ -865,60 +931,377 @@ func (m *Manager) stashReset(r *gogit.Repository, wt *gogit.Worktree, entries []
 	return nil
 }
 
-// stashRestore writes stashed content back over the post-pull worktree.
-// For each entry it compares the pre-pull HEAD blob hash to the
-// post-pull HEAD blob hash; equal hashes mean pull didn't touch the
-// path → safe to overwrite. Different hashes mean pull moved the path
-// → conflict, stash content stays in .changes.stash/ for manual review.
-func (m *Manager) stashRestore(r *gogit.Repository, head *plumbing.Reference, repoRoot string, entries []StashEntry) ([]string, []string, error) {
+// stashMergeOrOverride is phase 4 of PullWithStash. For each stashed
+// entry, it picks one of three outcomes:
+//
+//   - Restored: pull didn't touch the path (pre/post HEAD blob hash
+//     unchanged). The stashed content is written back. The user's edit
+//     round-trips; no remote conflict to consider.
+//   - AutoMerged: pull touched the path AND the path is a Formidable
+//     record file (storage/<tpl>/<n>.meta.json) AND recmerge.Merge
+//     reconciled cleanly. The merged JSON is written; both sides'
+//     non-overlapping field edits survive.
+//   - Overridden: pull touched the path AND either it's not a record
+//     file (yaml templates, binaries) OR recmerge returned a
+//     RecordConflict (immutable meta divergence). Pull's content stays
+//     on disk (we do nothing — pull already left it there). The
+//     post-pull commit's author/email/time for this path is captured
+//     so the UI can tell the user who to coordinate with.
+//
+// The .changes.stash directory is removed by the caller after this
+// function returns regardless of the outcome — the Overridden list is
+// the only durable signal of what was lost.
+func (m *Manager) stashMergeOrOverride(r *gogit.Repository, head *plumbing.Reference, repoRoot string, entries []StashEntry) ([]string, []string, []OverriddenPath, error) {
 	headTree, err := treeOf(r, head.Hash())
 	if err != nil {
-		return nil, nil, fmt.Errorf("post-pull head tree: %w", err)
+		return nil, nil, nil, fmt.Errorf("post-pull head tree: %w", err)
 	}
 
 	restored := []string{}
-	conflicts := []string{}
+	autoMerged := []string{}
+	overridden := []OverriddenPath{}
 	stashRoot := filepath.Join(repoRoot, stashSubdir)
 
 	for _, e := range entries {
 		newHash := blobHashAt(headTree, e.Path)
 
-		// Conflict detection: pull touched the path between the snapshot
-		// and now.
-		if e.OldHash != newHash {
-			conflicts = append(conflicts, e.Path)
+		if e.OldHash == newHash {
+			// Pull didn't touch this path → restore stash content.
+			if err := applyStashEntry(repoRoot, stashRoot, e); err != nil {
+				return nil, nil, nil, err
+			}
+			restored = append(restored, e.Path)
 			continue
 		}
 
-		// Apply the stash by op type.
-		full := filepath.Join(repoRoot, e.Path)
-		switch e.Op {
-		case "delete":
-			if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
-				return nil, nil, fmt.Errorf("re-delete %q: %w", e.Path, err)
+		// Pull touched the path. Try a structured merge for record
+		// files; everything else falls through to "pull wins".
+		if e.Op != "delete" && e.StashRef != "" && recordPathMergeable(e) {
+			merged, ok, err := tryRecordMerge(r, e, repoRoot, stashRoot, head)
+			if err != nil {
+				return nil, nil, nil, err
 			}
-			restored = append(restored, e.Path)
-		case "create", "update":
-			if e.StashRef == "" {
-				// No content was captured (file disappeared between
-				// pending discovery and snapshot) — nothing to restore.
+			if ok {
+				full := filepath.Join(repoRoot, e.Path)
+				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+					return nil, nil, nil, fmt.Errorf("mkdir merge %q: %w", e.Path, err)
+				}
+				if err := atomicWriteBytes(full, merged, 0o644); err != nil {
+					return nil, nil, nil, fmt.Errorf("write merge %q: %w", e.Path, err)
+				}
+				autoMerged = append(autoMerged, e.Path)
 				continue
 			}
-			stashPath := filepath.Join(stashRoot, e.StashRef)
-			content, err := os.ReadFile(stashPath)
-			if err != nil {
-				return nil, nil, fmt.Errorf("read stash %q: %w", e.Path, err)
+		}
+
+		// Override: pull wins, capture authorship for the UI. Prefer
+		// the file's own author identity (records embed it in
+		// meta.author_name/email; templates carry author_name/email
+		// at the YAML root). Both are kept fresh by SaveTemplate /
+		// the form save path — transport-agnostic, so this works
+		// for git and gigot identically. Fall back to git log for
+		// binaries and for files that don't carry the fields yet.
+		over := lookupAuthorFromRecord(r, head, repoRoot, e.Path)
+		if over.Author == "" && over.Email == "" {
+			over = lookupAuthorFromTemplate(r, head, repoRoot, e.Path)
+		}
+		if over.Author == "" && over.Email == "" {
+			gitOver, err := lookupAuthor(r, head.Hash(), e.Path)
+			if err == nil {
+				over = gitOver
+			} else {
+				over = OverriddenPath{Path: e.Path}
 			}
-			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-				return nil, nil, fmt.Errorf("mkdir restore %q: %w", e.Path, err)
-			}
-			if err := atomicWriteBytes(full, content, 0o644); err != nil {
-				return nil, nil, fmt.Errorf("write restore %q: %w", e.Path, err)
-			}
-			restored = append(restored, e.Path)
+		}
+		overridden = append(overridden, over)
+	}
+	return restored, autoMerged, overridden, nil
+}
+
+// lookupAuthorFromTemplate pulls author identity out of a Formidable
+// template's YAML root (author_name / author_email keys, populated by
+// template.SaveTemplate from the active profile's config when missing).
+// Returns a populated OverriddenPath when the path matches
+// templates/*.yaml and the YAML decodes with non-empty author fields;
+// otherwise returns a zero value (caller falls back to git log).
+// Mirrors lookupAuthorFromRecord — both pull author info from the file
+// itself rather than walking git history.
+func lookupAuthorFromTemplate(r *gogit.Repository, head *plumbing.Reference, _ string, path string) OverriddenPath {
+	// Path shape: "templates/<name>.yaml" exactly two segments.
+	if !isTemplatePath(path) {
+		return OverriddenPath{}
+	}
+	headTree, err := treeOf(r, head.Hash())
+	if err != nil {
+		return OverriddenPath{}
+	}
+	entry, err := headTree.File(path)
+	if err != nil {
+		return OverriddenPath{}
+	}
+	content, err := readBlob(r, entry.Hash)
+	if err != nil {
+		return OverriddenPath{}
+	}
+	// Light-weight head-only parse: we only need author_name +
+	// author_email. Full template.UnmarshalYAML would drag the
+	// validate/normalize stack in. Instead, parse as a generic map.
+	var head2 map[string]any
+	if err := yaml.Unmarshal(content, &head2); err != nil {
+		return OverriddenPath{}
+	}
+	name, _ := head2["author_name"].(string)
+	email, _ := head2["author_email"].(string)
+	if name == "" && email == "" {
+		return OverriddenPath{}
+	}
+	return OverriddenPath{
+		Path:   path,
+		Author: name,
+		Email:  email,
+	}
+}
+
+// isTemplatePath returns true when path is exactly templates/<name>.yaml.
+func isTemplatePath(path string) bool {
+	if path == "" || !strings.HasSuffix(path, ".yaml") {
+		return false
+	}
+	if !strings.HasPrefix(path, "templates/") {
+		return false
+	}
+	rest := path[len("templates/"):]
+	if rest == "" || strings.Contains(rest, "/") {
+		return false
+	}
+	return true
+}
+
+// lookupAuthorFromRecord pulls author identity out of a Formidable
+// record's meta envelope. Returns a populated OverriddenPath when the
+// path resolves to a parseable record at HEAD with non-empty author
+// fields; otherwise returns a zero value (caller falls back to git
+// log). The post-pull HEAD content is the right source — it represents
+// the version that won.
+func lookupAuthorFromRecord(r *gogit.Repository, head *plumbing.Reference, repoRoot, path string) OverriddenPath {
+	if !recmerge.IsRecordPath(path) {
+		return OverriddenPath{}
+	}
+	headTree, err := treeOf(r, head.Hash())
+	if err != nil {
+		return OverriddenPath{}
+	}
+	entry, err := headTree.File(path)
+	if err != nil {
+		return OverriddenPath{}
+	}
+	content, err := readBlob(r, entry.Hash)
+	if err != nil {
+		return OverriddenPath{}
+	}
+	rec, err := recmerge.ParseRecord(content)
+	if err != nil {
+		return OverriddenPath{}
+	}
+	name, _ := rec.Meta["author_name"].(string)
+	email, _ := rec.Meta["author_email"].(string)
+	if name == "" && email == "" {
+		return OverriddenPath{}
+	}
+	updated, _ := rec.Meta["updated"].(string)
+	return OverriddenPath{
+		Path:   path,
+		Author: name,
+		Email:  email,
+		Time:   updated,
+	}
+}
+
+// applyStashEntry writes a single stashed entry to the worktree —
+// content for create/update, removal for delete. Used for the
+// "restore" branch where pull didn't touch the path.
+func applyStashEntry(repoRoot, stashRoot string, e StashEntry) error {
+	full := filepath.Join(repoRoot, e.Path)
+	switch e.Op {
+	case "delete":
+		if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("re-delete %q: %w", e.Path, err)
+		}
+	case "create", "update":
+		if e.StashRef == "" {
+			return nil
+		}
+		stashPath := filepath.Join(stashRoot, e.StashRef)
+		content, err := os.ReadFile(stashPath)
+		if err != nil {
+			return fmt.Errorf("read stash %q: %w", e.Path, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return fmt.Errorf("mkdir restore %q: %w", e.Path, err)
+		}
+		if err := atomicWriteBytes(full, content, 0o644); err != nil {
+			return fmt.Errorf("write restore %q: %w", e.Path, err)
 		}
 	}
-	return restored, conflicts, nil
+	return nil
+}
+
+// recordPathMergeable returns true when the entry's path is a
+// Formidable record file (storage/<tpl>/<n>.meta.json) AND it's
+// tracked on both pre- and post-pull HEAD (so we have a base + theirs
+// to merge against). Add/delete shapes can't go through structured
+// merge — they fall through to "pull wins".
+func recordPathMergeable(e StashEntry) bool {
+	if !recmerge.IsRecordPath(e.Path) {
+		return false
+	}
+	if e.OldHash == "" {
+		return false
+	}
+	return true
+}
+
+// tryRecordMerge runs recmerge.Merge against three blob inputs:
+//   - BASE: the pre-pull HEAD blob (e.OldHash captured at snapshot).
+//   - THEIRS: the post-pull HEAD blob.
+//   - YOURS: the stashed content (the user's pre-pull worktree).
+//
+// Returns (merged, true, nil) on a clean per-field merge; (nil, false,
+// nil) on RecordConflict (immutable-meta divergence); (nil, false,
+// err) on transport/parse errors. The caller falls through to the
+// "override" path on (nil, false, ...).
+func tryRecordMerge(r *gogit.Repository, e StashEntry, repoRoot, stashRoot string, head *plumbing.Reference) ([]byte, bool, error) {
+	baseBytes, err := readBlob(r, plumbing.NewHash(e.OldHash))
+	if err != nil {
+		return nil, false, nil
+	}
+	headTree, err := treeOf(r, head.Hash())
+	if err != nil {
+		return nil, false, fmt.Errorf("head tree: %w", err)
+	}
+	theirsEntry, err := headTree.File(e.Path)
+	if err != nil {
+		return nil, false, nil
+	}
+	theirsBytes, err := readBlob(r, theirsEntry.Hash)
+	if err != nil {
+		return nil, false, nil
+	}
+	yoursPath := filepath.Join(stashRoot, e.StashRef)
+	yoursBytes, err := os.ReadFile(yoursPath)
+	if err != nil {
+		return nil, false, fmt.Errorf("read stash %q: %w", e.Path, err)
+	}
+
+	base, err := recmerge.ParseRecord(baseBytes)
+	if err != nil {
+		return nil, false, nil
+	}
+	theirs, err := recmerge.ParseRecord(theirsBytes)
+	if err != nil {
+		return nil, false, nil
+	}
+	yours, err := recmerge.ParseRecord(yoursBytes)
+	if err != nil {
+		return nil, false, nil
+	}
+	res, err := recmerge.Merge(e.Path, base, theirs, yours)
+	if err != nil {
+		return nil, false, err
+	}
+	if res.Conflict != nil {
+		return nil, false, nil
+	}
+	return res.Merged, true, nil
+}
+
+// readBlob reads the bytes of a blob given its hash. Used by the
+// record merger to materialise base + theirs content.
+func readBlob(r *gogit.Repository, h plumbing.Hash) ([]byte, error) {
+	blob, err := r.BlobObject(h)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := blob.Reader()
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	return io.ReadAll(reader)
+}
+
+// lookupAuthor walks back from head to find the most recent commit
+// that touched path, then returns the author/email/time for the UI's
+// "contact this person" notification. Falls back to the head commit's
+// author when path-bisecting walk fails — better than nothing.
+func lookupAuthor(r *gogit.Repository, headHash plumbing.Hash, path string) (OverriddenPath, error) {
+	iter, err := r.Log(&gogit.LogOptions{From: headHash})
+	if err != nil {
+		return OverriddenPath{Path: path}, err
+	}
+	defer iter.Close()
+
+	var fallback OverriddenPath
+	fallback.Path = path
+
+	var found OverriddenPath
+	foundIt := false
+	if err := iter.ForEach(func(c *object.Commit) error {
+		if !foundIt && fallback.Author == "" {
+			fallback = OverriddenPath{
+				Path:   path,
+				Author: c.Author.Name,
+				Email:  c.Author.Email,
+				Time:   c.Author.When.Format(time.RFC3339),
+				Commit: c.Hash.String(),
+			}
+		}
+		// Match any commit that has this path in its tree differently
+		// from its parent. For a root commit (no parent), any
+		// containment counts.
+		tree, err := c.Tree()
+		if err != nil {
+			return nil
+		}
+		_, treeErr := tree.File(path)
+		var parentTree *object.Tree
+		if c.NumParents() > 0 {
+			parent, perr := c.Parent(0)
+			if perr == nil {
+				parentTree, _ = parent.Tree()
+			}
+		}
+		var parentHash plumbing.Hash
+		if parentTree != nil {
+			if entry, err := parentTree.File(path); err == nil {
+				parentHash = entry.Hash
+			}
+		}
+		var thisHash plumbing.Hash
+		if treeErr == nil {
+			if entry, err := tree.File(path); err == nil {
+				thisHash = entry.Hash
+			}
+		}
+		if parentHash != thisHash {
+			found = OverriddenPath{
+				Path:   path,
+				Author: c.Author.Name,
+				Email:  c.Author.Email,
+				Time:   c.Author.When.Format(time.RFC3339),
+				Commit: c.Hash.String(),
+			}
+			foundIt = true
+			return errStopIter
+		}
+		return nil
+	}); err != nil && !errors.Is(err, errStopIter) {
+		return fallback, err
+	}
+	if foundIt {
+		return found, nil
+	}
+	return fallback, nil
 }
 
 // stashRestoreOnFailure writes stashed content back without conflict

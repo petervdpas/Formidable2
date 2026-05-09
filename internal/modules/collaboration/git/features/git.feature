@@ -381,13 +381,15 @@ Feature: Git collaboration backend
     When I pull-with-stash from "client" via the service
     Then the pull succeeded
     And pull is not already-up-to-date
-    And the stash result has 0 conflicts
+    And the stash result has 0 overrides
     And the stash result restored "seed.txt"
     And file "seed.txt" inside "client" has content "user-edit"
-    And the stash directory is empty in the result
     And no stash directory exists under "client"
 
-  Scenario: Stash-pull surfaces a conflict when remote also rewrote the file
+  Scenario: Stash-pull on a non-record file overrides silently with author info
+    # seed.txt is plain text (NOT storage/<tpl>/<n>.meta.json), so
+    # recmerge can't reconcile. Pull wins on disk; the override is
+    # reported with the post-pull commit author.
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
     And a journal-recording git service
@@ -397,11 +399,11 @@ Feature: Git collaboration backend
     When I pull-with-stash from "client" via the service
     Then the pull succeeded
     And pull is not already-up-to-date
-    And the stash result has 1 conflict
-    And the stash result has "seed.txt" in conflicts
-    And the stash directory is reported
-    And a stashed copy of "seed.txt" exists under "client"
+    And the stash result has 1 override
+    And the stash result has "seed.txt" in overrides
+    And the override for "seed.txt" names an author
     And file "seed.txt" inside "client" has content "remote-edit"
+    And no stash directory exists under "client"
 
   Scenario: Stash-pull with no journal pending degrades to a normal pull
     Given a bare repo seeded with one commit
@@ -411,7 +413,7 @@ Feature: Git collaboration backend
     When I pull-with-stash from "client" via the service
     Then the pull succeeded
     And pull is not already-up-to-date
-    And the stash result has 0 conflicts
+    And the stash result has 0 overrides
     And no stash directory exists under "client"
 
   Scenario: Stash-pull leaves unrelated dirt untouched
@@ -424,5 +426,5 @@ Feature: Git collaboration backend
     And the bare repo gains another commit
     When I pull-with-stash from "client" via the service
     Then the pull succeeded
-    And the stash result has 0 conflicts
+    And the stash result has 0 overrides
     And file "scratch.txt" inside "client" has content "untouched"

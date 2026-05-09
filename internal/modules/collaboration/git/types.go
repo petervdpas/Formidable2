@@ -194,18 +194,35 @@ type StashEntry struct {
 
 // StashedPullResult is the outcome of PullWithStash. Pull is the
 // underlying merge result; Restored lists paths whose stashed content
-// we re-applied cleanly; Conflicts lists paths where pull moved the
-// file out from under the stash (the user must resolve manually).
+// we re-applied cleanly; AutoMerged lists paths where the structured
+// recmerge.Merge succeeded; Overridden lists paths where pull won and
+// the user's local change was discarded (with the post-pull commit
+// author/email/time captured so the UI can tell the user who to
+// contact).
 //
-// On Conflicts != [], the .changes.stash directory is left in place
-// so the user has a recovery point. On clean restore the directory is
-// removed.
+// Policy: pull always wins on disk. Auto-merge for storage/<tpl>/<n>.meta.json
+// when recmerge can reconcile; otherwise drop the user's change.
+// .changes.stash is always cleaned up — the Overridden list is the
+// only signal the user gets that something was lost.
 type StashedPullResult struct {
-	Pull      *PullResult `json:"pull"`
-	Stashed   []string    `json:"stashed"`
-	Restored  []string    `json:"restored"`
-	Conflicts []string    `json:"conflicts"`
-	StashDir  string      `json:"stash_dir"`
+	Pull       *PullResult     `json:"pull"`
+	Stashed    []string        `json:"stashed"`
+	Restored   []string        `json:"restored"`
+	AutoMerged []string        `json:"auto_merged"`
+	Overridden []OverriddenPath `json:"overridden"`
+}
+
+// OverriddenPath names a single path where the user's change was
+// silently dropped in favor of pull's content, plus the commit info
+// for whoever made the remote change so the user knows who to contact.
+// Author/Email/Time come from the most recent commit on the post-pull
+// branch that touched this path.
+type OverriddenPath struct {
+	Path   string `json:"path"`
+	Author string `json:"author"`
+	Email  string `json:"email"`
+	Time   string `json:"time"`
+	Commit string `json:"commit"`
 }
 
 // StashPathPending describes one journal-pending path passed in to

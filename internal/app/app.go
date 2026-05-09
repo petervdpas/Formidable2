@@ -140,6 +140,18 @@ func New(d Deps) (*App, error) {
 		return nil, err
 	}
 	tplM := template.NewManager(sysM, templatesPath, d.Logger)
+	// Stamp every saved template with the active profile's author
+	// identity when the caller didn't set it. Mirrors how record
+	// .meta.json files carry meta.author_name / meta.author_email so
+	// PullWithStash can name "who last touched this file" without
+	// walking git log.
+	tplM.SetAuthorReader(template.AuthorFunc(func() (string, string) {
+		cfg, err := cfgM.LoadUserConfig()
+		if err != nil || cfg == nil {
+			return "", ""
+		}
+		return cfg.AuthorName, cfg.AuthorEmail
+	}))
 	tplStorageLocator := func(name string) string {
 		if info := cfgM.GetTemplateStorageInfo(name); info != nil {
 			return info.Path

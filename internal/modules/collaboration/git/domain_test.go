@@ -2,10 +2,12 @@ package git
 
 import (
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1655,8 +1657,8 @@ func TestPullWithStash_CleanRestore(t *testing.T) {
 	if res.Pull == nil || res.Pull.AlreadyUpToDate {
 		t.Errorf("expected advancing pull, got %+v", res.Pull)
 	}
-	if len(res.Conflicts) != 0 {
-		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	if len(res.Overridden) != 0 {
+		t.Errorf("unexpected overrides: %v", res.Overridden)
 	}
 	if len(res.Restored) != 1 || res.Restored[0] != "seed.txt" {
 		t.Errorf("expected seed.txt restored, got %v", res.Restored)
@@ -1682,11 +1684,14 @@ func TestPullWithStash_CleanRestore(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_ConflictOnRestore — user dirtied seed.txt, remote
-// also rewrote seed.txt. Pull moves the path under the stash → conflict.
-// The restore step refuses to overwrite and keeps the stash dir for
-// manual recovery.
-func TestPullWithStash_ConflictOnRestore(t *testing.T) {
+// TestPullWithStash_OverrideOnNonRecord — user dirtied seed.txt
+// (NOT a Formidable record file), remote also rewrote it. recmerge
+// can only handle .meta.json paths, so seed.txt falls through to the
+// "pull wins" branch. The user's change is dropped silently; the
+// remote's version stays on disk; the override is reported with the
+// post-pull commit author so the UI can name the contact. Stash dir
+// is always trashed.
+func TestPullWithStash_OverrideOnNonRecord(t *testing.T) {
 	work, bare := pullWithStashFixture(t)
 
 	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("user-edit"), 0o644); err != nil {
@@ -1704,15 +1709,20 @@ func TestPullWithStash_ConflictOnRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PullWithStash: %v", err)
 	}
-	if len(res.Conflicts) != 1 || res.Conflicts[0] != "seed.txt" {
-		t.Errorf("expected seed.txt in conflicts, got %v", res.Conflicts)
+	if len(res.Overridden) != 1 || res.Overridden[0].Path != "seed.txt" {
+		t.Errorf("expected seed.txt in overrides, got %v", res.Overridden)
+	}
+	if res.Overridden[0].Author == "" {
+		t.Errorf("expected author info populated, got %+v", res.Overridden[0])
 	}
 	if len(res.Restored) != 0 {
-		t.Errorf("expected no restores on conflict, got %v", res.Restored)
+		t.Errorf("expected no restores on override, got %v", res.Restored)
+	}
+	if len(res.AutoMerged) != 0 {
+		t.Errorf("expected no auto-merge for non-record path, got %v", res.AutoMerged)
 	}
 
-	// Worktree should hold the remote's version (pull won; conflict
-	// means we did NOT overwrite back).
+	// Worktree holds the remote's version (pull won).
 	got, err := os.ReadFile(filepath.Join(work, "seed.txt"))
 	if err != nil {
 		t.Fatal(err)
@@ -1721,17 +1731,9 @@ func TestPullWithStash_ConflictOnRestore(t *testing.T) {
 		t.Errorf("worktree seed.txt = %q, want %q", string(got), "remote-edit")
 	}
 
-	// Stash dir survives so the user can recover.
-	stashFile := filepath.Join(work, stashSubdir, "seed.txt")
-	stashGot, err := os.ReadFile(stashFile)
-	if err != nil {
-		t.Fatalf("stash file missing: %v", err)
-	}
-	if string(stashGot) != "user-edit" {
-		t.Errorf("stash file content = %q, want %q", string(stashGot), "user-edit")
-	}
-	if res.StashDir == "" {
-		t.Errorf("StashDir should be populated on conflicts")
+	// Stash dir is always trashed — Overridden is the only signal.
+	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
+		t.Errorf("stash dir survived override: %v", err)
 	}
 }
 
@@ -1752,8 +1754,8 @@ func TestPullWithStash_NoPending(t *testing.T) {
 	if res.Pull == nil || res.Pull.AlreadyUpToDate {
 		t.Errorf("expected advancing pull, got %+v", res.Pull)
 	}
-	if len(res.Stashed) != 0 || len(res.Restored) != 0 || len(res.Conflicts) != 0 {
-		t.Errorf("expected empty stash/restore/conflicts on no pending, got %+v", res)
+	if len(res.Stashed) != 0 || len(res.Restored) != 0 || len(res.Overridden) != 0 || len(res.AutoMerged) != 0 {
+		t.Errorf("expected empty stash/restore/overridden/automerged on no pending, got %+v", res)
 	}
 	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
 		t.Errorf("stash dir created with no pending: %v", err)
@@ -1861,8 +1863,8 @@ func TestPullWithStash_NewFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PullWithStash: %v", err)
 	}
-	if len(res.Conflicts) != 0 {
-		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	if len(res.Overridden) != 0 {
+		t.Errorf("unexpected overrides: %v", res.Overridden)
 	}
 	if len(res.Restored) != 1 || res.Restored[0] != "newfile.txt" {
 		t.Errorf("expected newfile.txt restored, got %v", res.Restored)
@@ -1895,8 +1897,8 @@ func TestPullWithStash_DeleteOp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PullWithStash: %v", err)
 	}
-	if len(res.Conflicts) != 0 {
-		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	if len(res.Overridden) != 0 {
+		t.Errorf("unexpected overrides: %v", res.Overridden)
 	}
 	if len(res.Restored) != 1 {
 		t.Errorf("expected delete re-applied, got %v", res.Restored)
@@ -1963,6 +1965,245 @@ func TestPullWithStash_RejectsTraversalPaths(t *testing.T) {
 	if len(res.Stashed) != 0 {
 		t.Errorf("traversal paths leaked into stash: %v", res.Stashed)
 	}
+}
+
+// TestPullWithStash_FiltersStaleEntries — the journal logs every
+// write through system.SaveFile, so files that were locally committed
+// but never pushed sit in pending until the next sync (cursor only
+// advances on push/RemoteSeen, not commit). Their on-disk content
+// already matches HEAD. PullWithStash must filter such entries at
+// snapshot time so .changes.stash isn't cluttered AND we don't
+// false-trigger a conflict if pull happens to advance HEAD on one of
+// them (post-pull blob hash differs from pre-pull, but the user has
+// nothing to restore).
+func TestPullWithStash_FiltersStaleEntries(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+	advanceBare(t, bare, []string{"new.txt"}, []string{"x"})
+	// seed.txt left as-is — disk content "seed" matches HEAD blob.
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending: []StashPathPending{
+			{Path: "seed.txt", Op: "update"}, // STALE: matches HEAD
+		},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Stashed) != 0 {
+		t.Errorf("expected stale entry filtered, got Stashed=%v", res.Stashed)
+	}
+	if _, statErr := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(statErr) {
+		t.Errorf("stash dir created for stale entry: %v", statErr)
+	}
+	if _, err := os.Stat(filepath.Join(work, "new.txt")); err != nil {
+		t.Errorf("new.txt missing post-pull (filter blocked the pull?): %v", err)
+	}
+}
+
+// TestPullWithStash_FiltersMixedStaleAndReal — when pending mixes
+// real dirt with stale entries, only the dirt is stashed.
+func TestPullWithStash_FiltersMixedStaleAndReal(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+	advanceBare(t, bare, []string{"unrelated.txt"}, []string{"r"})
+
+	// real-edit.txt is brand new (op=create, not in HEAD).
+	if err := os.WriteFile(filepath.Join(work, "real.txt"), []byte("real-content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending: []StashPathPending{
+			{Path: "seed.txt", Op: "update"}, // stale: matches HEAD
+			{Path: "real.txt", Op: "create"}, // real new file
+		},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Stashed) != 1 || res.Stashed[0] != "real.txt" {
+		t.Errorf("expected only real.txt stashed, got %v", res.Stashed)
+	}
+	got, err := os.ReadFile(filepath.Join(work, "real.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "real-content" {
+		t.Errorf("real.txt content = %q, want %q", string(got), "real-content")
+	}
+}
+
+// TestPullWithStash_OverrideReadsTemplateAuthor — when the override
+// path is a templates/<name>.yaml file with author_name/author_email
+// populated (as SaveTemplate now writes), stashMergeOrOverride pulls
+// the author info from the YAML directly instead of walking git log.
+// This makes the gigot-backend flow trivial: the data is in the file.
+func TestPullWithStash_OverrideReadsTemplateAuthor(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	// User edits a template locally (YAML at templates/notes.yaml).
+	tplPath := "templates/notes.yaml"
+	if err := os.MkdirAll(filepath.Join(work, "templates"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, tplPath), []byte("name: notes\nfilename: notes.yaml\nfields: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Remote pushes a different version of the same template, with
+	// its own author_name/author_email at the YAML root.
+	remoteTpl := "name: notes\nfilename: notes.yaml\nauthor_name: Alice\nauthor_email: alice@example.com\nfields: []\n"
+	advanceBare(t, bare, []string{tplPath}, []string{remoteTpl})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: tplPath, Op: "create"}},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Overridden) != 1 || res.Overridden[0].Path != tplPath {
+		t.Fatalf("expected override for %q, got %+v", tplPath, res.Overridden)
+	}
+	got := res.Overridden[0]
+	if got.Author != "Alice" {
+		t.Errorf("override.Author = %q, want %q (from YAML root)", got.Author, "Alice")
+	}
+	if got.Email != "alice@example.com" {
+		t.Errorf("override.Email = %q, want %q (from YAML root)", got.Email, "alice@example.com")
+	}
+}
+
+// TestPullWithStash_AutoMergeOnRecord — both sides edit the same
+// .meta.json record but on different fields. recmerge.Merge reconciles
+// per-field; merged content lands on disk. No override, no conflict.
+func TestPullWithStash_AutoMergeOnRecord(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	// Seed a record file on master, push it to bare, and re-fetch the
+	// client. Direct route: write+commit+push from a side clone, then
+	// pull into client to align.
+	recordPath := "storage/notes/r.meta.json"
+	baseJSON := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-01-01T00:00:00Z"},"data":{"title":"Hello","body":"orig"}}`
+	advanceBare(t, bare, []string{recordPath}, []string{baseJSON})
+	if _, err := w0PullFromBare(work); err != nil {
+		t.Fatalf("seed pull: %v", err)
+	}
+
+	// User edits the body locally. (Yours)
+	yoursJSON := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-03-01T00:00:00Z"},"data":{"title":"Hello","body":"user-version"}}`
+	if err := os.WriteFile(filepath.Join(work, recordPath), []byte(yoursJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Remote edits the title. (Theirs) — pushed into bare via side clone.
+	theirsJSON := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-02-01T00:00:00Z"},"data":{"title":"Hello Remote","body":"orig"}}`
+	advanceBare(t, bare, []string{recordPath}, []string{theirsJSON})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: recordPath, Op: "update"}},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.AutoMerged) != 1 || res.AutoMerged[0] != recordPath {
+		t.Errorf("expected auto-merge for %q, got %v (overridden=%v restored=%v)",
+			recordPath, res.AutoMerged, res.Overridden, res.Restored)
+	}
+	if len(res.Overridden) != 0 {
+		t.Errorf("unexpected overrides on clean merge: %v", res.Overridden)
+	}
+
+	// On-disk file should hold both edits: title from theirs + body
+	// from yours. yours has the newer meta.updated (2025-03-01 > 2025-02-01),
+	// so on the title field where neither matches base, yours wins —
+	// but actually theirs has "Hello Remote" and yours has "Hello"
+	// (matching base), so theirs is the only-changed side and stands.
+	got, err := os.ReadFile(filepath.Join(work, recordPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotStr := string(got)
+	if !strings.Contains(gotStr, `"title":"Hello Remote"`) {
+		t.Errorf("merged record missing theirs's title: %s", gotStr)
+	}
+	if !strings.Contains(gotStr, `"body":"user-version"`) {
+		t.Errorf("merged record missing yours's body: %s", gotStr)
+	}
+	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
+		t.Errorf("stash dir survived merge: %v", err)
+	}
+}
+
+// TestPullWithStash_OverrideOnImmutableMeta — both sides changed the
+// `created` field (an immutable meta key). recmerge returns
+// RecordConflict; we fall through to "pull wins, drop user, capture
+// author".
+func TestPullWithStash_OverrideOnImmutableMeta(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	recordPath := "storage/notes/r.meta.json"
+	baseJSON := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-01-01T00:00:00Z"},"data":{}}`
+	advanceBare(t, bare, []string{recordPath}, []string{baseJSON})
+	if _, err := w0PullFromBare(work); err != nil {
+		t.Fatalf("seed pull: %v", err)
+	}
+
+	// User mutates created (illegal but let's say a buggy client did).
+	yoursJSON := `{"meta":{"id":"r","template":"notes","created":"2099-01-01T00:00:00Z","updated":"2025-03-01T00:00:00Z"},"data":{}}`
+	if err := os.WriteFile(filepath.Join(work, recordPath), []byte(yoursJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Remote also mutates created, differently.
+	theirsJSON := `{"meta":{"id":"r","template":"notes","created":"2030-01-01T00:00:00Z","updated":"2025-02-01T00:00:00Z"},"data":{}}`
+	advanceBare(t, bare, []string{recordPath}, []string{theirsJSON})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: recordPath, Op: "update"}},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Overridden) != 1 || res.Overridden[0].Path != recordPath {
+		t.Errorf("expected override for %q on immutable-meta conflict, got %v",
+			recordPath, res.Overridden)
+	}
+	if res.Overridden[0].Author == "" {
+		t.Errorf("expected author info populated, got %+v", res.Overridden[0])
+	}
+	got, _ := os.ReadFile(filepath.Join(work, recordPath))
+	if !strings.Contains(string(got), `"created":"2030-01-01T00:00:00Z"`) {
+		t.Errorf("expected theirs's created on disk, got %s", string(got))
+	}
+}
+
+// w0PullFromBare is a tiny helper that advances the local clone to the
+// bare's current HEAD via a plain go-git pull. Used in record-merge
+// tests where the test needs the client to start at a state where the
+// record file already exists.
+func w0PullFromBare(work string) (*PullResult, error) {
+	r, err := gogit.PlainOpen(work)
+	if err != nil {
+		return nil, err
+	}
+	wt, err := r.Worktree()
+	if err != nil {
+		return nil, err
+	}
+	if err := wt.Pull(&gogit.PullOptions{RemoteName: "origin"}); err != nil && !errors.Is(err, gogit.NoErrAlreadyUpToDate) {
+		return nil, err
+	}
+	h, _ := r.Head()
+	return &PullResult{NewHead: h.Hash().String()}, nil
 }
 
 // TestPullWithStash_AlreadyUpToDate — pending changes exist but the

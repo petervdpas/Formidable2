@@ -501,8 +501,8 @@ func TestService_PullWithStash_ReadsPendingFromJournal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PullWithStash: %v", err)
 	}
-	if len(res.Conflicts) != 0 {
-		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	if len(res.Overridden) != 0 {
+		t.Errorf("unexpected overrides: %v", res.Overridden)
 	}
 	if len(res.Restored) != 1 {
 		t.Errorf("expected one restore, got %v", res.Restored)
@@ -540,10 +540,11 @@ func TestService_PullWithStash_NilJournal(t *testing.T) {
 	}
 }
 
-// TestService_PullWithStash_ConflictRecordsRemoteSeen — even on
-// conflict, the pull part of the operation succeeded (HEAD moved).
-// The remote-seen call must fire so the journal cursor advances.
-func TestService_PullWithStash_ConflictRecordsRemoteSeen(t *testing.T) {
+// TestService_PullWithStash_OverrideRecordsRemoteSeen — when pull
+// overrides the user's local change (non-meta.json or merge can't
+// reconcile), the pull part of the operation still succeeded. The
+// remote-seen call must fire so the journal cursor advances.
+func TestService_PullWithStash_OverrideRecordsRemoteSeen(t *testing.T) {
 	bare := makeBareRepo(t)
 	work := t.TempDir()
 	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
@@ -572,12 +573,12 @@ func TestService_PullWithStash_ConflictRecordsRemoteSeen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PullWithStash: %v", err)
 	}
-	if len(res.Conflicts) != 1 {
-		t.Errorf("expected conflict, got %v", res.Conflicts)
+	if len(res.Overridden) != 1 {
+		t.Errorf("expected override, got %v", res.Overridden)
 	}
 
 	_, seens := jrnl.snapshot()
 	if len(seens) != 1 {
-		t.Errorf("expected remote-seen call after successful pull (even with restore conflict), got %v", seens)
+		t.Errorf("expected remote-seen call after successful pull (even with override), got %v", seens)
 	}
 }

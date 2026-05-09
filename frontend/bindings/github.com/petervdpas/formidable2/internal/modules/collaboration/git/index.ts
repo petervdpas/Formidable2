@@ -16,6 +16,7 @@ export {
     DiscardOptions,
     FetchOptions,
     FetchResult,
+    OverriddenPath,
     PullOptions,
     PullResult,
     PushOptions,
