@@ -33,7 +33,25 @@ const (
 	// Tracked top-level dirs under the context folder.
 	templatesDir = "templates"
 	storageDir   = "storage"
+
+	// findGitMaxDepth caps the upward walk when ensureGitignorePatterns
+	// looks for an enclosing .git so a runaway / on detached mounts
+	// can't walk to the filesystem root forever.
+	findGitMaxDepth = 10
 )
+
+// gitignorePatterns are appended to the relevant .gitignore on
+// Configure(...) so the journal files (.changes.log + .changes.cursor)
+// never get committed when the user points context at a synced repo.
+//
+// Narrow on purpose: these match exactly the journal's own files in
+// the context root and any subdirectory, but won't silently swallow
+// arbitrary user *.log files (which the JS predecessor did with its
+// `*.log` rule).
+var gitignorePatterns = []string{
+	".changes.*",
+	"**/.changes.*",
+}
 
 // knownBackends — used to validate sync entries from disk.
 var knownBackends = map[string]bool{
@@ -86,12 +104,15 @@ type InitResult struct {
 	Reason  string `json:"reason"`
 }
 
-// SyncRecord is the input to RecordSync.
-type SyncRecord struct {
-	Backend string
-	Version string
-	Pushed  int
-	Pulled  int
+// Recorder is the narrow surface sync backends (git, gigot) call into
+// after a Push or Pull. *Manager satisfies it directly so the
+// composition root can pass `jrnM` straight to the backend's NewService
+// — no per-backend adapter needed. Defined here at the producer side so
+// each backend imports one canonical shape rather than redeclaring an
+// identical interface locally.
+type Recorder interface {
+	RecordSync(backend, version string, pushed, pulled int)
+	RecordRemoteSeen(backend, version string)
 }
 
 // EventEmitter is the interface the journal uses to publish change

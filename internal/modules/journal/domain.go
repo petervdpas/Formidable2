@@ -88,6 +88,8 @@ func (m *Manager) Configure(contextFolder, backend string) error {
 		m.log.Warn("journal: ensure cursor file failed", "err", err)
 	}
 
+	m.ensureGitignorePatterns()
+
 	cursors, err := m.loadCursors()
 	if err != nil {
 		m.log.Warn("journal: load cursors failed", "err", err)
@@ -198,12 +200,20 @@ func (m *Manager) RecordOp(op, absPath string, meta map[string]any) {
 }
 
 // RecordSync appends a sync marker for the given backend, advances that
-// backend's cursor, and clears its pending set.
-func (m *Manager) RecordSync(rec SyncRecord) {
+// backend's cursor, and clears its pending set. Primitive signature so
+// *Manager satisfies the Recorder interface directly — sync backends
+// pass their tuple straight through without an adapter struct.
+func (m *Manager) RecordSync(backend, version string, pushed, pulled int) {
 	m.mu.RLock()
 	ctx := m.contextFolder
 	m.mu.RUnlock()
-	if ctx == "" || rec.Backend == "" {
+	if ctx == "" || backend == "" {
+		return
+	}
+	// Tightening: refuse unknown backends on the write side so the
+	// cursor map can't temporarily hold entries that parseLine would
+	// drop on the next rebuild.
+	if !knownBackends[backend] {
 		return
 	}
 
@@ -211,19 +221,19 @@ func (m *Manager) RecordSync(rec SyncRecord) {
 	entry := Entry{
 		Ts:      now,
 		Op:      OpSync,
-		Backend: rec.Backend,
-		Version: rec.Version,
-		Pushed:  rec.Pushed,
-		Pulled:  rec.Pulled,
+		Backend: backend,
+		Version: version,
+		Pushed:  pushed,
+		Pulled:  pulled,
 	}
 	if err := m.appendEntry(entry); err != nil {
-		m.log.Warn("journal: append sync failed", "err", err, "backend", rec.Backend)
+		m.log.Warn("journal: append sync failed", "err", err, "backend", backend)
 		return
 	}
 
 	m.mu.Lock()
-	m.cursors[rec.Backend] = Cursor{Ts: now, Version: rec.Version}
-	delete(m.pending, rec.Backend)
+	m.cursors[backend] = Cursor{Ts: now, Version: version}
+	delete(m.pending, backend)
 	cursorsCopy := cloneCursors(m.cursors)
 	m.mu.Unlock()
 
@@ -236,12 +246,17 @@ func (m *Manager) RecordSync(rec SyncRecord) {
 
 // RecordRemoteSeen advances only the version of the cursor (no journal
 // entry, no pending change). Called after a successful pull so the
-// head-probe poller can short-circuit.
+// head-probe poller can short-circuit. Emits journal:changed so
+// frontend pollers see the post-pull cursor update — symmetric with
+// RecordOp/RecordSync, which both emit on success.
 func (m *Manager) RecordRemoteSeen(backend, version string) {
 	m.mu.RLock()
 	ctx := m.contextFolder
 	m.mu.RUnlock()
 	if ctx == "" || backend == "" || version == "" {
+		return
+	}
+	if !knownBackends[backend] {
 		return
 	}
 
@@ -258,6 +273,16 @@ func (m *Manager) RecordRemoteSeen(backend, version string) {
 	if err := m.saveCursors(cursorsCopy); err != nil {
 		m.log.Warn("journal: save cursors (remote-seen) failed", "err", err)
 	}
+
+	// No log entry (pull is inbound), but the cursor moved — emit so
+	// pollers refresh. Entry shape mirrors what callers can already
+	// receive from RecordSync's "sync" event minus pushed/pulled.
+	m.emit(EventChanged, Entry{
+		Ts:      m.nowFn().UTC().Format(time.RFC3339Nano),
+		Op:      OpSync,
+		Backend: backend,
+		Version: version,
+	})
 }
 
 // Pending returns the pending changes for the given backend.
@@ -302,6 +327,113 @@ func (m *Manager) ensureCursorFile() error {
 	return m.fs.SaveFile(cursorPath, "{}\n")
 }
 
+// ensureGitignorePatterns adds the journal-exclusion patterns to the
+// nearest .gitignore so .changes.log and .changes.cursor never get
+// committed when the user points context at a synced repo. Skipped
+// when no backend is active (local-only mode has no version-control
+// concern). Resolution order:
+//
+//  1. <context>/.gitignore exists → patch it (most contexts that opt
+//     into sync will already have one for their own purposes).
+//  2. Else walk up from <context> looking for an enclosing .git → patch
+//     (or create) <repoRoot>/.gitignore so a context inside a larger
+//     repo still keeps the journal local.
+//  3. Else → no-op (no git in scope; nothing to keep clean).
+//
+// Idempotent: existing patterns are detected line-by-line and skipped.
+// Atomic write via fs.SaveFile (tmp+fsync+rename).
+//
+// Best-effort: read/write failures log a warning and return — Configure
+// must not block on a permission glitch in someone else's repo root.
+func (m *Manager) ensureGitignorePatterns() {
+	ctx := m.contextFolderLocked()
+	if ctx == "" {
+		return
+	}
+	m.mu.RLock()
+	backend := m.backend
+	m.mu.RUnlock()
+	if backend == "" || backend == BackendNone {
+		return
+	}
+
+	target, ok := m.resolveGitignoreTarget(ctx)
+	if !ok {
+		return
+	}
+
+	body := ""
+	if m.fs.FileExists(target) {
+		loaded, err := m.fs.LoadFile(target)
+		if err != nil {
+			m.log.Warn("journal: gitignore read failed", "err", err, "path", target)
+			return
+		}
+		body = loaded
+	}
+
+	present := map[string]bool{}
+	for line := range strings.SplitSeq(body, "\n") {
+		present[strings.TrimSpace(line)] = true
+	}
+	missing := make([]string, 0, len(gitignorePatterns))
+	for _, p := range gitignorePatterns {
+		if !present[p] {
+			missing = append(missing, p)
+		}
+	}
+	if len(missing) == 0 {
+		return
+	}
+
+	sep := ""
+	if body != "" && !strings.HasSuffix(body, "\n") {
+		sep = "\n"
+	}
+	out := body + sep + strings.Join(missing, "\n") + "\n"
+	if err := m.fs.SaveFile(target, out); err != nil {
+		m.log.Warn("journal: gitignore write failed", "err", err, "path", target)
+	}
+}
+
+// resolveGitignoreTarget picks which .gitignore the patterns go into.
+// Returns ("", false) when there's no git in scope (neither a .gitignore
+// in the context nor an enclosing .git anywhere up to findGitMaxDepth).
+func (m *Manager) resolveGitignoreTarget(ctx string) (string, bool) {
+	contextGitignore := filepath.Join(ctx, ".gitignore")
+	if m.fs.FileExists(contextGitignore) {
+		return contextGitignore, true
+	}
+	repoRoot := m.findGitRepoRoot(ctx)
+	if repoRoot == "" {
+		return "", false
+	}
+	return filepath.Join(repoRoot, ".gitignore"), true
+}
+
+// findGitRepoRoot walks up from start (inclusive), returning the
+// absolute path of the first ancestor containing a .git entry, or ""
+// if none within findGitMaxDepth levels. Uses fs.FileExists which
+// returns true for both regular files (worktree pointer) and
+// directories (the standard repo layout).
+func (m *Manager) findGitRepoRoot(start string) string {
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		return ""
+	}
+	for range findGitMaxDepth {
+		if m.fs.FileExists(filepath.Join(dir, ".git")) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+	return ""
+}
+
 func (m *Manager) loadCursors() (CursorMap, error) {
 	cursorPath := filepath.Join(m.contextFolderLocked(), cursorFileName)
 	if !m.fs.FileExists(cursorPath) {
@@ -311,7 +443,18 @@ func (m *Manager) loadCursors() (CursorMap, error) {
 	if err != nil {
 		return CursorMap{}, err
 	}
-	return sanitizeCursor([]byte(raw)), nil
+	cursors, wasLegacy := sanitizeCursor([]byte(raw))
+	if wasLegacy {
+		// Migrate the on-disk file to the modern object-shaped form so
+		// subsequent loads don't keep re-parsing the legacy string-form.
+		// Best-effort: a write failure logs a warning but does not block
+		// the in-memory state — readers still get correct values either
+		// way (sanitizeCursor handled the translation already).
+		if err := m.saveCursors(cursors); err != nil {
+			m.log.Warn("journal: cursor migration write failed", "err", err)
+		}
+	}
+	return cursors, nil
 }
 
 func (m *Manager) saveCursors(cursors CursorMap) error {
@@ -486,12 +629,16 @@ func parseLine(line string) (*Entry, error) {
 }
 
 // sanitizeCursor accepts the on-disk JSON and normalises it to a CursorMap.
-// Tolerates the legacy shape where the value was just the sync ts string.
-func sanitizeCursor(raw []byte) CursorMap {
+// Tolerates the legacy shape where the value was just the sync ts string;
+// the second return reports whether any legacy entry was seen, so
+// loadCursors can write the file back in modern object-form and stop
+// paying the migration cost on every subsequent load.
+func sanitizeCursor(raw []byte) (CursorMap, bool) {
 	out := CursorMap{}
+	wasLegacy := false
 	var generic map[string]any
 	if err := json.Unmarshal(raw, &generic); err != nil {
-		return out
+		return out, false
 	}
 	for k, v := range generic {
 		if !knownBackends[k] {
@@ -501,6 +648,7 @@ func sanitizeCursor(raw []byte) CursorMap {
 		case string:
 			if val != "" {
 				out[k] = Cursor{Ts: val}
+				wasLegacy = true
 			}
 		case map[string]any:
 			ts, _ := val["ts"].(string)
@@ -510,7 +658,7 @@ func sanitizeCursor(raw []byte) CursorMap {
 			}
 		}
 	}
-	return out
+	return out, wasLegacy
 }
 
 func cloneCursors(in CursorMap) CursorMap {
@@ -521,3 +669,8 @@ func cloneCursors(in CursorMap) CursorMap {
 
 // ErrNoContext is returned by callers that want to signal the journal isn't ready.
 var ErrNoContext = errors.New("journal: no context folder configured")
+
+// Compile-time assertion that *Manager satisfies Recorder. Anything that
+// drifts the method signatures fails the build here, not at the
+// distant call site in app.go.
+var _ Recorder = (*Manager)(nil)

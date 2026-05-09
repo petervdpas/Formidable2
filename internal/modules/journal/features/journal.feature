@@ -138,3 +138,75 @@ Feature: Change journal
     When I record sync for backend "weird" with version "v1" and pushed 0
     Then pending for backend "git" contains 1 entries
     And the cursor for backend "git" has ts ""
+    And the cursor map has no entry for backend "weird"
+
+  Scenario: RecordRemoteSeen emits journal:changed
+    Given an event sink is wired
+    When I configure the journal with backend "git"
+    And I record remote seen for backend "git" with version "v1"
+    Then the event sink received "journal:changed" with op "sync" and backend "git"
+
+  # ── ensureGitignorePatterns: keep .changes.log/.changes.cursor out
+  # of any synced repo the user points context at. Skipped for
+  # local-only mode (backend = "" or "none") and when no .git is in
+  # scope. Idempotent.
+
+  Scenario: Configure patches an existing context-level .gitignore
+    Given the file ".gitignore" with content "node_modules\n"
+    When I configure the journal with backend "git"
+    Then the gitignore at ".gitignore" contains pattern ".changes.*"
+    And the gitignore at ".gitignore" contains pattern "**/.changes.*"
+    And the gitignore at ".gitignore" still contains "node_modules"
+
+  Scenario: Configure walks up to an enclosing .git when context has no gitignore
+    Given the temp dir is the repo root with a .git directory
+    And the context is a subdirectory "ctx" with no gitignore
+    When I configure the journal pointing at the subdirectory with backend "git"
+    Then the gitignore at the repo root contains pattern ".changes.*"
+    And no gitignore was created in the subdirectory
+
+  Scenario: Local-only backend leaves gitignore untouched
+    Given the temp dir is the repo root with a .git directory
+    When I configure the journal with backend "none"
+    Then no gitignore exists at ".gitignore"
+
+  Scenario: Empty backend leaves gitignore untouched
+    Given the temp dir is the repo root with a .git directory
+    When I configure the journal with backend ""
+    Then no gitignore exists at ".gitignore"
+
+  Scenario: No git in scope means no gitignore is created
+    When I configure the journal with backend "git"
+    Then no gitignore exists at ".gitignore"
+
+  Scenario: Reconfigure does not duplicate patterns
+    Given the temp dir is the repo root with a .git directory
+    When I configure the journal with backend "git"
+    And I configure the journal with backend "git"
+    Then pattern ".changes.*" appears exactly once in ".gitignore"
+    And pattern "**/.changes.*" appears exactly once in ".gitignore"
+
+  Scenario: A gitignore without trailing newline gets a separator inserted
+    Given the file ".gitignore" with content "node_modules"
+    When I configure the journal with backend "git"
+    Then the gitignore at ".gitignore" starts with "node_modules\n"
+    And the gitignore at ".gitignore" contains pattern ".changes.*"
+
+  # ── Legacy cursor migration ──────────────────────────────────────
+  # The JS predecessor wrote cursor entries as bare ts strings:
+  # `{"git":"2026-05-04T10:00:00Z"}`. The Go rewrite uses object-form
+  # `{"git":{"ts":"...","version":"..."}}`. Configure must accept the
+  # legacy form (read path) AND migrate it on disk so subsequent
+  # loads don't keep paying the parse-and-translate cost.
+
+  Scenario: Configure migrates a legacy string-form cursor to object-form
+    Given the file ".changes.cursor" with content '{"git":"2026-05-04T10:00:00Z"}\n'
+    When I configure the journal with backend "git"
+    Then the cursor for backend "git" has ts "2026-05-04T10:00:00Z"
+    And the on-disk cursor file contains "\"ts\":\"2026-05-04T10:00:00Z\""
+
+  Scenario: Configure leaves a modern-form cursor file untouched in shape
+    Given the file ".changes.cursor" with content '{"git":{"ts":"2026-05-04T10:00:00Z","version":"abc"}}\n'
+    When I configure the journal with backend "git"
+    Then the cursor for backend "git" has ts "2026-05-04T10:00:00Z"
+    And the cursor for backend "git" has version "abc"

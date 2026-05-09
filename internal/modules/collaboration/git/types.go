@@ -152,9 +152,13 @@ type PullOptions struct {
 }
 
 // PullResult mirrors PushResult / FetchResult: AlreadyUpToDate=true
-// means there were no new commits to merge.
+// means there were no new commits to merge. NewHead is the local
+// branch's HEAD hash after the pull (== remote HEAD on success);
+// the journal cursor uses it to record "we've seen the remote at
+// this version."
 type PullResult struct {
-	AlreadyUpToDate bool `json:"already_up_to_date"`
+	AlreadyUpToDate bool   `json:"already_up_to_date"`
+	NewHead         string `json:"new_head"`
 }
 
 // PushOptions describes a push request. The current branch's HEAD
@@ -168,9 +172,12 @@ type PushOptions struct {
 
 // PushResult signals whether the push actually advanced the remote.
 // AlreadyUpToDate=true means the remote already had every commit;
-// the UI surfaces this as info, not an error.
+// the UI surfaces this as info, not an error. NewHead is the local
+// branch's HEAD hash that's now on the remote (== local HEAD on
+// success); the journal records it as the post-sync cursor version.
 type PushResult struct {
-	AlreadyUpToDate bool `json:"already_up_to_date"`
+	AlreadyUpToDate bool   `json:"already_up_to_date"`
+	NewHead         string `json:"new_head"`
 }
 
 // DiscardOptions targets a single worktree file for "throw away the

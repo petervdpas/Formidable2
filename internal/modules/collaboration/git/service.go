@@ -1,10 +1,14 @@
 package git
 
+import "github.com/petervdpas/formidable2/internal/modules/journal"
+
 // Service is the Wails-bound surface of the Git collaboration
-// backend. Wraps Manager and adds one cross-cutting concern: when
-// the frontend calls Push or Fetch without a PAT, the Service
-// auto-resolves it from the OS keychain via the injected
-// CredentialReader.
+// backend. Wraps Manager and adds two cross-cutting concerns:
+//   - when the frontend calls Push/Pull/Fetch without a PAT, the
+//     Service auto-resolves it from the OS keychain via the injected
+//     CredentialReader;
+//   - on success it informs the journal (via journal.Recorder) so
+//     Pending(git) and the cursor stay accurate.
 //
 // The keychain is intentionally NOT exposed to the frontend (see
 // the credential.Service comment) so secrets never round-trip
@@ -15,6 +19,7 @@ type Service struct {
 	m       *Manager
 	creds   CredentialReader
 	profile ProfileReader
+	jrnl    journal.Recorder
 }
 
 // CredentialReader resolves a stored secret for an HTTPS auth account.
@@ -34,8 +39,12 @@ type ProfileReader interface {
 	CurrentProfileFilename() string
 }
 
-func NewService(m *Manager, creds CredentialReader, profile ProfileReader) *Service {
-	return &Service{m: m, creds: creds, profile: profile}
+// journalBackend is the Service's identity in the journal cursor map.
+// Same string as journal.BackendGit.
+const journalBackend = journal.BackendGit
+
+func NewService(m *Manager, creds CredentialReader, profile ProfileReader, jrnl journal.Recorder) *Service {
+	return &Service{m: m, creds: creds, profile: profile, jrnl: jrnl}
 }
 
 func (s *Service) IsGitRepo(path string) bool                       { return s.m.IsGitRepo(path) }
@@ -60,21 +69,45 @@ func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 }
 
 // Push sends commits to the named remote. Same keychain auto-fill
-// behavior as Fetch.
+// behavior as Fetch. On success, informs the journal: an advancing
+// push records a sync marker (pending clears for git); an
+// already-up-to-date push records a remote-seen update only (we now
+// know the remote head, but no outbound sync happened).
 func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 	if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
 	}
-	return s.m.Push(opts)
+	res, err := s.m.Push(opts)
+	if err != nil || res == nil {
+		return res, err
+	}
+	if s.jrnl != nil && res.NewHead != "" {
+		if res.AlreadyUpToDate {
+			s.jrnl.RecordRemoteSeen(journalBackend, res.NewHead)
+		} else {
+			s.jrnl.RecordSync(journalBackend, res.NewHead, 1, 0)
+		}
+	}
+	return res, nil
 }
 
 // Pull fetches + merges the upstream branch. Same keychain auto-fill
-// behavior as Fetch / Push.
+// behavior as Fetch / Push. On success (including already-up-to-date),
+// informs the journal that the remote head is at NewHead — pull is
+// inbound, so no sync marker is appended; only the cursor's version
+// updates.
 func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 	if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
 	}
-	return s.m.Pull(opts)
+	res, err := s.m.Pull(opts)
+	if err != nil || res == nil {
+		return res, err
+	}
+	if s.jrnl != nil && res.NewHead != "" {
+		s.jrnl.RecordRemoteSeen(journalBackend, res.NewHead)
+	}
+	return res, nil
 }
 
 // resolvePAT looks up the stored token for the repo's "origin"

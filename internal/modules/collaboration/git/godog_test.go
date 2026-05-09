@@ -40,6 +40,11 @@ type gitWorld struct {
 	tmp string
 	m   *Manager
 
+	// Service + fakeJournal for the wiring scenarios. Nil unless a
+	// scenario opens with "a journal-recording git service".
+	svc  *Service
+	jrnl *fakeJournal
+
 	// Whatever the most recent operation produced.
 	status   *Status
 	branches *Branches
@@ -78,6 +83,8 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		// fresh state is the only invariant we need.
 		w.tmp = dir
 		w.m = nil
+		w.svc = nil
+		w.jrnl = nil
 		w.status = nil
 		w.branches = nil
 		w.log = nil
@@ -672,6 +679,129 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.capturedAuthM.Unlock()
 		if got != "" {
 			return fmt.Errorf("Authorization = %q, want empty", got)
+		}
+		return nil
+	})
+
+	// ── Service + fakeJournal scenarios ───────────────────────────────
+
+	ctx.Step(`^a journal-recording git service$`, func() error {
+		if w.m == nil {
+			w.m = NewManager()
+		}
+		w.jrnl = &fakeJournal{}
+		w.svc = NewService(w.m, nil, nil, w.jrnl)
+		return nil
+	})
+
+	ctx.Step(`^a git service with no journal recorder$`, func() error {
+		if w.m == nil {
+			w.m = NewManager()
+		}
+		w.svc = NewService(w.m, nil, nil, nil)
+		return nil
+	})
+
+	ctx.Step(`^I push from "([^"]*)" via the service$`, func(rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		w.push, w.lastErr = w.svc.Push(PushOptions{Path: dir})
+		return nil
+	})
+
+	ctx.Step(`^I push with an empty path via the service$`, func() error {
+		w.push, w.lastErr = w.svc.Push(PushOptions{Path: ""})
+		return nil
+	})
+
+	ctx.Step(`^I pull from "([^"]*)" via the service$`, func(rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		w.pull, w.lastErr = w.svc.Pull(PullOptions{Path: dir})
+		return nil
+	})
+
+	ctx.Step(`^I pull with an empty path via the service$`, func() error {
+		w.pull, w.lastErr = w.svc.Pull(PullOptions{Path: ""})
+		return nil
+	})
+
+	ctx.Step(`^the journal recorded (\d+) syncs?$`, func(n int) error {
+		if w.jrnl == nil {
+			return fmt.Errorf("no journal recorder wired in this scenario")
+		}
+		syncs, _ := w.jrnl.snapshot()
+		if len(syncs) != n {
+			return fmt.Errorf("sync count = %d, want %d (%+v)", len(syncs), n, syncs)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the journal recorded (\d+) sync for backend "([^"]*)"$`, func(n int, backend string) error {
+		if w.jrnl == nil {
+			return fmt.Errorf("no journal recorder wired in this scenario")
+		}
+		syncs, _ := w.jrnl.snapshot()
+		if len(syncs) != n {
+			return fmt.Errorf("sync count = %d, want %d (%+v)", len(syncs), n, syncs)
+		}
+		for _, s := range syncs {
+			if s.backend != backend {
+				return fmt.Errorf("sync backend = %q, want %q", s.backend, backend)
+			}
+		}
+		return nil
+	})
+
+	ctx.Step(`^the journal recorded (\d+) remote-seens?$`, func(n int) error {
+		if w.jrnl == nil {
+			return fmt.Errorf("no journal recorder wired in this scenario")
+		}
+		_, seens := w.jrnl.snapshot()
+		if len(seens) != n {
+			return fmt.Errorf("remote-seen count = %d, want %d (%+v)", len(seens), n, seens)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the journal recorded (\d+) remote-seen for backend "([^"]*)"$`, func(n int, backend string) error {
+		if w.jrnl == nil {
+			return fmt.Errorf("no journal recorder wired in this scenario")
+		}
+		_, seens := w.jrnl.snapshot()
+		if len(seens) != n {
+			return fmt.Errorf("remote-seen count = %d, want %d (%+v)", len(seens), n, seens)
+		}
+		for _, s := range seens {
+			if s.backend != backend {
+				return fmt.Errorf("remote-seen backend = %q, want %q", s.backend, backend)
+			}
+		}
+		return nil
+	})
+
+	ctx.Step(`^the recorded sync version equals the push NewHead$`, func() error {
+		if w.jrnl == nil || w.push == nil {
+			return fmt.Errorf("missing journal or push state")
+		}
+		syncs, _ := w.jrnl.snapshot()
+		if len(syncs) == 0 {
+			return fmt.Errorf("no sync recorded to compare against")
+		}
+		if syncs[0].version != w.push.NewHead {
+			return fmt.Errorf("sync.version = %q, want push.NewHead = %q", syncs[0].version, w.push.NewHead)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the recorded remote-seen version equals the pull NewHead$`, func() error {
+		if w.jrnl == nil || w.pull == nil {
+			return fmt.Errorf("missing journal or pull state")
+		}
+		_, seens := w.jrnl.snapshot()
+		if len(seens) == 0 {
+			return fmt.Errorf("no remote-seen recorded to compare against")
+		}
+		if seens[0].version != w.pull.NewHead {
+			return fmt.Errorf("seen.version = %q, want pull.NewHead = %q", seens[0].version, w.pull.NewHead)
 		}
 		return nil
 	})

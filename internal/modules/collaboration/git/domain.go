@@ -534,12 +534,12 @@ func (m *Manager) Push(opts PushOptions) (*PushResult, error) {
 
 	err = r.Push(pushOpts)
 	if errors.Is(err, gogit.NoErrAlreadyUpToDate) {
-		return &PushResult{AlreadyUpToDate: true}, nil
+		return &PushResult{AlreadyUpToDate: true, NewHead: head.Hash().String()}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("git: push: %w", err)
 	}
-	return &PushResult{AlreadyUpToDate: false}, nil
+	return &PushResult{AlreadyUpToDate: false, NewHead: head.Hash().String()}, nil
 }
 
 // Pull fetches from the named remote (default "origin") and merges
@@ -588,12 +588,16 @@ func (m *Manager) Pull(opts PullOptions) (*PullResult, error) {
 
 	err = wt.Pull(pullOpts)
 	if errors.Is(err, gogit.NoErrAlreadyUpToDate) {
-		return &PullResult{AlreadyUpToDate: true}, nil
+		return &PullResult{AlreadyUpToDate: true, NewHead: head.Hash().String()}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("git: pull: %w", err)
 	}
-	return &PullResult{AlreadyUpToDate: false}, nil
+	newHead, herr := r.Head()
+	if herr != nil {
+		return nil, fmt.Errorf("git: pull: head after merge: %w", herr)
+	}
+	return &PullResult{AlreadyUpToDate: false, NewHead: newHead.Hash().String()}, nil
 }
 
 // Fetch updates the remote-tracking refs for the named remote

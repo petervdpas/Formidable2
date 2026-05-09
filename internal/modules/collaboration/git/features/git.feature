@@ -268,3 +268,99 @@ Feature: Git collaboration backend
     And a new commit "local.txt" with content "local" in "client"
     When I pull from "client"
     Then the operation returned an error
+
+  # ── Service-level wiring: Push/Pull inform the journal ─────────────
+  # Service is the layer that auto-fills the PAT from keychain AND
+  # reports outbound (Push) / remote-seen (Pull) events to the
+  # journal. These scenarios use a fakeJournal recorder so we can
+  # assert what the Service told the journal — independent of the
+  # journal module's internal state machine.
+
+  Scenario: Service Push that advances the remote records a sync entry
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a new commit "x.txt" with content "x" in "client"
+    When I push from "client" via the service
+    Then the push succeeded
+    And the journal recorded 1 sync for backend "git"
+    And the journal recorded 0 remote-seens
+    And the recorded sync version equals the push NewHead
+
+  Scenario: Service Push that is already-up-to-date records remote-seen only
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    When I push from "client" via the service
+    Then the push succeeded
+    And push is already-up-to-date
+    And the journal recorded 0 syncs
+    And the journal recorded 1 remote-seen for backend "git"
+
+  Scenario: Service Push that errors records nothing
+    Given a journal-recording git service
+    When I push with an empty path via the service
+    Then the operation returned an error
+    And the journal recorded 0 syncs
+    And the journal recorded 0 remote-seens
+
+  Scenario: Service Push on a non-repo path records nothing
+    Given a journal-recording git service
+    When I push from "not-a-repo" via the service
+    Then the operation returned an error
+    And the journal recorded 0 syncs
+    And the journal recorded 0 remote-seens
+
+  Scenario: Service Pull that advances local records remote-seen
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the bare repo gains another commit
+    When I pull from "client" via the service
+    Then the pull succeeded
+    And pull is not already-up-to-date
+    And the journal recorded 0 syncs
+    And the journal recorded 1 remote-seen for backend "git"
+    And the recorded remote-seen version equals the pull NewHead
+
+  Scenario: Service Pull that is already-up-to-date still records remote-seen
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    When I pull from "client" via the service
+    Then the pull succeeded
+    And pull is already-up-to-date
+    And the journal recorded 0 syncs
+    And the journal recorded 1 remote-seen for backend "git"
+
+  Scenario: Service Pull on a dirty worktree records nothing
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the bare repo gains another commit
+    And "seed.txt" is rewritten to "dirty" inside "client"
+    When I pull from "client" via the service
+    Then the operation returned an error
+    And the journal recorded 0 syncs
+    And the journal recorded 0 remote-seens
+
+  Scenario: Service Pull with empty path records nothing
+    Given a journal-recording git service
+    When I pull with an empty path via the service
+    Then the operation returned an error
+    And the journal recorded 0 syncs
+    And the journal recorded 0 remote-seens
+
+  Scenario: Nil journal does not panic on Push
+    Given a git service with no journal recorder
+    And a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    When I push from "client" via the service
+    Then the push succeeded
+
+  Scenario: Nil journal does not panic on Pull
+    Given a git service with no journal recorder
+    And a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    When I pull from "client" via the service
+    Then the pull succeeded

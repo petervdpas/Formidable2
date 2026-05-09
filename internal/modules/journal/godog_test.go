@@ -142,7 +142,7 @@ func initJournalScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^I record sync for backend "([^"]*)" with version "([^"]*)" and pushed (\d+)$`, func(backend, version string, pushed int) error {
-		w.m.RecordSync(SyncRecord{Backend: backend, Version: version, Pushed: pushed})
+		w.m.RecordSync(backend, version, pushed, 0)
 		return nil
 	})
 
@@ -172,6 +172,13 @@ func initJournalScenario(ctx *godog.ScenarioContext) {
 		cur := w.m.ReadCursor()[backend]
 		if cur.Version != want {
 			return fmt.Errorf("cursor[%s].version = %q, want %q", backend, cur.Version, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the cursor map has no entry for backend "([^"]*)"$`, func(backend string) error {
+		if _, ok := w.m.ReadCursor()[backend]; ok {
+			return fmt.Errorf("cursor map unexpectedly contains backend %q: %+v", backend, w.m.ReadCursor())
 		}
 		return nil
 	})
@@ -276,6 +283,122 @@ func initJournalScenario(ctx *godog.ScenarioContext) {
 			}
 		}
 		return fmt.Errorf("no matching event in %v", w.emitter.snapshot())
+	})
+
+	// ── ensureGitignorePatterns scenarios ─────────────────────────────
+
+	ctx.Step(`^the temp dir is the repo root with a \.git directory$`, func() error {
+		return os.MkdirAll(filepath.Join(w.tmp, ".git"), 0o755)
+	})
+
+	ctx.Step(`^the context is a subdirectory "([^"]*)" with no gitignore$`, func(rel string) error {
+		return os.MkdirAll(filepath.Join(w.tmp, rel), 0o755)
+	})
+
+	ctx.Step(`^I configure the journal pointing at the subdirectory with backend "([^"]*)"$`, func(backend string) error {
+		// Expects the prior step to have created a "ctx" subdir under
+		// w.tmp. The walk-up logic should still find the repo root via
+		// the .git in w.tmp.
+		return w.m.Configure(filepath.Join(w.tmp, "ctx"), backend)
+	})
+
+	ctx.Step(`^the gitignore at "([^"]*)" contains pattern "([^"]*)"$`, func(rel, pattern string) error {
+		body, err := os.ReadFile(filepath.Join(w.tmp, rel))
+		if err != nil {
+			return fmt.Errorf("read %q: %w", rel, err)
+		}
+		for line := range strings.SplitSeq(string(body), "\n") {
+			if line == pattern {
+				return nil
+			}
+		}
+		return fmt.Errorf("pattern %q not found as a line in %q:\n%s", pattern, rel, string(body))
+	})
+
+	ctx.Step(`^the gitignore at "([^"]*)" still contains "([^"]*)"$`, func(rel, want string) error {
+		body, err := os.ReadFile(filepath.Join(w.tmp, rel))
+		if err != nil {
+			return fmt.Errorf("read %q: %w", rel, err)
+		}
+		if !strings.Contains(string(body), want) {
+			return fmt.Errorf("missing %q in %q:\n%s", want, rel, string(body))
+		}
+		return nil
+	})
+
+	ctx.Step(`^the gitignore at "([^"]*)" starts with "([^"]*)"$`, func(rel, want string) error {
+		decoded := strings.ReplaceAll(want, `\n`, "\n")
+		body, err := os.ReadFile(filepath.Join(w.tmp, rel))
+		if err != nil {
+			return fmt.Errorf("read %q: %w", rel, err)
+		}
+		if !strings.HasPrefix(string(body), decoded) {
+			return fmt.Errorf("expected prefix %q in:\n%s", decoded, string(body))
+		}
+		return nil
+	})
+
+	ctx.Step(`^the gitignore at the repo root contains pattern "([^"]*)"$`, func(pattern string) error {
+		body, err := os.ReadFile(filepath.Join(w.tmp, ".gitignore"))
+		if err != nil {
+			return fmt.Errorf("read repo-root gitignore: %w", err)
+		}
+		for line := range strings.SplitSeq(string(body), "\n") {
+			if line == pattern {
+				return nil
+			}
+		}
+		return fmt.Errorf("pattern %q not found as a line in repo-root gitignore:\n%s", pattern, string(body))
+	})
+
+	ctx.Step(`^no gitignore was created in the subdirectory$`, func() error {
+		ctxGi := filepath.Join(w.tmp, "ctx", ".gitignore")
+		if _, err := os.Stat(ctxGi); err == nil {
+			return fmt.Errorf("subdirectory gitignore unexpectedly created at %q", ctxGi)
+		}
+		return nil
+	})
+
+	ctx.Step(`^no gitignore exists at "([^"]*)"$`, func(rel string) error {
+		gi := filepath.Join(w.tmp, rel)
+		if _, err := os.Stat(gi); err == nil {
+			return fmt.Errorf("gitignore at %q should not exist", rel)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the on-disk cursor file contains "([^"]*)"$`, func(want string) error {
+		body, err := os.ReadFile(filepath.Join(w.tmp, ".changes.cursor"))
+		if err != nil {
+			return fmt.Errorf("read cursor file: %w", err)
+		}
+		// Scenario uses escaped quotes — accept literal embedded \"
+		// from the feature file (godog passes the captured text raw).
+		decoded := strings.ReplaceAll(want, `\"`, `"`)
+		if !strings.Contains(string(body), decoded) {
+			return fmt.Errorf("cursor file missing %q (decoded %q):\n%s", want, decoded, string(body))
+		}
+		return nil
+	})
+
+	ctx.Step(`^pattern "([^"]*)" appears exactly once in "([^"]*)"$`, func(pattern, rel string) error {
+		body, err := os.ReadFile(filepath.Join(w.tmp, rel))
+		if err != nil {
+			return fmt.Errorf("read %q: %w", rel, err)
+		}
+		// Line-by-line equality so substring matches inside other
+		// patterns (e.g. .changes.* inside **/.changes.*) don't
+		// register as duplicates.
+		got := 0
+		for line := range strings.SplitSeq(string(body), "\n") {
+			if line == pattern {
+				got++
+			}
+		}
+		if got != 1 {
+			return fmt.Errorf("pattern %q appears %d times in %q (want 1):\n%s", pattern, got, rel, string(body))
+		}
+		return nil
 	})
 }
 

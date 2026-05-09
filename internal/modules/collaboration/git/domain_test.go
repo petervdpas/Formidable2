@@ -866,6 +866,10 @@ func TestPush_AdvancesRemote(t *testing.T) {
 	if bh.Hash() == plumbing.ZeroHash {
 		t.Error("bare HEAD is zero — push did not advance remote")
 	}
+	// NewHead is the local HEAD that's now on the remote — must match.
+	if res.NewHead != bh.Hash().String() {
+		t.Errorf("PushResult.NewHead = %q, want %q (remote HEAD)", res.NewHead, bh.Hash().String())
+	}
 }
 
 func TestPush_AlreadyUpToDate(t *testing.T) {
@@ -1077,6 +1081,10 @@ func TestPull_AdvancesLocalBranch(t *testing.T) {
 	}
 	if beforeHead.Hash() == afterHead.Hash() {
 		t.Errorf("local HEAD unchanged after pull (%s)", afterHead.Hash())
+	}
+	// NewHead must reflect the post-merge local HEAD.
+	if res.NewHead != afterHead.Hash().String() {
+		t.Errorf("PullResult.NewHead = %q, want %q (post-merge local HEAD)", res.NewHead, afterHead.Hash().String())
 	}
 }
 
