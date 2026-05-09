@@ -600,6 +600,440 @@ func (m *Manager) Pull(opts PullOptions) (*PullResult, error) {
 	return &PullResult{AlreadyUpToDate: false, NewHead: newHead.Hash().String()}, nil
 }
 
+// stashSubdir is the worktree-relative directory PullWithStash uses to
+// snapshot pending file contents before resetting them. Sits under the
+// context root and is matched by journal/types.go's `.changes.*`
+// gitignore patterns, so it never gets committed.
+const stashSubdir = ".changes.stash"
+
+// PullWithStash performs a journal-aware auto-stash + pull + restore.
+// The pending manifest is the authoritative list of files Formidable
+// has touched since the last sync — narrower than `git status`, which
+// would also catch external edits we don't own.
+//
+// Flow:
+//  1. Snapshot each pending file's content into <repoRoot>/.changes.stash/
+//     and capture the pre-pull HEAD blob hash for conflict detection.
+//  2. Reset those paths to HEAD (`git checkout HEAD -- <path>`) so the
+//     worktree is clean and pull can fast-forward.
+//  3. Run the normal Pull.
+//  4. For each snapshot: if the post-pull HEAD blob hash differs from
+//     the pre-pull hash, the file moved under us → conflict. Otherwise
+//     restore the stashed content via atomic write.
+//  5. On clean restore (no conflicts), remove the stash directory. On
+//     conflicts, leave it for manual recovery and surface the list.
+//
+// On pull failure (network, auth, divergent), the worktree paths
+// already reset to HEAD stay reset — the stash directory remains so
+// the user can manually recover. We surface the pull error and the
+// stash directory path to the caller.
+func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, error) {
+	if strings.TrimSpace(opts.Path) == "" {
+		return nil, errors.New("git: pull-with-stash: path required")
+	}
+	r, err := m.open(opts.Path)
+	if err != nil {
+		return nil, fmt.Errorf("git: pull-with-stash: open: %w", err)
+	}
+	head, err := r.Head()
+	if err != nil {
+		return nil, fmt.Errorf("git: pull-with-stash: head: %w", err)
+	}
+	if !head.Name().IsBranch() {
+		return nil, errors.New("git: pull-with-stash: HEAD is detached")
+	}
+	wt, err := r.Worktree()
+	if err != nil {
+		return nil, fmt.Errorf("git: pull-with-stash: worktree: %w", err)
+	}
+	repoRoot := wt.Filesystem.Root()
+	stashRoot := filepath.Join(repoRoot, stashSubdir)
+
+	// Phase 1: snapshot. We keep entries even when there's nothing to
+	// stash so the pull-only branch (no pending) is reachable in one
+	// path; an empty Pending slice produces an empty entries list.
+	entries, err := m.stashSnapshot(r, head, repoRoot, stashRoot, opts.Pending)
+	if err != nil {
+		return nil, fmt.Errorf("git: pull-with-stash: snapshot: %w", err)
+	}
+
+	// Phase 2: reset only the snapshotted paths. We don't touch the
+	// rest of the worktree — files that aren't in the journal pending
+	// set don't get clobbered.
+	if err := m.stashReset(r, wt, entries); err != nil {
+		// Reset failed — undo what we can: rewrite stashed content
+		// back so the user's changes aren't lost. Surface the error.
+		_, _ = m.stashRestoreOnFailure(repoRoot, entries)
+		_ = os.RemoveAll(stashRoot)
+		return nil, fmt.Errorf("git: pull-with-stash: reset: %w", err)
+	}
+
+	// Phase 3: regular Pull on the now-clean worktree.
+	pullRes, pullErr := m.Pull(opts.PullOptions)
+	if pullErr != nil {
+		// Pull failed (network, auth, divergent, ...). Worktree paths
+		// are reset; the stash dir survives so the user can recover.
+		// We try to restore stashed content as a courtesy — a failed
+		// pull should never silently lose user data.
+		restored, _ := m.stashRestoreOnFailure(repoRoot, entries)
+		stashedPaths := stashedPathList(entries)
+		// Only keep the stash dir if not everything was restored —
+		// otherwise the on-disk state matches the user's pre-pull
+		// content and the stash is redundant.
+		dirToReport := stashRoot
+		if len(restored) == len(entries) {
+			_ = os.RemoveAll(stashRoot)
+			dirToReport = ""
+		}
+		return &StashedPullResult{
+			Pull:      pullRes,
+			Stashed:   stashedPaths,
+			Restored:  restored,
+			Conflicts: nil,
+			StashDir:  dirToReport,
+		}, fmt.Errorf("git: pull-with-stash: %w", pullErr)
+	}
+
+	// Phase 4: restore. Re-open repo + HEAD so we read post-pull tree.
+	r2, err := m.open(opts.Path)
+	if err != nil {
+		return nil, fmt.Errorf("git: pull-with-stash: reopen: %w", err)
+	}
+	head2, err := r2.Head()
+	if err != nil {
+		return nil, fmt.Errorf("git: pull-with-stash: head after pull: %w", err)
+	}
+	restored, conflicts, err := m.stashRestore(r2, head2, repoRoot, entries)
+	if err != nil {
+		return nil, fmt.Errorf("git: pull-with-stash: restore: %w", err)
+	}
+
+	stashedPaths := stashedPathList(entries)
+	dirToReport := ""
+	if len(conflicts) > 0 {
+		// Keep the stash dir for manual recovery; surface its path.
+		dirToReport = stashRoot
+	} else {
+		// Clean restore — remove the directory.
+		_ = os.RemoveAll(stashRoot)
+	}
+
+	return &StashedPullResult{
+		Pull:      pullRes,
+		Stashed:   stashedPaths,
+		Restored:  restored,
+		Conflicts: conflicts,
+		StashDir:  dirToReport,
+	}, nil
+}
+
+// stashSnapshot captures pending file contents to <repoRoot>/.changes.stash/
+// mirroring the worktree layout. For each pending entry it also records
+// the pre-pull HEAD blob hash so the restore step can detect whether
+// pull moved the path out from under the stash.
+//
+// Pending is the journal's view; we filter to only paths under the
+// repo root and skip any traversal-shaped input. A delete-op entry has
+// no content to snapshot — we record the marker and the HEAD hash so
+// the restore step can re-delete (or report a conflict) post-pull.
+func (m *Manager) stashSnapshot(r *gogit.Repository, head *plumbing.Reference, repoRoot, stashRoot string, pending []StashPathPending) ([]StashEntry, error) {
+	if len(pending) == 0 {
+		return []StashEntry{}, nil
+	}
+
+	headTree, err := treeOf(r, head.Hash())
+	if err != nil {
+		return nil, fmt.Errorf("head tree: %w", err)
+	}
+
+	entries := make([]StashEntry, 0, len(pending))
+	for _, p := range pending {
+		clean := filepath.ToSlash(filepath.Clean(p.Path))
+		if clean == "" || clean == "." {
+			continue
+		}
+		if strings.HasPrefix(clean, "../") || clean == ".." || filepath.IsAbs(clean) {
+			continue
+		}
+		op := p.Op
+		switch op {
+		case "create", "update", "delete":
+			// supported
+		default:
+			continue
+		}
+
+		// Record pre-pull HEAD blob hash for conflict detection later.
+		oldHash := blobHashAt(headTree, clean)
+
+		// For delete-ops there's no file content to snapshot; the
+		// marker plus oldHash is enough to drive restore semantics.
+		if op == "delete" {
+			entries = append(entries, StashEntry{
+				Path: clean, Op: op, OldHash: oldHash,
+			})
+			continue
+		}
+
+		// create / update: read the worktree file and copy it into
+		// .changes.stash/<clean>. Missing source (raced with an
+		// external delete) is silently dropped — the restore step
+		// will report it as "we have nothing to restore."
+		src := filepath.Join(repoRoot, clean)
+		content, err := os.ReadFile(src)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("read %q: %w", clean, err)
+		}
+		stashPath := filepath.Join(stashRoot, clean)
+		if err := os.MkdirAll(filepath.Dir(stashPath), 0o755); err != nil {
+			return nil, fmt.Errorf("mkdir stash %q: %w", clean, err)
+		}
+		if err := atomicWriteBytes(stashPath, content, 0o644); err != nil {
+			return nil, fmt.Errorf("write stash %q: %w", clean, err)
+		}
+		entries = append(entries, StashEntry{
+			Path:     clean,
+			Op:       op,
+			Bytes:    int64(len(content)),
+			OldHash:  oldHash,
+			StashRef: clean,
+		})
+	}
+	return entries, nil
+}
+
+// stashReset clears each snapshotted path so the worktree is clean
+// before pull. go-git v5 has no per-file `git checkout HEAD -- <path>`
+// — wt.Checkout operates on the whole worktree, which would clobber
+// dirt outside the journal pending set. So we mirror the Discard()
+// pattern: read the HEAD blob (or its absence) and rewrite/remove the
+// worktree file by hand, then wt.Add (or wt.Remove) to refresh the
+// index entry so go-git sees the file as clean.
+//
+// Delete-ops need the same treatment: a missing file vs a HEAD that
+// has it would block pull with "unstaged changes". We restore the file
+// from HEAD before pull; the restore step deletes it again post-pull
+// (or detects a conflict if pull modified it).
+func (m *Manager) stashReset(r *gogit.Repository, wt *gogit.Worktree, entries []StashEntry) error {
+	for _, e := range entries {
+		full := filepath.Join(wt.Filesystem.Root(), e.Path)
+
+		if e.OldHash == "" {
+			// Brand-new file (no HEAD entry). Drop it from the index
+			// (if staged) and the worktree so pull sees a clean slate.
+			// A delete-op against a path that wasn't in HEAD shouldn't
+			// happen in practice (you can't delete a non-existent file),
+			// but the same "clear the worktree" handling is correct
+			// either way.
+			if _, err := wt.Remove(e.Path); err != nil {
+				if rmErr := os.Remove(full); rmErr != nil && !os.IsNotExist(rmErr) {
+					return fmt.Errorf("clear new file %q: %w", e.Path, rmErr)
+				}
+			}
+			continue
+		}
+
+		// Tracked file: rewrite worktree from HEAD blob, then re-add
+		// so the index hash matches.
+		hash := plumbing.NewHash(e.OldHash)
+		blob, err := r.BlobObject(hash)
+		if err != nil {
+			return fmt.Errorf("blob %q: %w", e.Path, err)
+		}
+		reader, err := blob.Reader()
+		if err != nil {
+			return fmt.Errorf("blob reader %q: %w", e.Path, err)
+		}
+		content, err := io.ReadAll(reader)
+		_ = reader.Close()
+		if err != nil {
+			return fmt.Errorf("read blob %q: %w", e.Path, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return fmt.Errorf("mkdir reset %q: %w", e.Path, err)
+		}
+		if err := atomicWriteBytes(full, content, 0o644); err != nil {
+			return fmt.Errorf("reset write %q: %w", e.Path, err)
+		}
+		if _, err := wt.Add(e.Path); err != nil {
+			return fmt.Errorf("reset index %q: %w", e.Path, err)
+		}
+	}
+	return nil
+}
+
+// stashRestore writes stashed content back over the post-pull worktree.
+// For each entry it compares the pre-pull HEAD blob hash to the
+// post-pull HEAD blob hash; equal hashes mean pull didn't touch the
+// path → safe to overwrite. Different hashes mean pull moved the path
+// → conflict, stash content stays in .changes.stash/ for manual review.
+func (m *Manager) stashRestore(r *gogit.Repository, head *plumbing.Reference, repoRoot string, entries []StashEntry) ([]string, []string, error) {
+	headTree, err := treeOf(r, head.Hash())
+	if err != nil {
+		return nil, nil, fmt.Errorf("post-pull head tree: %w", err)
+	}
+
+	restored := []string{}
+	conflicts := []string{}
+	stashRoot := filepath.Join(repoRoot, stashSubdir)
+
+	for _, e := range entries {
+		newHash := blobHashAt(headTree, e.Path)
+
+		// Conflict detection: pull touched the path between the snapshot
+		// and now.
+		if e.OldHash != newHash {
+			conflicts = append(conflicts, e.Path)
+			continue
+		}
+
+		// Apply the stash by op type.
+		full := filepath.Join(repoRoot, e.Path)
+		switch e.Op {
+		case "delete":
+			if err := os.Remove(full); err != nil && !os.IsNotExist(err) {
+				return nil, nil, fmt.Errorf("re-delete %q: %w", e.Path, err)
+			}
+			restored = append(restored, e.Path)
+		case "create", "update":
+			if e.StashRef == "" {
+				// No content was captured (file disappeared between
+				// pending discovery and snapshot) — nothing to restore.
+				continue
+			}
+			stashPath := filepath.Join(stashRoot, e.StashRef)
+			content, err := os.ReadFile(stashPath)
+			if err != nil {
+				return nil, nil, fmt.Errorf("read stash %q: %w", e.Path, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+				return nil, nil, fmt.Errorf("mkdir restore %q: %w", e.Path, err)
+			}
+			if err := atomicWriteBytes(full, content, 0o644); err != nil {
+				return nil, nil, fmt.Errorf("write restore %q: %w", e.Path, err)
+			}
+			restored = append(restored, e.Path)
+		}
+	}
+	return restored, conflicts, nil
+}
+
+// stashRestoreOnFailure writes stashed content back without conflict
+// checking — used when pull never ran (or failed) and we want the
+// user's pre-stash state back on disk. Best-effort: returns the paths
+// that were successfully restored; ignores read errors and continues.
+func (m *Manager) stashRestoreOnFailure(repoRoot string, entries []StashEntry) ([]string, error) {
+	restored := []string{}
+	stashRoot := filepath.Join(repoRoot, stashSubdir)
+	for _, e := range entries {
+		full := filepath.Join(repoRoot, e.Path)
+		switch e.Op {
+		case "delete":
+			if err := os.Remove(full); err == nil || os.IsNotExist(err) {
+				restored = append(restored, e.Path)
+			}
+		case "create", "update":
+			if e.StashRef == "" {
+				continue
+			}
+			stashPath := filepath.Join(stashRoot, e.StashRef)
+			content, err := os.ReadFile(stashPath)
+			if err != nil {
+				continue
+			}
+			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+				continue
+			}
+			if err := atomicWriteBytes(full, content, 0o644); err != nil {
+				continue
+			}
+			restored = append(restored, e.Path)
+		}
+	}
+	return restored, nil
+}
+
+// treeOf returns the commit tree at hash, or an error if hash is zero
+// (unborn HEAD — shouldn't happen here since we already checked
+// IsBranch upstream).
+func treeOf(r *gogit.Repository, h plumbing.Hash) (*object.Tree, error) {
+	if h.IsZero() {
+		return nil, errors.New("zero hash")
+	}
+	c, err := r.CommitObject(h)
+	if err != nil {
+		return nil, err
+	}
+	return c.Tree()
+}
+
+// blobHashAt returns the blob hash for path in tree, or "" if absent.
+// Used as a "did this path's content change between trees" signal.
+func blobHashAt(tree *object.Tree, path string) string {
+	if tree == nil {
+		return ""
+	}
+	entry, err := tree.File(path)
+	if err != nil {
+		return ""
+	}
+	return entry.Hash.String()
+}
+
+// stashedPathList projects a StashEntry slice to a flat path list for
+// the JSON-friendly result envelope.
+func stashedPathList(entries []StashEntry) []string {
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.Path)
+	}
+	return out
+}
+
+// atomicWriteBytes is the local copy of system.atomicWriteFile —
+// inlined here so the git package doesn't have to import system just
+// for the tmp+fsync+rename idiom. Restore writes go this way
+// (NOT through system.SaveFile) so they bypass the journal: the
+// journal entry that drove the snapshot is still pending, and writing
+// the same content back doesn't change that contract.
+func atomicWriteBytes(target string, content []byte, perm os.FileMode) error {
+	dir := filepath.Dir(target)
+	base := filepath.Base(target)
+	f, err := os.CreateTemp(dir, "."+base+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(tmp)
+		}
+	}()
+	if _, err := f.Write(content); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp, perm); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, target); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
 // Fetch updates the remote-tracking refs for the named remote
 // (default "origin"). The local worktree isn't touched; ahead/behind
 // counts in subsequent Status() calls reflect the new state of the

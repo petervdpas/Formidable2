@@ -180,6 +180,52 @@ type PushResult struct {
 	NewHead         string `json:"new_head"`
 }
 
+// StashEntry is one path captured by PullWithStash before the
+// worktree is reset. The entry's Op mirrors the journal record
+// at snapshot time so the restore step knows whether to write the
+// content back (create/update) or re-delete the file (delete).
+type StashEntry struct {
+	Path     string `json:"path"`     // worktree-relative, posix slashes
+	Op       string `json:"op"`       // create | update | delete
+	Bytes    int64  `json:"bytes"`    // size of stashed content (0 for delete)
+	OldHash  string `json:"old_hash"` // pre-pull HEAD blob hash, "" if absent
+	StashRef string `json:"stash_ref,omitempty"` // path under .changes.stash/, "" for delete
+}
+
+// StashedPullResult is the outcome of PullWithStash. Pull is the
+// underlying merge result; Restored lists paths whose stashed content
+// we re-applied cleanly; Conflicts lists paths where pull moved the
+// file out from under the stash (the user must resolve manually).
+//
+// On Conflicts != [], the .changes.stash directory is left in place
+// so the user has a recovery point. On clean restore the directory is
+// removed.
+type StashedPullResult struct {
+	Pull      *PullResult `json:"pull"`
+	Stashed   []string    `json:"stashed"`
+	Restored  []string    `json:"restored"`
+	Conflicts []string    `json:"conflicts"`
+	StashDir  string      `json:"stash_dir"`
+}
+
+// StashPathPending describes one journal-pending path passed in to
+// PullWithStash. Mirrors journal.PendingChange in shape — declared
+// locally so the git package's signature doesn't import journal types
+// (the Service translates).
+type StashPathPending struct {
+	Path string `json:"path"`
+	Op   string `json:"op"`
+}
+
+// PullWithStashOptions extends PullOptions with the journal-derived
+// stash manifest. Pending is the list of paths Formidable knows are
+// dirty since the last sync; PullWithStash captures their content
+// before the pull and restores after.
+type PullWithStashOptions struct {
+	PullOptions
+	Pending []StashPathPending `json:"pending"`
+}
+
 // DiscardOptions targets a single worktree file for "throw away the
 // local change to this file." The semantics depend on the file's
 // current status:

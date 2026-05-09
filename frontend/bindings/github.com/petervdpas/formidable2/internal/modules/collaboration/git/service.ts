@@ -84,6 +84,24 @@ export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.Pul
 }
 
 /**
+ * PullWithStash is the journal-aware auto-stash variant of Pull. The
+ * Service reads the journal's pending set for the git backend and
+ * passes it to Manager.PullWithStash; the Manager snapshots, resets,
+ * pulls, and restores. Same RecordRemoteSeen behavior as Pull on
+ * success — the underlying inner Pull's NewHead is what we record.
+ * 
+ * The pending list includes only paths the journal knows are dirty —
+ * strictly narrower than `git status`, so external edits in unrelated
+ * files don't get stashed. When the journal has no pending changes,
+ * the call degrades to a plain pull.
+ */
+export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$models.StashedPullResult | null> {
+    return $Call.ByID(3825927834, opts).then(($result: any) => {
+        return $$createType13($result);
+    });
+}
+
+/**
  * Push sends commits to the named remote. Same keychain auto-fill
  * behavior as Fetch. On success, informs the journal: an advancing
  * push records a sync marker (pending clears for git); an
@@ -92,13 +110,13 @@ export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.Pul
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
 }
 
 export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
     return $Call.ByID(1356102196, path).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
@@ -108,7 +126,7 @@ export function RepoRoot(path: string): $CancellablePromise<string> {
 
 export function Status(path: string): $CancellablePromise<$models.Status | null> {
     return $Call.ByID(3686552508, path).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType19($result);
     });
 }
 
@@ -125,9 +143,11 @@ const $$createType8 = $models.Commit.createFrom;
 const $$createType9 = $Create.Array($$createType8);
 const $$createType10 = $models.PullResult.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.PushResult.createFrom;
+const $$createType12 = $models.StashedPullResult.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $models.RemoteInfo.createFrom;
+const $$createType14 = $models.PushResult.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = $models.Status.createFrom;
+const $$createType16 = $models.RemoteInfo.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = $models.Status.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);

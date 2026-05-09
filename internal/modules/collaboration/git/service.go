@@ -19,7 +19,7 @@ type Service struct {
 	m       *Manager
 	creds   CredentialReader
 	profile ProfileReader
-	jrnl    journal.Recorder
+	jrnl    journal.Journal
 }
 
 // CredentialReader resolves a stored secret for an HTTPS auth account.
@@ -43,7 +43,7 @@ type ProfileReader interface {
 // Same string as journal.BackendGit.
 const journalBackend = journal.BackendGit
 
-func NewService(m *Manager, creds CredentialReader, profile ProfileReader, jrnl journal.Recorder) *Service {
+func NewService(m *Manager, creds CredentialReader, profile ProfileReader, jrnl journal.Journal) *Service {
 	return &Service{m: m, creds: creds, profile: profile, jrnl: jrnl}
 }
 
@@ -106,6 +106,40 @@ func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 	}
 	if s.jrnl != nil && res.NewHead != "" {
 		s.jrnl.RecordRemoteSeen(journalBackend, res.NewHead)
+	}
+	return res, nil
+}
+
+// PullWithStash is the journal-aware auto-stash variant of Pull. The
+// Service reads the journal's pending set for the git backend and
+// passes it to Manager.PullWithStash; the Manager snapshots, resets,
+// pulls, and restores. Same RecordRemoteSeen behavior as Pull on
+// success — the underlying inner Pull's NewHead is what we record.
+//
+// The pending list includes only paths the journal knows are dirty —
+// strictly narrower than `git status`, so external edits in unrelated
+// files don't get stashed. When the journal has no pending changes,
+// the call degrades to a plain pull.
+func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
+	if opts.PAT == "" {
+		opts.PAT = s.resolvePAT(opts.Path)
+	}
+	pending := []StashPathPending{}
+	if s.jrnl != nil {
+		pr := s.jrnl.Pending(journalBackend)
+		for _, p := range pr.Paths {
+			pending = append(pending, StashPathPending{Path: p.Path, Op: p.Op})
+		}
+	}
+	res, err := s.m.PullWithStash(PullWithStashOptions{
+		PullOptions: opts,
+		Pending:     pending,
+	})
+	if err != nil {
+		return res, err
+	}
+	if res != nil && res.Pull != nil && s.jrnl != nil && res.Pull.NewHead != "" {
+		s.jrnl.RecordRemoteSeen(journalBackend, res.Pull.NewHead)
 	}
 	return res, nil
 }

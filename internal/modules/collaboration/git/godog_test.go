@@ -18,6 +18,8 @@ import (
 	gogitcfg "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+
+	"github.com/petervdpas/formidable2/internal/modules/journal"
 )
 
 func TestFeatures(t *testing.T) {
@@ -53,6 +55,7 @@ type gitWorld struct {
 	commit   *CommitResult
 	push     *PushResult
 	pull     *PullResult
+	pullStash *StashedPullResult
 	fetch    *FetchResult
 	repoRoot string
 	boolRes  bool
@@ -92,6 +95,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.commit = nil
 		w.push = nil
 		w.pull = nil
+		w.pullStash = nil
 		w.fetch = nil
 		w.repoRoot = ""
 		w.boolRes = false
@@ -357,6 +361,50 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^"([^"]*)" is rewritten to "([^"]*)" inside "([^"]*)"$`, func(name, content, rel string) error {
 		return os.WriteFile(filepath.Join(w.tmp, rel, name), []byte(content), 0o644)
+	})
+
+	ctx.Step(`^the bare repo rewrites "([^"]*)" to "([^"]*)"$`, func(name, content string) error {
+		// Side clone, modify the named path, push. Distinct from
+		// "the bare repo gains another commit" (which adds remote.txt)
+		// — this lets a scenario set up a same-path divergence between
+		// the bare and the local clone.
+		work, err := os.MkdirTemp("", "git-godog-rewrite-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(work)
+		wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: w.bareDir})
+		if err != nil {
+			return err
+		}
+		full := filepath.Join(work, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			return err
+		}
+		wt, err := wr.Worktree()
+		if err != nil {
+			return err
+		}
+		if _, err := wt.Add(name); err != nil {
+			return err
+		}
+		if _, err := wt.Commit("rewrite "+name, &gogit.CommitOptions{
+			Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+		}); err != nil {
+			return err
+		}
+		return wr.Push(&gogit.PushOptions{RemoteName: "origin"})
+	})
+
+	ctx.Step(`^the file "([^"]*)" exists with content "([^"]*)" inside "([^"]*)"$`, func(name, content, rel string) error {
+		full := filepath.Join(w.tmp, rel, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(full, []byte(content), 0o644)
 	})
 
 	ctx.Step(`^the bare repo gains another commit$`, func() error {
@@ -802,6 +850,114 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		}
 		if seens[0].version != w.pull.NewHead {
 			return fmt.Errorf("seen.version = %q, want pull.NewHead = %q", seens[0].version, w.pull.NewHead)
+		}
+		return nil
+	})
+
+	// ── PullWithStash scenarios ───────────────────────────────────────
+	// Scenarios use the journal-recording service plus a configurable
+	// pending list. They focus on user-visible outcomes: stash content
+	// round-trips, conflicts surface a recovery directory, unrelated
+	// dirt isn't clobbered.
+
+	ctx.Step(`^the journal pending for "([^"]*)" includes "([^"]*)" with op "([^"]*)"$`, func(backend, path, op string) error {
+		if w.jrnl == nil {
+			return fmt.Errorf("no journal-recording service in scope")
+		}
+		// Append, not replace — multiple Given lines can build up the
+		// pending list.
+		current := w.jrnl.Pending(backend).Paths
+		current = append(current, journal.PendingChange{Path: path, Op: op})
+		w.jrnl.setPending(backend, current)
+		return nil
+	})
+
+	ctx.Step(`^I pull-with-stash from "([^"]*)" via the service$`, func(rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		w.pullStash, w.lastErr = w.svc.PullWithStash(PullOptions{Path: dir})
+		// Mirror the simpler Pull's bookkeeping so existing assertions
+		// ("pull is not already-up-to-date" / "pull succeeded") work
+		// against PullWithStash too.
+		if w.pullStash != nil {
+			w.pull = w.pullStash.Pull
+		}
+		return nil
+	})
+
+	ctx.Step(`^the stash result restored "([^"]*)"$`, func(path string) error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		for _, p := range w.pullStash.Restored {
+			if p == path {
+				return nil
+			}
+		}
+		return fmt.Errorf("Restored = %v, want to contain %q", w.pullStash.Restored, path)
+	})
+
+	ctx.Step(`^the stash result has (\d+) conflicts?$`, func(n int) error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		if len(w.pullStash.Conflicts) != n {
+			return fmt.Errorf("Conflicts = %v, want %d", w.pullStash.Conflicts, n)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the stash result has "([^"]*)" in conflicts$`, func(path string) error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		for _, p := range w.pullStash.Conflicts {
+			if p == path {
+				return nil
+			}
+		}
+		return fmt.Errorf("Conflicts = %v, want to contain %q", w.pullStash.Conflicts, path)
+	})
+
+	ctx.Step(`^the stash directory is reported$`, func() error {
+		if w.pullStash == nil || w.pullStash.StashDir == "" {
+			return fmt.Errorf("expected non-empty StashDir")
+		}
+		return nil
+	})
+
+	ctx.Step(`^the stash directory is empty in the result$`, func() error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		if w.pullStash.StashDir != "" {
+			return fmt.Errorf("expected empty StashDir on clean restore, got %q", w.pullStash.StashDir)
+		}
+		return nil
+	})
+
+	ctx.Step(`^file "([^"]*)" inside "([^"]*)" has content "([^"]*)"$`, func(name, rel, want string) error {
+		got, err := os.ReadFile(filepath.Join(w.tmp, rel, name))
+		if err != nil {
+			return fmt.Errorf("read %q: %w", filepath.Join(rel, name), err)
+		}
+		if string(got) != want {
+			return fmt.Errorf("file content = %q, want %q", string(got), want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^a stashed copy of "([^"]*)" exists under "([^"]*)"$`, func(name, rel string) error {
+		stashFile := filepath.Join(w.tmp, rel, stashSubdir, name)
+		if _, err := os.Stat(stashFile); err != nil {
+			return fmt.Errorf("stash file missing: %w", err)
+		}
+		return nil
+	})
+
+	ctx.Step(`^no stash directory exists under "([^"]*)"$`, func(rel string) error {
+		stashDir := filepath.Join(w.tmp, rel, stashSubdir)
+		if _, err := os.Stat(stashDir); !os.IsNotExist(err) {
+			return fmt.Errorf("stash dir present: %v", err)
 		}
 		return nil
 	})

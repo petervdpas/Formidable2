@@ -22,5 +22,6 @@ export {
     PushResult,
     Remote,
     RemoteInfo,
+    StashedPullResult,
     Status
 } from "./models.js";

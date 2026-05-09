@@ -670,7 +670,11 @@ func cloneCursors(in CursorMap) CursorMap {
 // ErrNoContext is returned by callers that want to signal the journal isn't ready.
 var ErrNoContext = errors.New("journal: no context folder configured")
 
-// Compile-time assertion that *Manager satisfies Recorder. Anything that
-// drifts the method signatures fails the build here, not at the
-// distant call site in app.go.
-var _ Recorder = (*Manager)(nil)
+// Compile-time assertions that *Manager satisfies the public journal
+// interfaces. Anything that drifts the method signatures fails the
+// build here, not at the distant call site in app.go.
+var (
+	_ Recorder = (*Manager)(nil)
+	_ Reader   = (*Manager)(nil)
+	_ Journal  = (*Manager)(nil)
+)

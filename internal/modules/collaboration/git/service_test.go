@@ -12,6 +12,8 @@ import (
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+
+	"github.com/petervdpas/formidable2/internal/modules/journal"
 )
 
 // ─────────────────────────────────────────────────────────────────────
@@ -31,6 +33,10 @@ type fakeJournal struct {
 	mu    sync.Mutex
 	syncs []syncCall
 	seens []seenCall
+	// pending is keyed by backend → list of pending changes returned
+	// by Pending(). Tests configure this directly to drive
+	// PullWithStash's snapshot manifest. Nil/missing key returns empty.
+	pending map[string][]journal.PendingChange
 }
 
 func (f *fakeJournal) RecordSync(backend, version string, pushed, pulled int) {
@@ -43,6 +49,24 @@ func (f *fakeJournal) RecordRemoteSeen(backend, version string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.seens = append(f.seens, seenCall{backend, version})
+}
+
+func (f *fakeJournal) Pending(backend string) journal.PendingResult {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	paths := f.pending[backend]
+	out := make([]journal.PendingChange, len(paths))
+	copy(out, paths)
+	return journal.PendingResult{Count: len(out), Paths: out}
+}
+
+func (f *fakeJournal) setPending(backend string, paths []journal.PendingChange) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.pending == nil {
+		f.pending = map[string][]journal.PendingChange{}
+	}
+	f.pending[backend] = paths
 }
 
 func (f *fakeJournal) snapshot() ([]syncCall, []seenCall) {
@@ -432,5 +456,128 @@ func TestService_NilJournal_PullIsSafe(t *testing.T) {
 	svc := NewService(NewManager(), nil, nil, nil)
 	if _, err := svc.Pull(PullOptions{Path: work}); err != nil {
 		t.Fatalf("Pull with nil journal: %v", err)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Service.PullWithStash — wiring tests
+// ─────────────────────────────────────────────────────────────────────
+//
+// PullWithStash sits on top of Manager.PullWithStash; the Service's
+// only added value is (a) reading journal Pending() to feed the
+// snapshot manifest and (b) calling RecordRemoteSeen on success. So
+// these tests focus on the journal-side contract.
+
+// TestService_PullWithStash_ReadsPendingFromJournal — the Service's
+// only PullWithStash-specific contract is that it reads pending paths
+// from the journal and feeds them to the manager. Set pending to a
+// path that's actually dirty; expect it to round-trip.
+func TestService_PullWithStash_ReadsPendingFromJournal(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("user-edit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Advance bare with an unrelated file so pull has something to do.
+	advance := t.TempDir()
+	pr, _ := gogit.PlainClone(advance, false, &gogit.CloneOptions{URL: bare})
+	_ = os.WriteFile(filepath.Join(advance, "remote.txt"), []byte("r"), 0o644)
+	pwt, _ := pr.Worktree()
+	_, _ = pwt.Add("remote.txt")
+	_, _ = pwt.Commit("rs", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	})
+	_ = pr.Push(&gogit.PushOptions{RemoteName: "origin"})
+
+	svc, jrnl := newServiceWithJournal(t)
+	jrnl.setPending("git", []journal.PendingChange{
+		{Path: "seed.txt", Op: "update"},
+	})
+
+	res, err := svc.PullWithStash(PullOptions{Path: work})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Conflicts) != 0 {
+		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	}
+	if len(res.Restored) != 1 {
+		t.Errorf("expected one restore, got %v", res.Restored)
+	}
+
+	// User's edit must be back on disk.
+	got, _ := os.ReadFile(filepath.Join(work, "seed.txt"))
+	if string(got) != "user-edit" {
+		t.Errorf("seed.txt = %q, want %q", string(got), "user-edit")
+	}
+
+	// Service must have recorded the remote-seen on the post-pull
+	// version (NewHead).
+	_, seens := jrnl.snapshot()
+	if len(seens) != 1 {
+		t.Fatalf("expected 1 remote-seen, got %d", len(seens))
+	}
+	if seens[0].version != res.Pull.NewHead {
+		t.Errorf("seen.version = %q, want %q", seens[0].version, res.Pull.NewHead)
+	}
+}
+
+// TestService_PullWithStash_NilJournal — service must not panic
+// when no journal is wired. The pending set degrades to empty,
+// effectively a normal pull.
+func TestService_PullWithStash_NilJournal(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(NewManager(), nil, nil, nil)
+	if _, err := svc.PullWithStash(PullOptions{Path: work}); err != nil {
+		t.Fatalf("PullWithStash with nil journal: %v", err)
+	}
+}
+
+// TestService_PullWithStash_ConflictRecordsRemoteSeen — even on
+// conflict, the pull part of the operation succeeded (HEAD moved).
+// The remote-seen call must fire so the journal cursor advances.
+func TestService_PullWithStash_ConflictRecordsRemoteSeen(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("user-edit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Advance bare modifying the same file.
+	advance := t.TempDir()
+	pr, _ := gogit.PlainClone(advance, false, &gogit.CloneOptions{URL: bare})
+	_ = os.WriteFile(filepath.Join(advance, "seed.txt"), []byte("remote-edit"), 0o644)
+	pwt, _ := pr.Worktree()
+	_, _ = pwt.Add("seed.txt")
+	_, _ = pwt.Commit("rs", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	})
+	_ = pr.Push(&gogit.PushOptions{RemoteName: "origin"})
+
+	svc, jrnl := newServiceWithJournal(t)
+	jrnl.setPending("git", []journal.PendingChange{
+		{Path: "seed.txt", Op: "update"},
+	})
+
+	res, err := svc.PullWithStash(PullOptions{Path: work})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Conflicts) != 1 {
+		t.Errorf("expected conflict, got %v", res.Conflicts)
+	}
+
+	_, seens := jrnl.snapshot()
+	if len(seens) != 1 {
+		t.Errorf("expected remote-seen call after successful pull (even with restore conflict), got %v", seens)
 	}
 }

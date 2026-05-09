@@ -1564,3 +1564,438 @@ func TestCommit_RefusesDetachedHEAD(t *testing.T) {
 		t.Error("expected error when committing on detached HEAD")
 	}
 }
+
+// ─── PullWithStash ────────────────────────────────────────────────────
+//
+// PullWithStash is the journal-aware auto-stash + pull + restore. The
+// pending manifest is the authoritative dirty list — narrower than
+// `git status` so external edits in unrelated files are out of scope.
+//
+// Each test sets up:
+//   - a bare repo (the "remote") seeded with one commit
+//   - a clone (the "client") that the test mutates
+//   - optionally, a second clone advanced + pushed to the bare so the
+//     pull has something to fetch
+// then exercises a specific branch of the stash flow.
+
+// pullWithStashFixture seeds a bare and clones it. Returns (clientDir,
+// bareDir). Adds a "seed.txt" with content "seed" on master. The
+// fixture is the same starting point Push/Pull tests use, so its
+// ahead/behind shape is well understood.
+func pullWithStashFixture(t *testing.T) (clientDir, bareDir string) {
+	t.Helper()
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+	return work, bare
+}
+
+// advanceBare adds a commit to the bare repo via a side clone so the
+// fixture's primary client has something to pull. Optional content
+// overrides — pass paths and contents to write before commit.
+func advanceBare(t *testing.T, bare string, paths, contents []string) {
+	t.Helper()
+	if len(paths) != len(contents) {
+		t.Fatalf("advanceBare: paths/contents length mismatch")
+	}
+	side := t.TempDir()
+	r, err := gogit.PlainClone(side, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatalf("side clone: %v", err)
+	}
+	wt, _ := r.Worktree()
+	for i, p := range paths {
+		full := filepath.Join(side, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(contents[i]), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := wt.Add(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := wt.Commit("advance", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "R", Email: "r@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Push(&gogit.PushOptions{RemoteName: "origin"}); err != nil {
+		t.Fatalf("side push: %v", err)
+	}
+}
+
+// TestPullWithStash_CleanRestore — user dirtied seed.txt, remote
+// added an unrelated remote.txt. Stash pulls the new file, then
+// re-applies the user's seed.txt edit cleanly. No conflicts.
+func TestPullWithStash_CleanRestore(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	// Dirty seed.txt locally.
+	dirtyContent := "user-edit"
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte(dirtyContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Advance bare with a different file.
+	advanceBare(t, bare, []string{"remote.txt"}, []string{"r"})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending: []StashPathPending{
+			{Path: "seed.txt", Op: "update"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if res.Pull == nil || res.Pull.AlreadyUpToDate {
+		t.Errorf("expected advancing pull, got %+v", res.Pull)
+	}
+	if len(res.Conflicts) != 0 {
+		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	}
+	if len(res.Restored) != 1 || res.Restored[0] != "seed.txt" {
+		t.Errorf("expected seed.txt restored, got %v", res.Restored)
+	}
+
+	// User's edit must be back on disk.
+	got, err := os.ReadFile(filepath.Join(work, "seed.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != dirtyContent {
+		t.Errorf("seed.txt content = %q, want %q", string(got), dirtyContent)
+	}
+
+	// Remote file must be present.
+	if _, err := os.Stat(filepath.Join(work, "remote.txt")); err != nil {
+		t.Errorf("remote.txt missing post-stash-pull: %v", err)
+	}
+
+	// Stash dir must be cleaned up on a clean restore.
+	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
+		t.Errorf("stash dir survived clean restore: %v", err)
+	}
+}
+
+// TestPullWithStash_ConflictOnRestore — user dirtied seed.txt, remote
+// also rewrote seed.txt. Pull moves the path under the stash → conflict.
+// The restore step refuses to overwrite and keeps the stash dir for
+// manual recovery.
+func TestPullWithStash_ConflictOnRestore(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("user-edit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	advanceBare(t, bare, []string{"seed.txt"}, []string{"remote-edit"})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending: []StashPathPending{
+			{Path: "seed.txt", Op: "update"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Conflicts) != 1 || res.Conflicts[0] != "seed.txt" {
+		t.Errorf("expected seed.txt in conflicts, got %v", res.Conflicts)
+	}
+	if len(res.Restored) != 0 {
+		t.Errorf("expected no restores on conflict, got %v", res.Restored)
+	}
+
+	// Worktree should hold the remote's version (pull won; conflict
+	// means we did NOT overwrite back).
+	got, err := os.ReadFile(filepath.Join(work, "seed.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "remote-edit" {
+		t.Errorf("worktree seed.txt = %q, want %q", string(got), "remote-edit")
+	}
+
+	// Stash dir survives so the user can recover.
+	stashFile := filepath.Join(work, stashSubdir, "seed.txt")
+	stashGot, err := os.ReadFile(stashFile)
+	if err != nil {
+		t.Fatalf("stash file missing: %v", err)
+	}
+	if string(stashGot) != "user-edit" {
+		t.Errorf("stash file content = %q, want %q", string(stashGot), "user-edit")
+	}
+	if res.StashDir == "" {
+		t.Errorf("StashDir should be populated on conflicts")
+	}
+}
+
+// TestPullWithStash_NoPending — pending list is empty. The stash flow
+// degrades to a normal pull; no .changes.stash dir is created.
+func TestPullWithStash_NoPending(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+	advanceBare(t, bare, []string{"remote.txt"}, []string{"r"})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     nil,
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if res.Pull == nil || res.Pull.AlreadyUpToDate {
+		t.Errorf("expected advancing pull, got %+v", res.Pull)
+	}
+	if len(res.Stashed) != 0 || len(res.Restored) != 0 || len(res.Conflicts) != 0 {
+		t.Errorf("expected empty stash/restore/conflicts on no pending, got %+v", res)
+	}
+	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
+		t.Errorf("stash dir created with no pending: %v", err)
+	}
+}
+
+// TestPullWithStash_PullFails_Network — the pull fails (auth 401).
+// Worktree paths reset to HEAD, but the user's stashed content is
+// re-applied as a courtesy so no data is lost. Stash dir is removed
+// when restore covers everything.
+func TestPullWithStash_PullFails_Network(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		rw.Header().Set("WWW-Authenticate", `Basic realm="Git"`)
+		rw.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	work := pullAuthFixture(t, srv.URL+"/repo.git")
+	dirtyContent := "user-edit"
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte(dirtyContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work, PAT: "bad"},
+		Pending: []StashPathPending{
+			{Path: "seed.txt", Op: "update"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected pull error")
+	}
+	// Result must be non-nil so caller can reason about restore state.
+	if res == nil {
+		t.Fatalf("expected non-nil result on pull failure")
+	}
+	if len(res.Restored) != 1 || res.Restored[0] != "seed.txt" {
+		t.Errorf("expected seed.txt restored on rollback, got %v", res.Restored)
+	}
+	got, err := os.ReadFile(filepath.Join(work, "seed.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != dirtyContent {
+		t.Errorf("seed.txt content = %q, want %q (lost user data!)", string(got), dirtyContent)
+	}
+}
+
+// TestPullWithStash_DetachedHEAD — must reject early with no side
+// effects. No stash dir created.
+func TestPullWithStash_DetachedHEAD(t *testing.T) {
+	work, _ := pullWithStashFixture(t)
+	r, err := gogit.PlainOpen(work)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, _ := r.Head()
+	if err := r.Storer.SetReference(plumbing.NewHashReference(plumbing.HEAD, h.Hash())); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	_, err = m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: "seed.txt", Op: "update"}},
+	})
+	if err == nil {
+		t.Error("expected detached-HEAD refusal")
+	}
+	if _, statErr := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(statErr) {
+		t.Errorf("stash dir created despite refusal: %v", statErr)
+	}
+}
+
+// TestPullWithStash_EmptyPath — must error before any worktree work.
+func TestPullWithStash_EmptyPath(t *testing.T) {
+	m := NewManager()
+	_, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: ""},
+	})
+	if err == nil {
+		t.Error("expected error for empty path")
+	}
+}
+
+// TestPullWithStash_NewFile — user created a new file (no HEAD blob).
+// Snapshot captures it, reset removes it from worktree, pull runs,
+// restore writes it back. No conflict (HEAD didn't have it before
+// or after).
+func TestPullWithStash_NewFile(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	newContent := "brand new"
+	if err := os.WriteFile(filepath.Join(work, "newfile.txt"), []byte(newContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	advanceBare(t, bare, []string{"remote.txt"}, []string{"r"})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: "newfile.txt", Op: "create"}},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Conflicts) != 0 {
+		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	}
+	if len(res.Restored) != 1 || res.Restored[0] != "newfile.txt" {
+		t.Errorf("expected newfile.txt restored, got %v", res.Restored)
+	}
+
+	got, err := os.ReadFile(filepath.Join(work, "newfile.txt"))
+	if err != nil {
+		t.Fatalf("read newfile: %v", err)
+	}
+	if string(got) != newContent {
+		t.Errorf("newfile.txt = %q, want %q", string(got), newContent)
+	}
+}
+
+// TestPullWithStash_DeleteOp — user deleted seed.txt, pull doesn't
+// touch it. Restore re-applies the deletion (file stays gone).
+func TestPullWithStash_DeleteOp(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	if err := os.Remove(filepath.Join(work, "seed.txt")); err != nil {
+		t.Fatal(err)
+	}
+	advanceBare(t, bare, []string{"remote.txt"}, []string{"r"})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: "seed.txt", Op: "delete"}},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Conflicts) != 0 {
+		t.Errorf("unexpected conflicts: %v", res.Conflicts)
+	}
+	if len(res.Restored) != 1 {
+		t.Errorf("expected delete re-applied, got %v", res.Restored)
+	}
+	if _, err := os.Stat(filepath.Join(work, "seed.txt")); !os.IsNotExist(err) {
+		t.Errorf("seed.txt should be gone after delete restore, stat err: %v", err)
+	}
+}
+
+// TestPullWithStash_DoesNotClobberUnrelatedDirt — file outside the
+// pending manifest stays exactly as-is across the stash/pull/restore
+// cycle. (Pull would refuse a dirty worktree, so we use a path that
+// doesn't conflict with pull — something pull never touches.)
+func TestPullWithStash_DoesNotClobberUnrelatedDirt(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+
+	// Pending manifest says seed.txt is dirty; we ALSO have an
+	// untracked file the journal doesn't know about. Pull touches
+	// neither directly (advance adds remote.txt), so the untracked
+	// file should pass through unchanged.
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("user-edit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "scratch.txt"), []byte("untouched"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	advanceBare(t, bare, []string{"remote.txt"}, []string{"r"})
+
+	m := NewManager()
+	if _, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: "seed.txt", Op: "update"}},
+	}); err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(work, "scratch.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "untouched" {
+		t.Errorf("scratch.txt content = %q, want %q (unrelated dirt got clobbered)", string(got), "untouched")
+	}
+}
+
+// TestPullWithStash_RejectsTraversalPaths — a pending entry with ".."
+// must be silently dropped from the snapshot manifest, not allowed to
+// escape the worktree.
+func TestPullWithStash_RejectsTraversalPaths(t *testing.T) {
+	work, bare := pullWithStashFixture(t)
+	advanceBare(t, bare, []string{"remote.txt"}, []string{"r"})
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending: []StashPathPending{
+			{Path: "../escape.txt", Op: "update"},
+			{Path: "/abs/path.txt", Op: "update"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if len(res.Stashed) != 0 {
+		t.Errorf("traversal paths leaked into stash: %v", res.Stashed)
+	}
+}
+
+// TestPullWithStash_AlreadyUpToDate — pending changes exist but the
+// remote is unchanged. Pull is a no-op (ATU); restore returns the
+// stash content (we still wrote the worktree to HEAD before pull,
+// then put it back).
+func TestPullWithStash_AlreadyUpToDate(t *testing.T) {
+	work, _ := pullWithStashFixture(t)
+
+	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("user-edit"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.PullWithStash(PullWithStashOptions{
+		PullOptions: PullOptions{Path: work},
+		Pending:     []StashPathPending{{Path: "seed.txt", Op: "update"}},
+	})
+	if err != nil {
+		t.Fatalf("PullWithStash: %v", err)
+	}
+	if res.Pull == nil || !res.Pull.AlreadyUpToDate {
+		t.Errorf("expected ATU pull, got %+v", res.Pull)
+	}
+	if len(res.Restored) != 1 {
+		t.Errorf("expected stash to round-trip on ATU, got %v", res.Restored)
+	}
+
+	got, err := os.ReadFile(filepath.Join(work, "seed.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "user-edit" {
+		t.Errorf("seed.txt content = %q, want %q", string(got), "user-edit")
+	}
+}

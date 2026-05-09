@@ -160,9 +160,17 @@ const canPull = computed(() => {
 
 // Pulling onto a dirty worktree fails inside go-git with a
 // "worktree contains unstaged changes" error. We intercept the
-// click and pop a clear AlertDialog instead — the user just needs
-// to commit or discard first.
+// click and offer Stash & pull as the primary recovery — the
+// journal's pending set drives which paths are stashed (narrower
+// than `git status`, so external dirt is left alone).
 const pullDirtyOpen = ref(false);
+
+// Conflict dialog: PullWithStash succeeded but pull touched some
+// of the stashed paths under us. Stash content lives in
+// .changes.stash/ for manual recovery.
+const stashConflictOpen = ref(false);
+const stashConflictPaths = ref<string[]>([]);
+const stashConflictDir = ref<string>("");
 
 // Pulling on divergent history (ahead > 0 AND behind > 0) trips
 // go-git's fast-forward-only Pull. Same loud-prompt pattern: warn
@@ -190,9 +198,8 @@ async function push() {
 
 async function pull() {
   if (!canPull.value) return;
-  // Pre-flight: dirty worktree → friendly alert instead of a
-  // confusing backend error. The user must commit or discard
-  // before pulling.
+  // Pre-flight: dirty worktree → offer Stash & pull. The dialog's
+  // confirm path calls pullWithStash; cancel just closes.
   if (status.value && !status.value.clean) {
     pullDirtyOpen.value = true;
     return;
@@ -212,6 +219,36 @@ async function pull() {
       toast.info("workspace.collaboration.pull.up_to_date");
     } else {
       toast.success("workspace.collaboration.pull.success");
+    }
+    await load(false);
+  } catch (err) {
+    toast.error("workspace.collaboration.pull.error", [backendErrMessage(err)]);
+  } finally {
+    pulling.value = false;
+  }
+}
+
+// pullWithStash drives the journal-aware auto-stash flow. The backend
+// reads its own pending set; we just hand it the worktree path. On
+// conflicts we surface a follow-up dialog pointing at .changes.stash/
+// for manual recovery — the file on disk is the remote's version, the
+// stash contains the user's pre-pull content.
+async function pullWithStash() {
+  pullDirtyOpen.value = false;
+  pulling.value = true;
+  try {
+    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
+    const result = await GitSvc.PullWithStash({ path: abs, remote: "origin", pat: "" });
+    if (result?.conflicts && result.conflicts.length > 0) {
+      stashConflictPaths.value = [...result.conflicts];
+      stashConflictDir.value = result.stash_dir ?? "";
+      stashConflictOpen.value = true;
+    } else if (result?.pull?.already_up_to_date) {
+      toast.info("workspace.collaboration.pull.up_to_date");
+    } else {
+      toast.success("workspace.collaboration.pull.stash_success", [
+        String(result?.restored?.length ?? 0),
+      ]);
     }
     await load(false);
   } catch (err) {
@@ -335,11 +372,21 @@ async function confirmDiscard() {
     </FormRow>
   </FormSection>
 
-  <AlertDialog
+  <ConfirmDialog
     :open="pullDirtyOpen"
     :title="t('workspace.collaboration.pull.dirty_title')"
     :message="t('workspace.collaboration.pull.dirty_message')"
-    @close="pullDirtyOpen = false"
+    :confirm-label="t('workspace.collaboration.pull.stash_button')"
+    :cancel-label="t('common.cancel')"
+    @cancel="pullDirtyOpen = false"
+    @confirm="pullWithStash"
+  />
+
+  <AlertDialog
+    :open="stashConflictOpen"
+    :title="t('workspace.collaboration.pull.stash_conflict_title')"
+    :message="t('workspace.collaboration.pull.stash_conflict_message', [stashConflictPaths.join(', '), stashConflictDir])"
+    @close="stashConflictOpen = false"
   />
 
   <AlertDialog

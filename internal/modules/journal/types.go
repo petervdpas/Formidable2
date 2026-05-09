@@ -115,6 +115,23 @@ type Recorder interface {
 	RecordRemoteSeen(backend, version string)
 }
 
+// Reader is the journal's read-only state surface. Sync backends use it
+// for journal-aware flows like auto-stash, where the pull pre-flight
+// needs to know which paths Formidable mutated since the last sync —
+// strictly narrower than reading the on-disk log.
+type Reader interface {
+	Pending(backend string) PendingResult
+}
+
+// Journal combines Recorder + Reader for callers that need both. The
+// git Service uses it: Recorder for post-Push/Pull cursor updates,
+// Reader for PullWithStash's snapshot manifest. *Manager satisfies it
+// directly; tests inject a small fake.
+type Journal interface {
+	Recorder
+	Reader
+}
+
 // EventEmitter is the interface the journal uses to publish change
 // events. The composition root (internal/app) wires a Wails-backed
 // implementation; tests inject a stub. Nil is allowed and silences emit.

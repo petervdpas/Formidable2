@@ -535,6 +535,69 @@ export class RemoteInfo {
 }
 
 /**
+ * StashedPullResult is the outcome of PullWithStash. Pull is the
+ * underlying merge result; Restored lists paths whose stashed content
+ * we re-applied cleanly; Conflicts lists paths where pull moved the
+ * file out from under the stash (the user must resolve manually).
+ * 
+ * On Conflicts != [], the .changes.stash directory is left in place
+ * so the user has a recovery point. On clean restore the directory is
+ * removed.
+ */
+export class StashedPullResult {
+    "pull": PullResult | null;
+    "stashed": string[];
+    "restored": string[];
+    "conflicts": string[];
+    "stash_dir": string;
+
+    /** Creates a new StashedPullResult instance. */
+    constructor($$source: Partial<StashedPullResult> = {}) {
+        if (!("pull" in $$source)) {
+            this["pull"] = null;
+        }
+        if (!("stashed" in $$source)) {
+            this["stashed"] = [];
+        }
+        if (!("restored" in $$source)) {
+            this["restored"] = [];
+        }
+        if (!("conflicts" in $$source)) {
+            this["conflicts"] = [];
+        }
+        if (!("stash_dir" in $$source)) {
+            this["stash_dir"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StashedPullResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StashedPullResult {
+        const $$createField0_0 = $$createType4;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pull" in $$parsedSource) {
+            $$parsedSource["pull"] = $$createField0_0($$parsedSource["pull"]);
+        }
+        if ("stashed" in $$parsedSource) {
+            $$parsedSource["stashed"] = $$createField1_0($$parsedSource["stashed"]);
+        }
+        if ("restored" in $$parsedSource) {
+            $$parsedSource["restored"] = $$createField2_0($$parsedSource["restored"]);
+        }
+        if ("conflicts" in $$parsedSource) {
+            $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
+        }
+        return new StashedPullResult($$parsedSource as Partial<StashedPullResult>);
+    }
+}
+
+/**
  * Status is a JSON-friendly snapshot of a repository's working tree
  * + HEAD position. Mirrors the subset of `git status` that the
  * Collaboration overview surfaces; richer info (per-file diff hunks
@@ -663,3 +726,5 @@ export class Status {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = Remote.createFrom;
 const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = PullResult.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);

@@ -364,3 +364,65 @@ Feature: Git collaboration backend
     And a clone of the bare repo at "client" inside temp
     When I pull from "client" via the service
     Then the pull succeeded
+
+  # ── PullWithStash: journal-aware auto-stash + pull + restore ───────
+  # The journal's Pending(backend) drives which paths to snapshot.
+  # Conflicts (pull moved a path under the stash) are returned in a
+  # dedicated bucket so the UI can offer manual recovery instead of
+  # silently overwriting.
+
+  Scenario: Stash-pull round-trips a user edit when remote touches an unrelated file
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the journal pending for "git" includes "seed.txt" with op "update"
+    And "seed.txt" is rewritten to "user-edit" inside "client"
+    And the bare repo gains another commit
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And pull is not already-up-to-date
+    And the stash result has 0 conflicts
+    And the stash result restored "seed.txt"
+    And file "seed.txt" inside "client" has content "user-edit"
+    And the stash directory is empty in the result
+    And no stash directory exists under "client"
+
+  Scenario: Stash-pull surfaces a conflict when remote also rewrote the file
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the journal pending for "git" includes "seed.txt" with op "update"
+    And "seed.txt" is rewritten to "user-edit" inside "client"
+    And the bare repo rewrites "seed.txt" to "remote-edit"
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And pull is not already-up-to-date
+    And the stash result has 1 conflict
+    And the stash result has "seed.txt" in conflicts
+    And the stash directory is reported
+    And a stashed copy of "seed.txt" exists under "client"
+    And file "seed.txt" inside "client" has content "remote-edit"
+
+  Scenario: Stash-pull with no journal pending degrades to a normal pull
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the bare repo gains another commit
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And pull is not already-up-to-date
+    And the stash result has 0 conflicts
+    And no stash directory exists under "client"
+
+  Scenario: Stash-pull leaves unrelated dirt untouched
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the journal pending for "git" includes "seed.txt" with op "update"
+    And "seed.txt" is rewritten to "user-edit" inside "client"
+    And the file "scratch.txt" exists with content "untouched" inside "client"
+    And the bare repo gains another commit
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And the stash result has 0 conflicts
+    And file "scratch.txt" inside "client" has content "untouched"
