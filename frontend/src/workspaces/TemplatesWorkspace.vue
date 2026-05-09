@@ -22,6 +22,7 @@ import {
   SwitchField,
 } from "../components/fields";
 import { useTemplates, isValidTemplateFilename } from "../composables/useTemplates";
+import { recomputeLevelScopes } from "../utils/fieldScopes";
 import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
@@ -510,6 +511,7 @@ setTopbarMenu(() => [
             chosen-class="dnd-chosen"
             drag-class="dnd-drag"
             item-key="key"
+            @end="recomputeLevelScopes(draft.fields)"
           >
             <template #item="{ element: f, index: i }">
               <li class="field-row" :data-type="f.type">
@@ -519,6 +521,7 @@ setTopbarMenu(() => [
                 <span v-if="f.primary_key" class="badge badge-ok small">PRIMARY</span>
                 <span class="field-row-spacer"></span>
                 <div class="field-row-actions">
+                  <span class="badge badge-level">L{{ f.level_scope ?? 0 }}</span>
                   <button
                     type="button"
                     class="field-action-btn edit"

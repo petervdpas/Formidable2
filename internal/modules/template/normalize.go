@@ -27,6 +27,7 @@ func Normalize(t *Template) {
 	for i := range t.Fields {
 		normalizeField(&t.Fields[i])
 	}
+	t.Fields = assignLevelScopes(t.Fields)
 }
 
 func normalizeField(f *Field) {

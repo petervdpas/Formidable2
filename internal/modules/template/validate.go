@@ -17,6 +17,8 @@ func Validate(t *Template) []ValidationError {
 		}}
 	}
 
+	t.Fields = assignLevelScopes(t.Fields)
+
 	var errs []ValidationError
 
 	if dups := duplicateKeys(t.Fields); len(dups) > 0 {
@@ -46,6 +48,7 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, apiFieldErrors(t.Fields)...)
 	errs = append(errs, unknownTypeErrors(t.Fields)...)
 	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
+	errs = append(errs, expressionItemLevelScopeErrors(t.Fields)...)
 
 	return errs
 }

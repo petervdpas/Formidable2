@@ -26,3 +26,24 @@ func marshalYAML(t *Template) ([]byte, error) {
 func unmarshalYAML(b []byte, t *Template) error {
 	return yaml.Unmarshal(b, t)
 }
+
+func yamlMissingLevelScope(raw []byte) bool {
+	var doc map[string]any
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return false
+	}
+	fieldsAny, ok := doc["fields"].([]any)
+	if !ok {
+		return false
+	}
+	for _, fAny := range fieldsAny {
+		fMap, ok := fAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, has := fMap["level_scope"]; !has {
+			return true
+		}
+	}
+	return false
+}

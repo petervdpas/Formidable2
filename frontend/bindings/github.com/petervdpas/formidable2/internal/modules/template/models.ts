@@ -93,6 +93,7 @@ export class Field {
     "description": string;
     "summary_field"?: string;
     "expression_item": boolean;
+    "level_scope": number;
     "two_column": boolean;
     "collapsible"?: boolean | null;
     "readonly": boolean;
@@ -133,6 +134,9 @@ export class Field {
         if (!("expression_item" in $$source)) {
             this["expression_item"] = false;
         }
+        if (!("level_scope" in $$source)) {
+            this["level_scope"] = 0;
+        }
         if (!("two_column" in $$source)) {
             this["two_column"] = false;
         }
@@ -153,14 +157,14 @@ export class Field {
      * Creates a new Field instance from a string or object.
      */
     static createFrom($$source: any = {}): Field {
-        const $$createField10_0 = $$createType2;
-        const $$createField14_0 = $$createType4;
+        const $$createField11_0 = $$createType2;
+        const $$createField15_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
-            $$parsedSource["options"] = $$createField10_0($$parsedSource["options"]);
+            $$parsedSource["options"] = $$createField11_0($$parsedSource["options"]);
         }
         if ("map" in $$parsedSource) {
-            $$parsedSource["map"] = $$createField14_0($$parsedSource["map"]);
+            $$parsedSource["map"] = $$createField15_0($$parsedSource["map"]);
         }
         return new Field($$parsedSource as Partial<Field>);
     }
@@ -372,6 +376,7 @@ export class Template {
     "sidebar_expression": string;
     "enable_collection": boolean;
     "fields": Field[];
+    "needs_resave": boolean;
 
     /** Creates a new Template instance. */
     constructor($$source: Partial<Template> = {}) {
@@ -395,6 +400,9 @@ export class Template {
         }
         if (!("fields" in $$source)) {
             this["fields"] = [];
+        }
+        if (!("needs_resave" in $$source)) {
+            this["needs_resave"] = false;
         }
 
         Object.assign(this, $$source);

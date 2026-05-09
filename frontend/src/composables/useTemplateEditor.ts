@@ -7,6 +7,7 @@ import type {
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useTemplates } from "./useTemplates";
 import { formatError, type FormattedError } from "../utils/templateValidation";
+import { recomputeLevelScopes } from "../utils/fieldScopes";
 
 // Module-scope singleton — there's at most one template being edited
 // at a time, and several components (workspace, modal, future toolbar)
@@ -29,6 +30,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 const dirty = computed<boolean>(() => {
   if (!draft.value || !selectedTemplate.value) return false;
+  if (draft.value.needs_resave) return true;
   return !deepEqual(draft.value, selectedTemplate.value);
 });
 
@@ -38,6 +40,9 @@ watch(
   selectedTemplate,
   async (t) => {
     draft.value = clone(t);
+    if (draft.value?.fields) {
+      recomputeLevelScopes(draft.value.fields);
+    }
     if (selectedFilename.value) {
       try {
         itemFieldOptions.value = await TemplateSvc.GetItemFields(selectedFilename.value);

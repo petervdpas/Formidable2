@@ -27,6 +27,7 @@ type Template struct {
 	SidebarExpression string  `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
 	EnableCollection  bool    `yaml:"enable_collection,omitempty" json:"enable_collection"`
 	Fields            []Field `yaml:"fields" json:"fields"`
+	NeedsResave       bool    `yaml:"-" json:"needs_resave"`
 }
 
 // Field describes one input in a template. Type-specific properties
@@ -40,6 +41,7 @@ type Field struct {
 	Description    string  `yaml:"description,omitempty" json:"description"`
 	SummaryField   string  `yaml:"summary_field,omitempty" json:"summary_field,omitempty"`
 	ExpressionItem bool    `yaml:"expression_item,omitempty" json:"expression_item"`
+	LevelScope     int     `yaml:"level_scope" json:"level_scope"`
 	TwoColumn      bool    `yaml:"two_column,omitempty" json:"two_column"`
 	Collapsible    *bool   `yaml:"collapsible,omitempty" json:"collapsible,omitempty"`
 	Readonly       bool    `yaml:"readonly,omitempty" json:"readonly"`

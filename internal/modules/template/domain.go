@@ -148,6 +148,7 @@ func (m *Manager) LoadTemplate(name string) (*Template, error) {
 	if t.Filename == "" {
 		t.Filename = name
 	}
+	t.NeedsResave = yamlMissingLevelScope([]byte(raw))
 	return &t, nil
 }
 

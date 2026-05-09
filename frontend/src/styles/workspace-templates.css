@@ -106,6 +106,19 @@
     cursor: not-allowed;
 }
 
+.badge.badge-level {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    line-height: 1.4;
+    background: #ffffff;
+    color: #000000;
+    border-radius: 999px;
+    align-self: center;
+}
+
 /* Builder-button row that hangs below the sidebar_expression
    textarea. Mirrors .generate-template-row layout. */
 .expression-builder-row {
