@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/cucumber/godog v0.15.1
+	github.com/expr-lang/expr v1.17.8
 	github.com/go-git/go-git/v5 v5.19.0
 	github.com/google/uuid v1.6.0
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.84
@@ -33,7 +34,6 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.9.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
-	github.com/expr-lang/expr v1.17.8 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

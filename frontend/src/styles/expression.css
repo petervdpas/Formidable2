@@ -32,16 +32,26 @@
 .expr-italic    { font-style: italic; }
 
 .expr-text-red    { color: #e84e4e; }
-.expr-text-green  { color: #50c878; }
+.expr-text-orange { color: #ff9438; }
 .expr-text-amber  { color: #ffc400; }
+.expr-text-yellow { color: #f5dd5d; }
+.expr-text-green  { color: #50c878; }
+.expr-text-teal   { color: #2bb1a6; }
 .expr-text-blue   { color: #4a90e2; }
 .expr-text-purple { color: #a064dc; }
+.expr-text-pink   { color: #e472b8; }
+.expr-text-gray   { color: #8a93a6; }
 
 .expr-bg-red    { background: rgba(232, 78, 78, 0.18); }
-.expr-bg-green  { background: rgba(80, 200, 120, 0.18); }
+.expr-bg-orange { background: rgba(255, 148, 56, 0.18); }
 .expr-bg-amber  { background: rgba(255, 196, 0, 0.18); }
+.expr-bg-yellow { background: rgba(245, 221, 93, 0.18); }
+.expr-bg-green  { background: rgba(80, 200, 120, 0.18); }
+.expr-bg-teal   { background: rgba(43, 177, 166, 0.18); }
 .expr-bg-blue   { background: rgba(74, 144, 226, 0.18); }
 .expr-bg-purple { background: rgba(160, 100, 220, 0.18); }
+.expr-bg-pink   { background: rgba(228, 114, 184, 0.18); }
+.expr-bg-gray   { background: rgba(138, 147, 166, 0.18); }
 
 /* Per-row evaluation failure pill. The engine sets `Error` on the
  * SidebarItem and the workspace passes `expr-error` in classes;
@@ -51,4 +61,56 @@
   color: var(--color-text-muted, #8a93a6);
   font-style: italic;
   text-decoration: underline dotted #e84e4e;
+}
+
+/* ── Animations ─────────────────────────────────────────────────────
+ * Two utility animations template authors can drop into `classes:`:
+ *   - .expr-blink     → soft attention-grab, opacity pulse (1s cycle)
+ *   - .expr-pulse     → gentler version, scales by 5% on the up-beat
+ *   - .expr-scrolling → marquee-style horizontal scroll for long text
+ *
+ * `prefers-reduced-motion` disables them so users who opted out of
+ * animation in their OS don't get a sidebar full of flashing pills.
+ */
+
+@keyframes expr-blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0.35; }
+}
+.expr-blink {
+  animation: expr-blink 1s ease-in-out infinite;
+}
+
+@keyframes expr-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%      { transform: scale(1.05); opacity: 0.8; }
+}
+.expr-pulse {
+  display: inline-block;            /* transform needs block context */
+  animation: expr-pulse 1.5s ease-in-out infinite;
+  transform-origin: left center;    /* keep left edge anchored */
+}
+
+/* Scrolling: nudges the text left and back via animated text-indent.
+ * Pure-CSS marquee without a wrapper element. Width-bounded so the
+ * effect is visible only when text actually overflows the cell —
+ * short labels just sit still. */
+@keyframes expr-scroll {
+  0%, 15%    { text-indent: 0;     }
+  85%, 100%  { text-indent: -120%; }
+}
+.expr-scrolling {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  animation: expr-scroll 8s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expr-blink,
+  .expr-pulse,
+  .expr-scrolling {
+    animation: none;
+  }
 }
