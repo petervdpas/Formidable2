@@ -188,6 +188,66 @@ func TestRecordRemoteSeen_NoOpOnMissingArgs(t *testing.T) {
 	}
 }
 
+// RecentEntries returns the on-disk log newest-first, respecting limit.
+func TestRecentEntries_NewestFirstWithLimit(t *testing.T) {
+	m, _, root := newTestManager(t)
+	if err := m.Configure(root, "git"); err != nil {
+		t.Fatal(err)
+	}
+	m.RecordOp("create", filepath.Join(root, "templates/a.yaml"), nil)
+	m.RecordOp("update", filepath.Join(root, "templates/a.yaml"), nil)
+	m.RecordOp("delete", filepath.Join(root, "templates/a.yaml"), nil)
+
+	entries := m.RecentEntries(2)
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	// Newest first: delete → update.
+	if entries[0].Op != "delete" {
+		t.Errorf("entries[0].Op = %q, want delete", entries[0].Op)
+	}
+	if entries[1].Op != "update" {
+		t.Errorf("entries[1].Op = %q, want update", entries[1].Op)
+	}
+}
+
+// limit <= 0 returns everything.
+func TestRecentEntries_NoLimitReturnsAll(t *testing.T) {
+	m, _, root := newTestManager(t)
+	if err := m.Configure(root, "git"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		m.RecordOp("create", filepath.Join(root, "templates/x.yaml"), nil)
+	}
+	if got := len(m.RecentEntries(0)); got != 5 {
+		t.Errorf("limit=0 should return all, got %d", got)
+	}
+	if got := len(m.RecentEntries(-1)); got != 5 {
+		t.Errorf("negative limit should return all, got %d", got)
+	}
+}
+
+// Empty log (no recorded ops yet) returns an empty slice, not an error.
+func TestRecentEntries_EmptyLogIsHarmless(t *testing.T) {
+	m, _, root := newTestManager(t)
+	if err := m.Configure(root, "git"); err != nil {
+		t.Fatal(err)
+	}
+	if got := m.RecentEntries(10); len(got) != 0 {
+		t.Errorf("expected empty slice on empty log, got %+v", got)
+	}
+}
+
+// An unconfigured manager (no context) returns an empty slice — same
+// inert-mode contract as Pending.
+func TestRecentEntries_UnconfiguredManager(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if got := m.RecentEntries(10); len(got) != 0 {
+		t.Errorf("expected empty slice when unconfigured, got %+v", got)
+	}
+}
+
 func TestPending_BlankBackendReturnsEmpty(t *testing.T) {
 	m, _, root := newTestManager(t)
 	_ = m.Configure(root, "git")

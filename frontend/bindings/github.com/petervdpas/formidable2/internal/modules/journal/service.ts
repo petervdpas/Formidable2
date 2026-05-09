@@ -37,7 +37,19 @@ export function Pending(backend: string): $CancellablePromise<$models.PendingRes
     });
 }
 
+/**
+ * RecentEntries exposes the journal's recent log entries (newest
+ * first) to the frontend journal-feed view. limit <= 0 returns all.
+ */
+export function RecentEntries(limit: number): $CancellablePromise<$models.Entry[]> {
+    return $Call.ByID(3982303066, limit).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.Cursor.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $$createType0);
 const $$createType2 = $models.PendingResult.createFrom;
+const $$createType3 = $models.Entry.createFrom;
+const $$createType4 = $Create.Array($$createType3);

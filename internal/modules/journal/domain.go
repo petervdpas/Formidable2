@@ -286,6 +286,49 @@ func (m *Manager) RecordRemoteSeen(backend, version string) {
 	})
 }
 
+// RecentEntries returns up to <limit> most-recent log entries, newest
+// first. limit <= 0 means "all". When no context is configured or
+// the log file doesn't exist yet, returns an empty slice (not an
+// error) — matches the inert-mode contract Pending uses.
+//
+// Used by the journal-feed UI: the on-disk log is the canonical
+// chronological view of every mutation + sync that's gone through
+// the system, so a one-shot read is sufficient for a "show me the
+// recent activity" panel. The feed subscribes to `journal:changed`
+// to know when to re-poll.
+func (m *Manager) RecentEntries(limit int) []Entry {
+	ctx := m.contextFolderLocked()
+	if ctx == "" {
+		return []Entry{}
+	}
+	logPath := filepath.Join(ctx, logFileName)
+	if !m.fs.FileExists(logPath) {
+		return []Entry{}
+	}
+	raw, err := m.fs.LoadFile(logPath)
+	if err != nil {
+		m.log.Warn("journal: read log for recent entries failed", "err", err)
+		return []Entry{}
+	}
+	all := make([]Entry, 0, 256)
+	for line := range strings.SplitSeq(raw, "\n") {
+		entry, err := parseLine(line)
+		if err != nil || entry == nil {
+			continue
+		}
+		all = append(all, *entry)
+	}
+	// Reverse in-place: parseLine yielded oldest-first; the feed
+	// wants newest-first.
+	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
+		all[i], all[j] = all[j], all[i]
+	}
+	if limit > 0 && len(all) > limit {
+		all = all[:limit]
+	}
+	return all
+}
+
 // Pending returns the pending changes for the given backend.
 // An empty/unknown backend returns an empty result.
 func (m *Manager) Pending(backend string) PendingResult {

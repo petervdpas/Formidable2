@@ -15,3 +15,7 @@ func (s *Service) Pending(backend string) PendingResult { return s.m.Pending(bac
 
 // Cursor returns the per-backend sync watermarks.
 func (s *Service) Cursor() CursorMap { return s.m.ReadCursor() }
+
+// RecentEntries exposes the journal's recent log entries (newest
+// first) to the frontend journal-feed view. limit <= 0 returns all.
+func (s *Service) RecentEntries(limit int) []Entry { return s.m.RecentEntries(limit) }

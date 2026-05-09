@@ -1,0 +1,89 @@
+/*
+ * journal-feed — Information → Journal Feed workspace.
+ *
+ * VisualGraph itself is generic; this stylesheet styles the row
+ * content (op badge, path, backend pill, version, time) and the
+ * expanded metadata block.
+ */
+
+.journal-feed-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.journal-op {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.journal-op--create   { background: rgba(80, 200, 120, 0.18); color: #50c878; }
+.journal-op--update   { background: rgba(255, 196, 0, 0.18);  color: #ffc400; }
+.journal-op--delete   { background: rgba(232, 78, 78, 0.18);  color: #e84e4e; }
+.journal-op--baseline { background: rgba(120, 144, 232, 0.18); color: #7890e8; }
+.journal-op--sync     { background: rgba(160, 100, 220, 0.18); color: #a064dc; }
+
+.journal-backend-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-accent-bg, rgba(74, 144, 226, 0.15));
+  color: var(--color-accent, #4a90e2);
+  font-size: 0.75em;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.journal-version {
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.85em;
+  color: var(--color-text-muted, #8a93a6);
+  flex-shrink: 0;
+}
+
+.journal-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.85em;
+}
+
+.journal-time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Expanded details — definition list, two-column. */
+
+.journal-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 4px 8px;
+}
+
+.journal-details dt {
+  color: var(--color-text-muted, #8a93a6);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.journal-details dd {
+  margin: 0;
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.journal-mono {
+  font-family: var(--font-monospace, monospace);
+}

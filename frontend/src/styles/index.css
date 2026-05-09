@@ -42,6 +42,7 @@
 @import "./monitor.css";
 @import "./visual-graph.css";
 @import "./commit-graph-view.css";
+@import "./journal-feed.css";
 /* VueDatePicker's vendor CSS first — our overrides in form-date-field.css
    intentionally come AFTER so :root --dp-* mappings to our theme tokens
    win the cascade. */
