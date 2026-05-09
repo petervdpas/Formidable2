@@ -13,7 +13,7 @@ export interface Toast {
 }
 
 export interface ToastOpts {
-  /** Override the auto-dismiss duration in ms. Default: 3000. */
+  /** Override the auto-dismiss duration in ms. Default: 5000. */
   duration?: number;
   /** When true, ignore `duration` and stay until manually dismissed. */
   sticky?: boolean;
@@ -63,7 +63,7 @@ function show(
     lastShown.set(key, now);
   }
 
-  const duration = opts.sticky ? 0 : (opts.duration ?? 3000);
+  const duration = opts.sticky ? 0 : (opts.duration ?? 5000);
   const id = nextId();
   toasts.value = [...toasts.value, { id, variant, text, duration }];
 
