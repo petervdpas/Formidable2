@@ -257,6 +257,94 @@ func (m *Manager) Log(path string, limit int) ([]Commit, error) {
 
 var errStopIter = errors.New("stop iteration")
 
+// CommitChanges returns the file-level diff between the named commit
+// and its first parent. Each entry is {path, status} where status is
+// "A" (added), "M" (modified), "D" (deleted), or "R" (renamed).
+//
+// A root commit (no parents) treats every file as added. Merge
+// commits use the FIRST parent for the diff — the standard "what
+// did this commit change relative to the mainline" interpretation
+// that matches `git show <hash>` output.
+//
+// Pure go-git: object.Tree.Diff handles the per-entry walk; we
+// translate object.Change.Action into the single-letter status.
+func (m *Manager) CommitChanges(path, hash string) ([]ChangeFile, error) {
+	r, err := m.open(path)
+	if err != nil {
+		return nil, fmt.Errorf("git: changes: open: %w", err)
+	}
+	if strings.TrimSpace(hash) == "" {
+		return nil, errors.New("git: changes: hash required")
+	}
+	commit, err := r.CommitObject(plumbing.NewHash(hash))
+	if err != nil {
+		return nil, fmt.Errorf("git: changes: commit %q: %w", hash, err)
+	}
+	tree, err := commit.Tree()
+	if err != nil {
+		return nil, fmt.Errorf("git: changes: tree: %w", err)
+	}
+
+	// Root commit: no parent → every file is added.
+	if commit.NumParents() == 0 {
+		out := []ChangeFile{}
+		_ = tree.Files().ForEach(func(f *object.File) error {
+			out = append(out, ChangeFile{Path: f.Name, Status: "A"})
+			return nil
+		})
+		sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+		return out, nil
+	}
+
+	parent, err := commit.Parent(0)
+	if err != nil {
+		return nil, fmt.Errorf("git: changes: parent: %w", err)
+	}
+	parentTree, err := parent.Tree()
+	if err != nil {
+		return nil, fmt.Errorf("git: changes: parent tree: %w", err)
+	}
+
+	changes, err := parentTree.Diff(tree)
+	if err != nil {
+		return nil, fmt.Errorf("git: changes: diff: %w", err)
+	}
+	out := make([]ChangeFile, 0, len(changes))
+	for _, c := range changes {
+		action, _ := c.Action()
+		var p string
+		switch {
+		case c.To.Name != "" && c.From.Name != "" && c.To.Name != c.From.Name:
+			p = c.To.Name
+		case c.To.Name != "":
+			p = c.To.Name
+		default:
+			p = c.From.Name
+		}
+		status := "M"
+		switch action {
+		case 1: // Insert
+			status = "A"
+		case 2: // Delete
+			status = "D"
+		case 3: // Modify
+			status = "M"
+		}
+		// Rename detection: same blob hash on both sides but different
+		// paths is a rename. Action would be Modify or Insert/Delete
+		// pair — we collapse to "R" when the names differ AND the
+		// blob is identical.
+		if c.From.Name != "" && c.To.Name != "" && c.From.Name != c.To.Name {
+			if !c.From.TreeEntry.Hash.IsZero() && c.From.TreeEntry.Hash == c.To.TreeEntry.Hash {
+				status = "R"
+			}
+		}
+		out = append(out, ChangeFile{Path: p, Status: status})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, nil
+}
+
 // LogGraph returns the same commits Log produces but with each entry
 // enriched with parent hashes (for drawing the DAG edges) and any
 // branch / HEAD refs that point at it (for the row's ref pills).

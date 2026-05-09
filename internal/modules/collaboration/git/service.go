@@ -55,6 +55,9 @@ func (s *Service) Log(path string, limit int) ([]Commit, error)     { return s.m
 func (s *Service) LogGraph(path string, limit int) ([]GraphCommit, error) {
 	return s.m.LogGraph(path, limit)
 }
+func (s *Service) CommitChanges(path, hash string) ([]ChangeFile, error) {
+	return s.m.CommitChanges(path, hash)
+}
 func (s *Service) RemoteInfo(path string) (*RemoteInfo, error)      { return s.m.RemoteInfo(path) }
 func (s *Service) Clone(opts CloneOptions) (*CloneResult, error)    { return s.m.Clone(opts) }
 func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) { return s.m.Commit(opts) }

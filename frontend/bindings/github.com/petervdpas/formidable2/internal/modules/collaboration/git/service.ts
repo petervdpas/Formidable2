@@ -44,6 +44,12 @@ export function Commit(opts: $models.CommitOptions): $CancellablePromise<$models
     });
 }
 
+export function CommitChanges(path: string, hash: string): $CancellablePromise<$models.ChangeFile[]> {
+    return $Call.ByID(3123667240, path, hash).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
 export function Discard(opts: $models.DiscardOptions): $CancellablePromise<void> {
     return $Call.ByID(106030516, opts);
 }
@@ -56,7 +62,7 @@ export function Discard(opts: $models.DiscardOptions): $CancellablePromise<void>
  */
 export function Fetch(opts: $models.FetchOptions): $CancellablePromise<$models.FetchResult | null> {
     return $Call.ByID(3289441430, opts).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -66,13 +72,13 @@ export function IsGitRepo(path: string): $CancellablePromise<boolean> {
 
 export function Log(path: string, limit: number): $CancellablePromise<$models.Commit[]> {
     return $Call.ByID(3722488696, path, limit).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
 export function LogGraph(path: string, limit: number): $CancellablePromise<$models.GraphCommit[]> {
     return $Call.ByID(990960796, path, limit).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -85,7 +91,7 @@ export function LogGraph(path: string, limit: number): $CancellablePromise<$mode
  */
 export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2931175689, opts).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
 }
 
@@ -103,7 +109,7 @@ export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.Pul
  */
 export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$models.StashedPullResult | null> {
     return $Call.ByID(3825927834, opts).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
@@ -116,13 +122,13 @@ export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$m
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType19($result);
     });
 }
 
 export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
     return $Call.ByID(1356102196, path).then(($result: any) => {
-        return $$createType19($result);
+        return $$createType21($result);
     });
 }
 
@@ -132,7 +138,7 @@ export function RepoRoot(path: string): $CancellablePromise<string> {
 
 export function Status(path: string): $CancellablePromise<$models.Status | null> {
     return $Call.ByID(3686552508, path).then(($result: any) => {
-        return $$createType21($result);
+        return $$createType23($result);
     });
 }
 
@@ -143,19 +149,21 @@ const $$createType2 = $models.CloneResult.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
 const $$createType4 = $models.CommitResult.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.FetchResult.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = $models.Commit.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.GraphCommit.createFrom;
+const $$createType6 = $models.ChangeFile.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.FetchResult.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = $models.Commit.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $models.PullResult.createFrom;
-const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $models.StashedPullResult.createFrom;
+const $$createType12 = $models.GraphCommit.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = $models.PullResult.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = $models.PushResult.createFrom;
+const $$createType16 = $models.StashedPullResult.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = $models.RemoteInfo.createFrom;
+const $$createType18 = $models.PushResult.createFrom;
 const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = $models.Status.createFrom;
+const $$createType20 = $models.RemoteInfo.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = $models.Status.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);

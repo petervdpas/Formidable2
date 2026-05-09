@@ -1,46 +1,123 @@
 /*
  * VisualGraph — generic DAG renderer.
  *
- * The component sits with the SVG lane on the left (fixed width) and
- * the row list filling the rest. Rows have a strict height so the
- * SVG dot/line geometry stays in sync with the DOM. Nothing here is
- * git-specific — colors and typography come from theme variables.
+ * Per-row layout: each row owns a fixed-width "lane" column on the
+ * left (line + dot) plus a flex body. The lane's vertical line is
+ * a CSS pseudo-element scoped to the row, so when the body expands
+ * the line stretches with it — no SVG-y-coord recomputation needed.
+ *
+ * The line is drawn into the row's lane track; whether it extends
+ * to the row above / below is controlled by visual-graph__row--lane-above
+ * and visual-graph__row--lane-below (the component sets these based
+ * on each node's parent/child relationship to its neighbors).
  */
 
 .visual-graph {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  align-items: start;
-  /* Allow the parent to scroll vertically; no overflow on the graph
-   * itself so the lane SVG keeps lining up with the rows. */
-  width: 100%;
-}
-
-.visual-graph__lane {
-  display: block;
-  /* Hard-pin to top so the SVG y-coords align with row tops. */
-  align-self: start;
-}
-
-.visual-graph__rows {
   list-style: none;
   margin: 0;
   padding: 0;
+  width: 100%;
 }
 
 .visual-graph__row {
-  height: var(--graph-row-height, 36px);
+  display: flex;
+  align-items: stretch;
+  position: relative;
+}
+
+.visual-graph__lane {
+  flex: 0 0 32px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+/* Continuation line above the dot (when a parent edge crosses this
+ * boundary). Lives at the lane's center column; height is from the
+ * row top down to the dot's center. */
+.visual-graph__row--lane-above .visual-graph__lane::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 50%;
+  left: 50%;
+  width: 2px;
+  background: var(--graph-lane-color);
+  transform: translateX(-50%);
+}
+
+/* Continuation line below the dot (parent-of-next). Stretches all
+ * the way to the row bottom — when a row expands, this stretches
+ * with it because it's bound to the row's height. */
+.visual-graph__row--lane-below .visual-graph__lane::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: var(--graph-lane-color);
+  transform: translateX(-50%);
+}
+
+/* The dot. Centered horizontally in the lane; vertical anchor is
+ * the row's first text-line (so it lines up with the header even
+ * when the body grows). */
+.visual-graph__dot {
+  position: absolute;
+  top: 18px; /* Header line baseline — matches typical 36px row */
+  left: 50%;
+  width: calc(var(--graph-dot-radius) * 2);
+  height: calc(var(--graph-dot-radius) * 2);
+  border-radius: 50%;
+  background: var(--graph-dot-color);
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.visual-graph__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.visual-graph__header {
+  min-height: 36px;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 8px;
-  cursor: pointer;
   border-radius: 4px;
+  cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.visual-graph__row:hover {
+.visual-graph__header:hover {
   background: var(--color-bg-hover, rgba(255, 255, 255, 0.04));
+}
+
+.visual-graph__chevron {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 2px 6px;
+  color: var(--color-text-muted, #8a93a6);
+  flex-shrink: 0;
+}
+
+.visual-graph__chevron-icon {
+  display: inline-block;
+  font-size: 1.2em;
+  transition: transform 0.15s ease-out;
+}
+
+.visual-graph__chevron-icon.is-open {
+  transform: rotate(90deg);
+}
+
+.visual-graph__details {
+  padding: 4px 8px 8px 8px;
 }

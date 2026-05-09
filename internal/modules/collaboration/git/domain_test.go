@@ -471,6 +471,107 @@ func TestLogGraph_ErrorOnNonRepo(t *testing.T) {
 	}
 }
 
+// ─── CommitChanges ────────────────────────────────────────────────────
+
+// CommitChanges treats a root commit (no parents) as "every file added".
+func TestCommitChanges_RootCommitIsAllAdds(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "1", "first")
+	head, _ := r.Head()
+
+	m := NewManager()
+	changes, err := m.CommitChanges(dir, head.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 1 || changes[0].Path != "a.txt" || changes[0].Status != "A" {
+		t.Errorf("expected [{a.txt, A}], got %+v", changes)
+	}
+}
+
+// CommitChanges reports a content edit as "M".
+func TestCommitChanges_ModifiedFile(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+	addCommit(t, dir, r, "a.txt", "v2", "second")
+	head, _ := r.Head()
+
+	m := NewManager()
+	changes, err := m.CommitChanges(dir, head.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 1 || changes[0].Status != "M" {
+		t.Errorf("expected [{a.txt, M}], got %+v", changes)
+	}
+}
+
+// CommitChanges reports a brand-new file (relative to parent) as "A".
+func TestCommitChanges_AddedFile(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+	addCommit(t, dir, r, "b.txt", "new", "added b")
+	head, _ := r.Head()
+
+	m := NewManager()
+	changes, err := m.CommitChanges(dir, head.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 1 || changes[0].Path != "b.txt" || changes[0].Status != "A" {
+		t.Errorf("expected [{b.txt, A}], got %+v", changes)
+	}
+}
+
+// CommitChanges reports a removal as "D".
+func TestCommitChanges_DeletedFile(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "v1", "first")
+	// Stage the deletion via a manual second commit.
+	if err := os.Remove(filepath.Join(dir, "a.txt")); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := r.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Remove("a.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("drop a", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	head, _ := r.Head()
+
+	m := NewManager()
+	changes, err := m.CommitChanges(dir, head.Hash().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) != 1 || changes[0].Status != "D" {
+		t.Errorf("expected [{a.txt, D}], got %+v", changes)
+	}
+}
+
+func TestCommitChanges_EmptyHashRefused(t *testing.T) {
+	dir, _ := newRepo(t)
+	m := NewManager()
+	if _, err := m.CommitChanges(dir, ""); err == nil {
+		t.Error("expected error for empty hash")
+	}
+}
+
+func TestCommitChanges_NonRepo(t *testing.T) {
+	m := NewManager()
+	if _, err := m.CommitChanges(t.TempDir(), "deadbeef"); err == nil {
+		t.Error("expected error for non-repo dir")
+	}
+}
+
+// ─── helpers ─────────────────────────────────────────────────────────
+
 func sliceContains(s []string, want string) bool {
 	for _, v := range s {
 		if v == want {

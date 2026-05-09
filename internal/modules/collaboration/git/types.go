@@ -60,6 +60,18 @@ type Commit struct {
 	Subject string `json:"subject"`
 }
 
+// ChangeFile is one row in CommitChanges' result. Status uses git's
+// standard single-letter codes:
+//   - A: added (file present in commit, absent in parent)
+//   - M: modified (different blob hash from parent)
+//   - D: deleted (file absent in commit, present in parent)
+//   - R: renamed (path changed, content the same — go-git's basic
+//     detection only; no rename/threshold heuristics)
+type ChangeFile struct {
+	Path   string `json:"path"`
+	Status string `json:"status"`
+}
+
 // GraphCommit is a richer Commit shape carrying enough metadata to
 // render a per-row dot-and-line graph view (hashes for the parent
 // edges, refs for the branch-tip pills). Time is RFC3339 in the

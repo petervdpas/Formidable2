@@ -8,6 +8,7 @@ export {
 
 export {
     Branches,
+    ChangeFile,
     CloneOptions,
     CloneResult,
     Commit,

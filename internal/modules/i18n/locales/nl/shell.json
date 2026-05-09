@@ -46,6 +46,7 @@
   "workspace.collaboration.graph.info": "Recente commits op de huidige branch.",
   "workspace.collaboration.graph.empty": "Nog geen commits.",
   "workspace.collaboration.graph.error": "Commit-grafiek kon niet worden geladen: {0}",
+  "workspace.collaboration.graph.no_files": "Geen bestandswijzigingen vastgelegd.",
   "workspace.collaboration.sync.info": "Bekijk de werkboom, commit lokale wijzigingen en push ze naar de remote.",
   "workspace.collaboration.commit.title": "Wijzigingen committen",
   "workspace.collaboration.commit.message": "Commit-bericht",

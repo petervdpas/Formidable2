@@ -41,6 +41,40 @@ export class Branches {
 }
 
 /**
+ * ChangeFile is one row in CommitChanges' result. Status uses git's
+ * standard single-letter codes:
+ *   - A: added (file present in commit, absent in parent)
+ *   - M: modified (different blob hash from parent)
+ *   - D: deleted (file absent in commit, present in parent)
+ *   - R: renamed (path changed, content the same — go-git's basic
+ *     detection only; no rename/threshold heuristics)
+ */
+export class ChangeFile {
+    "path": string;
+    "status": string;
+
+    /** Creates a new ChangeFile instance. */
+    constructor($$source: Partial<ChangeFile> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChangeFile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChangeFile {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ChangeFile($$parsedSource as Partial<ChangeFile>);
+    }
+}
+
+/**
  * CloneOptions describes a clone request. URL and Dest are required;
  * Branch picks an initial checkout (empty = remote's default HEAD).
  * 

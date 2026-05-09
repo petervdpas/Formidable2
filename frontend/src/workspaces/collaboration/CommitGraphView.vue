@@ -3,9 +3,14 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
 import VisualGraph, { type GraphNode } from "../../components/VisualGraph.vue";
+import CommitGraphRow from "../../components/collaboration/CommitGraphRow.vue";
+import CommitFileList from "../../components/collaboration/CommitFileList.vue";
 import { Service as GitSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
-import type { GraphCommit } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git/models";
+import type {
+  GraphCommit,
+  ChangeFile,
+} from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git/models";
 import { useConfig } from "../../composables/useConfig";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
@@ -89,23 +94,36 @@ function refresh() {
   void load();
 }
 
-// Format helpers — pure presentational, kept local to this view.
-function relativeTime(iso: string): string {
-  if (!iso) return "";
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return iso;
-  const diff = Math.max(0, Date.now() - t);
-  const m = Math.round(diff / 60_000);
-  if (m < 1) return t > 0 ? "just now" : iso;
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.round(h / 24);
-  if (d < 30) return `${d}d ago`;
-  const mo = Math.round(d / 30);
-  if (mo < 12) return `${mo}mo ago`;
-  return `${Math.round(mo / 12)}y ago`;
+// Per-commit file list — lazy-loaded on first expand and cached so
+// subsequent expands of the same row reuse the result. Refresh()
+// drops the cache too since the underlying repo state may have
+// shifted (e.g. after a pull).
+const filesByHash = ref<Record<string, ChangeFile[] | "loading" | "error">>({});
+
+async function loadCommitFiles(hash: string) {
+  if (filesByHash.value[hash] && filesByHash.value[hash] !== "error") return;
+  filesByHash.value = { ...filesByHash.value, [hash]: "loading" };
+  try {
+    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
+    const files = await GitSvc.CommitChanges(abs, hash);
+    filesByHash.value = { ...filesByHash.value, [hash]: (files ?? []) as ChangeFile[] };
+  } catch (err) {
+    filesByHash.value = { ...filesByHash.value, [hash]: "error" };
+    toast.error("workspace.collaboration.graph.error", [backendErrMessage(err)]);
+  }
 }
+
+function onExpand(id: string) {
+  void loadCommitFiles(id);
+}
+
+// Drop the file cache when the graph is reloaded — the same hashes
+// can persist but their file content shouldn't be assumed stable
+// (e.g. an amend rewrites; we'd rather re-fetch than show stale data).
+watch(commits, () => {
+  filesByHash.value = {};
+});
+
 </script>
 
 <template>
@@ -131,22 +149,15 @@ function relativeTime(iso: string): string {
   <VisualGraph
     v-else
     :nodes="nodes"
-    @node-click="(id) => void id /* future: open commit detail */"
+    expandable
+    @expand="onExpand"
   >
     <template #default="{ node }">
-      <span class="commit-hash">{{ node.data?.short }}</span>
-      <span class="commit-subject" :title="node.data?.subject">
-        {{ node.data?.subject }}
-      </span>
-      <span
-        v-for="ref in (node.data?.refs ?? [])"
-        :key="ref"
-        class="commit-ref-pill"
-      >
-        {{ ref }}
-      </span>
-      <span class="commit-author muted small">{{ node.data?.author }}</span>
-      <span class="commit-time muted small">{{ relativeTime(node.data?.time ?? '') }}</span>
+      <CommitGraphRow :commit="node.data" />
+    </template>
+
+    <template #details="{ node }">
+      <CommitFileList :files="filesByHash[node.id]" />
     </template>
   </VisualGraph>
 </template>

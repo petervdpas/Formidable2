@@ -46,3 +46,55 @@
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+
+/* Expanded-row file list — rendered by CommitFileList. */
+
+.commit-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.commit-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.commit-file:hover {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.04));
+}
+
+.commit-file-status {
+  display: inline-block;
+  width: 18px;
+  text-align: center;
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.75em;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 1px 0;
+  flex-shrink: 0;
+}
+
+.commit-file-status--A { background: rgba(80, 200, 120, 0.18); color: #50c878; }
+.commit-file-status--M { background: rgba(255, 196, 0, 0.18);  color: #ffc400; }
+.commit-file-status--D { background: rgba(232, 78, 78, 0.18);  color: #e84e4e; }
+.commit-file-status--R { background: rgba(120, 144, 232, 0.18); color: #7890e8; }
+
+.commit-file-path {
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.85em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-files-loading {
+  margin: 0;
+}

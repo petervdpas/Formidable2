@@ -1,20 +1,21 @@
 <script setup lang="ts" generic="T">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
-// VisualGraph is a generic, reusable DAG renderer. It draws a single
-// vertical lane on the left (dot per node + connecting line where
-// adjacent rows are parent/child) and lets the consumer fill the
-// per-row content via a scoped slot. No git-specific knowledge —
-// today it visualises commit history, but the same component can
-// render plugin dependency chains, journal trails, anything else
-// shaped as nodes-with-parent-ids.
+// VisualGraph is a generic, reusable DAG renderer. Each row owns
+// its own lane segment (CSS-driven), so the lane line stretches
+// naturally when a row expands — no SVG-y-coord recomputation.
+// Single-lane v1 (column 0); multi-lane fork/merge rendering is
+// a follow-up.
 //
-// Lane layout (v1): single lane, column 0. We connect successive
-// rows when row[i+1] is a parent of row[i] — the common linear-
-// history case renders cleanly. For branchy histories the row order
-// still reflects topological newest-first; the lane line just
-// becomes a series of disjoint segments (still readable). Multi-
-// lane layout for visible forks/merges is a follow-up.
+// Generic over the per-node `data` payload. The default scoped slot
+// receives `{ node, expanded, toggle }` so consumers can render row
+// content however they like and (when `expandable` is true) include
+// their own chevron / handle that calls `toggle()`. The optional
+// `details` slot is rendered below the row when `expanded` is true.
+//
+// Today this powers Collaboration → Commit Graph; the same component
+// can later render plugin dependency chains, journal trails, or any
+// other parent-id DAG.
 
 export interface GraphNode<TData = unknown> {
   id: string;
@@ -25,17 +26,17 @@ export interface GraphNode<TData = unknown> {
 const props = withDefaults(
   defineProps<{
     nodes: GraphNode<T>[];
-    /** Row height in px. Affects both DOM and SVG line geometry. */
-    rowHeight?: number;
-    /** Lane line color. Defaults to a neutral gray; consumers can override. */
+    /** Lane line color — falls back to a neutral border tone. */
     laneColor?: string;
-    /** Dot fill — same default note. */
+    /** Dot fill — falls back to the theme accent. */
     dotColor?: string;
-    /** Dot radius. */
+    /** Dot radius in px. */
     dotRadius?: number;
+    /** When true, rows expose `toggle` and the `details` slot is
+     *  rendered for expanded rows. Default false. */
+    expandable?: boolean;
   }>(),
   {
-    rowHeight: 36,
     laneColor: "var(--color-border-strong, #5b6377)",
     dotColor: "var(--color-accent, #4a90e2)",
     dotRadius: 5,
@@ -44,34 +45,44 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: "node-click", id: string): void;
+  (e: "expand", id: string): void;
+  (e: "collapse", id: string): void;
 }>();
 
-// laneX and dotCx are kept simple — single-lane v1 always sits at
-// column 0. The component reserves a fixed gutter on the left of
-// each row for the SVG so the slot content lines up consistently.
-const laneX = 16;
+const expandedIds = ref<Set<string>>(new Set());
 
-// segments returns the y-pairs (top → bottom) for the connecting
-// lane lines. A line is drawn between row i and row i+1 when row
-// i+1's id appears in row i's parents — so the line represents
-// "this commit's parent is the one below it".
-const segments = computed(() => {
-  const out: Array<{ y1: number; y2: number }> = [];
-  const half = props.rowHeight / 2;
-  for (let i = 0; i < props.nodes.length - 1; i++) {
-    const cur = props.nodes[i];
-    const next = props.nodes[i + 1];
-    if (cur.parents.includes(next.id)) {
-      out.push({
-        y1: i * props.rowHeight + half,
-        y2: (i + 1) * props.rowHeight + half,
-      });
-    }
+function isExpanded(id: string): boolean {
+  return expandedIds.value.has(id);
+}
+
+function toggle(id: string): void {
+  const next = new Set(expandedIds.value);
+  if (next.has(id)) {
+    next.delete(id);
+    emit("collapse", id);
+  } else {
+    next.add(id);
+    emit("expand", id);
   }
-  return out;
-});
+  expandedIds.value = next;
+}
 
-const totalHeight = computed(() => props.nodes.length * props.rowHeight);
+// The lane indicator for each row is a flex column on the left:
+// a vertical line (CSS pseudo-element fills 100% of row height) +
+// a centered dot (positioned absolutely so expansion doesn't
+// reposition it). Each row connects to the next via the line in
+// the next row when there's a parent/child relationship.
+//
+// Lane drop test: a connecting line continues into row[i+1] when
+// row[i+1].id is in row[i].parents. We reflect that on row[i+1]
+// by adding a CSS class that fills the line above the dot.
+const laneFlags = computed(() => {
+  return props.nodes.map((node, i) => {
+    const above = i > 0 && props.nodes[i - 1].parents.includes(node.id);
+    const below = i < props.nodes.length - 1 && node.parents.includes(props.nodes[i + 1].id);
+    return { above, below };
+  });
+});
 
 function onRowClick(id: string) {
   emit("node-click", id);
@@ -79,43 +90,50 @@ function onRowClick(id: string) {
 </script>
 
 <template>
-  <div class="visual-graph" :style="{ '--graph-row-height': rowHeight + 'px' }">
-    <svg
-      class="visual-graph__lane"
-      :width="laneX * 2"
-      :height="totalHeight"
-      aria-hidden="true"
+  <ul class="visual-graph">
+    <li
+      v-for="(node, i) in nodes"
+      :key="node.id"
+      class="visual-graph__row"
+      :class="{
+        'visual-graph__row--expanded': isExpanded(node.id),
+        'visual-graph__row--lane-above': laneFlags[i].above,
+        'visual-graph__row--lane-below': laneFlags[i].below,
+      }"
     >
-      <line
-        v-for="(seg, i) in segments"
-        :key="i"
-        :x1="laneX"
-        :y1="seg.y1"
-        :x2="laneX"
-        :y2="seg.y2"
-        :stroke="laneColor"
-        stroke-width="2"
-      />
-      <circle
-        v-for="(node, i) in nodes"
-        :key="node.id"
-        :cx="laneX"
-        :cy="i * rowHeight + rowHeight / 2"
-        :r="dotRadius"
-        :fill="dotColor"
-      />
-    </svg>
-    <ul class="visual-graph__rows">
-      <li
-        v-for="node in nodes"
-        :key="node.id"
-        class="visual-graph__row"
-        @click="onRowClick(node.id)"
+      <div
+        class="visual-graph__lane"
+        :style="{
+          '--graph-lane-color': laneColor,
+          '--graph-dot-color': dotColor,
+          '--graph-dot-radius': dotRadius + 'px',
+        }"
       >
-        <slot :node="node">
-          <span class="muted small">{{ node.id }}</span>
-        </slot>
-      </li>
-    </ul>
-  </div>
+        <span class="visual-graph__dot" />
+      </div>
+      <div class="visual-graph__body">
+        <div class="visual-graph__header" @click="onRowClick(node.id)">
+          <button
+            v-if="expandable"
+            type="button"
+            class="visual-graph__chevron"
+            :aria-expanded="isExpanded(node.id)"
+            @click.stop="toggle(node.id)"
+          >
+            <span :class="['visual-graph__chevron-icon', { 'is-open': isExpanded(node.id) }]">›</span>
+          </button>
+          <slot
+            :node="node"
+            :expanded="isExpanded(node.id)"
+            :toggle="() => toggle(node.id)"
+          >
+            <span class="muted small">{{ node.id }}</span>
+          </slot>
+        </div>
+        <div v-if="expandable && isExpanded(node.id)" class="visual-graph__details">
+          <slot name="details" :node="node" />
+        </div>
+      </div>
+    </li>
+  </ul>
 </template>
