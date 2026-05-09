@@ -103,3 +103,72 @@
 .expr-builder-state-row-label {
   font-weight: 500;
 }
+
+/* Rules subsection lives below the Display toggle. Header has the
+ * title + add-rule button on the same line; an empty-state caption
+ * shows until at least one rule is added. */
+.expr-builder-rules {
+  margin-top: 0.9rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-color-faint, rgba(0, 0, 0, 0.06));
+}
+
+.expr-builder-rules-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.expr-builder-rules-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-color, #888);
+}
+
+.expr-builder-rules-empty {
+  margin: 0.3rem 0;
+  font-style: italic;
+}
+
+.expr-builder-rule-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.expr-builder-rule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 5px;
+  background: var(--code-bg, rgba(0, 0, 0, 0.02));
+}
+
+.expr-builder-rule-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted-color, #888);
+}
+
+.expr-builder-rule-remove {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--color-error, #c0392b);
+  padding: 0 0.3rem;
+}

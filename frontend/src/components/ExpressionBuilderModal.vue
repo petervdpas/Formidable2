@@ -60,6 +60,33 @@ const displayAllowed = computed(() => {
   return !!canBeDisplayed.value[selectedKey.value];
 });
 
+// Per-field rules. One field can carry multiple rules; later
+// slices fill in operator + value + styling. Today the row is just
+// a placeholder so the add/remove plumbing has something to bind
+// against.
+type Rule = Record<string, never>;
+const rulesByField = ref<Record<string, Rule[]>>({});
+
+const currentRules = computed<Rule[]>(() => {
+  if (!selectedKey.value) return [];
+  return rulesByField.value[selectedKey.value] ?? [];
+});
+
+function addRule() {
+  if (!selectedKey.value) return;
+  const list = rulesByField.value[selectedKey.value] ?? [];
+  rulesByField.value[selectedKey.value] = [...list, {}];
+}
+
+function removeRule(i: number) {
+  if (!selectedKey.value) return;
+  const list = rulesByField.value[selectedKey.value] ?? [];
+  rulesByField.value[selectedKey.value] = [
+    ...list.slice(0, i),
+    ...list.slice(i + 1),
+  ];
+}
+
 // Configure pane is split into horizontal tabs. State leads — it's
 // where the rules tree lives — and Display is the styling-side
 // second. Order matches the conceptual flow: decide what state the
@@ -104,6 +131,11 @@ const configTabs = computed<TabItem[]>(() => [
     disabled: !stateAvailable.value,
   },
   {
+    id: "date",
+    label: t("workspace.templates.expression_builder.tab.date"),
+    disabled: !isDate.value,
+  },
+  {
     id: "display",
     label: t("workspace.templates.expression_builder.tab.display"),
     disabled: !displayAllowed.value,
@@ -112,11 +144,6 @@ const configTabs = computed<TabItem[]>(() => [
     id: "transform",
     label: t("workspace.templates.expression_builder.tab.transform"),
     disabled: !transformAvailable.value,
-  },
-  {
-    id: "date",
-    label: t("workspace.templates.expression_builder.tab.date"),
-    disabled: !isDate.value,
   },
 ]);
 
@@ -127,8 +154,13 @@ watch(
     // Reset per-field state so a previous open's choices don't bleed
     // into a fresh template selection.
     const flags: Record<string, boolean> = {};
-    for (const f of expressionFields.value) flags[f.key] = false;
+    const rules: Record<string, Rule[]> = {};
+    for (const f of expressionFields.value) {
+      flags[f.key] = false;
+      rules[f.key] = [];
+    }
     canBeDisplayed.value = flags;
+    rulesByField.value = rules;
     selectedKey.value = expressionFields.value[0]?.key ?? "";
     activeTab.value = stateAvailable.value ? "state" : "display";
   },
@@ -232,6 +264,46 @@ function onApply() {
                 :on-label="t('common.on')"
                 :off-label="t('common.off')"
               />
+            </div>
+
+            <div class="expr-builder-rules">
+              <header class="expr-builder-rules-head">
+                <span class="expr-builder-rules-title">
+                  {{ t('workspace.templates.expression_builder.state.rules') }}
+                </span>
+                <button
+                  class="tool-btn"
+                  type="button"
+                  @click="addRule"
+                >
+                  {{ t('workspace.templates.expression_builder.state.add_rule') }}
+                </button>
+              </header>
+
+              <p
+                v-if="currentRules.length === 0"
+                class="muted small expr-builder-rules-empty"
+              >
+                {{ t('workspace.templates.expression_builder.state.rules_empty') }}
+              </p>
+
+              <ul v-else class="expr-builder-rule-list">
+                <li
+                  v-for="(_, i) in currentRules"
+                  :key="i"
+                  class="expr-builder-rule-row"
+                >
+                  <span class="expr-builder-rule-label">
+                    {{ t('workspace.templates.expression_builder.state.rule_n', { n: i + 1 }) }}
+                  </span>
+                  <button
+                    class="expr-builder-rule-remove"
+                    type="button"
+                    :title="t('workspace.templates.expression_builder.state.remove_rule')"
+                    @click="removeRule(i)"
+                  >×</button>
+                </li>
+              </ul>
             </div>
           </template>
         </Tabs>
