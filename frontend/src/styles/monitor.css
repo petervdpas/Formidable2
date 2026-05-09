@@ -1,0 +1,165 @@
+/* Monitor board — tile grid for the Information → Monitoring page.
+   Tiles auto-flow into a responsive grid; each is an inset card
+   matching the workspace's "quiet panel" feel. */
+
+/* 2 columns × n rows. Adding a tile = adding to the configs array;
+   the grid auto-flows the new card into the next slot. minmax(0, 1fr)
+   prevents content from blowing out the column width when a tile
+   contains a wide SVG.
+   On narrow viewports collapse to 1 column so cards stay legible. */
+.monitor-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  gap: 16px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .monitor-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Tiles share a fixed footprint so the grid stays orderly even when
+   one chart has lots of points and another shows two bars. The body
+   fills the remainder; charts inside use width:100% and viewBox so
+   their content scales without losing aspect ratio. */
+.monitor-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  background: var(--color-bg-sunken);
+  border-radius: 8px;
+  color: var(--color-text);
+  min-height: 320px;
+}
+
+/* Drag-and-drop affordance: the title area becomes the handle.
+   The .dnd-handle / .dnd-ghost / .dnd-chosen / .dnd-drag classes are
+   shared with every other dnd-using component (see dnd.css) — this
+   file only adds the per-tile layout, not new dnd visuals. */
+.monitor-tile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* The header's title block IS the handle. Override the global
+   .dnd-handle defaults that target small icon handles (font-size
+   16, opacity 0.7, padding 0 2px) — for a full-width text header we
+   want the inherited typography. */
+.monitor-tile-header .dnd-handle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: inherit;
+  line-height: inherit;
+  opacity: 1;
+  padding: 0;
+}
+
+.monitor-tile-title h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.monitor-tile-desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 2px 0 0;
+}
+
+.monitor-tile-body {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+}
+
+.monitor-empty,
+.monitor-error {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 16px 0 0;
+}
+
+.monitor-error {
+  color: var(--color-danger);
+}
+
+/* Chart shells */
+.monitor-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.monitor-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Axes + grid */
+.monitor-grid {
+  stroke: var(--color-border, rgba(255, 255, 255, 0.08));
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.monitor-axis-label {
+  font-size: 10px;
+  fill: var(--color-text-muted);
+  font-family: var(--font-monospace, monospace);
+}
+
+/* Bars */
+.monitor-bar {
+  fill: var(--color-accent, #5b9cff);
+  fill-opacity: 0.7;
+  rx: 3;
+  ry: 3;
+}
+
+.monitor-bar-label {
+  font-size: 12px;
+  fill: var(--color-text);
+}
+
+.monitor-bar-value {
+  font-size: 11px;
+  fill: var(--color-text-muted);
+  font-family: var(--font-monospace, monospace);
+}
+
+/* Legend */
+.monitor-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.legend-label {
+  color: var(--color-text);
+}

@@ -3,10 +3,12 @@
 
 /**
  * Service is the Wails-bound surface of the Git collaboration
- * backend. Wraps Manager and adds one cross-cutting concern: when
- * the frontend calls Push or Fetch without a PAT, the Service
- * auto-resolves it from the OS keychain via the injected
- * CredentialReader.
+ * backend. Wraps Manager and adds two cross-cutting concerns:
+ *   - when the frontend calls Push/Pull/Fetch without a PAT, the
+ *     Service auto-resolves it from the OS keychain via the injected
+ *     CredentialReader;
+ *   - on success it informs the journal (via journal.Recorder) so
+ *     Pending(git) and the cursor stay accurate.
  * 
  * The keychain is intentionally NOT exposed to the frontend (see
  * the credential.Service comment) so secrets never round-trip
@@ -70,7 +72,10 @@ export function Log(path: string, limit: number): $CancellablePromise<$models.Co
 
 /**
  * Pull fetches + merges the upstream branch. Same keychain auto-fill
- * behavior as Fetch / Push.
+ * behavior as Fetch / Push. On success (including already-up-to-date),
+ * informs the journal that the remote head is at NewHead — pull is
+ * inbound, so no sync marker is appended; only the cursor's version
+ * updates.
  */
 export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2931175689, opts).then(($result: any) => {
@@ -80,7 +85,10 @@ export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.Pul
 
 /**
  * Push sends commits to the named remote. Same keychain auto-fill
- * behavior as Fetch.
+ * behavior as Fetch. On success, informs the journal: an advancing
+ * push records a sync marker (pending clears for git); an
+ * already-up-to-date push records a remote-seen update only (we now
+ * know the remote head, but no outbound sync happened).
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {

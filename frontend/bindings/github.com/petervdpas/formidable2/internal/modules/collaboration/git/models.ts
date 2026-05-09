@@ -378,15 +378,22 @@ export class PullOptions {
 
 /**
  * PullResult mirrors PushResult / FetchResult: AlreadyUpToDate=true
- * means there were no new commits to merge.
+ * means there were no new commits to merge. NewHead is the local
+ * branch's HEAD hash after the pull (== remote HEAD on success);
+ * the journal cursor uses it to record "we've seen the remote at
+ * this version."
  */
 export class PullResult {
     "already_up_to_date": boolean;
+    "new_head": string;
 
     /** Creates a new PullResult instance. */
     constructor($$source: Partial<PullResult> = {}) {
         if (!("already_up_to_date" in $$source)) {
             this["already_up_to_date"] = false;
+        }
+        if (!("new_head" in $$source)) {
+            this["new_head"] = "";
         }
 
         Object.assign(this, $$source);
@@ -438,15 +445,21 @@ export class PushOptions {
 /**
  * PushResult signals whether the push actually advanced the remote.
  * AlreadyUpToDate=true means the remote already had every commit;
- * the UI surfaces this as info, not an error.
+ * the UI surfaces this as info, not an error. NewHead is the local
+ * branch's HEAD hash that's now on the remote (== local HEAD on
+ * success); the journal records it as the post-sync cursor version.
  */
 export class PushResult {
     "already_up_to_date": boolean;
+    "new_head": string;
 
     /** Creates a new PushResult instance. */
     constructor($$source: Partial<PushResult> = {}) {
         if (!("already_up_to_date" in $$source)) {
             this["already_up_to_date"] = false;
+        }
+        if (!("new_head" in $$source)) {
+            this["new_head"] = "";
         }
 
         Object.assign(this, $$source);

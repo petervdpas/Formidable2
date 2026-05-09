@@ -29,6 +29,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
@@ -91,6 +92,7 @@ type App struct {
 	Plugin       *plugin.Service
 	Git          *git.Service
 	Credential   *credential.Service
+	Monitor      *monitor.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -297,7 +299,19 @@ func New(d Deps) (*App, error) {
 	// stoM appears twice — once as Storage (LoadForm), once as Writer
 	// (SaveForm/DeleteForm). Same instance, narrow per-concern interfaces.
 	apiHandler := api.NewHandler(dpM, stoM, stoM, tplM)
+
+	// Monitor module — generic observation surface over Formidable's
+	// internal event streams. JournalSource is the only registered
+	// source for now; future LogSource / RequestSource plug into the
+	// same Manager. Wails service for the in-app Monitoring page,
+	// HTTP handler at /api/monitor/* for external consumers.
+	monitorM := monitor.NewManager()
+	monitorM.Register(monitor.NewJournalSource(jrnM, sysM))
+	monitorHandler := monitor.NewHandler(monitorM)
+
 	top := http.NewServeMux()
+	// Longest-prefix wins: /api/monitor/ takes precedence over /api/.
+	top.Handle("/api/monitor/", monitorHandler)
 	top.Handle("/api/", apiHandler)
 	top.Handle("/", wikiHandler)
 	wikiM.SetHandler(top)
@@ -382,6 +396,7 @@ func New(d Deps) (*App, error) {
 		Plugin:          plugin.NewService(pluginM),
 		Git:             git.NewService(gitM, credentialM, cfgM, jrnM),
 		Credential:      credential.NewService(credentialM),
+		Monitor:         monitor.NewService(monitorM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,

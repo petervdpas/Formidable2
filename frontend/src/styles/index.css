@@ -39,6 +39,7 @@
 @import "./form-link-field.css";
 @import "./form-path-field.css";
 @import "./plugin-command-row.css";
+@import "./monitor.css";
 /* VueDatePicker's vendor CSS first — our overrides in form-date-field.css
    intentionally come AFTER so :root --dp-* mappings to our theme tokens
    win the cascade. */

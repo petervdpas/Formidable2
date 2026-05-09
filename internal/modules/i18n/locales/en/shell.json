@@ -143,7 +143,7 @@
   "workspace.information.app_root": "App root",
   "workspace.information.boot_failed": "Boot failed: {0}",
   "workspace.information.loading": "Loading…",
-  "workspace.information.monitoring.info": "Live request log and per-template usage stats — coming soon.",
+  "workspace.information.monitoring.info": "Live observation surface over the journal, log and request streams. Tiles below render against the registered sources.",
   "workspace.information.monitoring.placeholder": "Monitoring view will land in a later iteration.",
   "workspace.information.section.about": "About this application",
   "workspace.information.section.internal_server": "Internal Server",
