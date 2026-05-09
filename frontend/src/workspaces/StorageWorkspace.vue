@@ -17,6 +17,8 @@ import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
+import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
+import type { SidebarItem } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 
 const { t } = useI18n();
@@ -64,15 +66,42 @@ const templateOptions = computed(() =>
 const summaries = ref<FormSummary[]>([]);
 const listError = ref("");
 
+// Per-row expression results, keyed by record filename. Populated by
+// refreshExpressions after every list refresh when the user has
+// `use_expressions` enabled and the active template has a
+// sidebar_expression. Empty map means "show no sub-label" — either
+// the engine returned ErrNoExpression or the toggle is off.
+const expressionItems = ref<Map<string, SidebarItem>>(new Map());
+
+async function refreshExpressions() {
+  expressionItems.value = new Map();
+  if (!selectedTemplate.value) return;
+  if (!config.value?.use_expressions) return;
+  try {
+    const items = await ExpressionSvc.EvaluateSidebar(selectedTemplate.value);
+    const next = new Map<string, SidebarItem>();
+    for (const it of items) {
+      if (it?.filename) next.set(it.filename, it);
+    }
+    expressionItems.value = next;
+  } catch {
+    // ErrNoExpression and any other failure mean "no sub-label" —
+    // sidebar continues to render the title row unchanged.
+    expressionItems.value = new Map();
+  }
+}
+
 async function refreshList() {
   if (!selectedTemplate.value) {
     summaries.value = [];
+    expressionItems.value = new Map();
     return;
   }
   listError.value = "";
   try {
     await FormSvc.EnsureFormDir(selectedTemplate.value);
     summaries.value = await FormSvc.ListForms(selectedTemplate.value);
+    await refreshExpressions();
     // Drop a stale `selected_data_file` if it doesn't exist in the
     // current template's storage. Without this, switching templates
     // (or coming back later after the form was deleted on disk by
@@ -116,6 +145,13 @@ watch(selectedTemplate, async () => {
   await refreshList();
 }, { immediate: true });
 
+// Live-toggle: flipping use_expressions in Settings re-fetches
+// without a template change. Cheap (one Wails call) and keeps the
+// sidebar reactive so the user sees the effect immediately.
+watch(() => config.value?.use_expressions, async () => {
+  await refreshExpressions();
+});
+
 // ── Selected datafile (persisted in config) ──────────────────────────
 const selectedDataFile = computed<string>({
   get: () => config.value?.selected_data_file ?? "",
@@ -140,6 +176,19 @@ watch(
 
 function pickForm(filename: string) {
   selectedDataFile.value = filename;
+}
+
+// expressionStyle maps the engine's color/bg fields to inline style
+// values. CSS classes are applied separately via :class so authors
+// who prefer named utilities (.expr-bold, .expr-warn) over inline
+// colours don't pay the override cost. Empty strings short-circuit
+// rather than emit `color:` with no value.
+function expressionStyle(item: SidebarItem | undefined): Record<string, string> {
+  if (!item) return {};
+  const style: Record<string, string> = {};
+  if (item.color) style.color = item.color;
+  if (item.bg) style.background = item.bg;
+  return style;
 }
 
 // ── Sidebar filters (chrome only for v1 — patch behaviour later) ────
@@ -453,6 +502,13 @@ setTopbarMenu(() => [
         >
           <span class="form-list-title">{{ s.title || s.filename }}</span>
           <span class="form-list-filename">{{ s.filename }}</span>
+          <span
+            v-if="expressionItems.get(s.filename)"
+            class="form-list-expression"
+            :class="expressionItems.get(s.filename)?.classes"
+            :style="expressionStyle(expressionItems.get(s.filename))"
+            :title="expressionItems.get(s.filename)?.error || undefined"
+          >{{ expressionItems.get(s.filename)?.text }}</span>
         </li>
       </ul>
     </template>

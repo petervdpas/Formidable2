@@ -29,6 +29,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/modules/expression"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
@@ -93,6 +94,7 @@ type App struct {
 	Git          *git.Service
 	Credential   *credential.Service
 	Monitor      *monitor.Service
+	Expression   *expression.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -321,6 +323,15 @@ func New(d Deps) (*App, error) {
 	monitorM.Register(monitor.NewJournalSource(jrnM, sysM))
 	monitorHandler := monitor.NewHandler(monitorM)
 
+	// Expression engine — sandboxed evaluator for sidebar sub-labels
+	// (and future field-default / plugin-command callers). Bridged to
+	// template + storage via tiny adapters defined in this file so
+	// the engine module stays import-clean.
+	expressionM := expression.NewManager(
+		expressionTemplateAdapter{tpl: tplM},
+		expressionStorageAdapter{sto: stoM},
+	)
+
 	top := http.NewServeMux()
 	// Longest-prefix wins: /api/monitor/ takes precedence over /api/.
 	top.Handle("/api/monitor/", monitorHandler)
@@ -409,6 +420,7 @@ func New(d Deps) (*App, error) {
 		Git:             git.NewService(gitM, credentialM, cfgM, jrnM),
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
+		Expression:      expression.NewService(expressionM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,

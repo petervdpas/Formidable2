@@ -1,0 +1,54 @@
+/*
+ * expression — sidebar sub-label utility classes.
+ *
+ * The expression engine returns {text, color, classes} per row; this
+ * sheet defines the chrome (.form-list-expression base) plus a small
+ * set of named utility classes (.expr-bold, .expr-warn, etc.) so
+ * template authors who don't want to ship inline colours can lean on
+ * theme-aware names instead.
+ */
+
+.form-list-expression {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--color-surface, transparent);
+  color: var(--color-text-muted, #8a93a6);
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Named utilities — referenced by template authors via
+ * `{classes: ["expr-bold"]}`. Mirror the original Formidable
+ * vocabulary so old templates keep working after the engine port. */
+
+.expr-bold      { font-weight: 700; }
+.expr-italic    { font-style: italic; }
+
+.expr-text-red    { color: #e84e4e; }
+.expr-text-green  { color: #50c878; }
+.expr-text-amber  { color: #ffc400; }
+.expr-text-blue   { color: #4a90e2; }
+.expr-text-purple { color: #a064dc; }
+
+.expr-bg-red    { background: rgba(232, 78, 78, 0.18); }
+.expr-bg-green  { background: rgba(80, 200, 120, 0.18); }
+.expr-bg-amber  { background: rgba(255, 196, 0, 0.18); }
+.expr-bg-blue   { background: rgba(74, 144, 226, 0.18); }
+.expr-bg-purple { background: rgba(160, 100, 220, 0.18); }
+
+/* Per-row evaluation failure pill. The engine sets `Error` on the
+ * SidebarItem and the workspace passes `expr-error` in classes;
+ * `:title` carries the message for hover-disclosure without nuking
+ * the row. Keeps the failure visible without making it loud. */
+.expr-error {
+  color: var(--color-text-muted, #8a93a6);
+  font-style: italic;
+  text-decoration: underline dotted #e84e4e;
+}
