@@ -7,6 +7,7 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
+import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import {
   Service as TemplateSvc,
@@ -256,6 +257,18 @@ async function applyGenerated(shape: string, opts: GeneratorOptions) {
   }
 }
 
+// ── Expression-builder dialog ────────────────────────────────────────
+// Visual builder for sidebar_expression. One-way: Apply overwrites
+// the textarea. Round-trip parsing of free-form expr-lang is not
+// planned.
+const expressionBuilderOpen = ref(false);
+
+function applyExpressionBuilder(source: string) {
+  expressionBuilderOpen.value = false;
+  if (!draft.value) return;
+  draft.value.sidebar_expression = source;
+}
+
 const deleteFieldName = computed(() => {
   if (!draft.value || deleteIndex.value < 0) return "";
   const f = draft.value.fields[deleteIndex.value];
@@ -453,6 +466,15 @@ setTopbarMenu(() => [
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.sidebar_expression')">
             <TextareaField v-model="draft.sidebar_expression" :rows="3" />
+            <div class="expression-builder-row">
+              <button
+                class="tool-btn"
+                type="button"
+                @click="expressionBuilderOpen = true"
+              >
+                {{ t('workspace.templates.expression_builder.button') }}
+              </button>
+            </div>
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.enable_collection')">
             <div class="collection-toggle">
@@ -591,6 +613,16 @@ setTopbarMenu(() => [
     :open="generateOpen"
     @cancel="generateOpen = false"
     @confirm="(shape, opts) => applyGenerated(shape, opts)"
+  />
+
+  <!-- Expression builder dialog: visual builder for sidebar_expression -->
+  <ExpressionBuilderModal
+    v-if="draft"
+    :open="expressionBuilderOpen"
+    :fields="draft.fields ?? []"
+    :initial="draft.sidebar_expression"
+    @close="expressionBuilderOpen = false"
+    @apply="applyExpressionBuilder"
   />
 </template>
 

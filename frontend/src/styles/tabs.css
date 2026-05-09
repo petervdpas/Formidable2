@@ -32,7 +32,7 @@
     transition: background 80ms linear, color 80ms linear;
 }
 
-.tab:hover:not(.active) {
+.tab:hover:not(.active):not(:disabled) {
     background: var(--color-surface);
 }
 
@@ -47,6 +47,16 @@
     outline-offset: 2px;
 }
 
+/* Disabled tabs render in the strip but read as inert. The dim
+   opacity + not-allowed cursor signal the state without removing the
+   label, so callers can show a tab that's "coming soon" or gated by
+   another setting. The pick() guard in Tabs.vue blocks clicks even
+   if styling is overridden. */
+.tab:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
 /* Pane: thin wrapper holding the active tab's content. Borrows the
    form-section's framed-card look so all editor surfaces feel
    consistent. */
@@ -56,4 +66,50 @@
     background: var(--color-bg);
     padding: var(--space-3) var(--space-4);
     margin: 0 0 var(--space-3);
+}
+
+/* ── Tabs component container ─────────────────────────────────────
+   Tabs.vue wraps its nav + pane in `.tabs-container` so the layout
+   can flip between horizontal (stacked) and vertical (side-by-side)
+   without each call site re-implementing the geometry.
+
+   Horizontal is the default — block flow keeps the strip on top and
+   the pane below, matching the long-standing inline pattern (which
+   PluginsWorkspace still uses without the wrapper). Vertical turns
+   the container into a row and rotates the active-state indicator
+   from a bottom border to a right border. */
+.tabs-container--horizontal {
+    display: block;
+}
+
+.tabs-container--vertical {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-3);
+}
+
+.tabs-container--vertical .tabs {
+    flex: 0 0 auto;
+    flex-direction: column;
+    border-bottom: 0;
+    border-right: 1px solid var(--color-border);
+    margin: 0;
+}
+
+.tabs-container--vertical .tab {
+    text-align: left;
+    border-bottom: 0;
+    border-right: 2px solid transparent;
+    margin-bottom: 0;
+    margin-right: -1px;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.tabs-container--vertical .tab.active {
+    border-right-color: var(--color-accent, var(--color-text));
+}
+
+.tabs-container--vertical .tab-pane {
+    flex: 1 1 auto;
+    margin: 0;
 }

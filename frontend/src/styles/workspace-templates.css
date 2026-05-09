@@ -105,3 +105,11 @@
     opacity: 0.4;
     cursor: not-allowed;
 }
+
+/* Builder-button row that hangs below the sidebar_expression
+   textarea. Mirrors .generate-template-row layout. */
+.expression-builder-row {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: flex-start;
+}

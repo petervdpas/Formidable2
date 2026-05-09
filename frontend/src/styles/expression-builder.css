@@ -1,0 +1,94 @@
+/*
+ * expression-builder — chrome for the visual sidebar-expression
+ * dialog. Two-column grid (list on the left, configure on the right)
+ * with shared fieldset chrome borrowed from GenerateTemplateDialog.
+ */
+
+.expr-builder-warn {
+  margin: 0 0 0.75rem 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  background: rgba(255, 196, 0, 0.12);
+  border-left: 3px solid #ffc400;
+}
+
+.expr-builder-empty {
+  margin: 0.5rem 0;
+}
+
+.expr-builder-fieldset {
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem 0.75rem;
+  margin: 0;
+}
+
+.expr-builder-fieldset legend {
+  padding: 0 0.4rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-color, #888);
+}
+
+.expr-builder-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.expr-builder-list-fieldset,
+.expr-builder-config-fieldset {
+  min-height: 320px;
+}
+
+/* ── Field list ───────────────────────────────────────────────── */
+.expr-builder-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.expr-builder-list-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.expr-builder-list-row:hover {
+  background: var(--accent-bg, rgba(74, 144, 226, 0.06));
+}
+
+.expr-builder-list-row.selected {
+  border-color: var(--accent-color, #4a90e2);
+  background: var(--accent-bg, rgba(74, 144, 226, 0.10));
+}
+
+.expr-builder-list-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.expr-builder-list-label {
+  font-weight: 600;
+}
+
+/* ── Configure pane ───────────────────────────────────────────── */
+.expr-builder-config-empty {
+  margin: 1rem 0;
+  font-style: italic;
+}
