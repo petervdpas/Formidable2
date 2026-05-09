@@ -341,6 +341,74 @@ export class FetchResult {
 }
 
 /**
+ * GraphCommit is a richer Commit shape carrying enough metadata to
+ * render a per-row dot-and-line graph view (hashes for the parent
+ * edges, refs for the branch-tip pills). Time is RFC3339 in the
+ * commit author's stored offset, same as Commit.Time.
+ * 
+ * Refs is the set of local branch names whose tips point at this
+ * commit, plus "HEAD" when the current head sits here. Lets the
+ * frontend render branch pills next to the matching row without a
+ * separate /branches lookup.
+ */
+export class GraphCommit {
+    "hash": string;
+    "short": string;
+    "author": string;
+    "email": string;
+    "time": string;
+    "subject": string;
+    "parents": string[];
+    "refs": string[];
+
+    /** Creates a new GraphCommit instance. */
+    constructor($$source: Partial<GraphCommit> = {}) {
+        if (!("hash" in $$source)) {
+            this["hash"] = "";
+        }
+        if (!("short" in $$source)) {
+            this["short"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("email" in $$source)) {
+            this["email"] = "";
+        }
+        if (!("time" in $$source)) {
+            this["time"] = "";
+        }
+        if (!("subject" in $$source)) {
+            this["subject"] = "";
+        }
+        if (!("parents" in $$source)) {
+            this["parents"] = [];
+        }
+        if (!("refs" in $$source)) {
+            this["refs"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GraphCommit instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GraphCommit {
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("parents" in $$parsedSource) {
+            $$parsedSource["parents"] = $$createField6_0($$parsedSource["parents"]);
+        }
+        if ("refs" in $$parsedSource) {
+            $$parsedSource["refs"] = $$createField7_0($$parsedSource["refs"]);
+        }
+        return new GraphCommit($$parsedSource as Partial<GraphCommit>);
+    }
+}
+
+/**
  * OverriddenPath names a single path where the user's change was
  * silently dropped in favor of pull's content, plus the commit info
  * for whoever made the remote change so the user knows who to contact.

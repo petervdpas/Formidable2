@@ -16,6 +16,7 @@ export {
     DiscardOptions,
     FetchOptions,
     FetchResult,
+    GraphCommit,
     OverriddenPath,
     PullOptions,
     PullResult,

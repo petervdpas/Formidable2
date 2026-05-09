@@ -354,6 +354,132 @@ func TestLog_ErrorOnNonRepo(t *testing.T) {
 	}
 }
 
+// ─── LogGraph ─────────────────────────────────────────────────────────
+
+// LogGraph mirrors Log's ordering and limit semantics, plus per-row
+// Parents and Refs. The first row gets a HEAD pill; the rest carry
+// any local-branch tips that point at them.
+func TestLogGraph_ReturnsCommitsWithParentsAndHeadRef(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "1", "first")
+	addCommit(t, dir, r, "a.txt", "2", "second")
+	addCommit(t, dir, r, "a.txt", "3", "third")
+
+	m := NewManager()
+	commits, err := m.LogGraph(dir, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) != 3 {
+		t.Fatalf("got %d commits, want 3", len(commits))
+	}
+	// Newest first.
+	if commits[0].Subject != "third" || commits[2].Subject != "first" {
+		t.Errorf("order wrong: %+v", []string{commits[0].Subject, commits[1].Subject, commits[2].Subject})
+	}
+	// Linear history: every non-root has exactly one parent. The
+	// root commit has zero parents.
+	if len(commits[0].Parents) != 1 || commits[0].Parents[0] != commits[1].Hash {
+		t.Errorf("third's parent = %v, want [%s]", commits[0].Parents, commits[1].Hash)
+	}
+	if len(commits[1].Parents) != 1 || commits[1].Parents[0] != commits[2].Hash {
+		t.Errorf("second's parent = %v, want [%s]", commits[1].Parents, commits[2].Hash)
+	}
+	if len(commits[2].Parents) != 0 {
+		t.Errorf("first should have no parents, got %v", commits[2].Parents)
+	}
+	// HEAD pill on the topmost commit. Branch name varies (master /
+	// main) — accept either.
+	headRefs := commits[0].Refs
+	if len(headRefs) == 0 {
+		t.Errorf("expected HEAD ref on top commit, got none")
+	} else {
+		got := headRefs[0]
+		if got != "HEAD -> master" && got != "HEAD -> main" {
+			t.Errorf("unexpected HEAD ref %q", got)
+		}
+	}
+}
+
+// A non-current local branch shows up as its own pill on the commit
+// it points at, distinct from the HEAD pill.
+func TestLogGraph_AttachesNonHeadBranchRef(t *testing.T) {
+	dir, r := newRepo(t)
+	addCommit(t, dir, r, "a.txt", "1", "first")
+	addCommit(t, dir, r, "a.txt", "2", "second")
+
+	// Plant a "feature" branch ref pointing at the first (older) commit.
+	head, _ := r.Head()
+	parent, err := r.CommitObject(head.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pp, err := parent.Parent(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Storer.SetReference(plumbing.NewHashReference(plumbing.NewBranchReferenceName("feature"), pp.Hash)); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	commits, err := m.LogGraph(dir, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The OLDER commit (index 1, "first") should carry the "feature"
+	// pill. HEAD pill stays on the newer commit.
+	if !sliceContains(commits[1].Refs, "feature") {
+		t.Errorf("expected 'feature' ref on older commit, got %v", commits[1].Refs)
+	}
+	if sliceContains(commits[0].Refs, "feature") {
+		t.Errorf("'feature' should not be on HEAD commit, got %v", commits[0].Refs)
+	}
+}
+
+func TestLogGraph_RespectsLimit(t *testing.T) {
+	dir, r := newRepo(t)
+	for i := 0; i < 5; i++ {
+		addCommit(t, dir, r, "a.txt", string(rune('a'+i)), "commit")
+	}
+	m := NewManager()
+	commits, err := m.LogGraph(dir, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) != 2 {
+		t.Errorf("got %d commits, want 2", len(commits))
+	}
+}
+
+func TestLogGraph_EmptyRepoReturnsEmpty(t *testing.T) {
+	dir, _ := newRepo(t)
+	m := NewManager()
+	commits, err := m.LogGraph(dir, 0)
+	if err != nil {
+		t.Fatalf("expected nil error on empty repo, got %v", err)
+	}
+	if len(commits) != 0 {
+		t.Errorf("got %d commits on empty repo, want 0", len(commits))
+	}
+}
+
+func TestLogGraph_ErrorOnNonRepo(t *testing.T) {
+	m := NewManager()
+	if _, err := m.LogGraph(t.TempDir(), 0); err == nil {
+		t.Error("expected error for non-repo dir")
+	}
+}
+
+func sliceContains(s []string, want string) bool {
+	for _, v := range s {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
 // ─── RemoteInfo ───────────────────────────────────────────────────────
 
 func TestRemoteInfo_ReturnsAddedRemote(t *testing.T) {

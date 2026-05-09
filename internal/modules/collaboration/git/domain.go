@@ -257,6 +257,102 @@ func (m *Manager) Log(path string, limit int) ([]Commit, error) {
 
 var errStopIter = errors.New("stop iteration")
 
+// LogGraph returns the same commits Log produces but with each entry
+// enriched with parent hashes (for drawing the DAG edges) and any
+// branch / HEAD refs that point at it (for the row's ref pills).
+//
+// limit <= 0 means "all". An empty repo (no HEAD yet) yields an empty
+// slice and no error — matches Log's behavior.
+func (m *Manager) LogGraph(path string, limit int) ([]GraphCommit, error) {
+	r, err := m.open(path)
+	if err != nil {
+		return nil, fmt.Errorf("git: log-graph: open: %w", err)
+	}
+	head, err := r.Head()
+	if errors.Is(err, plumbing.ErrReferenceNotFound) {
+		return []GraphCommit{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("git: log-graph: head: %w", err)
+	}
+
+	// Build a hash → []ref-name map once; the iter loop can then
+	// attach refs to each commit in O(1). HEAD is recorded under its
+	// own bucket so the frontend can highlight the current checkout.
+	refsByHash := map[string][]string{}
+	if head.Name().IsBranch() {
+		hh := head.Hash().String()
+		refsByHash[hh] = append(refsByHash[hh], "HEAD -> "+head.Name().Short())
+	} else {
+		// Detached HEAD — still useful to mark its position.
+		refsByHash[head.Hash().String()] = append(refsByHash[head.Hash().String()], "HEAD")
+	}
+	branches, berr := r.Branches()
+	if berr == nil {
+		_ = branches.ForEach(func(ref *plumbing.Reference) error {
+			h := ref.Hash().String()
+			name := ref.Name().Short()
+			// Skip the bare branch name when HEAD points at it — the
+			// "HEAD -> name" pill already covers it.
+			if head.Name().IsBranch() && head.Name().Short() == name {
+				return nil
+			}
+			refsByHash[h] = append(refsByHash[h], name)
+			return nil
+		})
+	}
+
+	iter, err := r.Log(&gogit.LogOptions{From: head.Hash()})
+	if err != nil {
+		return nil, fmt.Errorf("git: log-graph: log: %w", err)
+	}
+	defer iter.Close()
+
+	out := []GraphCommit{}
+	count := 0
+	if err := iter.ForEach(func(c *object.Commit) error {
+		if limit > 0 && count >= limit {
+			return errStopIter
+		}
+		gc := toGraphCommit(c)
+		gc.Refs = append(gc.Refs, refsByHash[gc.Hash]...)
+		out = append(out, gc)
+		count++
+		return nil
+	}); err != nil && !errors.Is(err, errStopIter) {
+		return nil, fmt.Errorf("git: log-graph: iterate: %w", err)
+	}
+	return out, nil
+}
+
+// toGraphCommit fills hash/short/author/email/time/subject and the
+// parent-hash list. Refs is left nil — LogGraph attaches them after
+// resolving the per-hash ref map.
+func toGraphCommit(c *object.Commit) GraphCommit {
+	subject := c.Message
+	if i := strings.IndexByte(subject, '\n'); i >= 0 {
+		subject = subject[:i]
+	}
+	hash := c.Hash.String()
+	short := hash
+	if len(short) > 7 {
+		short = short[:7]
+	}
+	parents := make([]string, 0, c.NumParents())
+	for _, p := range c.ParentHashes {
+		parents = append(parents, p.String())
+	}
+	return GraphCommit{
+		Hash:    hash,
+		Short:   short,
+		Author:  c.Author.Name,
+		Email:   c.Author.Email,
+		Time:    c.Author.When.Format(time.RFC3339),
+		Subject: strings.TrimSpace(subject),
+		Parents: parents,
+	}
+}
+
 func toCommit(c *object.Commit) Commit {
 	subject := c.Message
 	if i := strings.IndexByte(subject, '\n'); i >= 0 {

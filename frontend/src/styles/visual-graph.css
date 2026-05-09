@@ -1,0 +1,46 @@
+/*
+ * VisualGraph — generic DAG renderer.
+ *
+ * The component sits with the SVG lane on the left (fixed width) and
+ * the row list filling the rest. Rows have a strict height so the
+ * SVG dot/line geometry stays in sync with the DOM. Nothing here is
+ * git-specific — colors and typography come from theme variables.
+ */
+
+.visual-graph {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  align-items: start;
+  /* Allow the parent to scroll vertically; no overflow on the graph
+   * itself so the lane SVG keeps lining up with the rows. */
+  width: 100%;
+}
+
+.visual-graph__lane {
+  display: block;
+  /* Hard-pin to top so the SVG y-coords align with row tops. */
+  align-self: start;
+}
+
+.visual-graph__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.visual-graph__row {
+  height: var(--graph-row-height, 36px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visual-graph__row:hover {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.04));
+}

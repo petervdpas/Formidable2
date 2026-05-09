@@ -60,6 +60,26 @@ type Commit struct {
 	Subject string `json:"subject"`
 }
 
+// GraphCommit is a richer Commit shape carrying enough metadata to
+// render a per-row dot-and-line graph view (hashes for the parent
+// edges, refs for the branch-tip pills). Time is RFC3339 in the
+// commit author's stored offset, same as Commit.Time.
+//
+// Refs is the set of local branch names whose tips point at this
+// commit, plus "HEAD" when the current head sits here. Lets the
+// frontend render branch pills next to the matching row without a
+// separate /branches lookup.
+type GraphCommit struct {
+	Hash    string   `json:"hash"`
+	Short   string   `json:"short"`
+	Author  string   `json:"author"`
+	Email   string   `json:"email"`
+	Time    string   `json:"time"`
+	Subject string   `json:"subject"`
+	Parents []string `json:"parents"`
+	Refs    []string `json:"refs"`
+}
+
 // RemoteInfo wraps the configured remotes for the repo.
 type RemoteInfo struct {
 	Remotes []Remote `json:"remotes"`

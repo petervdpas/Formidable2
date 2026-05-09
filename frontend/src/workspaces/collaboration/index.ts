@@ -2,8 +2,13 @@ import type { Component } from "vue";
 import CurrentService from "./CurrentService.vue";
 import Sync from "./Sync.vue";
 import GitClone from "./GitClone.vue";
+import CommitGraphView from "./CommitGraphView.vue";
 
-export type CollaborationSectionId = "current-service" | "git-sync" | "git-clone";
+export type CollaborationSectionId =
+  | "current-service"
+  | "git-sync"
+  | "git-clone"
+  | "git-graph";
 export type CollaborationBackend = "git" | "gigot";
 
 export interface CollaborationSection {
@@ -30,6 +35,12 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
     id: "git-sync",
     labelKey: "workspace.collaboration.section.sync",
     component: Sync,
+    backend: "git",
+  },
+  {
+    id: "git-graph",
+    labelKey: "workspace.collaboration.section.graph",
+    component: CommitGraphView,
     backend: "git",
   },
   {

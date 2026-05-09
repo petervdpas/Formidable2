@@ -70,6 +70,12 @@ export function Log(path: string, limit: number): $CancellablePromise<$models.Co
     });
 }
 
+export function LogGraph(path: string, limit: number): $CancellablePromise<$models.GraphCommit[]> {
+    return $Call.ByID(990960796, path, limit).then(($result: any) => {
+        return $$createType11($result);
+    });
+}
+
 /**
  * Pull fetches + merges the upstream branch. Same keychain auto-fill
  * behavior as Fetch / Push. On success (including already-up-to-date),
@@ -79,7 +85,7 @@ export function Log(path: string, limit: number): $CancellablePromise<$models.Co
  */
 export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2931175689, opts).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -97,7 +103,7 @@ export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.Pul
  */
 export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$models.StashedPullResult | null> {
     return $Call.ByID(3825927834, opts).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
 }
 
@@ -110,13 +116,13 @@ export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$m
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
 export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
     return $Call.ByID(1356102196, path).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType19($result);
     });
 }
 
@@ -126,7 +132,7 @@ export function RepoRoot(path: string): $CancellablePromise<string> {
 
 export function Status(path: string): $CancellablePromise<$models.Status | null> {
     return $Call.ByID(3686552508, path).then(($result: any) => {
-        return $$createType19($result);
+        return $$createType21($result);
     });
 }
 
@@ -141,13 +147,15 @@ const $$createType6 = $models.FetchResult.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = $models.Commit.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.PullResult.createFrom;
-const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.StashedPullResult.createFrom;
+const $$createType10 = $models.GraphCommit.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $models.PullResult.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $models.PushResult.createFrom;
+const $$createType14 = $models.StashedPullResult.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = $models.RemoteInfo.createFrom;
+const $$createType16 = $models.PushResult.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = $models.Status.createFrom;
+const $$createType18 = $models.RemoteInfo.createFrom;
 const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = $models.Status.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);

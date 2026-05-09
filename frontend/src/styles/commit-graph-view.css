@@ -1,0 +1,48 @@
+/*
+ * commit-graph-view — Collaboration → Commit Graph workspace.
+ *
+ * VisualGraph itself is generic; this stylesheet styles the row
+ * content (hash, subject, ref pills, author, time) that the
+ * workspace fills VisualGraph's slot with.
+ */
+
+.graph-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.commit-hash {
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.85em;
+  color: var(--color-text-muted, #8a93a6);
+  flex-shrink: 0;
+}
+
+.commit-subject {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.commit-ref-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-accent-bg, rgba(74, 144, 226, 0.15));
+  color: var(--color-accent, #4a90e2);
+  font-size: 0.75em;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.commit-author {
+  flex-shrink: 0;
+}
+
+.commit-time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
