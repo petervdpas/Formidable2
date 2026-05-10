@@ -1,5 +1,40 @@
 /* Theme-aware field controls. All values driven by tokens. */
 
+.field-input-wrap {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.field-input-wrap.clearable .field-input {
+    padding-right: 28px;
+}
+
+.field-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    line-height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-muted, #888);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.field-clear:hover {
+    background: var(--input-border, #444);
+    color: var(--color-text, #fff);
+}
+
 .field-input,
 .field-textarea,
 .field-select {

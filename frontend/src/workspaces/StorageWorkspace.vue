@@ -191,13 +191,20 @@ function expressionStyle(item: SidebarItem | undefined): Record<string, string> 
   return style;
 }
 
-// ── Sidebar filters (chrome only for v1 — patch behaviour later) ────
+// ── Sidebar filters ─────────────────────────────────────────────────
 const showAll = ref(false);
 const tagFilter = ref("");
 const visibleSummaries = computed(() => {
-  // Marked-only filter is a no-op until storage exposes flagged in the
-  // summary; the toggle stays so the layout matches the original.
-  return summaries.value;
+  const tokens = tagFilter.value
+    .toLowerCase()
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (tokens.length === 0) return summaries.value;
+  return summaries.value.filter((s) => {
+    const tags = (s.meta?.tags ?? []).map((t) => t.toLowerCase());
+    return tokens.every((tok) => tags.some((tag) => tag.includes(tok)));
+  });
 });
 
 // ── New Entry dialog ─────────────────────────────────────────────────
@@ -482,6 +489,7 @@ setTopbarMenu(() => [
         <TextField
           v-model="tagFilter"
           :placeholder="t('workspace.storage.tag_filter_placeholder')"
+          clearable
         />
       </div>
 
