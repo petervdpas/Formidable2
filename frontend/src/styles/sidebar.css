@@ -18,10 +18,24 @@
 
 /* Two-line variant used by Templates / Profiles / Storage:
    title on top, meta line(s) below. Workspace-specific stylesheets
-   format the meta children. */
+   format the meta children. The card-style border + shadow gives
+   each row enough visual weight to read as a discrete item rather
+   than a flat list line. */
 .sidebar-row--stack {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    padding: 6px var(--space-2);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    margin-bottom: 2px;
+    transition: box-shadow 0.15s ease, transform 0.05s ease;
 }
-.sidebar-row--stack.active { font-weight: normal; } /* title cell handles the bold */
+.sidebar-row--stack:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.sidebar-row--stack.active {
+    font-weight: normal; /* title cell handles the bold */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}

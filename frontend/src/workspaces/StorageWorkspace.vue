@@ -8,6 +8,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
 import { FormSection, SelectField, TextField, SwitchField } from "../components/fields";
 import FormLoopFields from "../components/form-fields/FormLoopFields.vue";
+import StorageListItem from "../components/StorageListItem.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useTemplates } from "../composables/useTemplates";
 import { useFormView } from "../composables/useFormView";
@@ -176,19 +177,6 @@ watch(
 
 function pickForm(filename: string) {
   selectedDataFile.value = filename;
-}
-
-// expressionStyle maps the engine's color/bg fields to inline style
-// values. CSS classes are applied separately via :class so authors
-// who prefer named utilities (.expr-bold, .expr-warn) over inline
-// colours don't pay the override cost. Empty strings short-circuit
-// rather than emit `color:` with no value.
-function expressionStyle(item: SidebarItem | undefined): Record<string, string> {
-  if (!item) return {};
-  const style: Record<string, string> = {};
-  if (item.color) style.color = item.color;
-  if (item.bg) style.background = item.bg;
-  return style;
 }
 
 // ── Sidebar filters ─────────────────────────────────────────────────
@@ -502,22 +490,14 @@ setTopbarMenu(() => [
       </p>
 
       <ul v-else class="form-list">
-        <li
+        <StorageListItem
           v-for="s in visibleSummaries"
           :key="s.filename"
-          :class="['sidebar-row', 'sidebar-row--stack', { active: s.filename === selectedDataFile }]"
-          @click="pickForm(s.filename)"
-        >
-          <span class="form-list-title">{{ s.title || s.filename }}</span>
-          <span class="form-list-filename">{{ s.filename }}</span>
-          <span
-            v-if="expressionItems.get(s.filename)"
-            class="form-list-expression"
-            :class="expressionItems.get(s.filename)?.classes"
-            :style="expressionStyle(expressionItems.get(s.filename))"
-            :title="expressionItems.get(s.filename)?.error || undefined"
-          >{{ expressionItems.get(s.filename)?.text }}</span>
-        </li>
+          :summary="s"
+          :active="s.filename === selectedDataFile"
+          :expression="expressionItems.get(s.filename)"
+          @pick="pickForm"
+        />
       </ul>
     </template>
 

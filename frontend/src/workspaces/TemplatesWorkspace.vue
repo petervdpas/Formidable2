@@ -8,6 +8,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import FieldScopeBadge from "../components/FieldScopeBadge.vue";
+import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import {
@@ -411,17 +412,14 @@ setTopbarMenu(() => [
       </p>
 
       <ul v-else class="template-list">
-        <li
+        <TemplateListItem
           v-for="f in filenames"
           :key="f"
-          :class="['sidebar-row', 'sidebar-row--stack', { active: f === selectedFilename }]"
-          @click="selectedFilename = f"
-        >
-          <span class="template-display">{{ displayName(f) }}</span>
-          <span class="template-meta">
-            <span class="badge small template-filename">{{ f }}</span>
-          </span>
-        </li>
+          :filename="f"
+          :display="displayName(f)"
+          :active="f === selectedFilename"
+          @pick="(name) => (selectedFilename = name)"
+        />
       </ul>
     </template>
 
