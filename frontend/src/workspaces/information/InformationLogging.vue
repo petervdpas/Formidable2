@@ -1,26 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
 import Tabs, { type TabItem } from "../../components/Tabs.vue";
 import { Service as LoggingSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/logging";
 import { Entry } from "../../../bindings/github.com/petervdpas/formidable2/internal/log/models";
+import { useConfig } from "../../composables/useConfig";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
 // Information → Logging. Two horizontal tabs: live tail (in-memory
 // ring fed by the slog Broadcaster + log:entry events) and the raw
-// formidable.log dump. Gating to dev+logging is done by the parent
-// (information/index.ts) so this component only worries about render.
+// formidable.log dump. The entry's visibility is gated by
+// information/index.ts on logging_enabled; in addition, the live-tail
+// tab here requires development_enable since it's the UI-driven view.
 
 const { t } = useI18n();
+const { config } = useConfig();
 const toast = useToast();
 
-const tab = ref<"live" | "raw">("live");
+const devEnabled = computed(() => !!config.value?.development_enable);
+
+const tab = ref<"live" | "raw">(devEnabled.value ? "live" : "raw");
 const tabItems = computed<TabItem[]>(() => [
-  { id: "live", label: t("workspace.information.logging.tab.live") },
+  { id: "live", label: t("workspace.information.logging.tab.live"), disabled: !devEnabled.value },
   { id: "raw",  label: t("workspace.information.logging.tab.raw") },
 ]);
+
+// If dev mode flips off while we're on the live tab, bounce to raw.
+watch(devEnabled, (on) => {
+  if (!on && tab.value === "live") tab.value = "raw";
+});
 
 const entries = ref<Entry[]>([]);
 const rawText = ref<string>("");

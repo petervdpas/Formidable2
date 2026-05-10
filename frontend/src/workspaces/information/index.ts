@@ -30,6 +30,6 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
     id: "logging",
     labelKey: "workspace.information.section.logging",
     component: InformationLogging,
-    available: (cfg) => !!(cfg?.development_enable && cfg?.logging_enabled),
+    available: (cfg) => !!cfg?.logging_enabled,
   },
 ];

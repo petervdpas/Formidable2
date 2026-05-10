@@ -159,7 +159,7 @@
   "workspace.information.section.journal_feed": "Journaalfeed",
   "workspace.information.section.logging": "Logging",
   "workspace.information.logging.info": "Systeem-logstroom. Live tail toont entries die in-process worden uitgezonden; het ruwe bestand is de formidable.log op schijf, die bij elke app-start wordt afgekapt.",
-  "workspace.information.logging.tab.live": "Live tail",
+  "workspace.information.logging.tab.live": "Live stroom",
   "workspace.information.logging.tab.raw": "Ruw logbestand",
   "workspace.information.logging.empty": "Nog geen logregels.",
   "workspace.information.logging.empty_file": "Logbestand is leeg (of bestandlogging staat uit).",
