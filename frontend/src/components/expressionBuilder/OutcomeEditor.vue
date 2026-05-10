@@ -9,7 +9,9 @@
  * the full picker. Keeps the outcome row tight when collapsed and
  * expands only on demand.
  */
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import Popup from "../Popup.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
@@ -23,6 +25,11 @@ const props = defineProps<{
   expressionFields: Field[];
   enumFields: Field[];
 }>();
+
+// Mirrors builder.MaxConcatParts. Wails doesn't expose Go consts so
+// we pin the value here; the backend re-checks at Compile time, so a
+// stale frontend can never sneak past the cap.
+const MAX_PARTS = 5;
 
 const { t } = useI18n();
 
@@ -79,35 +86,87 @@ function hexToBgValue(hex: string): string {
   return `rgba(${r}, ${g}, ${b}, ${BG_TINT_ALPHA})`;
 }
 
-// ── Text source ─────────────────────────────────────────────────
+// ── Text parts ──────────────────────────────────────────────────
+//
+// Outcome's chip text is an ordered list of parts joined with `+`.
+// Each part is one of: literal | field value | option label. The
+// editor migrates the legacy single `outcome.text` field into
+// `outcome.parts` lazily on first edit so existing single-source
+// configs keep working without an explicit upgrade step.
 
-function textKindOf(): string {
-  return props.outcome.text?.kind ?? "";
+function ensureParts(): TextSource[] {
+  if (props.outcome.parts && props.outcome.parts.length > 0) {
+    return props.outcome.parts;
+  }
+  if (props.outcome.text) {
+    props.outcome.parts = [props.outcome.text];
+  } else {
+    props.outcome.parts = [];
+  }
+  props.outcome.text = undefined;
+  return props.outcome.parts;
 }
 
-function textValueOrFieldKey(): string {
-  const ts = props.outcome.text;
-  if (!ts) return "";
-  return ts.kind === TextKind.TextKindLiteral ? (ts.value ?? "") : (ts.fieldKey ?? "");
-}
+// `parts` is a computed view: returns the parts array if present,
+// or wraps the legacy `text` field in a one-element list so the
+// template renders pre-migration outcomes the same as post.
+const parts = computed<TextSource[]>(() => {
+  if (props.outcome.parts && props.outcome.parts.length > 0) return props.outcome.parts;
+  if (props.outcome.text) return [props.outcome.text];
+  return [];
+});
 
-function setTextKind(kind: string) {
-  if (!kind) {
+// Vuedraggable v-model needs a writable computed. Reorder writes
+// the new ordering into outcome.parts and clears the legacy text.
+const partsModel = computed<TextSource[]>({
+  get: () => parts.value,
+  set: (v) => {
+    props.outcome.parts = v.length > 0 ? v : undefined;
     props.outcome.text = undefined;
+  },
+});
+
+function addPart() {
+  if (parts.value.length >= MAX_PARTS) return;
+  const list = ensureParts();
+  list.push(new TextSource({
+    kind: TextKind.TextKindLiteral,
+    value: "",
+    fieldKey: "",
+  }));
+}
+
+function removePart(i: number) {
+  const list = ensureParts();
+  list.splice(i, 1);
+  if (list.length === 0) {
+    props.outcome.parts = undefined;
+  }
+}
+
+function setPartKind(i: number, kind: string) {
+  const list = ensureParts();
+  if (!kind) {
+    removePart(i);
     return;
   }
-  props.outcome.text = new TextSource({
+  list[i] = new TextSource({
     kind: kind as TextKind,
     value: "",
     fieldKey: "",
   });
 }
 
-function setTextValueOrFieldKey(v: string) {
-  const ts = props.outcome.text;
+function setPartValue(i: number, v: string) {
+  const list = ensureParts();
+  const ts = list[i];
   if (!ts) return;
   if (ts.kind === TextKind.TextKindLiteral) ts.value = v;
   else ts.fieldKey = v;
+}
+
+function partValueOrKey(ts: TextSource): string {
+  return ts.kind === TextKind.TextKindLiteral ? (ts.value ?? "") : (ts.fieldKey ?? "");
 }
 
 // ── Color / background ──────────────────────────────────────────
@@ -145,51 +204,85 @@ function classDisplayName(name: string): string {
 
 <template>
   <div class="expr-outcome-grid">
-    <!-- Text -->
-    <label class="expr-outcome-row-label">
+    <!-- Text parts -->
+    <label class="expr-outcome-row-label top">
       {{ t('workspace.templates.expression_builder.outcome.text') }}
     </label>
-    <div class="expr-outcome-row-control">
-      <select
-        class="expr-outcome-text-kind"
-        :value="textKindOf()"
-        @change="setTextKind(($event.target as HTMLSelectElement).value)"
+    <div class="expr-outcome-row-control expr-outcome-text-parts">
+      <button
+        class="tool-btn expr-text-part-add"
+        type="button"
+        :disabled="parts.length >= MAX_PARTS"
+        @click="addPart"
       >
-        <option value="">{{ t('workspace.templates.expression_builder.text_kind.none') }}</option>
-        <option value="literal">{{ t('workspace.templates.expression_builder.text_kind.literal') }}</option>
-        <option value="fieldValue">{{ t('workspace.templates.expression_builder.text_kind.field_value') }}</option>
-        <option value="fieldLabel">{{ t('workspace.templates.expression_builder.text_kind.field_label') }}</option>
-      </select>
-
-      <input
-        v-if="textKindOf() === 'literal'"
-        type="text"
-        class="expr-outcome-text-value"
-        :value="textValueOrFieldKey()"
-        @input="setTextValueOrFieldKey(($event.target as HTMLInputElement).value)"
-      />
-      <select
-        v-else-if="textKindOf() === 'fieldValue'"
-        class="expr-outcome-text-value"
-        :value="textValueOrFieldKey()"
-        @change="setTextValueOrFieldKey(($event.target as HTMLSelectElement).value)"
+        {{ t('workspace.templates.expression_builder.outcome.text_part_add') }}
+      </button>
+      <draggable
+        v-if="parts.length"
+        v-model="partsModel"
+        tag="ul"
+        class="expr-text-part-list"
+        handle=".dnd-handle"
+        :animation="150"
+        ghost-class="dnd-ghost"
+        chosen-class="dnd-chosen"
+        drag-class="dnd-drag"
+        :item-key="(_e: TextSource, i: number) => i"
       >
-        <option value="">—</option>
-        <option v-for="f in expressionFields" :key="f.key" :value="f.key">
-          {{ f.label || f.key }}
-        </option>
-      </select>
-      <select
-        v-else-if="textKindOf() === 'fieldLabel'"
-        class="expr-outcome-text-value"
-        :value="textValueOrFieldKey()"
-        @change="setTextValueOrFieldKey(($event.target as HTMLSelectElement).value)"
-      >
-        <option value="">—</option>
-        <option v-for="f in enumFields" :key="f.key" :value="f.key">
-          {{ f.label || f.key }}
-        </option>
-      </select>
+        <template #item="{ index: i, element: p }">
+          <li class="expr-text-part-row">
+            <span
+              class="dnd-handle"
+              :title="t('workspace.templates.expression_builder.outcome.text_part_reorder')"
+              aria-hidden="true"
+            >⠿</span>
+            <select
+              class="expr-outcome-text-kind"
+              :value="p.kind"
+              @change="setPartKind(i, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="literal">{{ t('workspace.templates.expression_builder.text_kind.literal') }}</option>
+              <option value="fieldValue">{{ t('workspace.templates.expression_builder.text_kind.field_value') }}</option>
+              <option value="fieldLabel">{{ t('workspace.templates.expression_builder.text_kind.field_label') }}</option>
+            </select>
+            <input
+              v-if="p.kind === TextKind.TextKindLiteral"
+              type="text"
+              class="expr-outcome-text-value"
+              :value="partValueOrKey(p)"
+              @input="setPartValue(i, ($event.target as HTMLInputElement).value)"
+            />
+            <select
+              v-else-if="p.kind === TextKind.TextKindFieldValue"
+              class="expr-outcome-text-value"
+              :value="partValueOrKey(p)"
+              @change="setPartValue(i, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">—</option>
+              <option v-for="f in expressionFields" :key="f.key" :value="f.key">
+                {{ f.label || f.key }}
+              </option>
+            </select>
+            <select
+              v-else-if="p.kind === TextKind.TextKindFieldLabel"
+              class="expr-outcome-text-value"
+              :value="partValueOrKey(p)"
+              @change="setPartValue(i, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">—</option>
+              <option v-for="f in enumFields" :key="f.key" :value="f.key">
+                {{ f.label || f.key }}
+              </option>
+            </select>
+            <button
+              class="expr-builder-rule-remove"
+              type="button"
+              :title="t('workspace.templates.expression_builder.outcome.text_part_remove')"
+              @click="removePart(i)"
+            >×</button>
+          </li>
+        </template>
+      </draggable>
     </div>
 
     <!-- Color (popup with 3×3 swatch grid + clear) -->

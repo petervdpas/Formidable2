@@ -233,7 +233,19 @@
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 0.5rem 0.75rem;
-  align-items: center;
+  align-items: start;
+}
+
+/* Single-line rows centre their label against the 1.7rem trigger;
+ * the multi-line text-parts row uses a `.top` modifier so the label
+ * lines up with the "+ Add part" button rather than floating in the
+ * middle of the stack. */
+.expr-outcome-row-label {
+  align-self: center;
+}
+.expr-outcome-row-label.top {
+  align-self: start;
+  padding-top: 0.45rem;
 }
 
 .expr-outcome-row-label {
@@ -256,6 +268,36 @@
 .expr-outcome-text-value {
   flex: 1;
   min-width: 8rem;
+}
+
+/* Parts list — vertical stack of rows, each row laid out as
+ * [drag handle] [kind] [value picker] [remove ×]. The Add button
+ * sits below the list as a quiet tool-btn, disabled at MAX_PARTS. */
+.expr-outcome-text-parts {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.expr-text-part-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.expr-text-part-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.expr-text-part-add {
+  align-self: flex-start;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
 }
 
 /* Color / bg trigger button — preview swatch that opens the picker
