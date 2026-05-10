@@ -71,6 +71,30 @@ func walkTopLevel(node ast.Node, cfg *Config) error {
 	return walkTopLevel(cn.Exp2, cfg)
 }
 
+// fieldKeyOf extracts a field key from either an `IdentifierNode`
+// (bare-identifier reference) or a `MemberNode{$env, StringNode}`
+// ($env["hyphenated-key"] map-lookup form). All callers that read a
+// field-key from the AST go through this so hyphenated keys round-
+// trip identically to plain identifiers.
+func fieldKeyOf(node ast.Node) (string, bool) {
+	if id, ok := node.(*ast.IdentifierNode); ok {
+		return id.Value, true
+	}
+	mn, ok := node.(*ast.MemberNode)
+	if !ok {
+		return "", false
+	}
+	id, ok := mn.Node.(*ast.IdentifierNode)
+	if !ok || id.Value != "$env" {
+		return "", false
+	}
+	sn, ok := mn.Property.(*ast.StringNode)
+	if !ok {
+		return "", false
+	}
+	return sn.Value, true
+}
+
 // ── Predicate clause ────────────────────────────────────────────
 
 func parsePredicateClause(node ast.Node) ([]Predicate, error) {
@@ -117,20 +141,20 @@ func parsePredicateClause(node ast.Node) ([]Predicate, error) {
 }
 
 func parseSinglePredicate(node ast.Node) (Predicate, error) {
-	// Bare identifier → boolean rule with value=true.
-	if id, ok := node.(*ast.IdentifierNode); ok {
+	// Bare identifier or $env-lookup → boolean rule with value=true.
+	if key, ok := fieldKeyOf(node); ok {
 		t := true
-		return Predicate{Kind: KindBoolean, FieldKey: id.Value, BoolValue: &t}, nil
+		return Predicate{Kind: KindBoolean, FieldKey: key, BoolValue: &t}, nil
 	}
 
-	// !<id> → boolean rule with value=false.
+	// !<ref> → boolean rule with value=false.
 	if un, ok := node.(*ast.UnaryNode); ok && un.Operator == "!" {
-		id, ok := un.Node.(*ast.IdentifierNode)
+		key, ok := fieldKeyOf(un.Node)
 		if !ok {
-			return Predicate{}, fmt.Errorf("! applied to non-identifier")
+			return Predicate{}, fmt.Errorf("! applied to non-field-reference")
 		}
 		f := false
-		return Predicate{Kind: KindBoolean, FieldKey: id.Value, BoolValue: &f}, nil
+		return Predicate{Kind: KindBoolean, FieldKey: key, BoolValue: &f}, nil
 	}
 
 	// Binary comparison: enum / number / dateGt-dateLt.
@@ -149,16 +173,16 @@ func parseSinglePredicate(node ast.Node) (Predicate, error) {
 func parseBinaryPredicate(bn *ast.BinaryNode) (Predicate, error) {
 	op := bn.Operator
 
-	// dateGt / dateLt: ageInDays(<id>) > N or < N.
+	// dateGt / dateLt: ageInDays(<ref>) > N or < N.
 	if op == ">" || op == "<" {
 		if call, ok := bn.Left.(*ast.CallNode); ok {
 			if id, ok := call.Callee.(*ast.IdentifierNode); ok && id.Value == "ageInDays" {
 				if len(call.Arguments) != 1 {
 					return Predicate{}, fmt.Errorf("ageInDays needs exactly one arg")
 				}
-				fieldId, ok := call.Arguments[0].(*ast.IdentifierNode)
+				fieldKey, ok := fieldKeyOf(call.Arguments[0])
 				if !ok {
-					return Predicate{}, fmt.Errorf("ageInDays arg not identifier")
+					return Predicate{}, fmt.Errorf("ageInDays arg not field reference")
 				}
 				argInt, ok := bn.Right.(*ast.IntegerNode)
 				if !ok {
@@ -169,23 +193,23 @@ func parseBinaryPredicate(bn *ast.BinaryNode) (Predicate, error) {
 				if op == "<" {
 					dop = DateOpDateLt
 				}
-				return Predicate{Kind: KindDate, FieldKey: fieldId.Value, DateOp: dop, DateArg: &arg}, nil
+				return Predicate{Kind: KindDate, FieldKey: fieldKey, DateOp: dop, DateArg: &arg}, nil
 			}
 		}
 	}
 
-	// <id> <op> <literal>
-	id, ok := bn.Left.(*ast.IdentifierNode)
+	// <ref> <op> <literal>
+	key, ok := fieldKeyOf(bn.Left)
 	if !ok {
-		return Predicate{}, fmt.Errorf("binary LHS not identifier (op %q)", op)
+		return Predicate{}, fmt.Errorf("binary LHS not field reference (op %q)", op)
 	}
 
 	if str, ok := bn.Right.(*ast.StringNode); ok {
 		switch op {
 		case "==":
-			return Predicate{Kind: KindEnum, FieldKey: id.Value, EnumOp: EnumOpEquals, EnumValues: []string{str.Value}}, nil
+			return Predicate{Kind: KindEnum, FieldKey: key, EnumOp: EnumOpEquals, EnumValues: []string{str.Value}}, nil
 		case "!=":
-			return Predicate{Kind: KindEnum, FieldKey: id.Value, EnumOp: EnumOpNotEquals, EnumValues: []string{str.Value}}, nil
+			return Predicate{Kind: KindEnum, FieldKey: key, EnumOp: EnumOpNotEquals, EnumValues: []string{str.Value}}, nil
 		}
 	}
 	if num, ok := numberValueOf(bn.Right); ok {
@@ -207,9 +231,9 @@ func parseBinaryPredicate(bn *ast.BinaryNode) (Predicate, error) {
 			return Predicate{}, fmt.Errorf("unrecognised number op %q", op)
 		}
 		v := num
-		return Predicate{Kind: KindNumber, FieldKey: id.Value, NumberOp: nop, NumberValue: &v}, nil
+		return Predicate{Kind: KindNumber, FieldKey: key, NumberOp: nop, NumberValue: &v}, nil
 	}
-	return Predicate{}, fmt.Errorf("unrecognised binary predicate %q on %q", op, id.Value)
+	return Predicate{}, fmt.Errorf("unrecognised binary predicate %q on %q", op, key)
 }
 
 func parseDateCall(cn *ast.CallNode) (Predicate, error) {
@@ -229,11 +253,11 @@ func parseDateCall(cn *ast.CallNode) (Predicate, error) {
 	if len(cn.Arguments) < 1 || len(cn.Arguments) > 2 {
 		return Predicate{}, fmt.Errorf("date helper %q has %d args (want 1 or 2)", id.Value, len(cn.Arguments))
 	}
-	fieldId, ok := cn.Arguments[0].(*ast.IdentifierNode)
+	fieldKey, ok := fieldKeyOf(cn.Arguments[0])
 	if !ok {
-		return Predicate{}, fmt.Errorf("date helper field arg not identifier")
+		return Predicate{}, fmt.Errorf("date helper field arg not field reference")
 	}
-	p := Predicate{Kind: KindDate, FieldKey: fieldId.Value, DateOp: op}
+	p := Predicate{Kind: KindDate, FieldKey: fieldKey, DateOp: op}
 	if len(cn.Arguments) == 2 {
 		n, ok := cn.Arguments[1].(*ast.IntegerNode)
 		if !ok {
@@ -256,17 +280,17 @@ func parseEnumEqualsGroup(leaves []ast.Node) (Predicate, error) {
 		if !ok || eb.Operator != "==" {
 			return Predicate{}, fmt.Errorf("|| leaf %d not ==", i)
 		}
-		id, ok := eb.Left.(*ast.IdentifierNode)
+		key, ok := fieldKeyOf(eb.Left)
 		if !ok {
-			return Predicate{}, fmt.Errorf("|| leaf %d LHS not identifier", i)
+			return Predicate{}, fmt.Errorf("|| leaf %d LHS not field reference", i)
 		}
 		str, ok := eb.Right.(*ast.StringNode)
 		if !ok {
 			return Predicate{}, fmt.Errorf("|| leaf %d RHS not string", i)
 		}
 		if i == 0 {
-			fieldKey = id.Value
-		} else if id.Value != fieldKey {
+			fieldKey = key
+		} else if key != fieldKey {
 			return Predicate{}, fmt.Errorf("|| group has mixed fields")
 		}
 		values = append(values, str.Value)
@@ -285,17 +309,17 @@ func parseEnumNotEqualsGroup(leaves []ast.Node) (Predicate, error) {
 		if !ok || eb.Operator != "!=" {
 			return Predicate{}, fmt.Errorf("&& leaf %d not !=", i)
 		}
-		id, ok := eb.Left.(*ast.IdentifierNode)
+		key, ok := fieldKeyOf(eb.Left)
 		if !ok {
-			return Predicate{}, fmt.Errorf("&& leaf %d LHS not identifier", i)
+			return Predicate{}, fmt.Errorf("&& leaf %d LHS not field reference", i)
 		}
 		str, ok := eb.Right.(*ast.StringNode)
 		if !ok {
 			return Predicate{}, fmt.Errorf("&& leaf %d RHS not string", i)
 		}
 		if i == 0 {
-			fieldKey = id.Value
-		} else if id.Value != fieldKey {
+			fieldKey = key
+		} else if key != fieldKey {
 			return Predicate{}, fmt.Errorf("&& group has mixed fields")
 		}
 		values = append(values, str.Value)
@@ -406,8 +430,8 @@ func parseTextSource(node ast.Node) (*TextSource, error) {
 	if sn, ok := node.(*ast.StringNode); ok {
 		return &TextSource{Kind: TextKindLiteral, Value: sn.Value}, nil
 	}
-	if id, ok := node.(*ast.IdentifierNode); ok {
-		return &TextSource{Kind: TextKindFieldValue, FieldKey: id.Value}, nil
+	if key, ok := fieldKeyOf(node); ok {
+		return &TextSource{Kind: TextKindFieldValue, FieldKey: key}, nil
 	}
 	if cn, ok := node.(*ast.ConditionalNode); ok {
 		return parseFieldLabelTernary(cn)
@@ -428,11 +452,10 @@ func parseFieldLabelTernary(n *ast.ConditionalNode) (*TextSource, error) {
 	if !ok || bin.Operator != "==" {
 		return nil, fmt.Errorf("fieldLabel: cond not == binary")
 	}
-	keyId, ok := bin.Left.(*ast.IdentifierNode)
+	fieldKey, ok := fieldKeyOf(bin.Left)
 	if !ok {
-		return nil, fmt.Errorf("fieldLabel: cond LHS not identifier")
+		return nil, fmt.Errorf("fieldLabel: cond LHS not field reference")
 	}
-	fieldKey := keyId.Value
 	if err := walkFieldLabelChain(ast.Node(n), fieldKey); err != nil {
 		return nil, err
 	}
@@ -442,10 +465,11 @@ func parseFieldLabelTernary(n *ast.ConditionalNode) (*TextSource, error) {
 func walkFieldLabelChain(n ast.Node, fieldKey string) error {
 	cn, ok := n.(*ast.ConditionalNode)
 	if !ok {
-		// Terminal: must be `<fieldKey>` — the bare-identifier
-		// fallthrough Compile emits when no option matches.
-		id, ok := n.(*ast.IdentifierNode)
-		if !ok || id.Value != fieldKey {
+		// Terminal: must reference the same field — the
+		// bare-identifier (or $env-lookup) fallthrough Compile emits
+		// when no option matches.
+		key, ok := fieldKeyOf(n)
+		if !ok || key != fieldKey {
 			return fmt.Errorf("fieldLabel: terminal else not %q", fieldKey)
 		}
 		return nil
@@ -454,8 +478,8 @@ func walkFieldLabelChain(n ast.Node, fieldKey string) error {
 	if !ok || bin.Operator != "==" {
 		return fmt.Errorf("fieldLabel: cond not == binary")
 	}
-	id, ok := bin.Left.(*ast.IdentifierNode)
-	if !ok || id.Value != fieldKey {
+	key, ok := fieldKeyOf(bin.Left)
+	if !ok || key != fieldKey {
 		return fmt.Errorf("fieldLabel: cond LHS field changed")
 	}
 	if _, ok := bin.Right.(*ast.StringNode); !ok {

@@ -285,6 +285,91 @@ func TestParse_UserWorkedExample(t *testing.T) {
 	})
 }
 
+// ── Hyphenated keys round-trip via $env ─────────────────────────
+
+func TestParse_HyphenKeyBoolean(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("has-license", true)},
+			Outcome:    Outcome{Color: "green"},
+		}},
+	}
+	roundTrip(t, "hyphen-bool-true", cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
+}
+
+func TestParse_HyphenKeyBooleanNegated(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("has-license", false)},
+			Outcome:    Outcome{Color: "red"},
+		}},
+	}
+	roundTrip(t, "hyphen-bool-false", cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
+}
+
+func TestParse_HyphenKeyEnum(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predEnum("payment-status", EnumOpEquals, "paid", "due")},
+			Outcome:    Outcome{Color: "green"},
+		}},
+	}
+	roundTrip(t, "hyphen-enum-multi", cfg, []FieldRef{
+		{Key: "payment-status", Type: "dropdown", Options: []FieldOption{{Value: "paid"}, {Value: "due"}}},
+	})
+}
+
+func TestParse_HyphenKeyNumber(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predNumber("score-total", NumberOpGt, 10)},
+			Outcome:    Outcome{Color: "orange"},
+		}},
+	}
+	roundTrip(t, "hyphen-number", cfg, []FieldRef{{Key: "score-total", Type: "number"}})
+}
+
+func TestParse_HyphenKeyDateHelper(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDate("due-date", DateOpIsOverdue)},
+			Outcome:    Outcome{Color: "red"},
+		}},
+	}
+	roundTrip(t, "hyphen-date-helper", cfg, []FieldRef{{Key: "due-date", Type: "date"}})
+}
+
+func TestParse_HyphenKeyDateGt(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDateArg("due-date", DateOpDateGt, 30)},
+			Outcome:    Outcome{Color: "red"},
+		}},
+	}
+	roundTrip(t, "hyphen-date-gt", cfg, []FieldRef{{Key: "due-date", Type: "date"}})
+}
+
+func TestParse_HyphenKeyTextValue(t *testing.T) {
+	cfg := Config{Default: Outcome{Text: textValue("street-address")}}
+	roundTrip(t, "hyphen-text-value", cfg, []FieldRef{{Key: "street-address", Type: "text"}})
+}
+
+func TestParse_HyphenKeyTextLabel(t *testing.T) {
+	cfg := Config{Default: Outcome{Text: textLabel("payment-status")}}
+	roundTrip(t, "hyphen-text-label", cfg, []FieldRef{
+		{Key: "payment-status", Type: "dropdown", Options: []FieldOption{
+			{Value: "paid", Label: "Paid"},
+			{Value: "due", Label: "Outstanding"},
+		}},
+	})
+}
+
 // ── Unhappy paths ───────────────────────────────────────────────
 
 func TestParse_RejectsInvalidExprLang(t *testing.T) {

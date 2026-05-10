@@ -100,15 +100,16 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 		return "", fmt.Errorf("predicate on field %q has kind %q but field type %q expects %q", key, p.Kind, f.Type, wantKind)
 	}
 
+	ref := idRef(key)
 	switch p.Kind {
 	case KindBoolean:
 		if p.BoolValue == nil {
 			return "", fmt.Errorf("boolean predicate on %q missing value", key)
 		}
 		if *p.BoolValue {
-			return key, nil
+			return ref, nil
 		}
-		return "!" + key, nil
+		return "!" + ref, nil
 
 	case KindEnum:
 		if len(p.EnumValues) == 0 {
@@ -125,7 +126,7 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 		}
 		terms := make([]string, len(p.EnumValues))
 		for i, v := range p.EnumValues {
-			terms[i] = fmt.Sprintf("%s %s %s", key, op, jsonString(v))
+			terms[i] = fmt.Sprintf("%s %s %s", ref, op, jsonString(v))
 		}
 		if len(terms) == 1 {
 			return terms[0], nil
@@ -142,32 +143,28 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 		default:
 			return "", fmt.Errorf("number predicate on %q has invalid op %q", key, p.NumberOp)
 		}
-		return fmt.Sprintf("%s %s %s", key, p.NumberOp, formatFloat(*p.NumberValue)), nil
+		return fmt.Sprintf("%s %s %s", ref, p.NumberOp, formatFloat(*p.NumberValue)), nil
 
 	case KindDate:
 		if p.DateOp == "" {
 			return "", fmt.Errorf("date predicate on %q missing op", key)
 		}
-		// dateGt / dateLt express "date is older / newer than N days"
-		// in user-facing terms. There is no helper by that name; we
-		// emit ageInDays(<key>) > N (and < N) which uses the engine's
-		// real age helper. All other ops are direct helper calls.
 		switch p.DateOp {
 		case DateOpDateGt:
 			if p.DateArg == nil {
 				return "", fmt.Errorf("date predicate on %q missing arg for %s", key, p.DateOp)
 			}
-			return fmt.Sprintf("ageInDays(%s) > %d", key, *p.DateArg), nil
+			return fmt.Sprintf("ageInDays(%s) > %d", ref, *p.DateArg), nil
 		case DateOpDateLt:
 			if p.DateArg == nil {
 				return "", fmt.Errorf("date predicate on %q missing arg for %s", key, p.DateOp)
 			}
-			return fmt.Sprintf("ageInDays(%s) < %d", key, *p.DateArg), nil
+			return fmt.Sprintf("ageInDays(%s) < %d", ref, *p.DateArg), nil
 		}
 		if p.DateArg != nil {
-			return fmt.Sprintf("%s(%s, %d)", p.DateOp, key, *p.DateArg), nil
+			return fmt.Sprintf("%s(%s, %d)", p.DateOp, ref, *p.DateArg), nil
 		}
-		return fmt.Sprintf("%s(%s)", p.DateOp, key), nil
+		return fmt.Sprintf("%s(%s)", p.DateOp, ref), nil
 	}
 	return "", fmt.Errorf("unknown predicate kind %q", p.Kind)
 }
@@ -213,7 +210,7 @@ func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 		if strings.TrimSpace(ts.FieldKey) == "" {
 			return "", fmt.Errorf("fieldValue text source missing fieldKey")
 		}
-		return ts.FieldKey, nil
+		return idRef(ts.FieldKey), nil
 	case TextKindFieldLabel:
 		key := strings.TrimSpace(ts.FieldKey)
 		if key == "" {
@@ -221,9 +218,7 @@ func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 		}
 		f, ok := fields[key]
 		if !ok || len(f.Options) == 0 {
-			// Graceful fallback: bare reference. UI gates fieldLabel
-			// to enum fields, so this only fires on stale state.
-			return key, nil
+			return idRef(key), nil
 		}
 		return bakeOptionLookup(key, f.Options), nil
 	}
@@ -236,13 +231,14 @@ func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 //
 //   key == "v1" ? "L1" : (key == "v2" ? "L2" : key)
 func bakeOptionLookup(key string, opts []FieldOption) string {
-	tail := key
+	ref := idRef(key)
+	tail := ref
 	for i := len(opts) - 1; i >= 0; i-- {
 		opt := opts[i]
 		if i < len(opts)-1 {
 			tail = "(" + tail + ")"
 		}
-		tail = fmt.Sprintf("%s == %s ? %s : %s", key, jsonString(opt.Value), jsonString(opt.Label), tail)
+		tail = fmt.Sprintf("%s == %s ? %s : %s", ref, jsonString(opt.Value), jsonString(opt.Label), tail)
 	}
 	return tail
 }
@@ -261,4 +257,37 @@ func jsonString(s string) string {
 
 func formatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+// validIdent reports whether key is a bare expr-lang identifier
+// (letter/underscore start, then letters/digits/underscores). Field
+// keys with hyphens, spaces, or other punctuation flunk this and
+// must be referenced via the $env map-lookup form instead.
+func validIdent(key string) bool {
+	if key == "" {
+		return false
+	}
+	for i, r := range key {
+		switch {
+		case r == '_':
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case i > 0 && r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// idRef returns the expr-lang fragment that resolves a field's value
+// at evaluation time: the bare key when it's a valid identifier,
+// `$env["key"]` otherwise. Single source of truth so every field
+// reference (predicate sides, helper-call args, text sources, baked
+// option lookups) handles hyphenated keys identically.
+func idRef(key string) string {
+	if validIdent(key) {
+		return key
+	}
+	return "$env[" + jsonString(key) + "]"
 }

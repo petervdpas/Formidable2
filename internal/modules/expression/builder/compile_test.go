@@ -588,6 +588,172 @@ func TestCompile_TextSourceUnknownKind(t *testing.T) {
 	}
 }
 
+// ── Hyphenated field keys ───────────────────────────────────────
+//
+// Template field keys like `unit-number` or `street-address` are
+// valid templating identifiers but illegal as bare expr-lang
+// identifiers (the lexer reads `unit-number` as `unit - number`).
+// Compile must emit the $env["..."] map-lookup form for those
+// keys everywhere a field reference appears: predicate sides,
+// helper-call args, text sources, and the bakeOptionLookup ternary.
+
+func TestCompile_BooleanPredicateOnHyphenKeyUsesDollarEnv(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("has-license", true)},
+			Outcome:    Outcome{Color: "green"},
+		}},
+	}
+	got, err := Compile(cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `$env["has-license"] ? {color: "green"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_BooleanPredicateNegatedHyphenKey(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("has-license", false)},
+			Outcome:    Outcome{Color: "red"},
+		}},
+	}
+	got, err := Compile(cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `!$env["has-license"] ? {color: "red"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_EnumEqualsOnHyphenKey(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predEnum("payment-status", EnumOpEquals, "paid")},
+			Outcome:    Outcome{Color: "green"},
+		}},
+	}
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "payment-status", Type: "dropdown", Options: []FieldOption{{Value: "paid"}, {Value: "due"}}},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `$env["payment-status"] == "paid" ? {color: "green"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_NumberOpOnHyphenKey(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predNumber("score-total", NumberOpGt, 10)},
+			Outcome:    Outcome{Color: "orange"},
+		}},
+	}
+	got, err := Compile(cfg, []FieldRef{{Key: "score-total", Type: "number"}})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `$env["score-total"] > 10 ? {color: "orange"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_DateHelperOnHyphenKey(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDate("due-date", DateOpIsOverdue)},
+			Outcome:    Outcome{Color: "red"},
+		}},
+	}
+	got, err := Compile(cfg, []FieldRef{{Key: "due-date", Type: "date"}})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `isOverdue($env["due-date"]) ? {color: "red"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_DateGtOnHyphenKey(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDateArg("due-date", DateOpDateGt, 30)},
+			Outcome:    Outcome{Color: "red"},
+		}},
+	}
+	got, err := Compile(cfg, []FieldRef{{Key: "due-date", Type: "date"}})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `ageInDays($env["due-date"]) > 30 ? {color: "red"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_TextFieldValueOnHyphenKey(t *testing.T) {
+	cfg := Config{Default: Outcome{Text: textValue("street-address")}}
+	got, err := Compile(cfg, []FieldRef{{Key: "street-address", Type: "text"}})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `{text: $env["street-address"]}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_TextFieldLabelOnHyphenKeyBakesWithDollarEnv(t *testing.T) {
+	cfg := Config{Default: Outcome{Text: textLabel("payment-status")}}
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "payment-status", Type: "dropdown", Options: []FieldOption{
+			{Value: "paid", Label: "Paid"},
+			{Value: "due", Label: "Outstanding"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `{text: $env["payment-status"] == "paid" ? "Paid" : ($env["payment-status"] == "due" ? "Outstanding" : $env["payment-status"])}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_PlainKeyStillEmitsBareIdentifier(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("active", true)},
+			Outcome:    Outcome{Color: "green"},
+		}},
+	}
+	got, err := Compile(cfg, []FieldRef{{Key: "active", Type: "boolean"}})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `active ? {color: "green"} : {}`
+	if got != want {
+		t.Errorf("plain key should stay bare; got %q", got)
+	}
+}
+
 // ── End-to-end: emitted source parses as valid expr-lang ────────
 
 func TestCompile_EmittedSourceIsValidExprLang(t *testing.T) {

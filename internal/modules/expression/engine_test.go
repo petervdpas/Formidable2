@@ -151,6 +151,45 @@ func TestEvaluate_ProgramCache(t *testing.T) {
 	}
 }
 
+// Hyphenated field keys — `unit-number`, `street-address` etc. —
+// are valid in template field definitions but illegal as bare expr-
+// lang identifiers (the lexer reads them as subtraction). The
+// builder emits `$env["unit-number"]` for those keys; this test
+// pins the contract that expr-lang's $env map lookup resolves them
+// against the runtime context map.
+func TestEvaluate_HyphenatedKeyViaDollarEnv(t *testing.T) {
+	e := newEngine()
+	got, err := e.Evaluate(
+		`$env["unit-number"] + " " + $env["street-address"]`,
+		map[string]any{
+			"unit-number":    "3",
+			"street-address": "Abbey Road",
+		},
+	)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if got.Text != "3 Abbey Road" {
+		t.Errorf("hyphenated $env lookup: want %q, got %q", "3 Abbey Road", got.Text)
+	}
+}
+
+// Bare hyphenated identifier must NOT silently work — the lexer
+// reads `unit-number` as `unit - number`. With both sides absent
+// from env, expr-lang treats them as nil and the subtraction
+// fails. This test pins that we never emit bare hyphens from the
+// builder.
+func TestEvaluate_BareHyphenIdentifierIsSubtraction(t *testing.T) {
+	e := newEngine()
+	_, err := e.Evaluate(
+		`unit-number`,
+		map[string]any{"unit-number": "3"},
+	)
+	if err == nil {
+		t.Fatal("bare hyphen identifier evaluated without error — expected subtraction failure")
+	}
+}
+
 func TestEvaluate_NoIO(t *testing.T) {
 	// expr-lang/expr is an expression VM, not a script runtime —
 	// confirm the obvious sandbox properties hold by trying a few
