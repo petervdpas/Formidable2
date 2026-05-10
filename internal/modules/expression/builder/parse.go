@@ -71,21 +71,18 @@ func walkTopLevel(node ast.Node, cfg *Config) error {
 	return walkTopLevel(cn.Exp2, cfg)
 }
 
-// fieldKeyOf extracts a field key from either an `IdentifierNode`
-// (bare-identifier reference) or a `MemberNode{$env, StringNode}`
-// ($env["hyphenated-key"] map-lookup form). All callers that read a
-// field-key from the AST go through this so hyphenated keys round-
-// trip identically to plain identifiers.
-func fieldKeyOf(node ast.Node) (string, bool) {
-	if id, ok := node.(*ast.IdentifierNode); ok {
-		return id.Value, true
-	}
+// bracketAccess matches a `<Namespace>["arg"]` MemberNode shape and
+// returns (arg, true) when the namespace identifier matches. Used
+// for F[], L[], O[] — the three uniform accessors Compile emits.
+// Anything else (bare identifiers, struct field access, dynamic
+// indexing) returns (_, false).
+func bracketAccess(node ast.Node, namespace string) (string, bool) {
 	mn, ok := node.(*ast.MemberNode)
 	if !ok {
 		return "", false
 	}
 	id, ok := mn.Node.(*ast.IdentifierNode)
-	if !ok || id.Value != "$env" {
+	if !ok || id.Value != namespace {
 		return "", false
 	}
 	sn, ok := mn.Property.(*ast.StringNode)
@@ -93,6 +90,15 @@ func fieldKeyOf(node ast.Node) (string, bool) {
 		return "", false
 	}
 	return sn.Value, true
+}
+
+// fieldKeyOf extracts the key from an `F["key"]` reference. F[] is
+// the only field-value form Compile emits — bare identifiers and
+// $env[] are intentionally rejected so hand-authored or stale
+// expressions fail Parse and trigger the dialog's "couldn't load,
+// cleared" flow rather than silently misinterpreting them.
+func fieldKeyOf(node ast.Node) (string, bool) {
+	return bracketAccess(node, "F")
 }
 
 // ── Predicate clause ────────────────────────────────────────────
@@ -426,69 +432,23 @@ func mapKeyName(node ast.Node) (string, error) {
 	return "", fmt.Errorf("map key not string or identifier (got %T)", node)
 }
 
+// parseTextSource reads a single TextSource part. Strict shape
+// matching: only the three accessor forms Compile emits.
+//
+//	L["text"] → literal
+//	F["key"]  → fieldValue
+//	O["key"]  → fieldLabel
 func parseTextSource(node ast.Node) (*TextSource, error) {
-	if sn, ok := node.(*ast.StringNode); ok {
-		return &TextSource{Kind: TextKindLiteral, Value: sn.Value}, nil
+	if v, ok := bracketAccess(node, "L"); ok {
+		return &TextSource{Kind: TextKindLiteral, Value: v}, nil
 	}
-	if key, ok := fieldKeyOf(node); ok {
-		return &TextSource{Kind: TextKindFieldValue, FieldKey: key}, nil
+	if k, ok := bracketAccess(node, "F"); ok {
+		return &TextSource{Kind: TextKindFieldValue, FieldKey: k}, nil
 	}
-	if cn, ok := node.(*ast.ConditionalNode); ok {
-		return parseFieldLabelTernary(cn)
+	if k, ok := bracketAccess(node, "O"); ok {
+		return &TextSource{Kind: TextKindFieldLabel, FieldKey: k}, nil
 	}
 	return nil, fmt.Errorf("unrecognised text source %T", node)
-}
-
-// parseFieldLabelTernary recognises the baked option-label pattern:
-//
-//	key == "v1" ? "L1" : (key == "v2" ? "L2" : key)
-//
-// We only need to extract the field key; the label values aren't
-// stored on the TextSource since they're re-derived from the field's
-// options at compile time. Strict shape checking ensures we only
-// match what Compile emits.
-func parseFieldLabelTernary(n *ast.ConditionalNode) (*TextSource, error) {
-	bin, ok := n.Cond.(*ast.BinaryNode)
-	if !ok || bin.Operator != "==" {
-		return nil, fmt.Errorf("fieldLabel: cond not == binary")
-	}
-	fieldKey, ok := fieldKeyOf(bin.Left)
-	if !ok {
-		return nil, fmt.Errorf("fieldLabel: cond LHS not field reference")
-	}
-	if err := walkFieldLabelChain(ast.Node(n), fieldKey); err != nil {
-		return nil, err
-	}
-	return &TextSource{Kind: TextKindFieldLabel, FieldKey: fieldKey}, nil
-}
-
-func walkFieldLabelChain(n ast.Node, fieldKey string) error {
-	cn, ok := n.(*ast.ConditionalNode)
-	if !ok {
-		// Terminal: must reference the same field — the
-		// bare-identifier (or $env-lookup) fallthrough Compile emits
-		// when no option matches.
-		key, ok := fieldKeyOf(n)
-		if !ok || key != fieldKey {
-			return fmt.Errorf("fieldLabel: terminal else not %q", fieldKey)
-		}
-		return nil
-	}
-	bin, ok := cn.Cond.(*ast.BinaryNode)
-	if !ok || bin.Operator != "==" {
-		return fmt.Errorf("fieldLabel: cond not == binary")
-	}
-	key, ok := fieldKeyOf(bin.Left)
-	if !ok || key != fieldKey {
-		return fmt.Errorf("fieldLabel: cond LHS field changed")
-	}
-	if _, ok := bin.Right.(*ast.StringNode); !ok {
-		return fmt.Errorf("fieldLabel: cond RHS not string")
-	}
-	if _, ok := cn.Exp1.(*ast.StringNode); !ok {
-		return fmt.Errorf("fieldLabel: then not string")
-	}
-	return walkFieldLabelChain(cn.Exp2, fieldKey)
 }
 
 // ── Number helpers ──────────────────────────────────────────────

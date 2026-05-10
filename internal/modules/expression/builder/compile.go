@@ -100,7 +100,7 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 		return "", fmt.Errorf("predicate on field %q has kind %q but field type %q expects %q", key, p.Kind, f.Type, wantKind)
 	}
 
-	ref := idRef(key)
+	ref := fieldRef(key)
 	switch p.Kind {
 	case KindBoolean:
 		if p.BoolValue == nil {
@@ -198,49 +198,40 @@ func outcomeExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 	return "{" + strings.Join(parts, ", ") + "}", nil
 }
 
-// textExpr resolves a TextSource to its expr-lang fragment. Literal
-// becomes a quoted string; fieldValue a bare identifier; fieldLabel
-// a baked value→label ternary over the field's options, falling
-// through to the raw value when no option matches.
+// textExpr resolves a TextSource to its expr-lang fragment.
+//
+//   literal    → L["text"]
+//   fieldValue → F["key"]
+//   fieldLabel → O["key"]    (with no-options fallback to F["key"])
+//
+// All three forms share a uniform `<accessor>["<arg>"]` shape so a
+// concat chain parses as a flat sequence of MemberNodes joined by
+// `+` — no kind-specific AST sniffing required.
 func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 	switch ts.Kind {
 	case TextKindLiteral:
-		return jsonString(ts.Value), nil
+		return literalRef(ts.Value), nil
 	case TextKindFieldValue:
 		if strings.TrimSpace(ts.FieldKey) == "" {
 			return "", fmt.Errorf("fieldValue text source missing fieldKey")
 		}
-		return idRef(ts.FieldKey), nil
+		return fieldRef(ts.FieldKey), nil
 	case TextKindFieldLabel:
 		key := strings.TrimSpace(ts.FieldKey)
 		if key == "" {
 			return "", fmt.Errorf("fieldLabel text source missing fieldKey")
 		}
-		f, ok := fields[key]
-		if !ok || len(f.Options) == 0 {
-			return idRef(key), nil
+		// No-options fallback: a fieldLabel on a field with no
+		// option list (e.g. a stale config pointing at a text
+		// field) degrades to the raw value rather than a runtime
+		// nil — matches the UI's "fieldLabel only makes sense for
+		// enum fields" gating.
+		if f, ok := fields[key]; !ok || len(f.Options) == 0 {
+			return fieldRef(key), nil
 		}
-		return bakeOptionLookup(key, f.Options), nil
+		return optionLabelRef(key), nil
 	}
 	return "", fmt.Errorf("unknown text source kind %q", ts.Kind)
-}
-
-// bakeOptionLookup emits a nested ternary that resolves the field's
-// stored value to its option label. Unknown values fall through to
-// the raw value so a stale option doesn't blank out a chip.
-//
-//   key == "v1" ? "L1" : (key == "v2" ? "L2" : key)
-func bakeOptionLookup(key string, opts []FieldOption) string {
-	ref := idRef(key)
-	tail := ref
-	for i := len(opts) - 1; i >= 0; i-- {
-		opt := opts[i]
-		if i < len(opts)-1 {
-			tail = "(" + tail + ")"
-		}
-		tail = fmt.Sprintf("%s == %s ? %s : %s", ref, jsonString(opt.Value), jsonString(opt.Label), tail)
-	}
-	return tail
 }
 
 func outcomeIsEmpty(o Outcome) bool {
@@ -259,35 +250,28 @@ func formatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 
-// validIdent reports whether key is a bare expr-lang identifier
-// (letter/underscore start, then letters/digits/underscores). Field
-// keys with hyphens, spaces, or other punctuation flunk this and
-// must be referenced via the $env map-lookup form instead.
-func validIdent(key string) bool {
-	if key == "" {
-		return false
-	}
-	for i, r := range key {
-		switch {
-		case r == '_':
-		case r >= 'a' && r <= 'z':
-		case r >= 'A' && r <= 'Z':
-		case i > 0 && r >= '0' && r <= '9':
-		default:
-			return false
-		}
-	}
-	return true
+// fieldRef emits the canonical builder reference to a field's
+// value: F["key"]. Uniform regardless of whether the key is a
+// valid bare identifier — the engine's fieldRefPatcher rewrites
+// F["key"] to $env["key"] at expr.Compile time so hyphenated and
+// plain keys behave identically.
+func fieldRef(key string) string {
+	return `F[` + jsonString(key) + `]`
 }
 
-// idRef returns the expr-lang fragment that resolves a field's value
-// at evaluation time: the bare key when it's a valid identifier,
-// `$env["key"]` otherwise. Single source of truth so every field
-// reference (predicate sides, helper-call args, text sources, baked
-// option lookups) handles hyphenated keys identically.
-func idRef(key string) string {
-	if validIdent(key) {
-		return key
-	}
-	return "$env[" + jsonString(key) + "]"
+// literalRef wraps a string literal in L["..."]. The engine's
+// patcher unwraps L["x"] to the bare string node before
+// evaluation; the wrapped form lets the parser identify literal
+// parts in a concat chain by AST shape alone.
+func literalRef(s string) string {
+	return `L[` + jsonString(s) + `]`
+}
+
+// optionLabelRef emits O["key"]. The engine evaluates this against
+// a per-record map injected by Manager.EvaluateSidebar where
+// O[key] is the option label of the field's current value. Empty
+// options pre-compute to nil and surface as "<nil>" — callers
+// should gate fieldLabel on enum-typed fields (the UI does).
+func optionLabelRef(key string) string {
+	return `O[` + jsonString(key) + `]`
 }

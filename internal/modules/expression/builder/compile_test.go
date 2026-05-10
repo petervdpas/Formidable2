@@ -71,7 +71,7 @@ func TestCompile_DefaultOutcomeOnlyEmitsBareLiteral(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `{text: title, color: "gray"}`
+	want := `{text: F["title"], color: "gray"}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -91,7 +91,7 @@ func TestCompile_BooleanPredicateTrue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `check ? {text: title, color: "green"} : {}`
+	want := `F["check"] ? {text: F["title"], color: "green"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -109,7 +109,7 @@ func TestCompile_BooleanPredicateFalse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `!check ? {classes: ["expr-warn"]} : {}`
+	want := `!F["check"] ? {classes: ["expr-warn"]} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -127,7 +127,7 @@ func TestCompile_EnumSingleValueEquals(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `size == "L" ? {color: "green"} : {}`
+	want := `F["size"] == "L" ? {color: "green"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -149,7 +149,7 @@ func TestCompile_EnumMultiValueEqualsIsSwitchCase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `(size == "L" || size == "XL") ? {classes: ["expr-bold"]} : {}`
+	want := `(F["size"] == "L" || F["size"] == "XL") ? {classes: ["expr-bold"]} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -169,7 +169,7 @@ func TestCompile_EnumNotEqualsMultiValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `(size != "S" && size != "M") ? {color: "red"} : {}`
+	want := `(F["size"] != "S" && F["size"] != "M") ? {color: "red"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -187,7 +187,7 @@ func TestCompile_NumberGreaterThan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `score > 10 ? {color: "orange"} : {}`
+	want := `F["score"] > 10 ? {color: "orange"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -205,7 +205,7 @@ func TestCompile_NumberFractionalValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `score <= 2.5 ? {bg: "#fff"} : {}`
+	want := `F["score"] <= 2.5 ? {bg: "#fff"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -223,7 +223,7 @@ func TestCompile_DateNoArg(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `isOverdue(due) ? {color: "red"} : {}`
+	want := `isOverdue(F["due"]) ? {color: "red"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -241,7 +241,7 @@ func TestCompile_DateGtUsesAgeInDays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `ageInDays(due) > 30 ? {color: "red"} : {}`
+	want := `ageInDays(F["due"]) > 30 ? {color: "red"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -259,7 +259,7 @@ func TestCompile_DateLtUsesAgeInDays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `ageInDays(due) < 7 ? {color: "blue"} : {}`
+	want := `ageInDays(F["due"]) < 7 ? {color: "blue"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -289,7 +289,7 @@ func TestCompile_DateWithArg(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `isDueSoon(due, 7) ? {color: "orange"} : {}`
+	want := `isDueSoon(F["due"], 7) ? {color: "orange"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -313,7 +313,7 @@ func TestCompile_RulePredicatesAreANDed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `(check && size == "L" && isOverdue(due)) ? {color: "red"} : {}`
+	want := `(F["check"] && F["size"] == "L" && isOverdue(F["due"])) ? {color: "red"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -351,13 +351,13 @@ func TestCompile_TextLiteral(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `check ? {text: "DONE"} : {}`
+	want := `F["check"] ? {text: L["DONE"]} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
-func TestCompile_TextFieldValueIsBareReference(t *testing.T) {
+func TestCompile_TextFieldValueEmitsFBracket(t *testing.T) {
 	cfg := Config{
 		Default: Outcome{Text: textValue("title")},
 	}
@@ -365,13 +365,13 @@ func TestCompile_TextFieldValueIsBareReference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `{text: title}`
+	want := `{text: F["title"]}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
-func TestCompile_TextFieldLabelBakesOptionLookup(t *testing.T) {
+func TestCompile_TextFieldLabelEmitsOBracket(t *testing.T) {
 	cfg := Config{
 		Default: Outcome{Text: textLabel("size")},
 	}
@@ -384,8 +384,7 @@ func TestCompile_TextFieldLabelBakesOptionLookup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	// Outermost ternary unwrapped, inner one wrapped in parens.
-	want := `{text: size == "S" ? "Small" : (size == "L" ? "Large" : size)}`
+	want := `{text: O["size"]}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -399,7 +398,7 @@ func TestCompile_TextFieldLabelOnFieldWithoutOptionsFallsBackToValue(t *testing.
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `{text: title}`
+	want := `{text: F["title"]}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -423,7 +422,7 @@ func TestCompile_MultipleRulesNestedTernary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `size == "L" ? {color: "green"} : (size == "XL" ? {color: "red"} : {color: "gray"})`
+	want := `F["size"] == "L" ? {color: "green"} : (F["size"] == "XL" ? {color: "red"} : {color: "gray"})`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -479,7 +478,7 @@ func TestCompile_UserWorkedExample(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `(!check && fruit == "apple" && isExpiredAfter(due, 7)) ? {text: title, color: "red"} : ((check && fruit == "pear" && isFuture(due)) ? {text: title, color: "green"} : ((fruit == "grapes" && isToday(due)) ? {text: title, color: "purple", classes: ["expr-blink"]} : {text: title, color: "black", classes: ["expr-scroll"]}))`
+	want := `(!F["check"] && F["fruit"] == "apple" && isExpiredAfter(F["due"], 7)) ? {text: F["title"], color: "red"} : ((F["check"] && F["fruit"] == "pear" && isFuture(F["due"])) ? {text: F["title"], color: "green"} : ((F["fruit"] == "grapes" && isToday(F["due"])) ? {text: F["title"], color: "purple", classes: ["expr-blink"]} : {text: F["title"], color: "black", classes: ["expr-scroll"]}))`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -588,16 +587,15 @@ func TestCompile_TextSourceUnknownKind(t *testing.T) {
 	}
 }
 
-// ── Hyphenated field keys ───────────────────────────────────────
+// ── Hyphenated field keys round-trip uniformly ──────────────────
 //
-// Template field keys like `unit-number` or `street-address` are
-// valid templating identifiers but illegal as bare expr-lang
-// identifiers (the lexer reads `unit-number` as `unit - number`).
-// Compile must emit the $env["..."] map-lookup form for those
-// keys everywhere a field reference appears: predicate sides,
-// helper-call args, text sources, and the bakeOptionLookup ternary.
+// Template field keys like `unit-number` are illegal as bare
+// expr-lang identifiers, so the builder always emits F["key"] —
+// the engine's patcher rewrites that to $env["key"] at compile
+// time. Hyphenated and plain keys take the same code path and
+// produce identically-shaped output.
 
-func TestCompile_BooleanPredicateOnHyphenKeyUsesDollarEnv(t *testing.T) {
+func TestCompile_HyphenKeyBoolean(t *testing.T) {
 	cfg := Config{
 		Rules: []Rule{{
 			ID:         "r1",
@@ -609,87 +607,13 @@ func TestCompile_BooleanPredicateOnHyphenKeyUsesDollarEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `$env["has-license"] ? {color: "green"} : {}`
+	want := `F["has-license"] ? {color: "green"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
-func TestCompile_BooleanPredicateNegatedHyphenKey(t *testing.T) {
-	cfg := Config{
-		Rules: []Rule{{
-			ID:         "r1",
-			Predicates: []Predicate{predBool("has-license", false)},
-			Outcome:    Outcome{Color: "red"},
-		}},
-	}
-	got, err := Compile(cfg, []FieldRef{{Key: "has-license", Type: "boolean"}})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	want := `!$env["has-license"] ? {color: "red"} : {}`
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
-	}
-}
-
-func TestCompile_EnumEqualsOnHyphenKey(t *testing.T) {
-	cfg := Config{
-		Rules: []Rule{{
-			ID:         "r1",
-			Predicates: []Predicate{predEnum("payment-status", EnumOpEquals, "paid")},
-			Outcome:    Outcome{Color: "green"},
-		}},
-	}
-	got, err := Compile(cfg, []FieldRef{
-		{Key: "payment-status", Type: "dropdown", Options: []FieldOption{{Value: "paid"}, {Value: "due"}}},
-	})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	want := `$env["payment-status"] == "paid" ? {color: "green"} : {}`
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
-	}
-}
-
-func TestCompile_NumberOpOnHyphenKey(t *testing.T) {
-	cfg := Config{
-		Rules: []Rule{{
-			ID:         "r1",
-			Predicates: []Predicate{predNumber("score-total", NumberOpGt, 10)},
-			Outcome:    Outcome{Color: "orange"},
-		}},
-	}
-	got, err := Compile(cfg, []FieldRef{{Key: "score-total", Type: "number"}})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	want := `$env["score-total"] > 10 ? {color: "orange"} : {}`
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
-	}
-}
-
-func TestCompile_DateHelperOnHyphenKey(t *testing.T) {
-	cfg := Config{
-		Rules: []Rule{{
-			ID:         "r1",
-			Predicates: []Predicate{predDate("due-date", DateOpIsOverdue)},
-			Outcome:    Outcome{Color: "red"},
-		}},
-	}
-	got, err := Compile(cfg, []FieldRef{{Key: "due-date", Type: "date"}})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	want := `isOverdue($env["due-date"]) ? {color: "red"} : {}`
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
-	}
-}
-
-func TestCompile_DateGtOnHyphenKey(t *testing.T) {
+func TestCompile_HyphenKeyDateGt(t *testing.T) {
 	cfg := Config{
 		Rules: []Rule{{
 			ID:         "r1",
@@ -701,25 +625,13 @@ func TestCompile_DateGtOnHyphenKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `ageInDays($env["due-date"]) > 30 ? {color: "red"} : {}`
+	want := `ageInDays(F["due-date"]) > 30 ? {color: "red"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
-func TestCompile_TextFieldValueOnHyphenKey(t *testing.T) {
-	cfg := Config{Default: Outcome{Text: textValue("street-address")}}
-	got, err := Compile(cfg, []FieldRef{{Key: "street-address", Type: "text"}})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	want := `{text: $env["street-address"]}`
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
-	}
-}
-
-func TestCompile_TextFieldLabelOnHyphenKeyBakesWithDollarEnv(t *testing.T) {
+func TestCompile_HyphenKeyTextLabelEmitsOBracket(t *testing.T) {
 	cfg := Config{Default: Outcome{Text: textLabel("payment-status")}}
 	got, err := Compile(cfg, []FieldRef{
 		{Key: "payment-status", Type: "dropdown", Options: []FieldOption{
@@ -730,27 +642,9 @@ func TestCompile_TextFieldLabelOnHyphenKeyBakesWithDollarEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `{text: $env["payment-status"] == "paid" ? "Paid" : ($env["payment-status"] == "due" ? "Outstanding" : $env["payment-status"])}`
+	want := `{text: O["payment-status"]}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
-	}
-}
-
-func TestCompile_PlainKeyStillEmitsBareIdentifier(t *testing.T) {
-	cfg := Config{
-		Rules: []Rule{{
-			ID:         "r1",
-			Predicates: []Predicate{predBool("active", true)},
-			Outcome:    Outcome{Color: "green"},
-		}},
-	}
-	got, err := Compile(cfg, []FieldRef{{Key: "active", Type: "boolean"}})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	want := `active ? {color: "green"} : {}`
-	if got != want {
-		t.Errorf("plain key should stay bare; got %q", got)
 	}
 }
 

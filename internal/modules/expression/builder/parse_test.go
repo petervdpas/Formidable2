@@ -394,7 +394,7 @@ func TestParse_RejectsUnknownDateHelper(t *testing.T) {
 }
 
 func TestParse_RejectsMixedFieldOrGroup(t *testing.T) {
-	src := `(size == "L" || other == "X") ? {color: "red"} : {}`
+	src := `(F["size"] == "L" || F["other"] == "X") ? {color: "red"} : {}`
 	_, err := Parse(src, fieldsFour())
 	if err == nil || !strings.Contains(err.Error(), "mixed fields") {
 		t.Errorf("expected mixed-fields error, got %v", err)

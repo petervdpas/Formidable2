@@ -7,8 +7,46 @@ import (
 	"sync"
 
 	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/ast"
 	"github.com/expr-lang/expr/vm"
 )
+
+// fieldRefPatcher rewrites builder-emitted field references into
+// the shape expr-lang evaluates against the env map.
+//
+//	F["key"]  →  $env["key"]
+//	L["text"] →  "text"
+//
+// The builder emits F[] / L[] uniformly so concat chains have a
+// predictable AST and so hyphenated keys round-trip identically to
+// plain identifiers (no $env-vs-bare-id forking). O[] is left
+// untouched — it resolves at runtime against the per-record `O`
+// map injected by Manager.EvaluateSidebar.
+type fieldRefPatcher struct{}
+
+func (fieldRefPatcher) Visit(node *ast.Node) {
+	mn, ok := (*node).(*ast.MemberNode)
+	if !ok {
+		return
+	}
+	id, ok := mn.Node.(*ast.IdentifierNode)
+	if !ok {
+		return
+	}
+	sn, ok := mn.Property.(*ast.StringNode)
+	if !ok {
+		return
+	}
+	switch id.Value {
+	case "F":
+		ast.Patch(node, &ast.MemberNode{
+			Node:     &ast.IdentifierNode{Value: "$env"},
+			Property: &ast.StringNode{Value: sn.Value},
+		})
+	case "L":
+		ast.Patch(node, &ast.StringNode{Value: sn.Value})
+	}
+}
 
 // engine is the low-level compile/evaluate primitive, owning the
 // helper registry and a program cache keyed by expression text. The
@@ -68,6 +106,7 @@ func (e *engine) Compile(src string) (*vm.Program, error) {
 
 	opts := []expr.Option{
 		expr.AllowUndefinedVariables(),
+		expr.Patch(fieldRefPatcher{}),
 	}
 	for name, fn := range e.helpers {
 		opts = append(opts, expr.Function(name, wrapHelper(fn)))

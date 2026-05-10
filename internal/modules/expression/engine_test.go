@@ -174,6 +174,88 @@ func TestEvaluate_HyphenatedKeyViaDollarEnv(t *testing.T) {
 	}
 }
 
+// F[] is the canonical builder-emitted form for a field-value
+// reference. The engine's F-patcher rewrites `F["key"]` to the
+// $env map-lookup form before evaluation, so any key (hyphenated
+// or not) round-trips identically.
+func TestEvaluate_FBracketResolvesField(t *testing.T) {
+	e := newEngine()
+	got, err := e.Evaluate(
+		`F["unit-number"] + " " + F["street"]`,
+		map[string]any{
+			"unit-number": "3",
+			"street":      "Abbey Road",
+		},
+	)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if got.Text != "3 Abbey Road" {
+		t.Errorf("F[] lookup: want %q, got %q", "3 Abbey Road", got.Text)
+	}
+}
+
+// L[] wraps a literal so the builder can identify literal parts
+// in a concat chain by AST shape. The engine's L-patcher rewrites
+// `L["text"]` to a bare string node before evaluation.
+func TestEvaluate_LBracketIsLiteral(t *testing.T) {
+	e := newEngine()
+	got, err := e.Evaluate(
+		`L["hello, "] + F["name"]`,
+		map[string]any{"name": "world"},
+	)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if got.Text != "hello, world" {
+		t.Errorf("L[] literal: want %q, got %q", "hello, world", got.Text)
+	}
+}
+
+// O[] is the option-label resolver. The engine receives a
+// pre-computed map keyed by field key whose values are the labels
+// of the current record's option values. Unknown keys evaluate to
+// nil (with AllowUndefinedVariables) and stringify as "<nil>" —
+// callers should ensure O is populated for every option-bearing
+// field they reference.
+func TestEvaluate_OBracketResolvesOptionLabel(t *testing.T) {
+	e := newEngine()
+	got, err := e.Evaluate(
+		`O["size"]`,
+		map[string]any{
+			"size": "L",
+			"O":    map[string]any{"size": "Large"},
+		},
+	)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if got.Text != "Large" {
+		t.Errorf("O[] label: want %q, got %q", "Large", got.Text)
+	}
+}
+
+// Concat across all three accessors — exercises the typical
+// chip-text shape the builder emits for a multi-part text source.
+func TestEvaluate_FLOConcatChain(t *testing.T) {
+	e := newEngine()
+	got, err := e.Evaluate(
+		`F["unit-number"] + L[" "] + F["street"] + L[" ("] + O["size"] + L[")"]`,
+		map[string]any{
+			"unit-number": "3",
+			"street":      "Abbey Road",
+			"size":        "L",
+			"O":           map[string]any{"size": "Large"},
+		},
+	)
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if got.Text != "3 Abbey Road (Large)" {
+		t.Errorf("FLO concat: want %q, got %q", "3 Abbey Road (Large)", got.Text)
+	}
+}
+
 // Bare hyphenated identifier must NOT silently work — the lexer
 // reads `unit-number` as `unit - number`. With both sides absent
 // from env, expr-lang treats them as nil and the subtraction
