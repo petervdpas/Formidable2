@@ -82,3 +82,13 @@ func (s *Service) BuilderDateOps() []builder.DateOpDescriptor {
 func (s *Service) BuilderCompile(cfg builder.Config, fields []builder.FieldRef) (string, error) {
 	return builder.Compile(cfg, fields)
 }
+
+// BuilderParse is the inverse of BuilderCompile: an expr-lang source
+// string that came from a previous Compile is reverse-engineered
+// back into a Config the dialog can edit. Hand-authored or
+// otherwise-shaped sources return an error so the frontend can fall
+// back to an empty config and warn the user. fields is the same
+// FieldRef slice Compile takes.
+func (s *Service) BuilderParse(src string, fields []builder.FieldRef) (builder.Config, error) {
+	return builder.Parse(src, fields)
+}

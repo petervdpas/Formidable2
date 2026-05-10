@@ -39,6 +39,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "close"): void;
   (e: "apply", source: string): void;
+  /** Parent should clear the textarea without closing the dialog —
+   * fired when an existing source can't be parsed back into a Config. */
+  (e: "clear"): void;
 }>();
 
 const { t } = useI18n();
@@ -132,7 +135,9 @@ async function loadMetadata() {
   dateOps.value = dOps;
 }
 
-// ── Open watcher: reset state on each open ──────────────────────
+// ── Open watcher: reset state, then preload from `initial` ─────
+
+const parseError = ref<string>("");
 
 watch(
   () => props.open,
@@ -142,8 +147,36 @@ watch(
     config.value = new Config({ rules: [], default: new Outcome() });
     selectedRuleId.value = "";
     applyError.value = "";
+    parseError.value = "";
     addPredicateField.value = "";
     await Promise.all([loadMetadata(), refreshPredicateableFields()]);
+
+    // Preload the existing sidebar_expression so the dialog opens on
+    // the user's last-saved state. Strict parser — only the AST shape
+    // Compile emits round-trips. On any failure we keep the dialog
+    // empty, surface a warning, and ask the parent to wipe the
+    // textarea so the unparseable source doesn't silently survive.
+    const existing = (props.initial ?? "").trim();
+    if (!existing) return;
+    const fieldRefs: FieldRef[] = expressionFields.value.map((f) => ({
+      key: f.key,
+      type: f.type || "",
+      options: fieldOptionsFor(f.key),
+    }));
+    try {
+      const parsed = await ExpressionSvc.BuilderParse(existing, fieldRefs);
+      config.value = parsed;
+      // Walk parsed rules to advance the local id counter so newly-
+      // added rules don't collide with parsed ones.
+      const rs = parsed.rules ?? [];
+      _ruleSeq = rs.length;
+      // Land on the first rule (or default if there are none) so the
+      // editor isn't staring at an empty placeholder.
+      selectedRuleId.value = rs[0]?.id ?? "default";
+    } catch (err) {
+      parseError.value = backendErrMessage(err);
+      emit("clear");
+    }
   },
   { immediate: true },
 );
@@ -248,7 +281,13 @@ const canApply = computed(() => {
     width="900px"
     @close="emit('close')"
   >
-    <p v-if="initial && initial.trim()" class="muted small expr-builder-warn">
+    <p v-if="parseError" class="expr-builder-error small">
+      {{ t('workspace.templates.expression_builder.parse_failed') }}
+    </p>
+    <p
+      v-else-if="initial && initial.trim()"
+      class="muted small expr-builder-warn"
+    >
       {{ t('workspace.templates.expression_builder.replaces_source') }}
     </p>
 

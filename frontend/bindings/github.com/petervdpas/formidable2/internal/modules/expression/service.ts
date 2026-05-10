@@ -98,6 +98,20 @@ export function BuilderOperatorsForKind(kind: string): $CancellablePromise<build
 }
 
 /**
+ * BuilderParse is the inverse of BuilderCompile: an expr-lang source
+ * string that came from a previous Compile is reverse-engineered
+ * back into a Config the dialog can edit. Hand-authored or
+ * otherwise-shaped sources return an error so the frontend can fall
+ * back to an empty config and warn the user. fields is the same
+ * FieldRef slice Compile takes.
+ */
+export function BuilderParse(src: string, fields: builder$0.FieldRef[]): $CancellablePromise<builder$0.Config> {
+    return $Call.ByID(4009692410, src, fields).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * Evaluate runs one expression against an arbitrary context. Returns
  * a normalised SidebarItem so callers get the same shape whether the
  * expression returns a string, list, or struct.

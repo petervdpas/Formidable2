@@ -259,15 +259,23 @@ async function applyGenerated(shape: string, opts: GeneratorOptions) {
 }
 
 // ── Expression-builder dialog ────────────────────────────────────────
-// Visual builder for sidebar_expression. One-way: Apply overwrites
-// the textarea. Round-trip parsing of free-form expr-lang is not
-// planned.
+// Visual builder for sidebar_expression. The dialog is the only way
+// to edit the source — the textarea is rendered read-only — so the
+// shape stays predictable for the strict round-trip parser. On open
+// the dialog tries to load the existing source; if parsing fails it
+// emits "clear" and we wipe the textarea so the unparseable string
+// can't survive a session.
 const expressionBuilderOpen = ref(false);
 
 function applyExpressionBuilder(source: string) {
   expressionBuilderOpen.value = false;
   if (!draft.value) return;
   draft.value.sidebar_expression = source;
+}
+
+function clearExpressionSource() {
+  if (!draft.value) return;
+  draft.value.sidebar_expression = "";
 }
 
 const deleteFieldName = computed(() => {
@@ -466,7 +474,11 @@ setTopbarMenu(() => [
             </div>
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.sidebar_expression')">
-            <TextareaField v-model="draft.sidebar_expression" :rows="3" />
+            <TextareaField
+              v-model="draft.sidebar_expression"
+              :rows="3"
+              :readonly="true"
+            />
             <div class="expression-builder-row">
               <button
                 class="tool-btn"
@@ -626,6 +638,7 @@ setTopbarMenu(() => [
     :initial="draft.sidebar_expression"
     @close="expressionBuilderOpen = false"
     @apply="applyExpressionBuilder"
+    @clear="clearExpressionSource"
   />
 </template>
 
