@@ -135,5 +135,5 @@ type ItemField struct {
 	Label string `json:"label"`
 }
 
-// Known field types live in field_registry.go's fieldTypeRegistry.
+// Known field types live in field_registry.go's fieldDescriptors.
 // Use IsKnownFieldType(t) to check membership.

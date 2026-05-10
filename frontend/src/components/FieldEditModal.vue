@@ -51,6 +51,14 @@ const toast = useToast();
 // commit changes when the user clicks Confirm.
 const draft = ref<Field | null>(null);
 
+const expressionItemInvalid = computed<boolean>(() => {
+  if (!draft.value) return false;
+  const scope = draft.value.level_scope ?? 0;
+  return scope > 0 && !!draft.value.expression_item;
+});
+
+const canConfirm = computed<boolean>(() => !expressionItemInvalid.value);
+
 watch(
   () => draft.value?.expression_item,
   (now, prev) => {
@@ -58,7 +66,6 @@ watch(
     if (!now || prev) return;
     const scope = draft.value.level_scope ?? 0;
     if (scope === 0) return;
-    draft.value.expression_item = false;
     const formatted = formatError({
       type: "expression-item-non-root",
       key: draft.value.key,
@@ -184,6 +191,7 @@ const optionRows = computed<OptionRow[]>({
 
 function submit() {
   if (!draft.value) return;
+  if (!canConfirm.value) return;
   emit("confirm", draft.value);
 }
 
@@ -355,7 +363,12 @@ const dialogStyle = computed<Record<string, string>>(() => {
       <button class="tool-btn" type="button" @click="emit('close')">
         {{ t('common.cancel') }}
       </button>
-      <button class="tool-btn primary" type="button" @click="submit">
+      <button
+        class="tool-btn primary"
+        type="button"
+        :disabled="!canConfirm"
+        @click="submit"
+      >
         {{ t('workspace.templates.field_edit.confirm') }}
       </button>
     </template>

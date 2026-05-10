@@ -34,7 +34,7 @@ export function EnsureTemplateDirectory(): $CancellablePromise<void> {
  * visibility, so adding/changing a type happens in one place
  * (field_registry.go).
  */
-export function FieldTypes(): $CancellablePromise<$models.FieldTypeDef[]> {
+export function FieldTypes(): $CancellablePromise<$models.FieldDescriptor[]> {
     return $Call.ByID(3365796277).then(($result: any) => {
         return $$createType1($result);
     });
@@ -106,7 +106,7 @@ export function ValidateTemplate(t: $models.Template | null): $CancellablePromis
 }
 
 // Private type creation functions
-const $$createType0 = $models.FieldTypeDef.createFrom;
+const $$createType0 = $models.FieldDescriptor.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.ShapeInfo.createFrom;
 const $$createType3 = $Create.Array($$createType2);

@@ -165,9 +165,9 @@ func TestValidate_ListAndTableAllowCollapsible(t *testing.T) {
 
 func TestAllFieldTypes_StableOrderIncludesEveryRegistryEntry(t *testing.T) {
 	got := AllFieldTypes()
-	if len(got) != len(fieldTypeRegistry) {
-		t.Fatalf("AllFieldTypes returned %d entries; registry has %d",
-			len(got), len(fieldTypeRegistry))
+	if len(got) != len(fieldDescriptors) {
+		t.Fatalf("AllFieldTypes returned %d entries; matrix has %d",
+			len(got), len(fieldDescriptors))
 	}
 	got2 := AllFieldTypes()
 	for i := range got {
@@ -183,12 +183,10 @@ func TestAllFieldTypes_ReturnsDefensiveCopy(t *testing.T) {
 	if len(got) == 0 {
 		t.Fatal("empty registry")
 	}
-	got[0].ForbiddenAttributes = append(got[0].ForbiddenAttributes, "tampered")
+	got[0].Abilities.Label = !got[0].Abilities.Label
 	fresh := AllFieldTypes()
-	for _, a := range fresh[0].ForbiddenAttributes {
-		if a == "tampered" {
-			t.Errorf("registry was mutated through returned slice")
-		}
+	if fresh[0].Abilities.Label == got[0].Abilities.Label {
+		t.Errorf("registry was mutated through returned slice")
 	}
 }
 

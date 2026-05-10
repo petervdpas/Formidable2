@@ -41,7 +41,7 @@ func (s *Service) EnsureTemplateDirectory() error                 { return s.m.E
 // source of truth for the "Type" dropdown and for editor-row
 // visibility, so adding/changing a type happens in one place
 // (field_registry.go).
-func (s *Service) FieldTypes() []FieldTypeDef { return AllFieldTypes() }
+func (s *Service) FieldTypes() []FieldDescriptor { return AllFieldTypes() }
 
 // GeneratorShapes returns the catalog the frontend uses to populate
 // the "Generate Template" dialog's shape picker.

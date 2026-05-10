@@ -11,28 +11,58 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────
-// guid relaxation — label / description / primary_key are allowed
-//
-// Reason: a guid field is the natural primary key of a collection-enabled
-// template, and the editor lets the user name and describe it. Earlier
-// the registry forbade all three, which made the seed Examples templates
-// fail to round-trip after save. Tests in this file pin the relaxed
-// behavior so a future "tighten the registry" pass can't quietly bring
-// the false positives back.
+// guid mirrors original Formidable's fieldTypes.js: label, description,
+// primary_key, default, options, summary_field, expression_item,
+// two_column, collapsible, readonly, format and the api group are all
+// disabled. Normalize strips any value present in a field's disabled
+// list so existing YAML with extra attributes self-heals on save and
+// the validator doesn't trip on stale data.
 // ─────────────────────────────────────────────────────────────────────
 
-func TestValidate_GuidAllowsLabelDescriptionAndPrimaryKey(t *testing.T) {
-	errs := Validate(&Template{
+func TestNormalize_GuidStripsDisabledAttributes(t *testing.T) {
+	tpl := &Template{
+		Fields: []Field{{
+			Key:         "id",
+			Type:        "guid",
+			Label:       "Custom Label",
+			Description: "Some description",
+			PrimaryKey:  true,
+			Default:     "abc",
+		}},
+	}
+	Normalize(tpl)
+	f := tpl.Fields[0]
+	if f.Label != "" {
+		t.Errorf("guid Label should be stripped; got %q", f.Label)
+	}
+	if f.Description != "" {
+		t.Errorf("guid Description should be stripped; got %q", f.Description)
+	}
+	if f.PrimaryKey {
+		t.Errorf("guid PrimaryKey should be stripped to false")
+	}
+	if f.Default != nil {
+		t.Errorf("guid Default should be stripped; got %#v", f.Default)
+	}
+	if f.Key != "id" {
+		t.Errorf("guid Key should be forced to \"id\"; got %q", f.Key)
+	}
+}
+
+func TestValidate_GuidPassesAfterNormalize(t *testing.T) {
+	tpl := &Template{
 		Fields: []Field{{
 			Key:         "id",
 			Type:        "guid",
 			Label:       "GUID",
-			Description: "Unique identifier",
+			Description: "x",
 			PrimaryKey:  true,
 		}},
-	})
+	}
+	Normalize(tpl)
+	errs := Validate(tpl)
 	if anyForbiddenFor(errs, "id") {
-		t.Errorf("guid must allow label+description+primary_key; got %+v", errs)
+		t.Errorf("guid should validate after Normalize; got %+v", errs)
 	}
 }
 

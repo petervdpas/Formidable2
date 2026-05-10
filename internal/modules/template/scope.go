@@ -57,6 +57,21 @@ func levelScopeMismatchErrors(got, canonical []Field) []ValidationError {
 	return errs
 }
 
+func coerceExpressionItemOffRoot(fields []Field) bool {
+	canonical := assignLevelScopes(fields)
+	changed := false
+	for i := range fields {
+		if i >= len(canonical) {
+			break
+		}
+		if canonical[i].LevelScope > 0 && fields[i].ExpressionItem {
+			fields[i].ExpressionItem = false
+			changed = true
+		}
+	}
+	return changed
+}
+
 func expressionItemLevelScopeErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	for i := range fields {

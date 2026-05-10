@@ -123,6 +123,55 @@ func TestNormalize_AssignsLevelScopes(t *testing.T) {
 	}
 }
 
+func TestCoerceExpressionItemOffRoot_StripsAndReportsChange(t *testing.T) {
+	fields := []Field{
+		{Key: "rootflag", Type: "boolean", ExpressionItem: true},
+		{Key: "L", Type: "loopstart"},
+		{Key: "looped", Type: "boolean", ExpressionItem: true},
+		{Key: "L", Type: "loopstop"},
+	}
+	changed := coerceExpressionItemOffRoot(fields)
+	if !changed {
+		t.Fatalf("expected changed=true when a non-root field had expression_item=true")
+	}
+	if !fields[0].ExpressionItem {
+		t.Errorf("root field should keep expression_item=true")
+	}
+	if fields[2].ExpressionItem {
+		t.Errorf("non-root field should be coerced to expression_item=false")
+	}
+}
+
+func TestCoerceExpressionItemOffRoot_NoopWhenAllValid(t *testing.T) {
+	fields := []Field{
+		{Key: "rootflag", Type: "boolean", ExpressionItem: true},
+		{Key: "L", Type: "loopstart"},
+		{Key: "looped", Type: "boolean"},
+		{Key: "L", Type: "loopstop"},
+	}
+	if changed := coerceExpressionItemOffRoot(fields); changed {
+		t.Errorf("expected changed=false when no non-root field had expression_item=true")
+	}
+}
+
+func TestNormalize_ForcesExpressionItemFalseOffRoot(t *testing.T) {
+	tpl := &Template{
+		Fields: []Field{
+			{Key: "rootflag", Type: "boolean", ExpressionItem: true},
+			{Key: "L", Type: "loopstart"},
+			{Key: "looped", Type: "boolean", ExpressionItem: true},
+			{Key: "L", Type: "loopstop"},
+		},
+	}
+	Normalize(tpl)
+	if !tpl.Fields[0].ExpressionItem {
+		t.Errorf("root field should keep ExpressionItem=true, got false")
+	}
+	if tpl.Fields[2].ExpressionItem {
+		t.Errorf("non-root field must have ExpressionItem coerced to false")
+	}
+}
+
 func TestLevelScopeMismatchErrors_AllZeroSkipped(t *testing.T) {
 	errs := Validate(&Template{
 		Fields: []Field{

@@ -46,11 +46,39 @@ func Validate(t *Template) []ValidationError {
 		errs = append(errs, *e)
 	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
+	errs = append(errs, apiGroupOnNonApiErrors(t.Fields)...)
 	errs = append(errs, unknownTypeErrors(t.Fields)...)
 	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
 	errs = append(errs, levelScopeMismatchErrors(t.Fields, canonical)...)
 	errs = append(errs, expressionItemLevelScopeErrors(canonical)...)
 
+	return errs
+}
+
+// apiGroupOnNonApiErrors flags collection / map populated on a field
+// whose Type is not "api". The api editor section is the only place
+// these belong; carrying them on a text/number/etc. field is dead
+// data and would confuse a downstream consumer that introspects them.
+func apiGroupOnNonApiErrors(fields []Field) []ValidationError {
+	var errs []ValidationError
+	for i := range fields {
+		f := fields[i]
+		if f.Type == "api" {
+			continue
+		}
+		if f.Collection == "" && len(f.Map) == 0 {
+			continue
+		}
+		ff := f
+		errs = append(errs, ValidationError{
+			Type:    "forbidden-attribute",
+			Field:   &ff,
+			Index:   i,
+			Key:     f.Key,
+			Detail:  map[string]any{"attr": "api", "type": f.Type},
+			Message: "Attribute api is not allowed on field type " + f.Type,
+		})
+	}
 	return errs
 }
 
@@ -95,14 +123,17 @@ func forbiddenAttributeErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	for i := range fields {
 		f := fields[i]
-		def, ok := fieldTypeRegistry[f.Type]
+		def, ok := fieldDescriptors[f.Type]
 		if !ok {
 			// Unknown type already reported by unknownTypeErrors —
 			// skip the per-attr check so the user sees one error per
 			// problem, not a flood.
 			continue
 		}
-		for _, attr := range def.ForbiddenAttributes {
+		for _, attr := range allEnforcedAttrs {
+			if def.Abilities.abilityFor(attr) {
+				continue
+			}
 			if !propertyIsSet(f, attr) {
 				continue
 			}

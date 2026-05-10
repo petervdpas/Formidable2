@@ -1,6 +1,6 @@
 // Field-type registry — single source of truth lives in Go
-// (internal/modules/template/field_registry.go). This module loads
-// the backend data on first call and merges it with the few
+// (internal/modules/template/field_abilities.go). This module loads
+// the backend matrix on first call and merges it with the few
 // frontend-only display concerns: i18n labelKey + per-type "default
 // value when creating a new field".
 //
@@ -8,47 +8,43 @@
 // `FIELD_TYPES`: getFieldTypeDef / isRowHidden / selectableTypes /
 // FIELD_TYPES — so existing consumers keep working without changes.
 //
-// Boot ordering: useFieldTypesLoader (in main.ts) kicks off load()
+// Boot ordering: ensureFieldTypesLoaded (in main.ts) kicks off load()
 // before the app mounts, so by the time any component calls
 // selectableTypes() the registry is populated. If the call beats the
 // load (shouldn't happen in normal flow), the helpers degrade
 // gracefully — the dropdown is empty and isRowHidden returns false.
 
 import { ref, type Ref } from "vue";
-import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import {
+  Service as TemplateSvc,
+  Abilities,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-/** Stable IDs for every row the Edit Field modal can render. */
+/** Stable IDs for every row the Edit Field modal can render. Each
+ *  matches a `keyof Abilities` from the backend matrix. */
 export type FieldEditRowId =
   | "key"
   | "type"
-  | "format"
-  | "summary_field"
-  | "expression_item"
-  | "two_column"
-  | "collapsible"
-  | "readonly"
   | "label"
   | "description"
   | "default"
   | "options"
-  | "api_group";
+  | "summary_field"
+  | "primary_key"
+  | "expression_item"
+  | "two_column"
+  | "collapsible"
+  | "readonly"
+  | "format";
 
 export interface FieldTypeDef {
-  /** YAML/JSON `type` value (e.g. "text"). */
   id: string;
-  /** Human label key for the Type dropdown. */
   labelKey: string;
-  /** Default value for newly created fields of this type. */
   defaultValue?: () => unknown;
-  /** Rows to HIDE in the Edit Field modal — derived from the
-   *  backend's forbidden attributes for this type. */
-  hiddenRows: FieldEditRowId[];
-  /** True for marker types (looper, loopstart, loopstop) that
-   *  don't carry a stored value. */
+  abilities: Abilities;
   metaOnly?: boolean;
 }
 
-// Frontend-only display concerns. Keys must align with backend type IDs.
 const LABEL_KEYS: Record<string, string> = {
   text: "workspace.templates.field_type.text",
   "file-path": "workspace.templates.field_type.file_path",
@@ -94,24 +90,6 @@ const DEFAULT_FACTORY: Record<string, () => unknown> = {
   guid: () => "",
 };
 
-// Map backend forbidden-attribute names to frontend row IDs. The
-// backend uses the bare group name "api"; the modal renders this as
-// a single row named "api_group". Anything not in the map is
-// assumed to be 1:1 with a row id (label, description, default,
-// options, summary_field, expression_item, two_column, collapsible,
-// readonly, format).
-function attrToRow(attr: string): FieldEditRowId | null {
-  switch (attr) {
-    case "api":         return "api_group";
-    case "primary_key": return null; // no FE row for this
-    default: return attr as FieldEditRowId;
-  }
-}
-
-// Module-scope cache. Populated by load(); drives all the helper
-// functions below. Reactive so any component reading `FIELD_TYPES`
-// (or any helper that derives from it) sees the populated array as
-// soon as the load resolves.
 const registry: Ref<FieldTypeDef[]> = ref([]);
 let loadPromise: Promise<void> | null = null;
 
@@ -122,34 +100,25 @@ async function load(): Promise<void> {
     labelKey: LABEL_KEYS[d.id] ?? d.id,
     defaultValue: DEFAULT_FACTORY[d.id],
     metaOnly: d.meta_only,
-    hiddenRows: (d.forbidden_attributes ?? [])
-      .map(attrToRow)
-      .filter((r): r is FieldEditRowId => r !== null),
+    abilities: d.abilities,
   }));
 }
 
-/** Kicked off by main.ts before mount so components see a populated
- *  registry on first render. Idempotent. */
 export function ensureFieldTypesLoaded(): Promise<void> {
   if (!loadPromise) loadPromise = load();
   return loadPromise;
 }
 
-/** Reactive registry array — same shape as the old FIELD_TYPES
- *  constant. Consumers that need to iterate (e.g. dropdown options)
- *  read this; it'll re-render once load() completes. */
 export const FIELD_TYPES = registry;
 
 export function getFieldTypeDef(id: string): FieldTypeDef | undefined {
-  // Reads through the ref so callers inside computed/templates
-  // re-run when load() resolves.
   return registry.value.find((d) => d.id === id);
 }
 
 export function isRowHidden(typeId: string, rowId: FieldEditRowId): boolean {
   const def = getFieldTypeDef(typeId);
   if (!def) return false;
-  return def.hiddenRows.includes(rowId);
+  return def.abilities[rowId as keyof Abilities] === false;
 }
 
 /** Type IDs eligible to appear in the Edit modal's Type dropdown.

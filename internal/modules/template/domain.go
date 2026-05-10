@@ -149,6 +149,9 @@ func (m *Manager) LoadTemplate(name string) (*Template, error) {
 		t.Filename = name
 	}
 	t.NeedsResave = yamlMissingLevelScope([]byte(raw))
+	if coerceExpressionItemOffRoot(t.Fields) {
+		t.NeedsResave = true
+	}
 	return &t, nil
 }
 

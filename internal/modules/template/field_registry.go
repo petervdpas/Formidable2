@@ -1,256 +1,123 @@
 package template
 
-// Field-type registry. Mirrors `utils/fieldTypes.js` from the original
-// Formidable: each entry declares which optional Field properties are
-// FORBIDDEN for that type. The frontend's `field-types.ts` registry
-// drives editor visibility for the same set of properties; here we
-// enforce the contract at save-time so a hand-edited YAML or a
-// programmatic writer can't leave meaningless data on a field.
+// Field-attribute matrix — the type and helper layer. The actual
+// per-type Abilities map lives in field_abilities.go so the matrix
+// stays grep-friendly. Adding/removing an attribute means: (1) one
+// new constant here, (2) one new bool in Abilities, (3) one case
+// each in propertyIsSet / clearProperty, (4) every type's entry in
+// field_abilities.go gets the new bool set explicitly.
 
-// Property names used across the registry. Stable strings — referenced
-// by tests and by the ValidationError detail. The "api" group name
-// checks the union of its members.
 const (
-	attrSummaryField   = "summary_field"
-	attrPrimaryKey     = "primary_key"
+	attrKey            = "key"
+	attrType           = "type"
 	attrLabel          = "label"
 	attrDescription    = "description"
 	attrDefault        = "default"
 	attrOptions        = "options"
+	attrSummaryField   = "summary_field"
+	attrPrimaryKey     = "primary_key"
 	attrExpressionItem = "expression_item"
 	attrTwoColumn      = "two_column"
 	attrCollapsible    = "collapsible"
 	attrReadonly       = "readonly"
 	attrFormat         = "format"
-	attrAPIGroup       = "api" // collection / id / map / use_picker / allowed_ids
 )
 
-// FieldTypeDef declares a known field type and the optional Field
-// properties it forbids. `MetaOnly` flags the marker types (looper,
-// loopstart, loopstop) that don't carry a stored value but still
-// participate in validation.
-//
-// JSON tags are present because FieldTypeDef is also the Wails-facing
-// shape returned by Service.FieldTypes — the frontend uses it as the
-// single source of truth for "what types exist and what they forbid".
-type FieldTypeDef struct {
-	ID                  string   `json:"id"`
-	MetaOnly            bool     `json:"meta_only"`
-	ForbiddenAttributes []string `json:"forbidden_attributes"`
+// Abilities is the per-type ability vector. Each bool gates a single
+// attribute in the field-edit modal AND in backend save-time
+// enforcement. true = enabled (modal row visible, value preserved on
+// save); false = disabled (row hidden, Normalize strips, validator
+// flags any non-zero).
+type Abilities struct {
+	Key            bool `json:"key"`
+	Type           bool `json:"type"`
+	Label          bool `json:"label"`
+	Description    bool `json:"description"`
+	Default        bool `json:"default"`
+	Options        bool `json:"options"`
+	SummaryField   bool `json:"summary_field"`
+	PrimaryKey     bool `json:"primary_key"`
+	ExpressionItem bool `json:"expression_item"`
+	TwoColumn      bool `json:"two_column"`
+	Collapsible    bool `json:"collapsible"`
+	Readonly       bool `json:"readonly"`
+	Format         bool `json:"format"`
 }
 
-// fieldTypeRegistry — mirrors original Formidable's `disabledAttributes`
-// per type (utils/fieldTypes.js). Order within a type's list is not
-// significant. Adding a new type is one entry plus a per-type test.
-var fieldTypeRegistry = map[string]FieldTypeDef{
-	"guid": {
-		ID: "guid",
-		// Allowed on guid: label, description, primary_key — a guid field
-		// is the natural primary key of a collection-enabled template,
-		// and the editor lets the user label it ("GUID") and describe it.
-		ForbiddenAttributes: []string{
-			attrDefault,
-			attrOptions, attrSummaryField, attrExpressionItem, attrTwoColumn,
-			attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"looper": {
-		ID: "looper", MetaOnly: true,
-		ForbiddenAttributes: []string{
-			attrDefault, attrOptions, attrExpressionItem, attrTwoColumn,
-			attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"loopstart": {
-		ID: "loopstart", MetaOnly: true,
-		ForbiddenAttributes: []string{
-			attrDefault, attrOptions, attrExpressionItem, attrTwoColumn,
-			attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"loopstop": {
-		ID: "loopstop", MetaOnly: true,
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrDescription, attrDefault, attrOptions,
-			attrExpressionItem, attrTwoColumn, attrCollapsible, attrReadonly,
-			attrFormat, attrAPIGroup,
-		},
-	},
-	"text": {
-		ID: "text",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"file-path": {
-		// Path-shaped text input — a plain string value paired with a
-		// Browse button (native file picker). Options carry extension
-		// globs ("*.json", "*.md;*.markdown") that become FileFilter
-		// entries in the picker dropdown.
-		ID: "file-path",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"folder-path": {
-		// As file-path but the picker accepts a directory. No filters
-		// apply to a directory picker, so options are forbidden here.
-		ID: "folder-path",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrFormat,
-			attrAPIGroup, attrOptions,
-		},
-	},
-	"boolean": {
-		ID: "boolean",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"dropdown": {
-		ID: "dropdown",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"multioption": {
-		ID: "multioption",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"radio": {
-		ID: "radio",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"textarea": {
-		ID: "textarea",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible,
-			attrAPIGroup,
-		},
-	},
-	"number": {
-		ID: "number",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"range": {
-		ID: "range",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"date": {
-		ID: "date",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"list": {
-		ID: "list",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"table": {
-		ID: "table",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"image": {
-		ID: "image",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"link": {
-		ID: "link",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"tags": {
-		ID: "tags",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrCollapsible, attrReadonly, attrFormat,
-			attrAPIGroup,
-		},
-	},
-	"api": {
-		ID: "api",
-		ForbiddenAttributes: []string{
-			attrSummaryField, attrDefault, attrOptions, attrFormat,
-			attrExpressionItem, attrTwoColumn, attrCollapsible, attrReadonly,
-		},
-	},
+// FieldDescriptor is the per-type record. MetaOnly flags marker types
+// (looper, loopstart, loopstop) that don't carry a stored value but
+// still participate in validation.
+type FieldDescriptor struct {
+	ID        string    `json:"id"`
+	MetaOnly  bool      `json:"meta_only"`
+	Abilities Abilities `json:"abilities"`
 }
 
-// IsKnownFieldType reports whether the given type id is in the registry.
+// IsKnownFieldType reports whether the given type id is in the matrix.
 func IsKnownFieldType(t string) bool {
-	_, ok := fieldTypeRegistry[t]
+	_, ok := fieldDescriptors[t]
 	return ok
 }
 
-// orderedTypes is the public-facing iteration order of the registry —
-// stable across calls so the frontend's "Type" dropdown lists types
-// in a predictable order. Mirrors the original JS map declaration
-// order so existing user habits don't shuffle.
-var orderedTypes = []string{
-	"text", "textarea", "number", "range", "date",
-	"boolean", "dropdown", "multioption", "radio",
-	"file-path", "folder-path",
-	"list", "table", "image", "link", "tags",
-	"api", "guid",
-	"looper", "loopstart", "loopstop",
-}
-
-// AllFieldTypes returns the registry as a slice in the stable order
-// declared by `orderedTypes`. Returned slices are defensive copies
-// so callers can mutate without disturbing the registry. Used by
-// Service.FieldTypes (the Wails-facing single source of truth).
-func AllFieldTypes() []FieldTypeDef {
-	out := make([]FieldTypeDef, 0, len(orderedTypes))
+// AllFieldTypes returns the matrix as a slice in the stable order
+// declared by `orderedTypes`. Used by Service.FieldTypes (the
+// Wails-facing single source of truth).
+func AllFieldTypes() []FieldDescriptor {
+	out := make([]FieldDescriptor, 0, len(orderedTypes))
 	for _, id := range orderedTypes {
-		def, ok := fieldTypeRegistry[id]
+		def, ok := fieldDescriptors[id]
 		if !ok {
 			continue
 		}
-		forbidden := append([]string(nil), def.ForbiddenAttributes...)
-		out = append(out, FieldTypeDef{
-			ID:                  def.ID,
-			MetaOnly:            def.MetaOnly,
-			ForbiddenAttributes: forbidden,
-		})
+		out = append(out, def)
 	}
 	return out
 }
 
-// defaultIsPopulated reports whether a Field.Default value should be
-// treated as "explicitly set" by the user. Nil/empty-string/zero-number/
-// false-bool are quiet zeros that arrive via YAML round-trip even when
-// the user never typed a default — flagging them as forbidden creates
-// false positives on guid/loopstart/loopstop seed fields.
+// allEnforcedAttrs lists every attr name that backend save-validation
+// and Normalize iterate over. Excludes "key" and "type" — those are
+// always present and don't have a corresponding Field-property check.
+var allEnforcedAttrs = []string{
+	attrLabel, attrDescription, attrDefault, attrOptions, attrSummaryField,
+	attrPrimaryKey, attrExpressionItem, attrTwoColumn, attrCollapsible,
+	attrReadonly, attrFormat,
+}
+
+// abilityFor returns the Abilities bool for a given attr name.
+// Returns true (allowed) for unrecognized names so future attrs that
+// the matrix doesn't yet model don't accidentally get stripped.
+func (a Abilities) abilityFor(attr string) bool {
+	switch attr {
+	case attrKey:
+		return a.Key
+	case attrType:
+		return a.Type
+	case attrLabel:
+		return a.Label
+	case attrDescription:
+		return a.Description
+	case attrDefault:
+		return a.Default
+	case attrOptions:
+		return a.Options
+	case attrSummaryField:
+		return a.SummaryField
+	case attrPrimaryKey:
+		return a.PrimaryKey
+	case attrExpressionItem:
+		return a.ExpressionItem
+	case attrTwoColumn:
+		return a.TwoColumn
+	case attrCollapsible:
+		return a.Collapsible
+	case attrReadonly:
+		return a.Readonly
+	case attrFormat:
+		return a.Format
+	}
+	return true
+}
+
 func defaultIsPopulated(v any) bool {
 	if v == nil {
 		return false
@@ -275,7 +142,6 @@ func defaultIsPopulated(v any) bool {
 }
 
 // propertyIsSet reports whether `attr` has a non-zero value on f.
-// The "api" group name returns true if any member of the group is set.
 func propertyIsSet(f Field, attr string) bool {
 	switch attr {
 	case attrSummaryField:
@@ -287,10 +153,6 @@ func propertyIsSet(f Field, attr string) bool {
 	case attrDescription:
 		return f.Description != ""
 	case attrDefault:
-		// YAML `default: ""` (or `default: 0` / `default: false`) is the
-		// editor's quiet zero — not "default explicitly set". Only flag
-		// truly-populated defaults so seed templates with empty defaults
-		// don't trip the forbidden-attribute rule on guid/loop fields.
 		return defaultIsPopulated(f.Default)
 	case attrOptions:
 		return len(f.Options) > 0
@@ -304,8 +166,6 @@ func propertyIsSet(f Field, attr string) bool {
 		return f.Readonly
 	case attrFormat:
 		return f.Format != ""
-	case attrAPIGroup:
-		return f.Collection != "" || len(f.Map) > 0
 	}
 	return false
 }

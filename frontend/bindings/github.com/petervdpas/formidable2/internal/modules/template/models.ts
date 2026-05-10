@@ -42,6 +42,82 @@ export class APIMap {
 }
 
 /**
+ * Abilities is the per-type ability vector. Each bool gates a single
+ * attribute in the field-edit modal AND in backend save-time
+ * enforcement. true = enabled (modal row visible, value preserved on
+ * save); false = disabled (row hidden, Normalize strips, validator
+ * flags any non-zero).
+ */
+export class Abilities {
+    "key": boolean;
+    "type": boolean;
+    "label": boolean;
+    "description": boolean;
+    "default": boolean;
+    "options": boolean;
+    "summary_field": boolean;
+    "primary_key": boolean;
+    "expression_item": boolean;
+    "two_column": boolean;
+    "collapsible": boolean;
+    "readonly": boolean;
+    "format": boolean;
+
+    /** Creates a new Abilities instance. */
+    constructor($$source: Partial<Abilities> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = false;
+        }
+        if (!("type" in $$source)) {
+            this["type"] = false;
+        }
+        if (!("label" in $$source)) {
+            this["label"] = false;
+        }
+        if (!("description" in $$source)) {
+            this["description"] = false;
+        }
+        if (!("default" in $$source)) {
+            this["default"] = false;
+        }
+        if (!("options" in $$source)) {
+            this["options"] = false;
+        }
+        if (!("summary_field" in $$source)) {
+            this["summary_field"] = false;
+        }
+        if (!("primary_key" in $$source)) {
+            this["primary_key"] = false;
+        }
+        if (!("expression_item" in $$source)) {
+            this["expression_item"] = false;
+        }
+        if (!("two_column" in $$source)) {
+            this["two_column"] = false;
+        }
+        if (!("collapsible" in $$source)) {
+            this["collapsible"] = false;
+        }
+        if (!("readonly" in $$source)) {
+            this["readonly"] = false;
+        }
+        if (!("format" in $$source)) {
+            this["format"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Abilities instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Abilities {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Abilities($$parsedSource as Partial<Abilities>);
+    }
+}
+
+/**
  * Descriptor is the {name, yaml, storageLocation} bundle returned by
  * GetDescriptor. Mirrors templateManager.getTemplateDescriptor.
  */
@@ -171,45 +247,40 @@ export class Field {
 }
 
 /**
- * FieldTypeDef declares a known field type and the optional Field
- * properties it forbids. `MetaOnly` flags the marker types (looper,
- * loopstart, loopstop) that don't carry a stored value but still
- * participate in validation.
- * 
- * JSON tags are present because FieldTypeDef is also the Wails-facing
- * shape returned by Service.FieldTypes — the frontend uses it as the
- * single source of truth for "what types exist and what they forbid".
+ * FieldDescriptor is the per-type record. MetaOnly flags marker types
+ * (looper, loopstart, loopstop) that don't carry a stored value but
+ * still participate in validation.
  */
-export class FieldTypeDef {
+export class FieldDescriptor {
     "id": string;
     "meta_only": boolean;
-    "forbidden_attributes": string[];
+    "abilities": Abilities;
 
-    /** Creates a new FieldTypeDef instance. */
-    constructor($$source: Partial<FieldTypeDef> = {}) {
+    /** Creates a new FieldDescriptor instance. */
+    constructor($$source: Partial<FieldDescriptor> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
         }
         if (!("meta_only" in $$source)) {
             this["meta_only"] = false;
         }
-        if (!("forbidden_attributes" in $$source)) {
-            this["forbidden_attributes"] = [];
+        if (!("abilities" in $$source)) {
+            this["abilities"] = (new Abilities());
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new FieldTypeDef instance from a string or object.
+     * Creates a new FieldDescriptor instance from a string or object.
      */
-    static createFrom($$source: any = {}): FieldTypeDef {
+    static createFrom($$source: any = {}): FieldDescriptor {
         const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("forbidden_attributes" in $$parsedSource) {
-            $$parsedSource["forbidden_attributes"] = $$createField2_0($$parsedSource["forbidden_attributes"]);
+        if ("abilities" in $$parsedSource) {
+            $$parsedSource["abilities"] = $$createField2_0($$parsedSource["abilities"]);
         }
-        return new FieldTypeDef($$parsedSource as Partial<FieldTypeDef>);
+        return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
     }
 }
 
@@ -446,9 +517,9 @@ export class ValidationError {
      * Creates a new ValidationError instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationError {
-        const $$createField3_0 = $$createType5;
-        const $$createField4_0 = $$createType8;
-        const $$createField6_0 = $$createType9;
+        const $$createField3_0 = $$createType8;
+        const $$createField4_0 = $$createType9;
+        const $$createField6_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -469,8 +540,9 @@ const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = APIMap.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $Create.Array($Create.Any);
+const $$createType5 = Abilities.createFrom;
 const $$createType6 = Field.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Nullable($$createType6);
-const $$createType9 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = $Create.Nullable($$createType6);
+const $$createType10 = $Create.Map($Create.Any, $Create.Any);

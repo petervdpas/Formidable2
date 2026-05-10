@@ -41,7 +41,7 @@ type tmplWorld struct {
 	items    []ItemField
 	itemsErr error
 	saveErr  error
-	registry []FieldTypeDef
+	registry []FieldDescriptor
 	yamlBlob []byte
 	reloaded *Template
 

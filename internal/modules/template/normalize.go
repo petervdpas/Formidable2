@@ -28,6 +28,54 @@ func Normalize(t *Template) {
 		normalizeField(&t.Fields[i])
 	}
 	t.Fields = assignLevelScopes(t.Fields)
+	for i := range t.Fields {
+		if t.Fields[i].LevelScope > 0 && t.Fields[i].ExpressionItem {
+			t.Fields[i].ExpressionItem = false
+		}
+		if t.Fields[i].Type == "guid" {
+			t.Fields[i].Key = "id"
+		}
+		stripDisabledAttributes(&t.Fields[i])
+	}
+}
+
+func stripDisabledAttributes(f *Field) {
+	def, ok := fieldDescriptors[f.Type]
+	if !ok {
+		return
+	}
+	for _, attr := range allEnforcedAttrs {
+		if !def.Abilities.abilityFor(attr) {
+			clearProperty(f, attr)
+		}
+	}
+}
+
+func clearProperty(f *Field, attr string) {
+	switch attr {
+	case attrSummaryField:
+		f.SummaryField = ""
+	case attrPrimaryKey:
+		f.PrimaryKey = false
+	case attrLabel:
+		f.Label = ""
+	case attrDescription:
+		f.Description = ""
+	case attrDefault:
+		f.Default = nil
+	case attrOptions:
+		f.Options = nil
+	case attrExpressionItem:
+		f.ExpressionItem = false
+	case attrTwoColumn:
+		f.TwoColumn = false
+	case attrCollapsible:
+		f.Collapsible = nil
+	case attrReadonly:
+		f.Readonly = false
+	case attrFormat:
+		f.Format = ""
+	}
 }
 
 func normalizeField(f *Field) {

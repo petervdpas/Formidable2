@@ -8,9 +8,10 @@ export {
 
 export {
     APIMap,
+    Abilities,
     Descriptor,
     Field,
-    FieldTypeDef,
+    FieldDescriptor,
     GeneratorOptions,
     ImgMode,
     ItemField,
