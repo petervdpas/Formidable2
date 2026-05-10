@@ -26,5 +26,6 @@ func (a *App) WailsServices() []application.Service {
 		application.NewService(a.Credential),
 		application.NewService(a.Monitor),
 		application.NewService(a.Expression),
+		application.NewService(a.Logging),
 	}
 }

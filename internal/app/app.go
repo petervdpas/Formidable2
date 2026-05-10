@@ -29,6 +29,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/modules/logging"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
@@ -70,8 +71,9 @@ func (e *emitterRelay) set(fn EmitFunc) {
 }
 
 type Deps struct {
-	AppRoot string
-	Logger  *slog.Logger
+	AppRoot        string
+	Logger         *slog.Logger
+	LogBroadcaster *applog.Broadcaster
 }
 
 type App struct {
@@ -95,6 +97,7 @@ type App struct {
 	Credential   *credential.Service
 	Monitor      *monitor.Service
 	Expression   *expression.Service
+	Logging      *logging.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -111,6 +114,7 @@ type App struct {
 	credentialManager *credential.Manager
 	apiHandler      http.Handler
 	emitter         *emitterRelay
+	logBroadcaster  *applog.Broadcaster
 	deps            Deps
 }
 
@@ -121,7 +125,9 @@ func New(d Deps) (*App, error) {
 		}
 	}
 	if d.Logger == nil {
-		d.Logger = applog.New(applog.Options{AppRoot: d.AppRoot})
+		logger, bc := applog.New(applog.Options{AppRoot: d.AppRoot})
+		d.Logger = logger
+		d.LogBroadcaster = bc
 	}
 
 	sysM := system.NewManager(d.AppRoot, d.Logger)
@@ -421,6 +427,7 @@ func New(d Deps) (*App, error) {
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
 		Expression:      expression.NewService(expressionM),
+		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}))),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
@@ -436,6 +443,7 @@ func New(d Deps) (*App, error) {
 		credentialManager: credentialM,
 		apiHandler:        apiHandler,
 		emitter:         emitter,
+		logBroadcaster:  d.LogBroadcaster,
 		deps:            d,
 	}, nil
 }
@@ -463,13 +471,20 @@ func (a *App) SetWindowOpener(fn func(url string) error) {
 	wiki.InstallWindowOpener(a.Wiki, fn)
 }
 
-// SetEmit installs the transport that journal events flow through.
-// main.go calls this after building the Wails application.
+// SetEmit installs the transport that journal events (and the log
+// broadcaster) flow through. main.go calls this after building the
+// Wails application; once installed, every slog record also reaches
+// the frontend as a "log:entry" event.
 func (a *App) SetEmit(fn EmitFunc) {
 	if a == nil || a.emitter == nil {
 		return
 	}
 	a.emitter.set(fn)
+	if a.logBroadcaster != nil {
+		a.logBroadcaster.SetEmitter(func(e applog.Entry) {
+			fn("log:entry", e)
+		})
+	}
 }
 
 func (a *App) Logger() *slog.Logger { return a.deps.Logger }

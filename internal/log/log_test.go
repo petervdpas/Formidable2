@@ -82,7 +82,7 @@ func TestPickUseFile(t *testing.T) {
 
 func TestNew_WritesToFile(t *testing.T) {
 	dir := t.TempDir()
-	l := New(Options{AppRoot: dir, Level: "debug"})
+	l, _ := New(Options{AppRoot: dir, Level: "debug"})
 	l.Info("hello world", "key", "value")
 
 	body, err := os.ReadFile(filepath.Join(dir, defaultFileName))
@@ -99,7 +99,7 @@ func TestNew_WritesToFile(t *testing.T) {
 
 func TestNew_FileDisabled(t *testing.T) {
 	dir := t.TempDir()
-	l := New(Options{AppRoot: dir, UseFile: boolPtr(false)})
+	l, _ := New(Options{AppRoot: dir, UseFile: boolPtr(false)})
 	l.Info("no file please")
 
 	if _, err := os.Stat(filepath.Join(dir, defaultFileName)); !os.IsNotExist(err) {
@@ -109,7 +109,7 @@ func TestNew_FileDisabled(t *testing.T) {
 
 func TestNew_RespectsLevel(t *testing.T) {
 	dir := t.TempDir()
-	l := New(Options{AppRoot: dir, Level: "warn"})
+	l, _ := New(Options{AppRoot: dir, Level: "warn"})
 	l.Debug("hidden")
 	l.Info("hidden too")
 	l.Warn("visible warn")
@@ -130,7 +130,7 @@ func TestNew_OpenFailureFallsBackToStderr(t *testing.T) {
 	t.Cleanup(func() { openLogFile = prev })
 	openLogFile = func(string) (*os.File, error) { return nil, os.ErrPermission }
 
-	l := New(Options{AppRoot: t.TempDir()})
+	l, _ := New(Options{AppRoot: t.TempDir()})
 	l.Info("still alive") // must not panic
 }
 
@@ -147,7 +147,7 @@ func TestNew_TruncatesPreviousRun(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 
-	l := New(Options{AppRoot: dir})
+	l, _ := New(Options{AppRoot: dir})
 	l.Info("fresh entry")
 
 	body, err := os.ReadFile(path)

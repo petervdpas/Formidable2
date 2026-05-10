@@ -43,10 +43,26 @@ type Options struct {
 	JSON bool
 }
 
-// New constructs a logger per the options. Errors opening the log file are
-// silently swallowed and the logger falls back to stderr-only — file logging
-// must never prevent the application from starting.
-func New(opts Options) *slog.Logger {
+// LogPath returns the resolved log file path for the given options,
+// or "" when file output is disabled or AppRoot is empty.
+func LogPath(opts Options) string {
+	if !pickUseFile(opts.UseFile) || opts.AppRoot == "" {
+		return ""
+	}
+	fileName := opts.FileName
+	if fileName == "" {
+		fileName = defaultFileName
+	}
+	return filepath.Join(opts.AppRoot, fileName)
+}
+
+// New constructs a logger + Broadcaster per the options. Errors
+// opening the log file are silently swallowed and the logger falls
+// back to stderr-only — file logging must never prevent the
+// application from starting. The broadcaster is always returned and
+// captures every record into its in-memory ring; pair it with
+// Broadcaster.SetEmitter to fan records out to a UI transport.
+func New(opts Options) (*slog.Logger, *Broadcaster) {
 	level := pickLevel(opts.Level)
 	useFile := pickUseFile(opts.UseFile)
 
@@ -63,10 +79,14 @@ func New(opts Options) *slog.Logger {
 	}
 
 	handlerOpts := &slog.HandlerOptions{Level: level}
+	var textHandler slog.Handler
 	if opts.JSON {
-		return slog.New(slog.NewJSONHandler(writer, handlerOpts))
+		textHandler = slog.NewJSONHandler(writer, handlerOpts)
+	} else {
+		textHandler = slog.NewTextHandler(writer, handlerOpts)
 	}
-	return slog.New(slog.NewTextHandler(writer, handlerOpts))
+	bc := NewBroadcaster(500)
+	return slog.New(newMultiHandler(textHandler, bc.Handler())), bc
 }
 
 func pickLevel(explicit string) slog.Level {

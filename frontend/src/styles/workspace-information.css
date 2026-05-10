@@ -83,3 +83,89 @@
   font-style: italic;
   color: var(--color-text-muted);
 }
+
+/* Information → Logging. Live-tail rows + raw text dump. Lives next
+   to the About styles so all Information chrome is in one file. */
+.logging-path-row {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.logging-path-label {
+  font-weight: 600;
+}
+
+.logging-path {
+  font-family: var(--font-mono, monospace);
+  background: var(--color-bg-sunken);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.logging-toolbar {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}
+
+.logging-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+}
+
+.logging-row {
+  display: grid;
+  grid-template-columns: auto 64px 1fr;
+  column-gap: var(--space-3);
+  padding: 4px var(--space-2);
+  border-radius: 4px;
+  background: var(--color-bg-sunken);
+  align-items: baseline;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.logging-time { color: var(--color-text-muted); }
+.logging-level { font-weight: 700; }
+.logging-msg { color: var(--color-text); }
+.logging-attrs {
+  grid-column: 3;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.logging-level--error  .logging-level { color: var(--color-error, #e06c75); }
+.logging-level--warn   .logging-level { color: var(--color-warn, #d19a66); }
+.logging-level--info   .logging-level { color: var(--color-accent, #61afef); }
+.logging-level--debug  .logging-level { color: var(--color-text-muted); }
+
+.logging-empty {
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: var(--space-3) 0;
+}
+
+.logging-raw {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--color-bg-sunken);
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 60vh;
+  overflow: auto;
+}
