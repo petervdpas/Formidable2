@@ -6,9 +6,11 @@ import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
-import { FormSection, SelectField, TextField, SwitchField } from "../components/fields";
+import { FormSection, SelectField, SwitchField } from "../components/fields";
 import FormLoopFields from "../components/form-fields/FormLoopFields.vue";
 import StorageListItem from "../components/StorageListItem.vue";
+import StorageTagFilter from "../components/StorageTagFilter.vue";
+import StorageFlagFilter from "../components/StorageFlagFilter.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useTemplates } from "../composables/useTemplates";
 import { useFormView } from "../composables/useFormView";
@@ -62,6 +64,11 @@ const templateOptions = computed(() =>
     return { value: f, label: tpl?.name?.trim() || f.replace(/\.yaml$/, "") };
   }),
 );
+
+const hasTagsField = computed(() => {
+  const tpl = templateCache.value.get(selectedTemplate.value);
+  return !!tpl?.fields?.some((f) => f.type === "tags");
+});
 
 // ── Form list (sidebar) ──────────────────────────────────────────────
 const summaries = ref<FormSummary[]>([]);
@@ -467,18 +474,10 @@ setTopbarMenu(() => [
         </div>
 
         <div class="sidebar-toolbar">
-          <SwitchField
-            v-model="showAll"
-            :on-label="t('workspace.storage.show_all')"
-            :off-label="t('workspace.storage.show_marked')"
-          />
+          <StorageFlagFilter v-model="showAll" />
         </div>
 
-        <TextField
-          v-model="tagFilter"
-          :placeholder="t('workspace.storage.tag_filter_placeholder')"
-          clearable
-        />
+        <StorageTagFilter v-if="hasTagsField" v-model="tagFilter" />
       </div>
 
       <div class="sidebar-scroll">
