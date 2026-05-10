@@ -16,9 +16,16 @@ useTheme(); // installs the data-theme attribute reactively
 
 const { active, setActive } = useActiveWorkspace();
 const { bootConfig } = useRestartGate();
-const { update, reload } = useConfig();
+const { config, update, reload } = useConfig();
 const { hasTemplates, hasProfiles, isDisabled, fallbackFor } =
   useRibbonAvailability();
+
+// Suppress the WebView's default context menu (back/forward/reload/inspect)
+// unless development_enable is on. Reads the live config at fire time so
+// toggling Development Mode in Settings takes effect without a reload.
+function onContextMenu(e: MouseEvent) {
+  if (!config.value?.development_enable) e.preventDefault();
+}
 
 const activeWorkspace = computed(
   () => WORKSPACES.find((w) => w.id === active.value) ?? WORKSPACES[0],
@@ -91,10 +98,12 @@ onMounted(() => {
       setActive("storage");
     }
   });
+  window.addEventListener("contextmenu", onContextMenu);
 });
 onBeforeUnmount(() => {
   unsubNav?.();
   unsubNav = null;
+  window.removeEventListener("contextmenu", onContextMenu);
 });
 </script>
 

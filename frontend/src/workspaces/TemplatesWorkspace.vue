@@ -7,6 +7,7 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
+import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import {
@@ -533,7 +534,7 @@ setTopbarMenu(() => [
                 <span v-if="f.primary_key" class="badge badge-ok small">PRIMARY</span>
                 <span class="field-row-spacer"></span>
                 <div class="field-row-actions">
-                  <span class="badge badge-level">L{{ f.level_scope ?? 0 }}</span>
+                  <FieldScopeBadge :level="f.level_scope" />
                   <button
                     type="button"
                     class="field-action-btn edit"
