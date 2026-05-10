@@ -25,7 +25,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: true, Format: true,
 		},
 	},
@@ -79,7 +79,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false,
 		},
 	},
@@ -97,7 +97,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: true, Format: false,
 		},
 	},
@@ -106,7 +106,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: true, Format: false,
 		},
 	},
@@ -115,7 +115,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: true,
+			ExpressionItem: false, TwoColumn: true, Collapsible: true,
 			Readonly: false, Format: false,
 		},
 	},
@@ -124,7 +124,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: true,
+			ExpressionItem: false, TwoColumn: true, Collapsible: true,
 			Readonly: false, Format: false,
 		},
 	},
@@ -133,7 +133,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false,
 		},
 	},
@@ -142,7 +142,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false,
 		},
 	},
@@ -151,7 +151,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
-			ExpressionItem: true, TwoColumn: true, Collapsible: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false,
 		},
 	},
