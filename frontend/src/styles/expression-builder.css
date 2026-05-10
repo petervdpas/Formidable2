@@ -93,24 +93,26 @@
   font-style: italic;
 }
 
-/* State tab — row holding the Display label + on/off toggle. */
-.expr-builder-state-row {
+/* Configure-pane header — Display label + on/off toggle, sits above
+ * the tab strip so the per-field gate is reachable regardless of which
+ * rule-producer tab is enabled. */
+.expr-builder-config-head {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-color-faint, rgba(0, 0, 0, 0.06));
 }
 
-.expr-builder-state-row-label {
+.expr-builder-config-head-label {
   font-weight: 500;
 }
 
-/* Rules subsection lives below the Display toggle. Header has the
- * title + add-rule button on the same line; an empty-state caption
- * shows until at least one rule is added. */
+/* Rules subsection — header with title + add-rule button, plus an
+ * empty-state caption until at least one rule is added. */
 .expr-builder-rules {
-  margin-top: 0.9rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--border-color-faint, rgba(0, 0, 0, 0.06));
+  margin-top: 0;
 }
 
 .expr-builder-rules-head {

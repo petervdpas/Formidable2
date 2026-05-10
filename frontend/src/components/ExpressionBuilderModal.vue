@@ -46,17 +46,13 @@ const selectedField = computed<Field | null>(
   () => expressionFields.value.find((f) => f.key === selectedKey.value) ?? null,
 );
 
-// Per-field "Display" toggle. Lives in the State tab and gates the
-// Display tab — a field doesn't enter the chip until the user opts
-// it in here. Defaults to off.
+// Per-field "Display" toggle. Lives in the configure-pane header
+// (above the tabs) and gates the Display tab — a field doesn't enter
+// the chip until the user opts it in. Defaults to off.
 const canBeDisplayed = ref<Record<string, boolean>>({});
 
 const displayAllowed = computed(() => {
   if (!selectedKey.value) return false;
-  // Display tab disabled = (state-bearing AND toggle off). The
-  // toggle only exists in the State tab, which non-state-bearing
-  // types can't reach, so it must not gate them.
-  if (!stateAvailable.value) return true;
   return !!canBeDisplayed.value[selectedKey.value];
 });
 
@@ -162,25 +158,33 @@ watch(
     canBeDisplayed.value = flags;
     rulesByField.value = rules;
     selectedKey.value = expressionFields.value[0]?.key ?? "";
-    activeTab.value = stateAvailable.value ? "state" : "display";
+    activeTab.value = defaultTabForField();
   },
   { immediate: true },
 );
 
-// Switching fields lands on State when the new field supports it,
-// otherwise drops to Display so the user never stares at a disabled
-// active tab.
+// Switching fields lands on the rule-producer tab the new field
+// supports (State for state-bearing types, Date for date), otherwise
+// Transform — never a disabled tab.
 watch(selectedKey, () => {
-  activeTab.value = stateAvailable.value ? "state" : "display";
+  activeTab.value = defaultTabForField();
 });
 
 // Flipping the Display toggle off while the Display tab is active
-// would leave it stuck on a disabled tab; bounce back to State.
+// would leave it stuck on a disabled tab; bounce back to whichever
+// rule-producer (or Transform) is enabled.
 watch(displayAllowed, (allowed) => {
   if (!allowed && activeTab.value === "display") {
-    activeTab.value = "state";
+    activeTab.value = defaultTabForField();
   }
 });
+
+function defaultTabForField(): string {
+  if (stateAvailable.value) return "state";
+  if (isDate.value) return "date";
+  if (transformAvailable.value) return "transform";
+  return "display";
+}
 
 function pickField(key: string) {
   selectedKey.value = key;
@@ -252,20 +256,21 @@ function onApply() {
           {{ t('workspace.templates.expression_builder.configure_hint') }}
         </p>
 
-        <Tabs v-else v-model="activeTab" :items="configTabs">
-          <template #state>
-            <div class="expr-builder-state-row">
-              <span class="expr-builder-state-row-label">
-                {{ t('workspace.templates.expression_builder.state.can_be_displayed') }}
-              </span>
-              <SwitchField
-                v-if="selectedKey"
-                v-model="canBeDisplayed[selectedKey]"
-                :on-label="t('common.on')"
-                :off-label="t('common.off')"
-              />
-            </div>
+        <template v-else>
+          <div class="expr-builder-config-head">
+            <span class="expr-builder-config-head-label">
+              {{ t('workspace.templates.expression_builder.field.can_be_displayed') }}
+            </span>
+            <SwitchField
+              v-if="selectedKey"
+              v-model="canBeDisplayed[selectedKey]"
+              :on-label="t('common.on')"
+              :off-label="t('common.off')"
+            />
+          </div>
 
+          <Tabs v-model="activeTab" :items="configTabs">
+          <template #state>
             <div class="expr-builder-rules">
               <header class="expr-builder-rules-head">
                 <span class="expr-builder-rules-title">
@@ -307,6 +312,7 @@ function onApply() {
             </div>
           </template>
         </Tabs>
+        </template>
       </fieldset>
     </div>
 
