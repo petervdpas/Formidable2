@@ -24,6 +24,8 @@
   "common.reset": "Reset",
   "common.save": "Save",
   "common.show": "Show",
+  "common.sidebar_open": "Open sidebar",
+  "common.sidebar_close": "Close sidebar",
   "footer.user_profile_label": "User Profile:",
   "footer.user_profile_unknown": "—",
   "lang.en": "English",

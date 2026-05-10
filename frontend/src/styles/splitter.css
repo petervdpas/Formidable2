@@ -5,6 +5,7 @@
     height: 100%;
     width: 100%;
     min-height: 0;
+    position: relative; /* anchor for narrow-mode overlay + backdrop */
 }
 
 .split-handle {
@@ -28,4 +29,73 @@ body.is-resizing-x,
 body.is-resizing-x * {
     cursor: col-resize !important;
     user-select: none !important;
+}
+
+/* ── Narrow-viewport overlay mode ──────────────────────────────────
+   When `--narrow` is set (viewport < NARROW_BREAKPOINT from
+   useViewportWidth.ts), the sidebar leaves the flex flow and slides
+   over the main content from the left. Main fills the full width,
+   no shift on open/close. */
+.workspace-sidebar--overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(85vw, 320px);
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
+}
+
+.split-pane--overlay-open .workspace-sidebar--overlay {
+    transform: translateX(0);
+}
+
+.split-pane-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 20;
+    cursor: pointer;
+}
+
+/* Slim left-edge tab handle. Sibling of the aside (so it isn't
+   clipped by the overlay's overflow:hidden). Pinned to the workspace
+   pane's left edge when closed; slides to the right edge of the open
+   sidebar overlay when open. The transition matches the sidebar's
+   slide so they appear glued together. */
+.split-pane-edge-toggle {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    z-index: 35;
+    width: 22px;
+    height: 64px;
+    border: 1px solid var(--color-border);
+    border-left: none;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.25);
+    transition: left 0.18s ease;
+}
+.split-pane--overlay-open .split-pane-edge-toggle {
+    left: min(85vw, 320px);
+}
+.split-pane-edge-toggle:hover {
+    background: var(--color-bg);
+}
+.split-pane-edge-toggle:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
 }

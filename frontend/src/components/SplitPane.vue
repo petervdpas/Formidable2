@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { useViewportWidth } from "../composables/useViewportWidth";
+
+const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
@@ -16,6 +20,23 @@ const props = withDefaults(
 
 const width = ref(props.initial);
 const dragging = ref(false);
+
+const { narrow } = useViewportWidth();
+
+// Overlay open/closed state — only meaningful while `narrow` is true.
+// Auto-closes whenever the viewport widens past the breakpoint so the
+// in-flow sidebar reappears in its normal position.
+const overlayOpen = ref(false);
+watch(narrow, (isNarrow) => {
+  if (!isNarrow) overlayOpen.value = false;
+});
+
+function toggleOverlay() {
+  overlayOpen.value = !overlayOpen.value;
+}
+function closeOverlay() {
+  overlayOpen.value = false;
+}
 
 let startX = 0;
 let startWidth = 0;
@@ -52,17 +73,47 @@ function onKeyDown(e: KeyboardEvent) {
 }
 
 onBeforeUnmount(onMouseUp);
+
+// Sidebar inline style: fixed resizable width in normal mode; CSS
+// owns the width in narrow/overlay mode (via .workspace-sidebar--overlay).
+const sidebarStyle = computed(() => (narrow.value ? {} : { width: width.value + "px" }));
+
+const toggleGlyph = computed(() => (overlayOpen.value ? "«" : "»"));
 </script>
 
 <template>
-  <div class="split-pane" :class="{ dragging }">
+  <div
+    :class="[
+      'split-pane',
+      {
+        dragging,
+        'split-pane--narrow': narrow,
+        'split-pane--overlay-open': narrow && overlayOpen,
+      },
+    ]"
+  >
     <aside
-      :class="['workspace-sidebar', { 'workspace-sidebar--split': props.sidebarSplit }]"
-      :style="{ width: width + 'px' }"
+      :class="[
+        'workspace-sidebar',
+        {
+          'workspace-sidebar--split': props.sidebarSplit,
+          'workspace-sidebar--overlay': narrow,
+        },
+      ]"
+      :style="sidebarStyle"
     >
       <slot name="sidebar" />
     </aside>
+    <button
+      v-if="narrow"
+      type="button"
+      class="split-pane-edge-toggle"
+      :aria-label="overlayOpen ? t('common.sidebar_close') : t('common.sidebar_open')"
+      :aria-expanded="overlayOpen"
+      @click="toggleOverlay"
+    >{{ toggleGlyph }}</button>
     <div
+      v-if="!narrow"
       class="split-handle"
       role="separator"
       aria-orientation="vertical"
@@ -76,5 +127,11 @@ onBeforeUnmount(onMouseUp);
     <section class="workspace-main">
       <slot name="main" />
     </section>
+
+    <div
+      v-if="narrow && overlayOpen"
+      class="split-pane-backdrop"
+      @click="closeOverlay"
+    ></div>
   </div>
 </template>

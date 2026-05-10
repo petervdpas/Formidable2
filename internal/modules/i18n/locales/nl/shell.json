@@ -24,6 +24,8 @@
   "common.reset": "Herstellen",
   "common.save": "Opslaan",
   "common.show": "Tonen",
+  "common.sidebar_open": "Zijbalk openen",
+  "common.sidebar_close": "Zijbalk sluiten",
   "footer.user_profile_label": "Gebruikersprofiel:",
   "footer.user_profile_unknown": "—",
   "lang.en": "Engels",

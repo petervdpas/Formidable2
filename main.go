@@ -96,7 +96,7 @@ func main() {
 		Title:     "Formidable",
 		Width:     1024,
 		Height:    800,
-		MinWidth:  800,
+		MinWidth:  720,
 		MinHeight: 600,
 		Hidden:    true, // shown after splash dismissal
 		Mac: application.MacWindow{
