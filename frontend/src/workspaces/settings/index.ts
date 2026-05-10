@@ -5,7 +5,6 @@ import SettingsDisplay from "./SettingsDisplay.vue";
 import SettingsLocations from "./SettingsLocations.vue";
 import SettingsInternalServer from "./SettingsInternalServer.vue";
 import SettingsAdvanced from "./SettingsAdvanced.vue";
-import SettingsStatusButtons from "./SettingsStatusButtons.vue";
 
 export type SettingsCategoryId =
   | "general"
@@ -13,8 +12,7 @@ export type SettingsCategoryId =
   | "display"
   | "locations"
   | "internal-server"
-  | "advanced"
-  | "status-buttons";
+  | "advanced";
 
 export interface SettingsCategory {
   id: SettingsCategoryId;
@@ -29,5 +27,4 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "locations",       labelKey: "settings.categories.locations",       component: SettingsLocations },
   { id: "internal-server", labelKey: "settings.categories.internal_server", component: SettingsInternalServer },
   { id: "advanced",        labelKey: "settings.categories.advanced",        component: SettingsAdvanced },
-  { id: "status-buttons",  labelKey: "settings.categories.status_buttons",  component: SettingsStatusButtons },
 ];

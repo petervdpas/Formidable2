@@ -34,7 +34,6 @@
   "settings.categories.history": "Geschiedenis",
   "settings.categories.internal_server": "Interne server",
   "settings.categories.locations": "Locaties",
-  "settings.categories.status_buttons": "Statusknoppen",
   "settings.desc.context_directory": "Hoofdmap voor sjablonen en formulieropslag.",
   "settings.desc.persist_history": "Bewaar undo/redo-geschiedenis tussen sessies.",
   "settings.desc.sidebar_width": "Breedte in pixels (180–500). Handmatig slepen geldt alleen voor de huidige sessie en wijzigt deze waarde niet.",
@@ -70,7 +69,6 @@
   "settings.reload_tooltip": "Opnieuw laden vanaf schijf",
   "settings.requires.gigot_backend": "Vereist GiGot-backend.",
   "settings.requires.git_backend": "Vereist Git-backend.",
-  "settings.status_buttons.info": "Schakel afzonderlijke statusknoppen in of uit.",
   "settings.title": "Instellingen",
   "settings.window_preset.custom_label": "Aangepast ({0}×{1})",
   "settings.window_preset.fullscreen": "Volledig scherm"

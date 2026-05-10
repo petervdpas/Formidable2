@@ -34,7 +34,6 @@
   "settings.categories.history": "History",
   "settings.categories.internal_server": "Internal Server",
   "settings.categories.locations": "Locations",
-  "settings.categories.status_buttons": "Status Buttons",
   "settings.desc.context_directory": "Root folder for templates and form storage.",
   "settings.desc.persist_history": "Keep undo/redo history across sessions.",
   "settings.desc.sidebar_width": "Width in pixels (180–500). Manual drag is session-only and won't change this value.",
@@ -70,7 +69,6 @@
   "settings.reload_tooltip": "Reload from disk",
   "settings.requires.gigot_backend": "Requires GiGot backend.",
   "settings.requires.git_backend": "Requires Git backend.",
-  "settings.status_buttons.info": "Enable or disable individual status buttons.",
   "settings.title": "Settings",
   "settings.window_preset.custom_label": "Custom ({0}×{1})",
   "settings.window_preset.fullscreen": "Fullscreen"
