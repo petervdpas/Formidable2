@@ -31,7 +31,6 @@ export class Config {
     "author_name": string;
     "author_email": string;
     "language": string;
-    "encryption_key": string;
     "remote_backend": string;
     "git_root": string;
     "git_branch": string;
@@ -107,9 +106,6 @@ export class Config {
         if (!("language" in $$source)) {
             this["language"] = "";
         }
-        if (!("encryption_key" in $$source)) {
-            this["encryption_key"] = "";
-        }
         if (!("remote_backend" in $$source)) {
             this["remote_backend"] = "";
         }
@@ -154,18 +150,18 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField29_0 = $$createType0;
-        const $$createField31_0 = $$createType1;
-        const $$createField32_0 = $$createType2;
+        const $$createField28_0 = $$createType0;
+        const $$createField30_0 = $$createType1;
+        const $$createField31_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField29_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField28_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField31_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField30_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField32_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField31_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

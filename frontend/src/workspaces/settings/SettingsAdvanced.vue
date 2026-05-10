@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { FormSection, FormRow, TextField, SwitchField } from "../../components/fields";
+import { FormSection, FormRow, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
 const { t } = useI18n();
@@ -19,16 +19,6 @@ const cfg = computed(() => config.value!);
         @update:model-value="(v) => update({ enable_plugins: v })"
         :on-label="t('common.enabled')"
         :off-label="t('common.disabled')"
-      />
-    </FormRow>
-    <FormRow
-      :label="t('settings.field.decryption_key')"
-      :description="t('settings.desc.decryption_key')"
-    >
-      <TextField
-        type="password"
-        :model-value="cfg.encryption_key"
-        @update:model-value="(v) => update({ encryption_key: v })"
       />
     </FormRow>
     <FormRow :label="t('config.development_enable')">

@@ -28,7 +28,6 @@ type Config struct {
 	AuthorName           string         `json:"author_name"`
 	AuthorEmail          string         `json:"author_email"`
 	Language             string         `json:"language"`
-	EncryptionKey        string         `json:"encryption_key"`
 	RemoteBackend        string         `json:"remote_backend"`
 	GitRoot              string         `json:"git_root"`
 	GitBranch            string         `json:"git_branch"`

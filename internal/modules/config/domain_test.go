@@ -204,7 +204,6 @@ func TestUpdateUserConfig_NoLostUpdatesUnderConcurrency(t *testing.T) {
 		{"language",         "nl"},
 		{"author_name",      "Goro_AN"},
 		{"author_email",     "goro@example.com"},
-		{"encryption_key",   "Goro_EK"},
 		{"gigot_base_url",   "https://goro.example/u"},
 		{"gigot_repo_name",  "Goro_REPO"},
 		{"gigot_token",      "Goro_TOKEN"},
@@ -446,7 +445,7 @@ func TestSwitchUserProfile_SerializedAgainstUpdate(t *testing.T) {
 
 	// Update storm — every goroutine touches a different field so a
 	// lost merge becomes detectable as a missing field after settling.
-	tweaks := []string{"author_name", "author_email", "git_root", "encryption_key"}
+	tweaks := []string{"author_name", "author_email", "git_root", "gigot_repo_name"}
 	for i := range N {
 		wg.Go(func() {
 			_, _ = m.UpdateUserConfig(map[string]any{tweaks[i%len(tweaks)]: "v" + string(rune('A'+i%26))})
@@ -476,7 +475,7 @@ func TestSwitchUserProfile_SerializedAgainstUpdate(t *testing.T) {
 	if disk.AuthorName != cur.AuthorName ||
 		disk.AuthorEmail != cur.AuthorEmail ||
 		disk.GitRoot != cur.GitRoot ||
-		disk.EncryptionKey != cur.EncryptionKey {
+		disk.GigotRepoName != cur.GigotRepoName {
 		t.Errorf("on-disk %q diverges from cache after concurrent storm:\n disk=%+v\n  mem=%+v",
 			curName, disk, cur)
 	}

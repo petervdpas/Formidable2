@@ -94,7 +94,6 @@
   "modal.settings.advanced.developmentMode": "Development Mode",
   "modal.settings.advanced.logging.enabled": "Enable Logging",
   "modal.settings.advanced.plugins.enabled": "Enable Plugins",
-  "modal.settings.advanced.secretKey": "Decryption Key",
   "modal.settings.author.email": "Author Email",
   "modal.settings.author.language": "Language",
   "modal.settings.author.name": "Author Name",

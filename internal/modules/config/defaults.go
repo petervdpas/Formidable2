@@ -25,7 +25,6 @@ func defaultConfig() Config {
 		AuthorName:           "unknown",
 		AuthorEmail:          "unknown@example.com",
 		Language:             "en",
-		EncryptionKey:        "",
 		RemoteBackend:        "none",
 		GitRoot:              "",
 		GitBranch:            "",
