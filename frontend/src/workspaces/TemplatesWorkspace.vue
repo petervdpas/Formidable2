@@ -403,24 +403,26 @@ setTopbarMenu(() => [
     </div>
   </Teleport>
 
-  <SplitPane :initial="sidebarWidth">
+  <SplitPane :initial="sidebarWidth" :sidebar-split="true">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.templates.sidebar_title') }}</h2>
 
-      <p v-if="filenames.length === 0" class="muted small">
-        {{ t('workspace.templates.empty') }}
-      </p>
+      <div class="sidebar-scroll">
+        <p v-if="filenames.length === 0" class="muted small">
+          {{ t('workspace.templates.empty') }}
+        </p>
 
-      <ul v-else class="template-list">
-        <TemplateListItem
-          v-for="f in filenames"
-          :key="f"
-          :filename="f"
-          :display="displayName(f)"
-          :active="f === selectedFilename"
-          @pick="(name) => (selectedFilename = name)"
-        />
-      </ul>
+        <ul v-else class="template-list">
+          <TemplateListItem
+            v-for="f in filenames"
+            :key="f"
+            :filename="f"
+            :display="displayName(f)"
+            :active="f === selectedFilename"
+            @pick="(name) => (selectedFilename = name)"
+          />
+        </ul>
+      </div>
     </template>
 
     <template #main>

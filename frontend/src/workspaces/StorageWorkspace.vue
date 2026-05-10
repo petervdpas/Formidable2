@@ -447,7 +447,7 @@ setTopbarMenu(() => [
     </div>
   </Teleport>
 
-  <SplitPane :initial="sidebarWidth">
+  <SplitPane :initial="sidebarWidth" :sidebar-split="true">
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.storage.sidebar_title') }}</h2>
 
@@ -481,24 +481,26 @@ setTopbarMenu(() => [
         />
       </div>
 
-      <p v-if="!selectedTemplate" class="muted small">
-        {{ t('workspace.storage.no_template_selected') }}
-      </p>
-      <p v-else-if="listError" class="form-error small">{{ listError }}</p>
-      <p v-else-if="visibleSummaries.length === 0" class="muted small">
-        {{ t('workspace.storage.empty') }}
-      </p>
+      <div class="sidebar-scroll">
+        <p v-if="!selectedTemplate" class="muted small">
+          {{ t('workspace.storage.no_template_selected') }}
+        </p>
+        <p v-else-if="listError" class="form-error small">{{ listError }}</p>
+        <p v-else-if="visibleSummaries.length === 0" class="muted small">
+          {{ t('workspace.storage.empty') }}
+        </p>
 
-      <ul v-else class="form-list">
-        <StorageListItem
-          v-for="s in visibleSummaries"
-          :key="s.filename"
-          :summary="s"
-          :active="s.filename === selectedDataFile"
-          :expression="expressionItems.get(s.filename)"
-          @pick="pickForm"
-        />
-      </ul>
+        <ul v-else class="form-list">
+          <StorageListItem
+            v-for="s in visibleSummaries"
+            :key="s.filename"
+            :summary="s"
+            :active="s.filename === selectedDataFile"
+            :expression="expressionItems.get(s.filename)"
+            @pick="pickForm"
+          />
+        </ul>
+      </div>
     </template>
 
     <template #main>

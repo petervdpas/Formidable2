@@ -8,6 +8,22 @@
     min-width: 0;
 }
 
+/* Opt-in modifier used by SplitPane :sidebarSplit="true". The
+   sidebar becomes a flex column with no scroll itself; the inner
+   `.sidebar-scroll` region carries the overflow. Header siblings
+   (sidebar-title, filter controls, etc) stay pinned in view while
+   the long list scrolls beneath. */
+.workspace-sidebar--split {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.workspace-sidebar--split .sidebar-scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+}
+
 .workspace-main {
     flex: 1 1 auto;
     padding: var(--space-4) var(--space-5);

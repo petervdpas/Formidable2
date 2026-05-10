@@ -6,8 +6,12 @@ const props = withDefaults(
     initial?: number;
     min?: number;
     max?: number;
+    /** When true, the sidebar splits into a fixed header region and a
+     *  scrollable area marked by `.sidebar-scroll`. Use when the
+     *  sidebar has filter/title controls that should stay in view. */
+    sidebarSplit?: boolean;
   }>(),
-  { initial: 280, min: 160, max: 600 },
+  { initial: 280, min: 160, max: 600, sidebarSplit: false },
 );
 
 const width = ref(props.initial);
@@ -52,7 +56,10 @@ onBeforeUnmount(onMouseUp);
 
 <template>
   <div class="split-pane" :class="{ dragging }">
-    <aside class="workspace-sidebar" :style="{ width: width + 'px' }">
+    <aside
+      :class="['workspace-sidebar', { 'workspace-sidebar--split': props.sidebarSplit }]"
+      :style="{ width: width + 'px' }"
+    >
       <slot name="sidebar" />
     </aside>
     <div
