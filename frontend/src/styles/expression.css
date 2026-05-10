@@ -9,16 +9,15 @@
  */
 
 .form-list-expression {
-  display: inline-block;
+  display: block;
+  width: 100%;
   margin-top: 2px;
   font-size: 11px;
   line-height: 1.4;
   padding: 1px 6px;
   border-radius: 3px;
-  background: var(--color-surface, transparent);
+  background: transparent;
   color: var(--color-text-muted, #8a93a6);
-  align-self: flex-start;
-  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
