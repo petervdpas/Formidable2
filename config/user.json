@@ -1,6 +1,6 @@
 {
   "profile_name": "Default Profile",
-  "theme": "light",
+  "theme": "dark",
   "show_icon_buttons": false,
   "show_paste_buttons": true,
   "use_expressions": true,
@@ -8,7 +8,7 @@
   "loop_state_collapsed": true,
   "field_state_collapsed": true,
   "font_size": 14,
-  "development_enable": true,
+  "development_enable": false,
   "logging_enabled": false,
   "enable_plugins": true,
   "context_mode": "template",
