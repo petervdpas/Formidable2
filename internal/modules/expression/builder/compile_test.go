@@ -7,268 +7,447 @@ import (
 	"github.com/expr-lang/expr/parser"
 )
 
-func boolPtr(b bool) *bool          { return &b }
-func numPtr(f float64) *float64     { return &f }
-func intPtr(i int) *int             { return &i }
-func ruleBool(id string, v bool) Rule {
-	return Rule{ID: id, Kind: KindBoolean, BoolValue: boolPtr(v)}
+// ── Helpers ──────────────────────────────────────────────────────
+
+func boolPtr(b bool) *bool      { return &b }
+func numPtr(f float64) *float64 { return &f }
+func intPtr(i int) *int         { return &i }
+
+func predBool(field string, v bool) Predicate {
+	return Predicate{Kind: KindBoolean, FieldKey: field, BoolValue: boolPtr(v)}
 }
-func ruleEnum(id string, op EnumOp, vs ...string) Rule {
-	return Rule{ID: id, Kind: KindEnum, EnumOp: op, EnumValues: vs}
+func predEnum(field string, op EnumOp, vs ...string) Predicate {
+	return Predicate{Kind: KindEnum, FieldKey: field, EnumOp: op, EnumValues: vs}
 }
-func ruleNumber(id string, op NumberOp, v float64) Rule {
-	return Rule{ID: id, Kind: KindNumber, NumberOp: op, NumberValue: numPtr(v)}
+func predNumber(field string, op NumberOp, v float64) Predicate {
+	return Predicate{Kind: KindNumber, FieldKey: field, NumberOp: op, NumberValue: numPtr(v)}
 }
-func ruleDate(id string, op DateOp) Rule {
-	return Rule{ID: id, Kind: KindDate, DateOp: op}
+func predDate(field string, op DateOp) Predicate {
+	return Predicate{Kind: KindDate, FieldKey: field, DateOp: op}
 }
-func ruleDateArg(id string, op DateOp, arg int) Rule {
-	return Rule{ID: id, Kind: KindDate, DateOp: op, DateArg: intPtr(arg)}
+func predDateArg(field string, op DateOp, arg int) Predicate {
+	return Predicate{Kind: KindDate, FieldKey: field, DateOp: op, DateArg: intPtr(arg)}
 }
 
-func TestCompile_DisplayOff(t *testing.T) {
-	cfg := DefaultFieldConfig() // display: false
-	got, err := Compile(cfg, "check")
+func textLiteral(s string) *TextSource { return &TextSource{Kind: TextKindLiteral, Value: s} }
+func textValue(field string) *TextSource {
+	return &TextSource{Kind: TextKindFieldValue, FieldKey: field}
+}
+func textLabel(field string) *TextSource {
+	return &TextSource{Kind: TextKindFieldLabel, FieldKey: field}
+}
+
+// fieldsFour: a typical template — boolean check, dropdown size,
+// date due, text title — used as the FieldRef slice for compile
+// tests that don't need bespoke option lists.
+func fieldsFour() []FieldRef {
+	return []FieldRef{
+		{Key: "check", Type: "boolean"},
+		{Key: "size", Type: "dropdown", Options: []FieldOption{
+			{Value: "S", Label: "Small"},
+			{Value: "L", Label: "Large"},
+		}},
+		{Key: "due", Type: "date"},
+		{Key: "title", Type: "text"},
+		{Key: "score", Type: "number"},
+	}
+}
+
+// ── Empty-config short-circuit ───────────────────────────────────
+
+func TestCompile_EmptyConfigIsEmptyString(t *testing.T) {
+	got, err := Compile(DefaultConfig(), fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if got != "" {
-		t.Errorf("display off should compile to empty string; got %q", got)
+		t.Errorf("empty config should compile to \"\"; got %q", got)
 	}
 }
 
-func TestCompile_NoRulesEmptyDefault(t *testing.T) {
-	cfg := DefaultFieldConfig()
-	cfg.Display = true
-	got, err := Compile(cfg, "check")
+func TestCompile_DefaultOutcomeOnlyEmitsBareLiteral(t *testing.T) {
+	cfg := Config{Default: Outcome{Color: "gray", Text: textValue("title")}}
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if got != "check" {
-		t.Errorf("bare field reference expected; got %q", got)
-	}
-}
-
-func TestCompile_NoRulesWithDefaultOutcome(t *testing.T) {
-	cfg := DefaultFieldConfig()
-	cfg.Display = true
-	cfg.Default = Outcome{Color: "blue"}
-	got, err := Compile(cfg, "name")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if got != `{text: name, color: "blue"}` {
-		t.Errorf("default outcome map literal mismatch; got %q", got)
-	}
-}
-
-func TestCompile_BooleanTrue(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleBool("r1", true)},
-		Styling: map[string]Outcome{"r1": {Color: "green"}},
-	}
-	got, err := Compile(cfg, "check")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	want := `check ? {text: check, color: "green"} : check`
+	want := `{text: title, color: "gray"}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
-func TestCompile_BooleanFalse(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleBool("r1", false)},
-		Styling: map[string]Outcome{"r1": {Classes: []string{"expr-warn"}}},
+// ── Predicate kinds ─────────────────────────────────────────────
+
+func TestCompile_BooleanPredicateTrue(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("check", true)},
+			Outcome:    Outcome{Text: textValue("title"), Color: "green"},
+		}},
 	}
-	got, err := Compile(cfg, "check")
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `!check ? {text: check, classes: ["expr-warn"]} : check`
+	want := `check ? {text: title, color: "green"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_BooleanPredicateFalse(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("check", false)},
+			Outcome:    Outcome{Classes: []string{"expr-warn"}},
+		}},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `!check ? {classes: ["expr-warn"]} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestCompile_EnumSingleValueEquals(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleEnum("r1", EnumOpEquals, "L")},
-		Styling: map[string]Outcome{"r1": {Color: "green"}},
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predEnum("size", EnumOpEquals, "L")},
+			Outcome:    Outcome{Color: "green"},
+		}},
 	}
-	got, err := Compile(cfg, "size")
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `size == "L" ? {text: size, color: "green"} : size`
+	want := `size == "L" ? {color: "green"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
-func TestCompile_EnumMultiValueEquals(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleEnum("r1", EnumOpEquals, "L", "XL")},
-		Styling: map[string]Outcome{"r1": {Classes: []string{"expr-bold"}}},
+func TestCompile_EnumMultiValueEqualsIsSwitchCase(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predEnum("size", EnumOpEquals, "L", "XL")},
+			Outcome:    Outcome{Classes: []string{"expr-bold"}},
+		}},
 	}
-	got, err := Compile(cfg, "size")
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "size", Type: "dropdown", Options: []FieldOption{
+			{Value: "S", Label: "Small"}, {Value: "L", Label: "Large"}, {Value: "XL", Label: "Extra"},
+		}},
+	})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `(size == "L" || size == "XL") ? {text: size, classes: ["expr-bold"]} : size`
+	want := `(size == "L" || size == "XL") ? {classes: ["expr-bold"]} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestCompile_EnumNotEqualsMultiValue(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleEnum("r1", EnumOpNotEquals, "S", "M")},
-		Styling: map[string]Outcome{"r1": {Color: "red"}},
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predEnum("size", EnumOpNotEquals, "S", "M")},
+			Outcome:    Outcome{Color: "red"},
+		}},
 	}
-	got, err := Compile(cfg, "size")
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "S"}, {Value: "M"}}},
+	})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `(size != "S" && size != "M") ? {text: size, color: "red"} : size`
+	want := `(size != "S" && size != "M") ? {color: "red"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestCompile_NumberGreaterThan(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleNumber("r1", NumberOpGt, 10)},
-		Styling: map[string]Outcome{"r1": {Color: "orange"}},
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predNumber("score", NumberOpGt, 10)},
+			Outcome:    Outcome{Color: "orange"},
+		}},
 	}
-	got, err := Compile(cfg, "count")
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `count > 10 ? {text: count, color: "orange"} : count`
+	want := `score > 10 ? {color: "orange"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestCompile_NumberFractionalValue(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleNumber("r1", NumberOpLe, 2.5)},
-		Styling: map[string]Outcome{"r1": {Bg: "#fff"}},
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predNumber("score", NumberOpLe, 2.5)},
+			Outcome:    Outcome{Bg: "#fff"},
+		}},
 	}
-	got, err := Compile(cfg, "score")
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `score <= 2.5 ? {text: score, bg: "#fff"} : score`
+	want := `score <= 2.5 ? {bg: "#fff"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestCompile_DateNoArg(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleDate("r1", DateOpIsOverdue)},
-		Styling: map[string]Outcome{"r1": {Color: "red"}},
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDate("due", DateOpIsOverdue)},
+			Outcome:    Outcome{Color: "red"},
+		}},
 	}
-	got, err := Compile(cfg, "due")
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `isOverdue(due) ? {text: due, color: "red"} : due`
+	want := `isOverdue(due) ? {color: "red"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
 func TestCompile_DateWithArg(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleDateArg("r1", DateOpIsDueSoon, 7)},
-		Styling: map[string]Outcome{"r1": {Color: "orange"}},
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDateArg("due", DateOpIsDueSoon, 7)},
+			Outcome:    Outcome{Color: "orange"},
+		}},
 	}
-	got, err := Compile(cfg, "due")
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `isDueSoon(due, 7) ? {text: due, color: "orange"} : due`
+	want := `isDueSoon(due, 7) ? {color: "orange"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
+
+// ── Cross-field predicates (the whole point) ────────────────────
+
+func TestCompile_RulePredicatesAreANDed(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID: "r1",
+			Predicates: []Predicate{
+				predBool("check", true),
+				predEnum("size", EnumOpEquals, "L"),
+				predDate("due", DateOpIsOverdue),
+			},
+			Outcome: Outcome{Color: "red"},
+		}},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `(check && size == "L" && isOverdue(due)) ? {color: "red"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_EmptyPredicatesAlwaysMatches(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{},
+			Outcome:    Outcome{Color: "blue"},
+		}},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `true ? {color: "blue"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+// ── TextSource ──────────────────────────────────────────────────
+
+func TestCompile_TextLiteral(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("check", true)},
+			Outcome:    Outcome{Text: textLiteral("DONE")},
+		}},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `check ? {text: "DONE"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_TextFieldValueIsBareReference(t *testing.T) {
+	cfg := Config{
+		Default: Outcome{Text: textValue("title")},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `{text: title}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_TextFieldLabelBakesOptionLookup(t *testing.T) {
+	cfg := Config{
+		Default: Outcome{Text: textLabel("size")},
+	}
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "size", Type: "dropdown", Options: []FieldOption{
+			{Value: "S", Label: "Small"},
+			{Value: "L", Label: "Large"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// Outermost ternary unwrapped, inner one wrapped in parens.
+	want := `{text: size == "S" ? "Small" : (size == "L" ? "Large" : size)}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_TextFieldLabelOnFieldWithoutOptionsFallsBackToValue(t *testing.T) {
+	cfg := Config{
+		Default: Outcome{Text: textLabel("title")}, // text field, no options
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `{text: title}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+// ── Cascade and the user's worked example ───────────────────────
 
 func TestCompile_MultipleRulesNestedTernary(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
+	cfg := Config{
 		Rules: []Rule{
-			ruleEnum("r1", EnumOpEquals, "L"),
-			ruleEnum("r2", EnumOpEquals, "XL"),
+			{ID: "r1", Predicates: []Predicate{predEnum("size", EnumOpEquals, "L")}, Outcome: Outcome{Color: "green"}},
+			{ID: "r2", Predicates: []Predicate{predEnum("size", EnumOpEquals, "XL")}, Outcome: Outcome{Color: "red"}},
 		},
-		Styling: map[string]Outcome{
-			"r1": {Color: "green"},
-			"r2": {Color: "red"},
-		},
-	}
-	got, err := Compile(cfg, "size")
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	// First rule wins; later rule's predicate is the inner else.
-	want := `size == "L" ? {text: size, color: "green"} : (size == "XL" ? {text: size, color: "red"} : size)`
-	if got != want {
-		t.Errorf("got  %q\nwant %q", got, want)
-	}
-}
-
-func TestCompile_RulesCascadeToCustomDefault(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleBool("r1", true)},
-		Styling: map[string]Outcome{"r1": {Color: "green"}},
 		Default: Outcome{Color: "gray"},
 	}
-	got, err := Compile(cfg, "check")
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "size", Type: "dropdown", Options: []FieldOption{
+			{Value: "L"}, {Value: "XL"},
+		}},
+	})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `check ? {text: check, color: "green"} : {text: check, color: "gray"}`
+	want := `size == "L" ? {color: "green"} : (size == "XL" ? {color: "red"} : {color: "gray"})`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 
-func TestCompile_TextOverrideInOutcome(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleBool("r1", true)},
-		Styling: map[string]Outcome{"r1": {Text: "YES", Color: "green"}},
+func TestCompile_UserWorkedExample(t *testing.T) {
+	// From the spec:
+	//   if check=false AND dropdown=apple AND date isExpiredAfter(7) → red
+	//   if check=true  AND dropdown=pear  AND date isFuture         → green
+	//   if dropdown=grapes AND date isToday                          → purple+blink
+	//   else                                                         → black scrolling
+	// Text always comes from the title field.
+	titleText := textValue("title")
+	cfg := Config{
+		Rules: []Rule{
+			{
+				ID: "r1",
+				Predicates: []Predicate{
+					predBool("check", false),
+					predEnum("fruit", EnumOpEquals, "apple"),
+					predDateArg("due", DateOpIsExpiredAfter, 7),
+				},
+				Outcome: Outcome{Text: titleText, Color: "red"},
+			},
+			{
+				ID: "r2",
+				Predicates: []Predicate{
+					predBool("check", true),
+					predEnum("fruit", EnumOpEquals, "pear"),
+					predDate("due", DateOpIsFuture),
+				},
+				Outcome: Outcome{Text: titleText, Color: "green"},
+			},
+			{
+				ID: "r3",
+				Predicates: []Predicate{
+					predEnum("fruit", EnumOpEquals, "grapes"),
+					predDate("due", DateOpIsToday),
+				},
+				Outcome: Outcome{Text: titleText, Color: "purple", Classes: []string{"expr-blink"}},
+			},
+		},
+		Default: Outcome{Text: titleText, Color: "black", Classes: []string{"expr-scroll"}},
 	}
-	got, err := Compile(cfg, "check")
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "check", Type: "boolean"},
+		{Key: "fruit", Type: "dropdown", Options: []FieldOption{
+			{Value: "apple"}, {Value: "pear"}, {Value: "grapes"},
+		}},
+		{Key: "due", Type: "date"},
+		{Key: "title", Type: "text"},
+	})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `check ? {text: "YES", color: "green"} : check`
+	want := `(!check && fruit == "apple" && isExpiredAfter(due, 7)) ? {text: title, color: "red"} : ((check && fruit == "pear" && isFuture(due)) ? {text: title, color: "green"} : ((fruit == "grapes" && isToday(due)) ? {text: title, color: "purple", classes: ["expr-blink"]} : {text: title, color: "black", classes: ["expr-scroll"]}))`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
+
+// ── String escaping ─────────────────────────────────────────────
 
 func TestCompile_StyleStringWithDoubleQuotesIsEscaped(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{ruleBool("r1", true)},
-		Styling: map[string]Outcome{"r1": {Text: `He said "hi"`}},
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("check", true)},
+			Outcome:    Outcome{Text: textLiteral(`He said "hi"`)},
+		}},
 	}
-	got, err := Compile(cfg, "check")
+	got, err := Compile(cfg, fieldsFour())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -277,135 +456,136 @@ func TestCompile_StyleStringWithDoubleQuotesIsEscaped(t *testing.T) {
 	}
 }
 
-// ── Unhappy paths ────────────────────────────────────────────────
+// ── Unhappy paths ───────────────────────────────────────────────
 
-func TestCompile_BooleanRuleMissingValue(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{{ID: "r1", Kind: KindBoolean}},
+func TestCompile_PredicateMissingFieldKey(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{{Kind: KindBoolean, BoolValue: boolPtr(true)}},
+		}},
 	}
-	if _, err := Compile(cfg, "check"); err == nil {
-		t.Error("expected error for boolean rule with nil BoolValue")
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for predicate with empty fieldKey")
 	}
 }
 
-func TestCompile_NumberRuleMissingValue(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{{ID: "r1", Kind: KindNumber, NumberOp: NumberOpGt}},
+func TestCompile_PredicateUnknownField(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("ghost", true)},
+		}},
 	}
-	if _, err := Compile(cfg, "count"); err == nil {
-		t.Error("expected error for number rule with nil NumberValue")
-	}
-}
-
-func TestCompile_EnumRuleEmptyValues(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{{ID: "r1", Kind: KindEnum, EnumOp: EnumOpEquals}},
-	}
-	if _, err := Compile(cfg, "size"); err == nil {
-		t.Error("expected error for enum rule with no values")
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for predicate against unknown field")
 	}
 }
 
-func TestCompile_EnumRuleUnknownOp(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{{ID: "r1", Kind: KindEnum, EnumOp: "garbage", EnumValues: []string{"A"}}},
+func TestCompile_PredicateKindMismatchWithFieldType(t *testing.T) {
+	// Boolean predicate on a dropdown field is malformed.
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{{Kind: KindBoolean, FieldKey: "size", BoolValue: boolPtr(true)}},
+		}},
 	}
-	if _, err := Compile(cfg, "size"); err == nil {
-		t.Error("expected error for enum rule with unknown op")
-	}
-}
-
-func TestCompile_UnknownRuleKind(t *testing.T) {
-	cfg := FieldConfig{
-		Display: true,
-		Rules:   []Rule{{ID: "r1", Kind: "garbage"}},
-	}
-	if _, err := Compile(cfg, "x"); err == nil {
-		t.Error("expected error for unknown rule kind")
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for boolean predicate on dropdown field")
 	}
 }
 
-func TestCompile_EmptyFieldKey(t *testing.T) {
-	cfg := DefaultFieldConfig()
-	cfg.Display = true
-	if _, err := Compile(cfg, ""); err == nil {
-		t.Error("expected error for empty field key")
+func TestCompile_BooleanPredicateMissingValue(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{{Kind: KindBoolean, FieldKey: "check"}},
+		}},
 	}
-	if _, err := Compile(cfg, "   "); err == nil {
-		t.Error("expected error for whitespace-only field key")
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for boolean predicate with nil BoolValue")
+	}
+}
+
+func TestCompile_EnumPredicateEmptyValues(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{{Kind: KindEnum, FieldKey: "size", EnumOp: EnumOpEquals}},
+		}},
+	}
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for enum predicate with no values")
+	}
+}
+
+func TestCompile_NumberPredicateMissingValue(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{{Kind: KindNumber, FieldKey: "score", NumberOp: NumberOpGt}},
+		}},
+	}
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for number predicate with nil NumberValue")
+	}
+}
+
+func TestCompile_TextSourceUnknownKind(t *testing.T) {
+	cfg := Config{
+		Default: Outcome{Text: &TextSource{Kind: "garbage"}},
+	}
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for unknown text source kind")
 	}
 }
 
 // ── End-to-end: emitted source parses as valid expr-lang ────────
-//
-// Belt-and-braces: every well-typed config compiles to syntactically
-// valid expr-lang. We use parser.Parse (not expr.Compile) because
-// type-checking would collide with built-ins that share user field
-// names — e.g. a field named `count` shadows expr's `count` filter
-// helper at runtime via the env, but the compile-time type-checker
-// can't see that. Syntax validity is what Compile is responsible
-// for; the engine's runtime env handles identifier resolution.
 
 func TestCompile_EmittedSourceIsValidExprLang(t *testing.T) {
+	titleText := textValue("title")
 	cases := []struct {
 		name string
-		cfg  FieldConfig
-		key  string
+		cfg  Config
 	}{
-		{"bare field", FieldConfig{Display: true}, "check"},
-		{
-			"boolean rule",
-			FieldConfig{
-				Display: true,
-				Rules:   []Rule{ruleBool("r1", true)},
-				Styling: map[string]Outcome{"r1": {Color: "green"}},
+		{"single boolean rule", Config{
+			Rules: []Rule{{ID: "r1", Predicates: []Predicate{predBool("check", true)}, Outcome: Outcome{Color: "green"}}},
+		}},
+		{"enum multi-value", Config{
+			Rules: []Rule{{ID: "r1", Predicates: []Predicate{predEnum("size", EnumOpEquals, "L", "XL")}, Outcome: Outcome{Classes: []string{"expr-bold"}}}},
+		}},
+		{"cross-field AND", Config{
+			Rules: []Rule{{ID: "r1", Predicates: []Predicate{
+				predBool("check", true),
+				predEnum("size", EnumOpEquals, "L"),
+				predDateArg("due", DateOpIsDueSoon, 7),
+			}, Outcome: Outcome{Color: "red"}}},
+		}},
+		{"text label baking", Config{
+			Default: Outcome{Text: textLabel("size")},
+		}},
+		{"user worked example", Config{
+			Rules: []Rule{
+				{ID: "r1", Predicates: []Predicate{predBool("check", false), predEnum("size", EnumOpEquals, "L"), predDateArg("due", DateOpIsExpiredAfter, 7)}, Outcome: Outcome{Text: titleText, Color: "red"}},
+				{ID: "r2", Predicates: []Predicate{predBool("check", true), predDate("due", DateOpIsFuture)}, Outcome: Outcome{Text: titleText, Color: "green"}},
 			},
-			"check",
-		},
-		{
-			"enum multi-value",
-			FieldConfig{
-				Display: true,
-				Rules:   []Rule{ruleEnum("r1", EnumOpEquals, "L", "XL")},
-				Styling: map[string]Outcome{"r1": {Classes: []string{"expr-bold"}}},
-			},
-			"size",
-		},
-		{
-			"number cascade with default",
-			FieldConfig{
-				Display: true,
-				Rules: []Rule{
-					ruleNumber("r1", NumberOpGt, 10),
-					ruleNumber("r2", NumberOpLt, 0),
-				},
-				Styling: map[string]Outcome{
-					"r1": {Color: "red"},
-					"r2": {Color: "blue"},
-				},
-				Default: Outcome{Color: "gray"},
-			},
-			"count",
-		},
-		{
-			"date with arg",
-			FieldConfig{
-				Display: true,
-				Rules:   []Rule{ruleDateArg("r1", DateOpIsDueSoon, 7)},
-				Styling: map[string]Outcome{"r1": {Color: "orange"}},
-			},
-			"due",
-		},
+			Default: Outcome{Text: titleText, Color: "black"},
+		}},
+	}
+	fields := []FieldRef{
+		{Key: "check", Type: "boolean"},
+		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "S", Label: "Small"}, {Value: "L", Label: "Large"}, {Value: "XL", Label: "Extra"}}},
+		{Key: "due", Type: "date"},
+		{Key: "title", Type: "text"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			src, err := Compile(c.cfg, c.key)
+			src, err := Compile(c.cfg, fields)
 			if err != nil {
 				t.Fatalf("compile: %v", err)
+			}
+			if src == "" {
+				t.Fatal("unexpected empty source")
 			}
 			if _, err := parser.Parse(src); err != nil {
 				t.Errorf("emitted source failed parser.Parse: %v\nsrc: %s", err, src)

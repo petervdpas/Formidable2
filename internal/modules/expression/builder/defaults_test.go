@@ -27,76 +27,92 @@ func TestKindForField(t *testing.T) {
 	}
 }
 
-func TestDefaultRuleForField_Boolean(t *testing.T) {
-	r, err := DefaultRuleForField("boolean")
+func TestDefaultPredicateForField_Boolean(t *testing.T) {
+	p, err := DefaultPredicateForField("boolean", "check")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if r.Kind != KindBoolean {
-		t.Errorf("kind: %q", r.Kind)
+	if p.Kind != KindBoolean || p.FieldKey != "check" {
+		t.Errorf("shape: %+v", p)
 	}
-	if r.BoolValue == nil || *r.BoolValue != true {
-		t.Errorf("default boolean value should be true (pointer); got %v", r.BoolValue)
+	if p.BoolValue == nil || *p.BoolValue != true {
+		t.Errorf("BoolValue should default to true; got %v", p.BoolValue)
 	}
 }
 
-func TestDefaultRuleForField_Enum(t *testing.T) {
-	r, err := DefaultRuleForField("dropdown")
+func TestDefaultPredicateForField_Enum(t *testing.T) {
+	p, err := DefaultPredicateForField("dropdown", "size")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if r.Kind != KindEnum || r.EnumOp != EnumOpEquals {
-		t.Errorf("enum default shape wrong: %+v", r)
+	if p.Kind != KindEnum || p.FieldKey != "size" || p.EnumOp != EnumOpEquals {
+		t.Errorf("shape: %+v", p)
 	}
-	if r.EnumValues == nil || len(r.EnumValues) != 0 {
-		t.Errorf("enum values should be empty slice (not nil), got %v", r.EnumValues)
+	if p.EnumValues == nil || len(p.EnumValues) != 0 {
+		t.Errorf("EnumValues should be empty (non-nil) slice; got %v", p.EnumValues)
 	}
 }
 
-func TestDefaultRuleForField_Number(t *testing.T) {
-	r, err := DefaultRuleForField("range")
+func TestDefaultPredicateForField_Number(t *testing.T) {
+	p, err := DefaultPredicateForField("range", "score")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if r.Kind != KindNumber || r.NumberOp != NumberOpEq {
-		t.Errorf("number default shape wrong: %+v", r)
+	if p.Kind != KindNumber || p.NumberOp != NumberOpEq {
+		t.Errorf("shape: %+v", p)
 	}
-	if r.NumberValue == nil || *r.NumberValue != 0 {
-		t.Errorf("number value should default to 0 (pointer); got %v", r.NumberValue)
+	if p.NumberValue == nil || *p.NumberValue != 0 {
+		t.Errorf("NumberValue should default to 0; got %v", p.NumberValue)
 	}
 }
 
-func TestDefaultRuleForField_Date(t *testing.T) {
-	r, err := DefaultRuleForField("date")
+func TestDefaultPredicateForField_Date(t *testing.T) {
+	p, err := DefaultPredicateForField("date", "due")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if r.Kind != KindDate || r.DateOp != DateOpIsOverdue {
-		t.Errorf("date default shape wrong: %+v", r)
+	if p.Kind != KindDate || p.DateOp != DateOpIsOverdue {
+		t.Errorf("shape: %+v", p)
 	}
-	if r.DateArg != nil {
-		t.Errorf("date arg should default to unset; got %v", r.DateArg)
+	if p.DateArg != nil {
+		t.Errorf("DateArg should default to unset; got %v", p.DateArg)
 	}
 }
 
-func TestDefaultRuleForField_UnknownTypeIsError(t *testing.T) {
-	if _, err := DefaultRuleForField("text"); err == nil {
+func TestDefaultPredicateForField_UnknownTypeIsError(t *testing.T) {
+	if _, err := DefaultPredicateForField("text", "k"); err == nil {
 		t.Error("expected error for unsupported field type")
 	}
-	if _, err := DefaultRuleForField(""); err == nil {
+	if _, err := DefaultPredicateForField("", "k"); err == nil {
 		t.Error("expected error for empty field type")
 	}
 }
 
-func TestDefaultFieldConfig(t *testing.T) {
-	c := DefaultFieldConfig()
-	if c.Display {
-		t.Error("display should default to false")
+func TestDefaultPredicateForField_EmptyFieldKeyIsError(t *testing.T) {
+	if _, err := DefaultPredicateForField("boolean", ""); err == nil {
+		t.Error("expected error for empty field key")
 	}
+	if _, err := DefaultPredicateForField("boolean", "   "); err == nil {
+		t.Error("expected error for whitespace-only field key")
+	}
+}
+
+func TestDefaultRule(t *testing.T) {
+	r := DefaultRule()
+	if r.Predicates == nil || len(r.Predicates) != 0 {
+		t.Errorf("predicates should be empty (non-nil) slice; got %v", r.Predicates)
+	}
+	if r.Outcome.Text != nil || r.Outcome.Color != "" || r.Outcome.Bg != "" || len(r.Outcome.Classes) != 0 {
+		t.Errorf("outcome should be empty; got %+v", r.Outcome)
+	}
+}
+
+func TestDefaultConfig(t *testing.T) {
+	c := DefaultConfig()
 	if c.Rules == nil || len(c.Rules) != 0 {
 		t.Errorf("rules should be empty (non-nil) slice; got %v", c.Rules)
 	}
-	if c.Styling == nil {
-		t.Error("styling should be non-nil empty map")
+	if c.Default.Text != nil || c.Default.Color != "" {
+		t.Errorf("default outcome should be empty; got %+v", c.Default)
 	}
 }

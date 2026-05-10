@@ -6,9 +6,9 @@ import (
 )
 
 // KindForField maps a Field.Type string to its RuleKind. Returns
-// ("", false) for any field type that does NOT participate in rules
-// (text, list, path, guid…) — callers use ok=false to disable the
-// State/Date tabs entirely rather than guess a kind.
+// ("", false) for any field type that does NOT participate in
+// predicates (text, list, path, guid…) — callers gate the State /
+// Date pickers on ok=false rather than guess a kind.
 func KindForField(fieldType string) (RuleKind, bool) {
 	switch strings.ToLower(strings.TrimSpace(fieldType)) {
 	case "boolean":
@@ -23,38 +23,51 @@ func KindForField(fieldType string) (RuleKind, bool) {
 	return "", false
 }
 
-// DefaultRuleForField returns a freshly-initialised Rule of the kind
-// matching the given field type. Callers (the modal) assign IDs after
-// the call — keeps this function deterministic and testable, and the
-// frontend's session-scoped counter stays the only id authority.
-func DefaultRuleForField(fieldType string) (Rule, error) {
+// DefaultPredicateForField returns a freshly-initialised Predicate
+// targeting the given field. Boolean defaults to "is true"; enum to
+// "equals" with no values yet; number to "== 0"; date to "isOverdue".
+func DefaultPredicateForField(fieldType, fieldKey string) (Predicate, error) {
 	kind, ok := KindForField(fieldType)
 	if !ok {
-		return Rule{}, fmt.Errorf("builder: field type %q does not support rules", fieldType)
+		return Predicate{}, fmt.Errorf("builder: field type %q does not support predicates", fieldType)
 	}
+	if strings.TrimSpace(fieldKey) == "" {
+		return Predicate{}, fmt.Errorf("builder: predicate requires a non-empty field key")
+	}
+	p := Predicate{Kind: kind, FieldKey: fieldKey}
 	switch kind {
 	case KindBoolean:
 		t := true
-		return Rule{Kind: KindBoolean, BoolValue: &t}, nil
+		p.BoolValue = &t
 	case KindEnum:
-		return Rule{Kind: KindEnum, EnumOp: EnumOpEquals, EnumValues: []string{}}, nil
+		p.EnumOp = EnumOpEquals
+		p.EnumValues = []string{}
 	case KindNumber:
 		var z float64
-		return Rule{Kind: KindNumber, NumberOp: NumberOpEq, NumberValue: &z}, nil
+		p.NumberOp = NumberOpEq
+		p.NumberValue = &z
 	case KindDate:
-		return Rule{Kind: KindDate, DateOp: DateOpIsOverdue}, nil
+		p.DateOp = DateOpIsOverdue
 	}
-	return Rule{}, fmt.Errorf("builder: unhandled rule kind %q", kind)
+	return p, nil
 }
 
-// DefaultFieldConfig is the empty config seeded for every expression
-// field on modal open. Slices/maps are non-nil so the frontend can
-// mutate without nil checks.
-func DefaultFieldConfig() FieldConfig {
-	return FieldConfig{
-		Display: false,
+// DefaultRule is an empty Rule — no predicates (so it always matches
+// if reached) and an empty outcome. Frontend assigns the ID after
+// the call.
+func DefaultRule() Rule {
+	return Rule{
+		Predicates: []Predicate{},
+		Outcome:    Outcome{},
+	}
+}
+
+// DefaultConfig is the empty config seeded when the dialog opens. No
+// rules, no default-styling — Compile returns "" until the user adds
+// something.
+func DefaultConfig() Config {
+	return Config{
 		Rules:   []Rule{},
-		Styling: map[string]Outcome{},
 		Default: Outcome{},
 	}
 }

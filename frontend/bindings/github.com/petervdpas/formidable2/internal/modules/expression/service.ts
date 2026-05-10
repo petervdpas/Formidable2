@@ -3,12 +3,11 @@
 
 /**
  * Service is the Wails-bound facade for the expression module. Vue
- * calls Evaluate for one-off expressions (e.g. plugin commands or a
- * hypothetical preview pane in the template editor) and
- * EvaluateSidebar to populate the Storage workspace's per-row
- * sub-labels. Builder* methods power the visual sidebar-expression
- * dialog by returning the same construction primitives the Go side
- * uses internally — single source of truth.
+ * calls Evaluate for one-off expressions and EvaluateSidebar to
+ * populate the Storage workspace's per-row sub-labels. Builder*
+ * methods power the visual sidebar-expression dialog by returning
+ * the same construction primitives the Go side uses internally —
+ * backend is the source of truth.
  * @module
  */
 
@@ -25,17 +24,19 @@ import * as builder$0 from "./builder/models.js";
 import * as $models from "./models.js";
 
 /**
- * BuilderCompile turns a FieldConfig into the expr-lang source string
- * the engine evaluates. Empty string means "field hidden from the
- * sidebar"; an error means the config is malformed (missing values,
- * unknown ops) and the frontend should keep the modal open.
+ * BuilderCompile turns a Config into the expr-lang source string the
+ * engine evaluates. fields is the FieldRef slice for every
+ * expression_item field — Compile uses it to validate predicates and
+ * to bake fieldLabel TextSources into value→label ternary lookups.
+ * Empty string means "no chip"; an error means the config is
+ * malformed and the dialog should keep itself open.
  */
-export function BuilderCompile(cfg: builder$0.FieldConfig, fieldKey: string): $CancellablePromise<string> {
-    return $Call.ByID(2747284620, cfg, fieldKey);
+export function BuilderCompile(cfg: builder$0.Config, fields: builder$0.FieldRef[]): $CancellablePromise<string> {
+    return $Call.ByID(2747284620, cfg, fields);
 }
 
 /**
- * BuilderDateOps returns the date-helper vocabulary for the Date-tab
+ * BuilderDateOps returns the date-helper vocabulary for the Date
  * picker, in render order.
  */
 export function BuilderDateOps(): $CancellablePromise<builder$0.DateOpDescriptor[]> {
@@ -45,30 +46,42 @@ export function BuilderDateOps(): $CancellablePromise<builder$0.DateOpDescriptor
 }
 
 /**
- * BuilderDefaultFieldConfig returns the empty per-field config the
- * modal seeds for every expression-flagged field on open.
+ * BuilderDefaultConfig returns the empty dialog-session config —
+ * no rules, empty default outcome. Compile produces "" until rules
+ * or default styling are added.
  */
-export function BuilderDefaultFieldConfig(): $CancellablePromise<builder$0.FieldConfig> {
-    return $Call.ByID(3637792266).then(($result: any) => {
+export function BuilderDefaultConfig(): $CancellablePromise<builder$0.Config> {
+    return $Call.ByID(4283160094).then(($result: any) => {
         return $$createType2($result);
     });
 }
 
 /**
- * BuilderDefaultRule returns a freshly-initialised Rule for the given
- * field type. The frontend assigns the ID; the returned Rule has an
- * empty ID so it cannot accidentally be persisted as authoritative.
+ * BuilderDefaultPredicate returns a freshly-initialised Predicate
+ * targeting the given field. The frontend supplies the field's type
+ * (to pick the kind) and key (the variable name in the expression).
  */
-export function BuilderDefaultRule(fieldType: string): $CancellablePromise<builder$0.Rule> {
-    return $Call.ByID(497303310, fieldType).then(($result: any) => {
+export function BuilderDefaultPredicate(fieldType: string, fieldKey: string): $CancellablePromise<builder$0.Predicate> {
+    return $Call.ByID(2339837937, fieldType, fieldKey).then(($result: any) => {
         return $$createType3($result);
     });
 }
 
 /**
+ * BuilderDefaultRule returns an empty Rule (no predicates, empty
+ * outcome). Frontend assigns the ID after the call.
+ */
+export function BuilderDefaultRule(): $CancellablePromise<builder$0.Rule> {
+    return $Call.ByID(497303310).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * BuilderKindForFieldType reports the rule kind for a Field.Type, or
- * "" when the type does not participate in rules. Frontend uses this
- * to gate the State / Date tabs.
+ * "" when the type does not participate in predicates. Frontend uses
+ * this to gate predicate construction (only state-bearing + date
+ * types accept predicates).
  */
 export function BuilderKindForFieldType(fieldType: string): $CancellablePromise<string> {
     return $Call.ByID(639708732, fieldType);
@@ -76,11 +89,11 @@ export function BuilderKindForFieldType(fieldType: string): $CancellablePromise<
 
 /**
  * BuilderOperatorsForKind returns the operator vocabulary for the
- * State-tab picker. Empty for kinds with no picker (boolean, date).
+ * State picker. Empty for kinds with no picker (boolean, date).
  */
 export function BuilderOperatorsForKind(kind: string): $CancellablePromise<builder$0.Operator[]> {
     return $Call.ByID(3209858457, kind).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -91,7 +104,7 @@ export function BuilderOperatorsForKind(kind: string): $CancellablePromise<build
  */
 export function Evaluate(src: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.SidebarItem> {
     return $Call.ByID(3315345587, src, ctx).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -103,16 +116,17 @@ export function Evaluate(src: string, ctx: { [_ in string]?: any }): $Cancellabl
  */
 export function EvaluateSidebar(templateName: string): $CancellablePromise<$models.SidebarItem[]> {
     return $Call.ByID(3056242925, templateName).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = builder$0.DateOpDescriptor.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = builder$0.FieldConfig.createFrom;
-const $$createType3 = builder$0.Rule.createFrom;
-const $$createType4 = builder$0.Operator.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.SidebarItem.createFrom;
-const $$createType7 = $Create.Array($$createType6);
+const $$createType2 = builder$0.Config.createFrom;
+const $$createType3 = builder$0.Predicate.createFrom;
+const $$createType4 = builder$0.Rule.createFrom;
+const $$createType5 = builder$0.Operator.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.SidebarItem.createFrom;
+const $$createType8 = $Create.Array($$createType7);

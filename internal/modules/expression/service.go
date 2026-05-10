@@ -3,12 +3,11 @@ package expression
 import "github.com/petervdpas/formidable2/internal/modules/expression/builder"
 
 // Service is the Wails-bound facade for the expression module. Vue
-// calls Evaluate for one-off expressions (e.g. plugin commands or a
-// hypothetical preview pane in the template editor) and
-// EvaluateSidebar to populate the Storage workspace's per-row
-// sub-labels. Builder* methods power the visual sidebar-expression
-// dialog by returning the same construction primitives the Go side
-// uses internally — single source of truth.
+// calls Evaluate for one-off expressions and EvaluateSidebar to
+// populate the Storage workspace's per-row sub-labels. Builder*
+// methods power the visual sidebar-expression dialog by returning
+// the same construction primitives the Go side uses internally —
+// backend is the source of truth.
 type Service struct{ m *Manager }
 
 // NewService wraps a Manager. Service stays thin so all behaviour
@@ -32,8 +31,9 @@ func (s *Service) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 }
 
 // BuilderKindForFieldType reports the rule kind for a Field.Type, or
-// "" when the type does not participate in rules. Frontend uses this
-// to gate the State / Date tabs.
+// "" when the type does not participate in predicates. Frontend uses
+// this to gate predicate construction (only state-bearing + date
+// types accept predicates).
 func (s *Service) BuilderKindForFieldType(fieldType string) string {
 	if k, ok := builder.KindForField(fieldType); ok {
 		return string(k)
@@ -41,35 +41,44 @@ func (s *Service) BuilderKindForFieldType(fieldType string) string {
 	return ""
 }
 
-// BuilderDefaultRule returns a freshly-initialised Rule for the given
-// field type. The frontend assigns the ID; the returned Rule has an
-// empty ID so it cannot accidentally be persisted as authoritative.
-func (s *Service) BuilderDefaultRule(fieldType string) (builder.Rule, error) {
-	return builder.DefaultRuleForField(fieldType)
+// BuilderDefaultPredicate returns a freshly-initialised Predicate
+// targeting the given field. The frontend supplies the field's type
+// (to pick the kind) and key (the variable name in the expression).
+func (s *Service) BuilderDefaultPredicate(fieldType, fieldKey string) (builder.Predicate, error) {
+	return builder.DefaultPredicateForField(fieldType, fieldKey)
 }
 
-// BuilderDefaultFieldConfig returns the empty per-field config the
-// modal seeds for every expression-flagged field on open.
-func (s *Service) BuilderDefaultFieldConfig() builder.FieldConfig {
-	return builder.DefaultFieldConfig()
+// BuilderDefaultRule returns an empty Rule (no predicates, empty
+// outcome). Frontend assigns the ID after the call.
+func (s *Service) BuilderDefaultRule() builder.Rule {
+	return builder.DefaultRule()
+}
+
+// BuilderDefaultConfig returns the empty dialog-session config —
+// no rules, empty default outcome. Compile produces "" until rules
+// or default styling are added.
+func (s *Service) BuilderDefaultConfig() builder.Config {
+	return builder.DefaultConfig()
 }
 
 // BuilderOperatorsForKind returns the operator vocabulary for the
-// State-tab picker. Empty for kinds with no picker (boolean, date).
+// State picker. Empty for kinds with no picker (boolean, date).
 func (s *Service) BuilderOperatorsForKind(kind string) []builder.Operator {
 	return builder.OperatorsForKind(builder.RuleKind(kind))
 }
 
-// BuilderDateOps returns the date-helper vocabulary for the Date-tab
+// BuilderDateOps returns the date-helper vocabulary for the Date
 // picker, in render order.
 func (s *Service) BuilderDateOps() []builder.DateOpDescriptor {
 	return builder.DateOps()
 }
 
-// BuilderCompile turns a FieldConfig into the expr-lang source string
-// the engine evaluates. Empty string means "field hidden from the
-// sidebar"; an error means the config is malformed (missing values,
-// unknown ops) and the frontend should keep the modal open.
-func (s *Service) BuilderCompile(cfg builder.FieldConfig, fieldKey string) (string, error) {
-	return builder.Compile(cfg, fieldKey)
+// BuilderCompile turns a Config into the expr-lang source string the
+// engine evaluates. fields is the FieldRef slice for every
+// expression_item field — Compile uses it to validate predicates and
+// to bake fieldLabel TextSources into value→label ternary lookups.
+// Empty string means "no chip"; an error means the config is
+// malformed and the dialog should keep itself open.
+func (s *Service) BuilderCompile(cfg builder.Config, fields []builder.FieldRef) (string, error) {
+	return builder.Compile(cfg, fields)
 }

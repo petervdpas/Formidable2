@@ -5,6 +5,41 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+/**
+ * Config is the dialog-session state. Rules are walked top-to-bottom;
+ * the first whose predicate clause holds wins. Default is the no-match
+ * fallback.
+ */
+export class Config {
+    "rules"?: Rule[];
+    "default": Outcome;
+
+    /** Creates a new Config instance. */
+    constructor($$source: Partial<Config> = {}) {
+        if (!("default" in $$source)) {
+            this["default"] = (new Outcome());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Config instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Config {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
+        }
+        if ("default" in $$parsedSource) {
+            $$parsedSource["default"] = $$createField1_0($$parsedSource["default"]);
+        }
+        return new Config($$parsedSource as Partial<Config>);
+    }
+}
+
 export enum DateOp {
     /**
      * The Go zero value for the underlying type of the enum.
@@ -67,48 +102,68 @@ export enum EnumOp {
 };
 
 /**
- * FieldConfig is the per-field builder state for one expression-item
- * field. Display gates the whole field; Rules are predicates from the
- * State or Date tab; Styling[id] is the per-rule outcome from the
- * Display tab; Default is the no-rule-match outcome. Transform lands
- * in a later slice and isn't here yet.
+ * FieldOption is one entry in a dropdown/radio field's options list.
+ * Compile reads it to bake fieldLabel TextSources at construction
+ * time so the engine doesn't need an option-lookup helper.
  */
-export class FieldConfig {
-    "display": boolean;
-    "rules"?: Rule[];
-    "styling"?: { [_ in string]?: Outcome };
-    "default": Outcome;
+export class FieldOption {
+    "value": string;
+    "label": string;
 
-    /** Creates a new FieldConfig instance. */
-    constructor($$source: Partial<FieldConfig> = {}) {
-        if (!("display" in $$source)) {
-            this["display"] = false;
+    /** Creates a new FieldOption instance. */
+    constructor($$source: Partial<FieldOption> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
         }
-        if (!("default" in $$source)) {
-            this["default"] = (new Outcome());
+        if (!("label" in $$source)) {
+            this["label"] = "";
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new FieldConfig instance from a string or object.
+     * Creates a new FieldOption instance from a string or object.
      */
-    static createFrom($$source: any = {}): FieldConfig {
-        const $$createField1_0 = $$createType1;
-        const $$createField2_0 = $$createType3;
-        const $$createField3_0 = $$createType2;
+    static createFrom($$source: any = {}): FieldOption {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("rules" in $$parsedSource) {
-            $$parsedSource["rules"] = $$createField1_0($$parsedSource["rules"]);
+        return new FieldOption($$parsedSource as Partial<FieldOption>);
+    }
+}
+
+/**
+ * FieldRef is the slim shape Compile needs from each template field.
+ * Key is the variable name in the expression; Type lets Compile
+ * validate predicates against their declared kinds; Options drives
+ * fieldLabel ternary baking and is empty for non-enum fields.
+ */
+export class FieldRef {
+    "key": string;
+    "type": string;
+    "options"?: FieldOption[];
+
+    /** Creates a new FieldRef instance. */
+    constructor($$source: Partial<FieldRef> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
         }
-        if ("styling" in $$parsedSource) {
-            $$parsedSource["styling"] = $$createField2_0($$parsedSource["styling"]);
+        if (!("type" in $$source)) {
+            this["type"] = "";
         }
-        if ("default" in $$parsedSource) {
-            $$parsedSource["default"] = $$createField3_0($$parsedSource["default"]);
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldRef instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldRef {
+        const $$createField2_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("options" in $$parsedSource) {
+            $$parsedSource["options"] = $$createField2_0($$parsedSource["options"]);
         }
-        return new FieldConfig($$parsedSource as Partial<FieldConfig>);
+        return new FieldRef($$parsedSource as Partial<FieldRef>);
     }
 }
 
@@ -158,13 +213,13 @@ export class Operator {
 }
 
 /**
- * Outcome mirrors the rendered SidebarItem shape minus runtime-only
- * fields. Compile emits an outcome as an expr-lang map literal whose
- * keys match the SidebarItem JSON tags (text/color/bg/classes), so
- * the engine's normalize() consumes it directly.
+ * Outcome is the styled chip a matching Rule (or the default)
+ * produces. Text is optional — when nil the chip has no text and
+ * the engine renders only the styling. Mirrors the runtime
+ * SidebarItem shape minus filename/error.
  */
 export class Outcome {
-    "text"?: string;
+    "text"?: TextSource | null;
     "color"?: string;
     "bg"?: string;
     "classes"?: string[];
@@ -179,8 +234,12 @@ export class Outcome {
      * Creates a new Outcome instance from a string or object.
      */
     static createFrom($$source: any = {}): Outcome {
-        const $$createField3_0 = $$createType4;
+        const $$createField0_0 = $$createType6;
+        const $$createField3_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("text" in $$parsedSource) {
+            $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
+        }
         if ("classes" in $$parsedSource) {
             $$parsedSource["classes"] = $$createField3_0($$parsedSource["classes"]);
         }
@@ -189,20 +248,14 @@ export class Outcome {
 }
 
 /**
- * Rule is a single predicate in the rule list. Tagged-struct shape
- * (rather than a sealed interface) so Wails-generated TS gets one
- * concrete type per rule with optional fields — narrowing happens
- * via Kind on the consumer side.
- * 
- * Pointer fields exist where the zero value is meaningful: a boolean
- * rule on `false`, a number rule on `0`, a date arg of `0` are all
- * legitimate user choices, so omitempty alone cannot tell them apart
- * from "field not set." Slices and string-typed enum fields keep the
- * natural empty-is-unset contract.
+ * Predicate is one kind-specific test against one expression_item
+ * field. A Rule's match clause ANDs all its Predicates together;
+ * pointer fields exist where the zero value is meaningful (a boolean
+ * predicate on `false`, a number on `0`, a date arg of `0`).
  */
-export class Rule {
-    "id": string;
+export class Predicate {
     "kind": RuleKind;
+    "fieldKey": string;
     "boolValue"?: boolean | null;
     "enumOp"?: EnumOp;
     "enumValues"?: string[];
@@ -211,13 +264,48 @@ export class Rule {
     "dateOp"?: DateOp;
     "dateArg"?: number | null;
 
+    /** Creates a new Predicate instance. */
+    constructor($$source: Partial<Predicate> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = RuleKind.$zero;
+        }
+        if (!("fieldKey" in $$source)) {
+            this["fieldKey"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Predicate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Predicate {
+        const $$createField4_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("enumValues" in $$parsedSource) {
+            $$parsedSource["enumValues"] = $$createField4_0($$parsedSource["enumValues"]);
+        }
+        return new Predicate($$parsedSource as Partial<Predicate>);
+    }
+}
+
+/**
+ * Rule is a logical AND of Predicates with one Outcome. Empty
+ * Predicates always match — useful for the lone-rule case where the
+ * user wants exactly one outcome regardless of state.
+ */
+export class Rule {
+    "id": string;
+    "predicates"?: Predicate[];
+    "outcome": Outcome;
+
     /** Creates a new Rule instance. */
     constructor($$source: Partial<Rule> = {}) {
         if (!("id" in $$source)) {
             this["id"] = "";
         }
-        if (!("kind" in $$source)) {
-            this["kind"] = RuleKind.$zero;
+        if (!("outcome" in $$source)) {
+            this["outcome"] = (new Outcome());
         }
 
         Object.assign(this, $$source);
@@ -227,21 +315,19 @@ export class Rule {
      * Creates a new Rule instance from a string or object.
      */
     static createFrom($$source: any = {}): Rule {
-        const $$createField4_0 = $$createType4;
+        const $$createField1_0 = $$createType9;
+        const $$createField2_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("enumValues" in $$parsedSource) {
-            $$parsedSource["enumValues"] = $$createField4_0($$parsedSource["enumValues"]);
+        if ("predicates" in $$parsedSource) {
+            $$parsedSource["predicates"] = $$createField1_0($$parsedSource["predicates"]);
+        }
+        if ("outcome" in $$parsedSource) {
+            $$parsedSource["outcome"] = $$createField2_0($$parsedSource["outcome"]);
         }
         return new Rule($$parsedSource as Partial<Rule>);
     }
 }
 
-/**
- * RuleKind discriminates the four rule shapes the dialog supports.
- * One field type maps to exactly one kind (see KindForField); a rule
- * stores its kind so render and compile switch directly on Rule.Kind
- * without re-reading the field metadata.
- */
 export enum RuleKind {
     /**
      * The Go zero value for the underlying type of the enum.
@@ -254,9 +340,55 @@ export enum RuleKind {
     KindDate = "date",
 };
 
+export enum TextKind {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    TextKindLiteral = "literal",
+    TextKindFieldValue = "fieldValue",
+    TextKindFieldLabel = "fieldLabel",
+};
+
+/**
+ * TextSource decides what the chip's text resolves to. Literal renders
+ * `Value` verbatim. FieldValue emits a bare reference to FieldKey
+ * (engine evaluates the live value). FieldLabel emits a baked
+ * value→label ternary over the field's options, falling back to the
+ * raw value when no option matches.
+ */
+export class TextSource {
+    "kind": TextKind;
+    "value"?: string;
+    "fieldKey"?: string;
+
+    /** Creates a new TextSource instance. */
+    constructor($$source: Partial<TextSource> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = TextKind.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TextSource instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TextSource {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TextSource($$parsedSource as Partial<TextSource>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = Rule.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = Outcome.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $$createType2);
-const $$createType4 = $Create.Array($Create.Any);
+const $$createType3 = FieldOption.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = TextSource.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = $Create.Array($Create.Any);
+const $$createType8 = Predicate.createFrom;
+const $$createType9 = $Create.Array($$createType8);

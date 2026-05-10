@@ -7,76 +7,167 @@ import (
 	"strings"
 )
 
-// Compile turns a FieldConfig into an expr-lang source string the
-// engine can evaluate against a record's harvested ExpressionItems.
+// Compile turns a Config into the expr-lang source string the engine
+// evaluates against a record's harvested ExpressionItems. Walks rules
+// top-to-bottom (first match wins), with the default Outcome as the
+// terminal else.
 //
-// Output rules:
-//   - display=false → "" (frontend hides the sub-label entirely)
-//   - no rules + empty default → bare field reference (engine wraps
-//     it as {Text: <value>} via normalize)
-//   - no rules + custom default → default outcome map literal
-//   - rules → ternary chain (first match wins), inner else is the
-//     next rule, terminal else is the default
+// fields is the FieldRef slice for every expression_item field in
+// the template — Compile uses it to validate predicate field keys
+// and to bake fieldLabel TextSources into value→label ternary
+// lookups. Frontend supplies it from template metadata.
 //
-// fieldKey is the variable name that resolves against the record
-// context (typically the Field.Key). Empty/whitespace fieldKey is an
-// error — the engine would fail anyway, but catching it here gives a
-// builder-shaped error message.
-func Compile(cfg FieldConfig, fieldKey string) (string, error) {
-	if !cfg.Display {
+// Empty Config (no rules + empty default) compiles to "" so the
+// frontend can hide the chip entirely. A non-empty Compile output
+// is always a single expr-lang expression — either an outcome map
+// literal or a ternary chain ending in one.
+func Compile(cfg Config, fields []FieldRef) (string, error) {
+	if len(cfg.Rules) == 0 && outcomeIsEmpty(cfg.Default) {
 		return "", nil
 	}
-	if strings.TrimSpace(fieldKey) == "" {
-		return "", fmt.Errorf("builder: field key required")
+
+	idx := indexFields(fields)
+
+	tail, err := outcomeExpr(cfg.Default, idx)
+	if err != nil {
+		return "", fmt.Errorf("builder: default outcome: %w", err)
 	}
 
-	tail := defaultExpr(cfg.Default, fieldKey)
-	if len(cfg.Rules) == 0 {
-		return tail, nil
-	}
-
-	// Walk rules in reverse so the innermost else is the default and
-	// each outer ternary's else is the next rule's predicate.
 	for i := len(cfg.Rules) - 1; i >= 0; i-- {
 		r := cfg.Rules[i]
-		pred, err := predicate(r, fieldKey)
+		match, err := rulePredicate(r, idx)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("builder: rule %q: %w", r.ID, err)
 		}
-		thenExpr := outcomeExpr(cfg.Styling[r.ID], fieldKey)
-		// Wrap inner ternaries in parens to keep precedence sane when
-		// nested.
+		thenExpr, err := outcomeExpr(r.Outcome, idx)
+		if err != nil {
+			return "", fmt.Errorf("builder: rule %q outcome: %w", r.ID, err)
+		}
 		if i < len(cfg.Rules)-1 {
 			tail = "(" + tail + ")"
 		}
-		tail = fmt.Sprintf("%s ? %s : %s", pred, thenExpr, tail)
+		tail = fmt.Sprintf("%s ? %s : %s", match, thenExpr, tail)
 	}
 	return tail, nil
 }
 
-// defaultExpr returns the no-rule-match fallback: either an outcome
-// map literal (when the user customised default styling) or a bare
-// field reference (so the engine's normalize emits {Text: <value>}).
-func defaultExpr(d Outcome, fieldKey string) string {
-	if outcomeIsEmpty(d) {
-		return fieldKey
+func indexFields(fields []FieldRef) map[string]FieldRef {
+	m := make(map[string]FieldRef, len(fields))
+	for _, f := range fields {
+		m[f.Key] = f
 	}
-	return outcomeExprFromOutcome(d, fieldKey)
+	return m
 }
 
-// outcomeExpr emits a rule's then-branch. We always emit a map
-// literal (never a bare field reference) so the rule's match
-// produces a SidebarItem with at least the field's value as text.
-func outcomeExpr(o Outcome, fieldKey string) string {
-	return outcomeExprFromOutcome(o, fieldKey)
+// rulePredicate joins the rule's Predicates with logical AND. Empty
+// Predicates returns "true" so the rule always matches — useful for
+// a lone-rule case where the user wants exactly one outcome.
+func rulePredicate(r Rule, fields map[string]FieldRef) (string, error) {
+	if len(r.Predicates) == 0 {
+		return "true", nil
+	}
+	parts := make([]string, len(r.Predicates))
+	for i, p := range r.Predicates {
+		s, err := predicateExpr(p, fields)
+		if err != nil {
+			return "", err
+		}
+		parts[i] = s
+	}
+	if len(parts) == 1 {
+		return parts[0], nil
+	}
+	return "(" + strings.Join(parts, " && ") + ")", nil
 }
 
-func outcomeExprFromOutcome(o Outcome, fieldKey string) string {
+func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
+	key := strings.TrimSpace(p.FieldKey)
+	if key == "" {
+		return "", fmt.Errorf("predicate has no field key")
+	}
+	// FieldRef is required so we can validate predicate kinds against
+	// the field's declared type. Missing entry usually means the
+	// frontend forgot to include the field in the FieldRef slice.
+	f, ok := fields[key]
+	if !ok {
+		return "", fmt.Errorf("predicate references unknown field %q", key)
+	}
+	wantKind, kindOK := KindForField(f.Type)
+	if !kindOK {
+		return "", fmt.Errorf("predicate field %q has type %q which does not support predicates", key, f.Type)
+	}
+	if p.Kind != wantKind {
+		return "", fmt.Errorf("predicate on field %q has kind %q but field type %q expects %q", key, p.Kind, f.Type, wantKind)
+	}
+
+	switch p.Kind {
+	case KindBoolean:
+		if p.BoolValue == nil {
+			return "", fmt.Errorf("boolean predicate on %q missing value", key)
+		}
+		if *p.BoolValue {
+			return key, nil
+		}
+		return "!" + key, nil
+
+	case KindEnum:
+		if len(p.EnumValues) == 0 {
+			return "", fmt.Errorf("enum predicate on %q has no values", key)
+		}
+		var op, join string
+		switch p.EnumOp {
+		case EnumOpEquals:
+			op, join = "==", " || "
+		case EnumOpNotEquals:
+			op, join = "!=", " && "
+		default:
+			return "", fmt.Errorf("enum predicate on %q has invalid op %q", key, p.EnumOp)
+		}
+		terms := make([]string, len(p.EnumValues))
+		for i, v := range p.EnumValues {
+			terms[i] = fmt.Sprintf("%s %s %s", key, op, jsonString(v))
+		}
+		if len(terms) == 1 {
+			return terms[0], nil
+		}
+		return "(" + strings.Join(terms, join) + ")", nil
+
+	case KindNumber:
+		if p.NumberValue == nil {
+			return "", fmt.Errorf("number predicate on %q missing value", key)
+		}
+		switch p.NumberOp {
+		case NumberOpEq, NumberOpNe, NumberOpGt, NumberOpGe, NumberOpLt, NumberOpLe:
+			// ok
+		default:
+			return "", fmt.Errorf("number predicate on %q has invalid op %q", key, p.NumberOp)
+		}
+		return fmt.Sprintf("%s %s %s", key, p.NumberOp, formatFloat(*p.NumberValue)), nil
+
+	case KindDate:
+		if p.DateOp == "" {
+			return "", fmt.Errorf("date predicate on %q missing op", key)
+		}
+		if p.DateArg != nil {
+			return fmt.Sprintf("%s(%s, %d)", p.DateOp, key, *p.DateArg), nil
+		}
+		return fmt.Sprintf("%s(%s)", p.DateOp, key), nil
+	}
+	return "", fmt.Errorf("unknown predicate kind %q", p.Kind)
+}
+
+// outcomeExpr emits a SidebarItem-shaped map literal. An outcome
+// with no styling and no text is "{}" — the engine renders an empty
+// chip but the source stays parseable. Caller's job to skip emitting
+// a no-op chip via outcomeIsEmpty.
+func outcomeExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 	parts := []string{}
-	if o.Text != "" {
-		parts = append(parts, "text: "+jsonString(o.Text))
-	} else {
-		parts = append(parts, "text: "+fieldKey)
+	if o.Text != nil {
+		s, err := textExpr(*o.Text, fields)
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, "text: "+s)
 	}
 	if o.Color != "" {
 		parts = append(parts, "color: "+jsonString(o.Color))
@@ -91,91 +182,67 @@ func outcomeExprFromOutcome(o Outcome, fieldKey string) string {
 		}
 		parts = append(parts, "classes: ["+strings.Join(quoted, ", ")+"]")
 	}
-	return "{" + strings.Join(parts, ", ") + "}"
+	return "{" + strings.Join(parts, ", ") + "}", nil
+}
+
+// textExpr resolves a TextSource to its expr-lang fragment. Literal
+// becomes a quoted string; fieldValue a bare identifier; fieldLabel
+// a baked value→label ternary over the field's options, falling
+// through to the raw value when no option matches.
+func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
+	switch ts.Kind {
+	case TextKindLiteral:
+		return jsonString(ts.Value), nil
+	case TextKindFieldValue:
+		if strings.TrimSpace(ts.FieldKey) == "" {
+			return "", fmt.Errorf("fieldValue text source missing fieldKey")
+		}
+		return ts.FieldKey, nil
+	case TextKindFieldLabel:
+		key := strings.TrimSpace(ts.FieldKey)
+		if key == "" {
+			return "", fmt.Errorf("fieldLabel text source missing fieldKey")
+		}
+		f, ok := fields[key]
+		if !ok || len(f.Options) == 0 {
+			// Graceful fallback: bare reference. UI gates fieldLabel
+			// to enum fields, so this only fires on stale state.
+			return key, nil
+		}
+		return bakeOptionLookup(key, f.Options), nil
+	}
+	return "", fmt.Errorf("unknown text source kind %q", ts.Kind)
+}
+
+// bakeOptionLookup emits a nested ternary that resolves the field's
+// stored value to its option label. Unknown values fall through to
+// the raw value so a stale option doesn't blank out a chip.
+//
+//   key == "v1" ? "L1" : (key == "v2" ? "L2" : key)
+func bakeOptionLookup(key string, opts []FieldOption) string {
+	tail := key
+	for i := len(opts) - 1; i >= 0; i-- {
+		opt := opts[i]
+		if i < len(opts)-1 {
+			tail = "(" + tail + ")"
+		}
+		tail = fmt.Sprintf("%s == %s ? %s : %s", key, jsonString(opt.Value), jsonString(opt.Label), tail)
+	}
+	return tail
 }
 
 func outcomeIsEmpty(o Outcome) bool {
-	return o.Text == "" && o.Color == "" && o.Bg == "" && len(o.Classes) == 0
+	return o.Text == nil && o.Color == "" && o.Bg == "" && len(o.Classes) == 0
 }
 
-// predicate emits the boolean expr-lang fragment for a rule. Pointer
-// fields (BoolValue, NumberValue) are required for kinds that use
-// them — the JSON-shaped omitempty contract means a frontend payload
-// missing them is malformed, not zero.
-func predicate(r Rule, fieldKey string) (string, error) {
-	switch r.Kind {
-	case KindBoolean:
-		if r.BoolValue == nil {
-			return "", fmt.Errorf("builder: boolean rule %q missing value", r.ID)
-		}
-		if *r.BoolValue {
-			return fieldKey, nil
-		}
-		return "!" + fieldKey, nil
-
-	case KindEnum:
-		if len(r.EnumValues) == 0 {
-			return "", fmt.Errorf("builder: enum rule %q has no values", r.ID)
-		}
-		var op, join string
-		switch r.EnumOp {
-		case EnumOpEquals:
-			op, join = "==", " || "
-		case EnumOpNotEquals:
-			op, join = "!=", " && "
-		default:
-			return "", fmt.Errorf("builder: enum rule %q has invalid op %q", r.ID, r.EnumOp)
-		}
-		terms := make([]string, len(r.EnumValues))
-		for i, v := range r.EnumValues {
-			terms[i] = fmt.Sprintf("%s %s %s", fieldKey, op, jsonString(v))
-		}
-		if len(terms) == 1 {
-			return terms[0], nil
-		}
-		return "(" + strings.Join(terms, join) + ")", nil
-
-	case KindNumber:
-		if r.NumberValue == nil {
-			return "", fmt.Errorf("builder: number rule %q missing value", r.ID)
-		}
-		switch r.NumberOp {
-		case NumberOpEq, NumberOpNe, NumberOpGt, NumberOpGe, NumberOpLt, NumberOpLe:
-			// ok
-		default:
-			return "", fmt.Errorf("builder: number rule %q has invalid op %q", r.ID, r.NumberOp)
-		}
-		return fmt.Sprintf("%s %s %s", fieldKey, r.NumberOp, formatFloat(*r.NumberValue)), nil
-
-	case KindDate:
-		if r.DateOp == "" {
-			return "", fmt.Errorf("builder: date rule %q missing op", r.ID)
-		}
-		if r.DateArg != nil {
-			return fmt.Sprintf("%s(%s, %d)", r.DateOp, fieldKey, *r.DateArg), nil
-		}
-		return fmt.Sprintf("%s(%s)", r.DateOp, fieldKey), nil
-	}
-	return "", fmt.Errorf("builder: unknown rule kind %q", r.Kind)
-}
-
-// jsonString quotes a string with JSON's escaping rules. We need
-// embedded double-quotes/newlines/backslashes escaped so the emitted
-// expr-lang source still parses; encoding/json's string encoder does
-// exactly this so we reuse it instead of hand-rolling.
 func jsonString(s string) string {
 	b, err := json.Marshal(s)
 	if err != nil {
-		// json.Marshal of a string only fails on invalid UTF-8; fall
-		// back to a strconv.Quote which uses Go's escape rules — close
-		// enough for the rare invalid-UTF-8 case.
 		return strconv.Quote(s)
 	}
 	return string(b)
 }
 
-// formatFloat trims trailing zeros so 10.0 → "10" and 2.5 → "2.5".
-// Avoids leaking float-formatting noise into the generated source.
 func formatFloat(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
