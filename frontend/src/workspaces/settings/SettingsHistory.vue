@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { FormSection, FormRow, TextField, SwitchField } from "../../components/fields";
+import { FormSection, FormRow, FormSwitchRow, TextField, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
 const { t } = useI18n();
@@ -25,17 +25,14 @@ function patchHistory(partial: Record<string, unknown>) {
         :off-label="t('common.off')"
       />
     </FormRow>
-    <FormRow
+    <FormSwitchRow
       :label="t('config.history.persist')"
       :description="t('settings.desc.persist_history')"
-    >
-      <SwitchField
-        :model-value="cfg.history.persist"
-        @update:model-value="(v) => patchHistory({ persist: v })"
-        :on-label="t('common.on')"
-        :off-label="t('common.off')"
-      />
-    </FormRow>
+      :model-value="cfg.history.persist"
+      @update:model-value="(v) => patchHistory({ persist: v })"
+      :on-label="t('common.on')"
+      :off-label="t('common.off')"
+    />
     <FormRow :label="t('config.history.max_size')">
       <TextField
         type="number"

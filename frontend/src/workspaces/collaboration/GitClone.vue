@@ -4,9 +4,9 @@ import { useI18n } from "vue-i18n";
 import {
   FormSection,
   FormRow,
+  FormSwitchRow,
   TextField,
   FolderPathField,
-  SwitchField,
 } from "../../components/fields";
 import { Service as GitSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import { Service as CredentialSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/credential";
@@ -109,12 +109,11 @@ async function clone() {
     >
       <TextField v-model="pat" type="password" autocomplete="off" />
     </FormRow>
-    <FormRow
+    <FormSwitchRow
       :label="t('workspace.collaboration.clone.save_token')"
       :description="t('workspace.collaboration.clone.save_token_help')"
-    >
-      <SwitchField v-model="saveToken" />
-    </FormRow>
+      v-model="saveToken"
+    />
     <FormRow :label="t('workspace.collaboration.clone.dest')">
       <FolderPathField v-model="dest" placeholder="/path/to/empty/folder" />
     </FormRow>

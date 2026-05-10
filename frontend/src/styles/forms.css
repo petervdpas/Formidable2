@@ -80,6 +80,14 @@
 
 .form-row + .form-row { border-top: 1px dashed var(--color-border); }
 
+/* When a FormRow's control is a SwitchField (or wraps one, e.g. the
+   .row-with-badge pattern), the 7px label baseline-offset designed
+   for text inputs leaves the label below the switch's centre. Centre
+   the row and drop the offset so label text and switch track sit on
+   the same horizontal axis. */
+.form-row:has(.field-switch) { align-items: center; }
+.form-row:has(.field-switch) > .form-label { padding-top: 0; }
+
 .form-label {
     font-weight: 600;
     text-align: right;
