@@ -29,7 +29,7 @@ const props = defineProps<{
 // Mirrors builder.MaxConcatParts. Wails doesn't expose Go consts so
 // we pin the value here; the backend re-checks at Compile time, so a
 // stale frontend can never sneak past the cap.
-const MAX_PARTS = 5;
+const MAX_PARTS = 10;
 
 const { t } = useI18n();
 

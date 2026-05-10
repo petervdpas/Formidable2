@@ -18,7 +18,7 @@ package builder
 // produces unreadable text and pathological compile/parse work.
 // Both Compile and Parse enforce the cap so hand-authored sources
 // bouncing through Parse → Compile can't smuggle larger chains in.
-const MaxConcatParts = 5
+const MaxConcatParts = 10
 
 type RuleKind string
 
