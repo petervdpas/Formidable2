@@ -1,0 +1,46 @@
+/*
+ * popup — chrome for the generic Popup.vue component. The wrapper is
+ * relative-positioned so the panel anchors to the trigger; the panel
+ * itself absolute-positions on the chosen side. Four placements:
+ * below / above / right / left, each anchored at the matching edge
+ * of the trigger.
+ */
+
+.popup-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.popup-panel {
+  position: absolute;
+  z-index: 50;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--bg-color, #1c2030);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 0.4rem 0.5rem;
+}
+
+.popup-panel.popup-below {
+  top: 100%;
+  left: 0;
+  margin-top: 0.25rem;
+}
+
+.popup-panel.popup-above {
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 0.25rem;
+}
+
+.popup-panel.popup-right {
+  left: 100%;
+  top: 0;
+  margin-left: 0.25rem;
+}
+
+.popup-panel.popup-left {
+  right: 100%;
+  top: 0;
+  margin-right: 0.25rem;
+}

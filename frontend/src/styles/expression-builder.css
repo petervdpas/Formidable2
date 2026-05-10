@@ -253,9 +253,129 @@
   flex-shrink: 0;
 }
 
-.expr-outcome-text-value,
-.expr-outcome-color,
-.expr-outcome-classes {
+.expr-outcome-text-value {
   flex: 1;
   min-width: 8rem;
+}
+
+/* Color / bg trigger button — preview swatch that opens the picker
+ * popup. Width matches a normal input height so the row stays tidy
+ * when collapsed. */
+.expr-color-trigger {
+  appearance: none;
+  width: 5rem;
+  height: 1.7rem;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+}
+
+.expr-color-trigger:hover,
+.expr-color-trigger.open {
+  border-color: var(--accent-color, #4a90e2);
+}
+
+/* Swatch popup body — 3×4 grid: 11 distinct hues + a "×" clear cell.
+ * Swatches use a hairline rgba border so the colour reads sharp on
+ * the dark popup background; the selected ring is a 2px accent
+ * outline (no inner outline, no glow). */
+.expr-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1.8rem);
+  grid-auto-rows: 1.8rem;
+  gap: 0.3rem;
+}
+
+.expr-swatch {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.expr-swatch:hover {
+  outline: 1px solid var(--accent-color, #4a90e2);
+  outline-offset: 1px;
+}
+
+.expr-swatch.selected {
+  outline: 2px solid var(--accent-color, #4a90e2);
+  outline-offset: 1px;
+}
+
+.expr-swatch.expr-swatch-clear {
+  background: transparent;
+  border: 1px dashed var(--border-color, #ccc);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--muted-color, #888);
+}
+
+.expr-swatch.expr-swatch-clear:hover {
+  outline: none;
+  border-color: var(--color-error, #c0392b);
+  color: var(--color-error, #c0392b);
+}
+
+/* Classes trigger — shows current selections as live-styled chips
+ * (each chip wears its real class for a preview). Empty = hint. */
+.expr-classes-trigger {
+  appearance: none;
+  text-align: left;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--code-bg, rgba(0, 0, 0, 0.02));
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-height: 1.7rem;
+  min-width: 14rem;
+  align-items: center;
+  transition: border-color 0.15s;
+}
+
+.expr-classes-trigger:hover,
+.expr-classes-trigger.open {
+  border-color: var(--accent-color, #4a90e2);
+}
+
+.expr-classes-trigger-chip {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  background: var(--code-bg, rgba(0, 0, 0, 0.04));
+}
+
+/* Classes popup body — 3-column checkbox grid with live previews. */
+.expr-classes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 0.2rem 0.8rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.expr-classes-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.1rem 0.2rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.expr-classes-item:hover {
+  background: var(--accent-bg, rgba(74, 144, 226, 0.06));
 }
