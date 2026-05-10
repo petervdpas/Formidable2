@@ -64,8 +64,8 @@ func TestDateOps(t *testing.T) {
 		DateOpIsOverdueInDays:  true,
 		DateOpIsExpiredAfter:   true,
 		DateOpIsUpcomingBefore: true,
-		DateOpAgeGt:            true,
-		DateOpAgeLt:            true,
+		DateOpDateGt:           true,
+		DateOpDateLt:           true,
 	}
 	for _, op := range ops {
 		if op.LabelKey == "" {

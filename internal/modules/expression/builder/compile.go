@@ -148,6 +148,22 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 		if p.DateOp == "" {
 			return "", fmt.Errorf("date predicate on %q missing op", key)
 		}
+		// dateGt / dateLt express "date is older / newer than N days"
+		// in user-facing terms. There is no helper by that name; we
+		// emit ageInDays(<key>) > N (and < N) which uses the engine's
+		// real age helper. All other ops are direct helper calls.
+		switch p.DateOp {
+		case DateOpDateGt:
+			if p.DateArg == nil {
+				return "", fmt.Errorf("date predicate on %q missing arg for %s", key, p.DateOp)
+			}
+			return fmt.Sprintf("ageInDays(%s) > %d", key, *p.DateArg), nil
+		case DateOpDateLt:
+			if p.DateArg == nil {
+				return "", fmt.Errorf("date predicate on %q missing arg for %s", key, p.DateOp)
+			}
+			return fmt.Sprintf("ageInDays(%s) < %d", key, *p.DateArg), nil
+		}
 		if p.DateArg != nil {
 			return fmt.Sprintf("%s(%s, %d)", p.DateOp, key, *p.DateArg), nil
 		}

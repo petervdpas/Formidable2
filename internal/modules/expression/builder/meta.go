@@ -54,7 +54,7 @@ func DateOps() []DateOpDescriptor {
 		{Op: DateOpIsOverdueInDays, LabelKey: "expression_builder.date.is_overdue_in_days", HasArg: true},
 		{Op: DateOpIsExpiredAfter, LabelKey: "expression_builder.date.is_expired_after", HasArg: true},
 		{Op: DateOpIsUpcomingBefore, LabelKey: "expression_builder.date.is_upcoming_before", HasArg: true},
-		{Op: DateOpAgeGt, LabelKey: "expression_builder.date.age_gt", HasArg: true},
-		{Op: DateOpAgeLt, LabelKey: "expression_builder.date.age_lt", HasArg: true},
+		{Op: DateOpDateGt, LabelKey: "expression_builder.date.date_gt", HasArg: true},
+		{Op: DateOpDateLt, LabelKey: "expression_builder.date.date_lt", HasArg: true},
 	}
 }

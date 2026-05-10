@@ -53,8 +53,8 @@ export enum DateOp {
     DateOpIsOverdueInDays = "isOverdueInDays",
     DateOpIsExpiredAfter = "isExpiredAfter",
     DateOpIsUpcomingBefore = "isUpcomingBefore",
-    DateOpAgeGt = "ageGt",
-    DateOpAgeLt = "ageLt",
+    DateOpDateGt = "dateGt",
+    DateOpDateLt = "dateLt",
 };
 
 /**

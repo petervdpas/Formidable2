@@ -229,6 +229,54 @@ func TestCompile_DateNoArg(t *testing.T) {
 	}
 }
 
+func TestCompile_DateGtUsesAgeInDays(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDateArg("due", DateOpDateGt, 30)},
+			Outcome:    Outcome{Color: "red"},
+		}},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `ageInDays(due) > 30 ? {color: "red"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_DateLtUsesAgeInDays(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDateArg("due", DateOpDateLt, 7)},
+			Outcome:    Outcome{Color: "blue"},
+		}},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `ageInDays(due) < 7 ? {color: "blue"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_DateGtMissingArgIsError(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predDate("due", DateOpDateGt)},
+		}},
+	}
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Error("expected error for dateGt predicate with no arg")
+	}
+}
+
 func TestCompile_DateWithArg(t *testing.T) {
 	cfg := Config{
 		Rules: []Rule{{

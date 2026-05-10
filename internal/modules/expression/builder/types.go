@@ -50,8 +50,8 @@ const (
 	DateOpIsOverdueInDays  DateOp = "isOverdueInDays"
 	DateOpIsExpiredAfter   DateOp = "isExpiredAfter"
 	DateOpIsUpcomingBefore DateOp = "isUpcomingBefore"
-	DateOpAgeGt            DateOp = "ageGt"
-	DateOpAgeLt            DateOp = "ageLt"
+	DateOpDateGt           DateOp = "dateGt"
+	DateOpDateLt           DateOp = "dateLt"
 )
 
 // Predicate is one kind-specific test against one expression_item
