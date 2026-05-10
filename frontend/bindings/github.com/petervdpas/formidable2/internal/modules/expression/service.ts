@@ -6,7 +6,9 @@
  * calls Evaluate for one-off expressions (e.g. plugin commands or a
  * hypothetical preview pane in the template editor) and
  * EvaluateSidebar to populate the Storage workspace's per-row
- * sub-labels.
+ * sub-labels. Builder* methods power the visual sidebar-expression
+ * dialog by returning the same construction primitives the Go side
+ * uses internally — single source of truth.
  * @module
  */
 
@@ -16,7 +18,71 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as builder$0 from "./builder/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
+
+/**
+ * BuilderCompile turns a FieldConfig into the expr-lang source string
+ * the engine evaluates. Empty string means "field hidden from the
+ * sidebar"; an error means the config is malformed (missing values,
+ * unknown ops) and the frontend should keep the modal open.
+ */
+export function BuilderCompile(cfg: builder$0.FieldConfig, fieldKey: string): $CancellablePromise<string> {
+    return $Call.ByID(2747284620, cfg, fieldKey);
+}
+
+/**
+ * BuilderDateOps returns the date-helper vocabulary for the Date-tab
+ * picker, in render order.
+ */
+export function BuilderDateOps(): $CancellablePromise<builder$0.DateOpDescriptor[]> {
+    return $Call.ByID(2949033821).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * BuilderDefaultFieldConfig returns the empty per-field config the
+ * modal seeds for every expression-flagged field on open.
+ */
+export function BuilderDefaultFieldConfig(): $CancellablePromise<builder$0.FieldConfig> {
+    return $Call.ByID(3637792266).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * BuilderDefaultRule returns a freshly-initialised Rule for the given
+ * field type. The frontend assigns the ID; the returned Rule has an
+ * empty ID so it cannot accidentally be persisted as authoritative.
+ */
+export function BuilderDefaultRule(fieldType: string): $CancellablePromise<builder$0.Rule> {
+    return $Call.ByID(497303310, fieldType).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * BuilderKindForFieldType reports the rule kind for a Field.Type, or
+ * "" when the type does not participate in rules. Frontend uses this
+ * to gate the State / Date tabs.
+ */
+export function BuilderKindForFieldType(fieldType: string): $CancellablePromise<string> {
+    return $Call.ByID(639708732, fieldType);
+}
+
+/**
+ * BuilderOperatorsForKind returns the operator vocabulary for the
+ * State-tab picker. Empty for kinds with no picker (boolean, date).
+ */
+export function BuilderOperatorsForKind(kind: string): $CancellablePromise<builder$0.Operator[]> {
+    return $Call.ByID(3209858457, kind).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
 
 /**
  * Evaluate runs one expression against an arbitrary context. Returns
@@ -25,7 +91,7 @@ import * as $models from "./models.js";
  */
 export function Evaluate(src: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.SidebarItem> {
     return $Call.ByID(3315345587, src, ctx).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType6($result);
     });
 }
 
@@ -37,10 +103,16 @@ export function Evaluate(src: string, ctx: { [_ in string]?: any }): $Cancellabl
  */
 export function EvaluateSidebar(templateName: string): $CancellablePromise<$models.SidebarItem[]> {
     return $Call.ByID(3056242925, templateName).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType7($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.SidebarItem.createFrom;
+const $$createType0 = builder$0.DateOpDescriptor.createFrom;
 const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = builder$0.FieldConfig.createFrom;
+const $$createType3 = builder$0.Rule.createFrom;
+const $$createType4 = builder$0.Operator.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.SidebarItem.createFrom;
+const $$createType7 = $Create.Array($$createType6);

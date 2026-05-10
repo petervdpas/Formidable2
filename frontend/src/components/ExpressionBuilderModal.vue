@@ -46,41 +46,130 @@ const selectedField = computed<Field | null>(
   () => expressionFields.value.find((f) => f.key === selectedKey.value) ?? null,
 );
 
-// Per-field "Display" toggle. Lives in the configure-pane header
-// (above the tabs) and gates the Display tab — a field doesn't enter
-// the chip until the user opts it in. Defaults to off.
-const canBeDisplayed = ref<Record<string, boolean>>({});
+// ── Rule shape ───────────────────────────────────────────────────
+// Discriminated union keyed by `kind`. Kind matches the focused
+// field's category but is stored on the rule so the State-tab body
+// and compile() can switch cleanly without a field lookup.
+//
+//   boolean → BooleanRule  (boolean field-type)
+//   enum    → EnumRule     (dropdown / radio — switch-style cases)
+//   number  → NumberRule   (number / range — range = bounded number)
+//   date    → DateRule     (date helpers: isOverdue, isDueSoon, …)
+type RuleKind = "boolean" | "enum" | "number" | "date";
 
-const displayAllowed = computed(() => {
-  if (!selectedKey.value) return false;
-  return !!canBeDisplayed.value[selectedKey.value];
+type DateOp =
+  | "isOverdue"
+  | "isToday"
+  | "isFuture"
+  | "isDueSoon"
+  | "isOverdueInDays"
+  | "isExpiredAfter"
+  | "isUpcomingBefore"
+  | "ageGt"
+  | "ageLt";
+
+type BooleanRule = { id: string; kind: "boolean"; value: boolean };
+type EnumRule = {
+  id: string;
+  kind: "enum";
+  op: "equals" | "not_equals";
+  values: string[];
+};
+type NumberRule = {
+  id: string;
+  kind: "number";
+  op: "==" | "!=" | ">" | ">=" | "<" | "<=";
+  value: number;
+};
+type DateRule = { id: string; kind: "date"; op: DateOp; arg?: number };
+type Rule = BooleanRule | EnumRule | NumberRule | DateRule;
+
+// What a matching rule (or the field default) emits to the sidebar.
+// Mirrors backend SidebarItem minus the runtime-only fields.
+type Outcome = {
+  text?: string;
+  color?: string;
+  bg?: string;
+  classes?: string[];
+};
+
+// Per-field builder state. Display gates the whole field; rules are
+// the predicates (State or Date tab); styling[id] is the per-rule
+// outcome edited in the Display tab; default is the no-rule-match
+// outcome. Transform lands in a later slice.
+type FieldConfig = {
+  display: boolean;
+  rules: Rule[];
+  styling: Record<string, Outcome>;
+  default: Outcome;
+};
+
+function kindForField(f: Field | null): RuleKind | null {
+  const t = (f?.type || "").toLowerCase();
+  if (t === "boolean") return "boolean";
+  if (t === "dropdown" || t === "radio") return "enum";
+  if (t === "number" || t === "range") return "number";
+  if (t === "date") return "date";
+  return null;
+}
+
+// Session-scoped rule id. Resets on modal open so each session starts
+// at r1; doesn't need to persist since Apply is one-way.
+let _ruleSeq = 0;
+const newRuleId = () => `r${++_ruleSeq}`;
+
+function defaultRuleForField(f: Field): Rule | null {
+  const kind = kindForField(f);
+  if (!kind) return null;
+  const id = newRuleId();
+  switch (kind) {
+    case "boolean":
+      return { id, kind, value: true };
+    case "enum":
+      return { id, kind, op: "equals", values: [] };
+    case "number":
+      return { id, kind, op: "==", value: 0 };
+    case "date":
+      return { id, kind, op: "isOverdue" };
+  }
+}
+
+function defaultFieldConfig(): FieldConfig {
+  return { display: false, rules: [], styling: {}, default: {} };
+}
+
+const configByField = ref<Record<string, FieldConfig>>({});
+
+const currentConfig = computed<FieldConfig | null>(() => {
+  if (!selectedKey.value) return null;
+  return configByField.value[selectedKey.value] ?? null;
 });
 
-// Per-field rules. One field can carry multiple rules; later
-// slices fill in operator + value + styling. Today the row is just
-// a placeholder so the add/remove plumbing has something to bind
-// against.
-type Rule = Record<string, never>;
-const rulesByField = ref<Record<string, Rule[]>>({});
+const displayAllowed = computed(() => !!currentConfig.value?.display);
 
-const currentRules = computed<Rule[]>(() => {
-  if (!selectedKey.value) return [];
-  return rulesByField.value[selectedKey.value] ?? [];
+const displayModel = computed({
+  get: () => !!currentConfig.value?.display,
+  set: (v: boolean) => {
+    const cfg = configByField.value[selectedKey.value];
+    if (cfg) cfg.display = v;
+  },
 });
+
+const currentRules = computed<Rule[]>(() => currentConfig.value?.rules ?? []);
 
 function addRule() {
-  if (!selectedKey.value) return;
-  const list = rulesByField.value[selectedKey.value] ?? [];
-  rulesByField.value[selectedKey.value] = [...list, {}];
+  if (!selectedField.value) return;
+  const cfg = configByField.value[selectedKey.value];
+  if (!cfg) return;
+  const r = defaultRuleForField(selectedField.value);
+  if (!r) return;
+  cfg.rules = [...cfg.rules, r];
 }
 
 function removeRule(i: number) {
-  if (!selectedKey.value) return;
-  const list = rulesByField.value[selectedKey.value] ?? [];
-  rulesByField.value[selectedKey.value] = [
-    ...list.slice(0, i),
-    ...list.slice(i + 1),
-  ];
+  const cfg = configByField.value[selectedKey.value];
+  if (!cfg) return;
+  cfg.rules = [...cfg.rules.slice(0, i), ...cfg.rules.slice(i + 1)];
 }
 
 // Configure pane is split into horizontal tabs. State leads — it's
@@ -148,15 +237,14 @@ watch(
   (isOpen) => {
     if (!isOpen) return;
     // Reset per-field state so a previous open's choices don't bleed
-    // into a fresh template selection.
-    const flags: Record<string, boolean> = {};
-    const rules: Record<string, Rule[]> = {};
+    // into a fresh template selection. Rule id counter resets too so
+    // each session starts at r1.
+    _ruleSeq = 0;
+    const cfg: Record<string, FieldConfig> = {};
     for (const f of expressionFields.value) {
-      flags[f.key] = false;
-      rules[f.key] = [];
+      cfg[f.key] = defaultFieldConfig();
     }
-    canBeDisplayed.value = flags;
-    rulesByField.value = rules;
+    configByField.value = cfg;
     selectedKey.value = expressionFields.value[0]?.key ?? "";
     activeTab.value = defaultTabForField();
   },
@@ -262,8 +350,8 @@ function onApply() {
               {{ t('workspace.templates.expression_builder.field.can_be_displayed') }}
             </span>
             <SwitchField
-              v-if="selectedKey"
-              v-model="canBeDisplayed[selectedKey]"
+              v-if="currentConfig"
+              v-model="displayModel"
               :on-label="t('common.on')"
               :off-label="t('common.off')"
             />
