@@ -214,12 +214,22 @@ export class Operator {
 
 /**
  * Outcome is the styled chip a matching Rule (or the default)
- * produces. Text is optional — when nil the chip has no text and
- * the engine renders only the styling. Mirrors the runtime
- * SidebarItem shape minus filename/error.
+ * produces. Text and Parts both encode the chip text:
+ * 
+ *   - Parts (preferred) is an ordered list of TextSources joined
+ *     with `+` so a chip text can mix literals, field values, and
+ *     option labels — e.g. `unit-number + " " + street`.
+ *   - Text is the legacy single-source form. Compile reads Parts
+ *     first; falls back to Text when Parts is empty. Parse always
+ *     emits Parts (Text stays nil). Both nil/empty means the chip
+ *     renders no text.
+ * 
+ * The remaining fields mirror the runtime SidebarItem shape minus
+ * filename/error.
  */
 export class Outcome {
     "text"?: TextSource | null;
+    "parts"?: TextSource[];
     "color"?: string;
     "bg"?: string;
     "classes"?: string[];
@@ -235,13 +245,17 @@ export class Outcome {
      */
     static createFrom($$source: any = {}): Outcome {
         const $$createField0_0 = $$createType6;
-        const $$createField3_0 = $$createType7;
+        const $$createField1_0 = $$createType7;
+        const $$createField4_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
         }
+        if ("parts" in $$parsedSource) {
+            $$parsedSource["parts"] = $$createField1_0($$parsedSource["parts"]);
+        }
         if ("classes" in $$parsedSource) {
-            $$parsedSource["classes"] = $$createField3_0($$parsedSource["classes"]);
+            $$parsedSource["classes"] = $$createField4_0($$parsedSource["classes"]);
         }
         return new Outcome($$parsedSource as Partial<Outcome>);
     }
@@ -280,7 +294,7 @@ export class Predicate {
      * Creates a new Predicate instance from a string or object.
      */
     static createFrom($$source: any = {}): Predicate {
-        const $$createField4_0 = $$createType7;
+        const $$createField4_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enumValues" in $$parsedSource) {
             $$parsedSource["enumValues"] = $$createField4_0($$parsedSource["enumValues"]);
@@ -315,7 +329,7 @@ export class Rule {
      * Creates a new Rule instance from a string or object.
      */
     static createFrom($$source: any = {}): Rule {
-        const $$createField1_0 = $$createType9;
+        const $$createField1_0 = $$createType10;
         const $$createField2_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("predicates" in $$parsedSource) {
@@ -389,6 +403,7 @@ const $$createType3 = FieldOption.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = TextSource.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = Predicate.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType7 = $Create.Array($$createType5);
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = Predicate.createFrom;
+const $$createType10 = $Create.Array($$createType9);

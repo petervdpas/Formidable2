@@ -8,13 +8,25 @@ import (
 // TemplateProvider abstracts the template module so this package can
 // stay layer-clean (no template import → no risk of an import cycle
 // when template eventually wants to consume an Expression hook).
-// Returned `Template` is opaque to the engine; we read only the two
-// fields the sidebar needs.
+// Returned `Template` is opaque to the engine; we read only what the
+// sidebar needs.
 type TemplateProvider interface {
-	// LookupSidebar returns (sidebarExpression, fields, error). Fields
-	// is the full field list so callers can resolve `expression_item`
-	// flags without leaking the template type into the engine.
-	LookupSidebar(name string) (expr string, expressionFields []string, err error)
+	// LookupSidebar returns the template's sidebar expression and the
+	// list of expression-flagged fields with their option metadata.
+	// The fields slice backs both narrowContext (defence-in-depth on
+	// what the expression can see) and the per-record O map that
+	// resolves O["key"] to the option label of the field's current
+	// value at evaluation time.
+	LookupSidebar(name string) (expr string, fields []ExpressionField, err error)
+}
+
+// ExpressionField is the slim shape the sidebar evaluator needs from
+// each expression-flagged field: the variable Key (used for
+// narrowContext + O[key] resolution) and Options as a value→label
+// map. Fields without options carry an empty Options map.
+type ExpressionField struct {
+	Key     string
+	Options map[string]string
 }
 
 // StorageProvider abstracts the storage module's list-with-context
@@ -80,7 +92,7 @@ func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 		return nil, fmt.Errorf("expression: providers not wired")
 	}
 
-	src, expressionFields, err := m.tpl.LookupSidebar(templateName)
+	src, fields, err := m.tpl.LookupSidebar(templateName)
 	if err != nil {
 		return nil, fmt.Errorf("expression: load template %q: %w", templateName, err)
 	}
@@ -101,9 +113,15 @@ func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 		return nil, fmt.Errorf("expression: list records: %w", err)
 	}
 
+	keys := make([]string, len(fields))
+	for i, f := range fields {
+		keys[i] = f.Key
+	}
+
 	out := make([]SidebarItem, 0, len(records))
 	for _, r := range records {
-		ctx := narrowContext(r.Context, expressionFields)
+		ctx := narrowContext(r.Context, keys)
+		ctx["O"] = optionLabelMap(fields, ctx)
 		item, err := m.eng.Evaluate(src, ctx)
 		if err != nil {
 			out = append(out, SidebarItem{
@@ -124,6 +142,37 @@ func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+// optionLabelMap builds the per-record `O` env entry: a map keyed
+// by expression-field key whose value is the option label that
+// resolves the record's current value for that field. Fields with
+// no options or with a value not present in the option list emit
+// an empty string — runtime O[key] then stringifies as "" rather
+// than blowing up. Builder.Compile only emits O[key] for fields
+// the UI gates as enum-typed, so missing entries here mean stale
+// config rather than expected absence.
+func optionLabelMap(fields []ExpressionField, ctx map[string]any) map[string]any {
+	out := make(map[string]any, len(fields))
+	for _, f := range fields {
+		if len(f.Options) == 0 {
+			continue
+		}
+		raw, ok := ctx[f.Key]
+		if !ok || raw == nil {
+			continue
+		}
+		val := fmt.Sprintf("%v", raw)
+		if label, ok := f.Options[val]; ok {
+			out[f.Key] = label
+		} else {
+			// Unknown value: fall back to the raw value so a stale
+			// option set doesn't blank a chip. Same fallback the
+			// previous baked ternary used.
+			out[f.Key] = val
+		}
+	}
+	return out
 }
 
 // narrowContext returns a copy of ctx limited to expressionFields.

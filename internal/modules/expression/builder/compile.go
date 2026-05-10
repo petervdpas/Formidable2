@@ -175,12 +175,10 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 // a no-op chip via outcomeIsEmpty.
 func outcomeExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 	parts := []string{}
-	if o.Text != nil {
-		s, err := textExpr(*o.Text, fields)
-		if err != nil {
-			return "", err
-		}
-		parts = append(parts, "text: "+s)
+	if text, err := textPartsExpr(o, fields); err != nil {
+		return "", err
+	} else if text != "" {
+		parts = append(parts, "text: "+text)
 	}
 	if o.Color != "" {
 		parts = append(parts, "color: "+jsonString(o.Color))
@@ -196,6 +194,31 @@ func outcomeExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 		parts = append(parts, "classes: ["+strings.Join(quoted, ", ")+"]")
 	}
 	return "{" + strings.Join(parts, ", ") + "}", nil
+}
+
+// textPartsExpr produces the right-hand side of an outcome's
+// `text:` entry. Parts wins over Text — Parse only ever emits Parts,
+// so Text only fires for legacy callers that haven't migrated. Empty
+// returns "" so outcomeExpr can omit the entry entirely.
+func textPartsExpr(o Outcome, fields map[string]FieldRef) (string, error) {
+	if len(o.Parts) > MaxConcatParts {
+		return "", fmt.Errorf("text has %d parts, max is %d", len(o.Parts), MaxConcatParts)
+	}
+	if len(o.Parts) > 0 {
+		pieces := make([]string, len(o.Parts))
+		for i, p := range o.Parts {
+			s, err := textExpr(p, fields)
+			if err != nil {
+				return "", fmt.Errorf("part %d: %w", i+1, err)
+			}
+			pieces[i] = s
+		}
+		return strings.Join(pieces, " + "), nil
+	}
+	if o.Text != nil {
+		return textExpr(*o.Text, fields)
+	}
+	return "", nil
 }
 
 // textExpr resolves a TextSource to its expr-lang fragment.
@@ -235,7 +258,7 @@ func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 }
 
 func outcomeIsEmpty(o Outcome) bool {
-	return o.Text == nil && o.Color == "" && o.Bg == "" && len(o.Classes) == 0
+	return o.Text == nil && len(o.Parts) == 0 && o.Color == "" && o.Bg == "" && len(o.Classes) == 0
 }
 
 func jsonString(s string) string {

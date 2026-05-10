@@ -6,15 +6,26 @@ import (
 )
 
 // fakeTpl returns a fixed sidebar expression + opt-in fields. Tests
-// configure both the source and the field list to pin narrowContext.
+// configure both the source and the field list to pin narrowContext
+// and the per-record O map. The legacy `fields []string` shape is
+// preserved as a convenience — pass keys without options when the
+// test doesn't exercise O[].
 type fakeTpl struct {
-	src    string
-	fields []string
-	err    error
+	src      string
+	fields   []string
+	expField []ExpressionField
+	err      error
 }
 
-func (f fakeTpl) LookupSidebar(name string) (string, []string, error) {
-	return f.src, f.fields, f.err
+func (f fakeTpl) LookupSidebar(name string) (string, []ExpressionField, error) {
+	if len(f.expField) > 0 {
+		return f.src, f.expField, f.err
+	}
+	out := make([]ExpressionField, len(f.fields))
+	for i, k := range f.fields {
+		out[i] = ExpressionField{Key: k}
+	}
+	return f.src, out, f.err
 }
 
 type fakeSto struct {
@@ -141,6 +152,101 @@ func TestEvaluateSidebar_ProvidersNotWired(t *testing.T) {
 	_, err := m.EvaluateSidebar("any")
 	if err == nil {
 		t.Fatal("expected error when providers are nil")
+	}
+}
+
+func TestEvaluateSidebar_OBracketResolvesOptionLabel(t *testing.T) {
+	m := NewManager(
+		fakeTpl{
+			src: `{text: O["size"]}`,
+			expField: []ExpressionField{
+				{Key: "size", Options: map[string]string{"S": "Small", "L": "Large"}},
+			},
+		},
+		fakeSto{records: []Record{
+			{Filename: "a.json", Title: "A", Context: map[string]any{"size": "L"}},
+			{Filename: "b.json", Title: "B", Context: map[string]any{"size": "S"}},
+		}},
+	)
+	got, err := m.EvaluateSidebar("any")
+	if err != nil {
+		t.Fatalf("EvaluateSidebar: %v", err)
+	}
+	if got[0].Text != "Large" {
+		t.Errorf("size=L: want Large, got %q", got[0].Text)
+	}
+	if got[1].Text != "Small" {
+		t.Errorf("size=S: want Small, got %q", got[1].Text)
+	}
+}
+
+func TestEvaluateSidebar_OBracketUnknownValueFallsBackToValue(t *testing.T) {
+	// Stale option set: record's value is "XL" but options only know
+	// S and L. Compile-time bake fell through to the raw value; the
+	// runtime O map mirrors that fallback.
+	m := NewManager(
+		fakeTpl{
+			src: `{text: O["size"]}`,
+			expField: []ExpressionField{
+				{Key: "size", Options: map[string]string{"S": "Small", "L": "Large"}},
+			},
+		},
+		fakeSto{records: []Record{
+			{Filename: "a.json", Title: "A", Context: map[string]any{"size": "XL"}},
+		}},
+	)
+	got, err := m.EvaluateSidebar("any")
+	if err != nil {
+		t.Fatalf("EvaluateSidebar: %v", err)
+	}
+	if got[0].Text != "XL" {
+		t.Errorf("unknown value should fall back to raw; got %q", got[0].Text)
+	}
+}
+
+func TestEvaluateSidebar_FBracketAndConcat(t *testing.T) {
+	m := NewManager(
+		fakeTpl{
+			src: `{text: F["unit-number"] + L[" "] + F["street"]}`,
+			expField: []ExpressionField{
+				{Key: "unit-number"},
+				{Key: "street"},
+			},
+		},
+		fakeSto{records: []Record{
+			{Filename: "a.json", Title: "A", Context: map[string]any{"unit-number": "3", "street": "Abbey Road"}},
+		}},
+	)
+	got, err := m.EvaluateSidebar("any")
+	if err != nil {
+		t.Fatalf("EvaluateSidebar: %v", err)
+	}
+	if got[0].Text != "3 Abbey Road" {
+		t.Errorf("F[]+L[]+F[] concat: want %q, got %q", "3 Abbey Road", got[0].Text)
+	}
+}
+
+func TestEvaluateSidebar_OBracketHonorsNarrowContext(t *testing.T) {
+	// `secret` is option-bearing but NOT expression_item-flagged, so
+	// LookupSidebar omits it. O[] must not see it.
+	m := NewManager(
+		fakeTpl{
+			src: `{text: defaultText(O["secret"], "no-secret")}`,
+			expField: []ExpressionField{
+				{Key: "name"},
+			},
+		},
+		fakeSto{records: []Record{
+			{Filename: "a.json", Title: "A",
+				Context: map[string]any{"name": "x", "secret": "leak"}},
+		}},
+	)
+	got, err := m.EvaluateSidebar("any")
+	if err != nil {
+		t.Fatalf("EvaluateSidebar: %v", err)
+	}
+	if got[0].Text != "no-secret" {
+		t.Errorf("O[] leaked non-expression field; got %q", got[0].Text)
 	}
 }
 

@@ -587,6 +587,159 @@ func TestCompile_TextSourceUnknownKind(t *testing.T) {
 	}
 }
 
+// ── Concat parts ────────────────────────────────────────────────
+//
+// Outcome.Parts is the multi-part text source: an ordered list of
+// TextSources joined with `+` to produce a chip text built from
+// any mix of literals, field values, and option labels. Single-
+// part Parts compiles identically to a one-shot Text. Empty Parts
+// falls back to Text for backward compatibility.
+
+func TestCompile_PartsTwo(t *testing.T) {
+	cfg := Config{
+		Default: Outcome{
+			Parts: []TextSource{
+				{Kind: TextKindFieldValue, FieldKey: "unit-number"},
+				{Kind: TextKindFieldValue, FieldKey: "street"},
+			},
+		},
+	}
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "unit-number", Type: "text"},
+		{Key: "street", Type: "text"},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `{text: F["unit-number"] + F["street"]}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_PartsThreeWithLiteralSeparator(t *testing.T) {
+	cfg := Config{
+		Default: Outcome{
+			Parts: []TextSource{
+				{Kind: TextKindFieldValue, FieldKey: "unit-number"},
+				{Kind: TextKindLiteral, Value: " "},
+				{Kind: TextKindFieldValue, FieldKey: "street"},
+			},
+		},
+	}
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "unit-number", Type: "text"},
+		{Key: "street", Type: "text"},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `{text: F["unit-number"] + L[" "] + F["street"]}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_PartsMixedLFO(t *testing.T) {
+	cfg := Config{
+		Default: Outcome{
+			Parts: []TextSource{
+				{Kind: TextKindLiteral, Value: "size: "},
+				{Kind: TextKindFieldLabel, FieldKey: "size"},
+				{Kind: TextKindLiteral, Value: " ("},
+				{Kind: TextKindFieldValue, FieldKey: "size"},
+				{Kind: TextKindLiteral, Value: ")"},
+			},
+		},
+	}
+	got, err := Compile(cfg, []FieldRef{
+		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "L", Label: "Large"}}},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `{text: L["size: "] + O["size"] + L[" ("] + F["size"] + L[")"]}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_PartsSingleElementMatchesText(t *testing.T) {
+	a := Config{Default: Outcome{Parts: []TextSource{{Kind: TextKindFieldValue, FieldKey: "title"}}}}
+	b := Config{Default: Outcome{Text: textValue("title")}}
+	gotA, err := Compile(a, fieldsFour())
+	if err != nil {
+		t.Fatalf("a: %v", err)
+	}
+	gotB, err := Compile(b, fieldsFour())
+	if err != nil {
+		t.Fatalf("b: %v", err)
+	}
+	if gotA != gotB {
+		t.Errorf("single-part Parts vs Text drift\n parts: %s\n  text: %s", gotA, gotB)
+	}
+}
+
+func TestCompile_PartsTakesPrecedenceOverText(t *testing.T) {
+	cfg := Config{Default: Outcome{
+		Text:  textLiteral("ignored"),
+		Parts: []TextSource{{Kind: TextKindFieldValue, FieldKey: "title"}},
+	}}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got != `{text: F["title"]}` {
+		t.Errorf("Parts should win over Text; got %q", got)
+	}
+}
+
+func TestCompile_PartsInRuleOutcome(t *testing.T) {
+	cfg := Config{
+		Rules: []Rule{{
+			ID:         "r1",
+			Predicates: []Predicate{predBool("check", true)},
+			Outcome: Outcome{
+				Parts: []TextSource{
+					{Kind: TextKindLiteral, Value: "✓ "},
+					{Kind: TextKindFieldValue, FieldKey: "title"},
+				},
+				Color: "green",
+			},
+		}},
+	}
+	got, err := Compile(cfg, fieldsFour())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	want := `F["check"] ? {text: L["✓ "] + F["title"], color: "green"} : {}`
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+func TestCompile_PartsRejectsOverMaxConcatParts(t *testing.T) {
+	parts := make([]TextSource, MaxConcatParts+1)
+	for i := range parts {
+		parts[i] = TextSource{Kind: TextKindLiteral, Value: "x"}
+	}
+	cfg := Config{Default: Outcome{Parts: parts}}
+	if _, err := Compile(cfg, fieldsFour()); err == nil {
+		t.Errorf("expected error for %d parts (max %d)", len(parts), MaxConcatParts)
+	}
+}
+
+func TestCompile_PartsAtMaxConcatPartsStillCompiles(t *testing.T) {
+	parts := make([]TextSource, MaxConcatParts)
+	for i := range parts {
+		parts[i] = TextSource{Kind: TextKindLiteral, Value: "x"}
+	}
+	cfg := Config{Default: Outcome{Parts: parts}}
+	if _, err := Compile(cfg, fieldsFour()); err != nil {
+		t.Errorf("at-cap should compile cleanly: %v", err)
+	}
+}
+
 // ── Hyphenated field keys round-trip uniformly ──────────────────
 //
 // Template field keys like `unit-number` are illegal as bare

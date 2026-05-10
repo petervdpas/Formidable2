@@ -370,6 +370,78 @@ func TestParse_HyphenKeyTextLabel(t *testing.T) {
 	})
 }
 
+// ── Concat parts ────────────────────────────────────────────────
+
+func TestParse_ConcatTwoParts(t *testing.T) {
+	cfg := Config{Default: Outcome{Parts: []TextSource{
+		{Kind: TextKindFieldValue, FieldKey: "unit-number"},
+		{Kind: TextKindFieldValue, FieldKey: "street"},
+	}}}
+	roundTrip(t, "concat-2", cfg, []FieldRef{
+		{Key: "unit-number", Type: "text"},
+		{Key: "street", Type: "text"},
+	})
+}
+
+func TestParse_ConcatThreeWithLiteralSeparator(t *testing.T) {
+	cfg := Config{Default: Outcome{Parts: []TextSource{
+		{Kind: TextKindFieldValue, FieldKey: "unit-number"},
+		{Kind: TextKindLiteral, Value: " "},
+		{Kind: TextKindFieldValue, FieldKey: "street"},
+	}}}
+	roundTrip(t, "concat-3-sep", cfg, []FieldRef{
+		{Key: "unit-number", Type: "text"},
+		{Key: "street", Type: "text"},
+	})
+}
+
+func TestParse_ConcatMixedLFO(t *testing.T) {
+	cfg := Config{Default: Outcome{Parts: []TextSource{
+		{Kind: TextKindLiteral, Value: "size: "},
+		{Kind: TextKindFieldLabel, FieldKey: "size"},
+		{Kind: TextKindLiteral, Value: " ("},
+		{Kind: TextKindFieldValue, FieldKey: "size"},
+		{Kind: TextKindLiteral, Value: ")"},
+	}}}
+	roundTrip(t, "concat-mixed-lfo", cfg, []FieldRef{
+		{Key: "size", Type: "dropdown", Options: []FieldOption{{Value: "L", Label: "Large"}}},
+	})
+}
+
+func TestParse_ConcatInRuleOutcome(t *testing.T) {
+	cfg := Config{Rules: []Rule{{
+		ID:         "r1",
+		Predicates: []Predicate{predBool("check", true)},
+		Outcome: Outcome{
+			Parts: []TextSource{
+				{Kind: TextKindLiteral, Value: "✓ "},
+				{Kind: TextKindFieldValue, FieldKey: "title"},
+			},
+			Color: "green",
+		},
+	}}}
+	roundTrip(t, "concat-rule-outcome", cfg, fieldsFour())
+}
+
+func TestParse_ConcatRejectsOverMaxParts(t *testing.T) {
+	pieces := make([]string, MaxConcatParts+1)
+	for i := range pieces {
+		pieces[i] = `L["x"]`
+	}
+	src := `{text: ` + strings.Join(pieces, " + ") + `}`
+	if _, err := Parse(src, fieldsFour()); err == nil {
+		t.Errorf("expected error parsing chain of %d parts (max %d)", len(pieces), MaxConcatParts)
+	}
+}
+
+func TestParse_ConcatRejectsNonAccessorLeaf(t *testing.T) {
+	src := `{text: F["a"] + 5}`
+	_, err := Parse(src, []FieldRef{{Key: "a", Type: "text"}})
+	if err == nil {
+		t.Error("expected error for concat leaf that isn't L/F/O")
+	}
+}
+
 // ── Unhappy paths ───────────────────────────────────────────────
 
 func TestParse_RejectsInvalidExprLang(t *testing.T) {

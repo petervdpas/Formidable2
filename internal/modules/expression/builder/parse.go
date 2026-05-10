@@ -382,11 +382,21 @@ func parseOutcome(node ast.Node) (Outcome, error) {
 		}
 		switch key {
 		case "text":
-			ts, err := parseTextSource(pair.Value)
+			parts, err := parseTextChain(pair.Value)
 			if err != nil {
 				return Outcome{}, fmt.Errorf("text: %w", err)
 			}
-			out.Text = ts
+			// Single-part text round-trips through the legacy
+			// `Text *TextSource` field so the existing single-source
+			// dialog picker keeps working unchanged. Multi-part
+			// concat round-trips through `Parts` and is preserved
+			// verbatim for the eventual concat-aware UI.
+			if len(parts) == 1 {
+				ts := parts[0]
+				out.Text = &ts
+			} else if len(parts) > 0 {
+				out.Parts = parts
+			}
 		case "color":
 			sn, ok := pair.Value.(*ast.StringNode)
 			if !ok {
@@ -432,8 +442,29 @@ func mapKeyName(node ast.Node) (string, error) {
 	return "", fmt.Errorf("map key not string or identifier (got %T)", node)
 }
 
-// parseTextSource reads a single TextSource part. Strict shape
-// matching: only the three accessor forms Compile emits.
+// parseTextChain flattens a `+` chain of L/F/O accessors into the
+// ordered Parts list. A single accessor (no `+`) yields a one-
+// element slice. Anything that isn't an accessor — a number
+// literal, a function call, a struct access — surfaces as an
+// error so the dialog can fall back to its empty config.
+func parseTextChain(node ast.Node) ([]TextSource, error) {
+	leaves := flattenPlus(node)
+	if len(leaves) > MaxConcatParts {
+		return nil, fmt.Errorf("text has %d parts, max is %d", len(leaves), MaxConcatParts)
+	}
+	parts := make([]TextSource, 0, len(leaves))
+	for i, leaf := range leaves {
+		ts, err := parseTextSource(leaf)
+		if err != nil {
+			return nil, fmt.Errorf("part %d: %w", i+1, err)
+		}
+		parts = append(parts, *ts)
+	}
+	return parts, nil
+}
+
+// parseTextSource reads a single text part. Strict shape matching:
+// only the three accessor forms Compile emits.
 //
 //	L["text"] → literal
 //	F["key"]  → fieldValue
@@ -449,6 +480,19 @@ func parseTextSource(node ast.Node) (*TextSource, error) {
 		return &TextSource{Kind: TextKindFieldLabel, FieldKey: k}, nil
 	}
 	return nil, fmt.Errorf("unrecognised text source %T", node)
+}
+
+// flattenPlus walks a left-leaning chain of `+` BinaryNodes and
+// returns the leaves in source order. A non-`+` node returns as a
+// single-leaf slice. We don't validate the leaf kinds here —
+// callers (parseTextChain) check each leaf against the accessor
+// vocabulary.
+func flattenPlus(n ast.Node) []ast.Node {
+	bn, ok := n.(*ast.BinaryNode)
+	if !ok || bn.Operator != "+" {
+		return []ast.Node{n}
+	}
+	return append(flattenPlus(bn.Left), flattenPlus(bn.Right)...)
 }
 
 // ── Number helpers ──────────────────────────────────────────────

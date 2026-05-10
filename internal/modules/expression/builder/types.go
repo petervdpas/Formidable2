@@ -13,6 +13,13 @@
 // covers no-match.
 package builder
 
+// MaxConcatParts caps how many TextSource parts a single Outcome
+// can `+`-join. Sidebar chips are short labels — going past this
+// produces unreadable text and pathological compile/parse work.
+// Both Compile and Parse enforce the cap so hand-authored sources
+// bouncing through Parse → Compile can't smuggle larger chains in.
+const MaxConcatParts = 5
+
 type RuleKind string
 
 const (
@@ -94,14 +101,24 @@ type TextSource struct {
 }
 
 // Outcome is the styled chip a matching Rule (or the default)
-// produces. Text is optional — when nil the chip has no text and
-// the engine renders only the styling. Mirrors the runtime
-// SidebarItem shape minus filename/error.
+// produces. Text and Parts both encode the chip text:
+//
+//   - Parts (preferred) is an ordered list of TextSources joined
+//     with `+` so a chip text can mix literals, field values, and
+//     option labels — e.g. `unit-number + " " + street`.
+//   - Text is the legacy single-source form. Compile reads Parts
+//     first; falls back to Text when Parts is empty. Parse always
+//     emits Parts (Text stays nil). Both nil/empty means the chip
+//     renders no text.
+//
+// The remaining fields mirror the runtime SidebarItem shape minus
+// filename/error.
 type Outcome struct {
-	Text    *TextSource `json:"text,omitempty"`
-	Color   string      `json:"color,omitempty"`
-	Bg      string      `json:"bg,omitempty"`
-	Classes []string    `json:"classes,omitempty"`
+	Text    *TextSource  `json:"text,omitempty"`
+	Parts   []TextSource `json:"parts,omitempty"`
+	Color   string       `json:"color,omitempty"`
+	Bg      string       `json:"bg,omitempty"`
+	Classes []string     `json:"classes,omitempty"`
 }
 
 // Rule is a logical AND of Predicates with one Outcome. Empty

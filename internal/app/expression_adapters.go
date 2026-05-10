@@ -15,22 +15,58 @@ type expressionTemplateAdapter struct {
 }
 
 // LookupSidebar reads the template's sidebar_expression and the
-// names of every field flagged expression_item: true. Empty
-// expression maps to ErrNoExpression at the engine layer; the
-// adapter itself returns ("", nil, nil) so the contract stays
-// explicit (no error means "loaded fine, but configured empty").
-func (a expressionTemplateAdapter) LookupSidebar(name string) (string, []string, error) {
+// list of expression-flagged fields with their option metadata.
+// The option map (value→label) backs the engine's per-record O[]
+// resolution. Empty expression maps to ErrNoExpression at the
+// engine layer; the adapter returns ("", nil, nil) on no-config so
+// the contract stays explicit (no error means "loaded fine, but
+// configured empty").
+func (a expressionTemplateAdapter) LookupSidebar(name string) (string, []expression.ExpressionField, error) {
 	t, err := a.tpl.LoadTemplate(name)
 	if err != nil {
 		return "", nil, err
 	}
-	keys := make([]string, 0, len(t.Fields))
+	fields := make([]expression.ExpressionField, 0, len(t.Fields))
 	for _, f := range t.Fields {
-		if f.ExpressionItem {
-			keys = append(keys, f.Key)
+		if !f.ExpressionItem {
+			continue
+		}
+		fields = append(fields, expression.ExpressionField{
+			Key:     f.Key,
+			Options: optionLabelMap(f.Options),
+		})
+	}
+	return t.SidebarExpression, fields, nil
+}
+
+// optionLabelMap normalises a template.Field's `Options []any` into
+// a value→label map for the O[] resolver. Mirrors the option-pair
+// convention used by render/api: string entries become {v:s, l:s};
+// map entries read "value" + "label" with label falling back to
+// value. Anything else stringifies. Non-option-bearing fields
+// produce an empty (nil-safe) map.
+func optionLabelMap(opts []any) map[string]string {
+	if len(opts) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(opts))
+	for _, opt := range opts {
+		switch x := opt.(type) {
+		case string:
+			out[x] = x
+		case map[string]any:
+			val, _ := x["value"].(string)
+			lab, _ := x["label"].(string)
+			if val == "" {
+				continue
+			}
+			if lab == "" {
+				lab = val
+			}
+			out[val] = lab
 		}
 	}
-	return t.SidebarExpression, keys, nil
+	return out
 }
 
 // expressionStorageAdapter satisfies expression.StorageProvider by
