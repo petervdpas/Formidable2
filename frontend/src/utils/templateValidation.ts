@@ -101,6 +101,16 @@ export function formatError(error: ValidationError): FormattedError {
         args: [error.key || "?", String(error.detail?.levelScope ?? "?")],
       };
 
+    case "forbidden-attribute":
+      return {
+        key: "error.template.forbidden_attribute",
+        args: [
+          String(error.detail?.attr ?? "?"),
+          String(error.detail?.type ?? "?"),
+          error.key || "?",
+        ],
+      };
+
     case "level-scope-mismatch":
       return {
         key: "error.template.level_scope_mismatch",

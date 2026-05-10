@@ -26,8 +26,22 @@ func (s *Service) HasTemplates() bool                          { return s.m.HasT
 func (s *Service) LoadTemplate(name string) (*Template, error) { return s.m.LoadTemplate(name) }
 func (s *Service) SaveTemplate(name string, t *Template) error { return s.m.SaveTemplate(name, t) }
 func (s *Service) DeleteTemplate(name string) error            { return s.m.DeleteTemplate(name) }
+// ValidateTemplate mirrors what SaveTemplate would see: a clone of
+// the input is Normalized first, then Validated. That way the FE
+// pre-save check returns exactly the errors a real save would, and
+// disabled-attribute leftovers (e.g. legacy guid fields carrying
+// label="GUID" / primary_key=true) self-heal silently rather than
+// blocking the save.
 func (s *Service) ValidateTemplate(t *Template) []ValidationError {
-	return s.m.Validate(t)
+	if t == nil {
+		return s.m.Validate(t)
+	}
+	clone := *t
+	if t.Fields != nil {
+		clone.Fields = append([]Field(nil), t.Fields...)
+	}
+	Normalize(&clone)
+	return s.m.Validate(&clone)
 }
 func (s *Service) GetTemplateDescriptor(name string) (Descriptor, error) {
 	return s.m.GetDescriptor(name, s.storageLocator(name))

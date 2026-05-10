@@ -99,6 +99,14 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
     return $Call.ByID(361458899);
 }
 
+/**
+ * ValidateTemplate mirrors what SaveTemplate would see: a clone of
+ * the input is Normalized first, then Validated. That way the FE
+ * pre-save check returns exactly the errors a real save would, and
+ * disabled-attribute leftovers (e.g. legacy guid fields carrying
+ * label="GUID" / primary_key=true) self-heal silently rather than
+ * blocking the save.
+ */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
         return $$createType11($result);

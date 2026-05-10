@@ -12,6 +12,7 @@
   "error.template.duplicate_keys": "Duplicate keys: {0}",
   "error.template.excessive_loop_nesting": "Too many nested loops: {0}. Max depth is {1}.",
   "error.template.expression_item_non_root": "Expression fields must sit at the root level — \"{0}\" is at level {1}.",
+  "error.template.forbidden_attribute": "Attribute \"{0}\" is not allowed on field type \"{1}\" (key: {2}).",
   "error.template.level_scope_mismatch": "Field \"{0}\" has level_scope {1} but the field order implies {2}.",
   "error.template.invalid": "Invalid template: {0}",
   "error.template.loop_key_mismatch": "Loopstop key \"{0}\" does not match loopstart key \"{1}\"",

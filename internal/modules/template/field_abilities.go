@@ -42,7 +42,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		ID: "range",
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
-			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
+			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false,
 		},
@@ -60,7 +60,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		ID: "boolean",
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
-			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
+			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false,
 		},
