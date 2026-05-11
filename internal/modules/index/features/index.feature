@@ -88,6 +88,27 @@ Feature: Per-profile index
     Then the index has 0 templates
     And the index has 0 forms for template "basic.yaml"
 
+  # ── Resilience to bad files (gigot pull / external editor) ───────
+
+  Scenario: One malformed form does not abort the entire rescan
+    Given a template "basic.yaml" on disk with fields:
+      | key    | type |
+      | labels | tags |
+    And a template "looper.yaml" on disk with fields:
+      | key | type |
+      | x   | text |
+    And a form "good.meta.json" under "basic.yaml" with values:
+      | key    | value |
+      | labels | a     |
+    And a malformed form "BAD.meta.json" exists under "basic.yaml"
+    And a form "also-good.meta.json" under "looper.yaml" with values:
+      | key | value |
+      | x   | y     |
+    When I run RescanAll tolerating load errors
+    Then the last RescanAll error mentions "BAD.meta.json"
+    And the index has 1 forms for template "basic.yaml"
+    And the index has 1 forms for template "looper.yaml"
+
   Scenario: RescanAll on an unchanged index does not bump rev
     Given a template "basic.yaml" on disk with fields:
       | key | type |

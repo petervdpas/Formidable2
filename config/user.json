@@ -11,7 +11,7 @@
   "logging_enabled": false,
   "enable_plugins": true,
   "context_mode": "template",
-  "context_ribbon": "storage",
+  "context_ribbon": "information",
   "context_folder": "/home/peter/Documents/Example",
   "selected_template": "richtlijnen.yaml",
   "selected_data_file": "richtlijnen-ch02.meta.json",

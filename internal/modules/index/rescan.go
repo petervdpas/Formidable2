@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+// loadErrs accumulates per-template / per-form load failures during a
+// RescanAll. One bad file (malformed JSON, missing template, etc.)
+// must not abort the entire batch — the rest of the index has to keep
+// populating. Returned errors come back joined via errors.Join so the
+// composition root can log them as warnings without losing detail.
+
 // RescanAll diffs the on-disk state under h.root against the index
 // and applies the (added, changed, removed) sets in one transaction.
 // It's the primary recovery path after sync (gigot pull, git pull, an
@@ -33,20 +39,23 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 	}
 
 	batch := ReconcileBatch{}
+	var loadErrs []error
 
 	// ── Templates ────────────────────────────────────────────────
 	tplDiff := diffEntries(disk.Templates, idx.templates)
 	for _, e := range tplDiff.Added {
 		row, err := h.loadTemplateRow(e)
 		if err != nil {
-			return err
+			loadErrs = append(loadErrs, err)
+			continue
 		}
 		batch.UpsertTemplates = append(batch.UpsertTemplates, row)
 	}
 	for _, e := range tplDiff.Changed {
 		row, err := h.loadTemplateRow(e)
 		if err != nil {
-			return err
+			loadErrs = append(loadErrs, err)
+			continue
 		}
 		batch.UpsertTemplates = append(batch.UpsertTemplates, row)
 	}
@@ -77,14 +86,16 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 		for _, e := range formDiff.Added {
 			row, err := h.loadFormRow(tplFilename, e)
 			if err != nil {
-				return err
+				loadErrs = append(loadErrs, err)
+				continue
 			}
 			batch.UpsertForms = append(batch.UpsertForms, row)
 		}
 		for _, e := range formDiff.Changed {
 			row, err := h.loadFormRow(tplFilename, e)
 			if err != nil {
-				return err
+				loadErrs = append(loadErrs, err)
+				continue
 			}
 			batch.UpsertForms = append(batch.UpsertForms, row)
 		}
@@ -116,7 +127,10 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 		}
 	}
 
-	return Reconcile(h.m.DB(), batch)
+	if err := Reconcile(h.m.DB(), batch); err != nil {
+		loadErrs = append(loadErrs, err)
+	}
+	return errors.Join(loadErrs...)
 }
 
 // loadTemplateRow uses the configured TemplateLoader to fetch the

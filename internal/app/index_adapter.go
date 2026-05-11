@@ -42,11 +42,14 @@ func (a *indexLoaderAdapter) LoadTemplate(filename string) (*index.TemplateRecor
 	return &index.TemplateRecord{Template: t, Mtime: mtime}, nil
 }
 
-// LoadForm satisfies index.FormStore.
+// LoadForm satisfies index.FormStore. storage.Manager.LoadForm returns
+// nil for both "missing" and "malformed" — the index treats either as
+// a load failure and the caller (RescanAll) skips the bad row but
+// keeps populating the rest.
 func (a *indexLoaderAdapter) LoadForm(templateFilename, datafile string) (*index.FormRecord, error) {
 	f := a.sto.LoadForm(templateFilename, datafile)
 	if f == nil {
-		return nil, fmt.Errorf("index loader: form %q/%q not found", templateFilename, datafile)
+		return nil, fmt.Errorf("index loader: form %q/%q missing or unparseable", templateFilename, datafile)
 	}
 	stem := stemOf(templateFilename)
 	mtime := statMtimeNanos(filepath.Join(a.sto.StorageDir(), stem, datafile))

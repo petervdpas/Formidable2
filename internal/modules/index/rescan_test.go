@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/storage"
@@ -220,6 +221,82 @@ func TestRescanAll_DetectsRemoved(t *testing.T) {
 	rows, _ := f.mgr.ListForms("basic.yaml", QueryOpts{})
 	if len(rows) != 0 {
 		t.Errorf("form not removed: %+v", rows)
+	}
+}
+
+// TestRescanAll_SkipsUnloadableForm: one form on disk is malformed
+// (the loader returns an error for it). RescanAll must NOT abort the
+// whole batch — it must index every other form (across this template
+// AND other templates) and return the per-file error so the caller
+// can log it.
+func TestRescanAll_SkipsUnloadableForm(t *testing.T) {
+	f := newRescanFixture(t)
+
+	f.addTemplateOnDisk(t, "basic", "x", 1)
+	f.addTemplateOnDisk(t, "looper", "y", 2)
+	f.addFormOnDisk(t, "basic", "good.meta.json", `{}`, 10)
+	f.addFormOnDisk(t, "basic", "BAD.meta.json", `not json`, 11)
+	f.addFormOnDisk(t, "looper", "also-good.meta.json", `{}`, 12)
+
+	f.registerTemplate("basic", nil, 1)
+	f.registerTemplate("looper", nil, 2)
+	f.registerForm("basic", "good.meta.json", map[string]any{}, 10)
+	// "BAD.meta.json" is on disk but NOT registered with the loader —
+	// the fake form store returns "not found" → adapter returns error
+	// → RescanAll must skip this row and keep going.
+	f.registerForm("looper", "also-good.meta.json", map[string]any{}, 12)
+
+	err := f.hand.RescanAll(context.Background())
+	if err == nil {
+		t.Fatal("expected error surfaced from bad form, got nil")
+	}
+	if !strings.Contains(err.Error(), "BAD.meta.json") {
+		t.Errorf("error %q should mention the bad form", err)
+	}
+
+	basicRows, _ := f.mgr.ListForms("basic.yaml", QueryOpts{})
+	if got := sortedFormFilenames(basicRows); !equalStrings(got, []string{"good.meta.json"}) {
+		t.Errorf("basic forms = %v, want [good.meta.json] (bad row skipped, good row kept)", got)
+	}
+
+	looperRows, _ := f.mgr.ListForms("looper.yaml", QueryOpts{})
+	if got := sortedFormFilenames(looperRows); !equalStrings(got, []string{"also-good.meta.json"}) {
+		t.Errorf("looper forms = %v — sibling templates must NOT be collateral damage from one bad form", got)
+	}
+}
+
+// TestRescanAll_SkipsUnloadableTemplate: a template .yaml on disk can't
+// be parsed (loader errors). The template row is dropped from the
+// batch, but its storage subdir is also skipped (no FK target) and
+// sibling templates still index fully.
+func TestRescanAll_SkipsUnloadableTemplate(t *testing.T) {
+	f := newRescanFixture(t)
+
+	f.addTemplateOnDisk(t, "broken", "garbage", 1)
+	f.addTemplateOnDisk(t, "ok", "y", 2)
+	f.addFormOnDisk(t, "ok", "one.meta.json", `{}`, 10)
+
+	// Only "ok" is registered with the loader. "broken" → loader returns
+	// "not found" → RescanAll must skip its row and continue.
+	f.registerTemplate("ok", nil, 2)
+	f.registerForm("ok", "one.meta.json", map[string]any{}, 10)
+
+	err := f.hand.RescanAll(context.Background())
+	if err == nil {
+		t.Fatal("expected error surfaced from bad template, got nil")
+	}
+	if !strings.Contains(err.Error(), "broken.yaml") {
+		t.Errorf("error %q should mention the bad template", err)
+	}
+
+	tplsRows, _ := f.mgr.ListTemplates()
+	if got := sortedTemplateFilenames(tplsRows); !equalStrings(got, []string{"ok.yaml"}) {
+		t.Errorf("templates = %v, want [ok.yaml] only (broken skipped, sibling kept)", got)
+	}
+
+	okRows, _ := f.mgr.ListForms("ok.yaml", QueryOpts{})
+	if got := sortedFormFilenames(okRows); !equalStrings(got, []string{"one.meta.json"}) {
+		t.Errorf("ok forms = %v — sibling forms must NOT be collateral damage from a broken template", got)
 	}
 }
 

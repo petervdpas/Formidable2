@@ -77,6 +77,7 @@ type indexWorld struct {
 	dbBase    string
 	active    *indexProfile
 	remembered map[string]*indexProfile
+	lastErr   error // populated by tolerant-rescan steps for later assertions
 }
 
 func initIndexScenario(ctx *godog.ScenarioContext) {
@@ -97,6 +98,7 @@ func initIndexScenario(ctx *godog.ScenarioContext) {
 		}
 		w.active = nil
 		w.remembered = map[string]*indexProfile{}
+		w.lastErr = nil
 		return c, nil
 	})
 
@@ -245,10 +247,40 @@ func initIndexScenario(ctx *godog.ScenarioContext) {
 			return nil
 		})
 
+	// Drops a form file on disk WITHOUT registering it with the fake
+	// loader, simulating a malformed *.meta.json (the real storage
+	// manager returns nil on parse error, which the adapter surfaces
+	// as a load error).
+	ctx.Step(`^a malformed form "([^"]*)" exists under "([^"]*)"$`,
+		func(datafile, tplFilename string) error {
+			stem := strings.TrimSuffix(tplFilename, ".yaml")
+			path := filepath.Join(w.active.root, "storage", stem, datafile)
+			return writeFile(path, `not json`, time.Now().Unix())
+		})
+
 	// ── Action ───────────────────────────────────────────────────
 
 	ctx.Step(`^I run RescanAll$`, func() error {
 		return w.active.hand.RescanAll(context.Background())
+	})
+
+	// Run RescanAll but stash the error on the world instead of failing
+	// the scenario — used by scenarios that expect a non-nil error
+	// (malformed file) AND want to assert the rest of the index still
+	// populated.
+	ctx.Step(`^I run RescanAll tolerating load errors$`, func() error {
+		w.lastErr = w.active.hand.RescanAll(context.Background())
+		return nil
+	})
+
+	ctx.Step(`^the last RescanAll error mentions "([^"]*)"$`, func(needle string) error {
+		if w.lastErr == nil {
+			return fmt.Errorf("expected an error from RescanAll, got nil")
+		}
+		if !strings.Contains(w.lastErr.Error(), needle) {
+			return fmt.Errorf("error %q does not mention %q", w.lastErr.Error(), needle)
+		}
+		return nil
 	})
 
 	// ── Assertions ───────────────────────────────────────────────
