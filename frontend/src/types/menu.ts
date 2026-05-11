@@ -8,7 +8,22 @@ export interface MenuAction {
   type?: "action";          // optional discriminator
   id: string;               // stable key for v-for / aria
   labelKey: string;         // i18n key for the visible label
-  hintKey?: string;         // optional i18n key for a right-aligned hint (shortcut)
+  hintKey?: string;         // optional i18n key for a right-aligned hint
+  /**
+   * Optional cross-platform keyboard shortcut bound globally for as long
+   * as this menu is registered. Written with the `Mod` token:
+   * `"Mod+S"` (Cmd+S on macOS, Ctrl+S elsewhere), `"Shift+Mod+S"`, etc.
+   * Rendered as the right-aligned hint in the menu item — supersedes
+   * `hintKey` when present.
+   */
+  combo?: string;
+  /**
+   * Default: false. When false, the shortcut is suppressed while focus
+   * is in an input / textarea / contenteditable so editor shortcuts
+   * (Ctrl+S inside CodeMirror) aren't hijacked. Set true to fire
+   * regardless of focus.
+   */
+  allowWhenTyping?: boolean;
   disabled?: boolean;
   onClick: () => void | Promise<void>;
 }

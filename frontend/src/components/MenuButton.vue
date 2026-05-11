@@ -40,6 +40,7 @@ const groupDisabled = computed(() => {
         v-else
         :label="t(it.labelKey)"
         :hint="it.hintKey ? t(it.hintKey) : undefined"
+        :combo="it.combo"
         :disabled="it.disabled"
         @click="it.onClick"
       />

@@ -169,3 +169,63 @@
   max-height: 60vh;
   overflow: auto;
 }
+
+.shortcuts-page {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.shortcuts-intro {
+  margin: 0 0 var(--space-2, 8px) 0;
+}
+
+.shortcut-group-title {
+  margin: 0 0 var(--space-2, 8px) 0;
+  font-size: var(--font-size-sm, 0.85rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #888);
+}
+
+.shortcut-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.06));
+  border-radius: 6px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.18));
+}
+
+.shortcut-combo {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.18));
+  border-radius: 4px;
+  background: var(--color-bg, transparent);
+  color: var(--color-text, inherit);
+  text-align: center;
+  white-space: nowrap;
+  justify-self: start;
+}
+
+.shortcut-description {
+  color: var(--color-text, inherit);
+}
+
+.shortcut-scope {
+  margin-left: 0.3rem;
+}

@@ -435,6 +435,7 @@ setTopbarMenu(() => [
       {
         id: "save",
         labelKey: "workspace.templates.save",
+        combo: "Mod+S",
         disabled: !dirty.value,
         onClick: doSave,
       },

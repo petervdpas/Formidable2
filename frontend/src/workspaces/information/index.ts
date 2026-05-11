@@ -1,6 +1,7 @@
 import type { Component } from "vue";
 import type { Config } from "../../composables/useConfig";
 import InformationAbout from "./InformationAbout.vue";
+import InformationShortcuts from "./InformationShortcuts.vue";
 import InformationInternalServer from "./InformationInternalServer.vue";
 import InformationMonitoring from "./InformationMonitoring.vue";
 import InformationJournalFeed from "./InformationJournalFeed.vue";
@@ -8,6 +9,7 @@ import InformationLogging from "./InformationLogging.vue";
 
 export type InformationCategoryId =
   | "about"
+  | "shortcuts"
   | "internal-server"
   | "monitoring"
   | "journal-feed"
@@ -23,6 +25,7 @@ export interface InformationCategory {
 
 export const INFORMATION_CATEGORIES: InformationCategory[] = [
   { id: "about",           labelKey: "workspace.information.section.about",           component: InformationAbout },
+  { id: "shortcuts",       labelKey: "workspace.information.section.shortcuts",       component: InformationShortcuts },
   { id: "internal-server", labelKey: "workspace.information.section.internal_server", component: InformationInternalServer },
   { id: "monitoring",      labelKey: "workspace.information.section.monitoring",      component: InformationMonitoring },
   { id: "journal-feed",    labelKey: "workspace.information.section.journal_feed",    component: InformationJournalFeed },
