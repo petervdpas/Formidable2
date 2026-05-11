@@ -158,6 +158,12 @@ const defaultAsString = computed({
   },
   set: (v: string) => {
     if (!draft.value) return;
+    // Backend `template.Normalize` (called on SaveTemplate) is the
+    // authoritative type-coercion pass — number/range string → float,
+    // boolean string → bool, tags/multioption/list string → array.
+    // Mirroring it here would be duplication and a source of drift,
+    // so the modal just stores the raw text; the round-trip restores
+    // the typed value next load.
     draft.value.default = v;
   },
 });
