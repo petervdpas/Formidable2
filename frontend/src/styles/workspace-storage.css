@@ -55,10 +55,6 @@
        FormFieldRow lays out label/input itself. */
     display: flex;
     flex-direction: column;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    background: var(--color-bg);
-    padding: var(--space-2) var(--space-4);
     margin: 0 0 var(--space-3);
 }
 
@@ -77,13 +73,12 @@
 /* Floating flag in the meta block's top-right corner. The right offset
    clears the Markdown/HTML slide-out tabs that overlay the right edge
    of the form panel. */
-/* Sticky meta block — stays pinned at the top of the form panel while
-   the fields scroll underneath. `top` matches workspace-main's padding-top
-   so the block doesn't shift at all when sticking. `sticky` still acts
-   as a positioning context for the absolutely-positioned flag corner. */
+/* Sticky meta block — pinned flush with the top of the scroll viewport
+   while fields scroll underneath. `sticky` still acts as a positioning
+   context for the absolutely-positioned flag corner. */
 .storage-meta-section {
     position: sticky;
-    top: var(--space-4);
+    top: 0;
     z-index: 5;
 }
 .storage-meta-section .meta-flag-corner {

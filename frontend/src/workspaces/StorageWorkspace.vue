@@ -7,11 +7,11 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
 import { SelectField, SwitchField } from "../components/fields";
-import FormLoopFields from "../components/form-fields/FormLoopFields.vue";
 import StorageListItem from "../components/StorageListItem.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFlagFilter from "../components/StorageFlagFilter.vue";
 import StorageMetaBlock from "../components/StorageMetaBlock.vue";
+import StorageDataForm from "../components/StorageDataForm.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useTemplates } from "../composables/useTemplates";
 import { useFormView } from "../composables/useFormView";
@@ -599,17 +599,12 @@ setTopbarMenu(() => [
           @flag-state-change="onFlagStateChange"
         />
 
-        <!-- Plain wrapper — NOT FormSection — so each row spans the
-             full panel width. FormSection's own grid would tile rows
-             into its label/value columns and pair them up. -->
-        <div v-if="draft.template" class="form-fields">
-          <FormLoopFields
-            :fields="draft.template.fields"
-            :start-offset="0"
-            :values="draft.values"
-            :loop-groups="draft.loop_groups"
-          />
-        </div>
+        <StorageDataForm
+          v-if="draft.template"
+          :template="draft.template"
+          :values="draft.values"
+          :loop-groups="draft.loop_groups"
+        />
       </template>
     </template>
   </SplitPane>
