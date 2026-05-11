@@ -32,6 +32,8 @@
   "lang.nl": "Dutch",
   "lang.select": "Select Language",
   "ribbon.collaboration": "Collaboration",
+  "ribbon.history.back": "Back",
+  "ribbon.history.forward": "Forward",
   "ribbon.information": "Information",
   "ribbon.plugins": "Plugins",
   "ribbon.profiles": "Profiles",

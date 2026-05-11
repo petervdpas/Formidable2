@@ -64,6 +64,12 @@ func (e *captureEmitter) Emit(name string, data any) {
 	e.events = append(e.events, capturedEvent{name, data})
 }
 
+type captureHistory struct {
+	pushed []string
+}
+
+func (h *captureHistory) Push(href string) { h.pushed = append(h.pushed, href) }
+
 func newTestManager() (*Manager, *fakeTemplates, *fakeForms, *fakeConfig, *captureEmitter) {
 	tpls := &fakeTemplates{have: map[string]*template.Template{
 		"basic.yaml": {Filename: "basic.yaml"},
@@ -73,7 +79,7 @@ func newTestManager() (*Manager, *fakeTemplates, *fakeForms, *fakeConfig, *captu
 	}}
 	cfg := &fakeConfig{}
 	emit := &captureEmitter{}
-	m := NewManager(tpls, forms, cfg, emit, nil)
+	m := NewManager(tpls, forms, cfg, emit, nil, nil)
 	return m, tpls, forms, cfg, emit
 }
 
@@ -163,5 +169,46 @@ func TestManager_NavigateToFormidable_TemplateLoadError(t *testing.T) {
 	}
 	if len(cfg.updates) != 0 {
 		t.Errorf("config should not be touched")
+	}
+}
+
+func TestManager_NavigateToFormidable_PushesHistory(t *testing.T) {
+	tpls := &fakeTemplates{have: map[string]*template.Template{
+		"basic.yaml": {Filename: "basic.yaml"},
+	}}
+	forms := &fakeForms{have: map[string]map[string]*storage.Form{
+		"basic.yaml": {"sane.meta.json": {}},
+	}}
+	cfg := &fakeConfig{}
+	emit := &captureEmitter{}
+	hist := &captureHistory{}
+	m := NewManager(tpls, forms, cfg, emit, hist, nil)
+
+	if _, err := m.NavigateToFormidable("formidable://basic.yaml:sane.meta.json"); err != nil {
+		t.Fatalf("Navigate: %v", err)
+	}
+	want := []string{"formidable://basic.yaml:sane.meta.json"}
+	if len(hist.pushed) != 1 || hist.pushed[0] != want[0] {
+		t.Fatalf("history.pushed=%v, want %v", hist.pushed, want)
+	}
+}
+
+func TestManager_NavigateToFormidable_NoPushOnFailure(t *testing.T) {
+	tpls := &fakeTemplates{have: map[string]*template.Template{
+		"basic.yaml": {Filename: "basic.yaml"},
+	}}
+	forms := &fakeForms{have: map[string]map[string]*storage.Form{
+		"basic.yaml": {"sane.meta.json": {}},
+	}}
+	cfg := &fakeConfig{}
+	emit := &captureEmitter{}
+	hist := &captureHistory{}
+	m := NewManager(tpls, forms, cfg, emit, hist, nil)
+
+	if _, err := m.NavigateToFormidable("formidable://basic.yaml:missing.meta.json"); err != nil {
+		t.Fatalf("Navigate: %v", err)
+	}
+	if len(hist.pushed) != 0 {
+		t.Fatalf("history.pushed=%v, want empty (form missing)", hist.pushed)
 	}
 }

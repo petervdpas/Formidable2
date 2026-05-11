@@ -33,6 +33,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/logging"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
+	"github.com/petervdpas/formidable2/internal/modules/history"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
@@ -99,6 +100,7 @@ type App struct {
 	Credential   *credential.Service
 	Monitor      *monitor.Service
 	Expression   *expression.Service
+	History      *history.Service
 	Integrity    *integrity.Service
 	Logging      *logging.Service
 
@@ -252,12 +254,29 @@ func New(d Deps) (*App, error) {
 	emitter := &emitterRelay{}
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
+	// History manager + service — back/forward stack over formidable://
+	// hrefs. Manager is pure data; Service wraps it with nav replay
+	// (set after navM exists), a Wails emitter, and a persist adapter
+	// that writes back to user.json only when history.persist is on.
+	bootCfg, _ := cfgM.LoadUserConfig()
+	historyM := history.NewManager(bootCfg.History.MaxSize)
+	historyM.Restore(bootCfg.History.Stack, bootCfg.History.Index)
+	historySvc := history.NewService(
+		historyM,
+		nil, // navigator wired below after navM exists
+		emitter,
+		&historyPersistAdapter{cfg: cfgM},
+		d.Logger,
+	)
+
 	// Nav manager — owns formidable:// URL resolution. Validates the
 	// (template, datafile) pair against the same managers the rest of
 	// the app uses, persists the selection to config, and emits a
 	// nav:changed event so the frontend's global listener can flip the
-	// active workspace.
-	navM := nav.NewManager(tplM, stoM, &configWriterAdapter{cfg: cfgM}, emitter, d.Logger)
+	// active workspace. Push-hooked into history so every successful
+	// link click extends the back/forward stack.
+	navM := nav.NewManager(tplM, stoM, &configWriterAdapter{cfg: cfgM}, emitter, historySvc, d.Logger)
+	historySvc.SetNavigator(&navReplayAdapter{m: navM})
 
 	// Wire journal as the emitter for system FS mutations and as the
 	// configurer that listens to context-folder/backend changes from config.
@@ -447,6 +466,7 @@ func New(d Deps) (*App, error) {
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
 		Expression:      expression.NewService(expressionM),
+		History:         historySvc,
 		Integrity:       integrity.NewService(integrityM),
 		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}))),
 		templateManager: tplM,

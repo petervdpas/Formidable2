@@ -45,6 +45,16 @@ func ParseFormidableHref(href string) *Target {
 	return &Target{Template: tpl, Datafile: df, Fragment: fragment}
 }
 
+// MakeHref builds the canonical `formidable://<template>:<datafile>`
+// URL from a Target. Inverse of ParseFormidableHref; the fragment is
+// dropped because history doesn't track scroll positions (yet).
+func MakeHref(t *Target) string {
+	if t == nil {
+		return ""
+	}
+	return scheme + t.Template + ":" + t.Datafile
+}
+
 // isSafeName rejects path traversal, embedded directory separators,
 // and empty strings. The Vue + render layers already pass user-typed
 // values through, but this is the last barrier before we hand a name

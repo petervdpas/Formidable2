@@ -47,7 +47,7 @@ func defaultConfig() Config {
 			Enabled: true,
 			Persist: false,
 			MaxSize: 20,
-			Stack:   []any{},
+			Stack:   []string{},
 			Index:   -1,
 		},
 	}

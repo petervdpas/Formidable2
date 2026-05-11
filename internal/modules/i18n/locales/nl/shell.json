@@ -31,6 +31,8 @@
   "lang.en": "Engels",
   "lang.nl": "Nederlands",
   "ribbon.collaboration": "Samenwerken",
+  "ribbon.history.back": "Terug",
+  "ribbon.history.forward": "Vooruit",
   "ribbon.information": "Informatie",
   "ribbon.plugins": "Plugins",
   "ribbon.profiles": "Profielen",

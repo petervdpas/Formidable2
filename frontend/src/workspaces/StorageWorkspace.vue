@@ -211,8 +211,12 @@ watch(
   { immediate: true },
 );
 
-function pickForm(filename: string) {
-  selectedDataFile.value = filename;
+const { follow: followFormidable } = useFormidableLink();
+
+async function pickForm(filename: string) {
+  const tpl = selectedTemplate.value;
+  if (!tpl || !filename) return;
+  await followFormidable(`formidable://${tpl}:${filename}`);
 }
 
 // ── Sidebar filters ─────────────────────────────────────────────────

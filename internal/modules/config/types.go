@@ -62,7 +62,7 @@ type History struct {
 	Enabled bool  `json:"enabled"`
 	Persist bool  `json:"persist"`
 	MaxSize int   `json:"max_size"`
-	Stack   []any `json:"stack"`
+	Stack   []string `json:"stack"`
 	Index   int   `json:"index"`
 }
 

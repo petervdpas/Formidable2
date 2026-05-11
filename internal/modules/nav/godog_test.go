@@ -105,7 +105,7 @@ func initNavScenario(ctx *godog.ScenarioContext) {
 		w.stoM = storage.NewManager(w.sys, sfrM, w.tplM, "storage", nil)
 		w.cfg = &recordingConfig{}
 		w.emit = &recordingEmitter{}
-		w.m = NewManager(w.tplM, w.stoM, w.cfg, w.emit, nil)
+		w.m = NewManager(w.tplM, w.stoM, w.cfg, w.emit, nil, nil)
 		return nil
 	})
 

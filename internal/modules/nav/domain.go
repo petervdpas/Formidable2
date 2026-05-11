@@ -36,21 +36,31 @@ type EventEmitter interface {
 	Emit(name string, data any)
 }
 
+// HistoryPusher is the narrow surface nav needs from history — push
+// the canonical href onto the back/forward stack after a successful
+// navigation. Composition root injects history.Service; nil is allowed
+// (history feature disabled or not yet wired) and silences pushes.
+type HistoryPusher interface {
+	Push(href string)
+}
+
 // Manager owns formidable:// link resolution.
 type Manager struct {
 	templates templateLoader
 	storage   formStore
 	config    configWriter
 	emitter   EventEmitter
+	history   HistoryPusher
 	log       *slog.Logger
 }
 
-// NewManager constructs a nav Manager. log + emitter may be nil.
-func NewManager(t templateLoader, s formStore, c configWriter, e EventEmitter, log *slog.Logger) *Manager {
+// NewManager constructs a nav Manager. log, emitter, and history may
+// be nil.
+func NewManager(t templateLoader, s formStore, c configWriter, e EventEmitter, h HistoryPusher, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Manager{templates: t, storage: s, config: c, emitter: e, log: log}
+	return &Manager{templates: t, storage: s, config: c, emitter: e, history: h, log: log}
 }
 
 // NavigateToFormidable parses the URL, validates that the (template,
@@ -105,6 +115,9 @@ func (m *Manager) NavigateToFormidable(href string) (*Result, error) {
 
 	if m.emitter != nil {
 		m.emitter.Emit(EventChanged, target)
+	}
+	if m.history != nil {
+		m.history.Push(MakeHref(target))
 	}
 
 	return &Result{Success: true, Target: target}, nil

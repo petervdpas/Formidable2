@@ -45,6 +45,41 @@
 /* .ribbon-icon used to size FA glyphs; SVG illustrations now flow
    through the Icon component which sets explicit pixel size. */
 
+/* Bottom-of-ribbon back/forward pair. Anchored by .ribbon-spacer
+   (flex:1) above the component. Buttons are slim so two fit the
+   ribbon column width without crowding the workspace icons. */
+.ribbon-history {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--space-1) 0;
+}
+
+.ribbon-history__btn {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--ribbon-fg);
+    cursor: pointer;
+    flex: 1 1 50%;
+    height: 28px;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+    transition: background 0.1s, color 0.1s, opacity 0.1s;
+}
+
+.ribbon-history__btn:hover:not(:disabled) {
+    background: var(--ribbon-hover-bg);
+    color: var(--ribbon-fg-active);
+}
+
+.ribbon-history__btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.3;
+}
+
 /* Top-menu items inside the topbar (workspace-owned). */
 .topmenu-item {
     appearance: none;

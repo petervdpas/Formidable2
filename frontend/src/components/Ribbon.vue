@@ -3,6 +3,7 @@ import { useI18n } from "vue-i18n";
 import { WORKSPACES, type WorkspaceId } from "../workspaces";
 import { useRibbonAvailability } from "../composables/useRibbonAvailability";
 import Icon from "./Icon.vue";
+import RibbonHistory from "./RibbonHistory.vue";
 
 defineProps<{ active: WorkspaceId }>();
 const emit = defineEmits<{ (e: "select", id: WorkspaceId): void }>();
@@ -32,5 +33,7 @@ function onClick(id: WorkspaceId) {
     >
       <Icon :name="w.iconName" :size="36" />
     </button>
+    <div class="ribbon-spacer" aria-hidden="true" />
+    <RibbonHistory />
   </nav>
 </template>
