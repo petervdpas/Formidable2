@@ -28,6 +28,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/form"
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/index"
+	"github.com/petervdpas/formidable2/internal/modules/integrity"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/logging"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
@@ -97,6 +98,7 @@ type App struct {
 	Credential   *credential.Service
 	Monitor      *monitor.Service
 	Expression   *expression.Service
+	Integrity    *integrity.Service
 	Logging      *logging.Service
 
 	templateManager *template.Manager
@@ -312,6 +314,12 @@ func New(d Deps) (*App, error) {
 		expressionStorageAdapter{sto: stoM},
 	)
 
+	// Integrity — analyzes stored forms against the template's current
+	// field declarations (Utilities → Cleanup Storage). Phase 1 is
+	// analyze-only; reuses tplM / stoM directly via the narrow
+	// TemplateLoader / StorageReader interfaces.
+	integrityM := integrity.NewManager(tplM, stoM)
+
 	// Wiki — runtime-controllable HTTP server that serves rendered
 	// templates+forms from dataprovider and images from storage. The
 	// in-app About workspace toggles it on/off via Wiki service. The
@@ -427,6 +435,7 @@ func New(d Deps) (*App, error) {
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
 		Expression:      expression.NewService(expressionM),
+		Integrity:       integrity.NewService(integrityM),
 		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}))),
 		templateManager: tplM,
 		storageManager:  stoM,
