@@ -148,13 +148,5 @@ function clampSidebar(n: number): number {
         :off-label="t('common.hide')"
       />
     </FormRow>
-    <FormRow :label="t('settings.field.icon_based')">
-      <SwitchField
-        :model-value="cfg.show_icon_buttons"
-        @update:model-value="(v) => update({ show_icon_buttons: v })"
-        :on-label="t('common.on')"
-        :off-label="t('common.off')"
-      />
-    </FormRow>
   </FormSection>
 </template>

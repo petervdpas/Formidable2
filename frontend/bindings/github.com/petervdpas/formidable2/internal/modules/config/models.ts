@@ -13,7 +13,6 @@ import { Create as $Create } from "@wailsio/runtime";
 export class Config {
     "profile_name": string;
     "theme": string;
-    "show_icon_buttons": boolean;
     "show_paste_buttons": boolean;
     "use_expressions": boolean;
     "show_meta_section": boolean;
@@ -51,9 +50,6 @@ export class Config {
         }
         if (!("theme" in $$source)) {
             this["theme"] = "";
-        }
-        if (!("show_icon_buttons" in $$source)) {
-            this["show_icon_buttons"] = false;
         }
         if (!("show_paste_buttons" in $$source)) {
             this["show_paste_buttons"] = false;
@@ -150,18 +146,18 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField28_0 = $$createType0;
-        const $$createField30_0 = $$createType1;
-        const $$createField31_0 = $$createType2;
+        const $$createField27_0 = $$createType0;
+        const $$createField29_0 = $$createType1;
+        const $$createField30_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField28_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField27_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField30_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField29_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField31_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField30_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

@@ -7,7 +7,6 @@ func defaultConfig() Config {
 	return Config{
 		ProfileName:          "Default Profile",
 		Theme:                "light",
-		ShowIconButtons:      false,
 		ShowPasteButtons:     true,
 		UseExpressions:       false,
 		ShowMetaSection:      true,

@@ -10,7 +10,6 @@ package config
 type Config struct {
 	ProfileName          string         `json:"profile_name"`
 	Theme                string         `json:"theme"`
-	ShowIconButtons      bool           `json:"show_icon_buttons"`
 	ShowPasteButtons     bool           `json:"show_paste_buttons"`
 	UseExpressions       bool           `json:"use_expressions"`
 	ShowMetaSection      bool           `json:"show_meta_section"`
