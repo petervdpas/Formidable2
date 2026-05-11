@@ -1,5 +1,6 @@
 import { ref } from "vue";
 import { i18n } from "../i18n";
+import { useStatusBar, type StatusVariant } from "./useStatusBar";
 
 export type ToastVariant = "info" | "success" | "warn" | "error";
 
@@ -23,6 +24,13 @@ export interface ToastOpts {
   dedupeKey?: string;
   /** Skip dedupe entirely. */
   force?: boolean;
+  /** Also mirror to the status bar. i18n key or pre-translated string. */
+  status?: string;
+  /** i18n args for `status`. Ignored when `status` is not set. */
+  statusArgs?: unknown[];
+  /** ms after which the status bar reverts to "ready". 0 = sticky.
+   *  Default 0 (status persists until the next set/clear). */
+  statusResetMs?: number;
 }
 
 const toasts = ref<Toast[]>([]);
@@ -70,6 +78,17 @@ function show(
   if (duration > 0) {
     setTimeout(() => dismiss(id), duration);
   }
+
+  // Optional status-bar pass-through. Toast variants 1:1 with status
+  // variants today; if that ever diverges, map here instead.
+  if (opts.status) {
+    const statusBar = useStatusBar();
+    statusBar.set(opts.status, opts.statusArgs, {
+      variant: variant as StatusVariant,
+      resetMs: opts.statusResetMs ?? 0,
+    });
+  }
+
   return id;
 }
 

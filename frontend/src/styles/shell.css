@@ -79,3 +79,11 @@
 }
 
 .footer-spacer { flex: 1 1 auto; }
+
+/* Status text — colour mirrors toast variants. Stay subtle: the
+   statusbar is ambient feedback, not the primary surface. */
+.footer .status            { color: var(--color-text-muted, var(--color-text)); }
+.footer .status.status-info    { color: var(--color-text-muted, var(--color-text)); }
+.footer .status.status-success { color: var(--color-success, #2ecc71); }
+.footer .status.status-warn    { color: var(--color-warn, #e0a800); }
+.footer .status.status-error   { color: var(--color-error, #c0392b); }
