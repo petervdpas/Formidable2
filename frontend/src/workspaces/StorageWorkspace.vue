@@ -6,12 +6,12 @@ import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
-import { FormSection, SelectField, SwitchField } from "../components/fields";
+import { SelectField, SwitchField } from "../components/fields";
 import FormLoopFields from "../components/form-fields/FormLoopFields.vue";
 import StorageListItem from "../components/StorageListItem.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFlagFilter from "../components/StorageFlagFilter.vue";
-import FlagPicker from "../components/FlagPicker.vue";
+import StorageMetaBlock from "../components/StorageMetaBlock.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useTemplates } from "../composables/useTemplates";
 import { useFormView } from "../composables/useFormView";
@@ -590,52 +590,14 @@ setTopbarMenu(() => [
       </p>
 
       <template v-else>
-        <!-- Meta scaffold — full polish patched in later. Hidden via
-             Mod+M (toggles config.show_meta_section). -->
-        <FormSection v-if="config?.show_meta_section ?? true">
-          <div class="meta-grid">
-            <div class="meta-row" v-if="draft.datafile">
-              <span class="meta-key">{{ t('workspace.storage.meta.filename') }}</span>
-              <span class="meta-value mono">{{ draft.datafile }}</span>
-            </div>
-            <div
-              class="meta-row"
-              v-if="flagDefinitions.length > 0 || draft.meta?.flagged"
-            >
-              <span class="meta-key">{{ t('workspace.storage.meta.flag') }}</span>
-              <span class="meta-value">
-                <FlagPicker
-                  :definitions="flagDefinitions"
-                  :model-value="draft.meta?.flag_state ?? ''"
-                  :legacy-flagged="!!draft.meta?.flagged"
-                  size="md"
-                  @update:model-value="onFlagStateChange"
-                />
-              </span>
-            </div>
-            <div class="meta-row" v-if="draft.meta?.id">
-              <span class="meta-key">{{ t('workspace.storage.meta.id') }}</span>
-              <span class="meta-value mono">{{ draft.meta.id }}</span>
-            </div>
-            <div class="meta-row" v-if="draft.meta?.tags?.length">
-              <span class="meta-key">{{ t('workspace.storage.meta.tags') }}</span>
-              <span class="meta-value">{{ draft.meta.tags.join(', ') }}</span>
-            </div>
-            <div class="meta-row" v-if="draft.meta?.author_name">
-              <span class="meta-key">{{ t('workspace.storage.meta.author') }}</span>
-              <span class="meta-value">{{ draft.meta.author_name }}</span>
-            </div>
-            <div class="meta-row" v-if="draft.meta?.created">
-              <span class="meta-key">{{ t('workspace.storage.meta.created') }}</span>
-              <span class="meta-value mono small">{{ draft.meta.created }}</span>
-            </div>
-            <div class="meta-row" v-if="draft.meta?.updated">
-              <span class="meta-key">{{ t('workspace.storage.meta.updated') }}</span>
-              <span class="meta-value mono small">{{ draft.meta.updated }}</span>
-            </div>
-          </div>
-
-        </FormSection>
+        <!-- Meta scaffold. Hidden via Mod+M (config.show_meta_section). -->
+        <StorageMetaBlock
+          v-if="config?.show_meta_section ?? true"
+          :datafile="draft.datafile"
+          :meta="draft.meta"
+          :flag-definitions="flagDefinitions"
+          @flag-state-change="onFlagStateChange"
+        />
 
         <!-- Plain wrapper — NOT FormSection — so each row spans the
              full panel width. FormSection's own grid would tile rows
