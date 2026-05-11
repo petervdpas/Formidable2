@@ -70,7 +70,7 @@ function pick(state: string, close: () => void) {
           role="menuitem"
           @click="pick(d.label, close)"
         >
-          <span class="flag-picker-swatch" :class="`expr-bg-${d.color}`"></span>
+          <span class="flag-picker-swatch" :class="`flag-swatch-${d.color}`"></span>
           <span class="flag-picker-label">{{ d.label }}</span>
         </button>
       </div>

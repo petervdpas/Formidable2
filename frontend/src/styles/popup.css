@@ -13,7 +13,10 @@
 
 .popup-panel {
   position: absolute;
-  z-index: 50;
+  /* Above .modal-backdrop (z-index: 1000) so popups inside a modal
+     float over the modal footer / sibling content instead of being
+     overlapped by them. */
+  z-index: 1100;
   border: 1px solid var(--color-border);
   border-radius: 4px;
   background: var(--color-surface);

@@ -172,7 +172,7 @@ const errorMessage = (code: RowError): string => {
               <button
                 type="button"
                 class="flag-builder-swatch-trigger"
-                :class="[`expr-bg-${row.color}`, { open: popupOpen }]"
+                :class="[`flag-swatch-${row.color}`, { open: popupOpen }]"
                 :title="row.color"
                 @click="toggle"
               ></button>
@@ -184,7 +184,7 @@ const errorMessage = (code: RowError): string => {
                   :key="c"
                   type="button"
                   class="flag-builder-swatch-cell"
-                  :class="[`expr-bg-${c}`, { active: c === row.color }]"
+                  :class="[`flag-swatch-${c}`, { active: c === row.color }]"
                   :title="c"
                   @click="setColor(row.id, c); close();"
                 ></button>

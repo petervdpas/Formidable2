@@ -5,9 +5,28 @@
  * list.
  *
  * Color tokens come from expression.css (.expr-text-* on the icon,
- * .expr-bg-* on the row swatch). Stays in sync with the 16-token
- * palette validated server-side in flag_definitions.go.
+ * .expr-bg-* on chips). Solid-color swatch cells use the local
+ * .flag-swatch-* set below — same 16 hues at full saturation so they
+ * read as discrete color blocks rather than the 18%-alpha chip tint.
+ * Keep the values in sync with .expr-text-* (same RGB).
  */
+
+.flag-swatch-red    { background: #e84e4e; }
+.flag-swatch-orange { background: #ff9438; }
+.flag-swatch-amber  { background: #ffc400; }
+.flag-swatch-yellow { background: #f5dd5d; }
+.flag-swatch-green  { background: #50c878; }
+.flag-swatch-teal   { background: #2bb1a6; }
+.flag-swatch-blue   { background: #4a90e2; }
+.flag-swatch-purple { background: #a064dc; }
+.flag-swatch-pink   { background: #e472b8; }
+.flag-swatch-gray   { background: #8a93a6; }
+.flag-swatch-cyan   { background: #2bd1e8; }
+.flag-swatch-lime   { background: #b8e84e; }
+.flag-swatch-indigo { background: #6464dc; }
+.flag-swatch-rose   { background: #ff5e8a; }
+.flag-swatch-brown  { background: #a07050; }
+.flag-swatch-slate  { background: #6b7a90; }
 
 .flag-picker-trigger {
   display: inline-flex;
