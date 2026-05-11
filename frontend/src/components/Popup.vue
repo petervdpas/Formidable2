@@ -21,7 +21,7 @@ import { onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 
 const props = defineProps<{
   /** Where the panel opens relative to the trigger. Default "below". */
-  placement?: "below" | "above" | "right" | "left";
+  placement?: "below" | "below-left" | "above" | "right" | "left";
   /** Optional max-width for the panel. */
   maxWidth?: string;
 }>();

@@ -74,6 +74,25 @@
 .meta-value.mono { font-family: var(--font-mono); }
 .meta-value.small { font-size: var(--font-size-sm); }
 
+/* Floating flag in the meta block's top-right corner. The right offset
+   clears the Markdown/HTML slide-out tabs that overlay the right edge
+   of the form panel. */
+/* Sticky meta block — stays pinned at the top of the form panel while
+   the fields scroll underneath. `top` matches workspace-main's padding-top
+   so the block doesn't shift at all when sticking. `sticky` still acts
+   as a positioning context for the absolutely-positioned flag corner. */
+.storage-meta-section {
+    position: sticky;
+    top: var(--space-4);
+    z-index: 5;
+}
+.storage-meta-section .meta-flag-corner {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-4);
+    z-index: 1;
+}
+
 .meta-actions {
     display: flex;
     gap: 8px;

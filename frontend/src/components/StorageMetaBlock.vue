@@ -31,26 +31,24 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <FormSection>
+  <FormSection class="storage-meta-section">
+    <div
+      class="meta-flag-corner"
+      v-if="flagDefinitions.length > 0 || meta?.flagged"
+    >
+      <FlagPicker
+        :definitions="flagDefinitions"
+        :model-value="meta?.flag_state ?? ''"
+        :legacy-flagged="!!meta?.flagged"
+        size="md"
+        placement="below-left"
+        @update:model-value="(s: string) => $emit('flagStateChange', s)"
+      />
+    </div>
     <div class="meta-grid">
       <div class="meta-row" v-if="datafile">
         <span class="meta-key">{{ t('workspace.storage.meta.filename') }}</span>
         <span class="meta-value mono">{{ datafile }}</span>
-      </div>
-      <div
-        class="meta-row"
-        v-if="flagDefinitions.length > 0 || meta?.flagged"
-      >
-        <span class="meta-key">{{ t('workspace.storage.meta.flag') }}</span>
-        <span class="meta-value">
-          <FlagPicker
-            :definitions="flagDefinitions"
-            :model-value="meta?.flag_state ?? ''"
-            :legacy-flagged="!!meta?.flagged"
-            size="md"
-            @update:model-value="(s: string) => $emit('flagStateChange', s)"
-          />
-        </span>
       </div>
       <div class="meta-row" v-if="meta?.id">
         <span class="meta-key">{{ t('workspace.storage.meta.id') }}</span>

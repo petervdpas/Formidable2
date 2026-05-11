@@ -17,8 +17,12 @@ const props = withDefaults(
     legacyFlagged?: boolean;
     /** Visual size hint. "sm" for inline rows, "md" for the meta block. */
     size?: "sm" | "md";
+    /** Forwarded to the underlying Popup so the meta-block corner
+     *  variant can open down-left instead of clipping under the
+     *  slide-out tabs. */
+    placement?: "below" | "below-left";
   }>(),
-  { disabled: false, legacyFlagged: false, size: "md" },
+  { disabled: false, legacyFlagged: false, size: "md", placement: "below" },
 );
 
 const emit = defineEmits<{
@@ -49,7 +53,7 @@ function clear(close: () => void) {
 </script>
 
 <template>
-  <Popup placement="below">
+  <Popup :placement="placement">
     <template #trigger="{ toggle, open }">
       <button
         type="button"
