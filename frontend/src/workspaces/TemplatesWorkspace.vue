@@ -27,10 +27,10 @@ import { backendErrMessage } from "../utils/backendError";
 import {
   FormSection,
   FormRow,
+  FormSwitchRow,
   TextField,
   TextareaField,
   SelectField,
-  SwitchField,
 } from "../components/fields";
 import { useTemplates, isValidTemplateFilename } from "../composables/useTemplates";
 import { recomputeLevelScopes } from "../utils/fieldScopes";
@@ -687,22 +687,16 @@ setTopbarMenu(() => [
             </Tabs>
           </div>
 
-          <FormRow :label="t('workspace.templates.setup.enable_collection')">
-            <div class="collection-toggle">
-              <SwitchField
-                v-model="draft.enable_collection"
-                :on-label="t('common.enabled')"
-                :off-label="t('common.disabled')"
-                :disabled="collectionToggleDisabled"
-              />
-              <p
-                v-if="collectionToggleDisabled"
-                class="muted small"
-              >
-                {{ t('workspace.templates.setup.enable_collection_needs_guid') }}
-              </p>
-            </div>
-          </FormRow>
+          <FormSwitchRow
+            v-model="draft.enable_collection"
+            :label="t('workspace.templates.setup.enable_collection')"
+            :description="collectionToggleDisabled
+              ? t('workspace.templates.setup.enable_collection_needs_guid')
+              : ''"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+            :disabled="collectionToggleDisabled"
+          />
         </FormSection>
 
         <FormSection :title="t('workspace.templates.fields.title')">
