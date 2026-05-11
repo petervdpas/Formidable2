@@ -196,6 +196,83 @@ Feature: Template management
     When I request item fields for "ghost.yaml"
     Then the item fields request returned an error
 
+  # ── flag_definitions ──────────────────────────────────────────────
+
+  Scenario: Validate accepts a template without flag_definitions
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    Then validation reports no errors
+
+  Scenario: Validate accepts flag_definitions within the limit
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has flag_definitions:
+      | label     | color  |
+      | FLASH     | red    |
+      | IMMEDIATE | orange |
+      | PRIORITY  | amber  |
+      | ROUTINE   | blue   |
+    Then validation reports no errors
+
+  Scenario: Validate accepts a label with spaces
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has flag_definitions:
+      | label   | color |
+      | NO FLAG | gray  |
+    Then validation reports no errors
+
+  Scenario: Validate flags more than 16 flag_definitions
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has 17 flag_definitions
+    Then validation reports a "too-many-flag-definitions" error
+
+  Scenario: Validate flags duplicate flag labels
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has flag_definitions:
+      | label | color |
+      | FLASH | red   |
+      | FLASH | blue  |
+    Then validation reports a "duplicate-flag-label" error
+
+  Scenario: Validate flags an invalid flag label format
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has flag_definitions:
+      | label | color |
+      | flash | red   |
+    Then validation reports an "invalid-flag-label" error
+
+  Scenario: Validate flags an unknown flag color
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has flag_definitions:
+      | label | color    |
+      | FLASH | crimson  |
+    Then validation reports an "unknown-flag-color" error
+
+  Scenario: flag_definitions round-trip through YAML
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has flag_definitions:
+      | label     | color  |
+      | FLASH     | red    |
+      | IMMEDIATE | orange |
+    When I marshal the template and reload it
+    Then the reloaded template has 2 flag_definitions
+    And reloaded flag_definition 0 is "FLASH" colored "red"
+    And reloaded flag_definition 1 is "IMMEDIATE" colored "orange"
+
   # ── Field-type registry + per-type validation ─────────────────────
 
   Scenario: Validate flags an unknown field type

@@ -285,6 +285,38 @@ export class FieldDescriptor {
 }
 
 /**
+ * FlagDefinition is one entry in a template's flag palette. Label is
+ * the user-visible identifier (also used as the stable id stored in
+ * FormMeta.FlagState); Color names a token from the shared 16-token
+ * palette (red/orange/.../slate). Templates may declare up to 16
+ * definitions; colors may repeat across labels.
+ */
+export class FlagDefinition {
+    "label": string;
+    "color": string;
+
+    /** Creates a new FlagDefinition instance. */
+    constructor($$source: Partial<FlagDefinition> = {}) {
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("color" in $$source)) {
+            this["color"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FlagDefinition instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FlagDefinition {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FlagDefinition($$parsedSource as Partial<FlagDefinition>);
+    }
+}
+
+/**
  * GeneratorOptions carries the per-shape sub-choices the dialog
  * surfaces. Bag-of-bools so adding a new option doesn't require
  * signature changes throughout the call chain (Service ↔ generator ↔
@@ -446,6 +478,7 @@ export class Template {
     "markdown_template": string;
     "sidebar_expression": string;
     "enable_collection": boolean;
+    "flag_definitions": FlagDefinition[];
     "fields": Field[];
     "needs_resave": boolean;
 
@@ -469,6 +502,9 @@ export class Template {
         if (!("enable_collection" in $$source)) {
             this["enable_collection"] = false;
         }
+        if (!("flag_definitions" in $$source)) {
+            this["flag_definitions"] = [];
+        }
         if (!("fields" in $$source)) {
             this["fields"] = [];
         }
@@ -484,9 +520,13 @@ export class Template {
      */
     static createFrom($$source: any = {}): Template {
         const $$createField8_0 = $$createType7;
+        const $$createField9_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("flag_definitions" in $$parsedSource) {
+            $$parsedSource["flag_definitions"] = $$createField8_0($$parsedSource["flag_definitions"]);
+        }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField8_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField9_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }
@@ -517,9 +557,9 @@ export class ValidationError {
      * Creates a new ValidationError instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationError {
-        const $$createField3_0 = $$createType8;
-        const $$createField4_0 = $$createType9;
-        const $$createField6_0 = $$createType10;
+        const $$createField3_0 = $$createType10;
+        const $$createField4_0 = $$createType11;
+        const $$createField6_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -541,8 +581,10 @@ const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = APIMap.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = Abilities.createFrom;
-const $$createType6 = Field.createFrom;
+const $$createType6 = FlagDefinition.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Array($Create.Any);
-const $$createType9 = $Create.Nullable($$createType6);
-const $$createType10 = $Create.Map($Create.Any, $Create.Any);
+const $$createType8 = Field.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Array($Create.Any);
+const $$createType11 = $Create.Nullable($$createType8);
+const $$createType12 = $Create.Map($Create.Any, $Create.Any);

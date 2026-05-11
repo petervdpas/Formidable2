@@ -29,17 +29,19 @@ func TestFeatures(t *testing.T) {
 }
 
 type storageWorld struct {
-	tmp           string
-	sys           *system.Manager
-	tplM          *template.Manager
-	tpl           *template.Template
-	m             *Manager
-	formList      []string
-	loaded        *Form
-	saveResult    SaveResult
-	saveImageRes  SaveResult
-	extendedList  []FormSummary
-	capturedID    string
+	tmp          string
+	sys          *system.Manager
+	tplM         *template.Manager
+	tpl          *template.Template
+	m            *Manager
+	formList     []string
+	loaded       *Form
+	saveResult   SaveResult
+	saveImageRes SaveResult
+	extendedList []FormSummary
+	capturedID   string
+	lastTpl      string
+	lastDatafile string
 }
 
 func initStorageScenario(ctx *godog.ScenarioContext) {
@@ -161,11 +163,59 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I save a form "([^"]*)" / "([^"]*)" with data:$`, func(tmplFile, datafile string, table *godog.Table) error {
 		data := tableToData(table)
 		w.saveResult = w.m.SaveForm(tmplFile, datafile, data)
+		w.lastTpl, w.lastDatafile = tmplFile, datafile
 		return nil
 	})
 
 	ctx.Step(`^I load form "([^"]*)" / "([^"]*)"$`, func(tmplFile, datafile string) error {
 		w.loaded = w.m.LoadForm(tmplFile, datafile)
+		return nil
+	})
+
+	ctx.Step(`^I save a form "([^"]*)" / "([^"]*)" with raw meta flag_state "([^"]*)"$`, func(tmplFile, datafile, state string) error {
+		raw := map[string]any{
+			"_meta": map[string]any{"flag_state": state},
+		}
+		w.saveResult = w.m.SaveForm(tmplFile, datafile, raw)
+		w.lastTpl, w.lastDatafile = tmplFile, datafile
+		return nil
+	})
+
+	ctx.Step(`^I save a form "([^"]*)" / "([^"]*)" with raw meta flagged (true|false) and flag_state "([^"]*)"$`, func(tmplFile, datafile, flaggedStr, state string) error {
+		raw := map[string]any{
+			"_meta": map[string]any{
+				"flagged":    flaggedStr == "true",
+				"flag_state": state,
+			},
+		}
+		w.saveResult = w.m.SaveForm(tmplFile, datafile, raw)
+		w.lastTpl, w.lastDatafile = tmplFile, datafile
+		return nil
+	})
+
+	ctx.Step(`^the loaded form's meta has flag_state "([^"]*)"$`, func(want string) error {
+		f := loadFormByDatafile(w)
+		if f == nil {
+			return fmt.Errorf("no form to inspect")
+		}
+		if f.Meta.FlagState != want {
+			return fmt.Errorf("flag_state = %q, want %q", f.Meta.FlagState, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the loaded form's meta has flagged (true|false)$`, func(want string) error {
+		f := loadFormByDatafile(w)
+		if f == nil {
+			return fmt.Errorf("no form to inspect")
+		}
+		got := "false"
+		if f.Meta.Flagged {
+			got = "true"
+		}
+		if got != want {
+			return fmt.Errorf("flagged = %s, want %s", got, want)
+		}
 		return nil
 	})
 
@@ -340,6 +390,13 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		}
 		return nil
 	})
+}
+
+func loadFormByDatafile(w *storageWorld) *Form {
+	if w.lastTpl == "" || w.lastDatafile == "" {
+		return nil
+	}
+	return w.m.LoadForm(w.lastTpl, w.lastDatafile)
 }
 
 func tableToData(table *godog.Table) map[string]any {

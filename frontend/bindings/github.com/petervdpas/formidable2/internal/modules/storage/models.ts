@@ -43,6 +43,10 @@ export class Form {
 
 /**
  * FormMeta carries identity + audit fields. Tags are deduped+sorted.
+ * FlagState references a Template.FlagDefinitions label (e.g. "FLASH")
+ * when set; empty means no state is chosen. Independent of Flagged —
+ * legacy `flagged: true` forms keep their bool with FlagState empty,
+ * and the UI renders them as a generic uncolored flag.
  */
 export class FormMeta {
     "id": string;
@@ -52,6 +56,7 @@ export class FormMeta {
     "created": string;
     "updated": string;
     "flagged": boolean;
+    "flag_state": string;
     "tags": string[];
 
     /** Creates a new FormMeta instance. */
@@ -77,6 +82,9 @@ export class FormMeta {
         if (!("flagged" in $$source)) {
             this["flagged"] = false;
         }
+        if (!("flag_state" in $$source)) {
+            this["flag_state"] = "";
+        }
         if (!("tags" in $$source)) {
             this["tags"] = [];
         }
@@ -88,10 +96,10 @@ export class FormMeta {
      * Creates a new FormMeta instance from a string or object.
      */
     static createFrom($$source: any = {}): FormMeta {
-        const $$createField7_0 = $$createType2;
+        const $$createField8_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField7_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField8_0($$parsedSource["tags"]);
         }
         return new FormMeta($$parsedSource as Partial<FormMeta>);
     }

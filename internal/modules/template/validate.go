@@ -51,6 +51,7 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
 	errs = append(errs, levelScopeMismatchErrors(t.Fields, canonical)...)
 	errs = append(errs, expressionItemLevelScopeErrors(canonical)...)
+	errs = append(errs, flagDefinitionsErrors(t.FlagDefinitions)...)
 
 	return errs
 }

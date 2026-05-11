@@ -125,6 +125,47 @@ fields:
 		return nil
 	})
 
+	ctx.Step(`^the template has flag_definitions:$`, func(table *godog.Table) error {
+		if w.tmpl == nil {
+			return fmt.Errorf("no template under construction")
+		}
+		w.tmpl.FlagDefinitions = tableToFlagDefs(table)
+		return nil
+	})
+
+	ctx.Step(`^the template has (\d+) flag_definitions$`, func(n int) error {
+		if w.tmpl == nil {
+			return fmt.Errorf("no template under construction")
+		}
+		defs := make([]FlagDefinition, n)
+		for i := 0; i < n; i++ {
+			defs[i] = FlagDefinition{Label: fmt.Sprintf("FLAG_%d", i), Color: "red"}
+		}
+		w.tmpl.FlagDefinitions = defs
+		return nil
+	})
+
+	ctx.Step(`^the reloaded template has (\d+) flag_definitions$`, func(want int) error {
+		if w.reloaded == nil {
+			return fmt.Errorf("no reloaded template")
+		}
+		if got := len(w.reloaded.FlagDefinitions); got != want {
+			return fmt.Errorf("flag_definitions len = %d, want %d", got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^reloaded flag_definition (\d+) is "([^"]*)" colored "([^"]*)"$`, func(idx int, label, color string) error {
+		if w.reloaded == nil || idx >= len(w.reloaded.FlagDefinitions) {
+			return fmt.Errorf("flag_definition %d not available", idx)
+		}
+		fd := w.reloaded.FlagDefinitions[idx]
+		if fd.Label != label || fd.Color != color {
+			return fmt.Errorf("flag_definition[%d] = (%s,%s), want (%s,%s)", idx, fd.Label, fd.Color, label, color)
+		}
+		return nil
+	})
+
 	ctx.Step(`^a template with an api field with no collection$`, func() error {
 		w.tmpl = &Template{
 			Name:     "Test",
@@ -671,6 +712,29 @@ func tableToFields(table *godog.Table) []Field {
 			f.Label = r.Cells[i].Value
 		}
 		out = append(out, f)
+	}
+	return out
+}
+
+func tableToFlagDefs(table *godog.Table) []FlagDefinition {
+	rows := table.Rows
+	if len(rows) < 2 {
+		return nil
+	}
+	headers := make(map[string]int, len(rows[0].Cells))
+	for i, c := range rows[0].Cells {
+		headers[c.Value] = i
+	}
+	out := make([]FlagDefinition, 0, len(rows)-1)
+	for _, r := range rows[1:] {
+		fd := FlagDefinition{}
+		if i, ok := headers["label"]; ok {
+			fd.Label = r.Cells[i].Value
+		}
+		if i, ok := headers["color"]; ok {
+			fd.Color = r.Cells[i].Value
+		}
+		out = append(out, fd)
 	}
 	return out
 }

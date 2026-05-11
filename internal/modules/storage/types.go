@@ -13,6 +13,10 @@ type Form struct {
 }
 
 // FormMeta carries identity + audit fields. Tags are deduped+sorted.
+// FlagState references a Template.FlagDefinitions label (e.g. "FLASH")
+// when set; empty means no state is chosen. Independent of Flagged —
+// legacy `flagged: true` forms keep their bool with FlagState empty,
+// and the UI renders them as a generic uncolored flag.
 type FormMeta struct {
 	ID          string   `json:"id"`
 	AuthorName  string   `json:"author_name"`
@@ -21,6 +25,7 @@ type FormMeta struct {
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
 	Flagged     bool     `json:"flagged"`
+	FlagState   string   `json:"flag_state"`
 	Tags        []string `json:"tags"`
 }
 
@@ -51,5 +56,6 @@ type SanitizeOptions struct {
 	Created      string
 	Updated      string
 	Flagged      *bool
+	FlagState    string
 	Tags         []string
 }

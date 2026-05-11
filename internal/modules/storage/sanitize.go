@@ -145,6 +145,17 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		}
 	}
 
+	flagState := opts.FlagState
+	if v, ok := rawMeta["flag_state"]; ok {
+		if s, ok := v.(string); ok {
+			flagState = s
+		}
+	} else if injected != nil {
+		if s, ok := injected["flag_state"].(string); ok {
+			flagState = s
+		}
+	}
+
 	templateName := firstNonEmpty(
 		stringOrEmpty(rawMeta["template"]),
 		stringOrEmpty(injected["template"]),
@@ -174,6 +185,7 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 			Created:     created,
 			Updated:     updated,
 			Flagged:     flagged,
+			FlagState:   flagState,
 			Tags:        tagList,
 		},
 		Data: data,

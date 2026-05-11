@@ -82,3 +82,24 @@ Feature: Form storage
       | key   | value |
       | title | X     |
     Then the save returned an error
+
+  # ── flag_state ────────────────────────────────────────────────────
+
+  Scenario: Sanitize preserves an explicit flag_state from raw meta
+    Given the template "basic" has no forms yet
+    When I save a form "basic.yaml" / "form-flagged" with raw meta flag_state "FLASH"
+    Then the loaded form's meta has flag_state "FLASH"
+
+  Scenario: Sanitize keeps legacy flagged true even when flag_state is empty
+    Given the template "basic" has no forms yet
+    When I save a form "basic.yaml" / "form-legacy" with raw meta flagged true and flag_state ""
+    Then the loaded form's meta has flagged true
+    And the loaded form's meta has flag_state ""
+
+  Scenario: Sanitize defaults flag_state to empty when nothing provided
+    Given the template "basic" has no forms yet
+    When I save a form "basic.yaml" / "form-clean" with data:
+      | key   | value |
+      | title | Hello |
+    Then the loaded form's meta has flagged false
+    And the loaded form's meta has flag_state ""

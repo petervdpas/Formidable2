@@ -12,6 +12,7 @@ export {
     Descriptor,
     Field,
     FieldDescriptor,
+    FlagDefinition,
     GeneratorOptions,
     ImgMode,
     ItemField,

@@ -18,16 +18,27 @@ import "strings"
 // can name "who last touched this template" without walking git log,
 // matching how it identifies record overrides.
 type Template struct {
-	Name              string  `yaml:"name" json:"name"`
-	Filename          string  `yaml:"filename" json:"filename"`
-	AuthorName        string  `yaml:"author_name,omitempty" json:"author_name,omitempty"`
-	AuthorEmail       string  `yaml:"author_email,omitempty" json:"author_email,omitempty"`
-	ItemField         string  `yaml:"item_field,omitempty" json:"item_field"`
-	MarkdownTemplate  string  `yaml:"markdown_template,omitempty" json:"markdown_template"`
-	SidebarExpression string  `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
-	EnableCollection  bool    `yaml:"enable_collection,omitempty" json:"enable_collection"`
-	Fields            []Field `yaml:"fields" json:"fields"`
-	NeedsResave       bool    `yaml:"-" json:"needs_resave"`
+	Name              string           `yaml:"name" json:"name"`
+	Filename          string           `yaml:"filename" json:"filename"`
+	AuthorName        string           `yaml:"author_name,omitempty" json:"author_name,omitempty"`
+	AuthorEmail       string           `yaml:"author_email,omitempty" json:"author_email,omitempty"`
+	ItemField         string           `yaml:"item_field,omitempty" json:"item_field"`
+	MarkdownTemplate  string           `yaml:"markdown_template,omitempty" json:"markdown_template"`
+	SidebarExpression string           `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
+	EnableCollection  bool             `yaml:"enable_collection,omitempty" json:"enable_collection"`
+	FlagDefinitions   []FlagDefinition `yaml:"flag_definitions,omitempty" json:"flag_definitions"`
+	Fields            []Field          `yaml:"fields" json:"fields"`
+	NeedsResave       bool             `yaml:"-" json:"needs_resave"`
+}
+
+// FlagDefinition is one entry in a template's flag palette. Label is
+// the user-visible identifier (also used as the stable id stored in
+// FormMeta.FlagState); Color names a token from the shared 16-token
+// palette (red/orange/.../slate). Templates may declare up to 16
+// definitions; colors may repeat across labels.
+type FlagDefinition struct {
+	Label string `yaml:"label" json:"label"`
+	Color string `yaml:"color" json:"color"`
 }
 
 // Field describes one input in a template. Type-specific properties

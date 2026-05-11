@@ -40,6 +40,12 @@
 .expr-text-purple { color: #a064dc; }
 .expr-text-pink   { color: #e472b8; }
 .expr-text-gray   { color: #8a93a6; }
+.expr-text-cyan   { color: #2bd1e8; }
+.expr-text-lime   { color: #b8e84e; }
+.expr-text-indigo { color: #6464dc; }
+.expr-text-rose   { color: #ff5e8a; }
+.expr-text-brown  { color: #a07050; }
+.expr-text-slate  { color: #6b7a90; }
 
 .expr-bg-red    { background: rgba(232, 78, 78, 0.18); }
 .expr-bg-orange { background: rgba(255, 148, 56, 0.18); }
@@ -51,6 +57,12 @@
 .expr-bg-purple { background: rgba(160, 100, 220, 0.18); }
 .expr-bg-pink   { background: rgba(228, 114, 184, 0.18); }
 .expr-bg-gray   { background: rgba(138, 147, 166, 0.18); }
+.expr-bg-cyan   { background: rgba(43, 209, 232, 0.18); }
+.expr-bg-lime   { background: rgba(184, 232, 78, 0.18); }
+.expr-bg-indigo { background: rgba(100, 100, 220, 0.18); }
+.expr-bg-rose   { background: rgba(255, 94, 138, 0.18); }
+.expr-bg-brown  { background: rgba(160, 112, 80, 0.18); }
+.expr-bg-slate  { background: rgba(107, 122, 144, 0.18); }
 
 /* Per-row evaluation failure pill. The engine sets `Error` on the
  * SidebarItem and the workspace passes `expr-error` in classes;
