@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { i18n } from "../i18n";
 
-export type StatusVariant = "info" | "success" | "warn" | "error";
+export type StatusVariant = "info" | "success" | "warn" | "error" | "create";
 
 export interface StatusOpts {
   /** Colour modifier on the status text. Default "info". */

@@ -37,6 +37,7 @@ import { recomputeLevelScopes } from "../utils/fieldScopes";
 import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
+import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useConfig } from "../composables/useConfig";
 import { watch } from "vue";
@@ -46,6 +47,10 @@ const { t } = useI18n();
 const { bootConfig } = useRestartGate();
 const { config, update: updateConfig } = useConfig();
 const toast = useToast();
+const statusBar = useStatusBar();
+
+// Statusbar reverts to "Ready" 15s after the last update.
+const STATUS_RESET = 15000;
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
@@ -84,8 +89,10 @@ watch(
 // mirror watcher above).
 watch(selectedFilename, (fn) => {
   if (!fn) return;
-  if (config.value?.selected_template === fn) return;
-  void updateConfig({ selected_template: fn });
+  if (config.value?.selected_template !== fn) {
+    void updateConfig({ selected_template: fn });
+  }
+  statusBar.set("status.selected", [displayName(fn)], { resetMs: STATUS_RESET });
 });
 
 function displayName(filename: string): string {
@@ -109,9 +116,15 @@ async function doSave() {
   if (!draft.value || !selectedFilename.value) return;
   const result = await save();
   if (result.ok) {
+    const name = draft.value?.name || selectedFilename.value;
     toast.success(
       "workspace.templates.save_success",
-      [draft.value?.name || selectedFilename.value],
+      [name],
+      {
+        status: "status.template.save.success",
+        statusArgs: [name],
+        statusResetMs: STATUS_RESET,
+      },
     );
     return;
   }
@@ -187,7 +200,17 @@ async function submitCreate() {
       : t("workspace.templates.create.error", [result.message ?? "?"]);
     return;
   }
-  toast.success("workspace.templates.create.success", [name.replace(/\.yaml$/, "")]);
+  const created = name.replace(/\.yaml$/, "");
+  toast.success(
+    "workspace.templates.create.success",
+    [created],
+    {
+      status: "status.template.create.new.success",
+      statusArgs: [created],
+      statusVariant: "create",
+      statusResetMs: STATUS_RESET,
+    },
+  );
   createOpen.value = false;
 }
 
@@ -450,7 +473,17 @@ async function confirmDeleteTemplate() {
   if (!f) return;
   const result = await remove(f);
   if (result.ok) {
-    toast.success("workspace.templates.delete.success", [f.replace(/\.yaml$/, "")]);
+    const stem = f.replace(/\.yaml$/, "");
+    toast.success(
+      "workspace.templates.delete.success",
+      [stem],
+      {
+        status: "status.template.deleted",
+        statusArgs: [stem],
+        statusVariant: "error",
+        statusResetMs: STATUS_RESET,
+      },
+    );
   } else {
     toast.error("workspace.templates.delete.error", [result.message ?? "?"]);
   }

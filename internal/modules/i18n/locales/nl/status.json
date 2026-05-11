@@ -44,6 +44,7 @@
   "status.plugin.run.failed": "Kon plugin {0} niet uitvoeren.",
   "status.plugin.run.success": "Plugin {0} wordt uitgevoerd.",
   "status.ready": "Klaar.",
+  "status.selected": "Geselecteerd: {0}",
   "status.save.cannot": "Kan niet opslaan.",
   "status.save.cannot.no.storage": "Kan niet opslaan... geen opslag geselecteerd.",
   "status.save.cannot.no.template": "Kan niet opslaan... geen sjabloon geselecteerd.",

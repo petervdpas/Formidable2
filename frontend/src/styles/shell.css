@@ -80,10 +80,12 @@
 
 .footer-spacer { flex: 1 1 auto; }
 
-/* Status text — colour mirrors toast variants. Stay subtle: the
-   statusbar is ambient feedback, not the primary surface. */
-.footer .status            { color: var(--color-text-muted, var(--color-text)); }
-.footer .status.status-info    { color: var(--color-text-muted, var(--color-text)); }
-.footer .status.status-success { color: var(--color-success, #2ecc71); }
-.footer .status.status-warn    { color: var(--color-warn, #e0a800); }
-.footer .status.status-error   { color: var(--color-error, #c0392b); }
+/* Status text — colour pulls straight from the active theme tokens
+   (every theme defines --color-success/warning/error/accent). Stay
+   subtle on the default/info variant: ambient state, not a callout. */
+.footer .status                { color: var(--color-text); }
+.footer .status.status-info    { color: var(--color-text); }
+.footer .status.status-success { color: var(--color-success); }
+.footer .status.status-warn    { color: var(--color-warning); }
+.footer .status.status-error   { color: var(--color-error); }
+.footer .status.status-create  { color: var(--color-accent); }

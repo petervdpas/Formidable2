@@ -28,6 +28,10 @@ export interface ToastOpts {
   status?: string;
   /** i18n args for `status`. Ignored when `status` is not set. */
   statusArgs?: unknown[];
+  /** Override the status-bar colour. Defaults to the toast variant.
+   *  Use this when the toast is e.g. `success` but the statusbar
+   *  should read as `create` (blue) instead of `success` (green). */
+  statusVariant?: StatusVariant;
   /** ms after which the status bar reverts to "ready". 0 = sticky.
    *  Default 0 (status persists until the next set/clear). */
   statusResetMs?: number;
@@ -79,12 +83,13 @@ function show(
     setTimeout(() => dismiss(id), duration);
   }
 
-  // Optional status-bar pass-through. Toast variants 1:1 with status
-  // variants today; if that ever diverges, map here instead.
+  // Optional status-bar pass-through. Defaults the status variant to
+  // the toast variant; opts.statusVariant overrides (e.g. a `success`
+  // toast paired with a `create` statusbar tint for new-record events).
   if (opts.status) {
     const statusBar = useStatusBar();
     statusBar.set(opts.status, opts.statusArgs, {
-      variant: variant as StatusVariant,
+      variant: opts.statusVariant ?? (variant as StatusVariant),
       resetMs: opts.statusResetMs ?? 0,
     });
   }
