@@ -19,7 +19,7 @@ function onClick() {
     class="menu-item"
     role="menuitem"
     :disabled="disabled"
-    @click.stop="onClick"
+    @click="onClick"
   >
     <span class="menu-item-label">{{ label }}</span>
     <span v-if="hint" class="menu-item-hint">{{ hint }}</span>
