@@ -303,13 +303,22 @@ func New(d Deps) (*App, error) {
 	// which use `slideoutRender` (formidable:// + data: URLs).
 	dpM := dataprovider.NewManager(idxM, wikiRender, stoM)
 
+	// Expression engine — sandboxed evaluator for sidebar sub-labels
+	// (and future field-default / plugin-command callers). Built before
+	// the wiki handler so the wiki form list can show expression
+	// subtitles using the same engine the in-app sidebar uses.
+	expressionM := expression.NewManager(
+		expressionTemplateAdapter{tpl: tplM},
+		expressionStorageAdapter{sto: stoM},
+	)
+
 	// Wiki — runtime-controllable HTTP server that serves rendered
 	// templates+forms from dataprovider and images from storage. The
 	// in-app About workspace toggles it on/off via Wiki service. The
 	// window-opener hook is installed by main.go after the Wails
 	// application exists; until then OpenInternalWiki returns an error.
 	wikiM := wiki.NewManager(d.Logger)
-	wikiHandler := wiki.NewHandler(dpM, stoM)
+	wikiHandler := wiki.NewHandler(dpM, stoM, expressionM)
 
 	// REST API peer surface — `/api/...` routes (collections CRUD-read,
 	// design, exports, OpenAPI spec, Swagger UI). Mounted alongside the
@@ -328,15 +337,6 @@ func New(d Deps) (*App, error) {
 	monitorM := monitor.NewManager()
 	monitorM.Register(monitor.NewJournalSource(jrnM, sysM))
 	monitorHandler := monitor.NewHandler(monitorM)
-
-	// Expression engine — sandboxed evaluator for sidebar sub-labels
-	// (and future field-default / plugin-command callers). Bridged to
-	// template + storage via tiny adapters defined in this file so
-	// the engine module stays import-clean.
-	expressionM := expression.NewManager(
-		expressionTemplateAdapter{tpl: tplM},
-		expressionStorageAdapter{sto: stoM},
-	)
 
 	top := http.NewServeMux()
 	// Longest-prefix wins: /api/monitor/ takes precedence over /api/.

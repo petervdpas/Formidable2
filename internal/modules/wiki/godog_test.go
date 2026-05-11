@@ -12,6 +12,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/expression"
 )
 
 func TestFeatures(t *testing.T) {
@@ -50,6 +51,7 @@ type world struct {
 	// Slice 2 — read-path routes
 	handler http.Handler
 	stub    *stubProvider
+	stubEx  *stubExpressioner
 	resp    *httptest.ResponseRecorder
 
 	// Slice 3 — /storage/*
@@ -254,9 +256,29 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		// has forms for X: ..." step shapes them explicitly.
 		w.stub.forms = map[string][]dataprovider.FormSummary{}
 		w.stubSt = newStubStorage()
-		w.handler = NewHandler(w.stub, w.stubSt)
+		w.stubEx = &stubExpressioner{items: map[string][]expression.SidebarItem{}}
+		w.handler = NewHandler(w.stub, w.stubSt, w.stubEx)
 		return nil
 	})
+
+	ctx.Step(`^the expression engine yields for "([^"]*)" \(filename, text\):$`,
+		func(template string, table *godog.Table) error {
+			if w.stubEx == nil {
+				return fmt.Errorf("expression stub not initialised")
+			}
+			items := make([]expression.SidebarItem, 0, len(table.Rows))
+			for _, row := range table.Rows {
+				if len(row.Cells) < 2 {
+					continue
+				}
+				items = append(items, expression.SidebarItem{
+					Filename: row.Cells[0].Value,
+					Text:     row.Cells[1].Value,
+				})
+			}
+			w.stubEx.items[template] = items
+			return nil
+		})
 
 	// ── Slice 3: /storage/* static handler ────────────────────────────
 
@@ -268,7 +290,7 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 					stem + ".yaml/" + name: []byte(body),
 				},
 			}
-			w.handler = NewHandler(w.stub, w.stubSt)
+			w.handler = NewHandler(w.stub, w.stubSt, &stubExpressioner{})
 			return nil
 		})
 
@@ -345,6 +367,13 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^the html body does not contain "([^"]*)"$`, func(needle string) error {
+		if strings.Contains(w.resp.Body.String(), needle) {
+			return fmt.Errorf("body unexpectedly contains %q", needle)
+		}
+		return nil
+	})
+
 	ctx.Step(`^the html body has element id "([^"]*)"$`, func(id string) error {
 		needle := `id="` + id + `"`
 		if !strings.Contains(w.resp.Body.String(), needle) {
@@ -385,7 +414,7 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a wiki service over a stub dataprovider and a configured port$`, func() error {
 		w.stub = newStubProvider()
 		w.stubSt = newStubStorage()
-		w.handler = NewHandler(w.stub, w.stubSt)
+		w.handler = NewHandler(w.stub, w.stubSt, &stubExpressioner{})
 		w.m = NewManager(nil)
 		w.m.SetHandler(w.handler)
 		w.svc = NewService(w.m, func() int { return w.configPort },

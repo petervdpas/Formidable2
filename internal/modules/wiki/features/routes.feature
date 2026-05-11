@@ -24,6 +24,28 @@ Feature: Read-path routes
     And the html links to "/template/basic/form/x.meta.json"
     And the html links to "/template/basic/form/y.meta.json"
 
+  Scenario: Template page renders expression subtitles when configured
+    Given the expression engine yields for "basic.yaml" (filename, text):
+      | x.meta.json | Direct + Indirect |
+      | y.meta.json | NIET IN GEBRUIK   |
+    When I GET "/template/basic"
+    Then the response status is 200
+    # html/template escapes "+" as "&#43;" — assert on the escaped form
+    # so the scenario doesn't drift if the template encoding changes.
+    And the html body contains "Direct &#43; Indirect"
+    And the html body contains "NIET IN GEBRUIK"
+
+  Scenario: Template page falls back to filename when no expression configured
+    # Empty expression stub → ErrNoExpression → subtitle is the filename.
+    When I GET "/template/basic"
+    Then the response status is 200
+    And the html body contains "x.meta.json"
+
+  Scenario: Index page does not show redundant stem beside name
+    When I GET "/"
+    Then the response status is 200
+    And the html body does not contain "<span class=\"muted\">basic</span>"
+
   Scenario: Unknown template returns 404
     When I GET "/template/ghost"
     Then the response status is 404

@@ -10,7 +10,30 @@ import (
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/expression"
 )
+
+// stubExpressioner returns canned sidebar items keyed by template
+// filename. A nil items slice for a template makes EvaluateSidebar
+// return ErrNoExpression (the same signal `*expression.Manager` emits
+// when sidebar_expression isn't set), so handler tests can exercise
+// both "expression configured" and "no expression — fall back to
+// filename" paths without spinning up the engine.
+type stubExpressioner struct {
+	items map[string][]expression.SidebarItem
+	err   error
+}
+
+func (s *stubExpressioner) EvaluateSidebar(templateName string) ([]expression.SidebarItem, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	v, ok := s.items[templateName]
+	if !ok {
+		return nil, expression.ErrNoExpression
+	}
+	return v, nil
+}
 
 // stubProvider is a hand-rolled dataprovider that lets each test
 // shape the corpus without touching disk or SQLite. The wiki handler
@@ -117,7 +140,14 @@ func newStubProvider() *stubProvider {
 func newTestHandler(t *testing.T) (http.Handler, *stubProvider) {
 	t.Helper()
 	sp := newStubProvider()
-	h := NewHandler(sp, newStubStorage())
+	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
+	return h, sp
+}
+
+func newTestHandlerWithExpr(t *testing.T, expr Expressioner) (http.Handler, *stubProvider) {
+	t.Helper()
+	sp := newStubProvider()
+	h := NewHandler(sp, newStubStorage(), expr)
 	return h, sp
 }
 
@@ -172,6 +202,92 @@ func TestTemplate_UnknownReturns404(t *testing.T) {
 	}
 }
 
+func TestTemplate_FormList_UsesExpressionSubtitles(t *testing.T) {
+	expr := &stubExpressioner{
+		items: map[string][]expression.SidebarItem{
+			"basic.yaml": {
+				{Filename: "x.meta.json", Text: "Direct + Indirect", Classes: []string{"expr-text-green"}, Color: "#0a0"},
+				{Filename: "y.meta.json", Text: "NIET IN GEBRUIK", Classes: []string{"expr-text-gray"}},
+			},
+		},
+	}
+	h, _ := newTestHandlerWithExpr(t, expr)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	// html/template escapes "+" as "&#43;" — match either form.
+	if !strings.Contains(body, "Direct + Indirect") && !strings.Contains(body, "Direct &#43; Indirect") {
+		t.Errorf("expression subtitle missing; body=%q", body)
+	}
+	if !strings.Contains(body, "NIET IN GEBRUIK") {
+		t.Errorf("second expression subtitle missing; body=%q", body)
+	}
+	if !strings.Contains(body, "expr-text-green") {
+		t.Errorf("expression classes not applied; body=%q", body)
+	}
+	if !strings.Contains(body, "color: #0a0") {
+		t.Errorf("expression inline color not applied; body=%q", body)
+	}
+	// Raw filename must NOT appear as the visible subtitle when the
+	// expression supplied a real text (it's still in the href).
+	if strings.Contains(body, ">x.meta.json<") {
+		t.Errorf("raw filename leaked into subtitle; body=%q", body)
+	}
+}
+
+func TestTemplate_FormList_FallsBackToFilenameWhenNoExpression(t *testing.T) {
+	// Empty expression stub → EvaluateSidebar returns ErrNoExpression
+	// → handler must fall back to filename for every row's subtitle.
+	h, _ := newTestHandlerWithExpr(t, &stubExpressioner{})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, ">x.meta.json<") {
+		t.Errorf("filename fallback missing for x; body=%q", body)
+	}
+	if !strings.Contains(body, ">y.meta.json<") {
+		t.Errorf("filename fallback missing for y; body=%q", body)
+	}
+}
+
+func TestTemplate_FormList_NilExpressionerFallsBackToFilename(t *testing.T) {
+	// Defensive: explicit nil Expressioner → handler must not panic
+	// and every row falls back to filename.
+	h, _ := newTestHandlerWithExpr(t, nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, ">x.meta.json<") {
+		t.Errorf("filename fallback missing under nil expressioner; body=%q", body)
+	}
+}
+
+func TestIndex_DoesNotShowStemBesideName(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	// Display name must appear; bare stem next to it must NOT.
+	if !strings.Contains(body, "Basic Form") {
+		t.Errorf("display name missing; body=%q", body)
+	}
+	if strings.Contains(body, `<span class="muted">basic</span>`) {
+		t.Errorf("redundant stem leaked into index page; body=%q", body)
+	}
+}
+
 func TestTemplate_PostReturns405(t *testing.T) {
 	h, _ := newTestHandler(t)
 	w := httptest.NewRecorder()
@@ -222,7 +338,7 @@ func TestForm_RenderError500(t *testing.T) {
 	sp.render = func(_, _ string) (*dataprovider.RenderedPage, error) {
 		return nil, errors.New("boom")
 	}
-	h := NewHandler(sp, newStubStorage())
+	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic/form/x.meta.json", nil))
 	if w.Code != http.StatusInternalServerError {
@@ -278,7 +394,7 @@ func TestStorage_StorageErrorReturns500(t *testing.T) {
 	sp := newStubProvider()
 	st := newStubStorage()
 	st.returnError = errors.New("boom")
-	h := NewHandler(sp, st)
+	h := NewHandler(sp, st, &stubExpressioner{})
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/storage/basic/images/logo.png", nil))
 	if w.Code != http.StatusInternalServerError {
@@ -391,7 +507,7 @@ func TestTemplatePage_EmitsDataTagsForFilter(t *testing.T) {
 		{Template: "basic.yaml", Filename: "x.meta.json", Title: "X", Tags: []string{"alpha", "beta"}},
 		{Template: "basic.yaml", Filename: "y.meta.json", Title: "Y", Tags: []string{}},
 	}
-	h := NewHandler(sp, newStubStorage())
+	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
 	body := w.Body.String()
@@ -433,7 +549,7 @@ func TestUnknownPath404(t *testing.T) {
 // Live integration through Manager — exercises SetHandler + Serve.
 func TestHandlerWiredToManager(t *testing.T) {
 	sp := newStubProvider()
-	h := NewHandler(sp, newStubStorage())
+	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
 	m := NewManager(nil)
 	m.SetHandler(h)
 	if err := m.Start(0); err != nil {

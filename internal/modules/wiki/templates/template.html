@@ -11,7 +11,7 @@
   <li class="form-picker-item" data-tags="{{.TagsAttr}}">
     <a class="form-link" href="{{.Href}}">
       <span class="form-link-title">{{.Title}}</span>
-      <span class="expr-wrapper muted">{{.Filename}}</span>
+      <span class="expr-wrapper{{if .SubtitleClasses}} {{.SubtitleClasses}}{{end}}"{{if .SubtitleColor}} style="color: {{.SubtitleColor}}"{{end}}>{{.Subtitle}}</span>
     </a>
   </li>
   {{end}}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/expression"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 )
 
@@ -38,20 +39,30 @@ type Storage interface {
 	OpenImageFile(templateFilename, name string) ([]byte, string, error)
 }
 
+// Expressioner is the sidebar-expression surface the wiki needs. The
+// real `*expression.Manager` satisfies it directly; tests pass a stub.
+// May be nil — the form list then falls back to the bare filename for
+// every row.
+type Expressioner interface {
+	EvaluateSidebar(templateName string) ([]expression.SidebarItem, error)
+}
+
 // Handler owns the read-path routes. NewHandler returns an
 // http.Handler the wiki Manager can SetHandler with — keeping the
 // router shape internal to this file so route signatures stay
 // changeable without rippling out.
 type Handler struct {
-	dp Provider
-	st Storage
+	dp   Provider
+	st   Storage
+	expr Expressioner
 }
 
 // NewHandler builds the read-path handler. Returns an http.Handler
 // (the underlying *http.ServeMux), so callers compose it through the
 // standard handler interface — no wiki-specific glue at the seam.
-func NewHandler(dp Provider, st Storage) http.Handler {
-	h := &Handler{dp: dp, st: st}
+// `expr` may be nil — wiki then renders the filename as subtitle.
+func NewHandler(dp Provider, st Storage, expr Expressioner) http.Handler {
+	h := &Handler{dp: dp, st: st, expr: expr}
 	mux := http.NewServeMux()
 	// Go 1.22+ typed patterns — method + path-segment captures, no
 	// extra router dependency.
@@ -183,6 +194,13 @@ type templateFormRow struct {
 	// `data-tags="..."` attribute. filter.js reads this to drive the
 	// live tag/text filter on the forms list.
 	TagsAttr string
+	// Subtitle is the per-row sub-label rendered under Title. Comes
+	// from the template's sidebar_expression when configured; falls
+	// back to Filename otherwise. SubtitleClasses + SubtitleColor
+	// mirror the in-app sidebar's expression chip styling.
+	Subtitle        string
+	SubtitleClasses string
+	SubtitleColor   string
 }
 
 // formView is what form.html binds against.
@@ -242,14 +260,29 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	// Sidebar expression — same evaluator the in-app storage workspace
+	// uses, keyed by filename. Failures are logged-best-effort: if the
+	// template has no expression (ErrNoExpression) or the engine isn't
+	// wired, we just fall back to filename subtitles.
+	subtitles := h.sidebarSubtitles(filename)
+
 	rows := make([]templateFormRow, 0, len(forms))
 	for _, f := range forms {
-		rows = append(rows, templateFormRow{
+		row := templateFormRow{
 			Filename: f.Filename,
 			Title:    pickFormTitle(f),
 			Href:     "/template/" + stem + "/form/" + f.Filename,
 			TagsAttr: strings.Join(f.Tags, ","),
-		})
+			Subtitle: f.Filename,
+		}
+		if item, ok := subtitles[f.Filename]; ok {
+			if item.Text != "" {
+				row.Subtitle = item.Text
+			}
+			row.SubtitleClasses = strings.Join(item.Classes, " ")
+			row.SubtitleColor = item.Color
+		}
+		rows = append(rows, row)
 	}
 	writeHTML(w, tplTemplate, templateView{
 		Title: pickName(*t),
@@ -257,6 +290,29 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		Name:  pickName(*t),
 		Forms: rows,
 	})
+}
+
+// sidebarSubtitles returns filename → SidebarItem for the given
+// template. Returns nil when no expression is configured, the
+// evaluator wasn't wired, or evaluation failed at the source level —
+// the caller falls back to filename subtitles in any of those cases.
+// Per-row errors are surfaced as item.Error and still keyed in.
+func (h *Handler) sidebarSubtitles(templateFilename string) map[string]expression.SidebarItem {
+	if h.expr == nil {
+		return nil
+	}
+	items, err := h.expr.EvaluateSidebar(templateFilename)
+	if err != nil {
+		return nil
+	}
+	out := make(map[string]expression.SidebarItem, len(items))
+	for _, it := range items {
+		if it.Filename == "" {
+			continue
+		}
+		out[it.Filename] = it
+	}
+	return out
 }
 
 func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
