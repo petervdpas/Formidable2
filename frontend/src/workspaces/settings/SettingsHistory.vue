@@ -3,13 +3,19 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { FormSection, FormRow, FormSwitchRow, TextField, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
+import { useToast } from "../../composables/useToast";
 
 const { t } = useI18n();
 const { config, update } = useConfig();
+const toast = useToast();
 const cfg = computed(() => config.value!);
 
-function patchHistory(partial: Record<string, unknown>) {
-  return update({ history: { ...cfg.value.history, ...partial } });
+async function patchHistory(partial: Record<string, unknown>) {
+  const wasEnabled = cfg.value.history.enabled;
+  await update({ history: { ...cfg.value.history, ...partial } });
+  if (partial.enabled === true && !wasEnabled) {
+    toast.success("toast.history.enabled");
+  }
 }
 </script>
 

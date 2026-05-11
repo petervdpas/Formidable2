@@ -115,6 +115,7 @@
   "toast.git.resolved.theirs": "Marked as remote.",
   "toast.git.resolved.theirs.all": "Resolved all as remote.",
   "toast.git.sync.failed": "Git sync failed: {0}.",
+  "toast.history.enabled": "History activated — back/forward chevrons are now visible on the Storage workspace.",
   "toast.key.required": "Key cannot be empty.",
   "toast.markdown.saved": "Saved markdown to: {0}",
   "toast.plugin.crashed": "Plugin {0} {1} crashed",

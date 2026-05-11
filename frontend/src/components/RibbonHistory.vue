@@ -1,10 +1,22 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
 import { Service as HistorySvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/history";
+import { useActiveWorkspace } from "../composables/useActiveWorkspace";
+import { useConfig } from "../composables/useConfig";
 
 const { t } = useI18n();
+const { active } = useActiveWorkspace();
+const { config } = useConfig();
+
+// Back/forward only addresses storage entries (formidable://tpl:entry),
+// and respects the user's master History toggle in Settings → History.
+// Treat `enabled === undefined` as on so existing profiles without the
+// field don't suddenly lose the chevrons.
+const visible = computed(
+  () => active.value === "storage" && config.value?.history?.enabled !== false,
+);
 
 const canBack = ref(false);
 const canForward = ref(false);
@@ -43,7 +55,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="ribbon-history">
+  <div v-if="visible" class="ribbon-history">
     <button
       type="button"
       class="ribbon-history__btn"

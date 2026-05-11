@@ -115,6 +115,7 @@
   "toast.git.resolved.theirs": "Gemarkeerd als remote.",
   "toast.git.resolved.theirs.all": "Resolved als remote.",
   "toast.git.sync.failed": "Git sync is mislukt: {0}.",
+  "toast.history.enabled": "History geactiveerd — terug/vooruit-chevrons zijn nu zichtbaar in de Opslag-werkruimte.",
   "toast.key.required": "Sleutel mag niet leeg zijn.",
   "toast.markdown.saved": "Markdown opgeslagen in: {0}",
   "toast.plugin.crashed": "Plugin {0} {1} is gecrasht.",

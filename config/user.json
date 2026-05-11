@@ -11,7 +11,7 @@
   "logging_enabled": false,
   "enable_plugins": true,
   "context_mode": "template",
-  "context_ribbon": "settings",
+  "context_ribbon": "information",
   "context_folder": "/home/peter/Documents/Example",
   "selected_template": "aanpak-audit.yaml",
   "selected_data_file": "aanpak-ch02.meta.json",
@@ -38,7 +38,7 @@
     "gigotload": false
   },
   "history": {
-    "enabled": false,
+    "enabled": true,
     "persist": false,
     "max_size": 20,
     "stack": [],
