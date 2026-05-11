@@ -10,6 +10,236 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as time$0 from "../../../../../../time/models.js";
 
 /**
+ * FixOutcome is the per-form summary of what changed.
+ */
+export class FixOutcome {
+    "filename": string;
+
+    /**
+     * Applied is the count of issues actually repaired in this form.
+     */
+    "applied": number;
+
+    /**
+     * Skipped is the count of issues left alone because Skip was
+     * chosen for their kind, the strategy couldn't apply (e.g. coerce
+     * failed), or no plan item targeted them.
+     */
+    "skipped": number;
+
+    /**
+     * Saved indicates whether the form file was rewritten. False when
+     * Applied was 0 — no work means no write.
+     */
+    "saved": boolean;
+
+    /**
+     * Notes carries human-readable per-form annotations: failed
+     * coercions, "form skipped because unreadable", etc.
+     */
+    "notes"?: string[];
+
+    /** Creates a new FixOutcome instance. */
+    constructor($$source: Partial<FixOutcome> = {}) {
+        if (!("filename" in $$source)) {
+            this["filename"] = "";
+        }
+        if (!("applied" in $$source)) {
+            this["applied"] = 0;
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = 0;
+        }
+        if (!("saved" in $$source)) {
+            this["saved"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FixOutcome instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FixOutcome {
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField4_0($$parsedSource["notes"]);
+        }
+        return new FixOutcome($$parsedSource as Partial<FixOutcome>);
+    }
+}
+
+/**
+ * FixPlan is the bundle the frontend submits to Fix.
+ */
+export class FixPlan {
+    "items": FixPlanItem[];
+
+    /** Creates a new FixPlan instance. */
+    constructor($$source: Partial<FixPlan> = {}) {
+        if (!("items" in $$source)) {
+            this["items"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FixPlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FixPlan {
+        const $$createField0_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField0_0($$parsedSource["items"]);
+        }
+        return new FixPlan($$parsedSource as Partial<FixPlan>);
+    }
+}
+
+/**
+ * FixPlanItem says how to repair every issue of a given kind in this
+ * run. There is at most one item per kind — the UI summarises by kind
+ * so the user picks one strategy for all forms in that bucket.
+ */
+export class FixPlanItem {
+    "kind": IssueKind;
+    "strategy": FixStrategy;
+
+    /** Creates a new FixPlanItem instance. */
+    constructor($$source: Partial<FixPlanItem> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = IssueKind.$zero;
+        }
+        if (!("strategy" in $$source)) {
+            this["strategy"] = FixStrategy.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FixPlanItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FixPlanItem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FixPlanItem($$parsedSource as Partial<FixPlanItem>);
+    }
+}
+
+/**
+ * FixResult is the aggregate response to a Fix call. ScannedAfter is
+ * the issue count from a fresh analyze pass run after writes, so the
+ * frontend can show "X repaired, Y still remain" without a second
+ * round-trip.
+ */
+export class FixResult {
+    "forms_touched": number;
+    "forms_saved": number;
+    "applied": number;
+    "skipped": number;
+    "scanned_after": number;
+    "outcomes"?: FixOutcome[];
+
+    /** Creates a new FixResult instance. */
+    constructor($$source: Partial<FixResult> = {}) {
+        if (!("forms_touched" in $$source)) {
+            this["forms_touched"] = 0;
+        }
+        if (!("forms_saved" in $$source)) {
+            this["forms_saved"] = 0;
+        }
+        if (!("applied" in $$source)) {
+            this["applied"] = 0;
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = 0;
+        }
+        if (!("scanned_after" in $$source)) {
+            this["scanned_after"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FixResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FixResult {
+        const $$createField5_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("outcomes" in $$parsedSource) {
+            $$parsedSource["outcomes"] = $$createField5_0($$parsedSource["outcomes"]);
+        }
+        return new FixResult($$parsedSource as Partial<FixResult>);
+    }
+}
+
+/**
+ * FixStrategy names a concrete repair action. The set is closed —
+ * every kind maps to one or more strategies, and unknown strategies
+ * fail Fix-time rather than at the per-issue level.
+ */
+export enum FixStrategy {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * FixStrip — remove the offending key from the data map. Used for
+     * extra_field. Lossless: the data was orphaned from the template.
+     */
+    FixStrip = "strip",
+
+    /**
+     * FixFillDefault — write the per-type default for a missing field
+     * (matches storage.Sanitize's defaultForType). Used for missing_field.
+     */
+    FixFillDefault = "fill_default",
+
+    /**
+     * FixCoerce — attempt to convert a wrong-typed value into the
+     * declared type. Used for type_mismatch and bad_date_format. Items
+     * where coercion fails are reported as "skipped" in the result and
+     * the form is left untouched.
+     */
+    FixCoerce = "coerce",
+
+    /**
+     * FixClear — wipe the value back to the per-type default. Same
+     * effect as FixFillDefault but applied to a populated-but-wrong
+     * value rather than an absent one. Used for type_mismatch /
+     * bad_date_format when the user prefers "clear and re-enter" over
+     * "attempt to coerce".
+     */
+    FixClear = "clear",
+
+    /**
+     * FixMintUUID — generate a fresh UUID for meta.id. Used for
+     * meta_missing on guid templates.
+     */
+    FixMintUUID = "mint_uuid",
+
+    /**
+     * FixRestamp — overwrite a bad timestamp with time.Now().UTC().
+     * Used for meta_bad_format on meta.created and meta.updated. For
+     * meta.flag_state the same strategy clears the stale label
+     * (different concrete change, same intent: "make it valid").
+     */
+    FixRestamp = "restamp",
+
+    /**
+     * FixSkip — leave the issue alone. Used as the sentinel for kinds
+     * where no in-app repair exists (unreadable: needs the user to
+     * edit the file). Selecting Skip from the UI means "don't change
+     * anything for issues of this kind".
+     */
+    FixSkip = "skip",
+};
+
+/**
  * FormReport groups every issue found in one form. Filename is the
  * .meta.json basename (e.g. "x.meta.json") — the same identifier the
  * storage module uses.
@@ -34,7 +264,7 @@ export class FormReport {
      * Creates a new FormReport instance from a string or object.
      */
     static createFrom($$source: any = {}): FormReport {
-        const $$createField1_0 = $$createType1;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -161,7 +391,7 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType3;
+        const $$createField4_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField4_0($$parsedSource["forms"]);
@@ -171,7 +401,12 @@ export class Report {
 }
 
 // Private type creation functions
-const $$createType0 = Issue.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = FormReport.createFrom;
-const $$createType3 = $Create.Array($$createType2);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = FixPlanItem.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = FixOutcome.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = Issue.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = FormReport.createFrom;
+const $$createType8 = $Create.Array($$createType7);

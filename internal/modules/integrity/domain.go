@@ -29,6 +29,7 @@ type StorageReader interface {
 type Manager struct {
 	templates TemplateLoader
 	storage   StorageReader
+	writer    StorageWriter
 	now       func() time.Time
 }
 

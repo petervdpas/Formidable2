@@ -7,6 +7,11 @@ export {
 };
 
 export {
+    FixOutcome,
+    FixPlan,
+    FixPlanItem,
+    FixResult,
+    FixStrategy,
     FormReport,
     Issue,
     IssueKind,

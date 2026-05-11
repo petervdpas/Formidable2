@@ -127,3 +127,65 @@
 .cleanup-issue-danger .cleanup-issue-kind { color: var(--danger-fg, #c33); }
 .cleanup-issue-warn   .cleanup-issue-kind { color: var(--warn-fg,   #b8860b); }
 .cleanup-issue-info   .cleanup-issue-kind { color: var(--accent-color, #4a90e2); }
+
+/* By-kind summary table (top section, drives the repair plan). */
+
+.cleanup-kind-table {
+  width: 100%;
+  margin: 0 0 var(--space-3) 0;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.cleanup-kind-table th,
+.cleanup-kind-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--border-color-faint, rgba(0, 0, 0, 0.06));
+}
+
+.cleanup-kind-table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-color, #888);
+  font-weight: 600;
+}
+
+.cleanup-th-select,
+.cleanup-td-select {
+  width: 1.5rem;
+  padding-right: 0;
+}
+
+.cleanup-th-count,
+.cleanup-td-count {
+  width: 4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cleanup-kind-table select {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  background: var(--surface-1, white);
+  color: inherit;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: var(--radius-1, 4px);
+}
+
+.cleanup-kind-row .cleanup-issue-kind {
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.cleanup-fixresult {
+  margin: 0 0 var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-2, 6px);
+  background: var(--accent-bg, rgba(74, 144, 226, 0.08));
+  border: 1px solid var(--accent-color, #4a90e2);
+  font-size: 0.9rem;
+}

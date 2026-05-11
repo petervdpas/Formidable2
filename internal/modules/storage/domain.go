@@ -164,6 +164,34 @@ func (m *Manager) SaveForm(templateFilename, datafile string, data map[string]an
 	return SaveResult{Success: r.Success, Path: r.Path, Error: r.Error}
 }
 
+// SaveFormExact writes a fully-formed envelope as-is, without
+// consulting the previously-stored meta. SaveForm is the everyday
+// path — it preserves prev.Meta.ID / Created so editing a form can't
+// accidentally re-generate identity. SaveFormExact is the escape
+// hatch for callers that are deliberately mutating the meta block —
+// the integrity repair pipeline mints UUIDs and re-stamps timestamps
+// and needs its updated meta to land on disk verbatim.
+func (m *Manager) SaveFormExact(templateFilename, datafile string, form Form) SaveResult {
+	if datafile == "" {
+		return SaveResult{Success: false, Error: "empty datafile"}
+	}
+	if strings.ContainsAny(datafile, `/\`) || strings.Contains(datafile, "..") {
+		return SaveResult{Success: false, Error: fmt.Sprintf("invalid datafile %q", datafile)}
+	}
+	dir := m.templateDir(templateFilename)
+	if err := m.fs.EnsureDirectory(dir); err != nil {
+		return SaveResult{Success: false, Error: err.Error()}
+	}
+	r := m.sfr.SaveFromBase(dir, datafile, form, sfr.Options{})
+	if r.Success && m.indexer != nil {
+		if err := m.indexer.OnFormChanged(templateFilename, datafile); err != nil {
+			m.log.Warn("storage indexer save hook failed",
+				"template", templateFilename, "datafile", datafile, "err", err)
+		}
+	}
+	return SaveResult{Success: r.Success, Path: r.Path, Error: r.Error}
+}
+
 // DeleteForm removes the form file. Missing is a no-op.
 func (m *Manager) DeleteForm(templateFilename, datafile string) error {
 	if datafile == "" {

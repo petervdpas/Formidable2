@@ -315,10 +315,13 @@ func New(d Deps) (*App, error) {
 	)
 
 	// Integrity — analyzes stored forms against the template's current
-	// field declarations (Utilities → Cleanup Storage). Phase 1 is
-	// analyze-only; reuses tplM / stoM directly via the narrow
-	// TemplateLoader / StorageReader interfaces.
+	// field declarations (Utilities → Cleanup Storage). Phase 1 was
+	// analyze-only; phase 2 adds Fix, which mutates meta + data and
+	// commits via storage.SaveFormExact so meta mutations (mint UUID,
+	// re-stamp timestamps) land on disk without the SaveForm
+	// "preserve prev meta" path overriding them.
 	integrityM := integrity.NewManager(tplM, stoM)
+	integrityM.SetWriter(integrityStorageAdapter{sto: stoM})
 
 	// Wiki — runtime-controllable HTTP server that serves rendered
 	// templates+forms from dataprovider and images from storage. The
