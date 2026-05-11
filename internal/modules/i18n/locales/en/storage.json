@@ -52,6 +52,7 @@
   "workspace.storage.new.placeholder": "e.g. note-2026-05-05",
   "workspace.storage.new.title": "New entry",
   "workspace.storage.new_entry": "New Entry",
+  "workspace.storage.toggle_meta": "Toggle Meta Block",
   "workspace.storage.no_template_selected": "Pick a template above to list its forms.",
   "workspace.storage.placeholder_main": "Pick a template, then a form from the sidebar to view or edit its data.",
   "workspace.storage.placeholder_side": "Form list (per template) goes here.",

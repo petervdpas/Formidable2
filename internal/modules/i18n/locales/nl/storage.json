@@ -52,6 +52,7 @@
   "workspace.storage.new.placeholder": "bv. notitie-2026-05-05",
   "workspace.storage.new.title": "Nieuwe invoer",
   "workspace.storage.new_entry": "Nieuwe invoer",
+  "workspace.storage.toggle_meta": "Meta-blok tonen/verbergen",
   "workspace.storage.no_template_selected": "Kies hierboven een sjabloon om de formulieren te tonen.",
   "workspace.storage.placeholder_main": "Kies een sjabloon en daarna een formulier in de zijbalk om gegevens te bekijken of te bewerken.",
   "workspace.storage.placeholder_side": "Formulierlijst (per sjabloon) komt hier.",

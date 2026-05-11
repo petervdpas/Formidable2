@@ -29,10 +29,18 @@ export const SHORTCUT_CATALOG: ShortcutCatalogGroup[] = [
   {
     titleKey: "workspace.information.shortcuts.group.templates",
     items: [
-      {
-        combo: "Mod+S",
-        descriptionKey: "workspace.information.shortcuts.action.save_template",
-      },
+      { combo: "Mod+S", descriptionKey: "workspace.information.shortcuts.action.save_template" },
+      { combo: "Mod+N", descriptionKey: "workspace.information.shortcuts.action.new_template" },
+      { combo: "Mod+D", descriptionKey: "workspace.information.shortcuts.action.delete_template" },
+    ],
+  },
+  {
+    titleKey: "workspace.information.shortcuts.group.storage",
+    items: [
+      { combo: "Mod+S", descriptionKey: "workspace.information.shortcuts.action.save_entry" },
+      { combo: "Mod+N", descriptionKey: "workspace.information.shortcuts.action.new_entry" },
+      { combo: "Mod+D", descriptionKey: "workspace.information.shortcuts.action.delete_entry" },
+      { combo: "Mod+M", descriptionKey: "workspace.information.shortcuts.action.toggle_meta" },
     ],
   },
 ];

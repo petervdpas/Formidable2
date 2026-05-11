@@ -121,10 +121,24 @@ export function formatError(error: ValidationError): FormattedError {
         ],
       };
 
+    case "missing-field-type":
+      return {
+        key: "error.template.missing_field_type",
+        args: [error.key || "?"],
+      };
+
+    case "unknown-field-type":
+      return {
+        key: "error.template.unknown_field_type",
+        args: [String(error.detail?.type ?? "?"), error.key || "?"],
+      };
+
     default:
       return {
         key: "error.template.unknown",
-        args: [JSON.stringify(error)],
+        // Strip the embedded Field — its description / code body can run
+        // to thousands of chars and turn the toast into a wall of text.
+        args: [error.message || error.type || "unknown"],
       };
   }
 }

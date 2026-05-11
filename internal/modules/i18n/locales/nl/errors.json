@@ -15,6 +15,8 @@
   "error.template.forbidden_attribute": "Attribuut \"{0}\" is niet toegestaan op veldtype \"{1}\" (sleutel: {2}).",
   "error.template.level_scope_mismatch": "Veld \"{0}\" heeft level_scope {1} maar de veldvolgorde impliceert {2}.",
   "error.template.invalid": "Ongeldige sjabloon: {0}",
+  "error.template.missing_field_type": "Veld \"{0}\" heeft geen type.",
+  "error.template.unknown_field_type": "Onbekend veldtype \"{0}\" op veld \"{1}\".",
   "error.template.loop_key_mismatch": "Loopstop sleutel \"{0}\" komt niet overeen met loopstart sleutel \"{1}\"",
   "error.template.missing_guid_for_collection": "`Enable Collection` vereist minimaal één GUID-veld in de sjabloon.",
   "error.template.multiple_primary_keys": "Meerdere primaire sleutels: {0}",

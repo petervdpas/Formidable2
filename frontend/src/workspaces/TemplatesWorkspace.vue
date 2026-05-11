@@ -461,11 +461,13 @@ setTopbarMenu(() => [
       {
         id: "create",
         labelKey: "menu.template.create",
+        combo: "Mod+N",
         onClick: openCreate,
       },
       {
         id: "delete",
         labelKey: "menu.template.delete",
+        combo: "Mod+D",
         disabled: !selectedFilename.value,
         onClick: openDeleteTemplate,
       },

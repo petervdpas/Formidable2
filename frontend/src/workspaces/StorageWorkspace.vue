@@ -432,6 +432,11 @@ async function copyFullHtml() {
 }
 
 // ── Topbar menu ──────────────────────────────────────────────────────
+function toggleMetaSection() {
+  const next = !(config.value?.show_meta_section ?? true);
+  updateConfig({ show_meta_section: next });
+}
+
 setTopbarMenu(() => [
   {
     type: "group",
@@ -441,6 +446,7 @@ setTopbarMenu(() => [
       {
         id: "save",
         labelKey: "workspace.storage.save",
+        combo: "Mod+S",
         disabled: !dirty.value,
         onClick: doSave,
       },
@@ -455,6 +461,35 @@ setTopbarMenu(() => [
         id: "refresh",
         labelKey: "common.refresh",
         onClick: doRefresh,
+      },
+    ],
+  },
+  {
+    type: "group",
+    id: "entry",
+    labelKey: "menu.storage",
+    alwaysEnabled: true,
+    items: [
+      {
+        id: "new-entry",
+        labelKey: "workspace.storage.new_entry",
+        combo: "Mod+N",
+        disabled: !selectedTemplate.value,
+        onClick: openNew,
+      },
+      {
+        id: "delete-entry",
+        labelKey: "workspace.storage.delete",
+        combo: "Mod+D",
+        disabled: !view.value?.saved,
+        onClick: askDelete,
+      },
+      { type: "separator", id: "entry-sep" },
+      {
+        id: "toggle-meta",
+        labelKey: "workspace.storage.toggle_meta",
+        combo: "Mod+M",
+        onClick: toggleMetaSection,
       },
     ],
   },
@@ -555,8 +590,9 @@ setTopbarMenu(() => [
       </p>
 
       <template v-else>
-        <!-- Meta scaffold — full polish patched in later. -->
-        <FormSection>
+        <!-- Meta scaffold — full polish patched in later. Hidden via
+             Mod+M (toggles config.show_meta_section). -->
+        <FormSection v-if="config?.show_meta_section ?? true">
           <div class="meta-grid">
             <div class="meta-row" v-if="draft.datafile">
               <span class="meta-key">{{ t('workspace.storage.meta.filename') }}</span>

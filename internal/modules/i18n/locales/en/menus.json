@@ -17,6 +17,7 @@
   "menu.help.pages": "Help Pages",
   "menu.plugin": "Plugin",
   "menu.repo": "Repository",
+  "menu.storage": "Entry",
   "menu.plugin.create": "Create…",
   "menu.plugin.delete": "Delete…",
   "menu.plugin.run": "Run…",
