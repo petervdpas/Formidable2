@@ -314,7 +314,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 	}
 	switch fieldType {
 	case "text", "textarea", "dropdown", "radio",
-		"file-path", "folder-path", "link", "image", "guid":
+		"file-path", "folder-path", "image", "guid":
 		if _, ok := v.(string); ok {
 			return nil
 		}
@@ -322,6 +322,22 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 			Kind:   IssueTypeMismatch,
 			Path:   path,
 			Detail: fmt.Sprintf("expected string, got %T", v),
+		}}
+
+	case "link":
+		// link is `{href, text}` map canonically — FormFieldLink.vue
+		// builds it from a free-form URL or a formidable:// pair. A
+		// bare string is also accepted because legacy forms (and CSV
+		// imports) carry the raw href without the wrapper; the field
+		// component normalises on read.
+		switch v.(type) {
+		case string, map[string]any:
+			return nil
+		}
+		return []Issue{{
+			Kind:   IssueTypeMismatch,
+			Path:   path,
+			Detail: fmt.Sprintf("expected link object or string, got %T", v),
 		}}
 
 	case "date":
