@@ -152,5 +152,18 @@
   "workspace.templates.setup.title": "Setup Information",
   "workspace.templates.sidebar_title": "Templates",
   "workspace.templates.title": "Templates",
-  "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one."
+  "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one.",
+  "workspace.templates.setup.flag_definitions": "Flag Definitions",
+  "workspace.templates.flag_definitions.summary_empty": "No flag definitions",
+  "workspace.templates.flag_definitions.summary": "{0} of {1} defined",
+  "workspace.templates.flag_definitions.builder_button": "Builder…",
+  "flag.builder.title": "Flag Definitions",
+  "flag.builder.intro": "Define up to {0} flag states for this template. Labels are uppercase identifiers; pick a color from the palette.",
+  "flag.builder.counter": "{0} of {1}",
+  "flag.builder.empty": "No flags yet — click “Add flag” to create one.",
+  "flag.builder.add": "Add flag",
+  "flag.builder.label_placeholder": "FLAG LABEL",
+  "flag.builder.error.invalid_label": "Label must be uppercase (A-Z, 0-9, space, _, -) and start with a letter.",
+  "flag.builder.error.duplicate_label": "Duplicate label.",
+  "flag.builder.error.unknown_color": "Unknown color."
 }

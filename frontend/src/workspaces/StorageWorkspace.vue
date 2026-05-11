@@ -11,6 +11,7 @@ import FormLoopFields from "../components/form-fields/FormLoopFields.vue";
 import StorageListItem from "../components/StorageListItem.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFlagFilter from "../components/StorageFlagFilter.vue";
+import FlagPicker from "../components/FlagPicker.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useTemplates } from "../composables/useTemplates";
 import { useFormView } from "../composables/useFormView";
@@ -69,6 +70,29 @@ const hasTagsField = computed(() => {
   const tpl = templateCache.value.get(selectedTemplate.value);
   return !!tpl?.fields?.some((f) => f.type === "tags");
 });
+
+const flagDefinitions = computed(() => {
+  const tpl = templateCache.value.get(selectedTemplate.value);
+  return tpl?.flag_definitions ?? [];
+});
+
+// LABEL → color lookup for the active template, used by the sidebar
+// list to color each row's flag icon. Stays in sync as the user edits
+// flag_definitions in the template editor.
+const flagColorByLabel = computed(() => {
+  const m = new Map<string, string>();
+  for (const d of flagDefinitions.value) m.set(d.label, d.color);
+  return m;
+});
+
+// Set/clear the flag on the active draft. Picking a state implies
+// flagged=true; clearing wipes both fields. Keeps the legacy bool in
+// sync so old consumers (sidebar list, exports) continue to work.
+function onFlagStateChange(state: string) {
+  if (!draft.value?.meta) return;
+  draft.value.meta.flag_state = state;
+  draft.value.meta.flagged = state !== "";
+}
 
 // ── Form list (sidebar) ──────────────────────────────────────────────
 const summaries = ref<FormSummary[]>([]);
@@ -187,19 +211,35 @@ function pickForm(filename: string) {
 }
 
 // ── Sidebar filters ─────────────────────────────────────────────────
-const showAll = ref(false);
+// flagFilter: "" = no filter (show all); else a state LABEL — only
+// forms whose meta.flag_state matches are kept.
+const flagFilter = ref("");
 const tagFilter = ref("");
+
+// Reset the flag filter when the active template changes — the new
+// template's flag_definitions may not include the previously-picked
+// label, which would otherwise leave the sidebar mysteriously empty.
+watch(selectedTemplate, () => {
+  flagFilter.value = "";
+});
+
 const visibleSummaries = computed(() => {
+  let out = summaries.value;
+  if (flagFilter.value) {
+    out = out.filter((s) => (s.meta?.flag_state ?? "") === flagFilter.value);
+  }
   const tokens = tagFilter.value
     .toLowerCase()
     .split(/[,\s]+/)
     .map((s) => s.trim())
     .filter(Boolean);
-  if (tokens.length === 0) return summaries.value;
-  return summaries.value.filter((s) => {
-    const tags = (s.meta?.tags ?? []).map((t) => t.toLowerCase());
-    return tokens.every((tok) => tags.some((tag) => tag.includes(tok)));
-  });
+  if (tokens.length > 0) {
+    out = out.filter((s) => {
+      const tags = (s.meta?.tags ?? []).map((t) => t.toLowerCase());
+      return tokens.every((tok) => tags.some((tag) => tag.includes(tok)));
+    });
+  }
+  return out;
 });
 
 // ── New Entry dialog ─────────────────────────────────────────────────
@@ -473,8 +513,11 @@ setTopbarMenu(() => [
           <span class="muted small">{{ summaries.length }}</span>
         </div>
 
-        <div class="sidebar-toolbar">
-          <StorageFlagFilter v-model="showAll" />
+        <div v-if="flagDefinitions.length > 0" class="sidebar-toolbar">
+          <StorageFlagFilter
+            v-model="flagFilter"
+            :definitions="flagDefinitions"
+          />
         </div>
 
         <StorageTagFilter v-if="hasTagsField" v-model="tagFilter" />
@@ -496,6 +539,7 @@ setTopbarMenu(() => [
             :summary="s"
             :active="s.filename === selectedDataFile"
             :expression="expressionItems.get(s.filename)"
+            :flag-color="flagColorByLabel.get(s.meta?.flag_state ?? '')"
             @pick="pickForm"
           />
         </ul>
@@ -517,6 +561,21 @@ setTopbarMenu(() => [
             <div class="meta-row" v-if="draft.datafile">
               <span class="meta-key">{{ t('workspace.storage.meta.filename') }}</span>
               <span class="meta-value mono">{{ draft.datafile }}</span>
+            </div>
+            <div
+              class="meta-row"
+              v-if="flagDefinitions.length > 0 || draft.meta?.flagged"
+            >
+              <span class="meta-key">{{ t('workspace.storage.meta.flag') }}</span>
+              <span class="meta-value">
+                <FlagPicker
+                  :definitions="flagDefinitions"
+                  :model-value="draft.meta?.flag_state ?? ''"
+                  :legacy-flagged="!!draft.meta?.flagged"
+                  size="md"
+                  @update:model-value="onFlagStateChange"
+                />
+              </span>
             </div>
             <div class="meta-row" v-if="draft.meta?.id">
               <span class="meta-key">{{ t('workspace.storage.meta.id') }}</span>

@@ -1,0 +1,236 @@
+/*
+ * flag-picker — colored fa-flag trigger button + dropdown of label rows
+ * with swatches. Reused by the form meta-block (setter), the storage
+ * sidebar filter (getter), and the template editor's flag_definitions
+ * list.
+ *
+ * Color tokens come from expression.css (.expr-text-* on the icon,
+ * .expr-bg-* on the row swatch). Stays in sync with the 16-token
+ * palette validated server-side in flag_definitions.go.
+ */
+
+.flag-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.flag-picker-trigger:hover:not(:disabled),
+.flag-picker-trigger.open {
+  border-color: var(--color-accent);
+}
+.flag-picker-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.flag-picker-trigger--sm {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+}
+.flag-picker-trigger--md {
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
+}
+
+.flag-picker-trigger.is-empty .fa-flag {
+  opacity: 0.55;
+}
+
+.flag-picker-empty {
+  color: var(--color-text-muted, #8a93a6);
+}
+
+.flag-picker-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 4px 0;
+}
+
+.flag-picker-empty-msg {
+  margin: 4px 8px 8px;
+  color: var(--color-text-muted, #8a93a6);
+  font-size: 12px;
+}
+
+.flag-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--color-text);
+}
+.flag-picker-row:hover {
+  background: var(--color-bg);
+}
+.flag-picker-row.active {
+  background: var(--color-bg);
+  font-weight: 600;
+}
+
+.flag-picker-clear {
+  border-top: 1px solid var(--color-border);
+  margin-top: 2px;
+  padding-top: 8px;
+}
+
+.flag-picker-swatch {
+  flex: 0 0 auto;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border);
+}
+.flag-picker-swatch--empty {
+  background: transparent;
+}
+
+.flag-picker-label {
+  flex: 1 1 auto;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar StorageFlagFilter trigger — flag icon + current selection
+   label, full toolbar width so it lines up with the tag filter input
+   below it. */
+.flag-filter-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 0.12s ease;
+}
+.flag-filter-trigger:hover,
+.flag-filter-trigger.open,
+.flag-filter-trigger.is-active {
+  border-color: var(--color-accent);
+}
+.flag-filter-label {
+  flex: 1 1 auto;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── FlagDefinitionsModal ───────────────────────────────────────────── */
+
+.flag-builder-intro {
+  margin: 0 0 var(--space-2);
+}
+.flag-builder-counter {
+  margin: 0 0 var(--space-2);
+  font-size: 12px;
+  color: var(--color-text-muted, #8a93a6);
+}
+.flag-builder-empty {
+  margin: var(--space-3) 0;
+  text-align: center;
+}
+.flag-builder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.flag-builder-row {
+  display: grid;
+  grid-template-columns: 24px 28px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+.flag-builder-row.has-error {
+  border-color: #e84e4e;
+}
+.flag-builder-row .dnd-handle {
+  cursor: grab;
+  color: var(--color-text-muted, #8a93a6);
+  user-select: none;
+  text-align: center;
+}
+.flag-builder-swatch-trigger {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.12s ease;
+}
+.flag-builder-swatch-trigger:hover,
+.flag-builder-swatch-trigger.open {
+  border-color: var(--color-accent);
+}
+.flag-builder-label-input {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.flag-builder-row-error {
+  white-space: nowrap;
+}
+.flag-builder-remove {
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 8px;
+}
+.flag-builder-add-row {
+  margin-top: var(--space-3);
+  display: flex;
+  justify-content: flex-start;
+}
+
+.flag-builder-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 28px);
+  gap: 4px;
+  padding: 4px;
+}
+.flag-builder-swatch-cell {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.12s ease, transform 0.05s ease;
+}
+.flag-builder-swatch-cell:hover {
+  border-color: var(--color-accent);
+}
+.flag-builder-swatch-cell.active {
+  border-color: var(--color-text);
+}

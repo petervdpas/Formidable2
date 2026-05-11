@@ -126,3 +126,33 @@
     display: flex;
     justify-content: flex-start;
 }
+
+/* Flag-definitions row in Setup Information — a chip-strip preview of
+   the current defs + a Builder button to open the modal. */
+.flag-definitions-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.flag-definitions-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.flag-definitions-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-text);
+}
+.flag-definitions-actions {
+    display: flex;
+    justify-content: flex-start;
+}

@@ -76,5 +76,10 @@
   "workspace.storage.tag_filter_placeholder": "Filter by tag(s)…",
   "workspace.storage.template_picker": "Template",
   "workspace.storage.title": "Storage",
-  "workspace.storage.unselected": "Pick a form from the sidebar."
+  "workspace.storage.unselected": "Pick a form from the sidebar.",
+  "workspace.storage.meta.flag": "Flag",
+  "workspace.storage.flag_filter.all": "All forms",
+  "flag.picker.title_empty": "No flag",
+  "flag.picker.clear": "No flag",
+  "flag.picker.no_definitions": "This template defines no flags."
 }

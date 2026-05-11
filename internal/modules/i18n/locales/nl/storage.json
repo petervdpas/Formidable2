@@ -76,5 +76,10 @@
   "workspace.storage.tag_filter_placeholder": "Filter op tag(s)…",
   "workspace.storage.template_picker": "Sjabloon",
   "workspace.storage.title": "Opslag",
-  "workspace.storage.unselected": "Kies een formulier uit de zijbalk."
+  "workspace.storage.unselected": "Kies een formulier uit de zijbalk.",
+  "workspace.storage.meta.flag": "Vlag",
+  "workspace.storage.flag_filter.all": "Alle formulieren",
+  "flag.picker.title_empty": "Geen vlag",
+  "flag.picker.clear": "Geen vlag",
+  "flag.picker.no_definitions": "Dit sjabloon heeft geen vlaggen gedefinieerd."
 }

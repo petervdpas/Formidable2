@@ -10,6 +10,8 @@ import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
+import FlagDefinitionsModal from "../components/FlagDefinitionsModal.vue";
+import { MAX_FLAG_DEFINITIONS } from "../utils/flagColors";
 import CodeEditor from "../components/CodeEditor.vue";
 import {
   Service as TemplateSvc,
@@ -280,6 +282,14 @@ function clearExpressionSource() {
   draft.value.sidebar_expression = "";
 }
 
+// ── Flag-definitions builder dialog ──────────────────────────────────
+const flagBuilderOpen = ref(false);
+
+function applyFlagDefinitions(defs: import("../../bindings/github.com/petervdpas/formidable2/internal/modules/template").FlagDefinition[]) {
+  if (!draft.value) return;
+  draft.value.flag_definitions = defs;
+}
+
 const deleteFieldName = computed(() => {
   if (!draft.value || deleteIndex.value < 0) return "";
   const f = draft.value.fields[deleteIndex.value];
@@ -506,6 +516,36 @@ setTopbarMenu(() => [
               </p>
             </div>
           </FormRow>
+          <FormRow :label="t('workspace.templates.setup.flag_definitions')">
+            <div class="flag-definitions-row">
+              <p
+                v-if="!draft.flag_definitions || draft.flag_definitions.length === 0"
+                class="muted small"
+              >
+                {{ t('workspace.templates.flag_definitions.summary_empty') }}
+              </p>
+              <div v-else class="flag-definitions-summary">
+                <span
+                  v-for="d in draft.flag_definitions"
+                  :key="d.label"
+                  class="flag-definitions-chip"
+                  :class="`expr-bg-${d.color}`"
+                  :title="`${d.label} (${d.color})`"
+                >{{ d.label }}</span>
+                <span class="muted small">
+                  {{ t('workspace.templates.flag_definitions.summary',
+                       [draft.flag_definitions.length, MAX_FLAG_DEFINITIONS]) }}
+                </span>
+              </div>
+              <div class="flag-definitions-actions">
+                <button
+                  class="tool-btn"
+                  type="button"
+                  @click="flagBuilderOpen = true"
+                >{{ t('workspace.templates.flag_definitions.builder_button') }}</button>
+              </div>
+            </div>
+          </FormRow>
         </FormSection>
 
         <FormSection :title="t('workspace.templates.fields.title')">
@@ -640,6 +680,15 @@ setTopbarMenu(() => [
     @close="expressionBuilderOpen = false"
     @apply="applyExpressionBuilder"
     @clear="clearExpressionSource"
+  />
+
+  <!-- Flag-definitions builder: edits draft.flag_definitions -->
+  <FlagDefinitionsModal
+    v-if="draft"
+    :open="flagBuilderOpen"
+    :initial="draft.flag_definitions ?? []"
+    @close="flagBuilderOpen = false"
+    @apply="applyFlagDefinitions"
   />
 </template>
 

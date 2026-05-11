@@ -261,6 +261,7 @@ func metaToMap(m storage.FormMeta) map[string]any {
 		"author_email": m.AuthorEmail,
 		"template":     m.Template,
 		"flagged":      m.Flagged,
+		"flag_state":   m.FlagState,
 	}
 	if m.Created != "" {
 		out["created"] = m.Created

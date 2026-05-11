@@ -152,5 +152,18 @@
   "workspace.templates.setup.title": "Instellingen",
   "workspace.templates.sidebar_title": "Sjablonen",
   "workspace.templates.title": "Sjablonen",
-  "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan."
+  "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan.",
+  "workspace.templates.setup.flag_definitions": "Vlagdefinities",
+  "workspace.templates.flag_definitions.summary_empty": "Geen vlaggen gedefinieerd",
+  "workspace.templates.flag_definitions.summary": "{0} van {1} gedefinieerd",
+  "workspace.templates.flag_definitions.builder_button": "Builder…",
+  "flag.builder.title": "Vlagdefinities",
+  "flag.builder.intro": "Definieer maximaal {0} vlagstatussen voor dit sjabloon. Labels zijn hoofdletteridentifiers; kies een kleur uit het palet.",
+  "flag.builder.counter": "{0} van {1}",
+  "flag.builder.empty": "Nog geen vlaggen — klik op “Vlag toevoegen” om er één te maken.",
+  "flag.builder.add": "Vlag toevoegen",
+  "flag.builder.label_placeholder": "VLAGLABEL",
+  "flag.builder.error.invalid_label": "Label moet in hoofdletters zijn (A-Z, 0-9, spatie, _, -) en met een letter beginnen.",
+  "flag.builder.error.duplicate_label": "Duplicaat label.",
+  "flag.builder.error.unknown_color": "Onbekende kleur."
 }

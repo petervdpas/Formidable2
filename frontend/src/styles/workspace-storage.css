@@ -25,7 +25,24 @@
     flex-direction: column;
     gap: 4px;
 }
-.form-list-title { font-weight: 600; }
+.form-list-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+.form-list-title {
+    font-weight: 600;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.form-list-flag {
+    flex: 0 0 auto;
+    font-size: 12px;
+}
 .form-list-filename {
     font-family: var(--font-mono);
     font-size: 11px;
