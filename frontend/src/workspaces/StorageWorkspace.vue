@@ -34,16 +34,6 @@ const { view, draft, dirty, open, close, save, reset, remove } = useFormView();
 const toast = useToast();
 const statusBar = useStatusBar();
 
-// Statusbar reverts to "Ready" 15s after the last update.
-const STATUS_RESET = 15000;
-
-// Friendly label for the statusbar: the form's title (item_field
-// value) if present, otherwise the bare filename without .yaml.
-function recordLabel(filename: string): string {
-  const title = summaries.value.find((s) => s.filename === filename)?.title;
-  return title && title.trim() ? title : filename.replace(/\.yaml$/, "");
-}
-
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
 // Active template's filename — provided downward so per-type field
@@ -214,7 +204,9 @@ watch(
     const prevTpl = oldVals?.[0];
     if (prevTpl && prevTpl !== tpl) close();
     await open(tpl, df);
-    statusBar.set("status.selected", [recordLabel(df)], { resetMs: STATUS_RESET });
+    // `df` is the config-persisted stem; `draft.datafile` is the
+    // actual on-disk filename (e.g. "projectstatus.meta.json").
+    statusBar.setSelected(draft.value?.datafile ?? df);
   },
   { immediate: true },
 );
@@ -302,16 +294,8 @@ async function submitNew() {
   selectedDataFile.value = filename;
   await open(selectedTemplate.value, filename);
   newOpen.value = false;
-  toast.success(
-    "workspace.storage.new.opened",
-    [filename],
-    {
-      status: "status.datafile.created",
-      statusArgs: [filename],
-      statusVariant: "create",
-      statusResetMs: STATUS_RESET,
-    },
-  );
+  toast.success("workspace.storage.new.opened", [filename]);
+  statusBar.setCreated(filename);
 }
 
 // ── Save / Reset / Delete ────────────────────────────────────────────
@@ -320,15 +304,8 @@ async function doSave() {
   const result = await save();
   if (result.ok) {
     const df = draft.value?.datafile ?? "?";
-    toast.success(
-      "workspace.storage.save.success",
-      [df],
-      {
-        status: "status.save.success",
-        statusArgs: [recordLabel(df)],
-        statusResetMs: STATUS_RESET,
-      },
-    );
+    toast.success("workspace.storage.save.success", [df]);
+    statusBar.setSaved(df);
     await refreshList();
     await refreshMarkdown();
   } else {
@@ -345,18 +322,8 @@ async function confirmDelete() {
   const filename = view.value?.datafile ?? "";
   const result = await remove();
   if (result.ok) {
-    // Snapshot the label BEFORE refreshList drops the summary entry.
-    const label = recordLabel(filename);
-    toast.success(
-      "workspace.storage.delete.success",
-      [filename],
-      {
-        status: "status.delete.success",
-        statusArgs: [label],
-        statusVariant: "error",
-        statusResetMs: STATUS_RESET,
-      },
-    );
+    toast.success("workspace.storage.delete.success", [filename]);
+    statusBar.setDeleted(filename);
     selectedDataFile.value = "";
     await refreshList();
   } else {

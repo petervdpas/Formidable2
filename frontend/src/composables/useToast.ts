@@ -86,11 +86,13 @@ function show(
   // Optional status-bar pass-through. Defaults the status variant to
   // the toast variant; opts.statusVariant overrides (e.g. a `success`
   // toast paired with a `create` statusbar tint for new-record events).
+  // resetMs is left undefined so useStatusBar's default revert window
+  // wins — callers don't have to know the timing constant.
   if (opts.status) {
     const statusBar = useStatusBar();
     statusBar.set(opts.status, opts.statusArgs, {
       variant: opts.statusVariant ?? (variant as StatusVariant),
-      resetMs: opts.statusResetMs ?? 0,
+      resetMs: opts.statusResetMs,
     });
   }
 

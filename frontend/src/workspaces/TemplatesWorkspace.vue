@@ -49,9 +49,6 @@ const { config, update: updateConfig } = useConfig();
 const toast = useToast();
 const statusBar = useStatusBar();
 
-// Statusbar reverts to "Ready" 15s after the last update.
-const STATUS_RESET = 15000;
-
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
 const {
@@ -92,7 +89,7 @@ watch(selectedFilename, (fn) => {
   if (config.value?.selected_template !== fn) {
     void updateConfig({ selected_template: fn });
   }
-  statusBar.set("status.selected", [displayName(fn)], { resetMs: STATUS_RESET });
+  statusBar.setSelected(fn);
 });
 
 function displayName(filename: string): string {
@@ -116,16 +113,9 @@ async function doSave() {
   if (!draft.value || !selectedFilename.value) return;
   const result = await save();
   if (result.ok) {
-    const name = draft.value?.name || selectedFilename.value;
-    toast.success(
-      "workspace.templates.save_success",
-      [name],
-      {
-        status: "status.template.save.success",
-        statusArgs: [name],
-        statusResetMs: STATUS_RESET,
-      },
-    );
+    const fn = selectedFilename.value!;
+    toast.success("workspace.templates.save_success", [fn]);
+    statusBar.setSaved(fn);
     return;
   }
   if (result.reason === "validation") {
@@ -200,17 +190,8 @@ async function submitCreate() {
       : t("workspace.templates.create.error", [result.message ?? "?"]);
     return;
   }
-  const created = name.replace(/\.yaml$/, "");
-  toast.success(
-    "workspace.templates.create.success",
-    [created],
-    {
-      status: "status.template.create.new.success",
-      statusArgs: [created],
-      statusVariant: "create",
-      statusResetMs: STATUS_RESET,
-    },
-  );
+  toast.success("workspace.templates.create.success", [name]);
+  statusBar.setCreated(name);
   createOpen.value = false;
 }
 
@@ -473,17 +454,8 @@ async function confirmDeleteTemplate() {
   if (!f) return;
   const result = await remove(f);
   if (result.ok) {
-    const stem = f.replace(/\.yaml$/, "");
-    toast.success(
-      "workspace.templates.delete.success",
-      [stem],
-      {
-        status: "status.template.deleted",
-        statusArgs: [stem],
-        statusVariant: "error",
-        statusResetMs: STATUS_RESET,
-      },
-    );
+    toast.success("workspace.templates.delete.success", [f]);
+    statusBar.setDeleted(f);
   } else {
     toast.error("workspace.templates.delete.error", [result.message ?? "?"]);
   }
