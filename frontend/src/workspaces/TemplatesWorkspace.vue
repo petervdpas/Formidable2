@@ -18,6 +18,9 @@ import {
   Service as TemplateSvc,
   GeneratorOptions,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
+import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
+import { backendErrMessage } from "../utils/backendError";
 import {
   FormSection,
   FormRow,
@@ -283,6 +286,71 @@ function clearExpressionSource() {
   draft.value.sidebar_expression = "";
 }
 
+// Inline "Convert" affordance next to the Builder button. Shows only
+// when the current sidebar_expression is non-empty AND fails the
+// strict builder Parse — i.e. it's a legacy shape (array-wrapped
+// ternary, old `|` pipe form, bare identifiers, etc.) that the
+// builder dialog can't load. Clicking Convert pipes the source
+// through the backend best-effort migrator and writes the canonical
+// result back into draft.sidebar_expression. The Builder button can
+// then load it normally.
+const expressionParseable = ref(true);
+
+function expressionFieldRefs(): FieldRef[] {
+  const fs = draft.value?.fields ?? [];
+  return fs
+    .filter((f) => {
+      if (!f.expression_item) return false;
+      const tt = (f.type || "").toLowerCase();
+      return tt !== "loopstart" && tt !== "loopstop" && tt !== "looper";
+    })
+    .map((f) => ({
+      key: f.key,
+      type: f.type || "",
+      options: ((f.options ?? []) as any[]).map((o) => ({
+        value: String(o?.value ?? ""),
+        label: String(o?.label ?? o?.value ?? ""),
+      })),
+    }));
+}
+
+async function recheckExpressionParseable() {
+  const src = (draft.value?.sidebar_expression ?? "").trim();
+  if (!src) {
+    expressionParseable.value = true;
+    return;
+  }
+  try {
+    await ExpressionSvc.BuilderParse(src, expressionFieldRefs());
+    expressionParseable.value = true;
+  } catch {
+    expressionParseable.value = false;
+  }
+}
+
+async function onInlineConvert() {
+  if (!draft.value) return;
+  const src = (draft.value.sidebar_expression ?? "").trim();
+  if (!src) return;
+  try {
+    const migrated = await ExpressionSvc.BuilderConvert(src, expressionFieldRefs());
+    draft.value.sidebar_expression = migrated;
+    toast.success("workspace.templates.expression_builder.convert_succeeded");
+  } catch (err) {
+    toast.error("workspace.templates.expression_builder.convert_failed");
+    const detail = backendErrMessage(err);
+    if (detail) toast.error(detail, undefined, { duration: 8000 });
+  }
+}
+
+watch(
+  () => draft.value?.sidebar_expression,
+  () => {
+    void recheckExpressionParseable();
+  },
+  { immediate: true },
+);
+
 // ── Setup-info tabs (Template Code / Sidebar Expression / Flag Defs) ─
 const setupTab = ref<"code" | "expression" | "flags">("code");
 const setupTabItems = computed(() => [
@@ -512,6 +580,15 @@ setTopbarMenu(() => [
                       @click="expressionBuilderOpen = true"
                     >
                       {{ t('workspace.templates.expression_builder.button') }}
+                    </button>
+                    <button
+                      v-if="!expressionParseable"
+                      class="tool-btn primary"
+                      type="button"
+                      :title="t('workspace.templates.expression_builder.convert_title')"
+                      @click="onInlineConvert"
+                    >
+                      {{ t('workspace.templates.expression_builder.convert') }}
                     </button>
                   </div>
                 </div>
