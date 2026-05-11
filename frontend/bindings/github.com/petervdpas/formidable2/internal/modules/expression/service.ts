@@ -36,6 +36,20 @@ export function BuilderCompile(cfg: builder$0.Config, fields: builder$0.FieldRef
 }
 
 /**
+ * BuilderConvert is a best-effort migrator for legacy
+ * sidebar_expression shapes (array-wrapped ternaries, the old `|`
+ * pipe form, bare identifiers, bare string literals in text concats,
+ * `F[..] == true` boolean predicates). Frontend invokes it only when
+ * BuilderParse fails — the converted output is fed straight back into
+ * Parse → Compile so the dialog can edit a canonical DSL. Returns an
+ * error when the source can't be parsed even after the pre-pass; the
+ * frontend should surface the error and offer manual editing.
+ */
+export function BuilderConvert(src: string, fields: builder$0.FieldRef[]): $CancellablePromise<string> {
+    return $Call.ByID(202017842, src, fields);
+}
+
+/**
  * BuilderDateOps returns the date-helper vocabulary for the Date
  * picker, in render order.
  */

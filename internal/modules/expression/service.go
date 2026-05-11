@@ -92,3 +92,15 @@ func (s *Service) BuilderCompile(cfg builder.Config, fields []builder.FieldRef) 
 func (s *Service) BuilderParse(src string, fields []builder.FieldRef) (builder.Config, error) {
 	return builder.Parse(src, fields)
 }
+
+// BuilderConvert is a best-effort migrator for legacy
+// sidebar_expression shapes (array-wrapped ternaries, the old `|`
+// pipe form, bare identifiers, bare string literals in text concats,
+// `F[..] == true` boolean predicates). Frontend invokes it only when
+// BuilderParse fails — the converted output is fed straight back into
+// Parse → Compile so the dialog can edit a canonical DSL. Returns an
+// error when the source can't be parsed even after the pre-pass; the
+// frontend should surface the error and offer manual editing.
+func (s *Service) BuilderConvert(src string, fields []builder.FieldRef) (string, error) {
+	return builder.Convert(src, fields)
+}
