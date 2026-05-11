@@ -1,0 +1,17 @@
+{
+  "workspace.cleanup.title": "Opslag opschonen",
+  "workspace.cleanup.description": "Vergelijkt de opgeslagen formulieren van dit sjabloon met de huidige velddeclaraties en rapporteert afwijkingen: ontbrekende of overtollige velden, type-mismatches, foutieve datumformaten en meta-blokproblemen. Alleen-lezen — er worden geen bestanden gewijzigd.",
+  "workspace.cleanup.target": "Sjabloon:",
+  "workspace.cleanup.analyze": "Analyseer",
+  "workspace.cleanup.analyzing": "Analyseren…",
+  "workspace.cleanup.summary_clean": "Geen problemen gevonden in {0} formulier(en).",
+  "workspace.cleanup.summary_issues": "{0} probleem(en) in {1} formulier(en).",
+  "workspace.cleanup.issues_count": "{0} probleem(en)",
+  "workspace.cleanup.kind.missing_field": "Ontbrekend veld",
+  "workspace.cleanup.kind.extra_field": "Onbekend veld",
+  "workspace.cleanup.kind.type_mismatch": "Typeconflict",
+  "workspace.cleanup.kind.bad_date_format": "Foutief datumformaat",
+  "workspace.cleanup.kind.meta_missing": "Meta ontbreekt",
+  "workspace.cleanup.kind.meta_bad_format": "Meta foutief formaat",
+  "workspace.cleanup.kind.unreadable": "Onleesbaar"
+}

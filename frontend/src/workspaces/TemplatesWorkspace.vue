@@ -7,6 +7,7 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
+import CleanupStorageDialog from "../components/CleanupStorageDialog.vue";
 import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
@@ -255,6 +256,9 @@ function openDelete(index: number) {
 // ── Generate-template dialog ─────────────────────────────────────────
 const generateOpen = ref(false);
 
+// ── Cleanup-storage dialog (Utilities → Cleanup Storage) ────────────
+const cleanupOpen = ref(false);
+
 async function applyGenerated(shape: string, opts: GeneratorOptions) {
   generateOpen.value = false;
   if (!draft.value) return;
@@ -470,6 +474,20 @@ setTopbarMenu(() => [
         combo: "Mod+D",
         disabled: !selectedFilename.value,
         onClick: openDeleteTemplate,
+      },
+    ],
+  },
+  {
+    type: "group",
+    id: "utilities",
+    labelKey: "menu.utilities",
+    alwaysEnabled: true,
+    items: [
+      {
+        id: "cleanupStorage",
+        labelKey: "menu.utilities.cleanupStorage",
+        disabled: !selectedFilename.value,
+        onClick: () => { cleanupOpen.value = true; },
       },
     ],
   },
@@ -769,6 +787,14 @@ setTopbarMenu(() => [
     :open="generateOpen"
     @cancel="generateOpen = false"
     @confirm="(shape, opts) => applyGenerated(shape, opts)"
+  />
+
+  <!-- Cleanup Storage dialog: analyzes the selected template's forms -->
+  <CleanupStorageDialog
+    :open="cleanupOpen"
+    :template-filename="selectedFilename ?? ''"
+    :template-label="selectedTemplate?.name"
+    @close="cleanupOpen = false"
   />
 
   <!-- Expression builder dialog: visual builder for sidebar_expression -->

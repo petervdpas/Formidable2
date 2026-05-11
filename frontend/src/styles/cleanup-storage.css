@@ -1,0 +1,129 @@
+/* Cleanup Storage dialog (Utilities → Cleanup Storage). Sits inside
+   Modal.vue's .modal-body — paddings/widths come from the modal frame. */
+
+.cleanup-intro {
+  margin: 0 0 var(--space-3) 0;
+}
+
+.cleanup-target {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+  border-radius: var(--radius-2, 6px);
+}
+
+.cleanup-target-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--muted-color, #888);
+}
+
+.cleanup-target-value {
+  font-size: 0.85rem;
+}
+
+.cleanup-error {
+  margin: 0 0 var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger-border, #c33);
+  background: var(--danger-bg, rgba(204, 51, 51, 0.08));
+  color: var(--danger-fg, #c33);
+  border-radius: var(--radius-2, 6px);
+  font-size: 0.9rem;
+}
+
+.cleanup-summary {
+  margin: 0 0 var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-2, 6px);
+  background: var(--warn-bg, rgba(255, 196, 0, 0.12));
+  border: 1px solid var(--warn-border, rgba(255, 196, 0, 0.3));
+}
+.cleanup-summary.clean {
+  background: var(--success-bg, rgba(40, 167, 69, 0.12));
+  border: 1px solid var(--success-border, rgba(40, 167, 69, 0.3));
+  color: var(--success-fg, #28a745);
+}
+
+.cleanup-forms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.cleanup-form {
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: var(--radius-2, 6px);
+  background: var(--surface-1, transparent);
+}
+
+.cleanup-form-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.cleanup-form-summary::-webkit-details-marker { display: none; }
+.cleanup-form-summary::marker { content: ""; }
+
+.cleanup-form-summary > code {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.cleanup-form-count {
+  font-size: 0.75rem;
+}
+
+.cleanup-issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-top: 1px solid var(--border-color-faint, rgba(0, 0, 0, 0.05));
+  padding-top: var(--space-2);
+}
+
+.cleanup-issue {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) minmax(8rem, auto) 1fr;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-1, 4px);
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  font-size: 0.85rem;
+}
+
+.cleanup-issue-kind {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.cleanup-issue-path {
+  font-size: 0.8rem;
+  color: var(--muted-color, #888);
+}
+
+.cleanup-issue-detail {
+  line-height: 1.35;
+}
+
+.cleanup-issue-danger .cleanup-issue-kind { color: var(--danger-fg, #c33); }
+.cleanup-issue-warn   .cleanup-issue-kind { color: var(--warn-fg,   #b8860b); }
+.cleanup-issue-info   .cleanup-issue-kind { color: var(--accent-color, #4a90e2); }

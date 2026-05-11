@@ -1,0 +1,17 @@
+{
+  "workspace.cleanup.title": "Cleanup Storage",
+  "workspace.cleanup.description": "Compares this template's stored forms against the current field declarations and reports any drift: missing or extra fields, type mismatches, bad date formats, and meta-block issues. Read-only — no files are modified.",
+  "workspace.cleanup.target": "Template:",
+  "workspace.cleanup.analyze": "Analyze",
+  "workspace.cleanup.analyzing": "Analyzing…",
+  "workspace.cleanup.summary_clean": "No issues found across {0} form(s).",
+  "workspace.cleanup.summary_issues": "{0} issue(s) across {1} form(s).",
+  "workspace.cleanup.issues_count": "{0} issue(s)",
+  "workspace.cleanup.kind.missing_field": "Missing field",
+  "workspace.cleanup.kind.extra_field": "Extra field",
+  "workspace.cleanup.kind.type_mismatch": "Type mismatch",
+  "workspace.cleanup.kind.bad_date_format": "Bad date format",
+  "workspace.cleanup.kind.meta_missing": "Meta missing",
+  "workspace.cleanup.kind.meta_bad_format": "Meta bad format",
+  "workspace.cleanup.kind.unreadable": "Unreadable"
+}

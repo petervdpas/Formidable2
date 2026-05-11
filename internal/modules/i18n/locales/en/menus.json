@@ -32,5 +32,7 @@
   "menu.template": "Template",
   "menu.template.create": "Create…",
   "menu.template.delete": "Delete…",
+  "menu.utilities": "Utilities",
+  "menu.utilities.cleanupStorage": "Cleanup Storage…",
   "menu.view.devtools": "Toggle DevTools"
 }

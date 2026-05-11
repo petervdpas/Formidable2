@@ -33,6 +33,8 @@
   "menu.template": "Sjabloon",
   "menu.template.create": "Aanmaken…",
   "menu.template.delete": "Verwijderen…",
+  "menu.utilities": "Hulpmiddelen",
+  "menu.utilities.cleanupStorage": "Opslag opschonen…",
   "menu.view.devtools": "Ontwikkelaarstools",
   "menu.view.reload": "Herladen"
 }
