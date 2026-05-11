@@ -127,6 +127,31 @@
     justify-content: flex-start;
 }
 
+/* Setup Information tabs (Template Code / Sidebar Expression /
+   Flag Definitions). The tab block sits inside the form-section
+   subgrid; it must span both label + value columns so the content
+   gets the full panel width. */
+.setup-tabs-block {
+    grid-column: 1 / -1;
+}
+
+/* Equal pane height — keeps the section visually stable when switching
+   between tabs whose content has different intrinsic heights. */
+.setup-tab-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 240px;
+}
+.setup-tab-help {
+    margin: 0.4rem 0 0 0;
+}
+.setup-tab-actions {
+    margin-top: auto;
+    padding-top: 0.5rem;
+    display: flex;
+    justify-content: flex-start;
+}
+
 /* Flag-definitions row in Setup Information — a chip-strip preview of
    the current defs + a Builder button to open the modal. */
 .flag-definitions-row {

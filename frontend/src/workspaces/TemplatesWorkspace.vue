@@ -13,6 +13,7 @@ import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FlagDefinitionsModal from "../components/FlagDefinitionsModal.vue";
 import { MAX_FLAG_DEFINITIONS } from "../utils/flagColors";
 import CodeEditor from "../components/CodeEditor.vue";
+import Tabs from "../components/Tabs.vue";
 import {
   Service as TemplateSvc,
   GeneratorOptions,
@@ -282,6 +283,14 @@ function clearExpressionSource() {
   draft.value.sidebar_expression = "";
 }
 
+// ── Setup-info tabs (Template Code / Sidebar Expression / Flag Defs) ─
+const setupTab = ref<"code" | "expression" | "flags">("code");
+const setupTabItems = computed(() => [
+  { id: "code", label: t("workspace.templates.setup.template_code") },
+  { id: "expression", label: t("workspace.templates.setup.sidebar_expression") },
+  { id: "flags", label: t("workspace.templates.setup.flag_definitions") },
+]);
+
 // ── Flag-definitions builder dialog ──────────────────────────────────
 const flagBuilderOpen = ref(false);
 
@@ -462,44 +471,85 @@ setTopbarMenu(() => [
               :options="itemFieldSelectOptions"
             />
           </FormRow>
-          <FormRow
-            :label="t('workspace.templates.setup.template_code')"
-            :description="t('workspace.templates.setup.template_code_help')"
-          >
-            <CodeEditor
-              v-model="draft.markdown_template"
-              lang="markdown"
-              :height="120"
-            />
-            <div
-              v-if="!draft.markdown_template || !draft.markdown_template.trim()"
-              class="generate-template-row"
-            >
-              <button
-                class="tool-btn"
-                type="button"
-                @click="generateOpen = true"
-              >
-                {{ t('workspace.templates.generate.button') }}
-              </button>
-            </div>
-          </FormRow>
-          <FormRow :label="t('workspace.templates.setup.sidebar_expression')">
-            <TextareaField
-              v-model="draft.sidebar_expression"
-              :rows="3"
-              :readonly="true"
-            />
-            <div class="expression-builder-row">
-              <button
-                class="tool-btn"
-                type="button"
-                @click="expressionBuilderOpen = true"
-              >
-                {{ t('workspace.templates.expression_builder.button') }}
-              </button>
-            </div>
-          </FormRow>
+          <div class="setup-tabs-block">
+            <Tabs v-model="setupTab" :items="setupTabItems">
+              <template #code>
+                <div class="setup-tab-pane">
+                  <CodeEditor
+                    v-model="draft.markdown_template"
+                    lang="markdown"
+                    :height="180"
+                  />
+                  <p class="muted small setup-tab-help">
+                    {{ t('workspace.templates.setup.template_code_help') }}
+                  </p>
+                  <div
+                    v-if="!draft.markdown_template || !draft.markdown_template.trim()"
+                    class="setup-tab-actions"
+                  >
+                    <button
+                      class="tool-btn"
+                      type="button"
+                      @click="generateOpen = true"
+                    >
+                      {{ t('workspace.templates.generate.button') }}
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <template #expression>
+                <div class="setup-tab-pane">
+                  <TextareaField
+                    v-model="draft.sidebar_expression"
+                    :rows="6"
+                    :readonly="true"
+                  />
+                  <div class="setup-tab-actions">
+                    <button
+                      class="tool-btn"
+                      type="button"
+                      @click="expressionBuilderOpen = true"
+                    >
+                      {{ t('workspace.templates.expression_builder.button') }}
+                    </button>
+                  </div>
+                </div>
+              </template>
+
+              <template #flags>
+                <div class="setup-tab-pane">
+                  <p
+                    v-if="!draft.flag_definitions || draft.flag_definitions.length === 0"
+                    class="muted small"
+                  >
+                    {{ t('workspace.templates.flag_definitions.summary_empty') }}
+                  </p>
+                  <div v-else class="flag-definitions-summary">
+                    <span
+                      v-for="d in draft.flag_definitions"
+                      :key="d.label"
+                      class="flag-definitions-chip"
+                      :class="`expr-bg-${d.color}`"
+                      :title="`${d.label} (${d.color})`"
+                    >{{ d.label }}</span>
+                    <span class="muted small">
+                      {{ t('workspace.templates.flag_definitions.summary',
+                           [draft.flag_definitions.length, MAX_FLAG_DEFINITIONS]) }}
+                    </span>
+                  </div>
+                  <div class="setup-tab-actions">
+                    <button
+                      class="tool-btn"
+                      type="button"
+                      @click="flagBuilderOpen = true"
+                    >{{ t('workspace.templates.flag_definitions.builder_button') }}</button>
+                  </div>
+                </div>
+              </template>
+            </Tabs>
+          </div>
+
           <FormRow :label="t('workspace.templates.setup.enable_collection')">
             <div class="collection-toggle">
               <SwitchField
@@ -514,36 +564,6 @@ setTopbarMenu(() => [
               >
                 {{ t('workspace.templates.setup.enable_collection_needs_guid') }}
               </p>
-            </div>
-          </FormRow>
-          <FormRow :label="t('workspace.templates.setup.flag_definitions')">
-            <div class="flag-definitions-row">
-              <p
-                v-if="!draft.flag_definitions || draft.flag_definitions.length === 0"
-                class="muted small"
-              >
-                {{ t('workspace.templates.flag_definitions.summary_empty') }}
-              </p>
-              <div v-else class="flag-definitions-summary">
-                <span
-                  v-for="d in draft.flag_definitions"
-                  :key="d.label"
-                  class="flag-definitions-chip"
-                  :class="`expr-bg-${d.color}`"
-                  :title="`${d.label} (${d.color})`"
-                >{{ d.label }}</span>
-                <span class="muted small">
-                  {{ t('workspace.templates.flag_definitions.summary',
-                       [draft.flag_definitions.length, MAX_FLAG_DEFINITIONS]) }}
-                </span>
-              </div>
-              <div class="flag-definitions-actions">
-                <button
-                  class="tool-btn"
-                  type="button"
-                  @click="flagBuilderOpen = true"
-                >{{ t('workspace.templates.flag_definitions.builder_button') }}</button>
-              </div>
             </div>
           </FormRow>
         </FormSection>

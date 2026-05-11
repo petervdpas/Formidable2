@@ -167,7 +167,7 @@ const errorMessage = (code: RowError): string => {
         <li class="flag-builder-row" :class="{ 'has-error': errors[i] !== null }">
           <span class="dnd-handle" aria-hidden="true">☰</span>
 
-          <Popup placement="below">
+          <Popup placement="above">
             <template #trigger="{ toggle, open: popupOpen }">
               <button
                 type="button"
