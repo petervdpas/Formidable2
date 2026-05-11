@@ -23,6 +23,7 @@
   "workspace.templates.delete.confirm": "Sjabloon “{0}” permanent verwijderen? Dit kan niet ongedaan worden gemaakt.",
   "workspace.templates.delete.error": "Kon sjabloon niet verwijderen: {0}",
   "workspace.templates.delete.menu": "Sjabloon verwijderen…",
+  "workspace.templates.open_folder.error": "Kon map niet openen: {0}",
   "workspace.templates.delete.success": "Sjabloon “{0}” verwijderd.",
   "workspace.templates.delete.title": "Sjabloon verwijderen",
   "workspace.templates.dirty_indicator": "Niet-opgeslagen wijzigingen",

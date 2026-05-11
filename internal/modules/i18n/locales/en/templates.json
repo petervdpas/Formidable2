@@ -23,6 +23,7 @@
   "workspace.templates.delete.confirm": "Permanently delete the template “{0}”? This action can't be undone.",
   "workspace.templates.delete.error": "Could not delete template: {0}",
   "workspace.templates.delete.menu": "Delete Template…",
+  "workspace.templates.open_folder.error": "Could not open folder: {0}",
   "workspace.templates.delete.success": "Deleted template “{0}”.",
   "workspace.templates.delete.title": "Delete template",
   "workspace.templates.dirty_indicator": "Unsaved changes",

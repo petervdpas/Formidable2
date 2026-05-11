@@ -360,6 +360,14 @@ func (m *Manager) templateDir(templateFilename string) string {
 	return filepath.Join(m.storageDir, name)
 }
 
+// TemplateStorageDir is the exported name for templateDir — returns
+// the absolute path of `<storage>/<template-stem>/`. Used by the
+// Cleanup Storage utility to "Open Storage Folder" for the currently
+// selected template via OpenExternal.
+func (m *Manager) TemplateStorageDir(templateFilename string) string {
+	return m.templateDir(templateFilename)
+}
+
 // TemplateImageDir returns the absolute filesystem path of the
 // `<storage>/<template>/images/` folder. Public so the render module
 // (and future internal HTTP server) can build URLs without re-deriving

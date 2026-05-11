@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -205,7 +206,12 @@ func New(d Deps) (*App, error) {
 	// from external HTTP callers when the wiki/api server is on.
 	slideoutImageURL := func(templateFilename, name string) string {
 		stem := strings.TrimSuffix(templateFilename, ".yaml")
-		return "/api/images/" + stem + "/" + name
+		// PathEscape on the filename segment only — spaces, parens, etc.
+		// in the on-disk name would otherwise produce a markdown URL
+		// goldmark refuses to parse as an image destination (link
+		// destinations may not contain unescaped spaces). The template
+		// stem is slug-shaped and safe to pass through verbatim.
+		return "/api/images/" + stem + "/" + url.PathEscape(name)
 	}
 	// Inline-image mode for the generator's "inline" choice — reads
 	// the bytes via storage and returns the data URL (which
@@ -223,7 +229,10 @@ func New(d Deps) (*App, error) {
 
 	wikiImageURL := func(templateFilename, name string) string {
 		stem := strings.TrimSuffix(templateFilename, ".yaml")
-		return "/storage/" + stem + "/images/" + name
+		// See slideoutImageURL above: PathEscape so spaces and other
+		// markdown-hostile chars in the filename round-trip through the
+		// rendered URL as %-encoded bytes.
+		return "/storage/" + stem + "/images/" + url.PathEscape(name)
 	}
 	wikiLinkURL := func(templateFilename, datafile string) string {
 		stem := strings.TrimSuffix(templateFilename, ".yaml")

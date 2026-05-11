@@ -100,6 +100,15 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
 }
 
 /**
+ * TemplatesDir returns the absolute path of the templates folder.
+ * Used by the Utilities menu's "Open Template Folder" action; the
+ * frontend pipes the result through System.OpenExternal.
+ */
+export function TemplatesDir(): $CancellablePromise<string> {
+    return $Call.ByID(3165432794);
+}
+
+/**
  * ValidateTemplate mirrors what SaveTemplate would see: a clone of
  * the input is Normalized first, then Validated. That way the FE
  * pre-save check returns exactly the errors a real save would, and

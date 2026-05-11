@@ -21,6 +21,10 @@ func NewService(m *Manager, storageLocator func(string) string) *Service {
 	return &Service{m: m, storageLocator: storageLocator}
 }
 
+// TemplatesDir returns the absolute path of the templates folder.
+// Used by the Utilities menu's "Open Template Folder" action; the
+// frontend pipes the result through System.OpenExternal.
+func (s *Service) TemplatesDir() string                        { return s.m.TemplatesDir() }
 func (s *Service) ListTemplates() ([]string, error)            { return s.m.ListTemplates() }
 func (s *Service) HasTemplates() bool                          { return s.m.HasTemplates() }
 func (s *Service) LoadTemplate(name string) (*Template, error) { return s.m.LoadTemplate(name) }

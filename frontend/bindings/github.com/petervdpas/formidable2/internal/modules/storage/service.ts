@@ -86,6 +86,15 @@ export function SaveImageFile(templateFilename: string, name: string, content: s
     });
 }
 
+/**
+ * TemplateStorageDir returns the absolute path of this template's
+ * storage folder. Used by the Utilities menu's "Open Storage Folder"
+ * action; the frontend pipes the result through System.OpenExternal.
+ */
+export function TemplateStorageDir(templateFilename: string): $CancellablePromise<string> {
+    return $Call.ByID(3941961345, templateFilename);
+}
+
 // Private type creation functions
 const $$createType0 = $models.FormSummary.createFrom;
 const $$createType1 = $Create.Array($$createType0);

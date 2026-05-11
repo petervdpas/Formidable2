@@ -20,6 +20,8 @@ import {
   GeneratorOptions,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
+import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
 import {
@@ -259,6 +261,31 @@ const generateOpen = ref(false);
 // ── Cleanup-storage dialog (Utilities → Cleanup Storage) ────────────
 const cleanupOpen = ref(false);
 
+// ── Utilities → Open Folder actions ─────────────────────────────────
+// Both delegate to System.OpenExternal which routes through xdg-open /
+// open / rundll32 depending on platform. Templates folder is one
+// service call; storage folder needs the current template's filename.
+async function openTemplateFolder() {
+  try {
+    const path = await TemplateSvc.TemplatesDir();
+    if (!path) return;
+    await SystemSvc.OpenExternal(path);
+  } catch (e) {
+    toast.error("workspace.templates.open_folder.error", [backendErrMessage(e)]);
+  }
+}
+
+async function openStorageFolder() {
+  if (!selectedFilename.value) return;
+  try {
+    const path = await StorageSvc.TemplateStorageDir(selectedFilename.value);
+    if (!path) return;
+    await SystemSvc.OpenExternal(path);
+  } catch (e) {
+    toast.error("workspace.templates.open_folder.error", [backendErrMessage(e)]);
+  }
+}
+
 async function applyGenerated(shape: string, opts: GeneratorOptions) {
   generateOpen.value = false;
   if (!draft.value) return;
@@ -483,6 +510,18 @@ setTopbarMenu(() => [
     labelKey: "menu.utilities",
     alwaysEnabled: true,
     items: [
+      {
+        id: "openTemplateFolder",
+        labelKey: "menu.file.openTemplateFolder",
+        onClick: openTemplateFolder,
+      },
+      {
+        id: "openStorageFolder",
+        labelKey: "menu.file.openStorageFolder",
+        disabled: !selectedFilename.value,
+        onClick: openStorageFolder,
+      },
+      { type: "separator", id: "sep-cleanup" },
       {
         id: "cleanupStorage",
         labelKey: "menu.utilities.cleanupStorage",

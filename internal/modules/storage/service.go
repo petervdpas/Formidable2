@@ -18,6 +18,13 @@ func (s *Service) EnsureFormDir(templateFilename string) error {
 	return s.m.EnsureFormDir(templateFilename)
 }
 
+// TemplateStorageDir returns the absolute path of this template's
+// storage folder. Used by the Utilities menu's "Open Storage Folder"
+// action; the frontend pipes the result through System.OpenExternal.
+func (s *Service) TemplateStorageDir(templateFilename string) string {
+	return s.m.TemplateStorageDir(templateFilename)
+}
+
 func (s *Service) ListForms(templateFilename string) ([]string, error) {
 	return s.m.ListForms(templateFilename)
 }
