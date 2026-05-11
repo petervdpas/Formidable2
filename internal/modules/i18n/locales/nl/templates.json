@@ -162,8 +162,7 @@
   "flag.builder.counter": "{0} van {1}",
   "flag.builder.empty": "Nog geen vlaggen — klik op “Vlag toevoegen” om er één te maken.",
   "flag.builder.add": "Vlag toevoegen",
-  "flag.builder.label_placeholder": "VLAGLABEL",
-  "flag.builder.error.invalid_label": "Label moet in hoofdletters zijn (A-Z, 0-9, spatie, _, -) en met een letter beginnen.",
+  "flag.builder.label_placeholder": "Gebruik alleen A-Z, 0-9, spaties, _, -",
   "flag.builder.error.duplicate_label": "Duplicaat label.",
   "flag.builder.error.unknown_color": "Onbekende kleur."
 }

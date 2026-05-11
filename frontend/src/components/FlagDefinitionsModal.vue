@@ -117,13 +117,14 @@ function onCancel() {
 
 const errorMessage = (code: RowError): string => {
   switch (code) {
-    case "invalid-label":
-      return t("flag.builder.error.invalid_label");
     case "duplicate-label":
       return t("flag.builder.error.duplicate_label");
     case "unknown-color":
       return t("flag.builder.error.unknown_color");
+    case "invalid-label":
     default:
+      // invalid-label has no inline text — the placeholder teaches
+      // the format and the row's red border signals the failure.
       return "";
   }
 };
@@ -202,7 +203,7 @@ const errorMessage = (code: RowError): string => {
           />
 
           <span
-            v-if="errors[i]"
+            v-if="errorMessage(errors[i])"
             class="form-error small flag-builder-row-error"
           >
             {{ errorMessage(errors[i]) }}

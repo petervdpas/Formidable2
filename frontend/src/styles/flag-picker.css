@@ -183,7 +183,7 @@
 }
 .flag-builder-row {
   display: grid;
-  grid-template-columns: 24px 28px 1fr auto auto;
+  grid-template-columns: 24px 36px 1fr auto auto;
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
@@ -201,8 +201,8 @@
   text-align: center;
 }
 .flag-builder-swatch-trigger {
-  width: 24px;
-  height: 24px;
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
   border: 1px solid var(--color-border);
   cursor: pointer;
@@ -234,13 +234,13 @@
 
 .flag-builder-swatch-grid {
   display: grid;
-  grid-template-columns: repeat(4, 28px);
-  gap: 4px;
-  padding: 4px;
+  grid-template-columns: repeat(4, 36px);
+  gap: 6px;
+  padding: 6px;
 }
 .flag-builder-swatch-cell {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
   border: 2px solid transparent;
   cursor: pointer;

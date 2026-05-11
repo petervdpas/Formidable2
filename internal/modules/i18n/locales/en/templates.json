@@ -162,8 +162,7 @@
   "flag.builder.counter": "{0} of {1}",
   "flag.builder.empty": "No flags yet — click “Add flag” to create one.",
   "flag.builder.add": "Add flag",
-  "flag.builder.label_placeholder": "FLAG LABEL",
-  "flag.builder.error.invalid_label": "Label must be uppercase (A-Z, 0-9, space, _, -) and start with a letter.",
+  "flag.builder.label_placeholder": "Only use A-Z, 0-9, spaces, _, -",
   "flag.builder.error.duplicate_label": "Duplicate label.",
   "flag.builder.error.unknown_color": "Unknown color."
 }
