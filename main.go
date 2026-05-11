@@ -13,6 +13,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:frontend/dist
@@ -125,6 +126,19 @@ func main() {
 	}
 
 	mainWin := wapp.Window.NewWithOptions(winOpts)
+
+	// Closing the main window must take auxiliary windows (wiki,
+	// swagger, future popouts) with it — otherwise they're orphaned
+	// after the app's primary UI is gone. Iterate every Wails-known
+	// window and close anything that isn't main.
+	mainWin.OnWindowEvent(events.Common.WindowClosing, func(_ *application.WindowEvent) {
+		for _, win := range wapp.Window.GetAll() {
+			if win == nil || win.ID() == mainWin.ID() {
+				continue
+			}
+			win.Close()
+		}
+	})
 
 	// Dismiss the splash on whichever happens first: the SPA emits
 	// `spa:ready` after Vue mounts, or a 10-second fallback fires in
