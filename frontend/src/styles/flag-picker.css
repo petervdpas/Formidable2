@@ -232,24 +232,9 @@
   justify-content: flex-start;
 }
 
+/* Flag builder uses the generic .swatch-grid / .swatch-cell primitive
+   (styles/swatch.css). Tune the layout via CSS vars on the grid. */
 .flag-builder-swatch-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 36px);
-  gap: 6px;
-  padding: 6px;
-}
-.flag-builder-swatch-cell {
-  width: 36px;
-  height: 36px;
-  border-radius: 4px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  padding: 0;
-  transition: border-color 0.12s ease, transform 0.05s ease;
-}
-.flag-builder-swatch-cell:hover {
-  border-color: var(--color-accent);
-}
-.flag-builder-swatch-cell.active {
-  border-color: var(--color-text);
+  --swatch-cols: 4;
+  --swatch-size: 22px;
 }

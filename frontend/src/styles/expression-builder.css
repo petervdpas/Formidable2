@@ -323,48 +323,8 @@
   border-color: var(--accent-color, #4a90e2);
 }
 
-/* Swatch popup body — 3×4 grid: 11 distinct hues + a "×" clear cell.
- * Swatches use a hairline rgba border so the colour reads sharp on
- * the dark popup background; the selected ring is a 2px accent
- * outline (no inner outline, no glow). */
-.expr-swatch-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1.8rem);
-  grid-auto-rows: 1.8rem;
-  gap: 0.3rem;
-}
-
-.expr-swatch {
-  appearance: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
-  cursor: pointer;
-  padding: 0;
-}
-
-.expr-swatch:hover {
-  outline: 1px solid var(--accent-color, #4a90e2);
-  outline-offset: 1px;
-}
-
-.expr-swatch.selected {
-  outline: 2px solid var(--accent-color, #4a90e2);
-  outline-offset: 1px;
-}
-
-.expr-swatch.expr-swatch-clear {
-  background: transparent;
-  border: 1px dashed var(--border-color, #ccc);
-  font-size: 1rem;
-  line-height: 1;
-  color: var(--muted-color, #888);
-}
-
-.expr-swatch.expr-swatch-clear:hover {
-  outline: none;
-  border-color: var(--color-error, #c0392b);
-  color: var(--color-error, #c0392b);
-}
+/* Swatch grid moved to the generic .swatch-grid / .swatch-cell
+   primitive in styles/swatch.css; consumed via <SwatchPicker>. */
 
 /* Classes trigger — shows current selections as live-styled chips
  * (each chip wears its real class for a preview). Empty = hint. */

@@ -13,13 +13,21 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import Modal from "./Modal.vue";
-import Popup from "./Popup.vue";
+import SwatchPicker, { type SwatchOption } from "./SwatchPicker.vue";
 import { FlagDefinition } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   FLAG_COLORS,
   FLAG_LABEL_REGEX,
   MAX_FLAG_DEFINITIONS,
 } from "../utils/flagColors";
+
+// Flag color palette as SwatchPicker options: each FLAG_COLORS entry
+// maps to its `.flag-swatch-<name>` CSS class.
+const FLAG_SWATCH_OPTIONS: SwatchOption[] = FLAG_COLORS.map((c) => ({
+  value: c,
+  label: c,
+  class: `flag-swatch-${c}`,
+}));
 
 const props = defineProps<{
   open: boolean;
@@ -168,30 +176,16 @@ const errorMessage = (code: RowError): string => {
         <li class="flag-builder-row" :class="{ 'has-error': errors[i] !== null }">
           <span class="dnd-handle" aria-hidden="true">☰</span>
 
-          <Popup placement="above">
-            <template #trigger="{ toggle, open: popupOpen }">
-              <button
-                type="button"
-                class="flag-builder-swatch-trigger"
-                :class="[`flag-swatch-${row.color}`, { open: popupOpen }]"
-                :title="row.color"
-                @click="toggle"
-              ></button>
-            </template>
-            <template #default="{ close }">
-              <div class="flag-builder-swatch-grid" role="menu">
-                <button
-                  v-for="c in FLAG_COLORS"
-                  :key="c"
-                  type="button"
-                  class="flag-builder-swatch-cell"
-                  :class="[`flag-swatch-${c}`, { active: c === row.color }]"
-                  :title="c"
-                  @click="setColor(row.id, c); close();"
-                ></button>
-              </div>
-            </template>
-          </Popup>
+          <SwatchPicker
+            :model-value="row.color"
+            :options="FLAG_SWATCH_OPTIONS"
+            placement="right"
+            :cols="4"
+            size="22px"
+            trigger-class="flag-builder-swatch-trigger"
+            :trigger-title="row.color"
+            @update:model-value="(v: string) => setColor(row.id, v)"
+          />
 
           <input
             type="text"

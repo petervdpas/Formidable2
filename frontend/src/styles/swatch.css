@@ -1,0 +1,49 @@
+/*
+ * swatch — generic grid of selectable color cells. Used by the flag
+ * builder's color popup and the expression-builder's text/background
+ * pickers. Layout knobs (cols / cell size / gap / padding) are CSS
+ * variables so each consumer can tune density without redefining the
+ * primitive.
+ *
+ *   .swatch-grid          → grid container
+ *   .swatch-cell          → individual color cell (button)
+ *   .swatch-cell.active   → currently-selected cell
+ *   .swatch-cell--clear   → dashed "× clear" cell (no fill)
+ */
+
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--swatch-cols, 4), var(--swatch-size, 22px));
+  grid-auto-rows: var(--swatch-size, 22px);
+  gap: var(--swatch-gap, 4px);
+  padding: var(--swatch-padding, 4px);
+}
+
+.swatch-cell {
+  appearance: none;
+  width: var(--swatch-size, 22px);
+  height: var(--swatch-size, 22px);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.12s ease, transform 0.05s ease;
+}
+.swatch-cell:hover {
+  border-color: var(--color-accent);
+}
+.swatch-cell.active {
+  border-color: var(--color-text);
+}
+
+.swatch-cell--clear {
+  background: transparent;
+  border: 2px dashed var(--color-border);
+  color: var(--color-text-muted, #8a93a6);
+  font-size: 1rem;
+  line-height: 1;
+}
+.swatch-cell--clear:hover {
+  border-color: var(--color-error, #c0392b);
+  color: var(--color-error, #c0392b);
+}

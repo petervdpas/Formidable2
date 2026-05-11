@@ -13,6 +13,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import Popup from "../Popup.vue";
+import SwatchPicker, { type SwatchOption } from "../SwatchPicker.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   Outcome,
@@ -50,6 +51,14 @@ const COLOR_PALETTE: Array<{ value: string; label: string }> = [
   { value: "#000000", label: "black" },
   { value: "#ffffff", label: "white" },
 ];
+
+// SwatchPicker option list mirroring COLOR_PALETTE — `color` field
+// drives inline-style background on each cell.
+const COLOR_PALETTE_OPTIONS: SwatchOption[] = COLOR_PALETTE.map((c) => ({
+  value: c.value,
+  label: c.label,
+  color: c.value,
+}));
 
 // CSS utility classes the picker exposes. Color/bg utility classes
 // (expr-text-* / expr-bg-*) are intentionally NOT here — the Color
@@ -178,12 +187,16 @@ function setBg(hex: string) {
   props.outcome.bg = hex ? hexToBgValue(hex) : "";
 }
 
-function isColor(hex: string): boolean {
-  return (props.outcome.color ?? "") === hex;
-}
-function isBg(hex: string): boolean {
-  return (props.outcome.bg ?? "") === hexToBgValue(hex);
-}
+// Reverse-lookup for the bg picker: outcome.bg stores the tinted
+// rgba(...), but the SwatchPicker matches by hex. This computed maps
+// the stored tinted value back to the matching palette hex so the
+// picker can highlight the active swatch.
+const bgHex = computed<string>(() => {
+  const v = props.outcome.bg ?? "";
+  if (!v) return "";
+  const found = COLOR_PALETTE.find((c) => hexToBgValue(c.value) === v);
+  return found?.value ?? "";
+});
 
 // ── Classes ─────────────────────────────────────────────────────
 
@@ -285,12 +298,21 @@ function classDisplayName(name: string): string {
       </draggable>
     </div>
 
-    <!-- Color (popup with 3×3 swatch grid + clear) -->
+    <!-- Color (popup with 3-col swatch grid + clear) -->
     <label class="expr-outcome-row-label">
       {{ t('workspace.templates.expression_builder.outcome.color') }}
     </label>
     <div class="expr-outcome-row-control">
-      <Popup placement="right">
+      <SwatchPicker
+        :model-value="outcome.color ?? ''"
+        :options="COLOR_PALETTE_OPTIONS"
+        placement="right"
+        :cols="3"
+        size="1.8rem"
+        clearable
+        :clear-title="t('workspace.templates.expression_builder.text_kind.none')"
+        @update:model-value="setColor"
+      >
         <template #trigger="{ toggle, open }">
           <button
             type="button"
@@ -302,33 +324,24 @@ function classDisplayName(name: string): string {
             <span v-if="!outcome.color" class="muted small">{{ t('workspace.templates.expression_builder.text_kind.none') }}</span>
           </button>
         </template>
-        <div class="expr-swatch-grid">
-          <button
-            v-for="c in COLOR_PALETTE"
-            :key="c.value"
-            type="button"
-            class="expr-swatch"
-            :class="{ selected: isColor(c.value) }"
-            :style="{ background: c.value }"
-            :title="c.label"
-            @click="setColor(c.value)"
-          ></button>
-          <button
-            type="button"
-            class="expr-swatch expr-swatch-clear"
-            :title="t('workspace.templates.expression_builder.text_kind.none')"
-            @click="setColor('')"
-          >×</button>
-        </div>
-      </Popup>
+      </SwatchPicker>
     </div>
 
-    <!-- Background (same shape as Color) -->
+    <!-- Background (same shape as Color, value transformed to tinted rgba on save) -->
     <label class="expr-outcome-row-label">
       {{ t('workspace.templates.expression_builder.outcome.bg') }}
     </label>
     <div class="expr-outcome-row-control">
-      <Popup placement="right">
+      <SwatchPicker
+        :model-value="bgHex"
+        :options="COLOR_PALETTE_OPTIONS"
+        placement="right"
+        :cols="3"
+        size="1.8rem"
+        clearable
+        :clear-title="t('workspace.templates.expression_builder.text_kind.none')"
+        @update:model-value="setBg"
+      >
         <template #trigger="{ toggle, open }">
           <button
             type="button"
@@ -340,25 +353,7 @@ function classDisplayName(name: string): string {
             <span v-if="!outcome.bg" class="muted small">{{ t('workspace.templates.expression_builder.text_kind.none') }}</span>
           </button>
         </template>
-        <div class="expr-swatch-grid">
-          <button
-            v-for="c in COLOR_PALETTE"
-            :key="c.value"
-            type="button"
-            class="expr-swatch"
-            :class="{ selected: isBg(c.value) }"
-            :style="{ background: c.value }"
-            :title="c.label"
-            @click="setBg(c.value)"
-          ></button>
-          <button
-            type="button"
-            class="expr-swatch expr-swatch-clear"
-            :title="t('workspace.templates.expression_builder.text_kind.none')"
-            @click="setBg('')"
-          >×</button>
-        </div>
-      </Popup>
+      </SwatchPicker>
     </div>
 
     <!-- Classes (popup with checkbox grid) -->
