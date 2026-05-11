@@ -2,11 +2,11 @@ package history
 
 import "log/slog"
 
-// Navigator is what the service needs from nav to replay a Back/Forward
-// target. The composition root wraps nav.Manager.NavigateToFormidable
-// (which returns *Result, error) into this thinner shape so history
-// doesn't have to import nav and create a cycle (nav imports history
-// to push on successful navigation).
+// Navigator is what the controller needs from nav to replay a Back/
+// Forward target. The composition root wraps nav.Manager.NavigateTo
+// Formidable (which returns *Result, error) into this thinner shape so
+// history doesn't have to import nav and create a cycle (nav imports
+// history to push on successful navigation).
 type Navigator interface {
 	NavigateToFormidable(href string) error
 }
@@ -19,7 +19,7 @@ type EventEmitter interface {
 
 // Persister writes the current stack snapshot back to user config when
 // history.persist is on. Composition root supplies a shim that reads
-// the live config flag and no-ops when persist is off — Service is
+// the live config flag and no-ops when persist is off — Controller is
 // kept oblivious to the setting.
 type Persister interface {
 	PersistSnapshot(s Snapshot)
@@ -29,7 +29,11 @@ type Persister interface {
 // or Push. Payload is State.
 const EventState = "history:state"
 
-type Service struct {
+// Controller composes Manager with nav replay, an event emitter, and
+// optional persistence. It is the composition-root-facing surface:
+// nav calls Push, Vue calls (via Service) Back/Forward/State, and the
+// composition root calls SetNavigator + Broadcast at boot.
+type Controller struct {
 	m         *Manager
 	nav       Navigator
 	emitter   EventEmitter
@@ -37,98 +41,98 @@ type Service struct {
 	log       *slog.Logger
 }
 
-func NewService(m *Manager, nav Navigator, e EventEmitter, p Persister, log *slog.Logger) *Service {
+func NewController(m *Manager, nav Navigator, e EventEmitter, p Persister, log *slog.Logger) *Controller {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Service{m: m, nav: nav, emitter: e, persister: p, log: log}
+	return &Controller{m: m, nav: nav, emitter: e, persister: p, log: log}
 }
 
 // SetNavigator wires the replay target after construction. Solves the
-// chicken-and-egg between history.Service (needs Navigator for Back/
-// Forward) and nav.Manager (needs HistoryPusher = history.Service).
-// Boot-time only; not concurrency-safe.
-func (s *Service) SetNavigator(n Navigator) {
-	s.nav = n
+// chicken-and-egg between Controller (needs Navigator for Back/Forward)
+// and nav.Manager (needs HistoryPusher = Controller). Boot-time only;
+// not concurrency-safe.
+func (c *Controller) SetNavigator(n Navigator) {
+	c.nav = n
 }
 
-func (s *Service) State() State {
-	return s.m.State()
+func (c *Controller) State() State {
+	return c.m.State()
 }
 
 // Push is the nav-side entry point. It mutates the stack, persists if
 // the composition root wired a Persister, and broadcasts state. Empty
 // hrefs and duplicates-at-cursor short-circuit silently inside
-// Manager — we still broadcast/persist on real mutations only, which
-// we detect via a snapshot-equality check.
-func (s *Service) Push(href string) {
-	before := s.m.Snapshot()
-	s.m.Push(href)
-	after := s.m.Snapshot()
+// Manager — broadcast/persist fire only on real mutations, detected
+// via a snapshot-equality check.
+func (c *Controller) Push(href string) {
+	before := c.m.Snapshot()
+	c.m.Push(href)
+	after := c.m.Snapshot()
 	if snapsEqual(before, after) {
 		return
 	}
-	s.persist(after)
-	s.broadcast()
+	c.persist(after)
+	c.broadcast()
 }
 
 // Back moves the cursor one step, replays the resulting href through
 // the navigator, and broadcasts the new state. At the start of the
 // stack it is a no-op (returns the current state, no error).
-func (s *Service) Back() (State, error) {
-	href, ok := s.m.Back()
+func (c *Controller) Back() (State, error) {
+	href, ok := c.m.Back()
 	if !ok {
-		return s.m.State(), nil
+		return c.m.State(), nil
 	}
-	if err := s.replay(href); err != nil {
-		return s.m.State(), err
+	if err := c.replay(href); err != nil {
+		return c.m.State(), err
 	}
-	s.persist(s.m.Snapshot())
-	s.broadcast()
-	return s.m.State(), nil
+	c.persist(c.m.Snapshot())
+	c.broadcast()
+	return c.m.State(), nil
 }
 
 // Forward is the mirror of Back.
-func (s *Service) Forward() (State, error) {
-	href, ok := s.m.Forward()
+func (c *Controller) Forward() (State, error) {
+	href, ok := c.m.Forward()
 	if !ok {
-		return s.m.State(), nil
+		return c.m.State(), nil
 	}
-	if err := s.replay(href); err != nil {
-		return s.m.State(), err
+	if err := c.replay(href); err != nil {
+		return c.m.State(), err
 	}
-	s.persist(s.m.Snapshot())
-	s.broadcast()
-	return s.m.State(), nil
+	c.persist(c.m.Snapshot())
+	c.broadcast()
+	return c.m.State(), nil
 }
 
 // Broadcast pushes the current state to subscribers. Public so the
 // composition root can fire it once on startup after Restore so the
 // ribbon initializes correctly.
-func (s *Service) Broadcast() {
-	s.broadcast()
+func (c *Controller) Broadcast() {
+	c.broadcast()
 }
 
-func (s *Service) replay(href string) error {
-	s.m.SetSuppressNextPush()
-	if s.nav == nil {
+func (c *Controller) replay(href string) error {
+	c.m.SetSuppressNextPush()
+	if c.nav == nil {
 		return nil
 	}
-	return s.nav.NavigateToFormidable(href)
+	return c.nav.NavigateToFormidable(href)
 }
 
-func (s *Service) broadcast() {
-	if s.emitter == nil {
+func (c *Controller) broadcast() {
+	if c.emitter == nil {
 		return
 	}
-	s.emitter.Emit(EventState, s.m.State())
+	c.emitter.Emit(EventState, c.m.State())
 }
 
-func (s *Service) persist(snap Snapshot) {
-	if s.persister == nil {
+func (c *Controller) persist(snap Snapshot) {
+	if c.persister == nil {
 		return
 	}
-	s.persister.PersistSnapshot(snap)
+	c.persister.PersistSnapshot(snap)
 }
 
 func snapsEqual(a, b Snapshot) bool {
@@ -142,3 +146,16 @@ func snapsEqual(a, b Snapshot) bool {
 	}
 	return true
 }
+
+// Service is the Wails-bound facade. Only Back/Forward/State are
+// exposed to the frontend; everything else (Push, SetNavigator,
+// Broadcast) stays on Controller, off the wire.
+type Service struct{ c *Controller }
+
+func NewService(c *Controller) *Service { return &Service{c: c} }
+
+func (s *Service) Back() (State, error) { return s.c.Back() }
+
+func (s *Service) Forward() (State, error) { return s.c.Forward() }
+
+func (s *Service) State() State { return s.c.State() }

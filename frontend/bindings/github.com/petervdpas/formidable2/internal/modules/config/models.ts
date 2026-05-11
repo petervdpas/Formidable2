@@ -167,7 +167,7 @@ export class History {
     "enabled": boolean;
     "persist": boolean;
     "max_size": number;
-    "stack": any[];
+    "stack": string[];
     "index": number;
 
     /** Creates a new History instance. */

@@ -254,20 +254,24 @@ func New(d Deps) (*App, error) {
 	emitter := &emitterRelay{}
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
-	// History manager + service — back/forward stack over formidable://
-	// hrefs. Manager is pure data; Service wraps it with nav replay
-	// (set after navM exists), a Wails emitter, and a persist adapter
-	// that writes back to user.json only when history.persist is on.
+	// History — back/forward stack over formidable:// hrefs.
+	//
+	//   * Manager: pure stack data.
+	//   * Controller: holds nav replay + emitter + persister. Receives
+	//     pushes from nav, replays via nav on Back/Forward.
+	//   * Service: thin Wails facade exposing only Back/Forward/State —
+	//     keeps SetNavigator/Push/Broadcast off the bound surface.
 	bootCfg, _ := cfgM.LoadUserConfig()
 	historyM := history.NewManager(bootCfg.History.MaxSize)
 	historyM.Restore(bootCfg.History.Stack, bootCfg.History.Index)
-	historySvc := history.NewService(
+	historyCtl := history.NewController(
 		historyM,
 		nil, // navigator wired below after navM exists
 		emitter,
 		&historyPersistAdapter{cfg: cfgM},
 		d.Logger,
 	)
+	historySvc := history.NewService(historyCtl)
 
 	// Nav manager — owns formidable:// URL resolution. Validates the
 	// (template, datafile) pair against the same managers the rest of
@@ -275,8 +279,8 @@ func New(d Deps) (*App, error) {
 	// nav:changed event so the frontend's global listener can flip the
 	// active workspace. Push-hooked into history so every successful
 	// link click extends the back/forward stack.
-	navM := nav.NewManager(tplM, stoM, &configWriterAdapter{cfg: cfgM}, emitter, historySvc, d.Logger)
-	historySvc.SetNavigator(&navReplayAdapter{m: navM})
+	navM := nav.NewManager(tplM, stoM, &configWriterAdapter{cfg: cfgM}, emitter, historyCtl, d.Logger)
+	historyCtl.SetNavigator(&navReplayAdapter{m: navM})
 
 	// Wire journal as the emitter for system FS mutations and as the
 	// configurer that listens to context-folder/backend changes from config.

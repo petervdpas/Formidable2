@@ -43,27 +43,27 @@ func (f *fakePersister) PersistSnapshot(s Snapshot) {
 	f.snaps = append(f.snaps, s)
 }
 
-func setupService(t *testing.T) (*Manager, *fakeNav, *fakeEmitter, *Service) {
+func setupController(t *testing.T) (*Manager, *fakeNav, *fakeEmitter, *Controller) {
 	t.Helper()
 	m := NewManager(20)
 	nav := &fakeNav{manager: m}
 	em := &fakeEmitter{}
-	s := NewService(m, nav, em, nil, nil)
-	return m, nav, em, s
+	c := NewController(m, nav, em, nil, nil)
+	return m, nav, em, c
 }
 
-func setupServiceWithPersister(t *testing.T) (*Manager, *fakeNav, *fakeEmitter, *fakePersister, *Service) {
+func setupControllerWithPersister(t *testing.T) (*Manager, *fakeNav, *fakeEmitter, *fakePersister, *Controller) {
 	t.Helper()
 	m := NewManager(20)
 	nav := &fakeNav{manager: m}
 	em := &fakeEmitter{}
 	p := &fakePersister{}
-	s := NewService(m, nav, em, p, nil)
-	return m, nav, em, p, s
+	c := NewController(m, nav, em, p, nil)
+	return m, nav, em, p, c
 }
 
 func TestService_State_Passthrough(t *testing.T) {
-	m, _, _, s := setupService(t)
+	m, _, _, s := setupController(t)
 	m.Push("a")
 	m.Push("b")
 
@@ -73,7 +73,7 @@ func TestService_State_Passthrough(t *testing.T) {
 }
 
 func TestService_Back_EmptyStack_NoNavCall(t *testing.T) {
-	_, nav, em, s := setupService(t)
+	_, nav, em, s := setupController(t)
 
 	st, err := s.Back()
 	if err != nil {
@@ -91,7 +91,7 @@ func TestService_Back_EmptyStack_NoNavCall(t *testing.T) {
 }
 
 func TestService_Back_DispatchesAndBroadcasts(t *testing.T) {
-	m, nav, em, s := setupService(t)
+	m, nav, em, s := setupController(t)
 	m.Push("a")
 	m.Push("b")
 	m.Push("c")
@@ -115,7 +115,7 @@ func TestService_Back_DispatchesAndBroadcasts(t *testing.T) {
 }
 
 func TestService_Back_SuppressesReplayPush(t *testing.T) {
-	m, nav, _, s := setupService(t)
+	m, nav, _, s := setupController(t)
 	m.Push("a")
 	m.Push("b")
 
@@ -135,7 +135,7 @@ func TestService_Back_SuppressesReplayPush(t *testing.T) {
 }
 
 func TestService_Forward_DispatchesAndBroadcasts(t *testing.T) {
-	m, nav, em, s := setupService(t)
+	m, nav, em, s := setupController(t)
 	m.Push("a")
 	m.Push("b")
 	m.Push("c")
@@ -158,7 +158,7 @@ func TestService_Forward_DispatchesAndBroadcasts(t *testing.T) {
 }
 
 func TestService_NavErrorPropagates(t *testing.T) {
-	m, nav, em, s := setupService(t)
+	m, nav, em, s := setupController(t)
 	m.Push("a")
 	m.Push("b")
 	nav.err = errors.New("template gone")
@@ -176,7 +176,7 @@ func TestService_NavErrorPropagates(t *testing.T) {
 }
 
 func TestService_Broadcast_StandalonePush(t *testing.T) {
-	m, _, em, s := setupService(t)
+	m, _, em, s := setupController(t)
 	m.Push("a")
 
 	s.Broadcast()
@@ -189,14 +189,14 @@ func TestService_Broadcast_StandalonePush(t *testing.T) {
 	}
 }
 
-func TestService_NilNavigator_Tolerant(t *testing.T) {
+func TestController_NilNavigator_Tolerant(t *testing.T) {
 	m := NewManager(20)
 	em := &fakeEmitter{}
-	s := NewService(m, nil, em, nil, nil)
+	c := NewController(m, nil, em, nil, nil)
 	m.Push("a")
 	m.Push("b")
 
-	if _, err := s.Back(); err != nil {
+	if _, err := c.Back(); err != nil {
 		t.Fatalf("Back: %v", err)
 	}
 	if len(em.events) != 1 {
@@ -204,21 +204,21 @@ func TestService_NilNavigator_Tolerant(t *testing.T) {
 	}
 }
 
-func TestService_NilEmitter_Tolerant(t *testing.T) {
+func TestController_NilEmitter_Tolerant(t *testing.T) {
 	m := NewManager(20)
 	nav := &fakeNav{manager: m}
-	s := NewService(m, nav, nil, nil, nil)
+	c := NewController(m, nav, nil, nil, nil)
 	m.Push("a")
 	m.Push("b")
 
-	if _, err := s.Back(); err != nil {
+	if _, err := c.Back(); err != nil {
 		t.Fatalf("Back: %v", err)
 	}
-	s.Broadcast()
+	c.Broadcast()
 }
 
 func TestService_Push_DelegatesAndBroadcasts(t *testing.T) {
-	m, _, em, p, s := setupServiceWithPersister(t)
+	m, _, em, p, s := setupControllerWithPersister(t)
 
 	s.Push("a")
 	s.Push("b")
@@ -236,7 +236,7 @@ func TestService_Push_DelegatesAndBroadcasts(t *testing.T) {
 }
 
 func TestService_Push_EmptyHrefSkipsBroadcastAndPersist(t *testing.T) {
-	_, _, em, p, s := setupServiceWithPersister(t)
+	_, _, em, p, s := setupControllerWithPersister(t)
 
 	s.Push("")
 
@@ -246,7 +246,7 @@ func TestService_Push_EmptyHrefSkipsBroadcastAndPersist(t *testing.T) {
 }
 
 func TestService_Back_PersistsAfterReplay(t *testing.T) {
-	m, _, _, p, s := setupServiceWithPersister(t)
+	m, _, _, p, s := setupControllerWithPersister(t)
 	m.Push("a")
 	m.Push("b")
 
@@ -259,7 +259,7 @@ func TestService_Back_PersistsAfterReplay(t *testing.T) {
 }
 
 func TestService_NavError_SkipsPersist(t *testing.T) {
-	m, nav, _, p, s := setupServiceWithPersister(t)
+	m, nav, _, p, s := setupControllerWithPersister(t)
 	m.Push("a")
 	m.Push("b")
 	nav.err = errors.New("gone")
@@ -272,13 +272,38 @@ func TestService_NavError_SkipsPersist(t *testing.T) {
 	}
 }
 
-func TestService_NilPersister_Tolerant(t *testing.T) {
+func TestController_NilPersister_Tolerant(t *testing.T) {
 	m := NewManager(20)
 	em := &fakeEmitter{}
-	s := NewService(m, nil, em, nil, nil)
-	s.Push("a")
-	s.Push("b")
-	if _, err := s.Back(); err != nil {
+	c := NewController(m, nil, em, nil, nil)
+	c.Push("a")
+	c.Push("b")
+	if _, err := c.Back(); err != nil {
 		t.Fatalf("Back: %v", err)
+	}
+}
+
+func TestService_DelegatesToController(t *testing.T) {
+	m := NewManager(20)
+	nav := &fakeNav{manager: m}
+	em := &fakeEmitter{}
+	c := NewController(m, nav, em, nil, nil)
+	s := NewService(c)
+
+	c.Push("a")
+	c.Push("b")
+
+	if got := s.State(); !got.CanBack || got.CanForward {
+		t.Fatalf("Service.State=%+v, want canBack=true canForward=false", got)
+	}
+	st, err := s.Back()
+	if err != nil {
+		t.Fatalf("Service.Back: %v", err)
+	}
+	if st.CanBack || !st.CanForward {
+		t.Fatalf("after Service.Back state=%+v, want canBack=false canForward=true", st)
+	}
+	if !reflect.DeepEqual(nav.hrefs, []string{"a"}) {
+		t.Fatalf("Service.Back didn't reach controller's nav: %v", nav.hrefs)
 	}
 }
