@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from "vue-i18n";
 import { useToast } from "../composables/useToast";
 
+const { t } = useI18n();
 const { toasts, dismiss } = useToast();
 </script>
 
@@ -8,14 +10,21 @@ const { toasts, dismiss } = useToast();
   <Teleport to="body">
     <TransitionGroup name="toast" tag="div" class="toast-container">
       <div
-        v-for="t in toasts"
-        :key="t.id"
-        :class="['toast', t.variant]"
+        v-for="toast in toasts"
+        :key="toast.id"
+        :class="['toast', toast.variant]"
         role="status"
         aria-live="polite"
-        @click="dismiss(t.id)"
+        @click="dismiss(toast.id)"
       >
-        {{ t.text }}
+        <span class="toast-text">{{ toast.text }}</span>
+        <button
+          type="button"
+          class="toast-close"
+          :aria-label="t('common.close')"
+          :title="t('common.close')"
+          @click.stop="dismiss(toast.id)"
+        >×</button>
       </div>
     </TransitionGroup>
   </Teleport>

@@ -17,7 +17,7 @@
     cursor: pointer;
     min-width: 220px;
     max-width: min(440px, 92vw);
-    padding: 10px 14px 10px 16px;
+    padding: 10px 10px 10px 16px;
     background: var(--color-bg);
     color: var(--color-text);
     border: 1px solid var(--color-border);
@@ -27,6 +27,34 @@
     font-size: var(--font-size-md);
     line-height: 1.4;
     user-select: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.toast-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.toast-close {
+    flex: 0 0 auto;
+    background: none;
+    border: none;
+    padding: 0 4px;
+    margin: -2px -2px 0 0;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    border-radius: var(--radius-sm);
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    outline: none;
 }
 
 .toast.info    { border-left-color: var(--color-accent); }
