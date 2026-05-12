@@ -287,7 +287,9 @@ async function doImport() {
   <Modal
     :open="open"
     :title="t('csv.import.title')"
-    width="min(1200px, 92vw)"
+    width="800px"
+    maximizable
+    :dialog-style="{ height: '600px' }"
     @close="emit('close')"
   >
     <div class="csv-import-target">
