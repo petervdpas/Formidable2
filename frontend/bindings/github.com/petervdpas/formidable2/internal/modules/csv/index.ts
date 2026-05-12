@@ -7,8 +7,12 @@ export {
 };
 
 export {
+    ExportColumn,
+    ExportPlan,
+    ExportResult,
     FieldSpec,
     PreviewResult,
     SuggestedMapping,
+    Transform,
     WriteResult
 } from "./models.js";

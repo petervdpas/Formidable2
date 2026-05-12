@@ -67,3 +67,23 @@ func (s *Service) TransformRules() []string {
 func (s *Service) ExcludedFieldTypes() []string {
 	return ExcludedFieldTypes()
 }
+
+// FormatValue is the export-side counterpart to CoerceValue: turn a
+// stored typed value back into a CSV-friendly string.
+func (s *Service) FormatValue(val any, fieldType string) string {
+	return FormatValue(val, fieldType)
+}
+
+// Export is the one-call export pipeline: list forms, load each, build
+// the row grid. The frontend then hands Rows to Write(filePath, ...).
+func (s *Service) Export(templateFilename string, plan ExportPlan, fields []FieldSpec) ExportResult {
+	return s.m.Export(templateFilename, plan, fields)
+}
+
+// BuildPreviewRows is the export-dialog's live preview helper. It runs
+// the same row-building pipeline as Export but on caller-supplied
+// entries (typically one) — no storage round trip. Always includes the
+// header row at index 0.
+func (s *Service) BuildPreviewRows(plan ExportPlan, entries []map[string]any, fields []FieldSpec) [][]string {
+	return BuildExportRows(plan, entries, fields)
+}

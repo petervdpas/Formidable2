@@ -14,21 +14,39 @@ type fs interface {
 	SaveFile(path string, content string) error
 }
 
+// formsSource is the narrow storage surface BuildExportRows needs.
+// *storage.Manager satisfies it via a thin adapter wired in app.go.
+// Optional: callers that only use Preview/Write/transforms can leave
+// the manager's forms field nil.
+type formsSource interface {
+	ListForms(tpl string) ([]string, error)
+	LoadFormData(tpl, datafile string) map[string]any
+}
+
 const defaultDelimiter = ","
 
 // Manager wraps encoding/csv with Formidable's preview/write conventions.
 // Stateless beyond its dependencies.
 type Manager struct {
-	fs  fs
-	log *slog.Logger
+	fs    fs
+	forms formsSource
+	log   *slog.Logger
 }
 
-// NewManager constructs a CSV manager. log may be nil.
+// NewManager constructs a CSV manager. log may be nil. The forms
+// dependency is installed via SetForms after construction because the
+// storage manager is built later in the composition root.
 func NewManager(filesystem fs, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}
 	return &Manager{fs: filesystem, log: log}
+}
+
+// SetForms installs the storage dependency. Export() returns a
+// "storage unavailable" error if this was never called.
+func (m *Manager) SetForms(f formsSource) {
+	m.forms = f
 }
 
 // Preview reads filePath as a CSV and returns its header row plus the

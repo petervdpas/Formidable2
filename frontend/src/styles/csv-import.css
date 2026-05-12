@@ -101,3 +101,59 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* ── Export dialog ──────────────────────────────────────────────── */
+
+.csv-export-th-narrow,
+.csv-export-td-narrow {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.csv-export-header-input {
+  width: 100%;
+  min-width: 8rem;
+  padding: var(--space-1) var(--space-2);
+}
+
+.csv-export-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+.csv-export-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill, 999px);
+  font-size: 0.8125rem;
+}
+.csv-export-chip-x,
+.csv-export-row-x {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+.csv-export-chip-x:hover,
+.csv-export-row-x:hover {
+  color: var(--danger, #c33);
+}
+.csv-export-chip-add {
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.8125rem;
+}
+
+.csv-export-actions {
+  margin-top: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+}

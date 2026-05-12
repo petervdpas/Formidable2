@@ -33,6 +33,18 @@ export function ApplyTransform(value: string, rule: string, param: string, mode:
 }
 
 /**
+ * BuildPreviewRows is the export-dialog's live preview helper. It runs
+ * the same row-building pipeline as Export but on caller-supplied
+ * entries (typically one) — no storage round trip. Always includes the
+ * header row at index 0.
+ */
+export function BuildPreviewRows(plan: $models.ExportPlan, entries: { [_ in string]?: any }[], fields: $models.FieldSpec[]): $CancellablePromise<string[][]> {
+    return $Call.ByID(1765116917, plan, entries, fields).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * CoercePreview returns a display-shaped string for the typed value.
  */
 export function CoercePreview(raw: string, fieldType: string, options: any[]): $CancellablePromise<string> {
@@ -58,18 +70,36 @@ export function ExcludedFieldTypes(): $CancellablePromise<string[]> {
 }
 
 /**
+ * Export is the one-call export pipeline: list forms, load each, build
+ * the row grid. The frontend then hands Rows to Write(filePath, ...).
+ */
+export function Export(templateFilename: string, plan: $models.ExportPlan, fields: $models.FieldSpec[]): $CancellablePromise<$models.ExportResult> {
+    return $Call.ByID(2563447778, templateFilename, plan, fields).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * FormatValue is the export-side counterpart to CoerceValue: turn a
+ * stored typed value back into a CSV-friendly string.
+ */
+export function FormatValue(val: any, fieldType: string): $CancellablePromise<string> {
+    return $Call.ByID(4136857020, val, fieldType);
+}
+
+/**
  * MappableFields filters out field types that cannot participate in
  * a CSV mapping (image, code, api, loopstart/loopstop).
  */
 export function MappableFields(fields: $models.FieldSpec[]): $CancellablePromise<$models.FieldSpec[]> {
     return $Call.ByID(113676927, fields).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
 export function Preview(filePath: string, delimiter: string): $CancellablePromise<$models.PreviewResult> {
     return $Call.ByID(1142599248, filePath, delimiter).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -79,7 +109,7 @@ export function Preview(filePath: string, delimiter: string): $CancellablePromis
  */
 export function SuggestMappings(headers: string[], fields: $models.FieldSpec[]): $CancellablePromise<$models.SuggestedMapping[]> {
     return $Call.ByID(1554962185, headers, fields).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -95,15 +125,17 @@ export function TransformRules(): $CancellablePromise<string[]> {
 
 export function Write(filePath: string, rows: string[][], delimiter: string): $CancellablePromise<$models.WriteResult> {
     return $Call.ByID(614530563, filePath, rows, delimiter).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $models.FieldSpec.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.PreviewResult.createFrom;
-const $$createType4 = $models.SuggestedMapping.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $models.WriteResult.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.ExportResult.createFrom;
+const $$createType3 = $models.FieldSpec.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.PreviewResult.createFrom;
+const $$createType6 = $models.SuggestedMapping.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.WriteResult.createFrom;

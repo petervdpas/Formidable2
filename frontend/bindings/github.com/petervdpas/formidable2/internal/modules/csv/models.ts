@@ -6,6 +6,122 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * ExportColumn describes one CSV column. SourceKeys may carry a single
+ * field key (plain export), several keys (computed/concat column), or
+ * a dotted "field.subkey" form used to project a table column into the
+ * row when alignment is enabled.
+ */
+export class ExportColumn {
+    "header": string;
+    "sourceKeys": string[];
+    "separator": string;
+    "transform": Transform;
+
+    /** Creates a new ExportColumn instance. */
+    constructor($$source: Partial<ExportColumn> = {}) {
+        if (!("header" in $$source)) {
+            this["header"] = "";
+        }
+        if (!("sourceKeys" in $$source)) {
+            this["sourceKeys"] = [];
+        }
+        if (!("separator" in $$source)) {
+            this["separator"] = "";
+        }
+        if (!("transform" in $$source)) {
+            this["transform"] = (new Transform());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportColumn instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportColumn {
+        const $$createField1_0 = $$createType0;
+        const $$createField3_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sourceKeys" in $$parsedSource) {
+            $$parsedSource["sourceKeys"] = $$createField1_0($$parsedSource["sourceKeys"]);
+        }
+        if ("transform" in $$parsedSource) {
+            $$parsedSource["transform"] = $$createField3_0($$parsedSource["transform"]);
+        }
+        return new ExportColumn($$parsedSource as Partial<ExportColumn>);
+    }
+}
+
+/**
+ * ExportPlan is the full request the dialog sends to BuildExportRows.
+ * AlignSource is optional: when set to a list- or table-typed field
+ * key, each entry unrolls into one CSV row per item in that field.
+ */
+export class ExportPlan {
+    "columns": ExportColumn[];
+    "alignSource": string;
+
+    /** Creates a new ExportPlan instance. */
+    constructor($$source: Partial<ExportPlan> = {}) {
+        if (!("columns" in $$source)) {
+            this["columns"] = [];
+        }
+        if (!("alignSource" in $$source)) {
+            this["alignSource"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportPlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportPlan {
+        const $$createField0_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("columns" in $$parsedSource) {
+            $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
+        }
+        return new ExportPlan($$parsedSource as Partial<ExportPlan>);
+    }
+}
+
+/**
+ * ExportResult is what the dialog gets back. Rows includes the header
+ * row at index 0; Count is the number of source entries exported
+ * (not row count, since alignment can multiply rows).
+ */
+export class ExportResult {
+    "rows": string[][];
+    "count": number;
+    "error"?: string;
+
+    /** Creates a new ExportResult instance. */
+    constructor($$source: Partial<ExportResult> = {}) {
+        if (!("rows" in $$source)) {
+            this["rows"] = [];
+        }
+        if (!("count" in $$source)) {
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportResult {
+        const $$createField0_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("rows" in $$parsedSource) {
+            $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
+        }
+        return new ExportResult($$parsedSource as Partial<ExportResult>);
+    }
+}
+
+/**
  * FieldSpec is the Wails-friendly subset of template.Field needed by the
  * CSV mapping UI. The dialog passes this from the template it already
  * has cached on the frontend, so the backend doesn't reload templates.
@@ -38,7 +154,7 @@ export class FieldSpec {
      * Creates a new FieldSpec instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldSpec {
-        const $$createField3_0 = $$createType0;
+        const $$createField3_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField3_0($$parsedSource["options"]);
@@ -77,8 +193,8 @@ export class PreviewResult {
      * Creates a new PreviewResult instance from a string or object.
      */
     static createFrom($$source: any = {}): PreviewResult {
-        const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType2;
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField0_0($$parsedSource["headers"]);
@@ -121,6 +237,34 @@ export class SuggestedMapping {
 }
 
 /**
+ * Transform pairs a transform rule key with its rule-specific param.
+ */
+export class Transform {
+    "rule": string;
+    "param": string;
+
+    /** Creates a new Transform instance. */
+    constructor($$source: Partial<Transform> = {}) {
+        if (!("rule" in $$source)) {
+            this["rule"] = "";
+        }
+        if (!("param" in $$source)) {
+            this["param"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Transform instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Transform {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Transform($$parsedSource as Partial<Transform>);
+    }
+}
+
+/**
  * WriteResult mirrors the JS shape.
  */
 export class WriteResult {
@@ -147,5 +291,8 @@ export class WriteResult {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $Create.Array($Create.Any);
-const $$createType2 = $Create.Array($$createType1);
+const $$createType1 = Transform.createFrom;
+const $$createType2 = ExportColumn.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Array($$createType0);
+const $$createType5 = $Create.Array($Create.Any);

@@ -179,6 +179,12 @@ func New(d Deps) (*App, error) {
 	}
 	stoM := storage.NewManager(sysM, sfrM, tplM, storagePath, d.Logger)
 
+	// Wire CSV's export dependency now that storage exists. Import only
+	// uses csvM, but Export needs to walk every form for the active
+	// template — that lives behind csv.formsSource and storage satisfies
+	// it via a small adapter.
+	csvM.SetForms(&csvFormsAdapter{sto: stoM})
+
 	// Form manager — orchestrates template + storage + config defaults
 	// for the Storage workspace's per-form view. configAdapter is a
 	// thin shim so config doesn't have to depend on form's types.

@@ -7,6 +7,7 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
 import ImportCSVDialog from "../components/ImportCSVDialog.vue";
+import ExportCSVDialog from "../components/ExportCSVDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
 import StorageListItem from "../components/StorageListItem.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
@@ -486,6 +487,12 @@ async function onCsvImported(count: number) {
   if (count > 0) await refreshList();
 }
 
+const exportCsvOpen = ref(false);
+function openExportCsv() {
+  if (!selectedTemplate.value || !collectionEnabled.value) return;
+  exportCsvOpen.value = true;
+}
+
 setTopbarMenu(() => [
   {
     type: "group",
@@ -567,6 +574,12 @@ setTopbarMenu(() => [
         labelKey: "menu.data.import",
         disabled: !selectedTemplate.value,
         onClick: openImportCsv,
+      },
+      {
+        id: "exportCsv",
+        labelKey: "menu.data.export",
+        disabled: !selectedTemplate.value,
+        onClick: openExportCsv,
       },
     ],
   }] : []),
@@ -792,6 +805,14 @@ setTopbarMenu(() => [
     :template="activeTemplateObj"
     @close="importCsvOpen = false"
     @imported="onCsvImported"
+  />
+
+  <!-- Export CSV dialog -->
+  <ExportCSVDialog
+    :open="exportCsvOpen"
+    :template-filename="selectedTemplate"
+    :template="activeTemplateObj"
+    @close="exportCsvOpen = false"
   />
 </template>
 

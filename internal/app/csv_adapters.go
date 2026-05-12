@@ -1,0 +1,29 @@
+package app
+
+import (
+	"github.com/petervdpas/formidable2/internal/modules/storage"
+)
+
+// csvFormsAdapter satisfies csv.formsSource — a tiny shim so the csv
+// module can list and read forms without importing the storage package
+// directly. Export() is the only caller; Preview/Write/transforms
+// don't touch this.
+type csvFormsAdapter struct {
+	sto *storage.Manager
+}
+
+func (a *csvFormsAdapter) ListForms(tpl string) ([]string, error) {
+	return a.sto.ListForms(tpl)
+}
+
+// LoadFormData returns the .data block of a stored form, or nil when
+// the file is missing or unreadable. The csv exporter treats nil as
+// "skip this entry" so transient read failures don't blow up the
+// whole job.
+func (a *csvFormsAdapter) LoadFormData(tpl, datafile string) map[string]any {
+	f := a.sto.LoadForm(tpl, datafile)
+	if f == nil {
+		return nil
+	}
+	return f.Data
+}
