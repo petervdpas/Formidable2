@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useConfig } from "../composables/useConfig";
 import { useStatusBar } from "../composables/useStatusBar";
+import CharPicker from "./CharPicker.vue";
 
 defineProps<{ profile?: string }>();
 
@@ -72,6 +73,7 @@ const statusParts = computed<StatusPart[]>(() => {
       <template v-else>{{ t("status.ready") }}</template>
     </span>
     <span class="footer-spacer" />
+    <CharPicker v-if="config?.status_buttons?.charpicker" />
     <span class="profile muted">
       {{ t("footer.user_profile_label") }}
       {{ profile ?? activeProfileLabel }}
