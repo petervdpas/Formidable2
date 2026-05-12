@@ -14,6 +14,13 @@ vars:
   # Docker image for cross-compilation with CGO (used when CGO_ENABLED=1 on non-Windows)
   CROSS_IMAGE: wails-cross
 
+  # Version injection. The release workflow already wires this via
+  # GITHUB_REF_NAME; local builds resolve from `git describe` and fall
+  # back to "dev" outside a git checkout. Same path as the release.
+  VERSION_PATH: "github.com/petervdpas/formidable2/internal/modules/about.Version"
+  VERSION:
+    sh: 'v=$(git describe --tags --always --dirty 2>/dev/null || echo dev); echo "${v#v}"'
+
 tasks:
   build:
     summary: Builds the application for Windows
@@ -50,7 +57,7 @@ tasks:
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if .EXTRA_TAGS}}-tags {{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if .EXTRA_TAGS}}-tags {{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l" -ldflags="-X {{.VERSION_PATH}}={{.VERSION}}"{{else}}-tags production{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X {{.VERSION_PATH}}={{.VERSION}}"{{end}}'
     env:
       GOOS: windows
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'

@@ -94,7 +94,7 @@ func main() {
 	})
 
 	winOpts := application.WebviewWindowOptions{
-		Title:     "Formidable",
+		Title:     info.Name + " " + info.Version,
 		Width:     1024,
 		Height:    800,
 		MinWidth:  720,
