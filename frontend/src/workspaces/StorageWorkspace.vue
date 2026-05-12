@@ -6,6 +6,7 @@ import SplitPane from "../components/SplitPane.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
+import ImportCSVDialog from "../components/ImportCSVDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
 import StorageListItem from "../components/StorageListItem.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
@@ -465,6 +466,26 @@ async function openStorageFolder() {
   }
 }
 
+// ── Import CSV dialog ───────────────────────────────────────────────
+// Old Formidable scoped the Data menu to templates that opt into
+// collections; we replicate that here so the "Import CSV..." entry
+// only appears when the active template has enable_collection: true.
+const importCsvOpen = ref(false);
+const activeTemplateObj = computed(() => {
+  const f = selectedTemplate.value;
+  return f ? templateCache.value.get(f) ?? null : null;
+});
+const collectionEnabled = computed(() => !!activeTemplateObj.value?.enable_collection);
+
+function openImportCsv() {
+  if (!selectedTemplate.value || !collectionEnabled.value) return;
+  importCsvOpen.value = true;
+}
+
+async function onCsvImported(count: number) {
+  if (count > 0) await refreshList();
+}
+
 setTopbarMenu(() => [
   {
     type: "group",
@@ -535,6 +556,20 @@ setTopbarMenu(() => [
       },
     ],
   },
+  ...(collectionEnabled.value ? [{
+    type: "group" as const,
+    id: "data",
+    labelKey: "menu.data",
+    alwaysEnabled: true,
+    items: [
+      {
+        id: "importCsv",
+        labelKey: "menu.data.import",
+        disabled: !selectedTemplate.value,
+        onClick: openImportCsv,
+      },
+    ],
+  }] : []),
 ]);
 </script>
 
@@ -748,6 +783,15 @@ setTopbarMenu(() => [
     variant="danger"
     @cancel="deleteOpen = false"
     @confirm="confirmDelete"
+  />
+
+  <!-- Import CSV dialog -->
+  <ImportCSVDialog
+    :open="importCsvOpen"
+    :template-filename="selectedTemplate"
+    :template="activeTemplateObj"
+    @close="importCsvOpen = false"
+    @imported="onCsvImported"
   />
 </template>
 

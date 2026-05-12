@@ -24,18 +24,86 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * ApplyTransform runs one transform rule against a single cell value.
+ * mode is "preview" or "storage"; only meaningful for split-table.
+ */
+export function ApplyTransform(value: string, rule: string, param: string, mode: string): $CancellablePromise<string> {
+    return $Call.ByID(1798641220, value, rule, param, mode);
+}
+
+/**
+ * CoercePreview returns a display-shaped string for the typed value.
+ */
+export function CoercePreview(raw: string, fieldType: string, options: any[]): $CancellablePromise<string> {
+    return $Call.ByID(3240398603, raw, fieldType, options);
+}
+
+/**
+ * CoerceValue returns the typed value Coerce would produce for a CSV
+ * cell about to be written into a form field.
+ */
+export function CoerceValue(raw: string, fieldType: string, options: any[]): $CancellablePromise<any> {
+    return $Call.ByID(3498704254, raw, fieldType, options);
+}
+
+/**
+ * ExcludedFieldTypes returns the set of field types the import dialog
+ * must hide from the target-field dropdown.
+ */
+export function ExcludedFieldTypes(): $CancellablePromise<string[]> {
+    return $Call.ByID(3131073099).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
+ * MappableFields filters out field types that cannot participate in
+ * a CSV mapping (image, code, api, loopstart/loopstop).
+ */
+export function MappableFields(fields: $models.FieldSpec[]): $CancellablePromise<$models.FieldSpec[]> {
+    return $Call.ByID(113676927, fields).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 export function Preview(filePath: string, delimiter: string): $CancellablePromise<$models.PreviewResult> {
     return $Call.ByID(1142599248, filePath, delimiter).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * SuggestMappings is the auto-mapper for the import dialog. Empty
+ * FieldKey in a row means "no match found".
+ */
+export function SuggestMappings(headers: string[], fields: $models.FieldSpec[]): $CancellablePromise<$models.SuggestedMapping[]> {
+    return $Call.ByID(1554962185, headers, fields).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
+ * TransformRules returns the ordered list of supported rule keys for
+ * the transform-selector dropdown. Frontend resolves labels via i18n.
+ */
+export function TransformRules(): $CancellablePromise<string[]> {
+    return $Call.ByID(1932744663).then(($result: any) => {
         return $$createType0($result);
     });
 }
 
 export function Write(filePath: string, rows: string[][], delimiter: string): $CancellablePromise<$models.WriteResult> {
     return $Call.ByID(614530563, filePath, rows, delimiter).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType6($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.PreviewResult.createFrom;
-const $$createType1 = $models.WriteResult.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $models.FieldSpec.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.PreviewResult.createFrom;
+const $$createType4 = $models.SuggestedMapping.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.WriteResult.createFrom;

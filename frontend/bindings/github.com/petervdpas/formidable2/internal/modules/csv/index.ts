@@ -7,6 +7,8 @@ export {
 };
 
 export {
+    FieldSpec,
     PreviewResult,
+    SuggestedMapping,
     WriteResult
 } from "./models.js";

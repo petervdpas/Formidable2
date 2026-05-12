@@ -6,6 +6,48 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * FieldSpec is the Wails-friendly subset of template.Field needed by the
+ * CSV mapping UI. The dialog passes this from the template it already
+ * has cached on the frontend, so the backend doesn't reload templates.
+ */
+export class FieldSpec {
+    "key": string;
+    "type": string;
+    "label": string;
+    "options": any[];
+
+    /** Creates a new FieldSpec instance. */
+    constructor($$source: Partial<FieldSpec> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("options" in $$source)) {
+            this["options"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldSpec instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldSpec {
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("options" in $$parsedSource) {
+            $$parsedSource["options"] = $$createField3_0($$parsedSource["options"]);
+        }
+        return new FieldSpec($$parsedSource as Partial<FieldSpec>);
+    }
+}
+
+/**
  * PreviewResult is the parsed shape returned by Preview. Mirrors the JS
  * `{headers, rows, rowCount, error}` so frontend handlers don't need
  * to branch on shape.
@@ -35,8 +77,8 @@ export class PreviewResult {
      * Creates a new PreviewResult instance from a string or object.
      */
     static createFrom($$source: any = {}): PreviewResult {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType1;
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("headers" in $$parsedSource) {
             $$parsedSource["headers"] = $$createField0_0($$parsedSource["headers"]);
@@ -45,6 +87,36 @@ export class PreviewResult {
             $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
         }
         return new PreviewResult($$parsedSource as Partial<PreviewResult>);
+    }
+}
+
+/**
+ * SuggestedMapping is one row of auto-suggested CSV → field assignments.
+ * Empty FieldKey means "no auto-match found"; the user is expected to
+ * pick a target manually (or leave it unmapped).
+ */
+export class SuggestedMapping {
+    "header": string;
+    "fieldKey": string;
+
+    /** Creates a new SuggestedMapping instance. */
+    constructor($$source: Partial<SuggestedMapping> = {}) {
+        if (!("header" in $$source)) {
+            this["header"] = "";
+        }
+        if (!("fieldKey" in $$source)) {
+            this["fieldKey"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SuggestedMapping instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SuggestedMapping {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SuggestedMapping($$parsedSource as Partial<SuggestedMapping>);
     }
 }
 
@@ -75,4 +147,5 @@ export class WriteResult {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $Create.Array($$createType0);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = $Create.Array($$createType1);

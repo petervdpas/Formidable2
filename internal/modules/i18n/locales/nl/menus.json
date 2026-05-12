@@ -3,6 +3,7 @@
   "menu.config.settings": "Instellingen...",
   "menu.config.switchProfile": "Wissel profiel...",
   "menu.config.workspace": "Werkruimte...",
+  "menu.data": "Data",
   "menu.context.label": "Context Modus:",
   "menu.context.option.storage": "Opslag",
   "menu.context.option.template": "Sjabloon",

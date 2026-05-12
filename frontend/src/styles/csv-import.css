@@ -1,0 +1,103 @@
+/* Import CSV dialog. Loosely modelled on cleanup-storage.css so the
+   two collection-management dialogs feel of a piece. */
+
+.csv-import-target {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.csv-import-target-label {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+.csv-import-target-value {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.csv-import-toprow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.csv-import-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.csv-import-file .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.csv-import-delim {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.csv-import-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-2);
+}
+.csv-import-table th,
+.csv-import-table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+.csv-import-table th {
+  font-weight: 600;
+  background: var(--bg-subtle);
+}
+.csv-import-td-header {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+.csv-import-td-transform {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.csv-import-param {
+  width: 6rem;
+  padding: var(--space-1) var(--space-2);
+}
+.csv-import-td-preview {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.csv-import-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+.csv-import-concat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.csv-import-concat-input {
+  width: 3rem;
+  margin-left: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+}
+.csv-import-filename {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

@@ -76,6 +76,7 @@
   "csv.import": "Import",
   "csv.import.failed": "CSV import failed.",
   "csv.import.success": "{0} entries imported successfully.",
+  "csv.import.title": "Import CSV",
   "csv.importing": "Importing...",
   "csv.no.file": "No file selected",
   "csv.preview": "Preview",

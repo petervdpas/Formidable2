@@ -2,6 +2,7 @@
   "menu.config.settings": "Settings...",
   "menu.config.switchProfile": "Switch Profile...",
   "menu.config.workspace": "Workspace...",
+  "menu.data": "Data",
   "menu.context.label": "Context Mode:",
   "menu.context.option.storage": "Storage",
   "menu.context.option.template": "Template",

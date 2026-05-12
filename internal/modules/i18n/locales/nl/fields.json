@@ -76,6 +76,7 @@
   "csv.import": "Importeren",
   "csv.import.failed": "CSV-import mislukt.",
   "csv.import.success": "{0} items succesvol geïmporteerd.",
+  "csv.import.title": "CSV importeren",
   "csv.importing": "Bezig met importeren...",
   "csv.no.file": "Geen bestand geselecteerd",
   "csv.preview": "Voorbeeld",
