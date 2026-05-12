@@ -268,7 +268,9 @@ jobs:
           [ -f README.md ] && cp README.md "$STAGE/"
           tar -C "$(dirname "$STAGE")" -czf dist/Formidable-linux-amd64.tar.gz "$(basename "$STAGE")"
           # .deb — rename the versioned nfpm output to a version-free name.
-          mv bin/formidable_*_amd64.deb dist/Formidable-linux-amd64.deb
+          # Match by extension to avoid casing surprises (wails3 -name "Formidable"
+          # produces Formidable_*.deb, nfpm yaml's lowercase produces formidable_*.deb).
+          mv bin/*.deb dist/Formidable-linux-amd64.deb
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -363,7 +365,7 @@ jobs:
           cp build/appicon.png "$STAGE/Formidable.png"
           [ -f README.md ] && cp README.md "$STAGE/"
           tar -C "$(dirname "$STAGE")" -czf dist/Formidable-linux-arm64.tar.gz "$(basename "$STAGE")"
-          mv bin/formidable_*_arm64.deb dist/Formidable-linux-arm64.deb
+          mv bin/*.deb dist/Formidable-linux-arm64.deb
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -435,7 +437,7 @@ jobs:
           GOARCH=amd64 wails3 tool package -name "Formidable" -format rpm -config ./build/linux/nfpm/nfpm.yaml -out bin
 
           mkdir -p dist
-          mv bin/formidable-*.x86_64.rpm dist/Formidable-linux-amd64.rpm
+          mv bin/*.rpm dist/Formidable-linux-amd64.rpm
           BUILDEOF
 
           docker run --rm \
