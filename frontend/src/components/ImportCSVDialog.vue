@@ -289,7 +289,6 @@ async function doImport() {
     :title="t('csv.import.title')"
     width="800px"
     maximizable
-    :dialog-style="{ height: '600px' }"
     @close="emit('close')"
   >
     <div class="csv-import-target">

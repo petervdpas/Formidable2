@@ -278,7 +278,6 @@ async function doExport() {
     :title="t('csv.export.title')"
     width="800px"
     maximizable
-    :dialog-style="{ height: '600px' }"
     @close="emit('close')"
   >
     <div class="csv-import-target">
