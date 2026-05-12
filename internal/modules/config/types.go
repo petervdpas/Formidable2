@@ -67,7 +67,7 @@ type History struct {
 	Index   int   `json:"index"`
 }
 
-// BootConfig points at the active profile and is stored in config/boot.json.
+// BootConfig points at the active profile and is stored in config/.boot.json.
 type BootConfig struct {
 	ActiveProfile string `json:"active_profile"`
 }

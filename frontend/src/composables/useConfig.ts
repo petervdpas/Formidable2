@@ -29,7 +29,7 @@ async function reload(): Promise<void> {
   await load();
 }
 
-// switchProfile flips boot.json to the given filename via the backend
+// switchProfile flips .boot.json to the given filename via the backend
 // (which is serialized against UpdateUserConfig under updateMu) and
 // then refreshes our reactive cache. Watchers on config.theme,
 // config.language, etc. fire automatically — no full window reload.

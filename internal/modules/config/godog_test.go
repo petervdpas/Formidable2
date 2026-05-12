@@ -196,6 +196,24 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^the file "([^"]*)" does not exist$`, func(path string) error {
+		full := filepath.Join(w.tmp, path)
+		if _, err := os.Stat(full); err == nil {
+			return fmt.Errorf("expected file %q to be absent", path)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I reinitialize the config manager$`, func() error {
+		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+		m, err := NewManager(w.sys, log)
+		if err != nil {
+			return err
+		}
+		w.m = m
+		return nil
+	})
+
 	ctx.Step(`^the active profile filename is "([^"]*)"$`, func(want string) error {
 		got := w.m.CurrentProfileFilename()
 		if got != want {
@@ -264,8 +282,8 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	ctx.Step(`^boot.json's active_profile is "([^"]*)"$`, func(want string) error {
-		raw, err := os.ReadFile(filepath.Join(w.tmp, "config", "boot.json"))
+	ctx.Step(`^\.boot\.json's active_profile is "([^"]*)"$`, func(want string) error {
+		raw, err := os.ReadFile(filepath.Join(w.tmp, "config", ".boot.json"))
 		if err != nil {
 			return err
 		}

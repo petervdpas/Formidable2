@@ -15,37 +15,81 @@ func (m *Manager) bootRelPath() string {
 	return filepath.Join(configDirName, bootFileName)
 }
 
-// resolveBootProfile reads (or seeds and repairs) config/boot.json and
+// legacyBootRelPath is the pre-dotfile pointer path, kept only so
+// installs that predate the rename get migrated on first read.
+func (m *Manager) legacyBootRelPath() string {
+	return filepath.Join(configDirName, legacyBootFileName)
+}
+
+// resolveBootProfile reads (or seeds and repairs) config/.boot.json and
 // returns the active profile filename it points to.
 //
-// If boot.json is missing → seed with defaults.
-// If boot.json exists but is malformed or missing fields → repair.
+// If .boot.json is missing but legacy config/boot.json exists → migrate
+// (rewrite as .boot.json, remove the legacy file) so existing installs
+// don't quietly reset to a fresh seed.
+// If .boot.json is missing and there's no legacy → seed defaults.
+// If .boot.json exists but is malformed or missing fields → repair.
+// If both exist → .boot.json wins; legacy is removed as drift.
 func (m *Manager) resolveBootProfile() (string, error) {
 	if err := m.fs.EnsureDirectory(configDirName); err != nil {
 		return "", fmt.Errorf("ensure config dir: %w", err)
 	}
 
 	bootPath := m.bootRelPath()
+	legacyPath := m.legacyBootRelPath()
+
+	if !m.fs.FileExists(bootPath) && m.fs.FileExists(legacyPath) {
+		if err := m.migrateLegacyBoot(legacyPath, bootPath); err != nil {
+			return "", fmt.Errorf("migrate legacy boot.json: %w", err)
+		}
+	}
 
 	if !m.fs.FileExists(bootPath) {
 		if err := m.writeJSON(bootPath, defaultBootConfig()); err != nil {
-			return "", fmt.Errorf("seed boot.json: %w", err)
+			return "", fmt.Errorf("seed .boot.json: %w", err)
 		}
 		return defaultBootConfig().ActiveProfile, nil
 	}
 
+	if m.fs.FileExists(legacyPath) {
+		if err := m.fs.DeleteFile(legacyPath); err != nil {
+			m.log.Warn("could not remove stale legacy boot.json", "path", legacyPath, "err", err)
+		}
+	}
+
 	raw, err := m.fs.LoadFile(bootPath)
 	if err != nil {
-		return "", fmt.Errorf("read boot.json: %w", err)
+		return "", fmt.Errorf("read .boot.json: %w", err)
 	}
 
 	boot, changed := sanitizeBoot(raw)
 	if changed {
 		if err := m.writeJSON(bootPath, boot); err != nil {
-			return "", fmt.Errorf("repair boot.json: %w", err)
+			return "", fmt.Errorf("repair .boot.json: %w", err)
 		}
 	}
 	return boot.ActiveProfile, nil
+}
+
+// migrateLegacyBoot reads the pre-dotfile pointer, sanitizes it, writes
+// the result atomically to the new dotfile path, and removes the legacy
+// file. Order matters: the new file must be on disk before the legacy
+// is removed so a crash mid-migration leaves a recoverable state (next
+// run sees the legacy still present and retries).
+func (m *Manager) migrateLegacyBoot(legacyPath, newPath string) error {
+	raw, err := m.fs.LoadFile(legacyPath)
+	if err != nil {
+		return fmt.Errorf("read legacy: %w", err)
+	}
+	boot, _ := sanitizeBoot(raw)
+	if err := m.writeJSON(newPath, boot); err != nil {
+		return fmt.Errorf("write new: %w", err)
+	}
+	if err := m.fs.DeleteFile(legacyPath); err != nil {
+		return fmt.Errorf("remove legacy: %w", err)
+	}
+	m.log.Info("migrated boot pointer", "from", legacyPath, "to", newPath, "active_profile", boot.ActiveProfile)
+	return nil
 }
 
 // sanitizeBoot mirrors `schemas/boot.schema.js` — fills missing fields

@@ -7,7 +7,7 @@
 //
 //	domain.go     Manager type, lifecycle (NewManager, Set*),
 //	              cache invalidation primitives.
-//	boot.go       boot.json read/repair + active profile pointer.
+//	boot.go       .boot.json read/repair + active profile pointer.
 //	config_io.go  LoadUserConfig / UpdateUserConfig / persist / parse,
 //	              plus the JSON marshal helpers (writeJSON, syncJournal).
 //	vfs.go        Virtual File System view of the context folder
@@ -40,7 +40,8 @@ type fs interface {
 
 const (
 	configDirName      = "config"
-	bootFileName       = "boot.json"
+	bootFileName       = ".boot.json"
+	legacyBootFileName = "boot.json"
 	defaultProfileName = "user.json"
 	templatesDirName   = "templates"
 	storageDirName     = "storage"

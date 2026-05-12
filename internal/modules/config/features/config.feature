@@ -1,13 +1,13 @@
 Feature: User configuration management
   Formidable2 keeps user preferences in a JSON profile file under
-  config/, with boot.json pointing at the active profile. The config
+  config/, with .boot.json pointing at the active profile. The config
   manager seeds defaults on first run and supports multiple profiles.
 
   Background:
     Given a config manager rooted at a fresh temp directory
 
   Scenario: First run seeds defaults
-    Then the file "config/boot.json" exists
+    Then the file "config/.boot.json" exists
     And the file "config/user.json" exists
     And the active profile filename is "user.json"
     And the loaded config has theme "light"
@@ -27,22 +27,22 @@ Feature: User configuration management
     When I switch the active profile to "work.json"
     Then the active profile filename is "work.json"
     And the loaded config has theme "purplish"
-    And boot.json's active_profile is "work.json"
+    And .boot.json's active_profile is "work.json"
 
   Scenario: Active profile cannot be deleted
     When I delete the profile "user.json"
     Then the delete result is failure with code "active_profile"
 
-  Scenario: boot.json cannot be deleted
-    When I delete the profile "boot.json"
+  Scenario: .boot.json cannot be deleted
+    When I delete the profile ".boot.json"
     Then the delete result is failure with code "boot_forbidden"
 
-  Scenario: Listing profiles excludes boot.json
+  Scenario: Listing profiles excludes the boot pointer
     Given a profile "work.json" exists with theme "dark"
     When I list available profiles
     Then the profile list contains "user.json"
     And the profile list contains "work.json"
-    And the profile list does not contain "boot.json"
+    And the profile list does not contain ".boot.json"
 
   Scenario: Virtual structure auto-creates context layout
     When I request the virtual structure
@@ -72,10 +72,17 @@ Feature: User configuration management
     When I import the profile from "import.json" as "alt.json"
     Then the import result is failure with code "exists"
 
-  Scenario: Importing boot.json as a profile is rejected
+  Scenario: Importing .boot.json as a profile is rejected
     Given an external profile file "import.json" exists with theme "dark"
-    When I import the profile from "import.json" as "boot.json"
+    When I import the profile from "import.json" as ".boot.json"
     Then the import result is failure with code "boot_forbidden"
+
+  Scenario: Legacy boot.json is migrated to .boot.json on first read
+    Given the file "config/boot.json" with content '{"active_profile":"user.json"}'
+    When I reinitialize the config manager
+    Then the file "config/.boot.json" exists
+    And the file "config/boot.json" does not exist
+    And the active profile filename is "user.json"
 
   Scenario: Importing an invalid file is rejected
     Given an external file "bad.json" exists with content "not json {[}"

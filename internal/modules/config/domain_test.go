@@ -43,9 +43,13 @@ func newTestManagerRootContext(t *testing.T) (*Manager, *system.Manager, string)
 func TestNewManager_SeedsBootAndUserConfig(t *testing.T) {
 	m, _, root := newTestManager(t)
 
-	bootPath := filepath.Join(root, "config", "boot.json")
+	bootPath := filepath.Join(root, "config", ".boot.json")
 	if _, err := os.Stat(bootPath); err != nil {
-		t.Fatalf("boot.json should exist: %v", err)
+		t.Fatalf(".boot.json should exist: %v", err)
+	}
+	legacy := filepath.Join(root, "config", "boot.json")
+	if _, err := os.Stat(legacy); err == nil {
+		t.Errorf("legacy boot.json must not be seeded on first run")
 	}
 
 	cfg, err := m.LoadUserConfig()
@@ -60,6 +64,98 @@ func TestNewManager_SeedsBootAndUserConfig(t *testing.T) {
 	}
 	if cfg.WindowBounds.Width != 1024 {
 		t.Errorf("WindowBounds.Width default = %d, want 1024", cfg.WindowBounds.Width)
+	}
+}
+
+// TestNewManager_MigratesLegacyBootJSON exercises the rename-on-read
+// migration. An existing install will have config/boot.json on disk;
+// after upgrade we must adopt that pointer (preserving active_profile)
+// and rewrite it to .boot.json so the new naming wins. The legacy file
+// must be removed so subsequent ListAvailableProfiles doesn't surface
+// it to the picker.
+func TestNewManager_MigratesLegacyBootJSON(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+
+	if err := sys.EnsureDirectory("config"); err != nil {
+		t.Fatalf("ensure config: %v", err)
+	}
+	if err := sys.SaveFile("config/boot.json", `{"active_profile":"work.json"}`); err != nil {
+		t.Fatalf("seed legacy boot.json: %v", err)
+	}
+	work := defaultConfig()
+	work.ProfileName = "Work"
+	work.Theme = "dark"
+	wb, _ := json.Marshal(work)
+	if err := sys.SaveFile("config/work.json", string(wb)); err != nil {
+		t.Fatalf("seed work.json: %v", err)
+	}
+
+	m, err := NewManager(sys, slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(root, "config", ".boot.json")); err != nil {
+		t.Fatalf(".boot.json must exist after migration: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "config", "boot.json")); err == nil {
+		t.Errorf("legacy boot.json should have been removed")
+	}
+
+	if got := m.CurrentProfileFilename(); got != "work.json" {
+		t.Errorf("CurrentProfileFilename = %q, want work.json (active_profile preserved across rename)", got)
+	}
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if cfg.Theme != "dark" {
+		t.Errorf("active profile content lost: theme=%q", cfg.Theme)
+	}
+}
+
+// TestNewManager_PrefersDotbootWhenBothExist guards the ambiguous case:
+// if both files exist (legacy upgrade interrupted, user copied an old
+// backup, etc.) the new file wins and the legacy is cleaned up.
+func TestNewManager_PrefersDotbootWhenBothExist(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	_ = sys.EnsureDirectory("config")
+	_ = sys.SaveFile("config/boot.json", `{"active_profile":"stale.json"}`)
+	_ = sys.SaveFile("config/.boot.json", `{"active_profile":"user.json"}`)
+
+	m, err := NewManager(sys, slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if got := m.CurrentProfileFilename(); got != "user.json" {
+		t.Errorf("CurrentProfileFilename = %q, want user.json (.boot.json wins)", got)
+	}
+	if _, err := os.Stat(filepath.Join(root, "config", "boot.json")); err == nil {
+		t.Errorf("stale legacy boot.json should be removed when .boot.json wins")
+	}
+}
+
+// TestNewManager_MigratesMalformedLegacyBoot ensures the unhappy path:
+// a legacy boot.json that's invalid JSON still gets the migration —
+// sanitizeBoot fills in defaults and the result is written to the new
+// path so the user lands on a working config rather than a hard fail.
+func TestNewManager_MigratesMalformedLegacyBoot(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	_ = sys.EnsureDirectory("config")
+	_ = sys.SaveFile("config/boot.json", "not json {[}")
+
+	m, err := NewManager(sys, slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "config", ".boot.json")); err != nil {
+		t.Errorf(".boot.json must exist after migration of malformed legacy: %v", err)
+	}
+	if got := m.CurrentProfileFilename(); got != defaultProfileName {
+		t.Errorf("CurrentProfileFilename = %q, want default %q", got, defaultProfileName)
 	}
 }
 
@@ -405,8 +501,8 @@ func TestSwitchUserProfile(t *testing.T) {
 		t.Errorf("CurrentProfileFilename = %q", m.CurrentProfileFilename())
 	}
 
-	// boot.json should now point at work.json.
-	bootRaw, _ := os.ReadFile(filepath.Join(root, "config", "boot.json"))
+	// .boot.json should now point at work.json.
+	bootRaw, _ := os.ReadFile(filepath.Join(root, "config", ".boot.json"))
 	var boot BootConfig
 	_ = json.Unmarshal(bootRaw, &boot)
 	if boot.ActiveProfile != "work.json" {
@@ -494,8 +590,8 @@ func TestListAvailableProfiles_OmitsBoot(t *testing.T) {
 		t.Fatalf("ListAvailableProfiles: %v", err)
 	}
 	for _, p := range profiles {
-		if p.Value == "boot.json" {
-			t.Error("boot.json must be omitted")
+		if p.Value == ".boot.json" || p.Value == "boot.json" {
+			t.Errorf("boot pointer must be omitted, got %q", p.Value)
 		}
 	}
 	if len(profiles) != 2 {
@@ -514,10 +610,10 @@ func TestHasUserProfiles_TrueAfterSeed(t *testing.T) {
 
 func TestHasUserProfiles_FalseWhenOnlyBoot(t *testing.T) {
 	m, sys, _ := newTestManager(t)
-	// Remove the seeded user.json so only boot.json remains.
+	// Remove the seeded user.json so only the boot pointer remains.
 	_ = sys.DeleteFile(sys.JoinPath("config", "user.json"))
 	if m.HasUserProfiles() {
-		t.Error("expected false when only boot.json exists")
+		t.Error("expected false when only boot pointer exists")
 	}
 }
 
@@ -544,9 +640,9 @@ func TestExportUserProfile_NotFound(t *testing.T) {
 func TestDeleteUserProfile_RejectsBootAndActive(t *testing.T) {
 	m, _, _ := newTestManager(t)
 
-	r := m.DeleteUserProfile("boot.json")
+	r := m.DeleteUserProfile(".boot.json")
 	if r.Success || r.Code != "boot_forbidden" {
-		t.Errorf("boot.json delete should be forbidden: %+v", r)
+		t.Errorf(".boot.json delete should be forbidden: %+v", r)
 	}
 	r = m.DeleteUserProfile("user.json")
 	if r.Success || r.Code != "active_profile" {
@@ -595,9 +691,9 @@ func TestImportUserProfile_RejectsBootJSON(t *testing.T) {
 	m, _, root := newTestManager(t)
 	src := filepath.Join(root, "x.json")
 	_ = os.WriteFile(src, []byte("{}"), 0o644)
-	r := m.ImportUserProfile(src, "boot.json", false)
+	r := m.ImportUserProfile(src, ".boot.json", false)
 	if r.Success || r.Code != "boot_forbidden" {
-		t.Errorf("boot.json import should be forbidden: %+v", r)
+		t.Errorf(".boot.json import should be forbidden: %+v", r)
 	}
 }
 

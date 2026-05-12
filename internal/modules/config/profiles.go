@@ -34,7 +34,7 @@ func (m *Manager) GitSelfCloned() bool {
 	return m.cached.GitSelfCloned
 }
 
-// SwitchUserProfile points boot.json at profileFilename, swaps the
+// SwitchUserProfile points .boot.json at profileFilename, swaps the
 // active config path, and reloads. Held under updateMu so a concurrent
 // UpdateUserConfig can't read the old profile and persist its merge
 // into the new file.
@@ -55,7 +55,7 @@ func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error) {
 }
 
 // HasUserProfiles reports whether at least one user profile exists
-// under config/ (boot.json excluded). Used by the ribbon to ghost
+// under config/ (.boot.json excluded). Used by the ribbon to ghost
 // workspaces that require a profile to be meaningful (Settings).
 // Errors collapse to false — an unreadable config dir is treated
 // as "no profiles available".
@@ -68,7 +68,7 @@ func (m *Manager) HasUserProfiles() bool {
 }
 
 // ListAvailableProfiles enumerates *.json under config/ except
-// boot.json, returning {value, display} entries for the picker.
+// .boot.json, returning {value, display} entries for the picker.
 // Display falls back from profile_name → author_name → "(unnamed)".
 func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error) {
 	files, err := m.fs.ListFiles(configDirName)
@@ -143,7 +143,7 @@ func (m *Manager) ExportUserProfile(profileFilename, targetPath string, overwrit
 // missing fields are filled in (mirrors the JS sanitize-on-import).
 //
 // If profileFilename is empty, the basename of sourcePath is normalised
-// (lowercased, slugified, .json suffix). boot.json is rejected so the
+// (lowercased, slugified, .json suffix). .boot.json is rejected so the
 // boot pointer can't be overwritten via the profile UI.
 func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrite bool) ProfileResult {
 	if sourcePath == "" {
@@ -171,7 +171,7 @@ func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrit
 	if final == bootFileName {
 		return ProfileResult{
 			Success: false,
-			Error:   "boot.json cannot be imported as a profile.",
+			Error:   ".boot.json cannot be imported as a profile.",
 			Code:    "boot_forbidden",
 		}
 	}
@@ -214,7 +214,7 @@ func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrit
 	}
 }
 
-// DeleteUserProfile removes a profile JSON. boot.json is rejected
+// DeleteUserProfile removes a profile JSON. .boot.json is rejected
 // always, and the active profile is rejected to keep the manager in a
 // loadable state — switch first, then delete.
 func (m *Manager) DeleteUserProfile(profileFilename string) ProfileResult {
@@ -222,7 +222,7 @@ func (m *Manager) DeleteUserProfile(profileFilename string) ProfileResult {
 		return ProfileResult{Success: false, Error: "Missing profileFilename.", Code: "missing_filename"}
 	}
 	if profileFilename == bootFileName {
-		return ProfileResult{Success: false, Error: "boot.json cannot be deleted.", Code: "boot_forbidden"}
+		return ProfileResult{Success: false, Error: ".boot.json cannot be deleted.", Code: "boot_forbidden"}
 	}
 	if profileFilename == m.CurrentProfileFilename() {
 		return ProfileResult{Success: false, Error: "The active profile cannot be deleted.", Code: "active_profile"}
