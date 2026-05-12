@@ -559,6 +559,22 @@ setTopbarMenu(() => [
         combo: "Mod+M",
         onClick: toggleMetaSection,
       },
+      {
+        id: "preview-markdown",
+        labelKey: "workspace.storage.preview.markdown",
+        combo: "Ctrl+Shift+M",
+        allowWhenTyping: true,
+        disabled: !view.value?.saved,
+        onClick: () => { mdOpen.value = !mdOpen.value; },
+      },
+      {
+        id: "preview-html",
+        labelKey: "workspace.storage.preview.html",
+        combo: "Ctrl+Shift+H",
+        allowWhenTyping: true,
+        disabled: !view.value?.saved,
+        onClick: () => { htmlOpen.value = !htmlOpen.value; },
+      },
     ],
   },
   {

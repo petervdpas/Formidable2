@@ -41,6 +41,8 @@ export const SHORTCUT_CATALOG: ShortcutCatalogGroup[] = [
       { combo: "Mod+N", descriptionKey: "workspace.information.shortcuts.action.new_entry" },
       { combo: "Mod+D", descriptionKey: "workspace.information.shortcuts.action.delete_entry" },
       { combo: "Mod+M", descriptionKey: "workspace.information.shortcuts.action.toggle_meta" },
+      { combo: "Ctrl+Shift+M", descriptionKey: "workspace.information.shortcuts.action.preview_markdown" },
+      { combo: "Ctrl+Shift+H", descriptionKey: "workspace.information.shortcuts.action.preview_html" },
     ],
   },
 ];

@@ -174,6 +174,8 @@
   "workspace.information.shortcuts.action.new_entry": "Een nieuw item aanmaken",
   "workspace.information.shortcuts.action.delete_entry": "Het geselecteerde item verwijderen",
   "workspace.information.shortcuts.action.toggle_meta": "Meta-blok tonen of verbergen",
+  "workspace.information.shortcuts.action.preview_markdown": "Markdown-uitschuifpaneel openen of sluiten",
+  "workspace.information.shortcuts.action.preview_html": "HTML-uitschuifpaneel openen of sluiten",
   "workspace.information.section.monitoring": "Monitoring",
   "workspace.information.section.journal_feed": "Journaalfeed",
   "workspace.information.section.logging": "Logging",

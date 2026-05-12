@@ -175,6 +175,8 @@
   "workspace.information.shortcuts.action.new_entry": "Create a new entry",
   "workspace.information.shortcuts.action.delete_entry": "Delete the selected entry",
   "workspace.information.shortcuts.action.toggle_meta": "Show / hide the meta block",
+  "workspace.information.shortcuts.action.preview_markdown": "Toggle the Markdown preview slideout",
+  "workspace.information.shortcuts.action.preview_html": "Toggle the HTML preview slideout",
   "workspace.information.section.monitoring": "Monitoring",
   "workspace.information.section.journal_feed": "Journal Feed",
   "workspace.information.section.logging": "Logging",
