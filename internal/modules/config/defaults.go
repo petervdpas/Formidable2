@@ -27,6 +27,7 @@ func defaultConfig() Config {
 		RemoteBackend:        "none",
 		GitRoot:              "",
 		GitBranch:            "",
+		GitSelfCloned:        false,
 		GigotBaseURL:         "",
 		GigotRepoName:        "",
 		GigotToken:           "",

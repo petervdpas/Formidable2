@@ -22,6 +22,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/credential"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
+	"github.com/petervdpas/formidable2/internal/modules/collaboration/git/sysgit"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
@@ -446,6 +447,7 @@ func New(d Deps) (*App, error) {
 	// pure go-git — no system git binary or credential helper
 	// required. Network/auth ops arrive in a later pass.
 	gitM := git.NewManager().WithLogger(d.Logger)
+	sysgitR := sysgit.NewRunner(d.Logger)
 
 	// Collaboration → Credentials. Thin wrapper over the OS
 	// keychain (zalando/go-keyring). Used by the Clone form's
@@ -472,7 +474,7 @@ func New(d Deps) (*App, error) {
 		Wiki:            wikiSvc,
 		Dataprovider:    dataprovider.NewService(dpM),
 		Plugin:          plugin.NewService(pluginM),
-		Git:             git.NewService(gitM, credentialM, cfgM, jrnM),
+		Git:             git.NewService(gitM, credentialM, cfgM, jrnM).WithSysgit(cfgM, sysgitR),
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
 		Expression:      expression.NewService(expressionM),

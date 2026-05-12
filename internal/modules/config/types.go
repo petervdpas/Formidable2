@@ -30,6 +30,7 @@ type Config struct {
 	RemoteBackend        string         `json:"remote_backend"`
 	GitRoot              string         `json:"git_root"`
 	GitBranch            string         `json:"git_branch"`
+	GitSelfCloned        bool           `json:"git_self_cloned"`
 	GigotBaseURL         string         `json:"gigot_base_url"`
 	GigotRepoName        string         `json:"gigot_repo_name"`
 	GigotToken           string         `json:"gigot_token"`

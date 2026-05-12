@@ -22,6 +22,18 @@ func (m *Manager) CurrentProfileFilename() string {
 	return filepath.Base(m.configPath)
 }
 
+// GitSelfCloned reports the active profile's "cloned outside
+// Formidable" flag. False when no config is loaded yet, so callers
+// don't need to special-case the early-boot window.
+func (m *Manager) GitSelfCloned() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.cached == nil {
+		return false
+	}
+	return m.cached.GitSelfCloned
+}
+
 // SwitchUserProfile points boot.json at profileFilename, swaps the
 // active config path, and reloads. Held under updateMu so a concurrent
 // UpdateUserConfig can't read the old profile and persist its merge

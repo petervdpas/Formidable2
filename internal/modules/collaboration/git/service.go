@@ -1,6 +1,9 @@
 package git
 
-import "github.com/petervdpas/formidable2/internal/modules/journal"
+import (
+	"github.com/petervdpas/formidable2/internal/modules/collaboration/git/sysgit"
+	"github.com/petervdpas/formidable2/internal/modules/journal"
+)
 
 // Service is the Wails-bound surface of the Git collaboration
 // backend. Wraps Manager and adds two cross-cutting concerns:
@@ -20,6 +23,14 @@ type Service struct {
 	creds   CredentialReader
 	profile ProfileReader
 	jrnl    journal.Journal
+	flags   FlagReader
+	sys     *sysgit.Runner
+}
+
+// FlagReader exposes per-profile toggles that affect transport
+// selection. Today: GitSelfCloned. Implemented by config.Manager.
+type FlagReader interface {
+	GitSelfCloned() bool
 }
 
 // CredentialReader resolves a stored secret for an HTTPS auth account.
@@ -47,6 +58,28 @@ func NewService(m *Manager, creds CredentialReader, profile ProfileReader, jrnl 
 	return &Service{m: m, creds: creds, profile: profile, jrnl: jrnl}
 }
 
+// WithSysgit enables the "cloned outside Formidable" transport path:
+// when flags.GitSelfCloned() is true, Fetch/Push/Pull shell out to the
+// system git binary so the user's credential helper handles auth. Both
+// args may be nil — that just keeps the go-git fallback in force.
+func (s *Service) WithSysgit(flags FlagReader, runner *sysgit.Runner) *Service {
+	s.flags = flags
+	s.sys = runner
+	return s
+}
+
+// useSysgit decides whether a network op should shell out. Toggle on
+// AND binary available is the only path that returns true.
+func (s *Service) useSysgit() bool {
+	if s.flags == nil || s.sys == nil {
+		return false
+	}
+	if !s.flags.GitSelfCloned() {
+		return false
+	}
+	return s.sys.Available()
+}
+
 func (s *Service) IsGitRepo(path string) bool                       { return s.m.IsGitRepo(path) }
 func (s *Service) RepoRoot(path string) (string, error)             { return s.m.RepoRoot(path) }
 func (s *Service) Status(path string) (*Status, error)              { return s.m.Status(path) }
@@ -63,11 +96,20 @@ func (s *Service) Clone(opts CloneOptions) (*CloneResult, error)    { return s.m
 func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) { return s.m.Commit(opts) }
 func (s *Service) Discard(opts DiscardOptions) error                { return s.m.Discard(opts) }
 
-// Fetch refreshes remote-tracking refs. When opts.PAT is empty, the
-// Service auto-fills it from the keychain entry for the repo's
-// "origin" URL — frontend doesn't need to (and can't) read the
-// secret itself.
+// Fetch refreshes remote-tracking refs. Two transport paths:
+//
+//   - Self-cloned mode (toggle on + system git on PATH): shell out
+//     via sysgit so the user's credential helper resolves auth — no
+//     PAT round-trip through Formidable's keychain.
+//   - Default: go-git with PAT auto-filled from the keychain entry
+//     for the repo's "origin" URL.
 func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
+	if s.useSysgit() {
+		if err := s.sys.Fetch(opts.Path, opts.Remote); err != nil {
+			return nil, err
+		}
+		return &FetchResult{AlreadyUpToDate: false}, nil
+	}
 	if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
 	}
