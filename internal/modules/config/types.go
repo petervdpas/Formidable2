@@ -13,6 +13,7 @@ type Config struct {
 	ShowPasteButtons     bool           `json:"show_paste_buttons"`
 	UseExpressions       bool           `json:"use_expressions"`
 	ShowMetaSection      bool           `json:"show_meta_section"`
+	IoCollectionOnly     bool           `json:"io_collection_only"`
 	LoopStateCollapsed   bool           `json:"loop_state_collapsed"`
 	FieldStateCollapsed  bool           `json:"field_state_collapsed"`
 	FontSize             int            `json:"font_size"`

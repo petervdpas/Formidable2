@@ -16,6 +16,7 @@ export class Config {
     "show_paste_buttons": boolean;
     "use_expressions": boolean;
     "show_meta_section": boolean;
+    "io_collection_only": boolean;
     "loop_state_collapsed": boolean;
     "field_state_collapsed": boolean;
     "font_size": number;
@@ -60,6 +61,9 @@ export class Config {
         }
         if (!("show_meta_section" in $$source)) {
             this["show_meta_section"] = false;
+        }
+        if (!("io_collection_only" in $$source)) {
+            this["io_collection_only"] = false;
         }
         if (!("loop_state_collapsed" in $$source)) {
             this["loop_state_collapsed"] = false;
@@ -150,18 +154,18 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField28_0 = $$createType0;
-        const $$createField30_0 = $$createType1;
-        const $$createField31_0 = $$createType2;
+        const $$createField29_0 = $$createType0;
+        const $$createField31_0 = $$createType1;
+        const $$createField32_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField28_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField29_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField30_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField31_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField31_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField32_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

@@ -599,6 +599,52 @@ func TestListAvailableProfiles_OmitsBoot(t *testing.T) {
 	}
 }
 
+// TestIoCollectionOnly_DefaultFalseAndPersists exercises the toggle
+// that gates the Storage workspace's CSV Import/Export menu against
+// templates with enable_collection: false. Default is OFF (the menu
+// shows for every template); flipping ON via UpdateUserConfig must
+// round-trip on disk and surface through the accessor.
+func TestIoCollectionOnly_DefaultFalseAndPersists(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if m.IoCollectionOnly() {
+		t.Errorf("default IoCollectionOnly = true, want false")
+	}
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if cfg.IoCollectionOnly {
+		t.Errorf("default Config.IoCollectionOnly = true, want false")
+	}
+
+	if _, err := m.UpdateUserConfig(map[string]any{"io_collection_only": true}); err != nil {
+		t.Fatalf("UpdateUserConfig: %v", err)
+	}
+	if !m.IoCollectionOnly() {
+		t.Errorf("after Update, IoCollectionOnly = false")
+	}
+
+	m.InvalidateConfigCache()
+	cfg2, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if !cfg2.IoCollectionOnly {
+		t.Errorf("io_collection_only did not round-trip on disk")
+	}
+}
+
+// TestIoCollectionOnly_UncachedReturnsFalse mirrors GitSelfCloned's
+// early-boot guarantee: callers that hit the accessor before the first
+// LoadUserConfig must see false, not panic.
+func TestIoCollectionOnly_UncachedReturnsFalse(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	m.InvalidateConfigCache()
+	if m.IoCollectionOnly() {
+		t.Errorf("expected false when cache is empty")
+	}
+}
+
 func TestHasUserProfiles_TrueAfterSeed(t *testing.T) {
 	// newTestManager seeds user.json by default → at least one
 	// profile exists.

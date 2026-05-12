@@ -12,6 +12,7 @@
   "config.history.max_size": "Max. Geschiedenis Grootte",
   "config.history.persist": "Bewaar Geschiedenis",
   "config.internal_server_port": "Serverpoort",
+  "config.io_collection_only": "I/O alleen voor collecties",
   "config.language": "Taal",
   "config.logging_enabled": "Logging",
   "config.profile_name": "Profielnaam",

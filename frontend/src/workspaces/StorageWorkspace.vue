@@ -462,18 +462,23 @@ async function openStorageFolder() {
 }
 
 // ── CSV import / export dialogs ─────────────────────────────────────
-// Wails-side CSV import/export operates per-form on disk and is
-// collection-independent. The HTTP API's bulk-write surface stays
-// gated on enable_collection (handler.go) — that's the one that needs
-// a guid field to talk REST.
+// Wails-side CSV import/export is collection-independent at the backend
+// (storage.ImportCsvRow + csv.Export both operate per-form). The
+// io_collection_only profile flag opts back into the old Formidable
+// rule that limited the dialog to enable_collection templates. The
+// HTTP API's bulk-write surface stays gated on enable_collection in
+// handler.go regardless of this flag.
 const importCsvOpen = ref(false);
 const activeTemplateObj = computed(() => {
   const f = selectedTemplate.value;
   return f ? templateCache.value.get(f) ?? null : null;
 });
+const csvAllowed = computed(
+  () => !config.value?.io_collection_only || !!activeTemplateObj.value?.enable_collection,
+);
 
 function openImportCsv() {
-  if (!selectedTemplate.value) return;
+  if (!selectedTemplate.value || !csvAllowed.value) return;
   importCsvOpen.value = true;
 }
 
@@ -483,7 +488,7 @@ async function onCsvImported(count: number) {
 
 const exportCsvOpen = ref(false);
 function openExportCsv() {
-  if (!selectedTemplate.value) return;
+  if (!selectedTemplate.value || !csvAllowed.value) return;
   exportCsvOpen.value = true;
 }
 
@@ -565,13 +570,13 @@ setTopbarMenu(() => [
       {
         id: "importCsv",
         labelKey: "menu.data.import",
-        disabled: !selectedTemplate.value,
+        disabled: !selectedTemplate.value || !csvAllowed.value,
         onClick: openImportCsv,
       },
       {
         id: "exportCsv",
         labelKey: "menu.data.export",
-        disabled: !selectedTemplate.value,
+        disabled: !selectedTemplate.value || !csvAllowed.value,
         onClick: openExportCsv,
       },
     ],

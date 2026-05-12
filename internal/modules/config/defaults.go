@@ -10,6 +10,7 @@ func defaultConfig() Config {
 		ShowPasteButtons:     true,
 		UseExpressions:       false,
 		ShowMetaSection:      true,
+		IoCollectionOnly:     false,
 		LoopStateCollapsed:   false,
 		FieldStateCollapsed:  false,
 		FontSize:             14,

@@ -12,6 +12,7 @@
   "config.history.max_size": "History Max Size",
   "config.history.persist": "Persist History",
   "config.internal_server_port": "Server Port",
+  "config.io_collection_only": "I/O Collection Only",
   "config.language": "Language",
   "config.logging_enabled": "Logging",
   "config.profile_name": "Profile Name",

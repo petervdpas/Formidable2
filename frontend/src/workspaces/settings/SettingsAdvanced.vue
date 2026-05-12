@@ -28,6 +28,14 @@ function patchButtons(partial: Record<string, unknown>) {
         :off-label="t('common.disabled')"
       />
     </FormRow>
+    <FormRow :label="t('config.io_collection_only')">
+      <SwitchField
+        :model-value="cfg.io_collection_only"
+        @update:model-value="(v) => update({ io_collection_only: v })"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
+      />
+    </FormRow>
     <FormRow :label="t('config.development_enable')">
       <SwitchField
         :model-value="cfg.development_enable"

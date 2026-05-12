@@ -34,6 +34,20 @@ func (m *Manager) GitSelfCloned() bool {
 	return m.cached.GitSelfCloned
 }
 
+// IoCollectionOnly reports whether CSV Import/Export should be limited
+// to templates with enable_collection: true. False (default) means the
+// Storage workspace's Data menu is available for every template; true
+// restores the old Formidable rule. Same uncached-safe contract as
+// GitSelfCloned.
+func (m *Manager) IoCollectionOnly() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.cached == nil {
+		return false
+	}
+	return m.cached.IoCollectionOnly
+}
+
 // SwitchUserProfile points .boot.json at profileFilename, swaps the
 // active config path, and reloads. Held under updateMu so a concurrent
 // UpdateUserConfig can't read the old profile and persist its merge
