@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
 import Tabs, { type TabItem } from "../../components/Tabs.vue";
+import CopyButton from "../../components/CopyButton.vue";
 import { Service as LoggingSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/logging";
 import { Entry } from "../../../bindings/github.com/petervdpas/formidable2/internal/log/models";
 import { useConfig } from "../../composables/useConfig";
@@ -85,6 +86,20 @@ function fmtAttrs(attrs: Record<string, unknown> | undefined): string {
     .join(" ");
 }
 
+// Flatten the in-memory live tail to the same shape the raw file
+// uses (one line per entry, space-separated fields). Lets the user
+// copy the tail without manually selecting across <span>s.
+function liveAsText(): string {
+  return entries.value
+    .map((e) => {
+      const parts = [fmtTime(e.time), e.level, e.msg].filter(Boolean);
+      const attrs = fmtAttrs(e.attrs);
+      if (attrs) parts.push(attrs);
+      return parts.join(" ");
+    })
+    .join("\n");
+}
+
 onMounted(async () => {
   await Promise.all([loadRecent(), loadFile(), loadPath()]);
   unsubLog = Events.On("log:entry", (ev: { data?: Entry } | Entry) => {
@@ -116,6 +131,7 @@ onUnmounted(() => {
         <button type="button" class="tool-btn" @click="clearBuffer">
           {{ t('workspace.information.logging.clear') }}
         </button>
+        <CopyButton :text="liveAsText" :disabled="!entries.length" />
       </div>
       <ul v-if="entries.length" class="logging-list">
         <li
@@ -137,6 +153,7 @@ onUnmounted(() => {
         <button type="button" class="tool-btn" @click="refreshFile">
           {{ t('workspace.information.logging.refresh') }}
         </button>
+        <CopyButton :text="rawText" :disabled="!rawText" />
       </div>
       <pre v-if="rawText" class="logging-raw">{{ rawText }}</pre>
       <p v-else class="logging-empty">{{ t('workspace.information.logging.empty_file') }}</p>

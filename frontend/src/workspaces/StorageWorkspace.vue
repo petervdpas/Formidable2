@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { Clipboard } from "@wailsio/runtime";
 import SplitPane from "../components/SplitPane.vue";
+import CopyButton from "../components/CopyButton.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
@@ -391,19 +391,6 @@ watch([htmlOpen, markdown], async ([open]) => {
   else html.value = "";
 });
 
-// Webviews block navigator.clipboard outside secure contexts; route
-// through Wails' Clipboard runtime which calls into the native
-// platform API.
-async function copyToClipboard(text: string, successKey: string) {
-  if (!text) return;
-  try {
-    await Clipboard.SetText(text);
-    toast.success(successKey);
-  } catch {
-    toast.error("workspace.storage.preview.copy_error");
-  }
-}
-
 // formidable:// click interceptor for the HTML preview slideout.
 // The rendered body can include `<a href="formidable://tpl.yaml:datafile">`
 // (link fields). The webview can't resolve the custom scheme, so we
@@ -436,17 +423,13 @@ async function onHtmlPreviewClick(e: MouseEvent) {
 // "Copy HTML" doesn't ship the in-app fragment — it asks the backend
 // for a self-contained document (DOCTYPE + head + inlined CSS + body)
 // so the result pastes cleanly into a .html file and renders the same.
-async function copyFullHtml() {
+// Wired as an async getter into CopyButton; the backend call runs on
+// click, not on render.
+async function fetchFullHtml(): Promise<string> {
   const tplName = draft.value?.template?.filename;
   const datafile = draft.value?.datafile;
-  if (!tplName || !datafile || !view.value?.saved) return;
-  try {
-    const full = await RenderSvc.RenderFullHTML(tplName, datafile);
-    await Clipboard.SetText(full);
-    toast.success("workspace.storage.preview.copied_html");
-  } catch {
-    toast.error("workspace.storage.preview.copy_error");
-  }
+  if (!tplName || !datafile || !view.value?.saved) return "";
+  return await RenderSvc.RenderFullHTML(tplName, datafile);
 }
 
 // ── Topbar menu ──────────────────────────────────────────────────────
@@ -709,16 +692,14 @@ setTopbarMenu(() => [
       offset-top="var(--space-3)"
     >
       <template #header-actions>
-        <button
-          type="button"
-          class="right-slideout-action"
+        <CopyButton
+          :text="markdown"
           :disabled="!markdown"
-          :title="t('workspace.storage.preview.copy_markdown')"
-          :aria-label="t('workspace.storage.preview.copy_markdown')"
-          @click="copyToClipboard(markdown, 'workspace.storage.preview.copied_markdown')"
-        >
-          <i class="fa-solid fa-copy"></i>
-        </button>
+          title-key="workspace.storage.preview.copy_markdown"
+          success-key="workspace.storage.preview.copied_markdown"
+          error-key="workspace.storage.preview.copy_error"
+          button-class="right-slideout-action"
+        />
       </template>
       <pre v-if="markdown" class="preview-markdown">{{ markdown }}</pre>
       <p v-else class="muted small">{{ t('workspace.storage.preview.markdown_empty') }}</p>
@@ -730,16 +711,14 @@ setTopbarMenu(() => [
       offset-top="calc(var(--space-3) + var(--right-slideout-handle-h) + 1px)"
     >
       <template #header-actions>
-        <button
-          type="button"
-          class="right-slideout-action"
+        <CopyButton
+          :text="fetchFullHtml"
           :disabled="!html"
-          :title="t('workspace.storage.preview.copy_html')"
-          :aria-label="t('workspace.storage.preview.copy_html')"
-          @click="copyFullHtml"
-        >
-          <i class="fa-solid fa-copy"></i>
-        </button>
+          title-key="workspace.storage.preview.copy_html"
+          success-key="workspace.storage.preview.copied_html"
+          error-key="workspace.storage.preview.copy_error"
+          button-class="right-slideout-action"
+        />
       </template>
       <div
         v-if="html"
