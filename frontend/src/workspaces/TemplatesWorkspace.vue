@@ -467,6 +467,7 @@ setTopbarMenu(() => [
     type: "group",
     id: "file",
     labelKey: "menu.file",
+    alwaysEnabled: true,
     items: [
       {
         id: "save",
@@ -486,6 +487,18 @@ setTopbarMenu(() => [
         id: "refresh",
         labelKey: "common.refresh",
         onClick: doRefresh,
+      },
+      { type: "separator", id: "sep-folders" },
+      {
+        id: "openTemplateFolder",
+        labelKey: "menu.file.openTemplateFolder",
+        onClick: openTemplateFolder,
+      },
+      {
+        id: "openStorageFolder",
+        labelKey: "menu.file.openStorageFolder",
+        disabled: !selectedFilename.value,
+        onClick: openStorageFolder,
       },
     ],
   },
@@ -513,20 +526,7 @@ setTopbarMenu(() => [
     type: "group",
     id: "utilities",
     labelKey: "menu.utilities",
-    alwaysEnabled: true,
     items: [
-      {
-        id: "openTemplateFolder",
-        labelKey: "menu.file.openTemplateFolder",
-        onClick: openTemplateFolder,
-      },
-      {
-        id: "openStorageFolder",
-        labelKey: "menu.file.openStorageFolder",
-        disabled: !selectedFilename.value,
-        onClick: openStorageFolder,
-      },
-      { type: "separator", id: "sep-cleanup" },
       {
         id: "cleanupStorage",
         labelKey: "menu.utilities.cleanupStorage",

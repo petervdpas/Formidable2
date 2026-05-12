@@ -27,6 +27,7 @@ import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formi
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
+import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { SidebarItem } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { backendErrMessage } from "../utils/backendError";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -438,6 +439,16 @@ function toggleMetaSection() {
   updateConfig({ show_meta_section: next });
 }
 
+async function openTemplateFolder() {
+  try {
+    const path = await TemplateSvc.TemplatesDir();
+    if (!path) return;
+    await SystemSvc.OpenExternal(path);
+  } catch (e) {
+    toast.error("workspace.templates.open_folder.error", [backendErrMessage(e)]);
+  }
+}
+
 async function openStorageFolder() {
   const tpl = selectedTemplate.value;
   if (!tpl) return;
@@ -481,6 +492,7 @@ setTopbarMenu(() => [
     type: "group",
     id: "file",
     labelKey: "menu.file",
+    alwaysEnabled: true,
     items: [
       {
         id: "save",
@@ -500,6 +512,18 @@ setTopbarMenu(() => [
         id: "refresh",
         labelKey: "common.refresh",
         onClick: doRefresh,
+      },
+      { type: "separator", id: "sep-folders" },
+      {
+        id: "openTemplateFolder",
+        labelKey: "menu.file.openTemplateFolder",
+        onClick: openTemplateFolder,
+      },
+      {
+        id: "openStorageFolder",
+        labelKey: "menu.file.openStorageFolder",
+        disabled: !selectedTemplate.value,
+        onClick: openStorageFolder,
       },
     ],
   },
@@ -529,20 +553,6 @@ setTopbarMenu(() => [
         labelKey: "workspace.storage.toggle_meta",
         combo: "Mod+M",
         onClick: toggleMetaSection,
-      },
-    ],
-  },
-  {
-    type: "group",
-    id: "utilities",
-    labelKey: "menu.utilities",
-    alwaysEnabled: true,
-    items: [
-      {
-        id: "openStorageFolder",
-        labelKey: "menu.file.openStorageFolder",
-        disabled: !selectedTemplate.value,
-        onClick: openStorageFolder,
       },
     ],
   },
