@@ -1,7 +1,6 @@
 package git
 
 import (
-	"github.com/petervdpas/formidable2/internal/modules/collaboration/git/sysgit"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 )
 
@@ -24,13 +23,24 @@ type Service struct {
 	profile ProfileReader
 	jrnl    journal.Journal
 	flags   FlagReader
-	sys     *sysgit.Runner
+	sys     Sysgit
 }
 
 // FlagReader exposes per-profile toggles that affect transport
 // selection. Today: GitSelfCloned. Implemented by config.Manager.
 type FlagReader interface {
 	GitSelfCloned() bool
+}
+
+// Sysgit is the system-git transport surface the Service shells out
+// to in self-cloned mode. *sysgit.Runner satisfies it; tests inject
+// fakes. Available() is checked before every dispatch so a missing
+// binary degrades to the go-git fallback path.
+type Sysgit interface {
+	Available() bool
+	Fetch(workdir, remote string) error
+	Push(workdir, remote string) (alreadyUpToDate bool, err error)
+	Pull(workdir, remote string) (alreadyUpToDate bool, err error)
 }
 
 // CredentialReader resolves a stored secret for an HTTPS auth account.
@@ -58,14 +68,24 @@ func NewService(m *Manager, creds CredentialReader, profile ProfileReader, jrnl 
 	return &Service{m: m, creds: creds, profile: profile, jrnl: jrnl}
 }
 
-// WithSysgit enables the "cloned outside Formidable" transport path:
-// when flags.GitSelfCloned() is true, Fetch/Push/Pull shell out to the
-// system git binary so the user's credential helper handles auth. Both
-// args may be nil — that just keeps the go-git fallback in force.
-func (s *Service) WithSysgit(flags FlagReader, runner *sysgit.Runner) *Service {
+// AttachSysgit enables the "cloned outside Formidable" transport
+// path: when flags.GitSelfCloned() is true, Fetch/Push/Pull shell out
+// to the system git binary so the user's credential helper handles
+// auth. Both args may be nil — that just keeps the go-git fallback
+// in force.
+//
+// This is a package-level function, NOT a method on Service, because
+// the Wails binding generator walks every exported method of a bound
+// service and rejects interface-typed parameters (they're not
+// JSON-serializable across the bridge). A *Service return type would
+// also double Service as both service AND model, producing duplicate
+// "Service" exports in the generated index.ts.
+func AttachSysgit(s *Service, flags FlagReader, runner Sysgit) {
+	if s == nil {
+		return
+	}
 	s.flags = flags
 	s.sys = runner
-	return s
 }
 
 // useSysgit decides whether a network op should shell out. Toggle on
@@ -116,12 +136,13 @@ func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 	return s.m.Fetch(opts)
 }
 
-// Push sends commits to the named remote. Same keychain auto-fill
-// behavior as Fetch. On success, informs the journal: an advancing
-// push records a sync marker (pending clears for git); an
-// already-up-to-date push records a remote-seen update only (we now
-// know the remote head, but no outbound sync happened).
+// Push sends commits to the named remote. Two transport paths
+// (same shape as Fetch). Journal recording is identical regardless
+// of path: AlreadyUpToDate → remote-seen; advancing → sync marker.
 func (s *Service) Push(opts PushOptions) (*PushResult, error) {
+	if s.useSysgit() {
+		return s.pushViaSysgit(opts)
+	}
 	if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
 	}
@@ -139,12 +160,33 @@ func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 	return res, nil
 }
 
-// Pull fetches + merges the upstream branch. Same keychain auto-fill
-// behavior as Fetch / Push. On success (including already-up-to-date),
-// informs the journal that the remote head is at NewHead — pull is
-// inbound, so no sync marker is appended; only the cursor's version
-// updates.
+// pushViaSysgit shells out to system git, then re-reads HEAD through
+// go-git so the journal cursor advances to the post-push commit. The
+// HEAD read is best-effort — a HEAD failure after a successful push
+// means we skip the journal update but still return the push success
+// to the caller.
+func (s *Service) pushViaSysgit(opts PushOptions) (*PushResult, error) {
+	upToDate, err := s.sys.Push(opts.Path, opts.Remote)
+	if err != nil {
+		return nil, err
+	}
+	newHead := s.headHash(opts.Path)
+	if s.jrnl != nil && newHead != "" {
+		if upToDate {
+			s.jrnl.RecordRemoteSeen(journalBackend, newHead)
+		} else {
+			s.jrnl.RecordSync(journalBackend, newHead, 1, 0)
+		}
+	}
+	return &PushResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
+}
+
+// Pull fetches + merges the upstream branch. Same dual-transport
+// shape; same journal-recording semantics regardless of path.
 func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
+	if s.useSysgit() {
+		return s.pullViaSysgit(opts)
+	}
 	if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
 	}
@@ -156,6 +198,33 @@ func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 		s.jrnl.RecordRemoteSeen(journalBackend, res.NewHead)
 	}
 	return res, nil
+}
+
+func (s *Service) pullViaSysgit(opts PullOptions) (*PullResult, error) {
+	upToDate, err := s.sys.Pull(opts.Path, opts.Remote)
+	if err != nil {
+		return nil, err
+	}
+	newHead := s.headHash(opts.Path)
+	if s.jrnl != nil && newHead != "" {
+		s.jrnl.RecordRemoteSeen(journalBackend, newHead)
+	}
+	return &PullResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
+}
+
+// headHash resolves the worktree HEAD for journal recording. Returns
+// "" on any failure — caller treats empty as "skip the journal hop"
+// since recording an unknown version would corrupt the cursor.
+func (s *Service) headHash(path string) string {
+	r, err := s.m.open(path)
+	if err != nil {
+		return ""
+	}
+	h, err := r.Head()
+	if err != nil {
+		return ""
+	}
+	return h.Hash().String()
 }
 
 // PullWithStash is the journal-aware auto-stash variant of Pull. The

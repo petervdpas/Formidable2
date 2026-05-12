@@ -55,10 +55,13 @@ export function Discard(opts: $models.DiscardOptions): $CancellablePromise<void>
 }
 
 /**
- * Fetch refreshes remote-tracking refs. When opts.PAT is empty, the
- * Service auto-fills it from the keychain entry for the repo's
- * "origin" URL — frontend doesn't need to (and can't) read the
- * secret itself.
+ * Fetch refreshes remote-tracking refs. Two transport paths:
+ * 
+ *   - Self-cloned mode (toggle on + system git on PATH): shell out
+ *     via sysgit so the user's credential helper resolves auth — no
+ *     PAT round-trip through Formidable's keychain.
+ *   - Default: go-git with PAT auto-filled from the keychain entry
+ *     for the repo's "origin" URL.
  */
 export function Fetch(opts: $models.FetchOptions): $CancellablePromise<$models.FetchResult | null> {
     return $Call.ByID(3289441430, opts).then(($result: any) => {
@@ -83,11 +86,8 @@ export function LogGraph(path: string, limit: number): $CancellablePromise<$mode
 }
 
 /**
- * Pull fetches + merges the upstream branch. Same keychain auto-fill
- * behavior as Fetch / Push. On success (including already-up-to-date),
- * informs the journal that the remote head is at NewHead — pull is
- * inbound, so no sync marker is appended; only the cursor's version
- * updates.
+ * Pull fetches + merges the upstream branch. Same dual-transport
+ * shape; same journal-recording semantics regardless of path.
  */
 export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2931175689, opts).then(($result: any) => {
@@ -114,11 +114,9 @@ export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$m
 }
 
 /**
- * Push sends commits to the named remote. Same keychain auto-fill
- * behavior as Fetch. On success, informs the journal: an advancing
- * push records a sync marker (pending clears for git); an
- * already-up-to-date push records a remote-seen update only (we now
- * know the remote head, but no outbound sync happened).
+ * Push sends commits to the named remote. Two transport paths
+ * (same shape as Fetch). Journal recording is identical regardless
+ * of path: AlreadyUpToDate → remote-seen; advancing → sync marker.
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {

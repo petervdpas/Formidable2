@@ -428,3 +428,100 @@ Feature: Git collaboration backend
     Then the pull succeeded
     And the stash result has 0 overrides
     And file "scratch.txt" inside "client" has content "untouched"
+
+  # ── Sysgit dispatch (self-cloned mode) ────────────────────────────────
+  # When the user flips the "cloned outside Formidable" toggle, the
+  # Service routes Fetch/Push/Pull through a system-git surface so the
+  # OS credential helper resolves auth. These scenarios use a fake
+  # Sysgit recorder so we can prove the dispatch decision without
+  # spawning the real binary — and prove the fallback path stays
+  # untouched whenever the toggle is off or the binary is missing.
+
+  Scenario: Toggle off — Fetch stays on the go-git path
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked available
+    And the self-cloned toggle is off
+    When I fetch from "client" via the service
+    Then the fake sysgit recorded 0 calls
+
+  Scenario: Toggle on but binary missing — Fetch falls back to go-git
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked unavailable
+    And the self-cloned toggle is on
+    When I fetch from "client" via the service
+    Then the fake sysgit recorded 0 calls
+
+  Scenario: Toggle on with available binary — Fetch shells out
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked available
+    And the self-cloned toggle is on
+    When I fetch from "client" via the service
+    Then the fake sysgit recorded 1 call
+    And the fake sysgit was asked for remote "origin"
+
+  Scenario: Toggle on with available binary — Push records a sync entry
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked available
+    And the self-cloned toggle is on
+    When I push from "client" via the service
+    Then the push succeeded
+    And the fake sysgit recorded 1 call
+    And the journal recorded 1 sync for backend "git"
+    And the journal recorded 0 remote-seens
+    And the recorded sync version equals the push NewHead
+
+  Scenario: Toggle on with available binary — up-to-date Push records remote-seen
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked available and reporting up-to-date
+    And the self-cloned toggle is on
+    When I push from "client" via the service
+    Then the push succeeded
+    And push is already-up-to-date
+    And the journal recorded 0 syncs
+    And the journal recorded 1 remote-seen for backend "git"
+
+  Scenario: Toggle on with available binary — Pull records remote-seen
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked available
+    And the self-cloned toggle is on
+    When I pull from "client" via the service
+    Then the pull succeeded
+    And the fake sysgit recorded 1 call
+    And the journal recorded 0 syncs
+    And the journal recorded 1 remote-seen for backend "git"
+
+  Scenario: Sysgit Push that errors records nothing
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked available with error "auth required"
+    And the self-cloned toggle is on
+    When I push from "client" via the service
+    Then the operation returned an error
+    And the journal recorded 0 syncs
+    And the journal recorded 0 remote-seens
+
+  Scenario: Sysgit Push on a non-repo path leaves the journal alone
+    # sysgit "succeeds" (fake returns nil) but the path isn't a repo,
+    # so headHash returns "" — recording an empty version would
+    # corrupt the cursor.
+    Given a journal-recording git service
+    And a fake sysgit recorder marked available
+    And the self-cloned toggle is on
+    When I push from "not-a-repo" via the service
+    Then the push succeeded
+    And the push NewHead is empty
+    And the journal recorded 0 syncs
+    And the journal recorded 0 remote-seens

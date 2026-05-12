@@ -582,3 +582,321 @@ func TestService_PullWithStash_OverrideRecordsRemoteSeen(t *testing.T) {
 		t.Errorf("expected remote-seen call after successful pull (even with override), got %v", seens)
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Sysgit dispatch
+// ─────────────────────────────────────────────────────────────────────
+
+type fakeFlags struct{ selfCloned bool }
+
+func (f *fakeFlags) GitSelfCloned() bool { return f.selfCloned }
+
+type fakeSysgit struct {
+	available bool
+	gotPath   string
+	gotRemote string
+	err       error
+	calls     int
+	upToDate  bool
+}
+
+func (f *fakeSysgit) Available() bool { return f.available }
+
+func (f *fakeSysgit) Fetch(workdir, remote string) error {
+	f.calls++
+	f.gotPath = workdir
+	f.gotRemote = remote
+	return f.err
+}
+
+func (f *fakeSysgit) Push(workdir, remote string) (bool, error) {
+	f.calls++
+	f.gotPath = workdir
+	f.gotRemote = remote
+	return f.upToDate, f.err
+}
+
+func (f *fakeSysgit) Pull(workdir, remote string) (bool, error) {
+	f.calls++
+	f.gotPath = workdir
+	f.gotRemote = remote
+	return f.upToDate, f.err
+}
+
+func TestService_Fetch_DispatchesToSysgitWhenToggleOnAndAvailable(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	if _, err := svc.Fetch(FetchOptions{Path: "/repo", Remote: "origin"}); err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if sys.calls != 1 {
+		t.Fatalf("sysgit.Fetch calls = %d, want 1", sys.calls)
+	}
+	if sys.gotPath != "/repo" || sys.gotRemote != "origin" {
+		t.Fatalf("got (%q,%q), want (/repo,origin)", sys.gotPath, sys.gotRemote)
+	}
+}
+
+func TestService_Fetch_FallsBackToGogitWhenToggleOff(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: false}, sys)
+
+	// Empty path triggers go-git's "path required" error — confirms we
+	// went down the go-git path, not sysgit (which would have called the
+	// fake and never errored).
+	_, err := svc.Fetch(FetchOptions{Path: ""})
+	if err == nil {
+		t.Fatal("expected go-git path-required error")
+	}
+	if sys.calls != 0 {
+		t.Errorf("sysgit invoked despite toggle off: %d calls", sys.calls)
+	}
+}
+
+func TestService_Fetch_FallsBackToGogitWhenBinaryUnavailable(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: false}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	_, err := svc.Fetch(FetchOptions{Path: ""})
+	if err == nil {
+		t.Fatal("expected go-git path-required error")
+	}
+	if sys.calls != 0 {
+		t.Errorf("sysgit invoked despite Available=false: %d calls", sys.calls)
+	}
+}
+
+func TestService_Fetch_SysgitErrorPropagates(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true, err: errFakeAuth}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	_, err := svc.Fetch(FetchOptions{Path: "/repo"})
+	if err != errFakeAuth {
+		t.Fatalf("got %v, want errFakeAuth", err)
+	}
+}
+
+var errFakeAuth = fakeErr("fake auth error")
+
+type fakeErr string
+
+func (e fakeErr) Error() string { return string(e) }
+
+func TestService_Push_DispatchesToSysgit(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc, jrnl := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true, upToDate: false}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	res, err := svc.Push(PushOptions{Path: work, Remote: "origin"})
+	if err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+	if sys.calls != 1 || sys.gotPath != work {
+		t.Fatalf("sysgit.Push not invoked correctly: calls=%d path=%q", sys.calls, sys.gotPath)
+	}
+	if res == nil || res.NewHead == "" {
+		t.Fatalf("expected NewHead populated, got %+v", res)
+	}
+	syncs, _ := jrnl.snapshot()
+	if len(syncs) != 1 {
+		t.Fatalf("expected sync marker, got syncs=%v", syncs)
+	}
+	if syncs[0].version != res.NewHead {
+		t.Fatalf("journal version %q != NewHead %q", syncs[0].version, res.NewHead)
+	}
+}
+
+func TestService_Push_SysgitUpToDateRecordsRemoteSeen(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc, jrnl := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true, upToDate: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	res, err := svc.Push(PushOptions{Path: work, Remote: "origin"})
+	if err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+	if !res.AlreadyUpToDate {
+		t.Fatal("expected AlreadyUpToDate=true")
+	}
+	syncs, seens := jrnl.snapshot()
+	if len(syncs) != 0 {
+		t.Errorf("phantom sync marker on up-to-date push: %v", syncs)
+	}
+	if len(seens) != 1 {
+		t.Errorf("expected remote-seen, got %v", seens)
+	}
+}
+
+func TestService_Pull_DispatchesToSysgit(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc, jrnl := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	res, err := svc.Pull(PullOptions{Path: work, Remote: "origin"})
+	if err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+	if sys.calls != 1 {
+		t.Fatalf("sysgit.Pull calls = %d, want 1", sys.calls)
+	}
+	if res == nil || res.NewHead == "" {
+		t.Fatalf("expected NewHead populated, got %+v", res)
+	}
+	_, seens := jrnl.snapshot()
+	if len(seens) != 1 {
+		t.Errorf("expected remote-seen call, got %v", seens)
+	}
+}
+
+func TestService_Fetch_NilSysgitFallsBack(t *testing.T) {
+	// useSysgit() must reject when sys is nil even if flags say "yes".
+	svc, _ := newServiceWithJournal(t)
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, nil)
+	if _, err := svc.Fetch(FetchOptions{Path: ""}); err == nil {
+		t.Fatal("expected go-git path-required error")
+	}
+}
+
+func TestService_Fetch_NilFlagsFallsBack(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, nil, sys)
+	if _, err := svc.Fetch(FetchOptions{Path: ""}); err == nil {
+		t.Fatal("expected go-git path-required error")
+	}
+	if sys.calls != 0 {
+		t.Errorf("sysgit invoked with nil flags: %d calls", sys.calls)
+	}
+}
+
+func TestService_Pull_SysgitErrorSkipsJournal(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc, jrnl := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true, err: errFakeAuth}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	if _, err := svc.Pull(PullOptions{Path: work, Remote: "origin"}); err != errFakeAuth {
+		t.Fatalf("got %v, want errFakeAuth", err)
+	}
+	syncs, seens := jrnl.snapshot()
+	if len(syncs) != 0 || len(seens) != 0 {
+		t.Errorf("error leaked into journal: syncs=%v seens=%v", syncs, seens)
+	}
+}
+
+func TestService_Push_SysgitFallbackWhenUnavailable(t *testing.T) {
+	// Toggle on but binary missing → must NOT call sysgit; instead
+	// fall through to go-git which (with no path/remote/PAT) will
+	// produce its usual error. The fake's call counter proves we
+	// didn't shell out.
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: false}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+	_, _ = svc.Push(PushOptions{Path: ""})
+	if sys.calls != 0 {
+		t.Errorf("sysgit.Push invoked despite Available=false: %d calls", sys.calls)
+	}
+}
+
+func TestService_Push_SysgitNilJournalIsSafe(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Service with nil journal — sysgit path must not panic on
+	// post-op recording.
+	svc := NewService(NewManager(), nil, nil, nil)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	if _, err := svc.Push(PushOptions{Path: work, Remote: "origin"}); err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+}
+
+func TestService_Pull_SysgitNilJournalIsSafe(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewService(NewManager(), nil, nil, nil)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	if _, err := svc.Pull(PullOptions{Path: work, Remote: "origin"}); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+}
+
+func TestService_Push_SysgitNonRepoPathLeavesJournalAlone(t *testing.T) {
+	// sysgit "succeeded" (fake returns nil) but the path isn't a repo,
+	// so headHash returns "". Journal must remain untouched — recording
+	// an empty version would corrupt the cursor.
+	svc, jrnl := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	res, err := svc.Push(PushOptions{Path: t.TempDir(), Remote: "origin"})
+	if err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+	if res.NewHead != "" {
+		t.Errorf("expected empty NewHead on non-repo, got %q", res.NewHead)
+	}
+	syncs, seens := jrnl.snapshot()
+	if len(syncs) != 0 || len(seens) != 0 {
+		t.Errorf("journal touched with empty version: syncs=%v seens=%v", syncs, seens)
+	}
+}
+
+func TestService_Push_SysgitErrorSkipsJournal(t *testing.T) {
+	bare := makeBareRepo(t)
+	work := t.TempDir()
+	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc, jrnl := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true, err: errFakeAuth}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	if _, err := svc.Push(PushOptions{Path: work, Remote: "origin"}); err != errFakeAuth {
+		t.Fatalf("got %v, want errFakeAuth", err)
+	}
+	syncs, seens := jrnl.snapshot()
+	if len(syncs) != 0 || len(seens) != 0 {
+		t.Errorf("error leaked into journal: syncs=%v seens=%v", syncs, seens)
+	}
+}

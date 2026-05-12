@@ -474,7 +474,7 @@ func New(d Deps) (*App, error) {
 		Wiki:            wikiSvc,
 		Dataprovider:    dataprovider.NewService(dpM),
 		Plugin:          plugin.NewService(pluginM),
-		Git:             git.NewService(gitM, credentialM, cfgM, jrnM).WithSysgit(cfgM, sysgitR),
+		Git:             newGitService(gitM, credentialM, cfgM, jrnM, sysgitR),
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
 		Expression:      expression.NewService(expressionM),
@@ -499,6 +499,16 @@ func New(d Deps) (*App, error) {
 		logBroadcaster:  d.LogBroadcaster,
 		deps:            d,
 	}, nil
+}
+
+// newGitService composes git.NewService and git.AttachSysgit so the
+// App wiring stays a single map literal. AttachSysgit lives as a
+// package-level function (not a method) to keep interface-typed
+// params off the Wails-bound Service surface.
+func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manager, jrnl journal.Journal, sys git.Sysgit) *git.Service {
+	svc := git.NewService(m, creds, cfg, jrnl)
+	git.AttachSysgit(svc, cfg, sys)
+	return svc
 }
 
 // APIHandler returns the api module's http.Handler. main.go feeds this

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { FormSection, FormRow, TextField, FolderPathField } from "../fields";
+import { FormSection, FormRow, FormSwitchRow, TextField, FolderPathField } from "../fields";
 import { useConfig } from "../../composables/useConfig";
 
 // Self-contained Git connection form. Reads + writes the active
@@ -41,5 +41,13 @@ const cfg = computed(() => config.value!);
         placeholder="main"
       />
     </FormRow>
+    <FormSwitchRow
+      :label="t('settings.field.git_self_cloned')"
+      :description="t('settings.desc.git_self_cloned')"
+      :model-value="cfg.git_self_cloned"
+      @update:model-value="(v) => update({ git_self_cloned: v })"
+      :on-label="t('common.on')"
+      :off-label="t('common.off')"
+    />
   </FormSection>
 </template>

@@ -72,6 +72,28 @@ type gitWorld struct {
 	authServer    *httptest.Server
 	capturedAuthM sync.Mutex
 	capturedAuth  string
+
+	// Sysgit dispatch wiring — populated by the "fake sysgit
+	// recorder" steps so scenarios can prove the Service routed
+	// through the shell-out surface (or didn't).
+	fakeSys   *fakeSysgit
+	fakeFlags *fakeFlags
+}
+
+// wireFakeSysgit attaches a fake Sysgit + FlagReader to the Service
+// in the gitWorld. The Service must already exist (declare "a
+// journal-recording git service" before the fake-sysgit step).
+// flag default is OFF so individual scenarios can flip it with the
+// "the self-cloned toggle is on" step — keeps each scenario's
+// preconditions explicit on the line that matters.
+func wireFakeSysgit(w *gitWorld, available, upToDate bool, runErr error) error {
+	if w.svc == nil {
+		return fmt.Errorf("declare a journal-recording git service before wiring sysgit")
+	}
+	w.fakeSys = &fakeSysgit{available: available, upToDate: upToDate, err: runErr}
+	w.fakeFlags = &fakeFlags{selfCloned: false}
+	AttachSysgit(w.svc, w.fakeFlags, w.fakeSys)
+	return nil
 }
 
 func initGitScenario(ctx *godog.ScenarioContext) {
@@ -104,6 +126,8 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.srcDir = ""
 		w.authServer = nil
 		w.capturedAuth = ""
+		w.fakeSys = nil
+		w.fakeFlags = nil
 		return ctx, nil
 	})
 
@@ -769,6 +793,68 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I pull with an empty path via the service$`, func() error {
 		w.pull, w.lastErr = w.svc.Pull(PullOptions{Path: ""})
+		return nil
+	})
+
+	ctx.Step(`^I fetch from "([^"]*)" via the service$`, func(rel string) error {
+		dir := filepath.Join(w.tmp, rel)
+		w.fetch, w.lastErr = w.svc.Fetch(FetchOptions{Path: dir, Remote: "origin"})
+		return nil
+	})
+
+	// ── Sysgit dispatch wiring ────────────────────────────────────
+
+	ctx.Step(`^a fake sysgit recorder marked available$`, func() error {
+		return wireFakeSysgit(w, true, false, nil)
+	})
+
+	ctx.Step(`^a fake sysgit recorder marked unavailable$`, func() error {
+		return wireFakeSysgit(w, false, false, nil)
+	})
+
+	ctx.Step(`^a fake sysgit recorder marked available and reporting up-to-date$`, func() error {
+		return wireFakeSysgit(w, true, true, nil)
+	})
+
+	ctx.Step(`^a fake sysgit recorder marked available with error "([^"]*)"$`, func(msg string) error {
+		return wireFakeSysgit(w, true, false, fakeErr(msg))
+	})
+
+	ctx.Step(`^the self-cloned toggle is (on|off)$`, func(state string) error {
+		if w.fakeFlags == nil {
+			return fmt.Errorf("no fake flags wired; declare a fake sysgit recorder first")
+		}
+		w.fakeFlags.selfCloned = state == "on"
+		return nil
+	})
+
+	ctx.Step(`^the fake sysgit recorded (\d+) calls?$`, func(n int) error {
+		if w.fakeSys == nil {
+			return fmt.Errorf("no fake sysgit wired in this scenario")
+		}
+		if w.fakeSys.calls != n {
+			return fmt.Errorf("fake sysgit calls = %d, want %d", w.fakeSys.calls, n)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the fake sysgit was asked for remote "([^"]*)"$`, func(remote string) error {
+		if w.fakeSys == nil {
+			return fmt.Errorf("no fake sysgit wired in this scenario")
+		}
+		if w.fakeSys.gotRemote != remote {
+			return fmt.Errorf("fake sysgit remote = %q, want %q", w.fakeSys.gotRemote, remote)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the push NewHead is empty$`, func() error {
+		if w.push == nil {
+			return fmt.Errorf("no push result captured")
+		}
+		if w.push.NewHead != "" {
+			return fmt.Errorf("push NewHead = %q, want empty", w.push.NewHead)
+		}
 		return nil
 	})
 
