@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import vue from "@vitejs/plugin-vue";
 import wails from "@wailsio/runtime/plugins/vite";
 import { resolve } from "node:path";
+import { writeFileSync } from "node:fs";
 
 // Vite's watcher only watches files inside the project root by default.
 // Our `frontend/src/styles/index.css` `@import`s an upstream CSS file
@@ -11,6 +12,34 @@ import { resolve } from "node:path";
 // and the slideout / wiki preview keep serving stale CSS until the dev
 // server is fully restarted. The plugin tells chokidar about the
 // extra path and triggers a full reload when it changes.
+// Vite's default `emptyOutDir: true` wipes `frontend/dist/` clean on
+// every build, including the tracked `.gitkeep` placeholder that keeps
+// the directory present on fresh checkouts. Without that file, CI's
+// `go test ./...` errors out at `//go:embed all:frontend/dist` before
+// any test runs. Recreating the marker (with explanatory text) at
+// `closeBundle` ensures every build leaves dist/ in a committable
+// state.
+function ensureGitkeep(): Plugin {
+  const marker = resolve(__dirname, "dist/.gitkeep");
+  const body =
+    "# Do not delete.\n" +
+    "#\n" +
+    "# `main.go` uses `//go:embed all:frontend/dist` — the embed pattern\n" +
+    "# requires this directory to exist at compile time, even on a fresh\n" +
+    "# checkout before `task build:frontend` has populated it. CI tests\n" +
+    "# fail with \"no matching files found\" without this placeholder.\n" +
+    "#\n" +
+    "# Recreated automatically by the `ensureGitkeep` Vite plugin after\n" +
+    "# every build (Vite's emptyOutDir wipes the directory clean).\n";
+  return {
+    name: "formidable:ensure-gitkeep",
+    apply: "build",
+    closeBundle() {
+      writeFileSync(marker, body);
+    },
+  };
+}
+
 function watchProseCSS(): Plugin {
   const externalCss = resolve(
     __dirname,
@@ -31,7 +60,7 @@ function watchProseCSS(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue(), wails("./bindings"), watchProseCSS()],
+  plugins: [vue(), wails("./bindings"), watchProseCSS(), ensureGitkeep()],
   server: {
     host: "127.0.0.1",
     strictPort: true,

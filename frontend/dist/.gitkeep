@@ -1,0 +1,9 @@
+# Do not delete.
+#
+# `main.go` uses `//go:embed all:frontend/dist` — the embed pattern
+# requires this directory to exist at compile time, even on a fresh
+# checkout before `task build:frontend` has populated it. CI tests
+# fail with "no matching files found" without this placeholder.
+#
+# Recreated automatically by the `ensureGitkeep` Vite plugin after
+# every build (Vite's emptyOutDir wipes the directory clean).
