@@ -23,7 +23,10 @@ import { useFormidableLink } from "../composables/useFormidableLink";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
+import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import type { SidebarItem } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
+import { backendErrMessage } from "../utils/backendError";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 
 const { t } = useI18n();
@@ -450,6 +453,18 @@ function toggleMetaSection() {
   updateConfig({ show_meta_section: next });
 }
 
+async function openStorageFolder() {
+  const tpl = selectedTemplate.value;
+  if (!tpl) return;
+  try {
+    const path = await StorageSvc.TemplateStorageDir(tpl);
+    if (!path) return;
+    await SystemSvc.OpenExternal(path);
+  } catch (e) {
+    toast.error("workspace.templates.open_folder.error", [backendErrMessage(e)]);
+  }
+}
+
 setTopbarMenu(() => [
   {
     type: "group",
@@ -503,6 +518,20 @@ setTopbarMenu(() => [
         labelKey: "workspace.storage.toggle_meta",
         combo: "Mod+M",
         onClick: toggleMetaSection,
+      },
+    ],
+  },
+  {
+    type: "group",
+    id: "utilities",
+    labelKey: "menu.utilities",
+    alwaysEnabled: true,
+    items: [
+      {
+        id: "openStorageFolder",
+        labelKey: "menu.file.openStorageFolder",
+        disabled: !selectedTemplate.value,
+        onClick: openStorageFolder,
       },
     ],
   },

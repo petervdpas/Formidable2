@@ -27,8 +27,8 @@ export interface WorkspaceDef {
 }
 
 export const WORKSPACES: WorkspaceDef[] = [
-  { id: "storage",   labelKey: "ribbon.storage",   iconName: "database",        component: StorageWorkspace },
   { id: "templates", labelKey: "ribbon.templates", iconName: "design-thinking", component: TemplatesWorkspace },
+  { id: "storage",   labelKey: "ribbon.storage",   iconName: "database",        component: StorageWorkspace },
   { id: "settings",  labelKey: "ribbon.settings",  iconName: "settings",        component: SettingsWorkspace },
   { id: "profiles",  labelKey: "ribbon.profiles",  iconName: "programmer",      component: ProfilesWorkspace },
   { id: "collaboration", labelKey: "ribbon.collaboration", iconName: "collaboration", component: CollaborationWorkspace },
