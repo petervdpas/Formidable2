@@ -26,6 +26,8 @@
   "workspace.storage.field.drag_to_reorder": "Drag to reorder",
   "workspace.storage.field.image_choose": "Choose image…",
   "workspace.storage.field.image_clear": "Clear",
+  "workspace.storage.field.image_clear.confirm": "Remove “{0}” from this entry? The image file will be deleted from the template's images folder.",
+  "workspace.storage.field.image_clear.title": "Clear image?",
   "workspace.storage.field.image_no_template": "No template selected — cannot save image.",
   "workspace.storage.field.image_replace": "Replace…",
   "workspace.storage.field.image_save_failed": "Could not save image.",

@@ -8,6 +8,7 @@
   "codeeditor.placeholder": "Type your template here. Ctrl+Enter to toggle full-screen.",
   "common.browse": "Browse…",
   "common.cancel": "Cancel",
+  "common.clear": "Clear",
   "common.close": "Close",
   "common.copy": "Copy",
   "common.copied": "Copied to clipboard.",

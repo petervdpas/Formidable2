@@ -26,6 +26,8 @@
   "workspace.storage.field.drag_to_reorder": "Sleep om te herordenen",
   "workspace.storage.field.image_choose": "Afbeelding kiezen…",
   "workspace.storage.field.image_clear": "Wissen",
+  "workspace.storage.field.image_clear.confirm": "“{0}” uit dit item verwijderen? Het afbeeldingsbestand wordt uit de afbeeldingenmap van het sjabloon verwijderd.",
+  "workspace.storage.field.image_clear.title": "Afbeelding wissen?",
   "workspace.storage.field.image_no_template": "Geen sjabloon geselecteerd — afbeelding kan niet worden opgeslagen.",
   "workspace.storage.field.image_replace": "Vervangen…",
   "workspace.storage.field.image_save_failed": "Kon afbeelding niet opslaan.",

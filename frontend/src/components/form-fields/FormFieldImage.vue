@@ -2,6 +2,7 @@
 import { computed, inject, ref, watch, type ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
 import ImageLightbox from "../ImageLightbox.vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 import { Service as StorageSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -144,7 +145,16 @@ function openLightbox() {
   if (dataUrl.value) lightboxOpen.value = true;
 }
 
-async function clear() {
+const confirmClearOpen = ref(false);
+function requestClear() {
+  if (!filename.value || props.field.readonly || busy.value) return;
+  confirmClearOpen.value = true;
+}
+function cancelClear() {
+  confirmClearOpen.value = false;
+}
+async function confirmClear() {
+  confirmClearOpen.value = false;
   pickError.value = "";
   if (!filename.value) return;
   if (templateFilename.value) {
@@ -202,7 +212,7 @@ async function clear() {
         type="button"
         class="tool-btn danger"
         :disabled="busy"
-        @click="clear"
+        @click="requestClear"
       >
         {{ t("workspace.storage.field.image_clear") }}
       </button>
@@ -216,6 +226,17 @@ async function clear() {
       :src="dataUrl"
       :alt="filename"
       @close="lightboxOpen = false"
+    />
+
+    <ConfirmDialog
+      :open="confirmClearOpen"
+      :title="t('workspace.storage.field.image_clear.title')"
+      :message="t('workspace.storage.field.image_clear.confirm', [filename])"
+      :confirm-label="t('workspace.storage.field.image_clear')"
+      :cancel-label="t('common.cancel')"
+      variant="danger"
+      @cancel="cancelClear"
+      @confirm="confirmClear"
     />
   </div>
 </template>

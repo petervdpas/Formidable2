@@ -127,6 +127,8 @@
   "field.format.markdown": "Markdown",
   "field.format.plain": "Plain Text",
   "field.link.bare": "Bare Link",
+  "field.link.clear.confirm": "Clear this link? The target and link text will be reset.",
+  "field.link.clear.title": "Clear link?",
   "field.link.entry": "Storage Entry",
   "field.link.entry.hint": "The storage entry to open",
   "field.link.none": "(no link)",

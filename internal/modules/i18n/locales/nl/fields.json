@@ -127,6 +127,8 @@
   "field.format.markdown": "Markdown",
   "field.format.plain": "Gewone tekst",
   "field.link.bare": "Kale link",
+  "field.link.clear.confirm": "Deze link wissen? Het doel en de linktekst worden gereset.",
+  "field.link.clear.title": "Link wissen?",
   "field.link.entry": "Opslagitem",
   "field.link.entry.hint": "Het opslagitem dat moet worden geopend",
   "field.link.none": "(geen link)",

@@ -8,6 +8,7 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import { TextField, SelectField } from "../fields";
+import ConfirmDialog from "../ConfirmDialog.vue";
 import { Service as TemplateSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as FormSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { useFormidableLink } from "../../composables/useFormidableLink";
@@ -209,6 +210,30 @@ function onTextInput() {
   userTouchedText.value = true;
 }
 
+const canClear = computed(
+  () => !props.field.readonly && (composedHref.value !== "" || text.value !== ""),
+);
+
+// Reset every part of the link except the protocol — the user's chosen
+// mode is a UI affordance, not part of the saved value, and clobbering
+// it forces them back through the protocol picker just to start over.
+const confirmClearOpen = ref(false);
+function requestClear() {
+  if (!canClear.value) return;
+  confirmClearOpen.value = true;
+}
+function cancelClear() {
+  confirmClearOpen.value = false;
+}
+function confirmClear() {
+  url.value = "";
+  tplPick.value = "";
+  entryPick.value = "";
+  text.value = "";
+  userTouchedText.value = false;
+  confirmClearOpen.value = false;
+}
+
 // ── follow bare-link click ───────────────────────────────────────────
 const { follow: followFormidable } = useFormidableLink();
 
@@ -310,7 +335,17 @@ watch([composedHref, text], () => {
 
     <!-- Row 3: bare-link preview -->
     <div class="link-field-bare">
-      <label class="stacked-label">{{ t("field.link.bare") }}</label>
+      <div class="link-field-bare-header">
+        <label class="stacked-label">{{ t("field.link.bare") }}</label>
+        <button
+          type="button"
+          class="tool-btn danger link-field-clear"
+          :disabled="!canClear"
+          @click="requestClear"
+        >
+          {{ t("common.clear") }}
+        </button>
+      </div>
       <div v-if="barePreview" class="link-field-bare-preview">
         <a
           :href="barePreview"
@@ -325,5 +360,16 @@ watch([composedHref, text], () => {
         {{ t("field.link.none") }}
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="confirmClearOpen"
+      :title="t('field.link.clear.title')"
+      :message="t('field.link.clear.confirm')"
+      :confirm-label="t('common.clear')"
+      :cancel-label="t('common.cancel')"
+      variant="danger"
+      @cancel="cancelClear"
+      @confirm="confirmClear"
+    />
   </div>
 </template>
