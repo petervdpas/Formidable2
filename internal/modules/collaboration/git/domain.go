@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,30 +22,44 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/recmerge"
 )
 
-// Manager is the read-only entry point into a Git repository.
-// Stateless for now; repo opens are cheap with go-git and we'd rather
-// pay that cost per-call than maintain an invalidation policy.
-// Network/auth-bearing ops will arrive in a later iteration.
-type Manager struct{}
+type Manager struct {
+	log *slog.Logger
+}
 
-// NewManager constructs the read-only manager. No options yet —
-// kept as a constructor so we don't have to change call sites when
-// state (e.g. credential cache) lands.
-func NewManager() *Manager { return &Manager{} }
+func NewManager() *Manager { return &Manager{log: slog.Default()} }
 
-// open returns the repository whose worktree contains <path>. We
-// use DetectDotGit so callers can pass any path inside the worktree
-// (e.g. a subfolder) and we'll walk up to the actual repo root.
+// WithLogger swaps the Manager's logger. Used by app wiring to route
+// open/auth failures into the in-app log workspace so users without
+// devtools (Windows builds) can see why a repo failed to open.
+func (m *Manager) WithLogger(log *slog.Logger) *Manager {
+	if log != nil {
+		m.log = log
+	}
+	return m
+}
+
 func (m *Manager) open(path string) (*gogit.Repository, error) {
 	return gogit.PlainOpenWithOptions(path, &gogit.PlainOpenOptions{DetectDotGit: true})
 }
 
 // IsGitRepo reports whether <path> sits inside a git worktree.
-// Errors collapse to false — the caller doesn't care why, only
-// whether the path is git-managed.
+// Errors collapse to false for the caller's bool return, but the
+// underlying go-git error is logged at warn level so the user can
+// diagnose unsupported-extension and path-resolution failures (e.g.
+// VSCode-cloned repos on Windows) from the in-app log.
+// ErrRepositoryNotExists is the boring "really not a repo" case and
+// is logged at debug only.
 func (m *Manager) IsGitRepo(path string) bool {
 	_, err := m.open(path)
-	return err == nil
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, gogit.ErrRepositoryNotExists) {
+		m.log.Debug("git: IsGitRepo: path is not a repository", "path", path)
+	} else {
+		m.log.Warn("git: IsGitRepo: open failed", "path", path, "err", err.Error())
+	}
+	return false
 }
 
 // RepoRoot returns the absolute worktree root for <path>, or an

@@ -33,3 +33,5 @@ formidable.log
 .idea/
 .vscode/
 *.swp
+.changes.*
+**/.changes.*

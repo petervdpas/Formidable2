@@ -11,7 +11,7 @@
   "logging_enabled": false,
   "enable_plugins": true,
   "context_mode": "template",
-  "context_ribbon": "storage",
+  "context_ribbon": "profiles",
   "context_folder": "/home/peter/Documents/Example",
   "selected_template": "addresses.yaml",
   "selected_data_file": "abbey-road-studios.meta.json",

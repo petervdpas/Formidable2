@@ -445,7 +445,7 @@ func New(d Deps) (*App, error) {
 	// Collaboration → Git. Stateless read-only manager backed by
 	// pure go-git — no system git binary or credential helper
 	// required. Network/auth ops arrive in a later pass.
-	gitM := git.NewManager()
+	gitM := git.NewManager().WithLogger(d.Logger)
 
 	// Collaboration → Credentials. Thin wrapper over the OS
 	// keychain (zalando/go-keyring). Used by the Clone form's
