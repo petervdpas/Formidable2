@@ -461,19 +461,19 @@ async function openStorageFolder() {
   }
 }
 
-// ── Import CSV dialog ───────────────────────────────────────────────
-// Old Formidable scoped the Data menu to templates that opt into
-// collections; we replicate that here so the "Import CSV..." entry
-// only appears when the active template has enable_collection: true.
+// ── CSV import / export dialogs ─────────────────────────────────────
+// Wails-side CSV import/export operates per-form on disk and is
+// collection-independent. The HTTP API's bulk-write surface stays
+// gated on enable_collection (handler.go) — that's the one that needs
+// a guid field to talk REST.
 const importCsvOpen = ref(false);
 const activeTemplateObj = computed(() => {
   const f = selectedTemplate.value;
   return f ? templateCache.value.get(f) ?? null : null;
 });
-const collectionEnabled = computed(() => !!activeTemplateObj.value?.enable_collection);
 
 function openImportCsv() {
-  if (!selectedTemplate.value || !collectionEnabled.value) return;
+  if (!selectedTemplate.value) return;
   importCsvOpen.value = true;
 }
 
@@ -483,7 +483,7 @@ async function onCsvImported(count: number) {
 
 const exportCsvOpen = ref(false);
 function openExportCsv() {
-  if (!selectedTemplate.value || !collectionEnabled.value) return;
+  if (!selectedTemplate.value) return;
   exportCsvOpen.value = true;
 }
 
@@ -556,8 +556,8 @@ setTopbarMenu(() => [
       },
     ],
   },
-  ...(collectionEnabled.value ? [{
-    type: "group" as const,
+  {
+    type: "group",
     id: "data",
     labelKey: "menu.data",
     alwaysEnabled: true,
@@ -575,7 +575,7 @@ setTopbarMenu(() => [
         onClick: openExportCsv,
       },
     ],
-  }] : []),
+  },
 ]);
 </script>
 
