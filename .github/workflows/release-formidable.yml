@@ -113,7 +113,12 @@ jobs:
 
       - name: Install NSIS
         shell: pwsh
-        run: choco install nsis -y --no-progress
+        run: |
+          choco install nsis -y --no-progress
+          # choco updates PATH for *future* shells; this job's later steps
+          # don't inherit it. Append the install dir to GITHUB_PATH so the
+          # `makensis` call in the installer step resolves.
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Build frontend
         shell: pwsh
