@@ -8,13 +8,13 @@ import { useConfig } from "../composables/useConfig";
 import { useCredentialAccount } from "../composables/useCredentialAccount";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useCollaborationSection } from "../composables/useCollaborationSection";
 import { backendErrMessage } from "../utils/backendError";
 import { Service as GitSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import { Service as CredentialSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/credential";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import {
   COLLABORATION_SECTIONS,
-  type CollaborationSectionId,
   type CollaborationBackend,
 } from "./collaboration";
 
@@ -43,7 +43,7 @@ const visibleSections = computed(() =>
   ),
 );
 
-const activeId = ref<CollaborationSectionId>("current-service");
+const { active: activeId, setActive: setActiveSection } = useCollaborationSection();
 const activeSection = computed(
   () =>
     visibleSections.value.find((s) => s.id === activeId.value) ??
@@ -52,7 +52,7 @@ const activeSection = computed(
 
 watch(visibleSections, (sections) => {
   if (!sections.find((s) => s.id === activeId.value)) {
-    activeId.value = sections[0]?.id ?? "current-service";
+    setActiveSection(sections[0]?.id ?? "current-service");
   }
 });
 
@@ -163,7 +163,7 @@ setTopbarMenu(() => {
           v-for="s in visibleSections"
           :key="s.id"
           :class="['sidebar-row', { active: s.id === activeId }]"
-          @click="activeId = s.id"
+          @click="setActiveSection(s.id)"
         >
           {{ t(s.labelKey) }}
         </li>

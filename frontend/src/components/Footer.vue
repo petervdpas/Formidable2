@@ -5,6 +5,8 @@ import { useConfig } from "../composables/useConfig";
 import { useStatusBar } from "../composables/useStatusBar";
 import CharPicker from "./CharPicker.vue";
 import StatusReloader from "./StatusReloader.vue";
+import StatusGitQuick from "./StatusGitQuick.vue";
+import StatusGiGotQuick from "./StatusGiGotQuick.vue";
 
 defineProps<{ profile?: string }>();
 
@@ -74,6 +76,12 @@ const statusParts = computed<StatusPart[]>(() => {
       <template v-else>{{ t("status.ready") }}</template>
     </span>
     <span class="footer-spacer" />
+    <StatusGitQuick
+      v-if="config?.status_buttons?.gitquick && config?.remote_backend === 'git'"
+    />
+    <StatusGiGotQuick
+      v-if="config?.status_buttons?.gigotload && config?.remote_backend === 'gigot'"
+    />
     <StatusReloader v-if="config?.status_buttons?.reloader" />
     <CharPicker v-if="config?.status_buttons?.charpicker" />
     <span class="profile muted">
