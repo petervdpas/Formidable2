@@ -124,7 +124,7 @@ function clampSidebar(n: number): number {
         :off-label="t('common.off')"
       />
     </FormRow>
-    <FormRow :label="t('settings.field.collapse_list_table')">
+    <FormRow :label="t('settings.field.auto_collapse_fields')">
       <SwitchField
         :model-value="cfg.field_state_collapsed"
         @update:model-value="(v) => update({ field_state_collapsed: v })"

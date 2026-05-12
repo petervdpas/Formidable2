@@ -161,6 +161,15 @@ func TestValidate_ListAndTableAllowCollapsible(t *testing.T) {
 	}
 }
 
+func TestValidate_LinkAllowsCollapsible(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{{Key: "lk", Type: "link", Collapsible: boolPtr(true)}},
+	})
+	if anyForbiddenFor(errs, "lk") {
+		t.Errorf("collapsible is allowed on link; got %+v", errs)
+	}
+}
+
 // ── public registry surface ──────────────────────────────────────────
 
 func TestAllFieldTypes_StableOrderIncludesEveryRegistryEntry(t *testing.T) {

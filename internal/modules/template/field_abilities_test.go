@@ -26,8 +26,8 @@ func TestAbilities_Options_OnlyOnChoiceAndCollectionTypes(t *testing.T) {
 	assertAbilityMatchesSet(t, "Options", allowed, func(a Abilities) bool { return a.Options })
 }
 
-func TestAbilities_Collapsible_OnlyOnListAndTable(t *testing.T) {
-	allowed := stringSet("list", "table")
+func TestAbilities_Collapsible_OnlyOnListTableAndLink(t *testing.T) {
+	allowed := stringSet("list", "table", "link")
 	assertAbilityMatchesSet(t, "Collapsible", allowed, func(a Abilities) bool { return a.Collapsible })
 }
 
