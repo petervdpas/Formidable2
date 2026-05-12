@@ -1,0 +1,491 @@
+name: Release Formidable
+
+# Push a v* tag (e.g. `git tag v0.2.0 && git push --tags`) to fire a
+# full release pipeline: tests gate, then per-platform builds, then a
+# single GitHub Release with all artifacts attached. The tag value
+# minus the leading "v" becomes the binary's about.Version (injected
+# via -ldflags) and the Windows installer's internal DisplayVersion.
+# Artifact filenames are version-free — the release tag is the only
+# version disambiguator (and is shown by GitHub on the release page).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: "1.25.x"
+  NODE_VERSION: "20"
+  WAILS_VERSION: "v3.0.0-alpha.84"
+  # Path of the Version var ldflags targets. Keeping it here so any
+  # rename of internal/modules/about lands in exactly one place.
+  VERSION_PATH: "github.com/petervdpas/formidable2/internal/modules/about.Version"
+
+jobs:
+  # ───────────────────────────────────────────────────────────────
+  # Run tests before building anything. Every build job needs: [test]
+  # so a red suite never produces a release.
+  # ───────────────────────────────────────────────────────────────
+  test:
+    name: Run Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            build-essential pkg-config
+
+      - name: Run tests with coverage
+        run: go test ./... -race -coverprofile=coverage.out -covermode=atomic
+
+      - name: Coverage summary
+        run: |
+          echo '## Test Coverage' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          go tool cover -func=coverage.out | tail -1 >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+          retention-days: 30
+
+  # ───────────────────────────────────────────────────────────────
+  # Windows: native build + NSIS installer + portable zip.
+  # Wails 3's NSIS template already produces a version-free filename
+  # (Formidable-amd64-installer.exe) thanks to the INFO_PROJECTNAME
+  # override in build/windows/nsis/project.nsi. We pass the real
+  # version as INFO_PRODUCTVERSION so Windows Programs list and
+  # upgrade detection have the right value.
+  # ───────────────────────────────────────────────────────────────
+  windows:
+    name: Windows
+    needs: [test]
+    runs-on: windows-2025
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $ver = "${{ github.ref_name }}" -replace '^v',''
+          } else {
+            $ver = "dev-${{ github.sha }}".Substring(0, 14)
+          }
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails 3 CLI
+        shell: pwsh
+        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@${env:WAILS_VERSION}"
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Build frontend
+        shell: pwsh
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Regenerate Wails bindings
+        shell: pwsh
+        run: wails3 generate bindings -clean -ts
+
+      - name: Generate Windows resource file (.syso)
+        shell: pwsh
+        run: |
+          cd build
+          wails3 generate syso -arch amd64 -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_amd64.syso
+
+      - name: Build binary
+        shell: pwsh
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          $ver = "${{ steps.version.outputs.VERSION }}"
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          go build -tags production -trimpath -buildvcs=false `
+            -ldflags="-w -s -H windowsgui -X ${env:VERSION_PATH}=$ver" `
+            -o bin/Formidable.exe .
+          Remove-Item *.syso
+
+      - name: Generate WebView2 bootstrapper
+        shell: pwsh
+        run: wails3 generate webview2bootstrapper -dir build/windows/nsis
+
+      - name: Build NSIS installer
+        shell: pwsh
+        run: |
+          cd build/windows/nsis
+          $ver = "${{ steps.version.outputs.VERSION }}"
+          # INFO_PRODUCTVERSION takes 4-part dotted, so pad if the tag
+          # is shorter (e.g. "1.2" → "1.2.0"). NSIS appends ".0" anyway
+          # to make the FILEVERSION resource happy.
+          $padded = $ver
+          $parts = $padded -split '\.'
+          while ($parts.Count -lt 3) { $parts += '0' }
+          $padded = ($parts[0..2]) -join '.'
+          makensis "/DINFO_PRODUCTVERSION=$padded" `
+            "/DARG_WAILS_AMD64_BINARY=..\..\..\bin\Formidable.exe" `
+            project.nsi
+
+      - name: Collect artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "bin/Formidable-amd64-installer.exe" "dist/Formidable-windows-amd64-installer.exe"
+          Compress-Archive -Path "bin/Formidable.exe" -DestinationPath "dist/Formidable-windows-amd64.zip"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: dist/*
+
+  # ───────────────────────────────────────────────────────────────
+  # Debian / Ubuntu amd64 — portable tar.gz + .deb.
+  # Built natively on ubuntu-24.04, which ships WebKit2GTK 4.1 so the
+  # binary's ABI matches what the .deb declares as runtime depends.
+  # ───────────────────────────────────────────────────────────────
+  linux_debian:
+    name: Linux Debian (amd64)
+    needs: [test]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=dev-${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            build-essential pkg-config
+
+      - name: Install Wails 3 CLI
+        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Regenerate Wails bindings
+        run: wails3 generate bindings -clean -ts
+
+      - name: Generate .desktop
+        run: wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Development;"
+
+      - name: Build binary
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+        run: |
+          mkdir -p bin
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          go build -tags production -trimpath -buildvcs=false \
+            -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+            -o bin/Formidable .
+
+      - name: Patch nfpm version
+        run: |
+          sed -i "s/^version:.*/version: \"${{ steps.version.outputs.VERSION }}\"/" build/linux/nfpm/nfpm.yaml
+
+      - name: Build .deb
+        env:
+          GOARCH: amd64
+        run: wails3 tool package -name "Formidable" -format deb -config ./build/linux/nfpm/nfpm.yaml -out bin
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          # Portable tarball — version-free filename.
+          STAGE="$(mktemp -d)/Formidable-linux-amd64"
+          mkdir -p "$STAGE"
+          cp bin/Formidable "$STAGE/"
+          cp build/appicon.png "$STAGE/Formidable.png"
+          [ -f README.md ] && cp README.md "$STAGE/"
+          tar -C "$(dirname "$STAGE")" -czf dist/Formidable-linux-amd64.tar.gz "$(basename "$STAGE")"
+          # .deb — rename the versioned nfpm output to a version-free name.
+          mv bin/formidable_*_amd64.deb dist/Formidable-linux-amd64.deb
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-debian
+          path: dist/*
+
+  # ───────────────────────────────────────────────────────────────
+  # Raspberry Pi / ARM64 — portable tar.gz + .deb.
+  # ubuntu-24.04-arm is a real ARM64 runner so we cross-compile in
+  # zero hops. Same WebKit 4.1 ABI as the amd64 Debian path.
+  # ───────────────────────────────────────────────────────────────
+  linux_raspi:
+    name: Linux Raspberry Pi (arm64)
+    needs: [test]
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=dev-${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            build-essential pkg-config
+
+      - name: Install Wails 3 CLI
+        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Regenerate Wails bindings
+        run: wails3 generate bindings -clean -ts
+
+      - name: Generate .desktop
+        run: wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Development;"
+
+      - name: Build binary
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          CGO_ENABLED: "1"
+        run: |
+          mkdir -p bin
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          go build -tags production -trimpath -buildvcs=false \
+            -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+            -o bin/Formidable .
+
+      - name: Patch nfpm version
+        run: |
+          sed -i "s/^version:.*/version: \"${{ steps.version.outputs.VERSION }}\"/" build/linux/nfpm/nfpm.yaml
+
+      - name: Build .deb
+        env:
+          GOARCH: arm64
+        run: wails3 tool package -name "Formidable" -format deb -config ./build/linux/nfpm/nfpm.yaml -out bin
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          STAGE="$(mktemp -d)/Formidable-linux-arm64"
+          mkdir -p "$STAGE"
+          cp bin/Formidable "$STAGE/"
+          cp build/appicon.png "$STAGE/Formidable.png"
+          [ -f README.md ] && cp README.md "$STAGE/"
+          tar -C "$(dirname "$STAGE")" -czf dist/Formidable-linux-arm64.tar.gz "$(basename "$STAGE")"
+          mv bin/formidable_*_arm64.deb dist/Formidable-linux-arm64.deb
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-raspi
+          path: dist/*
+
+  # ───────────────────────────────────────────────────────────────
+  # Fedora 43 RPM — built inside fedora:43 container because RPM
+  # depends on the host's RPM database / library SONames, which on
+  # ubuntu-24.04 won't match Fedora's layout.
+  # ───────────────────────────────────────────────────────────────
+  linux_fedora43:
+    name: Linux Fedora 43
+    needs: [test]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=dev-${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build inside fedora:43
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          cat > "$RUNNER_TEMP/build.sh" <<'BUILDEOF'
+          set -euo pipefail
+
+          dnf -y update
+          dnf -y install \
+            bash ca-certificates curl git \
+            gcc gcc-c++ make pkgconf-pkg-config \
+            gtk3-devel webkit2gtk4.1-devel libayatana-appindicator-gtk3-devel \
+            tar gzip rpm-build
+
+          curl -fsSL "https://rpm.nodesource.com/setup_${NODE_VERSION}.x" | bash -
+          dnf -y install nodejs
+
+          curl -fsSL "https://go.dev/dl/go${GO_RELEASE}.linux-amd64.tar.gz" -o /tmp/go.tgz
+          rm -rf /usr/local/go
+          tar -C /usr/local -xzf /tmp/go.tgz
+          export PATH="/usr/local/go/bin:${PATH}"
+
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
+          export PATH="$(go env GOPATH)/bin:${PATH}"
+
+          cd /src
+
+          (cd frontend && npm ci && npm run build)
+          wails3 generate bindings -clean -ts
+          wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Development;"
+
+          mkdir -p bin
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
+            go build -tags production -trimpath -buildvcs=false \
+              -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+              -o bin/Formidable .
+
+          sed -i "s/^version:.*/version: \"${VERSION}\"/" build/linux/nfpm/nfpm.yaml
+          GOARCH=amd64 wails3 tool package -name "Formidable" -format rpm -config ./build/linux/nfpm/nfpm.yaml -out bin
+
+          mkdir -p dist
+          mv bin/formidable-*.x86_64.rpm dist/Formidable-linux-amd64.rpm
+          BUILDEOF
+
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -v "$RUNNER_TEMP/build.sh:/tmp/build.sh:ro" \
+            -w /src \
+            -e "VERSION=${VERSION}" \
+            -e "VERSION_PATH=${VERSION_PATH}" \
+            -e "NODE_VERSION=${NODE_VERSION}" \
+            -e "WAILS_VERSION=${WAILS_VERSION}" \
+            -e "GO_RELEASE=1.25.0" \
+            fedora:43 bash /tmp/build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-fedora43
+          path: dist/*
+
+  # ───────────────────────────────────────────────────────────────
+  # Aggregate every build's artifacts into one GitHub Release.
+  # ───────────────────────────────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    needs: [windows, linux_debian, linux_raspi, linux_fedora43]
+    # Only auto-publish on actual tag pushes — workflow_dispatch runs
+    # exercise the build matrix without making a release.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          find artifacts -maxdepth 8 -type f -exec cp -v "{}" dist/ \;
+          echo "--- Release assets ---"
+          ls -la dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Formidable ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: dist/*

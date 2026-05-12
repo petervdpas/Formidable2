@@ -30,6 +30,13 @@ Unicode true
 ####
 ## !define REQUEST_EXECUTION_LEVEL "admin"            # Default "admin"  see also https://nsis.sourceforge.io/Docs/Chapter4.html
 ####
+## Override the auto-generated default so the installer asset is
+## "Formidable-amd64-installer.exe" rather than "Formidable2-amd64-installer.exe".
+## The "2" is only a repo/module disambiguator and must never leak into
+## any user-visible filename, registry key, or shortcut.
+####
+!define INFO_PROJECTNAME "Formidable"
+####
 ## Include the wails tools
 ####
 !include "wails_tools.nsh"
