@@ -57,6 +57,7 @@
   "csv.error.parse": "Failed to parse CSV: {0}",
   "csv.error.template": "Failed to load template.",
   "csv.export": "Export",
+  "csv.export.title": "Export CSV",
   "csv.export.actions": "",
   "csv.export.add.computed": "+ Add computed column",
   "csv.export.add.field": "Add field",

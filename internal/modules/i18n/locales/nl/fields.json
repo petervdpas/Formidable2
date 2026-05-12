@@ -57,6 +57,7 @@
   "csv.error.parse": "CSV kon niet worden geparsed: {0}",
   "csv.error.template": "Sjabloon kon niet worden geladen.",
   "csv.export": "Exporteren",
+  "csv.export.title": "CSV exporteren",
   "csv.export.actions": "",
   "csv.export.add.computed": "+ Samengestelde kolom toevoegen",
   "csv.export.add.field": "Veld toevoegen",

@@ -104,6 +104,23 @@
 
 /* ── Export dialog ──────────────────────────────────────────────── */
 
+.csv-export-toprow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.csv-export-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.csv-export-field-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
 .csv-export-th-narrow,
 .csv-export-td-narrow {
   width: 1%;

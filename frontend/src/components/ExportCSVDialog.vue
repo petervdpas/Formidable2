@@ -275,8 +275,10 @@ async function doExport() {
 <template>
   <Modal
     :open="open"
-    :title="t('csv.export')"
-    width="min(1200px, 92vw)"
+    :title="t('csv.export.title')"
+    width="820px"
+    maximizable
+    :dialog-style="{ height: '560px' }"
     @close="emit('close')"
   >
     <div class="csv-import-target">
@@ -284,9 +286,9 @@ async function doExport() {
       <code class="csv-import-target-value">{{ template?.name || templateFilename }}</code>
     </div>
 
-    <div class="csv-import-toprow">
-      <div class="csv-import-delim">
-        <label class="muted small">{{ t('csv.delimiter') }}</label>
+    <div class="csv-export-toprow">
+      <div class="csv-export-field-group">
+        <label class="csv-export-field-label">{{ t('csv.delimiter') }}</label>
         <select v-model="delimiter">
           <option value=",">{{ t('csv.delimiter.comma') }}</option>
           <option value=";">{{ t('csv.delimiter.semicolon') }}</option>
@@ -294,8 +296,8 @@ async function doExport() {
           <option value="|">{{ t('csv.delimiter.pipe') }}</option>
         </select>
       </div>
-      <div class="csv-import-delim">
-        <label class="muted small">{{ t('csv.export.align') }}</label>
+      <div class="csv-export-field-group">
+        <label class="csv-export-field-label">{{ t('csv.export.align') }}</label>
         <select v-model="alignSource">
           <option value="">{{ t('csv.export.align.none') }}</option>
           <option v-for="f in alignableFields" :key="f.key" :value="f.key">

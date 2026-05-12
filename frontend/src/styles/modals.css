@@ -26,6 +26,24 @@
 
 .modal-dialog:focus { outline: none; }
 
+/* Header maximize / restore button — shown only when the dialog is
+   constructed with maximizable=true. Styled to match modal-close. */
+.modal-max {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--color-text-muted);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: var(--radius-md);
+}
+.modal-max:hover {
+    background: var(--color-surface-2);
+    color: var(--color-text);
+}
+
 .modal-header {
     display: flex;
     align-items: center;

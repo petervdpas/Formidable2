@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, watch, nextTick, useTemplateRef } from "vue";
+import { computed, onBeforeUnmount, ref, watch, nextTick, useTemplateRef } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -13,15 +13,39 @@ const props = withDefaults(
     dialogClass?: string;
     /** Optional inline style merged into the dialog (e.g. CSS vars). */
     dialogStyle?: Record<string, string>;
+    /** When true, render an expand/restore button in the header that
+     *  toggles the dialog between its caller-supplied size and the
+     *  full viewport (minus the backdrop padding). */
+    maximizable?: boolean;
   }>(),
   {
     closeOnBackdrop: true,
     closeOnEsc: true,
     width: "480px",
+    maximizable: false,
   },
 );
 
 const emit = defineEmits<{ (e: "close"): void }>();
+
+const maximized = ref(false);
+
+// When maximized, ignore the caller's width / dialogStyle.height and
+// fill the available viewport space. Restoring snaps back to the
+// caller's original sizing — no animation, no half-states.
+const computedStyle = computed(() => {
+  if (maximized.value) {
+    return {
+      width: "calc(100vw - var(--space-4) * 2)",
+      height: "calc(100vh - var(--space-4) * 2)",
+    };
+  }
+  return { width: props.width, ...(props.dialogStyle || {}) };
+});
+
+function toggleMax() {
+  maximized.value = !maximized.value;
+}
 
 const dialogRef = useTemplateRef<HTMLDivElement>("dialog");
 
@@ -47,11 +71,13 @@ watch(
       const root = dialogRef.value;
       const target =
         (root?.querySelector<HTMLElement>(
-          "input, textarea, select, button:not([data-modal-close])",
+          "input, textarea, select, button:not([data-modal-close]):not([data-modal-max])",
         )) ?? root;
       target?.focus();
     } else {
       window.removeEventListener("keydown", onKeydown, { capture: true });
+      // Reopen starts un-maximized — matches OS window behaviour.
+      maximized.value = false;
     }
   },
   { immediate: true },
@@ -69,7 +95,7 @@ onBeforeUnmount(() => {
         <div
           ref="dialog"
           :class="['modal-dialog', dialogClass]"
-          :style="{ width, ...(dialogStyle || {}) }"
+          :style="computedStyle"
           role="dialog"
           aria-modal="true"
           :aria-label="title"
@@ -79,6 +105,17 @@ onBeforeUnmount(() => {
             <h2 class="modal-title">
               <slot name="title">{{ title }}</slot>
             </h2>
+            <button
+              v-if="maximizable"
+              class="modal-max"
+              type="button"
+              data-modal-max
+              :aria-label="maximized ? 'Restore' : 'Maximize'"
+              :title="maximized ? 'Restore' : 'Maximize'"
+              @click="toggleMax"
+            >
+              <i :class="maximized ? 'fa-solid fa-compress' : 'fa-solid fa-expand'"></i>
+            </button>
             <button
               class="modal-close"
               type="button"
