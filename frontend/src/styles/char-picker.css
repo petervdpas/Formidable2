@@ -1,4 +1,33 @@
-/* CharPicker — footer "Ω" button + popover with tabbed character grid. */
+/* CharPicker — footer "Ω" button + popover with tabbed character grid.
+ * StatusReloader (↻) below shares the trigger silhouette so the footer
+ * cluster reads as a row of equally-weighted buttons. */
+
+.status-reloader {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-family: -apple-system, "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 8px;
+    height: 22px;
+    min-width: 22px;
+}
+
+.status-reloader:hover:not(:disabled),
+.status-reloader:focus-visible:not(:disabled) {
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    outline: none;
+}
+
+.status-reloader:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
 
 .char-picker {
     position: relative;

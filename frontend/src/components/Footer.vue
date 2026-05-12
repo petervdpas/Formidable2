@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { useConfig } from "../composables/useConfig";
 import { useStatusBar } from "../composables/useStatusBar";
 import CharPicker from "./CharPicker.vue";
+import StatusReloader from "./StatusReloader.vue";
 
 defineProps<{ profile?: string }>();
 
@@ -73,6 +74,7 @@ const statusParts = computed<StatusPart[]>(() => {
       <template v-else>{{ t("status.ready") }}</template>
     </span>
     <span class="footer-spacer" />
+    <StatusReloader v-if="config?.status_buttons?.reloader" />
     <CharPicker v-if="config?.status_buttons?.charpicker" />
     <span class="profile muted">
       {{ t("footer.user_profile_label") }}

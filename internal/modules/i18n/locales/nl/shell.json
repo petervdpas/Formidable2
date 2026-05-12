@@ -14,6 +14,7 @@
   "charpicker.tab.math": "Wiskunde",
   "charpicker.tab.symbols": "Symbolen",
   "charpicker.title": "Speciale tekens",
+  "statusbar.reload.title": "Gegevens van de huidige werkruimte herladen",
   "common.alert_title": "Melding",
   "codeeditor.format": "Opmaken",
   "codeeditor.format_title": "Whitespace opschonen, regeleinden normaliseren, afsluitende nieuwe regel toevoegen (Shift+Alt+F)",

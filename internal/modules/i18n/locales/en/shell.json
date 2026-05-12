@@ -14,6 +14,7 @@
   "charpicker.tab.math": "Math",
   "charpicker.tab.symbols": "Symbols",
   "charpicker.title": "Special Characters",
+  "statusbar.reload.title": "Reload current workspace data",
   "common.alert_title": "Notice",
   "codeeditor.format": "Format",
   "codeeditor.format_title": "Tidy whitespace, normalize line endings, ensure trailing newline (Shift+Alt+F)",
