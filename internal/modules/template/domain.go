@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"github.com/petervdpas/formidable2/internal/util/keymu"
 )
 
 // fs is the narrow filesystem surface this module needs.
@@ -53,14 +56,23 @@ type AuthorFunc func() (name, email string)
 // Author satisfies AuthorReader.
 func (f AuthorFunc) Author() (string, string) { return f() }
 
-// Manager holds the template directory binding.
-// Stateless beyond its dependencies (no caching — config owns the VFS cache).
+// Manager holds the template directory binding. LoadTemplate is cached
+// per-filename and serialized per-filename, so the 50+ sidebar-item
+// mount storm (each row calls LoadTemplate via EvaluateSidebarOne) hits
+// disk + yaml.Unmarshal once instead of N times. SaveTemplate /
+// DeleteTemplate invalidate the entry. The cache trusts this process as
+// the only writer; external edits (user editing yaml in another tool)
+// are not detected.
 type Manager struct {
 	fs           fs
 	log          *slog.Logger
 	templatesDir string
 	indexer      Indexer
 	author       AuthorReader
+
+	loadMu   keymu.Map
+	cacheMu  sync.RWMutex
+	cache    map[string]*Template
 }
 
 // NewManager constructs a template manager rooted at <templatesDir> under
@@ -128,11 +140,25 @@ func (m *Manager) HasTemplates() bool {
 }
 
 // LoadTemplate reads <name> from the templates folder, parses YAML,
-// and returns a sanitized Template.
+// and returns a sanitized Template. Cached per-name; concurrent calls
+// for the same name serialize on a per-name mutex so a 50-row sidebar
+// mount storm fires one parse, not fifty. The returned pointer may be
+// shared across callers — treat as read-only.
 func (m *Manager) LoadTemplate(name string) (*Template, error) {
 	if name == "" {
 		return nil, errors.New("template: empty name")
 	}
+	if t := m.cacheGet(name); t != nil {
+		return t, nil
+	}
+
+	unlock := m.loadMu.Lock(name)
+	defer unlock()
+
+	if t := m.cacheGet(name); t != nil {
+		return t, nil
+	}
+
 	full := m.fs.JoinPath(m.templatesDir, name)
 	if !m.fs.FileExists(full) {
 		return nil, fmt.Errorf("template: file not found: %s", full)
@@ -152,7 +178,29 @@ func (m *Manager) LoadTemplate(name string) (*Template, error) {
 	if coerceExpressionItemOffRoot(t.Fields) {
 		t.NeedsResave = true
 	}
+	m.cachePut(name, &t)
 	return &t, nil
+}
+
+func (m *Manager) cacheGet(name string) *Template {
+	m.cacheMu.RLock()
+	defer m.cacheMu.RUnlock()
+	return m.cache[name]
+}
+
+func (m *Manager) cachePut(name string, t *Template) {
+	m.cacheMu.Lock()
+	defer m.cacheMu.Unlock()
+	if m.cache == nil {
+		m.cache = map[string]*Template{}
+	}
+	m.cache[name] = t
+}
+
+func (m *Manager) cacheClear(name string) {
+	m.cacheMu.Lock()
+	defer m.cacheMu.Unlock()
+	delete(m.cache, name)
 }
 
 // SaveTemplate writes the template to disk in deterministic field order.
@@ -220,6 +268,7 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 	if err := m.fs.SaveFile(full, string(bytes)); err != nil {
 		return err
 	}
+	m.cacheClear(name)
 	if m.indexer != nil {
 		if err := m.indexer.OnTemplateChanged(name); err != nil {
 			m.log.Warn("template indexer save hook failed", "name", name, "err", err)
@@ -238,6 +287,7 @@ func (m *Manager) DeleteTemplate(name string) error {
 	if err := m.fs.DeleteFile(full); err != nil {
 		return err
 	}
+	m.cacheClear(name)
 	if m.indexer != nil {
 		if err := m.indexer.OnTemplateDeleted(name); err != nil {
 			m.log.Warn("template indexer delete hook failed", "name", name, "err", err)

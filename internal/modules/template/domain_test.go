@@ -3,6 +3,7 @@ package template
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/system"
@@ -187,6 +188,128 @@ func TestLoadTemplate_RejectsEmptyName(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	if _, err := m.LoadTemplate(""); err == nil {
 		t.Fatal("expected error for empty name")
+	}
+}
+
+// LoadTemplate caches the parsed result so a 50-row sidebar mount
+// doesn't trigger 50 disk reads + 50 yaml.Unmarshal calls. We prove the
+// cache hit by bypassing SaveTemplate (which invalidates) and rewriting
+// the file directly through the system manager — a real cache must
+// ignore the change until invalidated.
+func TestLoadTemplate_HitsCacheUntilInvalidated(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	if err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "First",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first, err := m.LoadTemplate("x.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Name != "First" {
+		t.Fatalf("first load name = %q, want First", first.Name)
+	}
+
+	if err := sys.SaveFile("templates/x.yaml", "name: Second\nfields: []\n"); err != nil {
+		t.Fatal(err)
+	}
+	cached, err := m.LoadTemplate("x.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cached.Name != "First" {
+		t.Errorf("after external rewrite, expected cached %q; got %q", "First", cached.Name)
+	}
+	if cached != first {
+		t.Errorf("expected identical pointer from cache; got fresh allocation")
+	}
+}
+
+func TestSaveTemplate_InvalidatesCache(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "Original",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.LoadTemplate("x.yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "Updated",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := m.LoadTemplate("x.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "Updated" {
+		t.Errorf("after SaveTemplate, name = %q, want Updated", got.Name)
+	}
+}
+
+func TestDeleteTemplate_InvalidatesCache(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "Original",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.LoadTemplate("x.yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.DeleteTemplate("x.yaml"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.LoadTemplate("x.yaml"); err == nil {
+		t.Error("expected error after delete; cache still returned a Template")
+	}
+}
+
+// Many goroutines hammer LoadTemplate for the same filename at once.
+// Without per-name serialization + cache, all N callers spin up
+// concurrent yaml.Unmarshal goroutines — the exact mount-storm pattern
+// that GC-trashed the dev binary. With the cache, N callers must agree
+// on one *Template, and `go test -race` must not report a data race.
+func TestLoadTemplate_ConcurrentSameNameNoRace(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "Concurrent",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	const N = 64
+	results := make([]*Template, N)
+	errs := make([]error, N)
+	var wg sync.WaitGroup
+	wg.Add(N)
+	for i := range N {
+		go func(i int) {
+			defer wg.Done()
+			results[i], errs[i] = m.LoadTemplate("x.yaml")
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("goroutine %d: %v", i, err)
+		}
+	}
+	first := results[0]
+	if first == nil {
+		t.Fatal("first result is nil")
+	}
+	for i, r := range results {
+		if r != first {
+			t.Errorf("goroutine %d returned a different pointer than goroutine 0", i)
+		}
 	}
 }
 
