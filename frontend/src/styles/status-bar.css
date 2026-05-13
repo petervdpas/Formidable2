@@ -1,0 +1,176 @@
+/* Footer status-bar buttons — Reloader (↻), Language (EN/NL),
+   GitQuick (⎇), GiGotQuick (☁). Each lives in its own component but
+   they share a 22px ghost-outline silhouette so the cluster reads as
+   one row of equally-weighted buttons. CharPicker (Ω) keeps the same
+   visual silhouette in char-picker.css. */
+
+.status-reloader {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-family: -apple-system, "Segoe UI Symbol", "Noto Sans Symbols 2", sans-serif;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 8px;
+    height: 22px;
+    min-width: 22px;
+}
+
+.status-reloader:hover:not(:disabled),
+.status-reloader:focus-visible:not(:disabled) {
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    outline: none;
+}
+
+.status-reloader:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.status-language {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.status-language-quick {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    padding: 2px 8px;
+    height: 22px;
+    min-width: 22px;
+}
+
+.status-language-quick:hover:not(:disabled),
+.status-language-quick:focus-visible:not(:disabled),
+.status-language-quick.is-open {
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    outline: none;
+}
+
+.status-language-quick:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.status-language-popover {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    z-index: 1100;
+    min-width: 160px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.30);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.status-language-item {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+    cursor: pointer;
+    text-align: left;
+    padding: 6px 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: var(--font-size-sm);
+}
+
+.status-language-item:hover,
+.status-language-item:focus-visible {
+    background: var(--color-bg-muted);
+    outline: none;
+}
+
+.status-language-item.active {
+    background: var(--color-bg-muted);
+    border-color: var(--color-border);
+}
+
+.status-language-item-code {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--color-text-muted);
+    min-width: 24px;
+}
+
+.status-language-item.active .status-language-item-code {
+    color: var(--color-text);
+}
+
+.status-gitquick {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    padding: 2px 8px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-gitquick:hover,
+.status-gitquick:focus-visible {
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    outline: none;
+}
+
+.status-gitquick-ahead { color: var(--color-success); }
+.status-gitquick-behind { color: var(--color-warning); }
+.status-gitquick-dirty {
+    color: var(--color-warning);
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+.status-gigotquick {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    padding: 2px 8px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.status-gigotquick:hover,
+.status-gigotquick:focus-visible {
+    color: var(--color-text);
+    background: var(--color-bg-muted);
+    outline: none;
+}

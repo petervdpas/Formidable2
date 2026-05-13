@@ -20,7 +20,7 @@
   "statusbar.gitquick.dirty": "working tree has changes",
   "statusbar.gitquick.not_a_repo": "Git: not a repository",
   "statusbar.language.current": "Language: {0}",
-  "statusbar.language.switch_to": "Click to switch to {0}",
+  "statusbar.language.menu": "Pick a language",
   "statusbar.reload.title": "Reload current workspace data",
   "common.alert_title": "Notice",
   "codeeditor.format": "Format",
