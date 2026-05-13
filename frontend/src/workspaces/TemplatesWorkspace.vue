@@ -92,10 +92,18 @@ watch(selectedFilename, (fn) => {
   statusBar.setSelected(fn);
 });
 
-function displayName(filename: string): string {
-  const cached = cache.value.get(filename);
-  if (cached?.name && cached.name.trim()) return cached.name;
-  return filename.replace(/\.yaml$/, "");
+// Per-row refs into self-serving TemplateListItem instances. Each
+// item loads its own template's display name; after a save we look
+// up the matching ref and call .refresh() so editing a template's
+// name updates just that row.
+type TemplateListItemRef = { refresh: () => Promise<void> };
+const itemRefs = new Map<string, TemplateListItemRef>();
+function setItemRef(filename: string, el: unknown): void {
+  if (el && typeof el === "object" && "refresh" in (el as object)) {
+    itemRefs.set(filename, el as TemplateListItemRef);
+  } else {
+    itemRefs.delete(filename);
+  }
 }
 
 // ── Refresh feedback ──────────────────────────────────────────────────
@@ -116,6 +124,10 @@ async function doSave() {
     const fn = selectedFilename.value!;
     toast.success("workspace.templates.save_success", [fn]);
     statusBar.setSaved(fn);
+    // Ask the matching sidebar item to re-fetch its own template
+    // metadata. No bulk list refresh — the filenames array is unchanged
+    // by a save and the editor's panel already shows the new state.
+    await itemRefs.get(fn)?.refresh();
     return;
   }
   if (result.reason === "validation") {
@@ -445,7 +457,9 @@ function openDeleteTemplate() {
 const deleteTplName = computed(() => {
   const f = selectedFilename.value;
   if (!f) return "";
-  return displayName(f);
+  const cached = cache.value.get(f);
+  if (cached?.name && cached.name.trim()) return cached.name;
+  return f.replace(/\.yaml$/, "");
 });
 
 async function confirmDeleteTemplate() {
@@ -568,8 +582,8 @@ setTopbarMenu(() => [
           <TemplateListItem
             v-for="f in filenames"
             :key="f"
+            :ref="(el) => setItemRef(f, el)"
             :filename="f"
-            :display="displayName(f)"
             :active="f === selectedFilename"
             @pick="(name) => (selectedFilename = name)"
           />

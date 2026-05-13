@@ -25,11 +25,9 @@ import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
-import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import type { SidebarItem } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { backendErrMessage } from "../utils/backendError";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 
@@ -107,42 +105,33 @@ function onFlagStateChange(state: string) {
 const summaries = ref<FormSummary[]>([]);
 const listError = ref("");
 
-// Per-row expression results, keyed by record filename. Populated by
-// refreshExpressions after every list refresh when the user has
-// `use_expressions` enabled and the active template has a
-// sidebar_expression. Empty map means "show no sub-label" — either
-// the engine returned ErrNoExpression or the toggle is off.
-const expressionItems = ref<Map<string, SidebarItem>>(new Map());
-
-async function refreshExpressions() {
-  expressionItems.value = new Map();
-  if (!selectedTemplate.value) return;
-  if (!config.value?.use_expressions) return;
-  try {
-    const items = await ExpressionSvc.EvaluateSidebar(selectedTemplate.value);
-    const next = new Map<string, SidebarItem>();
-    for (const it of items) {
-      if (it?.filename) next.set(it.filename, it);
-    }
-    expressionItems.value = next;
-  } catch {
-    // ErrNoExpression and any other failure mean "no sub-label" —
-    // sidebar continues to render the title row unchanged.
-    expressionItems.value = new Map();
+// Per-row refs into the self-serving StorageListItem instances. Each
+// item fetches its own sidebar expression on mount; after a save the
+// workspace looks up the matching ref and calls .refresh() so only
+// that one row re-evaluates — no bulk pass, no scroll thrash. The
+// :ref callback in the v-for keeps the Map in sync with mounts /
+// unmounts. itemRefs is a plain Ref of Map (not ref()-of-Map) — Vue's
+// reactivity isn't needed here, we only ever look entries up
+// imperatively from doSave / doRefresh.
+type StorageListItemRef = { refresh: () => Promise<void> };
+const itemRefs = new Map<string, StorageListItemRef>();
+function setItemRef(filename: string, el: unknown): void {
+  if (el && typeof el === "object" && "refresh" in (el as object)) {
+    itemRefs.set(filename, el as StorageListItemRef);
+  } else {
+    itemRefs.delete(filename);
   }
 }
 
 async function refreshList() {
   if (!selectedTemplate.value) {
     summaries.value = [];
-    expressionItems.value = new Map();
     return;
   }
   listError.value = "";
   try {
     await FormSvc.EnsureFormDir(selectedTemplate.value);
     summaries.value = await FormSvc.ListForms(selectedTemplate.value);
-    await refreshExpressions();
     // Drop a stale `selected_data_file` if it doesn't exist in the
     // current template's storage. Without this, switching templates
     // (or coming back later after the form was deleted on disk by
@@ -167,6 +156,13 @@ async function refreshList() {
 async function doRefresh() {
   try {
     await refreshList();
+    // Force every list item to re-evaluate its own sidebar expression.
+    // The list re-render leaves DOM nodes mounted under stable keys,
+    // so an item's onMounted does NOT re-fire — we have to push the
+    // refresh down explicitly when the user clicks Refresh.
+    await Promise.all(
+      Array.from(itemRefs.values()).map((it) => it.refresh()),
+    );
     if (listError.value) {
       toast.error("toast.refresh.error", [listError.value]);
     } else {
@@ -186,12 +182,9 @@ watch(selectedTemplate, async () => {
   await refreshList();
 }, { immediate: true });
 
-// Live-toggle: flipping use_expressions in Settings re-fetches
-// without a template change. Cheap (one Wails call) and keeps the
-// sidebar reactive so the user sees the effect immediately.
-watch(() => config.value?.use_expressions, async () => {
-  await refreshExpressions();
-});
+// Live-toggle: flipping use_expressions in Settings reaches each
+// StorageListItem through its own watch on config.value.use_expressions,
+// so the workspace doesn't need to push the change down.
 
 // ── Selected datafile (persisted in config) ──────────────────────────
 const selectedDataFile = computed<string>({
@@ -310,6 +303,13 @@ async function submitNew() {
 }
 
 // ── Save / Reset / Delete ────────────────────────────────────────────
+// Save never reloads the sidebar list. For an existing entry we patch
+// its summary in place (Vue's Proxy re-renders just that one
+// <StorageListItem>) and ping its ref's refresh() so the sub-label
+// re-evaluates against the freshly-saved data. For a new entry, the
+// row appears in the list only after the user clicks Refresh — the
+// in-flight draft is already visible in the main pane, and skipping
+// the auto-refresh keeps the scroll position stable across saves.
 async function doSave() {
   if (!draft.value) return;
   const result = await save();
@@ -317,11 +317,31 @@ async function doSave() {
     const df = draft.value?.datafile ?? "?";
     toast.success("workspace.storage.save.success", [df]);
     statusBar.setSaved(df);
-    await refreshList();
+    patchSummary(df);
+    await itemRefs.get(df)?.refresh();
     await refreshMarkdown();
   } else {
     toast.error("workspace.storage.save.error", [result.message ?? "?"]);
   }
+}
+
+// patchSummary mutates the matching sidebar entry in place from the
+// just-saved view, so the row's title / tags / flag refresh without
+// reassigning summaries.value (which thrashes the sidebar scroll).
+// Vue's reactive Proxy detects per-property writes, so only the one
+// <StorageListItem> with this filename re-renders.
+function patchSummary(filename: string): void {
+  const idx = summaries.value.findIndex((s) => s.filename === filename);
+  if (idx < 0 || !view.value) return;
+  const tpl = view.value.template;
+  const itemField = tpl?.item_field ?? "";
+  const titleRaw = itemField ? view.value.values?.[itemField] : "";
+  const nextTitle = typeof titleRaw === "string" && titleRaw.length > 0
+    ? titleRaw
+    : filename;
+  const entry = summaries.value[idx];
+  entry.meta = view.value.meta;
+  entry.title = nextTitle;
 }
 
 const deleteOpen = ref(false);
@@ -336,7 +356,12 @@ async function confirmDelete() {
     toast.success("workspace.storage.delete.success", [filename]);
     statusBar.setDeleted(filename);
     selectedDataFile.value = "";
-    await refreshList();
+    // Splice the row out in place — mirrors the save path's "never
+    // reassign summaries" rule, so the rest of the list (and its
+    // scroll position) stays untouched. itemRefs entry for `filename`
+    // auto-removes via the :ref unmount callback.
+    const idx = summaries.value.findIndex((s) => s.filename === filename);
+    if (idx >= 0) summaries.value.splice(idx, 1);
   } else {
     toast.error("workspace.storage.delete.error", [result.message ?? "?"]);
   }
@@ -676,9 +701,10 @@ setTopbarMenu(() => [
           <StorageListItem
             v-for="s in visibleSummaries"
             :key="s.filename"
+            :ref="(el) => setItemRef(s.filename, el)"
             :summary="s"
+            :template-filename="selectedTemplate"
             :active="s.filename === selectedDataFile"
-            :expression="expressionItems.get(s.filename)"
             :flag-color="flagColorByLabel.get(s.meta?.flag_state ?? '')"
             @pick="pickForm"
           />

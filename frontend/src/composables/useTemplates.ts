@@ -51,7 +51,14 @@ async function remove(filename: string): Promise<{ ok: boolean; message?: string
   try {
     await TemplateSvc.DeleteTemplate(filename);
     if (selectedFilename.value === filename) selectedFilename.value = "";
-    await refresh();
+    // Splice the entry out in place — mirrors the StorageWorkspace
+    // delete pattern, so the rest of the sidebar list (and its scroll
+    // position) stays untouched. cache.value.delete keeps the lookup
+    // map consistent without forcing a full TemplateSvc.LoadTemplate
+    // pass across every other template.
+    const idx = filenames.value.indexOf(filename);
+    if (idx >= 0) filenames.value.splice(idx, 1);
+    cache.value.delete(filename);
     return { ok: true };
   } catch (err) {
     return { ok: false, message: String(err) };

@@ -148,6 +148,19 @@ export function EvaluateSidebar(templateName: string): $CancellablePromise<$mode
     });
 }
 
+/**
+ * EvaluateSidebarOne renders the sub-label for one record. Used by
+ * self-serving sidebar items refreshing themselves after a save, so
+ * editing one form doesn't trigger a full-list re-evaluation that
+ * thrashes the sidebar scroll. Same ErrNoExpression contract as the
+ * bulk method.
+ */
+export function EvaluateSidebarOne(templateName: string, datafile: string): $CancellablePromise<$models.SidebarItem> {
+    return $Call.ByID(18398183, templateName, datafile).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = builder$0.DateOpDescriptor.createFrom;
 const $$createType1 = $Create.Array($$createType0);
