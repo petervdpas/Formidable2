@@ -67,6 +67,42 @@ func TestLoopbackOnly_RejectsMalformedRemoteAddr(t *testing.T) {
 	}
 }
 
+func TestLoopbackOnly_RejectsEmptyRemoteAddr_AssetMiddlewareCase(t *testing.T) {
+	// Regression: Wails' AssetServer middleware delivers requests with
+	// an empty r.RemoteAddr (no real TCP peer — the webview is fetching
+	// from itself). LoopbackOnly is a network-only defense and must
+	// reject empty addrs, which is precisely why the asset-middleware
+	// path uses ResolveIdentity-only, NOT the full network chain.
+	// (See app.go: apiHandlerInProcess vs apiHandlerNetwork.)
+	h := LoopbackOnly(okHandler(t))
+	req := httptest.NewRequest(http.MethodGet, "http://x/api/images/foo/bar.png", nil)
+	req.RemoteAddr = ""
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("empty RemoteAddr must be 403 — would otherwise hide network exposure: got %d", rr.Code)
+	}
+}
+
+func TestResolveIdentityOnly_AcceptsEmptyRemoteAddr(t *testing.T) {
+	// Companion to the LoopbackOnly empty-addr test. The in-process
+	// chain (ResolveIdentity only, no network defenses) MUST accept the
+	// asset-middleware request shape so <img src="/api/images/…"> from
+	// the slideout iframe resolves. Without this, the slideout shows
+	// broken-image placeholders.
+	h := ResolveIdentity(NewDesktopResolver(func() (string, string, string) {
+		return "peter", "Peter", "peter@example.com"
+	}))(okHandler(t))
+	req := httptest.NewRequest(http.MethodGet, "http://x/api/images/foo/bar.png", nil)
+	req.RemoteAddr = ""
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("in-process chain must accept empty RemoteAddr, got %d (%s)",
+			rr.Code, rr.Body.String())
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // RequireOrigin — CSRF defense for write methods
 // ─────────────────────────────────────────────────────────────────────

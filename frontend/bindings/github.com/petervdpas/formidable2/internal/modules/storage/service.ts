@@ -86,6 +86,11 @@ export function MigrateTemplateMeta(templateFilename: string): $CancellablePromi
     });
 }
 
+/**
+ * SaveForm is invoked from the Wails IPC bridge — frontend → service.
+ * Wails doesn't surface a request context here, so we pass Background;
+ * stamp() then falls back to the AuthorProvider for attribution.
+ */
 export function SaveForm(templateFilename: string, datafile: string, data: { [_ in string]?: any }): $CancellablePromise<$models.SaveResult> {
     return $Call.ByID(1505214792, templateFilename, datafile, data).then(($result: any) => {
         return $$createType2($result);

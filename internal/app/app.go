@@ -392,12 +392,25 @@ func New(d Deps) (*App, error) {
 	// (SaveForm/DeleteForm). Same instance, narrow per-concern interfaces.
 	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM)
 
-	// Auth middleware chain — Desktop mode. The trust boundary made
-	// explicit: only loopback clients can reach the api, writes must
-	// declare a matching Origin/Referer (CSRF defense), and every
-	// request carries a resolved auth.Identity on ctx so SaveForm's
-	// stamping is ctx-scoped rather than profile-global. The chain
-	// stacks outer→inner: LoopbackOnly → RequireOrigin → ResolveIdentity.
+	// Auth scaffolding — Desktop mode. Two handlers cover the two
+	// transports the api rides on:
+	//
+	//   apiHandlerNetwork   — full chain (LoopbackOnly + RequireOrigin
+	//                          + ResolveIdentity). Mounted on the wiki
+	//                          mux that the optional loopback HTTP
+	//                          server binds, where real TCP clients
+	//                          and browser tabs can reach.
+	//   apiHandlerInProcess — ResolveIdentity only. Served via Wails'
+	//                          AssetMiddleware to the in-webview
+	//                          <img src="/api/images/…"> etc. Those
+	//                          requests are process-local (RemoteAddr
+	//                          is empty, no cross-origin browser), so
+	//                          the network defenses don't apply and
+	//                          would otherwise block legitimate asset
+	//                          loads.
+	//
+	// Both paths run ResolveIdentity so SaveForm's audit-block stamping
+	// is ctx-scoped on every transport.
 	desktopResolver := auth.NewDesktopResolver(func() (string, string, string) {
 		c, err := cfgM.LoadUserConfig()
 		if err != nil || c == nil {
@@ -406,10 +419,9 @@ func New(d Deps) (*App, error) {
 		return c.ProfileName, c.AuthorName, c.AuthorEmail
 	})
 	apiOriginAllowlist := buildAPIOriginAllowlist(cfgM)
-	apiHandler := auth.LoopbackOnly(
-		auth.RequireOrigin(apiOriginAllowlist)(
-			auth.ResolveIdentity(desktopResolver)(apiHandlerBare),
-		),
+	apiHandlerInProcess := auth.ResolveIdentity(desktopResolver)(apiHandlerBare)
+	apiHandlerNetwork := auth.LoopbackOnly(
+		auth.RequireOrigin(apiOriginAllowlist)(apiHandlerInProcess),
 	)
 
 	// Monitor module — generic observation surface over Formidable's
@@ -424,7 +436,7 @@ func New(d Deps) (*App, error) {
 	top := http.NewServeMux()
 	// Longest-prefix wins: /api/monitor/ takes precedence over /api/.
 	top.Handle("/api/monitor/", monitorHandler)
-	top.Handle("/api/", apiHandler)
+	top.Handle("/api/", apiHandlerNetwork)
 	top.Handle("/", wikiHandler)
 	wikiM.SetHandler(top)
 	wikiSvc := wiki.NewService(wikiM,
@@ -527,7 +539,7 @@ func New(d Deps) (*App, error) {
 		pluginManager:   pluginM,
 		gitManager:        gitM,
 		credentialManager: credentialM,
-		apiHandler:        apiHandler,
+		apiHandler:        apiHandlerInProcess,
 		emitter:         emitter,
 		logBroadcaster:  d.LogBroadcaster,
 		deps:            d,
@@ -544,11 +556,18 @@ func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manag
 	return svc
 }
 
-// APIHandler returns the api module's http.Handler. main.go feeds this
+// APIHandler returns the in-process api handler. main.go feeds this
 // into the Wails AssetServer middleware so /api/* requests from the
-// in-app webview reach the api handler even when the optional wiki/api
-// HTTP server is OFF (the same handler also runs behind the loopback
-// HTTP server when the user enables it via the Information workspace).
+// in-app webview (the slideout's <img src="/api/images/…">, the form
+// view's API field lookups) reach the api handler even when the
+// optional wiki/api HTTP server is OFF.
+//
+// This is the in-process variant: identity stamping is wired but the
+// network-only defenses (LoopbackOnly, RequireOrigin) are NOT. Asset
+// requests originate inside the Wails webview itself — RemoteAddr is
+// empty and there is no cross-origin browser tab, so the network
+// guards would only ever produce false positives here. The loopback
+// HTTP server uses the fully-wrapped variant separately.
 func (a *App) APIHandler() http.Handler {
 	if a == nil {
 		return nil
