@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -52,7 +53,7 @@ func TestSaveForm_FiresIndexer(t *testing.T) {
 	idx := &recordingIndexer{}
 	m.SetIndexer(idx)
 
-	res := m.SaveForm("basic.yaml", "x.meta.json", map[string]any{"title": "X"})
+	res := m.SaveForm(context.Background(), "basic.yaml", "x.meta.json", map[string]any{"title": "X"})
 	if !res.Success {
 		t.Fatalf("save: %s", res.Error)
 	}
@@ -66,7 +67,7 @@ func TestDeleteForm_FiresIndexer(t *testing.T) {
 	idx := &recordingIndexer{}
 	m.SetIndexer(idx)
 
-	res := m.SaveForm("basic.yaml", "x.meta.json", map[string]any{"title": "X"})
+	res := m.SaveForm(context.Background(), "basic.yaml", "x.meta.json", map[string]any{"title": "X"})
 	if !res.Success {
 		t.Fatal(res.Error)
 	}
@@ -82,7 +83,7 @@ func TestSaveForm_IndexerErrorIsLoggedNotPropagated(t *testing.T) {
 	m := newTestStorage(t)
 	m.SetIndexer(&recordingIndexer{saveErr: errors.New("down")})
 
-	res := m.SaveForm("basic.yaml", "x.meta.json", map[string]any{"title": "X"})
+	res := m.SaveForm(context.Background(), "basic.yaml", "x.meta.json", map[string]any{"title": "X"})
 	if !res.Success {
 		t.Errorf("indexer failure must not break save: %v", res)
 	}
@@ -95,7 +96,7 @@ func TestSaveFormFailure_DoesNotFireIndexer(t *testing.T) {
 	idx := &recordingIndexer{}
 	m.SetIndexer(idx)
 
-	res := m.SaveForm("basic.yaml", "../escape.meta.json", map[string]any{})
+	res := m.SaveForm(context.Background(), "basic.yaml", "../escape.meta.json", map[string]any{})
 	if res.Success {
 		t.Fatal("expected save to refuse traversal")
 	}

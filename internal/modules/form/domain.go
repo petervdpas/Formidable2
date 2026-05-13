@@ -1,6 +1,7 @@
 package form
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,7 +24,7 @@ type formStore interface {
 	ListForms(templateFilename string) ([]string, error)
 	ExtendedListForms(templateFilename string) ([]storage.FormSummary, error)
 	LoadForm(templateFilename, datafile string) *storage.Form
-	SaveForm(templateFilename, datafile string, data map[string]any) storage.SaveResult
+	SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) storage.SaveResult
 	DeleteForm(templateFilename, datafile string) error
 }
 
@@ -147,7 +148,7 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 	if err := m.storage.EnsureFormDir(templateName); err != nil {
 		return nil, fmt.Errorf("form: ensure dir: %w", err)
 	}
-	res := m.storage.SaveForm(templateName, payload.Datafile, envelope)
+	res := m.storage.SaveForm(context.Background(), templateName, payload.Datafile, envelope)
 	if !res.Success {
 		return nil, fmt.Errorf("form: save: %s", res.Error)
 	}

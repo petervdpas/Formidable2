@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/petervdpas/formidable2/internal/modules/auth"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -85,11 +87,22 @@ func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
 // Created on first save. Pass nil to fall back to "Unknown".
 func (m *Manager) SetAuthorProvider(p AuthorProvider) { m.author = p }
 
-// stamp returns a fresh AuditEntry for the current actor. Falls back
-// to ("Unknown", "unknown@example.com") if no provider is wired or it
-// returned empty strings — keeps the meta block well-formed for tests
-// and early-boot scenarios.
-func (m *Manager) stamp() AuditEntry {
+// stamp returns a fresh AuditEntry for the current actor. Resolution
+// order: ctx-scoped auth.Identity (request-scoped — HTTP API + future
+// subscriptions) > AuthorProvider (process-scoped — Wails IPC + plugin
+// host) > ("Unknown", "unknown@example.com") fallback.
+func (m *Manager) stamp(ctx context.Context) AuditEntry {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if id, ok := auth.IdentityFromContext(ctx); ok && id.Valid() {
+		name, email := id.Name, id.Email
+		if name == "" {
+			name = "Unknown"
+		}
+		if email == "" {
+			email = "unknown@example.com"
+		}
+		return AuditEntry{At: now, Name: name, Email: email}
+	}
 	name, email := "", ""
 	if m.author != nil {
 		name, email = m.author()
@@ -100,11 +113,7 @@ func (m *Manager) stamp() AuditEntry {
 	if email == "" {
 		email = "unknown@example.com"
 	}
-	return AuditEntry{
-		At:    time.Now().UTC().Format(time.RFC3339Nano),
-		Name:  name,
-		Email: email,
-	}
+	return AuditEntry{At: now, Name: name, Email: email}
 }
 
 // StorageDir returns the absolute storage root, used by the
@@ -155,8 +164,12 @@ func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 }
 
 // SaveForm sanitizes the input against the template's fields and writes
-// the resulting envelope as JSON.
-func (m *Manager) SaveForm(templateFilename, datafile string, data map[string]any) SaveResult {
+// the resulting envelope as JSON. ctx is consulted by stamp() for the
+// auth.Identity that attributes Updated (and Created on first save) —
+// HTTP API handlers thread the request context here; non-HTTP callers
+// (Wails IPC, plugin host) pass context.Background() and fall back to
+// the AuthorProvider.
+func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) SaveResult {
 	if datafile == "" {
 		return SaveResult{Success: false, Error: "empty datafile"}
 	}
@@ -176,7 +189,7 @@ func (m *Manager) SaveForm(templateFilename, datafile string, data map[string]an
 	// with the current profile so the audit trail reflects "who saved
 	// this last", even when a different profile edits a record.
 	prev := m.LoadForm(templateFilename, datafile)
-	stamp := m.stamp()
+	stamp := m.stamp(ctx)
 	opts := SanitizeOptions{
 		TemplateName: templateName,
 		Updated:      stamp,
@@ -205,8 +218,11 @@ func (m *Manager) SaveForm(templateFilename, datafile string, data map[string]an
 // accidentally re-generate identity. SaveFormExact is the escape
 // hatch for callers that are deliberately mutating the meta block —
 // the integrity repair pipeline mints UUIDs and re-stamps timestamps
-// and needs its updated meta to land on disk verbatim.
-func (m *Manager) SaveFormExact(templateFilename, datafile string, form Form) SaveResult {
+// and needs its updated meta to land on disk verbatim. ctx is carried
+// for parity with SaveForm but currently unused (the form's Meta is
+// already fully resolved).
+func (m *Manager) SaveFormExact(ctx context.Context, templateFilename, datafile string, form Form) SaveResult {
+	_ = ctx
 	if datafile == "" {
 		return SaveResult{Success: false, Error: "empty datafile"}
 	}

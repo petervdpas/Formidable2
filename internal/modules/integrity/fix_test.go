@@ -1,6 +1,7 @@
 package integrity
 
 import (
+	"context"
 	"sort"
 	"testing"
 
@@ -18,7 +19,7 @@ type stubWriter struct {
 
 func newStubWriter(store *stubStorage) *stubWriter { return &stubWriter{store: store} }
 
-func (s *stubWriter) SaveForm(tpl, fn string, form *storage.Form) error {
+func (s *stubWriter) SaveForm(_ context.Context, tpl, fn string, form *storage.Form) error {
 	s.calls++
 	if s.store.forms[tpl] == nil {
 		s.store.forms[tpl] = map[string]*storage.Form{}

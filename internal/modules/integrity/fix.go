@@ -1,6 +1,7 @@
 package integrity
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -21,7 +22,7 @@ import (
 // just data, because meta-targeting strategies (MintUUID, Restamp)
 // need to commit a mutated meta block alongside the data.
 type StorageWriter interface {
-	SaveForm(templateFilename, datafile string, form *storage.Form) error
+	SaveForm(ctx context.Context, templateFilename, datafile string, form *storage.Form) error
 }
 
 // SetWriter installs the writer the Fix pipeline uses. Manager built
@@ -104,7 +105,7 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 		}
 
 		if outcome.Applied > 0 {
-			if err := m.writer.SaveForm(templateFilename, fn, draft); err != nil {
+			if err := m.writer.SaveForm(context.Background(), templateFilename, fn, draft); err != nil {
 				return FixResult{}, fmt.Errorf("integrity: save %s: %w", fn, err)
 			}
 			outcome.Saved = true

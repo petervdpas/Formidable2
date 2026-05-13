@@ -110,8 +110,8 @@ func (a pluginFormAdapter) LoadForm(templateFilename, datafile string) (map[stri
 	return f.Data, nil
 }
 
-func (a pluginFormAdapter) SaveForm(templateFilename, datafile string, data map[string]any) error {
-	res := a.sto.SaveForm(templateFilename, datafile, data)
+func (a pluginFormAdapter) SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) error {
+	res := a.sto.SaveForm(ctx, templateFilename, datafile, data)
 	if !res.Success {
 		return fmt.Errorf("storage: save %s/%s: %s", templateFilename, datafile, res.Error)
 	}

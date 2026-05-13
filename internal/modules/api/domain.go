@@ -40,7 +40,7 @@ type Storage interface {
 // keeps SQLite consistent without the api module having to know about
 // the index at all.
 type Writer interface {
-	SaveForm(templateFilename, datafile string, data map[string]any) storage.SaveResult
+	SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) storage.SaveResult
 	DeleteForm(templateFilename, datafile string) error
 }
 

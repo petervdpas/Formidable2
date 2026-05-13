@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -60,7 +61,7 @@ func (m *mockForm) LoadForm(tpl, df string) (map[string]any, error) {
 	}
 	return nil, errors.New("not found")
 }
-func (m *mockForm) SaveForm(tpl, df string, data map[string]any) error {
+func (m *mockForm) SaveForm(_ context.Context, tpl, df string, data map[string]any) error {
 	if m.saved == nil {
 		m.saved = map[string]map[string]any{}
 	}

@@ -127,7 +127,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	envelope := map[string]any{"meta": body.Meta, "data": body.Data}
-	res := h.wr.SaveForm(tplFilename, filename, envelope)
+	res := h.wr.SaveForm(r.Context(), tplFilename, filename, envelope)
 	if !res.Success {
 		writeJSONError(w, http.StatusInternalServerError, "save-failed")
 		return
@@ -215,7 +215,7 @@ func (h *Handler) itemPut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	envelope := map[string]any{"meta": body.Meta, "data": body.Data}
-	res := h.wr.SaveForm(tplFilename, filename, envelope)
+	res := h.wr.SaveForm(r.Context(), tplFilename, filename, envelope)
 	if !res.Success {
 		writeJSONError(w, http.StatusInternalServerError, "save-failed")
 		return
@@ -298,7 +298,7 @@ func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 	mergedData[guidKey] = id
 
 	envelope := map[string]any{"meta": mergedMeta, "data": mergedData}
-	res := h.wr.SaveForm(tplFilename, existing.Filename, envelope)
+	res := h.wr.SaveForm(r.Context(), tplFilename, existing.Filename, envelope)
 	if !res.Success {
 		writeJSONError(w, http.StatusInternalServerError, "save-failed")
 		return
@@ -451,7 +451,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 			envelope = map[string]any{"meta": meta, "data": data}
 		}
 
-		res := h.wr.SaveForm(tplFilename, filename, envelope)
+		res := h.wr.SaveForm(r.Context(), tplFilename, filename, envelope)
 		if !res.Success {
 			errs = append(errs, map[string]any{
 				"index":   i,
@@ -544,7 +544,7 @@ func (h *Handler) fieldPatch(w http.ResponseWriter, r *http.Request) {
 		"meta": formMetaAsMap(prior.Meta),
 		"data": mergedData,
 	}
-	res := h.wr.SaveForm(tplFilename, existing.Filename, envelope)
+	res := h.wr.SaveForm(r.Context(), tplFilename, existing.Filename, envelope)
 	if !res.Success {
 		writeJSONError(w, http.StatusInternalServerError, "save-failed")
 		return

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
@@ -57,7 +58,7 @@ func (m *Manager) MigrateTemplateMeta(templateFilename string) (MigrateResult, e
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: load returned nil", filename))
 			continue
 		}
-		sr := m.SaveFormExact(templateFilename, datafile, *f)
+		sr := m.SaveFormExact(context.Background(), templateFilename, datafile, *f)
 		if !sr.Success {
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: save: %s", filename, sr.Error))
 			continue

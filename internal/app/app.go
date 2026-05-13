@@ -20,6 +20,7 @@ import (
 	applog "github.com/petervdpas/formidable2/internal/log"
 	"github.com/petervdpas/formidable2/internal/modules/about"
 	"github.com/petervdpas/formidable2/internal/modules/api"
+	"github.com/petervdpas/formidable2/internal/modules/auth"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/credential"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git/sysgit"
@@ -389,7 +390,27 @@ func New(d Deps) (*App, error) {
 	// longest-prefix match.
 	// stoM appears twice — once as Storage (LoadForm), once as Writer
 	// (SaveForm/DeleteForm). Same instance, narrow per-concern interfaces.
-	apiHandler := api.NewHandler(dpM, stoM, stoM, tplM)
+	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM)
+
+	// Auth middleware chain — Desktop mode. The trust boundary made
+	// explicit: only loopback clients can reach the api, writes must
+	// declare a matching Origin/Referer (CSRF defense), and every
+	// request carries a resolved auth.Identity on ctx so SaveForm's
+	// stamping is ctx-scoped rather than profile-global. The chain
+	// stacks outer→inner: LoopbackOnly → RequireOrigin → ResolveIdentity.
+	desktopResolver := auth.NewDesktopResolver(func() (string, string, string) {
+		c, err := cfgM.LoadUserConfig()
+		if err != nil || c == nil {
+			return "", "", ""
+		}
+		return c.ProfileName, c.AuthorName, c.AuthorEmail
+	})
+	apiOriginAllowlist := buildAPIOriginAllowlist(cfgM)
+	apiHandler := auth.LoopbackOnly(
+		auth.RequireOrigin(apiOriginAllowlist)(
+			auth.ResolveIdentity(desktopResolver)(apiHandlerBare),
+		),
+	)
 
 	// Monitor module — generic observation surface over Formidable's
 	// internal event streams. JournalSource is the only registered

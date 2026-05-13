@@ -126,7 +126,7 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^a saved form "([^"]*)" / "([^"]*)"$`, func(tmplFile, datafile string) error {
-		w.saveResult = w.m.SaveForm(tmplFile, datafile, map[string]any{"title": "stub"})
+		w.saveResult = w.m.SaveForm(context.Background(), tmplFile, datafile, map[string]any{"title": "stub"})
 		if !w.saveResult.Success {
 			return fmt.Errorf("seed save failed: %s", w.saveResult.Error)
 		}
@@ -134,7 +134,7 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^a saved form "([^"]*)" / "([^"]*)" with title "([^"]*)"$`, func(tmplFile, datafile, title string) error {
-		w.saveResult = w.m.SaveForm(tmplFile, datafile, map[string]any{"title": title})
+		w.saveResult = w.m.SaveForm(context.Background(), tmplFile, datafile, map[string]any{"title": title})
 		if !w.saveResult.Success {
 			return fmt.Errorf("seed save failed: %s", w.saveResult.Error)
 		}
@@ -142,7 +142,7 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^a saved form "([^"]*)" / "([^"]*)" with empty title$`, func(tmplFile, datafile string) error {
-		w.saveResult = w.m.SaveForm(tmplFile, datafile, map[string]any{"title": ""})
+		w.saveResult = w.m.SaveForm(context.Background(), tmplFile, datafile, map[string]any{"title": ""})
 		if !w.saveResult.Success {
 			return fmt.Errorf("seed save failed: %s", w.saveResult.Error)
 		}
@@ -162,7 +162,7 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I save a form "([^"]*)" / "([^"]*)" with data:$`, func(tmplFile, datafile string, table *godog.Table) error {
 		data := tableToData(table)
-		w.saveResult = w.m.SaveForm(tmplFile, datafile, data)
+		w.saveResult = w.m.SaveForm(context.Background(), tmplFile, datafile, data)
 		w.lastTpl, w.lastDatafile = tmplFile, datafile
 		return nil
 	})
@@ -176,7 +176,7 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		raw := map[string]any{
 			"_meta": map[string]any{"flag_state": state},
 		}
-		w.saveResult = w.m.SaveForm(tmplFile, datafile, raw)
+		w.saveResult = w.m.SaveForm(context.Background(), tmplFile, datafile, raw)
 		w.lastTpl, w.lastDatafile = tmplFile, datafile
 		return nil
 	})
@@ -188,7 +188,7 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 				"flag_state": state,
 			},
 		}
-		w.saveResult = w.m.SaveForm(tmplFile, datafile, raw)
+		w.saveResult = w.m.SaveForm(context.Background(), tmplFile, datafile, raw)
 		w.lastTpl, w.lastDatafile = tmplFile, datafile
 		return nil
 	})

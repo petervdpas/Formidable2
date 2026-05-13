@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"reflect"
 	"slices"
 	"strings"
@@ -306,7 +307,7 @@ func TestSaveForm_RejectsEmptyDatafile(t *testing.T) {
 		Name: "basic", Filename: "basic.yaml",
 		Fields: []template.Field{{Key: "title", Type: "text"}},
 	})
-	r := m.SaveForm("basic.yaml", "", map[string]any{"title": "X"})
+	r := m.SaveForm(context.Background(), "basic.yaml", "", map[string]any{"title": "X"})
 	if r.Success {
 		t.Errorf("expected failure, got %+v", r)
 	}
@@ -318,7 +319,7 @@ func TestSaveForm_RejectsPathSeparatorsInDatafile(t *testing.T) {
 		Name: "basic", Filename: "basic.yaml",
 		Fields: []template.Field{{Key: "title", Type: "text"}},
 	})
-	r := m.SaveForm("basic.yaml", "subdir/x", map[string]any{"title": "X"})
+	r := m.SaveForm(context.Background(), "basic.yaml", "subdir/x", map[string]any{"title": "X"})
 	if r.Success {
 		t.Errorf("expected failure, got %+v", r)
 	}

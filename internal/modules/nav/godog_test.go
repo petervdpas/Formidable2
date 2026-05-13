@@ -119,7 +119,7 @@ func initNavScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^a form "([^"]*)" saved under "([^"]*)" with title "([^"]*)"$`,
 		func(datafile, tpl, title string) error {
-			r := w.stoM.SaveForm(tpl, datafile, map[string]any{"title": title})
+			r := w.stoM.SaveForm(context.Background(), tpl, datafile, map[string]any{"title": title})
 			if !r.Success {
 				return fmt.Errorf("save form failed: %s", r.Error)
 			}

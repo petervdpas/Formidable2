@@ -247,7 +247,7 @@ type stubWrite struct {
 	Envelope map[string]any
 }
 
-func (w *stubWriter) SaveForm(templateFilename, datafile string, data map[string]any) storage.SaveResult {
+func (w *stubWriter) SaveForm(_ context.Context, templateFilename, datafile string, data map[string]any) storage.SaveResult {
 	w.saves = append(w.saves, stubWrite{Template: templateFilename, Datafile: datafile, Envelope: data})
 	if w.saveErr != "" {
 		return storage.SaveResult{Success: false, Error: w.saveErr}

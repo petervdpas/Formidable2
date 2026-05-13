@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -94,7 +95,7 @@ func TestMigrateTemplateMeta_SkipsAlreadyNewShape(t *testing.T) {
 
 	// SaveForm writes a fresh new-shape file. After it lands, MigrateTemplateMeta
 	// must touch nothing (idempotent + no mtime churn).
-	if r := m.SaveForm("basic.yaml", "fresh", map[string]any{"title": "X"}); !r.Success {
+	if r := m.SaveForm(context.Background(), "basic.yaml", "fresh", map[string]any{"title": "X"}); !r.Success {
 		t.Fatalf("seed save: %s", r.Error)
 	}
 
@@ -191,7 +192,7 @@ func TestMigrateTemplateMeta_MixedFolder(t *testing.T) {
 	legacy("alpha", "Alice")
 	legacy("beta", "Bob")
 	m.SetAuthorProvider(func() (string, string) { return "Carol", "carol@x.com" })
-	if r := m.SaveForm("basic.yaml", "gamma", map[string]any{"title": "G"}); !r.Success {
+	if r := m.SaveForm(context.Background(), "basic.yaml", "gamma", map[string]any{"title": "G"}); !r.Success {
 		t.Fatalf("seed gamma: %s", r.Error)
 	}
 

@@ -1,6 +1,7 @@
 package form
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -64,7 +65,7 @@ func (s *fakeStorage) LoadForm(t, df string) *storage.Form {
 	return tf[df]
 }
 
-func (s *fakeStorage) SaveForm(t, df string, data map[string]any) storage.SaveResult {
+func (s *fakeStorage) SaveForm(_ context.Context, t, df string, data map[string]any) storage.SaveResult {
 	s.saves = append(s.saves, saveCall{Template: t, Datafile: df, Data: data})
 	if s.forms[t] == nil {
 		s.forms[t] = map[string]*storage.Form{}

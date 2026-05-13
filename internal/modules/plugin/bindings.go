@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -33,7 +34,7 @@ type CollectionAccess interface {
 // writes never produce torn files.
 type FormAccess interface {
 	LoadForm(templateFilename, datafile string) (map[string]any, error)
-	SaveForm(templateFilename, datafile string, data map[string]any) error
+	SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) error
 }
 
 // RenderAccess is the formidable.render.* surface — rendered
@@ -228,7 +229,7 @@ func buildFormTable(L *lua.LState, f FormAccess) *lua.LTable {
 			L.RaiseError("form.save: data must be a table")
 			return 0
 		}
-		if err := f.SaveForm(tpl, df, data); err != nil {
+		if err := f.SaveForm(context.Background(), tpl, df, data); err != nil {
 			L.RaiseError("form.save: %v", err)
 		}
 		return 0

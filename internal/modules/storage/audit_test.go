@@ -1,11 +1,13 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/petervdpas/formidable2/internal/modules/auth"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
@@ -219,7 +221,7 @@ func TestSaveForm_NewFormStampsCreatedAndUpdatedFromProvider(t *testing.T) {
 	})
 
 	before := time.Now().UTC()
-	r := m.SaveForm("basic.yaml", "f1", map[string]any{"title": "Hi"})
+	r := m.SaveForm(context.Background(), "basic.yaml", "f1", map[string]any{"title": "Hi"})
 	if !r.Success {
 		t.Fatalf("save: %s", r.Error)
 	}
@@ -250,7 +252,7 @@ func TestSaveForm_EditPreservesCreatedRestampsUpdated(t *testing.T) {
 		Fields: []template.Field{{Key: "title", Type: "text"}},
 	})
 
-	if r := m.SaveForm("basic.yaml", "f1", map[string]any{"title": "v1"}); !r.Success {
+	if r := m.SaveForm(context.Background(), "basic.yaml", "f1", map[string]any{"title": "v1"}); !r.Success {
 		t.Fatalf("first save: %s", r.Error)
 	}
 	first := m.LoadForm("basic.yaml", "f1")
@@ -264,7 +266,7 @@ func TestSaveForm_EditPreservesCreatedRestampsUpdated(t *testing.T) {
 	// edits a record originally authored by the first.
 	m.SetAuthorProvider(func() (string, string) { return "Bob", "bob@b.com" })
 	time.Sleep(2 * time.Millisecond)
-	if r := m.SaveForm("basic.yaml", "f1", map[string]any{"title": "v2"}); !r.Success {
+	if r := m.SaveForm(context.Background(), "basic.yaml", "f1", map[string]any{"title": "v2"}); !r.Success {
 		t.Fatalf("edit save: %s", r.Error)
 	}
 
@@ -311,7 +313,7 @@ func TestSaveForm_LegacyOnDiskIsMigratedThenPreservedOnEdit(t *testing.T) {
 	}
 
 	// Bob edits it.
-	if r := m.SaveForm("basic.yaml", "legacy-1", map[string]any{"title": "edited"}); !r.Success {
+	if r := m.SaveForm(context.Background(), "basic.yaml", "legacy-1", map[string]any{"title": "edited"}); !r.Success {
 		t.Fatalf("edit save: %s", r.Error)
 	}
 
@@ -330,6 +332,61 @@ func TestSaveForm_LegacyOnDiskIsMigratedThenPreservedOnEdit(t *testing.T) {
 	}
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// SaveForm — ctx-scoped auth.Identity wins over the AuthorProvider
+// (the HTTP API path threads request context; Wails IPC does not)
+// ─────────────────────────────────────────────────────────────────────
+
+func TestSaveForm_CtxIdentityWinsOverAuthorProvider(t *testing.T) {
+	m, tplM := newTestStackWithAuthor(t, "Active Profile", "profile@example.com")
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+
+	ctx := auth.WithIdentity(context.Background(), auth.Identity{
+		Kind: auth.KindSubscription, Subject: "sub-7",
+		Name: "External Caller", Email: "external@api.com",
+	})
+
+	if r := m.SaveForm(ctx, "basic.yaml", "f1", map[string]any{"title": "Hi"}); !r.Success {
+		t.Fatalf("save: %s", r.Error)
+	}
+	f := m.LoadForm("basic.yaml", "f1")
+	if f == nil {
+		t.Fatal("load nil")
+	}
+	if f.Meta.Created.Name != "External Caller" || f.Meta.Updated.Name != "External Caller" {
+		t.Errorf("ctx Identity should beat AuthorProvider, got Created=%+v Updated=%+v",
+			f.Meta.Created, f.Meta.Updated)
+	}
+	if f.Meta.Created.Email != "external@api.com" {
+		t.Errorf("Email not from ctx: %+v", f.Meta.Created)
+	}
+}
+
+func TestSaveForm_InvalidCtxIdentityFallsBackToProvider(t *testing.T) {
+	m, tplM := newTestStackWithAuthor(t, "Active Profile", "profile@example.com")
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+
+	// Identity with missing Subject is !Valid() — stamp must ignore it
+	// and fall through to the AuthorProvider rather than silently
+	// attribute the write to a malformed caller.
+	ctx := auth.WithIdentity(context.Background(), auth.Identity{
+		Kind: auth.KindDesktop, Name: "Suspicious", Email: "x@x.com",
+	})
+	if r := m.SaveForm(ctx, "basic.yaml", "f1", map[string]any{"title": "X"}); !r.Success {
+		t.Fatalf("save: %s", r.Error)
+	}
+	f := m.LoadForm("basic.yaml", "f1")
+	if f.Meta.Updated.Name != "Active Profile" {
+		t.Errorf("invalid ctx Identity must fall back to provider, got %+v", f.Meta.Updated)
+	}
+}
+
 func TestSaveForm_NoProviderFallsBackToUnknown(t *testing.T) {
 	// Direct storage.Manager usage without composition-root wiring
 	// (early-boot tests, integrity tools, ad-hoc scripts) must still
@@ -340,7 +397,7 @@ func TestSaveForm_NoProviderFallsBackToUnknown(t *testing.T) {
 		Fields: []template.Field{{Key: "title", Type: "text"}},
 	})
 
-	if r := m.SaveForm("basic.yaml", "f1", map[string]any{"title": "X"}); !r.Success {
+	if r := m.SaveForm(context.Background(), "basic.yaml", "f1", map[string]any{"title": "X"}); !r.Success {
 		t.Fatalf("save: %s", r.Error)
 	}
 	f := m.LoadForm("basic.yaml", "f1")

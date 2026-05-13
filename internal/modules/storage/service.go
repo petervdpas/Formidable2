@@ -1,5 +1,7 @@
 package storage
 
+import "context"
+
 // Service is the api layer over Manager. Mirrors the Electron
 // `window.api.forms.*` IPC group:
 //   - forms-ensure-dir       → EnsureFormDir
@@ -37,8 +39,11 @@ func (s *Service) LoadForm(templateFilename, datafile string) *Form {
 	return s.m.LoadForm(templateFilename, datafile)
 }
 
+// SaveForm is invoked from the Wails IPC bridge — frontend → service.
+// Wails doesn't surface a request context here, so we pass Background;
+// stamp() then falls back to the AuthorProvider for attribution.
 func (s *Service) SaveForm(templateFilename, datafile string, data map[string]any) SaveResult {
-	return s.m.SaveForm(templateFilename, datafile, data)
+	return s.m.SaveForm(context.Background(), templateFilename, datafile, data)
 }
 
 func (s *Service) DeleteForm(templateFilename, datafile string) error {
@@ -63,7 +68,7 @@ func (s *Service) DeleteImageFile(templateFilename, name string) error {
 // ImportCsvRow is the storage-side of the old `csv-import-row` IPC.
 // The frontend pre-parsed CSV and now wants each row stored as a form.
 func (s *Service) ImportCsvRow(templateFilename, datafile string, data map[string]any) SaveResult {
-	return s.m.SaveForm(templateFilename, datafile, data)
+	return s.m.SaveForm(context.Background(), templateFilename, datafile, data)
 }
 
 // MigrateTemplateMeta rewrites every legacy-shaped form under the
