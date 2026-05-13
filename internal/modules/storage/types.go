@@ -12,21 +12,32 @@ type Form struct {
 	Data map[string]any `json:"data"`
 }
 
+// AuditEntry records who did something and when. Used for both
+// FormMeta.Created and FormMeta.Updated. Symmetric to git's
+// author/committer split: Created is set once and preserved across
+// every subsequent save; Updated is re-stamped on every save with the
+// current profile's identity. On read, legacy flat `author_name` +
+// `author_email` + flat `created`/`updated` strings are migrated into
+// the AuditEntry pair; on write only the nested shape is emitted.
+type AuditEntry struct {
+	At    string `json:"at"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 // FormMeta carries identity + audit fields. Tags are deduped+sorted.
 // FlagState references a Template.FlagDefinitions label (e.g. "FLASH")
 // when set; empty means no state is chosen. Independent of Flagged —
 // legacy `flagged: true` forms keep their bool with FlagState empty,
 // and the UI renders them as a generic uncolored flag.
 type FormMeta struct {
-	ID          string   `json:"id"`
-	AuthorName  string   `json:"author_name"`
-	AuthorEmail string   `json:"author_email"`
-	Template    string   `json:"template"`
-	Created     string   `json:"created"`
-	Updated     string   `json:"updated"`
-	Flagged     bool     `json:"flagged"`
-	FlagState   string   `json:"flag_state"`
-	Tags        []string `json:"tags"`
+	ID        string     `json:"id"`
+	Template  string     `json:"template"`
+	Created   AuditEntry `json:"created"`
+	Updated   AuditEntry `json:"updated"`
+	Flagged   bool       `json:"flagged"`
+	FlagState string     `json:"flag_state"`
+	Tags      []string   `json:"tags"`
 }
 
 // FormSummary is one row in ExtendedListForms output. Title falls back
@@ -46,16 +57,24 @@ type SaveResult struct {
 }
 
 // SanitizeOptions adjusts how Sanitize normalises the meta block. All
-// fields are optional and default to "fill from raw or generate". This
-// mirrors the option bag accepted by `schemas/meta.schema.js.sanitize`.
+// fields are optional and default to "fill from raw or generate".
+//
+// Created and Updated override anything in raw meta when their `At`
+// field is non-empty — used by SaveForm to lock the creator across
+// edits (opts.Created = prev.Meta.Created) and to stamp the current
+// profile (opts.Updated = {At: now, Name: profile, Email: profile}).
 type SanitizeOptions struct {
 	ID           string
 	TemplateName string
-	AuthorName   string
-	AuthorEmail  string
-	Created      string
-	Updated      string
+	Created      AuditEntry
+	Updated      AuditEntry
 	Flagged      *bool
 	FlagState    string
 	Tags         []string
 }
+
+// AuthorProvider returns the current actor's name + email. Wired by
+// the composition root from config.Manager so storage.SaveForm can
+// stamp Updated.* (and Created.* on first save) with the active
+// profile. Tests may swap a fixed-value provider.
+type AuthorProvider func() (name, email string)

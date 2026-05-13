@@ -100,18 +100,18 @@ func checkMeta(tpl *template.Template, meta storage.FormMeta) []Issue {
 
 	// Created / Updated must be parseable RFC3339 (storage writes
 	// RFC3339Nano; both Nano and second-precision parse via that layout).
-	if meta.Created != "" && !parseableTimestamp(meta.Created) {
+	if meta.Created.At != "" && !parseableTimestamp(meta.Created.At) {
 		out = append(out, Issue{
 			Kind:   IssueMetaBadFormat,
 			Path:   "meta.created",
-			Detail: fmt.Sprintf("not RFC3339: %q", meta.Created),
+			Detail: fmt.Sprintf("not RFC3339: %q", meta.Created.At),
 		})
 	}
-	if meta.Updated != "" && !parseableTimestamp(meta.Updated) {
+	if meta.Updated.At != "" && !parseableTimestamp(meta.Updated.At) {
 		out = append(out, Issue{
 			Kind:   IssueMetaBadFormat,
 			Path:   "meta.updated",
-			Detail: fmt.Sprintf("not RFC3339: %q", meta.Updated),
+			Detail: fmt.Sprintf("not RFC3339: %q", meta.Updated.At),
 		})
 	}
 

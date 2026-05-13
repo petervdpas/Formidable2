@@ -84,6 +84,8 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	schemas := map[string]any{
 		"ItemBase":       schemaItemBase(),
 		"ItemSummary":    schemaItemSummary(),
+		"FormMeta":       schemaFormMeta(),
+		"AuditEntry":     schemaAuditEntry(),
 		"TemplateRow":    schemaTemplateRow(),
 		"CountResponse":  schemaCountResponse(),
 		"ListResponse":   schemaListResponse(),
@@ -731,6 +733,35 @@ func optionPairs(opts []any) ([]any, []any) {
 
 // ── shared schema definitions ────────────────────────────────────────
 
+func schemaFormMeta() map[string]any {
+	return map[string]any{
+		"type":        "object",
+		"description": "On-disk meta block. Created is set on first save and locked thereafter; Updated is re-stamped on every save with the active profile's identity.",
+		"properties": map[string]any{
+			"id":         map[string]any{"type": "string", "description": "GUID; minted on first save when the template declares a guid field"},
+			"template":   map[string]any{"type": "string"},
+			"created":    map[string]any{"$ref": "#/components/schemas/AuditEntry"},
+			"updated":    map[string]any{"$ref": "#/components/schemas/AuditEntry"},
+			"flagged":    map[string]any{"type": "boolean"},
+			"flag_state": map[string]any{"type": "string", "description": "Template-defined flag label (e.g. FLASH, IMMEDIATE) or empty"},
+			"tags":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+		},
+	}
+}
+
+func schemaAuditEntry() map[string]any {
+	return map[string]any{
+		"type":        "object",
+		"description": "Who-and-when audit entry. Used for FormMeta.created and FormMeta.updated.",
+		"properties": map[string]any{
+			"at":    map[string]any{"type": "string", "format": "date-time", "description": "RFC3339Nano timestamp"},
+			"name":  map[string]any{"type": "string"},
+			"email": map[string]any{"type": "string"},
+		},
+		"required": []string{"at", "name", "email"},
+	}
+}
+
 func schemaItemBase() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -739,7 +770,7 @@ func schemaItemBase() map[string]any {
 			"id":       map[string]any{"type": "string", "description": "GUID"},
 			"filename": map[string]any{"type": "string"},
 			"title":    map[string]any{"type": "string"},
-			"meta":     map[string]any{"type": "object", "additionalProperties": true},
+			"meta":     map[string]any{"$ref": "#/components/schemas/FormMeta"},
 			"data":     map[string]any{"type": "object", "additionalProperties": true},
 			"links": map[string]any{
 				"type": "object",

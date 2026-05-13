@@ -136,7 +136,7 @@ func TestEventHandler_OnTemplateDeleted_RemovesAndCascades(t *testing.T) {
 	}
 	forms := map[string]*FormRecord{
 		"basic.yaml/one.meta.json": formRecord(
-			storage.FormMeta{ID: "g1", AuthorName: "Alice", Updated: "2026-05-01T00:00:00Z"},
+			storage.FormMeta{ID: "g1", Updated: storage.AuditEntry{Name: "Alice", At: "2026-05-01T00:00:00Z"}},
 			map[string]any{"id": "g1", "labels": []any{"a"}},
 			10,
 		),
@@ -169,10 +169,9 @@ func TestEventHandler_OnFormChanged_Inserts_WithGuidAndTags(t *testing.T) {
 	forms := map[string]*FormRecord{
 		"basic.yaml/first.meta.json": formRecord(
 			storage.FormMeta{
-				ID: "meta-id-not-used", // form.Meta.ID is NOT what we want as id
-				AuthorName: "Alice",
-				Created:    "2026-01-01T00:00:00Z",
-				Updated:    "2026-05-01T00:00:00Z",
+				ID:      "meta-id-not-used", // form.Meta.ID is NOT what we want as id
+				Created: storage.AuditEntry{At: "2026-01-01T00:00:00Z"},
+				Updated: storage.AuditEntry{Name: "Alice", At: "2026-05-01T00:00:00Z"},
 			},
 			map[string]any{
 				"title":  "First",

@@ -157,9 +157,9 @@ func buildFormRow(t *template.Template, f *storage.Form, templateFilename, dataf
 	row := FormRow{
 		Template: templateFilename,
 		Filename: datafile,
-		Author:   f.Meta.AuthorName,
-		Created:  f.Meta.Created,
-		Updated:  f.Meta.Updated,
+		Author:   f.Meta.Updated.Name,
+		Created:  f.Meta.Created.At,
+		Updated:  f.Meta.Updated.At,
 		Mtime:    mtime,
 	}
 

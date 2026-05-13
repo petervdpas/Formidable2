@@ -321,9 +321,9 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		var v string
 		switch field {
 		case "created":
-			v = w.loaded.Meta.Created
+			v = w.loaded.Meta.Created.At
 		case "updated":
-			v = w.loaded.Meta.Updated
+			v = w.loaded.Meta.Updated.At
 		default:
 			return fmt.Errorf("unknown meta field %q", field)
 		}

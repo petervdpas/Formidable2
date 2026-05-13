@@ -36,12 +36,13 @@ type configReader interface {
 	FormDefaults() ConfigDefaults
 }
 
-// ConfigDefaults bundles config values that affect form rendering and
-// save defaults. Snapshot read once per call — these change rarely.
+// ConfigDefaults bundles config values that affect form rendering.
+// Snapshot read once per call — these change rarely. Author identity
+// is NOT here: storage.Manager pulls it directly from its own
+// AuthorProvider so every save path (form, api, csv import, integrity)
+// gets the active profile stamped.
 type ConfigDefaults struct {
 	LoopStateCollapsed bool
-	AuthorName         string
-	AuthorEmail        string
 }
 
 // Manager owns the form-view orchestration.
@@ -129,17 +130,12 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 
 	// Compose the bare-payload shape storage.Sanitize expects:
 	//   {...values, _meta:{...}}
-	// Storage owns id-generation, created/updated stamping, tags
-	// collection, and shape-coercion. We only inject author from
-	// config when the payload doesn't carry one.
-	defaults := m.configDefaults()
+	// Storage owns id-generation, Created/Updated stamping (via its
+	// AuthorProvider — wired to the active profile by the composition
+	// root), tags collection, and shape-coercion. We pass meta through
+	// only for fields storage doesn't otherwise know: template name +
+	// flag state. Identity stamping is no longer the form module's job.
 	meta := payload.Meta
-	if meta.AuthorName == "" {
-		meta.AuthorName = defaults.AuthorName
-	}
-	if meta.AuthorEmail == "" {
-		meta.AuthorEmail = defaults.AuthorEmail
-	}
 	if meta.Template == "" {
 		meta.Template = templateName
 	}
@@ -253,24 +249,33 @@ func typeDefault(t string) any {
 }
 
 // metaToMap — JSON-shaped meta block, matching what storage.Sanitize
-// reads out of the bare envelope's `_meta` key.
+// reads out of the bare envelope's `_meta` key. Only emits Created /
+// Updated when their At field is set — storage.SaveForm overrides
+// these from prev + provider anyway, so passing zero values would just
+// be noise.
 func metaToMap(m storage.FormMeta) map[string]any {
 	out := map[string]any{
-		"id":           m.ID,
-		"author_name":  m.AuthorName,
-		"author_email": m.AuthorEmail,
-		"template":     m.Template,
-		"flagged":      m.Flagged,
-		"flag_state":   m.FlagState,
+		"id":         m.ID,
+		"template":   m.Template,
+		"flagged":    m.Flagged,
+		"flag_state": m.FlagState,
 	}
-	if m.Created != "" {
-		out["created"] = m.Created
+	if m.Created.At != "" {
+		out["created"] = auditEntryToMap(m.Created)
 	}
-	if m.Updated != "" {
-		out["updated"] = m.Updated
+	if m.Updated.At != "" {
+		out["updated"] = auditEntryToMap(m.Updated)
 	}
 	if len(m.Tags) > 0 {
 		out["tags"] = m.Tags
 	}
 	return out
+}
+
+func auditEntryToMap(a storage.AuditEntry) map[string]any {
+	return map[string]any{
+		"at":    a.At,
+		"name":  a.Name,
+		"email": a.Email,
+	}
 }

@@ -1311,18 +1311,39 @@ func lookupAuthorFromRecord(r *gogit.Repository, head *plumbing.Reference, repoR
 	if err != nil {
 		return OverriddenPath{}
 	}
-	name, _ := rec.Meta["author_name"].(string)
-	email, _ := rec.Meta["author_email"].(string)
+	// New shape: meta.updated = {at, name, email}. Pull authorship from
+	// the Updated block (last writer wins, matching git's committer
+	// semantics). Fall back to the legacy flat author_name/email keys
+	// for records written by old Formidable that haven't been re-saved
+	// since the migration.
+	name, email, updated := recordAuthorFromMeta(rec.Meta)
 	if name == "" && email == "" {
 		return OverriddenPath{}
 	}
-	updated, _ := rec.Meta["updated"].(string)
 	return OverriddenPath{
 		Path:   path,
 		Author: name,
 		Email:  email,
 		Time:   updated,
 	}
+}
+
+func recordAuthorFromMeta(meta map[string]any) (name, email, updatedAt string) {
+	if u, ok := meta["updated"].(map[string]any); ok {
+		name, _ = u["name"].(string)
+		email, _ = u["email"].(string)
+		updatedAt, _ = u["at"].(string)
+	}
+	if name == "" {
+		name, _ = meta["author_name"].(string)
+	}
+	if email == "" {
+		email, _ = meta["author_email"].(string)
+	}
+	if updatedAt == "" {
+		updatedAt, _ = meta["updated"].(string)
+	}
+	return
 }
 
 // applyStashEntry writes a single stashed entry to the worktree —

@@ -79,8 +79,8 @@ func runFieldTypeCase(t *testing.T, tc fieldTypeCase, value any) Report {
 	form := &storage.Form{
 		Meta: storage.FormMeta{
 			ID:      "fixture-id", // satisfies the guid-field meta check
-			Created: "2026-05-11T09:00:00Z",
-			Updated: "2026-05-11T09:00:00Z",
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 		},
 		Data: map[string]any{"v": value},
 	}
@@ -181,8 +181,8 @@ func TestFieldType_Link_InsideLoop(t *testing.T) {
 	}
 	form := &storage.Form{
 		Meta: storage.FormMeta{
-			Created: "2026-05-11T09:00:00Z",
-			Updated: "2026-05-11T09:00:00Z",
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 		},
 		Data: map[string]any{
 			"links": []any{

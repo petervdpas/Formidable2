@@ -241,7 +241,7 @@ func TestFix_Clear_BadDate(t *testing.T) {
 func TestFix_MintUUID_FillsMetaId(t *testing.T) {
 	tpl := tplWithGuid()
 	f := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{"title": "x", "id": "fixture-id"},
 	}
 	h := newFixHarness(t, tpl, map[string]*storage.Form{"a.meta.json": f})
@@ -258,7 +258,7 @@ func TestFix_MintUUID_FillsMetaId(t *testing.T) {
 
 func TestFix_Restamp_FixesBadCreated(t *testing.T) {
 	f := cleanForm()
-	f.Meta.Created = "yesterday"
+	f.Meta.Created.At = "yesterday"
 	h := newFixHarness(t, tplBasic(), map[string]*storage.Form{"a.meta.json": f})
 
 	res := h.runPlan(FixPlanItem{Kind: IssueMetaBadFormat, Strategy: FixRestamp})
@@ -266,14 +266,14 @@ func TestFix_Restamp_FixesBadCreated(t *testing.T) {
 	if res.Applied != 1 {
 		t.Fatalf("Applied=%d; want 1 (created restamp): %+v", res.Applied, res)
 	}
-	if h.loadSaved("a.meta.json").Meta.Created == "yesterday" {
+	if h.loadSaved("a.meta.json").Meta.Created.At == "yesterday" {
 		t.Errorf("meta.created still bad after restamp")
 	}
 }
 
 func TestFix_Restamp_FixesBadUpdated(t *testing.T) {
 	f := cleanForm()
-	f.Meta.Updated = "tomorrow"
+	f.Meta.Updated.At = "tomorrow"
 	h := newFixHarness(t, tplBasic(), map[string]*storage.Form{"a.meta.json": f})
 
 	res := h.runPlan(FixPlanItem{Kind: IssueMetaBadFormat, Strategy: FixRestamp})
@@ -281,7 +281,7 @@ func TestFix_Restamp_FixesBadUpdated(t *testing.T) {
 	if res.Applied != 1 {
 		t.Fatalf("Applied=%d; want 1 (updated restamp): %+v", res.Applied, res)
 	}
-	if h.loadSaved("a.meta.json").Meta.Updated == "tomorrow" {
+	if h.loadSaved("a.meta.json").Meta.Updated.At == "tomorrow" {
 		t.Errorf("meta.updated still bad after restamp")
 	}
 }
@@ -289,8 +289,8 @@ func TestFix_Restamp_FixesBadUpdated(t *testing.T) {
 func TestFix_Restamp_ClearsUnknownFlagState(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
-			Created:   "2026-05-11T09:00:00Z",
-			Updated:   "2026-05-11T09:00:00Z",
+			Created:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 			FlagState: "GHOST",
 		},
 		Data: map[string]any{"title": "x"},
@@ -414,7 +414,7 @@ func TestFix_Unreadable_AlwaysSkipped(t *testing.T) {
 func TestFix_LoopExtraField_StrippedInsideLoopItem(t *testing.T) {
 	tpl := tplWithLoop()
 	form := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{
 			"title": "hi",
 			"items": []any{

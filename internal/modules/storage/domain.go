@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -46,12 +47,13 @@ type Indexer interface {
 
 // Manager owns CRUD over the per-template storage tree.
 type Manager struct {
-	fs        fs
-	sfr       *sfr.Manager
-	templates templateLoader
-	log       *slog.Logger
+	fs         fs
+	sfr        *sfr.Manager
+	templates  templateLoader
+	log        *slog.Logger
 	storageDir string // base storage path (absolute or relative to fs root)
-	indexer   Indexer
+	indexer    Indexer
+	author     AuthorProvider
 }
 
 // NewManager builds the manager. storageDir is the storage root
@@ -77,6 +79,33 @@ func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, stor
 // Composition root calls this after building the index event handler.
 // Pass nil to disable.
 func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
+
+// SetAuthorProvider installs the active-profile identity source. Every
+// SaveForm stamps the returned (name, email) onto Updated, and onto
+// Created on first save. Pass nil to fall back to "Unknown".
+func (m *Manager) SetAuthorProvider(p AuthorProvider) { m.author = p }
+
+// stamp returns a fresh AuditEntry for the current actor. Falls back
+// to ("Unknown", "unknown@example.com") if no provider is wired or it
+// returned empty strings — keeps the meta block well-formed for tests
+// and early-boot scenarios.
+func (m *Manager) stamp() AuditEntry {
+	name, email := "", ""
+	if m.author != nil {
+		name, email = m.author()
+	}
+	if name == "" {
+		name = "Unknown"
+	}
+	if email == "" {
+		email = "unknown@example.com"
+	}
+	return AuditEntry{
+		At:    time.Now().UTC().Format(time.RFC3339Nano),
+		Name:  name,
+		Email: email,
+	}
+}
 
 // StorageDir returns the absolute storage root, used by the
 // composition root to stat form files (mtime + size for the index
@@ -142,15 +171,21 @@ func (m *Manager) SaveForm(templateFilename, datafile string, data map[string]an
 	fields := m.fieldsFor(templateFilename)
 	templateName := strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename))
 
-	// Preserve previously-set id / created across edits by reading the
-	// existing form (if any) and feeding its meta into Sanitize options.
+	// Preserve previously-set id + Created (creator identity is locked
+	// for the lifetime of the record). Updated is always re-stamped
+	// with the current profile so the audit trail reflects "who saved
+	// this last", even when a different profile edits a record.
 	prev := m.LoadForm(templateFilename, datafile)
-	opts := SanitizeOptions{TemplateName: templateName}
+	stamp := m.stamp()
+	opts := SanitizeOptions{
+		TemplateName: templateName,
+		Updated:      stamp,
+	}
 	if prev != nil {
 		opts.ID = prev.Meta.ID
 		opts.Created = prev.Meta.Created
-		opts.AuthorName = prev.Meta.AuthorName
-		opts.AuthorEmail = prev.Meta.AuthorEmail
+	} else {
+		opts.Created = stamp
 	}
 
 	envelope := Sanitize(data, fields, opts)

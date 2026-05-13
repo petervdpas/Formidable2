@@ -20,6 +20,15 @@ import (
 // Tags are collected from `tags`-typed fields plus options.Tags +
 // raw.meta.tags + raw._meta.tags, deduped, lowercased, sorted.
 //
+// Created and Updated audit blocks are resolved with precedence:
+//
+//	opts.{Created,Updated}  (when .At != "")
+//	  > raw.meta nested object  (new shape)
+//	  > raw.meta flat author_name/email + flat created/updated string
+//	    (legacy on-disk shape — both blocks adopt the single legacy
+//	    author since we can't reconstruct historical update authorship)
+//	  > {At: now, Name: "Unknown", Email: "unknown@example.com"}
+//
 // Mirrors `schemas/meta.schema.js` behaviour, with an explicit GUID
 // generation rather than JS's `null` placeholder when the template
 // declares a `guid` field.
@@ -119,17 +128,12 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 	sort.Strings(tagList)
 
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	created := firstNonEmpty(
-		stringOrEmpty(rawMeta["created"]),
-		stringOrEmpty(injected["created"]),
-		opts.Created,
-		now,
-	)
-	updated := firstNonEmpty(
-		opts.Updated,
-		stringOrEmpty(injected["updated"]),
-		now,
-	)
+	legacyAuthor := AuditEntry{
+		Name:  firstNonEmpty(stringOrEmpty(rawMeta["author_name"]), stringOrEmpty(injected["author_name"])),
+		Email: firstNonEmpty(stringOrEmpty(rawMeta["author_email"]), stringOrEmpty(injected["author_email"])),
+	}
+	created := resolveAuditEntry(opts.Created, rawMeta["created"], injected["created"], legacyAuthor, now)
+	updated := resolveAuditEntry(opts.Updated, rawMeta["updated"], injected["updated"], legacyAuthor, now)
 
 	flagged := false
 	if opts.Flagged != nil {
@@ -163,33 +167,79 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		"unknown",
 	)
 
-	authorName := firstNonEmpty(
-		stringOrEmpty(rawMeta["author_name"]),
-		stringOrEmpty(injected["author_name"]),
-		opts.AuthorName,
-		"Unknown",
-	)
-	authorEmail := firstNonEmpty(
-		stringOrEmpty(rawMeta["author_email"]),
-		stringOrEmpty(injected["author_email"]),
-		opts.AuthorEmail,
-		"unknown@example.com",
-	)
-
 	return Form{
 		Meta: FormMeta{
-			ID:          id,
-			AuthorName:  authorName,
-			AuthorEmail: authorEmail,
-			Template:    templateName,
-			Created:     created,
-			Updated:     updated,
-			Flagged:     flagged,
-			FlagState:   flagState,
-			Tags:        tagList,
+			ID:        id,
+			Template:  templateName,
+			Created:   created,
+			Updated:   updated,
+			Flagged:   flagged,
+			FlagState: flagState,
+			Tags:      tagList,
 		},
 		Data: data,
 	}
+}
+
+// resolveAuditEntry applies precedence rules for one of the Created /
+// Updated blocks. opts wins outright when its At is non-empty (the
+// caller has explicitly chosen it — typically SaveForm preserving prev
+// or stamping current profile). Otherwise read the nested new-shape
+// object from rawMeta / injected, falling back to legacy flat author
+// + the matching flat timestamp string. If everything is missing,
+// stamp `now` with the "Unknown" author so the meta block is always
+// well-formed.
+func resolveAuditEntry(opts AuditEntry, rawObj, injectedObj any, legacy AuditEntry, now string) AuditEntry {
+	if opts.At != "" {
+		return opts
+	}
+	if entry, ok := auditEntryFromAny(rawObj); ok {
+		return entry
+	}
+	if entry, ok := auditEntryFromAny(injectedObj); ok {
+		return entry
+	}
+	// Legacy: flat author plus the matching flat created/updated string
+	// already lived on rawObj (was a string, not an object). Pick it up.
+	at := ""
+	if s, ok := rawObj.(string); ok {
+		at = s
+	} else if s, ok := injectedObj.(string); ok {
+		at = s
+	}
+	if at == "" && legacy.Name == "" && legacy.Email == "" {
+		return AuditEntry{At: now, Name: "Unknown", Email: "unknown@example.com"}
+	}
+	if at == "" {
+		at = now
+	}
+	name := legacy.Name
+	email := legacy.Email
+	if name == "" {
+		name = "Unknown"
+	}
+	if email == "" {
+		email = "unknown@example.com"
+	}
+	return AuditEntry{At: at, Name: name, Email: email}
+}
+
+// auditEntryFromAny pulls At/Name/Email out of a nested map shape. The
+// map may come from JSON decoding (map[string]any). Returns false when
+// the value isn't a map or has no recognisable fields, so the caller
+// can fall through to legacy-shape handling.
+func auditEntryFromAny(v any) (AuditEntry, bool) {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return AuditEntry{}, false
+	}
+	at, _ := m["at"].(string)
+	name, _ := m["name"].(string)
+	email, _ := m["email"].(string)
+	if at == "" && name == "" && email == "" {
+		return AuditEntry{}, false
+	}
+	return AuditEntry{At: at, Name: name, Email: email}, true
 }
 
 // splitEnvelope detects the {meta, data} disk envelope vs. the bare

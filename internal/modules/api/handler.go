@@ -718,21 +718,27 @@ func atoiDefault(s string, dflt int) int {
 	return n
 }
 
-// formMetaAsMap projects storage.FormMeta into a map keyed the way the
-// original JSON-on-disk envelope wrote it. Returning a map (rather
-// than encoding the typed struct directly) avoids a json round-trip
-// and keeps the wire format stable when FormMeta gains internal
-// fields.
+// formMetaAsMap projects storage.FormMeta into the on-disk JSON shape.
+// Returning a map (rather than encoding the typed struct directly)
+// avoids a json round-trip and keeps the wire format stable when
+// FormMeta gains internal fields.
 func formMetaAsMap(m storage.FormMeta) map[string]any {
 	return map[string]any{
-		"id":           m.ID,
-		"author_name":  m.AuthorName,
-		"author_email": m.AuthorEmail,
-		"template":     m.Template,
-		"created":      m.Created,
-		"updated":      m.Updated,
-		"flagged":      m.Flagged,
-		"tags":         m.Tags,
+		"id":         m.ID,
+		"template":   m.Template,
+		"created":    auditEntryAsMap(m.Created),
+		"updated":    auditEntryAsMap(m.Updated),
+		"flagged":    m.Flagged,
+		"flag_state": m.FlagState,
+		"tags":       m.Tags,
+	}
+}
+
+func auditEntryAsMap(a storage.AuditEntry) map[string]any {
+	return map[string]any{
+		"at":    a.At,
+		"name":  a.Name,
+		"email": a.Email,
 	}
 }
 

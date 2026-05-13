@@ -26,7 +26,5 @@ func (a *configAdapter) FormDefaults() form.ConfigDefaults {
 	}
 	return form.ConfigDefaults{
 		LoopStateCollapsed: c.LoopStateCollapsed,
-		AuthorName:         c.AuthorName,
-		AuthorEmail:        c.AuthorEmail,
 	}
 }

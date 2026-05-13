@@ -180,6 +180,18 @@ func New(d Deps) (*App, error) {
 	}
 	stoM := storage.NewManager(sysM, sfrM, tplM, storagePath, d.Logger)
 
+	// Active-profile identity → storage. SaveForm stamps every form's
+	// Updated block (and Created on first save) with the returned
+	// (name, email). LoadUserConfig is re-read per save so a mid-
+	// session profile switch takes effect without restart.
+	stoM.SetAuthorProvider(func() (string, string) {
+		c, err := cfgM.LoadUserConfig()
+		if err != nil || c == nil {
+			return "", ""
+		}
+		return c.AuthorName, c.AuthorEmail
+	})
+
 	// Wire CSV's export dependency now that storage exists. Import only
 	// uses csvM, but Export needs to walk every form for the active
 	// template — that lives behind csv.formsSource and storage satisfies

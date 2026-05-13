@@ -2,8 +2,8 @@
 /*
  * StorageMetaBlock — the per-record meta panel rendered above a
  * storage entry's form fields. Shows filename, flag picker, GUID,
- * tags, author (name + optional email), and the created / updated
- * timestamps. Hidden via Mod+M on the Storage workspace (which
+ * tags, and the Created / Updated audit blocks (timestamp + author
+ * name + email). Hidden via Mod+M on the Storage workspace (which
  * flips config.show_meta_section).
  *
  * Pure presentation: parent owns the draft + flag definitions and
@@ -58,19 +58,23 @@ const { t } = useI18n();
         <span class="meta-key">{{ t('workspace.storage.meta.tags') }}</span>
         <span class="meta-value">{{ meta.tags.join(', ') }}</span>
       </div>
-      <div class="meta-row" v-if="meta?.author_name">
-        <span class="meta-key">{{ t('workspace.storage.meta.author') }}</span>
-        <span class="meta-value">
-          {{ meta.author_name }}<template v-if="meta.author_email"> ({{ meta.author_email }})</template>
+      <div class="meta-row" v-if="meta?.created?.at">
+        <span class="meta-key">{{ t('workspace.storage.meta.created') }}</span>
+        <span class="meta-value small">
+          <span class="mono">{{ meta.created.at }}</span>
+          <template v-if="meta.created.name">
+            — {{ meta.created.name }}<template v-if="meta.created.email"> ({{ meta.created.email }})</template>
+          </template>
         </span>
       </div>
-      <div class="meta-row" v-if="meta?.created">
-        <span class="meta-key">{{ t('workspace.storage.meta.created') }}</span>
-        <span class="meta-value mono small">{{ meta.created }}</span>
-      </div>
-      <div class="meta-row" v-if="meta?.updated">
+      <div class="meta-row" v-if="meta?.updated?.at">
         <span class="meta-key">{{ t('workspace.storage.meta.updated') }}</span>
-        <span class="meta-value mono small">{{ meta.updated }}</span>
+        <span class="meta-value small">
+          <span class="mono">{{ meta.updated.at }}</span>
+          <template v-if="meta.updated.name">
+            — {{ meta.updated.name }}<template v-if="meta.updated.email"> ({{ meta.updated.email }})</template>
+          </template>
+        </span>
       </div>
     </div>
   </FormSection>

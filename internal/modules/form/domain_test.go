@@ -73,8 +73,8 @@ func (s *fakeStorage) SaveForm(t, df string, data map[string]any) storage.SaveRe
 	// under a Form so subsequent LoadForm returns it.
 	meta := storage.FormMeta{
 		Template: "tpl",
-		Created:  "2026-05-05T00:00:00Z",
-		Updated:  "2026-05-05T00:00:00Z",
+		Created:  storage.AuditEntry{At: "2026-05-05T00:00:00Z"},
+		Updated:  storage.AuditEntry{At: "2026-05-05T00:00:00Z"},
 	}
 	if injected, ok := data["_meta"].(map[string]any); ok {
 		if id, ok := injected["id"].(string); ok {
@@ -103,15 +103,11 @@ func (s *fakeStorage) DeleteForm(t, df string) error {
 
 type fakeConfig struct {
 	loopCollapsed bool
-	authorName    string
-	authorEmail   string
 }
 
 func (c *fakeConfig) FormDefaults() ConfigDefaults {
 	return ConfigDefaults{
 		LoopStateCollapsed: c.loopCollapsed,
-		AuthorName:         c.authorName,
-		AuthorEmail:        c.authorEmail,
 	}
 }
 
@@ -204,7 +200,7 @@ func TestBuildView_LoadsExistingForm(t *testing.T) {
 	}
 	store.forms["t.yaml"] = map[string]*storage.Form{
 		"f.meta.json": {
-			Meta: storage.FormMeta{ID: "abc-123", Updated: "now"},
+			Meta: storage.FormMeta{ID: "abc-123", Updated: storage.AuditEntry{At: "now"}},
 			Data: map[string]any{"title": "Saved"},
 		},
 	}
@@ -269,49 +265,6 @@ func TestSaveValues_PersistsAndReturnsRoundTrippedView(t *testing.T) {
 	}
 	if len(store.saves) != 1 {
 		t.Errorf("expected 1 save call, got %d", len(store.saves))
-	}
-}
-
-func TestSaveValues_AuthorInjectedFromConfigWhenEmpty(t *testing.T) {
-	m, tpls, store, cfg := newTestManager()
-	cfg.authorName = "Cfg User"
-	cfg.authorEmail = "cfg@example.com"
-	tpls.byName["t.yaml"] = &template.Template{
-		Fields: []template.Field{{Key: "k", Type: "text"}},
-	}
-	_, err := m.SaveValues("t.yaml", SavePayload{
-		Datafile: "row.meta.json",
-		Values:   map[string]any{"k": "v"},
-	})
-	if err != nil {
-		t.Fatalf("SaveValues: %v", err)
-	}
-	meta, _ := store.saves[0].Data["_meta"].(map[string]any)
-	if meta["author_name"] != "Cfg User" {
-		t.Errorf("author_name not injected: %v", meta["author_name"])
-	}
-	if meta["author_email"] != "cfg@example.com" {
-		t.Errorf("author_email not injected: %v", meta["author_email"])
-	}
-}
-
-func TestSaveValues_AuthorPayloadWinsOverConfig(t *testing.T) {
-	m, tpls, store, cfg := newTestManager()
-	cfg.authorName = "Cfg User"
-	tpls.byName["t.yaml"] = &template.Template{
-		Fields: []template.Field{{Key: "k", Type: "text"}},
-	}
-	_, err := m.SaveValues("t.yaml", SavePayload{
-		Datafile: "row.meta.json",
-		Values:   map[string]any{"k": "v"},
-		Meta:     storage.FormMeta{AuthorName: "Explicit"},
-	})
-	if err != nil {
-		t.Fatalf("SaveValues: %v", err)
-	}
-	meta, _ := store.saves[0].Data["_meta"].(map[string]any)
-	if meta["author_name"] != "Explicit" {
-		t.Errorf("explicit author should win: %v", meta["author_name"])
 	}
 }
 

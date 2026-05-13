@@ -64,8 +64,8 @@ func initIntegrityScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a form "([^"]*)" with data:$`, func(fn string, tbl *godog.Table) error {
 		f := &storage.Form{
 			Meta: storage.FormMeta{
-				Created: "2026-05-11T09:00:00Z",
-				Updated: "2026-05-11T09:00:00Z",
+				Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+				Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 			},
 			Data: map[string]any{},
 		}

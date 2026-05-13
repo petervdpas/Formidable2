@@ -210,9 +210,9 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		now := time.Now().UTC().Format(time.RFC3339Nano)
 		switch iss.Path {
 		case "meta.created":
-			draft.Meta.Created = now
+			draft.Meta.Created.At = now
 		case "meta.updated":
-			draft.Meta.Updated = now
+			draft.Meta.Updated.At = now
 		case "meta.flag_state":
 			// "Restamp" on flag_state = clear the stale label; the
 			// concrete change is different but the user intent is the

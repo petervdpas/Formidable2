@@ -6,6 +6,44 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * AuditEntry records who did something and when. Used for both
+ * FormMeta.Created and FormMeta.Updated. Symmetric to git's
+ * author/committer split: Created is set once and preserved across
+ * every subsequent save; Updated is re-stamped on every save with the
+ * current profile's identity. On read, legacy flat `author_name` +
+ * `author_email` + flat `created`/`updated` strings are migrated into
+ * the AuditEntry pair; on write only the nested shape is emitted.
+ */
+export class AuditEntry {
+    "at": string;
+    "name": string;
+    "email": string;
+
+    /** Creates a new AuditEntry instance. */
+    constructor($$source: Partial<AuditEntry> = {}) {
+        if (!("at" in $$source)) {
+            this["at"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("email" in $$source)) {
+            this["email"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AuditEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AuditEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AuditEntry($$parsedSource as Partial<AuditEntry>);
+    }
+}
+
+/**
  * Form is the on-disk shape of a `.meta.json` file.
  */
 export class Form {
@@ -50,11 +88,9 @@ export class Form {
  */
 export class FormMeta {
     "id": string;
-    "author_name": string;
-    "author_email": string;
     "template": string;
-    "created": string;
-    "updated": string;
+    "created": AuditEntry;
+    "updated": AuditEntry;
     "flagged": boolean;
     "flag_state": string;
     "tags": string[];
@@ -64,20 +100,14 @@ export class FormMeta {
         if (!("id" in $$source)) {
             this["id"] = "";
         }
-        if (!("author_name" in $$source)) {
-            this["author_name"] = "";
-        }
-        if (!("author_email" in $$source)) {
-            this["author_email"] = "";
-        }
         if (!("template" in $$source)) {
             this["template"] = "";
         }
         if (!("created" in $$source)) {
-            this["created"] = "";
+            this["created"] = (new AuditEntry());
         }
         if (!("updated" in $$source)) {
-            this["updated"] = "";
+            this["updated"] = (new AuditEntry());
         }
         if (!("flagged" in $$source)) {
             this["flagged"] = false;
@@ -96,10 +126,18 @@ export class FormMeta {
      * Creates a new FormMeta instance from a string or object.
      */
     static createFrom($$source: any = {}): FormMeta {
-        const $$createField8_0 = $$createType2;
+        const $$createField2_0 = $$createType2;
+        const $$createField3_0 = $$createType2;
+        const $$createField6_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("created" in $$parsedSource) {
+            $$parsedSource["created"] = $$createField2_0($$parsedSource["created"]);
+        }
+        if ("updated" in $$parsedSource) {
+            $$parsedSource["updated"] = $$createField3_0($$parsedSource["updated"]);
+        }
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField8_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField6_0($$parsedSource["tags"]);
         }
         return new FormMeta($$parsedSource as Partial<FormMeta>);
     }
@@ -179,4 +217,5 @@ export class SaveResult {
 // Private type creation functions
 const $$createType0 = FormMeta.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
-const $$createType2 = $Create.Array($Create.Any);
+const $$createType2 = AuditEntry.createFrom;
+const $$createType3 = $Create.Array($Create.Any);

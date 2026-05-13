@@ -109,8 +109,8 @@ func tplWithFlag() *template.Template {
 func cleanForm() *storage.Form {
 	return &storage.Form{
 		Meta: storage.FormMeta{
-			Created: "2026-05-11T09:00:00Z",
-			Updated: "2026-05-11T09:00:00Z",
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 		},
 		Data: map[string]any{
 			"title":  "hello",
@@ -251,7 +251,7 @@ func TestAnalyze_DateAsNumber_IsTypeMismatchNotBadDate(t *testing.T) {
 
 func TestAnalyze_DetectsBadMetaCreated(t *testing.T) {
 	f := cleanForm()
-	f.Meta.Created = "yesterday"
+	f.Meta.Created.At = "yesterday"
 	m := newM(t, tplBasic(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("basic.yaml")
 	findIssue(t, r, "a.meta.json", IssueMetaBadFormat, "meta.created")
@@ -259,7 +259,7 @@ func TestAnalyze_DetectsBadMetaCreated(t *testing.T) {
 
 func TestAnalyze_DetectsBadMetaUpdated(t *testing.T) {
 	f := cleanForm()
-	f.Meta.Updated = "tomorrow"
+	f.Meta.Updated.At = "tomorrow"
 	m := newM(t, tplBasic(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("basic.yaml")
 	findIssue(t, r, "a.meta.json", IssueMetaBadFormat, "meta.updated")
@@ -267,8 +267,8 @@ func TestAnalyze_DetectsBadMetaUpdated(t *testing.T) {
 
 func TestAnalyze_AcceptsEmptyCreatedUpdated(t *testing.T) {
 	f := cleanForm()
-	f.Meta.Created = ""
-	f.Meta.Updated = ""
+	f.Meta.Created = storage.AuditEntry{}
+	f.Meta.Updated = storage.AuditEntry{}
 	m := newM(t, tplBasic(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("basic.yaml")
 	mustZeroIssues(t, r)
@@ -276,7 +276,7 @@ func TestAnalyze_AcceptsEmptyCreatedUpdated(t *testing.T) {
 
 func TestAnalyze_DetectsMissingMetaId_WhenGuidFieldDeclared(t *testing.T) {
 	f := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{"title": "x", "id": "abc-123"},
 	}
 	m := newM(t, tplWithGuid(), map[string]*storage.Form{"a.meta.json": f})
@@ -295,8 +295,8 @@ func TestAnalyze_AcceptsMissingMetaId_WithoutGuidField(t *testing.T) {
 func TestAnalyze_DetectsUnknownFlagState(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
-			Created:   "2026-05-11T09:00:00Z",
-			Updated:   "2026-05-11T09:00:00Z",
+			Created:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 			FlagState: "GHOST",
 		},
 		Data: map[string]any{"title": "x"},
@@ -309,8 +309,8 @@ func TestAnalyze_DetectsUnknownFlagState(t *testing.T) {
 func TestAnalyze_AcceptsKnownFlagState(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
-			Created:   "2026-05-11T09:00:00Z",
-			Updated:   "2026-05-11T09:00:00Z",
+			Created:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 			Flagged:   true,
 			FlagState: "FLASH",
 		},
@@ -324,8 +324,8 @@ func TestAnalyze_AcceptsKnownFlagState(t *testing.T) {
 func TestAnalyze_AcceptsLegacyFlaggedWithoutState(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
-			Created: "2026-05-11T09:00:00Z",
-			Updated: "2026-05-11T09:00:00Z",
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 			Flagged: true,
 		},
 		Data: map[string]any{"title": "x"},
@@ -337,7 +337,7 @@ func TestAnalyze_AcceptsLegacyFlaggedWithoutState(t *testing.T) {
 
 func TestAnalyze_LoopHappy(t *testing.T) {
 	f := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{
 			"title": "hi",
 			"items": []any{
@@ -353,7 +353,7 @@ func TestAnalyze_LoopHappy(t *testing.T) {
 
 func TestAnalyze_DetectsLoopValueNotArray(t *testing.T) {
 	f := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{"title": "hi", "items": "nope"},
 	}
 	m := newM(t, tplWithLoop(), map[string]*storage.Form{"a.meta.json": f})
@@ -363,7 +363,7 @@ func TestAnalyze_DetectsLoopValueNotArray(t *testing.T) {
 
 func TestAnalyze_DetectsMissingFieldInLoopItem(t *testing.T) {
 	f := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{
 			"title": "hi",
 			"items": []any{
@@ -378,7 +378,7 @@ func TestAnalyze_DetectsMissingFieldInLoopItem(t *testing.T) {
 
 func TestAnalyze_DetectsExtraFieldInLoopItem(t *testing.T) {
 	f := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{
 			"title": "hi",
 			"items": []any{
@@ -393,7 +393,7 @@ func TestAnalyze_DetectsExtraFieldInLoopItem(t *testing.T) {
 
 func TestAnalyze_DetectsLoopItemNotMap(t *testing.T) {
 	f := &storage.Form{
-		Meta: storage.FormMeta{Created: "2026-05-11T09:00:00Z", Updated: "2026-05-11T09:00:00Z"},
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
 		Data: map[string]any{
 			"title": "hi",
 			"items": []any{"not-a-map"},
