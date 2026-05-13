@@ -44,6 +44,13 @@ func (s *Service) CoercePreview(raw, fieldType string, options []any) string {
 	return CoercePreview(raw, fieldType, options)
 }
 
+// CoerceTableRows coerces a 2D string array (from a paste-data dialog
+// on a table field) into a 2D typed array matching the column specs.
+// Reuses Coerce per cell; dropdown columns match by value or label.
+func (s *Service) CoerceTableRows(cols []TableColumn, rows [][]string) [][]any {
+	return CoerceTableRows(cols, rows)
+}
+
 // SuggestMappings is the auto-mapper for the import dialog. Empty
 // FieldKey in a row means "no match found".
 func (s *Service) SuggestMappings(headers []string, fields []FieldSpec) []SuggestedMapping {

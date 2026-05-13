@@ -237,6 +237,41 @@ export class SuggestedMapping {
 }
 
 /**
+ * TableColumn is the per-column spec the frontend hands over for a
+ * paste-coerce call. Choices carry the dropdown's option list as
+ * {value,label} maps — already pre-parsed from the template's
+ * pipe-separated `choices` string on the Vue side.
+ */
+export class TableColumn {
+    "type": string;
+    "choices": any[];
+
+    /** Creates a new TableColumn instance. */
+    constructor($$source: Partial<TableColumn> = {}) {
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("choices" in $$source)) {
+            this["choices"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TableColumn instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TableColumn {
+        const $$createField1_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("choices" in $$parsedSource) {
+            $$parsedSource["choices"] = $$createField1_0($$parsedSource["choices"]);
+        }
+        return new TableColumn($$parsedSource as Partial<TableColumn>);
+    }
+}
+
+/**
  * Transform pairs a transform rule key with its rule-specific param.
  */
 export class Transform {

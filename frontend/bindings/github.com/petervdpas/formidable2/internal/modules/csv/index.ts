@@ -13,6 +13,7 @@ export {
     FieldSpec,
     PreviewResult,
     SuggestedMapping,
+    TableColumn,
     Transform,
     WriteResult
 } from "./models.js";

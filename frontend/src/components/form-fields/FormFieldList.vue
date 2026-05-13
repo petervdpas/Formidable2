@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import { TextField, SelectField } from "../fields";
+import PasteDataDialog from "../PasteDataDialog.vue";
+import { useConfig } from "../../composables/useConfig";
+import { rowsToListValues } from "../../utils/pasteData";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const { t } = useI18n();
+const { config } = useConfig();
+const showPaste = computed(() => !!config.value?.show_paste_buttons);
+const pasteOpen = ref(false);
 
 // Local narrow shape — `SelectField`'s SelectOption union also allows
 // plain strings; we always build the object form here.
@@ -33,8 +39,7 @@ const dndScope =
 //
 // Storage shape stays a flat string[] regardless of mode.
 //
-// Drag-reorder + paste-data + popup-style dropdown defer to a
-// follow-up; v1 uses a native <select>.
+// Popup-style dropdown defers to a follow-up; v1 uses a native <select>.
 
 const CUSTOM_MARKER = "[[custom]]";
 
@@ -67,6 +72,14 @@ function add(initial = "") {
 
 function remove(i: number) {
   items.value = items.value.filter((_, j) => j !== i);
+}
+
+function onPasteProcess(rows: string[][]) {
+  const values = rowsToListValues(rows);
+  if (values.length > 0) {
+    items.value = [...items.value, ...values];
+  }
+  pasteOpen.value = false;
 }
 
 // ── Options-driven mode ──────────────────────────────────────────────
@@ -209,13 +222,30 @@ function isInvalid(row: string): boolean {
       </template>
     </draggable>
 
-    <button
-      v-if="!field.readonly"
-      type="button"
-      class="btn-ghost-icon"
-      :aria-label="t('workspace.storage.field.add_item')"
-      :title="t('workspace.storage.field.add_item')"
-      @click="add('')"
-    >+</button>
+    <div v-if="!field.readonly" class="list-actions">
+      <button
+        type="button"
+        class="btn-ghost-icon"
+        :aria-label="t('workspace.storage.field.add_item')"
+        :title="t('workspace.storage.field.add_item')"
+        @click="add('')"
+      >+</button>
+      <button
+        v-if="showPaste"
+        type="button"
+        class="btn-ghost-icon"
+        :aria-label="t('paste.tooltip')"
+        :title="t('paste.tooltip')"
+        @click="pasteOpen = true"
+      ><i class="fa-solid fa-paste"></i></button>
+    </div>
+
+    <PasteDataDialog
+      :open="pasteOpen"
+      :title="t('paste.list.title')"
+      :subtitle="t('paste.list.subtitle')"
+      @process="onPasteProcess"
+      @cancel="pasteOpen = false"
+    />
   </div>
 </template>

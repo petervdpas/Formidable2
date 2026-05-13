@@ -52,6 +52,17 @@ export function CoercePreview(raw: string, fieldType: string, options: any[]): $
 }
 
 /**
+ * CoerceTableRows coerces a 2D string array (from a paste-data dialog
+ * on a table field) into a 2D typed array matching the column specs.
+ * Reuses Coerce per cell; dropdown columns match by value or label.
+ */
+export function CoerceTableRows(cols: $models.TableColumn[], rows: string[][]): $CancellablePromise<any[][]> {
+    return $Call.ByID(2925409190, cols, rows).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * CoerceValue returns the typed value Coerce would produce for a CSV
  * cell about to be written into a form field.
  */
@@ -75,7 +86,7 @@ export function ExcludedFieldTypes(): $CancellablePromise<string[]> {
  */
 export function Export(templateFilename: string, plan: $models.ExportPlan, fields: $models.FieldSpec[]): $CancellablePromise<$models.ExportResult> {
     return $Call.ByID(2563447778, templateFilename, plan, fields).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -93,13 +104,13 @@ export function FormatValue(val: any, fieldType: string): $CancellablePromise<st
  */
 export function MappableFields(fields: $models.FieldSpec[]): $CancellablePromise<$models.FieldSpec[]> {
     return $Call.ByID(113676927, fields).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
 export function Preview(filePath: string, delimiter: string): $CancellablePromise<$models.PreviewResult> {
     return $Call.ByID(1142599248, filePath, delimiter).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -109,7 +120,7 @@ export function Preview(filePath: string, delimiter: string): $CancellablePromis
  */
 export function SuggestMappings(headers: string[], fields: $models.FieldSpec[]): $CancellablePromise<$models.SuggestedMapping[]> {
     return $Call.ByID(1554962185, headers, fields).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -125,17 +136,19 @@ export function TransformRules(): $CancellablePromise<string[]> {
 
 export function Write(filePath: string, rows: string[][], delimiter: string): $CancellablePromise<$models.WriteResult> {
     return $Call.ByID(614530563, filePath, rows, delimiter).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.ExportResult.createFrom;
-const $$createType3 = $models.FieldSpec.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.PreviewResult.createFrom;
-const $$createType6 = $models.SuggestedMapping.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $models.WriteResult.createFrom;
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.ExportResult.createFrom;
+const $$createType5 = $models.FieldSpec.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.PreviewResult.createFrom;
+const $$createType8 = $models.SuggestedMapping.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $models.WriteResult.createFrom;

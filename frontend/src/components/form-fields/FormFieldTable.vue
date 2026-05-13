@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import { TextField, SelectField, SwitchField, DateInput, type SelectOption } from "../fields";
+import PasteDataDialog from "../PasteDataDialog.vue";
+import { useConfig } from "../../composables/useConfig";
+import {
+  Service as CsvSvc,
+  TableColumn,
+} from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const { t } = useI18n();
+const { config } = useConfig();
+const showPaste = computed(() => !!config.value?.show_paste_buttons);
+const pasteOpen = ref(false);
 
 // DnD scope — unique per component instance so drags don't cross
 // table fields when multiple are rendered (e.g. inside loop entries).
@@ -22,7 +31,7 @@ const dndScope =
 //
 // Per-column type comes from field.options[i].type:
 //   "string" (default), "number", "date", "bool", "dropdown"
-// "reference" + drag-reorder + paste-data are deferred to a follow-up.
+// "reference" is deferred to a follow-up.
 
 type Col = {
   key: string;
@@ -105,6 +114,18 @@ function addRow() {
 
 function removeRow(idx: number) {
   emitRows(rows.value.filter((_, i) => i !== idx));
+}
+
+async function onPasteProcess(pasted: string[][]) {
+  pasteOpen.value = false;
+  if (pasted.length === 0 || columns.value.length === 0) return;
+  const specs: TableColumn[] = columns.value.map((c) =>
+    new TableColumn({ type: c.type, choices: c.choices as unknown as any[] }),
+  );
+  const typed = await CsvSvc.CoerceTableRows(specs, pasted);
+  if (typed.length > 0) {
+    emitRows([...rows.value, ...typed]);
+  }
 }
 
 function emptyCell(type: Col["type"]): unknown {
@@ -215,14 +236,31 @@ function asNumber(v: unknown): number {
       {{ t('workspace.storage.field.table_no_columns') }}
     </p>
 
-    <button
-      v-if="!field.readonly && columns.length > 0"
-      type="button"
-      class="btn-ghost-icon"
-      :aria-label="t('workspace.storage.field.add_row')"
-      :title="t('workspace.storage.field.add_row')"
-      @click="addRow"
-    >+</button>
+    <div v-if="!field.readonly && columns.length > 0" class="table-actions">
+      <button
+        type="button"
+        class="btn-ghost-icon"
+        :aria-label="t('workspace.storage.field.add_row')"
+        :title="t('workspace.storage.field.add_row')"
+        @click="addRow"
+      >+</button>
+      <button
+        v-if="showPaste"
+        type="button"
+        class="btn-ghost-icon"
+        :aria-label="t('paste.tooltip')"
+        :title="t('paste.tooltip')"
+        @click="pasteOpen = true"
+      ><i class="fa-solid fa-paste"></i></button>
+    </div>
+
+    <PasteDataDialog
+      :open="pasteOpen"
+      :title="t('paste.table.title')"
+      :subtitle="t('paste.table.subtitle')"
+      @process="onPasteProcess"
+      @cancel="pasteOpen = false"
+    />
   </div>
 </template>
 

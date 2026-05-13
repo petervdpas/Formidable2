@@ -45,3 +45,9 @@
     padding: 4px 8px;
     width: 100%;
 }
+
+.table-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
