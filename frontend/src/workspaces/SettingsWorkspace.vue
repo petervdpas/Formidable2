@@ -11,8 +11,8 @@ import { useRibbonAvailability } from "../composables/useRibbonAvailability";
 // for the session — same rule as Templates/Storage.)
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useToast } from "../composables/useToast";
+import { useRestartFlow } from "../composables/useRestartFlow";
 import { SETTINGS_CATEGORIES, type SettingsCategoryId } from "./settings";
-import { Service as System } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 
 const { t } = useI18n();
 
@@ -37,25 +37,13 @@ const activeCategory = computed(
   () => SETTINGS_CATEGORIES.find((c) => c.id === activeId.value) ?? SETTINGS_CATEGORIES[0],
 );
 
-// Apply (= restart) flow: confirm dialog → backend Restart() → process
-// closes itself in ~200 ms. On error, surface in an AlertDialog so the
-// user knows the click did something.
-const restartConfirmOpen = ref(false);
-const restartErrorOpen = ref(false);
-const restartErrorMessage = ref("");
+// Apply (= restart) flow. The composable owns the confirm/error
+// dialog state + the System.Restart() call. Default errorKey
+// (settings.apply_error) matches the previous in-place behaviour.
+const restart = useRestartFlow();
 
 function openRestartConfirm() {
-  restartConfirmOpen.value = true;
-}
-
-async function confirmRestart() {
-  restartConfirmOpen.value = false;
-  try {
-    await System.Restart();
-  } catch (err) {
-    restartErrorMessage.value = t("settings.apply_error", [String(err)]);
-    restartErrorOpen.value = true;
-  }
+  restart.request();
 }
 
 // Topbar menu — declarative. The getter is reactive: needsRestart
@@ -129,21 +117,21 @@ setTopbarMenu(() => [
   </SplitPane>
 
   <ConfirmDialog
-    :open="restartConfirmOpen"
+    :open="restart.confirmOpen.value"
     :title="t('settings.apply_confirm.title')"
     :message="t('settings.apply_confirm.body')"
     :confirm-label="t('settings.apply_confirm.button')"
     :cancel-label="t('common.cancel')"
-    @cancel="restartConfirmOpen = false"
-    @confirm="confirmRestart"
+    @cancel="restart.cancel"
+    @confirm="restart.confirm"
   />
 
   <AlertDialog
-    :open="restartErrorOpen"
+    :open="restart.errorOpen.value"
     :title="t('common.error_title')"
-    :message="restartErrorMessage"
+    :message="restart.errorMessage.value"
     variant="danger"
-    @close="restartErrorOpen = false"
+    @close="restart.dismissError"
   />
 </template>
 

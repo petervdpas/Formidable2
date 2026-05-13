@@ -12,6 +12,7 @@ import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useDialog } from "../composables/useDialog";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useToast } from "../composables/useToast";
+import { useRestartFlow } from "../composables/useRestartFlow";
 
 const { t } = useI18n();
 
@@ -221,16 +222,47 @@ async function exportProfile() {
   }
 }
 
-// ── Edit in Settings: activate (if needed) then jump ─────────────────
-async function editInSettings() {
-  if (!isActiveSelected.value) {
-    await activate(selectedFilename.value);
-  }
-  setActive("settings");
+// ── Activate / Edit-in-Settings ──────────────────────────────────────
+// Switching profiles flips .boot.json + reloads the active config from
+// disk, but workspace caches (templates list, storage selection, VFS,
+// etc.) were keyed off the old profile and don't refresh in place — a
+// live-switch leaves the UI showing stale rows from the previous repo.
+// Until those caches grow profile-aware invalidation, the safe path is
+// a real process restart: the boot pointer already points at the new
+// profile, so the relaunched app comes up clean on the new context.
+//
+// pendingActivate is local because the dialog message embeds the
+// filename; the restart machinery itself lives in useRestartFlow.
+const restart = useRestartFlow();
+const pendingActivate = ref<string | null>(null);
+
+function requestActivate(filename: string) {
+  pendingActivate.value = filename;
+  restart.request({
+    before: () => activate(filename),
+    errorKey: "workspace.profiles.activate.error",
+  });
 }
 
-async function activateSelected() {
-  await activate(selectedFilename.value);
+function activateSelected() {
+  if (!selectedFilename.value) return;
+  requestActivate(selectedFilename.value);
+}
+
+function editInSettings() {
+  // Already-active profile: pure navigation, no restart.
+  if (isActiveSelected.value) {
+    setActive("settings");
+    return;
+  }
+  // Otherwise treat it like Activate — the user lands on the default
+  // workspace after restart and clicks Settings themselves.
+  requestActivate(selectedFilename.value);
+}
+
+function cancelActivate() {
+  pendingActivate.value = null;
+  restart.cancel();
 }
 
 // Topbar menu — File group with Import (always enabled) and Export
@@ -435,6 +467,26 @@ setTopbarMenu(() => [
     :message="alertMessage"
     :variant="alertVariant"
     @close="alertOpen = false"
+  />
+
+  <!-- Activate (= switch profile + restart) confirm ------------------->
+  <ConfirmDialog
+    :open="restart.confirmOpen.value"
+    :title="t('workspace.profiles.activate.confirm.title')"
+    :message="t('workspace.profiles.activate.confirm.body', [pendingActivate ?? ''])"
+    :confirm-label="t('workspace.profiles.activate.confirm.button')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="cancelActivate"
+    @confirm="restart.confirm"
+  />
+
+  <AlertDialog
+    :open="restart.errorOpen.value"
+    :title="t('common.error_title')"
+    :message="restart.errorMessage.value"
+    variant="danger"
+    @close="restart.dismissError"
   />
 </template>
 

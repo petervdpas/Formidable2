@@ -1,5 +1,9 @@
 {
   "workspace.profiles.action.activate": "Activate",
+  "workspace.profiles.activate.confirm.body": "Switching to profile “{0}” requires restarting Formidable so the new context loads cleanly. Continue?",
+  "workspace.profiles.activate.confirm.button": "Switch & Restart",
+  "workspace.profiles.activate.confirm.title": "Switch profile?",
+  "workspace.profiles.activate.error": "Could not restart Formidable: {0}",
   "workspace.profiles.action.delete": "Delete",
   "workspace.profiles.action.edit_in_settings": "Edit in Settings",
   "workspace.profiles.action.export": "Export…",

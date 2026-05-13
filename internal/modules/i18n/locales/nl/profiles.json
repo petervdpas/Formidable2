@@ -1,5 +1,9 @@
 {
   "workspace.profiles.action.activate": "Activeren",
+  "workspace.profiles.activate.confirm.body": "Overschakelen naar profiel “{0}” vereist een herstart van Formidable zodat de nieuwe context goed geladen wordt. Doorgaan?",
+  "workspace.profiles.activate.confirm.button": "Wisselen en herstarten",
+  "workspace.profiles.activate.confirm.title": "Profiel wisselen?",
+  "workspace.profiles.activate.error": "Kon Formidable niet herstarten: {0}",
   "workspace.profiles.action.delete": "Verwijderen",
   "workspace.profiles.action.edit_in_settings": "Bewerken in Instellingen",
   "workspace.profiles.action.export": "Exporteren…",
