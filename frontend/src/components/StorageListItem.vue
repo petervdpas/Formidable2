@@ -44,6 +44,7 @@ const flagTitle = computed(() => flagState.value || (flagged.value ? "✓" : "")
 <template>
   <li
     :class="['sidebar-row', 'sidebar-row--stack', { active }]"
+    :data-filename="summary.filename"
     @click="$emit('pick', summary.filename)"
   >
     <span class="form-list-title-row">

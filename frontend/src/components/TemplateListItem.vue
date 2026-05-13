@@ -13,6 +13,7 @@ defineEmits<{
 <template>
   <li
     :class="['sidebar-row', 'sidebar-row--stack', { active: props.active }]"
+    :data-filename="props.filename"
     @click="$emit('pick', props.filename)"
   >
     <span class="template-display">{{ props.display }}</span>
