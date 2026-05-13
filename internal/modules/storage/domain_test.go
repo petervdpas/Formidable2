@@ -600,5 +600,46 @@ func TestExtendedListForms_NoTemplateFallsBackToFilename(t *testing.T) {
 	}
 }
 
+func TestExtendedLoadForm_ReturnsSingleSummary(t *testing.T) {
+	m, sys, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml", ItemField: "title",
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "category", Type: "text", ExpressionItem: true},
+		},
+	})
+	_ = sys.SaveFile("storage/basic/x.meta.json",
+		`{"meta":{"id":"abc","template":"basic"},"data":{"title":"Hello","category":"green"}}`)
+
+	got, err := m.ExtendedLoadForm("basic.yaml", "x.meta.json")
+	if err != nil {
+		t.Fatalf("ExtendedLoadForm: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected summary, got nil")
+	}
+	if got.Title != "Hello" {
+		t.Errorf("Title = %q, want %q", got.Title, "Hello")
+	}
+	if v, _ := got.ExpressionItems["category"].(string); v != "green" {
+		t.Errorf("ExpressionItems[category] = %v, want %q", got.ExpressionItems["category"], "green")
+	}
+}
+
+func TestExtendedLoadForm_MissingFileReturnsNil(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml",
+	})
+	got, err := m.ExtendedLoadForm("basic.yaml", "nope.meta.json")
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if got != nil {
+		t.Errorf("missing file should return nil, got %+v", got)
+	}
+}
+
 // boolPtr is reused if needed in future tests
 var _ = boolPtr

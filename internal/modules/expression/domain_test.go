@@ -37,6 +37,18 @@ func (f fakeSto) ListForExpression(name string) ([]Record, error) {
 	return f.records, f.err
 }
 
+func (f fakeSto) LookupForExpression(name, datafile string) (Record, error) {
+	if f.err != nil {
+		return Record{}, f.err
+	}
+	for _, r := range f.records {
+		if r.Filename == datafile {
+			return r, nil
+		}
+	}
+	return Record{}, nil
+}
+
 func TestEvaluateSidebar_HappyPath(t *testing.T) {
 	withFakeNow(t, "2026-05-09")
 	m := NewManager(
@@ -258,5 +270,75 @@ func TestEvaluate_NilContextOK(t *testing.T) {
 	}
 	if got.Text != "static" {
 		t.Errorf("static text drifted: %q", got.Text)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// EvaluateSidebarOne — per-record path (used by self-serving list items)
+// ─────────────────────────────────────────────────────────────────────
+
+func TestEvaluateSidebarOne_HappyPath(t *testing.T) {
+	m := NewManager(
+		fakeTpl{
+			src:    `name`,
+			fields: []string{"name"},
+		},
+		fakeSto{records: []Record{
+			{Filename: "a.json", Title: "A", Context: map[string]any{"name": "alpha"}},
+			{Filename: "b.json", Title: "B", Context: map[string]any{"name": "bravo"}},
+		}},
+	)
+	got, err := m.EvaluateSidebarOne("any", "b.json")
+	if err != nil {
+		t.Fatalf("EvaluateSidebarOne: %v", err)
+	}
+	if got.Filename != "b.json" {
+		t.Errorf("Filename = %q, want %q", got.Filename, "b.json")
+	}
+	if got.Text != "bravo" {
+		t.Errorf("Text = %q, want %q", got.Text, "bravo")
+	}
+}
+
+func TestEvaluateSidebarOne_MissingRecordReturnsEmpty(t *testing.T) {
+	m := NewManager(
+		fakeTpl{src: `name`, fields: []string{"name"}},
+		fakeSto{records: []Record{
+			{Filename: "a.json", Title: "A", Context: map[string]any{"name": "alpha"}},
+		}},
+	)
+	got, err := m.EvaluateSidebarOne("any", "nope.json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Filename != "" {
+		t.Errorf("missing record should produce zero SidebarItem, got %+v", got)
+	}
+}
+
+func TestEvaluateSidebarOne_NoExpressionReturnsSentinel(t *testing.T) {
+	m := NewManager(
+		fakeTpl{src: ""},
+		fakeSto{},
+	)
+	_, err := m.EvaluateSidebarOne("any", "a.json")
+	if !errors.Is(err, ErrNoExpression) {
+		t.Fatalf("err = %v, want ErrNoExpression", err)
+	}
+}
+
+func TestEvaluateSidebarOne_TitleFallbackOnEmptyText(t *testing.T) {
+	m := NewManager(
+		fakeTpl{src: `""`, fields: []string{"name"}},
+		fakeSto{records: []Record{
+			{Filename: "a.json", Title: "Title-A", Context: map[string]any{"name": "alpha"}},
+		}},
+	)
+	got, err := m.EvaluateSidebarOne("any", "a.json")
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if got.Text != "Title-A" {
+		t.Errorf("empty expression result should fall back to title, got %q", got.Text)
 	}
 }

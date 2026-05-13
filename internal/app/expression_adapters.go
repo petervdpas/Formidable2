@@ -92,3 +92,21 @@ func (a expressionStorageAdapter) ListForExpression(templateName string) ([]expr
 	}
 	return out, nil
 }
+
+// LookupForExpression is the per-record analogue used by
+// Manager.EvaluateSidebarOne. Missing file → empty Record (matches
+// storage.ExtendedLoadForm's nil-on-missing posture).
+func (a expressionStorageAdapter) LookupForExpression(templateName, datafile string) (expression.Record, error) {
+	s, err := a.sto.ExtendedLoadForm(templateName, datafile)
+	if err != nil {
+		return expression.Record{}, err
+	}
+	if s == nil {
+		return expression.Record{}, nil
+	}
+	return expression.Record{
+		Filename: s.Filename,
+		Title:    s.Title,
+		Context:  s.ExpressionItems,
+	}, nil
+}

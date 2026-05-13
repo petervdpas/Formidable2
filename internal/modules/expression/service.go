@@ -30,6 +30,15 @@ func (s *Service) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 	return s.m.EvaluateSidebar(templateName)
 }
 
+// EvaluateSidebarOne renders the sub-label for one record. Used by
+// self-serving sidebar items refreshing themselves after a save, so
+// editing one form doesn't trigger a full-list re-evaluation that
+// thrashes the sidebar scroll. Same ErrNoExpression contract as the
+// bulk method.
+func (s *Service) EvaluateSidebarOne(templateName, datafile string) (SidebarItem, error) {
+	return s.m.EvaluateSidebarOne(templateName, datafile)
+}
+
 // BuilderKindForFieldType reports the rule kind for a Field.Type, or
 // "" when the type does not participate in predicates. Frontend uses
 // this to gate predicate construction (only state-bearing + date

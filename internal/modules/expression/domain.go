@@ -35,6 +35,11 @@ type ExpressionField struct {
 // engine never reads template Field metadata at evaluate time.
 type StorageProvider interface {
 	ListForExpression(templateName string) ([]Record, error)
+	// LookupForExpression returns one record by datafile so the
+	// per-item evaluation path (EvaluateSidebarOne) doesn't have to
+	// walk every record. Returns (Record{}, nil) when the file is
+	// missing — callers should treat that as "no row to render".
+	LookupForExpression(templateName, datafile string) (Record, error)
 }
 
 // Record is the slim shape ExpressionProvider needs — Filename to
@@ -142,6 +147,62 @@ func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 		out = append(out, item)
 	}
 	return out, nil
+}
+
+// EvaluateSidebarOne is the per-record analogue of EvaluateSidebar.
+// Loads only the one record's harvested ExpressionItems and runs the
+// template's sidebar expression against it. Used by self-serving list
+// items refreshing themselves after a save, so a single row change
+// does not require a full-list re-evaluation.
+//
+// Returns ErrNoExpression when the template has no sidebar_expression,
+// matching the bulk method's contract. Missing file → (zero
+// SidebarItem, nil) so the caller can distinguish "this row no longer
+// exists" from "rendering failed".
+func (m *Manager) EvaluateSidebarOne(templateName, datafile string) (SidebarItem, error) {
+	if m.tpl == nil || m.sto == nil {
+		return SidebarItem{}, fmt.Errorf("expression: providers not wired")
+	}
+
+	src, fields, err := m.tpl.LookupSidebar(templateName)
+	if err != nil {
+		return SidebarItem{}, fmt.Errorf("expression: load template %q: %w", templateName, err)
+	}
+	if src == "" {
+		return SidebarItem{}, ErrNoExpression
+	}
+	if _, err := m.eng.Compile(src); err != nil {
+		return SidebarItem{}, fmt.Errorf("expression: compile %q: %w", templateName, err)
+	}
+
+	r, err := m.sto.LookupForExpression(templateName, datafile)
+	if err != nil {
+		return SidebarItem{}, fmt.Errorf("expression: lookup record %q/%q: %w", templateName, datafile, err)
+	}
+	if r.Filename == "" {
+		return SidebarItem{}, nil
+	}
+
+	keys := make([]string, len(fields))
+	for i, f := range fields {
+		keys[i] = f.Key
+	}
+	ctx := narrowContext(r.Context, keys)
+	ctx["O"] = optionLabelMap(fields, ctx)
+	item, err := m.eng.Evaluate(src, ctx)
+	if err != nil {
+		return SidebarItem{
+			Filename: r.Filename,
+			Text:     r.Title,
+			Error:    err.Error(),
+			Classes:  []string{"expr-error"},
+		}, nil
+	}
+	item.Filename = r.Filename
+	if item.Text == "" {
+		item.Text = r.Title
+	}
+	return item, nil
 }
 
 // optionLabelMap builds the per-record `O` env entry: a map keyed

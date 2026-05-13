@@ -362,44 +362,64 @@ func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, err
 		return nil, err
 	}
 	tpl, _ := m.templates.LoadTemplate(templateFilename)
+	out := make([]FormSummary, 0, len(files))
+	for _, filename := range files {
+		s, ok := m.summaryFor(templateFilename, filename, tpl)
+		if !ok {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+// ExtendedLoadForm is the single-record analogue of ExtendedListForms.
+// Returns nil when the file is missing — same posture as LoadForm —
+// so the expression module's per-row "this one form changed" path
+// doesn't need to walk every record on disk.
+func (m *Manager) ExtendedLoadForm(templateFilename, datafile string) (*FormSummary, error) {
+	tpl, _ := m.templates.LoadTemplate(templateFilename)
+	s, ok := m.summaryFor(templateFilename, datafile, tpl)
+	if !ok {
+		return nil, nil
+	}
+	return &s, nil
+}
+
+func (m *Manager) summaryFor(templateFilename, filename string, tpl *template.Template) (FormSummary, bool) {
+	f := m.LoadForm(templateFilename, filename)
+	if f == nil {
+		return FormSummary{}, false
+	}
 	itemFieldKey := ""
 	var fields []template.Field
 	if tpl != nil {
 		itemFieldKey = tpl.ItemField
 		fields = tpl.Fields
 	}
-
-	out := make([]FormSummary, 0, len(files))
-	for _, filename := range files {
-		f := m.LoadForm(templateFilename, filename)
-		if f == nil {
+	title := filename
+	if itemFieldKey != "" {
+		if v, ok := f.Data[itemFieldKey]; ok {
+			if s, ok := v.(string); ok && s != "" {
+				title = s
+			}
+		}
+	}
+	expressionItems := map[string]any{}
+	for _, fld := range fields {
+		if !fld.ExpressionItem {
 			continue
 		}
-		title := filename
-		if itemFieldKey != "" {
-			if v, ok := f.Data[itemFieldKey]; ok {
-				if s, ok := v.(string); ok && s != "" {
-					title = s
-				}
-			}
+		if v, ok := f.Data[fld.Key]; ok && v != nil && v != "" {
+			expressionItems[fld.Key] = v
 		}
-		expressionItems := map[string]any{}
-		for _, fld := range fields {
-			if !fld.ExpressionItem {
-				continue
-			}
-			if v, ok := f.Data[fld.Key]; ok && v != nil && v != "" {
-				expressionItems[fld.Key] = v
-			}
-		}
-		out = append(out, FormSummary{
-			Filename:        filename,
-			Meta:            f.Meta,
-			Title:           title,
-			ExpressionItems: expressionItems,
-		})
 	}
-	return out, nil
+	return FormSummary{
+		Filename:        filename,
+		Meta:            f.Meta,
+		Title:           title,
+		ExpressionItems: expressionItems,
+	}, true
 }
 
 // ─────────────────────────────────────────────────────────────────────
