@@ -35,6 +35,7 @@
   "common.disabled": "Disabled",
   "common.enabled": "Enabled",
   "common.error_title": "Error",
+  "common.filtered_count": "{0} / {1}",
   "common.hide": "Hide",
   "common.import": "Import",
   "common.loading": "Loading…",

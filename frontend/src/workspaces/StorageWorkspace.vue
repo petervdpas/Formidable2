@@ -9,6 +9,7 @@ import RightSlideout from "../components/RightSlideout.vue";
 import ImportCSVDialog from "../components/ImportCSVDialog.vue";
 import ExportCSVDialog from "../components/ExportCSVDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
+import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFlagFilter from "../components/StorageFlagFilter.vue";
@@ -649,7 +650,7 @@ setTopbarMenu(() => [
       <div class="sidebar-section">
         <div class="sidebar-section-head">
           <span class="sidebar-label">{{ t('workspace.storage.forms_heading') }}</span>
-          <span class="muted small">{{ summaries.length }}</span>
+          <FilteredCount :visible="visibleSummaries.length" :total="summaries.length" />
         </div>
 
         <div v-if="flagDefinitions.length > 0" class="sidebar-toolbar">

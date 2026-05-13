@@ -1,6 +1,9 @@
 import { ref } from "vue";
 import { i18n } from "../i18n";
+import { useConfig } from "./useConfig";
 import { useStatusBar, type StatusVariant } from "./useStatusBar";
+
+const TOAST_FALLBACK_MS = 5000;
 
 export type ToastVariant = "info" | "success" | "warn" | "error";
 
@@ -14,7 +17,8 @@ export interface Toast {
 }
 
 export interface ToastOpts {
-  /** Override the auto-dismiss duration in ms. Default: 5000. */
+  /** Override the auto-dismiss duration in ms. Default reads from
+   *  config.toast_timeout (seconds, clamped 2-15 server-side). */
   duration?: number;
   /** When true, ignore `duration` and stay until manually dismissed. */
   sticky?: boolean;
@@ -75,7 +79,10 @@ function show(
     lastShown.set(key, now);
   }
 
-  const duration = opts.sticky ? 0 : (opts.duration ?? 5000);
+  const { config } = useConfig();
+  const configured = config.value?.toast_timeout;
+  const defaultMs = configured && configured > 0 ? configured * 1000 : TOAST_FALLBACK_MS;
+  const duration = opts.sticky ? 0 : (opts.duration ?? defaultMs);
   const id = nextId();
   toasts.value = [...toasts.value, { id, variant, text, duration }];
 

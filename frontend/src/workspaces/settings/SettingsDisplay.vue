@@ -73,6 +73,14 @@ function clampSidebar(n: number): number {
   if (Number.isNaN(n)) return SIDEBAR_MIN;
   return Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(n)));
 }
+
+const TOAST_MIN = 2;
+const TOAST_MAX = 15;
+const TOAST_DEFAULT = 5;
+function clampToast(n: number): number {
+  if (Number.isNaN(n)) return TOAST_DEFAULT;
+  return Math.min(TOAST_MAX, Math.max(TOAST_MIN, Math.round(n)));
+}
 </script>
 
 <template>
@@ -106,6 +114,18 @@ function clampSidebar(n: number): number {
         :max="SIDEBAR_MAX"
         :model-value="String(cfg.sidebar_width || 280)"
         @update:model-value="(v) => update({ sidebar_width: clampSidebar(Number(v)) })"
+      />
+    </FormRow>
+    <FormRow
+      :label="t('settings.field.toast_timeout')"
+      :description="t('settings.desc.toast_timeout')"
+    >
+      <TextField
+        type="number"
+        :min="TOAST_MIN"
+        :max="TOAST_MAX"
+        :model-value="String(cfg.toast_timeout || TOAST_DEFAULT)"
+        @update:model-value="(v) => update({ toast_timeout: clampToast(Number(v)) })"
       />
     </FormRow>
     <FormRow :label="t('config.use_expressions')">

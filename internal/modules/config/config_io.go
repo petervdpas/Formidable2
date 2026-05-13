@@ -53,12 +53,29 @@ func parseUserConfig(raw string) (Config, bool, error) {
 	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
 		return Config{}, false, err
 	}
+	clampChanged := clampNumericSettings(&cfg)
 	for _, k := range configJSONKeys {
 		if _, ok := probe[k]; !ok {
 			return cfg, true, nil
 		}
 	}
-	return cfg, false, nil
+	return cfg, clampChanged, nil
+}
+
+// clampNumericSettings enforces backend bounds on numeric Config
+// fields whose UX has a fixed range (ToastTimeout). Returns true when
+// any value was coerced, so the load path can rewrite the profile and
+// the next read sees the sanitised value.
+func clampNumericSettings(cfg *Config) bool {
+	changed := false
+	if cfg.ToastTimeout < ToastTimeoutMin {
+		cfg.ToastTimeout = ToastTimeoutMin
+		changed = true
+	} else if cfg.ToastTimeout > ToastTimeoutMax {
+		cfg.ToastTimeout = ToastTimeoutMax
+		changed = true
+	}
+	return changed
 }
 
 // writeJSON marshals v with indentation and writes it through fs.SaveFile

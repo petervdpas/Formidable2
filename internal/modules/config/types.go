@@ -39,6 +39,7 @@ type Config struct {
 	InternalServerPort   int            `json:"internal_server_port"`
 	WindowBounds  WindowBounds  `json:"window_bounds"`
 	SidebarWidth  int           `json:"sidebar_width"`
+	ToastTimeout  int           `json:"toast_timeout"`
 	StatusButtons StatusButtons `json:"status_buttons"`
 	History       History       `json:"history"`
 }

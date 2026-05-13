@@ -199,6 +199,78 @@ func TestParseUserConfig_NoChangeWhenComplete(t *testing.T) {
 	}
 }
 
+func TestParseUserConfig_DefaultToastTimeoutFilledWhenMissing(t *testing.T) {
+	raw := `{"theme":"dark"}`
+	cfg, _, err := parseUserConfig(raw)
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if cfg.ToastTimeout != ToastTimeoutDefault {
+		t.Errorf("default not filled: got %d, want %d", cfg.ToastTimeout, ToastTimeoutDefault)
+	}
+}
+
+func TestParseUserConfig_ToastTimeoutBelowMinClampsToMin(t *testing.T) {
+	full := defaultConfig()
+	full.ToastTimeout = 0
+	bytes, _ := json.Marshal(full)
+	cfg, changed, err := parseUserConfig(string(bytes))
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if cfg.ToastTimeout != ToastTimeoutMin {
+		t.Errorf("toast_timeout=%d, want clamped to %d", cfg.ToastTimeout, ToastTimeoutMin)
+	}
+	if !changed {
+		t.Error("clamping must trigger changed=true so the file is rewritten with the sanitised value")
+	}
+}
+
+func TestParseUserConfig_ToastTimeoutAboveMaxClampsToMax(t *testing.T) {
+	full := defaultConfig()
+	full.ToastTimeout = 999
+	bytes, _ := json.Marshal(full)
+	cfg, changed, err := parseUserConfig(string(bytes))
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if cfg.ToastTimeout != ToastTimeoutMax {
+		t.Errorf("toast_timeout=%d, want clamped to %d", cfg.ToastTimeout, ToastTimeoutMax)
+	}
+	if !changed {
+		t.Error("clamping must trigger changed=true")
+	}
+}
+
+func TestParseUserConfig_ToastTimeoutNegativeClampsToMin(t *testing.T) {
+	full := defaultConfig()
+	full.ToastTimeout = -7
+	bytes, _ := json.Marshal(full)
+	cfg, _, err := parseUserConfig(string(bytes))
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if cfg.ToastTimeout != ToastTimeoutMin {
+		t.Errorf("negative toast_timeout should clamp to min, got %d", cfg.ToastTimeout)
+	}
+}
+
+func TestParseUserConfig_ToastTimeoutInRangePassesThrough(t *testing.T) {
+	full := defaultConfig()
+	full.ToastTimeout = 8
+	bytes, _ := json.Marshal(full)
+	cfg, changed, err := parseUserConfig(string(bytes))
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if cfg.ToastTimeout != 8 {
+		t.Errorf("in-range value lost: got %d, want 8", cfg.ToastTimeout)
+	}
+	if changed {
+		t.Error("in-range value must not flip changed")
+	}
+}
+
 func TestNormalizeProfileFilename(t *testing.T) {
 	cases := map[string]string{
 		"User.json":          "user.json",

@@ -1,5 +1,15 @@
 package config
 
+// Numeric setting bounds enforced on load. The frontend's input min/max
+// is the first line of defence; these clamps are the backend's safety
+// net for user.json edited by hand, copied between versions, or written
+// by future external tooling.
+const (
+	ToastTimeoutMin     = 2
+	ToastTimeoutMax     = 15
+	ToastTimeoutDefault = 5
+)
+
 // defaultConfig returns a Config populated with the same defaults as
 // `Formidable/schemas/config.schema.js`. Every field is explicit so
 // downstream zero-value drift can't silently change behavior.
@@ -39,6 +49,7 @@ func defaultConfig() Config {
 			Height: 800,
 		},
 		SidebarWidth: 280,
+		ToastTimeout: ToastTimeoutDefault,
 		StatusButtons: StatusButtons{
 			Reloader:   true,
 			Charpicker: true,

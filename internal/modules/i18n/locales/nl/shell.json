@@ -35,6 +35,7 @@
   "common.disabled": "Uitgeschakeld",
   "common.enabled": "Ingeschakeld",
   "common.error_title": "Fout",
+  "common.filtered_count": "{0} / {1}",
   "common.hide": "Verbergen",
   "common.import": "Importeren",
   "common.loading": "Bezig met laden…",
