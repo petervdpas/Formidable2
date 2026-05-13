@@ -95,7 +95,13 @@ async function load(announce: boolean) {
     status.value = null;
     if (announce) toast.error("workspace.collaboration.status.error", [backendErrMessage(err)]);
   } finally {
-    if (my === reqId) loading.value = false;
+    if (my === reqId) {
+      loading.value = false;
+      // Notify other panels that this Sync page just re-read git
+      // status. StatusGitQuick listens so the footer reflects a
+      // manual Refresh click without waiting for its own poll.
+      window.dispatchEvent(new CustomEvent("formidable:git-refreshed"));
+    }
   }
 }
 

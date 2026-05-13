@@ -62,14 +62,37 @@ async function load() {
 }
 
 let unsubscribe: (() => void) | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const POLL_MS = 30_000;
+
+function onVisibility() {
+  if (document.visibilityState === "visible") void load();
+}
+function onSyncRefreshed() { void load(); }
 
 onMounted(() => {
   void load();
+  // In-app git ops (commit/fetch/push/pull) emit journal entries, so
+  // this catches everything done through Formidable's own UI.
   unsubscribe = Events.On("journal:changed", () => { void load(); });
+  // External changes (terminal git, IDE save, another tool) bypass
+  // the journal — a slow poll is the cheapest way to keep the footer
+  // honest. GitSvc.Status is a single fs scan; 30s is plenty.
+  pollTimer = setInterval(() => { void load(); }, POLL_MS);
+  // Catch the "switched away to terminal, came back" case faster than
+  // the poll: refresh whenever the tab/window becomes visible again.
+  document.addEventListener("visibilitychange", onVisibility);
+  // Sync.vue dispatches this after every successful status read so a
+  // manual Refresh click in the Sync page propagates to the footer
+  // immediately instead of waiting for the poll to catch up.
+  window.addEventListener("formidable:git-refreshed", onSyncRefreshed);
 });
 
 onBeforeUnmount(() => {
   if (unsubscribe) unsubscribe();
+  if (pollTimer) clearInterval(pollTimer);
+  document.removeEventListener("visibilitychange", onVisibility);
+  window.removeEventListener("formidable:git-refreshed", onSyncRefreshed);
 });
 
 watch(gitRoot, () => { void load(); });
