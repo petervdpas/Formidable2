@@ -97,3 +97,33 @@ Feature: User configuration management
     And the loaded config has language "en"
     And the loaded config has internal_server_port 8383
     And the disk file "config/user.json" reflects theme "dark"
+
+  Scenario: First run seeds default status buttons
+    Then the status button "reloader" is on
+    And the status button "charpicker" is on
+    And the status button "language" is on
+    And the status button "gitquick" is off
+    And the status button "gigotload" is off
+
+  Scenario: Toggling a status button persists and leaves siblings untouched
+    When I set status button "language" to off
+    Then the status button "language" is off
+    And the status button "reloader" is on
+    And the status button "charpicker" is on
+    And the disk file "config/user.json" reflects status button "language" off
+    And the disk file "config/user.json" reflects status button "reloader" on
+
+  Scenario: Re-enabling a status button persists
+    When I set status button "gitquick" to on
+    Then the status button "gitquick" is on
+    And the disk file "config/user.json" reflects status button "gitquick" on
+
+  Scenario: Loading a config without status_buttons fills the defaults
+    Given the file "config/user.json" with content '{"theme":"dark"}'
+    And I invalidate the config cache
+    When I load the config
+    Then the status button "reloader" is on
+    And the status button "charpicker" is on
+    And the status button "language" is on
+    And the status button "gitquick" is off
+    And the status button "gigotload" is off

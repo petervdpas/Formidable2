@@ -38,7 +38,8 @@
     "reloader": true,
     "charpicker": true,
     "gitquick": true,
-    "gigotload": false
+    "gigotload": false,
+    "language": true
   },
   "history": {
     "enabled": true,

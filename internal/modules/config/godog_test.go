@@ -376,6 +376,73 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		}
 		return nil
 	})
+
+	ctx.Step(`^I set status button "([^"]*)" to (on|off)$`, func(name, state string) error {
+		on := state == "on"
+		_, err := w.m.UpdateUserConfig(map[string]any{
+			"status_buttons": map[string]any{name: on},
+		})
+		w.lastErr = err
+		return err
+	})
+
+	ctx.Step(`^the status button "([^"]*)" is (on|off)$`, func(name, state string) error {
+		cfg, err := w.m.LoadUserConfig()
+		if err != nil {
+			return err
+		}
+		got, ok := statusButtonField(cfg.StatusButtons, name)
+		if !ok {
+			return fmt.Errorf("unknown status button %q", name)
+		}
+		want := state == "on"
+		if got != want {
+			return fmt.Errorf("status_buttons.%s = %v, want %v", name, got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the disk file "([^"]*)" reflects status button "([^"]*)" (on|off)$`, func(path, name, state string) error {
+		raw, err := os.ReadFile(filepath.Join(w.tmp, path))
+		if err != nil {
+			return err
+		}
+		var disk struct {
+			StatusButtons map[string]any `json:"status_buttons"`
+		}
+		if err := json.Unmarshal(raw, &disk); err != nil {
+			return err
+		}
+		v, ok := disk.StatusButtons[name]
+		if !ok {
+			return fmt.Errorf("status_buttons.%s missing on disk; have %v", name, disk.StatusButtons)
+		}
+		got, ok := v.(bool)
+		if !ok {
+			return fmt.Errorf("status_buttons.%s is %T, want bool", name, v)
+		}
+		want := state == "on"
+		if got != want {
+			return fmt.Errorf("disk status_buttons.%s = %v, want %v", name, got, want)
+		}
+		return nil
+	})
+}
+
+func statusButtonField(b StatusButtons, name string) (bool, bool) {
+	switch name {
+	case "reloader":
+		return b.Reloader, true
+	case "charpicker":
+		return b.Charpicker, true
+	case "gitquick":
+		return b.Gitquick, true
+	case "gigotload":
+		return b.Gigotload, true
+	case "language":
+		return b.Language, true
+	}
+	return false, false
 }
 
 func profileValues(profiles []ProfileEntry) []string {

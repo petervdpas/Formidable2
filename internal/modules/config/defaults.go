@@ -55,6 +55,7 @@ func defaultConfig() Config {
 			Charpicker: true,
 			Gitquick:   false,
 			Gigotload:  false,
+			Language:   true,
 		},
 		History: History{
 			Enabled: true,

@@ -59,6 +59,7 @@ type StatusButtons struct {
 	Charpicker bool `json:"charpicker"`
 	Gitquick   bool `json:"gitquick"`
 	Gigotload  bool `json:"gigotload"`
+	Language   bool `json:"language"`
 }
 
 type History struct {

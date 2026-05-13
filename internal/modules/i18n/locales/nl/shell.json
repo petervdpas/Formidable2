@@ -19,6 +19,8 @@
   "statusbar.gitquick.clean": "werkboom schoon",
   "statusbar.gitquick.dirty": "werkboom heeft wijzigingen",
   "statusbar.gitquick.not_a_repo": "Git: geen repository",
+  "statusbar.language.current": "Taal: {0}",
+  "statusbar.language.switch_to": "Klik om over te schakelen naar {0}",
   "statusbar.reload.title": "Gegevens van de huidige werkruimte herladen",
   "common.alert_title": "Melding",
   "codeeditor.format": "Opmaken",

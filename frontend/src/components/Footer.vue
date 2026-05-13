@@ -7,6 +7,7 @@ import CharPicker from "./CharPicker.vue";
 import StatusReloader from "./StatusReloader.vue";
 import StatusGitQuick from "./StatusGitQuick.vue";
 import StatusGiGotQuick from "./StatusGiGotQuick.vue";
+import StatusLanguageQuick from "./StatusLanguageQuick.vue";
 
 defineProps<{ profile?: string }>();
 
@@ -82,6 +83,7 @@ const statusParts = computed<StatusPart[]>(() => {
     <StatusGiGotQuick
       v-if="config?.status_buttons?.gigotload && config?.remote_backend === 'gigot'"
     />
+    <StatusLanguageQuick v-if="config?.status_buttons?.language" />
     <StatusReloader v-if="config?.status_buttons?.reloader" />
     <CharPicker v-if="config?.status_buttons?.charpicker" />
     <span class="profile muted">

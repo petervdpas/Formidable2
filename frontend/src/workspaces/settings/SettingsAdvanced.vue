@@ -55,6 +55,14 @@ function patchButtons(partial: Record<string, unknown>) {
   </FormSection>
 
   <FormSection>
+    <FormRow :label="t('settings.field.language_quick_switch')">
+      <SwitchField
+        :model-value="cfg.status_buttons.language"
+        @update:model-value="(v) => patchButtons({ language: v })"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
+      />
+    </FormRow>
     <FormRow :label="t('settings.field.reload_button')">
       <SwitchField
         :model-value="cfg.status_buttons.reloader"

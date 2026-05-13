@@ -288,6 +288,7 @@ export class StatusButtons {
     "charpicker": boolean;
     "gitquick": boolean;
     "gigotload": boolean;
+    "language": boolean;
 
     /** Creates a new StatusButtons instance. */
     constructor($$source: Partial<StatusButtons> = {}) {
@@ -302,6 +303,9 @@ export class StatusButtons {
         }
         if (!("gigotload" in $$source)) {
             this["gigotload"] = false;
+        }
+        if (!("language" in $$source)) {
+            this["language"] = false;
         }
 
         Object.assign(this, $$source);
