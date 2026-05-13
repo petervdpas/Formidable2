@@ -3,6 +3,8 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import FormLoopFields from "./FormLoopFields.vue";
+import FormLoopBulkToggle from "./FormLoopBulkToggle.vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 import { useToast } from "../../composables/useToast";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
@@ -80,10 +82,29 @@ function removeItem(i: number) {
   emitEntries(next);
 }
 
+const removeIndex = ref<number | null>(null);
+const removeOpen = computed(() => removeIndex.value !== null);
+
+function askRemove(i: number) {
+  removeIndex.value = i;
+}
+function cancelRemove() {
+  removeIndex.value = null;
+}
+function confirmRemove() {
+  const i = removeIndex.value;
+  removeIndex.value = null;
+  if (i !== null) removeItem(i);
+}
+
 function toggleCollapsed(i: number) {
   const next = collapsed.value.slice();
   next[i] = !next[i];
   collapsed.value = next;
+}
+
+function setAllCollapsed(v: boolean) {
+  collapsed.value = collapsed.value.map(() => v);
 }
 
 // When the inner walker mutates an entry (assigns to its `values`),
@@ -159,8 +180,15 @@ function summaryFor(entry: Record<string, unknown>): string {
 <template>
   <div class="form-loop" :data-depth="group.depth">
     <div class="form-loop-header">
-      <h3 class="form-loop-title">{{ field.label || field.key }}</h3>
-      <p v-if="field.description" class="form-loop-description">{{ field.description }}</p>
+      <div class="form-loop-header-text">
+        <h3 class="form-loop-title">{{ field.label || field.key }}</h3>
+        <p v-if="field.description" class="form-loop-description">{{ field.description }}</p>
+      </div>
+      <FormLoopBulkToggle
+        :collapsed="collapsed"
+        @expand-all="setAllCollapsed(false)"
+        @collapse-all="setAllCollapsed(true)"
+      />
     </div>
 
     <div v-if="entries.length === 0" class="form-loop-empty muted small">
@@ -221,7 +249,8 @@ function summaryFor(entry: Record<string, unknown>): string {
               type="button"
               class="btn-ghost-icon btn-md"
               :aria-label="t('workspace.storage.field.remove_item')"
-              @click="removeItem(i)"
+              :title="t('workspace.storage.field.remove_item')"
+              @click="askRemove(i)"
             >−</button>
           </div>
 
@@ -242,6 +271,17 @@ function summaryFor(entry: Record<string, unknown>): string {
         + {{ t('workspace.storage.field.add_loop_item') }}
       </button>
     </div>
+
+    <ConfirmDialog
+      :open="removeOpen"
+      :title="t('workspace.storage.field.remove_item.title')"
+      :message="t('special.loop.delete.sure')"
+      :confirm-label="t('common.remove')"
+      :cancel-label="t('common.cancel')"
+      variant="danger"
+      @cancel="cancelRemove"
+      @confirm="confirmRemove"
+    />
   </div>
 </template>
 
