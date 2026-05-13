@@ -10,6 +10,11 @@
   "workspace.cleanup.summary_issues": "{0} issue(s) across {1} form(s).",
   "workspace.cleanup.issues_count": "{0} issue(s)",
   "workspace.cleanup.fix_result": "Applied {0} fix(es); {1} form(s) saved. {2} issue(s) remain.",
+  "workspace.cleanup.migrate": "Migrate Meta",
+  "workspace.cleanup.migrating": "Migrating…",
+  "workspace.cleanup.migrate.description": "Rewrites legacy author/created/updated meta into the new audit-block shape. Skips already-migrated files; original authorship is preserved.",
+  "workspace.cleanup.migrate.result": "Migrated {0} / {1}; {2} already current.",
+  "workspace.cleanup.migrate.result_with_errors": "Migrated {0} / {1}; {2} already current; {3} error(s).",
 
   "workspace.cleanup.col.kind": "Issue Kind",
   "workspace.cleanup.col.issues": "Issues",

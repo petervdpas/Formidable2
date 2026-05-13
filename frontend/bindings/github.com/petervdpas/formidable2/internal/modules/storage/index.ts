@@ -11,5 +11,6 @@ export {
     Form,
     FormMeta,
     FormSummary,
+    MigrateResult,
     SaveResult
 } from "./models.js";

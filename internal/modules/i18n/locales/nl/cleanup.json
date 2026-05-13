@@ -10,6 +10,11 @@
   "workspace.cleanup.summary_issues": "{0} probleem(en) in {1} formulier(en).",
   "workspace.cleanup.issues_count": "{0} probleem(en)",
   "workspace.cleanup.fix_result": "{0} reparatie(s) toegepast; {1} formulier(en) opgeslagen. {2} probleem(en) over.",
+  "workspace.cleanup.migrate": "Meta migreren",
+  "workspace.cleanup.migrating": "Migreren…",
+  "workspace.cleanup.migrate.description": "Schrijft de oude author/created/updated metavelden om naar de nieuwe auditblok-vorm. Reeds gemigreerde bestanden worden overgeslagen; de originele auteursinformatie blijft bewaard.",
+  "workspace.cleanup.migrate.result": "{0} van {1} gemigreerd; {2} al actueel.",
+  "workspace.cleanup.migrate.result_with_errors": "{0} van {1} gemigreerd; {2} al actueel; {3} fout(en).",
 
   "workspace.cleanup.col.kind": "Soort probleem",
   "workspace.cleanup.col.issues": "Aantal",

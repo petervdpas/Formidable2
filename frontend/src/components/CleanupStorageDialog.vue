@@ -13,6 +13,8 @@ import type {
   Report,
   FixResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/integrity";
+import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import type { MigrateResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 
 const props = defineProps<{
   open: boolean;
@@ -26,8 +28,10 @@ const { t } = useI18n();
 
 const loading = ref(false);
 const repairing = ref(false);
+const migrating = ref(false);
 const report = ref<Report | null>(null);
 const lastFixResult = ref<FixResult | null>(null);
+const lastMigrateResult = ref<MigrateResult | null>(null);
 const error = ref<string>("");
 
 // Per-kind UI state: which kinds the user wants to repair + the
@@ -43,6 +47,7 @@ watch(
     if (!isOpen) return;
     report.value = null;
     lastFixResult.value = null;
+    lastMigrateResult.value = null;
     error.value = "";
     for (const k of Object.keys(kindUI)) delete kindUI[k];
   },
@@ -178,6 +183,25 @@ const repairBtnEnabled = computed(() => {
   return false;
 });
 
+async function migrate() {
+  if (!props.templateFilename) return;
+  migrating.value = true;
+  error.value = "";
+  try {
+    lastMigrateResult.value = await StorageSvc.MigrateTemplateMeta(props.templateFilename);
+    // Migration may have fixed meta_bad_format issues lurking in the
+    // analyze report; refresh if one was already loaded so the user
+    // sees an accurate picture without re-clicking Analyze.
+    if (hasReport.value) {
+      await analyze();
+    }
+  } catch (e) {
+    error.value = backendErrMessage(e);
+  } finally {
+    migrating.value = false;
+  }
+}
+
 async function repair() {
   if (!props.templateFilename) return;
   repairing.value = true;
@@ -250,6 +274,14 @@ function issueKindClass(kind: string): string {
     <div v-if="lastFixResult" class="cleanup-fixresult" role="status">
       {{ t('workspace.cleanup.fix_result',
            [lastFixResult.applied, lastFixResult.forms_saved, lastFixResult.scanned_after]) }}
+    </div>
+
+    <div v-if="lastMigrateResult" class="cleanup-fixresult" role="status">
+      {{ (lastMigrateResult.errors?.length ?? 0) > 0
+        ? t('workspace.cleanup.migrate.result_with_errors',
+            [lastMigrateResult.migrated, lastMigrateResult.total, lastMigrateResult.skipped, lastMigrateResult.errors?.length ?? 0])
+        : t('workspace.cleanup.migrate.result',
+            [lastMigrateResult.migrated, lastMigrateResult.total, lastMigrateResult.skipped]) }}
     </div>
 
     <div v-if="hasReport && !error" class="cleanup-summary" :class="{ clean }">
@@ -344,7 +376,18 @@ function issueKindClass(kind: string): string {
       <button
         class="tool-btn"
         type="button"
-        :disabled="loading || !templateFilename || repairing"
+        :disabled="!templateFilename || loading || repairing || migrating"
+        :title="t('workspace.cleanup.migrate.description')"
+        @click="migrate"
+      >
+        {{ migrating
+          ? t('workspace.cleanup.migrating')
+          : t('workspace.cleanup.migrate') }}
+      </button>
+      <button
+        class="tool-btn"
+        type="button"
+        :disabled="loading || !templateFilename || repairing || migrating"
         @click="analyze"
       >
         {{ loading
@@ -354,7 +397,7 @@ function issueKindClass(kind: string): string {
       <button
         class="tool-btn primary"
         type="button"
-        :disabled="!repairBtnEnabled"
+        :disabled="!repairBtnEnabled || migrating"
         @click="repair"
       >
         {{ repairing

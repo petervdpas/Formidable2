@@ -65,3 +65,11 @@ func (s *Service) DeleteImageFile(templateFilename, name string) error {
 func (s *Service) ImportCsvRow(templateFilename, datafile string, data map[string]any) SaveResult {
 	return s.m.SaveForm(templateFilename, datafile, data)
 }
+
+// MigrateTemplateMeta rewrites every legacy-shaped form under the
+// given template into the new audit-block meta shape. Surfaced in the
+// Cleanup Storage dialog so the user can clear historical files in
+// one click without touching their data or losing original identity.
+func (s *Service) MigrateTemplateMeta(templateFilename string) (MigrateResult, error) {
+	return s.m.MigrateTemplateMeta(templateFilename)
+}

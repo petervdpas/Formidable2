@@ -189,6 +189,49 @@ export class FormSummary {
 }
 
 /**
+ * MigrateResult reports the outcome of MigrateTemplateMeta — a per-
+ * template bulk operation that rewrites legacy meta shape (flat
+ * author_name/email + string created/updated) into the AuditEntry
+ * pair. Migrated files keep their original authorship intact (no
+ * Updated.by restamp); already-new files are skipped without touching
+ * the file (mtime preserved). Per-file errors land in Errors so the
+ * caller can surface them without aborting the whole pass.
+ */
+export class MigrateResult {
+    "total": number;
+    "migrated": number;
+    "skipped": number;
+    "errors"?: string[];
+
+    /** Creates a new MigrateResult instance. */
+    constructor($$source: Partial<MigrateResult> = {}) {
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("migrated" in $$source)) {
+            this["migrated"] = 0;
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MigrateResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MigrateResult {
+        const $$createField3_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("errors" in $$parsedSource) {
+            $$parsedSource["errors"] = $$createField3_0($$parsedSource["errors"]);
+        }
+        return new MigrateResult($$parsedSource as Partial<MigrateResult>);
+    }
+}
+
+/**
  * SaveResult mirrors the JS shape used across SFR-backed modules.
  */
 export class SaveResult {

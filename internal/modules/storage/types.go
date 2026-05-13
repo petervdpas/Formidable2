@@ -49,6 +49,20 @@ type FormSummary struct {
 	ExpressionItems map[string]any `json:"expressionItems"`
 }
 
+// MigrateResult reports the outcome of MigrateTemplateMeta — a per-
+// template bulk operation that rewrites legacy meta shape (flat
+// author_name/email + string created/updated) into the AuditEntry
+// pair. Migrated files keep their original authorship intact (no
+// Updated.by restamp); already-new files are skipped without touching
+// the file (mtime preserved). Per-file errors land in Errors so the
+// caller can surface them without aborting the whole pass.
+type MigrateResult struct {
+	Total    int      `json:"total"`
+	Migrated int      `json:"migrated"`
+	Skipped  int      `json:"skipped"`
+	Errors   []string `json:"errors,omitempty"`
+}
+
 // SaveResult mirrors the JS shape used across SFR-backed modules.
 type SaveResult struct {
 	Success bool   `json:"success"`

@@ -74,6 +74,18 @@ export function LoadImageFile(templateFilename: string, name: string): $Cancella
     return $Call.ByID(2646918510, templateFilename, name);
 }
 
+/**
+ * MigrateTemplateMeta rewrites every legacy-shaped form under the
+ * given template into the new audit-block meta shape. Surfaced in the
+ * Cleanup Storage dialog so the user can clear historical files in
+ * one click without touching their data or losing original identity.
+ */
+export function MigrateTemplateMeta(templateFilename: string): $CancellablePromise<$models.MigrateResult> {
+    return $Call.ByID(53088703, templateFilename).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
 export function SaveForm(templateFilename: string, datafile: string, data: { [_ in string]?: any }): $CancellablePromise<$models.SaveResult> {
     return $Call.ByID(1505214792, templateFilename, datafile, data).then(($result: any) => {
         return $$createType2($result);
@@ -102,3 +114,4 @@ const $$createType2 = $models.SaveResult.createFrom;
 const $$createType3 = $Create.Array($Create.Any);
 const $$createType4 = $models.Form.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $models.MigrateResult.createFrom;
