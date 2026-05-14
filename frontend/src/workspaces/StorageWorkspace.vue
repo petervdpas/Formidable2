@@ -329,16 +329,27 @@ async function doSave() {
 // just-saved view, so the row's title / tags / flag refresh without
 // reassigning summaries.value (which thrashes the sidebar scroll).
 // Vue's reactive Proxy detects per-property writes, so only the one
-// <StorageListItem> with this filename re-renders.
+// <StorageListItem> with this filename re-renders. For a brand-new
+// entry (no matching row yet) the summary is appended — the new
+// <StorageListItem> mounts and loads its own sidebar expression.
 function patchSummary(filename: string): void {
-  const idx = summaries.value.findIndex((s) => s.filename === filename);
-  if (idx < 0 || !view.value) return;
+  if (!view.value) return;
   const tpl = view.value.template;
   const itemField = tpl?.item_field ?? "";
   const titleRaw = itemField ? view.value.values?.[itemField] : "";
   const nextTitle = typeof titleRaw === "string" && titleRaw.length > 0
     ? titleRaw
     : filename;
+  const idx = summaries.value.findIndex((s) => s.filename === filename);
+  if (idx < 0) {
+    summaries.value.push({
+      filename,
+      meta: view.value.meta,
+      title: nextTitle,
+      expressionItems: {},
+    });
+    return;
+  }
   const entry = summaries.value[idx];
   entry.meta = view.value.meta;
   entry.title = nextTitle;
