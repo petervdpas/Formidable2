@@ -512,10 +512,11 @@ func New(d Deps) (*App, error) {
 	// the Manager stays transport-neutral.
 	gigotM := gigot.NewManager(sysM)
 
-	// PDF export — Stage 2 MVP (Phases A+B+C). Manager probes system
-	// + managed-cache Chrome on demand, persists activation per-machine
-	// to <AppRoot>/config/pdf-state.json via sysM. Phase D (managed
-	// download with progress events) is deferred. See design/pdf-export.md.
+	// PDF export — Stage 2. Manager probes system + managed-cache
+	// Chrome on demand, persists activation per-machine to
+	// <AppRoot>/config/pdf-state.json via sysM. Formidable does not
+	// bundle or download Chrome; the user installs one themselves.
+	// See design/pdf-export.md.
 	pdfM := pdf.NewManager(d.Logger, sysM)
 	if err := pdfM.Restore(); err != nil {
 		d.Logger.Warn("pdf: state restore failed", "err", err)

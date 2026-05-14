@@ -11,16 +11,17 @@ import * as time$0 from "../../../../../../time/models.js";
 
 /**
  * ActivateOpts carries the activation choices the user made in the
- * Information-page dialog. Stage 1 ignores it; Stage 2 wires it.
+ * Information-page dialog.
  * 
  *   - BrowserBin: when set, skip probing and use this path directly.
- *   - AllowDownload: when true and no system browser is found,
- *     trigger go-rod's managed download (Stage 2 streams progress
- *     via a Wails event).
+ *     When empty, the prober runs and the first candidate is picked.
+ * 
+ * Formidable does not bundle or download Chrome — if no candidate
+ * is found, the user must install one (or point ROD_BROWSER_BIN at
+ * one) themselves.
  */
 export class ActivateOpts {
     "browser_bin"?: string;
-    "allow_download"?: boolean;
 
     /** Creates a new ActivateOpts instance. */
     constructor($$source: Partial<ActivateOpts> = {}) {

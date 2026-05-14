@@ -17,7 +17,7 @@ See [architecture.md](architecture.md) for module conventions and [migration-pla
 | Module | `internal/modules/pdf/` — peer to `render`, `wiki`, `api`. Singular data-model name per project convention. |
 | Lifecycle | Lazy opt-in. Service refuses to render until activated. |
 | Activation surface | Information page panel, alongside Wiki/API status panels. Same UX pattern as those services. |
-| Chrome runtime | Probe `ROD_BROWSER_BIN` → standard install paths → managed Chromium download (~150 MB zip, ~530 MB unpacked — see Stage 0 findings) on user confirmation. Slim installer, no bundled Chromium. |
+| Chrome runtime | Probe `ROD_BROWSER_BIN` → standard install paths → existing managed-cache picks from prior runs. **Formidable does not download Chrome.** If no candidate is found, the user installs one themselves (apt / brew / google.com/chrome) and re-probes. Decision settled 2026-05-15: a 150 MB / 530 MB Chromium download was too much weight inside Formidable for a feature with a clean "install Chrome yourself" alternative. |
 | Override priority | `frontmatter > form meta > template manifest > global config`. |
 | Activation persistence | Per-machine state file at `<AppRoot>/config/pdf-state.json`, owned by the pdf module via `system.Manager`. **Not** in `user.json` — `browser_bin` is machine-specific and would break under gigot/git sync. (Settled 2026-05-14; earlier draft of this doc said `config.Manager` under a `pdf:` block — that was wrong.) |
 | Frontmatter schema | Nested, mirrors `picoloom.Input` (`cover:`, `toc:`, `watermark:`, `page:`, `pageBreaks:`, `signature:`, `footer:`). All four override layers share this schema. |
@@ -191,26 +191,22 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
 
 **Definition of done**: bindings regenerate cleanly; frontend can call `Status()` and see `{Active: false}`; `ExportPDF` returns the typed error.
 
-### Stage 2 — Activation flow
+### Stage 2 — Activation flow (shipped 2026-05-15)
 
-**Goal**: user can click "Activate PDF generation" on the Information page and have a working pipeline afterwards.
+**Goal**: user can click "Activate" on the Information page → PDF Export panel and have a working pipeline afterwards.
 
 - Probe order in `activate.go`:
   1. `ROD_BROWSER_BIN` env var
-  2. Common system paths (`/usr/bin/google-chrome`, `/usr/bin/chromium`, `/Applications/Google Chrome.app/...`, Windows registry / `Program Files`)
-  3. go-rod's managed download cache (`~/.cache/rod/browser/...`)
-- `Activate` surface methods:
-  - `ProbeChrome(ctx) ProbeResult` — read-only, returns what we found.
-  - `UseSystemChrome(ctx, path string) error` — explicit pick.
-  - `DownloadManagedChromium(ctx, progress chan<- DownloadProgress) error` — triggers go-rod's download with progress streaming.
-- Information-page Vue panel (in `frontend/src/`):
-  - Status row mirroring Wiki/API panels.
-  - Activation button → opens a dialog that calls `ProbeChrome` and shows: found path (with "Use this" button), or "Not found — download managed Chromium (~150 MB download, ~530 MB on disk)?".
-  - Reconfigure / Deactivate links once active.
-  - i18n keys under `internal/modules/i18n/locales/<locale>/pdf.json`.
+  2. GOOS-specific system paths (Linux: `/usr/bin/google-chrome`, `/usr/bin/chromium`, …; macOS: `/Applications/Google Chrome.app/…`; Windows: `${ProgramFiles}\Google\Chrome\…`)
+  3. Existing entries in go-rod's managed cache (`~/.cache/rod/browser/chromium-*`) from prior PoC runs or other rod-using tools — highest revision wins
+- Wails service surface: `GetStatus`, `ProbeChrome`, `Activate(opts)`, `Deactivate`, `ExportPDF` (Stage 4 stub).
+- Information-page Vue panel (`InformationPDFExport.vue`) — sidebar entry between Journal Feed and Logging. Probe dialog lists candidates with platform-typical "Use this" buttons. i18n keys under `internal/modules/i18n/locales/<locale>/pdf.json`.
 - Frontend catches `ErrPDFNotActivated` from any later `ExportPDF` call and routes the user to the Information page with the activation panel highlighted.
+- Persistence: `<AppRoot>/config/pdf-state.json` via `system.Manager` (atomic temp+fsync+rename). Per-machine; not in `user.json` so gigot/git sync between machines doesn't carry a stale `browser_bin` path.
 
-**Definition of done**: activation works on a clean machine (no Chrome) and on a machine with Chrome installed; status persists across restarts; deactivation flips status back to inactive without deleting the managed Chromium cache.
+**Managed Chromium download — intentionally out of scope.** Earlier drafts of this stage included a `DownloadManagedChromium(ctx, progress chan)` path with Wails event streaming. We dropped it 2026-05-15 in favour of "install Chrome yourself" telemetry in the empty-probe state of the panel. Rationale: a 150 MB download / 530 MB on-disk footprint inside Formidable was too much weight for a feature with a clean alternative the user can satisfy via their package manager.
+
+**Definition of done**: activation works on a machine with Chrome installed; status persists across restarts; deactivation flips status back to inactive without deleting any managed Chromium cache picked up by the probe.
 
 ### Stage 3 — Frontmatter parser + Input builder
 

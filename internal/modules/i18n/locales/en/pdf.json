@@ -1,5 +1,5 @@
 {
-  "pdf.info": "Activate the PDF export engine to render forms as PDF. Activation adopts a Chrome or Chromium binary on this machine — system installs are detected automatically; a managed Chromium download will land in a follow-up release.",
+  "pdf.info": "Activate the PDF export engine to render forms as PDF. Formidable adopts a Chrome or Chromium binary already installed on this machine — it does not bundle or download one. If none is detected, install Chrome or Chromium yourself, then re-open this panel.",
   "pdf.status.active": "Active",
   "pdf.status.inactive": "Inactive",
   "pdf.status.source.system": "System",
@@ -14,7 +14,7 @@
   "pdf.action.reconfigure": "Reconfigure",
   "pdf.dialog.title": "Pick a Chrome / Chromium binary",
   "pdf.dialog.intro": "Formidable detected the following candidates. Pick one to activate the PDF export engine.",
-  "pdf.dialog.no_candidates": "No Chrome or Chromium found on this machine. The managed download path will land in a follow-up release.",
+  "pdf.dialog.no_candidates": "No Chrome or Chromium found on this machine. PDF export needs a real Chrome/Chromium binary — install one yourself, then click Refresh. Linux: install via your package manager (e.g. `sudo apt install chromium`). macOS / Windows: download Chrome from google.com/chrome.",
   "pdf.dialog.use": "Use this",
   "pdf.dialog.cancel": "Cancel",
   "pdf.dialog.refresh": "Refresh",

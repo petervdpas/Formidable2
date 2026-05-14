@@ -57,15 +57,16 @@ type Status struct {
 }
 
 // ActivateOpts carries the activation choices the user made in the
-// Information-page dialog. Stage 1 ignores it; Stage 2 wires it.
+// Information-page dialog.
 //
 //   - BrowserBin: when set, skip probing and use this path directly.
-//   - AllowDownload: when true and no system browser is found,
-//     trigger go-rod's managed download (Stage 2 streams progress
-//     via a Wails event).
+//     When empty, the prober runs and the first candidate is picked.
+//
+// Formidable does not bundle or download Chrome — if no candidate
+// is found, the user must install one (or point ROD_BROWSER_BIN at
+// one) themselves.
 type ActivateOpts struct {
-	BrowserBin    string `json:"browser_bin,omitempty"`
-	AllowDownload bool   `json:"allow_download,omitempty"`
+	BrowserBin string `json:"browser_bin,omitempty"`
 }
 
 // ExportOpts shapes the per-call options ExportPDF accepts. Empty

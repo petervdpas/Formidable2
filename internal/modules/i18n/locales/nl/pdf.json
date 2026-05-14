@@ -1,5 +1,5 @@
 {
-  "pdf.info": "Activeer de PDF-exportmotor om formulieren als PDF te renderen. Bij activering wordt een Chrome- of Chromium-binary op deze machine geadopteerd — systeeminstallaties worden automatisch gedetecteerd; een beheerde Chromium-download komt in een vervolgrelease.",
+  "pdf.info": "Activeer de PDF-exportmotor om formulieren als PDF te renderen. Formidable adopteert een Chrome- of Chromium-binary die al op deze machine staat — er wordt niets gebundeld of gedownload. Als er niets wordt gevonden, installeer dan zelf Chrome of Chromium en open dit paneel opnieuw.",
   "pdf.status.active": "Actief",
   "pdf.status.inactive": "Inactief",
   "pdf.status.source.system": "Systeem",
@@ -14,7 +14,7 @@
   "pdf.action.reconfigure": "Opnieuw instellen",
   "pdf.dialog.title": "Kies een Chrome- of Chromium-binary",
   "pdf.dialog.intro": "Formidable heeft de volgende kandidaten gedetecteerd. Kies er één om de PDF-exportmotor te activeren.",
-  "pdf.dialog.no_candidates": "Geen Chrome of Chromium gevonden op deze machine. De beheerde-download-route komt in een vervolgrelease.",
+  "pdf.dialog.no_candidates": "Geen Chrome of Chromium gevonden op deze machine. PDF-export heeft een echte Chrome/Chromium-binary nodig — installeer er één en klik daarna op Verversen. Linux: via de pakketbeheerder (bv. `sudo apt install chromium`). macOS / Windows: download Chrome via google.com/chrome.",
   "pdf.dialog.use": "Deze gebruiken",
   "pdf.dialog.cancel": "Annuleren",
   "pdf.dialog.refresh": "Verversen",

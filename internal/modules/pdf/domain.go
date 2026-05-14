@@ -94,10 +94,10 @@ func (m *Manager) Status() Status {
 // non-empty, that exact path is validated and adopted. Otherwise
 // the prober runs and the first candidate (env-var override >
 // system path > managed cache) is picked. Returns ErrNoBrowserFound
-// when no candidate is available and opts.AllowDownload is false —
-// Phase D will wire the download path on opts.AllowDownload=true.
+// when no candidate is available — Formidable does not bundle or
+// download Chrome; the user must install one and re-probe.
 func (m *Manager) Activate(opts ActivateOpts) (Status, error) {
-	m.log.Debug("pdf: activate", "browser_bin", opts.BrowserBin, "allow_download", opts.AllowDownload)
+	m.log.Debug("pdf: activate", "browser_bin", opts.BrowserBin)
 
 	var chosen ChromeCandidate
 	if opts.BrowserBin != "" {
