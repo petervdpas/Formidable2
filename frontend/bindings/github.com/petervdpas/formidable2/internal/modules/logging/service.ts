@@ -16,6 +16,20 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as log$0 from "../../log/models.js";
 
 /**
+ * LogFromFrontend re-publishes a SPA console.* call through the app's
+ * slog pipeline so frontend lines appear in both formidable.log and
+ * the live tail. Always tagged with source=frontend.
+ * 
+ * Level is one of "debug" | "info" | "warn" | "error"; anything else
+ * (or empty) falls back to "info". Empty/whitespace msgs are dropped.
+ * Always returns nil so the frontend wrapper never has to handle a
+ * reject path — losing a log line is preferable to looping.
+ */
+export function LogFromFrontend(level: string, msg: string, fields: { [_ in string]?: any }): $CancellablePromise<void> {
+    return $Call.ByID(1013856459, level, msg, fields);
+}
+
+/**
  * LogPath — resolved on-disk log path; "" means file logging is off.
  */
 export function LogPath(): $CancellablePromise<string> {

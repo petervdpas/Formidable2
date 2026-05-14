@@ -544,7 +544,7 @@ func New(d Deps) (*App, error) {
 		Expression:      expression.NewService(expressionM),
 		History:         historySvc,
 		Integrity:       integrity.NewService(integrityM),
-		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}))),
+		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
 		PDF:             pdf.NewService(pdfM),
 		templateManager: tplM,
 		storageManager:  stoM,

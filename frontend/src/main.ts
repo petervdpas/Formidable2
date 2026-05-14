@@ -5,6 +5,19 @@ import App from "./App.vue";
 import { i18n } from "./i18n";
 import { useI18nLoader } from "./composables/useI18nLoader";
 import { ensureFieldTypesLoaded } from "./types/field-types";
+import { installConsoleBridge } from "./utils/consoleBridge";
+import * as PdfSvc from "../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/service";
+
+// Re-publish console.* through the backend slog pipeline so frontend
+// lines appear in formidable.log + the Information→Logging live tail.
+// Devtools keeps receiving the originals unchanged.
+installConsoleBridge();
+console.info("spa: console bridge installed");
+
+// Dev-only debug pokes — exposed unconditionally for now so they're
+// reachable from devtools regardless of vite mode. Strip the whole
+// block before shipping a production build.
+(window as unknown as { __pdf: typeof PdfSvc }).__pdf = PdfSvc;
 
 // Kick off bundle load before mount so first paint already has the
 // active locale. The composable resolves itself on the second boot.

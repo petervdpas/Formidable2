@@ -20,3 +20,16 @@ func (s *Service) ReadFile() (string, error) { return s.mgr.ReadFile() }
 
 // LogPath — resolved on-disk log path; "" means file logging is off.
 func (s *Service) LogPath() string { return s.mgr.LogPath() }
+
+// LogFromFrontend re-publishes a SPA console.* call through the app's
+// slog pipeline so frontend lines appear in both formidable.log and
+// the live tail. Always tagged with source=frontend.
+//
+// Level is one of "debug" | "info" | "warn" | "error"; anything else
+// (or empty) falls back to "info". Empty/whitespace msgs are dropped.
+// Always returns nil so the frontend wrapper never has to handle a
+// reject path — losing a log line is preferable to looping.
+func (s *Service) LogFromFrontend(level, msg string, fields map[string]any) error {
+	s.mgr.WriteFromFrontend(level, msg, fields)
+	return nil
+}

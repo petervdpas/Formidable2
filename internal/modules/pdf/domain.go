@@ -43,6 +43,7 @@ func (m *Manager) Status() Status {
 // path that touches Chrome — there are no "activate by side effect"
 // flows.
 func (m *Manager) Activate(opts ActivateOpts) (Status, error) {
+	m.log.Debug("pdf: activate", "browser_bin", opts.BrowserBin, "allow_download", opts.AllowDownload)
 	return m.Status(), ErrPDFNotActivated
 }
 
@@ -51,6 +52,7 @@ func (m *Manager) Activate(opts ActivateOpts) (Status, error) {
 // Deactivate before Activate is a frontend bug, not an idempotent
 // no-op.
 func (m *Manager) Deactivate() error {
+	m.log.Debug("pdf: deactivate")
 	return ErrPDFNotActivated
 }
 
@@ -58,5 +60,6 @@ func (m *Manager) Deactivate() error {
 // activation check so the rendering pipeline is never constructed
 // while inactive — Chrome must not boot for an inactive engine.
 func (m *Manager) Export(formGUID string, opts ExportOpts) (Result, error) {
+	m.log.Debug("pdf: export", "form_guid", formGUID, "output_path", opts.OutputPath, "style", opts.Style)
 	return Result{}, ErrPDFNotActivated
 }
