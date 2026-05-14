@@ -63,7 +63,7 @@ func readJSONBody(t *testing.T, r *http.Request, v any) {
 
 func TestPushLocal_RejectsBlankContext(t *testing.T) {
 	m := NewManager(newFakeFS())
-	_, err := m.PushLocal(Connection{BaseURL: "https://x", Token: "t", RepoName: "r"}, "")
+	_, err := m.PushLocal(Connection{BaseURL: "https://x", Token: "t", RepoName: "r"}, "", "")
 	if !errors.Is(err, ErrMissingContext) {
 		t.Fatalf("want ErrMissingContext, got %v", err)
 	}
@@ -72,7 +72,7 @@ func TestPushLocal_RejectsBlankContext(t *testing.T) {
 func TestPushLocal_EmptyContextReturnsError(t *testing.T) {
 	m := NewManager(newFakeFS())
 	ctxDir := t.TempDir()
-	_, err := m.PushLocal(Connection{BaseURL: "https://x", Token: "t", RepoName: "r"}, ctxDir)
+	_, err := m.PushLocal(Connection{BaseURL: "https://x", Token: "t", RepoName: "r"}, ctxDir, "")
 	if !errors.Is(err, ErrEmptyContext) {
 		t.Fatalf("want ErrEmptyContext, got %v", err)
 	}
@@ -97,7 +97,7 @@ func TestPushLocal_FirstSyncSeedsFromTreeAndSkipsRePushOfMatchingBlobs(t *testin
 	// fails via the default 404 handler.
 
 	m := newOrchestrationManager(t, srv)
-	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestPushLocal_FirstSyncCommitsNewLocalFile(t *testing.T) {
 	})
 
 	m := newOrchestrationManager(t, srv)
-	_, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	_, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
 	if !errors.Is(err, ErrNoParentVersion) {
 		t.Fatalf("want ErrNoParentVersion on empty remote, got %v", err)
 	}
@@ -169,7 +169,7 @@ func TestPushLocal_SteadyStateCommitsChangedFile(t *testing.T) {
 	})
 	m = NewManager(fs, WithHTTPClient(srv.Client()))
 
-	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,7 @@ func TestPushLocal_DeletesVanishedManagedPath(t *testing.T) {
 	})
 	m = NewManager(fs, WithHTTPClient(srv.Client()))
 
-	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestPushLocal_NoopWhenLedgerMatchesDisk(t *testing.T) {
 	// No routes registered → any HTTP call fails the test via 404.
 	m = NewManager(fs, WithHTTPClient(srv.Client()))
 
-	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -543,7 +543,7 @@ func TestSync_RunsPushThenPullAggregatesResult(t *testing.T) {
 	})
 
 	m := newOrchestrationManager(t, srv)
-	res, err := m.Sync(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	res, err := m.Sync(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -573,7 +573,7 @@ func TestSync_PushFailureSkipsPull(t *testing.T) {
 	})
 
 	m := newOrchestrationManager(t, srv)
-	_, err := m.Sync(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	_, err := m.Sync(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
 	if err == nil {
 		t.Fatal("push failure should propagate")
 	}

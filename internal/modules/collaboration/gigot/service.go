@@ -241,12 +241,15 @@ func (s *Service) LedgerSummary() (*LedgerSummary, error) {
 // PushLocal walks the active context folder, diffs against the track-
 // record, and commits changed files to the server. On success records
 // a journal sync entry so Pending(gigot) reflects the post-push state.
-func (s *Service) PushLocal() (*PushResult, error) {
+//
+// message is the user-supplied commit subject; blank falls back to an
+// auto-generated audit string. Mirrors the textarea on the Sync panel.
+func (s *Service) PushLocal(message string) (*PushResult, error) {
 	conn, err := s.resolveConnection(true)
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.m.PushLocal(conn, s.resolveContextFolder())
+	res, err := s.m.PushLocal(conn, s.resolveContextFolder(), message)
 	if err != nil {
 		return res, err
 	}
@@ -299,12 +302,13 @@ func (s *Service) Reclone() (*PullResult, error) {
 // Sync runs PushLocal then PullLocal at the Service layer so each
 // half emits its own journal entry via the wrapper methods. A push
 // failure aborts before pull to preserve unpushed local changes —
-// symmetric with the git Service and with Manager.Sync.
-func (s *Service) Sync() (*SyncResult, error) {
+// symmetric with the git Service and with Manager.Sync. message
+// threads through to the push half; pull is read-only.
+func (s *Service) Sync(message string) (*SyncResult, error) {
 	if _, err := s.resolveConnection(true); err != nil {
 		return nil, err
 	}
-	push, err := s.PushLocal()
+	push, err := s.PushLocal(message)
 	if err != nil {
 		return nil, err
 	}

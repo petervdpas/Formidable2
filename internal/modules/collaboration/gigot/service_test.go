@@ -217,7 +217,7 @@ func TestService_AuthorFlowsIntoCommitConnection(t *testing.T) {
 	profile := &fakeProfile{name: "default.json"}
 
 	s := NewService(m, creds, profile, cfg, nil)
-	if _, err := s.PushLocal(); err != nil {
+	if _, err := s.PushLocal(""); err != nil {
 		t.Fatal(err)
 	}
 	if commit.Author == nil {
@@ -252,7 +252,7 @@ func TestService_NoAuthorWhenConfigBlank(t *testing.T) {
 	profile := &fakeProfile{name: "default.json"}
 
 	s := NewService(m, creds, profile, cfg, nil)
-	if _, err := s.PushLocal(); err != nil {
+	if _, err := s.PushLocal(""); err != nil {
 		t.Fatal(err)
 	}
 	if commit.Author != nil {
@@ -285,7 +285,7 @@ func TestService_PushLocalRecordsSyncOnSuccess(t *testing.T) {
 	jrnl := &fakeJournal{}
 
 	s := NewService(m, creds, profile, cfg, jrnl)
-	if _, err := s.PushLocal(); err != nil {
+	if _, err := s.PushLocal(""); err != nil {
 		t.Fatal(err)
 	}
 	syncs, seens := jrnl.snapshot()
@@ -323,7 +323,7 @@ func TestService_PushLocalDoesNotRecordOnNoop(t *testing.T) {
 	jrnl := &fakeJournal{}
 
 	s := NewService(m, creds, profile, cfg, jrnl)
-	if _, err := s.PushLocal(); err != nil {
+	if _, err := s.PushLocal(""); err != nil {
 		t.Fatal(err)
 	}
 	syncs, _ := jrnl.snapshot()
@@ -383,7 +383,7 @@ func TestService_SyncDoesNotDoubleRecord(t *testing.T) {
 	jrnl := &fakeJournal{}
 
 	s := NewService(m, creds, profile, cfg, jrnl)
-	if _, err := s.Sync(); err != nil {
+	if _, err := s.Sync(""); err != nil {
 		t.Fatal(err)
 	}
 	syncs, seens := jrnl.snapshot()
@@ -466,7 +466,7 @@ func TestService_JournalNilDoesNotPanic(t *testing.T) {
 	profile := &fakeProfile{name: "default.json"}
 
 	s := NewService(m, creds, profile, cfg, nil) // nil journal
-	if _, err := s.Sync(); err != nil {
+	if _, err := s.Sync(""); err != nil {
 		t.Fatal(err)
 	}
 }

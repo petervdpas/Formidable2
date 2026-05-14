@@ -3,6 +3,11 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
 import ProgressBar from "../../components/ProgressBar.vue";
+import {
+  FormSection,
+  FormRow,
+  TextareaField,
+} from "../../components/fields";
 import { Service as GigotSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
 import type {
   LedgerSummary,
@@ -37,6 +42,7 @@ const errorMsg = ref("");
 const pushing = ref(false);
 const pulling = ref(false);
 const syncing = ref(false);
+const message = ref("");
 
 const progressCurrent = ref(0);
 const progressTotal = ref(0);
@@ -151,7 +157,7 @@ async function doPush() {
   resetProgress();
   pushing.value = true;
   try {
-    const res = await GigotSvc.PushLocal();
+    const res = await GigotSvc.PushLocal(message.value);
     if (!res) throw new Error("no response");
     if (res.noop) {
       toast.info("workspace.collaboration.gigot.sync.push.noop");
@@ -161,6 +167,7 @@ async function doPush() {
         String(res.deleted ?? 0),
         res.version ?? "",
       ]);
+      message.value = "";
     }
     await load(false);
   } catch (err) {
@@ -197,12 +204,13 @@ async function doSync() {
   resetProgress();
   syncing.value = true;
   try {
-    const res = await GigotSvc.Sync();
+    const res = await GigotSvc.Sync(message.value);
     if (!res) throw new Error("no response");
     if (res.noop) {
       toast.info("workspace.collaboration.gigot.sync.sync.noop");
     } else {
       toast.success("workspace.collaboration.gigot.sync.sync.success", [res.version ?? ""]);
+      message.value = "";
     }
     await load(false);
   } catch (err) {
@@ -272,6 +280,19 @@ async function doSync() {
         <li v-for="p in summary.deleted" :key="`d:${p}`">{{ p }}</li>
       </ul>
     </details>
+
+    <FormSection
+      v-if="hasPending"
+      :title="t('workspace.collaboration.gigot.sync.message_title')"
+    >
+      <FormRow :label="t('workspace.collaboration.gigot.sync.message_label')">
+        <TextareaField
+          v-model="message"
+          :placeholder="t('workspace.collaboration.gigot.sync.message_placeholder')"
+          :rows="3"
+        />
+      </FormRow>
+    </FormSection>
 
     <ProgressBar
       :active="inFlight"

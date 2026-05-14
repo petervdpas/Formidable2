@@ -17,9 +17,14 @@ import (
 // re-push files the remote already has. Steady state is /head +
 // /commits only.
 //
+// message is the user-supplied commit subject. When blank (or
+// whitespace-only), buildCommitMessage falls back to an auto-generated
+// "<who>: sync N file(s)" audit string so back-end audit trails always
+// have *something* useful even on programmatic pushes.
+//
 // The on-disk state is not assumed to be a git working tree — blob
 // SHAs are computed from raw bytes via GitBlobSha; no .git/ is touched.
-func (m *Manager) PushLocal(conn Connection, contextFolder string) (*PushResult, error) {
+func (m *Manager) PushLocal(conn Connection, contextFolder string, message string) (*PushResult, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
 	}
@@ -86,7 +91,7 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string) (*PushResult,
 	req := CommitRequest{
 		ParentVersion: head.Version,
 		Changes:       changes,
-		Message:       buildCommitMessage(conn, changes),
+		Message:       chooseCommitMessage(message, conn, changes),
 	}
 	if conn.Author != nil && (conn.Author.Name != "" || conn.Author.Email != "") {
 		req.Author = conn.Author
@@ -268,8 +273,9 @@ func (m *Manager) RecloneWithProgress(conn Connection, contextFolder string, cb 
 
 // Sync runs PushLocal then PullLocal. A push error aborts before pull
 // so unpushed local changes aren't overwritten — symmetric with the
-// git Service's sync behaviour.
-func (m *Manager) Sync(conn Connection, contextFolder string) (*SyncResult, error) {
+// git Service's sync behaviour. message threads through to the push
+// half; the pull half is read-only.
+func (m *Manager) Sync(conn Connection, contextFolder string, message string) (*SyncResult, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
 	}
@@ -277,7 +283,7 @@ func (m *Manager) Sync(conn Connection, contextFolder string) (*SyncResult, erro
 		return nil, ErrMissingContext
 	}
 
-	push, err := m.PushLocal(conn, contextFolder)
+	push, err := m.PushLocal(conn, contextFolder, message)
 	if err != nil {
 		return nil, err
 	}
@@ -368,6 +374,18 @@ func reconcileLedger(rec *TrackRecord, diff DiffResult, resp *CommitResponse) {
 	for _, p := range diff.Deleted {
 		delete(rec.Files, p)
 	}
+}
+
+// chooseCommitMessage picks the commit subject sent to gigot. A
+// non-blank user-supplied message wins verbatim; whitespace-only or
+// empty falls back to the auto-generated audit string so the server's
+// audit log never carries a literal empty message.
+func chooseCommitMessage(userMessage string, conn Connection, changes []Change) string {
+	trimmed := strings.TrimSpace(userMessage)
+	if trimmed != "" {
+		return userMessage
+	}
+	return buildCommitMessage(conn, changes)
 }
 
 // buildCommitMessage produces an audit-friendly commit subject for a

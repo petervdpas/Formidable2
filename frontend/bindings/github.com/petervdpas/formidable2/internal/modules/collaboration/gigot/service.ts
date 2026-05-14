@@ -140,9 +140,12 @@ export function PullLocal(): $CancellablePromise<$models.PullResult | null> {
  * PushLocal walks the active context folder, diffs against the track-
  * record, and commits changed files to the server. On success records
  * a journal sync entry so Pending(gigot) reflects the post-push state.
+ * 
+ * message is the user-supplied commit subject; blank falls back to an
+ * auto-generated audit string. Mirrors the textarea on the Sync panel.
  */
-export function PushLocal(): $CancellablePromise<$models.PushResult | null> {
-    return $Call.ByID(2354794967).then(($result: any) => {
+export function PushLocal(message: string): $CancellablePromise<$models.PushResult | null> {
+    return $Call.ByID(2354794967, message).then(($result: any) => {
         return $$createType22($result);
     });
 }
@@ -164,10 +167,11 @@ export function Reclone(): $CancellablePromise<$models.PullResult | null> {
  * Sync runs PushLocal then PullLocal at the Service layer so each
  * half emits its own journal entry via the wrapper methods. A push
  * failure aborts before pull to preserve unpushed local changes —
- * symmetric with the git Service and with Manager.Sync.
+ * symmetric with the git Service and with Manager.Sync. message
+ * threads through to the push half; pull is read-only.
  */
-export function Sync(): $CancellablePromise<$models.SyncResult | null> {
-    return $Call.ByID(3163057171).then(($result: any) => {
+export function Sync(message: string): $CancellablePromise<$models.SyncResult | null> {
+    return $Call.ByID(3163057171, message).then(($result: any) => {
         return $$createType24($result);
     });
 }
