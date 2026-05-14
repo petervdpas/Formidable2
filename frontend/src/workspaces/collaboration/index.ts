@@ -1,10 +1,10 @@
 import type { Component } from "vue";
 import CurrentService from "./CurrentService.vue";
-import Sync from "./Sync.vue";
+import GitSync from "./GitSync.vue";
 import GitClone from "./GitClone.vue";
 import CommitGraphView from "./CommitGraphView.vue";
 import GigotConnect from "./GigotConnect.vue";
-import GigotSync from "./GigotSync.vue";
+import GigotClone from "./GigotClone.vue";
 
 export type CollaborationSectionId =
   | "current-service"
@@ -12,7 +12,7 @@ export type CollaborationSectionId =
   | "git-clone"
   | "git-graph"
   | "gigot-connect"
-  | "gigot-sync";
+  | "gigot-clone";
 export type CollaborationBackend = "git" | "gigot";
 
 export interface CollaborationSection {
@@ -37,19 +37,19 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
   },
   {
     id: "git-sync",
-    labelKey: "workspace.collaboration.section.sync",
-    component: Sync,
+    labelKey: "workspace.collaboration.section.git_sync",
+    component: GitSync,
     backend: "git",
   },
   {
     id: "git-graph",
-    labelKey: "workspace.collaboration.section.graph",
+    labelKey: "workspace.collaboration.section.git_graph",
     component: CommitGraphView,
     backend: "git",
   },
   {
     id: "git-clone",
-    labelKey: "workspace.collaboration.section.clone",
+    labelKey: "workspace.collaboration.section.git_clone",
     component: GitClone,
     backend: "git",
   },
@@ -60,9 +60,9 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
     backend: "gigot",
   },
   {
-    id: "gigot-sync",
-    labelKey: "workspace.collaboration.section.sync",
-    component: GigotSync,
+    id: "gigot-clone",
+    labelKey: "workspace.collaboration.section.gigot_clone",
+    component: GigotClone,
     backend: "gigot",
   },
 ];

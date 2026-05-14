@@ -1,25 +1,15 @@
-/* Collaboration workspace — operations under each remote backend.
-   Currently only the Git Clone form needs custom layout (action
-   button alignment under the connection form). */
+/* Collaboration workspace — git backend.
+   Keeps git-only rules in their own file so the gigot stylesheet
+   can evolve independently. Shared layout primitives (flex columns,
+   gaps) are intentionally duplicated rather than abstracted across
+   backends — divergence between git and gigot is expected. */
 
 .git-clone-actions,
-.git-commit-actions,
-.gigot-connect-actions,
-.gigot-sync-actions {
+.git-commit-actions {
     display: flex;
     justify-content: flex-end;
     gap: var(--space-2);
     margin-top: var(--space-1);
-}
-
-.gigot-sync-note {
-    margin-top: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    color: var(--color-text-muted);
-    font-style: italic;
 }
 
 /* Repository status panel — read-only summary of the worktree state

@@ -10,15 +10,11 @@ import { useConfig } from "../../composables/useConfig";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
-// Repository Sync — gigot edition. Initial scope: Clone (fetch the
-// server's HEAD into the configured context folder) + Re-clone
-// (wipe managed paths first, then fetch). Both target the active
-// profile's gigot_base_url / gigot_repo_name; the subscription bearer
-// is resolved server-side from the OS keychain so no secret crosses
-// the Wails bridge.
-//
-// Push / Pull / Sync land here in the next iteration once the
-// commit / journal-status surface is fleshed out.
+// Clone Repository — gigot edition. Mirrors git's Clone Repository
+// section: ingests the configured server's HEAD into the active
+// context folder. Clone is a merge-aware pull; Re-clone wipes managed
+// paths first. Push / Pull / Fetch — the actual sync ops — live in the
+// future Repository Sync section, parallel to git/Sync.vue.
 
 const { t } = useI18n();
 const { config } = useConfig();
@@ -48,9 +44,9 @@ const canAct = computed(() => !inFlight.value && configured.value);
 
 const progressLabel = computed(() => {
   const op = cloning.value
-    ? t("workspace.collaboration.gigot.sync.clone.running")
+    ? t("workspace.collaboration.gigot.clone.running")
     : recloning.value
-      ? t("workspace.collaboration.gigot.sync.reclone.running")
+      ? t("workspace.collaboration.gigot.clone.reclone.running")
       : "";
   if (!op) return "";
   if (progressPath.value) {
@@ -92,13 +88,13 @@ async function doClone() {
   try {
     const res = await GigotSvc.PullLocal();
     if (!res) throw new Error("no response");
-    toast.success("workspace.collaboration.gigot.sync.clone.success", [
+    toast.success("workspace.collaboration.gigot.clone.success", [
       String(res.files ?? 0),
       String(res.deleted ?? 0),
       res.version ?? "",
     ]);
   } catch (err) {
-    toast.error("workspace.collaboration.gigot.sync.clone.error", [backendErrMessage(err)]);
+    toast.error("workspace.collaboration.gigot.clone.error", [backendErrMessage(err)]);
   } finally {
     cloning.value = false;
     resetProgress();
@@ -118,12 +114,12 @@ async function doReclone() {
   try {
     const res = await GigotSvc.Reclone();
     if (!res) throw new Error("no response");
-    toast.success("workspace.collaboration.gigot.sync.reclone.success", [
+    toast.success("workspace.collaboration.gigot.clone.reclone.success", [
       String(res.files ?? 0),
       res.version ?? "",
     ]);
   } catch (err) {
-    toast.error("workspace.collaboration.gigot.sync.reclone.error", [backendErrMessage(err)]);
+    toast.error("workspace.collaboration.gigot.clone.reclone.error", [backendErrMessage(err)]);
   } finally {
     recloning.value = false;
     resetProgress();
@@ -132,10 +128,10 @@ async function doReclone() {
 </script>
 
 <template>
-  <p class="section-info">{{ t('workspace.collaboration.gigot.sync.info') }}</p>
+  <p class="section-info">{{ t('workspace.collaboration.gigot.clone.info') }}</p>
 
-  <div v-if="!configured && !inFlight" class="gigot-sync-note">
-    {{ t('workspace.collaboration.gigot.sync.not_configured') }}
+  <div v-if="!configured && !inFlight" class="gigot-clone-note">
+    {{ t('workspace.collaboration.gigot.clone.not_configured') }}
   </div>
 
   <ProgressBar
@@ -145,14 +141,14 @@ async function doReclone() {
     :total="progressTotal"
   />
 
-  <div class="gigot-sync-actions">
+  <div class="gigot-clone-actions">
     <button
       type="button"
       class="tool-btn primary"
       :disabled="!canAct"
       @click="doClone"
     >
-      {{ cloning ? t('workspace.collaboration.gigot.sync.clone.running') : t('workspace.collaboration.gigot.sync.clone.button') }}
+      {{ cloning ? t('workspace.collaboration.gigot.clone.running') : t('workspace.collaboration.gigot.clone.button') }}
     </button>
     <button
       type="button"
@@ -160,15 +156,15 @@ async function doReclone() {
       :disabled="!canAct"
       @click="askReclone"
     >
-      {{ recloning ? t('workspace.collaboration.gigot.sync.reclone.running') : t('workspace.collaboration.gigot.sync.reclone.button') }}
+      {{ recloning ? t('workspace.collaboration.gigot.clone.reclone.running') : t('workspace.collaboration.gigot.clone.reclone.button') }}
     </button>
   </div>
 
   <ConfirmDialog
     :open="confirmReclone"
-    :title="t('workspace.collaboration.gigot.sync.reclone.confirm_title')"
-    :message="t('workspace.collaboration.gigot.sync.reclone.confirm_message', [contextFolder])"
-    :confirm-label="t('workspace.collaboration.gigot.sync.reclone.button')"
+    :title="t('workspace.collaboration.gigot.clone.reclone.confirm_title')"
+    :message="t('workspace.collaboration.gigot.clone.reclone.confirm_message', [contextFolder])"
+    :confirm-label="t('workspace.collaboration.gigot.clone.reclone.button')"
     :cancel-label="t('common.cancel')"
     variant="danger"
     @cancel="confirmReclone = false"

@@ -73,6 +73,7 @@
 @import "./workspace-settings.css";
 @import "./workspace-storage.css";
 @import "./workspace-plugins.css";
-@import "./workspace-collaboration.css";
+@import "./workspace-collaboration-git.css";
+@import "./workspace-collaboration-gigot.css";
 @import "./workspace-information.css";
 
