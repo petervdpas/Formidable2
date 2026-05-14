@@ -463,11 +463,118 @@ jobs:
           path: dist/*
 
   # ───────────────────────────────────────────────────────────────
+  # macOS — universal .app bundle wrapped in a drag-to-Applications
+  # .dmg. Built natively on macos-14 (Apple Silicon) which has both
+  # lipo and hdiutil available. The .app is ad-hoc signed only
+  # (codesign --sign -); on download users get a Gatekeeper warning
+  # and must right-click → Open the first time, or run
+  # `xattr -d com.apple.quarantine` on the .app. To upgrade to
+  # Developer ID signing + notarization, set SIGN_IDENTITY and
+  # KEYCHAIN_PROFILE in build/darwin/Taskfile.yml.
+  # ───────────────────────────────────────────────────────────────
+  macos:
+    name: macOS (universal)
+    needs: [test]
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "VERSION=dev-${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails 3 CLI
+        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Regenerate Wails bindings
+        run: wails3 generate bindings -clean -ts
+
+      - name: Build universal binary
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          CGO_ENABLED: "1"
+          MACOSX_DEPLOYMENT_TARGET: "12.0"
+          CGO_CFLAGS: "-mmacosx-version-min=12.0"
+          CGO_LDFLAGS: "-mmacosx-version-min=12.0"
+        run: |
+          mkdir -p bin
+          GOOS=darwin GOARCH=amd64 \
+            go build -tags production -trimpath -buildvcs=false \
+              -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+              -o bin/Formidable-amd64 .
+          GOOS=darwin GOARCH=arm64 \
+            go build -tags production -trimpath -buildvcs=false \
+              -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+              -o bin/Formidable-arm64 .
+          lipo -create -output bin/Formidable bin/Formidable-amd64 bin/Formidable-arm64
+          rm bin/Formidable-amd64 bin/Formidable-arm64
+
+      - name: Assemble .app bundle
+        run: |
+          APP="bin/Formidable.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp build/darwin/icons.icns "$APP/Contents/Resources/"
+          if [ -f build/darwin/Assets.car ]; then
+            cp build/darwin/Assets.car "$APP/Contents/Resources/"
+          fi
+          cp bin/Formidable "$APP/Contents/MacOS/"
+          cp build/darwin/Info.plist "$APP/Contents/"
+          codesign --force --deep --sign - "$APP"
+
+      - name: Build .dmg
+        run: |
+          mkdir -p bin/dmg-staging
+          cp -R bin/Formidable.app bin/dmg-staging/
+          ln -sf /Applications bin/dmg-staging/Applications
+          hdiutil create \
+            -volname "Formidable" \
+            -srcfolder bin/dmg-staging \
+            -ov -format UDZO \
+            bin/Formidable-macos-universal.dmg
+          rm -rf bin/dmg-staging
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p dist
+          cp bin/Formidable-macos-universal.dmg dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: dist/*
+
+  # ───────────────────────────────────────────────────────────────
   # Aggregate every build's artifacts into one GitHub Release.
   # ───────────────────────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [windows, linux_debian, linux_raspi, linux_fedora43]
+    needs: [windows, linux_debian, linux_raspi, linux_fedora43, macos]
     # Only auto-publish on actual tag pushes — workflow_dispatch runs
     # exercise the build matrix without making a release.
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')

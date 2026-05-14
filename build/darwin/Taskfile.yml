@@ -169,6 +169,24 @@ tasks:
     cmds:
       - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
 
+  dmg:universal:
+    summary: Packages the universal `.app` into a drag-to-Applications `.dmg`
+    desc: |
+      Produces {{.BIN_DIR}}/Formidable-macos-universal.dmg with an /Applications
+      symlink for drag-to-install. Requires macOS (uses hdiutil).
+    deps:
+      - task: package:universal
+    cmds:
+      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-macos-universal.dmg"
+      - mkdir -p "{{.BIN_DIR}}/dmg-staging"
+      - cp -R "{{.BIN_DIR}}/{{.APP_NAME}}.app" "{{.BIN_DIR}}/dmg-staging/"
+      - ln -sf /Applications "{{.BIN_DIR}}/dmg-staging/Applications"
+      - hdiutil create -volname "{{.APP_NAME}}" -srcfolder "{{.BIN_DIR}}/dmg-staging" -ov -format UDZO "{{.BIN_DIR}}/{{.APP_NAME}}-macos-universal.dmg"
+      - rm -rf "{{.BIN_DIR}}/dmg-staging"
+    preconditions:
+      - sh: '[ "$(uname)" = "Darwin" ]'
+        msg: "dmg:universal requires macOS (hdiutil is not available on {{OS}})."
+
   run:
     cmds:
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
