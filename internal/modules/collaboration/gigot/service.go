@@ -226,6 +226,18 @@ func (s *Service) DestinationSync(destinationID string) (*Destination, error) {
 	return s.m.DestinationSync(conn, destinationID)
 }
 
+// LedgerSummary is a read-only preview of the client-side track record
+// and on-disk pending diff. No HTTP — drives the Sync UI's "what would
+// Push send / what would Pull bring back" hints without a round-trip.
+// Returns ErrMissingContext when no context folder is configured.
+func (s *Service) LedgerSummary() (*LedgerSummary, error) {
+	ctx := s.resolveContextFolder()
+	if ctx == "" {
+		return nil, ErrMissingContext
+	}
+	return s.m.LedgerSummary(ctx)
+}
+
 // PushLocal walks the active context folder, diffs against the track-
 // record, and commits changed files to the server. On success records
 // a journal sync entry so Pending(gigot) reflects the post-push state.

@@ -80,6 +80,18 @@ export function Head(): $CancellablePromise<$models.HeadResponse | null> {
 }
 
 /**
+ * LedgerSummary is a read-only preview of the client-side track record
+ * and on-disk pending diff. No HTTP — drives the Sync UI's "what would
+ * Push send / what would Pull bring back" hints without a round-trip.
+ * Returns ErrMissingContext when no context folder is configured.
+ */
+export function LedgerSummary(): $CancellablePromise<$models.LedgerSummary | null> {
+    return $Call.ByID(3722675911).then(($result: any) => {
+        return $$createType12($result);
+    });
+}
+
+/**
  * Log issues GET /api/repos/{repo}/log[?limit=N&with_changes=1].
  * limit<=0 collapses to the server's default page size. withChanges=true
  * asks the server to attach each commit's per-path file changes — the
@@ -87,7 +99,7 @@ export function Head(): $CancellablePromise<$models.HeadResponse | null> {
  */
 export function Log(limit: number, withChanges: boolean): $CancellablePromise<$models.RepoLogResponse | null> {
     return $Call.ByID(3932174922, limit, withChanges).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -97,7 +109,7 @@ export function Log(limit: number, withChanges: boolean): $CancellablePromise<$m
  */
 export function Me(): $CancellablePromise<$models.MeResponse | null> {
     return $Call.ByID(953749150).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
@@ -107,7 +119,7 @@ export function Me(): $CancellablePromise<$models.MeResponse | null> {
  */
 export function Ping(): $CancellablePromise<$models.HealthResponse | null> {
     return $Call.ByID(412478704).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
@@ -120,7 +132,7 @@ export function Ping(): $CancellablePromise<$models.HealthResponse | null> {
  */
 export function PullLocal(): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2176880118).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
@@ -131,7 +143,7 @@ export function PullLocal(): $CancellablePromise<$models.PullResult | null> {
  */
 export function PushLocal(): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2354794967).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType22($result);
     });
 }
 
@@ -144,7 +156,7 @@ export function PushLocal(): $CancellablePromise<$models.PushResult | null> {
  */
 export function Reclone(): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(477795670).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
@@ -156,7 +168,7 @@ export function Reclone(): $CancellablePromise<$models.PullResult | null> {
  */
 export function Sync(): $CancellablePromise<$models.SyncResult | null> {
     return $Call.ByID(3163057171).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType24($result);
     });
 }
 
@@ -165,7 +177,7 @@ export function Sync(): $CancellablePromise<$models.SyncResult | null> {
  */
 export function Tree(): $CancellablePromise<$models.TreeResponse | null> {
     return $Call.ByID(3123842464).then(($result: any) => {
-        return $$createType24($result);
+        return $$createType26($result);
     });
 }
 
@@ -181,17 +193,19 @@ const $$createType7 = $models.FileResponse.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
 const $$createType9 = $models.HeadResponse.createFrom;
 const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = $models.RepoLogResponse.createFrom;
+const $$createType11 = $models.LedgerSummary.createFrom;
 const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = $models.MeResponse.createFrom;
+const $$createType13 = $models.RepoLogResponse.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = $models.HealthResponse.createFrom;
+const $$createType15 = $models.MeResponse.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = $models.PullResult.createFrom;
+const $$createType17 = $models.HealthResponse.createFrom;
 const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = $models.PushResult.createFrom;
+const $$createType19 = $models.PullResult.createFrom;
 const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = $models.SyncResult.createFrom;
+const $$createType21 = $models.PushResult.createFrom;
 const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $models.TreeResponse.createFrom;
+const $$createType23 = $models.SyncResult.createFrom;
 const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = $models.TreeResponse.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);

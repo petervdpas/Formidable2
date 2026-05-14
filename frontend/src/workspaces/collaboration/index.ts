@@ -4,6 +4,7 @@ import GitSync from "./GitSync.vue";
 import GitClone from "./GitClone.vue";
 import CommitGraphView from "./CommitGraphView.vue";
 import GigotConnect from "./GigotConnect.vue";
+import GigotSync from "./GigotSync.vue";
 import GigotClone from "./GigotClone.vue";
 
 export type CollaborationSectionId =
@@ -12,6 +13,7 @@ export type CollaborationSectionId =
   | "git-clone"
   | "git-graph"
   | "gigot-connect"
+  | "gigot-sync"
   | "gigot-clone";
 export type CollaborationBackend = "git" | "gigot";
 
@@ -57,6 +59,12 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
     id: "gigot-connect",
     labelKey: "workspace.collaboration.section.gigot_connect",
     component: GigotConnect,
+    backend: "gigot",
+  },
+  {
+    id: "gigot-sync",
+    labelKey: "workspace.collaboration.section.gigot_sync",
+    component: GigotSync,
     backend: "gigot",
   },
   {

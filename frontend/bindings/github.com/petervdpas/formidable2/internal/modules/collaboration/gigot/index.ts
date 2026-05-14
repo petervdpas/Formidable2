@@ -15,6 +15,7 @@ export {
     FormidableTemplate,
     HeadResponse,
     HealthResponse,
+    LedgerSummary,
     LogEntry,
     MeResponse,
     PullResult,

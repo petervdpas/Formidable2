@@ -338,6 +338,19 @@ type ProgressFunc func(SyncProgress)
 // typed events so the frontend gets a typed subscription signature.
 const EventSyncProgress = "gigot:sync_progress"
 
+// LedgerSummary is a purely-local snapshot of the client-side track
+// record + how the on-disk context folder differs from it. Cheap to
+// compute (no HTTP) so the Sync UI can render pending state without a
+// server round-trip. The Sync UI pairs this with a Head() probe when
+// it needs an ahead/behind hint relative to the server.
+type LedgerSummary struct {
+	Version  string   `json:"version"`
+	LastSync string   `json:"lastSync"`
+	Changed  []string `json:"changed"`
+	Deleted  []string `json:"deleted"`
+	Scanned  int      `json:"scanned"`
+}
+
 // SyncResult is what Sync returns on success — the combined push+pull
 // outcome. Noop is true only when both halves were quiet.
 type SyncResult struct {

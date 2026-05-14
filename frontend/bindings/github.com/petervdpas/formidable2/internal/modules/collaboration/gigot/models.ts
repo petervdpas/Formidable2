@@ -250,6 +250,58 @@ export class HealthResponse {
 }
 
 /**
+ * LedgerSummary is a purely-local snapshot of the client-side track
+ * record + how the on-disk context folder differs from it. Cheap to
+ * compute (no HTTP) so the Sync UI can render pending state without a
+ * server round-trip. The Sync UI pairs this with a Head() probe when
+ * it needs an ahead/behind hint relative to the server.
+ */
+export class LedgerSummary {
+    "version": string;
+    "lastSync": string;
+    "changed": string[];
+    "deleted": string[];
+    "scanned": number;
+
+    /** Creates a new LedgerSummary instance. */
+    constructor($$source: Partial<LedgerSummary> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("lastSync" in $$source)) {
+            this["lastSync"] = "";
+        }
+        if (!("changed" in $$source)) {
+            this["changed"] = [];
+        }
+        if (!("deleted" in $$source)) {
+            this["deleted"] = [];
+        }
+        if (!("scanned" in $$source)) {
+            this["scanned"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LedgerSummary instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LedgerSummary {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("changed" in $$parsedSource) {
+            $$parsedSource["changed"] = $$createField2_0($$parsedSource["changed"]);
+        }
+        if ("deleted" in $$parsedSource) {
+            $$parsedSource["deleted"] = $$createField3_0($$parsedSource["deleted"]);
+        }
+        return new LedgerSummary($$parsedSource as Partial<LedgerSummary>);
+    }
+}
+
+/**
  * LogEntry is one row in a RepoLogResponse. Date is RFC3339 in the
  * commit author's stored offset. Parents and Refs are populated
  * unconditionally on the server side so graph-style UIs can render
