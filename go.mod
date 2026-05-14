@@ -1,9 +1,10 @@
 module github.com/petervdpas/formidable2
 
-go 1.25.0
+go 1.25.4
 
 require (
 	github.com/alecthomas/chroma/v2 v2.23.1
+	github.com/alnah/picoloom/v2 v2.1.2
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/cucumber/godog v0.15.1
 	github.com/expr-lang/expr v1.17.8
@@ -37,6 +38,7 @@ require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/go-rod/rod v0.116.2 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/gofrs/uuid v4.3.1+incompatible // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
@@ -63,6 +65,11 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
+	github.com/ysmood/fetchup v0.2.3 // indirect
+	github.com/ysmood/goob v0.4.0 // indirect
+	github.com/ysmood/got v0.40.0 // indirect
+	github.com/ysmood/gson v0.7.3 // indirect
+	github.com/ysmood/leakless v0.9.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect

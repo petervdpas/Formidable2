@@ -39,6 +39,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/history"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
+	"github.com/petervdpas/formidable2/internal/modules/pdf"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
@@ -107,6 +108,7 @@ type App struct {
 	History      *history.Service
 	Integrity    *integrity.Service
 	Logging      *logging.Service
+	PDF          *pdf.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -510,6 +512,12 @@ func New(d Deps) (*App, error) {
 	// the Manager stays transport-neutral.
 	gigotM := gigot.NewManager(sysM)
 
+	// PDF export — Stage 1 skeleton. Manager is inactive on boot;
+	// activation flow lands in Stage 2 (per-machine state lives at
+	// <AppRoot>/config/pdf-state.json, NOT in user.json — browser_bin
+	// is a machine-specific path). See design/pdf-export.md.
+	pdfM := pdf.NewManager(d.Logger)
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -537,6 +545,7 @@ func New(d Deps) (*App, error) {
 		History:         historySvc,
 		Integrity:       integrity.NewService(integrityM),
 		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}))),
+		PDF:             pdf.NewService(pdfM),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,

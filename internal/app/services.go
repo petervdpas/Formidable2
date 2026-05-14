@@ -30,5 +30,6 @@ func (a *App) WailsServices() []application.Service {
 		application.NewService(a.History),
 		application.NewService(a.Integrity),
 		application.NewService(a.Logging),
+		application.NewService(a.PDF),
 	}
 }

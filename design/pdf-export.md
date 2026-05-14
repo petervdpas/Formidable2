@@ -17,8 +17,9 @@ See [architecture.md](architecture.md) for module conventions and [migration-pla
 | Module | `internal/modules/pdf/` — peer to `render`, `wiki`, `api`. Singular data-model name per project convention. |
 | Lifecycle | Lazy opt-in. Service refuses to render until activated. |
 | Activation surface | Information page panel, alongside Wiki/API status panels. Same UX pattern as those services. |
-| Chrome runtime | Probe `ROD_BROWSER_BIN` → standard install paths → managed Chromium download (~55 MB) on user confirmation. Slim installer, no bundled Chromium. |
+| Chrome runtime | Probe `ROD_BROWSER_BIN` → standard install paths → managed Chromium download (~150 MB zip, ~530 MB unpacked — see Stage 0 findings) on user confirmation. Slim installer, no bundled Chromium. |
 | Override priority | `frontmatter > form meta > template manifest > global config`. |
+| Activation persistence | Per-machine state file at `<AppRoot>/config/pdf-state.json`, owned by the pdf module via `system.Manager`. **Not** in `user.json` — `browser_bin` is machine-specific and would break under gigot/git sync. (Settled 2026-05-14; earlier draft of this doc said `config.Manager` under a `pdf:` block — that was wrong.) |
 | Frontmatter schema | Nested, mirrors `picoloom.Input` (`cover:`, `toc:`, `watermark:`, `page:`, `pageBreaks:`, `signature:`, `footer:`). All four override layers share this schema. |
 | Frontmatter origin | Lives in template source. Survives the raymond Handlebars pass, so `cover.title: "{{form.title}}"` resolves before picoloom strips it. |
 | Render integration | Picoloom's md→html→pdf path replaces the goldmark+chroma half of `render` for PDF output only. Wiki/API paths still use full `render`. Pipeline forks after raymond expansion. |
@@ -163,6 +164,16 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
 
 **Definition of done**: PoC produces a valid PDF; build size delta documented; throwaway code removed.
 
+#### Stage 0 — findings (2026-05-14)
+
+- **Versions pinned**: `github.com/alnah/picoloom/v2 v2.1.2`, transitive `github.com/go-rod/rod v0.116.2`.
+- **Go directive bump**: `go get` raised `go 1.25.0` → `go 1.25.4` (one of the ysmood deps requires it).
+- **Binary size delta**: minimal `cmd/` main 4.8 MB → with picoloom import 25.4 MB (+20.6 MB). Most of that is go-rod + its CDP/JS-injection blobs.
+- **Managed-download first run**: ~80s on dev network. Zip is ~140 MB, unpacks to **533 MB** at `~/.cache/rod/browser/chromium-1321438`. **The design doc's "~55 MB" figure is wrong** — that's roughly the compressed delta. Activation UX should say something like "downloads Chromium (~150 MB compressed, ~530 MB on disk)".
+- **Warm-cache render**: 830 ms managed / 410 ms system Chromium for a small (1-page) document. Both fast enough that Stage 5's progress UI can be a simple toast unless documents grow large.
+- **Important deviation from this doc's Stage 2 probe order**: go-rod does **not** auto-probe system Chrome paths. Default is "always managed download". To use system Chromium it requires either `ROD_BROWSER_BIN=/usr/bin/chromium` in env, or `launcher.New().Bin(path)` (rod-level, not exposed by picoloom). picoloom's `Option` set (`WithTimeout`, `WithStyle`, `WithAssetPath`, `WithAssetLoader`, `WithTemplateSet`) does not include a browser-bin override — confirmed against pkg.go.dev. Stage 2's `activate.go` must do the system-path scan itself and set `ROD_BROWSER_BIN` before any `picoloom.NewConverter()` call. If we need finer control (e.g. surfacing browser version), we'd construct go-rod's `launcher` ourselves and feed picoloom a pre-built browser — but that requires picoloom to expose an `Option` we don't currently have. File an upstream issue if needed.
+- **PoC output**: valid PDF 1.4, 1 page, 44 KB. Headings, links, table, code fence, blockquote, footnotes + backref all render. Default theme is borderless — themes will be settled in Stage 6.
+
 ### Stage 1 — Module skeleton + Wails service
 
 **Goal**: `pdf.Service` exists, registered, callable from frontend, returns `ErrPDFNotActivated` for every call.
@@ -174,7 +185,7 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
   - `Deactivate(ctx) error`
   - `ExportPDF(ctx, formGUID string, opts ExportOpts) (Result, error)`
 - `Status` struct: `{ Active bool, BrowserBin string, Source: "system"|"managed"|"unset", Version string }`.
-- Persist activation state in `config.Manager` under a new `pdf:` block (`browser_bin`, `source`, `activated_at`).
+- Persist activation state in `<AppRoot>/config/pdf-state.json` (per-machine; see "Activation persistence" row above). Stage 1 ships the in-memory Manager only; Stage 2 adds the store via `system.Manager`.
 - All methods return `ErrPDFNotActivated` until Stage 2 lands.
 - Register in `internal/app/app.go`, regenerate bindings.
 
@@ -194,7 +205,7 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
   - `DownloadManagedChromium(ctx, progress chan<- DownloadProgress) error` — triggers go-rod's download with progress streaming.
 - Information-page Vue panel (in `frontend/src/`):
   - Status row mirroring Wiki/API panels.
-  - Activation button → opens a dialog that calls `ProbeChrome` and shows: found path (with "Use this" button), or "Not found — download managed Chromium (~55 MB)?".
+  - Activation button → opens a dialog that calls `ProbeChrome` and shows: found path (with "Use this" button), or "Not found — download managed Chromium (~150 MB download, ~530 MB on disk)?".
   - Reconfigure / Deactivate links once active.
   - i18n keys under `internal/modules/i18n/locales/<locale>/pdf.json`.
 - Frontend catches `ErrPDFNotActivated` from any later `ExportPDF` call and routes the user to the Information page with the activation panel highlighted.
