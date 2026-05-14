@@ -3,7 +3,8 @@
    button alignment under the connection form). */
 
 .git-clone-actions,
-.git-commit-actions {
+.git-commit-actions,
+.gigot-connect-actions {
     display: flex;
     justify-content: flex-end;
     margin-top: var(--space-1);

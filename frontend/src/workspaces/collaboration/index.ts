@@ -3,12 +3,14 @@ import CurrentService from "./CurrentService.vue";
 import Sync from "./Sync.vue";
 import GitClone from "./GitClone.vue";
 import CommitGraphView from "./CommitGraphView.vue";
+import GigotConnect from "./GigotConnect.vue";
 
 export type CollaborationSectionId =
   | "current-service"
   | "git-sync"
   | "git-clone"
-  | "git-graph";
+  | "git-graph"
+  | "gigot-connect";
 export type CollaborationBackend = "git" | "gigot";
 
 export interface CollaborationSection {
@@ -48,5 +50,11 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
     labelKey: "workspace.collaboration.section.clone",
     component: GitClone,
     backend: "git",
+  },
+  {
+    id: "gigot-connect",
+    labelKey: "workspace.collaboration.section.gigot_connect",
+    component: GigotConnect,
+    backend: "gigot",
   },
 ];
