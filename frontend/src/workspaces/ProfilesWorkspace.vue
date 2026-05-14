@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+import Badge from "../components/Badge.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import AlertDialog from "../components/AlertDialog.vue";
@@ -327,11 +328,12 @@ setTopbarMenu(() => [
         >
           <span class="profile-display">{{ p.display }}</span>
           <span class="profile-meta">
-            <span
+            <Badge
               v-if="p.value === activeFilename"
-              class="badge badge-ok small"
-            >{{ t('workspace.profiles.active') }}</span>
-            <span class="badge small profile-filename">{{ p.value }}</span>
+              variant="ok"
+              class="small"
+            >{{ t('workspace.profiles.active') }}</Badge>
+            <Badge class="small profile-filename">{{ p.value }}</Badge>
           </span>
         </li>
       </ul>
@@ -349,11 +351,11 @@ setTopbarMenu(() => [
         </h1>
 
         <div class="profile-detail-meta">
-          <span class="badge badge-accent">{{ selectedEntry.value }}</span>
-          <span
+          <Badge variant="accent">{{ selectedEntry.value }}</Badge>
+          <Badge
             v-if="isActiveSelected"
-            class="badge badge-ok"
-          >{{ t('workspace.profiles.active') }}</span>
+            variant="ok"
+          >{{ t('workspace.profiles.active') }}</Badge>
         </div>
 
         <!-- Properties only fully readable when this profile is the

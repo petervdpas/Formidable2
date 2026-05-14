@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import Badge from "../../components/Badge.vue";
 import {
   FormSection,
   FormRow,
@@ -13,6 +14,7 @@ import { Service as CredentialSvc } from "../../../bindings/github.com/petervdpa
 import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { useConfig } from "../../composables/useConfig";
 import { useCredentialAccount } from "../../composables/useCredentialAccount";
+import { useCredentialStatus } from "../../composables/useCredentialStatus";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
@@ -23,8 +25,16 @@ import { backendErrMessage } from "../../utils/backendError";
 // On success we set git_root to the clone destination so the user
 // lands back on Current Service with their new repo configured. The
 // PAT field is cleared regardless of outcome (transient by design).
+//
+// PAT-saved status: surfaced live next to the PAT field via the
+// shared useCredentialStatus composable — same pattern gigot's Clone
+// uses. Account key is "<profile>:git:<remote_url>" so the badge
+// re-probes as the user types the URL. Useful signal because git's
+// post-clone Push/Pull/Fetch reuse the saved PAT via the keychain
+// resolver — even when this form doesn't itself reuse it for the
+// clone call (clone always uses what was typed).
 const { t } = useI18n();
-const { update } = useConfig();
+const { profileFilename, update } = useConfig();
 const { accountFor } = useCredentialAccount();
 const toast = useToast();
 
@@ -34,6 +44,26 @@ const branch = ref("");
 const pat = ref("");
 const saveToken = ref(false);
 const inFlight = ref(false);
+
+const keychainAccount = computed(() => {
+  const u = url.value.trim();
+  if (!u || !profileFilename.value) return "";
+  return accountFor("git", u);
+});
+
+const { saved: patSaved, probing: patProbing, refresh: refreshPatStatus }
+  = useCredentialStatus(keychainAccount);
+
+const patStatusKey = computed(() => {
+  if (patProbing.value || keychainAccount.value === "") return "";
+  return patSaved.value
+    ? "workspace.collaboration.clone.pat_saved"
+    : "workspace.collaboration.clone.pat_missing";
+});
+
+const patStatusVariant = computed<"ok" | undefined>(
+  () => (patSaved.value ? "ok" : undefined),
+);
 
 const canClone = () =>
   !inFlight.value && url.value.trim() !== "" && dest.value.trim() !== "";
@@ -73,6 +103,7 @@ async function clone() {
         try {
           const account = accountFor("git", url.value.trim());
           await CredentialSvc.Set(account, pat.value);
+          void refreshPatStatus();
         } catch (err) {
           toast.error("workspace.collaboration.clone.save_token_error", [backendErrMessage(err)]);
         }
@@ -108,6 +139,9 @@ async function clone() {
       :description="t('workspace.collaboration.clone.pat_help')"
     >
       <TextField v-model="pat" type="password" autocomplete="off" />
+      <Badge v-if="patStatusKey" :variant="patStatusVariant">
+        {{ t(patStatusKey, [profileFilename, url.trim()]) }}
+      </Badge>
     </FormRow>
     <FormSwitchRow
       :label="t('workspace.collaboration.clone.save_token')"

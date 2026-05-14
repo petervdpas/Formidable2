@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
+import Badge from "../components/Badge.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
@@ -544,9 +545,9 @@ setTopbarMenu(() => [
   <Teleport defer to="#topbar-content">
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
-      <span v-if="dirty" class="badge badge-warn">
+      <Badge v-if="dirty" variant="warn">
         {{ t('workspace.templates.dirty_indicator') }}
-      </span>
+      </Badge>
       <button
         class="tool-btn primary"
         :disabled="!draft"
@@ -589,10 +590,10 @@ setTopbarMenu(() => [
       <template v-else>
         <div class="workspace-heading-row">
           <h1 class="workspace-heading">{{ draft.name || selectedFilename }}</h1>
-          <span class="badge badge-accent">{{ selectedFilename }}</span>
-          <span v-if="dirty" class="badge badge-warn">
+          <Badge variant="accent">{{ selectedFilename }}</Badge>
+          <Badge v-if="dirty" variant="warn">
             {{ t('workspace.templates.dirty_indicator') }}
-          </span>
+          </Badge>
         </div>
 
         <FormSection :title="t('workspace.templates.setup.title')">
@@ -729,7 +730,7 @@ setTopbarMenu(() => [
                 <span class="dnd-handle" aria-hidden="true">☰</span>
                 <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
                 <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
-                <span v-if="f.primary_key" class="badge badge-ok small">PRIMARY</span>
+                <Badge v-if="f.primary_key" variant="ok" class="small">PRIMARY</Badge>
                 <span class="field-row-spacer"></span>
                 <div class="field-row-actions">
                   <FieldScopeBadge :level="f.level_scope" />

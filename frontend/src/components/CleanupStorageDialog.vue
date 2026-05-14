@@ -2,6 +2,7 @@
 import { ref, watch, computed, reactive } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
+import Badge from "./Badge.vue";
 import { backendErrMessage } from "../utils/backendError";
 import {
   Service as IntegritySvc,
@@ -350,9 +351,9 @@ function issueKindClass(kind: string): string {
       >
         <summary class="cleanup-form-summary">
           <code>{{ fr.filename }}</code>
-          <span class="cleanup-form-count badge badge-warn">
+          <Badge variant="warn" class="cleanup-form-count">
             {{ t('workspace.cleanup.issues_count', [fr.issues?.length ?? 0]) }}
-          </span>
+          </Badge>
         </summary>
         <ul class="cleanup-issue-list">
           <li

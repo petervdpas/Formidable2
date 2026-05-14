@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import Badge from "./Badge.vue";
 import type { Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -34,7 +35,7 @@ const display = computed<string>(() => {
   >
     <span class="template-display">{{ display }}</span>
     <span class="template-meta">
-      <span class="badge small template-filename">{{ props.filename }}</span>
+      <Badge class="small template-filename">{{ props.filename }}</Badge>
     </span>
   </li>
 </template>

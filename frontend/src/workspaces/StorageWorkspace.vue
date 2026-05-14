@@ -2,6 +2,7 @@
 import { computed, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+import Badge from "../components/Badge.vue";
 import CopyButton from "../components/CopyButton.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
@@ -682,9 +683,9 @@ setTopbarMenu(() => [
   <Teleport defer to="#topbar-content">
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
-      <span v-if="dirty" class="badge badge-warn">
+      <Badge v-if="dirty" variant="warn">
         {{ t('workspace.storage.dirty_indicator') }}
-      </span>
+      </Badge>
       <button
         v-if="view"
         class="tool-btn primary"

@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
+import Badge from "../components/Badge.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import AlertDialog from "../components/AlertDialog.vue";
 import { useConfig } from "../composables/useConfig";
@@ -81,7 +82,7 @@ setTopbarMenu(() => [
   <Teleport defer to="#topbar-content">
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
-      <span v-if="profileFilename" class="badge badge-accent">{{ profileFilename }}</span>
+      <Badge v-if="profileFilename" variant="accent">{{ profileFilename }}</Badge>
     </div>
   </Teleport>
 

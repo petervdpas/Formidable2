@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import Badge from "../../components/Badge.vue";
 import { FormSection, FormRow, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
@@ -88,7 +89,7 @@ function patchButtons(partial: Record<string, unknown>) {
           :on-label="t('common.on')"
           :off-label="t('common.off')"
         />
-        <span v-if="!gitEnabled" class="badge badge-warn">{{ t('settings.requires.git_backend') }}</span>
+        <Badge v-if="!gitEnabled" variant="warn">{{ t('settings.requires.git_backend') }}</Badge>
       </div>
     </FormRow>
     <FormRow :label="t('settings.field.gigot_load_indicator')">
@@ -100,7 +101,7 @@ function patchButtons(partial: Record<string, unknown>) {
           :on-label="t('common.on')"
           :off-label="t('common.off')"
         />
-        <span v-if="!gigotEnabled" class="badge badge-warn">{{ t('settings.requires.gigot_backend') }}</span>
+        <Badge v-if="!gigotEnabled" variant="warn">{{ t('settings.requires.gigot_backend') }}</Badge>
       </div>
     </FormRow>
   </FormSection>

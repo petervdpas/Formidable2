@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import Badge from "../Badge.vue";
 
 // Presentational repository-status panel. The owning view (Sync.vue)
 // drives the fetch lifecycle so its sibling commit form can read the
@@ -143,10 +144,10 @@ const pushTooltip = computed<string | undefined>(() => {
 
     <template v-else-if="status">
       <div class="git-status-meta">
-        <span v-if="status.detached" class="badge badge-warn">
+        <Badge v-if="status.detached" variant="warn">
           {{ t('workspace.collaboration.status.detached') }}
-        </span>
-        <span v-else-if="status.branch" class="badge badge-accent">{{ status.branch }}</span>
+        </Badge>
+        <Badge v-else-if="status.branch" variant="accent">{{ status.branch }}</Badge>
         <span class="git-status-tracking">
           {{
             status.tracking
@@ -154,19 +155,19 @@ const pushTooltip = computed<string | undefined>(() => {
               : t('workspace.collaboration.status.tracking_none')
           }}
         </span>
-        <span
+        <Badge
           v-if="status.tracking"
-          class="badge git-status-divergence"
+          class="git-status-divergence"
           :title="t('workspace.collaboration.status.divergence_help')"
         >
           <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
           {{ status.ahead }}
           <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
           {{ status.behind }}
-        </span>
-        <span v-if="status.clean" class="badge badge-ok">
+        </Badge>
+        <Badge v-if="status.clean" variant="ok">
           {{ t('workspace.collaboration.status.clean') }}
-        </span>
+        </Badge>
       </div>
 
       <details

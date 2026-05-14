@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
+import Badge from "../components/Badge.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
@@ -433,9 +434,9 @@ setTopbarMenu(() => [
   <Teleport defer to="#topbar-content">
     <span class="topbar-spacer"></span>
     <div class="topbar-actions">
-      <span v-if="dirty" class="badge badge-warn">
+      <Badge v-if="dirty" variant="warn">
         {{ t('workspace.plugins.dirty_indicator') }}
-      </span>
+      </Badge>
       <button
         v-if="selectedPlugin"
         class="tool-btn success tool-btn--icon"
@@ -478,7 +479,7 @@ setTopbarMenu(() => [
         >
           <span class="plugin-name">{{ p.manifest.name || p.id }}</span>
           <span class="plugin-meta">
-            <span class="badge small">{{ p.id }}</span>
+            <Badge class="small">{{ p.id }}</Badge>
             <span class="muted small">v{{ p.manifest.version }}</span>
           </span>
         </li>
@@ -495,7 +496,7 @@ setTopbarMenu(() => [
       <template v-else>
         <div class="workspace-heading-row">
           <h1 class="workspace-heading">{{ draftManifest.name || selectedID }}</h1>
-          <span class="badge badge-accent">{{ selectedID }}</span>
+          <Badge variant="accent">{{ selectedID }}</Badge>
         </div>
 
         <FormSection :title="t('workspace.plugins.manifest.title')">
