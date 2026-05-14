@@ -48,6 +48,62 @@ func (m *Manager) IoCollectionOnly() bool {
 	return m.cached.IoCollectionOnly
 }
 
+// GigotBaseURL returns the active profile's GiGot server origin
+// ("https://gigot.example") or "" when unset / no profile cached.
+func (m *Manager) GigotBaseURL() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.cached == nil {
+		return ""
+	}
+	return m.cached.GigotBaseURL
+}
+
+// GigotRepoName returns the active profile's GiGot repo handle or ""
+// when unset / no profile cached.
+func (m *Manager) GigotRepoName() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.cached == nil {
+		return ""
+	}
+	return m.cached.GigotRepoName
+}
+
+// AuthorName returns the active profile's git/gigot author name, used
+// to stamp commits on the server-side audit trail. "" when unset.
+func (m *Manager) AuthorName() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.cached == nil {
+		return ""
+	}
+	return m.cached.AuthorName
+}
+
+// AuthorEmail mirrors AuthorName for the email half of the author
+// identity. "" when unset.
+func (m *Manager) AuthorEmail() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.cached == nil {
+		return ""
+	}
+	return m.cached.AuthorEmail
+}
+
+// ContextFolder returns the active profile's context-folder path
+// (where Formidable's templates/, storage/, and .formidable/ live).
+// "" when unset / no profile cached.
+func (m *Manager) ContextFolder() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.cached == nil {
+		return ""
+	}
+	return m.cached.ContextFolder
+}
+
 // SwitchUserProfile points .boot.json at profileFilename, swaps the
 // active config path, and reloads. Held under updateMu so a concurrent
 // UpdateUserConfig can't read the old profile and persist its merge

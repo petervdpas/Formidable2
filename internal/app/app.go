@@ -22,6 +22,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/auth"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/credential"
+	"github.com/petervdpas/formidable2/internal/modules/collaboration/gigot"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git/sysgit"
 	"github.com/petervdpas/formidable2/internal/modules/config"
@@ -99,6 +100,7 @@ type App struct {
 	Dataprovider *dataprovider.Service
 	Plugin       *plugin.Service
 	Git          *git.Service
+	Gigot        *gigot.Service
 	Credential   *credential.Service
 	Monitor      *monitor.Service
 	Expression   *expression.Service
@@ -118,6 +120,7 @@ type App struct {
 	wikiManager     *wiki.Manager
 	pluginManager     *plugin.Manager
 	gitManager        *git.Manager
+	gigotManager      *gigot.Manager
 	credentialManager *credential.Manager
 	apiHandler      http.Handler
 	emitter         *emitterRelay
@@ -500,6 +503,13 @@ func New(d Deps) (*App, error) {
 	// need to read the stored PAT to talk to the remote.
 	credentialM := credential.NewManager()
 
+	// Collaboration → GiGot. JSON-over-HTTP sync to a GiGot
+	// server. Track-record writes go through sysM (atomic
+	// temp+fsync+rename via SaveFile). Subscription bearer is
+	// resolved per-call from the keychain at the Service layer —
+	// the Manager stays transport-neutral.
+	gigotM := gigot.NewManager(sysM)
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -520,6 +530,7 @@ func New(d Deps) (*App, error) {
 		Dataprovider:    dataprovider.NewService(dpM),
 		Plugin:          plugin.NewService(pluginM),
 		Git:             newGitService(gitM, credentialM, cfgM, jrnM, sysgitR),
+		Gigot:           gigot.NewService(gigotM, credentialM, cfgM, cfgM, jrnM),
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
 		Expression:      expression.NewService(expressionM),
@@ -538,6 +549,7 @@ func New(d Deps) (*App, error) {
 		wikiManager:     wikiM,
 		pluginManager:   pluginM,
 		gitManager:        gitM,
+		gigotManager:      gigotM,
 		credentialManager: credentialM,
 		apiHandler:        apiHandlerInProcess,
 		emitter:         emitter,

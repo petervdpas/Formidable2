@@ -77,11 +77,11 @@ func validateConn(conn Connection, requireRepo bool) error {
 	if conn.BaseURL == "" {
 		return ErrMissingBaseURL
 	}
-	if conn.Token == "" {
-		return ErrMissingToken
-	}
 	if requireRepo && conn.RepoName == "" {
 		return ErrMissingRepo
+	}
+	if conn.Token == "" {
+		return ErrMissingToken
 	}
 	return nil
 }

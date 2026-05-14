@@ -717,6 +717,92 @@ func TestIoCollectionOnly_UncachedReturnsFalse(t *testing.T) {
 	}
 }
 
+// Accessor methods read out the gigot-related profile fields used by
+// gigot.Service to build a Connection. Mirrors IoCollectionOnly's
+// "uncached returns zero value" contract so the gigot Service can ask
+// without special-casing early-boot.
+
+func TestGigotAccessors_DefaultEmpty(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if got := m.GigotBaseURL(); got != "" {
+		t.Errorf("GigotBaseURL default = %q, want \"\"", got)
+	}
+	if got := m.GigotRepoName(); got != "" {
+		t.Errorf("GigotRepoName default = %q, want \"\"", got)
+	}
+}
+
+func TestGigotAccessors_ReadFromCachedConfig(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if _, err := m.UpdateUserConfig(map[string]any{
+		"gigot_base_url":  "https://gigot.example",
+		"gigot_repo_name": "addresses",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := m.GigotBaseURL(); got != "https://gigot.example" {
+		t.Errorf("GigotBaseURL = %q", got)
+	}
+	if got := m.GigotRepoName(); got != "addresses" {
+		t.Errorf("GigotRepoName = %q", got)
+	}
+}
+
+func TestGigotAccessors_UncachedReturnsEmpty(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	m.InvalidateConfigCache()
+	if got := m.GigotBaseURL(); got != "" {
+		t.Errorf("expected empty when cache is empty, got %q", got)
+	}
+	if got := m.GigotRepoName(); got != "" {
+		t.Errorf("expected empty when cache is empty, got %q", got)
+	}
+}
+
+func TestAuthorAccessors_ReadFromCachedConfig(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if _, err := m.UpdateUserConfig(map[string]any{
+		"author_name":  "Alice",
+		"author_email": "alice@example.com",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if m.AuthorName() != "Alice" {
+		t.Errorf("AuthorName = %q", m.AuthorName())
+	}
+	if m.AuthorEmail() != "alice@example.com" {
+		t.Errorf("AuthorEmail = %q", m.AuthorEmail())
+	}
+}
+
+func TestAuthorAccessors_UncachedReturnsEmpty(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	m.InvalidateConfigCache()
+	if m.AuthorName() != "" || m.AuthorEmail() != "" {
+		t.Errorf("expected empty when cache is empty")
+	}
+}
+
+func TestContextFolder_ReadsFromCachedConfig(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if _, err := m.UpdateUserConfig(map[string]any{
+		"context_folder": "/some/where",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := m.ContextFolder(); got != "/some/where" {
+		t.Errorf("ContextFolder = %q", got)
+	}
+}
+
+func TestContextFolder_UncachedReturnsEmpty(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	m.InvalidateConfigCache()
+	if got := m.ContextFolder(); got != "" {
+		t.Errorf("expected empty when cache is empty, got %q", got)
+	}
+}
+
 func TestHasUserProfiles_TrueAfterSeed(t *testing.T) {
 	// newTestManager seeds user.json by default → at least one
 	// profile exists.

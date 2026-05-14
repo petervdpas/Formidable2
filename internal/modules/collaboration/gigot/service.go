@@ -242,13 +242,32 @@ func (s *Service) PullLocal() (*PullResult, error) {
 	return res, nil
 }
 
-// Sync runs PushLocal then PullLocal. The journal markers fire from
-// the underlying PushLocal / PullLocal so Sync itself doesn't
-// double-record — symmetric with the git Service.
+// Sync runs PushLocal then PullLocal at the Service layer so each
+// half emits its own journal entry via the wrapper methods. A push
+// failure aborts before pull to preserve unpushed local changes —
+// symmetric with the git Service and with Manager.Sync.
 func (s *Service) Sync() (*SyncResult, error) {
-	conn, err := s.resolveConnection(true)
+	if _, err := s.resolveConnection(true); err != nil {
+		return nil, err
+	}
+	push, err := s.PushLocal()
 	if err != nil {
 		return nil, err
 	}
-	return s.m.Sync(conn, s.resolveContextFolder())
+	pull, err := s.PullLocal()
+	if err != nil {
+		return nil, err
+	}
+	version := pull.Version
+	if version == "" {
+		version = push.Version
+	}
+	return &SyncResult{
+		Version:       version,
+		Pushed:        push.Pushed,
+		PushedDeleted: push.Deleted,
+		Pulled:        pull.Files,
+		PulledDeleted: pull.Deleted,
+		Noop:          push.Noop && pull.Files == 0 && pull.Deleted == 0,
+	}, nil
 }
