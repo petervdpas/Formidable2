@@ -41,16 +41,13 @@ const errorMsg = ref("");
 
 const pushing = ref(false);
 const pulling = ref(false);
-const syncing = ref(false);
 const message = ref("");
 
 const progressCurrent = ref(0);
 const progressTotal = ref(0);
 const progressPath = ref("");
 
-const inFlight = computed(
-  () => pushing.value || pulling.value || syncing.value,
-);
+const inFlight = computed(() => pushing.value || pulling.value);
 const canAct = computed(() => !inFlight.value && configured.value);
 const hasLedger = computed(() => (summary.value?.version ?? "") !== "");
 const hasPending = computed(() => {
@@ -59,17 +56,6 @@ const hasPending = computed(() => {
   return (s.changed?.length ?? 0) > 0 || (s.deleted?.length ?? 0) > 0;
 });
 const messageProvided = computed(() => message.value.trim() !== "");
-// Push always writes a commit, so it needs a message — gate it.
-const canPush = computed(() => canAct.value && hasPending.value && messageProvided.value);
-// Pull is read-only — no message ever required.
-const canPull = computed(() => canAct.value);
-// Sync = Push + Pull. Only gate on message when push will actually
-// commit something; with no pending changes the push half is a noop.
-const canSync = computed(() => {
-  if (!canAct.value) return false;
-  if (!hasPending.value) return true;
-  return messageProvided.value;
-});
 
 // HEAD probe state: "unknown" before first probe / on error;
 // "match" when remote == ledger version; "behind" when remote moved.
@@ -81,13 +67,41 @@ const remoteState = computed<"unknown" | "match" | "behind">(() => {
   return remote === local ? "match" : "behind";
 });
 
+// Button gates — Push/Pull are the fine-grained operations on this
+// panel; the bundled one-click Sync lives on Current Service. The
+// goal is to make each button mean exactly one thing, so the user
+// doesn't have to guess which is "safe" to click.
+//
+//   Push: pending changes + commit message
+//   Pull: remote moved + no pending changes (avoids clobbering)
+//
+// Pull is disabled when the remote matches the local ledger AND
+// when there are pending local changes — both cases boil down to
+// "Pull would either do nothing or destroy work."
+const canPush = computed(() => canAct.value && hasPending.value && messageProvided.value);
+const canPull = computed(() => canAct.value && !hasPending.value && remoteState.value !== "match");
+
+// Per-button disabled tooltips. Empty string when the button is
+// enabled — the v-bind below feeds the attr only when non-empty.
+const pushDisabledHint = computed(() => {
+  if (!canAct.value || !configured.value) return "";
+  if (!hasPending.value) return t("workspace.collaboration.gigot.sync.push.disabled_no_pending");
+  if (!messageProvided.value) return t("workspace.collaboration.gigot.sync.message_required");
+  return "";
+});
+const pullDisabledHint = computed(() => {
+  if (!canAct.value || !configured.value) return "";
+  if (hasPending.value) return t("workspace.collaboration.gigot.sync.pull.disabled_pending");
+  if (remoteState.value === "match") return t("workspace.collaboration.gigot.sync.pull.disabled_match");
+  return "";
+});
+
 const shortHash = (v: string | undefined | null) =>
   v ? v.slice(0, 8) : "";
 
 const progressLabel = computed(() => {
   if (pulling.value) return t("workspace.collaboration.gigot.sync.pull.running");
   if (pushing.value) return t("workspace.collaboration.gigot.sync.push.running");
-  if (syncing.value) return t("workspace.collaboration.gigot.sync.sync.running");
   return "";
 });
 
@@ -211,27 +225,6 @@ async function doPull() {
   }
 }
 
-async function doSync() {
-  if (!canSync.value) return;
-  resetProgress();
-  syncing.value = true;
-  try {
-    const res = await GigotSvc.Sync(message.value);
-    if (!res) throw new Error("no response");
-    if (res.noop) {
-      toast.info("workspace.collaboration.gigot.sync.sync.noop");
-    } else {
-      toast.success("workspace.collaboration.gigot.sync.sync.success", [shortHash(res.version)]);
-      message.value = "";
-    }
-    await load(false);
-  } catch (err) {
-    toast.error("workspace.collaboration.gigot.sync.sync.error", [backendErrMessage(err)]);
-  } finally {
-    syncing.value = false;
-    resetProgress();
-  }
-}
 </script>
 
 <template>
@@ -309,8 +302,8 @@ async function doSync() {
     <ProgressBar
       :active="inFlight"
       :label="progressLabel"
-      :current="pulling || syncing ? progressCurrent : 0"
-      :total="pulling || syncing ? progressTotal : 0"
+      :current="pulling ? progressCurrent : 0"
+      :total="pulling ? progressTotal : 0"
     />
 
     <div class="gigot-sync-actions">
@@ -326,7 +319,7 @@ async function doSync() {
         type="button"
         class="tool-btn"
         :disabled="!canPush"
-        :title="hasPending && !messageProvided ? t('workspace.collaboration.gigot.sync.message_required') : ''"
+        :title="pushDisabledHint"
         @click="doPush"
       >
         {{ pushing ? t('workspace.collaboration.gigot.sync.push.running') : t('workspace.collaboration.gigot.sync.push.button') }}
@@ -335,18 +328,10 @@ async function doSync() {
         type="button"
         class="tool-btn"
         :disabled="!canPull"
+        :title="pullDisabledHint"
         @click="doPull"
       >
         {{ pulling ? t('workspace.collaboration.gigot.sync.pull.running') : t('workspace.collaboration.gigot.sync.pull.button') }}
-      </button>
-      <button
-        type="button"
-        class="tool-btn primary"
-        :disabled="!canSync"
-        :title="hasPending && !messageProvided ? t('workspace.collaboration.gigot.sync.message_required') : ''"
-        @click="doSync"
-      >
-        {{ syncing ? t('workspace.collaboration.gigot.sync.sync.running') : t('workspace.collaboration.gigot.sync.sync.button') }}
       </button>
     </div>
   </template>

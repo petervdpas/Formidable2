@@ -3,13 +3,29 @@
    the git stylesheet are intentionally duplicated so each backend's
    workspace can evolve without ripple. */
 
-.gigot-connect-actions,
 .gigot-clone-actions,
 .gigot-sync-actions {
     display: flex;
     justify-content: flex-end;
     gap: var(--space-2);
     margin-top: var(--space-1);
+}
+
+.gigot-quicksync-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+
+.gigot-quicksync-status {
+    font-weight: 600;
+    color: var(--color-success, #4d9b6c);
 }
 
 .gigot-clone-note,

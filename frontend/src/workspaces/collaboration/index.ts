@@ -3,7 +3,6 @@ import CurrentService from "./CurrentService.vue";
 import GitSync from "./GitSync.vue";
 import GitClone from "./GitClone.vue";
 import GitCommitGraph from "./GitCommitGraph.vue";
-import GigotConnect from "./GigotConnect.vue";
 import GigotSync from "./GigotSync.vue";
 import GigotCommitGraph from "./GigotCommitGraph.vue";
 import GigotClone from "./GigotClone.vue";
@@ -13,7 +12,6 @@ export type CollaborationSectionId =
   | "git-sync"
   | "git-clone"
   | "git-graph"
-  | "gigot-connect"
   | "gigot-sync"
   | "gigot-graph"
   | "gigot-clone";
@@ -31,8 +29,10 @@ export interface CollaborationSection {
 
 // Sidebar rows. "Current Service" is the always-visible overview;
 // the rest are operations scoped to a specific backend (the workspace
-// filters by config.remote_backend). When real GiGot operations land
-// they take a backend: "gigot" tag and slot in alongside.
+// filters by config.remote_backend). Order mirrors per backend:
+// Current Service → Sync → Commit Graph → Clone. Setup (PAT / bearer)
+// is folded into each backend's Clone Repository panel, so there is
+// no separate "Connect" sidebar row on either side.
 export const COLLABORATION_SECTIONS: CollaborationSection[] = [
   {
     id: "current-service",
@@ -56,12 +56,6 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
     labelKey: "workspace.collaboration.section.git_clone",
     component: GitClone,
     backend: "git",
-  },
-  {
-    id: "gigot-connect",
-    labelKey: "workspace.collaboration.section.gigot_connect",
-    component: GigotConnect,
-    backend: "gigot",
   },
   {
     id: "gigot-sync",
