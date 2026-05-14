@@ -10,6 +10,9 @@ import type { Events } from "@wailsio/runtime";
 import type * as log$0 from "../../../../petervdpas/formidable2/internal/log/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import type * as gigot$0 from "../../../../petervdpas/formidable2/internal/modules/collaboration/gigot/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import type * as journal$0 from "../../../../petervdpas/formidable2/internal/modules/journal/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -18,6 +21,7 @@ import type * as nav$0 from "../../../../petervdpas/formidable2/internal/modules
 declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
+            "gigot:sync_progress": gigot$0.SyncProgress;
             "journal:changed": journal$0.Entry;
             "log:entry": log$0.Entry;
             "nav:changed": nav$0.Target | null;

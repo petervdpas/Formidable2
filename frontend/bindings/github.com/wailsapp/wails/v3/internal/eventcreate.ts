@@ -11,6 +11,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as log$0 from "../../../../petervdpas/formidable2/internal/log/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as gigot$0 from "../../../../petervdpas/formidable2/internal/modules/collaboration/gigot/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as journal$0 from "../../../../petervdpas/formidable2/internal/modules/journal/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -18,16 +21,18 @@ import * as nav$0 from "../../../../petervdpas/formidable2/internal/modules/nav/
 
 function configure() {
     Object.freeze(Object.assign($Create.Events, {
-        "journal:changed": $$createType0,
-        "log:entry": $$createType1,
-        "nav:changed": $$createType3,
+        "gigot:sync_progress": $$createType0,
+        "journal:changed": $$createType1,
+        "log:entry": $$createType2,
+        "nav:changed": $$createType4,
     }));
 }
 
 // Private type creation functions
-const $$createType0 = journal$0.Entry.createFrom;
-const $$createType1 = log$0.Entry.createFrom;
-const $$createType2 = nav$0.Target.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
+const $$createType0 = gigot$0.SyncProgress.createFrom;
+const $$createType1 = journal$0.Entry.createFrom;
+const $$createType2 = log$0.Entry.createFrom;
+const $$createType3 = nav$0.Target.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
 
 configure();

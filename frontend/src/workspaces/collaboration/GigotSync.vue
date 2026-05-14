@@ -73,9 +73,9 @@ onMounted(() => {
     (ev: { data?: SyncProgress } | SyncProgress) => {
       const data = (ev as { data?: SyncProgress })?.data ?? (ev as SyncProgress);
       if (!data || typeof data !== "object") return;
-      progressCurrent.value = data.Current ?? 0;
-      progressTotal.value = data.Total ?? 0;
-      progressPath.value = data.Path ?? "";
+      progressCurrent.value = data.current ?? 0;
+      progressTotal.value = data.total ?? 0;
+      progressPath.value = data.path ?? "";
     },
   );
 });

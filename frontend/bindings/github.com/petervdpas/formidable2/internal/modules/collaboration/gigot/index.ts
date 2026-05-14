@@ -24,6 +24,8 @@ export {
     RepoFormidableResponse,
     RepoLogResponse,
     Subscription,
+    SyncPhase,
+    SyncProgress,
     SyncResult,
     TreeEntry,
     TreeResponse,

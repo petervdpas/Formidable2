@@ -113,8 +113,10 @@ export function Ping(): $CancellablePromise<$models.HealthResponse | null> {
 
 /**
  * PullLocal fetches the server's tree and writes changed files to disk.
- * On success records a remote-seen entry so the head-probe poller can
- * short-circuit next tick.
+ * Emits SyncProgress events through the configured progress channel
+ * (set up by AttachProgress at composition time) so the frontend can
+ * drive a per-file progress bar. On success records a remote-seen
+ * entry so the head-probe poller can short-circuit next tick.
  */
 export function PullLocal(): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2176880118).then(($result: any) => {
@@ -136,8 +138,9 @@ export function PushLocal(): $CancellablePromise<$models.PushResult | null> {
 /**
  * Reclone wipes every gigot-managed path under the active context
  * folder and pulls a fresh copy from the server. Destructive:
- * local-only edits in managed paths are dropped. Records a remote-seen
- * entry on success so the journal cursor advances.
+ * local-only edits in managed paths are dropped. Emits SyncProgress
+ * events through the configured progress channel and records a
+ * remote-seen entry on success so the journal cursor advances.
  */
 export function Reclone(): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(477795670).then(($result: any) => {

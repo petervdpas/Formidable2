@@ -621,6 +621,93 @@ export class Subscription {
 }
 
 /**
+ * SyncPhase enumerates the named steps PullLocal / Reclone walk
+ * through, in the order a progress consumer can expect to see them.
+ * String-valued so the Wails event payload stays JSON-friendly.
+ */
+export enum SyncPhase {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * PhaseStart fires once at the very entry of a sync op, before
+     * any HTTP. Total is 0 — the count isn't known yet. Useful for
+     * the UI to flip an indeterminate spinner on before /tree returns.
+     */
+    PhaseStart = "start",
+
+    /**
+     * PhaseWipe fires once before the local-wipe step of Reclone.
+     * Plain PullLocal never emits this.
+     */
+    PhaseWipe = "wipe",
+
+    /**
+     * PhaseTree fires once after /tree has returned and the work plan
+     * is computed. Total is the sum of pending deletes + managed
+     * entries to inspect/fetch — the count Current ramps toward.
+     */
+    PhaseTree = "tree",
+
+    /**
+     * PhaseDelete fires once per locally-deleted path. Current is the
+     * running count across delete+fetch events.
+     */
+    PhaseDelete = "delete",
+
+    /**
+     * PhaseFetch fires once per managed tree entry inspected,
+     * regardless of whether bytes were actually downloaded — SHA-match
+     * short-circuits still count so the progress bar advances.
+     */
+    PhaseFetch = "fetch",
+
+    /**
+     * PhaseDone fires once at completion. Current==Total. Consumers
+     * hide their progress UI on this signal rather than racing the
+     * Manager's return.
+     */
+    PhaseDone = "done",
+};
+
+/**
+ * SyncProgress is the payload carried by gigot:sync_progress events
+ * and by direct ProgressFunc callbacks. Path is non-empty only for
+ * per-file phases (delete / fetch).
+ */
+export class SyncProgress {
+    "phase": SyncPhase;
+    "current": number;
+    "total": number;
+    "path"?: string;
+
+    /** Creates a new SyncProgress instance. */
+    constructor($$source: Partial<SyncProgress> = {}) {
+        if (!("phase" in $$source)) {
+            this["phase"] = SyncPhase.$zero;
+        }
+        if (!("current" in $$source)) {
+            this["current"] = 0;
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SyncProgress instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SyncProgress {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SyncProgress($$parsedSource as Partial<SyncProgress>);
+    }
+}
+
+/**
  * SyncResult is what Sync returns on success — the combined push+pull
  * outcome. Noop is true only when both halves were quiet.
  */
