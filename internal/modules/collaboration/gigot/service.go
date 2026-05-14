@@ -16,11 +16,12 @@ import (
 // credential.Service. The Service is the only layer allowed to read
 // the subscription bearer; Manager stays transport-neutral.
 type Service struct {
-	m       *Manager
-	creds   CredentialReader
-	profile ProfileReader
-	cfg     ConfigReader
-	jrnl    journal.Journal
+	m        *Manager
+	creds    CredentialReader
+	profile  ProfileReader
+	cfg      ConfigReader
+	jrnl     journal.Journal
+	progress ProgressFunc
 }
 
 // CredentialReader resolves the GiGot subscription bearer for a
@@ -59,6 +60,25 @@ const journalBackend = journal.BackendGigot
 // the journal hop. Mirrors NewService in the git package.
 func NewService(m *Manager, creds CredentialReader, profile ProfileReader, cfg ConfigReader, jrnl journal.Journal) *Service {
 	return &Service{m: m, creds: creds, profile: profile, cfg: cfg, jrnl: jrnl}
+}
+
+// AttachProgress installs an emit function the Service routes every
+// PullLocal / Reclone SyncProgress event through. `emit` receives the
+// Wails event name and the SyncProgress payload — the composition
+// root wires this to the application's event emitter.
+//
+// Package-level function (not a method) for the same reason as
+// AttachSysgit in the git package: the Wails binding generator walks
+// every method of a bound service and rejects interface-typed
+// parameters, so cross-cutting infra has to be installed via free
+// functions to stay off the bound surface.
+func AttachProgress(s *Service, emit func(name string, data any)) {
+	if s == nil || emit == nil {
+		return
+	}
+	s.progress = func(p SyncProgress) {
+		emit(EventSyncProgress, p)
+	}
 }
 
 // resolveConnection builds a per-call Connection from the active
@@ -225,14 +245,36 @@ func (s *Service) PushLocal() (*PushResult, error) {
 }
 
 // PullLocal fetches the server's tree and writes changed files to disk.
-// On success records a remote-seen entry so the head-probe poller can
-// short-circuit next tick.
+// Emits SyncProgress events through the configured progress channel
+// (set up by AttachProgress at composition time) so the frontend can
+// drive a per-file progress bar. On success records a remote-seen
+// entry so the head-probe poller can short-circuit next tick.
 func (s *Service) PullLocal() (*PullResult, error) {
 	conn, err := s.resolveConnection(true)
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.m.PullLocal(conn, s.resolveContextFolder())
+	res, err := s.m.PullLocalWithProgress(conn, s.resolveContextFolder(), s.progress)
+	if err != nil {
+		return res, err
+	}
+	if s.jrnl != nil && res != nil && res.Version != "" {
+		s.jrnl.RecordRemoteSeen(journalBackend, res.Version)
+	}
+	return res, nil
+}
+
+// Reclone wipes every gigot-managed path under the active context
+// folder and pulls a fresh copy from the server. Destructive:
+// local-only edits in managed paths are dropped. Emits SyncProgress
+// events through the configured progress channel and records a
+// remote-seen entry on success so the journal cursor advances.
+func (s *Service) Reclone() (*PullResult, error) {
+	conn, err := s.resolveConnection(true)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.m.RecloneWithProgress(conn, s.resolveContextFolder(), s.progress)
 	if err != nil {
 		return res, err
 	}

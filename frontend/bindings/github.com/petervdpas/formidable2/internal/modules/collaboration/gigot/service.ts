@@ -134,6 +134,18 @@ export function PushLocal(): $CancellablePromise<$models.PushResult | null> {
 }
 
 /**
+ * Reclone wipes every gigot-managed path under the active context
+ * folder and pulls a fresh copy from the server. Destructive:
+ * local-only edits in managed paths are dropped. Records a remote-seen
+ * entry on success so the journal cursor advances.
+ */
+export function Reclone(): $CancellablePromise<$models.PullResult | null> {
+    return $Call.ByID(477795670).then(($result: any) => {
+        return $$createType18($result);
+    });
+}
+
+/**
  * Sync runs PushLocal then PullLocal at the Service layer so each
  * half emits its own journal entry via the wrapper methods. A push
  * failure aborts before pull to preserve unpushed local changes —

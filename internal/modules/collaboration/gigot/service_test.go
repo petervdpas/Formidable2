@@ -396,6 +396,55 @@ func TestService_SyncDoesNotDoubleRecord(t *testing.T) {
 	}
 }
 
+// ── AttachProgress ──────────────────────────────────────────────────
+
+func TestService_AttachProgress_RoutesEventsThroughEmitter(t *testing.T) {
+	ctxDir := t.TempDir()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/repos/r/tree" {
+			_ = json.NewEncoder(w).Encode(TreeResponse{Version: "v0"})
+		}
+	}))
+	defer srv.Close()
+
+	m := NewManager(newFakeFS(), WithHTTPClient(srv.Client()))
+	cfg := &fakeConfig{baseURL: srv.URL, repoName: "r", context: ctxDir}
+	creds := &fakeCreds{store: map[string]string{"default.json:gigot:r": "tok"}}
+	profile := &fakeProfile{name: "default.json"}
+	s := NewService(m, creds, profile, cfg, nil)
+
+	type capturedEvent struct {
+		name string
+		data any
+	}
+	var captured []capturedEvent
+	AttachProgress(s, func(name string, data any) {
+		captured = append(captured, capturedEvent{name, data})
+	})
+
+	if _, err := s.PullLocal(); err != nil {
+		t.Fatal(err)
+	}
+	if len(captured) == 0 {
+		t.Fatal("AttachProgress did not route any events")
+	}
+	for _, c := range captured {
+		if c.name != EventSyncProgress {
+			t.Errorf("event name = %q, want %q", c.name, EventSyncProgress)
+		}
+		if _, ok := c.data.(SyncProgress); !ok {
+			t.Errorf("event payload type = %T, want SyncProgress", c.data)
+		}
+	}
+}
+
+func TestService_AttachProgress_NilEmitIsSafe(t *testing.T) {
+	m := NewManager(newFakeFS())
+	s := NewService(m, nil, nil, nil, nil)
+	AttachProgress(s, nil)
+	AttachProgress(nil, nil)
+}
+
 func TestService_JournalNilDoesNotPanic(t *testing.T) {
 	ctxDir := t.TempDir()
 	writeFile(t, ctxDir, "templates/basic.yaml", "stable\n")

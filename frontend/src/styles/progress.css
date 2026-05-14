@@ -1,0 +1,47 @@
+/* ProgressBar — determinate or indeterminate strip used while a
+   long-running backend op is in flight. The indeterminate variant
+   uses a CSS-only animation so it costs nothing in JS land. */
+
+.progress-bar {
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.progress-bar__label {
+    margin-bottom: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: 0.9em;
+}
+
+.progress-bar__track {
+    width: 100%;
+    height: 6px;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar__fill {
+    height: 100%;
+    background: var(--color-accent, #4a90e2);
+    transition: width 0.2s ease-out;
+}
+
+.progress-bar__fill--indeterminate {
+    width: 35%;
+    animation: progress-bar-scan 1.4s ease-in-out infinite;
+}
+
+.progress-bar__count {
+    margin-top: var(--space-1);
+    color: var(--color-text-muted);
+    font-size: 0.85em;
+    text-align: right;
+}
+
+@keyframes progress-bar-scan {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(150%); }
+    100% { transform: translateX(285%); }
+}

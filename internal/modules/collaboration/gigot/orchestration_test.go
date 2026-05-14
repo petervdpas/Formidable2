@@ -403,6 +403,125 @@ func TestPullLocal_RejectsBlankContext(t *testing.T) {
 	}
 }
 
+// ── Reclone ─────────────────────────────────────────────────────────
+
+func TestReclone_RejectsBlankContext(t *testing.T) {
+	m := NewManager(newFakeFS())
+	_, err := m.Reclone(Connection{BaseURL: "https://x", Token: "t", RepoName: "r"}, "")
+	if !errors.Is(err, ErrMissingContext) {
+		t.Fatalf("want ErrMissingContext, got %v", err)
+	}
+}
+
+func TestReclone_WipesManagedContentThenPullsFresh(t *testing.T) {
+	ctxDir := t.TempDir()
+	writeFile(t, ctxDir, "templates/stale.yaml", "old stuff that must go\n")
+	writeFile(t, ctxDir, "storage/leftover/old.meta.json", `{"old":true}`)
+	writeFile(t, ctxDir, "notes.txt", "user-owned; must survive reclone")
+
+	// Seed an old ledger so we can prove it was rebuilt from scratch.
+	fs := newFakeFS()
+	m := NewManager(fs)
+	if err := m.WriteTrackRecord(ctxDir, TrackRecord{
+		Version: "stale-version",
+		Files:   map[string]string{"templates/stale.yaml": "old-sha"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	freshBytes := []byte("fresh\n")
+	freshSha := GitBlobSha(freshBytes)
+
+	srv, h := newOrchestrationServer(t)
+	defer srv.Close()
+	h.handle("GET", "/api/repos/r/tree", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(TreeResponse{
+			Version: "fresh-version",
+			Files:   []TreeEntry{{Path: "templates/fresh.yaml", Blob: freshSha}},
+		})
+	})
+	h.handle("GET", "/api/repos/r/files/templates/fresh.yaml", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(FileResponse{
+			Path:       "templates/fresh.yaml",
+			ContentB64: base64.StdEncoding.EncodeToString(freshBytes),
+			Blob:       freshSha,
+		})
+	})
+
+	m = NewManager(fs, WithHTTPClient(srv.Client()))
+	res, err := m.Reclone(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Version != "fresh-version" || res.Files != 1 {
+		t.Fatalf("res = %+v", res)
+	}
+
+	// Stale managed paths are gone.
+	if _, err := os.Stat(filepath.Join(ctxDir, "templates/stale.yaml")); !os.IsNotExist(err) {
+		t.Errorf("stale template should be wiped, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(ctxDir, "storage/leftover/old.meta.json")); !os.IsNotExist(err) {
+		t.Errorf("stale storage record should be wiped, stat err = %v", err)
+	}
+
+	// Server-side content is on disk after the pull.
+	got, err := os.ReadFile(filepath.Join(ctxDir, "templates/fresh.yaml"))
+	if err != nil || string(got) != string(freshBytes) {
+		t.Errorf("fresh.yaml content = %q err=%v", got, err)
+	}
+
+	// User-owned non-managed file survives.
+	if got, err := os.ReadFile(filepath.Join(ctxDir, "notes.txt")); err != nil {
+		t.Errorf("notes.txt should survive reclone: %v", err)
+	} else if string(got) != "user-owned; must survive reclone" {
+		t.Errorf("notes.txt content changed: %q", got)
+	}
+
+	// Ledger reflects the new server state, not the old one.
+	rec := ReadTrackRecord(ctxDir)
+	if rec.Version != "fresh-version" {
+		t.Errorf("ledger version = %q, want fresh-version", rec.Version)
+	}
+	if _, hadStale := rec.Files["templates/stale.yaml"]; hadStale {
+		t.Errorf("ledger still tracks stale path: %+v", rec.Files)
+	}
+	if rec.Files["templates/fresh.yaml"] != freshSha {
+		t.Errorf("ledger missing fresh entry: %+v", rec.Files)
+	}
+}
+
+func TestReclone_OnEmptyContextBehavesLikeInitialClone(t *testing.T) {
+	ctxDir := t.TempDir()
+	bodyBytes := []byte("hello\n")
+	sha := GitBlobSha(bodyBytes)
+
+	srv, h := newOrchestrationServer(t)
+	defer srv.Close()
+	h.handle("GET", "/api/repos/r/tree", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(TreeResponse{
+			Version: "v1",
+			Files:   []TreeEntry{{Path: "templates/x.yaml", Blob: sha}},
+		})
+	})
+	h.handle("GET", "/api/repos/r/files/templates/x.yaml", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(FileResponse{
+			Path:       "templates/x.yaml",
+			ContentB64: base64.StdEncoding.EncodeToString(bodyBytes),
+			Blob:       sha,
+		})
+	})
+
+	m := newOrchestrationManager(t, srv)
+	res, err := m.Reclone(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Files != 1 || res.Version != "v1" {
+		t.Fatalf("res = %+v", res)
+	}
+}
+
 // ── Sync ────────────────────────────────────────────────────────────
 
 func TestSync_RunsPushThenPullAggregatesResult(t *testing.T) {

@@ -116,13 +116,33 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string) (*PushResult,
 // SHA differs. Files the prior ledger remembered but that vanished
 // from the new tree are deleted locally. The ledger is rebuilt from
 // the authoritative tree, so the server wins any disagreement.
+//
+// Delegates to PullLocalWithProgress with a nil callback — keeps the
+// no-progress callsite simple while the with-callback form drives the
+// frontend's per-file progress bar.
 func (m *Manager) PullLocal(conn Connection, contextFolder string) (*PullResult, error) {
+	return m.PullLocalWithProgress(conn, contextFolder, nil)
+}
+
+// PullLocalWithProgress is the progress-instrumented form of PullLocal.
+// The callback receives SyncProgress events at: Start (before any
+// HTTP), Tree (after /tree, with Total set), Delete (once per
+// vanished managed path), Fetch (once per managed tree entry,
+// regardless of SHA-match short-circuit), and Done (at completion).
+// A nil callback degrades to plain PullLocal behaviour.
+func (m *Manager) PullLocalWithProgress(conn Connection, contextFolder string, cb ProgressFunc) (*PullResult, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
 	}
 	if contextFolder == "" {
 		return nil, ErrMissingContext
 	}
+	emit := func(p SyncProgress) {
+		if cb != nil {
+			cb(p)
+		}
+	}
+	emit(SyncProgress{Phase: PhaseStart})
 
 	oldRecord := m.ReadTrackRecord(contextFolder)
 
@@ -137,7 +157,7 @@ func (m *Manager) PullLocal(conn Connection, contextFolder string) (*PullResult,
 		newPaths[e.Path] = struct{}{}
 	}
 
-	deleted := 0
+	pendingDeletes := []string{}
 	for p := range oldRecord.Files {
 		if !IsFormidablePath(p) {
 			continue
@@ -145,37 +165,53 @@ func (m *Manager) PullLocal(conn Connection, contextFolder string) (*PullResult,
 		if _, stillThere := newPaths[p]; stillThere {
 			continue
 		}
+		pendingDeletes = append(pendingDeletes, p)
+	}
+
+	total := len(pendingDeletes) + len(managed)
+	emit(SyncProgress{Phase: PhaseTree, Current: 0, Total: total})
+
+	current := 0
+	deleted := 0
+	for _, p := range pendingDeletes {
+		current++
 		abs := filepath.Join(contextFolder, filepath.FromSlash(p))
 		if err := os.Remove(abs); err == nil {
 			deleted++
 		} else if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("gigot: remove %s: %w", p, err)
 		}
+		emit(SyncProgress{Phase: PhaseDelete, Current: current, Total: total, Path: p})
 	}
 
 	written := 0
 	for _, entry := range managed {
+		current++
 		abs := filepath.Join(contextFolder, filepath.FromSlash(entry.Path))
+		skip := false
 		if buf, err := os.ReadFile(abs); err == nil {
 			if GitBlobSha(buf) == entry.Blob {
-				continue
+				skip = true
 			}
 		}
-		fileResp, err := m.GetFile(conn, entry.Path)
-		if err != nil {
-			return nil, err
+		if !skip {
+			fileResp, err := m.GetFile(conn, entry.Path)
+			if err != nil {
+				return nil, err
+			}
+			raw, err := base64.StdEncoding.DecodeString(fileResp.ContentB64)
+			if err != nil {
+				return nil, fmt.Errorf("gigot: decode %s: %w", entry.Path, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+				return nil, err
+			}
+			if err := os.WriteFile(abs, raw, 0o644); err != nil {
+				return nil, fmt.Errorf("gigot: write %s: %w", entry.Path, err)
+			}
+			written++
 		}
-		raw, err := base64.StdEncoding.DecodeString(fileResp.ContentB64)
-		if err != nil {
-			return nil, fmt.Errorf("gigot: decode %s: %w", entry.Path, err)
-		}
-		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
-			return nil, err
-		}
-		if err := os.WriteFile(abs, raw, 0o644); err != nil {
-			return nil, fmt.Errorf("gigot: write %s: %w", entry.Path, err)
-		}
-		written++
+		emit(SyncProgress{Phase: PhaseFetch, Current: current, Total: total, Path: entry.Path})
 	}
 
 	record := EmptyTrackRecord()
@@ -188,11 +224,46 @@ func (m *Manager) PullLocal(conn Connection, contextFolder string) (*PullResult,
 		return nil, err
 	}
 
+	emit(SyncProgress{Phase: PhaseDone, Current: total, Total: total})
 	return &PullResult{
 		Version: tree.Version,
 		Files:   written,
 		Deleted: deleted,
 	}, nil
+}
+
+// Reclone wipes every gigot-managed path under contextFolder
+// (templates/, storage/, allowlisted root files, the ledger) and then
+// pulls a fresh copy from the server. Use when the user wants a
+// guaranteed-clean slate keyed to the server's HEAD — local-only edits
+// in managed paths are LOST, by design. Non-managed files in the
+// context folder (notes, user data, .formidable/context.json marker)
+// are preserved.
+//
+// On a context folder that's already empty, Reclone behaves like an
+// initial clone — wipe is a no-op and the pull populates everything.
+func (m *Manager) Reclone(conn Connection, contextFolder string) (*PullResult, error) {
+	return m.RecloneWithProgress(conn, contextFolder, nil)
+}
+
+// RecloneWithProgress is the progress-instrumented form of Reclone.
+// Emits PhaseWipe before the destructive sweep, then delegates to
+// PullLocalWithProgress for the fetch half — so consumers see the
+// full Start → Wipe → Tree → Delete/Fetch* → Done sequence.
+func (m *Manager) RecloneWithProgress(conn Connection, contextFolder string, cb ProgressFunc) (*PullResult, error) {
+	if err := validateConn(conn, true); err != nil {
+		return nil, err
+	}
+	if contextFolder == "" {
+		return nil, ErrMissingContext
+	}
+	if cb != nil {
+		cb(SyncProgress{Phase: PhaseWipe})
+	}
+	if err := wipeManagedContent(contextFolder); err != nil {
+		return nil, err
+	}
+	return m.PullLocalWithProgress(conn, contextFolder, cb)
 }
 
 // Sync runs PushLocal then PullLocal. A push error aborts before pull

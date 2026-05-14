@@ -10,6 +10,7 @@ import (
 
 	"github.com/petervdpas/formidable2/internal/app"
 	applog "github.com/petervdpas/formidable2/internal/log"
+	"github.com/petervdpas/formidable2/internal/modules/collaboration/gigot"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -25,6 +26,7 @@ func init() {
 	application.RegisterEvent[journal.Entry](journal.EventChanged)
 	application.RegisterEvent[*nav.Target](nav.EventChanged)
 	application.RegisterEvent[applog.Entry]("log:entry")
+	application.RegisterEvent[gigot.SyncProgress](gigot.EventSyncProgress)
 }
 
 func main() {

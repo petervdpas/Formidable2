@@ -530,7 +530,7 @@ func New(d Deps) (*App, error) {
 		Dataprovider:    dataprovider.NewService(dpM),
 		Plugin:          plugin.NewService(pluginM),
 		Git:             newGitService(gitM, credentialM, cfgM, jrnM, sysgitR),
-		Gigot:           gigot.NewService(gigotM, credentialM, cfgM, cfgM, jrnM),
+		Gigot:           newGigotService(gigotM, credentialM, cfgM, jrnM, emitter),
 		Credential:      credential.NewService(credentialM),
 		Monitor:         monitor.NewService(monitorM),
 		Expression:      expression.NewService(expressionM),
@@ -565,6 +565,18 @@ func New(d Deps) (*App, error) {
 func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manager, jrnl journal.Journal, sys git.Sysgit) *git.Service {
 	svc := git.NewService(m, creds, cfg, jrnl)
 	git.AttachSysgit(svc, cfg, sys)
+	return svc
+}
+
+// newGigotService composes gigot.NewService and gigot.AttachProgress
+// so the App wiring stays a single map literal. The emitterRelay
+// satisfies Wails' Emit shape — late-bound to the application's event
+// emitter once main.go calls App.SetEmit, so progress events fired
+// before the Wails app is fully built no-op gracefully instead of
+// panicking.
+func newGigotService(m *gigot.Manager, creds gigot.CredentialReader, cfg *config.Manager, jrnl journal.Journal, em *emitterRelay) *gigot.Service {
+	svc := gigot.NewService(m, creds, cfg, cfg, jrnl)
+	gigot.AttachProgress(svc, em.Emit)
 	return svc
 }
 

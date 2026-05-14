@@ -287,6 +287,57 @@ type PullResult struct {
 	Deleted int    `json:"deleted"`
 }
 
+// SyncPhase enumerates the named steps PullLocal / Reclone walk
+// through, in the order a progress consumer can expect to see them.
+// String-valued so the Wails event payload stays JSON-friendly.
+type SyncPhase string
+
+const (
+	// PhaseStart fires once at the very entry of a sync op, before
+	// any HTTP. Total is 0 — the count isn't known yet. Useful for
+	// the UI to flip an indeterminate spinner on before /tree returns.
+	PhaseStart SyncPhase = "start"
+	// PhaseWipe fires once before the local-wipe step of Reclone.
+	// Plain PullLocal never emits this.
+	PhaseWipe SyncPhase = "wipe"
+	// PhaseTree fires once after /tree has returned and the work plan
+	// is computed. Total is the sum of pending deletes + managed
+	// entries to inspect/fetch — the count Current ramps toward.
+	PhaseTree SyncPhase = "tree"
+	// PhaseDelete fires once per locally-deleted path. Current is the
+	// running count across delete+fetch events.
+	PhaseDelete SyncPhase = "delete"
+	// PhaseFetch fires once per managed tree entry inspected,
+	// regardless of whether bytes were actually downloaded — SHA-match
+	// short-circuits still count so the progress bar advances.
+	PhaseFetch SyncPhase = "fetch"
+	// PhaseDone fires once at completion. Current==Total. Consumers
+	// hide their progress UI on this signal rather than racing the
+	// Manager's return.
+	PhaseDone SyncPhase = "done"
+)
+
+// SyncProgress is the payload carried by gigot:sync_progress events
+// and by direct ProgressFunc callbacks. Path is non-empty only for
+// per-file phases (delete / fetch).
+type SyncProgress struct {
+	Phase   SyncPhase `json:"phase"`
+	Current int       `json:"current"`
+	Total   int       `json:"total"`
+	Path    string    `json:"path,omitempty"`
+}
+
+// ProgressFunc is the per-call callback shape Manager.PullLocalWithProgress
+// and Manager.RecloneWithProgress accept. Implementations should treat
+// the function as cheap-on-call but must NOT block — the Manager calls
+// it inline between HTTP requests.
+type ProgressFunc func(SyncProgress)
+
+// EventSyncProgress is the Wails event name the Service emits when a
+// progress callback fires. Registered in main.go alongside the other
+// typed events so the frontend gets a typed subscription signature.
+const EventSyncProgress = "gigot:sync_progress"
+
 // SyncResult is what Sync returns on success — the combined push+pull
 // outcome. Noop is true only when both halves were quiet.
 type SyncResult struct {
