@@ -239,7 +239,7 @@ jobs:
         run: wails3 generate bindings -clean -ts
 
       - name: Generate .desktop
-        run: wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Development;"
+        run: wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Utility;"
 
       - name: Build binary
         env:
@@ -338,7 +338,7 @@ jobs:
         run: wails3 generate bindings -clean -ts
 
       - name: Generate .desktop
-        run: wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Development;"
+        run: wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Utility;"
 
       - name: Build binary
         env:
@@ -430,7 +430,7 @@ jobs:
 
           (cd frontend && npm ci && npm run build)
           wails3 generate bindings -clean -ts
-          wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Development;"
+          wails3 generate .desktop -name "Formidable" -exec "Formidable" -icon "Formidable" -outputfile "build/linux/Formidable.desktop" -categories "Utility;"
 
           mkdir -p bin
           GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
