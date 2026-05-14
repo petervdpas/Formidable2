@@ -28,6 +28,11 @@ var (
 	// PullLocal / Sync) is invoked without a context folder.
 	ErrMissingContext = errors.New("gigot: missing context folder")
 
+	// ErrMissingDestinationID fires when DestinationSync is called
+	// without a destination ID — gigot's mirror-sync targets are
+	// id-keyed, so a blank id makes no sense.
+	ErrMissingDestinationID = errors.New("gigot: missing destination id")
+
 	// ErrEmptyContext fires when the walker finds no Formidable-managed
 	// files in the context folder — pushing nothing is almost certainly
 	// a misconfigured path rather than an intentional no-op.

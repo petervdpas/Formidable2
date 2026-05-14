@@ -442,31 +442,3 @@ func TestValidateConn_HappyPath(t *testing.T) {
 	}
 }
 
-// ── scaffold sanity: stubs return ErrNotImplemented ─────────────────
-
-func TestStubs_ReturnNotImplemented(t *testing.T) {
-	m := NewManager(newFakeFS())
-	conn := Connection{BaseURL: "https://x", Token: "t", RepoName: "r"}
-
-	type call func() error
-	cases := map[string]call{
-		"Ping":         func() error { _, e := m.Ping(conn); return e },
-		"Me":           func() error { _, e := m.Me(conn); return e },
-		"Context":      func() error { _, e := m.Context(conn); return e },
-		"Formidable":   func() error { _, e := m.Formidable(conn); return e },
-		"Head":         func() error { _, e := m.Head(conn); return e },
-		"Tree":         func() error { _, e := m.Tree(conn); return e },
-		"GetFile":      func() error { _, e := m.GetFile(conn, "p"); return e },
-		"Log":          func() error { _, e := m.Log(conn, 10); return e },
-		"Destinations": func() error { _, e := m.Destinations(conn); return e },
-		"Commit": func() error {
-			_, e := m.Commit(conn, CommitRequest{ParentVersion: "v", Changes: []Change{{Op: "put", Path: "p"}}})
-			return e
-		},
-	}
-	for name, fn := range cases {
-		if err := fn(); !errors.Is(err, ErrNotImplemented) {
-			t.Errorf("%s: want ErrNotImplemented, got %v", name, err)
-		}
-	}
-}
