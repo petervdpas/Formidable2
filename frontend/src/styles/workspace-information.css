@@ -229,3 +229,106 @@
 .shortcut-scope {
   margin-left: 0.3rem;
 }
+
+/* ── PDF Export panel ─────────────────────────────────────────────── */
+
+.pdf-status-row {
+  margin: 1em 0;
+}
+
+.pdf-status-pill {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.pdf-status-pill.active {
+  background: var(--color-ok-bg, #d4edda);
+  color: var(--color-ok-text, #155724);
+  border: 1px solid var(--color-ok-border, #c3e6cb);
+}
+
+.pdf-status-pill.inactive {
+  background: var(--color-muted-bg, #e9ecef);
+  color: var(--color-muted-text, #495057);
+  border: 1px solid var(--color-muted-border, #ced4da);
+}
+
+.pdf-detail-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 1em 0;
+  max-width: 720px;
+}
+
+.pdf-detail-grid dt {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--color-muted-text, #495057);
+}
+
+.pdf-detail-grid dd {
+  margin: 0;
+  color: var(--color-text, inherit);
+  word-break: break-all;
+}
+
+.pdf-detail-path {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+}
+
+.pdf-action-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex-wrap: wrap;
+  margin: 1em 0;
+}
+
+.pdf-candidate-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5em 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.pdf-candidate-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: 6px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.15));
+}
+
+.pdf-candidate-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pdf-candidate-path {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  word-break: break-all;
+}
+
+.pdf-candidate-sub {
+  display: flex;
+  gap: 0.75em;
+  font-size: 0.8em;
+  color: var(--color-muted-text, #888);
+  margin-top: 2px;
+}
+
+.pdf-candidate-source {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
