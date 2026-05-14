@@ -9,6 +9,7 @@ import {
   FormRow,
   FormSwitchRow,
   TextField,
+  FolderPathField,
 } from "../../components/fields";
 import { Service as GigotSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
 import { Service as CredentialSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/credential";
@@ -34,13 +35,26 @@ import { backendErrMessage } from "../../utils/backendError";
 // the secret doesn't persist across sessions.
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { config, update } = useConfig();
 const { accountFor } = useCredentialAccount();
 const toast = useToast();
 
-const contextFolder = computed(() => config.value?.context_folder ?? "");
-const baseURL = computed(() => config.value?.gigot_base_url ?? "");
-const repoName = computed(() => config.value?.gigot_repo_name ?? "");
+// Addressing fields edit the active profile through useConfig so a
+// Clone here updates Current Service + Repository Sync in lockstep.
+// (The same fields surface on Current Service via GigotConnection —
+// that's intentional. Either entry point fills the same config.)
+const contextFolder = computed({
+  get: () => config.value?.context_folder ?? "",
+  set: (v: string) => void update({ context_folder: v }),
+});
+const baseURL = computed({
+  get: () => config.value?.gigot_base_url ?? "",
+  set: (v: string) => void update({ gigot_base_url: v }),
+});
+const repoName = computed({
+  get: () => config.value?.gigot_repo_name ?? "",
+  set: (v: string) => void update({ gigot_repo_name: v }),
+});
 
 const token = ref("");
 const saveToken = ref(true);
@@ -187,6 +201,24 @@ async function doReclone() {
   </div>
 
   <FormSection>
+    <FormRow :label="t('workspace.collaboration.gigot.clone.context_folder')">
+      <FolderPathField
+        v-model="contextFolder"
+        placeholder="./Examples"
+      />
+    </FormRow>
+    <FormRow :label="t('workspace.collaboration.gigot.clone.base_url')">
+      <TextField
+        v-model="baseURL"
+        placeholder="https://gigot.example.com"
+      />
+    </FormRow>
+    <FormRow :label="t('workspace.collaboration.gigot.clone.repo')">
+      <TextField
+        v-model="repoName"
+        placeholder="addresses"
+      />
+    </FormRow>
     <FormRow
       :label="t('workspace.collaboration.gigot.clone.token')"
       :description="t('workspace.collaboration.gigot.clone.token_help')"
