@@ -100,22 +100,31 @@ func (m *Manager) GetFile(conn Connection, repoRelPath string) (*FileResponse, e
 	return &out, nil
 }
 
-// Log issues GET /api/repos/{repo}/log?limit=N. limit<=0 omits the
-// query so the server falls back to its default page size.
-func (m *Manager) Log(conn Connection, limit int) ([]LogEntry, error) {
+// Log issues GET /api/repos/{repo}/log[?limit=N&with_changes=1].
+// limit<=0 omits the limit query so the server falls back to its
+// default page size. withChanges=true adds per-commit file changes
+// (one extra diff-tree call per entry on the server) — the proper
+// commit-trail-with-file-diffs view that audit UIs render.
+func (m *Manager) Log(conn Connection, limit int, withChanges bool) (*RepoLogResponse, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
 	}
-	var query map[string]string
+	query := map[string]string{}
 	if limit > 0 {
-		query = map[string]string{"limit": strconv.Itoa(limit)}
+		query["limit"] = strconv.Itoa(limit)
 	}
-	var out []LogEntry
+	if withChanges {
+		query["with_changes"] = "1"
+	}
+	if len(query) == 0 {
+		query = nil
+	}
+	var out RepoLogResponse
 	path := "/api/repos/" + encodeSegment(conn.RepoName) + "/log"
 	if err := m.do(http.MethodGet, conn, path, query, nil, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return &out, nil
 }
 
 // Destinations issues GET /api/repos/{repo}/destinations — mirror-sync

@@ -176,14 +176,16 @@ func (s *Service) GetFile(repoRelPath string) (*FileResponse, error) {
 	return s.m.GetFile(conn, repoRelPath)
 }
 
-// Log issues GET /api/repos/{repo}/log?limit=N. limit<=0 collapses to
-// a server default.
-func (s *Service) Log(limit int) ([]LogEntry, error) {
+// Log issues GET /api/repos/{repo}/log[?limit=N&with_changes=1].
+// limit<=0 collapses to the server's default page size. withChanges=true
+// asks the server to attach each commit's per-path file changes — the
+// audit-trail view; leave it false for cheap graph rendering.
+func (s *Service) Log(limit int, withChanges bool) (*RepoLogResponse, error) {
 	conn, err := s.resolveConnection(true)
 	if err != nil {
 		return nil, err
 	}
-	return s.m.Log(conn, limit)
+	return s.m.Log(conn, limit, withChanges)
 }
 
 // Destinations issues GET /api/repos/{repo}/destinations.

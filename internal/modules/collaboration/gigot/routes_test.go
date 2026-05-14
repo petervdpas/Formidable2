@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -250,14 +251,19 @@ func TestGetFile_HitsFilesEndpointWithEncodedPath(t *testing.T) {
 
 // ── Log ─────────────────────────────────────────────────────────────
 
-func TestLog_PassesLimitQueryWhenPositive(t *testing.T) {
+func TestLog_DecodesWrappedResponse(t *testing.T) {
 	var cap capture
-	srv := stubServer(t, &cap, http.StatusOK,
-		`[{"hash":"a","author":"alice","date":"2026-01-01T00:00:00Z","message":"hi"}]`)
+	srv := stubServer(t, &cap, http.StatusOK, `{
+		"name":"r",
+		"entries":[
+			{"hash":"a","parents":["p1"],"refs":["HEAD","main"],"author":"alice","email":"a@example.com","date":"2026-01-01T00:00:00Z","message":"hi"}
+		],
+		"count":1
+	}`)
 	defer srv.Close()
 
 	m := newTestManager(srv)
-	got, err := m.Log(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, 25)
+	got, err := m.Log(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, 25, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,22 +273,73 @@ func TestLog_PassesLimitQueryWhenPositive(t *testing.T) {
 	if cap.Query != "limit=25" {
 		t.Errorf("query = %q", cap.Query)
 	}
-	if len(got) != 1 || got[0].Hash != "a" {
-		t.Errorf("decoded = %+v", got)
+	if got.Name != "r" || got.Count != 1 || len(got.Entries) != 1 {
+		t.Fatalf("envelope decode = %+v", got)
+	}
+	e := got.Entries[0]
+	if e.Hash != "a" || e.Email != "a@example.com" {
+		t.Errorf("entry hash/email lost: %+v", e)
+	}
+	if len(e.Parents) != 1 || e.Parents[0] != "p1" {
+		t.Errorf("parents lost: %+v", e.Parents)
+	}
+	if len(e.Refs) != 2 || e.Refs[0] != "HEAD" {
+		t.Errorf("refs lost: %+v", e.Refs)
+	}
+	if e.Changes != nil {
+		t.Errorf("changes should be omitted without with_changes, got %+v", e.Changes)
 	}
 }
 
 func TestLog_OmitsLimitQueryWhenNonPositive(t *testing.T) {
 	var cap capture
-	srv := stubServer(t, &cap, http.StatusOK, `[]`)
+	srv := stubServer(t, &cap, http.StatusOK, `{"name":"r","entries":[],"count":0}`)
 	defer srv.Close()
 
 	m := newTestManager(srv)
-	if _, err := m.Log(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, 0); err != nil {
+	if _, err := m.Log(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, 0, false); err != nil {
 		t.Fatal(err)
 	}
 	if cap.Query != "" {
 		t.Errorf("non-positive limit should not produce query, got %q", cap.Query)
+	}
+}
+
+func TestLog_WithChangesPassesQueryAndDecodesFilePaths(t *testing.T) {
+	var cap capture
+	srv := stubServer(t, &cap, http.StatusOK, `{
+		"name":"r",
+		"entries":[{
+			"hash":"a","author":"alice","date":"2026-01-01T00:00:00Z","message":"audit",
+			"changes":[
+				{"path":"templates/basic.yaml","status":"M"},
+				{"path":"storage/x/one.meta.json","status":"A"}
+			]
+		}],
+		"count":1
+	}`)
+	defer srv.Close()
+
+	m := newTestManager(srv)
+	got, err := m.Log(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, 5, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cap.Query == "" || !strings.Contains(cap.Query, "with_changes=1") {
+		t.Fatalf("query should include with_changes=1, got %q", cap.Query)
+	}
+	if !strings.Contains(cap.Query, "limit=5") {
+		t.Fatalf("query should still include limit=5, got %q", cap.Query)
+	}
+	if len(got.Entries) != 1 || len(got.Entries[0].Changes) != 2 {
+		t.Fatalf("changes not decoded: %+v", got)
+	}
+	cs := got.Entries[0].Changes
+	if cs[0].Path != "templates/basic.yaml" || cs[0].Status != "M" {
+		t.Errorf("changes[0] = %+v", cs[0])
+	}
+	if cs[1].Path != "storage/x/one.meta.json" || cs[1].Status != "A" {
+		t.Errorf("changes[1] = %+v", cs[1])
 	}
 }
 

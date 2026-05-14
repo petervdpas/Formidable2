@@ -163,14 +163,39 @@ type FileResponse struct {
 	Size       int64  `json:"size,omitempty"`
 }
 
-// LogEntry is one row in GET /api/repos/{repo}/log?limit=N. Date is
-// RFC3339 in the commit author's stored offset.
+// LogEntry is one row in a RepoLogResponse. Date is RFC3339 in the
+// commit author's stored offset. Parents and Refs are populated
+// unconditionally on the server side so graph-style UIs can render
+// branch pills + parent edges without a second request. Changes is
+// populated only when Log is called with withChanges=true (the server
+// adds one extra diff-tree call per commit) — omitted from JSON when
+// nil so the lean shape stays cheap for graph-only callers.
 type LogEntry struct {
-	Hash    string `json:"hash"`
-	Author  string `json:"author"`
-	Email   string `json:"email,omitempty"`
-	Date    string `json:"date"`
-	Message string `json:"message"`
+	Hash    string       `json:"hash"`
+	Parents []string     `json:"parents,omitempty"`
+	Refs    []string     `json:"refs,omitempty"`
+	Author  string       `json:"author"`
+	Email   string       `json:"email,omitempty"`
+	Date    string       `json:"date"`
+	Message string       `json:"message"`
+	Changes []ChangeFile `json:"changes,omitempty"`
+}
+
+// ChangeFile is one per-path entry in a commit's changes list. Status
+// uses git's standard single-letter codes: A=added, M=modified,
+// D=deleted, R=renamed.
+type ChangeFile struct {
+	Path   string `json:"path"`
+	Status string `json:"status"`
+}
+
+// RepoLogResponse is the wrapped body returned by
+// GET /api/repos/{repo}/log. Name + Count are envelope metadata; the
+// commit trail itself is in Entries.
+type RepoLogResponse struct {
+	Name    string     `json:"name"`
+	Entries []LogEntry `json:"entries"`
+	Count   int        `json:"count"`
 }
 
 // CommitRequest is the body of POST /api/repos/{repo}/commits.
