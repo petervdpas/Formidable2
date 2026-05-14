@@ -38,6 +38,38 @@ export class ActivateOpts {
 }
 
 /**
+ * ChromeCandidate is one entry returned by ProbeChrome — a Chrome/
+ * Chromium binary the activation flow can adopt. Version is best-
+ * effort (resolved by running `<path> --version`) and may be empty
+ * when the binary refuses to run or the call times out.
+ */
+export class ChromeCandidate {
+    "path": string;
+    "source": Source;
+    "version"?: string;
+
+    /** Creates a new ChromeCandidate instance. */
+    constructor($$source: Partial<ChromeCandidate> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = Source.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChromeCandidate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChromeCandidate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ChromeCandidate($$parsedSource as Partial<ChromeCandidate>);
+    }
+}
+
+/**
  * ExportOpts shapes the per-call options ExportPDF accepts. Empty
  * values fall back to the merged manifest + form-meta + global-config
  * defaults (Stage 3 builds that pipeline). Stage 1 ignores it.
@@ -62,6 +94,38 @@ export class ExportOpts {
     static createFrom($$source: any = {}): ExportOpts {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ExportOpts($$parsedSource as Partial<ExportOpts>);
+    }
+}
+
+/**
+ * ProbeResult is what ProbeChrome returns to the activation dialog.
+ * Candidates is ordered: env-var override (if any), then system
+ * matches in the platform's standard search list, then managed-cache
+ * matches. Empty means no Chrome was found — the dialog should offer
+ * the managed-download path (Phase D).
+ */
+export class ProbeResult {
+    "candidates": ChromeCandidate[];
+
+    /** Creates a new ProbeResult instance. */
+    constructor($$source: Partial<ProbeResult> = {}) {
+        if (!("candidates" in $$source)) {
+            this["candidates"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProbeResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProbeResult {
+        const $$createField0_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("candidates" in $$parsedSource) {
+            $$parsedSource["candidates"] = $$createField0_0($$parsedSource["candidates"]);
+        }
+        return new ProbeResult($$parsedSource as Partial<ProbeResult>);
     }
 }
 
@@ -171,3 +235,7 @@ export class Status {
         return new Status($$parsedSource as Partial<Status>);
     }
 }
+
+// Private type creation functions
+const $$createType0 = ChromeCandidate.createFrom;
+const $$createType1 = $Create.Array($$createType0);

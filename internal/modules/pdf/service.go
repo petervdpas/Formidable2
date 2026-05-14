@@ -19,6 +19,13 @@ func NewService(m *Manager) *Service {
 // the Information page status row.
 func (s *Service) GetStatus() Status { return s.m.Status() }
 
+// ProbeChrome lists every Chrome/Chromium binary the activation
+// flow could adopt — env-var override, then system paths in their
+// platform's conventional order, then the latest managed-cache
+// pick. Empty Candidates means no Chrome was found; the dialog
+// should offer the managed-download path (Phase D).
+func (s *Service) ProbeChrome() ProbeResult { return s.m.Probe() }
+
 // Activate is the user's "yes, set up PDF export" action. Stage 1
 // always returns ErrPDFNotActivated; Stage 2 wires probing +
 // managed-download flow.

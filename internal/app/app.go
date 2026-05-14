@@ -512,11 +512,14 @@ func New(d Deps) (*App, error) {
 	// the Manager stays transport-neutral.
 	gigotM := gigot.NewManager(sysM)
 
-	// PDF export — Stage 1 skeleton. Manager is inactive on boot;
-	// activation flow lands in Stage 2 (per-machine state lives at
-	// <AppRoot>/config/pdf-state.json, NOT in user.json — browser_bin
-	// is a machine-specific path). See design/pdf-export.md.
-	pdfM := pdf.NewManager(d.Logger)
+	// PDF export — Stage 2 MVP (Phases A+B+C). Manager probes system
+	// + managed-cache Chrome on demand, persists activation per-machine
+	// to <AppRoot>/config/pdf-state.json via sysM. Phase D (managed
+	// download with progress events) is deferred. See design/pdf-export.md.
+	pdfM := pdf.NewManager(d.Logger, sysM)
+	if err := pdfM.Restore(); err != nil {
+		d.Logger.Warn("pdf: state restore failed", "err", err)
+	}
 
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 

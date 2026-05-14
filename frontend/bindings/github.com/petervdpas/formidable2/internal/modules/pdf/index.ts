@@ -8,7 +8,9 @@ export {
 
 export {
     ActivateOpts,
+    ChromeCandidate,
     ExportOpts,
+    ProbeResult,
     Result,
     Source,
     Status

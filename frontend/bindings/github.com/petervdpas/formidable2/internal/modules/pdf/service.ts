@@ -57,6 +57,20 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
     });
 }
 
+/**
+ * ProbeChrome lists every Chrome/Chromium binary the activation
+ * flow could adopt — env-var override, then system paths in their
+ * platform's conventional order, then the latest managed-cache
+ * pick. Empty Candidates means no Chrome was found; the dialog
+ * should offer the managed-download path (Phase D).
+ */
+export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
+    return $Call.ByID(4169509082).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.Status.createFrom;
 const $$createType1 = $models.Result.createFrom;
+const $$createType2 = $models.ProbeResult.createFrom;

@@ -88,3 +88,22 @@ type Result struct {
 	Bytes    int           `json:"bytes"`
 	Duration time.Duration `json:"duration_ms"`
 }
+
+// ChromeCandidate is one entry returned by ProbeChrome — a Chrome/
+// Chromium binary the activation flow can adopt. Version is best-
+// effort (resolved by running `<path> --version`) and may be empty
+// when the binary refuses to run or the call times out.
+type ChromeCandidate struct {
+	Path    string `json:"path"`
+	Source  Source `json:"source"`
+	Version string `json:"version,omitempty"`
+}
+
+// ProbeResult is what ProbeChrome returns to the activation dialog.
+// Candidates is ordered: env-var override (if any), then system
+// matches in the platform's standard search list, then managed-cache
+// matches. Empty means no Chrome was found — the dialog should offer
+// the managed-download path (Phase D).
+type ProbeResult struct {
+	Candidates []ChromeCandidate `json:"candidates"`
+}
