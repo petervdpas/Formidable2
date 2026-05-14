@@ -313,6 +313,71 @@ func TestLoadTemplate_ConcurrentSameNameNoRace(t *testing.T) {
 	}
 }
 
+func TestLoadMany_HappyPath(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("a.yaml", &Template{Name: "A", Fields: []Field{{Key: "x", Type: "text"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.SaveTemplate("b.yaml", &Template{Name: "B", Fields: []Field{{Key: "y", Type: "text"}}}); err != nil {
+		t.Fatal(err)
+	}
+	got := m.LoadMany([]string{"b.yaml", "a.yaml"})
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[0].Filename != "b.yaml" || got[0].Template == nil || got[0].Template.Name != "B" {
+		t.Errorf("got[0] = %+v, want b.yaml/B", got[0])
+	}
+	if got[1].Filename != "a.yaml" || got[1].Template == nil || got[1].Template.Name != "A" {
+		t.Errorf("got[1] = %+v, want a.yaml/A", got[1])
+	}
+}
+
+func TestLoadMany_MissingFileEmitsErrorSlot(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("a.yaml", &Template{Name: "A", Fields: []Field{{Key: "x", Type: "text"}}}); err != nil {
+		t.Fatal(err)
+	}
+	got := m.LoadMany([]string{"a.yaml", "nope.yaml"})
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[0].Template == nil || got[0].Error != "" {
+		t.Errorf("got[0] should be a.yaml with Template, got %+v", got[0])
+	}
+	if got[1].Template != nil {
+		t.Errorf("got[1].Template should be nil for missing file, got %+v", got[1].Template)
+	}
+	if got[1].Error == "" {
+		t.Errorf("got[1].Error should carry the missing-file reason")
+	}
+	if got[1].Filename != "nope.yaml" {
+		t.Errorf("got[1].Filename = %q, want nope.yaml", got[1].Filename)
+	}
+}
+
+func TestLoadMany_EmptyInputReturnsEmpty(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if got := m.LoadMany(nil); len(got) != 0 {
+		t.Errorf("nil names should produce empty slice, got %+v", got)
+	}
+}
+
+func TestLoadMany_PointerEqualityWithLoadTemplateCache(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("a.yaml", &Template{Name: "A", Fields: []Field{{Key: "x", Type: "text"}}}); err != nil {
+		t.Fatal(err)
+	}
+	single, err := m.LoadTemplate("a.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	batch := m.LoadMany([]string{"a.yaml"})
+	if batch[0].Template != single {
+		t.Errorf("LoadMany should hit the same cache slot as LoadTemplate; got different pointer")
+	}
+}
+
 func TestSaveTemplate_RejectsNil(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	if err := m.SaveTemplate("x.yaml", nil); err == nil {

@@ -3,7 +3,7 @@
 
 /**
  * Service is the Wails-bound facade for the expression module. Vue
- * calls Evaluate for one-off expressions and EvaluateSidebar to
+ * calls Evaluate for one-off expressions and EvaluateList to
  * populate the Storage workspace's per-row sub-labels. Builder*
  * methods power the visual sidebar-expression dialog by returning
  * the same construction primitives the Go side uses internally —
@@ -127,36 +127,49 @@ export function BuilderParse(src: string, fields: builder$0.FieldRef[]): $Cancel
 
 /**
  * Evaluate runs one expression against an arbitrary context. Returns
- * a normalised SidebarItem so callers get the same shape whether the
+ * a normalised Result so callers get the same shape whether the
  * expression returns a string, list, or struct.
  */
-export function Evaluate(src: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.SidebarItem> {
+export function Evaluate(src: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.Result> {
     return $Call.ByID(3315345587, src, ctx).then(($result: any) => {
         return $$createType7($result);
     });
 }
 
 /**
- * EvaluateSidebar renders the sub-label for every record in a
+ * EvaluateList renders the sub-label for every record in a
  * template's storage list. Returns ErrNoExpression when the template
  * has no sidebar_expression configured — the frontend should hide
  * the sub-label entirely in that case rather than render anything.
  */
-export function EvaluateSidebar(templateName: string): $CancellablePromise<$models.SidebarItem[]> {
-    return $Call.ByID(3056242925, templateName).then(($result: any) => {
+export function EvaluateList(templateName: string): $CancellablePromise<$models.Result[]> {
+    return $Call.ByID(3129605659, templateName).then(($result: any) => {
         return $$createType8($result);
     });
 }
 
 /**
- * EvaluateSidebarOne renders the sub-label for one record. Used by
+ * EvaluateListMany renders sub-labels for an explicit list of
+ * records. The Storage workspace uses it on template change and
+ * Refresh to collapse N parallel EvaluateListOne calls into one
+ * IPC round-trip; results are returned in the same order as the
+ * input filenames.
+ */
+export function EvaluateListMany(templateName: string, datafiles: string[]): $CancellablePromise<$models.Result[]> {
+    return $Call.ByID(2738239460, templateName, datafiles).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
+/**
+ * EvaluateListOne renders the sub-label for one record. Used by
  * self-serving sidebar items refreshing themselves after a save, so
  * editing one form doesn't trigger a full-list re-evaluation that
  * thrashes the sidebar scroll. Same ErrNoExpression contract as the
  * bulk method.
  */
-export function EvaluateSidebarOne(templateName: string, datafile: string): $CancellablePromise<$models.SidebarItem> {
-    return $Call.ByID(18398183, templateName, datafile).then(($result: any) => {
+export function EvaluateListOne(templateName: string, datafile: string): $CancellablePromise<$models.Result> {
+    return $Call.ByID(2616284681, templateName, datafile).then(($result: any) => {
         return $$createType7($result);
     });
 }
@@ -169,5 +182,5 @@ const $$createType3 = builder$0.Predicate.createFrom;
 const $$createType4 = builder$0.Rule.createFrom;
 const $$createType5 = builder$0.Operator.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.SidebarItem.createFrom;
+const $$createType7 = $models.Result.createFrom;
 const $$createType8 = $Create.Array($$createType7);

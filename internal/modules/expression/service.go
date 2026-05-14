@@ -3,7 +3,7 @@ package expression
 import "github.com/petervdpas/formidable2/internal/modules/expression/builder"
 
 // Service is the Wails-bound facade for the expression module. Vue
-// calls Evaluate for one-off expressions and EvaluateSidebar to
+// calls Evaluate for one-off expressions and EvaluateList to
 // populate the Storage workspace's per-row sub-labels. Builder*
 // methods power the visual sidebar-expression dialog by returning
 // the same construction primitives the Go side uses internally —
@@ -16,27 +16,36 @@ type Service struct{ m *Manager }
 func NewService(m *Manager) *Service { return &Service{m: m} }
 
 // Evaluate runs one expression against an arbitrary context. Returns
-// a normalised SidebarItem so callers get the same shape whether the
+// a normalised Result so callers get the same shape whether the
 // expression returns a string, list, or struct.
-func (s *Service) Evaluate(src string, ctx map[string]any) (SidebarItem, error) {
+func (s *Service) Evaluate(src string, ctx map[string]any) (Result, error) {
 	return s.m.Evaluate(src, ctx)
 }
 
-// EvaluateSidebar renders the sub-label for every record in a
+// EvaluateList renders the sub-label for every record in a
 // template's storage list. Returns ErrNoExpression when the template
 // has no sidebar_expression configured — the frontend should hide
 // the sub-label entirely in that case rather than render anything.
-func (s *Service) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
-	return s.m.EvaluateSidebar(templateName)
+func (s *Service) EvaluateList(templateName string) ([]Result, error) {
+	return s.m.EvaluateList(templateName)
 }
 
-// EvaluateSidebarOne renders the sub-label for one record. Used by
+// EvaluateListOne renders the sub-label for one record. Used by
 // self-serving sidebar items refreshing themselves after a save, so
 // editing one form doesn't trigger a full-list re-evaluation that
 // thrashes the sidebar scroll. Same ErrNoExpression contract as the
 // bulk method.
-func (s *Service) EvaluateSidebarOne(templateName, datafile string) (SidebarItem, error) {
-	return s.m.EvaluateSidebarOne(templateName, datafile)
+func (s *Service) EvaluateListOne(templateName, datafile string) (Result, error) {
+	return s.m.EvaluateListOne(templateName, datafile)
+}
+
+// EvaluateListMany renders sub-labels for an explicit list of
+// records. The Storage workspace uses it on template change and
+// Refresh to collapse N parallel EvaluateListOne calls into one
+// IPC round-trip; results are returned in the same order as the
+// input filenames.
+func (s *Service) EvaluateListMany(templateName string, datafiles []string) ([]Result, error) {
+	return s.m.EvaluateListMany(templateName, datafiles)
 }
 
 // BuilderKindForFieldType reports the rule kind for a Field.Type, or

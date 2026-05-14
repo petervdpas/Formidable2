@@ -412,6 +412,39 @@ export class ItemField {
 }
 
 /**
+ * LoadManyResult is one slot in LoadMany's response. Template is nil
+ * when the file was missing or unparseable — Error carries the
+ * per-row failure message. Filename is always stamped so callers can
+ * pair the result back to its input slot even when Template is nil.
+ */
+export class LoadManyResult {
+    "filename": string;
+    "template"?: Template | null;
+    "error"?: string;
+
+    /** Creates a new LoadManyResult instance. */
+    constructor($$source: Partial<LoadManyResult> = {}) {
+        if (!("filename" in $$source)) {
+            this["filename"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LoadManyResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LoadManyResult {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("template" in $$parsedSource) {
+            $$parsedSource["template"] = $$createField1_0($$parsedSource["template"]);
+        }
+        return new LoadManyResult($$parsedSource as Partial<LoadManyResult>);
+    }
+}
+
+/**
  * Shape selects an output style for the markdown-template generator.
  */
 export enum Shape {

@@ -10,13 +10,23 @@ let loaded = false;
 async function refresh(): Promise<void> {
   filenames.value = await TemplateSvc.ListTemplates();
   loaded = true;
-  // Eagerly load each into the cache so the sidebar can show display
-  // names. Number of templates is small in practice; this avoids the
-  // sidebar flickering as each row resolves its label.
+  // One IPC call for the whole list — backend's per-name cache + the
+  // batched LoadMany endpoint mean a saved-or-cold list of N templates
+  // resolves in a single round-trip. Per-row errors land in `error`
+  // and keep the rest of the batch usable.
+  const results = await TemplateSvc.LoadMany(filenames.value);
   const next = new Map<string, Template | null>();
-  for (const f of filenames.value) {
-    next.set(f, await TemplateSvc.LoadTemplate(f));
+  for (const r of results) {
+    next.set(r.filename, r.template ?? null);
   }
+  cache.value = next;
+}
+
+async function refreshOne(filename: string): Promise<void> {
+  if (!filename) return;
+  const t = await TemplateSvc.LoadTemplate(filename);
+  const next = new Map(cache.value);
+  next.set(filename, t);
   cache.value = next;
 }
 
@@ -87,6 +97,7 @@ export function useTemplates() {
     selectedFilename,
     selectedTemplate,
     refresh,
+    refreshOne,
     load,
     create,
     remove,

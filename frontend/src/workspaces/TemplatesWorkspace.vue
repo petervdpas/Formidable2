@@ -57,6 +57,7 @@ const {
   selectedFilename,
   selectedTemplate,
   refresh,
+  refreshOne,
   create,
   remove,
 } = useTemplates();
@@ -92,20 +93,6 @@ watch(selectedFilename, (fn) => {
   statusBar.setSelected(fn);
 });
 
-// Per-row refs into self-serving TemplateListItem instances. Each
-// item loads its own template's display name; after a save we look
-// up the matching ref and call .refresh() so editing a template's
-// name updates just that row.
-type TemplateListItemRef = { refresh: () => Promise<void> };
-const itemRefs = new Map<string, TemplateListItemRef>();
-function setItemRef(filename: string, el: unknown): void {
-  if (el && typeof el === "object" && "refresh" in (el as object)) {
-    itemRefs.set(filename, el as TemplateListItemRef);
-  } else {
-    itemRefs.delete(filename);
-  }
-}
-
 // ── Refresh feedback ──────────────────────────────────────────────────
 async function doRefresh() {
   try {
@@ -124,10 +111,11 @@ async function doSave() {
     const fn = selectedFilename.value!;
     toast.success("workspace.templates.save_success", [fn]);
     statusBar.setSaved(fn);
-    // Ask the matching sidebar item to re-fetch its own template
-    // metadata. No bulk list refresh — the filenames array is unchanged
-    // by a save and the editor's panel already shows the new state.
-    await itemRefs.get(fn)?.refresh();
+    // Re-read just the saved template into the cache. The other rows
+    // are untouched, so the rest of the list (and its scroll position)
+    // stays stable — Vue propagates the new entry to the matching
+    // TemplateListItem via its :template prop.
+    await refreshOne(fn);
     return;
   }
   if (result.reason === "validation") {
@@ -582,8 +570,8 @@ setTopbarMenu(() => [
           <TemplateListItem
             v-for="f in filenames"
             :key="f"
-            :ref="(el) => setItemRef(f, el)"
             :filename="f"
+            :template="cache.get(f) ?? null"
             :active="f === selectedFilename"
             @pick="(name) => (selectedFilename = name)"
           />

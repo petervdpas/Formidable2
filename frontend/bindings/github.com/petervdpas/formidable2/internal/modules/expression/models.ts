@@ -6,16 +6,16 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * SidebarItem is the rendered output of one expression evaluation.
- * Frontends render Text as the sub-label and apply Color (CSS color)
+ * Result is the rendered output of one expression evaluation.
+ * Frontends render Text as the row label and apply Color (CSS color)
  * + Classes (utility CSS classes from styles/expression.css). Items
- * is populated when the expression returns a list — frontends can
+ * is populated when the expression returns a list — consumers can
  * render chips/pills instead of a single label if they want.
  * 
  * All fields are JSON-encoded with omitempty so a bare `{Text:"x"}`
  * payload stays compact across the Wails surface.
  */
-export class SidebarItem {
+export class Result {
     "text": string;
     "color"?: string;
     "bg"?: string;
@@ -23,22 +23,22 @@ export class SidebarItem {
     "items"?: string[];
 
     /**
-     * Filename is set by EvaluateSidebar so the frontend can pair the
-     * rendered label with its record without a parallel array. Empty
-     * for single-shot Evaluate calls — only meaningful for the bulk
-     * sidebar path.
+     * Filename is set by EvaluateList / EvaluateListOne / EvaluateListMany
+     * so callers can pair the rendered label with its record without a
+     * parallel array. Empty for single-shot Evaluate calls — only
+     * meaningful for the per-record list paths.
      */
     "filename"?: string;
 
     /**
      * Error carries the per-row failure message when evaluation fails
-     * for one record. The Manager keeps going; the frontend can show
-     * a tiny `[expr error]` chip without nuking the whole list.
+     * for one record. The Manager keeps going; consumers can show a
+     * tiny `[expr error]` chip without nuking the whole list.
      */
     "error"?: string;
 
-    /** Creates a new SidebarItem instance. */
-    constructor($$source: Partial<SidebarItem> = {}) {
+    /** Creates a new Result instance. */
+    constructor($$source: Partial<Result> = {}) {
         if (!("text" in $$source)) {
             this["text"] = "";
         }
@@ -47,9 +47,9 @@ export class SidebarItem {
     }
 
     /**
-     * Creates a new SidebarItem instance from a string or object.
+     * Creates a new Result instance from a string or object.
      */
-    static createFrom($$source: any = {}): SidebarItem {
+    static createFrom($$source: any = {}): Result {
         const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -59,7 +59,7 @@ export class SidebarItem {
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField4_0($$parsedSource["items"]);
         }
-        return new SidebarItem($$parsedSource as Partial<SidebarItem>);
+        return new Result($$parsedSource as Partial<Result>);
     }
 }
 

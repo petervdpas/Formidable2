@@ -58,7 +58,7 @@ func (f AuthorFunc) Author() (string, string) { return f() }
 
 // Manager holds the template directory binding. LoadTemplate is cached
 // per-filename and serialized per-filename, so the 50+ sidebar-item
-// mount storm (each row calls LoadTemplate via EvaluateSidebarOne) hits
+// mount storm (each row calls LoadTemplate via EvaluateListOne) hits
 // disk + yaml.Unmarshal once instead of N times. SaveTemplate /
 // DeleteTemplate invalidate the entry. The cache trusts this process as
 // the only writer; external edits (user editing yaml in another tool)
@@ -180,6 +180,26 @@ func (m *Manager) LoadTemplate(name string) (*Template, error) {
 	}
 	m.cachePut(name, &t)
 	return &t, nil
+}
+
+// LoadMany resolves each name via LoadTemplate and returns the
+// results in the same order as the input. Missing files emit a
+// (Template=nil, Error=<msg>) slot rather than aborting the batch —
+// callers can render the survivors. Used by list workspaces to
+// collapse N parallel LoadTemplate IPC calls into one. Concurrency
+// inside is still serialized per-name by loadMu, so two parallel
+// LoadMany calls don't re-parse the same template twice.
+func (m *Manager) LoadMany(names []string) []LoadManyResult {
+	out := make([]LoadManyResult, len(names))
+	for i, n := range names {
+		t, err := m.LoadTemplate(n)
+		if err != nil {
+			out[i] = LoadManyResult{Filename: n, Error: err.Error()}
+			continue
+		}
+		out[i] = LoadManyResult{Filename: n, Template: t}
+	}
+	return out
 }
 
 func (m *Manager) cacheGet(name string) *Template {

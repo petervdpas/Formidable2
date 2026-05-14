@@ -35,13 +35,13 @@ func colorWriter() io.Writer {
 }
 
 // exprWorld is per-scenario state. Holds the in-test Manager, the
-// last SidebarItem returned, and the last error so multiple Then
+// last Result returned, and the last error so multiple Then
 // steps can check different facets of one result.
 type exprWorld struct {
 	mgr     *Manager
 	tpl     fakeTpl
 	sto     fakeSto
-	result  SidebarItem
+	result  Result
 	resErr  error
 }
 
@@ -96,7 +96,7 @@ func initExpressionScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I evaluate the sidebar for "([^"]*)"$`, func(filename string) error {
 		w.build()
-		w.result, w.resErr = w.mgr.EvaluateSidebarOne("any", filename)
+		w.result, w.resErr = w.mgr.EvaluateListOne("any", filename)
 		return nil
 	})
 
@@ -126,7 +126,7 @@ func initExpressionScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^the result error is non-empty$`, func() error {
 		if w.result.Error == "" {
-			return fmt.Errorf("expected SidebarItem.Error to be non-empty")
+			return fmt.Errorf("expected Result.Error to be non-empty")
 		}
 		return nil
 	})
@@ -149,7 +149,7 @@ func initExpressionScenario(ctx *godog.ScenarioContext) {
 		w.tpl = fakeTpl{}
 		w.sto = fakeSto{}
 		w.mgr = nil
-		w.result = SidebarItem{}
+		w.result = Result{}
 		w.resErr = nil
 		return c, nil
 	})

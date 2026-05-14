@@ -28,6 +28,12 @@ func (s *Service) TemplatesDir() string                        { return s.m.Temp
 func (s *Service) ListTemplates() ([]string, error)            { return s.m.ListTemplates() }
 func (s *Service) HasTemplates() bool                          { return s.m.HasTemplates() }
 func (s *Service) LoadTemplate(name string) (*Template, error) { return s.m.LoadTemplate(name) }
+
+// LoadMany resolves a batch of templates in one IPC call. Used by
+// list workspaces to collapse N parallel LoadTemplate calls into
+// one. Results carry per-row Error when a single file fails so the
+// rest of the batch still renders.
+func (s *Service) LoadMany(names []string) []LoadManyResult { return s.m.LoadMany(names) }
 func (s *Service) SaveTemplate(name string, t *Template) error { return s.m.SaveTemplate(name, t) }
 func (s *Service) DeleteTemplate(name string) error            { return s.m.DeleteTemplate(name) }
 // ValidateTemplate mirrors what SaveTemplate would see: a clone of

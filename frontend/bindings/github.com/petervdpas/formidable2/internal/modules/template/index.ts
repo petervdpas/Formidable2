@@ -16,6 +16,7 @@ export {
     GeneratorOptions,
     ImgMode,
     ItemField,
+    LoadManyResult,
     Shape,
     ShapeInfo,
     Template,

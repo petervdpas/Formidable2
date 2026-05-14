@@ -85,9 +85,21 @@ export function ListTemplates(): $CancellablePromise<string[]> {
     });
 }
 
+/**
+ * LoadMany resolves a batch of templates in one IPC call. Used by
+ * list workspaces to collapse N parallel LoadTemplate calls into
+ * one. Results carry per-row Error when a single file fails so the
+ * rest of the batch still renders.
+ */
+export function LoadMany(names: string[]): $CancellablePromise<$models.LoadManyResult[]> {
+    return $Call.ByID(437104883, names).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
 export function LoadTemplate(name: string): $CancellablePromise<$models.Template | null> {
     return $Call.ByID(2817786054, name).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -118,7 +130,7 @@ export function TemplatesDir(): $CancellablePromise<string> {
  */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -131,7 +143,9 @@ const $$createType4 = $models.ItemField.createFrom;
 const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = $models.Descriptor.createFrom;
 const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = $models.Template.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = $models.ValidationError.createFrom;
-const $$createType11 = $Create.Array($$createType10);
+const $$createType8 = $models.LoadManyResult.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $models.Template.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = $models.ValidationError.createFrom;
+const $$createType13 = $Create.Array($$createType12);

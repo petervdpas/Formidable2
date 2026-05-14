@@ -23,6 +23,7 @@ import { useToast } from "../composables/useToast";
 import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
+import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -30,6 +31,7 @@ import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formi
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { backendErrMessage } from "../utils/backendError";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import type { Result as ExpressionResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
@@ -105,27 +107,69 @@ function onFlagStateChange(state: string) {
 const summaries = ref<FormSummary[]>([]);
 const listError = ref("");
 
-// Per-row refs into the self-serving StorageListItem instances. Each
-// item fetches its own sidebar expression on mount; after a save the
-// workspace looks up the matching ref and calls .refresh() so only
-// that one row re-evaluates — no bulk pass, no scroll thrash. The
-// :ref callback in the v-for keeps the Map in sync with mounts /
-// unmounts. itemRefs is a plain Ref of Map (not ref()-of-Map) — Vue's
-// reactivity isn't needed here, we only ever look entries up
-// imperatively from doSave / doRefresh.
-type StorageListItemRef = { refresh: () => Promise<void> };
-const itemRefs = new Map<string, StorageListItemRef>();
-function setItemRef(filename: string, el: unknown): void {
-  if (el && typeof el === "object" && "refresh" in (el as object)) {
-    itemRefs.set(filename, el as StorageListItemRef);
-  } else {
-    itemRefs.delete(filename);
+// Sidebar sub-label items keyed by datafile. The workspace owns this
+// map and hands each row's entry down as a prop — collapses what was
+// N parallel EvaluateListOne calls into one EvaluateListMany on
+// list load / Refresh. Single-row saves still take the cheap path
+// (one EvaluateListOne) and update just that key. Reassigning the
+// ref (rather than mutating a Map in place) keeps reactivity simple
+// for downstream template lookups.
+const sidebarItems = ref<Map<string, ExpressionResult>>(new Map());
+
+async function refreshSidebarItems(): Promise<void> {
+  if (!config.value?.use_expressions || !selectedTemplate.value) {
+    sidebarItems.value = new Map();
+    return;
   }
+  const filenames = summaries.value.map((s) => s.filename);
+  if (filenames.length === 0) {
+    sidebarItems.value = new Map();
+    return;
+  }
+  try {
+    const items = await ExpressionSvc.EvaluateListMany(
+      selectedTemplate.value,
+      filenames,
+    );
+    const next = new Map<string, ExpressionResult>();
+    for (const it of items) {
+      if (it?.filename) next.set(it.filename, it);
+    }
+    sidebarItems.value = next;
+  } catch {
+    sidebarItems.value = new Map();
+  }
+}
+
+async function refreshSidebarItem(filename: string): Promise<void> {
+  if (!config.value?.use_expressions || !selectedTemplate.value || !filename) return;
+  try {
+    const it = await ExpressionSvc.EvaluateListOne(selectedTemplate.value, filename);
+    const next = new Map(sidebarItems.value);
+    if (it?.filename) {
+      next.set(it.filename, it);
+    } else {
+      next.delete(filename);
+    }
+    sidebarItems.value = next;
+  } catch {
+    const next = new Map(sidebarItems.value);
+    next.delete(filename);
+    sidebarItems.value = next;
+  }
+}
+
+function dropSidebarItem(filename: string): void {
+  if (!sidebarItems.value.has(filename)) return;
+  const next = new Map(sidebarItems.value);
+  next.delete(filename);
+  sidebarItems.value = next;
 }
 
 async function refreshList() {
   if (!selectedTemplate.value) {
     summaries.value = [];
+    sidebarItems.value = new Map();
     return;
   }
   listError.value = "";
@@ -144,9 +188,11 @@ async function refreshList() {
     if (df && !summaries.value.some((s) => s.filename === df)) {
       selectedDataFile.value = "";
     }
+    await refreshSidebarItems();
   } catch (err) {
     listError.value = String(err);
     summaries.value = [];
+    sidebarItems.value = new Map();
   }
 }
 
@@ -156,13 +202,6 @@ async function refreshList() {
 async function doRefresh() {
   try {
     await refreshList();
-    // Force every list item to re-evaluate its own sidebar expression.
-    // The list re-render leaves DOM nodes mounted under stable keys,
-    // so an item's onMounted does NOT re-fire — we have to push the
-    // refresh down explicitly when the user clicks Refresh.
-    await Promise.all(
-      Array.from(itemRefs.values()).map((it) => it.refresh()),
-    );
     if (listError.value) {
       toast.error("toast.refresh.error", [listError.value]);
     } else {
@@ -182,9 +221,11 @@ watch(selectedTemplate, async () => {
   await refreshList();
 }, { immediate: true });
 
-// Live-toggle: flipping use_expressions in Settings reaches each
-// StorageListItem through its own watch on config.value.use_expressions,
-// so the workspace doesn't need to push the change down.
+// Live-toggle: flipping use_expressions in Settings re-fetches (or
+// clears) the sidebar items map without touching the row list.
+watch(() => config.value?.use_expressions, async () => {
+  await refreshSidebarItems();
+});
 
 // ── Selected datafile (persisted in config) ──────────────────────────
 const selectedDataFile = computed<string>({
@@ -303,13 +344,13 @@ async function submitNew() {
 }
 
 // ── Save / Reset / Delete ────────────────────────────────────────────
-// Save never reloads the sidebar list. For an existing entry we patch
-// its summary in place (Vue's Proxy re-renders just that one
-// <StorageListItem>) and ping its ref's refresh() so the sub-label
-// re-evaluates against the freshly-saved data. For a new entry, the
-// row appears in the list only after the user clicks Refresh — the
-// in-flight draft is already visible in the main pane, and skipping
-// the auto-refresh keeps the scroll position stable across saves.
+// Save never reloads the full sidebar list. For an existing entry we
+// patch its summary in place (Vue's Proxy re-renders just that one
+// <StorageListItem>); for a brand-new entry we append the summary.
+// The sub-label refresh is one EvaluateListOne IPC call regardless
+// — the workspace updates `sidebarItems[df]` and Vue propagates it
+// to the matching row via prop. Keeps the rest of the list (and its
+// scroll position) untouched.
 async function doSave() {
   if (!draft.value) return;
   const result = await save();
@@ -318,7 +359,7 @@ async function doSave() {
     toast.success("workspace.storage.save.success", [df]);
     statusBar.setSaved(df);
     patchSummary(df);
-    await itemRefs.get(df)?.refresh();
+    await refreshSidebarItem(df);
     await refreshMarkdown();
   } else {
     toast.error("workspace.storage.save.error", [result.message ?? "?"]);
@@ -369,10 +410,10 @@ async function confirmDelete() {
     selectedDataFile.value = "";
     // Splice the row out in place — mirrors the save path's "never
     // reassign summaries" rule, so the rest of the list (and its
-    // scroll position) stays untouched. itemRefs entry for `filename`
-    // auto-removes via the :ref unmount callback.
+    // scroll position) stays untouched.
     const idx = summaries.value.findIndex((s) => s.filename === filename);
     if (idx >= 0) summaries.value.splice(idx, 1);
+    dropSidebarItem(filename);
   } else {
     toast.error("workspace.storage.delete.error", [result.message ?? "?"]);
   }
@@ -712,9 +753,8 @@ setTopbarMenu(() => [
           <StorageListItem
             v-for="s in visibleSummaries"
             :key="s.filename"
-            :ref="(el) => setItemRef(s.filename, el)"
             :summary="s"
-            :template-filename="selectedTemplate"
+            :expression="sidebarItems.get(s.filename) ?? null"
             :active="s.filename === selectedDataFile"
             :flag-color="flagColorByLabel.get(s.meta?.flag_state ?? '')"
             @pick="pickForm"

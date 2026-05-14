@@ -44,7 +44,7 @@ type Storage interface {
 // May be nil — the form list then falls back to the bare filename for
 // every row.
 type Expressioner interface {
-	EvaluateSidebar(templateName string) ([]expression.SidebarItem, error)
+	EvaluateList(templateName string) ([]expression.Result, error)
 }
 
 // Handler owns the read-path routes. NewHandler returns an
@@ -292,20 +292,20 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// sidebarSubtitles returns filename → SidebarItem for the given
+// sidebarSubtitles returns filename → Result for the given
 // template. Returns nil when no expression is configured, the
 // evaluator wasn't wired, or evaluation failed at the source level —
 // the caller falls back to filename subtitles in any of those cases.
 // Per-row errors are surfaced as item.Error and still keyed in.
-func (h *Handler) sidebarSubtitles(templateFilename string) map[string]expression.SidebarItem {
+func (h *Handler) sidebarSubtitles(templateFilename string) map[string]expression.Result {
 	if h.expr == nil {
 		return nil
 	}
-	items, err := h.expr.EvaluateSidebar(templateFilename)
+	items, err := h.expr.EvaluateList(templateFilename)
 	if err != nil {
 		return nil
 	}
-	out := make(map[string]expression.SidebarItem, len(items))
+	out := make(map[string]expression.Result, len(items))
 	for _, it := range items {
 		if it.Filename == "" {
 			continue

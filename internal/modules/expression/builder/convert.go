@@ -76,7 +76,7 @@ func unwrapPipeForm(s string) string {
 // comma — i.e. when the array wrapping was decorative rather than a
 // real list. Legacy sources wrapped a single ternary or outcome in
 // `[...]` because old Formidable's runtime evaluated arrays as a
-// per-row sidebar feed; the new engine expects a single SidebarItem
+// per-row sidebar feed; the new engine expects a single Result
 // expression and would CSV-stringify the array, producing garbage
 // (engine.go:219-227).
 func unwrapSingletonArray(s string) string {

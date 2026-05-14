@@ -21,7 +21,7 @@ import (
 // predictable AST and so hyphenated keys round-trip identically to
 // plain identifiers (no $env-vs-bare-id forking). O[] is left
 // untouched — it resolves at runtime against the per-record `O`
-// map injected by Manager.EvaluateSidebar.
+// map injected by Manager.EvaluateList.
 type fieldRefPatcher struct{}
 
 func (fieldRefPatcher) Visit(node *ast.Node) {
@@ -163,25 +163,25 @@ func paramTypeAt(rt reflect.Type, i int) reflect.Type {
 }
 
 // Evaluate compiles src (or hits the cache) and runs it against ctx,
-// returning a normalised SidebarItem. Three result shapes are
+// returning a normalised Result. Three result shapes are
 // recognised:
 //
 //   - string  → {Text: v}
 //   - []any   → {Text: csv(v), Items: stringify(v)}
-//   - map     → unmarshal known keys into SidebarItem; unknown keys
+//   - map     → unmarshal known keys into Result; unknown keys
 //     ignored so users can't smuggle garbage into the JSON envelope
 //
 // Anything else is stringified into Text via fmt.Sprint — keeps
 // numeric and boolean returns useful without surprising the caller.
-func (e *engine) Evaluate(src string, ctx map[string]any) (SidebarItem, error) {
+func (e *engine) Evaluate(src string, ctx map[string]any) (Result, error) {
 	prog, err := e.Compile(src)
 	if err != nil {
-		return SidebarItem{}, err
+		return Result{}, err
 	}
 	env := mergeHelpersInto(ctx, e.helpers)
 	raw, err := expr.Run(prog, env)
 	if err != nil {
-		return SidebarItem{}, err
+		return Result{}, err
 	}
 	return normalize(raw), nil
 }
@@ -203,32 +203,32 @@ func mergeHelpersInto(ctx map[string]any, helpers map[string]any) map[string]any
 	return out
 }
 
-// normalize converts the raw evaluation result into a SidebarItem.
+// normalize converts the raw evaluation result into a Result.
 // Map handling is permissive: unknown keys ignored, type-mismatches
 // stringified rather than erroring so a slightly-off expression
 // degrades gracefully (sidebar shows a value, not an error pill).
-func normalize(raw any) SidebarItem {
+func normalize(raw any) Result {
 	if raw == nil {
-		return SidebarItem{}
+		return Result{}
 	}
 	switch v := raw.(type) {
 	case string:
-		return SidebarItem{Text: v}
+		return Result{Text: v}
 	case map[string]any:
-		return mapToSidebarItem(v)
+		return mapToResult(v)
 	case []any:
 		strs := make([]string, len(v))
 		for i, x := range v {
 			strs[i] = fmt.Sprint(x)
 		}
-		return SidebarItem{Text: strings.Join(strs, ", "), Items: strs}
+		return Result{Text: strings.Join(strs, ", "), Items: strs}
 	default:
-		return SidebarItem{Text: fmt.Sprint(v)}
+		return Result{Text: fmt.Sprint(v)}
 	}
 }
 
-func mapToSidebarItem(m map[string]any) SidebarItem {
-	var item SidebarItem
+func mapToResult(m map[string]any) Result {
+	var item Result
 	if v, ok := m["text"].(string); ok {
 		item.Text = v
 	} else if v, ok := m["text"]; ok {

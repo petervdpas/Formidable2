@@ -146,5 +146,15 @@ type ItemField struct {
 	Label string `json:"label"`
 }
 
+// LoadManyResult is one slot in LoadMany's response. Template is nil
+// when the file was missing or unparseable — Error carries the
+// per-row failure message. Filename is always stamped so callers can
+// pair the result back to its input slot even when Template is nil.
+type LoadManyResult struct {
+	Filename string    `json:"filename"`
+	Template *Template `json:"template,omitempty"`
+	Error    string    `json:"error,omitempty"`
+}
+
 // Known field types live in field_registry.go's fieldDescriptors.
 // Use IsKnownFieldType(t) to check membership.

@@ -11,13 +11,13 @@ import (
 // Returned `Template` is opaque to the engine; we read only what the
 // sidebar needs.
 type TemplateProvider interface {
-	// LookupSidebar returns the template's sidebar expression and the
+	// LookupExpression returns the template's sidebar expression and the
 	// list of expression-flagged fields with their option metadata.
 	// The fields slice backs both narrowContext (defence-in-depth on
 	// what the expression can see) and the per-record O map that
 	// resolves O["key"] to the option label of the field's current
 	// value at evaluation time.
-	LookupSidebar(name string) (expr string, fields []ExpressionField, err error)
+	LookupExpression(name string) (expr string, fields []ExpressionField, err error)
 }
 
 // ExpressionField is the slim shape the sidebar evaluator needs from
@@ -36,7 +36,7 @@ type ExpressionField struct {
 type StorageProvider interface {
 	ListForExpression(templateName string) ([]Record, error)
 	// LookupForExpression returns one record by datafile so the
-	// per-item evaluation path (EvaluateSidebarOne) doesn't have to
+	// per-item evaluation path (EvaluateListOne) doesn't have to
 	// walk every record. Returns (Record{}, nil) when the file is
 	// missing — callers should treat that as "no row to render".
 	LookupForExpression(templateName, datafile string) (Record, error)
@@ -70,7 +70,7 @@ func NewManager(tpl TemplateProvider, sto StorageProvider) *Manager {
 	return &Manager{eng: newEngine(), tpl: tpl, sto: sto}
 }
 
-// ErrNoExpression is returned when EvaluateSidebar is called against
+// ErrNoExpression is returned when EvaluateList is called against
 // a template that has no sidebar_expression configured. The frontend
 // should hide the sub-label entirely in this case rather than show a
 // fallback — there's nothing to render.
@@ -79,25 +79,25 @@ var ErrNoExpression = errors.New("template has no sidebar_expression")
 // Evaluate runs one expression against an arbitrary context. The
 // public single-shot path — used by Wails callers and (later) plugin
 // authors. ctx may be nil.
-func (m *Manager) Evaluate(src string, ctx map[string]any) (SidebarItem, error) {
+func (m *Manager) Evaluate(src string, ctx map[string]any) (Result, error) {
 	if ctx == nil {
 		ctx = map[string]any{}
 	}
 	return m.eng.Evaluate(src, ctx)
 }
 
-// EvaluateSidebar compiles the template's sidebar_expression once and
+// EvaluateList compiles the template's sidebar_expression once and
 // runs it against every record's harvested ExpressionItems. Per-row
-// failures are isolated: the SidebarItem for that row carries the
+// failures are isolated: the Result for that row carries the
 // error in its Error field with Text falling back to the record
 // title, so a sidebar of 100 records with one bad date doesn't blank
 // out 99 valid rows.
-func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
+func (m *Manager) EvaluateList(templateName string) ([]Result, error) {
 	if m.tpl == nil || m.sto == nil {
 		return nil, fmt.Errorf("expression: providers not wired")
 	}
 
-	src, fields, err := m.tpl.LookupSidebar(templateName)
+	src, fields, err := m.tpl.LookupExpression(templateName)
 	if err != nil {
 		return nil, fmt.Errorf("expression: load template %q: %w", templateName, err)
 	}
@@ -123,13 +123,13 @@ func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 		keys[i] = f.Key
 	}
 
-	out := make([]SidebarItem, 0, len(records))
+	out := make([]Result, 0, len(records))
 	for _, r := range records {
 		ctx := narrowContext(r.Context, keys)
 		ctx["O"] = optionLabelMap(fields, ctx)
 		item, err := m.eng.Evaluate(src, ctx)
 		if err != nil {
-			out = append(out, SidebarItem{
+			out = append(out, Result{
 				Filename: r.Filename,
 				Text:     r.Title,
 				Error:    err.Error(),
@@ -149,7 +149,7 @@ func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 	return out, nil
 }
 
-// EvaluateSidebarOne is the per-record analogue of EvaluateSidebar.
+// EvaluateListOne is the per-record analogue of EvaluateList.
 // Loads only the one record's harvested ExpressionItems and runs the
 // template's sidebar expression against it. Used by self-serving list
 // items refreshing themselves after a save, so a single row change
@@ -157,30 +157,30 @@ func (m *Manager) EvaluateSidebar(templateName string) ([]SidebarItem, error) {
 //
 // Returns ErrNoExpression when the template has no sidebar_expression,
 // matching the bulk method's contract. Missing file → (zero
-// SidebarItem, nil) so the caller can distinguish "this row no longer
+// Result, nil) so the caller can distinguish "this row no longer
 // exists" from "rendering failed".
-func (m *Manager) EvaluateSidebarOne(templateName, datafile string) (SidebarItem, error) {
+func (m *Manager) EvaluateListOne(templateName, datafile string) (Result, error) {
 	if m.tpl == nil || m.sto == nil {
-		return SidebarItem{}, fmt.Errorf("expression: providers not wired")
+		return Result{}, fmt.Errorf("expression: providers not wired")
 	}
 
-	src, fields, err := m.tpl.LookupSidebar(templateName)
+	src, fields, err := m.tpl.LookupExpression(templateName)
 	if err != nil {
-		return SidebarItem{}, fmt.Errorf("expression: load template %q: %w", templateName, err)
+		return Result{}, fmt.Errorf("expression: load template %q: %w", templateName, err)
 	}
 	if src == "" {
-		return SidebarItem{}, ErrNoExpression
+		return Result{}, ErrNoExpression
 	}
 	if _, err := m.eng.Compile(src); err != nil {
-		return SidebarItem{}, fmt.Errorf("expression: compile %q: %w", templateName, err)
+		return Result{}, fmt.Errorf("expression: compile %q: %w", templateName, err)
 	}
 
 	r, err := m.sto.LookupForExpression(templateName, datafile)
 	if err != nil {
-		return SidebarItem{}, fmt.Errorf("expression: lookup record %q/%q: %w", templateName, datafile, err)
+		return Result{}, fmt.Errorf("expression: lookup record %q/%q: %w", templateName, datafile, err)
 	}
 	if r.Filename == "" {
-		return SidebarItem{}, nil
+		return Result{}, nil
 	}
 
 	keys := make([]string, len(fields))
@@ -191,7 +191,7 @@ func (m *Manager) EvaluateSidebarOne(templateName, datafile string) (SidebarItem
 	ctx["O"] = optionLabelMap(fields, ctx)
 	item, err := m.eng.Evaluate(src, ctx)
 	if err != nil {
-		return SidebarItem{
+		return Result{
 			Filename: r.Filename,
 			Text:     r.Title,
 			Error:    err.Error(),
@@ -203,6 +203,70 @@ func (m *Manager) EvaluateSidebarOne(templateName, datafile string) (SidebarItem
 		item.Text = r.Title
 	}
 	return item, nil
+}
+
+// EvaluateListMany renders sub-labels for an explicit list of
+// records, returning items in the same order as the input filenames.
+// Used by the Storage workspace on initial mount and Refresh to
+// collapse N parallel EvaluateListOne IPC calls into one. Missing
+// files emit a zero Result at that slot; per-record evaluation
+// errors carry an Error field with the title as Text — same isolation
+// posture as EvaluateList.
+func (m *Manager) EvaluateListMany(templateName string, datafiles []string) ([]Result, error) {
+	if m.tpl == nil || m.sto == nil {
+		return nil, fmt.Errorf("expression: providers not wired")
+	}
+
+	src, fields, err := m.tpl.LookupExpression(templateName)
+	if err != nil {
+		return nil, fmt.Errorf("expression: load template %q: %w", templateName, err)
+	}
+	if src == "" {
+		return nil, ErrNoExpression
+	}
+	if _, err := m.eng.Compile(src); err != nil {
+		return nil, fmt.Errorf("expression: compile %q: %w", templateName, err)
+	}
+
+	keys := make([]string, len(fields))
+	for i, f := range fields {
+		keys[i] = f.Key
+	}
+
+	out := make([]Result, 0, len(datafiles))
+	for _, df := range datafiles {
+		r, lerr := m.sto.LookupForExpression(templateName, df)
+		if lerr != nil {
+			out = append(out, Result{
+				Filename: df,
+				Error:    lerr.Error(),
+				Classes:  []string{"expr-error"},
+			})
+			continue
+		}
+		if r.Filename == "" {
+			out = append(out, Result{})
+			continue
+		}
+		ctx := narrowContext(r.Context, keys)
+		ctx["O"] = optionLabelMap(fields, ctx)
+		item, eerr := m.eng.Evaluate(src, ctx)
+		if eerr != nil {
+			out = append(out, Result{
+				Filename: r.Filename,
+				Text:     r.Title,
+				Error:    eerr.Error(),
+				Classes:  []string{"expr-error"},
+			})
+			continue
+		}
+		item.Filename = r.Filename
+		if item.Text == "" {
+			item.Text = r.Title
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }
 
 // optionLabelMap builds the per-record `O` env entry: a map keyed

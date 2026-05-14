@@ -256,7 +256,7 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		// has forms for X: ..." step shapes them explicitly.
 		w.stub.forms = map[string][]dataprovider.FormSummary{}
 		w.stubSt = newStubStorage()
-		w.stubEx = &stubExpressioner{items: map[string][]expression.SidebarItem{}}
+		w.stubEx = &stubExpressioner{items: map[string][]expression.Result{}}
 		w.handler = NewHandler(w.stub, w.stubSt, w.stubEx)
 		return nil
 	})
@@ -266,12 +266,12 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 			if w.stubEx == nil {
 				return fmt.Errorf("expression stub not initialised")
 			}
-			items := make([]expression.SidebarItem, 0, len(table.Rows))
+			items := make([]expression.Result, 0, len(table.Rows))
 			for _, row := range table.Rows {
 				if len(row.Cells) < 2 {
 					continue
 				}
-				items = append(items, expression.SidebarItem{
+				items = append(items, expression.Result{
 					Filename: row.Cells[0].Value,
 					Text:     row.Cells[1].Value,
 				})

@@ -14,17 +14,17 @@ import (
 )
 
 // stubExpressioner returns canned sidebar items keyed by template
-// filename. A nil items slice for a template makes EvaluateSidebar
+// filename. A nil items slice for a template makes EvaluateList
 // return ErrNoExpression (the same signal `*expression.Manager` emits
 // when sidebar_expression isn't set), so handler tests can exercise
 // both "expression configured" and "no expression — fall back to
 // filename" paths without spinning up the engine.
 type stubExpressioner struct {
-	items map[string][]expression.SidebarItem
+	items map[string][]expression.Result
 	err   error
 }
 
-func (s *stubExpressioner) EvaluateSidebar(templateName string) ([]expression.SidebarItem, error) {
+func (s *stubExpressioner) EvaluateList(templateName string) ([]expression.Result, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -204,7 +204,7 @@ func TestTemplate_UnknownReturns404(t *testing.T) {
 
 func TestTemplate_FormList_UsesExpressionSubtitles(t *testing.T) {
 	expr := &stubExpressioner{
-		items: map[string][]expression.SidebarItem{
+		items: map[string][]expression.Result{
 			"basic.yaml": {
 				{Filename: "x.meta.json", Text: "Direct + Indirect", Classes: []string{"expr-text-green"}, Color: "#0a0"},
 				{Filename: "y.meta.json", Text: "NIET IN GEBRUIK", Classes: []string{"expr-text-gray"}},
@@ -239,7 +239,7 @@ func TestTemplate_FormList_UsesExpressionSubtitles(t *testing.T) {
 }
 
 func TestTemplate_FormList_FallsBackToFilenameWhenNoExpression(t *testing.T) {
-	// Empty expression stub → EvaluateSidebar returns ErrNoExpression
+	// Empty expression stub → EvaluateList returns ErrNoExpression
 	// → handler must fall back to filename for every row's subtitle.
 	h, _ := newTestHandlerWithExpr(t, &stubExpressioner{})
 	w := httptest.NewRecorder()

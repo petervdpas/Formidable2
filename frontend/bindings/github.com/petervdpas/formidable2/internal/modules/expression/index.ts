@@ -7,5 +7,5 @@ export {
 };
 
 export {
-    SidebarItem
+    Result
 } from "./models.js";

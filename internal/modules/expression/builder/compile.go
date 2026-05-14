@@ -169,7 +169,7 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 	return "", fmt.Errorf("unknown predicate kind %q", p.Kind)
 }
 
-// outcomeExpr emits a SidebarItem-shaped map literal. An outcome
+// outcomeExpr emits a Result-shaped map literal. An outcome
 // with no styling and no text is "{}" — the engine renders an empty
 // chip but the source stays parseable. Caller's job to skip emitting
 // a no-op chip via outcomeIsEmpty.
@@ -291,7 +291,7 @@ func literalRef(s string) string {
 }
 
 // optionLabelRef emits O["key"]. The engine evaluates this against
-// a per-record map injected by Manager.EvaluateSidebar where
+// a per-record map injected by Manager.EvaluateList where
 // O[key] is the option label of the field's current value. Empty
 // options pre-compute to nil and surface as "<nil>" — callers
 // should gate fieldLabel on enum-typed fields (the UI does).

@@ -224,7 +224,7 @@ export class Operator {
  *     emits Parts (Text stays nil). Both nil/empty means the chip
  *     renders no text.
  * 
- * The remaining fields mirror the runtime SidebarItem shape minus
+ * The remaining fields mirror the runtime Result shape minus
  * filename/error.
  */
 export class Outcome {

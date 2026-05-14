@@ -14,14 +14,14 @@ type expressionTemplateAdapter struct {
 	tpl *template.Manager
 }
 
-// LookupSidebar reads the template's sidebar_expression and the
+// LookupExpression reads the template's sidebar_expression and the
 // list of expression-flagged fields with their option metadata.
 // The option map (value→label) backs the engine's per-record O[]
 // resolution. Empty expression maps to ErrNoExpression at the
 // engine layer; the adapter returns ("", nil, nil) on no-config so
 // the contract stays explicit (no error means "loaded fine, but
 // configured empty").
-func (a expressionTemplateAdapter) LookupSidebar(name string) (string, []expression.ExpressionField, error) {
+func (a expressionTemplateAdapter) LookupExpression(name string) (string, []expression.ExpressionField, error) {
 	t, err := a.tpl.LoadTemplate(name)
 	if err != nil {
 		return "", nil, err
@@ -94,7 +94,7 @@ func (a expressionStorageAdapter) ListForExpression(templateName string) ([]expr
 }
 
 // LookupForExpression is the per-record analogue used by
-// Manager.EvaluateSidebarOne. Missing file → empty Record (matches
+// Manager.EvaluateListOne. Missing file → empty Record (matches
 // storage.ExtendedLoadForm's nil-on-missing posture).
 func (a expressionStorageAdapter) LookupForExpression(templateName, datafile string) (expression.Record, error) {
 	s, err := a.sto.ExtendedLoadForm(templateName, datafile)
