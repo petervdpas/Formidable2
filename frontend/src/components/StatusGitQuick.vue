@@ -9,7 +9,7 @@
  * Refresh: load on mount, on git_root change, and on the global
  * `journal:changed` event (the git module's commit/fetch/push/pull
  * paths all emit a journal entry, so this is the same trigger Sync /
- * CommitGraphView use to stay current — no second poller).
+ * GitCommitGraph use to stay current — no second poller).
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";

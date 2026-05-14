@@ -2,7 +2,7 @@ import type { Component } from "vue";
 import CurrentService from "./CurrentService.vue";
 import GitSync from "./GitSync.vue";
 import GitClone from "./GitClone.vue";
-import CommitGraphView from "./CommitGraphView.vue";
+import GitCommitGraph from "./GitCommitGraph.vue";
 import GigotConnect from "./GigotConnect.vue";
 import GigotSync from "./GigotSync.vue";
 import GigotCommitGraph from "./GigotCommitGraph.vue";
@@ -48,7 +48,7 @@ export const COLLABORATION_SECTIONS: CollaborationSection[] = [
   {
     id: "git-graph",
     labelKey: "workspace.collaboration.section.git_graph",
-    component: CommitGraphView,
+    component: GitCommitGraph,
     backend: "git",
   },
   {

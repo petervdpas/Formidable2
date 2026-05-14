@@ -5,7 +5,7 @@ import type { ChangeFile } from "../../../bindings/github.com/petervdpas/formida
 // Per-commit file diff for gigot's Commit Graph. Renders either the
 // concrete changes array carried on the LogEntry, "loading" while a
 // re-fetch is in flight, or "error" when the fetch failed. Pure
-// presentational; parallel to CommitFileList on the git side and
+// presentational; parallel to GitCommitFileList on the git side and
 // intentionally duplicated for per-backend separation.
 defineProps<{
   files: ChangeFile[] | "loading" | "error" | undefined;

@@ -58,6 +58,18 @@ const hasPending = computed(() => {
   if (!s) return false;
   return (s.changed?.length ?? 0) > 0 || (s.deleted?.length ?? 0) > 0;
 });
+const messageProvided = computed(() => message.value.trim() !== "");
+// Push always writes a commit, so it needs a message — gate it.
+const canPush = computed(() => canAct.value && hasPending.value && messageProvided.value);
+// Pull is read-only — no message ever required.
+const canPull = computed(() => canAct.value);
+// Sync = Push + Pull. Only gate on message when push will actually
+// commit something; with no pending changes the push half is a noop.
+const canSync = computed(() => {
+  if (!canAct.value) return false;
+  if (!hasPending.value) return true;
+  return messageProvided.value;
+});
 
 // HEAD probe state: "unknown" before first probe / on error;
 // "match" when remote == ledger version; "behind" when remote moved.
@@ -153,7 +165,7 @@ async function load(announce: boolean) {
 }
 
 async function doPush() {
-  if (!canAct.value) return;
+  if (!canPush.value) return;
   resetProgress();
   pushing.value = true;
   try {
@@ -165,7 +177,7 @@ async function doPush() {
       toast.success("workspace.collaboration.gigot.sync.push.success", [
         String(res.pushed ?? 0),
         String(res.deleted ?? 0),
-        res.version ?? "",
+        shortHash(res.version),
       ]);
       message.value = "";
     }
@@ -179,7 +191,7 @@ async function doPush() {
 }
 
 async function doPull() {
-  if (!canAct.value) return;
+  if (!canPull.value) return;
   resetProgress();
   pulling.value = true;
   try {
@@ -188,7 +200,7 @@ async function doPull() {
     toast.success("workspace.collaboration.gigot.sync.pull.success", [
       String(res.files ?? 0),
       String(res.deleted ?? 0),
-      res.version ?? "",
+      shortHash(res.version),
     ]);
     await load(false);
   } catch (err) {
@@ -200,7 +212,7 @@ async function doPull() {
 }
 
 async function doSync() {
-  if (!canAct.value) return;
+  if (!canSync.value) return;
   resetProgress();
   syncing.value = true;
   try {
@@ -209,7 +221,7 @@ async function doSync() {
     if (res.noop) {
       toast.info("workspace.collaboration.gigot.sync.sync.noop");
     } else {
-      toast.success("workspace.collaboration.gigot.sync.sync.success", [res.version ?? ""]);
+      toast.success("workspace.collaboration.gigot.sync.sync.success", [shortHash(res.version)]);
       message.value = "";
     }
     await load(false);
@@ -313,7 +325,8 @@ async function doSync() {
       <button
         type="button"
         class="tool-btn"
-        :disabled="!canAct"
+        :disabled="!canPush"
+        :title="hasPending && !messageProvided ? t('workspace.collaboration.gigot.sync.message_required') : ''"
         @click="doPush"
       >
         {{ pushing ? t('workspace.collaboration.gigot.sync.push.running') : t('workspace.collaboration.gigot.sync.push.button') }}
@@ -321,7 +334,7 @@ async function doSync() {
       <button
         type="button"
         class="tool-btn"
-        :disabled="!canAct"
+        :disabled="!canPull"
         @click="doPull"
       >
         {{ pulling ? t('workspace.collaboration.gigot.sync.pull.running') : t('workspace.collaboration.gigot.sync.pull.button') }}
@@ -329,7 +342,8 @@ async function doSync() {
       <button
         type="button"
         class="tool-btn primary"
-        :disabled="!canAct"
+        :disabled="!canSync"
+        :title="hasPending && !messageProvided ? t('workspace.collaboration.gigot.sync.message_required') : ''"
         @click="doSync"
       >
         {{ syncing ? t('workspace.collaboration.gigot.sync.sync.running') : t('workspace.collaboration.gigot.sync.sync.button') }}

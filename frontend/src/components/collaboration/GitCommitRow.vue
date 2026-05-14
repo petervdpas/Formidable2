@@ -2,12 +2,12 @@
 import { computed } from "vue";
 import type { GraphCommit } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git/models";
 
-// CommitGraphRow renders the per-commit header chrome: short hash,
+// GitCommitRow renders the per-commit header chrome: short hash,
 // subject (with ellipsis), branch/HEAD pills, author, relative time.
 // Pure presentational — props in, no events. Lives in
-// components/collaboration/ alongside GitStatus.vue so other future
-// surfaces (a "Recent Activity" panel, a profile-page commit list,
-// etc.) can drop it in without re-implementing the layout.
+// components/collaboration/ alongside GitStatus.vue. Parallel to
+// GigotCommitRow on the gigot side; intentionally duplicated for
+// per-backend separation.
 const props = defineProps<{
   commit: GraphCommit | undefined;
 }>();

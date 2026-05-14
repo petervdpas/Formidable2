@@ -47,7 +47,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Expanded-row file list — rendered by CommitFileList. */
+/* Expanded-row file list — rendered by GitCommitFileList / GigotCommitFileList. */
 
 .commit-files {
   list-style: none;

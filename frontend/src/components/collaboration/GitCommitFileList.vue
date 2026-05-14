@@ -2,15 +2,14 @@
 import { useI18n } from "vue-i18n";
 import type { ChangeFile } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git/models";
 
-// CommitFileList renders a commit's file diff. Accepts either a
+// GitCommitFileList renders a commit's file diff. Accepts either a
 // concrete files array (loaded), the literal string "loading"
 // (placeholder), or "error" (fetch failed). The three-state shape
-// matches CommitGraphView's per-hash cache so the workspace can
-// hand its state down without translation.
+// matches GitCommitGraph's per-hash cache so the workspace can hand
+// its state down without translation.
 //
-// Pure presentational. Lives next to CommitGraphRow under
-// components/collaboration/ so any surface that wants to show "what
-// did this commit change" can drop it in.
+// Pure presentational. Parallel to GigotCommitFileList on the gigot
+// side; intentionally duplicated for per-backend separation.
 defineProps<{
   files: ChangeFile[] | "loading" | "error" | undefined;
 }>();

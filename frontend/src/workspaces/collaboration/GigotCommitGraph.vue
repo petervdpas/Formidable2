@@ -1,27 +1,34 @@
+<script lang="ts">
+// Module-level cache for the gigot Commit Graph — see createModuleCache
+// for why a non-setup <script> block is required (per-module, not
+// per-instance). Gigot's /log with_changes=true is server-side
+// expensive (one per-commit diff-tree call per entry), so re-fetching
+// on every re-entry of the section is noticeably slow.
+
+import type { LogEntry } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
+import { createModuleCache } from "../../composables/createModuleCache";
+
+const logCache = createModuleCache<LogEntry[]>();
+</script>
+
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { Events } from "@wailsio/runtime";
 import VisualGraph, { type GraphNode } from "../../components/VisualGraph.vue";
 import GigotCommitRow from "../../components/collaboration/GigotCommitRow.vue";
 import GigotCommitFileList from "../../components/collaboration/GigotCommitFileList.vue";
 import { Service as GigotSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
-import type { LogEntry } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
 import { useConfig } from "../../composables/useConfig";
 import { useToast } from "../../composables/useToast";
+import { useCommitGraph } from "../../composables/useCommitGraph";
 import { backendErrMessage } from "../../utils/backendError";
 
-// GigotCommitGraph — workspace owns the fetch lifecycle (race-guarded
-// like GitSync.vue's status loader), passes commit nodes to the
-// generic VisualGraph primitive, fills its scoped slot with
-// gigot-specific commit-row chrome. Auto-refreshes on journal:changed
-// so the graph stays current after a pull/push/sync.
-//
-// gigot's /log returns the per-commit changes inline when called with
-// with_changes=true — so we fetch eagerly and drive expand/collapse
-// from the cached entry instead of re-hitting the server. (git fetches
-// per-commit lazily because its underlying backend serves them
-// individually.)
+// GigotCommitGraph wires useCommitGraph to the gigot backend. The
+// shared lifecycle handles cache + race guard + journal:changed +
+// onMounted refresh; this file owns only the fetch shape and the
+// row chrome. Gigot's /log returns per-commit changes inline when
+// asked with_changes=true, so expand/collapse needs no second
+// round-trip — filesFor reads from the cached entries directly.
 
 const { t } = useI18n();
 const { config } = useConfig();
@@ -32,36 +39,19 @@ const repoName = computed(() => config.value?.gigot_repo_name ?? "");
 const configured = computed(
   () => baseURL.value.trim() !== "" && repoName.value.trim() !== "",
 );
+const cacheKey = computed(() => `${baseURL.value.trim()}|${repoName.value.trim()}`);
 
-const entries = ref<LogEntry[]>([]);
-const loading = ref(false);
-const errorMsg = ref("");
-
-// Race guard — only the latest fetch wins.
-let reqId = 0;
-
-async function load() {
-  if (!configured.value) {
-    entries.value = [];
-    errorMsg.value = "";
-    return;
-  }
-  const my = ++reqId;
-  loading.value = true;
-  errorMsg.value = "";
-  try {
+const { value: entries, loading, errorMsg, refresh } = useCommitGraph<LogEntry[]>({
+  cacheKey,
+  emptyValue: () => [],
+  cache: logCache,
+  async fetch() {
+    if (!configured.value) return [];
     const res = await GigotSvc.Log(100, true);
-    if (my !== reqId) return;
-    entries.value = (res?.entries ?? []) as LogEntry[];
-  } catch (err) {
-    if (my !== reqId) return;
-    errorMsg.value = backendErrMessage(err);
-    entries.value = [];
-    toast.error("workspace.collaboration.graph.error", [errorMsg.value]);
-  } finally {
-    if (my === reqId) loading.value = false;
-  }
-}
+    return (res?.entries ?? []) as LogEntry[];
+  },
+  onError: (err) => toast.error("workspace.collaboration.graph.error", [backendErrMessage(err)]),
+});
 
 const nodes = computed<GraphNode<LogEntry>[]>(() =>
   entries.value.map((e) => ({
@@ -70,28 +60,6 @@ const nodes = computed<GraphNode<LogEntry>[]>(() =>
     data: e,
   })),
 );
-
-let unsubscribe: (() => void) | null = null;
-
-onMounted(async () => {
-  await load();
-  unsubscribe = Events.On("journal:changed", () => {
-    void load();
-  });
-});
-
-onUnmounted(() => {
-  if (unsubscribe) unsubscribe();
-});
-
-watch(
-  () => [baseURL.value, repoName.value] as const,
-  () => void load(),
-);
-
-function refresh() {
-  void load();
-}
 
 function filesFor(hash: string) {
   const entry = entries.value.find((e) => e.hash === hash);

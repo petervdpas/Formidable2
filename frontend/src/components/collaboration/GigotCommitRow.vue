@@ -4,7 +4,7 @@ import type { LogEntry } from "../../../bindings/github.com/petervdpas/formidabl
 
 // Per-commit header chrome for gigot's Commit Graph: short hash,
 // subject (first line of message), branch/ref pills, author,
-// relative time. Pure presentational. Parallel to CommitGraphRow on
+// relative time. Pure presentational. Parallel to GitCommitRow on
 // the git side; intentionally duplicated to keep gigot and git
 // rendering paths independent (per the per-backend separation rule).
 const props = defineProps<{
