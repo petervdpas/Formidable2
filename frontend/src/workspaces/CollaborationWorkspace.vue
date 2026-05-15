@@ -26,9 +26,13 @@ const toast = useToast();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
+// Trust config.remote_backend as-is — the canonical list of valid
+// backends lives on the Go side (journal.ListSyncBackends). An unknown
+// string just means visibleSections will find no matching panel,
+// which renders the same "no backend" empty state we already handle.
 const backend = computed<CollaborationBackend | null>(() => {
   const b = config.value?.remote_backend;
-  return b === "git" || b === "gigot" ? b : null;
+  return typeof b === "string" && b.length > 0 ? b : null;
 });
 
 const gitRoot = computed(() => config.value?.git_root ?? "");

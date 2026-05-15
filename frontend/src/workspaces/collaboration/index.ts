@@ -15,7 +15,13 @@ export type CollaborationSectionId =
   | "gigot-sync"
   | "gigot-graph"
   | "gigot-clone";
-export type CollaborationBackend = "git" | "gigot";
+
+// CollaborationBackend is a string keyed by the backend's canonical id
+// (see journal.ListSyncBackends on the Go side). Intentionally not a
+// union literal type — adding a new backend should NOT require editing
+// this file; the only frontend churn is adding the Vue components that
+// register against it in COLLABORATION_SECTIONS below.
+export type CollaborationBackend = string;
 
 export interface CollaborationSection {
   id: CollaborationSectionId;
@@ -23,7 +29,8 @@ export interface CollaborationSection {
   component: Component;
   /** Backend filter — when set, the row is only shown if
    *  config.remote_backend matches. Omit for backend-agnostic rows
-   *  like "Current Service". */
+   *  like "Current Service". The string must match a backend id known
+   *  to the Go side (journal.ListSyncBackends). */
   backend?: CollaborationBackend;
 }
 

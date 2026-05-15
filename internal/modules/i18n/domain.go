@@ -142,6 +142,52 @@ func (m *Manager) AvailableLocales() []string {
 	return out
 }
 
+// LocaleDescriptor pairs a locale id with its endonym — the language's
+// own name for itself ("English", "Nederlands") — so a UI in any
+// locale can label the language picker with autonyms. The endonym
+// lives inside the locale's own bundle under `language.endonym`;
+// adding a new locale just means adding the file with that key set.
+type LocaleDescriptor struct {
+	Code    string `json:"code"`
+	Endonym string `json:"endonym"`
+}
+
+// ListLocales returns a descriptor per loaded locale, sorted by Code.
+// The Endonym is read from each locale's `language.endonym` key, with
+// the raw Code as fallback when the bundle lacks the key. Powers the
+// Settings → General language picker so the dropdown is driven by the
+// backend's known locale set (one source of truth), not a hardcoded
+// Vue array.
+func (m *Manager) ListLocales() []LocaleDescriptor {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	codes := make([]string, 0, len(m.bundles))
+	for k := range m.bundles {
+		codes = append(codes, k)
+	}
+	sort.Strings(codes)
+	out := make([]LocaleDescriptor, 0, len(codes))
+	for _, code := range codes {
+		out = append(out, LocaleDescriptor{
+			Code:    code,
+			Endonym: lookupEndonym(m.bundles[code], code),
+		})
+	}
+	return out
+}
+
+// lookupEndonym pulls `language.endonym` out of a loaded bundle. The
+// bundle is flat (vue-i18n keys are dotted strings, not nested maps),
+// so a plain map read is enough. Falls back to the locale code.
+func lookupEndonym(bundle map[string]any, code string) string {
+	if v, ok := bundle["language.endonym"]; ok {
+		if s, ok := v.(string); ok && s != "" {
+			return s
+		}
+	}
+	return code
+}
+
 // DefaultLocale returns the canonical fallback locale id.
 func (m *Manager) DefaultLocale() string { return defaultLocale }
 

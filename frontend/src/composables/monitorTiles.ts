@@ -59,7 +59,10 @@ export function defaultMonitorTiles(): MonitorTile[] {
       // dedicated JournalSvc.Pending() Wails call and stitch a Result
       // shaped like the chart expects.
       fetch: async (): Promise<Result> => {
-        const backends = ["git", "gigot"];
+        // Backend registry lives on the Go side (journal.orderedSyncBackends)
+        // and is fetched live so any new sync backend is automatically
+        // graphed without touching this file.
+        const backends = (await JournalSvc.ListSyncBackends()) ?? [];
         const series: Series[] = [];
         for (const backend of backends) {
           const pr = await JournalSvc.Pending(backend);

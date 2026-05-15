@@ -12,9 +12,14 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * AvailableLocales returns the sorted list of locale ids the binary
- * ships. Used to populate the language picker in Settings.
+ * ships. Used by the runtime bootstrap; the language picker uses
+ * ListLocales (which carries the endonym alongside the code).
  */
 export function AvailableLocales(): $CancellablePromise<string[]> {
     return $Call.ByID(2991563528).then(($result: any) => {
@@ -30,15 +35,30 @@ export function DefaultLocale(): $CancellablePromise<string> {
 }
 
 /**
+ * ListLocales returns sorted LocaleDescriptors (code + endonym) for
+ * every locale the binary ships. Replaces the hardcoded language
+ * array in the Settings → General language picker — endonyms come
+ * from each locale's `language.endonym` bundle key, so adding a new
+ * locale just means adding the file (no central registry to update).
+ */
+export function ListLocales(): $CancellablePromise<$models.LocaleDescriptor[]> {
+    return $Call.ByID(138464657).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * LoadBundle returns the full translation map for locale. Frontend
  * merges this into vue-i18n's `messages` for the same locale id.
  */
 export function LoadBundle(locale: string): $CancellablePromise<{ [_ in string]?: any }> {
     return $Call.ByID(2416372570, locale).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = $models.LocaleDescriptor.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);

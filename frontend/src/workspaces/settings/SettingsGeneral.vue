@@ -1,19 +1,31 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { FormSection, FormRow, TextField, SelectField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
+import { Service as I18nSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/i18n";
 
 const { t } = useI18n();
 const { config, update } = useConfig();
 const cfg = computed(() => config.value!);
 
-// Endonyms — language names stay in their own language so users find
-// their language even if the UI is in the "wrong" one.
-const languages = [
-  { value: "en", label: "English" },
-  { value: "nl", label: "Nederlands" },
-];
+// Language list is backend-driven: each locale's own bundle declares
+// its endonym (`language.endonym` key), so adding a locale is a pure
+// content change — no Vue code to update. Empty list at boot degrades
+// gracefully (the SelectField just shows whatever value is in config).
+const languages = ref<{ value: string; label: string }[]>([]);
+
+onMounted(async () => {
+  try {
+    const locs = await I18nSvc.ListLocales();
+    languages.value = (locs ?? []).map((l) => ({
+      value: l.code,
+      label: l.endonym || l.code,
+    }));
+  } catch {
+    languages.value = [];
+  }
+});
 </script>
 
 <template>

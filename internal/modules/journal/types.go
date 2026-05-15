@@ -60,10 +60,22 @@ var gitignorePatterns = []string{
 	"**/.changes.*",
 }
 
-// knownBackends — used to validate sync entries from disk.
+// knownBackends — used to validate sync entries from disk. The
+// orderedSyncBackends slice below is the same set in the order the
+// frontend should display it; both are derived from this map at init.
 var knownBackends = map[string]bool{
 	BackendGit:   true,
 	BackendGigot: true,
+}
+
+// orderedSyncBackends is the canonical display order for collaboration
+// backends — exposed via Service.ListBackends so the frontend never
+// keeps a parallel hardcoded list. Adding a new backend means adding
+// it here AND in knownBackends; same one-source-of-truth shape as
+// pdf.builtinThemes.
+var orderedSyncBackends = []string{
+	BackendGit,
+	BackendGigot,
 }
 
 // Entry is one journal record. Sync entries fill Backend/Version/...;

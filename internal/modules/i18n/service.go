@@ -14,9 +14,19 @@ func (s *Service) LoadBundle(locale string) (map[string]any, error) {
 }
 
 // AvailableLocales returns the sorted list of locale ids the binary
-// ships. Used to populate the language picker in Settings.
+// ships. Used by the runtime bootstrap; the language picker uses
+// ListLocales (which carries the endonym alongside the code).
 func (s *Service) AvailableLocales() []string {
 	return s.m.AvailableLocales()
+}
+
+// ListLocales returns sorted LocaleDescriptors (code + endonym) for
+// every locale the binary ships. Replaces the hardcoded language
+// array in the Settings → General language picker — endonyms come
+// from each locale's `language.endonym` bundle key, so adding a new
+// locale just means adding the file (no central registry to update).
+func (s *Service) ListLocales() []LocaleDescriptor {
+	return s.m.ListLocales()
 }
 
 // DefaultLocale returns the canonical fallback locale id.

@@ -28,12 +28,24 @@ export function Cursor(): $CancellablePromise<$models.CursorMap> {
 }
 
 /**
+ * ListSyncBackends returns the canonical sync-backend ids in display
+ * order. The collaboration sidebar (Vue) and the monitor "pending per
+ * backend" tile both read this — there is no other place where the
+ * list of backends should be enumerated on the frontend.
+ */
+export function ListSyncBackends(): $CancellablePromise<string[]> {
+    return $Call.ByID(265343143).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * Pending returns the pending changes for the requested backend.
  * Empty backend or "none" returns an empty result.
  */
 export function Pending(backend: string): $CancellablePromise<$models.PendingResult> {
     return $Call.ByID(2621734992, backend).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -43,13 +55,14 @@ export function Pending(backend: string): $CancellablePromise<$models.PendingRes
  */
 export function RecentEntries(limit: number): $CancellablePromise<$models.Entry[]> {
     return $Call.ByID(3982303066, limit).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.Cursor.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $$createType0);
-const $$createType2 = $models.PendingResult.createFrom;
-const $$createType3 = $models.Entry.createFrom;
-const $$createType4 = $Create.Array($$createType3);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $models.PendingResult.createFrom;
+const $$createType4 = $models.Entry.createFrom;
+const $$createType5 = $Create.Array($$createType4);
