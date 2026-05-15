@@ -5,31 +5,101 @@
 -->
 <section class="cover cover-classic"><div class="cover-page">
   <style>
-    .cover-classic { text-align: center; }
-    .cover-classic .cover-logo { max-height: 1.5in; margin: 0 auto 1.5in; display: block; }
-    .cover-classic .cover-title { font-size: 36pt; font-weight: 700; margin: 0 0 0.25in; line-height: 1.15; }
-    .cover-classic .cover-subtitle { font-size: 16pt; font-weight: 400; color: #555; margin: 0 0 2in; }
-    .cover-classic .cover-meta { margin-top: 2in; font-size: 11pt; line-height: 1.65; }
-    .cover-classic .cover-meta > p { margin: 0; }
-    .cover-classic .cover-author { font-weight: 600; }
-    .cover-classic .cover-doctype { display: inline-block; padding: 0.05in 0.45in; margin-bottom: 0.6in;
-      font-size: 9pt; letter-spacing: 0.15em; text-transform: uppercase; border: 1px solid #888; color: #555; }
+    /* Reset picoloom default theme's flex+order so the classic cover
+       can use a simple centered block flow. Aggressive !important
+       because picoloom's theme cascade fights us otherwise. */
+    .cover-classic.cover { padding: 0 !important; }
+    .cover-classic .cover-page {
+      display: block !important;
+      text-align: center !important;
+      padding: 1.2in 1in !important;
+      align-items: initial !important;
+    }
+    .cover-classic .cover-page > * { order: 0 !important; }
+    .cover-classic .cover-page p { text-align: center !important; }
+    .cover-classic .cover-logo {
+      display: block !important;
+      max-height: 1.5in !important;
+      max-width: 60% !important;
+      margin: 0 auto 1.2in !important;
+      border-radius: 0 !important;
+      object-fit: contain !important;
+    }
+    .cover-classic .cover-context {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 0 0.6in !important;
+    }
+    .cover-classic .cover-client {
+      font-size: 10pt !important; letter-spacing: 0.12em !important;
+      text-transform: uppercase !important; color: #555 !important;
+      font-weight: 600 !important;
+    }
+    .cover-classic .cover-project { font-size: 10pt !important; color: #777 !important; }
+    .cover-classic .cover-doctype {
+      display: inline-block !important;
+      padding: 0.05in 0.55in !important; margin: 0 0 0.5in !important;
+      font-size: 9pt !important; letter-spacing: 0.18em !important;
+      text-transform: uppercase !important; border: 1px solid #888 !important;
+      color: #555 !important; background: transparent !important;
+    }
+    .cover-classic .cover-title {
+      font-size: 36pt !important; font-weight: 700 !important;
+      line-height: 1.15 !important; margin: 0 0 0.25in !important;
+      padding: 0 !important; border: none !important; color: #222 !important;
+    }
+    .cover-classic .cover-subtitle {
+      font-size: 16pt !important; font-weight: 400 !important;
+      color: #555 !important; margin: 0 0 1.8in !important;
+    }
+    .cover-classic .cover-description {
+      font-size: 11pt !important; color: #444 !important;
+      max-width: 5in !important; margin: 0 auto 1.6in !important;
+    }
+    .cover-classic .cover-organization {
+      font-size: 12pt !important; font-weight: 600 !important;
+      color: #333 !important; margin: 0 0 0.5in !important;
+    }
+    .cover-classic .cover-meta {
+      display: block !important; border: none !important;
+      padding-top: 0 !important; margin-top: 1in !important;
+      width: 100% !important;
+    }
+    .cover-classic .cover-meta p {
+      grid-column: initial !important;
+      margin: 0 0 0.1in !important;
+      font-size: 11pt !important; line-height: 1.5 !important;
+      color: #333 !important; text-align: center !important;
+    }
+    .cover-classic .cover-author { font-weight: 600 !important; }
+    .cover-classic .cover-date { color: #666 !important; }
   </style>
 
   {{if .Logo}}<img src="{{.Logo}}" alt="Logo" class="cover-logo">{{end}}
+
+  {{if or .ClientName .ProjectName}}
+  <div class="cover-context">
+    {{if .ClientName}}<p class="cover-client">{{.ClientName}}</p>{{end}}
+    {{if .ProjectName}}<p class="cover-project">{{.ProjectName}}</p>{{end}}
+  </div>
+  {{end}}
 
   {{if .DocumentType}}<span class="cover-doctype">{{.DocumentType}}</span>{{end}}
 
   <p class="cover-title">{{.Title}}</p>
   {{if .Subtitle}}<p class="cover-subtitle">{{.Subtitle}}</p>{{end}}
 
+  {{if .Description}}<p class="cover-description">{{.Description}}</p>{{end}}
+
+  {{if .Organization}}<p class="cover-organization">{{.Organization}}</p>{{end}}
+
   <div class="cover-meta">
     {{if .Author}}<p class="cover-author">{{.Author}}</p>{{end}}
     {{if .AuthorTitle}}<p class="cover-author-title">{{.AuthorTitle}}</p>{{end}}
-    {{if .Organization}}<p class="cover-organization">{{.Organization}}</p>{{end}}
     {{if .Department}}<p class="cover-department">{{.Department}}</p>{{end}}
     {{if .DocumentID}}<p class="cover-docid">{{.DocumentID}}</p>{{end}}
     {{if .Date}}<p class="cover-date">{{.Date}}</p>{{end}}
-    {{if .Version}}<p class="cover-version">Version {{.Version}}</p>{{end}}
+    {{if .Version}}<p class="cover-version">v{{.Version}}</p>{{end}}
   </div>
 </div></section><span data-cover-end></span>

@@ -1,72 +1,121 @@
 <!--
   formidable-cover: 1
   name: Corporate
-  description: Top-left brand logo with structured client/project info to the right; ruled meta grid below.
+  description: Logo + structured info band at top, large title below, ruled meta-grid at bottom.
 -->
 <section class="cover cover-corporate"><div class="cover-page">
   <style>
-    .cover-corporate .cover-band {
-      display: grid; grid-template-columns: 2.4in 1fr; column-gap: 0.6in;
-      align-items: start; padding-bottom: 0.45in; margin-bottom: 0.6in;
+    /* Reset picoloom default theme's flex+order — corporate uses a
+       block-flow page with a custom top band built from positioned
+       cover-logo + cover-context (no DOM restructuring required). */
+    .cover-corporate.cover { padding: 0 !important; }
+    .cover-corporate .cover-page {
+      display: block !important;
+      text-align: left !important;
+      padding: 1in 0.9in !important;
+      align-items: initial !important;
+    }
+    .cover-corporate .cover-page > * { order: 0 !important; }
+    .cover-corporate .cover-page p { text-align: left !important; }
+
+    /* Top band: logo floats left, context block floats right, the
+       two share the upper strip. Bottom rule visually divides band
+       from title. */
+    .cover-corporate .cover-band-wrap {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.6in; padding-bottom: 0.45in; margin-bottom: 0.6in;
       border-bottom: 2px solid #222;
     }
-    .cover-corporate .cover-band .cover-logo { max-width: 100%; max-height: 1.6in; }
-    .cover-corporate .cover-context > p { margin: 0; line-height: 1.45; }
-    .cover-corporate .cover-client { font-size: 13pt; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.06em; }
-    .cover-corporate .cover-project { font-size: 11pt; color: #555; }
-    .cover-corporate .cover-doctype { display: inline-block; margin-top: 0.15in;
-      font-size: 9pt; letter-spacing: 0.15em; text-transform: uppercase; color: #555; }
-    .cover-corporate .cover-title { font-size: 32pt; font-weight: 700; line-height: 1.15;
-      margin: 0.4in 0 0.15in; }
-    .cover-corporate .cover-subtitle { font-size: 15pt; font-weight: 400; color: #555;
-      margin: 0 0 0.4in; }
-    .cover-corporate .cover-description { font-size: 11pt; line-height: 1.55;
-      max-width: 5.5in; margin: 0 0 0.8in; color: #333; }
-    .cover-corporate .cover-meta { font-size: 10pt; line-height: 1.7; padding-top: 0.3in;
-      border-top: 1px solid #ccc; }
-    .cover-corporate .cover-meta-grid { display: grid; grid-template-columns: 1fr 1fr; row-gap: 4pt; }
-    .cover-corporate .cover-meta-cell { display: flex; gap: 8pt; }
-    .cover-corporate .cover-meta-label { width: 1.1in; font-size: 8.5pt; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #777; }
-    .cover-corporate .cover-meta-value { font-size: 10pt; }
+    .cover-corporate .cover-logo {
+      max-width: 2.4in !important; max-height: 1.5in !important;
+      margin: 0 !important; border-radius: 0 !important;
+      object-fit: contain !important;
+    }
+    .cover-corporate .cover-context {
+      background: transparent !important; border: none !important;
+      padding: 0 !important; margin: 0 !important;
+      text-align: right !important; flex: 0 1 auto;
+    }
+    .cover-corporate .cover-context p { text-align: right !important; }
+    .cover-corporate .cover-client {
+      font-size: 13pt !important; font-weight: 700 !important;
+      text-transform: uppercase !important; letter-spacing: 0.06em !important;
+      color: #222 !important; margin: 0 !important; line-height: 1.45 !important;
+    }
+    .cover-corporate .cover-project {
+      font-size: 11pt !important; color: #555 !important;
+      margin: 0 !important; line-height: 1.45 !important;
+    }
+    .cover-corporate .cover-doctype {
+      display: inline-block !important; margin: 0 0 0.4in !important;
+      padding: 0.05in 0.5in !important;
+      font-size: 9pt !important; letter-spacing: 0.18em !important;
+      text-transform: uppercase !important; border: 1px solid #888 !important;
+      color: #555 !important; background: transparent !important;
+    }
+    .cover-corporate .cover-title {
+      font-size: 34pt !important; font-weight: 700 !important;
+      line-height: 1.15 !important; margin: 0 0 0.15in !important;
+      padding: 0 !important; border: none !important; color: #222 !important;
+    }
+    .cover-corporate .cover-subtitle {
+      font-size: 16pt !important; font-weight: 400 !important;
+      color: #555 !important; margin: 0 0 0.4in !important;
+    }
+    .cover-corporate .cover-description {
+      font-size: 11pt !important; line-height: 1.55 !important;
+      color: #333 !important; max-width: 5.5in !important;
+      margin: 0 0 0.8in !important;
+    }
+    .cover-corporate .cover-organization {
+      font-size: 12pt !important; font-weight: 600 !important;
+      color: #222 !important; margin: 0 0 0.3in !important;
+    }
+    .cover-corporate .cover-meta {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 0.08in 0.4in !important;
+      padding-top: 0.3in !important; margin-top: 1in !important;
+      border-top: 1px solid #ccc !important;
+      width: 100% !important;
+    }
+    .cover-corporate .cover-meta p {
+      margin: 0 !important;
+      font-size: 10pt !important; line-height: 1.7 !important;
+      color: #333 !important; text-align: left !important;
+      grid-column: initial !important;
+    }
+    .cover-corporate .cover-author { font-weight: 600 !important; }
+    .cover-corporate .cover-date { color: #666 !important; }
   </style>
 
-  <div class="cover-band">
-    <div class="cover-logo-cell">
-      {{if .Logo}}<img src="{{.Logo}}" alt="Logo" class="cover-logo">{{end}}
-    </div>
+  {{if or .Logo .ClientName .ProjectName}}
+  <div class="cover-band-wrap">
+    {{if .Logo}}<img src="{{.Logo}}" alt="Logo" class="cover-logo">{{else}}<span></span>{{end}}
+    {{if or .ClientName .ProjectName}}
     <div class="cover-context">
       {{if .ClientName}}<p class="cover-client">{{.ClientName}}</p>{{end}}
       {{if .ProjectName}}<p class="cover-project">{{.ProjectName}}</p>{{end}}
-      {{if .DocumentType}}<span class="cover-doctype">{{.DocumentType}}</span>{{end}}
     </div>
+    {{end}}
   </div>
+  {{end}}
+
+  {{if .DocumentType}}<span class="cover-doctype">{{.DocumentType}}</span>{{end}}
 
   <p class="cover-title">{{.Title}}</p>
   {{if .Subtitle}}<p class="cover-subtitle">{{.Subtitle}}</p>{{end}}
+
   {{if .Description}}<p class="cover-description">{{.Description}}</p>{{end}}
 
+  {{if .Organization}}<p class="cover-organization">{{.Organization}}</p>{{end}}
+
   <div class="cover-meta">
-    <div class="cover-meta-grid">
-      {{if .Author}}<div class="cover-meta-cell">
-        <span class="cover-meta-label">Author</span><span class="cover-meta-value">{{.Author}}</span>
-      </div>{{end}}
-      {{if .Organization}}<div class="cover-meta-cell">
-        <span class="cover-meta-label">Organization</span><span class="cover-meta-value">{{.Organization}}</span>
-      </div>{{end}}
-      {{if .Department}}<div class="cover-meta-cell">
-        <span class="cover-meta-label">Department</span><span class="cover-meta-value">{{.Department}}</span>
-      </div>{{end}}
-      {{if .DocumentID}}<div class="cover-meta-cell">
-        <span class="cover-meta-label">Document ID</span><span class="cover-meta-value">{{.DocumentID}}</span>
-      </div>{{end}}
-      {{if .Version}}<div class="cover-meta-cell">
-        <span class="cover-meta-label">Version</span><span class="cover-meta-value">{{.Version}}</span>
-      </div>{{end}}
-      {{if .Date}}<div class="cover-meta-cell">
-        <span class="cover-meta-label">Date</span><span class="cover-meta-value">{{.Date}}</span>
-      </div>{{end}}
-    </div>
+    {{if .Author}}<p class="cover-author">{{.Author}}</p>{{end}}
+    {{if .AuthorTitle}}<p class="cover-author-title">{{.AuthorTitle}}</p>{{end}}
+    {{if .Department}}<p class="cover-department">{{.Department}}</p>{{end}}
+    {{if .DocumentID}}<p class="cover-docid">{{.DocumentID}}</p>{{end}}
+    {{if .Date}}<p class="cover-date">{{.Date}}</p>{{end}}
+    {{if .Version}}<p class="cover-version">v{{.Version}}</p>{{end}}
   </div>
 </div></section><span data-cover-end></span>
