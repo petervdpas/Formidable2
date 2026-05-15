@@ -15,7 +15,10 @@ import (
 
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
-		ScenarioInitializer: initPDFScenario,
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			initPDFScenario(ctx)
+			initFrontmatterScenario(ctx)
+		},
 		Options: &godog.Options{
 			Format:   "pretty",
 			Paths:    []string{"features"},

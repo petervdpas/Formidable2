@@ -208,18 +208,16 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
 
 **Definition of done**: activation works on a machine with Chrome installed; status persists across restarts; deactivation flips status back to inactive without deleting any managed Chromium cache picked up by the probe.
 
-### Stage 3 — Frontmatter parser + Input builder
+### Stage 3 — Frontmatter parser + Input builder (shipped 2026-05-15)
 
 **Goal**: given a markdown document and the merge inputs (manifest, form meta, global config), produce a valid `picoloom.Input`.
 
-- `Frontmatter` struct mirroring `picoloom.Input` shape (typed YAML).
-- Parser that splits `---\n...\n---\n<body>` cleanly. Tolerant of missing frontmatter (uses defaults).
-- Merge function with explicit priority: `frontmatter > form meta > template manifest > global config`.
-- `BuildInput(fm Frontmatter, body string) picoloom.Input` — pure function, no I/O, easy to test.
-- Property-test the override priority: every layer can override every key.
-- Unhappy-path tests: malformed frontmatter, type mismatches, unknown keys (warn + ignore, do not crash), missing closing `---`.
+- `Frontmatter` struct mirroring `picoloom.Input` shape (typed YAML). One Formidable-specific addition per sub-block: `Enabled *bool` gate (lets a higher merge layer say "explicitly no cover" against a lower layer that asserts one).
+- `ParseFrontmatter(md) (Frontmatter, body, err)` — splits `---\n…\n---\n<body>` cleanly. Tolerant of missing frontmatter (returns zero Frontmatter + verbatim body, nil err). Malformed YAML, type mismatches, missing closing `---` all return `ErrFrontmatterMalformed` and the verbatim body so the caller can render defaults. Unknown keys silently ignored (`KnownFields(false)`).
+- `Merge(layers ...Frontmatter) Frontmatter` — layers in priority order, index 0 highest. Empty scalars / nil pointers cascade. Slice fields (Signature.Links) override atomically; nil-or-empty inherits.
+- `BuildInput(fm, body) picoloom.Input` — pure projection. A sub-block lands in the Input iff the matching FM sub-block is non-nil **and** `Enabled` is not explicitly false. Block presence with no explicit Enabled defaults to opted-in ("if the author wrote `cover:` they probably meant to use it"). Style is NOT part of `picoloom.Input` — caller reads `fm.Style` and passes it to `picoloom.NewConverter` via `WithStyle()`.
 
-**Definition of done**: `BuildInput` round-trips every settable knob; merge priority verified for every key; malformed frontmatter logs a warning and uses defaults.
+**Definition of done**: `BuildInput` round-trips every settable knob; merge priority verified for every key; malformed frontmatter returns `ErrFrontmatterMalformed` + verbatim body. **Status**: 32 unit tests + 13 godog scenarios green.
 
 ### Stage 4 — Render pipeline integration
 
