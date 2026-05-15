@@ -67,6 +67,25 @@ func (s *Service) EnsureTemplateDirectory() error                 { return s.m.E
 // (field_registry.go).
 func (s *Service) FieldTypes() []FieldDescriptor { return AllFieldTypes() }
 
+// TableColumnTypes returns the canonical column-type vocabulary the
+// Edit Field modal's `table` preset surfaces. Single source of truth
+// — the frontend MUST NOT keep a parallel hardcoded list.
+func (s *Service) TableColumnTypes() []TableColumnTypeDescriptor {
+	out := make([]TableColumnTypeDescriptor, len(builtinTableColumnTypes))
+	copy(out, builtinTableColumnTypes)
+	return out
+}
+
+// ListItemTypes returns the canonical item-type vocabulary the Edit
+// Field modal's `list` preset surfaces. Same one-source-of-truth
+// rule as TableColumnTypes — frontend reads via this method, never
+// hardcodes the list.
+func (s *Service) ListItemTypes() []ListItemTypeDescriptor {
+	out := make([]ListItemTypeDescriptor, len(builtinListItemTypes))
+	copy(out, builtinListItemTypes)
+	return out
+}
+
 // GeneratorShapes returns the catalog the frontend uses to populate
 // the "Generate Template" dialog's shape picker.
 func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }

@@ -412,6 +412,33 @@ export class ItemField {
 }
 
 /**
+ * ListItemTypeDescriptor names one entry the Edit Field modal's
+ * `list` preset offers in its item-type dropdown. Same rationale as
+ * TableColumnTypeDescriptor — captured here even though Go doesn't
+ * interpret the strings yet, so the future home is ready.
+ */
+export class ListItemTypeDescriptor {
+    "name": string;
+
+    /** Creates a new ListItemTypeDescriptor instance. */
+    constructor($$source: Partial<ListItemTypeDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ListItemTypeDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ListItemTypeDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ListItemTypeDescriptor($$parsedSource as Partial<ListItemTypeDescriptor>);
+    }
+}
+
+/**
  * LoadManyResult is one slot in LoadMany's response. Template is nil
  * when the file was missing or unparseable — Error carries the
  * per-row failure message. Filename is always stamped so callers can
@@ -561,6 +588,35 @@ export class ShapeInfo {
     static createFrom($$source: any = {}): ShapeInfo {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ShapeInfo($$parsedSource as Partial<ShapeInfo>);
+    }
+}
+
+/**
+ * TableColumnTypeDescriptor names one column type the Edit Field
+ * modal's `table` preset offers in its column-type dropdown. Today
+ * these strings are pure UI vocabulary — the Go side does not yet
+ * validate table cell data against them — but the registry lives
+ * here so a future server-side validation pass has a single source
+ * of truth to read.
+ */
+export class TableColumnTypeDescriptor {
+    "name": string;
+
+    /** Creates a new TableColumnTypeDescriptor instance. */
+    constructor($$source: Partial<TableColumnTypeDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TableColumnTypeDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TableColumnTypeDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TableColumnTypeDescriptor($$parsedSource as Partial<TableColumnTypeDescriptor>);
     }
 }
 

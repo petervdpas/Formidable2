@@ -79,9 +79,21 @@ export function HasTemplates(): $CancellablePromise<boolean> {
     return $Call.ByID(1263920259);
 }
 
+/**
+ * ListItemTypes returns the canonical item-type vocabulary the Edit
+ * Field modal's `list` preset surfaces. Same one-source-of-truth
+ * rule as TableColumnTypes — frontend reads via this method, never
+ * hardcodes the list.
+ */
+export function ListItemTypes(): $CancellablePromise<$models.ListItemTypeDescriptor[]> {
+    return $Call.ByID(2902436948).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
 export function ListTemplates(): $CancellablePromise<string[]> {
     return $Call.ByID(3379098355).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -93,13 +105,13 @@ export function ListTemplates(): $CancellablePromise<string[]> {
  */
 export function LoadMany(names: string[]): $CancellablePromise<$models.LoadManyResult[]> {
     return $Call.ByID(437104883, names).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
 export function LoadTemplate(name: string): $CancellablePromise<$models.Template | null> {
     return $Call.ByID(2817786054, name).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -109,6 +121,17 @@ export function SaveTemplate(name: string, t: $models.Template | null): $Cancell
 
 export function SeedBasicIfEmpty(): $CancellablePromise<void> {
     return $Call.ByID(361458899);
+}
+
+/**
+ * TableColumnTypes returns the canonical column-type vocabulary the
+ * Edit Field modal's `table` preset surfaces. Single source of truth
+ * — the frontend MUST NOT keep a parallel hardcoded list.
+ */
+export function TableColumnTypes(): $CancellablePromise<$models.TableColumnTypeDescriptor[]> {
+    return $Call.ByID(3301892111).then(($result: any) => {
+        return $$createType15($result);
+    });
 }
 
 /**
@@ -130,7 +153,7 @@ export function TemplatesDir(): $CancellablePromise<string> {
  */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType17($result);
     });
 }
 
@@ -142,10 +165,14 @@ const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $models.ItemField.createFrom;
 const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = $models.Descriptor.createFrom;
-const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = $models.LoadManyResult.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.Template.createFrom;
-const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.ValidationError.createFrom;
-const $$createType13 = $Create.Array($$createType12);
+const $$createType7 = $models.ListItemTypeDescriptor.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $Create.Array($Create.Any);
+const $$createType10 = $models.LoadManyResult.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $models.Template.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = $models.TableColumnTypeDescriptor.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $models.ValidationError.createFrom;
+const $$createType17 = $Create.Array($$createType16);

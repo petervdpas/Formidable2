@@ -16,11 +16,13 @@ export {
     GeneratorOptions,
     ImgMode,
     ItemField,
+    ListItemTypeDescriptor,
     LoadManyResult,
     PDFConfig,
     PDFCoverConfig,
     Shape,
     ShapeInfo,
+    TableColumnTypeDescriptor,
     Template,
     ValidationError
 } from "./models.js";
