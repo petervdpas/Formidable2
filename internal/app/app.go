@@ -514,7 +514,7 @@ func New(d Deps) (*App, error) {
 
 	// PDF export — Stage 2. Manager probes system + managed-cache
 	// Chrome on demand, persists activation per-machine to
-	// <AppRoot>/config/pdf-state.json via sysM. Formidable does not
+	// <AppRoot>/config/.pdf-state.json via sysM. Formidable does not
 	// bundle or download Chrome; the user installs one themselves.
 	// See design/pdf-export.md.
 	pdfM := pdf.NewManager(d.Logger, sysM)

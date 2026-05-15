@@ -6,7 +6,7 @@
 // Information workspace, every action returns ErrPDFNotActivated.
 // Activation probes for a system Chrome/Chromium binary, falling
 // back to go-rod's managed download. Activation state persists in
-// a per-machine state file (`<AppRoot>/config/pdf-state.json`),
+// a per-machine state file (`<AppRoot>/config/.pdf-state.json`),
 // NOT in the active profile's user.json — `browser_bin` is a
 // machine-specific path and would break under gigot/git sync.
 // Stage 2 wires the store via system.Manager.

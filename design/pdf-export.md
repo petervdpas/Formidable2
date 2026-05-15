@@ -19,7 +19,7 @@ See [architecture.md](architecture.md) for module conventions and [migration-pla
 | Activation surface | Information page panel, alongside Wiki/API status panels. Same UX pattern as those services. |
 | Chrome runtime | Probe `ROD_BROWSER_BIN` → standard install paths → existing managed-cache picks from prior runs. **Formidable does not download Chrome.** If no candidate is found, the user installs one themselves (apt / brew / google.com/chrome) and re-probes. Decision settled 2026-05-15: a 150 MB / 530 MB Chromium download was too much weight inside Formidable for a feature with a clean "install Chrome yourself" alternative. |
 | Override priority | `frontmatter > form meta > template manifest > global config`. |
-| Activation persistence | Per-machine state file at `<AppRoot>/config/pdf-state.json`, owned by the pdf module via `system.Manager`. **Not** in `user.json` — `browser_bin` is machine-specific and would break under gigot/git sync. (Settled 2026-05-14; earlier draft of this doc said `config.Manager` under a `pdf:` block — that was wrong.) |
+| Activation persistence | Per-machine state file at `<AppRoot>/config/.pdf-state.json`, owned by the pdf module via `system.Manager`. **Not** in `user.json` — `browser_bin` is machine-specific and would break under gigot/git sync. (Settled 2026-05-14; earlier draft of this doc said `config.Manager` under a `pdf:` block — that was wrong.) |
 | Frontmatter schema | Nested, mirrors `picoloom.Input` (`cover:`, `toc:`, `watermark:`, `page:`, `pageBreaks:`, `signature:`, `footer:`). All four override layers share this schema. |
 | Frontmatter origin | Lives in template source. Survives the raymond Handlebars pass, so `cover.title: "{{form.title}}"` resolves before picoloom strips it. |
 | Render integration | Picoloom's md→html→pdf path replaces the goldmark+chroma half of `render` for PDF output only. Wiki/API paths still use full `render`. Pipeline forks after raymond expansion. |
@@ -185,7 +185,7 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
   - `Deactivate(ctx) error`
   - `ExportPDF(ctx, formGUID string, opts ExportOpts) (Result, error)`
 - `Status` struct: `{ Active bool, BrowserBin string, Source: "system"|"managed"|"unset", Version string }`.
-- Persist activation state in `<AppRoot>/config/pdf-state.json` (per-machine; see "Activation persistence" row above). Stage 1 ships the in-memory Manager only; Stage 2 adds the store via `system.Manager`.
+- Persist activation state in `<AppRoot>/config/.pdf-state.json` (per-machine; see "Activation persistence" row above). Stage 1 ships the in-memory Manager only; Stage 2 adds the store via `system.Manager`.
 - All methods return `ErrPDFNotActivated` until Stage 2 lands.
 - Register in `internal/app/app.go`, regenerate bindings.
 
@@ -202,7 +202,7 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
 - Wails service surface: `GetStatus`, `ProbeChrome`, `Activate(opts)`, `Deactivate`, `ExportPDF` (Stage 4 stub).
 - Information-page Vue panel (`InformationPDFExport.vue`) — sidebar entry between Journal Feed and Logging. Probe dialog lists candidates with platform-typical "Use this" buttons. i18n keys under `internal/modules/i18n/locales/<locale>/pdf.json`.
 - Frontend catches `ErrPDFNotActivated` from any later `ExportPDF` call and routes the user to the Information page with the activation panel highlighted.
-- Persistence: `<AppRoot>/config/pdf-state.json` via `system.Manager` (atomic temp+fsync+rename). Per-machine; not in `user.json` so gigot/git sync between machines doesn't carry a stale `browser_bin` path.
+- Persistence: `<AppRoot>/config/.pdf-state.json` via `system.Manager` (atomic temp+fsync+rename). Per-machine; not in `user.json` so gigot/git sync between machines doesn't carry a stale `browser_bin` path.
 
 **Managed Chromium download — intentionally out of scope.** Earlier drafts of this stage included a `DownloadManagedChromium(ctx, progress chan)` path with Wails event streaming. We dropped it 2026-05-15 in favour of "install Chrome yourself" telemetry in the empty-probe state of the panel. Rationale: a 150 MB download / 530 MB on-disk footprint inside Formidable was too much weight for a feature with a clean alternative the user can satisfy via their package manager.
 

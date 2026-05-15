@@ -11,9 +11,11 @@ import (
 
 // stateFilePath is the per-machine activation record relative to
 // system.Manager's AppRoot. NOT in user.json — `browser_bin` is a
-// machine-specific path and would break under gigot/git sync. See
+// machine-specific path and would break under gigot/git sync. The
+// leading dot marks it as a hidden file alongside `.boot.json` (the
+// other per-machine bootstrap record under config/). See
 // design/pdf-export.md "Activation persistence".
-const stateFilePath = "config/pdf-state.json"
+const stateFilePath = "config/.pdf-state.json"
 
 // state is the on-disk shape. ActivatedAt is omitzero so the
 // inactive default is a clean `{}` rather than a misleading zero

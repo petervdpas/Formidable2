@@ -49,7 +49,7 @@ type Manager struct {
 
 // NewManager constructs an inactive manager. The composition root
 // calls Restore() once at boot to load any persisted activation
-// from <AppRoot>/config/pdf-state.json. sys may be nil — Stage 1
+// from <AppRoot>/config/.pdf-state.json. sys may be nil — Stage 1
 // tests and headless test runs pass nil and the store no-ops.
 func NewManager(log *slog.Logger, sys storeFS) *Manager {
 	if log == nil {
