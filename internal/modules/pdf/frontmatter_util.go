@@ -3,6 +3,7 @@ package pdf
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -209,9 +210,23 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 	body := rest[closeLoc[1]:]
 	body = trimOneLeadingNewline(body)
 
+	// Template source can carry two patterns that confuse yaml.v3:
+	//
+	//  1. Handlebars expressions (`{{field "x"}}`) — `{` is a flow-
+	//     mapping marker, breaks parse.
+	//  2. Values starting with `#` after `: ` — yaml treats them as
+	//     comments and silently drops the value (the user's
+	//     `titlepage-color: #F8F8F8` would migrate to nothing).
+	//
+	// Mask Handlebars first, then quote `#`-leading values so yaml.v3
+	// keeps the value intact. Both transforms are reversed before the
+	// final output is returned.
+	masked, hbsTokens := maskHandlebars(rawYAML)
+	masked = quoteHashLeadingValues(masked)
+
 	src := map[string]any{}
-	if strings.TrimSpace(rawYAML) != "" {
-		if err := yaml.Unmarshal([]byte(rawYAML), &src); err != nil {
+	if strings.TrimSpace(masked) != "" {
+		if err := yaml.Unmarshal([]byte(masked), &src); err != nil {
 			return FrontmatterMigration{}, fmt.Errorf("%w: %v", ErrFrontmatterMalformed, err)
 		}
 	}
@@ -312,8 +327,81 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 	if err != nil {
 		return FrontmatterMigration{}, fmt.Errorf("pdf: emit migrated frontmatter: %w", err)
 	}
+	// Restore Handlebars tokens in the emitted YAML and in the body
+	// (yaml.Marshal escaped nothing because the sentinels are plain
+	// alphanumeric; replaceAll is safe).
+	emitted = unmaskHandlebars(emitted, hbsTokens)
 	out.Markdown = "---\n" + emitted + "---\n" + body
 	return out, nil
+}
+
+// quoteHashLeadingRe matches an unquoted key:value line where the
+// value starts with `#`. The capture groups split the line so the
+// rewrite can wrap the value in single quotes while preserving any
+// leading indentation. Anchored to ^...$ in multiline mode so
+// `# comment` lines on their own (no preceding key) are unaffected.
+var quoteHashLeadingRe = regexp.MustCompile(`(?m)^(\s*[^\s:#][^:\n]*:\s)(#[^\n]*)$`)
+
+// quoteHashLeadingValues protects values like `titlepage-color: #F8F8F8`
+// from being silently dropped by yaml.v3 (which treats `#` after
+// whitespace as a comment marker). Single-quotes the value, escaping
+// any internal `'` by doubling. Values that already start with a
+// quote pass through untouched.
+func quoteHashLeadingValues(src string) string {
+	return quoteHashLeadingRe.ReplaceAllStringFunc(src, func(line string) string {
+		m := quoteHashLeadingRe.FindStringSubmatch(line)
+		if len(m) != 3 {
+			return line
+		}
+		val := strings.TrimRight(m[2], " \t")
+		// Escape single quotes via YAML's '' convention.
+		escaped := strings.ReplaceAll(val, "'", "''")
+		return m[1] + "'" + escaped + "'"
+	})
+}
+
+// hbsRe matches a single Handlebars expression. Non-greedy so
+// adjacent expressions like `{{a}}{{b}}` produce two matches instead
+// of one wide one. Raymond/Handlebars don't nest delimiters, so this
+// is sufficient.
+var hbsRe = regexp.MustCompile(`\{\{[\s\S]*?\}\}`)
+
+// maskHandlebars replaces every `{{...}}` in src with a unique
+// sentinel and returns the masked string + a token map. The sentinels
+// are plain ASCII identifiers that survive yaml.Marshal/Unmarshal
+// without quoting, so the round trip is lossless.
+func maskHandlebars(src string) (string, map[string]string) {
+	tokens := map[string]string{}
+	i := 0
+	out := hbsRe.ReplaceAllStringFunc(src, func(match string) string {
+		key := fmt.Sprintf("__HBS_%d__", i)
+		i++
+		tokens[key] = match
+		return key
+	})
+	return out, tokens
+}
+
+// unmaskHandlebars restores the original `{{...}}` expressions by
+// replacing each sentinel with its captured source. Idempotent —
+// applying twice has no effect (sentinels are gone after the first
+// pass).
+func unmaskHandlebars(src string, tokens map[string]string) string {
+	if len(tokens) == 0 {
+		return src
+	}
+	out := src
+	// Sort by length descending so we never replace a prefix substring
+	// (e.g. __HBS_1__ before __HBS_10__).
+	keys := make([]string, 0, len(tokens))
+	for k := range tokens {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool { return len(keys[i]) > len(keys[j]) })
+	for _, k := range keys {
+		out = strings.ReplaceAll(out, k, tokens[k])
+	}
+	return out
 }
 
 // emitMigratedFrontmatter renders the picoloom-shaped destination map

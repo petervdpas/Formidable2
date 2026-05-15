@@ -3,6 +3,8 @@ package pdf
 import (
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestBuildFrontmatter_EmptyConfig(t *testing.T) {
@@ -265,6 +267,179 @@ func TestService_RegistriesReturnCopies(t *testing.T) {
 			t.Errorf("%s: caller mutation leaked", c.name)
 		}
 	}
+}
+
+// ---------- realistic-input coverage ----------
+
+func TestBuildFrontmatter_AllFieldsPopulated(t *testing.T) {
+	// Mirrors what a real user filling every field in the Inject
+	// wizard would produce — full cover, page, toc, footer, signature
+	// blocks all populated. Catches block-emit ordering issues and
+	// missing-field bugs that single-block tests miss.
+	got, err := BuildFrontmatter(InjectConfig{
+		Style: "technical",
+		Page: &InjectPageConfig{Size: "a4", Orientation: "portrait", Margin: 1.0},
+		Cover: &InjectCoverConfig{
+			Template:     "classic",
+			Title:        "Audit Control",
+			Subtitle:     "FCDM 2026",
+			Author:       "Team Integration Services",
+			AuthorTitle:  "Architect",
+			Organization: "Fontys",
+			Date:         "2026-05-16",
+			Version:      "1.0",
+			ClientName:   "Hogeschool",
+			ProjectName:  "FCDM",
+			DocumentType: "Audit Report",
+			DocumentID:   "AC-001",
+			Description:  "Annual review.",
+			Department:   "ICT",
+			Logo:         "formidable.svg",
+		},
+		TOC: &InjectTOCConfig{Title: "Inhoudsopgave", MinDepth: 1, MaxDepth: 3},
+		Footer: &InjectFooterConfig{
+			Position:       "center",
+			ShowPageNumber: true,
+			Text:           "Confidential",
+			Date:           "2026-05-16",
+			Status:         "Final",
+			DocumentID:     "AC-001",
+		},
+		Signature: &InjectSignatureConfig{
+			Name:         "Peter van de Pas",
+			Title:        "Architect",
+			Email:        "peter@example.org",
+			Organization: "Fontys",
+			ImagePath:    "/home/peter/sig.png",
+			Phone:        "+31 0000000",
+			Address:      "Eindhoven",
+			Department:   "ICT",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Build all-fields: %v", err)
+	}
+	// Sample assertions across every block — if any go missing we
+	// know the emit pass dropped a section.
+	mustContain := []string{
+		"style: technical",
+		"page:", "size: a4", "orientation: portrait",
+		"cover:", "template: classic", "title: Audit Control",
+		"organization: Fontys", "logo: formidable.svg",
+		"toc:", "title: Inhoudsopgave", "maxDepth: 3",
+		"footer:", "position: center", "showPageNumber: true",
+		"signature:", "name: Peter van de Pas", "email: peter@example.org",
+	}
+	for _, s := range mustContain {
+		if !strings.Contains(got, s) {
+			t.Errorf("missing %q in all-fields output:\n%s", s, got)
+		}
+	}
+}
+
+func TestBuildFrontmatter_HandlebarsInValuesRoundTrip(t *testing.T) {
+	// Realistic: user copies a Handlebars-rendering value out of an
+	// existing template into the wizard's Title field. The dialog
+	// passes it through verbatim, the YAML emitter must NOT mangle
+	// it. Today this means yaml.v3 emits it as an unquoted scalar
+	// (mid-value `{` is fine in unquoted scalars).
+	got, err := BuildFrontmatter(InjectConfig{
+		Cover: &InjectCoverConfig{
+			Title: `Audit Control {{field "id"}}`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Build handlebars: %v", err)
+	}
+	if !strings.Contains(got, `title: 'Audit Control {{field "id"}}'`) &&
+		!strings.Contains(got, `title: Audit Control {{field "id"}}`) {
+		t.Errorf("Handlebars not preserved verbatim:\n%s", got)
+	}
+}
+
+func TestBuildFrontmatter_YAMLSpecialCharsInTitleQuoted(t *testing.T) {
+	// `Title: Foo: Bar` — embedded colon. yaml.v3 must quote on emit
+	// so the round-trip parse doesn't see it as a nested key.
+	got, err := BuildFrontmatter(InjectConfig{
+		Cover: &InjectCoverConfig{Title: "Foo: Bar"},
+	})
+	if err != nil {
+		t.Fatalf("Build colon-title: %v", err)
+	}
+	// Just verify yaml.Marshal handled it — re-parsing the body
+	// (sans fences) must yield Foo: Bar verbatim.
+	if !strings.Contains(got, "Foo: Bar") {
+		t.Errorf("colon title lost:\n%s", got)
+	}
+	// Sanity: re-parse the emitted YAML body and verify cover.title.
+	bodyOnly := strings.TrimPrefix(strings.TrimSuffix(got, "---\n"), "---\n")
+	var fm Frontmatter
+	if err := yaml.Unmarshal([]byte(bodyOnly), &fm); err != nil {
+		t.Fatalf("emitted YAML is not valid: %v\n%s", err, got)
+	}
+	if fm.Cover == nil || fm.Cover.Title != "Foo: Bar" {
+		t.Errorf("round-trip title = %v, want \"Foo: Bar\"", fm.Cover)
+	}
+}
+
+func TestBuildFrontmatter_TitleWithBracketsAndBraces(t *testing.T) {
+	// Pathological scalar — flow-sequence + flow-mapping chars.
+	got, err := BuildFrontmatter(InjectConfig{
+		Cover: &InjectCoverConfig{Title: "[draft] {classified}"},
+	})
+	if err != nil {
+		t.Fatalf("Build brackets: %v", err)
+	}
+	bodyOnly := strings.TrimPrefix(strings.TrimSuffix(got, "---\n"), "---\n")
+	var fm Frontmatter
+	if err := yaml.Unmarshal([]byte(bodyOnly), &fm); err != nil {
+		t.Fatalf("emitted YAML not parseable: %v\n%s", err, got)
+	}
+	if fm.Cover == nil || fm.Cover.Title != "[draft] {classified}" {
+		t.Errorf("round-trip title = %q, want %q",
+			fmCoverTitle(fm), "[draft] {classified}")
+	}
+}
+
+func TestBuildFrontmatter_UnicodeValues(t *testing.T) {
+	// Multilingual content — Dutch dashes + Japanese + emoji — must
+	// round-trip. yaml.v3 escapes some codepoints (e.g. emoji as
+	// \UXXXXXXXX) on emit; the contract is "parse recovers the
+	// original", not "literal bytes in the output".
+	got, err := BuildFrontmatter(InjectConfig{
+		Cover: &InjectCoverConfig{
+			Title:    "Datastroom — definitie",
+			Subtitle: "デザイン文書",
+			Author:   "Peter — Fontys 🎓",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Build unicode: %v", err)
+	}
+	bodyOnly := strings.TrimPrefix(strings.TrimSuffix(got, "---\n"), "---\n")
+	var fm Frontmatter
+	if err := yaml.Unmarshal([]byte(bodyOnly), &fm); err != nil {
+		t.Fatalf("emitted YAML not parseable: %v\n%s", err, got)
+	}
+	if fm.Cover == nil {
+		t.Fatalf("Cover nil after round-trip")
+	}
+	if fm.Cover.Title != "Datastroom — definitie" {
+		t.Errorf("Title round-trip lost: %q", fm.Cover.Title)
+	}
+	if fm.Cover.Subtitle != "デザイン文書" {
+		t.Errorf("Subtitle round-trip lost: %q", fm.Cover.Subtitle)
+	}
+	if fm.Cover.Author != "Peter — Fontys 🎓" {
+		t.Errorf("Author round-trip lost: %q", fm.Cover.Author)
+	}
+}
+
+func fmCoverTitle(fm Frontmatter) string {
+	if fm.Cover == nil {
+		return ""
+	}
+	return fm.Cover.Title
 }
 
 func TestService_BuildFrontmatter_DelegatesToManager(t *testing.T) {
