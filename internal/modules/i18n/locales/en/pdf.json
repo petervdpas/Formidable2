@@ -40,6 +40,7 @@
   "pdf.export.dialog.field.folder": "Output folder",
   "pdf.export.dialog.field.filename": "Filename",
   "pdf.export.dialog.field.theme": "Theme",
+  "pdf.export.dialog.field.open_after": "Open the PDF after export",
   "pdf.export.dialog.action.browse": "Browse…",
   "pdf.export.dialog.action.export": "Export",
   "pdf.export.dialog.action.exporting": "Exporting…",
@@ -52,5 +53,6 @@
   "pdf.export.dialog.theme.manuscript": "Manuscript",
   "pdf.export.dialog.theme.creative": "Creative",
   "pdf.export.dialog.toast.success": "PDF exported.",
-  "pdf.export.dialog.toast.failed": "PDF export failed: {0}"
+  "pdf.export.dialog.toast.failed": "PDF export failed: {0}",
+  "pdf.export.dialog.toast.open_failed": "PDF saved, but could not open it: {0}"
 }

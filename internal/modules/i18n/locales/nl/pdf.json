@@ -40,6 +40,7 @@
   "pdf.export.dialog.field.folder": "Exportmap",
   "pdf.export.dialog.field.filename": "Bestandsnaam",
   "pdf.export.dialog.field.theme": "Thema",
+  "pdf.export.dialog.field.open_after": "Open de PDF na export",
   "pdf.export.dialog.action.browse": "Bladeren…",
   "pdf.export.dialog.action.export": "Exporteren",
   "pdf.export.dialog.action.exporting": "Bezig met exporteren…",
@@ -52,5 +53,6 @@
   "pdf.export.dialog.theme.manuscript": "Manuscript",
   "pdf.export.dialog.theme.creative": "Creatief",
   "pdf.export.dialog.toast.success": "PDF geëxporteerd.",
-  "pdf.export.dialog.toast.failed": "PDF-export mislukt: {0}"
+  "pdf.export.dialog.toast.failed": "PDF-export mislukt: {0}",
+  "pdf.export.dialog.toast.open_failed": "PDF opgeslagen, maar kon niet worden geopend: {0}"
 }

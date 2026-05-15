@@ -7,6 +7,7 @@ import { useToast } from "../composables/useToast";
 import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { backendErrMessage } from "../utils/backendError";
 
 // The dialog assumes PDF export is already active. The Storage
@@ -42,6 +43,7 @@ const themes = [
 const folder = ref("");
 const filename = ref("");
 const style = ref("");
+const openAfter = ref(true);
 const exporting = ref(false);
 const exportError = ref("");
 
@@ -64,6 +66,7 @@ async function resetForOpen() {
   exporting.value = false;
   filename.value = pdfBasename(props.datafile);
   style.value = "";
+  openAfter.value = true;
   // Default folder: status.export_dir > template storage dir > empty.
   if (status.value?.export_dir) {
     folder.value = status.value.export_dir;
@@ -115,6 +118,17 @@ async function doExport() {
       style: style.value,
     });
     toast.success("pdf.export.dialog.toast.success");
+    if (openAfter.value && result.path) {
+      // Best-effort hand-off to the OS default PDF viewer. Failure
+      // here doesn't roll back the export — the file is on disk, the
+      // success toast already fired; just surface a soft warning so
+      // the user knows their auto-open preference didn't take.
+      try {
+        await SystemSvc.OpenExternal(result.path);
+      } catch (openErr) {
+        toast.warn("pdf.export.dialog.toast.open_failed", [backendErrMessage(openErr)]);
+      }
+    }
     emit("exported", result.path);
     emit("close");
   } catch (e) {
@@ -165,6 +179,11 @@ async function doExport() {
           </option>
         </select>
       </div>
+
+      <label class="pdf-export-checkbox">
+        <input type="checkbox" v-model="openAfter" />
+        <span>{{ t('pdf.export.dialog.field.open_after') }}</span>
+      </label>
 
       <p v-if="exportError" class="form-error">{{ exportError }}</p>
     </div>
