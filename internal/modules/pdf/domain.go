@@ -52,6 +52,7 @@ type Manager struct {
 
 	renderer  renderer
 	storage   storageFS
+	templates templateLoader
 	convertFn converterFactory
 	formMu    keymu.Map
 
@@ -66,13 +67,13 @@ type Manager struct {
 //   - sys: storeFS used both for the activation state file AND for
 //     atomically writing the generated PDF. *system.Manager
 //     satisfies it; tests use the in-memory memFS.
-//   - rdr / stg: render + storage slices used by Stage 4 Export.
-//     May be nil — Export() will fail until they're wired, but the
-//     activation half (Status, Activate, Deactivate, Restore) works
-//     fine without them, so Stage 1/2 tests can pass nil.
+//   - rdr / stg / tpl: render + storage + template slices used by
+//     Stage 4 / 6 Export. May be nil individually — manifest layer
+//     is best-effort, so a nil templateLoader simply skips the
+//     manifest merge layer rather than erroring.
 //   - convertFn: how to build a converter for one export call. Nil
 //     defaults to the real picoloom-backed factory.
-func NewManager(log *slog.Logger, sys storeFS, rdr renderer, stg storageFS, convertFn converterFactory) *Manager {
+func NewManager(log *slog.Logger, sys storeFS, rdr renderer, stg storageFS, tpl templateLoader, convertFn converterFactory) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -87,6 +88,7 @@ func NewManager(log *slog.Logger, sys storeFS, rdr renderer, stg storageFS, conv
 		dirOK:     realDirOK,
 		renderer:  rdr,
 		storage:   stg,
+		templates: tpl,
 		convertFn: convertFn,
 		status:    Status{Source: SourceUnset},
 	}

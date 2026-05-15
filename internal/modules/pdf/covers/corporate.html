@@ -1,0 +1,67 @@
+<section class="cover cover-corporate"><div class="cover-page">
+  <style>
+    .cover-corporate .cover-band {
+      display: grid; grid-template-columns: 2.4in 1fr; column-gap: 0.6in;
+      align-items: start; padding-bottom: 0.45in; margin-bottom: 0.6in;
+      border-bottom: 2px solid #222;
+    }
+    .cover-corporate .cover-band .cover-logo { max-width: 100%; max-height: 1.6in; }
+    .cover-corporate .cover-context > p { margin: 0; line-height: 1.45; }
+    .cover-corporate .cover-client { font-size: 13pt; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; }
+    .cover-corporate .cover-project { font-size: 11pt; color: #555; }
+    .cover-corporate .cover-doctype { display: inline-block; margin-top: 0.15in;
+      font-size: 9pt; letter-spacing: 0.15em; text-transform: uppercase; color: #555; }
+    .cover-corporate .cover-title { font-size: 32pt; font-weight: 700; line-height: 1.15;
+      margin: 0.4in 0 0.15in; }
+    .cover-corporate .cover-subtitle { font-size: 15pt; font-weight: 400; color: #555;
+      margin: 0 0 0.4in; }
+    .cover-corporate .cover-description { font-size: 11pt; line-height: 1.55;
+      max-width: 5.5in; margin: 0 0 0.8in; color: #333; }
+    .cover-corporate .cover-meta { font-size: 10pt; line-height: 1.7; padding-top: 0.3in;
+      border-top: 1px solid #ccc; }
+    .cover-corporate .cover-meta-grid { display: grid; grid-template-columns: 1fr 1fr; row-gap: 4pt; }
+    .cover-corporate .cover-meta-cell { display: flex; gap: 8pt; }
+    .cover-corporate .cover-meta-label { width: 1.1in; font-size: 8.5pt; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #777; }
+    .cover-corporate .cover-meta-value { font-size: 10pt; }
+  </style>
+
+  <div class="cover-band">
+    <div class="cover-logo-cell">
+      {{if .Logo}}<img src="{{.Logo}}" alt="Logo" class="cover-logo">{{end}}
+    </div>
+    <div class="cover-context">
+      {{if .ClientName}}<p class="cover-client">{{.ClientName}}</p>{{end}}
+      {{if .ProjectName}}<p class="cover-project">{{.ProjectName}}</p>{{end}}
+      {{if .DocumentType}}<span class="cover-doctype">{{.DocumentType}}</span>{{end}}
+    </div>
+  </div>
+
+  <p class="cover-title">{{.Title}}</p>
+  {{if .Subtitle}}<p class="cover-subtitle">{{.Subtitle}}</p>{{end}}
+  {{if .Description}}<p class="cover-description">{{.Description}}</p>{{end}}
+
+  <div class="cover-meta">
+    <div class="cover-meta-grid">
+      {{if .Author}}<div class="cover-meta-cell">
+        <span class="cover-meta-label">Author</span><span class="cover-meta-value">{{.Author}}</span>
+      </div>{{end}}
+      {{if .Organization}}<div class="cover-meta-cell">
+        <span class="cover-meta-label">Organization</span><span class="cover-meta-value">{{.Organization}}</span>
+      </div>{{end}}
+      {{if .Department}}<div class="cover-meta-cell">
+        <span class="cover-meta-label">Department</span><span class="cover-meta-value">{{.Department}}</span>
+      </div>{{end}}
+      {{if .DocumentID}}<div class="cover-meta-cell">
+        <span class="cover-meta-label">Document ID</span><span class="cover-meta-value">{{.DocumentID}}</span>
+      </div>{{end}}
+      {{if .Version}}<div class="cover-meta-cell">
+        <span class="cover-meta-label">Version</span><span class="cover-meta-value">{{.Version}}</span>
+      </div>{{end}}
+      {{if .Date}}<div class="cover-meta-cell">
+        <span class="cover-meta-label">Date</span><span class="cover-meta-value">{{.Date}}</span>
+      </div>{{end}}
+    </div>
+  </div>
+</div></section><span data-cover-end></span>

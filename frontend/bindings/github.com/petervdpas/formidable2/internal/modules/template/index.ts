@@ -17,6 +17,8 @@ export {
     ImgMode,
     ItemField,
     LoadManyResult,
+    PDFConfig,
+    PDFCoverConfig,
     Shape,
     ShapeInfo,
     Template,

@@ -42,9 +42,24 @@ type PageFM struct {
 	Margin      float64 `yaml:"margin,omitempty"`
 }
 
-// CoverFM mirrors picoloom.Cover plus the Formidable Enabled gate.
+// CoverFM mirrors picoloom.Cover plus the Formidable Enabled gate
+// and two design-selector fields:
+//
+//   - Template: name of an embedded cover layout in the pdf module's
+//     `covers/` library (e.g. "classic", "banner", "corporate"). Picks
+//     a hand-authored HTML layout shipped in the binary.
+//   - TemplatePath: filesystem path to a user-authored cover HTML
+//     file. Resolved against the template's storage dir when relative.
+//     Takes precedence over Template when both are set.
+//
+// Both feed picoloom's WithTemplateSet at converter construction; the
+// cover HTML is rendered against picoloom.Cover via html/template, so
+// the placeholders `{{.Title}}`, `{{.Logo}}`, etc. resolve to the
+// fields below.
 type CoverFM struct {
 	Enabled      *bool  `yaml:"enabled,omitempty"`
+	Template     string `yaml:"template,omitempty"`
+	TemplatePath string `yaml:"template_path,omitempty"`
 	Title        string `yaml:"title,omitempty"`
 	Subtitle     string `yaml:"subtitle,omitempty"`
 	Logo         string `yaml:"logo,omitempty"`
@@ -246,6 +261,8 @@ func overlayCover(h, b *CoverFM) *CoverFM {
 		v := *h.Enabled
 		out.Enabled = &v
 	}
+	pickString(&out.Template, h.Template)
+	pickString(&out.TemplatePath, h.TemplatePath)
 	pickString(&out.Title, h.Title)
 	pickString(&out.Subtitle, h.Subtitle)
 	pickString(&out.Logo, h.Logo)

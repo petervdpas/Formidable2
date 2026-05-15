@@ -10,6 +10,7 @@ import (
 	"time"
 
 	picoloom "github.com/alnah/picoloom/v2"
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // exportTimeout caps how long Chrome can spend on a single document.
@@ -37,6 +38,15 @@ type storageFS interface {
 	TemplateStorageDir(templateFilename string) string
 }
 
+// templateLoader is the slice of template.Manager the pdf module
+// needs to read per-template PDF defaults (style + cover) and feed
+// them into the manifest merge layer. Satisfied by *template.Manager;
+// may be nil — Export falls through to a doc-frontmatter-only Merge
+// when not wired.
+type templateLoader interface {
+	LoadTemplate(name string) (*template.Template, error)
+}
+
 // converter is the slice of picoloom.Converter we exercise.
 // *picoloom.Converter satisfies this directly; tests inject a stub
 // so the unit suite never boots Chrome.
@@ -46,11 +56,14 @@ type converter interface {
 }
 
 // converterFactory builds a converter sized for one export call.
-// browserBin and style are read off the merged frontmatter + opts
-// at call time; the production factory wires them onto picoloom via
-// the ROD_BROWSER_BIN env var and the WithStyle option (picoloom
-// does not expose a browser-bin option, so env is the only hook).
-type converterFactory func(browserBin, style string) (converter, error)
+// All arguments are read off the merged frontmatter + opts at call
+// time:
+//
+//   - browserBin: ROD_BROWSER_BIN snapshot (picoloom has no Bin opt).
+//   - style: WithStyle value — theme name, CSS file path, or raw CSS.
+//   - coverTS: optional cover/signature override (Stage 6). nil means
+//     "use picoloom's bundled default cover".
+type converterFactory func(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error)
 
 // realConverterFactory is the production converterFactory. It sets
 // ROD_BROWSER_BIN if the active browser path is non-empty (Stage 2's
@@ -60,13 +73,16 @@ type converterFactory func(browserBin, style string) (converter, error)
 // Setting ROD_BROWSER_BIN per call is intentional rather than
 // once at Activate time: external processes can clear the env, and
 // the cost is negligible compared to Chrome boot.
-func realConverterFactory(browserBin, style string) (converter, error) {
+func realConverterFactory(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error) {
 	if browserBin != "" {
 		_ = os.Setenv("ROD_BROWSER_BIN", browserBin)
 	}
 	opts := []picoloom.Option{picoloom.WithTimeout(exportTimeout)}
 	if style != "" {
 		opts = append(opts, picoloom.WithStyle(style))
+	}
+	if coverTS != nil {
+		opts = append(opts, picoloom.WithTemplateSet(coverTS))
 	}
 	c, err := picoloom.NewConverter(opts...)
 	if err != nil {
@@ -125,11 +141,17 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		// which will strip it the same way. Render proceeds.
 	}
 
-	merged := Merge(docFM)
+	manifestFM := m.loadManifestFrontmatter(templateFilename)
+	merged := Merge(docFM, manifestFM)
+
+	sourceDir := ""
+	if m.storage != nil {
+		sourceDir = m.storage.TemplateStorageDir(templateFilename)
+	}
 
 	input := BuildInput(merged, body)
-	if input.SourceDir == "" && m.storage != nil {
-		input.SourceDir = m.storage.TemplateStorageDir(templateFilename)
+	if input.SourceDir == "" {
+		input.SourceDir = sourceDir
 	}
 
 	style := opts.Style
@@ -137,10 +159,15 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		style = merged.Style
 	}
 
+	coverTS, err := ResolveCoverTemplateSet(merged.Cover, sourceDir, m.store.fs)
+	if err != nil {
+		return Result{}, fmt.Errorf("pdf: resolve cover: %w", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), exportTimeout)
 	defer cancel()
 
-	conv, err := m.convertFn(status.BrowserBin, style)
+	conv, err := m.convertFn(status.BrowserBin, style, coverTS)
 	if err != nil {
 		return Result{}, fmt.Errorf("pdf: build converter: %w", err)
 	}
@@ -168,6 +195,59 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		Bytes:    len(res.PDF),
 		Duration: duration,
 	}, nil
+}
+
+// loadManifestFrontmatter projects the per-template PDF defaults
+// (template.PDF.Style + template.PDF.Cover) into a Frontmatter value
+// that participates in Merge as the "manifest" layer. Returns the
+// zero Frontmatter when no templateLoader is wired, the template
+// lacks a PDF block, or LoadTemplate fails — manifest defaults are
+// best-effort and must never block a render.
+func (m *Manager) loadManifestFrontmatter(templateFilename string) Frontmatter {
+	if m.templates == nil {
+		return Frontmatter{}
+	}
+	tpl, err := m.templates.LoadTemplate(templateFilename)
+	if err != nil || tpl == nil || tpl.PDF == nil {
+		return Frontmatter{}
+	}
+	out := Frontmatter{Style: tpl.PDF.Style}
+	if tpl.PDF.Cover != nil {
+		out.Cover = projectTemplateCover(tpl.PDF.Cover)
+	}
+	return out
+}
+
+// projectTemplateCover translates the template-module's PDFCoverConfig
+// into the pdf-module's CoverFM. Trivial 1:1 field copy, kept in one
+// place so future schema additions land in a single spot.
+func projectTemplateCover(c *template.PDFCoverConfig) *CoverFM {
+	if c == nil {
+		return nil
+	}
+	out := &CoverFM{
+		Template:     c.Template,
+		TemplatePath: c.TemplatePath,
+		Title:        c.Title,
+		Subtitle:     c.Subtitle,
+		Logo:         c.Logo,
+		Author:       c.Author,
+		AuthorTitle:  c.AuthorTitle,
+		Organization: c.Organization,
+		Date:         c.Date,
+		Version:      c.Version,
+		ClientName:   c.ClientName,
+		ProjectName:  c.ProjectName,
+		DocumentType: c.DocumentType,
+		DocumentID:   c.DocumentID,
+		Description:  c.Description,
+		Department:   c.Department,
+	}
+	if c.Enabled != nil {
+		v := *c.Enabled
+		out.Enabled = &v
+	}
+	return out
 }
 
 // resolveOutputPath chooses where the PDF lands:

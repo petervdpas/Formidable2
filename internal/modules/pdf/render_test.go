@@ -10,7 +10,30 @@ import (
 	"time"
 
 	picoloom "github.com/alnah/picoloom/v2"
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
+
+// ---------- template loader stub ----------
+
+type fakeTemplateLoader struct {
+	tpls map[string]*template.Template
+	err  error
+}
+
+func newFakeTemplateLoader() *fakeTemplateLoader {
+	return &fakeTemplateLoader{tpls: map[string]*template.Template{}}
+}
+
+func (f *fakeTemplateLoader) LoadTemplate(name string) (*template.Template, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	t, ok := f.tpls[name]
+	if !ok {
+		return nil, errors.New("template: not found: " + name)
+	}
+	return t, nil
+}
 
 // ---------- test doubles ----------
 
@@ -60,20 +83,22 @@ func (f *fakeConverter) Convert(ctx context.Context, in picoloom.Input) (*picolo
 func (f *fakeConverter) Close() error { f.closed = true; return f.closeErr }
 
 type fakeConverterFactory struct {
-	mu    sync.Mutex
-	last  *fakeConverter
-	calls int
-	bin   string
-	style string
-	err   error
+	mu      sync.Mutex
+	last    *fakeConverter
+	calls   int
+	bin     string
+	style   string
+	coverTS *picoloom.TemplateSet
+	err     error
 }
 
-func (f *fakeConverterFactory) build(browserBin, style string) (converter, error) {
+func (f *fakeConverterFactory) build(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls++
 	f.bin = browserBin
 	f.style = style
+	f.coverTS = coverTS
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -312,7 +337,7 @@ func TestExport_ConvertError_Wrapped(t *testing.T) {
 	stg.dirs["tpl.yaml"] = "/x"
 	rdr.md["tpl.yaml|f.meta.json"] = "# body"
 	// Replace the converter factory with one that errors on Convert.
-	m.convertFn = func(bin, style string) (converter, error) {
+	m.convertFn = func(bin, style string, _ *picoloom.TemplateSet) (converter, error) {
 		c := &fakeConverter{convErr: errors.New("page load timeout")}
 		cf.last = c
 		return c, nil
@@ -354,7 +379,7 @@ func TestExport_PerFormSerialization(t *testing.T) {
 	var active int32
 	var maxActive int32
 	mu := &sync.Mutex{}
-	m.convertFn = func(bin, style string) (converter, error) {
+	m.convertFn = func(bin, style string, _ *picoloom.TemplateSet) (converter, error) {
 		mu.Lock()
 		active++
 		if active > maxActive {
@@ -397,7 +422,7 @@ func TestExport_DifferentFormsParallelizable(t *testing.T) {
 	var active int32
 	var maxActive int32
 	mu := &sync.Mutex{}
-	m.convertFn = func(bin, style string) (converter, error) {
+	m.convertFn = func(bin, style string, _ *picoloom.TemplateSet) (converter, error) {
 		mu.Lock()
 		active++
 		if active > maxActive {
@@ -459,3 +484,220 @@ func (f *fakeBlockingConverter) Convert(ctx context.Context, in picoloom.Input) 
 }
 
 func (f *fakeBlockingConverter) Close() error { return nil }
+
+// ---------- Stage 6: manifest layer + cover resolution ----------
+
+func TestExport_ManifestStyleFromTemplate(t *testing.T) {
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "# body" // no doc frontmatter style
+	loader := newFakeTemplateLoader()
+	loader.tpls["tpl.yaml"] = &template.Template{
+		PDF: &template.PDFConfig{Style: "academic"},
+	}
+	m.templates = loader
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.style != "academic" {
+		t.Errorf("style = %q, want academic (from template manifest)", cf.style)
+	}
+}
+
+func TestExport_DocFMOverridesManifestStyle(t *testing.T) {
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "---\nstyle: technical\n---\n# body"
+	loader := newFakeTemplateLoader()
+	loader.tpls["tpl.yaml"] = &template.Template{
+		PDF: &template.PDFConfig{Style: "academic"},
+	}
+	m.templates = loader
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.style != "technical" {
+		t.Errorf("style = %q, want technical (doc wins over manifest)", cf.style)
+	}
+}
+
+func TestExport_OptsOverridesManifestStyle(t *testing.T) {
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "# body"
+	loader := newFakeTemplateLoader()
+	loader.tpls["tpl.yaml"] = &template.Template{
+		PDF: &template.PDFConfig{Style: "academic"},
+	}
+	m.templates = loader
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{Style: "corporate"}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.style != "corporate" {
+		t.Errorf("style = %q, want corporate (opts wins)", cf.style)
+	}
+}
+
+func TestExport_ManifestCoverProjectsThroughToFactory(t *testing.T) {
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "# body"
+	loader := newFakeTemplateLoader()
+	loader.tpls["tpl.yaml"] = &template.Template{
+		PDF: &template.PDFConfig{
+			Cover: &template.PDFCoverConfig{
+				Template:     "banner",
+				Title:        "Manifest Title",
+				Organization: "Fontys",
+			},
+		},
+	}
+	m.templates = loader
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.last == nil || cf.last.seen.Cover == nil {
+		t.Fatalf("converter saw no cover")
+	}
+	if cf.last.seen.Cover.Title != "Manifest Title" {
+		t.Errorf("cover.Title = %q, want Manifest Title", cf.last.seen.Cover.Title)
+	}
+	if cf.last.seen.Cover.Organization != "Fontys" {
+		t.Errorf("cover.Organization = %q, want Fontys", cf.last.seen.Cover.Organization)
+	}
+	if cf.coverTS == nil {
+		t.Fatalf("factory got nil TemplateSet; manifest cover.template=banner should produce one")
+	}
+	if cf.coverTS.Name != "banner" {
+		t.Errorf("TemplateSet.Name = %q, want banner", cf.coverTS.Name)
+	}
+	if !strings.Contains(cf.coverTS.Cover, "cover-banner") {
+		t.Errorf("TemplateSet.Cover missing banner design marker")
+	}
+}
+
+func TestExport_DocFMOverridesManifestCoverFields(t *testing.T) {
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	// Doc frontmatter overrides title only; other manifest fields cascade.
+	rdr.md["tpl.yaml|f.meta.json"] = "---\ncover:\n  title: Doc Title\n---\n# body"
+	loader := newFakeTemplateLoader()
+	loader.tpls["tpl.yaml"] = &template.Template{
+		PDF: &template.PDFConfig{
+			Cover: &template.PDFCoverConfig{
+				Template:     "classic",
+				Title:        "Manifest Title",
+				Organization: "Fontys",
+			},
+		},
+	}
+	m.templates = loader
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	c := cf.last.seen.Cover
+	if c == nil {
+		t.Fatalf("no cover")
+	}
+	if c.Title != "Doc Title" {
+		t.Errorf("Title = %q, want Doc Title (doc wins)", c.Title)
+	}
+	if c.Organization != "Fontys" {
+		t.Errorf("Organization = %q, want Fontys (manifest cascades)", c.Organization)
+	}
+	if cf.coverTS == nil || cf.coverTS.Name != "classic" {
+		t.Errorf("TemplateSet = %+v, want classic from manifest", cf.coverTS)
+	}
+}
+
+func TestExport_DocFMCoverTemplateOverridesManifest(t *testing.T) {
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "---\ncover:\n  template: corporate\n---\n# body"
+	loader := newFakeTemplateLoader()
+	loader.tpls["tpl.yaml"] = &template.Template{
+		PDF: &template.PDFConfig{
+			Cover: &template.PDFCoverConfig{Template: "banner"},
+		},
+	}
+	m.templates = loader
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.coverTS == nil || cf.coverTS.Name != "corporate" {
+		t.Errorf("TemplateSet = %+v, want corporate from doc", cf.coverTS)
+	}
+}
+
+func TestExport_NoCoverNameMeansPicoloomDefault(t *testing.T) {
+	// Cover block in doc but no Template/TemplatePath → no override.
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "---\ncover:\n  title: Hello\n---\n# body"
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.coverTS != nil {
+		t.Errorf("TemplateSet = %+v, want nil (no override → picoloom default)", cf.coverTS)
+	}
+	if cf.last.seen.Cover == nil || cf.last.seen.Cover.Title != "Hello" {
+		t.Errorf("Cover data should still flow: got %+v", cf.last.seen.Cover)
+	}
+}
+
+func TestExport_TemplatePathFromDocFM(t *testing.T) {
+	m, mem, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	// Seed a user-authored cover HTML on the (in-memory) FS.
+	mem.files["/storage/tpl/assets/my-cover.html"] =
+		`<section class="cover">USER {{.Title}}</section><span data-cover-end></span>`
+	rdr.md["tpl.yaml|f.meta.json"] =
+		"---\ncover:\n  template_path: assets/my-cover.html\n  title: Hi\n---\n# body"
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.coverTS == nil {
+		t.Fatalf("no TemplateSet, want user-file resolved")
+	}
+	if !strings.Contains(cf.coverTS.Cover, "USER") {
+		t.Errorf("Cover HTML did not load user file content; got %q", cf.coverTS.Cover)
+	}
+}
+
+func TestExport_UnknownCoverTemplate_SurfacesError(t *testing.T) {
+	m, _, rdr, stg, _ := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "---\ncover:\n  template: nope\n---\n# body"
+
+	_, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{})
+	if err == nil {
+		t.Fatalf("Export err = nil, want resolve-cover error")
+	}
+	if !errors.Is(err, ErrCoverNotFound) {
+		t.Errorf("err = %v, want ErrCoverNotFound", err)
+	}
+}
+
+func TestExport_NilTemplateLoaderDoesntCrash(t *testing.T) {
+	// Manager without a templateLoader: manifest layer is skipped, doc
+	// frontmatter still works.
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "---\nstyle: technical\n---\n# body"
+	m.templates = nil
+
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.style != "technical" {
+		t.Errorf("style = %q, want technical (doc only)", cf.style)
+	}
+}

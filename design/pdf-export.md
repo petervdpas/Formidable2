@@ -246,16 +246,38 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
 
 **Definition of done**: export action discoverable from at least one place; activation prompt routes correctly; success toast on completion with "Open" link.
 
-### Stage 6 — Theme strategy
+### Stage 6 — Cover-page library + theme + manifest layer (shipped 2026-05-15)
 
-**Goal**: pick a theme exposure model and ship it.
+The Stage 6 design-doc draft framed this as "theme strategy" only; the actual shipped scope pivoted to a cover-page library first (per user direction), with the theme/style layer wiring riding along for free.
 
-- Decide whitelist vs. full passthrough (open question above).
-- If whitelist: pick defaults (likely `default`, `technical`, `academic`), expose as a template-manifest field, allow `style: ./custom.css` for power users.
-- If passthrough: dropdown in the template manifest with all 8 picoloom themes plus "Custom CSS path".
-- Themes resolve via picoloom's `WithStyle()` option at converter construction time.
+**What shipped**:
 
-**Definition of done**: user can pick a theme per template; selection persists; preview-quality PDF differs visibly between themes.
+1. **Embedded cover library** at `internal/modules/pdf/covers/`. Three hand-authored designs (`classic`, `banner`, `corporate`) plus a verbatim copy of picoloom's default `signature.html` so that `WithTemplateSet` doesn't strip signature behavior when only the cover is being overridden. All designs use picoloom-compatible class hierarchies (`cover`, `cover-page`, `cover-logo`, `cover-title`, `cover-meta`, …) plus a design-specific root marker class (`.cover-banner`, `.cover-corporate`, …) for scoped inline-style layout deltas. Each preserves picoloom's `<span data-cover-end></span>` pagination sentinel.
+
+2. **Frontmatter selectors** on `CoverFM`:
+   - `Template string` — name from the embedded library (e.g. `banner`).
+   - `TemplatePath string` — filesystem path to a user-authored HTML file. Relative paths resolve against the template's storage dir; absolute used as-is.
+   - Priority: `TemplatePath > Template > nil` (nil = picoloom default).
+
+3. **Per-template defaults** via `template.Template.PDF`:
+   ```yaml
+   pdf:
+     style: technical
+     cover:
+       template: corporate
+       organization: "Fontys"
+       logo: ./assets/fontys-logo.png
+       # …
+   ```
+   These populate the `manifest` merge layer. Doc frontmatter still wins via the existing `Merge(docFM, manifestFM)` priority.
+
+4. **converterFactory signature extended** to `(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error)`. Production factory applies `WithStyle` when style is non-empty AND `WithTemplateSet` when coverTS is non-nil; nil coverTS leaves picoloom on its bundled default.
+
+5. **pdf.Manager gains a `templateLoader` dep** (`*template.Manager`). When nil, manifest layer is skipped — Export still works on doc frontmatter alone.
+
+6. **Whitelist vs passthrough question**: settled in Stage 5 already — the export dialog exposes all 8 picoloom themes plus the "Custom CSS path" option (the latter is the Stage 6 follow-up that Stage 7 will polish).
+
+**Definition of done**: ✅ user can pick a cover design and a theme per template; selection cascades through Merge layers correctly; embedded library includes 3 visually distinct covers; users can ship their own via `template_path`.
 
 ### Stage 7 — Polish, batch, error UX
 

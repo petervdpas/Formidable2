@@ -26,9 +26,47 @@ type Template struct {
 	MarkdownTemplate  string           `yaml:"markdown_template,omitempty" json:"markdown_template"`
 	SidebarExpression string           `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
 	EnableCollection  bool             `yaml:"enable_collection,omitempty" json:"enable_collection"`
+	PDF               *PDFConfig       `yaml:"pdf,omitempty" json:"pdf,omitempty"`
 	FlagDefinitions   []FlagDefinition `yaml:"flag_definitions,omitempty" json:"flag_definitions"`
 	Fields            []Field          `yaml:"fields" json:"fields"`
 	NeedsResave       bool             `yaml:"-" json:"needs_resave"`
+}
+
+// PDFConfig is the per-template PDF export defaults: a theme/style
+// selector plus a cover-page block. Both are optional and feed the
+// `manifest` layer in pdf.Merge (precedence: document frontmatter >
+// form meta > template manifest > global config).
+//
+// Style accepts the same values as picoloom's WithStyle option:
+// a built-in theme name ("default", "technical", …), a filesystem
+// path to a custom .css, or raw CSS content.
+type PDFConfig struct {
+	Style string         `yaml:"style,omitempty" json:"style,omitempty"`
+	Cover *PDFCoverConfig `yaml:"cover,omitempty" json:"cover,omitempty"`
+}
+
+// PDFCoverConfig mirrors pdf.CoverFM's shape so the template manifest
+// can carry default cover values that document frontmatter can
+// override. Field tags match the document-frontmatter casing so
+// authors get one consistent vocabulary across both layers.
+type PDFCoverConfig struct {
+	Enabled      *bool  `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	Template     string `yaml:"template,omitempty" json:"template,omitempty"`
+	TemplatePath string `yaml:"template_path,omitempty" json:"template_path,omitempty"`
+	Title        string `yaml:"title,omitempty" json:"title,omitempty"`
+	Subtitle     string `yaml:"subtitle,omitempty" json:"subtitle,omitempty"`
+	Logo         string `yaml:"logo,omitempty" json:"logo,omitempty"`
+	Author       string `yaml:"author,omitempty" json:"author,omitempty"`
+	AuthorTitle  string `yaml:"authorTitle,omitempty" json:"authorTitle,omitempty"`
+	Organization string `yaml:"organization,omitempty" json:"organization,omitempty"`
+	Date         string `yaml:"date,omitempty" json:"date,omitempty"`
+	Version      string `yaml:"version,omitempty" json:"version,omitempty"`
+	ClientName   string `yaml:"clientName,omitempty" json:"clientName,omitempty"`
+	ProjectName  string `yaml:"projectName,omitempty" json:"projectName,omitempty"`
+	DocumentType string `yaml:"documentType,omitempty" json:"documentType,omitempty"`
+	DocumentID   string `yaml:"documentID,omitempty" json:"documentID,omitempty"`
+	Description  string `yaml:"description,omitempty" json:"description,omitempty"`
+	Department   string `yaml:"department,omitempty" json:"department,omitempty"`
 }
 
 // FlagDefinition is one entry in a template's flag palette. Label is

@@ -445,6 +445,79 @@ export class LoadManyResult {
 }
 
 /**
+ * PDFConfig is the per-template PDF export defaults: a theme/style
+ * selector plus a cover-page block. Both are optional and feed the
+ * `manifest` layer in pdf.Merge (precedence: document frontmatter >
+ * form meta > template manifest > global config).
+ * 
+ * Style accepts the same values as picoloom's WithStyle option:
+ * a built-in theme name ("default", "technical", …), a filesystem
+ * path to a custom .css, or raw CSS content.
+ */
+export class PDFConfig {
+    "style"?: string;
+    "cover"?: PDFCoverConfig | null;
+
+    /** Creates a new PDFConfig instance. */
+    constructor($$source: Partial<PDFConfig> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PDFConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PDFConfig {
+        const $$createField1_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("cover" in $$parsedSource) {
+            $$parsedSource["cover"] = $$createField1_0($$parsedSource["cover"]);
+        }
+        return new PDFConfig($$parsedSource as Partial<PDFConfig>);
+    }
+}
+
+/**
+ * PDFCoverConfig mirrors pdf.CoverFM's shape so the template manifest
+ * can carry default cover values that document frontmatter can
+ * override. Field tags match the document-frontmatter casing so
+ * authors get one consistent vocabulary across both layers.
+ */
+export class PDFCoverConfig {
+    "enabled"?: boolean | null;
+    "template"?: string;
+    "template_path"?: string;
+    "title"?: string;
+    "subtitle"?: string;
+    "logo"?: string;
+    "author"?: string;
+    "authorTitle"?: string;
+    "organization"?: string;
+    "date"?: string;
+    "version"?: string;
+    "clientName"?: string;
+    "projectName"?: string;
+    "documentType"?: string;
+    "documentID"?: string;
+    "description"?: string;
+    "department"?: string;
+
+    /** Creates a new PDFCoverConfig instance. */
+    constructor($$source: Partial<PDFCoverConfig> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PDFCoverConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PDFCoverConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PDFCoverConfig($$parsedSource as Partial<PDFCoverConfig>);
+    }
+}
+
+/**
  * Shape selects an output style for the markdown-template generator.
  */
 export enum Shape {
@@ -511,6 +584,7 @@ export class Template {
     "markdown_template": string;
     "sidebar_expression": string;
     "enable_collection": boolean;
+    "pdf"?: PDFConfig | null;
     "flag_definitions": FlagDefinition[];
     "fields": Field[];
     "needs_resave": boolean;
@@ -552,14 +626,18 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField8_0 = $$createType7;
-        const $$createField9_0 = $$createType9;
+        const $$createField8_0 = $$createType9;
+        const $$createField9_0 = $$createType11;
+        const $$createField10_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pdf" in $$parsedSource) {
+            $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
+        }
         if ("flag_definitions" in $$parsedSource) {
-            $$parsedSource["flag_definitions"] = $$createField8_0($$parsedSource["flag_definitions"]);
+            $$parsedSource["flag_definitions"] = $$createField9_0($$parsedSource["flag_definitions"]);
         }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField9_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField10_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }
@@ -590,9 +668,9 @@ export class ValidationError {
      * Creates a new ValidationError instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationError {
-        const $$createField3_0 = $$createType10;
-        const $$createField4_0 = $$createType11;
-        const $$createField6_0 = $$createType12;
+        const $$createField3_0 = $$createType14;
+        const $$createField4_0 = $$createType15;
+        const $$createField6_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -614,10 +692,14 @@ const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = APIMap.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = Abilities.createFrom;
-const $$createType6 = FlagDefinition.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = Field.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $Create.Array($Create.Any);
-const $$createType11 = $Create.Nullable($$createType8);
-const $$createType12 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = PDFCoverConfig.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = PDFConfig.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = FlagDefinition.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = Field.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = $Create.Array($Create.Any);
+const $$createType15 = $Create.Nullable($$createType12);
+const $$createType16 = $Create.Map($Create.Any, $Create.Any);

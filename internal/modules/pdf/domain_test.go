@@ -27,7 +27,7 @@ func newTestManager(t *testing.T) (*Manager, *memFS, fakeFS, fakeVersions) {
 }
 
 func TestNewManagerDefaultStatus(t *testing.T) {
-	m := NewManager(nil, nil, nil, nil, nil)
+	m := NewManager(nil, nil, nil, nil, nil, nil)
 	s := m.Status()
 	if s.Active {
 		t.Errorf("fresh manager active=true, want false")
@@ -251,7 +251,7 @@ func TestNewServiceNilManagerPanics(t *testing.T) {
 }
 
 func TestServiceMirrorsManager(t *testing.T) {
-	svc := NewService(NewManager(nil, nil, nil, nil, nil))
+	svc := NewService(NewManager(nil, nil, nil, nil, nil, nil))
 	if svc.GetStatus().Active {
 		t.Errorf("fresh service status active=true")
 	}

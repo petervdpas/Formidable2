@@ -544,7 +544,7 @@ func New(d Deps) (*App, error) {
 	// through the pdfRender Manager + picoloom converter. Formidable
 	// does not bundle or download Chrome; the user installs one
 	// themselves. See design/pdf-export.md.
-	pdfM := pdf.NewManager(d.Logger, sysM, pdfRender, stoM, nil /*real picoloom factory*/)
+	pdfM := pdf.NewManager(d.Logger, sysM, pdfRender, stoM, tplM, nil /*real picoloom factory*/)
 	if err := pdfM.Restore(); err != nil {
 		d.Logger.Warn("pdf: state restore failed", "err", err)
 	}

@@ -1,0 +1,30 @@
+<section class="cover cover-classic"><div class="cover-page">
+  <style>
+    .cover-classic { text-align: center; }
+    .cover-classic .cover-logo { max-height: 1.5in; margin: 0 auto 1.5in; display: block; }
+    .cover-classic .cover-title { font-size: 36pt; font-weight: 700; margin: 0 0 0.25in; line-height: 1.15; }
+    .cover-classic .cover-subtitle { font-size: 16pt; font-weight: 400; color: #555; margin: 0 0 2in; }
+    .cover-classic .cover-meta { margin-top: 2in; font-size: 11pt; line-height: 1.65; }
+    .cover-classic .cover-meta > p { margin: 0; }
+    .cover-classic .cover-author { font-weight: 600; }
+    .cover-classic .cover-doctype { display: inline-block; padding: 0.05in 0.45in; margin-bottom: 0.6in;
+      font-size: 9pt; letter-spacing: 0.15em; text-transform: uppercase; border: 1px solid #888; color: #555; }
+  </style>
+
+  {{if .Logo}}<img src="{{.Logo}}" alt="Logo" class="cover-logo">{{end}}
+
+  {{if .DocumentType}}<span class="cover-doctype">{{.DocumentType}}</span>{{end}}
+
+  <p class="cover-title">{{.Title}}</p>
+  {{if .Subtitle}}<p class="cover-subtitle">{{.Subtitle}}</p>{{end}}
+
+  <div class="cover-meta">
+    {{if .Author}}<p class="cover-author">{{.Author}}</p>{{end}}
+    {{if .AuthorTitle}}<p class="cover-author-title">{{.AuthorTitle}}</p>{{end}}
+    {{if .Organization}}<p class="cover-organization">{{.Organization}}</p>{{end}}
+    {{if .Department}}<p class="cover-department">{{.Department}}</p>{{end}}
+    {{if .DocumentID}}<p class="cover-docid">{{.DocumentID}}</p>{{end}}
+    {{if .Date}}<p class="cover-date">{{.Date}}</p>{{end}}
+    {{if .Version}}<p class="cover-version">Version {{.Version}}</p>{{end}}
+  </div>
+</div></section><span data-cover-end></span>
