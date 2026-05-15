@@ -82,6 +82,17 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
 }
 
 /**
+ * InjectFrontmatter prepends the canonical picoloom v2 scaffold to a
+ * markdown body. Refuses with ErrFrontmatterAlreadyPresent when an
+ * existing `---` block is detected — the user should run
+ * MigrateFrontmatter in that case. The frontend inserts the result
+ * into the template editor; the user saves the template manually.
+ */
+export function InjectFrontmatter(markdown: string): $CancellablePromise<string> {
+    return $Call.ByID(65038787, markdown);
+}
+
+/**
  * LastExport returns the most recent success + failure ExportTelemetry
  * records held in memory by the Manager. Both fields may be nil when
  * the process is fresh. Powers the PDF doctor sub-panel on the
@@ -128,6 +139,19 @@ export function LoadCover(name: string): $CancellablePromise<string> {
 }
 
 /**
+ * MigrateFrontmatter rewrites an existing eisvogel/pandoc-style
+ * frontmatter block into picoloom v2 shape. Returns the rewritten
+ * markdown alongside structured metadata (which keys were mapped,
+ * which landed in the legacy block, warnings) so the frontend can
+ * render a preview before applying.
+ */
+export function MigrateFrontmatter(markdown: string): $CancellablePromise<$models.FrontmatterMigration> {
+    return $Call.ByID(470664647, markdown).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
  * ProbeChrome lists every Chrome/Chromium binary the activation
  * flow could adopt — env-var override, then system paths in their
  * platform's conventional order, then the latest managed-cache
@@ -136,7 +160,7 @@ export function LoadCover(name: string): $CancellablePromise<string> {
  */
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
     });
 }
 
@@ -151,7 +175,7 @@ export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
  */
 export function ResolveExportDefaults(templateFilename: string, datafile: string): $CancellablePromise<$models.ResolvedExportDefaults> {
     return $Call.ByID(2533436814, templateFilename, datafile).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -186,7 +210,7 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
  */
 export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
     return $Call.ByID(1327021382, html).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -198,6 +222,7 @@ const $$createType3 = $models.CoverDescriptor.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = $models.ThemeDescriptor.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.ProbeResult.createFrom;
-const $$createType8 = $models.ResolvedExportDefaults.createFrom;
-const $$createType9 = $models.CoverValidation.createFrom;
+const $$createType7 = $models.FrontmatterMigration.createFrom;
+const $$createType8 = $models.ProbeResult.createFrom;
+const $$createType9 = $models.ResolvedExportDefaults.createFrom;
+const $$createType10 = $models.CoverValidation.createFrom;

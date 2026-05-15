@@ -372,6 +372,91 @@ export class ExportTelemetrySnapshot {
 }
 
 /**
+ * FrontmatterMapping records one key rename or value transform that
+ * happened during migration. From is the original eisvogel key; To
+ * is the picoloom destination ("cover.title", "page.size", etc.).
+ */
+export class FrontmatterMapping {
+    "from": string;
+    "to": string;
+
+    /** Creates a new FrontmatterMapping instance. */
+    constructor($$source: Partial<FrontmatterMapping> = {}) {
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FrontmatterMapping instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FrontmatterMapping {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FrontmatterMapping($$parsedSource as Partial<FrontmatterMapping>);
+    }
+}
+
+/**
+ * FrontmatterMigration is the rich result of MigrateFrontmatter: the
+ * rewritten markdown plus structured metadata about what changed.
+ * The frontend uses this to render a preview / confirm modal before
+ * applying the new content to the template editor.
+ */
+export class FrontmatterMigration {
+    "markdown": string;
+    "mappings": FrontmatterMapping[];
+    "preserved": string[];
+    "warnings": string[];
+    "had_frontmatter": boolean;
+
+    /** Creates a new FrontmatterMigration instance. */
+    constructor($$source: Partial<FrontmatterMigration> = {}) {
+        if (!("markdown" in $$source)) {
+            this["markdown"] = "";
+        }
+        if (!("mappings" in $$source)) {
+            this["mappings"] = [];
+        }
+        if (!("preserved" in $$source)) {
+            this["preserved"] = [];
+        }
+        if (!("warnings" in $$source)) {
+            this["warnings"] = [];
+        }
+        if (!("had_frontmatter" in $$source)) {
+            this["had_frontmatter"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FrontmatterMigration instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FrontmatterMigration {
+        const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType8;
+        const $$createField3_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("mappings" in $$parsedSource) {
+            $$parsedSource["mappings"] = $$createField1_0($$parsedSource["mappings"]);
+        }
+        if ("preserved" in $$parsedSource) {
+            $$parsedSource["preserved"] = $$createField2_0($$parsedSource["preserved"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField3_0($$parsedSource["warnings"]);
+        }
+        return new FrontmatterMigration($$parsedSource as Partial<FrontmatterMigration>);
+    }
+}
+
+/**
  * ProbeResult is what ProbeChrome returns to the activation dialog.
  * Candidates is ordered: env-var override (if any), then system
  * matches in the platform's standard search list, then managed-cache
@@ -394,7 +479,7 @@ export class ProbeResult {
      * Creates a new ProbeResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProbeResult {
-        const $$createField0_0 = $$createType7;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("candidates" in $$parsedSource) {
             $$parsedSource["candidates"] = $$createField0_0($$parsedSource["candidates"]);
@@ -599,5 +684,8 @@ const $$createType2 = CoverIssue.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = ExportTelemetry.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = ChromeCandidate.createFrom;
+const $$createType6 = FrontmatterMapping.createFrom;
 const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = ChromeCandidate.createFrom;
+const $$createType10 = $Create.Array($$createType9);

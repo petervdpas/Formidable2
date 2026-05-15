@@ -36,5 +36,7 @@
   "menu.template.delete": "Delete…",
   "menu.utilities": "Utilities",
   "menu.utilities.cleanupStorage": "Cleanup Storage…",
+  "menu.utilities.inject_pdf_frontmatter": "Inject PDF Frontmatter…",
+  "menu.utilities.migrate_pdf_frontmatter": "Migrate PDF Frontmatter…",
   "menu.view.devtools": "Toggle DevTools"
 }

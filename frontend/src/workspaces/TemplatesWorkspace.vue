@@ -23,6 +23,7 @@ import {
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
+import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
 import {
@@ -265,6 +266,70 @@ const generateOpen = ref(false);
 
 // ── Cleanup-storage dialog (Utilities → Cleanup Storage) ────────────
 const cleanupOpen = ref(false);
+
+// ── PDF frontmatter utilities (Utilities → Inject / Migrate PDF FM) ──
+// Inject prepends the canonical picoloom scaffold to markdown_template
+// (refuses if a `---` block is already there). Migrate parses an
+// existing eisvogel-style frontmatter and rewrites it into picoloom
+// shape, surfacing a preview modal so the user can see the mappings,
+// preserved-as-legacy keys, and warnings before applying. Both
+// operations only edit the in-memory draft; the user still has to
+// click Save on the template to persist.
+const pdfFmDialogOpen = ref(false);
+const pdfFmDialogMode = ref<"inject" | "migrate">("inject");
+const pdfFmProposed = ref(""); // proposed new markdown_template
+const pdfFmMigration = ref<{
+  mappings: { from: string; to: string }[];
+  preserved: string[];
+  warnings: string[];
+  had_frontmatter: boolean;
+} | null>(null);
+
+async function openPdfFmInject() {
+  if (!draft.value) return;
+  try {
+    const next = await PdfSvc.InjectFrontmatter(draft.value.markdown_template ?? "");
+    pdfFmProposed.value = next;
+    pdfFmMigration.value = null;
+    pdfFmDialogMode.value = "inject";
+    pdfFmDialogOpen.value = true;
+  } catch (e) {
+    toast.error("workspace.templates.pdf_fm.inject_failed", [backendErrMessage(e)]);
+  }
+}
+
+async function openPdfFmMigrate() {
+  if (!draft.value) return;
+  try {
+    const result = await PdfSvc.MigrateFrontmatter(draft.value.markdown_template ?? "");
+    if (!result?.had_frontmatter) {
+      toast.info("workspace.templates.pdf_fm.no_frontmatter");
+      return;
+    }
+    pdfFmProposed.value = result.markdown ?? "";
+    pdfFmMigration.value = {
+      mappings: result.mappings ?? [],
+      preserved: result.preserved ?? [],
+      warnings: result.warnings ?? [],
+      had_frontmatter: result.had_frontmatter,
+    };
+    pdfFmDialogMode.value = "migrate";
+    pdfFmDialogOpen.value = true;
+  } catch (e) {
+    toast.error("workspace.templates.pdf_fm.migrate_failed", [backendErrMessage(e)]);
+  }
+}
+
+function applyPdfFm() {
+  if (!draft.value) return;
+  draft.value.markdown_template = pdfFmProposed.value;
+  pdfFmDialogOpen.value = false;
+  toast.success(
+    pdfFmDialogMode.value === "inject"
+      ? "workspace.templates.pdf_fm.inject_applied"
+      : "workspace.templates.pdf_fm.migrate_applied",
+  );
+}
 
 // ── Utilities → Open Folder actions ─────────────────────────────────
 // Both delegate to System.OpenExternal which routes through xdg-open /
@@ -535,6 +600,19 @@ setTopbarMenu(() => [
         labelKey: "menu.utilities.cleanupStorage",
         disabled: !selectedFilename.value,
         onClick: () => { cleanupOpen.value = true; },
+      },
+      { type: "separator", id: "utils-sep-pdf" },
+      {
+        id: "injectPdfFrontmatter",
+        labelKey: "menu.utilities.inject_pdf_frontmatter",
+        disabled: !draft.value,
+        onClick: openPdfFmInject,
+      },
+      {
+        id: "migratePdfFrontmatter",
+        labelKey: "menu.utilities.migrate_pdf_frontmatter",
+        disabled: !draft.value,
+        onClick: openPdfFmMigrate,
       },
     ],
   },
@@ -837,6 +915,69 @@ setTopbarMenu(() => [
     :template-label="selectedTemplate?.name"
     @close="cleanupOpen = false"
   />
+
+  <!-- PDF frontmatter inject / migrate preview. One dialog, two modes:
+       inject = preview the canonical scaffold prepend; migrate = preview
+       the eisvogel→picoloom rewrite with mapping summary. -->
+  <Modal
+    :open="pdfFmDialogOpen"
+    :title="t(
+      pdfFmDialogMode === 'inject'
+        ? 'workspace.templates.pdf_fm.title_inject'
+        : 'workspace.templates.pdf_fm.title_migrate',
+    )"
+    width="820px"
+    @close="pdfFmDialogOpen = false"
+  >
+    <p class="muted small">
+      {{ t(
+        pdfFmDialogMode === 'inject'
+          ? 'workspace.templates.pdf_fm.intro_inject'
+          : 'workspace.templates.pdf_fm.intro_migrate',
+      ) }}
+    </p>
+
+    <div v-if="pdfFmMigration" class="pdf-fm-summary">
+      <div v-if="pdfFmMigration.mappings.length > 0" class="pdf-fm-summary-block">
+        <h5>{{ t('workspace.templates.pdf_fm.summary.mappings') }}</h5>
+        <ul>
+          <li v-for="m in pdfFmMigration.mappings" :key="m.from + '→' + m.to">
+            <code>{{ m.from }}</code> → <code>{{ m.to }}</code>
+          </li>
+        </ul>
+      </div>
+      <div v-if="pdfFmMigration.preserved.length > 0" class="pdf-fm-summary-block">
+        <h5>{{ t('workspace.templates.pdf_fm.summary.preserved') }}</h5>
+        <ul>
+          <li v-for="k in pdfFmMigration.preserved" :key="k">
+            <code>{{ k }}</code>
+          </li>
+        </ul>
+      </div>
+      <div v-if="pdfFmMigration.warnings.length > 0" class="pdf-fm-summary-block pdf-fm-summary-warn">
+        <h5>{{ t('workspace.templates.pdf_fm.summary.warnings') }}</h5>
+        <ul>
+          <li v-for="(w, i) in pdfFmMigration.warnings" :key="i">{{ w }}</li>
+        </ul>
+      </div>
+    </div>
+
+    <CodeEditor
+      :model-value="pdfFmProposed"
+      lang="markdown"
+      :readonly="true"
+      :height="380"
+    />
+
+    <template #footer>
+      <button class="tool-btn" type="button" @click="pdfFmDialogOpen = false">
+        {{ t('common.cancel') }}
+      </button>
+      <button class="tool-btn primary" type="button" @click="applyPdfFm">
+        {{ t('workspace.templates.pdf_fm.action.apply') }}
+      </button>
+    </template>
+  </Modal>
 
   <!-- Expression builder dialog: visual builder for sidebar_expression -->
   <ExpressionBuilderModal

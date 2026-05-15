@@ -37,6 +37,8 @@
   "menu.template.delete": "Verwijderen…",
   "menu.utilities": "Hulpmiddelen",
   "menu.utilities.cleanupStorage": "Opslag opschonen…",
+  "menu.utilities.inject_pdf_frontmatter": "PDF-frontmatter injecteren…",
+  "menu.utilities.migrate_pdf_frontmatter": "PDF-frontmatter migreren…",
   "menu.view.devtools": "Ontwikkelaarstools",
   "menu.view.reload": "Herladen"
 }

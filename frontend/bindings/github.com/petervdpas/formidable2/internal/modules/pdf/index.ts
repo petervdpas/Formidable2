@@ -17,6 +17,8 @@ export {
     ExportOpts,
     ExportTelemetry,
     ExportTelemetrySnapshot,
+    FrontmatterMapping,
+    FrontmatterMigration,
     ProbeResult,
     ResolvedExportDefaults,
     Result,

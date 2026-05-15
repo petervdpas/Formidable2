@@ -106,6 +106,24 @@ func (s *Service) ValidateCoverHTML(html string) CoverValidation {
 	return ValidateCover(html)
 }
 
+// InjectFrontmatter prepends the canonical picoloom v2 scaffold to a
+// markdown body. Refuses with ErrFrontmatterAlreadyPresent when an
+// existing `---` block is detected — the user should run
+// MigrateFrontmatter in that case. The frontend inserts the result
+// into the template editor; the user saves the template manually.
+func (s *Service) InjectFrontmatter(markdown string) (string, error) {
+	return InjectFrontmatter(markdown)
+}
+
+// MigrateFrontmatter rewrites an existing eisvogel/pandoc-style
+// frontmatter block into picoloom v2 shape. Returns the rewritten
+// markdown alongside structured metadata (which keys were mapped,
+// which landed in the legacy block, warnings) so the frontend can
+// render a preview before applying.
+func (s *Service) MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
+	return MigrateFrontmatter(markdown)
+}
+
 // ListThemes returns the canonical picoloom bundled style set in
 // stable display order. The frontend uses this to populate the Theme
 // dropdown — it must NOT keep its own hardcoded list. Pure function,

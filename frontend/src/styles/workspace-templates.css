@@ -168,3 +168,33 @@
     display: flex;
     justify-content: flex-start;
 }
+
+/* PDF frontmatter inject / migrate preview modal — summary section
+   above the read-only CodeEditor. Mapping pairs, preserved keys,
+   warnings — each grouped into its own block. */
+.pdf-fm-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0;
+}
+.pdf-fm-summary-block h5 {
+    margin: 0 0 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+}
+.pdf-fm-summary-block ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.88em;
+}
+.pdf-fm-summary-block code {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85em;
+    background: var(--color-bg, rgba(0, 0, 0, 0.25));
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+.pdf-fm-summary-warn h5 {
+    color: var(--color-warning, #f0b74e);
+}
