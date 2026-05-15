@@ -59,7 +59,7 @@
   "pdf.export.dialog.action.browse": "Bladeren…",
   "pdf.export.dialog.action.export": "Exporteren",
   "pdf.export.dialog.action.exporting": "Bezig met exporteren…",
-  "pdf.export.dialog.theme.default_label": "Standaard",
+  "pdf.export.dialog.theme.default_label": "(gebruik frontmatter / sjabloon-standaard)",
   "pdf.export.dialog.theme.technical": "Technisch",
   "pdf.export.dialog.theme.academic": "Academisch",
   "pdf.export.dialog.theme.corporate": "Bedrijfsmatig",

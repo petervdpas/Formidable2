@@ -59,7 +59,7 @@
   "pdf.export.dialog.action.browse": "Browse…",
   "pdf.export.dialog.action.export": "Export",
   "pdf.export.dialog.action.exporting": "Exporting…",
-  "pdf.export.dialog.theme.default_label": "Default",
+  "pdf.export.dialog.theme.default_label": "(use frontmatter / template default)",
   "pdf.export.dialog.theme.technical": "Technical",
   "pdf.export.dialog.theme.academic": "Academic",
   "pdf.export.dialog.theme.corporate": "Corporate",
