@@ -15,15 +15,20 @@ import (
 // design/pdf-export.md "Activation persistence".
 const stateFilePath = "config/pdf-state.json"
 
-// state is the on-disk shape. ActivatedAt is omitempty so the
+// state is the on-disk shape. ActivatedAt is omitzero so the
 // inactive default is a clean `{}` rather than a misleading zero
 // timestamp. Field tags are stable — do not rename without a
 // migration.
+//
+// ExportDir is independent of activation: it survives Deactivate so
+// the user's preferred export folder doesn't get wiped when they
+// unbind a browser binary.
 type state struct {
 	BrowserBin  string    `json:"browser_bin,omitempty"`
 	Source      Source    `json:"source,omitempty"`
 	Version     string    `json:"version,omitempty"`
 	ActivatedAt time.Time `json:"activated_at,omitzero"`
+	ExportDir   string    `json:"export_dir,omitempty"`
 }
 
 // storeFS is the narrow filesystem surface store needs. *system.Manager

@@ -48,6 +48,16 @@ export function ExportPDF(formGUID: string, opts: $models.ExportOpts): $Cancella
 }
 
 /**
+ * GetDirectivesDoc returns the embedded markdown reference for the
+ * picoloom frontmatter directives in the requested locale. Unknown
+ * locale falls back to English. Static content — safe to call any
+ * time, cheap, no I/O beyond the embedded FS.
+ */
+export function GetDirectivesDoc(locale: string): $CancellablePromise<string> {
+    return $Call.ByID(1327533002, locale);
+}
+
+/**
  * GetStatus returns the live engine state. Cheap; safe to poll from
  * the Information page status row.
  */
@@ -67,6 +77,20 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
         return $$createType2($result);
+    });
+}
+
+/**
+ * SetExportDir adopts a per-machine "where PDFs land" preference.
+ * Empty path clears the preference. Non-empty paths must be
+ * absolute + existent + a directory — otherwise the service
+ * returns ErrInvalidExportDir, which the frontend should surface
+ * as a user-correctable error (typically a re-pick via the native
+ * folder picker). Independent of activation state.
+ */
+export function SetExportDir(path: string): $CancellablePromise<$models.Status> {
+    return $Call.ByID(847655379, path).then(($result: any) => {
+        return $$createType0($result);
     });
 }
 

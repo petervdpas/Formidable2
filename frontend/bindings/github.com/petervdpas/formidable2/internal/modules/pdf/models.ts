@@ -199,6 +199,12 @@ export enum Source {
 /**
  * Status is the live snapshot of the PDF engine. Safe to call before
  * or after activation; zero value means inactive.
+ * 
+ * ExportDir is the per-machine "where renders land" preference. It is
+ * independent of activation — the user can set or change it while
+ * inactive, and Deactivate does not wipe it. Empty string means
+ * "no default — Stage 4 will fall back to placing PDFs next to the
+ * form" (see design/pdf-export.md, Stage 4 output path resolution).
  */
 export class Status {
     "active": boolean;
@@ -206,6 +212,7 @@ export class Status {
     "source": Source;
     "version": string;
     "activated_at": time$0.Time;
+    "export_dir": string;
 
     /** Creates a new Status instance. */
     constructor($$source: Partial<Status> = {}) {
@@ -223,6 +230,9 @@ export class Status {
         }
         if (!("activated_at" in $$source)) {
             this["activated_at"] = null;
+        }
+        if (!("export_dir" in $$source)) {
+            this["export_dir"] = "";
         }
 
         Object.assign(this, $$source);

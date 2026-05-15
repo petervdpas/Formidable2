@@ -68,5 +68,18 @@ export function usePDFActivation() {
     }
   }
 
-  return { status, lastError, refresh, probe, activate, deactivate };
+  async function setExportDir(path: string) {
+    lastError.value = "";
+    try {
+      const s = await PdfSvc.SetExportDir(path);
+      status.value = s;
+      return { ok: true as const, status: s };
+    } catch (err) {
+      const message = backendErrMessage(err);
+      lastError.value = message;
+      return { ok: false as const, message };
+    }
+  }
+
+  return { status, lastError, refresh, probe, activate, deactivate, setExportDir };
 }

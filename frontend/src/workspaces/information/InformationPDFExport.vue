@@ -4,11 +4,12 @@ import { useI18n } from "vue-i18n";
 import { usePDFActivation } from "../../composables/usePDFActivation";
 import { useToast } from "../../composables/useToast";
 import Modal from "../../components/Modal.vue";
+import { Service as DialogSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/dialog";
 import type { ChromeCandidate } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/models";
 
 const { t } = useI18n();
 const toast = useToast();
-const { status, probe, activate, deactivate } = usePDFActivation();
+const { status, probe, activate, deactivate, setExportDir } = usePDFActivation();
 
 const dialogOpen = ref(false);
 const candidates = ref<ChromeCandidate[]>([]);
@@ -69,6 +70,59 @@ async function doDeactivate() {
     toast.error("pdf.toast.deactivate_failed", [r.message]);
   }
 }
+
+async function doChangeExportDir() {
+  let picked = "";
+  try {
+    picked = await DialogSvc.ChooseDirectory();
+  } catch {
+    return; // user cancelled or picker error — treat as no-op
+  }
+  if (!picked) return;
+  const r = await setExportDir(picked);
+  if (r.ok) {
+    toast.success("pdf.toast.export_dir_set");
+  } else {
+    toast.error("pdf.toast.export_dir_failed", [r.message]);
+  }
+}
+
+async function doClearExportDir() {
+  const r = await setExportDir("");
+  if (r.ok) {
+    toast.success("pdf.toast.export_dir_cleared");
+  } else {
+    toast.error("pdf.toast.export_dir_failed", [r.message]);
+  }
+}
+
+// Picoloom frontmatter directive reference — fetched as a per-locale
+// markdown doc from the backend (go:embed) and rendered to HTML via
+// the existing render service. Lazy-loaded on first expand of the
+// <details> block so the panel stays cheap until the user asks.
+import { Service as PdfSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
+import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
+
+const directivesHTML = ref("");
+const directivesLoaded = ref(false);
+const directivesLoading = ref(false);
+
+const { locale } = useI18n();
+
+async function loadDirectives() {
+  if (directivesLoaded.value || directivesLoading.value) return;
+  directivesLoading.value = true;
+  try {
+    const md = await PdfSvc.GetDirectivesDoc(locale.value);
+    directivesHTML.value = await RenderSvc.RenderHTML(md);
+    directivesLoaded.value = true;
+  } catch {
+    // Silently degrade — the <summary> still renders, body empty.
+    directivesHTML.value = "";
+  } finally {
+    directivesLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -103,6 +157,29 @@ async function doDeactivate() {
       <button class="tool-btn" @click="openProbeDialog">{{ t('pdf.action.reconfigure') }}</button>
     </template>
   </div>
+
+  <dl class="pdf-detail-grid">
+    <dt>{{ t('pdf.field.export_dir') }}</dt>
+    <dd>
+      <span v-if="status?.export_dir" class="pdf-detail-path">{{ status.export_dir }}</span>
+      <span v-else class="pdf-detail-muted">{{ t('pdf.field.export_dir.unset') }}</span>
+    </dd>
+  </dl>
+
+  <div class="pdf-action-row">
+    <button class="tool-btn" @click="doChangeExportDir">{{ t('pdf.action.change_export_dir') }}</button>
+    <button
+      v-if="status?.export_dir"
+      class="tool-btn"
+      @click="doClearExportDir"
+    >{{ t('pdf.action.clear_export_dir') }}</button>
+  </div>
+
+  <details class="pdf-directives" @toggle="loadDirectives">
+    <summary>{{ t('pdf.directives.title') }}</summary>
+    <p v-if="directivesLoading" class="muted small">{{ t('pdf.directives.loading') }}</p>
+    <div v-else class="pdf-directives-body markdown-body" v-html="directivesHTML"></div>
+  </details>
 
   <Modal
     :open="dialogOpen"

@@ -9,9 +9,13 @@
   "pdf.field.version": "Version:",
   "pdf.field.source": "Source:",
   "pdf.field.activated_at": "Activated:",
+  "pdf.field.export_dir": "Export folder:",
+  "pdf.field.export_dir.unset": "(none — PDFs land next to the form)",
   "pdf.action.activate": "Activate",
   "pdf.action.deactivate": "Deactivate",
   "pdf.action.reconfigure": "Reconfigure",
+  "pdf.action.change_export_dir": "Change export folder…",
+  "pdf.action.clear_export_dir": "Clear export folder",
   "pdf.dialog.title": "Pick a Chrome / Chromium binary",
   "pdf.dialog.intro": "Formidable detected the following candidates. Pick one to activate the PDF export engine.",
   "pdf.dialog.no_candidates": "No Chrome or Chromium found on this machine. PDF export needs a real Chrome/Chromium binary — install one yourself, then click Refresh. Linux: install via your package manager (e.g. `sudo apt install chromium`). macOS / Windows: download Chrome from google.com/chrome.",
@@ -23,5 +27,10 @@
   "pdf.toast.deactivated": "PDF export deactivated.",
   "pdf.toast.activate_failed": "Activation failed: {0}",
   "pdf.toast.deactivate_failed": "Deactivation failed: {0}",
-  "pdf.toast.probe_failed": "Could not list browser candidates: {0}"
+  "pdf.toast.probe_failed": "Could not list browser candidates: {0}",
+  "pdf.toast.export_dir_set": "Export folder updated.",
+  "pdf.toast.export_dir_cleared": "Export folder cleared.",
+  "pdf.toast.export_dir_failed": "Could not set export folder: {0}",
+  "pdf.directives.title": "Frontmatter directives — what picoloom understands",
+  "pdf.directives.loading": "Loading reference…"
 }

@@ -43,3 +43,21 @@ func (s *Service) Deactivate() error { return s.m.Deactivate() }
 func (s *Service) ExportPDF(formGUID string, opts ExportOpts) (Result, error) {
 	return s.m.Export(formGUID, opts)
 }
+
+// SetExportDir adopts a per-machine "where PDFs land" preference.
+// Empty path clears the preference. Non-empty paths must be
+// absolute + existent + a directory — otherwise the service
+// returns ErrInvalidExportDir, which the frontend should surface
+// as a user-correctable error (typically a re-pick via the native
+// folder picker). Independent of activation state.
+func (s *Service) SetExportDir(path string) (Status, error) {
+	return s.m.SetExportDir(path)
+}
+
+// GetDirectivesDoc returns the embedded markdown reference for the
+// picoloom frontmatter directives in the requested locale. Unknown
+// locale falls back to English. Static content — safe to call any
+// time, cheap, no I/O beyond the embedded FS.
+func (s *Service) GetDirectivesDoc(locale string) (string, error) {
+	return directivesDoc(locale)
+}

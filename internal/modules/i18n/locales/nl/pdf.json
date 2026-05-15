@@ -9,9 +9,13 @@
   "pdf.field.version": "Versie:",
   "pdf.field.source": "Bron:",
   "pdf.field.activated_at": "Geactiveerd:",
+  "pdf.field.export_dir": "Exportmap:",
+  "pdf.field.export_dir.unset": "(geen — PDF's komen naast het formulier)",
   "pdf.action.activate": "Activeren",
   "pdf.action.deactivate": "Deactiveren",
   "pdf.action.reconfigure": "Opnieuw instellen",
+  "pdf.action.change_export_dir": "Exportmap wijzigen…",
+  "pdf.action.clear_export_dir": "Exportmap wissen",
   "pdf.dialog.title": "Kies een Chrome- of Chromium-binary",
   "pdf.dialog.intro": "Formidable heeft de volgende kandidaten gedetecteerd. Kies er één om de PDF-exportmotor te activeren.",
   "pdf.dialog.no_candidates": "Geen Chrome of Chromium gevonden op deze machine. PDF-export heeft een echte Chrome/Chromium-binary nodig — installeer er één en klik daarna op Verversen. Linux: via de pakketbeheerder (bv. `sudo apt install chromium`). macOS / Windows: download Chrome via google.com/chrome.",
@@ -23,5 +27,10 @@
   "pdf.toast.deactivated": "PDF-export gedeactiveerd.",
   "pdf.toast.activate_failed": "Activatie mislukt: {0}",
   "pdf.toast.deactivate_failed": "Deactivatie mislukt: {0}",
-  "pdf.toast.probe_failed": "Kon kandidaten niet opvragen: {0}"
+  "pdf.toast.probe_failed": "Kon kandidaten niet opvragen: {0}",
+  "pdf.toast.export_dir_set": "Exportmap bijgewerkt.",
+  "pdf.toast.export_dir_cleared": "Exportmap gewist.",
+  "pdf.toast.export_dir_failed": "Kon exportmap niet instellen: {0}",
+  "pdf.directives.title": "Frontmatter-directives — wat picoloom begrijpt",
+  "pdf.directives.loading": "Referentie wordt geladen…"
 }

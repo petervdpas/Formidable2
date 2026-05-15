@@ -48,12 +48,19 @@ const (
 
 // Status is the live snapshot of the PDF engine. Safe to call before
 // or after activation; zero value means inactive.
+//
+// ExportDir is the per-machine "where renders land" preference. It is
+// independent of activation — the user can set or change it while
+// inactive, and Deactivate does not wipe it. Empty string means
+// "no default — Stage 4 will fall back to placing PDFs next to the
+// form" (see design/pdf-export.md, Stage 4 output path resolution).
 type Status struct {
 	Active      bool      `json:"active"`
 	BrowserBin  string    `json:"browser_bin"`
 	Source      Source    `json:"source"`
 	Version     string    `json:"version"`
 	ActivatedAt time.Time `json:"activated_at"`
+	ExportDir   string    `json:"export_dir"`
 }
 
 // ActivateOpts carries the activation choices the user made in the

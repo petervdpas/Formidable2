@@ -332,3 +332,78 @@
   letter-spacing: 0.04em;
   font-weight: 600;
 }
+
+.pdf-detail-muted {
+  color: var(--color-text-muted, #888);
+  font-style: italic;
+}
+
+.pdf-directives {
+  margin: 1.5em 0 1em;
+  max-width: 920px;
+}
+
+.pdf-directives > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+  color: var(--color-text);
+}
+
+.pdf-directives[open] > summary {
+  margin-bottom: 6px;
+}
+
+.pdf-directives-body {
+  padding: 8px 12px 4px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.15));
+  border-radius: 6px;
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+
+.pdf-directives-body code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.92em;
+  background: var(--color-bg, rgba(255, 255, 255, 0.04));
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.pdf-directives-body pre {
+  background: var(--color-bg, rgba(0, 0, 0, 0.25));
+  padding: 10px 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.pdf-directives-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.pdf-directives-body table {
+  border-collapse: collapse;
+  margin: 8px 0 16px;
+  width: 100%;
+}
+
+.pdf-directives-body th,
+.pdf-directives-body td {
+  border: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.08));
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.pdf-directives-body th {
+  background: var(--color-bg, rgba(255, 255, 255, 0.03));
+  font-weight: 600;
+}
+
+.pdf-directives-body h2 {
+  margin-top: 1em;
+  font-size: 1.05em;
+  border-bottom: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.08));
+  padding-bottom: 4px;
+}
