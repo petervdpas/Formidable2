@@ -32,5 +32,25 @@
   "pdf.toast.export_dir_cleared": "Exportmap gewist.",
   "pdf.toast.export_dir_failed": "Kon exportmap niet instellen: {0}",
   "pdf.directives.title": "Frontmatter-directives — wat picoloom begrijpt",
-  "pdf.directives.loading": "Referentie wordt geladen…"
+  "pdf.directives.loading": "Referentie wordt geladen…",
+
+  "pdf.export.dialog.title": "Als PDF exporteren",
+  "pdf.export.dialog.field.template": "Sjabloon",
+  "pdf.export.dialog.field.entry": "Item",
+  "pdf.export.dialog.field.folder": "Exportmap",
+  "pdf.export.dialog.field.filename": "Bestandsnaam",
+  "pdf.export.dialog.field.theme": "Thema",
+  "pdf.export.dialog.action.browse": "Bladeren…",
+  "pdf.export.dialog.action.export": "Exporteren",
+  "pdf.export.dialog.action.exporting": "Bezig met exporteren…",
+  "pdf.export.dialog.theme.default_label": "Standaard",
+  "pdf.export.dialog.theme.technical": "Technisch",
+  "pdf.export.dialog.theme.academic": "Academisch",
+  "pdf.export.dialog.theme.corporate": "Bedrijfsmatig",
+  "pdf.export.dialog.theme.legal": "Juridisch",
+  "pdf.export.dialog.theme.invoice": "Factuur",
+  "pdf.export.dialog.theme.manuscript": "Manuscript",
+  "pdf.export.dialog.theme.creative": "Creatief",
+  "pdf.export.dialog.toast.success": "PDF geëxporteerd.",
+  "pdf.export.dialog.toast.failed": "PDF-export mislukt: {0}"
 }

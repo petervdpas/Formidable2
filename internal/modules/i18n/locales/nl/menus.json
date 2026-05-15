@@ -8,6 +8,7 @@
   "menu.context.option.storage": "Opslag",
   "menu.context.option.template": "Sjabloon",
   "menu.data.export": "CSV exporteren...",
+  "menu.data.export_pdf": "PDF exporteren...",
   "menu.data.import": "CSV importeren...",
   "menu.file": "Bestand",
   "menu.file.openPluginsFolder": "Open pluginmap",

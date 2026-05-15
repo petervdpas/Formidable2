@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useConfig } from "../composables/useConfig";
-import { INFORMATION_CATEGORIES, type InformationCategoryId } from "./information";
+import { useInformationSection } from "../composables/useInformationSection";
+import { INFORMATION_CATEGORIES } from "./information";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
 const { config } = useConfig();
+const { active: activeId, setActive } = useInformationSection();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
@@ -20,13 +22,11 @@ const visibleCategories = computed(() =>
   INFORMATION_CATEGORIES.filter((c) => !c.available || c.available(config.value)),
 );
 
-const activeId = ref<InformationCategoryId>("about");
-
 // If the active entry becomes unavailable (user just turned the
 // feature off while sitting on it), bounce to the first visible one.
 watch(visibleCategories, (list) => {
   if (!list.find((c) => c.id === activeId.value)) {
-    activeId.value = list[0]?.id ?? "about";
+    setActive(list[0]?.id ?? "about");
   }
 });
 
@@ -50,7 +50,7 @@ const activeCategory = computed(
           v-for="c in visibleCategories"
           :key="c.id"
           :class="['sidebar-row', { active: c.id === activeId }]"
-          @click="activeId = c.id"
+          @click="setActive(c.id)"
         >
           {{ t(c.labelKey) }}
         </li>

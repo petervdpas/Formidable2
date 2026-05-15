@@ -32,5 +32,25 @@
   "pdf.toast.export_dir_cleared": "Export folder cleared.",
   "pdf.toast.export_dir_failed": "Could not set export folder: {0}",
   "pdf.directives.title": "Frontmatter directives — what picoloom understands",
-  "pdf.directives.loading": "Loading reference…"
+  "pdf.directives.loading": "Loading reference…",
+
+  "pdf.export.dialog.title": "Export as PDF",
+  "pdf.export.dialog.field.template": "Template",
+  "pdf.export.dialog.field.entry": "Entry",
+  "pdf.export.dialog.field.folder": "Output folder",
+  "pdf.export.dialog.field.filename": "Filename",
+  "pdf.export.dialog.field.theme": "Theme",
+  "pdf.export.dialog.action.browse": "Browse…",
+  "pdf.export.dialog.action.export": "Export",
+  "pdf.export.dialog.action.exporting": "Exporting…",
+  "pdf.export.dialog.theme.default_label": "Default",
+  "pdf.export.dialog.theme.technical": "Technical",
+  "pdf.export.dialog.theme.academic": "Academic",
+  "pdf.export.dialog.theme.corporate": "Corporate",
+  "pdf.export.dialog.theme.legal": "Legal",
+  "pdf.export.dialog.theme.invoice": "Invoice",
+  "pdf.export.dialog.theme.manuscript": "Manuscript",
+  "pdf.export.dialog.theme.creative": "Creative",
+  "pdf.export.dialog.toast.success": "PDF exported.",
+  "pdf.export.dialog.toast.failed": "PDF export failed: {0}"
 }

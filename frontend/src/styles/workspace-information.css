@@ -407,3 +407,67 @@
   border-bottom: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.08));
   padding-bottom: 4px;
 }
+
+/* ── Export PDF dialog ────────────────────────────────────────────── */
+
+.pdf-export-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdf-export-target {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0 0 4px;
+  padding: 8px 12px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.15));
+  border-radius: 6px;
+}
+
+.pdf-export-target dt {
+  font-size: 0.85em;
+  color: var(--color-text-muted, #888);
+}
+
+.pdf-export-target dd {
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  word-break: break-all;
+}
+
+.pdf-export-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pdf-export-label {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--color-text-muted, #888);
+}
+
+.pdf-export-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.18));
+  border-radius: 4px;
+  background: var(--color-bg, transparent);
+  color: var(--color-text, inherit);
+  font-family: inherit;
+  font-size: 0.92em;
+}
+
+.pdf-export-path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-export-path-row .pdf-export-input {
+  flex: 1 1 auto;
+  font-family: var(--font-mono, monospace);
+}

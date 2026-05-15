@@ -9,6 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
 import ImportCSVDialog from "../components/ImportCSVDialog.vue";
 import ExportCSVDialog from "../components/ExportCSVDialog.vue";
+import ExportPDFDialog from "../components/ExportPDFDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
@@ -24,6 +25,7 @@ import { useToast } from "../composables/useToast";
 import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
+import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
@@ -571,6 +573,14 @@ function openExportCsv() {
   exportCsvOpen.value = true;
 }
 
+const exportPdfOpen = ref(false);
+const { status: pdfStatus } = usePDFActivation();
+const pdfActive = computed(() => pdfStatus.value?.active === true);
+function openExportPdf() {
+  if (!selectedTemplate.value || !view.value?.saved) return;
+  exportPdfOpen.value = true;
+}
+
 setTopbarMenu(() => [
   {
     type: "group",
@@ -674,6 +684,21 @@ setTopbarMenu(() => [
         disabled: !selectedTemplate.value || !csvAllowed.value,
         onClick: openExportCsv,
       },
+      // PDF export is hidden entirely while the engine is inactive —
+      // user activates it from the Information workspace. The
+      // separator rides along so the menu doesn't show a dangling
+      // divider when the entry is hidden.
+      ...(pdfActive.value
+        ? [
+            { type: "separator", id: "data-sep" } as const,
+            {
+              id: "exportPdf",
+              labelKey: "menu.data.export_pdf",
+              disabled: !selectedTemplate.value || !view.value?.saved,
+              onClick: openExportPdf,
+            },
+          ]
+        : []),
     ],
   },
 ]);
@@ -902,6 +927,14 @@ setTopbarMenu(() => [
     :template-filename="selectedTemplate"
     :template="activeTemplateObj"
     @close="exportCsvOpen = false"
+  />
+
+  <!-- Export PDF dialog -->
+  <ExportPDFDialog
+    :open="exportPdfOpen"
+    :template-filename="selectedTemplate"
+    :datafile="view?.datafile ?? ''"
+    @close="exportPdfOpen = false"
   />
 </template>
 
