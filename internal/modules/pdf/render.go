@@ -2,7 +2,6 @@ package pdf
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -120,7 +119,7 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 
 	status := m.Status()
 	if !status.Active {
-		return Result{}, ErrPDFNotActivated
+		return m.failExport(started, templateFilename, datafile, "engine_gate", ErrPDFNotActivated)
 	}
 
 	formKey := templateFilename + "|" + datafile
@@ -129,7 +128,12 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 
 	rendered, err := m.renderer.RenderMarkdown(templateFilename, datafile)
 	if err != nil {
-		return Result{}, fmt.Errorf("pdf: render markdown: %w", err)
+		return m.failExport(started, templateFilename, datafile, "render_markdown", &ExportError{
+			Code:    CodeRenderFailed,
+			Message: "pdf: render markdown: " + err.Error(),
+			Hint:    "Check the template's handlebars/markdown for syntax errors.",
+			Cause:   err,
+		})
 	}
 
 	docFM, body, parseErr := ParseFrontmatter(rendered)
@@ -186,7 +190,8 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 
 	coverTS, err := ResolveCoverTemplateSet(coverFM, sourceDir, m.store.fs)
 	if err != nil {
-		return Result{}, fmt.Errorf("pdf: resolve cover: %w", err)
+		return m.failExport(started, templateFilename, datafile, "resolve_cover",
+			fmt.Errorf("pdf: resolve cover: %w", err))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), exportTimeout)
@@ -194,32 +199,101 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 
 	conv, err := m.convertFn(status.BrowserBin, style, coverTS)
 	if err != nil {
-		return Result{}, fmt.Errorf("pdf: build converter: %w", err)
+		return m.failExport(started, templateFilename, datafile, "build_converter",
+			fmt.Errorf("pdf: build converter: %w", err))
 	}
 	defer func() { _ = conv.Close() }()
 
 	res, err := conv.Convert(ctx, input)
 	if err != nil {
-		return Result{}, fmt.Errorf("pdf: convert: %w", err)
+		return m.failExport(started, templateFilename, datafile, "convert",
+			fmt.Errorf("pdf: convert: %w", err))
 	}
 	if res == nil || len(res.PDF) == 0 {
-		return Result{}, errors.New("pdf: converter returned empty PDF")
+		return m.failExport(started, templateFilename, datafile, "convert", errEmptyPDF)
 	}
 
 	outPath := m.resolveOutputPath(templateFilename, datafile, opts, status.ExportDir)
 	if err := m.store.fs.SaveFile(outPath, string(res.PDF)); err != nil {
-		return Result{}, fmt.Errorf("pdf: save: %w", err)
+		return m.failExport(started, templateFilename, datafile, "save",
+			fmt.Errorf("%w: %v", errSaveFailed, err))
 	}
 
-	duration := m.nowFn().Sub(started)
+	finishedAt := m.nowFn()
+	duration := finishedAt.Sub(started)
 	m.log.Info("pdf: exported",
-		"path", outPath, "bytes", len(res.PDF), "duration_ms", duration.Milliseconds())
+		"template", templateFilename,
+		"datafile", datafile,
+		"path", outPath,
+		"bytes", len(res.PDF),
+		"duration_ms", duration.Milliseconds(),
+		"theme", style,
+		"cover", coverNameForLog(coverFM),
+		"has_cover", coverTS != nil,
+	)
+	m.recordSuccess(&ExportTelemetry{
+		At:         finishedAt,
+		Template:   templateFilename,
+		Datafile:   datafile,
+		DurationMs: duration.Milliseconds(),
+		Theme:      style,
+		Cover:      coverNameForLog(coverFM),
+		HasCover:   coverTS != nil,
+		Path:       outPath,
+		Bytes:      len(res.PDF),
+	})
 
 	return Result{
 		Path:     outPath,
 		Bytes:    len(res.PDF),
 		Duration: duration,
 	}, nil
+}
+
+// failExport maps err to a typed ExportError, emits a structured
+// "pdf: export failed" slog event tagged with the failing stage and
+// elapsed time, then returns the zero Result + the typed error. The
+// stage values are stable strings consumed by the future PDF doctor
+// panel (Stage 7 #4) — keep them lowercase + snake_case.
+func (m *Manager) failExport(started time.Time, templateFilename, datafile, stage string, err error) (Result, error) {
+	mapped := MapExportError(err)
+	finishedAt := m.nowFn()
+	duration := finishedAt.Sub(started)
+	code := ""
+	if mapped != nil {
+		code = string(mapped.Code)
+	}
+	m.log.Error("pdf: export failed",
+		"template", templateFilename,
+		"datafile", datafile,
+		"code", code,
+		"stage", stage,
+		"duration_ms", duration.Milliseconds(),
+		"err", err.Error(),
+	)
+	m.recordFailure(&ExportTelemetry{
+		At:         finishedAt,
+		Template:   templateFilename,
+		Datafile:   datafile,
+		DurationMs: duration.Milliseconds(),
+		Code:       code,
+		Stage:      stage,
+		Err:        err.Error(),
+	})
+	return Result{}, mapped
+}
+
+// coverNameForLog picks a stable identifier for the cover that was
+// actually used. TemplatePath wins (it's the most specific) over the
+// embedded library name. Returns empty when no cover was selected.
+func coverNameForLog(fm *CoverFM) string {
+	if fm == nil {
+		return ""
+	}
+	if fm.TemplatePath != "" {
+		return fm.TemplatePath
+	}
+	return fm.Template
 }
 
 // loadManifestFrontmatter projects the per-template PDF defaults

@@ -262,6 +262,100 @@ export class ExportOpts {
 }
 
 /**
+ * ExportTelemetry is the in-memory record of a single Export call,
+ * captured at the same moment its slog event fires. Success records
+ * carry Path + Bytes; failure records carry Code + Stage + Err. The
+ * shared identity fields (Template, Datafile, DurationMs, At) plus
+ * the effective Theme/Cover/HasCover apply to both.
+ * 
+ * The PDF doctor sub-panel reads these via Service.LastExport. Stable
+ * shape — JSON tags are part of the Wails contract.
+ */
+export class ExportTelemetry {
+    "at": time$0.Time;
+    "template": string;
+    "datafile": string;
+    "duration_ms": number;
+    "theme"?: string;
+    "cover"?: string;
+    "has_cover": boolean;
+
+    /**
+     * Success-only.
+     */
+    "path"?: string;
+    "bytes"?: number;
+
+    /**
+     * Failure-only.
+     */
+    "code"?: string;
+    "stage"?: string;
+    "err"?: string;
+
+    /** Creates a new ExportTelemetry instance. */
+    constructor($$source: Partial<ExportTelemetry> = {}) {
+        if (!("at" in $$source)) {
+            this["at"] = null;
+        }
+        if (!("template" in $$source)) {
+            this["template"] = "";
+        }
+        if (!("datafile" in $$source)) {
+            this["datafile"] = "";
+        }
+        if (!("duration_ms" in $$source)) {
+            this["duration_ms"] = 0;
+        }
+        if (!("has_cover" in $$source)) {
+            this["has_cover"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportTelemetry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportTelemetry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ExportTelemetry($$parsedSource as Partial<ExportTelemetry>);
+    }
+}
+
+/**
+ * ExportTelemetrySnapshot is the doctor's read of "what is the engine
+ * doing lately?". Both fields may be nil (fresh process, no exports
+ * yet) or non-nil (process has seen both successful + failed exports).
+ */
+export class ExportTelemetrySnapshot {
+    "last_success"?: ExportTelemetry | null;
+    "last_failure"?: ExportTelemetry | null;
+
+    /** Creates a new ExportTelemetrySnapshot instance. */
+    constructor($$source: Partial<ExportTelemetrySnapshot> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportTelemetrySnapshot instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportTelemetrySnapshot {
+        const $$createField0_0 = $$createType5;
+        const $$createField1_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("last_success" in $$parsedSource) {
+            $$parsedSource["last_success"] = $$createField0_0($$parsedSource["last_success"]);
+        }
+        if ("last_failure" in $$parsedSource) {
+            $$parsedSource["last_failure"] = $$createField1_0($$parsedSource["last_failure"]);
+        }
+        return new ExportTelemetrySnapshot($$parsedSource as Partial<ExportTelemetrySnapshot>);
+    }
+}
+
+/**
  * ProbeResult is what ProbeChrome returns to the activation dialog.
  * Candidates is ordered: env-var override (if any), then system
  * matches in the platform's standard search list, then managed-cache
@@ -284,7 +378,7 @@ export class ProbeResult {
      * Creates a new ProbeResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProbeResult {
-        const $$createField0_0 = $$createType5;
+        const $$createField0_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("candidates" in $$parsedSource) {
             $$parsedSource["candidates"] = $$createField0_0($$parsedSource["candidates"]);
@@ -415,5 +509,7 @@ const $$createType0 = CoverTokenInfo.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = CoverIssue.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = ChromeCandidate.createFrom;
-const $$createType5 = $Create.Array($$createType4);
+const $$createType4 = ExportTelemetry.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = ChromeCandidate.createFrom;
+const $$createType7 = $Create.Array($$createType6);

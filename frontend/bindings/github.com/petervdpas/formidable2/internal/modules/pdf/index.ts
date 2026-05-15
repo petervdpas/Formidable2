@@ -15,6 +15,8 @@ export {
     CoverTokenInfo,
     CoverValidation,
     ExportOpts,
+    ExportTelemetry,
+    ExportTelemetrySnapshot,
     ProbeResult,
     Result,
     Source,

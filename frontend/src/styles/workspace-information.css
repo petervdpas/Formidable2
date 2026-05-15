@@ -408,6 +408,78 @@
   padding-bottom: 4px;
 }
 
+.pdf-doctor {
+  margin: 1.5em 0 0.5em;
+  max-width: 920px;
+}
+
+.pdf-doctor > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+  color: var(--color-text);
+}
+
+.pdf-doctor[open] > summary {
+  margin-bottom: 6px;
+}
+
+.pdf-doctor-card {
+  margin: 10px 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.15));
+  border-left: 3px solid var(--border-color-faint, rgba(255, 255, 255, 0.08));
+}
+
+.pdf-doctor-card-success {
+  border-left-color: var(--color-ok, #4ec977);
+}
+
+.pdf-doctor-card-failure {
+  border-left-color: var(--color-error, #d97070);
+}
+
+.pdf-doctor-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.pdf-doctor-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  font-size: 0.82em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pdf-doctor-pill-success {
+  background: rgba(78, 201, 119, 0.15);
+  color: var(--color-ok, #4ec977);
+}
+
+.pdf-doctor-pill-failure {
+  background: rgba(217, 112, 112, 0.15);
+  color: var(--color-error, #d97070);
+}
+
+.pdf-doctor-when {
+  font-size: 0.85em;
+  color: var(--color-text-muted, #888);
+}
+
+.pdf-doctor-err {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.88em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ── Export PDF dialog ────────────────────────────────────────────── */
 
 .pdf-export-form {

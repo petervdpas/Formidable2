@@ -9,7 +9,24 @@ import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidab
 import type { CoverDescriptor } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/models";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
-import { backendErrMessage } from "../utils/backendError";
+import { backendErrMessage, exportErrorOf } from "../utils/backendError";
+
+const knownExportCodes = new Set<string>([
+  "engine_inactive",
+  "render_failed",
+  "cover_logo_missing",
+  "cover_template_invalid",
+  "signature_image_missing",
+  "directive_invalid",
+  "style_not_found",
+  "browser_unreachable",
+  "render_timeout",
+  "empty_markdown",
+  "html_conversion_failed",
+  "pdf_generation_failed",
+  "save_failed",
+  "unknown",
+]);
 
 // The dialog assumes PDF export is already active. The Storage
 // workspace's "Export PDF…" menu entry is hidden while inactive, so
@@ -26,7 +43,7 @@ const emit = defineEmits<{ (e: "close"): void; (e: "exported", path: string): vo
 const { t } = useI18n();
 const { chooseDirectory } = useDialog();
 const toast = useToast();
-const { status } = usePDFActivation();
+const { status, refreshLastExport } = usePDFActivation();
 
 // Picoloom's embedded theme names. "" maps to picoloom's default
 // (no WithStyle option passed). Stage 6 will add custom-CSS support.
@@ -145,11 +162,19 @@ async function doExport() {
     emit("exported", result.path);
     emit("close");
   } catch (e) {
-    const msg = backendErrMessage(e);
-    exportError.value = msg;
-    toast.error("pdf.export.dialog.toast.failed", [msg]);
+    const typed = exportErrorOf(e);
+    if (typed && knownExportCodes.has(typed.code) && typed.code !== "unknown") {
+      const key = `pdf.toast.export.${typed.code}`;
+      exportError.value = t(key);
+      toast.error(key);
+    } else {
+      const msg = typed?.message || backendErrMessage(e);
+      exportError.value = msg;
+      toast.error("pdf.export.dialog.toast.failed", [msg]);
+    }
   } finally {
     exporting.value = false;
+    void refreshLastExport();
   }
 }
 </script>

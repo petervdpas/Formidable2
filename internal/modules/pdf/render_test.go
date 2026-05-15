@@ -58,9 +58,10 @@ type fakeStorage struct {
 func (f *fakeStorage) TemplateStorageDir(tpl string) string { return f.dirs[tpl] }
 
 type fakeConverter struct {
-	pdfBytes []byte
-	convErr  error
-	closeErr error
+	pdfBytes  []byte
+	convErr   error
+	closeErr  error
+	convertFn func(ctx context.Context, in picoloom.Input) (*picoloom.ConvertResult, error)
 
 	seen    picoloom.Input
 	seenCtx context.Context
@@ -74,6 +75,9 @@ func (f *fakeConverter) Convert(ctx context.Context, in picoloom.Input) (*picolo
 	defer f.mu.Unlock()
 	f.seen = in
 	f.seenCtx = ctx
+	if f.convertFn != nil {
+		return f.convertFn(ctx, in)
+	}
 	if f.convErr != nil {
 		return nil, f.convErr
 	}
@@ -83,13 +87,14 @@ func (f *fakeConverter) Convert(ctx context.Context, in picoloom.Input) (*picolo
 func (f *fakeConverter) Close() error { f.closed = true; return f.closeErr }
 
 type fakeConverterFactory struct {
-	mu      sync.Mutex
-	last    *fakeConverter
-	calls   int
-	bin     string
-	style   string
-	coverTS *picoloom.TemplateSet
-	err     error
+	mu              sync.Mutex
+	last            *fakeConverter
+	calls           int
+	bin             string
+	style           string
+	coverTS         *picoloom.TemplateSet
+	err             error
+	convertOverride func(ctx context.Context, in picoloom.Input) (*picoloom.ConvertResult, error)
 }
 
 func (f *fakeConverterFactory) build(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error) {
@@ -103,6 +108,9 @@ func (f *fakeConverterFactory) build(browserBin, style string, coverTS *picoloom
 		return nil, f.err
 	}
 	c := &fakeConverter{pdfBytes: []byte("%PDF-1.4\n%fake\n")}
+	if f.convertOverride != nil {
+		c.convertFn = f.convertOverride
+	}
 	f.last = c
 	return c, nil
 }

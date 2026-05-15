@@ -23,3 +23,36 @@ export function backendErrMessage(err: unknown): string {
   }
   return String(err);
 }
+
+// Typed envelope produced by pdf.ExportError on the Go side. The Go
+// Error() returns a JSON string; Wails wraps that string into its own
+// {message, cause, kind} envelope. Two parses unwrap both layers.
+export interface ExportErrorEnvelope {
+  code: string;
+  message: string;
+  hint?: string;
+}
+
+export function exportErrorOf(err: unknown): ExportErrorEnvelope | null {
+  if (!(err instanceof Error)) return null;
+  let inner = err.message;
+  try {
+    const wails = JSON.parse(err.message);
+    if (wails && typeof wails.message === "string") inner = wails.message;
+  } catch {
+    // err.message wasn't the Wails envelope — try as ExportError directly.
+  }
+  try {
+    const parsed = JSON.parse(inner);
+    if (parsed && typeof parsed.code === "string") {
+      return {
+        code: parsed.code,
+        message: typeof parsed.message === "string" ? parsed.message : "",
+        hint: typeof parsed.hint === "string" ? parsed.hint : undefined,
+      };
+    }
+  } catch {
+    // not a JSON-shaped ExportError
+  }
+  return null;
+}

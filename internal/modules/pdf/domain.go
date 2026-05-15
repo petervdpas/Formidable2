@@ -56,8 +56,51 @@ type Manager struct {
 	convertFn converterFactory
 	formMu    keymu.Map
 
-	mu     sync.RWMutex
-	status Status
+	mu          sync.RWMutex
+	status      Status
+	lastSuccess *ExportTelemetry
+	lastFailure *ExportTelemetry
+}
+
+// LastExport returns the most recent success and failure ExportTelemetry
+// records. Both pointers may be nil — see ExportTelemetrySnapshot. Safe
+// for concurrent use; the returned record pointers are not shared with
+// the manager, so callers can read fields without holding any lock.
+func (m *Manager) LastExport() ExportTelemetrySnapshot {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var s, f *ExportTelemetry
+	if m.lastSuccess != nil {
+		cp := *m.lastSuccess
+		s = &cp
+	}
+	if m.lastFailure != nil {
+		cp := *m.lastFailure
+		f = &cp
+	}
+	return ExportTelemetrySnapshot{LastSuccess: s, LastFailure: f}
+}
+
+// recordSuccess stamps a successful Export's outcome. Called from
+// render.go right after the slog success event fires.
+func (m *Manager) recordSuccess(t *ExportTelemetry) {
+	if t == nil {
+		return
+	}
+	m.mu.Lock()
+	m.lastSuccess = t
+	m.mu.Unlock()
+}
+
+// recordFailure stamps a failed Export's outcome. Called from
+// render.go (via failExport) right after the slog error event fires.
+func (m *Manager) recordFailure(t *ExportTelemetry) {
+	if t == nil {
+		return
+	}
+	m.mu.Lock()
+	m.lastFailure = t
+	m.mu.Unlock()
 }
 
 // NewManager constructs an inactive manager. The composition root

@@ -71,6 +71,18 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
 }
 
 /**
+ * LastExport returns the most recent success + failure ExportTelemetry
+ * records held in memory by the Manager. Both fields may be nil when
+ * the process is fresh. Powers the PDF doctor sub-panel on the
+ * Information page.
+ */
+export function LastExport(): $CancellablePromise<$models.ExportTelemetrySnapshot> {
+    return $Call.ByID(824932320).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * ListCovers returns descriptors for every cover discovered under
  * <AppRoot>/pdf/covers/. Powers the cover-picker dropdown in the
  * export dialog: scanned live on every call so user-added .html
@@ -78,7 +90,7 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
  */
 export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
     return $Call.ByID(476206190).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -91,7 +103,7 @@ export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
  */
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -126,14 +138,15 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
  */
 export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
     return $Call.ByID(1327021382, html).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.Status.createFrom;
 const $$createType1 = $models.Result.createFrom;
-const $$createType2 = $models.CoverDescriptor.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.ProbeResult.createFrom;
-const $$createType5 = $models.CoverValidation.createFrom;
+const $$createType2 = $models.ExportTelemetrySnapshot.createFrom;
+const $$createType3 = $models.CoverDescriptor.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.ProbeResult.createFrom;
+const $$createType6 = $models.CoverValidation.createFrom;

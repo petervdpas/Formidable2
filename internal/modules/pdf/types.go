@@ -121,3 +121,38 @@ type ChromeCandidate struct {
 type ProbeResult struct {
 	Candidates []ChromeCandidate `json:"candidates"`
 }
+
+// ExportTelemetry is the in-memory record of a single Export call,
+// captured at the same moment its slog event fires. Success records
+// carry Path + Bytes; failure records carry Code + Stage + Err. The
+// shared identity fields (Template, Datafile, DurationMs, At) plus
+// the effective Theme/Cover/HasCover apply to both.
+//
+// The PDF doctor sub-panel reads these via Service.LastExport. Stable
+// shape — JSON tags are part of the Wails contract.
+type ExportTelemetry struct {
+	At         time.Time `json:"at"`
+	Template   string    `json:"template"`
+	Datafile   string    `json:"datafile"`
+	DurationMs int64     `json:"duration_ms"`
+	Theme      string    `json:"theme,omitempty"`
+	Cover      string    `json:"cover,omitempty"`
+	HasCover   bool      `json:"has_cover"`
+
+	// Success-only.
+	Path  string `json:"path,omitempty"`
+	Bytes int    `json:"bytes,omitempty"`
+
+	// Failure-only.
+	Code  string `json:"code,omitempty"`
+	Stage string `json:"stage,omitempty"`
+	Err   string `json:"err,omitempty"`
+}
+
+// ExportTelemetrySnapshot is the doctor's read of "what is the engine
+// doing lately?". Both fields may be nil (fresh process, no exports
+// yet) or non-nil (process has seen both successful + failed exports).
+type ExportTelemetrySnapshot struct {
+	LastSuccess *ExportTelemetry `json:"last_success,omitempty"`
+	LastFailure *ExportTelemetry `json:"last_failure,omitempty"`
+}

@@ -4,6 +4,7 @@ import type {
   Status,
   ActivateOpts,
   ProbeResult,
+  ExportTelemetrySnapshot,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/models";
 import { backendErrMessage } from "../utils/backendError";
 
@@ -12,6 +13,7 @@ import { backendErrMessage } from "../utils/backendError";
 // strategy is enough — no polling timer.
 const status = ref<Status | null>(null);
 const lastError = ref<string>("");
+const lastExport = ref<ExportTelemetrySnapshot | null>(null);
 
 async function refresh() {
   try {
@@ -21,10 +23,21 @@ async function refresh() {
   }
 }
 
+async function refreshLastExport() {
+  try {
+    lastExport.value = await PdfSvc.LastExport();
+  } catch (err) {
+    lastError.value = backendErrMessage(err);
+  }
+}
+
 export function usePDFActivation() {
   onMounted(() => {
     if (status.value === null) {
       void refresh();
+    }
+    if (lastExport.value === null) {
+      void refreshLastExport();
     }
   });
 
@@ -81,5 +94,15 @@ export function usePDFActivation() {
     }
   }
 
-  return { status, lastError, refresh, probe, activate, deactivate, setExportDir };
+  return {
+    status,
+    lastError,
+    lastExport,
+    refresh,
+    refreshLastExport,
+    probe,
+    activate,
+    deactivate,
+    setExportDir,
+  };
 }

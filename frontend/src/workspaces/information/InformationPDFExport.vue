@@ -9,7 +9,32 @@ import type { ChromeCandidate } from "../../../bindings/github.com/petervdpas/fo
 
 const { t } = useI18n();
 const toast = useToast();
-const { status, probe, activate, deactivate, setExportDir } = usePDFActivation();
+const { status, lastExport, refreshLastExport, probe, activate, deactivate, setExportDir } = usePDFActivation();
+
+function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
+}
+
+function formatBytes(b: number): string {
+  if (!Number.isFinite(b) || b <= 0) return "";
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} kB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatAt(at: unknown): string {
+  if (!at) return "";
+  const d = at instanceof Date ? at : new Date(String(at));
+  return Number.isNaN(d.getTime()) ? String(at) : d.toLocaleString();
+}
+
+function exportCodeLabel(code: string): string {
+  const key = `pdf.toast.export.${code}`;
+  const translated = t(key);
+  return translated === key ? code : translated;
+}
 
 const dialogOpen = ref(false);
 const candidates = ref<ChromeCandidate[]>([]);
@@ -174,6 +199,51 @@ async function loadDirectives() {
       @click="doClearExportDir"
     >{{ t('pdf.action.clear_export_dir') }}</button>
   </div>
+
+  <details class="pdf-doctor" @toggle="refreshLastExport">
+    <summary>{{ t('pdf.doctor.title') }}</summary>
+    <p v-if="!lastExport?.last_success && !lastExport?.last_failure" class="muted small">
+      {{ t('pdf.doctor.empty') }}
+    </p>
+
+    <div v-if="lastExport?.last_success" class="pdf-doctor-card pdf-doctor-card-success">
+      <div class="pdf-doctor-card-header">
+        <span class="pdf-doctor-pill pdf-doctor-pill-success">{{ t('pdf.doctor.last_success') }}</span>
+        <span class="pdf-doctor-when">{{ formatAt(lastExport.last_success.at) }}</span>
+      </div>
+      <dl class="pdf-detail-grid">
+        <dt>{{ t('pdf.doctor.field.template') }}</dt>
+        <dd><code>{{ lastExport.last_success.template }}</code> / <code>{{ lastExport.last_success.datafile }}</code></dd>
+        <dt>{{ t('pdf.doctor.field.output') }}</dt>
+        <dd class="pdf-detail-path">{{ lastExport.last_success.path }}</dd>
+        <dt>{{ t('pdf.doctor.field.duration') }}</dt>
+        <dd>{{ formatDuration(lastExport.last_success.duration_ms) }} <span class="muted">·</span> {{ formatBytes(lastExport.last_success.bytes ?? 0) }}</dd>
+        <dt v-if="lastExport.last_success.theme">{{ t('pdf.doctor.field.theme') }}</dt>
+        <dd v-if="lastExport.last_success.theme">{{ lastExport.last_success.theme }}</dd>
+        <dt v-if="lastExport.last_success.has_cover">{{ t('pdf.doctor.field.cover') }}</dt>
+        <dd v-if="lastExport.last_success.has_cover">{{ lastExport.last_success.cover || t('pdf.doctor.cover.default') }}</dd>
+      </dl>
+    </div>
+
+    <div v-if="lastExport?.last_failure" class="pdf-doctor-card pdf-doctor-card-failure">
+      <div class="pdf-doctor-card-header">
+        <span class="pdf-doctor-pill pdf-doctor-pill-failure">{{ t('pdf.doctor.last_failure') }}</span>
+        <span class="pdf-doctor-when">{{ formatAt(lastExport.last_failure.at) }}</span>
+      </div>
+      <dl class="pdf-detail-grid">
+        <dt>{{ t('pdf.doctor.field.template') }}</dt>
+        <dd><code>{{ lastExport.last_failure.template }}</code> / <code>{{ lastExport.last_failure.datafile }}</code></dd>
+        <dt>{{ t('pdf.doctor.field.code') }}</dt>
+        <dd>{{ exportCodeLabel(lastExport.last_failure.code ?? '') }} <span class="muted">({{ lastExport.last_failure.code }})</span></dd>
+        <dt>{{ t('pdf.doctor.field.stage') }}</dt>
+        <dd><code>{{ lastExport.last_failure.stage }}</code></dd>
+        <dt v-if="lastExport.last_failure.err">{{ t('pdf.doctor.field.error') }}</dt>
+        <dd v-if="lastExport.last_failure.err" class="pdf-doctor-err">{{ lastExport.last_failure.err }}</dd>
+        <dt>{{ t('pdf.doctor.field.duration') }}</dt>
+        <dd>{{ formatDuration(lastExport.last_failure.duration_ms) }}</dd>
+      </dl>
+    </div>
+  </details>
 
   <details class="pdf-directives" @toggle="loadDirectives">
     <summary>{{ t('pdf.directives.title') }}</summary>

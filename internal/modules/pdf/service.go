@@ -87,3 +87,11 @@ func (s *Service) SaveCover(name, html string) error {
 func (s *Service) ValidateCoverHTML(html string) CoverValidation {
 	return ValidateCover(html)
 }
+
+// LastExport returns the most recent success + failure ExportTelemetry
+// records held in memory by the Manager. Both fields may be nil when
+// the process is fresh. Powers the PDF doctor sub-panel on the
+// Information page.
+func (s *Service) LastExport() ExportTelemetrySnapshot {
+	return s.m.LastExport()
+}
