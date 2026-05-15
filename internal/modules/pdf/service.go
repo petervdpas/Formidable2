@@ -64,3 +64,26 @@ func (s *Service) SetExportDir(path string) (Status, error) {
 func (s *Service) GetDirectivesDoc(locale string) (string, error) {
 	return directivesDoc(locale)
 }
+
+// ListCovers returns descriptors for every cover discovered under
+// <AppRoot>/pdf/covers/. Powers the cover-picker dropdown in the
+// export dialog: scanned live on every call so user-added .html
+// files appear without restart.
+func (s *Service) ListCovers() ([]CoverDescriptor, error) {
+	return s.m.ListCovers()
+}
+
+// SaveCover persists user-authored cover HTML. Validates first; on
+// any error-severity issue, refuses to write and returns
+// ErrCoverInvalid wrapped with structured issue codes. On success
+// the cover becomes discoverable via ListCovers immediately.
+func (s *Service) SaveCover(name, html string) error {
+	return s.m.SaveCover(name, html)
+}
+
+// ValidateCoverHTML lets the frontend dry-run validation (e.g. on
+// every keystroke in a cover editor) without writing to disk. Pure
+// function — no I/O, no side effects.
+func (s *Service) ValidateCoverHTML(html string) CoverValidation {
+	return ValidateCover(html)
+}

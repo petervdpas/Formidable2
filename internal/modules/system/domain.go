@@ -148,6 +148,30 @@ func (m *Manager) FileExists(path string) bool {
 	return err == nil
 }
 
+// ListDir returns the names of all entries in the directory at path
+// (relative paths resolve under AppRoot; absolute paths used as-is).
+// Returns an empty slice for a missing directory rather than an
+// error — callers usually treat "no files yet" as a normal startup
+// state (e.g. the PDF module's cover scaffold runs before any user
+// files exist). Real I/O errors (permission denied, etc.) still
+// bubble up. Order is filesystem-dependent; callers that need
+// deterministic order should sort.
+func (m *Manager) ListDir(path string) ([]string, error) {
+	full := m.ResolvePath(path)
+	entries, err := os.ReadDir(full)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.Name())
+	}
+	return out, nil
+}
+
 func (m *Manager) LoadFile(path string) (string, error) {
 	full := m.ResolvePath(path)
 	b, err := os.ReadFile(full)

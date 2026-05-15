@@ -6,6 +6,7 @@ import { useDialog } from "../composables/useDialog";
 import { useToast } from "../composables/useToast";
 import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
+import type { CoverDescriptor } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/models";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { backendErrMessage } from "../utils/backendError";
@@ -43,6 +44,8 @@ const themes = [
 const folder = ref("");
 const filename = ref("");
 const style = ref("");
+const coverName = ref("");
+const covers = ref<CoverDescriptor[]>([]);
 const openAfter = ref(true);
 const exporting = ref(false);
 const exportError = ref("");
@@ -66,6 +69,7 @@ async function resetForOpen() {
   exporting.value = false;
   filename.value = pdfBasename(props.datafile);
   style.value = "";
+  coverName.value = "";
   openAfter.value = true;
   // Default folder: status.export_dir > template storage dir > empty.
   if (status.value?.export_dir) {
@@ -78,6 +82,14 @@ async function resetForOpen() {
     }
   } else {
     folder.value = "";
+  }
+  // Cover dropdown lives on disk — scan now so user-added .html files
+  // appear without restart. Failure here keeps the dialog usable
+  // (covers stay empty → user gets picoloom default).
+  try {
+    covers.value = (await PdfSvc.ListCovers()) ?? [];
+  } catch {
+    covers.value = [];
   }
 }
 
@@ -116,6 +128,7 @@ async function doExport() {
     const result = await PdfSvc.ExportPDF(props.templateFilename, props.datafile, {
       output_path: outputPath,
       style: style.value,
+      cover_template: coverName.value,
     });
     toast.success("pdf.export.dialog.toast.success");
     if (openAfter.value && result.path) {
@@ -178,6 +191,24 @@ async function doExport() {
             {{ t(th.labelKey) }}
           </option>
         </select>
+      </div>
+
+      <div class="pdf-export-row">
+        <label class="pdf-export-label">{{ t('pdf.export.dialog.field.cover') }}</label>
+        <select v-model="coverName" class="pdf-export-input">
+          <option value="">{{ t('pdf.export.dialog.cover.use_default') }}</option>
+          <option
+            v-for="c in covers"
+            :key="c.name"
+            :value="c.name"
+            :disabled="!c.ok"
+          >
+            {{ c.label || c.name }}{{ c.ok ? '' : ' ⚠' }}
+          </option>
+        </select>
+        <p v-if="coverName" class="pdf-export-hint">
+          {{ covers.find(c => c.name === coverName)?.description || '' }}
+        </p>
       </div>
 
       <label class="pdf-export-checkbox">

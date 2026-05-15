@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -53,6 +54,35 @@ func (m *memFS) SaveFile(path, content string) error {
 	}
 	m.files[path] = content
 	return nil
+}
+
+// ListDir mimics system.Manager.ListDir: returns the names of files
+// directly under `path` (no recursion). Missing path → empty slice.
+func (m *memFS) ListDir(path string) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	prefix := path
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	seen := map[string]bool{}
+	out := []string{}
+	for k := range m.files {
+		if !strings.HasPrefix(k, prefix) {
+			continue
+		}
+		rest := strings.TrimPrefix(k, prefix)
+		// Only direct children — split on / and take the first segment.
+		if i := strings.Index(rest, "/"); i >= 0 {
+			rest = rest[:i]
+		}
+		if rest == "" || seen[rest] {
+			continue
+		}
+		seen[rest] = true
+		out = append(out, rest)
+	}
+	return out, nil
 }
 
 func TestStore_LoadMissingReturnsUnsetState(t *testing.T) {

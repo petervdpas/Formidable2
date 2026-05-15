@@ -159,7 +159,23 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		style = merged.Style
 	}
 
-	coverTS, err := ResolveCoverTemplateSet(merged.Cover, sourceDir, m.store.fs)
+	// Per-export cover override: opts.CoverTemplate beats whatever
+	// the merge resolved to. Synthesize a cover block when the doc
+	// frontmatter had none, so non-doc-driven exports can still pick
+	// a cover via the dialog.
+	coverFM := merged.Cover
+	if opts.CoverTemplate != "" {
+		if coverFM == nil {
+			coverFM = &CoverFM{}
+		} else {
+			cp := *coverFM
+			coverFM = &cp
+		}
+		coverFM.Template = opts.CoverTemplate
+		coverFM.TemplatePath = "" // opts.CoverTemplate is library-named, not a path
+	}
+
+	coverTS, err := ResolveCoverTemplateSet(coverFM, sourceDir, m.store.fs)
 	if err != nil {
 		return Result{}, fmt.Errorf("pdf: resolve cover: %w", err)
 	}

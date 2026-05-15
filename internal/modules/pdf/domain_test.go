@@ -170,6 +170,19 @@ func TestDeactivate_WhileInactiveIsNoOp(t *testing.T) {
 	}
 }
 
+func TestRestore_ScaffoldsCoverLibrary(t *testing.T) {
+	m, mem, _, _ := newTestManager(t)
+	if err := m.Restore(); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	for _, name := range []string{"classic", "banner", "corporate", "signature"} {
+		p := onDiskCoversDir + "/" + name + ".html"
+		if !mem.FileExists(p) {
+			t.Errorf("Restore did not scaffold %q", p)
+		}
+	}
+}
+
 func TestRestore_LoadsPersistedActivation(t *testing.T) {
 	m, _, fs, _ := newTestManager(t)
 	// Seed persisted state independent of Activate.

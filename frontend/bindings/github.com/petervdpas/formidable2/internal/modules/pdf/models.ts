@@ -71,17 +71,180 @@ export class ChromeCandidate {
 }
 
 /**
+ * CoverDescriptor is one entry in the cover-picker dropdown. Returned
+ * by ListCovers; consumed by the frontend.
+ * 
+ *   - Name: filename stem (the value users put in `cover.template:`).
+ *   - Label: human-readable display name from the magic-line `name:`
+ *     field, or capitalised Name when absent.
+ *   - Description: from the magic-line `description:` field, or "".
+ *   - OK: false when ValidateCover errored — the picker may still
+ *     surface the entry, but flagged.
+ */
+export class CoverDescriptor {
+    "name": string;
+    "label": string;
+    "description": string;
+    "ok": boolean;
+
+    /** Creates a new CoverDescriptor instance. */
+    constructor($$source: Partial<CoverDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoverDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CoverDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CoverDescriptor($$parsedSource as Partial<CoverDescriptor>);
+    }
+}
+
+/**
+ * CoverIssue is one finding from the validator. Codes are stable for
+ * the lifetime of CurrentCoverSchemaVersion so the frontend can pin
+ * translations / per-issue help.
+ */
+export class CoverIssue {
+    "severity": CoverIssueSeverity;
+    "code": string;
+    "message": string;
+
+    /** Creates a new CoverIssue instance. */
+    constructor($$source: Partial<CoverIssue> = {}) {
+        if (!("severity" in $$source)) {
+            this["severity"] = CoverIssueSeverity.$zero;
+        }
+        if (!("code" in $$source)) {
+            this["code"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoverIssue instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CoverIssue {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CoverIssue($$parsedSource as Partial<CoverIssue>);
+    }
+}
+
+/**
+ * CoverIssueSeverity gates whether ValidateCover.OK flips to false.
+ * Errors block render/save; warnings are advisory and surface in the
+ * UI as soft hints.
+ */
+export enum CoverIssueSeverity {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    CoverIssueError = "error",
+    CoverIssueWarning = "warning",
+};
+
+/**
+ * CoverTokenInfo carries the metadata parsed out of the magic comment.
+ * Name and Description are optional and purely informational — only
+ * Version participates in validation.
+ */
+export class CoverTokenInfo {
+    "version": number;
+    "name"?: string;
+    "description"?: string;
+
+    /** Creates a new CoverTokenInfo instance. */
+    constructor($$source: Partial<CoverTokenInfo> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoverTokenInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CoverTokenInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CoverTokenInfo($$parsedSource as Partial<CoverTokenInfo>);
+    }
+}
+
+/**
+ * CoverValidation is the validator's structured result. OK is the
+ * errors.Is-style "should we proceed" gate; Issues carries every
+ * finding (warnings included) for the UI to display.
+ */
+export class CoverValidation {
+    "ok": boolean;
+    "token"?: CoverTokenInfo | null;
+    "issues"?: CoverIssue[];
+
+    /** Creates a new CoverValidation instance. */
+    constructor($$source: Partial<CoverValidation> = {}) {
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoverValidation instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CoverValidation {
+        const $$createField1_0 = $$createType1;
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("token" in $$parsedSource) {
+            $$parsedSource["token"] = $$createField1_0($$parsedSource["token"]);
+        }
+        if ("issues" in $$parsedSource) {
+            $$parsedSource["issues"] = $$createField2_0($$parsedSource["issues"]);
+        }
+        return new CoverValidation($$parsedSource as Partial<CoverValidation>);
+    }
+}
+
+/**
  * ExportOpts shapes the per-call options ExportPDF accepts. Empty
  * values fall back to the merged manifest + form-meta + global-config
- * defaults (Stage 3 builds that pipeline). Stage 1 ignores it.
+ * defaults.
  * 
  *   - OutputPath: absolute or context-relative; default "<form>.pdf"
  *     next to the form.
  *   - Style: picoloom theme name or path to a custom CSS file.
+ *   - CoverTemplate: name of a cover from the on-disk library at
+ *     <AppRoot>/pdf/covers/. Empty = use whatever the merged
+ *     frontmatter / template manifest resolves to (which may itself
+ *     be empty → picoloom's default cover). Wired by the export
+ *     dialog's Cover picker for per-export overrides.
  */
 export class ExportOpts {
     "output_path"?: string;
     "style"?: string;
+    "cover_template"?: string;
 
     /** Creates a new ExportOpts instance. */
     constructor($$source: Partial<ExportOpts> = {}) {
@@ -121,7 +284,7 @@ export class ProbeResult {
      * Creates a new ProbeResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProbeResult {
-        const $$createField0_0 = $$createType1;
+        const $$createField0_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("candidates" in $$parsedSource) {
             $$parsedSource["candidates"] = $$createField0_0($$parsedSource["candidates"]);
@@ -248,5 +411,9 @@ export class Status {
 }
 
 // Private type creation functions
-const $$createType0 = ChromeCandidate.createFrom;
-const $$createType1 = $Create.Array($$createType0);
+const $$createType0 = CoverTokenInfo.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = CoverIssue.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = ChromeCandidate.createFrom;
+const $$createType5 = $Create.Array($$createType4);

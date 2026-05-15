@@ -40,6 +40,8 @@
   "pdf.export.dialog.field.folder": "Exportmap",
   "pdf.export.dialog.field.filename": "Bestandsnaam",
   "pdf.export.dialog.field.theme": "Thema",
+  "pdf.export.dialog.field.cover": "Voorpagina",
+  "pdf.export.dialog.cover.use_default": "(gebruik frontmatter / sjabloon-standaard)",
   "pdf.export.dialog.field.open_after": "Open de PDF na export",
   "pdf.export.dialog.action.browse": "Bladeren…",
   "pdf.export.dialog.action.export": "Exporteren",

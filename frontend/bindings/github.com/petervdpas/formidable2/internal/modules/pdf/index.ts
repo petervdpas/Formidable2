@@ -9,6 +9,11 @@ export {
 export {
     ActivateOpts,
     ChromeCandidate,
+    CoverDescriptor,
+    CoverIssue,
+    CoverIssueSeverity,
+    CoverTokenInfo,
+    CoverValidation,
     ExportOpts,
     ProbeResult,
     Result,

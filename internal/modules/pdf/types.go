@@ -78,14 +78,20 @@ type ActivateOpts struct {
 
 // ExportOpts shapes the per-call options ExportPDF accepts. Empty
 // values fall back to the merged manifest + form-meta + global-config
-// defaults (Stage 3 builds that pipeline). Stage 1 ignores it.
+// defaults.
 //
 //   - OutputPath: absolute or context-relative; default "<form>.pdf"
 //     next to the form.
 //   - Style: picoloom theme name or path to a custom CSS file.
+//   - CoverTemplate: name of a cover from the on-disk library at
+//     <AppRoot>/pdf/covers/. Empty = use whatever the merged
+//     frontmatter / template manifest resolves to (which may itself
+//     be empty → picoloom's default cover). Wired by the export
+//     dialog's Cover picker for per-export overrides.
 type ExportOpts struct {
-	OutputPath string `json:"output_path,omitempty"`
-	Style      string `json:"style,omitempty"`
+	OutputPath    string `json:"output_path,omitempty"`
+	Style         string `json:"style,omitempty"`
+	CoverTemplate string `json:"cover_template,omitempty"`
 }
 
 // Result is the bound shape ExportPDF returns. The PDF bytes are not

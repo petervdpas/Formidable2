@@ -40,6 +40,8 @@
   "pdf.export.dialog.field.folder": "Output folder",
   "pdf.export.dialog.field.filename": "Filename",
   "pdf.export.dialog.field.theme": "Theme",
+  "pdf.export.dialog.field.cover": "Cover page",
+  "pdf.export.dialog.cover.use_default": "(use frontmatter / template default)",
   "pdf.export.dialog.field.open_after": "Open the PDF after export",
   "pdf.export.dialog.action.browse": "Browse…",
   "pdf.export.dialog.action.export": "Export",

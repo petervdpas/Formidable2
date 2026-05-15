@@ -33,12 +33,18 @@ type state struct {
 	ExportDir   string    `json:"export_dir,omitempty"`
 }
 
-// storeFS is the narrow filesystem surface store needs. *system.Manager
-// satisfies it; tests pass an in-memory stub.
+// storeFS is the narrow filesystem surface the pdf module needs.
+// *system.Manager satisfies it; tests pass an in-memory stub.
+//
+// ListDir is used by the cover library (Stage 6+): scanning
+// <AppRoot>/pdf/covers/ to populate the cover-picker dropdown.
+// Returns an empty slice for a missing directory so first-run boots
+// (before scaffold) don't error.
 type storeFS interface {
 	FileExists(path string) bool
 	LoadFile(path string) (string, error)
 	SaveFile(path, content string) error
+	ListDir(path string) ([]string, error)
 }
 
 // store reads / writes pdf-state.json. All operations are tolerant:

@@ -112,6 +112,13 @@ func (f *fakeConverterFactory) build(browserBin, style string, coverTS *picoloom
 func newActiveManager(t *testing.T) (*Manager, *memFS, *fakeRenderer, *fakeStorage, *fakeConverterFactory) {
 	t.Helper()
 	mem := newMemFS()
+	// Mirror what Manager.Restore does at boot: write the cover
+	// library seeds into the (in-memory) FS so cover resolution can
+	// load them. Without this, every cover-aware test would have to
+	// scaffold by hand.
+	if err := scaffoldCovers(mem, slog.Default()); err != nil {
+		t.Fatalf("scaffold: %v", err)
+	}
 	fs := fakeFS{}
 	vers := fakeVersions{}
 	rdr := newFakeRenderer()
@@ -655,9 +662,12 @@ func TestExport_NoCoverNameMeansPicoloomDefault(t *testing.T) {
 func TestExport_TemplatePathFromDocFM(t *testing.T) {
 	m, mem, rdr, stg, cf := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/storage/tpl"
-	// Seed a user-authored cover HTML on the (in-memory) FS.
+	// Seed a user-authored cover HTML on the (in-memory) FS. Magic-
+	// line header is required since Stage 6.1 — the loader validates
+	// user-supplied covers before injecting them.
 	mem.files["/storage/tpl/assets/my-cover.html"] =
-		`<section class="cover">USER {{.Title}}</section><span data-cover-end></span>`
+		"<!-- formidable-cover: 1 -->\n" +
+			`<section class="cover">USER {{.Title}}</section><span data-cover-end></span>`
 	rdr.md["tpl.yaml|f.meta.json"] =
 		"---\ncover:\n  template_path: assets/my-cover.html\n  title: Hi\n---\n# body"
 
@@ -683,6 +693,27 @@ func TestExport_UnknownCoverTemplate_SurfacesError(t *testing.T) {
 	}
 	if !errors.Is(err, ErrCoverNotFound) {
 		t.Errorf("err = %v, want ErrCoverNotFound", err)
+	}
+}
+
+func TestExport_OptsCoverTemplateOverridesEverything(t *testing.T) {
+	m, _, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = "---\ncover:\n  template: classic\n---\n# body"
+	loader := newFakeTemplateLoader()
+	loader.tpls["tpl.yaml"] = &template.Template{
+		PDF: &template.PDFConfig{
+			Cover: &template.PDFCoverConfig{Template: "banner"},
+		},
+	}
+	m.templates = loader
+
+	// Per-export override: corporate wins over both doc and manifest.
+	if _, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{CoverTemplate: "corporate"}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if cf.coverTS == nil || cf.coverTS.Name != "corporate" {
+		t.Errorf("TemplateSet = %+v, want corporate (opts override)", cf.coverTS)
 	}
 }
 

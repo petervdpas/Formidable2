@@ -155,7 +155,46 @@ func (m *Manager) Restore() error {
 			ExportDir:   activation.ExportDir,
 		})
 	}
+
+	// Cover-library scaffold: write any missing seed (classic /
+	// banner / corporate / signature) to <AppRoot>/pdf/covers/. The
+	// scaffold is idempotent and respects existing user edits — see
+	// cover_scaffold.go.
+	if err := scaffoldCovers(m.store.fs, m.log); err != nil {
+		m.log.Warn("pdf: cover scaffold failed; library may be incomplete", "err", err)
+	}
+
 	return nil
+}
+
+// SaveCover persists a user-authored or user-edited cover HTML to
+// <AppRoot>/pdf/covers/<name>.html. Validates first via ValidateCover;
+// rejects with ErrCoverInvalid on any error-severity issue.
+//
+//   - name must be a safe filename stem (no path separators, no
+//     leading dot, not the reserved "signature").
+//   - html must carry the magic-line header, the data-cover-end
+//     sentinel, and parse as html/template.
+//
+// On success the cover becomes immediately discoverable via
+// ListCovers — no restart, no registration step.
+func (m *Manager) SaveCover(name, html string) error {
+	m.log.Debug("pdf: save cover", "name", name)
+	if err := saveDiskCover(m.store.fs, name, html); err != nil {
+		return err
+	}
+	m.log.Info("pdf: cover saved", "name", name)
+	return nil
+}
+
+// ListCovers returns descriptors for every cover discovered under
+// <AppRoot>/pdf/covers/ — the embedded library scaffolded at boot
+// AND any user-authored covers dropped into the dir at runtime.
+// signature.html is filtered out (reserved). Invalid files are
+// returned with OK=false so the picker UI can surface them rather
+// than silently dropping the user's files.
+func (m *Manager) ListCovers() ([]CoverDescriptor, error) {
+	return listDiskCovers(m.store.fs)
 }
 
 // Status returns the live snapshot. Zero value (Active=false,

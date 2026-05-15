@@ -71,6 +71,18 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
 }
 
 /**
+ * ListCovers returns descriptors for every cover discovered under
+ * <AppRoot>/pdf/covers/. Powers the cover-picker dropdown in the
+ * export dialog: scanned live on every call so user-added .html
+ * files appear without restart.
+ */
+export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
+    return $Call.ByID(476206190).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * ProbeChrome lists every Chrome/Chromium binary the activation
  * flow could adopt — env-var override, then system paths in their
  * platform's conventional order, then the latest managed-cache
@@ -79,8 +91,18 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
  */
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
+}
+
+/**
+ * SaveCover persists user-authored cover HTML. Validates first; on
+ * any error-severity issue, refuses to write and returns
+ * ErrCoverInvalid wrapped with structured issue codes. On success
+ * the cover becomes discoverable via ListCovers immediately.
+ */
+export function SaveCover(name: string, html: string): $CancellablePromise<void> {
+    return $Call.ByID(2359601362, name, html);
 }
 
 /**
@@ -97,7 +119,21 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
     });
 }
 
+/**
+ * ValidateCoverHTML lets the frontend dry-run validation (e.g. on
+ * every keystroke in a cover editor) without writing to disk. Pure
+ * function — no I/O, no side effects.
+ */
+export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
+    return $Call.ByID(1327021382, html).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.Status.createFrom;
 const $$createType1 = $models.Result.createFrom;
-const $$createType2 = $models.ProbeResult.createFrom;
+const $$createType2 = $models.CoverDescriptor.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.ProbeResult.createFrom;
+const $$createType5 = $models.CoverValidation.createFrom;
