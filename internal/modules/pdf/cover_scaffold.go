@@ -1,9 +1,10 @@
 package pdf
 
 import (
-	"fmt"
+	gofs "io/fs"
 	"log/slog"
 	"path"
+	"strings"
 )
 
 // onDiskCoversDir is where covers live at runtime: <AppRoot>/pdf/covers/.
@@ -14,11 +15,13 @@ const onDiskCoversDir = "pdf/covers"
 
 // scaffoldCovers writes each embedded seed under coversFS to its
 // counterpart on disk if (and only if) the on-disk file is missing.
+// Walks the full embedded subtree so subdirectories like images/
+// (where the default formidable.svg logo lives) get scaffolded too.
 // Idempotent — safe to run on every boot. User edits are sacrosanct:
 // once a file exists at the target path, the seed is left alone.
 //
-// Delete-to-reset works for free: removing pdf/covers/foo.html before
-// boot re-scaffolds the bundled copy.
+// Delete-to-reset works for free: removing a file before boot
+// re-scaffolds the bundled copy.
 //
 // Errors writing one seed don't abort the whole pass — the function
 // logs and moves on, so a permission glitch on one file can't block
@@ -27,36 +30,40 @@ func scaffoldCovers(fs storeFS, log *slog.Logger) error {
 	if fs == nil {
 		return nil
 	}
-	entries, err := coversFS.ReadDir(coversDir)
-	if err != nil {
-		return fmt.Errorf("pdf: read embedded covers: %w", err)
-	}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		seedPath := path.Join(coversDir, e.Name())
-		diskPath := path.Join(onDiskCoversDir, e.Name())
-
-		if fs.FileExists(diskPath) {
-			continue
-		}
-		seedBytes, err := coversFS.ReadFile(seedPath)
+	return gofs.WalkDir(coversFS, coversDir, func(seedPath string, d gofs.DirEntry, err error) error {
 		if err != nil {
 			if log != nil {
-				log.Warn("pdf: scaffold seed read failed", "seed", seedPath, "err", err)
+				log.Warn("pdf: scaffold walk error", "path", seedPath, "err", err)
 			}
-			continue
+			return nil
 		}
-		if err := fs.SaveFile(diskPath, string(seedBytes)); err != nil {
+		if d.IsDir() {
+			return nil
+		}
+		// Translate `covers/foo.html` (embedded) → `pdf/covers/foo.html` (disk).
+		// `covers/images/formidable.svg` → `pdf/covers/images/formidable.svg`.
+		rel := strings.TrimPrefix(seedPath, coversDir+"/")
+		diskPath := path.Join(onDiskCoversDir, rel)
+
+		if fs.FileExists(diskPath) {
+			return nil
+		}
+		seedBytes, readErr := coversFS.ReadFile(seedPath)
+		if readErr != nil {
 			if log != nil {
-				log.Warn("pdf: scaffold write failed", "path", diskPath, "err", err)
+				log.Warn("pdf: scaffold seed read failed", "seed", seedPath, "err", readErr)
 			}
-			continue
+			return nil
+		}
+		if saveErr := fs.SaveFile(diskPath, string(seedBytes)); saveErr != nil {
+			if log != nil {
+				log.Warn("pdf: scaffold write failed", "path", diskPath, "err", saveErr)
+			}
+			return nil
 		}
 		if log != nil {
 			log.Info("pdf: scaffolded cover seed", "path", diskPath)
 		}
-	}
-	return nil
+		return nil
+	})
 }

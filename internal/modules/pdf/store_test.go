@@ -56,6 +56,13 @@ func (m *memFS) SaveFile(path, content string) error {
 	return nil
 }
 
+// ResolvePath mimics system.Manager.ResolvePath but without an
+// AppRoot — tests already write absolute-ish keys into the map, so
+// returning the joined path verbatim keeps the contract simple.
+func (m *memFS) ResolvePath(segments ...string) string {
+	return strings.Join(segments, "/")
+}
+
 // ListDir mimics system.Manager.ListDir: returns the names of files
 // directly under `path` (no recursion). Missing path → empty slice.
 func (m *memFS) ListDir(path string) ([]string, error) {

@@ -94,6 +94,21 @@ func TestScaffoldCovers_SaveErrorLoggedNotFatal(t *testing.T) {
 	}
 }
 
+func TestScaffoldCovers_ScaffoldsImagesSubdir(t *testing.T) {
+	fs := newMemFS()
+	if err := scaffoldCovers(fs, slog.Default()); err != nil {
+		t.Fatalf("scaffold: %v", err)
+	}
+	p := onDiskCoversDir + "/images/formidable.svg"
+	if !fs.FileExists(p) {
+		t.Errorf("default logo not scaffolded at %q", p)
+	}
+	got := fs.files[p]
+	if len(got) < 100 || got[:5] != "<?xml" {
+		t.Errorf("scaffolded svg looks malformed; len=%d head=%q", len(got), got[:min(5, len(got))])
+	}
+}
+
 func TestScaffoldCovers_ScaffoldedFilesValidateOK(t *testing.T) {
 	fs := newMemFS()
 	if err := scaffoldCovers(fs, slog.Default()); err != nil {

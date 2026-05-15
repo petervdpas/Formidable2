@@ -154,6 +154,15 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		input.SourceDir = sourceDir
 	}
 
+	// Cover logo resolution: rewrite `cover.logo: formidable.svg`
+	// shorthand to the absolute path of <AppRoot>/pdf/covers/images/
+	// formidable.svg before handing it to picoloom (whose Cover.Validate
+	// would otherwise reject a non-existent shorthand path). Empty,
+	// absolute, and already-resolvable paths pass through.
+	if input.Cover != nil {
+		input.Cover.Logo = ResolveCoverLogo(input.Cover.Logo, input.SourceDir, m.store.fs)
+	}
+
 	style := opts.Style
 	if style == "" {
 		style = merged.Style

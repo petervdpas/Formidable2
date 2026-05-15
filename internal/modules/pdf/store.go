@@ -36,15 +36,23 @@ type state struct {
 // storeFS is the narrow filesystem surface the pdf module needs.
 // *system.Manager satisfies it; tests pass an in-memory stub.
 //
-// ListDir is used by the cover library (Stage 6+): scanning
+// ListDir is used by the cover library: scanning
 // <AppRoot>/pdf/covers/ to populate the cover-picker dropdown.
 // Returns an empty slice for a missing directory so first-run boots
 // (before scaffold) don't error.
+//
+// ResolvePath returns the absolute filesystem path that the given
+// (possibly relative) input maps to. The cover-logo resolver uses
+// it to rewrite a `cover.logo: formidable.svg` shorthand into the
+// concrete absolute path picoloom validates against. In production
+// this prepends system.Manager.AppRoot; in tests the memFS stub
+// returns the input verbatim (paths are already absolute keys).
 type storeFS interface {
 	FileExists(path string) bool
 	LoadFile(path string) (string, error)
 	SaveFile(path, content string) error
 	ListDir(path string) ([]string, error)
+	ResolvePath(segments ...string) string
 }
 
 // store reads / writes pdf-state.json. All operations are tolerant:

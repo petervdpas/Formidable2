@@ -13,16 +13,20 @@ import (
 )
 
 // coversFS embeds the hand-authored cover-page library + a bundled
-// signature template. Post Stage 6.1, the embed is the *seed* used at
-// boot to scaffold the on-disk library at <AppRoot>/pdf/covers/. The
-// running system never reads cover HTML from the embed at render
-// time — disk is the source of truth.
+// signature template + a default logo image. Post Stage 6.1, the
+// embed is the *seed* used at boot to scaffold the on-disk library
+// at <AppRoot>/pdf/covers/. The running system never reads from the
+// embed at render time — disk is the source of truth.
 //
-//go:embed covers/*.html
+// `all:covers` brings the entire subtree, including the images/
+// subdirectory (where formidable.svg lives as a default logo seed).
+//
+//go:embed all:covers
 var coversFS embed.FS
 
 const coversDir = "covers"             // embedded seed directory
 const signatureFile = "signature.html" // reserved name (bundled signature)
+const coverImagesSubdir = "images"     // <coversDir>/images/ — logo seeds
 
 // ErrCoverNotFound is returned when CoverFM.Template names a cover
 // that doesn't exist on disk under <AppRoot>/pdf/covers/. Surfaced
@@ -269,3 +273,69 @@ func loadCoverFromPath(p, sourceDir string, fs storeFS) (string, error) {
 // Convenience guard so the package compiles when nothing else uses
 // errors.Is on ErrSignatureMissing (callers may add later).
 var _ = errors.Is
+
+// ResolveCoverLogo rewrites a cover-logo reference into an absolute
+// filesystem path that picoloom can validate + embed. Picoloom's
+// Cover.Validate checks the path exists via os.Stat, so we have to
+// hand it a real path (or leave it alone for picoloom to surface a
+// "file not found" error to the user).
+//
+// Resolution order:
+//
+//   - Empty input → empty output. The cover HTML's `{{if .Logo}}`
+//     guard collapses the image zone gracefully.
+//   - Absolute path → returned verbatim. Honors fully-qualified user
+//     references like `/home/peter/team-logo.png`.
+//   - Bare filename (no slashes) → first try
+//     `<AppRoot>/pdf/covers/images/<name>`, then `<sourceDir>/<name>`.
+//     This is what makes `cover.logo: formidable.svg` work: the
+//     scaffolded default lives in the central images dir and is
+//     gigot-synced for team consistency.
+//   - Relative path with slashes → resolved against sourceDir first,
+//     then against `<AppRoot>/pdf/covers/images/<basename>` as a
+//     fallback for users who half-remember the search-path rule.
+//
+// If no candidate exists, returns the original input unchanged so
+// picoloom's own existence check produces the canonical
+// "cover logo file not found" error.
+func ResolveCoverLogo(logo, sourceDir string, fs storeFS) string {
+	if logo == "" || fs == nil {
+		return logo
+	}
+	if filepath.IsAbs(logo) {
+		return logo
+	}
+	imagesDir := path.Join(onDiskCoversDir, coverImagesSubdir)
+	if !strings.ContainsAny(logo, "/\\") {
+		// Bare filename — central images dir wins.
+		if hit := tryResolve(fs, imagesDir, logo); hit != "" {
+			return hit
+		}
+		if sourceDir != "" {
+			if hit := tryResolve(fs, sourceDir, logo); hit != "" {
+				return hit
+			}
+		}
+		return logo
+	}
+	// Relative path with slashes — sourceDir wins.
+	if sourceDir != "" {
+		if hit := tryResolve(fs, sourceDir, logo); hit != "" {
+			return hit
+		}
+	}
+	if hit := tryResolve(fs, imagesDir, filepath.Base(logo)); hit != "" {
+		return hit
+	}
+	return logo
+}
+
+// tryResolve returns the absolute path of dir/name if the file
+// exists, otherwise an empty string.
+func tryResolve(fs storeFS, dir, name string) string {
+	candidate := path.Join(dir, name)
+	if !fs.FileExists(candidate) {
+		return ""
+	}
+	return fs.ResolvePath(candidate)
+}
