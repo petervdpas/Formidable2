@@ -269,19 +269,29 @@ func New(d Deps) (*App, error) {
 
 	// pdfRender is the third per-target render.Manager (per the
 	// "one render.Manager per export target" rule). Images come back
-	// as `file:///<abs>/storage/<tpl>/images/<file>` so Chrome can
-	// load them directly off the local filesystem during PDF render.
-	// URL-escaping via pdf.ImageFileURL is mandatory: goldmark refuses
-	// unescaped spaces in link destinations, so a filename like
-	// `foo bar.png` would otherwise fall through as literal markdown
-	// text in the rendered PDF. formidable:// links stay as-is — PDF
-	// readers can't follow them usefully, but keeping them in the
-	// source means downstream consumers (e.g. a hypothetical "open in
-	// app" PDF tool) could.
-	pdfImageURL := func(templateFilename, name string) string {
-		return pdf.ImageFileURL(stoM.TemplateStorageDir(templateFilename), name)
+	// as inline `data:image/<mime>;base64,…` URLs. file:// was the
+	// natural first guess but picoloom drives Chrome via
+	// page.SetDocumentContent (i.e. an `about:blank` document); modern
+	// Chrome's security model refuses file:// loads from that origin,
+	// so images render as broken-image glyphs. Inline base64 sidesteps
+	// the policy entirely. The PoC (Stage 0) verified this path
+	// works; file:// did not.
+	//
+	// formidable:// links stay as-is — PDF readers can't follow them
+	// usefully, but keeping them in the source means downstream
+	// consumers could.
+	pdfImageDataURL := func(templateFilename, name string) string {
+		dataURL, err := stoM.LoadImageFile(templateFilename, name)
+		if err != nil {
+			return ""
+		}
+		return dataURL
 	}
-	pdfRender := render.NewManager(tplM, stoM, pdfImageURL, nil /*linkURL*/, d.Logger)
+	pdfRender := render.NewManager(tplM, stoM, pdfImageDataURL, nil /*linkURL*/, d.Logger)
+	// Wire {{imageBase64}} to the same function so templates that opt
+	// into ImgMode=inline behave identically to those using
+	// {{imageURL}} on the PDF target. One source of truth.
+	pdfRender.SetImageBase64URL(pdfImageDataURL)
 
 	// `renderM` is the slideout-context manager; the Render Wails
 	// service binds to it. Most code below references `renderM`.
