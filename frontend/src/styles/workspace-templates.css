@@ -198,3 +198,27 @@
 .pdf-fm-summary-warn h5 {
     color: var(--color-warning, #f0b74e);
 }
+
+/* Inject PDF frontmatter wizard — small number inputs and a row for
+   the "Show / Hide additional fields" toggle inside the cover
+   section. */
+.pdf-inject-number {
+    width: 80px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.1));
+    background: var(--color-bg-input, rgba(0, 0, 0, 0.2));
+    color: inherit;
+}
+.pdf-inject-more {
+    margin: 6px 0 2px;
+}
+.pdf-inject-preview {
+    margin: 14px 0 4px;
+}
+.pdf-inject-preview > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 4px 0;
+    color: var(--color-text);
+}

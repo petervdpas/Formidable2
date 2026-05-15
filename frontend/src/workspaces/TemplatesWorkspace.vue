@@ -9,6 +9,7 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CleanupStorageDialog from "../components/CleanupStorageDialog.vue";
+import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog.vue";
 import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
@@ -275,9 +276,12 @@ const cleanupOpen = ref(false);
 // preserved-as-legacy keys, and warnings before applying. Both
 // operations only edit the in-memory draft; the user still has to
 // click Save on the template to persist.
+// Migrate keeps its preview-and-confirm modal (the diff IS the point).
+// Inject moves to the form-based InjectPDFFrontmatterDialog wizard —
+// the YAML-preview UX was hostile per the user's feedback. The two
+// flows still share the apply step (write scaffold to draft).
 const pdfFmDialogOpen = ref(false);
-const pdfFmDialogMode = ref<"inject" | "migrate">("inject");
-const pdfFmProposed = ref(""); // proposed new markdown_template
+const pdfFmProposed = ref(""); // migrate preview content
 const pdfFmMigration = ref<{
   mappings: { from: string; to: string }[];
   preserved: string[];
@@ -285,17 +289,25 @@ const pdfFmMigration = ref<{
   had_frontmatter: boolean;
 } | null>(null);
 
-async function openPdfFmInject() {
+const pdfInjectOpen = ref(false);
+
+function openPdfFmInject() {
   if (!draft.value) return;
-  try {
-    const next = await PdfSvc.InjectFrontmatter(draft.value.markdown_template ?? "");
-    pdfFmProposed.value = next;
-    pdfFmMigration.value = null;
-    pdfFmDialogMode.value = "inject";
-    pdfFmDialogOpen.value = true;
-  } catch (e) {
-    toast.error("workspace.templates.pdf_fm.inject_failed", [backendErrMessage(e)]);
+  // Refuse if frontmatter already exists — direct user to Migrate.
+  const md = draft.value.markdown_template ?? "";
+  if (/^---\s*\n/.test(md)) {
+    toast.error("workspace.templates.pdf_fm.inject_refused");
+    return;
   }
+  pdfInjectOpen.value = true;
+}
+
+function applyInjectedScaffold(scaffold: string) {
+  if (!draft.value) return;
+  const md = draft.value.markdown_template ?? "";
+  draft.value.markdown_template = scaffold + md;
+  pdfInjectOpen.value = false;
+  toast.success("workspace.templates.pdf_fm.inject_applied");
 }
 
 async function openPdfFmMigrate() {
@@ -313,22 +325,17 @@ async function openPdfFmMigrate() {
       warnings: result.warnings ?? [],
       had_frontmatter: result.had_frontmatter,
     };
-    pdfFmDialogMode.value = "migrate";
     pdfFmDialogOpen.value = true;
   } catch (e) {
     toast.error("workspace.templates.pdf_fm.migrate_failed", [backendErrMessage(e)]);
   }
 }
 
-function applyPdfFm() {
+function applyMigratedPdfFm() {
   if (!draft.value) return;
   draft.value.markdown_template = pdfFmProposed.value;
   pdfFmDialogOpen.value = false;
-  toast.success(
-    pdfFmDialogMode.value === "inject"
-      ? "workspace.templates.pdf_fm.inject_applied"
-      : "workspace.templates.pdf_fm.migrate_applied",
-  );
+  toast.success("workspace.templates.pdf_fm.migrate_applied");
 }
 
 // ── Utilities → Open Folder actions ─────────────────────────────────
@@ -916,25 +923,25 @@ setTopbarMenu(() => [
     @close="cleanupOpen = false"
   />
 
-  <!-- PDF frontmatter inject / migrate preview. One dialog, two modes:
-       inject = preview the canonical scaffold prepend; migrate = preview
-       the eisvogel→picoloom rewrite with mapping summary. -->
+  <!-- Inject PDF frontmatter — form-based wizard (toggles + dropdowns). -->
+  <InjectPDFFrontmatterDialog
+    :open="pdfInjectOpen"
+    :template-name="selectedTemplate?.name"
+    @cancel="pdfInjectOpen = false"
+    @apply="applyInjectedScaffold"
+  />
+
+  <!-- Migrate PDF frontmatter — preview the eisvogel→picoloom rewrite
+       alongside a summary of mapped/preserved/warnings. Diff IS the UX
+       so this stays as a read-only preview modal. -->
   <Modal
     :open="pdfFmDialogOpen"
-    :title="t(
-      pdfFmDialogMode === 'inject'
-        ? 'workspace.templates.pdf_fm.title_inject'
-        : 'workspace.templates.pdf_fm.title_migrate',
-    )"
+    :title="t('workspace.templates.pdf_fm.title_migrate')"
     width="820px"
     @close="pdfFmDialogOpen = false"
   >
     <p class="muted small">
-      {{ t(
-        pdfFmDialogMode === 'inject'
-          ? 'workspace.templates.pdf_fm.intro_inject'
-          : 'workspace.templates.pdf_fm.intro_migrate',
-      ) }}
+      {{ t('workspace.templates.pdf_fm.intro_migrate') }}
     </p>
 
     <div v-if="pdfFmMigration" class="pdf-fm-summary">
@@ -973,7 +980,7 @@ setTopbarMenu(() => [
       <button class="tool-btn" type="button" @click="pdfFmDialogOpen = false">
         {{ t('common.cancel') }}
       </button>
-      <button class="tool-btn primary" type="button" @click="applyPdfFm">
+      <button class="tool-btn primary" type="button" @click="applyMigratedPdfFm">
         {{ t('workspace.templates.pdf_fm.action.apply') }}
       </button>
     </template>

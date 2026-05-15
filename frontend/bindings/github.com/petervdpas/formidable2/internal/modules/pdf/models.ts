@@ -371,6 +371,27 @@ export class ExportTelemetrySnapshot {
     }
 }
 
+export class FooterPositionDescriptor {
+    "name": string;
+
+    /** Creates a new FooterPositionDescriptor instance. */
+    constructor($$source: Partial<FooterPositionDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FooterPositionDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FooterPositionDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FooterPositionDescriptor($$parsedSource as Partial<FooterPositionDescriptor>);
+    }
+}
+
 /**
  * FrontmatterMapping records one key rename or value transform that
  * happened during migration. From is the original eisvogel key; To
@@ -457,6 +478,257 @@ export class FrontmatterMigration {
 }
 
 /**
+ * InjectConfig is the typed input that BuildFrontmatter renders into
+ * a picoloom v2 frontmatter YAML scaffold. The Inject dialog
+ * collects values into this shape — toggles per block, dropdowns per
+ * enum field, text inputs per cover/footer/signature field — and the
+ * backend renders the YAML deterministically.
+ * 
+ * Block pointers are nil when the user's toggle for that block is
+ * OFF, so the emitted scaffold contains only the blocks the user
+ * asked for. Style is a top-level scalar (no block to gate); empty
+ * means "no theme override".
+ * 
+ * Watermark and PageBreaks are intentionally absent — they're
+ * power-user features deferred until there's demand.
+ */
+export class InjectConfig {
+    "style"?: string;
+    "page"?: InjectPageConfig | null;
+    "cover"?: InjectCoverConfig | null;
+    "toc"?: InjectTOCConfig | null;
+    "footer"?: InjectFooterConfig | null;
+    "signature"?: InjectSignatureConfig | null;
+
+    /** Creates a new InjectConfig instance. */
+    constructor($$source: Partial<InjectConfig> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InjectConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InjectConfig {
+        const $$createField1_0 = $$createType10;
+        const $$createField2_0 = $$createType12;
+        const $$createField3_0 = $$createType14;
+        const $$createField4_0 = $$createType16;
+        const $$createField5_0 = $$createType18;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("page" in $$parsedSource) {
+            $$parsedSource["page"] = $$createField1_0($$parsedSource["page"]);
+        }
+        if ("cover" in $$parsedSource) {
+            $$parsedSource["cover"] = $$createField2_0($$parsedSource["cover"]);
+        }
+        if ("toc" in $$parsedSource) {
+            $$parsedSource["toc"] = $$createField3_0($$parsedSource["toc"]);
+        }
+        if ("footer" in $$parsedSource) {
+            $$parsedSource["footer"] = $$createField4_0($$parsedSource["footer"]);
+        }
+        if ("signature" in $$parsedSource) {
+            $$parsedSource["signature"] = $$createField5_0($$parsedSource["signature"]);
+        }
+        return new InjectConfig($$parsedSource as Partial<InjectConfig>);
+    }
+}
+
+/**
+ * InjectCoverConfig — every cover field except the picoloom-internal
+ * ones (Enabled / TemplatePath). Empty fields are skipped on emit.
+ */
+export class InjectCoverConfig {
+    "template"?: string;
+    "title"?: string;
+    "subtitle"?: string;
+    "author"?: string;
+    "author_title"?: string;
+    "organization"?: string;
+    "date"?: string;
+    "version"?: string;
+    "client_name"?: string;
+    "project_name"?: string;
+    "document_type"?: string;
+    "document_id"?: string;
+    "description"?: string;
+    "department"?: string;
+    "logo"?: string;
+
+    /** Creates a new InjectCoverConfig instance. */
+    constructor($$source: Partial<InjectCoverConfig> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InjectCoverConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InjectCoverConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InjectCoverConfig($$parsedSource as Partial<InjectCoverConfig>);
+    }
+}
+
+/**
+ * InjectFooterConfig — footer block. ShowPageNumber is a value type
+ * because the dialog always has a position for the toggle (on/off);
+ * nil-vs-false distinction isn't needed at scaffold-emit time.
+ */
+export class InjectFooterConfig {
+    "position"?: string;
+    "show_page_number": boolean;
+    "date"?: string;
+    "status"?: string;
+    "text"?: string;
+    "document_id"?: string;
+
+    /** Creates a new InjectFooterConfig instance. */
+    constructor($$source: Partial<InjectFooterConfig> = {}) {
+        if (!("show_page_number" in $$source)) {
+            this["show_page_number"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InjectFooterConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InjectFooterConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InjectFooterConfig($$parsedSource as Partial<InjectFooterConfig>);
+    }
+}
+
+/**
+ * InjectPageConfig — page layout. Values from ListPageSizes() and
+ * ListPageOrientations() drive the dropdowns; the user can also leave
+ * fields empty for picoloom defaults.
+ */
+export class InjectPageConfig {
+    "size"?: string;
+    "orientation"?: string;
+    "margin"?: number;
+
+    /** Creates a new InjectPageConfig instance. */
+    constructor($$source: Partial<InjectPageConfig> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InjectPageConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InjectPageConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InjectPageConfig($$parsedSource as Partial<InjectPageConfig>);
+    }
+}
+
+/**
+ * InjectSignatureConfig — signature block. Links (signature.links
+ * array) are deferred — out of scope for the v1 wizard.
+ */
+export class InjectSignatureConfig {
+    "name"?: string;
+    "title"?: string;
+    "email"?: string;
+    "organization"?: string;
+    "image_path"?: string;
+    "phone"?: string;
+    "address"?: string;
+    "department"?: string;
+
+    /** Creates a new InjectSignatureConfig instance. */
+    constructor($$source: Partial<InjectSignatureConfig> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InjectSignatureConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InjectSignatureConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InjectSignatureConfig($$parsedSource as Partial<InjectSignatureConfig>);
+    }
+}
+
+/**
+ * InjectTOCConfig — table-of-contents block.
+ */
+export class InjectTOCConfig {
+    "title"?: string;
+    "min_depth"?: number;
+    "max_depth"?: number;
+
+    /** Creates a new InjectTOCConfig instance. */
+    constructor($$source: Partial<InjectTOCConfig> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InjectTOCConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InjectTOCConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InjectTOCConfig($$parsedSource as Partial<InjectTOCConfig>);
+    }
+}
+
+export class OrientationDescriptor {
+    "name": string;
+
+    /** Creates a new OrientationDescriptor instance. */
+    constructor($$source: Partial<OrientationDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrientationDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrientationDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrientationDescriptor($$parsedSource as Partial<OrientationDescriptor>);
+    }
+}
+
+/**
+ * PageSizeDescriptor / OrientationDescriptor / FooterPositionDescriptor
+ * follow the same shape as TableColumnTypeDescriptor / ThemeDescriptor:
+ * just a Name string. Human labels come from frontend i18n keys
+ * (`pdf.export.dialog.page_size.<name>` etc.). Display order is
+ * significant — the slice ordering IS the dropdown ordering.
+ */
+export class PageSizeDescriptor {
+    "name": string;
+
+    /** Creates a new PageSizeDescriptor instance. */
+    constructor($$source: Partial<PageSizeDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PageSizeDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PageSizeDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PageSizeDescriptor($$parsedSource as Partial<PageSizeDescriptor>);
+    }
+}
+
+/**
  * ProbeResult is what ProbeChrome returns to the activation dialog.
  * Candidates is ordered: env-var override (if any), then system
  * matches in the platform's standard search list, then managed-cache
@@ -479,7 +751,7 @@ export class ProbeResult {
      * Creates a new ProbeResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProbeResult {
-        const $$createField0_0 = $$createType10;
+        const $$createField0_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("candidates" in $$parsedSource) {
             $$parsedSource["candidates"] = $$createField0_0($$parsedSource["candidates"]);
@@ -687,5 +959,15 @@ const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = FrontmatterMapping.createFrom;
 const $$createType7 = $Create.Array($$createType6);
 const $$createType8 = $Create.Array($Create.Any);
-const $$createType9 = ChromeCandidate.createFrom;
-const $$createType10 = $Create.Array($$createType9);
+const $$createType9 = InjectPageConfig.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = InjectCoverConfig.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = InjectTOCConfig.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = InjectFooterConfig.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = InjectSignatureConfig.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = ChromeCandidate.createFrom;
+const $$createType20 = $Create.Array($$createType19);

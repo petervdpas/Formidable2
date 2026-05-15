@@ -111,8 +111,45 @@ func (s *Service) ValidateCoverHTML(html string) CoverValidation {
 // existing `---` block is detected — the user should run
 // MigrateFrontmatter in that case. The frontend inserts the result
 // into the template editor; the user saves the template manually.
+//
+// Deprecated for new callers — prefer BuildFrontmatter(InjectConfig)
+// + your own prepend logic for full control over which blocks/values
+// land in the output. This helper survives because some callers want
+// the full canonical fully-commented placeholder scaffold.
 func (s *Service) InjectFrontmatter(markdown string) (string, error) {
 	return InjectFrontmatter(markdown)
+}
+
+// BuildFrontmatter renders a typed InjectConfig (collected by the
+// Inject dialog's toggles + dropdowns + text inputs) into a YAML
+// frontmatter block. Each block the user enabled becomes a sub-block
+// in the output, in canonical order, with empty fields skipped. The
+// frontend prepends the result to its markdown_template draft.
+func (s *Service) BuildFrontmatter(cfg InjectConfig) (string, error) {
+	return BuildFrontmatter(cfg)
+}
+
+// ListPageSizes returns picoloom's canonical page-size set in
+// dropdown order. Frontend reads this via the same pattern as
+// ListThemes / ListLocales — never hardcoded.
+func (s *Service) ListPageSizes() []PageSizeDescriptor {
+	out := make([]PageSizeDescriptor, len(builtinPageSizes))
+	copy(out, builtinPageSizes)
+	return out
+}
+
+// ListPageOrientations returns picoloom's canonical orientation set.
+func (s *Service) ListPageOrientations() []OrientationDescriptor {
+	out := make([]OrientationDescriptor, len(builtinOrientations))
+	copy(out, builtinOrientations)
+	return out
+}
+
+// ListFooterPositions returns picoloom's canonical footer-position set.
+func (s *Service) ListFooterPositions() []FooterPositionDescriptor {
+	out := make([]FooterPositionDescriptor, len(builtinFooterPositions))
+	copy(out, builtinFooterPositions)
+	return out
 }
 
 // MigrateFrontmatter rewrites an existing eisvogel/pandoc-style

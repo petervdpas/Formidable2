@@ -34,6 +34,7 @@
   "workspace.templates.pdf_fm.action.apply": "Apply to editor",
   "workspace.templates.pdf_fm.no_frontmatter": "No frontmatter to migrate — use Inject PDF Frontmatter to add a fresh scaffold.",
   "workspace.templates.pdf_fm.inject_failed": "Could not inject PDF frontmatter: {0}",
+  "workspace.templates.pdf_fm.inject_refused": "This template already has a frontmatter block. Use Migrate PDF Frontmatter instead.",
   "workspace.templates.pdf_fm.migrate_failed": "Could not migrate PDF frontmatter: {0}",
   "workspace.templates.pdf_fm.inject_applied": "PDF frontmatter scaffold inserted. Save the template to persist.",
   "workspace.templates.pdf_fm.migrate_applied": "PDF frontmatter migrated. Review and Save the template to persist.",

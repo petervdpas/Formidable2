@@ -12,6 +12,7 @@ import type {
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/models";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
+import { SwitchField } from "./fields";
 import { backendErrMessage, exportErrorOf } from "../utils/backendError";
 
 const knownExportCodes = new Set<string>([
@@ -297,10 +298,10 @@ async function doExport() {
         </p>
       </div>
 
-      <label class="pdf-export-checkbox">
-        <input type="checkbox" v-model="openAfter" />
-        <span>{{ t('pdf.export.dialog.field.open_after') }}</span>
-      </label>
+      <div class="pdf-export-row">
+        <label class="pdf-export-label">{{ t('pdf.export.dialog.field.open_after') }}</label>
+        <SwitchField v-model="openAfter" />
+      </div>
 
       <p v-if="exportError" class="form-error">{{ exportError }}</p>
     </div>

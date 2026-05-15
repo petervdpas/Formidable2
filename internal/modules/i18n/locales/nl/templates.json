@@ -34,6 +34,7 @@
   "workspace.templates.pdf_fm.action.apply": "Toepassen op editor",
   "workspace.templates.pdf_fm.no_frontmatter": "Geen frontmatter om te migreren — gebruik PDF-frontmatter injecteren om een vers sjabloon toe te voegen.",
   "workspace.templates.pdf_fm.inject_failed": "Kon PDF-frontmatter niet injecteren: {0}",
+  "workspace.templates.pdf_fm.inject_refused": "Dit sjabloon heeft al een frontmatter-blok. Gebruik PDF-frontmatter migreren in plaats hiervan.",
   "workspace.templates.pdf_fm.migrate_failed": "Kon PDF-frontmatter niet migreren: {0}",
   "workspace.templates.pdf_fm.inject_applied": "PDF-frontmatter-sjabloon ingevoegd. Sla het sjabloon op om de wijziging te bewaren.",
   "workspace.templates.pdf_fm.migrate_applied": "PDF-frontmatter gemigreerd. Controleer en sla het sjabloon op om de wijziging te bewaren.",

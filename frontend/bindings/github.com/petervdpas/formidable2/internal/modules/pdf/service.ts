@@ -29,6 +29,17 @@ export function Activate(opts: $models.ActivateOpts): $CancellablePromise<$model
 }
 
 /**
+ * BuildFrontmatter renders a typed InjectConfig (collected by the
+ * Inject dialog's toggles + dropdowns + text inputs) into a YAML
+ * frontmatter block. Each block the user enabled becomes a sub-block
+ * in the output, in canonical order, with empty fields skipped. The
+ * frontend prepends the result to its markdown_template draft.
+ */
+export function BuildFrontmatter(cfg: $models.InjectConfig): $CancellablePromise<string> {
+    return $Call.ByID(3336258372, cfg);
+}
+
+/**
  * Deactivate releases the bound Chrome binary without deleting any
  * managed download. Stage 1 always returns ErrPDFNotActivated.
  */
@@ -87,6 +98,11 @@ export function GetStatus(): $CancellablePromise<$models.Status> {
  * existing `---` block is detected — the user should run
  * MigrateFrontmatter in that case. The frontend inserts the result
  * into the template editor; the user saves the template manually.
+ * 
+ * Deprecated for new callers — prefer BuildFrontmatter(InjectConfig)
+ * + your own prepend logic for full control over which blocks/values
+ * land in the output. This helper survives because some callers want
+ * the full canonical fully-commented placeholder scaffold.
  */
 export function InjectFrontmatter(markdown: string): $CancellablePromise<string> {
     return $Call.ByID(65038787, markdown);
@@ -117,6 +133,35 @@ export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
 }
 
 /**
+ * ListFooterPositions returns picoloom's canonical footer-position set.
+ */
+export function ListFooterPositions(): $CancellablePromise<$models.FooterPositionDescriptor[]> {
+    return $Call.ByID(1619218275).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * ListPageOrientations returns picoloom's canonical orientation set.
+ */
+export function ListPageOrientations(): $CancellablePromise<$models.OrientationDescriptor[]> {
+    return $Call.ByID(4037347146).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
+/**
+ * ListPageSizes returns picoloom's canonical page-size set in
+ * dropdown order. Frontend reads this via the same pattern as
+ * ListThemes / ListLocales — never hardcoded.
+ */
+export function ListPageSizes(): $CancellablePromise<$models.PageSizeDescriptor[]> {
+    return $Call.ByID(3746256793).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
+/**
  * ListThemes returns the canonical picoloom bundled style set in
  * stable display order. The frontend uses this to populate the Theme
  * dropdown — it must NOT keep its own hardcoded list. Pure function,
@@ -124,7 +169,7 @@ export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
  */
 export function ListThemes(): $CancellablePromise<$models.ThemeDescriptor[]> {
     return $Call.ByID(2644176728).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType12($result);
     });
 }
 
@@ -147,7 +192,7 @@ export function LoadCover(name: string): $CancellablePromise<string> {
  */
 export function MigrateFrontmatter(markdown: string): $CancellablePromise<$models.FrontmatterMigration> {
     return $Call.ByID(470664647, markdown).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType13($result);
     });
 }
 
@@ -160,7 +205,7 @@ export function MigrateFrontmatter(markdown: string): $CancellablePromise<$model
  */
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType14($result);
     });
 }
 
@@ -175,7 +220,7 @@ export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
  */
 export function ResolveExportDefaults(templateFilename: string, datafile: string): $CancellablePromise<$models.ResolvedExportDefaults> {
     return $Call.ByID(2533436814, templateFilename, datafile).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType15($result);
     });
 }
 
@@ -210,7 +255,7 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
  */
 export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
     return $Call.ByID(1327021382, html).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType16($result);
     });
 }
 
@@ -220,9 +265,15 @@ const $$createType1 = $models.Result.createFrom;
 const $$createType2 = $models.ExportTelemetrySnapshot.createFrom;
 const $$createType3 = $models.CoverDescriptor.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.ThemeDescriptor.createFrom;
+const $$createType5 = $models.FooterPositionDescriptor.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.FrontmatterMigration.createFrom;
-const $$createType8 = $models.ProbeResult.createFrom;
-const $$createType9 = $models.ResolvedExportDefaults.createFrom;
-const $$createType10 = $models.CoverValidation.createFrom;
+const $$createType7 = $models.OrientationDescriptor.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.PageSizeDescriptor.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $models.ThemeDescriptor.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $models.FrontmatterMigration.createFrom;
+const $$createType14 = $models.ProbeResult.createFrom;
+const $$createType15 = $models.ResolvedExportDefaults.createFrom;
+const $$createType16 = $models.CoverValidation.createFrom;
