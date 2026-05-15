@@ -167,25 +167,48 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		input.Cover.Logo = ResolveCoverLogo(input.Cover.Logo, input.SourceDir, m.store.fs)
 	}
 
-	style := opts.Style
-	if style == "" {
-		style = merged.Style
+	// Theme precedence: opts.DisableTheme forces empty (picoloom's
+	// built-in default CSS) over both opts.Style and the merge layers.
+	// Otherwise opts.Style wins, then merged.Style.
+	var style string
+	if !opts.DisableTheme {
+		style = opts.Style
+		if style == "" {
+			style = merged.Style
+		}
 	}
 
-	// Per-export cover override: opts.CoverTemplate beats whatever
-	// the merge resolved to. Synthesize a cover block when the doc
-	// frontmatter had none, so non-doc-driven exports can still pick
-	// a cover via the dialog.
-	coverFM := merged.Cover
-	if opts.CoverTemplate != "" {
-		if coverFM == nil {
+	// Cover precedence:
+	//   1. opts.DisableCover         → no cover (forces picoloom default
+	//                                   layout regardless of any layer)
+	//   2. opts.CoverTemplate != ""  → dialog's explicit pick
+	//   3. merged.Cover.Enabled = false → frontmatter explicitly turned
+	//                                      cover off (BuildInput already
+	//                                      drops the data; we drop the
+	//                                      template here to match)
+	//   4. merged.Cover != nil       → frontmatter / manifest cover
+	//   5. nil                       → picoloom default
+	var coverFM *CoverFM
+	switch {
+	case opts.DisableCover:
+		coverFM = nil
+	case opts.CoverTemplate != "":
+		if merged.Cover == nil {
 			coverFM = &CoverFM{}
 		} else {
-			cp := *coverFM
+			cp := *merged.Cover
 			coverFM = &cp
 		}
 		coverFM.Template = opts.CoverTemplate
-		coverFM.TemplatePath = "" // opts.CoverTemplate is library-named, not a path
+		coverFM.TemplatePath = ""
+		// Explicit dialog pick re-enables the cover even if the
+		// merged frontmatter had Enabled=false.
+		on := true
+		coverFM.Enabled = &on
+	case merged.Cover != nil && merged.Cover.Enabled != nil && !*merged.Cover.Enabled:
+		coverFM = nil
+	default:
+		coverFM = merged.Cover
 	}
 
 	coverTS, err := ResolveCoverTemplateSet(coverFM, sourceDir, m.store.fs)
@@ -248,6 +271,35 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		Bytes:    len(res.PDF),
 		Duration: duration,
 	}, nil
+}
+
+// ResolveExportDefaults previews the Theme + CoverTemplate values
+// Manager.Export would compute for (templateFilename, datafile) when
+// the user gives no opts override. Read-only metadata — not gated on
+// activation, no formMu serialization. Surfaces the same Merge pipeline
+// the real Export uses, so the dialog's "(use frontmatter / template
+// default)" option can show the concrete value that will be applied.
+//
+// Renderer failures bubble up because we can't compute docFM without
+// the rendered markdown. Malformed frontmatter is tolerated (docFM
+// falls to zero, the manifest layer still contributes).
+func (m *Manager) ResolveExportDefaults(templateFilename, datafile string) (ResolvedExportDefaults, error) {
+	rendered, err := m.renderer.RenderMarkdown(templateFilename, datafile)
+	if err != nil {
+		return ResolvedExportDefaults{}, fmt.Errorf("pdf: resolve defaults: %w", err)
+	}
+	docFM, _, _ := ParseFrontmatter(rendered)
+	manifestFM := m.loadManifestFrontmatter(templateFilename)
+	merged := Merge(docFM, manifestFM)
+	out := ResolvedExportDefaults{Theme: merged.Style}
+	if merged.Cover != nil {
+		if merged.Cover.Enabled != nil && !*merged.Cover.Enabled {
+			out.CoverDisabled = true
+		} else {
+			out.CoverTemplate = merged.Cover.Template
+		}
+	}
+	return out, nil
 }
 
 // failExport maps err to a typed ExportError, emits a structured

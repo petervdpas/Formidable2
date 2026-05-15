@@ -92,6 +92,18 @@ type ExportOpts struct {
 	OutputPath    string `json:"output_path,omitempty"`
 	Style         string `json:"style,omitempty"`
 	CoverTemplate string `json:"cover_template,omitempty"`
+
+	// DisableCover forces a render with no cover page even when the
+	// merged frontmatter / template manifest supplies one. Wins over
+	// CoverTemplate. The "No cover" entry in the export dialog's
+	// dropdown sets this flag.
+	DisableCover bool `json:"disable_cover,omitempty"`
+
+	// DisableTheme forces a render with no WithStyle option (picoloom's
+	// built-in default CSS) even when the merged frontmatter / template
+	// manifest supplies a Style. Wins over both Style and the merge
+	// layers. The "No theme" entry in the dialog's dropdown sets this.
+	DisableTheme bool `json:"disable_theme,omitempty"`
 }
 
 // Result is the bound shape ExportPDF returns. The PDF bytes are not
@@ -155,4 +167,35 @@ type ExportTelemetry struct {
 type ExportTelemetrySnapshot struct {
 	LastSuccess *ExportTelemetry `json:"last_success,omitempty"`
 	LastFailure *ExportTelemetry `json:"last_failure,omitempty"`
+}
+
+// ThemeDescriptor is one entry in the dialog's Theme dropdown. The
+// Name is the canonical key passed to picoloom.WithStyle (and the
+// value stored in frontmatter `style:`); the frontend's i18n layer
+// maps Name → human label via `pdf.export.dialog.theme.<name>` keys.
+//
+// Listed by Service.ListThemes. Picoloom v2 does not enumerate its
+// bundled styles, so the Go side keeps the canonical list. When
+// picoloom adds a style (or exposes its registry), refresh `builtinThemes`
+// in service.go to match — there is no other place to update.
+type ThemeDescriptor struct {
+	Name string `json:"name"`
+}
+
+// ResolvedExportDefaults reveals what Theme + Cover Manager.Export
+// would pick for the (template, datafile) pair if the user accepts
+// the dialog's default options. The dialog uses this to label the
+// "(use frontmatter / template default)" entry with the concrete
+// value that will actually be applied — so a template whose frontmatter
+// has no `style:` shows up as "(no theme — picoloom built-in)" instead
+// of pretending a frontmatter override exists.
+//
+// Empty Theme / CoverTemplate strings mean "no override in any merge
+// layer — picoloom's own built-in default will be used at render time".
+// CoverDisabled distinguishes that-from "frontmatter said cover.enabled:
+// false" so the dialog can show a more specific label.
+type ResolvedExportDefaults struct {
+	Theme         string `json:"theme"`
+	CoverTemplate string `json:"cover_template"`
+	CoverDisabled bool   `json:"cover_disabled,omitempty"`
 }

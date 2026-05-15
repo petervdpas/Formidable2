@@ -106,6 +106,18 @@ export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
 }
 
 /**
+ * ListThemes returns the canonical picoloom bundled style set in
+ * stable display order. The frontend uses this to populate the Theme
+ * dropdown — it must NOT keep its own hardcoded list. Pure function,
+ * safe regardless of activation state.
+ */
+export function ListThemes(): $CancellablePromise<$models.ThemeDescriptor[]> {
+    return $Call.ByID(2644176728).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
  * LoadCover returns the raw HTML for an existing cover. Skips
  * validation so the editor can load a broken file and let the user
  * fix it; the frontend should call ValidateCoverHTML on the loaded
@@ -124,7 +136,22 @@ export function LoadCover(name: string): $CancellablePromise<string> {
  */
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
+    });
+}
+
+/**
+ * ResolveExportDefaults previews the Theme + Cover that Manager.Export
+ * would pick for (template, datafile) under the dialog's default
+ * options. The dialog reads this on open and labels its default
+ * dropdown entry with the concrete value — so users know whether
+ * the template's frontmatter actually supplies a theme/cover or whether
+ * the picoloom built-in defaults kick in. Read-only; safe regardless
+ * of activation state.
+ */
+export function ResolveExportDefaults(templateFilename: string, datafile: string): $CancellablePromise<$models.ResolvedExportDefaults> {
+    return $Call.ByID(2533436814, templateFilename, datafile).then(($result: any) => {
+        return $$createType8($result);
     });
 }
 
@@ -159,7 +186,7 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
  */
 export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
     return $Call.ByID(1327021382, html).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType9($result);
     });
 }
 
@@ -169,5 +196,8 @@ const $$createType1 = $models.Result.createFrom;
 const $$createType2 = $models.ExportTelemetrySnapshot.createFrom;
 const $$createType3 = $models.CoverDescriptor.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.ProbeResult.createFrom;
-const $$createType6 = $models.CoverValidation.createFrom;
+const $$createType5 = $models.ThemeDescriptor.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.ProbeResult.createFrom;
+const $$createType8 = $models.ResolvedExportDefaults.createFrom;
+const $$createType9 = $models.CoverValidation.createFrom;

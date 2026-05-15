@@ -6,7 +6,10 @@ import { useDialog } from "../composables/useDialog";
 import { useToast } from "../composables/useToast";
 import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
-import type { CoverDescriptor } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/models";
+import type {
+  CoverDescriptor,
+  ThemeDescriptor,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/models";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { backendErrMessage, exportErrorOf } from "../utils/backendError";
@@ -45,18 +48,25 @@ const { chooseDirectory } = useDialog();
 const toast = useToast();
 const { status, refreshLastExport } = usePDFActivation();
 
-// Picoloom's embedded theme names. "" maps to picoloom's default
-// (no WithStyle option passed). Stage 6 will add custom-CSS support.
-const themes = [
-  { value: "", labelKey: "pdf.export.dialog.theme.default_label" },
-  { value: "technical", labelKey: "pdf.export.dialog.theme.technical" },
-  { value: "academic", labelKey: "pdf.export.dialog.theme.academic" },
-  { value: "corporate", labelKey: "pdf.export.dialog.theme.corporate" },
-  { value: "legal", labelKey: "pdf.export.dialog.theme.legal" },
-  { value: "invoice", labelKey: "pdf.export.dialog.theme.invoice" },
-  { value: "manuscript", labelKey: "pdf.export.dialog.theme.manuscript" },
-  { value: "creative", labelKey: "pdf.export.dialog.theme.creative" },
-];
+// Theme list comes from the backend (PdfSvc.ListThemes) — never
+// hardcoded here. Names are picoloom's canonical keys; human labels
+// come from `pdf.export.dialog.theme.<name>` i18n keys with the raw
+// name as the fallback for any theme the backend adds before its i18n
+// landed.
+const themes = ref<ThemeDescriptor[]>([]);
+
+function themeLabel(name: string): string {
+  const key = `pdf.export.dialog.theme.${name}`;
+  const translated = t(key);
+  return translated === key ? name : translated;
+}
+
+// Sentinel values for the explicit "force off" dropdown entries.
+// The backend has dedicated bool flags (ExportOpts.DisableTheme /
+// DisableCover); the dialog round-trips through these strings so the
+// dropdown widget can express the third state.
+const NO_THEME_SENTINEL = "__no_theme__";
+const NO_COVER_SENTINEL = "__no_cover__";
 
 const folder = ref("");
 const filename = ref("");
@@ -66,6 +76,27 @@ const covers = ref<CoverDescriptor[]>([]);
 const openAfter = ref(true);
 const exporting = ref(false);
 const exportError = ref("");
+const resolvedTheme = ref("");
+const resolvedCover = ref("");
+const resolvedCoverDisabled = ref(false);
+
+// Default-option label reveals what frontmatter / template manifest
+// would actually resolve to, so the user can see at a glance whether
+// a theme/cover is supplied or whether picoloom's built-in default
+// kicks in. Falls back to a generic label when resolution fails.
+const themeDefaultLabel = computed(() =>
+  resolvedTheme.value
+    ? t("pdf.export.dialog.theme.default_resolved", [resolvedTheme.value])
+    : t("pdf.export.dialog.theme.default_picoloom"),
+);
+const coverDefaultLabel = computed(() => {
+  if (resolvedCoverDisabled.value) {
+    return t("pdf.export.dialog.cover.default_disabled");
+  }
+  return resolvedCover.value
+    ? t("pdf.export.dialog.cover.default_resolved", [resolvedCover.value])
+    : t("pdf.export.dialog.cover.default_picoloom");
+});
 
 function pdfBasename(datafile: string): string {
   // Mirror the backend's pdfBasename: strip `.meta.json` then any
@@ -100,13 +131,36 @@ async function resetForOpen() {
   } else {
     folder.value = "";
   }
-  // Cover dropdown lives on disk — scan now so user-added .html files
-  // appear without restart. Failure here keeps the dialog usable
-  // (covers stay empty → user gets picoloom default).
+  // Cover + theme dropdowns live on the backend — scan now so any
+  // newly-added entry appears without a restart. Failure here keeps
+  // the dialog usable (lists stay empty → user gets picoloom default).
   try {
     covers.value = (await PdfSvc.ListCovers()) ?? [];
   } catch {
     covers.value = [];
+  }
+  try {
+    themes.value = (await PdfSvc.ListThemes()) ?? [];
+  } catch {
+    themes.value = [];
+  }
+  // Resolve what the dialog's default options will actually apply so
+  // the dropdown labels can tell the truth (e.g. "(frontmatter: technical)"
+  // vs "(no theme — picoloom built-in)"). A render error here just
+  // leaves the labels in the picoloom-built-in state.
+  resolvedTheme.value = "";
+  resolvedCover.value = "";
+  resolvedCoverDisabled.value = false;
+  try {
+    const resolved = await PdfSvc.ResolveExportDefaults(
+      props.templateFilename,
+      props.datafile,
+    );
+    resolvedTheme.value = resolved.theme ?? "";
+    resolvedCover.value = resolved.cover_template ?? "";
+    resolvedCoverDisabled.value = resolved.cover_disabled ?? false;
+  } catch {
+    /* resolution failed — labels degrade to the picoloom-default state */
   }
 }
 
@@ -142,10 +196,14 @@ async function doExport() {
   exportError.value = "";
   try {
     const outputPath = joinPath(folder.value.trim(), filename.value.trim());
+    const disableTheme = style.value === NO_THEME_SENTINEL;
+    const disableCover = coverName.value === NO_COVER_SENTINEL;
     const result = await PdfSvc.ExportPDF(props.templateFilename, props.datafile, {
       output_path: outputPath,
-      style: style.value,
-      cover_template: coverName.value,
+      style: disableTheme ? "" : style.value,
+      cover_template: disableCover ? "" : coverName.value,
+      disable_theme: disableTheme,
+      disable_cover: disableCover,
     });
     toast.success("pdf.export.dialog.toast.success");
     if (openAfter.value && result.path) {
@@ -212,8 +270,10 @@ async function doExport() {
       <div class="pdf-export-row">
         <label class="pdf-export-label">{{ t('pdf.export.dialog.field.theme') }}</label>
         <select v-model="style" class="pdf-export-input">
-          <option v-for="th in themes" :key="th.value" :value="th.value">
-            {{ t(th.labelKey) }}
+          <option value="">{{ themeDefaultLabel }}</option>
+          <option :value="NO_THEME_SENTINEL">{{ t('pdf.export.dialog.theme.none') }}</option>
+          <option v-for="th in themes" :key="th.name" :value="th.name">
+            {{ themeLabel(th.name) }}
           </option>
         </select>
       </div>
@@ -221,7 +281,8 @@ async function doExport() {
       <div class="pdf-export-row">
         <label class="pdf-export-label">{{ t('pdf.export.dialog.field.cover') }}</label>
         <select v-model="coverName" class="pdf-export-input">
-          <option value="">{{ t('pdf.export.dialog.cover.use_default') }}</option>
+          <option value="">{{ coverDefaultLabel }}</option>
+          <option :value="NO_COVER_SENTINEL">{{ t('pdf.export.dialog.cover.none') }}</option>
           <option
             v-for="c in covers"
             :key="c.name"

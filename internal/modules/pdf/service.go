@@ -1,5 +1,23 @@
 package pdf
 
+// builtinThemes is picoloom v2's canonical bundled style set. Picoloom
+// does not expose a registry method, so this list IS the single source
+// of truth on the Go side — the frontend reads it via ListThemes() and
+// never hardcodes its own copy. Keep ordering stable: it's the order
+// the dropdown will display.
+//
+// TODO: upstream a picoloom.ListStyles() or Asset registry method so
+// this can become a pass-through instead of a duplicated list.
+var builtinThemes = []ThemeDescriptor{
+	{Name: "technical"},
+	{Name: "academic"},
+	{Name: "corporate"},
+	{Name: "legal"},
+	{Name: "invoice"},
+	{Name: "manuscript"},
+	{Name: "creative"},
+}
+
 // Service is the Wails-bound surface over Manager. The Information
 // workspace activation panel and any "Export as PDF" trigger call
 // these methods directly — there is no HTTP handler peer, PDF
@@ -86,6 +104,27 @@ func (s *Service) SaveCover(name, html string) error {
 // function — no I/O, no side effects.
 func (s *Service) ValidateCoverHTML(html string) CoverValidation {
 	return ValidateCover(html)
+}
+
+// ListThemes returns the canonical picoloom bundled style set in
+// stable display order. The frontend uses this to populate the Theme
+// dropdown — it must NOT keep its own hardcoded list. Pure function,
+// safe regardless of activation state.
+func (s *Service) ListThemes() []ThemeDescriptor {
+	out := make([]ThemeDescriptor, len(builtinThemes))
+	copy(out, builtinThemes)
+	return out
+}
+
+// ResolveExportDefaults previews the Theme + Cover that Manager.Export
+// would pick for (template, datafile) under the dialog's default
+// options. The dialog reads this on open and labels its default
+// dropdown entry with the concrete value — so users know whether
+// the template's frontmatter actually supplies a theme/cover or whether
+// the picoloom built-in defaults kick in. Read-only; safe regardless
+// of activation state.
+func (s *Service) ResolveExportDefaults(templateFilename, datafile string) (ResolvedExportDefaults, error) {
+	return s.m.ResolveExportDefaults(templateFilename, datafile)
 }
 
 // LoadCover returns the raw HTML for an existing cover. Skips

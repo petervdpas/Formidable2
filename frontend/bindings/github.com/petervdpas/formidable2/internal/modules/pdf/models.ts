@@ -246,6 +246,22 @@ export class ExportOpts {
     "style"?: string;
     "cover_template"?: string;
 
+    /**
+     * DisableCover forces a render with no cover page even when the
+     * merged frontmatter / template manifest supplies one. Wins over
+     * CoverTemplate. The "No cover" entry in the export dialog's
+     * dropdown sets this flag.
+     */
+    "disable_cover"?: boolean;
+
+    /**
+     * DisableTheme forces a render with no WithStyle option (picoloom's
+     * built-in default CSS) even when the merged frontmatter / template
+     * manifest supplies a Style. Wins over both Style and the merge
+     * layers. The "No theme" entry in the dialog's dropdown sets this.
+     */
+    "disable_theme"?: boolean;
+
     /** Creates a new ExportOpts instance. */
     constructor($$source: Partial<ExportOpts> = {}) {
 
@@ -388,6 +404,46 @@ export class ProbeResult {
 }
 
 /**
+ * ResolvedExportDefaults reveals what Theme + Cover Manager.Export
+ * would pick for the (template, datafile) pair if the user accepts
+ * the dialog's default options. The dialog uses this to label the
+ * "(use frontmatter / template default)" entry with the concrete
+ * value that will actually be applied — so a template whose frontmatter
+ * has no `style:` shows up as "(no theme — picoloom built-in)" instead
+ * of pretending a frontmatter override exists.
+ * 
+ * Empty Theme / CoverTemplate strings mean "no override in any merge
+ * layer — picoloom's own built-in default will be used at render time".
+ * CoverDisabled distinguishes that-from "frontmatter said cover.enabled:
+ * false" so the dialog can show a more specific label.
+ */
+export class ResolvedExportDefaults {
+    "theme": string;
+    "cover_template": string;
+    "cover_disabled"?: boolean;
+
+    /** Creates a new ResolvedExportDefaults instance. */
+    constructor($$source: Partial<ResolvedExportDefaults> = {}) {
+        if (!("theme" in $$source)) {
+            this["theme"] = "";
+        }
+        if (!("cover_template" in $$source)) {
+            this["cover_template"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ResolvedExportDefaults instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ResolvedExportDefaults {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ResolvedExportDefaults($$parsedSource as Partial<ResolvedExportDefaults>);
+    }
+}
+
+/**
  * Result is the bound shape ExportPDF returns. The PDF bytes are not
  * in the result — they go straight to disk via system.SaveFile. The
  * frontend uses Path to surface an "Open" link in the success toast.
@@ -501,6 +557,38 @@ export class Status {
     static createFrom($$source: any = {}): Status {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new Status($$parsedSource as Partial<Status>);
+    }
+}
+
+/**
+ * ThemeDescriptor is one entry in the dialog's Theme dropdown. The
+ * Name is the canonical key passed to picoloom.WithStyle (and the
+ * value stored in frontmatter `style:`); the frontend's i18n layer
+ * maps Name → human label via `pdf.export.dialog.theme.<name>` keys.
+ * 
+ * Listed by Service.ListThemes. Picoloom v2 does not enumerate its
+ * bundled styles, so the Go side keeps the canonical list. When
+ * picoloom adds a style (or exposes its registry), refresh `builtinThemes`
+ * in service.go to match — there is no other place to update.
+ */
+export class ThemeDescriptor {
+    "name": string;
+
+    /** Creates a new ThemeDescriptor instance. */
+    constructor($$source: Partial<ThemeDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ThemeDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ThemeDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ThemeDescriptor($$parsedSource as Partial<ThemeDescriptor>);
     }
 }
 

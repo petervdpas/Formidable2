@@ -18,7 +18,9 @@ export {
     ExportTelemetry,
     ExportTelemetrySnapshot,
     ProbeResult,
+    ResolvedExportDefaults,
     Result,
     Source,
-    Status
+    Status,
+    ThemeDescriptor
 } from "./models.js";
