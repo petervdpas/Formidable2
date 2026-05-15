@@ -267,6 +267,19 @@ func New(d Deps) (*App, error) {
 	}
 	wikiRender := render.NewManager(tplM, stoM, wikiImageURL, wikiLinkURL, d.Logger)
 
+	// pdfRender is the third per-target render.Manager (per the
+	// "one render.Manager per export target" rule). Images come back
+	// as `file:///<abs>/storage/<tpl>/images/<file>` so Chrome can
+	// load them directly off the local filesystem during PDF render.
+	// formidable:// links stay as-is — PDF readers can't follow them
+	// usefully, but keeping them in the source means downstream
+	// consumers (e.g. a hypothetical "open in app" PDF tool) could.
+	pdfImageURL := func(templateFilename, name string) string {
+		dir := stoM.TemplateStorageDir(templateFilename)
+		return "file://" + filepath.Join(dir, "images", name)
+	}
+	pdfRender := render.NewManager(tplM, stoM, pdfImageURL, nil /*linkURL*/, d.Logger)
+
 	// `renderM` is the slideout-context manager; the Render Wails
 	// service binds to it. Most code below references `renderM`.
 	renderM := slideoutRender
@@ -512,12 +525,13 @@ func New(d Deps) (*App, error) {
 	// the Manager stays transport-neutral.
 	gigotM := gigot.NewManager(sysM)
 
-	// PDF export — Stage 2. Manager probes system + managed-cache
+	// PDF export — Stage 4. Manager probes system + managed-cache
 	// Chrome on demand, persists activation per-machine to
-	// <AppRoot>/config/.pdf-state.json via sysM. Formidable does not
-	// bundle or download Chrome; the user installs one themselves.
-	// See design/pdf-export.md.
-	pdfM := pdf.NewManager(d.Logger, sysM)
+	// <AppRoot>/config/.pdf-state.json via sysM, and renders forms
+	// through the pdfRender Manager + picoloom converter. Formidable
+	// does not bundle or download Chrome; the user installs one
+	// themselves. See design/pdf-export.md.
+	pdfM := pdf.NewManager(d.Logger, sysM, pdfRender, stoM, nil /*real picoloom factory*/)
 	if err := pdfM.Restore(); err != nil {
 		d.Logger.Warn("pdf: state restore failed", "err", err)
 	}

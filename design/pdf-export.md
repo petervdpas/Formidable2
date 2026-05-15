@@ -219,18 +219,21 @@ Each stage follows TDD per project convention: tests/Gherkin first, implementati
 
 **Definition of done**: `BuildInput` round-trips every settable knob; merge priority verified for every key; malformed frontmatter returns `ErrFrontmatterMalformed` + verbatim body. **Status**: 32 unit tests + 13 godog scenarios green.
 
-### Stage 4 — Render pipeline integration
+### Stage 4 — Render pipeline integration (shipped 2026-05-15)
 
-**Goal**: `pdf.Service.ExportPDF(formGUID)` produces a PDF on disk by stitching `render` and `pdf` together.
+**Goal**: `pdf.Service.ExportPDF(templateFilename, datafile)` produces a PDF on disk by stitching `render` and `pdf` together.
 
-- `pdf.Renderer` constructed per export call with `(formGUID, exportPath)`.
-- Calls `render.Manager.RenderForm(formGUID)` to get the raymond-expanded markdown (with frontmatter still embedded — `render` shouldn't strip it for PDF target).
-- Parses frontmatter, builds `picoloom.Input`, calls `picoloom.Converter.Convert`.
-- Writes result via `system.SaveFile`. Atomic.
-- Output path resolution: `<form>.pdf` next to the form by default, overridable via `ExportOpts.OutputPath`.
-- Concurrent export: per-form serialization (mutex on the `formGUID`); independent forms can render in parallel.
+- Service signature: `ExportPDF(templateFilename, datafile string, opts ExportOpts) (Result, error)` — `formGUID` from the Stage 1 stub was provisional; the addressing scheme is `(template, datafile)` per the rest of the project.
+- `Manager.Export` calls `render.Manager.RenderMarkdown(tpl, df)` to get the raymond-expanded markdown (with frontmatter still embedded — render's Handlebars stage leaves it alone).
+- Parses + merges frontmatter (Stage 4 carries only the doc layer; form-meta / manifest / global layers wire in at Stage 6+), builds `picoloom.Input`, defaults `SourceDir` to `storage.TemplateStorageDir(tpl)` so relative images resolve.
+- Calls a `converterFactory func(browserBin, style string) (converter, error)`. Production wraps `picoloom.NewConverter` and sets `ROD_BROWSER_BIN` to the active browser path. Tests inject a stub so the unit suite never boots Chrome.
+- `Style` precedence: `ExportOpts.Style > merged.Style > ""` (empty → picoloom default theme).
+- Output path resolution: `ExportOpts.OutputPath` wins (absolute as-is, relative resolved against `ExportDir` or storage dir). Otherwise `<Status.ExportDir>/<basename>.pdf` if set, else `<storage dir>/<basename>.pdf`. Basename strips `.meta.json` then any residual extension (`adapter-eum.meta.json` → `adapter-eum.pdf`).
+- Writes via `system.SaveFile` (atomic temp+fsync+rename).
+- Concurrent export: per-form serialization via `keymu.Map` keyed on `<tpl>|<datafile>`; distinct forms render in parallel.
+- Composition root: a third `render.Manager` (`pdfRender`) wired with `pdfImageURL` emitting `file:///<abs>/storage/<tpl>/images/<file>` so Chrome can load images directly.
 
-**Definition of done**: every Examples/template form can be exported to PDF without errors; round-trips known frontmatter keys to visible PDF effects (cover title, watermark, TOC entries, page break before H1).
+**Definition of done**: backend pipeline + tests green (60+ unit tests + 20 godog scenarios). Real-Chrome verification of every Examples form happens hands-on in Stage 5 (UI trigger).
 
 ### Stage 5 — Export action UI wiring
 

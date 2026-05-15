@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 )
@@ -11,7 +12,12 @@ import (
 // memFS is an in-memory storeFS so tests don't touch real disk.
 // Missing-file reads return fs.ErrNotExist so the store's
 // isMissingErr branch is exercised exactly as in production.
+//
+// The internal map is guarded by mu so parallel-Export tests don't
+// trip the race detector. Production storeFS is *system.Manager,
+// whose SaveFile is already serialized at the os.Rename level.
 type memFS struct {
+	mu      sync.Mutex
 	files   map[string]string
 	saveErr error
 	loadErr error
@@ -19,9 +25,16 @@ type memFS struct {
 
 func newMemFS() *memFS { return &memFS{files: map[string]string{}} }
 
-func (m *memFS) FileExists(path string) bool { _, ok := m.files[path]; return ok }
+func (m *memFS) FileExists(path string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	_, ok := m.files[path]
+	return ok
+}
 
 func (m *memFS) LoadFile(path string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.loadErr != nil {
 		return "", m.loadErr
 	}
@@ -33,6 +46,8 @@ func (m *memFS) LoadFile(path string) (string, error) {
 }
 
 func (m *memFS) SaveFile(path, content string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.saveErr != nil {
 		return m.saveErr
 	}

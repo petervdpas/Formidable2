@@ -37,11 +37,14 @@ func (s *Service) Activate(opts ActivateOpts) (Status, error) {
 // managed download. Stage 1 always returns ErrPDFNotActivated.
 func (s *Service) Deactivate() error { return s.m.Deactivate() }
 
-// ExportPDF renders the form identified by formGUID. Stage 1 always
-// returns ErrPDFNotActivated; Stage 4 wires the render → picoloom →
-// system.SaveFile pipeline.
-func (s *Service) ExportPDF(formGUID string, opts ExportOpts) (Result, error) {
-	return s.m.Export(formGUID, opts)
+// ExportPDF renders the (templateFilename, datafile) form to a PDF
+// on disk. Pipeline: render markdown → parse + merge frontmatter →
+// build picoloom.Input → convert → atomic write. Returns
+// ErrPDFNotActivated when the engine is inactive; otherwise wraps
+// any downstream error with context. See pdf.Manager.Export for the
+// full contract.
+func (s *Service) ExportPDF(templateFilename, datafile string, opts ExportOpts) (Result, error) {
+	return s.m.Export(templateFilename, datafile, opts)
 }
 
 // SetExportDir adopts a per-machine "where PDFs land" preference.

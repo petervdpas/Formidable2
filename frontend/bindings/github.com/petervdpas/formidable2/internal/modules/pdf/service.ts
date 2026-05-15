@@ -37,12 +37,15 @@ export function Deactivate(): $CancellablePromise<void> {
 }
 
 /**
- * ExportPDF renders the form identified by formGUID. Stage 1 always
- * returns ErrPDFNotActivated; Stage 4 wires the render → picoloom →
- * system.SaveFile pipeline.
+ * ExportPDF renders the (templateFilename, datafile) form to a PDF
+ * on disk. Pipeline: render markdown → parse + merge frontmatter →
+ * build picoloom.Input → convert → atomic write. Returns
+ * ErrPDFNotActivated when the engine is inactive; otherwise wraps
+ * any downstream error with context. See pdf.Manager.Export for the
+ * full contract.
  */
-export function ExportPDF(formGUID: string, opts: $models.ExportOpts): $CancellablePromise<$models.Result> {
-    return $Call.ByID(691812250, formGUID, opts).then(($result: any) => {
+export function ExportPDF(templateFilename: string, datafile: string, opts: $models.ExportOpts): $CancellablePromise<$models.Result> {
+    return $Call.ByID(691812250, templateFilename, datafile, opts).then(($result: any) => {
         return $$createType1($result);
     });
 }

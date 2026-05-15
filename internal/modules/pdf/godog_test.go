@@ -109,8 +109,8 @@ func initPDFScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	ctx.Step(`^I ExportPDF through the service for form "([^"]*)" with no options$`, func(guid string) error {
-		w.result, w.actionErr = w.svc.ExportPDF(guid, ExportOpts{})
+	ctx.Step(`^I ExportPDF through the service for form "([^"]*)" with no options$`, func(datafile string) error {
+		w.result, w.actionErr = w.svc.ExportPDF("tpl.yaml", datafile, ExportOpts{})
 		w.status = w.svc.GetStatus()
 		return nil
 	})

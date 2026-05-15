@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/petervdpas/formidable2/internal/util/keymu"
 )
 
 // ErrNoBrowserFound is returned when an auto-pick Activate finds no
@@ -35,6 +37,11 @@ var ErrInvalidExportDir = errors.New("pdf: invalid export directory")
 // directory. Injected so tests don't touch the real filesystem; in
 // production it's a tiny os.Stat wrapper.
 //
+// renderer / storage / convertFn are Stage 4 dependencies for the
+// real Export pipeline. NewManager wires real implementations; tests
+// inject stubs. formMu serializes concurrent Export calls for the
+// same (template, datafile) pair; distinct forms render in parallel.
+//
 // All exported methods are safe for concurrent use.
 type Manager struct {
 	log    *slog.Logger
@@ -43,25 +50,45 @@ type Manager struct {
 	nowFn  func() time.Time
 	dirOK  func(string) bool
 
+	renderer  renderer
+	storage   storageFS
+	convertFn converterFactory
+	formMu    keymu.Map
+
 	mu     sync.RWMutex
 	status Status
 }
 
 // NewManager constructs an inactive manager. The composition root
 // calls Restore() once at boot to load any persisted activation
-// from <AppRoot>/config/.pdf-state.json. sys may be nil — Stage 1
-// tests and headless test runs pass nil and the store no-ops.
-func NewManager(log *slog.Logger, sys storeFS) *Manager {
+// from <AppRoot>/config/.pdf-state.json.
+//
+//   - sys: storeFS used both for the activation state file AND for
+//     atomically writing the generated PDF. *system.Manager
+//     satisfies it; tests use the in-memory memFS.
+//   - rdr / stg: render + storage slices used by Stage 4 Export.
+//     May be nil — Export() will fail until they're wired, but the
+//     activation half (Status, Activate, Deactivate, Restore) works
+//     fine without them, so Stage 1/2 tests can pass nil.
+//   - convertFn: how to build a converter for one export call. Nil
+//     defaults to the real picoloom-backed factory.
+func NewManager(log *slog.Logger, sys storeFS, rdr renderer, stg storageFS, convertFn converterFactory) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}
+	if convertFn == nil {
+		convertFn = realConverterFactory
+	}
 	return &Manager{
-		log:    log,
-		store:  &store{fs: sys, log: log},
-		prober: newProber(),
-		nowFn:  time.Now,
-		dirOK:  realDirOK,
-		status: Status{Source: SourceUnset},
+		log:       log,
+		store:     &store{fs: sys, log: log},
+		prober:    newProber(),
+		nowFn:     time.Now,
+		dirOK:     realDirOK,
+		renderer:  rdr,
+		storage:   stg,
+		convertFn: convertFn,
+		status:    Status{Source: SourceUnset},
 	}
 }
 
@@ -263,16 +290,10 @@ func (m *Manager) SetExportDir(path string) (Status, error) {
 	return out, nil
 }
 
-// Export is a Stage 4 entry point. The Active check short-circuits
-// here so the rendering pipeline is never constructed for an
-// inactive engine — Chrome must not boot until the user has opted in.
-func (m *Manager) Export(formGUID string, opts ExportOpts) (Result, error) {
-	m.log.Debug("pdf: export", "form_guid", formGUID, "output_path", opts.OutputPath, "style", opts.Style)
-	if !m.Status().Active {
-		return Result{}, ErrPDFNotActivated
-	}
-	return Result{}, errors.New("pdf: export not yet implemented (Stage 4)")
-}
+// Export now lives in render.go (Stage 4 pipeline). The Active check
+// short-circuits there so the rendering pipeline is never constructed
+// for an inactive engine — Chrome must not boot until the user has
+// opted in.
 
 // Probe runs the activation probe without mutating state. Used by
 // the Information-page dialog to render the candidate list before

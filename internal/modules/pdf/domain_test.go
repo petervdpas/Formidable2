@@ -3,7 +3,6 @@ package pdf
 import (
 	"errors"
 	"log/slog"
-	"strings"
 	"testing"
 	"time"
 )
@@ -28,7 +27,7 @@ func newTestManager(t *testing.T) (*Manager, *memFS, fakeFS, fakeVersions) {
 }
 
 func TestNewManagerDefaultStatus(t *testing.T) {
-	m := NewManager(nil, nil)
+	m := NewManager(nil, nil, nil, nil, nil)
 	s := m.Status()
 	if s.Active {
 		t.Errorf("fresh manager active=true, want false")
@@ -221,16 +220,17 @@ func TestRestore_DropsStalePersistedPath(t *testing.T) {
 func TestExport_InactiveReturnsNotActivated(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		guid string
+		tpl  string
+		df   string
 		opts ExportOpts
 	}{
-		{"with guid", "abc-123", ExportOpts{}},
-		{"empty guid", "", ExportOpts{}},
-		{"with options", "abc-123", ExportOpts{OutputPath: "/tmp/x.pdf", Style: "technical"}},
+		{"defaults", "tpl.yaml", "form-1.meta.json", ExportOpts{}},
+		{"empty datafile", "tpl.yaml", "", ExportOpts{}},
+		{"with options", "tpl.yaml", "form-1.meta.json", ExportOpts{OutputPath: "/tmp/x.pdf", Style: "technical"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			m, _, _, _ := newTestManager(t)
-			res, err := m.Export(tc.guid, tc.opts)
+			res, err := m.Export(tc.tpl, tc.df, tc.opts)
 			if !errors.Is(err, ErrPDFNotActivated) {
 				t.Errorf("Export err = %v, want ErrPDFNotActivated", err)
 			}
@@ -238,25 +238,6 @@ func TestExport_InactiveReturnsNotActivated(t *testing.T) {
 				t.Errorf("Export result = %+v, want zero value", res)
 			}
 		})
-	}
-}
-
-func TestExport_ActiveReturnsStage4Stub(t *testing.T) {
-	m, _, fs, vers := newTestManager(t)
-	fs["/usr/bin/chromium"] = true
-	vers["/usr/bin/chromium"] = struct {
-		version string
-		err     error
-	}{version: "v1", err: nil}
-	if _, err := m.Activate(ActivateOpts{BrowserBin: "/usr/bin/chromium"}); err != nil {
-		t.Fatalf("seed Activate: %v", err)
-	}
-	_, err := m.Export("any", ExportOpts{})
-	if err == nil || errors.Is(err, ErrPDFNotActivated) {
-		t.Errorf("active Export err = %v, want non-nil stage-4 stub error", err)
-	}
-	if !strings.Contains(err.Error(), "Stage 4") {
-		t.Errorf("active Export err = %v, want Stage 4 marker", err)
 	}
 }
 
@@ -270,7 +251,7 @@ func TestNewServiceNilManagerPanics(t *testing.T) {
 }
 
 func TestServiceMirrorsManager(t *testing.T) {
-	svc := NewService(NewManager(nil, nil))
+	svc := NewService(NewManager(nil, nil, nil, nil, nil))
 	if svc.GetStatus().Active {
 		t.Errorf("fresh service status active=true")
 	}
