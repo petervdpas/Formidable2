@@ -37,6 +37,17 @@ export function Deactivate(): $CancellablePromise<void> {
 }
 
 /**
+ * DeleteCover removes a user-added or seed cover from disk. Seed
+ * covers (classic/banner/corporate) reappear at next boot via the
+ * scaffold — the frontend should phrase this as "Reset" rather than
+ * "Delete" for those entries. Refuses reserved names with
+ * ErrCoverNotFound. Missing files are not an error.
+ */
+export function DeleteCover(name: string): $CancellablePromise<void> {
+    return $Call.ByID(1910310356, name);
+}
+
+/**
  * ExportPDF renders the (templateFilename, datafile) form to a PDF
  * on disk. Pipeline: render markdown → parse + merge frontmatter →
  * build picoloom.Input → convert → atomic write. Returns
@@ -92,6 +103,16 @@ export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
     return $Call.ByID(476206190).then(($result: any) => {
         return $$createType4($result);
     });
+}
+
+/**
+ * LoadCover returns the raw HTML for an existing cover. Skips
+ * validation so the editor can load a broken file and let the user
+ * fix it; the frontend should call ValidateCoverHTML on the loaded
+ * content to surface issues. Reserved names return ErrCoverNotFound.
+ */
+export function LoadCover(name: string): $CancellablePromise<string> {
+    return $Call.ByID(2607383821, name);
 }
 
 /**

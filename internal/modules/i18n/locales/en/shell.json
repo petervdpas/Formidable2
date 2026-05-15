@@ -279,6 +279,7 @@
   "workspace.information.section.journal_feed": "Journal Feed",
   "workspace.information.section.logging": "Logging",
   "workspace.information.section.pdf_export": "PDF Export",
+  "workspace.information.section.pdf_covers": "PDF Covers",
   "workspace.information.logging.info": "System log stream. Live tail shows entries broadcast in-process; the raw file is the on-disk formidable.log truncated each app start.",
   "workspace.information.logging.tab.live": "Live tail",
   "workspace.information.logging.tab.raw": "Raw log file",

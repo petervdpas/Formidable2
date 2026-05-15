@@ -7,6 +7,7 @@ import { Prec } from "@codemirror/state";
 import { StreamLanguage } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
 import { yaml } from "@codemirror/lang-yaml";
+import { html } from "@codemirror/lang-html";
 import { lua as luaMode } from "@codemirror/legacy-modes/mode/lua";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useTheme } from "../composables/useTheme";
@@ -15,8 +16,8 @@ const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
-    /** Language hint: 'markdown' (default — Handlebars/MD), 'yaml', 'lua'. */
-    lang?: "markdown" | "yaml" | "lua";
+    /** Language hint: 'markdown' (default — Handlebars/MD), 'yaml', 'lua', 'html'. */
+    lang?: "markdown" | "yaml" | "lua" | "html";
     /** Tab indentation size. Default 2. */
     tabSize?: number;
     /** Disable editing. */
@@ -50,6 +51,7 @@ const themeExtension = computed(() => (theme.value === "light" ? [] : [oneDark])
 const langExtension = computed(() => {
   if (props.lang === "yaml") return [yaml()];
   if (props.lang === "lua") return [StreamLanguage.define(luaMode)];
+  if (props.lang === "html") return [html()];
   return [markdown()];
 });
 

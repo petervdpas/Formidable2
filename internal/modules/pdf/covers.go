@@ -93,6 +93,28 @@ func loadDiskCover(fs storeFS, name string) (string, error) {
 	return content, nil
 }
 
+// loadDiskCoverRaw reads <onDiskCoversDir>/<name>.html without
+// running ValidateCover. Used by the cover editor: a broken cover
+// must still be loadable so the user can repair it. Same reserved-
+// name guard as loadDiskCover.
+func loadDiskCoverRaw(fs storeFS, name string) (string, error) {
+	if name == "" {
+		return "", ErrCoverNotFound
+	}
+	if name == "signature" || strings.ContainsAny(name, "/\\") {
+		return "", fmt.Errorf("%w: %q is reserved or contains path separators", ErrCoverNotFound, name)
+	}
+	if fs == nil {
+		return "", fmt.Errorf("%w: no filesystem available", ErrCoverPathInvalid)
+	}
+	diskPath := path.Join(onDiskCoversDir, name+".html")
+	content, err := fs.LoadFile(diskPath)
+	if err != nil {
+		return "", fmt.Errorf("%w: %q: %v", ErrCoverNotFound, name, err)
+	}
+	return content, nil
+}
+
 // loadDiskSignature reads the bundled-default signature off disk.
 // Surfaces ErrSignatureMissing if the file isn't there — caller
 // decides whether that's fatal. Skips ValidateCover (signature uses
@@ -169,6 +191,19 @@ func saveDiskCover(fs storeFS, name, html string) error {
 		return fmt.Errorf("%w: %s", ErrCoverInvalid, summarizeIssues(v.Issues))
 	}
 	return fs.SaveFile(path.Join(onDiskCoversDir, name+".html"), html)
+}
+
+// deleteDiskCover removes <AppRoot>/pdf/covers/<name>.html. Same
+// reserved-name guard as saveDiskCover; missing files are not an
+// error (matches DeleteFile semantics) so "delete twice" is safe.
+func deleteDiskCover(fs storeFS, name string) error {
+	if fs == nil {
+		return fmt.Errorf("%w: no filesystem available", ErrCoverPathInvalid)
+	}
+	if !validCoverNameStem(name) {
+		return fmt.Errorf("%w: invalid name %q", ErrCoverNotFound, name)
+	}
+	return fs.DeleteFile(path.Join(onDiskCoversDir, name+".html"))
 }
 
 func validCoverNameStem(name string) bool {

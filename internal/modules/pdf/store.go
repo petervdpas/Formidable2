@@ -51,6 +51,7 @@ type storeFS interface {
 	FileExists(path string) bool
 	LoadFile(path string) (string, error)
 	SaveFile(path, content string) error
+	DeleteFile(path string) error
 	ListDir(path string) ([]string, error)
 	ResolvePath(segments ...string) string
 }

@@ -18,10 +18,11 @@ import (
 // trip the race detector. Production storeFS is *system.Manager,
 // whose SaveFile is already serialized at the os.Rename level.
 type memFS struct {
-	mu      sync.Mutex
-	files   map[string]string
-	saveErr error
-	loadErr error
+	mu        sync.Mutex
+	files     map[string]string
+	saveErr   error
+	loadErr   error
+	deleteErr error
 }
 
 func newMemFS() *memFS { return &memFS{files: map[string]string{}} }
@@ -53,6 +54,19 @@ func (m *memFS) SaveFile(path, content string) error {
 		return m.saveErr
 	}
 	m.files[path] = content
+	return nil
+}
+
+// DeleteFile mirrors system.Manager.DeleteFile: missing key is a no-op
+// (matches journal-aware production semantics). Honors a per-fixture
+// deleteErr if a test wants to simulate disk failure.
+func (m *memFS) DeleteFile(path string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.deleteErr != nil {
+		return m.deleteErr
+	}
+	delete(m.files, path)
 	return nil
 }
 

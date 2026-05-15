@@ -240,6 +240,32 @@ func (m *Manager) ListCovers() ([]CoverDescriptor, error) {
 	return listDiskCovers(m.store.fs)
 }
 
+// LoadCover returns the raw cover HTML for editing. Validation is NOT
+// applied here — the editor must be able to load a broken cover so
+// the user can fix it. Refuses reserved names with ErrCoverNotFound.
+// Missing files return ErrCoverNotFound (wrapped with the underlying
+// I/O detail) so the frontend can distinguish from a load error.
+func (m *Manager) LoadCover(name string) (string, error) {
+	return loadDiskCoverRaw(m.store.fs, name)
+}
+
+// DeleteCover removes <AppRoot>/pdf/covers/<name>.html. Refuses
+// reserved names (signature, path separators, leading dot) with
+// ErrCoverNotFound — same guard as SaveCover, just inverted.
+//
+// Important asymmetry: deleting a seed cover (classic/banner/corporate)
+// only removes the file on disk; the next boot's scaffoldCovers run
+// will re-write it from the embedded seed. The frontend should phrase
+// the action as "Reset" for seeds and "Delete" for user-added entries.
+func (m *Manager) DeleteCover(name string) error {
+	m.log.Debug("pdf: delete cover", "name", name)
+	if err := deleteDiskCover(m.store.fs, name); err != nil {
+		return err
+	}
+	m.log.Info("pdf: cover deleted", "name", name)
+	return nil
+}
+
 // Status returns the live snapshot. Zero value (Active=false,
 // Source=SourceUnset) is the fresh-install / deactivated state.
 func (m *Manager) Status() Status {

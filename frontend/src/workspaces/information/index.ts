@@ -7,6 +7,7 @@ import InformationMonitoring from "./InformationMonitoring.vue";
 import InformationJournalFeed from "./InformationJournalFeed.vue";
 import InformationLogging from "./InformationLogging.vue";
 import InformationPDFExport from "./InformationPDFExport.vue";
+import InformationPDFCovers from "./InformationPDFCovers.vue";
 
 export type InformationCategoryId =
   | "about"
@@ -15,7 +16,8 @@ export type InformationCategoryId =
   | "monitoring"
   | "journal-feed"
   | "logging"
-  | "pdf-export";
+  | "pdf-export"
+  | "pdf-covers";
 
 export interface InformationCategory {
   id: InformationCategoryId;
@@ -32,6 +34,7 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
   { id: "monitoring",      labelKey: "workspace.information.section.monitoring",      component: InformationMonitoring },
   { id: "journal-feed",    labelKey: "workspace.information.section.journal_feed",    component: InformationJournalFeed },
   { id: "pdf-export",      labelKey: "workspace.information.section.pdf_export",      component: InformationPDFExport },
+  { id: "pdf-covers",      labelKey: "workspace.information.section.pdf_covers",      component: InformationPDFCovers },
   {
     id: "logging",
     labelKey: "workspace.information.section.logging",

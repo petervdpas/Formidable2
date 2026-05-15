@@ -480,6 +480,221 @@
   word-break: break-word;
 }
 
+/* ── Cover library workspace ─────────────────────────────────────── */
+
+.pdf-covers-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 18px;
+  align-items: start;
+  max-width: 1200px;
+}
+
+.pdf-covers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pdf-covers-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pdf-covers-list-header h4 {
+  margin: 0;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.pdf-covers-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pdf-covers-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.15));
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+}
+
+.pdf-covers-row.active {
+  border-left-color: var(--color-accent, #6aa6ff);
+  background: var(--color-bg, rgba(255, 255, 255, 0.04));
+}
+
+.pdf-covers-row.invalid {
+  border-left-color: var(--color-error, #d97070);
+}
+
+.pdf-covers-row-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.pdf-covers-row-main:hover {
+  background: var(--color-bg, rgba(255, 255, 255, 0.04));
+  border-radius: 6px;
+}
+
+.pdf-covers-row-label {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pdf-covers-row-desc {
+  font-size: 0.85em;
+  color: var(--color-text-muted, #888);
+}
+
+.pdf-covers-row-name {
+  font-size: 0.78em;
+  color: var(--color-text-muted, #888);
+  font-family: var(--font-mono, monospace);
+}
+
+.pdf-covers-row-delete {
+  align-self: center;
+  margin-right: 6px;
+}
+
+.pdf-covers-pill {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 9999px;
+  font-size: 0.7em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pdf-covers-pill-seed {
+  background: rgba(106, 166, 255, 0.15);
+  color: var(--color-accent, #6aa6ff);
+}
+
+.pdf-covers-pill-invalid {
+  background: rgba(217, 112, 112, 0.15);
+  color: var(--color-error, #d97070);
+}
+
+.pdf-covers-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pdf-covers-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pdf-covers-label {
+  min-width: 64px;
+  font-weight: 600;
+}
+
+.pdf-covers-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.1));
+  background: var(--color-bg-input, rgba(0, 0, 0, 0.2));
+  color: inherit;
+  font-family: var(--font-mono, monospace);
+}
+
+.pdf-covers-input[readonly] {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.pdf-covers-hint {
+  font-size: 0.8em;
+  color: var(--color-text-muted, #888);
+  flex-basis: 100%;
+}
+
+.pdf-covers-editor-body {
+  min-height: 380px;
+}
+
+.pdf-covers-validation {
+  padding: 8px 10px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.15));
+  border-radius: 6px;
+  min-height: 36px;
+}
+
+.pdf-covers-validation-ok {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ok, #4ec977);
+  font-size: 0.9em;
+}
+
+.pdf-covers-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pdf-covers-issue {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.88em;
+}
+
+.pdf-covers-issue.error {
+  color: var(--color-error, #d97070);
+}
+
+.pdf-covers-issue.warning {
+  color: var(--color-warning, #f0b74e);
+}
+
+.pdf-covers-issue-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+  background: var(--color-bg, rgba(0, 0, 0, 0.25));
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.pdf-covers-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* ── Export PDF dialog ────────────────────────────────────────────── */
 
 .pdf-export-form {

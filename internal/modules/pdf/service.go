@@ -88,6 +88,23 @@ func (s *Service) ValidateCoverHTML(html string) CoverValidation {
 	return ValidateCover(html)
 }
 
+// LoadCover returns the raw HTML for an existing cover. Skips
+// validation so the editor can load a broken file and let the user
+// fix it; the frontend should call ValidateCoverHTML on the loaded
+// content to surface issues. Reserved names return ErrCoverNotFound.
+func (s *Service) LoadCover(name string) (string, error) {
+	return s.m.LoadCover(name)
+}
+
+// DeleteCover removes a user-added or seed cover from disk. Seed
+// covers (classic/banner/corporate) reappear at next boot via the
+// scaffold — the frontend should phrase this as "Reset" rather than
+// "Delete" for those entries. Refuses reserved names with
+// ErrCoverNotFound. Missing files are not an error.
+func (s *Service) DeleteCover(name string) error {
+	return s.m.DeleteCover(name)
+}
+
 // LastExport returns the most recent success + failure ExportTelemetry
 // records held in memory by the Manager. Both fields may be nil when
 // the process is fresh. Powers the PDF doctor sub-panel on the
