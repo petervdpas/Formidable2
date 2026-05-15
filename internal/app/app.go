@@ -271,12 +271,15 @@ func New(d Deps) (*App, error) {
 	// "one render.Manager per export target" rule). Images come back
 	// as `file:///<abs>/storage/<tpl>/images/<file>` so Chrome can
 	// load them directly off the local filesystem during PDF render.
-	// formidable:// links stay as-is — PDF readers can't follow them
-	// usefully, but keeping them in the source means downstream
-	// consumers (e.g. a hypothetical "open in app" PDF tool) could.
+	// URL-escaping via pdf.ImageFileURL is mandatory: goldmark refuses
+	// unescaped spaces in link destinations, so a filename like
+	// `foo bar.png` would otherwise fall through as literal markdown
+	// text in the rendered PDF. formidable:// links stay as-is — PDF
+	// readers can't follow them usefully, but keeping them in the
+	// source means downstream consumers (e.g. a hypothetical "open in
+	// app" PDF tool) could.
 	pdfImageURL := func(templateFilename, name string) string {
-		dir := stoM.TemplateStorageDir(templateFilename)
-		return "file://" + filepath.Join(dir, "images", name)
+		return pdf.ImageFileURL(stoM.TemplateStorageDir(templateFilename), name)
 	}
 	pdfRender := render.NewManager(tplM, stoM, pdfImageURL, nil /*linkURL*/, d.Logger)
 
