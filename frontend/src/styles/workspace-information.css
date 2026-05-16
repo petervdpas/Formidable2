@@ -563,12 +563,32 @@
 
 /* ── Cover library workspace ─────────────────────────────────────── */
 
+/* Container query host. The split-pane sidebar steals an unknown
+   chunk of viewport, so viewport media queries miss the real
+   constraint. Container-type on the wrapper lets the layout below
+   react to its own width. */
+.pdf-covers-container {
+  container-type: inline-size;
+  max-width: 1200px;
+}
+
+/* The minmax(0, …) on the editor column is load-bearing: without a
+   zero min-content, CodeMirror's intrinsic width keeps the column
+   wide and the cell overflows / character-wraps when the pane
+   narrows. */
 .pdf-covers-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) 1fr;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
-  max-width: 1200px;
+}
+
+/* Below ~640px the two-column layout becomes unreadable — stack the
+   library above the editor so each gets the full pane width. */
+@container (max-width: 640px) {
+  .pdf-covers-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .pdf-covers-list {

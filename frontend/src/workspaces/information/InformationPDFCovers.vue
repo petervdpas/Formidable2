@@ -76,6 +76,7 @@ function onEditorUpdate(next: string) {
 <template>
   <p class="section-info">{{ t('pdf.covers.info') }}</p>
 
+  <div class="pdf-covers-container">
   <div class="pdf-covers-layout">
     <aside class="pdf-covers-list">
       <div class="pdf-covers-list-header">
@@ -185,6 +186,7 @@ function onEditorUpdate(next: string) {
         </div>
       </template>
     </section>
+  </div>
   </div>
 
   <ConfirmDialog
