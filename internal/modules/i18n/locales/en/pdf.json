@@ -93,7 +93,14 @@
   "pdf.toast.export.save_failed": "Could not write the PDF to disk. Check the output folder and free space.",
   "pdf.toast.export.unknown": "PDF export failed: {0}",
 
+  "pdf.inject.tabs.page": "Page",
+  "pdf.inject.tabs.cover": "Cover",
+  "pdf.inject.tabs.toc": "Contents",
+  "pdf.inject.tabs.footer": "Footer",
+  "pdf.inject.tabs.signature": "Signature",
+
   "pdf.inject.style.section": "Theme",
+  "pdf.inject.style.field": "Style",
   "pdf.inject.page.section": "Page layout",
   "pdf.inject.page.enable": "Set page layout",
   "pdf.inject.page.help": "Page size, orientation, and margin. Off = picoloom defaults (letter / portrait / 1 inch).",
@@ -144,6 +151,7 @@
   "pdf.inject.footer.date": "Date",
   "pdf.inject.footer.status": "Status",
   "pdf.inject.footer.document_id": "Document ID",
+  "pdf.inject.footer.empty_warn": "Footer is enabled but has no content — turn on the page-number toggle or fill at least one field, otherwise the block will be skipped.",
   "pdf.inject.footer_position.left": "Left",
   "pdf.inject.footer_position.center": "Center",
   "pdf.inject.footer_position.right": "Right",
@@ -159,6 +167,7 @@
   "pdf.inject.signature.phone": "Phone",
   "pdf.inject.signature.address": "Address",
   "pdf.inject.signature.department": "Department",
+  "pdf.inject.signature.empty_warn": "Signature is enabled but has no content — fill at least one field, otherwise the block will be skipped.",
 
   "pdf.inject.preview.title": "Show generated YAML",
 

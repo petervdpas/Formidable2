@@ -113,6 +113,14 @@
     row-gap: 4px;
 }
 
+/* Standalone (non-sectioned) switch row fallback. Mirrors the
+   .form-row counterpart so label / switch / description stay aligned
+   when the row is dropped outside a FormSection (e.g. the PDF
+   frontmatter wizard tab panes). */
+.form-switch-row:not(.form-section > .form-switch-row) {
+    grid-template-columns: var(--form-label-width, 160px) 1fr;
+}
+
 .form-switch-row + .form-row,
 .form-row + .form-switch-row,
 .form-switch-row + .form-switch-row {

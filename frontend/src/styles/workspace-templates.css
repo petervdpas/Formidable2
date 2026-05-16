@@ -222,3 +222,28 @@
     padding: 4px 0;
     color: var(--color-text);
 }
+
+.pdf-inject-tabs {
+    margin-top: 14px;
+    /* FormRows inside the tab panes are *not* wrapped in a FormSection,
+       so they fall through to the standalone-row rule whose label
+       column defaults to 160px. The wizard has long labels (e.g.
+       "Pad naar handtekeningafbeelding"); bump the column. Honoured
+       by every .form-row not inside a .form-section. */
+    --form-label-width: 220px;
+}
+.pdf-inject-tab-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 320px;
+    padding-top: 4px;
+}
+.pdf-inject-empty-warn {
+    margin: 10px 0 0;
+    padding: 8px 10px;
+    border-left: 3px solid var(--color-warning, #d29922);
+    background: var(--color-bg-elevated, rgba(255, 255, 255, 0.03));
+    color: var(--color-text-muted, var(--color-text));
+    font-size: var(--font-size-sm);
+    border-radius: 4px;
+}

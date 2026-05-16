@@ -93,7 +93,14 @@
   "pdf.toast.export.save_failed": "Kon de PDF niet naar schijf schrijven. Controleer de exportmap en de vrije ruimte.",
   "pdf.toast.export.unknown": "PDF-export mislukt: {0}",
 
+  "pdf.inject.tabs.page": "Pagina",
+  "pdf.inject.tabs.cover": "Voorpagina",
+  "pdf.inject.tabs.toc": "Inhoudsopgave",
+  "pdf.inject.tabs.footer": "Voettekst",
+  "pdf.inject.tabs.signature": "Ondertekening",
+
   "pdf.inject.style.section": "Thema",
+  "pdf.inject.style.field": "Stijl",
   "pdf.inject.page.section": "Pagina-indeling",
   "pdf.inject.page.enable": "Pagina-indeling instellen",
   "pdf.inject.page.help": "Paginagrootte, oriëntatie en marge. Uit = picoloom-standaard (letter / portrait / 1 inch).",
@@ -144,6 +151,7 @@
   "pdf.inject.footer.date": "Datum",
   "pdf.inject.footer.status": "Status",
   "pdf.inject.footer.document_id": "Document-ID",
+  "pdf.inject.footer.empty_warn": "Voettekst staat aan maar heeft geen inhoud — zet de paginanummer-toggle aan of vul minstens één veld in, anders wordt het blok overgeslagen.",
   "pdf.inject.footer_position.left": "Links",
   "pdf.inject.footer_position.center": "Midden",
   "pdf.inject.footer_position.right": "Rechts",
@@ -159,6 +167,7 @@
   "pdf.inject.signature.phone": "Telefoon",
   "pdf.inject.signature.address": "Adres",
   "pdf.inject.signature.department": "Afdeling",
+  "pdf.inject.signature.empty_warn": "Ondertekening staat aan maar heeft geen inhoud — vul minstens één veld in, anders wordt het blok overgeslagen.",
 
   "pdf.inject.preview.title": "Gegenereerde YAML tonen",
 

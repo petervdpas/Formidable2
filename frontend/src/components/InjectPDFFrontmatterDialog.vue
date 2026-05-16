@@ -3,13 +3,13 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
 import CodeEditor from "./CodeEditor.vue";
+import Tabs from "./Tabs.vue";
 import {
   FormSection,
   FormRow,
   FormSwitchRow,
   TextField,
   SelectField,
-  SwitchField,
 } from "./fields";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import {
@@ -75,14 +75,6 @@ const coverAuthor = ref("");
 const coverOrganization = ref("");
 const coverDate = ref("");
 const coverVersion = ref("");
-const coverShowMore = ref(false);
-const coverAuthorTitle = ref("");
-const coverClientName = ref("");
-const coverProjectName = ref("");
-const coverDocumentType = ref("");
-const coverDocumentID = ref("");
-const coverDescription = ref("");
-const coverDepartment = ref("");
 const coverLogo = ref("");
 
 // Page fields.
@@ -119,6 +111,16 @@ const previewYAML = ref("");
 const previewError = ref("");
 const previewOpen = ref(false);
 
+type TabId = "page" | "cover" | "toc" | "footer" | "signature";
+const activeTab = ref<TabId>("page");
+const tabItems = computed(() => [
+  { id: "page", label: t("pdf.inject.tabs.page") },
+  { id: "cover", label: t("pdf.inject.tabs.cover") },
+  { id: "toc", label: t("pdf.inject.tabs.toc") },
+  { id: "footer", label: t("pdf.inject.tabs.footer") },
+  { id: "signature", label: t("pdf.inject.tabs.signature") },
+]);
+
 // Pre-fill cover title from the template name when the dialog opens.
 // Doesn't clobber an existing value (user might re-open after typing).
 watch(
@@ -127,6 +129,7 @@ watch(
     if (!isOpen) return;
     previewError.value = "";
     previewOpen.value = false;
+    activeTab.value = "page";
     if (!coverTitle.value && props.templateName) {
       coverTitle.value = props.templateName;
     }
@@ -207,16 +210,9 @@ function buildConfig(): InjectConfig {
       title: coverTitle.value,
       subtitle: coverSubtitle.value,
       author: coverAuthor.value,
-      author_title: coverAuthorTitle.value,
       organization: coverOrganization.value,
       date: coverDate.value,
       version: coverVersion.value,
-      client_name: coverClientName.value,
-      project_name: coverProjectName.value,
-      document_type: coverDocumentType.value,
-      document_id: coverDocumentID.value,
-      description: coverDescription.value,
-      department: coverDepartment.value,
       logo: coverLogo.value,
     });
   }
@@ -234,7 +230,7 @@ function buildConfig(): InjectConfig {
       max_depth: tocMaxDepth.value,
     });
   }
-  if (footerOn.value) {
+  if (footerOn.value && footerHasContent.value) {
     cfg.footer = new InjectFooterConfig({
       position: footerPosition.value,
       show_page_number: footerShowPageNumber.value,
@@ -244,7 +240,7 @@ function buildConfig(): InjectConfig {
       document_id: footerDocumentID.value,
     });
   }
-  if (signatureOn.value) {
+  if (signatureOn.value && signatureHasContent.value) {
     cfg.signature = new InjectSignatureConfig({
       name: sigName.value,
       title: sigTitle.value,
@@ -258,6 +254,34 @@ function buildConfig(): InjectConfig {
   }
   return cfg;
 }
+
+// A footer is meaningful when at least the page-number gauge is on
+// or any of the text-bearing fields is non-empty. With everything
+// off + empty, picoloom emits an empty footer container — drop the
+// block entirely instead.
+const footerHasContent = computed(
+  () =>
+    footerShowPageNumber.value ||
+    !!footerText.value.trim() ||
+    !!footerDate.value.trim() ||
+    !!footerStatus.value.trim() ||
+    !!footerDocumentID.value.trim(),
+);
+
+// Same shape for signatures: picoloom's signature.html template
+// gates every line on a field being set; with all eight fields
+// empty the output is three empty <div>s. Drop the block.
+const signatureHasContent = computed(
+  () =>
+    !!sigName.value.trim() ||
+    !!sigTitle.value.trim() ||
+    !!sigEmail.value.trim() ||
+    !!sigOrganization.value.trim() ||
+    !!sigImagePath.value.trim() ||
+    !!sigPhone.value.trim() ||
+    !!sigAddress.value.trim() ||
+    !!sigDepartment.value.trim(),
+);
 
 async function refreshPreview() {
   if (!props.open) return;
@@ -276,8 +300,7 @@ watch(
   [
     () => props.open, style, coverOn, pageOn, tocOn, footerOn, signatureOn,
     coverTemplate, coverTitle, coverSubtitle, coverAuthor, coverOrganization,
-    coverDate, coverVersion, coverAuthorTitle, coverClientName, coverProjectName,
-    coverDocumentType, coverDocumentID, coverDescription, coverDepartment, coverLogo,
+    coverDate, coverVersion, coverLogo,
     pageSize, pageOrientation, pageMargin,
     tocTitle, tocMinDepth, tocMaxDepth,
     footerPosition, footerShowPageNumber, footerText, footerDate, footerStatus, footerDocumentID,
@@ -297,7 +320,7 @@ async function onApply() {
   <Modal
     :open="open"
     :title="t('workspace.templates.pdf_fm.title_inject')"
-    width="780px"
+    width="760px"
     @close="emit('cancel')"
   >
     <p class="muted small">
@@ -305,182 +328,171 @@ async function onApply() {
     </p>
 
     <FormSection :title="t('pdf.inject.style.section')">
-      <FormRow :label="t('workspace.templates.pdf_fm.field.style')">
+      <FormRow :label="t('pdf.inject.style.field')">
         <SelectField v-model="style" :options="themeOptions" />
       </FormRow>
     </FormSection>
 
-    <FormSection :title="t('pdf.inject.page.section')">
-      <FormSwitchRow
-        v-model="pageOn"
-        :label="t('pdf.inject.page.enable')"
-        :description="t('pdf.inject.page.help')"
-      />
-      <template v-if="pageOn">
-        <FormRow :label="t('pdf.inject.page.size')">
-          <SelectField v-model="pageSize" :options="pageSizeOptions" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.page.orientation')">
-          <SelectField v-model="pageOrientation" :options="orientationOptions" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.page.margin')">
-          <input
-            v-model.number="pageMargin"
-            type="number"
-            step="0.1"
-            min="0"
-            class="pdf-inject-number"
-          />
-        </FormRow>
-      </template>
-    </FormSection>
-
-    <FormSection :title="t('pdf.inject.cover.section')">
-      <FormSwitchRow
-        v-model="coverOn"
-        :label="t('pdf.inject.cover.enable')"
-        :description="t('pdf.inject.cover.help')"
-      />
-      <template v-if="coverOn">
-        <FormRow :label="t('pdf.inject.cover.template')">
-          <SelectField v-model="coverTemplate" :options="coverOptions" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.cover.title')">
-          <TextField v-model="coverTitle" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.cover.subtitle')">
-          <TextField v-model="coverSubtitle" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.cover.author')">
-          <TextField v-model="coverAuthor" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.cover.organization')">
-          <TextField v-model="coverOrganization" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.cover.date')">
-          <TextField v-model="coverDate" placeholder="YYYY-MM-DD" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.cover.version')">
-          <TextField v-model="coverVersion" />
-        </FormRow>
-
-        <div class="pdf-inject-more">
-          <SwitchField
-            v-model="coverShowMore"
-            :on-label="t('pdf.inject.cover.more_on')"
-            :off-label="t('pdf.inject.cover.more_off')"
-          />
-        </div>
-        <template v-if="coverShowMore">
-          <FormRow :label="t('pdf.inject.cover.author_title')">
-            <TextField v-model="coverAuthorTitle" />
-          </FormRow>
-          <FormRow :label="t('pdf.inject.cover.client_name')">
-            <TextField v-model="coverClientName" />
-          </FormRow>
-          <FormRow :label="t('pdf.inject.cover.project_name')">
-            <TextField v-model="coverProjectName" />
-          </FormRow>
-          <FormRow :label="t('pdf.inject.cover.document_type')">
-            <TextField v-model="coverDocumentType" />
-          </FormRow>
-          <FormRow :label="t('pdf.inject.cover.document_id')">
-            <TextField v-model="coverDocumentID" />
-          </FormRow>
-          <FormRow :label="t('pdf.inject.cover.description')">
-            <TextField v-model="coverDescription" />
-          </FormRow>
-          <FormRow :label="t('pdf.inject.cover.department')">
-            <TextField v-model="coverDepartment" />
-          </FormRow>
-          <FormRow :label="t('pdf.inject.cover.logo')">
-            <TextField v-model="coverLogo" :placeholder="t('pdf.inject.cover.logo_placeholder')" />
-          </FormRow>
+    <div class="pdf-inject-tabs">
+      <Tabs v-model="activeTab" :items="tabItems">
+        <template #page>
+          <div class="pdf-inject-tab-pane">
+            <FormSwitchRow
+              v-model="pageOn"
+              :label="t('pdf.inject.page.enable')"
+              :description="t('pdf.inject.page.help')"
+            />
+            <template v-if="pageOn">
+              <FormRow :label="t('pdf.inject.page.size')">
+                <SelectField v-model="pageSize" :options="pageSizeOptions" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.page.orientation')">
+                <SelectField v-model="pageOrientation" :options="orientationOptions" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.page.margin')">
+                <input
+                  v-model.number="pageMargin"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  class="pdf-inject-number"
+                />
+              </FormRow>
+            </template>
+          </div>
         </template>
-      </template>
-    </FormSection>
 
-    <FormSection :title="t('pdf.inject.toc.section')">
-      <FormSwitchRow
-        v-model="tocOn"
-        :label="t('pdf.inject.toc.enable')"
-        :description="t('pdf.inject.toc.help')"
-      />
-      <template v-if="tocOn">
-        <FormRow :label="t('pdf.inject.toc.title')">
-          <TextField v-model="tocTitle" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.toc.min_depth')">
-          <input v-model.number="tocMinDepth" type="number" min="1" max="6" class="pdf-inject-number" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.toc.max_depth')">
-          <input v-model.number="tocMaxDepth" type="number" min="1" max="6" class="pdf-inject-number" />
-        </FormRow>
-      </template>
-    </FormSection>
+        <template #cover>
+          <div class="pdf-inject-tab-pane">
+            <FormSwitchRow
+              v-model="coverOn"
+              :label="t('pdf.inject.cover.enable')"
+              :description="t('pdf.inject.cover.help')"
+            />
+            <template v-if="coverOn">
+              <FormRow :label="t('pdf.inject.cover.template')">
+                <SelectField v-model="coverTemplate" :options="coverOptions" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.cover.title')">
+                <TextField v-model="coverTitle" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.cover.subtitle')">
+                <TextField v-model="coverSubtitle" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.cover.author')">
+                <TextField v-model="coverAuthor" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.cover.organization')">
+                <TextField v-model="coverOrganization" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.cover.date')">
+                <TextField v-model="coverDate" placeholder="YYYY-MM-DD" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.cover.version')">
+                <TextField v-model="coverVersion" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.cover.logo')">
+                <TextField v-model="coverLogo" :placeholder="t('pdf.inject.cover.logo_placeholder')" />
+              </FormRow>
+            </template>
+          </div>
+        </template>
 
-    <FormSection :title="t('pdf.inject.footer.section')">
-      <FormSwitchRow
-        v-model="footerOn"
-        :label="t('pdf.inject.footer.enable')"
-        :description="t('pdf.inject.footer.help')"
-      />
-      <template v-if="footerOn">
-        <FormRow :label="t('pdf.inject.footer.position')">
-          <SelectField v-model="footerPosition" :options="footerPositionOptions" />
-        </FormRow>
-        <FormSwitchRow
-          v-model="footerShowPageNumber"
-          :label="t('pdf.inject.footer.show_page_number')"
-        />
-        <FormRow :label="t('pdf.inject.footer.text')">
-          <TextField v-model="footerText" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.footer.date')">
-          <TextField v-model="footerDate" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.footer.status')">
-          <TextField v-model="footerStatus" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.footer.document_id')">
-          <TextField v-model="footerDocumentID" />
-        </FormRow>
-      </template>
-    </FormSection>
+        <template #toc>
+          <div class="pdf-inject-tab-pane">
+            <FormSwitchRow
+              v-model="tocOn"
+              :label="t('pdf.inject.toc.enable')"
+              :description="t('pdf.inject.toc.help')"
+            />
+            <template v-if="tocOn">
+              <FormRow :label="t('pdf.inject.toc.title')">
+                <TextField v-model="tocTitle" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.toc.min_depth')">
+                <input v-model.number="tocMinDepth" type="number" min="1" max="6" class="pdf-inject-number" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.toc.max_depth')">
+                <input v-model.number="tocMaxDepth" type="number" min="1" max="6" class="pdf-inject-number" />
+              </FormRow>
+            </template>
+          </div>
+        </template>
 
-    <FormSection :title="t('pdf.inject.signature.section')">
-      <FormSwitchRow
-        v-model="signatureOn"
-        :label="t('pdf.inject.signature.enable')"
-        :description="t('pdf.inject.signature.help')"
-      />
-      <template v-if="signatureOn">
-        <FormRow :label="t('pdf.inject.signature.name')">
-          <TextField v-model="sigName" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.signature.title')">
-          <TextField v-model="sigTitle" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.signature.email')">
-          <TextField v-model="sigEmail" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.signature.organization')">
-          <TextField v-model="sigOrganization" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.signature.image_path')">
-          <TextField v-model="sigImagePath" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.signature.phone')">
-          <TextField v-model="sigPhone" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.signature.address')">
-          <TextField v-model="sigAddress" />
-        </FormRow>
-        <FormRow :label="t('pdf.inject.signature.department')">
-          <TextField v-model="sigDepartment" />
-        </FormRow>
-      </template>
-    </FormSection>
+        <template #footer>
+          <div class="pdf-inject-tab-pane">
+            <FormSwitchRow
+              v-model="footerOn"
+              :label="t('pdf.inject.footer.enable')"
+              :description="t('pdf.inject.footer.help')"
+            />
+            <template v-if="footerOn">
+              <FormRow :label="t('pdf.inject.footer.position')">
+                <SelectField v-model="footerPosition" :options="footerPositionOptions" />
+              </FormRow>
+              <FormSwitchRow
+                v-model="footerShowPageNumber"
+                :label="t('pdf.inject.footer.show_page_number')"
+              />
+              <FormRow :label="t('pdf.inject.footer.text')">
+                <TextField v-model="footerText" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.footer.date')">
+                <TextField v-model="footerDate" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.footer.status')">
+                <TextField v-model="footerStatus" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.footer.document_id')">
+                <TextField v-model="footerDocumentID" />
+              </FormRow>
+              <p v-if="!footerHasContent" class="pdf-inject-empty-warn">
+                {{ t('pdf.inject.footer.empty_warn') }}
+              </p>
+            </template>
+          </div>
+        </template>
+
+        <template #signature>
+          <div class="pdf-inject-tab-pane">
+            <FormSwitchRow
+              v-model="signatureOn"
+              :label="t('pdf.inject.signature.enable')"
+              :description="t('pdf.inject.signature.help')"
+            />
+            <template v-if="signatureOn">
+              <FormRow :label="t('pdf.inject.signature.name')">
+                <TextField v-model="sigName" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.signature.title')">
+                <TextField v-model="sigTitle" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.signature.email')">
+                <TextField v-model="sigEmail" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.signature.organization')">
+                <TextField v-model="sigOrganization" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.signature.image_path')">
+                <TextField v-model="sigImagePath" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.signature.phone')">
+                <TextField v-model="sigPhone" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.signature.address')">
+                <TextField v-model="sigAddress" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.signature.department')">
+                <TextField v-model="sigDepartment" />
+              </FormRow>
+              <p v-if="!signatureHasContent" class="pdf-inject-empty-warn">
+                {{ t('pdf.inject.signature.empty_warn') }}
+              </p>
+            </template>
+          </div>
+        </template>
+      </Tabs>
+    </div>
 
     <details class="pdf-inject-preview" :open="previewOpen" @toggle="(e) => (previewOpen = (e.target as HTMLDetailsElement).open)">
       <summary>{{ t('pdf.inject.preview.title') }}</summary>
