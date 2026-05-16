@@ -309,7 +309,7 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 					"preserved \"keywords\" under legacy; top-level keywords was already set")
 				continue
 			}
-			dst["keywords"] = parsed
+			dst["keywords"] = rewriteTagsHelperToYamlList(parsed, hbsTokens)
 			out.Mappings = append(out.Mappings,
 				FrontmatterMapping{From: "keywords", To: "keywords"})
 
@@ -487,6 +487,53 @@ func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preserve
 	return b.String(), nil
 }
 
+// yamlRawLinePrefix flags a keyword item that should bypass the
+// `- ITEM` block-sequence wrapping and be emitted as a raw line in
+// the output (used by the tags→yamlList rewrite path so the helper
+// invocation lands at column 0 and its multi-line expansion plugs
+// directly into the block sequence).
+const yamlRawLinePrefix = "__YAML_RAW_LINE__"
+
+// tagsHelperRe matches a standalone `{{tags <ARG> [withHash=<bool>]}}`
+// invocation that wholly fills a keyword element. The argument is
+// captured verbatim — could be a bare identifier, a string literal, a
+// subexpression like `(fieldRaw "x")`, whatever raymond accepts.
+// Anchored so partial matches inside other text don't trigger.
+var tagsHelperRe = regexp.MustCompile(`^\s*\{\{\s*tags\s+(.+?)(?:\s+withHash\s*=\s*\w+)?\s*\}\}\s*$`)
+
+// rewriteTagsHelperToYamlList walks keyword items and rewrites any
+// element that is a sentinel mapping to a wholly-tags-helper source
+// into a raw-line `{{yamlList <ARG>}}` directive. The handlebars
+// expression for a keyword position emits a comma-blob at render
+// time; yamlList emits real list items.
+//
+// Non-sentinel items, sentinels backed by other helpers (e.g.
+// `{{field "x"}}`), and partial matches all pass through untouched.
+func rewriteTagsHelperToYamlList(items []any, hbsTokens map[string]string) []any {
+	if len(items) == 0 || len(hbsTokens) == 0 {
+		return items
+	}
+	out := make([]any, len(items))
+	copy(out, items)
+	for i, it := range out {
+		s, ok := it.(string)
+		if !ok {
+			continue
+		}
+		src, ok := hbsTokens[strings.TrimSpace(s)]
+		if !ok {
+			continue
+		}
+		m := tagsHelperRe.FindStringSubmatch(src)
+		if len(m) != 2 {
+			continue
+		}
+		arg := strings.TrimSpace(m[1])
+		out[i] = yamlRawLinePrefix + "{{yamlList " + arg + "}}"
+	}
+	return out
+}
+
 // marshalKeywordsBlock emits the top-level `keywords:` sequence by
 // hand. yaml.Marshal would emit each element unquoted (the values are
 // either plain words or `__HBS_N__` sentinels — all alphanumeric to
@@ -502,6 +549,11 @@ func marshalKeywordsBlock(items []any) string {
 		s, ok := it.(string)
 		if !ok {
 			s = fmt.Sprintf("%v", it)
+		}
+		if strings.HasPrefix(s, yamlRawLinePrefix) {
+			b.WriteString(strings.TrimPrefix(s, yamlRawLinePrefix))
+			b.WriteString("\n")
+			continue
 		}
 		if needsYAMLQuoting(s) {
 			esc := strings.ReplaceAll(s, "'", "''")

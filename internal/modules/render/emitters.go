@@ -173,6 +173,49 @@ func kebab(s string) string {
 	return regexp.MustCompile(`\s+`).ReplaceAllString(s, "-")
 }
 
+// emitYAMLList → `- item1\n  - item2\n  - item3` (with 2-space indent
+// for items 2+ when indent=2; no indent default). Items with YAML
+// special chars get single-quoted; internal single quotes escape via
+// the doubled-quote convention. Non-array input → empty string so
+// callers can use the helper unconditionally.
+func emitYAMLList(v any, indent int) string {
+	arr, ok := v.([]any)
+	if !ok || len(arr) == 0 {
+		return ""
+	}
+	pad := ""
+	if indent > 0 {
+		pad = strings.Repeat(" ", indent)
+	}
+	parts := make([]string, 0, len(arr))
+	for i, item := range arr {
+		s := stringify(item)
+		if needsYAMLListQuoting(s) {
+			s = "'" + strings.ReplaceAll(s, "'", "''") + "'"
+		}
+		if i == 0 {
+			parts = append(parts, "- "+s)
+		} else {
+			parts = append(parts, pad+"- "+s)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func needsYAMLListQuoting(s string) bool {
+	if s == "" {
+		return true
+	}
+	if strings.ContainsAny(s, "{}[]:#&*!|>%@`,") {
+		return true
+	}
+	switch s[0] {
+	case '-', '?', '\'', '"':
+		return true
+	}
+	return false
+}
+
 // emitTags → "#kebab-tag, #other" (with hash) or "kebab, other" (without).
 func emitTags(v any, withHash bool) string {
 	arr, ok := v.([]any)

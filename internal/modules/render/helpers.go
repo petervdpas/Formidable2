@@ -458,6 +458,34 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 		return emitTags(arr, withHash)
 	})
 
+	// ── yamlList ─────────────────────────────────────────────────
+	// `{{yamlList arr}}` emits a YAML block-sequence chunk — one
+	// `- item` per element, items 2+ optionally prefixed with an
+	// `indent=N` space pad so the helper can sit at a non-zero column
+	// inside a nested list. No trailing newline; items with YAML flow
+	// indicators or leading dashes are single-quoted. Built for the
+	// PDF `keywords:` migration path where the eisvogel-shape
+	// `{{tags … withHash=false}}` previously expanded to a comma-blob
+	// element; yamlList expands to real list items instead.
+	tpl.RegisterHelper("yamlList", func(options *raymond.Options) raymond.SafeString {
+		var arr any
+		if params := options.Params(); len(params) > 0 {
+			arr = params[0]
+		}
+		indent := 0
+		if raw := options.HashProp("indent"); raw != nil {
+			switch v := raw.(type) {
+			case int:
+				indent = v
+			case int64:
+				indent = int(v)
+			case float64:
+				indent = int(v)
+			}
+		}
+		return raymond.SafeString(emitYAMLList(arr, indent))
+	})
+
 	// {{apiCol}} / {{apiBlock}} / {{apiGuid}} / {{apiSection}}.
 	// Implementations live in apifield_helpers.go.
 	registerAPIFieldHelpers(tpl, opts)

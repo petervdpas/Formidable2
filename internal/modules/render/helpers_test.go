@@ -337,6 +337,86 @@ func TestHelper_TagsZeroArg(t *testing.T) {
 	}
 }
 
+func TestHelper_YamlList_Basic(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlList items}}`, map[string]any{
+		"items": []any{"audit", "compliance", "risk"},
+	})
+	want := "- audit\n- compliance\n- risk"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestHelper_YamlList_Empty(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlList items}}`, map[string]any{
+		"items": []any{},
+	})
+	if got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestHelper_YamlList_NonArray(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlList items}}`, map[string]any{
+		"items": "not an array",
+	})
+	if got != "" {
+		t.Errorf("got %q, want empty (non-array fallback)", got)
+	}
+}
+
+func TestHelper_YamlList_ZeroArg(t *testing.T) {
+	// Mirrors {{tags}} zero-arg behaviour — empty string, not error.
+	got := renderWithCtx(t, `{{yamlList}}`, map[string]any{})
+	if got != "" {
+		t.Errorf("got %q, want empty", got)
+	}
+}
+
+func TestHelper_YamlList_Indent(t *testing.T) {
+	// Subsequent items get the leading indent so the helper can sit at
+	// a non-zero column inside an already-indented YAML structure.
+	got := renderWithCtx(t, `{{yamlList items indent=2}}`, map[string]any{
+		"items": []any{"a", "b", "c"},
+	})
+	want := "- a\n  - b\n  - c"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestHelper_YamlList_QuotesSpecialChars(t *testing.T) {
+	// YAML flow indicators / leading dash / colon need quoting so the
+	// generated list parses unambiguously.
+	got := renderWithCtx(t, `{{yamlList items}}`, map[string]any{
+		"items": []any{"plain", "has: colon", "{flow}", "- leading-dash"},
+	})
+	want := "- plain\n- 'has: colon'\n- '{flow}'\n- '- leading-dash'"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestHelper_YamlList_EscapesSingleQuotes(t *testing.T) {
+	// Internal single-quote escapes via YAML's '' convention.
+	got := renderWithCtx(t, `{{yamlList items}}`, map[string]any{
+		"items": []any{"it's a colon: yes"},
+	})
+	want := "- 'it''s a colon: yes'"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestHelper_YamlList_StringifiesNonStringItems(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlList items}}`, map[string]any{
+		"items": []any{42, true, "x"},
+	})
+	if !strings.Contains(got, "- 42") || !strings.Contains(got, "- true") || !strings.Contains(got, "- x") {
+		t.Errorf("non-string items not rendered: %q", got)
+	}
+}
+
 func TestHelper_IsSelected(t *testing.T) {
 	got := renderWithCtx(t, `{{#isSelected items "x"}}yes{{else}}no{{/isSelected}}`, map[string]any{
 		"items": []any{"a", "x"},

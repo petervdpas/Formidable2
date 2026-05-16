@@ -243,10 +243,99 @@ body
 	}
 }
 
+func TestMigrate_KeywordsTagsHelperRewrittenToYamlList(t *testing.T) {
+	// The eisvogel `{{tags … withHash=false}}` pattern produces a
+	// comma-joined string at render time — useless for a YAML block
+	// sequence (one keyword "a, b, c" instead of three). Migration
+	// rewrites the tags helper into yamlList, which emits real list
+	// items. Both source shapes (quoted bracket-string DSL and bare
+	// flow-sequence) collapse to the same output.
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{
+			"quoted-bracket-string",
+			"---\nkeywords: '[Adapter, {{tags (fieldRaw \"adapter-tags\") withHash=false}}]'\n---\nbody\n",
+		},
+		{
+			"bare-flow-sequence",
+			"---\nkeywords: [Adapter, {{tags (fieldRaw \"adapter-tags\") withHash=false}}]\n---\nbody\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := MigrateFrontmatter(tc.src)
+			if err != nil {
+				t.Fatalf("Migrate: %v", err)
+			}
+			// Each tags helper invocation must be rewritten — there
+			// should be NO `{{tags …}}` left in the migrated output.
+			if strings.Contains(got.Markdown, "{{tags ") {
+				t.Errorf("{{tags …}} not rewritten:\n%s", got.Markdown)
+			}
+			if !strings.Contains(got.Markdown, `{{yamlList (fieldRaw "adapter-tags")}}`) {
+				t.Errorf("yamlList invocation missing:\n%s", got.Markdown)
+			}
+			// The yamlList call must sit at column 0 in its own line
+			// (no `- ` prefix, no single-quoting), so its multi-line
+			// expansion plugs straight into the block sequence.
+			if !strings.Contains(got.Markdown, "\n{{yamlList ") {
+				t.Errorf("yamlList not on its own column-0 line:\n%s", got.Markdown)
+			}
+			// And the literal "Adapter" element survives as a normal
+			// list item.
+			if !strings.Contains(got.Markdown, "- Adapter\n") {
+				t.Errorf("literal Adapter keyword missing:\n%s", got.Markdown)
+			}
+		})
+	}
+}
+
+func TestMigrate_KeywordsTagsHelperRewriteWithHashTrue(t *testing.T) {
+	// `withHash=true` (or omitted, since true is the default) also
+	// gets rewritten. The hash markers are PDF-keywords noise; the
+	// underlying field reference is what we care about.
+	src := `---
+keywords: '[{{tags (fieldRaw "x")}}]'
+---
+body
+`
+	got, err := MigrateFrontmatter(src)
+	if err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if !strings.Contains(got.Markdown, `{{yamlList (fieldRaw "x")}}`) {
+		t.Errorf("yamlList rewrite missing for default-hash form:\n%s", got.Markdown)
+	}
+}
+
+func TestMigrate_KeywordsNonTagsHelperStaysQuoted(t *testing.T) {
+	// Only the `tags` helper expands to a comma list. Anything else
+	// in keyword position — e.g. `{{field "x"}}` — stays a normal
+	// single-quoted scalar.
+	src := `---
+keywords: '[A, {{field "title"}}]'
+---
+body
+`
+	got, err := MigrateFrontmatter(src)
+	if err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if !strings.Contains(got.Markdown, `'{{field "title"}}'`) {
+		t.Errorf("non-tags helper should stay single-quoted:\n%s", got.Markdown)
+	}
+	if strings.Contains(got.Markdown, "yamlList") {
+		t.Errorf("non-tags helper should NOT be rewritten:\n%s", got.Markdown)
+	}
+}
+
 func TestMigrate_KeywordsEisvogelBracketStringWithHandlebars(t *testing.T) {
-	// Real audit-controls case: handlebars expression embedded in the
-	// bracket-string list. The expression renders at template time into
-	// some string (commas inside it stay inside that one element).
+	// Real audit-controls case: tags-helper expression embedded in
+	// the bracket-string list. Migration rewrites the tags call to
+	// yamlList so the expansion produces real list items (not one
+	// comma-blob element).
 	src := `---
 keywords: '[Aanpak, Management, {{tags (fieldRaw "audit-control-tags") withHash=false}}]'
 ---
@@ -256,16 +345,12 @@ body
 	if err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	// The handlebars expression must survive verbatim. The exact
-	// quoting of the emitted element depends on yaml.v3's mood;
-	// substring-match suffices.
-	if !strings.Contains(got.Markdown, `{{tags (fieldRaw "audit-control-tags") withHash=false}}`) {
-		t.Errorf("handlebars expression lost:\n%s", got.Markdown)
+	if !strings.Contains(got.Markdown, `{{yamlList (fieldRaw "audit-control-tags")}}`) {
+		t.Errorf("tags helper not rewritten to yamlList:\n%s", got.Markdown)
 	}
 	if !strings.Contains(got.Markdown, "Aanpak") || !strings.Contains(got.Markdown, "Management") {
 		t.Errorf("literal keywords lost:\n%s", got.Markdown)
 	}
-	// No sentinel leak.
 	if strings.Contains(got.Markdown, "__HBS_") {
 		t.Errorf("sentinel leaked:\n%s", got.Markdown)
 	}
@@ -405,7 +490,9 @@ body
 		"author: Team Integration Services",
 		"legacy:",
 		"fontsize: 10pt",
-		`{{tags (fieldRaw "audit-control-tags") withHash=false}}`,
+		// tags helper in keyword position is rewritten to yamlList
+		// so the runtime expansion lands as real list items.
+		`{{yamlList (fieldRaw "audit-control-tags")}}`,
 	} {
 		if !strings.Contains(got.Markdown, want) {
 			t.Errorf("missing %q in migrated output:\n%s", want, got.Markdown)
@@ -656,8 +743,8 @@ func TestMigrate_HandlebarsInsideQuotedScalar(t *testing.T) {
 	// `keywords: '[…, {{tags …}}]'` — Handlebars inside a single-quoted
 	// flow-sequence string. The single quotes already protect yaml.v3,
 	// but the masker must STILL run to support the surrounding shape;
-	// and the unmask step must not double-substitute or lose the
-	// expression on round-trip.
+	// and the unmask + tags→yamlList rewrite must land the field
+	// reference cleanly in the output.
 	src := `---
 keywords: '[Aanpak, Management, {{tags (fieldRaw "x") withHash=false}}]'
 ---
@@ -667,8 +754,8 @@ body
 	if err != nil {
 		t.Fatalf("Migrate quoted-handlebars: %v", err)
 	}
-	if !strings.Contains(got.Markdown, `{{tags (fieldRaw "x") withHash=false}}`) {
-		t.Errorf("Handlebars lost from quoted flow sequence:\n%s", got.Markdown)
+	if !strings.Contains(got.Markdown, `{{yamlList (fieldRaw "x")}}`) {
+		t.Errorf("tags helper not rewritten to yamlList:\n%s", got.Markdown)
 	}
 }
 
