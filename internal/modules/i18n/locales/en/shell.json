@@ -278,6 +278,7 @@
   "workspace.information.section.monitoring": "Monitoring",
   "workspace.information.section.journal_feed": "Journal Feed",
   "workspace.information.section.logging": "Logging",
+  "workspace.information.section.pdf": "PDF",
   "workspace.information.section.pdf_export": "PDF Export",
   "workspace.information.section.pdf_covers": "PDF Covers",
   "workspace.information.section.help": "Help",

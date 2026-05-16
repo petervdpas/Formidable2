@@ -25,16 +25,22 @@ export interface InformationCategory {
 
 export const INFORMATION_CATEGORIES: InformationCategory[] = [
   { id: "about",           labelKey: "workspace.information.section.about",           component: InformationAbout },
-  { id: "shortcuts",       labelKey: "workspace.information.section.shortcuts",       component: InformationShortcuts },
   { id: "internal-server", labelKey: "workspace.information.section.internal_server", component: InformationInternalServer },
   { id: "monitoring",      labelKey: "workspace.information.section.monitoring",      component: InformationMonitoring },
   { id: "journal-feed",    labelKey: "workspace.information.section.journal_feed",    component: InformationJournalFeed },
-  { id: "pdf-export",      labelKey: "workspace.information.section.pdf_export",      component: InformationPDFExport },
-  { id: "pdf-covers",      labelKey: "workspace.information.section.pdf_covers",      component: InformationPDFCovers },
+  {
+    id: "pdf",
+    labelKey: "workspace.information.section.pdf",
+    children: [
+      { id: "pdf-export", labelKey: "workspace.information.section.pdf_export", component: InformationPDFExport },
+      { id: "pdf-covers", labelKey: "workspace.information.section.pdf_covers", component: InformationPDFCovers },
+    ],
+  },
   {
     id: "help",
     labelKey: "workspace.information.section.help",
     children: [
+      { id: "shortcuts",      labelKey: "workspace.information.section.shortcuts",      component: InformationShortcuts },
       { id: "render-helpers", labelKey: "workspace.information.section.render_helpers", component: InformationRenderHelpers },
     ],
   },
