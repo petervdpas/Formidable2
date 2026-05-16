@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import type { HelperDescriptor } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render/models";
@@ -8,6 +8,7 @@ const { t } = useI18n();
 
 const helpers = ref<HelperDescriptor[]>([]);
 const loading = ref(true);
+const activeCategory = ref<string>("");
 
 onMounted(async () => {
   try {
@@ -20,8 +21,8 @@ onMounted(async () => {
 
 // Group by category, preserving the catalog's source order (alphabetical
 // inside each category) and listing categories in their first-seen
-// order so the visual layout matches the Go source.
-const grouped = computed(() => {
+// order so the tab strip matches the Go source.
+const groups = computed(() => {
   const map = new Map<string, HelperDescriptor[]>();
   for (const h of helpers.value) {
     const key = String(h.category ?? "");
@@ -30,6 +31,19 @@ const grouped = computed(() => {
     map.set(key, list);
   }
   return Array.from(map.entries()).map(([category, items]) => ({ category, items }));
+});
+
+// Default-select the first category once helpers arrive. Persists the
+// user's pick across re-renders within this session.
+watch(groups, (g) => {
+  if (!activeCategory.value && g.length > 0) {
+    activeCategory.value = g[0].category;
+  }
+});
+
+const activeItems = computed(() => {
+  const g = groups.value.find((x) => x.category === activeCategory.value);
+  return g?.items ?? [];
 });
 
 function categoryLabel(category: string): string {
@@ -45,22 +59,36 @@ function categoryLabel(category: string): string {
 
     <p v-if="loading" class="muted small">{{ t('workspace.information.render_helpers.loading') }}</p>
 
-    <article v-for="group in grouped" :key="group.category" class="render-helpers-group">
-      <h3 class="render-helpers-group-title">{{ categoryLabel(group.category) }}</h3>
-      <ul class="render-helpers-list">
-        <li v-for="h in group.items" :key="h.name" class="render-helpers-card">
-          <div class="render-helpers-name">
-            <code>{{ h.name }}</code>
-          </div>
-          <p class="render-helpers-description">{{ h.description }}</p>
-          <dl class="render-helpers-meta">
-            <dt>{{ t('workspace.information.render_helpers.signature') }}</dt>
-            <dd><code>{{ h.signature }}</code></dd>
-            <dt>{{ t('workspace.information.render_helpers.example') }}</dt>
-            <dd><code>{{ h.example }}</code></dd>
-          </dl>
-        </li>
-      </ul>
-    </article>
+    <div v-else class="tabs-container tabs-container--horizontal render-helpers-tabs">
+      <nav class="tabs" role="tablist" aria-orientation="horizontal">
+        <button
+          v-for="g in groups"
+          :key="g.category"
+          type="button"
+          role="tab"
+          :class="['tab', { active: activeCategory === g.category }]"
+          :aria-selected="activeCategory === g.category"
+          @click="activeCategory = g.category"
+        >
+          {{ categoryLabel(g.category) }}
+        </button>
+      </nav>
+      <section class="tab-pane" role="tabpanel">
+        <ul class="render-helpers-list">
+          <li v-for="h in activeItems" :key="h.name" class="render-helpers-card">
+            <div class="render-helpers-name">
+              <code>{{ h.name }}</code>
+            </div>
+            <p class="render-helpers-description">{{ h.description }}</p>
+            <dl class="render-helpers-meta">
+              <dt>{{ t('workspace.information.render_helpers.signature') }}</dt>
+              <dd><code>{{ h.signature }}</code></dd>
+              <dt>{{ t('workspace.information.render_helpers.example') }}</dt>
+              <dd><code>{{ h.example }}</code></dd>
+            </dl>
+          </li>
+        </ul>
+      </section>
+    </div>
   </section>
 </template>

@@ -27,6 +27,7 @@
 @import "./dnd.css";
 @import "./sidebar.css";
 @import "./tabs.css";
+@import "./tree-view.css";
 @import "./icon.css";
 
 /* Component-specific (named after the component they style). */

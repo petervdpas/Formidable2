@@ -243,12 +243,11 @@
   margin: 0 0 var(--space-2, 8px) 0;
 }
 
-.render-helpers-group-title {
-  margin: 0 0 var(--space-2, 8px) 0;
-  font-size: var(--font-size-sm, 0.85rem);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted, #888);
+/* 13 categories don't fit on one row at sensible widths — wrap rather
+   than horizontal-scroll. Inherits the tab/active styles from
+   tabs.css; only the row geometry needs overriding. */
+.render-helpers-tabs > .tabs {
+  flex-wrap: wrap;
 }
 
 .render-helpers-list {

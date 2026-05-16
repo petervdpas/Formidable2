@@ -280,6 +280,7 @@
   "workspace.information.section.logging": "Logging",
   "workspace.information.section.pdf_export": "PDF Export",
   "workspace.information.section.pdf_covers": "PDF Covers",
+  "workspace.information.section.help": "Help",
   "workspace.information.section.render_helpers": "Render Helpers",
   "workspace.information.render_helpers.intro": "Handlebars helpers Formidable registers on every template render. Use them in your YAML frontmatter or the markdown body. Built-in Handlebars helpers (`if`, `each`, `with`, `unless`, `lookup`) are also available — see the Handlebars docs.",
   "workspace.information.render_helpers.signature": "Signature",
