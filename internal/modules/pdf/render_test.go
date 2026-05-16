@@ -469,6 +469,92 @@ func TestExport_DifferentFormsParallelizable(t *testing.T) {
 	}
 }
 
+// TestExport_MetadataInjection_WritesInfoDict exercises the post-
+// process pdfcpu pass at the bottom of Export. The converter returns
+// a real minimal PDF (built via pdfcpu so the read+write round-trip
+// works); after Export, the saved file must carry the merged Cover
+// title/author/description as /Title /Author /Subject and the
+// top-level keywords as /Keywords. Catches regressions in either
+// buildPDFMetadata or the render.go wiring.
+func TestExport_MetadataInjection_WritesInfoDict(t *testing.T) {
+	m, mem, rdr, stg, _ := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	rdr.md["tpl.yaml|f.meta.json"] = `---
+keywords:
+  - Audit
+  - Governance
+  - Risk
+cover:
+  title: Audit Control
+  author: Team Integration Services
+  description: Annual review
+---
+# Body
+`
+	realPDF := minimalPDF(t)
+	m.convertFn = func(bin, style string, _ *picoloom.TemplateSet) (converter, error) {
+		return &fakeConverter{pdfBytes: realPDF}, nil
+	}
+
+	res, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{})
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	saved, err := mem.LoadFile(res.Path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	got, err := readPDFMetadata([]byte(saved))
+	if err != nil {
+		t.Fatalf("readPDFMetadata: %v", err)
+	}
+	if got.Title != "Audit Control" {
+		t.Errorf("/Title = %q, want %q", got.Title, "Audit Control")
+	}
+	if got.Author != "Team Integration Services" {
+		t.Errorf("/Author = %q, want %q", got.Author, "Team Integration Services")
+	}
+	if got.Subject != "Annual review" {
+		t.Errorf("/Subject = %q, want %q", got.Subject, "Annual review")
+	}
+	for _, want := range []string{"Audit", "Governance", "Risk"} {
+		found := false
+		for _, k := range got.Keywords {
+			if k == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("/Keywords missing %q (have %v)", want, got.Keywords)
+		}
+	}
+}
+
+// TestExport_MetadataInjection_FailureFallsBack confirms the post-
+// process pass is best-effort: when picoloom hands back bytes that
+// pdfcpu can't parse, Export still saves the original PDF rather than
+// erroring. Mirrors the "log warn, ship as-is" contract.
+func TestExport_MetadataInjection_FailureFallsBack(t *testing.T) {
+	m, mem, rdr, stg, cf := newActiveManager(t)
+	stg.dirs["tpl.yaml"] = "/storage/tpl"
+	// Keywords trigger the inject path; the synthetic "%PDF-1.4\n%fake\n"
+	// from the default fakeConverter will fail pdfcpu's read step.
+	rdr.md["tpl.yaml|f.meta.json"] = "---\nkeywords: [k1, k2]\n---\n# body\n"
+
+	res, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{})
+	if err != nil {
+		t.Fatalf("Export should swallow inject failure: %v", err)
+	}
+	saved, err := mem.LoadFile(res.Path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if saved != string(cf.last.pdfBytes) {
+		t.Errorf("saved bytes differ from converter output (inject failure should fall through)")
+	}
+}
+
 func TestExport_MalformedFrontmatterUsesDefaults(t *testing.T) {
 	m, _, rdr, stg, cf := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/x"

@@ -236,8 +236,20 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		return m.failExport(started, templateFilename, datafile, "convert", errEmptyPDF)
 	}
 
+	pdfBytes := res.PDF
+	md := buildPDFMetadata(merged)
+	if md.HasContent() {
+		injected, mErr := InjectPDFMetadata(pdfBytes, md)
+		if mErr != nil {
+			m.log.Warn("pdf: metadata injection failed; saving unmodified PDF",
+				"template", templateFilename, "datafile", datafile, "err", mErr)
+		} else {
+			pdfBytes = injected
+		}
+	}
+
 	outPath := m.resolveOutputPath(templateFilename, datafile, opts, status.ExportDir)
-	if err := m.store.fs.SaveFile(outPath, string(res.PDF)); err != nil {
+	if err := m.store.fs.SaveFile(outPath, string(pdfBytes)); err != nil {
 		return m.failExport(started, templateFilename, datafile, "save",
 			fmt.Errorf("%w: %v", errSaveFailed, err))
 	}
@@ -248,7 +260,7 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		"template", templateFilename,
 		"datafile", datafile,
 		"path", outPath,
-		"bytes", len(res.PDF),
+		"bytes", len(pdfBytes),
 		"duration_ms", duration.Milliseconds(),
 		"theme", style,
 		"cover", coverNameForLog(coverFM),
@@ -263,12 +275,12 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		Cover:      coverNameForLog(coverFM),
 		HasCover:   coverTS != nil,
 		Path:       outPath,
-		Bytes:      len(res.PDF),
+		Bytes:      len(pdfBytes),
 	})
 
 	return Result{
 		Path:     outPath,
-		Bytes:    len(res.PDF),
+		Bytes:    len(pdfBytes),
 		Duration: duration,
 	}, nil
 }

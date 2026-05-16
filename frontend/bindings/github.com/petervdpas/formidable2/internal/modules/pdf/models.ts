@@ -494,6 +494,7 @@ export class FrontmatterMigration {
  */
 export class InjectConfig {
     "style"?: string;
+    "keywords"?: string[];
     "page"?: InjectPageConfig | null;
     "cover"?: InjectCoverConfig | null;
     "toc"?: InjectTOCConfig | null;
@@ -510,26 +511,30 @@ export class InjectConfig {
      * Creates a new InjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): InjectConfig {
-        const $$createField1_0 = $$createType10;
-        const $$createField2_0 = $$createType12;
-        const $$createField3_0 = $$createType14;
-        const $$createField4_0 = $$createType16;
-        const $$createField5_0 = $$createType18;
+        const $$createField1_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType14;
+        const $$createField5_0 = $$createType16;
+        const $$createField6_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("keywords" in $$parsedSource) {
+            $$parsedSource["keywords"] = $$createField1_0($$parsedSource["keywords"]);
+        }
         if ("page" in $$parsedSource) {
-            $$parsedSource["page"] = $$createField1_0($$parsedSource["page"]);
+            $$parsedSource["page"] = $$createField2_0($$parsedSource["page"]);
         }
         if ("cover" in $$parsedSource) {
-            $$parsedSource["cover"] = $$createField2_0($$parsedSource["cover"]);
+            $$parsedSource["cover"] = $$createField3_0($$parsedSource["cover"]);
         }
         if ("toc" in $$parsedSource) {
-            $$parsedSource["toc"] = $$createField3_0($$parsedSource["toc"]);
+            $$parsedSource["toc"] = $$createField4_0($$parsedSource["toc"]);
         }
         if ("footer" in $$parsedSource) {
-            $$parsedSource["footer"] = $$createField4_0($$parsedSource["footer"]);
+            $$parsedSource["footer"] = $$createField5_0($$parsedSource["footer"]);
         }
         if ("signature" in $$parsedSource) {
-            $$parsedSource["signature"] = $$createField5_0($$parsedSource["signature"]);
+            $$parsedSource["signature"] = $$createField6_0($$parsedSource["signature"]);
         }
         return new InjectConfig($$parsedSource as Partial<InjectConfig>);
     }

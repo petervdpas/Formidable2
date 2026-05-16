@@ -117,6 +117,32 @@ func TestParseFrontmatter_MissingClosingDelimiter(t *testing.T) {
 	}
 }
 
+func TestParseFrontmatter_Keywords(t *testing.T) {
+	md := "---\nkeywords:\n  - Audit\n  - Governance\n  - Risk\n---\nbody\n"
+	fm, body, err := ParseFrontmatter(md)
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if body != "body\n" {
+		t.Errorf("body = %q", body)
+	}
+	want := []string{"Audit", "Governance", "Risk"}
+	if !reflect.DeepEqual(fm.Keywords, want) {
+		t.Errorf("Keywords = %+v, want %+v", fm.Keywords, want)
+	}
+}
+
+func TestParseFrontmatter_KeywordsFlowSequence(t *testing.T) {
+	md := "---\nkeywords: [a, b, c]\n---\nbody\n"
+	fm, _, err := ParseFrontmatter(md)
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if !reflect.DeepEqual(fm.Keywords, []string{"a", "b", "c"}) {
+		t.Errorf("Keywords = %+v", fm.Keywords)
+	}
+}
+
 func TestParseFrontmatter_UnknownKeysIgnored(t *testing.T) {
 	md := "---\nstyle: technical\ngarbage_field: 42\nanother: [1,2,3]\n---\n# body\n"
 	fm, body, err := ParseFrontmatter(md)
@@ -265,6 +291,25 @@ func TestMerge_LinksSliceEmptyInherits(t *testing.T) {
 	got := Merge(high, low)
 	if got.Signature == nil || len(got.Signature.Links) != 1 || got.Signature.Links[0].Label != "L1" {
 		t.Errorf("Links = %+v, want [{L1, l1}] (inherited)", got.Signature.Links)
+	}
+}
+
+func TestMerge_KeywordsSliceAtomic(t *testing.T) {
+	// Atomic-replace mirrors Signature.Links: higher non-empty wins.
+	high := Frontmatter{Keywords: []string{"H1", "H2"}}
+	low := Frontmatter{Keywords: []string{"L1", "L2", "L3"}}
+	got := Merge(high, low)
+	if !reflect.DeepEqual(got.Keywords, []string{"H1", "H2"}) {
+		t.Errorf("Keywords = %+v, want [H1 H2]", got.Keywords)
+	}
+}
+
+func TestMerge_KeywordsEmptyInherits(t *testing.T) {
+	high := Frontmatter{Style: "x"}
+	low := Frontmatter{Keywords: []string{"A", "B"}}
+	got := Merge(high, low)
+	if !reflect.DeepEqual(got.Keywords, []string{"A", "B"}) {
+		t.Errorf("Keywords = %+v, want [A B] inherited", got.Keywords)
 	}
 }
 

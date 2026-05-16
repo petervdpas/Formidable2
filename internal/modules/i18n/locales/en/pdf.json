@@ -135,6 +135,9 @@
   "pdf.inject.cover.more_on": "Hide additional fields",
   "pdf.inject.cover.more_off": "Show additional fields",
 
+  "pdf.inject.keywords.field": "Keywords",
+  "pdf.inject.keywords.placeholder": "Comma-separated, e.g. Audit, Governance, Risk",
+
   "pdf.inject.toc.section": "Table of contents",
   "pdf.inject.toc.enable": "Include table of contents",
   "pdf.inject.toc.help": "Auto-generated from the document headings.",

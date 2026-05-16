@@ -150,6 +150,39 @@ func TestBuildFrontmatter_SignatureBlock(t *testing.T) {
 	}
 }
 
+func TestBuildFrontmatter_Keywords(t *testing.T) {
+	got, err := BuildFrontmatter(InjectConfig{
+		Keywords: []string{"Audit", "Governance", "Risk"},
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	// Round-trip the body to confirm shape; the literal yaml-emit
+	// form is flow- or block-sequence depending on yaml.v3 mood, so
+	// we don't lock to a specific layout.
+	bodyOnly := strings.TrimPrefix(strings.TrimSuffix(got, "---\n"), "---\n")
+	var fm Frontmatter
+	if err := yaml.Unmarshal([]byte(bodyOnly), &fm); err != nil {
+		t.Fatalf("emitted YAML not parseable: %v\n%s", err, got)
+	}
+	want := []string{"Audit", "Governance", "Risk"}
+	if len(fm.Keywords) != len(want) {
+		t.Fatalf("Keywords len = %d, want %d (%+v)", len(fm.Keywords), len(want), fm.Keywords)
+	}
+	for i, w := range want {
+		if fm.Keywords[i] != w {
+			t.Errorf("Keywords[%d] = %q, want %q", i, fm.Keywords[i], w)
+		}
+	}
+}
+
+func TestBuildFrontmatter_KeywordsEmptyOmitted(t *testing.T) {
+	got, _ := BuildFrontmatter(InjectConfig{Style: "x"})
+	if strings.Contains(got, "keywords:") {
+		t.Errorf("empty Keywords leaked into output:\n%s", got)
+	}
+}
+
 func TestBuildFrontmatter_BlockOrderIsCanonical(t *testing.T) {
 	got, err := BuildFrontmatter(InjectConfig{
 		Style:     "academic",

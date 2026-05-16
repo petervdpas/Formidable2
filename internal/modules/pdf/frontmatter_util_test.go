@@ -137,7 +137,6 @@ func TestMigrate_PapersizeUnknownPreserved(t *testing.T) {
 func TestMigrate_UnknownKeysPreservedAsLegacy(t *testing.T) {
 	src := `---
 title: Mine
-keywords: '[k1, k2]'
 fontsize: 9pt
 titlepage-color: '#F8F8F8'
 ---
@@ -150,12 +149,12 @@ body
 	if !strings.Contains(got.Markdown, "legacy:") {
 		t.Errorf("expected legacy block, got:\n%s", got.Markdown)
 	}
-	for _, k := range []string{"keywords:", "fontsize:", "titlepage-color:"} {
+	for _, k := range []string{"fontsize:", "titlepage-color:"} {
 		if !strings.Contains(got.Markdown, k) {
 			t.Errorf("legacy block missing %q\nFull:\n%s", k, got.Markdown)
 		}
 	}
-	for _, k := range []string{"keywords", "fontsize", "titlepage-color"} {
+	for _, k := range []string{"fontsize", "titlepage-color"} {
 		found := false
 		for _, p := range got.Preserved {
 			if p == k {
@@ -166,6 +165,130 @@ body
 		if !found {
 			t.Errorf("Preserved missing %q (have %v)", k, got.Preserved)
 		}
+	}
+}
+
+func TestMigrate_KeywordsFlowSequencePassThrough(t *testing.T) {
+	// Clean YAML sequence — round-trip to top-level keywords.
+	src := `---
+keywords: [Audit, Governance, Risk]
+---
+body
+`
+	got, err := MigrateFrontmatter(src)
+	if err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if strings.Contains(got.Markdown, "legacy:") {
+		t.Errorf("clean keywords leaked to legacy:\n%s", got.Markdown)
+	}
+	// Round-trip to confirm shape.
+	body := strings.TrimPrefix(strings.TrimSuffix(got.Markdown, "body\n"), "")
+	if !strings.Contains(body, "keywords:") {
+		t.Fatalf("keywords missing from migrated output:\n%s", got.Markdown)
+	}
+	fm, _, err := ParseFrontmatter(got.Markdown)
+	if err != nil {
+		t.Fatalf("re-parse: %v", err)
+	}
+	want := []string{"Audit", "Governance", "Risk"}
+	if len(fm.Keywords) != 3 {
+		t.Fatalf("Keywords len = %d, want 3 (%+v)", len(fm.Keywords), fm.Keywords)
+	}
+	for i, w := range want {
+		if fm.Keywords[i] != w {
+			t.Errorf("Keywords[%d] = %q, want %q", i, fm.Keywords[i], w)
+		}
+	}
+	// Should be reported as a mapping (from: keywords → to: keywords).
+	mapped := false
+	for _, m := range got.Mappings {
+		if m.From == "keywords" && m.To == "keywords" {
+			mapped = true
+			break
+		}
+	}
+	if !mapped {
+		t.Errorf("expected mapping keywords→keywords, got %+v", got.Mappings)
+	}
+}
+
+func TestMigrate_KeywordsEisvogelBracketStringSplit(t *testing.T) {
+	// Eisvogel/PandocPrint's bracket-string DSL — split into a real
+	// YAML sequence.
+	src := `---
+keywords: '[Audit, Governance, Risk]'
+---
+body
+`
+	got, err := MigrateFrontmatter(src)
+	if err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if strings.Contains(got.Markdown, "legacy:") {
+		t.Errorf("eisvogel keywords-string should not land in legacy:\n%s", got.Markdown)
+	}
+	fm, _, err := ParseFrontmatter(got.Markdown)
+	if err != nil {
+		t.Fatalf("re-parse: %v", err)
+	}
+	want := []string{"Audit", "Governance", "Risk"}
+	if len(fm.Keywords) != 3 {
+		t.Fatalf("Keywords len = %d, want 3 (%+v)", len(fm.Keywords), fm.Keywords)
+	}
+	for i, w := range want {
+		if fm.Keywords[i] != w {
+			t.Errorf("Keywords[%d] = %q, want %q", i, fm.Keywords[i], w)
+		}
+	}
+}
+
+func TestMigrate_KeywordsEisvogelBracketStringWithHandlebars(t *testing.T) {
+	// Real audit-controls case: handlebars expression embedded in the
+	// bracket-string list. The expression renders at template time into
+	// some string (commas inside it stay inside that one element).
+	src := `---
+keywords: '[Aanpak, Management, {{tags (fieldRaw "audit-control-tags") withHash=false}}]'
+---
+body
+`
+	got, err := MigrateFrontmatter(src)
+	if err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	// The handlebars expression must survive verbatim. The exact
+	// quoting of the emitted element depends on yaml.v3's mood;
+	// substring-match suffices.
+	if !strings.Contains(got.Markdown, `{{tags (fieldRaw "audit-control-tags") withHash=false}}`) {
+		t.Errorf("handlebars expression lost:\n%s", got.Markdown)
+	}
+	if !strings.Contains(got.Markdown, "Aanpak") || !strings.Contains(got.Markdown, "Management") {
+		t.Errorf("literal keywords lost:\n%s", got.Markdown)
+	}
+	// No sentinel leak.
+	if strings.Contains(got.Markdown, "__HBS_") {
+		t.Errorf("sentinel leaked:\n%s", got.Markdown)
+	}
+}
+
+func TestMigrate_KeywordsPlainStringPreserved(t *testing.T) {
+	// Single non-bracket string keyword — ambiguous (one keyword? a
+	// comma-separated list?). Preserve under legacy with a warning
+	// rather than guess.
+	src := `---
+keywords: just-one-string
+---
+body
+`
+	got, err := MigrateFrontmatter(src)
+	if err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	if !strings.Contains(got.Markdown, "legacy:") {
+		t.Errorf("plain-string keywords should land in legacy:\n%s", got.Markdown)
+	}
+	if len(got.Warnings) == 0 {
+		t.Errorf("expected warning about ambiguous string-keywords")
 	}
 }
 

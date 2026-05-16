@@ -26,6 +26,7 @@ import (
 // distinguishable).
 type Frontmatter struct {
 	Style      string        `yaml:"style,omitempty"`
+	Keywords   []string      `yaml:"keywords,omitempty"`
 	Page       *PageFM       `yaml:"page,omitempty"`
 	Cover      *CoverFM      `yaml:"cover,omitempty"`
 	TOC        *TOCFM        `yaml:"toc,omitempty"`
@@ -216,6 +217,9 @@ func overlay(higher, base Frontmatter) Frontmatter {
 	out := base
 	if higher.Style != "" {
 		out.Style = higher.Style
+	}
+	if len(higher.Keywords) > 0 {
+		out.Keywords = append([]string(nil), higher.Keywords...)
 	}
 	out.Page = overlayPage(higher.Page, base.Page)
 	out.Cover = overlayCover(higher.Cover, base.Cover)

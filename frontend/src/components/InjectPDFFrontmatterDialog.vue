@@ -77,6 +77,12 @@ const coverDate = ref("");
 const coverVersion = ref("");
 const coverLogo = ref("");
 
+// Top-level keywords. Comma-separated in the UI; split into a string
+// array on the way to the backend so it round-trips as a real YAML
+// sequence (and lands in the PDF Info dict as /Keywords after the
+// pdfcpu post-process pass).
+const keywordsInput = ref("");
+
 // Page fields.
 const pageSize = ref("a4");
 const pageOrientation = ref("portrait");
@@ -204,6 +210,13 @@ function footerPositionLabel(name: string): string {
 // we can omit fields rather than spelling out every undefined.
 function buildConfig(): InjectConfig {
   const cfg = new InjectConfig({ style: style.value });
+  const kws = keywordsInput.value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (kws.length > 0) {
+    cfg.keywords = kws;
+  }
   if (coverOn.value) {
     cfg.cover = new InjectCoverConfig({
       template: coverTemplate.value,
@@ -300,7 +313,7 @@ watch(
   [
     () => props.open, style, coverOn, pageOn, tocOn, footerOn, signatureOn,
     coverTemplate, coverTitle, coverSubtitle, coverAuthor, coverOrganization,
-    coverDate, coverVersion, coverLogo,
+    coverDate, coverVersion, coverLogo, keywordsInput,
     pageSize, pageOrientation, pageMargin,
     tocTitle, tocMinDepth, tocMaxDepth,
     footerPosition, footerShowPageNumber, footerText, footerDate, footerStatus, footerDocumentID,
@@ -381,6 +394,12 @@ async function onApply() {
               </FormRow>
               <FormRow :label="t('pdf.inject.cover.author')">
                 <TextField v-model="coverAuthor" />
+              </FormRow>
+              <FormRow :label="t('pdf.inject.keywords.field')">
+                <TextField
+                  v-model="keywordsInput"
+                  :placeholder="t('pdf.inject.keywords.placeholder')"
+                />
               </FormRow>
               <FormRow :label="t('pdf.inject.cover.organization')">
                 <TextField v-model="coverOrganization" />

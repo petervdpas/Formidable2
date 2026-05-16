@@ -135,6 +135,9 @@
   "pdf.inject.cover.more_on": "Extra velden verbergen",
   "pdf.inject.cover.more_off": "Extra velden tonen",
 
+  "pdf.inject.keywords.field": "Trefwoorden",
+  "pdf.inject.keywords.placeholder": "Kommagescheiden, bijv. Audit, Governance, Risk",
+
   "pdf.inject.toc.section": "Inhoudsopgave",
   "pdf.inject.toc.enable": "Inhoudsopgave opnemen",
   "pdf.inject.toc.help": "Automatisch gegenereerd uit de kopjes in het document.",

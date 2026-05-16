@@ -34,6 +34,13 @@ const canonicalScaffold = `---
 # default.
 style:
 
+# Document keywords — written into the PDF /Keywords Info-dictionary
+# entry by the post-render pdfcpu pass. Searchable by OS file indexers
+# and visible in PDF readers' Document Properties.
+#keywords:
+#  - Audit
+#  - Governance
+
 # Page layout.
 page:
   size: a4           # a4 | letter | legal
@@ -288,6 +295,24 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 			out.Mappings = append(out.Mappings,
 				FrontmatterMapping{From: k, To: "cover." + target})
 
+		case strings.EqualFold(k, "keywords"):
+			parsed, ok := parseEisvogelKeywords(v)
+			if !ok {
+				legacy[k] = v
+				out.Warnings = append(out.Warnings,
+					fmt.Sprintf("keywords %q has an unrecognised shape; preserved under legacy", v))
+				continue
+			}
+			if existing, ok := dst["keywords"]; ok && !isEmpty(existing) {
+				legacy[k] = v
+				out.Warnings = append(out.Warnings,
+					"preserved \"keywords\" under legacy; top-level keywords was already set")
+				continue
+			}
+			dst["keywords"] = parsed
+			out.Mappings = append(out.Mappings,
+				FrontmatterMapping{From: "keywords", To: "keywords"})
+
 		case strings.EqualFold(k, "papersize"):
 			s, _ := v.(string)
 			mapped, known := eisvogelPaperSizeMap[strings.ToLower(strings.TrimSpace(s))]
@@ -411,15 +436,22 @@ func unmaskHandlebars(src string, tokens map[string]string) string {
 // bottom as "stuff to review").
 func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preservedKeys []string) (string, error) {
 	var b strings.Builder
-	canonicalOrder := []string{"style", "page", "cover", "toc", "footer", "signature", "watermark", "pageBreaks"}
+	canonicalOrder := []string{"style", "keywords", "page", "cover", "toc", "footer", "signature", "watermark", "pageBreaks"}
 	for _, k := range canonicalOrder {
 		v, ok := dst[k]
 		if !ok {
 			continue
 		}
-		chunk, err := marshalBlock(k, v)
-		if err != nil {
-			return "", err
+		var chunk string
+		var err error
+		if k == "keywords" {
+			items, _ := v.([]any)
+			chunk = marshalKeywordsBlock(items)
+		} else {
+			chunk, err = marshalBlock(k, v)
+			if err != nil {
+				return "", err
+			}
 		}
 		b.WriteString(chunk)
 	}
@@ -453,6 +485,53 @@ func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preserve
 		}
 	}
 	return b.String(), nil
+}
+
+// marshalKeywordsBlock emits the top-level `keywords:` sequence by
+// hand. yaml.Marshal would emit each element unquoted (the values are
+// either plain words or `__HBS_N__` sentinels — all alphanumeric to
+// the YAML lexer), which means the global unmask pass at the end of
+// MigrateFrontmatter would drop bare `{{…}}` Handlebars expressions
+// into unquoted scalar position — invalid YAML. Quoting sentinel-
+// containing elements ourselves keeps the post-unmask text valid:
+// `'{{…}}'` is a single-quoted scalar.
+func marshalKeywordsBlock(items []any) string {
+	var b strings.Builder
+	b.WriteString("keywords:\n")
+	for _, it := range items {
+		s, ok := it.(string)
+		if !ok {
+			s = fmt.Sprintf("%v", it)
+		}
+		if needsYAMLQuoting(s) {
+			esc := strings.ReplaceAll(s, "'", "''")
+			b.WriteString("- '")
+			b.WriteString(esc)
+			b.WriteString("'\n")
+		} else {
+			b.WriteString("- ")
+			b.WriteString(s)
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+func needsYAMLQuoting(s string) bool {
+	if s == "" {
+		return true
+	}
+	if strings.Contains(s, "__HBS_") {
+		return true
+	}
+	if strings.ContainsAny(s, "{}[]:#&*!|>%@`,") {
+		return true
+	}
+	switch s[0] {
+	case '-', '?', '\'', '"':
+		return true
+	}
+	return false
 }
 
 // marshalBlock emits one top-level YAML block with the form
@@ -490,6 +569,68 @@ func sanitizeYAMLValues(v any) any {
 		return x
 	}
 	return v
+}
+
+// parseEisvogelKeywords normalises whatever shape `keywords:` came in
+// as into a YAML sequence (`[]any` of strings) for the migrated
+// frontmatter. Two real-world shapes are recognised:
+//
+//   - YAML sequence: `keywords: [a, b, c]` or block form. yaml.v3
+//     parses these into `[]any`; pass through verbatim.
+//   - Eisvogel/PandocPrint bracket-string DSL:
+//     `keywords: '[Aanpak, Management, {{tags …}}]'`. Strip the outer
+//     brackets, split on commas, trim each element. Handlebars
+//     expressions have already been masked to sentinels by the time we
+//     see the value, so commas inside `{{…}}` are not present and the
+//     split is safe.
+//
+// Returns (nil, false) for any other shape (numeric, plain string
+// without brackets, map, ...) so the caller can preserve the original
+// under legacy with a warning. Empty result → also (nil, false): an
+// empty keywords list is meaningless.
+func parseEisvogelKeywords(v any) ([]any, bool) {
+	switch x := v.(type) {
+	case []any:
+		out := make([]any, 0, len(x))
+		for _, item := range x {
+			s, ok := item.(string)
+			if !ok {
+				s = fmt.Sprintf("%v", item)
+			}
+			s = strings.TrimSpace(s)
+			if s == "" {
+				continue
+			}
+			out = append(out, s)
+		}
+		if len(out) == 0 {
+			return nil, false
+		}
+		return out, true
+	case string:
+		s := strings.TrimSpace(x)
+		if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
+			return nil, false
+		}
+		inner := strings.TrimSpace(s[1 : len(s)-1])
+		if inner == "" {
+			return nil, false
+		}
+		parts := strings.Split(inner, ",")
+		out := make([]any, 0, len(parts))
+		for _, p := range parts {
+			t := strings.TrimSpace(p)
+			if t == "" {
+				continue
+			}
+			out = append(out, t)
+		}
+		if len(out) == 0 {
+			return nil, false
+		}
+		return out, true
+	}
+	return nil, false
 }
 
 // isEmpty reports whether v represents a "no opinion" YAML value

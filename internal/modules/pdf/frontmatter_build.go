@@ -22,6 +22,7 @@ import (
 // power-user features deferred until there's demand.
 type InjectConfig struct {
 	Style     string                 `json:"style,omitempty"`
+	Keywords  []string               `json:"keywords,omitempty"`
 	Page      *InjectPageConfig      `json:"page,omitempty"`
 	Cover     *InjectCoverConfig     `json:"cover,omitempty"`
 	TOC       *InjectTOCConfig       `json:"toc,omitempty"`
@@ -102,6 +103,9 @@ type InjectSignatureConfig struct {
 // emitted YAML self-documenting when the user opens the editor later.
 func BuildFrontmatter(cfg InjectConfig) (string, error) {
 	fm := Frontmatter{Style: cfg.Style}
+	if len(cfg.Keywords) > 0 {
+		fm.Keywords = append([]string(nil), cfg.Keywords...)
+	}
 	on := true
 
 	if cfg.Page != nil {
