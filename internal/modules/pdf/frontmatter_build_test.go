@@ -176,6 +176,87 @@ func TestBuildFrontmatter_Keywords(t *testing.T) {
 	}
 }
 
+func TestBuildFrontmatter_KeywordsHelperEmittedRaw(t *testing.T) {
+	// A wholly-handlebars element should land at column 0 as a raw
+	// line — no `- ` prefix, no single-quoting — so the helper's
+	// multi-line expansion plugs into the block sequence cleanly.
+	got, err := BuildFrontmatter(InjectConfig{
+		Keywords: []string{`{{yamlList (fieldRaw "adapter-tags")}}`},
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if !strings.Contains(got, "\n{{yamlList (fieldRaw \"adapter-tags\")}}\n") {
+		t.Errorf("helper not emitted at column 0:\n%s", got)
+	}
+	if strings.Contains(got, `'{{yamlList`) {
+		t.Errorf("helper single-quoted (should be raw):\n%s", got)
+	}
+	if strings.Contains(got, `- {{yamlList`) || strings.Contains(got, `- '{{yamlList`) {
+		t.Errorf("helper still has `- ` list-item prefix:\n%s", got)
+	}
+}
+
+func TestBuildFrontmatter_KeywordsMixedLiteralAndHelper(t *testing.T) {
+	// Literals stay as normal `- ITEM` lines; the helper element
+	// drops to a raw line. Order is preserved.
+	got, err := BuildFrontmatter(InjectConfig{
+		Keywords: []string{
+			"Adapter",
+			`{{yamlList (fieldRaw "x")}}`,
+			"Compliance",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	// Order check: Adapter before helper, helper before Compliance.
+	iAdapter := strings.Index(got, "- Adapter")
+	iHelper := strings.Index(got, "{{yamlList (fieldRaw \"x\")}}")
+	iCompliance := strings.Index(got, "- Compliance")
+	if iAdapter < 0 || iHelper < 0 || iCompliance < 0 {
+		t.Fatalf("missing items in output:\n%s", got)
+	}
+	if !(iAdapter < iHelper && iHelper < iCompliance) {
+		t.Errorf("order broken (Adapter=%d, helper=%d, Compliance=%d):\n%s",
+			iAdapter, iHelper, iCompliance, got)
+	}
+}
+
+func TestBuildFrontmatter_KeywordsHelperOnly_NoOtherBlocks(t *testing.T) {
+	// A keywords-only config with a helper invocation must not collapse
+	// to "---\n---\n" (the empty-frontmatter guard) — keywords ARE
+	// content.
+	got, err := BuildFrontmatter(InjectConfig{
+		Keywords: []string{`{{yamlList (fieldRaw "x")}}`},
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if got == "---\n---\n" {
+		t.Errorf("empty-frontmatter guard ate the keywords block")
+	}
+	if !strings.HasPrefix(got, "---\nkeywords:\n") {
+		t.Errorf("keywords block not at top of frontmatter:\n%s", got)
+	}
+}
+
+func TestBuildFrontmatter_KeywordsAtColumnZero(t *testing.T) {
+	// The whole keywords block lands at column 0 so a helper's
+	// multi-line expansion at render time doesn't break the parent
+	// block by mixing indented + non-indented list items.
+	got, err := BuildFrontmatter(InjectConfig{
+		Style:    "technical",
+		Keywords: []string{"Audit", "Governance"},
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if !strings.Contains(got, "\nkeywords:\n- Audit\n- Governance\n") {
+		t.Errorf("keywords block not column-0 block-sequence:\n%s", got)
+	}
+}
+
 func TestBuildFrontmatter_KeywordsEmptyOmitted(t *testing.T) {
 	got, _ := BuildFrontmatter(InjectConfig{Style: "x"})
 	if strings.Contains(got, "keywords:") {

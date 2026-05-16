@@ -103,6 +103,21 @@ func (tpl *Template) findHelper(name string) reflect.Value {
 	return tpl.helpers[name]
 }
 
+// HelperNames returns the names of every helper registered on tpl.
+// Order is unspecified. Useful for catalog/drift checks where the
+// caller pairs a static descriptor list against the actual runtime
+// set.
+func (tpl *Template) HelperNames() []string {
+	tpl.mutex.RLock()
+	defer tpl.mutex.RUnlock()
+
+	names := make([]string, 0, len(tpl.helpers))
+	for name := range tpl.helpers {
+		names = append(names, name)
+	}
+	return names
+}
+
 // RegisterHelper registers a helper for that template.
 func (tpl *Template) RegisterHelper(name string, helper interface{}) {
 	tpl.mutex.Lock()

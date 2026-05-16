@@ -7,5 +7,7 @@ export {
 };
 
 export {
+    HelperCategory,
+    HelperDescriptor,
     Result
 } from "./models.js";

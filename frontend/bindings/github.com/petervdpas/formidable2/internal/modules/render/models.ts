@@ -6,6 +6,96 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * HelperCategory groups helpers into discoverable sections in the
+ * frontend reference panel. Stable string constants — frontend uses
+ * them as i18n key suffixes (e.g. `render.helpers.category.field`).
+ */
+export enum HelperCategory {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    HelperCategoryComparison = "comparison",
+    HelperCategoryMath = "math",
+    HelperCategoryCollection = "collection",
+    HelperCategoryString = "string",
+    HelperCategoryFormat = "format",
+    HelperCategoryScratch = "scratch",
+    HelperCategoryLookup = "lookup",
+    HelperCategoryField = "field",
+    HelperCategoryImage = "image",
+    HelperCategoryLoop = "loop",
+    HelperCategoryStats = "stats",
+    HelperCategoryTags = "tags",
+    HelperCategoryAPI = "api",
+};
+
+/**
+ * HelperDescriptor describes one registered Handlebars helper. The
+ * shape is JSON-serialisable for the Wails service so the frontend
+ * reference panel can render it directly. Fields are intentionally
+ * terse — these are developer-facing reference cards, not tutorials.
+ */
+export class HelperDescriptor {
+    /**
+     * Name is the helper identifier as used in `{{<name> …}}`.
+     */
+    "name": string;
+
+    /**
+     * Signature is a Handlebars-shaped usage hint, e.g.
+     * `{{yamlList arr [indent=N]}}`. Square brackets mark optional args.
+     */
+    "signature": string;
+
+    /**
+     * Description is a one-sentence English summary. Translation lives
+     * in vue-i18n if needed; this field is the fallback.
+     */
+    "description": string;
+
+    /**
+     * Example is a representative invocation. Single line, copy-pasteable.
+     */
+    "example": string;
+
+    /**
+     * Category groups the helper in the reference panel.
+     */
+    "category": HelperCategory;
+
+    /** Creates a new HelperDescriptor instance. */
+    constructor($$source: Partial<HelperDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("signature" in $$source)) {
+            this["signature"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("example" in $$source)) {
+            this["example"] = "";
+        }
+        if (!("category" in $$source)) {
+            this["category"] = HelperCategory.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new HelperDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): HelperDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new HelperDescriptor($$parsedSource as Partial<HelperDescriptor>);
+    }
+}
+
+/**
  * Result is the dual-stage output of RenderForm.
  */
 export class Result {

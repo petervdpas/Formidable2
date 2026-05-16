@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -103,9 +104,7 @@ type InjectSignatureConfig struct {
 // emitted YAML self-documenting when the user opens the editor later.
 func BuildFrontmatter(cfg InjectConfig) (string, error) {
 	fm := Frontmatter{Style: cfg.Style}
-	if len(cfg.Keywords) > 0 {
-		fm.Keywords = append([]string(nil), cfg.Keywords...)
-	}
+	keywords := append([]string(nil), cfg.Keywords...)
 	on := true
 
 	if cfg.Page != nil {
@@ -173,12 +172,63 @@ func BuildFrontmatter(cfg InjectConfig) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("pdf: build frontmatter: %w", err)
 	}
-	// yaml.Marshal of a fully-zero Frontmatter emits "{}\n" — guard
-	// against producing an empty scaffold (no blocks, no style).
-	if strings.TrimSpace(string(body)) == "{}" {
+	emptyBody := strings.TrimSpace(string(body)) == "{}"
+	if emptyBody && len(keywords) == 0 {
 		return "---\n---\n", nil
 	}
-	return "---\n" + string(body) + "---\n", nil
+	out := string(body)
+	if emptyBody {
+		out = ""
+	}
+	if len(keywords) > 0 {
+		out = insertKeywordsBlock(out, buildKeywordsBlock(keywords))
+	}
+	return "---\n" + out + "---\n", nil
+}
+
+// wholeHandlebarsRe matches a string consisting entirely of a single
+// Handlebars expression. Used by the wizard so a user-typed
+// `{{yamlList (fieldRaw "x")}}` lands at raw-line position instead
+// of getting single-quoted as a scalar.
+var wholeHandlebarsRe = regexp.MustCompile(`^\s*\{\{.+?\}\}\s*$`)
+
+// buildKeywordsBlock emits the column-0 `keywords:` block for the
+// wizard's BuildFrontmatter path. Wholly-handlebars elements drop
+// the `- ` prefix and the single-quoting so the helper expansion
+// plugs into the block sequence at render time.
+func buildKeywordsBlock(keywords []string) string {
+	items := make([]any, 0, len(keywords))
+	for _, k := range keywords {
+		if k == "" {
+			continue
+		}
+		if wholeHandlebarsRe.MatchString(k) {
+			items = append(items, yamlRawLinePrefix+strings.TrimSpace(k))
+			continue
+		}
+		items = append(items, k)
+	}
+	if len(items) == 0 {
+		return ""
+	}
+	return marshalKeywordsBlock(items)
+}
+
+// insertKeywordsBlock splices the column-0 keywords block into a
+// yaml.Marshal'd Frontmatter body right after the `style:` line, or
+// at the top when no style is set. The block sits at the canonical
+// position (style → keywords → page → cover → …) so the wizard
+// output stays readable.
+func insertKeywordsBlock(yamlBody, kwBlock string) string {
+	if kwBlock == "" {
+		return yamlBody
+	}
+	if strings.HasPrefix(yamlBody, "style:") {
+		if idx := strings.Index(yamlBody, "\n"); idx >= 0 {
+			return yamlBody[:idx+1] + kwBlock + yamlBody[idx+1:]
+		}
+	}
+	return kwBlock + yamlBody
 }
 
 // ---------- enum registries ----------

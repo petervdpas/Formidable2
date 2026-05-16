@@ -230,6 +230,88 @@
   margin-left: 0.3rem;
 }
 
+/* ── Render Helpers reference ─────────────────────────────────────── */
+
+.render-helpers-page {
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+}
+
+.render-helpers-intro {
+  margin: 0 0 var(--space-2, 8px) 0;
+}
+
+.render-helpers-group-title {
+  margin: 0 0 var(--space-2, 8px) 0;
+  font-size: var(--font-size-sm, 0.85rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted, #888);
+}
+
+.render-helpers-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.render-helpers-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3, 12px);
+  border: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.06));
+  border-radius: 6px;
+  background: var(--color-bg-sunken, rgba(0, 0, 0, 0.18));
+}
+
+.render-helpers-name code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text, inherit);
+}
+
+.render-helpers-description {
+  margin: 0;
+  color: var(--color-text, inherit);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.render-helpers-meta {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 4px var(--space-3, 12px);
+  margin: 4px 0 0 0;
+  font-size: 0.85rem;
+}
+
+.render-helpers-meta dt {
+  color: var(--color-text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+  align-self: center;
+}
+
+.render-helpers-meta dd {
+  margin: 0;
+}
+
+.render-helpers-meta code {
+  font-family: var(--font-mono, monospace);
+  background: var(--color-bg, rgba(0, 0, 0, 0.25));
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+
 /* ── PDF Export panel ─────────────────────────────────────────────── */
 
 .pdf-status-row {

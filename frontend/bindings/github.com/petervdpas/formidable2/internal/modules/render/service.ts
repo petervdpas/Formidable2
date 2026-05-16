@@ -16,12 +16,24 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * ListHelpers — the catalog of every Handlebars helper this module
+ * registers, for the Information panel's "Render helpers reference".
+ * Static data (no Manager state read); returned as a fresh slice the
+ * frontend can sort/filter freely.
+ */
+export function ListHelpers(): $CancellablePromise<$models.HelperDescriptor[]> {
+    return $Call.ByID(3874415751).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * RenderForm — Handlebars markdown + sanitized HTML for one
  * (template, datafile) pair. Empty datafile renders defaults.
  */
 export function RenderForm(templateName: string, datafile: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(679525684, templateName, datafile).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -51,5 +63,7 @@ export function RenderMarkdown(templateName: string, datafile: string): $Cancell
 }
 
 // Private type creation functions
-const $$createType0 = $models.Result.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
+const $$createType0 = $models.HelperDescriptor.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.Result.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
