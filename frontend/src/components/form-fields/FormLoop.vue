@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import FormLoopFields from "./FormLoopFields.vue";
@@ -45,6 +45,25 @@ const emit = defineEmits<{ (e: "update:modelValue", v: unknown[]): void }>();
 // Each item's collapsed state is local UI — independent per item,
 // initialized from the group's default and never persisted.
 const collapsed = ref<boolean[]>(props.modelValue.map(() => props.group.default_collapsed));
+
+// modelValue may grow or shrink after mount (entry data streaming in
+// async, draft restoration, parent-level mutations). Keep `collapsed`
+// length-aligned: pad new indices with the group default, trim
+// trailing entries when items disappear. Without this, items past
+// the initial length read collapsed[i]=undefined → render expanded.
+watch(
+  () => props.modelValue.length,
+  (next) => {
+    const cur = collapsed.value.length;
+    if (next === cur) return;
+    if (next > cur) {
+      const pad = Array(next - cur).fill(props.group.default_collapsed);
+      collapsed.value = [...collapsed.value, ...pad];
+    } else {
+      collapsed.value = collapsed.value.slice(0, next);
+    }
+  },
+);
 
 // DnD scope — unique per loop instance. Prevents Sortable from
 // accepting items dragged from a sibling or nested loop. The
