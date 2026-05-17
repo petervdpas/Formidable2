@@ -56,17 +56,89 @@
     background: transparent;
     padding: 0;
 }
-/* highlight.js / chroma frame harmonization */
-.formidable-prose .hljs { background: transparent; }
-.formidable-prose pre.hljs,
-.formidable-prose pre.chroma {
+/* highlight.js / chroma frame harmonization. Goldmark+chroma emits
+   `<pre class="hljs-chroma"><code>…</code></pre>` because RenderHTML
+   configures the formatter with ClassPrefix("hljs-"). Token color
+   rules for the inner `hljs-*` spans are appended at runtime by
+   render.ProseCSS() via chroma's CSS generator. */
+.formidable-prose .hljs-chroma { background: transparent; }
+.formidable-prose pre.hljs-chroma {
     background: #f6f8fa;
     border-radius: 6px;
     padding: 1em;
     overflow-x: auto;
 }
-.formidable-prose pre.hljs code,
-.formidable-prose pre.chroma code { background: transparent; padding: 0; }
+.formidable-prose pre.hljs-chroma code { background: transparent; padding: 0; }
+
+/* Chroma "github" style token colors. Generated once via
+   chroma's WriteCSS — keep in lock-step with html.go's
+   highlighting.WithStyle("github"). The same rules are also
+   produced at runtime by render.ProseCSS() for the wiki HTTP
+   server; embedding them here keeps the Vite-built SPA preview
+   (which imports this file directly) showing identical colors. */
+.formidable-prose .hljs-chroma .hljs-err { color: #f6f8fa; background-color: #82071e }
+.formidable-prose .hljs-chroma .hljs-line { display: flex; }
+.formidable-prose .hljs-chroma .hljs-k,
+.formidable-prose .hljs-chroma .hljs-kc,
+.formidable-prose .hljs-chroma .hljs-kd,
+.formidable-prose .hljs-chroma .hljs-kn,
+.formidable-prose .hljs-chroma .hljs-kp,
+.formidable-prose .hljs-chroma .hljs-kr,
+.formidable-prose .hljs-chroma .hljs-kt { color: #cf222e }
+.formidable-prose .hljs-chroma .hljs-na,
+.formidable-prose .hljs-chroma .hljs-nc,
+.formidable-prose .hljs-chroma .hljs-nx,
+.formidable-prose .hljs-chroma .hljs-p,
+.formidable-prose .hljs-chroma .hljs-ge,
+.formidable-prose .hljs-chroma .hljs-go { color: #1f2328 }
+.formidable-prose .hljs-chroma .hljs-no,
+.formidable-prose .hljs-chroma .hljs-nd,
+.formidable-prose .hljs-chroma .hljs-nt,
+.formidable-prose .hljs-chroma .hljs-m,
+.formidable-prose .hljs-chroma .hljs-mb,
+.formidable-prose .hljs-chroma .hljs-mf,
+.formidable-prose .hljs-chroma .hljs-mh,
+.formidable-prose .hljs-chroma .hljs-mi,
+.formidable-prose .hljs-chroma .hljs-il,
+.formidable-prose .hljs-chroma .hljs-mo,
+.formidable-prose .hljs-chroma .hljs-o,
+.formidable-prose .hljs-chroma .hljs-ow { color: #0550ae }
+.formidable-prose .hljs-chroma .hljs-ni,
+.formidable-prose .hljs-chroma .hljs-nb,
+.formidable-prose .hljs-chroma .hljs-nf,
+.formidable-prose .hljs-chroma .hljs-fm { color: #6639ba }
+.formidable-prose .hljs-chroma .hljs-nl { color: #990000; font-weight: bold }
+.formidable-prose .hljs-chroma .hljs-nn { color: #24292e }
+.formidable-prose .hljs-chroma .hljs-bp { color: #6a737d }
+.formidable-prose .hljs-chroma .hljs-nv,
+.formidable-prose .hljs-chroma .hljs-vc,
+.formidable-prose .hljs-chroma .hljs-vg,
+.formidable-prose .hljs-chroma .hljs-vi,
+.formidable-prose .hljs-chroma .hljs-vm { color: #953800 }
+.formidable-prose .hljs-chroma .hljs-s,
+.formidable-prose .hljs-chroma .hljs-sa,
+.formidable-prose .hljs-chroma .hljs-sb,
+.formidable-prose .hljs-chroma .hljs-sc,
+.formidable-prose .hljs-chroma .hljs-dl,
+.formidable-prose .hljs-chroma .hljs-sd,
+.formidable-prose .hljs-chroma .hljs-s2,
+.formidable-prose .hljs-chroma .hljs-se,
+.formidable-prose .hljs-chroma .hljs-sh,
+.formidable-prose .hljs-chroma .hljs-si,
+.formidable-prose .hljs-chroma .hljs-sx,
+.formidable-prose .hljs-chroma .hljs-sr,
+.formidable-prose .hljs-chroma .hljs-s1 { color: #0a3069 }
+.formidable-prose .hljs-chroma .hljs-ss { color: #032f62 }
+.formidable-prose .hljs-chroma .hljs-c,
+.formidable-prose .hljs-chroma .hljs-ch,
+.formidable-prose .hljs-chroma .hljs-cm,
+.formidable-prose .hljs-chroma .hljs-c1,
+.formidable-prose .hljs-chroma .hljs-cs,
+.formidable-prose .hljs-chroma .hljs-cp,
+.formidable-prose .hljs-chroma .hljs-cpf { color: #57606a; font-style: italic }
+.formidable-prose .hljs-chroma .hljs-gd { color: #82071e; background-color: #ffebe9 }
+.formidable-prose .hljs-chroma .hljs-gi { color: #116329; background-color: #dafbe1 }
+.formidable-prose .hljs-chroma .hljs-gl { text-decoration: underline }
 
 /* ── Tables ────────────────────────────────────────────────── */
 .formidable-prose table {

@@ -13,14 +13,18 @@ import (
 // the SPA bundle (see frontend/src/styles/index.css), keeping the
 // preview slideout and exported HTML pixel-identical.
 //
+// Syntax-highlight token colors for code blocks live INSIDE this CSS
+// (the "Chroma github style" section). If html.go ever switches off
+// WithStyle("github") to another chroma style, regenerate that block
+// — there is no runtime CSS generation.
+//
 //go:embed assets/formidable-prose.css
 var proseStylesheet string
 
-// ProseCSS returns the embedded `formidable-prose` stylesheet bytes.
-// Public so consumers that produce their own HTML envelopes (the wiki
-// HTTP server, future export tools, …) can serve or inline the same
-// stylesheet without re-embedding the file. Single source of truth
-// stays in this module.
+// ProseCSS returns the embedded `formidable-prose` stylesheet. Public
+// so consumers that produce their own HTML envelopes (the wiki HTTP
+// server, future export tools, …) can serve or inline the same
+// stylesheet without re-embedding the file.
 func ProseCSS() string { return proseStylesheet }
 
 // RenderFullHTML returns a self-contained HTML document with:
