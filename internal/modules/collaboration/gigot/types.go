@@ -232,7 +232,10 @@ type CommitResponse struct {
 
 // Destination is one mirror-sync target attached to a repo. Status
 // fields carry the last attempt's outcome so the UI renders a badge
-// without polling each destination.
+// without polling each destination. RemoteStatus is the server's view
+// of the mirror: "in_sync" after a successful push (server marks it
+// inferred), "diverged" when ls-remote shows drift, "error" on auth/
+// network failure, or empty when never checked.
 type Destination struct {
 	ID             string `json:"id"`
 	Name           string `json:"name"`
@@ -241,6 +244,7 @@ type Destination struct {
 	LastSyncStatus string `json:"last_sync_status,omitempty"`
 	LastSyncAt     string `json:"last_sync_at,omitempty"`
 	LastSyncError  string `json:"last_sync_error,omitempty"`
+	RemoteStatus   string `json:"remote_status,omitempty"`
 }
 
 // TrackRecord is the client-side ledger persisted at

@@ -94,11 +94,20 @@ const hasMirrorAbility = computed(() => {
   if (r !== "admin" && r !== "maintainer") return false;
   return meAbilities.value.includes("mirror");
 });
+const allMirrorsInSync = computed(
+  () => hasMirrors.value && destinations.value.every(d => d.remote_status === "in_sync"),
+);
 // Mirror push is force-mirror against the server's HEAD. Pending local
 // changes haven't been Push'd yet, so the mirror would carry the stale
-// pre-Push state — block it until the local commit lands.
+// pre-Push state — block it until the local commit lands. Also skip
+// when every mirror reports in_sync — there is nothing to push.
 const canMirror = computed(
-  () => canAct.value && hasMirrors.value && hasMirrorAbility.value && !hasPending.value,
+  () =>
+    canAct.value
+    && hasMirrors.value
+    && hasMirrorAbility.value
+    && !hasPending.value
+    && !allMirrorsInSync.value,
 );
 
 // Per-button disabled tooltips. Empty string when the button is
@@ -118,6 +127,7 @@ const pullDisabledHint = computed(() => {
 const mirrorDisabledHint = computed(() => {
   if (!canAct.value || !configured.value) return "";
   if (hasPending.value) return t("workspace.collaboration.gigot.sync.mirror.disabled_pending");
+  if (allMirrorsInSync.value) return t("workspace.collaboration.gigot.sync.mirror.disabled_in_sync");
   return "";
 });
 
@@ -424,7 +434,9 @@ async function doPull() {
       >
         {{ mirroring
           ? t('workspace.collaboration.gigot.sync.mirror.running')
-          : t('workspace.collaboration.gigot.sync.mirror.button', [String(destinations.length)]) }}
+          : destinations.length === 1
+            ? t('workspace.collaboration.gigot.sync.mirror.button_one')
+            : t('workspace.collaboration.gigot.sync.mirror.button_many', [String(destinations.length)]) }}
       </button>
     </div>
   </template>

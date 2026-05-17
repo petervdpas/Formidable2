@@ -38,7 +38,10 @@ export class ChangeFile {
 /**
  * Destination is one mirror-sync target attached to a repo. Status
  * fields carry the last attempt's outcome so the UI renders a badge
- * without polling each destination.
+ * without polling each destination. RemoteStatus is the server's view
+ * of the mirror: "in_sync" after a successful push (server marks it
+ * inferred), "diverged" when ls-remote shows drift, "error" on auth/
+ * network failure, or empty when never checked.
  */
 export class Destination {
     "id": string;
@@ -48,6 +51,7 @@ export class Destination {
     "last_sync_status"?: string;
     "last_sync_at"?: string;
     "last_sync_error"?: string;
+    "remote_status"?: string;
 
     /** Creates a new Destination instance. */
     constructor($$source: Partial<Destination> = {}) {

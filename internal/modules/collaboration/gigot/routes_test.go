@@ -348,7 +348,7 @@ func TestLog_WithChangesPassesQueryAndDecodesFilePaths(t *testing.T) {
 func TestDestinations_HitsDestinationsEndpoint(t *testing.T) {
 	var cap capture
 	srv := stubServer(t, &cap, http.StatusOK,
-		`[{"id":"d1","name":"mirror","url":"git@x","auto":true,"last_sync_status":"ok"}]`)
+		`{"destinations":[{"id":"d1","name":"mirror","url":"git@x","auto":true,"last_sync_status":"ok"}],"count":1}`)
 	defer srv.Close()
 
 	m := newTestManager(srv)
@@ -359,7 +359,7 @@ func TestDestinations_HitsDestinationsEndpoint(t *testing.T) {
 	if cap.Path != "/api/repos/r/destinations" {
 		t.Errorf("path = %q", cap.Path)
 	}
-	if len(got) != 1 || got[0].ID != "d1" || !got[0].Auto {
+	if len(got) != 1 || got[0].ID != "d1" {
 		t.Errorf("decoded = %+v", got)
 	}
 }

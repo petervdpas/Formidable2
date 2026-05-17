@@ -128,17 +128,21 @@ func (m *Manager) Log(conn Connection, limit int, withChanges bool) (*RepoLogRes
 }
 
 // Destinations issues GET /api/repos/{repo}/destinations — mirror-sync
-// targets attached to this repo.
+// targets attached to this repo. Server wraps the list in
+// {destinations: [...], count: N}; we unwrap to a bare slice.
 func (m *Manager) Destinations(conn Connection) ([]Destination, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
 	}
-	var out []Destination
+	var out struct {
+		Destinations []Destination `json:"destinations"`
+		Count        int           `json:"count"`
+	}
 	path := "/api/repos/" + encodeSegment(conn.RepoName) + "/destinations"
 	if err := m.do(http.MethodGet, conn, path, nil, nil, &out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out.Destinations, nil
 }
 
 // DestinationSync issues POST /api/repos/{repo}/destinations/{id}/sync —
