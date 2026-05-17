@@ -24,8 +24,11 @@ const props = withDefaults(
     readonly?: boolean;
     /** Default editor height (px). User can drag the corner to resize. */
     height?: number;
+    /** Optional left-aligned toolbar caption — names the thing being
+     *  edited so the full-screen overlay still shows context. */
+    title?: string;
   }>(),
-  { lang: "markdown", tabSize: 2, readonly: false, height: 120 },
+  { lang: "markdown", tabSize: 2, readonly: false, height: 120, title: "" },
 );
 
 const model = defineModel<string>({ default: "" });
@@ -198,6 +201,8 @@ const wrapperStyle = computed(() =>
     :style="wrapperStyle"
   >
     <div class="code-editor-toolbar">
+      <span v-if="title" class="code-editor-title" :title="title">{{ title }}</span>
+      <span class="code-editor-spacer"></span>
       <button
         type="button"
         class="code-editor-action"

@@ -581,7 +581,12 @@ setTopbarMenu(() => [
 
         <section v-show="activeTab === 'source'" class="tab-pane">
           <div class="plugin-source">
-            <CodeEditor v-model="draftSource" lang="lua" :height="420" />
+            <CodeEditor
+              v-model="draftSource"
+              lang="lua"
+              :height="420"
+              :title="selectedPlugin ? `${selectedPlugin.manifest.name || selectedPlugin.id} • ${t('workspace.plugins.tab.source')}` : ''"
+            />
             <p class="muted small">{{ t('workspace.plugins.source.help') }}</p>
           </div>
         </section>

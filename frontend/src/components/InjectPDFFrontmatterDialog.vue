@@ -522,6 +522,7 @@ async function onApply() {
         lang="markdown"
         :readonly="true"
         :height="240"
+        :title="t('pdf.inject.preview.title')"
       />
     </details>
 

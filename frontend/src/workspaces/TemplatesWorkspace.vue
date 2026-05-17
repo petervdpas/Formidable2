@@ -700,6 +700,7 @@ setTopbarMenu(() => [
                     v-model="draft.markdown_template"
                     lang="markdown"
                     :height="180"
+                    :title="`${draft.name || selectedFilename} • ${t('workspace.templates.setup.template_code')}`"
                   />
                   <p class="muted small setup-tab-help">
                     {{ t('workspace.templates.setup.template_code_help') }}
@@ -974,6 +975,7 @@ setTopbarMenu(() => [
       lang="markdown"
       :readonly="true"
       :height="380"
+      :title="t('workspace.templates.pdf_fm.title_migrate')"
     />
 
     <template #footer>

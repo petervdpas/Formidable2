@@ -148,6 +148,7 @@ function onEditorUpdate(next: string) {
             :model-value="draftHTML"
             lang="html"
             :height="380"
+            :title="(draftName || selectedName || 'cover') + '.html'"
             @update:model-value="onEditorUpdate"
           />
         </div>
