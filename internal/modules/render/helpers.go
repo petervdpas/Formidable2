@@ -6,10 +6,15 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aymerick/raymond"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
+
+// nowFn is the clock used by {{today}} / {{now}}. Override in tests to
+// pin a deterministic value; production code never reassigns it.
+var nowFn = time.Now
 
 // registerHelpers binds every Handlebars helper Formidable's render
 // pipeline ships with. opts carries URL strategies; vars is a scratch
@@ -371,6 +376,77 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 			return strconv.Itoa(int(v))
 		}
 		return ""
+	})
+
+	// {{today}} — current date formatted as YYYY-MM-DD. Convenient for
+	// PDF frontmatter `date:` and similar use cases where the document
+	// should stamp itself with the export date. For other layouts use
+	// {{now "FORMAT"}} where FORMAT is a Go time layout string.
+	tpl.RegisterHelper("today", func() string {
+		return nowFn().Format("2006-01-02")
+	})
+
+	// {{now [layout] [locale]}} — current time formatted with the
+	// given Go time layout, optionally translated into a locale.
+	// Empty / missing layout defaults to "2006-01-02 15:04:05".
+	// Locales registered today: en (default, no translation), nl, de,
+	// fr — see internal/modules/render/locale.go to add more.
+	tpl.RegisterHelper("now", func(options *raymond.Options) string {
+		layout := "2006-01-02 15:04:05"
+		locale := ""
+		params := options.Params()
+		if len(params) >= 1 {
+			if s, ok := params[0].(string); ok && strings.TrimSpace(s) != "" {
+				layout = s
+			}
+		}
+		if len(params) >= 2 {
+			if s, ok := params[1].(string); ok {
+				locale = s
+			}
+		}
+		return translateDate(nowFn().Format(layout), locale)
+	})
+
+	// {{dateFormat value layout [locale]}} — reformat a stored date /
+	// datetime string with the given Go time layout, optionally
+	// translated into a locale. Recognised input shapes:
+	//   2006-01-02              (Formidable's `date` field storage)
+	//   2006-01-02T15:04:05Z…   (RFC 3339, with or without timezone)
+	//   2006-01-02 15:04:05     (loose timestamp)
+	// Unparseable input is returned verbatim so the template doesn't
+	// silently lose data when given an unexpected shape.
+	tpl.RegisterHelper("dateFormat", func(options *raymond.Options) string {
+		params := options.Params()
+		if len(params) < 2 {
+			return ""
+		}
+		s := strings.TrimSpace(stringify(params[0]))
+		if s == "" {
+			return ""
+		}
+		layout, _ := params[1].(string)
+		if layout == "" {
+			return s
+		}
+		locale := ""
+		if len(params) >= 3 {
+			if l, ok := params[2].(string); ok {
+				locale = l
+			}
+		}
+		inputs := []string{
+			"2006-01-02",
+			time.RFC3339,
+			"2006-01-02T15:04:05",
+			"2006-01-02 15:04:05",
+		}
+		for _, l := range inputs {
+			if t, err := time.Parse(l, s); err == nil {
+				return translateDate(t.Format(layout), locale)
+			}
+		}
+		return s
 	})
 
 	// {{loopItemClass [extra1] [extra2] …}} — variadic class composer.

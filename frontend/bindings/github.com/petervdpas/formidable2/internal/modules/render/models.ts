@@ -29,6 +29,7 @@ export enum HelperCategory {
     HelperCategoryStats = "stats",
     HelperCategoryTags = "tags",
     HelperCategoryAPI = "api",
+    HelperCategoryDate = "date",
 };
 
 /**

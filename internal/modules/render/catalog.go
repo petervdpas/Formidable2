@@ -19,6 +19,7 @@ const (
 	HelperCategoryStats      HelperCategory = "stats"
 	HelperCategoryTags       HelperCategory = "tags"
 	HelperCategoryAPI        HelperCategory = "api"
+	HelperCategoryDate       HelperCategory = "date"
 )
 
 // HelperDescriptor describes one registered Handlebars helper. The
@@ -79,6 +80,11 @@ var builtinHelpers = []HelperDescriptor{
 	// ── string ───────────────────────────────────────────────────
 	{Name: "camel", Signature: `{{camel s}}`, Description: "Lowercase the first letter.", Example: `{{camel "FooBar"}}`, Category: HelperCategoryString},
 	{Name: "pascal", Signature: `{{pascal s}}`, Description: "Uppercase the first letter.", Example: `{{pascal "fooBar"}}`, Category: HelperCategoryString},
+
+	// ── date / time ──────────────────────────────────────────────
+	{Name: "today", Signature: `{{today}}`, Description: "Current date as YYYY-MM-DD. Stamps the document with the moment it was rendered. Common in PDF frontmatter `date:` fields.", Example: `date: '{{today}}'`, Category: HelperCategoryDate},
+	{Name: "now", Signature: `{{now [layout] [locale]}}`, Description: "Current time formatted with a Go time layout, optionally translated into a locale (en, nl, de, fr). Default layout is \"2006-01-02 15:04:05\".", Example: `{{now "Mon, 02 Jan 2006" "nl"}}`, Category: HelperCategoryDate},
+	{Name: "dateFormat", Signature: `{{dateFormat value layout [locale]}}`, Description: "Reformat a stored date / datetime string with a Go time layout, optionally translated into a locale (en, nl, de, fr). Recognises YYYY-MM-DD, RFC 3339, and `2006-01-02 15:04:05`. Unparseable input passes through.", Example: `{{dateFormat (field "due") "Monday 2 January 2006" "nl"}}`, Category: HelperCategoryDate},
 
 	// ── format ───────────────────────────────────────────────────
 	{Name: "json", Signature: `{{json value}}`, Description: "Render a value as pretty-printed JSON (2-space indent). Safe — output is not HTML-escaped.", Example: `{{json record}}`, Category: HelperCategoryFormat},
