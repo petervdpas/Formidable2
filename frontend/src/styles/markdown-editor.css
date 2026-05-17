@@ -50,3 +50,11 @@
 :root[data-theme="purplish"] .EasyMDEContainer .CodeMirror {
     border-color: var(--color-border);
 }
+
+/* CodeMirror's default cursor is `border-left: 1px solid black` —
+   invisible on dark themes (the monokai/eclipse theme CSS files
+   aren't imported, so their cursor overrides never apply). Force it
+   to the theme's text token so it tracks light/dark/purplish. */
+.EasyMDEContainer .CodeMirror-cursor {
+    border-left-color: var(--color-text);
+}
