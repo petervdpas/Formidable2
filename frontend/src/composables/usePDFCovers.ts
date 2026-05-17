@@ -108,14 +108,33 @@ const STARTER_TEMPLATE = `<!--
 </div></section><span data-cover-end></span>
 `;
 
-function startNew() {
+// startNew seeds the editor with the starter template, optionally
+// substituting "mycover" in the CSS class names with the user's
+// chosen kebab name so the new cover renders against its own scope
+// rather than a placeholder. Empty name leaves "mycover" in place
+// — useful only for the legacy inline-add path (kept so existing
+// callers don't break).
+function startNew(name = "") {
+  const cleanName = name.trim();
   selectedName.value = "";
-  draftName.value = "";
-  draftHTML.value = STARTER_TEMPLATE;
+  draftName.value = cleanName;
+  const slug = cleanName ? coverSlug(cleanName) : "mycover";
+  draftHTML.value = STARTER_TEMPLATE.replaceAll("mycover", slug);
   baselineHTML.value = "";
   isNew.value = true;
   lastError.value = "";
-  void runValidate(STARTER_TEMPLATE);
+  void runValidate(draftHTML.value);
+}
+
+// coverSlug normalizes a user-typed cover name into the lowercase-
+// kebab form the filesystem and CSS class names use. Matches the
+// validation in NewCoverDialog so the dialog can refuse names the
+// backend would reject anyway.
+export function coverSlug(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 async function runValidate(html: string) {

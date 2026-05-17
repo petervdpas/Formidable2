@@ -5,6 +5,7 @@ import { usePDFCovers } from "../../composables/usePDFCovers";
 import { useToast } from "../../composables/useToast";
 import CodeEditor from "../../components/CodeEditor.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
+import NewPDFCoverDialog from "../../components/NewPDFCoverDialog.vue";
 
 const { t } = useI18n();
 const toast = useToast();
@@ -30,6 +31,18 @@ const {
 const deleteTarget = ref<string>("");
 const deleteOpen = computed(() => deleteTarget.value !== "");
 const deleteIsSeed = computed(() => isSeed(deleteTarget.value));
+
+const newCoverDialogOpen = ref(false);
+const existingCoverNames = computed(() => covers.value.map((c) => c.name));
+
+function openNewCoverDialog() {
+  newCoverDialogOpen.value = true;
+}
+
+function onCreateNewCover(name: string) {
+  newCoverDialogOpen.value = false;
+  startNew(name);
+}
 
 onMounted(() => {
   void refresh();
@@ -81,7 +94,7 @@ function onEditorUpdate(next: string) {
     <aside class="pdf-covers-list">
       <div class="pdf-covers-list-header">
         <h4>{{ t('pdf.covers.list.title') }}</h4>
-        <button class="tool-btn" type="button" @click="startNew">
+        <button class="tool-btn" type="button" @click="openNewCoverDialog">
           <i class="fa-solid fa-plus" aria-hidden="true"></i>
           {{ t('pdf.covers.action.new') }}
         </button>
@@ -135,10 +148,10 @@ function onEditorUpdate(next: string) {
             v-model="draftName"
             type="text"
             class="pdf-covers-input"
-            :readonly="!isNew"
+            readonly
             :placeholder="t('pdf.covers.editor.name_placeholder')"
           />
-          <span v-if="!isNew" class="pdf-covers-hint">
+          <span class="pdf-covers-hint">
             {{ t('pdf.covers.editor.name_locked') }}
           </span>
         </div>
@@ -148,7 +161,7 @@ function onEditorUpdate(next: string) {
             :model-value="draftHTML"
             lang="html"
             :height="380"
-            :title="(draftName || selectedName || 'cover') + '.html'"
+            :title="`${(draftName || selectedName || 'cover')}.html • ${t('pdf.covers.editor.code_title')}`"
             @update:model-value="onEditorUpdate"
           />
         </div>
@@ -199,5 +212,12 @@ function onEditorUpdate(next: string) {
     :variant="deleteIsSeed ? 'default' : 'danger'"
     @cancel="cancelDelete"
     @confirm="confirmDelete"
+  />
+
+  <NewPDFCoverDialog
+    :open="newCoverDialogOpen"
+    :existing-names="existingCoverNames"
+    @cancel="newCoverDialogOpen = false"
+    @create="onCreateNewCover"
   />
 </template>

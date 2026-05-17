@@ -33,8 +33,7 @@
 
 .code-editor-title {
     font-size: var(--font-size-sm);
-    font-weight: 600;
-    color: var(--color-text);
+    color: var(--color-text-muted, var(--color-text));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

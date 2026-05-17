@@ -880,3 +880,28 @@
 .pdf-export-checkbox input {
   margin: 0;
 }
+
+/* New PDF cover dialog — small modal collecting just the cover name
+   before the editor pane is populated. Layout mirrors the inline
+   name row in the panel for visual continuity. */
+.new-cover-dialog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 8px;
+}
+
+.new-cover-dialog-label {
+  font-weight: 600;
+  min-width: 64px;
+}
+
+.new-cover-dialog-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color-faint, rgba(255, 255, 255, 0.1));
+  background: var(--color-bg-input, rgba(0, 0, 0, 0.2));
+  color: inherit;
+  font-family: var(--font-mono, monospace);
+}
