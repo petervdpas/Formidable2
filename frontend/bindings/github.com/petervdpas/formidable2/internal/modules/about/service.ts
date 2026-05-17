@@ -21,5 +21,20 @@ export function GetInfo(): $CancellablePromise<$models.Info> {
     });
 }
 
+/**
+ * GetLibraries returns the canonical credits list — the source of
+ * truth for the About panel's "Special thanks to" section. Frontend
+ * renders one row per entry and looks up the per-locale description
+ * via i18n. Returns a fresh slice so the bound caller can't mutate
+ * the package-level Libraries.
+ */
+export function GetLibraries(): $CancellablePromise<$models.Library[]> {
+    return $Call.ByID(1753815820).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.Info.createFrom;
+const $$createType1 = $models.Library.createFrom;
+const $$createType2 = $Create.Array($$createType1);

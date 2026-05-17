@@ -40,3 +40,34 @@ export class Info {
         return new Info($$parsedSource as Partial<Info>);
     }
 }
+
+/**
+ * Library is one entry in the About panel's "Special thanks to" list:
+ * a canonical project ID and its display name. Descriptions are
+ * per-locale and live in i18n (workspace.information.about.thanks.lib.{id}.desc)
+ * so we don't translate product names.
+ */
+export class Library {
+    "id": string;
+    "name": string;
+
+    /** Creates a new Library instance. */
+    constructor($$source: Partial<Library> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Library instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Library {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Library($$parsedSource as Partial<Library>);
+    }
+}

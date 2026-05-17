@@ -84,6 +84,38 @@
   color: var(--color-text-muted);
 }
 
+/* Library-credits card. Same outer chrome as the dedications above;
+   the list is rendered as accent-strip rows — no bullets, a thin
+   vertical accent bar on the leading edge of each row that brightens
+   on hover. Keeps the list-feel but reads as distinctive credits. */
+.about-thanks .thanks-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.about-thanks .thanks-list li {
+  margin: 0;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--color-accent, var(--color-border));
+  opacity: 0.85;
+  transition: opacity 120ms ease, border-left-color 120ms ease;
+}
+.about-thanks .thanks-list li:hover {
+  opacity: 1;
+  border-left-color: var(--color-accent, var(--color-text));
+}
+.about-thanks .thanks-list strong {
+  font-weight: 700;
+}
+.about-thanks .thanks-sep {
+  color: var(--color-text-muted);
+}
+
 /* Information → Logging. Live-tail rows + raw text dump. Lives next
    to the About styles so all Information chrome is in one file. */
 .logging-path-row {

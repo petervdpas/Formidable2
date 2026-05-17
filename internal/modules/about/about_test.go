@@ -3,6 +3,8 @@ package about
 import (
 	"strings"
 	"testing"
+
+	"github.com/petervdpas/formidable2/internal/modules/i18n"
 )
 
 func TestInfoConstants(t *testing.T) {
@@ -53,5 +55,90 @@ func TestServiceGetInfoIsStable(t *testing.T) {
 func TestNewServiceNotNil(t *testing.T) {
 	if NewService() == nil {
 		t.Fatal("NewService returned nil")
+	}
+}
+
+func TestLibrariesNonEmptyAndUnique(t *testing.T) {
+	if len(Libraries) == 0 {
+		t.Fatal("Libraries must not be empty — About panel needs a credits list")
+	}
+	seen := make(map[string]bool, len(Libraries))
+	for _, l := range Libraries {
+		if l.ID == "" {
+			t.Errorf("library has empty ID: %+v", l)
+		}
+		if l.Name == "" {
+			t.Errorf("library %q has empty display Name", l.ID)
+		}
+		if seen[l.ID] {
+			t.Errorf("duplicate library ID %q", l.ID)
+		}
+		seen[l.ID] = true
+	}
+}
+
+// TestLibraries_EveryIDHasDescriptionInEveryLocale fails when a new
+// Library entry lands without the matching i18n
+// `workspace.information.about.thanks.lib.<id>.desc` string in every
+// shipped locale — and inversely, when an orphan desc string lingers
+// for an ID that has been removed from Libraries. Drift caught at
+// build time instead of as a missing label in the running app.
+func TestLibraries_EveryIDHasDescriptionInEveryLocale(t *testing.T) {
+	m, err := i18n.NewManager(nil)
+	if err != nil {
+		t.Fatalf("i18n.NewManager: %v", err)
+	}
+	const prefix = "workspace.information.about.thanks.lib."
+	const suffix = ".desc"
+
+	want := make(map[string]struct{}, len(Libraries))
+	for _, l := range Libraries {
+		want[prefix+l.ID+suffix] = struct{}{}
+	}
+
+	for _, locale := range []string{"en", "nl"} {
+		bundle, err := m.LoadBundle(locale)
+		if err != nil {
+			t.Fatalf("LoadBundle(%q): %v", locale, err)
+		}
+		for key := range want {
+			v, ok := bundle[key]
+			if !ok {
+				t.Errorf("locale %q: missing key %q (Library ID present but no description)", locale, key)
+				continue
+			}
+			if s, _ := v.(string); strings.TrimSpace(s) == "" {
+				t.Errorf("locale %q: key %q is empty — provide a real description", locale, key)
+			}
+		}
+		// Orphan check: a desc key whose ID is not in Libraries means
+		// either Libraries was trimmed and the locale wasn't, or an
+		// ID was renamed and only one side moved.
+		for key := range bundle {
+			if !strings.HasPrefix(key, prefix) || !strings.HasSuffix(key, suffix) {
+				continue
+			}
+			if _, ok := want[key]; !ok {
+				t.Errorf("locale %q: orphan key %q (no matching Library entry)", locale, key)
+			}
+		}
+	}
+}
+
+func TestGetLibrariesReturnsCopy(t *testing.T) {
+	s := NewService()
+	got := s.GetLibraries()
+	if len(got) != len(Libraries) {
+		t.Fatalf("GetLibraries length = %d, want %d", len(got), len(Libraries))
+	}
+	// Mutating the returned slice must not leak into the package-level
+	// canonical list — guards against a bound caller stomping the
+	// credits at runtime.
+	if len(got) > 0 {
+		original := Libraries[0].Name
+		got[0].Name = "tampered-in-caller"
+		if Libraries[0].Name != original {
+			t.Errorf("caller mutation leaked: Libraries[0].Name = %q", Libraries[0].Name)
+		}
 	}
 }

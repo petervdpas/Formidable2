@@ -7,5 +7,6 @@ export {
 };
 
 export {
-    Info
+    Info,
+    Library
 } from "./models.js";
