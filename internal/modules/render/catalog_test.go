@@ -16,7 +16,7 @@ import (
 // the symmetric assertion below logs the gap so reviewers see it.
 func TestCatalog_MatchesRegisteredHelpers(t *testing.T) {
 	tpl := raymond.MustParse("")
-	registerHelpers(tpl, &Options{}, map[string]any{})
+	registerHelpers(tpl, &Options{}, map[string]any{}, nil)
 
 	registered := map[string]bool{}
 	for _, name := range tpl.HelperNames() {

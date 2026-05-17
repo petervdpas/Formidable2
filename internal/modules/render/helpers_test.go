@@ -16,12 +16,19 @@ func renderWithCtx(t *testing.T, src string, ctx map[string]any) string {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	registerHelpers(tpl, &Options{}, map[string]any{})
+	registerHelpers(tpl, &Options{}, map[string]any{}, fieldsFromCtx(ctx))
 	out, err := tpl.Exec(ctx)
 	if err != nil {
 		t.Fatalf("exec: %v", err)
 	}
 	return out
+}
+
+func fieldsFromCtx(ctx map[string]any) []template.Field {
+	if f, ok := ctx["_fields"].([]template.Field); ok {
+		return f
+	}
+	return nil
 }
 
 func ctxFromTemplate(tpl *template.Template, values map[string]any) map[string]any {
@@ -279,6 +286,32 @@ func TestHelper_Cell(t *testing.T) {
 	}
 }
 
+func TestHelper_Cell_InsideEach(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{
+			Key: "grid", Type: "table",
+			Options: []any{
+				map[string]any{"value": "type", "label": "Type"},
+				map[string]any{"value": "name", "label": "Name"},
+			},
+		}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"grid": []any{
+			[]any{"string", "bk"},
+			[]any{"int", "id"},
+		},
+	})
+	got := renderWithCtx(t,
+		`{{#each (fieldRaw "grid")}}{{cell this "type" "grid"}} {{cell this "name" "grid"}}{{#unless @last}}, {{/unless}}{{/each}}`,
+		ctx,
+	)
+	want := "string bk, int id"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestHelper_SetGetVar(t *testing.T) {
 	got := renderWithCtx(t, `{{setVar "x" 42}}{{getVar "x"}}`, map[string]any{})
 	if got != "42" {
@@ -291,8 +324,8 @@ func TestHelper_SetVarPerCall(t *testing.T) {
 	// version had a module-level `vars` bug; we use per-call scratch.
 	tpl1, _ := raymond.Parse(`{{setVar "x" "first"}}`)
 	tpl2, _ := raymond.Parse(`{{getVar "x"}}`)
-	registerHelpers(tpl1, &Options{}, map[string]any{})
-	registerHelpers(tpl2, &Options{}, map[string]any{})
+	registerHelpers(tpl1, &Options{}, map[string]any{}, nil)
+	registerHelpers(tpl2, &Options{}, map[string]any{}, nil)
 	_, _ = tpl1.Exec(map[string]any{})
 	out, _ := tpl2.Exec(map[string]any{})
 	if out != "" {
@@ -473,7 +506,7 @@ func renderWithOpts(t *testing.T, src string, ctx map[string]any, opts *Options)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	registerHelpers(tpl, opts, map[string]any{})
+	registerHelpers(tpl, opts, map[string]any{}, fieldsFromCtx(ctx))
 	out, err := tpl.Exec(ctx)
 	if err != nil {
 		t.Fatalf("exec: %v", err)

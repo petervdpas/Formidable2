@@ -16,7 +16,7 @@ import (
 // map for setVar/getVar — fresh per RenderMarkdown call so renders
 // can't leak state into each other (original JS used a module-level
 // store; that bug isn't ported).
-func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) {
+func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, rootFields []template.Field) {
 	if opts == nil {
 		opts = &Options{}
 	}
@@ -126,6 +126,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any) 
 	// ── table cell ───────────────────────────────────────────────
 	tpl.RegisterHelper("cell", func(row any, colName, tableKey string, options *raymond.Options) string {
 		fields := contextFields(options.Ctx())
+		if len(fields) == 0 {
+			fields = rootFields
+		}
 		var tableField *template.Field
 		for i := range fields {
 			if fields[i].Key == tableKey {

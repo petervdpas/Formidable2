@@ -27,7 +27,7 @@ func RenderMarkdown(values map[string]any, tpl *template.Template, opts *Options
 	if err != nil {
 		return "", fmt.Errorf("render: parse markdown template: %w", err)
 	}
-	registerHelpers(parsed, opts, map[string]any{})
+	registerHelpers(parsed, opts, map[string]any{}, tpl.Fields)
 
 	ctx := make(map[string]any, len(values)+3)
 	for k, v := range values {

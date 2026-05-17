@@ -11,6 +11,7 @@ import { html } from "@codemirror/lang-html";
 import { lua as luaMode } from "@codemirror/legacy-modes/mode/lua";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useTheme } from "../composables/useTheme";
+import { Service as CodeFormatterSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/codeformatter";
 
 const { t } = useI18n();
 
@@ -63,76 +64,22 @@ const langExtension = computed(() => {
 // the root: fixed-position overlay over the whole webview.
 const fullscreen = ref(false);
 
-// Tidy: minimal text cleanup used as the formatter for non-Lua
-// langs (markdown / yaml — touching their structure without a
-// real parser is dangerous). Normalizes line endings, strips
-// trailing whitespace, collapses runs of >2 blank lines, ensures
-// exactly one trailing newline.
-function tidy(src: string): string {
-  let out = src.replace(/\r\n?/g, "\n");
-  out = out
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+$/, ""))
-    .join("\n");
-  out = out.replace(/\n{3,}/g, "\n\n");
-  out = out.replace(/\n+$/, "") + "\n";
-  return out;
-}
-
-// Lua: real reformat via lua-fmt (luaparse-based). Lazy-imported
-// so the ~100KB chunk only loads when the user clicks Format.
-async function formatLua(src: string, indent: number): Promise<string> {
-  const mod = await import("lua-fmt");
-  return mod.formatText(src, {
-    useTabs: false,
-    indentCount: indent,
-    lineWidth: 120,
-    quotemark: "double",
-    writeMode: mod.WriteMode.Replace,
-  });
-}
-
-// Markdown (and our handlebars templates, which are just MD with
-// {{...}} expressions left as text) via prettier standalone +
-// markdown plugin. Lazy-imported. Tab size flows through to
-// list-bullet indents. Handlebars blocks pass through verbatim
-// because prettier's markdown parser treats {{...}} as inline
-// text.
-async function formatMarkdown(src: string, indent: number): Promise<string> {
-  const [{ format }, mdPlugin] = await Promise.all([
-    import("prettier/standalone"),
-    import("prettier/plugins/markdown"),
-  ]);
-  return format(src, {
-    parser: "markdown",
-    plugins: [mdPlugin],
-    tabWidth: indent,
-    proseWrap: "preserve",
-  });
-}
-
+// Format delegates to the backend codeformatter service. The Go
+// side owns the parser stack (yaml.v3 for YAML / markdown frontmatter,
+// tidy pass for everything else) so paste artefacts in the webview
+// can't shape the output. Errors surface as toasts via the catch
+// block; the editor content is only replaced on success.
 async function format() {
   const view = editorView.value;
   if (!view) return;
   const cur = view.state.doc.toString();
   let next: string;
   try {
-    if (props.lang === "lua") {
-      next = await formatLua(cur, props.tabSize);
-    } else if (props.lang === "markdown") {
-      next = await formatMarkdown(cur, props.tabSize);
-    } else {
-      // YAML — no parser-based formatter wired; basic tidy keeps
-      // the file syntactically intact (touching indent without a
-      // YAML parser would be too risky).
-      next = tidy(cur);
-    }
+    next = await CodeFormatterSvc.Format(props.lang, cur);
   } catch {
-    // Parse failure → fall back to basic tidy so the user at
-    // least sees whitespace cleanup instead of nothing happening.
-    next = tidy(cur);
+    return;
   }
-  if (next === cur) return;
+  if (!next || next === cur) return;
   view.dispatch({
     changes: { from: 0, to: cur.length, insert: next },
   });

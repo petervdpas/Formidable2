@@ -39,6 +39,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/history"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
+	"github.com/petervdpas/formidable2/internal/modules/codeformatter"
 	"github.com/petervdpas/formidable2/internal/modules/pdf"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
@@ -108,7 +109,8 @@ type App struct {
 	History      *history.Service
 	Integrity    *integrity.Service
 	Logging      *logging.Service
-	PDF          *pdf.Service
+	PDF           *pdf.Service
+	CodeFormatter *codeformatter.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -577,6 +579,7 @@ func New(d Deps) (*App, error) {
 		Integrity:       integrity.NewService(integrityM),
 		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
 		PDF:             pdf.NewService(pdfM),
+		CodeFormatter:   codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,
