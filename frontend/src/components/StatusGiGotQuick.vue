@@ -1,26 +1,144 @@
 <script setup lang="ts">
 /*
- * StatusGiGotQuick — footer indicator for the Gigot backend. Today
- * the Gigot module isn't built yet, so this is a minimal jump-button:
- * a cloud icon that routes to the Collaboration → current-service
- * page. When a future internal/modules/collaboration/gigot module
- * ships and a "gigot-sync" entry lands in COLLABORATION_SECTIONS,
- * swap the setSection target here and add poll-state to drive a
- * spinner — no other call site needs to change.
+ * StatusGiGotQuick — footer Gigot status indicator + jump to Sync.
+ *
+ * Mirrors StatusGitQuick so the two backends present the same footer
+ * affordance: identical icon, identical position, similar indicators,
+ * one-click jump to the matching Sync workspace. Differences vs Git:
+ *   - "ahead" doesn't apply (Gigot has no separate local commit step),
+ *     so we only render a `*` for pending changes and a `↓` when the
+ *     remote ledger has moved past the local one.
+ *   - LedgerSummary is local-only (no HTTP); Head() is the remote probe.
  */
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { Events } from "@wailsio/runtime";
+import { useConfig } from "../composables/useConfig";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useCollaborationSection } from "../composables/useCollaborationSection";
+import { Service as GigotSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
+import type {
+  LedgerSummary,
+  HeadResponse,
+  Destination,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
 
 const { t } = useI18n();
+const { config } = useConfig();
 const { setActive: setWorkspace } = useActiveWorkspace();
 const { setActive: setSection } = useCollaborationSection();
 
+const contextFolder = computed(() => config.value?.context_folder ?? "");
+const baseURL = computed(() => config.value?.gigot_base_url ?? "");
+const repoName = computed(() => config.value?.gigot_repo_name ?? "");
+
+const configured = computed(
+  () =>
+    contextFolder.value.trim() !== ""
+    && baseURL.value.trim() !== ""
+    && repoName.value.trim() !== "",
+);
+
+const summary = ref<LedgerSummary | null>(null);
+const head = ref<HeadResponse | null>(null);
+const destinations = ref<Destination[]>([]);
+
+let reqId = 0;
+async function load() {
+  const my = ++reqId;
+  if (!configured.value) {
+    summary.value = null;
+    head.value = null;
+    destinations.value = [];
+    return;
+  }
+  try {
+    const s = await GigotSvc.LedgerSummary();
+    if (my !== reqId) return;
+    summary.value = (s as LedgerSummary | null) ?? null;
+  } catch {
+    if (my !== reqId) return;
+    summary.value = null;
+  }
+  try {
+    const h = await GigotSvc.Head();
+    if (my !== reqId) return;
+    head.value = (h as HeadResponse | null) ?? null;
+  } catch {
+    if (my !== reqId) return;
+    head.value = null;
+  }
+  try {
+    const ds = await GigotSvc.Destinations();
+    if (my !== reqId) return;
+    destinations.value = (ds as Destination[] | null) ?? [];
+  } catch {
+    if (my !== reqId) return;
+    destinations.value = [];
+  }
+}
+
+let unsubscribe: (() => void) | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const POLL_MS = 30_000;
+
+function onVisibility() {
+  if (document.visibilityState === "visible") void load();
+}
+function onSyncRefreshed() { void load(); }
+
+onMounted(() => {
+  void load();
+  unsubscribe = Events.On("journal:changed", () => { void load(); });
+  pollTimer = setInterval(() => { void load(); }, POLL_MS);
+  document.addEventListener("visibilitychange", onVisibility);
+  window.addEventListener("formidable:gigot-refreshed", onSyncRefreshed);
+});
+
+onBeforeUnmount(() => {
+  if (unsubscribe) unsubscribe();
+  if (pollTimer) clearInterval(pollTimer);
+  document.removeEventListener("visibilitychange", onVisibility);
+  window.removeEventListener("formidable:gigot-refreshed", onSyncRefreshed);
+});
+
+watch([contextFolder, baseURL, repoName], () => { void load(); });
+
+const pendingCount = computed(() => {
+  const s = summary.value;
+  if (!s) return 0;
+  return (s.changed?.length ?? 0) + (s.deleted?.length ?? 0);
+});
+const dirty = computed(() => pendingCount.value > 0);
+const behind = computed(() => {
+  const local = summary.value?.version ?? "";
+  const remote = head.value?.version ?? "";
+  if (!local || !remote) return false;
+  return local !== remote;
+});
+const mirrorLag = computed(
+  () => destinations.value.filter(d => d.remote_status !== "in_sync").length,
+);
+
+const tooltip = computed(() => {
+  if (!configured.value) return t("statusbar.gigotquick.not_configured");
+  const parts: string[] = [];
+  if (repoName.value) parts.push(repoName.value);
+  parts.push(
+    dirty.value
+      ? t("statusbar.gigotquick.dirty", [pendingCount.value])
+      : t("statusbar.gigotquick.clean"),
+  );
+  if (mirrorLag.value > 0) {
+    parts.push(t("statusbar.gigotquick.mirror_lag", [mirrorLag.value]));
+  }
+  if (behind.value) parts.push(t("statusbar.gigotquick.behind"));
+  return parts.join(" • ");
+});
+
 function onClick() {
   setWorkspace("collaboration");
-  // No "gigot-sync" section yet — land on the backend-agnostic
-  // overview row. Update once the Gigot module brings its own.
-  setSection("current-service");
+  setSection("gigot-sync");
 }
 </script>
 
@@ -28,10 +146,13 @@ function onClick() {
   <button
     type="button"
     class="status-gigotquick"
-    :title="t('statusbar.gigotquick.title')"
-    :aria-label="t('statusbar.gigotquick.title')"
+    :title="tooltip"
+    :aria-label="tooltip"
     @click="onClick"
   >
-    <i class="fa-solid fa-cloud" aria-hidden="true"></i>
+    <i class="fa-solid fa-code-branch" aria-hidden="true"></i>
+    <span v-if="mirrorLag > 0" class="status-gigotquick-mirror">↑{{ mirrorLag }}</span>
+    <span v-if="behind" class="status-gigotquick-behind">↓</span>
+    <span v-if="dirty" class="status-gigotquick-dirty" aria-hidden="true">*</span>
   </button>
 </template>

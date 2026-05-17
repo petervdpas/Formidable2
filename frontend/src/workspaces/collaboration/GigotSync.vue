@@ -232,7 +232,10 @@ async function load(announce: boolean) {
     if (my !== reqId) return;
     destinations.value = [];
   } finally {
-    if (my === reqId) loading.value = false;
+    if (my === reqId) {
+      loading.value = false;
+      window.dispatchEvent(new CustomEvent("formidable:gigot-refreshed"));
+    }
   }
 }
 

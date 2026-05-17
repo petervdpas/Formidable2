@@ -166,6 +166,7 @@
     height: 22px;
     display: inline-flex;
     align-items: center;
+    gap: 4px;
 }
 
 .status-gigotquick:hover,
@@ -173,4 +174,12 @@
     color: var(--color-text);
     background: var(--color-bg-muted);
     outline: none;
+}
+
+.status-gigotquick-mirror { color: var(--color-success); }
+.status-gigotquick-behind { color: var(--color-warning); }
+.status-gigotquick-dirty {
+    color: var(--color-warning);
+    font-weight: bold;
+    margin-left: 2px;
 }
