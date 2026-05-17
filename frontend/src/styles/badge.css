@@ -100,3 +100,10 @@
     gap: var(--space-2);
     flex-wrap: wrap;
 }
+
+/* Toolbar context: .badge defaults to align-self: flex-start to avoid
+   stretching in column-flex parents (see the .badge rule above). In
+   the row-flex topbar that pushes the badge to the top of the row,
+   misaligning it with sibling buttons — re-center it here without
+   touching the global rule that protects column-flex layouts. */
+.topbar-actions .badge { align-self: center; }

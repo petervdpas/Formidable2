@@ -41,7 +41,8 @@ export class ChangeFile {
  * without polling each destination. RemoteStatus is the server's view
  * of the mirror: "in_sync" after a successful push (server marks it
  * inferred), "diverged" when ls-remote shows drift, "error" on auth/
- * network failure, or empty when never checked.
+ * network failure, or empty when never checked / invalidated by a
+ * repo HEAD bump.
  */
 export class Destination {
     "id": string;
