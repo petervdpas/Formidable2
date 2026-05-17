@@ -1,5 +1,4 @@
 {
-  "menu.config": "Configuratie",
   "menu.config.settings": "Instellingen...",
   "menu.config.switchProfile": "Wissel profiel...",
   "menu.config.workspace": "Werkruimte...",
@@ -39,6 +38,5 @@
   "menu.utilities.cleanupStorage": "Opslag opschonen…",
   "menu.utilities.inject_pdf_frontmatter": "PDF-frontmatter injecteren…",
   "menu.utilities.migrate_pdf_frontmatter": "PDF-frontmatter migreren…",
-  "menu.view.devtools": "Ontwikkelaarstools",
-  "menu.view.reload": "Herladen"
+  "menu.view.devtools": "Ontwikkelaarstools"
 }

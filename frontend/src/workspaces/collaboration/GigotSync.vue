@@ -13,6 +13,8 @@ import type {
   LedgerSummary,
   HeadResponse,
   SyncProgress,
+  Destination,
+  RepoContextResponse,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
 import { useConfig } from "../../composables/useConfig";
 import { useToast } from "../../composables/useToast";
@@ -41,13 +43,18 @@ const errorMsg = ref("");
 
 const pushing = ref(false);
 const pulling = ref(false);
+const mirroring = ref(false);
 const message = ref("");
+
+const destinations = ref<Destination[]>([]);
+const meRole = ref("");
+const meAbilities = ref<string[]>([]);
 
 const progressCurrent = ref(0);
 const progressTotal = ref(0);
 const progressPath = ref("");
 
-const inFlight = computed(() => pushing.value || pulling.value);
+const inFlight = computed(() => pushing.value || pulling.value || mirroring.value);
 const canAct = computed(() => !inFlight.value && configured.value);
 const hasLedger = computed(() => (summary.value?.version ?? "") !== "");
 const hasPending = computed(() => {
@@ -81,6 +88,19 @@ const remoteState = computed<"unknown" | "match" | "behind">(() => {
 const canPush = computed(() => canAct.value && hasPending.value && messageProvided.value);
 const canPull = computed(() => canAct.value && !hasPending.value && remoteState.value !== "match");
 
+const hasMirrors = computed(() => destinations.value.length > 0);
+const hasMirrorAbility = computed(() => {
+  const r = meRole.value;
+  if (r !== "admin" && r !== "maintainer") return false;
+  return meAbilities.value.includes("mirror");
+});
+// Mirror push is force-mirror against the server's HEAD. Pending local
+// changes haven't been Push'd yet, so the mirror would carry the stale
+// pre-Push state — block it until the local commit lands.
+const canMirror = computed(
+  () => canAct.value && hasMirrors.value && hasMirrorAbility.value && !hasPending.value,
+);
+
 // Per-button disabled tooltips. Empty string when the button is
 // enabled — the v-bind below feeds the attr only when non-empty.
 const pushDisabledHint = computed(() => {
@@ -93,6 +113,11 @@ const pullDisabledHint = computed(() => {
   if (!canAct.value || !configured.value) return "";
   if (hasPending.value) return t("workspace.collaboration.gigot.sync.pull.disabled_pending");
   if (remoteState.value === "match") return t("workspace.collaboration.gigot.sync.pull.disabled_match");
+  return "";
+});
+const mirrorDisabledHint = computed(() => {
+  if (!canAct.value || !configured.value) return "";
+  if (hasPending.value) return t("workspace.collaboration.gigot.sync.mirror.disabled_pending");
   return "";
 });
 
@@ -146,6 +171,9 @@ async function load(announce: boolean) {
     head.value = null;
     headError.value = "";
     errorMsg.value = "";
+    destinations.value = [];
+    meRole.value = "";
+    meAbilities.value = [];
     return;
   }
   const my = ++reqId;
@@ -173,6 +201,26 @@ async function load(announce: boolean) {
     if (my !== reqId) return;
     head.value = null;
     headError.value = backendErrMessage(err);
+  }
+
+  try {
+    const ctx: RepoContextResponse | null = await GigotSvc.Context();
+    if (my !== reqId) return;
+    meRole.value = ctx?.user?.role ?? "";
+    meAbilities.value = ctx?.subscription?.abilities ?? [];
+  } catch {
+    if (my !== reqId) return;
+    meRole.value = "";
+    meAbilities.value = [];
+  }
+
+  try {
+    const ds = await GigotSvc.Destinations();
+    if (my !== reqId) return;
+    destinations.value = ds ?? [];
+  } catch {
+    if (my !== reqId) return;
+    destinations.value = [];
   } finally {
     if (my === reqId) loading.value = false;
   }
@@ -201,6 +249,39 @@ async function doPush() {
   } finally {
     pushing.value = false;
     resetProgress();
+  }
+}
+
+async function doMirror() {
+  if (!canMirror.value) return;
+  mirroring.value = true;
+  let ok = 0;
+  const failures: string[] = [];
+  try {
+    for (const d of destinations.value) {
+      if (!d.id) continue;
+      try {
+        await GigotSvc.DestinationSync(d.id);
+        ok += 1;
+      } catch (err) {
+        const label = d.url || d.id;
+        failures.push(`${label}: ${backendErrMessage(err)}`);
+      }
+    }
+    if (failures.length === 0) {
+      toast.success("workspace.collaboration.gigot.sync.mirror.success", [String(ok)]);
+    } else if (ok === 0) {
+      toast.error("workspace.collaboration.gigot.sync.mirror.error", [failures.join("; ")]);
+    } else {
+      toast.error("workspace.collaboration.gigot.sync.mirror.partial", [
+        String(ok),
+        String(failures.length),
+        failures.join("; "),
+      ]);
+    }
+    await load(false);
+  } finally {
+    mirroring.value = false;
   }
 }
 
@@ -332,6 +413,18 @@ async function doPull() {
         @click="doPull"
       >
         {{ pulling ? t('workspace.collaboration.gigot.sync.pull.running') : t('workspace.collaboration.gigot.sync.pull.button') }}
+      </button>
+      <button
+        v-if="hasMirrors && hasMirrorAbility"
+        type="button"
+        class="tool-btn warning"
+        :disabled="!canMirror"
+        :title="mirrorDisabledHint"
+        @click="doMirror"
+      >
+        {{ mirroring
+          ? t('workspace.collaboration.gigot.sync.mirror.running')
+          : t('workspace.collaboration.gigot.sync.mirror.button', [String(destinations.length)]) }}
       </button>
     </div>
   </template>
