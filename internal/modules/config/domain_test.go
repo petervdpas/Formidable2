@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -668,6 +669,100 @@ func TestListAvailableProfiles_OmitsBoot(t *testing.T) {
 	}
 	if len(profiles) != 2 {
 		t.Errorf("got %d profiles (expect user.json + work.json)", len(profiles))
+	}
+}
+
+func TestSwitchUserProfile_RejectsInvalidNames(t *testing.T) {
+	m, _, _ := newTestManager(t)
+
+	invalid := []string{
+		".boot.json",
+		".pdf-state.json",
+		"Work.json",
+		"work profile.json",
+		"work",
+		"work.txt",
+		"work_profile.json",
+		"../escape.json",
+		"",
+	}
+	for _, name := range invalid {
+		if _, err := m.SwitchUserProfile(name); err == nil {
+			t.Errorf("SwitchUserProfile(%q): expected error, got nil", name)
+		}
+	}
+
+	for _, name := range []string{"work.json", "user.json", "my-profile.json", "abc123.json"} {
+		if _, err := m.SwitchUserProfile(name); err != nil {
+			t.Errorf("SwitchUserProfile(%q): unexpected error: %v", name, err)
+		}
+	}
+}
+
+func TestImportUserProfile_RejectsInvalidNames(t *testing.T) {
+	m, _, root := newTestManager(t)
+
+	src := filepath.Join(root, "src.json")
+	if err := os.WriteFile(src, []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("seed source: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		want string
+	}{
+		{".pdf-state.json", "boot_forbidden"},
+		{".boot.json", "boot_forbidden"},
+		{"Work.json", "invalid_name"},
+		{"work profile.json", "invalid_name"},
+		{"work_profile.json", "invalid_name"},
+		{"work", "invalid_name"},
+	}
+	for _, tc := range cases {
+		got := m.ImportUserProfile(src, tc.name, false)
+		if got.Success {
+			t.Errorf("ImportUserProfile(%q): expected failure", tc.name)
+			continue
+		}
+		if got.Code != tc.want {
+			t.Errorf("ImportUserProfile(%q): code=%q, want %q", tc.name, got.Code, tc.want)
+		}
+	}
+}
+
+func TestIsValidProfileFilename(t *testing.T) {
+	good := []string{"user.json", "work.json", "my-profile.json", "abc123.json", "a.json"}
+	for _, n := range good {
+		if !IsValidProfileFilename(n) {
+			t.Errorf("IsValidProfileFilename(%q) = false, want true", n)
+		}
+	}
+	bad := []string{
+		"", ".json", ".boot.json", "User.json", "user.JSON",
+		"my_profile.json", "my profile.json", "user", "user.txt",
+		"../user.json", "sub/user.json",
+	}
+	for _, n := range bad {
+		if IsValidProfileFilename(n) {
+			t.Errorf("IsValidProfileFilename(%q) = true, want false", n)
+		}
+	}
+}
+
+func TestListAvailableProfiles_OmitsDotFiles(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+
+	_ = sys.SaveFile("config/.pdf-state.json", `{"activated":true}`)
+	_ = sys.SaveFile("config/.private-cache.json", `{}`)
+
+	profiles, err := m.ListAvailableProfiles()
+	if err != nil {
+		t.Fatalf("ListAvailableProfiles: %v", err)
+	}
+	for _, p := range profiles {
+		if strings.HasPrefix(p.Value, ".") {
+			t.Errorf("dot-file leaked into profiles: %q", p.Value)
+		}
 	}
 }
 

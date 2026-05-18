@@ -65,9 +65,11 @@ async function importFrom(sourcePath: string, overwrite: boolean): Promise<Profi
   return result;
 }
 
+// Mirrors profileFilenameRE in internal/modules/config/profiles.go.
+// Backend enforces the same rule; this is a UX-instant pre-check.
+// Keep both in sync.
 const FILENAME_RE = /^[a-z0-9-]+\.json$/;
 
-/** Strict validation matching the original Formidable UI. */
 export function isValidProfileFilename(name: string): boolean {
   return FILENAME_RE.test(name);
 }

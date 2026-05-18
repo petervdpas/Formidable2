@@ -1,10 +1,24 @@
 package config
 
 import (
+	"fmt"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
+
+// profileFilenameRE is the canonical validation rule for profile
+// filenames, mirroring the frontend's FILENAME_RE in
+// frontend/src/composables/useProfiles.ts. Keep both in sync.
+var profileFilenameRE = regexp.MustCompile(`^[a-z0-9-]+\.json$`)
+
+// IsValidProfileFilename reports whether name is a syntactically valid
+// profile filename: lowercase ASCII letters / digits / hyphens, ending
+// in ".json". Source of truth for create + import paths.
+func IsValidProfileFilename(name string) bool {
+	return profileFilenameRE.MatchString(name)
+}
 
 // profiles.go owns multi-profile management. Mirrors `Formidable/controls/
 // configManager.js` switchUserProfile + listAvailableProfiles +
@@ -108,7 +122,19 @@ func (m *Manager) ContextFolder() string {
 // active config path, and reloads. Held under updateMu so a concurrent
 // UpdateUserConfig can't read the old profile and persist its merge
 // into the new file.
+//
+// This is also the create entry point (switching to a missing filename
+// seeds defaults into it), so the name must pass IsValidProfileFilename:
+// lowercase [a-z0-9-]+\.json. Reserved dot-prefixed names like
+// .boot.json or .pdf-state.json fail this check.
 func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error) {
+	if strings.HasPrefix(profileFilename, ".") {
+		return nil, fmt.Errorf("profile filename cannot start with '.': %q", profileFilename)
+	}
+	if !IsValidProfileFilename(profileFilename) {
+		return nil, fmt.Errorf("invalid profile filename %q: must match [a-z0-9-]+\\.json", profileFilename)
+	}
+
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
 
@@ -138,7 +164,10 @@ func (m *Manager) HasUserProfiles() bool {
 }
 
 // ListAvailableProfiles enumerates *.json under config/ except
-// .boot.json, returning {value, display} entries for the picker.
+// dot-prefixed files (.boot.json, .pdf-state.json, etc.), returning
+// {value, display} entries for the picker. Dot-files are reserved
+// for module-private state — only plain user.json-style profiles
+// belong in the picker.
 // Display falls back from profile_name → author_name → "(unnamed)".
 func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error) {
 	files, err := m.fs.ListFiles(configDirName)
@@ -150,7 +179,7 @@ func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error) {
 		if !strings.HasSuffix(strings.ToLower(f), ".json") {
 			continue
 		}
-		if f == bootFileName {
+		if strings.HasPrefix(f, ".") {
 			continue
 		}
 		display := profileDisplayName(m, f)
@@ -238,11 +267,18 @@ func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrit
 			Code:    "invalid_name",
 		}
 	}
-	if final == bootFileName {
+	if strings.HasPrefix(final, ".") {
 		return ProfileResult{
 			Success: false,
-			Error:   ".boot.json cannot be imported as a profile.",
+			Error:   "Dot-prefixed filenames are reserved (e.g. " + final + ").",
 			Code:    "boot_forbidden",
+		}
+	}
+	if !IsValidProfileFilename(final) {
+		return ProfileResult{
+			Success: false,
+			Error:   "Invalid profile filename " + final + " (must match [a-z0-9-]+.json).",
+			Code:    "invalid_name",
 		}
 	}
 
