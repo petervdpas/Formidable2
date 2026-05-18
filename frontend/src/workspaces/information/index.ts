@@ -9,6 +9,7 @@ import InformationLogging from "./InformationLogging.vue";
 import InformationPDFExport from "./InformationPDFExport.vue";
 import InformationPDFCovers from "./InformationPDFCovers.vue";
 import InformationRenderHelpers from "./InformationRenderHelpers.vue";
+import InformationFrontmatterDirectives from "./InformationFrontmatterDirectives.vue";
 
 export type InformationCategoryId = string;
 
@@ -40,8 +41,9 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
     id: "help",
     labelKey: "workspace.information.section.help",
     children: [
-      { id: "shortcuts",      labelKey: "workspace.information.section.shortcuts",      component: InformationShortcuts },
-      { id: "render-helpers", labelKey: "workspace.information.section.render_helpers", component: InformationRenderHelpers },
+      { id: "shortcuts",              labelKey: "workspace.information.section.shortcuts",              component: InformationShortcuts },
+      { id: "render-helpers",         labelKey: "workspace.information.section.render_helpers",         component: InformationRenderHelpers },
+      { id: "frontmatter-directives", labelKey: "workspace.information.section.frontmatter_directives", component: InformationFrontmatterDirectives },
     ],
   },
   {

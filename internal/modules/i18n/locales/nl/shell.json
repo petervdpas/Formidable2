@@ -132,6 +132,7 @@
   "workspace.information.section.pdf_covers": "PDF-voorpagina's",
   "workspace.information.section.help": "Help",
   "workspace.information.section.render_helpers": "Render-helpers",
+  "workspace.information.section.frontmatter_directives": "Frontmatter instructies",
   "workspace.information.render_helpers.intro": "Handlebars-helpers die Formidable bij elke template-render registreert. Bruikbaar in YAML-frontmatter en de markdown-body. Standaard Handlebars-helpers (`if`, `each`, `with`, `unless`, `lookup`) zijn ook beschikbaar — zie de Handlebars-documentatie.",
   "workspace.information.render_helpers.signature": "Signatuur",
   "workspace.information.render_helpers.example": "Voorbeeld",
