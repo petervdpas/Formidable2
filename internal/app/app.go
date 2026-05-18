@@ -583,6 +583,26 @@ func New(d Deps) (*App, error) {
 	if err := pdfM.Restore(); err != nil {
 		d.Logger.Warn("pdf: state restore failed", "err", err)
 	}
+	// Loopback HTTP listener that serves central-library cover logos
+	// during PDF render. Required on Windows because Chrome under a
+	// file:// document can't load <img src="C:/…"> verbatim; picoloom's
+	// path rewriter only converts paths under SourceDir, so anything
+	// in <AppRoot>/pdf/covers/images/ needs a real URL. Boot-time
+	// bind, process-lifetime listener. Failure is non-fatal — render
+	// falls back to the legacy absolute-path behaviour.
+	//
+	// Exclude the configured internal-server port so the asset server
+	// can't squat on it while the wiki is off and block a later Start.
+	pdfImagesDir := filepath.Join(d.AppRoot, "pdf", "covers", "images")
+	wikiPort := bootCfg.InternalServerPort
+	if wikiPort <= 0 {
+		wikiPort = defaultInternalServerPort
+	}
+	if as, err := pdf.NewAssetServer(pdfImagesDir, d.Logger, wikiPort); err != nil {
+		d.Logger.Warn("pdf: asset server unavailable; logo URLs will fall back to absolute paths", "err", err)
+	} else {
+		pdfM.SetAssetServer(as)
+	}
 
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 

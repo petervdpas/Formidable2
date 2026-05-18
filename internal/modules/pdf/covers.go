@@ -365,6 +365,92 @@ func ResolveCoverLogo(logo, sourceDir string, fs storeFS) string {
 	return logo
 }
 
+// BuildCoverLogoSrc returns the string to set as Cover.Logo before
+// handing the input to picoloom. It mirrors ResolveCoverLogo's
+// search order but emits whichever string-shape picoloom + Chrome
+// can actually load cross-platform:
+//
+//   - Empty input → empty output.
+//   - Absolute path → returned verbatim (Linux-only behaviour, broken
+//     on Windows; nothing we can do without an asset server entry —
+//     documented limitation for "user gives an arbitrary absolute
+//     path outside both managed dirs"). Backslashes are converted to
+//     forward slashes so a hand-typed `C:\path\…` at least doesn't
+//     crash Chrome's URL parser.
+//   - Bare filename or "<rel>/<name>" — try imagesDir first:
+//     - hit AND asset server live → `http://127.0.0.1:.../covers/<basename>`
+//     - hit AND no asset server   → resolved absolute path (legacy)
+//   - Then try sourceDir:
+//     - hit → return the ORIGINAL relative reference unchanged.
+//       Picoloom's RewriteRelativePaths then converts it to a
+//       file:// URL cross-platform via pathToFileURL.
+//   - No hit anywhere → return the original input verbatim so
+//     picoloom's own "logo not found" error fires.
+//
+// The asset server is the missing piece for files in the central
+// library — pathrewrite refuses to point at paths outside sourceDir,
+// so without the loopback URL Chrome on Windows can't load them.
+func BuildCoverLogoSrc(logo, sourceDir string, fs storeFS, as *AssetServer) string {
+	if logo == "" || fs == nil {
+		return logo
+	}
+	if isAbsoluteAny(logo) {
+		return strings.ReplaceAll(logo, `\`, "/")
+	}
+	imagesDir := path.Join(onDiskCoversDir, coverImagesSubdir)
+	bareName := !strings.ContainsAny(logo, "/\\")
+	if bareName {
+		if fs.FileExists(path.Join(imagesDir, logo)) {
+			if u := as.URLFor(logo); u != "" {
+				return u
+			}
+			return strings.ReplaceAll(fs.ResolvePath(path.Join(imagesDir, logo)), `\`, "/")
+		}
+		if sourceDir != "" && fs.FileExists(path.Join(sourceDir, logo)) {
+			return logo
+		}
+		return logo
+	}
+	// Relative path with slashes — sourceDir wins because the user's
+	// "./subdir/foo.png" is unambiguous about intent.
+	if sourceDir != "" && fs.FileExists(path.Join(sourceDir, logo)) {
+		return logo
+	}
+	base := filepath.Base(logo)
+	if fs.FileExists(path.Join(imagesDir, base)) {
+		if u := as.URLFor(base); u != "" {
+			return u
+		}
+		return strings.ReplaceAll(fs.ResolvePath(path.Join(imagesDir, base)), `\`, "/")
+	}
+	return logo
+}
+
+// isAbsoluteAny reports whether p looks absolute on EITHER Unix or
+// Windows. filepath.IsAbs is OS-aware and returns false for a
+// Windows-style `C:\…` path when running on Linux, which we need to
+// catch in BuildCoverLogoSrc so backslashes are normalised regardless
+// of build host. Recognises:
+//   - filepath.IsAbs(p) (Unix `/abs`, Windows drive-rooted on Windows)
+//   - `\\server\share` (UNC) — leading double backslash
+//   - `<letter>:\` or `<letter>:/` (drive-letter absolute)
+func isAbsoluteAny(p string) bool {
+	if filepath.IsAbs(p) {
+		return true
+	}
+	if strings.HasPrefix(p, `\\`) {
+		return true
+	}
+	if len(p) >= 3 {
+		c := p[0]
+		isLetter := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+		if isLetter && p[1] == ':' && (p[2] == '/' || p[2] == '\\') {
+			return true
+		}
+	}
+	return false
+}
+
 // tryResolve returns the absolute path of dir/name if the file
 // exists, otherwise an empty string.
 //

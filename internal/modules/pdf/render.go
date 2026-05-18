@@ -158,13 +158,17 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		input.SourceDir = sourceDir
 	}
 
-	// Cover logo resolution: rewrite `cover.logo: formidable.svg`
-	// shorthand to the absolute path of <AppRoot>/pdf/covers/images/
-	// formidable.svg before handing it to picoloom (whose Cover.Validate
-	// would otherwise reject a non-existent shorthand path). Empty,
-	// absolute, and already-resolvable paths pass through.
+	// Cover logo resolution: convert `cover.logo: formidable.svg`
+	// shorthand into a string picoloom + Chrome can actually load
+	// cross-platform. The asset server (when wired) gives us
+	// http://127.0.0.1:.../covers/<file> for central-library logos
+	// — needed on Windows because Chrome inside a file:// document
+	// can't reconcile a bare `C:/…` <img src>. Logos that live
+	// under the document's own sourceDir are returned as relative
+	// paths so picoloom's RewriteRelativePaths handles them. See
+	// BuildCoverLogoSrc for the full search order.
 	if input.Cover != nil {
-		input.Cover.Logo = ResolveCoverLogo(input.Cover.Logo, input.SourceDir, m.store.fs)
+		input.Cover.Logo = BuildCoverLogoSrc(input.Cover.Logo, input.SourceDir, m.store.fs, m.AssetServer())
 	}
 
 	// Theme precedence: opts.DisableTheme forces empty (picoloom's

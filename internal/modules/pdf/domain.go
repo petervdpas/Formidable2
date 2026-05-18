@@ -60,6 +60,29 @@ type Manager struct {
 	status      Status
 	lastSuccess *ExportTelemetry
 	lastFailure *ExportTelemetry
+	// assetServer is the loopback HTTP listener Chrome hits for
+	// central-library cover logos during render. Optional: nil falls
+	// back to the legacy absolute-path resolution (Linux-only).
+	// Started by app.App right after NewManager.
+	assetServer *AssetServer
+}
+
+// SetAssetServer plugs in the loopback listener used to feed picoloom
+// real http:// URLs for cover-library logos. May be called once at
+// boot before the first Export; later renders pick it up via the
+// mutex-protected read in render.go.
+func (m *Manager) SetAssetServer(as *AssetServer) {
+	m.mu.Lock()
+	m.assetServer = as
+	m.mu.Unlock()
+}
+
+// AssetServer returns the currently-attached asset server, or nil if
+// none was wired. Exposed so app.App can call Close() at shutdown.
+func (m *Manager) AssetServer() *AssetServer {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.assetServer
 }
 
 // LastExport returns the most recent success and failure ExportTelemetry
