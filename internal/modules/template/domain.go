@@ -55,6 +55,27 @@ type ObserverFunc func(filename string) error
 // OnTemplateDeleted satisfies Observer.
 func (f ObserverFunc) OnTemplateDeleted(name string) error { return f(name) }
 
+// CreationObserver is a peer of Observer that fires when SaveTemplate
+// writes a brand-new file (one that didn't exist on disk before this
+// save). Updates of existing templates do NOT fire it — the Indexer
+// already handles the "something changed" surface via OnTemplateChanged,
+// so this hook stays focused on the create-once moment.
+//
+// Use case: auto-enable a newly-created template in the active
+// profile's EnabledTemplates list, so the editor sidebar (which is
+// filtered by enablement) shows the just-created template immediately
+// instead of hiding it pending a Settings → Templates toggle.
+type CreationObserver interface {
+	OnTemplateCreated(filename string) error
+}
+
+// CreationObserverFunc adapts a closure to CreationObserver. Same
+// pattern as ObserverFunc — keeps composition-root wiring terse.
+type CreationObserverFunc func(filename string) error
+
+// OnTemplateCreated satisfies CreationObserver.
+func (f CreationObserverFunc) OnTemplateCreated(name string) error { return f(name) }
+
 // AuthorReader yields the active profile's identity. SaveTemplate uses
 // it to stamp Template.AuthorName / Template.AuthorEmail when the
 // caller leaves them empty (mirrors how record .meta.json files carry
@@ -86,6 +107,7 @@ type Manager struct {
 	templatesDir string
 	indexer      Indexer
 	observers    []Observer
+	creationObs  []CreationObserver
 	author       AuthorReader
 
 	loadMu   keymu.Map
@@ -118,6 +140,18 @@ func (m *Manager) AddObserver(o Observer) {
 		return
 	}
 	m.observers = append(m.observers, o)
+}
+
+// AddCreationObserver registers a listener that fires only when
+// SaveTemplate writes a brand-new file. No-op for updates. Same
+// best-effort error policy as the deletion observers — failures log
+// but never propagate, keeping the create path resilient to
+// downstream hiccups (e.g. a transient config-write failure).
+func (m *Manager) AddCreationObserver(o CreationObserver) {
+	if o == nil {
+		return
+	}
+	m.creationObs = append(m.creationObs, o)
 }
 
 // SetAuthorReader installs the AuthorReader that SaveTemplate uses to
@@ -313,6 +347,11 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 		return fmt.Errorf("template: marshal: %w", err)
 	}
 	full := m.fs.JoinPath(m.templatesDir, name)
+	// Decide create-vs-update BEFORE writing so the CreationObserver
+	// only fires on the truly-new path. SaveFile is atomic (temp+rename),
+	// so there's no race where the file partly exists between the check
+	// and the write.
+	isNew := !m.fs.FileExists(full)
 	if err := m.fs.SaveFile(full, string(bytes)); err != nil {
 		return err
 	}
@@ -320,6 +359,13 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 	if m.indexer != nil {
 		if err := m.indexer.OnTemplateChanged(name); err != nil {
 			m.log.Warn("template indexer save hook failed", "name", name, "err", err)
+		}
+	}
+	if isNew {
+		for _, o := range m.creationObs {
+			if err := o.OnTemplateCreated(name); err != nil {
+				m.log.Warn("template creation observer failed", "name", name, "err", err)
+			}
 		}
 	}
 	return nil

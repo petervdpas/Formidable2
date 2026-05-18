@@ -71,6 +71,48 @@ func (m *Manager) FilterEnabled(filenames []string) []string {
 	return out
 }
 
+// AutoEnableNewTemplate appends filename to the active profile's
+// EnabledTemplates list IFF the profile has opted into curation (the
+// list is non-empty). Wired from the composition root onto
+// template.Manager.AddCreationObserver so a newly-created template
+// from the editor becomes visible in the (filtered) editor sidebar
+// immediately, instead of being hidden until the user toggles it in
+// Settings → Templates.
+//
+// Why guarded on "opted into curation":
+//   - Empty/nil EnabledTemplates means "all enabled" — adding the
+//     filename would flip the profile into curation mode, which is a
+//     bigger semantic change than the user asked for. Stay no-op.
+//   - Populated list means the user explicitly curated. They just
+//     created a new template; they want to use it. Append.
+//
+// Idempotent: a duplicate entry would never appear (we check membership
+// first), so accidental re-fires from the observer chain are safe.
+// Empty filename is rejected so a programmatic caller can't pollute
+// the list with garbage.
+func (m *Manager) AutoEnableNewTemplate(filename string) error {
+	if filename == "" {
+		return nil
+	}
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		return fmt.Errorf("auto-enable: load: %w", err)
+	}
+	if len(cfg.EnabledTemplates) == 0 {
+		return nil
+	}
+	if slices.Contains(cfg.EnabledTemplates, filename) {
+		return nil
+	}
+	next := append(append([]string(nil), cfg.EnabledTemplates...), filename)
+	if _, err := m.UpdateUserConfig(map[string]any{
+		"enabled_templates": next,
+	}); err != nil {
+		return fmt.Errorf("auto-enable: persist: %w", err)
+	}
+	return nil
+}
+
 // normalizeSelectedTemplate inspects cfg in-place and clears
 // SelectedTemplate + SelectedDataFile when the user's pick is no longer
 // in the enabled set. Returns true iff anything mutated.

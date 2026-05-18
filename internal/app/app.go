@@ -387,6 +387,14 @@ func New(d Deps) (*App, error) {
 		_, err := cfgM.ReconcileEnabledTemplates()
 		return err
 	}))
+	// Auto-enable freshly-created templates: when curation is on, the
+	// editor sidebar is filtered, so the user wouldn't see their own new
+	// template until they toggled it in Settings → Templates. This hook
+	// makes Create-from-Editor do what the user expects. No-op when
+	// curation isn't engaged (empty EnabledTemplates).
+	tplM.AddCreationObserver(template.CreationObserverFunc(func(filename string) error {
+		return cfgM.AutoEnableNewTemplate(filename)
+	}))
 
 	// First-boot reconcile — picks up anything that landed on disk
 	// while the app was off (gigot pull, manual edits, etc.). Logged-

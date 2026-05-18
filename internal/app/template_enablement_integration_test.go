@@ -42,6 +42,9 @@ func wireEnablement(t *testing.T) (*config.Manager, *template.Manager, *system.M
 		_, err := cfgM.ReconcileEnabledTemplates()
 		return err
 	}))
+	tplM.AddCreationObserver(template.CreationObserverFunc(func(filename string) error {
+		return cfgM.AutoEnableNewTemplate(filename)
+	}))
 	return cfgM, tplM, sys
 }
 
@@ -141,6 +144,73 @@ func TestTemplateDelete_EmptyEnabledListIsLeftAlone(t *testing.T) {
 	}
 }
 
+// TestCreate_AutoEnablesWhenCurated covers the headline UX fix: when
+// the profile has opted in to curation (non-empty EnabledTemplates), a
+// brand-new template saved through the template manager auto-appends
+// to the enabled list end-to-end via the CreationObserver → config
+// AutoEnableNewTemplate chain. Without the hook the new template would
+// be invisible in the (filtered) editor sidebar until the user opened
+// Settings → Templates.
+func TestCreate_AutoEnablesWhenCurated(t *testing.T) {
+	cfgM, tplM, _ := wireEnablement(t)
+	saveStubTemplate(t, tplM, "alpha.yaml")
+	if _, err := cfgM.UpdateUserConfig(map[string]any{
+		"enabled_templates": []string{"alpha.yaml"},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Create a brand-new template — should auto-enable.
+	saveStubTemplate(t, tplM, "fresh.yaml")
+
+	cfg, err := cfgM.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	want := []string{"alpha.yaml", "fresh.yaml"}
+	if !reflect.DeepEqual(cfg.EnabledTemplates, want) {
+		t.Errorf("EnabledTemplates = %v, want %v", cfg.EnabledTemplates, want)
+	}
+}
+
+// TestCreate_DoesNotFlipIntoCurationWhenAllEnabled — when the profile
+// hasn't opted in (empty EnabledTemplates = "all enabled"), creating a
+// template must NOT silently flip the user into curation mode by
+// populating the slice. The user retains control of the opt-in.
+func TestCreate_DoesNotFlipIntoCurationWhenAllEnabled(t *testing.T) {
+	cfgM, tplM, _ := wireEnablement(t)
+	saveStubTemplate(t, tplM, "alpha.yaml")
+	saveStubTemplate(t, tplM, "beta.yaml")
+
+	cfg, _ := cfgM.LoadUserConfig()
+	if len(cfg.EnabledTemplates) != 0 {
+		t.Errorf("must stay opted-out, got %v", cfg.EnabledTemplates)
+	}
+}
+
+// TestCreate_UpdateDoesNotAutoEnable — re-saving an existing template
+// is an update, not a create. The CreationObserver only fires for
+// brand-new files, so an update on a disabled template must NOT
+// silently flip it back into the enabled list.
+func TestCreate_UpdateDoesNotAutoEnable(t *testing.T) {
+	cfgM, tplM, _ := wireEnablement(t)
+	saveStubTemplate(t, tplM, "alpha.yaml")
+	saveStubTemplate(t, tplM, "disabled.yaml")
+	if _, err := cfgM.UpdateUserConfig(map[string]any{
+		"enabled_templates": []string{"alpha.yaml"},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Re-save the disabled template (an update, not a create).
+	saveStubTemplate(t, tplM, "disabled.yaml")
+
+	cfg, _ := cfgM.LoadUserConfig()
+	if !reflect.DeepEqual(cfg.EnabledTemplates, []string{"alpha.yaml"}) {
+		t.Errorf("update must not auto-enable, got %v", cfg.EnabledTemplates)
+	}
+}
+
 // TestTemplateDelete_ClearsSelectedTemplate exercises the full chain: a
 // template that's currently selected is deleted via the template
 // manager → the observer fires reconcile → reconcile prunes the entry
@@ -192,6 +262,10 @@ func TestListEnabledTemplates_AfterRename(t *testing.T) {
 	}
 
 	// Simulate a rename: delete the old, save the new.
+	// - delete fires Observer → reconcile prunes "old-name.yaml".
+	// - save of "new-name.yaml" fires CreationObserver → auto-enabled
+	//   (curation is on; user just made it).
+	// End state: enabled list contains alpha.yaml + new-name.yaml.
 	if err := tplM.DeleteTemplate("old-name.yaml"); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
@@ -202,18 +276,17 @@ func TestListEnabledTemplates_AfterRename(t *testing.T) {
 		t.Fatalf("ListEnabledTemplates: %v", err)
 	}
 	sort.Strings(got)
-	// new-name.yaml is on disk but not in the enabled list — invisible
-	// in the picker. alpha.yaml stays. old-name was pruned.
-	want := []string{"alpha.yaml"}
+	want := []string{"alpha.yaml", "new-name.yaml"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("post-rename listed = %v, want %v", got, want)
 	}
 
-	// Confirm new-name.yaml is on disk (template manager sees it),
-	// just not enabled.
-	all, _ := tplM.ListTemplates()
-	sort.Strings(all)
-	if !reflect.DeepEqual(all, []string{"alpha.yaml", "new-name.yaml"}) {
-		t.Errorf("all templates on disk = %v, want [alpha.yaml new-name.yaml]", all)
+	// Confirm config persisted the auto-enable.
+	cfg, _ := cfgM.LoadUserConfig()
+	wantCfg := []string{"alpha.yaml", "new-name.yaml"}
+	sortedCfg := append([]string(nil), cfg.EnabledTemplates...)
+	sort.Strings(sortedCfg)
+	if !reflect.DeepEqual(sortedCfg, wantCfg) {
+		t.Errorf("EnabledTemplates = %v, want %v", sortedCfg, wantCfg)
 	}
 }

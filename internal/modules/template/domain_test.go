@@ -272,6 +272,121 @@ func TestDeleteTemplate_InvalidatesCache(t *testing.T) {
 	}
 }
 
+// ----- CreationObserver -----------------------------------------------
+
+func TestCreationObserver_FiresOnFirstSave(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	var created []string
+	m.AddCreationObserver(CreationObserverFunc(func(n string) error {
+		created = append(created, n)
+		return nil
+	}))
+	if err := m.SaveTemplate("brand-new.yaml", &Template{
+		Name:   "Brand New",
+		Fields: []Field{{Key: "k", Type: "text"}},
+	}); err != nil {
+		t.Fatalf("SaveTemplate: %v", err)
+	}
+	if len(created) != 1 || created[0] != "brand-new.yaml" {
+		t.Errorf("expected one OnTemplateCreated for brand-new.yaml, got %v", created)
+	}
+}
+
+func TestCreationObserver_DoesNotFireOnUpdate(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	// Save once without the observer wired — file exists.
+	if err := m.SaveTemplate("kept.yaml", &Template{
+		Name:   "Kept",
+		Fields: []Field{{Key: "k", Type: "text"}},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var created []string
+	m.AddCreationObserver(CreationObserverFunc(func(n string) error {
+		created = append(created, n)
+		return nil
+	}))
+	// Re-save — should be treated as an update, no creation event.
+	if err := m.SaveTemplate("kept.yaml", &Template{
+		Name:   "Kept (renamed)",
+		Fields: []Field{{Key: "k", Type: "text"}},
+	}); err != nil {
+		t.Fatalf("re-save: %v", err)
+	}
+	if len(created) != 0 {
+		t.Errorf("update must not fire OnTemplateCreated, got %v", created)
+	}
+}
+
+func TestCreationObserver_MultipleFireInOrder(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	var order []string
+	a := CreationObserverFunc(func(n string) error { order = append(order, "a:"+n); return nil })
+	b := CreationObserverFunc(func(n string) error { order = append(order, "b:"+n); return nil })
+	m.AddCreationObserver(a)
+	m.AddCreationObserver(b)
+	if err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "X",
+		Fields: []Field{{Key: "k", Type: "text"}},
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	want := []string{"a:x.yaml", "b:x.yaml"}
+	if len(order) != 2 || order[0] != want[0] || order[1] != want[1] {
+		t.Errorf("order = %v, want %v", order, want)
+	}
+}
+
+func TestCreationObserver_ErrorIsSwallowed(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	m.AddCreationObserver(CreationObserverFunc(func(_ string) error {
+		return errors.New("intentional")
+	}))
+	if err := m.SaveTemplate("z.yaml", &Template{
+		Name:   "Z",
+		Fields: []Field{{Key: "k", Type: "text"}},
+	}); err != nil {
+		t.Errorf("creation observer error must not propagate, got %v", err)
+	}
+}
+
+func TestCreationObserver_NilIgnored(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	m.AddCreationObserver(nil)
+	if err := m.SaveTemplate("ok.yaml", &Template{
+		Name:   "OK",
+		Fields: []Field{{Key: "k", Type: "text"}},
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+}
+
+// CreationObserver must NOT fire when the validation guard rejects the
+// save — the file is never written, so semantically nothing was created.
+func TestCreationObserver_NotFiredOnValidationFailure(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	var fired bool
+	m.AddCreationObserver(CreationObserverFunc(func(_ string) error {
+		fired = true
+		return nil
+	}))
+	// Duplicate field keys → Validate rejects → save returns an error
+	// before the file is written.
+	err := m.SaveTemplate("bad.yaml", &Template{
+		Name: "Bad",
+		Fields: []Field{
+			{Key: "dup", Type: "text"},
+			{Key: "dup", Type: "text"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if fired {
+		t.Error("creation observer must not fire when save is rejected")
+	}
+}
+
 // ----- Observer (deletion listener) -----------------------------------
 
 // stubObserver records every OnTemplateDeleted call for assertion.

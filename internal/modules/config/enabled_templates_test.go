@@ -370,6 +370,68 @@ func TestListEnabledTemplates_PruneToEmptyFallsBackToAll(t *testing.T) {
 	}
 }
 
+// ----- AutoEnableNewTemplate ----------------------------------------------
+
+func TestAutoEnableNewTemplate_AppendsWhenCurated(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	withEnabled(t, m, "existing.yaml")
+	if err := m.AutoEnableNewTemplate("brand-new.yaml"); err != nil {
+		t.Fatalf("AutoEnable: %v", err)
+	}
+	cfg, _ := m.LoadUserConfig()
+	want := []string{"existing.yaml", "brand-new.yaml"}
+	if !reflect.DeepEqual(cfg.EnabledTemplates, want) {
+		t.Errorf("post-AutoEnable = %v, want %v", cfg.EnabledTemplates, want)
+	}
+}
+
+func TestAutoEnableNewTemplate_NoopWhenAllEnabled(t *testing.T) {
+	m, _, root := newTestManager(t)
+	// Seed: warm load + capture content so we can prove no rewrite.
+	if _, err := m.LoadUserConfig(); err != nil {
+		t.Fatalf("warm load: %v", err)
+	}
+	pre, _ := os.ReadFile(filepath.Join(root, "config", "user.json"))
+
+	if err := m.AutoEnableNewTemplate("anything.yaml"); err != nil {
+		t.Fatalf("AutoEnable: %v", err)
+	}
+
+	post, _ := os.ReadFile(filepath.Join(root, "config", "user.json"))
+	if string(pre) != string(post) {
+		t.Error("empty EnabledTemplates (all enabled) must remain no-op; file should not be rewritten")
+	}
+	cfg, _ := m.LoadUserConfig()
+	if len(cfg.EnabledTemplates) != 0 {
+		t.Errorf("must not flip profile into curation mode, got %v", cfg.EnabledTemplates)
+	}
+}
+
+func TestAutoEnableNewTemplate_IdempotentOnDuplicate(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	withEnabled(t, m, "alpha.yaml", "beta.yaml")
+	if err := m.AutoEnableNewTemplate("alpha.yaml"); err != nil {
+		t.Fatalf("AutoEnable: %v", err)
+	}
+	cfg, _ := m.LoadUserConfig()
+	want := []string{"alpha.yaml", "beta.yaml"}
+	if !reflect.DeepEqual(cfg.EnabledTemplates, want) {
+		t.Errorf("idempotent re-add should not change list, got %v", cfg.EnabledTemplates)
+	}
+}
+
+func TestAutoEnableNewTemplate_EmptyFilenameRejected(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	withEnabled(t, m, "a.yaml")
+	if err := m.AutoEnableNewTemplate(""); err != nil {
+		t.Errorf("empty filename must be no-op silently, got %v", err)
+	}
+	cfg, _ := m.LoadUserConfig()
+	if !reflect.DeepEqual(cfg.EnabledTemplates, []string{"a.yaml"}) {
+		t.Errorf("empty filename must not mutate the list, got %v", cfg.EnabledTemplates)
+	}
+}
+
 // ----- Auto-clear SelectedTemplate ----------------------------------------
 
 func TestUpdate_TogglingOffSelectedTemplate_Clears(t *testing.T) {

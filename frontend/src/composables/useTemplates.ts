@@ -2,6 +2,7 @@ import { computed, ref } from "vue";
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as ConfigSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/config";
+import { useConfig } from "./useConfig";
 
 const filenames = ref<string[]>([]);
 // enabledFilenames is the use-side picker list — the subset of
@@ -86,6 +87,12 @@ async function create(filename: string): Promise<{ ok: boolean; code?: string; m
   try {
     await TemplateSvc.SaveTemplate(filename, stub);
     await refresh();
+    // Backend's CreationObserver may have auto-enabled the new
+    // template via cfg.AutoEnableNewTemplate. Reload so the frontend's
+    // cfg.enabled_templates reflects that — otherwise the
+    // Settings → Templates toggle would show OFF for a template that's
+    // actually enabled server-side.
+    await useConfig().reload();
     selectedFilename.value = filename;
     return { ok: true };
   } catch (err) {
@@ -102,9 +109,23 @@ async function remove(filename: string): Promise<{ ok: boolean; message?: string
     // position) stays untouched. cache.value.delete keeps the lookup
     // map consistent without forcing a full TemplateSvc.LoadTemplate
     // pass across every other template.
+    //
+    // Splice BOTH lists: the editor sidebar binds to enabledFilenames
+    // (the filtered subset), so missing this splice was the cause of
+    // "deleted template lingers in the list" — the backend observer
+    // already pruned the entry from cfg.enabled_templates, but the
+    // frontend ref didn't reflect it.
     const idx = filenames.value.indexOf(filename);
     if (idx >= 0) filenames.value.splice(idx, 1);
+    const eidx = enabledFilenames.value.indexOf(filename);
+    if (eidx >= 0) enabledFilenames.value.splice(eidx, 1);
     cache.value.delete(filename);
+    // The backend's delete observer ran reconcile, which may have
+    // pruned enabled_templates and/or cleared selected_template (when
+    // the deleted file was the selected one). Re-read so the frontend
+    // cfg matches reality — without this, Settings → Templates can
+    // hold a "ghost" entry that gets propagated on the next toggle.
+    await useConfig().reload();
     return { ok: true };
   } catch (err) {
     return { ok: false, message: String(err) };
