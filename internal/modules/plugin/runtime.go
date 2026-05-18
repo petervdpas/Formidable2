@@ -55,6 +55,7 @@ type runtimeDeps struct {
 	LogSink     *[]string
 	ToastSink   *[]ToastEvent
 	ProgressOut ProgressEmitter
+	Ctx         context.Context
 	PluginID    string
 	Plugin      PluginInfo
 	KV          *KV
@@ -88,6 +89,21 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("fm", buildFMTable(L, deps.PluginID, deps.FM))
 	f.RawSetString("progress", buildProgressTable(L, deps.ProgressOut))
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
+	// formidable.cancelled() — cheap predicate so plugins can poll
+	// for user-requested Stop inside pcall-heavy loops. Necessary
+	// because gopher-lua's context-cancel error IS catchable by pcall
+	// (every per-item Go binding in wikiwonder is pcall'd for failure
+	// isolation, which swallows the cancel). Plugins should call this
+	// at the top of any long loop; it's a single ctx.Err() check.
+	ctxRef := deps.Ctx
+	f.RawSetString("cancelled", L.NewFunction(func(L *lua.LState) int {
+		if ctxRef == nil {
+			L.Push(lua.LFalse)
+			return 1
+		}
+		L.Push(lua.LBool(ctxRef.Err() != nil))
+		return 1
+	}))
 	f.RawSetString("exec", buildExecValue(L, deps.Exec))
 	L.SetGlobal("formidable", f)
 }
@@ -183,6 +199,7 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		LogSink:     &logs,
 		ToastSink:   &toasts,
 		ProgressOut: opts.ProgressOut,
+		Ctx:         opts.Ctx,
 		PluginID:    opts.PluginID,
 		Plugin:      opts.Plugin,
 		KV:          opts.KV,
@@ -219,6 +236,15 @@ func runScript(opts scriptOpts) (RunResult, error) {
 
 	ret := L.Get(-1)
 	L.Pop(1)
+	// Post-call ctx check: pcall inside the script can catch
+	// gopher-lua's context-cancel error and let the loop run to
+	// completion. Even when the script "succeeded" — i.e.
+	// CallByParam returned nil — if the run's context was cancelled
+	// at any point we surface that as ErrPluginCancelled. The
+	// frontend's kind="cancelled" branch then fires correctly.
+	if opts.Ctx != nil && opts.Ctx.Err() != nil {
+		return RunResult{LogLines: logs, Toasts: toasts}, ErrPluginCancelled
+	}
 	return RunResult{Value: luaToGo(ret), LogLines: logs, Toasts: toasts}, nil
 }
 

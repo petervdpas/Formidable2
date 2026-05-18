@@ -162,8 +162,19 @@ function export(ctx)
   formidable.progress.tick(0, total, "starting", "")
 
   local total_written, total_failed, total_skipped = 0, 0, 0
+  local cancelled = false
 
   for i, unit in ipairs(work) do
+    -- Cooperative cancel check: pcall around each Go binding (for
+    -- per-item failure isolation) would otherwise swallow the
+    -- runtime's context-cancel error and keep the loop running.
+    -- formidable.cancelled() is a cheap predicate the host updates
+    -- when the user clicks Stop in the Run dialog.
+    if formidable.cancelled() then
+      cancelled = true
+      formidable.log.info("WikiWonder: cancelled by user at item", i, "of", total)
+      break
+    end
     local status, _ = process_one(unit, target, group_by_template, overwrite, keep_fm)
     if status == "wrote" then total_written = total_written + 1
     elseif status == "failed" then total_failed = total_failed + 1
@@ -176,19 +187,23 @@ function export(ctx)
   end
 
   local summary = string.format(
-    "WikiWonder: wrote %d, skipped %d, failed %d",
-    total_written, total_skipped, total_failed)
-  if total_failed > 0 then
+    "WikiWonder: wrote %d, skipped %d, failed %d%s",
+    total_written, total_skipped, total_failed,
+    cancelled and " (cancelled)" or "")
+  if cancelled then
+    formidable.toast.info(summary)
+  elseif total_failed > 0 then
     formidable.toast.warn(summary)
   else
     formidable.toast.success(summary)
   end
 
   return {
-    ok = (total_failed == 0),
+    ok = (total_failed == 0) and (not cancelled),
     target = target,
     written = total_written,
     skipped = total_skipped,
     failed = total_failed,
+    cancelled = cancelled,
   }
 end

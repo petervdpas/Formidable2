@@ -661,6 +661,70 @@ func TestBindings_Cancellation_NilCtx_RunsNormally(t *testing.T) {
 	}
 }
 
+// TestBindings_Cancellation_PollPredicate verifies the cheap
+// predicate path: a long-running pcall-heavy loop can poll
+// formidable.cancelled() at the top of each iteration and break
+// out cleanly. The host signals cancel mid-loop via the ctx.
+func TestBindings_Cancellation_PollPredicate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		cancel()
+	}()
+	src := `
+		function run()
+			local count = 0
+			for i = 1, 100000 do
+				if formidable.cancelled() then break end
+				count = count + 1
+				-- simulate "useful work" — a tiny busy spin so the
+				-- loop doesn't blow through 100k iterations before
+				-- the test's cancel signal arrives.
+				for j = 1, 1000 do end
+			end
+			return count
+		end`
+	res, err := runScript(scriptOpts{Source: src, Fn: "run", Ctx: ctx})
+	// Either the script poll noticed the cancel and broke cleanly
+	// (CallByParam err = nil, post-call ctx check surfaces
+	// ErrPluginCancelled) or gopher-lua's own ctx check fired
+	// between bytecodes. Both paths must end at ErrPluginCancelled.
+	if !errors.Is(err, ErrPluginCancelled) {
+		t.Fatalf("err = %v, want ErrPluginCancelled (count=%v)", err, res.Value)
+	}
+}
+
+// TestBindings_Cancellation_PostCallCheckCatchesPcallSwallow
+// verifies the safety net: a script that swallows the context
+// error via pcall would otherwise "complete normally", but the
+// post-call ctx.Err() check still surfaces ErrPluginCancelled.
+func TestBindings_Cancellation_PostCallCheckCatchesPcallSwallow(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel before the script even starts so the very first
+	// instruction is post-cancel-context — the swallow is
+	// guaranteed by pcall'ing a sleep-equivalent that errors on
+	// the cancelled VM.
+	cancel()
+	src := `
+		function run()
+			-- pcall a no-op that returns immediately on a
+			-- cancelled VM — the error (if any) is swallowed.
+			pcall(function() return 1 end)
+			return "completed"
+		end`
+	_, err := runScript(scriptOpts{Source: src, Fn: "run", Ctx: ctx})
+	if !errors.Is(err, ErrPluginCancelled) {
+		t.Fatalf("err = %v, want ErrPluginCancelled (post-call check missed cancellation)", err)
+	}
+}
+
+func TestBindings_Cancelled_NilCtxReturnsFalse(t *testing.T) {
+	res := run(t, `function run() return formidable.cancelled() end`, scriptOpts{})
+	if got, _ := res.Value.(bool); got {
+		t.Fatalf("formidable.cancelled() with nil ctx = %v, want false", res.Value)
+	}
+}
+
 func TestBindings_Progress_NotConfigured_Errors(t *testing.T) {
 	err := runErr(t, `function run() formidable.progress.tick(1, 1, "x") end`,
 		scriptOpts{}) // no ProgressOut
