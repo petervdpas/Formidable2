@@ -532,6 +532,75 @@ function addWidget(kind: WidgetKind) {
   draftForm.value = [...(draftForm.value ?? []), w];
 }
 
+// Widget edit modal — lets the user rename a widget's id (used by
+// Lua as the per-form stable handle) and set its display label. The
+// underlying kind never changes; delete + add for a different kind.
+const widgetEditOpen = ref(false);
+const widgetEditIndex = ref<number>(-1);
+const widgetEditID = ref<string>("");
+const widgetEditLabel = ref<string>("");
+const widgetEditError = ref<string>("");
+
+const widgetEditKind = computed<WidgetKind | "">(() => {
+  const e = draftForm.value[widgetEditIndex.value];
+  return e && isWidget(e) ? e.kind : "";
+});
+
+function openWidgetEdit(idx: number) {
+  const entry = draftForm.value[idx];
+  if (!entry || !isWidget(entry)) return;
+  widgetEditIndex.value = idx;
+  widgetEditID.value = entry.id;
+  widgetEditLabel.value = entry.label ?? "";
+  widgetEditError.value = "";
+  widgetEditOpen.value = true;
+}
+
+function applyWidgetEdit() {
+  const idx = widgetEditIndex.value;
+  const entry = draftForm.value[idx];
+  if (!entry || !isWidget(entry)) {
+    widgetEditOpen.value = false;
+    return;
+  }
+  const newID = widgetEditID.value.trim();
+  if (!newID) {
+    widgetEditError.value = t("workspace.plugins.widget.error_empty_id");
+    return;
+  }
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(newID)) {
+    widgetEditError.value = t("workspace.plugins.widget.error_bad_id");
+    return;
+  }
+  // Same-id is fine (no rename). Otherwise enforce uniqueness against
+  // every OTHER widget in the form so two widgets can't collide.
+  const collides = (draftForm.value ?? []).some(
+    (e, i) => i !== idx && isWidget(e) && e.id === newID,
+  );
+  if (collides) {
+    widgetEditError.value = t("workspace.plugins.widget.error_duplicate_id");
+    return;
+  }
+  const updated = new Widget({
+    ...entry,
+    id: newID,
+    label: widgetEditLabel.value,
+  });
+  draftForm.value = [
+    ...draftForm.value.slice(0, idx),
+    updated,
+    ...draftForm.value.slice(idx + 1),
+  ];
+  widgetEditOpen.value = false;
+  widgetEditIndex.value = -1;
+}
+
+function cancelWidgetEdit() {
+  widgetEditOpen.value = false;
+  widgetEditIndex.value = -1;
+  widgetEditError.value = "";
+}
+
 // ── Commands list editing ────────────────────────────────────────────
 function addCommand() {
   if (!draftManifest.value) return;
@@ -825,6 +894,13 @@ setTopbarMenu(() => [
                 <div class="field-row-actions">
                   <button
                     type="button"
+                    class="field-action-btn edit"
+                    @click="openWidgetEdit(i)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
                     class="field-action-btn delete"
                     @click="askDeleteField(i)"
                   >
@@ -969,6 +1045,45 @@ setTopbarMenu(() => [
     @cancel="fieldDeleteOpen = false"
     @confirm="confirmDeleteField"
   />
+
+  <!-- Form-editor: widget edit -->
+  <Modal
+    :open="widgetEditOpen"
+    :title="t('workspace.plugins.widget.edit_title', [widgetEditKind])"
+    width="480px"
+    @close="cancelWidgetEdit"
+  >
+    <label class="dialog-row">
+      <span class="dialog-row-label">{{ t('workspace.plugins.widget.id') }}</span>
+      <input
+        class="field-input"
+        v-model="widgetEditID"
+        :placeholder="t('workspace.plugins.widget.id_placeholder')"
+        @keydown.enter="applyWidgetEdit"
+      />
+    </label>
+    <p class="muted small dialog-row-help">
+      {{ t('workspace.plugins.widget.id_help') }}
+    </p>
+    <label class="dialog-row">
+      <span class="dialog-row-label">{{ t('workspace.plugins.widget.label') }}</span>
+      <input
+        class="field-input"
+        v-model="widgetEditLabel"
+        :placeholder="t('workspace.plugins.widget.label_placeholder')"
+        @keydown.enter="applyWidgetEdit"
+      />
+    </label>
+    <p v-if="widgetEditError" class="form-error">{{ widgetEditError }}</p>
+    <template #footer>
+      <button class="tool-btn" type="button" @click="cancelWidgetEdit">
+        {{ t('common.cancel') }}
+      </button>
+      <button class="tool-btn primary" type="button" @click="applyWidgetEdit">
+        {{ t('common.save') }}
+      </button>
+    </template>
+  </Modal>
 
   <!-- Run modal -->
   <Modal
