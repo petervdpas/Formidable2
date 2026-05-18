@@ -34,6 +34,7 @@ import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { usePlugins, isValidPluginID } from "../composables/usePlugins";
 import { usePluginEditor } from "../composables/usePluginEditor";
+import { setGlobalPluginRunning } from "../composables/useGlobalPluginRun";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
@@ -352,6 +353,7 @@ watch(
 
 async function runCommand(p: ListResult, cmd: Command) {
   runningCmd.value = cmd.id;
+  setGlobalPluginRunning(true);
   try {
     // ctx is empty in modal mode; in form mode the user-filled
     // form values flow into the Lua function so scripts read
@@ -373,6 +375,9 @@ async function runCommand(p: ListResult, cmd: Command) {
     }
     const res = await PluginSvc.Run(p.id, cmd.id, ctx);
     runResults.value[cmd.id] = res;
+    if (res.kind === "busy") {
+      toast.warn(res.message || "plugin: another command is currently running");
+    }
     // Dispatch any formidable.toast.* events the script emitted.
     // useToast accepts plain text, so the message goes through
     // verbatim — no i18n key resolution.
@@ -402,6 +407,7 @@ async function runCommand(p: ListResult, cmd: Command) {
     });
   } finally {
     runningCmd.value = "";
+    setGlobalPluginRunning(false);
   }
 }
 

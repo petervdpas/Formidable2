@@ -4,7 +4,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
 )
 
 // newTestManager builds a Manager rooted at a fresh temp dir and
@@ -330,6 +332,109 @@ func TestManager_Run_KVScopedToPluginID(t *testing.T) {
 	gotB, _ := m.Run("b", "get", nil)
 	if gotA.Value != "from-a" || gotB.Value != "from-b" {
 		t.Fatalf("isolation broken: a=%v b=%v", gotA.Value, gotB.Value)
+	}
+}
+
+func TestManager_Run_BusyRejectsConcurrent(t *testing.T) {
+	// While one Run is in flight (Lua is parked on a coroutine.yield
+	// equivalent — here we use a channel that the test holds open),
+	// a second Run on any plugin must fail fast with ErrPluginBusy.
+	// We use a Lua loop polling a `formidable.kv.get` for a sentinel
+	// the test writes — keeps the script alive until we release it.
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "slow", `{
+		"manifest_version": 1, "id": "slow", "name": "Slow",
+		"version": "0.1.0",
+		"commands": [{"id": "loop", "label": "loop"}]
+	}`, `
+		function loop()
+			while formidable.kv.get("go") ~= "yes" do
+				-- spin
+			end
+			return "done"
+		end`)
+	writePlugin(t, pluginsDir, "fast", `{
+		"manifest_version": 1, "id": "fast", "name": "Fast",
+		"version": "0.1.0",
+		"commands": [{"id": "ping", "label": "ping"}]
+	}`, "function ping() return 'ok' end")
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	// Kick off the slow Run on a goroutine; wait for it to actually
+	// enter the script before testing the second call.
+	slowStarted := make(chan struct{})
+	slowDone := make(chan struct{})
+	go func() {
+		// The CAS happens at the very top of Run, so once the script
+		// is spinning we know the flag is set. Signal once we know
+		// we're past the CAS by writing a sentinel inside the loop
+		// — except we can't from outside. Easier: yield first via
+		// a poll-loop write from the test (next line). Simpler still
+		// — small sleep to allow the goroutine to enter Run.
+		close(slowStarted)
+		_, _ = m.Run("slow", "loop", nil)
+		close(slowDone)
+	}()
+	<-slowStarted
+	// Wait until the goroutine has actually entered Run + set the
+	// runActive flag. Without this barrier, the second Run below
+	// races against the first and may not hit the CAS contention
+	// case we're testing.
+	deadline := time.Now().Add(2 * time.Second)
+	for !m.runActive.Load() && time.Now().Before(deadline) {
+		runtime.Gosched()
+	}
+	if !m.runActive.Load() {
+		t.Fatalf("slow Run never set runActive")
+	}
+
+	// While slow is in flight, fast Run must fail with ErrPluginBusy.
+	_, err := m.Run("fast", "ping", nil)
+	if !errors.Is(err, ErrPluginBusy) {
+		t.Fatalf("concurrent Run should return ErrPluginBusy, got %v", err)
+	}
+
+	// Release the slow script and wait for it to complete.
+	_ = m.deps.KV.Set("slow", "go", "yes")
+	<-slowDone
+
+	// After completion, a new Run succeeds.
+	res, err := m.Run("fast", "ping", nil)
+	if err != nil {
+		t.Fatalf("post-busy Run: %v", err)
+	}
+	if res.Value != "ok" {
+		t.Fatalf("got %v", res.Value)
+	}
+}
+
+func TestManager_Run_BusyClearedOnError(t *testing.T) {
+	// A Run that fails (unknown command, script error, etc.) must
+	// still release the busy flag so the next Run isn't blocked.
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "boom", "label": "boom"}]
+	}`, `function boom() error("nope") end`)
+	_ = m.Refresh()
+
+	_, err := m.Run("demo", "boom", nil)
+	if err == nil {
+		t.Fatal("expected runtime error from boom")
+	}
+	if m.runActive.Load() {
+		t.Fatal("runActive should be cleared after a failed Run")
+	}
+	// Second Run still works.
+	_, err2 := m.Run("demo", "ghost", nil)
+	if !errors.Is(err2, ErrCommandNotFound) {
+		t.Fatalf("second Run: want ErrCommandNotFound, got %v", err2)
+	}
+	if m.runActive.Load() {
+		t.Fatal("runActive should be cleared after ErrCommandNotFound")
 	}
 }
 

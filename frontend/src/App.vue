@@ -5,6 +5,7 @@ import Ribbon from "./components/Ribbon.vue";
 import Topbar from "./components/Topbar.vue";
 import Footer from "./components/Footer.vue";
 import ToastContainer from "./components/ToastContainer.vue";
+import PluginRunDialog from "./components/PluginRunDialog.vue";
 import { WORKSPACES, type WorkspaceId } from "./workspaces";
 import { useTheme } from "./composables/useTheme";
 import { useActiveWorkspace } from "./composables/useActiveWorkspace";
@@ -116,5 +117,6 @@ onBeforeUnmount(() => {
     </main>
     <Footer />
     <ToastContainer />
+    <PluginRunDialog />
   </div>
 </template>

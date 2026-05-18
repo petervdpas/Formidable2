@@ -211,12 +211,19 @@ type RunResult struct {
 // ─────────────────────────────────────────────────────────────────
 
 var (
-	ErrManifestVersion    = errors.New("plugin: unsupported manifest_version")
-	ErrManifestInvalid    = errors.New("plugin: invalid manifest")
-	ErrPluginNotFound     = errors.New("plugin: not found")
-	ErrCommandNotFound    = errors.New("plugin: command not found")
-	ErrPluginExists       = errors.New("plugin: already exists")
-	ErrServerNotRunning   = errors.New("plugin: requires the internal server, but it's stopped")
+	ErrManifestVersion  = errors.New("plugin: unsupported manifest_version")
+	ErrManifestInvalid  = errors.New("plugin: invalid manifest")
+	ErrPluginNotFound   = errors.New("plugin: not found")
+	ErrCommandNotFound  = errors.New("plugin: command not found")
+	ErrPluginExists     = errors.New("plugin: already exists")
+	ErrServerNotRunning = errors.New("plugin: requires the internal server, but it's stopped")
+	// ErrPluginBusy is returned when Manager.Run is invoked while
+	// another command is already in flight. Plugins are serialized
+	// globally — gopher-lua VMs are per-call but their bound services
+	// (KV writes, render, fs) aren't safe to interleave, and the UX
+	// contract is "one plugin at a time" anyway. Frontend surfaces
+	// this as Kind="busy" via Service.Run.
+	ErrPluginBusy = errors.New("plugin: another command is currently running")
 )
 
 // HTTPResponse is what formidable.api.fetch returns to Lua. Body

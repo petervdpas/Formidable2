@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // ManagerDeps groups the bridges plugins need at runtime. The
@@ -50,6 +51,12 @@ type Manager struct {
 
 	mu      sync.RWMutex
 	plugins map[string]Plugin
+
+	// runActive is the one-at-a-time guard for Run. CAS-swapped on
+	// entry so a second Run while a first is in flight fails fast
+	// with ErrPluginBusy rather than queuing or interleaving. Cleared
+	// in the same deferred path that runs after success or failure.
+	runActive atomic.Bool
 }
 
 // NewManager constructs a Manager. Discovery doesn't run here —
@@ -209,6 +216,10 @@ func (m *Manager) LoadFormValues(pluginID string, fieldKeys []string) map[string
 // plus any log lines emitted via formidable.log.* during the
 // call.
 func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult, error) {
+	if !m.runActive.CompareAndSwap(false, true) {
+		return RunResult{}, ErrPluginBusy
+	}
+	defer m.runActive.Store(false)
 	p, ok := m.Get(pluginID)
 	if !ok {
 		return RunResult{}, fmt.Errorf("%w: %s", ErrPluginNotFound, pluginID)
