@@ -12,7 +12,7 @@
   "logging_enabled": false,
   "enable_plugins": true,
   "context_mode": "template",
-  "context_ribbon": "plugins",
+  "context_ribbon": "storage",
   "context_folder": "/home/peter/Documents/Example",
   "selected_template": "aanpak-audit.yaml",
   "selected_data_file": "aanpak-ch02.meta.json",

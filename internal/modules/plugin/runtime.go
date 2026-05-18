@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	lua "github.com/yuin/gopher-lua"
 )
@@ -104,6 +105,26 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 		}
 		L.Push(lua.LBool(ctxRef.Err() != nil))
 		return 1
+	}))
+	// formidable.sleep(seconds) — context-aware pause. Stop while
+	// sleeping wakes the goroutine immediately; the next instruction
+	// the VM runs gets the cancel signal. Fractional seconds (0.25)
+	// work because Lua number is float64. Negative/zero is a no-op.
+	f.RawSetString("sleep", L.NewFunction(func(L *lua.LState) int {
+		sec := float64(L.OptNumber(1, 0))
+		if sec <= 0 {
+			return 0
+		}
+		d := time.Duration(sec * float64(time.Second))
+		if ctxRef == nil {
+			time.Sleep(d)
+			return 0
+		}
+		select {
+		case <-time.After(d):
+		case <-ctxRef.Done():
+		}
+		return 0
 	}))
 	f.RawSetString("exec", buildExecValue(L, deps.Exec))
 	L.SetGlobal("formidable", f)
