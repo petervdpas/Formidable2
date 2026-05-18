@@ -596,7 +596,14 @@ function openExportPdf() {
   exportPdfOpen.value = true;
 }
 
-const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("storage");
+// Plugins attached to the Storage workspace receive the active
+// template's filename as ctx.template — so a plugin like wikiwonder
+// can scope its work to "this template" rather than enumerating
+// every template in the catalog.
+const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu(
+  "storage",
+  () => (selectedTemplate.value ? { template: selectedTemplate.value } : {}),
+);
 
 setTopbarMenu(() => [
   {

@@ -18,8 +18,19 @@ import { openGlobalPluginRun, useGlobalPluginRun } from "./useGlobalPluginRun";
 // workspace doesn't render a "Plugins" header when nothing is
 // attached. Refresh fires on `formidable:context-reloaded` so a
 // pull/clone surfaces newly-installed plugins without a remount.
+//
+// `selectionFeeder`, when supplied, is called at click time to mint
+// the workspace's current selection state — e.g. the Storage
+// workspace passes { template: <filename> } so a plugin scoped to
+// "this template" (like wikiwonder) gets the selection in its ctx
+// without having to enumerate the catalog.
 
-export function useWorkspacePluginMenu(workspaceID: string) {
+type SelectionFeeder = () => Record<string, unknown>;
+
+export function useWorkspacePluginMenu(
+  workspaceID: string,
+  selectionFeeder?: SelectionFeeder,
+) {
   const plugins = ref<ListResult[]>([]);
   const { running } = useGlobalPluginRun();
 
@@ -51,7 +62,12 @@ export function useWorkspacePluginMenu(workspaceID: string) {
       label: p.manifest.name || p.id,
       disabled: isRunning,
       onClick: () => {
-        openGlobalPluginRun(p, { workspace: workspaceID });
+        const extra: Record<string, unknown> = { workspace: workspaceID };
+        if (selectionFeeder) {
+          const sel = selectionFeeder();
+          for (const k of Object.keys(sel)) extra[k] = sel[k];
+        }
+        openGlobalPluginRun(p, extra);
       },
     }));
     return {
