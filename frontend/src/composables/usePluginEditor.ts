@@ -4,37 +4,50 @@ import {
   Manifest,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Widget } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
+import { Kind as WidgetKind } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
 import { usePlugins } from "./usePlugins";
 
 // Module-scope singleton, mirroring useTemplateEditor: at most one
 // plugin is being edited at a time and the workspace + topbar menu
 // share the same draft / dirty state.
+//
+// draftForm holds the parsed form.json — a heterogeneous, ordered
+// list where each entry is EITHER a template Field (input) or a
+// formwidget.Widget (live display slot). Position in the array IS
+// the render order; the form editor's drag-drop list operates on
+// the same array, so dropping a widget between two fields persists
+// as the same array order on disk.
 const draftManifest = ref<Manifest | null>(null);
 const draftSource = ref<string>("");
-// draftForm is the parsed form.json shape — an array of template
-// Fields, the same schema FormFieldRenderer + FieldEditModal use.
-// Backend treats form.json as opaque text; we parse/serialize here.
-const draftForm = ref<Field[]>([]);
+const draftForm = ref<Array<Field | Widget>>([]);
 
 // Baseline is what we last loaded from disk for the current
-// selection — dirty compares against it. We deliberately clone the
-// manifest into a fresh object so mutating draftManifest never
-// mutates the cached list result.
+// selection — dirty compares against it.
 let baselineManifest: Manifest | null = null;
 let baselineSource = "";
-let baselineForm: Field[] = [];
+let baselineForm: Array<Field | Widget> = [];
 
 const { selectedPlugin, selectedID, refresh } = usePlugins();
 
 function clone<T>(v: T): T {
-  // JSON round-trip — Manifest is a plain shape; the binding
-  // constructor accepts Partial<Manifest>. Same trick
-  // useTemplateEditor uses for Template.
   return JSON.parse(JSON.stringify(v));
 }
 
 function deepEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+// isWidget routes JSON entries to the right renderer: Widgets have
+// a `kind` in the closed widget enum, Fields have a `type` in the
+// template field-type set. The two namespaces don't overlap, so
+// checking `kind` is a safe discriminator without an explicit
+// `_kind` field.
+export function isWidget(entry: Field | Widget): entry is Widget {
+  const k = (entry as Widget).kind;
+  return (
+    k === WidgetKind.KindProgressBar || k === WidgetKind.KindStatusMessage
+  );
 }
 
 const dirty = computed<boolean>(() => {
@@ -45,10 +58,6 @@ const dirty = computed<boolean>(() => {
   return false;
 });
 
-// Whenever the sidebar selection changes (or the cached list
-// refreshes after a save) reload the baseline + draft from the
-// backend. GetSource is a separate call because the list endpoint
-// only returns parsed manifests — keeps the list payload small.
 watch(
   selectedPlugin,
   async (p) => {
@@ -68,31 +77,28 @@ watch(
     } catch {
       src = "";
     }
-    let formFields: Field[] = [];
+    let entries: Array<Field | Widget> = [];
     try {
       const raw = await PluginSvc.GetForm(p.id);
       const parsed = JSON.parse(raw || "[]");
-      // Tolerate both shapes so an old experimental object form
-      // ({fields:[...]}) doesn't silently drop the field list on
-      // load. Canonical write is still a bare array.
       if (Array.isArray(parsed)) {
-        formFields = parsed;
+        entries = parsed;
       } else if (
         parsed &&
         typeof parsed === "object" &&
         Array.isArray((parsed as { fields?: unknown }).fields)
       ) {
-        formFields = (parsed as { fields: Field[] }).fields;
+        entries = (parsed as { fields: Array<Field | Widget> }).fields;
       }
     } catch {
-      formFields = [];
+      entries = [];
     }
     baselineManifest = clone(mf);
     baselineSource = src;
-    baselineForm = clone(formFields);
+    baselineForm = clone(entries);
     draftManifest.value = mf;
     draftSource.value = src;
-    draftForm.value = formFields;
+    draftForm.value = entries;
   },
   { immediate: true },
 );
@@ -108,11 +114,6 @@ async function save(): Promise<SaveOutcome> {
   }
   try {
     const payload = new Manifest(clone(draftManifest.value));
-    // Only ship form.json when the field list actually changed.
-    // Backend treats empty string as "leave untouched" — so mode
-    // toggles / description edits / source edits never reach the
-    // form file. Hard belt-and-suspenders against ever wiping
-    // user-authored form data via an unrelated save.
     const formChanged = !deepEqual(draftForm.value, baselineForm);
     const formJSON = formChanged
       ? JSON.stringify(draftForm.value, null, 2) + "\n"
@@ -123,8 +124,6 @@ async function save(): Promise<SaveOutcome> {
       draftSource.value,
       formJSON,
     );
-    // Pull canonical state back so the sidebar and caches reflect
-    // the new manifest immediately.
     await refresh();
     baselineManifest = clone(payload);
     baselineSource = draftSource.value;

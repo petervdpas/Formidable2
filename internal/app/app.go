@@ -537,13 +537,17 @@ func New(d Deps) (*App, error) {
 		Render: pluginRenderAdapter{rdr: renderM},
 		FM:     pluginFMAdapter{},
 		FS:     plugin.OSFS{},
-		// ProgressOut bridges formidable.progress.tick to a Wails
-		// event so the Run dialog can render a live progress bar.
-		// The emitter is late-bound (main.go calls SetEmit after
-		// the Wails app is up), so ticks fired during startup
-		// no-op gracefully instead of panicking.
-		ProgressOut: func(evt plugin.ProgressEvent) {
-			emitter.Emit("plugin:progress", evt)
+		// RunBarOut / RunStatOut bridge formidable.run.bar /
+		// formidable.run.status to Wails events. Any progressbar /
+		// statusmessage widget the plugin author dropped into their
+		// form subscribes to these and re-renders live. The emitter
+		// is late-bound (main.go calls SetEmit after Wails comes up),
+		// so calls fired during startup no-op rather than panic.
+		RunBarOut: func(evt plugin.RunBarEvent) {
+			emitter.Emit("plugin:run:bar", evt)
+		},
+		RunStatOut: func(evt plugin.RunStatusEvent) {
+			emitter.Emit("plugin:run:status", evt)
 		},
 		Exec:       plugin.OSExec{},
 		// HTTPClient is satisfied by a wiki+system adapter — plugins

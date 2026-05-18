@@ -37,6 +37,14 @@ var (
 	// present at <pluginsDir>/<id>. Distinct from ErrPluginNotFound so
 	// the export caller can give a more specific error.
 	ErrPluginArchiveNotFound = errors.New("plugin: archive source plugin not found")
+
+	// ErrPluginArchiveOlderVersion fires when an import would overwrite
+	// an installed plugin with a strictly lower version. This is the
+	// only meaning of the `version` field: downgrade-protection on
+	// import. The check is unconditional — overwrite=true cannot
+	// bypass it; the user has to roll the incoming plugin's version
+	// forward (or wipe the on-disk copy by hand) to install it.
+	ErrPluginArchiveOlderVersion = errors.New("plugin: archive version is older than installed")
 )
 
 // ExportArchiveResult describes what the export bundled. Files is the
@@ -211,6 +219,12 @@ func importPluginArchive(fs editorFS, pluginsDir, zipPath string, overwrite bool
 	target := filepath.Join(pluginsDir, id)
 	overwritten := false
 	if fs.FileExists(target) {
+		if existing, ok := readExistingVersion(fs, target); ok {
+			if compareVersions(m.Version, existing) < 0 {
+				return zero, fmt.Errorf("%w: incoming %s < installed %s (id=%s)",
+					ErrPluginArchiveOlderVersion, m.Version, existing, id)
+			}
+		}
 		if !overwrite {
 			return zero, fmt.Errorf("%w: %s", ErrPluginArchiveExists, id)
 		}
@@ -261,6 +275,33 @@ func readArchiveEntry(f *zip.File) (string, error) {
 		return "", err
 	}
 	return string(b), nil
+}
+
+// readExistingVersion attempts to extract the version from the
+// plugin.json already on disk at <target>/plugin.json. Returns
+// (version, true) on success and ("", false) when the manifest is
+// missing, unreadable, or unparseable — the caller falls back to
+// the normal Exists gate in that case so a tampered install can
+// still be replaced via overwrite=true.
+func readExistingVersion(fs editorFS, target string) (string, bool) {
+	manifestPath := filepath.Join(target, "plugin.json")
+	if !fs.FileExists(manifestPath) {
+		return "", false
+	}
+	body, err := fs.LoadFile(manifestPath)
+	if err != nil {
+		return "", false
+	}
+	var m struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal([]byte(body), &m); err != nil {
+		return "", false
+	}
+	if strings.TrimSpace(m.Version) == "" {
+		return "", false
+	}
+	return m.Version, true
 }
 
 // ExportArchive bundles <PluginsDir>/<id>/* into a zip at zipPath.

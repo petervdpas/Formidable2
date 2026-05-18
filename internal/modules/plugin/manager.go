@@ -37,9 +37,10 @@ type ManagerDeps struct {
 	Render      RenderAccess
 	FM          FMAccess
 	FS          FSAccess
-	Exec        ExecRunner
-	API         HTTPClient
-	ProgressOut ProgressEmitter
+	Exec       ExecRunner
+	API        HTTPClient
+	RunBarOut  RunBarEmitter
+	RunStatOut RunStatusEmitter
 }
 
 // Manager owns the discovered plugin registry and runs commands.
@@ -305,9 +306,10 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Render:      m.deps.Render,
 		FM:          m.deps.FM,
 		FS:          m.deps.FS,
-		Exec:        m.deps.Exec,
-		API:         m.deps.API,
-		ProgressOut: m.deps.ProgressOut,
+		Exec:       m.deps.Exec,
+		API:        m.deps.API,
+		RunBarOut:  m.deps.RunBarOut,
+		RunStatOut: m.deps.RunStatOut,
 	})
 }
 

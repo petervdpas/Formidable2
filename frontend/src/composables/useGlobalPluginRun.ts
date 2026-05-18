@@ -17,58 +17,77 @@ import type { ListResult } from "../../bindings/github.com/petervdpas/formidable
 // Lua call boundary; openGlobalPluginRun refuses while it's true and
 // workspace topbar menu items read it to compute their disabled state.
 //
-// `progress` streams live `formidable.progress.tick` events from the
-// running plugin via the Wails event channel. Cleared when a run
-// finishes (success, error, or cancelled) so the next open doesn't
-// flash stale ticks.
+// `bar` and `status` stream live updates from the running plugin via
+// the Wails event channel (plugin:run:bar / plugin:run:status). They
+// are independent — the Lua side calls formidable.run.bar or
+// formidable.run.status as it likes — and feed any progressbar or
+// statusmessage widget the plugin author dropped into their form.
+// Both are cleared at the start of every run so the next open
+// doesn't flash stale state.
 
 interface OpenRequest {
   plugin: ListResult;
   extraCtx?: Record<string, unknown>;
 }
 
-interface ProgressTick {
+interface RunBar {
   done: number;
   total: number;
-  stage: string;
-  message: string;
 }
 
 const openRequest = ref<OpenRequest | null>(null);
 const running = ref(false);
 const stopping = ref(false);
-const progress = ref<ProgressTick | null>(null);
+const bar = ref<RunBar | null>(null);
+const status = ref<string>("");
 
 let eventRefcount = 0;
-let unsubscribe: (() => void) | null = null;
+let unsubscribeBar: (() => void) | null = null;
+let unsubscribeStatus: (() => void) | null = null;
+
+function unwrap(evt: unknown): unknown {
+  // Wails wraps payloads as { data: <go-struct>, ... }; tolerate
+  // both shapes so a binding-runtime change doesn't break this.
+  if (evt && typeof evt === "object" && "data" in evt) {
+    return (evt as { data: unknown }).data;
+  }
+  return evt;
+}
 
 function ensureSubscription() {
-  if (eventRefcount === 0 && !unsubscribe) {
-    unsubscribe = Events.On("plugin:progress", (evt: unknown) => {
-      // Wails wraps payloads as { data: <go-struct>, ... }; tolerate
-      // both shapes so a binding change doesn't break this.
-      const raw =
-        evt && typeof evt === "object" && "data" in evt
-          ? (evt as { data: unknown }).data
-          : evt;
-      const e = raw as Partial<ProgressTick> | undefined;
-      if (!e) return;
-      progress.value = {
-        done: Number(e.done ?? 0),
-        total: Number(e.total ?? 0),
-        stage: String(e.stage ?? ""),
-        message: String(e.message ?? ""),
-      };
-    });
+  if (eventRefcount === 0) {
+    if (!unsubscribeBar) {
+      unsubscribeBar = Events.On("plugin:run:bar", (evt: unknown) => {
+        const e = unwrap(evt) as Partial<RunBar> | undefined;
+        if (!e) return;
+        bar.value = {
+          done: Number(e.done ?? 0),
+          total: Number(e.total ?? 0),
+        };
+      });
+    }
+    if (!unsubscribeStatus) {
+      unsubscribeStatus = Events.On("plugin:run:status", (evt: unknown) => {
+        const e = unwrap(evt) as { text?: string } | undefined;
+        if (!e) return;
+        status.value = String(e.text ?? "");
+      });
+    }
   }
   eventRefcount += 1;
 }
 
 function releaseSubscription() {
   eventRefcount = Math.max(0, eventRefcount - 1);
-  if (eventRefcount === 0 && unsubscribe) {
-    unsubscribe();
-    unsubscribe = null;
+  if (eventRefcount === 0) {
+    if (unsubscribeBar) {
+      unsubscribeBar();
+      unsubscribeBar = null;
+    }
+    if (unsubscribeStatus) {
+      unsubscribeStatus();
+      unsubscribeStatus = null;
+    }
   }
 }
 
@@ -77,21 +96,28 @@ export function openGlobalPluginRun(
   extraCtx?: Record<string, unknown>,
 ): boolean {
   if (running.value) return false;
-  progress.value = null;
+  bar.value = null;
+  status.value = "";
   openRequest.value = { plugin, extraCtx };
   return true;
 }
 
 export function closeGlobalPluginRun(): void {
   openRequest.value = null;
-  progress.value = null;
+  bar.value = null;
+  status.value = "";
   stopping.value = false;
 }
 
 export function setGlobalPluginRunning(v: boolean): void {
+  if (v) {
+    // Starting a run — wipe stale tick state so the previous run's
+    // last bar/status values don't flash before the first new tick.
+    bar.value = null;
+    status.value = "";
+  }
   running.value = v;
   if (!v) {
-    progress.value = null;
     stopping.value = false;
   }
 }
@@ -114,5 +140,5 @@ export async function cancelGlobalPluginRun(): Promise<void> {
 export function useGlobalPluginRun() {
   onMounted(ensureSubscription);
   onUnmounted(releaseSubscription);
-  return { openRequest, running, stopping, progress };
+  return { openRequest, running, stopping, bar, status };
 }

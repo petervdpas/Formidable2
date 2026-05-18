@@ -542,43 +542,43 @@ func TestBindings_FM_PluginBlock_NilWhenAbsent(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.progress — live tick events. Verified via a recording
-// closure passed in via scriptOpts.ProgressOut; the runtime streams
-// each call synchronously through the closure.
+// formidable.run — two emitters drive the bar and statusmessage
+// widgets. Verified via recording closures passed in via
+// scriptOpts.RunBarOut / scriptOpts.RunStatOut.
 // ─────────────────────────────────────────────────────────────────
 
-func TestBindings_Progress_Tick_StreamsThroughEmitter(t *testing.T) {
-	var got []ProgressEvent
-	emit := func(e ProgressEvent) { got = append(got, e) }
+func TestBindings_Run_Bar_StreamsThroughEmitter(t *testing.T) {
+	var got []RunBarEvent
+	emit := func(e RunBarEvent) { got = append(got, e) }
 	run(t, `
 		function run()
-			formidable.progress.tick(0, 3, "starting")
-			formidable.progress.tick(1, 3, "did one")
-			formidable.progress.tick(3, 3, "done")
+			formidable.run.bar(0, 3)
+			formidable.run.bar(1, 3)
+			formidable.run.bar(3, 3)
 		end`,
-		scriptOpts{ProgressOut: emit})
+		scriptOpts{RunBarOut: emit})
 	if len(got) != 3 {
-		t.Fatalf("got %d events, want 3: %+v", len(got), got)
+		t.Fatalf("got %d bar events, want 3: %+v", len(got), got)
 	}
-	if got[1].Done != 1 || got[1].Total != 3 || got[1].Message != "did one" {
+	if got[1].Done != 1 || got[1].Total != 3 {
 		t.Fatalf("event[1] = %+v", got[1])
 	}
 }
 
-func TestBindings_Progress_Tick_OptionalArgs(t *testing.T) {
-	var got []ProgressEvent
-	emit := func(e ProgressEvent) { got = append(got, e) }
+func TestBindings_Run_Bar_OptionalArgs(t *testing.T) {
+	var got []RunBarEvent
+	emit := func(e RunBarEvent) { got = append(got, e) }
 	run(t, `
 		function run()
-			formidable.progress.tick()       -- all defaults
-			formidable.progress.tick(5)      -- done only
-			formidable.progress.tick(5, 10)  -- no message, no stage
+			formidable.run.bar()       -- both defaults
+			formidable.run.bar(5)      -- done only
+			formidable.run.bar(5, 10)
 		end`,
-		scriptOpts{ProgressOut: emit})
+		scriptOpts{RunBarOut: emit})
 	if len(got) != 3 {
 		t.Fatalf("got %d events, want 3", len(got))
 	}
-	if got[0].Done != 0 || got[0].Total != 0 || got[0].Message != "" || got[0].Stage != "" {
+	if got[0].Done != 0 || got[0].Total != 0 {
 		t.Fatalf("event[0] = %+v", got[0])
 	}
 	if got[1].Done != 5 || got[1].Total != 0 {
@@ -589,39 +589,31 @@ func TestBindings_Progress_Tick_OptionalArgs(t *testing.T) {
 	}
 }
 
-func TestBindings_Progress_Tick_StageArg(t *testing.T) {
-	var got []ProgressEvent
-	emit := func(e ProgressEvent) { got = append(got, e) }
+func TestBindings_Run_Status_StreamsThroughEmitter(t *testing.T) {
+	var got []RunStatusEvent
+	emit := func(e RunStatusEvent) { got = append(got, e) }
 	run(t, `
 		function run()
-			formidable.progress.tick(1, 3, "item-a", "templates")
-			formidable.progress.tick(2, 3, "item-b", "templates")
-			formidable.progress.tick(3, 3, "first", "recepten")
+			formidable.run.status("starting")
+			formidable.run.status("CH.02.md")
+			formidable.run.status("done")
 		end`,
-		scriptOpts{ProgressOut: emit})
+		scriptOpts{RunStatOut: emit})
 	if len(got) != 3 {
-		t.Fatalf("got %d events, want 3", len(got))
+		t.Fatalf("got %d status events, want 3: %+v", len(got), got)
 	}
-	if got[0].Stage != "templates" || got[0].Message != "item-a" {
-		t.Fatalf("event[0] = %+v", got[0])
-	}
-	if got[2].Stage != "recepten" || got[2].Message != "first" {
-		t.Fatalf("event[2] = %+v", got[2])
+	if got[1].Text != "CH.02.md" {
+		t.Fatalf("event[1] = %+v", got[1])
 	}
 }
 
-func TestBindings_Progress_Tick_BackCompatNoStage(t *testing.T) {
-	// 3-arg calls (no stage) still work — stage defaults to "" so
-	// the dialog renders the bar without a stage header.
-	var got []ProgressEvent
-	emit := func(e ProgressEvent) { got = append(got, e) }
-	run(t, `
-		function run()
-			formidable.progress.tick(1, 2, "only-msg")
-		end`,
-		scriptOpts{ProgressOut: emit})
-	if len(got) != 1 || got[0].Stage != "" || got[0].Message != "only-msg" {
-		t.Fatalf("event = %+v", got)
+func TestBindings_Run_Status_EmptyDefault(t *testing.T) {
+	var got []RunStatusEvent
+	emit := func(e RunStatusEvent) { got = append(got, e) }
+	run(t, `function run() formidable.run.status() end`,
+		scriptOpts{RunStatOut: emit})
+	if len(got) != 1 || got[0].Text != "" {
+		t.Fatalf("events = %+v, want [{Text:\"\"}]", got)
 	}
 }
 
@@ -725,11 +717,19 @@ func TestBindings_Cancelled_NilCtxReturnsFalse(t *testing.T) {
 	}
 }
 
-func TestBindings_Progress_NotConfigured_Errors(t *testing.T) {
-	err := runErr(t, `function run() formidable.progress.tick(1, 1, "x") end`,
-		scriptOpts{}) // no ProgressOut
-	if err == nil || !strings.Contains(err.Error(), "progress: not configured") {
-		t.Fatalf("err = %v, want progress: not configured", err)
+func TestBindings_Run_Bar_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t, `function run() formidable.run.bar(1, 1) end`,
+		scriptOpts{}) // no RunBarOut
+	if err == nil || !strings.Contains(err.Error(), "run: not configured") {
+		t.Fatalf("err = %v, want run: not configured", err)
+	}
+}
+
+func TestBindings_Run_Status_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t, `function run() formidable.run.status("x") end`,
+		scriptOpts{}) // no RunStatOut
+	if err == nil || !strings.Contains(err.Error(), "run: not configured") {
+		t.Fatalf("err = %v, want run: not configured", err)
 	}
 }
 

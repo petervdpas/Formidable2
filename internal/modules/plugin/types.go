@@ -112,15 +112,7 @@ type Manifest struct {
 	// Debug toggles the collapsible debug/output panel at the bottom
 	// of the Run modal. Off by default — plugin authors flip it on
 	// while iterating, then turn it off when shipping.
-	Debug bool `json:"debug"`
-	// Progress declares that the plugin reports progress via
-	// formidable.progress.tick. Off by default — when true the Run
-	// modal renders a live progress bar; otherwise it stays hidden
-	// (a plugin that doesn't tick would otherwise show a permanently
-	// empty bar). The Stop button is always available while a run is
-	// in flight regardless of this flag — cancellation works either
-	// way; this flag controls only the bar's visibility.
-	Progress bool      `json:"progress"`
+	Debug    bool      `json:"debug"`
 	Commands []Command `json:"commands,omitempty"`
 }
 
@@ -201,25 +193,22 @@ type ToastEvent struct {
 	Message string `json:"message"`
 }
 
-// ProgressEvent is one tick emitted by formidable.progress.tick. Done
-// is the items completed so far; Total is the planned total (0 when
-// the plugin doesn't know yet — Vue shows an indeterminate bar).
-// Stage is the optional section/phase label (e.g. the current
-// template's stem for a per-template export). Message is the
-// optional per-item label (e.g. the filename being written). The
-// frontend renders Stage prominently and Message as a secondary
-// line so the user can see "which template am I on" at a glance
-// without parsing a composite message string.
-//
-// Unlike Log/Toast, progress events stream out *during* a Run (via
-// the ProgressEmitter callback) — they are not buffered onto
-// RunResult, so the UI can render a live bar instead of waiting
-// for the script to finish.
-type ProgressEvent struct {
-	Done    int    `json:"done"`
-	Total   int    `json:"total"`
-	Stage   string `json:"stage,omitempty"`
-	Message string `json:"message,omitempty"`
+// RunBarEvent is one tick emitted by formidable.run.bar(done, total).
+// Total == 0 means "indeterminate" — the bar should animate without a
+// concrete percentage. The frontend stores the latest event in a
+// per-run ref and feeds it to any progressbar widget the plugin
+// author dropped into their form. Cleared at the start of every Run.
+type RunBarEvent struct {
+	Done  int `json:"done"`
+	Total int `json:"total"`
+}
+
+// RunStatusEvent is one message emitted by formidable.run.status(text).
+// Cleared at the start of every Run. Plugin authors typically pump
+// the current item's label/path/filename here so a statusmessage
+// widget can show "what is the plugin doing right now."
+type RunStatusEvent struct {
+	Text string `json:"text"`
 }
 
 // RunResult is the JSON-shaped envelope returned to Vue. Value

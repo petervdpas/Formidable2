@@ -20,6 +20,11 @@ import {
   cancelGlobalPluginRun,
 } from "../composables/useGlobalPluginRun";
 import { useToast } from "../composables/useToast";
+import ProgressBarWidget from "./widgets/ProgressBarWidget.vue";
+import StatusMessageWidget from "./widgets/StatusMessageWidget.vue";
+import type { Widget } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
+import { Kind as WidgetKind } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
+import { isWidget } from "../composables/usePluginEditor";
 
 // PluginRunDialog mirrors PluginsWorkspace's inline Run modal but is
 // mounted once at the App level and driven entirely by the manifest
@@ -36,16 +41,23 @@ import { useToast } from "../composables/useToast";
 
 const { t } = useI18n();
 const toast = useToast();
-const { openRequest, running, stopping, progress } = useGlobalPluginRun();
+const { openRequest, running, stopping } = useGlobalPluginRun();
 
 const plugin = computed<ListResult | null>(() => openRequest.value?.plugin ?? null);
 const extraCtx = computed<Record<string, unknown>>(() => openRequest.value?.extraCtx ?? {});
 
-const formFields = ref<Field[]>([]);
+// formEntries is the heterogeneous parsed form.json — each entry is
+// either a Field (input row) or a Widget (live display slot). Order
+// in the array IS the render order; no separate sort key.
+const formEntries = ref<Array<Field | Widget>>([]);
 const runValues = ref<Record<string, unknown>>({});
 const runResults = ref<Record<string, RunResultDTO>>({});
 const runningCmd = ref<string>("");
 const descriptionHTML = ref<string>("");
+
+async function stopRun() {
+  await cancelGlobalPluginRun();
+}
 
 const runMode = computed(
   () => (plugin.value?.manifest.run_mode || "modal") as "modal" | "form",
@@ -59,9 +71,11 @@ const visibleCommands = computed(() => {
   return all.filter((c) => !c.form_button);
 });
 
-function initialRunValues(fields: Field[]): Record<string, unknown> {
+function initialRunValues(entries: Array<Field | Widget>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const f of fields) {
+  for (const e of entries) {
+    if (isWidget(e)) continue;
+    const f = e;
     if (!f.key) continue;
     if (f.default !== undefined && f.default !== null) {
       out[f.key] = f.default;
@@ -82,30 +96,27 @@ watch(
     runResults.value = {};
     runningCmd.value = "";
     if (!p) {
-      formFields.value = [];
+      formEntries.value = [];
       runValues.value = {};
       descriptionHTML.value = "";
       return;
     }
-    let fields: Field[] = [];
+    let entries: Array<Field | Widget> = [];
     try {
       const raw = await PluginSvc.GetForm(p.id);
       const parsed = JSON.parse(raw || "[]");
       if (Array.isArray(parsed)) {
-        fields = parsed;
-      } else if (
-        parsed &&
-        typeof parsed === "object" &&
-        Array.isArray((parsed as { fields?: unknown }).fields)
-      ) {
-        fields = (parsed as { fields: Field[] }).fields;
+        entries = parsed;
       }
     } catch {
-      fields = [];
+      entries = [];
     }
-    formFields.value = fields;
-    let values = initialRunValues(fields);
-    const keys = fields.map((f) => f.key).filter((k): k is string => !!k);
+    formEntries.value = entries;
+    let values = initialRunValues(entries);
+    const keys = entries
+      .filter((e): e is Field => !isWidget(e))
+      .map((f) => f.key)
+      .filter((k): k is string => !!k);
     if (keys.length > 0) {
       try {
         const saved = await PluginSvc.LoadFormValues(p.id, keys);
@@ -189,24 +200,6 @@ function close() {
   closeGlobalPluginRun();
 }
 
-async function stop() {
-  await cancelGlobalPluginRun();
-}
-
-const progressPct = computed<number>(() => {
-  const p = progress.value;
-  if (!p || p.total <= 0) return 0;
-  return Math.max(0, Math.min(100, Math.round((p.done / p.total) * 100)));
-});
-
-const progressIsIndeterminate = computed<boolean>(() => {
-  const p = progress.value;
-  return !!p && p.total <= 0;
-});
-
-const showProgressBar = computed<boolean>(
-  () => plugin.value?.manifest.progress === true,
-);
 </script>
 
 <template>
@@ -229,13 +222,22 @@ const showProgressBar = computed<boolean>(
           class="section-info"
           v-html="descriptionHTML"
         ></div>
-        <FormFieldRow
-          v-for="(f, i) in formFields"
-          :key="f.key || i"
-          :field="f"
-          :model-value="runValues[f.key]"
-          @update:model-value="(v: unknown) => (runValues[f.key] = v)"
-        />
+        <template v-for="(entry, i) in formEntries" :key="i">
+          <ProgressBarWidget
+            v-if="isWidget(entry) && entry.kind === WidgetKind.KindProgressBar"
+            :widget="entry"
+          />
+          <StatusMessageWidget
+            v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindStatusMessage"
+            :widget="entry"
+          />
+          <FormFieldRow
+            v-else-if="!isWidget(entry)"
+            :field="entry"
+            :model-value="runValues[entry.key]"
+            @update:model-value="(v: unknown) => (runValues[entry.key] = v)"
+          />
+        </template>
         <div
           v-if="visibleCommands.length > 0"
           class="run-form-buttons"
@@ -251,6 +253,15 @@ const showProgressBar = computed<boolean>(
               {{ t('workspace.plugins.running') }}
             </span>
             <span v-else>{{ cmd.label || cmd.id }}</span>
+          </button>
+          <button
+            v-if="running"
+            class="tool-btn"
+            type="button"
+            :disabled="stopping"
+            @click="stopRun"
+          >
+            {{ stopping ? t('workspace.plugins.stopping') : t('workspace.plugins.stop') }}
           </button>
         </div>
       </section>
@@ -276,43 +287,6 @@ const showProgressBar = computed<boolean>(
           </div>
         </section>
       </template>
-
-      <div v-if="running" class="plugin-run-progress">
-        <div v-if="showProgressBar && progress?.stage" class="plugin-run-progress-stage">
-          {{ progress.stage }}
-        </div>
-        <div class="plugin-run-progress-row">
-          <div
-            v-if="showProgressBar"
-            class="plugin-run-progress-bar"
-            :class="{ 'is-indeterminate': progressIsIndeterminate }"
-          >
-            <div
-              class="plugin-run-progress-fill"
-              :style="!progressIsIndeterminate ? { width: progressPct + '%' } : undefined"
-            ></div>
-          </div>
-          <span v-else class="muted small plugin-run-progress-running">
-            {{ t('workspace.plugins.running') }}
-          </span>
-          <button
-            class="tool-btn"
-            type="button"
-            :disabled="stopping"
-            @click="stop"
-          >
-            {{ stopping ? t('workspace.plugins.stopping') : t('workspace.plugins.stop') }}
-          </button>
-        </div>
-        <p v-if="showProgressBar" class="plugin-run-progress-label">
-          <span v-if="progress && progress.total > 0" class="plugin-run-progress-count">
-            {{ progress.done }} / {{ progress.total }}
-          </span>
-          <span v-if="progress?.message" class="plugin-run-progress-msg">
-            {{ progress.message }}
-          </span>
-        </p>
-      </div>
 
       <PluginResultPanel
         :commands="visibleCommands"

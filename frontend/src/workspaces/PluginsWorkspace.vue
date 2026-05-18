@@ -33,8 +33,18 @@ import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { usePlugins, isValidPluginID } from "../composables/usePlugins";
-import { usePluginEditor } from "../composables/usePluginEditor";
-import { setGlobalPluginRunning } from "../composables/useGlobalPluginRun";
+import { usePluginEditor, isWidget } from "../composables/usePluginEditor";
+import {
+  setGlobalPluginRunning,
+  useGlobalPluginRun,
+  cancelGlobalPluginRun,
+} from "../composables/useGlobalPluginRun";
+import ProgressBarWidget from "../components/widgets/ProgressBarWidget.vue";
+import StatusMessageWidget from "../components/widgets/StatusMessageWidget.vue";
+import {
+  Widget,
+  Kind as WidgetKind,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
@@ -72,6 +82,15 @@ function setWorkspaceAttached(ws: string, on: boolean) {
 }
 
 const { draftManifest, draftSource, draftForm, dirty, save, reset } = usePluginEditor();
+
+// Pull global running/stopping state into the workspace so the inline
+// Run modal can disable buttons / show Stop while the run is in
+// flight. setGlobalPluginRunning is what flips them.
+const { running: globalRunning, stopping: globalStopping } = useGlobalPluginRun();
+
+async function stopGlobalRun() {
+  await cancelGlobalPluginRun();
+}
 
 // Tabs below the Manifest section. Lua Source first (where the
 // most editing happens); Commands edits the manifest's command
@@ -227,6 +246,10 @@ async function runImport(zipPath: string, overwrite: boolean) {
     importOverwriteOpen.value = true;
     return;
   }
+  if (r.code === "older_version") {
+    toast.error("workspace.plugins.archive.import.older_version", [r.message]);
+    return;
+  }
   toast.error("workspace.plugins.archive.import.error", [r.message]);
 }
 
@@ -250,6 +273,7 @@ const runOpen = ref(false);
 const runResults = ref<Record<string, RunResultDTO>>({});
 const runningCmd = ref<string>("");
 
+
 // Live form values bound to the FormFieldRow inputs in the Run
 // modal. Whatever the user types ends up here, and we pass a clone
 // as the `ctx` argument to every Lua call so scripts can read
@@ -258,9 +282,11 @@ const runningCmd = ref<string>("");
 // per-type fallback from field-types.ts.
 const runValues = ref<Record<string, unknown>>({});
 
-function initialRunValues(fields: Field[]): Record<string, unknown> {
+function initialRunValues(entries: Array<Field | Widget>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const f of fields) {
+  for (const e of entries) {
+    if (isWidget(e)) continue;
+    const f = e;
     if (!f.key) continue;
     if (f.default !== undefined && f.default !== null) {
       out[f.key] = f.default;
@@ -274,8 +300,8 @@ function initialRunValues(fields: Field[]): Record<string, unknown> {
 
 watch(
   () => draftForm.value,
-  (fields) => {
-    runValues.value = initialRunValues(fields ?? []);
+  (entries) => {
+    runValues.value = initialRunValues(entries ?? []);
   },
   { immediate: true, deep: true },
 );
@@ -283,11 +309,13 @@ watch(
 async function openRun() {
   if (!selectedPlugin.value) return;
   // Pre-populate the form from the plugin's KV bag so the user
-  // sees whatever they entered last session. Keys come straight
-  // from the form schema, so plugin authors who set kv via Lua
-  // also flow into the modal automatically — same namespace.
-  const fields = draftForm.value ?? [];
-  const keys = fields.map((f) => f.key).filter((k): k is string => !!k);
+  // sees whatever they entered last session. Keys come from any
+  // Field entries (widgets don't carry values).
+  const entries = draftForm.value ?? [];
+  const keys = entries
+    .filter((e): e is Field => !isWidget(e))
+    .map((f) => f.key)
+    .filter((k): k is string => !!k);
   if (selectedPlugin.value && keys.length > 0) {
     try {
       const saved = await PluginSvc.LoadFormValues(
@@ -422,8 +450,12 @@ const fieldEditTarget = ref<Field | null>(null);
 const fieldEditIsNew = ref(false);
 
 function openFieldEdit(idx: number) {
+  const entry = draftForm.value[idx];
+  // Edit button is only rendered for Field rows; defensively bail
+  // if invoked on a widget so the modal doesn't get fed garbage.
+  if (!entry || isWidget(entry)) return;
   fieldEditIndex.value = idx;
-  fieldEditTarget.value = draftForm.value[idx] ?? null;
+  fieldEditTarget.value = entry;
   fieldEditIsNew.value = false;
   fieldEditOpen.value = true;
 }
@@ -465,8 +497,10 @@ function askDeleteField(idx: number) {
 }
 
 const fieldDeleteName = computed(() => {
-  const f = draftForm.value[fieldDeleteIndex.value];
-  return f?.label || f?.key || "";
+  const e = draftForm.value[fieldDeleteIndex.value];
+  if (!e) return "";
+  if (isWidget(e)) return e.label || e.id;
+  return e.label || e.key || "";
 });
 
 function confirmDeleteField() {
@@ -476,6 +510,26 @@ function confirmDeleteField() {
   if (idx < 0) return;
   const list = draftForm.value ?? [];
   draftForm.value = [...list.slice(0, idx), ...list.slice(idx + 1)];
+}
+
+// ── Form editor: widget helpers ──────────────────────────────────────
+// draftForm holds fields AND widgets in one ordered list (form.json's
+// shape). The draggable in the template binds straight to draftForm,
+// so reorder is "drop into array at index N" — no separate widget
+// state, no Order field.
+function nextWidgetID(prefix: string): string {
+  const used = new Set(
+    (draftForm.value ?? []).filter(isWidget).map((w) => w.id),
+  );
+  let n = 1;
+  while (used.has(`${prefix}${n}`)) n++;
+  return `${prefix}${n}`;
+}
+
+function addWidget(kind: WidgetKind) {
+  const id = nextWidgetID(kind === WidgetKind.KindProgressBar ? "bar" : "msg");
+  const w = new Widget({ id, kind, label: "" });
+  draftForm.value = [...(draftForm.value ?? []), w];
 }
 
 // ── Commands list editing ────────────────────────────────────────────
@@ -679,13 +733,6 @@ setTopbarMenu(() => [
             :on-label="t('common.on')"
             :off-label="t('common.off')"
           />
-          <FormSwitchRow
-            v-model="draftManifest.progress"
-            :label="t('workspace.plugins.manifest.progress')"
-            :description="t('workspace.plugins.manifest.progress_help')"
-            :on-label="t('common.on')"
-            :off-label="t('common.off')"
-          />
         </FormSection>
 
         <nav class="tabs" role="tablist">
@@ -763,13 +810,36 @@ setTopbarMenu(() => [
             ghost-class="dnd-ghost"
             chosen-class="dnd-chosen"
             drag-class="dnd-drag"
-            item-key="key"
+            :item-key="(e: Field | Widget) => isWidget(e) ? `w:${e.id}` : `f:${e.key}`"
           >
-            <template #item="{ element: f, index: i }">
-              <li class="field-row" :data-type="f.type">
+            <template #item="{ element: entry, index: i }">
+              <li
+                v-if="isWidget(entry)"
+                class="field-row field-row-widget"
+                :data-type="entry.kind"
+              >
                 <span class="dnd-handle" aria-hidden="true">☰</span>
-                <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
-                <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
+                <span class="field-row-label">{{ entry.label || entry.id }}</span>
+                <span class="field-row-type">({{ entry.kind.toUpperCase() }})</span>
+                <span class="field-row-spacer"></span>
+                <div class="field-row-actions">
+                  <button
+                    type="button"
+                    class="field-action-btn delete"
+                    @click="askDeleteField(i)"
+                  >
+                    {{ t('workspace.plugins.commands.delete') }}
+                  </button>
+                </div>
+              </li>
+              <li
+                v-else
+                class="field-row"
+                :data-type="entry.type"
+              >
+                <span class="dnd-handle" aria-hidden="true">☰</span>
+                <span class="field-row-label">{{ entry.label || entry.key || `(field ${i + 1})` }}</span>
+                <span class="field-row-type">({{ (entry.type || '').toUpperCase() }})</span>
                 <span class="field-row-spacer"></span>
                 <div class="field-row-actions">
                   <button
@@ -793,6 +863,20 @@ setTopbarMenu(() => [
           <div class="form-add-row">
             <button class="tool-btn" type="button" @click="openFieldAdd">
               + {{ t('workspace.plugins.form.add') }}
+            </button>
+            <button
+              class="tool-btn"
+              type="button"
+              @click="addWidget(WidgetKind.KindProgressBar)"
+            >
+              + {{ t('workspace.plugins.form.add_progressbar') }}
+            </button>
+            <button
+              class="tool-btn"
+              type="button"
+              @click="addWidget(WidgetKind.KindStatusMessage)"
+            >
+              + {{ t('workspace.plugins.form.add_statusmessage') }}
             </button>
           </div>
         </section>
@@ -907,13 +991,22 @@ setTopbarMenu(() => [
           class="section-info"
           v-html="descriptionHTML"
         ></div>
-        <FormFieldRow
-          v-for="(f, i) in draftForm"
-          :key="f.key || i"
-          :field="f"
-          :model-value="runValues[f.key]"
-          @update:model-value="(v: unknown) => (runValues[f.key] = v)"
-        />
+        <template v-for="(entry, i) in draftForm" :key="i">
+          <ProgressBarWidget
+            v-if="isWidget(entry) && entry.kind === WidgetKind.KindProgressBar"
+            :widget="entry"
+          />
+          <StatusMessageWidget
+            v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindStatusMessage"
+            :widget="entry"
+          />
+          <FormFieldRow
+            v-else-if="!isWidget(entry)"
+            :field="entry"
+            :model-value="runValues[entry.key]"
+            @update:model-value="(v: unknown) => (runValues[entry.key] = v)"
+          />
+        </template>
         <div
           v-if="visibleCommands.length > 0"
           class="run-form-buttons"
@@ -929,6 +1022,15 @@ setTopbarMenu(() => [
               {{ t('workspace.plugins.running') }}
             </span>
             <span v-else>{{ cmd.label || cmd.id }}</span>
+          </button>
+          <button
+            v-if="globalRunning"
+            class="tool-btn"
+            type="button"
+            :disabled="globalStopping"
+            @click="stopGlobalRun"
+          >
+            {{ globalStopping ? t('workspace.plugins.stopping') : t('workspace.plugins.stop') }}
           </button>
         </div>
 

@@ -65,8 +65,11 @@ end
 
 // defaultFormJSON is the empty form definition written alongside a
 // fresh plugin. The visual form builder reads/writes this file; an
-// empty JSON array means "no input fields yet". Created up front so
-// the builder never has to handle a missing file.
+// empty JSON array means "no entries yet". Entries are heterogeneous
+// — each is either a template Field (input) or a formwidget.Widget
+// (live display slot); they share the same ordered list so the
+// author can place widgets anywhere relative to fields without a
+// second file.
 const defaultFormJSON = "[]\n"
 
 // Create scaffolds a new plugin folder at <PluginsDir>/<id> with a

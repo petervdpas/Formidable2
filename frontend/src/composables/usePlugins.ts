@@ -3,6 +3,7 @@ import {
   Service as PluginSvc,
   type ListResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
+import { backendErrMessage } from "../utils/backendError";
 
 // Module-scope singleton — at most one plugin selected across the
 // app, mirroring the useTemplates pattern. Sidebar list, currently
@@ -110,7 +111,7 @@ async function exportArchive(id: string, zipPath: string): Promise<ExportArchive
 
 type ImportArchiveOutcome =
   | { ok: true; id: string; overwritten: boolean; files: string[] }
-  | { ok: false; code: "exists" | "error"; message: string };
+  | { ok: false; code: "exists" | "older_version" | "error"; message: string };
 
 async function importArchive(zipPath: string, overwrite: boolean): Promise<ImportArchiveOutcome> {
   if (!zipPath) {
@@ -126,8 +127,14 @@ async function importArchive(zipPath: string, overwrite: boolean): Promise<Impor
       files: res?.files ?? [],
     };
   } catch (err) {
-    const message = String(err);
-    const code: "exists" | "error" = message.toLowerCase().includes("already exists") ? "exists" : "error";
+    const message = backendErrMessage(err);
+    const lower = message.toLowerCase();
+    let code: "exists" | "older_version" | "error" = "error";
+    if (lower.includes("older than installed")) {
+      code = "older_version";
+    } else if (lower.includes("already exists")) {
+      code = "exists";
+    }
     return { ok: false, code, message };
   }
 }

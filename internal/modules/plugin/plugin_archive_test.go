@@ -201,14 +201,30 @@ func buildArchive(t *testing.T, fs editorFS, zipPath string, entries map[string]
 }
 
 func validManifest(id string) string {
+	return validManifestVersion(id, "0.1.0")
+}
+
+func validManifestVersion(id, version string) string {
 	return `{
   "manifest_version": 1,
   "id": "` + id + `",
   "name": "Imported",
-  "version": "0.1.0",
+  "version": "` + version + `",
   "commands": [{"id": "run", "label": "Run"}]
 }
 `
+}
+
+// seedTestPluginVersion writes a plugin with an explicit version
+// number so the import-version gate has something to compare against.
+func seedTestPluginVersion(t *testing.T, pluginsDir, id, version string) {
+	t.Helper()
+	dir := filepath.Join(pluginsDir, id)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(dir, "plugin.json"), validManifestVersion(id, version))
+	mustWrite(t, filepath.Join(dir, "main.lua"), "function run(ctx) return { ok = true } end\n")
 }
 
 func TestImport_HappyPath(t *testing.T) {
@@ -380,6 +396,141 @@ func TestImport_ZipNotFound(t *testing.T) {
 	_, err := importPluginArchive(kvTestFS{}, filepath.Join(root, "plugins"), filepath.Join(root, "missing.zip"), false)
 	if !errors.Is(err, ErrPluginArchiveNotFound) {
 		t.Errorf("err = %v, want ErrPluginArchiveNotFound", err)
+	}
+}
+
+// --- Import: version gate ---
+
+// The version field's sole job is to block a downgrade: an incoming
+// zip whose plugin.json declares a version lower than what is
+// already on disk must be rejected even when the caller asked to
+// overwrite. Same/higher version follows the existing overwrite
+// gate.
+
+func TestImport_RejectsLowerVersionEvenWithOverwrite(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	seedTestPluginVersion(t, plugins, "ver", "0.2.0")
+
+	zipPath := filepath.Join(root, "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json": validManifestVersion("ver", "0.1.0"),
+		"main.lua":    "function run(ctx) end\n",
+	})
+
+	_, err := importPluginArchive(kvTestFS{}, plugins, zipPath, true)
+	if !errors.Is(err, ErrPluginArchiveOlderVersion) {
+		t.Errorf("err = %v, want ErrPluginArchiveOlderVersion", err)
+	}
+
+	// On-disk plugin.json must remain at the higher version.
+	got, err := os.ReadFile(filepath.Join(plugins, "ver", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), `"version": "0.2.0"`) {
+		t.Errorf("on-disk version was clobbered; got %q", string(got))
+	}
+}
+
+func TestImport_RejectsLowerVersionWithoutOverwrite(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	seedTestPluginVersion(t, plugins, "ver", "0.2.0")
+
+	zipPath := filepath.Join(root, "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json": validManifestVersion("ver", "0.1.0"),
+		"main.lua":    "function run(ctx) end\n",
+	})
+
+	_, err := importPluginArchive(kvTestFS{}, plugins, zipPath, false)
+	if !errors.Is(err, ErrPluginArchiveOlderVersion) {
+		t.Errorf("err = %v, want ErrPluginArchiveOlderVersion (version takes precedence over Exists)", err)
+	}
+}
+
+func TestImport_AllowsHigherVersionWithOverwrite(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	seedTestPluginVersion(t, plugins, "ver", "0.1.0")
+
+	zipPath := filepath.Join(root, "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json": validManifestVersion("ver", "0.2.0"),
+		"main.lua":    "function run(ctx) end\n",
+	})
+
+	res, err := importPluginArchive(kvTestFS{}, plugins, zipPath, true)
+	if err != nil {
+		t.Fatalf("import upgrade with overwrite: %v", err)
+	}
+	if !res.Overwritten {
+		t.Errorf("Overwritten = false, want true")
+	}
+	got, _ := os.ReadFile(filepath.Join(plugins, "ver", "plugin.json"))
+	if !strings.Contains(string(got), `"version": "0.2.0"`) {
+		t.Errorf("on-disk version not updated to 0.2.0; got %q", string(got))
+	}
+}
+
+func TestImport_AllowsSameVersionWithOverwrite(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	seedTestPluginVersion(t, plugins, "ver", "0.2.0")
+
+	zipPath := filepath.Join(root, "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json": validManifestVersion("ver", "0.2.0"),
+		"main.lua":    "function run(ctx) end\n",
+	})
+
+	if _, err := importPluginArchive(kvTestFS{}, plugins, zipPath, true); err != nil {
+		t.Fatalf("same-version reinstall should succeed with overwrite: %v", err)
+	}
+}
+
+func TestImport_FreshInstallIgnoresVersion(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	if err := os.MkdirAll(plugins, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	zipPath := filepath.Join(root, "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json": validManifestVersion("fresh", "0.0.1"),
+		"main.lua":    "function run(ctx) end\n",
+	})
+
+	if _, err := importPluginArchive(kvTestFS{}, plugins, zipPath, false); err != nil {
+		t.Fatalf("fresh install must not consult version: %v", err)
+	}
+}
+
+// A pre-existing plugin folder whose plugin.json is unreadable can
+// happen after a partial write or manual tampering. The version gate
+// must not panic or block; it falls through to the existing Exists
+// gate so the user sees the same "use overwrite" message as before.
+func TestImport_UnreadableExistingManifestFallsThrough(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	dir := filepath.Join(plugins, "broken")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(dir, "plugin.json"), "{not valid json")
+	mustWrite(t, filepath.Join(dir, "main.lua"), "")
+
+	zipPath := filepath.Join(root, "incoming.zip")
+	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
+		"plugin.json": validManifestVersion("broken", "0.1.0"),
+		"main.lua":    "function run(ctx) end\n",
+	})
+
+	_, err := importPluginArchive(kvTestFS{}, plugins, zipPath, false)
+	if !errors.Is(err, ErrPluginArchiveExists) {
+		t.Errorf("err = %v, want ErrPluginArchiveExists (no version comparable, normal flow)", err)
 	}
 }
 

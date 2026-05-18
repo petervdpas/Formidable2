@@ -6,6 +6,8 @@ package plugin
 
 import (
 	"errors"
+
+	"github.com/petervdpas/formidable2/internal/modules/formwidget"
 )
 
 // Service is the Wails-bound facade over Manager. Held by app.App
@@ -106,6 +108,16 @@ func (s *Service) Save(id string, manifest Manifest, luaSource, formJSON string)
 // special-case the absence.
 func (s *Service) GetForm(id string) (string, error) {
 	return s.m.GetForm(id)
+}
+
+// ValidateWidget runs the formwidget validation rules against a
+// single widget the form editor is about to persist into form.json.
+// Returns the wrapped ErrWidgetInvalid (or nil) — the UI surfaces it
+// as a toast next to the offending entry without having to round-trip
+// through Save. Also pins the formwidget types into the generated
+// Wails bindings so the frontend can import Widget/Kind.
+func (s *Service) ValidateWidget(w formwidget.Widget) error {
+	return w.Validate()
 }
 
 // Delete removes the plugin folder and KV file, returning the

@@ -94,14 +94,15 @@ type ExecRunner interface {
 	Exec(cmd string, args []string, opts ExecOptions) (ExecResult, error)
 }
 
-// ProgressEmitter receives one ProgressEvent per formidable.progress.tick
-// call. Unlike log/toast (which are buffered for end-of-Run delivery),
-// progress events fire synchronously into this callback during the run.
-// Implementations in production wire to a Wails event dispatcher so the
-// frontend can update a progress bar live; tests use a recording closure.
-// Nil callback = drop events on the floor (progress namespace nil-guards
-// in that case so a misconfigured runtime fails loudly).
-type ProgressEmitter func(ProgressEvent)
+// RunBarEmitter receives one RunBarEvent per formidable.run.bar call.
+// Fires synchronously during the run; production wires it to a Wails
+// event so a progressbar widget the plugin author dropped into their
+// form can re-render live. Nil callback drops events.
+type RunBarEmitter func(RunBarEvent)
+
+// RunStatusEmitter receives one RunStatusEvent per
+// formidable.run.status call. Same semantics as RunBarEmitter.
+type RunStatusEmitter func(RunStatusEvent)
 
 // ─────────────────────────────────────────────────────────────────
 // Namespace builders — each returns a Lua table that goes onto
@@ -415,28 +416,34 @@ func buildFMTable(L *lua.LState, pluginID string, fm FMAccess) *lua.LTable {
 	return tbl
 }
 
-// buildProgressTable mounts formidable.progress.tick(done, total, msg, stage).
-// done and total are integers (gopher-lua coerces; OptInt defaults to 0
-// when omitted). msg is the per-item label; stage is the optional
-// section/phase label (e.g. current template stem during a per-template
-// export) — the dialog renders stage prominently above msg so the
-// user can see "which section am I in" at a glance. When the emitter
-// is nil every call raises "progress: not configured" so
-// misconfigurations surface immediately.
-func buildProgressTable(L *lua.LState, emit ProgressEmitter) *lua.LTable {
+// buildRunTable mounts formidable.run.bar(done, total) and
+// formidable.run.status(text). Each fires synchronously into its
+// emitter; production wires them to Wails events so any progressbar
+// or statusmessage widget the plugin author dropped into the form
+// re-renders live. Nil emitters raise "run: not configured" — a
+// misconfigured runtime fails loud rather than silently dropping
+// state updates.
+func buildRunTable(L *lua.LState, barEmit RunBarEmitter, statusEmit RunStatusEmitter) *lua.LTable {
 	tbl := L.NewTable()
-	if emit == nil {
-		tbl.RawSetString("tick", L.NewFunction(nilGuard("progress")))
-		return tbl
+	if barEmit == nil {
+		tbl.RawSetString("bar", L.NewFunction(nilGuard("run")))
+	} else {
+		tbl.RawSetString("bar", L.NewFunction(func(L *lua.LState) int {
+			done := L.OptInt(1, 0)
+			total := L.OptInt(2, 0)
+			barEmit(RunBarEvent{Done: done, Total: total})
+			return 0
+		}))
 	}
-	tbl.RawSetString("tick", L.NewFunction(func(L *lua.LState) int {
-		done := L.OptInt(1, 0)
-		total := L.OptInt(2, 0)
-		msg := L.OptString(3, "")
-		stage := L.OptString(4, "")
-		emit(ProgressEvent{Done: done, Total: total, Stage: stage, Message: msg})
-		return 0
-	}))
+	if statusEmit == nil {
+		tbl.RawSetString("status", L.NewFunction(nilGuard("run")))
+	} else {
+		tbl.RawSetString("status", L.NewFunction(func(L *lua.LState) int {
+			text := L.OptString(1, "")
+			statusEmit(RunStatusEvent{Text: text})
+			return 0
+		}))
+	}
 	return tbl
 }
 

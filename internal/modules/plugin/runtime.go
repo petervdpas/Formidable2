@@ -54,7 +54,8 @@ func newSandboxedState() *lua.LState {
 type runtimeDeps struct {
 	LogSink     *[]string
 	ToastSink   *[]ToastEvent
-	ProgressOut ProgressEmitter
+	RunBarOut   RunBarEmitter
+	RunStatOut  RunStatusEmitter
 	Ctx         context.Context
 	PluginID    string
 	Plugin      PluginInfo
@@ -87,7 +88,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("form", buildFormTable(L, deps.Form))
 	f.RawSetString("render", buildRenderTable(L, deps.PluginID, deps.Render, deps.FM))
 	f.RawSetString("fm", buildFMTable(L, deps.PluginID, deps.FM))
-	f.RawSetString("progress", buildProgressTable(L, deps.ProgressOut))
+	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut))
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
 	// formidable.cancelled() — cheap predicate so plugins can poll
 	// for user-requested Stop inside pcall-heavy loops. Necessary
@@ -177,7 +178,8 @@ type scriptOpts struct {
 	FS          FSAccess
 	Exec        ExecRunner
 	API         HTTPClient
-	ProgressOut ProgressEmitter
+	RunBarOut   RunBarEmitter
+	RunStatOut  RunStatusEmitter
 }
 
 // runScript spawns a fresh sandboxed state, loads Source, calls
@@ -196,10 +198,11 @@ func runScript(opts scriptOpts) (RunResult, error) {
 	var logs []string
 	var toasts []ToastEvent
 	installFormidable(L, runtimeDeps{
-		LogSink:     &logs,
-		ToastSink:   &toasts,
-		ProgressOut: opts.ProgressOut,
-		Ctx:         opts.Ctx,
+		LogSink:    &logs,
+		ToastSink:  &toasts,
+		RunBarOut:  opts.RunBarOut,
+		RunStatOut: opts.RunStatOut,
+		Ctx:        opts.Ctx,
 		PluginID:    opts.PluginID,
 		Plugin:      opts.Plugin,
 		KV:          opts.KV,

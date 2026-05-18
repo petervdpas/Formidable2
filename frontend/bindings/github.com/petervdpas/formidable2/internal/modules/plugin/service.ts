@@ -13,6 +13,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as formwidget$0 from "../formwidget/models.js";
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -176,6 +180,18 @@ export function Save(id: string, manifest: $models.Manifest, luaSource: string, 
  */
 export function SaveFormValues(pluginID: string, values: { [_ in string]?: any }): $CancellablePromise<void> {
     return $Call.ByID(3584261938, pluginID, values);
+}
+
+/**
+ * ValidateWidget runs the formwidget validation rules against a
+ * single widget the form editor is about to persist into form.json.
+ * Returns the wrapped ErrWidgetInvalid (or nil) — the UI surfaces it
+ * as a toast next to the offending entry without having to round-trip
+ * through Save. Also pins the formwidget types into the generated
+ * Wails bindings so the frontend can import Widget/Kind.
+ */
+export function ValidateWidget(w: formwidget$0.Widget): $CancellablePromise<void> {
+    return $Call.ByID(517167145, w);
 }
 
 // Private type creation functions
