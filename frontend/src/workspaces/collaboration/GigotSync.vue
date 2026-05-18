@@ -311,6 +311,7 @@ async function doPull() {
       shortHash(res.version),
     ]);
     await load(false);
+    window.dispatchEvent(new CustomEvent("formidable:context-reloaded"));
   } catch (err) {
     toast.error("workspace.collaboration.gigot.sync.pull.error", [backendErrMessage(err)]);
   } finally {

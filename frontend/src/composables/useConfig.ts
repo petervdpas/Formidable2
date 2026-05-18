@@ -29,6 +29,15 @@ async function reload(): Promise<void> {
   await load();
 }
 
+// See useTemplates: pull/clone/reclone fires this event after writing
+// to the context folder. The active profile JSON itself can be
+// overwritten by a sync, so re-read it.
+if (typeof window !== "undefined") {
+  window.addEventListener("formidable:context-reloaded", () => {
+    if (loadPromise) void reload();
+  });
+}
+
 // switchProfile flips .boot.json to the given filename via the backend
 // (which is serialized against UpdateUserConfig under updateMu) and
 // then refreshes our reactive cache. Watchers on config.theme,

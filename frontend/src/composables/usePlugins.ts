@@ -16,6 +16,15 @@ async function refresh(): Promise<void> {
   loaded = true;
 }
 
+// See useTemplates: pull/clone/reclone fires this event after writing
+// to the context folder. Re-read the plugin list from disk so the
+// sidebar reflects upstream changes without an app restart.
+if (typeof window !== "undefined") {
+  window.addEventListener("formidable:context-reloaded", () => {
+    if (loaded) void refresh();
+  });
+}
+
 // Backend's validID rule: lowercase ASCII letters, digits, dash,
 // underscore. Empty rejected. Mirrored client-side so the Create
 // dialog can show a fast inline error before the round-trip.

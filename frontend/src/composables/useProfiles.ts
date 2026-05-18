@@ -7,6 +7,15 @@ const profiles = ref<ProfileEntry[]>([]);
 const lastError = ref<string>("");
 let loaded = false;
 
+// See useTemplates: pull/clone/reclone fires this event after writing
+// to the context folder. Re-read the profile list from disk so the
+// picker reflects upstream changes without an app restart.
+if (typeof window !== "undefined") {
+  window.addEventListener("formidable:context-reloaded", () => {
+    if (loaded) void refresh();
+  });
+}
+
 const { profileFilename, switchProfile, reload: reloadConfig } = useConfig();
 
 async function refresh(): Promise<void> {

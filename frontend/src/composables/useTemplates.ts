@@ -7,6 +7,17 @@ const cache = ref<Map<string, Template | null>>(new Map());
 const selectedFilename = ref<string>("");
 let loaded = false;
 
+// After a remote-sourced filesystem change (gigot/git pull, clone,
+// reclone) the cached template list goes stale. The pull workspace
+// dispatches `formidable:context-reloaded` once it's done; we re-read
+// from disk so the sidebar reflects deletions/additions without an
+// app restart.
+if (typeof window !== "undefined") {
+  window.addEventListener("formidable:context-reloaded", () => {
+    if (loaded) void refresh();
+  });
+}
+
 async function refresh(): Promise<void> {
   filenames.value = await TemplateSvc.ListTemplates();
   loaded = true;

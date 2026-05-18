@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Badge from "../components/Badge.vue";
@@ -223,6 +223,15 @@ async function doRefresh() {
 watch(selectedTemplate, async () => {
   await refreshList();
 }, { immediate: true });
+
+// After a pull/clone/reclone the form files on disk may have
+// changed even when selectedTemplate didn't — re-read the list so
+// the sidebar reflects upstream deletions/additions.
+function onContextReloaded() {
+  void refreshList();
+}
+onMounted(() => window.addEventListener("formidable:context-reloaded", onContextReloaded));
+onBeforeUnmount(() => window.removeEventListener("formidable:context-reloaded", onContextReloaded));
 
 // Live-toggle: flipping use_expressions in Settings re-fetches (or
 // clears) the sidebar items map without touching the row list.
