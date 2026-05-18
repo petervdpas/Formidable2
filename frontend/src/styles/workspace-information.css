@@ -642,6 +642,11 @@
   font-weight: 600;
 }
 
+.pdf-covers-list-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .pdf-covers-rows {
   list-style: none;
   margin: 0;
@@ -705,7 +710,7 @@
   font-family: var(--font-mono, monospace);
 }
 
-.pdf-covers-row-delete {
+.pdf-covers-row-action {
   align-self: center;
   margin-right: 6px;
 }

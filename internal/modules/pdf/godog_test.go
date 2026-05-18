@@ -18,6 +18,7 @@ func TestFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			initPDFScenario(ctx)
 			initFrontmatterScenario(ctx)
+			initCoverArchiveScenario(ctx)
 		},
 		Options: &godog.Options{
 			Format:   "pretty",

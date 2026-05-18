@@ -210,6 +210,54 @@ async function remove(name: string): Promise<{ ok: true } | { ok: false; message
   }
 }
 
+type ExportArchiveOutcome =
+  | { ok: true; zipPath: string; images: string[]; missing: string[] }
+  | { ok: false; message: string };
+
+async function exportArchive(name: string, zipPath: string): Promise<ExportArchiveOutcome> {
+  if (!name || !zipPath) {
+    return { ok: false, message: "Cover name and zip path required." };
+  }
+  try {
+    const res = await PdfSvc.ExportCoverArchive(name, zipPath);
+    return {
+      ok: true,
+      zipPath: res?.zip_path ?? zipPath,
+      images: res?.images ?? [],
+      missing: res?.missing_images ?? [],
+    };
+  } catch (err) {
+    return { ok: false, message: backendErrMessage(err) };
+  }
+}
+
+type ImportArchiveOutcome =
+  | { ok: true; name: string; overwritten: boolean; images: string[] }
+  | { ok: false; code: "exists" | "error"; message: string };
+
+async function importArchive(zipPath: string, overwrite: boolean): Promise<ImportArchiveOutcome> {
+  if (!zipPath) {
+    return { ok: false, code: "error", message: "Zip path required." };
+  }
+  try {
+    const res = await PdfSvc.ImportCoverArchive(zipPath, overwrite);
+    await refresh();
+    return {
+      ok: true,
+      name: res?.name ?? "",
+      overwritten: res?.overwritten ?? false,
+      images: res?.images ?? [],
+    };
+  } catch (err) {
+    const message = backendErrMessage(err);
+    // Sniff for the cover-exists sentinel so the UI can branch to a
+    // ConfirmDialog and retry with overwrite=true without showing the
+    // raw backend error.
+    const code: "exists" | "error" = message.toLowerCase().includes("already exists") ? "exists" : "error";
+    return { ok: false, code, message };
+  }
+}
+
 const dirty = computed(() => draftHTML.value !== baselineHTML.value);
 const canSave = computed(
   () =>
@@ -240,6 +288,8 @@ export function usePDFCovers() {
     debouncedValidate,
     save,
     remove,
+    exportArchive,
+    importArchive,
     isSeed: (name: string) => SEED_NAMES.has(name),
   };
 }

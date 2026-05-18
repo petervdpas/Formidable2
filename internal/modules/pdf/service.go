@@ -206,3 +206,18 @@ func (s *Service) DeleteCover(name string) error {
 func (s *Service) LastExport() ExportTelemetrySnapshot {
 	return s.m.LastExport()
 }
+
+// ExportCoverArchive zips a cover .html plus every image referenced
+// from its <img src=…> and CSS url(…) into the user-picked zipPath.
+// Used by the cover-sharing flow on the Information → PDF Covers panel.
+func (s *Service) ExportCoverArchive(name, zipPath string) (ExportCoverArchiveResult, error) {
+	return s.m.ExportCoverArchive(name, zipPath)
+}
+
+// ImportCoverArchive materialises a cover archive zip from zipPath
+// back into <AppRoot>/pdf/covers/. overwrite=false (default) refuses
+// to replace an existing cover so the frontend can confirm with the
+// user before retrying with overwrite=true.
+func (s *Service) ImportCoverArchive(zipPath string, overwrite bool) (ImportCoverArchiveResult, error) {
+	return s.m.ImportCoverArchive(zipPath, overwrite)
+}

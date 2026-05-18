@@ -206,5 +206,17 @@
   "pdf.covers.toast.save_failed": "Could not save cover: {0}",
   "pdf.covers.toast.deleted": "Cover deleted.",
   "pdf.covers.toast.reset": "Cover removed — will be rewritten from the bundled seed on next app start.",
-  "pdf.covers.toast.delete_failed": "Could not delete cover: {0}"
+  "pdf.covers.toast.delete_failed": "Could not delete cover: {0}",
+  "pdf.covers.action.export": "Export as zip",
+  "pdf.covers.action.import": "Import",
+  "pdf.covers.archive.filter.zip": "Cover archive (.zip)",
+  "pdf.covers.archive.export.success": "Cover exported to {0}.",
+  "pdf.covers.archive.export.success_with_missing": "Cover exported to {0}, but these images were not found on disk: {1}.",
+  "pdf.covers.archive.export.error": "Could not export cover: {0}",
+  "pdf.covers.archive.import.success": "Cover {0} imported.",
+  "pdf.covers.archive.import.success_overwrite": "Cover {0} replaced from archive.",
+  "pdf.covers.archive.import.error": "Could not import cover: {0}",
+  "pdf.covers.archive.import.overwrite_title": "Overwrite cover?",
+  "pdf.covers.archive.import.overwrite_message": "A cover named {0} already exists. Replace it with the version from the archive?",
+  "pdf.covers.archive.import.overwrite_confirm": "Overwrite"
 }

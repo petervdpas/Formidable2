@@ -228,6 +228,50 @@ export class CoverValidation {
 }
 
 /**
+ * ExportCoverArchiveResult describes what was bundled into the zip on
+ * export. MissingImages collects refs the .html mentions but that
+ * aren't present on disk — surfaced to the UI so the user can decide
+ * whether to chase them down before shipping the archive.
+ */
+export class ExportCoverArchiveResult {
+    "name": string;
+    "zip_path": string;
+    "images": string[];
+    "missing_images"?: string[];
+
+    /** Creates a new ExportCoverArchiveResult instance. */
+    constructor($$source: Partial<ExportCoverArchiveResult> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("zip_path" in $$source)) {
+            this["zip_path"] = "";
+        }
+        if (!("images" in $$source)) {
+            this["images"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportCoverArchiveResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportCoverArchiveResult {
+        const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("images" in $$parsedSource) {
+            $$parsedSource["images"] = $$createField2_0($$parsedSource["images"]);
+        }
+        if ("missing_images" in $$parsedSource) {
+            $$parsedSource["missing_images"] = $$createField3_0($$parsedSource["missing_images"]);
+        }
+        return new ExportCoverArchiveResult($$parsedSource as Partial<ExportCoverArchiveResult>);
+    }
+}
+
+/**
  * ExportOpts shapes the per-call options ExportPDF accepts. Empty
  * values fall back to the merged manifest + form-meta + global-config
  * defaults.
@@ -358,8 +402,8 @@ export class ExportTelemetrySnapshot {
      * Creates a new ExportTelemetrySnapshot instance from a string or object.
      */
     static createFrom($$source: any = {}): ExportTelemetrySnapshot {
-        const $$createField0_0 = $$createType5;
-        const $$createField1_0 = $$createType5;
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("last_success" in $$parsedSource) {
             $$parsedSource["last_success"] = $$createField0_0($$parsedSource["last_success"]);
@@ -460,9 +504,9 @@ export class FrontmatterMigration {
      * Creates a new FrontmatterMigration instance from a string or object.
      */
     static createFrom($$source: any = {}): FrontmatterMigration {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType8;
-        const $$createField3_0 = $$createType8;
+        const $$createField1_0 = $$createType8;
+        const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mappings" in $$parsedSource) {
             $$parsedSource["mappings"] = $$createField1_0($$parsedSource["mappings"]);
@@ -474,6 +518,39 @@ export class FrontmatterMigration {
             $$parsedSource["warnings"] = $$createField3_0($$parsedSource["warnings"]);
         }
         return new FrontmatterMigration($$parsedSource as Partial<FrontmatterMigration>);
+    }
+}
+
+/**
+ * ImportCoverArchiveResult describes what was materialised on import.
+ */
+export class ImportCoverArchiveResult {
+    "name": string;
+    "overwritten": boolean;
+    "images"?: string[];
+
+    /** Creates a new ImportCoverArchiveResult instance. */
+    constructor($$source: Partial<ImportCoverArchiveResult> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("overwritten" in $$source)) {
+            this["overwritten"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportCoverArchiveResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportCoverArchiveResult {
+        const $$createField2_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("images" in $$parsedSource) {
+            $$parsedSource["images"] = $$createField2_0($$parsedSource["images"]);
+        }
+        return new ImportCoverArchiveResult($$parsedSource as Partial<ImportCoverArchiveResult>);
     }
 }
 
@@ -511,7 +588,7 @@ export class InjectConfig {
      * Creates a new InjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): InjectConfig {
-        const $$createField1_0 = $$createType8;
+        const $$createField1_0 = $$createType4;
         const $$createField2_0 = $$createType10;
         const $$createField3_0 = $$createType12;
         const $$createField4_0 = $$createType14;
@@ -959,11 +1036,11 @@ const $$createType0 = CoverTokenInfo.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = CoverIssue.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = ExportTelemetry.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = FrontmatterMapping.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Array($Create.Any);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = ExportTelemetry.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = FrontmatterMapping.createFrom;
+const $$createType8 = $Create.Array($$createType7);
 const $$createType9 = InjectPageConfig.createFrom;
 const $$createType10 = $Create.Nullable($$createType9);
 const $$createType11 = InjectCoverConfig.createFrom;

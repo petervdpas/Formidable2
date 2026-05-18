@@ -266,6 +266,37 @@ func (m *Manager) DeleteCover(name string) error {
 	return nil
 }
 
+// ExportCoverArchive bundles <AppRoot>/pdf/covers/<name>.html with
+// every image its <img src=…> and CSS url(…) refs point at into a zip
+// at zipPath. zipPath may be absolute (the typical case — user picks
+// it via a save dialog) or AppRoot-relative. Missing image refs are
+// reported in the result without aborting the export so the user
+// can decide whether to chase them down post-share.
+func (m *Manager) ExportCoverArchive(name, zipPath string) (ExportCoverArchiveResult, error) {
+	m.log.Debug("pdf: export cover archive", "name", name, "zip", zipPath)
+	res, err := exportCoverArchive(m.store.fs, name, zipPath)
+	if err != nil {
+		return res, err
+	}
+	m.log.Info("pdf: cover archive exported", "name", name, "zip", res.ZipPath, "images", len(res.Images), "missing", len(res.MissingImages))
+	return res, nil
+}
+
+// ImportCoverArchive unpacks a cover archive zip back into
+// <AppRoot>/pdf/covers/. The zip's root .html is validated before
+// any disk write. Refuses to clobber an existing cover unless
+// overwrite=true; bundled images always replace their disk
+// counterparts (they are bundle-bound resources, not user state).
+func (m *Manager) ImportCoverArchive(zipPath string, overwrite bool) (ImportCoverArchiveResult, error) {
+	m.log.Debug("pdf: import cover archive", "zip", zipPath, "overwrite", overwrite)
+	res, err := importCoverArchive(m.store.fs, zipPath, overwrite)
+	if err != nil {
+		return res, err
+	}
+	m.log.Info("pdf: cover archive imported", "name", res.Name, "overwritten", res.Overwritten, "images", len(res.Images))
+	return res, nil
+}
+
 // Status returns the live snapshot. Zero value (Active=false,
 // Source=SourceUnset) is the fresh-install / deactivated state.
 func (m *Manager) Status() Status {

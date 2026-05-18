@@ -206,5 +206,17 @@
   "pdf.covers.toast.save_failed": "Kon voorpagina niet opslaan: {0}",
   "pdf.covers.toast.deleted": "Voorpagina verwijderd.",
   "pdf.covers.toast.reset": "Voorpagina verwijderd — wordt bij de volgende app-start opnieuw geschreven vanaf de meegeleverde versie.",
-  "pdf.covers.toast.delete_failed": "Kon voorpagina niet verwijderen: {0}"
+  "pdf.covers.toast.delete_failed": "Kon voorpagina niet verwijderen: {0}",
+  "pdf.covers.action.export": "Exporteer als zip",
+  "pdf.covers.action.import": "Importeer",
+  "pdf.covers.archive.filter.zip": "Voorpagina-archief (.zip)",
+  "pdf.covers.archive.export.success": "Voorpagina geëxporteerd naar {0}.",
+  "pdf.covers.archive.export.success_with_missing": "Voorpagina geëxporteerd naar {0}, maar deze afbeeldingen zijn niet op schijf gevonden: {1}.",
+  "pdf.covers.archive.export.error": "Kon voorpagina niet exporteren: {0}",
+  "pdf.covers.archive.import.success": "Voorpagina {0} geïmporteerd.",
+  "pdf.covers.archive.import.success_overwrite": "Voorpagina {0} vervangen vanuit archief.",
+  "pdf.covers.archive.import.error": "Kon voorpagina niet importeren: {0}",
+  "pdf.covers.archive.import.overwrite_title": "Voorpagina overschrijven?",
+  "pdf.covers.archive.import.overwrite_message": "Er bestaat al een voorpagina met de naam {0}. Vervangen door de versie uit het archief?",
+  "pdf.covers.archive.import.overwrite_confirm": "Overschrijven"
 }

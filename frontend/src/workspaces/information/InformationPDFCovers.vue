@@ -6,6 +6,8 @@ import { useToast } from "../../composables/useToast";
 import CodeEditor from "../../components/CodeEditor.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
 import NewPDFCoverDialog from "../../components/NewPDFCoverDialog.vue";
+import PDFCoverListItem from "../../components/PDFCoverListItem.vue";
+import { Service as DialogSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/dialog";
 
 const { t } = useI18n();
 const toast = useToast();
@@ -25,6 +27,8 @@ const {
   debouncedValidate,
   save,
   remove,
+  exportArchive,
+  importArchive,
   isSeed,
 } = usePDFCovers();
 
@@ -84,6 +88,94 @@ function cancelDelete() {
 function onEditorUpdate(next: string) {
   debouncedValidate(next);
 }
+
+// ── Export ────────────────────────────────────────────────────────
+// Backend bundles <name>.html + every referenced image into a zip at
+// the user-picked path. We then surface a toast that names any image
+// refs the cover mentioned but couldn't bundle (broken refs on disk)
+// so the user can chase them before sharing.
+const zipFilters = computed(() => [
+  { displayName: t('pdf.covers.archive.filter.zip'), pattern: '*.zip' },
+]);
+
+async function onExport(name: string) {
+  let picked = "";
+  try {
+    picked = await DialogSvc.ChooseSaveFile(`${name}.zip`, zipFilters.value);
+  } catch {
+    return; // picker error treated as cancel
+  }
+  if (!picked) return;
+  const r = await exportArchive(name, picked);
+  if (!r.ok) {
+    toast.error("pdf.covers.archive.export.error", [r.message]);
+    return;
+  }
+  if (r.missing.length > 0) {
+    toast.error("pdf.covers.archive.export.success_with_missing", [
+      r.zipPath,
+      r.missing.join(", "),
+    ]);
+  } else {
+    toast.success("pdf.covers.archive.export.success", [r.zipPath]);
+  }
+}
+
+// ── Import ────────────────────────────────────────────────────────
+// Picker chooses a *.zip; backend refuses to clobber by default.
+// On the exists code we hold the path + open a ConfirmDialog, then
+// retry the same call with overwrite=true on confirm.
+const importOverwriteOpen = ref(false);
+const importPendingPath = ref<string>("");
+const importPendingName = ref<string>("");
+
+async function onImport() {
+  let picked = "";
+  try {
+    picked = await DialogSvc.ChooseFile(zipFilters.value);
+  } catch {
+    return;
+  }
+  if (!picked) return;
+  await runImport(picked, false);
+}
+
+async function runImport(zipPath: string, overwrite: boolean) {
+  const r = await importArchive(zipPath, overwrite);
+  if (r.ok) {
+    toast.success(
+      r.overwritten
+        ? "pdf.covers.archive.import.success_overwrite"
+        : "pdf.covers.archive.import.success",
+      [r.name],
+    );
+    return;
+  }
+  if (r.code === "exists") {
+    // Defer the overwrite decision to a confirm dialog. We do NOT
+    // try to read the cover stem out of the error message — re-run
+    // import with overwrite=true and let the backend report the
+    // final name in its result.
+    importPendingPath.value = zipPath;
+    importPendingName.value = zipPath.split(/[\\/]/).pop()?.replace(/\.zip$/i, "") ?? zipPath;
+    importOverwriteOpen.value = true;
+    return;
+  }
+  toast.error("pdf.covers.archive.import.error", [r.message]);
+}
+
+async function confirmImportOverwrite() {
+  const path = importPendingPath.value;
+  importOverwriteOpen.value = false;
+  importPendingPath.value = "";
+  if (path) await runImport(path, true);
+}
+
+function cancelImportOverwrite() {
+  importOverwriteOpen.value = false;
+  importPendingPath.value = "";
+  importPendingName.value = "";
+}
 </script>
 
 <template>
@@ -94,10 +186,16 @@ function onEditorUpdate(next: string) {
     <aside class="pdf-covers-list">
       <div class="pdf-covers-list-header">
         <h4>{{ t('pdf.covers.list.title') }}</h4>
-        <button class="tool-btn" type="button" @click="openNewCoverDialog">
-          <i class="fa-solid fa-plus" aria-hidden="true"></i>
-          {{ t('pdf.covers.action.new') }}
-        </button>
+        <div class="pdf-covers-list-header-actions">
+          <button class="tool-btn" type="button" @click="onImport">
+            <i class="fa-solid fa-file-import" aria-hidden="true"></i>
+            {{ t('pdf.covers.action.import') }}
+          </button>
+          <button class="tool-btn" type="button" @click="openNewCoverDialog">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            {{ t('pdf.covers.action.new') }}
+          </button>
+        </div>
       </div>
 
       <p v-if="loading" class="muted small">{{ t('pdf.covers.list.loading') }}</p>
@@ -106,33 +204,16 @@ function onEditorUpdate(next: string) {
       </p>
 
       <ul v-else class="pdf-covers-rows">
-        <li
+        <PDFCoverListItem
           v-for="c in covers"
           :key="c.name"
-          :class="['pdf-covers-row', { active: selectedName === c.name, invalid: !c.ok }]"
-        >
-          <button class="pdf-covers-row-main" type="button" @click="onPick(c.name)">
-            <span class="pdf-covers-row-label">
-              {{ c.label || c.name }}
-              <span v-if="isSeed(c.name)" class="pdf-covers-pill pdf-covers-pill-seed">
-                {{ t('pdf.covers.pill.seed') }}
-              </span>
-              <span v-if="!c.ok" class="pdf-covers-pill pdf-covers-pill-invalid">
-                {{ t('pdf.covers.pill.invalid') }}
-              </span>
-            </span>
-            <span v-if="c.description" class="pdf-covers-row-desc">{{ c.description }}</span>
-            <code class="pdf-covers-row-name">{{ c.name }}.html</code>
-          </button>
-          <button
-            class="tool-btn pdf-covers-row-delete"
-            type="button"
-            :title="t(isSeed(c.name) ? 'pdf.covers.action.reset' : 'pdf.covers.action.delete')"
-            @click="askDelete(c.name)"
-          >
-            <i :class="isSeed(c.name) ? 'fa-solid fa-arrow-rotate-left' : 'fa-solid fa-trash'" aria-hidden="true"></i>
-          </button>
-        </li>
+          :cover="c"
+          :active="selectedName === c.name"
+          :is-seed="isSeed(c.name)"
+          @pick="onPick"
+          @delete="askDelete"
+          @export="onExport"
+        />
       </ul>
     </aside>
 
@@ -219,5 +300,16 @@ function onEditorUpdate(next: string) {
     :existing-names="existingCoverNames"
     @cancel="newCoverDialogOpen = false"
     @create="onCreateNewCover"
+  />
+
+  <ConfirmDialog
+    :open="importOverwriteOpen"
+    :title="t('pdf.covers.archive.import.overwrite_title')"
+    :message="t('pdf.covers.archive.import.overwrite_message', [importPendingName])"
+    :confirm-label="t('pdf.covers.archive.import.overwrite_confirm')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="cancelImportOverwrite"
+    @confirm="confirmImportOverwrite"
   />
 </template>

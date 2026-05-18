@@ -59,6 +59,17 @@ export function DeleteCover(name: string): $CancellablePromise<void> {
 }
 
 /**
+ * ExportCoverArchive zips a cover .html plus every image referenced
+ * from its <img src=…> and CSS url(…) into the user-picked zipPath.
+ * Used by the cover-sharing flow on the Information → PDF Covers panel.
+ */
+export function ExportCoverArchive(name: string, zipPath: string): $CancellablePromise<$models.ExportCoverArchiveResult> {
+    return $Call.ByID(1073298831, name, zipPath).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * ExportPDF renders the (templateFilename, datafile) form to a PDF
  * on disk. Pipeline: render markdown → parse + merge frontmatter →
  * build picoloom.Input → convert → atomic write. Returns
@@ -68,7 +79,7 @@ export function DeleteCover(name: string): $CancellablePromise<void> {
  */
 export function ExportPDF(templateFilename: string, datafile: string, opts: $models.ExportOpts): $CancellablePromise<$models.Result> {
     return $Call.ByID(691812250, templateFilename, datafile, opts).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -89,6 +100,18 @@ export function GetDirectivesDoc(locale: string): $CancellablePromise<string> {
 export function GetStatus(): $CancellablePromise<$models.Status> {
     return $Call.ByID(3795685764).then(($result: any) => {
         return $$createType0($result);
+    });
+}
+
+/**
+ * ImportCoverArchive materialises a cover archive zip from zipPath
+ * back into <AppRoot>/pdf/covers/. overwrite=false (default) refuses
+ * to replace an existing cover so the frontend can confirm with the
+ * user before retrying with overwrite=true.
+ */
+export function ImportCoverArchive(zipPath: string, overwrite: boolean): $CancellablePromise<$models.ImportCoverArchiveResult> {
+    return $Call.ByID(4211656816, zipPath, overwrite).then(($result: any) => {
+        return $$createType3($result);
     });
 }
 
@@ -116,7 +139,7 @@ export function InjectFrontmatter(markdown: string): $CancellablePromise<string>
  */
 export function LastExport(): $CancellablePromise<$models.ExportTelemetrySnapshot> {
     return $Call.ByID(824932320).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -128,7 +151,7 @@ export function LastExport(): $CancellablePromise<$models.ExportTelemetrySnapsho
  */
 export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
     return $Call.ByID(476206190).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -137,7 +160,7 @@ export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
  */
 export function ListFooterPositions(): $CancellablePromise<$models.FooterPositionDescriptor[]> {
     return $Call.ByID(1619218275).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -146,7 +169,7 @@ export function ListFooterPositions(): $CancellablePromise<$models.FooterPositio
  */
 export function ListPageOrientations(): $CancellablePromise<$models.OrientationDescriptor[]> {
     return $Call.ByID(4037347146).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -157,7 +180,7 @@ export function ListPageOrientations(): $CancellablePromise<$models.OrientationD
  */
 export function ListPageSizes(): $CancellablePromise<$models.PageSizeDescriptor[]> {
     return $Call.ByID(3746256793).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -169,7 +192,7 @@ export function ListPageSizes(): $CancellablePromise<$models.PageSizeDescriptor[
  */
 export function ListThemes(): $CancellablePromise<$models.ThemeDescriptor[]> {
     return $Call.ByID(2644176728).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -192,7 +215,7 @@ export function LoadCover(name: string): $CancellablePromise<string> {
  */
 export function MigrateFrontmatter(markdown: string): $CancellablePromise<$models.FrontmatterMigration> {
     return $Call.ByID(470664647, markdown).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
 }
 
@@ -205,7 +228,7 @@ export function MigrateFrontmatter(markdown: string): $CancellablePromise<$model
  */
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
@@ -220,7 +243,7 @@ export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
  */
 export function ResolveExportDefaults(templateFilename: string, datafile: string): $CancellablePromise<$models.ResolvedExportDefaults> {
     return $Call.ByID(2533436814, templateFilename, datafile).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
@@ -255,25 +278,27 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
  */
 export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
     return $Call.ByID(1327021382, html).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.Status.createFrom;
-const $$createType1 = $models.Result.createFrom;
-const $$createType2 = $models.ExportTelemetrySnapshot.createFrom;
-const $$createType3 = $models.CoverDescriptor.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.FooterPositionDescriptor.createFrom;
+const $$createType1 = $models.ExportCoverArchiveResult.createFrom;
+const $$createType2 = $models.Result.createFrom;
+const $$createType3 = $models.ImportCoverArchiveResult.createFrom;
+const $$createType4 = $models.ExportTelemetrySnapshot.createFrom;
+const $$createType5 = $models.CoverDescriptor.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.OrientationDescriptor.createFrom;
+const $$createType7 = $models.FooterPositionDescriptor.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $models.PageSizeDescriptor.createFrom;
+const $$createType9 = $models.OrientationDescriptor.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $models.ThemeDescriptor.createFrom;
+const $$createType11 = $models.PageSizeDescriptor.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.FrontmatterMigration.createFrom;
-const $$createType14 = $models.ProbeResult.createFrom;
-const $$createType15 = $models.ResolvedExportDefaults.createFrom;
-const $$createType16 = $models.CoverValidation.createFrom;
+const $$createType13 = $models.ThemeDescriptor.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $models.FrontmatterMigration.createFrom;
+const $$createType16 = $models.ProbeResult.createFrom;
+const $$createType17 = $models.ResolvedExportDefaults.createFrom;
+const $$createType18 = $models.CoverValidation.createFrom;
