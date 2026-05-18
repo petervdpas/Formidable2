@@ -20,6 +20,7 @@ import {
   type ListResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
+import { Service as DialogSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dialog";
 import {
   FormSection,
   FormRow,
@@ -47,6 +48,8 @@ const {
   refresh,
   create: createPlugin,
   remove,
+  exportArchive,
+  importArchive,
 } = usePlugins();
 
 const { draftManifest, draftSource, draftForm, dirty, save, reset } = usePluginEditor();
@@ -143,6 +146,82 @@ async function confirmDelete() {
   } else {
     toast.error("workspace.plugins.delete.error", [r.message ?? "?"]);
   }
+}
+
+// ── Export / Import archive ─────────────────────────────────────────
+// Mirrors the PDF covers archive flow: native save/open dialogs gate
+// the file path, the backend bundles or unpacks the zip, and an
+// existing-target on import opens a ConfirmDialog before retrying
+// with overwrite=true.
+const zipFilters = computed(() => [
+  { displayName: t('workspace.plugins.archive.filter.zip'), pattern: '*.zip' },
+]);
+
+async function onExport() {
+  if (!selectedID.value) return;
+  const id = selectedID.value;
+  let picked = "";
+  try {
+    picked = await DialogSvc.ChooseSaveFile(`${id}.zip`, zipFilters.value);
+  } catch {
+    return;
+  }
+  if (!picked) return;
+  const r = await exportArchive(id, picked);
+  if (!r.ok) {
+    toast.error("workspace.plugins.archive.export.error", [r.message]);
+    return;
+  }
+  toast.success("workspace.plugins.archive.export.success", [r.zipPath]);
+}
+
+const importOverwriteOpen = ref(false);
+const importPendingPath = ref<string>("");
+const importPendingName = ref<string>("");
+
+async function onImport() {
+  let picked = "";
+  try {
+    picked = await DialogSvc.ChooseFile(zipFilters.value);
+  } catch {
+    return;
+  }
+  if (!picked) return;
+  await runImport(picked, false);
+}
+
+async function runImport(zipPath: string, overwrite: boolean) {
+  const r = await importArchive(zipPath, overwrite);
+  if (r.ok) {
+    toast.success(
+      r.overwritten
+        ? "workspace.plugins.archive.import.success_overwrite"
+        : "workspace.plugins.archive.import.success",
+      [r.id],
+    );
+    if (r.id) selectedID.value = r.id;
+    return;
+  }
+  if (r.code === "exists") {
+    importPendingPath.value = zipPath;
+    importPendingName.value = zipPath.split(/[\\/]/).pop()?.replace(/\.zip$/i, "") ?? zipPath;
+    importOverwriteOpen.value = true;
+    return;
+  }
+  toast.error("workspace.plugins.archive.import.error", [r.message]);
+}
+
+async function confirmImportOverwrite() {
+  const path = importPendingPath.value;
+  importOverwriteOpen.value = false;
+  importPendingPath.value = "";
+  if (path) await runImport(path, true);
+}
+
+function cancelImportOverwrite() {
+  importOverwriteOpen.value = false;
+  importPendingPath.value = "";
+  importPendingName.value = "";
 }
 
 // ── Run dialog ───────────────────────────────────────────────────────
@@ -425,6 +504,18 @@ setTopbarMenu(() => [
         disabled: !selectedID.value,
         onClick: openDelete,
       },
+      { type: "separator" },
+      {
+        id: "import",
+        labelKey: "menu.plugin.import",
+        onClick: onImport,
+      },
+      {
+        id: "export",
+        labelKey: "menu.plugin.export",
+        disabled: !selectedID.value,
+        onClick: onExport,
+      },
     ],
   },
 ]);
@@ -701,6 +792,20 @@ setTopbarMenu(() => [
     variant="danger"
     @cancel="deleteOpen = false"
     @confirm="confirmDelete"
+  />
+
+  <!-- Import overwrite confirm — fires when the archive's plugin id
+       collides with one already on disk. ConfirmDialog re-runs the
+       import with overwrite=true; cancel discards the pending path. -->
+  <ConfirmDialog
+    :open="importOverwriteOpen"
+    :title="t('workspace.plugins.archive.import.overwrite_title')"
+    :message="t('workspace.plugins.archive.import.overwrite_confirm', [importPendingName])"
+    :confirm-label="t('workspace.plugins.archive.import.overwrite_confirm_button')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @cancel="cancelImportOverwrite"
+    @confirm="confirmImportOverwrite"
   />
 
   <!-- Form-editor: add/edit field. Plugins use a curated subset of

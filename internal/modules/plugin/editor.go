@@ -23,6 +23,11 @@ type editorFS interface {
 	SaveFile(path, content string) error
 	DeleteFile(path string) error
 	DeleteFolder(path string) error
+	// ListDir returns the names of the entries (files + subfolders)
+	// at path. A missing directory must return (nil, nil) — the
+	// archive exporter relies on that to skip plugins with no files
+	// rather than erroring at the boundary.
+	ListDir(path string) ([]string, error)
 }
 
 // SerializeManifest is the canonical writer for plugin.json: 2-space

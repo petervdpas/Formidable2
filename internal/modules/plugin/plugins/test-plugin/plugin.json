@@ -1,0 +1,28 @@
+{
+  "manifest_version": 1,
+  "id": "test-plugin",
+  "name": "Test Plugin",
+  "version": "0.1.0",
+  "description": "This is a test.. be sure to **test** thoroughly.",
+  "author": "Peter van de Pas",
+  "run_mode": "form",
+  "debug": true,
+  "commands": [
+    {
+      "id": "run",
+      "label": "Run",
+      "hide_output": false,
+      "hide_log": true,
+      "log_as_toast": true,
+      "form_button": false
+    },
+    {
+      "id": "run",
+      "label": "Start",
+      "hide_output": false,
+      "hide_log": false,
+      "log_as_toast": false,
+      "form_button": true
+    }
+  ]
+}

@@ -8,6 +8,8 @@ export {
 
 export {
     Command,
+    ExportArchiveResult,
+    ImportArchiveResult,
     ListResult,
     Manifest,
     RunResultDTO,

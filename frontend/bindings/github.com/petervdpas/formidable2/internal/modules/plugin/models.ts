@@ -69,6 +69,82 @@ export class Command {
 }
 
 /**
+ * ExportArchiveResult describes what the export bundled. Files is the
+ * list of zip-entry names (relative to the plugin folder root) so the
+ * UI can render a confirmation panel and the user can spot side files
+ * they didn't expect to ship.
+ */
+export class ExportArchiveResult {
+    "id": string;
+    "zip_path": string;
+    "files": string[];
+
+    /** Creates a new ExportArchiveResult instance. */
+    constructor($$source: Partial<ExportArchiveResult> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("zip_path" in $$source)) {
+            this["zip_path"] = "";
+        }
+        if (!("files" in $$source)) {
+            this["files"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportArchiveResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportArchiveResult {
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField2_0($$parsedSource["files"]);
+        }
+        return new ExportArchiveResult($$parsedSource as Partial<ExportArchiveResult>);
+    }
+}
+
+/**
+ * ImportArchiveResult describes what was materialised on import.
+ * Overwritten flags whether an existing plugin's files were replaced.
+ */
+export class ImportArchiveResult {
+    "id": string;
+    "overwritten": boolean;
+    "files": string[];
+
+    /** Creates a new ImportArchiveResult instance. */
+    constructor($$source: Partial<ImportArchiveResult> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("overwritten" in $$source)) {
+            this["overwritten"] = false;
+        }
+        if (!("files" in $$source)) {
+            this["files"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportArchiveResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportArchiveResult {
+        const $$createField2_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField2_0($$parsedSource["files"]);
+        }
+        return new ImportArchiveResult($$parsedSource as Partial<ImportArchiveResult>);
+    }
+}
+
+/**
  * ListResult is the Wails return shape for List. Manifest is the
  * full parsed plugin.json (so Vue can show name, version, command
  * labels). ID is duplicated at the top level for convenience —
@@ -95,7 +171,7 @@ export class ListResult {
      * Creates a new ListResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ListResult {
-        const $$createField1_0 = $$createType0;
+        const $$createField1_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("manifest" in $$parsedSource) {
             $$parsedSource["manifest"] = $$createField1_0($$parsedSource["manifest"]);
@@ -163,7 +239,7 @@ export class Manifest {
      * Creates a new Manifest instance from a string or object.
      */
     static createFrom($$source: any = {}): Manifest {
-        const $$createField9_0 = $$createType2;
+        const $$createField9_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("commands" in $$parsedSource) {
             $$parsedSource["commands"] = $$createField9_0($$parsedSource["commands"]);
@@ -199,7 +275,7 @@ export class RunResultDTO {
      * Creates a new RunResultDTO instance from a string or object.
      */
     static createFrom($$source: any = {}): RunResultDTO {
-        const $$createField3_0 = $$createType3;
+        const $$createField3_0 = $$createType0;
         const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("logLines" in $$parsedSource) {
@@ -244,9 +320,9 @@ export class ToastEvent {
 }
 
 // Private type creation functions
-const $$createType0 = Manifest.createFrom;
-const $$createType1 = Command.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Manifest.createFrom;
+const $$createType2 = Command.createFrom;
+const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = ToastEvent.createFrom;
 const $$createType5 = $Create.Array($$createType4);

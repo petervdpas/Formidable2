@@ -37,6 +37,19 @@ export function Delete(id: string): $CancellablePromise<$models.ListResult[]> {
 }
 
 /**
+ * ExportArchive bundles a plugin's folder into a zip at zipPath.
+ * Returns the zip path + the list of bundled entries so the
+ * workspace can render a confirmation panel. Sibling of the pdf
+ * cover archive flow — shapes the team-sharing pipeline plugins
+ * previously lacked.
+ */
+export function ExportArchive(id: string, zipPath: string): $CancellablePromise<$models.ExportArchiveResult> {
+    return $Call.ByID(3459305341, id, zipPath).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * GetForm returns the raw form.json text for an existing plugin.
  * If form.json is missing (legacy or hand-edited folder), returns
  * the default empty-array placeholder so callers don't have to
@@ -52,6 +65,20 @@ export function GetForm(id: string): $CancellablePromise<string> {
  */
 export function GetSource(id: string): $CancellablePromise<string> {
     return $Call.ByID(4259078820, id);
+}
+
+/**
+ * ImportArchive unpacks a plugin-archive zip from zipPath under
+ * <PluginsDir>/. Refuses to overwrite an existing plugin unless
+ * overwrite=true — the frontend uses ErrPluginArchiveExists as the
+ * signal to surface a "replace?" prompt. On success refreshes the
+ * registry so List reflects the new/replaced plugin without a
+ * follow-up call.
+ */
+export function ImportArchive(zipPath: string, overwrite: boolean): $CancellablePromise<$models.ImportArchiveResult> {
+    return $Call.ByID(1966327212, zipPath, overwrite).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 /**
@@ -71,7 +98,7 @@ export function List(): $CancellablePromise<$models.ListResult[]> {
  */
 export function LoadFormValues(pluginID: string, fieldKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
     return $Call.ByID(3599671491, pluginID, fieldKeys).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -94,7 +121,7 @@ export function Refresh(): $CancellablePromise<$models.ListResult[]> {
  */
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {
     return $Call.ByID(2749798520, pluginID, commandID, ctx).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -122,5 +149,7 @@ export function SaveFormValues(pluginID: string, values: { [_ in string]?: any }
 // Private type creation functions
 const $$createType0 = $models.ListResult.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Map($Create.Any, $Create.Any);
-const $$createType3 = $models.RunResultDTO.createFrom;
+const $$createType2 = $models.ExportArchiveResult.createFrom;
+const $$createType3 = $models.ImportArchiveResult.createFrom;
+const $$createType4 = $Create.Map($Create.Any, $Create.Any);
+const $$createType5 = $models.RunResultDTO.createFrom;

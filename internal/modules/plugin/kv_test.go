@@ -31,6 +31,20 @@ func (kvTestFS) DeleteFolder(p string) error {
 	// RemoveAll is silent on missing — same shape as system.Manager.DeleteFolder.
 	return os.RemoveAll(p)
 }
+func (kvTestFS) ListDir(p string) ([]string, error) {
+	entries, err := os.ReadDir(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, e.Name())
+	}
+	return out, nil
+}
 
 func newTestKV(t *testing.T) *KV {
 	t.Helper()

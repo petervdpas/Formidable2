@@ -72,6 +72,55 @@ async function remove(id: string): Promise<{ ok: boolean; message?: string }> {
   }
 }
 
+// Export/import wraps the Wails archive surface. The backend bundles
+// <PluginsDir>/<id>/* into a zip on export, and unpacks (refusing to
+// clobber by default) on import. The composable adds the same
+// "already exists" sniff used by usePDFCovers so callers can branch
+// to a ConfirmDialog without parsing raw backend error strings.
+type ExportArchiveOutcome =
+  | { ok: true; zipPath: string; files: string[] }
+  | { ok: false; message: string };
+
+async function exportArchive(id: string, zipPath: string): Promise<ExportArchiveOutcome> {
+  if (!id || !zipPath) {
+    return { ok: false, message: "Plugin id and zip path required." };
+  }
+  try {
+    const res = await PluginSvc.ExportArchive(id, zipPath);
+    return {
+      ok: true,
+      zipPath: res?.zip_path ?? zipPath,
+      files: res?.files ?? [],
+    };
+  } catch (err) {
+    return { ok: false, message: String(err) };
+  }
+}
+
+type ImportArchiveOutcome =
+  | { ok: true; id: string; overwritten: boolean; files: string[] }
+  | { ok: false; code: "exists" | "error"; message: string };
+
+async function importArchive(zipPath: string, overwrite: boolean): Promise<ImportArchiveOutcome> {
+  if (!zipPath) {
+    return { ok: false, code: "error", message: "Zip path required." };
+  }
+  try {
+    const res = await PluginSvc.ImportArchive(zipPath, overwrite);
+    await refresh();
+    return {
+      ok: true,
+      id: res?.id ?? "",
+      overwritten: res?.overwritten ?? false,
+      files: res?.files ?? [],
+    };
+  } catch (err) {
+    const message = String(err);
+    const code: "exists" | "error" = message.toLowerCase().includes("already exists") ? "exists" : "error";
+    return { ok: false, code, message };
+  }
+}
+
 const selectedPlugin = computed<ListResult | null>(() => {
   if (!selectedID.value) return null;
   return plugins.value.find((p) => p.id === selectedID.value) ?? null;
@@ -86,5 +135,7 @@ export function usePlugins() {
     refresh,
     create,
     remove,
+    exportArchive,
+    importArchive,
   };
 }

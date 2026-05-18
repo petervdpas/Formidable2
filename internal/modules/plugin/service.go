@@ -96,6 +96,25 @@ func (s *Service) Delete(id string) ([]ListResult, error) {
 	return s.List(), nil
 }
 
+// ExportArchive bundles a plugin's folder into a zip at zipPath.
+// Returns the zip path + the list of bundled entries so the
+// workspace can render a confirmation panel. Sibling of the pdf
+// cover archive flow — shapes the team-sharing pipeline plugins
+// previously lacked.
+func (s *Service) ExportArchive(id, zipPath string) (ExportArchiveResult, error) {
+	return s.m.ExportArchive(id, zipPath)
+}
+
+// ImportArchive unpacks a plugin-archive zip from zipPath under
+// <PluginsDir>/. Refuses to overwrite an existing plugin unless
+// overwrite=true — the frontend uses ErrPluginArchiveExists as the
+// signal to surface a "replace?" prompt. On success refreshes the
+// registry so List reflects the new/replaced plugin without a
+// follow-up call.
+func (s *Service) ImportArchive(zipPath string, overwrite bool) (ImportArchiveResult, error) {
+	return s.m.ImportArchive(zipPath, overwrite)
+}
+
 // GetSource returns the plugin's main.lua content. Used by the
 // workspace to populate the Lua editor when a plugin is selected.
 func (s *Service) GetSource(id string) (string, error) {

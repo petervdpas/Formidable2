@@ -542,6 +542,14 @@ func New(d Deps) (*App, error) {
 		// formidable.api.fetch wired against the running wiki server.
 		API:        pluginHTTPAdapter{wiki: wikiM, sys: sysM},
 	})
+	// Materialize the embedded plugin library to <pluginsDir>. Mirrors
+	// the pdf cover scaffold: ships the seed inside the binary so every
+	// distribution (deb, rpm, dmg, NSIS, portable archive) has the
+	// same starter set without per-distro file-copy plumbing. Failures
+	// log and continue — a missing seed isn't fatal.
+	if err := plugin.ScaffoldPlugins(sysM, pluginsDir, d.Logger); err != nil {
+		d.Logger.Warn("plugin: scaffold failed; library may be incomplete", "err", err)
+	}
 	if err := pluginM.Refresh(); err != nil {
 		d.Logger.Warn("plugin: initial refresh failed", "err", err)
 	}

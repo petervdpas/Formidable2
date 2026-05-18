@@ -23,6 +23,8 @@
   "menu.plugin.create": "Create…",
   "menu.plugin.delete": "Delete…",
   "menu.plugin.run": "Run…",
+  "menu.plugin.export": "Export Archive…",
+  "menu.plugin.import": "Import Archive…",
   "menu.plugins.manager": "Plugin Manager...",
   "menu.server.browser": "Open in Browser",
   "menu.server.show": "Show internal Wiki",
