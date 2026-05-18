@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"log/slog"
+	"strings"
 	"testing"
 )
 
@@ -98,5 +99,31 @@ func TestResolveCoverLogo_NilFSReturnsInput(t *testing.T) {
 	got := ResolveCoverLogo("formidable.svg", "/storage/tpl", nil)
 	if got != "formidable.svg" {
 		t.Errorf("got %q, want input unchanged when fs nil", got)
+	}
+}
+
+// winFS wraps memFS but emits backslashed absolute paths from
+// ResolvePath, simulating Windows' filepath.Abs return value. The
+// only purpose is to verify ResolveCoverLogo normalises the slash
+// direction on the way out — Chrome cannot resolve an `<img src>`
+// containing literal backslashes when rendering a file:// document.
+type winFS struct{ *memFS }
+
+func (w *winFS) ResolvePath(segments ...string) string {
+	joined := w.memFS.ResolvePath(segments...)
+	return "C:" + strings.ReplaceAll(joined, "/", `\`)
+}
+
+func TestResolveCoverLogo_NormalisesBackslashesToForwardSlashes(t *testing.T) {
+	fs := &winFS{memFS: newMemFS()}
+	if err := scaffoldCovers(fs.memFS, slog.Default()); err != nil {
+		t.Fatalf("scaffold: %v", err)
+	}
+	got := ResolveCoverLogo("formidable.svg", "/storage/tpl", fs)
+	if strings.Contains(got, `\`) {
+		t.Errorf("got %q, must not contain backslashes (Chrome chokes on Windows-native paths in <img src>)", got)
+	}
+	if !strings.Contains(got, "pdf/covers/images/formidable.svg") {
+		t.Errorf("got %q, want forward-slashed pdf/covers/images/formidable.svg substring", got)
 	}
 }

@@ -367,10 +367,24 @@ func ResolveCoverLogo(logo, sourceDir string, fs storeFS) string {
 
 // tryResolve returns the absolute path of dir/name if the file
 // exists, otherwise an empty string.
+//
+// The returned path is forward-slashed unconditionally — the resolved
+// logo gets embedded into the cover HTML's `<img src="…">` attribute
+// and rendered by headless Chrome under a file:// document.
+// Backslashes in src trip Chrome's URL parser on Windows (it can't
+// reconcile `C:\…` against a file:// base), whereas `C:/…` is the
+// well-known Windows-drive-letter form WHATWG handles. Go's os.Stat
+// on Windows accepts forward slashes, so picoloom's FileExists
+// validation still passes.
+//
+// We use strings.ReplaceAll rather than filepath.ToSlash because the
+// latter is OS-aware (no-op on Linux), which would silently regress
+// the fix in the rare case a Windows-style path arrives on a non-
+// Windows build (cross-compile, test fixtures, etc.).
 func tryResolve(fs storeFS, dir, name string) string {
 	candidate := path.Join(dir, name)
 	if !fs.FileExists(candidate) {
 		return ""
 	}
-	return fs.ResolvePath(candidate)
+	return strings.ReplaceAll(fs.ResolvePath(candidate), `\`, "/")
 }
