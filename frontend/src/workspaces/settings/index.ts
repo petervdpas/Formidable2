@@ -24,10 +24,10 @@ export interface SettingsCategory {
 
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "general",         labelKey: "settings.categories.general",         component: SettingsGeneral },
-  { id: "templates",       labelKey: "settings.categories.templates",       component: SettingsTemplates },
   { id: "history",         labelKey: "settings.categories.history",         component: SettingsHistory },
   { id: "display",         labelKey: "settings.categories.display",         component: SettingsDisplay },
   { id: "locations",       labelKey: "settings.categories.locations",       component: SettingsLocations },
+  { id: "templates",       labelKey: "settings.categories.templates",       component: SettingsTemplates },
   { id: "internal-server", labelKey: "settings.categories.internal_server", component: SettingsInternalServer },
   { id: "advanced",        labelKey: "settings.categories.advanced",        component: SettingsAdvanced },
 ];

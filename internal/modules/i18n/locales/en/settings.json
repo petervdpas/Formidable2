@@ -35,7 +35,7 @@
   "settings.categories.history": "History",
   "settings.categories.internal_server": "Internal Server",
   "settings.categories.locations": "Locations",
-  "settings.categories.templates": "Templates",
+  "settings.categories.templates": "Scoped Templates",
   "settings.templates.info": "Choose which templates appear in the storage picker, wiki and other use-side surfaces. Leave everything off (or every toggle on) to allow all templates — the toggle list becomes authoritative once you opt in.",
   "settings.templates.empty_means_all": "No templates enabled yet — all templates are visible. Toggle any template on to start curating.",
   "settings.templates.search_placeholder": "Search templates…",
