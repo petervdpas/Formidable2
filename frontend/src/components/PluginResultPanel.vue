@@ -50,18 +50,7 @@ const cmdsWithVisibleData = computed(() =>
   props.commands.filter((c) => hasVisibleData(c, props.results[c.id])),
 );
 
-const ranButAllHidden = computed(
-  () =>
-    cmdsWithVisibleData.value.length === 0 &&
-    props.commands.some(
-      (c) => props.results[c.id] && !hasVisibleData(c, props.results[c.id]),
-    ),
-);
-
-const totalShown = computed(
-  () =>
-    cmdsWithVisibleData.value.length + (ranButAllHidden.value ? 1 : 0),
-);
+const totalShown = computed(() => cmdsWithVisibleData.value.length);
 
 function prettyValue(v: unknown): string {
   if (v === undefined || v === null) return t("workspace.plugins.no_output");
@@ -128,12 +117,6 @@ function errorLabel(kind: string, message: string): string {
         </template>
       </div>
 
-      <p
-        v-if="ranButAllHidden"
-        class="plugin-result-not-enabled"
-      >
-        {{ t('workspace.plugins.debug.not_enabled') }}
-      </p>
     </div>
   </section>
 </template>
