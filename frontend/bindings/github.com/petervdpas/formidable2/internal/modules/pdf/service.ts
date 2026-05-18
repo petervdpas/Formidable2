@@ -29,6 +29,17 @@ export function Activate(opts: $models.ActivateOpts): $CancellablePromise<$model
 }
 
 /**
+ * AssetServerAddr returns the host:port the loopback asset server
+ * is bound to (e.g. "127.0.0.1:54321"), or "" when no server is
+ * wired or it has been closed. Surfaced in the Information → PDF
+ * Export panel as a diagnostic row so users can see + probe the URL
+ * that picoloom hands cover-library logos to Chrome via.
+ */
+export function AssetServerAddr(): $CancellablePromise<string> {
+    return $Call.ByID(3571308458);
+}
+
+/**
  * BuildFrontmatter renders a typed InjectConfig (collected by the
  * Inject dialog's toggles + dropdowns + text inputs) into a YAML
  * frontmatter block. Each block the user enabled becomes a sub-block

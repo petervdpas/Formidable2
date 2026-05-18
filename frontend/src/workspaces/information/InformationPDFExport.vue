@@ -9,7 +9,7 @@ import type { ChromeCandidate } from "../../../bindings/github.com/petervdpas/fo
 
 const { t } = useI18n();
 const toast = useToast();
-const { status, lastExport, refreshLastExport, probe, activate, deactivate, setExportDir } = usePDFActivation();
+const { status, lastExport, refreshLastExport, assetServerAddr, probe, activate, deactivate, setExportDir } = usePDFActivation();
 
 function formatDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return "";
@@ -142,6 +142,17 @@ async function doClearExportDir() {
     <dd v-if="status?.version">{{ status.version }}</dd>
     <dt v-if="activatedLabel">{{ t('pdf.field.activated_at') }}</dt>
     <dd v-if="activatedLabel">{{ activatedLabel }}</dd>
+    <dt>{{ t('pdf.field.asset_server') }}</dt>
+    <dd>
+      <span
+        class="pdf-asset-pill"
+        :class="assetServerAddr ? 'running' : 'stopped'"
+      >
+        {{ assetServerAddr
+          ? t('pdf.field.asset_server.running', [assetServerAddr])
+          : t('pdf.field.asset_server.stopped') }}
+      </span>
+    </dd>
   </dl>
 
   <div class="pdf-action-row">

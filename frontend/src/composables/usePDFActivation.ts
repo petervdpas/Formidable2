@@ -14,6 +14,11 @@ import { backendErrMessage } from "../utils/backendError";
 const status = ref<Status | null>(null);
 const lastError = ref<string>("");
 const lastExport = ref<ExportTelemetrySnapshot | null>(null);
+// Asset server's bound host:port (or "" when no server). Cached
+// once at mount; the listener is process-lifetime so it doesn't
+// change between renders.
+const assetServerAddr = ref<string>("");
+let assetServerLoaded = false;
 
 async function refresh() {
   try {
@@ -31,6 +36,16 @@ async function refreshLastExport() {
   }
 }
 
+async function refreshAssetServer() {
+  try {
+    assetServerAddr.value = await PdfSvc.AssetServerAddr();
+    assetServerLoaded = true;
+  } catch {
+    assetServerAddr.value = "";
+    assetServerLoaded = true;
+  }
+}
+
 export function usePDFActivation() {
   onMounted(() => {
     if (status.value === null) {
@@ -38,6 +53,9 @@ export function usePDFActivation() {
     }
     if (lastExport.value === null) {
       void refreshLastExport();
+    }
+    if (!assetServerLoaded) {
+      void refreshAssetServer();
     }
   });
 
@@ -98,8 +116,10 @@ export function usePDFActivation() {
     status,
     lastError,
     lastExport,
+    assetServerAddr,
     refresh,
     refreshLastExport,
+    refreshAssetServer,
     probe,
     activate,
     deactivate,

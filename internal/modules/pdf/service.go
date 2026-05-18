@@ -37,6 +37,18 @@ func NewService(m *Manager) *Service {
 // the Information page status row.
 func (s *Service) GetStatus() Status { return s.m.Status() }
 
+// AssetServerAddr returns the host:port the loopback asset server
+// is bound to (e.g. "127.0.0.1:54321"), or "" when no server is
+// wired or it has been closed. Surfaced in the Information → PDF
+// Export panel as a diagnostic row so users can see + probe the URL
+// that picoloom hands cover-library logos to Chrome via.
+func (s *Service) AssetServerAddr() string {
+	if s == nil || s.m == nil {
+		return ""
+	}
+	return s.m.AssetServer().Addr()
+}
+
 // ProbeChrome lists every Chrome/Chromium binary the activation
 // flow could adopt — env-var override, then system paths in their
 // platform's conventional order, then the latest managed-cache

@@ -369,6 +369,26 @@
   border: 1px solid var(--color-muted-border, #ced4da);
 }
 
+.pdf-asset-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.pdf-asset-pill.running {
+  background: var(--color-ok-bg, #d4edda);
+  color: var(--color-ok-text, #155724);
+  border: 1px solid var(--color-ok-border, #c3e6cb);
+}
+
+.pdf-asset-pill.stopped {
+  background: var(--color-muted-bg, #e9ecef);
+  color: var(--color-muted-text, #495057);
+  border: 1px solid var(--color-muted-border, #ced4da);
+}
+
 .pdf-detail-grid {
   display: grid;
   grid-template-columns: max-content 1fr;
