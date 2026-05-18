@@ -207,6 +207,15 @@ export class Manifest {
     "requires_internal_server"?: boolean;
 
     /**
+     * Workspaces lists the workspace IDs (from the Workspace* enum
+     * in this file) where the plugin contributes a topbar menu
+     * entry. Each entry must be a known workspace ID; nil/empty
+     * means the plugin is unattached and only surfaces from the
+     * Plugins workspace's Run modal.
+     */
+    "workspaces"?: string[];
+
+    /**
      * Debug toggles the collapsible debug/output panel at the bottom
      * of the Run modal. Off by default — plugin authors flip it on
      * while iterating, then turn it off when shipping.
@@ -239,10 +248,14 @@ export class Manifest {
      * Creates a new Manifest instance from a string or object.
      */
     static createFrom($$source: any = {}): Manifest {
-        const $$createField9_0 = $$createType3;
+        const $$createField8_0 = $$createType0;
+        const $$createField10_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("workspaces" in $$parsedSource) {
+            $$parsedSource["workspaces"] = $$createField8_0($$parsedSource["workspaces"]);
+        }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField9_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField10_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }

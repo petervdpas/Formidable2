@@ -8,6 +8,7 @@ import { useConfig } from "../composables/useConfig";
 import { useCredentialAccount } from "../composables/useCredentialAccount";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useCollaborationSection } from "../composables/useCollaborationSection";
 import { backendErrMessage } from "../utils/backendError";
 import { Service as GitSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
@@ -127,8 +128,12 @@ async function confirmForgetToken() {
 // Reactive menu definition. The two repo actions disable when there's
 // no git_root configured — the click handlers would just toast a
 // warning, but disabling is friendlier UX.
+const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("collaboration");
 setTopbarMenu(() => {
-  if (backend.value !== "git") return [];
+  const plugins = buildPluginsMenu();
+  if (backend.value !== "git") {
+    return plugins ? [plugins] : [];
+  }
   const noRoot = gitRoot.value.trim() === "";
   return [
     {
@@ -150,6 +155,7 @@ setTopbarMenu(() => {
         },
       ],
     },
+    ...(plugins ? [plugins] : []),
   ];
 });
 </script>

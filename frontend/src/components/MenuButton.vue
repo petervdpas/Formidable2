@@ -38,7 +38,7 @@ const groupDisabled = computed(() => {
       <MenuSeparator v-if="it.type === 'separator'" />
       <MenuItem
         v-else
-        :label="t(it.labelKey)"
+        :label="it.label ?? t(it.labelKey)"
         :hint="it.hintKey ? t(it.hintKey) : undefined"
         :combo="it.combo"
         :disabled="it.disabled"
@@ -54,6 +54,6 @@ const groupDisabled = computed(() => {
     :disabled="entry.disabled"
     @click="entry.onClick"
   >
-    {{ t(entry.labelKey) }}
+    {{ entry.label ?? t(entry.labelKey) }}
   </button>
 </template>

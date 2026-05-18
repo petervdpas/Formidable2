@@ -26,6 +26,8 @@
   "menu.plugin.export": "Archief exporteren…",
   "menu.plugin.import": "Archief importeren…",
   "menu.plugins.manager": "Pluginbeheer...",
+  "menu.plugins.workspace.item": "Plugin-opdracht",
+  "menu.plugins.workspace.title": "Plugins",
   "menu.server.browser": "Open in Browser",
   "menu.server.show": "Bekijk interne Wiki",
   "menu.server.start": "Start server",

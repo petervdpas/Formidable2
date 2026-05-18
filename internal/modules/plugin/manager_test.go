@@ -112,6 +112,75 @@ func TestManager_Refresh_SkipsBadManifestKeepsValid(t *testing.T) {
 	}
 }
 
+func TestManager_ListForWorkspace_FiltersByManifest(t *testing.T) {
+	// Three plugins:
+	//   - "a" attaches to storage + templates
+	//   - "b" attaches to storage only
+	//   - "c" has no workspaces declared
+	// ListForWorkspace("storage") returns {a, b}; ListForWorkspace("templates") returns {a}.
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "a", `{
+		"manifest_version": 1, "id": "a", "name": "A",
+		"version": "0.1.0",
+		"workspaces": ["storage", "templates"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	writePlugin(t, pluginsDir, "b", `{
+		"manifest_version": 1, "id": "b", "name": "B",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	writePlugin(t, pluginsDir, "c", `{
+		"manifest_version": 1, "id": "c", "name": "C",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	gotStorage := m.ListForWorkspace(WorkspaceStorage)
+	if len(gotStorage) != 2 || gotStorage[0].Manifest.ID != "a" || gotStorage[1].Manifest.ID != "b" {
+		t.Fatalf("storage: %+v", ids(gotStorage))
+	}
+	gotTemplates := m.ListForWorkspace(WorkspaceTemplates)
+	if len(gotTemplates) != 1 || gotTemplates[0].Manifest.ID != "a" {
+		t.Fatalf("templates: %+v", ids(gotTemplates))
+	}
+	gotProfiles := m.ListForWorkspace(WorkspaceProfiles)
+	if len(gotProfiles) != 0 {
+		t.Fatalf("profiles should be empty: %+v", ids(gotProfiles))
+	}
+}
+
+func TestManager_ListForWorkspace_RejectsUnknownAndEmpty(t *testing.T) {
+	// Defensive: passing an unknown id or "" returns nil rather than
+	// silently matching every unattached plugin.
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "a", `{
+		"manifest_version": 1, "id": "a", "name": "A",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	_ = m.Refresh()
+	if got := m.ListForWorkspace(""); got != nil {
+		t.Fatalf("empty ws should be nil, got %v", ids(got))
+	}
+	if got := m.ListForWorkspace("bogus"); got != nil {
+		t.Fatalf("unknown ws should be nil, got %v", ids(got))
+	}
+}
+
+// ids extracts just the ids from a Plugin slice for compact test diagnostics.
+func ids(ps []Plugin) []string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = p.Manifest.ID
+	}
+	return out
+}
+
 func TestManager_Run_UnknownPlugin(t *testing.T) {
 	m, _ := newTestManager(t)
 	_, err := m.Run("ghost", "run", nil)

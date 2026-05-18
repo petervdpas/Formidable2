@@ -7,7 +7,15 @@
 export interface MenuAction {
   type?: "action";          // optional discriminator
   id: string;               // stable key for v-for / aria
-  labelKey: string;         // i18n key for the visible label
+  /**
+   * i18n key for the visible label. Required so static menu entries
+   * stay translation-driven. Dynamic, user-authored labels (plugin
+   * commands, repo names, etc.) pass `label` instead and may use any
+   * placeholder for `labelKey`; `label` always wins when present.
+   */
+  labelKey: string;
+  /** Literal label that supersedes labelKey — for runtime-named items. */
+  label?: string;
   hintKey?: string;         // optional i18n key for a right-aligned hint
   /**
    * Optional cross-platform keyboard shortcut bound globally for as long

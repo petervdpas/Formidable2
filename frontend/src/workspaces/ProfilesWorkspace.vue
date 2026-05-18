@@ -12,6 +12,7 @@ import { useRestartGate } from "../composables/useRestartGate";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useDialog } from "../composables/useDialog";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useToast } from "../composables/useToast";
 import { useRestartFlow } from "../composables/useRestartFlow";
 
@@ -269,6 +270,7 @@ function cancelActivate() {
 // Topbar menu — File group with Import (always enabled) and Export
 // (disabled when no profile is selected). The Apply auto-disable rule
 // keeps the File button itself enabled as long as Import works.
+const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("profiles");
 setTopbarMenu(() => [
   {
     type: "group",
@@ -294,6 +296,7 @@ setTopbarMenu(() => [
       },
     ],
   },
+  ...(buildPluginsMenu() ? [buildPluginsMenu()!] : []),
 ]);
 </script>
 

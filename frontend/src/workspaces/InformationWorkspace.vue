@@ -6,6 +6,8 @@ import TreeView, { type TreeNode } from "../components/TreeView.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useConfig } from "../composables/useConfig";
 import { useInformationSection } from "../composables/useInformationSection";
+import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import {
   INFORMATION_CATEGORIES,
   type InformationCategory,
@@ -66,6 +68,12 @@ function toTreeNodes(list: InformationCategory[]): TreeNode[] {
 }
 
 const treeItems = computed(() => toTreeNodes(visibleTree.value));
+
+const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("information");
+setTopbarMenu(() => {
+  const plugins = buildPluginsMenu();
+  return plugins ? [plugins] : [];
+});
 </script>
 
 <template>

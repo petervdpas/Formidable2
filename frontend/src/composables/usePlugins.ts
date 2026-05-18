@@ -11,6 +11,17 @@ const plugins = ref<ListResult[]>([]);
 const selectedID = ref<string>("");
 let loaded = false;
 
+// Workspace IDs a plugin manifest may attach to. Sourced from the
+// backend (PluginSvc.ListWorkspaces) so the dropdown in the manifest
+// editor doesn't drift from the Go enum. Cached once per session —
+// the enum is closed and doesn't change at runtime.
+const workspaceIDs = ref<string[]>([]);
+let workspacesLoaded = false;
+async function refreshWorkspaces(): Promise<void> {
+  workspaceIDs.value = await PluginSvc.ListWorkspaces();
+  workspacesLoaded = true;
+}
+
 async function refresh(): Promise<void> {
   plugins.value = await PluginSvc.Refresh();
   loaded = true;
@@ -128,10 +139,12 @@ const selectedPlugin = computed<ListResult | null>(() => {
 
 export function usePlugins() {
   if (!loaded) void refresh();
+  if (!workspacesLoaded) void refreshWorkspaces();
   return {
     plugins,
     selectedID,
     selectedPlugin,
+    workspaceIDs,
     refresh,
     create,
     remove,

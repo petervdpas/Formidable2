@@ -235,6 +235,115 @@ func TestLoadManifest_RunModeRejectsUnknown(t *testing.T) {
 	}
 }
 
+func TestLoadManifest_WorkspacesRoundtrip(t *testing.T) {
+	// A plugin can declare which workspaces it contributes a topbar
+	// entry to. Each entry must be a known workspace id; the closed
+	// enum lives in types.go.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"workspaces": ["storage", "templates"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(got.Workspaces) != 2 ||
+		got.Workspaces[0] != WorkspaceStorage ||
+		got.Workspaces[1] != WorkspaceTemplates {
+		t.Fatalf("workspaces: %+v", got.Workspaces)
+	}
+}
+
+func TestLoadManifest_WorkspacesOmittedDefaultsEmpty(t *testing.T) {
+	// Omitted `workspaces` is the common case — older manifests
+	// must keep loading. Surfaces as a nil/empty slice; downstream
+	// callers treat that as "no topbar attachment".
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(got.Workspaces) != 0 {
+		t.Fatalf("workspaces should default empty: %+v", got.Workspaces)
+	}
+}
+
+func TestLoadManifest_WorkspacesRejectsUnknown(t *testing.T) {
+	// "settings" and "plugins" are intentionally not in the enum —
+	// the management workspace already lists every plugin, and
+	// Settings has no domain object to act on. Unknown ids surface
+	// as ErrManifestInvalid so a typo fails at load, not at click.
+	cases := map[string]string{
+		"settings is not allowed": `{
+			"manifest_version": 1, "id": "demo", "name": "X", "version": "0.1.0",
+			"workspaces": ["settings"],
+			"commands": [{"id": "run", "label": "Run"}]}`,
+		"plugins is not allowed": `{
+			"manifest_version": 1, "id": "demo", "name": "X", "version": "0.1.0",
+			"workspaces": ["plugins"],
+			"commands": [{"id": "run", "label": "Run"}]}`,
+		"typo": `{
+			"manifest_version": 1, "id": "demo", "name": "X", "version": "0.1.0",
+			"workspaces": ["storag"],
+			"commands": [{"id": "run", "label": "Run"}]}`,
+		"empty string in list": `{
+			"manifest_version": 1, "id": "demo", "name": "X", "version": "0.1.0",
+			"workspaces": [""],
+			"commands": [{"id": "run", "label": "Run"}]}`,
+	}
+	for name, manifest := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			dir := writePlugin(t, root, "demo", manifest, "function run() end")
+			_, err := LoadManifest(dir)
+			if !errors.Is(err, ErrManifestInvalid) {
+				t.Fatalf("want ErrManifestInvalid, got %v", err)
+			}
+		})
+	}
+}
+
+func TestLoadManifest_WorkspacesRejectsDuplicates(t *testing.T) {
+	// A duplicate entry is almost certainly a paste error and would
+	// double-emit the same menu item. Reject it at load.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "X", "version": "0.1.0",
+		"workspaces": ["storage", "storage"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	_, err := LoadManifest(dir)
+	if !errors.Is(err, ErrManifestInvalid) {
+		t.Fatalf("want ErrManifestInvalid, got %v", err)
+	}
+}
+
+func TestValidWorkspaces_StableContent(t *testing.T) {
+	// The enum is the frontend's source of truth — pin the values so
+	// a careless rename here is a test failure, not a silent UI break.
+	got := ValidWorkspaces()
+	want := []string{
+		WorkspaceStorage, WorkspaceTemplates, WorkspaceProfiles,
+		WorkspaceCollaboration, WorkspaceInformation,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d workspaces, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("workspaces[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestLoadManifest_PreservesCommandHideFlags(t *testing.T) {
 	// A command can opt out of showing its Result/Log panels in the
 	// Run modal — useful for "fire and forget" actions where the

@@ -46,6 +46,27 @@ func (s *Service) Refresh() ([]ListResult, error) {
 	return s.List(), nil
 }
 
+// ListForWorkspace returns the plugins whose manifest declares an
+// attachment to the given workspace id. Workspaces query this on
+// mount to build their topbar plugin menu; an unknown id returns
+// an empty slice so the caller can render unconditionally.
+func (s *Service) ListForWorkspace(ws string) []ListResult {
+	plugins := s.m.ListForWorkspace(ws)
+	out := make([]ListResult, 0, len(plugins))
+	for _, p := range plugins {
+		out = append(out, ListResult{ID: p.Manifest.ID, Manifest: p.Manifest})
+	}
+	return out
+}
+
+// ListWorkspaces returns the closed enum of workspace ids a plugin
+// manifest may attach to. The manifest-editor dropdown reads this
+// directly so adding a workspace on the Go side surfaces without a
+// frontend code change.
+func (s *Service) ListWorkspaces() []string {
+	return ValidWorkspaces()
+}
+
 // RunResultDTO is the JSON envelope for Run. Kind is "ok" on
 // success or one of the error sentinels' kinds — Vue branches on
 // Kind, never on Message text. Toasts pass through whatever

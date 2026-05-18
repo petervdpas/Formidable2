@@ -81,6 +81,18 @@ func validateManifest(m *Manifest) error {
 		return fmt.Errorf("%w: bad run_mode %q (want %q or %q)",
 			ErrManifestInvalid, m.RunMode, RunModeModal, RunModeForm)
 	}
+	seenWs := make(map[string]struct{}, len(m.Workspaces))
+	for i, ws := range m.Workspaces {
+		if !isValidWorkspace(ws) {
+			return fmt.Errorf("%w: workspaces[%d] %q is not a known workspace id",
+				ErrManifestInvalid, i, ws)
+		}
+		if _, dup := seenWs[ws]; dup {
+			return fmt.Errorf("%w: workspaces lists %q twice",
+				ErrManifestInvalid, ws)
+		}
+		seenWs[ws] = struct{}{}
+	}
 	for i, c := range m.Commands {
 		if strings.TrimSpace(c.ID) == "" {
 			return fmt.Errorf("%w: command[%d] empty id", ErrManifestInvalid, i)

@@ -10,6 +10,8 @@
   "workspace.plugins.archive.import.success_overwrite": "Plugin '{0}' vervangen.",
   "workspace.plugins.behavior.subtitle": "Run-modus en interne-server vereiste",
   "workspace.plugins.behavior.title": "Gedrag",
+  "workspace.plugins.workspaces.subtitle": "Werkruimtes waar deze plugin een menu-item in de topbar toont",
+  "workspace.plugins.workspaces.title": "Werkruimtes",
   "workspace.plugins.commands.add": "Commando toevoegen",
   "workspace.plugins.commands.delete": "Verwijderen",
   "workspace.plugins.commands.empty": "Nog geen commando's gedefinieerd — voeg er een toe om deze plugin uitvoerbaar te maken.",

@@ -91,6 +91,30 @@ export function List(): $CancellablePromise<$models.ListResult[]> {
 }
 
 /**
+ * ListForWorkspace returns the plugins whose manifest declares an
+ * attachment to the given workspace id. Workspaces query this on
+ * mount to build their topbar plugin menu; an unknown id returns
+ * an empty slice so the caller can render unconditionally.
+ */
+export function ListForWorkspace(ws: string): $CancellablePromise<$models.ListResult[]> {
+    return $Call.ByID(1481272787, ws).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
+ * ListWorkspaces returns the closed enum of workspace ids a plugin
+ * manifest may attach to. The manifest-editor dropdown reads this
+ * directly so adding a workspace on the Go side surfaces without a
+ * frontend code change.
+ */
+export function ListWorkspaces(): $CancellablePromise<string[]> {
+    return $Call.ByID(970622365).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * LoadFormValues returns the values stored under each of the
  * supplied field keys. Frontend calls this on Run-modal open to
  * pre-populate the form from the plugin's KV bag — same bag the
@@ -98,7 +122,7 @@ export function List(): $CancellablePromise<$models.ListResult[]> {
  */
 export function LoadFormValues(pluginID: string, fieldKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
     return $Call.ByID(3599671491, pluginID, fieldKeys).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -121,7 +145,7 @@ export function Refresh(): $CancellablePromise<$models.ListResult[]> {
  */
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {
     return $Call.ByID(2749798520, pluginID, commandID, ctx).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -151,5 +175,6 @@ const $$createType0 = $models.ListResult.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.ExportArchiveResult.createFrom;
 const $$createType3 = $models.ImportArchiveResult.createFrom;
-const $$createType4 = $Create.Map($Create.Any, $Create.Any);
-const $$createType5 = $models.RunResultDTO.createFrom;
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = $models.RunResultDTO.createFrom;

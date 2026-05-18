@@ -24,6 +24,7 @@ import { useConfig } from "../composables/useConfig";
 import { useToast } from "../composables/useToast";
 import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
 import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
@@ -595,6 +596,8 @@ function openExportPdf() {
   exportPdfOpen.value = true;
 }
 
+const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("storage");
+
 setTopbarMenu(() => [
   {
     type: "group",
@@ -715,6 +718,7 @@ setTopbarMenu(() => [
         : []),
     ],
   },
+  ...(buildPluginsMenu() ? [buildPluginsMenu()!] : []),
 ]);
 </script>
 

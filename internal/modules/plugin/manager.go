@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -129,6 +130,28 @@ func (m *Manager) List() []Plugin {
 	out := make([]Plugin, 0, len(m.plugins))
 	for _, p := range m.plugins {
 		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Manifest.ID < out[j].Manifest.ID
+	})
+	return out
+}
+
+// ListForWorkspace returns the discovered plugins whose manifest
+// declares an attachment to the given workspace id, sorted by id
+// for stable menu ordering. Unknown or empty `ws` returns nil
+// without scanning — the workspace just renders no plugin menu.
+func (m *Manager) ListForWorkspace(ws string) []Plugin {
+	if !isValidWorkspace(ws) {
+		return nil
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var out []Plugin
+	for _, p := range m.plugins {
+		if slices.Contains(p.Manifest.Workspaces, ws) {
+			out = append(out, p)
+		}
 	}
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Manifest.ID < out[j].Manifest.ID

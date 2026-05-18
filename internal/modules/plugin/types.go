@@ -19,7 +19,10 @@
 //     before using the surface.
 package plugin
 
-import "errors"
+import (
+	"errors"
+	"slices"
+)
 
 // ManifestSchemaVersion is the only manifest schema understood by
 // this build. Bumped when plugin.json's required fields change
@@ -34,6 +37,48 @@ const ManifestSchemaVersion = 1
 // an existing namespace does NOT bump this; renaming or removing
 // one does.
 const LuaAPIVersion = 1
+
+// Workspace* — the closed enum of workspace IDs a plugin may
+// attach to via Manifest.Workspaces. An empty list (or omitted
+// field) means "not attached to any workspace" — the plugin is
+// still runnable from the Plugins workspace's Run modal but no
+// topbar menu item is contributed elsewhere. A plugin may attach
+// to several workspaces at once.
+//
+// Kept here rather than on the frontend so the backend stays the
+// single source of truth: Service.ListWorkspaces() ships the list
+// to Vue's manifest-editor dropdown. Adding a workspace = one new
+// constant + entry in ValidWorkspaces.
+const (
+	WorkspaceStorage       = "storage"
+	WorkspaceTemplates     = "templates"
+	WorkspaceProfiles      = "profiles"
+	WorkspaceCollaboration = "collaboration"
+	WorkspaceInformation   = "information"
+)
+
+// ValidWorkspaces returns the closed enum of workspace IDs a
+// plugin manifest may declare. Order matches the ribbon's natural
+// reading order so the frontend dropdown is consistent without
+// re-sorting. The Plugins workspace itself is intentionally
+// excluded — that's the management view where every plugin lives
+// regardless of attachment.
+func ValidWorkspaces() []string {
+	return []string{
+		WorkspaceStorage,
+		WorkspaceTemplates,
+		WorkspaceProfiles,
+		WorkspaceCollaboration,
+		WorkspaceInformation,
+	}
+}
+
+// isValidWorkspace reports whether ws is one of the known
+// workspace IDs. Empty is allowed at validate-time (means "no
+// attachment") and handled separately by validateManifest.
+func isValidWorkspace(ws string) bool {
+	return slices.Contains(ValidWorkspaces(), ws)
+}
 
 // Manifest is the parsed plugin.json. Field names mirror the JSON
 // shape one-for-one; the `manifest_version` JSON field is required
@@ -50,14 +95,20 @@ const LuaAPIVersion = 1
 //     it renders at the top of the Run modal and every command
 //     receives the current form values as ctx.
 type Manifest struct {
-	ManifestVersion        int       `json:"manifest_version"`
-	ID                     string    `json:"id"`
-	Name                   string    `json:"name"`
-	Version                string    `json:"version"`
-	Description            string    `json:"description,omitempty"`
-	Author                 string    `json:"author,omitempty"`
-	RunMode                string    `json:"run_mode,omitempty"`
-	RequiresInternalServer bool      `json:"requires_internal_server,omitempty"`
+	ManifestVersion        int      `json:"manifest_version"`
+	ID                     string   `json:"id"`
+	Name                   string   `json:"name"`
+	Version                string   `json:"version"`
+	Description            string   `json:"description,omitempty"`
+	Author                 string   `json:"author,omitempty"`
+	RunMode                string   `json:"run_mode,omitempty"`
+	RequiresInternalServer bool     `json:"requires_internal_server,omitempty"`
+	// Workspaces lists the workspace IDs (from the Workspace* enum
+	// in this file) where the plugin contributes a topbar menu
+	// entry. Each entry must be a known workspace ID; nil/empty
+	// means the plugin is unattached and only surfaces from the
+	// Plugins workspace's Run modal.
+	Workspaces []string `json:"workspaces,omitempty"`
 	// Debug toggles the collapsible debug/output panel at the bottom
 	// of the Run modal. Off by default — plugin authors flip it on
 	// while iterating, then turn it off when shipping.

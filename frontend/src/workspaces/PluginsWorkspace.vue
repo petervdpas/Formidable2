@@ -45,12 +45,30 @@ const {
   plugins,
   selectedID,
   selectedPlugin,
+  workspaceIDs,
   refresh,
   create: createPlugin,
   remove,
   exportArchive,
   importArchive,
 } = usePlugins();
+
+// Manifest.workspaces is a string[] of attachment targets. The
+// section renders one toggle per known workspace; the model coerces
+// missing/null into an empty array so older manifests load cleanly.
+function isWorkspaceAttached(ws: string): boolean {
+  return (draftManifest.value?.workspaces ?? []).includes(ws);
+}
+function setWorkspaceAttached(ws: string, on: boolean) {
+  if (!draftManifest.value) return;
+  const cur = draftManifest.value.workspaces ?? [];
+  if (on) {
+    if (cur.includes(ws)) return;
+    draftManifest.value.workspaces = [...cur, ws];
+  } else {
+    draftManifest.value.workspaces = cur.filter((w) => w !== ws);
+  }
+}
 
 const { draftManifest, draftSource, draftForm, dirty, save, reset } = usePluginEditor();
 
@@ -603,6 +621,23 @@ setTopbarMenu(() => [
           <FormRow :label="t('workspace.plugins.manifest.description')">
             <TextareaField v-model="draftManifest.description" :rows="3" />
           </FormRow>
+        </FormSection>
+
+        <FormSection
+          :title="t('workspace.plugins.workspaces.title')"
+          :subtitle="t('workspace.plugins.workspaces.subtitle')"
+          collapsible
+          default-collapsed
+        >
+          <FormSwitchRow
+            v-for="ws in workspaceIDs"
+            :key="ws"
+            :model-value="isWorkspaceAttached(ws)"
+            @update:model-value="(v: boolean) => setWorkspaceAttached(ws, v)"
+            :label="t(`ribbon.${ws}`)"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
         </FormSection>
 
         <FormSection

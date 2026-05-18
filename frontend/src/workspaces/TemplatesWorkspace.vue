@@ -42,6 +42,7 @@ import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
 import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
+import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useConfig } from "../composables/useConfig";
 import { watch } from "vue";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -541,6 +542,7 @@ async function confirmDeleteTemplate() {
 }
 
 // ── Topbar menu ──────────────────────────────────────────────────────
+const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("templates");
 setTopbarMenu(() => [
   {
     type: "group",
@@ -627,6 +629,7 @@ setTopbarMenu(() => [
       },
     ],
   },
+  ...(buildPluginsMenu() ? [buildPluginsMenu()!] : []),
 ]);
 </script>
 

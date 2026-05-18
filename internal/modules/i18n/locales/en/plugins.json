@@ -10,6 +10,8 @@
   "workspace.plugins.archive.import.success_overwrite": "Plugin '{0}' replaced.",
   "workspace.plugins.behavior.subtitle": "Run mode and internal-server requirement",
   "workspace.plugins.behavior.title": "Behavior",
+  "workspace.plugins.workspaces.subtitle": "Workspaces where this plugin contributes a topbar menu entry",
+  "workspace.plugins.workspaces.title": "Workspaces",
   "workspace.plugins.commands.add": "Add command",
   "workspace.plugins.commands.delete": "Delete",
   "workspace.plugins.commands.empty": "No commands defined yet — add one to make this plugin runnable.",

@@ -107,6 +107,56 @@ func TestService_Run_RuntimeError(t *testing.T) {
 	}
 }
 
+func TestService_ListWorkspaces_ReturnsClosedEnum(t *testing.T) {
+	// Frontend manifest editor reads this to populate the workspace
+	// dropdown — the contract is the backend owns the list.
+	s, _ := newTestServiceWithPlugin(t, `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got := s.ListWorkspaces()
+	if len(got) != len(ValidWorkspaces()) {
+		t.Fatalf("got %d, want %d", len(got), len(ValidWorkspaces()))
+	}
+	if got[0] != WorkspaceStorage {
+		t.Fatalf("got[0] = %q, want %q", got[0], WorkspaceStorage)
+	}
+}
+
+func TestService_ListForWorkspace_FiltersByManifest(t *testing.T) {
+	// Round-trip the manifest with an attached workspace through the
+	// service so Vue's ListResult shape stays in sync with manager.
+	root := t.TempDir()
+	pluginsDir := filepath.Join(root, "plugins")
+	m := NewManager(ManagerDeps{
+		PluginsDir: pluginsDir,
+		KV:         NewKV(kvTestFS{}, filepath.Join(pluginsDir, ".kv")),
+	})
+	writePlugin(t, pluginsDir, "a", `{
+		"manifest_version": 1, "id": "a", "name": "A",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	writePlugin(t, pluginsDir, "b", `{
+		"manifest_version": 1, "id": "b", "name": "B",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	s := NewService(m)
+	got := s.ListForWorkspace(WorkspaceStorage)
+	if len(got) != 1 || got[0].ID != "a" {
+		t.Fatalf("storage: %+v", got)
+	}
+	if g := s.ListForWorkspace("bogus"); len(g) != 0 {
+		t.Fatalf("unknown ws: %+v", g)
+	}
+}
+
 func TestService_Refresh_PicksUpNewPlugin(t *testing.T) {
 	root := t.TempDir()
 	pluginsDir := filepath.Join(root, "plugins")
