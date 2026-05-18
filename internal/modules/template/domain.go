@@ -38,6 +38,23 @@ type Indexer interface {
 	OnTemplateDeleted(filename string) error
 }
 
+// Observer is a deletion-only post-hook for *additional* listeners that
+// aren't the authoritative Indexer. Currently the use case is
+// config.Manager pruning a profile's EnabledTemplates list when a
+// template disappears. Multiple observers may be registered; failures
+// are logged and never propagated.
+type Observer interface {
+	OnTemplateDeleted(filename string) error
+}
+
+// ObserverFunc adapts a closure to the Observer interface so the
+// composition root can wire `template.ObserverFunc(func ...)` instead
+// of declaring a struct wrapper.
+type ObserverFunc func(filename string) error
+
+// OnTemplateDeleted satisfies Observer.
+func (f ObserverFunc) OnTemplateDeleted(name string) error { return f(name) }
+
 // AuthorReader yields the active profile's identity. SaveTemplate uses
 // it to stamp Template.AuthorName / Template.AuthorEmail when the
 // caller leaves them empty (mirrors how record .meta.json files carry
@@ -68,6 +85,7 @@ type Manager struct {
 	log          *slog.Logger
 	templatesDir string
 	indexer      Indexer
+	observers    []Observer
 	author       AuthorReader
 
 	loadMu   keymu.Map
@@ -91,6 +109,16 @@ func NewManager(filesystem fs, templatesDir string, log *slog.Logger) *Manager {
 // after building both the template manager and the index event handler.
 // Pass nil to disable.
 func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
+
+// AddObserver registers an additional deletion observer. Called after
+// the Indexer hook fires; multiple observers run in registration order;
+// individual failures are logged but never propagated.
+func (m *Manager) AddObserver(o Observer) {
+	if o == nil {
+		return
+	}
+	m.observers = append(m.observers, o)
+}
 
 // SetAuthorReader installs the AuthorReader that SaveTemplate uses to
 // auto-fill missing AuthorName / AuthorEmail. Composition root wires
@@ -311,6 +339,11 @@ func (m *Manager) DeleteTemplate(name string) error {
 	if m.indexer != nil {
 		if err := m.indexer.OnTemplateDeleted(name); err != nil {
 			m.log.Warn("template indexer delete hook failed", "name", name, "err", err)
+		}
+	}
+	for _, o := range m.observers {
+		if err := o.OnTemplateDeleted(name); err != nil {
+			m.log.Warn("template observer delete hook failed", "name", name, "err", err)
 		}
 	}
 	return nil

@@ -272,6 +272,110 @@ func TestDeleteTemplate_InvalidatesCache(t *testing.T) {
 	}
 }
 
+// ----- Observer (deletion listener) -----------------------------------
+
+// stubObserver records every OnTemplateDeleted call for assertion.
+type stubObserver struct {
+	calls []string
+	err   error
+}
+
+func (s *stubObserver) OnTemplateDeleted(name string) error {
+	s.calls = append(s.calls, name)
+	return s.err
+}
+
+func TestAddObserver_DeleteFiresObserver(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("gone.yaml", &Template{
+		Name:   "Going",
+		Fields: []Field{{Key: "k", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	obs := &stubObserver{}
+	m.AddObserver(obs)
+
+	if err := m.DeleteTemplate("gone.yaml"); err != nil {
+		t.Fatalf("DeleteTemplate: %v", err)
+	}
+	if len(obs.calls) != 1 || obs.calls[0] != "gone.yaml" {
+		t.Errorf("observer calls = %v, want [gone.yaml]", obs.calls)
+	}
+}
+
+func TestAddObserver_MultipleAllFireInOrder(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "X",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var order []string
+	a := ObserverFunc(func(n string) error { order = append(order, "a:"+n); return nil })
+	b := ObserverFunc(func(n string) error { order = append(order, "b:"+n); return nil })
+	m.AddObserver(a)
+	m.AddObserver(b)
+
+	if err := m.DeleteTemplate("x.yaml"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	want := []string{"a:x.yaml", "b:x.yaml"}
+	if len(order) != 2 || order[0] != want[0] || order[1] != want[1] {
+		t.Errorf("call order = %v, want %v", order, want)
+	}
+}
+
+// Observer errors must be swallowed (logged), never propagated — the
+// observer is best-effort, just like the Indexer.
+func TestAddObserver_ErrorIsSwallowedNotPropagated(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if err := m.SaveTemplate("y.yaml", &Template{
+		Name:   "Y",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	obs := &stubObserver{err: errors.New("intentional")}
+	m.AddObserver(obs)
+	if err := m.DeleteTemplate("y.yaml"); err != nil {
+		t.Errorf("observer error must not propagate, got %v", err)
+	}
+}
+
+func TestAddObserver_NilIsIgnored(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	// Should not panic; should not register anything.
+	m.AddObserver(nil)
+	if err := m.SaveTemplate("z.yaml", &Template{
+		Name:   "Z",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.DeleteTemplate("z.yaml"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+}
+
+// Observer must NOT fire for missing-file deletes either — the underlying
+// fs.DeleteFile is a no-op, but the observer still fires because the
+// caller asked us to delete "X" and we honored the request. This makes
+// the prune downstream behave consistently regardless of "did the file
+// actually exist on disk", which matches the broader "self-heal" intent.
+func TestAddObserver_FiresEvenWhenFileMissing(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	obs := &stubObserver{}
+	m.AddObserver(obs)
+	if err := m.DeleteTemplate("never-there.yaml"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if len(obs.calls) != 1 {
+		t.Errorf("observer must fire for missing-file delete (downstream still needs to reconcile), got %v", obs.calls)
+	}
+}
+
 // Many goroutines hammer LoadTemplate for the same filename at once.
 // Without per-name serialization + cache, all N callers spin up
 // concurrent yaml.Unmarshal goroutines — the exact mount-storm pattern

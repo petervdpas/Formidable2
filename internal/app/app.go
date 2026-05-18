@@ -375,6 +375,19 @@ func New(d Deps) (*App, error) {
 	tplM.SetIndexer(ehM)
 	stoM.SetIndexer(ehM)
 
+	// EnabledTemplates self-healing: when a template file is deleted, the
+	// active profile's EnabledTemplates list must drop the stale entry so
+	// downstream pickers (storage, wiki, api) reflect reality. We hand
+	// config the live template lister and register a config-side observer
+	// for delete events. ReconcileEnabledTemplates is a no-op when the
+	// list is empty (the "all enabled" default), so no I/O penalty for
+	// users who haven't opted in.
+	cfgM.SetTemplateLister(tplM)
+	tplM.AddObserver(template.ObserverFunc(func(_ string) error {
+		_, err := cfgM.ReconcileEnabledTemplates()
+		return err
+	}))
+
 	// First-boot reconcile — picks up anything that landed on disk
 	// while the app was off (gigot pull, manual edits, etc.). Logged-
 	// best-effort: the index is a derived view, app boots regardless.
@@ -415,6 +428,10 @@ func New(d Deps) (*App, error) {
 	// application exists; until then OpenInternalWiki returns an error.
 	wikiM := wiki.NewManager(d.Logger)
 	wikiHandler := wiki.NewHandler(dpM, stoM, expressionM)
+	// Per-profile template enablement: hide templates the user has
+	// switched off in Settings → Templates from both the list view and
+	// detail pages (which 404 for disabled templates).
+	wikiHandler.SetEnabledFilter(cfgM)
 
 	// REST API peer surface — `/api/...` routes (collections CRUD-read,
 	// design, exports, OpenAPI spec, Swagger UI). Mounted alongside the

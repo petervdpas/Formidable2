@@ -28,6 +28,7 @@ export class Config {
     "context_folder": string;
     "selected_template": string;
     "selected_data_file": string;
+    "enabled_templates"?: string[];
     "author_name": string;
     "author_email": string;
     "language": string;
@@ -158,18 +159,22 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField29_0 = $$createType0;
-        const $$createField32_0 = $$createType1;
+        const $$createField17_0 = $$createType0;
+        const $$createField30_0 = $$createType1;
         const $$createField33_0 = $$createType2;
+        const $$createField34_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("enabled_templates" in $$parsedSource) {
+            $$parsedSource["enabled_templates"] = $$createField17_0($$parsedSource["enabled_templates"]);
+        }
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField29_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField30_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField32_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField33_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField33_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField34_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }
@@ -207,7 +212,7 @@ export class History {
      * Creates a new History instance from a string or object.
      */
     static createFrom($$source: any = {}): History {
-        const $$createField3_0 = $$createType3;
+        const $$createField3_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("stack" in $$parsedSource) {
             $$parsedSource["stack"] = $$createField3_0($$parsedSource["stack"]);
@@ -353,7 +358,7 @@ export class WindowBounds {
 }
 
 // Private type creation functions
-const $$createType0 = WindowBounds.createFrom;
-const $$createType1 = StatusButtons.createFrom;
-const $$createType2 = History.createFrom;
-const $$createType3 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = WindowBounds.createFrom;
+const $$createType2 = StatusButtons.createFrom;
+const $$createType3 = History.createFrom;

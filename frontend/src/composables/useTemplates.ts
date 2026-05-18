@@ -1,8 +1,16 @@
 import { computed, ref } from "vue";
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Service as ConfigSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/config";
 
 const filenames = ref<string[]>([]);
+// enabledFilenames is the use-side picker list — the subset of
+// `filenames` allowed by the active profile's EnabledTemplates list.
+// Empty EnabledTemplates → equal to `filenames` (the "all enabled"
+// default). Filtering happens server-side via ConfigSvc.ListEnabledTemplates
+// so there's one source of truth for "what's pickable" — per the
+// backend-owns-data rule, no JS intersection.
+const enabledFilenames = ref<string[]>([]);
 const cache = ref<Map<string, Template | null>>(new Map());
 const selectedFilename = ref<string>("");
 let loaded = false;
@@ -31,6 +39,23 @@ async function refresh(): Promise<void> {
     next.set(r.filename, r.template ?? null);
   }
   cache.value = next;
+  // Refresh the picker subset alongside — keeps the two refs in sync
+  // so consumers don't see a window where filenames was updated but
+  // enabledFilenames still reflects a stale corpus.
+  await refreshEnabled();
+}
+
+// refreshEnabled re-fetches the use-side subset from the backend. Call
+// after toggling enabled_templates in Settings → Templates, after a
+// remote pull, or anywhere the live folder may have changed. Tolerant
+// of backend failure: keeps the previous subset so the picker doesn't
+// suddenly empty on a transient IPC error.
+async function refreshEnabled(): Promise<void> {
+  try {
+    enabledFilenames.value = (await ConfigSvc.ListEnabledTemplates()) ?? [];
+  } catch {
+    // Defensive: don't wipe the subset on a transient failure.
+  }
 }
 
 async function refreshOne(filename: string): Promise<void> {
@@ -104,10 +129,12 @@ export function useTemplates() {
   if (!loaded) refresh();
   return {
     filenames,
+    enabledFilenames,
     cache,
     selectedFilename,
     selectedTemplate,
     refresh,
+    refreshEnabled,
     refreshOne,
     load,
     create,

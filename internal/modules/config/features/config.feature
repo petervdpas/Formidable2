@@ -127,3 +127,71 @@ Feature: User configuration management
     And the status button "language" is on
     And the status button "gitquick" is off
     And the status button "gigotload" is off
+
+  # ──────────────────────────────────────────────────────────────────────
+  # EnabledTemplates — per-profile template curation. Empty/nil list means
+  # "all templates enabled" (opt-in feature). Once populated, the list is
+  # authoritative; deleted templates are silently pruned on read.
+  # ──────────────────────────────────────────────────────────────────────
+
+  Scenario: Empty enabled list reports every template as enabled
+    Then template "basic.yaml" is enabled
+    And template "anything-at-all.yaml" is enabled
+
+  Scenario: Populated enabled list only allows listed templates
+    When I set the enabled templates to "basic.yaml,report.yaml"
+    Then template "basic.yaml" is enabled
+    And template "report.yaml" is enabled
+    And template "hidden.yaml" is not enabled
+
+  Scenario: Enabled list persists across save and load
+    When I set the enabled templates to "basic.yaml"
+    And I invalidate the config cache
+    And I load the config
+    Then the enabled templates list is "basic.yaml"
+    And the disk file "config/user.json" contains "enabled_templates"
+
+  Scenario: Reconcile prunes templates that no longer exist on disk
+    Given the live templates folder contains "basic.yaml,report.yaml"
+    When I set the enabled templates to "basic.yaml,deleted.yaml,report.yaml"
+    And I reconcile enabled templates
+    Then the enabled templates list is "basic.yaml,report.yaml"
+    And the disk file "config/user.json" does not contain "deleted.yaml"
+
+  Scenario: Reconcile is a no-op when the enabled list is empty
+    Given the live templates folder contains "basic.yaml"
+    When I reconcile enabled templates
+    Then the enabled templates list is empty
+
+  Scenario: List enabled templates returns the intersection with the live folder
+    Given the live templates folder contains "alpha.yaml,beta.yaml,gamma.yaml"
+    When I set the enabled templates to "gamma.yaml,alpha.yaml"
+    And I list enabled templates
+    Then the listed enabled templates are "alpha.yaml,gamma.yaml"
+
+  Scenario: List enabled templates returns every live file when nothing is opted in
+    Given the live templates folder contains "alpha.yaml,beta.yaml"
+    When I list enabled templates
+    Then the listed enabled templates are "alpha.yaml,beta.yaml"
+
+  Scenario: List enabled templates self-heals stale entries
+    Given the live templates folder contains "basic.yaml"
+    When I set the enabled templates to "basic.yaml,deleted.yaml"
+    And I list enabled templates
+    Then the listed enabled templates are "basic.yaml"
+    And the enabled templates list is "basic.yaml"
+
+  Scenario: List enabled templates falls back to all when prune empties the list
+    Given the live templates folder contains "basic.yaml,report.yaml"
+    When I set the enabled templates to "removed.yaml"
+    And I list enabled templates
+    Then the listed enabled templates are "basic.yaml,report.yaml"
+
+  Scenario: Without a template lister wired, list enabled returns empty
+    When I clear the template lister
+    And I list enabled templates
+    Then the listed enabled templates are empty
+
+  Scenario: Empty filename is never enabled
+    When I set the enabled templates to "basic.yaml"
+    Then template "" is not enabled

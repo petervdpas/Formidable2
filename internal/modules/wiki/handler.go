@@ -47,21 +47,33 @@ type Expressioner interface {
 	EvaluateList(templateName string) ([]expression.Result, error)
 }
 
-// Handler owns the read-path routes. NewHandler returns an
-// http.Handler the wiki Manager can SetHandler with — keeping the
-// router shape internal to this file so route signatures stay
-// changeable without rippling out.
-type Handler struct {
-	dp   Provider
-	st   Storage
-	expr Expressioner
+// EnabledTemplateFilter is the per-profile template curation surface
+// the wiki consults to hide templates the user has marked as disabled
+// in Settings → Templates. `*config.Manager` satisfies this directly;
+// composition root wires it via SetEnabledFilter. Nil disables filtering
+// — every template the dataprovider exposes is visible.
+type EnabledTemplateFilter interface {
+	IsTemplateEnabled(filename string) bool
+	FilterEnabled(filenames []string) []string
 }
 
-// NewHandler builds the read-path handler. Returns an http.Handler
-// (the underlying *http.ServeMux), so callers compose it through the
-// standard handler interface — no wiki-specific glue at the seam.
-// `expr` may be nil — wiki then renders the filename as subtitle.
-func NewHandler(dp Provider, st Storage, expr Expressioner) http.Handler {
+// Handler owns the read-path routes. NewHandler returns *Handler (which
+// satisfies http.Handler), keeping the router shape internal to this
+// file so route signatures stay changeable without rippling out. The
+// concrete return type also lets the composition root call optional
+// setters (e.g. SetEnabledFilter) after construction.
+type Handler struct {
+	dp     Provider
+	st     Storage
+	expr   Expressioner
+	filter EnabledTemplateFilter
+	mux    *http.ServeMux
+}
+
+// NewHandler builds the read-path handler. `expr` may be nil — wiki then
+// renders the filename as subtitle. Filtering is off by default; call
+// SetEnabledFilter to wire the per-profile template enablement.
+func NewHandler(dp Provider, st Storage, expr Expressioner) *Handler {
 	h := &Handler{dp: dp, st: st, expr: expr}
 	mux := http.NewServeMux()
 	// Go 1.22+ typed patterns — method + path-segment captures, no
@@ -76,7 +88,33 @@ func NewHandler(dp Provider, st Storage, expr Expressioner) http.Handler {
 	// styles the in-app slideout body styles wiki form bodies — single
 	// source of truth (see render/fulldoc.go and DRY commitment).
 	mux.HandleFunc("GET /_/{path...}", h.static)
-	return mux
+	h.mux = mux
+	return h
+}
+
+// ServeHTTP makes *Handler satisfy http.Handler. Delegates to the
+// internal mux built by NewHandler.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mux.ServeHTTP(w, r)
+}
+
+// SetEnabledFilter installs (or clears, with nil) the per-profile
+// template-enablement filter. The wiki's list and detail views consult
+// it on every request — a profile switch in the running app takes
+// effect on the next page load with no re-init.
+func (h *Handler) SetEnabledFilter(f EnabledTemplateFilter) {
+	h.filter = f
+}
+
+// templateEnabled is the centralized gate the detail views use: missing
+// filter or empty enabled list → everything passes; otherwise membership
+// check. Empty filename is never enabled — same semantic as the config
+// manager, kept consistent so 404s match the user's mental model.
+func (h *Handler) templateEnabled(filename string) bool {
+	if h.filter == nil {
+		return true
+	}
+	return h.filter.IsTemplateEnabled(filename)
 }
 
 // staticFS holds the embedded `templates/static/` tree (CSS, JS, img).
@@ -219,6 +257,27 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if h.filter != nil {
+		// Project to filenames, intersect with the enabled list, then
+		// rehydrate. Cheaper than per-row IsTemplateEnabled when the
+		// allowlist is small relative to the corpus, and lets the config
+		// helper own the "empty list = all enabled" semantic.
+		names := make([]string, len(tps))
+		for i := range tps {
+			names[i] = tps[i].Filename
+		}
+		allowed := make(map[string]struct{}, len(names))
+		for _, n := range h.filter.FilterEnabled(names) {
+			allowed[n] = struct{}{}
+		}
+		kept := tps[:0]
+		for _, t := range tps {
+			if _, ok := allowed[t.Filename]; ok {
+				kept = append(kept, t)
+			}
+		}
+		tps = kept
+	}
 	rows := make([]indexTemplateRow, 0, len(tps))
 	for _, t := range tps {
 		rows = append(rows, indexTemplateRow{
@@ -240,6 +299,13 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filename := stem + ".yaml"
+	if !h.templateEnabled(filename) {
+		// 404 (not 403) on disabled templates: don't leak the existence
+		// of a template the user disabled — same shape as "template not
+		// found", same response to teammates following an old link.
+		writeError(w, http.StatusNotFound, "template not found")
+		return
+	}
 	t, ok, err := h.dp.GetTemplate(r.Context(), filename)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -323,6 +389,11 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filename := stem + ".yaml"
+
+	if !h.templateEnabled(filename) {
+		writeError(w, http.StatusNotFound, "template not found")
+		return
+	}
 
 	// 404 fast on a missing template or missing form — render is
 	// expensive; keep it gated on cheap SQLite checks first.

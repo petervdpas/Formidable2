@@ -1014,6 +1014,103 @@ func TestImportUserProfile_ExistsWithoutOverwrite(t *testing.T) {
 	}
 }
 
+// ----- EnabledTemplates: field, round-trip, defaults -----------------
+
+func TestEnabledTemplates_DefaultIsNil(t *testing.T) {
+	cfg := defaultConfig()
+	if cfg.EnabledTemplates != nil {
+		t.Errorf("default EnabledTemplates = %v, want nil (nil/empty = all enabled)", cfg.EnabledTemplates)
+	}
+}
+
+func TestEnabledTemplates_JSONRoundTripPreservesSlice(t *testing.T) {
+	in := defaultConfig()
+	in.EnabledTemplates = []string{"basic.yaml", "report.yaml"}
+	raw, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	out, _, err := parseUserConfig(string(raw))
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if len(out.EnabledTemplates) != 2 ||
+		out.EnabledTemplates[0] != "basic.yaml" ||
+		out.EnabledTemplates[1] != "report.yaml" {
+		t.Errorf("round-trip lost slice: %v", out.EnabledTemplates)
+	}
+}
+
+func TestEnabledTemplates_OmitEmpty(t *testing.T) {
+	in := defaultConfig()
+	raw, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(raw), "enabled_templates") {
+		t.Errorf("nil slice must omit the JSON key, got: %s", raw)
+	}
+}
+
+func TestEnabledTemplates_LegacyJSONLoadsAsNil(t *testing.T) {
+	raw := `{"theme":"dark","language":"en"}`
+	cfg, _, err := parseUserConfig(raw)
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if cfg.EnabledTemplates != nil {
+		t.Errorf("legacy profile (no field) must deserialise as nil, got %v", cfg.EnabledTemplates)
+	}
+}
+
+func TestEnabledTemplates_PersistViaUpdateUserConfig(t *testing.T) {
+	m, _, root := newTestManager(t)
+	if _, err := m.UpdateUserConfig(map[string]any{
+		"enabled_templates": []string{"alpha.yaml", "beta.yaml"},
+	}); err != nil {
+		t.Fatalf("UpdateUserConfig: %v", err)
+	}
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if len(cfg.EnabledTemplates) != 2 ||
+		cfg.EnabledTemplates[0] != "alpha.yaml" ||
+		cfg.EnabledTemplates[1] != "beta.yaml" {
+		t.Errorf("update did not persist: %v", cfg.EnabledTemplates)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(root, "config", "user.json"))
+	if err != nil {
+		t.Fatalf("read user.json: %v", err)
+	}
+	if !strings.Contains(string(raw), `"enabled_templates"`) {
+		t.Errorf("on-disk profile missing field: %s", raw)
+	}
+}
+
+// TestEnabledTemplates_EmptySliceFromUpdateRoundTrip exercises the
+// "user just disabled the last template" edge — the slice is empty,
+// not nil, after the update. We accept either nil or [] coming back
+// from LoadUserConfig because JSON omitempty turns []string{} into
+// nil on re-read; semantically both mean "all enabled", which is what
+// the doc says.
+func TestEnabledTemplates_EmptySliceFromUpdateRoundTrip(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	if _, err := m.UpdateUserConfig(map[string]any{
+		"enabled_templates": []string{},
+	}); err != nil {
+		t.Fatalf("UpdateUserConfig: %v", err)
+	}
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if len(cfg.EnabledTemplates) != 0 {
+		t.Errorf("expected empty/nil slice, got %v", cfg.EnabledTemplates)
+	}
+}
+
 // ----- Journal hook --------------------------------------------------
 
 type stubJournal struct {

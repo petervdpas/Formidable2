@@ -25,6 +25,7 @@ type Config struct {
 	ContextFolder        string         `json:"context_folder"`
 	SelectedTemplate     string         `json:"selected_template"`
 	SelectedDataFile     string         `json:"selected_data_file"`
+	EnabledTemplates     []string       `json:"enabled_templates,omitempty"`
 	AuthorName           string         `json:"author_name"`
 	AuthorEmail          string         `json:"author_email"`
 	Language             string         `json:"language"`

@@ -49,7 +49,7 @@ type world struct {
 	rememberPort int
 
 	// Slice 2 — read-path routes
-	handler http.Handler
+	handler *Handler
 	stub    *stubProvider
 	stubEx  *stubExpressioner
 	resp    *httptest.ResponseRecorder
@@ -311,6 +311,40 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 				{Template: template, Filename: a, Title: a},
 				{Template: template, Filename: b, Title: b},
 			}
+			return nil
+		})
+
+	// ── EnabledTemplate filter ─────────────────────────────────────
+
+	ctx.Step(`^the wiki filter enables only "([^"]*)"$`, func(csv string) error {
+		if w.handler == nil {
+			return fmt.Errorf("wiki handler not initialised")
+		}
+		allowed := make([]string, 0)
+		for _, p := range strings.Split(csv, ",") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				allowed = append(allowed, p)
+			}
+		}
+		w.handler.SetEnabledFilter(&stubFilter{allowed: allowed})
+		return nil
+	})
+
+	ctx.Step(`^the wiki filter enables nothing$`, func() error {
+		if w.handler == nil {
+			return fmt.Errorf("wiki handler not initialised")
+		}
+		w.handler.SetEnabledFilter(&stubFilter{allowed: []string{}})
+		return nil
+	})
+
+	ctx.Step(`^the dataprovider has an image "([^"]*)" under "([^"]*)" with body "([^"]*)"$`,
+		func(name, tpl, body string) error {
+			if w.stubSt == nil {
+				return fmt.Errorf("storage stub not initialised")
+			}
+			w.stubSt.images[tpl+"/"+name] = []byte(body)
 			return nil
 		})
 

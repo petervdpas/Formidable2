@@ -9,7 +9,7 @@ import {
 import { useI18n } from "vue-i18n";
 import { TextField, SelectField } from "../fields";
 import ConfirmDialog from "../ConfirmDialog.vue";
-import { Service as TemplateSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Service as ConfigSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/config";
 import { Service as FormSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { useFormidableLink } from "../../composables/useFormidableLink";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -142,10 +142,25 @@ function structurallyEqual(a: unknown, b: unknown): boolean {
 // ── data fetching ────────────────────────────────────────────────────
 async function loadTemplates() {
   try {
-    const list = await TemplateSvc.ListTemplates();
+    // Use the enabled subset, not the raw template list — the link
+    // picker is a use-side surface and should respect per-profile
+    // curation. The backend method already self-heals against the
+    // live folder, so no separate prune pass is needed here.
+    const list = await ConfigSvc.ListEnabledTemplates();
     templates.value = (list ?? []).filter((s): s is string => typeof s === "string");
     if (!tplPick.value) {
-      tplPick.value = templateFilename.value || templates.value[0] || "";
+      // Prefer the form's own template when it's still enabled; fall
+      // back to the first allowed template otherwise.
+      const own = templateFilename.value;
+      if (own && templates.value.includes(own)) {
+        tplPick.value = own;
+      } else {
+        tplPick.value = templates.value[0] ?? "";
+      }
+    } else if (!templates.value.includes(tplPick.value)) {
+      // A previously-picked template was disabled — fall back to the
+      // first allowed one (or empty when nothing's enabled).
+      tplPick.value = templates.value[0] ?? "";
     }
   } catch {
     templates.value = [];

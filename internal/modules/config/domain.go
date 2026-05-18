@@ -54,9 +54,10 @@ const (
 // Manager owns config + VFS state. All exported methods are safe for
 // concurrent use.
 type Manager struct {
-	fs      fs
-	log     *slog.Logger
-	journal JournalConfigurer
+	fs        fs
+	log       *slog.Logger
+	journal   JournalConfigurer
+	tplLister TemplateLister
 
 	mu                    sync.RWMutex
 	configPath            string // absolute path to active profile JSON

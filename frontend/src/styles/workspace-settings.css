@@ -8,6 +8,11 @@
     margin: 0;
 }
 
-/* Settings category items use shared .sidebar-row from sidebar.css.
-   This file owns nothing else right now; kept for parity with the
-   other workspace stylesheets and as a hook for future tweaks. */
+/* Settings category items use shared .sidebar-row from sidebar.css. */
+
+/* Templates settings panel — search box sits between the info copy
+   and the FormSection-wrapped per-row toggles. Keep the gap tight so
+   the search feels attached to the list, not floating mid-page. */
+.settings-templates-search {
+    margin: 8px 0 12px;
+}

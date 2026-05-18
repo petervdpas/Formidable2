@@ -55,33 +55,56 @@ export function ImportUserProfile(sourcePath: string, profileFilename: string, o
     });
 }
 
+/**
+ * IsTemplateEnabled is the single-filename gate the frontend can use
+ * when it already knows the name (e.g. validating that a stored
+ * SelectedTemplate is still allowed). Empty filename is never enabled.
+ */
+export function IsTemplateEnabled(filename: string): $CancellablePromise<boolean> {
+    return $Call.ByID(726070331, filename);
+}
+
+/**
+ * ListEnabledTemplates returns the YAML filenames the active profile is
+ * allowed to pick from. Empty EnabledTemplates → every template on disk
+ * (the "opt-in not used" default). The backend self-heals against the
+ * live templates folder before returning, so deleted templates don't
+ * leak through into the picker.
+ */
+export function ListEnabledTemplates(): $CancellablePromise<string[]> {
+    return $Call.ByID(1177227624).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function ListUserProfiles(): $CancellablePromise<$models.ProfileEntry[]> {
     return $Call.ByID(2914409361).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 export function LoadUserConfig(): $CancellablePromise<$models.Config | null> {
     return $Call.ByID(1287623297).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
 export function SwitchUserProfile(profileFilename: string): $CancellablePromise<$models.Config | null> {
     return $Call.ByID(3657031668, profileFilename).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
 export function UpdateUserConfig(partial: { [_ in string]?: any }): $CancellablePromise<$models.Config | null> {
     return $Call.ByID(2208258468, partial).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.ProfileResult.createFrom;
-const $$createType1 = $models.ProfileEntry.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.Config.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = $models.ProfileEntry.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.Config.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);

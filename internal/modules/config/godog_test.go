@@ -39,6 +39,19 @@ type configWorld struct {
 	exportResult ProfileResult
 	vfs          *VirtualStructure
 	lastErr      error
+	lister       *godogTemplateLister
+	enabledList  []string
+}
+
+// godogTemplateLister is the stub TemplateLister used by the
+// EnabledTemplates scenarios. Configured per-scenario via the
+// "the live templates folder contains" step.
+type godogTemplateLister struct {
+	files []string
+}
+
+func (l *godogTemplateLister) ListTemplates() ([]string, error) {
+	return append([]string(nil), l.files...), nil
 }
 
 func initConfigScenario(ctx *godog.ScenarioContext) {
@@ -57,6 +70,8 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		w.exportResult = ProfileResult{}
 		w.vfs = nil
 		w.lastErr = nil
+		w.lister = &godogTemplateLister{}
+		w.enabledList = nil
 		return ctx, nil
 	})
 
@@ -83,6 +98,11 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		if _, err := m.UpdateUserConfig(map[string]any{"context_folder": "./"}); err != nil {
 			return err
 		}
+		// Wire the godog template lister by default so the EnabledTemplates
+		// scenarios can exercise ListEnabledTemplates / Reconcile without
+		// extra setup. The "Without a template lister wired" scenario
+		// clears it explicitly.
+		m.SetTemplateLister(w.lister)
 		w.m = m
 		return nil
 	})
@@ -402,6 +422,130 @@ func initConfigScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	// ── EnabledTemplates ─────────────────────────────────────────────
+
+	splitCSV := func(s string) []string {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return nil
+		}
+		parts := strings.Split(s, ",")
+		out := make([]string, 0, len(parts))
+		for _, p := range parts {
+			out = append(out, strings.TrimSpace(p))
+		}
+		return out
+	}
+
+	ctx.Step(`^the live templates folder contains "([^"]*)"$`, func(csv string) error {
+		w.lister.files = splitCSV(csv)
+		return nil
+	})
+
+	ctx.Step(`^I set the enabled templates to "([^"]*)"$`, func(csv string) error {
+		_, err := w.m.UpdateUserConfig(map[string]any{
+			"enabled_templates": splitCSV(csv),
+		})
+		return err
+	})
+
+	ctx.Step(`^I clear the template lister$`, func() error {
+		w.m.SetTemplateLister(nil)
+		return nil
+	})
+
+	ctx.Step(`^I reconcile enabled templates$`, func() error {
+		got, err := w.m.ReconcileEnabledTemplates()
+		if err != nil {
+			return err
+		}
+		w.enabledList = got
+		return nil
+	})
+
+	ctx.Step(`^I list enabled templates$`, func() error {
+		got, err := w.m.ListEnabledTemplates()
+		if err != nil {
+			return err
+		}
+		w.enabledList = got
+		return nil
+	})
+
+	ctx.Step(`^template "([^"]*)" is enabled$`, func(name string) error {
+		if !w.m.IsTemplateEnabled(name) {
+			return fmt.Errorf("expected template %q to be enabled", name)
+		}
+		return nil
+	})
+
+	ctx.Step(`^template "([^"]*)" is not enabled$`, func(name string) error {
+		if w.m.IsTemplateEnabled(name) {
+			return fmt.Errorf("expected template %q to NOT be enabled", name)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the enabled templates list is "([^"]*)"$`, func(csv string) error {
+		cfg, err := w.m.LoadUserConfig()
+		if err != nil {
+			return err
+		}
+		want := splitCSV(csv)
+		if !slicesEqual(cfg.EnabledTemplates, want) {
+			return fmt.Errorf("EnabledTemplates = %v, want %v", cfg.EnabledTemplates, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the enabled templates list is empty$`, func() error {
+		cfg, err := w.m.LoadUserConfig()
+		if err != nil {
+			return err
+		}
+		if len(cfg.EnabledTemplates) != 0 {
+			return fmt.Errorf("EnabledTemplates = %v, want empty", cfg.EnabledTemplates)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the listed enabled templates are "([^"]*)"$`, func(csv string) error {
+		want := splitCSV(csv)
+		if !slicesEqual(w.enabledList, want) {
+			return fmt.Errorf("listed = %v, want %v", w.enabledList, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the listed enabled templates are empty$`, func() error {
+		if len(w.enabledList) != 0 {
+			return fmt.Errorf("listed = %v, want empty", w.enabledList)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the disk file "([^"]*)" contains "([^"]*)"$`, func(path, needle string) error {
+		raw, err := os.ReadFile(filepath.Join(w.tmp, path))
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(raw), needle) {
+			return fmt.Errorf("file %q missing %q", path, needle)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the disk file "([^"]*)" does not contain "([^"]*)"$`, func(path, needle string) error {
+		raw, err := os.ReadFile(filepath.Join(w.tmp, path))
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(raw), needle) {
+			return fmt.Errorf("file %q must not contain %q", path, needle)
+		}
+		return nil
+	})
+
 	ctx.Step(`^the disk file "([^"]*)" reflects status button "([^"]*)" (on|off)$`, func(path, name, state string) error {
 		raw, err := os.ReadFile(filepath.Join(w.tmp, path))
 		if err != nil {
@@ -451,6 +595,18 @@ func profileValues(profiles []ProfileEntry) []string {
 		out[i] = p.Value
 	}
 	return out
+}
+
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func vfsTemplates(v *VirtualStructure) []string {

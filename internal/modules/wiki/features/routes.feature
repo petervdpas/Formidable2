@@ -81,3 +81,39 @@ Feature: Read-path routes
     # boundary; a separate scenario covers 404 for missing top-level paths.
     When I GET "/template/../etc"
     Then the response status is 301
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Per-profile template enablement — the wiki must hide templates the
+  # user has disabled in Settings → Templates. List view filters; detail
+  # routes 404 (don't leak existence of disabled templates).
+  # ──────────────────────────────────────────────────────────────────────
+
+  Scenario: Index hides templates not enabled in the profile
+    Given the wiki filter enables only "basic.yaml"
+    When I GET "/"
+    Then the response status is 200
+    And the html links to "/template/basic"
+    And the html body does not contain "/template/recepten"
+
+  Scenario: Disabled template detail returns 404
+    Given the wiki filter enables only "basic.yaml"
+    When I GET "/template/recepten"
+    Then the response status is 404
+
+  Scenario: Disabled template form route returns 404
+    Given the wiki filter enables only "basic.yaml"
+    When I GET "/template/recepten/form/something.meta.json"
+    Then the response status is 404
+
+  Scenario: Empty filter hides everything
+    Given the wiki filter enables nothing
+    When I GET "/"
+    Then the response status is 200
+    And the html body does not contain "/template/basic"
+    And the html body does not contain "/template/recepten"
+
+  Scenario: Storage images stay reachable even for disabled templates
+    Given the wiki filter enables only "basic.yaml"
+    And the dataprovider has an image "logo.png" under "basic.yaml" with body "PNGBYTES"
+    When I GET "/storage/basic/images/logo.png"
+    Then the response status is 200

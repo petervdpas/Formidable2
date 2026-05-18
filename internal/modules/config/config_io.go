@@ -20,10 +20,14 @@ import (
 //     TestUpdateUserConfig_NoLostUpdatesUnderConcurrency and
 //     TestSwitchUserProfile_SerializedAgainstUpdate).
 
-// configJSONKeys is the set of JSON tag names declared on Config. Used
-// by parseUserConfig to detect "missing keys" → changed=true. Cached
-// because reflection isn't free and this is called from list-profiles
-// in a loop.
+// configJSONKeys is the set of REQUIRED JSON tag names declared on
+// Config — used by parseUserConfig to detect "missing keys" →
+// changed=true. omitempty fields are skipped: by definition they may
+// be absent from a complete config (zero value), so flagging them as
+// missing would cause spurious load-time rewrites.
+//
+// Cached because reflection isn't free and this is called from
+// list-profiles in a loop.
 var configJSONKeys = func() []string {
 	var c Config
 	t := reflect.TypeOf(c)
@@ -33,10 +37,11 @@ var configJSONKeys = func() []string {
 		if tag == "" || tag == "-" {
 			continue
 		}
-		if idx := strings.Index(tag, ","); idx >= 0 {
-			tag = tag[:idx]
+		name, rest, _ := strings.Cut(tag, ",")
+		if strings.Contains(rest, "omitempty") {
+			continue
 		}
-		keys = append(keys, tag)
+		keys = append(keys, name)
 	}
 	return keys
 }()
@@ -180,6 +185,13 @@ func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
 			return nil, fmt.Errorf("merge partial: %w", err)
 		}
 	}
+
+	// Auto-clear SelectedTemplate when it falls outside EnabledTemplates.
+	// Runs on every Update — the cost is a single slice check, and the
+	// invariant has to hold regardless of which partial key brought the
+	// change in (the user could toggle enabled_templates, or write a new
+	// selected_template that isn't in the list, or both at once).
+	normalizeSelectedTemplate(&merged)
 
 	if err := m.persistConfig(&merged); err != nil {
 		return nil, err

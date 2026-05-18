@@ -39,7 +39,12 @@ import type { Result as ExpressionResult } from "../../bindings/github.com/peter
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
 const { config, update: updateConfig } = useConfig();
-const { filenames: templateFilenames, cache: templateCache } = useTemplates();
+// Storage picker shows only the templates the active profile has
+// enabled in Settings → Templates — the filtered list comes pre-filtered
+// from the backend (ConfigSvc.ListEnabledTemplates), so the picker
+// always reflects the current profile's curation with no JS-side
+// intersection.
+const { enabledFilenames: templateFilenames, cache: templateCache } = useTemplates();
 const { view, draft, dirty, open, close, save, reset, remove } = useFormView();
 const toast = useToast();
 const statusBar = useStatusBar();

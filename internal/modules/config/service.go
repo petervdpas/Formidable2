@@ -55,3 +55,21 @@ func (s *Service) ImportUserProfile(sourcePath, profileFilename string, overwrit
 func (s *Service) DeleteUserProfile(profileFilename string) ProfileResult {
 	return s.m.DeleteUserProfile(profileFilename)
 }
+
+// ─── Enabled templates (per-profile curation) ────────────────────────
+
+// ListEnabledTemplates returns the YAML filenames the active profile is
+// allowed to pick from. Empty EnabledTemplates → every template on disk
+// (the "opt-in not used" default). The backend self-heals against the
+// live templates folder before returning, so deleted templates don't
+// leak through into the picker.
+func (s *Service) ListEnabledTemplates() ([]string, error) {
+	return s.m.ListEnabledTemplates()
+}
+
+// IsTemplateEnabled is the single-filename gate the frontend can use
+// when it already knows the name (e.g. validating that a stored
+// SelectedTemplate is still allowed). Empty filename is never enabled.
+func (s *Service) IsTemplateEnabled(filename string) bool {
+	return s.m.IsTemplateEnabled(filename)
+}

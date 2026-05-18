@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -148,6 +149,42 @@ func newTestHandlerWithExpr(t *testing.T, expr Expressioner) (http.Handler, *stu
 	t.Helper()
 	sp := newStubProvider()
 	h := NewHandler(sp, newStubStorage(), expr)
+	return h, sp
+}
+
+// stubFilter implements EnabledTemplateFilter. allowed=nil means
+// "filter off" (every template enabled). An empty (non-nil) slice
+// disables everything — useful for testing the "all hidden" edge.
+type stubFilter struct {
+	allowed []string
+}
+
+func (s *stubFilter) IsTemplateEnabled(name string) bool {
+	if name == "" {
+		return false
+	}
+	return slices.Contains(s.allowed, name)
+}
+
+func (s *stubFilter) FilterEnabled(names []string) []string {
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if s.IsTemplateEnabled(n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// newTestHandlerWithFilter builds a handler with the EnabledTemplate
+// filter wired. allowed lists the enabled filenames; pass nil to disable
+// all (filter present but nothing matches → empty index), or just call
+// newTestHandler for "no filter wired".
+func newTestHandlerWithFilter(t *testing.T, allowed []string) (*Handler, *stubProvider) {
+	t.Helper()
+	sp := newStubProvider()
+	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
+	h.SetEnabledFilter(&stubFilter{allowed: allowed})
 	return h, sp
 }
 
@@ -589,4 +626,90 @@ func intStr(n int) string {
 		digits = append([]byte{'-'}, digits...)
 	}
 	return string(digits)
+}
+
+// ── EnabledTemplateFilter ──────────────────────────────────────────
+
+func TestIndex_FilterPresentHidesDisabledTemplates(t *testing.T) {
+	h, _ := newTestHandlerWithFilter(t, []string{"basic.yaml"})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `href="/template/basic"`) {
+		t.Error("enabled template missing from index")
+	}
+	if strings.Contains(body, `href="/template/recepten"`) {
+		t.Error("disabled template (recepten) leaked into index")
+	}
+}
+
+func TestIndex_FilterEmptyAllowedHidesAll(t *testing.T) {
+	h, _ := newTestHandlerWithFilter(t, []string{})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if strings.Contains(body, `/template/basic`) || strings.Contains(body, `/template/recepten`) {
+		t.Errorf("empty allowed must hide every template; body=%q", body)
+	}
+}
+
+func TestIndex_NoFilterShowsEverything(t *testing.T) {
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := w.Body.String()
+	if !strings.Contains(body, `/template/basic`) || !strings.Contains(body, `/template/recepten`) {
+		t.Errorf("nil filter must not hide any template; body=%q", body)
+	}
+}
+
+func TestTemplateDetail_DisabledReturns404(t *testing.T) {
+	h, _ := newTestHandlerWithFilter(t, []string{"basic.yaml"})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/recepten", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("disabled detail status = %d, want 404", w.Code)
+	}
+	// Don't leak whether the template exists vs. is disabled — same
+	// body shape as the missing case.
+	if !strings.Contains(w.Body.String(), "template not found") {
+		t.Errorf("404 body should match the missing-template message")
+	}
+}
+
+func TestTemplateDetail_EnabledReturns200(t *testing.T) {
+	h, _ := newTestHandlerWithFilter(t, []string{"basic.yaml"})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("enabled detail status = %d, want 200", w.Code)
+	}
+}
+
+func TestFormPage_DisabledTemplateReturns404(t *testing.T) {
+	h, _ := newTestHandlerWithFilter(t, []string{"basic.yaml"})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/recepten/form/x.meta.json", nil))
+	if w.Code != http.StatusNotFound {
+		t.Errorf("form on disabled template status = %d, want 404", w.Code)
+	}
+}
+
+// Storage routes (/storage/*) and embedded chrome (/_/*) intentionally
+// bypass the filter — assets the wiki HTML pages reference must remain
+// loadable regardless of enablement so half-rendered pages don't
+// happen for cached browser tabs that loaded the HTML earlier.
+func TestStorage_UnaffectedByFilter(t *testing.T) {
+	h, _ := newTestHandlerWithFilter(t, []string{"basic.yaml"})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/storage/basic/images/logo.png", nil))
+	if w.Code != http.StatusOK {
+		t.Errorf("image route status = %d, want 200", w.Code)
+	}
 }

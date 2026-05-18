@@ -54,8 +54,12 @@ const statusBar = useStatusBar();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
+// Sidebar honors per-profile EnabledTemplates curation — same filtered
+// list the storage picker uses. The Settings → Templates panel is the
+// only entry point that sees ALL templates (so the user can enable a
+// disabled one). The editor follows the curation.
 const {
-  filenames,
+  enabledFilenames: filenames,
   cache,
   selectedFilename,
   selectedTemplate,
