@@ -542,14 +542,20 @@ jobs:
           if [ -f build/darwin/Assets.car ]; then
             cp build/darwin/Assets.car "$APP/Contents/Resources/"
           fi
-          cp bin/Formidable "$APP/Contents/MacOS/"
+          mv bin/Formidable "$APP/Contents/MacOS/"
           cp build/darwin/Info.plist "$APP/Contents/"
           codesign --force --deep --sign - "$APP"
+
+      - name: Free disk before dmg
+        run: |
+          df -h /
+          rm -rf "$(go env GOMODCACHE)" "$(go env GOCACHE)" || true
+          df -h /
 
       - name: Build .dmg
         run: |
           mkdir -p bin/dmg-staging
-          cp -R bin/Formidable.app bin/dmg-staging/
+          mv bin/Formidable.app bin/dmg-staging/
           ln -sf /Applications bin/dmg-staging/Applications
           hdiutil create \
             -volname "Formidable" \
