@@ -159,7 +159,7 @@ function export(ctx)
 
   local work = collect_work()
   local total = #work
-  formidable.progress.tick(0, total, "WikiWonder: starting")
+  formidable.progress.tick(0, total, "starting", "")
 
   local total_written, total_failed, total_skipped = 0, 0, 0
 
@@ -168,8 +168,11 @@ function export(ctx)
     if status == "wrote" then total_written = total_written + 1
     elseif status == "failed" then total_failed = total_failed + 1
     else total_skipped = total_skipped + 1 end
-    local label = string.format("%s / %s", unit.tpl.stem or "?", unit.item.filename or "?")
-    formidable.progress.tick(i, total, label)
+    formidable.progress.tick(
+      i, total,
+      unit.item.filename or "?",   -- message: current item
+      unit.tpl.stem or "?"          -- stage: current template
+    )
   end
 
   local summary = string.format(

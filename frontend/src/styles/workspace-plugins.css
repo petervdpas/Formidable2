@@ -228,6 +228,19 @@
     gap: var(--space-2);
 }
 
+/* Stage header — the optional section/phase the plugin emits in
+   progress.tick's 4th arg. For wikiwonder this is the current
+   template stem; renders prominently above the bar so the user can
+   see "which section am I on" at a glance. */
+.plugin-run-progress-stage {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .plugin-run-progress-row {
     display: flex;
     align-items: center;

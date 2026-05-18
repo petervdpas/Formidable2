@@ -78,6 +78,7 @@
   "workspace.plugins.run_title": "Run: {0}",
   "workspace.plugins.running": "Running…",
   "workspace.plugins.stop": "Stop",
+  "workspace.plugins.stopping": "Stopping…",
   "workspace.plugins.cancelled": "Plugin run cancelled.",
   "workspace.plugins.save": "Save",
   "workspace.plugins.save_error": "Failed to save plugin: {0}",

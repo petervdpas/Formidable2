@@ -415,10 +415,14 @@ func buildFMTable(L *lua.LState, pluginID string, fm FMAccess) *lua.LTable {
 	return tbl
 }
 
-// buildProgressTable mounts formidable.progress.tick(done, total, msg).
+// buildProgressTable mounts formidable.progress.tick(done, total, msg, stage).
 // done and total are integers (gopher-lua coerces; OptInt defaults to 0
-// when omitted). When the emitter is nil every call raises
-// "progress: not configured" so misconfigurations surface immediately.
+// when omitted). msg is the per-item label; stage is the optional
+// section/phase label (e.g. current template stem during a per-template
+// export) — the dialog renders stage prominently above msg so the
+// user can see "which section am I in" at a glance. When the emitter
+// is nil every call raises "progress: not configured" so
+// misconfigurations surface immediately.
 func buildProgressTable(L *lua.LState, emit ProgressEmitter) *lua.LTable {
 	tbl := L.NewTable()
 	if emit == nil {
@@ -429,7 +433,8 @@ func buildProgressTable(L *lua.LState, emit ProgressEmitter) *lua.LTable {
 		done := L.OptInt(1, 0)
 		total := L.OptInt(2, 0)
 		msg := L.OptString(3, "")
-		emit(ProgressEvent{Done: done, Total: total, Message: msg})
+		stage := L.OptString(4, "")
+		emit(ProgressEvent{Done: done, Total: total, Stage: stage, Message: msg})
 		return 0
 	}))
 	return tbl

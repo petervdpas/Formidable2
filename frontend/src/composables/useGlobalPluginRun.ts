@@ -30,11 +30,13 @@ interface OpenRequest {
 interface ProgressTick {
   done: number;
   total: number;
+  stage: string;
   message: string;
 }
 
 const openRequest = ref<OpenRequest | null>(null);
 const running = ref(false);
+const stopping = ref(false);
 const progress = ref<ProgressTick | null>(null);
 
 let eventRefcount = 0;
@@ -54,6 +56,7 @@ function ensureSubscription() {
       progress.value = {
         done: Number(e.done ?? 0),
         total: Number(e.total ?? 0),
+        stage: String(e.stage ?? ""),
         message: String(e.message ?? ""),
       };
     });
@@ -82,14 +85,23 @@ export function openGlobalPluginRun(
 export function closeGlobalPluginRun(): void {
   openRequest.value = null;
   progress.value = null;
+  stopping.value = false;
 }
 
 export function setGlobalPluginRunning(v: boolean): void {
   running.value = v;
-  if (!v) progress.value = null;
+  if (!v) {
+    progress.value = null;
+    stopping.value = false;
+  }
 }
 
 export async function cancelGlobalPluginRun(): Promise<void> {
+  // Flip stopping immediately so the Stop button can disable + show
+  // a "Stopping…" label while the IPC roundtrip lands. Cleared in
+  // setGlobalPluginRunning(false) when Run resolves (success, error,
+  // or cancelled — every path goes through that finally branch).
+  stopping.value = true;
   try {
     await PluginSvc.Cancel();
   } catch {
@@ -102,5 +114,5 @@ export async function cancelGlobalPluginRun(): Promise<void> {
 export function useGlobalPluginRun() {
   onMounted(ensureSubscription);
   onUnmounted(releaseSubscription);
-  return { openRequest, running, progress };
+  return { openRequest, running, stopping, progress };
 }

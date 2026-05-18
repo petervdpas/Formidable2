@@ -231,11 +231,16 @@ func (m *Manager) LoadFormValues(pluginID string, fieldKeys []string) map[string
 // duration of the run and cleared in the same deferred path that
 // releases runActive. Cancelled runs return ErrPluginCancelled.
 func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult, error) {
+	// CAS + cancelFn are mutated under one lock so a concurrent
+	// Cancel() can never observe runActive=true with cancelFn=nil.
+	// Anyone who acquires cancelMu either gets here before the CAS
+	// (sees nil, no-op) or after the assignment (sees the live func).
+	m.cancelMu.Lock()
 	if !m.runActive.CompareAndSwap(false, true) {
+		m.cancelMu.Unlock()
 		return RunResult{}, ErrPluginBusy
 	}
 	runCtx, cancel := context.WithCancel(context.Background())
-	m.cancelMu.Lock()
 	m.cancelFn = cancel
 	m.cancelMu.Unlock()
 	defer func() {

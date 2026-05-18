@@ -36,7 +36,7 @@ import { useToast } from "../composables/useToast";
 
 const { t } = useI18n();
 const toast = useToast();
-const { openRequest, running, progress } = useGlobalPluginRun();
+const { openRequest, running, stopping, progress } = useGlobalPluginRun();
 
 const plugin = computed<ListResult | null>(() => openRequest.value?.plugin ?? null);
 const extraCtx = computed<Record<string, unknown>>(() => openRequest.value?.extraCtx ?? {});
@@ -278,6 +278,9 @@ const showProgressBar = computed<boolean>(
       </template>
 
       <div v-if="running" class="plugin-run-progress">
+        <div v-if="showProgressBar && progress?.stage" class="plugin-run-progress-stage">
+          {{ progress.stage }}
+        </div>
         <div class="plugin-run-progress-row">
           <div
             v-if="showProgressBar"
@@ -295,8 +298,11 @@ const showProgressBar = computed<boolean>(
           <button
             class="tool-btn"
             type="button"
+            :disabled="stopping"
             @click="stop"
-          >{{ t('workspace.plugins.stop') }}</button>
+          >
+            {{ stopping ? t('workspace.plugins.stopping') : t('workspace.plugins.stop') }}
+          </button>
         </div>
         <p v-if="showProgressBar" class="plugin-run-progress-label">
           <span v-if="progress && progress.total > 0" class="plugin-run-progress-count">

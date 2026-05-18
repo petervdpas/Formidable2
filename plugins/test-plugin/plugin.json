@@ -6,10 +6,8 @@
   "description": "This is a test.. be sure to **test** thoroughly.",
   "author": "Peter van de Pas",
   "run_mode": "form",
-  "workspaces": [
-    "storage"
-  ],
   "debug": true,
+  "progress": false,
   "commands": [
     {
       "id": "run",

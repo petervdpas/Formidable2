@@ -572,13 +572,13 @@ func TestBindings_Progress_Tick_OptionalArgs(t *testing.T) {
 		function run()
 			formidable.progress.tick()       -- all defaults
 			formidable.progress.tick(5)      -- done only
-			formidable.progress.tick(5, 10)  -- no message
+			formidable.progress.tick(5, 10)  -- no message, no stage
 		end`,
 		scriptOpts{ProgressOut: emit})
 	if len(got) != 3 {
 		t.Fatalf("got %d events, want 3", len(got))
 	}
-	if got[0].Done != 0 || got[0].Total != 0 || got[0].Message != "" {
+	if got[0].Done != 0 || got[0].Total != 0 || got[0].Message != "" || got[0].Stage != "" {
 		t.Fatalf("event[0] = %+v", got[0])
 	}
 	if got[1].Done != 5 || got[1].Total != 0 {
@@ -586,6 +586,42 @@ func TestBindings_Progress_Tick_OptionalArgs(t *testing.T) {
 	}
 	if got[2].Done != 5 || got[2].Total != 10 {
 		t.Fatalf("event[2] = %+v", got[2])
+	}
+}
+
+func TestBindings_Progress_Tick_StageArg(t *testing.T) {
+	var got []ProgressEvent
+	emit := func(e ProgressEvent) { got = append(got, e) }
+	run(t, `
+		function run()
+			formidable.progress.tick(1, 3, "item-a", "templates")
+			formidable.progress.tick(2, 3, "item-b", "templates")
+			formidable.progress.tick(3, 3, "first", "recepten")
+		end`,
+		scriptOpts{ProgressOut: emit})
+	if len(got) != 3 {
+		t.Fatalf("got %d events, want 3", len(got))
+	}
+	if got[0].Stage != "templates" || got[0].Message != "item-a" {
+		t.Fatalf("event[0] = %+v", got[0])
+	}
+	if got[2].Stage != "recepten" || got[2].Message != "first" {
+		t.Fatalf("event[2] = %+v", got[2])
+	}
+}
+
+func TestBindings_Progress_Tick_BackCompatNoStage(t *testing.T) {
+	// 3-arg calls (no stage) still work — stage defaults to "" so
+	// the dialog renders the bar without a stage header.
+	var got []ProgressEvent
+	emit := func(e ProgressEvent) { got = append(got, e) }
+	run(t, `
+		function run()
+			formidable.progress.tick(1, 2, "only-msg")
+		end`,
+		scriptOpts{ProgressOut: emit})
+	if len(got) != 1 || got[0].Stage != "" || got[0].Message != "only-msg" {
+		t.Fatalf("event = %+v", got)
 	}
 }
 

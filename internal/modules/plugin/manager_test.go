@@ -491,6 +491,62 @@ func TestManager_Cancel_NoActiveRun_IsNoOp(t *testing.T) {
 	m.Cancel()
 }
 
+func TestManager_Cancel_NoRaceBetweenCASAndCancelFnAssign(t *testing.T) {
+	// Pins the race-tightening fix: CAS + cancelFn assignment live
+	// under one lock so any Cancel that sees the run "started" also
+	// sees a live cancel func. We spawn one goroutine running Run
+	// and one spinning Cancel; even with aggressive scheduling, the
+	// Lua loop must eventually be torn down (ErrPluginCancelled) —
+	// no Cancel may slip through the CAS/assign window.
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "spin", `{
+		"manifest_version": 1, "id": "spin", "name": "Spin",
+		"version": "0.1.0",
+		"commands": [{"id": "loop", "label": "loop"}]
+	}`, `function loop() while true do end end`)
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	type runResult struct{ err error }
+	done := make(chan runResult, 1)
+	stopHammer := make(chan struct{})
+
+	// Hammer Cancel from a goroutine — covers the window where
+	// CAS may have flipped but cancelFn might not be assigned yet
+	// without the lock. With the fix in place, every iteration is
+	// either pre-assignment (no-op) or post-assignment (lands).
+	go func() {
+		for {
+			select {
+			case <-stopHammer:
+				return
+			default:
+				m.Cancel()
+				runtime.Gosched()
+			}
+		}
+	}()
+	go func() {
+		_, err := m.Run("spin", "loop", nil)
+		done <- runResult{err: err}
+	}()
+
+	select {
+	case res := <-done:
+		close(stopHammer)
+		if !errors.Is(res.err, ErrPluginCancelled) {
+			t.Fatalf("Run under cancel-hammer: err = %v, want ErrPluginCancelled", res.err)
+		}
+	case <-time.After(3 * time.Second):
+		close(stopHammer)
+		t.Fatal("Run did not terminate under cancel-hammer — Cancel may have slipped the CAS/assign window")
+	}
+	if m.runActive.Load() {
+		t.Fatal("runActive should be cleared after cancelled Run")
+	}
+}
+
 func TestManager_FormValues_EmptyOnFreshPlugin(t *testing.T) {
 	m, _ := newTestManager(t)
 	got := m.LoadFormValues("never-saved", []string{"input", "what"})

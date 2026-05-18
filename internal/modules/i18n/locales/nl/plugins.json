@@ -78,6 +78,7 @@
   "workspace.plugins.run_title": "Uitvoeren: {0}",
   "workspace.plugins.running": "Bezig…",
   "workspace.plugins.stop": "Stop",
+  "workspace.plugins.stopping": "Stoppen…",
   "workspace.plugins.cancelled": "Plug-in afgebroken.",
   "workspace.plugins.save": "Opslaan",
   "workspace.plugins.save_error": "Plugin opslaan mislukt: {0}",

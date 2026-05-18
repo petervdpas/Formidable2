@@ -203,14 +203,22 @@ type ToastEvent struct {
 
 // ProgressEvent is one tick emitted by formidable.progress.tick. Done
 // is the items completed so far; Total is the planned total (0 when
-// the plugin doesn't know yet — Vue shows an indeterminate bar). Message
-// is the optional per-item label. Unlike Log/Toast, progress events
-// stream out *during* a Run (via the ProgressEmitter callback) — they
-// are not buffered onto RunResult, so the UI can render a live bar
-// instead of waiting for the script to finish.
+// the plugin doesn't know yet — Vue shows an indeterminate bar).
+// Stage is the optional section/phase label (e.g. the current
+// template's stem for a per-template export). Message is the
+// optional per-item label (e.g. the filename being written). The
+// frontend renders Stage prominently and Message as a secondary
+// line so the user can see "which template am I on" at a glance
+// without parsing a composite message string.
+//
+// Unlike Log/Toast, progress events stream out *during* a Run (via
+// the ProgressEmitter callback) — they are not buffered onto
+// RunResult, so the UI can render a live bar instead of waiting
+// for the script to finish.
 type ProgressEvent struct {
 	Done    int    `json:"done"`
 	Total   int    `json:"total"`
+	Stage   string `json:"stage,omitempty"`
 	Message string `json:"message,omitempty"`
 }
 
