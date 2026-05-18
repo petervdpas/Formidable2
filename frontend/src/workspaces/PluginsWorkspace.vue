@@ -679,6 +679,13 @@ setTopbarMenu(() => [
             :on-label="t('common.on')"
             :off-label="t('common.off')"
           />
+          <FormSwitchRow
+            v-model="draftManifest.progress"
+            :label="t('workspace.plugins.manifest.progress')"
+            :description="t('workspace.plugins.manifest.progress_help')"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
         </FormSection>
 
         <nav class="tabs" role="tablist">

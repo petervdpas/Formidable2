@@ -221,6 +221,17 @@ export class Manifest {
      * while iterating, then turn it off when shipping.
      */
     "debug": boolean;
+
+    /**
+     * Progress declares that the plugin reports progress via
+     * formidable.progress.tick. Off by default — when true the Run
+     * modal renders a live progress bar; otherwise it stays hidden
+     * (a plugin that doesn't tick would otherwise show a permanently
+     * empty bar). The Stop button is always available while a run is
+     * in flight regardless of this flag — cancellation works either
+     * way; this flag controls only the bar's visibility.
+     */
+    "progress": boolean;
     "commands"?: Command[];
 
     /** Creates a new Manifest instance. */
@@ -240,6 +251,9 @@ export class Manifest {
         if (!("debug" in $$source)) {
             this["debug"] = false;
         }
+        if (!("progress" in $$source)) {
+            this["progress"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -249,13 +263,13 @@ export class Manifest {
      */
     static createFrom($$source: any = {}): Manifest {
         const $$createField8_0 = $$createType0;
-        const $$createField10_0 = $$createType3;
+        const $$createField11_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("workspaces" in $$parsedSource) {
             $$parsedSource["workspaces"] = $$createField8_0($$parsedSource["workspaces"]);
         }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField10_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField11_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }

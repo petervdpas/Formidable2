@@ -438,6 +438,59 @@ func TestManager_Run_BusyClearedOnError(t *testing.T) {
 	}
 }
 
+func TestManager_Cancel_AbortsRunningPlugin(t *testing.T) {
+	// While a Run is spinning on a KV-poll, Cancel() must fire the
+	// run's context and surface ErrPluginCancelled.
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "spin", `{
+		"manifest_version": 1, "id": "spin", "name": "Spin",
+		"version": "0.1.0",
+		"commands": [{"id": "loop", "label": "loop"}]
+	}`, `
+		function loop()
+			while true do
+				-- pure spin; SetContext aborts between instructions
+			end
+		end`)
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+
+	type runResult struct {
+		err error
+	}
+	done := make(chan runResult, 1)
+	go func() {
+		_, err := m.Run("spin", "loop", nil)
+		done <- runResult{err: err}
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for !m.runActive.Load() && time.Now().Before(deadline) {
+		runtime.Gosched()
+	}
+	if !m.runActive.Load() {
+		t.Fatalf("Run never entered VM (runActive still false)")
+	}
+	m.Cancel()
+	select {
+	case res := <-done:
+		if !errors.Is(res.err, ErrPluginCancelled) {
+			t.Fatalf("Run after Cancel: err = %v, want ErrPluginCancelled", res.err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after Cancel()")
+	}
+	if m.runActive.Load() {
+		t.Fatal("runActive should be cleared after cancelled Run")
+	}
+}
+
+func TestManager_Cancel_NoActiveRun_IsNoOp(t *testing.T) {
+	m, _ := newTestManager(t)
+	// No Run in flight; Cancel must not panic or block.
+	m.Cancel()
+}
+
 func TestManager_FormValues_EmptyOnFreshPlugin(t *testing.T) {
 	m, _ := newTestManager(t)
 	got := m.LoadFormValues("never-saved", []string{"input", "what"})

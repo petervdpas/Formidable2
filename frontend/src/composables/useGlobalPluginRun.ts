@@ -1,4 +1,6 @@
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
+import { Events } from "@wailsio/runtime";
+import { Service as PluginSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import type { ListResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 
 // Global plugin-run dialog state. The workspace topbar menu opens
@@ -14,32 +16,91 @@ import type { ListResult } from "../../bindings/github.com/petervdpas/formidable
 // AND the Plugins workspace's inline Run modal) flips it true on the
 // Lua call boundary; openGlobalPluginRun refuses while it's true and
 // workspace topbar menu items read it to compute their disabled state.
+//
+// `progress` streams live `formidable.progress.tick` events from the
+// running plugin via the Wails event channel. Cleared when a run
+// finishes (success, error, or cancelled) so the next open doesn't
+// flash stale ticks.
 
 interface OpenRequest {
   plugin: ListResult;
   extraCtx?: Record<string, unknown>;
 }
 
+interface ProgressTick {
+  done: number;
+  total: number;
+  message: string;
+}
+
 const openRequest = ref<OpenRequest | null>(null);
 const running = ref(false);
+const progress = ref<ProgressTick | null>(null);
+
+let eventRefcount = 0;
+let unsubscribe: (() => void) | null = null;
+
+function ensureSubscription() {
+  if (eventRefcount === 0 && !unsubscribe) {
+    unsubscribe = Events.On("plugin:progress", (evt: unknown) => {
+      // Wails wraps payloads as { data: <go-struct>, ... }; tolerate
+      // both shapes so a binding change doesn't break this.
+      const raw =
+        evt && typeof evt === "object" && "data" in evt
+          ? (evt as { data: unknown }).data
+          : evt;
+      const e = raw as Partial<ProgressTick> | undefined;
+      if (!e) return;
+      progress.value = {
+        done: Number(e.done ?? 0),
+        total: Number(e.total ?? 0),
+        message: String(e.message ?? ""),
+      };
+    });
+  }
+  eventRefcount += 1;
+}
+
+function releaseSubscription() {
+  eventRefcount = Math.max(0, eventRefcount - 1);
+  if (eventRefcount === 0 && unsubscribe) {
+    unsubscribe();
+    unsubscribe = null;
+  }
+}
 
 export function openGlobalPluginRun(
   plugin: ListResult,
   extraCtx?: Record<string, unknown>,
 ): boolean {
   if (running.value) return false;
+  progress.value = null;
   openRequest.value = { plugin, extraCtx };
   return true;
 }
 
 export function closeGlobalPluginRun(): void {
   openRequest.value = null;
+  progress.value = null;
 }
 
 export function setGlobalPluginRunning(v: boolean): void {
   running.value = v;
+  if (!v) progress.value = null;
+}
+
+export async function cancelGlobalPluginRun(): Promise<void> {
+  try {
+    await PluginSvc.Cancel();
+  } catch {
+    // Best-effort — the Run path will surface kind="cancelled" when
+    // the cancel actually lands. Swallowing here keeps the UI from
+    // showing two errors for one user action.
+  }
 }
 
 export function useGlobalPluginRun() {
-  return { openRequest, running };
+  onMounted(ensureSubscription);
+  onUnmounted(releaseSubscription);
+  return { openRequest, running, progress };
 }

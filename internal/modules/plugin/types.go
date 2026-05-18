@@ -112,7 +112,15 @@ type Manifest struct {
 	// Debug toggles the collapsible debug/output panel at the bottom
 	// of the Run modal. Off by default — plugin authors flip it on
 	// while iterating, then turn it off when shipping.
-	Debug    bool      `json:"debug"`
+	Debug bool `json:"debug"`
+	// Progress declares that the plugin reports progress via
+	// formidable.progress.tick. Off by default — when true the Run
+	// modal renders a live progress bar; otherwise it stays hidden
+	// (a plugin that doesn't tick would otherwise show a permanently
+	// empty bar). The Stop button is always available while a run is
+	// in flight regardless of this flag — cancellation works either
+	// way; this flag controls only the bar's visibility.
+	Progress bool      `json:"progress"`
 	Commands []Command `json:"commands,omitempty"`
 }
 
@@ -193,6 +201,19 @@ type ToastEvent struct {
 	Message string `json:"message"`
 }
 
+// ProgressEvent is one tick emitted by formidable.progress.tick. Done
+// is the items completed so far; Total is the planned total (0 when
+// the plugin doesn't know yet — Vue shows an indeterminate bar). Message
+// is the optional per-item label. Unlike Log/Toast, progress events
+// stream out *during* a Run (via the ProgressEmitter callback) — they
+// are not buffered onto RunResult, so the UI can render a live bar
+// instead of waiting for the script to finish.
+type ProgressEvent struct {
+	Done    int    `json:"done"`
+	Total   int    `json:"total"`
+	Message string `json:"message,omitempty"`
+}
+
 // RunResult is the JSON-shaped envelope returned to Vue. Value
 // holds the Lua function's return value after lvalue→Go
 // conversion; LogLines collects formidable.log.* output emitted
@@ -224,6 +245,12 @@ var (
 	// contract is "one plugin at a time" anyway. Frontend surfaces
 	// this as Kind="busy" via Service.Run.
 	ErrPluginBusy = errors.New("plugin: another command is currently running")
+	// ErrPluginCancelled is returned when a run's context was
+	// cancelled mid-VM (the user pressed Stop, the host shut down,
+	// etc.). The runtime maps gopher-lua's "context canceled"
+	// surface to this sentinel so the Service layer can branch on
+	// Kind="cancelled" instead of inspecting the wrapped error text.
+	ErrPluginCancelled = errors.New("plugin: cancelled")
 )
 
 // HTTPResponse is what formidable.api.fetch returns to Lua. Body

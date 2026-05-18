@@ -218,6 +218,45 @@ func TestLoadManifest_RunModeDefaultsEmpty(t *testing.T) {
 	}
 }
 
+func TestLoadManifest_ProgressRoundtrip(t *testing.T) {
+	// Manifest.Progress declares the plugin will call
+	// formidable.progress.tick. The Run modal gates its progress bar
+	// on this flag — off (default) hides the bar so a non-reporting
+	// plugin doesn't show a permanently empty bar.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"progress": true,
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !got.Progress {
+		t.Fatalf("Progress = false, want true")
+	}
+}
+
+func TestLoadManifest_ProgressDefaultsFalse(t *testing.T) {
+	// A manifest without progress loads with Progress == false — older
+	// manifests don't accidentally get a bar without opting in.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got.Progress {
+		t.Fatalf("Progress = true, want false (default)")
+	}
+}
+
 func TestLoadManifest_RunModeRejectsUnknown(t *testing.T) {
 	// Reserved enum — keeps the contract tight. A typo like
 	// "Form" or "Modal" should fail loading rather than silently

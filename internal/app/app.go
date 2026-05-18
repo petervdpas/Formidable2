@@ -534,8 +534,17 @@ func New(d Deps) (*App, error) {
 		Template:   pluginTemplateAdapter{dp: dpM, tpl: tplM},
 		Collection: pluginCollectionAdapter{dp: dpM},
 		Form:       pluginFormAdapter{sto: stoM},
-		Render:     pluginRenderAdapter{rdr: renderM},
-		FS:         plugin.OSFS{},
+		Render: pluginRenderAdapter{rdr: renderM},
+		FM:     pluginFMAdapter{},
+		FS:     plugin.OSFS{},
+		// ProgressOut bridges formidable.progress.tick to a Wails
+		// event so the Run dialog can render a live progress bar.
+		// The emitter is late-bound (main.go calls SetEmit after
+		// the Wails app is up), so ticks fired during startup
+		// no-op gracefully instead of panicking.
+		ProgressOut: func(evt plugin.ProgressEvent) {
+			emitter.Emit("plugin:progress", evt)
+		},
 		Exec:       plugin.OSExec{},
 		// HTTPClient is satisfied by a wiki+system adapter — plugins
 		// that flag requires_internal_server in their manifest get

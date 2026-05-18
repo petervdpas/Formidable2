@@ -1,0 +1,29 @@
+[
+  {
+    "key": "target_folder",
+    "type": "folder-path",
+    "label": "Target folder",
+    "description": "Destination directory for the rendered Markdown files. Pick a writable folder; it will be created if it doesn't exist."
+  },
+  {
+    "key": "group_by_template",
+    "type": "boolean",
+    "label": "Group by template",
+    "description": "When on, each template's items go under <target>/<template-stem>/. Items with a wiki.path that contains a slash override this routing.",
+    "default": true
+  },
+  {
+    "key": "overwrite",
+    "type": "boolean",
+    "label": "Overwrite existing files",
+    "description": "When off, existing .md files at the destination are skipped (no clobber).",
+    "default": true
+  },
+  {
+    "key": "keep_fm_when_no_plugin_block",
+    "type": "boolean",
+    "label": "Keep frontmatter when no plugin block",
+    "description": "When off (default), items whose rendered markdown has no plugins.wikiwonder block get their frontmatter stripped — most wiki engines ignore YAML frontmatter and it's just noise. When on, the original rendered (PDF-shaped) frontmatter is kept verbatim.",
+    "default": false
+  }
+]

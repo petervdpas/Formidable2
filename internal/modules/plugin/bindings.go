@@ -44,6 +44,21 @@ type RenderAccess interface {
 	RenderHTML(templateFilename, datafile string) (string, error)
 }
 
+// FMAccess is the formidable.fm.* surface — YAML frontmatter
+// parse/build helpers backed by the render module. Lua plugins
+// can't safely YAML-parse on their own, and asking every plugin
+// author to ship a parser is a sharp edge — so the operations
+// the renderer already uses (ParseFrontmatter / BuildFrontmatter)
+// are exposed verbatim. Parse returns (data, body) where body is
+// the markdown with the leading `---…---` block removed; data is
+// nil when no frontmatter was present. Build re-emits a leading
+// frontmatter block from data and prepends it to body; nil/empty
+// data returns body unchanged.
+type FMAccess interface {
+	Parse(markdown string) (map[string]any, string, error)
+	Build(data map[string]any, body string) string
+}
+
 // FSAccess is the formidable.fs.* surface. v1 is unsandboxed —
 // plugin authors are trusted (they wrote the plugin); the user
 // reviewed it before installing into <AppRoot>/plugins/.
@@ -78,6 +93,15 @@ type ExecResult struct {
 type ExecRunner interface {
 	Exec(cmd string, args []string, opts ExecOptions) (ExecResult, error)
 }
+
+// ProgressEmitter receives one ProgressEvent per formidable.progress.tick
+// call. Unlike log/toast (which are buffered for end-of-Run delivery),
+// progress events fire synchronously into this callback during the run.
+// Implementations in production wire to a Wails event dispatcher so the
+// frontend can update a progress bar live; tests use a recording closure.
+// Nil callback = drop events on the floor (progress namespace nil-guards
+// in that case so a misconfigured runtime fails loudly).
+type ProgressEmitter func(ProgressEvent)
 
 // ─────────────────────────────────────────────────────────────────
 // Namespace builders — each returns a Lua table that goes onto
@@ -237,10 +261,10 @@ func buildFormTable(L *lua.LState, f FormAccess) *lua.LTable {
 	return tbl
 }
 
-func buildRenderTable(L *lua.LState, r RenderAccess) *lua.LTable {
+func buildRenderTable(L *lua.LState, pluginID string, r RenderAccess, fm FMAccess) *lua.LTable {
 	tbl := L.NewTable()
 	if r == nil {
-		for _, name := range []string{"markdown", "html"} {
+		for _, name := range []string{"markdown", "html", "frontmatter", "pluginBlock"} {
 			tbl.RawSetString(name, L.NewFunction(nilGuard("render")))
 		}
 		return tbl
@@ -260,6 +284,154 @@ func buildRenderTable(L *lua.LState, r RenderAccess) *lua.LTable {
 	}
 	tbl.RawSetString("markdown", L.NewFunction(mk(r.RenderMarkdown, "markdown")))
 	tbl.RawSetString("html", L.NewFunction(mk(r.RenderHTML, "html")))
+
+	// render.frontmatter / render.pluginBlock compose render+parse so
+	// plugins don't have to repeat the two-step pattern. Both surfaces
+	// degrade to nil-guards when FM access isn't wired so the failure
+	// mode stays uniform across namespaces.
+	if fm == nil {
+		tbl.RawSetString("frontmatter", L.NewFunction(nilGuard("render.frontmatter")))
+		tbl.RawSetString("pluginBlock", L.NewFunction(nilGuard("render.pluginBlock")))
+		return tbl
+	}
+	tbl.RawSetString("frontmatter", L.NewFunction(func(L *lua.LState) int {
+		tpl := L.CheckString(1)
+		df := L.CheckString(2)
+		md, err := r.RenderMarkdown(tpl, df)
+		if err != nil {
+			L.RaiseError("render.frontmatter: %v", err)
+			return 0
+		}
+		data, body, err := fm.Parse(md)
+		if err != nil {
+			L.RaiseError("render.frontmatter: %v", err)
+			return 0
+		}
+		if data == nil {
+			L.Push(lua.LNil)
+		} else {
+			L.Push(goToLua(L, data))
+		}
+		L.Push(lua.LString(body))
+		return 2
+	}))
+	tbl.RawSetString("pluginBlock", L.NewFunction(func(L *lua.LState) int {
+		tpl := L.CheckString(1)
+		df := L.CheckString(2)
+		md, err := r.RenderMarkdown(tpl, df)
+		if err != nil {
+			L.RaiseError("render.pluginBlock: %v", err)
+			return 0
+		}
+		data, _, err := fm.Parse(md)
+		if err != nil {
+			L.RaiseError("render.pluginBlock: %v", err)
+			return 0
+		}
+		if data == nil || pluginID == "" {
+			L.Push(lua.LNil)
+			return 1
+		}
+		plugins, ok := data["plugins"].(map[string]any)
+		if !ok {
+			L.Push(lua.LNil)
+			return 1
+		}
+		block, ok := plugins[pluginID]
+		if !ok || block == nil {
+			L.Push(lua.LNil)
+			return 1
+		}
+		L.Push(goToLua(L, block))
+		return 1
+	}))
+	return tbl
+}
+
+// buildFMTable mounts formidable.fm.parse / formidable.fm.build /
+// formidable.fm.pluginBlock. Parse returns (data, body); data is a
+// Lua table when frontmatter was present, nil when it wasn't.
+// Build is the inverse: nil/empty data returns body unchanged so
+// plugins can branch on "should I emit any frontmatter at all"
+// cleanly. PluginBlock is the shorthand for the per-plugin FM
+// convention: pass parsed `data` and get back data.plugins[<this
+// plugin id>] or nil. The plugin id is captured at table-build
+// time so plugins never hardcode their own id in the lookup.
+func buildFMTable(L *lua.LState, pluginID string, fm FMAccess) *lua.LTable {
+	tbl := L.NewTable()
+	if fm == nil {
+		for _, name := range []string{"parse", "build", "pluginBlock"} {
+			tbl.RawSetString(name, L.NewFunction(nilGuard("fm")))
+		}
+		return tbl
+	}
+	tbl.RawSetString("parse", L.NewFunction(func(L *lua.LState) int {
+		md := L.CheckString(1)
+		data, body, err := fm.Parse(md)
+		if err != nil {
+			L.RaiseError("fm.parse: %v", err)
+			return 0
+		}
+		if data == nil {
+			L.Push(lua.LNil)
+		} else {
+			L.Push(goToLua(L, data))
+		}
+		L.Push(lua.LString(body))
+		return 2
+	}))
+	tbl.RawSetString("build", L.NewFunction(func(L *lua.LState) int {
+		body := L.CheckString(2)
+		var data map[string]any
+		if v := L.Get(1); v.Type() == lua.LTTable {
+			raw := luaToGo(v)
+			if m, ok := raw.(map[string]any); ok {
+				data = m
+			}
+		}
+		L.Push(lua.LString(fm.Build(data, body)))
+		return 1
+	}))
+	tbl.RawSetString("pluginBlock", L.NewFunction(func(L *lua.LState) int {
+		if pluginID == "" {
+			L.Push(lua.LNil)
+			return 1
+		}
+		v := L.Get(1)
+		if v.Type() != lua.LTTable {
+			L.Push(lua.LNil)
+			return 1
+		}
+		root, _ := v.(*lua.LTable)
+		plugins := root.RawGetString("plugins")
+		if plugins.Type() != lua.LTTable {
+			L.Push(lua.LNil)
+			return 1
+		}
+		ptbl, _ := plugins.(*lua.LTable)
+		L.Push(ptbl.RawGetString(pluginID))
+		return 1
+	}))
+	return tbl
+}
+
+// buildProgressTable mounts formidable.progress.tick(done, total, msg).
+// done and total are integers (gopher-lua coerces; OptInt defaults to 0
+// when omitted). When the emitter is nil every call raises
+// "progress: not configured" so misconfigurations surface immediately.
+func buildProgressTable(L *lua.LState, emit ProgressEmitter) *lua.LTable {
+	tbl := L.NewTable()
+	if emit == nil {
+		tbl.RawSetString("tick", L.NewFunction(nilGuard("progress")))
+		return tbl
+	}
+	tbl.RawSetString("tick", L.NewFunction(func(L *lua.LState) int {
+		done := L.OptInt(1, 0)
+		total := L.OptInt(2, 0)
+		msg := L.OptString(3, "")
+		emit(ProgressEvent{Done: done, Total: total, Message: msg})
+		return 0
+	}))
 	return tbl
 }
 

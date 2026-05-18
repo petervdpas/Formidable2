@@ -214,3 +214,72 @@
     font-style: italic;
     font-weight: 400;
 }
+
+/* Live progress + Stop button — shown only while a run is in flight.
+   The bar is gated by the manifest's `progress` flag (PluginRunDialog
+   computes showProgressBar); the Stop button is always available so
+   a hung plugin can still be aborted. */
+.plugin-run-progress {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.plugin-run-progress-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.plugin-run-progress-bar {
+    flex: 1;
+    height: 0.5rem;
+    background: var(--color-surface-2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    position: relative;
+}
+
+.plugin-run-progress-fill {
+    height: 100%;
+    background: var(--color-accent, var(--color-primary));
+    transition: width 120ms linear;
+}
+
+.plugin-run-progress-bar.is-indeterminate .plugin-run-progress-fill {
+    width: 40%;
+    animation: plugin-run-progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes plugin-run-progress-slide {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+}
+
+.plugin-run-progress-running {
+    flex: 1;
+}
+
+.plugin-run-progress-label {
+    margin: 0;
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted, var(--color-text));
+}
+
+.plugin-run-progress-count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.plugin-run-progress-msg {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

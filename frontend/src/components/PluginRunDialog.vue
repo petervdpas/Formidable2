@@ -17,6 +17,7 @@ import {
   useGlobalPluginRun,
   closeGlobalPluginRun,
   setGlobalPluginRunning,
+  cancelGlobalPluginRun,
 } from "../composables/useGlobalPluginRun";
 import { useToast } from "../composables/useToast";
 
@@ -35,7 +36,7 @@ import { useToast } from "../composables/useToast";
 
 const { t } = useI18n();
 const toast = useToast();
-const { openRequest, running } = useGlobalPluginRun();
+const { openRequest, running, progress } = useGlobalPluginRun();
 
 const plugin = computed<ListResult | null>(() => openRequest.value?.plugin ?? null);
 const extraCtx = computed<Record<string, unknown>>(() => openRequest.value?.extraCtx ?? {});
@@ -152,6 +153,8 @@ async function runCommand(cmd: Command) {
     runResults.value[cmd.id] = res;
     if (res.kind === "busy") {
       toast.warn(res.message || "plugin: another command is currently running");
+    } else if (res.kind === "cancelled") {
+      toast.info("workspace.plugins.cancelled");
     }
     for (const ev of res.toasts ?? []) {
       const fn = toast[ev.level as "info" | "success" | "warn" | "error"];
@@ -185,6 +188,25 @@ async function runCommand(cmd: Command) {
 function close() {
   closeGlobalPluginRun();
 }
+
+async function stop() {
+  await cancelGlobalPluginRun();
+}
+
+const progressPct = computed<number>(() => {
+  const p = progress.value;
+  if (!p || p.total <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((p.done / p.total) * 100)));
+});
+
+const progressIsIndeterminate = computed<boolean>(() => {
+  const p = progress.value;
+  return !!p && p.total <= 0;
+});
+
+const showProgressBar = computed<boolean>(
+  () => plugin.value?.manifest.progress === true,
+);
 </script>
 
 <template>
@@ -254,6 +276,37 @@ function close() {
           </div>
         </section>
       </template>
+
+      <div v-if="running" class="plugin-run-progress">
+        <div class="plugin-run-progress-row">
+          <div
+            v-if="showProgressBar"
+            class="plugin-run-progress-bar"
+            :class="{ 'is-indeterminate': progressIsIndeterminate }"
+          >
+            <div
+              class="plugin-run-progress-fill"
+              :style="!progressIsIndeterminate ? { width: progressPct + '%' } : undefined"
+            ></div>
+          </div>
+          <span v-else class="muted small plugin-run-progress-running">
+            {{ t('workspace.plugins.running') }}
+          </span>
+          <button
+            class="tool-btn"
+            type="button"
+            @click="stop"
+          >{{ t('workspace.plugins.stop') }}</button>
+        </div>
+        <p v-if="showProgressBar" class="plugin-run-progress-label">
+          <span v-if="progress && progress.total > 0" class="plugin-run-progress-count">
+            {{ progress.done }} / {{ progress.total }}
+          </span>
+          <span v-if="progress?.message" class="plugin-run-progress-msg">
+            {{ progress.message }}
+          </span>
+        </p>
+      </div>
 
       <PluginResultPanel
         :commands="visibleCommands"

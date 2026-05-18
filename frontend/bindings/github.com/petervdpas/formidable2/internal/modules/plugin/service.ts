@@ -16,6 +16,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * Cancel signals the currently-running plugin (if any) to abort.
+ * No-op when nothing is in flight. Safe to call from any goroutine.
+ */
+export function Cancel(): $CancellablePromise<void> {
+    return $Call.ByID(2062711193);
+}
+
+/**
  * Create scaffolds a new plugin folder and returns the new list.
  * Errors map to the editor sentinels (ErrManifestInvalid,
  * ErrPluginExists) — the caller surfaces them as i18n'd toasts.

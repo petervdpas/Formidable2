@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	lua "github.com/yuin/gopher-lua"
 )
 
 func TestScaffoldPlugins_WritesSeedsToEmptyDir(t *testing.T) {
@@ -133,11 +135,25 @@ func TestScaffoldPlugins_SeededFilesAreValid(t *testing.T) {
 		t.Fatalf("scaffold: %v", err)
 	}
 
-	m, err := LoadManifest(filepath.Join(dir, "test-plugin"))
-	if err != nil {
-		t.Fatalf("scaffolded manifest fails LoadManifest: %v", err)
-	}
-	if m.ID != "test-plugin" {
-		t.Errorf("scaffolded manifest id = %q, want %q", m.ID, "test-plugin")
+	for _, id := range []string{"test-plugin", "wikiwonder"} {
+		m, err := LoadManifest(filepath.Join(dir, id))
+		if err != nil {
+			t.Errorf("scaffolded manifest fails LoadManifest for %q: %v", id, err)
+			continue
+		}
+		if m.ID != id {
+			t.Errorf("scaffolded manifest id = %q, want %q", m.ID, id)
+		}
+
+		src, err := os.ReadFile(filepath.Join(dir, id, "main.lua"))
+		if err != nil {
+			t.Errorf("read main.lua for %q: %v", id, err)
+			continue
+		}
+		L := lua.NewState()
+		if err := L.DoString(string(src)); err != nil {
+			t.Errorf("scaffolded main.lua for %q does not parse: %v", id, err)
+		}
+		L.Close()
 	}
 }

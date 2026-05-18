@@ -182,7 +182,15 @@ func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultD
 		return RunResultDTO{Kind: "server_not_running", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	case errors.Is(err, ErrPluginBusy):
 		return RunResultDTO{Kind: "busy", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
+	case errors.Is(err, ErrPluginCancelled):
+		return RunResultDTO{Kind: "cancelled", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	default:
 		return RunResultDTO{Kind: "runtime_error", Message: err.Error(), LogLines: res.LogLines, Toasts: res.Toasts}
 	}
+}
+
+// Cancel signals the currently-running plugin (if any) to abort.
+// No-op when nothing is in flight. Safe to call from any goroutine.
+func (s *Service) Cancel() {
+	s.m.Cancel()
 }

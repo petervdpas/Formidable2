@@ -87,6 +87,33 @@ func (m *mockRender) RenderHTML(tpl, df string) (string, error) {
 	return "", errors.New("no html")
 }
 
+// mockFM records parse/build invocations and returns canned values.
+// Build is implemented inline (not a recording dummy) so round-trip
+// tests can assert the YAML stringification path actually executes.
+type mockFM struct {
+	parseData map[string]any
+	parseBody string
+	parseErr  error
+	builds    []fmBuildCall
+}
+type fmBuildCall struct {
+	data map[string]any
+	body string
+}
+
+func (m *mockFM) Parse(_ string) (map[string]any, string, error) {
+	return m.parseData, m.parseBody, m.parseErr
+}
+func (m *mockFM) Build(data map[string]any, body string) string {
+	m.builds = append(m.builds, fmBuildCall{data: data, body: body})
+	if len(data) == 0 {
+		return body
+	}
+	// Trivial deterministic serialiser for assertions — order-agnostic;
+	// tests inspect the recorded fmBuildCall instead of the string shape.
+	return "---\n<fm>\n---\n" + body
+}
+
 type mockExec struct {
 	calls []execCall
 	res   ExecResult
@@ -317,6 +344,307 @@ func TestBindings_Render_HTML(t *testing.T) {
 		scriptOpts{Render: r})
 	if res.Value != "<h1>Title</h1>" {
 		t.Fatalf("got %v", res.Value)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.render.frontmatter / formidable.render.pluginBlock —
+// composed render+parse. Render dep returns canned markdown; FM dep
+// is the same mockFM. These pin the composition, not the underlying
+// primitives (already covered above).
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_Render_Frontmatter_Composes(t *testing.T) {
+	r := &mockRender{md: map[string]string{"a.yaml/x.meta.json": "---\nignored\n---\n# Body"}}
+	fm := &mockFM{
+		parseData: map[string]any{"plugins": map[string]any{"wikiwonder": map[string]any{"title": "X"}}},
+		parseBody: "# Body",
+	}
+	res := run(t, `
+		function run()
+			local data, body = formidable.render.frontmatter("a.yaml", "x.meta.json")
+			return { title = data.plugins.wikiwonder.title, body = body }
+		end`,
+		scriptOpts{PluginID: "wikiwonder", Render: r, FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if m["title"] != "X" || m["body"] != "# Body" {
+		t.Fatalf("composed render.frontmatter wrong: %+v", m)
+	}
+}
+
+func TestBindings_Render_PluginBlock_Composes(t *testing.T) {
+	r := &mockRender{md: map[string]string{"a.yaml/x.meta.json": "---\nignored\n---\n# Body"}}
+	fm := &mockFM{
+		parseData: map[string]any{"plugins": map[string]any{
+			"wikiwonder": map[string]any{"path": "foo", "title": "X"},
+			"hugo":       map[string]any{"draft": true},
+		}},
+		parseBody: "# Body",
+	}
+	res := run(t, `
+		function run()
+			local block = formidable.render.pluginBlock("a.yaml", "x.meta.json")
+			return { title = block.title, path = block.path }
+		end`,
+		scriptOpts{PluginID: "wikiwonder", Render: r, FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if m["title"] != "X" || m["path"] != "foo" {
+		t.Fatalf("composed render.pluginBlock wrong: %+v", m)
+	}
+}
+
+func TestBindings_Render_PluginBlock_NilWhenAbsent(t *testing.T) {
+	r := &mockRender{md: map[string]string{"a.yaml/x.meta.json": "# Body only"}}
+	fm := &mockFM{parseData: nil, parseBody: "# Body only"}
+	res := run(t, `
+		function run()
+			local block = formidable.render.pluginBlock("a.yaml", "x.meta.json")
+			return { has_block = (block ~= nil) }
+		end`,
+		scriptOpts{PluginID: "wikiwonder", Render: r, FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if got, _ := m["has_block"].(bool); got {
+		t.Fatalf("expected nil block for no-FM input, got %v", m["has_block"])
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.fm — parse/build round-trip for plugin-side frontmatter
+// manipulation. Real YAML semantics are tested in the render package;
+// these tests pin the Lua binding glue (two return values for parse,
+// nil-data shortcut for build).
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_FM_Parse_NoFrontmatter(t *testing.T) {
+	fm := &mockFM{parseData: nil, parseBody: "# Hello"}
+	res := run(t, `
+		function run()
+			local data, body = formidable.fm.parse("# Hello")
+			return { has_data = (data ~= nil), body = body }
+		end`,
+		scriptOpts{FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if got, _ := m["has_data"].(bool); got {
+		t.Fatalf("expected has_data=false, got %v", m["has_data"])
+	}
+	if got, _ := m["body"].(string); got != "# Hello" {
+		t.Fatalf("body = %q, want %q", got, "# Hello")
+	}
+}
+
+func TestBindings_FM_Parse_WithFrontmatter(t *testing.T) {
+	fm := &mockFM{
+		parseData: map[string]any{"title": "Hello", "wiki": map[string]any{"path": "p"}},
+		parseBody: "# Body",
+	}
+	res := run(t, `
+		function run()
+			local data, body = formidable.fm.parse("---\ntitle: Hello\n---\n# Body")
+			return {
+				title = data.title,
+				wiki_path = data.wiki.path,
+				body = body,
+			}
+		end`,
+		scriptOpts{FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if m["title"] != "Hello" {
+		t.Fatalf("title = %v", m["title"])
+	}
+	if m["wiki_path"] != "p" {
+		t.Fatalf("wiki.path = %v", m["wiki_path"])
+	}
+	if m["body"] != "# Body" {
+		t.Fatalf("body = %v", m["body"])
+	}
+}
+
+func TestBindings_FM_Build_NilData_PassesThroughBody(t *testing.T) {
+	fm := &mockFM{}
+	res := run(t, `
+		function run() return formidable.fm.build(nil, "raw body") end`,
+		scriptOpts{FM: fm})
+	if res.Value != "raw body" {
+		t.Fatalf("got %v, want %q", res.Value, "raw body")
+	}
+	if len(fm.builds) != 1 || fm.builds[0].data != nil || fm.builds[0].body != "raw body" {
+		t.Fatalf("unexpected builds: %+v", fm.builds)
+	}
+}
+
+func TestBindings_FM_Build_TablePrependsFrontmatter(t *testing.T) {
+	fm := &mockFM{}
+	res := run(t, `
+		function run()
+			return formidable.fm.build({ title = "X", tags = { "a", "b" } }, "# Body")
+		end`,
+		scriptOpts{FM: fm})
+	got, _ := res.Value.(string)
+	if !strings.HasPrefix(got, "---\n") || !strings.Contains(got, "# Body") {
+		t.Fatalf("build output looks wrong: %q", got)
+	}
+	if len(fm.builds) != 1 {
+		t.Fatalf("expected 1 build call, got %d", len(fm.builds))
+	}
+	if fm.builds[0].data["title"] != "X" {
+		t.Fatalf("data.title = %v", fm.builds[0].data["title"])
+	}
+}
+
+func TestBindings_FM_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t, `function run() return formidable.fm.parse("anything") end`,
+		scriptOpts{}) // no FM dep
+	if err == nil || !strings.Contains(err.Error(), "fm: not configured") {
+		t.Fatalf("err = %v, want fm: not configured", err)
+	}
+}
+
+func TestBindings_FM_PluginBlock_ReturnsOwnSlice(t *testing.T) {
+	fm := &mockFM{
+		parseData: map[string]any{
+			"title": "Outer",
+			"plugins": map[string]any{
+				"wikiwonder": map[string]any{"path": "p", "title": "Inner"},
+				"hugo":       map[string]any{"draft": false},
+			},
+		},
+		parseBody: "# Body",
+	}
+	res := run(t, `
+		function run()
+			local data, _ = formidable.fm.parse("ignored")
+			local block = formidable.fm.pluginBlock(data)
+			return { title = block.title, path = block.path }
+		end`,
+		scriptOpts{PluginID: "wikiwonder", FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if m["title"] != "Inner" || m["path"] != "p" {
+		t.Fatalf("pluginBlock returned wrong slice: %+v", m)
+	}
+}
+
+func TestBindings_FM_PluginBlock_NilWhenAbsent(t *testing.T) {
+	fm := &mockFM{
+		parseData: map[string]any{"title": "Outer"},
+		parseBody: "# Body",
+	}
+	res := run(t, `
+		function run()
+			local data, _ = formidable.fm.parse("ignored")
+			local block = formidable.fm.pluginBlock(data)
+			return { has_block = (block ~= nil) }
+		end`,
+		scriptOpts{PluginID: "wikiwonder", FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if got, _ := m["has_block"].(bool); got {
+		t.Fatalf("expected nil block when no plugins.<id> present, got %v", m["has_block"])
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.progress — live tick events. Verified via a recording
+// closure passed in via scriptOpts.ProgressOut; the runtime streams
+// each call synchronously through the closure.
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_Progress_Tick_StreamsThroughEmitter(t *testing.T) {
+	var got []ProgressEvent
+	emit := func(e ProgressEvent) { got = append(got, e) }
+	run(t, `
+		function run()
+			formidable.progress.tick(0, 3, "starting")
+			formidable.progress.tick(1, 3, "did one")
+			formidable.progress.tick(3, 3, "done")
+		end`,
+		scriptOpts{ProgressOut: emit})
+	if len(got) != 3 {
+		t.Fatalf("got %d events, want 3: %+v", len(got), got)
+	}
+	if got[1].Done != 1 || got[1].Total != 3 || got[1].Message != "did one" {
+		t.Fatalf("event[1] = %+v", got[1])
+	}
+}
+
+func TestBindings_Progress_Tick_OptionalArgs(t *testing.T) {
+	var got []ProgressEvent
+	emit := func(e ProgressEvent) { got = append(got, e) }
+	run(t, `
+		function run()
+			formidable.progress.tick()       -- all defaults
+			formidable.progress.tick(5)      -- done only
+			formidable.progress.tick(5, 10)  -- no message
+		end`,
+		scriptOpts{ProgressOut: emit})
+	if len(got) != 3 {
+		t.Fatalf("got %d events, want 3", len(got))
+	}
+	if got[0].Done != 0 || got[0].Total != 0 || got[0].Message != "" {
+		t.Fatalf("event[0] = %+v", got[0])
+	}
+	if got[1].Done != 5 || got[1].Total != 0 {
+		t.Fatalf("event[1] = %+v", got[1])
+	}
+	if got[2].Done != 5 || got[2].Total != 10 {
+		t.Fatalf("event[2] = %+v", got[2])
+	}
+}
+
+// TestBindings_Cancellation_AbortsRunningVM verifies L.SetContext
+// plumbing: a cancelled context aborts the VM at the next
+// instruction boundary and runScript surfaces ErrPluginCancelled.
+// The Lua script spins; the test cancels via the run's ctx shortly
+// after starting.
+func TestBindings_Cancellation_AbortsRunningVM(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel from a goroutine 50ms in — long enough for the VM to
+	// enter the loop, short enough to keep the test fast.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+	src := `
+		function run()
+			local i = 0
+			while true do
+				i = i + 1
+				-- pure-Lua tight loop; SetContext aborts between
+				-- instructions, so we never need to call into a
+				-- formidable.* binding for cancel to take effect.
+			end
+		end`
+	_, err := runScript(scriptOpts{Source: src, Fn: "run", Ctx: ctx})
+	if !errors.Is(err, ErrPluginCancelled) {
+		t.Fatalf("err = %v, want ErrPluginCancelled", err)
+	}
+}
+
+func TestBindings_Cancellation_NilCtx_RunsNormally(t *testing.T) {
+	res := run(t, `function run() return 42 end`, scriptOpts{})
+	if v, _ := res.Value.(float64); v != 42 {
+		t.Fatalf("got %v, want 42", res.Value)
+	}
+}
+
+func TestBindings_Progress_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t, `function run() formidable.progress.tick(1, 1, "x") end`,
+		scriptOpts{}) // no ProgressOut
+	if err == nil || !strings.Contains(err.Error(), "progress: not configured") {
+		t.Fatalf("err = %v, want progress: not configured", err)
+	}
+}
+
+func TestBindings_FM_PluginBlock_NilDataReturnsNil(t *testing.T) {
+	fm := &mockFM{parseData: nil, parseBody: "# Body"}
+	res := run(t, `
+		function run()
+			local data, _ = formidable.fm.parse("ignored")
+			local block = formidable.fm.pluginBlock(data)
+			return { has_block = (block ~= nil) }
+		end`,
+		scriptOpts{PluginID: "wikiwonder", FM: fm})
+	m, _ := res.Value.(map[string]any)
+	if got, _ := m["has_block"].(bool); got {
+		t.Fatalf("expected nil block for nil data, got %v", m["has_block"])
 	}
 }
 

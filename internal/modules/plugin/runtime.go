@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -50,18 +52,20 @@ func newSandboxedState() *lua.LState {
 // instead of silently doing nothing. This makes test failures
 // loud and makes wiring gaps in app.go obvious.
 type runtimeDeps struct {
-	LogSink    *[]string
-	ToastSink  *[]ToastEvent
-	PluginID   string
-	Plugin     PluginInfo
-	KV         *KV
-	Template   TemplateAccess
-	Collection CollectionAccess
-	Form       FormAccess
-	Render     RenderAccess
-	FS         FSAccess
-	Exec       ExecRunner
-	API        HTTPClient
+	LogSink     *[]string
+	ToastSink   *[]ToastEvent
+	ProgressOut ProgressEmitter
+	PluginID    string
+	Plugin      PluginInfo
+	KV          *KV
+	Template    TemplateAccess
+	Collection  CollectionAccess
+	Form        FormAccess
+	Render      RenderAccess
+	FM          FMAccess
+	FS          FSAccess
+	Exec        ExecRunner
+	API         HTTPClient
 }
 
 // installFormidable mounts the `formidable` global table on an
@@ -80,7 +84,9 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("template", buildTemplateTable(L, deps.Template))
 	f.RawSetString("collection", buildCollectionTable(L, deps.Collection))
 	f.RawSetString("form", buildFormTable(L, deps.Form))
-	f.RawSetString("render", buildRenderTable(L, deps.Render))
+	f.RawSetString("render", buildRenderTable(L, deps.PluginID, deps.Render, deps.FM))
+	f.RawSetString("fm", buildFMTable(L, deps.PluginID, deps.FM))
+	f.RawSetString("progress", buildProgressTable(L, deps.ProgressOut))
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
 	f.RawSetString("exec", buildExecValue(L, deps.Exec))
 	L.SetGlobal("formidable", f)
@@ -132,24 +138,30 @@ func buildLogTable(L *lua.LState, sink *[]string) *lua.LTable {
 // source text (typically the contents of main.lua); Fn is the
 // global function to invoke; Arg is an optional Go-shaped value
 // that becomes the function's single argument; the access fields
-// populate the matching `formidable.*` namespaces.
+// populate the matching `formidable.*` namespaces. Ctx, when non-nil,
+// is wired into the LState via L.SetContext — cancelling it aborts
+// the running script at the next instruction boundary (gopher-lua
+// raises a context-cancelled error which we map to ErrPluginCancelled).
 type scriptOpts struct {
 	Source string
 	Fn     string
 	Arg    any
+	Ctx    context.Context
 
 	// Access deps — leave nil to disable a namespace; calls into
 	// it from Lua then raise a "<namespace>: not configured" error.
-	PluginID   string
-	Plugin     PluginInfo
-	KV         *KV
-	Template   TemplateAccess
-	Collection CollectionAccess
-	Form       FormAccess
-	Render     RenderAccess
-	FS         FSAccess
-	Exec       ExecRunner
-	API        HTTPClient
+	PluginID    string
+	Plugin      PluginInfo
+	KV          *KV
+	Template    TemplateAccess
+	Collection  CollectionAccess
+	Form        FormAccess
+	Render      RenderAccess
+	FM          FMAccess
+	FS          FSAccess
+	Exec        ExecRunner
+	API         HTTPClient
+	ProgressOut ProgressEmitter
 }
 
 // runScript spawns a fresh sandboxed state, loads Source, calls
@@ -161,26 +173,31 @@ type scriptOpts struct {
 func runScript(opts scriptOpts) (RunResult, error) {
 	L := newSandboxedState()
 	defer L.Close()
+	if opts.Ctx != nil {
+		L.SetContext(opts.Ctx)
+	}
 
 	var logs []string
 	var toasts []ToastEvent
 	installFormidable(L, runtimeDeps{
-		LogSink:    &logs,
-		ToastSink:  &toasts,
-		PluginID:   opts.PluginID,
-		Plugin:     opts.Plugin,
-		KV:         opts.KV,
-		Template:   opts.Template,
-		Collection: opts.Collection,
-		Form:       opts.Form,
-		Render:     opts.Render,
-		FS:         opts.FS,
-		Exec:       opts.Exec,
-		API:        opts.API,
+		LogSink:     &logs,
+		ToastSink:   &toasts,
+		ProgressOut: opts.ProgressOut,
+		PluginID:    opts.PluginID,
+		Plugin:      opts.Plugin,
+		KV:          opts.KV,
+		Template:    opts.Template,
+		Collection:  opts.Collection,
+		Form:        opts.Form,
+		Render:      opts.Render,
+		FM:          opts.FM,
+		FS:          opts.FS,
+		Exec:        opts.Exec,
+		API:         opts.API,
 	})
 
 	if err := L.DoString(opts.Source); err != nil {
-		return RunResult{LogLines: logs, Toasts: toasts}, fmt.Errorf("plugin: load script: %w", err)
+		return RunResult{LogLines: logs, Toasts: toasts}, mapCancelled(opts.Ctx, fmt.Errorf("plugin: load script: %w", err))
 	}
 
 	fn := L.GetGlobal(opts.Fn)
@@ -197,10 +214,25 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		NRet:    1,
 		Protect: true,
 	}, args...); err != nil {
-		return RunResult{LogLines: logs, Toasts: toasts}, fmt.Errorf("plugin: call: %w", err)
+		return RunResult{LogLines: logs, Toasts: toasts}, mapCancelled(opts.Ctx, fmt.Errorf("plugin: call: %w", err))
 	}
 
 	ret := L.Get(-1)
 	L.Pop(1)
 	return RunResult{Value: luaToGo(ret), LogLines: logs, Toasts: toasts}, nil
+}
+
+// mapCancelled re-tags a gopher-lua error as ErrPluginCancelled when
+// the run's context was cancelled. gopher-lua surfaces ctx-cancel as a
+// generic runtime error inside L.DoString / CallByParam; without this
+// translation the caller would have to string-match on the wrapped
+// message to distinguish "user pressed Stop" from "buggy plugin".
+func mapCancelled(ctx context.Context, err error) error {
+	if ctx == nil || err == nil {
+		return err
+	}
+	if cerr := ctx.Err(); cerr != nil && (errors.Is(cerr, context.Canceled) || errors.Is(cerr, context.DeadlineExceeded)) {
+		return ErrPluginCancelled
+	}
+	return err
 }

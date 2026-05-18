@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,15 +29,17 @@ type ManagerDeps struct {
 	PluginsDir string
 	Logger     *slog.Logger
 
-	KV         *KV
-	Editor     editorFS
-	Template   TemplateAccess
-	Collection CollectionAccess
-	Form       FormAccess
-	Render     RenderAccess
-	FS         FSAccess
-	Exec       ExecRunner
-	API        HTTPClient
+	KV          *KV
+	Editor      editorFS
+	Template    TemplateAccess
+	Collection  CollectionAccess
+	Form        FormAccess
+	Render      RenderAccess
+	FM          FMAccess
+	FS          FSAccess
+	Exec        ExecRunner
+	API         HTTPClient
+	ProgressOut ProgressEmitter
 }
 
 // Manager owns the discovered plugin registry and runs commands.
@@ -57,6 +60,12 @@ type Manager struct {
 	// with ErrPluginBusy rather than queuing or interleaving. Cleared
 	// in the same deferred path that runs after success or failure.
 	runActive atomic.Bool
+
+	// cancelMu protects cancelFn — set when a Run starts, called
+	// by Cancel(), nilled in the same defer that releases runActive.
+	// Held briefly; never around Run itself.
+	cancelMu sync.Mutex
+	cancelFn context.CancelFunc
 }
 
 // NewManager constructs a Manager. Discovery doesn't run here —
@@ -215,11 +224,27 @@ func (m *Manager) LoadFormValues(pluginID string, fieldKeys []string) map[string
 // no argument). Returns the function's converted return value
 // plus any log lines emitted via formidable.log.* during the
 // call.
+//
+// Cancellation: Manager.Cancel() can be called from any goroutine
+// while a Run is in flight to abort the Lua VM at its next
+// instruction. The cancel handle is stored under cancelMu for the
+// duration of the run and cleared in the same deferred path that
+// releases runActive. Cancelled runs return ErrPluginCancelled.
 func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult, error) {
 	if !m.runActive.CompareAndSwap(false, true) {
 		return RunResult{}, ErrPluginBusy
 	}
-	defer m.runActive.Store(false)
+	runCtx, cancel := context.WithCancel(context.Background())
+	m.cancelMu.Lock()
+	m.cancelFn = cancel
+	m.cancelMu.Unlock()
+	defer func() {
+		m.cancelMu.Lock()
+		m.cancelFn = nil
+		m.cancelMu.Unlock()
+		cancel()
+		m.runActive.Store(false)
+	}()
 	p, ok := m.Get(pluginID)
 	if !ok {
 		return RunResult{}, fmt.Errorf("%w: %s", ErrPluginNotFound, pluginID)
@@ -254,6 +279,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Source: string(src),
 		Fn:     FnNameFor(*cmd),
 		Arg:    arg,
+		Ctx:    runCtx,
 		Plugin: PluginInfo{
 			ID:                     p.Manifest.ID,
 			Name:                   p.Manifest.Name,
@@ -266,16 +292,31 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 			Debug:                  p.Manifest.Debug,
 			Form:                   loadFormFields(p.Dir),
 		},
-		PluginID:   pluginID,
-		KV:         m.deps.KV,
-		Template:   m.deps.Template,
-		Collection: m.deps.Collection,
-		Form:       m.deps.Form,
-		Render:     m.deps.Render,
-		FS:         m.deps.FS,
-		Exec:       m.deps.Exec,
-		API:        m.deps.API,
+		PluginID:    pluginID,
+		KV:          m.deps.KV,
+		Template:    m.deps.Template,
+		Collection:  m.deps.Collection,
+		Form:        m.deps.Form,
+		Render:      m.deps.Render,
+		FM:          m.deps.FM,
+		FS:          m.deps.FS,
+		Exec:        m.deps.Exec,
+		API:         m.deps.API,
+		ProgressOut: m.deps.ProgressOut,
 	})
+}
+
+// Cancel signals the currently-running plugin (if any) to abort. The
+// Lua VM's bound context fires Done() and gopher-lua aborts at the
+// next instruction; Run returns ErrPluginCancelled. No-op when no run
+// is in flight.
+func (m *Manager) Cancel() {
+	m.cancelMu.Lock()
+	fn := m.cancelFn
+	m.cancelMu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 // loadFormFields reads <pluginDir>/form.json and returns its

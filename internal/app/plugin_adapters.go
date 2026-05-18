@@ -138,6 +138,20 @@ func (a pluginRenderAdapter) RenderHTML(templateFilename, datafile string) (stri
 	return a.rdr.RenderHTMLOnly(md)
 }
 
+// pluginFMAdapter exposes the render module's frontmatter helpers
+// to Lua. Stateless — the underlying functions are pure — so the
+// adapter holds no fields. Lives here (not in render's service) so
+// the plugin module stays the sole front door for "what Lua can do."
+type pluginFMAdapter struct{}
+
+func (pluginFMAdapter) Parse(markdown string) (map[string]any, string, error) {
+	return render.ParseFrontmatter(markdown)
+}
+
+func (pluginFMAdapter) Build(data map[string]any, body string) string {
+	return render.BuildFrontmatter(data, body)
+}
+
 // pluginHTTPAdapter wires plugin.HTTPClient to the running wiki
 // HTTP server. IsAvailable mirrors wiki.Status().Running; Fetch
 // proxies via system.ProxyFetchRemote against the loopback URL on
