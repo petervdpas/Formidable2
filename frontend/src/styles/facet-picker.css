@@ -164,6 +164,58 @@
 .facet-builder-intro {
   margin: 0 0 var(--space-2);
 }
+
+/* Modal header: stacked Icon row + Key row. Each row is its own flex
+   container so the optional error span can sit alongside the input
+   without breaking the layout. Theme-adaptive surfaces only. */
+.facet-builder-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+.facet-builder-header-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.facet-builder-header-label {
+  flex: 0 0 64px;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+.facet-builder-header-row > input.facet-builder-key-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.facet-builder-icon-trigger {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: border-color 0.12s ease;
+}
+.facet-builder-icon-trigger:hover,
+.facet-builder-icon-trigger.open {
+  border-color: var(--color-accent);
+}
+.facet-builder-key-input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+.facet-builder-key-input.has-error {
+  border-color: var(--color-error, #c0392b);
+}
 .facet-builder-counter {
   margin: 0 0 var(--space-2);
   font-size: 12px;
@@ -237,9 +289,55 @@
   justify-content: flex-start;
 }
 
-/* Flag builder uses the generic .swatch-grid / .swatch-cell primitive
+/* Facet builder uses the generic .swatch-grid / .swatch-cell primitive
    (styles/swatch.css). Tune the layout via CSS vars on the grid. */
 .facet-builder-swatch-grid {
   --swatch-cols: 4;
   --swatch-size: 22px;
+}
+
+/* ── TemplatesWorkspace Facets tab — per-facet row list ─────────────── */
+
+.facet-rows {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.facet-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.facet-row-icon {
+  font-size: 16px;
+  color: var(--color-text);
+  width: 18px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.facet-row-key {
+  font-weight: 600;
+  font-size: var(--font-size-md);
+  letter-spacing: 0.02em;
+}
+
+.facet-row-summary {
+  flex: 1 1 auto;
+}
+
+.setup-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
 }

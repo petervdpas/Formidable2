@@ -39,8 +39,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.form-list-flag {
+.form-list-facets {
     flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.form-list-facet {
     font-size: 12px;
 }
 .form-list-filename {
@@ -70,22 +75,26 @@
 .meta-value.mono { font-family: var(--font-mono); }
 .meta-value.small { font-size: var(--font-size-sm); }
 
-/* Floating flag in the meta block's top-right corner. The right offset
-   clears the Markdown/HTML slide-out tabs that overlay the right edge
-   of the form panel. */
 /* Sticky meta block — pinned flush with the top of the scroll viewport
    while fields scroll underneath. `sticky` still acts as a positioning
-   context for the absolutely-positioned flag corner. */
+   context for the absolutely-positioned facet corner. */
 .storage-meta-section {
     position: sticky;
     top: 0;
     z-index: 5;
 }
-.storage-meta-section .meta-flag-corner {
+/* Floating facet pickers in the meta block's top-right corner.
+   Multiple facets sit side-by-side with a small gap. Right offset
+   leaves room for the Markdown/HTML slide-out tabs that overlay the
+   right edge of the form panel. */
+.storage-meta-section .meta-facet-corner {
     position: absolute;
     top: var(--space-2);
     right: var(--space-4);
     z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .meta-actions {

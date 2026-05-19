@@ -219,9 +219,10 @@ const keyErrorMessage = computed(() => {
           :options="iconSwatchOptions"
           placement="right"
           :cols="4"
-          size="32px"
+          size="44px"
           trigger-class="facet-builder-icon-trigger"
           :trigger-title="draftIcon"
+          teleport
           @update:model-value="(v: string) => (draftIcon = v)"
         />
       </label>
@@ -281,6 +282,7 @@ const keyErrorMessage = computed(() => {
             size="22px"
             trigger-class="facet-builder-swatch-trigger"
             :trigger-title="row.color"
+            teleport
             @update:model-value="(v: string) => setColor(row.id, v)"
           />
 

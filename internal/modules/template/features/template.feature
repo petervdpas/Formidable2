@@ -295,7 +295,7 @@ Feature: Template management
     And the template has facet "status" with icon "fa-flag" and options:
       | label | color |
       | DONE  | red   |
-    And the template has facet "review" with icon "fa-eye" and options:
+    And the template has facet "review" with icon "fa-user" and options:
       | label | color |
       | DONE  | green |
     Then validation reports no errors

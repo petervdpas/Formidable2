@@ -54,3 +54,13 @@
   top: 0;
   margin-right: 0.25rem;
 }
+
+/* Teleported variant: position:fixed coordinates are set inline from
+   the trigger's bounding rect (Popup.vue). z-index sits above every
+   non-teleported popup so a swatch picker inside a modal stays above
+   the rest. No placement classes apply here — the inline top/left/
+   right/bottom carry the full position. */
+.popup-panel--teleported {
+  z-index: 1200;
+  margin: 0;
+}

@@ -128,7 +128,7 @@ func TestFacetIcons_ContainsAll16(t *testing.T) {
 	want := []string{
 		"fa-flag", "fa-check", "fa-star", "fa-heart",
 		"fa-bookmark", "fa-bell", "fa-shirt", "fa-circle-info",
-		"fa-triangle-exclamation", "fa-circle-question", "fa-eye", "fa-clock",
+		"fa-triangle-exclamation", "fa-circle-question", "fa-user", "fa-clock",
 		"fa-tag", "fa-bug", "fa-gear", "fa-fire",
 	}
 	if len(FacetIcons) != len(want) {
@@ -246,7 +246,7 @@ func TestValidate_Facets_DuplicateLabelAcrossFacetsOK(t *testing.T) {
 		Fields: []Field{{Key: "title", Type: "text"}},
 		Facets: []Facet{
 			{Key: "status", Icon: "fa-flag", Options: []FacetOption{{Label: "DONE", Color: "red"}}},
-			{Key: "review", Icon: "fa-eye", Options: []FacetOption{{Label: "DONE", Color: "green"}}},
+			{Key: "review", Icon: "fa-user", Options: []FacetOption{{Label: "DONE", Color: "green"}}},
 		},
 	}
 	if errs := Validate(tmpl); len(errs) != 0 {

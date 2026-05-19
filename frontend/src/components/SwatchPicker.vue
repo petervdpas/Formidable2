@@ -36,6 +36,10 @@ const props = withDefaults(
     triggerClass?: string;
     /** Tooltip on the default trigger. */
     triggerTitle?: string;
+    /** Forwarded to the underlying Popup. Use when the picker lives
+     *  inside a clipping ancestor (modal-dialog with overflow:auto,
+     *  scrollable list, etc.) so the panel renders into <body>. */
+    teleport?: boolean;
   }>(),
   {
     clearable: false,
@@ -45,6 +49,7 @@ const props = withDefaults(
     size: "22px",
     triggerClass: "",
     triggerTitle: "",
+    teleport: false,
   },
 );
 
@@ -68,7 +73,7 @@ function pick(v: string, close: () => void) {
 </script>
 
 <template>
-  <Popup :placement="placement">
+  <Popup :placement="placement" :teleport="teleport">
     <template #trigger="slotProps">
       <slot
         name="trigger"
@@ -95,7 +100,10 @@ function pick(v: string, close: () => void) {
           :key="opt.value"
           type="button"
           class="swatch-cell"
-          :class="[opt.class, { active: opt.value === modelValue }]"
+          :class="[
+            opt.class,
+            { active: opt.value === modelValue, 'swatch-cell--icon': !!opt.icon },
+          ]"
           :style="opt.color ? { background: opt.color } : undefined"
           :title="opt.label ?? opt.value"
           @click="pick(opt.value, close)"

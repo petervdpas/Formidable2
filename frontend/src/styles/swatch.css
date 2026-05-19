@@ -47,3 +47,17 @@
   border-color: var(--color-error, #c0392b);
   color: var(--color-error, #c0392b);
 }
+
+/* Icon-bearing cells: surface-tinted fill + theme-aware glyph color so
+   the same palette works on dark and light themes (no white box on dark). */
+.swatch-cell--icon {
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--swatch-size, 22px) * 0.55);
+}
+.swatch-cell--icon:hover {
+  background: var(--color-bg);
+}

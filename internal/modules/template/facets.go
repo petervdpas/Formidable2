@@ -27,7 +27,7 @@ var FacetColorList = []string{
 var FacetIconList = []string{
 	"fa-flag", "fa-check", "fa-star", "fa-heart",
 	"fa-bookmark", "fa-bell", "fa-shirt", "fa-circle-info",
-	"fa-triangle-exclamation", "fa-circle-question", "fa-eye", "fa-clock",
+	"fa-triangle-exclamation", "fa-circle-question", "fa-user", "fa-clock",
 	"fa-tag", "fa-bug", "fa-gear", "fa-fire",
 }
 
