@@ -82,10 +82,5 @@
   "workspace.storage.tag_filter_placeholder": "Filter by tag(s)…",
   "workspace.storage.template_picker": "Template",
   "workspace.storage.title": "Storage",
-  "workspace.storage.unselected": "Pick a form from the sidebar.",
-  "workspace.storage.meta.facets": "Facets",
-  "workspace.storage.facet_filter.all": "Any {0}",
-  "facet.picker.title_empty": "Not set",
-  "facet.picker.clear": "Not set",
-  "facet.picker.no_options": "This facet has no options."
+  "workspace.storage.unselected": "Pick a form from the sidebar."
 }

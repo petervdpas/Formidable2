@@ -821,13 +821,13 @@ setTopbarMenu(() => [
                       <button
                         class="tool-btn"
                         type="button"
-                        :title="t('common.edit')"
+                        :title="t('workspace.templates.facets.edit')"
                         @click="openEditFacet(i)"
-                      >{{ t('common.edit') }}</button>
+                      >{{ t('workspace.templates.facets.edit') }}</button>
                       <button
                         class="tool-btn danger"
                         type="button"
-                        :title="t('common.remove')"
+                        :title="t('workspace.templates.facets.remove')"
                         @click="removeFacet(i)"
                       >×</button>
                     </li>
