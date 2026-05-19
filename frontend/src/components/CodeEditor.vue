@@ -6,6 +6,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { StreamLanguage } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
+import { handlebarsMarkdownExtensions } from "./codemirror/handlebarsMarkdown";
 import { yaml } from "@codemirror/lang-yaml";
 import { html } from "@codemirror/lang-html";
 import { lua as luaMode } from "@codemirror/legacy-modes/mode/lua";
@@ -56,7 +57,7 @@ const langExtension = computed(() => {
   if (props.lang === "yaml") return [yaml()];
   if (props.lang === "lua") return [StreamLanguage.define(luaMode)];
   if (props.lang === "html") return [html()];
-  return [markdown()];
+  return [markdown({ extensions: [handlebarsMarkdownExtensions] })];
 });
 
 // Ctrl+Enter / Cmd+Enter toggles full-screen mode — same gesture
