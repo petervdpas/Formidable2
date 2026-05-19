@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,6 +10,9 @@ import (
 
 	lua "github.com/yuin/gopher-lua"
 )
+
+//go:embed builtins.lua
+var builtinsLua string
 
 // newSandboxedState builds a Lua state with only the pure-Lua
 // standard libraries (base, table, string, math) — no os, io,
@@ -82,6 +86,8 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("log", buildLogTable(L, deps.LogSink))
 	f.RawSetString("toast", buildToastTable(L, deps.ToastSink))
 	f.RawSetString("json", buildJSONTable(L))
+	f.RawSetString("path", buildPathTable(L))
+	f.RawSetString("url", buildURLTable(L))
 	f.RawSetString("api", buildAPITable(L, deps.API))
 	f.RawSetString("kv", buildKVTable(L, deps.PluginID, deps.KV))
 	f.RawSetString("plugin", buildPluginTable(L, deps.Plugin))
@@ -130,6 +136,22 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	}))
 	f.RawSetString("exec", buildExecValue(L, deps.Exec))
 	L.SetGlobal("formidable", f)
+
+	// Lua-side stdlib (formidable.rewrite, …) — runs against the
+	// already-installed `formidable` global so it can compose the
+	// Go-side namespaces. If the run's context is already done at
+	// install time (Run-after-Cancel races), skip — the caller's
+	// post-run ctx check will surface the cancellation.
+	if ctxRef != nil && ctxRef.Err() != nil {
+		return
+	}
+	if err := L.DoString(builtinsLua); err != nil {
+		// A real builtins.lua parse/exec failure is a Formidable bug
+		// (we ship the file in-tree); panic so it's loud during
+		// development. The cancelled-ctx branch above means we never
+		// panic for user-driven Stop.
+		panic(fmt.Sprintf("plugin: builtins.lua install: %v", err))
+	}
 }
 
 func buildToastTable(L *lua.LState, sink *[]ToastEvent) *lua.LTable {

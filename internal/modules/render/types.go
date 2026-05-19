@@ -56,6 +56,15 @@ type Options struct {
 	// aware blocks). May be nil on targets that don't render api fields
 	// (plain MD export); api helpers then return safe fallbacks.
 	LoadTemplate func(name string) *template.Template
+
+	// TemplateFilename / Datafile identify the (template, datafile)
+	// pair being rendered. They drive the meta-category helpers
+	// ({{templateName}}, {{templateStem}}, {{datafile}}, {{datafileStem}})
+	// so authors can compose paths/anchors from the current file's
+	// identity instead of hard-coding it into frontmatter. Empty
+	// strings are tolerated — the helpers then expand to "".
+	TemplateFilename string
+	Datafile         string
 }
 
 // Result is the dual-stage output of RenderForm.

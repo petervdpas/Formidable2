@@ -250,6 +250,27 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// Implementation lives in helpers_field.go.
 	registerFieldHelper(tpl, opts)
 
+	// ── meta helpers ────────────────────────────────────────────
+	//
+	// Identity of the (template, datafile) pair being rendered. Plug
+	// these into frontmatter or markdown when the export path needs
+	// to compose anchors, slugs, or filenames from the current file
+	// (wikiwonder's `plugins.wikiwonder.path` is the canonical use
+	// case). Empty Options returns empty strings so templates render
+	// safely in contexts the meta isn't wired.
+	tpl.RegisterHelper("templateName", func() string {
+		return opts.TemplateFilename
+	})
+	tpl.RegisterHelper("templateStem", func() string {
+		return strings.TrimSuffix(opts.TemplateFilename, ".yaml")
+	})
+	tpl.RegisterHelper("datafile", func() string {
+		return opts.Datafile
+	})
+	tpl.RegisterHelper("datafileStem", func() string {
+		return strings.TrimSuffix(opts.Datafile, ".meta.json")
+	})
+
 	// ── loop block helper ───────────────────────────────────────
 	//
 	// Plain iterator — same shape as the original Formidable's helper.

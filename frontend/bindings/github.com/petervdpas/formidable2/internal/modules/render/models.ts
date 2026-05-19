@@ -30,6 +30,7 @@ export enum HelperCategory {
     HelperCategoryTags = "tags",
     HelperCategoryAPI = "api",
     HelperCategoryDate = "date",
+    HelperCategoryMeta = "meta",
 };
 
 /**

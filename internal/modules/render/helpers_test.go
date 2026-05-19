@@ -842,3 +842,63 @@ func TestHelper_LoopItemClass_IgnoresEmpties(t *testing.T) {
 		t.Errorf("empty extras should be skipped: got %q", got)
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Meta helpers — current-render identity surfaced into templates.
+// ─────────────────────────────────────────────────────────────────────
+
+func TestHelper_Meta_TemplateName(t *testing.T) {
+	got := renderWithOpts(t, `{{templateName}}`, map[string]any{}, &Options{
+		TemplateFilename: "recepten.yaml",
+	})
+	if got != "recepten.yaml" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_Meta_TemplateStem_StripsYaml(t *testing.T) {
+	got := renderWithOpts(t, `{{templateStem}}`, map[string]any{}, &Options{
+		TemplateFilename: "recepten.yaml",
+	})
+	if got != "recepten" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_Meta_Datafile(t *testing.T) {
+	got := renderWithOpts(t, `{{datafile}}`, map[string]any{}, &Options{
+		Datafile: "spaghetti.meta.json",
+	})
+	if got != "spaghetti.meta.json" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_Meta_DatafileStem_StripsMetaJson(t *testing.T) {
+	got := renderWithOpts(t, `{{datafileStem}}`, map[string]any{}, &Options{
+		Datafile: "spaghetti.meta.json",
+	})
+	if got != "spaghetti" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_Meta_EmptyOptionsExpandsToEmpty(t *testing.T) {
+	got := renderWithOpts(t,
+		`[{{templateName}}|{{templateStem}}|{{datafile}}|{{datafileStem}}]`,
+		map[string]any{}, &Options{})
+	if got != "[|||]" {
+		t.Errorf("empty Options should yield empty strings, got %q", got)
+	}
+}
+
+func TestHelper_Meta_ComposedPath(t *testing.T) {
+	got := renderWithOpts(t, `{{templateStem}}/{{datafileStem}}`,
+		map[string]any{}, &Options{
+			TemplateFilename: "controls.yaml",
+			Datafile:         "CH.02.meta.json",
+		})
+	if got != "controls/CH.02" {
+		t.Errorf("got %q", got)
+	}
+}

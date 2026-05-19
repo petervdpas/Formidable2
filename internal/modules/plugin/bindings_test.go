@@ -158,6 +158,22 @@ func (realFS) List(p string) ([]string, error) {
 	return out, nil
 }
 func (realFS) Exists(p string) bool { _, err := os.Stat(p); return err == nil }
+func (realFS) Copy(from, to string) error {
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return err
+	}
+	b, err := os.ReadFile(from)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(to, b, 0o644)
+}
+func (realFS) Remove(p string) error {
+	if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
 
 // run is a test helper that executes a Lua source with full
 // runtime deps populated. The script's `run()` function is
@@ -791,6 +807,247 @@ func TestBindings_FS_ReadMissingErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("want error")
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.path — join + stripExt utilities (no host deps)
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_Path_Join(t *testing.T) {
+	res := run(t, `
+		function run()
+			return {
+				simple = formidable.path.join("/a", "b"),
+				trailing = formidable.path.join("/a/", "b"),
+				multi = formidable.path.join("/a", "b", "c"),
+				empty = formidable.path.join("/a", "", "c"),
+				rel = formidable.path.join("a", "b"),
+			}
+		end`, scriptOpts{})
+	got := res.Value.(map[string]any)
+	for k, want := range map[string]string{
+		"simple":   "/a/b",
+		"trailing": "/a/b",
+		"multi":    "/a/b/c",
+		"empty":    "/a/c",
+		"rel":      "a/b",
+	} {
+		if got[k] != want {
+			t.Errorf("%s: got %q, want %q", k, got[k], want)
+		}
+	}
+}
+
+func TestBindings_Path_StripExt(t *testing.T) {
+	res := run(t, `
+		function run()
+			return {
+				yaml = formidable.path.stripExt("foo.yaml", ".yaml"),
+				meta = formidable.path.stripExt("foo.meta.json", ".meta.json"),
+				absent = formidable.path.stripExt("foo", ".yaml"),
+				partial = formidable.path.stripExt("foo.json", ".meta.json"),
+			}
+		end`, scriptOpts{})
+	got := res.Value.(map[string]any)
+	for k, want := range map[string]string{
+		"yaml":    "foo",
+		"meta":    "foo",
+		"absent":  "foo",
+		"partial": "foo.json",
+	} {
+		if got[k] != want {
+			t.Errorf("%s: got %q, want %q", k, got[k], want)
+		}
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.url — encode + decode (matches net/url PathEscape)
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_URL_Encode_Decode_RoundTrip(t *testing.T) {
+	res := run(t, `
+		function run()
+			local enc = formidable.url.encode("cover art (final).png")
+			local dec = formidable.url.decode(enc)
+			return { enc = enc, dec = dec }
+		end`, scriptOpts{})
+	got := res.Value.(map[string]any)
+	if got["dec"] != "cover art (final).png" {
+		t.Errorf("decode round-trip: got %q", got["dec"])
+	}
+	if !strings.Contains(got["enc"].(string), "%20") {
+		t.Errorf("encode should percent-escape spaces: got %q", got["enc"])
+	}
+}
+
+func TestBindings_URL_Decode_InvalidRaises(t *testing.T) {
+	err := runErr(t,
+		`function run() return formidable.url.decode("%XY") end`,
+		scriptOpts{})
+	if err == nil || !strings.Contains(err.Error(), "url.decode") {
+		t.Fatalf("want url.decode error, got %v", err)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.rewrite.* — Lua-side post-render markdown rewriters
+// shipped via builtins.lua. Composes formidable.path.stripExt, so a
+// pure-Lua test through runScript covers both the embed + the
+// rewriter itself.
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_Rewrite_Markdown_Images(t *testing.T) {
+	res := run(t, `
+		function run()
+			local md = "![alt](/api/images/recipes/cover%20art.png)"
+			local out, images = formidable.rewrite.markdown(md, {
+				template_stem = "recipes",
+				image_path_prefix = ".images/",
+			})
+			local names = {}
+			for n, _ in pairs(images) do table.insert(names, n) end
+			return { md = out, image = names[1], count = #names }
+		end`, scriptOpts{})
+	got := res.Value.(map[string]any)
+	if got["md"] != "![alt](.images/cover%20art.png)" {
+		t.Errorf("md: got %q", got["md"])
+	}
+	if got["image"] != "cover%20art.png" {
+		t.Errorf("image: got %q", got["image"])
+	}
+	if got["count"] != float64(1) {
+		t.Errorf("count: got %v", got["count"])
+	}
+}
+
+func TestBindings_Rewrite_Markdown_LabelledLink(t *testing.T) {
+	res := run(t, `
+		function run()
+			local out = formidable.rewrite.markdown(
+				"see [intro](formidable://recipes.yaml:overview.meta.json#top) here",
+				{ link_path_format = "/{tpl}/{data}{hash}" })
+			return out
+		end`, scriptOpts{})
+	want := "see [intro](/recipes/overview#top) here"
+	if res.Value != want {
+		t.Errorf("got %q, want %q", res.Value, want)
+	}
+}
+
+func TestBindings_Rewrite_Markdown_BareLink(t *testing.T) {
+	res := run(t, `
+		function run()
+			local out = formidable.rewrite.markdown(
+				"see formidable://controls.yaml:CH.02.meta.json#sec end",
+				{ link_path_format = "/{tpl}/{data}{hash}" })
+			return out
+		end`, scriptOpts{})
+	want := "see [controls/CH.02](/controls/CH.02#sec) end"
+	if res.Value != want {
+		t.Errorf("got %q, want %q", res.Value, want)
+	}
+}
+
+func TestBindings_Rewrite_Markdown_Combined(t *testing.T) {
+	res := run(t, `
+		function run()
+			local md = "![](/api/images/r/a.png)\nsee [x](formidable://r.yaml:b.meta.json)"
+			local out, images = formidable.rewrite.markdown(md, {
+				template_stem      = "r",
+				image_path_prefix  = ".images/",
+				link_path_format   = "/{tpl}/{data}{hash}",
+			})
+			local has_image = false
+			for n, _ in pairs(images) do
+				if n == "a.png" then has_image = true end
+			end
+			return { md = out, has_image = has_image }
+		end`, scriptOpts{})
+	got := res.Value.(map[string]any)
+	want := "![](.images/a.png)\nsee [x](/r/b)"
+	if got["md"] != want {
+		t.Errorf("md: got %q, want %q", got["md"], want)
+	}
+	if got["has_image"] != true {
+		t.Errorf("image not collected")
+	}
+}
+
+func TestBindings_Rewrite_Markdown_EmptyOptsIsNoOp(t *testing.T) {
+	res := run(t, `
+		function run()
+			local md = "![](/api/images/r/a.png) [x](formidable://r.yaml:b.meta.json)"
+			local out = formidable.rewrite.markdown(md, {})
+			return out == md
+		end`, scriptOpts{})
+	if res.Value != true {
+		t.Fatalf("empty opts should leave markdown untouched")
+	}
+}
+
+func TestBindings_Rewrite_Markdown_OnlyImagesNoLinks(t *testing.T) {
+	res := run(t, `
+		function run()
+			local md = "![](/api/images/r/a.png) [x](formidable://r.yaml:b.meta.json)"
+			local out = formidable.rewrite.markdown(md, {
+				template_stem = "r",
+				image_path_prefix = ".images/",
+			})
+			return out
+		end`, scriptOpts{})
+	want := "![](.images/a.png) [x](formidable://r.yaml:b.meta.json)"
+	if res.Value != want {
+		t.Errorf("links should be untouched without link_path_format: got %q", res.Value)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.fs.copy / formidable.fs.remove
+// ─────────────────────────────────────────────────────────────────
+
+func TestBindings_FS_Copy_HappyPath(t *testing.T) {
+	tmp := t.TempDir()
+	from := filepath.Join(tmp, "src.txt")
+	to := filepath.Join(tmp, "sub", "dst.txt")
+	if err := os.WriteFile(from, []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run(t, `
+		function run()
+			formidable.fs.copy("`+from+`", "`+to+`")
+		end`, scriptOpts{FS: realFS{}})
+	got, err := os.ReadFile(to)
+	if err != nil || string(got) != "hello" {
+		t.Fatalf("copy: got %q err %v", got, err)
+	}
+}
+
+func TestBindings_FS_Copy_MissingSourceErrors(t *testing.T) {
+	err := runErr(t,
+		`function run() formidable.fs.copy("/no/such", "/tmp/dst") end`,
+		scriptOpts{FS: realFS{}})
+	if err == nil || !strings.Contains(err.Error(), "fs.copy") {
+		t.Fatalf("want fs.copy error, got %v", err)
+	}
+}
+
+func TestBindings_FS_Remove_HappyPath(t *testing.T) {
+	tmp := t.TempDir()
+	f := filepath.Join(tmp, "x.txt")
+	if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run(t, `function run() formidable.fs.remove("`+f+`") end`,
+		scriptOpts{FS: realFS{}})
+	if _, err := os.Stat(f); !os.IsNotExist(err) {
+		t.Fatalf("file should be gone: err=%v", err)
+	}
+}
+
+func TestBindings_FS_Remove_MissingIsNoOp(t *testing.T) {
+	run(t, `function run() formidable.fs.remove("/no/such/missing") end`,
+		scriptOpts{FS: realFS{}})
 }
 
 // ─────────────────────────────────────────────────────────────────

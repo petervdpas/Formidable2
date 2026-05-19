@@ -150,6 +150,8 @@
   "workspace.information.render_helpers.category.stats": "Statistieken",
   "workspace.information.render_helpers.category.tags": "Tags & lijsten",
   "workspace.information.render_helpers.category.api": "API-velden",
+  "workspace.information.render_helpers.category.date": "Datums & tijden",
+  "workspace.information.render_helpers.category.meta": "Rendermetadata",
   "workspace.information.logging.info": "Systeem-logstroom. Live tail toont entries die in-process worden uitgezonden; het ruwe bestand is de formidable.log op schijf, die bij elke app-start wordt afgekapt.",
   "workspace.information.logging.tab.live": "Live stroom",
   "workspace.information.logging.tab.raw": "Ruw logbestand",

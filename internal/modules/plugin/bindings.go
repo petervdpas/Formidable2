@@ -3,6 +3,9 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"net/url"
+	"path"
+	"strings"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
@@ -68,6 +71,8 @@ type FSAccess interface {
 	Mkdir(path string) error
 	List(path string) ([]string, error)
 	Exists(path string) bool
+	Copy(from, to string) error
+	Remove(path string) error
 }
 
 // StorageAccess is the formidable.storage.* surface — direct access
@@ -461,7 +466,7 @@ func buildRunTable(L *lua.LState, barEmit RunBarEmitter, statusEmit RunStatusEmi
 func buildFSTable(L *lua.LState, fs FSAccess) *lua.LTable {
 	tbl := L.NewTable()
 	if fs == nil {
-		for _, name := range []string{"read", "write", "mkdir", "list", "exists"} {
+		for _, name := range []string{"read", "write", "mkdir", "list", "exists", "copy", "remove"} {
 			tbl.RawSetString(name, L.NewFunction(nilGuard("fs")))
 		}
 		return tbl
@@ -509,6 +514,21 @@ func buildFSTable(L *lua.LState, fs FSAccess) *lua.LTable {
 		p := L.CheckString(1)
 		L.Push(lua.LBool(fs.Exists(p)))
 		return 1
+	}))
+	tbl.RawSetString("copy", L.NewFunction(func(L *lua.LState) int {
+		from := L.CheckString(1)
+		to := L.CheckString(2)
+		if err := fs.Copy(from, to); err != nil {
+			L.RaiseError("fs.copy: %v", err)
+		}
+		return 0
+	}))
+	tbl.RawSetString("remove", L.NewFunction(func(L *lua.LState) int {
+		p := L.CheckString(1)
+		if err := fs.Remove(p); err != nil {
+			L.RaiseError("fs.remove: %v", err)
+		}
+		return 0
 	}))
 	return tbl
 }
@@ -655,6 +675,58 @@ func buildJSONTable(L *lua.LState) *lua.LTable {
 			return 0
 		}
 		L.Push(goToLua(L, v))
+		return 1
+	}))
+	return t
+}
+
+// buildPathTable mounts formidable.path.join / formidable.path.stripExt.
+// Always available — pure utility, no host deps. `join` uses Go's
+// path.Join semantics (forward slashes only; doubles are collapsed;
+// empty segments are ignored), which matches the storage layer's
+// canonical form. `stripExt` removes a known suffix if present —
+// callers pass the exact extension (".yaml", ".meta.json") rather
+// than relying on dot-detection so multi-dot suffixes round-trip.
+func buildPathTable(L *lua.LState) *lua.LTable {
+	t := L.NewTable()
+	t.RawSetString("join", L.NewFunction(func(L *lua.LState) int {
+		top := L.GetTop()
+		parts := make([]string, 0, top)
+		for i := 1; i <= top; i++ {
+			parts = append(parts, lua.LVAsString(L.Get(i)))
+		}
+		L.Push(lua.LString(path.Join(parts...)))
+		return 1
+	}))
+	t.RawSetString("stripExt", L.NewFunction(func(L *lua.LState) int {
+		s := L.CheckString(1)
+		ext := L.CheckString(2)
+		L.Push(lua.LString(strings.TrimSuffix(s, ext)))
+		return 1
+	}))
+	return t
+}
+
+// buildURLTable mounts formidable.url.encode / formidable.url.decode.
+// Uses net/url's PathEscape/PathUnescape so the round-trip matches
+// what the slideout renderer emits in /api/images/<stem>/<name> —
+// spaces become %20, slashes are escaped. Decode raises on invalid
+// %-escapes so plugins see the cause; encode is total.
+func buildURLTable(L *lua.LState) *lua.LTable {
+	t := L.NewTable()
+	t.RawSetString("encode", L.NewFunction(func(L *lua.LState) int {
+		s := L.CheckString(1)
+		L.Push(lua.LString(url.PathEscape(s)))
+		return 1
+	}))
+	t.RawSetString("decode", L.NewFunction(func(L *lua.LState) int {
+		s := L.CheckString(1)
+		d, err := url.PathUnescape(s)
+		if err != nil {
+			L.RaiseError("url.decode: %v", err)
+			return 0
+		}
+		L.Push(lua.LString(d))
 		return 1
 	}))
 	return t

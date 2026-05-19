@@ -20,6 +20,7 @@ const (
 	HelperCategoryTags       HelperCategory = "tags"
 	HelperCategoryAPI        HelperCategory = "api"
 	HelperCategoryDate       HelperCategory = "date"
+	HelperCategoryMeta       HelperCategory = "meta"
 )
 
 // HelperDescriptor describes one registered Handlebars helper. The
@@ -128,6 +129,12 @@ var builtinHelpers = []HelperDescriptor{
 	{Name: "apiCol", Signature: `{{apiCol "fieldKey" "columnKey"}}`, Description: "Read one projected column from an api-field's picked record. Scalars pass through; non-scalars render as compact JSON.", Example: `{{apiCol "ref" "title"}}`, Category: HelperCategoryAPI},
 	{Name: "apiGuid", Signature: `{{apiGuid "fieldKey"}}`, Description: "GUID of an api-field's picked record. Empty when nothing has been picked.", Example: `{{apiGuid "ref"}}`, Category: HelperCategoryAPI},
 	{Name: "apiSection", Signature: `{{apiSection "fieldKey"}}`, Description: "Full embedded-card markdown for an api-field's picked record — header + per-column lines, wrapped in `<section class=\"api-card\">`.", Example: `{{apiSection "ref"}}`, Category: HelperCategoryAPI},
+
+	// ── meta (current-render identity) ───────────────────────────
+	{Name: "datafile", Signature: `{{datafile}}`, Description: "Filename of the data file being rendered (e.g. `chapter-01.meta.json`).", Example: `path: {{datafile}}`, Category: HelperCategoryMeta},
+	{Name: "datafileStem", Signature: `{{datafileStem}}`, Description: "Filename of the data file with `.meta.json` stripped — useful as a stable slug for wiki paths or anchors.", Example: `path: {{templateStem}}/{{datafileStem}}`, Category: HelperCategoryMeta},
+	{Name: "templateName", Signature: `{{templateName}}`, Description: "Filename of the template being rendered (e.g. `recipes.yaml`).", Example: `template: {{templateName}}`, Category: HelperCategoryMeta},
+	{Name: "templateStem", Signature: `{{templateStem}}`, Description: "Filename of the template with the `.yaml` extension stripped — the slug form used in URLs and wiki paths.", Example: `slug: {{templateStem}}`, Category: HelperCategoryMeta},
 }
 
 // Catalog returns a copy of the static helper descriptor list. Callers

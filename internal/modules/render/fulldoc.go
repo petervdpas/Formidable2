@@ -50,7 +50,7 @@ func (m *Manager) RenderFullHTML(templateName, datafile string) (string, error) 
 			values = loaded.Data
 		}
 	}
-	md, err := RenderMarkdown(values, tpl, m.optionsFor(templateName))
+	md, err := RenderMarkdown(values, tpl, m.optionsFor(templateName, datafile))
 	if err != nil {
 		return "", err
 	}

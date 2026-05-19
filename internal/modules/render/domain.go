@@ -120,7 +120,7 @@ func (m *Manager) RenderMarkdown(templateName, datafile string) (string, error) 
 			values = loaded.Data
 		}
 	}
-	opts := m.optionsFor(templateName)
+	opts := m.optionsFor(templateName, datafile)
 	return RenderMarkdown(values, tpl, opts)
 }
 
@@ -134,9 +134,13 @@ func (m *Manager) RenderHTMLOnly(markdown string) (string, error) {
 // optionsFor builds the per-template Options bundle. Captures the
 // template filename in closures so the emitters don't need to thread
 // it through. Both URL strategies fall back to nil-passthrough when
-// the manager wasn't given them.
-func (m *Manager) optionsFor(templateName string) *Options {
-	opts := &Options{}
+// the manager wasn't given them. TemplateFilename/Datafile populate
+// the identity slots the meta-category helpers read.
+func (m *Manager) optionsFor(templateName, datafile string) *Options {
+	opts := &Options{
+		TemplateFilename: templateName,
+		Datafile:         datafile,
+	}
 	if m.imageURL != nil {
 		opts.ImageURL = func(name string) string {
 			return m.imageURL(templateName, name)
