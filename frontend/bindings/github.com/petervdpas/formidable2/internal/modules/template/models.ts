@@ -155,6 +155,84 @@ export class Descriptor {
 }
 
 /**
+ * Facet is one named dimension of meta classification on a template:
+ * a stable Key (used as the FormMeta.Facets map key), an Icon (a
+ * FontAwesome key rendered next to the chosen pill), and a list of
+ * mutually-exclusive Options to pick from on each record.
+ * 
+ * Each facet on a record carries a required `set` bool plus an
+ * optional `selected` label — see storage.FacetState. Filter chips
+ * in the storage view auto-derive from a template's facets but only
+ * render when at least one record actually has `set: true` for the
+ * facet's key.
+ * 
+ * Templates may declare up to 16 facets, each with up to 16 options.
+ */
+export class Facet {
+    "key": string;
+    "icon": string;
+    "options": FacetOption[];
+
+    /** Creates a new Facet instance. */
+    constructor($$source: Partial<Facet> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("icon" in $$source)) {
+            this["icon"] = "";
+        }
+        if (!("options" in $$source)) {
+            this["options"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Facet instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Facet {
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("options" in $$parsedSource) {
+            $$parsedSource["options"] = $$createField2_0($$parsedSource["options"]);
+        }
+        return new Facet($$parsedSource as Partial<Facet>);
+    }
+}
+
+/**
+ * FacetOption is one selectable label within a facet. Label is the
+ * user-visible identifier (also used as the value stored in
+ * FormMeta.Facets[key].Selected); Color names a token from the
+ * shared 16-token palette. Colors may repeat across labels.
+ */
+export class FacetOption {
+    "label": string;
+    "color": string;
+
+    /** Creates a new FacetOption instance. */
+    constructor($$source: Partial<FacetOption> = {}) {
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("color" in $$source)) {
+            this["color"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FacetOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FacetOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FacetOption($$parsedSource as Partial<FacetOption>);
+    }
+}
+
+/**
  * Field describes one input in a template. Type-specific properties
  * (run_mode, options, collection, etc.) sit alongside the common ones —
  * downstream consumers ignore irrelevant fields.
@@ -233,8 +311,8 @@ export class Field {
      * Creates a new Field instance from a string or object.
      */
     static createFrom($$source: any = {}): Field {
-        const $$createField11_0 = $$createType2;
-        const $$createField15_0 = $$createType4;
+        const $$createField11_0 = $$createType4;
+        const $$createField15_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField11_0($$parsedSource["options"]);
@@ -275,44 +353,12 @@ export class FieldDescriptor {
      * Creates a new FieldDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldDescriptor {
-        const $$createField2_0 = $$createType5;
+        const $$createField2_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
             $$parsedSource["abilities"] = $$createField2_0($$parsedSource["abilities"]);
         }
         return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
-    }
-}
-
-/**
- * FlagDefinition is one entry in a template's flag palette. Label is
- * the user-visible identifier (also used as the stable id stored in
- * FormMeta.FlagState); Color names a token from the shared 16-token
- * palette (red/orange/.../slate). Templates may declare up to 16
- * definitions; colors may repeat across labels.
- */
-export class FlagDefinition {
-    "label": string;
-    "color": string;
-
-    /** Creates a new FlagDefinition instance. */
-    constructor($$source: Partial<FlagDefinition> = {}) {
-        if (!("label" in $$source)) {
-            this["label"] = "";
-        }
-        if (!("color" in $$source)) {
-            this["color"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new FlagDefinition instance from a string or object.
-     */
-    static createFrom($$source: any = {}): FlagDefinition {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FlagDefinition($$parsedSource as Partial<FlagDefinition>);
     }
 }
 
@@ -495,7 +541,7 @@ export class PDFConfig {
      * Creates a new PDFConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): PDFConfig {
-        const $$createField1_0 = $$createType7;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cover" in $$parsedSource) {
             $$parsedSource["cover"] = $$createField1_0($$parsedSource["cover"]);
@@ -641,7 +687,7 @@ export class Template {
     "sidebar_expression": string;
     "enable_collection": boolean;
     "pdf"?: PDFConfig | null;
-    "flag_definitions": FlagDefinition[];
+    "facets": Facet[];
     "fields": Field[];
     "needs_resave": boolean;
 
@@ -665,8 +711,8 @@ export class Template {
         if (!("enable_collection" in $$source)) {
             this["enable_collection"] = false;
         }
-        if (!("flag_definitions" in $$source)) {
-            this["flag_definitions"] = [];
+        if (!("facets" in $$source)) {
+            this["facets"] = [];
         }
         if (!("fields" in $$source)) {
             this["fields"] = [];
@@ -682,15 +728,15 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField8_0 = $$createType9;
-        const $$createField9_0 = $$createType11;
-        const $$createField10_0 = $$createType13;
+        const $$createField8_0 = $$createType11;
+        const $$createField9_0 = $$createType13;
+        const $$createField10_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
         }
-        if ("flag_definitions" in $$parsedSource) {
-            $$parsedSource["flag_definitions"] = $$createField9_0($$parsedSource["flag_definitions"]);
+        if ("facets" in $$parsedSource) {
+            $$parsedSource["facets"] = $$createField9_0($$parsedSource["facets"]);
         }
         if ("fields" in $$parsedSource) {
             $$parsedSource["fields"] = $$createField10_0($$parsedSource["fields"]);
@@ -724,9 +770,9 @@ export class ValidationError {
      * Creates a new ValidationError instance from a string or object.
      */
     static createFrom($$source: any = {}): ValidationError {
-        const $$createField3_0 = $$createType14;
-        const $$createField4_0 = $$createType15;
-        const $$createField6_0 = $$createType16;
+        const $$createField3_0 = $$createType16;
+        const $$createField4_0 = $$createType17;
+        const $$createField6_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -744,18 +790,20 @@ export class ValidationError {
 // Private type creation functions
 const $$createType0 = Template.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = APIMap.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = Abilities.createFrom;
-const $$createType6 = PDFCoverConfig.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = PDFConfig.createFrom;
+const $$createType2 = FacetOption.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = APIMap.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = Abilities.createFrom;
+const $$createType8 = PDFCoverConfig.createFrom;
 const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = FlagDefinition.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = Field.createFrom;
+const $$createType10 = PDFConfig.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = Facet.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = $Create.Array($Create.Any);
-const $$createType15 = $Create.Nullable($$createType12);
-const $$createType16 = $Create.Map($Create.Any, $Create.Any);
+const $$createType14 = Field.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $Create.Array($Create.Any);
+const $$createType17 = $Create.Nullable($$createType14);
+const $$createType18 = $Create.Map($Create.Any, $Create.Any);

@@ -172,9 +172,13 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	ctx.Step(`^I save a form "([^"]*)" / "([^"]*)" with raw meta flag_state "([^"]*)"$`, func(tmplFile, datafile, state string) error {
+	ctx.Step(`^I save a form "([^"]*)" / "([^"]*)" with raw meta facet "([^"]*)" set (true|false) selected "([^"]*)"$`, func(tmplFile, datafile, key, setStr, selected string) error {
 		raw := map[string]any{
-			"_meta": map[string]any{"flag_state": state},
+			"_meta": map[string]any{
+				"facets": map[string]any{
+					key: map[string]any{"set": setStr == "true", "selected": selected},
+				},
+			},
 		}
 		w.saveResult = w.m.SaveForm(context.Background(), tmplFile, datafile, raw)
 		w.lastTpl, w.lastDatafile = tmplFile, datafile
@@ -193,28 +197,32 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	ctx.Step(`^the loaded form's meta has flag_state "([^"]*)"$`, func(want string) error {
+	ctx.Step(`^the loaded form's meta has facet "([^"]*)" set (true|false) selected "([^"]*)"$`, func(key, setStr, selected string) error {
 		f := loadFormByDatafile(w)
 		if f == nil {
 			return fmt.Errorf("no form to inspect")
 		}
-		if f.Meta.FlagState != want {
-			return fmt.Errorf("flag_state = %q, want %q", f.Meta.FlagState, want)
+		state, ok := f.Meta.Facets[key]
+		if !ok {
+			return fmt.Errorf("facet %q absent; facets=%+v", key, f.Meta.Facets)
+		}
+		wantSet := setStr == "true"
+		if state.Set != wantSet {
+			return fmt.Errorf("facet %q set = %v, want %v", key, state.Set, wantSet)
+		}
+		if state.Selected != selected {
+			return fmt.Errorf("facet %q selected = %q, want %q", key, state.Selected, selected)
 		}
 		return nil
 	})
 
-	ctx.Step(`^the loaded form's meta has flagged (true|false)$`, func(want string) error {
+	ctx.Step(`^the loaded form's meta has no facets$`, func() error {
 		f := loadFormByDatafile(w)
 		if f == nil {
 			return fmt.Errorf("no form to inspect")
 		}
-		got := "false"
-		if f.Meta.Flagged {
-			got = "true"
-		}
-		if got != want {
-			return fmt.Errorf("flagged = %s, want %s", got, want)
+		if len(f.Meta.Facets) != 0 {
+			return fmt.Errorf("facets = %+v, want empty", f.Meta.Facets)
 		}
 		return nil
 	})

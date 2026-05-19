@@ -83,9 +83,9 @@
   "workspace.storage.template_picker": "Sjabloon",
   "workspace.storage.title": "Opslag",
   "workspace.storage.unselected": "Kies een formulier uit de zijbalk.",
-  "workspace.storage.meta.flag": "Vlag",
-  "workspace.storage.flag_filter.all": "Alle formulieren",
-  "flag.picker.title_empty": "Geen vlag",
-  "flag.picker.clear": "Geen vlag",
-  "flag.picker.no_definitions": "Dit sjabloon heeft geen vlaggen gedefinieerd."
+  "workspace.storage.meta.facets": "Facetten",
+  "workspace.storage.facet_filter.all": "Elke {0}",
+  "facet.picker.title_empty": "Niet ingesteld",
+  "facet.picker.clear": "Niet ingesteld",
+  "facet.picker.no_options": "Dit facet heeft geen opties."
 }

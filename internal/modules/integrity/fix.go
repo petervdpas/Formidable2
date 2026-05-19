@@ -209,16 +209,24 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 			return false, "restamp only applies to meta_bad_format", nil
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		switch iss.Path {
-		case "meta.created":
+		switch {
+		case iss.Path == "meta.created":
 			draft.Meta.Created.At = now
-		case "meta.updated":
+		case iss.Path == "meta.updated":
 			draft.Meta.Updated.At = now
-		case "meta.flag_state":
-			// "Restamp" on flag_state = clear the stale label; the
-			// concrete change is different but the user intent is the
-			// same ("make this meta key valid").
-			draft.Meta.FlagState = ""
+		case strings.HasPrefix(iss.Path, "meta.facets."):
+			// Restamp on a facet path clears stale state so the meta
+			// key becomes valid again. .selected suffix clears just the
+			// option; the bare key drops the whole facet entry.
+			rest := strings.TrimPrefix(iss.Path, "meta.facets.")
+			key, suffix, _ := strings.Cut(rest, ".")
+			if suffix == "selected" {
+				state := draft.Meta.Facets[key]
+				state.Selected = ""
+				draft.Meta.Facets[key] = state
+			} else {
+				delete(draft.Meta.Facets, key)
+			}
 		default:
 			return false, fmt.Sprintf("unsupported meta path %q", iss.Path), nil
 		}

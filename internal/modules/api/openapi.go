@@ -85,6 +85,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 		"ItemBase":       schemaItemBase(),
 		"ItemSummary":    schemaItemSummary(),
 		"FormMeta":       schemaFormMeta(),
+		"FacetState":     schemaFacetState(),
 		"AuditEntry":     schemaAuditEntry(),
 		"TemplateRow":    schemaTemplateRow(),
 		"CountResponse":  schemaCountResponse(),
@@ -738,14 +739,29 @@ func schemaFormMeta() map[string]any {
 		"type":        "object",
 		"description": "On-disk meta block. Created is set on first save and locked thereafter; Updated is re-stamped on every save with the active profile's identity.",
 		"properties": map[string]any{
-			"id":         map[string]any{"type": "string", "description": "GUID; minted on first save when the template declares a guid field"},
-			"template":   map[string]any{"type": "string"},
-			"created":    map[string]any{"$ref": "#/components/schemas/AuditEntry"},
-			"updated":    map[string]any{"$ref": "#/components/schemas/AuditEntry"},
-			"flagged":    map[string]any{"type": "boolean"},
-			"flag_state": map[string]any{"type": "string", "description": "Template-defined flag label (e.g. FLASH, IMMEDIATE) or empty"},
-			"tags":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"id":       map[string]any{"type": "string", "description": "GUID; minted on first save when the template declares a guid field"},
+			"template": map[string]any{"type": "string"},
+			"created":  map[string]any{"$ref": "#/components/schemas/AuditEntry"},
+			"updated":  map[string]any{"$ref": "#/components/schemas/AuditEntry"},
+			"facets": map[string]any{
+				"type":                 "object",
+				"description":          "Per-facet state, keyed by template.facets[i].key. Each entry has a required `set` bool and optional `selected` option label.",
+				"additionalProperties": map[string]any{"$ref": "#/components/schemas/FacetState"},
+			},
+			"tags": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		},
+	}
+}
+
+func schemaFacetState() map[string]any {
+	return map[string]any{
+		"type":        "object",
+		"description": "Per-record state for one facet. `set` is the required toggle (mirrors legacy `flagged`); `selected` is an optional option label (mirrors legacy `flag_state`).",
+		"properties": map[string]any{
+			"set":      map[string]any{"type": "boolean"},
+			"selected": map[string]any{"type": "string"},
+		},
+		"required": []any{"set"},
 	}
 }
 

@@ -287,12 +287,14 @@ func TestFix_Restamp_FixesBadUpdated(t *testing.T) {
 	}
 }
 
-func TestFix_Restamp_ClearsUnknownFlagState(t *testing.T) {
+func TestFix_Restamp_ClearsUnknownFacetSelected(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
-			Created:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
-			Updated:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
-			FlagState: "GHOST",
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Facets: map[string]storage.FacetState{
+				"flag": {Set: true, Selected: "GHOST"},
+			},
 		},
 		Data: map[string]any{"title": "x"},
 	}
@@ -303,8 +305,35 @@ func TestFix_Restamp_ClearsUnknownFlagState(t *testing.T) {
 	if res.Applied != 1 {
 		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
 	}
-	if h.loadSaved("a.meta.json").Meta.FlagState != "" {
-		t.Errorf("flag_state not cleared")
+	got := h.loadSaved("a.meta.json").Meta.Facets["flag"]
+	if got.Selected != "" {
+		t.Errorf("selected not cleared, got %q", got.Selected)
+	}
+	if !got.Set {
+		t.Errorf("set flag should survive restamp; got %+v", got)
+	}
+}
+
+func TestFix_Restamp_DropsUnknownFacetKey(t *testing.T) {
+	f := &storage.Form{
+		Meta: storage.FormMeta{
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Facets: map[string]storage.FacetState{
+				"phantom": {Set: true},
+			},
+		},
+		Data: map[string]any{"title": "x"},
+	}
+	h := newFixHarness(t, tplWithFlag(), map[string]*storage.Form{"a.meta.json": f})
+
+	res := h.runPlan(FixPlanItem{Kind: IssueMetaBadFormat, Strategy: FixRestamp})
+
+	if res.Applied != 1 {
+		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
+	}
+	if _, present := h.loadSaved("a.meta.json").Meta.Facets["phantom"]; present {
+		t.Errorf("phantom facet should be dropped after restamp")
 	}
 }
 

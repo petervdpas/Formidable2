@@ -6,7 +6,11 @@
 // api-field shape rules, collection-mode requires a guid field.
 package template
 
-import "strings"
+import (
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
 
 // Template is the on-disk shape of a template YAML file.
 //
@@ -18,18 +22,41 @@ import "strings"
 // can name "who last touched this template" without walking git log,
 // matching how it identifies record overrides.
 type Template struct {
-	Name              string           `yaml:"name" json:"name"`
-	Filename          string           `yaml:"filename" json:"filename"`
-	AuthorName        string           `yaml:"author_name,omitempty" json:"author_name,omitempty"`
-	AuthorEmail       string           `yaml:"author_email,omitempty" json:"author_email,omitempty"`
-	ItemField         string           `yaml:"item_field,omitempty" json:"item_field"`
-	MarkdownTemplate  string           `yaml:"markdown_template,omitempty" json:"markdown_template"`
-	SidebarExpression string           `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
-	EnableCollection  bool             `yaml:"enable_collection,omitempty" json:"enable_collection"`
-	PDF               *PDFConfig       `yaml:"pdf,omitempty" json:"pdf,omitempty"`
-	FlagDefinitions   []FlagDefinition `yaml:"flag_definitions,omitempty" json:"flag_definitions"`
-	Fields            []Field          `yaml:"fields" json:"fields"`
-	NeedsResave       bool             `yaml:"-" json:"needs_resave"`
+	Name              string     `yaml:"name" json:"name"`
+	Filename          string     `yaml:"filename" json:"filename"`
+	AuthorName        string     `yaml:"author_name,omitempty" json:"author_name,omitempty"`
+	AuthorEmail       string     `yaml:"author_email,omitempty" json:"author_email,omitempty"`
+	ItemField         string     `yaml:"item_field,omitempty" json:"item_field"`
+	MarkdownTemplate  string     `yaml:"markdown_template,omitempty" json:"markdown_template"`
+	SidebarExpression string     `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
+	EnableCollection  bool       `yaml:"enable_collection,omitempty" json:"enable_collection"`
+	PDF               *PDFConfig `yaml:"pdf,omitempty" json:"pdf,omitempty"`
+	Facets            []Facet    `yaml:"facets,omitempty" json:"facets"`
+	Fields            []Field    `yaml:"fields" json:"fields"`
+	NeedsResave       bool       `yaml:"-" json:"needs_resave"`
+}
+
+// UnmarshalYAML accepts both the new `facets:` shape and the legacy
+// `flag_definitions:` shape. Legacy entries become one synthetic facet
+// keyed "flag" with icon "fa-flag" and the list as its options, so
+// existing on-disk templates keep rendering without rewrites.
+func (t *Template) UnmarshalYAML(node *yaml.Node) error {
+	type tplAlias Template
+	aux := struct {
+		*tplAlias        `yaml:",inline"`
+		LegacyFlagDefs []FacetOption `yaml:"flag_definitions"`
+	}{tplAlias: (*tplAlias)(t)}
+	if err := node.Decode(&aux); err != nil {
+		return err
+	}
+	if len(t.Facets) == 0 && len(aux.LegacyFlagDefs) > 0 {
+		t.Facets = []Facet{{
+			Key:     "flag",
+			Icon:    "fa-flag",
+			Options: aux.LegacyFlagDefs,
+		}}
+	}
+	return nil
 }
 
 // PDFConfig is the per-template PDF export defaults: a theme/style
@@ -69,12 +96,29 @@ type PDFCoverConfig struct {
 	Department   string `yaml:"department,omitempty" json:"department,omitempty"`
 }
 
-// FlagDefinition is one entry in a template's flag palette. Label is
-// the user-visible identifier (also used as the stable id stored in
-// FormMeta.FlagState); Color names a token from the shared 16-token
-// palette (red/orange/.../slate). Templates may declare up to 16
-// definitions; colors may repeat across labels.
-type FlagDefinition struct {
+// Facet is one named dimension of meta classification on a template:
+// a stable Key (used as the FormMeta.Facets map key), an Icon (a
+// FontAwesome key rendered next to the chosen pill), and a list of
+// mutually-exclusive Options to pick from on each record.
+//
+// Each facet on a record carries a required `set` bool plus an
+// optional `selected` label — see storage.FacetState. Filter chips
+// in the storage view auto-derive from a template's facets but only
+// render when at least one record actually has `set: true` for the
+// facet's key.
+//
+// Templates may declare up to 16 facets, each with up to 16 options.
+type Facet struct {
+	Key     string        `yaml:"key" json:"key"`
+	Icon    string        `yaml:"icon" json:"icon"`
+	Options []FacetOption `yaml:"options" json:"options"`
+}
+
+// FacetOption is one selectable label within a facet. Label is the
+// user-visible identifier (also used as the value stored in
+// FormMeta.Facets[key].Selected); Color names a token from the
+// shared 16-token palette. Colors may repeat across labels.
+type FacetOption struct {
 	Label string `yaml:"label" json:"label"`
 	Color string `yaml:"color" json:"color"`
 }

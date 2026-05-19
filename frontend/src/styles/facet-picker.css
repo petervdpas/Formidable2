@@ -1,34 +1,34 @@
 /*
- * flag-picker — colored fa-flag trigger button + dropdown of label rows
+ * facet-picker — colored fa-flag trigger button + dropdown of label rows
  * with swatches. Reused by the form meta-block (setter), the storage
  * sidebar filter (getter), and the template editor's flag_definitions
  * list.
  *
  * Color tokens come from expression.css (.expr-text-* on the icon,
  * .expr-bg-* on chips). Solid-color swatch cells use the local
- * .flag-swatch-* set below — same 16 hues at full saturation so they
+ * .facet-swatch-* set below — same 16 hues at full saturation so they
  * read as discrete color blocks rather than the 18%-alpha chip tint.
  * Keep the values in sync with .expr-text-* (same RGB).
  */
 
-.flag-swatch-red    { background: #e84e4e; }
-.flag-swatch-orange { background: #ff9438; }
-.flag-swatch-amber  { background: #ffc400; }
-.flag-swatch-yellow { background: #f5dd5d; }
-.flag-swatch-green  { background: #50c878; }
-.flag-swatch-teal   { background: #2bb1a6; }
-.flag-swatch-blue   { background: #4a90e2; }
-.flag-swatch-purple { background: #a064dc; }
-.flag-swatch-pink   { background: #e472b8; }
-.flag-swatch-gray   { background: #8a93a6; }
-.flag-swatch-cyan   { background: #2bd1e8; }
-.flag-swatch-lime   { background: #b8e84e; }
-.flag-swatch-indigo { background: #6464dc; }
-.flag-swatch-rose   { background: #ff5e8a; }
-.flag-swatch-brown  { background: #a07050; }
-.flag-swatch-slate  { background: #6b7a90; }
+.facet-swatch-red    { background: #e84e4e; }
+.facet-swatch-orange { background: #ff9438; }
+.facet-swatch-amber  { background: #ffc400; }
+.facet-swatch-yellow { background: #f5dd5d; }
+.facet-swatch-green  { background: #50c878; }
+.facet-swatch-teal   { background: #2bb1a6; }
+.facet-swatch-blue   { background: #4a90e2; }
+.facet-swatch-purple { background: #a064dc; }
+.facet-swatch-pink   { background: #e472b8; }
+.facet-swatch-gray   { background: #8a93a6; }
+.facet-swatch-cyan   { background: #2bd1e8; }
+.facet-swatch-lime   { background: #b8e84e; }
+.facet-swatch-indigo { background: #6464dc; }
+.facet-swatch-rose   { background: #ff5e8a; }
+.facet-swatch-brown  { background: #a07050; }
+.facet-swatch-slate  { background: #6b7a90; }
 
-.flag-picker-trigger {
+.facet-picker-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -40,35 +40,35 @@
   padding: 0;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
-.flag-picker-trigger:hover:not(:disabled),
-.flag-picker-trigger.open {
+.facet-picker-trigger:hover:not(:disabled),
+.facet-picker-trigger.open {
   border-color: var(--color-accent);
 }
-.flag-picker-trigger:disabled {
+.facet-picker-trigger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.flag-picker-trigger--sm {
+.facet-picker-trigger--sm {
   width: 22px;
   height: 22px;
   font-size: 12px;
 }
-.flag-picker-trigger--md {
+.facet-picker-trigger--md {
   width: 30px;
   height: 30px;
   font-size: 16px;
 }
 
-.flag-picker-trigger.is-empty .fa-flag {
+.facet-picker-trigger.is-empty i {
   opacity: 0.55;
 }
 
-.flag-picker-empty {
+.facet-picker-empty {
   color: var(--color-text-muted, #8a93a6);
 }
 
-.flag-picker-panel {
+.facet-picker-panel {
   display: flex;
   flex-direction: column;
   min-width: 180px;
@@ -76,13 +76,13 @@
   padding: 4px 0;
 }
 
-.flag-picker-empty-msg {
+.facet-picker-empty-msg {
   margin: 4px 8px 8px;
   color: var(--color-text-muted, #8a93a6);
   font-size: 12px;
 }
 
-.flag-picker-row {
+.facet-picker-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -94,21 +94,21 @@
   font: inherit;
   color: var(--color-text);
 }
-.flag-picker-row:hover {
+.facet-picker-row:hover {
   background: var(--color-bg);
 }
-.flag-picker-row.active {
+.facet-picker-row.active {
   background: var(--color-bg);
   font-weight: 600;
 }
 
-.flag-picker-clear {
+.facet-picker-clear {
   border-top: 1px solid var(--color-border);
   margin-top: 2px;
   padding-top: 8px;
 }
 
-.flag-picker-swatch {
+.facet-picker-swatch {
   flex: 0 0 auto;
   display: inline-block;
   width: 14px;
@@ -116,11 +116,11 @@
   border-radius: 3px;
   border: 1px solid var(--color-border);
 }
-.flag-picker-swatch--empty {
+.facet-picker-swatch--empty {
   background: transparent;
 }
 
-.flag-picker-label {
+.facet-picker-label {
   flex: 1 1 auto;
   font-size: 13px;
   white-space: nowrap;
@@ -131,7 +131,7 @@
 /* Sidebar StorageFlagFilter trigger — flag icon + current selection
    label, full toolbar width so it lines up with the tag filter input
    below it. */
-.flag-filter-trigger {
+.facet-filter-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -146,12 +146,12 @@
   text-align: left;
   transition: border-color 0.12s ease;
 }
-.flag-filter-trigger:hover,
-.flag-filter-trigger.open,
-.flag-filter-trigger.is-active {
+.facet-filter-trigger:hover,
+.facet-filter-trigger.open,
+.facet-filter-trigger.is-active {
   border-color: var(--color-accent);
 }
-.flag-filter-label {
+.facet-filter-label {
   flex: 1 1 auto;
   font-size: 13px;
   white-space: nowrap;
@@ -161,19 +161,19 @@
 
 /* ── FlagDefinitionsModal ───────────────────────────────────────────── */
 
-.flag-builder-intro {
+.facet-builder-intro {
   margin: 0 0 var(--space-2);
 }
-.flag-builder-counter {
+.facet-builder-counter {
   margin: 0 0 var(--space-2);
   font-size: 12px;
   color: var(--color-text-muted, #8a93a6);
 }
-.flag-builder-empty {
+.facet-builder-empty {
   margin: var(--space-3) 0;
   text-align: center;
 }
-.flag-builder-list {
+.facet-builder-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -186,7 +186,7 @@
      swatch-popover and the remove-row button. */
   padding-right: 4px;
 }
-.flag-builder-row {
+.facet-builder-row {
   display: grid;
   grid-template-columns: 24px 36px 1fr auto auto;
   align-items: center;
@@ -196,16 +196,16 @@
   border-radius: var(--radius-md);
   background: var(--color-bg);
 }
-.flag-builder-row.has-error {
+.facet-builder-row.has-error {
   border-color: #e84e4e;
 }
-.flag-builder-row .dnd-handle {
+.facet-builder-row .dnd-handle {
   cursor: grab;
   color: var(--color-text-muted, #8a93a6);
   user-select: none;
   text-align: center;
 }
-.flag-builder-swatch-trigger {
+.facet-builder-swatch-trigger {
   width: 36px;
   height: 36px;
   border-radius: 4px;
@@ -214,24 +214,24 @@
   padding: 0;
   transition: border-color 0.12s ease;
 }
-.flag-builder-swatch-trigger:hover,
-.flag-builder-swatch-trigger.open {
+.facet-builder-swatch-trigger:hover,
+.facet-builder-swatch-trigger.open {
   border-color: var(--color-accent);
 }
-.flag-builder-label-input {
+.facet-builder-label-input {
   font-family: var(--font-mono);
   font-weight: 600;
   letter-spacing: 0.04em;
 }
-.flag-builder-row-error {
+.facet-builder-row-error {
   white-space: nowrap;
 }
-.flag-builder-remove {
+.facet-builder-remove {
   font-size: 16px;
   line-height: 1;
   padding: 2px 8px;
 }
-.flag-builder-add-row {
+.facet-builder-add-row {
   margin-top: var(--space-3);
   display: flex;
   justify-content: flex-start;
@@ -239,7 +239,7 @@
 
 /* Flag builder uses the generic .swatch-grid / .swatch-cell primitive
    (styles/swatch.css). Tune the layout via CSS vars on the grid. */
-.flag-builder-swatch-grid {
+.facet-builder-swatch-grid {
   --swatch-cols: 4;
   --swatch-size: 22px;
 }

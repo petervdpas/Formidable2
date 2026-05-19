@@ -723,15 +723,29 @@ func atoiDefault(s string, dflt int) int {
 // avoids a json round-trip and keeps the wire format stable when
 // FormMeta gains internal fields.
 func formMetaAsMap(m storage.FormMeta) map[string]any {
-	return map[string]any{
-		"id":         m.ID,
-		"template":   m.Template,
-		"created":    auditEntryAsMap(m.Created),
-		"updated":    auditEntryAsMap(m.Updated),
-		"flagged":    m.Flagged,
-		"flag_state": m.FlagState,
-		"tags":       m.Tags,
+	out := map[string]any{
+		"id":       m.ID,
+		"template": m.Template,
+		"created":  auditEntryAsMap(m.Created),
+		"updated":  auditEntryAsMap(m.Updated),
+		"tags":     m.Tags,
 	}
+	if len(m.Facets) > 0 {
+		out["facets"] = facetsAsMap(m.Facets)
+	}
+	return out
+}
+
+func facetsAsMap(in map[string]storage.FacetState) map[string]any {
+	out := make(map[string]any, len(in))
+	for key, state := range in {
+		entry := map[string]any{"set": state.Set}
+		if state.Selected != "" {
+			entry["selected"] = state.Selected
+		}
+		out[key] = entry
+	}
+	return out
 }
 
 func auditEntryAsMap(a storage.AuditEntry) map[string]any {

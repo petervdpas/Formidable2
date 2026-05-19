@@ -14,7 +14,7 @@ import { SelectField, SwitchField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
-import StorageFlagFilter from "../components/StorageFlagFilter.vue";
+import StorageFacetFilter from "../components/StorageFacetFilter.vue";
 import StorageMetaBlock from "../components/StorageMetaBlock.vue";
 import StorageDataForm from "../components/StorageDataForm.vue";
 import { useRestartGate } from "../composables/useRestartGate";
@@ -35,6 +35,7 @@ import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formi
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { backendErrMessage } from "../utils/backendError";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import { FacetState } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Result as ExpressionResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 
 const { t } = useI18n();
@@ -89,27 +90,20 @@ const hasTagsField = computed(() => {
   return !!tpl?.fields?.some((f) => f.type === "tags");
 });
 
-const flagDefinitions = computed(() => {
+const facets = computed(() => {
   const tpl = templateCache.value.get(selectedTemplate.value);
-  return tpl?.flag_definitions ?? [];
+  return tpl?.facets ?? [];
 });
 
-// LABEL → color lookup for the active template, used by the sidebar
-// list to color each row's flag icon. Stays in sync as the user edits
-// flag_definitions in the template editor.
-const flagColorByLabel = computed(() => {
-  const m = new Map<string, string>();
-  for (const d of flagDefinitions.value) m.set(d.label, d.color);
-  return m;
-});
-
-// Set/clear the flag on the active draft. Picking a state implies
-// flagged=true; clearing wipes both fields. Keeps the legacy bool in
-// sync so old consumers (sidebar list, exports) continue to work.
-function onFlagStateChange(state: string) {
+// Per-facet state update on the active draft. Mutates the FacetState
+// entry under draft.meta.facets[key], creating the map on first write.
+function onFacetStateChange(key: string, state: FacetState) {
   if (!draft.value?.meta) return;
-  draft.value.meta.flag_state = state;
-  draft.value.meta.flagged = state !== "";
+  if (!draft.value.meta.facets) draft.value.meta.facets = {};
+  draft.value.meta.facets[key] = new FacetState({
+    set: state.set,
+    selected: state.selected ?? "",
+  });
 }
 
 // ── Form list (sidebar) ──────────────────────────────────────────────
@@ -279,22 +273,55 @@ async function pickForm(filename: string) {
 }
 
 // ── Sidebar filters ─────────────────────────────────────────────────
-// flagFilter: "" = no filter (show all); else a state LABEL — only
-// forms whose meta.flag_state matches are kept.
-const flagFilter = ref("");
+// facetFilters: per-facet selected-label (or "" = no filter for that
+// facet). A form passes when every active filter entry matches its
+// meta.facets[key].selected with set=true.
+const facetFilters = ref<Record<string, string>>({});
 const tagFilter = ref("");
 
-// Reset the flag filter when the active template changes — the new
-// template's flag_definitions may not include the previously-picked
-// label, which would otherwise leave the sidebar mysteriously empty.
+// Reset facet filters when the active template changes — the new
+// template's facets may differ, which would otherwise leave the
+// sidebar mysteriously empty.
 watch(selectedTemplate, () => {
-  flagFilter.value = "";
+  facetFilters.value = {};
 });
+
+// Show a filter chip per facet key only when ≥1 record actually has
+// set=true for that key. Mirrors today's behavior for legacy flags.
+const usedFacets = computed(() => {
+  const used = new Set<string>();
+  for (const s of summaries.value) {
+    const m = s.meta?.facets;
+    if (!m) continue;
+    for (const [k, v] of Object.entries(m)) {
+      if (v?.set) used.add(k);
+    }
+  }
+  return facets.value.filter((f) => used.has(f.key));
+});
+
+function setFacetFilter(key: string, label: string) {
+  if (label === "") {
+    const next = { ...facetFilters.value };
+    delete next[key];
+    facetFilters.value = next;
+  } else {
+    facetFilters.value = { ...facetFilters.value, [key]: label };
+  }
+}
 
 const visibleSummaries = computed(() => {
   let out = summaries.value;
-  if (flagFilter.value) {
-    out = out.filter((s) => (s.meta?.flag_state ?? "") === flagFilter.value);
+  const active = Object.entries(facetFilters.value).filter(([, v]) => v !== "");
+  if (active.length > 0) {
+    out = out.filter((s) => {
+      const fs = s.meta?.facets;
+      if (!fs) return false;
+      return active.every(([key, label]) => {
+        const entry = fs[key];
+        return !!entry && entry.set && entry.selected === label;
+      });
+    });
   }
   const tokens = tagFilter.value
     .toLowerCase()
@@ -781,10 +808,13 @@ setTopbarMenu(() => [
           <FilteredCount :visible="visibleSummaries.length" :total="summaries.length" />
         </div>
 
-        <div v-if="flagDefinitions.length > 0" class="sidebar-toolbar">
-          <StorageFlagFilter
-            v-model="flagFilter"
-            :definitions="flagDefinitions"
+        <div v-if="usedFacets.length > 0" class="sidebar-toolbar">
+          <StorageFacetFilter
+            v-for="f in usedFacets"
+            :key="f.key"
+            :facet="f"
+            :model-value="facetFilters[f.key] ?? ''"
+            @update:model-value="(v: string) => setFacetFilter(f.key, v)"
           />
         </div>
 
@@ -807,7 +837,7 @@ setTopbarMenu(() => [
             :summary="s"
             :expression="sidebarItems.get(s.filename) ?? null"
             :active="s.filename === selectedDataFile"
-            :flag-color="flagColorByLabel.get(s.meta?.flag_state ?? '')"
+            :facets="facets"
             @pick="pickForm"
           />
         </ul>
@@ -828,8 +858,8 @@ setTopbarMenu(() => [
           v-if="config?.show_meta_section ?? true"
           :datafile="draft.datafile"
           :meta="draft.meta"
-          :flag-definitions="flagDefinitions"
-          @flag-state-change="onFlagStateChange"
+          :facets="facets"
+          @facet-state-change="onFacetStateChange"
         />
 
         <StorageDataForm

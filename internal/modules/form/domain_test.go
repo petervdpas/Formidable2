@@ -82,7 +82,10 @@ func (s *fakeStorage) SaveForm(_ context.Context, t, df string, data map[string]
 			meta.ID = id
 		}
 		if v, ok := injected["flagged"].(bool); ok {
-			meta.Flagged = v
+			if meta.Facets == nil {
+				meta.Facets = map[string]storage.FacetState{}
+			}
+			meta.Facets["flag"] = storage.FacetState{Set: v}
 		}
 	}
 	cleaned := map[string]any{}

@@ -83,9 +83,9 @@
   "workspace.storage.template_picker": "Template",
   "workspace.storage.title": "Storage",
   "workspace.storage.unselected": "Pick a form from the sidebar.",
-  "workspace.storage.meta.flag": "Flag",
-  "workspace.storage.flag_filter.all": "All forms",
-  "flag.picker.title_empty": "No flag",
-  "flag.picker.clear": "No flag",
-  "flag.picker.no_definitions": "This template defines no flags."
+  "workspace.storage.meta.facets": "Facets",
+  "workspace.storage.facet_filter.all": "Any {0}",
+  "facet.picker.title_empty": "Not set",
+  "facet.picker.clear": "Not set",
+  "facet.picker.no_options": "This facet has no options."
 }

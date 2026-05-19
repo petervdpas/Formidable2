@@ -2,18 +2,17 @@
 import { computed } from "vue";
 import { useConfig } from "../composables/useConfig";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import type { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { Result as ExpressionResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 
 const props = defineProps<{
   summary: FormSummary;
   /** Pre-evaluated sidebar sub-label for this row, owned by the parent
-   *  StorageWorkspace's `sidebarItems` map. The workspace populates the
-   *  map via one batched EvaluateListMany on list load / Refresh,
-   *  and updates the single key via EvaluateListOne after a save —
-   *  no per-row IPC on mount. `null` means "no sub-label to show". */
+   *  StorageWorkspace's `sidebarItems` map. */
   expression: ExpressionResult | null;
   active: boolean;
-  flagColor?: string;
+  /** Template facets — drives which icons appear per row. */
+  facets: Facet[];
 }>();
 
 defineEmits<{
@@ -31,14 +30,50 @@ const exprStyle = computed<Record<string, string>>(() => {
   return s;
 });
 
-const flagState = computed(() => props.summary.meta?.flag_state ?? "");
-const flagged = computed(() => !!props.summary.meta?.flagged);
-const showFlag = computed(() => flagState.value !== "" || flagged.value);
-const flagIconClass = computed(() => {
-  if (props.flagColor) return `expr-text-${props.flagColor}`;
-  return "flag-picker-empty";
+type FacetChip = {
+  key: string;
+  icon: string;
+  colorClass: string;
+  title: string;
+};
+
+const MAX_INLINE_CHIPS = 4;
+
+const allActiveChips = computed<FacetChip[]>(() => {
+  const state = props.summary.meta?.facets;
+  if (!state) return [];
+  const out: FacetChip[] = [];
+  for (const f of props.facets) {
+    const s = state[f.key];
+    if (!s || !s.set) continue;
+    const opt = f.options.find((o) => o.label === s.selected);
+    out.push({
+      key: f.key,
+      icon: `fa-solid ${f.icon}`,
+      colorClass: opt ? `expr-text-${opt.color}` : "facet-picker-empty",
+      title: opt ? `${f.key}: ${opt.label}` : f.key,
+    });
+  }
+  return out;
 });
-const flagTitle = computed(() => flagState.value || (flagged.value ? "✓" : ""));
+
+// Visual rule: render each facet's own icon when ≤ MAX_INLINE_CHIPS are
+// active on a row; collapse to a single generic flag icon otherwise so
+// the sidebar stays visually balanced.
+const collapsed = computed(() => allActiveChips.value.length > MAX_INLINE_CHIPS);
+
+const displayChips = computed<FacetChip[]>(() => {
+  if (!collapsed.value) return allActiveChips.value;
+  const keys = allActiveChips.value.map((c) => c.key).join(", ");
+  return [
+    {
+      key: "__collapsed",
+      icon: "fa-solid fa-flag",
+      colorClass: "facet-picker-empty",
+      title: keys,
+    },
+  ];
+});
 </script>
 
 <template>
@@ -49,13 +84,15 @@ const flagTitle = computed(() => flagState.value || (flagged.value ? "✓" : "")
   >
     <span class="form-list-title-row">
       <span class="form-list-title">{{ summary.title || summary.filename }}</span>
-      <i
-        v-if="showFlag"
-        class="fa-solid fa-flag form-list-flag"
-        :class="flagIconClass"
-        :title="flagTitle"
-        aria-hidden="true"
-      ></i>
+      <span v-if="displayChips.length > 0" class="form-list-facets">
+        <i
+          v-for="c in displayChips"
+          :key="c.key"
+          :class="[c.icon, c.colorClass, 'form-list-facet']"
+          :title="c.title"
+          aria-hidden="true"
+        ></i>
+      </span>
     </span>
     <span v-if="config?.development_enable" class="form-list-filename">{{ summary.filename }}</span>
     <span

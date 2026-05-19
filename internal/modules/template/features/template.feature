@@ -196,19 +196,19 @@ Feature: Template management
     When I request item fields for "ghost.yaml"
     Then the item fields request returned an error
 
-  # ── flag_definitions ──────────────────────────────────────────────
+  # ── facets ────────────────────────────────────────────────────────
 
-  Scenario: Validate accepts a template without flag_definitions
+  Scenario: Validate accepts a template without facets
     Given a template with fields:
       | key   | type |
       | title | text |
     Then validation reports no errors
 
-  Scenario: Validate accepts flag_definitions within the limit
+  Scenario: Validate accepts a facet within the limits
     Given a template with fields:
       | key   | type |
       | title | text |
-    And the template has flag_definitions:
+    And the template has facet "status" with icon "fa-flag" and options:
       | label     | color  |
       | FLASH     | red    |
       | IMMEDIATE | orange |
@@ -220,58 +220,127 @@ Feature: Template management
     Given a template with fields:
       | key   | type |
       | title | text |
-    And the template has flag_definitions:
+    And the template has facet "status" with icon "fa-flag" and options:
       | label   | color |
       | NO FLAG | gray  |
     Then validation reports no errors
 
-  Scenario: Validate flags more than 16 flag_definitions
+  Scenario: Validate flags more than 5 facets
     Given a template with fields:
       | key   | type |
       | title | text |
-    And the template has 17 flag_definitions
-    Then validation reports a "too-many-flag-definitions" error
+    And the template has 6 facets
+    Then validation reports a "too-many-facets" error
 
-  Scenario: Validate flags duplicate flag labels
+  Scenario: Validate flags an icon outside the curated palette
     Given a template with fields:
       | key   | type |
       | title | text |
-    And the template has flag_definitions:
+    And the template has facet "status" with icon "fa-rocket" and options:
+      | label | color |
+      | OPEN  | red   |
+    Then validation reports an "unknown-facet-icon" error
+
+  Scenario: Validate flags duplicate facet keys
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has facet "status" with icon "fa-flag" and options:
+      | label | color |
+      | OPEN  | red   |
+    And the template has facet "status" with icon "fa-check" and options:
+      | label | color |
+      | DONE  | green |
+    Then validation reports a "duplicate-facet-key" error
+
+  Scenario: Validate flags an invalid facet key
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has facet "Status" with icon "fa-flag" and options:
+      | label | color |
+      | OPEN  | red   |
+    Then validation reports an "invalid-facet-key" error
+
+  Scenario: Validate flags a missing facet icon
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has facet "status" with icon "" and options:
+      | label | color |
+      | OPEN  | red   |
+    Then validation reports a "missing-facet-icon" error
+
+  Scenario: Validate flags a facet with no options
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has facet "status" with icon "fa-flag" and no options
+    Then validation reports an "empty-facet-options" error
+
+  Scenario: Validate flags duplicate option labels within a facet
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has facet "status" with icon "fa-flag" and options:
       | label | color |
       | FLASH | red   |
       | FLASH | blue  |
-    Then validation reports a "duplicate-flag-label" error
+    Then validation reports a "duplicate-facet-label" error
 
-  Scenario: Validate flags an invalid flag label format
+  Scenario: Validate accepts duplicate option labels across facets
     Given a template with fields:
       | key   | type |
       | title | text |
-    And the template has flag_definitions:
+    And the template has facet "status" with icon "fa-flag" and options:
+      | label | color |
+      | DONE  | red   |
+    And the template has facet "review" with icon "fa-eye" and options:
+      | label | color |
+      | DONE  | green |
+    Then validation reports no errors
+
+  Scenario: Validate flags an invalid option label format
+    Given a template with fields:
+      | key   | type |
+      | title | text |
+    And the template has facet "status" with icon "fa-flag" and options:
       | label | color |
       | flash | red   |
-    Then validation reports an "invalid-flag-label" error
+    Then validation reports an "invalid-facet-label" error
 
-  Scenario: Validate flags an unknown flag color
+  Scenario: Validate flags an unknown option color
     Given a template with fields:
       | key   | type |
       | title | text |
-    And the template has flag_definitions:
+    And the template has facet "status" with icon "fa-flag" and options:
       | label | color    |
       | FLASH | crimson  |
-    Then validation reports an "unknown-flag-color" error
+    Then validation reports an "unknown-facet-color" error
 
-  Scenario: flag_definitions round-trip through YAML
+  Scenario: facets round-trip through YAML
     Given a template with fields:
       | key   | type |
       | title | text |
-    And the template has flag_definitions:
+    And the template has facet "status" with icon "fa-flag" and options:
       | label     | color  |
       | FLASH     | red    |
       | IMMEDIATE | orange |
     When I marshal the template and reload it
-    Then the reloaded template has 2 flag_definitions
-    And reloaded flag_definition 0 is "FLASH" colored "red"
-    And reloaded flag_definition 1 is "IMMEDIATE" colored "orange"
+    Then the reloaded template has 1 facet
+    And reloaded facet 0 has key "status" and icon "fa-flag"
+    And reloaded facet 0 option 0 is "FLASH" colored "red"
+    And reloaded facet 0 option 1 is "IMMEDIATE" colored "orange"
+
+  Scenario: legacy flag_definitions migrate to one synthetic facet on read
+    When I reload a template authored with legacy flag_definitions:
+      | label      | color |
+      | NOT IN USE | red   |
+      | IN USE     | green |
+    Then the reloaded template has 1 facet
+    And reloaded facet 0 has key "flag" and icon "fa-flag"
+    And reloaded facet 0 option 0 is "NOT IN USE" colored "red"
+    And reloaded facet 0 option 1 is "IN USE" colored "green"
 
   # ── Field-type registry + per-type validation ─────────────────────
 

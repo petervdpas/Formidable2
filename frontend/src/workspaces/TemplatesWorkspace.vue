@@ -13,8 +13,9 @@ import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog
 import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
-import FlagDefinitionsModal from "../components/FlagDefinitionsModal.vue";
-import { MAX_FLAG_DEFINITIONS } from "../utils/flagColors";
+import FacetEditorModal from "../components/FacetEditorModal.vue";
+import { MAX_FACETS } from "../utils/facetColors";
+import { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import CodeEditor from "../components/CodeEditor.vue";
 import Tabs from "../components/Tabs.vue";
 import {
@@ -464,21 +465,64 @@ watch(
   { immediate: true },
 );
 
-// ── Setup-info tabs (Template Code / Sidebar Expression / Flag Defs) ─
-const setupTab = ref<"code" | "expression" | "flags">("code");
+// ── Setup-info tabs (Template Code / Sidebar Expression / Facets) ───
+const setupTab = ref<"code" | "expression" | "facets">("code");
 const setupTabItems = computed(() => [
   { id: "code", label: t("workspace.templates.setup.template_code") },
   { id: "expression", label: t("workspace.templates.setup.sidebar_expression") },
-  { id: "flags", label: t("workspace.templates.setup.flag_definitions") },
+  { id: "facets", label: t("workspace.templates.setup.facets") },
 ]);
 
-// ── Flag-definitions builder dialog ──────────────────────────────────
-const flagBuilderOpen = ref(false);
+// ── Facet editor dialog ──────────────────────────────────────────────
+// Edits one facet at a time. editingIndex = -1 means "adding a new
+// facet"; ≥0 means "editing the facet at that index in draft.facets".
+const facetEditorOpen = ref(false);
+const editingFacetIndex = ref(-1);
+const editingFacet = ref<Facet>(new Facet({ key: "", icon: "fa-flag", options: [] }));
 
-function applyFlagDefinitions(defs: import("../../bindings/github.com/petervdpas/formidable2/internal/modules/template").FlagDefinition[]) {
+function openAddFacet() {
   if (!draft.value) return;
-  draft.value.flag_definitions = defs;
+  if ((draft.value.facets?.length ?? 0) >= MAX_FACETS) return;
+  editingFacetIndex.value = -1;
+  editingFacet.value = new Facet({ key: "", icon: "fa-flag", options: [] });
+  facetEditorOpen.value = true;
 }
+
+function openEditFacet(idx: number) {
+  if (!draft.value) return;
+  const f = draft.value.facets?.[idx];
+  if (!f) return;
+  editingFacetIndex.value = idx;
+  editingFacet.value = new Facet({
+    key: f.key,
+    icon: f.icon,
+    options: (f.options ?? []).map((o) => ({ label: o.label, color: o.color })),
+  });
+  facetEditorOpen.value = true;
+}
+
+function removeFacet(idx: number) {
+  if (!draft.value) return;
+  const cur = draft.value.facets ?? [];
+  draft.value.facets = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
+}
+
+function applyFacet(f: Facet) {
+  if (!draft.value) return;
+  const cur = draft.value.facets ?? [];
+  if (editingFacetIndex.value < 0) {
+    draft.value.facets = [...cur, f];
+  } else {
+    draft.value.facets = cur.map((existing, i) => (i === editingFacetIndex.value ? f : existing));
+  }
+}
+
+const otherFacetKeys = computed(() => {
+  const cur = draft.value?.facets ?? [];
+  return cur
+    .filter((_, i) => i !== editingFacetIndex.value)
+    .map((f) => f.key);
+});
 
 const deleteFieldName = computed(() => {
   if (!draft.value || deleteIndex.value < 0) return "";
@@ -755,33 +799,50 @@ setTopbarMenu(() => [
                 </div>
               </template>
 
-              <template #flags>
+              <template #facets>
                 <div class="setup-tab-pane">
                   <p
-                    v-if="!draft.flag_definitions || draft.flag_definitions.length === 0"
+                    v-if="!draft.facets || draft.facets.length === 0"
                     class="muted small"
                   >
-                    {{ t('workspace.templates.flag_definitions.summary_empty') }}
+                    {{ t('workspace.templates.facets.summary_empty') }}
                   </p>
-                  <div v-else class="flag-definitions-summary">
-                    <span
-                      v-for="d in draft.flag_definitions"
-                      :key="d.label"
-                      class="flag-definitions-chip"
-                      :class="`expr-bg-${d.color}`"
-                      :title="`${d.label} (${d.color})`"
-                    >{{ d.label }}</span>
-                    <span class="muted small">
-                      {{ t('workspace.templates.flag_definitions.summary',
-                           [draft.flag_definitions.length, MAX_FLAG_DEFINITIONS]) }}
-                    </span>
-                  </div>
+                  <ul v-else class="facet-rows">
+                    <li
+                      v-for="(f, i) in draft.facets"
+                      :key="f.key + '-' + i"
+                      class="facet-row"
+                    >
+                      <i :class="['fa-solid', f.icon, 'facet-row-icon']" aria-hidden="true"></i>
+                      <span class="facet-row-key mono">{{ f.key }}</span>
+                      <span class="muted small facet-row-summary">
+                        {{ t('workspace.templates.facets.options_count', [f.options.length]) }}
+                      </span>
+                      <button
+                        class="tool-btn"
+                        type="button"
+                        :title="t('common.edit')"
+                        @click="openEditFacet(i)"
+                      >{{ t('common.edit') }}</button>
+                      <button
+                        class="tool-btn danger"
+                        type="button"
+                        :title="t('common.remove')"
+                        @click="removeFacet(i)"
+                      >×</button>
+                    </li>
+                  </ul>
                   <div class="setup-tab-actions">
+                    <span class="muted small">
+                      {{ t('workspace.templates.facets.counter',
+                           [draft.facets?.length ?? 0, MAX_FACETS]) }}
+                    </span>
                     <button
                       class="tool-btn"
                       type="button"
-                      @click="flagBuilderOpen = true"
-                    >{{ t('workspace.templates.flag_definitions.builder_button') }}</button>
+                      :disabled="(draft.facets?.length ?? 0) >= MAX_FACETS"
+                      @click="openAddFacet"
+                    >+ {{ t('workspace.templates.facets.add') }}</button>
                   </div>
                 </div>
               </template>
@@ -1006,13 +1067,14 @@ setTopbarMenu(() => [
     @clear="clearExpressionSource"
   />
 
-  <!-- Flag-definitions builder: edits draft.flag_definitions -->
-  <FlagDefinitionsModal
+  <!-- Facet editor: edits one facet (key + icon + options) at a time -->
+  <FacetEditorModal
     v-if="draft"
-    :open="flagBuilderOpen"
-    :initial="draft.flag_definitions ?? []"
-    @close="flagBuilderOpen = false"
-    @apply="applyFlagDefinitions"
+    :open="facetEditorOpen"
+    :initial="editingFacet"
+    :existing-keys="otherFacetKeys"
+    @close="facetEditorOpen = false"
+    @apply="applyFacet"
   />
 </template>
 

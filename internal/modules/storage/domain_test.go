@@ -285,15 +285,15 @@ func TestSanitize_ApiFieldInsideLoopPreservesPerIteration(t *testing.T) {
 	}
 }
 
-func TestSanitize_FlaggedHonorsRawMeta(t *testing.T) {
+func TestSanitize_LegacyFlaggedHonorsRawMeta(t *testing.T) {
 	fields := []template.Field{{Key: "title", Type: "text"}}
 	raw := map[string]any{
 		"meta": map[string]any{"flagged": true},
 		"data": map[string]any{"title": "X"},
 	}
 	out := Sanitize(raw, fields, SanitizeOptions{})
-	if !out.Meta.Flagged {
-		t.Error("flagged from meta not preserved")
+	if !out.Meta.Facets["flag"].Set {
+		t.Error("legacy flagged from raw meta not migrated to facets.flag.set")
 	}
 }
 

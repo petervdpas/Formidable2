@@ -125,17 +125,27 @@ func checkMeta(tpl *template.Template, meta storage.FormMeta) []Issue {
 		})
 	}
 
-	// flag_state must reference a declared FlagDefinition when set.
-	// Empty flag_state is always OK (legacy `flagged: true` paths).
-	if meta.FlagState != "" && !flagDefined(tpl, meta.FlagState) {
-		out = append(out, Issue{
-			Kind: IssueMetaBadFormat,
-			Path: "meta.flag_state",
-			Detail: fmt.Sprintf(
-				"flag_state %q is not declared in template.flag_definitions",
-				meta.FlagState,
-			),
-		})
+	// Each facet entry's Selected (when non-empty) must reference an
+	// option label declared by the matching template facet. An empty
+	// Selected is OK — `set: true` without a chosen colour mirrors the
+	// legacy `flagged: true` path. Unknown facet keys are also drift.
+	for key, state := range meta.Facets {
+		f := findFacet(tpl, key)
+		if f == nil {
+			out = append(out, Issue{
+				Kind:   IssueMetaBadFormat,
+				Path:   fmt.Sprintf("meta.facets.%s", key),
+				Detail: fmt.Sprintf("facet key %q is not declared on the template", key),
+			})
+			continue
+		}
+		if state.Selected != "" && !facetHasOption(f, state.Selected) {
+			out = append(out, Issue{
+				Kind:   IssueMetaBadFormat,
+				Path:   fmt.Sprintf("meta.facets.%s.selected", key),
+				Detail: fmt.Sprintf("selected %q is not a declared option of facet %q", state.Selected, key),
+			})
+		}
 	}
 
 	return out
@@ -158,9 +168,18 @@ func templateHasGuid(tpl *template.Template) bool {
 	return false
 }
 
-func flagDefined(tpl *template.Template, label string) bool {
-	for _, fd := range tpl.FlagDefinitions {
-		if fd.Label == label {
+func findFacet(tpl *template.Template, key string) *template.Facet {
+	for i := range tpl.Facets {
+		if tpl.Facets[i].Key == key {
+			return &tpl.Facets[i]
+		}
+	}
+	return nil
+}
+
+func facetHasOption(f *template.Facet, label string) bool {
+	for _, o := range f.Options {
+		if o.Label == label {
 			return true
 		}
 	}

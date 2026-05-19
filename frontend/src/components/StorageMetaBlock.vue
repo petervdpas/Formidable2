@@ -1,48 +1,59 @@
 <script setup lang="ts">
 /*
  * StorageMetaBlock — the per-record meta panel rendered above a
- * storage entry's form fields. Shows filename, flag picker, GUID,
- * tags, and the Created / Updated audit blocks (timestamp + author
- * name + email). Hidden via Mod+M on the Storage workspace (which
- * flips config.show_meta_section).
+ * storage entry's form fields. Shows filename, one FacetPicker per
+ * template facet, GUID, tags, and the Created / Updated audit blocks.
+ * Hidden via Mod+M on the Storage workspace.
  *
- * Pure presentation: parent owns the draft + flag definitions and
- * handles the flag mutation. We emit `flagStateChange` instead of
- * mutating the meta object directly so the workspace's dirty-state
+ * Pure presentation: parent owns the draft + template facets and
+ * handles the facet-state mutation. We emit `facetStateChange` instead
+ * of mutating the meta object directly so the workspace's dirty-state
  * tracking stays the single source of truth.
  */
 import { useI18n } from "vue-i18n";
 import { FormSection } from "./fields";
-import FlagPicker from "./FlagPicker.vue";
+import FacetPicker from "./FacetPicker.vue";
 import type { FormMeta } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
-import type { FlagDefinition } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { FacetState } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import type { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-defineProps<{
+const props = defineProps<{
   datafile?: string;
   meta?: FormMeta | null;
-  flagDefinitions: FlagDefinition[];
+  facets: Facet[];
 }>();
 
-defineEmits<{
-  (e: "flagStateChange", state: string): void;
+const emit = defineEmits<{
+  (e: "facetStateChange", key: string, state: FacetState): void;
 }>();
 
 const { t } = useI18n();
+
+function stateFor(key: string): FacetState {
+  const entry = props.meta?.facets?.[key];
+  if (!entry) return new FacetState({ set: false, selected: "" });
+  return new FacetState({ set: entry.set, selected: entry.selected ?? "" });
+}
+
+function onUpdate(key: string, state: FacetState) {
+  emit("facetStateChange", key, state);
+}
 </script>
 
 <template>
   <FormSection class="storage-meta-section">
     <div
-      class="meta-flag-corner"
-      v-if="flagDefinitions.length > 0 || meta?.flagged"
+      v-if="facets.length > 0"
+      class="meta-facet-corner"
     >
-      <FlagPicker
-        :definitions="flagDefinitions"
-        :model-value="meta?.flag_state ?? ''"
-        :legacy-flagged="!!meta?.flagged"
+      <FacetPicker
+        v-for="f in facets"
+        :key="f.key"
+        :facet="f"
+        :model-value="stateFor(f.key)"
         size="md"
         placement="below-left"
-        @update:model-value="(s: string) => $emit('flagStateChange', s)"
+        @update:model-value="(s: FacetState) => onUpdate(f.key, s)"
       />
     </div>
     <div class="meta-grid">

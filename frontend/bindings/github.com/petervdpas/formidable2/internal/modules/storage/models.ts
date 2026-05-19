@@ -44,6 +44,33 @@ export class AuditEntry {
 }
 
 /**
+ * FacetState is the per-record state for one facet key. Set is the
+ * required "is this facet stamped on this form" bool; Selected is the
+ * optional option label chosen from the template's facet options.
+ */
+export class FacetState {
+    "set": boolean;
+    "selected"?: string;
+
+    /** Creates a new FacetState instance. */
+    constructor($$source: Partial<FacetState> = {}) {
+        if (!("set" in $$source)) {
+            this["set"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FacetState instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FacetState {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FacetState($$parsedSource as Partial<FacetState>);
+    }
+}
+
+/**
  * Form is the on-disk shape of a `.meta.json` file.
  */
 export class Form {
@@ -81,18 +108,17 @@ export class Form {
 
 /**
  * FormMeta carries identity + audit fields. Tags are deduped+sorted.
- * FlagState references a Template.FlagDefinitions label (e.g. "FLASH")
- * when set; empty means no state is chosen. Independent of Flagged —
- * legacy `flagged: true` forms keep their bool with FlagState empty,
- * and the UI renders them as a generic uncolored flag.
+ * Facets is keyed by Template.Facets[i].Key; each entry's Set is
+ * required (mirrors the legacy `flagged` bool) and Selected may be
+ * empty (mirrors the legacy `flag_state` string — `set: true` without
+ * a chosen option renders as the facet's uncolored icon).
  */
 export class FormMeta {
     "id": string;
     "template": string;
     "created": AuditEntry;
     "updated": AuditEntry;
-    "flagged": boolean;
-    "flag_state": string;
+    "facets"?: { [_ in string]?: FacetState };
     "tags": string[];
 
     /** Creates a new FormMeta instance. */
@@ -109,12 +135,6 @@ export class FormMeta {
         if (!("updated" in $$source)) {
             this["updated"] = (new AuditEntry());
         }
-        if (!("flagged" in $$source)) {
-            this["flagged"] = false;
-        }
-        if (!("flag_state" in $$source)) {
-            this["flag_state"] = "";
-        }
         if (!("tags" in $$source)) {
             this["tags"] = [];
         }
@@ -128,7 +148,8 @@ export class FormMeta {
     static createFrom($$source: any = {}): FormMeta {
         const $$createField2_0 = $$createType2;
         const $$createField3_0 = $$createType2;
-        const $$createField6_0 = $$createType3;
+        const $$createField4_0 = $$createType4;
+        const $$createField5_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("created" in $$parsedSource) {
             $$parsedSource["created"] = $$createField2_0($$parsedSource["created"]);
@@ -136,8 +157,11 @@ export class FormMeta {
         if ("updated" in $$parsedSource) {
             $$parsedSource["updated"] = $$createField3_0($$parsedSource["updated"]);
         }
+        if ("facets" in $$parsedSource) {
+            $$parsedSource["facets"] = $$createField4_0($$parsedSource["facets"]);
+        }
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField6_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField5_0($$parsedSource["tags"]);
         }
         return new FormMeta($$parsedSource as Partial<FormMeta>);
     }
@@ -222,7 +246,7 @@ export class MigrateResult {
      * Creates a new MigrateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): MigrateResult {
-        const $$createField3_0 = $$createType3;
+        const $$createField3_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("errors" in $$parsedSource) {
             $$parsedSource["errors"] = $$createField3_0($$parsedSource["errors"]);
@@ -261,4 +285,6 @@ export class SaveResult {
 const $$createType0 = FormMeta.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $Create.Any);
 const $$createType2 = AuditEntry.createFrom;
-const $$createType3 = $Create.Array($Create.Any);
+const $$createType3 = FacetState.createFrom;
+const $$createType4 = $Create.Map($Create.Any, $$createType3);
+const $$createType5 = $Create.Array($Create.Any);

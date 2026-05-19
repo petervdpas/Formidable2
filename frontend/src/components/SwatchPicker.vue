@@ -7,10 +7,13 @@ export type SwatchOption = {
   value: string;
   /** Tooltip + ARIA hint. Falls back to `value`. */
   label?: string;
-  /** When the consumer colors via a class set (e.g. `flag-swatch-red`). */
+  /** When the consumer colors via a class set (e.g. `facet-swatch-red`). */
   class?: string;
   /** When the consumer colors via an inline background (e.g. `#e84e4e`). */
   color?: string;
+  /** When the swatch is an icon glyph (FontAwesome class incl. style
+   *  prefix, e.g. "fa-solid fa-flag"). Rendered inside the cell. */
+  icon?: string;
 };
 
 type Placement = "below" | "below-left" | "above" | "right" | "left";
@@ -80,7 +83,9 @@ function pick(v: string, close: () => void) {
           :style="currentOption?.color ? { background: currentOption.color } : undefined"
           :title="triggerTitle || currentOption?.label || modelValue"
           @click="slotProps.toggle"
-        ></button>
+        >
+          <i v-if="currentOption?.icon" :class="currentOption.icon" aria-hidden="true"></i>
+        </button>
       </slot>
     </template>
     <template #default="{ close }">
@@ -94,7 +99,9 @@ function pick(v: string, close: () => void) {
           :style="opt.color ? { background: opt.color } : undefined"
           :title="opt.label ?? opt.value"
           @click="pick(opt.value, close)"
-        ></button>
+        >
+          <i v-if="opt.icon" :class="opt.icon" aria-hidden="true"></i>
+        </button>
         <button
           v-if="clearable"
           type="button"

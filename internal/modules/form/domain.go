@@ -256,10 +256,11 @@ func typeDefault(t string) any {
 // be noise.
 func metaToMap(m storage.FormMeta) map[string]any {
 	out := map[string]any{
-		"id":         m.ID,
-		"template":   m.Template,
-		"flagged":    m.Flagged,
-		"flag_state": m.FlagState,
+		"id":       m.ID,
+		"template": m.Template,
+	}
+	if len(m.Facets) > 0 {
+		out["facets"] = facetsToMap(m.Facets)
 	}
 	if m.Created.At != "" {
 		out["created"] = auditEntryToMap(m.Created)
@@ -269,6 +270,18 @@ func metaToMap(m storage.FormMeta) map[string]any {
 	}
 	if len(m.Tags) > 0 {
 		out["tags"] = m.Tags
+	}
+	return out
+}
+
+func facetsToMap(in map[string]storage.FacetState) map[string]any {
+	out := make(map[string]any, len(in))
+	for key, state := range in {
+		entry := map[string]any{"set": state.Set}
+		if state.Selected != "" {
+			entry["selected"] = state.Selected
+		}
+		out[key] = entry
 	}
 	return out
 }

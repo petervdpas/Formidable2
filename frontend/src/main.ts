@@ -1,6 +1,6 @@
 import "./styles/index.css";
 // FontAwesome — used by toolbar/status icons across the app
-// (CodeEditor, GitStatus, FlagPicker, etc.). Imported once at app
+// (CodeEditor, GitStatus, FacetPicker, etc.). Imported once at app
 // bootstrap so we ship offline; do not import per-component.
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { createApp } from "vue";

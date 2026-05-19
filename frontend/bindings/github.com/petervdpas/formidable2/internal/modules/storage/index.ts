@@ -8,6 +8,7 @@ export {
 
 export {
     AuditEntry,
+    FacetState,
     Form,
     FormMeta,
     FormSummary,

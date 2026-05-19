@@ -6,6 +6,8 @@
 // Mirrors `controls/formManager.js` and `schemas/meta.schema.js` semantics.
 package storage
 
+import "encoding/json"
+
 // Form is the on-disk shape of a `.meta.json` file.
 type Form struct {
 	Meta FormMeta       `json:"meta"`
@@ -26,18 +28,54 @@ type AuditEntry struct {
 }
 
 // FormMeta carries identity + audit fields. Tags are deduped+sorted.
-// FlagState references a Template.FlagDefinitions label (e.g. "FLASH")
-// when set; empty means no state is chosen. Independent of Flagged —
-// legacy `flagged: true` forms keep their bool with FlagState empty,
-// and the UI renders them as a generic uncolored flag.
+// Facets is keyed by Template.Facets[i].Key; each entry's Set is
+// required (mirrors the legacy `flagged` bool) and Selected may be
+// empty (mirrors the legacy `flag_state` string — `set: true` without
+// a chosen option renders as the facet's uncolored icon).
 type FormMeta struct {
-	ID        string     `json:"id"`
-	Template  string     `json:"template"`
-	Created   AuditEntry `json:"created"`
-	Updated   AuditEntry `json:"updated"`
-	Flagged   bool       `json:"flagged"`
-	FlagState string     `json:"flag_state"`
-	Tags      []string   `json:"tags"`
+	ID       string                `json:"id"`
+	Template string                `json:"template"`
+	Created  AuditEntry            `json:"created"`
+	Updated  AuditEntry            `json:"updated"`
+	Facets   map[string]FacetState `json:"facets,omitempty"`
+	Tags     []string              `json:"tags"`
+}
+
+// FacetState is the per-record state for one facet key. Set is the
+// required "is this facet stamped on this form" bool; Selected is the
+// optional option label chosen from the template's facet options.
+type FacetState struct {
+	Set      bool   `json:"set"`
+	Selected string `json:"selected,omitempty"`
+}
+
+// UnmarshalJSON accepts both the new `facets` map shape and the legacy
+// `flagged` + `flag_state` pair. When the legacy pair is present and
+// the new shape is not, a single synthetic facet keyed "flag" is
+// materialised so on-disk records keep loading unchanged.
+func (m *FormMeta) UnmarshalJSON(data []byte) error {
+	type metaAlias FormMeta
+	aux := struct {
+		*metaAlias
+		LegacyFlagged   *bool   `json:"flagged,omitempty"`
+		LegacyFlagState *string `json:"flag_state,omitempty"`
+	}{metaAlias: (*metaAlias)(m)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if m.Facets == nil && (aux.LegacyFlagged != nil || aux.LegacyFlagState != nil) {
+		flagged := aux.LegacyFlagged != nil && *aux.LegacyFlagged
+		selected := ""
+		if aux.LegacyFlagState != nil {
+			selected = *aux.LegacyFlagState
+		}
+		if flagged || selected != "" {
+			m.Facets = map[string]FacetState{
+				"flag": {Set: flagged, Selected: selected},
+			}
+		}
+	}
+	return nil
 }
 
 // FormSummary is one row in ExtendedListForms output. Title falls back
@@ -77,13 +115,16 @@ type SaveResult struct {
 // field is non-empty — used by SaveForm to lock the creator across
 // edits (opts.Created = prev.Meta.Created) and to stamp the current
 // profile (opts.Updated = {At: now, Name: profile, Email: profile}).
+//
+// Facets, when non-nil, replaces whatever the raw meta supplied. A nil
+// map lets the raw payload's facets (or legacy `flagged`/`flag_state`
+// pair) survive untouched.
 type SanitizeOptions struct {
 	ID           string
 	TemplateName string
 	Created      AuditEntry
 	Updated      AuditEntry
-	Flagged      *bool
-	FlagState    string
+	Facets       map[string]FacetState
 	Tags         []string
 }
 

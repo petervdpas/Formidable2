@@ -125,44 +125,92 @@ fields:
 		return nil
 	})
 
-	ctx.Step(`^the template has flag_definitions:$`, func(table *godog.Table) error {
+	ctx.Step(`^the template has facet "([^"]*)" with icon "([^"]*)" and options:$`, func(key, icon string, table *godog.Table) error {
 		if w.tmpl == nil {
 			return fmt.Errorf("no template under construction")
 		}
-		w.tmpl.FlagDefinitions = tableToFlagDefs(table)
+		w.tmpl.Facets = append(w.tmpl.Facets, Facet{
+			Key:     key,
+			Icon:    icon,
+			Options: tableToFacetOptions(table),
+		})
 		return nil
 	})
 
-	ctx.Step(`^the template has (\d+) flag_definitions$`, func(n int) error {
+	ctx.Step(`^the template has facet "([^"]*)" with icon "([^"]*)" and no options$`, func(key, icon string) error {
 		if w.tmpl == nil {
 			return fmt.Errorf("no template under construction")
 		}
-		defs := make([]FlagDefinition, n)
+		w.tmpl.Facets = append(w.tmpl.Facets, Facet{Key: key, Icon: icon})
+		return nil
+	})
+
+	ctx.Step(`^the template has (\d+) facets$`, func(n int) error {
+		if w.tmpl == nil {
+			return fmt.Errorf("no template under construction")
+		}
+		facets := make([]Facet, n)
 		for i := 0; i < n; i++ {
-			defs[i] = FlagDefinition{Label: fmt.Sprintf("FLAG_%d", i), Color: "red"}
+			facets[i] = Facet{
+				Key:     fmt.Sprintf("facet_%02d", i),
+				Icon:    "fa-flag",
+				Options: []FacetOption{{Label: fmt.Sprintf("OPT_%d", i), Color: "red"}},
+			}
 		}
-		w.tmpl.FlagDefinitions = defs
+		w.tmpl.Facets = facets
 		return nil
 	})
 
-	ctx.Step(`^the reloaded template has (\d+) flag_definitions$`, func(want int) error {
+	ctx.Step(`^the reloaded template has (\d+) facet(?:s)?$`, func(want int) error {
 		if w.reloaded == nil {
 			return fmt.Errorf("no reloaded template")
 		}
-		if got := len(w.reloaded.FlagDefinitions); got != want {
-			return fmt.Errorf("flag_definitions len = %d, want %d", got, want)
+		if got := len(w.reloaded.Facets); got != want {
+			return fmt.Errorf("facets len = %d, want %d", got, want)
 		}
 		return nil
 	})
 
-	ctx.Step(`^reloaded flag_definition (\d+) is "([^"]*)" colored "([^"]*)"$`, func(idx int, label, color string) error {
-		if w.reloaded == nil || idx >= len(w.reloaded.FlagDefinitions) {
-			return fmt.Errorf("flag_definition %d not available", idx)
+	ctx.Step(`^reloaded facet (\d+) has key "([^"]*)" and icon "([^"]*)"$`, func(idx int, key, icon string) error {
+		if w.reloaded == nil || idx >= len(w.reloaded.Facets) {
+			return fmt.Errorf("facet %d not available", idx)
 		}
-		fd := w.reloaded.FlagDefinitions[idx]
-		if fd.Label != label || fd.Color != color {
-			return fmt.Errorf("flag_definition[%d] = (%s,%s), want (%s,%s)", idx, fd.Label, fd.Color, label, color)
+		f := w.reloaded.Facets[idx]
+		if f.Key != key || f.Icon != icon {
+			return fmt.Errorf("facet[%d] = (key:%s, icon:%s), want (key:%s, icon:%s)", idx, f.Key, f.Icon, key, icon)
 		}
+		return nil
+	})
+
+	ctx.Step(`^reloaded facet (\d+) option (\d+) is "([^"]*)" colored "([^"]*)"$`, func(fIdx, oIdx int, label, color string) error {
+		if w.reloaded == nil || fIdx >= len(w.reloaded.Facets) {
+			return fmt.Errorf("facet %d not available", fIdx)
+		}
+		f := w.reloaded.Facets[fIdx]
+		if oIdx >= len(f.Options) {
+			return fmt.Errorf("facet %d option %d not available", fIdx, oIdx)
+		}
+		o := f.Options[oIdx]
+		if o.Label != label || o.Color != color {
+			return fmt.Errorf("facet[%d].options[%d] = (%s,%s), want (%s,%s)", fIdx, oIdx, o.Label, o.Color, label, color)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I reload a template authored with legacy flag_definitions:$`, func(table *godog.Table) error {
+		opts := tableToFacetOptions(table)
+		var lines []string
+		lines = append(lines, "name: Legacy", "filename: legacy.yaml", "fields:", "  - key: title", "    type: text", "flag_definitions:")
+		for _, o := range opts {
+			lines = append(lines, fmt.Sprintf("  - label: %s", o.Label))
+			lines = append(lines, fmt.Sprintf("    color: %s", o.Color))
+		}
+		yamlSrc := strings.Join(lines, "\n")
+		var tpl Template
+		if err := unmarshalYAML([]byte(yamlSrc), &tpl); err != nil {
+			return fmt.Errorf("unmarshal legacy yaml: %w", err)
+		}
+		w.reloaded = &tpl
 		return nil
 	})
 
@@ -716,7 +764,7 @@ func tableToFields(table *godog.Table) []Field {
 	return out
 }
 
-func tableToFlagDefs(table *godog.Table) []FlagDefinition {
+func tableToFacetOptions(table *godog.Table) []FacetOption {
 	rows := table.Rows
 	if len(rows) < 2 {
 		return nil
@@ -725,16 +773,16 @@ func tableToFlagDefs(table *godog.Table) []FlagDefinition {
 	for i, c := range rows[0].Cells {
 		headers[c.Value] = i
 	}
-	out := make([]FlagDefinition, 0, len(rows)-1)
+	out := make([]FacetOption, 0, len(rows)-1)
 	for _, r := range rows[1:] {
-		fd := FlagDefinition{}
+		opt := FacetOption{}
 		if i, ok := headers["label"]; ok {
-			fd.Label = r.Cells[i].Value
+			opt.Label = r.Cells[i].Value
 		}
 		if i, ok := headers["color"]; ok {
-			fd.Color = r.Cells[i].Value
+			opt.Color = r.Cells[i].Value
 		}
-		out = append(out, fd)
+		out = append(out, opt)
 	}
 	return out
 }

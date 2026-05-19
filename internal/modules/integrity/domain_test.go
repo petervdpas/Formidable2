@@ -96,10 +96,14 @@ func tplWithLoop() *template.Template {
 func tplWithFlag() *template.Template {
 	return &template.Template{
 		Name: "Flagged", Filename: "f.yaml",
-		FlagDefinitions: []template.FlagDefinition{
-			{Label: "FLASH", Color: "red"},
-			{Label: "WARN", Color: "orange"},
-		},
+		Facets: []template.Facet{{
+			Key:  "flag",
+			Icon: "fa-flag",
+			Options: []template.FacetOption{
+				{Label: "FLASH", Color: "red"},
+				{Label: "WARN", Color: "orange"},
+			},
+		}},
 		Fields: []template.Field{
 			{Key: "title", Type: "text"},
 		},
@@ -292,27 +296,46 @@ func TestAnalyze_AcceptsMissingMetaId_WithoutGuidField(t *testing.T) {
 	mustZeroIssues(t, r)
 }
 
-func TestAnalyze_DetectsUnknownFlagState(t *testing.T) {
+func TestAnalyze_DetectsUnknownFacetSelected(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
-			Created:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
-			Updated:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
-			FlagState: "GHOST",
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Facets: map[string]storage.FacetState{
+				"flag": {Set: true, Selected: "GHOST"},
+			},
 		},
 		Data: map[string]any{"title": "x"},
 	}
 	m := newM(t, tplWithFlag(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("f.yaml")
-	findIssue(t, r, "a.meta.json", IssueMetaBadFormat, "meta.flag_state")
+	findIssue(t, r, "a.meta.json", IssueMetaBadFormat, "meta.facets.flag.selected")
 }
 
-func TestAnalyze_AcceptsKnownFlagState(t *testing.T) {
+func TestAnalyze_DetectsUnknownFacetKey(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
-			Created:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
-			Updated:   storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
-			Flagged:   true,
-			FlagState: "FLASH",
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Facets: map[string]storage.FacetState{
+				"phantom": {Set: true},
+			},
+		},
+		Data: map[string]any{"title": "x"},
+	}
+	m := newM(t, tplWithFlag(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("f.yaml")
+	findIssue(t, r, "a.meta.json", IssueMetaBadFormat, "meta.facets.phantom")
+}
+
+func TestAnalyze_AcceptsKnownFacetSelected(t *testing.T) {
+	f := &storage.Form{
+		Meta: storage.FormMeta{
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Facets: map[string]storage.FacetState{
+				"flag": {Set: true, Selected: "FLASH"},
+			},
 		},
 		Data: map[string]any{"title": "x"},
 	}
@@ -321,12 +344,14 @@ func TestAnalyze_AcceptsKnownFlagState(t *testing.T) {
 	mustZeroIssues(t, r)
 }
 
-func TestAnalyze_AcceptsLegacyFlaggedWithoutState(t *testing.T) {
+func TestAnalyze_AcceptsFacetSetWithoutSelected(t *testing.T) {
 	f := &storage.Form{
 		Meta: storage.FormMeta{
 			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
 			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
-			Flagged: true,
+			Facets: map[string]storage.FacetState{
+				"flag": {Set: true},
+			},
 		},
 		Data: map[string]any{"title": "x"},
 	}

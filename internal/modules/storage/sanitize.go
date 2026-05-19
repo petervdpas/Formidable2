@@ -135,30 +135,7 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 	created := resolveAuditEntry(opts.Created, rawMeta["created"], injected["created"], legacyAuthor, now)
 	updated := resolveAuditEntry(opts.Updated, rawMeta["updated"], injected["updated"], legacyAuthor, now)
 
-	flagged := false
-	if opts.Flagged != nil {
-		flagged = *opts.Flagged
-	}
-	if v, ok := rawMeta["flagged"]; ok {
-		if b, ok := v.(bool); ok {
-			flagged = b
-		}
-	} else if injected != nil {
-		if b, ok := injected["flagged"].(bool); ok {
-			flagged = b
-		}
-	}
-
-	flagState := opts.FlagState
-	if v, ok := rawMeta["flag_state"]; ok {
-		if s, ok := v.(string); ok {
-			flagState = s
-		}
-	} else if injected != nil {
-		if s, ok := injected["flag_state"].(string); ok {
-			flagState = s
-		}
-	}
+	facets := resolveFacets(opts.Facets, rawMeta, injected)
 
 	templateName := firstNonEmpty(
 		stringOrEmpty(rawMeta["template"]),
@@ -169,16 +146,88 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 
 	return Form{
 		Meta: FormMeta{
-			ID:        id,
-			Template:  templateName,
-			Created:   created,
-			Updated:   updated,
-			Flagged:   flagged,
-			FlagState: flagState,
-			Tags:      tagList,
+			ID:       id,
+			Template: templateName,
+			Created:  created,
+			Updated:  updated,
+			Facets:   facets,
+			Tags:     tagList,
 		},
 		Data: data,
 	}
+}
+
+// resolveFacets returns the per-form facets map using opts when set
+// (non-nil), otherwise reading rawMeta["facets"] / injected["facets"]
+// in new shape, otherwise migrating legacy `flagged` + `flag_state`
+// into a single "flag" entry. Returns nil when nothing has state.
+func resolveFacets(optsFacets map[string]FacetState, rawMeta, injected map[string]any) map[string]FacetState {
+	if optsFacets != nil {
+		return cloneFacets(optsFacets)
+	}
+	if f, ok := facetsFromAny(rawMeta["facets"]); ok {
+		return f
+	}
+	if injected != nil {
+		if f, ok := facetsFromAny(injected["facets"]); ok {
+			return f
+		}
+	}
+	legacyFlagged := false
+	if v, ok := rawMeta["flagged"]; ok {
+		if b, ok := v.(bool); ok {
+			legacyFlagged = b
+		}
+	} else if injected != nil {
+		if b, ok := injected["flagged"].(bool); ok {
+			legacyFlagged = b
+		}
+	}
+	legacyState := ""
+	if v, ok := rawMeta["flag_state"]; ok {
+		if s, ok := v.(string); ok {
+			legacyState = s
+		}
+	} else if injected != nil {
+		if s, ok := injected["flag_state"].(string); ok {
+			legacyState = s
+		}
+	}
+	if legacyFlagged || legacyState != "" {
+		return map[string]FacetState{
+			"flag": {Set: legacyFlagged, Selected: legacyState},
+		}
+	}
+	return nil
+}
+
+func cloneFacets(in map[string]FacetState) map[string]FacetState {
+	out := make(map[string]FacetState, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func facetsFromAny(v any) (map[string]FacetState, bool) {
+	m, ok := v.(map[string]any)
+	if !ok || len(m) == 0 {
+		return nil, false
+	}
+	out := make(map[string]FacetState, len(m))
+	for key, raw := range m {
+		entry, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		set, _ := entry["set"].(bool)
+		selected, _ := entry["selected"].(string)
+		out[key] = FacetState{Set: set, Selected: selected}
+	}
+	if len(out) == 0 {
+		return nil, false
+	}
+	return out, true
 }
 
 // resolveAuditEntry applies precedence rules for one of the Created /
