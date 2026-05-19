@@ -11,6 +11,7 @@ export {
     Abilities,
     Descriptor,
     Facet,
+    FacetMeta,
     FacetOption,
     Field,
     FieldDescriptor,

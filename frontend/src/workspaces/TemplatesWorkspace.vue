@@ -14,7 +14,7 @@ import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FacetEditorModal from "../components/FacetEditorModal.vue";
-import { MAX_FACETS } from "../utils/facetColors";
+import { useFacetMeta } from "../composables/useFacetMeta";
 import { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import CodeEditor from "../components/CodeEditor.vue";
 import Tabs from "../components/Tabs.vue";
@@ -476,15 +476,22 @@ const setupTabItems = computed(() => [
 // ── Facet editor dialog ──────────────────────────────────────────────
 // Edits one facet at a time. editingIndex = -1 means "adding a new
 // facet"; ≥0 means "editing the facet at that index in draft.facets".
+// Limits come from the backend via useFacetMeta — no static mirrors.
+const { maxFacets, icons: facetIcons } = useFacetMeta();
+const defaultFacetIcon = computed(() => facetIcons.value[0] ?? "fa-flag");
 const facetEditorOpen = ref(false);
 const editingFacetIndex = ref(-1);
 const editingFacet = ref<Facet>(new Facet({ key: "", icon: "fa-flag", options: [] }));
 
 function openAddFacet() {
   if (!draft.value) return;
-  if ((draft.value.facets?.length ?? 0) >= MAX_FACETS) return;
+  if ((draft.value.facets?.length ?? 0) >= maxFacets.value) return;
   editingFacetIndex.value = -1;
-  editingFacet.value = new Facet({ key: "", icon: "fa-flag", options: [] });
+  editingFacet.value = new Facet({
+    key: "",
+    icon: defaultFacetIcon.value,
+    options: [],
+  });
   facetEditorOpen.value = true;
 }
 
@@ -835,12 +842,12 @@ setTopbarMenu(() => [
                   <div class="setup-tab-actions">
                     <span class="muted small">
                       {{ t('workspace.templates.facets.counter',
-                           [draft.facets?.length ?? 0, MAX_FACETS]) }}
+                           [draft.facets?.length ?? 0, maxFacets]) }}
                     </span>
                     <button
                       class="tool-btn"
                       type="button"
-                      :disabled="(draft.facets?.length ?? 0) >= MAX_FACETS"
+                      :disabled="(draft.facets?.length ?? 0) >= maxFacets"
                       @click="openAddFacet"
                     >+ {{ t('workspace.templates.facets.add') }}</button>
                   </div>

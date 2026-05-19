@@ -21,6 +21,12 @@ func NewService(m *Manager, storageLocator func(string) string) *Service {
 	return &Service{m: m, storageLocator: storageLocator}
 }
 
+// FacetMeta returns the full facet contract (max counts, color +
+// icon palettes, validation patterns). The frontend reads this once
+// at boot so it doesn't mirror ANY of these constants — backend is
+// the single source of truth.
+func (s *Service) FacetMeta() FacetMeta { return GetFacetMeta() }
+
 // TemplatesDir returns the absolute path of the templates folder.
 // Used by the Utilities menu's "Open Template Folder" action; the
 // frontend pipes the result through System.OpenExternal.

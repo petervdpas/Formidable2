@@ -84,6 +84,46 @@ func TestValidate_Facets_UnknownIconRejected(t *testing.T) {
 	}
 }
 
+func TestGetFacetMeta_FullContract(t *testing.T) {
+	m := GetFacetMeta()
+	if m.MaxFacets != MaxFacets {
+		t.Errorf("MaxFacets = %d, want %d", m.MaxFacets, MaxFacets)
+	}
+	if m.MaxOptionsPerFacet != MaxOptionsPerFacet {
+		t.Errorf("MaxOptionsPerFacet = %d, want %d", m.MaxOptionsPerFacet, MaxOptionsPerFacet)
+	}
+	if len(m.Colors) != len(FacetColorList) {
+		t.Errorf("Colors len = %d, want %d", len(m.Colors), len(FacetColorList))
+	}
+	for i, c := range FacetColorList {
+		if m.Colors[i] != c {
+			t.Errorf("Colors[%d] = %q, want %q (display order matters)", i, m.Colors[i], c)
+		}
+	}
+	if len(m.Icons) != len(FacetIconList) {
+		t.Errorf("Icons len = %d, want %d", len(m.Icons), len(FacetIconList))
+	}
+	for i, ic := range FacetIconList {
+		if m.Icons[i] != ic {
+			t.Errorf("Icons[%d] = %q, want %q (display order matters)", i, m.Icons[i], ic)
+		}
+	}
+	if m.KeyPattern != FacetKeyPattern {
+		t.Errorf("KeyPattern = %q, want %q", m.KeyPattern, FacetKeyPattern)
+	}
+	if m.LabelPattern != FacetLabelPattern {
+		t.Errorf("LabelPattern = %q, want %q", m.LabelPattern, FacetLabelPattern)
+	}
+}
+
+func TestGetFacetMeta_ReturnsCopies(t *testing.T) {
+	m := GetFacetMeta()
+	m.Colors[0] = "MUTATED"
+	if FacetColorList[0] == "MUTATED" {
+		t.Errorf("FacetColorList was mutated through returned snapshot")
+	}
+}
+
 func TestFacetIcons_ContainsAll16(t *testing.T) {
 	want := []string{
 		"fa-flag", "fa-check", "fa-star", "fa-heart",

@@ -10,31 +10,51 @@ const (
 	MaxOptionsPerFacet = 16
 )
 
-// FacetColors is the closed set of color tokens a FacetOption may
-// reference. Mirrors the 16 .expr-bg-* utilities in expression.css —
-// designers pick from this palette so dark/light themes stay coherent.
-var FacetColors = map[string]struct{}{
-	"red": {}, "orange": {}, "amber": {}, "yellow": {},
-	"green": {}, "teal": {}, "blue": {}, "purple": {},
-	"pink": {}, "gray": {},
-	"cyan": {}, "lime": {}, "indigo": {}, "rose": {},
-	"brown": {}, "slate": {},
+// FacetColorList is the ordered closed set of color tokens a
+// FacetOption may reference. Mirrors the 16 .expr-bg-* utilities in
+// expression.css — order matters because the frontend renders this
+// list as the swatch grid. The Service exposes it to the frontend
+// via FacetLimits.
+var FacetColorList = []string{
+	"red", "orange", "amber", "yellow",
+	"green", "teal", "blue", "purple",
+	"pink", "gray", "cyan", "lime",
+	"indigo", "rose", "brown", "slate",
 }
 
-// FacetIcons is the curated 16-icon FontAwesome palette a Facet may
-// declare. Kept in sync with frontend/src/utils/facetColors.ts
-// FACET_ICONS — the editor renders these as the icon swatch grid.
-var FacetIcons = map[string]struct{}{
-	"fa-flag": {}, "fa-check": {}, "fa-star": {}, "fa-heart": {},
-	"fa-bookmark": {}, "fa-bell": {}, "fa-shirt": {}, "fa-circle-info": {},
-	"fa-triangle-exclamation": {}, "fa-circle-question": {}, "fa-eye": {}, "fa-clock": {},
-	"fa-tag": {}, "fa-bug": {}, "fa-gear": {}, "fa-fire": {},
+// FacetIconList is the ordered closed set of FontAwesome icon keys a
+// Facet may declare. Same display-order contract as FacetColorList.
+var FacetIconList = []string{
+	"fa-flag", "fa-check", "fa-star", "fa-heart",
+	"fa-bookmark", "fa-bell", "fa-shirt", "fa-circle-info",
+	"fa-triangle-exclamation", "fa-circle-question", "fa-eye", "fa-clock",
+	"fa-tag", "fa-bug", "fa-gear", "fa-fire",
 }
+
+// FacetColors and FacetIcons are lookup sets derived from the ordered
+// lists above; kept for O(1) membership checks during validation.
+var (
+	FacetColors = listToSet(FacetColorList)
+	FacetIcons  = listToSet(FacetIconList)
+)
+
+const (
+	FacetKeyPattern   = `^[a-z][a-z0-9_-]*$`
+	FacetLabelPattern = `^[A-Z][A-Z0-9 _-]*$`
+)
 
 var (
-	facetKeyRe   = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
-	facetLabelRe = regexp.MustCompile(`^[A-Z][A-Z0-9 _-]*$`)
+	facetKeyRe   = regexp.MustCompile(FacetKeyPattern)
+	facetLabelRe = regexp.MustCompile(FacetLabelPattern)
 )
+
+func listToSet(items []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(items))
+	for _, k := range items {
+		out[k] = struct{}{}
+	}
+	return out
+}
 
 // IsKnownFacetColor reports whether c is a valid color token.
 func IsKnownFacetColor(c string) bool {
@@ -47,6 +67,42 @@ func IsKnownFacetColor(c string) bool {
 func IsKnownFacetIcon(icon string) bool {
 	_, ok := FacetIcons[icon]
 	return ok
+}
+
+// FacetMeta is the wire-shape returned to the frontend so it can
+// render the editor without hardcoding ANY backend constraint. The
+// frontend reads this once at boot via Service.FacetMeta and treats
+// the backend as the single source of truth for:
+//   - max counts (MaxFacets, MaxOptionsPerFacet)
+//   - palettes (Colors, Icons — ordered for display)
+//   - validation patterns (KeyPattern, LabelPattern — compiled in JS)
+//
+// Adding a new backend-owned facet rule means extending this struct;
+// the frontend stays a thin renderer.
+type FacetMeta struct {
+	MaxFacets          int      `json:"max_facets"`
+	MaxOptionsPerFacet int      `json:"max_options_per_facet"`
+	Colors             []string `json:"colors"`
+	Icons              []string `json:"icons"`
+	KeyPattern         string   `json:"key_pattern"`
+	LabelPattern       string   `json:"label_pattern"`
+}
+
+// GetFacetMeta returns a snapshot of the current facet constraints.
+// Exposed via the Wails Service.
+func GetFacetMeta() FacetMeta {
+	colors := make([]string, len(FacetColorList))
+	copy(colors, FacetColorList)
+	icons := make([]string, len(FacetIconList))
+	copy(icons, FacetIconList)
+	return FacetMeta{
+		MaxFacets:          MaxFacets,
+		MaxOptionsPerFacet: MaxOptionsPerFacet,
+		Colors:             colors,
+		Icons:              icons,
+		KeyPattern:         FacetKeyPattern,
+		LabelPattern:       FacetLabelPattern,
+	}
 }
 
 func facetsErrors(facets []Facet) []ValidationError {

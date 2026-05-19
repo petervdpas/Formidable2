@@ -1,10 +1,8 @@
 <script setup lang="ts">
 /*
  * FacetEditorModal — visual editor for ONE facet (key + icon + options).
- * Mirrors backend validation in internal/modules/template/facets.go
- * (key matches ^[a-z][a-z0-9_-]*$, icon from the curated palette,
- * label matches ^[A-Z][A-Z0-9 _-]*$, color from the 16-token palette,
- * max 16 options).
+ * Backend (internal/modules/template/facets.go) owns every constraint;
+ * we fetch them via useFacetMeta and render whatever the backend sends.
  *
  * The parent owns the facets list and routes one edit at a time here.
  * Apply emits the edited Facet; Cancel discards the working copy.
@@ -18,25 +16,34 @@ import {
   Facet,
   FacetOption,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import {
-  FACET_COLORS,
-  FACET_ICONS,
-  FACET_KEY_REGEX,
-  FACET_LABEL_REGEX,
-  MAX_OPTIONS_PER_FACET,
-} from "../utils/facetColors";
+import { useFacetMeta } from "../composables/useFacetMeta";
 
-const FACET_SWATCH_OPTIONS: SwatchOption[] = FACET_COLORS.map((c) => ({
-  value: c,
-  label: c,
-  class: `facet-swatch-${c}`,
-}));
+const {
+  colors: backendColors,
+  icons: backendIcons,
+  keyRegex,
+  labelRegex,
+  maxOptionsPerFacet,
+} = useFacetMeta();
 
-const FACET_ICON_OPTIONS: SwatchOption[] = FACET_ICONS.map((i) => ({
-  value: i,
-  label: i.replace(/^fa-/, ""),
-  icon: `fa-solid ${i}`,
-}));
+const colorSwatchOptions = computed<SwatchOption[]>(() =>
+  backendColors.value.map((c) => ({
+    value: c,
+    label: c,
+    class: `facet-swatch-${c}`,
+  })),
+);
+
+const iconSwatchOptions = computed<SwatchOption[]>(() =>
+  backendIcons.value.map((i) => ({
+    value: i,
+    label: i.replace(/^fa-/, ""),
+    icon: `fa-solid ${i}`,
+  })),
+);
+
+const defaultColor = computed(() => backendColors.value[0] ?? "red");
+const defaultIcon = computed(() => backendIcons.value[0] ?? "fa-flag");
 
 const props = defineProps<{
   open: boolean;
@@ -55,7 +62,7 @@ const { t } = useI18n();
 
 type DraftOption = { id: number; label: string; color: string };
 const draftKey = ref("");
-const draftIcon = ref<string>(FACET_ICONS[0]);
+const draftIcon = ref<string>("");
 const draftOptions = ref<DraftOption[]>([]);
 let nextId = 1;
 
@@ -64,11 +71,11 @@ watch(
   (isOpen) => {
     if (!isOpen) return;
     draftKey.value = props.initial.key ?? "";
-    draftIcon.value = props.initial.icon || FACET_ICONS[0];
+    draftIcon.value = props.initial.icon || defaultIcon.value;
     draftOptions.value = (props.initial.options ?? []).map((o) => ({
       id: nextId++,
       label: o.label,
-      color: o.color || FACET_COLORS[0],
+      color: o.color || defaultColor.value,
     }));
   },
   { immediate: true },
@@ -76,14 +83,14 @@ watch(
 
 const keyError = computed<"empty" | "invalid" | "duplicate" | null>(() => {
   if (draftKey.value === "") return "empty";
-  if (!FACET_KEY_REGEX.test(draftKey.value)) return "invalid";
+  if (!keyRegex.value.test(draftKey.value)) return "invalid";
   if ((props.existingKeys ?? []).includes(draftKey.value)) return "duplicate";
   return null;
 });
 
 const iconError = computed<"empty" | "unknown" | null>(() => {
   if (!draftIcon.value) return "empty";
-  if (!(FACET_ICONS as readonly string[]).includes(draftIcon.value)) return "unknown";
+  if (!backendIcons.value.includes(draftIcon.value)) return "unknown";
   return null;
 });
 
@@ -93,7 +100,7 @@ const optionErrors = computed<RowError[]>(() => {
   const out: RowError[] = [];
   const seen = new Set<string>();
   for (const r of draftOptions.value) {
-    if (!FACET_LABEL_REGEX.test(r.label)) {
+    if (!labelRegex.value.test(r.label)) {
       out.push("invalid-label");
       continue;
     }
@@ -102,7 +109,7 @@ const optionErrors = computed<RowError[]>(() => {
       continue;
     }
     seen.add(r.label);
-    if (!(FACET_COLORS as readonly string[]).includes(r.color)) {
+    if (!backendColors.value.includes(r.color)) {
       out.push("unknown-color");
       continue;
     }
@@ -122,10 +129,10 @@ const canSave = computed(
 );
 
 function addRow() {
-  if (draftOptions.value.length >= MAX_OPTIONS_PER_FACET) return;
+  if (draftOptions.value.length >= maxOptionsPerFacet.value) return;
   draftOptions.value = [
     ...draftOptions.value,
-    { id: nextId++, label: "", color: FACET_COLORS[0] },
+    { id: nextId++, label: "", color: defaultColor.value },
   ];
 }
 
@@ -201,7 +208,7 @@ const keyErrorMessage = computed(() => {
     @close="onCancel"
   >
     <p class="muted small facet-builder-intro">
-      {{ t('facet.builder.intro', [MAX_OPTIONS_PER_FACET]) }}
+      {{ t('facet.builder.intro', [maxOptionsPerFacet]) }}
     </p>
 
     <div class="facet-builder-header">
@@ -209,7 +216,7 @@ const keyErrorMessage = computed(() => {
         <span class="facet-builder-header-label">{{ t('facet.builder.icon_label') }}</span>
         <SwatchPicker
           :model-value="draftIcon"
-          :options="FACET_ICON_OPTIONS"
+          :options="iconSwatchOptions"
           placement="right"
           :cols="4"
           size="32px"
@@ -240,7 +247,7 @@ const keyErrorMessage = computed(() => {
     </div>
 
     <div class="facet-builder-counter">
-      {{ t('facet.builder.counter', [draftOptions.length, MAX_OPTIONS_PER_FACET]) }}
+      {{ t('facet.builder.counter', [draftOptions.length, maxOptionsPerFacet]) }}
     </div>
 
     <p
@@ -268,7 +275,7 @@ const keyErrorMessage = computed(() => {
 
           <SwatchPicker
             :model-value="row.color"
-            :options="FACET_SWATCH_OPTIONS"
+            :options="colorSwatchOptions"
             placement="right"
             :cols="4"
             size="22px"
@@ -308,7 +315,7 @@ const keyErrorMessage = computed(() => {
       <button
         type="button"
         class="tool-btn"
-        :disabled="draftOptions.length >= MAX_OPTIONS_PER_FACET"
+        :disabled="draftOptions.length >= maxOptionsPerFacet"
         @click="addRow"
       >+ {{ t('facet.builder.add_option') }}</button>
     </div>
