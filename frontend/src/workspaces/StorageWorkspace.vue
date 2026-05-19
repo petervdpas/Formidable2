@@ -310,6 +310,17 @@ function setFacetFilter(key: string, label: string) {
   }
 }
 
+const hasActiveFilters = computed(
+  () =>
+    Object.values(facetFilters.value).some((v) => v !== "") ||
+    tagFilter.value.trim() !== "",
+);
+
+function clearFilters() {
+  facetFilters.value = {};
+  tagFilter.value = "";
+}
+
 const visibleSummaries = computed(() => {
   let out = summaries.value;
   const active = Object.entries(facetFilters.value).filter(([, v]) => v !== "");
@@ -818,7 +829,18 @@ setTopbarMenu(() => [
           />
         </div>
 
-        <StorageTagFilter v-if="hasTagsField" v-model="tagFilter" />
+        <div v-if="hasTagsField" class="sidebar-tag-row">
+          <StorageTagFilter v-model="tagFilter" />
+          <button
+            type="button"
+            class="tool-btn sidebar-filter-clear"
+            :class="{ danger: hasActiveFilters, 'is-muted': !hasActiveFilters }"
+            :disabled="!hasActiveFilters"
+            :title="t('workspace.storage.facet_filter.clear')"
+            :aria-label="t('workspace.storage.facet_filter.clear')"
+            @click="clearFilters"
+          >×</button>
+        </div>
       </div>
 
       <div class="sidebar-scroll">

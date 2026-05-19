@@ -8,6 +8,7 @@
   "workspace.templates.facets.remove": "Remove facet",
   "workspace.storage.meta.facets": "Facets",
   "workspace.storage.facet_filter.all": "Any {0}",
+  "workspace.storage.facet_filter.clear": "Clear filters",
   "facet.picker.title_empty": "Not set",
   "facet.picker.clear": "Not set",
   "facet.picker.no_options": "This facet has no options.",

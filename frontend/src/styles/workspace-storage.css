@@ -14,7 +14,32 @@
     font-size: var(--font-size-sm);
     color: var(--color-text);
 }
-.sidebar-toolbar { margin-bottom: 6px; }
+.sidebar-toolbar {
+    margin-bottom: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.sidebar-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sidebar-tag-row > :first-child {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.sidebar-filter-clear {
+    flex: 0 0 auto;
+    font-size: 14px;
+    line-height: 1;
+    padding: 4px 8px;
+}
+.sidebar-filter-clear.is-muted {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
 
 /* ── Form list (uses .sidebar-row + .sidebar-row--stack) ─────────── */
 .form-list {

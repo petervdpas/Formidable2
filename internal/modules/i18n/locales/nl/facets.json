@@ -8,6 +8,7 @@
   "workspace.templates.facets.remove": "Facet verwijderen",
   "workspace.storage.meta.facets": "Facetten",
   "workspace.storage.facet_filter.all": "Elke {0}",
+  "workspace.storage.facet_filter.clear": "Filters wissen",
   "facet.picker.title_empty": "Niet ingesteld",
   "facet.picker.clear": "Niet ingesteld",
   "facet.picker.no_options": "Dit facet heeft geen opties.",
