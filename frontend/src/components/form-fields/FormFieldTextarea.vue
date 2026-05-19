@@ -16,8 +16,8 @@ const value = computed<string>({
   set: (v) => emit("update:modelValue", v),
 });
 
-// "markdown" → MarkdownEditor (toolbar + status bar, CodeMirror-backed,
-// matches the original's EasyMDE UX). "plain" → plain textarea.
+// "markdown" → MarkdownEditor (toolbar + footer, CodeMirror 6-backed
+// via md-editor-v3). "plain" → plain textarea.
 const isMarkdown = computed(() => (props.field.format ?? "markdown") === "markdown");
 </script>
 

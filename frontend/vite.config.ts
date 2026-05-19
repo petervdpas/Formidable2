@@ -106,7 +106,7 @@ export default defineConfig({
             "@codemirror/lang-yaml",
             "@codemirror/theme-one-dark",
           ],
-          easymde: ["easymde"],
+          mdEditor: ["md-editor-v3"],
           fontawesome: ["@fortawesome/fontawesome-free"],
           dnd: ["vuedraggable"],
           datepicker: ["@vuepic/vue-datepicker", "date-fns"],

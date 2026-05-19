@@ -1,60 +1,54 @@
-/* MarkdownEditor — wraps EasyMDE.
-   Wrapper rules (own classes) plus the global token-bridge that
-   reaches into EasyMDE's outer DOM (.EasyMDEContainer). EasyMDE
-   appends its chrome OUTSIDE the Vue component subtree, so we can't
-   scope these rules — they are intentionally global. */
+/* MarkdownEditor host — wraps md-editor-v3.
+   md-editor-v3 owns its own DOM and ships its own stylesheet
+   (md-editor-v3/lib/style.css imported in MarkdownEditor.vue);
+   we only need width / data-theme passthrough on the host. */
 
-.md-editor {
-    /* Containing block for EasyMDE's chrome — width control lives
-       here, height is governed by minHeight + content. */
+.md-editor-host {
     display: block;
+    width: 100%;
 }
 
-/* The textarea is invisible after EasyMDE swaps it for CodeMirror.
-   Hide for SSR / pre-mount flash. */
-.md-textarea { display: none; }
+/* Auto-height: md-editor-v3's default is a fixed `height: 100%` on
+   `.md-editor` plus a fixed-height inner content area, which produces
+   a ~500px-tall box no matter how short the markdown is. Override to
+   grow with content, with a min-height so empty fields don't collapse
+   and a max-height so the editor never pushes the surrounding form
+   completely off-screen. */
 
-/* ── EasyMDE token bridge ────────────────────────────────────────── */
-
-:root[data-theme="light"] .EasyMDEContainer .editor-toolbar,
-:root[data-theme="dark"] .EasyMDEContainer .editor-toolbar,
-:root[data-theme="purplish"] .EasyMDEContainer .editor-toolbar {
-    background: var(--color-surface);
-    border-color: var(--color-border);
+.md-editor-host .md-editor {
+    height: auto;
 }
 
-:root[data-theme="dark"] .EasyMDEContainer .editor-toolbar a,
-:root[data-theme="purplish"] .EasyMDEContainer .editor-toolbar a {
-    color: var(--color-text) !important;
-}
-.EasyMDEContainer .editor-toolbar a:hover {
-    background: var(--color-surface-2) !important;
-    border-color: var(--color-border) !important;
+.md-editor-host .md-editor-content {
+    height: auto;
 }
 
-.EasyMDEContainer .editor-statusbar {
-    background: var(--color-surface);
-    border-top: 1px solid var(--color-border);
-    color: var(--color-text-muted);
+.md-editor-host .md-editor-content-editor {
+    height: auto;
 }
 
-.EasyMDEContainer .CodeMirror {
-    border-color: var(--color-border);
-    background: var(--input-bg);
-    color: var(--color-text);
+.md-editor-host .cm-editor {
+    height: auto;
+    min-height: 120px;
+    max-height: 240px;
 }
 
-/* In dark / purplish, the monokai theme owns inner colors; we only
-   touch the outer frame. */
-:root[data-theme="dark"] .EasyMDEContainer .CodeMirror,
-:root[data-theme="purplish"] .EasyMDEContainer .CodeMirror {
-    border-color: var(--color-border);
+.md-editor-host .cm-scroller {
+    overflow: auto;
 }
 
-/* CodeMirror's default cursor is `border-left: 1px solid black` —
-   invisible on dark themes (the monokai/eclipse theme CSS files
-   aren't imported, so their cursor overrides never apply). Force it
-   to the theme's text token so it tracks light/dark/purplish. */
-.EasyMDEContainer .CodeMirror-cursor {
-    border-left-color: var(--color-text);
+/* Token bridge — md-editor-v3 uses its own CSS variables for editor
+   colors; reach in and rewire the most visible ones to our theme tokens
+   so the editor matches the surrounding form. */
+
+.md-editor-host .md-editor,
+.md-editor-host .md-editor-dark {
+    --md-bk-color: var(--input-bg);
+    --md-color: var(--color-text);
+    --md-border-color: var(--color-border);
+    --md-border-hover-color: var(--color-border);
+    --md-border-active-color: var(--input-focus-border, var(--accent-color, var(--color-border)));
+    --md-scrollbar-bg-color: transparent;
+    --md-scrollbar-thumb-color: var(--color-border);
+    --md-scrollbar-thumb-hover-color: var(--color-text-muted);
 }
