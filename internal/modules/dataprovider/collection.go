@@ -65,6 +65,33 @@ func (m *Manager) ListCollection(ctx context.Context, template string, opts Coll
 	}
 	rows = addressable
 
+	// Facet filter: every key must match the record's meta.facets[k]
+	// with set==true and selected==value. Pulls the form's meta off
+	// disk via the Storage adapter — N reads when the filter is active,
+	// which is acceptable at the typical per-template scale. Index-side
+	// facet columns can come later if this becomes a hotspot.
+	if len(opts.Facets) > 0 && m.sto != nil {
+		filtered := rows[:0:0]
+		for _, r := range rows {
+			form := m.sto.LoadForm(template, r.Filename)
+			if form == nil {
+				continue
+			}
+			match := true
+			for key, want := range opts.Facets {
+				state, ok := form.Meta.Facets[key]
+				if !ok || !state.Set || state.Selected != want {
+					match = false
+					break
+				}
+			}
+			if match {
+				filtered = append(filtered, r)
+			}
+		}
+		rows = filtered
+	}
+
 	total := len(rows)
 	if opts.Offset > 0 {
 		if opts.Offset >= len(rows) {

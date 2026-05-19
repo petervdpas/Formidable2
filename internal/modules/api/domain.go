@@ -102,6 +102,7 @@ func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates) http.Handler 
 	// `/collections/design/count` with equal precedence. Tooling that
 	// previously hit /design/<id> just swaps to /<id>/design.
 	mux.HandleFunc("/api/collections/{tpl}/design", h.design)
+	mux.HandleFunc("/api/collections/{tpl}/facets", h.facets)
 	mux.HandleFunc("/api/collections/{tpl}/export.ndjson", h.exportNDJSON)
 	mux.HandleFunc("/api/collections/{tpl}/export.csv", h.exportCSV)
 	mux.HandleFunc("/api/collections/{tpl}/{id}", h.itemAny)

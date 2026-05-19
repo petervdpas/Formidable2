@@ -30,6 +30,10 @@ type stubProvider struct {
 	listCollectionErr error
 	// collectionRevErr exercises the 500 branch in `list`.
 	collectionRevErr error
+	// storage, when set, lets ListCollection apply facet filtering
+	// against the same backing store stubStorage uses. Mirrors the real
+	// dataprovider's m.sto.LoadForm path without spinning up an index.
+	storage *stubStorage
 }
 
 func (s *stubProvider) ListTemplates(_ context.Context) ([]dataprovider.TemplateSummary, error) {
@@ -82,6 +86,32 @@ func (s *stubProvider) ListCollection(_ context.Context, template string, opts d
 				}
 			}
 			if ok {
+				filtered = append(filtered, r)
+			}
+		}
+		rows = filtered
+	}
+
+	// Facet AND filter — mirrors dataprovider/collection.go: for every
+	// requested facet.<k>=L the record's meta.facets[k] must satisfy
+	// set==true and selected==L. Without a wired-up storage stub this
+	// branch is a no-op (the empty-Facets case in real life).
+	if len(opts.Facets) > 0 && s.storage != nil {
+		filtered := rows[:0:0]
+		for _, r := range rows {
+			form := s.storage.LoadForm(template, r.Filename)
+			if form == nil {
+				continue
+			}
+			match := true
+			for key, want := range opts.Facets {
+				st, ok := form.Meta.Facets[key]
+				if !ok || !st.Set || st.Selected != want {
+					match = false
+					break
+				}
+			}
+			if match {
 				filtered = append(filtered, r)
 			}
 		}

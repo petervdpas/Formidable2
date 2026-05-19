@@ -56,3 +56,25 @@ Feature: REST API — template design endpoint
     When I GET "/api/collections/recepten/design"
     Then the response has header "ETag"
     And the response has header "Cache-Control"
+
+  Scenario: GET design includes facets[] when the template declares them
+    Given the templates store design "recepten.yaml" has facet "status" with icon "fa-flag" and options:
+      | label | color |
+      | DONE  | green |
+      | OPEN  | red   |
+    And the templates store design "recepten.yaml" has facet "size" with icon "fa-shirt" and options:
+      | label | color |
+      | BIG   | blue  |
+    When I GET "/api/collections/recepten/design"
+    Then the response status is 200
+    And the JSON "facets" has length 2
+    And the JSON nested "facets[0].key" == "status"
+    And the JSON nested "facets[0].icon" == "fa-flag"
+    And the JSON nested "facets[0].options[0].label" == "DONE"
+    And the JSON nested "facets[0].options[0].color" == "green"
+    And the JSON nested "facets[1].key" == "size"
+
+  Scenario: GET design omits facets when none are declared
+    When I GET "/api/collections/recepten/design"
+    Then the response status is 200
+    And the JSON does not have field "facets"

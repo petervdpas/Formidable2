@@ -98,6 +98,10 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 		func(table *godog.Table) error {
 			w.stub = &stubProvider{forms: map[string][]dataprovider.FormSummary{}}
 			w.stubSt = newStubStorage()
+			// Wire the stub provider to the same storage so facet
+			// filtering can resolve meta.facets via LoadForm — mirrors
+			// the real dp's m.sto.LoadForm path.
+			w.stub.storage = w.stubSt
 			w.stubWr = newStubWriter()
 			// Plumb writer → storage so a POST followed by a GET sees
 			// the freshly-written form (mirrors the production
@@ -232,6 +236,46 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 					}
 				}
 				t.Fields = append(t.Fields, f)
+			}
+			return nil
+		})
+
+	ctx.Step(`^the templates store design "([^"]*)" has facet "([^"]*)" with icon "([^"]*)" and options:$`,
+		func(filename, key, icon string, table *godog.Table) error {
+			t, ok := w.stubTpl.by[filename]
+			if !ok {
+				t = &template.Template{Filename: filename, EnableCollection: true}
+				w.stubTpl.by[filename] = t
+			}
+			opts := []template.FacetOption{}
+			for _, row := range table.Rows[1:] {
+				opts = append(opts, template.FacetOption{
+					Label: row.Cells[0].Value,
+					Color: row.Cells[1].Value,
+				})
+			}
+			t.Facets = append(t.Facets, template.Facet{
+				Key:     key,
+				Icon:    icon,
+				Options: opts,
+			})
+			return nil
+		})
+
+	ctx.Step(`^the storage form "([^"]*)":"([^"]*)" has facet "([^"]*)" set (true|false) selected "([^"]*)"$`,
+		func(tpl, datafile, key, setStr, selected string) error {
+			fkey := tpl + "/" + datafile
+			f, ok := w.stubSt.forms[fkey]
+			if !ok {
+				f = &storage.Form{}
+				w.stubSt.forms[fkey] = f
+			}
+			if f.Meta.Facets == nil {
+				f.Meta.Facets = map[string]storage.FacetState{}
+			}
+			f.Meta.Facets[key] = storage.FacetState{
+				Set:      setStr == "true",
+				Selected: selected,
 			}
 			return nil
 		})
@@ -541,6 +585,17 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 			}
 			return nil
 		})
+
+	ctx.Step(`^the JSON does not have field "([^"]*)"$`, func(field string) error {
+		obj, err := jsonAsObject(w)
+		if err != nil {
+			return err
+		}
+		if _, found := obj[field]; found {
+			return fmt.Errorf("field %q present, want absent", field)
+		}
+		return nil
+	})
 
 	ctx.Step(`^the JSON does NOT have schema "([^"]*)"$`, func(name string) error {
 		obj, err := jsonAsObject(w)

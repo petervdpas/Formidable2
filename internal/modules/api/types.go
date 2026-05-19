@@ -71,6 +71,33 @@ type designResponse struct {
 	SidebarExpression string           `json:"sidebar_expression"`
 	EnableCollection  bool             `json:"enable_collection"`
 	Fields            []map[string]any `json:"fields"`
+	// Facets is the template's filter contract — same shape served by
+	// the dedicated /facets endpoint. `omitempty` keeps the design
+	// payload tidy for templates without facets (consumers shouldn't
+	// have to handle an empty array when they wouldn't render anything).
+	Facets []facetEntry `json:"facets,omitempty"`
+}
+
+// facetsResponse is the body of GET /api/collections/{tpl}/facets.
+// Mirrors the filter contract API consumers need to pass
+// ?facet.<key>=LABEL query params on the list / count endpoints.
+type facetsResponse struct {
+	Template string        `json:"template"`
+	Facets   []facetEntry  `json:"facets"`
+}
+
+// facetEntry is one declared facet projected for the wire. Mirrors
+// template.Facet but stays in this package so the api contract is
+// independent of internal struct evolutions on the template side.
+type facetEntry struct {
+	Key     string              `json:"key"`
+	Icon    string              `json:"icon"`
+	Options []facetOptionEntry  `json:"options"`
+}
+
+type facetOptionEntry struct {
+	Label string `json:"label"`
+	Color string `json:"color"`
 }
 
 // designOption is the normalized shape of one entry in field.options.

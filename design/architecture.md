@@ -78,13 +78,13 @@ CRUD over forms-as-collections, with an OpenAPI spec generated dynamically from 
 - `GET /api/collections` — list collection-enabled templates.
 - `GET /api/collections/:t/count` — count.
 - `GET /api/collections/design/:t` — template schema for OpenAPI shape.
-- `GET /api/collections/:t` / `GET /api/collections/:t/:id` — list / read.
+- `GET /api/collections/:t` / `GET /api/collections/:t/:id` — list / read. List accepts `?facet.<key>=LABEL` query params (multiple AND together) for facet-state filtering; `/count` honours the same params. Unknown keys/labels return 400.
 - `POST /api/collections/:t` — create.
 - `PUT /api/collections/:t/:id` / `PATCH /api/collections/:t/:id` / `PATCH /api/collections/:t/:id/field/:key` — update.
 - `DELETE /api/collections/:t/:id` — delete.
 - `POST /api/collections/:t/batch` — bulk.
 - `GET /api/collections/:t/export.{ndjson,csv}` — export.
-- `GET /api/openapi.json` — generated OpenAPI 3 spec.
+- `GET /api/openapi.json` — generated OpenAPI 3 spec. Per-template literal paths (e.g. `/collections/<stem>`) are emitted for templates that declare facets, with `facet.<key>` query parameters typed as `enum: [<option labels>]`. Generic `/collections/{template}` stays for the template-agnostic case.
 - `GET /api/docs` — Swagger UI.
 
 The wiki view is opened from the Formidable UI by spawning a **separate webview window** (Wails equivalent of Electron's `system:open-external variant=tab`) pointed at `http://127.0.0.1:8383/...` — matches today's UX where help/preview links open in their own window.

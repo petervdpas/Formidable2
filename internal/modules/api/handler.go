@@ -341,7 +341,68 @@ func (h *Handler) design(w http.ResponseWriter, r *http.Request) {
 		SidebarExpression: t.SidebarExpression,
 		EnableCollection:  t.EnableCollection,
 		Fields:            fields,
+		Facets:            projectFacets(t.Facets),
 	})
+}
+
+// facets answers GET /api/collections/{tpl}/facets. Returns the
+// template's filter contract — the keys, icons, and option labels
+// consumers can pass on the list endpoint as `?facet.<key>=LABEL`.
+// Separate from /design (which carries data-structure metadata); facet
+// definitions are filter metadata. Same gating as the list endpoint:
+// unknown/disabled templates are 403 (no existence leak); valid stem
+// over a wrong template name returns 403 too.
+func (h *Handler) facets(w http.ResponseWriter, r *http.Request) {
+	if !onlyGet(w, r) {
+		return
+	}
+	stem := r.PathValue("tpl")
+	if !validStem(stem) {
+		writeJSONError(w, http.StatusForbidden, "collection-disabled")
+		return
+	}
+	filename := stem + ".yaml"
+	if !h.dp.IsCollectionEnabled(r.Context(), filename) {
+		writeJSONError(w, http.StatusForbidden, "collection-disabled")
+		return
+	}
+	t, err := h.tpl.LoadTemplate(filename)
+	if err != nil || t == nil {
+		writeJSONError(w, http.StatusForbidden, "collection-disabled")
+		return
+	}
+
+	if rev, err := h.dp.CollectionRev(r.Context(), filename); err == nil {
+		w.Header().Set("ETag", makeETag(rev))
+	}
+	w.Header().Set("Cache-Control", "no-store")
+
+	out := facetsResponse{
+		Template: stem,
+		Facets:   projectFacets(t.Facets),
+	}
+	if out.Facets == nil {
+		out.Facets = []facetEntry{}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// projectFacets copies template.Facet into the wire shape. Nil/empty
+// in → nil out (callers decide whether to substitute an empty slice
+// for response uniformity).
+func projectFacets(in []template.Facet) []facetEntry {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]facetEntry, len(in))
+	for i, f := range in {
+		opts := make([]facetOptionEntry, len(f.Options))
+		for j, o := range f.Options {
+			opts[j] = facetOptionEntry{Label: o.Label, Color: o.Color}
+		}
+		out[i] = facetEntry{Key: f.Key, Icon: f.Icon, Options: opts}
+	}
+	return out
 }
 
 // designFieldsFromTemplate JSON-roundtrips each template.Field into a
@@ -615,6 +676,12 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opts := parseListOpts(r.URL.Query())
+	if facets, errResp := h.parseFacetFilters(r, tplFilename); errResp != nil {
+		writeJSON(w, errResp.status, errResp.body)
+		return
+	} else {
+		opts.Facets = facets
+	}
 	page, err := h.dp.ListCollection(r.Context(), tplFilename, opts)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal-error")
@@ -654,11 +721,17 @@ func (h *Handler) count(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
+	facets, errResp := h.parseFacetFilters(r, tplFilename)
+	if errResp != nil {
+		writeJSON(w, errResp.status, errResp.body)
+		return
+	}
 	// Pull the smallest-possible page; we only need `total`. Limit=0
 	// means "no slicing" — the underlying CollectionPage carries the
 	// full filtered total either way.
 	page, err := h.dp.ListCollection(r.Context(), tplFilename, dataprovider.CollectionListOpts{
-		Limit: 1,
+		Limit:  1,
+		Facets: facets,
 	})
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal-error")
@@ -676,6 +749,83 @@ func (h *Handler) count(w http.ResponseWriter, r *http.Request) {
 		Template: stem,
 		Total:    page.Total,
 	})
+}
+
+// facetFilterError carries a parsed-failure response so the caller
+// can write it through the same writeJSON path. body is shaped
+// {error, key[, label]} so consumers can recognise unknown_facet vs
+// unknown_facet_option uniformly.
+type facetFilterError struct {
+	status int
+	body   map[string]any
+}
+
+// parseFacetFilters reads `facet.<key>=LABEL` query params, resolves
+// them against the template's declared facets, and returns the map
+// passed to dataprovider.ListCollection. Multiple params AND together.
+// Unknown facet key → 400 {error:"unknown_facet", key}; label not in
+// the facet's options → 400 {error:"unknown_facet_option", key, label};
+// duplicate `facet.<key>=...` query params keep the first value (Go's
+// url.Values returns []string in order — first wins via [0]). Empty
+// label is treated as "no filter on this facet" (i.e. omitted from
+// the map) so a stale URL param like ?facet.flag= doesn't shrink the
+// result set unexpectedly.
+func (h *Handler) parseFacetFilters(r *http.Request, tplFilename string) (map[string]string, *facetFilterError) {
+	const prefix = "facet."
+	q := r.URL.Query()
+	var keys []string
+	for k := range q {
+		if strings.HasPrefix(k, prefix) && k != prefix {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return nil, nil
+	}
+	t, err := h.tpl.LoadTemplate(tplFilename)
+	if err != nil || t == nil {
+		return nil, &facetFilterError{
+			status: http.StatusForbidden,
+			body:   map[string]any{"error": "collection-disabled"},
+		}
+	}
+	facetByKey := make(map[string]*template.Facet, len(t.Facets))
+	for i := range t.Facets {
+		facetByKey[t.Facets[i].Key] = &t.Facets[i]
+	}
+	out := make(map[string]string, len(keys))
+	for _, full := range keys {
+		key := strings.TrimPrefix(full, prefix)
+		f, ok := facetByKey[key]
+		if !ok {
+			return nil, &facetFilterError{
+				status: http.StatusBadRequest,
+				body:   map[string]any{"error": "unknown_facet", "key": key},
+			}
+		}
+		label := strings.TrimSpace(q.Get(full))
+		if label == "" {
+			continue
+		}
+		labelKnown := false
+		for _, o := range f.Options {
+			if o.Label == label {
+				labelKnown = true
+				break
+			}
+		}
+		if !labelKnown {
+			return nil, &facetFilterError{
+				status: http.StatusBadRequest,
+				body:   map[string]any{"error": "unknown_facet_option", "key": key, "label": label},
+			}
+		}
+		out[key] = label
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
 }
 
 // parseListOpts extracts the list-endpoint query params. Bad/empty

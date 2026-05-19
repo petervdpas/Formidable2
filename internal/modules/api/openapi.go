@@ -27,6 +27,11 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	itemSchemas := map[string]any{}
 	upsertSchemas := map[string]any{}
 	upsertPartialSchemas := map[string]any{}
+	// templateFacets carries the per-stem Facet slice so we can emit
+	// typed facet.<key> query params on per-template list paths after
+	// the generic paths are assembled. Stems without facets aren't
+	// added — keeps the spec lean.
+	templateFacets := map[string][]template.Facet{}
 	for _, t := range tps {
 		if !t.EnableCollection || t.GuidField == "" {
 			continue
@@ -39,6 +44,9 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 			continue
 		}
 		stem := t.Stem
+		if len(full.Facets) > 0 {
+			templateFacets[stem] = full.Facets
+		}
 		dataSchemas["Data_"+stem] = dataSchemaForTemplate(full)
 		itemSchemas["Item_"+stem] = map[string]any{
 			"allOf": []any{
@@ -84,8 +92,11 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	schemas := map[string]any{
 		"ItemBase":       schemaItemBase(),
 		"ItemSummary":    schemaItemSummary(),
-		"FormMeta":       schemaFormMeta(),
-		"FacetState":     schemaFacetState(),
+		"FormMeta":         schemaFormMeta(),
+		"FacetState":       schemaFacetState(),
+		"FacetDefinition":  schemaFacetDefinition(),
+		"FacetOption":      schemaFacetOption(),
+		"FacetsResponse":   schemaFacetsResponse(),
 		"AuditEntry":     schemaAuditEntry(),
 		"TemplateRow":    schemaTemplateRow(),
 		"CountResponse":  schemaCountResponse(),
@@ -146,8 +157,12 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 		"info": map[string]any{
 			"title":   "Formidable Collections API",
 			"version": "2.0.0",
-			"description": "Read-only access to collection-enabled templates. " +
-				"Per-template data schemas are derived from the template's fields.",
+			"description": "CRUD over collection-enabled templates. Per-template " +
+				"data schemas are derived from each template's fields, and list / " +
+				"count endpoints accept `?facet.<key>=LABEL` query params for " +
+				"per-facet AND filtering. Templates that declare facets also expose " +
+				"a literal `/collections/<stem>` path with `facet.<key>` query " +
+				"parameters typed as enums of their declared option labels.",
 		},
 		"servers": []any{
 			map[string]any{"url": "/api"},
@@ -160,8 +175,84 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 			},
 			"schemas": schemas,
 		},
-		"paths": pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs),
+		"paths": withFacetPaths(
+			pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs),
+			templateFacets,
+		),
 	}, nil
+}
+
+// withFacetPaths appends per-template list paths to the spec for any
+// template that declares facets. Each path mirrors GET /collections/
+// {template} but adds typed facet.<key> query params with the
+// template's option labels as an enum — so Swagger UI shows a real
+// dropdown per facet instead of a generic string box. Templates with
+// no facets are unaffected (no per-template path emitted; the generic
+// /collections/{template} entry still serves them).
+func withFacetPaths(paths map[string]any, facetsByStem map[string][]template.Facet) map[string]any {
+	for stem, facets := range facetsByStem {
+		params := []any{
+			map[string]any{
+				"name":     "limit",
+				"in":       "query",
+				"required": false,
+				"schema":   map[string]any{"type": "integer", "default": 100},
+			},
+			map[string]any{
+				"name":     "offset",
+				"in":       "query",
+				"required": false,
+				"schema":   map[string]any{"type": "integer", "default": 0},
+			},
+			map[string]any{
+				"name":   "q",
+				"in":     "query",
+				"schema": map[string]any{"type": "string"},
+			},
+			map[string]any{
+				"name":   "tags",
+				"in":     "query",
+				"schema": map[string]any{"type": "string"},
+				"description": "Comma-separated tag list (AND across entries).",
+			},
+		}
+		for _, f := range facets {
+			labels := make([]any, len(f.Options))
+			for i, o := range f.Options {
+				labels[i] = o.Label
+			}
+			params = append(params, map[string]any{
+				"name": "facet." + f.Key,
+				"in":   "query",
+				"schema": map[string]any{
+					"type": "string",
+					"enum": labels,
+				},
+				"description": "Filter by facet `" + f.Key + "`. Records match when meta.facets." + f.Key + ".set is true and selected equals the given value. Multiple facet.* params AND together.",
+			})
+		}
+		paths["/collections/"+stem] = map[string]any{
+			"get": map[string]any{
+				"summary": "List items in `" + stem + "` (facet-filterable)",
+				"description": "Per-template list endpoint. Same behaviour as /collections/{template} but documents the declared facets as typed query parameters with their option labels as enums.",
+				"parameters": params,
+				"responses": map[string]any{
+					"200": map[string]any{
+						"description": "OK",
+						"content": map[string]any{
+							"application/json": map[string]any{
+								"schema": map[string]any{"$ref": "#/components/schemas/ListResponse"},
+							},
+						},
+					},
+					"304": map[string]any{"description": "Not Modified"},
+					"400": errResp("unknown_facet"),
+					"403": errResp("collection-disabled"),
+				},
+			},
+		}
+	}
+	return paths
 }
 
 // pathsForFullAPI declares every route the package serves — read +
@@ -442,7 +533,8 @@ func pathsForReadAPI() map[string]any {
 		},
 		"/collections/{template}": map[string]any{
 			"get": map[string]any{
-				"summary": "List items in a collection (paged)",
+				"summary":     "List items in a collection (paged)",
+				"description": "Accepts optional `facet.<key>=LABEL` query params for per-facet AND filtering. Templates that declare facets also expose a typed literal path `/collections/<stem>` with each facet's options as a query-param enum — use that for Swagger UI dropdowns.",
 				"parameters": []any{
 					param("TemplateParam"),
 					queryInt("limit", 100),
@@ -453,16 +545,19 @@ func pathsForReadAPI() map[string]any {
 				"responses": map[string]any{
 					"200": jsonOK("ListResponse"),
 					"304": map[string]any{"description": "Not Modified"},
+					"400": errResp("unknown_facet"),
 					"403": errResp("collection-disabled"),
 				},
 			},
 		},
 		"/collections/{template}/count": map[string]any{
 			"get": map[string]any{
-				"summary":    "Count items in a collection",
-				"parameters": []any{param("TemplateParam")},
+				"summary":     "Count items in a collection",
+				"description": "Accepts the same `facet.<key>=LABEL` query params as the list endpoint; the returned `total` reflects the filtered set.",
+				"parameters":  []any{param("TemplateParam")},
 				"responses": map[string]any{
 					"200": jsonOK("CountResponse"),
+					"400": errResp("unknown_facet"),
 					"403": errResp("collection-disabled"),
 				},
 			},
@@ -497,12 +592,24 @@ func pathsForReadAPI() map[string]any {
 		},
 		"/collections/{template}/design": map[string]any{
 			"get": map[string]any{
-				"summary":    "Template design (fields, options, markdown_template)",
-				"parameters": []any{param("TemplateParam")},
+				"summary":     "Template design (fields, options, markdown_template, facets)",
+				"description": "Returns the full template metadata: fields, options, markdown_template, and the declared facets (same shape as /facets). Templates without facets omit the `facets` property entirely.",
+				"parameters":  []any{param("TemplateParam")},
 				"responses": map[string]any{
 					"200": jsonOK("TemplateDesign"),
 					"403": errResp("collection-disabled"),
 					"404": errResp("template-not-found"),
+				},
+			},
+		},
+		"/collections/{template}/facets": map[string]any{
+			"get": map[string]any{
+				"summary":     "Template's filter contract (facets)",
+				"description": "Returns the facets a consumer can pass on the list / count endpoints as `?facet.<key>=LABEL`. Each facet carries its stable key, FontAwesome icon, and mutually-exclusive options. Templates without facets return an empty array.",
+				"parameters":  []any{param("TemplateParam")},
+				"responses": map[string]any{
+					"200": jsonOK("FacetsResponse"),
+					"403": errResp("collection-disabled"),
 				},
 			},
 		},
@@ -1006,7 +1113,54 @@ func schemaTemplateDesign() map[string]any {
 				"type":  "array",
 				"items": map[string]any{"$ref": "#/components/schemas/TemplateField"},
 			},
+			"facets": map[string]any{
+				"type":        "array",
+				"description": "Filter contract — the same payload served by /collections/{tpl}/facets. Omitted for templates without facets.",
+				"items":       map[string]any{"$ref": "#/components/schemas/FacetDefinition"},
+			},
 		},
 		"required": []string{"name", "filename", "enable_collection", "fields"},
+	}
+}
+
+func schemaFacetDefinition() map[string]any {
+	return map[string]any{
+		"type":        "object",
+		"description": "One facet on a template: a stable key, a FontAwesome icon, and the mutually-exclusive options consumers can pass as ?facet.<key>=LABEL.",
+		"properties": map[string]any{
+			"key":  map[string]any{"type": "string"},
+			"icon": map[string]any{"type": "string"},
+			"options": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"$ref": "#/components/schemas/FacetOption"},
+			},
+		},
+		"required": []string{"key", "icon", "options"},
+	}
+}
+
+func schemaFacetOption() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"label": map[string]any{"type": "string"},
+			"color": map[string]any{"type": "string"},
+		},
+		"required": []string{"label", "color"},
+	}
+}
+
+func schemaFacetsResponse() map[string]any {
+	return map[string]any{
+		"type":        "object",
+		"description": "Body of GET /collections/{tpl}/facets — the template's filter contract.",
+		"properties": map[string]any{
+			"template": map[string]any{"type": "string"},
+			"facets": map[string]any{
+				"type":  "array",
+				"items": map[string]any{"$ref": "#/components/schemas/FacetDefinition"},
+			},
+		},
+		"required": []string{"template", "facets"},
 	}
 }
