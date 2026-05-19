@@ -28,10 +28,9 @@ const triggerColorClass = computed(() => {
 
 const iconClass = computed(() => `fa-solid ${props.facet.icon}`);
 
-const triggerLabel = computed(() => {
-  if (active.value) return active.value.label;
-  return t("workspace.storage.facet_filter.all", [props.facet.key]);
-});
+const triggerLabel = computed(() =>
+  active.value ? active.value.label : props.facet.key,
+);
 
 function pick(label: string, close: () => void) {
   if (label !== props.modelValue) emit("update:modelValue", label);
@@ -63,7 +62,7 @@ function pick(label: string, close: () => void) {
           @click="pick('', close)"
         >
           <span class="facet-picker-swatch facet-picker-swatch--empty"></span>
-          <span class="facet-picker-label">{{ t('workspace.storage.facet_filter.all', [facet.key]) }}</span>
+          <span class="facet-picker-label">{{ t('workspace.storage.facet_filter.none') }}</span>
         </button>
 
         <button

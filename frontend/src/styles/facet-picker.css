@@ -317,6 +317,14 @@
   background: var(--color-surface);
 }
 
+.facet-row .dnd-handle {
+  cursor: grab;
+  color: var(--color-text-muted, #8a93a6);
+  user-select: none;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+
 .facet-row-icon {
   font-size: 16px;
   color: var(--color-text);

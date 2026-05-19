@@ -814,31 +814,41 @@ setTopbarMenu(() => [
                   >
                     {{ t('workspace.templates.facets.summary_empty') }}
                   </p>
-                  <ul v-else class="facet-rows">
-                    <li
-                      v-for="(f, i) in draft.facets"
-                      :key="f.key + '-' + i"
-                      class="facet-row"
-                    >
-                      <i :class="['fa-solid', f.icon, 'facet-row-icon']" aria-hidden="true"></i>
-                      <span class="facet-row-key mono">{{ f.key }}</span>
-                      <span class="muted small facet-row-summary">
-                        {{ t('workspace.templates.facets.options_count', [f.options.length]) }}
-                      </span>
-                      <button
-                        class="tool-btn"
-                        type="button"
-                        :title="t('workspace.templates.facets.edit')"
-                        @click="openEditFacet(i)"
-                      >{{ t('workspace.templates.facets.edit') }}</button>
-                      <button
-                        class="tool-btn danger"
-                        type="button"
-                        :title="t('workspace.templates.facets.remove')"
-                        @click="removeFacet(i)"
-                      >×</button>
-                    </li>
-                  </ul>
+                  <draggable
+                    v-else
+                    v-model="draft.facets"
+                    tag="ul"
+                    class="facet-rows"
+                    handle=".dnd-handle"
+                    :animation="150"
+                    ghost-class="dnd-ghost"
+                    chosen-class="dnd-chosen"
+                    drag-class="dnd-drag"
+                    item-key="key"
+                  >
+                    <template #item="{ element: f, index: i }">
+                      <li class="facet-row">
+                        <span class="dnd-handle" aria-hidden="true">☰</span>
+                        <i :class="['fa-solid', f.icon, 'facet-row-icon']" aria-hidden="true"></i>
+                        <span class="facet-row-key mono">{{ f.key }}</span>
+                        <span class="muted small facet-row-summary">
+                          {{ t('workspace.templates.facets.options_count', [f.options.length]) }}
+                        </span>
+                        <button
+                          class="tool-btn"
+                          type="button"
+                          :title="t('workspace.templates.facets.edit')"
+                          @click="openEditFacet(i)"
+                        >{{ t('workspace.templates.facets.edit') }}</button>
+                        <button
+                          class="tool-btn danger"
+                          type="button"
+                          :title="t('workspace.templates.facets.remove')"
+                          @click="removeFacet(i)"
+                        >×</button>
+                      </li>
+                    </template>
+                  </draggable>
                   <div class="setup-tab-actions">
                     <span class="muted small">
                       {{ t('workspace.templates.facets.counter',
