@@ -37,6 +37,7 @@ type ManagerDeps struct {
 	Render      RenderAccess
 	FM          FMAccess
 	FS          FSAccess
+	Storage    StorageAccess
 	Exec       ExecRunner
 	API        HTTPClient
 	RunBarOut  RunBarEmitter
@@ -306,6 +307,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Render:      m.deps.Render,
 		FM:          m.deps.FM,
 		FS:          m.deps.FS,
+		Storage:    m.deps.Storage,
 		Exec:       m.deps.Exec,
 		API:        m.deps.API,
 		RunBarOut:  m.deps.RunBarOut,

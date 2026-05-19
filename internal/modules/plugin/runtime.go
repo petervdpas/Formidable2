@@ -67,6 +67,7 @@ type runtimeDeps struct {
 	Render      RenderAccess
 	FM          FMAccess
 	FS          FSAccess
+	Storage     StorageAccess
 	Exec        ExecRunner
 	API         HTTPClient
 }
@@ -90,6 +91,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("render", buildRenderTable(L, deps.PluginID, deps.Render, deps.FM))
 	f.RawSetString("fm", buildFMTable(L, deps.PluginID, deps.FM))
 	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut))
+	f.RawSetString("storage", buildStorageTable(L, deps.Storage))
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
 	// formidable.cancelled() — cheap predicate so plugins can poll
 	// for user-requested Stop inside pcall-heavy loops. Necessary
@@ -197,6 +199,7 @@ type scriptOpts struct {
 	Render      RenderAccess
 	FM          FMAccess
 	FS          FSAccess
+	Storage     StorageAccess
 	Exec        ExecRunner
 	API         HTTPClient
 	RunBarOut   RunBarEmitter
@@ -233,6 +236,7 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		Render:      opts.Render,
 		FM:          opts.FM,
 		FS:          opts.FS,
+		Storage:     opts.Storage,
 		Exec:        opts.Exec,
 		API:         opts.API,
 	})

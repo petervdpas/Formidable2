@@ -70,6 +70,17 @@ type FSAccess interface {
 	Exists(path string) bool
 }
 
+// StorageAccess is the formidable.storage.* surface — direct access
+// to bytes the storage manager owns (template/<stem>/images/<name>).
+// Plugins that export to disk (wikiwonder) need to copy referenced
+// images alongside the generated markdown; reading via OS path would
+// require leaking the storage root into Lua. ImageBytes returns
+// (nil, nil) when the file isn't present so plugins can skip without
+// branching on errors.
+type StorageAccess interface {
+	ImageBytes(templateFilename, name string) ([]byte, error)
+}
+
 // ExecOptions narrows what `formidable.exec(cmd, args, opts)`
 // accepts. Cwd / Env / Timeout map to the corresponding os/exec
 // fields. Keeping it a Go struct rather than a free-form map
@@ -497,6 +508,33 @@ func buildFSTable(L *lua.LState, fs FSAccess) *lua.LTable {
 	tbl.RawSetString("exists", L.NewFunction(func(L *lua.LState) int {
 		p := L.CheckString(1)
 		L.Push(lua.LBool(fs.Exists(p)))
+		return 1
+	}))
+	return tbl
+}
+
+// buildStorageTable mounts `formidable.storage.imageBytes(tpl, name)`.
+// Returned value is a Lua string (8-bit clean — fine for binary) or
+// nil when the file is absent. Errors raise so plugins see the cause.
+func buildStorageTable(L *lua.LState, s StorageAccess) *lua.LTable {
+	tbl := L.NewTable()
+	if s == nil {
+		tbl.RawSetString("imageBytes", L.NewFunction(nilGuard("storage")))
+		return tbl
+	}
+	tbl.RawSetString("imageBytes", L.NewFunction(func(L *lua.LState) int {
+		tpl := L.CheckString(1)
+		name := L.CheckString(2)
+		b, err := s.ImageBytes(tpl, name)
+		if err != nil {
+			L.RaiseError("storage.imageBytes: %v", err)
+			return 0
+		}
+		if b == nil {
+			L.Push(lua.LNil)
+			return 1
+		}
+		L.Push(lua.LString(b))
 		return 1
 	}))
 	return tbl

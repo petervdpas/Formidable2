@@ -794,6 +794,74 @@ func TestBindings_FS_ReadMissingErrors(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// formidable.storage — image bytes lookup for wiki-export plugins
+// ─────────────────────────────────────────────────────────────────
+
+type mockStorage struct {
+	images map[string][]byte
+	err    error
+}
+
+func (m *mockStorage) ImageBytes(tpl, name string) ([]byte, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	if b, ok := m.images[tpl+"/"+name]; ok {
+		return b, nil
+	}
+	return nil, nil
+}
+
+func TestBindings_Storage_ImageBytes_RoundTrip(t *testing.T) {
+	m := &mockStorage{images: map[string][]byte{
+		"recipes.yaml/cover.png": []byte("\x89PNG\r\n\x1a\nDATA"),
+	}}
+	res := run(t, `
+		function run()
+			return formidable.storage.imageBytes("recipes.yaml", "cover.png")
+		end`,
+		scriptOpts{Storage: m})
+	got, ok := res.Value.(string)
+	if !ok {
+		t.Fatalf("want string, got %T (%v)", res.Value, res.Value)
+	}
+	if got != "\x89PNG\r\n\x1a\nDATA" {
+		t.Fatalf("bytes round-trip: got %q", got)
+	}
+}
+
+func TestBindings_Storage_ImageBytes_MissingReturnsNil(t *testing.T) {
+	res := run(t, `
+		function run()
+			local b = formidable.storage.imageBytes("recipes.yaml", "ghost.png")
+			return b == nil
+		end`,
+		scriptOpts{Storage: &mockStorage{}})
+	if res.Value != true {
+		t.Fatalf("want nil for missing image, got %v", res.Value)
+	}
+}
+
+func TestBindings_Storage_ImageBytes_ErrorRaises(t *testing.T) {
+	m := &mockStorage{err: errors.New("disk gone")}
+	err := runErr(t, `
+		function run() return formidable.storage.imageBytes("x.yaml", "y.png") end`,
+		scriptOpts{Storage: m})
+	if err == nil || !strings.Contains(err.Error(), "storage.imageBytes") {
+		t.Fatalf("want storage.imageBytes error, got %v", err)
+	}
+}
+
+func TestBindings_Storage_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t,
+		`function run() return formidable.storage.imageBytes("x.yaml", "y.png") end`,
+		scriptOpts{})
+	if err == nil || !strings.Contains(err.Error(), "storage: not configured") {
+		t.Fatalf("want storage: not configured, got %v", err)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
 // formidable.exec — uses mockExec to verify args + opts threading
 // ─────────────────────────────────────────────────────────────────
 

@@ -138,6 +138,19 @@ func (a pluginRenderAdapter) RenderHTML(templateFilename, datafile string) (stri
 	return a.rdr.RenderHTMLOnly(md)
 }
 
+// pluginStorageAdapter exposes storage image bytes to Lua plugins
+// that export to disk (wikiwonder copies referenced images alongside
+// the generated markdown). Missing files come back as (nil, nil) so
+// the plugin can skip silently rather than branch on errors.
+type pluginStorageAdapter struct {
+	sto *storage.Manager
+}
+
+func (a pluginStorageAdapter) ImageBytes(templateFilename, name string) ([]byte, error) {
+	b, _, err := a.sto.OpenImageFile(templateFilename, name)
+	return b, err
+}
+
 // pluginFMAdapter exposes the render module's frontmatter helpers
 // to Lua. Stateless — the underlying functions are pure — so the
 // adapter holds no fields. Lives here (not in render's service) so

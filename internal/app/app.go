@@ -534,9 +534,10 @@ func New(d Deps) (*App, error) {
 		Template:   pluginTemplateAdapter{dp: dpM, tpl: tplM},
 		Collection: pluginCollectionAdapter{dp: dpM},
 		Form:       pluginFormAdapter{sto: stoM},
-		Render: pluginRenderAdapter{rdr: renderM},
-		FM:     pluginFMAdapter{},
-		FS:     plugin.OSFS{},
+		Render:  pluginRenderAdapter{rdr: renderM},
+		FM:      pluginFMAdapter{},
+		FS:      plugin.OSFS{},
+		Storage: pluginStorageAdapter{sto: stoM},
 		// RunBarOut / RunStatOut bridge formidable.run.bar /
 		// formidable.run.status to Wails events. Any progressbar /
 		// statusmessage widget the plugin author dropped into their
