@@ -16,7 +16,7 @@ const props = defineProps<{
   facets: Facet[];
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: "pick", filename: string): void;
 }>();
 
@@ -81,7 +81,7 @@ const displayChips = computed<FacetChip[]>(() => {
   <li
     :class="['sidebar-row', 'sidebar-row--stack', { active }]"
     :data-filename="summary.filename"
-    @click="$emit('pick', summary.filename)"
+    @click="emit('pick', summary.filename)"
   >
     <span class="form-list-title-row">
       <span class="form-list-title">{{ summary.title || summary.filename }}</span>

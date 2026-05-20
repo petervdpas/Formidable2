@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import Badge from "../components/Badge.vue";
@@ -34,6 +34,7 @@ import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/form
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { backendErrMessage } from "../utils/backendError";
+import { scrollToActiveRow } from "../utils/scrollToActiveRow";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { FacetState } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Result as ExpressionResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
@@ -192,6 +193,7 @@ async function refreshList() {
       selectedDataFile.value = "";
     }
     await refreshSidebarItems();
+    await scrollActiveIntoView();
   } catch (err) {
     listError.value = String(err);
     summaries.value = [];
@@ -263,6 +265,70 @@ watch(
   },
   { immediate: true },
 );
+
+// Scroll the active row into view exactly once per template context.
+// Two cases to handle:
+//  - In-app navigation: layout is settled, scrollToActiveRow runs
+//    once and we're done.
+//  - First startup: the splash blocks flex layout until after
+//    refreshList resolves, so the container's clientHeight reads as
+//    ~8px (just its padding). The math centers correctly only when
+//    the container has a real height, so we observe it and retry
+//    each resize until layout assigns it a sensible viewport.
+// The flag gates one successful scroll per template so save / refresh
+// / clicks don't yank the viewport, and the observer is also reset on
+// template change.
+const listScrollEl = ref<HTMLElement | null>(null);
+let scrolledForTemplate: string | null = null;
+let pendingScrollObserver: ResizeObserver | null = null;
+
+function cancelPendingScroll() {
+  pendingScrollObserver?.disconnect();
+  pendingScrollObserver = null;
+}
+
+watch(selectedTemplate, () => {
+  scrolledForTemplate = null;
+  cancelPendingScroll();
+});
+onBeforeUnmount(cancelPendingScroll);
+
+async function scrollActiveIntoView() {
+  const tpl = selectedTemplate.value;
+  const df = selectedDataFile.value;
+  if (!tpl || !df) return;
+  if (scrolledForTemplate === tpl) return;
+  cancelPendingScroll();
+
+  await nextTick();
+  const container = listScrollEl.value;
+  if (!container) return;
+
+  // Heuristic: a container shorter than two rows of expected height
+  // hasn't been sized by flex layout yet. ~140px ≈ two rows worth.
+  const SETTLED_MIN_HEIGHT = 140;
+  const attempt = (): boolean => {
+    if (container.clientHeight < SETTLED_MIN_HEIGHT) return false;
+    if (scrollToActiveRow(container, df)) {
+      scrolledForTemplate = tpl;
+      return true;
+    }
+    return false;
+  };
+
+  if (attempt()) return;
+
+  // Container not yet sized — observe and retry on each resize until
+  // layout settles (typically right after the splash dismisses).
+  const ro = new ResizeObserver(() => {
+    if (attempt()) {
+      ro.disconnect();
+      if (pendingScrollObserver === ro) pendingScrollObserver = null;
+    }
+  });
+  ro.observe(container);
+  pendingScrollObserver = ro;
+}
 
 const { follow: followFormidable } = useFormidableLink();
 
@@ -843,7 +909,7 @@ setTopbarMenu(() => [
         </div>
       </div>
 
-      <div class="sidebar-scroll">
+      <div ref="listScrollEl" class="sidebar-scroll">
         <p v-if="!selectedTemplate" class="muted small">
           {{ t('workspace.storage.no_template_selected') }}
         </p>
