@@ -72,6 +72,69 @@ func formRecord(meta storage.FormMeta, data map[string]any, mtime int64) *FormRe
 	}
 }
 
+// TestEventHandler_OnTemplateChanged_ReDerivesForms covers the
+// template-edit propagation regression: edits to item_field /
+// expression_item flags / tags_field on a saved template MUST
+// re-derive every form row that template owns, otherwise the index
+// keeps shipping stale titles to ExtendedListForms until each form
+// is individually re-saved.
+func TestEventHandler_OnTemplateChanged_ReDerivesForms(t *testing.T) {
+	// Stage 1: original template uses `oldtitle` as the item field,
+	// and a single form has both fields filled in.
+	original := tplRecord("Basic", []template.Field{
+		{Key: "oldtitle", Type: "text"},
+		{Key: "newtitle", Type: "text"},
+	}, 100)
+	original.Template.ItemField = "oldtitle"
+	tpls := map[string]*TemplateRecord{"basic.yaml": original}
+
+	forms := map[string]*FormRecord{
+		"basic.yaml/one.meta.json": formRecord(
+			storage.FormMeta{
+				Created: storage.AuditEntry{At: "2026-01-01T00:00:00Z"},
+				Updated: storage.AuditEntry{At: "2026-01-01T00:00:00Z"},
+			},
+			map[string]any{
+				"oldtitle": "old-name",
+				"newtitle": "new-name",
+			},
+			500,
+		),
+	}
+	h, m := newEventHandler(t, tpls, forms)
+
+	must(t, h.OnTemplateChanged("basic.yaml"))
+	must(t, h.OnFormChanged("basic.yaml", "one.meta.json"))
+
+	row, ok, err := m.GetForm("basic.yaml", "one.meta.json")
+	if err != nil || !ok {
+		t.Fatalf("initial get: ok=%v err=%v", ok, err)
+	}
+	if row.Title != "old-name" {
+		t.Errorf("initial title = %q, want old-name", row.Title)
+	}
+
+	// Stage 2: template's item_field flips to `newtitle`. The form
+	// file on disk hasn't changed — only the template did. After
+	// OnTemplateChanged, the indexed form row must surface "new-name".
+	edited := tplRecord("Basic", []template.Field{
+		{Key: "oldtitle", Type: "text"},
+		{Key: "newtitle", Type: "text"},
+	}, 200)
+	edited.Template.ItemField = "newtitle"
+	tpls["basic.yaml"] = edited
+
+	must(t, h.OnTemplateChanged("basic.yaml"))
+
+	row, ok, err = m.GetForm("basic.yaml", "one.meta.json")
+	if err != nil || !ok {
+		t.Fatalf("post-edit get: ok=%v err=%v", ok, err)
+	}
+	if row.Title != "new-name" {
+		t.Errorf("post-edit title = %q, want new-name (re-derive missed)", row.Title)
+	}
+}
+
 func TestEventHandler_OnTemplateChanged_Inserts(t *testing.T) {
 	tpls := map[string]*TemplateRecord{
 		"basic.yaml": tplRecord("Basic", []template.Field{

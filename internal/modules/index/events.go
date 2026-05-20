@@ -63,7 +63,16 @@ func NewEventHandler(m *Manager, t TemplateLoader, f FormStore) *EventHandler {
 func (h *EventHandler) SetRoot(path string) { h.root = path }
 
 // OnTemplateChanged is called after a template YAML save. Loads the
-// template fresh, derives the index row, applies it.
+// template fresh, derives the templates row, and — critically —
+// re-derives every form row owned by this template.
+//
+// Why the form re-derive: form columns title / expression_items /
+// tags / facets are projections of the template (item_field,
+// expression_item flags, tags_field). When the template changes,
+// those projections must update too, otherwise ExtendedListForms
+// keeps shipping stale derivations until each form is individually
+// re-saved. Cost is bounded by the number of forms in this one
+// template; on save-heavy templates the user pays once per edit.
 func (h *EventHandler) OnTemplateChanged(filename string) error {
 	rec, err := h.templates.LoadTemplate(filename)
 	if err != nil {
@@ -72,9 +81,53 @@ func (h *EventHandler) OnTemplateChanged(filename string) error {
 	if rec == nil || rec.Template == nil {
 		return fmt.Errorf("index: template %q loader returned nil", filename)
 	}
+
+	formFilenames, err := h.listIndexedFormFiles(filename)
+	if err != nil {
+		return fmt.Errorf("index: list form files for %q: %w", filename, err)
+	}
+	formRows := make([]FormRow, 0, len(formFilenames))
+	for _, datafile := range formFilenames {
+		formRec, err := h.forms.LoadForm(filename, datafile)
+		if err != nil || formRec == nil || formRec.Form == nil {
+			// Form file is gone / unparseable — skip silently so one
+			// bad file doesn't block the rest of the re-derive.
+			// RescanAll will clean up orphans on next boot.
+			continue
+		}
+		formRows = append(formRows,
+			buildFormRow(rec.Template, formRec.Form, filename, datafile, formRec.Mtime))
+	}
+
 	return Reconcile(h.m.DB(), ReconcileBatch{
 		UpsertTemplates: []TemplateRow{buildTemplateRow(rec.Template, rec.Mtime, filename)},
+		UpsertForms:     formRows,
 	})
+}
+
+// listIndexedFormFiles returns the form basenames currently indexed
+// under the given template. Sourced from the index (one SQL query)
+// rather than disk so we don't widen the EventHandler's surface area
+// to a "list every form on disk" capability — disk-only files arrive
+// via OnFormChanged and are caught up by RescanAll otherwise.
+func (h *EventHandler) listIndexedFormFiles(templateFilename string) ([]string, error) {
+	rows, err := h.m.DB().Query(
+		`SELECT filename FROM forms WHERE template = ?`,
+		templateFilename,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var f string
+		if err := rows.Scan(&f); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
 }
 
 // OnTemplateDeleted is called after a template YAML delete. The DB's
