@@ -106,3 +106,18 @@ func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }
 func (s *Service) GenerateMarkdown(shape string, opts GeneratorOptions, fields []Field) string {
 	return GenerateMarkdownTemplate(Shape(shape), opts, fields)
 }
+
+// BuildFieldTree groups a flat field list into the editor-facing tree
+// where each matched loopstart/loopstop pair becomes one indivisible
+// FieldUnit. The Vue editor renders this tree with nested draggables
+// so a row cannot be reordered across a loop boundary by mistake.
+func (s *Service) BuildFieldTree(fields []Field) []FieldUnit {
+	return BuildFieldTree(fields)
+}
+
+// FlattenFieldTree returns the inverse: a tree the editor reordered
+// becomes a well-formed flat field list ready for SaveTemplate. By
+// construction loopstart/loopstop always bracket their items.
+func (s *Service) FlattenFieldTree(units []FieldUnit) []Field {
+	return FlattenFieldTree(units)
+}

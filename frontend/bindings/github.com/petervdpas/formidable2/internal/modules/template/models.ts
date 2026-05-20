@@ -464,6 +464,63 @@ export class FieldDescriptor {
 }
 
 /**
+ * FieldUnit is the runtime tree shape the template editor renders.
+ * It folds a matched loopstart/loopstop pair (and everything between
+ * them) into a single indivisible unit so the UI cannot reorder a row
+ * across the loop boundary and create an orphan marker.
+ * 
+ * The flat []Field shape on disk is still the source of truth; this
+ * type is a view over it. BuildFieldTree produces the view,
+ * FlattenFieldTree returns to the flat form. Orphan loopstart /
+ * loopstop rows (no matching partner) are emitted as plain field
+ * units so backend validation can still flag them — silently
+ * dropping data would be worse than rendering a broken pair.
+ * 
+ * The struct is one shape with a Kind discriminator + nullable
+ * payload fields so the Wails-generated TypeScript stays simple.
+ */
+export class FieldUnit {
+    "kind": string;
+    "field"?: Field | null;
+    "start"?: Field | null;
+    "stop"?: Field | null;
+    "items"?: FieldUnit[];
+
+    /** Creates a new FieldUnit instance. */
+    constructor($$source: Partial<FieldUnit> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldUnit instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldUnit {
+        const $$createField1_0 = $$createType12;
+        const $$createField2_0 = $$createType12;
+        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType14;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("field" in $$parsedSource) {
+            $$parsedSource["field"] = $$createField1_0($$parsedSource["field"]);
+        }
+        if ("start" in $$parsedSource) {
+            $$parsedSource["start"] = $$createField2_0($$parsedSource["start"]);
+        }
+        if ("stop" in $$parsedSource) {
+            $$parsedSource["stop"] = $$createField3_0($$parsedSource["stop"]);
+        }
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField4_0($$parsedSource["items"]);
+        }
+        return new FieldUnit($$parsedSource as Partial<FieldUnit>);
+    }
+}
+
+/**
  * GeneratorOptions carries the per-shape sub-choices the dialog
  * surfaces. Bag-of-bools so adding a new option doesn't require
  * signature changes throughout the call chain (Service ↔ generator ↔
@@ -642,7 +699,7 @@ export class PDFConfig {
      * Creates a new PDFConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): PDFConfig {
-        const $$createField1_0 = $$createType12;
+        const $$createField1_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cover" in $$parsedSource) {
             $$parsedSource["cover"] = $$createField1_0($$parsedSource["cover"]);
@@ -829,9 +886,9 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField8_0 = $$createType14;
-        const $$createField9_0 = $$createType16;
-        const $$createField10_0 = $$createType18;
+        const $$createField8_0 = $$createType18;
+        const $$createField9_0 = $$createType20;
+        const $$createField10_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -872,8 +929,8 @@ export class ValidationError {
      */
     static createFrom($$source: any = {}): ValidationError {
         const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType19;
-        const $$createField6_0 = $$createType20;
+        const $$createField4_0 = $$createType12;
+        const $$createField6_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -900,13 +957,15 @@ const $$createType7 = $Create.Array($Create.Any);
 const $$createType8 = APIMap.createFrom;
 const $$createType9 = $Create.Array($$createType8);
 const $$createType10 = Abilities.createFrom;
-const $$createType11 = PDFCoverConfig.createFrom;
+const $$createType11 = Field.createFrom;
 const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = PDFConfig.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = Facet.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = Field.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = $Create.Nullable($$createType17);
-const $$createType20 = $Create.Map($Create.Any, $Create.Any);
+const $$createType13 = FieldUnit.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = PDFCoverConfig.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = PDFConfig.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = Facet.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $Create.Array($$createType11);
+const $$createType22 = $Create.Map($Create.Any, $Create.Any);

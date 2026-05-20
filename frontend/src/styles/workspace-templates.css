@@ -106,6 +106,35 @@
     cursor: not-allowed;
 }
 
+/* ── Loop unit container ─────────────────────────────────────────────
+   Loopstart/loopstop and everything between them render as one
+   indivisible drag unit. The wrapper frames the block so it's
+   visually obvious that a drop INSIDE the loop only lands among the
+   loop's own items, not outside it. data-depth bumps the nested
+   indent (16px per level) so nested loops read at a glance. */
+.field-loop-group {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+    border: 1px dashed var(--field-type-looper-border, #999);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--field-type-looper-bg, #b9e2c0) 18%, transparent);
+}
+
+/* Header (loopstart) carries the drag handle for the whole unit.
+   Footer (loopstop) is non-interactive — moves with the unit. */
+.field-loop-header { cursor: default; }
+.field-loop-footer .field-row-actions { visibility: hidden; }
+
+/* Nested-loop indent. .field-rows directly inside a loop unit shifts
+   16px per depth level. We apply it to the inner UL itself rather
+   than to each row so the dashed border of nested loops nests too. */
+.field-loop-group > .field-rows {
+    margin-left: 16px;
+}
+
 /* Builder-button row that hangs below the sidebar_expression
    textarea. Mirrors .generate-template-row layout. */
 .expression-builder-row {

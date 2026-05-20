@@ -10,7 +10,6 @@ import FieldEditModal from "../components/FieldEditModal.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CleanupStorageDialog from "../components/CleanupStorageDialog.vue";
 import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog.vue";
-import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FacetEditorModal from "../components/FacetEditorModal.vue";
@@ -22,6 +21,7 @@ import Tabs from "../components/Tabs.vue";
 import {
   Service as TemplateSvc,
   GeneratorOptions,
+  FieldUnit,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -39,6 +39,7 @@ import {
 } from "../components/fields";
 import { useTemplates, isValidTemplateFilename } from "../composables/useTemplates";
 import { recomputeLevelScopes } from "../utils/fieldScopes";
+import FieldUnitDraggable from "../components/FieldUnitDraggable.vue";
 import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
@@ -205,6 +206,38 @@ async function submitCreate() {
   createOpen.value = false;
 }
 
+// ── Field tree (loop blocks as drag units) ───────────────────────────
+// Backend owns the tree shape — internal/modules/template/fieldtree.go
+// pairs loopstart/loopstop and folds them into one indivisible
+// FieldUnit so the editor can't reorder a row across a loop boundary
+// by mistake. The flat draft.fields stays the source of truth; this
+// `tree` ref is a view over it that gets rebuilt whenever draft.fields
+// changes from outside drag-drop (template switch, add/edit/delete).
+const tree = ref<FieldUnit[]>([]);
+let lastWritten: Field[] | null = null;
+
+async function rebuildTree(): Promise<void> {
+  const fields = draft.value?.fields ?? [];
+  tree.value = await TemplateSvc.BuildFieldTree(fields);
+}
+
+async function commitTree(): Promise<void> {
+  if (!draft.value) return;
+  const flat = await TemplateSvc.FlattenFieldTree(tree.value);
+  recomputeLevelScopes(flat);
+  lastWritten = flat;
+  draft.value.fields = flat;
+}
+
+watch(
+  () => draft.value?.fields,
+  (fields) => {
+    if (fields && fields === lastWritten) return;
+    void rebuildTree();
+  },
+  { immediate: true },
+);
+
 // ── Field edit / add ─────────────────────────────────────────────────
 // editIndex === -1 means "creating" (no existing field at that index);
 // editField is the field being edited, or null for create.
@@ -213,10 +246,15 @@ const editIndex = ref<number>(-1);
 const editField = ref<Field | null>(null);
 const editIsNew = ref(false);
 
-function openEdit(index: number) {
+function openEdit(target: Field | number) {
   if (!draft.value || !draft.value.fields) return;
-  editIndex.value = index;
-  editField.value = draft.value.fields[index] ?? null;
+  const idx =
+    typeof target === "number"
+      ? target
+      : draft.value.fields.indexOf(target);
+  if (idx < 0) return;
+  editIndex.value = idx;
+  editField.value = draft.value.fields[idx] ?? null;
   editIsNew.value = false;
   editOpen.value = true;
 }
@@ -264,8 +302,14 @@ function applyEdit(updated: Field) {
 const deleteOpen = ref(false);
 const deleteIndex = ref<number>(-1);
 
-function openDelete(index: number) {
-  deleteIndex.value = index;
+function openDelete(target: Field | number) {
+  if (!draft.value || !draft.value.fields) return;
+  const idx =
+    typeof target === "number"
+      ? target
+      : draft.value.fields.indexOf(target);
+  if (idx < 0) return;
+  deleteIndex.value = idx;
   deleteOpen.value = true;
 }
 
@@ -884,48 +928,14 @@ setTopbarMenu(() => [
           <p v-if="!draft.fields || draft.fields.length === 0" class="muted small">
             {{ t('workspace.templates.fields.empty') }}
           </p>
-          <draggable
+          <FieldUnitDraggable
             v-else
-            v-model="draft.fields"
-            tag="ul"
-            class="field-rows"
-            handle=".dnd-handle"
-            :animation="150"
-            ghost-class="dnd-ghost"
-            chosen-class="dnd-chosen"
-            drag-class="dnd-drag"
-            item-key="key"
-            @end="recomputeLevelScopes(draft.fields)"
-          >
-            <template #item="{ element: f, index: i }">
-              <li class="field-row" :data-type="f.type">
-                <span class="dnd-handle" aria-hidden="true">☰</span>
-                <span class="field-row-label">{{ f.label || f.key || `(field ${i + 1})` }}</span>
-                <span class="field-row-type">({{ (f.type || '').toUpperCase() }})</span>
-                <Badge v-if="f.primary_key" variant="ok" class="small">PRIMARY</Badge>
-                <span class="field-row-spacer"></span>
-                <div class="field-row-actions">
-                  <FieldScopeBadge :level="f.level_scope" />
-                  <button
-                    type="button"
-                    class="field-action-btn edit"
-                    :disabled="f.type === 'loopstop'"
-                    @click="openEdit(i)"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    class="field-action-btn delete"
-                    :disabled="f.type === 'loopstop'"
-                    @click="openDelete(i)"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            </template>
-          </draggable>
+            :units="tree"
+            :depth="0"
+            @change="commitTree"
+            @edit-field="openEdit"
+            @delete-field="openDelete"
+          />
           </div>
         </FormSection>
       </template>

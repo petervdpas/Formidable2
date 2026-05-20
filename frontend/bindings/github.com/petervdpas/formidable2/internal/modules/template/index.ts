@@ -16,6 +16,7 @@ export {
     FacetOption,
     Field,
     FieldDescriptor,
+    FieldUnit,
     GeneratorOptions,
     ImgMode,
     ItemField,
