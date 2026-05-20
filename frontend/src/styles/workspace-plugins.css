@@ -273,3 +273,95 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.plugin-i18n-editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.plugin-i18n-editor .i18n-help {
+    margin: 0;
+}
+
+.plugin-i18n-editor .locale-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+.plugin-i18n-editor .locale-chip {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono);
+}
+
+.plugin-i18n-editor .locale-chip:hover {
+    background: var(--color-surface-2);
+}
+
+.plugin-i18n-editor .locale-chip.active {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    border-color: var(--color-accent);
+}
+
+.plugin-i18n-editor .locale-chip-add {
+    border-style: dashed;
+    font-family: inherit;
+}
+
+.plugin-i18n-editor .locale-add-select,
+.plugin-i18n-editor .locale-add-input {
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+}
+
+.plugin-i18n-editor .i18n-prefix {
+    display: flex;
+    gap: var(--space-2);
+    align-items: baseline;
+}
+
+.plugin-i18n-editor .i18n-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.plugin-i18n-editor .i18n-table th {
+    text-align: left;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    padding: var(--space-1) var(--space-2);
+    font-weight: 600;
+}
+
+.plugin-i18n-editor .i18n-table td {
+    padding: var(--space-1) var(--space-2);
+    vertical-align: top;
+}
+
+.plugin-i18n-editor .i18n-table td:first-child {
+    width: 35%;
+}
+
+.plugin-i18n-editor .i18n-table td:last-child {
+    width: 2.5rem;
+    text-align: right;
+}
+
+.plugin-i18n-editor .i18n-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}

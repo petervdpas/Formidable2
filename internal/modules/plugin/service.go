@@ -216,3 +216,40 @@ func (s *Service) Cancel() {
 func (s *Service) GetI18nMessages(locale string) map[string]string {
 	return s.m.MessagesForLocale(locale)
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Plugin i18n editor surface — per-locale CRUD the Plugins workspace
+// uses to power its i18n tab. Keys are stored verbatim on disk (no
+// `plugin.<id>.` prefix); the auto-prefix is applied at read time by
+// MessagesForLocale so plugin authors never write it themselves.
+// ─────────────────────────────────────────────────────────────────
+
+// GetPluginI18n returns the raw map stored in
+// <plugin>/i18n/<locale>.json (no auto-prefix). Empty map for
+// missing files so the editor can show an empty key/value table for
+// a fresh locale without a special branch.
+func (s *Service) GetPluginI18n(id, locale string) (map[string]string, error) {
+	return s.m.GetI18nFile(id, locale)
+}
+
+// SavePluginI18n writes the raw flat map for one locale. Plugin
+// folder must exist; locale is validated against path-traversal. On
+// success the caller can simply re-fetch GetI18nMessages — there's
+// no in-memory cache to bust.
+func (s *Service) SavePluginI18n(id, locale string, msgs map[string]string) error {
+	return s.m.SaveI18nFile(id, locale, msgs)
+}
+
+// DeletePluginI18n removes the locale file. Missing file is a silent
+// no-op so the editor can issue Delete unconditionally.
+func (s *Service) DeletePluginI18n(id, locale string) error {
+	return s.m.DeleteI18nFile(id, locale)
+}
+
+// ListPluginLocales returns the locale ids the plugin has files for,
+// sorted alphabetically. Empty slice (not error) when the plugin
+// has no `i18n/` folder, so the editor can render "no translations
+// yet" without an error-branch.
+func (s *Service) ListPluginLocales(id string) ([]string, error) {
+	return s.m.ListI18nLocales(id)
+}

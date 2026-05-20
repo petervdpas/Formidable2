@@ -49,6 +49,14 @@ export function Delete(id: string): $CancellablePromise<$models.ListResult[]> {
 }
 
 /**
+ * DeletePluginI18n removes the locale file. Missing file is a silent
+ * no-op so the editor can issue Delete unconditionally.
+ */
+export function DeletePluginI18n(id: string, locale: string): $CancellablePromise<void> {
+    return $Call.ByID(1336892199, id, locale);
+}
+
+/**
  * ExportArchive bundles a plugin's folder into a zip at zipPath.
  * Returns the zip path + the list of bundled entries so the
  * workspace can render a confirmation panel. Sibling of the pdf
@@ -81,6 +89,18 @@ export function GetForm(id: string): $CancellablePromise<string> {
  */
 export function GetI18nMessages(locale: string): $CancellablePromise<{ [_ in string]?: string }> {
     return $Call.ByID(24808493, locale).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * GetPluginI18n returns the raw map stored in
+ * <plugin>/i18n/<locale>.json (no auto-prefix). Empty map for
+ * missing files so the editor can show an empty key/value table for
+ * a fresh locale without a special branch.
+ */
+export function GetPluginI18n(id: string, locale: string): $CancellablePromise<{ [_ in string]?: string }> {
+    return $Call.ByID(808121062, id, locale).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -125,6 +145,18 @@ export function List(): $CancellablePromise<$models.ListResult[]> {
 export function ListForWorkspace(ws: string): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(1481272787, ws).then(($result: any) => {
         return $$createType1($result);
+    });
+}
+
+/**
+ * ListPluginLocales returns the locale ids the plugin has files for,
+ * sorted alphabetically. Empty slice (not error) when the plugin
+ * has no `i18n/` folder, so the editor can render "no translations
+ * yet" without an error-branch.
+ */
+export function ListPluginLocales(id: string): $CancellablePromise<string[]> {
+    return $Call.ByID(111512495, id).then(($result: any) => {
+        return $$createType5($result);
     });
 }
 
@@ -194,6 +226,16 @@ export function Save(id: string, manifest: $models.Manifest, luaSource: string, 
  */
 export function SaveFormValues(pluginID: string, values: { [_ in string]?: any }): $CancellablePromise<void> {
     return $Call.ByID(3584261938, pluginID, values);
+}
+
+/**
+ * SavePluginI18n writes the raw flat map for one locale. Plugin
+ * folder must exist; locale is validated against path-traversal. On
+ * success the caller can simply re-fetch GetI18nMessages — there's
+ * no in-memory cache to bust.
+ */
+export function SavePluginI18n(id: string, locale: string, msgs: { [_ in string]?: string }): $CancellablePromise<void> {
+    return $Call.ByID(668843761, id, locale, msgs);
 }
 
 /**

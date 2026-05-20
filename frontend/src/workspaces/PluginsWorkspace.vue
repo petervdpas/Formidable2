@@ -8,6 +8,7 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import CodeEditor from "../components/CodeEditor.vue";
 import PluginCommandRow from "../components/PluginCommandRow.vue";
+import PluginI18nEditor from "../components/PluginI18nEditor.vue";
 import PluginResultPanel from "../components/PluginResultPanel.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import FormFieldRow from "../components/form-fields/FormFieldRow.vue";
@@ -97,7 +98,7 @@ async function stopGlobalRun() {
 // most editing happens); Commands edits the manifest's command
 // list; Form Editor is a placeholder until the visual builder
 // lands in the next slice.
-type PluginTab = "source" | "commands" | "form";
+type PluginTab = "source" | "commands" | "form" | "i18n";
 const activeTab = ref<PluginTab>("source");
 
 // ── Refresh ──────────────────────────────────────────────────────────
@@ -833,6 +834,15 @@ setTopbarMenu(() => [
           >
             {{ t('workspace.plugins.tab.form') }}
           </button>
+          <button
+            type="button"
+            role="tab"
+            :class="['tab', { active: activeTab === 'i18n' }]"
+            :aria-selected="activeTab === 'i18n'"
+            @click="activeTab = 'i18n'"
+          >
+            {{ t('workspace.plugins.tab.i18n') }}
+          </button>
         </nav>
 
         <section v-show="activeTab === 'source'" class="tab-pane">
@@ -956,6 +966,10 @@ setTopbarMenu(() => [
               + {{ t('workspace.plugins.form.add_statusmessage') }}
             </button>
           </div>
+        </section>
+
+        <section v-show="activeTab === 'i18n'" class="tab-pane">
+          <PluginI18nEditor :plugin-id="selectedID" />
         </section>
       </template>
     </template>
