@@ -140,6 +140,76 @@ func TestListCollection_TagsAND(t *testing.T) {
 	}
 }
 
+func TestListCollection_FacetFilter_ReadsFromFormRow(t *testing.T) {
+	// Verifies the disk-read replacement: when opts.Facets is set, the
+	// filter must source meta from the FormRow.Facets the index already
+	// materialized — no storage.LoadForm calls. The fakeIndex below
+	// supplies facets on the row, and crucially no storage adapter is
+	// wired (newManagerWithFakes passes nil) so a regression to the
+	// old disk-read path would crash.
+	idx := &fakeIndex{
+		templates: []index.TemplateRow{
+			{Filename: "recepten.yaml", Name: "Recepten",
+				GuidField: "id", TagsField: "tags", ItemField: "title",
+				EnableCollection: true},
+		},
+		forms: map[string][]index.FormRow{
+			"recepten.yaml": {
+				{Template: "recepten.yaml", Filename: "tap.meta.json",
+					ID: "g-tap", Title: "Tap", Updated: "2026-04-01",
+					Facets: []index.FormFacet{
+						{Key: "status", Set: true, Selected: "DONE"},
+						{Key: "size", Set: true, Selected: "BIG"},
+					}},
+				{Template: "recepten.yaml", Filename: "vin.meta.json",
+					ID: "g-vin", Title: "Vin", Updated: "2026-03-01",
+					Facets: []index.FormFacet{
+						{Key: "status", Set: true, Selected: "TODO"},
+					}},
+				{Template: "recepten.yaml", Filename: "spa.meta.json",
+					ID: "g-spa", Title: "Spa", Updated: "2026-02-01",
+					Facets: []index.FormFacet{
+						{Key: "status", Set: false, Selected: "DONE"},
+					}},
+			},
+		},
+	}
+	m := newManagerWithFakes(idx, nil)
+
+	// Single-facet filter — only tap matches.
+	page, err := m.ListCollection(context.Background(), "recepten.yaml",
+		CollectionListOpts{Facets: map[string]string{"status": "DONE"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 || page.Items[0].Filename != "tap.meta.json" {
+		t.Errorf("status=DONE filter got %+v, want tap only", page.Items)
+	}
+
+	// Multi-facet AND — only the row that satisfies BOTH passes.
+	page2, err := m.ListCollection(context.Background(), "recepten.yaml",
+		CollectionListOpts{Facets: map[string]string{"status": "DONE", "size": "BIG"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page2.Items) != 1 || page2.Items[0].Filename != "tap.meta.json" {
+		t.Errorf("status=DONE&size=BIG filter got %+v, want tap only", page2.Items)
+	}
+
+	// set=false must NOT count as a match even when the selected value
+	// equals the filter — the facet has to be actively stamped.
+	page3, err := m.ListCollection(context.Background(), "recepten.yaml",
+		CollectionListOpts{Facets: map[string]string{"status": "DONE"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range page3.Items {
+		if it.Filename == "spa.meta.json" {
+			t.Errorf("spa matched status=DONE despite set=false")
+		}
+	}
+}
+
 func TestListCollection_LimitOffset(t *testing.T) {
 	idx := collectionsFixture()
 	m := newManagerWithFakes(idx, nil)

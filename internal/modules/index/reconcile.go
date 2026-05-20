@@ -30,7 +30,7 @@ func Reconcile(db *sql.DB, batch ReconcileBatch) error {
 	if err := upsertImages(tx, batch.UpsertImages); err != nil {
 		return err
 	}
-	if err := upsertFormsWithTags(tx, batch.UpsertForms); err != nil {
+	if err := upsertFormsWithChildren(tx, batch.UpsertForms); err != nil {
 		return err
 	}
 	if err := deleteForms(tx, batch.DeleteForms); err != nil {
@@ -116,24 +116,29 @@ func upsertImages(tx *sql.Tx, rows []ImageRow) error {
 	return nil
 }
 
-func upsertFormsWithTags(tx *sql.Tx, rows []FormRow) error {
+func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 	if len(rows) == 0 {
 		return nil
 	}
 	formStmt, err := tx.Prepare(`
 		INSERT INTO forms
-		    (template, filename, id, title, fm_title, author,
-		     created, updated, expression_items, rev, mtime, size)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
+		    (template, filename, id, title, fm_title,
+		     created, created_name, created_email,
+		     updated, updated_name, updated_email,
+		     expression_items, rev, mtime, size)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 		        COALESCE((SELECT rev FROM forms WHERE template = ? AND filename = ?), 0) + 1,
 		        ?, ?)
 		ON CONFLICT(template, filename) DO UPDATE SET
 		    id = excluded.id,
 		    title = excluded.title,
 		    fm_title = excluded.fm_title,
-		    author = excluded.author,
 		    created = excluded.created,
+		    created_name = excluded.created_name,
+		    created_email = excluded.created_email,
 		    updated = excluded.updated,
+		    updated_name = excluded.updated_name,
+		    updated_email = excluded.updated_email,
 		    expression_items = excluded.expression_items,
 		    rev = forms.rev + 1,
 		    mtime = excluded.mtime,
@@ -156,10 +161,27 @@ func upsertFormsWithTags(tx *sql.Tx, rows []FormRow) error {
 	}
 	defer insertTag.Close()
 
+	clearFacets, err := tx.Prepare(`DELETE FROM form_facets WHERE template = ? AND filename = ?`)
+	if err != nil {
+		return fmt.Errorf("index: prepare clear facets: %w", err)
+	}
+	defer clearFacets.Close()
+
+	insertFacet, err := tx.Prepare(`
+		INSERT INTO form_facets (template, filename, facet_key, set_flag, selected)
+		VALUES (?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		return fmt.Errorf("index: prepare insert facet: %w", err)
+	}
+	defer insertFacet.Close()
+
 	for _, r := range rows {
 		if _, err := formStmt.Exec(
-			r.Template, r.Filename, r.ID, r.Title, r.FmTitle, r.Author,
-			r.Created, r.Updated, r.ExpressionItems,
+			r.Template, r.Filename, r.ID, r.Title, r.FmTitle,
+			r.Created, r.CreatedName, r.CreatedEmail,
+			r.Updated, r.UpdatedName, r.UpdatedEmail,
+			r.ExpressionItems,
 			r.Template, r.Filename, r.Mtime, r.Size,
 		); err != nil {
 			return fmt.Errorf("index: upsert form %q/%q: %w", r.Template, r.Filename, err)
@@ -182,6 +204,22 @@ func upsertFormsWithTags(tx *sql.Tx, rows []FormRow) error {
 			seen[tag] = struct{}{}
 			if _, err := insertTag.Exec(r.Template, r.Filename, tag); err != nil {
 				return fmt.Errorf("index: insert tag %q for %q/%q: %w", tag, r.Template, r.Filename, err)
+			}
+		}
+
+		// Facet re-sync mirrors the tag pattern: replace-all, never diff.
+		// The facets map is keyed by facet_key so duplicate keys can't
+		// occur, but a stale row from a previous save with a different
+		// facet set still has to disappear.
+		if _, err := clearFacets.Exec(r.Template, r.Filename); err != nil {
+			return fmt.Errorf("index: clear facets for %q/%q: %w", r.Template, r.Filename, err)
+		}
+		for _, ff := range r.Facets {
+			if ff.Key == "" {
+				continue
+			}
+			if _, err := insertFacet.Exec(r.Template, r.Filename, ff.Key, boolToInt(ff.Set), ff.Selected); err != nil {
+				return fmt.Errorf("index: insert facet %q for %q/%q: %w", ff.Key, r.Template, r.Filename, err)
 			}
 		}
 	}

@@ -146,7 +146,7 @@ func formRowToSummary(r index.FormRow) FormSummary {
 		ID:              r.ID,
 		Title:           r.Title,
 		FmTitle:         r.FmTitle,
-		Author:          r.Author,
+		Author:          r.UpdatedName,
 		Created:         r.Created,
 		Updated:         r.Updated,
 		Tags:            append([]string(nil), r.Tags...),

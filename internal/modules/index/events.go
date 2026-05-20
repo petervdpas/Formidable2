@@ -3,6 +3,7 @@ package index
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -155,12 +156,16 @@ func buildTemplateRow(t *template.Template, mtime int64, filename string) Templa
 // own `filename` field is stale or differs in case.
 func buildFormRow(t *template.Template, f *storage.Form, templateFilename, datafile string, mtime int64) FormRow {
 	row := FormRow{
-		Template: templateFilename,
-		Filename: datafile,
-		Author:   f.Meta.Updated.Name,
-		Created:  f.Meta.Created.At,
-		Updated:  f.Meta.Updated.At,
-		Mtime:    mtime,
+		Template:     templateFilename,
+		Filename:     datafile,
+		CreatedName:  f.Meta.Created.Name,
+		CreatedEmail: f.Meta.Created.Email,
+		UpdatedName:  f.Meta.Updated.Name,
+		UpdatedEmail: f.Meta.Updated.Email,
+		Created:      f.Meta.Created.At,
+		Updated:      f.Meta.Updated.At,
+		Facets:       pickFacets(f.Meta.Facets),
+		Mtime:        mtime,
 	}
 
 	guidKey, tagsKey := "", ""
@@ -202,6 +207,27 @@ func pickTitle(itemField string, data map[string]any, datafile string) string {
 		}
 	}
 	return datafile
+}
+
+// pickFacets projects FormMeta.Facets (key → FacetState) into the
+// reconcile-side slice the index stores in form_facets. Stable
+// iteration order so the reconciler's "delete then re-insert" pattern
+// produces deterministic SQL writes for golden tests.
+func pickFacets(in map[string]storage.FacetState) []FormFacet {
+	if len(in) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(in))
+	for k := range in {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]FormFacet, 0, len(in))
+	for _, k := range keys {
+		s := in[k]
+		out = append(out, FormFacet{Key: k, Set: s.Set, Selected: s.Selected})
+	}
+	return out
 }
 
 // pickTags returns the tag slice from data[tagsKey] when tagsKey is

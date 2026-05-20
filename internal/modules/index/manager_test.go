@@ -23,16 +23,16 @@ func newSeededManager(t *testing.T) *Manager {
 		},
 		UpsertForms: []FormRow{
 			{Template: "basic.yaml", Filename: "first.meta.json", ID: "g1",
-				Title: "First", Author: "Alice", Updated: "2026-01-01T00:00:00Z",
+				Title: "First", UpdatedName: "Alice", Updated: "2026-01-01T00:00:00Z",
 				Tags: []string{"alpha", "common"}, Mtime: 1},
 			{Template: "basic.yaml", Filename: "second.meta.json", ID: "g2",
-				Title: "Second", Author: "Bob", Updated: "2026-03-01T00:00:00Z",
+				Title: "Second", UpdatedName: "Bob", Updated: "2026-03-01T00:00:00Z",
 				Tags: []string{"beta", "common"}, Mtime: 2},
 			{Template: "basic.yaml", Filename: "third.meta.json", ID: "g3",
-				Title: "Third", Author: "Carol", Updated: "2026-02-01T00:00:00Z",
+				Title: "Third", UpdatedName: "Carol", Updated: "2026-02-01T00:00:00Z",
 				Tags: []string{"common"}, Mtime: 3},
 			{Template: "looper.yaml", Filename: "loop.meta.json", ID: "lg",
-				Title: "LoopOne", Author: "Dave", Updated: "2026-04-01T00:00:00Z",
+				Title: "LoopOne", UpdatedName: "Dave", Updated: "2026-04-01T00:00:00Z",
 				Tags: []string{"alpha"}, Mtime: 4},
 		},
 		UpsertImages: []ImageRow{
@@ -144,7 +144,7 @@ func TestManager_GetForm_Found(t *testing.T) {
 	if !ok {
 		t.Fatal("expected found")
 	}
-	if row.ID != "g1" || row.Title != "First" || row.Author != "Alice" {
+	if row.ID != "g1" || row.Title != "First" || row.UpdatedName != "Alice" {
 		t.Errorf("payload wrong: %+v", row)
 	}
 	if got := sortedCopy(row.Tags); !equalStrings(got, []string{"alpha", "common"}) {

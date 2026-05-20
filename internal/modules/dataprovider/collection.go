@@ -65,21 +65,17 @@ func (m *Manager) ListCollection(ctx context.Context, template string, opts Coll
 	}
 	rows = addressable
 
-	// Facet filter: every key must match the record's meta.facets[k]
-	// with set==true and selected==value. Pulls the form's meta off
-	// disk via the Storage adapter — N reads when the filter is active,
-	// which is acceptable at the typical per-template scale. Index-side
-	// facet columns can come later if this becomes a hotspot.
-	if len(opts.Facets) > 0 && m.sto != nil {
+	// Facet filter: every requested key must match the row's facets
+	// with set==true and selected==value (AND semantics). Reads come
+	// straight off the FormRow now that the index materializes facets
+	// in queryForms — no per-record disk traffic.
+	if len(opts.Facets) > 0 {
 		filtered := rows[:0:0]
 		for _, r := range rows {
-			form := m.sto.LoadForm(template, r.Filename)
-			if form == nil {
-				continue
-			}
+			rowFacets := facetMap(r.Facets)
 			match := true
 			for key, want := range opts.Facets {
-				state, ok := form.Meta.Facets[key]
+				state, ok := rowFacets[key]
 				if !ok || !state.Set || state.Selected != want {
 					match = false
 					break
@@ -150,6 +146,21 @@ func (m *Manager) ResolveCollectionByID(ctx context.Context, template, id string
 // column to the templates table.
 func (m *Manager) CollectionRev(_ context.Context, _ string) (int64, error) {
 	return m.idx.Rev()
+}
+
+// facetMap turns the FormRow's flat facet slice into a key-indexed
+// lookup so the filter loop reads cleanly. Returns nil for empty input
+// so the caller can treat "no facets" as "no match" without a special
+// case.
+func facetMap(in []index.FormFacet) map[string]index.FormFacet {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]index.FormFacet, len(in))
+	for _, f := range in {
+		out[f.Key] = f
+	}
+	return out
 }
 
 // collectionItem builds the public projection. Hrefs are constructed

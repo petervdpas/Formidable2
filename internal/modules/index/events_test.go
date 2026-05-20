@@ -198,7 +198,7 @@ func TestEventHandler_OnFormChanged_Inserts_WithGuidAndTags(t *testing.T) {
 	if row.Title != "first.meta.json" {
 		t.Errorf("title = %q, want filename fallback", row.Title)
 	}
-	if row.Author != "Alice" || row.Updated != "2026-05-01T00:00:00Z" {
+	if row.UpdatedName != "Alice" || row.Updated != "2026-05-01T00:00:00Z" {
 		t.Errorf("audit wrong: %+v", row)
 	}
 	if got := sortedCopy(row.Tags); !equalStrings(got, []string{"alpha", "common"}) {

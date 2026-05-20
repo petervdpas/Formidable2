@@ -207,6 +207,83 @@ func TestReconcile_DeleteTemplateCascades(t *testing.T) {
 	}
 }
 
+func TestReconcile_FormUpsertSyncsFacets(t *testing.T) {
+	db := openTestDB(t)
+	must(t, Reconcile(db, ReconcileBatch{
+		UpsertTemplates: []TemplateRow{tplRow("basic", 100)},
+	}))
+
+	// Initial upsert with two facets.
+	first := formRow("basic.yaml", "one.meta.json", "id1", "One", nil, 100)
+	first.Facets = []FormFacet{
+		{Key: "stage", Set: true, Selected: "draft"},
+		{Key: "flag", Set: true, Selected: ""},
+	}
+	must(t, Reconcile(db, ReconcileBatch{UpsertForms: []FormRow{first}}))
+
+	if got := facetsForForm(t, db, "basic.yaml", "one.meta.json"); len(got) != 2 {
+		t.Errorf("first round facets = %v, want 2 entries", got)
+	}
+
+	// Upsert again with a single facet (the others must disappear; the
+	// remaining one must reflect the new state).
+	second := formRow("basic.yaml", "one.meta.json", "id1", "One", nil, 200)
+	second.Facets = []FormFacet{
+		{Key: "stage", Set: true, Selected: "published"},
+	}
+	must(t, Reconcile(db, ReconcileBatch{UpsertForms: []FormRow{second}}))
+
+	got := facetsForForm(t, db, "basic.yaml", "one.meta.json")
+	if len(got) != 1 || got[0].Key != "stage" || got[0].Selected != "published" {
+		t.Errorf("second round facets = %+v, want one stage=published row", got)
+	}
+}
+
+func TestReconcile_FormFacetsRoundTripThroughQueryForms(t *testing.T) {
+	db := openTestDB(t)
+	m := managerFromDB(t, db)
+
+	must(t, Reconcile(db, ReconcileBatch{
+		UpsertTemplates: []TemplateRow{tplRow("basic", 100)},
+	}))
+
+	row := formRow("basic.yaml", "one.meta.json", "id1", "One", []string{"x"}, 100)
+	row.CreatedName = "Peter"
+	row.CreatedEmail = "peter@example.com"
+	row.UpdatedName = "Peter"
+	row.UpdatedEmail = "peter@example.com"
+	row.Facets = []FormFacet{
+		{Key: "stage", Set: true, Selected: "draft"},
+		{Key: "priority", Set: false, Selected: ""},
+	}
+	must(t, Reconcile(db, ReconcileBatch{UpsertForms: []FormRow{row}}))
+
+	rows, err := m.ListForms("basic.yaml", QueryOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("ListForms returned %d rows, want 1", len(rows))
+	}
+	out := rows[0]
+	if out.CreatedName != "Peter" || out.UpdatedEmail != "peter@example.com" {
+		t.Errorf("audit identity lost: %+v", out)
+	}
+	if len(out.Facets) != 2 {
+		t.Fatalf("facets returned %d, want 2: %+v", len(out.Facets), out.Facets)
+	}
+	byKey := map[string]FormFacet{}
+	for _, f := range out.Facets {
+		byKey[f.Key] = f
+	}
+	if s, ok := byKey["stage"]; !ok || !s.Set || s.Selected != "draft" {
+		t.Errorf("stage facet wrong: %+v", s)
+	}
+	if p, ok := byKey["priority"]; !ok || p.Set || p.Selected != "" {
+		t.Errorf("priority facet wrong: %+v", p)
+	}
+}
+
 func TestReconcile_DeleteFormCascadesTags(t *testing.T) {
 	db := openTestDB(t)
 	must(t, Reconcile(db, ReconcileBatch{
@@ -262,6 +339,42 @@ func TestReconcile_RollbackOnError(t *testing.T) {
 	if got := readRev(t, db); got != startRev {
 		t.Errorf("rev bumped despite rollback: %d → %d", startRev, got)
 	}
+}
+
+// managerFromDB returns a *Manager wrapping the supplied DB. The
+// production NewManager owns its handle (Close releases the file); for
+// tests that already opened the DB via openTestDB we want a manager
+// that shares the handle without taking ownership of close-time.
+func managerFromDB(t *testing.T, db *sql.DB) *Manager {
+	t.Helper()
+	return &Manager{db: db}
+}
+
+// facetsForForm returns the facet rows on disk for one form, sorted by
+// facet_key so tests can compare deterministically.
+func facetsForForm(t *testing.T, db *sql.DB, tpl, file string) []FormFacet {
+	t.Helper()
+	rows, err := db.Query(
+		`SELECT facet_key, set_flag, selected FROM form_facets
+		   WHERE template = ? AND filename = ?
+		   ORDER BY facet_key`,
+		tpl, file,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []FormFacet
+	for rows.Next() {
+		var key string
+		var setFlag int
+		var sel sql.NullString
+		if err := rows.Scan(&key, &setFlag, &sel); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, FormFacet{Key: key, Set: setFlag != 0, Selected: sel.String})
+	}
+	return out
 }
 
 func tagsForForm(t *testing.T, db *sql.DB, tpl, file string) []string {

@@ -16,22 +16,38 @@ type TemplateRow struct {
 }
 
 // FormRow is one row in the index's `forms` table plus the inverted
-// tags it owns. Tags are kept on the row (not a separate slice
-// elsewhere) so the reconciler can sync them in lock-step with the
-// upsert.
+// tags and facets it owns. Tags and Facets are kept on the row (not a
+// separate slice elsewhere) so the reconciler can sync them in
+// lock-step with the upsert.
 type FormRow struct {
-	Template        string // "basic.yaml"
-	Filename        string // "test.meta.json"
-	ID              string // GUID from the template's guid_field, may be empty
-	Title           string
-	FmTitle         string
-	Author          string
-	Created         string
-	Updated         string
+	Template string // "basic.yaml"
+	Filename string // "test.meta.json"
+	ID       string // GUID from the template's guid_field, may be empty
+	Title    string
+	FmTitle  string
+	// Audit identity is split across the Created / Updated AuditEntry
+	// pair on disk; the index mirrors that split so per-profile
+	// attribution survives the round-trip.
+	CreatedName     string
+	CreatedEmail    string
+	UpdatedName     string
+	UpdatedEmail    string
+	Created         string // timestamp string, matches FormMeta.Created.At
+	Updated         string // timestamp string, matches FormMeta.Updated.At
 	ExpressionItems string // JSON blob; opaque to the index
 	Tags            []string
+	Facets          []FormFacet
 	Mtime           int64
 	Size            int64
+}
+
+// FormFacet is one entry in the `form_facets` side table. Mirrors
+// storage.FacetState plus the facet key the entry is filed under, so
+// the index can replay the original meta.facets map at read time.
+type FormFacet struct {
+	Key      string
+	Set      bool
+	Selected string
 }
 
 // ImageRow is one row in the index's `images` table. We don't track

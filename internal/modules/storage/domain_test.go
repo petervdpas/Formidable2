@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"slices"
 	"strings"
@@ -581,6 +582,93 @@ func TestDeleteForm_MissingIsNoOp(t *testing.T) {
 	})
 	if err := m.DeleteForm("basic.yaml", "ghost"); err != nil {
 		t.Errorf("delete missing should be no-op: %v", err)
+	}
+}
+
+// fakeFormReader is the minimal FormReader stand-in used by the reader-
+// path tests below. The slice / err pair is whatever ListSummaries
+// returns; calls counts how many times the manager consulted the
+// reader (used to assert the disk fallback didn't run).
+type fakeFormReader struct {
+	out   []FormSummary
+	err   error
+	calls int
+}
+
+func (f *fakeFormReader) ListSummaries(_ string) ([]FormSummary, error) {
+	f.calls++
+	return f.out, f.err
+}
+
+func TestExtendedListForms_PrefersReaderWhenInstalled(t *testing.T) {
+	m, sys, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml", ItemField: "title",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+	// Write a disk fixture that, if the reader were bypassed, would
+	// return Title="disk-title" — the assertion below would fail.
+	_ = sys.SaveFile("storage/basic/x.meta.json",
+		`{"meta":{"id":"abc","template":"basic"},"data":{"title":"disk-title"}}`)
+
+	reader := &fakeFormReader{out: []FormSummary{
+		{Filename: "x.meta.json", Title: "reader-title"},
+	}}
+	m.SetReader(reader)
+
+	out, err := m.ExtendedListForms("basic.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reader.calls != 1 {
+		t.Errorf("reader calls = %d, want 1 (manager bypassed reader?)", reader.calls)
+	}
+	if len(out) != 1 || out[0].Title != "reader-title" {
+		t.Errorf("reader result not surfaced: %+v", out)
+	}
+}
+
+func TestExtendedListForms_FallsBackOnReaderError(t *testing.T) {
+	m, sys, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml", ItemField: "title",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+	_ = sys.SaveFile("storage/basic/x.meta.json",
+		`{"meta":{"id":"abc","template":"basic"},"data":{"title":"disk-title"}}`)
+
+	// Reader errors → manager must walk disk instead of propagating.
+	// The disk fixture above proves the fallback executed (we get a
+	// non-empty result tagged with the disk-only title).
+	m.SetReader(&fakeFormReader{err: errors.New("index unavailable")})
+
+	out, err := m.ExtendedListForms("basic.yaml")
+	if err != nil {
+		t.Fatalf("expected fallback to succeed, got error: %v", err)
+	}
+	if len(out) != 1 || out[0].Title != "disk-title" {
+		t.Errorf("fallback did not run: %+v", out)
+	}
+}
+
+func TestExtendedListForms_NoReaderUsesDisk(t *testing.T) {
+	// Pre-existing semantics: no reader installed → ExtendedListForms
+	// walks the storage tree. Keeps the migration safe: code paths
+	// that build a storage.Manager without an index keep working.
+	m, sys, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml", ItemField: "title",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+	_ = sys.SaveFile("storage/basic/x.meta.json",
+		`{"meta":{"id":"abc","template":"basic"},"data":{"title":"disk-title"}}`)
+
+	out, err := m.ExtendedListForms("basic.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 || out[0].Title != "disk-title" {
+		t.Errorf("disk path wrong: %+v", out)
 	}
 }
 

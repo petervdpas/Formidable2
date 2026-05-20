@@ -24,7 +24,7 @@ import (
 // schemaVersion is the version this binary writes and accepts. A DB
 // file stamped with a higher version is rejected (we don't downgrade);
 // a lower version triggers the matching forward migration.
-const schemaVersion = 1
+const schemaVersion = 2
 
 // migrations are applied in order; each one bumps meta.version when it
 // returns successfully. Index 0 is unused so the slice index lines up
@@ -32,6 +32,7 @@ const schemaVersion = 1
 var migrations = []string{
 	"", // v0 — placeholder, never applied
 	migrationV1,
+	migrationV2,
 }
 
 // migrationV1 is the initial schema. Lives as a Go string so the file
@@ -91,6 +92,38 @@ CREATE TABLE images (
     PRIMARY KEY (template, filename),
     FOREIGN KEY (template) REFERENCES templates(filename) ON DELETE CASCADE
 );
+`
+
+// migrationV2 lands the facets feature on the index side. It (a)
+// replaces the flat `author` column on forms with split name/email
+// for both Created and Updated audit entries, (b) creates form_facets
+// — one row per facet per form, mirroring form_tags — so the REST
+// `?facet.<k>=L` filter can move from N disk reads to one SQL JOIN,
+// and (c) DELETE FROM forms so the boot-time RescanAll rebuilds every
+// row with the new audit + facet columns populated. The wipe is safe
+// because the index is a derived view of disk; the cascade on
+// form_tags fires automatically.
+const migrationV2 = `
+ALTER TABLE forms ADD COLUMN created_name  TEXT;
+ALTER TABLE forms ADD COLUMN created_email TEXT;
+ALTER TABLE forms ADD COLUMN updated_name  TEXT;
+ALTER TABLE forms ADD COLUMN updated_email TEXT;
+ALTER TABLE forms DROP COLUMN author;
+
+CREATE TABLE form_facets (
+    template  TEXT NOT NULL,
+    filename  TEXT NOT NULL,
+    facet_key TEXT NOT NULL,
+    set_flag  INTEGER NOT NULL DEFAULT 0,
+    selected  TEXT,
+    PRIMARY KEY (template, filename, facet_key),
+    FOREIGN KEY (template, filename) REFERENCES forms(template, filename) ON DELETE CASCADE
+);
+CREATE INDEX idx_form_facets_lookup
+    ON form_facets(template, facet_key, selected)
+    WHERE set_flag = 1;
+
+DELETE FROM forms;
 `
 
 // openIndexDB opens (or creates) the SQLite file at path and brings

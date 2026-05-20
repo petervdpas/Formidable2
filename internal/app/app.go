@@ -374,6 +374,7 @@ func New(d Deps) (*App, error) {
 	ehM.SetRoot(contextRoot)
 	tplM.SetIndexer(ehM)
 	stoM.SetIndexer(ehM)
+	stoM.SetReader(newIndexFormReader(idxM))
 
 	// EnabledTemplates self-healing: when a template file is deleted, the
 	// active profile's EnabledTemplates list must drop the stale entry so

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,4 +75,76 @@ func stemOf(templateFilename string) string {
 		return templateFilename[:len(templateFilename)-len(ext)]
 	}
 	return templateFilename
+}
+
+// indexFormReader bridges *index.Manager into the storage.FormReader
+// surface, so storage.ExtendedListForms can pull summaries straight
+// from the SQLite index instead of walking disk per record.
+//
+// Stays in the composition root for the same reason as the loader
+// adapter: storage owns no opinion about the index, and the index
+// owns no opinion about FormSummary.
+type indexFormReader struct {
+	idx *index.Manager
+}
+
+func newIndexFormReader(idx *index.Manager) *indexFormReader {
+	return &indexFormReader{idx: idx}
+}
+
+// ListSummaries satisfies storage.FormReader. Orders by filename
+// ascending so the result matches what the original os.ReadDir-based
+// disk path returned — no observable change for the studio sidebar.
+func (r *indexFormReader) ListSummaries(templateFilename string) ([]storage.FormSummary, error) {
+	rows, err := r.idx.ListForms(templateFilename, index.QueryOpts{OrderBy: "filename_asc"})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]storage.FormSummary, 0, len(rows))
+	for _, fr := range rows {
+		out = append(out, formRowToSummary(fr))
+	}
+	return out, nil
+}
+
+func formRowToSummary(r index.FormRow) storage.FormSummary {
+	s := storage.FormSummary{
+		Filename: r.Filename,
+		Title:    r.Title,
+		Meta: storage.FormMeta{
+			ID: r.ID,
+			// Storage's disk path stores the template stem ("recipes"),
+			// not the yaml filename ("recipes.yaml"). Match that so
+			// FormSummary parity holds — the index FK uses the filename
+			// for clean joins, but the wire shape stays stem-keyed.
+			Template: stemOf(r.Template),
+			Created: storage.AuditEntry{
+				At:    r.Created,
+				Name:  r.CreatedName,
+				Email: r.CreatedEmail,
+			},
+			Updated: storage.AuditEntry{
+				At:    r.Updated,
+				Name:  r.UpdatedName,
+				Email: r.UpdatedEmail,
+			},
+			Tags: append([]string(nil), r.Tags...),
+		},
+	}
+	if len(r.Facets) > 0 {
+		s.Meta.Facets = make(map[string]storage.FacetState, len(r.Facets))
+		for _, f := range r.Facets {
+			s.Meta.Facets[f.Key] = storage.FacetState{Set: f.Set, Selected: f.Selected}
+		}
+	}
+	if r.ExpressionItems != "" {
+		var ei map[string]any
+		if err := json.Unmarshal([]byte(r.ExpressionItems), &ei); err == nil {
+			s.ExpressionItems = ei
+		}
+	}
+	if s.ExpressionItems == nil {
+		s.ExpressionItems = map[string]any{}
+	}
+	return s
 }

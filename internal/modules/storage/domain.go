@@ -47,6 +47,20 @@ type Indexer interface {
 	OnFormDeleted(templateFilename, datafile string) error
 }
 
+// FormReader is the symmetric read-side surface for the same cache:
+// when installed, ExtendedListForms consults it instead of walking
+// disk per record. The composition root supplies an adapter around
+// *index.Manager. Implementations should return summaries in the
+// filename-ascending order the original disk path used, so existing
+// frontends see no observable change.
+//
+// A reader-side error is non-fatal: the manager logs it and falls
+// back to the disk path. The index is a derived view, never
+// authoritative — same posture as the Indexer write hook.
+type FormReader interface {
+	ListSummaries(templateFilename string) ([]FormSummary, error)
+}
+
 // Manager owns CRUD over the per-template storage tree.
 type Manager struct {
 	fs         fs
@@ -55,6 +69,7 @@ type Manager struct {
 	log        *slog.Logger
 	storageDir string // base storage path (absolute or relative to fs root)
 	indexer    Indexer
+	reader     FormReader
 	author     AuthorProvider
 }
 
@@ -81,6 +96,12 @@ func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, stor
 // Composition root calls this after building the index event handler.
 // Pass nil to disable.
 func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
+
+// SetReader installs the read-side surface for ExtendedListForms.
+// Symmetric with SetIndexer: the composition root supplies an adapter
+// after building the index manager; passing nil disables the
+// fast path and reverts to disk reads.
+func (m *Manager) SetReader(r FormReader) { m.reader = r }
 
 // SetAuthorProvider installs the active-profile identity source. Every
 // SaveForm stamps the returned (name, email) onto Updated, and onto
@@ -356,7 +377,28 @@ func (m *Manager) SaveImageFile(templateFilename, name string, content []byte) S
 // ExtendedListForms returns each form summary with title resolved from
 // item_field (if set) and any expression-flagged data carried for the
 // sidebar mini-expression evaluator.
+//
+// Fast path: when a FormReader is installed (composition root wires
+// one over the SQLite index), summaries come straight off the index
+// — one query instead of one disk read per record. Reader errors are
+// logged and the disk path runs as a safety net so a transient index
+// problem can't make the studio list go blank.
 func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, error) {
+	if m.reader != nil {
+		out, err := m.reader.ListSummaries(templateFilename)
+		if err == nil {
+			return out, nil
+		}
+		m.log.Warn("storage: form reader failed, falling back to disk",
+			"template", templateFilename, "err", err)
+	}
+	return m.extendedListFormsFromDisk(templateFilename)
+}
+
+// extendedListFormsFromDisk is the original walk-every-file path.
+// Kept as a fallback for when the reader isn't installed or errors —
+// the index is a derived view, never authoritative.
+func (m *Manager) extendedListFormsFromDisk(templateFilename string) ([]FormSummary, error) {
 	files, err := m.ListForms(templateFilename)
 	if err != nil {
 		return nil, err

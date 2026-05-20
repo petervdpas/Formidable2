@@ -175,7 +175,9 @@ func (m *Manager) queryForms(spec formsQuerySpec, opts QueryOpts) ([]FormRow, er
 
 	q := fmt.Sprintf(`
 		SELECT f.template, f.filename, f.id, f.title, f.fm_title,
-		       f.author, f.created, f.updated, f.expression_items, f.mtime, f.size,
+		       f.created, f.created_name, f.created_email,
+		       f.updated, f.updated_name, f.updated_email,
+		       f.expression_items, f.mtime, f.size,
 		       COALESCE(GROUP_CONCAT(t.tag, char(31)), '') AS tags
 		FROM forms f
 		LEFT JOIN form_tags t ON t.template = f.template AND t.filename = f.filename
@@ -194,21 +196,102 @@ func (m *Manager) queryForms(spec formsQuerySpec, opts QueryOpts) ([]FormRow, er
 	}
 	defer rows.Close()
 
-	var out []FormRow
+	var (
+		out   []FormRow
+		ccn   sql.NullString
+		cce   sql.NullString
+		ucn   sql.NullString
+		uce   sql.NullString
+		expI  sql.NullString
+		fmTit sql.NullString
+		idCol sql.NullString
+		title sql.NullString
+		creAt sql.NullString
+		updAt sql.NullString
+	)
 	for rows.Next() {
 		var r FormRow
 		var tagsJoined string
 		if err := rows.Scan(
-			&r.Template, &r.Filename, &r.ID, &r.Title, &r.FmTitle,
-			&r.Author, &r.Created, &r.Updated, &r.ExpressionItems, &r.Mtime, &r.Size,
+			&r.Template, &r.Filename, &idCol, &title, &fmTit,
+			&creAt, &ccn, &cce,
+			&updAt, &ucn, &uce,
+			&expI, &r.Mtime, &r.Size,
 			&tagsJoined,
 		); err != nil {
 			return nil, fmt.Errorf("index: scan form: %w", err)
 		}
+		r.ID = idCol.String
+		r.Title = title.String
+		r.FmTitle = fmTit.String
+		r.Created = creAt.String
+		r.CreatedName = ccn.String
+		r.CreatedEmail = cce.String
+		r.Updated = updAt.String
+		r.UpdatedName = ucn.String
+		r.UpdatedEmail = uce.String
+		r.ExpressionItems = expI.String
 		if tagsJoined != "" {
 			r.Tags = strings.Split(tagsJoined, "\x1f")
 		}
 		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(out) == 0 {
+		return out, nil
+	}
+
+	facetsByKey, err := m.fetchFacetsFor(out)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		key := out[i].Template + "\x1f" + out[i].Filename
+		if ff, ok := facetsByKey[key]; ok {
+			out[i].Facets = ff
+		}
+	}
+	return out, nil
+}
+
+// fetchFacetsFor pulls form_facets entries for the given set of FormRows
+// in one round-trip and returns a lookup map keyed by template+US+filename.
+// Caller stitches the per-row slice back onto each FormRow.
+func (m *Manager) fetchFacetsFor(forms []FormRow) (map[string][]FormFacet, error) {
+	if len(forms) == 0 {
+		return nil, nil
+	}
+	args := make([]any, 0, len(forms)*2)
+	placeholders := make([]string, 0, len(forms))
+	for _, f := range forms {
+		placeholders = append(placeholders, "(?,?)")
+		args = append(args, f.Template, f.Filename)
+	}
+	q := fmt.Sprintf(`
+		SELECT template, filename, facet_key, set_flag, selected
+		FROM form_facets
+		WHERE (template, filename) IN (%s)
+	`, strings.Join(placeholders, ","))
+
+	rows, err := m.db.Query(q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("index: query facets: %w", err)
+	}
+	defer rows.Close()
+
+	out := map[string][]FormFacet{}
+	for rows.Next() {
+		var tpl, file, key string
+		var setFlag int
+		var sel sql.NullString
+		if err := rows.Scan(&tpl, &file, &key, &setFlag, &sel); err != nil {
+			return nil, fmt.Errorf("index: scan facet: %w", err)
+		}
+		k := tpl + "\x1f" + file
+		out[k] = append(out[k], FormFacet{Key: key, Set: setFlag != 0, Selected: sel.String})
 	}
 	return out, rows.Err()
 }
