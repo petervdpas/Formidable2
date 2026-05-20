@@ -12,12 +12,15 @@
     background: var(--color-bg);
 }
 
-/* Rows-only scrollable region; ~2.5 rows tall (40px per row × 2.5). */
+/* Rows-only scrollable region. Cap accommodates ~2 grouped rows
+   (a primary row plus a sub-row); bumped from the original 100px
+   when the sub-row feature shipped so the common case stays
+   scroll-free. */
 .options-rows {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-height: 100px;
+    max-height: 200px;
     overflow-y: auto;
 }
 
@@ -31,3 +34,88 @@
     flex: 1 1 0;
     min-width: 0;
 }
+
+/* Fixed-row gutter label (e.g. "True" / "False" on a bool field).
+   Sits to the left of the cells; same vertical alignment as the
+   row's TextFields. */
+.options-row-label {
+    flex: 0 0 auto;
+    min-width: 60px;
+    font-weight: 600;
+}
+
+/* Sub-row group: a primary row plus zero or more sub-rows. The
+   group's purpose is just to keep a sub-row visually attached to its
+   parent inside the flex column. */
+.options-row-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Structured sub-option widget — appears under its parent row when
+   a dropdown column's value triggers it. The widget owns its own
+   add/remove rows so the user edits value:label pairs structurally.
+   24px indent keeps it visually subordinated to the main row; no
+   left border (the indent is enough to read the nesting). */
+.options-subrow-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-left: 24px;
+    padding: 4px 0;
+}
+.options-subrow-label {
+    font-weight: 600;
+    color: var(--color-fg);
+    opacity: 0.9;
+    margin-bottom: 2px;
+}
+.options-subrow-pairs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.options-subrow-pair {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.options-subrow-entry-label {
+    flex: 0 0 auto;
+    min-width: 60px;
+    font-weight: 600;
+    color: var(--color-fg);
+}
+/* Locked value chip — mirrors the dark TextField next to it
+   (--input-bg/fg) so the value reads at the same contrast as the
+   editable cells. A subtle dashed border + opacity hint that the
+   field is not editable. */
+.options-subrow-locked-value {
+    flex: 0 0 auto;
+    min-width: 60px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 10px;
+    border-radius: var(--radius-md);
+    background: var(--input-bg);
+    color: var(--input-fg);
+    border: 1px dashed var(--input-border);
+    font-size: var(--font-size-md);
+    line-height: 1.4;
+}
+.options-subrow-input {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.options-subrow-input-value {
+    flex: 0 0 30%;
+}
+
+/* Fixed-row gutter label override: same readability fix as above —
+   the salmon-tinted modal background swallowed the muted color. */
+.options-row-label {
+    color: var(--color-fg);
+}
+

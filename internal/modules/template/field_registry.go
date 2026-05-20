@@ -46,11 +46,15 @@ type Abilities struct {
 
 // FieldDescriptor is the per-type record. MetaOnly flags marker types
 // (looper, loopstart, loopstop) that don't carry a stored value but
-// still participate in validation.
+// still participate in validation. OptionsShape is non-nil when the
+// type's options array has a fixed arity (e.g. boolean = exactly two
+// rows for the True/False labels) — the frontend's OptionsEditor
+// gates add/remove on this and pre-fills with the supplied defaults.
 type FieldDescriptor struct {
-	ID        string    `json:"id"`
-	MetaOnly  bool      `json:"meta_only"`
-	Abilities Abilities `json:"abilities"`
+	ID           string             `json:"id"`
+	MetaOnly     bool               `json:"meta_only"`
+	Abilities    Abilities          `json:"abilities"`
+	OptionsShape *FixedOptionsShape `json:"options_shape,omitempty"`
 }
 
 // IsKnownFieldType reports whether the given type id is in the matrix.

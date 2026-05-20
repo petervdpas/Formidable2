@@ -13,7 +13,7 @@ import {
 } from "./fields";
 import APIFieldEditor from "./APIFieldEditor.vue";
 import type { OptionRow } from "./fields/OptionsEditor.vue";
-import { columnsFor, SUPPORTED_OPTION_TYPES } from "../types/option-presets";
+import { columnsFor, fixedRowsFor, SUPPORTED_OPTION_TYPES } from "../types/option-presets";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useToast } from "../composables/useToast";
 import { formatError } from "../utils/templateValidation";
@@ -174,6 +174,7 @@ const defaultAsString = computed({
 const optionsSupported = computed(() => SUPPORTED_OPTION_TYPES.has(draft.value?.type || ""));
 
 const optionColumns = computed(() => columnsFor(draft.value?.type || "") ?? []);
+const optionFixedRows = computed(() => fixedRowsFor(draft.value?.type || "") ?? undefined);
 
 const optionRows = computed<OptionRow[]>({
   get: () => {
@@ -350,6 +351,7 @@ const dialogStyle = computed<Record<string, string>>(() => {
             v-if="optionsSupported"
             v-model="optionRows"
             :columns="optionColumns"
+            :fixed-rows="optionFixedRows"
           />
           <p v-else class="muted small options-unavailable">
             {{ t('workspace.templates.field_edit.row.options_unavailable') }}

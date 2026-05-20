@@ -1,5 +1,17 @@
-import type { ColumnDef, OptionRow } from "../components/fields/OptionsEditor.vue";
-import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type {
+  ColumnDef,
+  FixedRowConfig,
+  OptionRow,
+  SubRowConfig,
+  SubRowVariant,
+} from "../components/fields/OptionsEditor.vue";
+import {
+  Service as TemplateSvc,
+  type FieldDescriptor,
+  type TableColumnTypeDescriptor,
+  type SubRow as BackendSubRow,
+  type FixedOptionsShape,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 // Per-field-type column presets for the OptionsEditor. Mirrors
 // `utils/optionsEditor.js` from the original Formidable.
@@ -31,22 +43,28 @@ export const SUPPORTED_OPTION_TYPES = new Set([
 // Bootstrap fallbacks. Used until ensureOptionPresetsLoaded resolves
 // (or if it fails — degraded but functional). Match the canonical
 // builtinTableColumnTypes / builtinListItemTypes in Go.
-let _tableColumnTypes: string[] = ["string", "number", "date", "bool", "dropdown", "reference"];
+let _tableColumnTypes: TableColumnTypeDescriptor[] = [];
 let _listItemTypes: string[] = ["fixed", "custom"];
+let _fieldDescriptors: Record<string, FieldDescriptor> = {};
 
 let loadPromise: Promise<void> | null = null;
 
 async function load(): Promise<void> {
   try {
-    const [tcols, ltypes] = await Promise.all([
+    const [tcols, ltypes, ftypes] = await Promise.all([
       TemplateSvc.TableColumnTypes(),
       TemplateSvc.ListItemTypes(),
+      TemplateSvc.FieldTypes(),
     ]);
     if (tcols && tcols.length > 0) {
-      _tableColumnTypes = tcols.map((d) => d.name);
+      _tableColumnTypes = tcols;
     }
     if (ltypes && ltypes.length > 0) {
       _listItemTypes = ltypes.map((d) => d.name);
+    }
+    if (ftypes && ftypes.length > 0) {
+      _fieldDescriptors = {};
+      for (const d of ftypes) _fieldDescriptors[d.id] = d;
     }
   } catch {
     // Stay on the bootstrap fallbacks — better empty UX than crash.
@@ -85,22 +103,61 @@ function listColumns(): ColumnDef[] {
   ];
 }
 
-// Subrows (choices / reference) for table are deferred on both sides.
-// "reference" cells are plain strings at the data layer; the renderer
-// is supposed to string-compare each value against in-scope looper
-// codes and emit an HTML anchor on match (TOC-style). A picker
-// populated from looper codes is a convenience layer on top, not a
-// constraint — free-form typing must still work. See
-// internal/modules/template/option_presets.go for the Go-side note.
+// Translate the backend's SubRow record into the editor-facing
+// SubRowVariant. Pure shape conversion — labels travel as i18n keys
+// (resolved in OptionsSubRow via vue-i18n) so no English text leaks
+// across the Wails boundary.
+function toSubRowVariant(s: BackendSubRow): SubRowVariant {
+  const v: SubRowVariant = {};
+  if (s.label_key) v.labelKey = s.label_key;
+  if (s.placeholder_key) v.placeholderKey = s.placeholder_key;
+  if (s.max_entries && s.max_entries > 0) v.maxEntries = s.max_entries;
+  if (s.entries && s.entries.length > 0) {
+    v.entries = s.entries.map((e) => ({
+      labelKey: e.label_key,
+      value: e.value,
+      placeholderKey: e.placeholder_key,
+    }));
+  }
+  return v;
+}
+
+// Build a SubRowConfig from the per-column-type SubRows the backend
+// advertised. Groups all triggers that share a row_key into a single
+// perValue map (the editor stores the user's input on that one key).
+// Empty (no column type has a SubRow) returns undefined so the
+// dropdown ColumnDef stays sub-row-less.
+function tableTypeSubRowConfig(
+  cols: TableColumnTypeDescriptor[],
+): SubRowConfig | undefined {
+  const perValue: Record<string, SubRowVariant> = {};
+  let rowKey = "";
+  for (const c of cols) {
+    if (!c.sub_row) continue;
+    if (!rowKey) rowKey = c.sub_row.row_key;
+    // If two column types disagree on row_key we keep the first one
+    // and skip the rest — the backend should keep them consistent.
+    if (c.sub_row.row_key !== rowKey) continue;
+    perValue[c.name] = toSubRowVariant(c.sub_row);
+  }
+  if (!rowKey || Object.keys(perValue).length === 0) return undefined;
+  return { rowKey, perValue };
+}
+
+// Table columns: key + type + label. The `type` dropdown's sub-row
+// config (and the column-type vocabulary itself) comes from the Go
+// builtinTableColumnTypes descriptors via TemplateSvc.
 function tableColumns(): ColumnDef[] {
+  const names = _tableColumnTypes.map((d) => d.name);
   return [
     { key: "value", type: "text", placeholder: "key" },
     {
       key: "type",
       type: "dropdown",
-      options: [..._tableColumnTypes],
-      defaultValue: _tableColumnTypes[0] ?? "string",
+      options: names,
+      defaultValue: names[0] ?? "string",
       placeholder: "type",
+      subRow: tableTypeSubRowConfig(_tableColumnTypes),
     },
     { key: "label", type: "text", placeholder: "label" },
   ];
@@ -126,4 +183,19 @@ export function columnsFor(typeId: string): ColumnDef[] | null {
     default:
       return DEFAULT_COLUMNS;
   }
+}
+
+// fixedRowsFor returns a structural row template for field types
+// whose options have a fixed arity. Null otherwise — the editor
+// stays in free-form add/remove mode. Source of truth is the Go
+// FieldDescriptor.OptionsShape (see internal/modules/template/
+// field_abilities.go); this function is a pure shape adapter.
+export function fixedRowsFor(typeId: string): FixedRowConfig[] | null {
+  const def = _fieldDescriptors[typeId];
+  const shape = def?.options_shape as FixedOptionsShape | null | undefined;
+  if (!shape || !shape.rows || shape.rows.length === 0) return null;
+  return shape.rows.map((r) => ({
+    labelKey: r.label_key,
+    defaults: (r.defaults ?? {}) as OptionRow,
+  }));
 }

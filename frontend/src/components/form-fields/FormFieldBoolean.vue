@@ -23,18 +23,46 @@ const value = computed<boolean>({
   set: (v) => emit("update:modelValue", v),
 });
 
-// Optional ON/OFF labels from field.options (matches original
-// fieldFactory.boolean's "trailingValues" behaviour).
+// Resolve ON/OFF labels from field.options. Each option is the
+// canonical {value, label} shape — the bool field type's fixed
+// options shape (backend FixedOptionsShape) gives the user one row
+// per state with value="true" / value="false" as the data and the
+// label as the display string. We prefer a semantic match on value
+// so order doesn't matter; fall back to position 0 / 1 when the
+// values aren't the canonical strings (legacy data, or a bare
+// "Yes|No" sub-option).
 const labels = computed(() => {
   const opts = props.field.options ?? [];
-  if (opts.length < 2) return { on: "On", off: "Off" };
-  const norm = (o: unknown) =>
-    typeof o === "string"
-      ? o
-      : o && typeof o === "object" && "label" in (o as Record<string, unknown>)
-        ? String((o as Record<string, unknown>).label ?? "")
-        : "";
-  return { on: norm(opts[0]) || "On", off: norm(opts[1]) || "Off" };
+  const labelOf = (o: unknown): string => {
+    if (typeof o === "string") return o;
+    if (o && typeof o === "object") {
+      const rec = o as Record<string, unknown>;
+      const l = rec.label;
+      if (typeof l === "string" && l !== "") return l;
+      const v = rec.value;
+      if (typeof v === "string") return v;
+    }
+    return "";
+  };
+  const valueOf = (o: unknown): string => {
+    if (typeof o === "string") return o;
+    if (o && typeof o === "object") {
+      const rec = o as Record<string, unknown>;
+      const v = rec.value;
+      if (typeof v === "string") return v;
+    }
+    return "";
+  };
+
+  let onLabel = "";
+  let offLabel = "";
+  for (const o of opts) {
+    if (valueOf(o) === "true") onLabel = labelOf(o);
+    if (valueOf(o) === "false") offLabel = labelOf(o);
+  }
+  if (!onLabel) onLabel = labelOf(opts[0]) || "On";
+  if (!offLabel) offLabel = labelOf(opts[1]) || "Off";
+  return { on: onLabel, off: offLabel };
 });
 </script>
 

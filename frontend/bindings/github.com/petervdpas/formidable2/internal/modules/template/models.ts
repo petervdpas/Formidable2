@@ -428,12 +428,16 @@ export class Field {
 /**
  * FieldDescriptor is the per-type record. MetaOnly flags marker types
  * (looper, loopstart, loopstop) that don't carry a stored value but
- * still participate in validation.
+ * still participate in validation. OptionsShape is non-nil when the
+ * type's options array has a fixed arity (e.g. boolean = exactly two
+ * rows for the True/False labels) — the frontend's OptionsEditor
+ * gates add/remove on this and pre-fills with the supplied defaults.
  */
 export class FieldDescriptor {
     "id": string;
     "meta_only": boolean;
     "abilities": Abilities;
+    "options_shape"?: FixedOptionsShape | null;
 
     /** Creates a new FieldDescriptor instance. */
     constructor($$source: Partial<FieldDescriptor> = {}) {
@@ -455,9 +459,13 @@ export class FieldDescriptor {
      */
     static createFrom($$source: any = {}): FieldDescriptor {
         const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
             $$parsedSource["abilities"] = $$createField2_0($$parsedSource["abilities"]);
+        }
+        if ("options_shape" in $$parsedSource) {
+            $$parsedSource["options_shape"] = $$createField3_0($$parsedSource["options_shape"]);
         }
         return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
     }
@@ -499,10 +507,10 @@ export class FieldUnit {
      * Creates a new FieldUnit instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldUnit {
-        const $$createField1_0 = $$createType12;
-        const $$createField2_0 = $$createType12;
-        const $$createField3_0 = $$createType12;
-        const $$createField4_0 = $$createType14;
+        const $$createField1_0 = $$createType14;
+        const $$createField2_0 = $$createType14;
+        const $$createField3_0 = $$createType14;
+        const $$createField4_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("field" in $$parsedSource) {
             $$parsedSource["field"] = $$createField1_0($$parsedSource["field"]);
@@ -517,6 +525,72 @@ export class FieldUnit {
             $$parsedSource["items"] = $$createField4_0($$parsedSource["items"]);
         }
         return new FieldUnit($$parsedSource as Partial<FieldUnit>);
+    }
+}
+
+/**
+ * FixedOptionRow is one row in a FixedOptionsShape — a structurally
+ * fixed slot in a field's options array (e.g. True / False rows for
+ * a bool field). Defaults populate the cells when the user first
+ * picks the field type or when an existing options array arrives
+ * short of the configured arity. LabelKey is the i18n key for the
+ * row's gutter caption.
+ */
+export class FixedOptionRow {
+    "label_key": string;
+    "defaults": { [_ in string]?: any };
+
+    /** Creates a new FixedOptionRow instance. */
+    constructor($$source: Partial<FixedOptionRow> = {}) {
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+        if (!("defaults" in $$source)) {
+            this["defaults"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FixedOptionRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FixedOptionRow {
+        const $$createField1_0 = $$createType17;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("defaults" in $$parsedSource) {
+            $$parsedSource["defaults"] = $$createField1_0($$parsedSource["defaults"]);
+        }
+        return new FixedOptionRow($$parsedSource as Partial<FixedOptionRow>);
+    }
+}
+
+/**
+ * FixedOptionsShape declares the options array's fixed arity for a
+ * field type. nil/empty Rows = free-form (add/remove enabled).
+ */
+export class FixedOptionsShape {
+    "rows": FixedOptionRow[];
+
+    /** Creates a new FixedOptionsShape instance. */
+    constructor($$source: Partial<FixedOptionsShape> = {}) {
+        if (!("rows" in $$source)) {
+            this["rows"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FixedOptionsShape instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FixedOptionsShape {
+        const $$createField0_0 = $$createType19;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("rows" in $$parsedSource) {
+            $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
+        }
+        return new FixedOptionsShape($$parsedSource as Partial<FixedOptionsShape>);
     }
 }
 
@@ -623,6 +697,7 @@ export class ItemField {
  */
 export class ListItemTypeDescriptor {
     "name": string;
+    "sub_row"?: SubRow | null;
 
     /** Creates a new ListItemTypeDescriptor instance. */
     constructor($$source: Partial<ListItemTypeDescriptor> = {}) {
@@ -637,7 +712,11 @@ export class ListItemTypeDescriptor {
      * Creates a new ListItemTypeDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): ListItemTypeDescriptor {
+        const $$createField1_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sub_row" in $$parsedSource) {
+            $$parsedSource["sub_row"] = $$createField1_0($$parsedSource["sub_row"]);
+        }
         return new ListItemTypeDescriptor($$parsedSource as Partial<ListItemTypeDescriptor>);
     }
 }
@@ -699,7 +778,7 @@ export class PDFConfig {
      * Creates a new PDFConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): PDFConfig {
-        const $$createField1_0 = $$createType16;
+        const $$createField1_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cover" in $$parsedSource) {
             $$parsedSource["cover"] = $$createField1_0($$parsedSource["cover"]);
@@ -796,6 +875,76 @@ export class ShapeInfo {
 }
 
 /**
+ * SubRow declares an extra editor row that appears below the main
+ * option row when its triggering dropdown column's current value is
+ * this one. The user's input is stored as a single pipe-delimited
+ * string at row[RowKey] so the form renderer's parseChoices works
+ * unchanged. Either populate Entries (fixed-arity, one input per
+ * entry) OR leave it nil for a free-form add/remove pair editor.
+ * LabelKey + PlaceholderKey are i18n keys.
+ */
+export class SubRow {
+    "row_key": string;
+    "label_key"?: string;
+    "placeholder_key"?: string;
+    "max_entries"?: number;
+    "entries"?: SubRowEntry[];
+
+    /** Creates a new SubRow instance. */
+    constructor($$source: Partial<SubRow> = {}) {
+        if (!("row_key" in $$source)) {
+            this["row_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SubRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SubRow {
+        const $$createField4_0 = $$createType25;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField4_0($$parsedSource["entries"]);
+        }
+        return new SubRow($$parsedSource as Partial<SubRow>);
+    }
+}
+
+/**
+ * SubRowEntry is one fixed slot inside a SubRow. Each entry locks a
+ * canonical Value (e.g. "true" / "false" for a bool column) — the
+ * user only edits the human-readable label. LabelKey is the i18n
+ * key for the gutter caption shown next to the locked value.
+ */
+export class SubRowEntry {
+    "label_key": string;
+    "value": string;
+    "placeholder_key"?: string;
+
+    /** Creates a new SubRowEntry instance. */
+    constructor($$source: Partial<SubRowEntry> = {}) {
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SubRowEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SubRowEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SubRowEntry($$parsedSource as Partial<SubRowEntry>);
+    }
+}
+
+/**
  * TableColumnTypeDescriptor names one column type the Edit Field
  * modal's `table` preset offers in its column-type dropdown. Today
  * these strings are pure UI vocabulary — the Go side does not yet
@@ -805,6 +954,7 @@ export class ShapeInfo {
  */
 export class TableColumnTypeDescriptor {
     "name": string;
+    "sub_row"?: SubRow | null;
 
     /** Creates a new TableColumnTypeDescriptor instance. */
     constructor($$source: Partial<TableColumnTypeDescriptor> = {}) {
@@ -819,7 +969,11 @@ export class TableColumnTypeDescriptor {
      * Creates a new TableColumnTypeDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): TableColumnTypeDescriptor {
+        const $$createField1_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sub_row" in $$parsedSource) {
+            $$parsedSource["sub_row"] = $$createField1_0($$parsedSource["sub_row"]);
+        }
         return new TableColumnTypeDescriptor($$parsedSource as Partial<TableColumnTypeDescriptor>);
     }
 }
@@ -886,9 +1040,9 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField8_0 = $$createType18;
-        const $$createField9_0 = $$createType20;
-        const $$createField10_0 = $$createType21;
+        const $$createField8_0 = $$createType27;
+        const $$createField9_0 = $$createType29;
+        const $$createField10_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -929,8 +1083,8 @@ export class ValidationError {
      */
     static createFrom($$source: any = {}): ValidationError {
         const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType12;
-        const $$createField6_0 = $$createType22;
+        const $$createField4_0 = $$createType14;
+        const $$createField6_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -957,15 +1111,23 @@ const $$createType7 = $Create.Array($Create.Any);
 const $$createType8 = APIMap.createFrom;
 const $$createType9 = $Create.Array($$createType8);
 const $$createType10 = Abilities.createFrom;
-const $$createType11 = Field.createFrom;
+const $$createType11 = FixedOptionsShape.createFrom;
 const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = FieldUnit.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = PDFCoverConfig.createFrom;
-const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = PDFConfig.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = Facet.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $Create.Array($$createType11);
-const $$createType22 = $Create.Map($Create.Any, $Create.Any);
+const $$createType13 = Field.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = FieldUnit.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $Create.Map($Create.Any, $Create.Any);
+const $$createType18 = FixedOptionRow.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = SubRow.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = PDFCoverConfig.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = SubRowEntry.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = PDFConfig.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = Facet.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = $Create.Array($$createType13);

@@ -17,6 +17,8 @@ export {
     Field,
     FieldDescriptor,
     FieldUnit,
+    FixedOptionRow,
+    FixedOptionsShape,
     GeneratorOptions,
     ImgMode,
     ItemField,
@@ -26,6 +28,8 @@ export {
     PDFCoverConfig,
     Shape,
     ShapeInfo,
+    SubRow,
+    SubRowEntry,
     TableColumnTypeDescriptor,
     Template,
     ValidationError

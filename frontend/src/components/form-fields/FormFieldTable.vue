@@ -141,6 +141,25 @@ function asString(v: unknown): string {
   return String(v);
 }
 
+// Pick the on/off label for a bool column. The user can type the
+// choices in either order — "true:Yes|false:No" or "false:No|true:Yes" —
+// so we look up by value first ("true"/"false"). Falls back to
+// position 0 (on) / position 1 (off) when no semantic match exists,
+// which covers users who typed a bare "Yes|No" without the prefix.
+function boolLabel(col: Col, idx: number, fallback: string): string {
+  const wantedValue = idx === 0 ? "true" : "false";
+  for (const opt of col.choices) {
+    if (typeof opt === "string") continue;
+    if (opt.value === wantedValue) {
+      return opt.label || opt.value || fallback;
+    }
+  }
+  const opt = col.choices[idx];
+  if (!opt) return fallback;
+  if (typeof opt === "string") return opt;
+  return opt.label || opt.value || fallback;
+}
+
 function asBool(v: unknown): boolean {
   if (typeof v === "boolean") return v;
   if (typeof v === "string") return v.toLowerCase() === "true";
@@ -208,8 +227,8 @@ function asNumber(v: unknown): number {
                 v-else-if="col.type === 'bool'"
                 :model-value="asBool(row[ci])"
                 @update:model-value="(v) => setCell(ri, ci, v)"
-                on-label="On"
-                off-label="Off"
+                :on-label="boolLabel(col, 0, 'On')"
+                :off-label="boolLabel(col, 1, 'Off')"
               />
               <SelectField
                 v-else-if="col.type === 'dropdown'"

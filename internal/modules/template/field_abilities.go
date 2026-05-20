@@ -64,6 +64,12 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false,
 		},
+		OptionsShape: &FixedOptionsShape{
+			Rows: []FixedOptionRow{
+				{LabelKey: "common.true", Defaults: map[string]any{"value": "true", "label": "Yes"}},
+				{LabelKey: "common.false", Defaults: map[string]any{"value": "false", "label": "No"}},
+			},
+		},
 	},
 	"dropdown": {
 		ID: "dropdown",

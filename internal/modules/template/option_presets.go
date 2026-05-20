@@ -7,7 +7,8 @@ package template
 // here so a future server-side validation pass has a single source
 // of truth to read.
 type TableColumnTypeDescriptor struct {
-	Name string `json:"name"`
+	Name   string  `json:"name"`
+	SubRow *SubRow `json:"sub_row,omitempty"`
 }
 
 // ListItemTypeDescriptor names one entry the Edit Field modal's
@@ -15,7 +16,8 @@ type TableColumnTypeDescriptor struct {
 // TableColumnTypeDescriptor — captured here even though Go doesn't
 // interpret the strings yet, so the future home is ready.
 type ListItemTypeDescriptor struct {
-	Name string `json:"name"`
+	Name   string  `json:"name"`
+	SubRow *SubRow `json:"sub_row,omitempty"`
 }
 
 // builtinTableColumnTypes is the canonical column-type set the table
@@ -48,8 +50,30 @@ var builtinTableColumnTypes = []TableColumnTypeDescriptor{
 	{Name: "string"},
 	{Name: "number"},
 	{Name: "date"},
-	{Name: "bool"},
-	{Name: "dropdown"},
+	{
+		Name: "bool",
+		SubRow: &SubRow{
+			RowKey:   "choices",
+			LabelKey: "workspace.templates.options.bool_subrow",
+			// Bool always has exactly two states with canonical values
+			// "true" / "false". The widget locks the Value column on
+			// these entries and lets the user edit only the labels —
+			// no risk of a misnamed value slipping past validation.
+			Entries: []SubRowEntry{
+				{LabelKey: "common.true", Value: "true", PlaceholderKey: "workspace.templates.options.bool_placeholder_true"},
+				{LabelKey: "common.false", Value: "false", PlaceholderKey: "workspace.templates.options.bool_placeholder_false"},
+			},
+			MaxEntries: 2,
+		},
+	},
+	{
+		Name: "dropdown",
+		SubRow: &SubRow{
+			RowKey:         "choices",
+			LabelKey:       "workspace.templates.options.dropdown_subrow",
+			PlaceholderKey: "workspace.templates.options.dropdown_placeholder",
+		},
+	},
 	{Name: "reference"},
 }
 

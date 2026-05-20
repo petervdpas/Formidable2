@@ -273,14 +273,14 @@ function applyEdit(updated: Field) {
     if (updated.type === "looper") {
       const key = (updated.key || "").trim();
       const label = updated.label || key;
-      tree.value.push({
+      tree.value.push(new FieldUnit({
         kind: "loop",
         start: { key, label, type: "loopstart" } as Field,
         stop: { key, label, type: "loopstop" } as Field,
         items: [],
-      } as FieldUnit);
+      }));
     } else {
-      tree.value.push({ kind: "field", field: updated } as FieldUnit);
+      tree.value.push(new FieldUnit({ kind: "field", field: updated }));
     }
     void commitTree();
   } else if (editUnit.value) {
