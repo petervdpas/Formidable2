@@ -183,6 +183,13 @@ async function doSave() {
     // stays stable — Vue propagates the new entry to the matching
     // TemplateListItem via its :template prop.
     await refreshOne(fn);
+    // Notify other workspaces (notably StorageWorkspace) that this
+    // template was saved. The backend already re-derived every
+    // form row in the index via OnTemplateChanged, so all the
+    // listener needs to do is re-fetch its summaries.
+    window.dispatchEvent(
+      new CustomEvent("formidable:template-saved", { detail: { filename: fn } }),
+    );
     return;
   }
   if (result.reason === "validation") {

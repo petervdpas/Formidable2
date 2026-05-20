@@ -232,8 +232,25 @@ watch(selectedTemplate, async () => {
 function onContextReloaded() {
   void refreshList();
 }
-onMounted(() => window.addEventListener("formidable:context-reloaded", onContextReloaded));
-onBeforeUnmount(() => window.removeEventListener("formidable:context-reloaded", onContextReloaded));
+// Templates workspace just saved a template. The backend's
+// OnTemplateChanged already re-derived every form row in the index,
+// so a plain re-fetch picks up the new title / expression sub-label
+// / tags / facet projections without further coordination. Only act
+// when the saved template is the one our workspace is showing.
+function onTemplateSaved(e: Event) {
+  const detail = (e as CustomEvent).detail as { filename?: string } | null;
+  if (detail?.filename && detail.filename === selectedTemplate.value) {
+    void refreshList();
+  }
+}
+onMounted(() => {
+  window.addEventListener("formidable:context-reloaded", onContextReloaded);
+  window.addEventListener("formidable:template-saved", onTemplateSaved);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("formidable:context-reloaded", onContextReloaded);
+  window.removeEventListener("formidable:template-saved", onTemplateSaved);
+});
 
 // Live-toggle: flipping use_expressions in Settings re-fetches (or
 // clears) the sidebar items map without touching the row list.
