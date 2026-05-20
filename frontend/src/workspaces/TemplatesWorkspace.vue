@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
@@ -29,6 +29,7 @@ import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formi
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
+import { scrollToActiveRow } from "../utils/scrollToActiveRow";
 import {
   FormSection,
   FormRow,
@@ -103,6 +104,61 @@ watch(selectedFilename, (fn) => {
   }
   statusBar.setSelected(fn);
 });
+
+// Scroll the active template row into view once after the list and
+// selection are both available. Two cases mirror the storage workspace:
+//  - In-app navigation: layout is settled, the scroll runs synchronously
+//    on the first attempt.
+//  - First startup: the splash blocks flex layout, so .sidebar-scroll
+//    reads as ~8px until layout settles. The ResizeObserver below
+//    retries on each resize until the container has a real viewport.
+// hasScrolled stays true after the first successful scroll so save /
+// refresh / clicks don't yank the viewport.
+const listScrollEl = ref<HTMLElement | null>(null);
+let hasScrolled = false;
+let pendingScrollObserver: ResizeObserver | null = null;
+
+function cancelPendingScroll() {
+  pendingScrollObserver?.disconnect();
+  pendingScrollObserver = null;
+}
+
+onBeforeUnmount(cancelPendingScroll);
+
+watch(
+  [filenames, selectedFilename],
+  async ([list, want]) => {
+    if (hasScrolled) return;
+    if (!list.length || !want) return;
+    if (!list.includes(want)) return;
+    cancelPendingScroll();
+    await nextTick();
+    const container = listScrollEl.value;
+    if (!container) return;
+
+    const SETTLED_MIN_HEIGHT = 140;
+    const attempt = (): boolean => {
+      if (container.clientHeight < SETTLED_MIN_HEIGHT) return false;
+      if (scrollToActiveRow(container, want)) {
+        hasScrolled = true;
+        return true;
+      }
+      return false;
+    };
+
+    if (attempt()) return;
+
+    const ro = new ResizeObserver(() => {
+      if (attempt()) {
+        ro.disconnect();
+        if (pendingScrollObserver === ro) pendingScrollObserver = null;
+      }
+    });
+    ro.observe(container);
+    pendingScrollObserver = ro;
+  },
+  { immediate: true },
+);
 
 // ── Refresh feedback ──────────────────────────────────────────────────
 async function doRefresh() {
@@ -759,7 +815,7 @@ setTopbarMenu(() => [
     <template #sidebar>
       <h2 class="sidebar-title">{{ t('workspace.templates.sidebar_title') }}</h2>
 
-      <div class="sidebar-scroll">
+      <div ref="listScrollEl" class="sidebar-scroll">
         <p v-if="filenames.length === 0" class="muted small">
           {{ t('workspace.templates.empty') }}
         </p>
