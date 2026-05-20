@@ -1,0 +1,190 @@
+/* Facets — wiki UI for template-list pills, per-form chips, and the
+ * filter strip on the template detail page. Colour tokens mirror the
+ * backend's FacetColorList (16 entries); icon names mirror FacetIconList.
+ * No FontAwesome is loaded by the wiki itself — `.facet-icon` falls
+ * back to a small coloured dot when the FA font isn't present.
+ */
+
+:root {
+  --facet-color-red:    #ef4444;
+  --facet-color-orange: #f97316;
+  --facet-color-amber:  #f59e0b;
+  --facet-color-yellow: #eab308;
+  --facet-color-green:  #22c55e;
+  --facet-color-teal:   #14b8a6;
+  --facet-color-blue:   #3b82f6;
+  --facet-color-purple: #a855f7;
+  --facet-color-pink:   #ec4899;
+  --facet-color-gray:   #6b7280;
+  --facet-color-cyan:   #06b6d4;
+  --facet-color-lime:   #84cc16;
+  --facet-color-indigo: #6366f1;
+  --facet-color-rose:   #f43f5e;
+  --facet-color-brown:  #92400e;
+  --facet-color-slate:  #475569;
+  --facet-color-default: #94a3b8;
+}
+
+/* ── colour utility — class form: `.facet-color--<token>` ───────── */
+.facet-color--red    { --facet-color: var(--facet-color-red); }
+.facet-color--orange { --facet-color: var(--facet-color-orange); }
+.facet-color--amber  { --facet-color: var(--facet-color-amber); }
+.facet-color--yellow { --facet-color: var(--facet-color-yellow); }
+.facet-color--green  { --facet-color: var(--facet-color-green); }
+.facet-color--teal   { --facet-color: var(--facet-color-teal); }
+.facet-color--blue   { --facet-color: var(--facet-color-blue); }
+.facet-color--purple { --facet-color: var(--facet-color-purple); }
+.facet-color--pink   { --facet-color: var(--facet-color-pink); }
+.facet-color--gray   { --facet-color: var(--facet-color-gray); }
+.facet-color--cyan   { --facet-color: var(--facet-color-cyan); }
+.facet-color--lime   { --facet-color: var(--facet-color-lime); }
+.facet-color--indigo { --facet-color: var(--facet-color-indigo); }
+.facet-color--rose   { --facet-color: var(--facet-color-rose); }
+.facet-color--brown  { --facet-color: var(--facet-color-brown); }
+.facet-color--slate  { --facet-color: var(--facet-color-slate); }
+
+/* ── facet icon (inline SVG, baked into the binary) ─────────────── */
+.facet-icon-svg {
+  display: inline-block;
+  /* Height-only sizing: fa-shirt's 640×512 viewBox would otherwise
+     shrink vertically inside a square box. All glyphs match height;
+     wider icons just take more horizontal space. */
+  height: .85em;
+  width: auto;
+  flex: none;
+  vertical-align: middle;
+  color: var(--facet-color, var(--facet-color-default));
+}
+.facet-chip .facet-icon-svg {
+  /* chips already drive colour via text colour — re-use it instead
+     of the raw token so the icon matches the muted chip foreground. */
+  color: inherit;
+}
+
+/* ── index page: per-template facet pills ───────────────────────── */
+.template-link-row {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.facet-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  font-size: .8rem;
+  color: #6b7280;
+}
+.facet-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.facet-pill-key { font-weight: 600; }
+.facet-pill-swatches {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+.facet-swatch {
+  display: inline-block;
+  width: .5em;
+  height: .5em;
+  border-radius: 50%;
+  background: var(--facet-color, var(--facet-color-default));
+}
+
+/* ── template page: filter strip ────────────────────────────────── */
+.facet-filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem;
+  margin: 0 0 1rem;
+  padding: .5rem .65rem;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.facet-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .85rem;
+  color: #374151;
+}
+.facet-filter-key {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 600;
+  color: #4b5563;
+}
+.facet-filter-select {
+  font: inherit;
+  padding: .15rem .35rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+}
+.facet-filter-select[data-facet-active-color] {
+  box-shadow: inset 0 0 0 2px var(--facet-color-default);
+}
+.facet-filter-select[data-facet-active-color="red"]    { --facet-color-default: var(--facet-color-red); }
+.facet-filter-select[data-facet-active-color="orange"] { --facet-color-default: var(--facet-color-orange); }
+.facet-filter-select[data-facet-active-color="amber"]  { --facet-color-default: var(--facet-color-amber); }
+.facet-filter-select[data-facet-active-color="yellow"] { --facet-color-default: var(--facet-color-yellow); }
+.facet-filter-select[data-facet-active-color="green"]  { --facet-color-default: var(--facet-color-green); }
+.facet-filter-select[data-facet-active-color="teal"]   { --facet-color-default: var(--facet-color-teal); }
+.facet-filter-select[data-facet-active-color="blue"]   { --facet-color-default: var(--facet-color-blue); }
+.facet-filter-select[data-facet-active-color="purple"] { --facet-color-default: var(--facet-color-purple); }
+.facet-filter-select[data-facet-active-color="pink"]   { --facet-color-default: var(--facet-color-pink); }
+.facet-filter-select[data-facet-active-color="gray"]   { --facet-color-default: var(--facet-color-gray); }
+.facet-filter-select[data-facet-active-color="cyan"]   { --facet-color-default: var(--facet-color-cyan); }
+.facet-filter-select[data-facet-active-color="lime"]   { --facet-color-default: var(--facet-color-lime); }
+.facet-filter-select[data-facet-active-color="indigo"] { --facet-color-default: var(--facet-color-indigo); }
+.facet-filter-select[data-facet-active-color="rose"]   { --facet-color-default: var(--facet-color-rose); }
+.facet-filter-select[data-facet-active-color="brown"]  { --facet-color-default: var(--facet-color-brown); }
+.facet-filter-select[data-facet-active-color="slate"]  { --facet-color-default: var(--facet-color-slate); }
+.facet-filter-clear {
+  margin-left: auto;
+  padding: .2rem .65rem;
+  font: inherit;
+  font-size: .85rem;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+}
+.facet-filter-clear:hover { background: #f3f4f6; color: #111827; }
+
+/* ── per-row facet chips ────────────────────────────────────────── */
+.form-link-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  justify-content: space-between;
+}
+.facet-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+}
+.facet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .75rem;
+  padding: .1rem .5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--facet-color, var(--facet-color-default)) 18%, #fff);
+  color: color-mix(in srgb, var(--facet-color, var(--facet-color-default)) 75%, #111827);
+  border: 1px solid color-mix(in srgb, var(--facet-color, var(--facet-color-default)) 35%, transparent);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.facet-chip-label { font-weight: 600; }

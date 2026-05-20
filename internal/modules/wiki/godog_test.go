@@ -13,6 +13,8 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
+	"github.com/petervdpas/formidable2/internal/modules/storage"
+	tpl "github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 func TestFeatures(t *testing.T) {
@@ -28,6 +30,41 @@ func TestFeatures(t *testing.T) {
 	if suite.Run() != 0 {
 		t.Fail()
 	}
+}
+
+// facetsFromTable parses a godog data table into []tpl.Facet. Layout:
+//
+//	| key | icon     | LABEL1,color1 | LABEL2,color2 | ...
+//
+// Cells after the first two are option specs "LABEL,COLOR". Whitespace
+// is trimmed; an empty cell ends the option list for that row.
+func facetsFromTable(table *godog.Table) ([]tpl.Facet, error) {
+	out := make([]tpl.Facet, 0, len(table.Rows))
+	for i, row := range table.Rows {
+		if len(row.Cells) < 3 {
+			return nil, fmt.Errorf("facet row %d needs at least key|icon|option", i)
+		}
+		f := tpl.Facet{
+			Key:  strings.TrimSpace(row.Cells[0].Value),
+			Icon: strings.TrimSpace(row.Cells[1].Value),
+		}
+		for _, cell := range row.Cells[2:] {
+			raw := strings.TrimSpace(cell.Value)
+			if raw == "" {
+				continue
+			}
+			parts := strings.SplitN(raw, ",", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("facet option %q must be `LABEL,color`", raw)
+			}
+			f.Options = append(f.Options, tpl.FacetOption{
+				Label: strings.TrimSpace(parts[0]),
+				Color: strings.TrimSpace(parts[1]),
+			})
+		}
+		out = append(out, f)
+	}
+	return out, nil
 }
 
 func colorWriter() io.Writer {
@@ -56,6 +93,9 @@ type world struct {
 
 	// Slice 3 — /storage/*
 	stubSt *stubStorage
+
+	// Slice 5 — facets surface (Templates interface + form facet state)
+	stubTpl *stubTemplates
 
 	// Slice 4 — Service surface
 	svc            *Service
@@ -257,9 +297,57 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		w.stub.forms = map[string][]dataprovider.FormSummary{}
 		w.stubSt = newStubStorage()
 		w.stubEx = &stubExpressioner{items: map[string][]expression.Result{}}
+		w.stubTpl = &stubTemplates{byName: map[string]*tpl.Template{}}
 		w.handler = NewHandler(w.stub, w.stubSt, w.stubEx)
+		w.handler.SetTemplates(w.stubTpl)
 		return nil
 	})
+
+	// ── Facets — Templates + storage facet state ─────────────────────
+
+	ctx.Step(`^the template "([^"]*)" declares facets:$`,
+		func(filename string, table *godog.Table) error {
+			if w.stubTpl == nil {
+				return fmt.Errorf("templates stub not initialised")
+			}
+			facets, err := facetsFromTable(table)
+			if err != nil {
+				return err
+			}
+			w.stubTpl.byName[filename] = &tpl.Template{
+				Filename: filename,
+				Facets:   facets,
+			}
+			return nil
+		})
+
+	ctx.Step(`^the form "([^"]*)" has facets:$`,
+		func(formKey string, table *godog.Table) error {
+			if w.stubSt == nil {
+				return fmt.Errorf("storage stub not initialised")
+			}
+			parts := strings.SplitN(formKey, "/", 2)
+			if len(parts) != 2 {
+				return fmt.Errorf("form key %q must be `<template>/<datafile>`", formKey)
+			}
+			states := make(map[string]storage.FacetState, len(table.Rows))
+			for _, row := range table.Rows {
+				if len(row.Cells) < 3 {
+					return fmt.Errorf("form facet row needs 3 cells: key|set|selected")
+				}
+				states[row.Cells[0].Value] = storage.FacetState{
+					Set:      strings.EqualFold(strings.TrimSpace(row.Cells[1].Value), "true"),
+					Selected: strings.TrimSpace(row.Cells[2].Value),
+				}
+			}
+			w.stubSt.forms[formKey] = &storage.Form{
+				Meta: storage.FormMeta{
+					Template: parts[0],
+					Facets:   states,
+				},
+			}
+			return nil
+		})
 
 	ctx.Step(`^the expression engine yields for "([^"]*)" \(filename, text\):$`,
 		func(template string, table *godog.Table) error {

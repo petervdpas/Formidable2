@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useConfig } from "../composables/useConfig";
+import FacetIcon from "./FacetIcon.vue";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { Result as ExpressionResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
@@ -49,7 +50,7 @@ const allActiveChips = computed<FacetChip[]>(() => {
     const opt = f.options.find((o) => o.label === s.selected);
     out.push({
       key: f.key,
-      icon: `fa-solid ${f.icon}`,
+      icon: f.icon,
       colorClass: opt ? `expr-text-${opt.color}` : "facet-picker-empty",
       title: opt ? `${f.key}: ${opt.label}` : f.key,
     });
@@ -68,7 +69,7 @@ const displayChips = computed<FacetChip[]>(() => {
   return [
     {
       key: "__collapsed",
-      icon: "fa-solid fa-flag",
+      icon: "fa-flag",
       colorClass: "facet-picker-empty",
       title: keys,
     },
@@ -85,13 +86,13 @@ const displayChips = computed<FacetChip[]>(() => {
     <span class="form-list-title-row">
       <span class="form-list-title">{{ summary.title || summary.filename }}</span>
       <span v-if="displayChips.length > 0" class="form-list-facets">
-        <i
+        <FacetIcon
           v-for="c in displayChips"
           :key="c.key"
-          :class="[c.icon, c.colorClass, 'form-list-facet']"
+          :icon="c.icon"
+          :class="[c.colorClass, 'form-list-facet']"
           :title="c.title"
-          aria-hidden="true"
-        ></i>
+        />
       </span>
     </span>
     <span v-if="config?.development_enable" class="form-list-filename">{{ summary.filename }}</span>

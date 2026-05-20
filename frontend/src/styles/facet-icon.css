@@ -1,0 +1,57 @@
+/* Inline SVG facet glyphs.
+ *
+ * Source: <FacetIcon> emits <svg class="facet-icon-svg">. Without a
+ * size constraint the SVG falls back to its default 300×150 box. Here
+ * we bind size to the parent's text size (1em × 1em) so each call
+ * site — small swatch cell, sidebar chip, header badge — picks up the
+ * font-size around it. Paths fill with currentColor, so the chip /
+ * picker's `color` (or the `expr-text-<token>` classes from
+ * StorageListItem) drives the visible colour.
+ */
+.facet-icon-svg {
+  /* Height-only sizing so every glyph renders at the same visual
+   * height — fa-shirt's 640×512 viewBox would otherwise shrink
+   * vertically when forced into a square box. width follows aspect
+   * via `width: auto`, so wider icons just take a bit more horizontal
+   * room on the row. */
+  height: 1em;
+  width: auto;
+  display: inline-block;
+  vertical-align: -0.125em;
+  fill: currentColor;
+}
+
+/* Picker trigger buttons render the icon at the centre — keep it a
+ * comfortable 16px regardless of the parent font size. */
+.facet-picker-trigger .facet-icon-svg,
+.facet-filter-trigger .facet-icon-svg {
+  height: 16px;
+  width: auto;
+  vertical-align: middle;
+}
+
+/* SwatchPicker cells: cell side length is set via --swatch-size; the
+ * inline SVG fills ~70% of that (matching the visual weight of FA
+ * solid glyphs in a 22px cell). Active state already adds a ring. */
+.swatch-cell .facet-icon-svg {
+  height: calc(var(--swatch-size, 22px) * 0.7);
+  width: auto;
+}
+.swatch-picker-trigger .facet-icon-svg {
+  height: 20px;
+  width: auto;
+}
+
+/* Sidebar list rows: chips sit inline with the title — matches the
+ * row's text size so they read as part of the title line. */
+.form-list-facet.facet-icon-svg {
+  height: 16px;
+  width: auto;
+}
+
+/* Templates workspace facets tab: row leading icon — matches the
+ * row's text size (16px). */
+.facet-row-icon.facet-icon-svg {
+  height: 16px;
+  width: auto;
+}

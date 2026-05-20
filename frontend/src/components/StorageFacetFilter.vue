@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Popup from "./Popup.vue";
+import FacetIcon from "./FacetIcon.vue";
 import type { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -26,8 +27,6 @@ const triggerColorClass = computed(() => {
   return "facet-picker-empty";
 });
 
-const iconClass = computed(() => `fa-solid ${props.facet.icon}`);
-
 const triggerLabel = computed(() =>
   active.value ? active.value.label : props.facet.key,
 );
@@ -47,7 +46,7 @@ function pick(label: string, close: () => void) {
         :class="{ open, 'is-active': !!active }"
         @click="toggle"
       >
-        <i :class="[iconClass, triggerColorClass]" aria-hidden="true"></i>
+        <FacetIcon :icon="facet.icon" :class="triggerColorClass" />
         <span class="facet-filter-label">{{ triggerLabel }}</span>
       </button>
     </template>

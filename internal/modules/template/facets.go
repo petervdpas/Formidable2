@@ -80,12 +80,13 @@ func IsKnownFacetIcon(icon string) bool {
 // Adding a new backend-owned facet rule means extending this struct;
 // the frontend stays a thin renderer.
 type FacetMeta struct {
-	MaxFacets          int      `json:"max_facets"`
-	MaxOptionsPerFacet int      `json:"max_options_per_facet"`
-	Colors             []string `json:"colors"`
-	Icons              []string `json:"icons"`
-	KeyPattern         string   `json:"key_pattern"`
-	LabelPattern       string   `json:"label_pattern"`
+	MaxFacets          int                      `json:"max_facets"`
+	MaxOptionsPerFacet int                      `json:"max_options_per_facet"`
+	Colors             []string                 `json:"colors"`
+	Icons              []string                 `json:"icons"`
+	IconSVGs           map[string]FacetIconSpec `json:"icon_svgs"`
+	KeyPattern         string                   `json:"key_pattern"`
+	LabelPattern       string                   `json:"label_pattern"`
 }
 
 // GetFacetMeta returns a snapshot of the current facet constraints.
@@ -95,11 +96,16 @@ func GetFacetMeta() FacetMeta {
 	copy(colors, FacetColorList)
 	icons := make([]string, len(FacetIconList))
 	copy(icons, FacetIconList)
+	svgs := make(map[string]FacetIconSpec, len(FacetIconSVGs))
+	for k, v := range FacetIconSVGs {
+		svgs[k] = v
+	}
 	return FacetMeta{
 		MaxFacets:          MaxFacets,
 		MaxOptionsPerFacet: MaxOptionsPerFacet,
 		Colors:             colors,
 		Icons:              icons,
+		IconSVGs:           svgs,
 		KeyPattern:         FacetKeyPattern,
 		LabelPattern:       FacetLabelPattern,
 	}

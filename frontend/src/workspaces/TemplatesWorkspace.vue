@@ -14,6 +14,7 @@ import FieldScopeBadge from "../components/FieldScopeBadge.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FacetEditorModal from "../components/FacetEditorModal.vue";
+import FacetIcon from "../components/FacetIcon.vue";
 import { useFacetMeta } from "../composables/useFacetMeta";
 import { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import CodeEditor from "../components/CodeEditor.vue";
@@ -829,7 +830,7 @@ setTopbarMenu(() => [
                     <template #item="{ element: f, index: i }">
                       <li class="facet-row">
                         <span class="dnd-handle" aria-hidden="true">☰</span>
-                        <i :class="['fa-solid', f.icon, 'facet-row-icon']" aria-hidden="true"></i>
+                        <FacetIcon :icon="f.icon" class="facet-row-icon" />
                         <span class="facet-row-key mono">{{ f.key }}</span>
                         <span class="muted small facet-row-summary">
                           {{ t('workspace.templates.facets.options_count', [f.options.length]) }}

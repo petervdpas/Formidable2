@@ -5,12 +5,41 @@
 }{{end}}
 {{define "content"}}
 <h1>{{.Name}}</h1>
+{{if .Filters}}
+<div class="facet-filter-strip">
+  {{range .Filters}}
+  <label class="facet-filter" data-facet-filter="{{.Key}}">
+    {{facetIcon .Icon}}
+    <span class="facet-filter-key">{{.Key}}</span>
+    <select class="facet-filter-select" data-facet-key="{{.Key}}">
+      <option value="">—</option>
+      {{range .Options}}
+      <option value="{{.Label}}" data-facet-color="{{.Color}}">{{.Label}}</option>
+      {{end}}
+    </select>
+  </label>
+  {{end}}
+  <button type="button" class="facet-filter-clear" data-facet-filter-clear>clear</button>
+</div>
+{{end}}
 {{if .Forms}}
 <ul class="form-picker-list">
   {{range .Forms}}
-  <li class="form-picker-item" data-tags="{{.TagsAttr}}">
+  <li class="form-picker-item" data-tags="{{.TagsAttr}}"{{if .FacetsAttr}} data-facets="{{.FacetsAttr}}"{{end}}>
     <a class="form-link" href="{{.Href}}">
-      <span class="form-link-title">{{.Title}}</span>
+      <span class="form-link-row">
+        <span class="form-link-title">{{.Title}}</span>
+        {{if .Chips}}
+        <span class="facet-chips">
+          {{range .Chips}}
+          <span class="facet-chip facet-color--{{.Color}}" data-facet-key="{{.Key}}" data-facet-label="{{.Selected}}" title="{{.Key}}: {{.Selected}}">
+            {{facetIcon .Icon}}
+            <span class="facet-chip-label">{{.Selected}}</span>
+          </span>
+          {{end}}
+        </span>
+        {{end}}
+      </span>
       <span class="expr-wrapper{{if .SubtitleClasses}} {{.SubtitleClasses}}{{end}}"{{if .SubtitleColor}} style="color: {{.SubtitleColor}}"{{end}}>{{.Subtitle}}</span>
     </a>
   </li>

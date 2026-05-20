@@ -202,6 +202,38 @@ export class Facet {
 }
 
 /**
+ * FacetIconSpec carries the minimal data needed to render one
+ * FontAwesome glyph as inline SVG: the path's `viewBox` (icons have
+ * different aspects) and the geometry in `Path`'s `d` attribute. No
+ * `xmlns` and no fill — both layers (wiki + Vue) wrap this in their
+ * own colour-aware shell.
+ */
+export class FacetIconSpec {
+    "viewBox": string;
+    "path": string;
+
+    /** Creates a new FacetIconSpec instance. */
+    constructor($$source: Partial<FacetIconSpec> = {}) {
+        if (!("viewBox" in $$source)) {
+            this["viewBox"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FacetIconSpec instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FacetIconSpec {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FacetIconSpec($$parsedSource as Partial<FacetIconSpec>);
+    }
+}
+
+/**
  * FacetMeta is the wire-shape returned to the frontend so it can
  * render the editor without hardcoding ANY backend constraint. The
  * frontend reads this once at boot via Service.FacetMeta and treats
@@ -218,6 +250,7 @@ export class FacetMeta {
     "max_options_per_facet": number;
     "colors": string[];
     "icons": string[];
+    "icon_svgs": { [_ in string]?: FacetIconSpec };
     "key_pattern": string;
     "label_pattern": string;
 
@@ -235,6 +268,9 @@ export class FacetMeta {
         if (!("icons" in $$source)) {
             this["icons"] = [];
         }
+        if (!("icon_svgs" in $$source)) {
+            this["icon_svgs"] = {};
+        }
         if (!("key_pattern" in $$source)) {
             this["key_pattern"] = "";
         }
@@ -251,12 +287,16 @@ export class FacetMeta {
     static createFrom($$source: any = {}): FacetMeta {
         const $$createField2_0 = $$createType4;
         const $$createField3_0 = $$createType4;
+        const $$createField4_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("colors" in $$parsedSource) {
             $$parsedSource["colors"] = $$createField2_0($$parsedSource["colors"]);
         }
         if ("icons" in $$parsedSource) {
             $$parsedSource["icons"] = $$createField3_0($$parsedSource["icons"]);
+        }
+        if ("icon_svgs" in $$parsedSource) {
+            $$parsedSource["icon_svgs"] = $$createField4_0($$parsedSource["icon_svgs"]);
         }
         return new FacetMeta($$parsedSource as Partial<FacetMeta>);
     }
@@ -372,8 +412,8 @@ export class Field {
      * Creates a new Field instance from a string or object.
      */
     static createFrom($$source: any = {}): Field {
-        const $$createField11_0 = $$createType5;
-        const $$createField15_0 = $$createType7;
+        const $$createField11_0 = $$createType7;
+        const $$createField15_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField11_0($$parsedSource["options"]);
@@ -414,7 +454,7 @@ export class FieldDescriptor {
      * Creates a new FieldDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldDescriptor {
-        const $$createField2_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
             $$parsedSource["abilities"] = $$createField2_0($$parsedSource["abilities"]);
@@ -602,7 +642,7 @@ export class PDFConfig {
      * Creates a new PDFConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): PDFConfig {
-        const $$createField1_0 = $$createType10;
+        const $$createField1_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cover" in $$parsedSource) {
             $$parsedSource["cover"] = $$createField1_0($$parsedSource["cover"]);
@@ -789,9 +829,9 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField8_0 = $$createType12;
-        const $$createField9_0 = $$createType14;
-        const $$createField10_0 = $$createType16;
+        const $$createField8_0 = $$createType14;
+        const $$createField9_0 = $$createType16;
+        const $$createField10_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -832,8 +872,8 @@ export class ValidationError {
      */
     static createFrom($$source: any = {}): ValidationError {
         const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType17;
-        const $$createField6_0 = $$createType18;
+        const $$createField4_0 = $$createType19;
+        const $$createField6_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keys" in $$parsedSource) {
             $$parsedSource["keys"] = $$createField3_0($$parsedSource["keys"]);
@@ -854,17 +894,19 @@ const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = FacetOption.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = $Create.Array($Create.Any);
-const $$createType6 = APIMap.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = Abilities.createFrom;
-const $$createType9 = PDFCoverConfig.createFrom;
-const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = PDFConfig.createFrom;
+const $$createType5 = FacetIconSpec.createFrom;
+const $$createType6 = $Create.Map($Create.Any, $$createType5);
+const $$createType7 = $Create.Array($Create.Any);
+const $$createType8 = APIMap.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = Abilities.createFrom;
+const $$createType11 = PDFCoverConfig.createFrom;
 const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = Facet.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = Field.createFrom;
+const $$createType13 = PDFConfig.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = Facet.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = $Create.Nullable($$createType15);
-const $$createType18 = $Create.Map($Create.Any, $Create.Any);
+const $$createType17 = Field.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = $Create.Nullable($$createType17);
+const $$createType20 = $Create.Map($Create.Any, $Create.Any);

@@ -440,6 +440,9 @@ func New(d Deps) (*App, error) {
 	// switched off in Settings → Templates from both the list view and
 	// detail pages (which 404 for disabled templates).
 	wikiHandler.SetEnabledFilter(cfgM)
+	// Templates surface — per-template facet definitions drive the
+	// index page's facet pills and the template page's filter strip.
+	wikiHandler.SetTemplates(tplM)
 
 	// REST API peer surface — `/api/...` routes (collections CRUD-read,
 	// design, exports, OpenAPI spec, Swagger UI). Mounted alongside the

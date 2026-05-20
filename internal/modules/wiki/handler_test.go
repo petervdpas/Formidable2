@@ -12,6 +12,8 @@ import (
 
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
+	"github.com/petervdpas/formidable2/internal/modules/storage"
+	tpl "github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // stubExpressioner returns canned sidebar items keyed by template
@@ -87,6 +89,9 @@ func (s *stubProvider) RenderForm(_ context.Context, template, datafile string) 
 type stubStorage struct {
 	// images keyed by "<templateFilename>/<name>"
 	images map[string][]byte
+	// forms keyed by "<templateFilename>/<datafile>" — drives the
+	// per-form facet/chip rendering on the template detail page.
+	forms map[string]*storage.Form
 	// returnError simulates an unexpected error path.
 	returnError error
 }
@@ -107,12 +112,39 @@ func (s *stubStorage) OpenImageFile(templateFilename, name string) ([]byte, stri
 	return raw, mime, nil
 }
 
+func (s *stubStorage) LoadForm(templateFilename, datafile string) *storage.Form {
+	if s.forms == nil {
+		return nil
+	}
+	return s.forms[templateFilename+"/"+datafile]
+}
+
 func newStubStorage() *stubStorage {
 	return &stubStorage{
 		images: map[string][]byte{
 			"basic.yaml/logo.png": []byte("PNGBYTES"),
 		},
+		forms: map[string]*storage.Form{},
 	}
+}
+
+// stubTemplates returns canned template definitions keyed by filename.
+// Used by tests that exercise the facets surface; older tests that pass
+// a nil Templates implementation cause facet rendering to be skipped.
+type stubTemplates struct {
+	byName map[string]*tpl.Template
+	err    error
+}
+
+func (s *stubTemplates) LoadTemplate(name string) (*tpl.Template, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	t, ok := s.byName[name]
+	if !ok {
+		return nil, nil
+	}
+	return t, nil
 }
 
 func newStubProvider() *stubProvider {
@@ -525,6 +557,7 @@ func TestPages_LinkTopbarAssets(t *testing.T) {
 		`/_/css/base.css`,
 		`/_/css/header.css`,
 		`/_/css/content.css`,
+		`/_/css/facets.css`,
 		`/_/css/formidable-prose.css`,
 		`/_/js/crumbs.js`,
 		`/_/js/filter.js`,
@@ -626,6 +659,229 @@ func intStr(n int) string {
 		digits = append([]byte{'-'}, digits...)
 	}
 	return string(digits)
+}
+
+// ── Facets ─────────────────────────────────────────────────────────
+
+// newTestHandlerWithFacets wires the Templates surface with the given
+// per-filename facet definitions; storage carries the matching per-form
+// FacetState entries so the template detail page can render chips.
+func newTestHandlerWithFacets(
+	t *testing.T,
+	tplFacets map[string][]tpl.Facet,
+	formFacets map[string]map[string]storage.FacetState,
+) (*Handler, *stubProvider, *stubStorage, *stubTemplates) {
+	t.Helper()
+	sp := newStubProvider()
+	ss := newStubStorage()
+	for key, fs := range formFacets {
+		ss.forms[key] = &storage.Form{
+			Meta: storage.FormMeta{
+				Template: "basic.yaml",
+				Facets:   fs,
+			},
+		}
+	}
+	templates := &stubTemplates{byName: map[string]*tpl.Template{}}
+	for name, fs := range tplFacets {
+		templates.byName[name] = &tpl.Template{
+			Filename: name,
+			Facets:   fs,
+		}
+	}
+	h := NewHandler(sp, ss, &stubExpressioner{})
+	h.SetTemplates(templates)
+	return h, sp, ss, templates
+}
+
+func TestIndex_RendersFacetPillsPerTemplate(t *testing.T) {
+	h, _, _, _ := newTestHandlerWithFacets(t, map[string][]tpl.Facet{
+		"basic.yaml": {
+			{Key: "flag", Icon: "fa-flag", Options: []tpl.FacetOption{
+				{Label: "DRAFT", Color: "gray"},
+				{Label: "DONE", Color: "green"},
+			}},
+			{Key: "size", Icon: "fa-shirt", Options: []tpl.FacetOption{
+				{Label: "S", Color: "blue"}, {Label: "M", Color: "teal"},
+			}},
+		},
+	}, nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	// Each declared facet renders its key as a subtle pill under the
+	// template name. Icon class is emitted for downstream theming even
+	// when FA itself isn't loaded by the wiki layout.
+	for _, want := range []string{
+		`class="facet-pill"`,
+		`data-facet-key="flag"`,
+		`data-facet-key="size"`,
+		`>flag<`,
+		`>size<`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q", want)
+		}
+	}
+}
+
+func TestIndex_TemplateWithoutFacetsRendersNoPills(t *testing.T) {
+	// Recepten has no facets in this test; basic does. The Recepten row
+	// must not carry an empty facet-pill block (would visually noise the
+	// row with a stray empty container).
+	h, _, _, _ := newTestHandlerWithFacets(t, map[string][]tpl.Facet{
+		"basic.yaml": {
+			{Key: "flag", Icon: "fa-flag", Options: []tpl.FacetOption{
+				{Label: "DONE", Color: "green"},
+			}},
+		},
+		// recepten.yaml intentionally absent.
+	}, nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := w.Body.String()
+	if !strings.Contains(body, `data-facet-key="flag"`) {
+		t.Errorf("basic facet pill missing; body=%q", body)
+	}
+	// Heuristic — the facets container only appears when a template has
+	// at least one facet. With no facets the row's HTML has no
+	// `class="facet-pills"`. Recepten contributes the only other row.
+	if cnt := strings.Count(body, `class="facet-pills"`); cnt != 1 {
+		t.Errorf("expected exactly 1 facet-pills block (basic only), got %d", cnt)
+	}
+}
+
+func TestTemplate_RendersFacetChipsAndDataAttr(t *testing.T) {
+	h, _, _, _ := newTestHandlerWithFacets(t, map[string][]tpl.Facet{
+		"basic.yaml": {
+			{Key: "flag", Icon: "fa-flag", Options: []tpl.FacetOption{
+				{Label: "DRAFT", Color: "gray"},
+				{Label: "DONE", Color: "green"},
+			}},
+			{Key: "size", Icon: "fa-shirt", Options: []tpl.FacetOption{
+				{Label: "S", Color: "blue"}, {Label: "L", Color: "red"},
+			}},
+		},
+	}, map[string]map[string]storage.FacetState{
+		// x has flag=DONE + size=L (two chips)
+		"basic.yaml/x.meta.json": {
+			"flag": {Set: true, Selected: "DONE"},
+			"size": {Set: true, Selected: "L"},
+		},
+		// y has flag=DRAFT only; size has set=false → no size chip
+		"basic.yaml/y.meta.json": {
+			"flag": {Set: true, Selected: "DRAFT"},
+			"size": {Set: false, Selected: "S"},
+		},
+	})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	// data-facets carries every SET facet for client-side filter JS.
+	if !strings.Contains(body, `data-facets="flag:DONE,size:L"`) {
+		t.Errorf("x row missing data-facets; body=%q", body)
+	}
+	if !strings.Contains(body, `data-facets="flag:DRAFT"`) {
+		t.Errorf("y row missing data-facets (or leaked size); body=%q", body)
+	}
+	// Chips: one for each SET facet, carrying the selected option's
+	// colour token (via class) so theme can paint it without inline style.
+	for _, want := range []string{
+		`class="facet-chip facet-color--green"`,  // x.flag=DONE
+		`class="facet-chip facet-color--red"`,    // x.size=L
+		`class="facet-chip facet-color--gray"`,   // y.flag=DRAFT
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing chip class %q", want)
+		}
+	}
+	// y must not emit a size chip (set=false).
+	if strings.Contains(body, `facet-color--blue`) {
+		t.Errorf("set=false facet leaked as chip; body=%q", body)
+	}
+	// Filter strip surfaces every declared facet, regardless of whether
+	// any form actually carries it (the strip is part of the template's
+	// contract, not the records' state).
+	for _, want := range []string{
+		`class="facet-filter"`,
+		`data-facet-filter="flag"`,
+		`data-facet-filter="size"`,
+		`<option value="DRAFT"`,
+		`<option value="DONE"`,
+		`<option value="S"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing filter element %q", want)
+		}
+	}
+}
+
+func TestTemplate_NoFacetsRendersNoChipsOrFilter(t *testing.T) {
+	// No facets on the template → no chips, no filter strip, no data-
+	// facets attributes. The base form list still renders.
+	h, _, _, _ := newTestHandlerWithFacets(t, map[string][]tpl.Facet{
+		// basic.yaml intentionally has no facets.
+	}, nil)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	body := w.Body.String()
+	for _, unwanted := range []string{
+		`class="facet-chip"`,
+		`class="facet-filter"`,
+		`data-facets="`,
+	} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("body unexpectedly contains %q", unwanted)
+		}
+	}
+	// Sanity — the form list is still there.
+	if !strings.Contains(body, `href="/template/basic/form/x.meta.json"`) {
+		t.Errorf("regular form link missing; body=%q", body)
+	}
+}
+
+func TestTemplate_FacetsWithoutLoadedFormDegradesGracefully(t *testing.T) {
+	// Template declares facets but storage.LoadForm returns nil for the
+	// rows (the wiki happens to call before the index has hydrated, or a
+	// form was deleted between index and storage). Filter strip still
+	// renders; chips do not. No 500.
+	h, _, _, _ := newTestHandlerWithFacets(t, map[string][]tpl.Facet{
+		"basic.yaml": {
+			{Key: "flag", Icon: "fa-flag", Options: []tpl.FacetOption{
+				{Label: "DONE", Color: "green"},
+			}},
+		},
+	}, nil) // no formFacets — every LoadForm returns nil
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `class="facet-filter"`) {
+		t.Errorf("filter strip must still render; body=%q", body)
+	}
+	if strings.Contains(body, `class="facet-chip`) {
+		t.Errorf("no chips expected when forms have no facet state; body=%q", body)
+	}
+}
+
+func TestIndex_NoTemplatesSurfaceRendersNoFacets(t *testing.T) {
+	// Old-style construction (no SetTemplates) must not crash and must
+	// not render facet pills.
+	h, _ := newTestHandler(t)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := w.Body.String()
+	if strings.Contains(body, `class="facet-pill"`) {
+		t.Errorf("facet pills leaked without Templates surface; body=%q", body)
+	}
 }
 
 // ── EnabledTemplateFilter ──────────────────────────────────────────

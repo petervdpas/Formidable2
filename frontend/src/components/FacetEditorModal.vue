@@ -38,7 +38,7 @@ const iconSwatchOptions = computed<SwatchOption[]>(() =>
   backendIcons.value.map((i) => ({
     value: i,
     label: i.replace(/^fa-/, ""),
-    icon: `fa-solid ${i}`,
+    icon: i,
   })),
 );
 

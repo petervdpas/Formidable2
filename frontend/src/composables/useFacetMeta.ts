@@ -1,6 +1,9 @@
 import { ref, computed } from "vue";
 import * as TemplateSvc from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template/service";
-import type { FacetMeta } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template/models";
+import type {
+  FacetIconSpec,
+  FacetMeta,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template/models";
 
 // Module-scope singleton: every consumer shares one snapshot of the
 // backend's facet contract (limits + palettes + regex patterns). The
@@ -30,6 +33,7 @@ async function load() {
 // the moment FacetMeta() returns.
 const FALLBACK_COLORS: string[] = [];
 const FALLBACK_ICONS: string[] = [];
+const FALLBACK_ICON_SVGS: Record<string, FacetIconSpec> = {};
 
 export function useFacetMeta() {
   void load();
@@ -39,6 +43,18 @@ export function useFacetMeta() {
   );
   const colors = computed(() => meta.value?.colors ?? FALLBACK_COLORS);
   const icons = computed(() => meta.value?.icons ?? FALLBACK_ICONS);
+  const iconSvgs = computed<Record<string, FacetIconSpec>>(() => {
+    const raw = meta.value?.icon_svgs;
+    if (!raw) return FALLBACK_ICON_SVGS;
+    // Wails' generated `{ [_ in string]?: FacetIconSpec }` shape isn't a
+    // plain object lookup — normalise to one once so callers can index
+    // by string without optional-chaining the result.
+    const out: Record<string, FacetIconSpec> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (v) out[k] = v;
+    }
+    return out;
+  });
   const keyRegex = computed(() =>
     meta.value?.key_pattern ? new RegExp(meta.value.key_pattern) : /^$/,
   );
@@ -52,6 +68,7 @@ export function useFacetMeta() {
     maxOptionsPerFacet,
     colors,
     icons,
+    iconSvgs,
     keyRegex,
     labelRegex,
     reload: load,

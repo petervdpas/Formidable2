@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Popup from "./Popup.vue";
+import FacetIcon from "./FacetIcon.vue";
 import type { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { FacetState } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 
@@ -41,8 +42,6 @@ const iconColorClass = computed(() => {
   return "facet-picker-empty";
 });
 
-const iconClass = computed(() => `fa-solid ${props.facet.icon}`);
-
 function pick(label: string, close: () => void) {
   if (label !== props.modelValue.selected || !props.modelValue.set) {
     emit(
@@ -75,7 +74,7 @@ function clear(close: () => void) {
         :aria-label="activeOption ? activeOption.label : facet.key"
         @click="toggle"
       >
-        <i :class="[iconClass, iconColorClass]" aria-hidden="true"></i>
+        <FacetIcon :icon="facet.icon" :class="iconColorClass" />
       </button>
     </template>
 

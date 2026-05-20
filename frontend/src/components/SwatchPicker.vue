@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import Popup from "./Popup.vue";
+import FacetIcon from "./FacetIcon.vue";
 
 export type SwatchOption = {
   /** Emitted value when this swatch is picked. */
@@ -11,8 +12,10 @@ export type SwatchOption = {
   class?: string;
   /** When the consumer colors via an inline background (e.g. `#e84e4e`). */
   color?: string;
-  /** When the swatch is an icon glyph (FontAwesome class incl. style
-   *  prefix, e.g. "fa-solid fa-flag"). Rendered inside the cell. */
+  /** When the swatch is an icon glyph, this is the facet-icon catalog key
+   *  ("fa-flag", "fa-shirt", …). Rendered as inline SVG via FacetIcon so
+   *  the source matches the wiki's embedded glyph and no FA webfont is
+   *  required inside this picker. */
   icon?: string;
 };
 
@@ -89,7 +92,7 @@ function pick(v: string, close: () => void) {
           :title="triggerTitle || currentOption?.label || modelValue"
           @click="slotProps.toggle"
         >
-          <i v-if="currentOption?.icon" :class="currentOption.icon" aria-hidden="true"></i>
+          <FacetIcon v-if="currentOption?.icon" :icon="currentOption.icon" />
         </button>
       </slot>
     </template>
@@ -108,7 +111,7 @@ function pick(v: string, close: () => void) {
           :title="opt.label ?? opt.value"
           @click="pick(opt.value, close)"
         >
-          <i v-if="opt.icon" :class="opt.icon" aria-hidden="true"></i>
+          <FacetIcon v-if="opt.icon" :icon="opt.icon" />
         </button>
         <button
           v-if="clearable"

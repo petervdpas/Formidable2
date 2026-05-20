@@ -14,6 +14,8 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
 	"github.com/petervdpas/formidable2/internal/modules/render"
+	"github.com/petervdpas/formidable2/internal/modules/storage"
+	tpl "github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // Provider is the narrow read-only surface the wiki handler needs
@@ -29,14 +31,28 @@ type Provider interface {
 	RenderForm(ctx context.Context, template, datafile string) (*dataprovider.RenderedPage, error)
 }
 
-// Storage is the bytes-side surface the wiki uses for `/storage/*`.
-// The method shape mirrors `*storage.Manager.OpenImageFile` so the
-// real manager satisfies it without an adapter; tests pass in a
-// stub. Returns nil bytes (not an error) when the file is missing —
-// mirrors LoadForm's "missing isn't an error" semantics and lets
-// the handler decide on the 404 status.
+// Storage is the bytes-side surface the wiki uses for `/storage/*`
+// and per-form facet state on the template detail page.
+//
+//   - OpenImageFile: image bytes (nil/empty on missing) for /storage/*.
+//   - LoadForm: per-form metadata (meta.Facets, meta.Tags) used by the
+//     template page to render facet chips next to each row. Returns nil
+//     when the form doesn't exist, mirroring the storage manager's own
+//     contract.
+//
+// The real `*storage.Manager` satisfies both without an adapter; tests
+// pass in stubs.
 type Storage interface {
 	OpenImageFile(templateFilename, name string) ([]byte, string, error)
+	LoadForm(templateFilename, datafile string) *storage.Form
+}
+
+// Templates is the surface the wiki needs to read per-template facet
+// definitions (template.Template.Facets). The real `*template.Manager`
+// satisfies this directly; the wiki handler tolerates nil for backwards
+// compatibility with old tests — facet chips simply don't render then.
+type Templates interface {
+	LoadTemplate(name string) (*tpl.Template, error)
 }
 
 // Expressioner is the sidebar-expression surface the wiki needs. The
@@ -66,13 +82,17 @@ type Handler struct {
 	dp     Provider
 	st     Storage
 	expr   Expressioner
+	tpl    Templates
 	filter EnabledTemplateFilter
 	mux    *http.ServeMux
 }
 
 // NewHandler builds the read-path handler. `expr` may be nil — wiki then
 // renders the filename as subtitle. Filtering is off by default; call
-// SetEnabledFilter to wire the per-profile template enablement.
+// SetEnabledFilter to wire the per-profile template enablement. The
+// Templates surface (per-template facet definitions) is installed later
+// via SetTemplates so old call sites that don't pass it keep compiling;
+// without it facet chips just don't render.
 func NewHandler(dp Provider, st Storage, expr Expressioner) *Handler {
 	h := &Handler{dp: dp, st: st, expr: expr}
 	mux := http.NewServeMux()
@@ -104,6 +124,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // effect on the next page load with no re-init.
 func (h *Handler) SetEnabledFilter(f EnabledTemplateFilter) {
 	h.filter = f
+}
+
+// SetTemplates installs the per-template facet-definition source. May
+// be cleared with nil — facet pills/chips/filter then collapse to a
+// no-op, but the rest of the wiki keeps rendering. The composition
+// root passes `*template.Manager`; old tests that pre-date facets
+// simply skip this call.
+func (h *Handler) SetTemplates(t Templates) {
+	h.tpl = t
 }
 
 // templateEnabled is the centralized gate the detail views use: missing
@@ -158,6 +187,7 @@ var tplFiles embed.FS
 var templateFuncs = template.FuncMap{
 	"safeHTML":   func(s string) template.HTML { return template.HTML(s) },
 	"jsonString": jsonString,
+	"facetIcon":  facetIconSVG,
 }
 
 func parsePage(name string) *template.Template {
@@ -214,6 +244,22 @@ type indexTemplateRow struct {
 	Stem string
 	Name string
 	Href string
+	// Facets is the per-template facet contract projected for display.
+	// Empty when the template declares none; the html/template treats
+	// the surrounding block as a no-op in that case so a row without
+	// facets renders no extra HTML.
+	Facets []facetPill
+}
+
+// facetPill is the index-page projection of one Facet definition: the
+// key, the FontAwesome icon class (rendered as a CSS hook even when the
+// wiki layout itself doesn't load FA), and the option-colour tokens
+// emitted as small swatches under the pill so the row reads like a
+// quick filter contract.
+type facetPill struct {
+	Key      string
+	Icon     string
+	Swatches []string
 }
 
 // templateView is what template.html binds against. BackHref is gone
@@ -223,6 +269,10 @@ type templateView struct {
 	Stem  string
 	Name  string
 	Forms []templateFormRow
+	// Filters lists the template's facet definitions for the filter
+	// strip above the form list. Empty when the template has no facets
+	// — the surrounding template block then renders nothing.
+	Filters []facetFilter
 }
 type templateFormRow struct {
 	Filename string
@@ -232,6 +282,14 @@ type templateFormRow struct {
 	// `data-tags="..."` attribute. filter.js reads this to drive the
 	// live tag/text filter on the forms list.
 	TagsAttr string
+	// FacetsAttr is the comma-joined "key:label" list of facets that
+	// are SET on this form (set=false entries are skipped). Emitted
+	// into `data-facets="..."` for filter.js. Empty string when no
+	// facets are set.
+	FacetsAttr string
+	// Chips are the visible per-row badges for SET facets. Empty when
+	// the form has no facets set.
+	Chips []facetChip
 	// Subtitle is the per-row sub-label rendered under Title. Comes
 	// from the template's sidebar_expression when configured; falls
 	// back to Filename otherwise. SubtitleClasses + SubtitleColor
@@ -239,6 +297,32 @@ type templateFormRow struct {
 	Subtitle        string
 	SubtitleClasses string
 	SubtitleColor   string
+}
+
+// facetChip is the per-row projection of one set FacetState. Color is
+// the option's colour token (looked up from the template's facet
+// definition for the matching Selected label); falls back to empty
+// string when the label isn't in the def (record drifted from spec) —
+// the CSS class then collapses to a neutral chip.
+type facetChip struct {
+	Key      string
+	Icon     string
+	Selected string
+	Color    string
+}
+
+// facetFilter is the strip-control projection of one Facet. Options
+// are the user-visible labels; the corresponding colour tokens are
+// emitted as data-color-<label> attributes on the <select> so the JS
+// can paint the active selection without re-fetching the contract.
+type facetFilter struct {
+	Key     string
+	Icon    string
+	Options []facetFilterOption
+}
+type facetFilterOption struct {
+	Label string
+	Color string
 }
 
 // formView is what form.html binds against.
@@ -281,9 +365,10 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	rows := make([]indexTemplateRow, 0, len(tps))
 	for _, t := range tps {
 		rows = append(rows, indexTemplateRow{
-			Stem: t.Stem,
-			Name: pickName(t),
-			Href: "/template/" + t.Stem,
+			Stem:   t.Stem,
+			Name:   pickName(t),
+			Href:   "/template/" + t.Stem,
+			Facets: h.facetPillsFor(t.Filename),
 		})
 	}
 	writeHTML(w, tplIndex, indexView{
@@ -332,6 +417,12 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 	// wired, we just fall back to filename subtitles.
 	subtitles := h.sidebarSubtitles(filename)
 
+	// Facet contract for this template — drives both the per-row chips
+	// (icon + colour lookup keyed by selected option) and the filter
+	// strip above the list. Nil tpl or no facets ⇒ empty.
+	facetDefs := h.facetDefsFor(filename)
+	colorLookup := buildFacetColorLookup(facetDefs)
+
 	rows := make([]templateFormRow, 0, len(forms))
 	for _, f := range forms {
 		row := templateFormRow{
@@ -348,14 +439,134 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 			row.SubtitleClasses = strings.Join(item.Classes, " ")
 			row.SubtitleColor = item.Color
 		}
+		// Only consult storage when the template actually declares
+		// facets — saves N disk reads on the typical facet-less template.
+		if len(facetDefs) > 0 {
+			row.Chips, row.FacetsAttr = h.collectFormFacets(filename, f.Filename, facetDefs, colorLookup)
+		}
 		rows = append(rows, row)
 	}
 	writeHTML(w, tplTemplate, templateView{
-		Title: pickName(*t),
-		Stem:  stem,
-		Name:  pickName(*t),
-		Forms: rows,
+		Title:   pickName(*t),
+		Stem:    stem,
+		Name:    pickName(*t),
+		Forms:   rows,
+		Filters: facetFiltersFromDefs(facetDefs),
 	})
+}
+
+// facetDefsFor returns the template's facet definitions, or nil when
+// the Templates surface isn't wired / the load fails / the template
+// declares none. Mirrors facetPillsFor but returns the raw Facet slice
+// because the template page needs both icon + options.
+func (h *Handler) facetDefsFor(filename string) []tpl.Facet {
+	if h.tpl == nil {
+		return nil
+	}
+	t, err := h.tpl.LoadTemplate(filename)
+	if err != nil || t == nil {
+		return nil
+	}
+	return t.Facets
+}
+
+// buildFacetColorLookup pre-computes a key→label→color map so the
+// per-row chip projection doesn't re-scan the def slice for every form
+// + selected option. Records with a Selected that's no longer in the
+// def gracefully fall through to "" (rendered as a neutral chip).
+func buildFacetColorLookup(defs []tpl.Facet) map[string]map[string]string {
+	if len(defs) == 0 {
+		return nil
+	}
+	out := make(map[string]map[string]string, len(defs))
+	for _, f := range defs {
+		inner := make(map[string]string, len(f.Options))
+		for _, o := range f.Options {
+			inner[o.Label] = o.Color
+		}
+		out[f.Key] = inner
+	}
+	return out
+}
+
+// collectFormFacets reads one form via storage and projects its SET
+// facets into (chips, attrAttr). set=false entries are skipped entirely
+// — they're indistinguishable from "facet doesn't apply" for display
+// purposes. Order follows the template's declared facet order so two
+// forms with the same set look identical row-to-row.
+func (h *Handler) collectFormFacets(
+	templateFilename, datafile string,
+	defs []tpl.Facet,
+	colors map[string]map[string]string,
+) ([]facetChip, string) {
+	if h.st == nil {
+		return nil, ""
+	}
+	form := h.st.LoadForm(templateFilename, datafile)
+	if form == nil || len(form.Meta.Facets) == 0 {
+		return nil, ""
+	}
+	chips := make([]facetChip, 0, len(defs))
+	attrs := make([]string, 0, len(defs))
+	for _, f := range defs {
+		state, ok := form.Meta.Facets[f.Key]
+		if !ok || !state.Set {
+			continue
+		}
+		color := ""
+		if inner, ok := colors[f.Key]; ok {
+			color = inner[state.Selected]
+		}
+		chips = append(chips, facetChip{
+			Key:      f.Key,
+			Icon:     f.Icon,
+			Selected: state.Selected,
+			Color:    color,
+		})
+		attrs = append(attrs, f.Key+":"+state.Selected)
+	}
+	return chips, strings.Join(attrs, ",")
+}
+
+// facetFiltersFromDefs projects the template's facets into the filter
+// strip's binding shape: every option label + its colour token, so the
+// JS can render a coloured marker next to the active selection.
+func facetFiltersFromDefs(defs []tpl.Facet) []facetFilter {
+	if len(defs) == 0 {
+		return nil
+	}
+	out := make([]facetFilter, 0, len(defs))
+	for _, f := range defs {
+		opts := make([]facetFilterOption, 0, len(f.Options))
+		for _, o := range f.Options {
+			opts = append(opts, facetFilterOption{Label: o.Label, Color: o.Color})
+		}
+		out = append(out, facetFilter{Key: f.Key, Icon: f.Icon, Options: opts})
+	}
+	return out
+}
+
+// facetPillsFor projects the template's facets into the index-page
+// display shape. Returns nil when the Templates surface isn't wired,
+// when LoadTemplate fails, or when the template has no facets — the
+// caller's `{{if .Facets}}` block then renders nothing extra.
+func (h *Handler) facetPillsFor(filename string) []facetPill {
+	if h.tpl == nil {
+		return nil
+	}
+	t, err := h.tpl.LoadTemplate(filename)
+	if err != nil || t == nil || len(t.Facets) == 0 {
+		return nil
+	}
+	out := make([]facetPill, 0, len(t.Facets))
+	for _, f := range t.Facets {
+		sw := make([]string, 0, len(f.Options))
+		for _, o := range f.Options {
+			sw = append(sw, o.Color)
+		}
+		out = append(out, facetPill{Key: f.Key, Icon: f.Icon, Swatches: sw})
+	}
+	return out
 }
 
 // sidebarSubtitles returns filename → Result for the given

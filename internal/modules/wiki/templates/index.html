@@ -7,7 +7,24 @@
   {{range .Templates}}
   <li class="template-item">
     <a href="{{.Href}}">
-      <span class="form-link-title">{{.Name}}</span>
+      <span class="template-link-row">
+        <span class="form-link-title">{{.Name}}</span>
+        {{if .Facets}}
+        <span class="facet-pills">
+          {{range .Facets}}
+          <span class="facet-pill" data-facet-key="{{.Key}}" data-facet-icon="{{.Icon}}">
+            <span class="facet-pill-icon">{{facetIcon .Icon}}</span>
+            <span class="facet-pill-key">{{.Key}}</span>
+            {{if .Swatches}}
+            <span class="facet-pill-swatches">
+              {{range .Swatches}}<i class="facet-swatch facet-color--{{.}}" aria-hidden="true"></i>{{end}}
+            </span>
+            {{end}}
+          </span>
+          {{end}}
+        </span>
+        {{end}}
+      </span>
     </a>
   </li>
   {{end}}

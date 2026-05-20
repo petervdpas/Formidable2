@@ -29,6 +29,7 @@
 @import "./tabs.css";
 @import "./tree-view.css";
 @import "./icon.css";
+@import "./facet-icon.css";
 
 /* Component-specific (named after the component they style). */
 @import "./code-editor.css";
