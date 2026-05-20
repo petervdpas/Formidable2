@@ -110,9 +110,22 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		}
 	}
 	addTags(opts.Tags)
-	addTags(rawMeta["tags"])
-	if injected != nil {
-		addTags(injected["tags"])
+	hasTagsField := false
+	for _, f := range fields {
+		if f.Type == "tags" {
+			hasTagsField = true
+			break
+		}
+	}
+	// When the template owns a tags-typed field, that field is the
+	// single source of truth — the stale `meta.tags` / `_meta.tags`
+	// carried on the envelope (round-tripped from BuildView) must NOT
+	// union back in, or removed tags resurrect on every save.
+	if !hasTagsField {
+		addTags(rawMeta["tags"])
+		if injected != nil {
+			addTags(injected["tags"])
+		}
 	}
 	for _, f := range fields {
 		if f.Type != "tags" {

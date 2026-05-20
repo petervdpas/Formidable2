@@ -150,6 +150,74 @@ func TestSanitize_TagsFromCommaString(t *testing.T) {
 	}
 }
 
+// When the template has a tags-typed field, that field is the single
+// source of truth for Meta.Tags. Removing a tag from the field on edit
+// must drop it from the meta block — the stale `_meta.tags` carried on
+// the envelope (round-tripped from BuildView) must NOT union with the
+// fresh field value. Regression for the "removed tag persists" bug.
+func TestSanitize_TagsFieldIsSourceOfTruth_NoStaleMetaUnion(t *testing.T) {
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+		{Key: "tags", Type: "tags"},
+	}
+	raw := map[string]any{
+		"title": "X",
+		"tags":  []any{"test"},
+		"_meta": map[string]any{
+			"tags": []any{"ongebruikt"},
+		},
+	}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	want := []string{"test"}
+	if !slices.Equal(out.Meta.Tags, want) {
+		t.Errorf("tags = %v, want %v (stale _meta.tags must not merge)", out.Meta.Tags, want)
+	}
+}
+
+// Same guarantee for the envelope shape: {meta:{tags:[...]}, data:{...}}
+// carrying stale meta.tags must not survive when the tags-typed field
+// no longer contains them.
+func TestSanitize_TagsFieldIsSourceOfTruth_EnvelopeShape(t *testing.T) {
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+		{Key: "tags", Type: "tags"},
+	}
+	raw := map[string]any{
+		"meta": map[string]any{
+			"tags": []any{"ongebruikt"},
+		},
+		"data": map[string]any{
+			"title": "X",
+			"tags":  []any{"test"},
+		},
+	}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	want := []string{"test"}
+	if !slices.Equal(out.Meta.Tags, want) {
+		t.Errorf("tags = %v, want %v (stale meta.tags must not merge)", out.Meta.Tags, want)
+	}
+}
+
+// Templates without a tags-typed field have nothing to derive Meta.Tags
+// from except the meta round-trip — that path must keep working so
+// API-only forms (POST {meta:{tags:[...]}}) don't silently lose tags.
+func TestSanitize_NoTagsField_MetaRoundTripPreserved(t *testing.T) {
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+	}
+	raw := map[string]any{
+		"title": "X",
+		"_meta": map[string]any{
+			"tags": []any{"alpha", "beta"},
+		},
+	}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	want := []string{"alpha", "beta"}
+	if !slices.Equal(out.Meta.Tags, want) {
+		t.Errorf("tags = %v, want %v (no tags-field → preserve meta round-trip)", out.Meta.Tags, want)
+	}
+}
+
 func TestSanitize_LoopFieldsPreserved(t *testing.T) {
 	fields := []template.Field{
 		{Key: "title", Type: "text"},
