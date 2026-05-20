@@ -119,3 +119,20 @@
     color: var(--color-fg);
 }
 
+/* Sub-option add/remove buttons sit one nesting level deeper than the
+   field-options add/remove buttons. Tint ONLY the background — the
+   border and label stay native so the buttons still read cleanly
+   against the salmon-tinted modal. */
+.options-subrow-widget .btn-ghost-icon,
+.options-subrow-widget .btn-ghost-block {
+    background: color-mix(in srgb, var(--color-accent, #4a90e2) 18%, var(--color-bg));
+}
+.options-subrow-widget .btn-ghost-icon:hover,
+.options-subrow-widget .btn-ghost-block:hover {
+    background: color-mix(in srgb, var(--color-accent, #4a90e2) 28%, var(--color-bg));
+}
+.options-subrow-widget .btn-ghost-block:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
