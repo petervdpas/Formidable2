@@ -74,6 +74,11 @@ type runtimeDeps struct {
 	Storage     StorageAccess
 	Exec        ExecRunner
 	API         HTTPClient
+	// I18nMessages is the plugin's translation map for the active
+	// locale, already stripped of its `plugin.<id>.` prefix so
+	// formidable.i18n.t("commands.run.label") is a direct lookup.
+	// nil/empty is valid — t() then returns the key verbatim.
+	I18nMessages map[string]string
 }
 
 // installFormidable mounts the `formidable` global table on an
@@ -99,6 +104,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut))
 	f.RawSetString("storage", buildStorageTable(L, deps.Storage))
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
+	f.RawSetString("i18n", buildI18nTable(L, deps.I18nMessages))
 	// formidable.cancelled() — cheap predicate so plugins can poll
 	// for user-requested Stop inside pcall-heavy loops. Necessary
 	// because gopher-lua's context-cancel error IS catchable by pcall
@@ -226,6 +232,9 @@ type scriptOpts struct {
 	API         HTTPClient
 	RunBarOut   RunBarEmitter
 	RunStatOut  RunStatusEmitter
+	// I18nMessages: plugin's translation map for the active locale
+	// (prefix already stripped). nil = no translations available.
+	I18nMessages map[string]string
 }
 
 // runScript spawns a fresh sandboxed state, loads Source, calls
@@ -249,18 +258,19 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		RunBarOut:  opts.RunBarOut,
 		RunStatOut: opts.RunStatOut,
 		Ctx:        opts.Ctx,
-		PluginID:    opts.PluginID,
-		Plugin:      opts.Plugin,
-		KV:          opts.KV,
-		Template:    opts.Template,
-		Collection:  opts.Collection,
-		Form:        opts.Form,
-		Render:      opts.Render,
-		FM:          opts.FM,
-		FS:          opts.FS,
-		Storage:     opts.Storage,
-		Exec:        opts.Exec,
-		API:         opts.API,
+		PluginID:     opts.PluginID,
+		Plugin:       opts.Plugin,
+		KV:           opts.KV,
+		Template:     opts.Template,
+		Collection:   opts.Collection,
+		Form:         opts.Form,
+		Render:       opts.Render,
+		FM:           opts.FM,
+		FS:           opts.FS,
+		Storage:      opts.Storage,
+		Exec:         opts.Exec,
+		API:          opts.API,
+		I18nMessages: opts.I18nMessages,
 	})
 
 	if err := L.DoString(opts.Source); err != nil {

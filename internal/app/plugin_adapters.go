@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
@@ -13,6 +14,25 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 	"github.com/petervdpas/formidable2/internal/modules/wiki"
 )
+
+// pluginLocaleAdapter wires plugin.LocaleProvider to the config
+// manager so Manager.Run sources `formidable.i18n.t()` lookups from
+// the active profile's `language`. Read goes through the manager's
+// in-memory cache so per-Run cost is a map read, not disk I/O.
+type pluginLocaleAdapter struct {
+	cfg *config.Manager
+}
+
+func (a pluginLocaleAdapter) ActiveLocale() string {
+	if a.cfg == nil {
+		return ""
+	}
+	cfg, err := a.cfg.LoadUserConfig()
+	if err != nil || cfg == nil {
+		return ""
+	}
+	return cfg.Language
+}
 
 // Adapters between the plugin module's access interfaces and the
 // existing manager surface. Each adapter is a thin shim — no

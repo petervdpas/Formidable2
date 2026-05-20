@@ -559,6 +559,7 @@ func New(d Deps) (*App, error) {
 		// that flag requires_internal_server in their manifest get
 		// formidable.api.fetch wired against the running wiki server.
 		API:        pluginHTTPAdapter{wiki: wikiM, sys: sysM},
+		Locale:     pluginLocaleAdapter{cfg: cfgM},
 	})
 	// Materialize the embedded plugin library to <pluginsDir>. Mirrors
 	// the pdf cover scaffold: ships the seed inside the binary so every

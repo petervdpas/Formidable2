@@ -346,6 +346,16 @@ export class Field {
     "type": string;
     "label": string;
     "description": string;
+
+    /**
+     * I18n is the optional base key for plugin field translation.
+     * When set, the renderer resolves `<plugin-namespace>.<I18n>.<sub>`
+     * for sub-keys `label`, `description`, `placeholder` via the
+     * active locale, falling back to the literal Label/Description
+     * on miss. Templates don't need this (user-authored labels are
+     * the literal source); it's foremost a plugin-form.json signal.
+     */
+    "i18n"?: string;
     "summary_field"?: string;
     "expression_item": boolean;
     "level_scope": number;
@@ -412,14 +422,14 @@ export class Field {
      * Creates a new Field instance from a string or object.
      */
     static createFrom($$source: any = {}): Field {
-        const $$createField11_0 = $$createType7;
-        const $$createField15_0 = $$createType9;
+        const $$createField12_0 = $$createType7;
+        const $$createField16_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
-            $$parsedSource["options"] = $$createField11_0($$parsedSource["options"]);
+            $$parsedSource["options"] = $$createField12_0($$parsedSource["options"]);
         }
         if ("map" in $$parsedSource) {
-            $$parsedSource["map"] = $$createField15_0($$parsedSource["map"]);
+            $$parsedSource["map"] = $$createField16_0($$parsedSource["map"]);
         }
         return new Field($$parsedSource as Partial<Field>);
     }

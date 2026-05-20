@@ -42,6 +42,18 @@ type ManagerDeps struct {
 	API        HTTPClient
 	RunBarOut  RunBarEmitter
 	RunStatOut RunStatusEmitter
+	// Locale supplies the user's currently-active locale id at Run
+	// time so per-plugin i18n is sourced from the right bundle. nil =
+	// the runtime falls back to "en" — plugin.MessagesForLocale("en").
+	Locale LocaleProvider
+}
+
+// LocaleProvider returns the user's active locale id at the moment
+// Manager.Run is about to fire. Plugin runs are cheap enough that
+// re-reading per call is fine; this also means a locale switch
+// mid-session reflects in the next Run with no extra wiring.
+type LocaleProvider interface {
+	ActiveLocale() string
 }
 
 // Manager owns the discovered plugin registry and runs commands.
@@ -299,20 +311,49 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 			Debug:                  p.Manifest.Debug,
 			Form:                   loadFormFields(p.Dir),
 		},
-		PluginID:    pluginID,
-		KV:          m.deps.KV,
-		Template:    m.deps.Template,
-		Collection:  m.deps.Collection,
-		Form:        m.deps.Form,
-		Render:      m.deps.Render,
-		FM:          m.deps.FM,
-		FS:          m.deps.FS,
-		Storage:    m.deps.Storage,
-		Exec:       m.deps.Exec,
-		API:        m.deps.API,
-		RunBarOut:  m.deps.RunBarOut,
-		RunStatOut: m.deps.RunStatOut,
+		PluginID:     pluginID,
+		KV:           m.deps.KV,
+		Template:     m.deps.Template,
+		Collection:   m.deps.Collection,
+		Form:         m.deps.Form,
+		Render:       m.deps.Render,
+		FM:           m.deps.FM,
+		FS:           m.deps.FS,
+		Storage:      m.deps.Storage,
+		Exec:         m.deps.Exec,
+		API:          m.deps.API,
+		RunBarOut:    m.deps.RunBarOut,
+		RunStatOut:   m.deps.RunStatOut,
+		I18nMessages: m.messagesForPlugin(pluginID),
 	})
+}
+
+// messagesForPlugin extracts just this plugin's translation map for
+// the active locale and strips the `plugin.<id>.` prefix so Lua can
+// look up keys with the same shape it sees on disk. nil = no
+// translations available; t() in Lua then returns the key verbatim.
+func (m *Manager) messagesForPlugin(pluginID string) map[string]string {
+	locale := "en"
+	if m.deps.Locale != nil {
+		if active := m.deps.Locale.ActiveLocale(); active != "" {
+			locale = active
+		}
+	}
+	all := m.MessagesForLocale(locale)
+	if len(all) == 0 {
+		return nil
+	}
+	prefix := "plugin." + pluginID + "."
+	out := map[string]string{}
+	for k, v := range all {
+		if after, ok := strings.CutPrefix(k, prefix); ok {
+			out[after] = v
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // Cancel signals the currently-running plugin (if any) to abort. The

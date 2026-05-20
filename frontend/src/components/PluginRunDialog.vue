@@ -236,6 +236,7 @@ function close() {
             v-else-if="!isWidget(entry)"
             :field="entry"
             :model-value="runValues[entry.key]"
+            :i18n-namespace="plugin ? `plugin.${plugin.id}` : undefined"
             @update:model-value="(v: unknown) => (runValues[entry.key] = v)"
           />
         </template>

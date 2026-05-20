@@ -605,6 +605,28 @@ func buildExecValue(L *lua.LState, runner ExecRunner) lua.LValue {
 	})
 }
 
+// buildI18nTable mounts formidable.i18n.t(key). The plugin's
+// translation map is passed in already stripped of its
+// `plugin.<id>.` prefix, so the Lua side can use the same key shape
+// that lives in the plugin's `<plugin>/i18n/<locale>.json` file
+// (e.g. "commands.run.label", "name"). When the messages map is
+// nil/empty or the key is missing, t() returns the key verbatim so
+// the script still produces a non-empty string — same fallback
+// shape vue-i18n uses on the frontend.
+func buildI18nTable(L *lua.LState, msgs map[string]string) *lua.LTable {
+	t := L.NewTable()
+	t.RawSetString("t", L.NewFunction(func(L *lua.LState) int {
+		key := L.CheckString(1)
+		if v, ok := msgs[key]; ok {
+			L.Push(lua.LString(v))
+			return 1
+		}
+		L.Push(lua.LString(key))
+		return 1
+	}))
+	return t
+}
+
 // buildAPITable mounts formidable.api.fetch when an HTTPClient is
 // wired. With no client, the namespace exists but every call
 // raises "api: not configured" — same shape as every other

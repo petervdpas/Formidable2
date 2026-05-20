@@ -42,3 +42,55 @@ export function commandLabel(pluginID: string, cmd: CommandLike): string {
     cmd.id
   );
 }
+
+// Field-level i18n: a plugin form.json field declares a base key via
+// `i18n: <key>` and the renderer resolves three sub-keys under the
+// caller-supplied namespace (typically `plugin.<id>`). When the
+// namespace is missing, when the field carries no `i18n`, or when
+// the sub-key isn't translated in the active locale, the literal
+// field value is returned.
+//
+// `namespace` is the auto-prefix the caller has already chosen for
+// this rendering context; concrete value is `plugin.<id>` for plugin
+// Run dialogs. Editor surfaces pass `null`/`""` to keep literal
+// labels visible while authors are editing the manifest itself.
+
+type FieldI18nSubKey = "label" | "description" | "placeholder";
+
+function fieldI18nKey(namespace: string, baseKey: string, sub: FieldI18nSubKey): string {
+  return `${namespace}.${baseKey}.${sub}`;
+}
+
+export function fieldLabel(
+  namespace: string | null | undefined,
+  field: { key: string; label?: string; i18n?: string },
+): string {
+  if (namespace && field.i18n) {
+    const translated = tIfExists(fieldI18nKey(namespace, field.i18n, "label"));
+    if (translated !== null) return translated;
+  }
+  return field.label || field.key;
+}
+
+export function fieldDescription(
+  namespace: string | null | undefined,
+  field: { description?: string; i18n?: string },
+): string {
+  if (namespace && field.i18n) {
+    const translated = tIfExists(fieldI18nKey(namespace, field.i18n, "description"));
+    if (translated !== null) return translated;
+  }
+  return field.description ?? "";
+}
+
+export function fieldPlaceholder(
+  namespace: string | null | undefined,
+  field: { i18n?: string },
+  fallback = "",
+): string {
+  if (namespace && field.i18n) {
+    const translated = tIfExists(fieldI18nKey(namespace, field.i18n, "placeholder"));
+    if (translated !== null) return translated;
+  }
+  return fallback;
+}

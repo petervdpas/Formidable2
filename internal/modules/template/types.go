@@ -132,6 +132,13 @@ type Field struct {
 	Type           string  `yaml:"type" json:"type"`
 	Label          string  `yaml:"label,omitempty" json:"label"`
 	Description    string  `yaml:"description,omitempty" json:"description"`
+	// I18n is the optional base key for plugin field translation.
+	// When set, the renderer resolves `<plugin-namespace>.<I18n>.<sub>`
+	// for sub-keys `label`, `description`, `placeholder` via the
+	// active locale, falling back to the literal Label/Description
+	// on miss. Templates don't need this (user-authored labels are
+	// the literal source); it's foremost a plugin-form.json signal.
+	I18n         string `yaml:"i18n,omitempty" json:"i18n,omitempty"`
 	SummaryField   string  `yaml:"summary_field,omitempty" json:"summary_field,omitempty"`
 	ExpressionItem bool    `yaml:"expression_item,omitempty" json:"expression_item"`
 	LevelScope     int     `yaml:"level_scope" json:"level_scope"`

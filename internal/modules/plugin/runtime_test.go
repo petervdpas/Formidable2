@@ -418,6 +418,54 @@ func TestRunScript_FormidableJSON_DecodeBadStringErrors(t *testing.T) {
 	}
 }
 
+func TestRunScript_I18nT_ReturnsTranslatedValue(t *testing.T) {
+	res, err := runScript(scriptOpts{
+		Source: `function run() return formidable.i18n.t("commands.run.label") end`,
+		Fn:     "run",
+		I18nMessages: map[string]string{
+			"name":                 "Demo Plugin",
+			"commands.run.label":   "Run it",
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.Value != "Run it" {
+		t.Fatalf("got %v, want %q", res.Value, "Run it")
+	}
+}
+
+func TestRunScript_I18nT_MissingKeyReturnsKey(t *testing.T) {
+	res, err := runScript(scriptOpts{
+		Source: `function run() return formidable.i18n.t("commands.nope.label") end`,
+		Fn:     "run",
+		I18nMessages: map[string]string{
+			"name": "Demo Plugin",
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.Value != "commands.nope.label" {
+		t.Fatalf("got %v, want literal key fallback", res.Value)
+	}
+}
+
+func TestRunScript_I18nT_NoMessagesAtAllReturnsKey(t *testing.T) {
+	// Plugin without an i18n/ folder yields nil/empty messages; t()
+	// must still be callable and degrade to the literal key.
+	res, err := runScript(scriptOpts{
+		Source: `function run() return formidable.i18n.t("name") end`,
+		Fn:     "run",
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.Value != "name" {
+		t.Fatalf("got %v, want literal-key fallback when no messages", res.Value)
+	}
+}
+
 func TestRunScript_ToastIgnoresExtraArgs(t *testing.T) {
 	// Multiple positional args concat with a space, mirroring
 	// formidable.log.* — keeps the API consistent.

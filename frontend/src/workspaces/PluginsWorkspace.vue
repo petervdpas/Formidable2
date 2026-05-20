@@ -1120,6 +1120,7 @@ setTopbarMenu(() => [
             v-else-if="!isWidget(entry)"
             :field="entry"
             :model-value="runValues[entry.key]"
+            :i18n-namespace="selectedPlugin ? `plugin.${selectedPlugin.id}` : undefined"
             @update:model-value="(v: unknown) => (runValues[entry.key] = v)"
           />
         </template>
