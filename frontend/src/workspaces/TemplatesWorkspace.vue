@@ -39,7 +39,7 @@ import {
 } from "../components/fields";
 import { useTemplates, isValidTemplateFilename } from "../composables/useTemplates";
 import { recomputeLevelScopes } from "../utils/fieldScopes";
-import FieldUnitDraggable from "../components/FieldUnitDraggable.vue";
+import FieldUnitList from "../components/FieldUnitList.vue";
 import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
@@ -239,29 +239,26 @@ watch(
 );
 
 // ── Field edit / add ─────────────────────────────────────────────────
-// editIndex === -1 means "creating" (no existing field at that index);
-// editField is the field being edited, or null for create.
+// editUnit holds the tree-resident FieldUnit being edited (null for
+// create). Identity is the JS object reference itself — no key/type
+// lookup, no flat-index bookkeeping. applyEdit mutates the unit in
+// place and commitTree flushes the resulting tree to draft.fields.
 const editOpen = ref(false);
-const editIndex = ref<number>(-1);
+const editUnit = ref<FieldUnit | null>(null);
 const editField = ref<Field | null>(null);
 const editIsNew = ref(false);
 
-function openEdit(target: Field | number) {
-  if (!draft.value || !draft.value.fields) return;
-  const idx =
-    typeof target === "number"
-      ? target
-      : draft.value.fields.indexOf(target);
-  if (idx < 0) return;
-  editIndex.value = idx;
-  editField.value = draft.value.fields[idx] ?? null;
+function openEdit(u: FieldUnit) {
+  if (!u) return;
+  editUnit.value = u;
+  editField.value = u.kind === "loop" ? (u.start ?? null) : (u.field ?? null);
   editIsNew.value = false;
   editOpen.value = true;
 }
 
 function openAddField() {
   if (!draft.value) return;
-  editIndex.value = -1;
+  editUnit.value = null;
   editField.value = null;
   editIsNew.value = true;
   editOpen.value = true;
@@ -269,48 +266,68 @@ function openAddField() {
 
 function applyEdit(updated: Field) {
   if (!draft.value) return;
-  const fields = draft.value.fields ?? [];
 
-  // Looper synthesis — picking "looper" creates a loopstart/loopstop
-  // pair sharing the same key/label. Only valid in create mode.
-  if (updated.type === "looper") {
-    const key = (updated.key || "").trim();
-    const label = updated.label || key;
-    const start = { key, label, type: "loopstart" } as Field;
-    const stop = { key, label, type: "loopstop" } as Field;
-    if (editIsNew.value) {
-      draft.value.fields = [...fields, start, stop];
+  if (editIsNew.value) {
+    // Looper synth: picking "looper" materialises as a loop unit
+    // with a paired loopstart/loopstop sharing the same key/label.
+    if (updated.type === "looper") {
+      const key = (updated.key || "").trim();
+      const label = updated.label || key;
+      tree.value.push({
+        kind: "loop",
+        start: { key, label, type: "loopstart" } as Field,
+        stop: { key, label, type: "loopstop" } as Field,
+        items: [],
+      } as FieldUnit);
+    } else {
+      tree.value.push({ kind: "field", field: updated } as FieldUnit);
     }
-  } else if (editIsNew.value) {
-    // Append a fresh field at the end.
-    draft.value.fields = [...fields, updated];
-  } else if (editIndex.value >= 0) {
-    // In-place replace.
-    draft.value.fields = [
-      ...fields.slice(0, editIndex.value),
-      updated,
-      ...fields.slice(editIndex.value + 1),
-    ];
+    void commitTree();
+  } else if (editUnit.value) {
+    const u = editUnit.value;
+    if (u.kind === "field") {
+      u.field = updated;
+    } else if (u.kind === "loop" && u.start && u.stop) {
+      // loopstart/loopstop share key + label. Keep their types as
+      // markers (the modal might not surface those) and propagate
+      // any other edits the user made to start.
+      const key = (updated.key || "").trim();
+      const label = updated.label || key;
+      u.start = { ...u.start, ...updated, key, label, type: "loopstart" } as Field;
+      u.stop = { ...u.stop, key, label, type: "loopstop" } as Field;
+    }
+    void commitTree();
   }
 
   editOpen.value = false;
   editField.value = null;
-  editIndex.value = -1;
+  editUnit.value = null;
   editIsNew.value = false;
 }
 
 const deleteOpen = ref(false);
-const deleteIndex = ref<number>(-1);
+const deleteUnit = ref<FieldUnit | null>(null);
 
-function openDelete(target: Field | number) {
-  if (!draft.value || !draft.value.fields) return;
-  const idx =
-    typeof target === "number"
-      ? target
-      : draft.value.fields.indexOf(target);
-  if (idx < 0) return;
-  deleteIndex.value = idx;
+function openDelete(u: FieldUnit) {
+  if (!u) return;
+  deleteUnit.value = u;
   deleteOpen.value = true;
+}
+
+// Remove the unit identified by reference from anywhere in the tree.
+// Returns true on success. The caller is responsible for committing.
+function removeUnitByRef(units: FieldUnit[], target: FieldUnit): boolean {
+  const idx = units.indexOf(target);
+  if (idx !== -1) {
+    units.splice(idx, 1);
+    return true;
+  }
+  for (const u of units) {
+    if (u.kind === "loop" && u.items) {
+      if (removeUnitByRef(u.items, target)) return true;
+    }
+  }
+  return false;
 }
 
 // ── Generate-template dialog ─────────────────────────────────────────
@@ -577,35 +594,27 @@ const otherFacetKeys = computed(() => {
 });
 
 const deleteFieldName = computed(() => {
-  if (!draft.value || deleteIndex.value < 0) return "";
-  const f = draft.value.fields[deleteIndex.value];
-  return f?.label || f?.key || "";
+  const u = deleteUnit.value;
+  if (!u) return "";
+  if (u.kind === "loop") return u.start?.label || u.start?.key || "";
+  return u.field?.label || u.field?.key || "";
 });
 
 function confirmDelete() {
-  if (!draft.value || deleteIndex.value < 0) {
+  const u = deleteUnit.value;
+  if (!u || !draft.value) {
     deleteOpen.value = false;
+    deleteUnit.value = null;
     return;
   }
-  const idx = deleteIndex.value;
-  const fields = draft.value.fields;
-  const removed = fields[idx];
-  let next = [...fields.slice(0, idx), ...fields.slice(idx + 1)];
-
-  // Loopstart/loopstop pairing — if we removed one half, drop its
-  // partner so the YAML stays valid.
-  if (removed && (removed.type === "loopstart" || removed.type === "loopstop")) {
-    const partnerType = removed.type === "loopstart" ? "loopstop" : "loopstart";
-    const partnerIdx = next.findIndex(
-      (f) => f.key === removed.key && f.type === partnerType,
-    );
-    if (partnerIdx !== -1) {
-      next = [...next.slice(0, partnerIdx), ...next.slice(partnerIdx + 1)];
-    }
-  }
-  draft.value.fields = next;
+  // Deleting a loop unit removes the whole unit (start + items + stop)
+  // in one step — no separate loopstart/loopstop pair-removal walk is
+  // needed. Orphan markers (rendered as plain field rows) drop
+  // individually, which is what the user wants.
+  removeUnitByRef(tree.value, u);
+  void commitTree();
   deleteOpen.value = false;
-  deleteIndex.value = -1;
+  deleteUnit.value = null;
 }
 
 // ── Delete template ──────────────────────────────────────────────────
@@ -928,13 +937,13 @@ setTopbarMenu(() => [
           <p v-if="!draft.fields || draft.fields.length === 0" class="muted small">
             {{ t('workspace.templates.fields.empty') }}
           </p>
-          <FieldUnitDraggable
+          <FieldUnitList
             v-else
             :units="tree"
             :depth="0"
             @change="commitTree"
-            @edit-field="openEdit"
-            @delete-field="openDelete"
+            @edit-unit="openEdit"
+            @delete-unit="openDelete"
           />
           </div>
         </FormSection>

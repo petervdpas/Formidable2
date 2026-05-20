@@ -3,16 +3,20 @@ import draggable from "vuedraggable";
 import Badge from "./Badge.vue";
 import FieldScopeBadge from "./FieldScopeBadge.vue";
 import type {
-  Field,
   FieldUnit,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-// Recursive tree-aware draggable for the template field list. The
+// Recursive tree-aware list for the template field editor. The
 // LOOPSTART/LOOPSTOP pair (and everything between them) is one unit
-// at this level — its interior is a nested draggable rooted inside
-// the unit. That makes it impossible to drop a sibling field
-// between loopstart and loopstop by mistake. Depth bumps the visible
-// indent so nesting is obvious.
+// at this level — its interior is a nested list rooted inside the
+// unit. That makes it impossible to drop a sibling field between
+// loopstart and loopstop by mistake. Depth bumps the visible indent
+// so nesting is obvious.
+//
+// Edit/Delete events carry the FieldUnit *reference* — the parent
+// resolves identity by walking the tree for that exact object, never
+// by matching field content. That keeps each unit isolated even when
+// two fields would otherwise look identical.
 
 defineProps<{
   units: FieldUnit[];
@@ -21,8 +25,8 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: "change"): void;
-  (e: "edit-field", f: Field): void;
-  (e: "delete-field", f: Field): void;
+  (e: "edit-unit", u: FieldUnit): void;
+  (e: "delete-unit", u: FieldUnit): void;
 }>();
 
 function unitKey(u: FieldUnit): string {
@@ -64,12 +68,12 @@ function unitKey(u: FieldUnit): string {
           <button
             type="button"
             class="field-action-btn edit"
-            @click="emit('edit-field', u.field)"
+            @click="emit('edit-unit', u)"
           >Edit</button>
           <button
             type="button"
             class="field-action-btn delete"
-            @click="emit('delete-field', u.field)"
+            @click="emit('delete-unit', u)"
           >Delete</button>
         </div>
       </li>
@@ -89,22 +93,22 @@ function unitKey(u: FieldUnit): string {
             <button
               type="button"
               class="field-action-btn edit"
-              @click="emit('edit-field', u.start)"
+              @click="emit('edit-unit', u)"
             >Edit</button>
             <button
               type="button"
               class="field-action-btn delete"
-              @click="emit('delete-field', u.start)"
+              @click="emit('delete-unit', u)"
             >Delete</button>
           </div>
         </div>
 
-        <FieldUnitDraggable
+        <FieldUnitList
           :units="u.items ?? []"
           :depth="(depth ?? 0) + 1"
           @change="emit('change')"
-          @edit-field="(f) => emit('edit-field', f)"
-          @delete-field="(f) => emit('delete-field', f)"
+          @edit-unit="(child) => emit('edit-unit', child)"
+          @delete-unit="(child) => emit('delete-unit', child)"
         />
 
         <div class="field-row field-loop-footer" data-type="loopstop">
