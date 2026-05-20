@@ -1,5 +1,6 @@
 import { ref, watch } from "vue";
 import { Service as I18nSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/i18n";
+import { Service as PluginSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import { i18n } from "../i18n";
 import { useConfig } from "./useConfig";
 
@@ -8,11 +9,37 @@ const availableLocales = ref<string[]>([]);
 const defaultLocale = ref<string>("en");
 let bootPromise: Promise<void> | null = null;
 
+async function fetchPluginMessages(locale: string): Promise<void> {
+  try {
+    const msgs = await PluginSvc.GetI18nMessages(locale);
+    if (msgs && Object.keys(msgs).length > 0) {
+      i18n.global.mergeLocaleMessage(locale, msgs as Record<string, unknown>);
+    }
+  } catch (err) {
+    // Plugin-side i18n is best-effort — a broken plugin must not
+    // poison the core locale path.
+    console.warn("plugin i18n fetch failed", { locale, err });
+  }
+}
+
 async function ensureLocale(locale: string): Promise<void> {
-  if (loaded.has(locale)) return;
-  const bundle = await I18nSvc.LoadBundle(locale);
-  i18n.global.setLocaleMessage(locale, bundle as Record<string, unknown>);
-  loaded.add(locale);
+  if (!loaded.has(locale)) {
+    const bundle = await I18nSvc.LoadBundle(locale);
+    i18n.global.setLocaleMessage(locale, bundle as Record<string, unknown>);
+    loaded.add(locale);
+  }
+  await fetchPluginMessages(locale);
+}
+
+// Called by usePlugins after refresh / install / delete so newly-
+// added plugin messages reach vue-i18n without an app restart.
+export async function refreshPluginI18n(): Promise<void> {
+  const active = i18n.global.locale.value as string;
+  await fetchPluginMessages(active);
+  const fallback = defaultLocale.value;
+  if (fallback && fallback !== active && loaded.has(fallback)) {
+    await fetchPluginMessages(fallback);
+  }
 }
 
 async function boot(): Promise<void> {

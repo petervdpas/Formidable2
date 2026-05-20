@@ -4,6 +4,7 @@ import {
   type ListResult,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import { backendErrMessage } from "../utils/backendError";
+import { refreshPluginI18n } from "./useI18nLoader";
 
 // Module-scope singleton — at most one plugin selected across the
 // app, mirroring the useTemplates pattern. Sidebar list, currently
@@ -26,6 +27,7 @@ async function refreshWorkspaces(): Promise<void> {
 async function refresh(): Promise<void> {
   plugins.value = await PluginSvc.Refresh();
   loaded = true;
+  await refreshPluginI18n();
 }
 
 // See useTemplates: pull/clone/reclone fires this event after writing
@@ -61,6 +63,7 @@ async function create(id: string): Promise<CreateOutcome> {
   try {
     plugins.value = await PluginSvc.Create(id);
     selectedID.value = id;
+    await refreshPluginI18n();
     return { ok: true };
   } catch (err) {
     const msg = String(err);
@@ -78,6 +81,7 @@ async function remove(id: string): Promise<{ ok: boolean; message?: string }> {
   try {
     plugins.value = await PluginSvc.Delete(id);
     if (selectedID.value === id) selectedID.value = "";
+    await refreshPluginI18n();
     return { ok: true };
   } catch (err) {
     return { ok: false, message: String(err) };

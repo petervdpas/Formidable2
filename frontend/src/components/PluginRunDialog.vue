@@ -25,6 +25,7 @@ import StatusMessageWidget from "./widgets/StatusMessageWidget.vue";
 import type { Widget } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
 import { Kind as WidgetKind } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
 import { isWidget } from "../composables/usePluginEditor";
+import { pluginName, pluginDescription, commandLabel } from "../utils/pluginI18n";
 
 // PluginRunDialog mirrors PluginsWorkspace's inline Run modal but is
 // mounted once at the App level and driven entirely by the manifest
@@ -129,7 +130,7 @@ watch(
     }
     runValues.value = values;
 
-    const md = p.manifest.description?.trim() ?? "";
+    const md = pluginDescription(p).trim();
     if (md) {
       try {
         descriptionHTML.value = await RenderSvc.RenderHTML(md);
@@ -208,8 +209,8 @@ function close() {
     :title="
       plugin
         ? runMode === 'form'
-          ? plugin.manifest.name || plugin.id
-          : t('workspace.plugins.run_title', [plugin.manifest.name || plugin.id])
+          ? pluginName(plugin)
+          : t('workspace.plugins.run_title', [pluginName(plugin)])
         : ''
     "
     width="640px"
@@ -252,7 +253,7 @@ function close() {
             <span v-if="runningCmd === cmd.id">
               {{ t('workspace.plugins.running') }}
             </span>
-            <span v-else>{{ cmd.label || cmd.id }}</span>
+            <span v-else>{{ plugin ? commandLabel(plugin.id, cmd) : cmd.label || cmd.id }}</span>
           </button>
           <button
             v-if="running"
@@ -273,7 +274,7 @@ function close() {
           class="command-card"
         >
           <div class="command-header">
-            <h3>{{ cmd.label || cmd.id }}</h3>
+            <h3>{{ plugin ? commandLabel(plugin.id, cmd) : cmd.label || cmd.id }}</h3>
             <button
               class="tool-btn primary"
               :disabled="running"

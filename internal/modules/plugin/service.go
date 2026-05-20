@@ -206,3 +206,13 @@ func (s *Service) Run(pluginID, commandID string, ctx map[string]any) RunResultD
 func (s *Service) Cancel() {
 	s.m.Cancel()
 }
+
+// GetI18nMessages returns the merged plugin-side translation map for
+// locale. Keys are pre-namespaced as `plugin.<id>.<key>` so the
+// frontend can merge the result straight into vue-i18n without doing
+// its own per-plugin walk. Missing locale files contribute nothing
+// (a plugin without translations is normal); the result is always a
+// concrete map, never nil.
+func (s *Service) GetI18nMessages(locale string) map[string]string {
+	return s.m.MessagesForLocale(locale)
+}

@@ -33,6 +33,7 @@ import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { usePlugins, isValidPluginID } from "../composables/usePlugins";
+import { pluginName, commandLabel } from "../utils/pluginI18n";
 import { usePluginEditor, isWidget } from "../composables/usePluginEditor";
 import {
   setGlobalPluginRunning,
@@ -715,7 +716,7 @@ setTopbarMenu(() => [
           :class="['sidebar-row', 'sidebar-row--stack', { active: p.id === selectedID }]"
           @click="selectedID = p.id"
         >
-          <span class="plugin-name">{{ p.manifest.name || p.id }}</span>
+          <span class="plugin-name">{{ pluginName(p) }}</span>
           <span class="plugin-meta">
             <Badge class="small">{{ p.id }}</Badge>
             <span class="muted small">v{{ p.manifest.version }}</span>
@@ -840,7 +841,7 @@ setTopbarMenu(() => [
               v-model="draftSource"
               lang="lua"
               :height="420"
-              :title="selectedPlugin ? `${selectedPlugin.manifest.name || selectedPlugin.id} • ${t('workspace.plugins.tab.source')}` : ''"
+              :title="selectedPlugin ? `${pluginName(selectedPlugin)} • ${t('workspace.plugins.tab.source')}` : ''"
             />
             <p class="muted small">{{ t('workspace.plugins.source.help') }}</p>
           </div>
@@ -1136,7 +1137,7 @@ setTopbarMenu(() => [
             <span v-if="runningCmd === cmd.id">
               {{ t('workspace.plugins.running') }}
             </span>
-            <span v-else>{{ cmd.label || cmd.id }}</span>
+            <span v-else>{{ selectedPlugin ? commandLabel(selectedPlugin.id, cmd) : cmd.label || cmd.id }}</span>
           </button>
           <button
             v-if="globalRunning"
@@ -1158,7 +1159,7 @@ setTopbarMenu(() => [
         class="command-card"
       >
         <div class="command-header">
-          <h3>{{ cmd.label || cmd.id }}</h3>
+          <h3>{{ selectedPlugin ? commandLabel(selectedPlugin.id, cmd) : cmd.label || cmd.id }}</h3>
           <button
             class="tool-btn primary"
             :disabled="runningCmd === cmd.id"

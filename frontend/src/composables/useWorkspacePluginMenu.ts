@@ -5,6 +5,7 @@ import {
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 import type { MenuAction, MenuGroup } from "../types/menu";
 import { openGlobalPluginRun, useGlobalPluginRun } from "./useGlobalPluginRun";
+import { pluginName } from "../utils/pluginI18n";
 
 // useWorkspacePluginMenu returns a reactive `buildMenu()` that any
 // workspace can call inside its setTopbarMenu() getter. The result is
@@ -59,7 +60,7 @@ export function useWorkspacePluginMenu(
     const items: MenuAction[] = plugins.value.map((p) => ({
       id: p.id,
       labelKey: "menu.plugins.workspace.item",
-      label: p.manifest.name || p.id,
+      label: pluginName(p),
       disabled: isRunning,
       onClick: () => {
         const extra: Record<string, unknown> = { workspace: workspaceID };

@@ -72,6 +72,20 @@ export function GetForm(id: string): $CancellablePromise<string> {
 }
 
 /**
+ * GetI18nMessages returns the merged plugin-side translation map for
+ * locale. Keys are pre-namespaced as `plugin.<id>.<key>` so the
+ * frontend can merge the result straight into vue-i18n without doing
+ * its own per-plugin walk. Missing locale files contribute nothing
+ * (a plugin without translations is normal); the result is always a
+ * concrete map, never nil.
+ */
+export function GetI18nMessages(locale: string): $CancellablePromise<{ [_ in string]?: string }> {
+    return $Call.ByID(24808493, locale).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * GetSource returns the plugin's main.lua content. Used by the
  * workspace to populate the Lua editor when a plugin is selected.
  */
@@ -89,7 +103,7 @@ export function GetSource(id: string): $CancellablePromise<string> {
  */
 export function ImportArchive(zipPath: string, overwrite: boolean): $CancellablePromise<$models.ImportArchiveResult> {
     return $Call.ByID(1966327212, zipPath, overwrite).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -122,7 +136,7 @@ export function ListForWorkspace(ws: string): $CancellablePromise<$models.ListRe
  */
 export function ListWorkspaces(): $CancellablePromise<string[]> {
     return $Call.ByID(970622365).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -134,7 +148,7 @@ export function ListWorkspaces(): $CancellablePromise<string[]> {
  */
 export function LoadFormValues(pluginID: string, fieldKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
     return $Call.ByID(3599671491, pluginID, fieldKeys).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
@@ -157,7 +171,7 @@ export function Refresh(): $CancellablePromise<$models.ListResult[]> {
  */
 export function Run(pluginID: string, commandID: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.RunResultDTO> {
     return $Call.ByID(2749798520, pluginID, commandID, ctx).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
@@ -198,7 +212,8 @@ export function ValidateWidget(w: formwidget$0.Widget): $CancellablePromise<void
 const $$createType0 = $models.ListResult.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.ExportArchiveResult.createFrom;
-const $$createType3 = $models.ImportArchiveResult.createFrom;
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = $Create.Map($Create.Any, $Create.Any);
-const $$createType6 = $models.RunResultDTO.createFrom;
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = $models.ImportArchiveResult.createFrom;
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = $Create.Map($Create.Any, $Create.Any);
+const $$createType7 = $models.RunResultDTO.createFrom;

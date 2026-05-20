@@ -5,6 +5,37 @@ import (
 	"testing"
 )
 
+func TestService_GetI18nMessages_ReturnsMergedMessages(t *testing.T) {
+	s, pluginsDir := newTestServiceWithPlugin(t, `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	writePluginI18n(t, filepath.Join(pluginsDir, "demo"), "en", `{
+		"name": "Demo Plugin",
+		"commands.run.label": "Run it"
+	}`)
+	got := s.GetI18nMessages("en")
+	if got["plugin.demo.name"] != "Demo Plugin" {
+		t.Errorf("plugin.demo.name = %q", got["plugin.demo.name"])
+	}
+	if got["plugin.demo.commands.run.label"] != "Run it" {
+		t.Errorf("plugin.demo.commands.run.label = %q", got["plugin.demo.commands.run.label"])
+	}
+}
+
+func TestService_GetI18nMessages_UnknownLocaleIsEmpty(t *testing.T) {
+	s, _ := newTestServiceWithPlugin(t, `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got := s.GetI18nMessages("nl")
+	if len(got) != 0 {
+		t.Errorf("expected empty, got %v", got)
+	}
+}
+
 func newTestServiceWithPlugin(t *testing.T, manifest, main string) (*Service, string) {
 	t.Helper()
 	root := t.TempDir()
