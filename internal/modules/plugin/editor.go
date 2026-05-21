@@ -19,6 +19,7 @@ import (
 type editorFS interface {
 	EnsureDirectory(path string) error
 	FileExists(path string) bool
+	IsDir(path string) bool
 	LoadFile(path string) (string, error)
 	SaveFile(path, content string) error
 	DeleteFile(path string) error

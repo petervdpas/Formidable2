@@ -16,6 +16,10 @@ type kvTestFS struct{}
 
 func (kvTestFS) EnsureDirectory(p string) error { return os.MkdirAll(p, 0o755) }
 func (kvTestFS) FileExists(p string) bool       { _, err := os.Stat(p); return err == nil }
+func (kvTestFS) IsDir(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && info.IsDir()
+}
 func (kvTestFS) LoadFile(p string) (string, error) {
 	b, err := os.ReadFile(p)
 	return string(b), err

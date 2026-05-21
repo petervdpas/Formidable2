@@ -65,12 +65,16 @@ type ImportArchiveResult struct {
 	Files       []string `json:"files"`
 }
 
-// exportPluginArchive bundles <pluginsDir>/<id>/* into a zip at
+// exportPluginArchive bundles <pluginsDir>/<id>/** into a zip at
 // zipPath. The id is validated up front (validID — same rules as
 // Create/Save/Delete) so we never zip from a path the rest of the
 // module would refuse. Hidden files and subfolders that start with
-// "." are skipped — keeps the bundle clean of editor scratch state
-// and matches what Refresh ignores.
+// "." are skipped recursively — keeps the bundle clean of editor
+// scratch state and matches what Refresh ignores.
+//
+// Subdirectories (i18n/ is the driving case) recurse with depth-first
+// walk; zip entry names use forward slashes so the archive shape is
+// portable across OSes.
 //
 // The .kv state file at <pluginsDir>/.kv/<id>.json is intentionally
 // NOT bundled: it's per-user runtime state, not part of the plugin's
@@ -93,30 +97,11 @@ func exportPluginArchive(fs editorFS, pluginsDir, id, zipPath string) (ExportArc
 		return zero, fmt.Errorf("%w: %s", ErrPluginArchiveNotFound, id)
 	}
 
-	entries, err := fs.ListDir(dir)
-	if err != nil {
-		return zero, fmt.Errorf("list %s: %w", dir, err)
-	}
-
 	buf := new(bytes.Buffer)
 	zw := zip.NewWriter(buf)
 	var files []string
-	for _, name := range entries {
-		// Skip hidden + dirs-ish names. We only walk the top of the
-		// plugin folder for v1 — recursive subdirs land when a real
-		// plugin needs them.
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-		full := filepath.Join(dir, name)
-		body, err := fs.LoadFile(full)
-		if err != nil {
-			return zero, fmt.Errorf("read %s: %w", full, err)
-		}
-		if err := writeArchiveEntry(zw, name, body); err != nil {
-			return zero, err
-		}
-		files = append(files, name)
+	if err := walkArchiveEntries(fs, dir, "", zw, &files); err != nil {
+		return zero, err
 	}
 	if err := zw.Close(); err != nil {
 		return zero, fmt.Errorf("finalize zip: %w", err)
@@ -131,6 +116,43 @@ func exportPluginArchive(fs editorFS, pluginsDir, id, zipPath string) (ExportArc
 		ZipPath: zipPath,
 		Files:   files,
 	}, nil
+}
+
+// walkArchiveEntries depth-first walks dir, adding every non-hidden
+// regular file to zw. rel is the running zip-entry prefix using
+// forward slashes (empty at the top level). Hidden entries (names
+// starting with ".") are skipped at every level — applies to both
+// files and subdirectories.
+func walkArchiveEntries(fs editorFS, dir, rel string, zw *zip.Writer, files *[]string) error {
+	entries, err := fs.ListDir(dir)
+	if err != nil {
+		return fmt.Errorf("list %s: %w", dir, err)
+	}
+	for _, name := range entries {
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+		full := filepath.Join(dir, name)
+		entryName := name
+		if rel != "" {
+			entryName = path.Join(rel, name)
+		}
+		if fs.IsDir(full) {
+			if err := walkArchiveEntries(fs, full, entryName, zw, files); err != nil {
+				return err
+			}
+			continue
+		}
+		body, err := fs.LoadFile(full)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", full, err)
+		}
+		if err := writeArchiveEntry(zw, entryName, body); err != nil {
+			return err
+		}
+		*files = append(*files, entryName)
+	}
+	return nil
 }
 
 // importPluginArchive reads a zip at zipPath and writes its contents
@@ -178,9 +200,6 @@ func importPluginArchive(fs editorFS, pluginsDir, zipPath string, overwrite bool
 		clean := path.Clean(f.Name)
 		if clean == "." || clean == "" || strings.HasPrefix(clean, "/") || strings.HasPrefix(clean, "..") || strings.Contains(clean, "/../") {
 			return zero, fmt.Errorf("%w: %q", ErrPluginArchiveTraversal, f.Name)
-		}
-		if strings.ContainsRune(clean, '/') {
-			return zero, fmt.Errorf("%w: nested entry %q (v1 plugins are single-level)", ErrPluginArchiveInvalid, f.Name)
 		}
 		if f.FileInfo().IsDir() {
 			continue
@@ -239,7 +258,7 @@ func importPluginArchive(fs editorFS, pluginsDir, zipPath string, overwrite bool
 
 	var written []string
 	for name, body := range entries {
-		full := filepath.Join(target, name)
+		full := filepath.Join(target, filepath.FromSlash(name))
 		if err := fs.SaveFile(full, body); err != nil {
 			return zero, fmt.Errorf("write %s: %w", full, err)
 		}

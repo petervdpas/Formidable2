@@ -1,6 +1,6 @@
 {
   "profile_name": "Default Profile",
-  "theme": "purplish",
+  "theme": "dark",
   "show_paste_buttons": true,
   "use_expressions": true,
   "show_meta_section": true,
@@ -12,7 +12,7 @@
   "logging_enabled": false,
   "enable_plugins": true,
   "context_mode": "template",
-  "context_ribbon": "information",
+  "context_ribbon": "plugins",
   "context_folder": "/home/peter/Documents/Example",
   "selected_template": "ods-uitfasering.yaml",
   "selected_data_file": "postcodereeks.meta.json",

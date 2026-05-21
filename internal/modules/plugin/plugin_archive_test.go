@@ -142,6 +142,116 @@ func TestExport_SkipsHiddenFiles(t *testing.T) {
 	}
 }
 
+// A plugin with a sub-folder (i18n/<locale>.json is the driving case)
+// must round-trip its nested entries through the archive — the
+// pre-change exporter died on the directory because it treated every
+// listing entry as a file.
+func TestExport_BundlesSubdirectories(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	seedTestPlugin(t, plugins, "demo", nil)
+	i18nDir := filepath.Join(plugins, "demo", "i18n")
+	if err := os.MkdirAll(i18nDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(i18nDir, "en.json"), `{"name":"Demo"}`+"\n")
+	mustWrite(t, filepath.Join(i18nDir, "nl.json"), `{"name":"Demo"}`+"\n")
+
+	zipPath := filepath.Join(root, "demo.zip")
+	res, err := exportPluginArchive(kvTestFS{}, plugins, "demo", zipPath)
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	raw, err := os.ReadFile(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := readZipEntries(t, string(raw))
+	for _, want := range []string{"plugin.json", "main.lua", "form.json", "i18n/en.json", "i18n/nl.json"} {
+		if _, ok := entries[want]; !ok {
+			t.Errorf("zip missing %q (entries=%v)", want, res.Files)
+		}
+	}
+	// No bare "i18n" entry — directory itself doesn't get serialised.
+	if _, hit := entries["i18n"]; hit {
+		t.Errorf("zip contains bare directory entry %q", "i18n")
+	}
+	if _, hit := entries["i18n/"]; hit {
+		t.Errorf("zip contains directory entry %q", "i18n/")
+	}
+}
+
+// A hidden subdirectory (.git, .vscode, …) gets skipped wholesale —
+// matching the same rule applied to hidden top-level files.
+func TestExport_SkipsHiddenSubdirectories(t *testing.T) {
+	root := t.TempDir()
+	plugins := filepath.Join(root, "plugins")
+	seedTestPlugin(t, plugins, "demo", nil)
+	hidden := filepath.Join(plugins, "demo", ".git")
+	if err := os.MkdirAll(hidden, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(hidden, "config"), "[core]\n")
+
+	zipPath := filepath.Join(root, "demo.zip")
+	if _, err := exportPluginArchive(kvTestFS{}, plugins, "demo", zipPath); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	raw, err := os.ReadFile(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name := range readZipEntries(t, string(raw)) {
+		if strings.HasPrefix(name, ".git") {
+			t.Errorf("hidden subdir leaked: %q", name)
+		}
+	}
+}
+
+func TestRoundTrip_WithI18nDir(t *testing.T) {
+	srcRoot := t.TempDir()
+	srcPlugins := filepath.Join(srcRoot, "plugins")
+	seedTestPlugin(t, srcPlugins, "intl", nil)
+	i18n := filepath.Join(srcPlugins, "intl", "i18n")
+	if err := os.MkdirAll(i18n, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mustWrite(t, filepath.Join(i18n, "en.json"), `{"name":"Intl"}`+"\n")
+	mustWrite(t, filepath.Join(i18n, "nl.json"), `{"name":"Intl-nl"}`+"\n")
+
+	zipPath := filepath.Join(srcRoot, "intl.zip")
+	if _, err := exportPluginArchive(kvTestFS{}, srcPlugins, "intl", zipPath); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+
+	dstRoot := t.TempDir()
+	dstPlugins := filepath.Join(dstRoot, "plugins")
+	dstZip := filepath.Join(dstRoot, "intl.zip")
+	raw, err := os.ReadFile(zipPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dstZip, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := importPluginArchive(kvTestFS{}, dstPlugins, dstZip, false); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+
+	for rel, want := range map[string]string{
+		"i18n/en.json": `{"name":"Intl"}` + "\n",
+		"i18n/nl.json": `{"name":"Intl-nl"}` + "\n",
+	} {
+		got, err := os.ReadFile(filepath.Join(dstPlugins, "intl", filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("missing on destination: %s (%v)", rel, err)
+		}
+		if string(got) != want {
+			t.Errorf("%s body = %q, want %q", rel, string(got), want)
+		}
+	}
+}
+
 func TestExport_RejectsBadID(t *testing.T) {
 	root := t.TempDir()
 	zipPath := filepath.Join(root, "demo.zip")
@@ -345,19 +455,31 @@ func TestImport_RejectsPathTraversal(t *testing.T) {
 	}
 }
 
-func TestImport_RejectsNestedEntries(t *testing.T) {
+// Nested entries are accepted (i18n/<locale>.json is the driving case)
+// as long as no segment escapes the plugin folder.
+func TestImport_AcceptsNestedEntries(t *testing.T) {
 	root := t.TempDir()
 	plugins := filepath.Join(root, "plugins")
 	zipPath := filepath.Join(root, "incoming.zip")
 	buildArchive(t, kvTestFS{}, zipPath, map[string]string{
-		"plugin.json":      validManifest("nested"),
-		"main.lua":         "function run(ctx) end\n",
-		"sub/extra.lua":    "return {}\n",
+		"plugin.json":     validManifest("nested"),
+		"main.lua":        "function run(ctx) end\n",
+		"i18n/en.json":    `{"name":"Nested"}` + "\n",
+		"i18n/nl.json":    `{"name":"Genest"}` + "\n",
 	})
 
-	_, err := importPluginArchive(kvTestFS{}, plugins, zipPath, false)
-	if !errors.Is(err, ErrPluginArchiveInvalid) {
-		t.Errorf("err = %v, want ErrPluginArchiveInvalid", err)
+	res, err := importPluginArchive(kvTestFS{}, plugins, zipPath, false)
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	if res.ID != "nested" {
+		t.Errorf("ID = %q, want %q", res.ID, "nested")
+	}
+	for _, rel := range []string{"plugin.json", "main.lua", "i18n/en.json", "i18n/nl.json"} {
+		full := filepath.Join(plugins, "nested", filepath.FromSlash(rel))
+		if _, err := os.Stat(full); err != nil {
+			t.Errorf("missing on disk after import: %s (%v)", rel, err)
+		}
 	}
 }
 

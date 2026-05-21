@@ -148,6 +148,11 @@ func (m *Manager) FileExists(path string) bool {
 	return err == nil
 }
 
+func (m *Manager) IsDir(path string) bool {
+	info, err := os.Stat(m.ResolvePath(path))
+	return err == nil && info.IsDir()
+}
+
 // ListDir returns the names of all entries in the directory at path
 // (relative paths resolve under AppRoot; absolute paths used as-is).
 // Returns an empty slice for a missing directory rather than an
