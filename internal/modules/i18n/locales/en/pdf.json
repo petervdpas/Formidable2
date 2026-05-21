@@ -222,6 +222,8 @@
   "pdf.covers.archive.import.overwrite_title": "Overwrite cover?",
   "pdf.covers.archive.import.overwrite_message": "A cover named {0} already exists. Replace it with the version from the archive?",
   "pdf.covers.archive.import.overwrite_confirm": "Overwrite",
+  "pdf.covers.tab.covers": "Covers",
+  "pdf.covers.tab.images": "Images",
   "pdf.cover_images.info": "Edit, add, or remove the logo and banner images cover templates reference from <AppRoot>/pdf/covers/images/. Seed images (formidable.svg) reappear from the bundled defaults on the next app start.",
   "pdf.cover_images.list.title": "Library",
   "pdf.cover_images.list.loading": "Loading images…",

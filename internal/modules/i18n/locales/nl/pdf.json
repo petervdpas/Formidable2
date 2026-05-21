@@ -222,6 +222,8 @@
   "pdf.covers.archive.import.overwrite_title": "Voorpagina overschrijven?",
   "pdf.covers.archive.import.overwrite_message": "Er bestaat al een voorpagina met de naam {0}. Vervangen door de versie uit het archief?",
   "pdf.covers.archive.import.overwrite_confirm": "Overschrijven",
+  "pdf.covers.tab.covers": "Voorpagina's",
+  "pdf.covers.tab.images": "Afbeeldingen",
   "pdf.cover_images.info": "Beheer de logo- en bannerafbeeldingen waarnaar voorpagina-templates verwijzen onder <AppRoot>/pdf/covers/images/. Seed-afbeeldingen (formidable.svg) verschijnen bij de volgende app-start opnieuw vanuit de meegeleverde defaults.",
   "pdf.cover_images.list.title": "Bibliotheek",
   "pdf.cover_images.list.loading": "Afbeeldingen laden…",
