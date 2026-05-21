@@ -130,6 +130,7 @@
   "workspace.information.section.pdf": "PDF",
   "workspace.information.section.pdf_export": "PDF Export",
   "workspace.information.section.pdf_covers": "PDF-voorpagina's",
+  "workspace.information.section.pdf_cover_images": "PDF voorpagina-afbeeldingen",
   "workspace.information.section.help": "Help",
   "workspace.information.section.render_helpers": "Render-helpers",
   "workspace.information.section.frontmatter_directives": "Frontmatter instructies",

@@ -1129,3 +1129,126 @@
   color: inherit;
   font-family: var(--font-mono, monospace);
 }
+
+/* ── PDF Cover Images ────────────────────────────────────────────
+   Library of binary logo/banner assets under <AppRoot>/pdf/covers/
+   images/. Distinct from .pdf-covers-* (HTML cover templates): a
+   grid of square thumbnails with metadata + a single delete/reset
+   action per tile. Upload uses a native <input type="file"> that's
+   visually hidden — the "Upload" button proxies the click. */
+
+.pdf-cover-images-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pdf-cover-images-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.pdf-cover-images-header h4 {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.pdf-cover-images-header-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.pdf-cover-images-file-input {
+  display: none;
+}
+
+.pdf-cover-images-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.pdf-cover-images-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.pdf-cover-images-tile.seed {
+  border-color: color-mix(in oklab, var(--color-accent) 35%, var(--color-border));
+}
+
+.pdf-cover-images-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.pdf-cover-images-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.pdf-cover-images-thumb-placeholder {
+  font-size: 2rem;
+  color: var(--color-text-muted);
+}
+
+.pdf-cover-images-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+}
+
+.pdf-cover-images-name {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+  word-break: break-all;
+  color: var(--color-text);
+}
+
+.pdf-cover-images-size {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.pdf-cover-images-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7em;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--color-accent) 18%, var(--color-surface));
+  color: var(--color-accent);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 30%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pdf-cover-images-action {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: 4px 8px;
+  font-size: var(--font-size-sm);
+}

@@ -115,6 +115,45 @@ export class CoverDescriptor {
 }
 
 /**
+ * CoverImageDescriptor is one entry returned by ListCoverImages. Mirrors
+ * the cover-picker descriptor shape so the frontend can render the
+ * image library with the same chrome it uses for covers.
+ * 
+ * IsSeed is true when the filename matches an embedded seed (currently
+ * just formidable.svg). The frontend uses this to offer "Reset to
+ * default" — deleting a seed image is allowed; the next boot's
+ * scaffold pass re-writes it from the embed.
+ */
+export class CoverImageDescriptor {
+    "name": string;
+    "size": number;
+    "isSeed": boolean;
+
+    /** Creates a new CoverImageDescriptor instance. */
+    constructor($$source: Partial<CoverImageDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("isSeed" in $$source)) {
+            this["isSeed"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoverImageDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CoverImageDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CoverImageDescriptor($$parsedSource as Partial<CoverImageDescriptor>);
+    }
+}
+
+/**
  * CoverIssue is one finding from the validator. Codes are stable for
  * the lifetime of CurrentCoverSchemaVersion so the frontend can pin
  * translations / per-issue help.

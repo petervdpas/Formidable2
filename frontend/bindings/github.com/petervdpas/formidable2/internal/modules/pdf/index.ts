@@ -10,6 +10,7 @@ export {
     ActivateOpts,
     ChromeCandidate,
     CoverDescriptor,
+    CoverImageDescriptor,
     CoverIssue,
     CoverIssueSeverity,
     CoverTokenInfo,

@@ -19,6 +19,7 @@ func TestFeatures(t *testing.T) {
 			initPDFScenario(ctx)
 			initFrontmatterScenario(ctx)
 			initCoverArchiveScenario(ctx)
+			initCoverImagesScenario(ctx)
 		},
 		Options: &godog.Options{
 			Format:   "pretty",

@@ -70,6 +70,16 @@ export function DeleteCover(name: string): $CancellablePromise<void> {
 }
 
 /**
+ * DeleteCoverImage removes a user-uploaded or seed image. Seed
+ * images reappear on the next boot via the scaffold (delete-to-
+ * reset, matching the cover .html flow), so the frontend should
+ * phrase the action as "Reset" for those entries.
+ */
+export function DeleteCoverImage(name: string): $CancellablePromise<void> {
+    return $Call.ByID(1752088097, name);
+}
+
+/**
  * ExportCoverArchive zips a cover .html plus every image referenced
  * from its <img src=…> and CSS url(…) into the user-picked zipPath.
  * Used by the cover-sharing flow on the Information → PDF Covers panel.
@@ -155,6 +165,18 @@ export function LastExport(): $CancellablePromise<$models.ExportTelemetrySnapsho
 }
 
 /**
+ * ListCoverImages returns descriptors for every image discovered
+ * under <AppRoot>/pdf/covers/images/. Seed images (e.g. formidable.svg)
+ * are flagged so the frontend can offer Reset-to-default instead of
+ * permanent delete.
+ */
+export function ListCoverImages(): $CancellablePromise<$models.CoverImageDescriptor[]> {
+    return $Call.ByID(948120903).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
  * ListCovers returns descriptors for every cover discovered under
  * <AppRoot>/pdf/covers/. Powers the cover-picker dropdown in the
  * export dialog: scanned live on every call so user-added .html
@@ -162,7 +184,7 @@ export function LastExport(): $CancellablePromise<$models.ExportTelemetrySnapsho
  */
 export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
     return $Call.ByID(476206190).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -171,7 +193,7 @@ export function ListCovers(): $CancellablePromise<$models.CoverDescriptor[]> {
  */
 export function ListFooterPositions(): $CancellablePromise<$models.FooterPositionDescriptor[]> {
     return $Call.ByID(1619218275).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -180,7 +202,7 @@ export function ListFooterPositions(): $CancellablePromise<$models.FooterPositio
  */
 export function ListPageOrientations(): $CancellablePromise<$models.OrientationDescriptor[]> {
     return $Call.ByID(4037347146).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -191,7 +213,7 @@ export function ListPageOrientations(): $CancellablePromise<$models.OrientationD
  */
 export function ListPageSizes(): $CancellablePromise<$models.PageSizeDescriptor[]> {
     return $Call.ByID(3746256793).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -203,7 +225,7 @@ export function ListPageSizes(): $CancellablePromise<$models.PageSizeDescriptor[
  */
 export function ListThemes(): $CancellablePromise<$models.ThemeDescriptor[]> {
     return $Call.ByID(2644176728).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
@@ -218,6 +240,15 @@ export function LoadCover(name: string): $CancellablePromise<string> {
 }
 
 /**
+ * LoadCoverImage returns the raw bytes for one image as a base64
+ * string so it can ride the JSON Wails surface. The frontend uses
+ * this to render image previews next to the file metadata.
+ */
+export function LoadCoverImage(name: string): $CancellablePromise<string> {
+    return $Call.ByID(2402547314, name);
+}
+
+/**
  * MigrateFrontmatter rewrites an existing eisvogel/pandoc-style
  * frontmatter block into picoloom v2 shape. Returns the rewritten
  * markdown alongside structured metadata (which keys were mapped,
@@ -226,7 +257,7 @@ export function LoadCover(name: string): $CancellablePromise<string> {
  */
 export function MigrateFrontmatter(markdown: string): $CancellablePromise<$models.FrontmatterMigration> {
     return $Call.ByID(470664647, markdown).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
@@ -239,7 +270,7 @@ export function MigrateFrontmatter(markdown: string): $CancellablePromise<$model
  */
 export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
     return $Call.ByID(4169509082).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
@@ -254,7 +285,7 @@ export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
  */
 export function ResolveExportDefaults(templateFilename: string, datafile: string): $CancellablePromise<$models.ResolvedExportDefaults> {
     return $Call.ByID(2533436814, templateFilename, datafile).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType19($result);
     });
 }
 
@@ -266,6 +297,18 @@ export function ResolveExportDefaults(templateFilename: string, datafile: string
  */
 export function SaveCover(name: string, html: string): $CancellablePromise<void> {
     return $Call.ByID(2359601362, name, html);
+}
+
+/**
+ * SaveCoverImage persists a user-uploaded image under
+ * <AppRoot>/pdf/covers/images/<name>. data is the base64-encoded
+ * file body — the frontend reads the upload via FileReader and
+ * passes the result here, keeping the Wails JSON boundary clean.
+ * The filename and extension are validated before any bytes hit
+ * disk; on any rejection the function returns ErrCoverImageInvalid.
+ */
+export function SaveCoverImage(name: string, base64Data: string): $CancellablePromise<void> {
+    return $Call.ByID(490032087, name, base64Data);
 }
 
 /**
@@ -289,7 +332,7 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
  */
 export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
     return $Call.ByID(1327021382, html).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
@@ -299,17 +342,19 @@ const $$createType1 = $models.ExportCoverArchiveResult.createFrom;
 const $$createType2 = $models.Result.createFrom;
 const $$createType3 = $models.ImportCoverArchiveResult.createFrom;
 const $$createType4 = $models.ExportTelemetrySnapshot.createFrom;
-const $$createType5 = $models.CoverDescriptor.createFrom;
+const $$createType5 = $models.CoverImageDescriptor.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.FooterPositionDescriptor.createFrom;
+const $$createType7 = $models.CoverDescriptor.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $models.OrientationDescriptor.createFrom;
+const $$createType9 = $models.FooterPositionDescriptor.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $models.PageSizeDescriptor.createFrom;
+const $$createType11 = $models.OrientationDescriptor.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.ThemeDescriptor.createFrom;
+const $$createType13 = $models.PageSizeDescriptor.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = $models.FrontmatterMigration.createFrom;
-const $$createType16 = $models.ProbeResult.createFrom;
-const $$createType17 = $models.ResolvedExportDefaults.createFrom;
-const $$createType18 = $models.CoverValidation.createFrom;
+const $$createType15 = $models.ThemeDescriptor.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $models.FrontmatterMigration.createFrom;
+const $$createType18 = $models.ProbeResult.createFrom;
+const $$createType19 = $models.ResolvedExportDefaults.createFrom;
+const $$createType20 = $models.CoverValidation.createFrom;

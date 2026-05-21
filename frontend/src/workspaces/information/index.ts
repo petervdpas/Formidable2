@@ -8,6 +8,7 @@ import InformationJournalFeed from "./InformationJournalFeed.vue";
 import InformationLogging from "./InformationLogging.vue";
 import InformationPDFExport from "./InformationPDFExport.vue";
 import InformationPDFCovers from "./InformationPDFCovers.vue";
+import InformationPDFCoverImages from "./InformationPDFCoverImages.vue";
 import InformationRenderHelpers from "./InformationRenderHelpers.vue";
 import InformationFrontmatterDirectives from "./InformationFrontmatterDirectives.vue";
 import InformationManualTopic from "./InformationManualTopic.vue";
@@ -44,6 +45,7 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
     children: [
       { id: "pdf-export", labelKey: "workspace.information.section.pdf_export", component: InformationPDFExport },
       { id: "pdf-covers", labelKey: "workspace.information.section.pdf_covers", component: InformationPDFCovers },
+      { id: "pdf-cover-images", labelKey: "workspace.information.section.pdf_cover_images", component: InformationPDFCoverImages },
     ],
   },
   {

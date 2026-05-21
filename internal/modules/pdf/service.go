@@ -1,5 +1,11 @@
 package pdf
 
+import (
+	"encoding/base64"
+	"fmt"
+	"strings"
+)
+
 // builtinThemes is picoloom v2's canonical bundled style set. Picoloom
 // does not expose a registry method, so this list IS the single source
 // of truth on the Go side — the frontend reads it via ListThemes() and
@@ -232,4 +238,51 @@ func (s *Service) ExportCoverArchive(name, zipPath string) (ExportCoverArchiveRe
 // user before retrying with overwrite=true.
 func (s *Service) ImportCoverArchive(zipPath string, overwrite bool) (ImportCoverArchiveResult, error) {
 	return s.m.ImportCoverArchive(zipPath, overwrite)
+}
+
+// ListCoverImages returns descriptors for every image discovered
+// under <AppRoot>/pdf/covers/images/. Seed images (e.g. formidable.svg)
+// are flagged so the frontend can offer Reset-to-default instead of
+// permanent delete.
+func (s *Service) ListCoverImages() ([]CoverImageDescriptor, error) {
+	return s.m.ListCoverImages()
+}
+
+// SaveCoverImage persists a user-uploaded image under
+// <AppRoot>/pdf/covers/images/<name>. data is the base64-encoded
+// file body — the frontend reads the upload via FileReader and
+// passes the result here, keeping the Wails JSON boundary clean.
+// The filename and extension are validated before any bytes hit
+// disk; on any rejection the function returns ErrCoverImageInvalid.
+func (s *Service) SaveCoverImage(name, base64Data string) error {
+	if idx := strings.Index(base64Data, ","); idx >= 0 && strings.HasPrefix(base64Data, "data:") {
+		base64Data = base64Data[idx+1:]
+	}
+	raw, err := base64.StdEncoding.DecodeString(base64Data)
+	if err != nil {
+		raw, err = base64.RawStdEncoding.DecodeString(base64Data)
+	}
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrCoverImageInvalid, err)
+	}
+	return s.m.SaveCoverImage(name, raw)
+}
+
+// LoadCoverImage returns the raw bytes for one image as a base64
+// string so it can ride the JSON Wails surface. The frontend uses
+// this to render image previews next to the file metadata.
+func (s *Service) LoadCoverImage(name string) (string, error) {
+	raw, err := s.m.LoadCoverImage(name)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(raw), nil
+}
+
+// DeleteCoverImage removes a user-uploaded or seed image. Seed
+// images reappear on the next boot via the scaffold (delete-to-
+// reset, matching the cover .html flow), so the frontend should
+// phrase the action as "Reset" for those entries.
+func (s *Service) DeleteCoverImage(name string) error {
+	return s.m.DeleteCoverImage(name)
 }
