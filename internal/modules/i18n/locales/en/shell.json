@@ -139,7 +139,7 @@
   "workspace.information.section.manual_settings": "Settings",
   "workspace.information.section.manual_templates": "Templates",
   "workspace.information.section.manual_fields": "Fields",
-  "workspace.information.section.manual_pdf": "PDF",
+  "workspace.information.section.manual_pdf": "Portable Document Format",
   "workspace.information.section.manual_plugins": "Plugins",
   "workspace.information.manual.loading": "Loading manual…",
   "workspace.information.manual.error": "Could not load this manual topic.",

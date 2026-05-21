@@ -1,4 +1,4 @@
-# PDF
+# Portable Document Format (PDF) Export
 
 Formidable exports records to PDF via **picoloom v2** — a Chromium-
 based renderer with no LaTeX dependency. The export pipeline is
