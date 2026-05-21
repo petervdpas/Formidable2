@@ -541,6 +541,173 @@
   padding-bottom: 4px;
 }
 
+/* ── Manual pages ─────────────────────────────────────────────────
+   InformationManualTopic.vue renders embedded markdown into a
+   .manual-body container. Distinct from .pdf-directives-body (which
+   is a sunken card) — the manual is a top-level reading page, so
+   it gets generous prose styling rather than card chrome. */
+
+.manual-body {
+  max-width: 920px;
+  font-size: var(--font-size-md);
+  line-height: 1.65;
+  color: var(--color-text);
+}
+
+.manual-body > *:first-child {
+  margin-top: 0;
+}
+
+.manual-body p {
+  margin: 0 0 1em;
+}
+
+.manual-body h1 {
+  margin: 0 0 0.6em;
+  padding-bottom: var(--space-2);
+  font-size: 1.65em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.manual-body h2 {
+  margin: 1.8em 0 0.6em;
+  padding-bottom: var(--space-1);
+  font-size: 1.25em;
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.manual-body h3 {
+  margin: 1.4em 0 0.4em;
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.manual-body h4 {
+  margin: 1.1em 0 0.3em;
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.manual-body a {
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px dotted color-mix(in oklab, var(--color-accent) 60%, transparent);
+}
+
+.manual-body a:hover {
+  border-bottom-style: solid;
+}
+
+.manual-body strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.manual-body ul,
+.manual-body ol {
+  margin: 0 0 1em;
+  padding-left: var(--space-5);
+}
+
+.manual-body li {
+  margin: 0.25em 0;
+}
+
+.manual-body li > p {
+  margin: 0;
+}
+
+.manual-body code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--color-accent) 12%, var(--color-surface));
+  color: color-mix(in oklab, var(--color-accent) 70%, var(--color-text));
+  border: 1px solid color-mix(in oklab, var(--color-accent) 18%, transparent);
+}
+
+.manual-body pre {
+  margin: 0 0 1.2em;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+.manual-body pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--color-text);
+  font-size: 0.92em;
+}
+
+.manual-body blockquote {
+  margin: 0 0 1em;
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 6%, var(--color-surface));
+  color: var(--color-text-muted);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.manual-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.manual-body hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.manual-body table {
+  width: 100%;
+  margin: 0.4em 0 1.4em;
+  border-collapse: collapse;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  font-size: 0.95em;
+}
+
+.manual-body th,
+.manual-body td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.manual-body th {
+  background: var(--color-surface);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.manual-body tbody tr:nth-child(even) {
+  background: color-mix(in oklab, var(--color-surface) 50%, transparent);
+}
+
+.manual-body tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.manual-body td code,
+.manual-body th code {
+  font-size: 0.88em;
+}
+
 .pdf-doctor {
   margin: 1.5em 0 0.5em;
   max-width: 920px;

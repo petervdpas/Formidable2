@@ -23,6 +23,10 @@ export interface InformationCategory {
    *  single generic component (e.g. InformationManualTopic) back several
    *  leaves that differ only in input. */
   props?: Record<string, unknown>;
+  /** When true, the workspace's top-level page heading is suppressed —
+   *  the leaf renders its own H1 (typically because the content is
+   *  markdown with its own title). */
+  ownsHeading?: boolean;
   /** Nested sub-categories; presence makes this entry a branch. */
   children?: InformationCategory[];
   /** Optional predicate; entry is hidden when this returns false. */
@@ -56,10 +60,32 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
     labelKey: "workspace.information.section.manual",
     children: [
       {
+        id: "manual-settings",
+        labelKey: "workspace.information.section.manual_settings",
+        component: InformationManualTopic,
+        props: { topic: "settings" },
+        ownsHeading: true,
+      },
+      {
+        id: "manual-templates",
+        labelKey: "workspace.information.section.manual_templates",
+        component: InformationManualTopic,
+        props: { topic: "templates" },
+        ownsHeading: true,
+      },
+      {
+        id: "manual-fields",
+        labelKey: "workspace.information.section.manual_fields",
+        component: InformationManualTopic,
+        props: { topic: "fields" },
+        ownsHeading: true,
+      },
+      {
         id: "manual-plugins",
         labelKey: "workspace.information.section.manual_plugins",
         component: InformationManualTopic,
         props: { topic: "plugins" },
+        ownsHeading: true,
       },
     ],
   },

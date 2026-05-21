@@ -92,7 +92,7 @@ setTopbarMenu(() => {
     </template>
 
     <template #main>
-      <h1 class="workspace-heading">{{ t(activeCategory.labelKey) }}</h1>
+      <h1 v-if="!activeCategory.ownsHeading" class="workspace-heading">{{ t(activeCategory.labelKey) }}</h1>
       <component :is="activeCategory.component" v-bind="activeCategory.props || {}" />
     </template>
   </SplitPane>
