@@ -4,7 +4,8 @@
     "type": "text",
     "label": "What?",
     "two_column": true,
-    "description": "What is the matter?"
+    "description": "What is the matter?",
+    "i18n": "form.what"
   },
   {
     "key": "input",
@@ -12,6 +13,7 @@
     "label": "Input",
     "readonly": true,
     "description": "Test input",
+    "i18n": "form.input",
     "options": [
       {
         "label": "Batchfiles",

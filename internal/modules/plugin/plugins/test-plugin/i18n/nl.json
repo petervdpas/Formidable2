@@ -1,0 +1,9 @@
+{
+  "name": "Test-plugin",
+  "description": "Dit is een test.. **test** grondig.",
+  "form.what.label": "Wat?",
+  "form.what.description": "Wat is er aan de hand?",
+  "form.what.placeholder": "Typ iets…",
+  "form.input.label": "Invoer",
+  "form.input.description": "Test-invoer"
+}

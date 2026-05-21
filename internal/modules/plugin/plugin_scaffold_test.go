@@ -15,8 +15,14 @@ func TestScaffoldPlugins_WritesSeedsToEmptyDir(t *testing.T) {
 	if err := ScaffoldPlugins(kvTestFS{}, dir, slog.Default()); err != nil {
 		t.Fatalf("ScaffoldPlugins: %v", err)
 	}
-	for _, name := range []string{"plugin.json", "main.lua", "form.json"} {
-		p := filepath.Join(dir, "test-plugin", name)
+	for _, rel := range []string{
+		"plugin.json",
+		"main.lua",
+		"form.json",
+		filepath.Join("i18n", "en.json"),
+		filepath.Join("i18n", "nl.json"),
+	} {
+		p := filepath.Join(dir, "test-plugin", rel)
 		if _, err := os.Stat(p); err != nil {
 			t.Errorf("seed not scaffolded at %q: %v", p, err)
 		}
@@ -152,4 +158,15 @@ func TestScaffoldPlugins_SeededFilesAreValid(t *testing.T) {
 		t.Errorf("scaffolded main.lua for %q does not parse: %v", id, err)
 	}
 	L.Close()
+
+	for _, locale := range []string{"en", "nl"} {
+		msgs, err := loadPluginI18n(filepath.Join(dir, id), locale)
+		if err != nil {
+			t.Errorf("seeded %s.json for %q does not parse: %v", locale, id, err)
+			continue
+		}
+		if len(msgs) == 0 {
+			t.Errorf("seeded %s.json for %q has no keys", locale, id)
+		}
+	}
 }

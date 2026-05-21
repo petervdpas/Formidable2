@@ -1,0 +1,9 @@
+{
+  "name": "Test Plugin",
+  "description": "This is a test.. be sure to **test** thoroughly.",
+  "form.what.label": "What?",
+  "form.what.description": "What is the matter?",
+  "form.what.placeholder": "Type something…",
+  "form.input.label": "Input",
+  "form.input.description": "Test input"
+}
