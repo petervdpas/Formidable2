@@ -67,6 +67,13 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
         ownsHeading: true,
       },
       {
+        id: "manual-profiles",
+        labelKey: "workspace.information.section.manual_profiles",
+        component: InformationManualTopic,
+        props: { topic: "profiles" },
+        ownsHeading: true,
+      },
+      {
         id: "manual-templates",
         labelKey: "workspace.information.section.manual_templates",
         component: InformationManualTopic,

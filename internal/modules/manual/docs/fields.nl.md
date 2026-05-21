@@ -1,4 +1,4 @@
-# Velden
+# Velden & Formulieren
 
 Een **veld** is één element in de `fields:`-lijst van een template.
 Elk veld heeft een stabiele `key`, een `type` uit de matrix
@@ -17,12 +17,12 @@ hieronder, en een set attributen waar het type op intekent.
 | `summary_field`  | Markeert een veld dat in de opslag-zijbalk-sublabel verschijnt.   |
 | `two_column`     | Toont het veld in een twee-koloms rij wanneer gekoppeld aan een ander. |
 | `readonly`       | Schakelt bewerken uit in het runtime-formulier.                   |
-| `collapsible`    | Container-types — vouwt children weg achter een kop.              |
+| `collapsible`    | Container-types - vouwt children weg achter een kop.              |
 | `expression_item`| Beschikbaar als variabele in de expression-builder.               |
 | `format`         | Type-specifieke format-hint (bijv. datum, nummer).                |
 | `options`        | Type-specifieke lijst (dropdown-keuzes, file-patronen, enz.).     |
 
-Niet elk attribuut geldt voor elk type — de Designer verbergt rijen
+Niet elk attribuut geldt voor elk type - de Designer verbergt rijen
 die niet van toepassing zijn, en de backend stript verboden waarden
 bij opslaan.
 
@@ -48,9 +48,9 @@ bij opslaan.
 | `tags`         | Tag-chips gekoppeld aan `meta.tags`; maximaal één per template.    |
 | `api`          | Cross-template lookup via de REST `/api/<tpl>/{id}`-route.         |
 | `guid`         | Automatisch gegenereerde record-id; vereist door `enable_collection`. |
-| `looper`       | Marker — declareert een herhaalbare groep hieronder.               |
-| `loopstart`    | Marker — opent een loop-body.                                      |
-| `loopstop`     | Marker — sluit een loop-body.                                      |
+| `looper`       | Marker - declareert een herhaalbare groep hieronder.               |
+| `loopstart`    | Marker - opent een loop-body.                                      |
+| `loopstop`     | Marker - sluit een loop-body.                                      |
 
 ## Loops
 
@@ -77,7 +77,7 @@ fields:
 ```
 
 `summary_field` op `loopstart` kiest één van de binnenste velden om
-elke iteratie samen te vatten in de form-runtime — de waarde van
+elke iteratie samen te vatten in de form-runtime - de waarde van
 dat veld wordt het label van de ingeklapte rij.
 
 ### Geneste loops

@@ -1,47 +1,29 @@
-# Settings
+# User Settings
 
-Formidable groups its configuration into **profiles**. Each profile is
-an independent workspace with its own templates, storage, plugins, and
-preferences. Switch profiles from the bottom-right user menu — the app
-reloads to the picked profile's context.
+Every profile carries its own settings record, stored as `config.json`
+in the profile folder. The Profiles workspace renders that record as
+a form; the User Profiles page covers the per-profile folder layout
+and how to switch between them.
 
-## Where settings live
+## Common fields
 
-Profiles live in the per-user application data directory. Each profile
-is a folder containing:
+A handful of settings you'll touch most often:
 
-| Path                       | Purpose                                                      |
-| -------------------------- | ------------------------------------------------------------ |
-| `config.json`              | The full settings record for this profile.                   |
-| `templates/`               | YAML template definitions discovered on startup.             |
-| `storage/<template>/`      | Per-template record files (`.md`, `.meta.json`).             |
-| `plugins/`                 | Plugin folders, see the Plugins manual page.                 |
-| `pdf/covers/`              | User-authored PDF cover archives.                            |
-
-The active profile name shows in the title bar; the path is
-discoverable via the Information → About panel.
-
-## Common settings
-
-A handful of fields you'll touch most often:
-
-- **Theme** — light / dark / system.
-- **Language** — picks the locale for the UI and for plugin i18n
+- **Theme** - light / dark / system.
+- **Language** - picks the locale for the UI and for plugin i18n
   resolution.
-- **Enable plugins** — global kill-switch. Off hides the Plugins
+- **Enable plugins** - global kill-switch. Off hides the Plugins
   workspace and skips plugin discovery.
-- **Logging enabled** — writes a rolling log to disk; the Information
+- **Logging enabled** - writes a rolling log to disk; the Information
   → Logging panel tails it live.
-- **Enabled templates** — curates which templates appear in the
+- **Enabled templates** - curates which templates appear in the
   Storage workspace; an empty list means "all of them."
-- **Show paste buttons** — surfaces a paste-from-clipboard icon next
+- **Show paste buttons** - surfaces a paste-from-clipboard icon next
   to text/textarea fields.
-- **Author name** + **Author email** — used as the default identity
+- **Author name** + **Author email** - used as the default identity
   on new records and on git commits made through the Sync workspace.
-- **Context mode / ribbon / folder** — selects the active workspace
+- **Context mode / ribbon / folder** - selects the active workspace
   context on startup.
-
-The full list is rendered as a form in the Profiles workspace.
 
 ## Internal server
 
@@ -54,17 +36,16 @@ toggles.
 
 Each profile carries its own remote-backend settings:
 
-- **Git** — points at a remote repo over HTTPS or SSH; credentials
+- **Git** - points at a remote repo over HTTPS or SSH; credentials
   live in the keychain.
-- **Gigot** — Formidable's lightweight ledger-based sync, addressed
+- **Gigot** - Formidable's lightweight ledger-based sync, addressed
   by a base URL + per-profile subscription token.
 
-These are independent — a profile picks one or neither.
+These are independent - a profile picks one or neither.
 
 ## Saving and resets
 
 Settings save atomically (temp file + fsync + rename) so a crash
 mid-save can never corrupt `config.json`. To reset a single field,
 clear it in the Profiles workspace; to reset everything for a fresh
-profile, delete the profile folder and let the app recreate it on
-next launch.
+profile, see User Profiles for how to recreate the profile folder.

@@ -1,6 +1,6 @@
 # Portable Document Format (PDF) Exporteren
 
-Formidable exporteert records naar PDF via **picoloom v2** — een
+Formidable exporteert records naar PDF via **picoloom v2** - een
 Chromium-gebaseerde renderer zonder LaTeX-afhankelijkheid. De
 export-pijplijn is opt-in: er gebeurt niets PDF-gerelateerds tot
 de gebruiker op **Activeren** klikt in het Informatie → PDF
@@ -22,10 +22,10 @@ engine.
    hem zonder opnieuw te zoeken.
 3. **Geen Chrome gevonden?** De managed-download-flow haalt een
    standalone Chromium-build naar de per-user-cache-map. Dat
-   gebeurt alleen op expliciet verzoek — Formidable downloadt
+   gebeurt alleen op expliciet verzoek - Formidable downloadt
    nooit stilzwijgend.
 
-**Export-map** — het paneel onthoudt ook waar exports landen. Leeg
+**Export-map** - het paneel onthoudt ook waar exports landen. Leeg
 betekent de systeem-Documents-map; een niet-leeg pad moet een
 bestaand absoluut pad zijn.
 
@@ -36,15 +36,15 @@ Open in de **Opslag**-werkruimte, met een record geselecteerd,
 Export-dialoog vult zinnige defaults vooraf in op basis van het
 template en de frontmatter van het record:
 
-- **Thema** — picoloom's meegeleverde stijlen (`technical`,
+- **Thema** - picoloom's meegeleverde stijlen (`technical`,
   `academic`, `corporate`, `legal`, …). Verschijnt als de
   `theme:`-frontmatter-sleutel.
-- **Voorpagina** — kiest een cover-template uit de bibliotheek op
+- **Voorpagina** - kiest een cover-template uit de bibliotheek op
   schijf. De lijst komt uit `<AppRoot>/pdf/covers/*.html`; kies
   *Geen* om de voorpagina over te slaan.
-- **Oriëntatie** — staand of liggend.
-- **Voettekst-positie** — geen, paginanummers, linksonder, enz.
-- **Trefwoorden** — kommagescheiden termen die in het
+- **Oriëntatie** - staand of liggend.
+- **Voettekst-positie** - geen, paginanummers, linksonder, enz.
+- **Trefwoorden** - kommagescheiden termen die in het
   `/Keywords`-metadataveld van de PDF terechtkomen voor
   desktop-indexers.
 
@@ -107,11 +107,11 @@ picoloom-directive-processor lopen. De Informatie → Help →
 Frontmatter Directives-pagina is de volledige referentie. Veel
 gebruikte sleutels:
 
-- `theme:` / `cover:` / `orientation:` — gekozen via de
+- `theme:` / `cover:` / `orientation:` - gekozen via de
   Export-dialoog; kunnen ook hardcoded in het template staan.
-- `keywords:` — string op topniveau die in het
+- `keywords:` - string op topniveau die in het
   `/Keywords`-metadataveld van de PDF terechtkomt.
-- `cover.logo:` — afbeeldingspad dat het cover-template rendert.
+- `cover.logo:` - afbeeldingspad dat het cover-template rendert.
   Kale basisnamen resolven tegen `<AppRoot>/pdf/covers/images/`.
 
 ## Probleemoplossing

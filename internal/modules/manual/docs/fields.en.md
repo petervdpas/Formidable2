@@ -1,4 +1,4 @@
-# Fields
+# Fields & Forms
 
 A **field** is one entry in a template's `fields:` list. Each field
 carries a stable `key`, a `type` from the matrix below, and a set of
@@ -17,12 +17,12 @@ attributes that the type opts into.
 | `summary_field`  | Marks a field surfaced in the storage sidebar's sub-label.       |
 | `two_column`     | Renders the field in a two-column row when paired with another. |
 | `readonly`       | Disables editing in the form runtime.                            |
-| `collapsible`    | For container types — folds the children behind a header.        |
+| `collapsible`    | For container types - folds the children behind a header.        |
 | `expression_item`| Includes the field as a variable in the expression builder.      |
 | `format`         | Type-specific format hint (e.g. date, number).                   |
 | `options`        | Type-specific list (dropdown choices, file patterns, etc.).      |
 
-Not every attribute applies to every type — the Designer hides rows
+Not every attribute applies to every type - the Designer hides rows
 that don't apply, and the backend strips disallowed values on save.
 
 ## Type matrix
@@ -47,9 +47,9 @@ that don't apply, and the backend strips disallowed values on save.
 | `tags`         | Tag chips bound to `meta.tags`; one per template.                  |
 | `api`          | Cross-template lookup against the REST `/api/<tpl>/{id}` route.    |
 | `guid`         | Auto-generated record identifier; required by `enable_collection`. |
-| `looper`       | Marker — declares a repeatable group below.                        |
-| `loopstart`    | Marker — opens a loop body.                                        |
-| `loopstop`     | Marker — closes a loop body.                                       |
+| `looper`       | Marker - declares a repeatable group below.                        |
+| `loopstart`    | Marker - opens a loop body.                                        |
+| `loopstop`     | Marker - closes a loop body.                                       |
 
 ## Loops
 
@@ -76,7 +76,7 @@ fields:
 ```
 
 `summary_field` on `loopstart` picks one of the inner field keys to
-summarise each iteration in the form runtime — the value of that
+summarise each iteration in the form runtime - the value of that
 field becomes the row's collapsed label.
 
 ### Nested loops
