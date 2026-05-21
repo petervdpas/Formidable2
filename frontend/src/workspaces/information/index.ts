@@ -10,6 +10,7 @@ import InformationPDFExport from "./InformationPDFExport.vue";
 import InformationPDFCovers from "./InformationPDFCovers.vue";
 import InformationRenderHelpers from "./InformationRenderHelpers.vue";
 import InformationFrontmatterDirectives from "./InformationFrontmatterDirectives.vue";
+import InformationManualTopic from "./InformationManualTopic.vue";
 
 export type InformationCategoryId = string;
 
@@ -18,6 +19,10 @@ export interface InformationCategory {
   labelKey: string;
   /** Leaves carry a component. Branches (with `children`) leave this empty. */
   component?: Component;
+  /** Props forwarded to the component when this leaf is active. Lets a
+   *  single generic component (e.g. InformationManualTopic) back several
+   *  leaves that differ only in input. */
+  props?: Record<string, unknown>;
   /** Nested sub-categories; presence makes this entry a branch. */
   children?: InformationCategory[];
   /** Optional predicate; entry is hidden when this returns false. */
@@ -44,6 +49,18 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
       { id: "shortcuts",              labelKey: "workspace.information.section.shortcuts",              component: InformationShortcuts },
       { id: "render-helpers",         labelKey: "workspace.information.section.render_helpers",         component: InformationRenderHelpers },
       { id: "frontmatter-directives", labelKey: "workspace.information.section.frontmatter_directives", component: InformationFrontmatterDirectives },
+    ],
+  },
+  {
+    id: "manual",
+    labelKey: "workspace.information.section.manual",
+    children: [
+      {
+        id: "manual-plugins",
+        labelKey: "workspace.information.section.manual_plugins",
+        component: InformationManualTopic,
+        props: { topic: "plugins" },
+      },
     ],
   },
   {
