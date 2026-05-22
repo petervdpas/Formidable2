@@ -10,7 +10,7 @@ import { backendErrMessage } from "../utils/backendError";
 
 // Module-scope singletons. Activation state only changes through this
 // composable's actions (no external mutator), so a refresh-on-action
-// strategy is enough — no polling timer.
+// strategy is enough - no polling timer.
 const status = ref<Status | null>(null);
 const lastError = ref<string>("");
 const lastExport = ref<ExportTelemetrySnapshot | null>(null);

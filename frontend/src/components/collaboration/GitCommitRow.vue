@@ -4,7 +4,7 @@ import type { GraphCommit } from "../../../bindings/github.com/petervdpas/formid
 
 // GitCommitRow renders the per-commit header chrome: short hash,
 // subject (with ellipsis), branch/HEAD pills, author, relative time.
-// Pure presentational — props in, no events. Lives in
+// Pure presentational - props in, no events. Lives in
 // components/collaboration/ alongside GitStatus.vue. Parallel to
 // GigotCommitRow on the gigot side; intentionally duplicated for
 // per-backend separation.

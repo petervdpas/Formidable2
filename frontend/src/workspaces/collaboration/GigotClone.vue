@@ -21,12 +21,12 @@ import { useCredentialStatus } from "../../composables/useCredentialStatus";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
-// Clone Repository — gigot edition. Folds setup (subscription bearer
+// Clone Repository - gigot edition. Folds setup (subscription bearer
 // entry + keychain save toggle) into the same panel as Clone /
 // Re-clone, so gigot has a single setup-and-clone section that
 // mirrors git's Clone Repository. Clone is a merge-aware pull (server
 // deletes apply locally, local-only files survive); Re-clone wipes
-// managed paths first. Push / Pull / Sync — the day-to-day ops — live
+// managed paths first. Push / Pull / Sync - the day-to-day ops - live
 // in Repository Sync.
 //
 // Token handling mirrors git's PAT pattern: the field is transient
@@ -43,7 +43,7 @@ const toast = useToast();
 
 // Addressing fields edit the active profile through useConfig so a
 // Clone here updates Current Service + Repository Sync in lockstep.
-// (The same fields surface on Current Service via GigotConnection —
+// (The same fields surface on Current Service via GigotConnection -
 // that's intentional. Either entry point fills the same config.)
 const contextFolder = computed({
   get: () => config.value?.context_folder ?? "",
@@ -65,13 +65,13 @@ const cloning = ref(false);
 const recloning = ref(false);
 const confirmReclone = ref(false);
 
-// Pre-clone confirm state — populated when LedgerSummary's pre-flight
+// Pre-clone confirm state - populated when LedgerSummary's pre-flight
 // finds local managed changes that Clone would silently overwrite.
 // Captured here so the dialog can name the count.
 const confirmDirty = ref(false);
 const dirtyChanged = ref<string[]>([]);
 
-// Live bearer status — driven by the shared useCredentialStatus
+// Live bearer status - driven by the shared useCredentialStatus
 // composable so the git side can adopt the same pattern for PAT
 // status. The account key derives from the active profile + repo;
 // when either changes the composable re-probes automatically.
@@ -174,8 +174,8 @@ onBeforeUnmount(() => {
 // doesn't expose Get to the renderer (the bearer never round-trips
 // out of the OS keychain into JS), so we can't snapshot-and-restore
 // the previous value. The UI guard (canAct) blocks the dangerous
-// case — user types a new token, Save=OFF, AND a bearer already
-// exists — so withTransientToken can assume one of:
+// case - user types a new token, Save=OFF, AND a bearer already
+// exists - so withTransientToken can assume one of:
 //
 //   a) No new token typed     → no keychain mutation.
 //   b) New token + Save=ON    → Set overwrites old, permanently.
@@ -199,7 +199,7 @@ async function withTransientToken(): Promise<() => Promise<void>> {
     try {
       await CredentialSvc.Delete(account);
     } catch {
-      /* delete failure is non-fatal — the op already succeeded */
+      /* delete failure is non-fatal - the op already succeeded */
     }
     void refreshBearerStatus();
   };
@@ -217,7 +217,7 @@ async function doClone() {
     pendingChanged = (summary?.changed ?? []) as string[];
   } catch {
     /* If LedgerSummary fails (e.g. missing context), let PullLocal
-       surface the same error — don't gate Clone on a probe. */
+       surface the same error - don't gate Clone on a probe. */
   }
   if (pendingChanged.length > 0) {
     dirtyChanged.value = pendingChanged;
@@ -318,7 +318,7 @@ async function doReclone() {
     >
       <TextField v-model="token" type="password" autocomplete="off" />
       <Badge v-if="bearerStatusKey" :variant="bearerStatusVariant">
-        {{ t(bearerStatusKey, [profileFilename, repoName.trim() || '—']) }}
+        {{ t(bearerStatusKey, [profileFilename, repoName.trim() || '-']) }}
       </Badge>
     </FormRow>
     <FormSwitchRow

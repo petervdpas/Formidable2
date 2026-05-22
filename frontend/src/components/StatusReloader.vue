@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /*
- * StatusReloader — footer "↻" button that invokes the current
+ * StatusReloader - footer "↻" button that invokes the current
  * workspace's "Refresh" action. We don't reinvent the refresh path:
  * every workspace already registers a top-level menu group containing
  * a `{ id: "refresh", onClick: doRefresh }` entry, and we reach into
  * `useTopbarMenu` to find it. If the active workspace has no refresh
- * registered, the button greys out — better than a dead click.
+ * registered, the button greys out - better than a dead click.
  */
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";

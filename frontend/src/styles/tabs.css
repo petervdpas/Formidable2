@@ -1,4 +1,4 @@
-/* Horizontal tab strip — used by workspaces that need to swap
+/* Horizontal tab strip - used by workspaces that need to swap
    between sub-views (e.g. Plugins: Lua Source / Commands / Form
    Editor). Tab buttons sit in a row, an active underline marks the
    selected tab, and the matching .tab-pane below holds its content.
@@ -73,7 +73,7 @@
    can flip between horizontal (stacked) and vertical (side-by-side)
    without each call site re-implementing the geometry.
 
-   Horizontal is the default — block flow keeps the strip on top and
+   Horizontal is the default - block flow keeps the strip on top and
    the pane below, matching the long-standing inline pattern (which
    PluginsWorkspace still uses without the wrapper). Vertical turns
    the container into a row and rotates the active-state indicator

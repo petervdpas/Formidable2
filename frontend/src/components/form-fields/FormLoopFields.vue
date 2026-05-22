@@ -7,9 +7,9 @@ import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidab
 
 // FormLoopFields walks one slice of template.fields[] and dispatches
 // each field to either:
-//   - FormLoop (when a loopstart's index matches a LoopGroup) — skips
+//   - FormLoop (when a loopstart's index matches a LoopGroup) - skips
 //     the inner fields up to the matching loopstop
-//   - FormFieldRow (regular field — guid + loopstop are hidden)
+//   - FormFieldRow (regular field - guid + loopstop are hidden)
 //
 // `startOffset` is where this slice begins in the ORIGINAL template
 // fields array; loop_groups indices are absolute, so we add the
@@ -31,7 +31,7 @@ const groupByStart = computed(() => {
   return map;
 });
 
-// Pre-walk the slice into a list of render entries — either a
+// Pre-walk the slice into a list of render entries - either a
 // regular field (with its index in the slice) or a loop block.
 type Entry =
   | { kind: "field"; field: Field; key: string }
@@ -57,7 +57,7 @@ const entries = computed<Entry[]>(() => {
         i = group.stop_index - props.startOffset + 1;
         continue;
       }
-      // Unpaired (validator catches this) — render as hidden, advance.
+      // Unpaired (validator catches this) - render as hidden, advance.
       i++;
       continue;
     }

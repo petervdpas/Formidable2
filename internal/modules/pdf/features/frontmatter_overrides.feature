@@ -1,10 +1,10 @@
-Feature: PDF Frontmatter — parse, merge, project to picoloom.Input
+Feature: PDF Frontmatter - parse, merge, project to picoloom.Input
   The pdf module parses YAML frontmatter from a markdown document
   (post-raymond expansion in Stage 4) and merges four layers in
   priority order: document frontmatter > form meta > template
   manifest > global config. The merged Frontmatter is projected to
   a picoloom.Input via a pure BuildInput function. Malformed
-  frontmatter is tolerated — the body always survives and the
+  frontmatter is tolerated - the body always survives and the
   caller renders with defaults.
 
   Background:

@@ -38,7 +38,7 @@ func Merge(path string, base, theirs, yours Record) (MergeResult, error) {
 			mergedData[key] = tv
 		case tok && !yok:
 			// Theirs has it, yours doesn't. If yours matches base
-			// (either both absent, or base absent too — a yours-side
+			// (either both absent, or base absent too - a yours-side
 			// no-op), theirs is the changed side and its value stands.
 			// If yours is a deliberate removal (base had it, yours
 			// removed), fall to LWW.
@@ -80,7 +80,7 @@ func Merge(path string, base, theirs, yours Record) (MergeResult, error) {
 				}
 			}
 		default:
-			// Neither side has it but base does — keep base's value.
+			// Neither side has it but base does - keep base's value.
 			if bok {
 				mergedData[key] = bv
 			}
@@ -96,7 +96,7 @@ func Merge(path string, base, theirs, yours Record) (MergeResult, error) {
 }
 
 // IsRecordPath returns true when p matches the
-// storage/<template>/<name>.meta.json path contract — exactly two
+// storage/<template>/<name>.meta.json path contract - exactly two
 // directory levels, `.meta.json` suffix, no traversal. Used by the
 // caller to gate "should this path go through structured merge?"
 // without dragging path-validation rules across module boundaries.
@@ -123,7 +123,7 @@ func IsRecordPath(p string) bool {
 	return true
 }
 
-// Tiny helpers — kept inline so this file has no import dependency on
+// Tiny helpers - kept inline so this file has no import dependency on
 // strings. The merge package is a leaf and the helpers are trivial.
 
 func endsWith(s, suffix string) bool {

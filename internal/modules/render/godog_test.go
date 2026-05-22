@@ -62,7 +62,7 @@ func initRenderScenario(ctx *godog.ScenarioContext) {
 		return ctx, nil
 	})
 
-	// Build a Manager backed by fakes — simpler than spinning up the
+	// Build a Manager backed by fakes - simpler than spinning up the
 	// full system+sfr+template+storage stack and gives us fine control
 	// over the (template, datafile) lookup result the scenario needs.
 	rebuild := func() {
@@ -84,7 +84,7 @@ func initRenderScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^an image URL strategy that returns "([^"]*)"$`, func(pat string) error {
-		// pat is a literal string with `{template}` and `{name}` slots —
+		// pat is a literal string with `{template}` and `{name}` slots -
 		// keeps the feature file readable without escaping.
 		w.imageURL = func(tplName, name string) string {
 			out := strings.ReplaceAll(pat, "{template}", tplName)

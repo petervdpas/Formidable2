@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-// ProgressBar — generic determinate / indeterminate progress strip.
+// ProgressBar - generic determinate / indeterminate progress strip.
 // Determinate when total > 0 and total is provided: the fill is sized
 // to current/total. Indeterminate otherwise: an animated band scans
 // the track until `active` flips false. Hidden entirely when inactive

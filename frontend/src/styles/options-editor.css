@@ -1,4 +1,4 @@
-/* OptionsEditor — small grid for editing field.options[] in the
+/* OptionsEditor - small grid for editing field.options[] in the
    FieldEditModal. Add/remove buttons reuse .btn-ghost-icon /
    .btn-ghost-block from buttons.css. */
 
@@ -53,7 +53,7 @@
     gap: 4px;
 }
 
-/* Structured sub-option widget — appears under its parent row when
+/* Structured sub-option widget - appears under its parent row when
    a dropdown column's value triggers it. The widget owns its own
    add/remove rows so the user edits value:label pairs structurally.
    24px indent keeps it visually subordinated to the main row; no
@@ -87,7 +87,7 @@
     font-weight: 600;
     color: var(--color-fg);
 }
-/* Locked value chip — mirrors the dark TextField next to it
+/* Locked value chip - mirrors the dark TextField next to it
    (--input-bg/fg) so the value reads at the same contrast as the
    editable cells. A subtle dashed border + opacity hint that the
    field is not editable. */
@@ -113,14 +113,14 @@
     flex: 0 0 30%;
 }
 
-/* Fixed-row gutter label override: same readability fix as above —
+/* Fixed-row gutter label override: same readability fix as above -
    the salmon-tinted modal background swallowed the muted color. */
 .options-row-label {
     color: var(--color-fg);
 }
 
 /* Sub-option add/remove buttons sit one nesting level deeper than the
-   field-options add/remove buttons. Tint ONLY the background — the
+   field-options add/remove buttons. Tint ONLY the background - the
    border and label stay native so the buttons still read cleanly
    against the salmon-tinted modal. */
 .options-subrow-widget .btn-ghost-icon,

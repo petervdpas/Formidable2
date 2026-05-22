@@ -1,8 +1,8 @@
-/* Collaboration workspace — git backend.
+/* Collaboration workspace - git backend.
    Keeps git-only rules in their own file so the gigot stylesheet
    can evolve independently. Shared layout primitives (flex columns,
    gaps) are intentionally duplicated rather than abstracted across
-   backends — divergence between git and gigot is expected. */
+   backends - divergence between git and gigot is expected. */
 
 .git-clone-actions,
 .git-commit-actions {
@@ -12,7 +12,7 @@
     margin-top: var(--space-1);
 }
 
-/* Repository status panel — read-only summary of the worktree state
+/* Repository status panel - read-only summary of the worktree state
    shown beneath the connection form on Current Service. Native
    <details>/<summary> drives bucket collapsibility so we don't carry
    per-bucket open state in component refs. */
@@ -66,7 +66,7 @@
     color: var(--color-text-muted, var(--color-text));
 }
 
-/* Ahead/behind pill — informational, not a call to action, so we
+/* Ahead/behind pill - informational, not a call to action, so we
    override the default badge's bold weight and tone the colour down
    to match .git-status-tracking. The arrows still read clearly at
    normal weight. */

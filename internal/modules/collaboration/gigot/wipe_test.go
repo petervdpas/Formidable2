@@ -84,7 +84,7 @@ func TestWipeManagedContent_PreservesUserOwnedAndDotFormidableDir(t *testing.T) 
 	writeFile(t, dir, "notes.txt", "user-owned, must survive")
 	writeFile(t, dir, "private/log.txt", "user-owned subtree, must survive")
 	// Other files inside .formidable/ (scaffold marker, future things)
-	// must survive — only the ledger is gigot's to delete.
+	// must survive - only the ledger is gigot's to delete.
 	writeFile(t, dir, ".formidable/context.json", `{"version":1}`)
 	writeFile(t, dir, ".formidable/sync.json", `{"version":"v1"}`)
 

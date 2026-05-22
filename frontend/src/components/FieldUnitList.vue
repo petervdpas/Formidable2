@@ -8,12 +8,12 @@ import type {
 
 // Recursive tree-aware list for the template field editor. The
 // LOOPSTART/LOOPSTOP pair (and everything between them) is one unit
-// at this level — its interior is a nested list rooted inside the
+// at this level - its interior is a nested list rooted inside the
 // unit. That makes it impossible to drop a sibling field between
 // loopstart and loopstop by mistake. Depth bumps the visible indent
 // so nesting is obvious.
 //
-// Edit/Delete events carry the FieldUnit *reference* — the parent
+// Edit/Delete events carry the FieldUnit *reference* - the parent
 // resolves identity by walking the tree for that exact object, never
 // by matching field content. That keeps each unit isolated even when
 // two fields would otherwise look identical.

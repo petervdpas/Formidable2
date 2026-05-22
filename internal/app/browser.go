@@ -8,12 +8,12 @@ import (
 
 // openInDefaultBrowser is the platform shim wiki.Service uses for its
 // OpenInBrowser method. Lives in the composition root so the wiki
-// module stays free of os/exec — keeps the surface unit-testable in
+// module stays free of os/exec - keeps the surface unit-testable in
 // pure Go and the OS-specific commands in one obvious place.
 //
-// Linux: xdg-open <url>  — provided by xdg-utils on every desktop
-// macOS: open <url>      — system-supplied
-// Windows: rundll32 url.dll,FileProtocolHandler <url>  — works under
+// Linux: xdg-open <url>  - provided by xdg-utils on every desktop
+// macOS: open <url>      - system-supplied
+// Windows: rundll32 url.dll,FileProtocolHandler <url>  - works under
 //   cmd shells and PowerShell without quoting issues; `cmd /c start`
 //   needs an empty title to handle URLs with spaces.
 //
@@ -36,7 +36,7 @@ func openInDefaultBrowser(url string) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("browser: launch %q: %w", runtime.GOOS, err)
 	}
-	// Don't reap — desktop launchers exec asynchronously and may stay
+	// Don't reap - desktop launchers exec asynchronously and may stay
 	// alive longer than this process needs to wait for them.
 	return nil
 }

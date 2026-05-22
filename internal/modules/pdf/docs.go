@@ -17,7 +17,7 @@ const directivesFallback = "en"
 
 // directivesDoc returns the embedded markdown reference for the given
 // locale. Unknown locale falls back to English. The returned string is
-// the raw markdown — the caller is responsible for rendering it (the
+// the raw markdown - the caller is responsible for rendering it (the
 // Information panel pipes it through render.Service.RenderHTML).
 func directivesDoc(locale string) (string, error) {
 	locale = strings.ToLower(strings.TrimSpace(locale))

@@ -50,7 +50,7 @@ Feature: GiGot collaboration backend
     Then the summary changed list is empty
     And the summary has 1 deleted entry containing "templates/gone.yaml"
 
-  Scenario: LedgerSummary is read-only — repeated calls don't mutate the ledger
+  Scenario: LedgerSummary is read-only - repeated calls don't mutate the ledger
     Given the file "templates/a.yaml" exists with content "edited"
     And the ledger records "templates/a.yaml" with sha "stale" at version "v1"
     When I call LedgerSummary on the context folder 3 times

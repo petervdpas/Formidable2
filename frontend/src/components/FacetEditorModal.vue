@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * FacetEditorModal — visual editor for ONE facet (key + icon + options).
+ * FacetEditorModal - visual editor for ONE facet (key + icon + options).
  * Backend (internal/modules/template/facets.go) owns every constraint;
  * we fetch them via useFacetMeta and render whatever the backend sends.
  *
@@ -48,7 +48,7 @@ const defaultIcon = computed(() => backendIcons.value[0] ?? "fa-flag");
 const props = defineProps<{
   open: boolean;
   initial: Facet;
-  /** Keys of other facets on this template — used for uniqueness check.
+  /** Keys of other facets on this template - used for uniqueness check.
    *  Exclude the key being edited so renaming-to-self is OK. */
   existingKeys?: string[];
 }>();

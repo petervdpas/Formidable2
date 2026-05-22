@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import SwitchField from "./SwitchField.vue";
 
-// FormSwitchRow — purpose-built FormSection row for boolean
+// FormSwitchRow - purpose-built FormSection row for boolean
 // switches. Unlike a generic FormRow that stacks the description
 // inside form-control (and pushes a short input visually upward
 // when centred), this lays out:

@@ -43,7 +43,7 @@ type Options struct {
 	// FormidableLinkURL rewrites `formidable://<template>:<datafile>`
 	// hrefs into transport-specific URLs. The renderer parses the URL
 	// into its (template, datafile) pair before calling this; nil =
-	// keep the formidable:// URL as-is (slideout uses this — its Vue
+	// keep the formidable:// URL as-is (slideout uses this - its Vue
 	// click interceptor handles the click). Empty-string return =
 	// fall back to the original formidable:// URL.
 	FormidableLinkURL func(templateFilename, datafile string) string
@@ -62,7 +62,7 @@ type Options struct {
 	// ({{templateName}}, {{templateStem}}, {{datafile}}, {{datafileStem}})
 	// so authors can compose paths/anchors from the current file's
 	// identity instead of hard-coding it into frontmatter. Empty
-	// strings are tolerated — the helpers then expand to "".
+	// strings are tolerated - the helpers then expand to "".
 	TemplateFilename string
 	Datafile         string
 }

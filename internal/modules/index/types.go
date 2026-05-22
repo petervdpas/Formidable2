@@ -51,7 +51,7 @@ type FormFacet struct {
 }
 
 // ImageRow is one row in the index's `images` table. We don't track
-// dimensions or size — just presence — because the wiki only needs to
+// dimensions or size - just presence - because the wiki only needs to
 // know "does this image exist for this template?" when it rewrites
 // formidable:// links and image src attributes.
 type ImageRow struct {
@@ -101,7 +101,7 @@ type QueryOpts struct {
 	// OrderBy is one of: "updated_desc" (default), "updated_asc",
 	// "title_asc", "title_desc", "filename_asc", "filename_desc".
 	// Empty string = "updated_desc". Unknown values fall back to the
-	// default rather than failing — the wiki shouldn't 500 because of
+	// default rather than failing - the wiki shouldn't 500 because of
 	// a typo in a query string.
 	OrderBy string
 	// Tags filters to forms that own EVERY listed tag (AND semantics).

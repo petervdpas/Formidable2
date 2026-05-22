@@ -136,7 +136,7 @@ func TestLoadManifest_RejectsBadFields(t *testing.T) {
 
 func TestLoadManifest_TolerantToUnknownFields(t *testing.T) {
 	// Forwards-compat: a future Formidable might add fields the
-	// current build doesn't understand. We must not error on those —
+	// current build doesn't understand. We must not error on those -
 	// just ignore them. (Bumping ManifestSchemaVersion is the
 	// signal that something changed in a *required* way.)
 	root := t.TempDir()
@@ -200,7 +200,7 @@ func TestLoadManifest_RunModeRoundtrip(t *testing.T) {
 }
 
 func TestLoadManifest_RunModeDefaultsEmpty(t *testing.T) {
-	// A manifest without run_mode loads with RunMode == "" — the
+	// A manifest without run_mode loads with RunMode == "" - the
 	// frontend treats that as "modal" without writing a default
 	// into older manifests.
 	root := t.TempDir()
@@ -219,7 +219,7 @@ func TestLoadManifest_RunModeDefaultsEmpty(t *testing.T) {
 }
 
 func TestLoadManifest_RunModeRejectsUnknown(t *testing.T) {
-	// Reserved enum — keeps the contract tight. A typo like
+	// Reserved enum - keeps the contract tight. A typo like
 	// "Form" or "Modal" should fail loading rather than silently
 	// fall back to a default and surprise the author later.
 	root := t.TempDir()
@@ -258,7 +258,7 @@ func TestLoadManifest_WorkspacesRoundtrip(t *testing.T) {
 }
 
 func TestLoadManifest_WorkspacesOmittedDefaultsEmpty(t *testing.T) {
-	// Omitted `workspaces` is the common case — older manifests
+	// Omitted `workspaces` is the common case - older manifests
 	// must keep loading. Surfaces as a nil/empty slice; downstream
 	// callers treat that as "no topbar attachment".
 	root := t.TempDir()
@@ -277,7 +277,7 @@ func TestLoadManifest_WorkspacesOmittedDefaultsEmpty(t *testing.T) {
 }
 
 func TestLoadManifest_WorkspacesRejectsUnknown(t *testing.T) {
-	// "settings" and "plugins" are intentionally not in the enum —
+	// "settings" and "plugins" are intentionally not in the enum -
 	// the management workspace already lists every plugin, and
 	// Settings has no domain object to act on. Unknown ids surface
 	// as ErrManifestInvalid so a typo fails at load, not at click.
@@ -327,7 +327,7 @@ func TestLoadManifest_WorkspacesRejectsDuplicates(t *testing.T) {
 }
 
 func TestValidWorkspaces_StableContent(t *testing.T) {
-	// The enum is the frontend's source of truth — pin the values so
+	// The enum is the frontend's source of truth - pin the values so
 	// a careless rename here is a test failure, not a silent UI break.
 	got := ValidWorkspaces()
 	want := []string{
@@ -346,7 +346,7 @@ func TestValidWorkspaces_StableContent(t *testing.T) {
 
 func TestLoadManifest_PreservesCommandHideFlags(t *testing.T) {
 	// A command can opt out of showing its Result/Log panels in the
-	// Run modal — useful for "fire and forget" actions where the
+	// Run modal - useful for "fire and forget" actions where the
 	// return value is irrelevant. Default (omitted) = both visible.
 	root := t.TempDir()
 	dir := writePlugin(t, root, "demo", `{

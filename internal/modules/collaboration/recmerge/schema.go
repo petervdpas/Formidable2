@@ -9,7 +9,7 @@ import (
 
 // Record is the parsed form of storage/<template>/<name>.meta.json.
 // Meta and Data are generic maps because the merger treats each data
-// field's value as atomic — typed access is never required.
+// field's value as atomic - typed access is never required.
 type Record struct {
 	Meta map[string]any `json:"meta"`
 	Data map[string]any `json:"data"`

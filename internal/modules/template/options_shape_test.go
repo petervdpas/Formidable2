@@ -67,7 +67,7 @@ func TestTableColumnTypes_DropdownAndBoolHaveSubRow(t *testing.T) {
 }
 
 func TestTableColumnTypes_StringHasNoSubRow(t *testing.T) {
-	// Free-form types must not carry sub-row metadata — keeps the
+	// Free-form types must not carry sub-row metadata - keeps the
 	// JSON minimal and the UI prediction simple.
 	for _, d := range builtinTableColumnTypes {
 		if d.Name == "string" || d.Name == "number" || d.Name == "date" || d.Name == "reference" {

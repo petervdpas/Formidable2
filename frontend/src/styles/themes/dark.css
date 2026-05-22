@@ -1,4 +1,4 @@
-/* Dark theme — first-cut values, tune later. */
+/* Dark theme - first-cut values, tune later. */
 :root[data-theme="dark"] {
     --color-bg:           #0f172a;
     --color-bg-sunken:    #0a1020;

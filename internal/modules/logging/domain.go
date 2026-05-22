@@ -4,7 +4,7 @@
 // render both a live tail and the raw text dump.
 //
 // WriteFromFrontend lets the SPA re-publish console.* calls through
-// the same slog pipeline as backend code — frontend lines land in
+// the same slog pipeline as backend code - frontend lines land in
 // formidable.log AND the live tail, tagged with source=frontend so
 // they're distinguishable from backend records.
 package logging
@@ -27,7 +27,7 @@ type Manager struct {
 
 // NewManager wraps the broadcaster, remembers the log file path, and
 // holds the *slog.Logger used by WriteFromFrontend. Any argument may
-// be nil/empty — Recent/ReadFile/WriteFromFrontend all degrade to
+// be nil/empty - Recent/ReadFile/WriteFromFrontend all degrade to
 // no-ops so the UI renders empty states without special-casing.
 func NewManager(bc *applog.Broadcaster, logPath string, log *slog.Logger) *Manager {
 	return &Manager{bc: bc, logPath: logPath, log: log}
@@ -69,7 +69,7 @@ func (m *Manager) LogPath() string { return m.logPath }
 // frontend lines appear in the live tail AND in formidable.log.
 //
 // source="frontend" is always stamped and cannot be overridden by the
-// caller — the attribute is the only way the UI distinguishes
+// caller - the attribute is the only way the UI distinguishes
 // frontend from backend records.
 //
 // Returns no error: this is fire-and-forget. Empty/whitespace

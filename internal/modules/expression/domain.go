@@ -38,11 +38,11 @@ type StorageProvider interface {
 	// LookupForExpression returns one record by datafile so the
 	// per-item evaluation path (EvaluateListOne) doesn't have to
 	// walk every record. Returns (Record{}, nil) when the file is
-	// missing — callers should treat that as "no row to render".
+	// missing - callers should treat that as "no row to render".
 	LookupForExpression(templateName, datafile string) (Record, error)
 }
 
-// Record is the slim shape ExpressionProvider needs — Filename to
+// Record is the slim shape ExpressionProvider needs - Filename to
 // pair the result back to a row, Title as the safe fallback when
 // evaluation fails or the expression returns empty, Context as the
 // harvested ExpressionItems.
@@ -54,7 +54,7 @@ type Record struct {
 
 // Manager owns the Engine + the two providers. Constructed in app
 // wiring; Configure can be called at runtime if providers ever need
-// to swap (today they don't — managers live for the app's lifetime).
+// to swap (today they don't - managers live for the app's lifetime).
 type Manager struct {
 	eng *engine
 	tpl TemplateProvider
@@ -62,7 +62,7 @@ type Manager struct {
 }
 
 // NewManager builds a Manager with default helpers and the two
-// providers wired. Either provider may be nil at construction time —
+// providers wired. Either provider may be nil at construction time -
 // the public methods that need them will return a clear error rather
 // than panic, so test setups that exercise only Evaluate (no
 // template/storage) can pass nils.
@@ -73,11 +73,11 @@ func NewManager(tpl TemplateProvider, sto StorageProvider) *Manager {
 // ErrNoExpression is returned when EvaluateList is called against
 // a template that has no sidebar_expression configured. The frontend
 // should hide the sub-label entirely in this case rather than show a
-// fallback — there's nothing to render.
+// fallback - there's nothing to render.
 var ErrNoExpression = errors.New("template has no sidebar_expression")
 
 // Evaluate runs one expression against an arbitrary context. The
-// public single-shot path — used by Wails callers and (later) plugin
+// public single-shot path - used by Wails callers and (later) plugin
 // authors. ctx may be nil.
 func (m *Manager) Evaluate(src string, ctx map[string]any) (Result, error) {
 	if ctx == nil {
@@ -105,7 +105,7 @@ func (m *Manager) EvaluateList(templateName string) ([]Result, error) {
 		return nil, ErrNoExpression
 	}
 
-	// Compile once — Evaluate would re-compile per record otherwise.
+	// Compile once - Evaluate would re-compile per record otherwise.
 	// We discard the program here because Evaluate hits the cache by
 	// source key, but warming the cache up-front means a syntax error
 	// surfaces once instead of N times.
@@ -139,7 +139,7 @@ func (m *Manager) EvaluateList(templateName string) ([]Result, error) {
 		}
 		item.Filename = r.Filename
 		// Preserve the title fallback when the expression returns
-		// empty text — sidebar rows must always have something to
+		// empty text - sidebar rows must always have something to
 		// show, even if the expression evaluated to "".
 		if item.Text == "" {
 			item.Text = r.Title
@@ -210,7 +210,7 @@ func (m *Manager) EvaluateListOne(templateName, datafile string) (Result, error)
 // Used by the Storage workspace on initial mount and Refresh to
 // collapse N parallel EvaluateListOne IPC calls into one. Missing
 // files emit a zero Result at that slot; per-record evaluation
-// errors carry an Error field with the title as Text — same isolation
+// errors carry an Error field with the title as Text - same isolation
 // posture as EvaluateList.
 func (m *Manager) EvaluateListMany(templateName string, datafiles []string) ([]Result, error) {
 	if m.tpl == nil || m.sto == nil {
@@ -273,7 +273,7 @@ func (m *Manager) EvaluateListMany(templateName string, datafiles []string) ([]R
 // by expression-field key whose value is the option label that
 // resolves the record's current value for that field. Fields with
 // no options or with a value not present in the option list emit
-// an empty string — runtime O[key] then stringifies as "" rather
+// an empty string - runtime O[key] then stringifies as "" rather
 // than blowing up. Builder.Compile only emits O[key] for fields
 // the UI gates as enum-typed, so missing entries here mean stale
 // config rather than expected absence.

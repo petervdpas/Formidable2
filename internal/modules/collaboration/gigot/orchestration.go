@@ -22,7 +22,7 @@ import (
 // "<who>: sync N file(s)" audit string so back-end audit trails always
 // have *something* useful even on programmatic pushes.
 //
-// The on-disk state is not assumed to be a git working tree — blob
+// The on-disk state is not assumed to be a git working tree - blob
 // SHAs are computed from raw bytes via GitBlobSha; no .git/ is touched.
 func (m *Manager) PushLocal(conn Connection, contextFolder string, message string) (*PushResult, error) {
 	if err := validateConn(conn, true); err != nil {
@@ -122,7 +122,7 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string, message strin
 // from the new tree are deleted locally. The ledger is rebuilt from
 // the authoritative tree, so the server wins any disagreement.
 //
-// Delegates to PullLocalWithProgress with a nil callback — keeps the
+// Delegates to PullLocalWithProgress with a nil callback - keeps the
 // no-progress callsite simple while the with-callback form drives the
 // frontend's per-file progress bar.
 func (m *Manager) PullLocal(conn Connection, contextFolder string) (*PullResult, error) {
@@ -240,20 +240,20 @@ func (m *Manager) PullLocalWithProgress(conn Connection, contextFolder string, c
 // Reclone wipes every gigot-managed path under contextFolder
 // (templates/, storage/, allowlisted root files, the ledger) and then
 // pulls a fresh copy from the server. Use when the user wants a
-// guaranteed-clean slate keyed to the server's HEAD — local-only edits
+// guaranteed-clean slate keyed to the server's HEAD - local-only edits
 // in managed paths are LOST, by design. Non-managed files in the
 // context folder (notes, user data, .formidable/context.json marker)
 // are preserved.
 //
 // On a context folder that's already empty, Reclone behaves like an
-// initial clone — wipe is a no-op and the pull populates everything.
+// initial clone - wipe is a no-op and the pull populates everything.
 func (m *Manager) Reclone(conn Connection, contextFolder string) (*PullResult, error) {
 	return m.RecloneWithProgress(conn, contextFolder, nil)
 }
 
 // RecloneWithProgress is the progress-instrumented form of Reclone.
 // Emits PhaseWipe before the destructive sweep, then delegates to
-// PullLocalWithProgress for the fetch half — so consumers see the
+// PullLocalWithProgress for the fetch half - so consumers see the
 // full Start → Wipe → Tree → Delete/Fetch* → Done sequence.
 func (m *Manager) RecloneWithProgress(conn Connection, contextFolder string, cb ProgressFunc) (*PullResult, error) {
 	if err := validateConn(conn, true); err != nil {
@@ -272,7 +272,7 @@ func (m *Manager) RecloneWithProgress(conn Connection, contextFolder string, cb 
 }
 
 // Sync runs PushLocal then PullLocal. A push error aborts before pull
-// so unpushed local changes aren't overwritten — symmetric with the
+// so unpushed local changes aren't overwritten - symmetric with the
 // git Service's sync behaviour. message threads through to the push
 // half; the pull half is read-only.
 func (m *Manager) Sync(conn Connection, contextFolder string, message string) (*SyncResult, error) {

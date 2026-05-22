@@ -1,7 +1,7 @@
-// scrollToActiveRow — centers the row matching `filename` inside the
+// scrollToActiveRow - centers the row matching `filename` inside the
 // given scroll container, or no-ops when the row is already fully
 // visible (so a short list doesn't get a jarring jump). Returns true
-// when the row was found, regardless of whether a scroll was needed —
+// when the row was found, regardless of whether a scroll was needed -
 // callers use the return value to gate one-shot "scrolled-for-this-
 // context" flags.
 //
@@ -11,7 +11,7 @@
 // instead of the middle.
 //
 // Why getBoundingClientRect, not offsetTop: `offsetTop` is measured
-// against the row's `offsetParent` — the nearest *positioned*
+// against the row's `offsetParent` - the nearest *positioned*
 // ancestor, which in this layout is the sidebar <aside>, not the
 // scroll container. That includes header chrome (title, filters) in
 // the offset and overshoots the scroll target. The rect-delta math
@@ -19,7 +19,7 @@
 // then adds the current scrollTop to get the scroll-content offset
 // regardless of intervening layout.
 //
-// The row is located by its `data-filename` attribute — the workspace
+// The row is located by its `data-filename` attribute - the workspace
 // list items (StorageListItem, TemplateListItem) both stamp this on
 // their root `<li>`.
 
@@ -41,7 +41,7 @@ export function scrollToActiveRow(
     const viewTop = container.scrollTop;
     const viewBottom = viewTop + container.clientHeight;
     if (rowTopInContent >= viewTop && rowTopInContent + rowHeight <= viewBottom) {
-      // Already fully visible — short list or user-scrolled there.
+      // Already fully visible - short list or user-scrolled there.
       return true;
     }
 

@@ -9,7 +9,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────
-// lvalue conversion — Lua ↔ Go bridge.
+// lvalue conversion - Lua ↔ Go bridge.
 // JSON-shaped values (string/number/bool/nil + arrays + maps) are
 // the only things the runtime exposes across Wails to Vue, so the
 // conversion only needs to handle that subset. Functions/userdata
@@ -71,7 +71,7 @@ func TestLuaToGo_MapTable(t *testing.T) {
 func TestLuaToGo_MixedKeysFlattenToMap(t *testing.T) {
 	// Lua tables can mix array and hash parts. We pick "object"
 	// when any key is non-numeric or numeric keys are sparse;
-	// integer keys get stringified. Keeps the conversion total —
+	// integer keys get stringified. Keeps the conversion total -
 	// scripts can't crash the bridge with a weird table shape.
 	L := lua.NewState()
 	defer L.Close()
@@ -126,7 +126,7 @@ func TestGoToLua_Roundtrip(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Sandbox — the Lua VM must not be able to read/write outside the
+// Sandbox - the Lua VM must not be able to read/write outside the
 // app's controlled bindings. These tests are the contract.
 // ─────────────────────────────────────────────────────────────────
 
@@ -154,7 +154,7 @@ func TestSandbox_StripsPackageLoadlib(t *testing.T) {
 }
 
 func TestSandbox_LeavesMathAndStringIntact(t *testing.T) {
-	// Sandboxing should not break the standard pure-Lua libs —
+	// Sandboxing should not break the standard pure-Lua libs -
 	// plugin authors expect string/math/table to work normally.
 	L := newSandboxedState()
 	defer L.Close()
@@ -168,7 +168,7 @@ func TestSandbox_LeavesMathAndStringIntact(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// runScript — the entry point Manager.Run uses. Loads main.lua,
+// runScript - the entry point Manager.Run uses. Loads main.lua,
 // calls a named global function with a Go-shaped argument, returns
 // the result (Go-shaped) plus any log lines emitted via
 // formidable.log.* during the call.
@@ -364,7 +364,7 @@ func TestRunScript_FormidableAPI_FetchRoundtrips(t *testing.T) {
 }
 
 func TestRunScript_FormidableAPI_NotConfiguredErrors(t *testing.T) {
-	// When deps.API is nil, the api namespace is absent — calls
+	// When deps.API is nil, the api namespace is absent - calls
 	// fail loudly so plugin authors notice they forgot the flag.
 	_, err := runScript(scriptOpts{
 		Source: `function run(ctx)
@@ -468,7 +468,7 @@ func TestRunScript_I18nT_NoMessagesAtAllReturnsKey(t *testing.T) {
 
 func TestRunScript_ToastIgnoresExtraArgs(t *testing.T) {
 	// Multiple positional args concat with a space, mirroring
-	// formidable.log.* — keeps the API consistent.
+	// formidable.log.* - keeps the API consistent.
 	res, err := runScript(scriptOpts{
 		Source: `function run(ctx)
 			formidable.toast.success("hello", "world", 42)

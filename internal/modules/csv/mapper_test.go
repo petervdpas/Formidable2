@@ -71,7 +71,7 @@ func TestSuggestMappings_ExcludedTypesNeverMatch(t *testing.T) {
 
 func TestSuggestMappings_MultipleHeadersToSameField(t *testing.T) {
 	// Two CSV columns named "name" both legitimately map to the "name"
-	// field — the dialog's concat-with-separator UI handles the merge.
+	// field - the dialog's concat-with-separator UI handles the merge.
 	fields := []FieldSpec{{Key: "name", Type: "text", Label: "Name"}}
 	got := SuggestMappings([]string{"name", "name"}, fields)
 	if got[0].FieldKey != "name" || got[1].FieldKey != "name" {

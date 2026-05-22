@@ -1,6 +1,6 @@
 package config
 
-// Service is the Wails-bound surface of the config module — what the
+// Service is the Wails-bound surface of the config module - what the
 // Vue SPA can actually call. Deliberately narrow:
 //
 //   - Profile config read/write (the Settings UI)
@@ -8,7 +8,7 @@ package config
 //
 // The richer Manager surface (VirtualStructure scan, per-template
 // storage info, cache invalidation hooks) is intentionally NOT exposed
-// here. Those primitives are for backend-internal consumers — most
+// here. Those primitives are for backend-internal consumers - most
 // notably the future opt-in internal HTTP server (wiki view + REST
 // collections API + OpenAPI), which will use Manager directly.
 //

@@ -58,7 +58,7 @@ func toFloat(v any) float64 {
 	}
 }
 
-// EvaluateMath mirrors `controls/calculator.js` — JS-style numeric
+// EvaluateMath mirrors `controls/calculator.js` - JS-style numeric
 // coercion, returns "" on NaN inputs or division by zero, otherwise
 // returns float64 (or string for the "pad" op).
 func EvaluateMath(a any, op string, b any) any {
@@ -164,7 +164,7 @@ func isNumber(v any) bool {
 	return false
 }
 
-// Stats is the result shape of ComputeStats — mirrors the original
+// Stats is the result shape of ComputeStats - mirrors the original
 // `computeStats` return object. Percentile/PercentileInput are pointers
 // so "absent" is distinguishable from zero.
 type Stats struct {

@@ -17,7 +17,7 @@ import { isValidAuthor } from "../../composables/useAuthorValidation";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
-// Sync workspace — combined status + commit screen for the active
+// Sync workspace - combined status + commit screen for the active
 // Git repository. Owns the status-fetch lifecycle so the commit
 // panel can read the same status to gate its button. Push will
 // land alongside in the next iteration.
@@ -57,10 +57,10 @@ const fetching = ref(false);
 
 // PAT lookup is server-side: GitSvc.Push / Fetch resolve the stored
 // PAT from the OS keychain when we send pat="". The frontend never
-// touches the secret — the credential.Service intentionally does not
+// touches the secret - the credential.Service intentionally does not
 // expose Get to Wails.
 
-// Race guard for status fetches — only the latest result wins.
+// Race guard for status fetches - only the latest result wins.
 let reqId = 0;
 
 async function load(announce: boolean) {
@@ -166,7 +166,7 @@ const canPull = computed(() => {
 
 // Pulling onto a dirty worktree fails inside go-git with a
 // "worktree contains unstaged changes" error. We intercept the
-// click and offer Stash & pull as the primary recovery — the
+// click and offer Stash & pull as the primary recovery - the
 // journal's pending set drives which paths are stashed (narrower
 // than `git status`, so external dirt is left alone).
 const pullDirtyOpen = ref(false);
@@ -175,7 +175,7 @@ const pullDirtyOpen = ref(false);
 // user's local changes were dropped because pull's content won (the
 // path is non-mergeable, or recmerge hit immutable-meta divergence).
 // We surface the post-pull commit author so the user knows who to
-// coordinate with offline. Stash dir is always trashed — this list
+// coordinate with offline. Stash dir is always trashed - this list
 // is the only signal something was lost.
 type OverriddenPath = {
   path: string;

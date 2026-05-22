@@ -1,4 +1,4 @@
-/* Templates workspace — sidebar list + main panel field-information
+/* Templates workspace - sidebar list + main panel field-information
    row chrome. Per-type tinting lives in field-types.css; the drag
    handle + ghost/chosen/drag states use dnd.css utilities. */
 
@@ -53,7 +53,7 @@
 }
 
 .field-row {
-    /* Layout only — color/background/border live in field-types.css. */
+    /* Layout only - color/background/border live in field-types.css. */
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -83,7 +83,7 @@
     gap: 6px;
 }
 
-/* Edit/Delete coloured action buttons — these don't fit the ghost
+/* Edit/Delete coloured action buttons - these don't fit the ghost
    button pattern (they're solid-colored), so they get their own
    class set. */
 .field-action-btn {
@@ -124,7 +124,7 @@
 }
 
 /* Header (loopstart) carries the drag handle for the whole unit.
-   Footer (loopstop) is non-interactive — moves with the unit. */
+   Footer (loopstop) is non-interactive - moves with the unit. */
 .field-loop-header { cursor: default; }
 .field-loop-footer .field-row-actions { visibility: hidden; }
 
@@ -151,7 +151,7 @@
     grid-column: 1 / -1;
 }
 
-/* Equal pane height — keeps the section visually stable when switching
+/* Equal pane height - keeps the section visually stable when switching
    between tabs whose content has different intrinsic heights. */
 .setup-tab-pane {
     display: flex;
@@ -168,7 +168,7 @@
     justify-content: flex-start;
 }
 
-/* Flag-definitions row in Setup Information — a chip-strip preview of
+/* Flag-definitions row in Setup Information - a chip-strip preview of
    the current defs + a Builder button to open the modal. */
 .flag-definitions-row {
     display: flex;
@@ -198,9 +198,9 @@
     justify-content: flex-start;
 }
 
-/* PDF frontmatter inject / migrate preview modal — summary section
+/* PDF frontmatter inject / migrate preview modal - summary section
    above the read-only CodeEditor. Mapping pairs, preserved keys,
-   warnings — each grouped into its own block. */
+   warnings - each grouped into its own block. */
 .pdf-fm-summary {
     display: flex;
     flex-direction: column;
@@ -228,7 +228,7 @@
     color: var(--color-warning, #f0b74e);
 }
 
-/* Inject PDF frontmatter wizard — small number inputs and a row for
+/* Inject PDF frontmatter wizard - small number inputs and a row for
    the "Show / Hide additional fields" toggle inside the cover
    section. */
 .pdf-inject-number {

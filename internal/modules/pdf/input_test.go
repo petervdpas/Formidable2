@@ -558,7 +558,7 @@ func TestBuildInput_SignatureBlock(t *testing.T) {
 }
 
 // TestBuildInput_PicoloomShape sanity-checks that the projected Input
-// is consumable as a picoloom.Input value — the type wiring is
+// is consumable as a picoloom.Input value - the type wiring is
 // intentional, not coincidental.
 func TestBuildInput_PicoloomShape(t *testing.T) {
 	fm := Frontmatter{Cover: &CoverFM{Title: "T"}}

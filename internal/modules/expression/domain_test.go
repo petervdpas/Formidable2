@@ -8,7 +8,7 @@ import (
 // fakeTpl returns a fixed sidebar expression + opt-in fields. Tests
 // configure both the source and the field list to pin narrowContext
 // and the per-record O map. The legacy `fields []string` shape is
-// preserved as a convenience — pass keys without options when the
+// preserved as a convenience - pass keys without options when the
 // test doesn't exercise O[].
 type fakeTpl struct {
 	src      string
@@ -94,7 +94,7 @@ func TestEvaluateList_PerRowFailureIsIsolated(t *testing.T) {
 	m := NewManager(
 		// Helper with a typo causes a runtime error per row when
 		// `due` is non-nil but unparseable.
-		fakeTpl{src: `name + " — " + string(daysBetween(due, today()))`, fields: []string{"name", "due"}},
+		fakeTpl{src: `name + " - " + string(daysBetween(due, today()))`, fields: []string{"name", "due"}},
 		fakeSto{records: []Record{
 			{Filename: "ok.json", Title: "ok", Context: map[string]any{"name": "ok", "due": "2026-05-01"}},
 			{Filename: "broken.json", Title: "broken", Context: map[string]any{"name": "x", "due": 12345}},
@@ -123,7 +123,7 @@ func TestEvaluateList_PerRowFailureIsIsolated(t *testing.T) {
 
 func TestEvaluateList_TitleFallbackOnEmptyText(t *testing.T) {
 	m := NewManager(
-		// Expression evaluates to "" — the row should still render
+		// Expression evaluates to "" - the row should still render
 		// the storage-supplied title rather than blank.
 		fakeTpl{src: `""`, fields: nil},
 		fakeSto{records: []Record{
@@ -141,7 +141,7 @@ func TestEvaluateList_TitleFallbackOnEmptyText(t *testing.T) {
 
 func TestEvaluateList_NarrowContext(t *testing.T) {
 	// Storage harvest exposes 'secret' but template's
-	// expressionFields whitelist doesn't include it — narrowContext
+	// expressionFields whitelist doesn't include it - narrowContext
 	// must drop it so the expression cannot read it.
 	m := NewManager(
 		fakeTpl{src: `defaultText(secret, "no-secret")`, fields: []string{"name"}},
@@ -274,7 +274,7 @@ func TestEvaluate_NilContextOK(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// EvaluateListOne — per-record path (used by self-serving list items)
+// EvaluateListOne - per-record path (used by self-serving list items)
 // ─────────────────────────────────────────────────────────────────────
 
 func TestEvaluateListOne_HappyPath(t *testing.T) {
@@ -344,7 +344,7 @@ func TestEvaluateListOne_TitleFallbackOnEmptyText(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// EvaluateListMany — batched per-filename path
+// EvaluateListMany - batched per-filename path
 // ─────────────────────────────────────────────────────────────────────
 
 func TestEvaluateListMany_HappyPath(t *testing.T) {

@@ -182,7 +182,7 @@ func TestCoercePreview_NumberInvalidShowsFallback(t *testing.T) {
 	}
 }
 
-// matchOption and parseAsList are internal helpers — tested through Coerce
+// matchOption and parseAsList are internal helpers - tested through Coerce
 // above, but a couple of focused unit checks keep regressions obvious.
 
 func TestMatchOption_ScalarStringOption(t *testing.T) {

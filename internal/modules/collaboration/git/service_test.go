@@ -90,7 +90,7 @@ type fakeCreds struct{ secret string }
 func (f *fakeCreds) Get(string) (string, error) { return f.secret, nil }
 
 // newServiceWithJournal builds a Service wired to a fakeJournal but with
-// nil credential/profile readers — Service.resolvePAT collapses to ""
+// nil credential/profile readers - Service.resolvePAT collapses to ""
 // when those are nil, which is fine for these tests (they don't assert
 // anything about auth).
 func newServiceWithJournal(t *testing.T) (*Service, *fakeJournal) {
@@ -180,7 +180,7 @@ func TestService_Push_AlreadyUpToDateRecordsRemoteSeen(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Push unhappy paths — error means NO journal entry ever
+// Push unhappy paths - error means NO journal entry ever
 // ─────────────────────────────────────────────────────────────────────
 
 func TestService_Push_EmptyPath_NoJournalCall(t *testing.T) {
@@ -236,7 +236,7 @@ func TestService_Push_AuthFailure_NoJournalCall(t *testing.T) {
 	defer srv.Close()
 
 	// pullAuthFixture builds a non-bare repo with a HEAD commit and an
-	// origin remote — exactly what Push needs for the auth handshake.
+	// origin remote - exactly what Push needs for the auth handshake.
 	work := pullAuthFixture(t, srv.URL+"/repo.git")
 
 	svc, jrnl := newServiceWithJournal(t)
@@ -440,7 +440,7 @@ func TestService_NilJournal_PushIsSafe(t *testing.T) {
 	if _, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare}); err != nil {
 		t.Fatal(err)
 	}
-	// nil journal — the Service must not deref it.
+	// nil journal - the Service must not deref it.
 	svc := NewService(NewManager(), nil, nil, nil)
 	if _, err := svc.Push(PushOptions{Path: work}); err != nil {
 		t.Fatalf("Push with nil journal: %v", err)
@@ -460,7 +460,7 @@ func TestService_NilJournal_PullIsSafe(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Service.PullWithStash — wiring tests
+// Service.PullWithStash - wiring tests
 // ─────────────────────────────────────────────────────────────────────
 //
 // PullWithStash sits on top of Manager.PullWithStash; the Service's
@@ -468,7 +468,7 @@ func TestService_NilJournal_PullIsSafe(t *testing.T) {
 // snapshot manifest and (b) calling RecordRemoteSeen on success. So
 // these tests focus on the journal-side contract.
 
-// TestService_PullWithStash_ReadsPendingFromJournal — the Service's
+// TestService_PullWithStash_ReadsPendingFromJournal - the Service's
 // only PullWithStash-specific contract is that it reads pending paths
 // from the journal and feeds them to the manager. Set pending to a
 // path that's actually dirty; expect it to round-trip.
@@ -525,7 +525,7 @@ func TestService_PullWithStash_ReadsPendingFromJournal(t *testing.T) {
 	}
 }
 
-// TestService_PullWithStash_NilJournal — service must not panic
+// TestService_PullWithStash_NilJournal - service must not panic
 // when no journal is wired. The pending set degrades to empty,
 // effectively a normal pull.
 func TestService_PullWithStash_NilJournal(t *testing.T) {
@@ -540,7 +540,7 @@ func TestService_PullWithStash_NilJournal(t *testing.T) {
 	}
 }
 
-// TestService_PullWithStash_OverrideRecordsRemoteSeen — when pull
+// TestService_PullWithStash_OverrideRecordsRemoteSeen - when pull
 // overrides the user's local change (non-meta.json or merge can't
 // reconcile), the pull part of the operation still succeeded. The
 // remote-seen call must fire so the journal cursor advances.
@@ -644,7 +644,7 @@ func TestService_Fetch_FallsBackToGogitWhenToggleOff(t *testing.T) {
 	sys := &fakeSysgit{available: true}
 	AttachSysgit(svc, &fakeFlags{selfCloned: false}, sys)
 
-	// Empty path triggers go-git's "path required" error — confirms we
+	// Empty path triggers go-git's "path required" error - confirms we
 	// went down the go-git path, not sysgit (which would have called the
 	// fake and never errored).
 	_, err := svc.Fetch(FetchOptions{Path: ""})
@@ -833,7 +833,7 @@ func TestService_Push_SysgitNilJournalIsSafe(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Service with nil journal — sysgit path must not panic on
+	// Service with nil journal - sysgit path must not panic on
 	// post-op recording.
 	svc := NewService(NewManager(), nil, nil, nil)
 	sys := &fakeSysgit{available: true}
@@ -862,7 +862,7 @@ func TestService_Pull_SysgitNilJournalIsSafe(t *testing.T) {
 
 func TestService_Push_SysgitNonRepoPathLeavesJournalAlone(t *testing.T) {
 	// sysgit "succeeded" (fake returns nil) but the path isn't a repo,
-	// so headHash returns "". Journal must remain untouched — recording
+	// so headHash returns "". Journal must remain untouched - recording
 	// an empty version would corrupt the cursor.
 	svc, jrnl := newServiceWithJournal(t)
 	sys := &fakeSysgit{available: true}

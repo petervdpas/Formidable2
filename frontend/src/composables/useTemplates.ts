@@ -5,11 +5,11 @@ import { Service as ConfigSvc } from "../../bindings/github.com/petervdpas/formi
 import { useConfig } from "./useConfig";
 
 const filenames = ref<string[]>([]);
-// enabledFilenames is the use-side picker list — the subset of
+// enabledFilenames is the use-side picker list - the subset of
 // `filenames` allowed by the active profile's EnabledTemplates list.
 // Empty EnabledTemplates → equal to `filenames` (the "all enabled"
 // default). Filtering happens server-side via ConfigSvc.ListEnabledTemplates
-// so there's one source of truth for "what's pickable" — per the
+// so there's one source of truth for "what's pickable" - per the
 // backend-owns-data rule, no JS intersection.
 const enabledFilenames = ref<string[]>([]);
 const cache = ref<Map<string, Template | null>>(new Map());
@@ -30,7 +30,7 @@ if (typeof window !== "undefined") {
 async function refresh(): Promise<void> {
   filenames.value = await TemplateSvc.ListTemplates();
   loaded = true;
-  // One IPC call for the whole list — backend's per-name cache + the
+  // One IPC call for the whole list - backend's per-name cache + the
   // batched LoadMany endpoint mean a saved-or-cold list of N templates
   // resolves in a single round-trip. Per-row errors land in `error`
   // and keep the rest of the batch usable.
@@ -40,7 +40,7 @@ async function refresh(): Promise<void> {
     next.set(r.filename, r.template ?? null);
   }
   cache.value = next;
-  // Refresh the picker subset alongside — keeps the two refs in sync
+  // Refresh the picker subset alongside - keeps the two refs in sync
   // so consumers don't see a window where filenames was updated but
   // enabledFilenames still reflects a stale corpus.
   await refreshEnabled();
@@ -89,7 +89,7 @@ async function create(filename: string): Promise<{ ok: boolean; code?: string; m
     await refresh();
     // Backend's CreationObserver may have auto-enabled the new
     // template via cfg.AutoEnableNewTemplate. Reload so the frontend's
-    // cfg.enabled_templates reflects that — otherwise the
+    // cfg.enabled_templates reflects that - otherwise the
     // Settings → Templates toggle would show OFF for a template that's
     // actually enabled server-side.
     await useConfig().reload();
@@ -104,7 +104,7 @@ async function remove(filename: string): Promise<{ ok: boolean; message?: string
   try {
     await TemplateSvc.DeleteTemplate(filename);
     if (selectedFilename.value === filename) selectedFilename.value = "";
-    // Splice the entry out in place — mirrors the StorageWorkspace
+    // Splice the entry out in place - mirrors the StorageWorkspace
     // delete pattern, so the rest of the sidebar list (and its scroll
     // position) stays untouched. cache.value.delete keeps the lookup
     // map consistent without forcing a full TemplateSvc.LoadTemplate
@@ -112,7 +112,7 @@ async function remove(filename: string): Promise<{ ok: boolean; message?: string
     //
     // Splice BOTH lists: the editor sidebar binds to enabledFilenames
     // (the filtered subset), so missing this splice was the cause of
-    // "deleted template lingers in the list" — the backend observer
+    // "deleted template lingers in the list" - the backend observer
     // already pruned the entry from cfg.enabled_templates, but the
     // frontend ref didn't reflect it.
     const idx = filenames.value.indexOf(filename);
@@ -123,7 +123,7 @@ async function remove(filename: string): Promise<{ ok: boolean; message?: string
     // The backend's delete observer ran reconcile, which may have
     // pruned enabled_templates and/or cleared selected_template (when
     // the deleted file was the selected one). Re-read so the frontend
-    // cfg matches reality — without this, Settings → Templates can
+    // cfg matches reality - without this, Settings → Templates can
     // hold a "ghost" entry that gets propagated on the next toggle.
     await useConfig().reload();
     return { ok: true };

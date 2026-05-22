@@ -1,5 +1,5 @@
 /*
- * swatch — generic grid of selectable color cells. Used by the flag
+ * swatch - generic grid of selectable color cells. Used by the flag
  * builder's color popup and the expression-builder's text/background
  * pickers. Layout knobs (cols / cell size / gap / padding) are CSS
  * variables so each consumer can tune density without redefining the

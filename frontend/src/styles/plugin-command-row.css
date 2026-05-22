@@ -1,4 +1,4 @@
-/* PluginCommandRow.vue — one editable Command in the manifest.
+/* PluginCommandRow.vue - one editable Command in the manifest.
    Top line: labelled Id / Label / Lua-function inputs + delete.
    Bottom line: Result / Log toggle switches. Tokens come from
    tokens.css + themes/*.css. */
@@ -59,7 +59,7 @@
 
 .cmd-delete-btn:hover { filter: brightness(1.08); }
 
-/* Toggle row sits below the inputs — Result + Log switches with
+/* Toggle row sits below the inputs - Result + Log switches with
    constant text labels next to each switch. */
 .cmd-toggles-row {
     display: flex;

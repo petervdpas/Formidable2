@@ -3,7 +3,7 @@
 // field-level validation) and Repository Sync (commit-time gate).
 //
 // Two layers:
-//   1. Light RFC-ish format check on the email — catches "peter",
+//   1. Light RFC-ish format check on the email - catches "peter",
 //      "peter@@x", trailing whitespace, etc. We deliberately don't
 //      pull a full RFC 5322 implementation; it's overkill for an
 //      author identity field that gets stamped into git commits.

@@ -1,4 +1,4 @@
-/* Storage workspace — sidebar form-list + main panel meta scaffold
+/* Storage workspace - sidebar form-list + main panel meta scaffold
    + the form-fields wrapper that hosts FormLoopFields. */
 
 /* ── Sidebar sections ────────────────────────────────────────────── */
@@ -100,7 +100,7 @@
 .meta-value.mono { font-family: var(--font-mono); }
 .meta-value.small { font-size: var(--font-size-sm); }
 
-/* Sticky meta block — pinned flush with the top of the scroll viewport
+/* Sticky meta block - pinned flush with the top of the scroll viewport
    while fields scroll underneath. `sticky` still acts as a positioning
    context for the absolutely-positioned facet corner. */
 .storage-meta-section {

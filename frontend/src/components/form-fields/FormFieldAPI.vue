@@ -131,14 +131,14 @@ function clear() {
   error.value = "";
 }
 
-// Display row label — falls back to field.label if Map.label is empty.
+// Display row label - falls back to field.label if Map.label is empty.
 function rowLabel(idx: number, key: string): string {
   const m = props.field.map?.[idx];
   return m?.label?.trim() || key;
 }
 
 // Format a value for read-only display. JSON-flattened strings
-// (from non-scalar source columns) display verbatim — they're
+// (from non-scalar source columns) display verbatim - they're
 // already strings.
 function display(v: any): string {
   if (v == null) return "";
@@ -151,13 +151,13 @@ function display(v: any): string {
 // Source values arrive in their native JSON shape (the backend stamps
 // scalars/arrays/maps verbatim; the host's .meta.json is itself JSON,
 // so no string-encoding gymnastics are needed). The card just picks
-// the right widget based on the source field's type — `tags` → chip
+// the right widget based on the source field's type - `tags` → chip
 // list, `list` → bullet list, `table` → small <table>. Anything else
 // falls through to the verbatim text representation.
 //
 // We keep the FULL source Field around (not just the type) so the
 // table renderer can read `field.options[].label` for proper column
-// headers (FormFieldTable stores rows as arrays-of-arrays — the
+// headers (FormFieldTable stores rows as arrays-of-arrays - the
 // header labels live in the field's options metadata).
 
 const sourceFields = ref<Record<string, Field>>({});
@@ -258,7 +258,7 @@ function shapeTable(rows: any[], sourceField: Field | undefined): RenderedShape 
     // of the first row when options are missing.
     const headers = headersForTableField(sourceField);
     const keys = headers
-      ? // map keys are still the option .value entries — read them from options
+      ? // map keys are still the option .value entries - read them from options
         ((sourceField?.options ?? []) as Array<Record<string, unknown>>)
           .map((o) => (o && typeof o === "object" ? String(o.value ?? "") : ""))
       : Object.keys(first);
@@ -269,7 +269,7 @@ function shapeTable(rows: any[], sourceField: Field | undefined): RenderedShape 
       rows: rows.map((r) => keys.map((k) => (r as any)?.[k])),
     };
   }
-  // Array of scalars — render as a 1-column table.
+  // Array of scalars - render as a 1-column table.
   return { kind: "table", headers: null, rows: rows.map((r) => [r]) };
 }
 
@@ -362,12 +362,12 @@ const driftedKeys = computed(() => {
               <!-- Tags → chip list -->
               <span v-if="s.kind === 'tags'" class="api-cell-tags">
                 <span v-for="tag in s.items" :key="tag" class="tag-chip">{{ tag }}</span>
-                <span v-if="s.items.length === 0" class="muted small">—</span>
+                <span v-if="s.items.length === 0" class="muted small">-</span>
               </span>
               <!-- List → bullets -->
               <ul v-else-if="s.kind === 'list'" class="api-cell-list">
                 <li v-for="(item, i) in s.items" :key="i">{{ display(item) }}</li>
-                <li v-if="s.items.length === 0" class="muted small">—</li>
+                <li v-if="s.items.length === 0" class="muted small">-</li>
               </ul>
               <!-- Table → small grid -->
               <table v-else-if="s.kind === 'table'" class="api-cell-table">
@@ -388,7 +388,7 @@ const driftedKeys = computed(() => {
           </dd>
         </template>
         <template v-if="!(field.map ?? []).length">
-          <dt class="muted">—</dt>
+          <dt class="muted">-</dt>
           <dd class="muted small">
             {{ t("workspace.storage.api_field.no_columns_configured") }}
           </dd>

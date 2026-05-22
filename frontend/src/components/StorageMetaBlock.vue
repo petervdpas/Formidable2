@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * StorageMetaBlock — the per-record meta panel rendered above a
+ * StorageMetaBlock - the per-record meta panel rendered above a
  * storage entry's form fields. Shows filename, one FacetPicker per
  * template facet, GUID, tags, and the Created / Updated audit blocks.
  * Hidden via Mod+M on the Storage workspace.
@@ -74,7 +74,7 @@ function onUpdate(key: string, state: FacetState) {
         <span class="meta-value small">
           <span class="mono">{{ meta.created.at }}</span>
           <template v-if="meta.created.name">
-            — {{ meta.created.name }}<template v-if="meta.created.email"> ({{ meta.created.email }})</template>
+            - {{ meta.created.name }}<template v-if="meta.created.email"> ({{ meta.created.email }})</template>
           </template>
         </span>
       </div>
@@ -83,7 +83,7 @@ function onUpdate(key: string, state: FacetState) {
         <span class="meta-value small">
           <span class="mono">{{ meta.updated.at }}</span>
           <template v-if="meta.updated.name">
-            — {{ meta.updated.name }}<template v-if="meta.updated.email"> ({{ meta.updated.email }})</template>
+            - {{ meta.updated.name }}<template v-if="meta.updated.email"> ({{ meta.updated.email }})</template>
           </template>
         </span>
       </div>

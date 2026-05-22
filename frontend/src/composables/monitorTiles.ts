@@ -8,7 +8,7 @@ import {
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/monitor/models";
 
 // MonitorTile is the per-card descriptor the MonitorBoard renders.
-// `query` and `fetch` are mutually exclusive — use the first for tiles
+// `query` and `fetch` are mutually exclusive - use the first for tiles
 // fed by a registered Source (most cases); use the second for tiles
 // driven by a different Wails service (e.g. journal pending counts,
 // which is a snapshot, not a Source).
@@ -23,7 +23,7 @@ export interface MonitorTile {
   fetch?: () => Promise<Result>;
 }
 
-// Build the v1 tile list. Hardcoded for now — when the user-DSL lands,
+// Build the v1 tile list. Hardcoded for now - when the user-DSL lands,
 // this composable becomes a thin layer over a backend-supplied list.
 //
 // Important: the frontend uses Wails services directly (no /api/monitor
@@ -43,7 +43,7 @@ export function defaultMonitorTiles(): MonitorTile[] {
         source: "journal",
         from: dayAgo,
         to: now,
-        // Filter: just mutation ops — sync/baseline aren't churn signal.
+        // Filter: just mutation ops - sync/baseline aren't churn signal.
         filter: { },
         group_by: ["op"],
         bin: "1h",
@@ -91,7 +91,7 @@ export async function runTile(tile: MonitorTile): Promise<Result> {
 }
 
 // ─── Tile-order persistence ──────────────────────────────────────────
-// Persistence uses localStorage as a v1 — survives reloads, doesn't
+// Persistence uses localStorage as a v1 - survives reloads, doesn't
 // require a backend round-trip on every drag. When user-customisable
 // tile sets land, this can swap to a Wails-backed config field
 // without changing the component contract (the workspace still v-models
@@ -116,7 +116,7 @@ export function loadTileOrder(available: MonitorTile[]): MonitorTile[] {
       }
     }
   } catch {
-    // ignore — localStorage unavailable or quota issue
+    // ignore - localStorage unavailable or quota issue
   }
   const byId = new Map(available.map((t) => [t.id, t]));
   const out: MonitorTile[] = [];

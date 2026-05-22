@@ -3,7 +3,7 @@
 // record context, `builder` *generates* that source from a small,
 // strongly-typed configuration the dialog edits. The two halves
 // share helper vocabulary (date helpers, etc.) but have no other
-// coupling — Compile produces a plain string the Manager later
+// coupling - Compile produces a plain string the Manager later
 // hands to the engine.
 //
 // Mental model: the dialog is a small logic engine. Its inputs are
@@ -14,7 +14,7 @@
 package builder
 
 // MaxConcatParts caps how many TextSource parts a single Outcome
-// can `+`-join. Sidebar chips are short labels — going past this
+// can `+`-join. Sidebar chips are short labels - going past this
 // produces unreadable text and pathological compile/parse work.
 // Both Compile and Parse enforce the cap so hand-authored sources
 // bouncing through Parse → Compile can't smuggle larger chains in.
@@ -105,7 +105,7 @@ type TextSource struct {
 //
 //   - Parts (preferred) is an ordered list of TextSources joined
 //     with `+` so a chip text can mix literals, field values, and
-//     option labels — e.g. `unit-number + " " + street`.
+//     option labels - e.g. `unit-number + " " + street`.
 //   - Text is the legacy single-source form. Compile reads Parts
 //     first; falls back to Text when Parts is empty. Parse always
 //     emits Parts (Text stays nil). Both nil/empty means the chip
@@ -122,7 +122,7 @@ type Outcome struct {
 }
 
 // Rule is a logical AND of Predicates with one Outcome. Empty
-// Predicates always match — useful for the lone-rule case where the
+// Predicates always match - useful for the lone-rule case where the
 // user wants exactly one outcome regardless of state.
 type Rule struct {
 	ID         string      `json:"id"`

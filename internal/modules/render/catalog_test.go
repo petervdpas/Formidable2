@@ -10,7 +10,7 @@ import (
 
 // TestCatalog_MatchesRegisteredHelpers is the drift-guard. Every
 // helper declared in builtinHelpers MUST also be registered on a
-// real Handlebars template — otherwise the reference panel surfaces
+// real Handlebars template - otherwise the reference panel surfaces
 // dead links to nonexistent helpers. The reverse direction (every
 // registered helper is cataloged) isn't strictly checked here, but
 // the symmetric assertion below logs the gap so reviewers see it.
@@ -51,7 +51,7 @@ func TestCatalog_ReturnsCopy(t *testing.T) {
 	a[0].Name = "MUTATED"
 	b := Catalog()
 	if b[0].Name == "MUTATED" {
-		t.Errorf("Catalog leaked the backing slice — callers can mutate the registry")
+		t.Errorf("Catalog leaked the backing slice - callers can mutate the registry")
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 // testLogger wires a slog.Logger that fans into both io.Discard (silent
-// stderr surrogate) and the given Broadcaster — mirrors the multi-
+// stderr surrogate) and the given Broadcaster - mirrors the multi-
 // handler the composition root builds in production but without
 // touching the filesystem.
 func testLogger(bc *applog.Broadcaster) *slog.Logger {
@@ -97,6 +97,6 @@ func TestWriteFromFrontend_SourceAttrCannotBeOverridden(t *testing.T) {
 	}
 }
 
-// Sanity that the old constructor shape is gone — guards against an
+// Sanity that the old constructor shape is gone - guards against an
 // app.go that still calls NewManager(bc, path) and somehow compiles.
 var _ = io.Discard // keep "io" import used; serves as no-op anchor

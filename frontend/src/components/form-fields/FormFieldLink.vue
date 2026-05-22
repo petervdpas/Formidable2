@@ -14,13 +14,13 @@ import { Service as FormSvc } from "../../../bindings/github.com/petervdpas/form
 import { useFormidableLink } from "../../composables/useFormidableLink";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-// FormFieldLink — composes a `{href, text}` from either a free-form
+// FormFieldLink - composes a `{href, text}` from either a free-form
 // URL (regular protocol) or a template + entry pair (formidable://).
 //
 // Storage shape:
-//   ""                                — empty value
-//   { href, text }                    — canonical
-//   "https://…" | "formidable://…"    — legacy string accepted on read
+//   ""                                - empty value
+//   { href, text }                    - canonical
+//   "https://…" | "formidable://…"    - legacy string accepted on read
 //
 // Two-way binding strategy:
 //   - Local refs hold protocol/url/tplPick/entryPick/text so the user
@@ -28,7 +28,7 @@ import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/
 //     hasn't picked an entry yet) without losing partially-typed input.
 //   - syncFromModelValue() re-derives those refs from props.modelValue.
 //     Called once at setup, and again every time the parent passes a
-//     different value — that catches form-switch, where Vue reuses the
+//     different value - that catches form-switch, where Vue reuses the
 //     component instance (same template position, different datafile)
 //     and only the prop changes.
 //   - The echo-skip in the modelValue watcher avoids wiping refs when
@@ -43,7 +43,7 @@ const emit = defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
 const { t } = useI18n();
 
-// Provided by StorageWorkspace — used to default the template picker
+// Provided by StorageWorkspace - used to default the template picker
 // to the form's own template (mirrors original Formidable behavior).
 const templateFilename = inject<ComputedRef<string>>(
   "templateFilename",
@@ -142,7 +142,7 @@ function structurallyEqual(a: unknown, b: unknown): boolean {
 // ── data fetching ────────────────────────────────────────────────────
 async function loadTemplates() {
   try {
-    // Use the enabled subset, not the raw template list — the link
+    // Use the enabled subset, not the raw template list - the link
     // picker is a use-side surface and should respect per-profile
     // curation. The backend method already self-heals against the
     // live folder, so no separate prune pass is needed here.
@@ -158,7 +158,7 @@ async function loadTemplates() {
         tplPick.value = templates.value[0] ?? "";
       }
     } else if (!templates.value.includes(tplPick.value)) {
-      // A previously-picked template was disabled — fall back to the
+      // A previously-picked template was disabled - fall back to the
       // first allowed one (or empty when nothing's enabled).
       tplPick.value = templates.value[0] ?? "";
     }
@@ -184,7 +184,7 @@ async function loadEntries(forTemplate: string) {
 }
 
 // Load templates + entries the first time formidable mode becomes
-// active (and on each subsequent re-entry — reload is cheap).
+// active (and on each subsequent re-entry - reload is cheap).
 watch(
   protocol,
   async (p) => {
@@ -229,7 +229,7 @@ const canClear = computed(
   () => !props.field.readonly && (composedHref.value !== "" || text.value !== ""),
 );
 
-// Reset every part of the link except the protocol — the user's chosen
+// Reset every part of the link except the protocol - the user's chosen
 // mode is a UI affordance, not part of the saved value, and clobbering
 // it forces them back through the protocol picker just to start over.
 const confirmClearOpen = ref(false);
@@ -265,7 +265,7 @@ async function onBareClick(e: MouseEvent) {
 // Skip echoes of our own emit (incoming value structurally matches
 // what we just emitted). Without this guard, a protocol switch would
 // nuke tplPick/entryPick the moment the parent re-passes our emitted
-// {href:"", text:"X"} — because parsing "" yields no formidable hint.
+// {href:"", text:"X"} - because parsing "" yields no formidable hint.
 watch(
   () => props.modelValue,
   (v) => {

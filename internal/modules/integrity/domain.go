@@ -127,7 +127,7 @@ func checkMeta(tpl *template.Template, meta storage.FormMeta) []Issue {
 
 	// Each facet entry's Selected (when non-empty) must reference an
 	// option label declared by the matching template facet. An empty
-	// Selected is OK — `set: true` without a chosen colour mirrors the
+	// Selected is OK - `set: true` without a chosen colour mirrors the
 	// legacy `flagged: true` path. Unknown facet keys are also drift.
 	for key, state := range meta.Facets {
 		f := findFacet(tpl, key)
@@ -251,7 +251,7 @@ func checkData(fields []template.Field, data map[string]any, pathPrefix string) 
 // matchLoopstop scans forward from start looking for the loopstop whose
 // Key matches loopKey, honouring nested loopstart/loopstop pairs. The
 // template module bounds nesting at depth 2, but this walker doesn't
-// rely on that — it works at any depth. Returns the index of the
+// rely on that - it works at any depth. Returns the index of the
 // closing loopstop, or len(fields)-1 if none found (matches how
 // storage.skipLoop degrades on a malformed template).
 func matchLoopstop(fields []template.Field, start int, loopKey string) int {
@@ -289,7 +289,7 @@ func checkField(f template.Field, data map[string]any, pathPrefix string) []Issu
 func checkLoopValue(loopKey string, inner []template.Field, raw any, pathPrefix string) []Issue {
 	path := pathPrefix + loopKey
 	if raw == nil {
-		// Sanitize defaults missing loops to []any{} — an explicit nil
+		// Sanitize defaults missing loops to []any{} - an explicit nil
 		// is recoverable but worth flagging as a missing entry.
 		return []Issue{{
 			Kind:   IssueMissingField,
@@ -324,11 +324,11 @@ func checkLoopValue(loopKey string, inner []template.Field, raw any, pathPrefix 
 
 // checkValueType verifies v's Go type matches the declared field type.
 // Returns a single issue or nothing. The "empty" sentinel (zero value
-// for that type, or empty string) is always allowed — sanitize uses
+// for that type, or empty string) is always allowed - sanitize uses
 // type defaults for unset values, and the analyzer should not flag a
 // freshly defaulted form.
 func checkValueType(fieldType string, v any, path string) []Issue {
-	// nil is treated as "empty" — the field exists in data but is unset.
+	// nil is treated as "empty" - the field exists in data but is unset.
 	if v == nil {
 		return nil
 	}
@@ -345,7 +345,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 		}}
 
 	case "link":
-		// link is `{href, text}` map canonically — FormFieldLink.vue
+		// link is `{href, text}` map canonically - FormFieldLink.vue
 		// builds it from a free-form URL or a formidable:// pair. A
 		// bare string is also accepted because legacy forms (and CSV
 		// imports) carry the raw href without the wrapper; the field
@@ -422,7 +422,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 		}}
 	}
 
-	// Unknown field type — be permissive. Template validation owns the
+	// Unknown field type - be permissive. Template validation owns the
 	// "field type is bogus" check; we don't want to double-report it as
 	// a data issue.
 	return nil

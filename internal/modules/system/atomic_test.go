@@ -85,7 +85,7 @@ func TestAtomicWrite_LargeContent(t *testing.T) {
 
 // TestSaveFile_ConcurrentWritersAllValid fires N goroutines, each
 // saving distinct content to the SAME path. After all complete, the
-// final file content must equal exactly one of the inputs — never a
+// final file content must equal exactly one of the inputs - never a
 // partial mix or an empty/truncated file.
 func TestSaveFile_ConcurrentWritersAllValid(t *testing.T) {
 	t.Parallel()
@@ -123,7 +123,7 @@ func TestSaveFile_ConcurrentWritersAllValid(t *testing.T) {
 }
 
 // TestSaveFile_ConcurrentReadersNeverSeePartial fires writers + readers
-// in parallel; readers must always observe a complete, valid input —
+// in parallel; readers must always observe a complete, valid input -
 // never an empty or partially-written file. Stress-y but bounded.
 func TestSaveFile_ConcurrentReadersNeverSeePartial(t *testing.T) {
 	t.Parallel()

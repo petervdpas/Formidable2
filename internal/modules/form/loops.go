@@ -33,13 +33,13 @@ func ComputeLoopGroups(fields []template.Field, defaultCollapsed bool) []LoopGro
 			stack = append(stack, frame{field: f, index: i})
 		case "loopstop":
 			if len(stack) == 0 {
-				// stranded loopstop — skip
+				// stranded loopstop - skip
 				continue
 			}
 			top := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
 			if top.field.Key != f.Key {
-				// key mismatch — drop both halves
+				// key mismatch - drop both halves
 				continue
 			}
 			// Depth = how many open frames remained AFTER popping ours.

@@ -1,5 +1,5 @@
 <script lang="ts">
-// Module-level cache for the git Commit Graph — see createModuleCache
+// Module-level cache for the git Commit Graph - see createModuleCache
 // for why a non-setup <script> block is required (per-module, not
 // per-instance). Cached pair: the commits list AND the lazily-loaded
 // per-commit file map, so re-entering the view preserves which rows
@@ -37,7 +37,7 @@ import { backendErrMessage } from "../../utils/backendError";
 // GitCommitGraph wires useCommitGraph to the git backend. The shared
 // lifecycle handles cache + race guard + journal:changed + onMounted
 // refresh; this file owns only the fetch shape and the row chrome.
-// "Not a git repo" is a non-error state — fetch returns the empty
+// "Not a git repo" is a non-error state - fetch returns the empty
 // shape and toggles notARepo so the template can render the right
 // message without going through errorMsg / toast.
 
@@ -83,7 +83,7 @@ const nodes = computed<GraphNode<GraphCommit>[]>(() =>
   })),
 );
 
-// Per-commit file list — lazy-loaded on first expand. updateValue
+// Per-commit file list - lazy-loaded on first expand. updateValue
 // rewrites the cached shape in lockstep so re-entry preserves the
 // expanded rows the user has already opened.
 async function loadCommitFiles(hash: string) {

@@ -1,4 +1,4 @@
-/* FormLoop — outer container for one loopstart/loopstop pair.
+/* FormLoop - outer container for one loopstart/loopstop pair.
    Each loop-item recursively contains FormLoopFields. Drag handle,
    ghost/chosen/drag states come from dnd.css; small toggle/remove
    buttons from buttons.css (.btn-ghost-icon variants). */

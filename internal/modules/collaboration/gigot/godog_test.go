@@ -578,7 +578,7 @@ func initGigotScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	// Health route is always available — used by the auth-header test.
+	// Health route is always available - used by the auth-header test.
 	ctx.Step(`^the service issues Ping$`, func() error {
 		w.mux.handle("GET", "/api/health", func(wr http.ResponseWriter, _ *http.Request) {
 			_, _ = io.WriteString(wr, `{"ok":true}`)
@@ -710,7 +710,7 @@ func phasesOf(events []SyncProgress) []SyncPhase {
 }
 
 // mustErr is a tiny helper that fast-fails an assertion when a prior
-// step's lastErr is non-nil — keeps the assertion bodies clean from
+// step's lastErr is non-nil - keeps the assertion bodies clean from
 // the (very common) "did the call even succeed first?" boilerplate.
 type maybeErr struct{ err error }
 

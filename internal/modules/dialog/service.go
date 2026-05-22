@@ -2,7 +2,7 @@
 // open-file / save-file pickers. The frontend triggers a dialog by
 // calling Dialog.Service.ChooseFile / ChooseSaveFile; the OS picker
 // blocks the calling Wails goroutine until the user commits or
-// cancels. An empty returned path indicates user cancellation —
+// cancels. An empty returned path indicates user cancellation -
 // callers should treat that as a no-op, not an error.
 //
 // There is no Manager type here. The module is just an adapter to the
@@ -16,7 +16,7 @@ import "github.com/wailsapp/wails/v3/pkg/application"
 // Service is the Wails-bound dialog surface.
 type Service struct{}
 
-// NewService constructs a Service. No dependencies — the running Wails
+// NewService constructs a Service. No dependencies - the running Wails
 // application instance is reached via application.Get() at call time.
 func NewService() *Service { return &Service{} }
 

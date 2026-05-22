@@ -152,7 +152,7 @@ func TestSanitize_TagsFromCommaString(t *testing.T) {
 
 // When the template has a tags-typed field, that field is the single
 // source of truth for Meta.Tags. Removing a tag from the field on edit
-// must drop it from the meta block — the stale `_meta.tags` carried on
+// must drop it from the meta block - the stale `_meta.tags` carried on
 // the envelope (round-tripped from BuildView) must NOT union with the
 // fresh field value. Regression for the "removed tag persists" bug.
 func TestSanitize_TagsFieldIsSourceOfTruth_NoStaleMetaUnion(t *testing.T) {
@@ -199,7 +199,7 @@ func TestSanitize_TagsFieldIsSourceOfTruth_EnvelopeShape(t *testing.T) {
 }
 
 // Templates without a tags-typed field have nothing to derive Meta.Tags
-// from except the meta round-trip — that path must keep working so
+// from except the meta round-trip - that path must keep working so
 // API-only forms (POST {meta:{tags:[...]}}) don't silently lose tags.
 func TestSanitize_NoTagsField_MetaRoundTripPreserved(t *testing.T) {
 	fields := []template.Field{
@@ -272,10 +272,10 @@ func TestSanitize_LinkValueShapesRoundTrip(t *testing.T) {
 
 // API-field value shape: a single object {guid, ...projected_columns}.
 // Multiplicity comes from wrapping the field in a loopstart/loopstop
-// pair — the api field itself is always one record's projection.
+// pair - the api field itself is always one record's projection.
 
 func TestSanitize_ApiFieldUnsetDefaultsToNil(t *testing.T) {
-	// User hasn't picked a record yet — sanitize should produce nil
+	// User hasn't picked a record yet - sanitize should produce nil
 	// (NOT empty string, which would be a type-confused stand-in and
 	// would force every consumer to guard against `""` vs `map`).
 	fields := []template.Field{
@@ -312,7 +312,7 @@ func TestSanitize_ApiFieldObjectRoundTrip(t *testing.T) {
 func TestSanitize_ApiFieldInsideLoopPreservesPerIteration(t *testing.T) {
 	// Multi-record case: the api field lives inside a loopstart/loopstop
 	// pair; each iteration carries its own {guid, ...} map. The loop
-	// preservation rule already exists for any field type — this test
+	// preservation rule already exists for any field type - this test
 	// pins the api-shaped payload to it.
 	fields := []template.Field{
 		{Key: "title", Type: "text"},
@@ -397,7 +397,7 @@ func TestSaveForm_RejectsPathSeparatorsInDatafile(t *testing.T) {
 func TestTemplateImageDir_StripsYAMLExtension(t *testing.T) {
 	// newTestStack constructs the Manager with `storageDir: "storage"`
 	// (relative). The path-composition rule (strip `.yaml`, append
-	// `images`) is what we verify here — the absolute prefix is the
+	// `images`) is what we verify here - the absolute prefix is the
 	// composition root's job (see app.go) and is not under test.
 	m, _, _, _ := newTestStack(t)
 	cases := []struct {
@@ -432,13 +432,13 @@ func TestSaveImageFile_RejectsEmptyName(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// LoadImageFile — reads <storage>/<template>/images/<name> and returns
+// LoadImageFile - reads <storage>/<template>/images/<name> and returns
 // a data URL ready for direct use in <img src="">.
 // ─────────────────────────────────────────────────────────────────────
 
 func TestLoadImageFile_RoundTripsPNG(t *testing.T) {
 	m, _, _, _ := newTestStack(t)
-	// PNG magic bytes — enough to look like a real PNG to mime sniffers.
+	// PNG magic bytes - enough to look like a real PNG to mime sniffers.
 	png := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00}
 	if r := m.SaveImageFile("basic.yaml", "logo.png", png); !r.Success {
 		t.Fatalf("save: %v", r.Error)
@@ -494,7 +494,7 @@ func TestLoadImageFile_RejectsEmptyName(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// OpenImageFile — raw bytes + MIME type, no data-URL framing.
+// OpenImageFile - raw bytes + MIME type, no data-URL framing.
 // Used by the api /api/images/{tpl}/{filename} route and by the
 // asset middleware that serves the slideout's <img src=…>.
 // ─────────────────────────────────────────────────────────────────────
@@ -572,7 +572,7 @@ func TestOpenImageFile_RejectsEmptyName(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// DeleteImageFile — removes the file under <storage>/<template>/images/.
+// DeleteImageFile - removes the file under <storage>/<template>/images/.
 // Missing is a no-op (mirrors DeleteForm).
 // ─────────────────────────────────────────────────────────────────────
 
@@ -616,7 +616,7 @@ func TestDeleteImageFile_RejectsEmptyName(t *testing.T) {
 }
 
 func TestLoadForm_MissingTemplateStillReadsRawData(t *testing.T) {
-	// Even with no template, LoadForm should not blow up — Sanitize
+	// Even with no template, LoadForm should not blow up - Sanitize
 	// runs with nil fields (everything stays raw).
 	m, sys, _, _ := newTestStack(t)
 	// Save a form by hand without a template file in templates/.
@@ -675,7 +675,7 @@ func TestExtendedListForms_PrefersReaderWhenInstalled(t *testing.T) {
 		Fields: []template.Field{{Key: "title", Type: "text"}},
 	})
 	// Write a disk fixture that, if the reader were bypassed, would
-	// return Title="disk-title" — the assertion below would fail.
+	// return Title="disk-title" - the assertion below would fail.
 	_ = sys.SaveFile("storage/basic/x.meta.json",
 		`{"meta":{"id":"abc","template":"basic"},"data":{"title":"disk-title"}}`)
 

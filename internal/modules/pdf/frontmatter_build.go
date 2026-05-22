@@ -10,8 +10,8 @@ import (
 
 // InjectConfig is the typed input that BuildFrontmatter renders into
 // a picoloom v2 frontmatter YAML scaffold. The Inject dialog
-// collects values into this shape — toggles per block, dropdowns per
-// enum field, text inputs per cover/footer/signature field — and the
+// collects values into this shape - toggles per block, dropdowns per
+// enum field, text inputs per cover/footer/signature field - and the
 // backend renders the YAML deterministically.
 //
 // Block pointers are nil when the user's toggle for that block is
@@ -19,7 +19,7 @@ import (
 // asked for. Style is a top-level scalar (no block to gate); empty
 // means "no theme override".
 //
-// Watermark and PageBreaks are intentionally absent — they're
+// Watermark and PageBreaks are intentionally absent - they're
 // power-user features deferred until there's demand.
 type InjectConfig struct {
 	Style     string                 `json:"style,omitempty"`
@@ -31,7 +31,7 @@ type InjectConfig struct {
 	Signature *InjectSignatureConfig `json:"signature,omitempty"`
 }
 
-// InjectPageConfig — page layout. Values from ListPageSizes() and
+// InjectPageConfig - page layout. Values from ListPageSizes() and
 // ListPageOrientations() drive the dropdowns; the user can also leave
 // fields empty for picoloom defaults.
 type InjectPageConfig struct {
@@ -40,7 +40,7 @@ type InjectPageConfig struct {
 	Margin      float64 `json:"margin,omitempty"`
 }
 
-// InjectCoverConfig — every cover field except the picoloom-internal
+// InjectCoverConfig - every cover field except the picoloom-internal
 // ones (Enabled / TemplatePath). Empty fields are skipped on emit.
 type InjectCoverConfig struct {
 	Template     string `json:"template,omitempty"`
@@ -60,14 +60,14 @@ type InjectCoverConfig struct {
 	Logo         string `json:"logo,omitempty"`
 }
 
-// InjectTOCConfig — table-of-contents block.
+// InjectTOCConfig - table-of-contents block.
 type InjectTOCConfig struct {
 	Title    string `json:"title,omitempty"`
 	MinDepth int    `json:"min_depth,omitempty"`
 	MaxDepth int    `json:"max_depth,omitempty"`
 }
 
-// InjectFooterConfig — footer block. ShowPageNumber is a value type
+// InjectFooterConfig - footer block. ShowPageNumber is a value type
 // because the dialog always has a position for the toggle (on/off);
 // nil-vs-false distinction isn't needed at scaffold-emit time.
 type InjectFooterConfig struct {
@@ -79,8 +79,8 @@ type InjectFooterConfig struct {
 	DocumentID     string `json:"document_id,omitempty"`
 }
 
-// InjectSignatureConfig — signature block. Links (signature.links
-// array) are deferred — out of scope for the v1 wizard.
+// InjectSignatureConfig - signature block. Links (signature.links
+// array) are deferred - out of scope for the v1 wizard.
 type InjectSignatureConfig struct {
 	Name         string `json:"name,omitempty"`
 	Title        string `json:"title,omitempty"`
@@ -95,8 +95,8 @@ type InjectSignatureConfig struct {
 // BuildFrontmatter renders the typed InjectConfig into a YAML
 // frontmatter block (surrounded by `---` fences, terminated with a
 // newline). Blocks the user disabled are omitted entirely; empty
-// optional fields are skipped. The output is deterministic — same
-// config in produces the same YAML out — so tests can compare
+// optional fields are skipped. The output is deterministic - same
+// config in produces the same YAML out - so tests can compare
 // against literal strings.
 //
 // Each enabled sub-block carries an explicit `enabled: true` for
@@ -237,7 +237,7 @@ func insertKeywordsBlock(yamlBody, kwBlock string) string {
 // follow the same shape as TableColumnTypeDescriptor / ThemeDescriptor:
 // just a Name string. Human labels come from frontend i18n keys
 // (`pdf.export.dialog.page_size.<name>` etc.). Display order is
-// significant — the slice ordering IS the dropdown ordering.
+// significant - the slice ordering IS the dropdown ordering.
 type PageSizeDescriptor struct {
 	Name string `json:"name"`
 }
@@ -251,7 +251,7 @@ type FooterPositionDescriptor struct {
 }
 
 // Canonical picoloom v2 enum sets. Picoloom doesn't expose these as
-// registries (same situation as themes — see builtinThemes), so the
+// registries (same situation as themes - see builtinThemes), so the
 // Go side keeps the one-source-of-truth copy. Keep in sync with
 // picoloom's PageSize* / Orientation* / Position* constants in
 // `github.com/alnah/picoloom/v2/types.go`. When picoloom adds a value,

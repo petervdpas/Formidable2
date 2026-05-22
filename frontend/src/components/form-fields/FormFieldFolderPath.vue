@@ -8,7 +8,7 @@ import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/
 // Sibling of FormFieldFilePath; the picker accepts a directory
 // instead of a file, and there are no per-extension filters.
 //
-// Same absolute-path normalization rule applies — picker output is
+// Same absolute-path normalization rule applies - picker output is
 // already absolute, hand-typed input is coerced on focusout. Browse
 // remains enabled when the field is read-only (read-only blocks
 // free-typing but should not block picking a path).
@@ -30,7 +30,7 @@ async function coerceAbsolute() {
     const abs = await SystemSvc.ResolveAbsolutePath(value.value);
     if (abs && abs !== value.value) value.value = abs;
   } catch {
-    // Same fallback as FormFieldFilePath — typing the path stays valid.
+    // Same fallback as FormFieldFilePath - typing the path stays valid.
   }
 }
 
@@ -42,7 +42,7 @@ async function browse() {
       await coerceAbsolute();
     }
   } catch {
-    // Same fallback as FormFieldFilePath — typing the path stays valid.
+    // Same fallback as FormFieldFilePath - typing the path stays valid.
   }
 }
 </script>

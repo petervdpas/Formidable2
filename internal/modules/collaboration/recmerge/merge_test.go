@@ -135,7 +135,7 @@ func TestMerge_OneSideRemovesField(t *testing.T) {
 	res, _ := Merge("p", base, theirs, yours)
 	data := extractData(t, res.Merged)
 	if _, present := data["name"]; present {
-		t.Errorf("theirs removed and yours unchanged — expected key gone, got %v", data["name"])
+		t.Errorf("theirs removed and yours unchanged - expected key gone, got %v", data["name"])
 	}
 }
 
@@ -157,7 +157,7 @@ func TestMerge_CanonicalOutputIsDeterministic(t *testing.T) {
 	}
 }
 
-// IsRecordPath tests — Formidable2-side addition (gigot has its own
+// IsRecordPath tests - Formidable2-side addition (gigot has its own
 // isFormidableRecordPath in server/). Locks the contract so the
 // PullWithStash caller can rely on it for path gating.
 

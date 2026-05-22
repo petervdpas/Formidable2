@@ -4,7 +4,7 @@
 // (Windows Credential Manager, libsecret, GitHub CLI) instead of
 // managing a separate PAT in its own keychain.
 //
-// Local ops stay on go-git inside the parent package — this layer is
+// Local ops stay on go-git inside the parent package - this layer is
 // only for the auth-bearing transport calls.
 package sysgit
 
@@ -54,7 +54,7 @@ type Runner struct {
 }
 
 // NewRunner detects the git binary on PATH. Available() is false when
-// detection fails — callers must check before invoking an op.
+// detection fails - callers must check before invoking an op.
 func NewRunner(log *slog.Logger) *Runner { return newRunner(realExecutor{}, log) }
 
 func newRunner(ex Executor, log *slog.Logger) *Runner {
@@ -81,7 +81,7 @@ func ErrNotAvailable() error { return errNotAvailable }
 
 // Fetch runs `git fetch <remote>` inside workdir. Stderr is folded
 // into the error message so the UI toast shows what git complained
-// about (auth, unknown remote, network) — and the same stderr is
+// about (auth, unknown remote, network) - and the same stderr is
 // emitted as a warn-level log so users without devtools (Windows
 // builds) can find it in Information → Logging.
 func (r *Runner) Fetch(workdir, remote string) error {
@@ -104,7 +104,7 @@ func (r *Runner) Fetch(workdir, remote string) error {
 }
 
 // Push runs `git push <remote>`. alreadyUpToDate flips true when git
-// reports "Everything up-to-date" on stderr — matches go-git's
+// reports "Everything up-to-date" on stderr - matches go-git's
 // NoErrAlreadyUpToDate semantics so the journal records remote-seen
 // instead of a phantom sync marker.
 func (r *Runner) Push(workdir, remote string) (alreadyUpToDate bool, err error) {
@@ -133,7 +133,7 @@ func (r *Runner) Push(workdir, remote string) (alreadyUpToDate bool, err error) 
 
 // Pull runs `git pull <remote>`. alreadyUpToDate flips true when git
 // reports "Already up to date." on stdout. Pull goes through the
-// system git binary even though it touches the worktree — that's the
+// system git binary even though it touches the worktree - that's the
 // whole point of self-cloned mode (credential helper resolves auth).
 func (r *Runner) Pull(workdir, remote string) (alreadyUpToDate bool, err error) {
 	if !r.Available() {

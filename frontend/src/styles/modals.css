@@ -26,7 +26,7 @@
 
 .modal-dialog:focus { outline: none; }
 
-/* Header maximize / restore button — shown only when the dialog is
+/* Header maximize / restore button - shown only when the dialog is
    constructed with maximizable=true. Styled to match modal-close. */
 .modal-max {
     appearance: none;
@@ -94,7 +94,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   Dialog form rows — used by the create/new-entry dialogs across
+   Dialog form rows - used by the create/new-entry dialogs across
    workspaces (Templates "New Template", Profiles "Create Profile",
    Storage "New Entry", etc.). Replaces the duplicated .create-row /
    .new-row pairs.

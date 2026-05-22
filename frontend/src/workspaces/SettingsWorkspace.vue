@@ -9,7 +9,7 @@ import { useConfig } from "../composables/useConfig";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useRibbonAvailability } from "../composables/useRibbonAvailability";
 // (bootConfig comes from useRestartGate so sidebar width stays frozen
-// for the session — same rule as Templates/Storage.)
+// for the session - same rule as Templates/Storage.)
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useToast } from "../composables/useToast";
 import { useRestartFlow } from "../composables/useRestartFlow";
@@ -47,7 +47,7 @@ function openRestartConfirm() {
   restart.request();
 }
 
-// Topbar menu — declarative. The getter is reactive: needsRestart
+// Topbar menu - declarative. The getter is reactive: needsRestart
 // flipping toggles the menu item's `disabled` automatically.
 setTopbarMenu(() => [
   {

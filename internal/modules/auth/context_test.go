@@ -44,7 +44,7 @@ func TestWithIdentity_DoesNotLeakAcrossUnrelatedKeys(t *testing.T) {
 	type otherKey struct{}
 	parent := context.WithValue(context.Background(), otherKey{}, "unrelated")
 
-	// No identity stored — even with other ctx values present, we must
+	// No identity stored - even with other ctx values present, we must
 	// report ok=false rather than dragging the unrelated value through.
 	if _, ok := IdentityFromContext(parent); ok {
 		t.Fatal("unrelated ctx values must not satisfy IdentityFromContext")

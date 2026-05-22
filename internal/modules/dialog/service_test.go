@@ -25,7 +25,7 @@ func TestFileFilter_StructShape(t *testing.T) {
 
 // TestServiceMethods_AreCallable just exercises the function-pointer
 // shapes so a refactor that drops or renames a method shows up in the
-// build. Calling them would require a Wails app — that's manual QA.
+// build. Calling them would require a Wails app - that's manual QA.
 func TestServiceMethods_AreCallable(t *testing.T) {
 	t.Parallel()
 	s := NewService()

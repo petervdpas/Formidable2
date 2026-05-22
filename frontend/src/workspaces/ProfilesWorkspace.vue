@@ -40,7 +40,7 @@ const jsonFilters = computed(() => [
   { displayName: t('workspace.profiles.import.filter_name'), pattern: '*.json' },
 ]);
 
-// Sidebar selection — separate from "active" so the user can browse
+// Sidebar selection - separate from "active" so the user can browse
 // without flipping the live profile.
 const selectedFilename = ref<string>(activeFilename.value);
 
@@ -112,7 +112,7 @@ async function submitDelete() {
     }
     return;
   }
-  // Deleted — clear selection and close.
+  // Deleted - clear selection and close.
   if (selectedFilename.value === target) {
     selectedFilename.value = activeFilename.value;
   }
@@ -227,7 +227,7 @@ async function exportProfile() {
 // ── Activate / Edit-in-Settings ──────────────────────────────────────
 // Switching profiles flips .boot.json + reloads the active config from
 // disk, but workspace caches (templates list, storage selection, VFS,
-// etc.) were keyed off the old profile and don't refresh in place — a
+// etc.) were keyed off the old profile and don't refresh in place - a
 // live-switch leaves the UI showing stale rows from the previous repo.
 // Until those caches grow profile-aware invalidation, the safe path is
 // a real process restart: the boot pointer already points at the new
@@ -257,7 +257,7 @@ function editInSettings() {
     setActive("settings");
     return;
   }
-  // Otherwise treat it like Activate — the user lands on the default
+  // Otherwise treat it like Activate - the user lands on the default
   // workspace after restart and clicks Settings themselves.
   requestActivate(selectedFilename.value);
 }
@@ -267,7 +267,7 @@ function cancelActivate() {
   restart.cancel();
 }
 
-// Topbar menu — File group with Import (always enabled) and Export
+// Topbar menu - File group with Import (always enabled) and Export
 // (disabled when no profile is selected). The Apply auto-disable rule
 // keeps the File button itself enabled as long as Import works.
 const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("profiles");
@@ -365,17 +365,17 @@ setTopbarMenu(() => [
              active one (others aren't loaded into reactive state). -->
         <dl v-if="isActiveSelected && config" class="kv profile-kv">
           <dt>{{ t('workspace.profiles.detail.profile_name') }}</dt>
-          <dd>{{ config.profile_name || '—' }}</dd>
+          <dd>{{ config.profile_name || '-' }}</dd>
           <dt>{{ t('workspace.profiles.detail.author_name') }}</dt>
-          <dd>{{ config.author_name || '—' }}</dd>
+          <dd>{{ config.author_name || '-' }}</dd>
           <dt>{{ t('workspace.profiles.detail.author_email') }}</dt>
-          <dd>{{ config.author_email || '—' }}</dd>
+          <dd>{{ config.author_email || '-' }}</dd>
           <dt>{{ t('workspace.profiles.detail.theme') }}</dt>
           <dd>{{ t('theme.' + (config.theme || 'light')) }}</dd>
           <dt>{{ t('workspace.profiles.detail.language') }}</dt>
-          <dd>{{ config.language || '—' }}</dd>
+          <dd>{{ config.language || '-' }}</dd>
           <dt>{{ t('workspace.profiles.detail.context_folder') }}</dt>
-          <dd><code>{{ config.context_folder || '—' }}</code></dd>
+          <dd><code>{{ config.context_folder || '-' }}</code></dd>
         </dl>
         <p v-else class="muted">
           {{ t('workspace.profiles.detail.unloaded') }}

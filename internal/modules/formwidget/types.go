@@ -1,4 +1,4 @@
-// Package formwidget models form widgets — the non-input slots a
+// Package formwidget models form widgets - the non-input slots a
 // plugin author can place inside a plugin's Run-dialog form. Widgets
 // don't capture user input; they DISPLAY runtime state pushed from
 // the Lua side (formidable.run.bar, formidable.run.status) so the
@@ -24,7 +24,7 @@ import (
 	"strings"
 )
 
-// Kind identifies a widget's display role. Closed enum — adding a
+// Kind identifies a widget's display role. Closed enum - adding a
 // new widget kind is a deliberate package change with a matching
 // frontend component, never an open-ended string.
 type Kind string
@@ -41,17 +41,17 @@ const (
 	KindStatusMessage Kind = "statusmessage"
 )
 
-// Widget is one entry inside a plugin's form.json — the same list
+// Widget is one entry inside a plugin's form.json - the same list
 // that holds form Fields. The author places widgets wherever they
 // want among the fields; position in the array IS the render order.
 // ID is a per-form stable identifier the form editor uses for
-// reordering / deletion (it does NOT route Lua updates — both
+// reordering / deletion (it does NOT route Lua updates - both
 // widget kinds are driven by a single run-scoped event each).
 // Label is optional chrome shown next to / above the widget.
 //
 // Heterogeneity in form.json: Widget and template.Field share the
 // same array. Frontend dispatches by the presence of the `kind`
-// field — Field uses `type`, Widget uses `kind` — so no extra
+// field - Field uses `type`, Widget uses `kind` - so no extra
 // discriminator is needed in the JSON.
 type Widget struct {
 	ID    string `json:"id"`

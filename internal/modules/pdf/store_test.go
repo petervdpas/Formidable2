@@ -71,7 +71,7 @@ func (m *memFS) DeleteFile(path string) error {
 }
 
 // ResolvePath mimics system.Manager.ResolvePath but without an
-// AppRoot — tests already write absolute-ish keys into the map, so
+// AppRoot - tests already write absolute-ish keys into the map, so
 // returning the joined path verbatim keeps the contract simple.
 func (m *memFS) ResolvePath(segments ...string) string {
 	return strings.Join(segments, "/")
@@ -93,7 +93,7 @@ func (m *memFS) ListDir(path string) ([]string, error) {
 			continue
 		}
 		rest := strings.TrimPrefix(k, prefix)
-		// Only direct children — split on / and take the first segment.
+		// Only direct children - split on / and take the first segment.
 		if i := strings.Index(rest, "/"); i >= 0 {
 			rest = rest[:i]
 		}

@@ -1,5 +1,5 @@
 /*
- * journal-feed — Information → Journal Feed workspace.
+ * journal-feed - Information → Journal Feed workspace.
  *
  * VisualGraph itself is generic; this stylesheet styles the row
  * content (op badge, path, backend pill, version, time) and the
@@ -62,7 +62,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Expanded details — definition list, two-column. */
+/* Expanded details - definition list, two-column. */
 
 .journal-details {
   display: grid;

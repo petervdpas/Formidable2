@@ -1,4 +1,4 @@
-/* Monitor board — tile grid for the Information → Monitoring page.
+/* Monitor board - tile grid for the Information → Monitoring page.
    Tiles auto-flow into a responsive grid; each is an inset card
    matching the workspace's "quiet panel" feel. */
 
@@ -39,7 +39,7 @@
 
 /* Drag-and-drop affordance: the title area becomes the handle.
    The .dnd-handle / .dnd-ghost / .dnd-chosen / .dnd-drag classes are
-   shared with every other dnd-using component (see dnd.css) — this
+   shared with every other dnd-using component (see dnd.css) - this
    file only adds the per-tile layout, not new dnd visuals. */
 .monitor-tile-header {
   display: flex;
@@ -50,7 +50,7 @@
 
 /* The header's title block IS the handle. Override the global
    .dnd-handle defaults that target small icon handles (font-size
-   16, opacity 0.7, padding 0 2px) — for a full-width text header we
+   16, opacity 0.7, padding 0 2px) - for a full-width text header we
    want the inherited typography. */
 .monitor-tile-header .dnd-handle {
   flex: 1 1 auto;

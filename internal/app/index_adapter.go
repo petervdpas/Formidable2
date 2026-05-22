@@ -15,7 +15,7 @@ import (
 // into the narrow interfaces the index module needs. The index can't
 // import template/storage directly without bringing in domain detail
 // it doesn't care about, and template/storage shouldn't know about
-// the index — so the adapter lives in the composition root.
+// the index - so the adapter lives in the composition root.
 //
 // `Load*` methods stat the on-disk file to attach a fresh mtime/size
 // to the record. This is what lets RescanAll's diff settle on
@@ -44,7 +44,7 @@ func (a *indexLoaderAdapter) LoadTemplate(filename string) (*index.TemplateRecor
 }
 
 // LoadForm satisfies index.FormStore. storage.Manager.LoadForm returns
-// nil for both "missing" and "malformed" — the index treats either as
+// nil for both "missing" and "malformed" - the index treats either as
 // a load failure and the caller (RescanAll) skips the bad row but
 // keeps populating the rest.
 func (a *indexLoaderAdapter) LoadForm(templateFilename, datafile string) (*index.FormRecord, error) {
@@ -68,7 +68,7 @@ func statMtimeNanos(path string) int64 {
 	return info.ModTime().UnixNano()
 }
 
-// stemOf strips ".yaml" so "basic.yaml" → "basic" — the per-template
+// stemOf strips ".yaml" so "basic.yaml" → "basic" - the per-template
 // storage subdirectory name that storage.Manager uses internally.
 func stemOf(templateFilename string) string {
 	if ext := filepath.Ext(templateFilename); ext != "" {
@@ -94,7 +94,7 @@ func newIndexFormReader(idx *index.Manager) *indexFormReader {
 
 // ListSummaries satisfies storage.FormReader. Orders by filename
 // ascending so the result matches what the original os.ReadDir-based
-// disk path returned — no observable change for the studio sidebar.
+// disk path returned - no observable change for the studio sidebar.
 func (r *indexFormReader) ListSummaries(templateFilename string) ([]storage.FormSummary, error) {
 	rows, err := r.idx.ListForms(templateFilename, index.QueryOpts{OrderBy: "filename_asc"})
 	if err != nil {
@@ -115,7 +115,7 @@ func formRowToSummary(r index.FormRow) storage.FormSummary {
 			ID: r.ID,
 			// Storage's disk path stores the template stem ("recipes"),
 			// not the yaml filename ("recipes.yaml"). Match that so
-			// FormSummary parity holds — the index FK uses the filename
+			// FormSummary parity holds - the index FK uses the filename
 			// for clean joins, but the wire shape stays stem-keyed.
 			Template: stemOf(r.Template),
 			Created: storage.AuditEntry{

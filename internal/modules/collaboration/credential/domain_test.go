@@ -8,7 +8,7 @@ import (
 
 // MockInit swaps the platform keychain backend for an in-memory map
 // for the duration of the test process. Call once at the top of any
-// test that touches Manager — go-keyring resets cleanly between
+// test that touches Manager - go-keyring resets cleanly between
 // tests because each Set call overwrites whatever was there.
 func init() {
 	keyring.MockInit()
@@ -64,7 +64,7 @@ func TestDelete_RemovesEntry(t *testing.T) {
 }
 
 func TestDelete_MissingIsNotError(t *testing.T) {
-	// Idempotent delete — useful so the UI can call Forget without
+	// Idempotent delete - useful so the UI can call Forget without
 	// caring whether an entry actually existed.
 	m := NewManager()
 	if err := m.Delete("https://example.com/never-existed.git"); err != nil {
@@ -80,7 +80,7 @@ func TestSet_EmptyAccountRejected(t *testing.T) {
 }
 
 func TestSet_EmptySecretRejected(t *testing.T) {
-	// Refuse to write an empty secret — that's almost always a bug
+	// Refuse to write an empty secret - that's almost always a bug
 	// (the form was submitted before the user pasted the PAT).
 	m := NewManager()
 	if err := m.Set("https://github.com/owner/repo.git", ""); err == nil {

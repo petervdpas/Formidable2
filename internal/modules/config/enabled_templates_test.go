@@ -65,10 +65,10 @@ func TestIsTemplateEnabled_PopulatedListOnlyAllowsListed(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	withEnabled(t, m, "basic.yaml", "report.yaml")
 	if !m.IsTemplateEnabled("basic.yaml") {
-		t.Error("basic.yaml is in the list — should be enabled")
+		t.Error("basic.yaml is in the list - should be enabled")
 	}
 	if m.IsTemplateEnabled("hidden.yaml") {
-		t.Error("hidden.yaml is NOT in the list — should be disabled")
+		t.Error("hidden.yaml is NOT in the list - should be disabled")
 	}
 }
 
@@ -151,7 +151,7 @@ func TestPruneEnabledTemplates_NoChangeWhenAllPresent(t *testing.T) {
 	m, _, root := newTestManager(t)
 	withEnabled(t, m, "basic.yaml", "report.yaml")
 
-	// Capture content (not mtime — Linux ext4 has 1s granularity, plus
+	// Capture content (not mtime - Linux ext4 has 1s granularity, plus
 	// LoadUserConfig may rewrite on first-time defaults sanitization).
 	pre, err := os.ReadFile(filepath.Join(root, "config", "user.json"))
 	if err != nil {
@@ -502,7 +502,7 @@ func TestUpdate_EmptyEnabledList_DoesNotClear(t *testing.T) {
 
 func TestUpdate_WriteDisallowedSelected_Clears(t *testing.T) {
 	// Pathological: caller writes a SelectedTemplate that isn't in the
-	// current allowed list. We refuse to persist that state — same rule
+	// current allowed list. We refuse to persist that state - same rule
 	// regardless of which side of the partial brought it in.
 	m, _, _ := newTestManager(t)
 	if _, err := m.UpdateUserConfig(map[string]any{
@@ -572,10 +572,10 @@ func TestService_IsTemplateEnabled_ForwardsToManager(t *testing.T) {
 	withEnabled(t, m, "kept.yaml")
 	svc := NewService(m)
 	if !svc.IsTemplateEnabled("kept.yaml") {
-		t.Error("kept.yaml is enabled — service should report true")
+		t.Error("kept.yaml is enabled - service should report true")
 	}
 	if svc.IsTemplateEnabled("hidden.yaml") {
-		t.Error("hidden.yaml is NOT enabled — service should report false")
+		t.Error("hidden.yaml is NOT enabled - service should report false")
 	}
 }
 

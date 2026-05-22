@@ -10,7 +10,7 @@ import (
 )
 
 // newTestHandler builds a Handler with the journal-like fixture
-// already registered — covers the happy path scenarios end-to-end.
+// already registered - covers the happy path scenarios end-to-end.
 func newTestHandler(t *testing.T) http.Handler {
 	t.Helper()
 	m := NewManager()
@@ -175,7 +175,7 @@ func TestHandler_ContentTypeHeader(t *testing.T) {
 }
 
 func TestHandler_QueryEndpoint_AcceptsEmptyBodyError(t *testing.T) {
-	// Empty body to POST shouldn't crash — should produce a clean 400.
+	// Empty body to POST shouldn't crash - should produce a clean 400.
 	h := newTestHandler(t)
 	r := httptest.NewRequest(http.MethodPost, "/api/monitor/query", bytes.NewReader(nil))
 	rec := httptest.NewRecorder()

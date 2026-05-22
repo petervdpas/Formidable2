@@ -1,16 +1,16 @@
 <script setup lang="ts">
 // Editor for the api field's two pieces of config:
-//   • collection — the SOURCE template (filename) the field references.
+//   • collection - the SOURCE template (filename) the field references.
 //                  Restricted to collection-enabled templates so the
 //                  picker can address records by guid.
-//   • map        — the column list. Each entry projects one level-0
+//   • map        - the column list. Each entry projects one level-0
 //                  source field into the host form's row at fetch time.
 //                  Type is read-only (resolved live from the source
 //                  template) so a source-side rename or type change
 //                  can't drift a stale cache here.
 //
 // Surface intentionally narrow: no use_picker / allowed_ids /
-// id-input / map.path/mode any more — those collapsed in Slice 1
+// id-input / map.path/mode any more - those collapsed in Slice 1
 // once the design settled on "always pick by guid".
 
 import { computed, ref, watch } from "vue";
@@ -63,7 +63,7 @@ const sourceOptions = computed(() =>
 // ── Source template's level-0 field roster ─────────────────────────────
 //
 // Loaded whenever `field.collection` changes. Inside-loop fields are
-// excluded — Map[] entries can only project top-level fields.
+// excluded - Map[] entries can only project top-level fields.
 type SourceField = { key: string; label: string; type: string };
 const sourceFields = ref<SourceField[]>([]);
 const sourceFieldsLoading = ref(false);
@@ -101,7 +101,7 @@ watch(
 
 // Walk the field roster, skipping anything between a loopstart and its
 // matching loopstop. Marker types (loopstart/loopstop/looper/guid) are
-// also excluded — guid is automatic on stamp; the loop markers are
+// also excluded - guid is automatic on stamp; the loop markers are
 // containers, not projectable fields.
 function topLevelFields(fields: Field[]): SourceField[] {
   const out: SourceField[] = [];
@@ -228,7 +228,7 @@ function removeRow(idx: number) {
                 <span class="type-pill" v-if="typeOf(row.key)">
                   {{ typeOf(row.key) }}
                 </span>
-                <span class="muted small" v-else>—</span>
+                <span class="muted small" v-else>-</span>
               </td>
               <td>
                 <button

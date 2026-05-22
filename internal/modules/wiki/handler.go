@@ -50,14 +50,14 @@ type Storage interface {
 // Templates is the surface the wiki needs to read per-template facet
 // definitions (template.Template.Facets). The real `*template.Manager`
 // satisfies this directly; the wiki handler tolerates nil for backwards
-// compatibility with old tests — facet chips simply don't render then.
+// compatibility with old tests - facet chips simply don't render then.
 type Templates interface {
 	LoadTemplate(name string) (*tpl.Template, error)
 }
 
 // Expressioner is the sidebar-expression surface the wiki needs. The
 // real `*expression.Manager` satisfies it directly; tests pass a stub.
-// May be nil — the form list then falls back to the bare filename for
+// May be nil - the form list then falls back to the bare filename for
 // every row.
 type Expressioner interface {
 	EvaluateList(templateName string) ([]expression.Result, error)
@@ -67,7 +67,7 @@ type Expressioner interface {
 // the wiki consults to hide templates the user has marked as disabled
 // in Settings → Templates. `*config.Manager` satisfies this directly;
 // composition root wires it via SetEnabledFilter. Nil disables filtering
-// — every template the dataprovider exposes is visible.
+// - every template the dataprovider exposes is visible.
 type EnabledTemplateFilter interface {
 	IsTemplateEnabled(filename string) bool
 	FilterEnabled(filenames []string) []string
@@ -87,7 +87,7 @@ type Handler struct {
 	mux    *http.ServeMux
 }
 
-// NewHandler builds the read-path handler. `expr` may be nil — wiki then
+// NewHandler builds the read-path handler. `expr` may be nil - wiki then
 // renders the filename as subtitle. Filtering is off by default; call
 // SetEnabledFilter to wire the per-profile template enablement. The
 // Templates surface (per-template facet definitions) is installed later
@@ -96,7 +96,7 @@ type Handler struct {
 func NewHandler(dp Provider, st Storage, expr Expressioner) *Handler {
 	h := &Handler{dp: dp, st: st, expr: expr}
 	mux := http.NewServeMux()
-	// Go 1.22+ typed patterns — method + path-segment captures, no
+	// Go 1.22+ typed patterns - method + path-segment captures, no
 	// extra router dependency.
 	mux.HandleFunc("GET /{$}", h.index)
 	mux.HandleFunc("GET /template/{tpl}", h.template)
@@ -105,7 +105,7 @@ func NewHandler(dp Provider, st Storage, expr Expressioner) *Handler {
 	// Embedded chrome (CSS / JS / images) the wiki templates reference.
 	// `/_/css/formidable-prose.css` is a special pseudo-file: it streams
 	// the bytes from render.ProseCSS() so the same stylesheet that
-	// styles the in-app slideout body styles wiki form bodies — single
+	// styles the in-app slideout body styles wiki form bodies - single
 	// source of truth (see render/fulldoc.go and DRY commitment).
 	mux.HandleFunc("GET /_/{path...}", h.static)
 	h.mux = mux
@@ -120,14 +120,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // SetEnabledFilter installs (or clears, with nil) the per-profile
 // template-enablement filter. The wiki's list and detail views consult
-// it on every request — a profile switch in the running app takes
+// it on every request - a profile switch in the running app takes
 // effect on the next page load with no re-init.
 func (h *Handler) SetEnabledFilter(f EnabledTemplateFilter) {
 	h.filter = f
 }
 
 // SetTemplates installs the per-template facet-definition source. May
-// be cleared with nil — facet pills/chips/filter then collapse to a
+// be cleared with nil - facet pills/chips/filter then collapse to a
 // no-op, but the rest of the wiki keeps rendering. The composition
 // root passes `*template.Manager`; old tests that pre-date facets
 // simply skip this call.
@@ -137,7 +137,7 @@ func (h *Handler) SetTemplates(t Templates) {
 
 // templateEnabled is the centralized gate the detail views use: missing
 // filter or empty enabled list → everything passes; otherwise membership
-// check. Empty filename is never enabled — same semantic as the config
+// check. Empty filename is never enabled - same semantic as the config
 // manager, kept consistent so 404s match the user's mental model.
 func (h *Handler) templateEnabled(filename string) bool {
 	if h.filter == nil {
@@ -170,7 +170,7 @@ var staticFS = func() fs.FS {
 // `title`, `meta`, and `content` blocks defined in the shared
 // `layout.html`. Layout owns the topbar (logo + breadcrumbs + search)
 // and the <link>/<script> tags pointing at the embedded chrome assets.
-// The form *body* always comes from render.Manager — wiki never
+// The form *body* always comes from render.Manager - wiki never
 // invokes raymond/goldmark itself.
 
 //go:embed templates/layout.html templates/index.html templates/template.html templates/form.html
@@ -179,7 +179,7 @@ var tplFiles embed.FS
 // templateFuncs are the shared funcs every page template needs.
 //
 //   - safeHTML: lets a pre-rendered body string bypass html/template's
-//     auto-escape — used only for `dataprovider.RenderedPage.HTML`,
+//     auto-escape - used only for `dataprovider.RenderedPage.HTML`,
 //     which came out of goldmark and is therefore trusted.
 //   - jsonString: emits a Go string as a JSON-quoted literal so the
 //     `meta` block can produce valid JSON without ad-hoc escaping
@@ -202,7 +202,7 @@ var (
 	tplForm     = parsePage("form")
 )
 
-// jsonString produces `"escaped"` for a string. Cheap hand-roll —
+// jsonString produces `"escaped"` for a string. Cheap hand-roll -
 // pulling encoding/json just for this is overkill and would require
 // trimming the leading/trailing newline anyway.
 func jsonString(s string) template.JS {
@@ -263,7 +263,7 @@ type facetPill struct {
 }
 
 // templateView is what template.html binds against. BackHref is gone
-// — the topbar's history nav-buttons handle it now.
+// - the topbar's history nav-buttons handle it now.
 type templateView struct {
 	Title string
 	Stem  string
@@ -271,7 +271,7 @@ type templateView struct {
 	Forms []templateFormRow
 	// Filters lists the template's facet definitions for the filter
 	// strip above the form list. Empty when the template has no facets
-	// — the surrounding template block then renders nothing.
+	// - the surrounding template block then renders nothing.
 	Filters []facetFilter
 }
 type templateFormRow struct {
@@ -302,7 +302,7 @@ type templateFormRow struct {
 // facetChip is the per-row projection of one set FacetState. Color is
 // the option's colour token (looked up from the template's facet
 // definition for the matching Selected label); falls back to empty
-// string when the label isn't in the def (record drifted from spec) —
+// string when the label isn't in the def (record drifted from spec) -
 // the CSS class then collapses to a neutral chip.
 type facetChip struct {
 	Key      string
@@ -386,7 +386,7 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 	filename := stem + ".yaml"
 	if !h.templateEnabled(filename) {
 		// 404 (not 403) on disabled templates: don't leak the existence
-		// of a template the user disabled — same shape as "template not
+		// of a template the user disabled - same shape as "template not
 		// found", same response to teammates following an old link.
 		writeError(w, http.StatusNotFound, "template not found")
 		return
@@ -400,7 +400,7 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "template not found")
 		return
 	}
-	// Match the storage workspace's order — filesystem readdir is
+	// Match the storage workspace's order - filesystem readdir is
 	// alphabetical-by-filename, and that's what the original
 	// Formidable wiki used too. Both views render the same template's
 	// forms in the same order; the user's mental model stays stable.
@@ -411,13 +411,13 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// Sidebar expression — same evaluator the in-app storage workspace
+	// Sidebar expression - same evaluator the in-app storage workspace
 	// uses, keyed by filename. Failures are logged-best-effort: if the
 	// template has no expression (ErrNoExpression) or the engine isn't
 	// wired, we just fall back to filename subtitles.
 	subtitles := h.sidebarSubtitles(filename)
 
-	// Facet contract for this template — drives both the per-row chips
+	// Facet contract for this template - drives both the per-row chips
 	// (icon + colour lookup keyed by selected option) and the filter
 	// strip above the list. Nil tpl or no facets ⇒ empty.
 	facetDefs := h.facetDefsFor(filename)
@@ -440,7 +440,7 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 			row.SubtitleColor = item.Color
 		}
 		// Only consult storage when the template actually declares
-		// facets — saves N disk reads on the typical facet-less template.
+		// facets - saves N disk reads on the typical facet-less template.
 		if len(facetDefs) > 0 {
 			row.Chips, row.FacetsAttr = h.collectFormFacets(filename, f.Filename, facetDefs, colorLookup)
 		}
@@ -491,7 +491,7 @@ func buildFacetColorLookup(defs []tpl.Facet) map[string]map[string]string {
 
 // collectFormFacets reads one form via storage and projects its SET
 // facets into (chips, attrAttr). set=false entries are skipped entirely
-// — they're indistinguishable from "facet doesn't apply" for display
+// - they're indistinguishable from "facet doesn't apply" for display
 // purposes. Order follows the template's declared facet order so two
 // forms with the same set look identical row-to-row.
 func (h *Handler) collectFormFacets(
@@ -548,7 +548,7 @@ func facetFiltersFromDefs(defs []tpl.Facet) []facetFilter {
 
 // facetPillsFor projects the template's facets into the index-page
 // display shape. Returns nil when the Templates surface isn't wired,
-// when LoadTemplate fails, or when the template has no facets — the
+// when LoadTemplate fails, or when the template has no facets - the
 // caller's `{{if .Facets}}` block then renders nothing extra.
 func (h *Handler) facetPillsFor(filename string) []facetPill {
 	if h.tpl == nil {
@@ -571,7 +571,7 @@ func (h *Handler) facetPillsFor(filename string) []facetPill {
 
 // sidebarSubtitles returns filename → Result for the given
 // template. Returns nil when no expression is configured, the
-// evaluator wasn't wired, or evaluation failed at the source level —
+// evaluator wasn't wired, or evaluation failed at the source level -
 // the caller falls back to filename subtitles in any of those cases.
 // Per-row errors are surfaced as item.Error and still keyed in.
 func (h *Handler) sidebarSubtitles(templateFilename string) map[string]expression.Result {
@@ -606,7 +606,7 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 404 fast on a missing template or missing form — render is
+	// 404 fast on a missing template or missing form - render is
 	// expensive; keep it gated on cheap SQLite checks first.
 	if _, ok, err := h.dp.GetTemplate(r.Context(), filename); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -694,7 +694,7 @@ func staticMIME(rel string) string {
 // uses regular HTTP image URLs so the browser can cache them and so
 // the page HTML stays slim. The in-app slideout uses base64 data
 // URLs (set by the composition root's render locator); both flow
-// through the same render pipeline — only the image strategy
+// through the same render pipeline - only the image strategy
 // differs.
 func (h *Handler) image(w http.ResponseWriter, r *http.Request) {
 	stem := r.PathValue("tpl")
@@ -753,7 +753,7 @@ func pickFormTitle(f dataprovider.FormSummary) string {
 func writeHTML(w http.ResponseWriter, t *template.Template, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := t.Execute(w, data); err != nil && !errors.Is(err, http.ErrAbortHandler) {
-		// Don't double-write — the header is already on the wire.
+		// Don't double-write - the header is already on the wire.
 		// Log via a panic so the manager's serve goroutine surfaces it.
 		// In practice this should never fire on the handcrafted templates.
 		_, _ = w.Write([]byte("\n<!-- template error: " + err.Error() + " -->"))

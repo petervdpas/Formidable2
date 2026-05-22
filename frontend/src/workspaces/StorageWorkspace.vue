@@ -43,7 +43,7 @@ const { t } = useI18n();
 const { bootConfig } = useRestartGate();
 const { config, update: updateConfig } = useConfig();
 // Storage picker shows only the templates the active profile has
-// enabled in Settings → Templates — the filtered list comes pre-filtered
+// enabled in Settings → Templates - the filtered list comes pre-filtered
 // from the backend (ConfigSvc.ListEnabledTemplates), so the picker
 // always reflects the current profile's curation with no JS-side
 // intersection.
@@ -54,7 +54,7 @@ const statusBar = useStatusBar();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
-// Active template's filename — provided downward so per-type field
+// Active template's filename - provided downward so per-type field
 // components that need it (image saves into <storage>/<tplName>/images/,
 // for example) can inject without prop-drilling through the renderer.
 const currentTemplateFilename = computed(
@@ -63,7 +63,7 @@ const currentTemplateFilename = computed(
 provide("templateFilename", currentTemplateFilename);
 
 // ── Active template selection ────────────────────────────────────────
-// Read-only computed off config — onTemplateChange below writes back
+// Read-only computed off config - onTemplateChange below writes back
 // when the dropdown fires. Switching templates also clears the
 // selected datafile so we don't try to open a form whose schema no
 // longer matches.
@@ -112,7 +112,7 @@ const summaries = ref<FormSummary[]>([]);
 const listError = ref("");
 
 // Sidebar sub-label items keyed by datafile. The workspace owns this
-// map and hands each row's entry down as a prop — collapses what was
+// map and hands each row's entry down as a prop - collapses what was
 // N parallel EvaluateListOne calls into one EvaluateListMany on
 // list load / Refresh. Single-row saves still take the cheap path
 // (one EvaluateListOne) and update just that key. Reassigning the
@@ -201,7 +201,7 @@ async function refreshList() {
   }
 }
 
-// User-triggered refresh — same backend path as the watch-driven
+// User-triggered refresh - same backend path as the watch-driven
 // refreshList, but surfaces success/failure as a toast (refreshList
 // itself is silent because it runs on every template change).
 async function doRefresh() {
@@ -227,7 +227,7 @@ watch(selectedTemplate, async () => {
 }, { immediate: true });
 
 // After a pull/clone/reclone the form files on disk may have
-// changed even when selectedTemplate didn't — re-read the list so
+// changed even when selectedTemplate didn't - re-read the list so
 // the sidebar reflects upstream deletions/additions.
 function onContextReloaded() {
   void refreshList();
@@ -335,7 +335,7 @@ async function scrollActiveIntoView() {
 
   if (attempt()) return;
 
-  // Container not yet sized — observe and retry on each resize until
+  // Container not yet sized - observe and retry on each resize until
   // layout settles (typically right after the splash dismisses).
   const ro = new ResizeObserver(() => {
     if (attempt()) {
@@ -362,7 +362,7 @@ async function pickForm(filename: string) {
 const facetFilters = ref<Record<string, string>>({});
 const tagFilter = ref("");
 
-// Reset facet filters when the active template changes — the new
+// Reset facet filters when the active template changes - the new
 // template's facets may differ, which would otherwise leave the
 // sidebar mysteriously empty.
 watch(selectedTemplate, () => {
@@ -445,7 +445,7 @@ function openNew() {
   newOpen.value = true;
 }
 
-// "YYYYMMDD" suffix from today's date (local time — matches the
+// "YYYYMMDD" suffix from today's date (local time - matches the
 // original Formidable, which also uses local-zone date for filenames).
 function todayYYYYMMDD(): string {
   const d = new Date();
@@ -474,7 +474,7 @@ async function submitNew() {
     newError.value = t("workspace.storage.new.exists");
     return;
   }
-  // Open an unsaved view, set selection — persist happens on first Save.
+  // Open an unsaved view, set selection - persist happens on first Save.
   selectedDataFile.value = filename;
   await open(selectedTemplate.value, filename);
   newOpen.value = false;
@@ -487,7 +487,7 @@ async function submitNew() {
 // patch its summary in place (Vue's Proxy re-renders just that one
 // <StorageListItem>); for a brand-new entry we append the summary.
 // The sub-label refresh is one EvaluateListOne IPC call regardless
-// — the workspace updates `sidebarItems[df]` and Vue propagates it
+// - the workspace updates `sidebarItems[df]` and Vue propagates it
 // to the matching row via prop. Keeps the rest of the list (and its
 // scroll position) untouched.
 async function doSave() {
@@ -510,7 +510,7 @@ async function doSave() {
 // reassigning summaries.value (which thrashes the sidebar scroll).
 // Vue's reactive Proxy detects per-property writes, so only the one
 // <StorageListItem> with this filename re-renders. For a brand-new
-// entry (no matching row yet) the summary is appended — the new
+// entry (no matching row yet) the summary is appended - the new
 // <StorageListItem> mounts and loads its own sidebar expression.
 function patchSummary(filename: string): void {
   if (!view.value) return;
@@ -547,7 +547,7 @@ async function confirmDelete() {
     toast.success("workspace.storage.delete.success", [filename]);
     statusBar.setDeleted(filename);
     selectedDataFile.value = "";
-    // Splice the row out in place — mirrors the save path's "never
+    // Splice the row out in place - mirrors the save path's "never
     // reassign summaries" rule, so the rest of the list (and its
     // scroll position) stays untouched.
     const idx = summaries.value.findIndex((s) => s.filename === filename);
@@ -601,7 +601,7 @@ watch(
   { immediate: true },
 );
 
-// HTML lazily — only when its slideout is open. Re-derive if either
+// HTML lazily - only when its slideout is open. Re-derive if either
 // the open state flips on, or the underlying markdown changes while
 // the slideout is open.
 watch([htmlOpen, markdown], async ([open]) => {
@@ -614,7 +614,7 @@ watch([htmlOpen, markdown], async ([open]) => {
 // (link fields). The webview can't resolve the custom scheme, so we
 // catch the click here, route through the Nav service (it parses,
 // validates, persists the selection, and emits nav:changed), and
-// close the slideout — App.vue's global nav:changed listener flips
+// close the slideout - App.vue's global nav:changed listener flips
 // to the target form.
 const formidableLink = useFormidableLink();
 async function onHtmlPreviewClick(e: MouseEvent) {
@@ -638,7 +638,7 @@ async function onHtmlPreviewClick(e: MouseEvent) {
   }
 }
 
-// "Copy HTML" doesn't ship the in-app fragment — it asks the backend
+// "Copy HTML" doesn't ship the in-app fragment - it asks the backend
 // for a self-contained document (DOCTYPE + head + inlined CSS + body)
 // so the result pastes cleanly into a .html file and renders the same.
 // Wired as an async getter into CopyButton; the backend call runs on
@@ -718,7 +718,7 @@ function openExportPdf() {
 }
 
 // Plugins attached to the Storage workspace receive the active
-// template's filename as ctx.template — so a plugin like wikiwonder
+// template's filename as ctx.template - so a plugin like wikiwonder
 // can scope its work to "this template" rather than enumerating
 // every template in the catalog.
 const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu(
@@ -829,7 +829,7 @@ setTopbarMenu(() => [
         disabled: !selectedTemplate.value || !csvAllowed.value,
         onClick: openExportCsv,
       },
-      // PDF export is hidden entirely while the engine is inactive —
+      // PDF export is hidden entirely while the engine is inactive -
       // user activates it from the Information workspace. The
       // separator rides along so the menu doesn't show a dangling
       // divider when the entry is hidden.

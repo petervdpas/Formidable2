@@ -3,7 +3,7 @@
 // keeps working) and additionally fires Logging.LogFromFrontend so
 // the line appears in formidable.log and the in-app Live tail.
 //
-// The wrappers are reentrancy-guarded — if LogFromFrontend's runtime
+// The wrappers are reentrancy-guarded - if LogFromFrontend's runtime
 // itself logs (binding errors, network blips), we still write to the
 // original console but skip the backend round-trip to prevent a loop.
 
@@ -39,7 +39,7 @@ export function installConsoleBridge() {
         if (!msg) return;
         void LoggingSvc.LogFromFrontend(methodLevels[m], msg, fields).catch(
           () => {
-            // swallow — we already logged to devtools; don't loop.
+            // swallow - we already logged to devtools; don't loop.
           },
         );
       } finally {

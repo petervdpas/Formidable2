@@ -349,7 +349,7 @@ const runMode = computed(
 // form_button commands are surfaced (as inline buttons inside
 // the form area); in modal mode only non-form-button commands
 // appear (as the existing cards). A command flagged form_button
-// in a modal-mode plugin is intentionally hidden — author opt-in.
+// in a modal-mode plugin is intentionally hidden - author opt-in.
 const visibleCommands = computed(() => {
   const all = selectedPlugin.value?.manifest.commands ?? [];
   if (runMode.value === "form") {
@@ -359,7 +359,7 @@ const visibleCommands = computed(() => {
 });
 
 // Manifest description rendered through goldmark (RenderHTML) so
-// plugin authors can use Markdown — bold, links, lists, code spans —
+// plugin authors can use Markdown - bold, links, lists, code spans -
 // in the run-modal callout. We re-render whenever the draft text
 // changes so the live editor reflects the formatted output.
 const descriptionHTML = ref<string>("");
@@ -395,7 +395,7 @@ async function runCommand(p: ListResult, cmd: Command) {
     // Persist form values to the plugin's KV bag (keyed by field
     // id) before running, so they survive restarts AND so Lua
     // scripts see them via formidable.kv.get(fieldKey). Modal
-    // mode skips this — there are no form values to save.
+    // mode skips this - there are no form values to save.
     if (runMode.value === "form") {
       try {
         await PluginSvc.SaveFormValues(p.id, { ...runValues.value });
@@ -410,7 +410,7 @@ async function runCommand(p: ListResult, cmd: Command) {
     }
     // Dispatch any formidable.toast.* events the script emitted.
     // useToast accepts plain text, so the message goes through
-    // verbatim — no i18n key resolution.
+    // verbatim - no i18n key resolution.
     for (const ev of res.toasts ?? []) {
       const fn = toast[ev.level as "info" | "success" | "warn" | "error"];
       if (fn) fn(ev.message);
@@ -517,7 +517,7 @@ function confirmDeleteField() {
 // ── Form editor: widget helpers ──────────────────────────────────────
 // draftForm holds fields AND widgets in one ordered list (form.json's
 // shape). The draggable in the template binds straight to draftForm,
-// so reorder is "drop into array at index N" — no separate widget
+// so reorder is "drop into array at index N" - no separate widget
 // state, no Order field.
 function nextWidgetID(prefix: string): string {
   const used = new Set(
@@ -534,7 +534,7 @@ function addWidget(kind: WidgetKind) {
   draftForm.value = [...(draftForm.value ?? []), w];
 }
 
-// Widget edit modal — lets the user rename a widget's id (used by
+// Widget edit modal - lets the user rename a widget's id (used by
 // Lua as the per-form stable handle) and set its display label. The
 // underlying kind never changes; delete + add for a different kind.
 const widgetEditOpen = ref(false);
@@ -622,7 +622,7 @@ function removeCommand(idx: number) {
 
 // ── Topbar menu ──────────────────────────────────────────────────────
 // Save + Discard live as buttons on the right side of the topbar
-// (see template) — same shape Storage uses. The File menu only
+// (see template) - same shape Storage uses. The File menu only
 // keeps Refresh now; everything else is in the Plugin menu.
 setTopbarMenu(() => [
   {
@@ -1017,7 +1017,7 @@ setTopbarMenu(() => [
     @confirm="confirmDelete"
   />
 
-  <!-- Import overwrite confirm — fires when the archive's plugin id
+  <!-- Import overwrite confirm - fires when the archive's plugin id
        collides with one already on disk. ConfirmDialog re-runs the
        import with overwrite=true; cancel discards the pending path. -->
   <ConfirmDialog
@@ -1032,7 +1032,7 @@ setTopbarMenu(() => [
   />
 
   <!-- Form-editor: add/edit field. Plugins use a curated subset of
-       field types — workflow-irrelevant types (image, list, table,
+       field types - workflow-irrelevant types (image, list, table,
        link, api, guid, looper, tags) are hidden from the dropdown
        so plugin authors only see types that make sense for run-once
        input forms. -->

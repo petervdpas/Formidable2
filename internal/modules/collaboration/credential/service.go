@@ -1,7 +1,7 @@
 package credential
 
 // Service is the Wails-bound surface of the credential Manager.
-// Same shape as Manager — the split exists for parity with other
+// Same shape as Manager - the split exists for parity with other
 // modules and to give us a place to hang request-scoped concerns
 // (logging, audit trail) later without leaking them into domain
 // code.
@@ -22,7 +22,7 @@ func (s *Service) Has(account string) LookupResult {
 // Delete removes the entry for account. Idempotent.
 func (s *Service) Delete(account string) error { return s.m.Delete(account) }
 
-// Get is intentionally NOT exposed via Wails — secrets stay on the
+// Get is intentionally NOT exposed via Wails - secrets stay on the
 // backend. The frontend can ask "does this exist" via Has and write
 // new values via Set; reading is reserved for backend ops (clone,
 // pull, push) that need the secret to talk to the remote.

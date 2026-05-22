@@ -1,7 +1,7 @@
 /* Wiki-style content presentation, scoped to the .formidable-prose
    container. Mirrors the original Formidable internal-wiki look
    (base.css + content.css from /assets/internal-server/css).
-   Apply to any element wrapping rendered Markdown HTML — the storage
+   Apply to any element wrapping rendered Markdown HTML - the storage
    slideout uses it for its preview, and the future internal wiki
    service can re-use it on its <body> or page wrapper.
 
@@ -71,7 +71,7 @@
 .formidable-prose pre.hljs-chroma code { background: transparent; padding: 0; }
 
 /* Chroma "github" style token colors. Generated once via
-   chroma's WriteCSS — keep in lock-step with html.go's
+   chroma's WriteCSS - keep in lock-step with html.go's
    highlighting.WithStyle("github"). The same rules are also
    produced at runtime by render.ProseCSS() for the wiki HTTP
    server; embedding them here keeps the Vite-built SPA preview
@@ -276,7 +276,7 @@
  * The base style is a visible badge (mirrors the original Formidable's
  * #render-preview rule). The wiki HTTP server, which renders the same
  * prose into a navigation context, overrides this to `display:none`
- * since tags surface in its sidebar — but that override lives in the
+ * since tags surface in its sidebar - but that override lives in the
  * wiki module's own stylesheet, not here.
  */
 .formidable-prose .inline-tag {
@@ -290,7 +290,7 @@
     font-size: 0.85em;
     font-weight: 500;
 }
-/* `tag-badges` is the metadata sidebar block — that one stays hidden
+/* `tag-badges` is the metadata sidebar block - that one stays hidden
  * inside prose because the workspace's own metadata panel renders it. */
 .formidable-prose .tag-badges { display: none !important; }
 
@@ -348,7 +348,7 @@
 .formidable-prose .loop-item > :last-child {
     margin-bottom: 0;
 }
-/* Index chip floated into the heading's line — no corner-space
+/* Index chip floated into the heading's line - no corner-space
  * reservation, no extra padding-top to budget. The first inner
  * block (typically a heading) flows around the float on its
  * left, so the chip ends up at the right end of that line. */
@@ -366,7 +366,7 @@
     letter-spacing: 0.04em;
 }
 /* Strip the chip when iteration count would be noisy (e.g. inside
- * a markdown table cell — adjust if/when other inline contexts
+ * a markdown table cell - adjust if/when other inline contexts
  * need the same treatment). */
 .formidable-prose td .loop-item::before,
 .formidable-prose th .loop-item::before {
@@ -390,7 +390,7 @@
 /* Api-field card. The {{apiSection}} helper wraps its output in
  * <section class="api-card" data-source="<template>">, so the
  * rendered HTML carries the same chrome as the in-app FormFieldAPI
- * card — soft boundary, gentle tinted background, source attribution
+ * card - soft boundary, gentle tinted background, source attribution
  * in the corner. Border + bg use color-mix against currentColor so
  * the card auto-adapts to dark/light themes without any hardcoded
  * greys. Override the variables to theme; override the rules to
@@ -407,7 +407,7 @@
     margin: 1em 0;
     background: var(--api-card-bg);
 }
-/* Source attribution chip — uses the data-source attribute the
+/* Source attribution chip - uses the data-source attribute the
  * helper emits. Lives in the top-right corner so it doesn't
  * compete with the bold header line. */
 .formidable-prose .api-card::before {
@@ -446,7 +446,7 @@
 .formidable-prose .api-card > table {
     margin: 0.25em 0 0.5em;
 }
-/* Soften the inner table to match the card's frame — the global
+/* Soften the inner table to match the card's frame - the global
  * .formidable-prose table rule is fine for full-width prose tables
  * but feels harsh nested inside the card's softer boundary. We
  * mirror the card's own border treatment (color-mix on currentColor)

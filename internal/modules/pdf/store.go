@@ -10,7 +10,7 @@ import (
 )
 
 // stateFilePath is the per-machine activation record relative to
-// system.Manager's AppRoot. NOT in user.json — `browser_bin` is a
+// system.Manager's AppRoot. NOT in user.json - `browser_bin` is a
 // machine-specific path and would break under gigot/git sync. The
 // leading dot marks it as a hidden file alongside `.boot.json` (the
 // other per-machine bootstrap record under config/). See
@@ -19,7 +19,7 @@ const stateFilePath = "config/.pdf-state.json"
 
 // state is the on-disk shape. ActivatedAt is omitzero so the
 // inactive default is a clean `{}` rather than a misleading zero
-// timestamp. Field tags are stable — do not rename without a
+// timestamp. Field tags are stable - do not rename without a
 // migration.
 //
 // ExportDir is independent of activation: it survives Deactivate so
@@ -58,7 +58,7 @@ type storeFS interface {
 
 // store reads / writes pdf-state.json. All operations are tolerant:
 // a missing file, malformed JSON, or a nil fs degrade to "inactive"
-// rather than failing — losing the activation hint is preferable to
+// rather than failing - losing the activation hint is preferable to
 // blocking startup.
 type store struct {
 	fs  storeFS
@@ -95,7 +95,7 @@ func (s *store) Load() (state, error) {
 }
 
 // Save writes the state to disk. Atomic via system.Manager's
-// SaveFile (temp+fsync+rename). Empty state writes `{}` — Load
+// SaveFile (temp+fsync+rename). Empty state writes `{}` - Load
 // round-trips that to SourceUnset.
 func (s *store) Save(st state) error {
 	if s == nil || s.fs == nil {
@@ -109,7 +109,7 @@ func (s *store) Save(st state) error {
 }
 
 // Clear writes the inactive state. Equivalent to Save(state{}) but
-// the intent is named — Deactivate calls Clear, not Save with a zero
+// the intent is named - Deactivate calls Clear, not Save with a zero
 // value.
 func (s *store) Clear() error { return s.Save(state{}) }
 

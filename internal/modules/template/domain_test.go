@@ -194,7 +194,7 @@ func TestLoadTemplate_RejectsEmptyName(t *testing.T) {
 // LoadTemplate caches the parsed result so a 50-row sidebar mount
 // doesn't trigger 50 disk reads + 50 yaml.Unmarshal calls. We prove the
 // cache hit by bypassing SaveTemplate (which invalidates) and rewriting
-// the file directly through the system manager — a real cache must
+// the file directly through the system manager - a real cache must
 // ignore the change until invalidated.
 func TestLoadTemplate_HitsCacheUntilInvalidated(t *testing.T) {
 	m, sys, _ := newTestManager(t)
@@ -294,7 +294,7 @@ func TestCreationObserver_FiresOnFirstSave(t *testing.T) {
 
 func TestCreationObserver_DoesNotFireOnUpdate(t *testing.T) {
 	m, _, _ := newTestManager(t)
-	// Save once without the observer wired — file exists.
+	// Save once without the observer wired - file exists.
 	if err := m.SaveTemplate("kept.yaml", &Template{
 		Name:   "Kept",
 		Fields: []Field{{Key: "k", Type: "text"}},
@@ -306,7 +306,7 @@ func TestCreationObserver_DoesNotFireOnUpdate(t *testing.T) {
 		created = append(created, n)
 		return nil
 	}))
-	// Re-save — should be treated as an update, no creation event.
+	// Re-save - should be treated as an update, no creation event.
 	if err := m.SaveTemplate("kept.yaml", &Template{
 		Name:   "Kept (renamed)",
 		Fields: []Field{{Key: "k", Type: "text"}},
@@ -362,7 +362,7 @@ func TestCreationObserver_NilIgnored(t *testing.T) {
 }
 
 // CreationObserver must NOT fire when the validation guard rejects the
-// save — the file is never written, so semantically nothing was created.
+// save - the file is never written, so semantically nothing was created.
 func TestCreationObserver_NotFiredOnValidationFailure(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	var fired bool
@@ -442,7 +442,7 @@ func TestAddObserver_MultipleAllFireInOrder(t *testing.T) {
 	}
 }
 
-// Observer errors must be swallowed (logged), never propagated — the
+// Observer errors must be swallowed (logged), never propagated - the
 // observer is best-effort, just like the Indexer.
 func TestAddObserver_ErrorIsSwallowedNotPropagated(t *testing.T) {
 	m, _, _ := newTestManager(t)
@@ -474,7 +474,7 @@ func TestAddObserver_NilIsIgnored(t *testing.T) {
 	}
 }
 
-// Observer must NOT fire for missing-file deletes either — the underlying
+// Observer must NOT fire for missing-file deletes either - the underlying
 // fs.DeleteFile is a no-op, but the observer still fires because the
 // caller asked us to delete "X" and we honored the request. This makes
 // the prune downstream behave consistently regardless of "did the file
@@ -493,7 +493,7 @@ func TestAddObserver_FiresEvenWhenFileMissing(t *testing.T) {
 
 // Many goroutines hammer LoadTemplate for the same filename at once.
 // Without per-name serialization + cache, all N callers spin up
-// concurrent yaml.Unmarshal goroutines — the exact mount-storm pattern
+// concurrent yaml.Unmarshal goroutines - the exact mount-storm pattern
 // that GC-trashed the dev binary. With the cache, N callers must agree
 // on one *Template, and `go test -race` must not report a data race.
 func TestLoadTemplate_ConcurrentSameNameNoRace(t *testing.T) {
@@ -648,7 +648,7 @@ func TestSaveTemplate_FillsAuthorFromConfigWhenMissing(t *testing.T) {
 	}
 }
 
-// Explicitly-set author values pass through unchanged — important for
+// Explicitly-set author values pass through unchanged - important for
 // sync round-trips where a template authored by Alice should keep
 // Alice's identity even when Bob saves it via a backend that bypassed
 // the editor (HTTP write, indexer reconcile).
@@ -677,7 +677,7 @@ func TestSaveTemplate_PreservesExplicitAuthor(t *testing.T) {
 	}
 }
 
-// Without a wired AuthorReader, save still succeeds — fields stay
+// Without a wired AuthorReader, save still succeeds - fields stay
 // empty, omitempty drops them from the YAML.
 func TestSaveTemplate_NilAuthorReader_LeavesFieldsEmpty(t *testing.T) {
 	m, sys, _ := newTestManager(t)
@@ -693,7 +693,7 @@ func TestSaveTemplate_NilAuthorReader_LeavesFieldsEmpty(t *testing.T) {
 }
 
 // GetDescriptor backfills missing author fields the first time a
-// template is opened — first opener gets the credit. Subsequent loads
+// template is opened - first opener gets the credit. Subsequent loads
 // see the stamped values on disk and don't overwrite them.
 func TestGetDescriptor_BackfillsAuthorOnFirstOpen(t *testing.T) {
 	m, sys, _ := newTestManager(t)
@@ -727,7 +727,7 @@ func TestGetDescriptor_BackfillsAuthorOnFirstOpen(t *testing.T) {
 }
 
 // Second opener (with a different identity) does NOT overwrite the
-// existing stamp. Author identity is sticky — first one wins.
+// existing stamp. Author identity is sticky - first one wins.
 func TestGetDescriptor_DoesNotOverwriteExistingAuthor(t *testing.T) {
 	m, sys, _ := newTestManager(t)
 	if err := sys.SaveFile("templates/x.yaml",
@@ -753,7 +753,7 @@ func TestGetDescriptor_DoesNotOverwriteExistingAuthor(t *testing.T) {
 }
 
 // GetDescriptor backfills even when the template has other validation
-// errors — opening shouldn't be punitive. SaveTemplate would refuse
+// errors - opening shouldn't be punitive. SaveTemplate would refuse
 // such a template, but the YAML write here bypasses Validate.
 func TestGetDescriptor_BackfillsEvenWhenTemplateInvalid(t *testing.T) {
 	m, sys, _ := newTestManager(t)
@@ -814,7 +814,7 @@ func TestSaveTemplate_RejectsValidationFailure(t *testing.T) {
 }
 
 func TestSaveTemplate_AcceptsEmptyFieldsTemplate(t *testing.T) {
-	// Empty templates are valid drafts — the editor creates them when
+	// Empty templates are valid drafts - the editor creates them when
 	// the user hits "New Template" before adding any fields.
 	m, sys, _ := newTestManager(t)
 	tmpl := &Template{Name: "Draft", Filename: "draft.yaml"}

@@ -1,5 +1,5 @@
 <script lang="ts">
-// Module-level cache for the gigot Commit Graph — see createModuleCache
+// Module-level cache for the gigot Commit Graph - see createModuleCache
 // for why a non-setup <script> block is required (per-module, not
 // per-instance). Gigot's /log with_changes=true is server-side
 // expensive (one per-commit diff-tree call per entry), so re-fetching
@@ -28,7 +28,7 @@ import { backendErrMessage } from "../../utils/backendError";
 // onMounted refresh; this file owns only the fetch shape and the
 // row chrome. Gigot's /log returns per-commit changes inline when
 // asked with_changes=true, so expand/collapse needs no second
-// round-trip — filesFor reads from the cached entries directly.
+// round-trip - filesFor reads from the cached entries directly.
 
 const { t } = useI18n();
 const { config } = useConfig();

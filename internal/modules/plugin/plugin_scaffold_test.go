@@ -115,7 +115,7 @@ func TestScaffoldPlugins_NilLoggerUsesDefault(t *testing.T) {
 }
 
 // failingFS satisfies editorFS but errors on every SaveFile. Confirms
-// the scaffold treats per-file write errors as non-fatal — matches
+// the scaffold treats per-file write errors as non-fatal - matches
 // cover_scaffold's "logs and moves on" stance.
 type failingFS struct {
 	kvTestFS

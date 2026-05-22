@@ -5,7 +5,7 @@ package monitor
 // page works regardless of whether the loopback HTTP server is on.
 //
 // External API consumers reach the same Manager through NewHandler
-// — both transports share the registered Sources and the Query/Result
+// - both transports share the registered Sources and the Query/Result
 // shapes.
 type Service struct{ m *Manager }
 
@@ -18,7 +18,7 @@ func NewService(m *Manager) *Service { return &Service{m: m} }
 // /api/monitor/query endpoint accepts.
 func (s *Service) Run(q Query) (*Result, error) { return s.m.Run(q) }
 
-// ListSources returns descriptors for every registered Source — used
+// ListSources returns descriptors for every registered Source - used
 // by query-builder UIs to render filter and group-by pickers without
 // hard-coding dim names.
 func (s *Service) ListSources() []SourceInfo { return s.m.ListSources() }

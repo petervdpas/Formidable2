@@ -81,7 +81,7 @@ func TestScaffoldCovers_SaveErrorLoggedNotFatal(t *testing.T) {
 	fs := newMemFS()
 	fs.saveErr = errors.New("disk full")
 
-	// Should not return a fatal error — partial failure is logged and
+	// Should not return a fatal error - partial failure is logged and
 	// the rest of the seeds are attempted (same fate).
 	if err := scaffoldCovers(fs, slog.Default()); err != nil {
 		t.Errorf("scaffold returned err = %v, want nil (per-file failures are non-fatal)", err)

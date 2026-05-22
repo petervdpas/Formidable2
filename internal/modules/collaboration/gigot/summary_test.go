@@ -34,7 +34,7 @@ func TestManager_LedgerSummary_EmptyContext_ZeroValues(t *testing.T) {
 func TestManager_LedgerSummary_FirstSync_NoLedger_AllChanged(t *testing.T) {
 	// On first sync the ledger is empty. Every managed file shows up as
 	// Changed (so the UI surfaces "N pending pushes"). Deleted stays
-	// empty — DiffAgainstRecord suppresses deletes when rec.Version is "".
+	// empty - DiffAgainstRecord suppresses deletes when rec.Version is "".
 	dir := t.TempDir()
 	writeFile(t, dir, "templates/a.yaml", "x")
 	writeFile(t, dir, "templates/b.yaml", "y")
@@ -172,7 +172,7 @@ func TestService_LedgerSummary_PassesContextFolderThrough(t *testing.T) {
 }
 
 func TestManager_LedgerSummary_DoesNotMutateLedger(t *testing.T) {
-	// Pure read — calling LedgerSummary repeatedly does not write any
+	// Pure read - calling LedgerSummary repeatedly does not write any
 	// new ledger version, so a Push that runs afterwards sees the same
 	// pending diff. Without this contract the UI's "preview" call would
 	// silently advance the ledger.

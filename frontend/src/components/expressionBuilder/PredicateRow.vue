@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * PredicateRow — renders one Predicate inside a Rule, with kind-
+ * PredicateRow - renders one Predicate inside a Rule, with kind-
  * specific controls (boolean switch, enum value checkboxes, number
  * comparator, date helper). Mutates the predicate in place; parent
  * component owns the predicate array and hands a single entry down

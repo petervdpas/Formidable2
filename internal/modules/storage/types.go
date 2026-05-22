@@ -30,7 +30,7 @@ type AuditEntry struct {
 // FormMeta carries identity + audit fields. Tags are deduped+sorted.
 // Facets is keyed by Template.Facets[i].Key; each entry's Set is
 // required (mirrors the legacy `flagged` bool) and Selected may be
-// empty (mirrors the legacy `flag_state` string — `set: true` without
+// empty (mirrors the legacy `flag_state` string - `set: true` without
 // a chosen option renders as the facet's uncolored icon).
 type FormMeta struct {
 	ID       string                `json:"id"`
@@ -87,7 +87,7 @@ type FormSummary struct {
 	ExpressionItems map[string]any `json:"expressionItems"`
 }
 
-// MigrateResult reports the outcome of MigrateTemplateMeta — a per-
+// MigrateResult reports the outcome of MigrateTemplateMeta - a per-
 // template bulk operation that rewrites legacy meta shape (flat
 // author_name/email + string created/updated) into the AuditEntry
 // pair. Migrated files keep their original authorship intact (no
@@ -112,7 +112,7 @@ type SaveResult struct {
 // fields are optional and default to "fill from raw or generate".
 //
 // Created and Updated override anything in raw meta when their `At`
-// field is non-empty — used by SaveForm to lock the creator across
+// field is non-empty - used by SaveForm to lock the creator across
 // edits (opts.Created = prev.Meta.Created) and to stamp the current
 // profile (opts.Updated = {At: now, Name: profile, Email: profile}).
 //

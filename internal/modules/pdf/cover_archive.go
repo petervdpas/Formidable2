@@ -21,7 +21,7 @@ var (
 
 // ExportCoverArchiveResult describes what was bundled into the zip on
 // export. MissingImages collects refs the .html mentions but that
-// aren't present on disk — surfaced to the UI so the user can decide
+// aren't present on disk - surfaced to the UI so the user can decide
 // whether to chase them down before shipping the archive.
 type ExportCoverArchiveResult struct {
 	Name          string   `json:"name"`
@@ -41,7 +41,7 @@ type ImportCoverArchiveResult struct {
 // every image its <img src=…> and CSS url(…) refs point at, writing
 // the result to zipPath (absolute or AppRoot-relative). Image refs
 // are resolved against <onDiskCoversDir>/images/ first, then
-// <onDiskCoversDir>/. Missing refs do NOT abort the export — they
+// <onDiskCoversDir>/. Missing refs do NOT abort the export - they
 // are reported in the result so the user can fix them after import
 // on the other side.
 func exportCoverArchive(fs storeFS, coverName, zipPath string) (ExportCoverArchiveResult, error) {
@@ -125,7 +125,7 @@ func exportCoverArchive(fs storeFS, coverName, zipPath string) (ExportCoverArchi
 // leading dot, not "signature") and the body must pass ValidateCover
 // at error severity. If a cover with the same name exists, refuses
 // unless overwrite=true. Image assets always overwrite their disk
-// counterparts — they are bundle-bound resources, not user state.
+// counterparts - they are bundle-bound resources, not user state.
 func importCoverArchive(fs storeFS, zipPath string, overwrite bool) (ImportCoverArchiveResult, error) {
 	var zero ImportCoverArchiveResult
 	if fs == nil {

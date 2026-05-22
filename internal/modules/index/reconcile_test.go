@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// helpers for these tests — kept local so they don't pollute the
+// helpers for these tests - kept local so they don't pollute the
 // scan/schema test files.
 
 func openTestDB(t *testing.T) *sql.DB {
@@ -24,7 +24,7 @@ func readRev(t *testing.T, db *sql.DB) int64 {
 	t.Helper()
 	var raw string
 	if err := db.QueryRow(`SELECT value FROM meta WHERE key='rev'`).Scan(&raw); err != nil {
-		// rev not stamped yet — counts as 0
+		// rev not stamped yet - counts as 0
 		return 0
 	}
 	var v int64
@@ -169,7 +169,7 @@ func TestReconcile_FormUpsertSyncsTags(t *testing.T) {
 func TestReconcile_DeleteTemplateCascades(t *testing.T) {
 	// Foreign-key cascades: removing a template must take its forms,
 	// form_tags, and images with it. This is the "user deleted a
-	// template" path — the reconciler shouldn't have to manually
+	// template" path - the reconciler shouldn't have to manually
 	// delete from each table.
 	db := openTestDB(t)
 	if err := Reconcile(db, ReconcileBatch{
@@ -321,7 +321,7 @@ func TestReconcile_RollbackOnError(t *testing.T) {
 	bad := ReconcileBatch{
 		UpsertTemplates: []TemplateRow{tplRow("basic", 100)},
 		// Form references "ghost.yaml" which is NOT in this batch and
-		// not previously inserted — FK violation.
+		// not previously inserted - FK violation.
 		UpsertForms: []FormRow{
 			formRow("ghost.yaml", "one.meta.json", "id", "t", nil, 100),
 		},

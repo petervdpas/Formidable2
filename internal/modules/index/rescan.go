@@ -10,14 +10,14 @@ import (
 
 // loadErrs accumulates per-template / per-form load failures during a
 // RescanAll. One bad file (malformed JSON, missing template, etc.)
-// must not abort the entire batch — the rest of the index has to keep
+// must not abort the entire batch - the rest of the index has to keep
 // populating. Returned errors come back joined via errors.Join so the
 // composition root can log them as warnings without losing detail.
 
 // RescanAll diffs the on-disk state under h.root against the index
 // and applies the (added, changed, removed) sets in one transaction.
 // It's the primary recovery path after sync (gigot pull, git pull, an
-// external editor, etc.) — anything that changes disk outside our
+// external editor, etc.) - anything that changes disk outside our
 // managers.
 //
 // The implementation is intentionally simple: scan disk, scan index,
@@ -62,7 +62,7 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 	batch.DeleteTemplates = append(batch.DeleteTemplates, tplDiff.Removed...)
 
 	// ── Forms ────────────────────────────────────────────────────
-	// Skip orphan storage dirs (no matching template on disk) — their
+	// Skip orphan storage dirs (no matching template on disk) - their
 	// rows would FK-violate. The previous template-delete in this same
 	// batch removes them via cascade anyway, so there's nothing left
 	// to do for them.
@@ -78,7 +78,7 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 		idxBucket := idx.forms[stem]
 
 		if !tplFilenamesOnDisk[tplFilename] {
-			// Template gone; skip — cascade handles cleanup.
+			// Template gone; skip - cascade handles cleanup.
 			continue
 		}
 
@@ -181,7 +181,7 @@ type indexState struct {
 
 // scanIndexState pulls (filename, mtime) for every templates row, plus
 // (filename, mtime) per form/image bucketed by their template's stem.
-// Size is left at 0 — diffEntries treats equal-size as a tie, and we
+// Size is left at 0 - diffEntries treats equal-size as a tie, and we
 // don't track size in the schema. Mtime mismatches alone drive the
 // "Changed" set, which is what we want.
 func scanIndexState(db *sql.DB) (*indexState, error) {

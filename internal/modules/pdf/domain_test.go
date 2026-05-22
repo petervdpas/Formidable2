@@ -65,7 +65,7 @@ func TestActivate_ExplicitPathMissing(t *testing.T) {
 		t.Errorf("err = %v, want ErrInvalidBrowserBin", err)
 	}
 	if mem.FileExists(stateFilePath) {
-		t.Errorf("failed Activate persisted state — should not have")
+		t.Errorf("failed Activate persisted state - should not have")
 	}
 	if m.Status().Active {
 		t.Errorf("failed Activate flipped status active")
@@ -157,7 +157,7 @@ func TestDeactivate_ClearsState(t *testing.T) {
 	if m.Status().Active {
 		t.Errorf("status active after Deactivate")
 	}
-	// Clear writes {} — file remains, but loaded state is unset.
+	// Clear writes {} - file remains, but loaded state is unset.
 	if got, _ := m.store.Load(); got.Source != SourceUnset {
 		t.Errorf("store source after Clear = %q, want unset", got.Source)
 	}
@@ -205,7 +205,7 @@ func TestRestore_LoadsPersistedActivation(t *testing.T) {
 
 func TestRestore_DropsStalePersistedPath(t *testing.T) {
 	m, mem, _, _ := newTestManager(t)
-	// Persisted path doesn't exist on the fakeFS — Restore should
+	// Persisted path doesn't exist on the fakeFS - Restore should
 	// detect it, log, and clear.
 	_ = m.store.Save(state{
 		BrowserBin:  "/gone/forever/chrome",
@@ -278,7 +278,7 @@ func TestServiceMirrorsManager(t *testing.T) {
 	if errors.Is(err, ErrPDFNotActivated) {
 		t.Errorf("Activate still returning legacy ErrPDFNotActivated")
 	}
-	// Deactivate is now idempotent + safe — always returns nil.
+	// Deactivate is now idempotent + safe - always returns nil.
 	if err := svc.Deactivate(); err != nil {
 		t.Errorf("Deactivate err = %v, want nil", err)
 	}

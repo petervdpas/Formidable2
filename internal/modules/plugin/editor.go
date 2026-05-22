@@ -1,4 +1,4 @@
-// Package plugin's editor surface — Create / Save / Delete / GetSource.
+// Package plugin's editor surface - Create / Save / Delete / GetSource.
 // These are the CRUD primitives the Plugins workspace calls when the
 // user scaffolds a new plugin, edits its manifest + main.lua, or
 // removes it. All writes go through editorFS so production gets
@@ -25,7 +25,7 @@ type editorFS interface {
 	DeleteFile(path string) error
 	DeleteFolder(path string) error
 	// ListDir returns the names of the entries (files + subfolders)
-	// at path. A missing directory must return (nil, nil) — the
+	// at path. A missing directory must return (nil, nil) - the
 	// archive exporter relies on that to skip plugins with no files
 	// rather than erroring at the boundary.
 	ListDir(path string) ([]string, error)
@@ -67,7 +67,7 @@ end
 // defaultFormJSON is the empty form definition written alongside a
 // fresh plugin. The visual form builder reads/writes this file; an
 // empty JSON array means "no entries yet". Entries are heterogeneous
-// — each is either a template Field (input) or a formwidget.Widget
+// - each is either a template Field (input) or a formwidget.Widget
 // (live display slot); they share the same ordered list so the
 // author can place widgets anywhere relative to fields without a
 // second file.
@@ -114,7 +114,7 @@ func (m *Manager) Create(id string) error {
 }
 
 // Save writes plugin.json + main.lua + form.json for an existing
-// plugin. The path-side id and manifest.ID must agree — renames go
+// plugin. The path-side id and manifest.ID must agree - renames go
 // through Delete + Create, not Save. formJSON is the raw text of
 // the field schema; the backend treats it as opaque (the schema
 // lives on the frontend, shared with template fields), and an
@@ -167,7 +167,7 @@ func (m *Manager) Save(id string, manifest Manifest, luaSource, formJSON string)
 }
 
 // GetForm reads <PluginsDir>/<id>/form.json. Returns the default
-// empty-array placeholder when the file is missing — keeps callers
+// empty-array placeholder when the file is missing - keeps callers
 // (the visual builder) free of "is the file here yet?" branches.
 func (m *Manager) GetForm(id string) (string, error) {
 	if !validID(id) {
@@ -192,7 +192,7 @@ func (m *Manager) GetForm(id string) (string, error) {
 }
 
 // Delete removes <PluginsDir>/<id> and the plugin's KV file.
-// Refreshes the registry. Idempotent on partial state — if the
+// Refreshes the registry. Idempotent on partial state - if the
 // KV file is missing, the folder removal still proceeds.
 //
 // Errors:
@@ -214,7 +214,7 @@ func (m *Manager) Delete(id string) error {
 	}
 	// KV file lives at <plugins>/.kv/<id>.json. DeleteFile is
 	// silent on missing in production (system.Manager) and via os.Remove
-	// returns ENOENT which we ignore — kvTestFS uses os.Remove directly.
+	// returns ENOENT which we ignore - kvTestFS uses os.Remove directly.
 	kvPath := filepath.Join(m.deps.PluginsDir, ".kv", id+".json")
 	if m.deps.Editor.FileExists(kvPath) {
 		_ = m.deps.Editor.DeleteFile(kvPath)

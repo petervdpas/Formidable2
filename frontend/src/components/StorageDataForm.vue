@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * StorageDataForm — presentational wrapper around the form-fields
+ * StorageDataForm - presentational wrapper around the form-fields
  * renderer for a storage entry. Sits below the sticky StorageMetaBlock
  * and renders the active template's fields in template order.
  */

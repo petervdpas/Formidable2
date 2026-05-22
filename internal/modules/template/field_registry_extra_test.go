@@ -68,7 +68,7 @@ func TestValidate_GuidPassesAfterNormalize(t *testing.T) {
 
 func TestValidate_GuidStillForbidsCollapsibleAndDefault(t *testing.T) {
 	// Regression guard for the still-forbidden attrs. Default is split
-	// out below — collapsible is the simple one.
+	// out below - collapsible is the simple one.
 	errs := Validate(&Template{
 		Fields: []Field{{Key: "g", Type: "guid", Collapsible: boolPtr(true)}},
 	})
@@ -156,7 +156,7 @@ func TestDefaultIsPopulated_TruthyVariantsAreTrue(t *testing.T) {
 //
 // formidable.log gets every rejection so a failed save isn't a black box
 // for whoever's debugging from the log file. The frontend pre-validates
-// too — this branch is hit by HTTP / sync / scripted callers.
+// too - this branch is hit by HTTP / sync / scripted callers.
 // ─────────────────────────────────────────────────────────────────────
 
 func TestSaveTemplate_LogsValidationErrors(t *testing.T) {

@@ -31,7 +31,7 @@ func TestService_ListSyncBackends_ReturnsCopy(t *testing.T) {
 }
 
 func TestService_ListSyncBackends_MatchesKnownBackendsMap(t *testing.T) {
-	// Guards against the two registries drifting — if you add an entry
+	// Guards against the two registries drifting - if you add an entry
 	// to orderedSyncBackends, knownBackends MUST accept it (otherwise
 	// the journal silently drops entries from that backend on disk).
 	for _, b := range orderedSyncBackends {

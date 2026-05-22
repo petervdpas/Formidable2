@@ -1,4 +1,4 @@
-Feature: PDF Service — Cover Archive Export / Import
+Feature: PDF Service - Cover Archive Export / Import
   The pdf module's Wails surface exposes ExportCoverArchive and
   ImportCoverArchive so teams can ship cover designs as portable .zip
   bundles. The .zip contains the cover .html at the root and any

@@ -23,7 +23,7 @@ const dragging = ref(false);
 
 const { narrow } = useViewportWidth();
 
-// Overlay open/closed state — only meaningful while `narrow` is true.
+// Overlay open/closed state - only meaningful while `narrow` is true.
 // Auto-closes whenever the viewport widens past the breakpoint so the
 // in-flow sidebar reappears in its normal position.
 const overlayOpen = ref(false);

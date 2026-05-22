@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// proseStylesheet — single-source-of-truth wiki-prose CSS, embedded
+// proseStylesheet - single-source-of-truth wiki-prose CSS, embedded
 // at build time so RenderFullHTML can produce a self-contained doc
 // without filesystem lookups. The same file is imported by Vite into
 // the SPA bundle (see frontend/src/styles/index.css), keeping the
@@ -16,7 +16,7 @@ import (
 // Syntax-highlight token colors for code blocks live INSIDE this CSS
 // (the "Chroma github style" section). If html.go ever switches off
 // WithStyle("github") to another chroma style, regenerate that block
-// — there is no runtime CSS generation.
+// - there is no runtime CSS generation.
 //
 //go:embed assets/formidable-prose.css
 var proseStylesheet string

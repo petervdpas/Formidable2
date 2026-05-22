@@ -169,7 +169,7 @@ body
 }
 
 func TestMigrate_KeywordsFlowSequencePassThrough(t *testing.T) {
-	// Clean YAML sequence — round-trip to top-level keywords.
+	// Clean YAML sequence - round-trip to top-level keywords.
 	src := `---
 keywords: [Audit, Governance, Risk]
 ---
@@ -214,7 +214,7 @@ body
 }
 
 func TestMigrate_KeywordsEisvogelBracketStringSplit(t *testing.T) {
-	// Eisvogel/PandocPrint's bracket-string DSL — split into a real
+	// Eisvogel/PandocPrint's bracket-string DSL - split into a real
 	// YAML sequence.
 	src := `---
 keywords: '[Audit, Governance, Risk]'
@@ -245,7 +245,7 @@ body
 
 func TestMigrate_KeywordsTagsHelperRewrittenToYamlList(t *testing.T) {
 	// The eisvogel `{{tags … withHash=false}}` pattern produces a
-	// comma-joined string at render time — useless for a YAML block
+	// comma-joined string at render time - useless for a YAML block
 	// sequence (one keyword "a, b, c" instead of three). Migration
 	// rewrites the tags helper into yamlList, which emits real list
 	// items. Both source shapes (quoted bracket-string DSL and bare
@@ -269,7 +269,7 @@ func TestMigrate_KeywordsTagsHelperRewrittenToYamlList(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Migrate: %v", err)
 			}
-			// Each tags helper invocation must be rewritten — there
+			// Each tags helper invocation must be rewritten - there
 			// should be NO `{{tags …}}` left in the migrated output.
 			if strings.Contains(got.Markdown, "{{tags ") {
 				t.Errorf("{{tags …}} not rewritten:\n%s", got.Markdown)
@@ -312,7 +312,7 @@ body
 
 func TestMigrate_KeywordsNonTagsHelperStaysQuoted(t *testing.T) {
 	// Only the `tags` helper expands to a comma list. Anything else
-	// in keyword position — e.g. `{{field "x"}}` — stays a normal
+	// in keyword position - e.g. `{{field "x"}}` - stays a normal
 	// single-quoted scalar.
 	src := `---
 keywords: '[A, {{field "title"}}]'
@@ -357,7 +357,7 @@ body
 }
 
 func TestMigrate_KeywordsPlainStringPreserved(t *testing.T) {
-	// Single non-bracket string keyword — ambiguous (one keyword? a
+	// Single non-bracket string keyword - ambiguous (one keyword? a
 	// comma-separated list?). Preserve under legacy with a warning
 	// rather than guess.
 	src := `---
@@ -466,7 +466,7 @@ func TestService_InjectFrontmatter_DelegatesToManager(t *testing.T) {
 }
 
 func TestMigrate_HandlebarsExpressionsSurviveRoundTrip(t *testing.T) {
-	// The audit-controls template from the user's screenshot — exactly
+	// The audit-controls template from the user's screenshot - exactly
 	// the case the first MigrateFrontmatter shipped broken on. yaml.v3
 	// chokes on `{` in unquoted scalars because it's a flow-mapping
 	// marker. The masker swaps every `{{…}}` for a safe sentinel before
@@ -543,7 +543,7 @@ func TestMaskHandlebars_AdjacentExpressions(t *testing.T) {
 }
 
 func TestUnmaskHandlebars_LongTokenIndexes(t *testing.T) {
-	// __HBS_1__ must NOT be replaced first if __HBS_10__ also exists —
+	// __HBS_1__ must NOT be replaced first if __HBS_10__ also exists -
 	// otherwise the longer token's prefix collides.
 	tokens := map[string]string{
 		"__HBS_1__":  "{{one}}",
@@ -675,7 +675,7 @@ func TestMigrate_WindowsPathColonPreserved(t *testing.T) {
 
 func TestQuoteHashLeadingValues_DoesNotTouchCommentLines(t *testing.T) {
 	// A line that's ONLY a comment (no `key:` before the `#`) must
-	// pass through untouched — the regex is anchored to "looks like
+	// pass through untouched - the regex is anchored to "looks like
 	// a key:value with hash-leading value".
 	src := "# top-level comment\nkey: value\n# another comment\n"
 	got := quoteHashLeadingValues(src)
@@ -694,7 +694,7 @@ func TestQuoteHashLeadingValues_HandlesInternalQuotes(t *testing.T) {
 }
 
 func TestSaveDiskCover_FilesystemErrorWrapped(t *testing.T) {
-	// The audit caller asked for this — SaveCover only had validation
+	// The audit caller asked for this - SaveCover only had validation
 	// tests. Now it has an I/O-failure test using memFS's saveErr hook.
 	fs := scaffoldedFS(t)
 	fs.saveErr = errors.New("disk full")
@@ -740,7 +740,7 @@ func TestMigrate_EmptyHandlebars_StillRoundTrips(t *testing.T) {
 }
 
 func TestMigrate_HandlebarsInsideQuotedScalar(t *testing.T) {
-	// `keywords: '[…, {{tags …}}]'` — Handlebars inside a single-quoted
+	// `keywords: '[…, {{tags …}}]'` - Handlebars inside a single-quoted
 	// flow-sequence string. The single quotes already protect yaml.v3,
 	// but the masker must STILL run to support the surrounding shape;
 	// and the unmask + tags→yamlList rewrite must land the field

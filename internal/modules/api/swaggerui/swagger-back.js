@@ -1,7 +1,7 @@
 // Port of original Formidable's assets/internal-server/js/swagger-back.js.
 // Adds a "Back to Wiki" pill into the swagger-ui topbar so users can hop
 // between the API docs and the wiki without using the browser back button.
-// ESC also goes home — matches the original keybinding.
+// ESC also goes home - matches the original keybinding.
 (function () {
   function ensureLink() {
     var a = document.querySelector(".fm-docs-back");
@@ -32,7 +32,7 @@
     var a = ensureLink();
     if (moveIntoTopbar(a)) return;
 
-    // Swagger UI mounts asynchronously — wait for the topbar to appear.
+    // Swagger UI mounts asynchronously - wait for the topbar to appear.
     var obs = new MutationObserver(function () {
       if (moveIntoTopbar(a)) obs.disconnect();
     });

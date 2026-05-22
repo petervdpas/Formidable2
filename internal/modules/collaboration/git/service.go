@@ -15,7 +15,7 @@ import (
 // The keychain is intentionally NOT exposed to the frontend (see
 // the credential.Service comment) so secrets never round-trip
 // through the Wails bridge. That makes the Service the only layer
-// allowed to read the PAT — Manager itself stays transport-neutral
+// allowed to read the PAT - Manager itself stays transport-neutral
 // and unaware of credential storage.
 type Service struct {
 	m       *Manager
@@ -53,7 +53,7 @@ type CredentialReader interface {
 
 // ProfileReader yields the active profile filename. The Service uses
 // it to compose the canonical credential account
-// `<profile>:git:<remote_url>` — same format the frontend
+// `<profile>:git:<remote_url>` - same format the frontend
 // useCredentialAccount composable produces. Returning "" disables
 // keychain auto-resolve (no profile yet → no scoped secret to look up).
 type ProfileReader interface {
@@ -71,7 +71,7 @@ func NewService(m *Manager, creds CredentialReader, profile ProfileReader, jrnl 
 // AttachSysgit enables the "cloned outside Formidable" transport
 // path: when flags.GitSelfCloned() is true, Fetch/Push/Pull shell out
 // to the system git binary so the user's credential helper handles
-// auth. Both args may be nil — that just keeps the go-git fallback
+// auth. Both args may be nil - that just keeps the go-git fallback
 // in force.
 //
 // This is a package-level function, NOT a method on Service, because
@@ -119,7 +119,7 @@ func (s *Service) Discard(opts DiscardOptions) error                { return s.m
 // Fetch refreshes remote-tracking refs. Two transport paths:
 //
 //   - Self-cloned mode (toggle on + system git on PATH): shell out
-//     via sysgit so the user's credential helper resolves auth — no
+//     via sysgit so the user's credential helper resolves auth - no
 //     PAT round-trip through Formidable's keychain.
 //   - Default: go-git with PAT auto-filled from the keychain entry
 //     for the repo's "origin" URL.
@@ -162,7 +162,7 @@ func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 
 // pushViaSysgit shells out to system git, then re-reads HEAD through
 // go-git so the journal cursor advances to the post-push commit. The
-// HEAD read is best-effort — a HEAD failure after a successful push
+// HEAD read is best-effort - a HEAD failure after a successful push
 // means we skip the journal update but still return the push success
 // to the caller.
 func (s *Service) pushViaSysgit(opts PushOptions) (*PushResult, error) {
@@ -213,7 +213,7 @@ func (s *Service) pullViaSysgit(opts PullOptions) (*PullResult, error) {
 }
 
 // headHash resolves the worktree HEAD for journal recording. Returns
-// "" on any failure — caller treats empty as "skip the journal hop"
+// "" on any failure - caller treats empty as "skip the journal hop"
 // since recording an unknown version would corrupt the cursor.
 func (s *Service) headHash(path string) string {
 	r, err := s.m.open(path)
@@ -231,9 +231,9 @@ func (s *Service) headHash(path string) string {
 // Service reads the journal's pending set for the git backend and
 // passes it to Manager.PullWithStash; the Manager snapshots, resets,
 // pulls, and restores. Same RecordRemoteSeen behavior as Pull on
-// success — the underlying inner Pull's NewHead is what we record.
+// success - the underlying inner Pull's NewHead is what we record.
 //
-// The pending list includes only paths the journal knows are dirty —
+// The pending list includes only paths the journal knows are dirty -
 // strictly narrower than `git status`, so external edits in unrelated
 // files don't get stashed. When the journal has no pending changes,
 // the call degrades to a plain pull.

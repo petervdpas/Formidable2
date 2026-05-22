@@ -87,7 +87,7 @@ func TestListSources_SortedByName(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Run — error paths
+// Run - error paths
 // ─────────────────────────────────────────────────────────────────────
 
 func TestRun_UnknownSourceErrors(t *testing.T) {
@@ -123,7 +123,7 @@ func TestRun_BadBinErrors(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Run — happy paths (count, no bin)
+// Run - happy paths (count, no bin)
 // ─────────────────────────────────────────────────────────────────────
 
 func journalLikeFixture() *staticSource {
@@ -221,7 +221,7 @@ func TestRun_FromToBoundsClipEvents(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Run — binning
+// Run - binning
 // ─────────────────────────────────────────────────────────────────────
 
 func TestRun_HourlyBin_GroupByOp(t *testing.T) {
@@ -258,7 +258,7 @@ func TestRun_HourlyBin_GroupByOp(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Run — aggregators other than count
+// Run - aggregators other than count
 // ─────────────────────────────────────────────────────────────────────
 
 func valueSource() *staticSource {
@@ -325,7 +325,7 @@ func TestRun_AggMinMax(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Run — limit + concurrency
+// Run - limit + concurrency
 // ─────────────────────────────────────────────────────────────────────
 
 func TestRun_LimitCapsSeriesCount(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────
-// Test mocks — small, in-package implementations of the access
+// Test mocks - small, in-package implementations of the access
 // interfaces bindings.go consumes. Real wiring (template.Manager,
 // dataprovider.Manager, render.Manager, *system.Manager) lands in
 // app.go; tests use these so the binding layer is unit-testable
@@ -109,7 +109,7 @@ func (m *mockFM) Build(data map[string]any, body string) string {
 	if len(data) == 0 {
 		return body
 	}
-	// Trivial deterministic serialiser for assertions — order-agnostic;
+	// Trivial deterministic serialiser for assertions - order-agnostic;
 	// tests inspect the recorded fmBuildCall instead of the string shape.
 	return "---\n<fm>\n---\n" + body
 }
@@ -202,7 +202,7 @@ func runErr(t *testing.T, src string, deps scriptOpts) error {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.kv — round-trip and isolation
+// formidable.kv - round-trip and isolation
 // ─────────────────────────────────────────────────────────────────
 
 func TestBindings_KV_RoundTrip(t *testing.T) {
@@ -332,7 +332,7 @@ func TestBindings_Form_LoadSave(t *testing.T) {
 			return formidable.form.load("a.yaml", "x.meta.json").name
 		end`,
 		scriptOpts{Form: f})
-	// load reads from `loaded`, save writes to `saved` — so the
+	// load reads from `loaded`, save writes to `saved` - so the
 	// second load returns the original. Verify save was observed.
 	if res.Value != "Alice" {
 		t.Fatalf("load: got %v", res.Value)
@@ -364,7 +364,7 @@ func TestBindings_Render_HTML(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.render.frontmatter / formidable.render.pluginBlock —
+// formidable.render.frontmatter / formidable.render.pluginBlock -
 // composed render+parse. Render dep returns canned markdown; FM dep
 // is the same mockFM. These pin the composition, not the underlying
 // primitives (already covered above).
@@ -425,7 +425,7 @@ func TestBindings_Render_PluginBlock_NilWhenAbsent(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.fm — parse/build round-trip for plugin-side frontmatter
+// formidable.fm - parse/build round-trip for plugin-side frontmatter
 // manipulation. Real YAML semantics are tested in the render package;
 // these tests pin the Lua binding glue (two return values for parse,
 // nil-data shortcut for build).
@@ -558,7 +558,7 @@ func TestBindings_FM_PluginBlock_NilWhenAbsent(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.run — two emitters drive the bar and statusmessage
+// formidable.run - two emitters drive the bar and statusmessage
 // widgets. Verified via recording closures passed in via
 // scriptOpts.RunBarOut / scriptOpts.RunStatOut.
 // ─────────────────────────────────────────────────────────────────
@@ -640,7 +640,7 @@ func TestBindings_Run_Status_EmptyDefault(t *testing.T) {
 // after starting.
 func TestBindings_Cancellation_AbortsRunningVM(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	// Cancel from a goroutine 50ms in — long enough for the VM to
+	// Cancel from a goroutine 50ms in - long enough for the VM to
 	// enter the loop, short enough to keep the test fast.
 	go func() {
 		time.Sleep(50 * time.Millisecond)
@@ -685,7 +685,7 @@ func TestBindings_Cancellation_PollPredicate(t *testing.T) {
 			for i = 1, 100000 do
 				if formidable.cancelled() then break end
 				count = count + 1
-				-- simulate "useful work" — a tiny busy spin so the
+				-- simulate "useful work" - a tiny busy spin so the
 				-- loop doesn't blow through 100k iterations before
 				-- the test's cancel signal arrives.
 				for j = 1, 1000 do end
@@ -709,14 +709,14 @@ func TestBindings_Cancellation_PollPredicate(t *testing.T) {
 func TestBindings_Cancellation_PostCallCheckCatchesPcallSwallow(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// Cancel before the script even starts so the very first
-	// instruction is post-cancel-context — the swallow is
+	// instruction is post-cancel-context - the swallow is
 	// guaranteed by pcall'ing a sleep-equivalent that errors on
 	// the cancelled VM.
 	cancel()
 	src := `
 		function run()
 			-- pcall a no-op that returns immediately on a
-			-- cancelled VM — the error (if any) is swallowed.
+			-- cancelled VM - the error (if any) is swallowed.
 			pcall(function() return 1 end)
 			return "completed"
 		end`
@@ -765,7 +765,7 @@ func TestBindings_FM_PluginBlock_NilDataReturnsNil(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.fs — actual filesystem under t.TempDir()
+// formidable.fs - actual filesystem under t.TempDir()
 // ─────────────────────────────────────────────────────────────────
 
 func TestBindings_FS_WriteRead(t *testing.T) {
@@ -810,7 +810,7 @@ func TestBindings_FS_ReadMissingErrors(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.path — join + stripExt utilities (no host deps)
+// formidable.path - join + stripExt utilities (no host deps)
 // ─────────────────────────────────────────────────────────────────
 
 func TestBindings_Path_Join(t *testing.T) {
@@ -862,7 +862,7 @@ func TestBindings_Path_StripExt(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.url — encode + decode (matches net/url PathEscape)
+// formidable.url - encode + decode (matches net/url PathEscape)
 // ─────────────────────────────────────────────────────────────────
 
 func TestBindings_URL_Encode_Decode_RoundTrip(t *testing.T) {
@@ -891,7 +891,7 @@ func TestBindings_URL_Decode_InvalidRaises(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.rewrite.* — Lua-side post-render markdown rewriters
+// formidable.rewrite.* - Lua-side post-render markdown rewriters
 // shipped via builtins.lua. Composes formidable.path.stripExt, so a
 // pure-Lua test through runScript covers both the embed + the
 // rewriter itself.
@@ -1051,7 +1051,7 @@ func TestBindings_FS_Remove_MissingIsNoOp(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.storage — image bytes lookup for wiki-export plugins
+// formidable.storage - image bytes lookup for wiki-export plugins
 // ─────────────────────────────────────────────────────────────────
 
 type mockStorage struct {
@@ -1119,7 +1119,7 @@ func TestBindings_Storage_NotConfigured_Errors(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.exec — uses mockExec to verify args + opts threading
+// formidable.exec - uses mockExec to verify args + opts threading
 // ─────────────────────────────────────────────────────────────────
 
 func TestBindings_Exec_HappyWithOpts(t *testing.T) {
@@ -1169,7 +1169,7 @@ func TestBindings_Exec_NoOptsAllowed(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Nil-safe wrappers — every namespace errors clearly when its
+// Nil-safe wrappers - every namespace errors clearly when its
 // access dependency wasn't injected.
 // ─────────────────────────────────────────────────────────────────
 
@@ -1196,7 +1196,7 @@ func TestBindings_NilDepsErrorClearly(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// formidable.plugin — runtime self-introspection
+// formidable.plugin - runtime self-introspection
 // ─────────────────────────────────────────────────────────────────
 
 func TestBindings_Plugin_FieldsAvailable(t *testing.T) {
@@ -1276,7 +1276,7 @@ func TestBindings_Plugin_FormFields(t *testing.T) {
 }
 
 func TestBindings_Plugin_FormEmptyWhenAbsent(t *testing.T) {
-	// No Form supplied — Lua sees an empty table, not nil. Means
+	// No Form supplied - Lua sees an empty table, not nil. Means
 	// `for _, f in ipairs(formidable.plugin.form)` is always safe,
 	// no nil-checks needed in plugin code.
 	res := run(t, `
@@ -1292,7 +1292,7 @@ func TestBindings_Plugin_FormEmptyWhenAbsent(t *testing.T) {
 }
 
 func TestBindings_Plugin_ZeroValuesWhenUnset(t *testing.T) {
-	// No PluginInfo passed — everything reads as zero/empty without
+	// No PluginInfo passed - everything reads as zero/empty without
 	// raising an error so plugin authors can sniff for fields without
 	// nil-checking.
 	res := run(t, `

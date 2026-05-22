@@ -16,7 +16,7 @@ var (
 	ErrMissingBaseURL = errors.New("gigot: missing base url")
 
 	// ErrMissingToken fires when a Connection has no subscription
-	// bearer set. Distinct from "401 Unauthorized" — this is the
+	// bearer set. Distinct from "401 Unauthorized" - this is the
 	// pre-flight check before any HTTP request leaves the client.
 	ErrMissingToken = errors.New("gigot: missing subscription token")
 
@@ -29,23 +29,23 @@ var (
 	ErrMissingContext = errors.New("gigot: missing context folder")
 
 	// ErrMissingDestinationID fires when DestinationSync is called
-	// without a destination ID — gigot's mirror-sync targets are
+	// without a destination ID - gigot's mirror-sync targets are
 	// id-keyed, so a blank id makes no sense.
 	ErrMissingDestinationID = errors.New("gigot: missing destination id")
 
 	// ErrEmptyContext fires when the walker finds no Formidable-managed
-	// files in the context folder — pushing nothing is almost certainly
+	// files in the context folder - pushing nothing is almost certainly
 	// a misconfigured path rather than an intentional no-op.
 	ErrEmptyContext = errors.New("gigot: no formidable files in context folder")
 
 	// ErrNoParentVersion fires when HEAD is asked for on a repo that
-	// has no commits yet — gigot returns 409 in that case and a push
+	// has no commits yet - gigot returns 409 in that case and a push
 	// needs an alternate first-commit path (not yet implemented).
 	ErrNoParentVersion = errors.New("gigot: remote repo has no HEAD")
 
 	// ErrNotImplemented is the scaffold-stage sentinel for methods
 	// declared but not yet wired up. Production code paths must not
-	// return this — tests catch any leak via assertion on the error
+	// return this - tests catch any leak via assertion on the error
 	// value rather than its string.
 	ErrNotImplemented = errors.New("gigot: not implemented")
 )

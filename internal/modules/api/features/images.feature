@@ -1,13 +1,13 @@
-Feature: REST API — image bytes
+Feature: REST API - image bytes
   GET /api/images/{tpl}/{filename} serves a stored image from a
   template's storage/<tpl>/images/ folder.
 
   Two formats:
-    * ?format=raw (default) — raw image bytes with the image's MIME
+    * ?format=raw (default) - raw image bytes with the image's MIME
       Content-Type. Used by the slideout's <img src> in the webview
       (via Wails AssetMiddleware) and by external HTTP clients fetching
       the file directly.
-    * ?format=url — returns the data URL string
+    * ?format=url - returns the data URL string
       ("data:image/...;base64,...") as text. For self-contained exports
       (single-file HTML/PDF) where the consumer wants to embed the
       image inline.

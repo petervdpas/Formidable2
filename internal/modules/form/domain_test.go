@@ -11,7 +11,7 @@ import (
 
 // ─────────────────────────────────────────────────────────────────────
 // Test doubles. The form Manager talks to three narrow interfaces
-// (templateLoader, formStore, configReader) — easy to fake in-process
+// (templateLoader, formStore, configReader) - easy to fake in-process
 // without touching the filesystem.
 // ─────────────────────────────────────────────────────────────────────
 

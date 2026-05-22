@@ -143,7 +143,7 @@ func TestListCollection_TagsAND(t *testing.T) {
 func TestListCollection_FacetFilter_ReadsFromFormRow(t *testing.T) {
 	// Verifies the disk-read replacement: when opts.Facets is set, the
 	// filter must source meta from the FormRow.Facets the index already
-	// materialized — no storage.LoadForm calls. The fakeIndex below
+	// materialized - no storage.LoadForm calls. The fakeIndex below
 	// supplies facets on the row, and crucially no storage adapter is
 	// wired (newManagerWithFakes passes nil) so a regression to the
 	// old disk-read path would crash.
@@ -176,7 +176,7 @@ func TestListCollection_FacetFilter_ReadsFromFormRow(t *testing.T) {
 	}
 	m := newManagerWithFakes(idx, nil)
 
-	// Single-facet filter — only tap matches.
+	// Single-facet filter - only tap matches.
 	page, err := m.ListCollection(context.Background(), "recepten.yaml",
 		CollectionListOpts{Facets: map[string]string{"status": "DONE"}})
 	if err != nil {
@@ -186,7 +186,7 @@ func TestListCollection_FacetFilter_ReadsFromFormRow(t *testing.T) {
 		t.Errorf("status=DONE filter got %+v, want tap only", page.Items)
 	}
 
-	// Multi-facet AND — only the row that satisfies BOTH passes.
+	// Multi-facet AND - only the row that satisfies BOTH passes.
 	page2, err := m.ListCollection(context.Background(), "recepten.yaml",
 		CollectionListOpts{Facets: map[string]string{"status": "DONE", "size": "BIG"}})
 	if err != nil {
@@ -197,7 +197,7 @@ func TestListCollection_FacetFilter_ReadsFromFormRow(t *testing.T) {
 	}
 
 	// set=false must NOT count as a match even when the selected value
-	// equals the filter — the facet has to be actively stamped.
+	// equals the filter - the facet has to be actively stamped.
 	page3, err := m.ListCollection(context.Background(), "recepten.yaml",
 		CollectionListOpts{Facets: map[string]string{"status": "DONE"}})
 	if err != nil {
@@ -253,7 +253,7 @@ func TestResolveCollectionByID(t *testing.T) {
 	// Plain (no collection) → not found.
 	_, ok, _ = m.ResolveCollectionByID(context.Background(), "plain.yaml", "anything")
 	if ok {
-		t.Errorf("plain.yaml has no collection — should miss")
+		t.Errorf("plain.yaml has no collection - should miss")
 	}
 }
 

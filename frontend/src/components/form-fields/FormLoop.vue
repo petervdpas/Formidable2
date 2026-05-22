@@ -12,7 +12,7 @@ import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidab
 const { t } = useI18n();
 const toast = useToast();
 
-// Block a drag attempt on an expanded row at the mousedown layer —
+// Block a drag attempt on an expanded row at the mousedown layer -
 // vuedraggable hasn't started its drag tracking yet, so e.preventDefault
 // on the mousedown bubbling up from the handle stops it cleanly. Toast
 // gives the user immediate feedback on why nothing moved.
@@ -42,7 +42,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: "update:modelValue", v: unknown[]): void }>();
 
-// Each item's collapsed state is local UI — independent per item,
+// Each item's collapsed state is local UI - independent per item,
 // initialized from the group's default and never persisted.
 const collapsed = ref<boolean[]>(props.modelValue.map(() => props.group.default_collapsed));
 
@@ -65,7 +65,7 @@ watch(
   },
 );
 
-// DnD scope — unique per loop instance. Prevents Sortable from
+// DnD scope - unique per loop instance. Prevents Sortable from
 // accepting items dragged from a sibling or nested loop. The
 // loopstart's start_index is unique within a template, and
 // loop-{key}-{start_index} survives nesting cleanly.
@@ -154,7 +154,7 @@ function entryProxy(i: number): Record<string, unknown> {
   });
 }
 
-// Writable model for vuedraggable's v-model — get returns the
+// Writable model for vuedraggable's v-model - get returns the
 // computed entries; set re-emits up the tree. The same one-way
 // flow we used for setEntry, just driven by the array reorder.
 const draggableEntries = computed<Record<string, unknown>[]>({
@@ -182,7 +182,7 @@ function summaryFor(entry: Record<string, unknown>): string {
   if (typeof v === "string") {
     return v.split("\n")[0].trim() || "";
   }
-  // Link field shape `{href, text}` — prefer the human-readable text,
+  // Link field shape `{href, text}` - prefer the human-readable text,
   // fall back to the href so the row never collapses to "[object
   // Object]". Other object shapes (rare in the summary slot) get
   // JSON-stringified for at least *some* signal in the row header.

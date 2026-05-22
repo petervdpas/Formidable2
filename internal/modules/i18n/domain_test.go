@@ -71,7 +71,7 @@ func TestLoadBundle_DutchKeyDiffersFromEnglish(t *testing.T) {
 		}
 	}
 	if !differs {
-		t.Fatalf("en and nl bundles look identical — likely an upstream bug")
+		t.Fatalf("en and nl bundles look identical - likely an upstream bug")
 	}
 }
 

@@ -24,7 +24,7 @@ const isMac = /mac|iphone|ipad|ipod/i.test(
   typeof navigator !== "undefined" ? navigator.platform : "",
 );
 
-/** The label for the `Mod` token on the current platform — `⌘` on
+/** The label for the `Mod` token on the current platform - `⌘` on
  * macOS, `Ctrl` elsewhere. Use this in intro/help text so we don't
  * have to write "Cmd on macOS and Ctrl elsewhere" everywhere. */
 export const modifierLabel: string = isMac ? "⌘" : "Ctrl";

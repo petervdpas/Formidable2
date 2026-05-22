@@ -7,7 +7,7 @@ const props = defineProps<{
   filename: string;
   /** Pre-loaded template, owned by TemplatesWorkspace via useTemplates'
    *  cache (populated by one batched LoadMany on refresh). `null` means
-   *  the file is missing or unparseable — the row falls back to the
+   *  the file is missing or unparseable - the row falls back to the
    *  filename stem. */
   template: Template | null;
   active: boolean;

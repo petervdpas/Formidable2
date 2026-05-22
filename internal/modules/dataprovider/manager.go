@@ -25,7 +25,7 @@ func (m *Manager) ListTemplates(_ context.Context) ([]TemplateSummary, error) {
 	return out, nil
 }
 
-// GetTemplate returns one template by filename. Linear scan is fine —
+// GetTemplate returns one template by filename. Linear scan is fine -
 // templates are tens of items at most, and this avoids adding a new
 // per-key query method to the index API just for the wiki.
 func (m *Manager) GetTemplate(_ context.Context, filename string) (*TemplateSummary, bool, error) {
@@ -73,7 +73,7 @@ func (m *Manager) ListByTags(_ context.Context, tags []string) ([]FormSummary, e
 }
 
 // ResolveByID finds the form whose template's guid_field value
-// matches `id`. Linear over the template's forms — which is the
+// matches `id`. Linear over the template's forms - which is the
 // same complexity the old wiki used and is bounded by the per-
 // template form count. Cheap at typical sizes.
 func (m *Manager) ResolveByID(_ context.Context, template, id string) (*FormSummary, bool, error) {
@@ -120,7 +120,7 @@ func (m *Manager) RenderForm(ctx context.Context, template, datafile string) (*R
 	}, nil
 }
 
-// Rev returns the index's monotonic revision counter — the wiki uses
+// Rev returns the index's monotonic revision counter - the wiki uses
 // it as a coarse ETag for "did anything change?" checks.
 func (m *Manager) Rev(_ context.Context) (int64, error) { return m.idx.Rev() }
 

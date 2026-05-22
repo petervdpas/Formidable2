@@ -1,6 +1,6 @@
-Feature: REST API — facets discovery endpoint
+Feature: REST API - facets discovery endpoint
   GET /api/collections/{tpl}/facets returns the template's facet
-  contract — the filter primitives an API consumer can pass as
+  contract - the filter primitives an API consumer can pass as
   ?facet.<key>=LABEL on the list / count endpoints. Separate from
   /design which carries data-structure metadata; facets are filter
   metadata.

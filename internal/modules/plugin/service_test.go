@@ -207,7 +207,7 @@ func TestService_Run_RuntimeError(t *testing.T) {
 
 func TestService_ListWorkspaces_ReturnsClosedEnum(t *testing.T) {
 	// Frontend manifest editor reads this to populate the workspace
-	// dropdown — the contract is the backend owns the list.
+	// dropdown - the contract is the backend owns the list.
 	s, _ := newTestServiceWithPlugin(t, `{
 		"manifest_version": 1, "id": "demo", "name": "Demo",
 		"version": "0.1.0",

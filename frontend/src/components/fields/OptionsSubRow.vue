@@ -6,7 +6,7 @@ import type { SubRowVariant } from "./OptionsEditor.vue";
 
 const { t } = useI18n();
 
-// Generic sub-option editor — a structured editor for the canonical
+// Generic sub-option editor - a structured editor for the canonical
 // "value:label|value:label" sub-option string. Two modes:
 //
 //   1. Fixed entries (variant.entries[]): one row per entry, the
@@ -60,7 +60,7 @@ function serializePairs(pairs: Pair[]): string {
 
 // `pairs` is local state, not a computed off `model`. Why: a freshly
 // added pair starts {value:"", label:""}, which serializePairs collapses
-// to "" — round-tripping that through the model string drops the row
+// to "" - round-tripping that through the model string drops the row
 // before the user can type into it (the "+ doesn't work" bug). We
 // hydrate from `model` on first run and on external resets, but the
 // component owns the live editing state from then on.
@@ -68,7 +68,7 @@ const pairs = ref<Pair[]>(parsePairs(model.value));
 watch(
   () => model.value,
   (v) => {
-    // External write — only re-hydrate if `model` no longer reflects
+    // External write - only re-hydrate if `model` no longer reflects
     // what we last serialized, otherwise our own commits would clobber
     // half-typed rows.
     if (serializePairs(pairs.value) !== v) {

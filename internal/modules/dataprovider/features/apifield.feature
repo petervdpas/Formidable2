@@ -8,9 +8,9 @@ Feature: API-field row fetching
   index and storage; per-template ACL hooks ride the same context.Context).
 
   The picker always references the source by GUID. Source templates that
-  don't have collection enabled are not pickable — the same rule the
+  don't have collection enabled are not pickable - the same rule the
   wiki's /api/collections/* layer enforces. Source values stamp into the
-  host's row in their native JSON shape — scalars stay scalars, slices
+  host's row in their native JSON shape - scalars stay scalars, slices
   stay slices, maps stay maps. The host's .meta.json is itself JSON, so
   no flatten-to-string is needed.
 

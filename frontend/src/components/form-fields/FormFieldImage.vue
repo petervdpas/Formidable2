@@ -6,7 +6,7 @@ import ConfirmDialog from "../ConfirmDialog.vue";
 import { Service as StorageSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-// FormFieldImage — picker + preview + clear.
+// FormFieldImage - picker + preview + clear.
 //
 // Storage shape: a bare filename string. The image bytes live in
 // <storage>/<template>/images/<filename> (storage.SaveImageFile /
@@ -16,7 +16,7 @@ import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/
 // overwrites if the same name already exists), sets value to filename.
 // On clear: calls DeleteImageFile, sets value to "".
 //
-// The original lightbox-on-click is deferred — v1 just shows a 200px
+// The original lightbox-on-click is deferred - v1 just shows a 200px
 // thumbnail.
 
 const props = defineProps<{
@@ -28,7 +28,7 @@ const emit = defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
 const { t } = useI18n();
 
-// Provided by StorageWorkspace — the template's YAML filename.
+// Provided by StorageWorkspace - the template's YAML filename.
 const templateFilename = inject<ComputedRef<string>>(
   "templateFilename",
   computed(() => ""),
@@ -103,7 +103,7 @@ async function onFileChosen(evt: Event) {
   busy.value = true;
   try {
     const buf = await file.arrayBuffer();
-    // Wails marshals Go []byte as a base64 string on the wire — encode
+    // Wails marshals Go []byte as a base64 string on the wire - encode
     // here so the binding's `content: string` parameter is accepted.
     const result = await StorageSvc.SaveImageFile(
       templateFilename.value,
@@ -123,7 +123,7 @@ async function onFileChosen(evt: Event) {
 }
 
 // ── Clear ────────────────────────────────────────────────────────────
-// Encode a Uint8Array as base64 — Wails' []byte parameters expect
+// Encode a Uint8Array as base64 - Wails' []byte parameters expect
 // the wire shape to be a base64 string. btoa() handles latin-1 input
 // only, so we feed it through fromCharCode in 32k chunks to dodge
 // the call-stack ceiling on large blobs.
@@ -173,7 +173,7 @@ async function confirmClear() {
 
 <template>
   <div class="image-field">
-    <!-- Hidden input — surfaced via openPicker() so we can show our own
+    <!-- Hidden input - surfaced via openPicker() so we can show our own
          button styling instead of the browser's default file widget. -->
     <input
       ref="fileInput"

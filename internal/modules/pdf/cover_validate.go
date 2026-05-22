@@ -35,7 +35,7 @@ type CoverIssue struct {
 }
 
 // CoverTokenInfo carries the metadata parsed out of the magic comment.
-// Name and Description are optional and purely informational — only
+// Name and Description are optional and purely informational - only
 // Version participates in validation.
 type CoverTokenInfo struct {
 	Version     int    `json:"version"`
@@ -64,21 +64,21 @@ var (
 )
 
 // ValidateCover inspects a cover-template HTML string and returns a
-// structured verdict. The function is pure — it never touches the
+// structured verdict. The function is pure - it never touches the
 // filesystem, never spawns processes, and never panics on malformed
 // input.
 //
 // Used by:
-//   - Loader (Manager.Export → ResolveCoverTemplateSet) — refuses
+//   - Loader (Manager.Export → ResolveCoverTemplateSet) - refuses
 //     invalid covers at render time so a broken file in the on-disk
 //     library can't produce a corrupt PDF.
-//   - SaveCover (Wails service) — refuses to write covers that
+//   - SaveCover (Wails service) - refuses to write covers that
 //     wouldn't render, so the on-disk library never accumulates
 //     known-bad files.
 func ValidateCover(html string) CoverValidation {
 	v := CoverValidation{OK: true}
 
-	// 1. Magic-line check — presence is the verification token.
+	// 1. Magic-line check - presence is the verification token.
 	leading := leadingCommentRe.FindStringSubmatch(html)
 	if leading == nil {
 		v.OK = false
@@ -114,7 +114,7 @@ func ValidateCover(html string) CoverValidation {
 		}
 	}
 
-	// 2. data-cover-end sentinel — picoloom's pagination depends on
+	// 2. data-cover-end sentinel - picoloom's pagination depends on
 	// this marker. Without it cover/body boundary detection fails.
 	if !strings.Contains(html, "data-cover-end") {
 		v.OK = false
@@ -124,7 +124,7 @@ func ValidateCover(html string) CoverValidation {
 		})
 	}
 
-	// 3. html/template parse — picoloom uses Go's html/template at
+	// 3. html/template parse - picoloom uses Go's html/template at
 	// render time; if it can't parse, the render explodes.
 	if _, err := template.New("cover").Parse(html); err != nil {
 		v.OK = false
@@ -134,17 +134,17 @@ func ValidateCover(html string) CoverValidation {
 		})
 	}
 
-	// 4. Warnings — recoverable but worth flagging.
+	// 4. Warnings - recoverable but worth flagging.
 	if !strings.Contains(html, "{{.Title}}") {
 		v.Issues = append(v.Issues, CoverIssue{
 			Severity: CoverIssueWarning, Code: "no-title-placeholder",
-			Message: "Cover file has no {{.Title}} placeholder — document titles will not appear on the cover.",
+			Message: "Cover file has no {{.Title}} placeholder - document titles will not appear on the cover.",
 		})
 	}
 	if !coverClassRe.MatchString(html) {
 		v.Issues = append(v.Issues, CoverIssue{
 			Severity: CoverIssueWarning, Code: "no-cover-class",
-			Message: "Cover file has no element with class=\"cover\" — theme CSS may not style it correctly.",
+			Message: "Cover file has no element with class=\"cover\" - theme CSS may not style it correctly.",
 		})
 	}
 

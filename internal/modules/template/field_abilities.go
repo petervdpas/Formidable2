@@ -1,7 +1,7 @@
 package template
 
 // Per-field-type ability matrix. Every type sets every Abilities bool
-// explicitly — the matrix is fully dense by design so adding/removing
+// explicitly - the matrix is fully dense by design so adding/removing
 // an ability anywhere in the codebase forces an audit here.
 //
 // Translated from the original `utils/fieldTypes.js` `disabledAttributes`
@@ -208,7 +208,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 	},
 }
 
-// orderedTypes is the public-facing iteration order of the matrix —
+// orderedTypes is the public-facing iteration order of the matrix -
 // stable across calls so the frontend's "Type" dropdown lists types
 // in a predictable order. Mirrors the original JS map declaration
 // order so existing user habits don't shuffle.

@@ -16,7 +16,7 @@ async function fetchPluginMessages(locale: string): Promise<void> {
       i18n.global.mergeLocaleMessage(locale, msgs as Record<string, unknown>);
     }
   } catch (err) {
-    // Plugin-side i18n is best-effort — a broken plugin must not
+    // Plugin-side i18n is best-effort - a broken plugin must not
     // poison the core locale path.
     console.warn("plugin i18n fetch failed", { locale, err });
   }
@@ -55,7 +55,7 @@ async function boot(): Promise<void> {
     // Always preload the default; that's the fallback for any missing key.
     await ensureLocale(def);
 
-    // Then preload whatever the active config says — config may not be
+    // Then preload whatever the active config says - config may not be
     // ready yet, in which case the watcher below picks it up.
     const { config } = useConfig();
     const wantLocale = config.value?.language;

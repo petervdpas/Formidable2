@@ -10,7 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
-// Coerce to string for the input — backend stores text values as strings.
+// Coerce to string for the input - backend stores text values as strings.
 const value = computed<string>({
   get: () => (props.modelValue == null ? "" : String(props.modelValue)),
   set: (v) => emit("update:modelValue", v),

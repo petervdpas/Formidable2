@@ -558,7 +558,7 @@ func TestExport_MetadataInjection_FailureFallsBack(t *testing.T) {
 func TestExport_MalformedFrontmatterUsesDefaults(t *testing.T) {
 	m, _, rdr, stg, cf := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/x"
-	// Malformed YAML — missing closing delimiter
+	// Malformed YAML - missing closing delimiter
 	rdr.md["tpl.yaml|f.meta.json"] = "---\nstyle: technical\nbody never closes"
 
 	_, err := m.Export("tpl.yaml", "f.meta.json", ExportOpts{})
@@ -757,7 +757,7 @@ func TestExport_TemplatePathFromDocFM(t *testing.T) {
 	m, mem, rdr, stg, cf := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/storage/tpl"
 	// Seed a user-authored cover HTML on the (in-memory) FS. Magic-
-	// line header is required since Stage 6.1 — the loader validates
+	// line header is required since Stage 6.1 - the loader validates
 	// user-supplied covers before injecting them.
 	mem.files["/storage/tpl/assets/my-cover.html"] =
 		"<!-- formidable-cover: 1 -->\n" +

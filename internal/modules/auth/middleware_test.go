@@ -16,7 +16,7 @@ func okHandler(t *testing.T) http.HandlerFunc {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// LoopbackOnly — handler-layer defense-in-depth (regardless of listener)
+// LoopbackOnly - handler-layer defense-in-depth (regardless of listener)
 // ─────────────────────────────────────────────────────────────────────
 
 func TestLoopbackOnly_AllowsIPv4Loopback(t *testing.T) {
@@ -69,7 +69,7 @@ func TestLoopbackOnly_RejectsMalformedRemoteAddr(t *testing.T) {
 
 func TestLoopbackOnly_RejectsEmptyRemoteAddr_AssetMiddlewareCase(t *testing.T) {
 	// Regression: Wails' AssetServer middleware delivers requests with
-	// an empty r.RemoteAddr (no real TCP peer — the webview is fetching
+	// an empty r.RemoteAddr (no real TCP peer - the webview is fetching
 	// from itself). LoopbackOnly is a network-only defense and must
 	// reject empty addrs, which is precisely why the asset-middleware
 	// path uses ResolveIdentity-only, NOT the full network chain.
@@ -80,7 +80,7 @@ func TestLoopbackOnly_RejectsEmptyRemoteAddr_AssetMiddlewareCase(t *testing.T) {
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
 	if rr.Code != http.StatusForbidden {
-		t.Fatalf("empty RemoteAddr must be 403 — would otherwise hide network exposure: got %d", rr.Code)
+		t.Fatalf("empty RemoteAddr must be 403 - would otherwise hide network exposure: got %d", rr.Code)
 	}
 }
 
@@ -104,7 +104,7 @@ func TestResolveIdentityOnly_AcceptsEmptyRemoteAddr(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// RequireOrigin — CSRF defense for write methods
+// RequireOrigin - CSRF defense for write methods
 // ─────────────────────────────────────────────────────────────────────
 
 func TestRequireOrigin_AllowsSafeMethodsWithoutHeader(t *testing.T) {
@@ -171,7 +171,7 @@ func TestRequireOrigin_AllowsRefererFallback(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// ResolveIdentity — runs the Resolver, stuffs Identity into ctx
+// ResolveIdentity - runs the Resolver, stuffs Identity into ctx
 // ─────────────────────────────────────────────────────────────────────
 
 type fakeResolver struct {
@@ -222,7 +222,7 @@ func TestResolveIdentity_GenericErrorReturns403(t *testing.T) {
 }
 
 func TestResolveIdentity_InvalidIdentityRejected(t *testing.T) {
-	// A resolver returning (Identity{}, nil) — malformed but no error.
+	// A resolver returning (Identity{}, nil) - malformed but no error.
 	// The middleware must catch this rather than letting an empty
 	// Identity propagate to storage.
 	h := ResolveIdentity(&fakeResolver{id: Identity{}})(okHandler(t))

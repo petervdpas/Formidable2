@@ -3,7 +3,7 @@ import { ref } from "vue";
 export type StatusVariant = "info" | "success" | "warn" | "error" | "create";
 
 // Default auto-revert window. Owned by the status component itself
-// rather than the call sites — callers shouldn't have to know how
+// rather than the call sites - callers shouldn't have to know how
 // long a status lingers. Pass `resetMs: 0` to opt into sticky mode.
 export const STATUS_DEFAULT_RESET_MS = 15000;
 
@@ -20,7 +20,7 @@ export interface StatusOpts {
 // component can `useStatusBar()` and share the same reactive refs.
 // Storing the i18n key + args (rather than the pre-translated string)
 // lets Footer.vue render with <i18n-t> and wrap each arg in <strong>
-// — that's why filenames render bold without us touching the locale
+// - that's why filenames render bold without us touching the locale
 // files or piping HTML through the composable.
 const i18nKey = ref<string | null>(null);
 const i18nArgs = ref<unknown[]>([]);
@@ -28,7 +28,7 @@ const literal = ref("");
 const variant = ref<StatusVariant>("info");
 let resetTimer: number | null = null;
 
-// Same i18n-key heuristic as useToast.ts — a dotted, whitespace-free
+// Same i18n-key heuristic as useToast.ts - a dotted, whitespace-free
 // string is treated as an i18n key; otherwise it's already-translated.
 function looksLikeI18nKey(s: string): boolean {
   return s.includes(".") && !/\s/.test(s);
@@ -77,7 +77,7 @@ function clear(): void {
 // "projectstatus.meta.json"); the Footer wraps it in <strong>.
 // Variants pick the theme-driven colour: success→green, error→red,
 // create→accent/blue. The 15s revert window is owned by `set()` via
-// STATUS_DEFAULT_RESET_MS — call sites just say what happened.
+// STATUS_DEFAULT_RESET_MS - call sites just say what happened.
 function setSelected(filename: string): void {
   if (!filename) return;
   set("status.selected", [filename]);

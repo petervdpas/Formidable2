@@ -27,7 +27,7 @@ var stderr io.Writer = os.Stderr
 // every signature for no real win.
 var nowFn = time.Now
 
-// dmyPattern matches `DD-MM-YYYY` — the only legacy date shape the JS
+// dmyPattern matches `DD-MM-YYYY` - the only legacy date shape the JS
 // original normalised. Anything else passes through unchanged so users
 // can pass ISO strings, free text, or pre-formatted display values
 // without the helper layer mangling them.
@@ -35,7 +35,7 @@ var dmyPattern = regexp.MustCompile(`^\d{2}-\d{2}-\d{4}$`)
 
 // normalizeDate converts a `DD-MM-YYYY` input to ISO `YYYY-MM-DD`.
 // Anything else (including empty, ISO already, or garbage) is returned
-// unchanged — callers test for emptiness or parse failure downstream.
+// unchanged - callers test for emptiness or parse failure downstream.
 func normalizeDate(in any) string {
 	s, ok := in.(string)
 	if !ok || s == "" {
@@ -124,7 +124,7 @@ func parseDate(v any) (time.Time, bool) {
 }
 
 // isOverdue: empty value is overdue (matches JS `if (!val) return true`).
-// A real date is overdue when strictly less than today — a date that
+// A real date is overdue when strictly less than today - a date that
 // equals today is "due", not "overdue".
 func isOverdue(v any) bool {
 	if !notEmpty(v) {
@@ -166,7 +166,7 @@ func isToday(v any) bool {
 }
 
 // daysBetween returns calendar days from a → b (b minus a). Garbage
-// inputs return 0 — same falsy contract as the JS original which
+// inputs return 0 - same falsy contract as the JS original which
 // returned null but in Go the zero value is the closest analogue.
 func daysBetween(a, b any) int {
 	ta, ok := parseDate(a)
@@ -181,7 +181,7 @@ func daysBetween(a, b any) int {
 }
 
 // isDueSoon: val is in the future and lands within `days` of today.
-// Already-overdue dates do NOT match — they would be reported by
+// Already-overdue dates do NOT match - they would be reported by
 // isOverdue/isOverdueInDays.
 func isDueSoon(v any, days int) bool {
 	if !notEmpty(v) {
@@ -250,7 +250,7 @@ func isSimilar(a, b string, threshold float64) bool {
 
 // stringSimilarity returns 1 - (edit distance / max length). 0 means
 // completely different; 1 means identical. Empty inputs short-circuit
-// to 0 — the JS original returned 1 for both-empty but the only
+// to 0 - the JS original returned 1 for both-empty but the only
 // caller (isSimilar) now special-cases empty to false up front, so
 // this branch is dead code outside direct unit tests.
 func stringSimilarity(a, b string) float64 {
@@ -271,7 +271,7 @@ func stringSimilarity(a, b string) float64 {
 	return 1 - float64(d)/float64(max)
 }
 
-// levenshtein: standard DP. O(la*lb) time, O(lb) space — only the
+// levenshtein: standard DP. O(la*lb) time, O(lb) space - only the
 // previous row is needed. Plenty fast for sidebar-sized strings.
 func levenshtein(a, b string) int {
 	la, lb := len(a), len(b)
@@ -307,7 +307,7 @@ func min3(a, b, c int) int {
 	return c
 }
 
-// lower is a tiny helper used by isSimilar — pulled out of unicode/strings
+// lower is a tiny helper used by isSimilar - pulled out of unicode/strings
 // to avoid an extra import in this file. ASCII-only is fine because
 // the similarity check is a fuzzy heuristic and Unicode case folding
 // would not meaningfully change a tag like "audit_control".
@@ -323,7 +323,7 @@ func lower(s string) string {
 	return string(out)
 }
 
-// debug is the JS-side `debug(...args)` — logs to stderr and returns
+// debug is the JS-side `debug(...args)` - logs to stderr and returns
 // the first argument. Useful when authoring an expression: wrap a
 // subexpression to inspect its value at runtime without disturbing
 // the result. Marked `safe=false` in the registry so it ships only

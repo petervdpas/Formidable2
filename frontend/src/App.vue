@@ -33,7 +33,7 @@ const activeWorkspace = computed(
 );
 
 // Don't mount any workspace until we have the persisted config
-// snapshot — otherwise SplitPane reads its :initial before
+// snapshot - otherwise SplitPane reads its :initial before
 // bootConfig.sidebar_width is populated and locks in the fallback.
 const ready = computed(() => bootConfig.value !== null);
 
@@ -86,7 +86,7 @@ watch(
   { immediate: true },
 );
 
-// nav:changed — backend (nav.Manager) emits this after a successful
+// nav:changed - backend (nav.Manager) emits this after a successful
 // formidable:// navigation. Backend already wrote the new selection
 // to config; we refresh the local cache so workspace watchers fire,
 // then flip the active workspace to Storage. The event payload is

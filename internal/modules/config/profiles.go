@@ -153,7 +153,7 @@ func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error) {
 // HasUserProfiles reports whether at least one user profile exists
 // under config/ (.boot.json excluded). Used by the ribbon to ghost
 // workspaces that require a profile to be meaningful (Settings).
-// Errors collapse to false — an unreadable config dir is treated
+// Errors collapse to false - an unreadable config dir is treated
 // as "no profiles available".
 func (m *Manager) HasUserProfiles() bool {
 	profiles, err := m.ListAvailableProfiles()
@@ -166,7 +166,7 @@ func (m *Manager) HasUserProfiles() bool {
 // ListAvailableProfiles enumerates *.json under config/ except
 // dot-prefixed files (.boot.json, .pdf-state.json, etc.), returning
 // {value, display} entries for the picker. Dot-files are reserved
-// for module-private state — only plain user.json-style profiles
+// for module-private state - only plain user.json-style profiles
 // belong in the picker.
 // Display falls back from profile_name → author_name → "(unnamed)".
 func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error) {
@@ -322,7 +322,7 @@ func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrit
 
 // DeleteUserProfile removes a profile JSON. .boot.json is rejected
 // always, and the active profile is rejected to keep the manager in a
-// loadable state — switch first, then delete.
+// loadable state - switch first, then delete.
 func (m *Manager) DeleteUserProfile(profileFilename string) ProfileResult {
 	if profileFilename == "" {
 		return ProfileResult{Success: false, Error: "Missing profileFilename.", Code: "missing_filename"}
@@ -352,7 +352,7 @@ func (m *Manager) DeleteUserProfile(profileFilename string) ProfileResult {
 // trimmed, .json suffix appended. Returns "" if the result would be
 // empty (caller must treat that as an error).
 //
-// Cases covered by TestNormalizeProfileFilename — keep it in sync.
+// Cases covered by TestNormalizeProfileFilename - keep it in sync.
 func normalizeProfileFilename(name string) string {
 	if name == "" {
 		return ""

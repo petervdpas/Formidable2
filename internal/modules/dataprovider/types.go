@@ -4,7 +4,7 @@
 // module (markdown + HTML), and exposes HTTP-friendly types so the
 // transport layer can JSON-encode results without further mapping.
 //
-// Writes never go through dataprovider — the in-app event hooks and
+// Writes never go through dataprovider - the in-app event hooks and
 // the post-sync RescanAll path own those. Keeping this side read-only
 // makes it easy to layer per-template access control later: every
 // method already takes a context.Context, so a future principal goes
@@ -29,7 +29,7 @@ type TemplateSummary struct {
 // FormSummary mirrors the per-form data the wiki sidebar/list pages
 // need: identity (filename + optional GUID), display title, audit
 // fields, and the inverted tags. Body content is intentionally NOT
-// here — fetching that is RenderForm's job.
+// here - fetching that is RenderForm's job.
 type FormSummary struct {
 	Template        string   `json:"template"`        // "basic.yaml"
 	Filename        string   `json:"filename"`        // "test.meta.json"
@@ -97,7 +97,7 @@ type CollectionPage struct {
 // Facets adds per-key AND filtering against meta.facets[k].{set,selected}
 // (every entry must match a record's facet state exactly: set==true and
 // selected==value). Include selects how much per-item data the response
-// carries — summary (default) keeps it small; full would include full
+// carries - summary (default) keeps it small; full would include full
 // data (deferred to a later v).
 type CollectionListOpts struct {
 	Limit  int

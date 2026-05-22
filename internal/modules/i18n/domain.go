@@ -32,7 +32,7 @@ type Manager struct {
 
 // NewManager loads every JSON file under the embedded locales/ tree.
 // Fails fast if the default locale (`en`) is missing or any namespace
-// file is malformed — both signal a build issue rather than a runtime
+// file is malformed - both signal a build issue rather than a runtime
 // condition.
 func NewManager(log *slog.Logger) (*Manager, error) {
 	sub, err := fs.Sub(embedded, localesDir)
@@ -42,7 +42,7 @@ func NewManager(log *slog.Logger) (*Manager, error) {
 	return newManagerFromFS(sub, log)
 }
 
-// newManagerFromFS is the testable entry point — accepts an arbitrary
+// newManagerFromFS is the testable entry point - accepts an arbitrary
 // fs.FS so tests can drive the loader with fstest.MapFS to cover
 // happy + unhappy paths without touching the embedded tree. The FS is
 // expected to be rooted at the locales directory: <locale>/<file>.json.
@@ -114,7 +114,7 @@ func loadLocaleDir(localesFS fs.FS, locale string) (map[string]any, error) {
 }
 
 // LoadBundle returns the full key→value map for locale. Returns an
-// error (not a nil map) when the locale wasn't loaded — frontends can
+// error (not a nil map) when the locale wasn't loaded - frontends can
 // fall back to the default by retrying with DefaultLocale().
 func (m *Manager) LoadBundle(locale string) (map[string]any, error) {
 	m.mu.RLock()
@@ -142,8 +142,8 @@ func (m *Manager) AvailableLocales() []string {
 	return out
 }
 
-// LocaleDescriptor pairs a locale id with its endonym — the language's
-// own name for itself ("English", "Nederlands") — so a UI in any
+// LocaleDescriptor pairs a locale id with its endonym - the language's
+// own name for itself ("English", "Nederlands") - so a UI in any
 // locale can label the language picker with autonyms. The endonym
 // lives inside the locale's own bundle under `language.endonym`;
 // adding a new locale just means adding the file with that key set.

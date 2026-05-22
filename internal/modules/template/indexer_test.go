@@ -57,7 +57,7 @@ func TestDeleteTemplate_FiresIndexer(t *testing.T) {
 }
 
 func TestSaveTemplate_IndexerErrorIsLoggedNotPropagated(t *testing.T) {
-	// The indexer is a derived view — a failure to update it must not
+	// The indexer is a derived view - a failure to update it must not
 	// fail the user's save. The save returned nil; the hook error is
 	// logged at warn level (not asserted here, just observed).
 	dir := t.TempDir()
@@ -72,7 +72,7 @@ func TestSaveTemplate_IndexerErrorIsLoggedNotPropagated(t *testing.T) {
 }
 
 func TestNoIndexer_SaveDeleteWork(t *testing.T) {
-	// Nil indexer (default) — save/delete must work without it.
+	// Nil indexer (default) - save/delete must work without it.
 	dir := t.TempDir()
 	sysM := system.NewManager(dir, nil)
 	m := NewManager(sysM, "templates", nil)

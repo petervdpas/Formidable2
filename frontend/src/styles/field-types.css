@@ -20,13 +20,13 @@
     --field-type-text-badge:  #1976d2;
     --field-type-text-text:   #ffffff;
 
-    /* File path — amber shade, distinct from radio's reddish-orange. */
+    /* File path - amber shade, distinct from radio's reddish-orange. */
     --field-type-file-path-bg:     #c2620a;
     --field-type-file-path-border: #f59e0b;
     --field-type-file-path-badge:  #d97706;
     --field-type-file-path-text:   #ffffff;
 
-    /* Folder path — deeper amber, sits next to file-path on the row palette. */
+    /* Folder path - deeper amber, sits next to file-path on the row palette. */
     --field-type-folder-path-bg:     #8a4509;
     --field-type-folder-path-border: #c2620a;
     --field-type-folder-path-badge:  #a3580d;
@@ -160,7 +160,7 @@
     background: color-mix(in oklab, currentColor 15%, transparent);
 }
 
-/* Form section frame — transparent so the floor color shows through. */
+/* Form section frame - transparent so the floor color shows through. */
 .modal-dialog.field-edit-tinted .form-section {
     background: transparent;
     border-color: color-mix(in oklab, currentColor 25%, transparent);
@@ -173,18 +173,18 @@
     color: inherit;
 }
 
-/* Form-row dashed separator — tone-matched. */
+/* Form-row dashed separator - tone-matched. */
 .modal-dialog.field-edit-tinted .form-row + .form-row {
     border-top-color: color-mix(in oklab, currentColor 25%, transparent);
 }
 
-/* OptionsEditor frame — transparent, just a tone-matched outline. */
+/* OptionsEditor frame - transparent, just a tone-matched outline. */
 .modal-dialog.field-edit-tinted .options-editor {
     background: color-mix(in oklab, currentColor 6%, transparent);
     border-color: color-mix(in oklab, currentColor 25%, transparent);
 }
 
-/* Drag-and-drop visual states are shared globally — see dnd.css.
+/* Drag-and-drop visual states are shared globally - see dnd.css.
    .dnd-ghost / .dnd-chosen / .dnd-drag apply to a type-tinted
    .field-row exactly the same as to any other draggable. */
 
@@ -193,7 +193,7 @@
 }
 
 .field-row .field-row-type {
-    /* The (TYPE) pill — uses the per-type badge color and inherits the
+    /* The (TYPE) pill - uses the per-type badge color and inherits the
        row's text color. */
     background: var(--field-row-badge-bg, rgba(255, 255, 255, 0.2));
     color: inherit;

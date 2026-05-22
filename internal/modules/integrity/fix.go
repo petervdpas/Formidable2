@@ -65,13 +65,13 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 	for _, fn := range filenames {
 		original := m.storage.LoadForm(templateFilename, fn)
 		if original == nil {
-			// Unreadable in the analyzer's terms — every plan strategy
+			// Unreadable in the analyzer's terms - every plan strategy
 			// is moot here, count it once and move on.
 			if _, has := strategyByKind[IssueUnreadable]; has {
 				result.Outcomes = append(result.Outcomes, FixOutcome{
 					Filename: fn,
 					Skipped:  1,
-					Notes:    []string{"form unreadable — repair must happen outside the app"},
+					Notes:    []string{"form unreadable - repair must happen outside the app"},
 				})
 				result.Skipped++
 			}
@@ -368,7 +368,7 @@ func tokenizePath(path string) ([]any, error) {
 }
 
 // lookupField finds the template.Field whose Key matches the leaf of
-// `path`. Loop-nested paths resolve by walking back from the leaf —
+// `path`. Loop-nested paths resolve by walking back from the leaf -
 // the analyzer emits paths shaped "loopKey[idx].innerKey", so the leaf
 // segment is the field key.
 func lookupField(tpl *template.Template, path string) *template.Field {
@@ -485,7 +485,7 @@ func coerceForFieldType(fieldType string, v any) (any, bool) {
 		return nil, false
 
 	case "link":
-		// Tolerant of both shapes — analyzer only flagged this when the
+		// Tolerant of both shapes - analyzer only flagged this when the
 		// value was something else entirely.
 		switch x := v.(type) {
 		case string:

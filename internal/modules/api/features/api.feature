@@ -1,8 +1,8 @@
-Feature: REST API — collections directory + count
+Feature: REST API - collections directory + count
   The wiki API mirrors the original Formidable internalServer's
   /api/collections/* surface. Slice A1 covers the two simplest reads:
   the directory of collection-enabled templates and the per-template
-  count. Both pull from the dataprovider only — no filesystem reads.
+  count. Both pull from the dataprovider only - no filesystem reads.
 
   Background:
     Given an API handler over a stub dataprovider with these templates:
@@ -50,7 +50,7 @@ Feature: REST API — collections directory + count
     Then the response status is 301
 
   # ── Facet query filtering ──────────────────────────────────────────
-  # Conventions: ?facet.<key>=LABEL — multiple keys AND together; the
+  # Conventions: ?facet.<key>=LABEL - multiple keys AND together; the
   # record must have set=true AND selected==value for every key.
 
   Scenario: List filters by a single facet

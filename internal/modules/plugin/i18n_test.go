@@ -279,7 +279,7 @@ func TestManager_Run_LuaTHandlesPluginWithNoI18nFolder(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Editor surface — per-locale CRUD on <plugin>/i18n/<locale>.json
+// Editor surface - per-locale CRUD on <plugin>/i18n/<locale>.json
 // ─────────────────────────────────────────────────────────────────
 
 func TestManager_GetI18nFile_ReturnsFlatMap(t *testing.T) {
@@ -388,7 +388,7 @@ func TestManager_SaveI18nFile_BadLocaleRejected(t *testing.T) {
 		t.Fatalf("refresh: %v", err)
 	}
 	// Locale ids must not contain path separators; same defense as
-	// validID for plugin ids — a malicious manifest editor can't
+	// validID for plugin ids - a malicious manifest editor can't
 	// escape the plugin folder via "../" or absolute path tricks.
 	if err := m.SaveI18nFile("demo", "../escape", map[string]string{}); err == nil {
 		t.Fatal("expected error for path-traversal locale")

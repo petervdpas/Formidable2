@@ -15,7 +15,7 @@ import (
 var ErrUnknownSource = errors.New("monitor: unknown source")
 
 // Manager owns the Source registry and runs Queries. Safe for
-// concurrent use — registration and lookup are mutex-protected.
+// concurrent use - registration and lookup are mutex-protected.
 type Manager struct {
 	mu      sync.RWMutex
 	sources map[string]Source
@@ -27,7 +27,7 @@ func NewManager() *Manager {
 	return &Manager{sources: map[string]Source{}}
 }
 
-// Register adds a source to the registry. Panics on duplicate name —
+// Register adds a source to the registry. Panics on duplicate name -
 // that's a composition-root bug and should fail loudly at startup,
 // not silently shadow an earlier source.
 func (m *Manager) Register(s Source) {

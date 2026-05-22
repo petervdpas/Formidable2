@@ -1,5 +1,5 @@
 /*
- * popup — chrome for the generic Popup.vue component. The wrapper is
+ * popup - chrome for the generic Popup.vue component. The wrapper is
  * relative-positioned so the panel anchors to the trigger; the panel
  * itself absolute-positions on the chosen side. Four placements:
  * below / above / right / left, each anchored at the matching edge
@@ -58,7 +58,7 @@
 /* Teleported variant: position:fixed coordinates are set inline from
    the trigger's bounding rect (Popup.vue). z-index sits above every
    non-teleported popup so a swatch picker inside a modal stays above
-   the rest. No placement classes apply here — the inline top/left/
+   the rest. No placement classes apply here - the inline top/left/
    right/bottom carry the full position. */
 .popup-panel--teleported {
   z-index: 1200;

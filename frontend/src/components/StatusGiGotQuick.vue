@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * StatusGiGotQuick — footer Gigot status indicator + jump to Sync.
+ * StatusGiGotQuick - footer Gigot status indicator + jump to Sync.
  *
  * Mirrors StatusGitQuick so the two backends present the same footer
  * affordance: identical icon, identical position, similar indicators,

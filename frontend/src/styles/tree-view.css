@@ -1,4 +1,4 @@
-/* TreeView — recursive sidebar navigator. One `.tree-view` per call
+/* TreeView - recursive sidebar navigator. One `.tree-view` per call
    (depth=0); nested levels render as `.tree-subtree` so callers can
    reset bullet styling once at the outer ring. Indent grows with the
    `--tree-depth` custom property so a single rule scales to N levels.

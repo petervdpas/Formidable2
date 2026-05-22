@@ -68,12 +68,12 @@ type gitWorld struct {
 	// with a commit").
 	srcDir string
 
-	// HTTP test server bits — used by the wire-level auth scenarios.
+	// HTTP test server bits - used by the wire-level auth scenarios.
 	authServer    *httptest.Server
 	capturedAuthM sync.Mutex
 	capturedAuth  string
 
-	// Sysgit dispatch wiring — populated by the "fake sysgit
+	// Sysgit dispatch wiring - populated by the "fake sysgit
 	// recorder" steps so scenarios can prove the Service routed
 	// through the shell-out surface (or didn't).
 	fakeSys   *fakeSysgit
@@ -84,7 +84,7 @@ type gitWorld struct {
 // in the gitWorld. The Service must already exist (declare "a
 // journal-recording git service" before the fake-sysgit step).
 // flag default is OFF so individual scenarios can flip it with the
-// "the self-cloned toggle is on" step — keeps each scenario's
+// "the self-cloned toggle is on" step - keeps each scenario's
 // preconditions explicit on the line that matters.
 func wireFakeSysgit(w *gitWorld, available, upToDate bool, runErr error) error {
 	if w.svc == nil {
@@ -104,7 +104,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		if err != nil {
 			return ctx, err
 		}
-		// Reset all fields — Background runs after Before, so
+		// Reset all fields - Background runs after Before, so
 		// fresh state is the only invariant we need.
 		w.tmp = dir
 		w.m = nil
@@ -150,7 +150,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 	// ── Background ────────────────────────────────────────────────────
 
 	ctx.Step(`^a fresh temp directory$`, func() error {
-		// Already created in Before — nothing to do.
+		// Already created in Before - nothing to do.
 		if w.tmp == "" {
 			return fmt.Errorf("temp dir not initialized")
 		}
@@ -390,7 +390,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the bare repo rewrites "([^"]*)" to "([^"]*)"$`, func(name, content string) error {
 		// Side clone, modify the named path, push. Distinct from
 		// "the bare repo gains another commit" (which adds remote.txt)
-		// — this lets a scenario set up a same-path divergence between
+		// - this lets a scenario set up a same-path divergence between
 		// the bare and the local clone.
 		work, err := os.MkdirTemp("", "git-godog-rewrite-")
 		if err != nil {
@@ -950,7 +950,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		if w.jrnl == nil {
 			return fmt.Errorf("no journal-recording service in scope")
 		}
-		// Append, not replace — multiple Given lines can build up the
+		// Append, not replace - multiple Given lines can build up the
 		// pending list.
 		current := w.jrnl.Pending(backend).Paths
 		current = append(current, journal.PendingChange{Path: path, Op: op})

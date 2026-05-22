@@ -24,7 +24,7 @@ const { t } = useI18n();
 const shapes = ref<ShapeInfo[]>([]);
 const selectedShape = ref<string>("report");
 
-// Options section — booleans rather than radios so the dialog stays
+// Options section - booleans rather than radios so the dialog stays
 // scannable when more options land later. Defaults match the backend
 // defaults: linked URL for images, auto-wrap for loops, lazy api-card
 // (one-liner per api field).

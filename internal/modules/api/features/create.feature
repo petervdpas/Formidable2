@@ -1,4 +1,4 @@
-Feature: REST API — POST /api/collections/{tpl} (create + GUID mint)
+Feature: REST API - POST /api/collections/{tpl} (create + GUID mint)
   Creates a new collection item. Auto-generates a GUID when the body
   doesn't supply one (option B from the design conversation), so
   clients can either round-trip via GET /api/guid or just POST a

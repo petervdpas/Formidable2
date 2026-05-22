@@ -12,7 +12,7 @@ import { usePlugins } from "./usePlugins";
 // plugin is being edited at a time and the workspace + topbar menu
 // share the same draft / dirty state.
 //
-// draftForm holds the parsed form.json — a heterogeneous, ordered
+// draftForm holds the parsed form.json - a heterogeneous, ordered
 // list where each entry is EITHER a template Field (input) or a
 // formwidget.Widget (live display slot). Position in the array IS
 // the render order; the form editor's drag-drop list operates on
@@ -23,7 +23,7 @@ const draftSource = ref<string>("");
 const draftForm = ref<Array<Field | Widget>>([]);
 
 // Baseline is what we last loaded from disk for the current
-// selection — dirty compares against it.
+// selection - dirty compares against it.
 let baselineManifest: Manifest | null = null;
 let baselineSource = "";
 let baselineForm: Array<Field | Widget> = [];

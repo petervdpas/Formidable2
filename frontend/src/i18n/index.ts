@@ -1,6 +1,6 @@
 import { createI18n } from "vue-i18n";
 
-// Empty messages at boot — populated by useI18nLoader once the Wails
+// Empty messages at boot - populated by useI18nLoader once the Wails
 // bridge is up. flatJson:true tells vue-i18n to treat dot-bearing keys
 // as literal lookups (no nesting) so the Formidable-style flat key
 // scheme (`status.ready`, `config.theme`, …) works directly.

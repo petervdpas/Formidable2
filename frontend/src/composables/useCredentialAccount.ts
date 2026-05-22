@@ -9,7 +9,7 @@ export type CredentialBackend = "git" | "gigot";
  * Canonical credential account name = `<profile>:<backend>:<identifier>`.
  *
  * - **Profile** namespacing means two profiles cloning the same repo
- *   each get their own keychain entry — the same user often has
+ *   each get their own keychain entry - the same user often has
  *   "personal" and "work" profiles with different PATs.
  * - **Backend** namespacing leaves room for GiGot's subscription
  *   token alongside Git PATs without collision.
@@ -27,7 +27,7 @@ export function useCredentialAccount() {
   function accountFor(backend: CredentialBackend, identifier: string): string {
     if (!profileFilename.value) {
       // No active profile means useConfig hasn't loaded yet (boot
-      // race) — saving under ":<backend>:<id>" would put a stranded
+      // race) - saving under ":<backend>:<id>" would put a stranded
       // entry in the keychain that no profile can find later.
       throw new Error("credential account requires an active profile");
     }

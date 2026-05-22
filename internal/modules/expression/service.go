@@ -6,12 +6,12 @@ import "github.com/petervdpas/formidable2/internal/modules/expression/builder"
 // calls Evaluate for one-off expressions and EvaluateList to
 // populate the Storage workspace's per-row sub-labels. Builder*
 // methods power the visual sidebar-expression dialog by returning
-// the same construction primitives the Go side uses internally —
+// the same construction primitives the Go side uses internally -
 // backend is the source of truth.
 type Service struct{ m *Manager }
 
 // NewService wraps a Manager. Service stays thin so all behaviour
-// (cache, helpers, narrow-context defence) lives on Manager — the
+// (cache, helpers, narrow-context defence) lives on Manager - the
 // Wails surface adds nothing beyond IDL-style passthrough.
 func NewService(m *Manager) *Service { return &Service{m: m} }
 
@@ -24,7 +24,7 @@ func (s *Service) Evaluate(src string, ctx map[string]any) (Result, error) {
 
 // EvaluateList renders the sub-label for every record in a
 // template's storage list. Returns ErrNoExpression when the template
-// has no sidebar_expression configured — the frontend should hide
+// has no sidebar_expression configured - the frontend should hide
 // the sub-label entirely in that case rather than render anything.
 func (s *Service) EvaluateList(templateName string) ([]Result, error) {
 	return s.m.EvaluateList(templateName)
@@ -72,7 +72,7 @@ func (s *Service) BuilderDefaultRule() builder.Rule {
 	return builder.DefaultRule()
 }
 
-// BuilderDefaultConfig returns the empty dialog-session config —
+// BuilderDefaultConfig returns the empty dialog-session config -
 // no rules, empty default outcome. Compile produces "" until rules
 // or default styling are added.
 func (s *Service) BuilderDefaultConfig() builder.Config {
@@ -93,7 +93,7 @@ func (s *Service) BuilderDateOps() []builder.DateOpDescriptor {
 
 // BuilderCompile turns a Config into the expr-lang source string the
 // engine evaluates. fields is the FieldRef slice for every
-// expression_item field — Compile uses it to validate predicates and
+// expression_item field - Compile uses it to validate predicates and
 // to bake fieldLabel TextSources into value→label ternary lookups.
 // Empty string means "no chip"; an error means the config is
 // malformed and the dialog should keep itself open.
@@ -115,7 +115,7 @@ func (s *Service) BuilderParse(src string, fields []builder.FieldRef) (builder.C
 // sidebar_expression shapes (array-wrapped ternaries, the old `|`
 // pipe form, bare identifiers, bare string literals in text concats,
 // `F[..] == true` boolean predicates). Frontend invokes it only when
-// BuilderParse fails — the converted output is fed straight back into
+// BuilderParse fails - the converted output is fed straight back into
 // Parse → Compile so the dialog can edit a canonical DSL. Returns an
 // error when the source can't be parsed even after the pre-pass; the
 // frontend should surface the error and offer manual editing.

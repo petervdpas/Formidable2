@@ -14,7 +14,7 @@ var (
 // formatMarkdown formats the YAML frontmatter block (if present): first
 // applies the structural repair pass (re-nest flat children under their
 // schema-known parents), then yaml.v3 canonical re-emit. The markdown
-// body is reassembled untouched — Handlebars expressions, code fences,
+// body is reassembled untouched - Handlebars expressions, code fences,
 // and prose all want different rules and getting that wrong is worse
 // than doing nothing.
 //

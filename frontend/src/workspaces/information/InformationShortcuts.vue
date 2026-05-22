@@ -20,7 +20,7 @@ const { t } = useI18n();
           <span class="shortcut-description">
             {{ t(item.descriptionKey) }}
             <span v-if="item.scopeKey" class="muted small shortcut-scope">
-              — {{ t(item.scopeKey) }}
+              - {{ t(item.scopeKey) }}
             </span>
           </span>
         </li>

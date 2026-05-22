@@ -1,4 +1,4 @@
-/* ProgressBar — determinate or indeterminate strip used while a
+/* ProgressBar - determinate or indeterminate strip used while a
    long-running backend op is in flight. The indeterminate variant
    uses a CSS-only animation so it costs nothing in JS land. */
 

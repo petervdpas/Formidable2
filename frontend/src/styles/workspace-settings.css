@@ -1,4 +1,4 @@
-/* Settings workspace — only the categories sidebar list. The rest
+/* Settings workspace - only the categories sidebar list. The rest
    is forms.css / fields.css (each settings page is plain FormSections
    and FormRows). */
 
@@ -10,7 +10,7 @@
 
 /* Settings category items use shared .sidebar-row from sidebar.css. */
 
-/* Templates settings panel — search box sits between the info copy
+/* Templates settings panel - search box sits between the info copy
    and the FormSection-wrapped per-row toggles. Keep the gap tight so
    the search feels attached to the list, not floating mid-page. */
 .settings-templates-search {

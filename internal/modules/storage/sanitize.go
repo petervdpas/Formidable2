@@ -25,7 +25,7 @@ import (
 //	opts.{Created,Updated}  (when .At != "")
 //	  > raw.meta nested object  (new shape)
 //	  > raw.meta flat author_name/email + flat created/updated string
-//	    (legacy on-disk shape — both blocks adopt the single legacy
+//	    (legacy on-disk shape - both blocks adopt the single legacy
 //	    author since we can't reconstruct historical update authorship)
 //	  > {At: now, Name: "Unknown", Email: "unknown@example.com"}
 //
@@ -65,7 +65,7 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		}
 	}
 
-	// Resolve id — prefer explicit options, then raw.meta, then _meta,
+	// Resolve id - prefer explicit options, then raw.meta, then _meta,
 	// then raw.data.id. If the template declares a guid field and we
 	// still don't have one, generate it.
 	id := firstNonEmpty(
@@ -118,7 +118,7 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		}
 	}
 	// When the template owns a tags-typed field, that field is the
-	// single source of truth — the stale `meta.tags` / `_meta.tags`
+	// single source of truth - the stale `meta.tags` / `_meta.tags`
 	// carried on the envelope (round-tripped from BuildView) must NOT
 	// union back in, or removed tags resurrect on every save.
 	if !hasTagsField {
@@ -245,7 +245,7 @@ func facetsFromAny(v any) (map[string]FacetState, bool) {
 
 // resolveAuditEntry applies precedence rules for one of the Created /
 // Updated blocks. opts wins outright when its At is non-empty (the
-// caller has explicitly chosen it — typically SaveForm preserving prev
+// caller has explicitly chosen it - typically SaveForm preserving prev
 // or stamping current profile). Otherwise read the nested new-shape
 // object from rawMeta / injected, falling back to legacy flat author
 // + the matching flat timestamp string. If everything is missing,
@@ -306,7 +306,7 @@ func auditEntryFromAny(v any) (AuditEntry, bool) {
 
 // splitEnvelope detects the {meta, data} disk envelope vs. the bare
 // payload. A user field literally named "data" or "meta" must NOT
-// trick us — we only treat the input as an envelope when both keys
+// trick us - we only treat the input as an envelope when both keys
 // are non-nil objects.
 func splitEnvelope(raw map[string]any) (data, meta map[string]any) {
 	dataAny, dOk := raw["data"]

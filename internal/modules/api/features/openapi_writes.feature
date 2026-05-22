@@ -1,4 +1,4 @@
-Feature: REST API — OpenAPI spec covers the write surface
+Feature: REST API - OpenAPI spec covers the write surface
   Once the write endpoints land, the OpenAPI document advertises
   POST/PUT/PATCH/DELETE/batch alongside the read paths, plus the
   per-template Upsert_<stem> request schemas and the shared

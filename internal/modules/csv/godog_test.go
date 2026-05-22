@@ -78,7 +78,7 @@ func initCsvScenario(ctx *godog.ScenarioContext) {
 		return w.sys.SaveFile(path, decoded)
 	})
 
-	// Docstring variant — used when the content contains embedded quotes
+	// Docstring variant - used when the content contains embedded quotes
 	// or commas that don't survive the simple "([^"]*)" regex.
 	ctx.Step(`^the file "([^"]*)" with the following content:$`, func(path string, body *godog.DocString) error {
 		// Append a trailing newline to match the typical CSV-with-final-LF
@@ -103,7 +103,7 @@ func initCsvScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	// Docstring variant — each line is one row, cells separated by the
+	// Docstring variant - each line is one row, cells separated by the
 	// pipe character `|`. Avoids embedded-quote quoting in the feature.
 	ctx.Step(`^I write "([^"]*)" with the following rows and delimiter "([^"]*)":$`, func(path, delim string, body *godog.DocString) error {
 		var rows [][]string
@@ -224,7 +224,7 @@ func decodeEscapes(s string) string {
 
 // decodeRows parses a "row1|row2|row3" form into [][]string. Each row's
 // fields are split on the literal delimiter expected for that scenario,
-// minus any quoting — quotes inside a field (e.g. "Amsterdam, NL") are
+// minus any quoting - quotes inside a field (e.g. "Amsterdam, NL") are
 // preserved as part of the cell text after stripping outer quotes.
 //
 // Empty input → nil rows.

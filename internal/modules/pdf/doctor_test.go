@@ -53,7 +53,7 @@ func TestManager_LastExport_CapturesSuccess(t *testing.T) {
 			got.Code, got.Stage, got.Err)
 	}
 	if got.At.IsZero() {
-		t.Errorf("At is zero — must be stamped from m.nowFn()")
+		t.Errorf("At is zero - must be stamped from m.nowFn()")
 	}
 }
 

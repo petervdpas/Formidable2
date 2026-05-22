@@ -88,7 +88,7 @@ func TestManager_FormidableLinkURLStrategy_Wiki(t *testing.T) {
 	// Wiki context: the FormidableLinkURL strategy rewrites
 	// formidable://<tpl>:<df> hrefs at the source. Goldmark sees
 	// already-rewritten URLs and emits plain `<a href="/template/.../">`
-	// — no post-process regex required at the wiki handler.
+	// - no post-process regex required at the wiki handler.
 	tpl := &template.Template{
 		MarkdownTemplate: `{{field "ref"}}`,
 		Fields:           []template.Field{{Key: "ref", Type: "link"}},
@@ -137,7 +137,7 @@ func TestManager_FormidableLinkURLStrategy_Slideout(t *testing.T) {
 		&fakeTemplateLoader{tpl: tpl},
 		&fakeFormStore{form: form},
 		nil,
-		nil, // formidable link URL — passthrough
+		nil, // formidable link URL - passthrough
 		nil, // log
 	)
 	res, err := m.RenderForm("tpl.yaml", "df")
@@ -237,7 +237,7 @@ func TestManager_DesktopFileURLStrategy(t *testing.T) {
 	if res.Markdown != wantMD {
 		t.Errorf("markdown got %q, want %q", res.Markdown, wantMD)
 	}
-	// HTML stage's pre-rewrite must keep file:// images intact —
+	// HTML stage's pre-rewrite must keep file:// images intact -
 	// they're inlined as raw <img src="…"> by convertFileImages.
 	wantSrc := `src="file:///abs/storage/recepten.yaml/images/icon.png"`
 	if !strings.Contains(res.HTML, wantSrc) {
@@ -318,7 +318,7 @@ func TestManager_RenderFullHTML_FrontmatterIsStrippedFromBody(t *testing.T) {
 }
 
 func TestManager_NoStrategyFallsBackToRelativeImagesPath(t *testing.T) {
-	// nil ImageURLFunc — emitter falls back to `images/<name>`. This
+	// nil ImageURLFunc - emitter falls back to `images/<name>`. This
 	// keeps RenderMarkdown usable for export tooling that has no
 	// per-template URL strategy.
 	tpl := &template.Template{

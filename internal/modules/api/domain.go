@@ -36,7 +36,7 @@ type Storage interface {
 // Writer is the write-side surface used by the POST/PUT/PATCH/DELETE
 // endpoints. Kept separate from Storage so a future security audit
 // can grep "Writer" to find every write path. The real *storage.Manager
-// satisfies both — the indexer hook attached to SaveForm/DeleteForm
+// satisfies both - the indexer hook attached to SaveForm/DeleteForm
 // keeps SQLite consistent without the api module having to know about
 // the index at all.
 type Writer interface {
@@ -52,7 +52,7 @@ type Templates interface {
 }
 
 // Handler exposes the /api/* routes as an http.Handler. The composition
-// root mounts the returned handler at the root mux's "/api/" prefix —
+// root mounts the returned handler at the root mux's "/api/" prefix -
 // the api mux itself uses fully-qualified paths so no StripPrefix is
 // needed.
 type Handler struct {
@@ -85,7 +85,7 @@ func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates) http.Handler 
 	// data[guidKey] is empty, so this endpoint is a convenience, not
 	// a requirement.
 	mux.HandleFunc("/api/guid", h.guid)
-	// Swagger UI — `/api/docs` redirects to the trailing-slash form so
+	// Swagger UI - `/api/docs` redirects to the trailing-slash form so
 	// the embedded HTML's relative `/api/docs/<asset>` script tags work
 	// (mux uses literal pattern matching on the directory boundary).
 	mux.HandleFunc("/api/docs", h.docsRedirect)
@@ -98,7 +98,7 @@ func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates) http.Handler 
 	// Design lives at /{tpl}/design (peer to /count) rather than the
 	// original Formidable's /design/{tpl}. Putting "design" and "count"
 	// at the same path position avoids Go 1.22's strict-mux conflict
-	// — `/design/{tpl}` and `/{tpl}/count` would otherwise both match
+	// - `/design/{tpl}` and `/{tpl}/count` would otherwise both match
 	// `/collections/design/count` with equal precedence. Tooling that
 	// previously hit /design/<id> just swaps to /<id>/design.
 	mux.HandleFunc("/api/collections/{tpl}/design", h.design)

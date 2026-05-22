@@ -4,7 +4,7 @@ Feature: SingleFileRepository (SFR)
   filename by stripping `.md` and the configured extension, then
   re-attaching the extension. Default extension is `.meta.json` and
   default format is JSON. Base filenames must not contain path
-  separators — escaping the directory via `..` or `/` is rejected.
+  separators - escaping the directory via `..` or `/` is rejected.
 
   Background:
     Given a system manager rooted at a temp directory

@@ -5,7 +5,7 @@ package csv
 //   - csv-preview     → Preview
 //   - csv-write       → Write
 //
-// `csv-import-row` is intentionally NOT in this module — the Electron
+// `csv-import-row` is intentionally NOT in this module - the Electron
 // app already routed it to formManager.saveForm. Storage import (F-302)
 // will own that route.
 //
@@ -89,7 +89,7 @@ func (s *Service) Export(templateFilename string, plan ExportPlan, fields []Fiel
 
 // BuildPreviewRows is the export-dialog's live preview helper. It runs
 // the same row-building pipeline as Export but on caller-supplied
-// entries (typically one) — no storage round trip. Always includes the
+// entries (typically one) - no storage round trip. Always includes the
 // header row at index 0.
 func (s *Service) BuildPreviewRows(plan ExportPlan, entries []map[string]any, fields []FieldSpec) [][]string {
 	return BuildExportRows(plan, entries, fields)

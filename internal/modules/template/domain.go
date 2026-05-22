@@ -32,7 +32,7 @@ const (
 // Indexer is the post-write hook surface a downstream cache (e.g. the
 // SQLite index used by the wiki/API) plugs into. Manager fires it
 // after a successful Save/Delete; failures are logged at the manager
-// and never propagated — the index is a derived view, never authoritative.
+// and never propagated - the index is a derived view, never authoritative.
 type Indexer interface {
 	OnTemplateChanged(filename string) error
 	OnTemplateDeleted(filename string) error
@@ -57,7 +57,7 @@ func (f ObserverFunc) OnTemplateDeleted(name string) error { return f(name) }
 
 // CreationObserver is a peer of Observer that fires when SaveTemplate
 // writes a brand-new file (one that didn't exist on disk before this
-// save). Updates of existing templates do NOT fire it — the Indexer
+// save). Updates of existing templates do NOT fire it - the Indexer
 // already handles the "something changed" surface via OnTemplateChanged,
 // so this hook stays focused on the create-once moment.
 //
@@ -70,7 +70,7 @@ type CreationObserver interface {
 }
 
 // CreationObserverFunc adapts a closure to CreationObserver. Same
-// pattern as ObserverFunc — keeps composition-root wiring terse.
+// pattern as ObserverFunc - keeps composition-root wiring terse.
 type CreationObserverFunc func(filename string) error
 
 // OnTemplateCreated satisfies CreationObserver.
@@ -80,7 +80,7 @@ func (f CreationObserverFunc) OnTemplateCreated(name string) error { return f(na
 // it to stamp Template.AuthorName / Template.AuthorEmail when the
 // caller leaves them empty (mirrors how record .meta.json files carry
 // meta.author_name / meta.author_email). Composition root wires this
-// to config.Manager. Nil disables the auto-fill — saves still succeed
+// to config.Manager. Nil disables the auto-fill - saves still succeed
 // but the fields stay empty.
 type AuthorReader interface {
 	Author() (name, email string)
@@ -144,7 +144,7 @@ func (m *Manager) AddObserver(o Observer) {
 
 // AddCreationObserver registers a listener that fires only when
 // SaveTemplate writes a brand-new file. No-op for updates. Same
-// best-effort error policy as the deletion observers — failures log
+// best-effort error policy as the deletion observers - failures log
 // but never propagate, keeping the create path resilient to
 // downstream hiccups (e.g. a transient config-write failure).
 func (m *Manager) AddCreationObserver(o CreationObserver) {
@@ -191,7 +191,7 @@ func (m *Manager) ListTemplates() ([]string, error) {
 // HasTemplates reports whether at least one *.yaml file exists in
 // the templates folder. Used by the ribbon to ghost workspaces that
 // require a template to be meaningful (Storage). Errors collapse to
-// false — a missing dir, unreadable folder, or any other I/O issue
+// false - a missing dir, unreadable folder, or any other I/O issue
 // is treated as "no templates available".
 func (m *Manager) HasTemplates() bool {
 	files, err := m.ListTemplates()
@@ -205,7 +205,7 @@ func (m *Manager) HasTemplates() bool {
 // and returns a sanitized Template. Cached per-name; concurrent calls
 // for the same name serialize on a per-name mutex so a 50-row sidebar
 // mount storm fires one parse, not fifty. The returned pointer may be
-// shared across callers — treat as read-only.
+// shared across callers - treat as read-only.
 func (m *Manager) LoadTemplate(name string) (*Template, error) {
 	if name == "" {
 		return nil, errors.New("template: empty name")
@@ -246,7 +246,7 @@ func (m *Manager) LoadTemplate(name string) (*Template, error) {
 
 // LoadMany resolves each name via LoadTemplate and returns the
 // results in the same order as the input. Missing files emit a
-// (Template=nil, Error=<msg>) slot rather than aborting the batch —
+// (Template=nil, Error=<msg>) slot rather than aborting the batch -
 // callers can render the survivors. Used by list workspaces to
 // collapse N parallel LoadTemplate IPC calls into one. Concurrency
 // inside is still serialized per-name by loadMu, so two parallel
@@ -330,7 +330,7 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 		// Surface each validation error to formidable.log so the failure
 		// has a paper trail beyond the toast. The frontend pre-validates
 		// too, so anything reaching this branch is either a programmatic
-		// caller (HTTP/sync) or a stale cache — both worth recording.
+		// caller (HTTP/sync) or a stale cache - both worth recording.
 		for _, e := range errs {
 			m.log.Warn("template validation rejected save",
 				"name", name,
@@ -396,7 +396,7 @@ func (m *Manager) DeleteTemplate(name string) error {
 }
 
 // Validate runs the validation pipeline on an in-memory template.
-// Stateless — useful for the editor before save.
+// Stateless - useful for the editor before save.
 func (m *Manager) Validate(t *Template) []ValidationError {
 	return Validate(t)
 }
@@ -410,14 +410,14 @@ func (m *Manager) Validate(t *Template) []ValidationError {
 // AuthorName / AuthorEmail and an AuthorReader is wired, we stamp the
 // active profile's identity in memory AND write the stamped YAML back
 // to disk as a best-effort. The first user to OPEN an unstamped
-// template gets the credit — no need to wait for an explicit save.
+// template gets the credit - no need to wait for an explicit save.
 // Failures (read-only filesystem, etc.) log a warning but never block
 // the descriptor from returning; the editor still gets the in-memory
 // stamp.
 //
 // The write-back bypasses Validate so a template that's broken for
 // other reasons (e.g. duplicate keys) still backfills its author.
-// SaveTemplate would refuse those, which would be punitive on open —
+// SaveTemplate would refuse those, which would be punitive on open -
 // the user opened the template to fix the broken state, not to be
 // blocked by it.
 func (m *Manager) GetDescriptor(name, storageLocation string) (Descriptor, error) {
@@ -465,7 +465,7 @@ func (m *Manager) maybeStampAuthor(t *Template) bool {
 // writeYAMLDirect serialises a template and writes it via the
 // filesystem, skipping Validate / Normalize. Open-time backfill uses
 // this so a broken-but-openable template still gets its author
-// stamped on disk. The indexer hook is intentionally NOT fired —
+// stamped on disk. The indexer hook is intentionally NOT fired -
 // nothing semantic changed for downstream consumers.
 func (m *Manager) writeYAMLDirect(name string, t *Template) error {
 	bytes, err := marshalYAML(t)
@@ -536,7 +536,7 @@ func TopLevelTextFields(fields []Field) []ItemField {
 	return out
 }
 
-// guard for editor tools — confirms file extension is yaml
+// guard for editor tools - confirms file extension is yaml
 func ensureYAMLExt(name string) string {
 	if filepath.Ext(name) == "" {
 		return name + templateExt

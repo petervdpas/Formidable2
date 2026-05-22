@@ -1,7 +1,7 @@
 Feature: Git collaboration backend
   The git module wraps github.com/go-git/go-git for read-only inspection
   (status, branches, log, remotes) and HTTPS clone with optional PAT.
-  No system git binary required — everything runs in-process.
+  No system git binary required - everything runs in-process.
 
   Background:
     Given a fresh temp directory
@@ -84,7 +84,7 @@ Feature: Git collaboration backend
     When I read the log with limit 0
     Then the log has 0 commits
 
-  # ── Clone (local file:// — no network) ───────────────────────────────
+  # ── Clone (local file:// - no network) ───────────────────────────────
 
   Scenario: Clone copies a local repo via file:// URL
     Given a source repo with a commit
@@ -194,7 +194,7 @@ Feature: Git collaboration backend
     When I discard "../escape"
     Then the operation returned an error
 
-  # ── Fetch / Push (file:// — no network) ──────────────────────────────
+  # ── Fetch / Push (file:// - no network) ──────────────────────────────
 
   Scenario: Push advances the remote
     Given a bare repo seeded with one commit
@@ -273,7 +273,7 @@ Feature: Git collaboration backend
   # Service is the layer that auto-fills the PAT from keychain AND
   # reports outbound (Push) / remote-seen (Pull) events to the
   # journal. These scenarios use a fakeJournal recorder so we can
-  # assert what the Service told the journal — independent of the
+  # assert what the Service told the journal - independent of the
   # journal module's internal state machine.
 
   Scenario: Service Push that advances the remote records a sync entry
@@ -434,10 +434,10 @@ Feature: Git collaboration backend
   # Service routes Fetch/Push/Pull through a system-git surface so the
   # OS credential helper resolves auth. These scenarios use a fake
   # Sysgit recorder so we can prove the dispatch decision without
-  # spawning the real binary — and prove the fallback path stays
+  # spawning the real binary - and prove the fallback path stays
   # untouched whenever the toggle is off or the binary is missing.
 
-  Scenario: Toggle off — Fetch stays on the go-git path
+  Scenario: Toggle off - Fetch stays on the go-git path
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
     And a journal-recording git service
@@ -446,7 +446,7 @@ Feature: Git collaboration backend
     When I fetch from "client" via the service
     Then the fake sysgit recorded 0 calls
 
-  Scenario: Toggle on but binary missing — Fetch falls back to go-git
+  Scenario: Toggle on but binary missing - Fetch falls back to go-git
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
     And a journal-recording git service
@@ -455,7 +455,7 @@ Feature: Git collaboration backend
     When I fetch from "client" via the service
     Then the fake sysgit recorded 0 calls
 
-  Scenario: Toggle on with available binary — Fetch shells out
+  Scenario: Toggle on with available binary - Fetch shells out
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
     And a journal-recording git service
@@ -465,7 +465,7 @@ Feature: Git collaboration backend
     Then the fake sysgit recorded 1 call
     And the fake sysgit was asked for remote "origin"
 
-  Scenario: Toggle on with available binary — Push records a sync entry
+  Scenario: Toggle on with available binary - Push records a sync entry
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
     And a journal-recording git service
@@ -478,7 +478,7 @@ Feature: Git collaboration backend
     And the journal recorded 0 remote-seens
     And the recorded sync version equals the push NewHead
 
-  Scenario: Toggle on with available binary — up-to-date Push records remote-seen
+  Scenario: Toggle on with available binary - up-to-date Push records remote-seen
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
     And a journal-recording git service
@@ -490,7 +490,7 @@ Feature: Git collaboration backend
     And the journal recorded 0 syncs
     And the journal recorded 1 remote-seen for backend "git"
 
-  Scenario: Toggle on with available binary — Pull records remote-seen
+  Scenario: Toggle on with available binary - Pull records remote-seen
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
     And a journal-recording git service
@@ -515,7 +515,7 @@ Feature: Git collaboration backend
 
   Scenario: Sysgit Push on a non-repo path leaves the journal alone
     # sysgit "succeeds" (fake returns nil) but the path isn't a repo,
-    # so headHash returns "" — recording an empty version would
+    # so headHash returns "" - recording an empty version would
     # corrupt the cursor.
     Given a journal-recording git service
     And a fake sysgit recorder marked available

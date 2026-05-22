@@ -3,7 +3,7 @@ import { Service as CredentialSvc } from "../../bindings/github.com/petervdpas/f
 
 // useCredentialStatus probes the OS keychain reactively for a given
 // account key and exposes a simple "saved? / still probing?" pair.
-// Re-probes on mount and whenever the account key changes — useful
+// Re-probes on mount and whenever the account key changes - useful
 // when the key derives from reactive config (e.g. the active
 // profile filename and the current repo name).
 //
@@ -25,7 +25,7 @@ export interface CredentialStatus {
   /** True while a probe is in flight. Lets callers gate "Save now"
    *  UI without racing the initial probe. */
   probing: Ref<boolean>;
-  /** Force an immediate re-probe — call after CredentialSvc.Set /
+  /** Force an immediate re-probe - call after CredentialSvc.Set /
    *  Delete to keep the badge in sync. */
   refresh: () => Promise<void>;
 }

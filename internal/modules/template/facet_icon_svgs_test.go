@@ -7,7 +7,7 @@ import (
 
 // Every key in FacetIconList must resolve to a non-empty parsed spec.
 // init() panics on any missing file, so this test would only ever
-// fail if FacetIconSVGs were modified post-init — but it keeps the
+// fail if FacetIconSVGs were modified post-init - but it keeps the
 // closed-set contract visible alongside the other facet validation
 // tests.
 func TestFacetIconSVGs_CoverEveryListedKey(t *testing.T) {
@@ -42,7 +42,7 @@ func TestFacetIconSpecFor_KnownAndFallback(t *testing.T) {
 }
 
 // Sanity: a representative parse extracts both the viewBox and the
-// path data correctly. fa-shirt has a 0 0 640 512 viewBox — picked
+// path data correctly. fa-shirt has a 0 0 640 512 viewBox - picked
 // because it's the only icon with a non-default width.
 func TestFacetIconSVGs_ShirtParsedCorrectly(t *testing.T) {
 	spec := FacetIconSpecFor("fa-shirt")
@@ -55,7 +55,7 @@ func TestFacetIconSVGs_ShirtParsedCorrectly(t *testing.T) {
 }
 
 // Parser must reject SVGs that don't have a viewBox + first <path d="…"/>
-// — guards against a future maintainer dropping a more complex multi-
+// - guards against a future maintainer dropping a more complex multi-
 // path or gradient SVG into icons/ without realising it.
 func TestParseFacetIconSVG_RejectsMalformed(t *testing.T) {
 	cases := []struct {

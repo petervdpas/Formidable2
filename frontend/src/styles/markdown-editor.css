@@ -1,4 +1,4 @@
-/* MarkdownEditor host — wraps md-editor-v3.
+/* MarkdownEditor host - wraps md-editor-v3.
    md-editor-v3 owns its own DOM and ships its own stylesheet
    (md-editor-v3/lib/style.css imported in MarkdownEditor.vue);
    we only need width / data-theme passthrough on the host. */
@@ -37,7 +37,7 @@
     overflow: auto;
 }
 
-/* Token bridge — md-editor-v3 uses its own CSS variables for editor
+/* Token bridge - md-editor-v3 uses its own CSS variables for editor
    colors; reach in and rewire the most visible ones to our theme tokens
    so the editor matches the surrounding form. */
 

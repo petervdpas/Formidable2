@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * TreeView — recursive tree navigator. Items can be leaves or
+ * TreeView - recursive tree navigator. Items can be leaves or
  * branches; branches expand/collapse, leaves emit `select`. Branches
  * that contain the currently-selected leaf auto-expand on mount.
  *
@@ -47,7 +47,7 @@ const emit = defineEmits<{
   (e: "select", id: string): void;
 }>();
 
-// Branch expansion state — local Set keyed by node id. Branches that
+// Branch expansion state - local Set keyed by node id. Branches that
 // contain the selected leaf auto-expand so a fresh load lands on a
 // visible row.
 const expanded = ref<Set<string>>(new Set());

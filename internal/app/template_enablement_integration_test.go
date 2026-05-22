@@ -63,7 +63,7 @@ func saveStubTemplate(t *testing.T, m *template.Manager, name string) {
 // TestTemplateDelete_PrunesEnabledTemplates is the headline integration:
 // user enables 3 templates, deletes one via the template manager, and
 // expects config.EnabledTemplates to no longer reference the deleted
-// one — without any explicit prune call from the caller.
+// one - without any explicit prune call from the caller.
 func TestTemplateDelete_PrunesEnabledTemplates(t *testing.T) {
 	cfgM, tplM, _ := wireEnablement(t)
 	saveStubTemplate(t, tplM, "basic.yaml")
@@ -160,7 +160,7 @@ func TestCreate_AutoEnablesWhenCurated(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 
-	// Create a brand-new template — should auto-enable.
+	// Create a brand-new template - should auto-enable.
 	saveStubTemplate(t, tplM, "fresh.yaml")
 
 	cfg, err := cfgM.LoadUserConfig()
@@ -173,7 +173,7 @@ func TestCreate_AutoEnablesWhenCurated(t *testing.T) {
 	}
 }
 
-// TestCreate_DoesNotFlipIntoCurationWhenAllEnabled — when the profile
+// TestCreate_DoesNotFlipIntoCurationWhenAllEnabled - when the profile
 // hasn't opted in (empty EnabledTemplates = "all enabled"), creating a
 // template must NOT silently flip the user into curation mode by
 // populating the slice. The user retains control of the opt-in.
@@ -188,7 +188,7 @@ func TestCreate_DoesNotFlipIntoCurationWhenAllEnabled(t *testing.T) {
 	}
 }
 
-// TestCreate_UpdateDoesNotAutoEnable — re-saving an existing template
+// TestCreate_UpdateDoesNotAutoEnable - re-saving an existing template
 // is an update, not a create. The CreationObserver only fires for
 // brand-new files, so an update on a disabled template must NOT
 // silently flip it back into the enabled list.

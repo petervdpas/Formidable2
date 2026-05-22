@@ -82,7 +82,7 @@
 
 .footer-spacer { flex: 1 1 auto; }
 
-/* Status text — colour pulls straight from the active theme tokens
+/* Status text - colour pulls straight from the active theme tokens
    (every theme defines --color-success/warning/error/accent). Stay
    subtle on the default/info variant: ambient state, not a callout. */
 .footer .status                { color: var(--color-text); }

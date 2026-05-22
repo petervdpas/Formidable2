@@ -17,8 +17,8 @@ import (
 // so this middleware gives us a consistent transport for the same
 // route shape.
 //
-// `api` is allowed to be nil — defensive against composition-root
-// reordering — in which case the middleware is a pure pass-through.
+// `api` is allowed to be nil - defensive against composition-root
+// reordering - in which case the middleware is a pure pass-through.
 //
 // The signature matches Wails' assetserver.Middleware type
 // (func(next http.Handler) http.Handler) so it can plug straight into

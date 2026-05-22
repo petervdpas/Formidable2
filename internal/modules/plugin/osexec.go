@@ -11,7 +11,7 @@ import (
 // OSExec is the default ExecRunner: a thin os/exec wrapper that
 // applies the (cwd, env, timeout) options. Args are passed as a
 // slice (no shell), so plugin-supplied input cannot become a
-// shell metacharacter — the trade-off is `formidable.exec` is
+// shell metacharacter - the trade-off is `formidable.exec` is
 // not a shell; pipelines and redirection don't work without an
 // explicit `bash -c "..."`.
 //
@@ -22,7 +22,7 @@ type OSExec struct{}
 
 // Exec runs cmd with args. opts.Cwd / opts.Env / opts.Timeout map
 // to the corresponding os/exec.Cmd fields. opts.Env is *additive*
-// to the inherited environment, not a replacement — most plugin
+// to the inherited environment, not a replacement - most plugin
 // scripts want PATH to keep working.
 func (OSExec) Exec(cmd string, args []string, opts ExecOptions) (ExecResult, error) {
 	ctx := context.Background()
@@ -60,7 +60,7 @@ func (OSExec) Exec(cmd string, args []string, opts ExecOptions) (ExecResult, err
 		return res, ctxErr
 	}
 
-	// `*exec.ExitError` is "process ran and exited non-zero" — that
+	// `*exec.ExitError` is "process ran and exited non-zero" - that
 	// IS the result, not a Go error. Anything else (binary not
 	// found, perm denied, …) propagates.
 	var exitErr *exec.ExitError

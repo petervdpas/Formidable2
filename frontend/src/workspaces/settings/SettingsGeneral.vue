@@ -11,7 +11,7 @@ const cfg = computed(() => config.value!);
 
 // Language list is backend-driven: each locale's own bundle declares
 // its endonym (`language.endonym` key), so adding a locale is a pure
-// content change — no Vue code to update. Empty list at boot degrades
+// content change - no Vue code to update. Empty list at boot degrades
 // gracefully (the SelectField just shows whatever value is in config).
 const languages = ref<{ value: string; label: string }[]>([]);
 

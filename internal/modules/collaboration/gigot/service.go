@@ -12,7 +12,7 @@ import (
 //   - on success it notifies the journal so Pending(gigot) and the
 //     cursor stay accurate.
 //
-// The keychain is not exposed over the Wails bridge — see
+// The keychain is not exposed over the Wails bridge - see
 // credential.Service. The Service is the only layer allowed to read
 // the subscription bearer; Manager stays transport-neutral.
 type Service struct {
@@ -40,7 +40,7 @@ type ProfileReader interface {
 }
 
 // ConfigReader yields the gigot-related fields off the active profile.
-// Implemented by config.Manager. Author may return empty strings — the
+// Implemented by config.Manager. Author may return empty strings - the
 // Service drops the Author block on outbound CommitRequests in that
 // case so the server falls back to the subscription's default identity.
 type ConfigReader interface {
@@ -55,7 +55,7 @@ type ConfigReader interface {
 const journalBackend = journal.BackendGigot
 
 // NewService wires the gigot Service to its dependencies. Any of
-// creds/profile/cfg/jrnl may be nil — calls that depend on the missing
+// creds/profile/cfg/jrnl may be nil - calls that depend on the missing
 // dep will surface a configuration error from validateConn or skip
 // the journal hop. Mirrors NewService in the git package.
 func NewService(m *Manager, creds CredentialReader, profile ProfileReader, cfg ConfigReader, jrnl journal.Journal) *Service {
@@ -64,7 +64,7 @@ func NewService(m *Manager, creds CredentialReader, profile ProfileReader, cfg C
 
 // AttachProgress installs an emit function the Service routes every
 // PullLocal / Reclone SyncProgress event through. `emit` receives the
-// Wails event name and the SyncProgress payload — the composition
+// Wails event name and the SyncProgress payload - the composition
 // root wires this to the application's event emitter.
 //
 // Package-level function (not a method) for the same reason as
@@ -101,7 +101,7 @@ func (s *Service) resolveConnection(requireRepo bool) (Connection, error) {
 }
 
 // resolveToken looks up the stored subscription bearer for the active
-// profile + repo. Empty + nil-error treated as "no token configured" —
+// profile + repo. Empty + nil-error treated as "no token configured" -
 // the caller's validateConn will surface ErrMissingToken so the user
 // sees a clear "set your subscription token" rather than a server
 // 401 buried in HTTP plumbing.
@@ -140,7 +140,7 @@ func (s *Service) Ping() (*HealthResponse, error) {
 	return s.m.Ping(conn)
 }
 
-// Me issues GET /api/me — bearer-aware self-introspection. Also
+// Me issues GET /api/me - bearer-aware self-introspection. Also
 // repo-agnostic.
 func (s *Service) Me() (*MeResponse, error) {
 	conn, err := s.resolveConnection(false)
@@ -150,7 +150,7 @@ func (s *Service) Me() (*MeResponse, error) {
 	return s.m.Me(conn)
 }
 
-// Context issues GET /api/repos/{repo}/context — the per-repo bootstrap.
+// Context issues GET /api/repos/{repo}/context - the per-repo bootstrap.
 func (s *Service) Context() (*RepoContextResponse, error) {
 	conn, err := s.resolveConnection(true)
 	if err != nil {
@@ -159,7 +159,7 @@ func (s *Service) Context() (*RepoContextResponse, error) {
 	return s.m.Context(conn)
 }
 
-// Formidable issues GET /api/repos/{repo}/formidable — the Formidable-
+// Formidable issues GET /api/repos/{repo}/formidable - the Formidable-
 // shape bootstrap (marker + templates + storage summary).
 func (s *Service) Formidable() (*RepoFormidableResponse, error) {
 	conn, err := s.resolveConnection(true)
@@ -169,7 +169,7 @@ func (s *Service) Formidable() (*RepoFormidableResponse, error) {
 	return s.m.Formidable(conn)
 }
 
-// Head issues GET /api/repos/{repo}/head — current HEAD version.
+// Head issues GET /api/repos/{repo}/head - current HEAD version.
 func (s *Service) Head() (*HeadResponse, error) {
 	conn, err := s.resolveConnection(true)
 	if err != nil {
@@ -178,7 +178,7 @@ func (s *Service) Head() (*HeadResponse, error) {
 	return s.m.Head(conn)
 }
 
-// Tree issues GET /api/repos/{repo}/tree — recursive file listing.
+// Tree issues GET /api/repos/{repo}/tree - recursive file listing.
 func (s *Service) Tree() (*TreeResponse, error) {
 	conn, err := s.resolveConnection(true)
 	if err != nil {
@@ -198,7 +198,7 @@ func (s *Service) GetFile(repoRelPath string) (*FileResponse, error) {
 
 // Log issues GET /api/repos/{repo}/log[?limit=N&with_changes=1].
 // limit<=0 collapses to the server's default page size. withChanges=true
-// asks the server to attach each commit's per-path file changes — the
+// asks the server to attach each commit's per-path file changes - the
 // audit-trail view; leave it false for cheap graph rendering.
 func (s *Service) Log(limit int, withChanges bool) (*RepoLogResponse, error) {
 	conn, err := s.resolveConnection(true)
@@ -227,7 +227,7 @@ func (s *Service) DestinationSync(destinationID string) (*Destination, error) {
 }
 
 // LedgerSummary is a read-only preview of the client-side track record
-// and on-disk pending diff. No HTTP — drives the Sync UI's "what would
+// and on-disk pending diff. No HTTP - drives the Sync UI's "what would
 // Push send / what would Pull bring back" hints without a round-trip.
 // Returns ErrMissingContext when no context folder is configured.
 func (s *Service) LedgerSummary() (*LedgerSummary, error) {
@@ -301,7 +301,7 @@ func (s *Service) Reclone() (*PullResult, error) {
 
 // Sync runs PushLocal then PullLocal at the Service layer so each
 // half emits its own journal entry via the wrapper methods. A push
-// failure aborts before pull to preserve unpushed local changes —
+// failure aborts before pull to preserve unpushed local changes -
 // symmetric with the git Service and with Manager.Sync. message
 // threads through to the push half; pull is read-only.
 func (s *Service) Sync(message string) (*SyncResult, error) {

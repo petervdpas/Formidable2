@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-// FormSection — framed group of FormRows. When `collapsible` is
+// FormSection - framed group of FormRows. When `collapsible` is
 // set, the title becomes a clickable header that hides/shows the
 // slot content. The grid is preserved (rows still use subgrid for
 // label/control alignment); collapsing toggles a CSS class that
@@ -9,7 +9,7 @@ import { ref } from "vue";
 const props = withDefaults(
   defineProps<{
     title?: string;
-    /** Small muted hint rendered next to the title (always visible —
+    /** Small muted hint rendered next to the title (always visible -
      *  particularly useful for collapsible sections so the user
      *  knows what's inside without expanding). */
     subtitle?: string;

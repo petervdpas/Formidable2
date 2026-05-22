@@ -6,12 +6,12 @@ import "github.com/petervdpas/formidable2/internal/modules/template"
 // Context plumbing for the Handlebars helpers.
 //
 // The render context is a map[string]any built by RenderMarkdown:
-// data values + three reserved keys —
+// data values + three reserved keys -
 //
-//   _fields      — []template.Field (for findField / fieldRaw / etc.)
-//   _template    — *template.Template (for the loop helper to attach
+//   _fields      - []template.Field (for findField / fieldRaw / etc.)
+//   _template    - *template.Template (for the loop helper to attach
 //                  to per-iteration sub-contexts)
-//   _loopGroups  — map[string][]template.Field (per-loop body roster,
+//   _loopGroups  - map[string][]template.Field (per-loop body roster,
 //                  used by the loop helper to set inner _fields)
 //
 // Per-iteration sub-contexts also carry _loopKey + _loopIndex so the

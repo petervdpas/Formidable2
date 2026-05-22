@@ -11,7 +11,7 @@ import (
 )
 
 // expect records the path + method the server saw on the most recent
-// request — used by route tests to assert "client hit the right URL"
+// request - used by route tests to assert "client hit the right URL"
 // without per-test scaffolding.
 type capture struct {
 	Method string

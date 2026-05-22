@@ -24,7 +24,7 @@ func (h *Handler) guid(w http.ResponseWriter, r *http.Request) {
 }
 
 // upsertBody is the shared shape for POST/PUT/PATCH bodies. Both meta
-// and data are optional at the wire level — handlers tighten as needed
+// and data are optional at the wire level - handlers tighten as needed
 // (e.g. POST requires a guid in data; PATCH treats both as overlay).
 type upsertBody struct {
 	Meta map[string]any `json:"meta"`
@@ -33,7 +33,7 @@ type upsertBody struct {
 
 // readUpsertBody decodes the request body into upsertBody. Empty body
 // is treated as both maps absent (so PATCH-with-empty-body merges
-// nothing — caller decides whether to refuse or no-op).
+// nothing - caller decides whether to refuse or no-op).
 func readUpsertBody(r *http.Request) (*upsertBody, error) {
 	var b upsertBody
 	if r.Body == nil {
@@ -51,7 +51,7 @@ func readUpsertBody(r *http.Request) (*upsertBody, error) {
 // post to overwrite an existing item (matches original Formidable);
 // without upsert, an existing GUID returns 409.
 //
-// Auto-fills the GUID when missing — option B from the design
+// Auto-fills the GUID when missing - option B from the design
 // conversation. Original Formidable required clients to supply guid;
 // this is a small extension that pairs with the new GET /api/guid
 // endpoint and avoids forcing every client to bundle a UUID library.
@@ -69,7 +69,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	t, err := h.tpl.LoadTemplate(tplFilename)
 	if err != nil || t == nil {
 		// IsCollectionEnabled was true but the template can't be
-		// loaded — race during deletion. Treat as disabled.
+		// loaded - race during deletion. Treat as disabled.
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -89,7 +89,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	guidKey := guidKeyOf(t)
 	if guidKey == "" {
 		// Indexer's enable-collection check passed without a guid
-		// field — should be impossible, but be explicit.
+		// field - should be impossible, but be explicit.
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -144,7 +144,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 // itemPut answers PUT /api/collections/{tpl}/{id}. Replaces an
 // existing item by GUID. With `?upsert=true`, creates the item when
 // it doesn't exist (returning 201) instead of 404. The body's
-// data[guidKey], if present, must equal the path {id} — otherwise
+// data[guidKey], if present, must equal the path {id} - otherwise
 // 409 guid-mismatch. When absent, the path id is injected so the
 // stored form remains addressable.
 func (h *Handler) itemPut(w http.ResponseWriter, r *http.Request) {
@@ -230,11 +230,11 @@ func (h *Handler) itemPut(w http.ResponseWriter, r *http.Request) {
 }
 
 // itemPatch answers PATCH /api/collections/{tpl}/{id}. Shallow-merges
-// the incoming meta/data into the existing form (per-key override —
+// the incoming meta/data into the existing form (per-key override -
 // nested objects/arrays are replaced, not deeply merged, mirroring
 // the original Formidable behaviour). Optional `If-Match` header
 // guards against lost-update by comparing against the collection's
-// current weak ETag — mismatch returns 412.
+// current weak ETag - mismatch returns 412.
 func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 	stem, tplFilename, t, ok := h.writeGuard(w, r)
 	if !ok {
@@ -258,7 +258,7 @@ func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Optional optimistic concurrency. Compare against the current
-	// collection rev's weak ETag — coarser than per-file rev, but
+	// collection rev's weak ETag - coarser than per-file rev, but
 	// still meaningful: any write to the collection invalidates it.
 	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" {
 		rev, err := h.dp.CollectionRev(r.Context(), tplFilename)
@@ -308,14 +308,14 @@ func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 
 // batch answers POST /api/collections/{tpl}/batch. Per-item failures
 // are accumulated in the response's `errors` array rather than
-// aborting the whole batch — clients see what landed and what didn't
+// aborting the whole batch - clients see what landed and what didn't
 // in a single round-trip. The endpoint always returns 200 on a
 // well-formed request, regardless of how many items failed.
 //
 // Modes:
-//   - create  (default) — refuses items whose GUID already exists
-//   - replace          — full upsert; existing items are overwritten
-//   - merge            — shallow-merge upsert (per-key override)
+//   - create  (default) - refuses items whose GUID already exists
+//   - replace          - full upsert; existing items are overwritten
+//   - merge            - shallow-merge upsert (per-key override)
 func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
@@ -432,7 +432,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 					"data": mergedData,
 				}
 			} else {
-				// replace — full overwrite, but still force guid
+				// replace - full overwrite, but still force guid
 				data[guidKey] = guidVal
 				envelope = map[string]any{"meta": meta, "data": data}
 			}
@@ -561,7 +561,7 @@ func (h *Handler) fieldPatch(w http.ResponseWriter, r *http.Request) {
 }
 
 // readFieldValue extracts the value for a single-field PATCH. Accepts
-// either `{"value": …}` (preferred — wraps nulls explicitly) or a raw
+// either `{"value": …}` (preferred - wraps nulls explicitly) or a raw
 // scalar/array/object. Empty body is rejected (decoder error) so a
 // stray `PATCH .../field/x` doesn't silently null out the field.
 func readFieldValue(r *http.Request) (any, error) {
@@ -574,7 +574,7 @@ func readFieldValue(r *http.Request) (any, error) {
 		return nil, err
 	}
 	// Envelope form: {"value": …}. Detect by checking for the "value"
-	// key (presence, not truthiness — `{"value": null}` means "set the
+	// key (presence, not truthiness - `{"value": null}` means "set the
 	// field to null"). Anything else (including a top-level object
 	// without "value") is taken as the raw value.
 	if obj, ok := raw.(map[string]any); ok {
@@ -586,7 +586,7 @@ func readFieldValue(r *http.Request) (any, error) {
 }
 
 // templateHasField returns true when `key` is the key of any field
-// in the template — including container fields, since the original
+// in the template - including container fields, since the original
 // JS find() doesn't distinguish.
 func templateHasField(t *template.Template, key string) bool {
 	for _, f := range t.Fields {
@@ -765,7 +765,7 @@ func guidKeyOf(t *template.Template) string {
 }
 
 // itemResponseFromWrite shapes a write success body using the same
-// envelope as the read endpoint's itemResponse — clients see one
+// envelope as the read endpoint's itemResponse - clients see one
 // shape across read+write.
 func itemResponseFromWrite(stem, id, filename string, meta, data map[string]any) itemResponse {
 	if meta == nil {
@@ -785,14 +785,14 @@ func itemResponseFromWrite(stem, id, filename string, meta, data map[string]any)
 			Self: "/api/collections/" + stem + "/" + id,
 			HTML: "/template/" + stem + "/form/" + filename,
 		},
-		// Rev is left empty on writes — clients re-GET if they need it.
+		// Rev is left empty on writes - clients re-GET if they need it.
 	}
 }
 
 // pickWriteTitle picks a display title for the write response. Uses
 // data["title"] if present, else falls back to filename. The read
 // endpoint uses a richer rule (item_field then filename) but writes
-// don't have access to the template here without an extra load — and
+// don't have access to the template here without an extra load - and
 // clients usually re-GET anyway.
 func pickWriteTitle(data, _ map[string]any, filename string) string {
 	if t, _ := data["title"].(string); t != "" {

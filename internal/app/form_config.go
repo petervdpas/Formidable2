@@ -13,7 +13,7 @@ type configAdapter struct {
 }
 
 // FormDefaults snapshots the config values form.Manager needs.
-// Errors are swallowed and reported as zero defaults — this is a
+// Errors are swallowed and reported as zero defaults - this is a
 // best-effort read called on every form save/build, and a missing
 // or unreadable config should never block the form pipeline.
 func (a *configAdapter) FormDefaults() form.ConfigDefaults {

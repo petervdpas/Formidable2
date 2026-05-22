@@ -18,7 +18,7 @@ const { t } = useI18n();
 
 const props = withDefaults(
   defineProps<{
-    /** Language hint: 'markdown' (default — Handlebars/MD), 'yaml', 'lua', 'html'. */
+    /** Language hint: 'markdown' (default - Handlebars/MD), 'yaml', 'lua', 'html'. */
     lang?: "markdown" | "yaml" | "lua" | "html";
     /** Tab indentation size. Default 2. */
     tabSize?: number;
@@ -26,7 +26,7 @@ const props = withDefaults(
     readonly?: boolean;
     /** Default editor height (px). User can drag the corner to resize. */
     height?: number;
-    /** Optional left-aligned toolbar caption — names the thing being
+    /** Optional left-aligned toolbar caption - names the thing being
      *  edited so the full-screen overlay still shows context. */
     title?: string;
   }>(),
@@ -36,7 +36,7 @@ const props = withDefaults(
 const model = defineModel<string>({ default: "" });
 
 // vue-codemirror doesn't expose its EditorView via the component
-// ref — it emits a `ready` event with the view once mounted.
+// ref - it emits a `ready` event with the view once mounted.
 // Capture it there so format() can dispatch a transaction
 // directly, avoiding any v-model round-trip staleness.
 const editorView = ref<EditorView | null>(null);
@@ -60,7 +60,7 @@ const langExtension = computed(() => {
   return [markdown({ extensions: [handlebarsMarkdownExtensions] })];
 });
 
-// Ctrl+Enter / Cmd+Enter toggles full-screen mode — same gesture
+// Ctrl+Enter / Cmd+Enter toggles full-screen mode - same gesture
 // Formidable uses for "Template Code". Implemented as a CSS class on
 // the root: fixed-position overlay over the whole webview.
 const fullscreen = ref(false);
@@ -118,7 +118,7 @@ const fullscreenKey = Prec.highest(
 
 // CodeMirror 6 grows to content unless you set a height via a theme
 // extension. We anchor `&` (the editor root) to 100% of its host
-// element — the wrapper's CSS height (which the user can drag) then
+// element - the wrapper's CSS height (which the user can drag) then
 // becomes the visible editor height; longer content scrolls inside
 // `.cm-scroller`.
 const heightExtension = EditorView.theme({

@@ -1,8 +1,8 @@
-Feature: REST API — POST /api/collections/{tpl}/batch
+Feature: REST API - POST /api/collections/{tpl}/batch
   Bulk apply many items in a single request. `?mode=create` refuses
   existing GUIDs (per-item error), `replace` is full-upsert, `merge`
   is partial-upsert. Per-item failures are collected in the response
-  rather than aborting the batch — clients see what landed and what
+  rather than aborting the batch - clients see what landed and what
   didn't in one round-trip.
 
   Background:
@@ -22,7 +22,7 @@ Feature: REST API — POST /api/collections/{tpl}/batch
       {"meta":{"id":"g-abc","template":"recepten","tags":["bakery"]},"data":{"guid":"g-abc","naam":"Brood","portie":4}}
       """
 
-  Scenario: Default mode is create — refuses existing guid
+  Scenario: Default mode is create - refuses existing guid
     When I POST "/api/collections/recepten/batch" with body:
       """
       {"items":[

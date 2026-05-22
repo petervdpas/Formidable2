@@ -1,4 +1,4 @@
-// Field-type registry — single source of truth lives in Go
+// Field-type registry - single source of truth lives in Go
 // (internal/modules/template/field_abilities.go). This module loads
 // the backend matrix on first call and merges it with the few
 // frontend-only display concerns: i18n labelKey + per-type "default
@@ -6,13 +6,13 @@
 //
 // Public surface intentionally matches the previous static
 // `FIELD_TYPES`: getFieldTypeDef / isRowHidden / selectableTypes /
-// FIELD_TYPES — so existing consumers keep working without changes.
+// FIELD_TYPES - so existing consumers keep working without changes.
 //
 // Boot ordering: ensureFieldTypesLoaded (in main.ts) kicks off load()
 // before the app mounts, so by the time any component calls
 // selectableTypes() the registry is populated. If the call beats the
 // load (shouldn't happen in normal flow), the helpers degrade
-// gracefully — the dropdown is empty and isRowHidden returns false.
+// gracefully - the dropdown is empty and isRowHidden returns false.
 
 import { ref, type Ref } from "vue";
 import {
@@ -125,7 +125,7 @@ export function isRowHidden(typeId: string, rowId: FieldEditRowId): boolean {
  *
  *  - For new fields (isNew): include `looper` (synthesizes a
  *    loopstart/loopstop pair on confirm); hide loopstart/loopstop.
- *  - For existing loopstart/loopstop: lock to that same type — the
+ *  - For existing loopstart/loopstop: lock to that same type - the
  *    user can't "convert" half of a pair into something else.
  *  - For other existing fields: hide `looper`, `loopstart`, `loopstop`. */
 export function selectableTypes(currentType: string, isNew = false): FieldTypeDef[] {

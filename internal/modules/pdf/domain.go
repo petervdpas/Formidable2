@@ -86,7 +86,7 @@ func (m *Manager) AssetServer() *AssetServer {
 }
 
 // LastExport returns the most recent success and failure ExportTelemetry
-// records. Both pointers may be nil — see ExportTelemetrySnapshot. Safe
+// records. Both pointers may be nil - see ExportTelemetrySnapshot. Safe
 // for concurrent use; the returned record pointers are not shared with
 // the manager, so callers can read fields without holding any lock.
 func (m *Manager) LastExport() ExportTelemetrySnapshot {
@@ -134,7 +134,7 @@ func (m *Manager) recordFailure(t *ExportTelemetry) {
 //     atomically writing the generated PDF. *system.Manager
 //     satisfies it; tests use the in-memory memFS.
 //   - rdr / stg / tpl: render + storage + template slices used by
-//     Stage 4 / 6 Export. May be nil individually — manifest layer
+//     Stage 4 / 6 Export. May be nil individually - manifest layer
 //     is best-effort, so a nil templateLoader simply skips the
 //     manifest merge layer rather than erroring.
 //   - convertFn: how to build a converter for one export call. Nil
@@ -224,7 +224,7 @@ func (m *Manager) Restore() error {
 
 	// Cover-library scaffold: write any missing seed (classic /
 	// banner / corporate / signature) to <AppRoot>/pdf/covers/. The
-	// scaffold is idempotent and respects existing user edits — see
+	// scaffold is idempotent and respects existing user edits - see
 	// cover_scaffold.go.
 	if err := scaffoldCovers(m.store.fs, m.log); err != nil {
 		m.log.Warn("pdf: cover scaffold failed; library may be incomplete", "err", err)
@@ -243,7 +243,7 @@ func (m *Manager) Restore() error {
 //     sentinel, and parse as html/template.
 //
 // On success the cover becomes immediately discoverable via
-// ListCovers — no restart, no registration step.
+// ListCovers - no restart, no registration step.
 func (m *Manager) SaveCover(name, html string) error {
 	m.log.Debug("pdf: save cover", "name", name)
 	if err := saveDiskCover(m.store.fs, name, html); err != nil {
@@ -254,7 +254,7 @@ func (m *Manager) SaveCover(name, html string) error {
 }
 
 // ListCovers returns descriptors for every cover discovered under
-// <AppRoot>/pdf/covers/ — the embedded library scaffolded at boot
+// <AppRoot>/pdf/covers/ - the embedded library scaffolded at boot
 // AND any user-authored covers dropped into the dir at runtime.
 // signature.html is filtered out (reserved). Invalid files are
 // returned with OK=false so the picker UI can surface them rather
@@ -264,7 +264,7 @@ func (m *Manager) ListCovers() ([]CoverDescriptor, error) {
 }
 
 // LoadCover returns the raw cover HTML for editing. Validation is NOT
-// applied here — the editor must be able to load a broken cover so
+// applied here - the editor must be able to load a broken cover so
 // the user can fix it. Refuses reserved names with ErrCoverNotFound.
 // Missing files return ErrCoverNotFound (wrapped with the underlying
 // I/O detail) so the frontend can distinguish from a load error.
@@ -274,7 +274,7 @@ func (m *Manager) LoadCover(name string) (string, error) {
 
 // DeleteCover removes <AppRoot>/pdf/covers/<name>.html. Refuses
 // reserved names (signature, path separators, leading dot) with
-// ErrCoverNotFound — same guard as SaveCover, just inverted.
+// ErrCoverNotFound - same guard as SaveCover, just inverted.
 //
 // Important asymmetry: deleting a seed cover (classic/banner/corporate)
 // only removes the file on disk; the next boot's scaffoldCovers run
@@ -291,7 +291,7 @@ func (m *Manager) DeleteCover(name string) error {
 
 // ExportCoverArchive bundles <AppRoot>/pdf/covers/<name>.html with
 // every image its <img src=…> and CSS url(…) refs point at into a zip
-// at zipPath. zipPath may be absolute (the typical case — user picks
+// at zipPath. zipPath may be absolute (the typical case - user picks
 // it via a save dialog) or AppRoot-relative. Missing image refs are
 // reported in the result without aborting the export so the user
 // can decide whether to chase them down post-share.
@@ -332,7 +332,7 @@ func (m *Manager) Status() Status {
 // non-empty, that exact path is validated and adopted. Otherwise
 // the prober runs and the first candidate (env-var override >
 // system path > managed cache) is picked. Returns ErrNoBrowserFound
-// when no candidate is available — Formidable does not bundle or
+// when no candidate is available - Formidable does not bundle or
 // download Chrome; the user must install one and re-probe.
 func (m *Manager) Activate(opts ActivateOpts) (Status, error) {
 	m.log.Debug("pdf: activate", "browser_bin", opts.BrowserBin)
@@ -383,7 +383,7 @@ func (m *Manager) Activate(opts ActivateOpts) (Status, error) {
 
 // Deactivate flips the manager back to inactive and clears the
 // activation half of the persisted state. The managed Chromium
-// cache (if present) is NOT deleted — the user can re-activate
+// cache (if present) is NOT deleted - the user can re-activate
 // without re-downloading. The ExportDir preference is preserved so
 // the user's export folder choice survives a deactivate/activate
 // cycle. Idempotent: calling while already inactive is a no-op that
@@ -404,7 +404,7 @@ func (m *Manager) Deactivate() error {
 // SetExportDir stores the user's preferred export folder. Empty
 // path clears the preference (Stage 4 will fall back to placing
 // PDFs next to the form). Non-empty paths must be absolute, exist,
-// and be a directory — anything else returns ErrInvalidExportDir.
+// and be a directory - anything else returns ErrInvalidExportDir.
 //
 // Independent of activation: callable while inactive, doesn't flip
 // engine state, doesn't require a browser binding.
@@ -456,7 +456,7 @@ func (m *Manager) SetExportDir(path string) (Status, error) {
 
 // Export now lives in render.go (Stage 4 pipeline). The Active check
 // short-circuits there so the rendering pipeline is never constructed
-// for an inactive engine — Chrome must not boot until the user has
+// for an inactive engine - Chrome must not boot until the user has
 // opted in.
 
 // Probe runs the activation probe without mutating state. Used by

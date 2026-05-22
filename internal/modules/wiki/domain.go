@@ -32,14 +32,14 @@ type Manager struct {
 
 	// servewg tracks the in-flight Serve goroutine. Stop waits on it
 	// after Shutdown returns so the kernel has fully released the port
-	// before Stop returns to the caller — without this guarantee a
+	// before Stop returns to the caller - without this guarantee a
 	// rapid Stop→Start on the same port races with the goroutine's
 	// listener-close path and bind() returns EADDRINUSE.
 	servewg sync.WaitGroup
 }
 
 // NewManager builds a manager rooted at the given logger. nil log →
-// slog.Default. The server starts in the stopped state — composition
+// slog.Default. The server starts in the stopped state - composition
 // root calls Start(port) once config is loaded.
 func NewManager(log *slog.Logger) *Manager {
 	if log == nil {
@@ -54,7 +54,7 @@ func NewManager(log *slog.Logger) *Manager {
 // SetHandler installs the active http.Handler. Safe to call before or
 // after Start; if the server is running the new handler takes effect
 // on the next request without re-binding the port. nil restores the
-// default 404 mux — useful for tests and for "I want to deactivate
+// default 404 mux - useful for tests and for "I want to deactivate
 // routes without stopping the listener" scenarios.
 func (m *Manager) SetHandler(h http.Handler) {
 	if h == nil {
@@ -89,7 +89,7 @@ func (m *Manager) Start(port int) error {
 	}
 	srv := &http.Server{
 		Handler: m.handler,
-		// Modest header timeout — no slow-loris budget on a loopback.
+		// Modest header timeout - no slow-loris budget on a loopback.
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	m.server = srv
@@ -175,7 +175,7 @@ func (m *Manager) actualPortLocked() int {
 }
 
 // defaultHandler is the placeholder mux installed when no real
-// handler has been set. Returns 404 for all paths — useful for tests
+// handler has been set. Returns 404 for all paths - useful for tests
 // and for the "lifecycle only" composition during early boot before
 // the read-path handler is mounted.
 func defaultHandler() http.Handler {

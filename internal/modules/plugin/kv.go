@@ -20,7 +20,7 @@ type kvFS interface {
 }
 
 // KV is the per-plugin key-value store. Each plugin's bag of
-// values lives at <root>/<plugin-id>.json — one file per plugin
+// values lives at <root>/<plugin-id>.json - one file per plugin
 // so deleting a plugin is just removing its folder + this file.
 //
 // The JSON shape is `map[string]any` so plugin authors can store
@@ -43,7 +43,7 @@ type KV struct {
 }
 
 // NewKV constructs an empty KV rooted at <root>. The directory is
-// lazily created on first write — a fresh app with zero plugins
+// lazily created on first write - a fresh app with zero plugins
 // using kv leaves no stray folders behind.
 func NewKV(fs kvFS, root string) *KV {
 	return &KV{fs: fs, root: root, cache: map[string]map[string]any{}}
@@ -84,7 +84,7 @@ func (s *KV) Set(pluginID, key string, value any) error {
 }
 
 // Delete removes a key. Deleting a missing key is a silent no-op
-// — same shape as `delete(map, key)` in Go.
+// - same shape as `delete(map, key)` in Go.
 func (s *KV) Delete(pluginID, key string) error {
 	if !validID(pluginID) {
 		return fmt.Errorf("%w: bad plugin id %q", ErrManifestInvalid, pluginID)

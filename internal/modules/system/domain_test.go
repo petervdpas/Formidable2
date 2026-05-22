@@ -68,7 +68,7 @@ func TestMakeAppRootRelative_RootItselfBecomesDot(t *testing.T) {
 
 func TestMakeAppRootRelative_OutsideRootStaysAbsolute(t *testing.T) {
 	// A folder that doesn't sit under AppRoot must round-trip
-	// unchanged — collapsing to "../../foo" would be brittle and
+	// unchanged - collapsing to "../../foo" would be brittle and
 	// breaks the "absolute path = picker output" guarantee.
 	m, _ := newTestManager(t)
 	outside := filepath.Join(t.TempDir(), "elsewhere")
@@ -96,7 +96,7 @@ func TestMakeAppRootRelative_AlreadyRelativeReturnsAsIs(t *testing.T) {
 }
 
 func TestResolveAbsolutePath_Empty(t *testing.T) {
-	// Empty in, empty out — never coerce nothing into a path. The
+	// Empty in, empty out - never coerce nothing into a path. The
 	// path-field components rely on this so a freshly created field
 	// keeps an unset value rather than auto-populating to cwd.
 	m, _ := newTestManager(t)
@@ -122,7 +122,7 @@ func TestResolveAbsolutePath_AbsoluteIsCleaned(t *testing.T) {
 
 func TestResolveAbsolutePath_TildeExpands(t *testing.T) {
 	// `~` and `~/sub` expand to the user's home dir. Anything else
-	// starting with `~` (e.g. `~someuser`) is left alone — that's
+	// starting with `~` (e.g. `~someuser`) is left alone - that's
 	// shell-only sugar we're not trying to reimplement.
 	m, _ := newTestManager(t)
 	home, err := os.UserHomeDir()
@@ -457,7 +457,7 @@ func TestJournalHook_EmitsOnMutation(t *testing.T) {
 
 func TestJournalHook_NilIsSafe(t *testing.T) {
 	m, _ := newTestManager(t)
-	// no journal wired — must not panic
+	// no journal wired - must not panic
 	if err := m.SaveFile("x.txt", "y"); err != nil {
 		t.Fatalf("SaveFile without journal: %v", err)
 	}

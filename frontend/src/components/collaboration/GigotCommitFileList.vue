@@ -19,7 +19,7 @@ const { t } = useI18n();
     {{ t('common.loading') }}
   </p>
   <p v-else-if="files === 'error'" class="muted small">
-    {{ t('workspace.collaboration.graph.error', ['—']) }}
+    {{ t('workspace.collaboration.graph.error', ['-']) }}
   </p>
   <ul v-else-if="Array.isArray(files)" class="commit-files">
     <li

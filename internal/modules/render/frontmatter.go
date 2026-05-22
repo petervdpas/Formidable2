@@ -67,7 +67,7 @@ func BuildFrontmatter(data map[string]any, body string) string {
 
 // setSequenceStyle walks a yaml.Node tree and applies the given style
 // to every sequence node. Mappings and scalars are left at their
-// default style — only sequences are coerced — so `title: 'x'` stays
+// default style - only sequences are coerced - so `title: 'x'` stays
 // quoted as the user wrote it while `tags: [a, b]` lands inline.
 func setSequenceStyle(n *yaml.Node, style yaml.Style) {
 	if n == nil {

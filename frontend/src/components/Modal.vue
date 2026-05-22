@@ -32,7 +32,7 @@ const maximized = ref(false);
 
 // When maximized, ignore the caller's width / dialogStyle.height and
 // fill the available viewport space. Restoring snaps back to the
-// caller's original sizing — no animation, no half-states.
+// caller's original sizing - no animation, no half-states.
 const computedStyle = computed(() => {
   if (maximized.value) {
     return {
@@ -76,7 +76,7 @@ watch(
       target?.focus();
     } else {
       window.removeEventListener("keydown", onKeydown, { capture: true });
-      // Reopen starts un-maximized — matches OS window behaviour.
+      // Reopen starts un-maximized - matches OS window behaviour.
       maximized.value = false;
     }
   },

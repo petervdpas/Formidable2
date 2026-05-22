@@ -1,5 +1,5 @@
 // Package csv reads and writes CSV files for Formidable. Mirrors
-// `controls/csvManager.js` semantics — header row first, RFC-4180
+// `controls/csvManager.js` semantics - header row first, RFC-4180
 // quoting, configurable delimiter, LF line endings.
 //
 // Wails-only: the CSV import/export endpoints in Epic 8 (collections)

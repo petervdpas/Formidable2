@@ -153,7 +153,7 @@ func TestPullLocalWithProgress_FetchEventsCarryPath(t *testing.T) {
 
 func TestPullLocalWithProgress_SkippedShaMatchStillEmitsFetch(t *testing.T) {
 	// A file whose local SHA matches the server doesn't trigger an
-	// HTTP fetch — but it must still be counted in the progress
+	// HTTP fetch - but it must still be counted in the progress
 	// stream so the bar advances past it. Without this the user sees
 	// a stuck progress bar on no-op syncs.
 	ctxDir := t.TempDir()
@@ -209,7 +209,7 @@ func TestPullLocalWithProgress_LocalDeletesFireDeletePhase(t *testing.T) {
 	srv, h := newOrchestrationServer(t)
 	defer srv.Close()
 	h.handle("GET", "/api/repos/r/tree", func(w http.ResponseWriter, _ *http.Request) {
-		// New tree omits gone.yaml — must trigger a local delete.
+		// New tree omits gone.yaml - must trigger a local delete.
 		_ = json.NewEncoder(w).Encode(TreeResponse{Version: "new"})
 	})
 

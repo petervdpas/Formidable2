@@ -43,7 +43,7 @@ func stringify(v any) string {
 	}
 }
 
-// truthy mirrors JS `Boolean(v)` for the boolean emitter — non-empty
+// truthy mirrors JS `Boolean(v)` for the boolean emitter - non-empty
 // strings, non-zero numbers, and non-nil objects are true.
 func truthy(v any) bool {
 	switch x := v.(type) {
@@ -137,7 +137,7 @@ func emitBoolean(v any, f *template.Field) string {
 	return "False"
 }
 
-// emitOptionLabel — dropdown / radio / table-column lookup. Returns the
+// emitOptionLabel - dropdown / radio / table-column lookup. Returns the
 // option label that matches v; falls back to v's stringified form.
 func emitOptionLabel(v any, f *template.Field) string {
 	want := stringify(v)
@@ -153,7 +153,7 @@ func emitOptionLabel(v any, f *template.Field) string {
 	return want
 }
 
-// emitMultioption — array of selected values → comma-joined labels.
+// emitMultioption - array of selected values → comma-joined labels.
 func emitMultioption(v any, f *template.Field) string {
 	arr, ok := v.([]any)
 	if !ok {
@@ -241,7 +241,7 @@ func emitTags(v any, withHash bool) string {
 //     transport-specific rewriter when one is installed (wiki HTTP →
 //     /template/<stem>/form/<datafile>, future Azure/GitHub exports →
 //     their own slug schemes). nil hook = pass through untouched
-//     (slideout case — Vue click interceptor handles clicks in-app).
+//     (slideout case - Vue click interceptor handles clicks in-app).
 //   - Absolute URLs (http/https/etc.) and `file:` URIs are passthrough.
 //   - Otherwise it's a relative path: LinkURL resolves it against
 //     template storage if provided.

@@ -118,7 +118,7 @@ func TestOpenIndexDB_UpgradesV1ToV2(t *testing.T) {
 	}
 }
 
-// TestOpenIndexDB_V2WipesExistingForms — v2 deletes every forms row so
+// TestOpenIndexDB_V2WipesExistingForms - v2 deletes every forms row so
 // the next RescanAll re-upserts with the new audit/facet columns
 // populated. Without the wipe, rows would stay with NULL identity and
 // no facets until each file's mtime changed.
@@ -175,7 +175,7 @@ func TestOpenIndexDB_V2WipesExistingForms(t *testing.T) {
 		t.Errorf("form_tags after v2 = %d, want 0 (cascade)", tagCount)
 	}
 
-	// Template parent must survive — v2 only rebuilds forms, not the
+	// Template parent must survive - v2 only rebuilds forms, not the
 	// template list.
 	var tplCount int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM templates`).Scan(&tplCount); err != nil {
@@ -207,7 +207,7 @@ func seedV1(t *testing.T, path string) {
 }
 
 // openV1Direct opens the same DSN openIndexDB uses, without the
-// migration pass — so test setup can stamp a known earlier version.
+// migration pass - so test setup can stamp a known earlier version.
 func openV1Direct(path string) (*sql.DB, error) {
 	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)"
 	db, err := sql.Open("sqlite", dsn)
@@ -218,7 +218,7 @@ func openV1Direct(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// TestOpenIndexDB_Idempotent — calling openIndexDB twice on the same
+// TestOpenIndexDB_Idempotent - calling openIndexDB twice on the same
 // file is a no-op for the schema; the rev counter and any user data
 // must survive across re-opens.
 func TestOpenIndexDB_Idempotent(t *testing.T) {
@@ -251,7 +251,7 @@ func TestOpenIndexDB_Idempotent(t *testing.T) {
 	}
 }
 
-// TestOpenIndexDB_FutureVersionRejected — a DB stamped with a higher
+// TestOpenIndexDB_FutureVersionRejected - a DB stamped with a higher
 // version than this build supports is a hard error. We don't downgrade
 // or wipe; the user has to use the matching app version (or delete the
 // file to force a rebuild).

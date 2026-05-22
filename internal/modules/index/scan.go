@@ -10,7 +10,7 @@ import (
 
 // FileEntry is the unit of comparison between disk and the index.
 // Filename is the basename only (e.g. "basic.yaml" or "test.meta.json")
-// — paths get rebuilt in scan/reconcile, never carried in the entry.
+// - paths get rebuilt in scan/reconcile, never carried in the entry.
 type FileEntry struct {
 	Filename string
 	Mtime    int64 // unix nanoseconds
@@ -29,7 +29,7 @@ type ScanResult struct {
 // scanDisk walks <root>/templates and <root>/storage and returns the
 // canonical disk view: every .yaml under templates/, every .meta.json
 // under storage/<stem>/, every file (any extension) under
-// storage/<stem>/images/. Missing directories are not errors —
+// storage/<stem>/images/. Missing directories are not errors -
 // fresh contexts may have neither yet.
 //
 // Hidden files (".formidable", ".DS_Store", etc.) are skipped at every
@@ -78,7 +78,7 @@ func scanDisk(root string) (*ScanResult, error) {
 // diffEntries computes the (added, changed, removed) sets between disk
 // and the index for a single bucket of files (templates, one
 // template's forms, or one template's images). Equality is defined as
-// (mtime, size) — equal mtime + different size catches sub-resolution
+// (mtime, size) - equal mtime + different size catches sub-resolution
 // rewrites that some filesystems silently allow.
 type Diff struct {
 	Added   []FileEntry

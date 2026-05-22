@@ -1,11 +1,11 @@
-// Wiki list filtering — tags + free-text + facets, all client-side.
+// Wiki list filtering - tags + free-text + facets, all client-side.
 //
 //   * #tag / plain text live filter (the existing topbar search box).
 //   * Per-facet <select> dropdowns in the .facet-filter-strip above
 //     the form list. AND-combined with the text filter and with each
 //     other: every facet that has a non-empty value must match.
 //
-// Filters degrade gracefully — pages without the search input still
+// Filters degrade gracefully - pages without the search input still
 // work (no listeners attached), pages without facet selects work too.
 (function () {
   const items = Array.from(document.querySelectorAll('.form-picker-list [data-tags]'));
@@ -106,7 +106,7 @@
     });
   }
 
-  // Initial paint — covers the "every selected facet" case for back-button
+  // Initial paint - covers the "every selected facet" case for back-button
   // returns where the browser restored <select> values from history.
   applyFilter();
 })();

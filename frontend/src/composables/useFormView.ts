@@ -11,7 +11,7 @@ import { FormMeta } from "../../bindings/github.com/petervdpas/formidable2/inter
 // for two-way editing; dirty diffs against the freshly-loaded view.
 //
 // One instance per StorageWorkspace mount. Module-scope singleton is
-// not needed here — unlike templates, only one form is editable at a
+// not needed here - unlike templates, only one form is editable at a
 // time inside one workspace, and the state is owned by that workspace.
 
 export function useFormView() {

@@ -6,7 +6,7 @@ import { useProfiles } from "./useProfiles";
 import { useConfig } from "./useConfig";
 import type { WorkspaceId } from "../workspaces";
 
-// Single source of truth for ribbon availability — used by Ribbon.vue
+// Single source of truth for ribbon availability - used by Ribbon.vue
 // to ghost disabled items and by App.vue to redirect away from a
 // workspace that becomes disabled at boot or during the session.
 //
@@ -23,7 +23,7 @@ let booted = false;
 
 // fallbackFor: where to send the user when their active workspace
 // becomes unavailable. Each entry encodes "you can't do X without
-// first doing Y" — Storage needs a template, Settings needs a
+// first doing Y" - Storage needs a template, Settings needs a
 // profile, Plugins needs the feature flag (toggled in Settings),
 // Collaboration needs a remote backend (configured in Settings →
 // Locations). Add new entries here as more conditional ribbon items
@@ -59,7 +59,7 @@ export function useRibbonAvailability() {
     if (id === "plugins") return !config.value?.enable_plugins;
     // Collaboration is meaningful only when a remote backend is
     // configured. "none" (the default) means the user is purely
-    // local — ghost the ribbon and redirect them to Settings →
+    // local - ghost the ribbon and redirect them to Settings →
     // Locations to pick Git or GiGot first.
     if (id === "collaboration") {
       return (config.value?.remote_backend ?? "none") === "none";

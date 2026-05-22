@@ -439,7 +439,7 @@ func TestAnalyze_UnknownTemplate_Errors(t *testing.T) {
 
 func TestAnalyze_UnreadableForm_IssueRecorded(t *testing.T) {
 	// LoadForm returning nil mimics what storage.Manager does on
-	// parse failure — see the rescan/index "malformed JSON" path.
+	// parse failure - see the rescan/index "malformed JSON" path.
 	m := newM(t, tplBasic(), map[string]*storage.Form{"broken.meta.json": nil})
 	r, err := m.AnalyzeTemplate("basic.yaml")
 	if err != nil {
@@ -449,7 +449,7 @@ func TestAnalyze_UnreadableForm_IssueRecorded(t *testing.T) {
 	if iss.Kind != IssueUnreadable {
 		t.Errorf("want IssueUnreadable, got %s", iss.Kind)
 	}
-	// Unreadable is a terminal verdict — no other issues should be stacked.
+	// Unreadable is a terminal verdict - no other issues should be stacked.
 	for _, fr := range r.Forms {
 		if fr.Filename == "broken.meta.json" && len(fr.Issues) != 1 {
 			t.Errorf("want exactly 1 issue on broken form, got %d", len(fr.Issues))

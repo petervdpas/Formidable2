@@ -12,7 +12,7 @@ import (
 // "1.2" == "1.2.0". Each component is parsed up to its first
 // non-digit; any pre-release or build suffix is dropped, so
 // "1.0.0-rc1" compares equal to "1.0.0". That is deliberately
-// looser than strict semver — the version field's sole purpose
+// looser than strict semver - the version field's sole purpose
 // here is downgrade-protection on import, and the simple form
 // covers the practical cases without dragging in a semver dep.
 func compareVersions(a, b string) int {

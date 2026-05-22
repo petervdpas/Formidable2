@@ -1,15 +1,15 @@
 <script setup lang="ts">
 /*
- * ExpressionBuilderModal — visual builder for a template's
+ * ExpressionBuilderModal - visual builder for a template's
  * sidebar_expression. The data model lives backend-side in
  * `internal/modules/expression/builder` (Config / Rule / Predicate /
  * TextSource / Outcome) and reaches the frontend via Wails-generated
- * bindings — backend is the source of truth for the builder's
+ * bindings - backend is the source of truth for the builder's
  * vocabulary so the dialog cannot drift from the engine.
  *
  * Layout: rule list on the left (with a Default pseudo-row at the
  * bottom), rule editor on the right (predicates + outcome). The
- * dialog is one-way — Apply overwrites the textarea; round-trip
+ * dialog is one-way - Apply overwrites the textarea; round-trip
  * parsing of free-form expr-lang is not planned.
  */
 import { computed, ref, watch } from "vue";
@@ -39,7 +39,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "close"): void;
   (e: "apply", source: string): void;
-  /** Parent should clear the textarea without closing the dialog —
+  /** Parent should clear the textarea without closing the dialog -
    * fired when an existing source can't be parsed back into a Config. */
   (e: "clear"): void;
 }>();
@@ -152,7 +152,7 @@ watch(
     await Promise.all([loadMetadata(), refreshPredicateableFields()]);
 
     // Preload the existing sidebar_expression so the dialog opens on
-    // the user's last-saved state. Strict parser — only the AST shape
+    // the user's last-saved state. Strict parser - only the AST shape
     // Compile emits round-trips. On any failure we keep the dialog
     // empty, surface a warning, and ask the parent to wipe the
     // textarea so the unparseable source doesn't silently survive.
@@ -266,7 +266,7 @@ async function onApply() {
 }
 
 const canApply = computed(() => {
-  // Allow apply even with an empty config — emits "" so the user can
+  // Allow apply even with an empty config - emits "" so the user can
   // clear an existing sidebar_expression. Backend rejects malformed
   // configs (kind mismatches, missing values) and we surface the
   // error inline rather than guess about completeness here.
@@ -353,7 +353,7 @@ const canApply = computed(() => {
           <template v-else-if="editingDefault">
             {{ t('workspace.templates.expression_builder.default_row') }}
           </template>
-          <template v-else>—</template>
+          <template v-else>-</template>
         </legend>
 
         <p
@@ -364,7 +364,7 @@ const canApply = computed(() => {
         </p>
 
         <template v-else>
-          <!-- PREDICATES (only for actual rules — default has no predicates) -->
+          <!-- PREDICATES (only for actual rules - default has no predicates) -->
           <section v-if="selectedRule" class="expr-builder-predicates">
             <h4 class="expr-builder-section-title">
               {{ t('workspace.templates.expression_builder.predicates_block') }}

@@ -13,14 +13,14 @@ import (
 //   - happy: a value the field stores in normal use (round-tripped
 //     through the on-disk JSON form).
 //   - unhappy: a value that is unambiguously the wrong shape (different
-//     Go type entirely) — must produce IssueTypeMismatch (or
+//     Go type entirely) - must produce IssueTypeMismatch (or
 //     IssueBadDateFormat for date strings that fail parse).
 //   - empty: the zero value Sanitize would default to. Always allowed.
 //
 // Tests run the analyzer against a one-field template with one form
 // holding the value, then assert on the issue list.
 //
-// The shapes here are not invented — they are sourced from the matching
+// The shapes here are not invented - they are sourced from the matching
 // FormField<Type>.vue component's modelValue contract. Keep this list
 // in lockstep when a field's wire format changes.
 
@@ -56,7 +56,7 @@ func fieldTypeCases() []fieldTypeCase {
 		{fieldType: "list", happy: []any{"one", "two"}, unhappy: "one", wantKind: IssueTypeMismatch, emptyValue: []any{}},
 		{fieldType: "table", happy: []any{[]any{"r1c1", "r1c2"}}, unhappy: "[1,2]", wantKind: IssueTypeMismatch, emptyValue: []any{}},
 
-		// link accepts map OR legacy string — both pass; only deeply wrong
+		// link accepts map OR legacy string - both pass; only deeply wrong
 		// types fail. Happy and emptyValue cover the canonical shape;
 		// link's "legacy string" path has its own dedicated test below.
 		{fieldType: "link", happy: map[string]any{"href": "https://x", "text": "X"}, unhappy: float64(7), wantKind: IssueTypeMismatch, emptyValue: map[string]any{"href": "", "text": ""}},
@@ -158,7 +158,7 @@ func TestFieldType_Link_AcceptsEmptyMap(t *testing.T) {
 }
 
 func TestFieldType_API_AcceptsNil(t *testing.T) {
-	// `api` defaults to nil for an unset row picker — sanitize.go's
+	// `api` defaults to nil for an unset row picker - sanitize.go's
 	// defaultForType returns nil specifically for this type so the UI
 	// can distinguish "no pick yet" from a stamped {guid, ...}.
 	r := runFieldTypeCase(t,

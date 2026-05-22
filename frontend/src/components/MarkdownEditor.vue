@@ -5,9 +5,9 @@ import type { EditorView } from "@codemirror/view";
 import "md-editor-v3/lib/style.css";
 import { useTheme } from "../composables/useTheme";
 
-// MarkdownEditor — Vue 3 native markdown editor built on CodeMirror 6
+// MarkdownEditor - Vue 3 native markdown editor built on CodeMirror 6
 // via md-editor-v3. Native Vue ownership of the model and DOM lifecycle
-// means no manual mount/teardown/refresh dance — `v-model` and the
+// means no manual mount/teardown/refresh dance - `v-model` and the
 // component handle their own measurement.
 //
 // Toolbar handlers are custom: md-editor-v3's defaults wrap the
@@ -206,7 +206,7 @@ function runAction(action: ButtonAction) {
 
 // ── Action configs ─────────────────────────────────────────────────
 // Shared "any-list-prefix" regex used by ul/ol/task as their stripRe.
-// Quote intentionally doesn't reuse this — quoting a list keeps the bullet.
+// Quote intentionally doesn't reuse this - quoting a list keeps the bullet.
 const ANY_LIST_PREFIX_RE = /^\s*(- \[[ xX]?\]\s|[*\-+]\s|\d+\.\s)/;
 
 const LINE_SPEC = {
@@ -257,7 +257,7 @@ function tableBuild(selected: string): CompositeInsert {
 // ── Toolbar layout ─────────────────────────────────────────────────
 // Groups of buttons; flattened into the `defToolbars` slot in render
 // order, with separators inserted between groups in the `toolbars`
-// prop. Add a new button by dropping it in the right group — no other
+// prop. Add a new button by dropping it in the right group - no other
 // changes needed.
 const TOOLBAR_GROUPS: ToolbarButton[][] = [
   [

@@ -42,12 +42,12 @@ type AssetServer struct {
 
 // NewAssetServer binds a fresh loopback listener and starts serving
 // from rootDir. rootDir must be an absolute path; the constructor
-// does NOT mkdir it — a missing dir simply means every request 404s.
+// does NOT mkdir it - a missing dir simply means every request 404s.
 // The bind happens synchronously so the caller can rely on Addr()
 // returning a usable value the moment NewAssetServer returns.
 //
 // excludePorts lists ports the asset server must NOT bind to even
-// if the OS hands them out — typically the user's configured wiki
+// if the OS hands them out - typically the user's configured wiki
 // server port (default 8383). If the OS picks an excluded port we
 // close the listener and retry, up to bindRetryLimit times before
 // giving up. This stops the asset server from squatting on the wiki
@@ -138,7 +138,7 @@ func (as *AssetServer) Close() error {
 
 // bindRetryLimit caps the OS-port-collision retry loop. Hitting it
 // in practice would require the OS to repeatedly hand back excluded
-// ports out of the entire ephemeral range — practically impossible
+// ports out of the entire ephemeral range - practically impossible
 // unless the exclusion list itself covers most of the range. We log
 // + give up rather than spin indefinitely.
 const bindRetryLimit = 10

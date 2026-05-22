@@ -20,7 +20,7 @@ export interface WorkspaceDef {
   id: WorkspaceId;
   labelKey: string;
   /** SVG basename in src/assets/icons/. Icon component resolves it
-   *  via Vite's import.meta.glob — Flaticon illustrations keep their
+   *  via Vite's import.meta.glob - Flaticon illustrations keep their
    *  built-in colors, no theme tokens are applied. */
   iconName: string;
   component: Component;

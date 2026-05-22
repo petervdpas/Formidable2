@@ -29,7 +29,7 @@ const props = defineProps<{
 defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
 // Per-type dispatch table. Adding a new renderer is one line here.
-// "loopstart"/"loopstop" never reach this component — the workspace
+// "loopstart"/"loopstop" never reach this component - the workspace
 // handles them at the iteration level (loop containers).
 const DISPATCH: Record<string, Component> = {
   text: FormFieldText,

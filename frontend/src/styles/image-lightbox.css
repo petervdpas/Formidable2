@@ -1,4 +1,4 @@
-/* ImageLightbox — fullscreen pan/zoom viewer. Teleported to <body>
+/* ImageLightbox - fullscreen pan/zoom viewer. Teleported to <body>
    so it overlays the entire app, including modals if any. */
 
 .image-lightbox-backdrop {
@@ -14,7 +14,7 @@
     position: absolute;
     top: 50%;
     left: 50%;
-    /* Initial transform is just centering — script sets translate +
+    /* Initial transform is just centering - script sets translate +
        scale via the inline `transform` style. We pre-translate by
        -50% so scale & pan compose around the image's centre. */
     transform: translate(-50%, -50%) scale(1);
@@ -26,7 +26,7 @@
     cursor: grab;
     /* The Vue component overrides `transform` inline. The pre-baked
        -50% above is appended to the inline value via wrapping the
-       script's transform with translate(-50%,-50%) — see component. */
+       script's transform with translate(-50%,-50%) - see component. */
 }
 
 .image-lightbox-img.is-grabbing { cursor: grabbing; }

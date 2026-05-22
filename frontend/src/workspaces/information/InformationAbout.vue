@@ -83,7 +83,7 @@ onMounted(async () => {
     <ul class="thanks-list">
       <li v-for="lib in libraries" :key="lib.id">
         <strong>{{ lib.name }}</strong>
-        <span class="thanks-sep"> — </span>
+        <span class="thanks-sep"> - </span>
         <span>{{ libDesc(lib.id) }}</span>
       </li>
     </ul>

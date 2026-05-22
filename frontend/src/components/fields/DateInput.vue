@@ -5,7 +5,7 @@ import { VueDatePicker } from "@vuepic/vue-datepicker";
 import { enUS, nl } from "date-fns/locale";
 import type { Locale } from "date-fns";
 
-// DateInput — shared building block: VueDatePicker normalised to
+// DateInput - shared building block: VueDatePicker normalised to
 // emit/accept ISO `YYYY-MM-DD` strings via v-model. Used by
 // FormFieldDate (top-level) and FormFieldTable (date columns).
 

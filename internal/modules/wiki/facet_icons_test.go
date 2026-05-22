@@ -7,7 +7,7 @@ import (
 	tpl "github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// facetIconSVG must never emit the xmlns attribute — the user
+// facetIconSVG must never emit the xmlns attribute - the user
 // explicitly asked for inline-SVG-only with no URL-shaped tokens in
 // the output. This is a regression guard.
 func TestFacetIconSVG_NoXMLNSAttribute(t *testing.T) {
@@ -20,7 +20,7 @@ func TestFacetIconSVG_NoXMLNSAttribute(t *testing.T) {
 }
 
 // Unknown icon keys fall back to fa-flag rather than rendering an
-// empty <svg/> — keeps stale templates from disappearing into thin air.
+// empty <svg/> - keeps stale templates from disappearing into thin air.
 func TestFacetIconSVG_UnknownFallsBackToFlag(t *testing.T) {
 	want := string(facetIconSVG("fa-flag"))
 	for _, key := range []string{"", "fa-unknown", "nonsense"} {

@@ -8,7 +8,7 @@ import (
 
 // builtinThemes is picoloom v2's canonical bundled style set. Picoloom
 // does not expose a registry method, so this list IS the single source
-// of truth on the Go side — the frontend reads it via ListThemes() and
+// of truth on the Go side - the frontend reads it via ListThemes() and
 // never hardcodes its own copy. Keep ordering stable: it's the order
 // the dropdown will display.
 //
@@ -26,11 +26,11 @@ var builtinThemes = []ThemeDescriptor{
 
 // Service is the Wails-bound surface over Manager. The Information
 // workspace activation panel and any "Export as PDF" trigger call
-// these methods directly — there is no HTTP handler peer, PDF
+// these methods directly - there is no HTTP handler peer, PDF
 // generation stays Wails-only (see types.go).
 type Service struct{ m *Manager }
 
-// NewService wraps a Manager. Panics on nil — that's a composition-
+// NewService wraps a Manager. Panics on nil - that's a composition-
 // root bug and must surface at boot, not later in a rare branch.
 func NewService(m *Manager) *Service {
 	if m == nil {
@@ -56,7 +56,7 @@ func (s *Service) AssetServerAddr() string {
 }
 
 // ProbeChrome lists every Chrome/Chromium binary the activation
-// flow could adopt — env-var override, then system paths in their
+// flow could adopt - env-var override, then system paths in their
 // platform's conventional order, then the latest managed-cache
 // pick. Empty Candidates means no Chrome was found; the dialog
 // should offer the managed-download path (Phase D).
@@ -85,7 +85,7 @@ func (s *Service) ExportPDF(templateFilename, datafile string, opts ExportOpts) 
 
 // SetExportDir adopts a per-machine "where PDFs land" preference.
 // Empty path clears the preference. Non-empty paths must be
-// absolute + existent + a directory — otherwise the service
+// absolute + existent + a directory - otherwise the service
 // returns ErrInvalidExportDir, which the frontend should surface
 // as a user-correctable error (typically a re-pick via the native
 // folder picker). Independent of activation state.
@@ -95,7 +95,7 @@ func (s *Service) SetExportDir(path string) (Status, error) {
 
 // GetDirectivesDoc returns the embedded markdown reference for the
 // picoloom frontmatter directives in the requested locale. Unknown
-// locale falls back to English. Static content — safe to call any
+// locale falls back to English. Static content - safe to call any
 // time, cheap, no I/O beyond the embedded FS.
 func (s *Service) GetDirectivesDoc(locale string) (string, error) {
 	return directivesDoc(locale)
@@ -119,18 +119,18 @@ func (s *Service) SaveCover(name, html string) error {
 
 // ValidateCoverHTML lets the frontend dry-run validation (e.g. on
 // every keystroke in a cover editor) without writing to disk. Pure
-// function — no I/O, no side effects.
+// function - no I/O, no side effects.
 func (s *Service) ValidateCoverHTML(html string) CoverValidation {
 	return ValidateCover(html)
 }
 
 // InjectFrontmatter prepends the canonical picoloom v2 scaffold to a
 // markdown body. Refuses with ErrFrontmatterAlreadyPresent when an
-// existing `---` block is detected — the user should run
+// existing `---` block is detected - the user should run
 // MigrateFrontmatter in that case. The frontend inserts the result
 // into the template editor; the user saves the template manually.
 //
-// Deprecated for new callers — prefer BuildFrontmatter(InjectConfig)
+// Deprecated for new callers - prefer BuildFrontmatter(InjectConfig)
 // + your own prepend logic for full control over which blocks/values
 // land in the output. This helper survives because some callers want
 // the full canonical fully-commented placeholder scaffold.
@@ -149,7 +149,7 @@ func (s *Service) BuildFrontmatter(cfg InjectConfig) (string, error) {
 
 // ListPageSizes returns picoloom's canonical page-size set in
 // dropdown order. Frontend reads this via the same pattern as
-// ListThemes / ListLocales — never hardcoded.
+// ListThemes / ListLocales - never hardcoded.
 func (s *Service) ListPageSizes() []PageSizeDescriptor {
 	out := make([]PageSizeDescriptor, len(builtinPageSizes))
 	copy(out, builtinPageSizes)
@@ -181,7 +181,7 @@ func (s *Service) MigrateFrontmatter(markdown string) (FrontmatterMigration, err
 
 // ListThemes returns the canonical picoloom bundled style set in
 // stable display order. The frontend uses this to populate the Theme
-// dropdown — it must NOT keep its own hardcoded list. Pure function,
+// dropdown - it must NOT keep its own hardcoded list. Pure function,
 // safe regardless of activation state.
 func (s *Service) ListThemes() []ThemeDescriptor {
 	out := make([]ThemeDescriptor, len(builtinThemes))
@@ -192,7 +192,7 @@ func (s *Service) ListThemes() []ThemeDescriptor {
 // ResolveExportDefaults previews the Theme + Cover that Manager.Export
 // would pick for (template, datafile) under the dialog's default
 // options. The dialog reads this on open and labels its default
-// dropdown entry with the concrete value — so users know whether
+// dropdown entry with the concrete value - so users know whether
 // the template's frontmatter actually supplies a theme/cover or whether
 // the picoloom built-in defaults kick in. Read-only; safe regardless
 // of activation state.
@@ -210,7 +210,7 @@ func (s *Service) LoadCover(name string) (string, error) {
 
 // DeleteCover removes a user-added or seed cover from disk. Seed
 // covers (classic/banner/corporate) reappear at next boot via the
-// scaffold — the frontend should phrase this as "Reset" rather than
+// scaffold - the frontend should phrase this as "Reset" rather than
 // "Delete" for those entries. Refuses reserved names with
 // ErrCoverNotFound. Missing files are not an error.
 func (s *Service) DeleteCover(name string) error {
@@ -250,7 +250,7 @@ func (s *Service) ListCoverImages() ([]CoverImageDescriptor, error) {
 
 // SaveCoverImage persists a user-uploaded image under
 // <AppRoot>/pdf/covers/images/<name>. data is the base64-encoded
-// file body — the frontend reads the upload via FileReader and
+// file body - the frontend reads the upload via FileReader and
 // passes the result here, keeping the Wails JSON boundary clean.
 // The filename and extension are validated before any bytes hit
 // disk; on any rejection the function returns ErrCoverImageInvalid.

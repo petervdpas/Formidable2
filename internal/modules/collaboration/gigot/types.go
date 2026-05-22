@@ -23,7 +23,7 @@ package gigot
 // Connection is the per-call addressing + auth bundle the Manager
 // uses for any HTTP op. BaseURL is the gigot server's origin
 // ("https://gigot.example"); RepoName is the per-server repo handle;
-// Token is the GiGot subscription bearer. Author is optional — when
+// Token is the GiGot subscription bearer. Author is optional - when
 // populated, gigot uses it as the git author on commits so the audit
 // trail shows the real team member rather than the subscription's
 // service account.
@@ -42,7 +42,7 @@ type Author struct {
 	Email string
 }
 
-// HealthResponse is the parsed body of GET /api/health. Optional —
+// HealthResponse is the parsed body of GET /api/health. Optional -
 // vanilla gigot returns it for liveness checks; gated deployments may
 // require auth even for /health.
 type HealthResponse struct {
@@ -122,7 +122,7 @@ type FormidableTemplate struct {
 }
 
 // FormidableStorage is one template-directory under storage/ that
-// holds at least one record. Files counts .meta.json records only —
+// holds at least one record. Files counts .meta.json records only -
 // images/ and other non-record paths are excluded.
 type FormidableStorage struct {
 	Template string `json:"template"`
@@ -138,7 +138,7 @@ type HeadResponse struct {
 }
 
 // TreeResponse is the parsed body of GET /api/repos/{repo}/tree. A
-// recursive snapshot at Version — every blob's path + git SHA1, no
+// recursive snapshot at Version - every blob's path + git SHA1, no
 // content. Sized so the client can warn before pulling very large blobs.
 type TreeResponse struct {
 	Version string      `json:"version"`
@@ -168,7 +168,7 @@ type FileResponse struct {
 // unconditionally on the server side so graph-style UIs can render
 // branch pills + parent edges without a second request. Changes is
 // populated only when Log is called with withChanges=true (the server
-// adds one extra diff-tree call per commit) — omitted from JSON when
+// adds one extra diff-tree call per commit) - omitted from JSON when
 // nil so the lean shape stays cheap for graph-only callers.
 type LogEntry struct {
 	Hash    string       `json:"hash"`
@@ -223,7 +223,7 @@ type Change struct {
 
 // CommitResponse is the body returned by POST /api/repos/{repo}/commits.
 // Version is the new HEAD; Changes (when present) echoes the
-// post-merge content the server actually wrote — important on F1
+// post-merge content the server actually wrote - important on F1
 // auto-merge where server-resolved bytes differ from what we sent.
 type CommitResponse struct {
 	Version string   `json:"version"`
@@ -254,7 +254,7 @@ type Destination struct {
 // file's git blob SHA1 at that moment." Lets pushLocal diff local
 // content against the ledger without re-fetching /tree on every sync,
 // and survives Formidable restarts. Each team member has their own
-// local copy — deliberately not shared.
+// local copy - deliberately not shared.
 type TrackRecord struct {
 	Version  string            `json:"version,omitempty"`
 	LastSync string            `json:"lastSync,omitempty"`
@@ -299,7 +299,7 @@ type SyncPhase string
 
 const (
 	// PhaseStart fires once at the very entry of a sync op, before
-	// any HTTP. Total is 0 — the count isn't known yet. Useful for
+	// any HTTP. Total is 0 - the count isn't known yet. Useful for
 	// the UI to flip an indeterminate spinner on before /tree returns.
 	PhaseStart SyncPhase = "start"
 	// PhaseWipe fires once before the local-wipe step of Reclone.
@@ -307,13 +307,13 @@ const (
 	PhaseWipe SyncPhase = "wipe"
 	// PhaseTree fires once after /tree has returned and the work plan
 	// is computed. Total is the sum of pending deletes + managed
-	// entries to inspect/fetch — the count Current ramps toward.
+	// entries to inspect/fetch - the count Current ramps toward.
 	PhaseTree SyncPhase = "tree"
 	// PhaseDelete fires once per locally-deleted path. Current is the
 	// running count across delete+fetch events.
 	PhaseDelete SyncPhase = "delete"
 	// PhaseFetch fires once per managed tree entry inspected,
-	// regardless of whether bytes were actually downloaded — SHA-match
+	// regardless of whether bytes were actually downloaded - SHA-match
 	// short-circuits still count so the progress bar advances.
 	PhaseFetch SyncPhase = "fetch"
 	// PhaseDone fires once at completion. Current==Total. Consumers
@@ -334,7 +334,7 @@ type SyncProgress struct {
 
 // ProgressFunc is the per-call callback shape Manager.PullLocalWithProgress
 // and Manager.RecloneWithProgress accept. Implementations should treat
-// the function as cheap-on-call but must NOT block — the Manager calls
+// the function as cheap-on-call but must NOT block - the Manager calls
 // it inline between HTTP requests.
 type ProgressFunc func(SyncProgress)
 
@@ -356,7 +356,7 @@ type LedgerSummary struct {
 	Scanned  int      `json:"scanned"`
 }
 
-// SyncResult is what Sync returns on success — the combined push+pull
+// SyncResult is what Sync returns on success - the combined push+pull
 // outcome. Noop is true only when both halves were quiet.
 type SyncResult struct {
 	Version       string `json:"version"`

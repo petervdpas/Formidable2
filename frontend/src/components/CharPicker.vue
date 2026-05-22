@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /*
- * CharPicker — Footer "P" button + popover grid of special characters.
+ * CharPicker - Footer "P" button + popover grid of special characters.
  *
  * Insertion strategy: capture document.activeElement on mousedown of
  * the trigger button (before focus moves to the button), restore that
  * focus and use HTMLInputElement.setRangeText to splice the glyph at
- * the saved selection range. Native <input>/<textarea> only — CodeMirror
+ * the saved selection range. Native <input>/<textarea> only - CodeMirror
  * has its own dispatch and is opt-out for v1 (the button greys out and
  * shows a "click into a text field first" hint).
  *
@@ -85,7 +85,7 @@ async function toggle() {
 
 function close() {
   open.value = false;
-  // Don't drop `saved` immediately — a stray click outside the field
+  // Don't drop `saved` immediately - a stray click outside the field
   // would just leave the user disappointed; let the next open re-capture.
 }
 

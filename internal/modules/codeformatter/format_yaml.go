@@ -16,7 +16,7 @@ import (
 //
 // Note on intent: yaml.v3 emits what it parsed. If the input is flat
 // (`cover:` followed by sibling `title:` at the same column), the
-// output is flat — this is a YAML *formatter*, not a schema repairer.
+// output is flat - this is a YAML *formatter*, not a schema repairer.
 // PDF-domain re-nesting belongs in pdf.MigrateFrontmatter.
 func formatYAML(src string) (string, error) {
 	if strings.TrimSpace(src) == "" {

@@ -26,7 +26,7 @@ var assets embed.FS
 
 // File returns the raw bytes for one of the swagger-ui assets, plus a
 // MIME type suitable for HTTP. Returns nil + "" + ok=false when the
-// name doesn't map to one of the bundled files — caller should 404.
+// name doesn't map to one of the bundled files - caller should 404.
 //
 // Accepted names (rooted at /api/docs/):
 //
@@ -64,7 +64,7 @@ func resolve(name string) (rel, mime string, ok bool) {
 	case "swagger-ui-standalone-preset.js":
 		return "dist/swagger-ui-standalone-preset.js", "text/javascript; charset=utf-8", true
 	}
-	// Reject anything with a path separator — defensive against future
+	// Reject anything with a path separator - defensive against future
 	// expansions and traversal attempts.
 	if name != path.Base(name) {
 		return "", "", false

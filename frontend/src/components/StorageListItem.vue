@@ -12,7 +12,7 @@ const props = defineProps<{
    *  StorageWorkspace's `sidebarItems` map. */
   expression: ExpressionResult | null;
   active: boolean;
-  /** Template facets — drives which icons appear per row. */
+  /** Template facets - drives which icons appear per row. */
   facets: Facet[];
 }>();
 

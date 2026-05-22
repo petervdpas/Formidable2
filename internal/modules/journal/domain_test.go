@@ -239,7 +239,7 @@ func TestRecentEntries_EmptyLogIsHarmless(t *testing.T) {
 	}
 }
 
-// An unconfigured manager (no context) returns an empty slice — same
+// An unconfigured manager (no context) returns an empty slice - same
 // inert-mode contract as Pending.
 func TestRecentEntries_UnconfiguredManager(t *testing.T) {
 	m, _, _ := newTestManager(t)
@@ -355,7 +355,7 @@ func TestRecordOp_ConcurrentSafety(t *testing.T) {
 // Configure sweeps any leftover .changes.stash/ from a previous
 // crashed PullWithStash run (or a pre-fix codebase). The journal
 // curates the .changes.* family, so cleanup of the transient stash
-// dir lives here too — covers boot, context-switch, and re-Configure.
+// dir lives here too - covers boot, context-switch, and re-Configure.
 func TestConfigure_SweepsStaleStashDirectory(t *testing.T) {
 	m, _, root := newTestManager(t)
 	stashPath := filepath.Join(root, ".changes.stash")
@@ -663,7 +663,7 @@ func TestEnsureGitignore_Idempotent(t *testing.T) {
 func TestEnsureGitignore_ToleratesMissingTrailingNewline(t *testing.T) {
 	root := t.TempDir()
 	gi := filepath.Join(root, ".gitignore")
-	// No trailing newline — the patch logic must not concat patterns
+	// No trailing newline - the patch logic must not concat patterns
 	// onto the previous line.
 	if err := os.WriteFile(gi, []byte("node_modules"), 0o644); err != nil {
 		t.Fatal(err)
@@ -689,7 +689,7 @@ func TestEnsureGitignore_ToleratesMissingTrailingNewline(t *testing.T) {
 func TestEnsureGitignore_ContextIsItselfTheRepoRoot(t *testing.T) {
 	// Context has .git but no pre-existing .gitignore. We should
 	// CREATE the gitignore at the context (which is also the repo
-	// root) — same target either way.
+	// root) - same target either way.
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
 		t.Fatal(err)
@@ -719,7 +719,7 @@ func TestEnsureGitignore_NoOpWhenContextEmpty(t *testing.T) {
 	if err := m.Configure("", "git"); err != nil {
 		t.Fatal(err)
 	}
-	// Nothing to assert beyond "no panic and no error" — the test
+	// Nothing to assert beyond "no panic and no error" - the test
 	// asserts via not-crashing.
 }
 
@@ -821,7 +821,7 @@ func TestRecorder_ManagerSatisfiesInterface(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// RecordSync — gaps surfaced by the audit
+// RecordSync - gaps surfaced by the audit
 // ─────────────────────────────────────────────────────────────────────
 
 func TestRecordSync_NoOpWhenContextEmpty(t *testing.T) {
@@ -944,7 +944,7 @@ func TestRecordSync_ConcurrentSafety(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// RecordRemoteSeen — gaps surfaced by the audit
+// RecordRemoteSeen - gaps surfaced by the audit
 // ─────────────────────────────────────────────────────────────────────
 
 func TestRecordRemoteSeen_EmitsJournalChanged(t *testing.T) {

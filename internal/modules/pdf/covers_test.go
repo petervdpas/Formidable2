@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// scaffoldedFS returns a memFS that's been through scaffoldCovers —
+// scaffoldedFS returns a memFS that's been through scaffoldCovers -
 // the realistic post-boot starting state.
 func scaffoldedFS(t *testing.T) *memFS {
 	t.Helper()
@@ -77,7 +77,7 @@ func TestLoadDiskCover_InvalidHTMLFlagged(t *testing.T) {
 }
 
 func TestLoadDiskCover_UserAddedCoverDiscoverable(t *testing.T) {
-	// User drops a perfectly valid aurora.html into the dir — loader
+	// User drops a perfectly valid aurora.html into the dir - loader
 	// must accept it as a first-class cover, no registration needed.
 	fs := scaffoldedFS(t)
 	fs.files[onDiskCoversDir+"/aurora.html"] = validCover
@@ -267,7 +267,7 @@ func TestResolveCoverTemplateSet_OnDiskLibrary(t *testing.T) {
 		t.Errorf("Cover content lost banner marker")
 	}
 	if !strings.Contains(ts.Signature, "signature-block") {
-		t.Errorf("Signature missing — bundled signature must be loaded from disk")
+		t.Errorf("Signature missing - bundled signature must be loaded from disk")
 	}
 }
 

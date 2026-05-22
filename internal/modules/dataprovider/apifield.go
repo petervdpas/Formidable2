@@ -27,7 +27,7 @@ var (
 // carrying each requested source value VERBATIM. Scalars (string /
 // bool / number) pass through; complex shapes (slices, maps) ride
 // across as themselves. The host's .meta.json is already JSON, so a
-// projected `tags: ["a","b"]` lands as a real array — not as a
+// projected `tags: ["a","b"]` lands as a real array - not as a
 // JSON-encoded string nested inside the host JSON.
 //
 // The returned map always contains an entry for every requested
@@ -83,7 +83,7 @@ func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid str
 	}
 	form := m.sto.LoadForm(sourceTemplate, datafile)
 	if form == nil {
-		// Index has the row but storage can't find it — treat as
+		// Index has the row but storage can't find it - treat as
 		// guid-not-found so callers don't have to distinguish a stale
 		// index from a genuine miss. Logging is the storage layer's job.
 		return nil, fmt.Errorf("%w: %q resolves to %q (gone from disk)",

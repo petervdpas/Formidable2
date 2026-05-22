@@ -21,7 +21,7 @@ import (
 //
 // Logger may be nil (defaults to slog.Default).
 //
-// Editor is the fs surface used by Create/Save/Delete/GetSource —
+// Editor is the fs surface used by Create/Save/Delete/GetSource -
 // the workspace's CRUD methods. *system.Manager satisfies it; tests
 // pass an in-test shim. When Editor is nil, CRUD methods return
 // "editor fs not configured" instead of touching disk.
@@ -44,7 +44,7 @@ type ManagerDeps struct {
 	RunStatOut RunStatusEmitter
 	// Locale supplies the user's currently-active locale id at Run
 	// time so per-plugin i18n is sourced from the right bundle. nil =
-	// the runtime falls back to "en" — plugin.MessagesForLocale("en").
+	// the runtime falls back to "en" - plugin.MessagesForLocale("en").
 	Locale LocaleProvider
 }
 
@@ -59,7 +59,7 @@ type LocaleProvider interface {
 // Manager owns the discovered plugin registry and runs commands.
 // Concurrency: List/Get/Run hold a read lock; Refresh holds a
 // write lock while replacing the map atomically. Plugin scripts
-// themselves run with no Manager lock held — gopher-lua isn't
+// themselves run with no Manager lock held - gopher-lua isn't
 // goroutine-safe per LState, but each Run spawns a fresh state, so
 // concurrent Runs are independent.
 type Manager struct {
@@ -75,14 +75,14 @@ type Manager struct {
 	// in the same deferred path that runs after success or failure.
 	runActive atomic.Bool
 
-	// cancelMu protects cancelFn — set when a Run starts, called
+	// cancelMu protects cancelFn - set when a Run starts, called
 	// by Cancel(), nilled in the same defer that releases runActive.
 	// Held briefly; never around Run itself.
 	cancelMu sync.Mutex
 	cancelFn context.CancelFunc
 }
 
-// NewManager constructs a Manager. Discovery doesn't run here —
+// NewManager constructs a Manager. Discovery doesn't run here -
 // call Refresh after wiring (typically once at boot).
 func NewManager(d ManagerDeps) *Manager {
 	if d.Logger == nil {
@@ -93,7 +93,7 @@ func NewManager(d ManagerDeps) *Manager {
 
 // Refresh re-scans <PluginsDir> and rebuilds the registry. Safe
 // to call repeatedly. Best-effort: a corrupt manifest in one
-// folder is logged and skipped — other plugins still load.
+// folder is logged and skipped - other plugins still load.
 //
 // Skipping rules:
 //   - non-directories (stray README.md, archives, etc.)
@@ -137,9 +137,9 @@ func (m *Manager) Refresh() error {
 			continue
 		}
 		// The on-disk folder name and the manifest id should agree
-		// — otherwise two plugins with the same id could collide.
+		// - otherwise two plugins with the same id could collide.
 		if manifest.ID != e.Name() {
-			m.log.Warn("plugin: id/folder mismatch — skipping",
+			m.log.Warn("plugin: id/folder mismatch - skipping",
 				"folder", e.Name(), "manifest_id", manifest.ID)
 			continue
 		}
@@ -170,7 +170,7 @@ func (m *Manager) List() []Plugin {
 // ListForWorkspace returns the discovered plugins whose manifest
 // declares an attachment to the given workspace id, sorted by id
 // for stable menu ordering. Unknown or empty `ws` returns nil
-// without scanning — the workspace just renders no plugin menu.
+// without scanning - the workspace just renders no plugin menu.
 func (m *Manager) ListForWorkspace(ws string) []Plugin {
 	if !isValidWorkspace(ws) {
 		return nil
@@ -374,7 +374,7 @@ func (m *Manager) Cancel() {
 //   - bare array of fields (canonical)
 //   - {fields:[...]} object (legacy/experimental)
 //
-// Returns nil on any I/O or parse failure — Lua scripts then see
+// Returns nil on any I/O or parse failure - Lua scripts then see
 // an empty `formidable.plugin.form` table rather than a runtime
 // error mid-call.
 func loadFormFields(pluginDir string) []map[string]any {

@@ -372,7 +372,7 @@ func initJournalScenario(ctx *godog.ScenarioContext) {
 		if err != nil {
 			return fmt.Errorf("read cursor file: %w", err)
 		}
-		// Scenario uses escaped quotes — accept literal embedded \"
+		// Scenario uses escaped quotes - accept literal embedded \"
 		// from the feature file (godog passes the captured text raw).
 		decoded := strings.ReplaceAll(want, `\"`, `"`)
 		if !strings.Contains(string(body), decoded) {

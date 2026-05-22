@@ -20,7 +20,7 @@ import (
 // filename. A nil items slice for a template makes EvaluateList
 // return ErrNoExpression (the same signal `*expression.Manager` emits
 // when sidebar_expression isn't set), so handler tests can exercise
-// both "expression configured" and "no expression — fall back to
+// both "expression configured" and "no expression - fall back to
 // filename" paths without spinning up the engine.
 type stubExpressioner struct {
 	items map[string][]expression.Result
@@ -41,7 +41,7 @@ func (s *stubExpressioner) EvaluateList(templateName string) ([]expression.Resul
 // stubProvider is a hand-rolled dataprovider that lets each test
 // shape the corpus without touching disk or SQLite. The wiki handler
 // only needs ListTemplates, GetTemplate, ListForms, GetFormSummary,
-// and RenderForm — keep the surface tight so the test stub stays
+// and RenderForm - keep the surface tight so the test stub stays
 // small.
 type stubProvider struct {
 	templates []dataprovider.TemplateSummary
@@ -84,12 +84,12 @@ func (s *stubProvider) RenderForm(_ context.Context, template, datafile string) 
 	return nil, errors.New("not configured")
 }
 
-// stubStorage is the bytes-side counterpart to stubProvider — keeps
+// stubStorage is the bytes-side counterpart to stubProvider - keeps
 // the handler tests free of disk and the storage manager.
 type stubStorage struct {
 	// images keyed by "<templateFilename>/<name>"
 	images map[string][]byte
-	// forms keyed by "<templateFilename>/<datafile>" — drives the
+	// forms keyed by "<templateFilename>/<datafile>" - drives the
 	// per-form facet/chip rendering on the template detail page.
 	forms map[string]*storage.Form
 	// returnError simulates an unexpected error path.
@@ -186,7 +186,7 @@ func newTestHandlerWithExpr(t *testing.T, expr Expressioner) (http.Handler, *stu
 
 // stubFilter implements EnabledTemplateFilter. allowed=nil means
 // "filter off" (every template enabled). An empty (non-nil) slice
-// disables everything — useful for testing the "all hidden" edge.
+// disables everything - useful for testing the "all hidden" edge.
 type stubFilter struct {
 	allowed []string
 }
@@ -287,7 +287,7 @@ func TestTemplate_FormList_UsesExpressionSubtitles(t *testing.T) {
 		t.Fatalf("status = %d", w.Code)
 	}
 	body := w.Body.String()
-	// html/template escapes "+" as "&#43;" — match either form.
+	// html/template escapes "+" as "&#43;" - match either form.
 	if !strings.Contains(body, "Direct + Indirect") && !strings.Contains(body, "Direct &#43; Indirect") {
 		t.Errorf("expression subtitle missing; body=%q", body)
 	}
@@ -616,7 +616,7 @@ func TestUnknownPath404(t *testing.T) {
 	}
 }
 
-// Live integration through Manager — exercises SetHandler + Serve.
+// Live integration through Manager - exercises SetHandler + Serve.
 func TestHandlerWiredToManager(t *testing.T) {
 	sp := newStubProvider()
 	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
@@ -642,7 +642,7 @@ func TestHandlerWiredToManager(t *testing.T) {
 }
 
 func intStr(n int) string {
-	// avoid pulling strconv just for one site — this is test-only.
+	// avoid pulling strconv just for one site - this is test-only.
 	if n == 0 {
 		return "0"
 	}
@@ -746,7 +746,7 @@ func TestIndex_TemplateWithoutFacetsRendersNoPills(t *testing.T) {
 	if !strings.Contains(body, `data-facet-key="flag"`) {
 		t.Errorf("basic facet pill missing; body=%q", body)
 	}
-	// Heuristic — the facets container only appears when a template has
+	// Heuristic - the facets container only appears when a template has
 	// at least one facet. With no facets the row's HTML has no
 	// `class="facet-pills"`. Recepten contributes the only other row.
 	if cnt := strings.Count(body, `class="facet-pills"`); cnt != 1 {
@@ -840,7 +840,7 @@ func TestTemplate_NoFacetsRendersNoChipsOrFilter(t *testing.T) {
 			t.Errorf("body unexpectedly contains %q", unwanted)
 		}
 	}
-	// Sanity — the form list is still there.
+	// Sanity - the form list is still there.
 	if !strings.Contains(body, `href="/template/basic/form/x.meta.json"`) {
 		t.Errorf("regular form link missing; body=%q", body)
 	}
@@ -857,7 +857,7 @@ func TestTemplate_FacetsWithoutLoadedFormDegradesGracefully(t *testing.T) {
 				{Label: "DONE", Color: "green"},
 			}},
 		},
-	}, nil) // no formFacets — every LoadForm returns nil
+	}, nil) // no formFacets - every LoadForm returns nil
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
 	if w.Code != http.StatusOK {
@@ -932,7 +932,7 @@ func TestTemplateDetail_DisabledReturns404(t *testing.T) {
 	if w.Code != http.StatusNotFound {
 		t.Errorf("disabled detail status = %d, want 404", w.Code)
 	}
-	// Don't leak whether the template exists vs. is disabled — same
+	// Don't leak whether the template exists vs. is disabled - same
 	// body shape as the missing case.
 	if !strings.Contains(w.Body.String(), "template not found") {
 		t.Errorf("404 body should match the missing-template message")
@@ -958,7 +958,7 @@ func TestFormPage_DisabledTemplateReturns404(t *testing.T) {
 }
 
 // Storage routes (/storage/*) and embedded chrome (/_/*) intentionally
-// bypass the filter — assets the wiki HTML pages reference must remain
+// bypass the filter - assets the wiki HTML pages reference must remain
 // loadable regardless of enablement so half-rendered pages don't
 // happen for cached browser tabs that loaded the HTML earlier.
 func TestStorage_UnaffectedByFilter(t *testing.T) {

@@ -1,5 +1,5 @@
 Feature: Formidable URL navigation
-  The nav module owns formidable:// URL routing — parsing,
+  The nav module owns formidable:// URL routing - parsing,
   validation against the live template + storage trees, and
   translating "follow this link" into a config-state change plus a
   nav:changed event the frontend listens for.

@@ -1,4 +1,4 @@
-/* Toast queue — fixed-position stack rendered into <body> via Teleport. */
+/* Toast queue - fixed-position stack rendered into <body> via Teleport. */
 
 .toast-container {
     position: fixed;
@@ -62,7 +62,7 @@
 .toast.warn    { border-left-color: var(--color-warning); }
 .toast.error   { border-left-color: var(--color-error); }
 
-/* TransitionGroup hooks — slide-in from the right, slide-out, FLIP for
+/* TransitionGroup hooks - slide-in from the right, slide-out, FLIP for
    the move when items above are dismissed. */
 .toast-enter-from {
     opacity: 0;

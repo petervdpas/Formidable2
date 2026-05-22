@@ -8,7 +8,7 @@ const { t } = useI18n();
 
 const props = defineProps<{
   open: boolean;
-  /** Existing cover filenames (without `.html`) — used to refuse duplicates. */
+  /** Existing cover filenames (without `.html`) - used to refuse duplicates. */
   existingNames: string[];
 }>();
 

@@ -58,7 +58,7 @@ func TestResolveCoverLogo_BareFilename_FallsBackToSourceDir(t *testing.T) {
 
 func TestResolveCoverLogo_BareFilename_CentralWinsOverSourceDir(t *testing.T) {
 	fs := newCoverLogoFS(t)
-	// Same name in both places — central wins so users get the
+	// Same name in both places - central wins so users get the
 	// gigot-synced version, not whatever happens to live in storage.
 	fs.files["/storage/tpl/formidable.svg"] = "wrong-one"
 	got := ResolveCoverLogo("formidable.svg", "/storage/tpl", fs)
@@ -107,7 +107,7 @@ func TestResolveCoverLogo_NilFSReturnsInput(t *testing.T) {
 // winFS wraps memFS but emits backslashed absolute paths from
 // ResolvePath, simulating Windows' filepath.Abs return value. The
 // only purpose is to verify ResolveCoverLogo normalises the slash
-// direction on the way out — Chrome cannot resolve an `<img src>`
+// direction on the way out - Chrome cannot resolve an `<img src>`
 // containing literal backslashes when rendering a file:// document.
 type winFS struct{ *memFS }
 
@@ -131,7 +131,7 @@ func TestResolveCoverLogo_NormalisesBackslashesToForwardSlashes(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// BuildCoverLogoSrc — the URL-emitting wrapper that picoloom
+// BuildCoverLogoSrc - the URL-emitting wrapper that picoloom
 // actually sees. The asset-server cases run a real loopback listener
 // because *AssetServer is a concrete type; the bind/serve is fast.
 // ─────────────────────────────────────────────────────────────────

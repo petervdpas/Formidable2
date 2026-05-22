@@ -7,7 +7,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────
-// ComputeLoopGroups — pairs loopstart/loopstop, computes depth + summary
+// ComputeLoopGroups - pairs loopstart/loopstop, computes depth + summary
 // + collapsed-default. Mirrors fieldGroupRenderer's pairing pass.
 // ─────────────────────────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ func TestComputeLoopGroups_DefaultCollapsedFromConfig(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Unhappy paths — bad input must not panic; the result is best-effort.
+// Unhappy paths - bad input must not panic; the result is best-effort.
 // ─────────────────────────────────────────────────────────────────────
 
 func TestComputeLoopGroups_NilFieldsIsSafe(t *testing.T) {
@@ -135,7 +135,7 @@ func TestComputeLoopGroups_UnmatchedLoopstop(t *testing.T) {
 }
 
 func TestComputeLoopGroups_KeyMismatchSkipsPair(t *testing.T) {
-	// loopstart "a" closed by loopstop "b" — validation rejects this
+	// loopstart "a" closed by loopstop "b" - validation rejects this
 	// upstream; here we just don't crash.
 	fields := []template.Field{
 		{Key: "a", Type: "loopstart"},

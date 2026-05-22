@@ -18,7 +18,7 @@ import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/
 //   - Hand-typed input is coerced via SystemSvc.ResolveAbsolutePath
 //     on focusout (`~`/`~/sub` → home, relative → cwd-resolved,
 //     empty → empty so a freshly cleared field stays empty).
-// The Browse button stays enabled even when readonly — read-only on
+// The Browse button stays enabled even when readonly - read-only on
 // path fields blocks free-typing but should not block picking a new
 // path through the OS dialog.
 const props = defineProps<{
@@ -59,7 +59,7 @@ async function coerceAbsolute() {
     if (abs && abs !== value.value) value.value = abs;
   } catch {
     // Resolve failures (e.g. no home dir on a stripped runtime)
-    // leave the typed value alone — better than silently clearing.
+    // leave the typed value alone - better than silently clearing.
   }
 }
 
@@ -73,7 +73,7 @@ async function browse() {
       await coerceAbsolute();
     }
   } catch {
-    // Picker errors (rare — e.g. no display server) leave the field
+    // Picker errors (rare - e.g. no display server) leave the field
     // untouched. The user can still type the path manually.
   }
 }

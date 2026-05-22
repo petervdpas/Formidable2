@@ -1,4 +1,4 @@
-// Package sfr is the Single-File Repository — a thin layer that
+// Package sfr is the Single-File Repository - a thin layer that
 // stores blobs at <directory>/<basename><extension> and normalizes the
 // caller-provided base filename. Wails-only by design: callers
 // supply the directory, so this never gets exposed over the local

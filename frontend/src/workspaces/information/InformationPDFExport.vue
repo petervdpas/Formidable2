@@ -118,7 +118,7 @@ async function doChangeExportDir() {
   try {
     picked = await DialogSvc.ChooseDirectory();
   } catch {
-    return; // user cancelled or picker error — treat as no-op
+    return; // user cancelled or picker error - treat as no-op
   }
   if (!picked) return;
   const r = await setExportDir(picked);

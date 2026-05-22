@@ -119,7 +119,7 @@ func TestExport_DisableTheme_BeatsManifestStyle(t *testing.T) {
 func TestExport_FrontmatterCoverEnabledFalse_SuppressesTemplate(t *testing.T) {
 	// Before this fix: BuildInput drops Input.Cover (no data) but
 	// ResolveCoverTemplateSet still wires WithTemplateSet for the
-	// classic template — picoloom would render an empty cover page.
+	// classic template - picoloom would render an empty cover page.
 	// After: cover.enabled:false in frontmatter suppresses BOTH layers.
 	m, _, rdr, stg, cf := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/storage/tpl"

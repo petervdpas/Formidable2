@@ -8,7 +8,7 @@ import (
 // ─────────────────────────────────────────────────────────────────────
 // Generator
 //
-// GenerateMarkdownTemplate(shape, opts, fields) — opts carries the
+// GenerateMarkdownTemplate(shape, opts, fields) - opts carries the
 // per-shape sub-choices:
 //
 //   - ImgMode:   url   → ![Label]({{imageURL "key"}})
@@ -142,7 +142,7 @@ func TestGenerate_ReportTableHasHeaderAndRowExpansion(t *testing.T) {
 }
 
 func TestGenerate_ReportLoopOpenerStaysBare(t *testing.T) {
-	// {{#loop "key"}} is a plain iterator — wrap state is signalled
+	// {{#loop "key"}} is a plain iterator - wrap state is signalled
 	// by the presence/absence of {{loopItemBefore}} inside the body,
 	// not by hash options on the opener.
 	fields := []Field{
@@ -208,7 +208,7 @@ func TestGenerate_ReportNestedLoopsBothWrapped(t *testing.T) {
 		GeneratorOptions{ImgMode: ImgURL, WrapLoops: true}, fields)
 
 	// Both nested loops should have a before+after pair; verify by
-	// counting occurrences (loose check — at least 2 of each).
+	// counting occurrences (loose check - at least 2 of each).
 	if strings.Count(got, `{{loopItemBefore}}`) < 2 {
 		t.Errorf("nested wrap=true: expected at least 2 loopItemBefore; got:\n%s", got)
 	}
@@ -418,7 +418,7 @@ func TestGenerate_FrontmatterSkipsAPIFields(t *testing.T) {
 	}
 }
 
-// ExpandAPI toggle — when true, generator emits per-column
+// ExpandAPI toggle - when true, generator emits per-column
 // {{apiBlock}} rows so the user can hand-tune individual columns
 // without first deconstructing {{apiSection}}. When false (default),
 // the lazy one-liner stays.
@@ -454,7 +454,7 @@ func TestGenerate_ExpandAPI_TrueEmitsPerColumnApiBlock(t *testing.T) {
 	if strings.Contains(got, `{{apiSection "ref"}}`) {
 		t.Errorf("ExpandAPI=true must replace apiSection; got:\n%s", got)
 	}
-	// Card wrapper — same chrome as apiSection's output.
+	// Card wrapper - same chrome as apiSection's output.
 	if !strings.Contains(got, `<section class="api-card" data-source="addresses.yaml">`) {
 		t.Errorf("expected card wrapper; got:\n%s", got)
 	}
@@ -516,7 +516,7 @@ func TestGenerate_ExpandAPI_FallbackColumnLabelIsKey(t *testing.T) {
 
 func TestGenerate_TableShapeKeepsJSONForAPI(t *testing.T) {
 	// Table shape already had a {{json (fieldRaw "k")}} branch for
-	// "list", "multioption", "table", "api" — confirm api is still
+	// "list", "multioption", "table", "api" - confirm api is still
 	// covered after the refactor.
 	got := GenerateMarkdownTemplate(ShapeTable, defaultOpts(), []Field{
 		{Key: "ref", Type: "api", Label: "Reference"},

@@ -12,7 +12,7 @@ import (
 // the current schema. Returns ErrManifestInvalid for any shape
 // problem (missing file, malformed JSON, missing required field)
 // and ErrManifestVersion for unsupported manifest_version. The
-// returned Manifest has its `Dir`-side validation done — main.lua
+// returned Manifest has its `Dir`-side validation done - main.lua
 // existence is checked here too because shipping a manifest
 // without a script is always a bug, not a "load lazily" concern.
 //
@@ -70,7 +70,7 @@ func validateManifest(m *Manifest) error {
 	if len(m.Commands) == 0 {
 		return fmt.Errorf("%w: at least one command required", ErrManifestInvalid)
 	}
-	// run_mode is optional — empty behaves like "modal" — but if set
+	// run_mode is optional - empty behaves like "modal" - but if set
 	// it must name one of the known constants. Catches typos like
 	// "Form" / "Modal" early so authors get a load-time error
 	// rather than a silent fallback at runtime.

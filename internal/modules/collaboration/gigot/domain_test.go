@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// ── fakeFS — minimal Filesystem stub satisfying the SaveFile surface.
+// ── fakeFS - minimal Filesystem stub satisfying the SaveFile surface.
 
 type fakeFS struct {
 	writes map[string]string
@@ -253,9 +253,9 @@ func TestCollectFormidableFiles_PicksTemplatesStorageRootAllowlist(t *testing.T)
 	writeFile(t, dir, ".gitignore", ".formidable/sync.json")
 
 	// Distractors that must not appear.
-	writeFile(t, dir, "templates/README.md", "ignored — non-yaml")
-	writeFile(t, dir, "templates/images/oops.png", "ignored — non-yaml")
-	writeFile(t, dir, "notes.txt", "ignored — not allowlisted")
+	writeFile(t, dir, "templates/README.md", "ignored - non-yaml")
+	writeFile(t, dir, "templates/images/oops.png", "ignored - non-yaml")
+	writeFile(t, dir, "notes.txt", "ignored - not allowlisted")
 	writeFile(t, dir, ".formidable/sync.json", `{"version":""}`)
 	writeFile(t, dir, ".formidable/context.json", `{"version":1}`)
 
@@ -386,7 +386,7 @@ func TestDiff_DeleteForVanishedManagedPath(t *testing.T) {
 func TestDiff_FirstSyncSuppressesDeletes(t *testing.T) {
 	local := []LocalFile{}
 	rec := TrackRecord{
-		Version: "", // first sync — record was seeded but never committed
+		Version: "", // first sync - record was seeded but never committed
 		Files:   map[string]string{"templates/basic.yaml": "old"},
 	}
 	d := DiffAgainstRecord(local, rec)

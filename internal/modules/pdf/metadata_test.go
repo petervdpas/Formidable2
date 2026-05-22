@@ -167,12 +167,12 @@ func TestInjectPDFMetadata_RoundTripKeywords(t *testing.T) {
 
 func TestInjectPDFMetadata_UnicodeRoundTrip(t *testing.T) {
 	// PDF /Title etc are written as UTF-16BE with a BOM by pdfcpu.
-	// Round-trip must preserve the Unicode codepoints — the test that
+	// Round-trip must preserve the Unicode codepoints - the test that
 	// would catch a botched encoding.
 	in := minimalPDF(t)
 	out, err := InjectPDFMetadata(in, PDFMetadata{
-		Title:    "Datastroom — definitie",
-		Author:   "Peter — Fontys 🎓",
+		Title:    "Datastroom - definitie",
+		Author:   "Peter - Fontys 🎓",
 		Keywords: []string{"audit", "compliance", "デザイン"},
 	})
 	if err != nil {
@@ -182,10 +182,10 @@ func TestInjectPDFMetadata_UnicodeRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("readback: %v", err)
 	}
-	if got.Title != "Datastroom — definitie" {
+	if got.Title != "Datastroom - definitie" {
 		t.Errorf("Title = %q", got.Title)
 	}
-	if got.Author != "Peter — Fontys 🎓" {
+	if got.Author != "Peter - Fontys 🎓" {
 		t.Errorf("Author = %q", got.Author)
 	}
 	wantKeyword := "デザイン"
@@ -203,7 +203,7 @@ func TestInjectPDFMetadata_UnicodeRoundTrip(t *testing.T) {
 
 func TestInjectPDFMetadata_EmptyKeywordsFiltered(t *testing.T) {
 	in := minimalPDF(t)
-	// All-empty list — should NOT trigger a properties pass either.
+	// All-empty list - should NOT trigger a properties pass either.
 	out, err := InjectPDFMetadata(in, PDFMetadata{Keywords: []string{"", " ", ""}})
 	if err != nil {
 		t.Fatalf("Inject: %v", err)

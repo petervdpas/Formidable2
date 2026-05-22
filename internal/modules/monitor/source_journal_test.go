@@ -186,7 +186,7 @@ func TestJournalSource_ClipsToFromTo(t *testing.T) {
 }
 
 func TestJournalSource_EndToEndWithManager(t *testing.T) {
-	// Wire JournalSource into a Manager and run a Query — proves the
+	// Wire JournalSource into a Manager and run a Query - proves the
 	// Source/Manager seam works end-to-end with realistic data.
 	root := t.TempDir()
 	body := strings.Join([]string{

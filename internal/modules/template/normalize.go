@@ -21,7 +21,7 @@ var textareaFormats = map[string]bool{
 // Currently handles:
 //   - textarea: Format is forced to "markdown" or "plain" (default
 //     "markdown" when missing/unknown), case-insensitively.
-//   - non-textarea: Format is stripped — the YAML omitempty tag then
+//   - non-textarea: Format is stripped - the YAML omitempty tag then
 //     keeps it out of the saved file.
 //
 // nil Template / nil Fields are no-ops (callers might pass partials).
@@ -100,7 +100,7 @@ func normalizeField(f *Field) {
 // coerceDefault forces f.Default into the Go type the field's data
 // values will take. Without this pass, a YAML/CSV/plugin-authored
 // template that stored Default as the wrong type would seed every new
-// form with mis-typed data — the exact path that produced the
+// form with mis-typed data - the exact path that produced the
 // "expected number, got string" drift on the `numpy` field. The
 // frontend FieldEditModal does the same coercion as a UX accelerator;
 // this backend pass is the authoritative source of truth.
@@ -123,7 +123,7 @@ func coerceDefault(f *Field) {
 		f.Default = coerceDate(f.Default)
 	case "text", "textarea", "dropdown", "radio",
 		"file-path", "folder-path", "image":
-		// link is intentionally absent — its Default may legitimately
+		// link is intentionally absent - its Default may legitimately
 		// be {href, text} map OR a legacy string, so the "non-string
 		// → string" rule doesn't apply.
 		f.Default = coerceTextShape(f.Default)
@@ -263,7 +263,7 @@ func coerceTextShape(v any) any {
 //   - U+2060 word joiner         → removed
 //   - U+FEFF BOM / zero-width nbsp → removed
 //
-// Smart quotes, em-dashes, en-dashes, ellipsis etc. are NOT touched —
+// Smart quotes, em-dashes, en-dashes, ellipsis etc. are NOT touched -
 // those are often deliberate in human-written content.
 func cleanText(s string) string {
 	if s == "" {

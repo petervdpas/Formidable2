@@ -27,7 +27,7 @@ const toast = useToast();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
-// Trust config.remote_backend as-is — the canonical list of valid
+// Trust config.remote_backend as-is - the canonical list of valid
 // backends lives on the Go side (journal.ListSyncBackends). An unknown
 // string just means visibleSections will find no matching panel,
 // which renders the same "no backend" empty state we already handle.
@@ -126,7 +126,7 @@ async function confirmForgetToken() {
 }
 
 // Reactive menu definition. The two repo actions disable when there's
-// no git_root configured — the click handlers would just toast a
+// no git_root configured - the click handlers would just toast a
 // warning, but disabling is friendlier UX.
 const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("collaboration");
 setTopbarMenu(() => {

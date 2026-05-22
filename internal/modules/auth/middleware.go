@@ -34,13 +34,13 @@ func LoopbackOnly(next http.Handler) http.Handler {
 
 // RequireOrigin returns a middleware that gates write methods on the
 // Origin (or, fallback, Referer) header matching one of the configured
-// allowlist URLs. GET / HEAD / OPTIONS pass through untouched — CSRF
+// allowlist URLs. GET / HEAD / OPTIONS pass through untouched - CSRF
 // only threatens state-changing methods, and forcing an Origin on safe
 // reads breaks tooling that doesn't set one (curl, scripts).
 //
 // allowedOrigins should be the scheme+host[+port] strings that the
 // wiki/API server itself serves under (e.g. "http://127.0.0.1:8080").
-// Empty allowlist denies every write — fail-closed by default.
+// Empty allowlist denies every write - fail-closed by default.
 func RequireOrigin(allowedOrigins []string) func(http.Handler) http.Handler {
 	allowed := make(map[string]struct{}, len(allowedOrigins))
 	for _, o := range allowedOrigins {

@@ -26,7 +26,7 @@ func TestValidate_KnownTypesNotFlaggedAsUnknown(t *testing.T) {
 	for _, ty := range known {
 		f := Field{Key: "k", Type: ty}
 		// api needs Collection or it'll trip the api-collection-required
-		// rule — set it so we only test the unknown-type path here.
+		// rule - set it so we only test the unknown-type path here.
 		if ty == "api" {
 			f.Collection = "c"
 		}
@@ -125,7 +125,7 @@ func TestValidate_ApiWithMap_OK(t *testing.T) {
 	}
 }
 
-// Label is optional — falls back to the source field's label at
+// Label is optional - falls back to the source field's label at
 // render time. Validation must not flag empty Label.
 func TestValidate_ApiMapEmptyLabel_OK(t *testing.T) {
 	errs := Validate(&Template{

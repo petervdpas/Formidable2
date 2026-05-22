@@ -30,7 +30,7 @@ const (
 // errEmptyPDF and errSaveFailed are internal sentinels used by
 // Manager.Export so MapExportError can recognise the wrap site without
 // inspecting error strings. They are not part of the public error
-// vocabulary — callers branch on the ExportErrorCode instead.
+// vocabulary - callers branch on the ExportErrorCode instead.
 var (
 	errEmptyPDF   = errors.New("pdf: converter returned empty PDF")
 	errSaveFailed = errors.New("pdf: save failed")

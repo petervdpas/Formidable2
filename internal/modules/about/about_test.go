@@ -60,7 +60,7 @@ func TestNewServiceNotNil(t *testing.T) {
 
 func TestLibrariesNonEmptyAndUnique(t *testing.T) {
 	if len(Libraries) == 0 {
-		t.Fatal("Libraries must not be empty — About panel needs a credits list")
+		t.Fatal("Libraries must not be empty - About panel needs a credits list")
 	}
 	seen := make(map[string]bool, len(Libraries))
 	for _, l := range Libraries {
@@ -80,7 +80,7 @@ func TestLibrariesNonEmptyAndUnique(t *testing.T) {
 // TestLibraries_EveryIDHasDescriptionInEveryLocale fails when a new
 // Library entry lands without the matching i18n
 // `workspace.information.about.thanks.lib.<id>.desc` string in every
-// shipped locale — and inversely, when an orphan desc string lingers
+// shipped locale - and inversely, when an orphan desc string lingers
 // for an ID that has been removed from Libraries. Drift caught at
 // build time instead of as a missing label in the running app.
 func TestLibraries_EveryIDHasDescriptionInEveryLocale(t *testing.T) {
@@ -108,7 +108,7 @@ func TestLibraries_EveryIDHasDescriptionInEveryLocale(t *testing.T) {
 				continue
 			}
 			if s, _ := v.(string); strings.TrimSpace(s) == "" {
-				t.Errorf("locale %q: key %q is empty — provide a real description", locale, key)
+				t.Errorf("locale %q: key %q is empty - provide a real description", locale, key)
 			}
 		}
 		// Orphan check: a desc key whose ID is not in Libraries means
@@ -132,7 +132,7 @@ func TestGetLibrariesReturnsCopy(t *testing.T) {
 		t.Fatalf("GetLibraries length = %d, want %d", len(got), len(Libraries))
 	}
 	// Mutating the returned slice must not leak into the package-level
-	// canonical list — guards against a bound caller stomping the
+	// canonical list - guards against a bound caller stomping the
 	// credits at runtime.
 	if len(got) > 0 {
 		original := Libraries[0].Name

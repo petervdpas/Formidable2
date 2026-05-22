@@ -6,7 +6,7 @@ import {
 import { backendErrMessage } from "../utils/backendError";
 import { refreshPluginI18n } from "./useI18nLoader";
 
-// Module-scope singleton — at most one plugin selected across the
+// Module-scope singleton - at most one plugin selected across the
 // app, mirroring the useTemplates pattern. Sidebar list, currently
 // selected id, and a "loaded once" flag.
 const plugins = ref<ListResult[]>([]);
@@ -15,7 +15,7 @@ let loaded = false;
 
 // Workspace IDs a plugin manifest may attach to. Sourced from the
 // backend (PluginSvc.ListWorkspaces) so the dropdown in the manifest
-// editor doesn't drift from the Go enum. Cached once per session —
+// editor doesn't drift from the Go enum. Cached once per session -
 // the enum is closed and doesn't change at runtime.
 const workspaceIDs = ref<string[]>([]);
 let workspacesLoaded = false;

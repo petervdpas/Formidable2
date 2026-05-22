@@ -1,7 +1,7 @@
 package builder
 
 // Operator describes one selectable operator in the State-tab picker.
-// LabelKey is an i18n key, not a translated string — keeps the
+// LabelKey is an i18n key, not a translated string - keeps the
 // frontend in charge of localisation while the backend remains the
 // authoritative source for which operators exist per kind.
 type Operator struct {
@@ -20,7 +20,7 @@ type DateOpDescriptor struct {
 
 // OperatorsForKind returns the operator vocabulary for the State-tab
 // picker. Boolean has no picker (the value IS the predicate, expressed
-// as two rules) and Date is rendered from DateOps() instead — both
+// as two rules) and Date is rendered from DateOps() instead - both
 // return empty here so the frontend can branch on length.
 func OperatorsForKind(kind RuleKind) []Operator {
 	switch kind {
@@ -43,7 +43,7 @@ func OperatorsForKind(kind RuleKind) []Operator {
 }
 
 // DateOps returns the date-helper vocabulary for the Date-tab picker.
-// Order is the rendering order — ranged helpers (*N variants) follow
+// Order is the rendering order - ranged helpers (*N variants) follow
 // their boolean counterparts so the picker stays predictable.
 func DateOps() []DateOpDescriptor {
 	return []DateOpDescriptor{

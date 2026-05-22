@@ -10,7 +10,7 @@ import (
 
 // IsCollectionEnabled returns true when the named template opts in
 // to collection-mode AND has a guid field (the index already pre-
-// derived the latter — `EnableCollection` is only true here when
+// derived the latter - `EnableCollection` is only true here when
 // both conditions hold). False for unknown templates.
 func (m *Manager) IsCollectionEnabled(ctx context.Context, template string) bool {
 	t, ok, err := m.GetTemplate(ctx, template)
@@ -24,7 +24,7 @@ func (m *Manager) IsCollectionEnabled(ctx context.Context, template string) bool
 // of forms for a collection-enabled template. Mirrors the original
 // `listCollection` shape so the wiki HTTP routes can return JSON
 // directly. Disabled templates surface a CollectionPage{Enabled:false}
-// rather than an error — easier for HTTP callers to hand back as a 403.
+// rather than an error - easier for HTTP callers to hand back as a 403.
 func (m *Manager) ListCollection(ctx context.Context, template string, opts CollectionListOpts) (*CollectionPage, error) {
 	if !m.IsCollectionEnabled(ctx, template) {
 		return &CollectionPage{Enabled: false}, nil
@@ -56,7 +56,7 @@ func (m *Manager) ListCollection(ctx context.Context, template string, opts Coll
 		rows = filtered
 	}
 
-	// Drop rows without a GUID — they can't be addressed in /api/collections.
+	// Drop rows without a GUID - they can't be addressed in /api/collections.
 	addressable := rows[:0:0]
 	for _, r := range rows {
 		if r.ID != "" {
@@ -68,7 +68,7 @@ func (m *Manager) ListCollection(ctx context.Context, template string, opts Coll
 	// Facet filter: every requested key must match the row's facets
 	// with set==true and selected==value (AND semantics). Reads come
 	// straight off the FormRow now that the index materializes facets
-	// in queryForms — no per-record disk traffic.
+	// in queryForms - no per-record disk traffic.
 	if len(opts.Facets) > 0 {
 		filtered := rows[:0:0]
 		for _, r := range rows {
@@ -140,7 +140,7 @@ func (m *Manager) ResolveCollectionByID(ctx context.Context, template, id string
 
 // CollectionRev returns the per-collection revision marker the wiki
 // HTTP layer uses for ETag/Last-Modified. v1 piggy-backs on the
-// index's global rev, which is correct (any write — even unrelated —
+// index's global rev, which is correct (any write - even unrelated -
 // invalidates the ETag, which is an acceptable conservative choice).
 // We can refine to a per-template rev later by adding a tracked
 // column to the templates table.

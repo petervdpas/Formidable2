@@ -13,7 +13,7 @@ import (
 var immutableMetaKeys = []string{"created", "id", "template"}
 
 // MergeMeta applies gigot §10.2 rules for the meta map. base may be
-// nil (first-ever write of a record) — in that case immutability checks
+// nil (first-ever write of a record) - in that case immutability checks
 // degrade to "take whichever side has the value". The returned merged
 // map is independent of all inputs (safe to mutate).
 func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConflict) {
@@ -46,7 +46,7 @@ func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConfl
 	}
 
 	// Walk the union of keys and apply per-key rules. Even if an
-	// immutability conflict fired above we still populate merged —
+	// immutability conflict fired above we still populate merged -
 	// the caller decides whether to use merged or emit the conflicts.
 	for _, k := range unionKeys(base, theirs, yours) {
 		switch k {
@@ -82,7 +82,7 @@ func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConfl
 // UpdatedWinner returns "theirs" or "yours" based on max(meta.updated.at).
 // Non-RFC3339 or missing values fall back to "yours" so a write with
 // a fresher clock on either side still deterministically resolves.
-// Equal timestamps resolve to "yours" (the incoming side) — arbitrary
+// Equal timestamps resolve to "yours" (the incoming side) - arbitrary
 // but stable. Also accepts the legacy flat string form of meta.updated.
 func UpdatedWinner(theirs, yours map[string]any) string {
 	tt, tok := parseUpdated(theirs)
@@ -144,7 +144,7 @@ func mergeUpdated(theirs, yours any) any {
 	case yok:
 		return yours
 	default:
-		// Neither parsed — pick whichever is non-nil (prefer yours).
+		// Neither parsed - pick whichever is non-nil (prefer yours).
 		if yours != nil {
 			return yours
 		}

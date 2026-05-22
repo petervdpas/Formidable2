@@ -9,7 +9,7 @@ import (
 // atomicWriteFile writes content to target atomically: a uniquely-named
 // temp file in the same directory is written, fsynced, and renamed over
 // target. POSIX guarantees rename within the same filesystem is atomic,
-// so a reader observes either the previous file or the new file — never
+// so a reader observes either the previous file or the new file - never
 // a partial write. On error or unexpected exit before rename, target is
 // left untouched and the temp file is cleaned up.
 //

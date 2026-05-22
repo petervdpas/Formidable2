@@ -1,4 +1,4 @@
-/* Plugins workspace — sidebar list of installed plugins + main panel
+/* Plugins workspace - sidebar list of installed plugins + main panel
    manifest editor + Lua source editor + Commands editor. The tab
    strip + tab-pane chrome lives in tabs.css; the topbar Run button
    uses the generic .tool-btn--icon modifier from buttons.css. This
@@ -40,7 +40,7 @@
     gap: var(--space-2);
 }
 
-/* ── Run modal — optional form section + command cards + output ── */
+/* ── Run modal - optional form section + command cards + output ── */
 .run-modal {
     display: flex;
     flex-direction: column;
@@ -200,7 +200,7 @@
 }
 
 /* Placeholder rendered inline next to the command label when
-   both Show Result and Show Log are off — collapses the block
+   both Show Result and Show Log are off - collapses the block
    to a single "Label: Not enabled" line. */
 .plugin-result-block-title--inline {
     font-weight: 600;
@@ -215,12 +215,12 @@
     font-weight: 400;
 }
 
-/* Live progress + Stop button — shown only while a run is in flight.
+/* Live progress + Stop button - shown only while a run is in flight.
    The bar is gated by the manifest's `progress` flag (PluginRunDialog
    computes showProgressBar); the Stop button is always available so
    a hung plugin can still be aborted. */
 
-/* Form widgets — live-status slots the plugin author drops into
+/* Form widgets - live-status slots the plugin author drops into
    their form.json's sibling widgets.json. Driven by formidable.run.*
    events. Visible while the Run dialog is in flight (or any time a
    tick has been received this session). */

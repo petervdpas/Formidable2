@@ -74,7 +74,7 @@ const remoteState = computed<"unknown" | "match" | "behind">(() => {
   return remote === local ? "match" : "behind";
 });
 
-// Button gates — Push/Pull are the fine-grained operations on this
+// Button gates - Push/Pull are the fine-grained operations on this
 // panel; the bundled one-click Sync lives on Current Service. The
 // goal is to make each button mean exactly one thing, so the user
 // doesn't have to guess which is "safe" to click.
@@ -83,7 +83,7 @@ const remoteState = computed<"unknown" | "match" | "behind">(() => {
 //   Pull: remote moved + no pending changes (avoids clobbering)
 //
 // Pull is disabled when the remote matches the local ledger AND
-// when there are pending local changes — both cases boil down to
+// when there are pending local changes - both cases boil down to
 // "Pull would either do nothing or destroy work."
 const canPush = computed(() => canAct.value && hasPending.value && messageProvided.value);
 const canPull = computed(() => canAct.value && !hasPending.value && remoteState.value !== "match");
@@ -99,8 +99,8 @@ const allMirrorsInSync = computed(
 );
 // Mirror push is force-mirror against the server's HEAD. Pending local
 // changes haven't been Push'd yet, so the mirror would carry the stale
-// pre-Push state — block it until the local commit lands. Also skip
-// when every mirror reports in_sync — there is nothing to push.
+// pre-Push state - block it until the local commit lands. Also skip
+// when every mirror reports in_sync - there is nothing to push.
 const canMirror = computed(
   () =>
     canAct.value
@@ -111,7 +111,7 @@ const canMirror = computed(
 );
 
 // Per-button disabled tooltips. Empty string when the button is
-// enabled — the v-bind below feeds the attr only when non-empty.
+// enabled - the v-bind below feeds the attr only when non-empty.
 const pushDisabledHint = computed(() => {
   if (!canAct.value || !configured.value) return "";
   if (!hasPending.value) return t("workspace.collaboration.gigot.sync.push.disabled_no_pending");
@@ -172,7 +172,7 @@ watch(
   () => void load(false),
 );
 
-// Race guard on the refresh path — only the most recent fetch wins.
+// Race guard on the refresh path - only the most recent fetch wins.
 let reqId = 0;
 
 async function load(announce: boolean) {
@@ -334,7 +334,7 @@ async function doPull() {
       <div class="gigot-sync-row">
         <span class="gigot-sync-label">{{ t('workspace.collaboration.gigot.sync.last_version') }}:</span>
         <code v-if="hasLedger" class="gigot-sync-hash">{{ shortHash(summary?.version) }}</code>
-        <span v-else class="gigot-sync-muted">—</span>
+        <span v-else class="gigot-sync-muted">-</span>
       </div>
       <div class="gigot-sync-row">
         <span class="gigot-sync-label">{{ t('workspace.collaboration.gigot.sync.last_sync') }}:</span>

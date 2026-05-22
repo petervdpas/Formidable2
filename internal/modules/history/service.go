@@ -11,7 +11,7 @@ type Navigator interface {
 	NavigateToFormidable(href string) error
 }
 
-// EventEmitter mirrors nav.EventEmitter — composition root injects a
+// EventEmitter mirrors nav.EventEmitter - composition root injects a
 // Wails-backed implementation; nil is allowed and silences emit.
 type EventEmitter interface {
 	Emit(name string, data any)
@@ -19,7 +19,7 @@ type EventEmitter interface {
 
 // Persister writes the current stack snapshot back to user config when
 // history.persist is on. Composition root supplies a shim that reads
-// the live config flag and no-ops when persist is off — Controller is
+// the live config flag and no-ops when persist is off - Controller is
 // kept oblivious to the setting.
 type Persister interface {
 	PersistSnapshot(s Snapshot)
@@ -63,7 +63,7 @@ func (c *Controller) State() State {
 // Push is the nav-side entry point. It mutates the stack, persists if
 // the composition root wired a Persister, and broadcasts state. Empty
 // hrefs and duplicates-at-cursor short-circuit silently inside
-// Manager — broadcast/persist fire only on real mutations, detected
+// Manager - broadcast/persist fire only on real mutations, detected
 // via a snapshot-equality check.
 func (c *Controller) Push(href string) {
 	before := c.m.Snapshot()

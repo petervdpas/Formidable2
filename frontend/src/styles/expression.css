@@ -1,5 +1,5 @@
 /*
- * expression — sidebar sub-label utility classes.
+ * expression - sidebar sub-label utility classes.
  *
  * The expression engine returns {text, color, classes} per row; this
  * sheet defines the chrome (.form-list-expression base) plus a small
@@ -23,7 +23,7 @@
   white-space: nowrap;
 }
 
-/* Named utilities — referenced by template authors via
+/* Named utilities - referenced by template authors via
  * `{classes: ["expr-bold"]}`. Mirror the original Formidable
  * vocabulary so old templates keep working after the engine port. */
 
@@ -104,7 +104,7 @@
 
 /* Scrolling: nudges the text left and back via animated text-indent.
  * Pure-CSS marquee without a wrapper element. Width-bounded so the
- * effect is visible only when text actually overflows the cell —
+ * effect is visible only when text actually overflows the cell -
  * short labels just sit still. */
 @keyframes expr-scroll {
   0%, 15%    { text-indent: 0;     }

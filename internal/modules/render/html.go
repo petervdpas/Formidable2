@@ -15,7 +15,7 @@ import (
 )
 
 // goldmarkOnce keeps a single configured Markdown engine for the
-// process — goldmark.Markdown is safe for concurrent use after Build.
+// process - goldmark.Markdown is safe for concurrent use after Build.
 var (
 	goldmarkOnce sync.Once
 	gm           goldmark.Markdown
@@ -57,7 +57,7 @@ var (
 	preBlockRe         = regexp.MustCompile(`(?is)<pre[\s\S]*?</pre>|<code[\s\S]*?</code>`)
 )
 
-// stripFrontmatter — drops a leading YAML block before goldmark sees it.
+// stripFrontmatter - drops a leading YAML block before goldmark sees it.
 func stripFrontmatter(s string) string {
 	return frontmatterStripRe.ReplaceAllString(s, "")
 }
@@ -72,7 +72,7 @@ func convertFileImages(s string) string {
 }
 
 // decorateTagsOutsideCode wraps `#tag` in `<span class="inline-tag">…</span>`
-// — but only outside `<pre>` and `<code>` blocks (so code samples that
+// - but only outside `<pre>` and `<code>` blocks (so code samples that
 // mention `#define` etc. aren't styled).
 func decorateTagsOutsideCode(html string) string {
 	parts := preBlockRe.Split(html, -1)

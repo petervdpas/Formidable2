@@ -84,7 +84,7 @@ func (m *Manager) RepoRoot(path string) (string, error) {
 // frontend doesn't have to learn git's two-letter status grammar.
 //
 // A file modified in both the index and the worktree appears in
-// both Staged and Modified — same as the porcelain output.
+// both Staged and Modified - same as the porcelain output.
 func (m *Manager) Status(path string) (*Status, error) {
 	r, err := m.open(path)
 	if err != nil {
@@ -109,7 +109,7 @@ func (m *Manager) Status(path string) (*Status, error) {
 	}
 
 	// Branch + tracking + detached. A missing HEAD (newborn repo
-	// before any commit) is not an error — leave Branch empty.
+	// before any commit) is not an error - leave Branch empty.
 	head, err := r.Head()
 	switch {
 	case err == nil:
@@ -118,7 +118,7 @@ func (m *Manager) Status(path string) (*Status, error) {
 			if cfg, _ := r.Config(); cfg != nil {
 				if br, ok := cfg.Branches[out.Branch]; ok && br.Remote != "" && br.Merge != "" {
 					// Tracking is reported as the remote-tracking
-					// ref the upstream maps to — same name pattern
+					// ref the upstream maps to - same name pattern
 					// the JS gitManager exposed.
 					out.Tracking = "refs/remotes/" + br.Remote + "/" + br.Merge.Short()
 				}
@@ -128,7 +128,7 @@ func (m *Manager) Status(path string) (*Status, error) {
 			out.Detached = true
 		}
 	case errors.Is(err, plumbing.ErrReferenceNotFound):
-		// Newborn repo, no commits yet — no branch to report.
+		// Newborn repo, no commits yet - no branch to report.
 	default:
 		return nil, fmt.Errorf("git: head: %w", err)
 	}
@@ -148,7 +148,7 @@ func (m *Manager) Status(path string) (*Status, error) {
 	}
 
 	for f, st := range s {
-		// Conflicts (both sides modified, etc.) — go-git surfaces
+		// Conflicts (both sides modified, etc.) - go-git surfaces
 		// these via the worktree code 'U' / 'A' / 'D' pairs.
 		if isConflict(st.Staging, st.Worktree) {
 			out.Conflicted = append(out.Conflicted, f)
@@ -205,7 +205,7 @@ func isConflict(staging, worktree gogit.StatusCode) bool {
 
 // Branches lists local branches plus the active one. Sorted
 // lexicographically so the UI can render a stable list. Remote-
-// tracking branches are not included here — they belong on a
+// tracking branches are not included here - they belong on a
 // separate call once the UI needs them.
 func (m *Manager) Branches(path string) (*Branches, error) {
 	r, err := m.open(path)
@@ -235,7 +235,7 @@ func (m *Manager) Branches(path string) (*Branches, error) {
 
 // Log returns up to <limit> commits walking back from HEAD, newest
 // first. limit <= 0 means "all". An empty repo (no HEAD yet) is
-// not an error — returns an empty slice, matching the UI's "no
+// not an error - returns an empty slice, matching the UI's "no
 // activity yet" expectation.
 func (m *Manager) Log(path string, limit int) ([]Commit, error) {
 	r, err := m.open(path)
@@ -277,7 +277,7 @@ var errStopIter = errors.New("stop iteration")
 // "A" (added), "M" (modified), "D" (deleted), or "R" (renamed).
 //
 // A root commit (no parents) treats every file as added. Merge
-// commits use the FIRST parent for the diff — the standard "what
+// commits use the FIRST parent for the diff - the standard "what
 // did this commit change relative to the mainline" interpretation
 // that matches `git show <hash>` output.
 //
@@ -347,7 +347,7 @@ func (m *Manager) CommitChanges(path, hash string) ([]ChangeFile, error) {
 		}
 		// Rename detection: same blob hash on both sides but different
 		// paths is a rename. Action would be Modify or Insert/Delete
-		// pair — we collapse to "R" when the names differ AND the
+		// pair - we collapse to "R" when the names differ AND the
 		// blob is identical.
 		if c.From.Name != "" && c.To.Name != "" && c.From.Name != c.To.Name {
 			if !c.From.TreeEntry.Hash.IsZero() && c.From.TreeEntry.Hash == c.To.TreeEntry.Hash {
@@ -365,7 +365,7 @@ func (m *Manager) CommitChanges(path, hash string) ([]ChangeFile, error) {
 // branch / HEAD refs that point at it (for the row's ref pills).
 //
 // limit <= 0 means "all". An empty repo (no HEAD yet) yields an empty
-// slice and no error — matches Log's behavior.
+// slice and no error - matches Log's behavior.
 func (m *Manager) LogGraph(path string, limit int) ([]GraphCommit, error) {
 	r, err := m.open(path)
 	if err != nil {
@@ -387,7 +387,7 @@ func (m *Manager) LogGraph(path string, limit int) ([]GraphCommit, error) {
 		hh := head.Hash().String()
 		refsByHash[hh] = append(refsByHash[hh], "HEAD -> "+head.Name().Short())
 	} else {
-		// Detached HEAD — still useful to mark its position.
+		// Detached HEAD - still useful to mark its position.
 		refsByHash[head.Hash().String()] = append(refsByHash[head.Hash().String()], "HEAD")
 	}
 	branches, berr := r.Branches()
@@ -395,7 +395,7 @@ func (m *Manager) LogGraph(path string, limit int) ([]GraphCommit, error) {
 		_ = branches.ForEach(func(ref *plumbing.Reference) error {
 			h := ref.Hash().String()
 			name := ref.Name().Short()
-			// Skip the bare branch name when HEAD points at it — the
+			// Skip the bare branch name when HEAD points at it - the
 			// "HEAD -> name" pill already covers it.
 			if head.Name().IsBranch() && head.Name().Short() == name {
 				return nil
@@ -429,7 +429,7 @@ func (m *Manager) LogGraph(path string, limit int) ([]GraphCommit, error) {
 }
 
 // toGraphCommit fills hash/short/author/email/time/subject and the
-// parent-hash list. Refs is left nil — LogGraph attaches them after
+// parent-hash list. Refs is left nil - LogGraph attaches them after
 // resolving the per-hash ref map.
 func toGraphCommit(c *object.Commit) GraphCommit {
 	subject := c.Message
@@ -502,7 +502,7 @@ func (m *Manager) RemoteInfo(path string) (*RemoteInfo, error) {
 	return out, nil
 }
 
-// Sentinel — keep config import alive for tests that need
+// Sentinel - keep config import alive for tests that need
 // CreateRemote via go-git's config types. Inlined here so a future
 // call site (e.g. SetRemote) doesn't trigger an "unused import"
 // dance during partial implementation.
@@ -510,7 +510,7 @@ var _ = config.RemoteConfig{}
 
 // Clone fetches a remote repository into opts.Dest. URL + Dest are
 // required; opts.Branch picks the initial checkout (empty = remote
-// HEAD); opts.PAT enables HTTP basic auth (transient — never
+// HEAD); opts.PAT enables HTTP basic auth (transient - never
 // persisted by the manager).
 //
 // Refuses to clone into an existing non-empty directory. The
@@ -559,7 +559,7 @@ func (m *Manager) Clone(opts CloneOptions) (*CloneResult, error) {
 		return nil, fmt.Errorf("git: clone: head: %w", err)
 	}
 	// Branch is the short name when HEAD points at a branch (the
-	// usual case for a fresh clone). Detached HEAD leaves it empty —
+	// usual case for a fresh clone). Detached HEAD leaves it empty -
 	// the UI then keeps git_branch unchanged rather than writing "".
 	branch := ""
 	if head.Name().IsBranch() {
@@ -573,12 +573,12 @@ func (m *Manager) Clone(opts CloneOptions) (*CloneResult, error) {
 // author/email/message.
 //
 // Refuses on:
-//   - empty message / empty author / empty email — these are UI bugs
+//   - empty message / empty author / empty email - these are UI bugs
 //     and silently no-op'ing leaves the user wondering why nothing
 //     happened.
-//   - a clean worktree — go-git would happily make an empty commit
+//   - a clean worktree - go-git would happily make an empty commit
 //     otherwise; explicit error lets the UI greylist the button.
-//   - detached HEAD — committing detached needs explicit branch
+//   - detached HEAD - committing detached needs explicit branch
 //     decisions we don't surface yet.
 func (m *Manager) Commit(opts CommitOptions) (*CommitResult, error) {
 	if strings.TrimSpace(opts.Message) == "" {
@@ -593,7 +593,7 @@ func (m *Manager) Commit(opts CommitOptions) (*CommitResult, error) {
 		return nil, fmt.Errorf("git: commit: open: %w", err)
 	}
 
-	// Detached-HEAD guard. Empty repo (no HEAD yet) is allowed — the
+	// Detached-HEAD guard. Empty repo (no HEAD yet) is allowed - the
 	// first commit on a fresh init lands on the default branch.
 	head, err := r.Head()
 	if err == nil {
@@ -655,7 +655,7 @@ func (m *Manager) Commit(opts CommitOptions) (*CommitResult, error) {
 // pair and returns (ahead, behind). "Ahead" is the count of commits
 // reachable from headHash but not from trackHash; "behind" is the
 // reverse. We materialise both reachable sets and take the
-// symmetric difference — costs O(history) memory in the worst case,
+// symmetric difference - costs O(history) memory in the worst case,
 // but in an active workspace the divergence is small.
 func aheadBehind(r *gogit.Repository, headHash, trackHash plumbing.Hash) (int, int, error) {
 	headSet := make(map[plumbing.Hash]struct{})
@@ -698,7 +698,7 @@ func walkReachable(r *gogit.Repository, from plumbing.Hash, into map[plumbing.Ha
 
 // Push sends the current branch's HEAD to the named remote (default
 // "origin"). Returns AlreadyUpToDate=true when go-git reports there
-// was nothing to send — that's an info-level outcome, not an error,
+// was nothing to send - that's an info-level outcome, not an error,
 // so the UI can surface it as "you're current."
 //
 // Refuses on detached HEAD: the ref to push is computed from
@@ -751,7 +751,7 @@ func (m *Manager) Push(opts PushOptions) (*PushResult, error) {
 // caller gets a wrapped error from go-git's worktree pull. Empty
 // PAT means anonymous (works for public repos and SSH).
 //
-// AlreadyUpToDate=true mirrors Push/Fetch — info, not error.
+// AlreadyUpToDate=true mirrors Push/Fetch - info, not error.
 func (m *Manager) Pull(opts PullOptions) (*PullResult, error) {
 	if strings.TrimSpace(opts.Path) == "" {
 		return nil, errors.New("git: pull: path required")
@@ -811,7 +811,7 @@ const stashSubdir = ".changes.stash"
 
 // PullWithStash performs a journal-aware auto-stash + pull + restore.
 // The pending manifest is the authoritative list of files Formidable
-// has touched since the last sync — narrower than `git status`, which
+// has touched since the last sync - narrower than `git status`, which
 // would also catch external edits we don't own.
 //
 // Flow:
@@ -827,7 +827,7 @@ const stashSubdir = ".changes.stash"
 //     conflicts, leave it for manual recovery and surface the list.
 //
 // On pull failure (network, auth, divergent), the worktree paths
-// already reset to HEAD stay reset — the stash directory remains so
+// already reset to HEAD stay reset - the stash directory remains so
 // the user can manually recover. We surface the pull error and the
 // stash directory path to the caller.
 func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, error) {
@@ -870,10 +870,10 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 	}
 
 	// Phase 2: reset only the snapshotted paths. We don't touch the
-	// rest of the worktree — files that aren't in the journal pending
+	// rest of the worktree - files that aren't in the journal pending
 	// set don't get clobbered.
 	if err := m.stashReset(r, wt, entries); err != nil {
-		// Reset failed — undo what we can: rewrite stashed content
+		// Reset failed - undo what we can: rewrite stashed content
 		// back so the user's changes aren't lost. Surface the error.
 		_, _ = m.stashRestoreOnFailure(repoRoot, entries)
 		_ = os.RemoveAll(stashRoot)
@@ -900,7 +900,7 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 	// blob hashes. Same hash → pull didn't touch, restore stash
 	// content. Different hash → try structured merge for .meta.json;
 	// fall back to "pull wins, drop user version" otherwise. Stash
-	// directory is always removed at the end — the Overridden list is
+	// directory is always removed at the end - the Overridden list is
 	// the only signal that something was lost.
 	r2, err := m.open(opts.Path)
 	if err != nil {
@@ -934,12 +934,12 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 // pull moved the path out from under the stash.
 //
 // Pending is the journal's view of "files Formidable mutated since
-// the last sync". The journal is conservative — it logs every write
+// the last sync". The journal is conservative - it logs every write
 // through system.SaveFile, including no-op saves and writes that were
 // later locally committed (the cursor only advances on sync, not on
 // commit). So the manifest can include "stale" entries: paths the
 // journal claims are dirty but where on-disk content already matches
-// HEAD. Stashing those would be a double waste — pure clutter, plus
+// HEAD. Stashing those would be a double waste - pure clutter, plus
 // it'd trip a false-positive conflict if pull happens to touch one
 // (post-pull blob hash differs from pre-pull, but the user has nothing
 // to restore).
@@ -1061,7 +1061,7 @@ func shouldStash(r *gogit.Repository, repoRoot, path, op, oldHash string) (bool,
 	}
 	blob, err := r.BlobObject(plumbing.NewHash(oldHash))
 	if err != nil {
-		// Couldn't resolve HEAD blob — be conservative and stash.
+		// Couldn't resolve HEAD blob - be conservative and stash.
 		return true, disk, nil
 	}
 	reader, err := blob.Reader()
@@ -1081,7 +1081,7 @@ func shouldStash(r *gogit.Repository, repoRoot, path, op, oldHash string) (bool,
 
 // stashReset clears each snapshotted path so the worktree is clean
 // before pull. go-git v5 has no per-file `git checkout HEAD -- <path>`
-// — wt.Checkout operates on the whole worktree, which would clobber
+// - wt.Checkout operates on the whole worktree, which would clobber
 // dirt outside the journal pending set. So we mirror the Discard()
 // pattern: read the HEAD blob (or its absence) and rewrite/remove the
 // worktree file by hand, then wt.Add (or wt.Remove) to refresh the
@@ -1152,12 +1152,12 @@ func (m *Manager) stashReset(r *gogit.Repository, wt *gogit.Worktree, entries []
 //   - Overridden: pull touched the path AND either it's not a record
 //     file (yaml templates, binaries) OR recmerge returned a
 //     RecordConflict (immutable meta divergence). Pull's content stays
-//     on disk (we do nothing — pull already left it there). The
+//     on disk (we do nothing - pull already left it there). The
 //     post-pull commit's author/email/time for this path is captured
 //     so the UI can tell the user who to coordinate with.
 //
 // The .changes.stash directory is removed by the caller after this
-// function returns regardless of the outcome — the Overridden list is
+// function returns regardless of the outcome - the Overridden list is
 // the only durable signal of what was lost.
 func (m *Manager) stashMergeOrOverride(r *gogit.Repository, head *plumbing.Reference, repoRoot string, entries []StashEntry) ([]string, []string, []OverriddenPath, error) {
 	headTree, err := treeOf(r, head.Hash())
@@ -1206,7 +1206,7 @@ func (m *Manager) stashMergeOrOverride(r *gogit.Repository, head *plumbing.Refer
 		// the file's own author identity (records embed it in
 		// meta.author_name/email; templates carry author_name/email
 		// at the YAML root). Both are kept fresh by SaveTemplate /
-		// the form save path — transport-agnostic, so this works
+		// the form save path - transport-agnostic, so this works
 		// for git and gigot identically. Fall back to git log for
 		// binaries and for files that don't carry the fields yet.
 		over := lookupAuthorFromRecord(r, head, repoRoot, e.Path)
@@ -1232,7 +1232,7 @@ func (m *Manager) stashMergeOrOverride(r *gogit.Repository, head *plumbing.Refer
 // Returns a populated OverriddenPath when the path matches
 // templates/*.yaml and the YAML decodes with non-empty author fields;
 // otherwise returns a zero value (caller falls back to git log).
-// Mirrors lookupAuthorFromRecord — both pull author info from the file
+// Mirrors lookupAuthorFromRecord - both pull author info from the file
 // itself rather than walking git history.
 func lookupAuthorFromTemplate(r *gogit.Repository, head *plumbing.Reference, _ string, path string) OverriddenPath {
 	// Path shape: "templates/<name>.yaml" exactly two segments.
@@ -1289,7 +1289,7 @@ func isTemplatePath(path string) bool {
 // record's meta envelope. Returns a populated OverriddenPath when the
 // path resolves to a parseable record at HEAD with non-empty author
 // fields; otherwise returns a zero value (caller falls back to git
-// log). The post-pull HEAD content is the right source — it represents
+// log). The post-pull HEAD content is the right source - it represents
 // the version that won.
 func lookupAuthorFromRecord(r *gogit.Repository, head *plumbing.Reference, repoRoot, path string) OverriddenPath {
 	if !recmerge.IsRecordPath(path) {
@@ -1346,7 +1346,7 @@ func recordAuthorFromMeta(meta map[string]any) (name, email, updatedAt string) {
 	return
 }
 
-// applyStashEntry writes a single stashed entry to the worktree —
+// applyStashEntry writes a single stashed entry to the worktree -
 // content for create/update, removal for delete. Used for the
 // "restore" branch where pull didn't touch the path.
 func applyStashEntry(repoRoot, stashRoot string, e StashEntry) error {
@@ -1379,7 +1379,7 @@ func applyStashEntry(repoRoot, stashRoot string, e StashEntry) error {
 // Formidable record file (storage/<tpl>/<n>.meta.json) AND it's
 // tracked on both pre- and post-pull HEAD (so we have a base + theirs
 // to merge against). Add/delete shapes can't go through structured
-// merge — they fall through to "pull wins".
+// merge - they fall through to "pull wins".
 func recordPathMergeable(e StashEntry) bool {
 	if !recmerge.IsRecordPath(e.Path) {
 		return false
@@ -1462,7 +1462,7 @@ func readBlob(r *gogit.Repository, h plumbing.Hash) ([]byte, error) {
 // lookupAuthor walks back from head to find the most recent commit
 // that touched path, then returns the author/email/time for the UI's
 // "contact this person" notification. Falls back to the head commit's
-// author when path-bisecting walk fails — better than nothing.
+// author when path-bisecting walk fails - better than nothing.
 func lookupAuthor(r *gogit.Repository, headHash plumbing.Hash, path string) (OverriddenPath, error) {
 	iter, err := r.Log(&gogit.LogOptions{From: headHash})
 	if err != nil {
@@ -1534,7 +1534,7 @@ func lookupAuthor(r *gogit.Repository, headHash plumbing.Hash, path string) (Ove
 }
 
 // stashRestoreOnFailure writes stashed content back without conflict
-// checking — used when pull never ran (or failed) and we want the
+// checking - used when pull never ran (or failed) and we want the
 // user's pre-stash state back on disk. Best-effort: returns the paths
 // that were successfully restored; ignores read errors and continues.
 func (m *Manager) stashRestoreOnFailure(repoRoot string, entries []StashEntry) ([]string, error) {
@@ -1569,7 +1569,7 @@ func (m *Manager) stashRestoreOnFailure(repoRoot string, entries []StashEntry) (
 }
 
 // treeOf returns the commit tree at hash, or an error if hash is zero
-// (unborn HEAD — shouldn't happen here since we already checked
+// (unborn HEAD - shouldn't happen here since we already checked
 // IsBranch upstream).
 func treeOf(r *gogit.Repository, h plumbing.Hash) (*object.Tree, error) {
 	if h.IsZero() {
@@ -1605,7 +1605,7 @@ func stashedPathList(entries []StashEntry) []string {
 	return out
 }
 
-// atomicWriteBytes is the local copy of system.atomicWriteFile —
+// atomicWriteBytes is the local copy of system.atomicWriteFile -
 // inlined here so the git package doesn't have to import system just
 // for the tmp+fsync+rename idiom. Restore writes go this way
 // (NOT through system.SaveFile) so they bypass the journal: the
@@ -1693,7 +1693,7 @@ func (m *Manager) Fetch(opts FetchOptions) (*FetchResult, error) {
 //
 // Path-traversal segments ("..") are rejected up-front; File must be
 // a clean relative path inside the worktree. Missing files (already
-// gone, raced with a manual delete) are not an error — the desired
+// gone, raced with a manual delete) are not an error - the desired
 // end state is "discarded," and a missing untracked file already is.
 func (m *Manager) Discard(opts DiscardOptions) error {
 	if strings.TrimSpace(opts.File) == "" {
@@ -1714,7 +1714,7 @@ func (m *Manager) Discard(opts DiscardOptions) error {
 	}
 
 	// Look up the file's blob in HEAD if it's there. A nil headBlob
-	// means "this file isn't tracked at HEAD" — either untracked or
+	// means "this file isn't tracked at HEAD" - either untracked or
 	// a staged add. Either way: discard = remove.
 	var headBlob *object.Blob
 	if h, herr := r.Head(); herr == nil {
@@ -1755,7 +1755,7 @@ func (m *Manager) Discard(opts DiscardOptions) error {
 		return nil
 	}
 
-	// File not in HEAD — drop it. wt.Remove handles the staged-add
+	// File not in HEAD - drop it. wt.Remove handles the staged-add
 	// case (delete from worktree + index). For an untracked file,
 	// wt.Remove fails because the index has no entry, so we fall
 	// back to a plain os.Remove.

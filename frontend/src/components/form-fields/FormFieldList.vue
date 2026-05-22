@@ -13,11 +13,11 @@ const { config } = useConfig();
 const showPaste = computed(() => !!config.value?.show_paste_buttons);
 const pasteOpen = ref(false);
 
-// Local narrow shape — `SelectField`'s SelectOption union also allows
+// Local narrow shape - `SelectField`'s SelectOption union also allows
 // plain strings; we always build the object form here.
 type ListOption = { value: string; label: string };
 
-// DnD scope — unique per component instance. The same list field
+// DnD scope - unique per component instance. The same list field
 // rendered inside multiple loop entries needs distinct scopes so
 // vuedraggable doesn't accept items dragged across instances.
 // Mirrors the original's `list:<key>:<loopChain>:<uuid>` scheme.
@@ -122,13 +122,13 @@ const mode = computed<Mode>(() => {
 const customPlaceholder = computed(() => parsed.value.customLabel ?? "");
 
 // Per-row resolution: in dropdown mode, a value that's not in the
-// fixed set means the user picked "Custom…" — render a text input.
+// fixed set means the user picked "Custom…" - render a text input.
 function isCustom(row: string): boolean {
   if (mode.value !== "dropdown") return false;
   return !fixedValues.value.has(row);
 }
 
-// Dropdown options assembled per render — fixed entries plus the
+// Dropdown options assembled per render - fixed entries plus the
 // "Custom…" sentinel when the list allows custom values.
 const selectOptions = computed<ListOption[]>(() => {
   const opts = parsed.value.fixed.slice();
@@ -148,7 +148,7 @@ function onSelect(i: number, picked: string) {
   }
 }
 
-// In fixed-only mode, a stored value not in the set is "invalid" —
+// In fixed-only mode, a stored value not in the set is "invalid" -
 // flag visually so the user knows it needs attention.
 function isInvalid(row: string): boolean {
   if (mode.value !== "fixed-only") return false;
@@ -202,7 +202,7 @@ function isInvalid(row: string): boolean {
             />
           </template>
 
-          <!-- Fixed-only — locked to the allowed set. -->
+          <!-- Fixed-only - locked to the allowed set. -->
           <SelectField
             v-else
             :model-value="item"

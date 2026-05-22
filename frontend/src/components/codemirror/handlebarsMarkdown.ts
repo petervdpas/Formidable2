@@ -3,11 +3,11 @@
 // We layer two parsers on top of the stock CommonMark grammar so the
 // Template editor matches what's actually in those files:
 //
-//   1. Frontmatter — `---` ... `---` at the top of the document is
+//   1. Frontmatter - `---` ... `---` at the top of the document is
 //      consumed as a single block. Without this the YAML inside reads
 //      as a stream of "label: value" link-reference definitions, which
 //      paints every line with the link-reference underline.
-//   2. Handlebars — inline `{{ … }}` / `{{# … }}` / `{{/ … }}` /
+//   2. Handlebars - inline `{{ … }}` / `{{# … }}` / `{{/ … }}` /
 //      `{{! … }}` / `{{> … }}` / `{{{ … }}}` get their own syntax
 //      nodes so the highlighter can colour them as keywords / names /
 //      strings instead of plain markdown text.
@@ -49,7 +49,7 @@ const FrontmatterParser: BlockParser = {
         return true;
       }
     }
-    // Unterminated frontmatter — consume what we have so the rest of
+    // Unterminated frontmatter - consume what we have so the rest of
     // the doc parses cleanly as markdown rather than re-trying the
     // fence on every paragraph below.
     cx.addElement(cx.elt("Frontmatter", from, cx.lineStart));
@@ -59,17 +59,17 @@ const FrontmatterParser: BlockParser = {
 
 // ── Handlebars ─────────────────────────────────────────────────────
 // Inline parser that recognises every `{{`-led construct. We don't
-// fully tokenise the expression body — that would mean re-implementing
+// fully tokenise the expression body - that would mean re-implementing
 // a Handlebars parser. Instead each construct is split into:
 //
-//   open      — `{{` / `{{{` / `{{#` / `{{/` / `{{!` / `{{>` plus the
+//   open      - `{{` / `{{{` / `{{#` / `{{/` / `{{!` / `{{>` plus the
 //                immediately-following identifier (helper or path).
 //                Identifier node type depends on the prefix: # / /
 //                forms style as keyword, others as variableName, !
 //                styles the whole body as comment.
-//   body      — everything between the identifier and the closing
+//   body      - everything between the identifier and the closing
 //                braces (string-like).
-//   close     — the trailing `}}` or `}}}`.
+//   close     - the trailing `}}` or `}}}`.
 //
 // All three live under a `HandlebarsExpression` parent so a future
 // styler can hook the whole construct in one place.
@@ -155,7 +155,7 @@ function identNodeName(kind: IdentKind): string {
 const HandlebarsParser: InlineParser = {
   name: "Handlebars",
   parse(cx: InlineContext, next: number, pos: number): number {
-    // Fast reject — the inline parser is called for every char.
+    // Fast reject - the inline parser is called for every char.
     if (next !== 0x7b /* { */) return -1;
 
     // `pos` is document-relative. `cx.slice` takes document-relative
@@ -182,7 +182,7 @@ const HandlebarsParser: InlineParser = {
 
 // ── Style tags ─────────────────────────────────────────────────────
 // One tag per leaf node. NO parent-scoped selector (e.g.
-// "HandlebarsExpression/...") — that paints every child with the
+// "HandlebarsExpression/...") - that paints every child with the
 // parent's brace style and overrides the more specific keyword /
 // variableName / string tags on the children.
 const handlebarsStyle = styleTags({

@@ -91,7 +91,7 @@ cover:
 		t.Errorf("nested input should pass through:\n%s", out)
 	}
 	if strings.Contains(out, "    template:") {
-		t.Errorf("double-indented — repair pass ran on already-nested input:\n%s", out)
+		t.Errorf("double-indented - repair pass ran on already-nested input:\n%s", out)
 	}
 }
 

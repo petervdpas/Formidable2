@@ -5,13 +5,13 @@ import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/fo
 import { useI18n } from "vue-i18n";
 
 // Readonly path field paired with a native folder picker. Free
-// typing is intentionally disabled — the OS picker guarantees an
+// typing is intentionally disabled - the OS picker guarantees an
 // absolute, existing folder, which is the only thing config and
 // git-root code paths can rely on cheaply. Cancellation (empty
 // returned path) is treated as a no-op.
 //
 // Picked paths are passed through SystemSvc.MakeAppRootRelative so
-// folders under AppRoot collapse to "./<rel>" — keeping config
+// folders under AppRoot collapse to "./<rel>" - keeping config
 // values portable across machines that share the AppRoot
 // convention. Outside-root paths round-trip absolute.
 //

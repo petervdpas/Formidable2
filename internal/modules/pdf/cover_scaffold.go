@@ -17,13 +17,13 @@ const onDiskCoversDir = "pdf/covers"
 // counterpart on disk if (and only if) the on-disk file is missing.
 // Walks the full embedded subtree so subdirectories like images/
 // (where the default formidable.svg logo lives) get scaffolded too.
-// Idempotent — safe to run on every boot. User edits are sacrosanct:
+// Idempotent - safe to run on every boot. User edits are sacrosanct:
 // once a file exists at the target path, the seed is left alone.
 //
 // Delete-to-reset works for free: removing a file before boot
 // re-scaffolds the bundled copy.
 //
-// Errors writing one seed don't abort the whole pass — the function
+// Errors writing one seed don't abort the whole pass - the function
 // logs and moves on, so a permission glitch on one file can't block
 // the rest of the library from materializing.
 func scaffoldCovers(fs storeFS, log *slog.Logger) error {

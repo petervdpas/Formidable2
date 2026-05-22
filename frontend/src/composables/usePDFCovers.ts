@@ -7,14 +7,14 @@ import type {
 import { backendErrMessage } from "../utils/backendError";
 
 // Filename stems that ship as embedded seeds. Used by the UI to flip
-// the "Delete" verb to "Reset" — deleting these only removes the file
+// the "Delete" verb to "Reset" - deleting these only removes the file
 // on disk; the next boot's scaffoldCovers run rewrites them. Keep this
 // list in sync with internal/modules/pdf/covers/*.html.
 const SEED_NAMES = new Set(["classic", "banner", "corporate"]);
 
 // Module-scope singletons so the panel survives sidebar navigation
 // without dropping its draft. The Information workspace mounts and
-// unmounts as the user clicks between sections — keeping these here
+// unmounts as the user clicks between sections - keeping these here
 // means the user can switch to "Logging" and back without losing
 // unsaved changes.
 const covers = ref<CoverDescriptor[]>([]);
@@ -55,10 +55,10 @@ async function loadCoverForEdit(name: string) {
     return;
   }
   // Loading an existing cover. ListCovers does NOT carry HTML, so we
-  // re-read by name via SaveCover's sibling — but pdf module doesn't
+  // re-read by name via SaveCover's sibling - but pdf module doesn't
   // expose a GetCover yet. Use ValidateCoverHTML's parsing as a
   // round-trip-free reuse: we just fetch the raw cover via a
-  // newly-added pass-through? No — simpler: do not refetch; the user
+  // newly-added pass-through? No - simpler: do not refetch; the user
   // edits from baseline. We hold baseline via the LoadCover endpoint.
   loading.value = true;
   try {
@@ -112,7 +112,7 @@ const STARTER_TEMPLATE = `<!--
 // substituting "mycover" in the CSS class names with the user's
 // chosen kebab name so the new cover renders against its own scope
 // rather than a placeholder. Empty name leaves "mycover" in place
-// — useful only for the legacy inline-add path (kept so existing
+// - useful only for the legacy inline-add path (kept so existing
 // callers don't break).
 function startNew(name = "") {
   const cleanName = name.trim();
@@ -154,7 +154,7 @@ async function runValidate(html: string) {
 }
 
 // debouncedValidate is what the editor's @update calls on every
-// keystroke — pure-function backend validation is cheap, but
+// keystroke - pure-function backend validation is cheap, but
 // rate-limiting at ~250ms still feels noticeably better than firing
 // per-character.
 function debouncedValidate(html: string) {

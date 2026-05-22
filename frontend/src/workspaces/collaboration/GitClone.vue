@@ -18,7 +18,7 @@ import { useCredentialStatus } from "../../composables/useCredentialStatus";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
-// One-shot Git clone form. PAT is held in a local ref only — never
+// One-shot Git clone form. PAT is held in a local ref only - never
 // persisted, never written to config. The Wails service receives it
 // in a single Clone() call and discards it after the response.
 //
@@ -27,11 +27,11 @@ import { backendErrMessage } from "../../utils/backendError";
 // PAT field is cleared regardless of outcome (transient by design).
 //
 // PAT-saved status: surfaced live next to the PAT field via the
-// shared useCredentialStatus composable — same pattern gigot's Clone
+// shared useCredentialStatus composable - same pattern gigot's Clone
 // uses. Account key is "<profile>:git:<remote_url>" so the badge
 // re-probes as the user types the URL. Useful signal because git's
 // post-clone Push/Pull/Fetch reuse the saved PAT via the keychain
-// resolver — even when this form doesn't itself reuse it for the
+// resolver - even when this form doesn't itself reuse it for the
 // clone call (clone always uses what was typed).
 const { t } = useI18n();
 const { profileFilename, update } = useConfig();
@@ -85,7 +85,7 @@ async function clone() {
     });
     if (result?.dest) {
       // Store the human-friendly form in git_root, and the actual
-      // checked-out branch in git_branch — backend reports it from
+      // checked-out branch in git_branch - backend reports it from
       // repo.Head() so this also covers the "no Branch input → got
       // remote default" case. Empty branch means detached HEAD;
       // skip the write so we don't blank the user's setting.
@@ -97,7 +97,7 @@ async function clone() {
       // If the user opted in, persist the PAT to the OS keychain.
       // Account name is namespaced "<profile>:git:<remote_url>" so
       // multiple profiles cloning the same repo each get their own
-      // entry. Errors here don't undo the clone — we surface them
+      // entry. Errors here don't undo the clone - we surface them
       // as a separate toast and let the user retry the save.
       if (saveToken.value && pat.value !== "") {
         try {
@@ -120,7 +120,7 @@ async function clone() {
   } catch (err) {
     toast.error("workspace.collaboration.clone.error", [backendErrMessage(err)]);
   } finally {
-    // PAT is always wiped — even on error, we don't want it to
+    // PAT is always wiped - even on error, we don't want it to
     // linger in component state across navigation.
     pat.value = "";
     inFlight.value = false;

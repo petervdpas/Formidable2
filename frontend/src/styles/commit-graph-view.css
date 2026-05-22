@@ -1,5 +1,5 @@
 /*
- * commit-graph-view — Collaboration → Commit Graph workspace.
+ * commit-graph-view - Collaboration → Commit Graph workspace.
  *
  * VisualGraph itself is generic; this stylesheet styles the row
  * content (hash, subject, ref pills, author, time) that the
@@ -47,7 +47,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Expanded-row file list — rendered by GitCommitFileList / GigotCommitFileList. */
+/* Expanded-row file list - rendered by GitCommitFileList / GigotCommitFileList. */
 
 .commit-files {
   list-style: none;

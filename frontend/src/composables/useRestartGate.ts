@@ -1,7 +1,7 @@
 import { ref, watch } from "vue";
 import { useConfig, type Config } from "./useConfig";
 
-// Restart-only fields — the gate flips on whenever any of these
+// Restart-only fields - the gate flips on whenever any of these
 // diverge from what was loaded at app boot. Add new fields here when
 // they become "applies on next launch."
 type RestartSnapshot = {
@@ -28,7 +28,7 @@ function equal(a: RestartSnapshot | null, b: RestartSnapshot | null): boolean {
 
 // bootConfig is the FULL config as it was when the app started. It
 // never changes during the session even if the user edits restart-only
-// fields — that's the point. Workspaces that depend on restart-only
+// fields - that's the point. Workspaces that depend on restart-only
 // values (sidebar width, in/out window size) read from here so the
 // session stays internally consistent until the user clicks Apply.
 const bootConfig = ref<Config | null>(null);

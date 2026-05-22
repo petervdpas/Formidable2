@@ -36,7 +36,7 @@ const activeProfileLabel = computed(() => {
 // all behave correctly) but pass sentinel tokens as args; the regex
 // then splits the result so we can wrap the real arg values in
 // <strong> on the way out. Plain `t(key)` would erase `{0}` to empty
-// before we ever saw it — that was the "Template saved successfully."
+// before we ever saw it - that was the "Template saved successfully."
 // bug.  is the SOH control char and won't collide with content.
 type StatusPart = { text: string; arg: boolean };
 

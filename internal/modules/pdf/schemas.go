@@ -8,7 +8,7 @@ import (
 // Schemas returns the structural map every codeformatter-style repair
 // pass needs: top-level frontmatter key → the set of child keys
 // recognised under it. Derived by reflecting on the typed Frontmatter
-// struct so the keyset can't drift from input.go — adding a field to
+// struct so the keyset can't drift from input.go - adding a field to
 // CoverFM (or any other sub-block) auto-registers it here.
 //
 // Returned map is fresh on each call (cheap; called once at app boot).

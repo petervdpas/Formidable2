@@ -1,4 +1,4 @@
-Feature: REST API — Swagger UI + asset bundle
+Feature: REST API - Swagger UI + asset bundle
   /api/docs/ serves the embedded swagger-ui-dist shell + Formidable's
   back-link pill. The shell points at /api/openapi.json so the spec
   the UI renders is always live.

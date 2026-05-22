@@ -1,6 +1,6 @@
 // Package config owns the user configuration, boot profile, and the
 // derived Virtual File System (VFS) view of the on-disk Formidable
-// data layout. Wails-only — no HTTP handlers; raw config is too
+// data layout. Wails-only - no HTTP handlers; raw config is too
 // sensitive even for the loopback API.
 package config
 
@@ -45,7 +45,7 @@ type Config struct {
 	History       History       `json:"history"`
 }
 
-// WindowBounds — X/Y are pointers so absent (centered) is distinguishable
+// WindowBounds - X/Y are pointers so absent (centered) is distinguishable
 // from an explicit (0,0) position.
 type WindowBounds struct {
 	Width     int  `json:"width"`
@@ -131,7 +131,7 @@ type ProfileResult struct {
 // without config depending on it. Wired in `internal/app/app.go`.
 // Nil journal is treated as a no-op throughout.
 //
-// Init/baseline seeding is intentionally NOT part of this interface —
+// Init/baseline seeding is intentionally NOT part of this interface -
 // the composition root calls journal.Manager.Init() once at startup
 // and again on profile/context switches, since the timing rules differ
 // from "every config load."

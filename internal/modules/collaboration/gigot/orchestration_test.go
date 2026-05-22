@@ -82,7 +82,7 @@ func TestPushLocal_FirstSyncSeedsFromTreeAndSkipsRePushOfMatchingBlobs(t *testin
 	ctxDir := t.TempDir()
 	writeFile(t, ctxDir, "templates/basic.yaml", "name: basic\n")
 	// What's in the local file already exists on the server with a
-	// matching blob — no push should happen.
+	// matching blob - no push should happen.
 	localSha := GitBlobSha([]byte("name: basic\n"))
 
 	srv, h := newOrchestrationServer(t)
@@ -124,7 +124,7 @@ func TestPushLocal_FirstSyncCommitsNewLocalFile(t *testing.T) {
 	srv, h := newOrchestrationServer(t)
 	defer srv.Close()
 
-	// /tree on first sync — server has nothing.
+	// /tree on first sync - server has nothing.
 	h.handle("GET", "/api/repos/r/tree", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(TreeResponse{Version: "", Files: nil})
 	})
@@ -372,7 +372,7 @@ func TestPullLocal_DeletesLocalFilesAbsentFromServerTree(t *testing.T) {
 	srv, h := newOrchestrationServer(t)
 	defer srv.Close()
 	h.handle("GET", "/api/repos/r/tree", func(w http.ResponseWriter, _ *http.Request) {
-		// Server only lists keepme — dropme should be deleted locally.
+		// Server only lists keepme - dropme should be deleted locally.
 		_ = json.NewEncoder(w).Encode(TreeResponse{
 			Version: "afterPull",
 			Files:   []TreeEntry{{Path: "templates/keepme.yaml", Blob: GitBlobSha([]byte("keep\n"))}},
@@ -532,7 +532,7 @@ func TestSync_RunsPushThenPullAggregatesResult(t *testing.T) {
 	srv, h := newOrchestrationServer(t)
 	defer srv.Close()
 
-	// /tree is hit twice — once at push first-sync seed, once during pull.
+	// /tree is hit twice - once at push first-sync seed, once during pull.
 	var treeHits int
 	h.handle("GET", "/api/repos/r/tree", func(w http.ResponseWriter, _ *http.Request) {
 		treeHits++

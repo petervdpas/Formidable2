@@ -30,7 +30,7 @@ Feature: Read-path routes
       | y.meta.json | NIET IN GEBRUIK   |
     When I GET "/template/basic"
     Then the response status is 200
-    # html/template escapes "+" as "&#43;" — assert on the escaped form
+    # html/template escapes "+" as "&#43;" - assert on the escaped form
     # so the scenario doesn't drift if the template encoding changes.
     And the html body contains "Direct &#43; Indirect"
     And the html body contains "NIET IN GEBRUIK"
@@ -58,7 +58,7 @@ Feature: Read-path routes
 
   Scenario: Form page exposes pre-rewritten in-wiki link hrefs
     # The wiki's render.Manager is constructed with a FormidableLinkURL
-    # strategy, so links arrive at the handler already rewritten —
+    # strategy, so links arrive at the handler already rewritten -
     # there's no post-process step. This scenario confirms the wiki
     # passes through whatever the dataprovider returned.
     Given the dataprovider renders "x.meta.json" with body containing a wiki link to "basic" "y.meta.json"
@@ -76,14 +76,14 @@ Feature: Read-path routes
 
   Scenario: Path traversal attempt is refused
     # Go's ServeMux 301-redirects `/template/../etc` to the cleaned
-    # `/etc`, which doesn't match any route — so a follow-up GET 404s.
-    # Either status is "not a leak" — this scenario asserts the 301
+    # `/etc`, which doesn't match any route - so a follow-up GET 404s.
+    # Either status is "not a leak" - this scenario asserts the 301
     # boundary; a separate scenario covers 404 for missing top-level paths.
     When I GET "/template/../etc"
     Then the response status is 301
 
   # ──────────────────────────────────────────────────────────────────────
-  # Per-profile template enablement — the wiki must hide templates the
+  # Per-profile template enablement - the wiki must hide templates the
   # user has disabled in Settings → Templates. List view filters; detail
   # routes 404 (don't leak existence of disabled templates).
   # ──────────────────────────────────────────────────────────────────────

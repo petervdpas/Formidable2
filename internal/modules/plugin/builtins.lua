@@ -1,4 +1,4 @@
--- builtins.lua — Lua-side standard library mounted on the `formidable`
+-- builtins.lua - Lua-side standard library mounted on the `formidable`
 -- global. Evaluated once per Lua state by installFormidable, after the
 -- Go-side namespaces (formidable.path, formidable.url, …) are already
 -- on the global, so functions here can compose them.
@@ -28,13 +28,13 @@ formidable.rewrite = {}
 -- (/api/images/<stem>/<file>, formidable://tpl:data#frag) into target
 -- URLs an export plugin wants on disk. Returns (rewritten, images)
 -- where `images` is a set { urlencoded_name = true } of every image
--- that survived the image pass — copy these to the export tree.
+-- that survived the image pass - copy these to the export tree.
 --
--- opts (all optional — missing config disables that pass):
---   template_stem      — anchors the /api/images/<stem>/ regex
---   image_path_prefix  — replaces "/api/images/<stem>/" in the output
+-- opts (all optional - missing config disables that pass):
+--   template_stem      - anchors the /api/images/<stem>/ regex
+--   image_path_prefix  - replaces "/api/images/<stem>/" in the output
 --                        URL (e.g. ".images/")
---   link_path_format   — formidable:// substitute. Placeholders:
+--   link_path_format   - formidable:// substitute. Placeholders:
 --                        {tpl}, {data}, {hash}. Example:
 --                        "/{tpl}/{data}{hash}"
 function formidable.rewrite.markdown(md, opts)

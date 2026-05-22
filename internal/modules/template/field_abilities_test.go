@@ -6,7 +6,7 @@ import "testing"
 // A type missing from a set must have that ability=false; a type
 // present must have it=true. Editing the matrix to flip a bool that
 // changes the allowed-set will fail this test until the set below is
-// updated to match — that's the point. Drive-by changes are caught.
+// updated to match - that's the point. Drive-by changes are caught.
 
 func TestAbilities_ExpressionItem_OnlyOnScalarValueTypes(t *testing.T) {
 	allowed := stringSet(
@@ -72,7 +72,7 @@ func TestAbilities_TwoColumn_DisabledOnGuidApiAndLoopMeta(t *testing.T) {
 }
 
 // Every type in orderedTypes must be present in fieldDescriptors and
-// vice versa — keeps the dropdown order and the matrix in sync.
+// vice versa - keeps the dropdown order and the matrix in sync.
 func TestOrderedTypes_MatchesFieldDescriptors(t *testing.T) {
 	if len(orderedTypes) != len(fieldDescriptors) {
 		t.Fatalf("orderedTypes has %d entries; fieldDescriptors has %d",
@@ -95,7 +95,7 @@ func TestOrderedTypes_MatchesFieldDescriptors(t *testing.T) {
 	}
 }
 
-// Every descriptor must have Key=true and Type=true — those are the
+// Every descriptor must have Key=true and Type=true - those are the
 // two abilities that are structurally always enabled (modal always
 // renders the Key + Field Type rows).
 func TestAbilities_KeyAndTypeAlwaysEnabled(t *testing.T) {
@@ -134,7 +134,7 @@ func assertAbilityMatchesSet(t *testing.T, name string, allowed map[string]bool,
 }
 
 // assertAbilityDisabledOn enforces ability=false for every id in the
-// disallowed set. Other types are left unchecked — used for abilities
+// disallowed set. Other types are left unchecked - used for abilities
 // that are broadly enabled with a small forbidden list.
 func assertAbilityDisabledOn(t *testing.T, name string, disallowed map[string]bool, get func(Abilities) bool) {
 	t.Helper()

@@ -39,7 +39,7 @@ func (s *Service) LoadForm(templateFilename, datafile string) *Form {
 	return s.m.LoadForm(templateFilename, datafile)
 }
 
-// SaveForm is invoked from the Wails IPC bridge — frontend → service.
+// SaveForm is invoked from the Wails IPC bridge - frontend → service.
 // Wails doesn't surface a request context here, so we pass Background;
 // stamp() then falls back to the AuthorProvider for attribution.
 func (s *Service) SaveForm(templateFilename, datafile string, data map[string]any) SaveResult {

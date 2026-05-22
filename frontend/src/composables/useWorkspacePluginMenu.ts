@@ -11,7 +11,7 @@ import { pluginName } from "../utils/pluginI18n";
 // workspace can call inside its setTopbarMenu() getter. The result is
 // a "Plugins" group containing one item per plugin whose manifest
 // attaches to the given workspace id. Clicking an item opens the
-// global PluginRunDialog with the plugin and a workspace ctx — the
+// global PluginRunDialog with the plugin and a workspace ctx - the
 // dialog then renders modal-mode cards or form-mode fields based on
 // the manifest's run_mode, exactly mirroring the in-workspace Run UI.
 //
@@ -21,7 +21,7 @@ import { pluginName } from "../utils/pluginI18n";
 // pull/clone surfaces newly-installed plugins without a remount.
 //
 // `selectionFeeder`, when supplied, is called at click time to mint
-// the workspace's current selection state — e.g. the Storage
+// the workspace's current selection state - e.g. the Storage
 // workspace passes { template: <filename> } so a plugin scoped to
 // "this template" (like wikiwonder) gets the selection in its ctx
 // without having to enumerate the catalog.

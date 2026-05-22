@@ -78,7 +78,7 @@ func TestBuildFieldTree_NestedLoops(t *testing.T) {
 
 func TestBuildFieldTree_OrphanLoopstop(t *testing.T) {
 	// A loopstop with no preceding loopstart must NOT be silently
-	// dropped — emit it as a plain row so the user can see and delete
+	// dropped - emit it as a plain row so the user can see and delete
 	// it, and let backend validation flag it as unmatched.
 	fields := []Field{
 		{Key: "a", Type: "text"},
@@ -159,7 +159,7 @@ func TestFlattenFieldTree_LoopMarkersAlwaysBracket(t *testing.T) {
 	}
 	units := BuildFieldTree(fields)
 	// Reorder: move the "isDekkend" unit up to position 1 (right after
-	// "before") — the exact malformation from the bug screenshot.
+	// "before") - the exact malformation from the bug screenshot.
 	dragged := units[2]
 	units = []FieldUnit{units[0], dragged, units[1]}
 	flat := FlattenFieldTree(units)

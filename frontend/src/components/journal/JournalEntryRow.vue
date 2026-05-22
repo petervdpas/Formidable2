@@ -9,7 +9,7 @@ import type { Entry } from "../../../bindings/github.com/petervdpas/formidable2/
 //     the entry is structurally indistinguishable here, so we render
 //     them the same way (the version is what matters either way).
 //
-// Pure presentational — props in, no events. Designed so other
+// Pure presentational - props in, no events. Designed so other
 // surfaces (a tray notification, a debug panel, etc.) can reuse it.
 const props = defineProps<{
   entry: Entry | undefined;

@@ -1,21 +1,21 @@
 <script setup lang="ts">
 /*
- * Popup — generic anchored popup with click-outside / escape close.
+ * Popup - generic anchored popup with click-outside / escape close.
  *
  * Slots:
- *   - #trigger="{ toggle, open, close }" — required. Renders the
+ *   - #trigger="{ toggle, open, close }" - required. Renders the
  *     button (or any element) that opens the popup. The slot props
  *     hand back the open state and the toggle/close functions so
  *     the trigger can render its own visual state (active border,
  *     etc.) without duplicating the open ref.
- *   - default slot — popup body. Receives `{ close }` so a button
+ *   - default slot - popup body. Receives `{ close }` so a button
  *     inside can dismiss the popup after acting.
  *
  * Positioning is anchored: the popup wrapper is `position: relative`
  * and the panel is `position: absolute` below the trigger. For
  * unconstrained positioning across overflow:hidden parents, callers
  * can pass `teleport` to render the panel into <body> with
- * computed fixed coordinates — bypasses any clipping ancestor.
+ * computed fixed coordinates - bypasses any clipping ancestor.
  */
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 

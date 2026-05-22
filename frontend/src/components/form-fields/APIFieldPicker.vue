@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // Modal record-picker for an api field. Lists every collection-enabled
 // record from the source template (via the existing /api/collections/<tpl>
-// HTTP route — already plumbed through Wails AssetMiddleware) and lets
+// HTTP route - already plumbed through Wails AssetMiddleware) and lets
 // the user pick one by guid. The host form's FormFieldAPI takes that
 // guid and stamps the projected row through dataprovider.FetchAPIFieldRow.
 //
 // v1: fetch up to 200 items (limit query). q-filter / pagination /
-// tag-filter come later — the api Handler already supports them.
+// tag-filter come later - the api Handler already supports them.
 
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";

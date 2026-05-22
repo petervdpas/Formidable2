@@ -34,12 +34,12 @@ async function activate(filename: string): Promise<void> {
 
 /**
  * Create a new profile by switching to a filename that doesn't exist
- * yet — the backend seeds defaults into it during LoadUserConfig.
+ * yet - the backend seeds defaults into it during LoadUserConfig.
  * Caller is responsible for validating the filename via isValidProfileFilename.
  */
 async function create(filename: string): Promise<{ ok: boolean; code?: string; message?: string }> {
   // Refuse silently to overwrite an existing one. The user has the
-  // list — switching is the explicit way to activate an existing
+  // list - switching is the explicit way to activate an existing
   // profile.
   await ensureLoaded();
   if (profiles.value.some((p) => p.value === filename)) {

@@ -37,8 +37,8 @@ func textLabel(field string) *TextSource {
 	return &TextSource{Kind: TextKindFieldLabel, FieldKey: field}
 }
 
-// fieldsFour: a typical template — boolean check, dropdown size,
-// date due, text title — used as the FieldRef slice for compile
+// fieldsFour: a typical template - boolean check, dropdown size,
+// date due, text title - used as the FieldRef slice for compile
 // tests that don't need bespoke option lists.
 func fieldsFour() []FieldRef {
 	return []FieldRef{
@@ -743,7 +743,7 @@ func TestCompile_PartsAtMaxConcatPartsStillCompiles(t *testing.T) {
 // ── Hyphenated field keys round-trip uniformly ──────────────────
 //
 // Template field keys like `unit-number` are illegal as bare
-// expr-lang identifiers, so the builder always emits F["key"] —
+// expr-lang identifiers, so the builder always emits F["key"] -
 // the engine's patcher rewrites that to $env["key"] at compile
 // time. Hyphenated and plain keys take the same code path and
 // produce identically-shaped output.

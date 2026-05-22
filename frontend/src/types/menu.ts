@@ -14,14 +14,14 @@ export interface MenuAction {
    * placeholder for `labelKey`; `label` always wins when present.
    */
   labelKey: string;
-  /** Literal label that supersedes labelKey — for runtime-named items. */
+  /** Literal label that supersedes labelKey - for runtime-named items. */
   label?: string;
   hintKey?: string;         // optional i18n key for a right-aligned hint
   /**
    * Optional cross-platform keyboard shortcut bound globally for as long
    * as this menu is registered. Written with the `Mod` token:
    * `"Mod+S"` (Cmd+S on macOS, Ctrl+S elsewhere), `"Shift+Mod+S"`, etc.
-   * Rendered as the right-aligned hint in the menu item — supersedes
+   * Rendered as the right-aligned hint in the menu item - supersedes
    * `hintKey` when present.
    */
   combo?: string;
@@ -44,7 +44,7 @@ export interface MenuGroup {
   items: Array<MenuAction | MenuSeparator>;
   /**
    * Bypass the "auto-disable when every child is disabled" rule. Use
-   * for groups that should stay clickable for discoverability — e.g.
+   * for groups that should stay clickable for discoverability - e.g.
    * a File menu where seeing greyed-out items helps the user understand
    * what operations exist, even if none currently apply.
    */

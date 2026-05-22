@@ -7,7 +7,7 @@ import { useToast } from "../composables/useToast";
 import { refreshPluginI18n } from "../composables/useI18nLoader";
 import { backendErrMessage } from "../utils/backendError";
 
-// PluginI18nEditor — per-locale key/value editor for one plugin's
+// PluginI18nEditor - per-locale key/value editor for one plugin's
 // <plugin>/i18n/<locale>.json files. Locale switcher up top, table
 // of {key, value} rows, plus a "+ Add locale" row that surfaces
 // every known backend locale the plugin doesn't yet have a file

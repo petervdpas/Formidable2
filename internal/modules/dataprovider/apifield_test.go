@@ -10,12 +10,12 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────
-// FetchAPIFieldRow — manager method.
+// FetchAPIFieldRow - manager method.
 //
 // Source values stamp into the host form in their NATIVE JSON shape:
 // scalars pass through, slices stay slices, maps stay maps. The host's
 // .meta.json is JSON, so encoding inside the encoded form is just
-// noise — every consumer would have to undo it.
+// noise - every consumer would have to undo it.
 // ─────────────────────────────────────────────────────────────────────
 
 // fakeStorage is the minimal storage adapter dataprovider needs for
@@ -168,7 +168,7 @@ func TestFetchAPIFieldRow_GuidNotFound(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// RefetchAPIFieldRow — drift detection.
+// RefetchAPIFieldRow - drift detection.
 // Compares stored projected columns against a fresh fetch and returns
 // (fresh row, drift entries). Drift is per-column; both nil → no drift.
 // ─────────────────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ func TestRefetchAPIFieldRow_DriftSurfacesChangedColumns(t *testing.T) {
 }
 
 func TestRefetchAPIFieldRow_NewColumnAddedToMapShowsAsDrift(t *testing.T) {
-	// Map[] was extended after the form was saved — the stored row
+	// Map[] was extended after the form was saved - the stored row
 	// is missing the new key, the current row has it. Surface as a
 	// drift entry with stored=nil so the user sees what's new.
 	m, idx, sto := newAPIFieldWorld()
@@ -246,7 +246,7 @@ func TestRefetchAPIFieldRow_NewColumnAddedToMapShowsAsDrift(t *testing.T) {
 func TestRefetchAPIFieldRow_NilStoredEqualsAllDriftFromZero(t *testing.T) {
 	// First-time refetch (no prior stored data). Every requested
 	// column whose current value is non-nil counts as drift from
-	// "stored=nil" — gives the picker UI a clean way to render
+	// "stored=nil" - gives the picker UI a clean way to render
 	// "everything is new" without special-casing.
 	m, idx, sto := newAPIFieldWorld()
 	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")

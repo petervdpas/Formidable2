@@ -3,7 +3,7 @@ Feature: Default markdown-template generator
   I want a one-click button that scaffolds a working template body
   so I can start filling in the gaps instead of staring at a blank page.
 
-  The generator runs purely from the field list — no template needs to
+  The generator runs purely from the field list - no template needs to
   be saved first. Four shapes cover the common starting points; an
   unknown shape falls back to "report" so a stale frontend never
   produces empty output.

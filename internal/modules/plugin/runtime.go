@@ -15,7 +15,7 @@ import (
 var builtinsLua string
 
 // newSandboxedState builds a Lua state with only the pure-Lua
-// standard libraries (base, table, string, math) — no os, io,
+// standard libraries (base, table, string, math) - no os, io,
 // debug, package, or coroutine. Then it nils out the file/code
 // loading globals (`load`, `loadstring`, `loadfile`, `dofile`,
 // `require`) that base would otherwise expose.
@@ -52,7 +52,7 @@ func newSandboxedState() *lua.LState {
 }
 
 // runtimeDeps groups the bridges the `formidable` Lua table needs.
-// Each access interface is optional — when nil, calling into that
+// Each access interface is optional - when nil, calling into that
 // namespace from Lua raises a "<namespace>: not configured" error
 // instead of silently doing nothing. This makes test failures
 // loud and makes wiring gaps in app.go obvious.
@@ -77,7 +77,7 @@ type runtimeDeps struct {
 	// I18nMessages is the plugin's translation map for the active
 	// locale, already stripped of its `plugin.<id>.` prefix so
 	// formidable.i18n.t("commands.run.label") is a direct lookup.
-	// nil/empty is valid — t() then returns the key verbatim.
+	// nil/empty is valid - t() then returns the key verbatim.
 	I18nMessages map[string]string
 }
 
@@ -105,7 +105,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("storage", buildStorageTable(L, deps.Storage))
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
 	f.RawSetString("i18n", buildI18nTable(L, deps.I18nMessages))
-	// formidable.cancelled() — cheap predicate so plugins can poll
+	// formidable.cancelled() - cheap predicate so plugins can poll
 	// for user-requested Stop inside pcall-heavy loops. Necessary
 	// because gopher-lua's context-cancel error IS catchable by pcall
 	// (every per-item Go binding in wikiwonder is pcall'd for failure
@@ -120,7 +120,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 		L.Push(lua.LBool(ctxRef.Err() != nil))
 		return 1
 	}))
-	// formidable.sleep(seconds) — context-aware pause. Stop while
+	// formidable.sleep(seconds) - context-aware pause. Stop while
 	// sleeping wakes the goroutine immediately; the next instruction
 	// the VM runs gets the cancel signal. Fractional seconds (0.25)
 	// work because Lua number is float64. Negative/zero is a no-op.
@@ -143,10 +143,10 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("exec", buildExecValue(L, deps.Exec))
 	L.SetGlobal("formidable", f)
 
-	// Lua-side stdlib (formidable.rewrite, …) — runs against the
+	// Lua-side stdlib (formidable.rewrite, …) - runs against the
 	// already-installed `formidable` global so it can compose the
 	// Go-side namespaces. If the run's context is already done at
-	// install time (Run-after-Cancel races), skip — the caller's
+	// install time (Run-after-Cancel races), skip - the caller's
 	// post-run ctx check will surface the cancellation.
 	if ctxRef != nil && ctxRef.Err() != nil {
 		return
@@ -207,7 +207,7 @@ func buildLogTable(L *lua.LState, sink *[]string) *lua.LTable {
 // global function to invoke; Arg is an optional Go-shaped value
 // that becomes the function's single argument; the access fields
 // populate the matching `formidable.*` namespaces. Ctx, when non-nil,
-// is wired into the LState via L.SetContext — cancelling it aborts
+// is wired into the LState via L.SetContext - cancelling it aborts
 // the running script at the next instruction boundary (gopher-lua
 // raises a context-cancelled error which we map to ErrPluginCancelled).
 type scriptOpts struct {
@@ -216,7 +216,7 @@ type scriptOpts struct {
 	Arg    any
 	Ctx    context.Context
 
-	// Access deps — leave nil to disable a namespace; calls into
+	// Access deps - leave nil to disable a namespace; calls into
 	// it from Lua then raise a "<namespace>: not configured" error.
 	PluginID    string
 	Plugin      PluginInfo
@@ -241,7 +241,7 @@ type scriptOpts struct {
 // the named global function, and returns the converted return
 // value plus any log lines emitted during the call.
 //
-// Per-invocation state is the contract — there is no plugin-state
+// Per-invocation state is the contract - there is no plugin-state
 // leakage across calls. Persistent state must go through KV.
 func runScript(opts scriptOpts) (RunResult, error) {
 	L := newSandboxedState()
@@ -298,8 +298,8 @@ func runScript(opts scriptOpts) (RunResult, error) {
 	L.Pop(1)
 	// Post-call ctx check: pcall inside the script can catch
 	// gopher-lua's context-cancel error and let the loop run to
-	// completion. Even when the script "succeeded" — i.e.
-	// CallByParam returned nil — if the run's context was cancelled
+	// completion. Even when the script "succeeded" - i.e.
+	// CallByParam returned nil - if the run's context was cancelled
 	// at any point we surface that as ErrPluginCancelled. The
 	// frontend's kind="cancelled" branch then fires correctly.
 	if opts.Ctx != nil && opts.Ctx.Err() != nil {

@@ -1,6 +1,6 @@
-Feature: REST API — single collection item
+Feature: REST API - single collection item
   GET /api/collections/{tpl}/{id} returns one item with full data and
-  meta. HEAD returns just the validators (ETag + status code) — useful
+  meta. HEAD returns just the validators (ETag + status code) - useful
   for clients that want to check freshness before pulling the body.
 
   Background:

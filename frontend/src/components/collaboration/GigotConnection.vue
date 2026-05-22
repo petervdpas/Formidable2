@@ -11,13 +11,13 @@ import { backendErrMessage } from "../../utils/backendError";
 // Inline form on Current Service. Mirrors GitConnection's role:
 // non-secret addressing fields only. The subscription bearer lives
 // in the OS keychain (account "<profile>:gigot:<repoName>") and is
-// captured by the "Connect to GiGot" workspace section, not here —
+// captured by the "Connect to GiGot" workspace section, not here -
 // plaintext secrets do not belong in the profile JSON.
 //
 // Quick-action row: when the connection is wired up (config complete
 // AND Me() probe succeeds), surface a one-click Sync button. Pending
 // local changes hard-disable the button so the user can't bypass the
-// commit-message requirement — Sync() from here would otherwise fall
+// commit-message requirement - Sync() from here would otherwise fall
 // through to the auto-generated audit string, which is explicitly the
 // wrong UX. The probe also listens for journal:changed so an edit on
 // another page re-disables Sync without the user revisiting this one.
@@ -67,7 +67,7 @@ async function refreshPendingState() {
     hasPending.value = (s?.changed?.length ?? 0) > 0
       || (s?.deleted?.length ?? 0) > 0;
   } catch {
-    // Read-only diff — keep last-known value rather than flipping
+    // Read-only diff - keep last-known value rather than flipping
     // to "clean" on a transient error. A subsequent journal:changed
     // event will re-probe.
   }

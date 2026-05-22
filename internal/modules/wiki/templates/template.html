@@ -1,4 +1,4 @@
-{{define "title"}}{{.Name}} — Formidable Wiki{{end}}
+{{define "title"}}{{.Name}} - Formidable Wiki{{end}}
 {{define "meta"}}{
   "templateId": "{{.Stem}}",
   "templateName": {{.Name | jsonString}}
@@ -12,7 +12,7 @@
     {{facetIcon .Icon}}
     <span class="facet-filter-key">{{.Key}}</span>
     <select class="facet-filter-select" data-facet-key="{{.Key}}">
-      <option value="">—</option>
+      <option value="">-</option>
       {{range .Options}}
       <option value="{{.Label}}" data-facet-color="{{.Color}}">{{.Label}}</option>
       {{end}}

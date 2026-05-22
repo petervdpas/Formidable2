@@ -1,7 +1,7 @@
-Feature: REST API — PUT /api/collections/{tpl}/{id} (replace + upsert)
+Feature: REST API - PUT /api/collections/{tpl}/{id} (replace + upsert)
   Replaces an existing item. Without ?upsert=true, an unknown id
   returns 404; with upsert it creates the item at the requested GUID.
-  Body's data[guidKey] must match the path id (or be absent — in
+  Body's data[guidKey] must match the path id (or be absent - in
   which case the path id is injected).
 
   Background:

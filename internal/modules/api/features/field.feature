@@ -1,6 +1,6 @@
-Feature: REST API — PATCH /api/collections/{tpl}/{id}/field/{key}
+Feature: REST API - PATCH /api/collections/{tpl}/{id}/field/{key}
   Updates a single named field. Body is either `{"value": …}` (envelope
-  form) or a raw scalar/array/object — both shapes are accepted so
+  form) or a raw scalar/array/object - both shapes are accepted so
   curl-style invocations stay readable. Refuses guid-key updates
   (immutable) and unknown fields.
 

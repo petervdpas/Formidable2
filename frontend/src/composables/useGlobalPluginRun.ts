@@ -4,7 +4,7 @@ import { Service as PluginSvc } from "../../bindings/github.com/petervdpas/formi
 import type { ListResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/plugin";
 
 // Global plugin-run dialog state. The workspace topbar menu opens
-// this when clicked on any plugin — the same dialog the Plugins
+// this when clicked on any plugin - the same dialog the Plugins
 // workspace's Run button uses, but mounted at the App level so it's
 // reachable from any workspace.
 //
@@ -19,8 +19,8 @@ import type { ListResult } from "../../bindings/github.com/petervdpas/formidable
 //
 // `bar` and `status` stream live updates from the running plugin via
 // the Wails event channel (plugin:run:bar / plugin:run:status). They
-// are independent — the Lua side calls formidable.run.bar or
-// formidable.run.status as it likes — and feed any progressbar or
+// are independent - the Lua side calls formidable.run.bar or
+// formidable.run.status as it likes - and feed any progressbar or
 // statusmessage widget the plugin author dropped into their form.
 // Both are cleared at the start of every run so the next open
 // doesn't flash stale state.
@@ -111,7 +111,7 @@ export function closeGlobalPluginRun(): void {
 
 export function setGlobalPluginRunning(v: boolean): void {
   if (v) {
-    // Starting a run — wipe stale tick state so the previous run's
+    // Starting a run - wipe stale tick state so the previous run's
     // last bar/status values don't flash before the first new tick.
     bar.value = null;
     status.value = "";
@@ -126,12 +126,12 @@ export async function cancelGlobalPluginRun(): Promise<void> {
   // Flip stopping immediately so the Stop button can disable + show
   // a "Stopping…" label while the IPC roundtrip lands. Cleared in
   // setGlobalPluginRunning(false) when Run resolves (success, error,
-  // or cancelled — every path goes through that finally branch).
+  // or cancelled - every path goes through that finally branch).
   stopping.value = true;
   try {
     await PluginSvc.Cancel();
   } catch {
-    // Best-effort — the Run path will surface kind="cancelled" when
+    // Best-effort - the Run path will surface kind="cancelled" when
     // the cancel actually lands. Swallowing here keeps the UI from
     // showing two errors for one user action.
   }

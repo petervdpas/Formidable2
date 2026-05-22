@@ -14,7 +14,7 @@ import (
 
 func TestMigrateTemplateMeta_RewritesLegacyFlatFile(t *testing.T) {
 	m, _, tplM, root := newTestStack(t)
-	// Provider should be IGNORED — migration must preserve original
+	// Provider should be IGNORED - migration must preserve original
 	// identity, not stamp the current actor. We set a clearly-wrong
 	// provider here so a regression that calls SaveForm (which would
 	// restamp Updated) shows up immediately.

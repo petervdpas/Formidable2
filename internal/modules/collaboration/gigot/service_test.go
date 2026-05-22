@@ -127,7 +127,7 @@ func TestService_MissingKeychainEntryFailsWithMissingToken(t *testing.T) {
 func TestService_MissingBaseURLFailsBeforeKeychain(t *testing.T) {
 	m := NewManager(newFakeFS())
 	cfg := &fakeConfig{baseURL: "", repoName: "addresses"}
-	// Keychain has a token, but ConfigReader yields no base URL — the
+	// Keychain has a token, but ConfigReader yields no base URL - the
 	// Service must surface that first, not try to use the (irrelevant)
 	// keychain entry.
 	creds := &fakeCreds{store: map[string]string{"default.json:gigot:addresses": "t"}}
@@ -157,7 +157,7 @@ func TestService_PingToleratesMissingRepo(t *testing.T) {
 	// /health is repo-agnostic; the Service should not require a
 	// RepoName on the active profile. Keychain lookup needs both
 	// profile name AND repo name to compose an account, so missing
-	// repo collapses token resolve to empty — and Ping's pre-flight
+	// repo collapses token resolve to empty - and Ping's pre-flight
 	// then surfaces ErrMissingToken (the validation layer the user
 	// sees), not ErrMissingRepo (the scoped-op marker). This pinpoints
 	// the failure to "no bearer configured" rather than "no repo on
@@ -175,7 +175,7 @@ func TestService_PingToleratesMissingRepo(t *testing.T) {
 }
 
 func TestService_MissingDepsCollapseToConfigErrors(t *testing.T) {
-	// All injectables nil — Service should still return a typed error
+	// All injectables nil - Service should still return a typed error
 	// rather than panic. Without cfg there is no BaseURL; the
 	// validation layer surfaces that.
 	m := NewManager(newFakeFS())

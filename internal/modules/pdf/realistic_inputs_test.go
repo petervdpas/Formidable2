@@ -62,7 +62,7 @@ func TestParseFrontmatter_RealAuditControlsRenderedOutput(t *testing.T) {
 func TestParseFrontmatter_BodyContainsCloseFenceLikeLine(t *testing.T) {
 	// A literal `---` line inside the body must not confuse the
 	// fence detector. The regex anchors `^---$` to a line start, so
-	// the FIRST `^---$` after the open is the close — anything past
+	// the FIRST `^---$` after the open is the close - anything past
 	// it is body, even if it has more `---` lines.
 	src := `---
 title: First Fence
@@ -92,7 +92,7 @@ End of body.
 func TestParseFrontmatter_BodyContainsLiteralHandlebars(t *testing.T) {
 	// A documentation template might show literal Handlebars syntax
 	// in the body (e.g. teaching `{{field "x"}}`). The body is treated
-	// as opaque markdown — Handlebars in the body never gets YAML-
+	// as opaque markdown - Handlebars in the body never gets YAML-
 	// parsed, so this should be a no-op safety case.
 	src := "---\nstyle: technical\n---\n\nUse `{{field \"x\"}}` to insert a field.\n"
 	fm, body, err := ParseFrontmatter(src)
@@ -153,7 +153,7 @@ func TestParseFrontmatter_EmptyBodyAfterClose(t *testing.T) {
 
 func TestExport_RealisticRenderedFrontmatter_TolerantWhenEisvogel(t *testing.T) {
 	// End-to-end smoke: feed the audit-controls-style RENDERED
-	// markdown (eisvogel shape — `toc: true`, etc.) through
+	// markdown (eisvogel shape - `toc: true`, etc.) through
 	// Manager.Export. The frontmatter parse FAILS (typed schema
 	// mismatch), but render.go must continue with empty FM and still
 	// hand the body to picoloom. This is the user-friendly "your
@@ -262,7 +262,7 @@ func TestExport_UnknownCoverTemplate_SurfacesTypedError(t *testing.T) {
 
 func TestExport_PicoloomConvertError_PropagatesToCodeViaConvert(t *testing.T) {
 	// Different from the existing "convert error" happy-bad-path
-	// test — this one uses a real picoloom sentinel (ErrCoverRender)
+	// test - this one uses a real picoloom sentinel (ErrCoverRender)
 	// so the code-mapper path is exercised, not just the wrap.
 	m, _, rdr, stg, cf := newActiveManager(t)
 	stg.dirs["t.yaml"] = "/s"
@@ -304,7 +304,7 @@ func TestExport_RealisticBodySize(t *testing.T) {
 	if res.Bytes <= 0 {
 		t.Errorf("Bytes = %d", res.Bytes)
 	}
-	// Loose ceiling — race-detector mode plus 200 sections shouldn't
+	// Loose ceiling - race-detector mode plus 200 sections shouldn't
 	// take more than a few seconds. Catches accidental quadratic
 	// pipeline introductions.
 	if elapsed > 5*time.Second {
@@ -316,9 +316,9 @@ func TestExport_RealisticBodySize(t *testing.T) {
 
 func TestResolveExportDefaults_EisvogelStyleSourceShowsNoPicoloomDefaults(t *testing.T) {
 	// User opens the dialog on an audit-controls-shape template.
-	// Frontmatter has eisvogel keys, NOT picoloom shape — so resolver
+	// Frontmatter has eisvogel keys, NOT picoloom shape - so resolver
 	// reports no Theme and no CoverTemplate. The dialog can then label
-	// the dropdown defaults as "no theme — picoloom built-in".
+	// the dropdown defaults as "no theme - picoloom built-in".
 	m, _, rdr, stg, _ := newActiveManager(t)
 	stg.dirs["audit.yaml"] = "/storage/audit"
 	rdr.md["audit.yaml|bc01.meta.json"] = auditControlsRenderedMD
@@ -342,7 +342,7 @@ func TestResolveExportDefaults_HandlebarsInRenderedOutput(t *testing.T) {
 	// Defensive: the renderer is SUPPOSED to expand Handlebars
 	// before the output hits ParseFrontmatter. But if a malformed
 	// expression slipped through unrendered, the resolver shouldn't
-	// crash — ParseFrontmatter would return malformed and the
+	// crash - ParseFrontmatter would return malformed and the
 	// resolver would proceed with manifest-only defaults.
 	m, _, rdr, stg, _ := newActiveManager(t)
 	stg.dirs["t.yaml"] = "/s"
@@ -352,9 +352,9 @@ func TestResolveExportDefaults_HandlebarsInRenderedOutput(t *testing.T) {
 	// Either the parser tolerates `{{unexpanded}}` as an unquoted
 	// scalar (mid-value `{` is fine in YAML; the parser actually
 	// reads it as the literal `{{unexpanded}}` string) or it returns
-	// ErrFrontmatterMalformed — we don't crash either way.
+	// ErrFrontmatterMalformed - we don't crash either way.
 	if err != nil {
-		t.Logf("err = %v (acceptable — malformed source falls through to manifest)", err)
+		t.Logf("err = %v (acceptable - malformed source falls through to manifest)", err)
 		return
 	}
 	if got.Theme == "" {

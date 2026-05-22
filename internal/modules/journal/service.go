@@ -3,7 +3,7 @@ package journal
 // Service is the api layer over Manager. Methods map 1:1 with the old
 // Electron `window.api.journal.*` IPC group (camelCase'd → PascalCase).
 //
-// Wails-only: configure / record / sync stay internal — only the
+// Wails-only: configure / record / sync stay internal - only the
 // pollers want to read state from the frontend.
 type Service struct{ m *Manager }
 
@@ -22,7 +22,7 @@ func (s *Service) RecentEntries(limit int) []Entry { return s.m.RecentEntries(li
 
 // ListSyncBackends returns the canonical sync-backend ids in display
 // order. The collaboration sidebar (Vue) and the monitor "pending per
-// backend" tile both read this — there is no other place where the
+// backend" tile both read this - there is no other place where the
 // list of backends should be enumerated on the frontend.
 func (s *Service) ListSyncBackends() []string {
 	out := make([]string, len(orderedSyncBackends))

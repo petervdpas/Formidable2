@@ -1,4 +1,4 @@
-# Picoloom frontmatter — what the renderer understands
+# Picoloom frontmatter - what the renderer understands
 
 Every directive below goes inside the YAML frontmatter block at the top of a markdown template, between two `---` lines. Anything you omit uses picoloom's built-in default. Higher merge layers (document frontmatter) override lower ones (template manifest, then global config).
 
@@ -52,7 +52,7 @@ toc:
 | --- | --- |
 | `toc.enabled` | Set to `false` to suppress the table of contents. Defaults to on when the block is present. |
 | `toc.title` | Heading text for the TOC page. Empty = no title. |
-| `toc.minDepth` | Lowest heading level to include (1 – 6, default 2 — skips H1). |
+| `toc.minDepth` | Lowest heading level to include (1 – 6, default 2 - skips H1). |
 | `toc.maxDepth` | Highest heading level to include (1 – 6, default 3). |
 
 ## Footer

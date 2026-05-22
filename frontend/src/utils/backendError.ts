@@ -1,7 +1,7 @@
 // Wails marshals Go errors into a JSON envelope of the shape
 // `{message, cause, kind}` and throws them as a JS Error whose
 // `.message` is that JSON string. Calling `String(err)` therefore
-// yields "Error: {json}" — fine for debugging, terrible for toasts.
+// yields "Error: {json}" - fine for debugging, terrible for toasts.
 //
 // backendErrMessage unwraps the envelope and returns the inner Go
 // error message ("git: pull: worktree contains unstaged changes")
@@ -17,7 +17,7 @@ export function backendErrMessage(err: unknown): string {
         return parsed.message;
       }
     } catch {
-      // err.message wasn't JSON — fall through to the raw message.
+      // err.message wasn't JSON - fall through to the raw message.
     }
     return err.message;
   }
@@ -40,7 +40,7 @@ export function exportErrorOf(err: unknown): ExportErrorEnvelope | null {
     const wails = JSON.parse(err.message);
     if (wails && typeof wails.message === "string") inner = wails.message;
   } catch {
-    // err.message wasn't the Wails envelope — try as ExportError directly.
+    // err.message wasn't the Wails envelope - try as ExportError directly.
   }
   try {
     const parsed = JSON.parse(inner);

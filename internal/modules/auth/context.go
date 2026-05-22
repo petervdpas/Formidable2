@@ -17,7 +17,7 @@ func WithIdentity(ctx context.Context, id Identity) context.Context {
 // IdentityFromContext returns the Identity previously installed by
 // WithIdentity. The second return reports presence so callers can fail
 // closed when no identity was resolved. nil ctx is tolerated for
-// defensive callers — equivalent to a bare context.
+// defensive callers - equivalent to a bare context.
 func IdentityFromContext(ctx context.Context) (Identity, bool) {
 	if ctx == nil {
 		return Identity{}, false

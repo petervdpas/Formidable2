@@ -2,7 +2,7 @@
 // carries a lowercase searchable `name` so the popover's filter input
 // can match by typed words (e.g. "alpha", "right arrow", "euro")
 // without depending on the Unicode database at runtime. The set is
-// intentionally smaller than every glyph in a category — it's the
+// intentionally smaller than every glyph in a category - it's the
 // shortlist the average user reaches for, not a Unicode browser.
 
 export interface CharEntry {
@@ -153,7 +153,7 @@ export const CHAR_CATEGORIES: CharCategory[] = [
       { char: "•", name: "bullet" },
       { char: "·", name: "middle dot" },
       { char: "…", name: "ellipsis" },
-      { char: "—", name: "em dash" },
+      { char: "-", name: "em dash" },
       { char: "–", name: "en dash" },
       { char: "★", name: "star filled" },
       { char: "☆", name: "star outline" },

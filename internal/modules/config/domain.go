@@ -1,6 +1,6 @@
 // Package config owns the user configuration, boot profile, and the
 // derived Virtual File System (VFS) view of the on-disk Formidable
-// data layout. Wails-only — no HTTP handlers; raw config is too
+// data layout. Wails-only - no HTTP handlers; raw config is too
 // sensitive even for the loopback API.
 //
 // The package is split across several files by concern:
@@ -12,7 +12,7 @@
 //	              plus the JSON marshal helpers (writeJSON, syncJournal).
 //	vfs.go        Virtual File System view of the context folder
 //	              (templates + storage tree, per-template lookups).
-//	profiles.go   Profile management — switch / list / current,
+//	profiles.go   Profile management - switch / list / current,
 //	              import / export / delete + filename normalisation.
 package config
 
@@ -121,7 +121,7 @@ func (m *Manager) SetNowFn(fn func() time.Time) {
 }
 
 // initialize is called once by NewManager. It does not call out to the
-// journal yet — that happens lazily on first Load.
+// journal yet - that happens lazily on first Load.
 func (m *Manager) initialize() error {
 	if err := m.fs.EnsureDirectory(configDirName); err != nil {
 		return fmt.Errorf("ensure config dir: %w", err)

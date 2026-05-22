@@ -32,7 +32,7 @@ func (kvTestFS) SaveFile(p, content string) error {
 }
 func (kvTestFS) DeleteFile(p string) error { return os.Remove(p) }
 func (kvTestFS) DeleteFolder(p string) error {
-	// RemoveAll is silent on missing — same shape as system.Manager.DeleteFolder.
+	// RemoveAll is silent on missing - same shape as system.Manager.DeleteFolder.
 	return os.RemoveAll(p)
 }
 func (kvTestFS) ListDir(p string) ([]string, error) {
@@ -86,7 +86,7 @@ func TestKV_PersistsAcrossInstances(t *testing.T) {
 	if err := a.Set("p", "name", "Alice"); err != nil {
 		t.Fatalf("set: %v", err)
 	}
-	// Fresh KV — must load from disk.
+	// Fresh KV - must load from disk.
 	b := NewKV(kvTestFS{}, dir)
 	got, ok, _ := b.Get("p", "name")
 	if !ok || got != "Alice" {
@@ -152,7 +152,7 @@ func TestKV_CorruptJSONReturnsError(t *testing.T) {
 }
 
 func TestKV_ConcurrentSetSafe(t *testing.T) {
-	// Race-detector check — mutex must serialize per-plugin writes.
+	// Race-detector check - mutex must serialize per-plugin writes.
 	kv := newTestKV(t)
 	var wg sync.WaitGroup
 	for i := range 50 {

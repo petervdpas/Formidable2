@@ -40,7 +40,7 @@ func TestBuildURL_TrimsTrailingSlashOnBase(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got != "https://gigot.example/api/health" {
-		t.Fatalf("got %q — base trailing slash not trimmed", got)
+		t.Fatalf("got %q - base trailing slash not trimmed", got)
 	}
 }
 
@@ -104,7 +104,7 @@ func TestEncodeSegments_EscapesSegmentSpaces(t *testing.T) {
 	}
 }
 
-// ── do — transport mechanics via httptest.Server ────────────────────
+// ── do - transport mechanics via httptest.Server ────────────────────
 
 // newTestManager wires a Manager whose http.Client points at the given
 // test server. Avoids the default 30s timeout in unit tests.

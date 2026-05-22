@@ -66,7 +66,7 @@ func (m *Manager) JoinPath(segments ...string) string {
 // Behavior:
 //   - empty in → empty out (never invent a path).
 //   - "~" or "~/sub" → expand to the OS user's home dir. Other
-//     tilde forms ("~someuser") are left untouched — that's shell
+//     tilde forms ("~someuser") are left untouched - that's shell
 //     sugar we don't reimplement.
 //   - already absolute → cleaned via filepath.Clean.
 //   - relative → resolved against the process's working dir via
@@ -97,7 +97,7 @@ func (m *Manager) ResolveAbsolutePath(p string) (string, error) {
 // MakeAppRootRelative collapses an absolute path under AppRoot to
 // the project's "./<rel>" form so config values stay portable
 // across machines that share the AppRoot convention. Paths outside
-// AppRoot are returned unchanged — relativizing them would yield
+// AppRoot are returned unchanged - relativizing them would yield
 // "../../foo"-style traversals that defeat the readability win and
 // break the "value is either ./<sub> or absolute" round-trip rule.
 //
@@ -156,7 +156,7 @@ func (m *Manager) IsDir(path string) bool {
 // ListDir returns the names of all entries in the directory at path
 // (relative paths resolve under AppRoot; absolute paths used as-is).
 // Returns an empty slice for a missing directory rather than an
-// error — callers usually treat "no files yet" as a normal startup
+// error - callers usually treat "no files yet" as a normal startup
 // state (e.g. the PDF module's cover scaffold runs before any user
 // files exist). Real I/O errors (permission denied, etc.) still
 // bubble up. Order is filesystem-dependent; callers that need
@@ -205,7 +205,7 @@ func (m *Manager) SaveFile(path string, content string) error {
 
 // AppendFile opens path in append mode (creating it if missing) and writes
 // content. Used by journal-style append-only logs. Does not emit a journal
-// op of its own — journals control their own emission policy.
+// op of its own - journals control their own emission policy.
 func (m *Manager) AppendFile(path string, content string) error {
 	full := m.ResolvePath(path)
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {

@@ -1,4 +1,4 @@
-Feature: REST API — DELETE /api/collections/{tpl}/{id}
+Feature: REST API - DELETE /api/collections/{tpl}/{id}
   Removes a collection item by GUID. 204 on success, 404 when the id
   is unknown, 403 when the template isn't collection-enabled. Empty
   body in all cases (DELETE responses don't carry a JSON envelope).

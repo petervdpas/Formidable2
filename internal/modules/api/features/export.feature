@@ -1,4 +1,4 @@
-Feature: REST API — collection exports
+Feature: REST API - collection exports
   /api/collections/{tpl}/export.ndjson and /export.csv stream the full
   collection so external tooling can pull it without paginating. Both
   honour the collection rev for ETag/If-None-Match and 403 when the
@@ -57,7 +57,7 @@ Feature: REST API — collection exports
 
   Scenario: CSV export emits one row per item with quoted cells
     # Cells are always quoted, so substring checks against unquoted
-    # values still pass — and the BOM/header scenario above already
+    # values still pass - and the BOM/header scenario above already
     # asserts the quoting+header shape verbatim.
     When I GET "/api/collections/recepten/export.csv"
     Then CSV line 1 contains "g-1234"

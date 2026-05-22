@@ -1,13 +1,13 @@
 -- `run` is invoked when the user clicks Plugin → Run → Run.
 -- Returns the plugin snapshot so you can see Result gating too.
 function run(ctx)
-  -- 4 log levels — gated by Show Log + Show log as toast
+  -- 4 log levels - gated by Show Log + Show log as toast
   formidable.log.info("info ping")
   formidable.log.warn("warn ping")
   formidable.log.error("error ping")
   formidable.log.debug("debug ping")
 
-  -- 4 toast levels — always shown
+  -- 4 toast levels - always shown
   formidable.toast.info("toast: info")
   formidable.toast.success("toast: success")
   formidable.toast.warn("toast: warn")
@@ -24,7 +24,7 @@ function run(ctx)
     formidable.log.info("ctx=", formidable.json.encode(ctx))
   end
 
-  -- Returned value — gated by Show Result.
+  -- Returned value - gated by Show Result.
   return {
     ok = true,
     plugin = formidable.plugin.id,

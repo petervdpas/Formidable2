@@ -2,7 +2,7 @@ package index
 
 import "time"
 
-// atimeNoop is reused across chtimes calls — we don't care about
+// atimeNoop is reused across chtimes calls - we don't care about
 // access times, just keep them stable.
 var atimeNoop = time.Unix(0, 0)
 

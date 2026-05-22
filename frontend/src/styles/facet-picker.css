@@ -1,12 +1,12 @@
 /*
- * facet-picker — colored fa-flag trigger button + dropdown of label rows
+ * facet-picker - colored fa-flag trigger button + dropdown of label rows
  * with swatches. Reused by the form meta-block (setter), the storage
  * sidebar filter (getter), and the template editor's flag_definitions
  * list.
  *
  * Color tokens come from expression.css (.expr-text-* on the icon,
  * .expr-bg-* on chips). Solid-color swatch cells use the local
- * .facet-swatch-* set below — same 16 hues at full saturation so they
+ * .facet-swatch-* set below - same 16 hues at full saturation so they
  * read as discrete color blocks rather than the 18%-alpha chip tint.
  * Keep the values in sync with .expr-text-* (same RGB).
  */
@@ -128,7 +128,7 @@
   text-overflow: ellipsis;
 }
 
-/* Sidebar StorageFlagFilter trigger — flag icon + current selection
+/* Sidebar StorageFlagFilter trigger - flag icon + current selection
    label, full toolbar width so it lines up with the tag filter input
    below it. */
 .facet-filter-trigger {
@@ -296,7 +296,7 @@
   --swatch-size: 22px;
 }
 
-/* ── TemplatesWorkspace Facets tab — per-facet row list ─────────────── */
+/* ── TemplatesWorkspace Facets tab - per-facet row list ─────────────── */
 
 .facet-rows {
   list-style: none;

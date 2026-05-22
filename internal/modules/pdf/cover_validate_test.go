@@ -131,7 +131,7 @@ func TestValidateCover_CoverClassSingleQuotes(t *testing.T) {
 }
 
 func TestValidateCover_EmbeddedCoversAllValid(t *testing.T) {
-	// The seeds we ship MUST pass validation — otherwise scaffolding
+	// The seeds we ship MUST pass validation - otherwise scaffolding
 	// would put broken files on disk.
 	entries, err := coversFS.ReadDir(coversDir)
 	if err != nil {

@@ -149,12 +149,12 @@ func TestHelper_FieldDropdownValueMode(t *testing.T) {
 	}
 }
 
-// Original Formidable's basic.yaml uses `{{field "key" "value"}}` —
+// Original Formidable's basic.yaml uses `{{field "key" "value"}}` -
 // 2 positional args where the second is the mode. Raymond's strict
 // arity rejected that until the options-only helper patch landed.
 // See third_party/raymond/CHANGES.md "options-only variadic helpers".
 // `{{field "linkkey"}}` (no mode) on a link field must emit a
-// Markdown link, not the label alone — matches the original JS's
+// Markdown link, not the label alone - matches the original JS's
 // behaviour where the function's mode-default got shadowed by
 // handlebars.js's arity quirk and fell through to the markdown-link
 // branch. Without this default, recipe-style `Gerelateerde recepten`
@@ -212,7 +212,7 @@ func TestHelper_FieldDropdownPositionalMode(t *testing.T) {
 }
 
 func TestHelper_FieldHashWinsOverPositional(t *testing.T) {
-	// When both forms are provided, the hash mode= takes precedence —
+	// When both forms are provided, the hash mode= takes precedence -
 	// matches the JS helper's hash precedence and is what the editor
 	// relies on for "force a mode override".
 	tpl := &template.Template{
@@ -320,7 +320,7 @@ func TestHelper_SetGetVar(t *testing.T) {
 }
 
 func TestHelper_SetVarPerCall(t *testing.T) {
-	// Two separate render calls must NOT leak state — original JS
+	// Two separate render calls must NOT leak state - original JS
 	// version had a module-level `vars` bug; we use per-call scratch.
 	tpl1, _ := raymond.Parse(`{{setVar "x" "first"}}`)
 	tpl2, _ := raymond.Parse(`{{getVar "x"}}`)
@@ -361,7 +361,7 @@ func TestHelper_TagsNoHash(t *testing.T) {
 }
 
 func TestHelper_TagsZeroArg(t *testing.T) {
-	// {{tags}} with no positional arg — JS defaults array to []. Go now
+	// {{tags}} with no positional arg - JS defaults array to []. Go now
 	// matches via the options-only signature; should return empty string,
 	// not error.
 	got := renderWithCtx(t, `[{{tags}}]`, map[string]any{})
@@ -399,7 +399,7 @@ func TestHelper_YamlList_NonArray(t *testing.T) {
 }
 
 func TestHelper_YamlList_ZeroArg(t *testing.T) {
-	// Mirrors {{tags}} zero-arg behaviour — empty string, not error.
+	// Mirrors {{tags}} zero-arg behaviour - empty string, not error.
 	got := renderWithCtx(t, `{{yamlList}}`, map[string]any{})
 	if got != "" {
 		t.Errorf("got %q, want empty", got)
@@ -482,7 +482,7 @@ func TestHelper_Stats(t *testing.T) {
 }
 
 func TestHelper_Stats_DefaultColIndex(t *testing.T) {
-	// {{stats rows}} with no colIndex — JS defaults to 1. Go now matches.
+	// {{stats rows}} with no colIndex - JS defaults to 1. Go now matches.
 	ctx := map[string]any{
 		"rows": []any{
 			[]any{"a", 1},
@@ -497,7 +497,7 @@ func TestHelper_Stats_DefaultColIndex(t *testing.T) {
 }
 
 // renderWithOpts is like renderWithCtx but lets the test inject a
-// custom *Options bundle — needed for the image-URL helpers since the
+// custom *Options bundle - needed for the image-URL helpers since the
 // generator emits markdown that depends on Options.ImageURL /
 // Options.ImageBase64URL being wired by the caller.
 func renderWithOpts(t *testing.T, src string, ctx map[string]any, opts *Options) string {
@@ -638,7 +638,7 @@ func TestHelper_ImageBase64_EmptyValueReturnsEmpty(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Loop iteration wrapping — explicit helpers
+// Loop iteration wrapping - explicit helpers
 //
 // `{{#loop "items"}}` is a plain iterator; the generator (or hand-
 // edited template) opts in to per-iteration HTML wrapping via the
@@ -648,7 +648,7 @@ func TestHelper_ImageBase64_EmptyValueReturnsEmpty(t *testing.T) {
 // ({{loopKey}}, {{loopIndex}}, {{loopItemClass}}) are still useful
 // for hand-rolled wrappers (e.g. <article> instead of <section>).
 //
-// The blank lines around the tags are load-bearing — they tell
+// The blank lines around the tags are load-bearing - they tell
 // goldmark to suspend HTML-block mode so the inner content is
 // processed as markdown rather than treated as opaque HTML.
 // ─────────────────────────────────────────────────────────────────────
@@ -659,7 +659,7 @@ func loopCtxFor(tpl *template.Template, items []any) map[string]any {
 
 func TestLoop_PlainIteratorJoinsWithNewline(t *testing.T) {
 	// Without the explicit before/after helpers, {{#loop}} is a plain
-	// iterator — same as the original behavior. The generator chooses
+	// iterator - same as the original behavior. The generator chooses
 	// whether to opt into wrapping.
 	tpl := &template.Template{
 		Fields: []template.Field{
@@ -844,7 +844,7 @@ func TestHelper_LoopItemClass_IgnoresEmpties(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Meta helpers — current-render identity surfaced into templates.
+// Meta helpers - current-render identity surfaced into templates.
 // ─────────────────────────────────────────────────────────────────────
 
 func TestHelper_Meta_TemplateName(t *testing.T) {

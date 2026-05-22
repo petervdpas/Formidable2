@@ -8,7 +8,7 @@ import (
 // roundTrip is the contract: Compile(cfg) → Parse(src) → Compile(cfg2)
 // must equal the original source string. We don't compare Config
 // shapes directly because rule IDs are session-scoped (Compile
-// doesn't read them; Parse re-assigns r1/r2/...) — instead we close
+// doesn't read them; Parse re-assigns r1/r2/...) - instead we close
 // the loop with a second Compile and compare strings.
 func roundTrip(t *testing.T, name string, cfg Config, fields []FieldRef) {
 	t.Helper()

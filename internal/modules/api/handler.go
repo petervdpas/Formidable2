@@ -37,8 +37,8 @@ func onlyGet(w http.ResponseWriter, r *http.Request) bool {
 
 // listCollections answers GET /api/collections. Returns the templates
 // that opt into collection mode (enable_collection=true AND a guid
-// field is defined — both gates encoded in `IsCollectionEnabled`).
-// Sorted by stem ASC for stability — the dataprovider already returns
+// field is defined - both gates encoded in `IsCollectionEnabled`).
+// Sorted by stem ASC for stability - the dataprovider already returns
 // templates filename-sorted, so the slice we build here inherits that
 // order.
 func (h *Handler) listCollections(w http.ResponseWriter, r *http.Request) {
@@ -52,7 +52,7 @@ func (h *Handler) listCollections(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]TemplateRow, 0, len(tps))
 	for _, t := range tps {
-		// EnableCollection is the dataprovider's combined flag — true
+		// EnableCollection is the dataprovider's combined flag - true
 		// only when the yaml says enable_collection AND the indexer
 		// detected a guid field (see TemplateSummary docs). So we
 		// don't need the runtime IsCollectionEnabled helper here.
@@ -79,7 +79,7 @@ func (h *Handler) docsRedirect(w http.ResponseWriter, r *http.Request) {
 
 // docs serves the swagger UI shell + its bundled assets, plus our
 // custom back-link script. Each asset is embedded inside the
-// swaggerui sub-package and addressed by basename — no traversal,
+// swaggerui sub-package and addressed by basename - no traversal,
 // no filesystem access.
 func (h *Handler) docs(w http.ResponseWriter, r *http.Request) {
 	if !onlyGet(w, r) {
@@ -95,7 +95,7 @@ func (h *Handler) docs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", mime)
-	// Cache the embedded assets — they only change on a binary
+	// Cache the embedded assets - they only change on a binary
 	// rebuild, so a long max-age is safe. The OpenAPI spec endpoint
 	// is no-cache; this is just for the static UI shell.
 	w.Header().Set("Cache-Control", "public, max-age=86400")
@@ -104,7 +104,7 @@ func (h *Handler) docs(w http.ResponseWriter, r *http.Request) {
 
 // openapi answers GET /api/openapi.json. The spec is built per
 // request from the live template set so Swagger UI consumers see
-// schema changes the moment a template is saved — no regen step.
+// schema changes the moment a template is saved - no regen step.
 func (h *Handler) openapi(w http.ResponseWriter, r *http.Request) {
 	if !onlyGet(w, r) {
 		return
@@ -147,7 +147,7 @@ func (h *Handler) exportNDJSON(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/x-ndjson; charset=utf-8")
 	w.Header().Set("ETag", etag)
-	// Streaming — flush after each line so curl-style consumers see
+	// Streaming - flush after each line so curl-style consumers see
 	// rows as they're produced. ResponseRecorder ignores the flusher,
 	// which is fine for tests; the production server has one.
 	flusher, _ := w.(http.Flusher)
@@ -189,7 +189,7 @@ func ndjsonRow(_ string, ci dataprovider.CollectionItem, form *storage.Form) map
 // exportCSV answers GET /api/collections/{tpl}/export.csv. Emits a
 // utf-8 BOM (so Excel auto-detects the encoding) followed by a header
 // row and one quoted row per item. Tags are joined with ';' inside
-// their cell — matches the original; importers can split on it.
+// their cell - matches the original; importers can split on it.
 func (h *Handler) exportCSV(w http.ResponseWriter, r *http.Request) {
 	if !onlyGet(w, r) {
 		return
@@ -220,7 +220,7 @@ func (h *Handler) exportCSV(w http.ResponseWriter, r *http.Request) {
 	// requiring users to set the import option manually.
 	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
 
-	// encoding/csv handles RFC 4180 quoting/escaping — wrap a tiny
+	// encoding/csv handles RFC 4180 quoting/escaping - wrap a tiny
 	// quote-everything writer around it so all cells are quoted (the
 	// original always quoted). encoding/csv quotes only when needed
 	// by default; we force-quote by prefixing/suffixing manually.
@@ -241,7 +241,7 @@ func (h *Handler) exportCSV(w http.ResponseWriter, r *http.Request) {
 // alwaysQuote wraps a value in literal double-quote characters so the
 // emitted CSV cell is always quoted (the original Formidable always
 // quoted; consumers may rely on the shape). encoding/csv treats the
-// embedded quotes as data and escapes them as ""…"" — combined with
+// embedded quotes as data and escapes them as ""…"" - combined with
 // our wrap that yields the exact `"value"` rendering.
 func alwaysQuote(s string) string {
 	// Replace inner quotes with the CSV-escape pair, then wrap.
@@ -250,7 +250,7 @@ func alwaysQuote(s string) string {
 
 // exportPath captures /{tpl}, validates it, and gates on
 // IsCollectionEnabled. Returns ok=false after writing the appropriate
-// 403/404 response — caller just bails.
+// 403/404 response - caller just bails.
 func (h *Handler) exportPath(w http.ResponseWriter, r *http.Request) (stem, tplFilename string, ok bool) {
 	stem = r.PathValue("tpl")
 	if !validStem(stem) {
@@ -289,7 +289,7 @@ func (h *Handler) exportETag(w http.ResponseWriter, r *http.Request, tplFilename
 // template's full design (metadata + field list with normalized
 // options). Unlike the data endpoints, this distinguishes 404
 // (template not found) from 403 (template found but collection
-// disabled) — the design surface is for tooling that already knows
+// disabled) - the design surface is for tooling that already knows
 // the template id, so the existence-leak posture doesn't apply.
 func (h *Handler) design(w http.ResponseWriter, r *http.Request) {
 	if !onlyGet(w, r) {
@@ -325,7 +325,7 @@ func (h *Handler) design(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		w.Header().Set("ETag", makeETag(rev))
 	}
-	// no-store matches the original — design changes mid-session aren't
+	// no-store matches the original - design changes mid-session aren't
 	// rare and a stale cached design would surprise tooling.
 	w.Header().Set("Cache-Control", "no-store")
 
@@ -346,7 +346,7 @@ func (h *Handler) design(w http.ResponseWriter, r *http.Request) {
 }
 
 // facets answers GET /api/collections/{tpl}/facets. Returns the
-// template's filter contract — the keys, icons, and option labels
+// template's filter contract - the keys, icons, and option labels
 // consumers can pass on the list endpoint as `?facet.<key>=LABEL`.
 // Separate from /design (which carries data-structure metadata); facet
 // definitions are filter metadata. Same gating as the list endpoint:
@@ -488,13 +488,13 @@ func (h *Handler) itemAny(w http.ResponseWriter, r *http.Request) {
 
 
 // item answers GET /api/collections/{tpl}/{id}. Returns the full
-// stored form (meta + data) plus the navigation links — same shape
+// stored form (meta + data) plus the navigation links - same shape
 // the original Formidable internalServer returned.
 //
 // Caching: an If-None-Match against the per-collection ETag short-
 // circuits to 304 before any disk read. The ETag is derived from the
 // collection's rev (currently the index-wide rev), which is coarser
-// than per-file mtimes — the original used per-file stat. The trade
+// than per-file mtimes - the original used per-file stat. The trade
 // is acceptable for a slice-A surface; we can refine to per-file rev
 // when stat-of-form is exposed through storage.
 func (h *Handler) item(w http.ResponseWriter, r *http.Request) {
@@ -526,7 +526,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Storage returns nil when the file is missing — race between the
+	// Storage returns nil when the file is missing - race between the
 	// indexer and the disk. Treat as 404 so clients can simply retry.
 	form := h.st.LoadForm(tplFilename, citem.Filename)
 	meta := map[string]any{}
@@ -556,7 +556,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) {
 }
 
 // itemHead answers HEAD /api/collections/{tpl}/{id}. Returns just the
-// status + ETag — useful for clients that want to check freshness
+// status + ETag - useful for clients that want to check freshness
 // before pulling the full body. Mirrors the original's HEAD behaviour
 // (no 304 short-circuit, since HEAD is itself the bandwidth-saving
 // variant; clients use GET + If-None-Match for that).
@@ -592,7 +592,7 @@ func (h *Handler) itemHead(w http.ResponseWriter, r *http.Request) {
 // itemPath captures and validates {tpl} + {id}. On a bad stem or a
 // disabled template it writes the 403 itself and returns ok=false so
 // the caller just bails. HEAD callers want a body-less 403, so this
-// helper writes status only — the GET path uses writeJSONError above
+// helper writes status only - the GET path uses writeJSONError above
 // as a separate branch.
 func (h *Handler) itemPath(w http.ResponseWriter, r *http.Request) (stem, id string, ok bool) {
 	stem = r.PathValue("tpl")
@@ -620,7 +620,7 @@ func writeStatusForMethod(w http.ResponseWriter, r *http.Request, status int, co
 
 // collectionAny dispatches /api/collections/{tpl} to GET (list) or
 // POST (create). Other methods → 405. One pattern, one method-switch
-// — same shape as itemAny so Go's mux stays unambiguous and the
+// - same shape as itemAny so Go's mux stays unambiguous and the
 // /count, /design, /export.* literals at the next path position
 // still work.
 func (h *Handler) collectionAny(w http.ResponseWriter, r *http.Request) {
@@ -693,7 +693,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Normalize the response's Limit so the body matches what the
-	// handler actually applied — clients shouldn't have to know about
+	// handler actually applied - clients shouldn't have to know about
 	// our default-fallback rule.
 	if page.Limit == 0 {
 		page.Limit = opts.Limit
@@ -705,7 +705,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 // count answers GET /api/collections/{tpl}/count. The path captures
-// the stem (the URL-friendly form), not the .yaml filename — the API
+// the stem (the URL-friendly form), not the .yaml filename - the API
 // is consistently stem-keyed, matching the wiki's URL shape.
 func (h *Handler) count(w http.ResponseWriter, r *http.Request) {
 	if !onlyGet(w, r) {
@@ -727,7 +727,7 @@ func (h *Handler) count(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Pull the smallest-possible page; we only need `total`. Limit=0
-	// means "no slicing" — the underlying CollectionPage carries the
+	// means "no slicing" - the underlying CollectionPage carries the
 	// full filtered total either way.
 	page, err := h.dp.ListCollection(r.Context(), tplFilename, dataprovider.CollectionListOpts{
 		Limit:  1,
@@ -738,7 +738,7 @@ func (h *Handler) count(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !page.Enabled {
-		// Belt-and-braces — IsCollectionEnabled already returned true
+		// Belt-and-braces - IsCollectionEnabled already returned true
 		// above, so this branch is unreachable in practice. Kept so a
 		// future change to ListCollection's gate doesn't silently
 		// surface a 200 with a misleading total.
@@ -766,7 +766,7 @@ type facetFilterError struct {
 // Unknown facet key → 400 {error:"unknown_facet", key}; label not in
 // the facet's options → 400 {error:"unknown_facet_option", key, label};
 // duplicate `facet.<key>=...` query params keep the first value (Go's
-// url.Values returns []string in order — first wins via [0]). Empty
+// url.Values returns []string in order - first wins via [0]). Empty
 // label is treated as "no filter on this facet" (i.e. omitted from
 // the map) so a stale URL param like ?facet.flag= doesn't shrink the
 // result set unexpectedly.
@@ -829,7 +829,7 @@ func (h *Handler) parseFacetFilters(r *http.Request, tplFilename string) (map[st
 }
 
 // parseListOpts extracts the list-endpoint query params. Bad/empty
-// numeric values fall through to the defaults — matches the original
+// numeric values fall through to the defaults - matches the original
 // `Number(x) || default` semantics. Tags is comma-separated; empty
 // strings between commas are dropped so `?tags=,wb,` still works.
 func parseListOpts(q url.Values) dataprovider.CollectionListOpts {
@@ -907,7 +907,7 @@ func auditEntryAsMap(a storage.AuditEntry) map[string]any {
 }
 
 // makeETag formats the int64 rev as a weak ETag. Weak because the rev
-// is index-wide and bumps on any write — even unrelated ones. The
+// is index-wide and bumps on any write - even unrelated ones. The
 // trade-off is acceptable: a few extra revalidations are cheaper than
 // tracking per-collection revs in the index right now.
 func makeETag(rev int64) string {

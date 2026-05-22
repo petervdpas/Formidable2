@@ -1,5 +1,5 @@
 // Package history owns the back/forward navigation stack. It is a pure
-// data structure over opaque href strings — no URL parsing, no nav,
+// data structure over opaque href strings - no URL parsing, no nav,
 // no config. The service layer composes it with nav.Manager (replay)
 // and config persistence; this module just keeps the stack honest.
 package history

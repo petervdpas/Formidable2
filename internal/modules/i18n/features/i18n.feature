@@ -1,7 +1,7 @@
 Feature: Internationalization bundles
   The i18n module loads locale bundles embedded in the binary and
   serves them through the Wails service. UI labels are sourced
-  centrally — the frontend never hardcodes user-facing strings.
+  centrally - the frontend never hardcodes user-facing strings.
 
   Background:
     Given a fresh i18n manager

@@ -1,20 +1,20 @@
 package template
 
 // Options-editor metadata: the canonical, backend-owned description of
-// how a field type's `options` array — or a table/list column-type's
-// triggered sub-row — should be edited. The frontend OptionsEditor
+// how a field type's `options` array - or a table/list column-type's
+// triggered sub-row - should be edited. The frontend OptionsEditor
 // reads these structures via TemplateSvc.FieldTypes /
 // TableColumnTypes / ListItemTypes and renders them; it does NOT
 // hardcode the shapes locally (see [[feedback_backend_owns_data]]).
 
 // All user-facing strings on these descriptors are i18n KEYS, not
-// literal text — the frontend resolves them via vue-i18n. Backend
+// literal text - the frontend resolves them via vue-i18n. Backend
 // owns the structure; locale catalogs own the wording (see
 // internal/modules/i18n/locales/<lang>/templates.json). Per
 // [[feedback_i18n_central]].
 
 // SubRowEntry is one fixed slot inside a SubRow. Each entry locks a
-// canonical Value (e.g. "true" / "false" for a bool column) — the
+// canonical Value (e.g. "true" / "false" for a bool column) - the
 // user only edits the human-readable label. LabelKey is the i18n
 // key for the gutter caption shown next to the locked value.
 type SubRowEntry struct {
@@ -38,7 +38,7 @@ type SubRow struct {
 	Entries        []SubRowEntry `json:"entries,omitempty"`
 }
 
-// FixedOptionRow is one row in a FixedOptionsShape — a structurally
+// FixedOptionRow is one row in a FixedOptionsShape - a structurally
 // fixed slot in a field's options array (e.g. True / False rows for
 // a bool field). Defaults populate the cells when the user first
 // picks the field type or when an existing options array arrives

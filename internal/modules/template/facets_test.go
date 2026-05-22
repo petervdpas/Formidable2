@@ -115,7 +115,7 @@ func TestGetFacetMeta_FullContract(t *testing.T) {
 		t.Errorf("LabelPattern = %q, want %q", m.LabelPattern, FacetLabelPattern)
 	}
 	// IconSVGs must carry one spec for every key in the icon palette
-	// — the frontend reads this once at boot and renders inline SVG
+	// - the frontend reads this once at boot and renders inline SVG
 	// for every facet UI without a second round-trip.
 	if len(m.IconSVGs) != len(FacetIconList) {
 		t.Errorf("IconSVGs len = %d, want %d", len(m.IconSVGs), len(FacetIconList))
@@ -138,7 +138,7 @@ func TestGetFacetMeta_ReturnsCopies(t *testing.T) {
 	if FacetColorList[0] == "MUTATED" {
 		t.Errorf("FacetColorList was mutated through returned snapshot")
 	}
-	// IconSVGs is a fresh map — mutating it must not poison the
+	// IconSVGs is a fresh map - mutating it must not poison the
 	// package-level catalog.
 	flagBefore := FacetIconSVGs["fa-flag"]
 	m.IconSVGs["fa-flag"] = FacetIconSpec{ViewBox: "MUTATED", Path: "X"}

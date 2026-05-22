@@ -24,7 +24,7 @@ const value = computed<boolean>({
 });
 
 // Resolve ON/OFF labels from field.options. Each option is the
-// canonical {value, label} shape — the bool field type's fixed
+// canonical {value, label} shape - the bool field type's fixed
 // options shape (backend FixedOptionsShape) gives the user one row
 // per state with value="true" / value="false" as the data and the
 // label as the display string. We prefer a semantic match on value

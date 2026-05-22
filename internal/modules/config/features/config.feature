@@ -129,7 +129,7 @@ Feature: User configuration management
     And the status button "gigotload" is off
 
   # ──────────────────────────────────────────────────────────────────────
-  # EnabledTemplates — per-profile template curation. Empty/nil list means
+  # EnabledTemplates - per-profile template curation. Empty/nil list means
   # "all templates enabled" (opt-in feature). Once populated, the list is
   # authoritative; deleted templates are silently pruned on read.
   # ──────────────────────────────────────────────────────────────────────

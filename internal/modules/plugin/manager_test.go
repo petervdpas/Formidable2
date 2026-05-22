@@ -54,7 +54,7 @@ func TestManager_Refresh_DiscoversValidPlugin(t *testing.T) {
 
 func TestManager_Refresh_SkipsLooseFiles(t *testing.T) {
 	m, pluginsDir := newTestManager(t)
-	// Stray file at plugins root — should be ignored.
+	// Stray file at plugins root - should be ignored.
 	if err := os.WriteFile(filepath.Join(pluginsDir, "README.md"), []byte("hi"), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestManager_Refresh_SkipsLooseFiles(t *testing.T) {
 
 func TestManager_Refresh_SkipsFoldersWithoutManifest(t *testing.T) {
 	m, pluginsDir := newTestManager(t)
-	// Folder without plugin.json — silently skipped.
+	// Folder without plugin.json - silently skipped.
 	if err := os.MkdirAll(filepath.Join(pluginsDir, "noplugin"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -337,10 +337,10 @@ func TestManager_Run_KVScopedToPluginID(t *testing.T) {
 
 func TestManager_Run_BusyRejectsConcurrent(t *testing.T) {
 	// While one Run is in flight (Lua is parked on a coroutine.yield
-	// equivalent — here we use a channel that the test holds open),
+	// equivalent - here we use a channel that the test holds open),
 	// a second Run on any plugin must fail fast with ErrPluginBusy.
 	// We use a Lua loop polling a `formidable.kv.get` for a sentinel
-	// the test writes — keeps the script alive until we release it.
+	// the test writes - keeps the script alive until we release it.
 	m, pluginsDir := newTestManager(t)
 	writePlugin(t, pluginsDir, "slow", `{
 		"manifest_version": 1, "id": "slow", "name": "Slow",
@@ -370,9 +370,9 @@ func TestManager_Run_BusyRejectsConcurrent(t *testing.T) {
 		// The CAS happens at the very top of Run, so once the script
 		// is spinning we know the flag is set. Signal once we know
 		// we're past the CAS by writing a sentinel inside the loop
-		// — except we can't from outside. Easier: yield first via
+		// - except we can't from outside. Easier: yield first via
 		// a poll-loop write from the test (next line). Simpler still
-		// — small sleep to allow the goroutine to enter Run.
+		// - small sleep to allow the goroutine to enter Run.
 		close(slowStarted)
 		_, _ = m.Run("slow", "loop", nil)
 		close(slowDone)
@@ -496,7 +496,7 @@ func TestManager_Cancel_NoRaceBetweenCASAndCancelFnAssign(t *testing.T) {
 	// under one lock so any Cancel that sees the run "started" also
 	// sees a live cancel func. We spawn one goroutine running Run
 	// and one spinning Cancel; even with aggressive scheduling, the
-	// Lua loop must eventually be torn down (ErrPluginCancelled) —
+	// Lua loop must eventually be torn down (ErrPluginCancelled) -
 	// no Cancel may slip through the CAS/assign window.
 	m, pluginsDir := newTestManager(t)
 	writePlugin(t, pluginsDir, "spin", `{
@@ -512,7 +512,7 @@ func TestManager_Cancel_NoRaceBetweenCASAndCancelFnAssign(t *testing.T) {
 	done := make(chan runResult, 1)
 	stopHammer := make(chan struct{})
 
-	// Hammer Cancel from a goroutine — covers the window where
+	// Hammer Cancel from a goroutine - covers the window where
 	// CAS may have flipped but cancelFn might not be assigned yet
 	// without the lock. With the fix in place, every iteration is
 	// either pre-assignment (no-op) or post-assignment (lands).
@@ -540,7 +540,7 @@ func TestManager_Cancel_NoRaceBetweenCASAndCancelFnAssign(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		close(stopHammer)
-		t.Fatal("Run did not terminate under cancel-hammer — Cancel may have slipped the CAS/assign window")
+		t.Fatal("Run did not terminate under cancel-hammer - Cancel may have slipped the CAS/assign window")
 	}
 	if m.runActive.Load() {
 		t.Fatal("runActive should be cleared after cancelled Run")
@@ -592,7 +592,7 @@ func TestManager_FormValues_VisibleFromLuaKV(t *testing.T) {
 	m, pluginsDir := newTestManager(t)
 	// Save form values via the Vue path, then have a Lua script
 	// read them back via formidable.kv.get(fieldKey). They must
-	// land in the same KV bag — that's the whole point of the
+	// land in the same KV bag - that's the whole point of the
 	// shared key namespace.
 	_ = m.SaveFormValues("p", map[string]any{
 		"input": "/tmp/x.bat",

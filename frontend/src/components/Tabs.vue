@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * Tabs — reusable tab strip + active pane. Supports horizontal
+ * Tabs - reusable tab strip + active pane. Supports horizontal
  * (default) or vertical orientation. Pairs with `.tabs` / `.tab` /
  * `.tab-pane` (+ `.tabs-container--vertical` modifier) from
  * styles/tabs.css.

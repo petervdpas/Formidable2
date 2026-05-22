@@ -20,7 +20,7 @@ import "time"
 
 // ServerStatus is the live state the about workspace renders.
 // Returned by Manager.Status; safe to call when the server is idle.
-// StartedAt is the zero time when Running is false — JSON consumers
+// StartedAt is the zero time when Running is false - JSON consumers
 // should gate on Running, not on the timestamp value.
 type ServerStatus struct {
 	Running   bool      `json:"running"`

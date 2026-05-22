@@ -18,7 +18,7 @@ func (m *Manager) Ping(conn Connection) (*HealthResponse, error) {
 	return &out, nil
 }
 
-// Me issues GET /api/me — bearer-aware self-introspection. Repo-agnostic.
+// Me issues GET /api/me - bearer-aware self-introspection. Repo-agnostic.
 func (m *Manager) Me(conn Connection) (*MeResponse, error) {
 	if err := validateConn(conn, false); err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (m *Manager) Me(conn Connection) (*MeResponse, error) {
 	return &out, nil
 }
 
-// Context issues GET /api/repos/{repo}/context — per-repo bootstrap.
+// Context issues GET /api/repos/{repo}/context - per-repo bootstrap.
 func (m *Manager) Context(conn Connection) (*RepoContextResponse, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func (m *Manager) Context(conn Connection) (*RepoContextResponse, error) {
 	return &out, nil
 }
 
-// Formidable issues GET /api/repos/{repo}/formidable — Formidable-shape
+// Formidable issues GET /api/repos/{repo}/formidable - Formidable-shape
 // bootstrap (marker + templates + storage summary).
 func (m *Manager) Formidable(conn Connection) (*RepoFormidableResponse, error) {
 	if err := validateConn(conn, true); err != nil {
@@ -58,7 +58,7 @@ func (m *Manager) Formidable(conn Connection) (*RepoFormidableResponse, error) {
 }
 
 // Head issues GET /api/repos/{repo}/head. Returns 409 for an empty
-// repo with no commits — surfaced verbatim as *HTTPError so the
+// repo with no commits - surfaced verbatim as *HTTPError so the
 // caller's first-write path can detect "remote has no HEAD yet."
 func (m *Manager) Head(conn Connection) (*HeadResponse, error) {
 	if err := validateConn(conn, true); err != nil {
@@ -72,7 +72,7 @@ func (m *Manager) Head(conn Connection) (*HeadResponse, error) {
 	return &out, nil
 }
 
-// Tree issues GET /api/repos/{repo}/tree — recursive file listing at HEAD.
+// Tree issues GET /api/repos/{repo}/tree - recursive file listing at HEAD.
 func (m *Manager) Tree(conn Connection) (*TreeResponse, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func (m *Manager) GetFile(conn Connection, repoRelPath string) (*FileResponse, e
 // Log issues GET /api/repos/{repo}/log[?limit=N&with_changes=1].
 // limit<=0 omits the limit query so the server falls back to its
 // default page size. withChanges=true adds per-commit file changes
-// (one extra diff-tree call per entry on the server) — the proper
+// (one extra diff-tree call per entry on the server) - the proper
 // commit-trail-with-file-diffs view that audit UIs render.
 func (m *Manager) Log(conn Connection, limit int, withChanges bool) (*RepoLogResponse, error) {
 	if err := validateConn(conn, true); err != nil {
@@ -127,7 +127,7 @@ func (m *Manager) Log(conn Connection, limit int, withChanges bool) (*RepoLogRes
 	return &out, nil
 }
 
-// Destinations issues GET /api/repos/{repo}/destinations — mirror-sync
+// Destinations issues GET /api/repos/{repo}/destinations - mirror-sync
 // targets attached to this repo. Server wraps the list in
 // {destinations: [...], count: N}; we unwrap to a bare slice.
 func (m *Manager) Destinations(conn Connection) ([]Destination, error) {
@@ -145,7 +145,7 @@ func (m *Manager) Destinations(conn Connection) ([]Destination, error) {
 	return out.Destinations, nil
 }
 
-// DestinationSync issues POST /api/repos/{repo}/destinations/{id}/sync —
+// DestinationSync issues POST /api/repos/{repo}/destinations/{id}/sync -
 // manual retry of a mirror push. Synchronous on the server.
 func (m *Manager) DestinationSync(conn Connection, destinationID string) (*Destination, error) {
 	if err := validateConn(conn, true); err != nil {
@@ -163,7 +163,7 @@ func (m *Manager) DestinationSync(conn Connection, destinationID string) (*Desti
 	return &out, nil
 }
 
-// Commit issues POST /api/repos/{repo}/commits — atomic multi-file
+// Commit issues POST /api/repos/{repo}/commits - atomic multi-file
 // commit. ParentVersion must match current HEAD or the server returns
 // 409 (surfaced as *HTTPError).
 func (m *Manager) Commit(conn Connection, req CommitRequest) (*CommitResponse, error) {

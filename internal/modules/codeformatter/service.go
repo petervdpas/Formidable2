@@ -10,7 +10,7 @@ type Service struct{ m *Manager }
 func NewService(m *Manager) *Service { return &Service{m: m} }
 
 // Format reformats src according to lang. Errors are returned as
-// strings via Wails — the frontend toasts ErrMalformed cases so the
+// strings via Wails - the frontend toasts ErrMalformed cases so the
 // user can fix the source rather than silently shipping broken YAML.
 func (s *Service) Format(lang, src string) (string, error) {
 	return s.m.Format(lang, src)

@@ -39,7 +39,7 @@ type recordingConfig struct {
 func (c *recordingConfig) UpdateUserConfig(p map[string]any) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// Defensive copy — shared maps could surprise us across scenarios.
+	// Defensive copy - shared maps could surprise us across scenarios.
 	cp := make(map[string]any, len(p))
 	for k, v := range p {
 		cp[k] = v
@@ -243,7 +243,7 @@ func initNavScenario(ctx *godog.ScenarioContext) {
 				if e.name != eventName {
 					continue
 				}
-				// Payload is *Target — accept either pointer or value-after-marshal.
+				// Payload is *Target - accept either pointer or value-after-marshal.
 				j, _ := json.Marshal(e.data)
 				var got Target
 				if err := json.Unmarshal(j, &got); err != nil {

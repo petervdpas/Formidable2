@@ -20,7 +20,7 @@ import (
 // The builder emits F[] / L[] uniformly so concat chains have a
 // predictable AST and so hyphenated keys round-trip identically to
 // plain identifiers (no $env-vs-bare-id forking). O[] is left
-// untouched — it resolves at runtime against the per-record `O`
+// untouched - it resolves at runtime against the per-record `O`
 // map injected by Manager.EvaluateList.
 type fieldRefPatcher struct{}
 
@@ -60,7 +60,7 @@ type engine struct {
 
 // newEngine wires the default helper set. Splitting helper
 // registration from construction lets tests build a stripped engine
-// later if we ever want to (today nothing does — the safe-helpers
+// later if we ever want to (today nothing does - the safe-helpers
 // list is intentionally fixed).
 func newEngine() *engine {
 	return &engine{helpers: builtinHelpers()}
@@ -93,7 +93,7 @@ func builtinHelpers() map[string]any {
 // Compile parses src and returns a cached *vm.Program. The same env
 // shape (helpers + AllowUndefinedVariables) is used at compile and
 // run time so a missing record field surfaces as nil instead of an
-// "unknown identifier" rejection — matching what users expect when
+// "unknown identifier" rejection - matching what users expect when
 // only some records have a given field populated.
 func (e *engine) Compile(src string) (*vm.Program, error) {
 	src = strings.TrimSpace(src)
@@ -135,7 +135,7 @@ func wrapHelper(fn any) func(args ...any) (any, error) {
 			if a == nil {
 				// Use the zero value of the parameter type so a
 				// missing identifier (resolved to nil) lands in the
-				// helper as its expected zero — matches JS coercion.
+				// helper as its expected zero - matches JS coercion.
 				pt := paramTypeAt(rt, i)
 				in[i] = reflect.Zero(pt)
 				continue
@@ -171,7 +171,7 @@ func paramTypeAt(rt reflect.Type, i int) reflect.Type {
 //   - map     → unmarshal known keys into Result; unknown keys
 //     ignored so users can't smuggle garbage into the JSON envelope
 //
-// Anything else is stringified into Text via fmt.Sprint — keeps
+// Anything else is stringified into Text via fmt.Sprint - keeps
 // numeric and boolean returns useful without surprising the caller.
 func (e *engine) Evaluate(src string, ctx map[string]any) (Result, error) {
 	prog, err := e.Compile(src)
@@ -190,7 +190,7 @@ func (e *engine) Evaluate(src string, ctx map[string]any) (Result, error) {
 // AllowUndefinedVariables means missing identifiers fall through to
 // nil; we still need helpers in the env so calls like `today()`
 // resolve. ctx wins on collision so a user field named `today` would
-// shadow the helper — surprising but consistent with the JS original
+// shadow the helper - surprising but consistent with the JS original
 // where local sandbox bindings beat helper bindings.
 func mergeHelpersInto(ctx map[string]any, helpers map[string]any) map[string]any {
 	out := make(map[string]any, len(ctx)+len(helpers))

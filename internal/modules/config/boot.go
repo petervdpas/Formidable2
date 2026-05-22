@@ -92,7 +92,7 @@ func (m *Manager) migrateLegacyBoot(legacyPath, newPath string) error {
 	return nil
 }
 
-// sanitizeBoot mirrors `schemas/boot.schema.js` — fills missing fields
+// sanitizeBoot mirrors `schemas/boot.schema.js` - fills missing fields
 // with defaults. The bool indicates whether the input was actually
 // amended (so callers can persist iff anything changed).
 func sanitizeBoot(raw string) (BootConfig, bool) {

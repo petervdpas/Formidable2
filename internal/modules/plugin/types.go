@@ -2,7 +2,7 @@
 // sandboxed Lua runtime (gopher-lua) that runs scripts shipped in
 // <AppRoot>/plugins/<id>/{plugin.json, main.lua}.
 //
-// Slice 1 (this file's scope) covers on-demand commands only —
+// Slice 1 (this file's scope) covers on-demand commands only -
 // the user clicks "Run" in the Plugins workspace, the script
 // executes once, returns a JSON-serialisable value. No event
 // hooks, no in-Lua dialogs yet; those are slice 2 + 3.
@@ -11,10 +11,10 @@
 // so it can be evolved under semver without surprising plugin
 // authors. Two version numbers protect that:
 //
-//   - ManifestSchemaVersion — the on-disk plugin.json shape. Bumped
+//   - ManifestSchemaVersion - the on-disk plugin.json shape. Bumped
 //     when a field's meaning changes; older manifests stay loadable
 //     until we drop them on a major release.
-//   - LuaAPIVersion         — the in-VM `formidable.api_version`
+//   - LuaAPIVersion         - the in-VM `formidable.api_version`
 //     constant. Plugins can `assert(formidable.api_version >= 1)`
 //     before using the surface.
 package plugin
@@ -38,9 +38,9 @@ const ManifestSchemaVersion = 1
 // one does.
 const LuaAPIVersion = 1
 
-// Workspace* — the closed enum of workspace IDs a plugin may
+// Workspace* - the closed enum of workspace IDs a plugin may
 // attach to via Manifest.Workspaces. An empty list (or omitted
-// field) means "not attached to any workspace" — the plugin is
+// field) means "not attached to any workspace" - the plugin is
 // still runnable from the Plugins workspace's Run modal but no
 // topbar menu item is contributed elsewhere. A plugin may attach
 // to several workspaces at once.
@@ -61,7 +61,7 @@ const (
 // plugin manifest may declare. Order matches the ribbon's natural
 // reading order so the frontend dropdown is consistent without
 // re-sorting. The Plugins workspace itself is intentionally
-// excluded — that's the management view where every plugin lives
+// excluded - that's the management view where every plugin lives
 // regardless of attachment.
 func ValidWorkspaces() []string {
 	return []string{
@@ -86,12 +86,12 @@ func isValidWorkspace(ws string) bool {
 //
 // Versionable surface: extra unknown fields are tolerated by
 // json.Unmarshal so plugins authored against a newer Formidable
-// don't silently break here — they just don't use the new fields.
+// don't silently break here - they just don't use the new fields.
 //
 // RunMode controls how the user interacts with the plugin:
-//   - "" (default) / "modal" — Run modal lists each command as a
+//   - "" (default) / "modal" - Run modal lists each command as a
 //     card; ctx is empty for every call.
-//   - "form" — the plugin's form (form.json) is the entry point;
+//   - "form" - the plugin's form (form.json) is the entry point;
 //     it renders at the top of the Run modal and every command
 //     receives the current form values as ctx.
 type Manifest struct {
@@ -110,13 +110,13 @@ type Manifest struct {
 	// Plugins workspace's Run modal.
 	Workspaces []string `json:"workspaces,omitempty"`
 	// Debug toggles the collapsible debug/output panel at the bottom
-	// of the Run modal. Off by default — plugin authors flip it on
+	// of the Run modal. Off by default - plugin authors flip it on
 	// while iterating, then turn it off when shipping.
 	Debug    bool      `json:"debug"`
 	Commands []Command `json:"commands,omitempty"`
 }
 
-// RunMode* — the closed enum of values RunMode accepts. Empty is
+// RunMode* - the closed enum of values RunMode accepts. Empty is
 // also tolerated and behaves like RunModeModal so legacy manifests
 // don't need a backfill.
 const (
@@ -131,12 +131,12 @@ const (
 // id="export" calls global function `export(ctx)` in Lua).
 //
 // HideOutput and HideLog let a command opt out of showing the
-// corresponding panel in the Run dialog — useful for "fire and
+// corresponding panel in the Run dialog - useful for "fire and
 // forget" actions whose return value is irrelevant. LogAsToast
 // additionally surfaces every formidable.log.* line as a live
 // toast, useful while developing a plugin. FormButton marks the
 // command as a button to be rendered inside the plugin's form
-// (when one exists) — the form runtime reads this when wiring its
+// (when one exists) - the form runtime reads this when wiring its
 // action bar; it's a manifest hint with no behavior yet on the
 // Run modal side.
 //
@@ -176,7 +176,7 @@ type PluginInfo struct {
 	Command                string // command id currently running
 	RequiresInternalServer bool
 	Debug                  bool
-	// Form is the parsed contents of form.json — an array of field
+	// Form is the parsed contents of form.json - an array of field
 	// definitions when the plugin has one, or nil/empty when it
 	// doesn't. Surfaces in Lua as `formidable.plugin.form` so
 	// scripts can introspect the schema (and dump it via
@@ -194,7 +194,7 @@ type ToastEvent struct {
 }
 
 // RunBarEvent is one tick emitted by formidable.run.bar(done, total).
-// Total == 0 means "indeterminate" — the bar should animate without a
+// Total == 0 means "indeterminate" - the bar should animate without a
 // concrete percentage. The frontend stores the latest event in a
 // per-run ref and feeds it to any progressbar widget the plugin
 // author dropped into their form. Cleared at the start of every Run.
@@ -224,7 +224,7 @@ type RunResult struct {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Error sentinels — closed vocabulary the Service surfaces to Vue
+// Error sentinels - closed vocabulary the Service surfaces to Vue
 // so the frontend can branch on Kind (not on message text).
 // ─────────────────────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ var (
 	ErrServerNotRunning = errors.New("plugin: requires the internal server, but it's stopped")
 	// ErrPluginBusy is returned when Manager.Run is invoked while
 	// another command is already in flight. Plugins are serialized
-	// globally — gopher-lua VMs are per-call but their bound services
+	// globally - gopher-lua VMs are per-call but their bound services
 	// (KV writes, render, fs) aren't safe to interleave, and the UX
 	// contract is "one plugin at a time" anyway. Frontend surfaces
 	// this as Kind="busy" via Service.Run.
@@ -262,7 +262,7 @@ type HTTPResponse struct {
 
 // HTTPClient is the interface the runtime needs to expose
 // formidable.api to Lua scripts. The plugin module is intentionally
-// unaware of *what* the client points at — production wraps the
+// unaware of *what* the client points at - production wraps the
 // wiki HTTP server in app.go, but the contract is just "an HTTP
 // transport." IsAvailable is queried in the Run preflight when
 // manifest.RequiresInternalServer is true; tests pass a small fake.

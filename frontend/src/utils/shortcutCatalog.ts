@@ -5,7 +5,7 @@
 // combo without having to open the right workspace and click the
 // right menu.
 //
-// Add a row here when you wire a new `combo` field on a MenuAction —
+// Add a row here when you wire a new `combo` field on a MenuAction -
 // they aren't auto-discovered (menus only exist while their
 // workspace is mounted), so keep the two lists in sync by hand.
 

@@ -16,7 +16,7 @@ import (
 //
 // IsSeed is true when the filename matches an embedded seed (currently
 // just formidable.svg). The frontend uses this to offer "Reset to
-// default" — deleting a seed image is allowed; the next boot's
+// default" - deleting a seed image is allowed; the next boot's
 // scaffold pass re-writes it from the embed.
 type CoverImageDescriptor struct {
 	Name   string `json:"name"`

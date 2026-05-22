@@ -13,7 +13,7 @@ import (
 
 // MessagesForLocale walks every discovered plugin and merges per-
 // plugin locale files into a single flat map keyed by
-// `plugin.<id>.<key>`. The auto-prefix is the namespace contract —
+// `plugin.<id>.<key>`. The auto-prefix is the namespace contract -
 // plugin authors never write the prefix themselves, and collisions
 // between plugins are impossible by construction.
 //
@@ -43,7 +43,7 @@ func (m *Manager) MessagesForLocale(locale string) map[string]string {
 
 // loadPluginI18n reads <pluginDir>/i18n/<locale>.json as a flat
 // {key: value} map. Returns (empty, nil) when the file doesn't
-// exist — a plugin with no translations is a valid plugin.
+// exist - a plugin with no translations is a valid plugin.
 func loadPluginI18n(pluginDir, locale string) (map[string]string, error) {
 	path := filepath.Join(pluginDir, "i18n", locale+".json")
 	raw, err := os.ReadFile(path)
@@ -61,7 +61,7 @@ func loadPluginI18n(pluginDir, locale string) (map[string]string, error) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Editor surface — per-locale CRUD on <plugin>/i18n/<locale>.json.
+// Editor surface - per-locale CRUD on <plugin>/i18n/<locale>.json.
 // All writes route through Editor (system.Manager) so they're
 // atomic+fsync'd; reads go through the same fs surface for symmetry
 // and to keep tests on a single shim.
@@ -103,7 +103,7 @@ func (m *Manager) GetI18nFile(pluginID, locale string) (map[string]string, error
 // indent, trailing newline) to <plugin>/i18n/<locale>.json. Creates
 // the i18n/ folder on first save. Locale is validated to keep
 // path-traversal ("../escape") and absolute-path inputs out of the
-// plugin tree — only short ascii ids are accepted.
+// plugin tree - only short ascii ids are accepted.
 func (m *Manager) SaveI18nFile(pluginID, locale string, msgs map[string]string) error {
 	if !validID(pluginID) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, pluginID)

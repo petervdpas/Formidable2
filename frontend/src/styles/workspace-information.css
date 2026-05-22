@@ -1,4 +1,4 @@
-/* Information workspace — About panel layout. Mirrors the splash card
+/* Information workspace - About panel layout. Mirrors the splash card
    shape (logo left, identity right) but bound to the active theme's
    tokens, not a fixed brand palette. */
 .about-card {
@@ -85,7 +85,7 @@
 }
 
 /* Library-credits card. Same outer chrome as the dedications above;
-   the list is rendered as accent-strip rows — no bullets, a thin
+   the list is rendered as accent-strip rows - no bullets, a thin
    vertical accent bar on the leading edge of each row that brightens
    on hover. Keeps the list-feel but reads as distinctive credits. */
 .about-thanks .thanks-list {
@@ -275,7 +275,7 @@
   margin: 0 0 var(--space-2, 8px) 0;
 }
 
-/* 13 categories don't fit on one row at sensible widths — wrap rather
+/* 13 categories don't fit on one row at sensible widths - wrap rather
    than horizontal-scroll. Inherits the tab/active styles from
    tabs.css; only the row geometry needs overriding. */
 .render-helpers-tabs > .tabs {
@@ -544,7 +544,7 @@
 /* ── Manual pages ─────────────────────────────────────────────────
    InformationManualTopic.vue renders embedded markdown into a
    .manual-body container. Distinct from .pdf-directives-body (which
-   is a sunken card) — the manual is a top-level reading page, so
+   is a sunken card) - the manual is a top-level reading page, so
    it gets generous prose styling rather than card chrome. */
 
 .manual-body {
@@ -802,7 +802,7 @@
   align-items: start;
 }
 
-/* Below ~640px the two-column layout becomes unreadable — stack the
+/* Below ~640px the two-column layout becomes unreadable - stack the
    library above the editor so each gets the full pane width. */
 @container (max-width: 640px) {
   .pdf-covers-layout {
@@ -1105,7 +1105,7 @@
   margin: 0;
 }
 
-/* New PDF cover dialog — small modal collecting just the cover name
+/* New PDF cover dialog - small modal collecting just the cover name
    before the editor pane is populated. Layout mirrors the inline
    name row in the panel for visual continuity. */
 .new-cover-dialog-row {
@@ -1135,7 +1135,7 @@
    images/. Distinct from .pdf-covers-* (HTML cover templates): a
    grid of square thumbnails with metadata + a single delete/reset
    action per tile. Upload uses a native <input type="file"> that's
-   visually hidden — the "Upload" button proxies the click. */
+   visually hidden - the "Upload" button proxies the click. */
 
 .pdf-cover-images-container {
   display: flex;

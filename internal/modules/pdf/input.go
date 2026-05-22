@@ -138,7 +138,7 @@ type PageBreaksFM struct {
 // ErrFrontmatterMalformed wraps every parse failure surfaced from
 // ParseFrontmatter. Stage 4 (the renderer) treats this as "log a
 // warning and use the merged-defaults Frontmatter" rather than a
-// hard render failure — the body always survives.
+// hard render failure - the body always survives.
 var ErrFrontmatterMalformed = errors.New("pdf: frontmatter malformed")
 
 var fmOpenRe = regexp.MustCompile(`(?m)\A---\s*\n`)
@@ -196,7 +196,7 @@ func ParseFrontmatter(md string) (Frontmatter, string, error) {
 //
 // Slice fields (currently just Signature.Links) merge atomically: a
 // non-empty slice in a higher layer fully replaces the lower's slice.
-// Element-by-element merging is intentionally out of scope — links
+// Element-by-element merging is intentionally out of scope - links
 // are inherently ordered, and partial overrides would surprise users.
 func Merge(layers ...Frontmatter) Frontmatter {
 	if len(layers) == 0 {
@@ -425,13 +425,13 @@ func pickString(dst *string, v string) {
 
 // BuildInput projects a merged Frontmatter into a picoloom.Input.
 // Pure function: no I/O, no Chrome, no file reads. Style is NOT part
-// of picoloom.Input — the caller (Stage 4 render pipeline) reads
+// of picoloom.Input - the caller (Stage 4 render pipeline) reads
 // fm.Style and passes it to picoloom.NewConverter via WithStyle().
 //
 // A sub-block is included in the Input only when the corresponding
 // Frontmatter sub-block is non-nil AND its Enabled flag is not
 // explicitly false. Block presence with no explicit Enabled defaults
-// to opted-in — this matches the design-doc convention "if the
+// to opted-in - this matches the design-doc convention "if the
 // author wrote `cover:` they probably meant to use it".
 func BuildInput(fm Frontmatter, body string) picoloom.Input {
 	in := picoloom.Input{Markdown: body}

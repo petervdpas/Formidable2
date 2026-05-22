@@ -128,7 +128,7 @@ func TestRescanAll_EmptyIndex_PopulatesFromDisk(t *testing.T) {
 }
 
 // TestRescanAll_NoOp_WhenNothingChanged: a second rescan against an
-// already-up-to-date index must NOT bump rev — that would churn the
+// already-up-to-date index must NOT bump rev - that would churn the
 // HTTP layer's ETags for no reason.
 func TestRescanAll_NoOp_WhenNothingChanged(t *testing.T) {
 	f := newRescanFixture(t)
@@ -226,7 +226,7 @@ func TestRescanAll_DetectsRemoved(t *testing.T) {
 
 // TestRescanAll_SkipsUnloadableForm: one form on disk is malformed
 // (the loader returns an error for it). RescanAll must NOT abort the
-// whole batch — it must index every other form (across this template
+// whole batch - it must index every other form (across this template
 // AND other templates) and return the per-file error so the caller
 // can log it.
 func TestRescanAll_SkipsUnloadableForm(t *testing.T) {
@@ -241,7 +241,7 @@ func TestRescanAll_SkipsUnloadableForm(t *testing.T) {
 	f.registerTemplate("basic", nil, 1)
 	f.registerTemplate("looper", nil, 2)
 	f.registerForm("basic", "good.meta.json", map[string]any{}, 10)
-	// "BAD.meta.json" is on disk but NOT registered with the loader —
+	// "BAD.meta.json" is on disk but NOT registered with the loader -
 	// the fake form store returns "not found" → adapter returns error
 	// → RescanAll must skip this row and keep going.
 	f.registerForm("looper", "also-good.meta.json", map[string]any{}, 12)
@@ -261,7 +261,7 @@ func TestRescanAll_SkipsUnloadableForm(t *testing.T) {
 
 	looperRows, _ := f.mgr.ListForms("looper.yaml", QueryOpts{})
 	if got := sortedFormFilenames(looperRows); !equalStrings(got, []string{"also-good.meta.json"}) {
-		t.Errorf("looper forms = %v — sibling templates must NOT be collateral damage from one bad form", got)
+		t.Errorf("looper forms = %v - sibling templates must NOT be collateral damage from one bad form", got)
 	}
 }
 
@@ -296,7 +296,7 @@ func TestRescanAll_SkipsUnloadableTemplate(t *testing.T) {
 
 	okRows, _ := f.mgr.ListForms("ok.yaml", QueryOpts{})
 	if got := sortedFormFilenames(okRows); !equalStrings(got, []string{"one.meta.json"}) {
-		t.Errorf("ok forms = %v — sibling forms must NOT be collateral damage from a broken template", got)
+		t.Errorf("ok forms = %v - sibling forms must NOT be collateral damage from a broken template", got)
 	}
 }
 

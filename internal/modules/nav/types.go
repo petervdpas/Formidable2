@@ -1,4 +1,4 @@
-// Package nav owns formidable:// URL routing — parsing, validation,
+// Package nav owns formidable:// URL routing - parsing, validation,
 // and translating "follow this link" into a config-state change the
 // rest of the app reacts to.
 //
@@ -26,7 +26,7 @@ type Target struct {
 // Result is what NavigateToFormidable returns to the frontend. Success
 // false carries Error so Vue can toast the reason without redoing the
 // validation. Target is filled even on failure when the URL parsed but
-// the (template, datafile) pair didn't resolve — useful for diagnostics.
+// the (template, datafile) pair didn't resolve - useful for diagnostics.
 type Result struct {
 	Success bool    `json:"success"`
 	Target  *Target `json:"target,omitempty"`

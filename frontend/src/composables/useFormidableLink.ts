@@ -1,7 +1,7 @@
 import { Service as NavSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/nav";
 import { useToast } from "./useToast";
 
-// useFormidableLink — thin Vue wrapper around the Go nav module.
+// useFormidableLink - thin Vue wrapper around the Go nav module.
 //
 // The backend owns parsing, validation, config persistence, and emits
 // `nav:changed`. App.vue's global listener reloads config and flips
@@ -17,7 +17,7 @@ export function useFormidableLink() {
     if (!result?.success) {
       toast.error("status.template.load.failed", [result?.error ?? href]);
     }
-    return true; // handled — don't fall through to the browser default
+    return true; // handled - don't fall through to the browser default
   }
 
   return { follow };

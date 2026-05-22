@@ -16,7 +16,7 @@ import (
 )
 
 // stubProvider is a hand-rolled Provider for the api unit tests.
-// Mirrors the wiki package's stubProvider style — narrow, manually
+// Mirrors the wiki package's stubProvider style - narrow, manually
 // shaped per scenario, no SQLite or filesystem.
 type stubProvider struct {
 	templates []dataprovider.TemplateSummary
@@ -57,7 +57,7 @@ func (s *stubProvider) ListCollection(_ context.Context, template string, opts d
 		return &dataprovider.CollectionPage{Enabled: false}, nil
 	}
 	rows := s.forms[template]
-	// Drop rows without an addressable GUID — mirrors real dataprovider.
+	// Drop rows without an addressable GUID - mirrors real dataprovider.
 	addressable := rows[:0:0]
 	for _, r := range rows {
 		if r.ID != "" {
@@ -92,7 +92,7 @@ func (s *stubProvider) ListCollection(_ context.Context, template string, opts d
 		rows = filtered
 	}
 
-	// Facet AND filter — mirrors dataprovider/collection.go: for every
+	// Facet AND filter - mirrors dataprovider/collection.go: for every
 	// requested facet.<k>=L the record's meta.facets[k] must satisfy
 	// set==true and selected==L. Without a wired-up storage stub this
 	// branch is a no-op (the empty-Facets case in real life).
@@ -118,7 +118,7 @@ func (s *stubProvider) ListCollection(_ context.Context, template string, opts d
 		rows = filtered
 	}
 
-	// Substring filter (case-insensitive over title + tags) — matches
+	// Substring filter (case-insensitive over title + tags) - matches
 	// the real dataprovider implementation in `collection.go`.
 	if opts.Q != "" {
 		needle := strings.ToLower(opts.Q)
@@ -310,7 +310,7 @@ func (w *stubWriter) DeleteForm(templateFilename, datafile string) error {
 func newStubWriter() *stubWriter { return &stubWriter{} }
 
 // stubTemplates is a minimal Templates impl. Tests register full
-// *template.Template values per filename — missing entries return a
+// *template.Template values per filename - missing entries return a
 // not-found error so the handler's 404 branch is reachable.
 type stubTemplates struct {
 	by map[string]*template.Template

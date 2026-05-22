@@ -17,8 +17,8 @@ import (
 )
 
 // TestIndexFormReader_ParityWithDiskPath stitches the real composition
-// — template + storage + index + event handler + the new
-// indexFormReader — together and proves the index-sourced
+// - template + storage + index + event handler + the new
+// indexFormReader - together and proves the index-sourced
 // ExtendedListForms returns the same FormSummary slice as the disk
 // path it replaces. Covers all of step 2 at the integration level:
 // facets, audit identity (created/updated name+email), tags,
@@ -109,7 +109,7 @@ func TestIndexFormReader_ParityWithDiskPath(t *testing.T) {
 		}
 	}
 
-	// Snapshot the disk path BEFORE installing the reader — that's the
+	// Snapshot the disk path BEFORE installing the reader - that's the
 	// only way to call the disk fallback without poking at unexported
 	// helpers. SaveForm already triggered the index event handler, so
 	// the index is populated and ready for the second snapshot.

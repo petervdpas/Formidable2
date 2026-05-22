@@ -10,7 +10,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// End-to-end round-trip tests — the existing fakeStorage stashes data
+// End-to-end round-trip tests - the existing fakeStorage stashes data
 // verbatim, so it can't catch regressions in storage.Sanitize or in
 // JSON disk I/O. These tests wire the real system → sfr → storage →
 // form stack on a tempdir so SaveValues actually serializes to JSON
@@ -30,7 +30,7 @@ func newRealStack(t *testing.T) (*Manager, *template.Manager) {
 func TestForm_LinkObjectRoundTripsThroughDisk(t *testing.T) {
 	m, tplM := newRealStack(t)
 
-	// Template with a single link field — keeps the focus on shape
+	// Template with a single link field - keeps the focus on shape
 	// preservation, no other fields to mask the regression.
 	if err := tplM.SaveTemplate("links.yaml", &template.Template{
 		Name: "links", Filename: "links.yaml",
@@ -103,7 +103,7 @@ func TestForm_LinkLegacyStringRoundTrips(t *testing.T) {
 }
 
 func TestForm_LinkEmptyStaysEmpty(t *testing.T) {
-	// Empty value (cleared link) round-trips as "" — the canonical
+	// Empty value (cleared link) round-trips as "" - the canonical
 	// empty form for the link field.
 	m, tplM := newRealStack(t)
 	_ = tplM.SaveTemplate("links.yaml", &template.Template{

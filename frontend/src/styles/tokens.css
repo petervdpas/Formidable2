@@ -1,4 +1,4 @@
-/* Structural tokens — theme-agnostic. Color tokens live in themes/*.css. */
+/* Structural tokens - theme-agnostic. Color tokens live in themes/*.css. */
 :root {
     --ribbon-width:   72px;
     --topbar-height:  44px;

@@ -11,13 +11,13 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// templateLoader — what form needs from the template module. Satisfied
+// templateLoader - what form needs from the template module. Satisfied
 // by *template.Manager.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// formStore — what form needs from the storage module. Satisfied by
+// formStore - what form needs from the storage module. Satisfied by
 // *storage.Manager.
 type formStore interface {
 	EnsureFormDir(templateFilename string) error
@@ -28,7 +28,7 @@ type formStore interface {
 	DeleteForm(templateFilename, datafile string) error
 }
 
-// configReader — minimal config surface form needs. Satisfied by a
+// configReader - minimal config surface form needs. Satisfied by a
 // thin adapter on *config.Manager (composition root supplies it).
 //
 // Kept narrow so config doesn't have to depend on form's value types,
@@ -38,7 +38,7 @@ type configReader interface {
 }
 
 // ConfigDefaults bundles config values that affect form rendering.
-// Snapshot read once per call — these change rarely. Author identity
+// Snapshot read once per call - these change rarely. Author identity
 // is NOT here: storage.Manager pulls it directly from its own
 // AuthorProvider so every save path (form, api, csv import, integrity)
 // gets the active profile stamped.
@@ -87,7 +87,7 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 
 	loaded := m.storage.LoadForm(templateName, datafile)
 	if loaded == nil {
-		// Missing or unreadable — fall back to an unsaved view, keep
+		// Missing or unreadable - fall back to an unsaved view, keep
 		// the requested datafile so the UI can show "this is the
 		// name you chose" without erroring.
 		m.log.Warn("form: datafile not found; returning unsaved view",
@@ -132,7 +132,7 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 	// Compose the bare-payload shape storage.Sanitize expects:
 	//   {...values, _meta:{...}}
 	// Storage owns id-generation, Created/Updated stamping (via its
-	// AuthorProvider — wired to the active profile by the composition
+	// AuthorProvider - wired to the active profile by the composition
 	// root), tags collection, and shape-coercion. We pass meta through
 	// only for fields storage doesn't otherwise know: template name +
 	// flag state. Identity stamping is no longer the form module's job.
@@ -164,13 +164,13 @@ func (m *Manager) DeleteForm(templateName, datafile string) error {
 	return m.storage.DeleteForm(templateName, datafile)
 }
 
-// ListForms — passthrough to storage.ExtendedListForms so Vue gets the
+// ListForms - passthrough to storage.ExtendedListForms so Vue gets the
 // title-resolved + expression-bearing rows the sidebar needs.
 func (m *Manager) ListForms(templateName string) ([]storage.FormSummary, error) {
 	return m.storage.ExtendedListForms(templateName)
 }
 
-// EnsureFormDir — passthrough to storage; lets Vue create the per-
+// EnsureFormDir - passthrough to storage; lets Vue create the per-
 // template folder before listing on a fresh template.
 func (m *Manager) EnsureFormDir(templateName string) error {
 	return m.storage.EnsureFormDir(templateName)
@@ -249,9 +249,9 @@ func typeDefault(t string) any {
 	}
 }
 
-// metaToMap — JSON-shaped meta block, matching what storage.Sanitize
+// metaToMap - JSON-shaped meta block, matching what storage.Sanitize
 // reads out of the bare envelope's `_meta` key. Only emits Created /
-// Updated when their At field is set — storage.SaveForm overrides
+// Updated when their At field is set - storage.SaveForm overrides
 // these from prev + provider anyway, so passing zero values would just
 // be noise.
 func metaToMap(m storage.FormMeta) map[string]any {

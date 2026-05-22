@@ -3,14 +3,14 @@ import { useI18n } from "vue-i18n";
 import { Clipboard } from "@wailsio/runtime";
 import { useToast } from "../composables/useToast";
 
-// CopyButton — single-source clipboard action. Routes through Wails'
+// CopyButton - single-source clipboard action. Routes through Wails'
 // Clipboard runtime instead of navigator.clipboard because webviews
 // block the browser API outside secure contexts.
 //
 // `text` accepts three shapes so the same component covers static
 // strings, cheap sync getters, and async sources that need a backend
 // call to produce the payload (e.g. RenderFullHTML). The function
-// form is invoked ONLY on click — never during render — so a
+// form is invoked ONLY on click - never during render - so a
 // side-effecting getter is safe here.
 //
 // Auto-disable is intentionally not derived from `text`; callers

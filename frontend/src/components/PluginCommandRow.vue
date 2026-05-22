@@ -6,7 +6,7 @@ import type { Command } from "../../bindings/github.com/petervdpas/formidable2/i
 // One row for editing a single Command in the manifest. Top line:
 // labelled Id / Label / Lua-function inputs + a delete button.
 // Bottom line: Result + Log toggle-switches that map to the
-// command's hide_output / hide_log flags (inverted — the user sees
+// command's hide_output / hide_log flags (inverted - the user sees
 // "Show, ON by default", JSON stores hide_*).
 //
 // We mutate the passed-in `command` object directly, which works

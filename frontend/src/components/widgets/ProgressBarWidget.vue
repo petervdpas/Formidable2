@@ -4,12 +4,12 @@ import { useGlobalPluginRun } from "../../composables/useGlobalPluginRun";
 import type { Widget } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
 
 // ProgressBarWidget renders a single bar driven by formidable.run.bar.
-// All progressbar widgets in a form read the same global `bar` ref —
+// All progressbar widgets in a form read the same global `bar` ref -
 // a plugin can call formidable.run.bar(done, total) once per item
 // and every bar in the form re-renders. Total == 0 means
 // indeterminate; the CSS class drives the sliding animation. Always
 // rendered so the author's form layout stays consistent before / after
-// a run — empty bar at idle, fills during.
+// a run - empty bar at idle, fills during.
 defineProps<{ widget: Widget }>();
 
 const { bar, running } = useGlobalPluginRun();

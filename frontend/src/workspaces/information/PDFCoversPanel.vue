@@ -153,7 +153,7 @@ async function runImport(zipPath: string, overwrite: boolean) {
   }
   if (r.code === "exists") {
     // Defer the overwrite decision to a confirm dialog. We do NOT
-    // try to read the cover stem out of the error message — re-run
+    // try to read the cover stem out of the error message - re-run
     // import with overwrite=true and let the backend report the
     // final name in its result.
     importPendingPath.value = zipPath;

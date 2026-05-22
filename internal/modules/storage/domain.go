@@ -28,7 +28,7 @@ type fs interface {
 }
 
 // templateLoader is the narrow interface the storage module needs from
-// template — load by filename. Mirrors template.Manager.LoadTemplate.
+// template - load by filename. Mirrors template.Manager.LoadTemplate.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
@@ -40,7 +40,7 @@ const (
 
 // Indexer is the post-write hook surface a downstream cache plugs
 // into for forms (the SQLite index used by the wiki/API). Failures
-// are logged at the manager and never propagated — the index is a
+// are logged at the manager and never propagated - the index is a
 // derived view, never authoritative.
 type Indexer interface {
 	OnFormChanged(templateFilename, datafile string) error
@@ -56,7 +56,7 @@ type Indexer interface {
 //
 // A reader-side error is non-fatal: the manager logs it and falls
 // back to the disk path. The index is a derived view, never
-// authoritative — same posture as the Indexer write hook.
+// authoritative - same posture as the Indexer write hook.
 type FormReader interface {
 	ListSummaries(templateFilename string) ([]FormSummary, error)
 }
@@ -74,7 +74,7 @@ type Manager struct {
 }
 
 // NewManager builds the manager. storageDir is the storage root
-// (e.g. "<context>/storage" — the composition root resolves it).
+// (e.g. "<context>/storage" - the composition root resolves it).
 // log may be nil.
 func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, storageDir string, log *slog.Logger) *Manager {
 	if log == nil {
@@ -109,8 +109,8 @@ func (m *Manager) SetReader(r FormReader) { m.reader = r }
 func (m *Manager) SetAuthorProvider(p AuthorProvider) { m.author = p }
 
 // stamp returns a fresh AuditEntry for the current actor. Resolution
-// order: ctx-scoped auth.Identity (request-scoped — HTTP API + future
-// subscriptions) > AuthorProvider (process-scoped — Wails IPC + plugin
+// order: ctx-scoped auth.Identity (request-scoped - HTTP API + future
+// subscriptions) > AuthorProvider (process-scoped - Wails IPC + plugin
 // host) > ("Unknown", "unknown@example.com") fallback.
 func (m *Manager) stamp(ctx context.Context) AuditEntry {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -163,7 +163,7 @@ func (m *Manager) ListForms(templateFilename string) ([]string, error) {
 }
 
 // LoadForm reads + sanitizes a form. Returns nil if the file is missing
-// or malformed (mirrors JS — frontend treats null as "not found").
+// or malformed (mirrors JS - frontend treats null as "not found").
 func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 	if datafile == "" {
 		return nil
@@ -186,7 +186,7 @@ func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 
 // SaveForm sanitizes the input against the template's fields and writes
 // the resulting envelope as JSON. ctx is consulted by stamp() for the
-// auth.Identity that attributes Updated (and Created on first save) —
+// auth.Identity that attributes Updated (and Created on first save) -
 // HTTP API handlers thread the request context here; non-HTTP callers
 // (Wails IPC, plugin host) pass context.Background() and fall back to
 // the AuthorProvider.
@@ -235,9 +235,9 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 
 // SaveFormExact writes a fully-formed envelope as-is, without
 // consulting the previously-stored meta. SaveForm is the everyday
-// path — it preserves prev.Meta.ID / Created so editing a form can't
+// path - it preserves prev.Meta.ID / Created so editing a form can't
 // accidentally re-generate identity. SaveFormExact is the escape
-// hatch for callers that are deliberately mutating the meta block —
+// hatch for callers that are deliberately mutating the meta block -
 // the integrity repair pipeline mints UUIDs and re-stamps timestamps
 // and needs its updated meta to land on disk verbatim. ctx is carried
 // for parity with SaveForm but currently unused (the form's Meta is
@@ -299,7 +299,7 @@ func (m *Manager) LoadImageFile(templateFilename, name string) (string, error) {
 
 // OpenImageFile reads the raw image bytes + MIME type without the
 // data-URL framing. Used by the wiki HTTP server which streams the
-// bytes directly through `/storage/<tpl>/images/<name>` — encoding to
+// bytes directly through `/storage/<tpl>/images/<name>` - encoding to
 // base64 and decoding in the browser would just bloat the response.
 // Missing file → nil bytes + nil error (mirrors LoadImageFile).
 func (m *Manager) OpenImageFile(templateFilename, name string) ([]byte, string, error) {
@@ -380,7 +380,7 @@ func (m *Manager) SaveImageFile(templateFilename, name string, content []byte) S
 //
 // Fast path: when a FormReader is installed (composition root wires
 // one over the SQLite index), summaries come straight off the index
-// — one query instead of one disk read per record. Reader errors are
+// - one query instead of one disk read per record. Reader errors are
 // logged and the disk path runs as a safety net so a transient index
 // problem can't make the studio list go blank.
 func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, error) {
@@ -396,7 +396,7 @@ func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, err
 }
 
 // extendedListFormsFromDisk is the original walk-every-file path.
-// Kept as a fallback for when the reader isn't installed or errors —
+// Kept as a fallback for when the reader isn't installed or errors -
 // the index is a derived view, never authoritative.
 func (m *Manager) extendedListFormsFromDisk(templateFilename string) ([]FormSummary, error) {
 	files, err := m.ListForms(templateFilename)
@@ -416,7 +416,7 @@ func (m *Manager) extendedListFormsFromDisk(templateFilename string) ([]FormSumm
 }
 
 // ExtendedLoadForm is the single-record analogue of ExtendedListForms.
-// Returns nil when the file is missing — same posture as LoadForm —
+// Returns nil when the file is missing - same posture as LoadForm -
 // so the expression module's per-row "this one form changed" path
 // doesn't need to walk every record on disk.
 func (m *Manager) ExtendedLoadForm(templateFilename, datafile string) (*FormSummary, error) {
@@ -473,7 +473,7 @@ func (m *Manager) templateDir(templateFilename string) string {
 	return filepath.Join(m.storageDir, name)
 }
 
-// TemplateStorageDir is the exported name for templateDir — returns
+// TemplateStorageDir is the exported name for templateDir - returns
 // the absolute path of `<storage>/<template-stem>/`. Used by the
 // Cleanup Storage utility to "Open Storage Folder" for the currently
 // selected template via OpenExternal.

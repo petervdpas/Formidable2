@@ -1,5 +1,5 @@
 // Package pdf owns Formidable's PDF export pipeline. The runtime
-// engine is picoloom v2 (Go library, headless Chrome via go-rod) —
+// engine is picoloom v2 (Go library, headless Chrome via go-rod) -
 // see design/pdf-export.md for the full plan.
 //
 // The module is opt-in: until the user activates it from the
@@ -7,7 +7,7 @@
 // Activation probes for a system Chrome/Chromium binary, falling
 // back to go-rod's managed download. Activation state persists in
 // a per-machine state file (`<AppRoot>/config/.pdf-state.json`),
-// NOT in the active profile's user.json — `browser_bin` is a
+// NOT in the active profile's user.json - `browser_bin` is a
 // machine-specific path and would break under gigot/git sync.
 // Stage 2 wires the store via system.Manager.
 //
@@ -29,11 +29,11 @@ var ErrPDFNotActivated = errors.New("pdf: not activated")
 
 // Source describes where the active Chrome/Chromium binary came from.
 // Values are stable and used in both the Status struct and persisted
-// config — do not rename without a migration.
+// config - do not rename without a migration.
 type Source string
 
 const (
-	// SourceUnset is the inactive state — no browser bound, no
+	// SourceUnset is the inactive state - no browser bound, no
 	// activation attempted. Default for fresh profiles.
 	SourceUnset Source = "unset"
 	// SourceSystem means the user pointed activation at an existing
@@ -50,9 +50,9 @@ const (
 // or after activation; zero value means inactive.
 //
 // ExportDir is the per-machine "where renders land" preference. It is
-// independent of activation — the user can set or change it while
+// independent of activation - the user can set or change it while
 // inactive, and Deactivate does not wipe it. Empty string means
-// "no default — Stage 4 will fall back to placing PDFs next to the
+// "no default - Stage 4 will fall back to placing PDFs next to the
 // form" (see design/pdf-export.md, Stage 4 output path resolution).
 type Status struct {
 	Active      bool      `json:"active"`
@@ -69,7 +69,7 @@ type Status struct {
 //   - BrowserBin: when set, skip probing and use this path directly.
 //     When empty, the prober runs and the first candidate is picked.
 //
-// Formidable does not bundle or download Chrome — if no candidate
+// Formidable does not bundle or download Chrome - if no candidate
 // is found, the user must install one (or point ROD_BROWSER_BIN at
 // one) themselves.
 type ActivateOpts struct {
@@ -107,7 +107,7 @@ type ExportOpts struct {
 }
 
 // Result is the bound shape ExportPDF returns. The PDF bytes are not
-// in the result — they go straight to disk via system.SaveFile. The
+// in the result - they go straight to disk via system.SaveFile. The
 // frontend uses Path to surface an "Open" link in the success toast.
 type Result struct {
 	Path     string        `json:"path"`
@@ -115,7 +115,7 @@ type Result struct {
 	Duration time.Duration `json:"duration_ms"`
 }
 
-// ChromeCandidate is one entry returned by ProbeChrome — a Chrome/
+// ChromeCandidate is one entry returned by ProbeChrome - a Chrome/
 // Chromium binary the activation flow can adopt. Version is best-
 // effort (resolved by running `<path> --version`) and may be empty
 // when the binary refuses to run or the call times out.
@@ -128,7 +128,7 @@ type ChromeCandidate struct {
 // ProbeResult is what ProbeChrome returns to the activation dialog.
 // Candidates is ordered: env-var override (if any), then system
 // matches in the platform's standard search list, then managed-cache
-// matches. Empty means no Chrome was found — the dialog should offer
+// matches. Empty means no Chrome was found - the dialog should offer
 // the managed-download path (Phase D).
 type ProbeResult struct {
 	Candidates []ChromeCandidate `json:"candidates"`
@@ -141,7 +141,7 @@ type ProbeResult struct {
 // the effective Theme/Cover/HasCover apply to both.
 //
 // The PDF doctor sub-panel reads these via Service.LastExport. Stable
-// shape — JSON tags are part of the Wails contract.
+// shape - JSON tags are part of the Wails contract.
 type ExportTelemetry struct {
 	At         time.Time `json:"at"`
 	Template   string    `json:"template"`
@@ -177,7 +177,7 @@ type ExportTelemetrySnapshot struct {
 // Listed by Service.ListThemes. Picoloom v2 does not enumerate its
 // bundled styles, so the Go side keeps the canonical list. When
 // picoloom adds a style (or exposes its registry), refresh `builtinThemes`
-// in service.go to match — there is no other place to update.
+// in service.go to match - there is no other place to update.
 type ThemeDescriptor struct {
 	Name string `json:"name"`
 }
@@ -186,12 +186,12 @@ type ThemeDescriptor struct {
 // would pick for the (template, datafile) pair if the user accepts
 // the dialog's default options. The dialog uses this to label the
 // "(use frontmatter / template default)" entry with the concrete
-// value that will actually be applied — so a template whose frontmatter
-// has no `style:` shows up as "(no theme — picoloom built-in)" instead
+// value that will actually be applied - so a template whose frontmatter
+// has no `style:` shows up as "(no theme - picoloom built-in)" instead
 // of pretending a frontmatter override exists.
 //
 // Empty Theme / CoverTemplate strings mean "no override in any merge
-// layer — picoloom's own built-in default will be used at render time".
+// layer - picoloom's own built-in default will be used at render time".
 // CoverDisabled distinguishes that-from "frontmatter said cover.enabled:
 // false" so the dialog can show a more specific label.
 type ResolvedExportDefaults struct {

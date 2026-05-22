@@ -38,7 +38,7 @@ import { useToast } from "../composables/useToast";
 
 const props = defineProps<{
   open: boolean;
-  /** Template name — used as the default Cover.Title pre-fill. */
+  /** Template name - used as the default Cover.Title pre-fill. */
   templateName?: string;
 }>();
 const emit = defineEmits<{
@@ -112,7 +112,7 @@ const sigAddress = ref("");
 const sigDepartment = ref("");
 
 // Live preview output. Re-renders on every change via the watcher
-// below — cheap (pure-function backend call, no I/O).
+// below - cheap (pure-function backend call, no I/O).
 const previewYAML = ref("");
 const previewError = ref("");
 const previewOpen = ref(false);
@@ -230,7 +230,7 @@ function footerPositionLabel(name: string): string {
 }
 
 // Build the InjectConfig payload from the current ref state. The
-// `enabled: true` flag is implicit on the backend — a non-nil block
+// `enabled: true` flag is implicit on the backend - a non-nil block
 // pointer means "include this block".
 //
 // Wails-generated classes accept Partial<T> in their constructors so
@@ -297,7 +297,7 @@ function buildConfig(): InjectConfig {
 
 // A footer is meaningful when at least the page-number gauge is on
 // or any of the text-bearing fields is non-empty. With everything
-// off + empty, picoloom emits an empty footer container — drop the
+// off + empty, picoloom emits an empty footer container - drop the
 // block entirely instead.
 const footerHasContent = computed(
   () =>
@@ -334,7 +334,7 @@ async function refreshPreview() {
   }
 }
 
-// Re-render preview on any input change. Cheap — pure function on
+// Re-render preview on any input change. Cheap - pure function on
 // the backend, no I/O.
 watch(
   [

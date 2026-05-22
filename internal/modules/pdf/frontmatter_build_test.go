@@ -178,7 +178,7 @@ func TestBuildFrontmatter_Keywords(t *testing.T) {
 
 func TestBuildFrontmatter_KeywordsHelperEmittedRaw(t *testing.T) {
 	// A wholly-handlebars element should land at column 0 as a raw
-	// line — no `- ` prefix, no single-quoting — so the helper's
+	// line - no `- ` prefix, no single-quoting - so the helper's
 	// multi-line expansion plugs into the block sequence cleanly.
 	got, err := BuildFrontmatter(InjectConfig{
 		Keywords: []string{`{{yamlList (fieldRaw "adapter-tags")}}`},
@@ -225,7 +225,7 @@ func TestBuildFrontmatter_KeywordsMixedLiteralAndHelper(t *testing.T) {
 
 func TestBuildFrontmatter_KeywordsHelperOnly_NoOtherBlocks(t *testing.T) {
 	// A keywords-only config with a helper invocation must not collapse
-	// to "---\n---\n" (the empty-frontmatter guard) — keywords ARE
+	// to "---\n---\n" (the empty-frontmatter guard) - keywords ARE
 	// content.
 	got, err := BuildFrontmatter(InjectConfig{
 		Keywords: []string{`{{yamlList (fieldRaw "x")}}`},
@@ -387,7 +387,7 @@ func TestService_RegistriesReturnCopies(t *testing.T) {
 
 func TestBuildFrontmatter_AllFieldsPopulated(t *testing.T) {
 	// Mirrors what a real user filling every field in the Inject
-	// wizard would produce — full cover, page, toc, footer, signature
+	// wizard would produce - full cover, page, toc, footer, signature
 	// blocks all populated. Catches block-emit ordering issues and
 	// missing-field bugs that single-block tests miss.
 	got, err := BuildFrontmatter(InjectConfig{
@@ -433,7 +433,7 @@ func TestBuildFrontmatter_AllFieldsPopulated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build all-fields: %v", err)
 	}
-	// Sample assertions across every block — if any go missing we
+	// Sample assertions across every block - if any go missing we
 	// know the emit pass dropped a section.
 	mustContain := []string{
 		"style: technical",
@@ -472,7 +472,7 @@ func TestBuildFrontmatter_HandlebarsInValuesRoundTrip(t *testing.T) {
 }
 
 func TestBuildFrontmatter_YAMLSpecialCharsInTitleQuoted(t *testing.T) {
-	// `Title: Foo: Bar` — embedded colon. yaml.v3 must quote on emit
+	// `Title: Foo: Bar` - embedded colon. yaml.v3 must quote on emit
 	// so the round-trip parse doesn't see it as a nested key.
 	got, err := BuildFrontmatter(InjectConfig{
 		Cover: &InjectCoverConfig{Title: "Foo: Bar"},
@@ -480,7 +480,7 @@ func TestBuildFrontmatter_YAMLSpecialCharsInTitleQuoted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build colon-title: %v", err)
 	}
-	// Just verify yaml.Marshal handled it — re-parsing the body
+	// Just verify yaml.Marshal handled it - re-parsing the body
 	// (sans fences) must yield Foo: Bar verbatim.
 	if !strings.Contains(got, "Foo: Bar") {
 		t.Errorf("colon title lost:\n%s", got)
@@ -497,7 +497,7 @@ func TestBuildFrontmatter_YAMLSpecialCharsInTitleQuoted(t *testing.T) {
 }
 
 func TestBuildFrontmatter_TitleWithBracketsAndBraces(t *testing.T) {
-	// Pathological scalar — flow-sequence + flow-mapping chars.
+	// Pathological scalar - flow-sequence + flow-mapping chars.
 	got, err := BuildFrontmatter(InjectConfig{
 		Cover: &InjectCoverConfig{Title: "[draft] {classified}"},
 	})
@@ -516,15 +516,15 @@ func TestBuildFrontmatter_TitleWithBracketsAndBraces(t *testing.T) {
 }
 
 func TestBuildFrontmatter_UnicodeValues(t *testing.T) {
-	// Multilingual content — Dutch dashes + Japanese + emoji — must
+	// Multilingual content - Dutch dashes + Japanese + emoji - must
 	// round-trip. yaml.v3 escapes some codepoints (e.g. emoji as
 	// \UXXXXXXXX) on emit; the contract is "parse recovers the
 	// original", not "literal bytes in the output".
 	got, err := BuildFrontmatter(InjectConfig{
 		Cover: &InjectCoverConfig{
-			Title:    "Datastroom — definitie",
+			Title:    "Datastroom - definitie",
 			Subtitle: "デザイン文書",
-			Author:   "Peter — Fontys 🎓",
+			Author:   "Peter - Fontys 🎓",
 		},
 	})
 	if err != nil {
@@ -538,13 +538,13 @@ func TestBuildFrontmatter_UnicodeValues(t *testing.T) {
 	if fm.Cover == nil {
 		t.Fatalf("Cover nil after round-trip")
 	}
-	if fm.Cover.Title != "Datastroom — definitie" {
+	if fm.Cover.Title != "Datastroom - definitie" {
 		t.Errorf("Title round-trip lost: %q", fm.Cover.Title)
 	}
 	if fm.Cover.Subtitle != "デザイン文書" {
 		t.Errorf("Subtitle round-trip lost: %q", fm.Cover.Subtitle)
 	}
-	if fm.Cover.Author != "Peter — Fontys 🎓" {
+	if fm.Cover.Author != "Peter - Fontys 🎓" {
 		t.Errorf("Author round-trip lost: %q", fm.Cover.Author)
 	}
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * OutcomeEditor — text source picker + color/bg/classes for one
+ * OutcomeEditor - text source picker + color/bg/classes for one
  * Outcome. Used both for per-rule outcomes and for the dialog's
  * default outcome. Mutates the outcome in place.
  *
@@ -34,7 +34,7 @@ const MAX_PARTS = 10;
 
 const { t } = useI18n();
 
-// 11 distinct colors — 9 prime hues from styles/expression.css plus
+// 11 distinct colors - 9 prime hues from styles/expression.css plus
 // black and white. Hex-coded so the compile output references the
 // value directly. Laid out in a 3×4 grid with the clear (×) button
 // occupying the 12th cell (see template).
@@ -52,7 +52,7 @@ const COLOR_PALETTE: Array<{ value: string; label: string }> = [
   { value: "#ffffff", label: "white" },
 ];
 
-// SwatchPicker option list mirroring COLOR_PALETTE — `color` field
+// SwatchPicker option list mirroring COLOR_PALETTE - `color` field
 // drives inline-style background on each cell.
 const COLOR_PALETTE_OPTIONS: SwatchOption[] = COLOR_PALETTE.map((c) => ({
   value: c.value,
@@ -61,7 +61,7 @@ const COLOR_PALETTE_OPTIONS: SwatchOption[] = COLOR_PALETTE.map((c) => ({
 }));
 
 // CSS utility classes the picker exposes. Color/bg utility classes
-// (expr-text-* / expr-bg-*) are intentionally NOT here — the Color
+// (expr-text-* / expr-bg-*) are intentionally NOT here - the Color
 // and Background pickers cover the same ground (Color emits the hex,
 // Background emits the tinted rgba 0.18 form expr-bg-* uses). The
 // classes in styles/expression.css remain for backward compat with
@@ -75,13 +75,13 @@ const EXPRESSION_CLASSES = [
   "expr-error",
 ];
 
-// Background tint alpha — matches the .expr-bg-* declarations in
+// Background tint alpha - matches the .expr-bg-* declarations in
 // styles/expression.css. Picking a swatch in the Background popup
 // stores rgba(...) so the chip renders exactly as the matching
 // expr-bg-* class would.
 const BG_TINT_ALPHA = 0.18;
 
-// White and black are NOT in the expr-bg-* tint set — they're
+// White and black are NOT in the expr-bg-* tint set - they're
 // neutrals that the user means literally. Tinting white/black at
 // 18% alpha on a dark theme makes them effectively invisible, so
 // we keep them solid.
@@ -271,7 +271,7 @@ function classDisplayName(name: string): string {
               :value="partValueOrKey(p)"
               @change="setPartValue(i, ($event.target as HTMLSelectElement).value)"
             >
-              <option value="">—</option>
+              <option value="">-</option>
               <option v-for="f in expressionFields" :key="f.key" :value="f.key">
                 {{ f.label || f.key }}
               </option>
@@ -282,7 +282,7 @@ function classDisplayName(name: string): string {
               :value="partValueOrKey(p)"
               @change="setPartValue(i, ($event.target as HTMLSelectElement).value)"
             >
-              <option value="">—</option>
+              <option value="">-</option>
               <option v-for="f in enumFields" :key="f.key" :value="f.key">
                 {{ f.label || f.key }}
               </option>

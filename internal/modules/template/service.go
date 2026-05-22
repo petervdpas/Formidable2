@@ -23,7 +23,7 @@ func NewService(m *Manager, storageLocator func(string) string) *Service {
 
 // FacetMeta returns the full facet contract (max counts, color +
 // icon palettes, validation patterns). The frontend reads this once
-// at boot so it doesn't mirror ANY of these constants — backend is
+// at boot so it doesn't mirror ANY of these constants - backend is
 // the single source of truth.
 func (s *Service) FacetMeta() FacetMeta { return GetFacetMeta() }
 
@@ -75,7 +75,7 @@ func (s *Service) FieldTypes() []FieldDescriptor { return AllFieldTypes() }
 
 // TableColumnTypes returns the canonical column-type vocabulary the
 // Edit Field modal's `table` preset surfaces. Single source of truth
-// — the frontend MUST NOT keep a parallel hardcoded list.
+// - the frontend MUST NOT keep a parallel hardcoded list.
 func (s *Service) TableColumnTypes() []TableColumnTypeDescriptor {
 	out := make([]TableColumnTypeDescriptor, len(builtinTableColumnTypes))
 	copy(out, builtinTableColumnTypes)
@@ -84,7 +84,7 @@ func (s *Service) TableColumnTypes() []TableColumnTypeDescriptor {
 
 // ListItemTypes returns the canonical item-type vocabulary the Edit
 // Field modal's `list` preset surfaces. Same one-source-of-truth
-// rule as TableColumnTypes — frontend reads via this method, never
+// rule as TableColumnTypes - frontend reads via this method, never
 // hardcodes the list.
 func (s *Service) ListItemTypes() []ListItemTypeDescriptor {
 	out := make([]ListItemTypeDescriptor, len(builtinListItemTypes))

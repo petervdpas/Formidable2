@@ -1,10 +1,10 @@
 /*
- * VisualGraph — generic DAG renderer.
+ * VisualGraph - generic DAG renderer.
  *
  * Per-row layout: each row owns a fixed-width "lane" column on the
  * left (line + dot) plus a flex body. The lane's vertical line is
  * a CSS pseudo-element scoped to the row, so when the body expands
- * the line stretches with it — no SVG-y-coord recomputation needed.
+ * the line stretches with it - no SVG-y-coord recomputation needed.
  *
  * The line is drawn into the row's lane track; whether it extends
  * to the row above / below is controlled by visual-graph__row--lane-above
@@ -47,7 +47,7 @@
 }
 
 /* Continuation line below the dot (parent-of-next). Stretches all
- * the way to the row bottom — when a row expands, this stretches
+ * the way to the row bottom - when a row expands, this stretches
  * with it because it's bound to the row's height. */
 .visual-graph__row--lane-below .visual-graph__lane::after {
   content: "";
@@ -65,7 +65,7 @@
  * when the body grows). */
 .visual-graph__dot {
   position: absolute;
-  top: 18px; /* Header line baseline — matches typical 36px row */
+  top: 18px; /* Header line baseline - matches typical 36px row */
   left: 50%;
   width: calc(var(--graph-dot-radius) * 2);
   height: calc(var(--graph-dot-radius) * 2);

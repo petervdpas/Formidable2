@@ -13,7 +13,7 @@ import (
 // External actions (open in system browser, open in-app webview
 // window) are delegated to function hooks the composition root
 // installs at construction time. Keeps the wiki module free of any
-// `os/exec` or wails dependency — testable in pure Go.
+// `os/exec` or wails dependency - testable in pure Go.
 type Service struct {
 	m           *Manager
 	port        func() int             // resolves the configured port at call time
@@ -21,7 +21,7 @@ type Service struct {
 	openWindow  func(url string) error // nil → not supported on this build
 }
 
-// NewService builds the service. Panics on nil manager — that's a
+// NewService builds the service. Panics on nil manager - that's a
 // composition-root bug and must surface immediately, not later in a
 // rare branch. `port` is invoked on each StartServer so a config
 // change between starts picks up the new value without reconstruction.
@@ -49,7 +49,7 @@ func NewService(m *Manager, port func() int, openBrowser, openWindow func(url st
 // clear.
 //
 // Defined as a package-level function rather than a Service method so
-// Wails' binding generator doesn't expose it to the frontend — the
+// Wails' binding generator doesn't expose it to the frontend - the
 // hook is purely a wiring concern between main.go and the service,
 // not part of the Wails-callable API surface.
 func InstallWindowOpener(s *Service, fn func(url string) error) {
@@ -92,7 +92,7 @@ func (s *Service) OpenInBrowser() error {
 
 // OpenInternalWiki spawns a new Wails webview window at the wiki
 // root URL. Equivalent to "open in browser" but stays inside the
-// app — the user gets a dedicated window without leaving Formidable.
+// app - the user gets a dedicated window without leaving Formidable.
 // Wails 3 alpha 84 supports this via application.NewWebviewWindow;
 // the composition root supplies the bound function.
 func (s *Service) OpenInternalWiki() error {
@@ -135,14 +135,14 @@ func (s *Service) OpenAPIDocsInWindow() error {
 }
 
 // rootURL builds the loopback URL for the running server. Returns
-// an error when the server is not running — opening a URL that
+// an error when the server is not running - opening a URL that
 // would 502 isn't useful UX.
 func (s *Service) rootURL() (string, error) {
 	return s.urlFor("/")
 }
 
 // urlFor builds a loopback URL with the given path. Centralised so
-// "server-not-running" handling stays in one place — every opener
+// "server-not-running" handling stays in one place - every opener
 // reuses this and surfaces the same error message.
 func (s *Service) urlFor(path string) (string, error) {
 	st := s.m.Status()

@@ -183,7 +183,7 @@ func TestManager_ListByTags_AcrossTemplates(t *testing.T) {
 }
 
 func TestManager_ListByTags_AND(t *testing.T) {
-	// "alpha + common" — same as the per-template AND test, but global.
+	// "alpha + common" - same as the per-template AND test, but global.
 	m := newSeededManager(t)
 	rows, err := m.ListByTags([]string{"alpha", "common"})
 	if err != nil {

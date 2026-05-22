@@ -115,7 +115,7 @@ func TestEventHandler_OnTemplateChanged_ReDerivesForms(t *testing.T) {
 	}
 
 	// Stage 2: template's item_field flips to `newtitle`. The form
-	// file on disk hasn't changed — only the template did. After
+	// file on disk hasn't changed - only the template did. After
 	// OnTemplateChanged, the indexed form row must surface "new-name".
 	edited := tplRecord("Basic", []template.Field{
 		{Key: "oldtitle", Type: "text"},
@@ -333,7 +333,7 @@ func TestEventHandler_OnFormChanged_TitleFallbackToFilename(t *testing.T) {
 
 func TestEventHandler_OnFormChanged_TagsOnlyFromTagsField(t *testing.T) {
 	// Templates without a tags field MUST NOT pick up tags from any
-	// other source. Also: form.Meta.Tags is *not* the index source —
+	// other source. Also: form.Meta.Tags is *not* the index source -
 	// the data-side tag field is.
 	tpls := map[string]*TemplateRecord{
 		"plain.yaml": tplRecord("Plain", []template.Field{

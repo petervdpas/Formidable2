@@ -20,7 +20,7 @@ type coverImagesWorld struct {
 	mem       *memFS
 	actionErr error
 
-	// Last List / Load result snapshot — set by When-steps, read by
+	// Last List / Load result snapshot - set by When-steps, read by
 	// the matching Then-steps.
 	listed []CoverImageDescriptor
 	loaded []byte

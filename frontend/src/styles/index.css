@@ -56,7 +56,7 @@
 @import "./csv-import.css";
 @import "./paste-data.css";
 @import "./progress.css";
-/* VueDatePicker's vendor CSS first — our overrides in form-date-field.css
+/* VueDatePicker's vendor CSS first - our overrides in form-date-field.css
    intentionally come AFTER so :root --dp-* mappings to our theme tokens
    win the cascade. */
 @import "@vuepic/vue-datepicker/dist/main.css";
@@ -64,7 +64,7 @@
 @import "./image-lightbox.css";
 @import "./form-misc-fields.css";
 @import "./right-slideout.css";
-/* Single source of truth — shared with Go's embedded full-HTML doc
+/* Single source of truth - shared with Go's embedded full-HTML doc
    exporter (internal/modules/render/fulldoc.go). */
 @import "../../../internal/modules/render/assets/formidable-prose.css";
 @import "./slideout-preview.css";

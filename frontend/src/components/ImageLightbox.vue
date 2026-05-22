@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
-// ImageLightbox — fullscreen image viewer with pan + zoom.
+// ImageLightbox - fullscreen image viewer with pan + zoom.
 // Mirrors the original Formidable's image modal:
 //   - Ctrl+Wheel  → zoom
 //   - + / - keys  → zoom
@@ -103,7 +103,7 @@ function onPointerUp() {
   dragStart = null;
 }
 
-// Window-scoped key handler — only attached while the lightbox is
+// Window-scoped key handler - only attached while the lightbox is
 // open so Esc/+/- don't fire when it's closed.
 watch(
   () => props.open,

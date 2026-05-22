@@ -7,7 +7,7 @@ const scheme = "formidable://"
 // ParseFormidableHref parses `formidable://<template>:<datafile>[#<fragment>]`.
 //
 // Mirrors the original `parseFormidableHref` (utils/fieldRenderers.js)
-// with the same lastIndexOf-of-":" split — that split rule is
+// with the same lastIndexOf-of-":" split - that split rule is
 // deliberately permissive on the datafile side because filenames can
 // in theory contain colons, but the template side never does. Callers
 // of ParseFormidableHref then validate template/datafile against the
@@ -23,7 +23,7 @@ func ParseFormidableHref(href string) *Target {
 	}
 	rest := href[len(scheme):]
 
-	// Split off optional #fragment — pure suffix, no extra rules.
+	// Split off optional #fragment - pure suffix, no extra rules.
 	var fragment string
 	if i := strings.IndexByte(rest, '#'); i >= 0 {
 		fragment = rest[i+1:]

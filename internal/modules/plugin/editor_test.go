@@ -64,7 +64,7 @@ func TestManager_Create_GeneratesValidPlugin(t *testing.T) {
 func TestManager_Create_ScaffoldsEmptyFormJSON(t *testing.T) {
 	// Plugins get a form.json next to plugin.json + main.lua so the
 	// future visual builder always has something to load. Default
-	// content is an empty JSON array — "no fields yet."
+	// content is an empty JSON array - "no fields yet."
 	m, dir := newEditorTestManager(t)
 	if err := m.Create("hello"); err != nil {
 		t.Fatalf("create: %v", err)
@@ -122,7 +122,7 @@ func TestManager_Create_RejectsTraversalUp(t *testing.T) {
 
 func TestManager_Save_RoundtripsFormJSON(t *testing.T) {
 	// form.json must persist through Save and reload. Backend treats
-	// it as opaque JSON text — schema lives in the frontend's
+	// it as opaque JSON text - schema lives in the frontend's
 	// FieldEditModal / template.Field shape.
 	m, dir := newEditorTestManager(t)
 	if err := m.Create("demo"); err != nil {
@@ -308,7 +308,7 @@ func TestManager_Delete_RemovesFolderAndKV(t *testing.T) {
 	if err := m.Create("temp"); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	// Drop a KV entry — its file should also be removed.
+	// Drop a KV entry - its file should also be removed.
 	if err := m.deps.KV.Set("temp", "k", "v"); err != nil {
 		t.Fatalf("kv: %v", err)
 	}
@@ -399,7 +399,7 @@ func TestManager_ConcurrentCRUD_Safe(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	// No assertion on count — racing with itself; the test exists
+	// No assertion on count - racing with itself; the test exists
 	// to force -race to flag any unsafe map/file access.
 }
 

@@ -16,14 +16,14 @@ import (
 //
 // All four read the host's api Field from the current context's
 // `_fields` (so they work both at top-level and inside `{{#loop}}`
-// — the same context-walking the `{{field}}` helper relies on).
+// - the same context-walking the `{{field}}` helper relies on).
 // Each helper degrades gracefully when:
 //   - the field doesn't exist or isn't api-typed
 //   - the modelValue is missing / nil (no record picked yet)
 //   - Options.LoadTemplate is nil (apiBlock/apiSection fall back to
-//     scalar/JSON behavior — apiCol/apiGuid don't need it)
+//     scalar/JSON behavior - apiCol/apiGuid don't need it)
 func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
-	// {{apiCol "fieldKey" "columnKey"}} — read one projected column.
+	// {{apiCol "fieldKey" "columnKey"}} - read one projected column.
 	// Scalar value passes through (string/number/bool); non-scalar
 	// (slice/map) renders as a compact JSON string. Inline-friendly.
 	tpl.RegisterHelper("apiCol", func(fieldKey, columnKey string, options *raymond.Options) raymond.SafeString {
@@ -38,7 +38,7 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		return raymond.SafeString(scalarOrJSON(v))
 	})
 
-	// {{apiGuid "fieldKey"}} — return the picked record's guid string.
+	// {{apiGuid "fieldKey"}} - return the picked record's guid string.
 	// Empty when no record has been picked.
 	tpl.RegisterHelper("apiGuid", func(fieldKey string, options *raymond.Options) string {
 		row, _ := apiFieldRow(options.Ctx(), fieldKey)
@@ -51,7 +51,7 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		return ""
 	})
 
-	// {{apiBlock "fieldKey" "columnKey"}} — type-aware block render.
+	// {{apiBlock "fieldKey" "columnKey"}} - type-aware block render.
 	// Loads the source template via Options.LoadTemplate to read the
 	// column's source field type:
 	//   - scalar → same as apiCol
@@ -75,7 +75,7 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		return raymond.SafeString(emitAPIColumnBlock(v, src))
 	})
 
-	// {{apiSection "fieldKey"}} — full embedded card markdown:
+	// {{apiSection "fieldKey"}} - full embedded card markdown:
 	// "**<host label>** _(source)_" header + per-column "**<label>**:
 	// <value-or-block>" lines. The lazy "drop everything in here"
 	// helper for Report/Minimal generator output.
@@ -94,7 +94,7 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 // itself so callers can read its Map[]. Returns (nil, nil) when the
 // field is missing or doesn't carry a record yet.
 //
-// Loop-aware via contextMap/findField — when invoked inside `{{#loop}}`
+// Loop-aware via contextMap/findField - when invoked inside `{{#loop}}`
 // the helper sees the per-iteration context; the inner api field's
 // row comes from that iteration's value.
 func apiFieldRow(ctx any, fieldKey string) (map[string]any, *template.Field) {
@@ -244,7 +244,7 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 		cols = append(cols, col{label: label, key: key})
 	}
 	if len(cols) == 0 {
-		// Source has no column metadata — bail to JSON so the user
+		// Source has no column metadata - bail to JSON so the user
 		// at least sees the data.
 		return scalarOrJSON(rows)
 	}
@@ -287,7 +287,7 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 				b.WriteString(" |")
 			}
 		default:
-			// Unrecognised row shape — emit the JSON form across all
+			// Unrecognised row shape - emit the JSON form across all
 			// cells so the user can debug.
 			for range cols {
 				b.WriteString(" ")
@@ -347,7 +347,7 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 		}
 		v := row[m.Key]
 		src := loadSourceField(opts, hostField, m.Key)
-		// Tables and lists need their own block — emit the header on
+		// Tables and lists need their own block - emit the header on
 		// its own line, then a blank line, then the block.
 		if isAPIBlockType(src) {
 			b.WriteString("- **")

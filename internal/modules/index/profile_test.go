@@ -7,7 +7,7 @@ import (
 
 // TestTwoManagers_IsolatedFiles is the heart of the profile-switch
 // model: each profile owns its own SQLite file. Two managers opened
-// against different paths must each see only their own data — no
+// against different paths must each see only their own data - no
 // shared state, no cross-contamination through SQLite's connection
 // pooling or the modernc driver.
 func TestTwoManagers_IsolatedFiles(t *testing.T) {
@@ -101,8 +101,8 @@ func TestClosedManager_ErrorsGracefully(t *testing.T) {
 	}
 
 	// Each read method should error (not panic). We don't assert the
-	// specific error string — modernc may surface it differently
-	// across versions — only that the call returns an error.
+	// specific error string - modernc may surface it differently
+	// across versions - only that the call returns an error.
 	if _, err := m.ListTemplates(); err == nil {
 		t.Errorf("ListTemplates on closed manager: want error, got nil")
 	}
@@ -121,7 +121,7 @@ func TestClosedManager_ErrorsGracefully(t *testing.T) {
 }
 
 // TestProfileSwap_DataSurvivesPerProfile is the end-to-end shape: open A,
-// write A, close A, open B, write B, close B, reopen A — A's data
+// write A, close A, open B, write B, close B, reopen A - A's data
 // must be intact and contain none of B's writes.
 func TestProfileSwap_DataSurvivesPerProfile(t *testing.T) {
 	dir := t.TempDir()

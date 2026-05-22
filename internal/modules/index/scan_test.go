@@ -52,7 +52,7 @@ func TestScanDisk_FullTree(t *testing.T) {
 	makeFile(t, filepath.Join(root, "storage", "basic", "images", "logo.png"), "PNG", 1700_000_005)
 	makeFile(t, filepath.Join(root, "storage", "basic", "images", "photo.jpg"), "JPG", 1700_000_006)
 
-	// Storage folder for a template that no longer has a yaml — these
+	// Storage folder for a template that no longer has a yaml - these
 	// orphan storage dirs are still returned so the reconciler can
 	// notice and clean them up later (or leave them alone).
 	makeFile(t, filepath.Join(root, "storage", "ghost", "x.meta.json"), `{}`, 1700_000_007)
@@ -84,7 +84,7 @@ func TestScanDisk_FullTree(t *testing.T) {
 }
 
 func TestScanDisk_EmptyTree(t *testing.T) {
-	// Both subdirs missing — scan must succeed with empty results.
+	// Both subdirs missing - scan must succeed with empty results.
 	root := t.TempDir()
 	got, err := scanDisk(root)
 	if err != nil {

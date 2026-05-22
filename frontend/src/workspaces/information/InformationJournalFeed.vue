@@ -44,7 +44,7 @@ async function load() {
 
 // Map entries → GraphNodes. Each entry needs a stable unique id; the
 // JSONL log doesn't carry one, so we synthesize from index + ts.
-// `parents` is the previous entry's id — a strict linear chain.
+// `parents` is the previous entry's id - a strict linear chain.
 const nodes = computed<GraphNode<Entry>[]>(() =>
   entries.value.map((e, i) => {
     const id = `${i}|${e.ts}`;

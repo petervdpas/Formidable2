@@ -1,5 +1,5 @@
 /* Cleanup Storage dialog (Utilities → Cleanup Storage). Sits inside
-   Modal.vue's .modal-body — paddings/widths come from the modal frame. */
+   Modal.vue's .modal-body - paddings/widths come from the modal frame. */
 
 .cleanup-intro {
   margin: 0 0 var(--space-3) 0;

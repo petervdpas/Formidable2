@@ -14,7 +14,7 @@ type errorBody struct {
 }
 
 // Handler exposes /api/monitor/* as an http.Handler. The composition
-// root mounts the returned handler alongside api.Handler — both share
+// root mounts the returned handler alongside api.Handler - both share
 // the same underlying Manager / Source registry as the Wails Service.
 type Handler struct {
 	m *Manager
@@ -31,7 +31,7 @@ func NewHandler(m *Manager) http.Handler {
 }
 
 // sources answers GET /api/monitor/sources with the registered Source
-// descriptors. POST/PUT/etc are 405 — read-only.
+// descriptors. POST/PUT/etc are 405 - read-only.
 func (h *Handler) sources(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method-not-allowed")
@@ -42,7 +42,7 @@ func (h *Handler) sources(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// query answers POST /api/monitor/query — body is the Query JSON,
+// query answers POST /api/monitor/query - body is the Query JSON,
 // response is the Result JSON. POST so the body has room for filter,
 // groupBy, time range without URL-encoded juggling.
 func (h *Handler) query(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +59,7 @@ func (h *Handler) query(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// ErrUnknownSource is a 404; everything else (bad bin, from > to)
 		// is a 400. A future "source backend down" failure would map
-		// to 503 — not yet a concern with only the synchronous JournalSource.
+		// to 503 - not yet a concern with only the synchronous JournalSource.
 		if errors.Is(err, ErrUnknownSource) {
 			writeError(w, http.StatusNotFound, "unknown-source")
 			return

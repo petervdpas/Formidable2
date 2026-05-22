@@ -11,7 +11,7 @@ import "strings"
 // type is a view over it. BuildFieldTree produces the view,
 // FlattenFieldTree returns to the flat form. Orphan loopstart /
 // loopstop rows (no matching partner) are emitted as plain field
-// units so backend validation can still flag them — silently
+// units so backend validation can still flag them - silently
 // dropping data would be worse than rendering a broken pair.
 //
 // The struct is one shape with a Kind discriminator + nullable
@@ -74,7 +74,7 @@ func (b *treeBuilder) consumeUntil(stopKey string, inLoop bool) []FieldUnit {
 					Items: inner,
 				})
 			} else {
-				// No matching stop within this scope — back up and
+				// No matching stop within this scope - back up and
 				// emit the start as a plain row, then re-walk what we
 				// consumed at the same level.
 				b.pos = savedPos
@@ -83,11 +83,11 @@ func (b *treeBuilder) consumeUntil(stopKey string, inLoop bool) []FieldUnit {
 			}
 		case "loopstop":
 			if inLoop && f.Key == stopKey {
-				// Don't advance — the caller handles consuming the
+				// Don't advance - the caller handles consuming the
 				// matched stop and producing the loop unit.
 				return out
 			}
-			// Orphan stop — emit as plain row.
+			// Orphan stop - emit as plain row.
 			ff := f
 			out = append(out, FieldUnit{Kind: UnitKindField, Field: &ff})
 			b.pos++
@@ -102,7 +102,7 @@ func (b *treeBuilder) consumeUntil(stopKey string, inLoop bool) []FieldUnit {
 
 // FlattenFieldTree is the inverse of BuildFieldTree. By construction
 // it guarantees that every loop's start sits immediately before its
-// items and its stop immediately after — the bracket invariant that
+// items and its stop immediately after - the bracket invariant that
 // makes drag-into-loop corruption impossible at this layer.
 func FlattenFieldTree(units []FieldUnit) []Field {
 	out := []Field{}

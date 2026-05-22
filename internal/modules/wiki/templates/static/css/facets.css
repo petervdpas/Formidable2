@@ -1,7 +1,7 @@
-/* Facets — wiki UI for template-list pills, per-form chips, and the
+/* Facets - wiki UI for template-list pills, per-form chips, and the
  * filter strip on the template detail page. Colour tokens mirror the
  * backend's FacetColorList (16 entries); icon names mirror FacetIconList.
- * No FontAwesome is loaded by the wiki itself — `.facet-icon` falls
+ * No FontAwesome is loaded by the wiki itself - `.facet-icon` falls
  * back to a small coloured dot when the FA font isn't present.
  */
 
@@ -25,7 +25,7 @@
   --facet-color-default: #94a3b8;
 }
 
-/* ── colour utility — class form: `.facet-color--<token>` ───────── */
+/* ── colour utility - class form: `.facet-color--<token>` ───────── */
 .facet-color--red    { --facet-color: var(--facet-color-red); }
 .facet-color--orange { --facet-color: var(--facet-color-orange); }
 .facet-color--amber  { --facet-color: var(--facet-color-amber); }
@@ -56,7 +56,7 @@
   color: var(--facet-color, var(--facet-color-default));
 }
 .facet-chip .facet-icon-svg {
-  /* chips already drive colour via text colour — re-use it instead
+  /* chips already drive colour via text colour - re-use it instead
      of the raw token so the icon matches the muted chip foreground. */
   color: inherit;
 }

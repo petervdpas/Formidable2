@@ -5,7 +5,7 @@ import { FormSection, FormRow, FormSwitchRow, TextField, FolderPathField } from 
 import { useConfig } from "../../composables/useConfig";
 
 // Self-contained Git connection form. Reads + writes the active
-// profile's git_root / git_branch fields via useConfig — same
+// profile's git_root / git_branch fields via useConfig - same
 // reactive surface SettingsLocations used to drive. Lives here (not
 // inside the workspace) so future onboarding flows or modals can
 // reuse the same form without duplicating field definitions.

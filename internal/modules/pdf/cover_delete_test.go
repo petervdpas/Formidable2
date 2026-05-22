@@ -87,7 +87,7 @@ func TestManager_DeleteCover_SeedScaffoldsBack(t *testing.T) {
 		t.Fatalf("scaffold after delete: %v", err)
 	}
 	if !m.store.fs.FileExists(onDiskCoversDir + "/classic.html") {
-		t.Errorf("classic.html did NOT reappear after rescaffold — seed not re-written")
+		t.Errorf("classic.html did NOT reappear after rescaffold - seed not re-written")
 	}
 }
 

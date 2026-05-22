@@ -151,7 +151,7 @@ func (m *Manager) Init() InitResult {
 // context folder and under templates/ or storage/; otherwise the call is a
 // silent no-op (mirrors the JS version's path filtering).
 //
-// In local-only mode (backend == "" or "none") the journal is inert — we
+// In local-only mode (backend == "" or "none") the journal is inert - we
 // neither write to disk nor track in-memory pending. Switch the backend
 // to git or gigot to start accumulating.
 func (m *Manager) RecordOp(op, absPath string, meta map[string]any) {
@@ -202,7 +202,7 @@ func (m *Manager) RecordOp(op, absPath string, meta map[string]any) {
 
 // RecordSync appends a sync marker for the given backend, advances that
 // backend's cursor, and clears its pending set. Primitive signature so
-// *Manager satisfies the Recorder interface directly — sync backends
+// *Manager satisfies the Recorder interface directly - sync backends
 // pass their tuple straight through without an adapter struct.
 func (m *Manager) RecordSync(backend, version string, pushed, pulled int) {
 	m.mu.RLock()
@@ -248,7 +248,7 @@ func (m *Manager) RecordSync(backend, version string, pushed, pulled int) {
 // RecordRemoteSeen advances only the version of the cursor (no journal
 // entry, no pending change). Called after a successful pull so the
 // head-probe poller can short-circuit. Emits journal:changed so
-// frontend pollers see the post-pull cursor update — symmetric with
+// frontend pollers see the post-pull cursor update - symmetric with
 // RecordOp/RecordSync, which both emit on success.
 func (m *Manager) RecordRemoteSeen(backend, version string) {
 	m.mu.RLock()
@@ -275,7 +275,7 @@ func (m *Manager) RecordRemoteSeen(backend, version string) {
 		m.log.Warn("journal: save cursors (remote-seen) failed", "err", err)
 	}
 
-	// No log entry (pull is inbound), but the cursor moved — emit so
+	// No log entry (pull is inbound), but the cursor moved - emit so
 	// pollers refresh. Entry shape mirrors what callers can already
 	// receive from RecordSync's "sync" event minus pushed/pulled.
 	m.emit(EventChanged, Entry{
@@ -289,7 +289,7 @@ func (m *Manager) RecordRemoteSeen(backend, version string) {
 // RecentEntries returns up to <limit> most-recent log entries, newest
 // first. limit <= 0 means "all". When no context is configured or
 // the log file doesn't exist yet, returns an empty slice (not an
-// error) — matches the inert-mode contract Pending uses.
+// error) - matches the inert-mode contract Pending uses.
 //
 // Used by the journal-feed UI: the on-disk log is the canonical
 // chronological view of every mutation + sync that's gone through
@@ -387,7 +387,7 @@ func (m *Manager) ensureCursorFile() error {
 // Idempotent: existing patterns are detected line-by-line and skipped.
 // Atomic write via fs.SaveFile (tmp+fsync+rename).
 //
-// Best-effort: read/write failures log a warning and return — Configure
+// Best-effort: read/write failures log a warning and return - Configure
 // must not block on a permission glitch in someone else's repo root.
 func (m *Manager) ensureGitignorePatterns() {
 	ctx := m.contextFolderLocked()
@@ -466,7 +466,7 @@ func (m *Manager) resolveGitignoreTarget(ctx string) (string, bool) {
 // removes its own stash dir at the end of every run, but a process
 // crash mid-pull or a pre-fix codebase can leave one behind. Best-
 // effort: any RemoveAll error is logged at warn but does not block
-// boot — the user can always delete it by hand and the next pull
+// boot - the user can always delete it by hand and the next pull
 // will sweep it on its own start.
 func (m *Manager) sweepStaleStash() {
 	ctx := m.contextFolderLocked()
@@ -520,7 +520,7 @@ func (m *Manager) loadCursors() (CursorMap, error) {
 		// Migrate the on-disk file to the modern object-shaped form so
 		// subsequent loads don't keep re-parsing the legacy string-form.
 		// Best-effort: a write failure logs a warning but does not block
-		// the in-memory state — readers still get correct values either
+		// the in-memory state - readers still get correct values either
 		// way (sanitizeCursor handled the translation already).
 		if err := m.saveCursors(cursors); err != nil {
 			m.log.Warn("journal: cursor migration write failed", "err", err)

@@ -13,13 +13,13 @@ import (
 // terminal else.
 //
 // fields is the FieldRef slice for every expression_item field in
-// the template — Compile uses it to validate predicate field keys
+// the template - Compile uses it to validate predicate field keys
 // and to bake fieldLabel TextSources into value→label ternary
 // lookups. Frontend supplies it from template metadata.
 //
 // Empty Config (no rules + empty default) compiles to "" so the
 // frontend can hide the chip entirely. A non-empty Compile output
-// is always a single expr-lang expression — either an outcome map
+// is always a single expr-lang expression - either an outcome map
 // literal or a ternary chain ending in one.
 func Compile(cfg Config, fields []FieldRef) (string, error) {
 	if len(cfg.Rules) == 0 && outcomeIsEmpty(cfg.Default) {
@@ -60,7 +60,7 @@ func indexFields(fields []FieldRef) map[string]FieldRef {
 }
 
 // rulePredicate joins the rule's Predicates with logical AND. Empty
-// Predicates returns "true" so the rule always matches — useful for
+// Predicates returns "true" so the rule always matches - useful for
 // a lone-rule case where the user wants exactly one outcome.
 func rulePredicate(r Rule, fields map[string]FieldRef) (string, error) {
 	if len(r.Predicates) == 0 {
@@ -170,7 +170,7 @@ func predicateExpr(p Predicate, fields map[string]FieldRef) (string, error) {
 }
 
 // outcomeExpr emits a Result-shaped map literal. An outcome
-// with no styling and no text is "{}" — the engine renders an empty
+// with no styling and no text is "{}" - the engine renders an empty
 // chip but the source stays parseable. Caller's job to skip emitting
 // a no-op chip via outcomeIsEmpty.
 func outcomeExpr(o Outcome, fields map[string]FieldRef) (string, error) {
@@ -197,7 +197,7 @@ func outcomeExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 }
 
 // textPartsExpr produces the right-hand side of an outcome's
-// `text:` entry. Parts wins over Text — Parse only ever emits Parts,
+// `text:` entry. Parts wins over Text - Parse only ever emits Parts,
 // so Text only fires for legacy callers that haven't migrated. Empty
 // returns "" so outcomeExpr can omit the entry entirely.
 func textPartsExpr(o Outcome, fields map[string]FieldRef) (string, error) {
@@ -229,7 +229,7 @@ func textPartsExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 //
 // All three forms share a uniform `<accessor>["<arg>"]` shape so a
 // concat chain parses as a flat sequence of MemberNodes joined by
-// `+` — no kind-specific AST sniffing required.
+// `+` - no kind-specific AST sniffing required.
 func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 	switch ts.Kind {
 	case TextKindLiteral:
@@ -247,7 +247,7 @@ func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 		// No-options fallback: a fieldLabel on a field with no
 		// option list (e.g. a stale config pointing at a text
 		// field) degrades to the raw value rather than a runtime
-		// nil — matches the UI's "fieldLabel only makes sense for
+		// nil - matches the UI's "fieldLabel only makes sense for
 		// enum fields" gating.
 		if f, ok := fields[key]; !ok || len(f.Options) == 0 {
 			return fieldRef(key), nil
@@ -275,7 +275,7 @@ func formatFloat(f float64) string {
 
 // fieldRef emits the canonical builder reference to a field's
 // value: F["key"]. Uniform regardless of whether the key is a
-// valid bare identifier — the engine's fieldRefPatcher rewrites
+// valid bare identifier - the engine's fieldRefPatcher rewrites
 // F["key"] to $env["key"] at expr.Compile time so hyphenated and
 // plain keys behave identically.
 func fieldRef(key string) string {
@@ -293,7 +293,7 @@ func literalRef(s string) string {
 // optionLabelRef emits O["key"]. The engine evaluates this against
 // a per-record map injected by Manager.EvaluateList where
 // O[key] is the option label of the field's current value. Empty
-// options pre-compute to nil and surface as "<nil>" — callers
+// options pre-compute to nil and surface as "<nil>" - callers
 // should gate fieldLabel on enum-typed fields (the UI does).
 func optionLabelRef(key string) string {
 	return `O[` + jsonString(key) + `]`

@@ -3,7 +3,7 @@ package auth
 import "net/http"
 
 // DesktopFallbackSubject stands in as Identity.Subject when the active
-// profile is not (yet) known — e.g. the config has not loaded or the
+// profile is not (yet) known - e.g. the config has not loaded or the
 // user has not set a profile name. Keeps Identity.Valid() true so the
 // write isn't rejected; the audit block still gets "Unknown" / the
 // unknown email so attribution is visibly unset.
@@ -64,7 +64,7 @@ type SubscriptionStore interface {
 
 // SubscriptionResolver is the directive stub for the planned API
 // subscription model. Resolve returns ErrNotImplemented unconditionally
-// — we deliberately don't even sniff the Authorization header, so the
+// - we deliberately don't even sniff the Authorization header, so the
 // "not built yet" posture is unmistakable in traces.
 type SubscriptionResolver struct {
 	store SubscriptionStore

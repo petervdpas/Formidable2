@@ -43,7 +43,7 @@ defineExpose({ refresh });
     <header class="monitor-tile-header">
       <!-- Title block is the drag handle (mouse down here starts a
            drag; refresh button below is excluded). Uses the global
-           .dnd-handle class from dnd.css — no monitor-specific dnd
+           .dnd-handle class from dnd.css - no monitor-specific dnd
            visuals. -->
       <div class="monitor-tile-title dnd-handle">
         <h3>{{ tile.title }}</h3>

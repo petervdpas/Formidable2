@@ -35,7 +35,7 @@ func luaToGo(lv lua.LValue) any {
 // are positive integers 1..N with no holes) or map-shaped, then
 // converts accordingly. Mixed-shape tables (rare but legal in
 // Lua) become maps with stringified keys so the conversion is
-// total — script bugs can't crash the bridge.
+// total - script bugs can't crash the bridge.
 func tableToGo(t *lua.LTable) any {
 	hasStringKey := false
 	t.ForEach(func(k, _ lua.LValue) {

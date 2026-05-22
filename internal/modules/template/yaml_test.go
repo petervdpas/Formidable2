@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// YAML round-trip — locks the on-disk shape for properties whose
+// YAML round-trip - locks the on-disk shape for properties whose
 // nullable/optional semantics are fragile (`*bool`, `*int`). Adding
 // a new such property should also add a case here.
 
@@ -36,7 +36,7 @@ func TestYAMLRoundTrip_CollapsibleTruePersists(t *testing.T) {
 }
 
 func TestYAMLRoundTrip_CollapsibleFalsePersists(t *testing.T) {
-	// `false` must survive too — the `*bool` shape's whole point is
+	// `false` must survive too - the `*bool` shape's whole point is
 	// distinguishing "explicit false" from "not set". omitempty would
 	// drop a bool false; the pointer keeps it.
 	src := &Template{
@@ -66,7 +66,7 @@ func TestYAMLRoundTrip_CollapsibleFalsePersists(t *testing.T) {
 }
 
 func TestYAMLRoundTrip_CollapsibleAbsentStaysAbsent(t *testing.T) {
-	// No Collapsible set — must NOT appear in marshaled YAML and
+	// No Collapsible set - must NOT appear in marshaled YAML and
 	// must round-trip back as nil (omitempty + pointer behaviour).
 	src := &Template{
 		Name: "x", Filename: "x.yaml",

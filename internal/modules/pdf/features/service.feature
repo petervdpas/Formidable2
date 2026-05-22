@@ -1,4 +1,4 @@
-Feature: PDF Service — Stage 2 activation
+Feature: PDF Service - Stage 2 activation
   The pdf module's Wails surface exposes Status / Activate / Deactivate
   / ExportPDF. Activation adopts a system or managed-cache Chrome /
   Chromium binary and persists per-machine to <AppRoot>/config/

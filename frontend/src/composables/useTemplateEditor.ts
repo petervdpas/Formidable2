@@ -9,7 +9,7 @@ import { useTemplates } from "./useTemplates";
 import { formatError, type FormattedError } from "../utils/templateValidation";
 import { recomputeLevelScopes } from "../utils/fieldScopes";
 
-// Module-scope singleton — there's at most one template being edited
+// Module-scope singleton - there's at most one template being edited
 // at a time, and several components (workspace, modal, future toolbar)
 // read the same draft / dirty state.
 const draft = ref<Template | null>(null);
@@ -19,7 +19,7 @@ const { selectedFilename, selectedTemplate, refresh } = useTemplates();
 
 function clone(t: Template | null): Template | null {
   if (!t) return null;
-  // JSON round-trip is sufficient — Template is a plain shape
+  // JSON round-trip is sufficient - Template is a plain shape
   // (the binding constructor accepts a Partial<Template>).
   return JSON.parse(JSON.stringify(t));
 }
@@ -70,7 +70,7 @@ async function save(): Promise<SaveOutcome> {
     return { ok: false, reason: "no-draft" };
   }
   try {
-    // Backend validation is the source of truth — see
+    // Backend validation is the source of truth - see
     // internal/modules/template/validate.go. We surface the result
     // here before SaveTemplate so a misshapen template never lands
     // on disk just because the editor allowed it.

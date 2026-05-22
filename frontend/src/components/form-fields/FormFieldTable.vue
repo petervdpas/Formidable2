@@ -16,7 +16,7 @@ const { config } = useConfig();
 const showPaste = computed(() => !!config.value?.show_paste_buttons);
 const pasteOpen = ref(false);
 
-// DnD scope — unique per component instance so drags don't cross
+// DnD scope - unique per component instance so drags don't cross
 // table fields when multiple are rendered (e.g. inside loop entries).
 const dndScope =
   "table:" +
@@ -26,7 +26,7 @@ const dndScope =
   ).slice(0, 8);
 
 // FormFieldTable mirrors the original Formidable's `table` renderer
-// (utils/fieldFactory.js). Storage shape is Array<Array<any>> — one
+// (utils/fieldFactory.js). Storage shape is Array<Array<any>> - one
 // row is one array of cells in column order.
 //
 // Per-column type comes from field.options[i].type:
@@ -134,7 +134,7 @@ function emptyCell(type: Col["type"]): unknown {
   return "";
 }
 
-// ── Cell coercion helpers — bridge between stored shape and UI inputs.
+// ── Cell coercion helpers - bridge between stored shape and UI inputs.
 function asString(v: unknown): string {
   if (v == null) return "";
   if (typeof v === "string") return v;
@@ -142,7 +142,7 @@ function asString(v: unknown): string {
 }
 
 // Pick the on/off label for a bool column. The user can type the
-// choices in either order — "true:Yes|false:No" or "false:No|true:Yes" —
+// choices in either order - "true:Yes|false:No" or "false:No|true:Yes" -
 // so we look up by value first ("true"/"false"). Falls back to
 // position 0 (on) / position 1 (off) when no semantic match exists,
 // which covers users who typed a bare "Yes|No" without the prefix.

@@ -1,10 +1,10 @@
 // Package git owns the Git collaboration backend. Pure go-git
-// (github.com/go-git/go-git/v5) — no shell-out to a system git
+// (github.com/go-git/go-git/v5) - no shell-out to a system git
 // binary, so end users do not need git installed. Auth-bearing
 // network ops (clone/pull/push) will arrive in a later iteration
 // once credential storage is decided.
 //
-// Phase 1 (this file): read-only inspection — IsGitRepo, RepoRoot,
+// Phase 1 (this file): read-only inspection - IsGitRepo, RepoRoot,
 // Status, Branches, Log, RemoteInfo. Enough to render the
 // Collaboration → Current Service overview against a real repo.
 package git
@@ -30,7 +30,7 @@ type Status struct {
 	Ahead int `json:"ahead"`
 	// Behind is the number of remote commits on Tracking that
 	// aren't on this branch. 0 when there's no tracking ref.
-	// Reflects the last-known state of Tracking — call Fetch to
+	// Reflects the last-known state of Tracking - call Fetch to
 	// update the remote-tracking ref before reading this.
 	Behind int `json:"behind"`
 
@@ -65,7 +65,7 @@ type Commit struct {
 //   - A: added (file present in commit, absent in parent)
 //   - M: modified (different blob hash from parent)
 //   - D: deleted (file absent in commit, present in parent)
-//   - R: renamed (path changed, content the same — go-git's basic
+//   - R: renamed (path changed, content the same - go-git's basic
 //     detection only; no rename/threshold heuristics)
 type ChangeFile struct {
 	Path   string `json:"path"`
@@ -107,12 +107,12 @@ type Remote struct {
 // Branch picks an initial checkout (empty = remote's default HEAD).
 //
 // PAT is the Personal Access Token used as the password in HTTP Basic
-// auth (with username "x-access-token" — the GitHub-PAT convention,
+// auth (with username "x-access-token" - the GitHub-PAT convention,
 // also accepted by Gitea/GitLab/Bitbucket as long as the username is
 // non-empty). Empty PAT means anonymous (public repos / SSH).
 //
 // IMPORTANT: PAT is read-only at the call site and never persisted by
-// the manager. The frontend keeps it transient — pasted into the
+// the manager. The frontend keeps it transient - pasted into the
 // clone form, sent over the Wails bridge once, and discarded as soon
 // as the response returns. SSH-based auth lives in a follow-up.
 type CloneOptions struct {
@@ -124,7 +124,7 @@ type CloneOptions struct {
 
 // CloneResult is the success envelope: the worktree we cloned into,
 // the commit HEAD now points at, and the branch HEAD now sits on.
-// Branch is empty when the clone produced a detached HEAD (rare —
+// Branch is empty when the clone produced a detached HEAD (rare -
 // happens when the requested ref isn't a branch). The frontend uses
 // Dest to flip git_root and Branch to flip git_branch once a clone
 // completes, so Current Service reflects what was actually fetched.
@@ -138,7 +138,7 @@ type CloneResult struct {
 // the worktree; Author/Email come from the active profile's config.
 //
 // v1 stages every change in the worktree (modified, untracked,
-// deleted) before committing — matching the "commit everything I
+// deleted) before committing - matching the "commit everything I
 // touched in this session" mental model. Per-file selection arrives
 // in a later iteration once the UI grows checkboxes.
 type CommitOptions struct {
@@ -157,7 +157,7 @@ type CommitResult struct {
 
 // FetchOptions describes a fetch request. Path is any path inside
 // the worktree; Remote defaults to "origin" when empty. PAT is the
-// HTTP Basic password (transient — never persisted by the manager,
+// HTTP Basic password (transient - never persisted by the manager,
 // same convention as Clone).
 type FetchOptions struct {
 	Path   string `json:"path"`
@@ -172,7 +172,7 @@ type FetchResult struct {
 	AlreadyUpToDate bool `json:"already_up_to_date"`
 }
 
-// PullOptions describes a pull request — a fetch followed by a
+// PullOptions describes a pull request - a fetch followed by a
 // merge of the tracking ref into the current branch. Default merge
 // strategy (no rebase). Path is any path inside the worktree;
 // Remote defaults to "origin"; PAT is the HTTPS Basic password
@@ -234,7 +234,7 @@ type StashEntry struct {
 //
 // Policy: pull always wins on disk. Auto-merge for storage/<tpl>/<n>.meta.json
 // when recmerge can reconcile; otherwise drop the user's change.
-// .changes.stash is always cleaned up — the Overridden list is the
+// .changes.stash is always cleaned up - the Overridden list is the
 // only signal the user gets that something was lost.
 type StashedPullResult struct {
 	Pull       *PullResult     `json:"pull"`
@@ -258,7 +258,7 @@ type OverriddenPath struct {
 }
 
 // StashPathPending describes one journal-pending path passed in to
-// PullWithStash. Mirrors journal.PendingChange in shape — declared
+// PullWithStash. Mirrors journal.PendingChange in shape - declared
 // locally so the git package's signature doesn't import journal types
 // (the Service translates).
 type StashPathPending struct {

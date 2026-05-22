@@ -170,7 +170,7 @@ func TestIsDueSoon(t *testing.T) {
 	if isDueSoon("2026-05-20", 7) { // 11 days away > 7
 		t.Errorf("11 days out, 7-day window: not due soon")
 	}
-	if isDueSoon("2026-05-08", 7) { // already past — not "due soon"
+	if isDueSoon("2026-05-08", 7) { // already past - not "due soon"
 		t.Errorf("past date is not due soon (it's overdue)")
 	}
 	if isDueSoon(nil, 7) {

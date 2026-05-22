@@ -1,6 +1,6 @@
 package about
 
-// Service is the Wails-facing surface. Stateless on purpose — the
+// Service is the Wails-facing surface. Stateless on purpose - the
 // values are compile-time constants.
 type Service struct{}
 
@@ -15,7 +15,7 @@ func (s *Service) GetInfo() Info {
 	}
 }
 
-// GetLibraries returns the canonical credits list — the source of
+// GetLibraries returns the canonical credits list - the source of
 // truth for the About panel's "Special thanks to" section. Frontend
 // renders one row per entry and looks up the per-locale description
 // via i18n. Returns a fresh slice so the bound caller can't mutate

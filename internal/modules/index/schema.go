@@ -1,5 +1,5 @@
 // Package index owns the per-profile SQLite index that backs the wiki
-// HTTP server and the future API. It's a *cache* of disk state — the
+// HTTP server and the future API. It's a *cache* of disk state - the
 // canonical source of truth is always the file system. Reconcile
 // (RescanAll / RescanTemplate / RescanForm) brings the index back into
 // agreement with disk; the index never asserts authority over it.
@@ -16,7 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	// Pure-Go SQLite driver — no CGO, registered as the "sqlite" driver
+	// Pure-Go SQLite driver - no CGO, registered as the "sqlite" driver
 	// for database/sql on import.
 	_ "modernc.org/sqlite"
 )
@@ -30,7 +30,7 @@ const schemaVersion = 2
 // returns successfully. Index 0 is unused so the slice index lines up
 // with the version it produces.
 var migrations = []string{
-	"", // v0 — placeholder, never applied
+	"", // v0 - placeholder, never applied
 	migrationV1,
 	migrationV2,
 }
@@ -97,7 +97,7 @@ CREATE TABLE images (
 // migrationV2 lands the facets feature on the index side. It (a)
 // replaces the flat `author` column on forms with split name/email
 // for both Created and Updated audit entries, (b) creates form_facets
-// — one row per facet per form, mirroring form_tags — so the REST
+// - one row per facet per form, mirroring form_tags - so the REST
 // `?facet.<k>=L` filter can move from N disk reads to one SQL JOIN,
 // and (c) DELETE FROM forms so the boot-time RescanAll rebuilds every
 // row with the new audit + facet columns populated. The wipe is safe
@@ -129,7 +129,7 @@ DELETE FROM forms;
 // openIndexDB opens (or creates) the SQLite file at path and brings
 // its schema up to schemaVersion. Foreign keys are enabled so the
 // ON DELETE CASCADE rules in v1 actually fire. WAL mode for slightly
-// better concurrent-reader behavior — not strictly required since we
+// better concurrent-reader behavior - not strictly required since we
 // own all writes through one Manager, but it's cheap insurance.
 func openIndexDB(path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

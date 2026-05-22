@@ -33,7 +33,7 @@ type Library struct {
 }
 
 // Libraries is the curated list of load-bearing direct dependencies
-// surfaced in the About panel. Order is meaningful — items render
+// surfaced in the About panel. Order is meaningful - items render
 // top-to-bottom as listed. Curation rule: direct deps from go.mod and
 // frontend/package.json that the app actively uses; transitive deps
 // and build-only tools (vite, tsc, prettier) are excluded.

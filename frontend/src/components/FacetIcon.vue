@@ -7,7 +7,7 @@ import { useFacetMeta } from "../composables/useFacetMeta";
 // to fa-flag when the requested icon isn't in the palette so a stale
 // template reference still gets a visible glyph instead of a void.
 //
-// Same SVGs power the embedded wiki — single source of truth in
+// Same SVGs power the embedded wiki - single source of truth in
 // internal/modules/template/icons/, parsed once per process and
 // projected through Wails to every facet UI on the frontend.
 

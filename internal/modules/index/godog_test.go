@@ -265,7 +265,7 @@ func initIndexScenario(ctx *godog.ScenarioContext) {
 	})
 
 	// Run RescanAll but stash the error on the world instead of failing
-	// the scenario — used by scenarios that expect a non-nil error
+	// the scenario - used by scenarios that expect a non-nil error
 	// (malformed file) AND want to assert the rest of the index still
 	// populated.
 	ctx.Step(`^I run RescanAll tolerating load errors$`, func() error {

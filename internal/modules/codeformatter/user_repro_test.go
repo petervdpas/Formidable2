@@ -8,7 +8,7 @@ import (
 // TestFormat_Markdown_UserFCDMTemplate runs the formatter on the exact
 // template the user pasted, and verifies (a) the frontmatter survives
 // the round-trip with proper nesting intact, and (b) the markdown body
-// is byte-identical to the input — Handlebars expressions are NOT
+// is byte-identical to the input - Handlebars expressions are NOT
 // rewritten, NOT line-wrapped, NOT touched in any way.
 func TestFormat_Markdown_UserFCDMTemplate(t *testing.T) {
 	frontmatter := `---
@@ -65,7 +65,7 @@ keywords: [fcdm, entities]
 		t.Errorf("top-level style: not preserved as top-level:\n%s", out)
 	}
 
-	// Body: every single handlebars expression must survive intact —
+	// Body: every single handlebars expression must survive intact -
 	// no line breaks inside {{...}}, no rewrites.
 	mustContain := []string{
 		`{{#if (fieldRaw "namespace")}}namespace {{field "namespace"}};`,

@@ -2,7 +2,7 @@ package csv
 
 import "encoding/json"
 
-// FormatValue is the reverse of Coerce — it turns a stored typed value
+// FormatValue is the reverse of Coerce - it turns a stored typed value
 // back into a CSV-friendly string. Mirrors `formatValue` in the old
 // utils/csvTransforms.js.
 func FormatValue(val any, fieldType string) string {

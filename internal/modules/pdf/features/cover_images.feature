@@ -1,4 +1,4 @@
-Feature: PDF Service — Cover Image Library
+Feature: PDF Service - Cover Image Library
   Cover HTML files reference logo / banner assets that live under
   <AppRoot>/pdf/covers/images/. The Wails service exposes a
   List / Save / Delete surface so the user can curate that library

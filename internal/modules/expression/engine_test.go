@@ -7,15 +7,15 @@ import (
 
 func TestEvaluate_PlainString(t *testing.T) {
 	e := newEngine()
-	got, err := e.Evaluate(`name + " — " + status`, map[string]any{
+	got, err := e.Evaluate(`name + " - " + status`, map[string]any{
 		"name":   "Audit Control",
 		"status": "open",
 	})
 	if err != nil {
 		t.Fatalf("evaluate: %v", err)
 	}
-	if got.Text != "Audit Control — open" {
-		t.Errorf("text: want %q, got %q", "Audit Control — open", got.Text)
+	if got.Text != "Audit Control - open" {
+		t.Errorf("text: want %q, got %q", "Audit Control - open", got.Text)
 	}
 	if got.Color != "" || len(got.Classes) != 0 {
 		t.Errorf("plain string should produce text only; got %+v", got)
@@ -99,7 +99,7 @@ func TestEvaluate_DefaultTextFallback(t *testing.T) {
 
 func TestEvaluate_MissingVariable(t *testing.T) {
 	e := newEngine()
-	// `priority` is not in the harvested context — should evaluate to
+	// `priority` is not in the harvested context - should evaluate to
 	// nil rather than blow up. AllowUndefinedVariables is the contract.
 	got, err := e.Evaluate(`priority == nil ? "no priority" : priority`, map[string]any{
 		"name": "x",
@@ -151,7 +151,7 @@ func TestEvaluate_ProgramCache(t *testing.T) {
 	}
 }
 
-// Hyphenated field keys — `unit-number`, `street-address` etc. —
+// Hyphenated field keys - `unit-number`, `street-address` etc. -
 // are valid in template field definitions but illegal as bare expr-
 // lang identifiers (the lexer reads them as subtraction). The
 // builder emits `$env["unit-number"]` for those keys; this test
@@ -215,7 +215,7 @@ func TestEvaluate_LBracketIsLiteral(t *testing.T) {
 // O[] is the option-label resolver. The engine receives a
 // pre-computed map keyed by field key whose values are the labels
 // of the current record's option values. Unknown keys evaluate to
-// nil (with AllowUndefinedVariables) and stringify as "<nil>" —
+// nil (with AllowUndefinedVariables) and stringify as "<nil>" -
 // callers should ensure O is populated for every option-bearing
 // field they reference.
 func TestEvaluate_OBracketResolvesOptionLabel(t *testing.T) {
@@ -235,7 +235,7 @@ func TestEvaluate_OBracketResolvesOptionLabel(t *testing.T) {
 	}
 }
 
-// Concat across all three accessors — exercises the typical
+// Concat across all three accessors - exercises the typical
 // chip-text shape the builder emits for a multi-part text source.
 func TestEvaluate_FLOConcatChain(t *testing.T) {
 	e := newEngine()
@@ -256,7 +256,7 @@ func TestEvaluate_FLOConcatChain(t *testing.T) {
 	}
 }
 
-// Bare hyphenated identifier must NOT silently work — the lexer
+// Bare hyphenated identifier must NOT silently work - the lexer
 // reads `unit-number` as `unit - number`. With both sides absent
 // from env, expr-lang treats them as nil and the subtraction
 // fails. This test pins that we never emit bare hyphens from the
@@ -268,12 +268,12 @@ func TestEvaluate_BareHyphenIdentifierIsSubtraction(t *testing.T) {
 		map[string]any{"unit-number": "3"},
 	)
 	if err == nil {
-		t.Fatal("bare hyphen identifier evaluated without error — expected subtraction failure")
+		t.Fatal("bare hyphen identifier evaluated without error - expected subtraction failure")
 	}
 }
 
 func TestEvaluate_NoIO(t *testing.T) {
-	// expr-lang/expr is an expression VM, not a script runtime —
+	// expr-lang/expr is an expression VM, not a script runtime -
 	// confirm the obvious sandbox properties hold by trying a few
 	// shapes that should be rejected at compile or run time.
 	e := newEngine()
@@ -289,7 +289,7 @@ func TestEvaluate_NoIO(t *testing.T) {
 			continue
 		}
 		// Sanity: the error mentions either a missing identifier or a
-		// parse error — either is fine; just don't silently succeed.
+		// parse error - either is fine; just don't silently succeed.
 		msg := err.Error()
 		if !strings.Contains(msg, "unknown") && !strings.Contains(msg, "expected") &&
 			!strings.Contains(msg, "undefined") && !strings.Contains(msg, "unexpected") &&

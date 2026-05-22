@@ -151,7 +151,7 @@ func resolveSourceValue(entry map[string]any, sourceKey string, fields map[strin
 			return ""
 		}
 		if sub != "" {
-			// Table cell: positional array — resolve sub → column index
+			// Table cell: positional array - resolve sub → column index
 			// via the field's option list.
 			if cells, isArr := item.([]any); isArr {
 				idx := findOptionIndex(rootField.Options, sub)
@@ -160,13 +160,13 @@ func resolveSourceValue(entry map[string]any, sourceKey string, fields map[strin
 				}
 				return asString(cells[idx])
 			}
-			// Object-shaped item (legacy/foreign data) — index by key.
+			// Object-shaped item (legacy/foreign data) - index by key.
 			if m, isMap := item.(map[string]any); isMap {
 				return asString(m[sub])
 			}
 			return ""
 		}
-		// Bare alignment root — stringify the item.
+		// Bare alignment root - stringify the item.
 		if m, isMap := item.(map[string]any); isMap {
 			b, _ := json.Marshal(m)
 			return string(b)

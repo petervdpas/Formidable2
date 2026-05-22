@@ -6,7 +6,7 @@ import (
 	"github.com/aymerick/raymond"
 )
 
-// registerFieldHelper binds the polymorphic {{field}} helper — the
+// registerFieldHelper binds the polymorphic {{field}} helper - the
 // largest single helper Formidable's render pipeline ships with.
 // Split out of helpers.go so the dispatch table stays readable.
 //
@@ -31,7 +31,7 @@ func registerFieldHelper(tpl *raymond.Template, opts *Options) {
 				modeExplicit = true
 			}
 		}
-		// hash form `mode=` still wins if both forms are present —
+		// hash form `mode=` still wins if both forms are present -
 		// matches the JS helper's hash precedence.
 		if h := options.HashStr("mode"); h != "" {
 			mode = h

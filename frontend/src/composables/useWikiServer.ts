@@ -2,7 +2,7 @@ import { ref, onUnmounted } from "vue";
 import { Service as WikiSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/wiki";
 import type { ServerStatus } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/wiki";
 
-// Module-scope singleton — at most one Information panel watches the
+// Module-scope singleton - at most one Information panel watches the
 // server at a time, but if a future workspace polls too they share
 // the same source. Polling is cheap (Status reads a memory snapshot)
 // but the singleton avoids redundant timers.

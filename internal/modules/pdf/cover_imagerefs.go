@@ -14,7 +14,7 @@ import (
 //
 // References are skipped when they are URLs (http/https/file/data/
 // protocol-relative), absolute filesystem paths, or contain a `{{`
-// template placeholder — the latter is filled at render time by
+// template placeholder - the latter is filled at render time by
 // picoloom from the user's frontmatter (e.g. `cover.logo` →
 // `{{.Logo}}`), so it has no static asset to bundle.
 //

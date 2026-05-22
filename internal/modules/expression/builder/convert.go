@@ -10,7 +10,7 @@ import (
 
 // Convert is a best-effort migrator from legacy sidebar_expression
 // shapes into the new builder canonical form. Frontend triggers it
-// only when Parse fails — the converted output is fed straight back
+// only when Parse fails - the converted output is fed straight back
 // into Parse → Compile so the dialog can edit a clean DSL.
 //
 // Handled legacy shapes:
@@ -57,8 +57,8 @@ func Convert(src string, fields []FieldRef) (string, error) {
 // parser can't read the `|` (it parses pipe as `Y(X)` and expects an
 // identifier on the right), so this transformation has to happen at
 // the text level. In every legacy template we saw, <Y> is fully
-// self-contained — references whatever fields it needs inside its
-// text/classes — so dropping <X> is lossless for chip rendering.
+// self-contained - references whatever fields it needs inside its
+// text/classes - so dropping <X> is lossless for chip rendering.
 func unwrapPipeForm(s string) string {
 	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
 		return s
@@ -73,7 +73,7 @@ func unwrapPipeForm(s string) string {
 }
 
 // unwrapSingletonArray strips `[ X ]` to `X` when X has no top-level
-// comma — i.e. when the array wrapping was decorative rather than a
+// comma - i.e. when the array wrapping was decorative rather than a
 // real list. Legacy sources wrapped a single ternary or outcome in
 // `[...]` because old Formidable's runtime evaluated arrays as a
 // per-row sidebar feed; the new engine expects a single Result
@@ -93,7 +93,7 @@ func unwrapSingletonArray(s string) string {
 // findTopLevelByte returns the index of the first occurrence of `ch`
 // in s at bracket/paren/brace depth 0 and outside string literals.
 // When skipDoubled is true, `||` (or any `XX` repeat) is treated as a
-// different token — necessary for `|` since `||` is logical-or and
+// different token - necessary for `|` since `||` is logical-or and
 // must not split a pipe form.
 func findTopLevelByte(s string, ch byte, skipDoubled bool) int {
 	depth := 0
@@ -143,7 +143,7 @@ func findTopLevelByte(s string, ch byte, skipDoubled bool) int {
 // through `+` BinaryNodes inside an outcome's `text:` pair so a
 // bare string literal in `"prefix " + field` gets wrapped, while a
 // string literal somewhere else (like a `==` RHS in a predicate) does
-// NOT — those have to stay literal because Compile emits them
+// NOT - those have to stay literal because Compile emits them
 // verbatim in comparisons.
 func mutateConvert(np *ast.Node, fieldKeys map[string]bool, inTextChain bool) {
 	switch n := (*np).(type) {
@@ -175,14 +175,14 @@ func mutateConvert(np *ast.Node, fieldKeys map[string]bool, inTextChain bool) {
 		mutateConvert(&n.Exp1, fieldKeys, inTextChain)
 		mutateConvert(&n.Exp2, fieldKeys, inTextChain)
 	case *ast.CallNode:
-		// Leave the callee identifier alone — that's a helper name,
+		// Leave the callee identifier alone - that's a helper name,
 		// not a field reference. Arguments may contain field refs
 		// (e.g. isExpiredAfter(<ref>, 30)) so recurse there.
 		for i := range n.Arguments {
 			mutateConvert(&n.Arguments[i], fieldKeys, false)
 		}
 	case *ast.MemberNode:
-		// F["k"] / L["s"] / O["k"] are already canonical — don't
+		// F["k"] / L["s"] / O["k"] are already canonical - don't
 		// descend (we'd otherwise rewrite the IdentifierNode("F")).
 		if id, ok := n.Node.(*ast.IdentifierNode); ok {
 			switch id.Value {
@@ -210,7 +210,7 @@ func mutateConvert(np *ast.Node, fieldKeys map[string]bool, inTextChain bool) {
 // simplifyBoolCompare normalises legacy explicit boolean comparisons
 // (`F["x"] == true`, `F["x"] != false`) into the bare/negated field
 // reference the new builder's predicate parser expects. The parser
-// rejects `F[..] == true` outright — boolean predicates compile to
+// rejects `F[..] == true` outright - boolean predicates compile to
 // `F[..]` or `!F[..]`, never to a literal-bool comparison.
 func simplifyBoolCompare(n *ast.BinaryNode) (ast.Node, bool) {
 	if n.Operator != "==" && n.Operator != "!=" {

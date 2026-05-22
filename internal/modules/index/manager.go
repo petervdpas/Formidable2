@@ -27,7 +27,7 @@ func NewManager(path string) (*Manager, error) {
 
 // DB exposes the underlying handle so the same package's reconciler
 // can run write transactions without a circular import. Not part of
-// the public API consumed by dataprovider — call Reconcile instead.
+// the public API consumed by dataprovider - call Reconcile instead.
 func (m *Manager) DB() *sql.DB { return m.db }
 
 // Close releases the underlying handle. Safe to call once; further
@@ -146,7 +146,7 @@ func (formsByTagsSQL) where() (string, []any) { return "1 = 1", nil }
 // offset, then materializes []FormRow with tags split back into a
 // slice.
 //
-// US (\x1f) is used as the GROUP_CONCAT separator — tags shouldn't
+// US (\x1f) is used as the GROUP_CONCAT separator - tags shouldn't
 // contain comma but they certainly never contain US, so this is a
 // safer choice for round-trip than the default ','.
 func (m *Manager) queryForms(spec formsQuerySpec, opts QueryOpts) ([]FormRow, error) {

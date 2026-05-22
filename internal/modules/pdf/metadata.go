@@ -24,7 +24,7 @@ type PDFMetadata struct {
 
 // HasContent reports whether the metadata struct carries anything
 // worth a post-process pass. Callers use this to skip pdfcpu entirely
-// when the merged frontmatter has nothing to project — pdfcpu's
+// when the merged frontmatter has nothing to project - pdfcpu's
 // read+optimize round-trip is expensive and there's no point doing it
 // for a blank metadata struct.
 func (m PDFMetadata) HasContent() bool {
@@ -43,7 +43,7 @@ func (m PDFMetadata) HasContent() bool {
 
 // InjectPDFMetadata reads in, sets the PDF Info-dictionary fields
 // described by md, and returns the rewritten PDF bytes. Empty fields
-// in md are skipped — they neither overwrite existing entries nor
+// in md are skipped - they neither overwrite existing entries nor
 // remove them. Keywords are added; existing keywords on the input PDF
 // stay (picoloom doesn't author any, so this is a non-issue in
 // practice).
@@ -111,7 +111,7 @@ func InjectPDFMetadata(in []byte, md PDFMetadata) ([]byte, error) {
 // summary), Keywords are taken verbatim from the top-level Keywords
 // slice.
 //
-// Empty fields stay empty — the helper produces a struct that
+// Empty fields stay empty - the helper produces a struct that
 // HasContent() can short-circuit on so the pdfcpu read+write pass is
 // skipped entirely when nothing needs writing.
 func buildPDFMetadata(fm Frontmatter) PDFMetadata {

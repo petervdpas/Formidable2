@@ -25,7 +25,7 @@ func (s *stubWriter) SaveForm(_ context.Context, tpl, fn string, form *storage.F
 		s.store.forms[tpl] = map[string]*storage.Form{}
 	}
 	// Deep-ish copy: data values are leaked references, but tests
-	// don't mutate after save — only inspect.
+	// don't mutate after save - only inspect.
 	copy := *form
 	s.store.forms[tpl][fn] = &copy
 	return nil
@@ -430,7 +430,7 @@ func TestFix_OutcomesSortedByFilename(t *testing.T) {
 
 func TestFix_Unreadable_AlwaysSkipped(t *testing.T) {
 	// Even with Strip selected, an unreadable form contributes a
-	// single skipped issue — the file can't be loaded so there's
+	// single skipped issue - the file can't be loaded so there's
 	// nothing to mutate. Phase-2 in-app fix is impossible.
 	h := newFixHarness(t, tplBasic(), map[string]*storage.Form{"broken.meta.json": nil})
 

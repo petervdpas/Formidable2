@@ -7,7 +7,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────
-// Normalize — textarea format
+// Normalize - textarea format
 //
 // Mirrors `schemas/field.schema.js`:
 //
@@ -97,7 +97,7 @@ func TestNormalize_NonTextareaStripsFormat(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Normalize — robustness (unhappy paths)
+// Normalize - robustness (unhappy paths)
 // ─────────────────────────────────────────────────────────────────────
 
 func TestNormalize_NilTemplateIsSafe(t *testing.T) {
@@ -128,7 +128,7 @@ func TestNormalize_EmptyFieldsSliceIsSafe(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// SaveTemplate integration — normalize runs on save
+// SaveTemplate integration - normalize runs on save
 // ─────────────────────────────────────────────────────────────────────
 
 func TestSaveTemplate_NormalizesTextareaFormat(t *testing.T) {
@@ -162,13 +162,13 @@ func TestSaveTemplate_NormalizesTextareaFormat(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Normalize — Default value type coercion
+// Normalize - Default value type coercion
 //
 // The frontend FieldEditModal's "Default value" input is text-only and
 // has no way to natively produce a number / bool / array. Without
 // backend coercion every numeric default would round-trip as the
 // string "17", and every new form would inherit a string in a number
-// field — the exact "expected number, got string" drift Cleanup
+// field - the exact "expected number, got string" drift Cleanup
 // Storage flagged on the `numpy` field.
 //
 // Normalize is the authoritative pass: CSV imports, plugin-authored
@@ -314,7 +314,7 @@ func TestNormalize_TextLikeDefault_PreservesString(t *testing.T) {
 }
 
 func TestNormalize_TextShapeDefault_CoercesNonStringToString(t *testing.T) {
-	// link is intentionally absent — link defaults legitimately come
+	// link is intentionally absent - link defaults legitimately come
 	// in two shapes ({href,text} map or legacy string), so the
 	// "coerce non-string to string" rule doesn't apply there.
 	types := []string{"text", "textarea", "dropdown", "radio", "file-path", "folder-path", "image"}
@@ -361,7 +361,7 @@ func TestNormalize_TextShapeDefault_CleansInvisibleChars(t *testing.T) {
 }
 
 func TestNormalize_TextShapeDefault_EmptyStringClears(t *testing.T) {
-	// Empty string == no default — let storage.Sanitize fall back to
+	// Empty string == no default - let storage.Sanitize fall back to
 	// defaultForType ("") on first save rather than persisting "".
 	for _, typ := range []string{"text", "textarea", "dropdown", "radio", "file-path", "folder-path", "image"} {
 		tpl := &Template{Fields: []Field{{Key: "f", Type: typ, Default: "   "}}}
@@ -373,7 +373,7 @@ func TestNormalize_TextShapeDefault_EmptyStringClears(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Date default coercion — accept ISO, common locale formats, time.Time
+// Date default coercion - accept ISO, common locale formats, time.Time
 // (yaml.v3 native), drop unparseable. Output is always ISO YYYY-MM-DD
 // so the integrity analyzer's date check round-trips cleanly.
 // ─────────────────────────────────────────────────────────────────────
@@ -482,7 +482,7 @@ func TestSaveTemplate_CoercesNumberDefault(t *testing.T) {
 	}
 	got := loaded.Fields[0].Default
 	// On disk YAML round-trip, a numeric default deserializes as int
-	// (yaml.v3) — both int and float64 are acceptable; both pass the
+	// (yaml.v3) - both int and float64 are acceptable; both pass the
 	// integrity analyzer's "expected number" check.
 	switch g := got.(type) {
 	case int:

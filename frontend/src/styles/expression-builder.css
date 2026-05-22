@@ -1,5 +1,5 @@
 /*
- * expression-builder — chrome for the visual sidebar-expression
+ * expression-builder - chrome for the visual sidebar-expression
  * dialog. Two-column grid: rule list on the left, rule editor on
  * the right. The rule editor splits into Predicates and Outcome
  * sections.
@@ -270,7 +270,7 @@
   min-width: 8rem;
 }
 
-/* Parts list — vertical stack of rows, each row laid out as
+/* Parts list - vertical stack of rows, each row laid out as
  * [drag handle] [kind] [value picker] [remove ×]. The Add button
  * sits below the list as a quiet tool-btn, disabled at MAX_PARTS. */
 .expr-outcome-text-parts {
@@ -300,7 +300,7 @@
   font-size: 0.85rem;
 }
 
-/* Color / bg trigger button — preview swatch that opens the picker
+/* Color / bg trigger button - preview swatch that opens the picker
  * popup. Width matches a normal input height so the row stays tidy
  * when collapsed. */
 .expr-color-trigger {
@@ -326,7 +326,7 @@
 /* Swatch grid moved to the generic .swatch-grid / .swatch-cell
    primitive in styles/swatch.css; consumed via <SwatchPicker>. */
 
-/* Classes trigger — shows current selections as live-styled chips
+/* Classes trigger - shows current selections as live-styled chips
  * (each chip wears its real class for a preview). Empty = hint. */
 .expr-classes-trigger {
   appearance: none;
@@ -358,7 +358,7 @@
   background: var(--code-bg, rgba(0, 0, 0, 0.04));
 }
 
-/* Classes popup body — 3-column checkbox grid with live previews. */
+/* Classes popup body - 3-column checkbox grid with live previews. */
 .expr-classes-grid {
   display: grid;
   grid-template-columns: repeat(3, max-content);

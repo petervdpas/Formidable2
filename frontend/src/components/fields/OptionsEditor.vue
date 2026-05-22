@@ -7,14 +7,14 @@ import OptionsSubRow from "./OptionsSubRow.vue";
 
 const { t } = useI18n();
 
-// Column shapes — one per field-type preset. The editor renders one
+// Column shapes - one per field-type preset. The editor renders one
 // row per option; each row has one cell per column. Storage is an
 // array of plain objects keyed by column.key.
 
 // SubRowConfig fires when a dropdown column's value matches a key in
 // `perValue`. It surfaces an extra structured widget below the main
 // row, bound to row[rowKey]. The stored value is always a
-// pipe-delimited "value:label|value:label" string — the form-side
+// pipe-delimited "value:label|value:label" string - the form-side
 // parseChoices() handles the splitting.
 //
 // All user-facing strings on these descriptors are i18n keys
@@ -50,7 +50,7 @@ export type ColumnDef =
       options: string[];
       placeholder?: string;
       defaultValue?: string;
-      /** Optional callback when this column changes — used by the
+      /** Optional callback when this column changes - used by the
        *  "list" preset to lock value=[[custom]] on type=custom. */
       onChange?: (value: string, row: OptionRow, allRows: OptionRow[]) => OptionRow;
       /** Optional sub-row that appears under the main row when this
@@ -60,7 +60,7 @@ export type ColumnDef =
 
 export type OptionRow = Record<string, unknown>;
 
-// When set, the editor renders exactly fixedRows.length rows — no
+// When set, the editor renders exactly fixedRows.length rows - no
 // add/remove buttons, no row-count drift. Each row carries an i18n
 // key for its gutter caption and a defaults object that fills
 // missing cells when the model arrives shorter than the fixed arity.

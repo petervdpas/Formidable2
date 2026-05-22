@@ -11,7 +11,7 @@ export type FormattedError = {
 };
 
 // formatError maps a backend ValidationError onto an i18n key + args.
-// Mirrors `utils/templateValidation.js` from the original Formidable —
+// Mirrors `utils/templateValidation.js` from the original Formidable -
 // the backend is authoritative; this is presentation only.
 export function formatError(error: ValidationError): FormattedError {
   switch (error.type) {
@@ -136,7 +136,7 @@ export function formatError(error: ValidationError): FormattedError {
     default:
       return {
         key: "error.template.unknown",
-        // Strip the embedded Field — its description / code body can run
+        // Strip the embedded Field - its description / code body can run
         // to thousands of chars and turn the toast into a wall of text.
         args: [error.message || error.type || "unknown"],
       };
@@ -152,7 +152,7 @@ export type FieldValidationResult =
   | { valid: false; reason: string; key?: string; type?: string };
 
 // validateField runs the editor-side checks on a single field while the
-// user is composing it in FieldEditModal. Backend re-validates on save —
+// user is composing it in FieldEditModal. Backend re-validates on save -
 // these rules just give the immediate "won't save" feedback.
 export function validateField(
   field: FieldDraft,

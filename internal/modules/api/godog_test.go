@@ -42,7 +42,7 @@ func colorWriter() io.Writer {
 	return io.Discard
 }
 
-// world holds per-scenario state. Tiny by design — godog steps share
+// world holds per-scenario state. Tiny by design - godog steps share
 // it through closure capture, just like the wiki package's tests.
 type world struct {
 	stub    *stubProvider
@@ -99,7 +99,7 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 			w.stub = &stubProvider{forms: map[string][]dataprovider.FormSummary{}}
 			w.stubSt = newStubStorage()
 			// Wire the stub provider to the same storage so facet
-			// filtering can resolve meta.facets via LoadForm — mirrors
+			// filtering can resolve meta.facets via LoadForm - mirrors
 			// the real dp's m.sto.LoadForm path.
 			w.stub.storage = w.stubSt
 			w.stubWr = newStubWriter()
@@ -218,7 +218,7 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 				}
 				if raw := strings.TrimSpace(cells[3].Value); raw != "" {
 					// Parse `key:label,key:label,...` into option maps.
-					// Tests use bare scalars (`a,b`) too — fall back to
+					// Tests use bare scalars (`a,b`) too - fall back to
 					// "value=label=token" when there's no colon.
 					for pair := range strings.SplitSeq(raw, ",") {
 						pair = strings.TrimSpace(pair)

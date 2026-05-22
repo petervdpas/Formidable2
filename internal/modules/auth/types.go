@@ -8,7 +8,7 @@
 // code rather than convention, so the upcoming subscription model (per-
 // profile API capability grants) and CLI server mode have a concrete
 // seam to slot into. The Subscription, SubscriptionResolver, and Server
-// mode pieces are intentionally minimal — they exist to document the
+// mode pieces are intentionally minimal - they exist to document the
 // direction, not to ship features.
 package auth
 
@@ -19,7 +19,7 @@ import (
 )
 
 // IdentityKind classifies who is making a request. The zero value ("")
-// means "no identity resolved" — handlers should reject writes from a
+// means "no identity resolved" - handlers should reject writes from a
 // zero-kind identity once the middleware is wired.
 type IdentityKind string
 
@@ -79,7 +79,7 @@ func (m Mode) String() string {
 
 // Subscription is the minimal future capability grant: a profile-bound
 // allowlist of templates × methods, authenticated by a bearer-token
-// hash. Intentionally light — no rate limits, scoping rules, or
+// hash. Intentionally light - no rate limits, scoping rules, or
 // revocation flow yet; those land with the CLI daemon.
 type Subscription struct {
 	ID               string
@@ -112,6 +112,6 @@ var (
 
 	// ErrNoIdentity is returned by IdentityFromContext when no identity
 	// has been resolved. Middleware ordering should make this
-	// unreachable in practice — kept so handlers can fail closed.
+	// unreachable in practice - kept so handlers can fail closed.
 	ErrNoIdentity = errors.New("auth: no identity in context")
 )

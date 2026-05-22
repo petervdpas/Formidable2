@@ -1,9 +1,9 @@
 Feature: Storage integrity analysis
   The integrity module audits a template's stored forms against the
   current field declarations. Phase 1 (this feature) is analyze-only:
-  AnalyzeTemplate produces a Report listing every drift it finds —
+  AnalyzeTemplate produces a Report listing every drift it finds -
   missing/extra fields, type mismatches, bad date formats, meta-block
-  problems, and unreadable files — without modifying anything on disk.
+  problems, and unreadable files - without modifying anything on disk.
 
   Background:
     Given a template "basic.yaml" with fields:

@@ -76,7 +76,7 @@ const transformLabelKey: Record<string, string> = {
   "split-table": "csv.transform.splittable",
 };
 
-// Mappable fields derived from the template — excluded types stripped.
+// Mappable fields derived from the template - excluded types stripped.
 // FieldSpec instances are also what SuggestMappings / Coerce expect.
 const mappableFields = computed<FieldSpec[]>(() => {
   const tpl = props.template;
@@ -163,7 +163,7 @@ async function loadPreview() {
 
 // Live preview: transform the first data row's cell for this mapping,
 // then run it through CoercePreview against the bound field type. Used
-// by both the "Preview" and "Transformed" columns in the table — they
+// by both the "Preview" and "Transformed" columns in the table - they
 // show raw-cell and typed-cell respectively for the first row only.
 async function previewCell(mapping: Mapping, mode: "raw" | "typed"): Promise<string> {
   const pr = preview.value;
@@ -178,7 +178,7 @@ async function previewCell(mapping: Mapping, mode: "raw" | "typed"): Promise<str
   return CsvSvc.CoercePreview(transformed, field.type, field.options ?? []);
 }
 
-// Reactive caches for the two preview columns — recomputed when
+// Reactive caches for the two preview columns - recomputed when
 // mappings / preview / fields change. Promise rendering via async
 // methods would force template suspense; caching keeps the table
 // fully synchronous on render.

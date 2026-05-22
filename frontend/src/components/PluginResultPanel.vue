@@ -18,16 +18,16 @@ const props = defineProps<{
   commands: Command[];
   results: Record<string, RunResultDTO>;
   /** Author opt-in. When false the panel is never rendered, even
-   *  if a command produced output — keeps shipping plugins clean. */
+   *  if a command produced output - keeps shipping plugins clean. */
   enabled?: boolean;
 }>();
 
 const collapsed = ref(true);
 
 // Two pipelines, each with its own gate:
-//   - inline panel (this component) — gated by manifest.debug
+//   - inline panel (this component) - gated by manifest.debug
 //     (enabled) AND per-command hide_output / hide_log
-//   - toasts — gated by per-command log_as_toast (handled by
+//   - toasts - gated by per-command log_as_toast (handled by
 //     the workspace, not this component)
 //
 // A command's block only appears here when it has at least one

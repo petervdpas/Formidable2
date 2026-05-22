@@ -1,9 +1,9 @@
-Feature: REST API — PATCH /api/collections/{tpl}/{id} (merge update)
+Feature: REST API - PATCH /api/collections/{tpl}/{id} (merge update)
   Shallow-merges the incoming meta/data into the existing form. The
-  body's data[guidKey] must match the path id (or be absent — in
+  body's data[guidKey] must match the path id (or be absent - in
   which case it's force-set to the path id post-merge so the form
   stays addressable). Optional `If-Match` header gates against
-  concurrent modification — mismatched returns 412.
+  concurrent modification - mismatched returns 412.
 
   Background:
     Given an API handler over a stub dataprovider with these templates:

@@ -183,7 +183,7 @@ func TestAssetServer_CloseIsIdempotent(t *testing.T) {
 func TestAssetServer_AvoidsExcludedPort(t *testing.T) {
 	// Bind a "wiki" listener to claim a known port, ask the asset
 	// server to avoid that port. We then close the placeholder so the
-	// OS would have been free to hand it out — the asset server must
+	// OS would have been free to hand it out - the asset server must
 	// still have refused it.
 	placeholder, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

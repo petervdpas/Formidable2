@@ -9,12 +9,12 @@ import (
 )
 
 // templateLoader is the narrow surface nav needs from the template
-// module — load by filename to confirm the target template exists.
+// module - load by filename to confirm the target template exists.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// formStore is the narrow surface nav needs from the storage module —
+// formStore is the narrow surface nav needs from the storage module -
 // load by (template, datafile) to confirm the target form exists.
 // LoadForm returns nil for missing/unreadable, which is exactly the
 // signal we need.
@@ -22,21 +22,21 @@ type formStore interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
-// configWriter is what nav needs from config — write three keys
+// configWriter is what nav needs from config - write three keys
 // atomically (selected_template, selected_data_file, context_ribbon).
 // Composition root supplies a thin shim around config.Manager.
 type configWriter interface {
 	UpdateUserConfig(partial map[string]any) error
 }
 
-// EventEmitter mirrors journal.EventEmitter — composition root wires a
+// EventEmitter mirrors journal.EventEmitter - composition root wires a
 // Wails-backed implementation; tests inject a stub. Nil is allowed and
 // silences emit.
 type EventEmitter interface {
 	Emit(name string, data any)
 }
 
-// HistoryPusher is the narrow surface nav needs from history — push
+// HistoryPusher is the narrow surface nav needs from history - push
 // the canonical href onto the back/forward stack after a successful
 // navigation. Composition root injects history.Service; nil is allowed
 // (history feature disabled or not yet wired) and silences pushes.
@@ -69,7 +69,7 @@ func NewManager(t templateLoader, s formStore, c configWriter, e EventEmitter, h
 // `nav:changed` event so the frontend can flip the active workspace.
 //
 // Returns a Result rather than a bare error so the frontend gets one
-// shape — Success=false carries Error for direct toast display, Target
+// shape - Success=false carries Error for direct toast display, Target
 // is filled even on validation failure for diagnostics.
 func (m *Manager) NavigateToFormidable(href string) (*Result, error) {
 	target := ParseFormidableHref(href)

@@ -24,7 +24,7 @@ type CountResponse struct {
 	Total    int    `json:"total"`
 }
 
-// errorBody is the standard JSON error envelope. Kept tiny — the
+// errorBody is the standard JSON error envelope. Kept tiny - the
 // original Formidable used the same `{ "error": "<slug>" }` shape and
 // existing clients (incl. the OpenAPI consumers) match against
 // these slugs, not freeform messages.
@@ -57,7 +57,7 @@ type itemRev struct {
 
 // designResponse is the body of GET /api/collections/design/{tpl}.
 // Mirrors the shape the original Formidable apiCollections.js returned
-// — top-level template metadata plus the field list. Each field is a
+// - top-level template metadata plus the field list. Each field is a
 // map[string]any built by JSON-roundtripping template.Field so type-
 // specific properties (format, rows, run_mode, collection, map, ...)
 // pass through automatically; only `options` is shaped explicitly
@@ -71,7 +71,7 @@ type designResponse struct {
 	SidebarExpression string           `json:"sidebar_expression"`
 	EnableCollection  bool             `json:"enable_collection"`
 	Fields            []map[string]any `json:"fields"`
-	// Facets is the template's filter contract — same shape served by
+	// Facets is the template's filter contract - same shape served by
 	// the dedicated /facets endpoint. `omitempty` keeps the design
 	// payload tidy for templates without facets (consumers shouldn't
 	// have to handle an empty array when they wouldn't render anything).
@@ -101,7 +101,7 @@ type facetOptionEntry struct {
 }
 
 // designOption is the normalized shape of one entry in field.options.
-// Both label and value are always strings — the original UI/API
+// Both label and value are always strings - the original UI/API
 // stringified them eagerly to dodge JSON-vs-YAML type mismatches.
 type designOption struct {
 	Value string `json:"value"`

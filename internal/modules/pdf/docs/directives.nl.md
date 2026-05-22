@@ -1,4 +1,4 @@
-# Picoloom frontmatter — wat de renderer begrijpt
+# Picoloom frontmatter - wat de renderer begrijpt
 
 Onderstaande directives plaats je in het YAML-frontmatterblok bovenaan een markdown-template, tussen twee `---`-regels. Wat je weglaat valt terug op picoloom's ingebouwde standaard. Hogere merge-lagen (document-frontmatter) overschrijven lagere lagen (template-manifest, vervolgens globale config).
 
@@ -52,7 +52,7 @@ toc:
 | --- | --- |
 | `toc.enabled` | Zet op `false` om de inhoudsopgave te onderdrukken. Standaard aan als het blok aanwezig is. |
 | `toc.title` | Koptekst boven de inhoudsopgave. Leeg = geen titel. |
-| `toc.minDepth` | Laagste kopniveau om op te nemen (1 – 6, standaard 2 — slaat H1 over). |
+| `toc.minDepth` | Laagste kopniveau om op te nemen (1 – 6, standaard 2 - slaat H1 over). |
 | `toc.maxDepth` | Hoogste kopniveau om op te nemen (1 – 6, standaard 3). |
 
 ## Voettekst

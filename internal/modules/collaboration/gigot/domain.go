@@ -16,7 +16,7 @@ import (
 // Filesystem is the narrow surface Manager needs for atomic writes.
 // system.Manager satisfies it directly. Local interface so this
 // package compiles standalone; the composition root injects the real
-// implementation. Atomic on success — temp file + fsync + rename —
+// implementation. Atomic on success - temp file + fsync + rename -
 // so a crash mid-write never leaves a partial sync.json on disk.
 type Filesystem interface {
 	SaveFile(path string, content string) error
@@ -48,7 +48,7 @@ type Manager struct {
 // ManagerOption configures a Manager at construction time.
 type ManagerOption func(*Manager)
 
-// WithHTTPClient swaps the default http.Client — used by tests to
+// WithHTTPClient swaps the default http.Client - used by tests to
 // inject an httptest.Server's transport or a recording RoundTripper.
 func WithHTTPClient(c *http.Client) ManagerOption {
 	return func(m *Manager) {
@@ -88,7 +88,7 @@ func validateConn(conn Connection, requireRepo bool) error {
 
 // ── Pure helpers (fully implemented + tested) ───────────────────────
 
-// GitBlobSha computes the git blob SHA1 of the given bytes — the same
+// GitBlobSha computes the git blob SHA1 of the given bytes - the same
 // hash git assigns to a blob entry in a tree. Formula:
 // SHA1("blob " + len + "\0" + content). Lets the client compare local
 // bytes against a TreeEntry.Blob without downloading the blob.
@@ -100,7 +100,7 @@ func GitBlobSha(data []byte) string {
 }
 
 // IsFormidablePath classifies a repo-relative path as Formidable-managed
-// content. True for templates/<name>.yaml (any depth — server is the
+// content. True for templates/<name>.yaml (any depth - server is the
 // source of truth for layout), storage/** at any depth, and the
 // allowlisted root files (README.md, .gitignore). False for everything
 // else (including .formidable/ which is owned by the server scaffold +
@@ -146,7 +146,7 @@ func TrackRecordPath(contextFolder string) string {
 
 // ReadTrackRecord loads the ledger at contextFolder. Returns
 // EmptyTrackRecord() (no error) when the file is missing, unreadable,
-// or syntactically corrupt — so a fresh checkout or a partial write
+// or syntactically corrupt - so a fresh checkout or a partial write
 // from an older client doesn't break sync. Callers can treat the
 // result as authoritative on its own.
 func (m *Manager) ReadTrackRecord(contextFolder string) TrackRecord {
@@ -296,7 +296,7 @@ func readLocalFile(abs, repoRel string) (LocalFile, error) {
 // differs from the ledger (new puts); Deleted lists managed paths the
 // ledger remembers but no longer exist on disk. On a first sync
 // (rec.Version == ""), Deleted is empty regardless of the ledger
-// contents — see DiffAgainstRecord for the policy.
+// contents - see DiffAgainstRecord for the policy.
 type DiffResult struct {
 	Changed []LocalFile
 	Deleted []string
@@ -305,7 +305,7 @@ type DiffResult struct {
 // DiffAgainstRecord compares the walker output to the track-record.
 // Returns the list of files whose SHA differs from rec.Files plus the
 // list of managed paths the ledger remembers but disk no longer has.
-// On first sync (rec.Version empty), Deleted is suppressed — a freshly
+// On first sync (rec.Version empty), Deleted is suppressed - a freshly
 // seeded ledger contains every server path and we don't want to nuke
 // content that pullLocal will fetch in the next step.
 func DiffAgainstRecord(local []LocalFile, rec TrackRecord) DiffResult {

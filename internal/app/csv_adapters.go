@@ -4,7 +4,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 )
 
-// csvFormsAdapter satisfies csv.formsSource — a tiny shim so the csv
+// csvFormsAdapter satisfies csv.formsSource - a tiny shim so the csv
 // module can list and read forms without importing the storage package
 // directly. Export() is the only caller; Preview/Write/transforms
 // don't touch this.

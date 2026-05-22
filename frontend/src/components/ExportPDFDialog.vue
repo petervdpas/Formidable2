@@ -34,7 +34,7 @@ const knownExportCodes = new Set<string>([
 
 // The dialog assumes PDF export is already active. The Storage
 // workspace's "Export PDF…" menu entry is hidden while inactive, so
-// this component never has to render the inactive state — its only
+// this component never has to render the inactive state - its only
 // dependency on the activation flow is reading `status.export_dir`
 // as the default output folder.
 const props = defineProps<{
@@ -49,7 +49,7 @@ const { chooseDirectory } = useDialog();
 const toast = useToast();
 const { status, refreshLastExport } = usePDFActivation();
 
-// Theme list comes from the backend (PdfSvc.ListThemes) — never
+// Theme list comes from the backend (PdfSvc.ListThemes) - never
 // hardcoded here. Names are picoloom's canonical keys; human labels
 // come from `pdf.export.dialog.theme.<name>` i18n keys with the raw
 // name as the fallback for any theme the backend adds before its i18n
@@ -158,7 +158,7 @@ async function resetForOpen() {
   } else {
     folder.value = "";
   }
-  // Cover + theme dropdowns live on the backend — scan now so any
+  // Cover + theme dropdowns live on the backend - scan now so any
   // newly-added entry appears without a restart. Failure here keeps
   // the dialog usable (lists stay empty → user gets picoloom default).
   try {
@@ -173,7 +173,7 @@ async function resetForOpen() {
   }
   // Resolve what the dialog's default options will actually apply so
   // the dropdown labels can tell the truth (e.g. "(frontmatter: technical)"
-  // vs "(no theme — picoloom built-in)"). A render error here just
+  // vs "(no theme - picoloom built-in)"). A render error here just
   // leaves the labels in the picoloom-built-in state.
   resolvedTheme.value = "";
   resolvedCover.value = "";
@@ -187,7 +187,7 @@ async function resetForOpen() {
     resolvedCover.value = resolved.cover_template ?? "";
     resolvedCoverDisabled.value = resolved.cover_disabled ?? false;
   } catch {
-    /* resolution failed — labels degrade to the picoloom-default state */
+    /* resolution failed - labels degrade to the picoloom-default state */
   }
 }
 
@@ -203,7 +203,7 @@ async function pickFolder() {
     const picked = await chooseDirectory();
     if (picked) folder.value = picked;
   } catch {
-    /* user cancelled / picker error — leave as-is */
+    /* user cancelled / picker error - leave as-is */
   }
 }
 
@@ -235,7 +235,7 @@ async function doExport() {
     toast.success("pdf.export.dialog.toast.success");
     if (openAfter.value && result.path) {
       // Best-effort hand-off to the OS default PDF viewer. Failure
-      // here doesn't roll back the export — the file is on disk, the
+      // here doesn't roll back the export - the file is on disk, the
       // success toast already fired; just surface a soft warning so
       // the user knows their auto-open preference didn't take.
       try {

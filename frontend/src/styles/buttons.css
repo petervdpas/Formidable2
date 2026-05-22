@@ -125,7 +125,7 @@
 
 /* Semantic-fill variants. The variant class is the action verb
    (danger / success / warning) while the token under it is the
-   state name (error / success / warning) — same idea as
+   state name (error / success / warning) - same idea as
    primary → accent. Foregrounds use per-theme *-fg tokens so
    contrast stays right when the bg flips between dark and light. */
 .tool-btn.danger {

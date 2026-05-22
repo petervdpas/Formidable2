@@ -8,7 +8,7 @@ import PDFCoverImagesPanel from "./PDFCoverImagesPanel.vue";
 const { t } = useI18n();
 
 // Tab id persists at module scope so the user keeps their place when
-// flipping between Information sections and returning here — matches
+// flipping between Information sections and returning here - matches
 // usePDFCovers.ts's "preserve draft across navigation" stance.
 const activeTab = ref<"covers" | "images">("covers");
 

@@ -1,4 +1,4 @@
-/* Link field — composes {href,text} from protocol + (url | template + entry). */
+/* Link field - composes {href,text} from protocol + (url | template + entry). */
 
 .link-field {
     display: flex;

@@ -8,7 +8,7 @@ package csv
 
 // TableColumn is the per-column spec the frontend hands over for a
 // paste-coerce call. Choices carry the dropdown's option list as
-// {value,label} maps — already pre-parsed from the template's
+// {value,label} maps - already pre-parsed from the template's
 // pipe-separated `choices` string on the Vue side.
 type TableColumn struct {
 	Type    string `json:"type"`

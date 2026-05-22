@@ -104,7 +104,7 @@ const fieldByKey = computed(() => {
 });
 
 // Templates can declare list/table fields. Alignment only makes sense
-// for those — the dropdown lists them so the user picks which (if any)
+// for those - the dropdown lists them so the user picks which (if any)
 // field to unroll across rows.
 const alignableFields = computed(() =>
   mappableFields.value.filter((f) => f.type === "list" || f.type === "table"),
@@ -129,7 +129,7 @@ function defaultRows(): ExportRow[] {
   }));
 }
 
-// Reset everything when the dialog opens — the user may have switched
+// Reset everything when the dialog opens - the user may have switched
 // templates since the last open, and stale rows against the old schema
 // would mis-name columns.
 watch(
@@ -215,7 +215,7 @@ function buildPlan(): ExportPlan {
 
 // Re-render the live preview whenever any column state changes. The
 // preview is the first data row of BuildPreviewRows fed with one entry
-// (or zero — then we just blank everything).
+// (or zero - then we just blank everything).
 watch(
   [rows, alignSource, sampleEntry, mappableFields],
   async () => {
@@ -357,7 +357,7 @@ async function doExport() {
             <input v-model="row.header" class="csv-export-header-input" />
           </td>
           <td class="csv-export-td-narrow">
-            <span v-if="!row.computed" class="muted">—</span>
+            <span v-if="!row.computed" class="muted">-</span>
             <input v-else v-model="row.separator" class="csv-import-concat-input" />
           </td>
           <td class="csv-import-td-transform">

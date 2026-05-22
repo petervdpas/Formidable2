@@ -74,7 +74,7 @@ func colorWriter() io.Writer {
 	return io.Discard
 }
 
-// world is the per-scenario state — kept tiny on purpose. The manager
+// world is the per-scenario state - kept tiny on purpose. The manager
 // under test, the second one used for the port-conflict scenario, the
 // loose values we thread between Given/When/Then, and (Slice 2) the
 // wiki handler under test plus its last-recorded HTTP response.
@@ -85,19 +85,19 @@ type world struct {
 	stopErr      error
 	rememberPort int
 
-	// Slice 2 — read-path routes
+	// Slice 2 - read-path routes
 	handler *Handler
 	stub    *stubProvider
 	stubEx  *stubExpressioner
 	resp    *httptest.ResponseRecorder
 
-	// Slice 3 — /storage/*
+	// Slice 3 - /storage/*
 	stubSt *stubStorage
 
-	// Slice 5 — facets surface (Templates interface + form facet state)
+	// Slice 5 - facets surface (Templates interface + form facet state)
 	stubTpl *stubTemplates
 
-	// Slice 4 — Service surface
+	// Slice 4 - Service surface
 	svc            *Service
 	configPort     int
 	rememberSvcPort int
@@ -303,7 +303,7 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
-	// ── Facets — Templates + storage facet state ─────────────────────
+	// ── Facets - Templates + storage facet state ─────────────────────
 
 	ctx.Step(`^the template "([^"]*)" declares facets:$`,
 		func(filename string, table *godog.Table) error {
@@ -517,7 +517,7 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 				return fmt.Errorf("stub not initialised")
 			}
 			// The wiki context's render.Manager already rewrote the
-			// href before the handler sees it — that's what these
+			// href before the handler sees it - that's what these
 			// scenarios verify the handler doesn't unintentionally
 			// undo.
 			href := "/template/" + linkStem + "/form/" + linkDatafile

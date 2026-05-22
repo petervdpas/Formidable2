@@ -1,7 +1,7 @@
 /* Drag-and-drop primitives shared by every component that uses
    vuedraggable / Sortable.js. Components add these classes to the
    handle and pass them to vuedraggable's ghost-class / chosen-class /
-   drag-class props — keeps the visual language consistent. */
+   drag-class props - keeps the visual language consistent. */
 
 .dnd-handle {
     cursor: grab;
@@ -13,7 +13,7 @@
     flex: 0 0 auto;
 }
 .dnd-handle:active { cursor: grabbing; }
-/* Disabled handle — visible but signals "no drag here". The
+/* Disabled handle - visible but signals "no drag here". The
    FormLoop expanded-row case toasts a hint when clicked. */
 .dnd-handle.disabled {
     cursor: not-allowed;

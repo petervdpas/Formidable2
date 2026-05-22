@@ -3,7 +3,7 @@
 // it at module scope (top-level inside a non-setup <script> block on
 // a Vue SFC, or a top-level const in a plain .ts module). Because
 // the returned object lives in the module's binding scope, its
-// internal state survives component teardown — so navigating back
+// internal state survives component teardown - so navigating back
 // to the section that owns the cache renders cached content
 // instantly instead of re-fetching.
 //

@@ -5,7 +5,7 @@ import Badge from "../Badge.vue";
 
 // Presentational repository-status panel. The owning view (Sync.vue)
 // drives the fetch lifecycle so its sibling commit form can read the
-// same status object — keeping the data flow one-directional.
+// same status object - keeping the data flow one-directional.
 
 type Status = {
   branch: string;
@@ -28,7 +28,7 @@ const props = defineProps<{
   notARepo: boolean;
   errorMsg: string;
   /** Sync workspace gates these on tracking/ahead/behind/in-flight
-   *  state — we only render the buttons; the parent owns the rules. */
+   *  state - we only render the buttons; the parent owns the rules. */
   canPull: boolean;
   canPush: boolean;
   pulling: boolean;

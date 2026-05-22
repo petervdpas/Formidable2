@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /*
- * StatusGitQuick — footer git status indicator + jump to Sync.
+ * StatusGitQuick - footer git status indicator + jump to Sync.
  *
  * Shows: branch icon, optional ↑N (ahead) and ↓M (behind) counts, and
  * a `*` when the working tree is dirty. Click → switches the ribbon to
@@ -9,7 +9,7 @@
  * Refresh: load on mount, on git_root change, and on the global
  * `journal:changed` event (the git module's commit/fetch/push/pull
  * paths all emit a journal entry, so this is the same trigger Sync /
- * GitCommitGraph use to stay current — no second poller).
+ * GitCommitGraph use to stay current - no second poller).
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -30,7 +30,7 @@ const gitRoot = computed(() => config.value?.git_root ?? "");
 const status = ref<Status | null>(null);
 const isRepo = ref(false);
 
-// Reqid pattern mirrors Sync.vue — guards against an in-flight load
+// Reqid pattern mirrors Sync.vue - guards against an in-flight load
 // resolving after the user changed git_root mid-fetch.
 let reqId = 0;
 async function load() {
@@ -76,7 +76,7 @@ onMounted(() => {
   // this catches everything done through Formidable's own UI.
   unsubscribe = Events.On("journal:changed", () => { void load(); });
   // External changes (terminal git, IDE save, another tool) bypass
-  // the journal — a slow poll is the cheapest way to keep the footer
+  // the journal - a slow poll is the cheapest way to keep the footer
   // honest. GitSvc.Status is a single fs scan; 30s is plenty.
   pollTimer = setInterval(() => { void load(); }, POLL_MS);
   // Catch the "switched away to terminal, came back" case faster than

@@ -1,7 +1,7 @@
 // Package plugin's Service is the Wails-bound surface Vue talks
 // to. Methods are intentionally small: List, Run, Refresh. The
 // async dialog mechanism (slice 3) and event-hook firing (slice
-// 2) are NOT here yet — slice 1 is on-demand commands only.
+// 2) are NOT here yet - slice 1 is on-demand commands only.
 package plugin
 
 import (
@@ -21,7 +21,7 @@ func NewService(m *Manager) *Service { return &Service{m: m} }
 
 // ListResult is the Wails return shape for List. Manifest is the
 // full parsed plugin.json (so Vue can show name, version, command
-// labels). ID is duplicated at the top level for convenience —
+// labels). ID is duplicated at the top level for convenience -
 // Vue list components use it as the v-for key without digging
 // into the nested manifest.
 type ListResult struct {
@@ -70,7 +70,7 @@ func (s *Service) ListWorkspaces() []string {
 }
 
 // RunResultDTO is the JSON envelope for Run. Kind is "ok" on
-// success or one of the error sentinels' kinds — Vue branches on
+// success or one of the error sentinels' kinds - Vue branches on
 // Kind, never on Message text. Toasts pass through whatever
 // formidable.toast.* emitted during the call so the workspace can
 // dispatch them to useToast.
@@ -84,7 +84,7 @@ type RunResultDTO struct {
 
 // Create scaffolds a new plugin folder and returns the new list.
 // Errors map to the editor sentinels (ErrManifestInvalid,
-// ErrPluginExists) — the caller surfaces them as i18n'd toasts.
+// ErrPluginExists) - the caller surfaces them as i18n'd toasts.
 func (s *Service) Create(id string) ([]ListResult, error) {
 	if err := s.m.Create(id); err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (s *Service) GetForm(id string) (string, error) {
 
 // ValidateWidget runs the formwidget validation rules against a
 // single widget the form editor is about to persist into form.json.
-// Returns the wrapped ErrWidgetInvalid (or nil) — the UI surfaces it
+// Returns the wrapped ErrWidgetInvalid (or nil) - the UI surfaces it
 // as a toast next to the offending entry without having to round-trip
 // through Save. Also pins the formwidget types into the generated
 // Wails bindings so the frontend can import Widget/Kind.
@@ -132,7 +132,7 @@ func (s *Service) Delete(id string) ([]ListResult, error) {
 // ExportArchive bundles a plugin's folder into a zip at zipPath.
 // Returns the zip path + the list of bundled entries so the
 // workspace can render a confirmation panel. Sibling of the pdf
-// cover archive flow — shapes the team-sharing pipeline plugins
+// cover archive flow - shapes the team-sharing pipeline plugins
 // previously lacked.
 func (s *Service) ExportArchive(id, zipPath string) (ExportArchiveResult, error) {
 	return s.m.ExportArchive(id, zipPath)
@@ -140,7 +140,7 @@ func (s *Service) ExportArchive(id, zipPath string) (ExportArchiveResult, error)
 
 // ImportArchive unpacks a plugin-archive zip from zipPath under
 // <PluginsDir>/. Refuses to overwrite an existing plugin unless
-// overwrite=true — the frontend uses ErrPluginArchiveExists as the
+// overwrite=true - the frontend uses ErrPluginArchiveExists as the
 // signal to surface a "replace?" prompt. On success refreshes the
 // registry so List reflects the new/replaced plugin without a
 // follow-up call.
@@ -156,7 +156,7 @@ func (s *Service) GetSource(id string) (string, error) {
 
 // LoadFormValues returns the values stored under each of the
 // supplied field keys. Frontend calls this on Run-modal open to
-// pre-populate the form from the plugin's KV bag — same bag the
+// pre-populate the form from the plugin's KV bag - same bag the
 // Lua side reads via formidable.kv.get().
 func (s *Service) LoadFormValues(pluginID string, fieldKeys []string) map[string]any {
 	return s.m.LoadFormValues(pluginID, fieldKeys)
@@ -218,7 +218,7 @@ func (s *Service) GetI18nMessages(locale string) map[string]string {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Plugin i18n editor surface — per-locale CRUD the Plugins workspace
+// Plugin i18n editor surface - per-locale CRUD the Plugins workspace
 // uses to power its i18n tab. Keys are stored verbatim on disk (no
 // `plugin.<id>.` prefix); the auto-prefix is applied at read time by
 // MessagesForLocale so plugin authors never write it themselves.
@@ -234,7 +234,7 @@ func (s *Service) GetPluginI18n(id, locale string) (map[string]string, error) {
 
 // SavePluginI18n writes the raw flat map for one locale. Plugin
 // folder must exist; locale is validated against path-traversal. On
-// success the caller can simply re-fetch GetI18nMessages — there's
+// success the caller can simply re-fetch GetI18nMessages - there's
 // no in-memory cache to bust.
 func (s *Service) SavePluginI18n(id, locale string, msgs map[string]string) error {
 	return s.m.SaveI18nFile(id, locale, msgs)

@@ -3,13 +3,13 @@
 // Manager) via zalando/go-keyring.
 //
 // Lives under collaboration because it's shared infrastructure
-// between the Git and (future) GiGot backends — both of which need
+// between the Git and (future) GiGot backends - both of which need
 // to persist a PAT or token across sessions without writing it to
 // disk in plaintext.
 //
 // # Account naming convention
 //
-// All callers — both Vue and any future backend sync ops — must
+// All callers - both Vue and any future backend sync ops - must
 // produce keychain account strings of the form:
 //
 //	<profile_filename>:<backend>:<identifier>

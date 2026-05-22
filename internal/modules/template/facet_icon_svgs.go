@@ -11,7 +11,7 @@ import (
 // FacetIconSpec carries the minimal data needed to render one
 // FontAwesome glyph as inline SVG: the path's `viewBox` (icons have
 // different aspects) and the geometry in `Path`'s `d` attribute. No
-// `xmlns` and no fill — both layers (wiki + Vue) wrap this in their
+// `xmlns` and no fill - both layers (wiki + Vue) wrap this in their
 // own colour-aware shell.
 type FacetIconSpec struct {
 	ViewBox string `json:"viewBox"`
@@ -53,7 +53,7 @@ func init() {
 // of an SVG byte slice. The upstream FontAwesome SVGs are
 // well-formed and contain exactly one path with a `d` attribute,
 // which is the only data we care about here. Anything more elaborate
-// — gradients, multiple paths — would need a real parser, but the
+// - gradients, multiple paths - would need a real parser, but the
 // closed icon palette never uses those.
 func parseFacetIconSVG(raw []byte) (FacetIconSpec, error) {
 	src := string(raw)

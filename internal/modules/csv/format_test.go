@@ -47,7 +47,7 @@ func TestFormatValue_TagsListMultioption_Array(t *testing.T) {
 }
 
 func TestFormatValue_TagsListMultioption_ScalarFallback(t *testing.T) {
-	// Stored as a bare string (legacy data) — return as-is.
+	// Stored as a bare string (legacy data) - return as-is.
 	for _, ty := range []string{"tags", "list", "multioption"} {
 		if got := FormatValue("hello", ty); got != "hello" {
 			t.Errorf("FormatValue(scalar, %s) = %q", ty, got)

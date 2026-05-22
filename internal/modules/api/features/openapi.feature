@@ -1,4 +1,4 @@
-Feature: REST API — OpenAPI spec generator
+Feature: REST API - OpenAPI spec generator
   GET /api/openapi.json returns a fresh OpenAPI 3.0.3 document built
   per request from the current set of collection-enabled templates.
   Per-template Data_<tpl> schemas are derived from the template's

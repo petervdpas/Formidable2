@@ -70,7 +70,7 @@ func TestRenderMarkdown_Loop(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// API-field helpers — end-to-end through RenderMarkdown.
+// API-field helpers - end-to-end through RenderMarkdown.
 // Confirms the full pipeline: helper registration, context plumbing,
 // Options.LoadTemplate threading, output formatting.
 // ─────────────────────────────────────────────────────────────────────
@@ -220,7 +220,7 @@ func TestRenderMarkdown_APIHelpers_NoRecord(t *testing.T) {
 func TestRenderMarkdown_APIBlock_NilLoaderFallsBackToJSON(t *testing.T) {
 	host, _ := apiTestSetup()
 	host.MarkdownTemplate = `{{apiBlock "ref" "owners"}}`
-	// Pass an Options with no LoadTemplate — apiBlock can't resolve
+	// Pass an Options with no LoadTemplate - apiBlock can't resolve
 	// the source field's type and falls back to scalarOrJSON.
 	got, _ := RenderMarkdown(apiTestRow(), host, &Options{})
 	if !strings.HasPrefix(got, `[[`) {

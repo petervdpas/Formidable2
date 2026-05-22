@@ -6,7 +6,7 @@ package manual
 // the same syntax highlighting and link handling as the wiki.
 type Service struct{}
 
-// NewService returns the Wails-bound surface. Stateless — the embed
+// NewService returns the Wails-bound surface. Stateless - the embed
 // FS lives at package scope, so a single instance is shared by every
 // IPC caller.
 func NewService() *Service {

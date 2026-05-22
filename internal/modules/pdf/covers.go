@@ -16,7 +16,7 @@ import (
 // signature template + a default logo image. Post Stage 6.1, the
 // embed is the *seed* used at boot to scaffold the on-disk library
 // at <AppRoot>/pdf/covers/. The running system never reads from the
-// embed at render time — disk is the source of truth.
+// embed at render time - disk is the source of truth.
 //
 // `all:covers` brings the entire subtree, including the images/
 // subdirectory (where formidable.svg lives as a default logo seed).
@@ -26,7 +26,7 @@ var coversFS embed.FS
 
 const coversDir = "covers"             // embedded seed directory
 const signatureFile = "signature.html" // reserved name (bundled signature)
-const coverImagesSubdir = "images"     // <coversDir>/images/ — logo seeds
+const coverImagesSubdir = "images"     // <coversDir>/images/ - logo seeds
 
 // ErrCoverNotFound is returned when CoverFM.Template names a cover
 // that doesn't exist on disk under <AppRoot>/pdf/covers/. Surfaced
@@ -37,14 +37,14 @@ var ErrCoverNotFound = fmt.Errorf("pdf: cover template not found")
 // loading a user-supplied CoverFM.TemplatePath.
 var ErrCoverPathInvalid = fmt.Errorf("pdf: cover template path invalid")
 
-// ErrCoverInvalid wraps any failure from ValidateCover — used at both
+// ErrCoverInvalid wraps any failure from ValidateCover - used at both
 // load time (loader refuses to inject a broken cover) and save time
 // (SaveCover refuses to persist one).
 var ErrCoverInvalid = fmt.Errorf("pdf: cover invalid")
 
 // ErrSignatureMissing is returned when the bundled signature seed is
 // gone from disk AND the scaffold hasn't replaced it. Only surfaces
-// during Export when a cover override is also active — picoloom's
+// during Export when a cover override is also active - picoloom's
 // WithTemplateSet requires a signature template alongside the cover.
 var ErrSignatureMissing = fmt.Errorf("pdf: bundled signature missing on disk")
 
@@ -55,7 +55,7 @@ var ErrSignatureMissing = fmt.Errorf("pdf: bundled signature missing on disk")
 //   - Label: human-readable display name from the magic-line `name:`
 //     field, or capitalised Name when absent.
 //   - Description: from the magic-line `description:` field, or "".
-//   - OK: false when ValidateCover errored — the picker may still
+//   - OK: false when ValidateCover errored - the picker may still
 //     surface the entry, but flagged.
 type CoverDescriptor struct {
 	Name        string `json:"name"`
@@ -116,7 +116,7 @@ func loadDiskCoverRaw(fs storeFS, name string) (string, error) {
 }
 
 // loadDiskSignature reads the bundled-default signature off disk.
-// Surfaces ErrSignatureMissing if the file isn't there — caller
+// Surfaces ErrSignatureMissing if the file isn't there - caller
 // decides whether that's fatal. Skips ValidateCover (signature uses
 // a different magic family); a malformed signature will surface as
 // a picoloom render error at convert time.
@@ -242,15 +242,15 @@ func titlecase(s string) string {
 // inject, given a merged Frontmatter cover block and the template's
 // storage directory (used to resolve relative TemplatePath values).
 //
-// Returns nil + nil error to mean "no override — let picoloom use
+// Returns nil + nil error to mean "no override - let picoloom use
 // its bundled default". Errors are returned for genuine failures:
 // unknown library name, missing user file, validation failures,
 // missing bundled signature on disk.
 //
 // Priority (highest first):
-//  1. CoverFM.TemplatePath — user-authored HTML file. Relative paths
+//  1. CoverFM.TemplatePath - user-authored HTML file. Relative paths
 //     resolve against sourceDir; absolute paths are used as-is.
-//  2. CoverFM.Template — name from the on-disk library at
+//  2. CoverFM.Template - name from the on-disk library at
 //     <AppRoot>/pdf/covers/<name>.html.
 //  3. Neither set → nil (picoloom default).
 func ResolveCoverTemplateSet(fm *CoverFM, sourceDir string, fs storeFS) (*picoloom.TemplateSet, error) {
@@ -287,7 +287,7 @@ func ResolveCoverTemplateSet(fm *CoverFM, sourceDir string, fs storeFS) (*picolo
 // loadCoverFromPath reads a user-supplied cover HTML file. Relative
 // paths resolve against sourceDir; absolute paths are used as-is. The
 // fs argument is the same storeFS the pdf module already uses for
-// state + PDF writes — passing it through keeps unit tests off the
+// state + PDF writes - passing it through keeps unit tests off the
 // real filesystem.
 func loadCoverFromPath(p, sourceDir string, fs storeFS) (string, error) {
 	if fs == nil {
@@ -342,7 +342,7 @@ func ResolveCoverLogo(logo, sourceDir string, fs storeFS) string {
 	}
 	imagesDir := path.Join(onDiskCoversDir, coverImagesSubdir)
 	if !strings.ContainsAny(logo, "/\\") {
-		// Bare filename — central images dir wins.
+		// Bare filename - central images dir wins.
 		if hit := tryResolve(fs, imagesDir, logo); hit != "" {
 			return hit
 		}
@@ -353,7 +353,7 @@ func ResolveCoverLogo(logo, sourceDir string, fs storeFS) string {
 		}
 		return logo
 	}
-	// Relative path with slashes — sourceDir wins.
+	// Relative path with slashes - sourceDir wins.
 	if sourceDir != "" {
 		if hit := tryResolve(fs, sourceDir, logo); hit != "" {
 			return hit
@@ -372,12 +372,12 @@ func ResolveCoverLogo(logo, sourceDir string, fs storeFS) string {
 //
 //   - Empty input → empty output.
 //   - Absolute path → returned verbatim (Linux-only behaviour, broken
-//     on Windows; nothing we can do without an asset server entry —
+//     on Windows; nothing we can do without an asset server entry -
 //     documented limitation for "user gives an arbitrary absolute
 //     path outside both managed dirs"). Backslashes are converted to
 //     forward slashes so a hand-typed `C:\path\…` at least doesn't
 //     crash Chrome's URL parser.
-//   - Bare filename or "<rel>/<name>" — try imagesDir first:
+//   - Bare filename or "<rel>/<name>" - try imagesDir first:
 //     - hit AND asset server live → `http://127.0.0.1:.../covers/<basename>`
 //     - hit AND no asset server   → resolved absolute path (legacy)
 //   - Then try sourceDir:
@@ -388,7 +388,7 @@ func ResolveCoverLogo(logo, sourceDir string, fs storeFS) string {
 //     picoloom's own "logo not found" error fires.
 //
 // The asset server is the missing piece for files in the central
-// library — pathrewrite refuses to point at paths outside sourceDir,
+// library - pathrewrite refuses to point at paths outside sourceDir,
 // so without the loopback URL Chrome on Windows can't load them.
 func BuildCoverLogoSrc(logo, sourceDir string, fs storeFS, as *AssetServer) string {
 	if logo == "" || fs == nil {
@@ -411,7 +411,7 @@ func BuildCoverLogoSrc(logo, sourceDir string, fs storeFS, as *AssetServer) stri
 		}
 		return logo
 	}
-	// Relative path with slashes — sourceDir wins because the user's
+	// Relative path with slashes - sourceDir wins because the user's
 	// "./subdir/foo.png" is unambiguous about intent.
 	if sourceDir != "" && fs.FileExists(path.Join(sourceDir, logo)) {
 		return logo
@@ -432,7 +432,7 @@ func BuildCoverLogoSrc(logo, sourceDir string, fs storeFS, as *AssetServer) stri
 // catch in BuildCoverLogoSrc so backslashes are normalised regardless
 // of build host. Recognises:
 //   - filepath.IsAbs(p) (Unix `/abs`, Windows drive-rooted on Windows)
-//   - `\\server\share` (UNC) — leading double backslash
+//   - `\\server\share` (UNC) - leading double backslash
 //   - `<letter>:\` or `<letter>:/` (drive-letter absolute)
 func isAbsoluteAny(p string) bool {
 	if filepath.IsAbs(p) {
@@ -454,7 +454,7 @@ func isAbsoluteAny(p string) bool {
 // tryResolve returns the absolute path of dir/name if the file
 // exists, otherwise an empty string.
 //
-// The returned path is forward-slashed unconditionally — the resolved
+// The returned path is forward-slashed unconditionally - the resolved
 // logo gets embedded into the cover HTML's `<img src="…">` attribute
 // and rendered by headless Chrome under a file:// document.
 // Backslashes in src trip Chrome's URL parser on Windows (it can't

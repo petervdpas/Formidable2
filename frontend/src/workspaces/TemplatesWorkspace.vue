@@ -59,7 +59,7 @@ const statusBar = useStatusBar();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
 
-// Sidebar honors per-profile EnabledTemplates curation — same filtered
+// Sidebar honors per-profile EnabledTemplates curation - same filtered
 // list the storage picker uses. The Settings → Templates panel is the
 // only entry point that sees ALL templates (so the user can enable a
 // disabled one). The editor follows the curation.
@@ -77,12 +77,12 @@ const {
 const { draft, dirty, itemFieldOptions, save, reset } = useTemplateEditor();
 
 // Two-way sync between the sidebar selection and config. Config is
-// the single source of truth — Storage's dropdown writes there too,
+// the single source of truth - Storage's dropdown writes there too,
 // so any cross-workspace change propagates here live.
 //
 // Direction 1: config.selected_template → sidebar highlight. Fires
 // whenever the config value or the loaded filenames list changes
-// (need both — config can name a template that hasn't loaded yet
+// (need both - config can name a template that hasn't loaded yet
 // during early boot).
 watch(
   [() => config.value?.selected_template ?? "", filenames],
@@ -180,7 +180,7 @@ async function doSave() {
     statusBar.setSaved(fn);
     // Re-read just the saved template into the cache. The other rows
     // are untouched, so the rest of the list (and its scroll position)
-    // stays stable — Vue propagates the new entry to the matching
+    // stays stable - Vue propagates the new entry to the matching
     // TemplateListItem via its :template prop.
     await refreshOne(fn);
     // Notify other workspaces (notably StorageWorkspace) that this
@@ -193,7 +193,7 @@ async function doSave() {
     return;
   }
   if (result.reason === "validation") {
-    // One toast per error — same shape the original Formidable used.
+    // One toast per error - same shape the original Formidable used.
     // formatError already produced i18n {key, args} pairs.
     for (const err of result.errors) {
       toast.error(err.key, err.args);
@@ -204,7 +204,7 @@ async function doSave() {
     toast.error("workspace.templates.save_error", [result.message]);
     return;
   }
-  // "no-draft" — guarded by the early return at top, but kept exhaustive.
+  // "no-draft" - guarded by the early return at top, but kept exhaustive.
   toast.error("workspace.templates.save_error", ["?"]);
 }
 
@@ -212,7 +212,7 @@ function doReset() {
   reset();
 }
 
-// hasGuidField gates the Enable Collection switch — collection mode
+// hasGuidField gates the Enable Collection switch - collection mode
 // requires a record-level guid for the wiki/API resolver, so we don't
 // let users flip the toggle on without one. Mirrors backend
 // validation.collectionGuidError; without this gate, the user reaches
@@ -220,7 +220,7 @@ function doReset() {
 //
 // Asymmetric: when Collection is already ON we let the user toggle it
 // OFF even without a guid (recovery path for templates that somehow
-// got into the broken state — e.g. a guid field was removed manually).
+// got into the broken state - e.g. a guid field was removed manually).
 const hasGuidField = computed(() => {
   const fields = draft.value?.fields ?? [];
   return fields.some((f: Field) => f.type === "guid");
@@ -270,7 +270,7 @@ async function submitCreate() {
 }
 
 // ── Field tree (loop blocks as drag units) ───────────────────────────
-// Backend owns the tree shape — internal/modules/template/fieldtree.go
+// Backend owns the tree shape - internal/modules/template/fieldtree.go
 // pairs loopstart/loopstop and folds them into one indivisible
 // FieldUnit so the editor can't reorder a row across a loop boundary
 // by mistake. The flat draft.fields stays the source of truth; this
@@ -303,7 +303,7 @@ watch(
 
 // ── Field edit / add ─────────────────────────────────────────────────
 // editUnit holds the tree-resident FieldUnit being edited (null for
-// create). Identity is the JS object reference itself — no key/type
+// create). Identity is the JS object reference itself - no key/type
 // lookup, no flat-index bookkeeping. applyEdit mutates the unit in
 // place and commitTree flushes the resulting tree to draft.fields.
 const editOpen = ref(false);
@@ -408,7 +408,7 @@ const cleanupOpen = ref(false);
 // operations only edit the in-memory draft; the user still has to
 // click Save on the template to persist.
 // Migrate keeps its preview-and-confirm modal (the diff IS the point).
-// Inject moves to the form-based InjectPDFFrontmatterDialog wizard —
+// Inject moves to the form-based InjectPDFFrontmatterDialog wizard -
 // the YAML-preview UX was hostile per the user's feedback. The two
 // flows still share the apply step (write scaffold to draft).
 const pdfFmDialogOpen = ref(false);
@@ -424,7 +424,7 @@ const pdfInjectOpen = ref(false);
 
 function openPdfFmInject() {
   if (!draft.value) return;
-  // Refuse if frontmatter already exists — direct user to Migrate.
+  // Refuse if frontmatter already exists - direct user to Migrate.
   const md = draft.value.markdown_template ?? "";
   if (/^---\s*\n/.test(md)) {
     toast.error("workspace.templates.pdf_fm.inject_refused");
@@ -507,7 +507,7 @@ async function applyGenerated(shape: string, opts: GeneratorOptions) {
 
 // ── Expression-builder dialog ────────────────────────────────────────
 // Visual builder for sidebar_expression. The dialog is the only way
-// to edit the source — the textarea is rendered read-only — so the
+// to edit the source - the textarea is rendered read-only - so the
 // shape stays predictable for the strict round-trip parser. On open
 // the dialog tries to load the existing source; if parsing fails it
 // emits "clear" and we wipe the textarea so the unparseable string
@@ -527,7 +527,7 @@ function clearExpressionSource() {
 
 // Inline "Convert" affordance next to the Builder button. Shows only
 // when the current sidebar_expression is non-empty AND fails the
-// strict builder Parse — i.e. it's a legacy shape (array-wrapped
+// strict builder Parse - i.e. it's a legacy shape (array-wrapped
 // ternary, old `|` pipe form, bare identifiers, etc.) that the
 // builder dialog can't load. Clicking Convert pipes the source
 // through the backend best-effort migrator and writes the canonical
@@ -601,7 +601,7 @@ const setupTabItems = computed(() => [
 // ── Facet editor dialog ──────────────────────────────────────────────
 // Edits one facet at a time. editingIndex = -1 means "adding a new
 // facet"; ≥0 means "editing the facet at that index in draft.facets".
-// Limits come from the backend via useFacetMeta — no static mirrors.
+// Limits come from the backend via useFacetMeta - no static mirrors.
 const { maxFacets, icons: facetIcons } = useFacetMeta();
 const defaultFacetIcon = computed(() => facetIcons.value[0] ?? "fa-flag");
 const facetEditorOpen = ref(false);
@@ -671,7 +671,7 @@ function confirmDelete() {
     return;
   }
   // Deleting a loop unit removes the whole unit (start + items + stop)
-  // in one step — no separate loopstart/loopstop pair-removal walk is
+  // in one step - no separate loopstart/loopstop pair-removal walk is
   // needed. Orphan markers (rendered as plain field rows) drop
   // individually, which is what the user wants.
   removeUnitByRef(tree.value, u);
@@ -1092,7 +1092,7 @@ setTopbarMenu(() => [
     @close="cleanupOpen = false"
   />
 
-  <!-- Inject PDF frontmatter — form-based wizard (toggles + dropdowns). -->
+  <!-- Inject PDF frontmatter - form-based wizard (toggles + dropdowns). -->
   <InjectPDFFrontmatterDialog
     :open="pdfInjectOpen"
     :template-name="selectedTemplate?.name"
@@ -1100,7 +1100,7 @@ setTopbarMenu(() => [
     @apply="applyInjectedScaffold"
   />
 
-  <!-- Migrate PDF frontmatter — preview the eisvogel→picoloom rewrite
+  <!-- Migrate PDF frontmatter - preview the eisvogel→picoloom rewrite
        alongside a summary of mapped/preserved/warnings. Diff IS the UX
        so this stays as a read-only preview modal. -->
   <Modal

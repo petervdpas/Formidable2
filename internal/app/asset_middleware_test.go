@@ -75,7 +75,7 @@ func TestAPIAssetMiddleware_FallsThroughForAssetPaths(t *testing.T) {
 
 func TestAPIAssetMiddleware_NilAPIIsNoOp(t *testing.T) {
 	// Defensive: if the api handler is somehow nil, the middleware
-	// shouldn't panic — it should fall through to the default chain
+	// shouldn't panic - it should fall through to the default chain
 	// for every request, including /api/*.
 	fallback := markerHandler("assets")
 

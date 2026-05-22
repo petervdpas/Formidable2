@@ -102,7 +102,7 @@ type PDFCoverConfig struct {
 // mutually-exclusive Options to pick from on each record.
 //
 // Each facet on a record carries a required `set` bool plus an
-// optional `selected` label — see storage.FacetState. Filter chips
+// optional `selected` label - see storage.FacetState. Filter chips
 // in the storage view auto-derive from a template's facets but only
 // render when at least one record actually has `set: true` for the
 // facet's key.
@@ -124,7 +124,7 @@ type FacetOption struct {
 }
 
 // Field describes one input in a template. Type-specific properties
-// (run_mode, options, collection, etc.) sit alongside the common ones —
+// (run_mode, options, collection, etc.) sit alongside the common ones -
 // downstream consumers ignore irrelevant fields.
 type Field struct {
 	// Common
@@ -153,7 +153,7 @@ type Field struct {
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 
 	// api-specific. Collection is the source template (filename or
-	// name). Map is the column list — each entry projects one
+	// name). Map is the column list - each entry projects one
 	// level-0 source field into the host form's row at fetch time.
 	// Type is not stored; it is resolved live from the source
 	// template (`source.Fields[Map[i].Key].Type`) so a source-side
@@ -174,7 +174,7 @@ type Field struct {
 //   - Label: optional display header for that column. When empty, the
 //     editor / wiki falls back to the source field's Label.
 //
-// Type is intentionally absent — it is derived live from the source
+// Type is intentionally absent - it is derived live from the source
 // template (`source.Fields[Key].Type`). Storing it here would invite
 // drift if the source template's field type changes.
 type APIMap struct {
@@ -236,7 +236,7 @@ type ItemField struct {
 }
 
 // LoadManyResult is one slot in LoadMany's response. Template is nil
-// when the file was missing or unparseable — Error carries the
+// when the file was missing or unparseable - Error carries the
 // per-row failure message. Filename is always stamped so callers can
 // pair the result back to its input slot even when Template is nil.
 type LoadManyResult struct {

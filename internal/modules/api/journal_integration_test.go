@@ -24,7 +24,7 @@ import (
 // would otherwise drag in SQLite). After a single POST the journal must
 // have one pending entry for the freshly-written form file. If a future
 // refactor introduces a Writer impl that bypasses system.Manager, this
-// test fails — that's the contract we're locking.
+// test fails - that's the contract we're locking.
 func TestPOST_API_WriteIsJournaled(t *testing.T) {
 	root := t.TempDir()
 
@@ -68,13 +68,13 @@ func TestPOST_API_WriteIsJournaled(t *testing.T) {
 	}
 
 	// Real sfr / template / storage chain. storage.Manager satisfies
-	// the api.Writer interface — that's the choke point this test
+	// the api.Writer interface - that's the choke point this test
 	// proves can't be bypassed.
 	sfrM := sfr.NewManager(sysM, nil)
 	tplM := template.NewManager(sysM, tplDir, nil)
 	stoM := storage.NewManager(sysM, sfrM, tplM, stoDir, nil)
 
-	// Stub Provider — same hand-rolled type the unit tests use. The
+	// Stub Provider - same hand-rolled type the unit tests use. The
 	// API only needs IsCollectionEnabled=true and an empty existing
 	// set so the POST resolves to a new item.
 	sp := &stubProvider{
@@ -140,7 +140,7 @@ func TestDELETE_API_WriteIsJournaled(t *testing.T) {
 	}
 	// Pre-existing form so DELETE has something to remove. Written
 	// directly via os.WriteFile (NOT system.Manager) so the journal
-	// stays empty until the API call runs — otherwise we'd be
+	// stays empty until the API call runs - otherwise we'd be
 	// measuring our own setup.
 	formPath := filepath.Join(stoDir, "brood.meta.json")
 	if err := os.WriteFile(formPath, []byte(`{"id":"g-abc","data":{}}`), 0o644); err != nil {

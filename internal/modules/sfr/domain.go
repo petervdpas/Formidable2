@@ -191,7 +191,7 @@ func (m *Manager) decode(raw string, opts Options) any {
 	}
 	var out any
 	if err := json.Unmarshal([]byte(raw), &out); err != nil {
-		// Bad JSON falls through as the raw string — matches the
+		// Bad JSON falls through as the raw string - matches the
 		// "be liberal in what you accept" stance of the JS version,
 		// which also returns the un-parsed string when JSON.parse fails.
 		return raw

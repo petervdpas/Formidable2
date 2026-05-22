@@ -1,4 +1,4 @@
-Feature: REST API — template design endpoint
+Feature: REST API - template design endpoint
   GET /api/collections/{tpl}/design returns the structured template
   design (fields, options, markdown_template, etc.) so API consumers
   can build forms client-side without hitting the YAML directly.

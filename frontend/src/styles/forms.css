@@ -1,4 +1,4 @@
-/* Form layout primitives — sections, rows, labels, descriptions, errors. */
+/* Form layout primitives - sections, rows, labels, descriptions, errors. */
 
 .form-section {
     border: 1px solid var(--color-border);
@@ -42,7 +42,7 @@
     color: var(--color-text-muted, var(--color-text));
 }
 
-/* Inline hint next to the title — same colour family as a help
+/* Inline hint next to the title - same colour family as a help
    description but rendered on the title row so collapsible sections
    can advertise their contents without expanding. */
 .form-section-subtitle {
@@ -96,7 +96,7 @@
     white-space: nowrap;
 }
 
-/* FormSwitchRow — purpose-built layout for SwitchField rows.
+/* FormSwitchRow - purpose-built layout for SwitchField rows.
    Two grid rows under the section's subgrid columns:
      row 1: label | switch  (centred horizontally on the label line)
      row 2: (blank) | description  (muted help text under the toggle)
@@ -169,7 +169,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   .form-field-row — used by FormFieldRow in the Storage workspace.
+   .form-field-row - used by FormFieldRow in the Storage workspace.
    Default: label + description stacked above the input.
    .two-column: label/description column 1, input column 2.
    ───────────────────────────────────────────────────────────────────── */
@@ -205,7 +205,7 @@
 
 .form-field-input-cell { min-width: 0; }
 
-/* Collapsible field — ▶/▼ toggle next to the label hides the input
+/* Collapsible field - ▶/▼ toggle next to the label hides the input
    cell while keeping the label + description visible. Mirrors the
    original Formidable's `applyCollapsibleField`. */
 .collapse-toggle {

@@ -126,7 +126,7 @@ func forbiddenAttributeErrors(fields []Field) []ValidationError {
 		f := fields[i]
 		def, ok := fieldDescriptors[f.Type]
 		if !ok {
-			// Unknown type already reported by unknownTypeErrors —
+			// Unknown type already reported by unknownTypeErrors -
 			// skip the per-attr check so the user sees one error per
 			// problem, not a flood.
 			continue
@@ -319,7 +319,7 @@ func singleTagsError(fields []Field) *ValidationError {
 }
 
 // singleGuidError flags more than one `guid` field in a template.
-// Mirror of singleTagsError — a template's GUID is the addressable
+// Mirror of singleTagsError - a template's GUID is the addressable
 // identity used by the wiki/API resolver, so two guid fields would
 // make IsCollectionEnabled / ResolveByID ambiguous.
 func singleGuidError(fields []Field) *ValidationError {

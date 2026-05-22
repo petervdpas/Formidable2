@@ -23,7 +23,7 @@ import "strings"
 //     known parent close the current block. Lines already indented
 //     past the parent (the user got it right) pass through unchanged.
 //
-// When m.schemas is empty or nil, this is a no-op — yaml.v3 alone
+// When m.schemas is empty or nil, this is a no-op - yaml.v3 alone
 // handles the trivial case.
 func (m *Manager) repairFlatFrontmatter(src string) string {
 	if len(m.schemas) == 0 {

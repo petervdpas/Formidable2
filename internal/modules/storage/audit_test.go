@@ -12,7 +12,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────
-// Sanitize — audit blocks (Created / Updated) round-trip + legacy migration
+// Sanitize - audit blocks (Created / Updated) round-trip + legacy migration
 // ─────────────────────────────────────────────────────────────────────
 
 func TestSanitize_NewShapeRoundTrips(t *testing.T) {
@@ -203,7 +203,7 @@ func TestSanitize_NewShapeWinsOverLegacyFlatInSameMeta(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// SaveForm — author provider + Created preservation on edit
+// SaveForm - author provider + Created preservation on edit
 // ─────────────────────────────────────────────────────────────────────
 
 func newTestStackWithAuthor(t *testing.T, name, email string) (*Manager, *template.Manager) {
@@ -333,7 +333,7 @@ func TestSaveForm_LegacyOnDiskIsMigratedThenPreservedOnEdit(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// SaveForm — ctx-scoped auth.Identity wins over the AuthorProvider
+// SaveForm - ctx-scoped auth.Identity wins over the AuthorProvider
 // (the HTTP API path threads request context; Wails IPC does not)
 // ─────────────────────────────────────────────────────────────────────
 
@@ -372,7 +372,7 @@ func TestSaveForm_InvalidCtxIdentityFallsBackToProvider(t *testing.T) {
 		Fields: []template.Field{{Key: "title", Type: "text"}},
 	})
 
-	// Identity with missing Subject is !Valid() — stamp must ignore it
+	// Identity with missing Subject is !Valid() - stamp must ignore it
 	// and fall through to the AuthorProvider rather than silently
 	// attribute the write to a malformed caller.
 	ctx := auth.WithIdentity(context.Background(), auth.Identity{

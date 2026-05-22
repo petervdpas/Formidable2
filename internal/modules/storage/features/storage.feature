@@ -1,6 +1,6 @@
 Feature: Form storage
   Forms are JSON `.meta.json` files stored at
-  `<context>/storage/<template-name>/`. Each is `{meta, data}` — meta
+  `<context>/storage/<template-name>/`. Each is `{meta, data}` - meta
   carries id/author/template/created/updated/flagged/tags, data carries
   the form-field values. Sanitization (driven by the template's fields)
   fills defaults for missing values.

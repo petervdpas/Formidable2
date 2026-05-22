@@ -1,6 +1,6 @@
 /* Slideout-only preview styles. The HTML preview itself uses
    .formidable-prose (shared with the future internal wiki); this
-   file only carries the slideout-specific framing — markdown source
+   file only carries the slideout-specific framing - markdown source
    block and panel padding. */
 
 .preview-markdown {

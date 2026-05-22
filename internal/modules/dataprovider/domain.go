@@ -18,7 +18,7 @@ type Index interface {
 	Rev() (int64, error)
 }
 
-// Renderer is what dataprovider needs from the render module — just
+// Renderer is what dataprovider needs from the render module - just
 // the (template, datafile) → markdown+HTML pair. Same fake-friendly
 // motivation as Index.
 type Renderer interface {
@@ -26,7 +26,7 @@ type Renderer interface {
 }
 
 // Storage is what dataprovider needs from the storage module to read
-// raw form data — only used by FetchAPIFieldRow today (api-field
+// raw form data - only used by FetchAPIFieldRow today (api-field
 // projection at picker time). Returns nil for missing forms, matching
 // storage.Manager.LoadForm semantics.
 type Storage interface {

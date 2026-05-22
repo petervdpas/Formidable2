@@ -9,7 +9,7 @@ const menus = ref<MenuEntry[]>([]);
 
 /**
  * Register the topbar menu entries for the current workspace. Pass a
- * GETTER, not a value — the getter is re-evaluated whenever any
+ * GETTER, not a value - the getter is re-evaluated whenever any
  * reactive ref it touches changes, so disabled flags / labels stay in
  * sync without manual notifications.
  *
@@ -37,7 +37,7 @@ export function useTopbarMenu() {
 // window level. The current `menus` ref is the single source of
 // truth: when a workspace re-registers menus (disabled flags flip,
 // items appear/disappear), the shortcut index recomputes via the
-// computed below — no manual rebind. We attach the listener once at
+// computed below - no manual rebind. We attach the listener once at
 // module init; menus.value is empty when no workspace is mounted, so
 // the handler is a no-op then.
 

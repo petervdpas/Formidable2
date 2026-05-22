@@ -1,5 +1,5 @@
 Feature: Per-profile index
-  The index is a SQLite cache of disk state — one file per profile,
+  The index is a SQLite cache of disk state - one file per profile,
   built on first run by scanning the context's templates/ and storage/
   trees. After that, in-app writes flow in via per-event hooks
   (template/form save/delete) and external writes (gigot pull, an
@@ -38,7 +38,7 @@ Feature: Per-profile index
 
   # ── External-edit reconciliation (gigot pull) ─────────────────────
 
-  Scenario: Sync added a template — RescanAll picks it up
+  Scenario: Sync added a template - RescanAll picks it up
     Given a template "basic.yaml" on disk with fields:
       | key | type |
       | id  | guid |
@@ -49,7 +49,7 @@ Feature: Per-profile index
     When I run RescanAll
     Then the index lists templates "basic.yaml,looper.yaml"
 
-  Scenario: Sync edited a form — RescanAll re-reads its content
+  Scenario: Sync edited a form - RescanAll re-reads its content
     Given a template "basic.yaml" on disk with fields:
       | key    | type |
       | labels | tags |
@@ -63,7 +63,7 @@ Feature: Per-profile index
     When I run RescanAll
     Then form "one.meta.json" under "basic.yaml" has tags "brand,fresh"
 
-  Scenario: Sync deleted a form — RescanAll removes the row
+  Scenario: Sync deleted a form - RescanAll removes the row
     Given a template "basic.yaml" on disk with fields:
       | key | type |
       | x   | text |
@@ -75,7 +75,7 @@ Feature: Per-profile index
     When I run RescanAll
     Then the index has 0 forms for template "basic.yaml"
 
-  Scenario: Sync deleted the template — cascade wipes its forms
+  Scenario: Sync deleted the template - cascade wipes its forms
     Given a template "basic.yaml" on disk with fields:
       | key | type |
       | x   | text |

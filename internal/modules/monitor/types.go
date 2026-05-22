@@ -1,6 +1,6 @@
 // Package monitor is the generic observation surface over Formidable's
 // internal event streams. One Event shape, multiple Source plug-ins
-// (journal, app log, request log) — the Manager runs typed Query
+// (journal, app log, request log) - the Manager runs typed Query
 // values against any registered source and returns a typed Result.
 //
 // Design:
@@ -9,7 +9,7 @@
 //   - Result{Series, Series.Points or Series.Total} feeds chart components
 //     directly and round-trips cleanly across the Wails bridge.
 //
-// New sources slot in by implementing Source — no Manager surgery, no
+// New sources slot in by implementing Source - no Manager surgery, no
 // new Wails methods. The HTTP handler at /api/monitor/* exposes the
 // same Query shape as JSON for external consumers.
 package monitor
@@ -36,7 +36,7 @@ type Source interface {
 	// against. Stable; chosen at registration time.
 	Name() string
 
-	// Kind is a coarse label for the Source's event domain — used
+	// Kind is a coarse label for the Source's event domain - used
 	// only by ListSources for UI groupings ("journal", "log", "request").
 	Kind() string
 
@@ -63,7 +63,7 @@ const (
 )
 
 // Query is a typed pipeline against one Source. Bin is parsed via
-// time.ParseDuration ("1h", "5m", "24h") — empty/zero means "no time
+// time.ParseDuration ("1h", "5m", "24h") - empty/zero means "no time
 // binning, return one scalar Total per groupKey." JSON shape is used
 // by both the Wails bridge and the HTTP handler.
 type Query struct {

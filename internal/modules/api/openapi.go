@@ -9,7 +9,7 @@ import (
 )
 
 // buildOpenAPISpec assembles the OpenAPI 3.0.3 document. Built from
-// the live template set on every request — Swagger UI consumers see
+// the live template set on every request - Swagger UI consumers see
 // schema changes the moment a template is saved, no regen step.
 //
 // Read-only slice: paths cover GET endpoints only. POST/PUT/PATCH/
@@ -30,7 +30,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	// templateFacets carries the per-stem Facet slice so we can emit
 	// typed facet.<key> query params on per-template list paths after
 	// the generic paths are assembled. Stems without facets aren't
-	// added — keeps the spec lean.
+	// added - keeps the spec lean.
 	templateFacets := map[string][]template.Facet{}
 	for _, t := range tps {
 		if !t.EnableCollection || t.GuidField == "" {
@@ -39,7 +39,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 		full, err := tpl.LoadTemplate(t.Filename)
 		if err != nil || full == nil {
 			// A template can be in the index but missing on disk
-			// (race during deletion). Skip — the spec still reflects
+			// (race during deletion). Skip - the spec still reflects
 			// what's reachable.
 			continue
 		}
@@ -62,7 +62,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 				},
 			},
 		}
-		// Full-replace request body — mirrors POST/PUT shape.
+		// Full-replace request body - mirrors POST/PUT shape.
 		upsertSchemas["Upsert_"+stem] = map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -71,7 +71,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 			},
 			"required": []string{"data"},
 		}
-		// Partial-merge request body — same Data_<stem> properties but
+		// Partial-merge request body - same Data_<stem> properties but
 		// nothing required (PATCH allows omitting any subset).
 		dataSchema := dataSchemas["Data_"+stem].(map[string]any)
 		partialProps := dataSchema["properties"]
@@ -115,7 +115,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	maps.Copy(schemas, upsertSchemas)
 	maps.Copy(schemas, upsertPartialSchemas)
 
-	// Build oneOf-refs across the per-template schemas — used by the
+	// Build oneOf-refs across the per-template schemas - used by the
 	// write paths so a single POST/PUT body schema covers all enabled
 	// templates without having to duplicate the path definition.
 	upsertRefs := []any{}
@@ -185,7 +185,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 // withFacetPaths appends per-template list paths to the spec for any
 // template that declares facets. Each path mirrors GET /collections/
 // {template} but adds typed facet.<key> query params with the
-// template's option labels as an enum — so Swagger UI shows a real
+// template's option labels as an enum - so Swagger UI shows a real
 // dropdown per facet instead of a generic string box. Templates with
 // no facets are unaffected (no per-template path emitted; the generic
 // /collections/{template} entry still serves them).
@@ -255,7 +255,7 @@ func withFacetPaths(paths map[string]any, facetsByStem map[string][]template.Fac
 	return paths
 }
 
-// pathsForFullAPI declares every route the package serves — read +
+// pathsForFullAPI declares every route the package serves - read +
 // write. Refs into components/parameters keep the bodies short and
 // the templated values stay deduped. The per-template upsertRefs /
 // upsertPartialRefs / itemRefs slices are used as `oneOf` lists so
@@ -324,7 +324,7 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /api/images/{template}/{filename} — image bytes (or data URL).
+	// /api/images/{template}/{filename} - image bytes (or data URL).
 	paths["/images/{template}/{filename}"] = map[string]any{
 		"get": map[string]any{
 			"summary":     "Fetch image bytes (or data URL)",
@@ -364,7 +364,7 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /collections/{template} — extend the existing GET entry with POST.
+	// /collections/{template} - extend the existing GET entry with POST.
 	if entry, ok := paths["/collections/{template}"].(map[string]any); ok {
 		entry["post"] = map[string]any{
 			"summary":     "Create item (or upsert with ?upsert=true)",
@@ -381,7 +381,7 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		}
 	}
 
-	// /collections/{template}/{id} — extend the existing GET/HEAD with
+	// /collections/{template}/{id} - extend the existing GET/HEAD with
 	// PUT/PATCH/DELETE.
 	if entry, ok := paths["/collections/{template}/{id}"].(map[string]any); ok {
 		entry["put"] = map[string]any{
@@ -421,7 +421,7 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		}
 	}
 
-	// /collections/{template}/{id}/field/{key} — single-field PATCH.
+	// /collections/{template}/{id}/field/{key} - single-field PATCH.
 	paths["/collections/{template}/{id}/field/{key}"] = map[string]any{
 		"patch": map[string]any{
 			"summary":    "Update a single field by key",
@@ -444,7 +444,7 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /collections/{template}/batch — bulk apply.
+	// /collections/{template}/batch - bulk apply.
 	paths["/collections/{template}/batch"] = map[string]any{
 		"post": map[string]any{
 			"summary":     "Bulk create / replace / merge",
@@ -534,7 +534,7 @@ func pathsForReadAPI() map[string]any {
 		"/collections/{template}": map[string]any{
 			"get": map[string]any{
 				"summary":     "List items in a collection (paged)",
-				"description": "Accepts optional `facet.<key>=LABEL` query params for per-facet AND filtering. Templates that declare facets also expose a typed literal path `/collections/<stem>` with each facet's options as a query-param enum — use that for Swagger UI dropdowns.",
+				"description": "Accepts optional `facet.<key>=LABEL` query params for per-facet AND filtering. Templates that declare facets also expose a typed literal path `/collections/<stem>` with each facet's options as a query-param enum - use that for Swagger UI dropdowns.",
 				"parameters": []any{
 					param("TemplateParam"),
 					queryInt("limit", 100),
@@ -705,7 +705,7 @@ func dataSchemaForTemplate(t *template.Template) map[string]any {
 
 // fieldToProperty maps a single template.Field to a JSON Schema entry
 // (key + body). Container fields (loopstart/loopstop) return ("", nil)
-// — they're not stored in form data.
+// - they're not stored in form data.
 func fieldToProperty(f template.Field) (string, map[string]any) {
 	schema := map[string]any{}
 	switch f.Type {
@@ -801,7 +801,7 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 		schema["type"] = "string"
 	}
 	if f.Description != "" {
-		// Don't clobber a type-specific description (image/api/etc.) —
+		// Don't clobber a type-specific description (image/api/etc.) -
 		// only set when we haven't already.
 		if _, has := schema["description"]; !has {
 			schema["description"] = f.Description
@@ -1115,7 +1115,7 @@ func schemaTemplateDesign() map[string]any {
 			},
 			"facets": map[string]any{
 				"type":        "array",
-				"description": "Filter contract — the same payload served by /collections/{tpl}/facets. Omitted for templates without facets.",
+				"description": "Filter contract - the same payload served by /collections/{tpl}/facets. Omitted for templates without facets.",
 				"items":       map[string]any{"$ref": "#/components/schemas/FacetDefinition"},
 			},
 		},
@@ -1153,7 +1153,7 @@ func schemaFacetOption() map[string]any {
 func schemaFacetsResponse() map[string]any {
 	return map[string]any{
 		"type":        "object",
-		"description": "Body of GET /collections/{tpl}/facets — the template's filter contract.",
+		"description": "Body of GET /collections/{tpl}/facets - the template's filter contract.",
 		"properties": map[string]any{
 			"template": map[string]any{"type": "string"},
 			"facets": map[string]any{

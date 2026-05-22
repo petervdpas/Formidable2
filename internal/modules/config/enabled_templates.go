@@ -17,7 +17,7 @@ type TemplateLister interface {
 
 // SetTemplateLister installs the live template-folder lister used for
 // self-healing the EnabledTemplates slice. Pass nil to disable
-// reconciliation — IsTemplateEnabled/FilterEnabled still work against
+// reconciliation - IsTemplateEnabled/FilterEnabled still work against
 // the cached config slice.
 func (m *Manager) SetTemplateLister(l TemplateLister) {
 	m.mu.Lock()
@@ -27,7 +27,7 @@ func (m *Manager) SetTemplateLister(l TemplateLister) {
 
 // IsTemplateEnabled reports whether the given template filename is in the
 // active profile's EnabledTemplates list. Empty/nil list semantically means
-// "all templates enabled" — the design's opt-in switch — so this returns
+// "all templates enabled" - the design's opt-in switch - so this returns
 // true for any non-empty name in that case. Empty name is always false.
 //
 // Reads cached config; does NOT reconcile. Callers wanting the post-prune
@@ -80,7 +80,7 @@ func (m *Manager) FilterEnabled(filenames []string) []string {
 // Settings → Templates.
 //
 // Why guarded on "opted into curation":
-//   - Empty/nil EnabledTemplates means "all enabled" — adding the
+//   - Empty/nil EnabledTemplates means "all enabled" - adding the
 //     filename would flip the profile into curation mode, which is a
 //     bigger semantic change than the user asked for. Stay no-op.
 //   - Populated list means the user explicitly curated. They just
@@ -149,7 +149,7 @@ func normalizeSelectedTemplate(cfg *Config) bool {
 // filenames (for logging / future audit; current callers ignore it).
 //
 // `existing` is treated as the source of truth for "what's on disk right
-// now" — passing nil prunes every entry, which is correct: nothing on
+// now" - passing nil prunes every entry, which is correct: nothing on
 // disk means nothing to enable. Callers must therefore pass the live
 // template list, not a possibly-stale snapshot.
 //
@@ -195,7 +195,7 @@ func (m *Manager) PruneEnabledTemplates(existing []string) ([]string, error) {
 // post-prune slice; persists only if anything changed.
 //
 // Without a TemplateLister this is a no-op that returns the current
-// EnabledTemplates unchanged — keeps tests + non-template contexts
+// EnabledTemplates unchanged - keeps tests + non-template contexts
 // runnable without panicking.
 func (m *Manager) ReconcileEnabledTemplates() ([]string, error) {
 	m.mu.RLock()
@@ -223,7 +223,7 @@ func (m *Manager) ReconcileEnabledTemplates() ([]string, error) {
 
 	// Re-read post-prune so callers see the persisted state, not the
 	// pre-prune cache. PruneEnabledTemplates went through UpdateUserConfig,
-	// which already ran normalizeSelectedTemplate — so SelectedTemplate is
+	// which already ran normalizeSelectedTemplate - so SelectedTemplate is
 	// guaranteed-coherent at this point. The reload here just surfaces
 	// the post-prune EnabledTemplates slice.
 	cfg2, err := m.LoadUserConfig()
@@ -243,7 +243,7 @@ func (m *Manager) ReconcileEnabledTemplates() ([]string, error) {
 //     the (post-prune) slice, preserving the live folder's order so
 //     the picker order is deterministic and matches the editor.
 //
-// Without a TemplateLister wired, returns an empty slice + nil — the
+// Without a TemplateLister wired, returns an empty slice + nil - the
 // frontend treats that as "nothing to pick from", which is the safe
 // fallback when the host hasn't wired the dependency.
 func (m *Manager) ListEnabledTemplates() ([]string, error) {
@@ -278,7 +278,7 @@ func (m *Manager) ListEnabledTemplates() ([]string, error) {
 	if len(cfg2.EnabledTemplates) == 0 {
 		// Pruning emptied the slice (every enabled template was deleted
 		// out from under us). Per "empty = all enabled" we expose every
-		// remaining file — same as never having opted in. The settings
+		// remaining file - same as never having opted in. The settings
 		// panel will reflect the now-empty slice.
 		return existing, nil
 	}

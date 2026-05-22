@@ -11,7 +11,7 @@ import (
 // MigrateTemplateMeta walks every form under the given template's
 // storage folder and rewrites legacy meta shape (flat author_name /
 // author_email + string-typed created / updated) into the new
-// AuditEntry pair. Files already in the new shape are skipped — the
+// AuditEntry pair. Files already in the new shape are skipped - the
 // disk file is untouched, mtime preserved, no git churn.
 //
 // Migration is structural, not authorship: the legacy author appears
@@ -71,7 +71,7 @@ func (m *Manager) MigrateTemplateMeta(templateFilename string) (MigrateResult, e
 // needsMetaMigration inspects the raw bytes of a `.meta.json` file and
 // returns true when at least one legacy marker is present in its meta
 // block. Markers: flat `author_name` / `author_email` keys, or string
-// (rather than object) values for `created` / `updated`. Cheap parse —
+// (rather than object) values for `created` / `updated`. Cheap parse -
 // we only decode the meta sub-object as map[string]any.
 //
 // Anything that isn't an envelope-shaped {meta:{...}, data:...} JSON

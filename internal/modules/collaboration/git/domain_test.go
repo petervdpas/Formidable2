@@ -389,7 +389,7 @@ func TestLogGraph_ReturnsCommitsWithParentsAndHeadRef(t *testing.T) {
 		t.Errorf("first should have no parents, got %v", commits[2].Parents)
 	}
 	// HEAD pill on the topmost commit. Branch name varies (master /
-	// main) — accept either.
+	// main) - accept either.
 	headRefs := commits[0].Refs
 	if len(headRefs) == 0 {
 		t.Errorf("expected HEAD ref on top commit, got none")
@@ -755,7 +755,7 @@ func TestClone_ErrorOnInvalidURL(t *testing.T) {
 // ─── Clone auth (HTTP) ────────────────────────────────────────────────
 //
 // httptest spins up a real HTTP server in-process. We don't speak the
-// full Git smart-HTTP protocol — just capture the Authorization
+// full Git smart-HTTP protocol - just capture the Authorization
 // header on the very first /info/refs request and 401 it. That's
 // enough to prove go-git's BasicAuth wiring puts the PAT on the wire
 // in the right shape, and works the same way for any provider
@@ -792,7 +792,7 @@ func TestClone_PAT_SendsBasicAuthHeader(t *testing.T) {
 	srv, getAuth := captureAuthHeader(t)
 	m := NewManager()
 	dest := filepath.Join(t.TempDir(), "x")
-	// Expected to fail (server returns 401) — we only care that the
+	// Expected to fail (server returns 401) - we only care that the
 	// header was put on the wire correctly.
 	_, _ = m.Clone(CloneOptions{
 		URL:  srv.URL + "/contoso/repo.git",
@@ -815,7 +815,7 @@ func TestClone_NoPAT_SendsNoAuthHeader(t *testing.T) {
 	_, _ = m.Clone(CloneOptions{
 		URL:  srv.URL + "/repo.git",
 		Dest: dest,
-		// PAT intentionally empty — anonymous clone.
+		// PAT intentionally empty - anonymous clone.
 	})
 
 	if got := getAuth(); got != "" {
@@ -825,7 +825,7 @@ func TestClone_NoPAT_SendsNoAuthHeader(t *testing.T) {
 
 func TestClone_PAT_ReturnsErrorOn401(t *testing.T) {
 	// Wrong PAT (or any 401 from the server) must surface as an
-	// error from Clone — UI relies on this to show the failure
+	// error from Clone - UI relies on this to show the failure
 	// toast and not advance state as if the clone succeeded.
 	srv, _ := captureAuthHeader(t)
 	m := NewManager()
@@ -864,7 +864,7 @@ func TestClone_PAT_AzureDevOpsURLShape(t *testing.T) {
 // ─── Commit ────────────────────────────────────────────────────────────
 
 // TestCommit_PropagatesAuthor verifies that the commit metadata
-// reflects the supplied author + email — important because the UI
+// reflects the supplied author + email - important because the UI
 // reads these from config.author_name / config.author_email and we
 // want to surface "this came from this user" in the log.
 func TestCommit_PropagatesAuthor(t *testing.T) {
@@ -979,7 +979,7 @@ func TestStatus_BehindCountsRemoteCommits(t *testing.T) {
 
 	// Rewind the master branch ref to h2 so HEAD (symbolic →
 	// refs/heads/master) resolves to h2. The tracking ref stays at
-	// h3 — making the local 1 commit behind remote.
+	// h3 - making the local 1 commit behind remote.
 	if err := r.Storer.SetReference(plumbing.NewHashReference(
 		plumbing.NewBranchReferenceName("master"), h2,
 	)); err != nil {
@@ -1010,7 +1010,7 @@ func makeBareRepo(t *testing.T) string {
 	// Seed the bare repo by cloning a non-bare working repo into it
 	// via a temporary intermediate repo. Easiest: make a non-bare,
 	// commit, then push. But we don't have Push yet at the test-helper
-	// level — go-git's clone supports bare though.
+	// level - go-git's clone supports bare though.
 	// Simplest path: init bare, then clone-from-it-and-push-back is a
 	// chicken-and-egg. Instead, create a working repo, push to bare
 	// using go-git directly here.
@@ -1093,9 +1093,9 @@ func TestPush_AdvancesRemote(t *testing.T) {
 		t.Fatal(err)
 	}
 	if bh.Hash() == plumbing.ZeroHash {
-		t.Error("bare HEAD is zero — push did not advance remote")
+		t.Error("bare HEAD is zero - push did not advance remote")
 	}
-	// NewHead is the local HEAD that's now on the remote — must match.
+	// NewHead is the local HEAD that's now on the remote - must match.
 	if res.NewHead != bh.Hash().String() {
 		t.Errorf("PushResult.NewHead = %q, want %q (remote HEAD)", res.NewHead, bh.Hash().String())
 	}
@@ -1215,7 +1215,7 @@ func TestPush_PAT_BasicAuth(t *testing.T) {
 
 	// Set up a local working repo with the test server as origin so
 	// the push attempt actually fires HTTPS auth. The server returns
-	// 401 — we just want to capture the Authorization header.
+	// 401 - we just want to capture the Authorization header.
 	work := t.TempDir()
 	wr, err := gogit.PlainInit(work, false)
 	if err != nil {
@@ -1354,7 +1354,7 @@ func TestPull_RefusesNonRepoPath(t *testing.T) {
 func TestPull_RefusesDivergentHistory(t *testing.T) {
 	// go-git's Worktree.Pull is fast-forward only. When local and
 	// remote both have unique commits since their merge base, Pull
-	// returns an error and the local HEAD must NOT move — partial
+	// returns an error and the local HEAD must NOT move - partial
 	// merge would be a data-loss footgun. The frontend uses a
 	// separate AlertDialog to explain this to the user before they
 	// even try; this test locks the backend contract so any future
@@ -1391,7 +1391,7 @@ func TestPull_RefusesDivergentHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Advance the local without first fetching the remote — branch
+	// Advance the local without first fetching the remote - branch
 	// is now diverged from origin/master by one commit each side.
 	if err := os.WriteFile(filepath.Join(work, "local.txt"), []byte("l"), 0o644); err != nil {
 		t.Fatal(err)
@@ -1467,7 +1467,7 @@ func TestPull_RefusesDirtyWorktree(t *testing.T) {
 	}
 
 	// Dirty the local worktree by modifying the seed file (which
-	// already exists at HEAD — that's the case go-git refuses).
+	// already exists at HEAD - that's the case go-git refuses).
 	if err := os.WriteFile(filepath.Join(work, "seed.txt"), []byte("dirty"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1478,7 +1478,7 @@ func TestPull_RefusesDirtyWorktree(t *testing.T) {
 		t.Errorf("expected error pulling onto dirty worktree, got result=%+v", res)
 	}
 
-	// Local HEAD must NOT have advanced — partial pull would be a
+	// Local HEAD must NOT have advanced - partial pull would be a
 	// data-loss footgun. We verify by comparing against the
 	// pre-pull HEAD.
 	beforeHead, _ := wr.Head()
@@ -1626,7 +1626,7 @@ func TestFetch_AuthFailureIsAnError(t *testing.T) {
 }
 
 func TestFetch_PAT_BasicAuth(t *testing.T) {
-	// Mirrors TestPush_PAT_BasicAuth — the 401 server captures the
+	// Mirrors TestPush_PAT_BasicAuth - the 401 server captures the
 	// Authorization header from the very first /info/refs call,
 	// independent of which Smart-HTTP service the client requested.
 	srv, getAuth := captureAuthHeader(t)
@@ -1661,7 +1661,7 @@ func TestFetch_PAT_BasicAuth(t *testing.T) {
 
 func TestStatus_AheadBehindDivergent(t *testing.T) {
 	// Local and remote share an ancestor but each have unique
-	// commits afterwards — the classic "needs merge" shape. Both
+	// commits afterwards - the classic "needs merge" shape. Both
 	// counts must be > 0.
 	dir, r := newRepo(t)
 	hShared := addCommit(t, dir, r, "a.txt", "v1", "shared")
@@ -1707,7 +1707,7 @@ func TestStatus_AheadBehindDivergent(t *testing.T) {
 
 func TestStatus_EmptyRepoHasNoAheadBehind(t *testing.T) {
 	// Fresh repo, no commits yet. Status must succeed with zero
-	// counts — empty/HEAD-less repos are an early-onboarding state
+	// counts - empty/HEAD-less repos are an early-onboarding state
 	// the UI hits before the first commit.
 	dir, _ := newRepo(t)
 
@@ -1729,7 +1729,7 @@ func TestStatus_EmptyRepoHasNoAheadBehind(t *testing.T) {
 // TestDiscard_StagedAddRemovesFromWorktreeAndIndex covers the
 // "I added a new file to the index but want to throw it away"
 // path. The file isn't in HEAD, so Discard must remove it from
-// both the worktree and the index — not just unstage it.
+// both the worktree and the index - not just unstage it.
 func TestDiscard_StagedAddRemovesFromWorktreeAndIndex(t *testing.T) {
 	dir, r := newRepo(t)
 	addCommit(t, dir, r, "a.txt", "anchor", "first")
@@ -1765,7 +1765,7 @@ func TestDiscard_StagedAddRemovesFromWorktreeAndIndex(t *testing.T) {
 	}
 }
 
-// TestCommit_RefusesDetachedHEAD covers the headless-checkout path —
+// TestCommit_RefusesDetachedHEAD covers the headless-checkout path -
 // not exposed by our UI today, but cheap to lock down so a future
 // "checkout this commit" feature has to make an explicit decision
 // about whether to allow committing detached.
@@ -1797,7 +1797,7 @@ func TestCommit_RefusesDetachedHEAD(t *testing.T) {
 // ─── PullWithStash ────────────────────────────────────────────────────
 //
 // PullWithStash is the journal-aware auto-stash + pull + restore. The
-// pending manifest is the authoritative dirty list — narrower than
+// pending manifest is the authoritative dirty list - narrower than
 // `git status` so external edits in unrelated files are out of scope.
 //
 // Each test sets up:
@@ -1823,7 +1823,7 @@ func pullWithStashFixture(t *testing.T) (clientDir, bareDir string) {
 
 // advanceBare adds a commit to the bare repo via a side clone so the
 // fixture's primary client has something to pull. Optional content
-// overrides — pass paths and contents to write before commit.
+// overrides - pass paths and contents to write before commit.
 func advanceBare(t *testing.T, bare string, paths, contents []string) {
 	t.Helper()
 	if len(paths) != len(contents) {
@@ -1857,7 +1857,7 @@ func advanceBare(t *testing.T, bare string, paths, contents []string) {
 	}
 }
 
-// TestPullWithStash_CleanRestore — user dirtied seed.txt, remote
+// TestPullWithStash_CleanRestore - user dirtied seed.txt, remote
 // added an unrelated remote.txt. Stash pulls the new file, then
 // re-applies the user's seed.txt edit cleanly. No conflicts.
 func TestPullWithStash_CleanRestore(t *testing.T) {
@@ -1911,7 +1911,7 @@ func TestPullWithStash_CleanRestore(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_OverrideOnNonRecord — user dirtied seed.txt
+// TestPullWithStash_OverrideOnNonRecord - user dirtied seed.txt
 // (NOT a Formidable record file), remote also rewrote it. recmerge
 // can only handle .meta.json paths, so seed.txt falls through to the
 // "pull wins" branch. The user's change is dropped silently; the
@@ -1958,13 +1958,13 @@ func TestPullWithStash_OverrideOnNonRecord(t *testing.T) {
 		t.Errorf("worktree seed.txt = %q, want %q", string(got), "remote-edit")
 	}
 
-	// Stash dir is always trashed — Overridden is the only signal.
+	// Stash dir is always trashed - Overridden is the only signal.
 	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
 		t.Errorf("stash dir survived override: %v", err)
 	}
 }
 
-// TestPullWithStash_NoPending — pending list is empty. The stash flow
+// TestPullWithStash_NoPending - pending list is empty. The stash flow
 // degrades to a normal pull; no .changes.stash dir is created.
 func TestPullWithStash_NoPending(t *testing.T) {
 	work, bare := pullWithStashFixture(t)
@@ -1989,7 +1989,7 @@ func TestPullWithStash_NoPending(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_PullFails_Network — the pull fails (auth 401).
+// TestPullWithStash_PullFails_Network - the pull fails (auth 401).
 // Worktree paths reset to HEAD, but the user's stashed content is
 // re-applied as a courtesy so no data is lost. Stash dir is removed
 // when restore covers everything.
@@ -2032,7 +2032,7 @@ func TestPullWithStash_PullFails_Network(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_DetachedHEAD — must reject early with no side
+// TestPullWithStash_DetachedHEAD - must reject early with no side
 // effects. No stash dir created.
 func TestPullWithStash_DetachedHEAD(t *testing.T) {
 	work, _ := pullWithStashFixture(t)
@@ -2058,7 +2058,7 @@ func TestPullWithStash_DetachedHEAD(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_EmptyPath — must error before any worktree work.
+// TestPullWithStash_EmptyPath - must error before any worktree work.
 func TestPullWithStash_EmptyPath(t *testing.T) {
 	m := NewManager()
 	_, err := m.PullWithStash(PullWithStashOptions{
@@ -2069,7 +2069,7 @@ func TestPullWithStash_EmptyPath(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_NewFile — user created a new file (no HEAD blob).
+// TestPullWithStash_NewFile - user created a new file (no HEAD blob).
 // Snapshot captures it, reset removes it from worktree, pull runs,
 // restore writes it back. No conflict (HEAD didn't have it before
 // or after).
@@ -2106,7 +2106,7 @@ func TestPullWithStash_NewFile(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_DeleteOp — user deleted seed.txt, pull doesn't
+// TestPullWithStash_DeleteOp - user deleted seed.txt, pull doesn't
 // touch it. Restore re-applies the deletion (file stays gone).
 func TestPullWithStash_DeleteOp(t *testing.T) {
 	work, bare := pullWithStashFixture(t)
@@ -2135,10 +2135,10 @@ func TestPullWithStash_DeleteOp(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_DoesNotClobberUnrelatedDirt — file outside the
+// TestPullWithStash_DoesNotClobberUnrelatedDirt - file outside the
 // pending manifest stays exactly as-is across the stash/pull/restore
 // cycle. (Pull would refuse a dirty worktree, so we use a path that
-// doesn't conflict with pull — something pull never touches.)
+// doesn't conflict with pull - something pull never touches.)
 func TestPullWithStash_DoesNotClobberUnrelatedDirt(t *testing.T) {
 	work, bare := pullWithStashFixture(t)
 
@@ -2171,7 +2171,7 @@ func TestPullWithStash_DoesNotClobberUnrelatedDirt(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_RejectsTraversalPaths — a pending entry with ".."
+// TestPullWithStash_RejectsTraversalPaths - a pending entry with ".."
 // must be silently dropped from the snapshot manifest, not allowed to
 // escape the worktree.
 func TestPullWithStash_RejectsTraversalPaths(t *testing.T) {
@@ -2194,7 +2194,7 @@ func TestPullWithStash_RejectsTraversalPaths(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_FiltersStaleEntries — the journal logs every
+// TestPullWithStash_FiltersStaleEntries - the journal logs every
 // write through system.SaveFile, so files that were locally committed
 // but never pushed sit in pending until the next sync (cursor only
 // advances on push/RemoteSeen, not commit). Their on-disk content
@@ -2206,7 +2206,7 @@ func TestPullWithStash_RejectsTraversalPaths(t *testing.T) {
 func TestPullWithStash_FiltersStaleEntries(t *testing.T) {
 	work, bare := pullWithStashFixture(t)
 	advanceBare(t, bare, []string{"new.txt"}, []string{"x"})
-	// seed.txt left as-is — disk content "seed" matches HEAD blob.
+	// seed.txt left as-is - disk content "seed" matches HEAD blob.
 
 	m := NewManager()
 	res, err := m.PullWithStash(PullWithStashOptions{
@@ -2229,7 +2229,7 @@ func TestPullWithStash_FiltersStaleEntries(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_FiltersMixedStaleAndReal — when pending mixes
+// TestPullWithStash_FiltersMixedStaleAndReal - when pending mixes
 // real dirt with stale entries, only the dirt is stashed.
 func TestPullWithStash_FiltersMixedStaleAndReal(t *testing.T) {
 	work, bare := pullWithStashFixture(t)
@@ -2263,7 +2263,7 @@ func TestPullWithStash_FiltersMixedStaleAndReal(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_OverrideReadsTemplateAuthor — when the override
+// TestPullWithStash_OverrideReadsTemplateAuthor - when the override
 // path is a templates/<name>.yaml file with author_name/author_email
 // populated (as SaveTemplate now writes), stashMergeOrOverride pulls
 // the author info from the YAML directly instead of walking git log.
@@ -2305,7 +2305,7 @@ func TestPullWithStash_OverrideReadsTemplateAuthor(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_AutoMergeOnRecord — both sides edit the same
+// TestPullWithStash_AutoMergeOnRecord - both sides edit the same
 // .meta.json record but on different fields. recmerge.Merge reconciles
 // per-field; merged content lands on disk. No override, no conflict.
 func TestPullWithStash_AutoMergeOnRecord(t *testing.T) {
@@ -2327,7 +2327,7 @@ func TestPullWithStash_AutoMergeOnRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Remote edits the title. (Theirs) — pushed into bare via side clone.
+	// Remote edits the title. (Theirs) - pushed into bare via side clone.
 	theirsJSON := `{"meta":{"id":"r","template":"notes","created":"2025-01-01T00:00:00Z","updated":"2025-02-01T00:00:00Z"},"data":{"title":"Hello Remote","body":"orig"}}`
 	advanceBare(t, bare, []string{recordPath}, []string{theirsJSON})
 
@@ -2349,7 +2349,7 @@ func TestPullWithStash_AutoMergeOnRecord(t *testing.T) {
 
 	// On-disk file should hold both edits: title from theirs + body
 	// from yours. yours has the newer meta.updated (2025-03-01 > 2025-02-01),
-	// so on the title field where neither matches base, yours wins —
+	// so on the title field where neither matches base, yours wins -
 	// but actually theirs has "Hello Remote" and yours has "Hello"
 	// (matching base), so theirs is the only-changed side and stands.
 	got, err := os.ReadFile(filepath.Join(work, recordPath))
@@ -2368,18 +2368,18 @@ func TestPullWithStash_AutoMergeOnRecord(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_AutoMergeMixedRecords — two records in one pull:
+// TestPullWithStash_AutoMergeMixedRecords - two records in one pull:
 //
 //   - record A: yours edits one field, theirs edits a DIFFERENT field
 //     of the same record. recmerge takes the changed side per field;
 //     both edits survive.
 //   - record B: yours and theirs edit the SAME field with different
-//     values. recmerge falls to LWW on meta.updated — yours's stamp
+//     values. recmerge falls to LWW on meta.updated - yours's stamp
 //     is newer, so yours wins for that field. The other field that
 //     only theirs changed still goes to theirs (LWW only kicks in
 //     for both-changed).
 //
-// Single pull, single PullWithStash call — the run produces two
+// Single pull, single PullWithStash call - the run produces two
 // AutoMerged entries, no Overridden, no Restored conflicts.
 func TestPullWithStash_AutoMergeMixedRecords(t *testing.T) {
 	work, bare := pullWithStashFixture(t)
@@ -2395,7 +2395,7 @@ func TestPullWithStash_AutoMergeMixedRecords(t *testing.T) {
 		t.Fatalf("seed pull: %v", err)
 	}
 
-	// User edits — locally on disk:
+	// User edits - locally on disk:
 	//   recA: change `title` only (theirs will change `body`).
 	//   recB: change `title` (theirs will change `title` differently).
 	// Yours's meta.updated is newer than theirs's so the LWW tiebreak
@@ -2409,7 +2409,7 @@ func TestPullWithStash_AutoMergeMixedRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Remote edits — pushed into bare via a side clone:
+	// Remote edits - pushed into bare via a side clone:
 	//   recA: change `body` only (disjoint vs yours).
 	//   recB: change `title` differently AND change `body` (overlap on
 	//     title; body is theirs-only).
@@ -2461,7 +2461,7 @@ func TestPullWithStash_AutoMergeMixedRecords(t *testing.T) {
 	// via the merged meta.updated being max(yours, theirs).)
 }
 
-// TestPullWithStash_AutoMergeSameFieldTheirsWins — symmetric LWW:
+// TestPullWithStash_AutoMergeSameFieldTheirsWins - symmetric LWW:
 // when theirs has the newer meta.updated, the shared field falls to
 // theirs. Locks the contract that LWW is symmetric, not yours-biased.
 func TestPullWithStash_AutoMergeSameFieldTheirsWins(t *testing.T) {
@@ -2506,7 +2506,7 @@ func TestPullWithStash_AutoMergeSameFieldTheirsWins(t *testing.T) {
 	}
 }
 
-// TestPullWithStash_OverrideOnImmutableMeta — both sides changed the
+// TestPullWithStash_OverrideOnImmutableMeta - both sides changed the
 // `created` field (an immutable meta key). recmerge returns
 // RecordConflict; we fall through to "pull wins, drop user, capture
 // author".
@@ -2571,7 +2571,7 @@ func w0PullFromBare(work string) (*PullResult, error) {
 	return &PullResult{NewHead: h.Hash().String()}, nil
 }
 
-// TestPullWithStash_SweepsLeftoverStashAtStart — a previous run that
+// TestPullWithStash_SweepsLeftoverStashAtStart - a previous run that
 // crashed mid-flow can leave a .changes.stash/ behind. PullWithStash
 // nukes it before phase 1 so stale snapshot files don't mix with the
 // fresh manifest.
@@ -2598,14 +2598,14 @@ func TestPullWithStash_SweepsLeftoverStashAtStart(t *testing.T) {
 	}
 
 	// The leftover ghost file (and the whole .changes.stash/) must be
-	// gone after the run — sweep at start + no fresh entries to write
+	// gone after the run - sweep at start + no fresh entries to write
 	// = no stash dir survives.
 	if _, err := os.Stat(filepath.Join(work, stashSubdir)); !os.IsNotExist(err) {
 		t.Errorf("PullWithStash did not sweep leftover .changes.stash: %v", err)
 	}
 }
 
-// TestPullWithStash_AlreadyUpToDate — pending changes exist but the
+// TestPullWithStash_AlreadyUpToDate - pending changes exist but the
 // remote is unchanged. Pull is a no-op (ATU); restore returns the
 // stash content (we still wrote the worktree to HEAD before pull,
 // then put it back).

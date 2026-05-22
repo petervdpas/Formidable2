@@ -28,7 +28,7 @@ const props = defineProps<{
   /** The field being edited. Null/undefined opens the modal in
    *  create mode with an empty draft. */
   field: Field | null;
-  /** True when adding a new field — surfaces `looper` in the type
+  /** True when adding a new field - surfaces `looper` in the type
    *  dropdown and changes the title to "Add Field". */
   isNew?: boolean;
   /** Optional whitelist of type ids the user is allowed to pick.
@@ -47,7 +47,7 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const toast = useToast();
 
-// Local working copy. We don't mutate props.field directly — only
+// Local working copy. We don't mutate props.field directly - only
 // commit changes when the user clicks Confirm.
 const draft = ref<Field | null>(null);
 
@@ -76,7 +76,7 @@ watch(
 );
 
 function emptyDraft(): Field {
-  // Sensible starting shape — text type, blank key/label.
+  // Sensible starting shape - text type, blank key/label.
   return {
     key: "",
     type: "text",
@@ -104,7 +104,7 @@ const typeOptions = computed(() => {
   if (props.allowedTypes && props.allowedTypes.length > 0) {
     const allow = new Set(props.allowedTypes);
     // Always keep the current type even if it's outside the
-    // whitelist — switching away from it is fine, but we shouldn't
+    // whitelist - switching away from it is fine, but we shouldn't
     // hide the row's own type label while it's still selected.
     types = types.filter(
       (t) => allow.has(t.id) || t.id === draft.value?.type,
@@ -117,7 +117,7 @@ const typeOptions = computed(() => {
 });
 
 // Type-driven defaults. When the user (or the initial seed) lands on
-// textarea, Format should be "markdown" — that's what the dropdown
+// textarea, Format should be "markdown" - that's what the dropdown
 // shows by default, and it's what the original Formidable saves to
 // YAML. Without this, an empty draft confirms with format unset.
 watch(
@@ -135,7 +135,7 @@ function showRow(row: FieldEditRowId): boolean {
   return !isRowHidden(draft.value.type || "text", row);
 }
 
-// Default value editor — type-aware. For string types, plain input.
+// Default value editor - type-aware. For string types, plain input.
 // For booleans, the "default" doesn't really exist (omit). For lists/
 // tables/tags it's a textarea (CSV / JSON, free-form for now).
 // Field.collapsible is nullable (*bool on the Go side, omitempty),
@@ -159,7 +159,7 @@ const defaultAsString = computed({
   set: (v: string) => {
     if (!draft.value) return;
     // Backend `template.Normalize` (called on SaveTemplate) is the
-    // authoritative type-coercion pass — number/range string → float,
+    // authoritative type-coercion pass - number/range string → float,
     // boolean string → bool, tags/multioption/list string → array.
     // Mirroring it here would be duplication and a source of drift,
     // so the modal just stores the raw text; the round-trip restores
@@ -168,7 +168,7 @@ const defaultAsString = computed({
   },
 });
 
-// Options — per-type column structure (boolean uses [value,label],
+// Options - per-type column structure (boolean uses [value,label],
 // list uses [type,value,label], table uses [key,type,label], etc.).
 // Types not in the supported set get a "not available" message.
 const optionsSupported = computed(() => SUPPORTED_OPTION_TYPES.has(draft.value?.type || ""));
@@ -202,7 +202,7 @@ function submit() {
   emit("confirm", draft.value);
 }
 
-// Badge in the modal header — uses the per-type badge color so it
+// Badge in the modal header - uses the per-type badge color so it
 // pops on the type-tinted dialog floor.
 const typePillStyle = computed(() => {
   const type = draft.value?.type || "text";
@@ -212,7 +212,7 @@ const typePillStyle = computed(() => {
   };
 });
 
-// Per-type dialog tint — the modal's full background takes the field
+// Per-type dialog tint - the modal's full background takes the field
 // type color, matching the original Formidable UX. Form labels +
 // borders pick the right contrast via .modal-dialog.tinted overrides
 // in styles/field-types.css.

@@ -2,7 +2,7 @@
 // editor calls instead of running prettier in the webview. Standalone:
 // no template/pdf/render imports. The schemas registry is supplied at
 // construction time (composition root wires pdf.Schemas() in), so
-// codeformatter knows nothing about picoloom keys — it only knows how
+// codeformatter knows nothing about picoloom keys - it only knows how
 // to apply a "parent → children" hint set to flat YAML.
 package codeformatter
 
@@ -40,7 +40,7 @@ type Manager struct {
 func NewManager(s Schemas) *Manager { return &Manager{schemas: s} }
 
 // Format reformats src for the named language. Returned string is the
-// cleaned source; err is non-nil only when parsing failed — in that
+// cleaned source; err is non-nil only when parsing failed - in that
 // case the returned string is still safe to display (whitespace tidy).
 // Unknown lang values fall through to tidy.
 func (m *Manager) Format(lang, src string) (string, error) {
@@ -57,7 +57,7 @@ func (m *Manager) Format(lang, src string) (string, error) {
 
 // tidy: trim trailing whitespace, normalize line endings to \n, collapse
 // runs of >2 blank lines, ensure exactly one trailing newline. Safe for
-// any text — never alters indentation or content.
+// any text - never alters indentation or content.
 func tidy(src string) string {
 	out := strings.ReplaceAll(src, "\r\n", "\n")
 	out = strings.ReplaceAll(out, "\r", "\n")

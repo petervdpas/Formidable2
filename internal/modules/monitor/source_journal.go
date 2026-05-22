@@ -8,7 +8,7 @@ import (
 )
 
 // journalContext yields the active context folder (the absolute path
-// containing .changes.log). *journal.Manager satisfies this — kept as
+// containing .changes.log). *journal.Manager satisfies this - kept as
 // a local interface so monitor doesn't import journal.
 type journalContext interface {
 	ContextFolder() string
@@ -44,7 +44,7 @@ func (s *JournalSource) Dims() []string {
 }
 
 // Events scans .changes.log line-by-line, projects each valid entry,
-// and clips to [from, to). Malformed lines are skipped silently —
+// and clips to [from, to). Malformed lines are skipped silently -
 // matches the journal module's own tolerance for partial corruption.
 func (s *JournalSource) Events(from, to time.Time) []Event {
 	if s.ctxProvider == nil || s.fs == nil {

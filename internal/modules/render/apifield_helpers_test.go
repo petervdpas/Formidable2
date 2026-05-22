@@ -8,7 +8,7 @@ import (
 )
 
 // ─────────────────────────────────────────────────────────────────────
-// Pure helpers — flatten/format functions. No raymond involvement so
+// Pure helpers - flatten/format functions. No raymond involvement so
 // they're easy to test without spinning up a full render pipeline.
 // ─────────────────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ func TestEmitAPIColumnBlock_ListEmptyIsBlank(t *testing.T) {
 }
 
 func TestEmitAPIColumnBlock_TableArrayOfArraysWithHeaders(t *testing.T) {
-	// Source's options[] declares column metadata — the renderer
+	// Source's options[] declares column metadata - the renderer
 	// reads .label for the markdown table header row.
 	src := &template.Field{
 		Type: "table",
@@ -120,7 +120,7 @@ func TestEmitAPIColumnBlock_TablePadsShortRows(t *testing.T) {
 
 func TestEmitAPIColumnBlock_NilSourceFallsBackToJSON(t *testing.T) {
 	// When the loader can't resolve the source, we still return
-	// something useful — the JSON form of the value.
+	// something useful - the JSON form of the value.
 	got := emitAPIColumnBlock(map[string]any{"k": "v"}, nil)
 	if got != `{"k":"v"}` {
 		t.Errorf("got %q, want JSON", got)
@@ -177,7 +177,7 @@ func TestEmitAPISection_HeaderAndRows(t *testing.T) {
 
 	got := emitAPISection(row, host, opts)
 
-	// Wrapper — opens with <section class="api-card" data-source="..."> and
+	// Wrapper - opens with <section class="api-card" data-source="..."> and
 	// closes with </section>. Blank lines around let goldmark fall back to
 	// "type 6" HTML block, so inner markdown still parses.
 	if !strings.HasPrefix(got, `<section class="api-card" data-source="addresses.yaml">`) {
@@ -197,7 +197,7 @@ func TestEmitAPISection_HeaderAndRows(t *testing.T) {
 	if !strings.Contains(got, "- **StreetAlias**: Buckingham Palace Road") {
 		t.Errorf("missing scalar inline row; got:\n%s", got)
 	}
-	// Block row for table — header on its own line, then markdown table block
+	// Block row for table - header on its own line, then markdown table block
 	if !strings.Contains(got, "- **OwnersAlias**:") {
 		t.Errorf("missing table-column header; got:\n%s", got)
 	}

@@ -22,7 +22,7 @@ var ErrFrontmatterAlreadyPresent = errors.New("pdf: markdown already has a front
 // / signature / watermark / pageBreaks commented out as starting
 // points) so the user can fill in what they need without having to
 // look up the spec. Stay in sync with internal/modules/pdf/input.go
-// Frontmatter struct — the field names below must match its yaml
+// Frontmatter struct - the field names below must match its yaml
 // tags.
 const canonicalScaffold = `---
 # PDF export frontmatter (picoloom v2 shape). Inserted by
@@ -34,7 +34,7 @@ const canonicalScaffold = `---
 # default.
 style:
 
-# Document keywords — written into the PDF /Keywords Info-dictionary
+# Document keywords - written into the PDF /Keywords Info-dictionary
 # entry by the post-render pdfcpu pass. Searchable by OS file indexers
 # and visible in PDF readers' Document Properties.
 #keywords:
@@ -67,21 +67,21 @@ cover:
   description:
   department:
 
-# Table of contents — uncomment to enable.
+# Table of contents - uncomment to enable.
 #toc:
 #  enabled: true
 #  title: Contents
 #  minDepth: 1
 #  maxDepth: 3
 
-# Footer — uncomment to enable.
+# Footer - uncomment to enable.
 #footer:
 #  enabled: true
 #  position: bottom
 #  showPageNumber: true
 #  text:
 
-# Signature block — uncomment to enable.
+# Signature block - uncomment to enable.
 #signature:
 #  enabled: true
 #  name:
@@ -90,7 +90,7 @@ cover:
 #  organization:
 #  imagePath:
 
-# Watermark — uncomment to enable.
+# Watermark - uncomment to enable.
 #watermark:
 #  enabled: true
 #  text: DRAFT
@@ -98,7 +98,7 @@ cover:
 #  opacity: 0.15
 #  angle: -30
 
-# Page breaks — uncomment to enable.
+# Page breaks - uncomment to enable.
 #pageBreaks:
 #  enabled: true
 #  beforeH1: true
@@ -110,7 +110,7 @@ cover:
 // InjectFrontmatter prepends the canonical picoloom scaffold to a
 // markdown body that has no existing frontmatter. Refuses with
 // ErrFrontmatterAlreadyPresent when a `---` block is already at the
-// top — that case is for MigrateFrontmatter.
+// top - that case is for MigrateFrontmatter.
 func InjectFrontmatter(markdown string) (string, error) {
 	if fmOpenRe.FindStringIndex(markdown) != nil {
 		return "", ErrFrontmatterAlreadyPresent
@@ -142,7 +142,7 @@ type FrontmatterMapping struct {
 }
 
 // eisvogelCoverMap maps eisvogel-style top-level keys to picoloom
-// cover.* field names. Values flow through verbatim — only the key
+// cover.* field names. Values flow through verbatim - only the key
 // path changes.
 var eisvogelCoverMap = map[string]string{
 	"title":        "title",
@@ -191,7 +191,7 @@ var picoloomTopLevelKeys = map[string]bool{
 // MigrateFrontmatter scans an eisvogel/pandoc-style frontmatter block
 // and rewrites it into picoloom v2 shape. Unrecognized top-level keys
 // are preserved verbatim under a `legacy:` block at the bottom so no
-// data is lost — the user can review and prune them manually.
+// data is lost - the user can review and prune them manually.
 //
 // Behavior:
 //   - No leading `---` block → returns markdown verbatim, HadFrontmatter=false,
@@ -219,9 +219,9 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 
 	// Template source can carry two patterns that confuse yaml.v3:
 	//
-	//  1. Handlebars expressions (`{{field "x"}}`) — `{` is a flow-
+	//  1. Handlebars expressions (`{{field "x"}}`) - `{` is a flow-
 	//     mapping marker, breaks parse.
-	//  2. Values starting with `#` after `: ` — yaml treats them as
+	//  2. Values starting with `#` after `: ` - yaml treats them as
 	//     comments and silently drops the value (the user's
 	//     `titlepage-color: #F8F8F8` would migrate to nothing).
 	//
@@ -249,7 +249,7 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 	coverDst := map[string]any{}
 	pageDst := map[string]any{}
 
-	// Pass 1 — pass-through picoloom-shaped blocks. Merge into the
+	// Pass 1 - pass-through picoloom-shaped blocks. Merge into the
 	// staging maps so later eisvogel keys see the real picoloom state.
 	keys := sortedKeys(src)
 	for _, k := range keys {
@@ -275,7 +275,7 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 		dst[k] = src[k]
 	}
 
-	// Pass 2 — map eisvogel keys, deferring to the picoloom state set
+	// Pass 2 - map eisvogel keys, deferring to the picoloom state set
 	// up in Pass 1 when a conflict arises.
 	for _, k := range keys {
 		if picoloomTopLevelKeys[k] {
@@ -408,7 +408,7 @@ func maskHandlebars(src string) (string, map[string]string) {
 }
 
 // unmaskHandlebars restores the original `{{...}}` expressions by
-// replacing each sentinel with its captured source. Idempotent —
+// replacing each sentinel with its captured source. Idempotent -
 // applying twice has no effect (sentinels are gone after the first
 // pass).
 func unmaskHandlebars(src string, tokens map[string]string) string {
@@ -431,7 +431,7 @@ func unmaskHandlebars(src string, tokens map[string]string) string {
 
 // emitMigratedFrontmatter renders the picoloom-shaped destination map
 // plus the legacy block as a YAML body (without the surrounding `---`
-// fences — caller wraps them). Order: picoloom blocks in canonical
+// fences - caller wraps them). Order: picoloom blocks in canonical
 // order first, then the legacy block (so legacy stays visibly at the
 // bottom as "stuff to review").
 func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preservedKeys []string) (string, error) {
@@ -455,7 +455,7 @@ func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preserve
 		}
 		b.WriteString(chunk)
 	}
-	// Any picoloom-shaped keys we don't recognize (forward-compat —
+	// Any picoloom-shaped keys we don't recognize (forward-compat -
 	// shouldn't happen today but cheap to handle).
 	for k := range dst {
 		if !contains(canonicalOrder, k) {
@@ -469,7 +469,7 @@ func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preserve
 	if len(preservedKeys) > 0 {
 		b.WriteString("\n")
 		b.WriteString("# Preserved verbatim from the original frontmatter. These keys had\n")
-		b.WriteString("# no picoloom v2 equivalent — review and remove if not needed.\n")
+		b.WriteString("# no picoloom v2 equivalent - review and remove if not needed.\n")
 		b.WriteString("legacy:\n")
 		for _, k := range preservedKeys {
 			sub := map[string]any{k: legacy[k]}
@@ -496,7 +496,7 @@ const yamlRawLinePrefix = "__YAML_RAW_LINE__"
 
 // tagsHelperRe matches a standalone `{{tags <ARG> [withHash=<bool>]}}`
 // invocation that wholly fills a keyword element. The argument is
-// captured verbatim — could be a bare identifier, a string literal, a
+// captured verbatim - could be a bare identifier, a string literal, a
 // subexpression like `(fieldRaw "x")`, whatever raymond accepts.
 // Anchored so partial matches inside other text don't trigger.
 var tagsHelperRe = regexp.MustCompile(`^\s*\{\{\s*tags\s+(.+?)(?:\s+withHash\s*=\s*\w+)?\s*\}\}\s*$`)
@@ -536,10 +536,10 @@ func rewriteTagsHelperToYamlList(items []any, hbsTokens map[string]string) []any
 
 // marshalKeywordsBlock emits the top-level `keywords:` sequence by
 // hand. yaml.Marshal would emit each element unquoted (the values are
-// either plain words or `__HBS_N__` sentinels — all alphanumeric to
+// either plain words or `__HBS_N__` sentinels - all alphanumeric to
 // the YAML lexer), which means the global unmask pass at the end of
 // MigrateFrontmatter would drop bare `{{…}}` Handlebars expressions
-// into unquoted scalar position — invalid YAML. Quoting sentinel-
+// into unquoted scalar position - invalid YAML. Quoting sentinel-
 // containing elements ourselves keeps the post-unmask text valid:
 // `'{{…}}'` is a single-quoted scalar.
 func marshalKeywordsBlock(items []any) string {

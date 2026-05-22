@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-// Icon — renders a Flaticon SVG inline so its built-in colors flow.
+// Icon - renders a Flaticon SVG inline so its built-in colors flow.
 // Drop new SVGs into src/assets/icons/ and reference by basename:
 //   <Icon name="database" />
 //
@@ -12,7 +12,7 @@ import { computed } from "vue";
 const props = withDefaults(
   defineProps<{
     name: string;
-    /** Pixel size — drives wrapper width/height. SVGs scale to fit. */
+    /** Pixel size - drives wrapper width/height. SVGs scale to fit. */
     size?: number;
     /** Optional title for tooltip / a11y. */
     title?: string;

@@ -35,7 +35,7 @@ type world struct {
 	sto *fakeStorage
 	m   *Manager
 
-	// Latest results — assertion steps inspect these.
+	// Latest results - assertion steps inspect these.
 	tplList   []TemplateSummary
 	tpl       *TemplateSummary
 	tplFound  bool
@@ -361,7 +361,7 @@ func initScenario(ctx *godog.ScenarioContext) {
 
 	// ── API-field row ───────────────────────────────────────────────
 
-	// No-op marker step — the Before hook already resets the world,
+	// No-op marker step - the Before hook already resets the world,
 	// this just lets a feature say "Given a fresh dataprovider world"
 	// before scenarios that seed everything inline.
 	ctx.Step(`^a fresh dataprovider world$`, func() error { return nil })
@@ -405,7 +405,7 @@ func initScenario(ctx *godog.ScenarioContext) {
 				Filename: datafile, ID: guid,
 			})
 			tags := []any{}
-			// Single-column table — each row's first cell is one tag.
+			// Single-column table - each row's first cell is one tag.
 			for _, r := range table.Rows {
 				if len(r.Cells) > 0 {
 					tags = append(tags, r.Cells[0].Value)

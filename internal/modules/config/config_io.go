@@ -16,12 +16,12 @@ import (
 //   - Cache invalidation lives in domain.go (already there).
 //   - The read-modify-write cycle is serialized via Manager.updateMu so
 //     concurrent UpdateUserConfig + SwitchUserProfile callers can't both
-//     read the same baseline (lost-update prevention — covered by
+//     read the same baseline (lost-update prevention - covered by
 //     TestUpdateUserConfig_NoLostUpdatesUnderConcurrency and
 //     TestSwitchUserProfile_SerializedAgainstUpdate).
 
 // configJSONKeys is the set of REQUIRED JSON tag names declared on
-// Config — used by parseUserConfig to detect "missing keys" →
+// Config - used by parseUserConfig to detect "missing keys" →
 // changed=true. omitempty fields are skipped: by definition they may
 // be absent from a complete config (zero value), so flagging them as
 // missing would cause spurious load-time rewrites.
@@ -84,7 +84,7 @@ func clampNumericSettings(cfg *Config) bool {
 }
 
 // writeJSON marshals v with indentation and writes it through fs.SaveFile
-// (which goes via system.Manager.SaveFile — atomic temp+fsync+rename and
+// (which goes via system.Manager.SaveFile - atomic temp+fsync+rename and
 // journal-aware). Used by every file-producing method in this module.
 func (m *Manager) writeJSON(path string, v any) error {
 	b, err := json.MarshalIndent(v, "", "  ")
@@ -96,7 +96,7 @@ func (m *Manager) writeJSON(path string, v any) error {
 
 // LoadUserConfig returns the active profile's config, loading it from
 // disk on first access (and on cache invalidation). If the on-disk
-// file has missing fields it is repaired and rewritten — same shape
+// file has missing fields it is repaired and rewritten - same shape
 // the JS app had via schema.sanitize.
 func (m *Manager) LoadUserConfig() (*Config, error) {
 	m.mu.RLock()
@@ -147,7 +147,7 @@ func (m *Manager) LoadUserConfig() (*Config, error) {
 
 // ensureContextFolder materialises the active profile's context_folder
 // on disk. Best-effort: a failure is logged but does not abort the
-// load/persist path — the user can still edit the path from the
+// load/persist path - the user can still edit the path from the
 // Locations panel and retry. Empty folder values are skipped.
 func (m *Manager) ensureContextFolder(cfg *Config) {
 	if cfg == nil || strings.TrimSpace(cfg.ContextFolder) == "" {
@@ -164,7 +164,7 @@ func (m *Manager) ensureContextFolder(cfg *Config) {
 // updateMu so concurrent updates don't lose each other's writes.
 //
 // The partial values can be primitives, JSON-tagged structs (e.g.
-// WindowBounds), or map[string]any — they are normalized through a
+// WindowBounds), or map[string]any - they are normalized through a
 // JSON round-trip so callers don't have to think about it.
 func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
 	m.updateMu.Lock()
@@ -187,7 +187,7 @@ func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
 	}
 
 	// Auto-clear SelectedTemplate when it falls outside EnabledTemplates.
-	// Runs on every Update — the cost is a single slice check, and the
+	// Runs on every Update - the cost is a single slice check, and the
 	// invariant has to hold regardless of which partial key brought the
 	// change in (the user could toggle enabled_templates, or write a new
 	// selected_template that isn't in the list, or both at once).
@@ -236,7 +236,7 @@ func (m *Manager) persistConfig(cfg *Config) error {
 
 // syncJournal forwards the relevant config fields to the journal hook.
 // No-op when no journal is wired. The journal's Configure() is the only
-// thing called — initialization and baseline seeding are the composition
+// thing called - initialization and baseline seeding are the composition
 // root's responsibility (see types.go on JournalConfigurer).
 func (m *Manager) syncJournal(cfg *Config) {
 	if cfg == nil {

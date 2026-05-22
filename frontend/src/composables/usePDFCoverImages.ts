@@ -4,7 +4,7 @@ import type { CoverImageDescriptor } from "../../bindings/github.com/petervdpas/
 import { backendErrMessage } from "../utils/backendError";
 
 // Module-scope refs so the panel keeps its list when the user clicks
-// back to a sibling Information section and returns — matching the
+// back to a sibling Information section and returns - matching the
 // pattern in usePDFCovers.ts.
 const images = ref<CoverImageDescriptor[]>([]);
 const loading = ref<boolean>(false);

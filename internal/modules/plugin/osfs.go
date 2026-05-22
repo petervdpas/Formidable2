@@ -13,7 +13,7 @@ import (
 // to <home>/wikis/<repo>/...).
 //
 // Atomicity isn't free here, but plugins authoring outside the
-// storage tree are already crossing the trust boundary — if they
+// storage tree are already crossing the trust boundary - if they
 // need durability guarantees they can call OS-level fsync via
 // formidable.exec. Inside the storage tree, plugin authors should
 // prefer formidable.form.save, which goes through the storage
@@ -56,7 +56,7 @@ func (OSFS) Exists(p string) bool {
 
 // Copy streams from→to, creating the destination's parent dirs. Uses
 // io.Copy so large image transfers don't have to fit in a Lua string.
-// Existing destination is overwritten — the wiki-export use case
+// Existing destination is overwritten - the wiki-export use case
 // re-renders images on every run, so refusing to overwrite would mean
 // every run leaves stale files behind.
 func (OSFS) Copy(from, to string) error {
@@ -83,7 +83,7 @@ func (OSFS) Copy(from, to string) error {
 }
 
 // Remove deletes a file or empty directory. Missing target is a no-op
-// — saves plugin authors a stat-then-rm dance. Use os.RemoveAll
+// - saves plugin authors a stat-then-rm dance. Use os.RemoveAll
 // semantics? No: too easy to nuke a directory by accident. Plugins
 // that want recursive remove can list+remove themselves.
 func (OSFS) Remove(p string) error {

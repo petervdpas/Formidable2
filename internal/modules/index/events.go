@@ -31,7 +31,7 @@ type TemplateLoader interface {
 	LoadTemplate(filename string) (*TemplateRecord, error)
 }
 
-// FormStore mirrors TemplateLoader for forms — adapter around
+// FormStore mirrors TemplateLoader for forms - adapter around
 // *storage.Manager.
 type FormStore interface {
 	LoadForm(templateFilename, datafile string) (*FormRecord, error)
@@ -43,7 +43,7 @@ type FormStore interface {
 // one handle.
 //
 // `root` is the context folder (the dir that holds templates/ and
-// storage/). It's only needed by RescanAll — per-event hooks don't
+// storage/). It's only needed by RescanAll - per-event hooks don't
 // touch disk directly. Composition root sets it via SetRoot.
 type EventHandler struct {
 	m         *Manager
@@ -63,7 +63,7 @@ func NewEventHandler(m *Manager, t TemplateLoader, f FormStore) *EventHandler {
 func (h *EventHandler) SetRoot(path string) { h.root = path }
 
 // OnTemplateChanged is called after a template YAML save. Loads the
-// template fresh, derives the templates row, and — critically —
+// template fresh, derives the templates row, and - critically -
 // re-derives every form row owned by this template.
 //
 // Why the form re-derive: form columns title / expression_items /
@@ -90,7 +90,7 @@ func (h *EventHandler) OnTemplateChanged(filename string) error {
 	for _, datafile := range formFilenames {
 		formRec, err := h.forms.LoadForm(filename, datafile)
 		if err != nil || formRec == nil || formRec.Form == nil {
-			// Form file is gone / unparseable — skip silently so one
+			// Form file is gone / unparseable - skip silently so one
 			// bad file doesn't block the rest of the re-derive.
 			// RescanAll will clean up orphans on next boot.
 			continue
@@ -108,7 +108,7 @@ func (h *EventHandler) OnTemplateChanged(filename string) error {
 // listIndexedFormFiles returns the form basenames currently indexed
 // under the given template. Sourced from the index (one SQL query)
 // rather than disk so we don't widen the EventHandler's surface area
-// to a "list every form on disk" capability — disk-only files arrive
+// to a "list every form on disk" capability - disk-only files arrive
 // via OnFormChanged and are caught up by RescanAll otherwise.
 func (h *EventHandler) listIndexedFormFiles(templateFilename string) ([]string, error) {
 	rows, err := h.m.DB().Query(
@@ -171,7 +171,7 @@ func (h *EventHandler) OnFormDeleted(templateFilename, datafile string) error {
 
 // buildTemplateRow projects a parsed *template.Template into a
 // TemplateRow. Walks the field list once to derive the (single)
-// guid_field and tags_field — validators upstream guarantee at most
+// guid_field and tags_field - validators upstream guarantee at most
 // one of each per template.
 func buildTemplateRow(t *template.Template, mtime int64, filename string) TemplateRow {
 	row := TemplateRow{
@@ -199,7 +199,7 @@ func buildTemplateRow(t *template.Template, mtime int64, filename string) Templa
 
 // buildFormRow projects a (template, form) pair into a FormRow. The
 // template tells us where to look for id (guid_field), title
-// (item_field, with filename fallback), and tags (tags_field — and
+// (item_field, with filename fallback), and tags (tags_field - and
 // only that field; storage.FormMeta.Tags is intentionally ignored to
 // keep the index aligned with the schema's intent).
 //
@@ -285,7 +285,7 @@ func pickFacets(in map[string]storage.FacetState) []FormFacet {
 
 // pickTags returns the tag slice from data[tagsKey] when tagsKey is
 // non-empty AND the value is a slice (with elements coerced to string).
-// Empty when the template has no tag field — matches the contract
+// Empty when the template has no tag field - matches the contract
 // that ListByTags only surfaces forms whose templates declare a tag
 // field.
 func pickTags(tagsKey string, data map[string]any) []string {

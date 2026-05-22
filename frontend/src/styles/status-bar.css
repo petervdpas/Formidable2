@@ -1,4 +1,4 @@
-/* Footer status-bar buttons — Reloader (↻), Language (EN/NL),
+/* Footer status-bar buttons - Reloader (↻), Language (EN/NL),
    GitQuick (⎇), GiGotQuick (☁). Each lives in its own component but
    they share a 22px ghost-outline silhouette so the cluster reads as
    one row of equally-weighted buttons. CharPicker (Ω) keeps the same

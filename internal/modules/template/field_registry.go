@@ -1,6 +1,6 @@
 package template
 
-// Field-attribute matrix — the type and helper layer. The actual
+// Field-attribute matrix - the type and helper layer. The actual
 // per-type Abilities map lives in field_abilities.go so the matrix
 // stays grep-friendly. Adding/removing an attribute means: (1) one
 // new constant here, (2) one new bool in Abilities, (3) one case
@@ -48,7 +48,7 @@ type Abilities struct {
 // (looper, loopstart, loopstop) that don't carry a stored value but
 // still participate in validation. OptionsShape is non-nil when the
 // type's options array has a fixed arity (e.g. boolean = exactly two
-// rows for the True/False labels) — the frontend's OptionsEditor
+// rows for the True/False labels) - the frontend's OptionsEditor
 // gates add/remove on this and pre-fills with the supplied defaults.
 type FieldDescriptor struct {
 	ID           string             `json:"id"`
@@ -79,7 +79,7 @@ func AllFieldTypes() []FieldDescriptor {
 }
 
 // allEnforcedAttrs lists every attr name that backend save-validation
-// and Normalize iterate over. Excludes "key" and "type" — those are
+// and Normalize iterate over. Excludes "key" and "type" - those are
 // always present and don't have a corresponding Field-property check.
 var allEnforcedAttrs = []string{
 	attrLabel, attrDescription, attrDefault, attrOptions, attrSummaryField,

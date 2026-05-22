@@ -7,7 +7,7 @@ import (
 
 // fixture covering every unique shape we observed in the active
 // user workspace. Each row is (name, in, out). out is the EXACT
-// expected Convert result — string equality matters because we want
+// expected Convert result - string equality matters because we want
 // canonical output the builder dialog can edit.
 func TestConvert_ObservedShapes(t *testing.T) {
 	fields := []FieldRef{
@@ -146,7 +146,7 @@ func TestConvert_RoundTripsThroughBuilder(t *testing.T) {
 	}
 }
 
-// Empty input round-trips to empty output without erroring — the
+// Empty input round-trips to empty output without erroring - the
 // frontend uses Convert as a fallback when Parse fails, and an empty
 // sidebar_expression must not trigger conversion at all.
 func TestConvert_Empty(t *testing.T) {
@@ -169,7 +169,7 @@ func TestConvert_Empty(t *testing.T) {
 // Garbage in: an unparseable source must surface a clear error rather
 // than silently emitting the garbage back. The dialog's Convert button
 // only fires when Parse already failed, so a Convert failure means
-// "really not migratable" — the user should know.
+// "really not migratable" - the user should know.
 func TestConvert_GarbageReturnsError(t *testing.T) {
 	_, err := Convert(`this is not @ valid expression`, nil)
 	if err == nil {

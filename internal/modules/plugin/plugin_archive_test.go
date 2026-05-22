@@ -143,7 +143,7 @@ func TestExport_SkipsHiddenFiles(t *testing.T) {
 }
 
 // A plugin with a sub-folder (i18n/<locale>.json is the driving case)
-// must round-trip its nested entries through the archive — the
+// must round-trip its nested entries through the archive - the
 // pre-change exporter died on the directory because it treated every
 // listing entry as a file.
 func TestExport_BundlesSubdirectories(t *testing.T) {
@@ -172,7 +172,7 @@ func TestExport_BundlesSubdirectories(t *testing.T) {
 			t.Errorf("zip missing %q (entries=%v)", want, res.Files)
 		}
 	}
-	// No bare "i18n" entry — directory itself doesn't get serialised.
+	// No bare "i18n" entry - directory itself doesn't get serialised.
 	if _, hit := entries["i18n"]; hit {
 		t.Errorf("zip contains bare directory entry %q", "i18n")
 	}
@@ -181,7 +181,7 @@ func TestExport_BundlesSubdirectories(t *testing.T) {
 	}
 }
 
-// A hidden subdirectory (.git, .vscode, …) gets skipped wholesale —
+// A hidden subdirectory (.git, .vscode, …) gets skipped wholesale -
 // matching the same rule applied to hidden top-level files.
 func TestExport_SkipsHiddenSubdirectories(t *testing.T) {
 	root := t.TempDir()
@@ -405,7 +405,7 @@ func TestImport_OverwriteReplacesExisting(t *testing.T) {
 	if !res.Overwritten {
 		t.Errorf("Overwritten = false, want true")
 	}
-	// Old side file should be gone — overwrite is a full replace.
+	// Old side file should be gone - overwrite is a full replace.
 	if _, err := os.Stat(filepath.Join(plugins, "duplicated", "stale.txt")); !os.IsNotExist(err) {
 		t.Errorf("stale.txt should have been removed during overwrite; err = %v", err)
 	}
@@ -670,7 +670,7 @@ func TestRoundTrip_ExportThenImport(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 
-	// Fresh destination — simulates importing on another machine.
+	// Fresh destination - simulates importing on another machine.
 	dstRoot := t.TempDir()
 	dstPlugins := filepath.Join(dstRoot, "plugins")
 	dstZip := filepath.Join(dstRoot, "trip.zip")

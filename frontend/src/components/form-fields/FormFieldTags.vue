@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-// Minimal tags input — chips + add-by-Enter. Original supports
+// Minimal tags input - chips + add-by-Enter. Original supports
 // drag-reorder, autocompletion against existing tags; patch later.
 
 const props = defineProps<{
@@ -60,7 +60,7 @@ function remove(i: number) {
       v-if="!field.readonly"
       v-model="draft"
       class="field-input tag-input"
-      placeholder="Add a tag — press Enter"
+      placeholder="Add a tag - press Enter"
       @keydown.enter.prevent="add"
     />
   </div>

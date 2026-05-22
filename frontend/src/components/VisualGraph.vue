@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 
 // VisualGraph is a generic, reusable DAG renderer. Each row owns
 // its own lane segment (CSS-driven), so the lane line stretches
-// naturally when a row expands — no SVG-y-coord recomputation.
+// naturally when a row expands - no SVG-y-coord recomputation.
 // Single-lane v1 (column 0); multi-lane fork/merge rendering is
 // a follow-up.
 //
@@ -26,9 +26,9 @@ export interface GraphNode<TData = unknown> {
 const props = withDefaults(
   defineProps<{
     nodes: GraphNode<T>[];
-    /** Lane line color — falls back to a neutral border tone. */
+    /** Lane line color - falls back to a neutral border tone. */
     laneColor?: string;
-    /** Dot fill — falls back to the theme accent. */
+    /** Dot fill - falls back to the theme accent. */
     dotColor?: string;
     /** Dot radius in px. */
     dotRadius?: number;

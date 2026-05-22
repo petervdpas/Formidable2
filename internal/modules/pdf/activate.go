@@ -182,7 +182,7 @@ func managedBinaryName(goos string) string {
 
 // defaultRodCacheRoot mirrors go-rod's `os.UserCacheDir() / rod /
 // browser` default. Empty string when the user cache dir is
-// unavailable — probe gracefully skips managed candidates.
+// unavailable - probe gracefully skips managed candidates.
 func defaultRodCacheRoot() string {
 	c, err := os.UserCacheDir()
 	if err != nil {
@@ -191,7 +191,7 @@ func defaultRodCacheRoot() string {
 	return filepath.Join(c, "rod", "browser")
 }
 
-// realFS is the production filesystem check — exists + not-a-dir.
+// realFS is the production filesystem check - exists + not-a-dir.
 type realFS struct{}
 
 func (realFS) exists(p string) bool {

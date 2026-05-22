@@ -15,7 +15,7 @@ import (
 // user that their existing source can't be edited visually).
 //
 // fields is the FieldRef slice for the template's expression-item
-// fields — needed so we can pin a field's RuleKind for predicates
+// fields - needed so we can pin a field's RuleKind for predicates
 // (e.g. resolve a bare-identifier predicate as "boolean is true"
 // instead of erroring on the missing comparison) and bound the
 // ageInDays / option-label patterns to known fields.
@@ -42,7 +42,7 @@ func Parse(src string, fields []FieldRef) (Config, error) {
 
 // walkTopLevel processes the ternary chain. Each ConditionalNode
 // becomes a rule; the terminal else (non-conditional) becomes the
-// default outcome. Rule IDs are session-scoped — assigned r1, r2…
+// default outcome. Rule IDs are session-scoped - assigned r1, r2…
 // in encountered order to match the frontend counter.
 func walkTopLevel(node ast.Node, cfg *Config) error {
 	cn, ok := node.(*ast.ConditionalNode)
@@ -73,7 +73,7 @@ func walkTopLevel(node ast.Node, cfg *Config) error {
 
 // bracketAccess matches a `<Namespace>["arg"]` MemberNode shape and
 // returns (arg, true) when the namespace identifier matches. Used
-// for F[], L[], O[] — the three uniform accessors Compile emits.
+// for F[], L[], O[] - the three uniform accessors Compile emits.
 // Anything else (bare identifiers, struct field access, dynamic
 // indexing) returns (_, false).
 func bracketAccess(node ast.Node, namespace string) (string, bool) {
@@ -93,7 +93,7 @@ func bracketAccess(node ast.Node, namespace string) (string, bool) {
 }
 
 // fieldKeyOf extracts the key from an `F["key"]` reference. F[] is
-// the only field-value form Compile emits — bare identifiers and
+// the only field-value form Compile emits - bare identifiers and
 // $env[] are intentionally rejected so hand-authored or stale
 // expressions fail Parse and trigger the dialog's "couldn't load,
 // cleared" flow rather than silently misinterpreting them.
@@ -429,7 +429,7 @@ func parseOutcome(node ast.Node) (Outcome, error) {
 }
 
 // mapKeyName accepts either a quoted "text" string key or a bare
-// `text` identifier — Compile emits the latter, but both shapes are
+// `text` identifier - Compile emits the latter, but both shapes are
 // valid expr-lang and Parse accepts either to stay tolerant on the
 // edge case where a hand-authored variant came via a similar route.
 func mapKeyName(node ast.Node) (string, error) {
@@ -444,8 +444,8 @@ func mapKeyName(node ast.Node) (string, error) {
 
 // parseTextChain flattens a `+` chain of L/F/O accessors into the
 // ordered Parts list. A single accessor (no `+`) yields a one-
-// element slice. Anything that isn't an accessor — a number
-// literal, a function call, a struct access — surfaces as an
+// element slice. Anything that isn't an accessor - a number
+// literal, a function call, a struct access - surfaces as an
 // error so the dialog can fall back to its empty config.
 func parseTextChain(node ast.Node) ([]TextSource, error) {
 	leaves := flattenPlus(node)
@@ -484,7 +484,7 @@ func parseTextSource(node ast.Node) (*TextSource, error) {
 
 // flattenPlus walks a left-leaning chain of `+` BinaryNodes and
 // returns the leaves in source order. A non-`+` node returns as a
-// single-leaf slice. We don't validate the leaf kinds here —
+// single-leaf slice. We don't validate the leaf kinds here -
 // callers (parseTextChain) check each leaf against the accessor
 // vocabulary.
 func flattenPlus(n ast.Node) []ast.Node {
@@ -505,7 +505,7 @@ func numberValueOf(node ast.Node) (float64, bool) {
 		return n.Value, true
 	}
 	// expr-lang parses `-3` as UnaryNode("-", IntegerNode(3)), not as
-	// a signed integer literal — peel one level of unary minus.
+	// a signed integer literal - peel one level of unary minus.
 	if un, ok := node.(*ast.UnaryNode); ok && un.Operator == "-" {
 		if v, ok := numberValueOf(un.Node); ok {
 			return -v, true

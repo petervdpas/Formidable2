@@ -35,14 +35,14 @@ func (a pluginLocaleAdapter) ActiveLocale() string {
 }
 
 // Adapters between the plugin module's access interfaces and the
-// existing manager surface. Each adapter is a thin shim — no
+// existing manager surface. Each adapter is a thin shim - no
 // caching or transformation beyond marshalling typed values into
 // the JSON-shaped maps the Lua bridge expects.
 
 // toJSONMap converts any JSON-marshalable Go value into a
 // map[string]any, the shape plugin's lvalue.go round-trips
 // through. Used so plugin-side code sees the same JSON shape Vue
-// receives — no parallel type vocabulary to maintain.
+// receives - no parallel type vocabulary to maintain.
 func toJSONMap(v any) (map[string]any, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {
@@ -121,7 +121,7 @@ func (a pluginFormAdapter) LoadForm(templateFilename, datafile string) (map[stri
 	if f == nil {
 		return nil, fmt.Errorf("form not found: %s/%s", templateFilename, datafile)
 	}
-	// Plugins receive the inner data only — meta is reserved (the
+	// Plugins receive the inner data only - meta is reserved (the
 	// storage manager owns identity and timestamps and rewrites
 	// them on every save).
 	if f.Data == nil {
@@ -172,7 +172,7 @@ func (a pluginStorageAdapter) ImageBytes(templateFilename, name string) ([]byte,
 }
 
 // pluginFMAdapter exposes the render module's frontmatter helpers
-// to Lua. Stateless — the underlying functions are pure — so the
+// to Lua. Stateless - the underlying functions are pure - so the
 // adapter holds no fields. Lives here (not in render's service) so
 // the plugin module stays the sole front door for "what Lua can do."
 type pluginFMAdapter struct{}
@@ -189,7 +189,7 @@ func (pluginFMAdapter) Build(data map[string]any, body string) string {
 // HTTP server. IsAvailable mirrors wiki.Status().Running; Fetch
 // proxies via system.ProxyFetchRemote against the loopback URL on
 // the wiki server's actual port. The plugin module stays unaware
-// of either dependency — both are composed here.
+// of either dependency - both are composed here.
 type pluginHTTPAdapter struct {
 	wiki *wiki.Manager
 	sys  *system.Manager

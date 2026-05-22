@@ -18,7 +18,7 @@ import {
 //
 // Backend ownership: list/table column-type vocabularies live on the
 // Go side (TemplateSvc.ListItemTypes / TemplateSvc.TableColumnTypes
-// — see internal/modules/template/option_presets.go). This module
+// - see internal/modules/template/option_presets.go). This module
 // loads them at boot (ensureOptionPresetsLoaded, kicked from main.ts)
 // and caches the result. Same pattern as `field-types.ts`. The
 // initial bootstrap values below match what the backend ships so the
@@ -41,7 +41,7 @@ export const SUPPORTED_OPTION_TYPES = new Set([
 ]);
 
 // Bootstrap fallbacks. Used until ensureOptionPresetsLoaded resolves
-// (or if it fails — degraded but functional). Match the canonical
+// (or if it fails - degraded but functional). Match the canonical
 // builtinTableColumnTypes / builtinListItemTypes in Go.
 let _tableColumnTypes: TableColumnTypeDescriptor[] = [];
 let _listItemTypes: string[] = ["fixed", "custom"];
@@ -67,7 +67,7 @@ async function load(): Promise<void> {
       for (const d of ftypes) _fieldDescriptors[d.id] = d;
     }
   } catch {
-    // Stay on the bootstrap fallbacks — better empty UX than crash.
+    // Stay on the bootstrap fallbacks - better empty UX than crash.
   }
 }
 
@@ -93,7 +93,7 @@ function listColumns(): ColumnDef[] {
         if (value === "custom") {
           return { ...row, value: "[[custom]]", _valueLocked: true };
         }
-        // Switching back from custom — unlock and clear the placeholder.
+        // Switching back from custom - unlock and clear the placeholder.
         const cleared = row["value"] === "[[custom]]" ? "" : row["value"];
         return { ...row, value: cleared, _valueLocked: false };
       },
@@ -104,7 +104,7 @@ function listColumns(): ColumnDef[] {
 }
 
 // Translate the backend's SubRow record into the editor-facing
-// SubRowVariant. Pure shape conversion — labels travel as i18n keys
+// SubRowVariant. Pure shape conversion - labels travel as i18n keys
 // (resolved in OptionsSubRow via vue-i18n) so no English text leaks
 // across the Wails boundary.
 function toSubRowVariant(s: BackendSubRow): SubRowVariant {
@@ -136,7 +136,7 @@ function tableTypeSubRowConfig(
     if (!c.sub_row) continue;
     if (!rowKey) rowKey = c.sub_row.row_key;
     // If two column types disagree on row_key we keep the first one
-    // and skip the rest — the backend should keep them consistent.
+    // and skip the rest - the backend should keep them consistent.
     if (c.sub_row.row_key !== rowKey) continue;
     perValue[c.name] = toSubRowVariant(c.sub_row);
   }
@@ -186,7 +186,7 @@ export function columnsFor(typeId: string): ColumnDef[] | null {
 }
 
 // fixedRowsFor returns a structural row template for field types
-// whose options have a fixed arity. Null otherwise — the editor
+// whose options have a fixed arity. Null otherwise - the editor
 // stays in free-form add/remove mode. Source of truth is the Go
 // FieldDescriptor.OptionsShape (see internal/modules/template/
 // field_abilities.go); this function is a pure shape adapter.

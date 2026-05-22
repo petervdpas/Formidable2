@@ -7,8 +7,8 @@ import GigotConnection from "../../components/collaboration/GigotConnection.vue"
 
 // Single Collaboration main view. Branches on config.remote_backend
 // to pick the section-info text + connection form. The "none" case
-// is unreachable from here in practice — ribbon ghosting + App.vue
-// redirect short-circuits it — but the v-if guards keep this view
+// is unreachable from here in practice - ribbon ghosting + App.vue
+// redirect short-circuits it - but the v-if guards keep this view
 // safe to render unconditionally.
 const { t } = useI18n();
 const { config } = useConfig();

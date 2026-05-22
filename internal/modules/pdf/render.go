@@ -40,7 +40,7 @@ type storageFS interface {
 // templateLoader is the slice of template.Manager the pdf module
 // needs to read per-template PDF defaults (style + cover) and feed
 // them into the manifest merge layer. Satisfied by *template.Manager;
-// may be nil — Export falls through to a doc-frontmatter-only Merge
+// may be nil - Export falls through to a doc-frontmatter-only Merge
 // when not wired.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
@@ -59,7 +59,7 @@ type converter interface {
 // time:
 //
 //   - browserBin: ROD_BROWSER_BIN snapshot (picoloom has no Bin opt).
-//   - style: WithStyle value — theme name, CSS file path, or raw CSS.
+//   - style: WithStyle value - theme name, CSS file path, or raw CSS.
 //   - coverTS: optional cover/signature override (Stage 6). nil means
 //     "use picoloom's bundled default cover".
 type converterFactory func(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error)
@@ -162,7 +162,7 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 	// shorthand into a string picoloom + Chrome can actually load
 	// cross-platform. The asset server (when wired) gives us
 	// http://127.0.0.1:.../covers/<file> for central-library logos
-	// — needed on Windows because Chrome inside a file:// document
+	// - needed on Windows because Chrome inside a file:// document
 	// can't reconcile a bare `C:/…` <img src>. Logos that live
 	// under the document's own sourceDir are returned as relative
 	// paths so picoloom's RewriteRelativePaths handles them. See
@@ -291,7 +291,7 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 
 // ResolveExportDefaults previews the Theme + CoverTemplate values
 // Manager.Export would compute for (templateFilename, datafile) when
-// the user gives no opts override. Read-only metadata — not gated on
+// the user gives no opts override. Read-only metadata - not gated on
 // activation, no formMu serialization. Surfaces the same Merge pipeline
 // the real Export uses, so the dialog's "(use frontmatter / template
 // default)" option can show the concrete value that will be applied.
@@ -322,7 +322,7 @@ func (m *Manager) ResolveExportDefaults(templateFilename, datafile string) (Reso
 // "pdf: export failed" slog event tagged with the failing stage and
 // elapsed time, then returns the zero Result + the typed error. The
 // stage values are stable strings consumed by the future PDF doctor
-// panel (Stage 7 #4) — keep them lowercase + snake_case.
+// panel (Stage 7 #4) - keep them lowercase + snake_case.
 func (m *Manager) failExport(started time.Time, templateFilename, datafile, stage string, err error) (Result, error) {
 	mapped := MapExportError(err)
 	finishedAt := m.nowFn()
@@ -368,7 +368,7 @@ func coverNameForLog(fm *CoverFM) string {
 // (template.PDF.Style + template.PDF.Cover) into a Frontmatter value
 // that participates in Merge as the "manifest" layer. Returns the
 // zero Frontmatter when no templateLoader is wired, the template
-// lacks a PDF block, or LoadTemplate fails — manifest defaults are
+// lacks a PDF block, or LoadTemplate fails - manifest defaults are
 // best-effort and must never block a render.
 func (m *Manager) loadManifestFrontmatter(templateFilename string) Frontmatter {
 	if m.templates == nil {

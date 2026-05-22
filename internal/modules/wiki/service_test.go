@@ -147,7 +147,7 @@ func TestService_InstallWindowOpener(t *testing.T) {
 }
 
 func TestService_InstallWindowOpener_NilSafe(t *testing.T) {
-	// nil service and nil function should both be safe — no panics.
+	// nil service and nil function should both be safe - no panics.
 	InstallWindowOpener(nil, func(string) error { return nil })
 
 	m := NewManager(nil)

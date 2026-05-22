@@ -23,7 +23,7 @@ export interface InformationCategory {
    *  single generic component (e.g. InformationManualTopic) back several
    *  leaves that differ only in input. */
   props?: Record<string, unknown>;
-  /** When true, the workspace's top-level page heading is suppressed —
+  /** When true, the workspace's top-level page heading is suppressed -
    *  the leaf renders its own H1 (typically because the content is
    *  markdown with its own title). */
   ownsHeading?: boolean;

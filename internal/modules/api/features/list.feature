@@ -1,4 +1,4 @@
-Feature: REST API — paged collection listing
+Feature: REST API - paged collection listing
   GET /api/collections/{tpl} returns a paginated, optionally filtered
   view of the collection. Supports limit/offset/q/tags query params and
   participates in HTTP caching via ETag + If-None-Match.

@@ -6,7 +6,7 @@ import { useConfig } from "../../composables/useConfig";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { fieldLabel, fieldDescription } from "../../utils/pluginI18n";
 
-// FormFieldRow — label + description (left/top) and the per-type
+// FormFieldRow - label + description (left/top) and the per-type
 // renderer (right/bottom). When `field.collapsible === true` we add
 // a ▶/▼ toggle in the label that hides the input cell, mirroring the
 // original Formidable's `applyCollapsibleField` behaviour. Initial

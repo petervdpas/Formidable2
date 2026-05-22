@@ -30,7 +30,7 @@ import { pluginName, pluginDescription, commandLabel } from "../utils/pluginI18n
 // PluginRunDialog mirrors PluginsWorkspace's inline Run modal but is
 // mounted once at the App level and driven entirely by the manifest
 // of the plugin in `openRequest`. The two modes the manifest declares
-// are honored verbatim — there is no filtering on top:
+// are honored verbatim - there is no filtering on top:
 //   - run_mode === "form" → render the plugin's form (with the
 //     description above it) and each form_button command as an action
 //     button. ctx = { ...extraCtx, ...formValues }.
@@ -47,7 +47,7 @@ const { openRequest, running, stopping } = useGlobalPluginRun();
 const plugin = computed<ListResult | null>(() => openRequest.value?.plugin ?? null);
 const extraCtx = computed<Record<string, unknown>>(() => openRequest.value?.extraCtx ?? {});
 
-// formEntries is the heterogeneous parsed form.json — each entry is
+// formEntries is the heterogeneous parsed form.json - each entry is
 // either a Field (input row) or a Widget (live display slot). Order
 // in the array IS the render order; no separate sort key.
 const formEntries = ref<Array<Field | Widget>>([]);

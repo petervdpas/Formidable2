@@ -4,7 +4,7 @@ import type { Widget } from "../../../bindings/github.com/petervdpas/formidable2
 
 // StatusMessageWidget renders a single-line status label driven by
 // formidable.run.status(text). All statusmessage widgets in a form
-// share the same global `status` ref — the plugin pushes the
+// share the same global `status` ref - the plugin pushes the
 // current item's path/name once and every widget re-renders. Always
 // rendered so the author's form layout is the same before / during /
 // after a run; empty text shows an em-dash placeholder at idle.
@@ -19,7 +19,7 @@ const { status } = useGlobalPluginRun();
       {{ widget.label }}
     </label>
     <p class="form-widget-statusmessage-text">
-      {{ status || "—" }}
+      {{ status || "-" }}
     </p>
   </div>
 </template>

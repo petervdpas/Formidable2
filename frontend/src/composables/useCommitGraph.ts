@@ -4,7 +4,7 @@ import { backendErrMessage } from "../utils/backendError";
 import type { ModuleCache } from "./createModuleCache";
 
 // useCommitGraph owns the lifecycle shared by every Commit Graph view
-// in the collaboration workspace — irrespective of which backend
+// in the collaboration workspace - irrespective of which backend
 // fetches the commits:
 //
 //   - Read-through cache: on mount, render the cached value before
@@ -27,15 +27,15 @@ import type { ModuleCache } from "./createModuleCache";
 export interface UseCommitGraphOptions<T> {
   /** Reactive cache discriminator: usually "<remote>|<repo>" or git_root. */
   cacheKey: ComputedRef<string>;
-  /** Empty/cleared state — produced fresh on each call so the consumer
+  /** Empty/cleared state - produced fresh on each call so the consumer
    *  can hold a mutable shape without shared-reference surprises. */
   emptyValue: () => T;
   /** Service call producing the new value. Throw on error; the
    *  composable catches and surfaces the message via errorMsg. */
   fetch: () => Promise<T>;
-  /** Module-scoped cache instance — see createModuleCache. */
+  /** Module-scoped cache instance - see createModuleCache. */
   cache: ModuleCache<T>;
-  /** Optional error hook (toasts) — called after errorMsg is set so
+  /** Optional error hook (toasts) - called after errorMsg is set so
    *  the consumer can fire a localized toast. */
   onError?: (err: unknown) => void;
 }

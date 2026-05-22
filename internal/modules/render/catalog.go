@@ -1,7 +1,7 @@
 package render
 
 // HelperCategory groups helpers into discoverable sections in the
-// frontend reference panel. Stable string constants — frontend uses
+// frontend reference panel. Stable string constants - frontend uses
 // them as i18n key suffixes (e.g. `render.helpers.category.field`).
 type HelperCategory string
 
@@ -26,7 +26,7 @@ const (
 // HelperDescriptor describes one registered Handlebars helper. The
 // shape is JSON-serialisable for the Wails service so the frontend
 // reference panel can render it directly. Fields are intentionally
-// terse — these are developer-facing reference cards, not tutorials.
+// terse - these are developer-facing reference cards, not tutorials.
 type HelperDescriptor struct {
 	// Name is the helper identifier as used in `{{<name> …}}`.
 	Name string `json:"name"`
@@ -88,7 +88,7 @@ var builtinHelpers = []HelperDescriptor{
 	{Name: "dateFormat", Signature: `{{dateFormat value layout [locale]}}`, Description: "Reformat a stored date / datetime string with a Go time layout, optionally translated into a locale (en, nl, de, fr). Recognises YYYY-MM-DD, RFC 3339, and `2006-01-02 15:04:05`. Unparseable input passes through.", Example: `{{dateFormat (field "due") "Monday 2 January 2006" "nl"}}`, Category: HelperCategoryDate},
 
 	// ── format ───────────────────────────────────────────────────
-	{Name: "json", Signature: `{{json value}}`, Description: "Render a value as pretty-printed JSON (2-space indent). Safe — output is not HTML-escaped.", Example: `{{json record}}`, Category: HelperCategoryFormat},
+	{Name: "json", Signature: `{{json value}}`, Description: "Render a value as pretty-printed JSON (2-space indent). Safe - output is not HTML-escaped.", Example: `{{json record}}`, Category: HelperCategoryFormat},
 	{Name: "log", Signature: `{{log value}}`, Description: "Emit a `[LOG]`-prefixed JSON dump into the rendered output. Debugging aid.", Example: `{{log ctx}}`, Category: HelperCategoryFormat},
 
 	// ── scratch (per-call vars) ──────────────────────────────────
@@ -103,7 +103,7 @@ var builtinHelpers = []HelperDescriptor{
 	{Name: "field", Signature: `{{field "key" [mode]}}`, Description: "Polymorphic field renderer. Mode defaults to `label`; supports `value`, `href`, `text`, `default` (link fields render as Markdown links by default).", Example: `{{field "status"}}`, Category: HelperCategoryField},
 	{Name: "fieldDescription", Signature: `{{fieldDescription "key"}}`, Description: "Description string from the field's template definition.", Example: `{{fieldDescription "status"}}`, Category: HelperCategoryField},
 	{Name: "fieldMeta", Signature: `{{fieldMeta "key" "prop"}}`, Description: "Read a property off the field's template definition (`key`, `type`, `label`, `description`, `options`, or empty for the whole field).", Example: `{{fieldMeta "status" "type"}}`, Category: HelperCategoryField},
-	{Name: "fieldRaw", Signature: `{{fieldRaw "key"}}`, Description: "Raw stored value for a field — bypasses the formatting in `{{field}}`.", Example: `{{fieldRaw "tags"}}`, Category: HelperCategoryField},
+	{Name: "fieldRaw", Signature: `{{fieldRaw "key"}}`, Description: "Raw stored value for a field - bypasses the formatting in `{{field}}`.", Example: `{{fieldRaw "tags"}}`, Category: HelperCategoryField},
 
 	// ── image ────────────────────────────────────────────────────
 	{Name: "imageBase64", Signature: `{{imageBase64 "key"}}`, Description: "`data:<mime>;base64,…` URL for an image field's stored filename. Used for self-contained markdown exports.", Example: `![logo]({{imageBase64 "logo"}})`, Category: HelperCategoryImage},
@@ -122,25 +122,25 @@ var builtinHelpers = []HelperDescriptor{
 
 	// ── tags / lists ─────────────────────────────────────────────
 	{Name: "tags", Signature: `{{tags arr [withHash=true]}}`, Description: "Render an array as comma-joined kebab-cased labels (`#audit, #governance`). Pass `withHash=false` to drop the leading hash.", Example: `Topics: {{tags (fieldRaw "topics") withHash=false}}`, Category: HelperCategoryTags},
-	{Name: "yamlList", Signature: `{{yamlList arr [indent=N]}}`, Description: "Emit a YAML block-sequence chunk (`- a\\n- b\\n…`) from an array. Use at column 0 inside a `keys:` block — see PDF frontmatter `keywords:` for the canonical case.", Example: `{{yamlList (fieldRaw "adapter-tags")}}`, Category: HelperCategoryTags},
+	{Name: "yamlList", Signature: `{{yamlList arr [indent=N]}}`, Description: "Emit a YAML block-sequence chunk (`- a\\n- b\\n…`) from an array. Use at column 0 inside a `keys:` block - see PDF frontmatter `keywords:` for the canonical case.", Example: `{{yamlList (fieldRaw "adapter-tags")}}`, Category: HelperCategoryTags},
 
 	// ── api fields ───────────────────────────────────────────────
 	{Name: "apiBlock", Signature: `{{apiBlock "fieldKey" "columnKey"}}`, Description: "Type-aware block render for one api-field column (scalar passthrough; tags joined; lists as markdown bullets; tables as pipe-tables).", Example: `{{apiBlock "ref" "lineItems"}}`, Category: HelperCategoryAPI},
 	{Name: "apiCol", Signature: `{{apiCol "fieldKey" "columnKey"}}`, Description: "Read one projected column from an api-field's picked record. Scalars pass through; non-scalars render as compact JSON.", Example: `{{apiCol "ref" "title"}}`, Category: HelperCategoryAPI},
 	{Name: "apiGuid", Signature: `{{apiGuid "fieldKey"}}`, Description: "GUID of an api-field's picked record. Empty when nothing has been picked.", Example: `{{apiGuid "ref"}}`, Category: HelperCategoryAPI},
-	{Name: "apiSection", Signature: `{{apiSection "fieldKey"}}`, Description: "Full embedded-card markdown for an api-field's picked record — header + per-column lines, wrapped in `<section class=\"api-card\">`.", Example: `{{apiSection "ref"}}`, Category: HelperCategoryAPI},
+	{Name: "apiSection", Signature: `{{apiSection "fieldKey"}}`, Description: "Full embedded-card markdown for an api-field's picked record - header + per-column lines, wrapped in `<section class=\"api-card\">`.", Example: `{{apiSection "ref"}}`, Category: HelperCategoryAPI},
 
 	// ── meta (current-render identity) ───────────────────────────
 	{Name: "datafile", Signature: `{{datafile}}`, Description: "Filename of the data file being rendered (e.g. `chapter-01.meta.json`).", Example: `path: {{datafile}}`, Category: HelperCategoryMeta},
-	{Name: "datafileStem", Signature: `{{datafileStem}}`, Description: "Filename of the data file with `.meta.json` stripped — useful as a stable slug for wiki paths or anchors.", Example: `path: {{templateStem}}/{{datafileStem}}`, Category: HelperCategoryMeta},
+	{Name: "datafileStem", Signature: `{{datafileStem}}`, Description: "Filename of the data file with `.meta.json` stripped - useful as a stable slug for wiki paths or anchors.", Example: `path: {{templateStem}}/{{datafileStem}}`, Category: HelperCategoryMeta},
 	{Name: "templateName", Signature: `{{templateName}}`, Description: "Filename of the template being rendered (e.g. `recipes.yaml`).", Example: `template: {{templateName}}`, Category: HelperCategoryMeta},
-	{Name: "templateStem", Signature: `{{templateStem}}`, Description: "Filename of the template with the `.yaml` extension stripped — the slug form used in URLs and wiki paths.", Example: `slug: {{templateStem}}`, Category: HelperCategoryMeta},
+	{Name: "templateStem", Signature: `{{templateStem}}`, Description: "Filename of the template with the `.yaml` extension stripped - the slug form used in URLs and wiki paths.", Example: `slug: {{templateStem}}`, Category: HelperCategoryMeta},
 }
 
 // Catalog returns a copy of the static helper descriptor list. Callers
 // can mutate the returned slice freely without affecting future calls.
 // Order is grouped by Category and sorted alphabetically inside each
-// group — same order as the source slice.
+// group - same order as the source slice.
 func Catalog() []HelperDescriptor {
 	out := make([]HelperDescriptor, len(builtinHelpers))
 	copy(out, builtinHelpers)

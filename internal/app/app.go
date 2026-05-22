@@ -156,7 +156,7 @@ func New(d Deps) (*App, error) {
 	sfrM := sfr.NewManager(sysM, d.Logger)
 	csvM := csv.NewManager(sysM, d.Logger)
 
-	// Template manager — rooted at the active context's templates path
+	// Template manager - rooted at the active context's templates path
 	// (absolute, from config's VFS). On profile/context switch the
 	// composition root is rebuilt; that's outside the scope of this story.
 	templatesPath, err := cfgM.GetContextTemplatesPath()
@@ -183,7 +183,7 @@ func New(d Deps) (*App, error) {
 		return ""
 	}
 
-	// Storage manager — rooted at the active context's storage path.
+	// Storage manager - rooted at the active context's storage path.
 	storagePath, err := cfgM.GetContextStoragePath()
 	if err != nil {
 		return nil, err
@@ -204,47 +204,47 @@ func New(d Deps) (*App, error) {
 
 	// Wire CSV's export dependency now that storage exists. Import only
 	// uses csvM, but Export needs to walk every form for the active
-	// template — that lives behind csv.formsSource and storage satisfies
+	// template - that lives behind csv.formsSource and storage satisfies
 	// it via a small adapter.
 	csvM.SetForms(&csvFormsAdapter{sto: stoM})
 
-	// Form manager — orchestrates template + storage + config defaults
+	// Form manager - orchestrates template + storage + config defaults
 	// for the Storage workspace's per-form view. configAdapter is a
 	// thin shim so config doesn't have to depend on form's types.
 	formM := form.NewManager(tplM, stoM, &configAdapter{cfg: cfgM}, d.Logger)
 
-	// Render — two managers, one per transport target. The render
+	// Render - two managers, one per transport target. The render
 	// pipeline is identical (Handlebars → Markdown → HTML); only the
 	// URL strategies differ. Each consumer instantiates its own
 	// (image, link) pair so future export targets (Azure DevOps wiki,
 	// GitHub wiki, …) just plug in their own strategies without
 	// teaching the render module about transports.
 	//
-	//   slideoutRender — Storage workspace preview slideout + the
+	//   slideoutRender - Storage workspace preview slideout + the
 	//     Wails Render service. Images come back as `data:` URLs (the
 	//     Wails webview blocks file://); formidable:// URLs pass
 	//     through, the Vue click interceptor in StorageWorkspace
 	//     resolves them via the Nav service.
 	//
-	//   wikiRender — wiki HTTP server (and dataprovider, which the
+	//   wikiRender - wiki HTTP server (and dataprovider, which the
 	//     wiki consumes). Images come back as `/storage/<tpl>/images/
 	//     <name>` so the browser caches them; formidable:// URLs are
 	//     rewritten to `/template/<stem>/form/<datafile>` at the
 	//     source so links work natively as plain HTML anchors.
 	// The slideout's <img src=…> reaches /api/images/<stem>/<file>
-	// through Wails' AssetMiddleware (see APIAssetMiddleware) — the
+	// through Wails' AssetMiddleware (see APIAssetMiddleware) - the
 	// markdown stays free of inlined base64 and the same URL works
 	// from external HTTP callers when the wiki/api server is on.
 	slideoutImageURL := func(templateFilename, name string) string {
 		stem := strings.TrimSuffix(templateFilename, ".yaml")
-		// PathEscape on the filename segment only — spaces, parens, etc.
+		// PathEscape on the filename segment only - spaces, parens, etc.
 		// in the on-disk name would otherwise produce a markdown URL
 		// goldmark refuses to parse as an image destination (link
 		// destinations may not contain unescaped spaces). The template
 		// stem is slug-shaped and safe to pass through verbatim.
 		return "/api/images/" + stem + "/" + url.PathEscape(name)
 	}
-	// Inline-image mode for the generator's "inline" choice — reads
+	// Inline-image mode for the generator's "inline" choice - reads
 	// the bytes via storage and returns the data URL (which
 	// LoadImageFile already produces). Wired only on the slideout
 	// manager; the wiki manager keeps url-only output.
@@ -281,7 +281,7 @@ func New(d Deps) (*App, error) {
 	// the policy entirely. The PoC (Stage 0) verified this path
 	// works; file:// did not.
 	//
-	// formidable:// links stay as-is — PDF readers can't follow them
+	// formidable:// links stay as-is - PDF readers can't follow them
 	// usefully, but keeping them in the source means downstream
 	// consumers could.
 	pdfImageDataURL := func(templateFilename, name string) string {
@@ -309,12 +309,12 @@ func New(d Deps) (*App, error) {
 	emitter := &emitterRelay{}
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
-	// History — back/forward stack over formidable:// hrefs.
+	// History - back/forward stack over formidable:// hrefs.
 	//
 	//   * Manager: pure stack data.
 	//   * Controller: holds nav replay + emitter + persister. Receives
 	//     pushes from nav, replays via nav on Back/Forward.
-	//   * Service: thin Wails facade exposing only Back/Forward/State —
+	//   * Service: thin Wails facade exposing only Back/Forward/State -
 	//     keeps SetNavigator/Push/Broadcast off the bound surface.
 	bootCfg, _ := cfgM.LoadUserConfig()
 	historyM := history.NewManager(bootCfg.History.MaxSize)
@@ -328,7 +328,7 @@ func New(d Deps) (*App, error) {
 	)
 	historySvc := history.NewService(historyCtl)
 
-	// Nav manager — owns formidable:// URL resolution. Validates the
+	// Nav manager - owns formidable:// URL resolution. Validates the
 	// (template, datafile) pair against the same managers the rest of
 	// the app uses, persists the selection to config, and emits a
 	// nav:changed event so the frontend's global listener can flip the
@@ -350,7 +350,7 @@ func New(d Deps) (*App, error) {
 		_ = jrnM.Init()
 	}
 
-	// Index — per-profile SQLite cache that backs the future wiki/API.
+	// Index - per-profile SQLite cache that backs the future wiki/API.
 	// Lives at <AppRoot>/index/<profile-stem>.db. Read-side never
 	// touches disk; writes go through the manager hooks below and via
 	// RescanAll on startup (catches sync/external edits we missed).
@@ -399,14 +399,14 @@ func New(d Deps) (*App, error) {
 		return cfgM.AutoEnableNewTemplate(filename)
 	}))
 
-	// First-boot reconcile — picks up anything that landed on disk
+	// First-boot reconcile - picks up anything that landed on disk
 	// while the app was off (gigot pull, manual edits, etc.). Logged-
 	// best-effort: the index is a derived view, app boots regardless.
 	if err := ehM.RescanAll(context.Background()); err != nil {
 		d.Logger.Warn("index initial RescanAll failed", "err", err)
 	}
 
-	// Dataprovider — read-only facade over the index + render. The
+	// Dataprovider - read-only facade over the index + render. The
 	// wiki HTTP server consumes this and gets `wikiRender` so its
 	// rendered output already carries `/template/.../form/...` and
 	// `/storage/.../images/...` URLs (no post-process regex needed).
@@ -414,7 +414,7 @@ func New(d Deps) (*App, error) {
 	// which use `slideoutRender` (formidable:// + data: URLs).
 	dpM := dataprovider.NewManager(idxM, wikiRender, stoM)
 
-	// Expression engine — sandboxed evaluator for sidebar sub-labels
+	// Expression engine - sandboxed evaluator for sidebar sub-labels
 	// (and future field-default / plugin-command callers). Built before
 	// the wiki handler so the wiki form list can show expression
 	// subtitles using the same engine the in-app sidebar uses.
@@ -423,7 +423,7 @@ func New(d Deps) (*App, error) {
 		expressionStorageAdapter{sto: stoM},
 	)
 
-	// Integrity — analyzes stored forms against the template's current
+	// Integrity - analyzes stored forms against the template's current
 	// field declarations (Utilities → Cleanup Storage). Phase 1 was
 	// analyze-only; phase 2 adds Fix, which mutates meta + data and
 	// commits via storage.SaveFormExact so meta mutations (mint UUID,
@@ -432,7 +432,7 @@ func New(d Deps) (*App, error) {
 	integrityM := integrity.NewManager(tplM, stoM)
 	integrityM.SetWriter(integrityStorageAdapter{sto: stoM})
 
-	// Wiki — runtime-controllable HTTP server that serves rendered
+	// Wiki - runtime-controllable HTTP server that serves rendered
 	// templates+forms from dataprovider and images from storage. The
 	// in-app About workspace toggles it on/off via Wiki service. The
 	// window-opener hook is installed by main.go after the Wails
@@ -443,28 +443,28 @@ func New(d Deps) (*App, error) {
 	// switched off in Settings → Templates from both the list view and
 	// detail pages (which 404 for disabled templates).
 	wikiHandler.SetEnabledFilter(cfgM)
-	// Templates surface — per-template facet definitions drive the
+	// Templates surface - per-template facet definitions drive the
 	// index page's facet pills and the template page's filter strip.
 	wikiHandler.SetTemplates(tplM)
 
-	// REST API peer surface — `/api/...` routes (collections CRUD-read,
+	// REST API peer surface - `/api/...` routes (collections CRUD-read,
 	// design, exports, OpenAPI spec, Swagger UI). Mounted alongside the
 	// wiki HTML chrome on the same loopback listener; Go's mux routes
 	// `/api/*` to the api handler and everything else to wiki by
 	// longest-prefix match.
-	// stoM appears twice — once as Storage (LoadForm), once as Writer
+	// stoM appears twice - once as Storage (LoadForm), once as Writer
 	// (SaveForm/DeleteForm). Same instance, narrow per-concern interfaces.
 	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM)
 
-	// Auth scaffolding — Desktop mode. Two handlers cover the two
+	// Auth scaffolding - Desktop mode. Two handlers cover the two
 	// transports the api rides on:
 	//
-	//   apiHandlerNetwork   — full chain (LoopbackOnly + RequireOrigin
+	//   apiHandlerNetwork   - full chain (LoopbackOnly + RequireOrigin
 	//                          + ResolveIdentity). Mounted on the wiki
 	//                          mux that the optional loopback HTTP
 	//                          server binds, where real TCP clients
 	//                          and browser tabs can reach.
-	//   apiHandlerInProcess — ResolveIdentity only. Served via Wails'
+	//   apiHandlerInProcess - ResolveIdentity only. Served via Wails'
 	//                          AssetMiddleware to the in-webview
 	//                          <img src="/api/images/…"> etc. Those
 	//                          requests are process-local (RemoteAddr
@@ -488,7 +488,7 @@ func New(d Deps) (*App, error) {
 		auth.RequireOrigin(apiOriginAllowlist)(apiHandlerInProcess),
 	)
 
-	// Monitor module — generic observation surface over Formidable's
+	// Monitor module - generic observation surface over Formidable's
 	// internal event streams. JournalSource is the only registered
 	// source for now; future LogSource / RequestSource plug into the
 	// same Manager. Wails service for the in-app Monitoring page,
@@ -523,7 +523,7 @@ func New(d Deps) (*App, error) {
 		}
 	}
 
-	// Plugin module — Lua-scripted on-demand commands. Lives at
+	// Plugin module - Lua-scripted on-demand commands. Lives at
 	// <AppRoot>/plugins/<id>/{plugin.json,main.lua}; per-plugin K/V
 	// at <AppRoot>/plugins/.kv/<id>.json. Discovery runs once at
 	// boot; the workspace's Refresh button re-scans at runtime.
@@ -557,7 +557,7 @@ func New(d Deps) (*App, error) {
 			emitter.Emit("plugin:run:status", evt)
 		},
 		Exec:       plugin.OSExec{},
-		// HTTPClient is satisfied by a wiki+system adapter — plugins
+		// HTTPClient is satisfied by a wiki+system adapter - plugins
 		// that flag requires_internal_server in their manifest get
 		// formidable.api.fetch wired against the running wiki server.
 		API:        pluginHTTPAdapter{wiki: wikiM, sys: sysM},
@@ -567,7 +567,7 @@ func New(d Deps) (*App, error) {
 	// the pdf cover scaffold: ships the seed inside the binary so every
 	// distribution (deb, rpm, dmg, NSIS, portable archive) has the
 	// same starter set without per-distro file-copy plumbing. Failures
-	// log and continue — a missing seed isn't fatal.
+	// log and continue - a missing seed isn't fatal.
 	if err := plugin.ScaffoldPlugins(sysM, pluginsDir, d.Logger); err != nil {
 		d.Logger.Warn("plugin: scaffold failed; library may be incomplete", "err", err)
 	}
@@ -576,7 +576,7 @@ func New(d Deps) (*App, error) {
 	}
 
 	// Collaboration → Git. Stateless read-only manager backed by
-	// pure go-git — no system git binary or credential helper
+	// pure go-git - no system git binary or credential helper
 	// required. Network/auth ops arrive in a later pass.
 	gitM := git.NewManager().WithLogger(d.Logger)
 	sysgitR := sysgit.NewRunner(d.Logger)
@@ -590,11 +590,11 @@ func New(d Deps) (*App, error) {
 	// Collaboration → GiGot. JSON-over-HTTP sync to a GiGot
 	// server. Track-record writes go through sysM (atomic
 	// temp+fsync+rename via SaveFile). Subscription bearer is
-	// resolved per-call from the keychain at the Service layer —
+	// resolved per-call from the keychain at the Service layer -
 	// the Manager stays transport-neutral.
 	gigotM := gigot.NewManager(sysM)
 
-	// PDF export — Stage 4. Manager probes system + managed-cache
+	// PDF export - Stage 4. Manager probes system + managed-cache
 	// Chrome on demand, persists activation per-machine to
 	// <AppRoot>/config/.pdf-state.json via sysM, and renders forms
 	// through the pdfRender Manager + picoloom converter. Formidable
@@ -609,7 +609,7 @@ func New(d Deps) (*App, error) {
 	// file:// document can't load <img src="C:/…"> verbatim; picoloom's
 	// path rewriter only converts paths under SourceDir, so anything
 	// in <AppRoot>/pdf/covers/images/ needs a real URL. Boot-time
-	// bind, process-lifetime listener. Failure is non-fatal — render
+	// bind, process-lifetime listener. Failure is non-fatal - render
 	// falls back to the legacy absolute-path behaviour.
 	//
 	// Exclude the configured internal-server port so the asset server
@@ -688,7 +688,7 @@ func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manag
 
 // newGigotService composes gigot.NewService and gigot.AttachProgress
 // so the App wiring stays a single map literal. The emitterRelay
-// satisfies Wails' Emit shape — late-bound to the application's event
+// satisfies Wails' Emit shape - late-bound to the application's event
 // emitter once main.go calls App.SetEmit, so progress events fired
 // before the Wails app is fully built no-op gracefully instead of
 // panicking.
@@ -706,7 +706,7 @@ func newGigotService(m *gigot.Manager, creds gigot.CredentialReader, cfg *config
 //
 // This is the in-process variant: identity stamping is wired but the
 // network-only defenses (LoopbackOnly, RequireOrigin) are NOT. Asset
-// requests originate inside the Wails webview itself — RemoteAddr is
+// requests originate inside the Wails webview itself - RemoteAddr is
 // empty and there is no cross-origin browser tab, so the network
 // guards would only ever produce false positives here. The loopback
 // HTTP server uses the fully-wrapped variant separately.

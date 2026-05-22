@@ -9,7 +9,7 @@ import (
 // expressionTemplateAdapter satisfies expression.TemplateProvider so
 // the engine module never needs to import template directly. Returns
 // the sidebar expression and the list of expression-flagged field
-// keys — that field list backs the engine's narrowContext defence.
+// keys - that field list backs the engine's narrowContext defence.
 type expressionTemplateAdapter struct {
 	tpl *template.Manager
 }

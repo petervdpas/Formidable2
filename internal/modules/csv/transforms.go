@@ -24,7 +24,7 @@ var rules = []string{
 	"first-n", "last-n", "split", "bool-match", "split-table",
 }
 
-// excludedTypes mirrors utils/csvTransforms.js excludedTypes — field
+// excludedTypes mirrors utils/csvTransforms.js excludedTypes - field
 // types that can never participate in a CSV mapping.
 var excludedTypes = []string{"loopstart", "loopstop", "image", "code", "api"}
 

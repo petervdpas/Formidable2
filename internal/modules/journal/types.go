@@ -60,7 +60,7 @@ var gitignorePatterns = []string{
 	"**/.changes.*",
 }
 
-// knownBackends — used to validate sync entries from disk. The
+// knownBackends - used to validate sync entries from disk. The
 // orderedSyncBackends slice below is the same set in the order the
 // frontend should display it; both are derived from this map at init.
 var knownBackends = map[string]bool{
@@ -69,7 +69,7 @@ var knownBackends = map[string]bool{
 }
 
 // orderedSyncBackends is the canonical display order for collaboration
-// backends — exposed via Service.ListBackends so the frontend never
+// backends - exposed via Service.ListBackends so the frontend never
 // keeps a parallel hardcoded list. Adding a new backend means adding
 // it here AND in knownBackends; same one-source-of-truth shape as
 // pdf.builtinThemes.
@@ -109,7 +109,7 @@ type PendingChange struct {
 }
 
 // PendingResult is the shape returned by Pending() and exposed to the
-// frontend. Count is always equal to len(Paths) — kept as a convenience
+// frontend. Count is always equal to len(Paths) - kept as a convenience
 // so JS callers don't need to call paths.length.
 type PendingResult struct {
 	Count int             `json:"count"`
@@ -126,7 +126,7 @@ type InitResult struct {
 // Recorder is the narrow surface sync backends (git, gigot) call into
 // after a Push or Pull. *Manager satisfies it directly so the
 // composition root can pass `jrnM` straight to the backend's NewService
-// — no per-backend adapter needed. Defined here at the producer side so
+// - no per-backend adapter needed. Defined here at the producer side so
 // each backend imports one canonical shape rather than redeclaring an
 // identical interface locally.
 type Recorder interface {
@@ -136,7 +136,7 @@ type Recorder interface {
 
 // Reader is the journal's read-only state surface. Sync backends use it
 // for journal-aware flows like auto-stash, where the pull pre-flight
-// needs to know which paths Formidable mutated since the last sync —
+// needs to know which paths Formidable mutated since the last sync -
 // strictly narrower than reading the on-disk log.
 type Reader interface {
 	Pending(backend string) PendingResult

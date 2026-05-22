@@ -10,7 +10,7 @@ import (
 func TestResolveExportDefaults_EmptyFrontmatterIsPicoloomDefault(t *testing.T) {
 	m, _, rdr, stg, _ := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/storage/tpl"
-	// No frontmatter at all — exactly the BC.01 case the user pointed at.
+	// No frontmatter at all - exactly the BC.01 case the user pointed at.
 	rdr.md["tpl.yaml|bc01.meta.json"] = "# body without any frontmatter\n"
 
 	got, err := m.ResolveExportDefaults("tpl.yaml", "bc01.meta.json")
@@ -95,7 +95,7 @@ func TestResolveExportDefaults_DocOverridesManifest(t *testing.T) {
 func TestResolveExportDefaults_MalformedFrontmatterStillResolvesManifest(t *testing.T) {
 	m, _, rdr, stg, _ := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/storage/tpl"
-	// Missing closing --- — ParseFrontmatter returns malformed err but
+	// Missing closing --- - ParseFrontmatter returns malformed err but
 	// resolve must continue to manifest layer.
 	rdr.md["tpl.yaml|broken.meta.json"] = "---\nstyle: technical\n# body without closing fence\n"
 	m.templates = &fakeTemplateLoader{
@@ -125,7 +125,7 @@ func TestResolveExportDefaults_RendererErrorBubbles(t *testing.T) {
 
 func TestResolveExportDefaults_InactiveStillResolves(t *testing.T) {
 	// Dialog might want to preview before the engine is active. Resolve
-	// is read-only metadata — no need to gate on activation.
+	// is read-only metadata - no need to gate on activation.
 	m, _, rdr, stg, _ := newActiveManager(t)
 	stg.dirs["tpl.yaml"] = "/storage/tpl"
 	rdr.md["tpl.yaml|x.meta.json"] = "---\nstyle: invoice\n---\n# body\n"

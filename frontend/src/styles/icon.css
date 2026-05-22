@@ -1,4 +1,4 @@
-/* Icon — wrapper around an inline SVG (Flaticon illustrations). The
+/* Icon - wrapper around an inline SVG (Flaticon illustrations). The
    Icon component sets explicit pixel size on the wrapper; the SVG
    inside scales to fill via width/height: 100%. Colors are baked
    into the SVG itself, so no theme tokens are applied here. */

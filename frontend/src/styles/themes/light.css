@@ -1,4 +1,4 @@
-/* Light theme — also serves as the default when no data-theme attribute is set. */
+/* Light theme - also serves as the default when no data-theme attribute is set. */
 :root,
 :root[data-theme="light"] {
     --color-bg:           #ffffff;

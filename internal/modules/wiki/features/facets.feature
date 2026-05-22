@@ -1,5 +1,5 @@
 Feature: Facets on the wiki list pages
-  Templates can declare facets — orthogonal meta-tagging dimensions
+  Templates can declare facets - orthogonal meta-tagging dimensions
   (key + icon + colored options). The wiki surfaces them on two pages:
 
     * the index page shows each template's facet KEYS so readers can
@@ -29,7 +29,7 @@ Feature: Facets on the wiki list pages
       | flag | fa-flag | DONE,green |
     When I GET "/"
     Then the response status is 200
-    # Only the basic row should carry a .facet-pills container — recepten
+    # Only the basic row should carry a .facet-pills container - recepten
     # contributes no facets in this scenario.
     And the html body contains "data-facet-key=\"flag\""
     And the html body contains "<li class=\"template-item\">"
@@ -73,7 +73,7 @@ Feature: Facets on the wiki list pages
   Scenario: Filter strip survives missing per-form facet state
     Given the template "basic.yaml" declares facets:
       | flag | fa-flag | DONE,green |
-    # No "the form ... has facets" steps — storage.LoadForm returns nil.
+    # No "the form ... has facets" steps - storage.LoadForm returns nil.
     When I GET "/template/basic"
     Then the response status is 200
     And the html body contains "class=\"facet-filter\""

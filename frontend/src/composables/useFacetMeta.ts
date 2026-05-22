@@ -7,7 +7,7 @@ import type {
 
 // Module-scope singleton: every consumer shares one snapshot of the
 // backend's facet contract (limits + palettes + regex patterns). The
-// frontend never mirrors these constants — backend is authoritative
+// frontend never mirrors these constants - backend is authoritative
 // per project rule [[feedback_backend_owns_data]].
 const meta = ref<FacetMeta | null>(null);
 const loading = ref(false);
@@ -47,7 +47,7 @@ export function useFacetMeta() {
     const raw = meta.value?.icon_svgs;
     if (!raw) return FALLBACK_ICON_SVGS;
     // Wails' generated `{ [_ in string]?: FacetIconSpec }` shape isn't a
-    // plain object lookup — normalise to one once so callers can index
+    // plain object lookup - normalise to one once so callers can index
     // by string without optional-chaining the result.
     const out: Record<string, FacetIconSpec> = {};
     for (const [k, v] of Object.entries(raw)) {

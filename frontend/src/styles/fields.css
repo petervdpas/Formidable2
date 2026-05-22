@@ -56,7 +56,7 @@
 }
 
 /* Native <select> on Linux/Chromium ignores our padding for the
-   rendered value — text ends up below center. Disabling the platform
+   rendered value - text ends up below center. Disabling the platform
    widget gives us input-equivalent layout, but then we have to draw
    the caret ourselves. SVG is inline so it themes via the color stop;
    a neutral mid-grey reads fine across light/dark/purplish. */
@@ -111,7 +111,7 @@
     border-color: var(--input-invalid-border);
 }
 
-/* Native date picker — style the calendar-indicator pill so it
+/* Native date picker - style the calendar-indicator pill so it
    matches the input chrome instead of the browser default. The
    popup itself is the OS/browser native widget (matches original
    Formidable). */

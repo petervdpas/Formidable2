@@ -8,13 +8,13 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// templateLoader — what the render Manager needs from the template
+// templateLoader - what the render Manager needs from the template
 // module. Satisfied by *template.Manager.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// formStore — what the render Manager needs from the storage module.
+// formStore - what the render Manager needs from the storage module.
 // Satisfied by *storage.Manager.
 type formStore interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
@@ -32,7 +32,7 @@ type ImageURLFunc func(templateFilename, name string) string
 // `data:<mime>;base64,<bytes>` URL. Wired separately from ImageURLFunc
 // so a single render.Manager can serve both `<img src="/api/images/…">`
 // (via ImageURL) and the generator's inline-image mode (via
-// ImageBase64URL). May be nil — inline-mode markdown then renders the
+// ImageBase64URL). May be nil - inline-mode markdown then renders the
 // {{imageBase64}} helper as an empty string.
 type ImageBase64URLFunc func(templateFilename, name string) string
 

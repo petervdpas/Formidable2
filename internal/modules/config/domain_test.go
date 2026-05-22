@@ -139,7 +139,7 @@ func TestNewManager_PrefersDotbootWhenBothExist(t *testing.T) {
 }
 
 // TestNewManager_MigratesMalformedLegacyBoot ensures the unhappy path:
-// a legacy boot.json that's invalid JSON still gets the migration —
+// a legacy boot.json that's invalid JSON still gets the migration -
 // sanitizeBoot fills in defaults and the result is written to the new
 // path so the user lands on a working config rather than a hard fail.
 func TestNewManager_MigratesMalformedLegacyBoot(t *testing.T) {
@@ -514,7 +514,7 @@ func TestVirtualStructure_TTLRebuild(t *testing.T) {
 
 	_ = sys.SaveFile("templates/basic.yaml", "name: Basic")
 	// Force the very first GetVirtualStructure to rebuild against the
-	// frozen clock — without this, the lastBuilt timestamp comes from
+	// frozen clock - without this, the lastBuilt timestamp comes from
 	// real time.Now() at construction, which throws off the staleness
 	// math under the injected clock.
 	m.DirtyVirtualStructure()
@@ -612,7 +612,7 @@ func TestSwitchUserProfile_SerializedAgainstUpdate(t *testing.T) {
 		})
 	}
 
-	// Update storm — every goroutine touches a different field so a
+	// Update storm - every goroutine touches a different field so a
 	// lost merge becomes detectable as a missing field after settling.
 	tweaks := []string{"author_name", "author_email", "git_root", "gigot_repo_name"}
 	for i := range N {
@@ -1090,7 +1090,7 @@ func TestEnabledTemplates_PersistViaUpdateUserConfig(t *testing.T) {
 }
 
 // TestEnabledTemplates_EmptySliceFromUpdateRoundTrip exercises the
-// "user just disabled the last template" edge — the slice is empty,
+// "user just disabled the last template" edge - the slice is empty,
 // not nil, after the update. We accept either nil or [] coming back
 // from LoadUserConfig because JSON omitempty turns []string{} into
 // nil on re-read; semantically both mean "all enabled", which is what

@@ -24,7 +24,7 @@ var (
 
 	// ErrPluginArchiveTraversal blocks entries whose Clean'd name
 	// escapes the plugin folder (foo/../../bar, absolute paths, etc.).
-	// Treated as a hard refusal — never resolved.
+	// Treated as a hard refusal - never resolved.
 	ErrPluginArchiveTraversal = errors.New("plugin: archive path traversal blocked")
 
 	// ErrPluginArchiveExists fires when the target plugin id already
@@ -41,7 +41,7 @@ var (
 	// ErrPluginArchiveOlderVersion fires when an import would overwrite
 	// an installed plugin with a strictly lower version. This is the
 	// only meaning of the `version` field: downgrade-protection on
-	// import. The check is unconditional — overwrite=true cannot
+	// import. The check is unconditional - overwrite=true cannot
 	// bypass it; the user has to roll the incoming plugin's version
 	// forward (or wipe the on-disk copy by hand) to install it.
 	ErrPluginArchiveOlderVersion = errors.New("plugin: archive version is older than installed")
@@ -66,10 +66,10 @@ type ImportArchiveResult struct {
 }
 
 // exportPluginArchive bundles <pluginsDir>/<id>/** into a zip at
-// zipPath. The id is validated up front (validID — same rules as
+// zipPath. The id is validated up front (validID - same rules as
 // Create/Save/Delete) so we never zip from a path the rest of the
 // module would refuse. Hidden files and subfolders that start with
-// "." are skipped recursively — keeps the bundle clean of editor
+// "." are skipped recursively - keeps the bundle clean of editor
 // scratch state and matches what Refresh ignores.
 //
 // Subdirectories (i18n/ is the driving case) recurse with depth-first
@@ -79,7 +79,7 @@ type ImportArchiveResult struct {
 // The .kv state file at <pluginsDir>/.kv/<id>.json is intentionally
 // NOT bundled: it's per-user runtime state, not part of the plugin's
 // distributable shape. A re-import on another machine starts with a
-// fresh KV — same semantic as installing a new plugin.
+// fresh KV - same semantic as installing a new plugin.
 func exportPluginArchive(fs editorFS, pluginsDir, id, zipPath string) (ExportArchiveResult, error) {
 	var zero ExportArchiveResult
 	if fs == nil {
@@ -121,7 +121,7 @@ func exportPluginArchive(fs editorFS, pluginsDir, id, zipPath string) (ExportArc
 // walkArchiveEntries depth-first walks dir, adding every non-hidden
 // regular file to zw. rel is the running zip-entry prefix using
 // forward slashes (empty at the top level). Hidden entries (names
-// starting with ".") are skipped at every level — applies to both
+// starting with ".") are skipped at every level - applies to both
 // files and subdirectories.
 func walkArchiveEntries(fs editorFS, dir, rel string, zw *zip.Writer, files *[]string) error {
 	entries, err := fs.ListDir(dir)
@@ -169,7 +169,7 @@ func walkArchiveEntries(fs editorFS, dir, rel string, zw *zip.Writer, files *[]s
 // overwrite=true. Overwrite first removes the entire existing folder
 // (so stale side files don't survive) before writing the new tree.
 // Note: the plugin's .kv state at <pluginsDir>/.kv/<id>.json is left
-// alone — the user's runtime state outlives the manifest, matching
+// alone - the user's runtime state outlives the manifest, matching
 // what a Save would do.
 func importPluginArchive(fs editorFS, pluginsDir, zipPath string, overwrite bool) (ImportArchiveResult, error) {
 	var zero ImportArchiveResult
@@ -299,7 +299,7 @@ func readArchiveEntry(f *zip.File) (string, error) {
 // readExistingVersion attempts to extract the version from the
 // plugin.json already on disk at <target>/plugin.json. Returns
 // (version, true) on success and ("", false) when the manifest is
-// missing, unreadable, or unparseable — the caller falls back to
+// missing, unreadable, or unparseable - the caller falls back to
 // the normal Exists gate in that case so a tampered install can
 // still be replaced via overwrite=true.
 func readExistingVersion(fs editorFS, target string) (string, bool) {
@@ -325,7 +325,7 @@ func readExistingVersion(fs editorFS, target string) (string, bool) {
 
 // ExportArchive bundles <PluginsDir>/<id>/* into a zip at zipPath.
 // The id is validated against validID; the editor fs handles the
-// I/O. Refreshes are not necessary — exporting doesn't mutate the
+// I/O. Refreshes are not necessary - exporting doesn't mutate the
 // registry. See exportPluginArchive for the file-shape contract.
 func (m *Manager) ExportArchive(id, zipPath string) (ExportArchiveResult, error) {
 	if m.deps.Editor == nil {
@@ -347,7 +347,7 @@ func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveRe
 		return res, err
 	}
 	if refreshErr := m.Refresh(); refreshErr != nil {
-		// Log via the manager's logger but return the import result —
+		// Log via the manager's logger but return the import result -
 		// the files landed on disk; a refresh hiccup is recoverable
 		// via the workspace's Refresh button.
 		m.log.Warn("plugin: refresh after import failed", "id", res.ID, "err", refreshErr)

@@ -12,7 +12,7 @@ const (
 
 // FacetColorList is the ordered closed set of color tokens a
 // FacetOption may reference. Mirrors the 16 .expr-bg-* utilities in
-// expression.css — order matters because the frontend renders this
+// expression.css - order matters because the frontend renders this
 // list as the swatch grid. The Service exposes it to the frontend
 // via FacetLimits.
 var FacetColorList = []string{
@@ -74,8 +74,8 @@ func IsKnownFacetIcon(icon string) bool {
 // frontend reads this once at boot via Service.FacetMeta and treats
 // the backend as the single source of truth for:
 //   - max counts (MaxFacets, MaxOptionsPerFacet)
-//   - palettes (Colors, Icons — ordered for display)
-//   - validation patterns (KeyPattern, LabelPattern — compiled in JS)
+//   - palettes (Colors, Icons - ordered for display)
+//   - validation patterns (KeyPattern, LabelPattern - compiled in JS)
 //
 // Adding a new backend-owned facet rule means extending this struct;
 // the frontend stays a thin renderer.

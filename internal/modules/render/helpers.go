@@ -18,7 +18,7 @@ var nowFn = time.Now
 
 // registerHelpers binds every Handlebars helper Formidable's render
 // pipeline ships with. opts carries URL strategies; vars is a scratch
-// map for setVar/getVar — fresh per RenderMarkdown call so renders
+// map for setVar/getVar - fresh per RenderMarkdown call so renders
 // can't leak state into each other (original JS used a module-level
 // store; that bug isn't ported).
 func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, rootFields []template.Field) {
@@ -195,7 +195,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// imageURL resolves a field's stored filename to its target URL via
 	// Options.ImageURL. The slideout's imageURLFunc returns
 	// `/api/images/<stem>/<file>`, the wiki's returns `/storage/<stem>/
-	// images/<file>` — same helper, different transport. Returns "" for
+	// images/<file>` - same helper, different transport. Returns "" for
 	// unknown fields or empty values; falls back to "images/<name>"
 	// when no ImageURL func is wired (matches emitImage's defaults).
 	tpl.RegisterHelper("imageURL", func(key string, options *raymond.Options) string {
@@ -220,7 +220,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// `data:<mime>;base64,<bytes>` URL via Options.ImageBase64URL. Used
 	// by the generator's "inline" image mode for self-contained
 	// markdown exports. Returns "" when the func isn't wired or the
-	// field value is empty — distinct from imageURL's `images/<name>`
+	// field value is empty - distinct from imageURL's `images/<name>`
 	// fallback because there's no sensible default for an inlined byte
 	// stream.
 	tpl.RegisterHelper("imageBase64", func(key string, options *raymond.Options) string {
@@ -246,7 +246,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return f.Description
 	})
 
-	// {{field}} — the big polymorphic dispatch helper.
+	// {{field}} - the big polymorphic dispatch helper.
 	// Implementation lives in helpers_field.go.
 	registerFieldHelper(tpl, opts)
 
@@ -273,7 +273,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 
 	// ── loop block helper ───────────────────────────────────────
 	//
-	// Plain iterator — same shape as the original Formidable's helper.
+	// Plain iterator - same shape as the original Formidable's helper.
 	// Iteration wrapping is opt-in: place {{loopItemBefore}} and
 	// {{loopItemAfter}} inside the body to wrap each iteration in
 	// `<section class="loop-item" …>`. The generator emits those calls
@@ -323,7 +323,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return strings.Join(out, "\n")
 	})
 
-	// {{loopItemBefore [extra-classes…]}} — emits the section opener
+	// {{loopItemBefore [extra-classes…]}} - emits the section opener
 	// for the current iteration. Variadic extras are appended after
 	// the base "loop-item" class, so the user can theme individual
 	// loops without touching the helper.
@@ -357,7 +357,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		))
 	})
 
-	// {{loopItemAfter}} — pairs with {{loopItemBefore}}. The leading
+	// {{loopItemAfter}} - pairs with {{loopItemBefore}}. The leading
 	// blank line is what tells goldmark to close the HTML block above
 	// and resume markdown parsing. Outside a loop → empty.
 	tpl.RegisterHelper("loopItemAfter", func(options *raymond.Options) raymond.SafeString {
@@ -372,7 +372,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return raymond.SafeString("\n\n</section>")
 	})
 
-	// {{loopKey}} — current loop's key. Empty outside a loop body.
+	// {{loopKey}} - current loop's key. Empty outside a loop body.
 	tpl.RegisterHelper("loopKey", func(options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -382,7 +382,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return k
 	})
 
-	// {{loopIndex}} — current iteration's 1-based index. 0 outside.
+	// {{loopIndex}} - current iteration's 1-based index. 0 outside.
 	tpl.RegisterHelper("loopIndex", func(options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -399,7 +399,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return ""
 	})
 
-	// {{today}} — current date formatted as YYYY-MM-DD. Convenient for
+	// {{today}} - current date formatted as YYYY-MM-DD. Convenient for
 	// PDF frontmatter `date:` and similar use cases where the document
 	// should stamp itself with the export date. For other layouts use
 	// {{now "FORMAT"}} where FORMAT is a Go time layout string.
@@ -407,11 +407,11 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return nowFn().Format("2006-01-02")
 	})
 
-	// {{now [layout] [locale]}} — current time formatted with the
+	// {{now [layout] [locale]}} - current time formatted with the
 	// given Go time layout, optionally translated into a locale.
 	// Empty / missing layout defaults to "2006-01-02 15:04:05".
 	// Locales registered today: en (default, no translation), nl, de,
-	// fr — see internal/modules/render/locale.go to add more.
+	// fr - see internal/modules/render/locale.go to add more.
 	tpl.RegisterHelper("now", func(options *raymond.Options) string {
 		layout := "2006-01-02 15:04:05"
 		locale := ""
@@ -429,7 +429,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return translateDate(nowFn().Format(layout), locale)
 	})
 
-	// {{dateFormat value layout [locale]}} — reformat a stored date /
+	// {{dateFormat value layout [locale]}} - reformat a stored date /
 	// datetime string with the given Go time layout, optionally
 	// translated into a locale. Recognised input shapes:
 	//   2006-01-02              (Formidable's `date` field storage)
@@ -470,7 +470,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return s
 	})
 
-	// {{loopItemClass [extra1] [extra2] …}} — variadic class composer.
+	// {{loopItemClass [extra1] [extra2] …}} - variadic class composer.
 	// Always emits "loop-item" as the base; each non-empty extra arg is
 	// appended space-separated. Used inside `wrap=false` bodies where
 	// the user builds their own <article>/<div>/etc. wrapper.
@@ -559,7 +559,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	})
 
 	// ── yamlList ─────────────────────────────────────────────────
-	// `{{yamlList arr}}` emits a YAML block-sequence chunk — one
+	// `{{yamlList arr}}` emits a YAML block-sequence chunk - one
 	// `- item` per element, items 2+ optionally prefixed with an
 	// `indent=N` space pad so the helper can sit at a non-zero column
 	// inside a nested list. No trailing newline; items with YAML flow

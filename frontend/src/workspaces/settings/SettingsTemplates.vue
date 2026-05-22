@@ -11,7 +11,7 @@ const { filenames, cache, refreshEnabled } = useTemplates();
 
 const cfg = computed(() => config.value!);
 
-// Search-box state — narrows the visible rows only. Empty string shows
+// Search-box state - narrows the visible rows only. Empty string shows
 // everything. Case-insensitive substring match on both filename and the
 // template's display name; the user shouldn't have to remember whether
 // a template is "Basic" or "basic.yaml".
@@ -39,7 +39,7 @@ function isEnabled(filename: string): boolean {
   return enabled.value.includes(filename);
 }
 
-// Display name for a row — prefers Template.name (user-facing), falls
+// Display name for a row - prefers Template.name (user-facing), falls
 // back to the bare filename when the cache hasn't filled yet or the
 // template happens to have no name set.
 function displayName(filename: string): string {
@@ -49,16 +49,16 @@ function displayName(filename: string): string {
 
 async function setTemplateEnabled(filename: string, on: boolean) {
   // Compute the post-toggle slice. Two semantics meet here:
-  //   - "Opting in for the first time" — empty list, user turns ONE on.
+  //   - "Opting in for the first time" - empty list, user turns ONE on.
   //     We seed with everything that was implicitly on (all filenames)
   //     EXCEPT the one being turned off... but the only path through
   //     this branch is on=true, since on=false on an empty list is a
   //     visible toggle change for a row that was reading as "on".
-  //   - "Curating an existing list" — non-empty, user adds/removes one.
+  //   - "Curating an existing list" - non-empty, user adds/removes one.
   //
   // The first-toggle case is the subtle one: clicking "off" on a row
   // when nothing is opted in means "I want everything EXCEPT this one"
-  // — so we seed from filenames minus this one. Clicking "on" with
+  // - so we seed from filenames minus this one. Clicking "on" with
   // nothing opted in is meaningless (everything was on already), but
   // we still write the single entry so the UI reflects the user's
   // intent and the list becomes authoritative.

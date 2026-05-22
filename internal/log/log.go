@@ -58,7 +58,7 @@ func LogPath(opts Options) string {
 
 // New constructs a logger + Broadcaster per the options. Errors
 // opening the log file are silently swallowed and the logger falls
-// back to stderr-only — file logging must never prevent the
+// back to stderr-only - file logging must never prevent the
 // application from starting. The broadcaster is always returned and
 // captures every record into its in-memory ring; pair it with
 // Broadcaster.SetEmitter to fan records out to a UI transport.
