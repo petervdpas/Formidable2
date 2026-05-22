@@ -1,6 +1,6 @@
 # Portable Document Format (PDF) Export
 
-Formidable exports records to PDF via **picoloom v2** - a Chromium-
+Formidable exports records to PDF via **picoloom v2**, a Chromium-
 based renderer with no LaTeX dependency. The export pipeline is
 opt-in: nothing PDF-related runs until the user clicks **Activate**
 on the Information → PDF Export panel.
@@ -20,10 +20,10 @@ The Information → PDF Export panel drives the engine lifecycle.
    re-probing.
 3. **No Chrome found?** The managed-download flow fetches a
    standalone Chromium build into the per-user cache directory.
-   It only runs on explicit request - Formidable never downloads
+   It only runs on explicit request. Formidable never downloads
    binaries silently.
 
-**Export directory** - the panel also remembers where exports land.
+**Export directory**: the panel also remembers where exports land.
 Empty means the system Documents folder; any non-empty value must
 be an existing absolute path.
 
@@ -34,14 +34,14 @@ From the **Storage** workspace, with a record selected, open
 pre-fills sensible defaults from the template and the record's
 frontmatter:
 
-- **Theme** - picoloom's bundled style (`technical`, `academic`,
+- **Theme**: picoloom's bundled style (`technical`, `academic`,
   `corporate`, `legal`, …). Surfaces as the `theme:` frontmatter key.
-- **Cover** - picks a cover template from the on-disk library.
+- **Cover**: picks a cover template from the on-disk library.
   The list comes from `<AppRoot>/pdf/covers/*.html`; select
   *None* to skip the cover page.
-- **Orientation** - portrait or landscape.
-- **Footer position** - none, page numbers, bottom-left, etc.
-- **Keywords** - comma-separated terms baked into the PDF's
+- **Orientation**: portrait or landscape.
+- **Footer position**: none, page numbers, bottom-left, etc.
+- **Keywords**: comma-separated terms baked into the PDF's
   `/Keywords` metadata field for desktop indexers.
 
 Clicking **Export** writes a `<filename>.pdf` to the chosen output
@@ -99,11 +99,11 @@ own, then runs the result through the picoloom directive
 processor. The Information → Help → Frontmatter Directives page
 is the full reference. Common keys:
 
-- `theme:` / `cover:` / `orientation:` - picked by the Export
+- `theme:` / `cover:` / `orientation:`. Picked by the Export
   dialog; can also be hardcoded in the template.
-- `keywords:` - top-level string baked into the PDF's `/Keywords`
+- `keywords:`. Top-level string baked into the PDF's `/Keywords`
   metadata field.
-- `cover.logo:` - image path the cover template renders. Bare
+- `cover.logo:`. Image path the cover template renders. Bare
   basenames resolve against `<AppRoot>/pdf/covers/images/`.
 
 ## Troubleshooting

@@ -7,7 +7,7 @@ met:
 | Bestand                      | Doel                                                          |
 | ---------------------------- | ------------------------------------------------------------- |
 | `plugin.json`                | Manifest: id, naam, versie, commando's, run-modus.            |
-| `main.lua`                   | Lua-broncode - elk commando is een globale functie.           |
+| `main.lua`                   | Lua-broncode. Elk commando is een globale functie.           |
 | `form.json`                  | Optioneel invoerformulier wanneer `run_mode: "form"`.         |
 | `i18n/<locale>.json`         | Optionele vertalingen per taal (zie hieronder).               |
 
@@ -15,7 +15,7 @@ met:
 
 De Plugins-werkruimte toont elke map onder `<AppRoot>/plugins/`.
 Met Formidable meegeleverde plugins (zoals `test-plugin`) worden bij
-de eerste start uit de binary geschreven - zie "Upgrades en
+de eerste start uit de binary geschreven; zie "Upgrades en
 opnieuw seeden" hieronder.
 
 ## i18n authoring
@@ -60,7 +60,7 @@ vallen terug op de letterlijke sleuteltekst.
 De scaffold schrijft seed-bestanden alleen weg **als het doelbestand
 ontbreekt**. Eigen wijzigingen worden nooit overschreven. Om één
 bestand opnieuw te seeden (bijvoorbeeld na een upgrade met een
-nieuw `form.json`-schema), verwijder het van schijf en herstart - de
+nieuw `form.json`-schema), verwijder het van schijf en herstart. De
 meegeleverde versie wordt teruggeschreven.
 
 Om een hele meegeleverde plugin opnieuw te seeden, verwijder de map
@@ -70,10 +70,10 @@ onder `<AppRoot>/plugins/<id>/` en herstart.
 
 De Plugins-werkruimte bevat een editor voor elk plugin-bestand:
 
-- **Manifest** - naam, beschrijving, run-modus, commando's.
-- **Lua-broncode** - `main.lua`, Ctrl+Enter voor fullscreen.
-- **Formulier-editor** - velden bij `run_mode: "form"`.
-- **i18n** - sleutel/waarde-tabel per taal; wissel via de chips.
+- **Manifest**: naam, beschrijving, run-modus, commando's.
+- **Lua-broncode**: `main.lua`, Ctrl+Enter voor fullscreen.
+- **Formulier-editor**: velden bij `run_mode: "form"`.
+- **i18n**: sleutel/waarde-tabel per taal; wissel via de chips.
 
 Opslaan persisteert alle gewijzigde bestanden in één atomaire actie;
 de rest van de app pikt de wijzigingen op bij de volgende refresh.

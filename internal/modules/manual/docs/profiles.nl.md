@@ -3,7 +3,7 @@
 Een **profiel** is een geïsoleerde werkruimte: eigen sjablonen,
 opslag, plugins, PDF-voorpagina's, git/gigot-remotes en `config.json`.
 Wisselen van profiel herlaadt de app naar de context van het gekozen
-profiel - er gaat niets tussen profielen heen en weer.
+profiel. Er gaat niets tussen profielen heen en weer.
 
 ## Waar profielen staan
 
@@ -36,7 +36,7 @@ instellingenformulier; velden die je niet aanraakt vallen terug op de
 applicatie-defaults.
 
 Eén profiel resetten doe je door de relevante velden leeg te maken.
-Een profiel volledig wegvegen: sluit de app, verwijder de map - de
+Een profiel volledig wegvegen: sluit de app, verwijder de map. De
 volgende start maakt 'm leeg opnieuw aan.
 
 ## Waarom isolatie ertoe doet

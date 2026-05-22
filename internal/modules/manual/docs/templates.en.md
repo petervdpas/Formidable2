@@ -1,7 +1,7 @@
 # Template & Design
 
 A **template** is a YAML file that declares the shape of one kind of
-record - what fields it carries, how the form looks, and how it
+record: what fields it carries, how the form looks, and how it
 renders to Markdown or PDF. Templates live under
 `<profile>/templates/<name>.yaml` and are discovered on startup.
 
@@ -28,31 +28,31 @@ fields:
 
 Top-level fields:
 
-- **name** - display name shown in the sidebar.
-- **filename** - Handlebars expression resolved against the record
+- **name**: display name shown in the sidebar.
+- **filename**: Handlebars expression resolved against the record
   to produce its on-disk filename.
-- **item_field** - which field's value summarises the record in the
+- **item_field**: which field's value summarises the record in the
   storage list.
-- **markdown_template** - Handlebars template rendered when the
+- **markdown_template**: Handlebars template rendered when the
   record is exported or piped through the wiki / API.
-- **enable_collection** - when true the template carries multiple
+- **enable_collection**: when true the template carries multiple
   records keyed by a `guid` field; off means a single-document
   template.
-- **facets** - multi-dimensional meta-tags; see the Templates
+- **facets**: multi-dimensional meta-tags; see the Templates
   workspace's Facets panel.
-- **pdf** - optional PDF export config (cover, style).
-- **fields** - the ordered list of fields. See the Fields manual
+- **pdf**: optional PDF export config (cover, style).
+- **fields**: the ordered list of fields. See the Fields manual
   page for the per-type reference.
 
 ## Authoring
 
 The Templates workspace is the main editor:
 
-- **Designer** - drag and drop fields, inspect the type matrix, edit
+- **Designer**: drag and drop fields, inspect the type matrix, edit
   per-field properties.
-- **Markdown template** - Handlebars editor with live preview.
-- **Facets** - palette + limits per facet.
-- **PDF** - picks the cover archive and style.
+- **Markdown template**: Handlebars editor with live preview.
+- **Facets**: palette + limits per facet.
+- **PDF**: picks the cover archive and style.
 
 Save is atomic and only writes files whose contents actually changed
 - other files in the template folder are left untouched.
@@ -69,14 +69,14 @@ example.
 The active profile may curate which templates appear in the Storage
 workspace via the **enabled_templates** list. Templates the profile
 doesn't enable stay on disk and still serve through the REST `api`
-field type - the curation is a UI scope, not a security boundary.
+field type. The curation is a UI scope, not a security boundary.
 
 ## Template generator
 
 The Templates workspace ships a **New template** dialog that
 materialises a starter template by shape (report, minimal, table,
 frontmatter) × image mode (URL / inline) × wrap-loops toggle. The
-selected toggles produce visible source - there is no invisible
+selected toggles produce visible source. There is no invisible
 runtime magic.
 
 ## Where records live

@@ -1,7 +1,7 @@
 # Sjabloon & Ontwerp
 
 Een **sjabloon** is een YAML-bestand dat de vorm van één soort
-record beschrijft - welke velden, hoe het formulier eruitziet, en
+record beschrijft: welke velden, hoe het formulier eruitziet, en
 hoe het naar Markdown of PDF rendert. Sjablonen leven onder
 `<profile>/templates/<naam>.yaml` en worden bij start ontdekt.
 
@@ -28,33 +28,33 @@ fields:
 
 Top-niveau velden:
 
-- **name** - weergavenaam in de zijbalk.
-- **filename** - Handlebars-expressie tegen het record voor de
+- **name**: weergavenaam in de zijbalk.
+- **filename**: Handlebars-expressie tegen het record voor de
   bestandsnaam op schijf.
-- **item_field** - welk veld het record samenvat in de
+- **item_field**: welk veld het record samenvat in de
   opslag-lijst.
-- **markdown_template** - Handlebars-sjabloon dat rendert bij
+- **markdown_template**: Handlebars-sjabloon dat rendert bij
   export, wiki of API.
-- **enable_collection** - aan = meerdere records gekoppeld via een
+- **enable_collection**: aan = meerdere records gekoppeld via een
   `guid`-veld; uit = één document per sjabloon.
-- **facets** - multi-dimensionele meta-tags; zie het Facets-paneel
+- **facets**: multi-dimensionele meta-tags; zie het Facets-paneel
   in de Sjablonen-werkruimte.
-- **pdf** - optionele PDF-exportconfiguratie (cover, stijl).
-- **fields** - geordende lijst van velden. Zie de
+- **pdf**: optionele PDF-exportconfiguratie (cover, stijl).
+- **fields**: geordende lijst van velden. Zie de
   Velden-handleidingpagina voor de per-type-referentie.
 
 ## Auteur-werkwijze
 
 De Sjablonen-werkruimte is de hoofdeditor:
 
-- **Designer** - sleep en plaats velden, bekijk de type-matrix,
+- **Designer**: sleep en plaats velden, bekijk de type-matrix,
   bewerk eigenschappen per veld.
-- **Markdown-sjabloon** - Handlebars-editor met live preview.
-- **Facets** - palet + limieten per facet.
-- **PDF** - kies cover-archief en stijl.
+- **Markdown-sjabloon**: Handlebars-editor met live preview.
+- **Facets**: palet + limieten per facet.
+- **PDF**: kies cover-archief en stijl.
 
 Opslaan is atomair en schrijft alleen bestanden waarvan de inhoud
-echt veranderd is - andere bestanden in de sjabloon-map blijven met
+echt veranderd is. Andere bestanden in de sjabloon-map blijven met
 rust.
 
 ## Loops
@@ -69,7 +69,7 @@ met een uitgewerkt nested-voorbeeld.
 Het actieve profiel kan via **enabled_templates** bepalen welke
 sjablonen in de Opslag-werkruimte verschijnen. Sjablonen die het
 profiel niet activeert blijven op schijf staan en blijven
-bereikbaar via het REST `api`-veldtype - deze curatie is een
+bereikbaar via het REST `api`-veldtype. Deze curatie is een
 UI-scope, geen beveiligingsgrens.
 
 ## Sjabloon-generator
@@ -77,7 +77,7 @@ UI-scope, geen beveiligingsgrens.
 De Sjablonen-werkruimte heeft een **Nieuw sjabloon**-dialoog die
 een startsjabloon genereert op basis van vorm (report, minimal,
 table, frontmatter) × image-modus (URL / inline) × wrap-loops
-toggle. De gekozen toggles produceren zichtbare bron - geen
+toggle. De gekozen toggles produceren zichtbare bron. Geen
 onzichtbare runtime-magie.
 
 ## Waar records leven

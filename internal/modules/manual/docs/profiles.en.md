@@ -2,7 +2,7 @@
 
 A **profile** is an isolated workspace: its own templates, storage,
 plugins, PDF covers, git/gigot remotes, and `config.json`. Switching
-profiles reloads the app into the picked profile's context - nothing
+profiles reloads the app into the picked profile's context. Nothing
 crosses between them.
 
 ## Where profiles live
@@ -35,7 +35,7 @@ and tweak existing ones. Each profile gets the full settings form;
 fields you don't touch fall back to the application defaults.
 
 To reset a single profile, clear the relevant fields in the form. To
-nuke a profile entirely, close the app and delete the folder - the
+nuke a profile entirely, close the app and delete the folder. The
 next launch recreates it empty.
 
 ## Why isolation matters

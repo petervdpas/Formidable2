@@ -9,20 +9,20 @@ and how to switch between them.
 
 A handful of settings you'll touch most often:
 
-- **Theme** - light / dark / system.
-- **Language** - picks the locale for the UI and for plugin i18n
+- **Theme**: light / dark / system.
+- **Language**: picks the locale for the UI and for plugin i18n
   resolution.
-- **Enable plugins** - global kill-switch. Off hides the Plugins
+- **Enable plugins**: global kill-switch. Off hides the Plugins
   workspace and skips plugin discovery.
-- **Logging enabled** - writes a rolling log to disk; the Information
+- **Logging enabled**: writes a rolling log to disk; the Information
   → Logging panel tails it live.
-- **Enabled templates** - curates which templates appear in the
+- **Enabled templates**: curates which templates appear in the
   Storage workspace; an empty list means "all of them."
-- **Show paste buttons** - surfaces a paste-from-clipboard icon next
+- **Show paste buttons**: surfaces a paste-from-clipboard icon next
   to text/textarea fields.
-- **Author name** + **Author email** - used as the default identity
+- **Author name** + **Author email**: used as the default identity
   on new records and on git commits made through the Sync workspace.
-- **Context mode / ribbon / folder** - selects the active workspace
+- **Context mode / ribbon / folder**: selects the active workspace
   context on startup.
 
 ## Internal server
@@ -36,12 +36,12 @@ toggles.
 
 Each profile carries its own remote-backend settings:
 
-- **Git** - points at a remote repo over HTTPS or SSH; credentials
+- **Git**: points at a remote repo over HTTPS or SSH; credentials
   live in the keychain.
-- **Gigot** - Formidable's lightweight ledger-based sync, addressed
+- **Gigot**: Formidable's lightweight ledger-based sync, addressed
   by a base URL + per-profile subscription token.
 
-These are independent - a profile picks one or neither.
+These are independent. A profile picks one or neither.
 
 ## Saving and resets
 

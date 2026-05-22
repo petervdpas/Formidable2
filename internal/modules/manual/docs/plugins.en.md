@@ -6,7 +6,7 @@ a folder under `<AppRoot>/plugins/<id>/` containing:
 | File                         | Purpose                                                       |
 | ---------------------------- | ------------------------------------------------------------- |
 | `plugin.json`                | Manifest: id, name, version, commands, run mode.              |
-| `main.lua`                   | Lua source - each command resolves to a global function.      |
+| `main.lua`                   | Lua source. Each command resolves to a global function.      |
 | `form.json`                  | Optional input form rendered when `run_mode: "form"`.         |
 | `i18n/<locale>.json`         | Optional per-locale translations (see below).                 |
 
@@ -14,7 +14,7 @@ a folder under `<AppRoot>/plugins/<id>/` containing:
 
 The Plugins workspace lists every folder under `<AppRoot>/plugins/`.
 Plugins shipped with Formidable (e.g. `test-plugin`) are seeded from
-the binary on first launch - see "Upgrades and re-seeding" below.
+the binary on first launch; see "Upgrades and re-seeding" below.
 
 ## Authoring i18n
 
@@ -57,7 +57,7 @@ fall back to the literal key string.
 The scaffold writes seed files to disk **only when the target path
 is missing**. User edits are never clobbered. To re-seed a single
 file (e.g. after an upgrade that shipped a new `form.json` shape),
-delete it from disk and restart - the bundled copy is written back.
+delete it from disk and restart. The bundled copy is written back.
 
 To re-seed an entire bundled plugin, delete the whole folder under
 `<AppRoot>/plugins/<id>/` and restart.
@@ -66,10 +66,10 @@ To re-seed an entire bundled plugin, delete the whole folder under
 
 The Plugins workspace ships an editor for every plugin file:
 
-- **Manifest** - name, description, run mode, command list.
-- **Lua Source** - `main.lua`, with Ctrl+Enter fullscreen.
-- **Form Editor** - fields rendered when `run_mode: "form"`.
-- **i18n** - per-locale key/value table; switch locale via the chips.
+- **Manifest**: name, description, run mode, command list.
+- **Lua Source**: `main.lua`, with Ctrl+Enter fullscreen.
+- **Form Editor**: fields rendered when `run_mode: "form"`.
+- **i18n**: per-locale key/value table; switch locale via the chips.
 
 Save persists every dirty file in one atomic pass; the rest of the
 app picks up changes on the next refresh.
