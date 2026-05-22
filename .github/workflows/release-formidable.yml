@@ -131,6 +131,38 @@ jobs:
         shell: pwsh
         run: wails3 generate bindings -clean -ts
 
+      - name: Patch version into Windows resource files
+        # PE resources (file_version, ProductVersion, manifest assemblyIdentity)
+        # are baked at .syso compile time and don't pick up the ldflags
+        # injection used for about.Version. Rewrite them from the tag so the
+        # binary's Properties dialog and uninstaller registry entry match
+        # the release. Non-numeric VERSION (dev builds, workflow_dispatch)
+        # falls back to 0.0.0 since PE FixedFileInfo requires numeric.
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.VERSION }}"
+          if ($ver -match '^\d+(\.\d+)*$') {
+            $parts = $ver -split '\.'
+          } else {
+            $parts = @('0','0','0')
+          }
+          while ($parts.Count -lt 3) { $parts += '0' }
+          $ver3 = ($parts[0..2]) -join '.'
+          $ver4 = "$ver3.0"
+
+          $infoPath = "build/windows/info.json"
+          $info = Get-Content $infoPath -Raw | ConvertFrom-Json
+          $info.fixed.file_version = $ver3
+          $info.info.'0000'.ProductVersion = $ver3
+          $info | ConvertTo-Json -Depth 10 | Set-Content $infoPath -NoNewline
+
+          $manifestPath = "build/windows/wails.exe.manifest"
+          $manifest = Get-Content $manifestPath -Raw
+          $manifest = $manifest -replace '(name="eu\.mnemonics\.formidable"\s+version=)"[^"]*"', ('$1"' + $ver4 + '"')
+          Set-Content $manifestPath -Value $manifest -NoNewline
+
+          Write-Host "Patched PE versions: file/ProductVersion=$ver3, manifest=$ver4"
+
       - name: Generate Windows resource file (.syso)
         shell: pwsh
         run: |
@@ -147,7 +179,7 @@ jobs:
           $ver = "${{ steps.version.outputs.VERSION }}"
           New-Item -ItemType Directory -Force -Path bin | Out-Null
           go build -tags production -trimpath -buildvcs=false `
-            -ldflags="-w -s -H windowsgui -X ${env:VERSION_PATH}=$ver" `
+            -ldflags="-buildid= -w -s -H windowsgui -X ${env:VERSION_PATH}=$ver" `
             -o bin/Formidable.exe .
           Remove-Item *.syso
 
@@ -250,7 +282,7 @@ jobs:
           mkdir -p bin
           VERSION="${{ steps.version.outputs.VERSION }}"
           go build -tags production -trimpath -buildvcs=false \
-            -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+            -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
             -o bin/Formidable .
 
       - name: Patch nfpm version
@@ -349,7 +381,7 @@ jobs:
           mkdir -p bin
           VERSION="${{ steps.version.outputs.VERSION }}"
           go build -tags production -trimpath -buildvcs=false \
-            -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+            -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
             -o bin/Formidable .
 
       - name: Patch nfpm version
@@ -435,7 +467,7 @@ jobs:
           mkdir -p bin
           GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable .
 
           sed -i "s/^version:.*/version: \"${VERSION}\"/" build/linux/nfpm/nfpm.yaml
@@ -525,11 +557,11 @@ jobs:
           mkdir -p bin
           GOOS=darwin GOARCH=amd64 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable-amd64 .
           GOOS=darwin GOARCH=arm64 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-w -s -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable-arm64 .
           lipo -create -output bin/Formidable bin/Formidable-amd64 bin/Formidable-arm64
           rm bin/Formidable-amd64 bin/Formidable-arm64
@@ -599,6 +631,20 @@ jobs:
           find artifacts -maxdepth 8 -type f -exec cp -v "{}" dist/ \;
           echo "--- Release assets ---"
           ls -la dist
+
+      - name: Generate SHA256 checksums
+        # One Formidable-${{ tag }}-SHA256SUMS.txt file lists every other
+        # artifact's hash so downloaders can verify integrity. Reputation
+        # systems (and humans) prefer checksum-verifiable downloads.
+        shell: bash
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          # Hash everything except the checksum file itself if it exists.
+          rm -f Formidable-*-SHA256SUMS.txt
+          sha256sum * | sort > "Formidable-${{ github.ref_name }}-SHA256SUMS.txt"
+          echo "--- Checksums ---"
+          cat "Formidable-${{ github.ref_name }}-SHA256SUMS.txt"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

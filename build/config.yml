@@ -5,13 +5,13 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "My Company" # The name of the company
-  productName: "My Product" # The name of the application
-  productIdentifier: "com.mycompany.myproduct" # The unique product identifier
-  description: "A program that does X" # The application description
-  copyright: "(c) 2025, My Company" # Copyright text
-  comments: "Some Product Comments" # Comments
-  version: "0.0.1" # The application version
+  companyName: "Peter van de Pas" # The name of the company
+  productName: "Formidable" # The name of the application
+  productIdentifier: "eu.mnemonics.formidable" # The unique product identifier
+  description: "Desktop editor for YAML templates, Markdown forms, and PDF export" # The application description
+  copyright: "(c) 2026, Peter van de Pas" # Copyright text
+  comments: "Build and Extend Your Workflow. Structured, version-controllable documentation without cloud lock-in." # Comments
+  version: "2.4.5" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
   #                               # Should match the name of your .icon file without the extension
   #                               # If not set and Assets.car exists, defaults to "appicon"
