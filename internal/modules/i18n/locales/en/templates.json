@@ -22,7 +22,6 @@
   "workspace.templates.create.title": "New Template",
   "workspace.templates.delete.confirm": "Permanently delete the template “{0}”? This action can't be undone.",
   "workspace.templates.delete.error": "Could not delete template: {0}",
-  "workspace.templates.delete.menu": "Delete Template…",
   "workspace.templates.open_folder.error": "Could not open folder: {0}",
   "workspace.templates.pdf_fm.title_inject": "Inject PDF frontmatter",
   "workspace.templates.pdf_fm.title_migrate": "Migrate PDF frontmatter",
@@ -107,7 +106,6 @@
   "workspace.templates.field_edit.row.key": "Key",
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Options",
-  "workspace.templates.field_edit.row.options_help": "Comma-separated. Dedicated options editor lands in a later step.",
   "workspace.templates.field_edit.row.options_unavailable": "Options not available for this field type.",
   "workspace.templates.options.bool_subrow": "True/False options",
   "workspace.templates.options.dropdown_subrow": "Dropdown options",
@@ -164,8 +162,6 @@
   "workspace.templates.item_field_none": "(none)",
   "workspace.templates.new_field": "New Field",
   "workspace.templates.new_template": "New Template",
-  "workspace.templates.placeholder_main": "Select a template from the sidebar to edit it.",
-  "workspace.templates.placeholder_side": "Template list goes here.",
   "workspace.templates.reset": "Reset",
   "workspace.templates.save": "Save",
   "workspace.templates.save_error": "Could not save template: {0}",
@@ -179,6 +175,5 @@
   "workspace.templates.setup.template_name": "Template Name",
   "workspace.templates.setup.title": "Setup Information",
   "workspace.templates.sidebar_title": "Templates",
-  "workspace.templates.title": "Templates",
   "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one."
 }

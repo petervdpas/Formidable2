@@ -15,12 +15,10 @@
   "workspace.cleanup.migrate.description": "Schrijft de oude author/created/updated metavelden om naar de nieuwe auditblok-vorm. Reeds gemigreerde bestanden worden overgeslagen; de originele auteursinformatie blijft bewaard.",
   "workspace.cleanup.migrate.result": "{0} van {1} gemigreerd; {2} al actueel.",
   "workspace.cleanup.migrate.result_with_errors": "{0} van {1} gemigreerd; {2} al actueel; {3} fout(en).",
-
   "workspace.cleanup.col.kind": "Soort probleem",
   "workspace.cleanup.col.issues": "Aantal",
   "workspace.cleanup.col.forms": "Formulieren",
   "workspace.cleanup.col.strategy": "Strategie",
-
   "workspace.cleanup.kind.missing_field": "Ontbrekend veld",
   "workspace.cleanup.kind.extra_field": "Onbekend veld",
   "workspace.cleanup.kind.type_mismatch": "Typeconflict",
@@ -28,7 +26,6 @@
   "workspace.cleanup.kind.meta_missing": "Meta ontbreekt",
   "workspace.cleanup.kind.meta_bad_format": "Meta foutief formaat",
   "workspace.cleanup.kind.unreadable": "Onleesbaar",
-
   "workspace.cleanup.strategy.strip": "Verwijder uit data",
   "workspace.cleanup.strategy.fill_default": "Vul met standaard",
   "workspace.cleanup.strategy.coerce": "Converteer naar type",

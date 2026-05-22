@@ -22,7 +22,6 @@
   "workspace.templates.create.title": "Nieuw sjabloon",
   "workspace.templates.delete.confirm": "Sjabloon “{0}” permanent verwijderen? Dit kan niet ongedaan worden gemaakt.",
   "workspace.templates.delete.error": "Kon sjabloon niet verwijderen: {0}",
-  "workspace.templates.delete.menu": "Sjabloon verwijderen…",
   "workspace.templates.open_folder.error": "Kon map niet openen: {0}",
   "workspace.templates.pdf_fm.title_inject": "PDF-frontmatter injecteren",
   "workspace.templates.pdf_fm.title_migrate": "PDF-frontmatter migreren",
@@ -107,7 +106,6 @@
   "workspace.templates.field_edit.row.key": "Sleutel",
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Opties",
-  "workspace.templates.field_edit.row.options_help": "Door komma's gescheiden. Aparte optie-editor komt in een volgende stap.",
   "workspace.templates.field_edit.row.options_unavailable": "Opties niet beschikbaar voor dit veldtype.",
   "workspace.templates.options.bool_subrow": "True/False-opties",
   "workspace.templates.options.dropdown_subrow": "Dropdown-opties",
@@ -164,8 +162,6 @@
   "workspace.templates.item_field_none": "(geen)",
   "workspace.templates.new_field": "Nieuw veld",
   "workspace.templates.new_template": "Nieuw sjabloon",
-  "workspace.templates.placeholder_main": "Selecteer een sjabloon in de zijbalk om het te bewerken.",
-  "workspace.templates.placeholder_side": "Sjabloonlijst komt hier.",
   "workspace.templates.reset": "Herstellen",
   "workspace.templates.save": "Opslaan",
   "workspace.templates.save_error": "Kon sjabloon niet opslaan: {0}",
@@ -179,6 +175,5 @@
   "workspace.templates.setup.template_name": "Sjabloonnaam",
   "workspace.templates.setup.title": "Instellingen",
   "workspace.templates.sidebar_title": "Sjablonen",
-  "workspace.templates.title": "Sjablonen",
   "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan."
 }
