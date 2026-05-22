@@ -143,7 +143,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("exec", buildExecValue(L, deps.Exec))
 	L.SetGlobal("formidable", f)
 
-	// Lua-side stdlib (formidable.rewrite, …) - runs against the
+	// Lua-side stdlib (formidable.rewrite, ...) - runs against the
 	// already-installed `formidable` global so it can compose the
 	// Go-side namespaces. If the run's context is already done at
 	// install time (Run-after-Cancel races), skip - the caller's
@@ -152,10 +152,18 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 		return
 	}
 	if err := L.DoString(builtinsLua); err != nil {
+		// Cancel can race into the middle of DoString: ctxRef.Err()
+		// was nil at the pre-check above, but a hammer goroutine
+		// cancelled while the Lua interpreter was mid-script. The
+		// interpreter surfaces that as a "context canceled" Lua error.
+		// Treat the post-failure ctx-done state as expected cancellation
+		// (same shape as the pre-check) instead of panicking.
+		if ctxRef != nil && ctxRef.Err() != nil {
+			return
+		}
 		// A real builtins.lua parse/exec failure is a Formidable bug
 		// (we ship the file in-tree); panic so it's loud during
-		// development. The cancelled-ctx branch above means we never
-		// panic for user-driven Stop.
+		// development.
 		panic(fmt.Sprintf("plugin: builtins.lua install: %v", err))
 	}
 }
