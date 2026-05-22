@@ -5,7 +5,7 @@
   "status.deleted": "Deleted: {0}",
   "status.created": "Created: {0}",
   "status.template.load.failed": "Failed to load template: {0}.",
-  "toast.history.enabled": "History activated - back/forward chevrons are now visible on the Storage workspace.",
+  "toast.history.enabled": "History activated. Back/forward chevrons are now visible on the Storage workspace.",
   "toast.refresh.error": "Refresh failed: {0}",
   "toast.refresh.success": "Refreshed."
 }

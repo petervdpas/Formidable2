@@ -5,7 +5,7 @@
   "status.deleted": "Verwijderd: {0}",
   "status.created": "Aangemaakt: {0}",
   "status.template.load.failed": "Kon sjabloon niet laden: {0}.",
-  "toast.history.enabled": "History geactiveerd - terug/vooruit-chevrons zijn nu zichtbaar in de Opslag-werkruimte.",
+  "toast.history.enabled": "History geactiveerd. Terug/vooruit-chevrons zijn nu zichtbaar in de Opslag-werkruimte.",
   "toast.refresh.error": "Vernieuwen mislukt: {0}",
   "toast.refresh.success": "Vernieuwd."
 }

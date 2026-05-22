@@ -16,7 +16,7 @@
   "facet.builder.key_label": "Sleutel",
   "facet.builder.key_placeholder": "kleine letters, cijfers/_-",
   "facet.builder.counter": "{0} van {1} opties",
-  "facet.builder.empty": "Nog geen opties - klik op “Optie toevoegen” om er één te maken.",
+  "facet.builder.empty": "Nog geen opties. Klik op “Optie toevoegen” om er één te maken.",
   "facet.builder.add_option": "Optie toevoegen",
   "facet.builder.label_placeholder": "Gebruik alleen A-Z, 0-9, spaties, _, -",
   "facet.builder.error.duplicate_label": "Duplicaat label.",

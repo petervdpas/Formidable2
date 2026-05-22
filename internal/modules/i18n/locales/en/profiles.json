@@ -10,7 +10,7 @@
   "workspace.profiles.active": "Active",
   "workspace.profiles.create.error": "Could not create profile: {0}",
   "workspace.profiles.create.exists": "A profile with that filename already exists.",
-  "workspace.profiles.create.help": "Lowercase letters, digits and dashes only - must end in “.json”.",
+  "workspace.profiles.create.help": "Lowercase letters, digits and dashes only. Must end in “.json”.",
   "workspace.profiles.create.invalid": "Invalid filename. Use only a-z, 0-9, and dashes, ending with .json.",
   "workspace.profiles.create.label": "Filename",
   "workspace.profiles.create.placeholder": "e.g. jack.json",

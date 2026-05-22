@@ -56,7 +56,7 @@
   "workspace.collaboration.gigot.sync.push.button": "Push",
   "workspace.collaboration.gigot.sync.push.running": "Pushing…",
   "workspace.collaboration.gigot.sync.push.success": "Pushed: {0} put, {1} deleted (version {2}).",
-  "workspace.collaboration.gigot.sync.push.noop": "Already in sync - nothing to push.",
+  "workspace.collaboration.gigot.sync.push.noop": "Already in sync. Nothing to push.",
   "workspace.collaboration.gigot.sync.push.error": "Push failed: {0}",
   "workspace.collaboration.gigot.sync.pull.button": "Pull",
   "workspace.collaboration.gigot.sync.pull.running": "Pulling…",
