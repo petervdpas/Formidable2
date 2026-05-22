@@ -58,8 +58,17 @@ const buckets = computed(() => {
   ].filter((b) => b.files.length > 0);
 });
 
+const BUCKET_LABEL_KEYS: Record<string, string> = {
+  modified: "workspace.collaboration.status.bucket.modified",
+  staged: "workspace.collaboration.status.bucket.staged",
+  untracked: "workspace.collaboration.status.bucket.untracked",
+  deleted: "workspace.collaboration.status.bucket.deleted",
+  renamed: "workspace.collaboration.status.bucket.renamed",
+  conflicted: "workspace.collaboration.status.bucket.conflicted",
+};
 function bucketLabel(key: string, count: number): string {
-  return t(`workspace.collaboration.status.bucket.${key}`, [count]);
+  const i18nKey = BUCKET_LABEL_KEYS[key];
+  return i18nKey ? t(i18nKey, [count]) : key;
 }
 
 // Tooltip on the Pull button: when canPull is false we explain the

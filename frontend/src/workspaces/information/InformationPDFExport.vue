@@ -30,8 +30,25 @@ function formatAt(at: unknown): string {
   return Number.isNaN(d.getTime()) ? String(at) : d.toLocaleString();
 }
 
+const EXPORT_CODE_KEYS: Record<string, string> = {
+  browser_unreachable: "pdf.toast.export.browser_unreachable",
+  cover_logo_missing: "pdf.toast.export.cover_logo_missing",
+  cover_template_invalid: "pdf.toast.export.cover_template_invalid",
+  directive_invalid: "pdf.toast.export.directive_invalid",
+  empty_markdown: "pdf.toast.export.empty_markdown",
+  engine_inactive: "pdf.toast.export.engine_inactive",
+  html_conversion_failed: "pdf.toast.export.html_conversion_failed",
+  pdf_generation_failed: "pdf.toast.export.pdf_generation_failed",
+  render_failed: "pdf.toast.export.render_failed",
+  render_timeout: "pdf.toast.export.render_timeout",
+  save_failed: "pdf.toast.export.save_failed",
+  signature_image_missing: "pdf.toast.export.signature_image_missing",
+  style_not_found: "pdf.toast.export.style_not_found",
+  unknown: "pdf.toast.export.unknown",
+};
 function exportCodeLabel(code: string): string {
-  const key = `pdf.toast.export.${code}`;
+  const key = EXPORT_CODE_KEYS[code];
+  if (!key) return code;
   const translated = t(key);
   return translated === key ? code : translated;
 }

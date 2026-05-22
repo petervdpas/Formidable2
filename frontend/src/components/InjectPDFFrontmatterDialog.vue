@@ -165,8 +165,18 @@ const themeOptions = computed(() => [
     label: themeLabel(th.name),
   })),
 ]);
+const THEME_LABEL_KEYS: Record<string, string> = {
+  academic: "pdf.export.dialog.theme.academic",
+  corporate: "pdf.export.dialog.theme.corporate",
+  creative: "pdf.export.dialog.theme.creative",
+  invoice: "pdf.export.dialog.theme.invoice",
+  legal: "pdf.export.dialog.theme.legal",
+  manuscript: "pdf.export.dialog.theme.manuscript",
+  technical: "pdf.export.dialog.theme.technical",
+};
 function themeLabel(name: string): string {
-  const key = `pdf.export.dialog.theme.${name}`;
+  const key = THEME_LABEL_KEYS[name];
+  if (!key) return name;
   const translated = t(key);
   return translated === key ? name : translated;
 }
@@ -178,8 +188,14 @@ const coverOptions = computed(() =>
 const pageSizeOptions = computed(() =>
   pageSizes.value.map((s) => ({ value: s.name, label: pageSizeLabel(s.name) })),
 );
+const PAGE_SIZE_LABEL_KEYS: Record<string, string> = {
+  a4: "pdf.inject.page_size.a4",
+  letter: "pdf.inject.page_size.letter",
+  legal: "pdf.inject.page_size.legal",
+};
 function pageSizeLabel(name: string): string {
-  const key = `pdf.inject.page_size.${name}`;
+  const key = PAGE_SIZE_LABEL_KEYS[name];
+  if (!key) return name;
   const translated = t(key);
   return translated === key ? name : translated;
 }
@@ -187,8 +203,13 @@ function pageSizeLabel(name: string): string {
 const orientationOptions = computed(() =>
   orientations.value.map((o) => ({ value: o.name, label: orientationLabel(o.name) })),
 );
+const ORIENTATION_LABEL_KEYS: Record<string, string> = {
+  portrait: "pdf.inject.orientation.portrait",
+  landscape: "pdf.inject.orientation.landscape",
+};
 function orientationLabel(name: string): string {
-  const key = `pdf.inject.orientation.${name}`;
+  const key = ORIENTATION_LABEL_KEYS[name];
+  if (!key) return name;
   const translated = t(key);
   return translated === key ? name : translated;
 }
@@ -196,8 +217,14 @@ function orientationLabel(name: string): string {
 const footerPositionOptions = computed(() =>
   footerPositions.value.map((p) => ({ value: p.name, label: footerPositionLabel(p.name) })),
 );
+const FOOTER_POSITION_LABEL_KEYS: Record<string, string> = {
+  left: "pdf.inject.footer_position.left",
+  center: "pdf.inject.footer_position.center",
+  right: "pdf.inject.footer_position.right",
+};
 function footerPositionLabel(name: string): string {
-  const key = `pdf.inject.footer_position.${name}`;
+  const key = FOOTER_POSITION_LABEL_KEYS[name];
+  if (!key) return name;
   const translated = t(key);
   return translated === key ? name : translated;
 }

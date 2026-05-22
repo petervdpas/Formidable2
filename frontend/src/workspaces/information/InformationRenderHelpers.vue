@@ -46,8 +46,26 @@ const activeItems = computed(() => {
   return g?.items ?? [];
 });
 
+const CATEGORY_LABEL_KEYS: Record<string, string> = {
+  api: "workspace.information.render_helpers.category.api",
+  collection: "workspace.information.render_helpers.category.collection",
+  comparison: "workspace.information.render_helpers.category.comparison",
+  date: "workspace.information.render_helpers.category.date",
+  field: "workspace.information.render_helpers.category.field",
+  format: "workspace.information.render_helpers.category.format",
+  image: "workspace.information.render_helpers.category.image",
+  lookup: "workspace.information.render_helpers.category.lookup",
+  loop: "workspace.information.render_helpers.category.loop",
+  math: "workspace.information.render_helpers.category.math",
+  meta: "workspace.information.render_helpers.category.meta",
+  scratch: "workspace.information.render_helpers.category.scratch",
+  stats: "workspace.information.render_helpers.category.stats",
+  string: "workspace.information.render_helpers.category.string",
+  tags: "workspace.information.render_helpers.category.tags",
+};
 function categoryLabel(category: string): string {
-  const key = `workspace.information.render_helpers.category.${category}`;
+  const key = CATEGORY_LABEL_KEYS[category];
+  if (!key) return category;
   const translated = t(key);
   return translated === key ? category : translated;
 }

@@ -56,8 +56,34 @@ const { status, refreshLastExport } = usePDFActivation();
 // landed.
 const themes = ref<ThemeDescriptor[]>([]);
 
+const THEME_LABEL_KEYS: Record<string, string> = {
+  academic: "pdf.export.dialog.theme.academic",
+  corporate: "pdf.export.dialog.theme.corporate",
+  creative: "pdf.export.dialog.theme.creative",
+  invoice: "pdf.export.dialog.theme.invoice",
+  legal: "pdf.export.dialog.theme.legal",
+  manuscript: "pdf.export.dialog.theme.manuscript",
+  technical: "pdf.export.dialog.theme.technical",
+};
+const EXPORT_ERROR_KEYS: Record<string, string> = {
+  browser_unreachable: "pdf.toast.export.browser_unreachable",
+  cover_logo_missing: "pdf.toast.export.cover_logo_missing",
+  cover_template_invalid: "pdf.toast.export.cover_template_invalid",
+  directive_invalid: "pdf.toast.export.directive_invalid",
+  empty_markdown: "pdf.toast.export.empty_markdown",
+  engine_inactive: "pdf.toast.export.engine_inactive",
+  html_conversion_failed: "pdf.toast.export.html_conversion_failed",
+  pdf_generation_failed: "pdf.toast.export.pdf_generation_failed",
+  render_failed: "pdf.toast.export.render_failed",
+  render_timeout: "pdf.toast.export.render_timeout",
+  save_failed: "pdf.toast.export.save_failed",
+  signature_image_missing: "pdf.toast.export.signature_image_missing",
+  style_not_found: "pdf.toast.export.style_not_found",
+  unknown: "pdf.toast.export.unknown",
+};
 function themeLabel(name: string): string {
-  const key = `pdf.export.dialog.theme.${name}`;
+  const key = THEME_LABEL_KEYS[name];
+  if (!key) return name;
   const translated = t(key);
   return translated === key ? name : translated;
 }
@@ -222,10 +248,10 @@ async function doExport() {
     emit("close");
   } catch (e) {
     const typed = exportErrorOf(e);
-    if (typed && knownExportCodes.has(typed.code) && typed.code !== "unknown") {
-      const key = `pdf.toast.export.${typed.code}`;
-      exportError.value = t(key);
-      toast.error(key);
+    const errorKey = typed ? EXPORT_ERROR_KEYS[typed.code] : undefined;
+    if (typed && errorKey && knownExportCodes.has(typed.code) && typed.code !== "unknown") {
+      exportError.value = t(errorKey);
+      toast.error(errorKey);
     } else {
       const msg = typed?.message || backendErrMessage(e);
       exportError.value = msg;

@@ -87,5 +87,11 @@
   "workspace.collaboration.status.tracking": "tracking {0}",
   "workspace.collaboration.status.tracking_none": "no upstream",
   "workspace.collaboration.status.not_a_repo": "Path is not a git repository.",
-  "workspace.collaboration.status.error": "Could not read status: {0}"
+  "workspace.collaboration.status.error": "Could not read status: {0}",
+  "workspace.collaboration.status.bucket.modified": "{0} modified",
+  "workspace.collaboration.status.bucket.staged": "{0} staged",
+  "workspace.collaboration.status.bucket.untracked": "{0} untracked",
+  "workspace.collaboration.status.bucket.deleted": "{0} deleted",
+  "workspace.collaboration.status.bucket.renamed": "{0} renamed",
+  "workspace.collaboration.status.bucket.conflicted": "{0} conflicted"
 }

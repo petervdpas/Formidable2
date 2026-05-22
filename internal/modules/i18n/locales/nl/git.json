@@ -87,5 +87,11 @@
   "workspace.collaboration.status.tracking": "volgt {0}",
   "workspace.collaboration.status.tracking_none": "geen upstream",
   "workspace.collaboration.status.not_a_repo": "Pad is geen git-repository.",
-  "workspace.collaboration.status.error": "Kan status niet lezen: {0}"
+  "workspace.collaboration.status.error": "Kan status niet lezen: {0}",
+  "workspace.collaboration.status.bucket.modified": "{0} gewijzigd",
+  "workspace.collaboration.status.bucket.staged": "{0} gestaged",
+  "workspace.collaboration.status.bucket.untracked": "{0} onvolgd",
+  "workspace.collaboration.status.bucket.deleted": "{0} verwijderd",
+  "workspace.collaboration.status.bucket.renamed": "{0} hernoemd",
+  "workspace.collaboration.status.bucket.conflicted": "{0} met conflicten"
 }

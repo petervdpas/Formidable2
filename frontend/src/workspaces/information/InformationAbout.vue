@@ -10,6 +10,32 @@ const info = ref<Info | null>(null);
 // See about.Libraries in internal/modules/about/about.go.
 const libraries = ref<Library[]>([]);
 
+const LIB_DESC_KEYS: Record<string, string> = {
+  chroma: "workspace.information.about.thanks.lib.chroma.desc",
+  codemirror: "workspace.information.about.thanks.lib.codemirror.desc",
+  datepicker: "workspace.information.about.thanks.lib.datepicker.desc",
+  easymde: "workspace.information.about.thanks.lib.easymde.desc",
+  expr: "workspace.information.about.thanks.lib.expr.desc",
+  fontawesome: "workspace.information.about.thanks.lib.fontawesome.desc",
+  godog: "workspace.information.about.thanks.lib.godog.desc",
+  gogit: "workspace.information.about.thanks.lib.gogit.desc",
+  goldmark: "workspace.information.about.thanks.lib.goldmark.desc",
+  gopherlua: "workspace.information.about.thanks.lib.gopherlua.desc",
+  keyring: "workspace.information.about.thanks.lib.keyring.desc",
+  pdfcpu: "workspace.information.about.thanks.lib.pdfcpu.desc",
+  picoloom: "workspace.information.about.thanks.lib.picoloom.desc",
+  raymond: "workspace.information.about.thanks.lib.raymond.desc",
+  uuid: "workspace.information.about.thanks.lib.uuid.desc",
+  vue: "workspace.information.about.thanks.lib.vue.desc",
+  vuedraggable: "workspace.information.about.thanks.lib.vuedraggable.desc",
+  vuei18n: "workspace.information.about.thanks.lib.vuei18n.desc",
+  wails: "workspace.information.about.thanks.lib.wails.desc",
+};
+function libDesc(id: string): string {
+  const key = LIB_DESC_KEYS[id];
+  return key ? t(key) : "";
+}
+
 onMounted(async () => {
   info.value = await About.GetInfo();
   libraries.value = await About.GetLibraries();
@@ -58,7 +84,7 @@ onMounted(async () => {
       <li v-for="lib in libraries" :key="lib.id">
         <strong>{{ lib.name }}</strong>
         <span class="thanks-sep"> — </span>
-        <span>{{ t(`workspace.information.about.thanks.lib.${lib.id}.desc`) }}</span>
+        <span>{{ libDesc(lib.id) }}</span>
       </li>
     </ul>
   </section>
