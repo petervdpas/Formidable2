@@ -326,7 +326,7 @@ export class StatusButtons {
 }
 
 /**
- * WindowBounds — X/Y are pointers so absent (centered) is distinguishable
+ * WindowBounds - X/Y are pointers so absent (centered) is distinguishable
  * from an explicit (0,0) position.
  */
 export class WindowBounds {

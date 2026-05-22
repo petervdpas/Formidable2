@@ -110,7 +110,7 @@ export class Form {
  * FormMeta carries identity + audit fields. Tags are deduped+sorted.
  * Facets is keyed by Template.Facets[i].Key; each entry's Set is
  * required (mirrors the legacy `flagged` bool) and Selected may be
- * empty (mirrors the legacy `flag_state` string — `set: true` without
+ * empty (mirrors the legacy `flag_state` string - `set: true` without
  * a chosen option renders as the facet's uncolored icon).
  */
 export class FormMeta {
@@ -213,7 +213,7 @@ export class FormSummary {
 }
 
 /**
- * MigrateResult reports the outcome of MigrateTemplateMeta — a per-
+ * MigrateResult reports the outcome of MigrateTemplateMeta - a per-
  * template bulk operation that rewrites legacy meta shape (flat
  * author_name/email + string created/updated) into the AuditEntry
  * pair. Migrated files keep their original authorship intact (no

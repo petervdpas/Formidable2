@@ -142,7 +142,7 @@ export class FormidableMarkerView {
 
 /**
  * FormidableStorage is one template-directory under storage/ that
- * holds at least one record. Files counts .meta.json records only —
+ * holds at least one record. Files counts .meta.json records only -
  * images/ and other non-record paths are excluded.
  */
 export class FormidableStorage {
@@ -228,7 +228,7 @@ export class HeadResponse {
 }
 
 /**
- * HealthResponse is the parsed body of GET /api/health. Optional —
+ * HealthResponse is the parsed body of GET /api/health. Optional -
  * vanilla gigot returns it for liveness checks; gated deployments may
  * require auth even for /health.
  */
@@ -312,7 +312,7 @@ export class LedgerSummary {
  * unconditionally on the server side so graph-style UIs can render
  * branch pills + parent edges without a second request. Changes is
  * populated only when Log is called with withChanges=true (the server
- * adds one extra diff-tree call per commit) — omitted from JSON when
+ * adds one extra diff-tree call per commit) - omitted from JSON when
  * nil so the lean shape stays cheap for graph-only callers.
  */
 export class LogEntry {
@@ -690,7 +690,7 @@ export enum SyncPhase {
 
     /**
      * PhaseStart fires once at the very entry of a sync op, before
-     * any HTTP. Total is 0 — the count isn't known yet. Useful for
+     * any HTTP. Total is 0 - the count isn't known yet. Useful for
      * the UI to flip an indeterminate spinner on before /tree returns.
      */
     PhaseStart = "start",
@@ -704,7 +704,7 @@ export enum SyncPhase {
     /**
      * PhaseTree fires once after /tree has returned and the work plan
      * is computed. Total is the sum of pending deletes + managed
-     * entries to inspect/fetch — the count Current ramps toward.
+     * entries to inspect/fetch - the count Current ramps toward.
      */
     PhaseTree = "tree",
 
@@ -716,7 +716,7 @@ export enum SyncPhase {
 
     /**
      * PhaseFetch fires once per managed tree entry inspected,
-     * regardless of whether bytes were actually downloaded — SHA-match
+     * regardless of whether bytes were actually downloaded - SHA-match
      * short-circuits still count so the progress bar advances.
      */
     PhaseFetch = "fetch",
@@ -765,7 +765,7 @@ export class SyncProgress {
 }
 
 /**
- * SyncResult is what Sync returns on success — the combined push+pull
+ * SyncResult is what Sync returns on success - the combined push+pull
  * outcome. Noop is true only when both halves were quiet.
  */
 export class SyncResult {
@@ -842,7 +842,7 @@ export class TreeEntry {
 
 /**
  * TreeResponse is the parsed body of GET /api/repos/{repo}/tree. A
- * recursive snapshot at Version — every blob's path + git SHA1, no
+ * recursive snapshot at Version - every blob's path + git SHA1, no
  * content. Sized so the client can warn before pulling very large blobs.
  */
 export class TreeResponse {

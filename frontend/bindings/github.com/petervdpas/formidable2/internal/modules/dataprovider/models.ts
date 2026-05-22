@@ -81,11 +81,11 @@ export class APIFieldRefetchResultDTO {
  * the frontend can branch without parsing free-form messages.
  * 
  * Kinds:
- *   - ""                     — success; Row is the projected row
- *   - "template-not-found"   — sourceTemplate does not exist
- *   - "collection-disabled"  — sourceTemplate exists but collection-mode is off
- *   - "guid-not-found"       — guid is not present in that collection
- *   - "internal"             — anything else (Message carries the detail)
+ *   - ""                     - success; Row is the projected row
+ *   - "template-not-found"   - sourceTemplate does not exist
+ *   - "collection-disabled"  - sourceTemplate exists but collection-mode is off
+ *   - "guid-not-found"       - guid is not present in that collection
+ *   - "internal"             - anything else (Message carries the detail)
  */
 export class APIFieldRowResult {
     "row"?: { [_ in string]?: any };

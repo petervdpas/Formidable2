@@ -87,7 +87,7 @@ export function MigrateTemplateMeta(templateFilename: string): $CancellablePromi
 }
 
 /**
- * SaveForm is invoked from the Wails IPC bridge — frontend → service.
+ * SaveForm is invoked from the Wails IPC bridge - frontend → service.
  * Wails doesn't surface a request context here, so we pass Background;
  * stamp() then falls back to the AuthorProvider for attribution.
  */

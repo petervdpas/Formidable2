@@ -46,7 +46,7 @@ export class Branches {
  *   - A: added (file present in commit, absent in parent)
  *   - M: modified (different blob hash from parent)
  *   - D: deleted (file absent in commit, present in parent)
- *   - R: renamed (path changed, content the same — go-git's basic
+ *   - R: renamed (path changed, content the same - go-git's basic
  *     detection only; no rename/threshold heuristics)
  */
 export class ChangeFile {
@@ -79,12 +79,12 @@ export class ChangeFile {
  * Branch picks an initial checkout (empty = remote's default HEAD).
  * 
  * PAT is the Personal Access Token used as the password in HTTP Basic
- * auth (with username "x-access-token" — the GitHub-PAT convention,
+ * auth (with username "x-access-token" - the GitHub-PAT convention,
  * also accepted by Gitea/GitLab/Bitbucket as long as the username is
  * non-empty). Empty PAT means anonymous (public repos / SSH).
  * 
  * IMPORTANT: PAT is read-only at the call site and never persisted by
- * the manager. The frontend keeps it transient — pasted into the
+ * the manager. The frontend keeps it transient - pasted into the
  * clone form, sent over the Wails bridge once, and discarded as soon
  * as the response returns. SSH-based auth lives in a follow-up.
  */
@@ -124,7 +124,7 @@ export class CloneOptions {
 /**
  * CloneResult is the success envelope: the worktree we cloned into,
  * the commit HEAD now points at, and the branch HEAD now sits on.
- * Branch is empty when the clone produced a detached HEAD (rare —
+ * Branch is empty when the clone produced a detached HEAD (rare -
  * happens when the requested ref isn't a branch). The frontend uses
  * Dest to flip git_root and Branch to flip git_branch once a clone
  * completes, so Current Service reflects what was actually fetched.
@@ -208,7 +208,7 @@ export class Commit {
  * the worktree; Author/Email come from the active profile's config.
  * 
  * v1 stages every change in the worktree (modified, untracked,
- * deleted) before committing — matching the "commit everything I
+ * deleted) before committing - matching the "commit everything I
  * touched in this session" mental model. Per-file selection arrives
  * in a later iteration once the UI grows checkboxes.
  */
@@ -316,7 +316,7 @@ export class DiscardOptions {
 /**
  * FetchOptions describes a fetch request. Path is any path inside
  * the worktree; Remote defaults to "origin" when empty. PAT is the
- * HTTP Basic password (transient — never persisted by the manager,
+ * HTTP Basic password (transient - never persisted by the manager,
  * same convention as Clone).
  */
 export class FetchOptions {
@@ -487,7 +487,7 @@ export class OverriddenPath {
 }
 
 /**
- * PullOptions describes a pull request — a fetch followed by a
+ * PullOptions describes a pull request - a fetch followed by a
  * merge of the tracking ref into the current branch. Default merge
  * strategy (no rebase). Path is any path inside the worktree;
  * Remote defaults to "origin"; PAT is the HTTPS Basic password
@@ -691,7 +691,7 @@ export class RemoteInfo {
  * 
  * Policy: pull always wins on disk. Auto-merge for storage/<tpl>/<n>.meta.json
  * when recmerge can reconcile; otherwise drop the user's change.
- * .changes.stash is always cleaned up — the Overridden list is the
+ * .changes.stash is always cleaned up - the Overridden list is the
  * only signal the user gets that something was lost.
  */
 export class StashedPullResult {
@@ -790,7 +790,7 @@ export class Status {
     /**
      * Behind is the number of remote commits on Tracking that
      * aren't on this branch. 0 when there's no tracking ref.
-     * Reflects the last-known state of Tracking — call Fetch to
+     * Reflects the last-known state of Tracking - call Fetch to
      * update the remote-tracking ref before reading this.
      */
     "behind": number;

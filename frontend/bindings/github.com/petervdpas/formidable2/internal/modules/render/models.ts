@@ -7,7 +7,7 @@ import { Create as $Create } from "@wailsio/runtime";
 
 /**
  * HelperCategory groups helpers into discoverable sections in the
- * frontend reference panel. Stable string constants — frontend uses
+ * frontend reference panel. Stable string constants - frontend uses
  * them as i18n key suffixes (e.g. `render.helpers.category.field`).
  */
 export enum HelperCategory {
@@ -37,7 +37,7 @@ export enum HelperCategory {
  * HelperDescriptor describes one registered Handlebars helper. The
  * shape is JSON-serialisable for the Wails service so the frontend
  * reference panel can render it directly. Fields are intentionally
- * terse — these are developer-facing reference cards, not tutorials.
+ * terse - these are developer-facing reference cards, not tutorials.
  */
 export class HelperDescriptor {
     /**

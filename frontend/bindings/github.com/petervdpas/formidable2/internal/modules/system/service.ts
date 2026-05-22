@@ -70,7 +70,7 @@ export function ProxyFetchRemote(url: string, opts: $models.FetchOptions): $Canc
 }
 
 /**
- * Quit is the soft-shutdown counterpart — used by future File → Quit
+ * Quit is the soft-shutdown counterpart - used by future File → Quit
  * menu wiring. Exposed today so the Wails surface stays stable when
  * the menu lands.
  */
@@ -94,7 +94,7 @@ export function ResolvePath(segments: string[]): $CancellablePromise<string> {
  * size).
  * 
  * On Linux/macOS the spawned child is detached from the parent's
- * terminal/process group as soon as the parent exits — Go's runtime
+ * terminal/process group as soon as the parent exits - Go's runtime
  * re-parents to PID 1 (init/launchd). On Windows the child gets a
  * fresh console attachment by default. Either way, no orphaned
  * goroutines or zombie processes are left behind.

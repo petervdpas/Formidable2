@@ -30,7 +30,7 @@ export function Cancel(): $CancellablePromise<void> {
 /**
  * Create scaffolds a new plugin folder and returns the new list.
  * Errors map to the editor sentinels (ErrManifestInvalid,
- * ErrPluginExists) — the caller surfaces them as i18n'd toasts.
+ * ErrPluginExists) - the caller surfaces them as i18n'd toasts.
  */
 export function Create(id: string): $CancellablePromise<$models.ListResult[]> {
     return $Call.ByID(2899368391, id).then(($result: any) => {
@@ -60,7 +60,7 @@ export function DeletePluginI18n(id: string, locale: string): $CancellablePromis
  * ExportArchive bundles a plugin's folder into a zip at zipPath.
  * Returns the zip path + the list of bundled entries so the
  * workspace can render a confirmation panel. Sibling of the pdf
- * cover archive flow — shapes the team-sharing pipeline plugins
+ * cover archive flow - shapes the team-sharing pipeline plugins
  * previously lacked.
  */
 export function ExportArchive(id: string, zipPath: string): $CancellablePromise<$models.ExportArchiveResult> {
@@ -116,7 +116,7 @@ export function GetSource(id: string): $CancellablePromise<string> {
 /**
  * ImportArchive unpacks a plugin-archive zip from zipPath under
  * <PluginsDir>/. Refuses to overwrite an existing plugin unless
- * overwrite=true — the frontend uses ErrPluginArchiveExists as the
+ * overwrite=true - the frontend uses ErrPluginArchiveExists as the
  * signal to surface a "replace?" prompt. On success refreshes the
  * registry so List reflects the new/replaced plugin without a
  * follow-up call.
@@ -175,7 +175,7 @@ export function ListWorkspaces(): $CancellablePromise<string[]> {
 /**
  * LoadFormValues returns the values stored under each of the
  * supplied field keys. Frontend calls this on Run-modal open to
- * pre-populate the form from the plugin's KV bag — same bag the
+ * pre-populate the form from the plugin's KV bag - same bag the
  * Lua side reads via formidable.kv.get().
  */
 export function LoadFormValues(pluginID: string, fieldKeys: string[]): $CancellablePromise<{ [_ in string]?: any }> {
@@ -231,7 +231,7 @@ export function SaveFormValues(pluginID: string, values: { [_ in string]?: any }
 /**
  * SavePluginI18n writes the raw flat map for one locale. Plugin
  * folder must exist; locale is validated against path-traversal. On
- * success the caller can simply re-fetch GetI18nMessages — there's
+ * success the caller can simply re-fetch GetI18nMessages - there's
  * no in-memory cache to bust.
  */
 export function SavePluginI18n(id: string, locale: string, msgs: { [_ in string]?: string }): $CancellablePromise<void> {
@@ -241,7 +241,7 @@ export function SavePluginI18n(id: string, locale: string, msgs: { [_ in string]
 /**
  * ValidateWidget runs the formwidget validation rules against a
  * single widget the form editor is about to persist into form.json.
- * Returns the wrapped ErrWidgetInvalid (or nil) — the UI surfaces it
+ * Returns the wrapped ErrWidgetInvalid (or nil) - the UI surfaces it
  * as a toast next to the offending entry without having to round-trip
  * through Save. Also pins the formwidget types into the generated
  * Wails bindings so the frontend can import Widget/Kind.

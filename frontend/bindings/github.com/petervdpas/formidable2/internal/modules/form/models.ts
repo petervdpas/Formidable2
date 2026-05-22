@@ -126,7 +126,7 @@ export class LoopGroup {
 
 /**
  * SavePayload is what Vue sends to SaveValues. Datafile may be empty
- * for never-persisted forms — the caller (UI) is expected to gather
+ * for never-persisted forms - the caller (UI) is expected to gather
  * a filename from the user (mirrors the original New-entry dialog).
  */
 export class SavePayload {

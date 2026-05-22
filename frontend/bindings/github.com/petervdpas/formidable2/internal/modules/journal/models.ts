@@ -105,7 +105,7 @@ export class PendingChange {
 
 /**
  * PendingResult is the shape returned by Pending() and exposed to the
- * frontend. Count is always equal to len(Paths) — kept as a convenience
+ * frontend. Count is always equal to len(Paths) - kept as a convenience
  * so JS callers don't need to call paths.length.
  */
 export class PendingResult {

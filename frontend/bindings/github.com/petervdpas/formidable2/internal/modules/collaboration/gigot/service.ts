@@ -10,7 +10,7 @@
  *   - on success it notifies the journal so Pending(gigot) and the
  *     cursor stay accurate.
  * 
- * The keychain is not exposed over the Wails bridge — see
+ * The keychain is not exposed over the Wails bridge - see
  * credential.Service. The Service is the only layer allowed to read
  * the subscription bearer; Manager stays transport-neutral.
  * @module
@@ -25,7 +25,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * Context issues GET /api/repos/{repo}/context — the per-repo bootstrap.
+ * Context issues GET /api/repos/{repo}/context - the per-repo bootstrap.
  */
 export function Context(): $CancellablePromise<$models.RepoContextResponse | null> {
     return $Call.ByID(1056513675).then(($result: any) => {
@@ -52,7 +52,7 @@ export function Destinations(): $CancellablePromise<$models.Destination[]> {
 }
 
 /**
- * Formidable issues GET /api/repos/{repo}/formidable — the Formidable-
+ * Formidable issues GET /api/repos/{repo}/formidable - the Formidable-
  * shape bootstrap (marker + templates + storage summary).
  */
 export function Formidable(): $CancellablePromise<$models.RepoFormidableResponse | null> {
@@ -71,7 +71,7 @@ export function GetFile(repoRelPath: string): $CancellablePromise<$models.FileRe
 }
 
 /**
- * Head issues GET /api/repos/{repo}/head — current HEAD version.
+ * Head issues GET /api/repos/{repo}/head - current HEAD version.
  */
 export function Head(): $CancellablePromise<$models.HeadResponse | null> {
     return $Call.ByID(3164529482).then(($result: any) => {
@@ -81,7 +81,7 @@ export function Head(): $CancellablePromise<$models.HeadResponse | null> {
 
 /**
  * LedgerSummary is a read-only preview of the client-side track record
- * and on-disk pending diff. No HTTP — drives the Sync UI's "what would
+ * and on-disk pending diff. No HTTP - drives the Sync UI's "what would
  * Push send / what would Pull bring back" hints without a round-trip.
  * Returns ErrMissingContext when no context folder is configured.
  */
@@ -94,7 +94,7 @@ export function LedgerSummary(): $CancellablePromise<$models.LedgerSummary | nul
 /**
  * Log issues GET /api/repos/{repo}/log[?limit=N&with_changes=1].
  * limit<=0 collapses to the server's default page size. withChanges=true
- * asks the server to attach each commit's per-path file changes — the
+ * asks the server to attach each commit's per-path file changes - the
  * audit-trail view; leave it false for cheap graph rendering.
  */
 export function Log(limit: number, withChanges: boolean): $CancellablePromise<$models.RepoLogResponse | null> {
@@ -104,7 +104,7 @@ export function Log(limit: number, withChanges: boolean): $CancellablePromise<$m
 }
 
 /**
- * Me issues GET /api/me — bearer-aware self-introspection. Also
+ * Me issues GET /api/me - bearer-aware self-introspection. Also
  * repo-agnostic.
  */
 export function Me(): $CancellablePromise<$models.MeResponse | null> {
@@ -166,7 +166,7 @@ export function Reclone(): $CancellablePromise<$models.PullResult | null> {
 /**
  * Sync runs PushLocal then PullLocal at the Service layer so each
  * half emits its own journal entry via the wrapper methods. A push
- * failure aborts before pull to preserve unpushed local changes —
+ * failure aborts before pull to preserve unpushed local changes -
  * symmetric with the git Service and with Manager.Sync. message
  * threads through to the push half; pull is read-only.
  */
@@ -177,7 +177,7 @@ export function Sync(message: string): $CancellablePromise<$models.SyncResult | 
 }
 
 /**
- * Tree issues GET /api/repos/{repo}/tree — recursive file listing.
+ * Tree issues GET /api/repos/{repo}/tree - recursive file listing.
  */
 export function Tree(): $CancellablePromise<$models.TreeResponse | null> {
     return $Call.ByID(3123842464).then(($result: any) => {

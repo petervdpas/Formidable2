@@ -9,7 +9,7 @@ import { Create as $Create } from "@wailsio/runtime";
  * Result is what NavigateToFormidable returns to the frontend. Success
  * false carries Error so Vue can toast the reason without redoing the
  * validation. Target is filled even on failure when the URL parsed but
- * the (template, datafile) pair didn't resolve — useful for diagnostics.
+ * the (template, datafile) pair didn't resolve - useful for diagnostics.
  */
 export class Result {
     "success": boolean;

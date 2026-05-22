@@ -23,21 +23,21 @@ import * as log$0 from "../../log/models.js";
  * Level is one of "debug" | "info" | "warn" | "error"; anything else
  * (or empty) falls back to "info". Empty/whitespace msgs are dropped.
  * Always returns nil so the frontend wrapper never has to handle a
- * reject path — losing a log line is preferable to looping.
+ * reject path - losing a log line is preferable to looping.
  */
 export function LogFromFrontend(level: string, msg: string, fields: { [_ in string]?: any }): $CancellablePromise<void> {
     return $Call.ByID(1013856459, level, msg, fields);
 }
 
 /**
- * LogPath — resolved on-disk log path; "" means file logging is off.
+ * LogPath - resolved on-disk log path; "" means file logging is off.
  */
 export function LogPath(): $CancellablePromise<string> {
     return $Call.ByID(3376839996);
 }
 
 /**
- * ReadFile — full contents of formidable.log (or "" when file logging
+ * ReadFile - full contents of formidable.log (or "" when file logging
  * is off / the file doesn't exist yet).
  */
 export function ReadFile(): $CancellablePromise<string> {
@@ -45,7 +45,7 @@ export function ReadFile(): $CancellablePromise<string> {
 }
 
 /**
- * Recent — up to `n` of the most-recent buffered entries. n<=0 returns
+ * Recent - up to `n` of the most-recent buffered entries. n<=0 returns
  * whatever the ring currently holds.
  */
 export function Recent(n: number): $CancellablePromise<log$0.Entry[]> {

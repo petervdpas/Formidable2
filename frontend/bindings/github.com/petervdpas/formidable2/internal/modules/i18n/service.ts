@@ -4,7 +4,7 @@
 /**
  * Service is the Wails-facing wrapper. The frontend boots, calls
  * LoadBundle for the active locale, and feeds the result into vue-i18n.
- * Locale changes drive a fresh LoadBundle — there is no per-key RPC.
+ * Locale changes drive a fresh LoadBundle - there is no per-key RPC.
  * @module
  */
 
@@ -37,7 +37,7 @@ export function DefaultLocale(): $CancellablePromise<string> {
 /**
  * ListLocales returns sorted LocaleDescriptors (code + endonym) for
  * every locale the binary ships. Replaces the hardcoded language
- * array in the Settings → General language picker — endonyms come
+ * array in the Settings → General language picker - endonyms come
  * from each locale's `language.endonym` bundle key, so adding a new
  * locale just means adding the file (no central registry to update).
  */

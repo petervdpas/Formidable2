@@ -10,7 +10,7 @@
  * Fix takes a per-kind plan and applies the chosen strategy to every
  * matching issue. Behaviour is opt-in: kinds without a plan item are
  * left untouched, and FixSkip is the explicit no-op. The frontend
- * never calls Fix automatically — only on a deliberate "Repair
+ * never calls Fix automatically - only on a deliberate "Repair
  * Selected" button press.
  * @module
  */

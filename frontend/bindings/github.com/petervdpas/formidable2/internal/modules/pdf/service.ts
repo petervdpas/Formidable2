@@ -4,7 +4,7 @@
 /**
  * Service is the Wails-bound surface over Manager. The Information
  * workspace activation panel and any "Export as PDF" trigger call
- * these methods directly — there is no HTTP handler peer, PDF
+ * these methods directly - there is no HTTP handler peer, PDF
  * generation stays Wails-only (see types.go).
  * @module
  */
@@ -61,7 +61,7 @@ export function Deactivate(): $CancellablePromise<void> {
 /**
  * DeleteCover removes a user-added or seed cover from disk. Seed
  * covers (classic/banner/corporate) reappear at next boot via the
- * scaffold — the frontend should phrase this as "Reset" rather than
+ * scaffold - the frontend should phrase this as "Reset" rather than
  * "Delete" for those entries. Refuses reserved names with
  * ErrCoverNotFound. Missing files are not an error.
  */
@@ -107,7 +107,7 @@ export function ExportPDF(templateFilename: string, datafile: string, opts: $mod
 /**
  * GetDirectivesDoc returns the embedded markdown reference for the
  * picoloom frontmatter directives in the requested locale. Unknown
- * locale falls back to English. Static content — safe to call any
+ * locale falls back to English. Static content - safe to call any
  * time, cheap, no I/O beyond the embedded FS.
  */
 export function GetDirectivesDoc(locale: string): $CancellablePromise<string> {
@@ -139,11 +139,11 @@ export function ImportCoverArchive(zipPath: string, overwrite: boolean): $Cancel
 /**
  * InjectFrontmatter prepends the canonical picoloom v2 scaffold to a
  * markdown body. Refuses with ErrFrontmatterAlreadyPresent when an
- * existing `---` block is detected — the user should run
+ * existing `---` block is detected - the user should run
  * MigrateFrontmatter in that case. The frontend inserts the result
  * into the template editor; the user saves the template manually.
  * 
- * Deprecated for new callers — prefer BuildFrontmatter(InjectConfig)
+ * Deprecated for new callers - prefer BuildFrontmatter(InjectConfig)
  * + your own prepend logic for full control over which blocks/values
  * land in the output. This helper survives because some callers want
  * the full canonical fully-commented placeholder scaffold.
@@ -209,7 +209,7 @@ export function ListPageOrientations(): $CancellablePromise<$models.OrientationD
 /**
  * ListPageSizes returns picoloom's canonical page-size set in
  * dropdown order. Frontend reads this via the same pattern as
- * ListThemes / ListLocales — never hardcoded.
+ * ListThemes / ListLocales - never hardcoded.
  */
 export function ListPageSizes(): $CancellablePromise<$models.PageSizeDescriptor[]> {
     return $Call.ByID(3746256793).then(($result: any) => {
@@ -220,7 +220,7 @@ export function ListPageSizes(): $CancellablePromise<$models.PageSizeDescriptor[
 /**
  * ListThemes returns the canonical picoloom bundled style set in
  * stable display order. The frontend uses this to populate the Theme
- * dropdown — it must NOT keep its own hardcoded list. Pure function,
+ * dropdown - it must NOT keep its own hardcoded list. Pure function,
  * safe regardless of activation state.
  */
 export function ListThemes(): $CancellablePromise<$models.ThemeDescriptor[]> {
@@ -263,7 +263,7 @@ export function MigrateFrontmatter(markdown: string): $CancellablePromise<$model
 
 /**
  * ProbeChrome lists every Chrome/Chromium binary the activation
- * flow could adopt — env-var override, then system paths in their
+ * flow could adopt - env-var override, then system paths in their
  * platform's conventional order, then the latest managed-cache
  * pick. Empty Candidates means no Chrome was found; the dialog
  * should offer the managed-download path (Phase D).
@@ -278,7 +278,7 @@ export function ProbeChrome(): $CancellablePromise<$models.ProbeResult> {
  * ResolveExportDefaults previews the Theme + Cover that Manager.Export
  * would pick for (template, datafile) under the dialog's default
  * options. The dialog reads this on open and labels its default
- * dropdown entry with the concrete value — so users know whether
+ * dropdown entry with the concrete value - so users know whether
  * the template's frontmatter actually supplies a theme/cover or whether
  * the picoloom built-in defaults kick in. Read-only; safe regardless
  * of activation state.
@@ -302,7 +302,7 @@ export function SaveCover(name: string, html: string): $CancellablePromise<void>
 /**
  * SaveCoverImage persists a user-uploaded image under
  * <AppRoot>/pdf/covers/images/<name>. data is the base64-encoded
- * file body — the frontend reads the upload via FileReader and
+ * file body - the frontend reads the upload via FileReader and
  * passes the result here, keeping the Wails JSON boundary clean.
  * The filename and extension are validated before any bytes hit
  * disk; on any rejection the function returns ErrCoverImageInvalid.
@@ -314,7 +314,7 @@ export function SaveCoverImage(name: string, base64Data: string): $CancellablePr
 /**
  * SetExportDir adopts a per-machine "where PDFs land" preference.
  * Empty path clears the preference. Non-empty paths must be
- * absolute + existent + a directory — otherwise the service
+ * absolute + existent + a directory - otherwise the service
  * returns ErrInvalidExportDir, which the frontend should surface
  * as a user-correctable error (typically a re-pick via the native
  * folder picker). Independent of activation state.
@@ -328,7 +328,7 @@ export function SetExportDir(path: string): $CancellablePromise<$models.Status> 
 /**
  * ValidateCoverHTML lets the frontend dry-run validation (e.g. on
  * every keystroke in a cover editor) without writing to disk. Pure
- * function — no I/O, no side effects.
+ * function - no I/O, no side effects.
  */
 export function ValidateCoverHTML(html: string): $CancellablePromise<$models.CoverValidation> {
     return $Call.ByID(1327021382, html).then(($result: any) => {

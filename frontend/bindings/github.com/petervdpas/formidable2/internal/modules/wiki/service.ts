@@ -10,7 +10,7 @@
  * External actions (open in system browser, open in-app webview
  * window) are delegated to function hooks the composition root
  * installs at construction time. Keeps the wiki module free of any
- * `os/exec` or wails dependency — testable in pure Go.
+ * `os/exec` or wails dependency - testable in pure Go.
  * @module
  */
 
@@ -62,7 +62,7 @@ export function OpenInBrowser(): $CancellablePromise<void> {
 /**
  * OpenInternalWiki spawns a new Wails webview window at the wiki
  * root URL. Equivalent to "open in browser" but stays inside the
- * app — the user gets a dedicated window without leaving Formidable.
+ * app - the user gets a dedicated window without leaving Formidable.
  * Wails 3 alpha 84 supports this via application.NewWebviewWindow;
  * the composition root supplies the bound function.
  */

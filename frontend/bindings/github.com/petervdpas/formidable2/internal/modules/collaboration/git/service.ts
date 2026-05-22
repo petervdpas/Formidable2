@@ -13,7 +13,7 @@
  * The keychain is intentionally NOT exposed to the frontend (see
  * the credential.Service comment) so secrets never round-trip
  * through the Wails bridge. That makes the Service the only layer
- * allowed to read the PAT — Manager itself stays transport-neutral
+ * allowed to read the PAT - Manager itself stays transport-neutral
  * and unaware of credential storage.
  * @module
  */
@@ -58,7 +58,7 @@ export function Discard(opts: $models.DiscardOptions): $CancellablePromise<void>
  * Fetch refreshes remote-tracking refs. Two transport paths:
  * 
  *   - Self-cloned mode (toggle on + system git on PATH): shell out
- *     via sysgit so the user's credential helper resolves auth — no
+ *     via sysgit so the user's credential helper resolves auth - no
  *     PAT round-trip through Formidable's keychain.
  *   - Default: go-git with PAT auto-filled from the keychain entry
  *     for the repo's "origin" URL.
@@ -100,9 +100,9 @@ export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.Pul
  * Service reads the journal's pending set for the git backend and
  * passes it to Manager.PullWithStash; the Manager snapshots, resets,
  * pulls, and restores. Same RecordRemoteSeen behavior as Pull on
- * success — the underlying inner Pull's NewHead is what we record.
+ * success - the underlying inner Pull's NewHead is what we record.
  * 
- * The pending list includes only paths the journal knows are dirty —
+ * The pending list includes only paths the journal knows are dirty -
  * strictly narrower than `git status`, so external edits in unrelated
  * files don't get stashed. When the journal has no pending changes,
  * the call degrades to a plain pull.

@@ -16,7 +16,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * ListHelpers — the catalog of every Handlebars helper this module
+ * ListHelpers - the catalog of every Handlebars helper this module
  * registers, for the Information panel's "Render helpers reference".
  * Static data (no Manager state read); returned as a fresh slice the
  * frontend can sort/filter freely.
@@ -28,7 +28,7 @@ export function ListHelpers(): $CancellablePromise<$models.HelperDescriptor[]> {
 }
 
 /**
- * RenderForm — Handlebars markdown + sanitized HTML for one
+ * RenderForm - Handlebars markdown + sanitized HTML for one
  * (template, datafile) pair. Empty datafile renders defaults.
  */
 export function RenderForm(templateName: string, datafile: string): $CancellablePromise<$models.Result | null> {
@@ -38,7 +38,7 @@ export function RenderForm(templateName: string, datafile: string): $Cancellable
 }
 
 /**
- * RenderFullHTML — self-contained HTML document (DOCTYPE + head + body)
+ * RenderFullHTML - self-contained HTML document (DOCTYPE + head + body)
  * with the formidable-prose stylesheet inlined. Used by the storage
  * workspace's "Copy HTML" action so what the user pastes into a .html
  * file renders identically to the in-app preview.
@@ -48,14 +48,14 @@ export function RenderFullHTML(templateName: string, datafile: string): $Cancell
 }
 
 /**
- * RenderHTML — re-render arbitrary markdown (Vue's editor preview).
+ * RenderHTML - re-render arbitrary markdown (Vue's editor preview).
  */
 export function RenderHTML(markdown: string): $CancellablePromise<string> {
     return $Call.ByID(902651679, markdown);
 }
 
 /**
- * RenderMarkdown — Handlebars stage only. Useful when Vue wants to let
+ * RenderMarkdown - Handlebars stage only. Useful when Vue wants to let
  * the user edit the intermediate markdown before HTML rendering.
  */
 export function RenderMarkdown(templateName: string, datafile: string): $CancellablePromise<string> {

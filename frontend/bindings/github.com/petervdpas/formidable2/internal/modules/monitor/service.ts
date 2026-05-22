@@ -7,7 +7,7 @@
  * page works regardless of whether the loopback HTTP server is on.
  * 
  * External API consumers reach the same Manager through NewHandler
- * — both transports share the registered Sources and the Query/Result
+ * - both transports share the registered Sources and the Query/Result
  * shapes.
  * @module
  */
@@ -21,7 +21,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * ListSources returns descriptors for every registered Source — used
+ * ListSources returns descriptors for every registered Source - used
  * by query-builder UIs to render filter and group-by pickers without
  * hard-coding dim names.
  */

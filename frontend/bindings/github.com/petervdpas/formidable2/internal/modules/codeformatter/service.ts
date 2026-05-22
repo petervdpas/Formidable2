@@ -16,7 +16,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 /**
  * Format reformats src according to lang. Errors are returned as
- * strings via Wails — the frontend toasts ErrMalformed cases so the
+ * strings via Wails - the frontend toasts ErrMalformed cases so the
  * user can fix the source rather than silently shipping broken YAML.
  */
 export function Format(lang: string, src: string): $CancellablePromise<string> {

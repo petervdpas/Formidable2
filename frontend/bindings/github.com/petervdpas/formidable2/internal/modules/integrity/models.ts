@@ -29,7 +29,7 @@ export class FixOutcome {
 
     /**
      * Saved indicates whether the form file was rewritten. False when
-     * Applied was 0 — no work means no write.
+     * Applied was 0 - no work means no write.
      */
     "saved": boolean;
 
@@ -100,7 +100,7 @@ export class FixPlan {
 
 /**
  * FixPlanItem says how to repair every issue of a given kind in this
- * run. There is at most one item per kind — the UI summarises by kind
+ * run. There is at most one item per kind - the UI summarises by kind
  * so the user picks one strategy for all forms in that bucket.
  */
 export class FixPlanItem {
@@ -177,7 +177,7 @@ export class FixResult {
 }
 
 /**
- * FixStrategy names a concrete repair action. The set is closed —
+ * FixStrategy names a concrete repair action. The set is closed -
  * every kind maps to one or more strategies, and unknown strategies
  * fail Fix-time rather than at the per-issue level.
  */
@@ -188,19 +188,19 @@ export enum FixStrategy {
     $zero = "",
 
     /**
-     * FixStrip — remove the offending key from the data map. Used for
+     * FixStrip - remove the offending key from the data map. Used for
      * extra_field. Lossless: the data was orphaned from the template.
      */
     FixStrip = "strip",
 
     /**
-     * FixFillDefault — write the per-type default for a missing field
+     * FixFillDefault - write the per-type default for a missing field
      * (matches storage.Sanitize's defaultForType). Used for missing_field.
      */
     FixFillDefault = "fill_default",
 
     /**
-     * FixCoerce — attempt to convert a wrong-typed value into the
+     * FixCoerce - attempt to convert a wrong-typed value into the
      * declared type. Used for type_mismatch and bad_date_format. Items
      * where coercion fails are reported as "skipped" in the result and
      * the form is left untouched.
@@ -208,7 +208,7 @@ export enum FixStrategy {
     FixCoerce = "coerce",
 
     /**
-     * FixClear — wipe the value back to the per-type default. Same
+     * FixClear - wipe the value back to the per-type default. Same
      * effect as FixFillDefault but applied to a populated-but-wrong
      * value rather than an absent one. Used for type_mismatch /
      * bad_date_format when the user prefers "clear and re-enter" over
@@ -217,13 +217,13 @@ export enum FixStrategy {
     FixClear = "clear",
 
     /**
-     * FixMintUUID — generate a fresh UUID for meta.id. Used for
+     * FixMintUUID - generate a fresh UUID for meta.id. Used for
      * meta_missing on guid templates.
      */
     FixMintUUID = "mint_uuid",
 
     /**
-     * FixRestamp — overwrite a bad timestamp with time.Now().UTC().
+     * FixRestamp - overwrite a bad timestamp with time.Now().UTC().
      * Used for meta_bad_format on meta.created and meta.updated. For
      * meta.flag_state the same strategy clears the stale label
      * (different concrete change, same intent: "make it valid").
@@ -231,7 +231,7 @@ export enum FixStrategy {
     FixRestamp = "restamp",
 
     /**
-     * FixSkip — leave the issue alone. Used as the sentinel for kinds
+     * FixSkip - leave the issue alone. Used as the sentinel for kinds
      * where no in-app repair exists (unreadable: needs the user to
      * edit the file). Selecting Skip from the UI means "don't change
      * anything for issues of this kind".
@@ -241,7 +241,7 @@ export enum FixStrategy {
 
 /**
  * FormReport groups every issue found in one form. Filename is the
- * .meta.json basename (e.g. "x.meta.json") — the same identifier the
+ * .meta.json basename (e.g. "x.meta.json") - the same identifier the
  * storage module uses.
  */
 export class FormReport {
@@ -313,46 +313,46 @@ export enum IssueKind {
     $zero = "",
 
     /**
-     * IssueMissingField — the template declares Key K but the form's
+     * IssueMissingField - the template declares Key K but the form's
      * data has no entry for K. Sanitize would have filled a default,
      * so this only surfaces on forms last saved before K was added.
      */
     IssueMissingField = "missing_field",
 
     /**
-     * IssueExtraField — the form's data has Key K but the current
+     * IssueExtraField - the form's data has Key K but the current
      * template has no field with that key. Usually a stale entry from
      * a field that was renamed or deleted.
      */
     IssueExtraField = "extra_field",
 
     /**
-     * IssueTypeMismatch — the value present for Key K is not assignable
+     * IssueTypeMismatch - the value present for Key K is not assignable
      * to the field's declared type (e.g. a string in a boolean field).
      * Detail describes the actual vs expected types.
      */
     IssueTypeMismatch = "type_mismatch",
 
     /**
-     * IssueBadDateFormat — value is a string but doesn't parse as
+     * IssueBadDateFormat - value is a string but doesn't parse as
      * "YYYY-MM-DD". Distinct from IssueTypeMismatch so the UI can
      * offer a date-specific quick-fix.
      */
     IssueBadDateFormat = "bad_date_format",
 
     /**
-     * IssueMetaMissing — a required meta key is empty.
+     * IssueMetaMissing - a required meta key is empty.
      */
     IssueMetaMissing = "meta_missing",
 
     /**
-     * IssueMetaBadFormat — meta.created / meta.updated isn't a
+     * IssueMetaBadFormat - meta.created / meta.updated isn't a
      * parseable RFC3339 timestamp.
      */
     IssueMetaBadFormat = "meta_bad_format",
 
     /**
-     * IssueUnreadable — the form file couldn't be loaded or parsed.
+     * IssueUnreadable - the form file couldn't be loaded or parsed.
      * Stops further analysis of that form; emitted as the single issue.
      */
     IssueUnreadable = "unreadable",

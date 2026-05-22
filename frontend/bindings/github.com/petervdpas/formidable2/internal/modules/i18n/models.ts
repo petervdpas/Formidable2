@@ -6,8 +6,8 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * LocaleDescriptor pairs a locale id with its endonym — the language's
- * own name for itself ("English", "Nederlands") — so a UI in any
+ * LocaleDescriptor pairs a locale id with its endonym - the language's
+ * own name for itself ("English", "Nederlands") - so a UI in any
  * locale can label the language picker with autonyms. The endonym
  * lives inside the locale's own bundle under `language.endonym`;
  * adding a new locale just means adding the file with that key set.

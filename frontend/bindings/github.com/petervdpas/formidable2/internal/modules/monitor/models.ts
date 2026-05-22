@@ -58,7 +58,7 @@ export class Point {
 
 /**
  * Query is a typed pipeline against one Source. Bin is parsed via
- * time.ParseDuration ("1h", "5m", "24h") — empty/zero means "no time
+ * time.ParseDuration ("1h", "5m", "24h") - empty/zero means "no time
  * binning, return one scalar Total per groupKey." JSON shape is used
  * by both the Wails bridge and the HTTP handler.
  */

@@ -16,7 +16,7 @@ import * as time$0 from "../../../../../../time/models.js";
  *   - BrowserBin: when set, skip probing and use this path directly.
  *     When empty, the prober runs and the first candidate is picked.
  * 
- * Formidable does not bundle or download Chrome — if no candidate
+ * Formidable does not bundle or download Chrome - if no candidate
  * is found, the user must install one (or point ROD_BROWSER_BIN at
  * one) themselves.
  */
@@ -39,7 +39,7 @@ export class ActivateOpts {
 }
 
 /**
- * ChromeCandidate is one entry returned by ProbeChrome — a Chrome/
+ * ChromeCandidate is one entry returned by ProbeChrome - a Chrome/
  * Chromium binary the activation flow can adopt. Version is best-
  * effort (resolved by running `<path> --version`) and may be empty
  * when the binary refuses to run or the call times out.
@@ -78,7 +78,7 @@ export class ChromeCandidate {
  *   - Label: human-readable display name from the magic-line `name:`
  *     field, or capitalised Name when absent.
  *   - Description: from the magic-line `description:` field, or "".
- *   - OK: false when ValidateCover errored — the picker may still
+ *   - OK: false when ValidateCover errored - the picker may still
  *     surface the entry, but flagged.
  */
 export class CoverDescriptor {
@@ -121,7 +121,7 @@ export class CoverDescriptor {
  * 
  * IsSeed is true when the filename matches an embedded seed (currently
  * just formidable.svg). The frontend uses this to offer "Reset to
- * default" — deleting a seed image is allowed; the next boot's
+ * default" - deleting a seed image is allowed; the next boot's
  * scaffold pass re-writes it from the embed.
  */
 export class CoverImageDescriptor {
@@ -204,7 +204,7 @@ export enum CoverIssueSeverity {
 
 /**
  * CoverTokenInfo carries the metadata parsed out of the magic comment.
- * Name and Description are optional and purely informational — only
+ * Name and Description are optional and purely informational - only
  * Version participates in validation.
  */
 export class CoverTokenInfo {
@@ -269,7 +269,7 @@ export class CoverValidation {
 /**
  * ExportCoverArchiveResult describes what was bundled into the zip on
  * export. MissingImages collects refs the .html mentions but that
- * aren't present on disk — surfaced to the UI so the user can decide
+ * aren't present on disk - surfaced to the UI so the user can decide
  * whether to chase them down before shipping the archive.
  */
 export class ExportCoverArchiveResult {
@@ -368,7 +368,7 @@ export class ExportOpts {
  * the effective Theme/Cover/HasCover apply to both.
  * 
  * The PDF doctor sub-panel reads these via Service.LastExport. Stable
- * shape — JSON tags are part of the Wails contract.
+ * shape - JSON tags are part of the Wails contract.
  */
 export class ExportTelemetry {
     "at": time$0.Time;
@@ -596,8 +596,8 @@ export class ImportCoverArchiveResult {
 /**
  * InjectConfig is the typed input that BuildFrontmatter renders into
  * a picoloom v2 frontmatter YAML scaffold. The Inject dialog
- * collects values into this shape — toggles per block, dropdowns per
- * enum field, text inputs per cover/footer/signature field — and the
+ * collects values into this shape - toggles per block, dropdowns per
+ * enum field, text inputs per cover/footer/signature field - and the
  * backend renders the YAML deterministically.
  * 
  * Block pointers are nil when the user's toggle for that block is
@@ -605,7 +605,7 @@ export class ImportCoverArchiveResult {
  * asked for. Style is a top-level scalar (no block to gate); empty
  * means "no theme override".
  * 
- * Watermark and PageBreaks are intentionally absent — they're
+ * Watermark and PageBreaks are intentionally absent - they're
  * power-user features deferred until there's demand.
  */
 export class InjectConfig {
@@ -657,7 +657,7 @@ export class InjectConfig {
 }
 
 /**
- * InjectCoverConfig — every cover field except the picoloom-internal
+ * InjectCoverConfig - every cover field except the picoloom-internal
  * ones (Enabled / TemplatePath). Empty fields are skipped on emit.
  */
 export class InjectCoverConfig {
@@ -693,7 +693,7 @@ export class InjectCoverConfig {
 }
 
 /**
- * InjectFooterConfig — footer block. ShowPageNumber is a value type
+ * InjectFooterConfig - footer block. ShowPageNumber is a value type
  * because the dialog always has a position for the toggle (on/off);
  * nil-vs-false distinction isn't needed at scaffold-emit time.
  */
@@ -724,7 +724,7 @@ export class InjectFooterConfig {
 }
 
 /**
- * InjectPageConfig — page layout. Values from ListPageSizes() and
+ * InjectPageConfig - page layout. Values from ListPageSizes() and
  * ListPageOrientations() drive the dropdowns; the user can also leave
  * fields empty for picoloom defaults.
  */
@@ -749,8 +749,8 @@ export class InjectPageConfig {
 }
 
 /**
- * InjectSignatureConfig — signature block. Links (signature.links
- * array) are deferred — out of scope for the v1 wizard.
+ * InjectSignatureConfig - signature block. Links (signature.links
+ * array) are deferred - out of scope for the v1 wizard.
  */
 export class InjectSignatureConfig {
     "name"?: string;
@@ -778,7 +778,7 @@ export class InjectSignatureConfig {
 }
 
 /**
- * InjectTOCConfig — table-of-contents block.
+ * InjectTOCConfig - table-of-contents block.
  */
 export class InjectTOCConfig {
     "title"?: string;
@@ -826,7 +826,7 @@ export class OrientationDescriptor {
  * follow the same shape as TableColumnTypeDescriptor / ThemeDescriptor:
  * just a Name string. Human labels come from frontend i18n keys
  * (`pdf.export.dialog.page_size.<name>` etc.). Display order is
- * significant — the slice ordering IS the dropdown ordering.
+ * significant - the slice ordering IS the dropdown ordering.
  */
 export class PageSizeDescriptor {
     "name": string;
@@ -853,7 +853,7 @@ export class PageSizeDescriptor {
  * ProbeResult is what ProbeChrome returns to the activation dialog.
  * Candidates is ordered: env-var override (if any), then system
  * matches in the platform's standard search list, then managed-cache
- * matches. Empty means no Chrome was found — the dialog should offer
+ * matches. Empty means no Chrome was found - the dialog should offer
  * the managed-download path (Phase D).
  */
 export class ProbeResult {
@@ -886,12 +886,12 @@ export class ProbeResult {
  * would pick for the (template, datafile) pair if the user accepts
  * the dialog's default options. The dialog uses this to label the
  * "(use frontmatter / template default)" entry with the concrete
- * value that will actually be applied — so a template whose frontmatter
- * has no `style:` shows up as "(no theme — picoloom built-in)" instead
+ * value that will actually be applied - so a template whose frontmatter
+ * has no `style:` shows up as "(no theme - picoloom built-in)" instead
  * of pretending a frontmatter override exists.
  * 
  * Empty Theme / CoverTemplate strings mean "no override in any merge
- * layer — picoloom's own built-in default will be used at render time".
+ * layer - picoloom's own built-in default will be used at render time".
  * CoverDisabled distinguishes that-from "frontmatter said cover.enabled:
  * false" so the dialog can show a more specific label.
  */
@@ -923,7 +923,7 @@ export class ResolvedExportDefaults {
 
 /**
  * Result is the bound shape ExportPDF returns. The PDF bytes are not
- * in the result — they go straight to disk via system.SaveFile. The
+ * in the result - they go straight to disk via system.SaveFile. The
  * frontend uses Path to surface an "Open" link in the success toast.
  */
 export class Result {
@@ -958,7 +958,7 @@ export class Result {
 /**
  * Source describes where the active Chrome/Chromium binary came from.
  * Values are stable and used in both the Status struct and persisted
- * config — do not rename without a migration.
+ * config - do not rename without a migration.
  */
 export enum Source {
     /**
@@ -967,7 +967,7 @@ export enum Source {
     $zero = "",
 
     /**
-     * SourceUnset is the inactive state — no browser bound, no
+     * SourceUnset is the inactive state - no browser bound, no
      * activation attempted. Default for fresh profiles.
      */
     SourceUnset = "unset",
@@ -992,9 +992,9 @@ export enum Source {
  * or after activation; zero value means inactive.
  * 
  * ExportDir is the per-machine "where renders land" preference. It is
- * independent of activation — the user can set or change it while
+ * independent of activation - the user can set or change it while
  * inactive, and Deactivate does not wipe it. Empty string means
- * "no default — Stage 4 will fall back to placing PDFs next to the
+ * "no default - Stage 4 will fall back to placing PDFs next to the
  * form" (see design/pdf-export.md, Stage 4 output path resolution).
  */
 export class Status {
@@ -1047,7 +1047,7 @@ export class Status {
  * Listed by Service.ListThemes. Picoloom v2 does not enumerate its
  * bundled styles, so the Go side keeps the canonical list. When
  * picoloom adds a style (or exposes its registry), refresh `builtinThemes`
- * in service.go to match — there is no other place to update.
+ * in service.go to match - there is no other place to update.
  */
 export class ThemeDescriptor {
     "name": string;

@@ -5,7 +5,7 @@
  * Service is the Wails-bound facade. Today it surfaces only the
  * api-field row reader (the picker UI in FieldEditModal calls
  * FetchAPIFieldRow when the user picks a guid). The rest of
- * dataprovider.Manager stays internal — it's read by the wiki HTTP
+ * dataprovider.Manager stays internal - it's read by the wiki HTTP
  * server and the api Handler directly.
  * 
  * The full Manager surface is intentionally NOT exposed: most of it
@@ -13,7 +13,7 @@
  * hrefs) and would duplicate what the wiki server already serves.
  * Frontend consumers that need a list of records for a picker can
  * call the existing api Handler over loopback (via AssetMiddleware)
- * or — when that's still too heavy — we add narrow per-need methods
+ * or - when that's still too heavy - we add narrow per-need methods
  * here, one at a time.
  * @module
  */
@@ -55,7 +55,7 @@ export function ListCollectionTemplates(): $CancellablePromise<$models.TemplateS
  * it alongside the diff against `stored`. The host form should render
  * Row as the new truth; Drift carries per-column entries for anything
  * that changed since last save (including new columns added to the
- * field's Map[]). A nil/empty stored is treated as "first refetch" —
+ * field's Map[]). A nil/empty stored is treated as "first refetch" -
  * every non-nil current column counts as drift-from-zero.
  */
 export function RefetchAPIFieldRow(sourceTemplate: string, guid: string, columnKeys: string[], stored: { [_ in string]?: any }): $CancellablePromise<$models.APIFieldRefetchResultDTO> {

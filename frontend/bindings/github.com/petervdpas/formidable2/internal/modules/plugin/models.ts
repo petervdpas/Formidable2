@@ -13,12 +13,12 @@ import { Create as $Create } from "@wailsio/runtime";
  * id="export" calls global function `export(ctx)` in Lua).
  * 
  * HideOutput and HideLog let a command opt out of showing the
- * corresponding panel in the Run dialog — useful for "fire and
+ * corresponding panel in the Run dialog - useful for "fire and
  * forget" actions whose return value is irrelevant. LogAsToast
  * additionally surfaces every formidable.log.* line as a live
  * toast, useful while developing a plugin. FormButton marks the
  * command as a button to be rendered inside the plugin's form
- * (when one exists) — the form runtime reads this when wiring its
+ * (when one exists) - the form runtime reads this when wiring its
  * action bar; it's a manifest hint with no behavior yet on the
  * Run modal side.
  * 
@@ -147,7 +147,7 @@ export class ImportArchiveResult {
 /**
  * ListResult is the Wails return shape for List. Manifest is the
  * full parsed plugin.json (so Vue can show name, version, command
- * labels). ID is duplicated at the top level for convenience —
+ * labels). ID is duplicated at the top level for convenience -
  * Vue list components use it as the v-for key without digging
  * into the nested manifest.
  */
@@ -187,12 +187,12 @@ export class ListResult {
  * 
  * Versionable surface: extra unknown fields are tolerated by
  * json.Unmarshal so plugins authored against a newer Formidable
- * don't silently break here — they just don't use the new fields.
+ * don't silently break here - they just don't use the new fields.
  * 
  * RunMode controls how the user interacts with the plugin:
- *   - "" (default) / "modal" — Run modal lists each command as a
+ *   - "" (default) / "modal" - Run modal lists each command as a
  *     card; ctx is empty for every call.
- *   - "form" — the plugin's form (form.json) is the entry point;
+ *   - "form" - the plugin's form (form.json) is the entry point;
  *     it renders at the top of the Run modal and every command
  *     receives the current form values as ctx.
  */
@@ -217,7 +217,7 @@ export class Manifest {
 
     /**
      * Debug toggles the collapsible debug/output panel at the bottom
-     * of the Run modal. Off by default — plugin authors flip it on
+     * of the Run modal. Off by default - plugin authors flip it on
      * while iterating, then turn it off when shipping.
      */
     "debug": boolean;
@@ -263,7 +263,7 @@ export class Manifest {
 
 /**
  * RunResultDTO is the JSON envelope for Run. Kind is "ok" on
- * success or one of the error sentinels' kinds — Vue branches on
+ * success or one of the error sentinels' kinds - Vue branches on
  * Kind, never on Message text. Toasts pass through whatever
  * formidable.toast.* emitted during the call so the workspace can
  * dispatch them to useToast.

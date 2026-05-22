@@ -183,7 +183,7 @@ export enum NumberOp {
 
 /**
  * Operator describes one selectable operator in the State-tab picker.
- * LabelKey is an i18n key, not a translated string — keeps the
+ * LabelKey is an i18n key, not a translated string - keeps the
  * frontend in charge of localisation while the backend remains the
  * authoritative source for which operators exist per kind.
  */
@@ -218,7 +218,7 @@ export class Operator {
  * 
  *   - Parts (preferred) is an ordered list of TextSources joined
  *     with `+` so a chip text can mix literals, field values, and
- *     option labels — e.g. `unit-number + " " + street`.
+ *     option labels - e.g. `unit-number + " " + street`.
  *   - Text is the legacy single-source form. Compile reads Parts
  *     first; falls back to Text when Parts is empty. Parse always
  *     emits Parts (Text stays nil). Both nil/empty means the chip
@@ -305,7 +305,7 @@ export class Predicate {
 
 /**
  * Rule is a logical AND of Predicates with one Outcome. Empty
- * Predicates always match — useful for the lone-rule case where the
+ * Predicates always match - useful for the lone-rule case where the
  * user wants exactly one outcome regardless of state.
  */
 export class Rule {

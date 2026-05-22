@@ -42,7 +42,7 @@ export function EnsureTemplateDirectory(): $CancellablePromise<void> {
 /**
  * FacetMeta returns the full facet contract (max counts, color +
  * icon palettes, validation patterns). The frontend reads this once
- * at boot so it doesn't mirror ANY of these constants — backend is
+ * at boot so it doesn't mirror ANY of these constants - backend is
  * the single source of truth.
  */
 export function FacetMeta(): $CancellablePromise<$models.FacetMeta> {
@@ -117,7 +117,7 @@ export function HasTemplates(): $CancellablePromise<boolean> {
 /**
  * ListItemTypes returns the canonical item-type vocabulary the Edit
  * Field modal's `list` preset surfaces. Same one-source-of-truth
- * rule as TableColumnTypes — frontend reads via this method, never
+ * rule as TableColumnTypes - frontend reads via this method, never
  * hardcodes the list.
  */
 export function ListItemTypes(): $CancellablePromise<$models.ListItemTypeDescriptor[]> {
@@ -161,7 +161,7 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
 /**
  * TableColumnTypes returns the canonical column-type vocabulary the
  * Edit Field modal's `table` preset surfaces. Single source of truth
- * — the frontend MUST NOT keep a parallel hardcoded list.
+ * - the frontend MUST NOT keep a parallel hardcoded list.
  */
 export function TableColumnTypes(): $CancellablePromise<$models.TableColumnTypeDescriptor[]> {
     return $Call.ByID(3301892111).then(($result: any) => {

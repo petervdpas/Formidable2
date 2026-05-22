@@ -15,7 +15,7 @@ import { Create as $Create } from "@wailsio/runtime";
  *   - Label: optional display header for that column. When empty, the
  *     editor / wiki falls back to the source field's Label.
  * 
- * Type is intentionally absent — it is derived live from the source
+ * Type is intentionally absent - it is derived live from the source
  * template (`source.Fields[Key].Type`). Storing it here would invite
  * drift if the source template's field type changes.
  */
@@ -161,7 +161,7 @@ export class Descriptor {
  * mutually-exclusive Options to pick from on each record.
  * 
  * Each facet on a record carries a required `set` bool plus an
- * optional `selected` label — see storage.FacetState. Filter chips
+ * optional `selected` label - see storage.FacetState. Filter chips
  * in the storage view auto-derive from a template's facets but only
  * render when at least one record actually has `set: true` for the
  * facet's key.
@@ -205,7 +205,7 @@ export class Facet {
  * FacetIconSpec carries the minimal data needed to render one
  * FontAwesome glyph as inline SVG: the path's `viewBox` (icons have
  * different aspects) and the geometry in `Path`'s `d` attribute. No
- * `xmlns` and no fill — both layers (wiki + Vue) wrap this in their
+ * `xmlns` and no fill - both layers (wiki + Vue) wrap this in their
  * own colour-aware shell.
  */
 export class FacetIconSpec {
@@ -239,8 +239,8 @@ export class FacetIconSpec {
  * frontend reads this once at boot via Service.FacetMeta and treats
  * the backend as the single source of truth for:
  *   - max counts (MaxFacets, MaxOptionsPerFacet)
- *   - palettes (Colors, Icons — ordered for display)
- *   - validation patterns (KeyPattern, LabelPattern — compiled in JS)
+ *   - palettes (Colors, Icons - ordered for display)
+ *   - validation patterns (KeyPattern, LabelPattern - compiled in JS)
  * 
  * Adding a new backend-owned facet rule means extending this struct;
  * the frontend stays a thin renderer.
@@ -335,7 +335,7 @@ export class FacetOption {
 
 /**
  * Field describes one input in a template. Type-specific properties
- * (run_mode, options, collection, etc.) sit alongside the common ones —
+ * (run_mode, options, collection, etc.) sit alongside the common ones -
  * downstream consumers ignore irrelevant fields.
  */
 export class Field {
@@ -373,7 +373,7 @@ export class Field {
 
     /**
      * api-specific. Collection is the source template (filename or
-     * name). Map is the column list — each entry projects one
+     * name). Map is the column list - each entry projects one
      * level-0 source field into the host form's row at fetch time.
      * Type is not stored; it is resolved live from the source
      * template (`source.Fields[Map[i].Key].Type`) so a source-side
@@ -440,7 +440,7 @@ export class Field {
  * (looper, loopstart, loopstop) that don't carry a stored value but
  * still participate in validation. OptionsShape is non-nil when the
  * type's options array has a fixed arity (e.g. boolean = exactly two
- * rows for the True/False labels) — the frontend's OptionsEditor
+ * rows for the True/False labels) - the frontend's OptionsEditor
  * gates add/remove on this and pre-fills with the supplied defaults.
  */
 export class FieldDescriptor {
@@ -491,7 +491,7 @@ export class FieldDescriptor {
  * type is a view over it. BuildFieldTree produces the view,
  * FlattenFieldTree returns to the flat form. Orphan loopstart /
  * loopstop rows (no matching partner) are emitted as plain field
- * units so backend validation can still flag them — silently
+ * units so backend validation can still flag them - silently
  * dropping data would be worse than rendering a broken pair.
  * 
  * The struct is one shape with a Kind discriminator + nullable
@@ -539,7 +539,7 @@ export class FieldUnit {
 }
 
 /**
- * FixedOptionRow is one row in a FixedOptionsShape — a structurally
+ * FixedOptionRow is one row in a FixedOptionsShape - a structurally
  * fixed slot in a field's options array (e.g. True / False rows for
  * a bool field). Defaults populate the cells when the user first
  * picks the field type or when an existing options array arrives
@@ -622,7 +622,7 @@ export class GeneratorOptions {
      * ExpandAPI flips api-field output between two visible shapes:
      *   false → `{{apiSection "key"}}`        (lazy one-liner)
      *   true  → per-column `- **<label>**: {{apiBlock "key" "col"}}`
-     * Same "visible toggle" rule as ImgMode/WrapLoops — the choice
+     * Same "visible toggle" rule as ImgMode/WrapLoops - the choice
      * must materialise in the generated source so the user can see
      * what they picked at a glance.
      */
@@ -655,9 +655,9 @@ export class GeneratorOptions {
 /**
  * ImgMode selects how image fields are emitted.
  * 
- * 	url    — `![Label]({{imageURL "key"}})`. Resolved at render time
+ * 	url    - `![Label]({{imageURL "key"}})`. Resolved at render time
  * 	         per the consumer's render.Manager (slideout, wiki, …).
- * 	inline — `![Label]({{imageBase64 "key"}})`. Bytes inlined as a
+ * 	inline - `![Label]({{imageBase64 "key"}})`. Bytes inlined as a
  * 	         `data:<mime>;base64,…` URL. For self-contained exports.
  */
 export enum ImgMode {
@@ -702,7 +702,7 @@ export class ItemField {
 /**
  * ListItemTypeDescriptor names one entry the Edit Field modal's
  * `list` preset offers in its item-type dropdown. Same rationale as
- * TableColumnTypeDescriptor — captured here even though Go doesn't
+ * TableColumnTypeDescriptor - captured here even though Go doesn't
  * interpret the strings yet, so the future home is ready.
  */
 export class ListItemTypeDescriptor {
@@ -733,7 +733,7 @@ export class ListItemTypeDescriptor {
 
 /**
  * LoadManyResult is one slot in LoadMany's response. Template is nil
- * when the file was missing or unparseable — Error carries the
+ * when the file was missing or unparseable - Error carries the
  * per-row failure message. Filename is always stamped so callers can
  * pair the result back to its input slot even when Template is nil.
  */
@@ -924,7 +924,7 @@ export class SubRow {
 
 /**
  * SubRowEntry is one fixed slot inside a SubRow. Each entry locks a
- * canonical Value (e.g. "true" / "false" for a bool column) — the
+ * canonical Value (e.g. "true" / "false" for a bool column) - the
  * user only edits the human-readable label. LabelKey is the i18n
  * key for the gutter caption shown next to the locked value.
  */
@@ -957,8 +957,8 @@ export class SubRowEntry {
 /**
  * TableColumnTypeDescriptor names one column type the Edit Field
  * modal's `table` preset offers in its column-type dropdown. Today
- * these strings are pure UI vocabulary — the Go side does not yet
- * validate table cell data against them — but the registry lives
+ * these strings are pure UI vocabulary - the Go side does not yet
+ * validate table cell data against them - but the registry lives
  * here so a future server-side validation pass has a single source
  * of truth to read.
  */

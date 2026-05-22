@@ -3,7 +3,7 @@
 
 /**
  * Service is the Wails-bound surface of the credential Manager.
- * Same shape as Manager — the split exists for parity with other
+ * Same shape as Manager - the split exists for parity with other
  * modules and to give us a place to hang request-scoped concerns
  * (logging, audit trail) later without leaking them into domain
  * code.
