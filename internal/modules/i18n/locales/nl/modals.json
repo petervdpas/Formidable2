@@ -162,7 +162,7 @@
   "paste.list.subtitle": "De eerste kolom van elke geplakte rij wordt als nieuw item toegevoegd.",
   "paste.placeholder": "Plak hier (Ctrl+V) en klik op Verwerken.",
   "paste.process": "Verwerken",
-  "paste.subtitle": "Plak rijen uit Excel — één rij per regel, kolommen gescheiden door tabs.",
+  "paste.subtitle": "Plak rijen uit Excel - één rij per regel, kolommen gescheiden door tabs.",
   "paste.success": "{0} rijen toegevoegd.",
   "paste.table.subtitle": "Elke geplakte rij wordt als nieuwe tabelrij toegevoegd, kolommen worden van links naar rechts ingevuld.",
   "paste.title": "Data plakken",

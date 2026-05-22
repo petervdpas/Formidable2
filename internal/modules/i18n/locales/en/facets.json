@@ -18,7 +18,7 @@
   "facet.builder.key_label": "Key",
   "facet.builder.key_placeholder": "lowercase, letters/digits/_-",
   "facet.builder.counter": "{0} of {1} options",
-  "facet.builder.empty": "No options yet — click “Add option” to create one.",
+  "facet.builder.empty": "No options yet! Click “Add option” to create one.",
   "facet.builder.add_option": "Add option",
   "facet.builder.label_placeholder": "Only use A-Z, 0-9, spaces, _, -",
   "facet.builder.error.duplicate_label": "Duplicate label.",
