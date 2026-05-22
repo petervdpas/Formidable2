@@ -179,7 +179,7 @@ jobs:
           $ver = "${{ steps.version.outputs.VERSION }}"
           New-Item -ItemType Directory -Force -Path bin | Out-Null
           go build -tags production -trimpath -buildvcs=false `
-            -ldflags="-buildid= -w -s -H windowsgui -X ${env:VERSION_PATH}=$ver" `
+            -ldflags="-buildid= -H windowsgui -X ${env:VERSION_PATH}=$ver" `
             -o bin/Formidable.exe .
           Remove-Item *.syso
 
@@ -282,7 +282,7 @@ jobs:
           mkdir -p bin
           VERSION="${{ steps.version.outputs.VERSION }}"
           go build -tags production -trimpath -buildvcs=false \
-            -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
+            -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
             -o bin/Formidable .
 
       - name: Patch nfpm version
@@ -381,7 +381,7 @@ jobs:
           mkdir -p bin
           VERSION="${{ steps.version.outputs.VERSION }}"
           go build -tags production -trimpath -buildvcs=false \
-            -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
+            -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
             -o bin/Formidable .
 
       - name: Patch nfpm version
@@ -467,7 +467,7 @@ jobs:
           mkdir -p bin
           GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable .
 
           sed -i "s/^version:.*/version: \"${VERSION}\"/" build/linux/nfpm/nfpm.yaml
@@ -557,11 +557,11 @@ jobs:
           mkdir -p bin
           GOOS=darwin GOARCH=amd64 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable-amd64 .
           GOOS=darwin GOARCH=arm64 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-buildid= -w -s -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable-arm64 .
           lipo -create -output bin/Formidable bin/Formidable-amd64 bin/Formidable-arm64
           rm bin/Formidable-amd64 bin/Formidable-arm64
