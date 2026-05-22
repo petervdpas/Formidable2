@@ -133,7 +133,7 @@ GET    /api/collections/{tpl}/export.csv             — id/filename/title/tags
 `{id}` is always the GUID value (the field whose `type: guid`),
 never the filename. Filenames are derived from the template's
 `item_field` via slugify with collision suffix (`brood.meta.json`,
-`brood-2.meta.json`, …) and fall back to `<guid>.meta.json`.
+`brood-2.meta.json`, ...) and fall back to `<guid>.meta.json`.
 
 POST auto-mints a GUID server-side when the body's `data[guidKey]` is
 empty, so callers don't need a UUID library.

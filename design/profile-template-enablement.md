@@ -1,6 +1,6 @@
-# Profile-Level Template Enablement — Design
+# Profile-Level Template Enablement - Design
 
-Each profile carries a list of templates the user has opted into; "use-side" surfaces (template pickers) filter to that list. Templates are *not* deleted, hidden globally, or categorised — this is per-profile curation, peer to existing `SelectedTemplate`.
+Each profile carries a list of templates the user has opted into; "use-side" surfaces (template pickers) filter to that list. Templates are *not* deleted, hidden globally, or categorised - this is per-profile curation, peer to existing `SelectedTemplate`.
 
 See [architecture.md](architecture.md) for module conventions. No new module; this slots into the existing `config` and `template` modules.
 
@@ -14,9 +14,9 @@ See [architecture.md](architecture.md) for module conventions. No new module; th
 | Storage | New field `EnabledTemplates []string` on `config.Config`, JSON tag `enabled_templates`. Lives in `internal/modules/config/types.go`. |
 | Default | `nil` / empty slice → **all templates enabled**. Existing profiles keep working untouched; feature is opt-in. Once the slice has at least one entry, it becomes authoritative. |
 | Deletion behaviour | If a template referenced by `EnabledTemplates` is deleted, the entry is silently pruned the next time the list is read/written. No error, no toast. The list is advisory, not a foreign-key constraint. |
-| `SelectedTemplate` interaction | Independent. If `SelectedTemplate` falls outside `EnabledTemplates`, the picker simply shows "no selection" — we do **not** auto-mutate `SelectedTemplate`. User notices and re-picks. |
+| `SelectedTemplate` interaction | Independent. If `SelectedTemplate` falls outside `EnabledTemplates`, the picker simply shows "no selection" - we do **not** auto-mutate `SelectedTemplate`. User notices and re-picks. |
 | Filter seam | `template.LoadMany([]string)` already takes a filename slice. The filter is applied *before* calling it, via a pure helper on `config.Manager`. No new Wails surface required for the filter itself. |
-| Editor visibility | `TemplatesWorkspace` (the editor) is **not** filtered — it's where you manage templates, you must see all of them. Only use-side pickers filter. |
+| Editor visibility | `TemplatesWorkspace` (the editor) is **not** filtered - it's where you manage templates, you must see all of them. Only use-side pickers filter. |
 | Settings surface | New tab `templates` in `frontend/src/workspaces/settings/index.ts`, file `SettingsTemplates.vue`. Toggle-per-row using `SwitchField`. Search box only (no reorder, no grouping). |
 | i18n namespace | `settings.templates.*`. New file `internal/modules/i18n/locales/<lang>/settings.json` block, mirrored across all locales. |
 | Boolean UI | `SwitchField` / `FormSwitchRow` per row. Never `<input type="checkbox">` (project convention). |
@@ -40,9 +40,9 @@ Backend first per project convention; tests before code per project TDD rule.
 
 ### 1. Config field + default
 
-- `internal/modules/config/types.go` — add `EnabledTemplates []string` with `json:"enabled_templates,omitempty"`.
-- `internal/modules/config/defaults.go` — leave nil (matches "empty = all enabled" semantics; `omitempty` keeps existing user.json files clean).
-- `internal/modules/config/domain_test.go` — unit tests:
+- `internal/modules/config/types.go` - add `EnabledTemplates []string` with `json:"enabled_templates,omitempty"`.
+- `internal/modules/config/defaults.go` - leave nil (matches "empty = all enabled" semantics; `omitempty` keeps existing user.json files clean).
+- `internal/modules/config/domain_test.go` - unit tests:
   - default value is nil
   - JSON round-trip preserves a populated slice
   - JSON round-trip of a profile saved before this field exists deserialises with nil
@@ -69,7 +69,7 @@ Unit tests in `domain_test.go` for all three, including the prune-on-delete path
 
 ### 3. Godog scenarios
 
-`internal/modules/config/features/config.feature` — add scenarios:
+`internal/modules/config/features/config.feature` - add scenarios:
 
 - empty list → every template is reported enabled
 - populated list → only listed templates are reported enabled
@@ -85,10 +85,10 @@ Godog scenario in the template feature file: "deleting a template prunes it from
 ### 5. Wails exposure (frontend reads)
 
 Frontend needs to:
-- read `EnabledTemplates` (already available via existing `Config.Get()` — no new binding)
-- write it (already available via existing `Config.Set()` style update — confirm path during implementation)
+- read `EnabledTemplates` (already available via existing `Config.Get()` - no new binding)
+- write it (already available via existing `Config.Set()` style update - confirm path during implementation)
 
-No new service methods unless the existing config service can't write a slice field — check first, add only if necessary.
+No new service methods unless the existing config service can't write a slice field - check first, add only if necessary.
 
 ### 6. Settings UI
 
@@ -101,7 +101,7 @@ No new service methods unless the existing config service can't write a slice fi
 
 Register in `frontend/src/workspaces/settings/index.ts` between `general` and `history`.
 
-Per-row toggle writes the whole `enabled_templates` slice back through the config save path — keeps it simple, no incremental add/remove API.
+Per-row toggle writes the whole `enabled_templates` slice back through the config save path - keeps it simple, no incremental add/remove API.
 
 ### 7. Wire `StorageWorkspace.vue`
 
@@ -122,7 +122,7 @@ Add to `settings.json` (all locales):
 
 ## Risks / non-risks
 
-- **Risk: stale `SelectedTemplate`** — handled by leaving the field alone and letting the picker show "no selection". Low-impact, recoverable in one click.
-- **Risk: enablement drift across profiles** — by design. Each profile curates its own working set.
-- **Non-risk: data loss on delete** — the enablement list is advisory; pruning the stale entry is the correct behaviour, not a regression.
-- **Non-risk: backwards compatibility** — `omitempty` + nil-means-all means existing profiles need no migration.
+- **Risk: stale `SelectedTemplate`** - handled by leaving the field alone and letting the picker show "no selection". Low-impact, recoverable in one click.
+- **Risk: enablement drift across profiles** - by design. Each profile curates its own working set.
+- **Non-risk: data loss on delete** - the enablement list is advisory; pruning the stale entry is the correct behaviour, not a regression.
+- **Non-risk: backwards compatibility** - `omitempty` + nil-means-all means existing profiles need no migration.

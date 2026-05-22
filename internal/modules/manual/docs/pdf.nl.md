@@ -15,7 +15,7 @@ engine.
    sporen. Formidable kijkt achtereenvolgens naar:
    - de omgevingsvariabele `FORMIDABLE_CHROME` (expliciete override)
    - platform-conventionele systeempaden (`/usr/bin/chromium`,
-     `/Applications/…`, `Program Files/…`)
+     `/Applications/...`, `Program Files/...`)
    - de meest recente binary in de managed-cache-map
 2. Kies een kandidaat en klik **Activeren**. De gekozen binary
    wordt vastgelegd in `pdf-state.json`; volgende starts gebruiken
@@ -37,7 +37,7 @@ Export-dialoog vult zinnige defaults vooraf in op basis van het
 template en de frontmatter van het record:
 
 - **Thema**: picoloom's meegeleverde stijlen (`technical`,
-  `academic`, `corporate`, `legal`, …). Verschijnt als de
+  `academic`, `corporate`, `legal`, ...). Verschijnt als de
   `theme:`-frontmatter-sleutel.
 - **Voorpagina**: kiest een cover-template uit de bibliotheek op
   schijf. De lijst komt uit `<AppRoot>/pdf/covers/*.html`; kies

@@ -83,7 +83,7 @@ toc:
 | `signature.name` | Naam van de ondertekenaar. |
 | `signature.email` | E-mail van de ondertekenaar. |
 | `signature.imagePath` | Pad naar een afbeelding van de handtekening (PNG/JPG). |
-| `signature.links` | Lijst met klikbare links: `[{ label, url }, …]`. |
+| `signature.links` | Lijst met klikbare links: `[{ label, url }, ...]`. |
 
 ## Pagina-einden
 

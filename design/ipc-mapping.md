@@ -1,4 +1,4 @@
-# IPC Mapping — Electron `preload.js` → Wails Service Modules
+# IPC Mapping - Electron `preload.js` → Wails Service Modules
 
 Maps each `window.api.*` and `window.electron.*` group from `/home/peter/Projects/Formidable/preload.js` to the corresponding `internal/modules/<name>/` package. The "HTTP handlers?" column flags whether the module additionally exposes a **loopback-only** local API. Most modules don't.
 
@@ -6,19 +6,19 @@ Maps each `window.api.*` and `window.electron.*` group from `/home/peter/Project
 
 | Electron group | Module | HTTP handlers? | Notes |
 |---|---|---|---|
-| `encrypt` | DEFERRED — not ported (see F-502 in backlog) | n/a | Original used static-IV AES-CBC with key-in-plaintext; never used in practice. Frontend call sites will be removed during the renderer port. |
+| `encrypt` | DEFERRED - not ported (see F-502 in backlog) | n/a | Original used static-IV AES-CBC with key-in-plaintext; never used in practice. Frontend call sites will be removed during the renderer port. |
 | `internalServer` | (not a module) | n/a | Lifecycle controls live on `internal/server`; service exposes start/stop/status. |
-| `plugin` | `internal/modules/plugin` | tbd | DEFERRED — Epic X. |
+| `plugin` | `internal/modules/plugin` | tbd | DEFERRED - Epic X. |
 | `help` | `internal/modules/help` | yes | Static-ish topic list and content. |
 | `git` | `internal/modules/git` | yes | ~30 methods. Hybrid `go-git/v5` + shell-out for merge/rebase. |
-| `gigot` | `internal/modules/gigot` | no | **Remote sync** to a GiGot HTTP server with bearer auth. Wails-only — sync transport never goes through the local server. |
+| `gigot` | `internal/modules/gigot` | no | **Remote sync** to a GiGot HTTP server with bearer auth. Wails-only - sync transport never goes through the local server. |
 | `journal` | `internal/modules/journal` | yes | `pending`, `cursor`. |
 | `config` | `internal/modules/config` | yes | Profiles, paths, virtual structure (TTL cache lives here). |
 | `templates` | `internal/modules/template` | yes | List/load/save/delete/validate, descriptors, item fields. **Storage format is YAML** at `<context>/templates/<name>.yaml`. Module name singular per data-model concept. |
 | `forms` | `internal/modules/storage` | yes | List/load/save/delete + image save. **Storage format is JSON `.meta.json` files** under `<context>/storage/<template-name>/`, not YAML. Module renamed `storage` (the disk concept), not `forms` (the IPC group). |
 | `csv` | `internal/modules/csv` | yes | `encoding/csv` for preview/import/write. |
 | `transform` | `internal/modules/transform` | yes | Markdown/HTML/frontmatter/mini-expr. JS-side rendering preferred (see migration-plan). |
-| `system` | `internal/modules/system` | **no** | Raw filesystem + `proxyFetchRemote`. Keep Wails-only — too sensitive for HTTP. |
+| `system` | `internal/modules/system` | **no** | Raw filesystem + `proxyFetchRemote`. Keep Wails-only - too sensitive for HTTP. |
 | `dialog` | (built-in) | n/a | `application.OpenFileDialog` etc. Wired in `frontend/src/main.ts`. |
 
 ## `window.electron.*`
@@ -63,7 +63,7 @@ config  ←  templates  ←  forms ──┐
                                  │
 internal/server  ────────────────┘  (wiki + REST mount points)
 
-system   (FS primitive — used by everything else)
+system   (FS primitive - used by everything else)
 sfr      (SingleFileRepository; depends on system)
 git      (depends on system; reads repo path from config)
 gigot    (depends on system, config, journal; pure HTTP client to remote GiGot server)

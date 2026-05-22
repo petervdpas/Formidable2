@@ -13,7 +13,7 @@ The Information → PDF Export panel drives the engine lifecycle.
    Formidable looks at, in order:
    - `FORMIDABLE_CHROME` environment variable (explicit override)
    - Platform-conventional system paths (`/usr/bin/chromium`,
-     `/Applications/…`, `Program Files/…`)
+     `/Applications/...`, `Program Files/...`)
    - The latest binary in the managed-cache directory
 2. Pick a candidate and click **Activate**. The picked binary is
    recorded in `pdf-state.json`; subsequent boots adopt it without
@@ -35,7 +35,7 @@ pre-fills sensible defaults from the template and the record's
 frontmatter:
 
 - **Theme**: picoloom's bundled style (`technical`, `academic`,
-  `corporate`, `legal`, …). Surfaces as the `theme:` frontmatter key.
+  `corporate`, `legal`, ...). Surfaces as the `theme:` frontmatter key.
 - **Cover**: picks a cover template from the on-disk library.
   The list comes from `<AppRoot>/pdf/covers/*.html`; select
   *None* to skip the cover page.

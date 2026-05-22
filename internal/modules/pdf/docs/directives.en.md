@@ -83,7 +83,7 @@ toc:
 | `signature.name` | Signer's name. |
 | `signature.email` | Signer's email. |
 | `signature.imagePath` | Path to a signature image (PNG/JPG). |
-| `signature.links` | List of clickable links: `[{ label, url }, …]`. |
+| `signature.links` | List of clickable links: `[{ label, url }, ...]`. |
 
 ## Page breaks
 
