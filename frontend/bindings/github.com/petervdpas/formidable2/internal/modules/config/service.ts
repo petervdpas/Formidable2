@@ -89,6 +89,18 @@ export function LoadUserConfig(): $CancellablePromise<$models.Config | null> {
     });
 }
 
+/**
+ * SetTemplateEnabled toggles one template in the active profile's scope
+ * and returns the resulting EnabledTemplates slice. The backend owns
+ * the curation logic (empty = show all, begin/extend/clear scoping); the
+ * frontend calls this and renders the returned state.
+ */
+export function SetTemplateEnabled(filename: string, on: boolean): $CancellablePromise<string[]> {
+    return $Call.ByID(2377989275, filename, on).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function SwitchUserProfile(profileFilename: string): $CancellablePromise<$models.Config | null> {
     return $Call.ByID(3657031668, profileFilename).then(($result: any) => {
         return $$createType5($result);

@@ -73,3 +73,11 @@ func (s *Service) ListEnabledTemplates() ([]string, error) {
 func (s *Service) IsTemplateEnabled(filename string) bool {
 	return s.m.IsTemplateEnabled(filename)
 }
+
+// SetTemplateEnabled toggles one template in the active profile's scope
+// and returns the resulting EnabledTemplates slice. The backend owns
+// the curation logic (empty = show all, begin/extend/clear scoping); the
+// frontend calls this and renders the returned state.
+func (s *Service) SetTemplateEnabled(filename string, on bool) ([]string, error) {
+	return s.m.SetTemplateEnabled(filename, on)
+}

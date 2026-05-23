@@ -29,7 +29,7 @@ export class Config {
     "context_folder": string;
     "selected_template": string;
     "selected_data_file": string;
-    "enabled_templates"?: string[];
+    "enabled_templates": string[];
     "author_name": string;
     "author_email": string;
     "language": string;
@@ -103,6 +103,9 @@ export class Config {
         }
         if (!("selected_data_file" in $$source)) {
             this["selected_data_file"] = "";
+        }
+        if (!("enabled_templates" in $$source)) {
+            this["enabled_templates"] = [];
         }
         if (!("author_name" in $$source)) {
             this["author_name"] = "";

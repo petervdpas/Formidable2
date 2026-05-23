@@ -113,6 +113,82 @@ func (m *Manager) AutoEnableNewTemplate(filename string) error {
 	return nil
 }
 
+// SetTemplateEnabled toggles one template's membership in the active
+// profile's scope, persists, and returns the new EnabledTemplates
+// slice. The backend owns this logic so the frontend renders state
+// rather than computing it.
+//
+// Semantics (empty list = "all templates visible"):
+//   - empty + on  → stays empty (everything is already shown; no-op).
+//   - empty + off → seed "everything except this one" (begin scoping).
+//   - list  + on  → add (deduped).
+//   - list  + off → remove; emptying the list returns to "show all".
+//
+// Needs the wired TemplateLister to seed the begin-scoping case; without
+// one it returns an error rather than guessing the universe of names.
+func (m *Manager) SetTemplateEnabled(filename string, on bool) ([]string, error) {
+	if filename == "" {
+		return nil, fmt.Errorf("set-enabled: empty filename")
+	}
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		return nil, fmt.Errorf("set-enabled: load: %w", err)
+	}
+
+	current := cfg.EnabledTemplates
+	var next []string
+	switch {
+	case len(current) == 0 && on:
+		next = []string{}
+	case len(current) == 0 && !on:
+		all, err := m.allTemplateFilenames()
+		if err != nil {
+			return nil, err
+		}
+		next = make([]string, 0, len(all))
+		for _, f := range all {
+			if f != filename {
+				next = append(next, f)
+			}
+		}
+	case on:
+		next = append([]string(nil), current...)
+		if !slices.Contains(next, filename) {
+			next = append(next, filename)
+		}
+	default:
+		next = make([]string, 0, len(current))
+		for _, f := range current {
+			if f != filename {
+				next = append(next, f)
+			}
+		}
+	}
+
+	if _, err := m.UpdateUserConfig(map[string]any{"enabled_templates": next}); err != nil {
+		return nil, fmt.Errorf("set-enabled: persist: %w", err)
+	}
+	return next, nil
+}
+
+// allTemplateFilenames returns every template filename on disk, sorted,
+// via the wired lister. Errors when no lister is wired so callers don't
+// silently treat "unknown" as "empty".
+func (m *Manager) allTemplateFilenames() ([]string, error) {
+	m.mu.RLock()
+	lister := m.tplLister
+	m.mu.RUnlock()
+	if lister == nil {
+		return nil, fmt.Errorf("set-enabled: no template lister wired")
+	}
+	all, err := lister.ListTemplates()
+	if err != nil {
+		return nil, fmt.Errorf("set-enabled: list: %w", err)
+	}
+	sort.Strings(all)
+	return all, nil
+}
+
 // normalizeSelectedTemplate inspects cfg in-place and clears
 // SelectedTemplate + SelectedDataFile when the user's pick is no longer
 // in the enabled set. Returns true iff anything mutated.

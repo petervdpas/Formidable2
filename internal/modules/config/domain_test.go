@@ -1041,14 +1041,26 @@ func TestEnabledTemplates_JSONRoundTripPreservesSlice(t *testing.T) {
 	}
 }
 
-func TestEnabledTemplates_OmitEmpty(t *testing.T) {
+func TestEnabledTemplates_AlwaysWritesKey(t *testing.T) {
+	// The key is NOT omitempty: an explicit empty slice must persist as
+	// "enabled_templates": [] so "scoped to nothing" is distinguishable
+	// on disk from "field absent". A nil slice serialises as null.
 	in := defaultConfig()
 	raw, err := json.Marshal(in)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if strings.Contains(string(raw), "enabled_templates") {
-		t.Errorf("nil slice must omit the JSON key, got: %s", raw)
+	if !strings.Contains(string(raw), "enabled_templates") {
+		t.Errorf("enabled_templates key must always be present, got: %s", raw)
+	}
+
+	in.EnabledTemplates = []string{}
+	raw, err = json.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal empty: %v", err)
+	}
+	if !strings.Contains(string(raw), `"enabled_templates":[]`) {
+		t.Errorf("empty slice must persist as [], got: %s", raw)
 	}
 }
 

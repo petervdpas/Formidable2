@@ -2,12 +2,19 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { FormSection, FormSwitchRow, TextField } from "../../components/fields";
+import { Service as ConfigSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/config";
 import { useConfig } from "../../composables/useConfig";
 import { useTemplates } from "../../composables/useTemplates";
 
 const { t } = useI18n();
-const { config, update } = useConfig();
+const { config, reload } = useConfig();
 const { filenames, cache, refreshEnabled } = useTemplates();
+
+// Bumped after every toggle so the rows remount and re-read their
+// authoritative state from the reloaded config. Without it a row whose
+// computed state doesn't change (the last-enabled row going to "all
+// shown") keeps its optimistic switch position and desyncs.
+const rev = ref(0);
 
 const cfg = computed(() => config.value!);
 
@@ -48,36 +55,16 @@ function displayName(filename: string): string {
 }
 
 async function setTemplateEnabled(filename: string, on: boolean) {
-  // Compute the post-toggle slice. Two semantics meet here:
-  //   - "Opting in for the first time" - empty list, user turns ONE on.
-  //     We seed with everything that was implicitly on (all filenames)
-  //     EXCEPT the one being turned off... but the only path through
-  //     this branch is on=true, since on=false on an empty list is a
-  //     visible toggle change for a row that was reading as "on".
-  //   - "Curating an existing list" - non-empty, user adds/removes one.
-  //
-  // The first-toggle case is the subtle one: clicking "off" on a row
-  // when nothing is opted in means "I want everything EXCEPT this one"
-  // - so we seed from filenames minus this one. Clicking "on" with
-  // nothing opted in is meaningless (everything was on already), but
-  // we still write the single entry so the UI reflects the user's
-  // intent and the list becomes authoritative.
-  let next: string[];
-  if (!optedIn.value) {
-    if (on) {
-      next = [filename];
-    } else {
-      next = filenames.value.filter((f) => f !== filename);
-    }
-  } else if (on) {
-    next = [...enabled.value, filename];
-  } else {
-    next = enabled.value.filter((f) => f !== filename);
-  }
-  await update({ enabled_templates: next });
-  // Tell the use-side picker (StorageWorkspace) to re-fetch from the
-  // backend so the new curation is live without a page reload.
+  // Backend owns the curation logic (empty = show all, begin/extend/clear
+  // scoping). The frontend just sends the toggle and re-reads the
+  // authoritative config, so it renders backend state rather than
+  // computing the slice itself.
+  await ConfigSvc.SetTemplateEnabled(filename, on);
+  await reload();
+  // Re-fetch the use-side picker (StorageWorkspace) and remount the rows
+  // so each switch reflects the reloaded state.
   await refreshEnabled();
+  rev.value++;
 }
 </script>
 
@@ -107,7 +94,7 @@ async function setTemplateEnabled(filename: string, on: boolean) {
   <FormSection v-else>
     <FormSwitchRow
       v-for="f in visibleFilenames"
-      :key="f"
+      :key="`${f}:${rev}`"
       :label="displayName(f)"
       :description="f"
       :model-value="isEnabled(f)"

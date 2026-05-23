@@ -228,6 +228,86 @@ func TestReconcileEnabledTemplates_NoListerIsNoOp(t *testing.T) {
 	}
 }
 
+// ----- SetTemplateEnabled (backend-owned toggle logic) --------------------
+
+func TestSetTemplateEnabled_FirstOffSeedsAllExcept(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	l := &fakeLister{}
+	m.SetTemplateLister(l)
+	l.set([]string{"a.yaml", "b.yaml", "c.yaml"})
+
+	// Empty list (all shown). Turning b off begins scoping with everything
+	// except b.
+	got, err := m.SetTemplateEnabled("b.yaml", false)
+	if err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	if !reflect.DeepEqual(got, []string{"a.yaml", "c.yaml"}) {
+		t.Errorf("got %v, want [a.yaml c.yaml]", got)
+	}
+}
+
+func TestSetTemplateEnabled_EmptyOnStaysEmpty(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	l := &fakeLister{}
+	m.SetTemplateLister(l)
+	l.set([]string{"a.yaml", "b.yaml"})
+
+	// Empty list + on must NOT collapse to [a]; it stays "all shown".
+	got, err := m.SetTemplateEnabled("a.yaml", true)
+	if err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %v, want [] (turning one on while all-shown is a no-op)", got)
+	}
+}
+
+func TestSetTemplateEnabled_TurningLastOffEmptiesAndShowsAll(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	l := &fakeLister{}
+	m.SetTemplateLister(l)
+	l.set([]string{"a.yaml", "b.yaml"})
+
+	withEnabled(t, m, "a.yaml") // scoped to just a
+	got, err := m.SetTemplateEnabled("a.yaml", false)
+	if err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %v, want [] (last off = empty = show all)", got)
+	}
+	// And the empty list persists explicitly (no omitempty drop).
+	cfg, _ := m.LoadUserConfig()
+	if cfg.EnabledTemplates == nil {
+		t.Error("EnabledTemplates should persist as an empty slice, not vanish")
+	}
+}
+
+func TestSetTemplateEnabled_AddAndRemoveOnPopulatedList(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	l := &fakeLister{}
+	m.SetTemplateLister(l)
+	l.set([]string{"a.yaml", "b.yaml", "c.yaml"})
+	withEnabled(t, m, "a.yaml")
+
+	got, err := m.SetTemplateEnabled("b.yaml", true)
+	if err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if !reflect.DeepEqual(got, []string{"a.yaml", "b.yaml"}) {
+		t.Errorf("after add got %v, want [a.yaml b.yaml]", got)
+	}
+
+	got, err = m.SetTemplateEnabled("a.yaml", false)
+	if err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if !reflect.DeepEqual(got, []string{"b.yaml"}) {
+		t.Errorf("after remove got %v, want [b.yaml]", got)
+	}
+}
+
 func TestReconcileEnabledTemplates_PrunesAgainstLiveFolder(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	l := &fakeLister{}
