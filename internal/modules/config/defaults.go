@@ -27,6 +27,7 @@ func defaultConfig() Config {
 		DevelopmentEnable:    false,
 		LoggingEnabled:       false,
 		EnablePlugins:        false,
+		UpdateCheck:          false,
 		ContextMode:          "template",
 		ContextRibbon:        "templates",
 		ContextFolder:        "./Examples",

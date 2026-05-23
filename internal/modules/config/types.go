@@ -20,6 +20,7 @@ type Config struct {
 	DevelopmentEnable    bool           `json:"development_enable"`
 	LoggingEnabled       bool           `json:"logging_enabled"`
 	EnablePlugins        bool           `json:"enable_plugins"`
+	UpdateCheck          bool           `json:"update_check"`
 	ContextMode          string         `json:"context_mode"`
 	ContextRibbon        string         `json:"context_ribbon"`
 	ContextFolder        string         `json:"context_folder"`

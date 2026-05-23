@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Badge from "../../components/Badge.vue";
-import { FormSection, FormRow, SwitchField } from "../../components/fields";
+import { FormSection, FormRow, FormSwitchRow, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
 const { t } = useI18n();
@@ -21,6 +21,14 @@ function patchButtons(partial: Record<string, unknown>) {
   <p class="section-info">{{ t('settings.advanced.info') }}</p>
 
   <FormSection>
+    <FormSwitchRow
+      :label="t('config.update_check')"
+      :description="t('config.update_check_hint')"
+      :model-value="cfg.update_check"
+      @update:model-value="(v) => update({ update_check: v })"
+      :on-label="t('common.enabled')"
+      :off-label="t('common.disabled')"
+    />
     <FormRow :label="t('config.enable_plugins')">
       <SwitchField
         :model-value="cfg.enable_plugins"

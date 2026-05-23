@@ -11,6 +11,7 @@
   "development_enable": false,
   "logging_enabled": false,
   "enable_plugins": true,
+  "update_check": true,
   "context_mode": "template",
   "context_ribbon": "information",
   "context_folder": "/home/peter/Documents/Example",

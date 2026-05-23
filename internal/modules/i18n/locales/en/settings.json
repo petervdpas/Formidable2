@@ -11,6 +11,8 @@
   "config.io_collection_only": "I/O Collection Only",
   "config.language": "Language",
   "config.logging_enabled": "Logging",
+  "config.update_check": "Check for Updates",
+  "config.update_check_hint": "On launch, check formidable.tools for a newer release. Off by default. Fails silently when offline.",
   "config.profile_name": "Profile Name",
   "config.show_meta_section": "Show Meta Section",
   "config.theme": "Theme",

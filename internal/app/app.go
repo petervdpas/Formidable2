@@ -48,6 +48,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/template"
+	"github.com/petervdpas/formidable2/internal/modules/updatecheck"
 	"github.com/petervdpas/formidable2/internal/modules/wiki"
 )
 
@@ -113,6 +114,7 @@ type App struct {
 	PDF           *pdf.Service
 	Manual        *manual.Service
 	CodeFormatter *codeformatter.Service
+	UpdateCheck   *updatecheck.Service
 
 	templateManager *template.Manager
 	storageManager  *storage.Manager
@@ -523,6 +525,24 @@ func New(d Deps) (*App, error) {
 		}
 	}
 
+	// Opt-in release probe. The manager reads update_check live on every
+	// Refresh, so the toggle governs the feature without a restart and a
+	// disabled probe never touches the network. The startup goroutine
+	// fires unconditionally and self-gates. Best-effort and silent: a
+	// down network or unreachable site leaves the status unchecked and
+	// the About panel shows nothing. Errors stay at debug level.
+	updateCheckM := updatecheck.NewManager(about.Version, func() bool {
+		cfg, err := cfgM.LoadUserConfig()
+		return err == nil && cfg.UpdateCheck
+	})
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), updatecheck.RefreshTimeout)
+		defer cancel()
+		if _, err := updateCheckM.Refresh(ctx); err != nil {
+			d.Logger.Debug("updatecheck: startup probe failed (ignored)", "err", err)
+		}
+	}()
+
 	// Plugin module - Lua-scripted on-demand commands. Lives at
 	// <AppRoot>/plugins/<id>/{plugin.json,main.lua}; per-plugin K/V
 	// at <AppRoot>/plugins/.kv/<id>.json. Discovery runs once at
@@ -655,6 +675,7 @@ func New(d Deps) (*App, error) {
 		PDF:             pdf.NewService(pdfM),
 		Manual:          manual.NewService(),
 		CodeFormatter:   codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
+		UpdateCheck:     updatecheck.NewService(updateCheckM, openInDefaultBrowser),
 		templateManager: tplM,
 		storageManager:  stoM,
 		formManager:     formM,

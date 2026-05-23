@@ -11,6 +11,8 @@
   "config.io_collection_only": "I/O alleen voor collecties",
   "config.language": "Taal",
   "config.logging_enabled": "Logging",
+  "config.update_check": "Controleer op updates",
+  "config.update_check_hint": "Controleer bij het opstarten op formidable.tools of er een nieuwere versie is. Standaard uit. Mislukt stil zonder verbinding.",
   "config.profile_name": "Profielnaam",
   "config.show_meta_section": "Toon Meta Sectie",
   "config.theme": "Thema",

@@ -2,9 +2,11 @@
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { Service as About, Info, Library } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/about";
+import { Service as UpdateCheck, Status as UpdateStatus } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/updatecheck";
 
 const { t } = useI18n();
 const info = ref<Info | null>(null);
+const update = ref<UpdateStatus | null>(null);
 // Canonical credits list. Go owns the order, the IDs, and the
 // display names; i18n provides the per-locale description per ID.
 // See about.Libraries in internal/modules/about/about.go.
@@ -40,9 +42,19 @@ async function openWebsite() {
   await About.OpenWebsite();
 }
 
+async function openLatest() {
+  await UpdateCheck.OpenLatest();
+}
+
 onMounted(async () => {
   info.value = await About.GetInfo();
   libraries.value = await About.GetLibraries();
+
+  // Show the startup probe's verdict. If nothing was checked yet (the
+  // user just enabled the toggle this session), kick a fresh probe;
+  // CheckNow self-gates on the config flag and fails silently.
+  const status = await UpdateCheck.GetStatus();
+  update.value = status.checked ? status : await UpdateCheck.CheckNow();
 });
 </script>
 
@@ -67,6 +79,20 @@ onMounted(async () => {
         <span>{{ info.website }}</span>
         <i class="fa-solid fa-arrow-up-right-from-square website-ext" aria-hidden="true"></i>
       </a>
+      <a
+        v-if="update && update.updateAvailable"
+        class="update-available"
+        href="#"
+        :title="t('workspace.information.about.update_open')"
+        @click.prevent="openLatest"
+      >
+        <i class="fa-solid fa-circle-up" aria-hidden="true"></i>
+        <span>{{ t('workspace.information.about.update_available', ['v' + update.latest]) }}</span>
+      </a>
+      <span v-else-if="update && update.checked" class="up-to-date">
+        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+        <span>{{ t('workspace.information.about.up_to_date') }}</span>
+      </span>
     </div>
   </div>
 
