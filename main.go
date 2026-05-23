@@ -153,6 +153,10 @@ func main() {
 				splash.Close()
 			}
 			mainWin.Show()
+			// Tell the SPA the main window is now visible. Anything that
+			// must surface to the user at startup (e.g. the update-check
+			// toast) waits for this so it isn't painted behind the splash.
+			wapp.Event.Emit("main:shown", nil)
 			a.Logger().Info("splash dismissed", "reason", reason)
 		})
 	}

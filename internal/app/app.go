@@ -527,21 +527,13 @@ func New(d Deps) (*App, error) {
 
 	// Opt-in release probe. The manager reads update_check live on every
 	// Refresh, so the toggle governs the feature without a restart and a
-	// disabled probe never touches the network. The startup goroutine
-	// fires unconditionally and self-gates. Best-effort and silent: a
-	// down network or unreachable site leaves the status unchecked and
-	// the About panel shows nothing. Errors stay at debug level.
+	// disabled probe never touches the network. The actual startup probe
+	// is triggered once by the frontend (App.vue) via CheckNow, which
+	// also drives the one-shot toast; we only construct the manager here.
 	updateCheckM := updatecheck.NewManager(about.Version, func() bool {
 		cfg, err := cfgM.LoadUserConfig()
 		return err == nil && cfg.UpdateCheck
 	})
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), updatecheck.RefreshTimeout)
-		defer cancel()
-		if _, err := updateCheckM.Refresh(ctx); err != nil {
-			d.Logger.Debug("updatecheck: startup probe failed (ignored)", "err", err)
-		}
-	}()
 
 	// Plugin module - Lua-scripted on-demand commands. Lives at
 	// <AppRoot>/plugins/<id>/{plugin.json,main.lua}; per-plugin K/V
