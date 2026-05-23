@@ -116,6 +116,7 @@
   "workspace.information.section.manual_fields": "Velden & Formulieren",
   "workspace.information.section.manual_pdf": "Portable Document Format",
   "workspace.information.section.manual_plugins": "Aanpassen via Plugins",
+  "workspace.stat.dialog.title": "Statistieken",
   "workspace.stat.scalar.count": "Aantal",
   "workspace.stat.scalar.sum": "Som",
   "workspace.stat.scalar.avg": "Gemiddelde",

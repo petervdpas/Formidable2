@@ -710,7 +710,10 @@ async function confirmDeleteTemplate() {
 }
 
 // ── Topbar menu ──────────────────────────────────────────────────────
-const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu("templates");
+const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu(
+  "templates",
+  () => (selectedFilename.value ? { template: selectedFilename.value } : {}),
+);
 setTopbarMenu(() => [
   {
     type: "group",

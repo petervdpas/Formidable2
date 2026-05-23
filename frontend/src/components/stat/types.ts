@@ -23,6 +23,48 @@ export interface StatResult {
   total: number;
 }
 
+// ChartEnvelope is what a plugin returns to ask the host to render a
+// chart: a chart-neutral Result plus presentation hints. A plugin's
+// command return value carries one (`chart`) or many (`charts`); see
+// extractCharts. type overrides the per-kind default component
+// (StatChart); title labels the chart in the dialog.
+export interface ChartEnvelope {
+  type?: string;
+  title?: string;
+  result: StatResult;
+}
+
+// extractCharts pulls chart envelopes out of a plugin command's return
+// value. Recognised shapes:
+//   { chart:  { type?, title?, result } }      -> one chart
+//   { charts: [ { ... }, { ... } ] }           -> many
+// Anything else (plain text, other tables) yields [] so the run dialog
+// falls through to its normal text/debug rendering untouched.
+export function extractCharts(value: unknown): ChartEnvelope[] {
+  if (!value || typeof value !== "object") return [];
+  const v = value as Record<string, unknown>;
+  const raw =
+    Array.isArray(v.charts)
+      ? v.charts
+      : v.chart && typeof v.chart === "object"
+        ? [v.chart]
+        : [];
+  const out: ChartEnvelope[] = [];
+  for (const c of raw) {
+    if (!c || typeof c !== "object") continue;
+    const e = c as Record<string, unknown>;
+    const result = e.result;
+    if (result && typeof result === "object") {
+      out.push({
+        type: typeof e.type === "string" ? e.type : undefined,
+        title: typeof e.title === "string" ? e.title : undefined,
+        result: result as StatResult,
+      });
+    }
+  }
+  return out;
+}
+
 /** Stable kind constants, matching the Go side. */
 export const StatKind = {
   Distribution: "distribution",
