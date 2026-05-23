@@ -628,7 +628,7 @@ func New(d Deps) (*App, error) {
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
-		About:           about.NewService(),
+		About:           about.NewService(openInDefaultBrowser),
 		System:          system.NewService(sysM),
 		Config:          config.NewService(cfgM),
 		Sfr:             sfr.NewService(sfrM),

@@ -13,6 +13,7 @@ export class Info {
     "version": string;
     "tagline": string;
     "author": string;
+    "website": string;
 
     /** Creates a new Info instance. */
     constructor($$source: Partial<Info> = {}) {
@@ -27,6 +28,9 @@ export class Info {
         }
         if (!("author" in $$source)) {
             this["author"] = "";
+        }
+        if (!("website" in $$source)) {
+            this["website"] = "";
         }
 
         Object.assign(this, $$source);

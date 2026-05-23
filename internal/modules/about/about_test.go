@@ -27,7 +27,7 @@ func TestInfoConstants(t *testing.T) {
 }
 
 func TestServiceGetInfo(t *testing.T) {
-	s := NewService()
+	s := NewService(nil)
 	got := s.GetInfo()
 
 	if got.Name != Name {
@@ -42,10 +42,40 @@ func TestServiceGetInfo(t *testing.T) {
 	if got.Author != Author {
 		t.Errorf("Info.Author = %q, want %q", got.Author, Author)
 	}
+	if got.Website != Website {
+		t.Errorf("Info.Website = %q, want %q", got.Website, Website)
+	}
+}
+
+func TestWebsiteConstant(t *testing.T) {
+	if !strings.HasPrefix(Website, "https://") {
+		t.Errorf("Website %q must be an https URL", Website)
+	}
+}
+
+func TestServiceOpenWebsite(t *testing.T) {
+	var got string
+	s := NewService(func(url string) error {
+		got = url
+		return nil
+	})
+	if err := s.OpenWebsite(); err != nil {
+		t.Fatalf("OpenWebsite: %v", err)
+	}
+	if got != Website {
+		t.Errorf("opener received %q, want %q", got, Website)
+	}
+}
+
+func TestServiceOpenWebsiteNoOpener(t *testing.T) {
+	s := NewService(nil)
+	if err := s.OpenWebsite(); err == nil {
+		t.Error("OpenWebsite with nil opener should error")
+	}
 }
 
 func TestServiceGetInfoIsStable(t *testing.T) {
-	s := NewService()
+	s := NewService(nil)
 	a, b := s.GetInfo(), s.GetInfo()
 	if a != b {
 		t.Errorf("GetInfo not stable across calls: %+v vs %+v", a, b)
@@ -53,7 +83,7 @@ func TestServiceGetInfoIsStable(t *testing.T) {
 }
 
 func TestNewServiceNotNil(t *testing.T) {
-	if NewService() == nil {
+	if NewService(nil) == nil {
 		t.Fatal("NewService returned nil")
 	}
 }
@@ -126,7 +156,7 @@ func TestLibraries_EveryIDHasDescriptionInEveryLocale(t *testing.T) {
 }
 
 func TestGetLibrariesReturnsCopy(t *testing.T) {
-	s := NewService()
+	s := NewService(nil)
 	got := s.GetLibraries()
 	if len(got) != len(Libraries) {
 		t.Fatalf("GetLibraries length = %d, want %d", len(got), len(Libraries))

@@ -1,10 +1,18 @@
 package about
 
-// Service is the Wails-facing surface. Stateless on purpose - the
-// values are compile-time constants.
-type Service struct{}
+import "errors"
 
-func NewService() *Service { return &Service{} }
+// Service is the Wails-facing surface. The identity values are
+// compile-time constants; the only state is the injected browser
+// opener used by OpenWebsite, supplied by the composition root so the
+// module stays free of os/exec (same pattern as wiki.Service).
+type Service struct {
+	openBrowser func(string) error
+}
+
+func NewService(openBrowser func(string) error) *Service {
+	return &Service{openBrowser: openBrowser}
+}
 
 func (s *Service) GetInfo() Info {
 	return Info{
@@ -12,7 +20,18 @@ func (s *Service) GetInfo() Info {
 		Version: Version,
 		Tagline: Tagline,
 		Author:  Author,
+		Website: Website,
 	}
+}
+
+// OpenWebsite asks the host platform's default browser to load the
+// project homepage. The opener is platform-specific and lives in the
+// composition root.
+func (s *Service) OpenWebsite() error {
+	if s.openBrowser == nil {
+		return errors.New("about: OpenWebsite not supported on this build")
+	}
+	return s.openBrowser(Website)
 }
 
 // GetLibraries returns the canonical credits list - the source of

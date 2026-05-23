@@ -56,6 +56,33 @@
   color: var(--color-text-muted);
 }
 
+.about-card .website {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 4px 11px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border-radius: 999px;
+  background: var(--color-accent-soft, rgba(74, 144, 226, 0.08));
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.about-card .website:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-bg, rgba(74, 144, 226, 0.15));
+}
+
+.about-card .website .website-ext {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
 /* Dedicatory cards under the About card. Slightly darker than the
    workspace background so they read as quiet inset notes rather than
    competing with the identity block above. */

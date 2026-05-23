@@ -36,6 +36,10 @@ function libDesc(id: string): string {
   return key ? t(key) : "";
 }
 
+async function openWebsite() {
+  await About.OpenWebsite();
+}
+
 onMounted(async () => {
   info.value = await About.GetInfo();
   libraries.value = await About.GetLibraries();
@@ -52,6 +56,17 @@ onMounted(async () => {
       <div class="tagline">{{ t('workspace.information.about.tagline') }}</div>
       <div class="version">{{ t('workspace.information.about.version', [info.version]) }}</div>
       <div class="author">{{ t('workspace.information.about.author', [info.author]) }}</div>
+      <a
+        v-if="info.website"
+        class="website"
+        href="#"
+        :title="t('workspace.information.about.website_open')"
+        @click.prevent="openWebsite"
+      >
+        <i class="fa-solid fa-globe" aria-hidden="true"></i>
+        <span>{{ info.website }}</span>
+        <i class="fa-solid fa-arrow-up-right-from-square website-ext" aria-hidden="true"></i>
+      </a>
     </div>
   </div>
 

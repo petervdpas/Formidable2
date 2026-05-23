@@ -11,6 +11,7 @@ const (
 	Name    = "Formidable"
 	Tagline = "A System for Templates and Markdown Forms"
 	Author  = "Peter van de Pas"
+	Website = "https://formidable.tools"
 )
 
 var Version = "0.1.0"
@@ -21,6 +22,7 @@ type Info struct {
 	Version string `json:"version"`
 	Tagline string `json:"tagline"`
 	Author  string `json:"author"`
+	Website string `json:"website"`
 }
 
 // Library is one entry in the About panel's "Special thanks to" list:
