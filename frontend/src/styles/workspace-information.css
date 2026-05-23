@@ -59,6 +59,8 @@
 .about-card .website {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
+  width: fit-content;
   gap: 7px;
   margin-top: 12px;
   padding: 4px 11px;
