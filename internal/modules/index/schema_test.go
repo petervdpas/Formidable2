@@ -29,7 +29,7 @@ func TestOpenIndexDB_CreatesSchema(t *testing.T) {
 
 	// All current tables exist.
 	wantTables := []string{
-		"meta", "templates", "forms", "form_tags", "form_facets", "images",
+		"meta", "templates", "forms", "form_tags", "form_facets", "images", "form_values",
 	}
 	for _, name := range wantTables {
 		var got string
@@ -186,6 +186,123 @@ func TestOpenIndexDB_V2WipesExistingForms(t *testing.T) {
 	}
 }
 
+// TestOpenIndexDB_UpgradesV2ToV3 covers the in-place migration path:
+// a database stamped at v2 reopened by a v3 binary gains the
+// form_values table and lands at the current schemaVersion.
+func TestOpenIndexDB_UpgradesV2ToV3(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "x.db")
+	seedV2(t, path)
+
+	db, err := openIndexDB(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer db.Close()
+
+	var version string
+	if err := db.QueryRow(`SELECT value FROM meta WHERE key = 'version'`).Scan(&version); err != nil {
+		t.Fatalf("read version: %v", err)
+	}
+	if version != strconv.Itoa(schemaVersion) {
+		t.Errorf("version = %q, want %q", version, strconv.Itoa(schemaVersion))
+	}
+
+	var name string
+	err = db.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type='table' AND name='form_values'`,
+	).Scan(&name)
+	if err != nil {
+		t.Errorf("form_values not created by v3: %v", err)
+	}
+
+	// The lookup index must exist so column aggregation stays fast.
+	var idx string
+	err = db.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type='index' AND name='idx_form_values_lookup'`,
+	).Scan(&idx)
+	if err != nil {
+		t.Errorf("idx_form_values_lookup not created by v3: %v", err)
+	}
+
+	// Expected columns present.
+	wantCols := map[string]bool{
+		"template": false, "filename": false, "field_key": false,
+		"col": false, "value_type": false, "num_value": false, "text_value": false,
+	}
+	rows, err := db.Query(`PRAGMA table_info(form_values)`)
+	if err != nil {
+		t.Fatalf("table_info: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid int
+		var cname, ctype string
+		var notnull, pk int
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &cname, &ctype, &notnull, &dflt, &pk); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		if _, want := wantCols[cname]; want {
+			wantCols[cname] = true
+		}
+	}
+	for col, present := range wantCols {
+		if !present {
+			t.Errorf("missing column form_values.%s", col)
+		}
+	}
+}
+
+// TestOpenIndexDB_V3WipesExistingForms - like v2, v3 deletes every
+// forms row so the next RescanAll re-reads each body and populates
+// form_values. Without the wipe, existing forms would carry no values
+// until their mtime changed.
+func TestOpenIndexDB_V3WipesExistingForms(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "x.db")
+	seedV2(t, path)
+
+	preDB, err := openV1Direct(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := preDB.Exec(
+		`INSERT INTO templates (filename, name) VALUES ('t.yaml', 't')`,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := preDB.Exec(
+		`INSERT INTO forms (template, filename, id, title, created, updated)
+		   VALUES ('t.yaml', 'a.meta.json', 'g1', 'A', '2026-01-01', '2026-01-02')`,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := preDB.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := openIndexDB(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer db.Close()
+
+	var formCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM forms`).Scan(&formCount); err != nil {
+		t.Fatalf("count forms: %v", err)
+	}
+	if formCount != 0 {
+		t.Errorf("forms after v3 = %d, want 0 (wipe forces RescanAll rebuild)", formCount)
+	}
+
+	var tplCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM templates`).Scan(&tplCount); err != nil {
+		t.Fatalf("count templates: %v", err)
+	}
+	if tplCount != 1 {
+		t.Errorf("templates after v3 = %d, want 1 preserved", tplCount)
+	}
+}
+
 // seedV1 creates a fresh SQLite file at path containing only the v1
 // schema, stamped at version 1. Mirrors what an older Formidable
 // binary would have left on disk; used by upgrade-path tests.
@@ -203,6 +320,29 @@ func seedV1(t *testing.T, path string) {
 		`INSERT OR REPLACE INTO meta (key, value) VALUES ('version', '1')`,
 	); err != nil {
 		t.Fatalf("stamp v1: %v", err)
+	}
+}
+
+// seedV2 creates a fresh SQLite file at path containing the v1+v2
+// schema, stamped at version 2. Mirrors what a pre-v3 Formidable
+// binary would have left on disk; used by the v3 upgrade-path tests.
+func seedV2(t *testing.T, path string) {
+	t.Helper()
+	db, err := openV1Direct(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(migrationV1); err != nil {
+		t.Fatalf("apply v1: %v", err)
+	}
+	if _, err := db.Exec(migrationV2); err != nil {
+		t.Fatalf("apply v2: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT OR REPLACE INTO meta (key, value) VALUES ('version', '2')`,
+	); err != nil {
+		t.Fatalf("stamp v2: %v", err)
 	}
 }
 

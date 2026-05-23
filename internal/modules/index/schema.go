@@ -24,7 +24,7 @@ import (
 // schemaVersion is the version this binary writes and accepts. A DB
 // file stamped with a higher version is rejected (we don't downgrade);
 // a lower version triggers the matching forward migration.
-const schemaVersion = 2
+const schemaVersion = 3
 
 // migrations are applied in order; each one bumps meta.version when it
 // returns successfully. Index 0 is unused so the slice index lines up
@@ -33,6 +33,7 @@ var migrations = []string{
 	"", // v0 - placeholder, never applied
 	migrationV1,
 	migrationV2,
+	migrationV3,
 }
 
 // migrationV1 is the initial schema. Lives as a Go string so the file
@@ -122,6 +123,35 @@ CREATE TABLE form_facets (
 CREATE INDEX idx_form_facets_lookup
     ON form_facets(template, facet_key, selected)
     WHERE set_flag = 1;
+
+DELETE FROM forms;
+`
+
+// migrationV3 lands the statistics feature on the index side. It adds
+// form_values - one row per aggregatable scalar field and one row per
+// table-field cell - so charts can run SUM / AVG / GROUP BY over an
+// indexed column instead of scanning .meta.json bodies at query time.
+// Like form_facets, this is a derived cache: reconcile reads each body
+// once (it already does, for title/tags/facets) and materialises the
+// values here. col is NULL for scalar fields, 0..N for table columns.
+// value_type tags the cell so date grouping / numeric range stats can
+// pick the right column without re-reading the template. num_value
+// holds the parsed number (or epoch seconds for a date); text_value
+// holds the raw/display string (ISO "YYYY-MM-DD" for a date) for
+// distribution group-by. DELETE FROM forms forces RescanAll to rebuild
+// every row with values populated - same rationale as v2.
+const migrationV3 = `
+CREATE TABLE form_values (
+    template   TEXT NOT NULL,
+    filename   TEXT NOT NULL,
+    field_key  TEXT NOT NULL,
+    col        INTEGER,
+    value_type TEXT,
+    num_value  REAL,
+    text_value TEXT,
+    FOREIGN KEY (template, filename) REFERENCES forms(template, filename) ON DELETE CASCADE
+);
+CREATE INDEX idx_form_values_lookup ON form_values(template, field_key, col);
 
 DELETE FROM forms;
 `

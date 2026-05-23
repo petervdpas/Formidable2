@@ -86,6 +86,27 @@ type StorageAccess interface {
 	ImageBytes(templateFilename, name string) ([]byte, error)
 }
 
+// StatsAccess is the formidable.stats.* surface - chart-neutral
+// statistics over a field's (or table column's) values. Each method
+// returns the stat module's Result already flattened to a
+// map[string]any (kind / categories / series / scalars / total) so
+// goToLua hands the plugin a plain Lua table. col is the table-column
+// index, nil for a scalar field; percentile is in [0,100], nil to skip.
+type StatsAccess interface {
+	Distribution(template, fieldKey string, col *int) (map[string]any, error)
+	NumericStats(template, fieldKey string, col *int, percentile *float64) (map[string]any, error)
+	TimeSeries(template, fieldKey string, col *int, period string) (map[string]any, error)
+}
+
+// FacetStatsAccess is the formidable.facets.* surface - statistics
+// over the meta-tagging facets rather than field values. Same Result
+// map shape as StatsAccess; TotalForms is the percentage denominator.
+type FacetStatsAccess interface {
+	FacetDistribution(template, facetKey string) (map[string]any, error)
+	FacetCross(template, keyA, keyB string) (map[string]any, error)
+	TotalForms(template string) (int, error)
+}
+
 // ExecOptions narrows what `formidable.exec(cmd, args, opts)`
 // accepts. Cwd / Env / Timeout map to the corresponding os/exec
 // fields. Keeping it a Go struct rather than a free-form map
@@ -555,6 +576,107 @@ func buildStorageTable(L *lua.LState, s StorageAccess) *lua.LTable {
 			return 1
 		}
 		L.Push(lua.LString(b))
+		return 1
+	}))
+	return tbl
+}
+
+// optIntArg reads an optional integer Lua arg at position n, returning
+// nil when the arg is absent/nil (so a table-column index is passed and
+// a scalar field omits it). optFloatArg is the float64 cousin used for
+// the optional percentile.
+func optIntArg(L *lua.LState, n int) *int {
+	if v := L.Get(n); v.Type() == lua.LTNumber {
+		i := int(lua.LVAsNumber(v))
+		return &i
+	}
+	return nil
+}
+
+func optFloatArg(L *lua.LState, n int) *float64 {
+	if v := L.Get(n); v.Type() == lua.LTNumber {
+		f := float64(lua.LVAsNumber(v))
+		return &f
+	}
+	return nil
+}
+
+// buildStatsTable mounts formidable.stats.distribution / .numeric /
+// .timeSeries. Each pushes the Result map as a Lua table.
+func buildStatsTable(L *lua.LState, s StatsAccess) *lua.LTable {
+	tbl := L.NewTable()
+	if s == nil {
+		for _, name := range []string{"distribution", "numeric", "timeSeries"} {
+			tbl.RawSetString(name, L.NewFunction(nilGuard("stats")))
+		}
+		return tbl
+	}
+	tbl.RawSetString("distribution", L.NewFunction(func(L *lua.LState) int {
+		out, err := s.Distribution(L.CheckString(1), L.CheckString(2), optIntArg(L, 3))
+		if err != nil {
+			L.RaiseError("stats.distribution: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
+	}))
+	tbl.RawSetString("numeric", L.NewFunction(func(L *lua.LState) int {
+		out, err := s.NumericStats(L.CheckString(1), L.CheckString(2), optIntArg(L, 3), optFloatArg(L, 4))
+		if err != nil {
+			L.RaiseError("stats.numeric: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
+	}))
+	tbl.RawSetString("timeSeries", L.NewFunction(func(L *lua.LState) int {
+		// Lua signature: timeSeries(tpl, field, period [, col]).
+		out, err := s.TimeSeries(L.CheckString(1), L.CheckString(2), optIntArg(L, 4), L.CheckString(3))
+		if err != nil {
+			L.RaiseError("stats.timeSeries: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
+	}))
+	return tbl
+}
+
+// buildFacetsTable mounts formidable.facets.distribution / .cross /
+// .totalForms.
+func buildFacetsTable(L *lua.LState, f FacetStatsAccess) *lua.LTable {
+	tbl := L.NewTable()
+	if f == nil {
+		for _, name := range []string{"distribution", "cross", "totalForms"} {
+			tbl.RawSetString(name, L.NewFunction(nilGuard("facets")))
+		}
+		return tbl
+	}
+	tbl.RawSetString("distribution", L.NewFunction(func(L *lua.LState) int {
+		out, err := f.FacetDistribution(L.CheckString(1), L.CheckString(2))
+		if err != nil {
+			L.RaiseError("facets.distribution: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
+	}))
+	tbl.RawSetString("cross", L.NewFunction(func(L *lua.LState) int {
+		out, err := f.FacetCross(L.CheckString(1), L.CheckString(2), L.CheckString(3))
+		if err != nil {
+			L.RaiseError("facets.cross: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
+	}))
+	tbl.RawSetString("totalForms", L.NewFunction(func(L *lua.LState) int {
+		n, err := f.TotalForms(L.CheckString(1))
+		if err != nil {
+			L.RaiseError("facets.totalForms: %v", err)
+			return 0
+		}
+		L.Push(lua.LNumber(n))
 		return 1
 	}))
 	return tbl

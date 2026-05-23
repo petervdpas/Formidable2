@@ -21,6 +21,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/about"
 	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/auth"
+	"github.com/petervdpas/formidable2/internal/modules/codeformatter"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/credential"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/gigot"
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git"
@@ -29,22 +30,22 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/dialog"
+	"github.com/petervdpas/formidable2/internal/modules/expression"
 	"github.com/petervdpas/formidable2/internal/modules/form"
+	"github.com/petervdpas/formidable2/internal/modules/history"
 	"github.com/petervdpas/formidable2/internal/modules/i18n"
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/integrity"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/logging"
 	"github.com/petervdpas/formidable2/internal/modules/manual"
-	"github.com/petervdpas/formidable2/internal/modules/expression"
-	"github.com/petervdpas/formidable2/internal/modules/history"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
-	"github.com/petervdpas/formidable2/internal/modules/codeformatter"
 	"github.com/petervdpas/formidable2/internal/modules/pdf"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
+	"github.com/petervdpas/formidable2/internal/modules/stat"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -87,53 +88,55 @@ type Deps struct {
 }
 
 type App struct {
-	About    *about.Service
-	System   *system.Service
-	Config   *config.Service
-	Sfr      *sfr.Service
-	Journal  *journal.Service
-	Csv      *csv.Service
-	Template *template.Service
-	Storage  *storage.Service
-	Form     *form.Service
-	I18n     *i18n.Service
-	Dialog   *dialog.Service
-	Render       *render.Service
-	Nav          *nav.Service
-	Wiki         *wiki.Service
-	Dataprovider *dataprovider.Service
-	Plugin       *plugin.Service
-	Git          *git.Service
-	Gigot        *gigot.Service
-	Credential   *credential.Service
-	Monitor      *monitor.Service
-	Expression   *expression.Service
-	History      *history.Service
-	Integrity    *integrity.Service
-	Logging      *logging.Service
+	About         *about.Service
+	System        *system.Service
+	Config        *config.Service
+	Sfr           *sfr.Service
+	Journal       *journal.Service
+	Csv           *csv.Service
+	Template      *template.Service
+	Storage       *storage.Service
+	Form          *form.Service
+	I18n          *i18n.Service
+	Dialog        *dialog.Service
+	Render        *render.Service
+	Nav           *nav.Service
+	Wiki          *wiki.Service
+	Dataprovider  *dataprovider.Service
+	Plugin        *plugin.Service
+	Git           *git.Service
+	Gigot         *gigot.Service
+	Credential    *credential.Service
+	Monitor       *monitor.Service
+	Stat          *stat.Service
+	Expression    *expression.Service
+	History       *history.Service
+	Integrity     *integrity.Service
+	Logging       *logging.Service
 	PDF           *pdf.Service
 	Manual        *manual.Service
 	CodeFormatter *codeformatter.Service
 	UpdateCheck   *updatecheck.Service
 
-	templateManager *template.Manager
-	storageManager  *storage.Manager
-	formManager     *form.Manager
-	renderManager   *render.Manager
-	navManager      *nav.Manager
-	journalManager  *journal.Manager
-	indexManager    *index.Manager
-	indexEvents     *index.EventHandler
-	dataProvider    *dataprovider.Manager
-	wikiManager     *wiki.Manager
+	templateManager   *template.Manager
+	storageManager    *storage.Manager
+	formManager       *form.Manager
+	renderManager     *render.Manager
+	navManager        *nav.Manager
+	journalManager    *journal.Manager
+	indexManager      *index.Manager
+	indexEvents       *index.EventHandler
+	statManager       *stat.Manager
+	dataProvider      *dataprovider.Manager
+	wikiManager       *wiki.Manager
 	pluginManager     *plugin.Manager
 	gitManager        *git.Manager
 	gigotManager      *gigot.Manager
 	credentialManager *credential.Manager
-	apiHandler      http.Handler
-	emitter         *emitterRelay
-	logBroadcaster  *applog.Broadcaster
-	deps            Deps
+	apiHandler        http.Handler
+	emitter           *emitterRelay
+	logBroadcaster    *applog.Broadcaster
+	deps              Deps
 }
 
 func New(d Deps) (*App, error) {
@@ -380,6 +383,11 @@ func New(d Deps) (*App, error) {
 	stoM.SetIndexer(ehM)
 	stoM.SetReader(newIndexFormReader(idxM))
 
+	// Stat - chart-neutral statistics over the index's materialized
+	// form_values / form_facets. Holds idxM directly (same lifetime as
+	// dataprovider); no disk access of its own.
+	statM := stat.NewManager(idxM)
+
 	// EnabledTemplates self-healing: when a template file is deleted, the
 	// active profile's EnabledTemplates list must drop the stale entry so
 	// downstream pickers (storage, wiki, api) reflect reality. We hand
@@ -552,10 +560,10 @@ func New(d Deps) (*App, error) {
 		Template:   pluginTemplateAdapter{dp: dpM, tpl: tplM},
 		Collection: pluginCollectionAdapter{dp: dpM},
 		Form:       pluginFormAdapter{sto: stoM},
-		Render:  pluginRenderAdapter{rdr: renderM},
-		FM:      pluginFMAdapter{},
-		FS:      plugin.OSFS{},
-		Storage: pluginStorageAdapter{sto: stoM},
+		Render:     pluginRenderAdapter{rdr: renderM},
+		FM:         pluginFMAdapter{},
+		FS:         plugin.OSFS{},
+		Storage:    pluginStorageAdapter{sto: stoM},
 		// RunBarOut / RunStatOut bridge formidable.run.bar /
 		// formidable.run.status to Wails events. Any progressbar /
 		// statusmessage widget the plugin author dropped into their
@@ -568,12 +576,17 @@ func New(d Deps) (*App, error) {
 		RunStatOut: func(evt plugin.RunStatusEvent) {
 			emitter.Emit("plugin:run:status", evt)
 		},
-		Exec:       plugin.OSExec{},
+		Exec: plugin.OSExec{},
 		// HTTPClient is satisfied by a wiki+system adapter - plugins
 		// that flag requires_internal_server in their manifest get
 		// formidable.api.fetch wired against the running wiki server.
-		API:        pluginHTTPAdapter{wiki: wikiM, sys: sysM},
-		Locale:     pluginLocaleAdapter{cfg: cfgM},
+		API:    pluginHTTPAdapter{wiki: wikiM, sys: sysM},
+		// Stats + facets share one adapter over the stat manager:
+		// formidable.stats.* (field/table/date) and formidable.facets.*
+		// (meta-tag) both read index-backed aggregates.
+		Stats:  pluginStatsAdapter{st: statM},
+		Facets: pluginStatsAdapter{st: statM},
+		Locale: pluginLocaleAdapter{cfg: cfgM},
 	})
 	// Materialize the embedded plugin library to <pluginsDir>. Mirrors
 	// the pdf cover scaffold: ships the seed inside the binary so every
@@ -640,52 +653,54 @@ func New(d Deps) (*App, error) {
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
-		About:           about.NewService(openInDefaultBrowser),
-		System:          system.NewService(sysM),
-		Config:          config.NewService(cfgM),
-		Sfr:             sfr.NewService(sfrM),
-		Journal:         journal.NewService(jrnM),
-		Csv:             csv.NewService(csvM),
-		Template:        template.NewService(tplM, tplStorageLocator),
-		Storage:         storage.NewService(stoM),
-		Form:            form.NewService(formM),
-		I18n:            i18n.NewService(i18nM),
-		Dialog:          dialog.NewService(),
-		Render:          render.NewService(renderM),
-		Nav:             nav.NewService(navM),
-		Wiki:            wikiSvc,
-		Dataprovider:    dataprovider.NewService(dpM),
-		Plugin:          plugin.NewService(pluginM),
-		Git:             newGitService(gitM, credentialM, cfgM, jrnM, sysgitR),
-		Gigot:           newGigotService(gigotM, credentialM, cfgM, jrnM, emitter),
-		Credential:      credential.NewService(credentialM),
-		Monitor:         monitor.NewService(monitorM),
-		Expression:      expression.NewService(expressionM),
-		History:         historySvc,
-		Integrity:       integrity.NewService(integrityM),
-		Logging:         logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
-		PDF:             pdf.NewService(pdfM),
-		Manual:          manual.NewService(),
-		CodeFormatter:   codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
-		UpdateCheck:     updatecheck.NewService(updateCheckM, openInDefaultBrowser),
-		templateManager: tplM,
-		storageManager:  stoM,
-		formManager:     formM,
-		renderManager:   renderM,
-		navManager:      navM,
-		journalManager:  jrnM,
-		indexManager:    idxM,
-		indexEvents:     ehM,
-		dataProvider:    dpM,
-		wikiManager:     wikiM,
-		pluginManager:   pluginM,
+		About:             about.NewService(openInDefaultBrowser),
+		System:            system.NewService(sysM),
+		Config:            config.NewService(cfgM),
+		Sfr:               sfr.NewService(sfrM),
+		Journal:           journal.NewService(jrnM),
+		Csv:               csv.NewService(csvM),
+		Template:          template.NewService(tplM, tplStorageLocator),
+		Storage:           storage.NewService(stoM),
+		Form:              form.NewService(formM),
+		I18n:              i18n.NewService(i18nM),
+		Dialog:            dialog.NewService(),
+		Render:            render.NewService(renderM),
+		Nav:               nav.NewService(navM),
+		Wiki:              wikiSvc,
+		Dataprovider:      dataprovider.NewService(dpM),
+		Plugin:            plugin.NewService(pluginM),
+		Git:               newGitService(gitM, credentialM, cfgM, jrnM, sysgitR),
+		Gigot:             newGigotService(gigotM, credentialM, cfgM, jrnM, emitter),
+		Credential:        credential.NewService(credentialM),
+		Monitor:           monitor.NewService(monitorM),
+		Stat:              stat.NewService(statM),
+		Expression:        expression.NewService(expressionM),
+		History:           historySvc,
+		Integrity:         integrity.NewService(integrityM),
+		Logging:           logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
+		PDF:               pdf.NewService(pdfM),
+		Manual:            manual.NewService(),
+		CodeFormatter:     codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
+		UpdateCheck:       updatecheck.NewService(updateCheckM, openInDefaultBrowser),
+		templateManager:   tplM,
+		storageManager:    stoM,
+		formManager:       formM,
+		renderManager:     renderM,
+		navManager:        navM,
+		journalManager:    jrnM,
+		indexManager:      idxM,
+		indexEvents:       ehM,
+		statManager:       statM,
+		dataProvider:      dpM,
+		wikiManager:       wikiM,
+		pluginManager:     pluginM,
 		gitManager:        gitM,
 		gigotManager:      gigotM,
 		credentialManager: credentialM,
 		apiHandler:        apiHandlerInProcess,
-		emitter:         emitter,
-		logBroadcaster:  d.LogBroadcaster,
-		deps:            d,
+		emitter:           emitter,
+		logBroadcaster:    d.LogBroadcaster,
+		deps:              d,
 	}, nil
 }
 

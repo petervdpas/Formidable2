@@ -166,6 +166,75 @@ func TestReconcile_FormUpsertSyncsTags(t *testing.T) {
 	}
 }
 
+func TestReconcile_FormUpsertSyncsValues(t *testing.T) {
+	db := openTestDB(t)
+	must(t, Reconcile(db, ReconcileBatch{
+		UpsertTemplates: []TemplateRow{tplRow("basic", 100)},
+	}))
+
+	col1 := 1
+	num := 42.0
+	epoch := 1779494400.0
+	first := FormRow{
+		Template: "basic.yaml", Filename: "one.meta.json", Mtime: 100,
+		Values: []FormValueRow{
+			{FieldKey: "amount", ValueType: "number", Num: &num, Text: "42"},
+			{FieldKey: "items", Col: &col1, ValueType: "date", Num: &epoch, Text: "2026-05-23"},
+		},
+	}
+	must(t, Reconcile(db, ReconcileBatch{UpsertForms: []FormRow{first}}))
+
+	// Scalar row carries NULL col; table cell carries col=1.
+	var scalarCol sql.NullInt64
+	var scalarNum sql.NullFloat64
+	if err := db.QueryRow(
+		`SELECT col, num_value FROM form_values WHERE template=? AND filename=? AND field_key='amount'`,
+		"basic.yaml", "one.meta.json",
+	).Scan(&scalarCol, &scalarNum); err != nil {
+		t.Fatalf("query amount: %v", err)
+	}
+	if scalarCol.Valid {
+		t.Errorf("scalar col = %v, want NULL", scalarCol.Int64)
+	}
+	if !scalarNum.Valid || scalarNum.Float64 != 42 {
+		t.Errorf("scalar num = %v, want 42", scalarNum)
+	}
+
+	var dateText string
+	var dateCol int
+	if err := db.QueryRow(
+		`SELECT col, text_value FROM form_values WHERE template=? AND filename=? AND value_type='date'`,
+		"basic.yaml", "one.meta.json",
+	).Scan(&dateCol, &dateText); err != nil {
+		t.Fatalf("query date cell: %v", err)
+	}
+	if dateCol != 1 || dateText != "2026-05-23" {
+		t.Errorf("date cell = (col %d, %q), want (1, 2026-05-23)", dateCol, dateText)
+	}
+
+	// Re-upsert with a single different value: replace-all must drop the
+	// two prior rows and leave exactly one.
+	newNum := 7.0
+	second := FormRow{
+		Template: "basic.yaml", Filename: "one.meta.json", Mtime: 200,
+		Values: []FormValueRow{
+			{FieldKey: "amount", ValueType: "number", Num: &newNum, Text: "7"},
+		},
+	}
+	must(t, Reconcile(db, ReconcileBatch{UpsertForms: []FormRow{second}}))
+
+	var count int
+	if err := db.QueryRow(
+		`SELECT COUNT(*) FROM form_values WHERE template=? AND filename=?`,
+		"basic.yaml", "one.meta.json",
+	).Scan(&count); err != nil {
+		t.Fatalf("count after re-upsert: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("form_values after replace-all = %d, want 1", count)
+	}
+}
+
 func TestReconcile_DeleteTemplateCascades(t *testing.T) {
 	// Foreign-key cascades: removing a template must take its forms,
 	// form_tags, and images with it. This is the "user deleted a
@@ -194,8 +263,9 @@ func TestReconcile_DeleteTemplateCascades(t *testing.T) {
 	for _, q := range []string{
 		`SELECT COUNT(*) FROM templates WHERE filename='basic.yaml'`,
 		`SELECT COUNT(*) FROM forms     WHERE template='basic.yaml'`,
-		`SELECT COUNT(*) FROM form_tags WHERE template='basic.yaml'`,
-		`SELECT COUNT(*) FROM images    WHERE template='basic.yaml'`,
+		`SELECT COUNT(*) FROM form_tags   WHERE template='basic.yaml'`,
+		`SELECT COUNT(*) FROM form_values WHERE template='basic.yaml'`,
+		`SELECT COUNT(*) FROM images      WHERE template='basic.yaml'`,
 	} {
 		var n int
 		if err := db.QueryRow(q).Scan(&n); err != nil {

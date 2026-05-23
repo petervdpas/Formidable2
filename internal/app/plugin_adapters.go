@@ -9,6 +9,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/render"
+	"github.com/petervdpas/formidable2/internal/modules/stat"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -183,6 +184,49 @@ func (pluginFMAdapter) Parse(markdown string) (map[string]any, string, error) {
 
 func (pluginFMAdapter) Build(data map[string]any, body string) string {
 	return render.BuildFrontmatter(data, body)
+}
+
+// pluginStatsAdapter bridges the stat manager into Lua's
+// formidable.stats.* and formidable.facets.* namespaces. Each chart-
+// neutral Result is marshalled to the same JSON-shaped map Vue
+// receives, so plugin authors and the frontend share one vocabulary.
+// One adapter satisfies both plugin.StatsAccess and
+// plugin.FacetStatsAccess since they read the same manager.
+type pluginStatsAdapter struct {
+	st *stat.Manager
+}
+
+func (a pluginStatsAdapter) Distribution(template, fieldKey string, col *int) (map[string]any, error) {
+	return statResultMap(a.st.Distribution(template, fieldKey, col))
+}
+
+func (a pluginStatsAdapter) NumericStats(template, fieldKey string, col *int, percentile *float64) (map[string]any, error) {
+	return statResultMap(a.st.NumericStats(template, fieldKey, col, percentile))
+}
+
+func (a pluginStatsAdapter) TimeSeries(template, fieldKey string, col *int, period string) (map[string]any, error) {
+	return statResultMap(a.st.TimeSeries(template, fieldKey, col, period))
+}
+
+func (a pluginStatsAdapter) FacetDistribution(template, facetKey string) (map[string]any, error) {
+	return statResultMap(a.st.FacetDistribution(template, facetKey))
+}
+
+func (a pluginStatsAdapter) FacetCross(template, keyA, keyB string) (map[string]any, error) {
+	return statResultMap(a.st.CrossTab(template, keyA, keyB))
+}
+
+func (a pluginStatsAdapter) TotalForms(template string) (int, error) {
+	return a.st.TotalForms(template)
+}
+
+// statResultMap collapses a (Result, error) pair into the JSON map the
+// Lua bridge expects, short-circuiting on error.
+func statResultMap(res *stat.Result, err error) (map[string]any, error) {
+	if err != nil {
+		return nil, err
+	}
+	return toJSONMap(res)
 }
 
 // pluginHTTPAdapter wires plugin.HTTPClient to the running wiki

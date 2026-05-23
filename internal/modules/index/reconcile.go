@@ -176,6 +176,21 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 	}
 	defer insertFacet.Close()
 
+	clearValues, err := tx.Prepare(`DELETE FROM form_values WHERE template = ? AND filename = ?`)
+	if err != nil {
+		return fmt.Errorf("index: prepare clear values: %w", err)
+	}
+	defer clearValues.Close()
+
+	insertValue, err := tx.Prepare(`
+		INSERT INTO form_values (template, filename, field_key, col, value_type, num_value, text_value)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`)
+	if err != nil {
+		return fmt.Errorf("index: prepare insert value: %w", err)
+	}
+	defer insertValue.Close()
+
 	for _, r := range rows {
 		if _, err := formStmt.Exec(
 			r.Template, r.Filename, r.ID, r.Title, r.FmTitle,
@@ -220,6 +235,24 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 			}
 			if _, err := insertFacet.Exec(r.Template, r.Filename, ff.Key, boolToInt(ff.Set), ff.Selected); err != nil {
 				return fmt.Errorf("index: insert facet %q for %q/%q: %w", ff.Key, r.Template, r.Filename, err)
+			}
+		}
+
+		// Value re-sync, same replace-all shape. col / num are nullable
+		// pointers; database/sql's default converter maps a nil pointer
+		// to SQL NULL (scalar fields carry col=NULL, non-numeric cells
+		// carry num=NULL).
+		if _, err := clearValues.Exec(r.Template, r.Filename); err != nil {
+			return fmt.Errorf("index: clear values for %q/%q: %w", r.Template, r.Filename, err)
+		}
+		for _, v := range r.Values {
+			if v.FieldKey == "" {
+				continue
+			}
+			if _, err := insertValue.Exec(
+				r.Template, r.Filename, v.FieldKey, v.Col, v.ValueType, v.Num, v.Text,
+			); err != nil {
+				return fmt.Errorf("index: insert value %q for %q/%q: %w", v.FieldKey, r.Template, r.Filename, err)
 			}
 		}
 	}

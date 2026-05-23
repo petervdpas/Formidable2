@@ -246,6 +246,7 @@ func buildFormRow(t *template.Template, f *storage.Form, templateFilename, dataf
 	}
 	row.Title = pickTitle(t.ItemField, f.Data, datafile)
 	row.Tags = pickTags(tagsKey, f.Data)
+	row.Values = pickValues(t.Fields, f.Data)
 	row.ExpressionItems = encodeExpressionItems(expressionFields, f.Data)
 
 	return row

@@ -1175,15 +1175,15 @@ func TestBindings_Exec_NoOptsAllowed(t *testing.T) {
 
 func TestBindings_NilDepsErrorClearly(t *testing.T) {
 	cases := map[string]string{
-		"template.list":    `function run() return formidable.template.list() end`,
-		"template.get":     `function run() return formidable.template.get("x.yaml") end`,
-		"collection.list":  `function run() return formidable.collection.list("x.yaml") end`,
-		"form.load":        `function run() return formidable.form.load("x.yaml", "y.json") end`,
-		"form.save":        `function run() return formidable.form.save("x.yaml", "y.json", {}) end`,
-		"render.markdown":  `function run() return formidable.render.markdown("x.yaml", "y") end`,
-		"render.html":      `function run() return formidable.render.html("x.yaml", "y") end`,
-		"fs.read":          `function run() return formidable.fs.read("/x") end`,
-		"exec":             `function run() return formidable.exec("ls", {}) end`,
+		"template.list":   `function run() return formidable.template.list() end`,
+		"template.get":    `function run() return formidable.template.get("x.yaml") end`,
+		"collection.list": `function run() return formidable.collection.list("x.yaml") end`,
+		"form.load":       `function run() return formidable.form.load("x.yaml", "y.json") end`,
+		"form.save":       `function run() return formidable.form.save("x.yaml", "y.json", {}) end`,
+		"render.markdown": `function run() return formidable.render.markdown("x.yaml", "y") end`,
+		"render.html":     `function run() return formidable.render.html("x.yaml", "y") end`,
+		"fs.read":         `function run() return formidable.fs.read("/x") end`,
+		"exec":            `function run() return formidable.exec("ls", {}) end`,
 	}
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -1310,5 +1310,125 @@ func TestBindings_Plugin_ZeroValuesWhenUnset(t *testing.T) {
 	}
 	if got["srv"] != false {
 		t.Fatalf("expected false, got %v", got["srv"])
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────
+// formidable.stats / formidable.facets - chart-neutral statistics
+// ─────────────────────────────────────────────────────────────────
+
+type mockStats struct {
+	gotCol    *int
+	gotPct    *float64
+	gotPeriod string
+}
+
+func (m *mockStats) Distribution(_, _ string, col *int) (map[string]any, error) {
+	m.gotCol = col
+	return map[string]any{"kind": "distribution", "categories": []any{"a", "b"}, "total": 5}, nil
+}
+func (m *mockStats) NumericStats(_, _ string, col *int, pct *float64) (map[string]any, error) {
+	m.gotCol, m.gotPct = col, pct
+	return map[string]any{"kind": "scalar_stats", "scalars": map[string]any{"sum": 60.0}}, nil
+}
+func (m *mockStats) TimeSeries(_, _ string, col *int, period string) (map[string]any, error) {
+	m.gotCol, m.gotPeriod = col, period
+	return map[string]any{"kind": "timeseries", "categories": []any{"2026-01"}}, nil
+}
+
+type mockFacets struct {
+	gotA, gotB string
+}
+
+func (m *mockFacets) FacetDistribution(_, key string) (map[string]any, error) {
+	m.gotA = key
+	return map[string]any{"kind": "distribution", "categories": []any{"high", "low"}}, nil
+}
+func (m *mockFacets) FacetCross(_, a, b string) (map[string]any, error) {
+	m.gotA, m.gotB = a, b
+	return map[string]any{"kind": "crosstab"}, nil
+}
+func (m *mockFacets) TotalForms(string) (int, error) { return 7, nil }
+
+func TestBindings_Stats_Distribution(t *testing.T) {
+	res := run(t, `
+		function run()
+			local r = formidable.stats.distribution("t", "status")
+			return { kind = r.kind, first = r.categories[1], total = r.total }
+		end`,
+		scriptOpts{Stats: &mockStats{}})
+	got := res.Value.(map[string]any)
+	if got["kind"] != "distribution" || got["first"] != "a" || got["total"] != float64(5) {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestBindings_Stats_Numeric_PassesColAndPercentile(t *testing.T) {
+	ms := &mockStats{}
+	run(t, `
+		function run() return formidable.stats.numeric("t", "amount", 1, 90) end`,
+		scriptOpts{Stats: ms})
+	if ms.gotCol == nil || *ms.gotCol != 1 {
+		t.Errorf("col = %v, want 1", ms.gotCol)
+	}
+	if ms.gotPct == nil || *ms.gotPct != 90 {
+		t.Errorf("pct = %v, want 90", ms.gotPct)
+	}
+}
+
+func TestBindings_Stats_Numeric_ScalarFieldOmitsCol(t *testing.T) {
+	ms := &mockStats{}
+	run(t, `function run() return formidable.stats.numeric("t", "amount") end`,
+		scriptOpts{Stats: ms})
+	if ms.gotCol != nil {
+		t.Errorf("col = %v, want nil for scalar field", *ms.gotCol)
+	}
+	if ms.gotPct != nil {
+		t.Errorf("pct = %v, want nil when omitted", *ms.gotPct)
+	}
+}
+
+func TestBindings_Stats_TimeSeries_ArgOrder(t *testing.T) {
+	// timeSeries(tpl, field, period [, col]) - period is arg 3, col arg 4.
+	ms := &mockStats{}
+	run(t, `function run() return formidable.stats.timeSeries("t", "due", "month", 2) end`,
+		scriptOpts{Stats: ms})
+	if ms.gotPeriod != "month" {
+		t.Errorf("period = %q, want month", ms.gotPeriod)
+	}
+	if ms.gotCol == nil || *ms.gotCol != 2 {
+		t.Errorf("col = %v, want 2", ms.gotCol)
+	}
+}
+
+func TestBindings_Stats_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t, `function run() return formidable.stats.distribution("t", "f") end`, scriptOpts{})
+	if err == nil {
+		t.Fatal("expected 'stats: not configured' error")
+	}
+}
+
+func TestBindings_Facets_DistributionAndCross(t *testing.T) {
+	mf := &mockFacets{}
+	res := run(t, `
+		function run()
+			local d = formidable.facets.distribution("t", "prio")
+			formidable.facets.cross("t", "prio", "stage")
+			return { kind = d.kind, total = formidable.facets.totalForms("t") }
+		end`,
+		scriptOpts{Facets: mf})
+	got := res.Value.(map[string]any)
+	if got["kind"] != "distribution" || got["total"] != float64(7) {
+		t.Fatalf("got %v", got)
+	}
+	if mf.gotA != "prio" || mf.gotB != "stage" {
+		t.Errorf("cross args = (%q,%q), want (prio,stage)", mf.gotA, mf.gotB)
+	}
+}
+
+func TestBindings_Facets_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t, `function run() return formidable.facets.totalForms("t") end`, scriptOpts{})
+	if err == nil {
+		t.Fatal("expected 'facets: not configured' error")
 	}
 }

@@ -37,8 +37,25 @@ type FormRow struct {
 	ExpressionItems string // JSON blob; opaque to the index
 	Tags            []string
 	Facets          []FormFacet
+	Values          []FormValueRow
 	Mtime           int64
 	Size            int64
+}
+
+// FormValueRow is one materialized, aggregatable value in the
+// `form_values` side table - the basis for chart statistics. A scalar
+// field (number, date, dropdown, ...) produces one row with Col nil; a
+// table field produces one row per cell, Col carrying the 0-based
+// column index. ValueType tags the cell ("number" | "date" | "text" |
+// "bool") so the stat layer picks the right aggregation without
+// re-reading the template. Num is nil when the value isn't numeric
+// (a date stores epoch seconds in Num and ISO "YYYY-MM-DD" in Text).
+type FormValueRow struct {
+	FieldKey  string
+	Col       *int
+	ValueType string
+	Num       *float64
+	Text      string
 }
 
 // FormFacet is one entry in the `form_facets` side table. Mirrors

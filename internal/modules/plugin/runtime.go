@@ -74,6 +74,8 @@ type runtimeDeps struct {
 	Storage     StorageAccess
 	Exec        ExecRunner
 	API         HTTPClient
+	Stats       StatsAccess
+	Facets      FacetStatsAccess
 	// I18nMessages is the plugin's translation map for the active
 	// locale, already stripped of its `plugin.<id>.` prefix so
 	// formidable.i18n.t("commands.run.label") is a direct lookup.
@@ -103,6 +105,8 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("fm", buildFMTable(L, deps.PluginID, deps.FM))
 	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut))
 	f.RawSetString("storage", buildStorageTable(L, deps.Storage))
+	f.RawSetString("stats", buildStatsTable(L, deps.Stats))
+	f.RawSetString("facets", buildFacetsTable(L, deps.Facets))
 	f.RawSetString("fs", buildFSTable(L, deps.FS))
 	f.RawSetString("i18n", buildI18nTable(L, deps.I18nMessages))
 	// formidable.cancelled() - cheap predicate so plugins can poll
@@ -238,6 +242,8 @@ type scriptOpts struct {
 	Storage     StorageAccess
 	Exec        ExecRunner
 	API         HTTPClient
+	Stats       StatsAccess
+	Facets      FacetStatsAccess
 	RunBarOut   RunBarEmitter
 	RunStatOut  RunStatusEmitter
 	// I18nMessages: plugin's translation map for the active locale
@@ -278,6 +284,8 @@ func runScript(opts scriptOpts) (RunResult, error) {
 		Storage:      opts.Storage,
 		Exec:         opts.Exec,
 		API:          opts.API,
+		Stats:        opts.Stats,
+		Facets:       opts.Facets,
 		I18nMessages: opts.I18nMessages,
 	})
 

@@ -46,6 +46,7 @@
 @import "./form-path-field.css";
 @import "./plugin-command-row.css";
 @import "./monitor.css";
+@import "./stat-charts.css";
 @import "./visual-graph.css";
 @import "./commit-graph-view.css";
 @import "./journal-feed.css";
