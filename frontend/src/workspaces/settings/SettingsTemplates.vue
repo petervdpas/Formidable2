@@ -35,14 +35,13 @@ const visibleFilenames = computed<string[]>(() => {
   });
 });
 
-// The opt-in semantic: empty/nil EnabledTemplates means "all enabled".
-// Reflected back to the toggle: every row reads as "on" until the user
-// flips one, at which point the slice becomes authoritative.
+// EnabledTemplates is the literal set of visible templates. A row is on
+// iff it's in the list; an empty list means nothing is visible (the
+// backend treats empty the same way for the use-side picker).
 const enabled = computed<string[]>(() => cfg.value.enabled_templates ?? []);
-const optedIn = computed<boolean>(() => enabled.value.length > 0);
+const noneEnabled = computed<boolean>(() => enabled.value.length === 0);
 
 function isEnabled(filename: string): boolean {
-  if (!optedIn.value) return true;
   return enabled.value.includes(filename);
 }
 
@@ -71,8 +70,8 @@ async function setTemplateEnabled(filename: string, on: boolean) {
 <template>
   <p class="section-info">{{ t('settings.templates.info') }}</p>
 
-  <p v-if="!optedIn" class="muted small">
-    {{ t('settings.templates.empty_means_all') }}
+  <p v-if="noneEnabled" class="muted small">
+    {{ t('settings.templates.none_enabled') }}
   </p>
 
   <div class="settings-templates-search">

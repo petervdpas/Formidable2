@@ -136,15 +136,23 @@ func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error) {
 	}
 
 	m.updateMu.Lock()
-	defer m.updateMu.Unlock()
-
 	boot := BootConfig{ActiveProfile: profileFilename}
 	if err := m.writeJSON(m.bootRelPath(), boot); err != nil {
+		m.updateMu.Unlock()
 		return nil, err
 	}
-
 	m.setConfigPath(profileFilename)
 	if err := m.ensureUserConfigFile(); err != nil {
+		m.updateMu.Unlock()
+		return nil, err
+	}
+	m.updateMu.Unlock()
+
+	// A freshly-created profile starts scoped to all templates (see
+	// SeedEnabledTemplatesIfUnset); an already-configured one is a no-op.
+	// Done after releasing updateMu because the seed persists through
+	// UpdateUserConfig, which takes the same lock.
+	if err := m.SeedEnabledTemplatesIfUnset(); err != nil {
 		return nil, err
 	}
 	return m.LoadUserConfig()

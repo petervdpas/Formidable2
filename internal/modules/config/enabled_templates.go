@@ -26,9 +26,9 @@ func (m *Manager) SetTemplateLister(l TemplateLister) {
 }
 
 // IsTemplateEnabled reports whether the given template filename is in the
-// active profile's EnabledTemplates list. Empty/nil list semantically means
-// "all templates enabled" - the design's opt-in switch - so this returns
-// true for any non-empty name in that case. Empty name is always false.
+// active profile's EnabledTemplates list. The list is the literal set of
+// visible templates: an empty list means none are visible. Empty name is
+// always false.
 //
 // Reads cached config; does NOT reconcile. Callers wanting the post-prune
 // answer should hit ListEnabledTemplates first (or just consume that
@@ -40,9 +40,6 @@ func (m *Manager) IsTemplateEnabled(name string) bool {
 	cfg, err := m.LoadUserConfig()
 	if err != nil || cfg == nil {
 		return false
-	}
-	if len(cfg.EnabledTemplates) == 0 {
-		return true
 	}
 	return slices.Contains(cfg.EnabledTemplates, name)
 }
@@ -56,7 +53,7 @@ func (m *Manager) FilterEnabled(filenames []string) []string {
 		return filenames
 	}
 	if len(cfg.EnabledTemplates) == 0 {
-		return filenames
+		return nil
 	}
 	allow := make(map[string]struct{}, len(cfg.EnabledTemplates))
 	for _, e := range cfg.EnabledTemplates {
@@ -118,14 +115,10 @@ func (m *Manager) AutoEnableNewTemplate(filename string) error {
 // slice. The backend owns this logic so the frontend renders state
 // rather than computing it.
 //
-// Semantics (empty list = "all templates visible"):
-//   - empty + on  → stays empty (everything is already shown; no-op).
-//   - empty + off → seed "everything except this one" (begin scoping).
-//   - list  + on  → add (deduped).
-//   - list  + off → remove; emptying the list returns to "show all".
-//
-// Needs the wired TemplateLister to seed the begin-scoping case; without
-// one it returns an error rather than guessing the universe of names.
+// Purely literal: EnabledTemplates is the set of visible templates.
+//   - on  → add filename (deduped).
+//   - off → remove filename. Removing the last one leaves [] = none
+//     visible (which persists, since the field is not omitempty).
 func (m *Manager) SetTemplateEnabled(filename string, on bool) ([]string, error) {
 	if filename == "" {
 		return nil, fmt.Errorf("set-enabled: empty filename")
@@ -136,33 +129,14 @@ func (m *Manager) SetTemplateEnabled(filename string, on bool) ([]string, error)
 	}
 
 	current := cfg.EnabledTemplates
-	var next []string
-	switch {
-	case len(current) == 0 && on:
-		next = []string{}
-	case len(current) == 0 && !on:
-		all, err := m.allTemplateFilenames()
-		if err != nil {
-			return nil, err
+	next := make([]string, 0, len(current)+1)
+	for _, f := range current {
+		if f != filename {
+			next = append(next, f)
 		}
-		next = make([]string, 0, len(all))
-		for _, f := range all {
-			if f != filename {
-				next = append(next, f)
-			}
-		}
-	case on:
-		next = append([]string(nil), current...)
-		if !slices.Contains(next, filename) {
-			next = append(next, filename)
-		}
-	default:
-		next = make([]string, 0, len(current))
-		for _, f := range current {
-			if f != filename {
-				next = append(next, f)
-			}
-		}
+	}
+	if on {
+		next = append(next, filename)
 	}
 
 	if _, err := m.UpdateUserConfig(map[string]any{"enabled_templates": next}); err != nil {
@@ -171,22 +145,40 @@ func (m *Manager) SetTemplateEnabled(filename string, on bool) ([]string, error)
 	return next, nil
 }
 
-// allTemplateFilenames returns every template filename on disk, sorted,
-// via the wired lister. Errors when no lister is wired so callers don't
-// silently treat "unknown" as "empty".
-func (m *Manager) allTemplateFilenames() ([]string, error) {
+// SeedEnabledTemplatesIfUnset gives a never-configured profile a starting
+// scope of "all templates" so a fresh (or legacy, key-absent) profile
+// shows everything on the use-side. It fires only when EnabledTemplates
+// is nil - i.e. the key was never written. A profile that has been
+// configured, including one explicitly emptied to [] (scoped to none),
+// is left untouched, so "turn everything off" sticks. No-op without a
+// wired lister or when no templates exist yet.
+func (m *Manager) SeedEnabledTemplatesIfUnset() error {
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		return fmt.Errorf("seed-enabled: load: %w", err)
+	}
+	if cfg.EnabledTemplates != nil {
+		return nil // configured already (incl. explicit []); leave it
+	}
 	m.mu.RLock()
 	lister := m.tplLister
 	m.mu.RUnlock()
 	if lister == nil {
-		return nil, fmt.Errorf("set-enabled: no template lister wired")
+		return nil
 	}
 	all, err := lister.ListTemplates()
 	if err != nil {
-		return nil, fmt.Errorf("set-enabled: list: %w", err)
+		return fmt.Errorf("seed-enabled: list: %w", err)
+	}
+	if len(all) == 0 {
+		return nil // nothing on disk yet; stay unconfigured so a later
+		// start (once templates exist) can seed.
 	}
 	sort.Strings(all)
-	return all, nil
+	if _, err := m.UpdateUserConfig(map[string]any{"enabled_templates": all}); err != nil {
+		return fmt.Errorf("seed-enabled: persist: %w", err)
+	}
+	return nil
 }
 
 // normalizeSelectedTemplate inspects cfg in-place and clears
@@ -313,8 +305,7 @@ func (m *Manager) ReconcileEnabledTemplates() ([]string, error) {
 // reconciles against the live folder first, then returns the templates
 // the user is allowed to pick from:
 //
-//   - Empty EnabledTemplates (the default / "opt-in not used") →
-//     every template on disk.
+//   - Empty EnabledTemplates → no templates (the user scoped to none).
 //   - Populated EnabledTemplates → intersection of live folder with
 //     the (post-prune) slice, preserving the live folder's order so
 //     the picker order is deterministic and matches the editor.
@@ -341,7 +332,7 @@ func (m *Manager) ListEnabledTemplates() ([]string, error) {
 		return nil, fmt.Errorf("list-enabled: load: %w", err)
 	}
 	if len(cfg.EnabledTemplates) == 0 {
-		return existing, nil
+		return nil, nil
 	}
 	// Reconcile first so stale entries can't survive into the picker.
 	if _, err := m.PruneEnabledTemplates(existing); err != nil {
@@ -353,10 +344,8 @@ func (m *Manager) ListEnabledTemplates() ([]string, error) {
 	}
 	if len(cfg2.EnabledTemplates) == 0 {
 		// Pruning emptied the slice (every enabled template was deleted
-		// out from under us). Per "empty = all enabled" we expose every
-		// remaining file - same as never having opted in. The settings
-		// panel will reflect the now-empty slice.
-		return existing, nil
+		// out from under us). Empty = scoped to none, so nothing to pick.
+		return nil, nil
 	}
 	allow := make(map[string]struct{}, len(cfg2.EnabledTemplates))
 	for _, e := range cfg2.EnabledTemplates {

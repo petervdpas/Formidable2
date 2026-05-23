@@ -396,6 +396,12 @@ func New(d Deps) (*App, error) {
 	// list is empty (the "all enabled" default), so no I/O penalty for
 	// users who haven't opted in.
 	cfgM.SetTemplateLister(tplM)
+	// First-run seed: a never-configured (or legacy, key-absent) profile
+	// starts scoped to every template, so the use-side shows all by
+	// default. An explicitly-emptied profile ([]) is left as "none".
+	if err := cfgM.SeedEnabledTemplatesIfUnset(); err != nil {
+		d.Logger.Warn("seed enabled templates", "err", err)
+	}
 	tplM.AddObserver(template.ObserverFunc(func(_ string) error {
 		_, err := cfgM.ReconcileEnabledTemplates()
 		return err

@@ -129,14 +129,14 @@ Feature: User configuration management
     And the status button "gigotload" is off
 
   # ──────────────────────────────────────────────────────────────────────
-  # EnabledTemplates - per-profile template curation. Empty/nil list means
-  # "all templates enabled" (opt-in feature). Once populated, the list is
-  # authoritative; deleted templates are silently pruned on read.
+  # EnabledTemplates - per-profile template curation. The list is the
+  # literal set of visible templates: empty means none are visible.
+  # Deleted templates are silently pruned on read.
   # ──────────────────────────────────────────────────────────────────────
 
-  Scenario: Empty enabled list reports every template as enabled
-    Then template "basic.yaml" is enabled
-    And template "anything-at-all.yaml" is enabled
+  Scenario: Empty enabled list reports no template as enabled
+    Then template "basic.yaml" is not enabled
+    And template "anything-at-all.yaml" is not enabled
 
   Scenario: Populated enabled list only allows listed templates
     When I set the enabled templates to "basic.yaml,report.yaml"
@@ -169,10 +169,10 @@ Feature: User configuration management
     And I list enabled templates
     Then the listed enabled templates are "alpha.yaml,gamma.yaml"
 
-  Scenario: List enabled templates returns every live file when nothing is opted in
+  Scenario: List enabled templates returns none when the list is empty
     Given the live templates folder contains "alpha.yaml,beta.yaml"
     When I list enabled templates
-    Then the listed enabled templates are "alpha.yaml,beta.yaml"
+    Then the listed enabled templates are empty
 
   Scenario: List enabled templates self-heals stale entries
     Given the live templates folder contains "basic.yaml"
@@ -181,11 +181,11 @@ Feature: User configuration management
     Then the listed enabled templates are "basic.yaml"
     And the enabled templates list is "basic.yaml"
 
-  Scenario: List enabled templates falls back to all when prune empties the list
+  Scenario: List enabled templates returns none when prune empties the list
     Given the live templates folder contains "basic.yaml,report.yaml"
     When I set the enabled templates to "removed.yaml"
     And I list enabled templates
-    Then the listed enabled templates are "basic.yaml,report.yaml"
+    Then the listed enabled templates are empty
 
   Scenario: Without a template lister wired, list enabled returns empty
     When I clear the template lister

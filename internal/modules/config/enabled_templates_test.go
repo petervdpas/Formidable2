@@ -54,10 +54,10 @@ func withEnabled(t *testing.T, m *Manager, names ...string) {
 
 // ----- IsTemplateEnabled --------------------------------------------------
 
-func TestIsTemplateEnabled_EmptyListMeansAllEnabled(t *testing.T) {
+func TestIsTemplateEnabled_EmptyListMeansNoneEnabled(t *testing.T) {
 	m, _, _ := newTestManager(t)
-	if !m.IsTemplateEnabled("anything.yaml") {
-		t.Error("empty EnabledTemplates must report every template as enabled")
+	if m.IsTemplateEnabled("anything.yaml") {
+		t.Error("empty EnabledTemplates must report no template as enabled")
 	}
 }
 
@@ -81,12 +81,12 @@ func TestIsTemplateEnabled_EmptyNameIsFalse(t *testing.T) {
 
 // ----- FilterEnabled ------------------------------------------------------
 
-func TestFilterEnabled_EmptyListPassesInputThrough(t *testing.T) {
+func TestFilterEnabled_EmptyListReturnsNone(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	in := []string{"a.yaml", "b.yaml", "c.yaml"}
 	got := m.FilterEnabled(in)
-	if !reflect.DeepEqual(got, in) {
-		t.Errorf("empty list must return input unchanged, got %v", got)
+	if len(got) != 0 {
+		t.Errorf("empty list must filter everything out (none scoped), got %v", got)
 	}
 }
 
@@ -228,46 +228,89 @@ func TestReconcileEnabledTemplates_NoListerIsNoOp(t *testing.T) {
 	}
 }
 
-// ----- SetTemplateEnabled (backend-owned toggle logic) --------------------
+// ----- SeedEnabledTemplatesIfUnset ----------------------------------------
 
-func TestSetTemplateEnabled_FirstOffSeedsAllExcept(t *testing.T) {
+func TestSeedEnabled_SeedsAllWhenUnset(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	l := &fakeLister{}
 	m.SetTemplateLister(l)
-	l.set([]string{"a.yaml", "b.yaml", "c.yaml"})
+	l.set([]string{"beta.yaml", "alpha.yaml"})
 
-	// Empty list (all shown). Turning b off begins scoping with everything
-	// except b.
+	if err := m.SeedEnabledTemplatesIfUnset(); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, _ := m.LoadUserConfig()
+	if !reflect.DeepEqual(cfg.EnabledTemplates, []string{"alpha.yaml", "beta.yaml"}) {
+		t.Errorf("seeded = %v, want sorted [alpha beta]", cfg.EnabledTemplates)
+	}
+}
+
+func TestSeedEnabled_LeavesExplicitEmptyAlone(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	l := &fakeLister{}
+	m.SetTemplateLister(l)
+	l.set([]string{"alpha.yaml"})
+
+	// Explicitly scoped to none ([] persisted).
+	if _, err := m.UpdateUserConfig(map[string]any{"enabled_templates": []string{}}); err != nil {
+		t.Fatalf("set empty: %v", err)
+	}
+	if err := m.SeedEnabledTemplatesIfUnset(); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, _ := m.LoadUserConfig()
+	if len(cfg.EnabledTemplates) != 0 {
+		t.Errorf("explicit [] must NOT be re-seeded, got %v", cfg.EnabledTemplates)
+	}
+	if cfg.EnabledTemplates == nil {
+		t.Error("explicit [] must stay non-nil (configured), not revert to nil")
+	}
+}
+
+func TestSeedEnabled_NoTemplatesIsNoop(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	l := &fakeLister{}
+	m.SetTemplateLister(l) // empty folder
+
+	if err := m.SeedEnabledTemplatesIfUnset(); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	cfg, _ := m.LoadUserConfig()
+	if cfg.EnabledTemplates != nil {
+		t.Errorf("no templates → stay unconfigured (nil), got %v", cfg.EnabledTemplates)
+	}
+}
+
+// ----- SetTemplateEnabled (backend-owned toggle logic) --------------------
+
+func TestSetTemplateEnabled_OffOnEmptyStaysEmpty(t *testing.T) {
+	m, _, _ := newTestManager(t)
+
+	// Empty = none shown. Turning a row off (it's already off) is a no-op.
 	got, err := m.SetTemplateEnabled("b.yaml", false)
 	if err != nil {
 		t.Fatalf("set: %v", err)
 	}
-	if !reflect.DeepEqual(got, []string{"a.yaml", "c.yaml"}) {
-		t.Errorf("got %v, want [a.yaml c.yaml]", got)
+	if len(got) != 0 {
+		t.Errorf("got %v, want [] (off on an empty list changes nothing)", got)
 	}
 }
 
-func TestSetTemplateEnabled_EmptyOnStaysEmpty(t *testing.T) {
+func TestSetTemplateEnabled_OnEmptyAddsJustThatOne(t *testing.T) {
 	m, _, _ := newTestManager(t)
-	l := &fakeLister{}
-	m.SetTemplateLister(l)
-	l.set([]string{"a.yaml", "b.yaml"})
 
-	// Empty list + on must NOT collapse to [a]; it stays "all shown".
+	// Literal: empty + on a → [a]. (Only that one is now visible.)
 	got, err := m.SetTemplateEnabled("a.yaml", true)
 	if err != nil {
 		t.Fatalf("set: %v", err)
 	}
-	if len(got) != 0 {
-		t.Errorf("got %v, want [] (turning one on while all-shown is a no-op)", got)
+	if !reflect.DeepEqual(got, []string{"a.yaml"}) {
+		t.Errorf("got %v, want [a.yaml]", got)
 	}
 }
 
-func TestSetTemplateEnabled_TurningLastOffEmptiesAndShowsAll(t *testing.T) {
+func TestSetTemplateEnabled_TurningLastOffEmptiesAndPersists(t *testing.T) {
 	m, _, _ := newTestManager(t)
-	l := &fakeLister{}
-	m.SetTemplateLister(l)
-	l.set([]string{"a.yaml", "b.yaml"})
 
 	withEnabled(t, m, "a.yaml") // scoped to just a
 	got, err := m.SetTemplateEnabled("a.yaml", false)
@@ -275,9 +318,10 @@ func TestSetTemplateEnabled_TurningLastOffEmptiesAndShowsAll(t *testing.T) {
 		t.Fatalf("set: %v", err)
 	}
 	if len(got) != 0 {
-		t.Errorf("got %v, want [] (last off = empty = show all)", got)
+		t.Errorf("got %v, want [] (last off = empty = none scoped)", got)
 	}
-	// And the empty list persists explicitly (no omitempty drop).
+	// The empty list persists explicitly (no omitempty drop) so "none"
+	// survives a reload rather than reverting.
 	cfg, _ := m.LoadUserConfig()
 	if cfg.EnabledTemplates == nil {
 		t.Error("EnabledTemplates should persist as an empty slice, not vanish")
@@ -372,7 +416,7 @@ func TestListEnabledTemplates_NoListerReturnsEmpty(t *testing.T) {
 	}
 }
 
-func TestListEnabledTemplates_EmptyEnabledReturnsAllSorted(t *testing.T) {
+func TestListEnabledTemplates_EmptyEnabledReturnsNone(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	l := &fakeLister{}
 	m.SetTemplateLister(l)
@@ -382,9 +426,8 @@ func TestListEnabledTemplates_EmptyEnabledReturnsAllSorted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	want := []string{"alpha.yaml", "mid.yaml", "zeta.yaml"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("empty enabled → all on disk, sorted; got %v want %v", got, want)
+	if len(got) != 0 {
+		t.Errorf("empty enabled → no templates (scoped to none); got %v", got)
 	}
 }
 
@@ -428,12 +471,12 @@ func TestListEnabledTemplates_DropsStaleAndReturnsLive(t *testing.T) {
 	}
 }
 
-// TestListEnabledTemplates_PruneToEmptyFallsBackToAll covers the edge:
-// user enabled exactly one template, then deleted that template outside
-// the app (e.g. via Files). EnabledTemplates becomes empty post-prune,
-// which by "empty = all enabled" means we expose every remaining file.
-// Less surprising for the user than an empty picker.
-func TestListEnabledTemplates_PruneToEmptyFallsBackToAll(t *testing.T) {
+// TestListEnabledTemplates_PruneToEmptyReturnsNone covers the edge:
+// user scoped to exactly one template, then deleted it outside the app
+// (e.g. via Files). EnabledTemplates becomes empty post-prune, which
+// under "empty = none scoped" means the picker shows nothing until the
+// user enables something again.
+func TestListEnabledTemplates_PruneToEmptyReturnsNone(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	l := &fakeLister{}
 	m.SetTemplateLister(l)
@@ -444,9 +487,8 @@ func TestListEnabledTemplates_PruneToEmptyFallsBackToAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
-	want := []string{"basic.yaml", "report.yaml"}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("pruned to empty → all live; got %v want %v", got, want)
+	if len(got) != 0 {
+		t.Errorf("pruned to empty → none; got %v", got)
 	}
 }
 
