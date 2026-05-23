@@ -32,16 +32,12 @@ async function runStartupUpdateCheck() {
   try {
     const st = await UpdateCheck.CheckNow();
     if (!st.checked) return; // toggle off or probe failed: stay silent
+    // Only surface a toast when there's actually an update. "Up to date"
+    // is noise on every launch; the About panel still shows the status.
     if (st.updateAvailable) {
-      toast.warn(
-        "workspace.information.about.update_available",
-        ["v" + st.latest],
-        { duration: 12000 },
-      );
-    } else {
-      toast.success("workspace.information.about.up_to_date", undefined, {
-        duration: 6000,
-      });
+      toast.warn("workspace.information.about.update_available", [
+        "v" + st.latest,
+      ]);
     }
   } catch {
     // Silent by design: an update probe must never alarm the user.

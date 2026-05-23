@@ -578,7 +578,7 @@ async function onInlineConvert() {
   } catch (err) {
     toast.error("workspace.templates.expression_builder.convert_failed");
     const detail = backendErrMessage(err);
-    if (detail) toast.error(detail, undefined, { duration: 8000 });
+    if (detail) toast.error(detail);
   }
 }
 
