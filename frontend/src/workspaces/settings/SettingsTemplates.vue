@@ -45,6 +45,14 @@ function isEnabled(filename: string): boolean {
   return enabled.value.includes(filename);
 }
 
+// Virtual master switch: it owns no state. It reads "are all the
+// currently-visible (search-filtered) rows on?" and flipping it drives
+// the per-row toggle over exactly those visible rows. Rows hidden by the
+// search are never touched.
+const allVisibleOn = computed<boolean>(
+  () => visibleFilenames.value.length > 0 && visibleFilenames.value.every(isEnabled),
+);
+
 // Display name for a row - prefers Template.name (user-facing), falls
 // back to the bare filename when the cache hasn't filled yet or the
 // template happens to have no name set.
@@ -53,17 +61,28 @@ function displayName(filename: string): string {
   return tpl?.name?.trim() || filename;
 }
 
-async function setTemplateEnabled(filename: string, on: boolean) {
-  // Backend owns the curation logic (empty = show all, begin/extend/clear
-  // scoping). The frontend just sends the toggle and re-reads the
-  // authoritative config, so it renders backend state rather than
-  // computing the slice itself.
-  await ConfigSvc.SetTemplateEnabled(filename, on);
+async function refreshAfterToggle() {
+  // Re-read the authoritative config + use-side picker, then remount the
+  // rows so each switch reflects backend state (no optimistic drift).
   await reload();
-  // Re-fetch the use-side picker (StorageWorkspace) and remount the rows
-  // so each switch reflects the reloaded state.
   await refreshEnabled();
   rev.value++;
+}
+
+async function setTemplateEnabled(filename: string, on: boolean) {
+  // EnabledTemplates is the literal visible set; the backend just
+  // adds/removes the one filename. Frontend renders the reloaded state.
+  await ConfigSvc.SetTemplateEnabled(filename, on);
+  await refreshAfterToggle();
+}
+
+async function toggleAllVisible(on: boolean) {
+  // Virtual master: drive the existing per-row toggle over the visible
+  // rows, then refresh once (instead of per row) to avoid N reloads.
+  for (const f of visibleFilenames.value) {
+    await ConfigSvc.SetTemplateEnabled(f, on);
+  }
+  await refreshAfterToggle();
 }
 </script>
 
@@ -90,16 +109,30 @@ async function setTemplateEnabled(filename: string, on: boolean) {
     {{ t('settings.templates.no_templates_found') }}
   </p>
 
-  <FormSection v-else>
-    <FormSwitchRow
-      v-for="f in visibleFilenames"
-      :key="`${f}:${rev}`"
-      :label="displayName(f)"
-      :description="f"
-      :model-value="isEnabled(f)"
-      @update:model-value="(v) => setTemplateEnabled(f, v)"
-      :on-label="t('common.on')"
-      :off-label="t('common.off')"
-    />
-  </FormSection>
+  <template v-else>
+    <FormSection class="settings-templates-master">
+      <FormSwitchRow
+        :key="`__all__:${rev}`"
+        :label="t('settings.templates.toggle_all')"
+        :description="t('settings.templates.toggle_all_desc')"
+        :model-value="allVisibleOn"
+        @update:model-value="toggleAllVisible"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
+      />
+    </FormSection>
+
+    <FormSection>
+      <FormSwitchRow
+        v-for="f in visibleFilenames"
+        :key="`${f}:${rev}`"
+        :label="displayName(f)"
+        :description="f"
+        :model-value="isEnabled(f)"
+        @update:model-value="(v) => setTemplateEnabled(f, v)"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
+      />
+    </FormSection>
+  </template>
 </template>

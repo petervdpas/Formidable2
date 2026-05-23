@@ -32,6 +32,8 @@
   "settings.categories.templates": "Scoped Templates",
   "settings.templates.info": "Choose which templates appear in the storage picker, wiki and other use-side surfaces. Each toggle is literal: only the templates switched on are visible. Turn everything off to show none.",
   "settings.templates.none_enabled": "No templates enabled: nothing is visible on the use-side. Toggle templates on to make them appear.",
+  "settings.templates.toggle_all": "All visible templates",
+  "settings.templates.toggle_all_desc": "Turn all the templates shown here on or off at once.",
   "settings.templates.search_placeholder": "Search templates…",
   "settings.templates.no_templates_found": "No templates match your search.",
   "settings.templates.loading": "Loading templates…",

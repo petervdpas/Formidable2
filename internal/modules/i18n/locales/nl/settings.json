@@ -32,6 +32,8 @@
   "settings.categories.templates": "Sjabloonkeuze",
   "settings.templates.info": "Bepaal welke sjablonen verschijnen in de opslagkiezer, wiki en andere gebruikersoppervlakken. Elke schakelaar is letterlijk: alleen ingeschakelde sjablonen zijn zichtbaar. Zet alles uit om niets te tonen.",
   "settings.templates.none_enabled": "Geen sjablonen ingeschakeld: er is niets zichtbaar aan de gebruikerskant. Schakel sjablonen in om ze te tonen.",
+  "settings.templates.toggle_all": "Alle zichtbare sjablonen",
+  "settings.templates.toggle_all_desc": "Zet alle hier getoonde sjablonen in één keer aan of uit.",
   "settings.templates.search_placeholder": "Zoek in sjablonen…",
   "settings.templates.no_templates_found": "Geen sjablonen die overeenkomen.",
   "settings.templates.loading": "Sjablonen laden…",

@@ -16,3 +16,14 @@
 .settings-templates-search {
     margin: 8px 0 12px;
 }
+
+/* Master "all visible" switch - set apart from the per-template list:
+   an accent-bordered band above the rows so it reads as a bulk control,
+   not just another template. */
+.settings-templates-master {
+    margin-bottom: 14px;
+    padding-left: 12px;
+    border-left: 3px solid var(--color-accent, #5b9cff);
+    background: var(--color-bg-sunken);
+    border-radius: 6px;
+}
