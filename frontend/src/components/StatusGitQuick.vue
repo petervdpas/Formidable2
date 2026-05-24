@@ -17,6 +17,7 @@ import { Events } from "@wailsio/runtime";
 import { useConfig } from "../composables/useConfig";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useCollaborationSection } from "../composables/useCollaborationSection";
+import { confirmLeave } from "../composables/useNavGuard";
 import { Service as GitSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import type { Status } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
@@ -115,7 +116,8 @@ const tooltip = computed(() => {
   return parts.join(" • ");
 });
 
-function onClick() {
+async function onClick() {
+  if (!(await confirmLeave())) return; // honor an unsaved-changes guard
   setWorkspace("collaboration");
   setSection("git-sync");
 }

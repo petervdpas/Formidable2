@@ -66,7 +66,7 @@ func main() {
 	// application doesn't exist yet at App.New() time.
 	a.SetWindowOpener(func(url string) error {
 		wapp.Window.NewWithOptions(application.WebviewWindowOptions{
-			Title:    "Formidable — Wiki",
+			Title:    "Formidable Wiki",
 			Width:    1024,
 			Height:   800,
 			MinWidth: 600,
@@ -75,7 +75,7 @@ func main() {
 		return nil
 	})
 
-	// Splash window — pure-HTML page in frontend/public. Loads
+	// Splash window: pure-HTML page in frontend/public. Loads
 	// immediately, masks the SPA boot. Identity (name/version/tagline/
 	// author) is passed via URL query params so the page itself stays
 	// dependency-free (no Wails runtime, no Vue).
@@ -147,7 +147,7 @@ func main() {
 	})
 
 	// Closing the main window must take auxiliary windows (wiki,
-	// swagger, future popouts) with it — otherwise they're orphaned
+	// swagger, future popouts) with it. Otherwise they're orphaned
 	// after the app's primary UI is gone. Iterate every Wails-known
 	// window and close anything that isn't main.
 	mainWin.OnWindowEvent(events.Common.WindowClosing, func(_ *application.WindowEvent) {

@@ -1,5 +1,6 @@
 import { Service as NavSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/nav";
 import { useToast } from "./useToast";
+import { confirmLeave } from "./useNavGuard";
 
 // useFormidableLink - thin Vue wrapper around the Go nav module.
 //
@@ -13,6 +14,9 @@ export function useFormidableLink() {
 
   async function follow(href: string): Promise<boolean> {
     if (!href.startsWith("formidable://")) return false;
+    // Honor an unsaved-changes guard before the backend pushes nav
+    // history; Cancel aborts the navigation and the form stays put.
+    if (!(await confirmLeave())) return false;
     const result = await NavSvc.NavigateToFormidable(href);
     if (!result?.success) {
       toast.error("status.template.load.failed", [result?.error ?? href]);

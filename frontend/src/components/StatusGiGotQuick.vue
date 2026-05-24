@@ -16,6 +16,7 @@ import { Events } from "@wailsio/runtime";
 import { useConfig } from "../composables/useConfig";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useCollaborationSection } from "../composables/useCollaborationSection";
+import { confirmLeave } from "../composables/useNavGuard";
 import { Service as GigotSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
 import type {
   LedgerSummary,
@@ -136,7 +137,8 @@ const tooltip = computed(() => {
   return parts.join(" • ");
 });
 
-function onClick() {
+async function onClick() {
+  if (!(await confirmLeave())) return; // honor an unsaved-changes guard
   setWorkspace("collaboration");
   setSection("gigot-sync");
 }
