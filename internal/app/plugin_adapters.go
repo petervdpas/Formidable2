@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
@@ -278,7 +279,27 @@ func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]stat.Cat
 		return nil, false
 	}
 	if src.Column != "" {
-		return nil, false // table columns: deferred
+		// Table column: a dropdown/radio column carries its categories in
+		// the column option's pipe-delimited `choices` string. Other column
+		// types have no fixed set.
+		for _, fld := range t.Fields {
+			if fld.Key != src.Key {
+				continue
+			}
+			col := tableColumnOption(fld.Options, src.Column)
+			if col == nil {
+				return nil, false
+			}
+			ctype, _ := col["type"].(string)
+			if ctype == "dropdown" || ctype == "radio" {
+				opts := parseColumnChoices(asString(col["choices"]))
+				if len(opts) > 0 {
+					return opts, true
+				}
+			}
+			return nil, false
+		}
+		return nil, false
 	}
 	for _, fld := range t.Fields {
 		if fld.Key != src.Key {
@@ -300,6 +321,48 @@ func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]stat.Cat
 		return nil, false
 	}
 	return nil, false
+}
+
+// tableColumnOption finds a table field's column definition by its value
+// key, or nil. Each column is a {value, type, label, choices} map.
+func tableColumnOption(options []any, columnKey string) map[string]any {
+	for _, o := range options {
+		if m, ok := o.(map[string]any); ok {
+			if v, _ := m["value"].(string); v == columnKey {
+				return m
+			}
+		}
+	}
+	return nil
+}
+
+func asString(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
+// parseColumnChoices parses a table dropdown column's `choices` string -
+// pipe-delimited "value:label" pairs (whitespace tolerant, e.g.
+// "via:Indirect | direct:Direct"). A pair with no colon is its own label.
+func parseColumnChoices(s string) []stat.CategoryOption {
+	out := make([]stat.CategoryOption, 0)
+	for _, part := range strings.Split(s, "|") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		v, l, found := strings.Cut(part, ":")
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		l = strings.TrimSpace(l)
+		if !found || l == "" {
+			l = v
+		}
+		out = append(out, stat.CategoryOption{Value: v, Label: l})
+	}
+	return out
 }
 
 // choiceOptions maps a choice field's options to value/label pairs. String

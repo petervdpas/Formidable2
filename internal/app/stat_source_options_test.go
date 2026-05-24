@@ -25,7 +25,7 @@ func demoStatTemplate() *template.Template {
 			{Key: "due", Type: "date"},
 			{Key: "sp", Type: "table", Options: []any{
 				map[string]any{"value": "procedure", "type": "string"},
-				map[string]any{"value": "access", "type": "dropdown"},
+				map[string]any{"value": "access", "type": "dropdown", "choices": "via:Indirect|direct:Direct"},
 				map[string]any{"value": "via", "type": "string"},
 			}},
 		},
@@ -62,7 +62,10 @@ func TestDimensionOptionLabels(t *testing.T) {
 			[]stat.CategoryOption{{Value: "true", Label: "true"}, {Value: "false", Label: "false"}}, true},
 		{"number has no fixed set", stat.SourceRef{Kind: stat.SourceField, Key: "amount"}, nil, false},
 		{"date has no fixed set", stat.SourceRef{Kind: stat.SourceField, Key: "due"}, nil, false},
-		{"table column deferred", stat.SourceRef{Kind: stat.SourceField, Key: "status", Column: "x"}, nil, false},
+		{"table dropdown column choices", stat.SourceRef{Kind: stat.SourceField, Key: "sp", Column: "access"},
+			[]stat.CategoryOption{{Value: "via", Label: "Indirect"}, {Value: "direct", Label: "Direct"}}, true},
+		{"table string column no fixed set", stat.SourceRef{Kind: stat.SourceField, Key: "sp", Column: "procedure"}, nil, false},
+		{"table column unknown", stat.SourceRef{Kind: stat.SourceField, Key: "sp", Column: "ghost"}, nil, false},
 		{"unknown facet", stat.SourceRef{Kind: stat.SourceFacet, Key: "ghost"}, nil, false},
 		{"unknown field", stat.SourceRef{Kind: stat.SourceField, Key: "ghost"}, nil, false},
 	}
