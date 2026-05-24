@@ -281,7 +281,99 @@ func checkField(f template.Field, data map[string]any, pathPrefix string) []Issu
 			Detail: fmt.Sprintf("template field %q (%s) has no entry in data", f.Key, f.Type),
 		}}
 	}
-	return checkValueType(f.Type, v, path)
+	out := checkValueType(f.Type, v, path)
+	if f.Type == "table" {
+		out = append(out, checkTableCells(f, v, path)...)
+	}
+	return out
+}
+
+// checkTableCells descends into a table value (rows of column-indexed
+// cells) and validates each cell against its column's declared type.
+// Column types come from f.Options, one per column in declaration order
+// (the same positional mapping FormFieldTable uses). Cells are addressed
+// positionally, so issue paths are "tableKey[row][col]" - the fixer
+// reaches them the same way it reaches a top-level field.
+func checkTableCells(f template.Field, v any, path string) []Issue {
+	rows, ok := v.([]any)
+	if !ok {
+		return nil // non-array shape is already flagged by checkValueType
+	}
+	var out []Issue
+	for ri, raw := range rows {
+		cells, ok := raw.([]any)
+		if !ok {
+			continue
+		}
+		for ci, cell := range cells {
+			if ci >= len(f.Options) {
+				continue
+			}
+			cellPath := fmt.Sprintf("%s[%d][%d]", path, ri, ci)
+			out = append(out, checkCell(columnType(f.Options[ci]), cell, cellPath)...)
+		}
+	}
+	return out
+}
+
+// checkCell validates one table cell against its column type. Empty
+// cells (nil or "") are always accepted - short rows are padded with ""
+// and a freshly added row carries type defaults, so neither should
+// surface as drift. date / number / bool are checked; string and
+// dropdown columns are tolerant (the renderer string-coerces on read).
+func checkCell(colType string, cell any, path string) []Issue {
+	if cell == nil {
+		return nil
+	}
+	if s, ok := cell.(string); ok && s == "" {
+		return nil
+	}
+	switch colType {
+	case "date":
+		s, ok := cell.(string)
+		if !ok {
+			return []Issue{{
+				Kind:   IssueTypeMismatch,
+				Path:   path,
+				Detail: fmt.Sprintf("expected date string, got %T", cell),
+			}}
+		}
+		if _, err := time.Parse("2006-01-02", s); err != nil {
+			return []Issue{{
+				Kind:   IssueBadDateFormat,
+				Path:   path,
+				Detail: fmt.Sprintf("not YYYY-MM-DD: %q", s),
+			}}
+		}
+	case "number":
+		if !isNumeric(cell) {
+			return []Issue{{
+				Kind:   IssueTypeMismatch,
+				Path:   path,
+				Detail: fmt.Sprintf("expected number, got %T", cell),
+			}}
+		}
+	case "bool":
+		if _, ok := cell.(bool); !ok {
+			return []Issue{{
+				Kind:   IssueTypeMismatch,
+				Path:   path,
+				Detail: fmt.Sprintf("expected bool, got %T", cell),
+			}}
+		}
+	}
+	return nil
+}
+
+// columnType reads the declared type off a table column option
+// ({value,type,label,choices}); absent/garbled types default to string.
+func columnType(opt any) string {
+	if m, ok := opt.(map[string]any); ok {
+		if t, ok := m["type"].(string); ok && t != "" {
+			return t
+		}
+	}
+	return "string"
 }
 
 // checkLoopValue validates that data[loopKey] is a []any of map[string]any

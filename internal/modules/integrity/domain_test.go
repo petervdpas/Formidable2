@@ -110,6 +110,43 @@ func tplWithFlag() *template.Template {
 	}
 }
 
+// tplWithTable has a table field whose second column is date-typed.
+// Column types live on the options (one per column, in order), matching
+// FormFieldTable's positional column mapping.
+func tplWithTable() *template.Template {
+	return &template.Template{
+		Name: "Tabled", Filename: "tbl.yaml",
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "history", Type: "table", Options: []any{
+				map[string]any{"value": "label", "type": "string", "label": "Label"},
+				map[string]any{"value": "when", "type": "date", "label": "When"},
+				map[string]any{"value": "count", "type": "number", "label": "Count"},
+				map[string]any{"value": "done", "type": "bool", "label": "Done"},
+			}},
+		},
+	}
+}
+
+// tableForm pairs with tplWithTable: row 0 has a DD-MM-YYYY date in the
+// date column (col 1), row 1 is already ISO. The string column (col 0)
+// carries date-looking text that must NOT be flagged.
+func tableForm() *storage.Form {
+	return &storage.Form{
+		Meta: storage.FormMeta{
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+		},
+		Data: map[string]any{
+			"title": "hello",
+			"history": []any{
+				[]any{"10-11-2025", "10-11-2025", float64(3), true},
+				[]any{"row two", "2025-01-01", float64(5), false},
+			},
+		},
+	}
+}
+
 func cleanForm() *storage.Form {
 	return &storage.Form{
 		Meta: storage.FormMeta{
@@ -235,6 +272,51 @@ func TestAnalyze_DetectsBadDateFormat(t *testing.T) {
 	m := newM(t, tplBasic(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("basic.yaml")
 	findIssue(t, r, "a.meta.json", IssueBadDateFormat, "due")
+}
+
+func TestAnalyze_DetectsBadDateInTableColumn(t *testing.T) {
+	f := tableForm()
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+	// Row 0 col 1 holds "10-11-2025" (DD-MM-YYYY); row 1 is already ISO.
+	findIssue(t, r, "a.meta.json", IssueBadDateFormat, "history[0][1]")
+}
+
+func TestAnalyze_IgnoresGoodDateAndStringColumnsInTable(t *testing.T) {
+	f := tableForm()
+	// Make the only bad date good, leaving the other columns valid.
+	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10"
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+	mustZeroIssues(t, r)
+}
+
+func TestAnalyze_DetectsBadNumberInTableColumn(t *testing.T) {
+	f := tableForm()
+	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10" // fix the date
+	f.Data["history"].([]any)[0].([]any)[2] = "twelve"      // number col, col 2
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+	findIssue(t, r, "a.meta.json", IssueTypeMismatch, "history[0][2]")
+}
+
+func TestAnalyze_DetectsBadBoolInTableColumn(t *testing.T) {
+	f := tableForm()
+	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10" // fix the date
+	f.Data["history"].([]any)[0].([]any)[3] = "yes"         // bool col, col 3
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+	findIssue(t, r, "a.meta.json", IssueTypeMismatch, "history[0][3]")
+}
+
+func TestAnalyze_AcceptsEmptyNumberAndBoolCells(t *testing.T) {
+	f := tableForm()
+	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10"
+	f.Data["history"].([]any)[0].([]any)[2] = "" // padded-empty number cell
+	f.Data["history"].([]any)[0].([]any)[3] = "" // padded-empty bool cell
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+	mustZeroIssues(t, r)
 }
 
 func TestAnalyze_AcceptsEmptyDate(t *testing.T) {

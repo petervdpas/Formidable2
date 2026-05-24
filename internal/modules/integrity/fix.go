@@ -177,6 +177,37 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		return setAtPath(draft.Data, iss.Path, defaultForFieldType(f.Type))
 
 	case FixCoerce:
+		// bad_date_format is always a date - including inside a table
+		// cell, whose leaf is an array index with no lookupField-able
+		// field. Route it straight through date coercion via the leaf
+		// accessor so top-level date fields and table date cells share
+		// one code path.
+		if iss.Kind == IssueBadDateFormat {
+			get, set, err := leafAccess(draft.Data, iss.Path)
+			if err != nil {
+				return false, fmt.Sprintf("walk %q: %v", iss.Path, err), nil
+			}
+			coerced, ok := coerceForFieldType("date", get())
+			if !ok {
+				return false, "coerce failed for " + iss.Path, nil
+			}
+			set(coerced)
+			return true, "", nil
+		}
+		// Table-cell type mismatch: coerce against the column's type,
+		// since the leaf is an array index with no lookupField-able field.
+		if colType, ok := columnTypeForTablePath(tpl, iss.Path); ok {
+			get, set, err := leafAccess(draft.Data, iss.Path)
+			if err != nil {
+				return false, fmt.Sprintf("walk %q: %v", iss.Path, err), nil
+			}
+			coerced, ok := coerceForFieldType(columnCoerceType(colType), get())
+			if !ok {
+				return false, "coerce failed for " + iss.Path, nil
+			}
+			set(coerced)
+			return true, "", nil
+		}
 		f := lookupField(tpl, iss.Path)
 		if f == nil {
 			return false, fmt.Sprintf("no template field for %q", iss.Path), nil
@@ -191,6 +222,26 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		})
 
 	case FixClear:
+		// A bad date clears to an empty string whether it's a top-level
+		// field or a table cell; the array-index leaf accessor handles
+		// both. defaultForFieldType("date") is also "".
+		if iss.Kind == IssueBadDateFormat {
+			_, set, err := leafAccess(draft.Data, iss.Path)
+			if err != nil {
+				return false, fmt.Sprintf("walk %q: %v", iss.Path, err), nil
+			}
+			set("")
+			return true, "", nil
+		}
+		// Table-cell mismatch clears to the column type's default.
+		if colType, ok := columnTypeForTablePath(tpl, iss.Path); ok {
+			_, set, err := leafAccess(draft.Data, iss.Path)
+			if err != nil {
+				return false, fmt.Sprintf("walk %q: %v", iss.Path, err), nil
+			}
+			set(defaultForFieldType(columnCoerceType(colType)))
+			return true, "", nil
+		}
 		f := lookupField(tpl, iss.Path)
 		if f == nil {
 			return false, fmt.Sprintf("no template field for %q", iss.Path), nil
@@ -325,6 +376,109 @@ func walkPath(data map[string]any, path string, createMissing bool) (map[string]
 		return nil, "", fmt.Errorf("leaf parent for %q is not a map", path)
 	}
 	return parent, leafKey, nil
+}
+
+// columnTypeForTablePath resolves the declared type of the column a
+// table-cell path addresses ("tableKey[row][col]", possibly loop-nested
+// as "loop[i].tableKey[row][col]"). Returns ("", false) when the path
+// isn't a table-cell shape or the column can't be found. Table fields -
+// even loop-nested ones - are flat entries in tpl.Fields, so the table
+// is located by the last string segment (the key just before [row][col]).
+func columnTypeForTablePath(tpl *template.Template, path string) (string, bool) {
+	segs, err := tokenizePath(path)
+	if err != nil || len(segs) < 3 {
+		return "", false
+	}
+	col, ok := segs[len(segs)-1].(int)
+	if !ok {
+		return "", false
+	}
+	if _, ok := segs[len(segs)-2].(int); !ok {
+		return "", false
+	}
+	tableKey, ok := segs[len(segs)-3].(string)
+	if !ok {
+		return "", false
+	}
+	for i := range tpl.Fields {
+		if tpl.Fields[i].Key == tableKey && tpl.Fields[i].Type == "table" {
+			if col < 0 || col >= len(tpl.Fields[i].Options) {
+				return "", false
+			}
+			return columnType(tpl.Fields[i].Options[col]), true
+		}
+	}
+	return "", false
+}
+
+// columnCoerceType maps a table column type onto the field-type
+// vocabulary coerceForFieldType / defaultForFieldType understand
+// ("bool" -> "boolean", "string" -> "text"; number/date/dropdown align).
+func columnCoerceType(colType string) string {
+	switch colType {
+	case "bool":
+		return "boolean"
+	case "string":
+		return "text"
+	default:
+		return colType
+	}
+}
+
+// leafAccess walks `data` to the value addressed by `path` and returns
+// a getter/setter for the leaf. Unlike walkPath it supports an
+// array-index leaf ("table[0][1]") as well as a map-key leaf ("a.b"):
+// table cells are addressed positionally, so their leaf is an int index
+// into the row slice rather than a map key. cloneForm deep-copies the
+// row slices, so writing through the setter persists into draft.Data.
+func leafAccess(data map[string]any, path string) (func() any, func(any), error) {
+	segs, err := tokenizePath(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	var cur any = data
+	for i, seg := range segs[:len(segs)-1] {
+		switch s := seg.(type) {
+		case string:
+			m, ok := cur.(map[string]any)
+			if !ok {
+				return nil, nil, fmt.Errorf("segment %d: not a map", i)
+			}
+			next, exists := m[s]
+			if !exists {
+				return nil, nil, fmt.Errorf("segment %d: key %q missing", i, s)
+			}
+			cur = next
+		case int:
+			arr, ok := cur.([]any)
+			if !ok {
+				return nil, nil, fmt.Errorf("segment %d: not an array", i)
+			}
+			if s < 0 || s >= len(arr) {
+				return nil, nil, fmt.Errorf("segment %d: index %d out of range", i, s)
+			}
+			cur = arr[s]
+		}
+	}
+
+	switch last := segs[len(segs)-1].(type) {
+	case string:
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("leaf parent for %q is not a map", path)
+		}
+		return func() any { return m[last] }, func(v any) { m[last] = v }, nil
+	case int:
+		arr, ok := cur.([]any)
+		if !ok {
+			return nil, nil, fmt.Errorf("leaf parent for %q is not an array", path)
+		}
+		if last < 0 || last >= len(arr) {
+			return nil, nil, fmt.Errorf("leaf index %d out of range for %q", last, path)
+		}
+		return func() any { return arr[last] }, func(v any) { arr[last] = v }, nil
+	}
+	return nil, nil, fmt.Errorf("bad leaf in %q", path)
 }
 
 // tokenizePath splits "items[0].name" into ["items", 0, "name"]. The

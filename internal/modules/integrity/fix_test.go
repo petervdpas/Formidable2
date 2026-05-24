@@ -239,6 +239,93 @@ func TestFix_Clear_BadDate(t *testing.T) {
 	}
 }
 
+func TestFix_Coerce_BadDateInTableCell(t *testing.T) {
+	f := tableForm() // row 0 col 1 = "10-11-2025" (DD-MM-YYYY)
+	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+
+	res := h.runPlan(FixPlanItem{Kind: IssueBadDateFormat, Strategy: FixCoerce})
+
+	if res.Applied != 1 {
+		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
+	}
+	rows := h.loadSaved("a.meta.json").Data["history"].([]any)
+	got := rows[0].([]any)[1]
+	if got != "2025-11-10" {
+		t.Errorf("history[0][1]=%v; want ISO 2025-11-10", got)
+	}
+	// The string column (date-looking text) is left verbatim.
+	if label := rows[0].([]any)[0]; label != "10-11-2025" {
+		t.Errorf("string column mutated: %v", label)
+	}
+}
+
+func TestFix_Clear_BadDateInTableCell(t *testing.T) {
+	f := tableForm()
+	f.Data["history"].([]any)[0].([]any)[1] = "wibble"
+	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+
+	res := h.runPlan(FixPlanItem{Kind: IssueBadDateFormat, Strategy: FixClear})
+
+	if res.Applied != 1 {
+		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
+	}
+	got := h.loadSaved("a.meta.json").Data["history"].([]any)[0].([]any)[1]
+	if got != "" {
+		t.Errorf("history[0][1]=%v; want empty string", got)
+	}
+}
+
+func TestFix_Coerce_BadNumberInTableCell(t *testing.T) {
+	f := tableForm()
+	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10" // keep the date valid
+	f.Data["history"].([]any)[0].([]any)[2] = "12"          // number col holds a string
+	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+
+	res := h.runPlan(FixPlanItem{Kind: IssueTypeMismatch, Strategy: FixCoerce})
+
+	if res.Applied != 1 {
+		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
+	}
+	got := h.loadSaved("a.meta.json").Data["history"].([]any)[0].([]any)[2]
+	if got != float64(12) {
+		t.Errorf("history[0][2]=%v (%T); want float64(12)", got, got)
+	}
+}
+
+func TestFix_Coerce_BadBoolInTableCell(t *testing.T) {
+	f := tableForm()
+	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10"
+	f.Data["history"].([]any)[0].([]any)[3] = "true" // bool col holds a string
+	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+
+	res := h.runPlan(FixPlanItem{Kind: IssueTypeMismatch, Strategy: FixCoerce})
+
+	if res.Applied != 1 {
+		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
+	}
+	got := h.loadSaved("a.meta.json").Data["history"].([]any)[0].([]any)[3]
+	if got != true {
+		t.Errorf("history[0][3]=%v (%T); want true", got, got)
+	}
+}
+
+func TestFix_Clear_BadNumberInTableCell(t *testing.T) {
+	f := tableForm()
+	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10"
+	f.Data["history"].([]any)[0].([]any)[2] = "nope"
+	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+
+	res := h.runPlan(FixPlanItem{Kind: IssueTypeMismatch, Strategy: FixClear})
+
+	if res.Applied != 1 {
+		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
+	}
+	got := h.loadSaved("a.meta.json").Data["history"].([]any)[0].([]any)[2]
+	if got != float64(0) {
+		t.Errorf("history[0][2]=%v (%T); want float64(0)", got, got)
+	}
+}
+
 func TestFix_MintUUID_FillsMetaId(t *testing.T) {
 	tpl := tplWithGuid()
 	f := &storage.Form{
