@@ -35,7 +35,33 @@ func Compile(cfg StatConfig) (string, error) {
 		}
 		out += " by " + strings.Join(dims, ", ")
 	}
+	if len(cfg.Filters) > 0 {
+		preds := make([]string, 0, len(cfg.Filters))
+		for _, f := range cfg.Filters {
+			s, err := compileFilter(f)
+			if err != nil {
+				return "", err
+			}
+			preds = append(preds, s)
+		}
+		out += " where " + strings.Join(preds, " and ")
+	}
 	return out, nil
+}
+
+func compileFilter(f Filter) (string, error) {
+	src := compileSource(f.Source)
+	switch {
+	case equalityOps[f.Op]:
+		return src + " " + string(f.Op) + " " + strconv.Quote(f.Value), nil
+	case comparisonOps[f.Op]:
+		if _, err := strconv.ParseFloat(f.Value, 64); err != nil {
+			return "", fmt.Errorf("stat dsl: %s needs a numeric value, got %q", f.Op, f.Value)
+		}
+		return src + " " + string(f.Op) + " " + f.Value, nil
+	default:
+		return "", fmt.Errorf("stat dsl: unknown filter operator %q", f.Op)
+	}
 }
 
 func compileMeasure(m Measure) (string, error) {

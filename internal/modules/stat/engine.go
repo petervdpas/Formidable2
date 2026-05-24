@@ -73,6 +73,11 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 			tableSrc++
 		}
 	}
+	for _, f := range cfg.Filters {
+		if f.Source.Column != "" {
+			tableSrc++
+		}
+	}
 	if tableSrc > 1 {
 		return nil, fmt.Errorf("stat: a statistic may use at most one table-column source (more would over-count)")
 	}
@@ -137,7 +142,23 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		nums = append(nums, index.AggNum{Key: ms.Source.Key, Col: col})
 	}
 
-	rows, err := m.idx.AggregateRaw(template, dims, nums)
+	filters := make([]index.AggFilter, 0, len(cfg.Filters))
+	for _, f := range cfg.Filters {
+		kind := "field"
+		if f.Source.Kind == SourceFacet {
+			kind = "facet"
+		}
+		if kind == "facet" && comparisonOps[f.Op] {
+			return nil, fmt.Errorf("stat: comparison filter %q needs a numeric field, not a facet", f.Op)
+		}
+		col, err := resolveCol(f.Source)
+		if err != nil {
+			return nil, err
+		}
+		filters = append(filters, index.AggFilter{Kind: kind, Key: f.Source.Key, Col: col, Op: string(f.Op), Value: f.Value})
+	}
+
+	rows, err := m.idx.AggregateRaw(template, dims, nums, filters)
 	if err != nil {
 		return nil, err
 	}

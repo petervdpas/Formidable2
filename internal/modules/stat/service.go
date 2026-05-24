@@ -79,6 +79,10 @@ func (s *Service) BuilderMeasureOps() []MeasureOpDescriptor { return MeasureOps(
 // BuilderBins is the date-bin catalog for the dimension binning picker.
 func (s *Service) BuilderBins() []Bin { return Bins() }
 
+// BuilderFilterOps is the where-clause operator catalog for the filter
+// picker (op + whether its value is numeric).
+func (s *Service) BuilderFilterOps() []FilterOpDescriptor { return FilterOps() }
+
 // EvaluateDSL evaluates a raw statistical-DSL string against the index.
 // The builder uses it to preview a statistic's output before it is saved
 // (EvaluateObject needs the object persisted to resolve it by name).

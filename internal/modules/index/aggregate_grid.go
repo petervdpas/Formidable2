@@ -3,6 +3,7 @@ package index
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -23,6 +24,19 @@ type AggDim struct {
 type AggNum struct {
 	Key string
 	Col *int
+}
+
+// AggFilter scopes the aggregation to rows where the source satisfies the
+// comparison. Op is "eq"/"ne" (text compare) or "lt"/"le"/"gt"/"ge"
+// (numeric compare). Kind/Key/Col mirror AggDim; a table-column filter
+// (Col set) fans to the matching cells, which is the point of e.g.
+// "where stored-procedures.procedure eq X".
+type AggFilter struct {
+	Kind  string // "field" | "facet"
+	Key   string
+	Col   *int
+	Op    string
+	Value string
 }
 
 // StatRawRow is one form's contribution to an aggregation: the category
@@ -46,7 +60,7 @@ type StatRawRow struct {
 // Dimensions INNER JOIN (a form missing a dimension value is excluded);
 // numeric sources LEFT JOIN (a missing value is invalid, not a dropped
 // row), so a count() measure still sees every matching row.
-func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum) ([]StatRawRow, error) {
+func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum, filters []AggFilter) ([]StatRawRow, error) {
 	var sel, joins []string
 	var args []any
 
@@ -94,6 +108,45 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum) ([
 		args = append(args, n.Key)
 		args = append(args, pArgs...)
 		sel = append(sel, fmt.Sprintf("%s.num_value", alias))
+	}
+
+	cmpSym := map[string]string{"lt": "<", "le": "<=", "gt": ">", "ge": ">="}
+	for k, fl := range filters {
+		alias := fmt.Sprintf("w%d", k)
+		if fl.Kind == "facet" {
+			op := "="
+			if fl.Op == "ne" {
+				op = "<>"
+			}
+			joins = append(joins, fmt.Sprintf(
+				"JOIN form_facets %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.facet_key=? AND %[1]s.set_flag=1 AND COALESCE(%[1]s.selected,'') %[2]s ?",
+				alias, op))
+			args = append(args, fl.Key, fl.Value)
+			continue
+		}
+		pred, pArgs := colPred(alias, fl.Col)
+		var cond string
+		var arg any
+		switch fl.Op {
+		case "eq":
+			cond, arg = alias+".text_value = ?", fl.Value
+		case "ne":
+			cond, arg = alias+".text_value <> ?", fl.Value
+		case "lt", "le", "gt", "ge":
+			n, err := strconv.ParseFloat(fl.Value, 64)
+			if err != nil {
+				return nil, fmt.Errorf("index: filter %s needs a number, got %q", fl.Op, fl.Value)
+			}
+			cond, arg = fmt.Sprintf("%s.num_value %s ?", alias, cmpSym[fl.Op]), n
+		default:
+			return nil, fmt.Errorf("index: unknown filter op %q", fl.Op)
+		}
+		joins = append(joins, fmt.Sprintf(
+			"JOIN form_values %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.field_key=? AND %[2]s AND %[3]s",
+			alias, pred, cond))
+		args = append(args, fl.Key)
+		args = append(args, pArgs...)
+		args = append(args, arg)
 	}
 
 	if len(sel) == 0 {

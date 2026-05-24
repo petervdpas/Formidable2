@@ -36,3 +36,24 @@ func MeasureOps() []MeasureOpDescriptor {
 
 // Bins is the ordered catalog of date-bin options (including "none").
 func Bins() []Bin { return []Bin{BinNone, BinYear, BinMonth, BinDay} }
+
+// FilterOpDescriptor describes a where-clause operator: Numeric is true
+// when its value is a number (comparison) rather than a text literal
+// (equality). The builder uses this to render the value input and to
+// offer comparisons only on numeric sources.
+type FilterOpDescriptor struct {
+	Op      FilterOp `json:"op"`
+	Numeric bool     `json:"numeric"`
+}
+
+// FilterOps is the ordered catalog of where-clause operators.
+func FilterOps() []FilterOpDescriptor {
+	return []FilterOpDescriptor{
+		{Op: FilterEq, Numeric: false},
+		{Op: FilterNe, Numeric: false},
+		{Op: FilterLt, Numeric: true},
+		{Op: FilterLe, Numeric: true},
+		{Op: FilterGt, Numeric: true},
+		{Op: FilterGe, Numeric: true},
+	}
+}

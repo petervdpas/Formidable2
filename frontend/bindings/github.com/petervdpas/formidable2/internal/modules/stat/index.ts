@@ -9,6 +9,9 @@ export {
 export {
     Bin,
     Dimension,
+    Filter,
+    FilterOp,
+    FilterOpDescriptor,
     Grid,
     GridAxis,
     GridCell,

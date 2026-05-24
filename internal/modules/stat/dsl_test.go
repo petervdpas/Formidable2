@@ -100,6 +100,26 @@ func TestCompile_Canonical(t *testing.T) {
 			},
 			want: `count() by F["due"]@month top 12`,
 		},
+		{
+			name: "where equality filter (table column)",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpCount}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}}},
+				Filters:    []Filter{{Source: SourceRef{Kind: SourceField, Key: "stored-procedures", Column: "procedure"}, Op: FilterEq, Value: "Proc1"}},
+			},
+			want: `count() by F["base-table"] where F["stored-procedures"]["procedure"] eq "Proc1"`,
+		},
+		{
+			name: "where numeric comparison, AND-chained with a facet ne",
+			cfg: StatConfig{
+				Measures: []Measure{{Op: OpCount}},
+				Filters: []Filter{
+					{Source: SourceRef{Kind: SourceField, Key: "amount"}, Op: FilterGt, Value: "100"},
+					{Source: SourceRef{Kind: SourceFacet, Key: "fcdm"}, Op: FilterNe, Value: "AANWEZIG"},
+				},
+			},
+			want: `count() where F["amount"] gt 100 and Facet["fcdm"] ne "AANWEZIG"`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -127,6 +147,8 @@ func TestCompile_Rejects(t *testing.T) {
 		{"unknown op", StatConfig{Measures: []Measure{{Op: "bogus"}}}},
 		{"top below range", StatConfig{Measures: []Measure{{Op: OpCount}}, Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "x"}, Top: 0 - 1}}}},
 		{"top above range", StatConfig{Measures: []Measure{{Op: OpCount}}, Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "x"}, Top: 21}}}},
+		{"comparison filter with non-numeric value", StatConfig{Measures: []Measure{{Op: OpCount}}, Filters: []Filter{{Source: SourceRef{Kind: SourceField, Key: "x"}, Op: FilterGt, Value: "abc"}}}},
+		{"unknown filter op", StatConfig{Measures: []Measure{{Op: OpCount}}, Filters: []Filter{{Source: SourceRef{Kind: SourceField, Key: "x"}, Op: "bogus", Value: "y"}}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -191,6 +213,11 @@ func TestParse_Rejects(t *testing.T) {
 		`count() by F[status]`,      // unquoted key
 		`count() by F["x"] top`,     // top without a number
 		`count() by F["x"] top abc`, // top with a non-number
+		`count() where`,                  // dangling where
+		`count() where F["x"]`,           // filter missing op + value
+		`count() where F["x"] eq 5`,      // eq needs a quoted string
+		`count() where F["x"] gt "y"`,    // gt needs a number
+		`count() where F["x"] bogus "y"`, // unknown operator
 	}
 	for _, src := range bad {
 		t.Run(src, func(t *testing.T) {
@@ -232,6 +259,14 @@ func TestRoundTrip_Identity(t *testing.T) {
 		{
 			Measures:   []Measure{{Op: OpCount}},
 			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}, Top: 10}},
+		},
+		{
+			Measures:   []Measure{{Op: OpCount}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}, Top: 10}},
+			Filters: []Filter{
+				{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "procedure"}, Op: FilterEq, Value: "P1"},
+				{Source: SourceRef{Kind: SourceField, Key: "amount"}, Op: FilterGe, Value: "5"},
+			},
 		},
 	}
 	for i, cfg := range configs {

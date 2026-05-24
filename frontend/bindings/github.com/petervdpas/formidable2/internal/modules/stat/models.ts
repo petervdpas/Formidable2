@@ -59,6 +59,92 @@ export class Dimension {
 }
 
 /**
+ * Filter scopes which rows count, before grouping: keep only those where
+ * Source <op> Value holds. AND-chained. Equality ops match the text
+ * value; comparison ops match the numeric value.
+ */
+export class Filter {
+    "Source": SourceRef;
+    "Op": FilterOp;
+    "Value": string;
+
+    /** Creates a new Filter instance. */
+    constructor($$source: Partial<Filter> = {}) {
+        if (!("Source" in $$source)) {
+            this["Source"] = (new SourceRef());
+        }
+        if (!("Op" in $$source)) {
+            this["Op"] = FilterOp.$zero;
+        }
+        if (!("Value" in $$source)) {
+            this["Value"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Filter instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Filter {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Source" in $$parsedSource) {
+            $$parsedSource["Source"] = $$createField0_0($$parsedSource["Source"]);
+        }
+        return new Filter($$parsedSource as Partial<Filter>);
+    }
+}
+
+/**
+ * FilterOp is a where-clause comparison operator.
+ */
+export enum FilterOp {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    FilterEq = "eq",
+    FilterNe = "ne",
+    FilterLt = "lt",
+    FilterLe = "le",
+    FilterGt = "gt",
+    FilterGe = "ge",
+};
+
+/**
+ * FilterOpDescriptor describes a where-clause operator: Numeric is true
+ * when its value is a number (comparison) rather than a text literal
+ * (equality). The builder uses this to render the value input and to
+ * offer comparisons only on numeric sources.
+ */
+export class FilterOpDescriptor {
+    "op": FilterOp;
+    "numeric": boolean;
+
+    /** Creates a new FilterOpDescriptor instance. */
+    constructor($$source: Partial<FilterOpDescriptor> = {}) {
+        if (!("op" in $$source)) {
+            this["op"] = FilterOp.$zero;
+        }
+        if (!("numeric" in $$source)) {
+            this["numeric"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FilterOpDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FilterOpDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FilterOpDescriptor($$parsedSource as Partial<FilterOpDescriptor>);
+    }
+}
+
+/**
  * Grid is the rank-N output of evaluating a StatConfig: one Axis per
  * dimension (in declared order), the measure labels, and sparse Cells
  * (a coordinate tuple into the axes plus one value per measure). Total is
@@ -405,8 +491,9 @@ export class SourceRef {
 
 /**
  * StatConfig is the parsed statistical DSL: one or more measures (cell
- * value layers) over zero or more dimensions (axes). No dimensions => a
- * rank-0 scalar; one => a 1D array; two => a 2D matrix; and so on.
+ * value layers) over zero or more dimensions (axes), optionally scoped by
+ * AND-ed equality filters. No dimensions => a rank-0 scalar; one => a 1D
+ * array; two => a 2D matrix; and so on.
  * 
  * Named StatConfig (not Config) to stay unambiguous inside the stat
  * package, which already carries Result/Series.
@@ -414,6 +501,7 @@ export class SourceRef {
 export class StatConfig {
     "Measures": Measure[];
     "Dimensions": Dimension[];
+    "Filters": Filter[];
 
     /** Creates a new StatConfig instance. */
     constructor($$source: Partial<StatConfig> = {}) {
@@ -422,6 +510,9 @@ export class StatConfig {
         }
         if (!("Dimensions" in $$source)) {
             this["Dimensions"] = [];
+        }
+        if (!("Filters" in $$source)) {
+            this["Filters"] = [];
         }
 
         Object.assign(this, $$source);
@@ -433,12 +524,16 @@ export class StatConfig {
     static createFrom($$source: any = {}): StatConfig {
         const $$createField0_0 = $$createType13;
         const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Measures" in $$parsedSource) {
             $$parsedSource["Measures"] = $$createField0_0($$parsedSource["Measures"]);
         }
         if ("Dimensions" in $$parsedSource) {
             $$parsedSource["Dimensions"] = $$createField1_0($$parsedSource["Dimensions"]);
+        }
+        if ("Filters" in $$parsedSource) {
+            $$parsedSource["Filters"] = $$createField2_0($$parsedSource["Filters"]);
         }
         return new StatConfig($$parsedSource as Partial<StatConfig>);
     }
@@ -461,3 +556,5 @@ const $$createType12 = Measure.createFrom;
 const $$createType13 = $Create.Array($$createType12);
 const $$createType14 = Dimension.createFrom;
 const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = Filter.createFrom;
+const $$createType17 = $Create.Array($$createType16);

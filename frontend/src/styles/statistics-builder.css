@@ -107,3 +107,9 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* Filter operator select - narrow, sits between source and value. */
+.stat-builder-op {
+    max-width: 5.5rem;
+    flex: 0 0 auto;
+}

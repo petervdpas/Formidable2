@@ -190,7 +190,57 @@ func (p *dslParser) object() (StatConfig, error) {
 			cfg.Dimensions = append(cfg.Dimensions, d)
 		}
 	}
+	if p.peek().kind == tkIdent && p.peek().val == "where" {
+		p.advance()
+		f, err := p.filter()
+		if err != nil {
+			return cfg, err
+		}
+		cfg.Filters = append(cfg.Filters, f)
+		for p.peek().kind == tkIdent && p.peek().val == "and" {
+			p.advance()
+			f, err := p.filter()
+			if err != nil {
+				return cfg, err
+			}
+			cfg.Filters = append(cfg.Filters, f)
+		}
+	}
 	return cfg, nil
+}
+
+// filter parses `source op value`: an eq/ne op takes a quoted string;
+// an lt/le/gt/ge op takes a number.
+func (p *dslParser) filter() (Filter, error) {
+	src, err := p.source()
+	if err != nil {
+		return Filter{}, err
+	}
+	ot := p.peek()
+	if ot.kind != tkIdent {
+		return Filter{}, fmt.Errorf("stat dsl: expected a filter operator (eq/ne/lt/le/gt/ge), got %q", ot.val)
+	}
+	op := FilterOp(ot.val)
+	p.advance()
+	switch {
+	case equalityOps[op]:
+		v, err := p.expect(tkString, "a quoted filter value")
+		if err != nil {
+			return Filter{}, err
+		}
+		return Filter{Source: src, Op: op, Value: v.val}, nil
+	case comparisonOps[op]:
+		nt, err := p.expect(tkNumber, "a numeric filter value")
+		if err != nil {
+			return Filter{}, err
+		}
+		if _, err := strconv.ParseFloat(nt.val, 64); err != nil {
+			return Filter{}, fmt.Errorf("stat dsl: bad numeric value %q", nt.val)
+		}
+		return Filter{Source: src, Op: op, Value: nt.val}, nil
+	default:
+		return Filter{}, fmt.Errorf("stat dsl: unknown filter operator %q", op)
+	}
 }
 
 func (p *dslParser) measure() (Measure, error) {

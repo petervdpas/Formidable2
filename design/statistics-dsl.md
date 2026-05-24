@@ -82,8 +82,14 @@ Decisions taken:
   form count). Range 1..20 (engine clamps; Compile rejects out of range).
   Mitigates a high-cardinality axis, e.g. `count() by F["base-table"] top 10`.
   Builder prefills 10 for a text-field dimension; others default to no cap.
-- **Filters** (a `where` clause to scope which forms count) are **deferred**;
-  the keyword is reserved.
+- **Filters** (`where`): scope rows before grouping, AND-chained equality /
+  comparison. Word operators (consistent with the keyword DSL): `eq`/`ne`
+  take a quoted string (text compare), `lt`/`le`/`gt`/`ge` take a number
+  (numeric compare). e.g. `count() by F["base-table"] where
+  F["stored-procedures"]["procedure"] eq "P1"` (which tables reference P1),
+  or `count() where F["amount"] gt 100`. A table-column filter counts as a
+  one-to-many source under the fan-out guard; comparison ops are rejected on
+  facets. Built via `index.AggFilter` (text/num condition) + `stat.Filter`.
 
 Examples mapped to shape:
 

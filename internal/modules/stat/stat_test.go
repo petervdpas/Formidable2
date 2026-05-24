@@ -19,7 +19,7 @@ type fakeIndex struct {
 	raw     []index.StatRawRow
 }
 
-func (f *fakeIndex) AggregateRaw(string, []index.AggDim, []index.AggNum) ([]index.StatRawRow, error) {
+func (f *fakeIndex) AggregateRaw(string, []index.AggDim, []index.AggNum, []index.AggFilter) ([]index.StatRawRow, error) {
 	return f.raw, nil
 }
 

@@ -17,7 +17,9 @@ import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formida
 import {
   MeasureOp,
   Bin,
+  FilterOp,
   type MeasureOpDescriptor,
+  type FilterOpDescriptor,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat/models";
 import type {
   Field,
@@ -43,9 +45,15 @@ interface Dimension {
   Bin: string;
   Top: number;
 }
+interface Filter {
+  Source: SourceRef;
+  Op: string;
+  Value: string;
+}
 interface StatConfig {
   Measures: Measure[];
   Dimensions: Dimension[];
+  Filters: Filter[];
 }
 
 const props = defineProps<{
@@ -65,7 +73,7 @@ const { t } = useI18n();
 
 const name = ref("");
 const label = ref("");
-const config = ref<StatConfig>({ Measures: [], Dimensions: [] });
+const config = ref<StatConfig>({ Measures: [], Dimensions: [], Filters: [] });
 const dslPreview = ref("");
 const compileError = ref("");
 const parseWarn = ref(false);
@@ -247,10 +255,12 @@ function setDimensionSource(i: number, key: string) {
   if (!s) return;
   config.value.Dimensions = config.value.Dimensions.map((x, j) => {
     if (j !== i) return x;
-    // Prefill a top-10 cap when switching to a (high-cardinality) text
-    // source, unless a cap is already set. top-N is generic - any
-    // dimension can carry one; only the prefill is text-specific.
-    const top = s.text && (x.Top ?? 0) === 0 ? 10 : x.Top ?? 0;
+    // A high-cardinality text source prefills a top-10 cap (keeping any
+    // existing one); non-text sources (facets, dropdowns) have a small
+    // known set, so switching to one clears the cap rather than leaving a
+    // spurious top from the previous source. top-N stays generic - you can
+    // re-add it on any dimension by hand.
+    const top = s.text ? (x.Top > 0 ? x.Top : 10) : 0;
     return { Source: { ...s.ref }, Bin: s.date ? x.Bin : Bin.BinNone, Top: top };
   });
 }
@@ -265,6 +275,60 @@ function setDimensionTop(i: number, v: string) {
     n = Math.min(20, Math.max(1, n));
   }
   config.value.Dimensions = config.value.Dimensions.map((x, j) => (j === i ? { ...x, Top: n } : x));
+}
+
+// ── Filter (where) ops ──────────────────────────────────────────────
+// Operator catalog from the backend (op + whether the value is numeric).
+const filterOps = ref<FilterOpDescriptor[]>([]);
+const opNumeric = computed<Record<string, boolean>>(() => {
+  const m: Record<string, boolean> = {};
+  for (const d of filterOps.value) m[d.op] = d.numeric;
+  return m;
+});
+function filterOpIsNumeric(op: string): boolean {
+  return opNumeric.value[op] ?? false;
+}
+
+const filterOpLabelKeys: Record<string, string> = {
+  eq: "workspace.templates.stat_builder.op_label.eq",
+  ne: "workspace.templates.stat_builder.op_label.ne",
+  lt: "workspace.templates.stat_builder.op_label.lt",
+  le: "workspace.templates.stat_builder.op_label.le",
+  gt: "workspace.templates.stat_builder.op_label.gt",
+  ge: "workspace.templates.stat_builder.op_label.ge",
+};
+// Per-row op options: comparison ops only make sense on a numeric source;
+// non-numeric sources (text, facet, dropdown) get equality only.
+function filterOpOptionsFor(f: Filter) {
+  const numericSrc = !!sourceByKey.value[srcKey(f.Source)]?.numeric;
+  return filterOps.value
+    .filter((d) => numericSrc || !d.numeric)
+    .map((d) => ({ value: d.op as string, label: filterOpLabelKeys[d.op] ? t(filterOpLabelKeys[d.op]) : (d.op as string) }));
+}
+
+function addFilter() {
+  const first = sources.value[0];
+  if (!first) return;
+  config.value.Filters = [...config.value.Filters, { Source: { ...first.ref }, Op: FilterOp.FilterEq, Value: "" }];
+}
+function removeFilter(i: number) {
+  config.value.Filters = config.value.Filters.filter((_, j) => j !== i);
+}
+function setFilterSource(i: number, key: string) {
+  const s = sourceByKey.value[key];
+  if (!s) return;
+  config.value.Filters = config.value.Filters.map((x, j) => {
+    if (j !== i) return x;
+    // A comparison op on a non-numeric source is invalid - fall back to eq.
+    const op = !s.numeric && filterOpIsNumeric(x.Op) ? FilterOp.FilterEq : x.Op;
+    return { Source: { ...s.ref }, Op: op, Value: x.Value };
+  });
+}
+function setFilterOp(i: number, op: string) {
+  config.value.Filters = config.value.Filters.map((x, j) => (j === i ? { ...x, Op: op } : x));
+}
+function setFilterValue(i: number, v: string) {
+  config.value.Filters = config.value.Filters.map((x, j) => (j === i ? { ...x, Value: v } : x));
 }
 
 // ── DSL compile preview ─────────────────────────────────────────────
@@ -285,7 +349,7 @@ watch(config, () => void recompile(), { deep: true });
 
 // ── Open: load initial or start fresh ───────────────────────────────
 function freshConfig(): StatConfig {
-  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [] };
+  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [], Filters: [] };
 }
 
 watch(
@@ -296,9 +360,14 @@ watch(
     compileError.value = "";
     dslPreview.value = "";
     if (measureOps.value.length === 0) {
-      const [ops, bs] = await Promise.all([StatSvc.BuilderMeasureOps(), StatSvc.BuilderBins()]);
+      const [ops, bs, fops] = await Promise.all([
+        StatSvc.BuilderMeasureOps(),
+        StatSvc.BuilderBins(),
+        StatSvc.BuilderFilterOps(),
+      ]);
       measureOps.value = ops;
       bins.value = bs;
+      filterOps.value = fops;
     }
     if (props.initial) {
       name.value = props.initial.name;
@@ -310,6 +379,7 @@ watch(
           config.value = {
             Measures: (parsed.Measures ?? []) as Measure[],
             Dimensions: (parsed.Dimensions ?? []) as Dimension[],
+            Filters: (parsed.Filters ?? []) as Filter[],
           };
         } catch {
           config.value = freshConfig();
@@ -465,6 +535,50 @@ async function onApply() {
             :title="t('workspace.templates.stat_builder.add_dimension')"
             @click="addDimension"
           >+ {{ t('workspace.templates.stat_builder.add_dimension') }}</button>
+        </div>
+      </fieldset>
+
+      <!-- FILTERS (where) -->
+      <fieldset class="stat-builder-fieldset">
+        <legend>{{ t('workspace.templates.stat_builder.filters') }}</legend>
+        <div class="options-editor">
+          <div class="options-rows">
+            <div v-for="(f, i) in config.Filters" :key="`f${i}`" class="options-row">
+              <SelectField
+                :model-value="srcKey(f.Source)"
+                :options="allSourceOptions"
+                class="options-cell"
+                @update:model-value="(v: string) => setFilterSource(i, v)"
+              />
+              <SelectField
+                :model-value="f.Op"
+                :options="filterOpOptionsFor(f)"
+                class="stat-builder-op"
+                @update:model-value="(v: string) => setFilterOp(i, v)"
+              />
+              <TextField
+                :type="filterOpIsNumeric(f.Op) ? 'number' : 'text'"
+                lazy
+                :model-value="f.Value"
+                class="options-cell"
+                :placeholder="t('workspace.templates.stat_builder.filter_value')"
+                @update:model-value="(v: string) => setFilterValue(i, v)"
+              />
+              <button
+                type="button"
+                class="btn-ghost-icon"
+                :title="t('workspace.templates.stat_builder.remove')"
+                @click="removeFilter(i)"
+              >−</button>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="btn-ghost-block"
+            :disabled="!hasSources"
+            :title="t('workspace.templates.stat_builder.add_filter')"
+            @click="addFilter"
+          >+ {{ t('workspace.templates.stat_builder.add_filter') }}</button>
         </div>
       </fieldset>
 

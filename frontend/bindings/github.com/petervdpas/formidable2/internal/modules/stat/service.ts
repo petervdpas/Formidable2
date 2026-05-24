@@ -32,12 +32,22 @@ export function BuilderBins(): $CancellablePromise<$models.Bin[]> {
 }
 
 /**
+ * BuilderFilterOps is the where-clause operator catalog for the filter
+ * picker (op + whether its value is numeric).
+ */
+export function BuilderFilterOps(): $CancellablePromise<$models.FilterOpDescriptor[]> {
+    return $Call.ByID(453622795).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * BuilderMeasureOps is the measure catalog (op + input rules) the builder
  * renders its op picker from - backend owns the vocabulary, not the UI.
  */
 export function BuilderMeasureOps(): $CancellablePromise<$models.MeasureOpDescriptor[]> {
     return $Call.ByID(61375399).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -55,7 +65,7 @@ export function CompileDSL(cfg: $models.StatConfig): $CancellablePromise<string>
  */
 export function CrossTab(template: string, keyA: string, keyB: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(721428515, template, keyA, keyB).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -64,7 +74,7 @@ export function CrossTab(template: string, keyA: string, keyB: string): $Cancell
  */
 export function Distribution(template: string, fieldKey: string, col: number | null): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(3246012510, template, fieldKey, col).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -75,7 +85,7 @@ export function Distribution(template: string, fieldKey: string, col: number | n
  */
 export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(2268999486, template, dsl).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -86,7 +96,7 @@ export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<
  */
 export function EvaluateObject(template: string, name: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(864923500, template, name).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -95,7 +105,7 @@ export function EvaluateObject(template: string, name: string): $CancellableProm
  */
 export function FacetDistribution(template: string, facetKey: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(248037669, template, facetKey).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -105,7 +115,7 @@ export function FacetDistribution(template: string, facetKey: string): $Cancella
  */
 export function NumericStats(template: string, fieldKey: string, col: number | null, percentile: number | null): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2728644434, template, fieldKey, col, percentile).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -117,7 +127,7 @@ export function NumericStats(template: string, fieldKey: string, col: number | n
  */
 export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
     return $Call.ByID(2598631634, dsl).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -127,16 +137,18 @@ export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
  */
 export function TimeSeries(template: string, fieldKey: string, col: number | null, period: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(4140051192, template, fieldKey, col, period).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $models.MeasureOpDescriptor.createFrom;
+const $$createType1 = $models.FilterOpDescriptor.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.Result.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = $models.Grid.createFrom;
+const $$createType3 = $models.MeasureOpDescriptor.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.Result.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $models.StatConfig.createFrom;
+const $$createType7 = $models.Grid.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = $models.StatConfig.createFrom;

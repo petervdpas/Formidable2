@@ -9,6 +9,10 @@ package stat
 // Grammar:
 //
 //	object    := measure ("," measure)*  ( "by" dimension ("," dimension)* )?
+//	             ( "where" filter ( "and" filter )* )?
+//	filter    := source op value                     // scope, AND-chained
+//	op        := "eq" | "ne" | "lt" | "le" | "gt" | "ge"
+//	             // eq/ne take a quoted string; lt/le/gt/ge take a number
 //	measure   := "count" "(" ")"
 //	           | reduce "(" numSource ")"
 //	           | "percentile" "(" numSource "," number ")"
@@ -84,13 +88,42 @@ type Dimension struct {
 	Top    int
 }
 
+// FilterOp is a where-clause comparison operator.
+type FilterOp string
+
+const (
+	FilterEq FilterOp = "eq"
+	FilterNe FilterOp = "ne"
+	FilterLt FilterOp = "lt"
+	FilterLe FilterOp = "le"
+	FilterGt FilterOp = "gt"
+	FilterGe FilterOp = "ge"
+)
+
+// equalityOps compare the stored text value (categorical, also dates/ISO);
+// Value is a string literal. comparisonOps compare the numeric value;
+// Value is a number literal.
+var equalityOps = map[FilterOp]bool{FilterEq: true, FilterNe: true}
+var comparisonOps = map[FilterOp]bool{FilterLt: true, FilterLe: true, FilterGt: true, FilterGe: true}
+
+// Filter scopes which rows count, before grouping: keep only those where
+// Source <op> Value holds. AND-chained. Equality ops match the text
+// value; comparison ops match the numeric value.
+type Filter struct {
+	Source SourceRef
+	Op     FilterOp
+	Value  string
+}
+
 // StatConfig is the parsed statistical DSL: one or more measures (cell
-// value layers) over zero or more dimensions (axes). No dimensions => a
-// rank-0 scalar; one => a 1D array; two => a 2D matrix; and so on.
+// value layers) over zero or more dimensions (axes), optionally scoped by
+// AND-ed equality filters. No dimensions => a rank-0 scalar; one => a 1D
+// array; two => a 2D matrix; and so on.
 //
 // Named StatConfig (not Config) to stay unambiguous inside the stat
 // package, which already carries Result/Series.
 type StatConfig struct {
 	Measures   []Measure
 	Dimensions []Dimension
+	Filters    []Filter
 }

@@ -431,6 +431,30 @@ func TestEvaluate_TopN_NoOpWhenFewerCategories(t *testing.T) {
 	}
 }
 
+func TestEvaluate_RejectsFacetComparisonFilter(t *testing.T) {
+	m := NewManager(&fakeIndex{})
+	_, err := m.Evaluate("t", StatConfig{
+		Measures: []Measure{{Op: OpCount}},
+		Filters:  []Filter{{Source: SourceRef{Kind: SourceFacet, Key: "fcdm"}, Op: FilterGt, Value: "5"}},
+	})
+	if err == nil {
+		t.Error("expected rejection: comparison operator on a facet")
+	}
+}
+
+func TestEvaluate_RejectsTwoTableSourcesViaFilter(t *testing.T) {
+	m := NewManager(&fakeIndex{})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1, "sp.procedure": 0}})
+	_, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
+		Filters:    []Filter{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "procedure"}, Op: FilterEq, Value: "X"}},
+	})
+	if err == nil {
+		t.Error("expected rejection: a table-column dimension plus a table-column filter is two table sources")
+	}
+}
+
 func TestEvaluate_RejectsEmptyMeasures(t *testing.T) {
 	m := NewManager(&fakeIndex{})
 	if _, err := m.Evaluate("t", StatConfig{}); err == nil {

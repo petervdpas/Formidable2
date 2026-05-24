@@ -44,7 +44,7 @@ type Index interface {
 	FacetDistribution(template, facetKey string) ([]index.Bucket, error)
 	FacetCross(template, keyA, keyB string) ([]index.CrossCell, error)
 	DateSeries(template, fieldKey string, col *int, period string) ([]index.Bucket, error)
-	AggregateRaw(template string, dims []index.AggDim, nums []index.AggNum) ([]index.StatRawRow, error)
+	AggregateRaw(template string, dims []index.AggDim, nums []index.AggNum, filters []index.AggFilter) ([]index.StatRawRow, error)
 }
 
 // ColumnResolver maps a table field's column value-key to its positional
