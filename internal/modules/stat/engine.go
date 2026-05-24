@@ -96,21 +96,54 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 
 	nd := len(cfg.Dimensions)
 
-	// Pass 1: distinct, sorted labels per axis.
+	// Pass 1: labels per axis. When the dimension has a fixed category set
+	// (a facet / choice source, via SourceOptions), use the full defined
+	// order and append any present-but-undefined values (stale/unset) after
+	// it. Otherwise, the sorted distinct present values. Date-binned
+	// dimensions are always present-values (their buckets aren't a fixed
+	// set). This is what surfaces zero-count categories instead of dropping
+	// them.
 	axes := make([]GridAxis, nd)
 	labelIdx := make([]map[string]int, nd)
 	for i := range axes {
-		axes[i] = GridAxis{Source: sourceLabel(cfg.Dimensions[i].Source, cfg.Dimensions[i].Bin)}
-		seen := map[string]bool{}
+		dim := cfg.Dimensions[i]
+		axes[i] = GridAxis{Source: sourceLabel(dim.Source, dim.Bin)}
+
+		present := map[string]bool{}
 		for _, r := range rows {
-			if !seen[r.Dims[i]] {
-				seen[r.Dims[i]] = true
-				axes[i].Labels = append(axes[i].Labels, r.Dims[i])
+			present[r.Dims[i]] = true
+		}
+
+		var labels []string
+		if m.opts != nil && dim.Bin == BinNone {
+			if defined, ok := m.opts.DimensionLabels(template, dim.Source); ok {
+				seen := map[string]bool{}
+				for _, l := range defined {
+					if !seen[l] {
+						seen[l] = true
+						labels = append(labels, l)
+					}
+				}
+				extra := make([]string, 0)
+				for l := range present {
+					if !seen[l] {
+						extra = append(extra, l)
+					}
+				}
+				sort.Strings(extra)
+				labels = append(labels, extra...)
 			}
 		}
-		sort.Strings(axes[i].Labels)
-		labelIdx[i] = make(map[string]int, len(axes[i].Labels))
-		for idx, lbl := range axes[i].Labels {
+		if labels == nil {
+			for l := range present {
+				labels = append(labels, l)
+			}
+			sort.Strings(labels)
+		}
+
+		axes[i].Labels = labels
+		labelIdx[i] = make(map[string]int, len(labels))
+		for idx, lbl := range labels {
 			labelIdx[i][lbl] = idx
 		}
 	}

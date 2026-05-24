@@ -387,6 +387,7 @@ func New(d Deps) (*App, error) {
 	// form_values / form_facets. Holds idxM directly (same lifetime as
 	// dataprovider); no disk access of its own.
 	statM := stat.NewManager(idxM)
+	statM.SetSourceOptions(statSourceOptions{tpl: tplM})
 	statSvc := stat.NewService(statM, statTemplateSource{tpl: tplM})
 
 	// EnabledTemplates self-healing: when a template file is deleted, the

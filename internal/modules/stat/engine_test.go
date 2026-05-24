@@ -162,6 +162,69 @@ func TestEvaluate_RejectsTableColumnSources(t *testing.T) {
 	}
 }
 
+type fakeOptions struct{ labels map[string][]string }
+
+func (f fakeOptions) DimensionLabels(_ string, src SourceRef) ([]string, bool) {
+	l, ok := f.labels[src.Key]
+	return l, ok
+}
+
+func TestEvaluate_FixedCategorySet_ShowsZeroCountInOrder(t *testing.T) {
+	// Data only has SMALL and LARGE; the facet defines LARGE, MEDIUM, SMALL.
+	idx := &fakeIndex{
+		total: 3,
+		raw: []index.StatRawRow{
+			{Dims: []string{"SMALL"}},
+			{Dims: []string{"LARGE"}},
+			{Dims: []string{"SMALL"}},
+		},
+	}
+	m := NewManager(idx)
+	m.SetSourceOptions(fakeOptions{labels: map[string][]string{"tshirt": {"LARGE", "MEDIUM", "SMALL"}}})
+	cfg := StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceFacet, Key: "tshirt"}}},
+	}
+	g, err := m.Evaluate("t", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Defined order preserved, MEDIUM present despite zero rows.
+	if want := []string{"LARGE", "MEDIUM", "SMALL"}; !reflect.DeepEqual(g.Axes[0].Labels, want) {
+		t.Fatalf("labels = %v, want %v", g.Axes[0].Labels, want)
+	}
+	// LARGE (idx 0) = 1, SMALL (idx 2) = 2, MEDIUM (idx 1) has no cell.
+	if c := findCell(g, 0); c == nil || c.Values[0] != 1 {
+		t.Errorf("LARGE = %+v, want 1", c)
+	}
+	if c := findCell(g, 2); c == nil || c.Values[0] != 2 {
+		t.Errorf("SMALL = %+v, want 2", c)
+	}
+	if c := findCell(g, 1); c != nil {
+		t.Errorf("MEDIUM should have no cell (zero), got %+v", c)
+	}
+}
+
+func TestEvaluate_PresentValueAppendedWhenNotInDefinedSet(t *testing.T) {
+	idx := &fakeIndex{
+		total: 2,
+		raw:   []index.StatRawRow{{Dims: []string{"LARGE"}}, {Dims: []string{"STALE"}}},
+	}
+	m := NewManager(idx)
+	m.SetSourceOptions(fakeOptions{labels: map[string][]string{"tshirt": {"LARGE", "SMALL"}}})
+	g, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceFacet, Key: "tshirt"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Defined order first (LARGE, SMALL), then stale present value appended.
+	if want := []string{"LARGE", "SMALL", "STALE"}; !reflect.DeepEqual(g.Axes[0].Labels, want) {
+		t.Errorf("labels = %v, want %v", g.Axes[0].Labels, want)
+	}
+}
+
 func TestEvaluate_RejectsEmptyMeasures(t *testing.T) {
 	m := NewManager(&fakeIndex{})
 	if _, err := m.Evaluate("t", StatConfig{}); err == nil {

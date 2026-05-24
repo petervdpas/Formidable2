@@ -240,6 +240,80 @@ func (s statTemplateSource) StatisticDSL(tplFile, name string) (string, bool, er
 	return "", false, nil
 }
 
+// statSourceOptions gives the stat engine a facet dimension's full,
+// ordered option labels, so a statistic shows every defined option
+// (including zero-count ones) instead of only the values present in the
+// data. Open-ended / non-facet sources return ok=false (present-values).
+type statSourceOptions struct {
+	tpl *template.Manager
+}
+
+func (s statSourceOptions) DimensionLabels(tplFile string, src stat.SourceRef) ([]string, bool) {
+	t, err := s.tpl.LoadTemplate(tplFile)
+	if err != nil {
+		return nil, false
+	}
+	return dimensionOptionLabels(t, src)
+}
+
+// dimensionOptionLabels returns the full ordered category set for a
+// dimension source whose categories are fixed by definition: a facet's
+// option labels (facets store the label as the selected value), or a
+// choice field's option values (dropdown/radio/multioption store the
+// value; boolean indexes as "true"/"false"). Open-ended sources - dates,
+// numbers, free text, and (for now) table columns - return ok=false so the
+// engine falls back to the values present in the data.
+func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]string, bool) {
+	if src.Kind == stat.SourceFacet {
+		for _, f := range t.Facets {
+			if f.Key == src.Key {
+				out := make([]string, 0, len(f.Options))
+				for _, o := range f.Options {
+					out = append(out, o.Label)
+				}
+				return out, true
+			}
+		}
+		return nil, false
+	}
+	if src.Column != "" {
+		return nil, false // table columns: deferred
+	}
+	for _, fld := range t.Fields {
+		if fld.Key != src.Key {
+			continue
+		}
+		switch fld.Type {
+		case "dropdown", "radio", "multioption":
+			return optionValues(fld.Options), true
+		case "boolean":
+			return []string{"true", "false"}, true
+		}
+		return nil, false
+	}
+	return nil, false
+}
+
+// optionValues pulls the `value` of each option (string options are their
+// own value), skipping blanks. Mirrors what pickValues stores for choice
+// fields, so the axis labels line up with the indexed values.
+func optionValues(options []any) []string {
+	out := make([]string, 0, len(options))
+	for _, o := range options {
+		switch v := o.(type) {
+		case string:
+			if v != "" {
+				out = append(out, v)
+			}
+		case map[string]any:
+			if s, _ := v["value"].(string); s != "" {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
 // pluginStatObjectAdapter bridges Stat.EvaluateObject into the Lua
 // formidable.statistical(tpl, name) surface, flattening the Grid to the
 // JSON-shaped map the Lua bridge round-trips.

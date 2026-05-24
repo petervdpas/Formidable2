@@ -47,12 +47,27 @@ type Index interface {
 	AggregateRaw(template string, dims []index.AggDim, numKeys []string) ([]index.StatRawRow, error)
 }
 
-// Manager turns index aggregates into chart-neutral Results.
+// SourceOptions supplies the full, ordered category labels for a
+// dimension source that has a fixed set (e.g. a facet's options), so the
+// grid shows every defined category - including zero-count ones - in the
+// author's order rather than only the values present in the data. Returns
+// ok=false for open-ended sources (dates, numbers, free text), which fall
+// back to the sorted present values.
+type SourceOptions interface {
+	DimensionLabels(template string, src SourceRef) (labels []string, ok bool)
+}
+
+// Manager turns index aggregates into chart-neutral Results and grids.
 type Manager struct {
-	idx Index
+	idx  Index
+	opts SourceOptions
 }
 
 func NewManager(idx Index) *Manager { return &Manager{idx: idx} }
+
+// SetSourceOptions wires the optional fixed-category resolver used by
+// Evaluate to give facet/choice dimensions their full ordered axis.
+func (m *Manager) SetSourceOptions(o SourceOptions) { m.opts = o }
 
 // TotalForms is the form-count denominator for percentage stats.
 func (m *Manager) TotalForms(template string) (int, error) {
