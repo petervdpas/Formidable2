@@ -71,6 +71,15 @@ func TestAbilities_TwoColumn_DisabledOnGuidApiAndLoopMeta(t *testing.T) {
 	assertAbilityDisabledOn(t, "TwoColumn", disallowed, func(a Abilities) bool { return a.TwoColumn })
 }
 
+func TestAbilities_UseInStatistics_OnlyOnAggregatableTypes(t *testing.T) {
+	allowed := stringSet(
+		"number", "range", "date", "boolean",
+		"dropdown", "multioption", "radio",
+		"list", "table", "tags",
+	)
+	assertAbilityMatchesSet(t, "UseInStatistics", allowed, func(a Abilities) bool { return a.UseInStatistics })
+}
+
 // Every type in orderedTypes must be present in fieldDescriptors and
 // vice versa - keeps the dropdown order and the matrix in sync.
 func TestOrderedTypes_MatchesFieldDescriptors(t *testing.T) {

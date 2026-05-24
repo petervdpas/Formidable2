@@ -97,6 +97,69 @@ func TestNormalize_NonTextareaStripsFormat(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Normalize - statistics columns (table only, deduped, validated)
+// ─────────────────────────────────────────────────────────────────────
+
+func statTableField(statCols []string, use bool) Field {
+	return Field{
+		Key:               "items",
+		Type:              "table",
+		UseInStatistics:   use,
+		StatisticsColumns: statCols,
+		Options: []any{
+			map[string]any{"value": "name", "type": "string"},
+			map[string]any{"value": "qty", "type": "number"},
+		},
+	}
+}
+
+func TestNormalize_StatisticsColumns_Dedupes(t *testing.T) {
+	tpl := &Template{Fields: []Field{statTableField([]string{"qty", "qty", "name"}, true)}}
+	Normalize(tpl)
+	got := tpl.Fields[0].StatisticsColumns
+	want := []string{"qty", "name"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("StatisticsColumns = %v, want %v (deduped, order preserved)", got, want)
+	}
+}
+
+func TestNormalize_StatisticsColumns_DropsUnknownColumns(t *testing.T) {
+	tpl := &Template{Fields: []Field{statTableField([]string{"qty", "ghost"}, true)}}
+	Normalize(tpl)
+	got := tpl.Fields[0].StatisticsColumns
+	if !reflect.DeepEqual(got, []string{"qty"}) {
+		t.Errorf("StatisticsColumns = %v, want [qty] (unknown dropped)", got)
+	}
+}
+
+func TestNormalize_StatisticsColumns_ClearedWhenNotFlagged(t *testing.T) {
+	tpl := &Template{Fields: []Field{statTableField([]string{"qty"}, false)}}
+	Normalize(tpl)
+	if tpl.Fields[0].StatisticsColumns != nil {
+		t.Errorf("StatisticsColumns = %v, want nil when use_in_statistics is false", tpl.Fields[0].StatisticsColumns)
+	}
+}
+
+func TestNormalize_StatisticsColumns_ClearedOnNonTable(t *testing.T) {
+	tpl := &Template{Fields: []Field{{
+		Key: "x", Type: "number", UseInStatistics: true,
+		StatisticsColumns: []string{"qty"},
+	}}}
+	Normalize(tpl)
+	if tpl.Fields[0].StatisticsColumns != nil {
+		t.Errorf("StatisticsColumns = %v, want nil on non-table field", tpl.Fields[0].StatisticsColumns)
+	}
+}
+
+func TestNormalize_StatisticsColumns_AllInvalidBecomesNil(t *testing.T) {
+	tpl := &Template{Fields: []Field{statTableField([]string{"ghost", "ghost2"}, true)}}
+	Normalize(tpl)
+	if tpl.Fields[0].StatisticsColumns != nil {
+		t.Errorf("StatisticsColumns = %v, want nil when nothing valid remains", tpl.Fields[0].StatisticsColumns)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Normalize - robustness (unhappy paths)
 // ─────────────────────────────────────────────────────────────────────
 

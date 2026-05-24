@@ -20,22 +20,11 @@ import {
   Abilities,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
-/** Stable IDs for every row the Edit Field modal can render. Each
- *  matches a `keyof Abilities` from the backend matrix. */
-export type FieldEditRowId =
-  | "key"
-  | "type"
-  | "label"
-  | "description"
-  | "default"
-  | "options"
-  | "summary_field"
-  | "primary_key"
-  | "expression_item"
-  | "two_column"
-  | "collapsible"
-  | "readonly"
-  | "format";
+/** Stable IDs for every row the Edit Field modal can render: exactly
+ *  the keys of the backend `Abilities` matrix. Derived from the
+ *  generated type so a new ability flows through without editing a
+ *  hand-maintained list here (backend owns the set). */
+export type FieldEditRowId = keyof Abilities;
 
 export interface FieldTypeDef {
   id: string;
@@ -118,7 +107,7 @@ export function getFieldTypeDef(id: string): FieldTypeDef | undefined {
 export function isRowHidden(typeId: string, rowId: FieldEditRowId): boolean {
   const def = getFieldTypeDef(typeId);
   if (!def) return false;
-  return def.abilities[rowId as keyof Abilities] === false;
+  return def.abilities[rowId] === false;
 }
 
 /** Type IDs eligible to appear in the Edit modal's Type dropdown.

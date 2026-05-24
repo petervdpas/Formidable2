@@ -17,7 +17,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: true, Format: false,
+			Readonly: true, Format: false, UseInStatistics: false,
 		},
 	},
 	"textarea": {
@@ -26,7 +26,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
-			Readonly: true, Format: true,
+			Readonly: true, Format: true, UseInStatistics: false,
 		},
 	},
 	"number": {
@@ -35,7 +35,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"range": {
@@ -44,7 +44,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"date": {
@@ -53,7 +53,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"boolean": {
@@ -62,7 +62,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 		OptionsShape: &FixedOptionsShape{
 			Rows: []FixedOptionRow{
@@ -77,7 +77,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"multioption": {
@@ -86,7 +86,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"radio": {
@@ -95,7 +95,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"file-path": {
@@ -104,7 +104,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
-			Readonly: true, Format: false,
+			Readonly: true, Format: false, UseInStatistics: false,
 		},
 	},
 	"folder-path": {
@@ -113,7 +113,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
-			Readonly: true, Format: false,
+			Readonly: true, Format: false, UseInStatistics: false,
 		},
 	},
 	"list": {
@@ -122,7 +122,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: true,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"table": {
@@ -131,7 +131,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: true,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"image": {
@@ -140,7 +140,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: false,
 		},
 	},
 	"link": {
@@ -149,7 +149,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: true,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: false,
 		},
 	},
 	"tags": {
@@ -158,7 +158,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: true,
 		},
 	},
 	"api": {
@@ -167,7 +167,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: false, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: false,
 		},
 	},
 	"guid": {
@@ -176,7 +176,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: false, Description: false,
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: false,
 		},
 	},
 	"looper": {
@@ -185,7 +185,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: false,
 		},
 	},
 	"loopstart": {
@@ -194,7 +194,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: false, Options: false, SummaryField: true, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: false,
 		},
 	},
 	"loopstop": {
@@ -203,7 +203,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: false,
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
-			Readonly: false, Format: false,
+			Readonly: false, Format: false, UseInStatistics: false,
 		},
 	},
 }

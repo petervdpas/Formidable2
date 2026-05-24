@@ -27,8 +27,18 @@ func findValue(rows []FormValueRow, fieldKey string, col int) *FormValueRow {
 	return nil
 }
 
+func countFor(rows []FormValueRow, fieldKey string) int {
+	n := 0
+	for _, r := range rows {
+		if r.FieldKey == fieldKey {
+			n++
+		}
+	}
+	return n
+}
+
 func TestPickValues_NumberField(t *testing.T) {
-	fields := []template.Field{{Key: "amount", Type: "number"}}
+	fields := []template.Field{{Key: "amount", Type: "number", UseInStatistics: true}}
 	data := map[string]any{"amount": float64(42)}
 
 	rows := pickValues(fields, data)
@@ -45,7 +55,7 @@ func TestPickValues_NumberField(t *testing.T) {
 }
 
 func TestPickValues_NumberFromString(t *testing.T) {
-	fields := []template.Field{{Key: "amount", Type: "number"}}
+	fields := []template.Field{{Key: "amount", Type: "number", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"amount": "3.5"})
 	got := findValue(rows, "amount", -1)
 	if got == nil || got.Num == nil || *got.Num != 3.5 {
@@ -54,7 +64,7 @@ func TestPickValues_NumberFromString(t *testing.T) {
 }
 
 func TestPickValues_NonNumericNumberHasNilNum(t *testing.T) {
-	fields := []template.Field{{Key: "amount", Type: "number"}}
+	fields := []template.Field{{Key: "amount", Type: "number", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"amount": "n/a"})
 	got := findValue(rows, "amount", -1)
 	if got == nil {
@@ -66,7 +76,7 @@ func TestPickValues_NonNumericNumberHasNilNum(t *testing.T) {
 }
 
 func TestPickValues_DateField(t *testing.T) {
-	fields := []template.Field{{Key: "due", Type: "date"}}
+	fields := []template.Field{{Key: "due", Type: "date", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"due": "2026-05-23"})
 	got := findValue(rows, "due", -1)
 	if got == nil {
@@ -78,7 +88,6 @@ func TestPickValues_DateField(t *testing.T) {
 	if got.Text != "2026-05-23" {
 		t.Errorf("text = %q, want ISO 2026-05-23", got.Text)
 	}
-	// epoch for 2026-05-23T00:00:00Z
 	if got.Num == nil {
 		t.Fatal("date row must carry epoch num for range/min/max")
 	}
@@ -89,7 +98,7 @@ func TestPickValues_DateField(t *testing.T) {
 }
 
 func TestPickValues_UnparseableDateSkipped(t *testing.T) {
-	fields := []template.Field{{Key: "due", Type: "date"}}
+	fields := []template.Field{{Key: "due", Type: "date", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"due": "someday"})
 	if findValue(rows, "due", -1) != nil {
 		t.Error("unparseable date should not produce a row")
@@ -97,7 +106,7 @@ func TestPickValues_UnparseableDateSkipped(t *testing.T) {
 }
 
 func TestPickValues_BooleanField(t *testing.T) {
-	fields := []template.Field{{Key: "done", Type: "boolean"}}
+	fields := []template.Field{{Key: "done", Type: "boolean", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"done": true})
 	got := findValue(rows, "done", -1)
 	if got == nil {
@@ -115,7 +124,7 @@ func TestPickValues_BooleanField(t *testing.T) {
 }
 
 func TestPickValues_DropdownDistribution(t *testing.T) {
-	fields := []template.Field{{Key: "status", Type: "dropdown"}}
+	fields := []template.Field{{Key: "status", Type: "dropdown", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"status": "open"})
 	got := findValue(rows, "status", -1)
 	if got == nil || got.ValueType != "text" || got.Text != "open" {
@@ -124,80 +133,201 @@ func TestPickValues_DropdownDistribution(t *testing.T) {
 }
 
 func TestPickValues_MultioptionFanOut(t *testing.T) {
-	fields := []template.Field{{Key: "labels", Type: "multioption"}}
+	fields := []template.Field{{Key: "labels", Type: "multioption", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"labels": []any{"a", "b"}})
 	if findValue(rows, "labels", -1) == nil {
 		t.Fatal("expected at least one labels row")
 	}
-	count := 0
-	for _, r := range rows {
-		if r.FieldKey == "labels" {
-			count++
-		}
-	}
-	if count != 2 {
-		t.Errorf("multioption produced %d rows, want 2 (one per selected)", count)
+	if got := countFor(rows, "labels"); got != 2 {
+		t.Errorf("multioption produced %d rows, want 2 (one per selected)", got)
 	}
 }
 
-func TestPickValues_TableMixedColumns(t *testing.T) {
-	fields := []template.Field{{
-		Key:  "items",
-		Type: "table",
+// ── opt-in gate ──────────────────────────────────────────────────────
+
+func TestPickValues_UnflaggedFieldIsSkipped(t *testing.T) {
+	// Same number field, but use_in_statistics defaults false: no row.
+	fields := []template.Field{{Key: "amount", Type: "number"}}
+	rows := pickValues(fields, map[string]any{"amount": float64(42)})
+	if len(rows) != 0 {
+		t.Errorf("unflagged field produced %d rows, want 0: %+v", len(rows), rows)
+	}
+}
+
+func TestPickValues_MixedFlaggedAndNot(t *testing.T) {
+	fields := []template.Field{
+		{Key: "amount", Type: "number", UseInStatistics: true},
+		{Key: "ignored", Type: "number"}, // not flagged
+	}
+	rows := pickValues(fields, map[string]any{"amount": float64(1), "ignored": float64(2)})
+	if findValue(rows, "amount", -1) == nil {
+		t.Error("flagged field should be indexed")
+	}
+	if findValue(rows, "ignored", -1) != nil {
+		t.Error("unflagged field must not be indexed")
+	}
+}
+
+// ── list (single column, fans out one text row per item) ─────────────
+
+func TestPickValues_ListFanOut(t *testing.T) {
+	fields := []template.Field{{Key: "tagsish", Type: "list", UseInStatistics: true}}
+	rows := pickValues(fields, map[string]any{"tagsish": []any{"red", "blue", ""}})
+	if got := countFor(rows, "tagsish"); got != 2 {
+		t.Fatalf("list produced %d rows, want 2 (empty item skipped)", got)
+	}
+	r := findValue(rows, "tagsish", -1)
+	if r == nil || r.ValueType != "text" {
+		t.Fatalf("list row = %v, want text", r)
+	}
+}
+
+func TestPickValues_ListUnflaggedSkipped(t *testing.T) {
+	fields := []template.Field{{Key: "tagsish", Type: "list"}}
+	rows := pickValues(fields, map[string]any{"tagsish": []any{"red"}})
+	if len(rows) != 0 {
+		t.Errorf("unflagged list produced %d rows, want 0", len(rows))
+	}
+}
+
+func TestPickValues_ListNonArrayIsNoRows(t *testing.T) {
+	fields := []template.Field{{Key: "tagsish", Type: "list", UseInStatistics: true}}
+	rows := pickValues(fields, map[string]any{"tagsish": "not-an-array"})
+	if len(rows) != 0 {
+		t.Errorf("non-array list produced %d rows, want 0", len(rows))
+	}
+}
+
+// ── table (column subset selected by StatisticsColumns) ──────────────
+
+func tableField(statCols ...string) template.Field {
+	return template.Field{
+		Key:               "items",
+		Type:              "table",
+		UseInStatistics:   true,
+		StatisticsColumns: statCols,
 		Options: []any{
 			map[string]any{"value": "name", "type": "string", "label": "Name"},
 			map[string]any{"value": "qty", "type": "number", "label": "Qty"},
 			map[string]any{"value": "when", "type": "date", "label": "When"},
 		},
-	}}
-	data := map[string]any{"items": []any{
+	}
+}
+
+func tableData() map[string]any {
+	return map[string]any{"items": []any{
 		[]any{"apple", float64(3), "2026-01-02"},
 		[]any{"pear", "5", "2026-01-03"},
 	}}
+}
 
-	rows := pickValues(fields, data)
+func TestPickValues_TableOnlySelectedColumns(t *testing.T) {
+	rows := pickValues([]template.Field{tableField("qty")}, tableData())
 
-	// Column 1 (qty) must be two numeric rows summing to 8.
+	// qty (col 1) indexed as two numeric rows summing to 8.
 	sum := 0.0
 	qtyRows := 0
 	for _, r := range rows {
 		if r.FieldKey == "items" && r.Col != nil && *r.Col == 1 {
 			qtyRows++
 			if r.ValueType != "number" {
-				t.Errorf("qty col value_type = %q, want number", r.ValueType)
+				t.Errorf("qty value_type = %q, want number", r.ValueType)
 			}
 			if r.Num != nil {
 				sum += *r.Num
 			}
 		}
 	}
-	if qtyRows != 2 {
-		t.Fatalf("qty rows = %d, want 2", qtyRows)
+	if qtyRows != 2 || sum != 8 {
+		t.Fatalf("qty rows=%d sum=%v, want 2 rows summing 8", qtyRows, sum)
 	}
-	if sum != 8 {
-		t.Errorf("qty sum = %v, want 8", sum)
+	// name (col 0) and when (col 2) were NOT selected: no rows.
+	if findValue(rows, "items", 0) != nil {
+		t.Error("unselected name column must not be indexed")
 	}
-
-	// Column 2 (when) must be date-typed with ISO text.
-	whenRow := findValue(rows, "items", 2)
-	if whenRow == nil || whenRow.ValueType != "date" {
-		t.Fatalf("when col row = %v, want date", whenRow)
+	if findValue(rows, "items", 2) != nil {
+		t.Error("unselected when column must not be indexed")
 	}
 }
 
-func TestPickValues_SkipsFreeTextAndTags(t *testing.T) {
+func TestPickValues_TableMultipleSelectedColumns(t *testing.T) {
+	rows := pickValues([]template.Field{tableField("qty", "when")}, tableData())
+	if findValue(rows, "items", 1) == nil {
+		t.Error("qty column should be indexed")
+	}
+	when := findValue(rows, "items", 2)
+	if when == nil || when.ValueType != "date" {
+		t.Fatalf("when col row = %v, want date", when)
+	}
+	if findValue(rows, "items", 0) != nil {
+		t.Error("name column was not selected; must not be indexed")
+	}
+}
+
+func TestPickValues_TableNoSelectedColumnsYieldsNothing(t *testing.T) {
+	// Flagged table but empty StatisticsColumns: nothing to index.
+	rows := pickValues([]template.Field{tableField()}, tableData())
+	if countFor(rows, "items") != 0 {
+		t.Errorf("table with no selected columns produced %d rows, want 0", countFor(rows, "items"))
+	}
+}
+
+func TestPickValues_TableUnknownColumnIgnored(t *testing.T) {
+	rows := pickValues([]template.Field{tableField("nope")}, tableData())
+	if countFor(rows, "items") != 0 {
+		t.Errorf("unknown selected column produced %d rows, want 0", countFor(rows, "items"))
+	}
+}
+
+func TestPickValues_TableUnflaggedSkipped(t *testing.T) {
+	f := tableField("qty")
+	f.UseInStatistics = false
+	rows := pickValues([]template.Field{f}, tableData())
+	if countFor(rows, "items") != 0 {
+		t.Errorf("unflagged table produced %d rows, want 0", countFor(rows, "items"))
+	}
+}
+
+func TestPickValues_TableNonMatrixDataIsSafe(t *testing.T) {
+	rows := pickValues([]template.Field{tableField("qty")}, map[string]any{"items": "garbage"})
+	if countFor(rows, "items") != 0 {
+		t.Errorf("non-matrix table data produced %d rows, want 0", countFor(rows, "items"))
+	}
+}
+
+// ── free-text types never index, even when flagged ───────────────────
+
+func TestPickValues_FreeTextTypesNeverIndexEvenWhenFlagged(t *testing.T) {
 	fields := []template.Field{
-		{Key: "notes", Type: "textarea"},
-		{Key: "title", Type: "text"},
-		{Key: "tags", Type: "tags"},
-		{Key: "gid", Type: "guid"},
+		{Key: "notes", Type: "textarea", UseInStatistics: true},
+		{Key: "title", Type: "text", UseInStatistics: true},
+		{Key: "gid", Type: "guid", UseInStatistics: true},
 	}
 	data := map[string]any{
-		"notes": "long body", "title": "hello",
-		"tags": []any{"x"}, "gid": "abc",
+		"notes": "long body", "title": "hello", "gid": "abc",
 	}
 	rows := pickValues(fields, data)
 	if len(rows) != 0 {
-		t.Errorf("expected no value rows for free-text/tags/guid, got %d: %+v", len(rows), rows)
+		t.Errorf("expected no rows for free-text/guid even when flagged, got %d: %+v", len(rows), rows)
+	}
+}
+
+func TestPickValues_TagsFanOut(t *testing.T) {
+	fields := []template.Field{{Key: "tags", Type: "tags", UseInStatistics: true}}
+	rows := pickValues(fields, map[string]any{"tags": []any{"go", "vue", ""}})
+	if got := countFor(rows, "tags"); got != 2 {
+		t.Fatalf("tags produced %d rows, want 2 (empty entry skipped)", got)
+	}
+	r := findValue(rows, "tags", -1)
+	if r == nil || r.ValueType != "text" {
+		t.Fatalf("tags row = %v, want text", r)
+	}
+}
+
+func TestPickValues_TagsUnflaggedSkipped(t *testing.T) {
+	fields := []template.Field{{Key: "tags", Type: "tags"}}
+	rows := pickValues(fields, map[string]any{"tags": []any{"go"}})
+	if len(rows) != 0 {
+		t.Errorf("unflagged tags produced %d rows, want 0", len(rows))
 	}
 }

@@ -80,11 +80,15 @@ func clearProperty(f *Field, attr string) {
 		f.Readonly = false
 	case attrFormat:
 		f.Format = ""
+	case attrUseInStatistics:
+		f.UseInStatistics = false
+		f.StatisticsColumns = nil
 	}
 }
 
 func normalizeField(f *Field) {
 	coerceDefault(f)
+	normalizeStatisticsColumns(f)
 	if f.Type == "textarea" {
 		canon := strings.ToLower(strings.TrimSpace(f.Format))
 		if !textareaFormats[canon] {
@@ -95,6 +99,52 @@ func normalizeField(f *Field) {
 	}
 	// All non-textarea types: format has no meaning, drop it.
 	f.Format = ""
+}
+
+// normalizeStatisticsColumns is the authoritative cleanup for a table
+// field's per-column statistics selection. It clears the list for any
+// non-table field or a field that isn't flagged use_in_statistics, then
+// dedupes the remainder and drops entries that don't name a real column
+// (matched against each option's `value`), preserving first-seen order.
+// The FieldEditModal applies the same constraints as a UX accelerator;
+// this pass is the source of truth, so manual YAML / imports / plugins
+// can't persist duplicate or dangling column keys.
+func normalizeStatisticsColumns(f *Field) {
+	if !f.UseInStatistics || f.Type != "table" {
+		f.StatisticsColumns = nil
+		return
+	}
+	if len(f.StatisticsColumns) == 0 {
+		f.StatisticsColumns = nil
+		return
+	}
+	valid := map[string]bool{}
+	for _, opt := range f.Options {
+		switch o := opt.(type) {
+		case map[string]any:
+			if v, _ := o["value"].(string); v != "" {
+				valid[v] = true
+			}
+		case string:
+			if o != "" {
+				valid[o] = true
+			}
+		}
+	}
+	seen := map[string]bool{}
+	kept := make([]string, 0, len(f.StatisticsColumns))
+	for _, c := range f.StatisticsColumns {
+		if !valid[c] || seen[c] {
+			continue
+		}
+		seen[c] = true
+		kept = append(kept, c)
+	}
+	if len(kept) == 0 {
+		f.StatisticsColumns = nil
+		return
+	}
+	f.StatisticsColumns = kept
 }
 
 // coerceDefault forces f.Default into the Go type the field's data

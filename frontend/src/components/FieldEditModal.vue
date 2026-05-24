@@ -89,7 +89,10 @@ watch(
   (open) => {
     if (!open) return;
     if (props.field) {
-      // Deep-copy so cancelling discards cleanly.
+      // Deep-copy so cancelling discards cleanly. Backend Normalize
+      // (template.normalizeStatisticsColumns) is the source of truth
+      // for deduping/validating statistics_columns; the per-row picker
+      // below only prevents creating duplicates as a UX accelerator.
       draft.value = JSON.parse(JSON.stringify(props.field));
     } else {
       draft.value = emptyDraft();
@@ -195,6 +198,74 @@ const optionRows = computed<OptionRow[]>({
     draft.value.options = rows;
   },
 });
+
+// Per-column statistics selection (table only). statistics_columns
+// stores the selected column `value` keys; the picker mirrors the
+// Options editor (rows added/removed with +/−). Every table column is
+// eligible - string columns included - so any column can feed a
+// distribution. Lists carry a single column, so the field-level toggle
+// covers them.
+interface StatColumn {
+  value: string;
+  label: string;
+}
+const eligibleStatColumns = computed<StatColumn[]>(() => {
+  if (draft.value?.type !== "table") return [];
+  const opts = draft.value.options ?? [];
+  if (!Array.isArray(opts)) return [];
+  return opts
+    .map((o) => {
+      if (o && typeof o === "object" && !Array.isArray(o)) {
+        const r = o as Record<string, unknown>;
+        const value = String(r.value ?? "");
+        return { value, label: String(r.label ?? value) };
+      }
+      const s = String(o);
+      return { value: s, label: s };
+    })
+    .filter((c) => c.value !== "");
+});
+
+const selectedStatColumns = computed<string[]>(() =>
+  Array.isArray(draft.value?.statistics_columns) ? draft.value!.statistics_columns! : [],
+);
+
+// Each column may be selected at most once. A row's dropdown offers its
+// own current value plus any column not already chosen by another row,
+// so duplicates can't be picked.
+function statColumnOptionsFor(idx: number) {
+  const selected = selectedStatColumns.value;
+  const own = selected[idx];
+  const usedElsewhere = new Set(selected.filter((_, i) => i !== idx));
+  return eligibleStatColumns.value
+    .filter((c) => c.value === own || !usedElsewhere.has(c.value))
+    .map((c) => ({ value: c.value, label: c.label }));
+}
+
+// + is offered only while there's still an unselected column.
+const canAddStatColumn = computed(
+  () => selectedStatColumns.value.length < eligibleStatColumns.value.length,
+);
+
+function setStatColumnAt(idx: number, value: string): void {
+  if (!draft.value) return;
+  const cur = selectedStatColumns.value.slice();
+  cur[idx] = value;
+  draft.value.statistics_columns = cur;
+}
+
+function removeStatColumnAt(idx: number): void {
+  if (!draft.value) return;
+  draft.value.statistics_columns = selectedStatColumns.value.filter((_, i) => i !== idx);
+}
+
+function addStatColumn(): void {
+  if (!draft.value) return;
+  const cur = selectedStatColumns.value;
+  const next = eligibleStatColumns.value.find((c) => !cur.includes(c.value));
+  if (!next) return; // every eligible column already selected
+  draft.value.statistics_columns = [...cur, next.value];
+}
 
 function submit() {
   if (!draft.value) return;
@@ -323,6 +394,17 @@ const dialogStyle = computed<Record<string, string>>(() => {
         </FormRow>
 
         <FormRow
+          v-if="showRow('use_in_statistics')"
+          :label="t('workspace.templates.field_edit.row.use_in_statistics')"
+        >
+          <SwitchField
+            v-model="draft.use_in_statistics"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
+        </FormRow>
+
+        <FormRow
           v-if="showRow('label')"
           :label="t('workspace.templates.field_edit.row.label')"
         >
@@ -356,6 +438,44 @@ const dialogStyle = computed<Record<string, string>>(() => {
           <p v-else class="muted small options-unavailable">
             {{ t('workspace.templates.field_edit.row.options_unavailable') }}
           </p>
+        </FormRow>
+
+        <FormRow
+          v-if="draft.type === 'table' && draft.use_in_statistics"
+          :label="t('workspace.templates.field_edit.row.statistics_columns')"
+        >
+          <p v-if="eligibleStatColumns.length === 0" class="muted small">
+            {{ t('workspace.templates.field_edit.row.statistics_columns_empty') }}
+          </p>
+          <div v-else class="options-editor">
+            <div class="options-rows">
+              <div
+                v-for="(colKey, i) in selectedStatColumns"
+                :key="i"
+                class="options-row"
+              >
+                <SelectField
+                  :model-value="colKey"
+                  :options="statColumnOptionsFor(i)"
+                  class="options-cell"
+                  @update:model-value="(v: string) => setStatColumnAt(i, v)"
+                />
+                <button
+                  type="button"
+                  class="btn-ghost-icon"
+                  :title="t('workspace.templates.options.remove_choice')"
+                  @click="removeStatColumnAt(i)"
+                >−</button>
+              </div>
+            </div>
+            <button
+              v-if="canAddStatColumn"
+              type="button"
+              class="btn-ghost-block"
+              :title="t('workspace.templates.field_edit.row.statistics_columns_add')"
+              @click="addStatColumn"
+            >+</button>
+          </div>
         </FormRow>
       </FormSection>
 

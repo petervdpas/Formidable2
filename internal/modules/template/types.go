@@ -145,6 +145,14 @@ type Field struct {
 	TwoColumn      bool    `yaml:"two_column,omitempty" json:"two_column"`
 	Collapsible    *bool   `yaml:"collapsible,omitempty" json:"collapsible,omitempty"`
 	Readonly       bool    `yaml:"readonly,omitempty" json:"readonly"`
+	// UseInStatistics opts a field into the statistics index. Default
+	// false: only flagged fields are materialised into form_values, so
+	// the index stays lean and the author declares what's meaningful.
+	// For table fields it gates the field as a whole; StatisticsColumns
+	// then enumerates which columns (by their option `value` key) get
+	// indexed. Lists carry a single column, so the flag alone suffices.
+	UseInStatistics   bool     `yaml:"use_in_statistics,omitempty" json:"use_in_statistics"`
+	StatisticsColumns []string `yaml:"statistics_columns,omitempty" json:"statistics_columns,omitempty"`
 	Default        any     `yaml:"default,omitempty" json:"default"`
 	Options        []any   `yaml:"options,omitempty" json:"options"`
 	PrimaryKey     bool    `yaml:"primary_key,omitempty" json:"primary_key,omitempty"`

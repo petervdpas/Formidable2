@@ -20,15 +20,22 @@ var dateLayouts = []string{
 }
 
 // pickValues projects a (template fields, form data) pair into the
-// aggregatable rows stored in form_values. Only field types that make
-// chart sense are materialised: numeric (number, range), date,
-// boolean, single-choice (dropdown, radio), multi-choice (multioption,
-// one row per selection), and table columns (one row per cell, typed
-// from the column's declared `type`). Free text, tags (own table),
-// guid, api and image fields are skipped so the index stays lean.
+// aggregatable rows stored in form_values. Only fields the author
+// flagged with use_in_statistics are materialised, and only types that
+// make chart sense: numeric (number, range), date, boolean,
+// single-choice (dropdown, radio), multi-value (multioption / list /
+// tags, one row per entry), and selected table columns (one row per
+// cell, typed from the column's declared `type`). Free text, guid, api
+// and image fields have no chartable shape and are skipped.
 func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 	var out []FormValueRow
 	for _, fld := range fields {
+		// Opt-in: only fields the author flagged are materialised, so
+		// the index stays lean and intentional. Facets are indexed on
+		// their own path and are always included regardless of this.
+		if !fld.UseInStatistics {
+			continue
+		}
 		raw, ok := data[fld.Key]
 		if !ok {
 			continue
@@ -46,7 +53,9 @@ func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 			if s := asText(raw); s != "" {
 				out = append(out, FormValueRow{FieldKey: fld.Key, ValueType: "text", Text: s})
 			}
-		case "multioption":
+		case "multioption", "list", "tags":
+			// Multi-value categorical fields (multi-option, list items,
+			// free tags) fan out one text row per non-empty entry.
 			for _, item := range asSlice(raw) {
 				if s := asText(item); s != "" {
 					out = append(out, FormValueRow{FieldKey: fld.Key, ValueType: "text", Text: s})
@@ -115,11 +124,21 @@ func tableRows(fld template.Field, raw any) []FormValueRow {
 	if len(matrix) == 0 {
 		return nil
 	}
+	// Only the columns the author enumerated in StatisticsColumns are
+	// indexed; an empty set means the table is flagged but no column
+	// was selected, so nothing is materialised.
+	enabled := enabledTableCols(fld.Options, fld.StatisticsColumns)
+	if len(enabled) == 0 {
+		return nil
+	}
 	colTypes := tableColumnTypes(fld.Options)
 	var out []FormValueRow
 	for _, rowAny := range matrix {
 		cells := asSlice(rowAny)
 		for i, cell := range cells {
+			if !enabled[i] {
+				continue
+			}
 			col := i
 			colType := "string"
 			if i < len(colTypes) {
@@ -140,6 +159,31 @@ func tableRows(fld template.Field, raw any) []FormValueRow {
 					out = append(out, FormValueRow{FieldKey: fld.Key, Col: &c, ValueType: "text", Text: s})
 				}
 			}
+		}
+	}
+	return out
+}
+
+// enabledTableCols maps the author-selected column keys
+// (Field.StatisticsColumns, by each option's `value`) to the positional
+// column indices the index addresses. A selected key that matches no
+// column is ignored; an empty selection yields an empty set.
+func enabledTableCols(options []any, statColumns []string) map[int]bool {
+	if len(statColumns) == 0 {
+		return nil
+	}
+	want := make(map[string]bool, len(statColumns))
+	for _, k := range statColumns {
+		want[k] = true
+	}
+	out := map[int]bool{}
+	for i, opt := range options {
+		m, ok := opt.(map[string]any)
+		if !ok {
+			continue
+		}
+		if v, _ := m["value"].(string); v != "" && want[v] {
+			out[i] = true
 		}
 	}
 	return out

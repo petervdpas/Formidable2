@@ -8,19 +8,20 @@ package template
 // field_abilities.go gets the new bool set explicitly.
 
 const (
-	attrKey            = "key"
-	attrType           = "type"
-	attrLabel          = "label"
-	attrDescription    = "description"
-	attrDefault        = "default"
-	attrOptions        = "options"
-	attrSummaryField   = "summary_field"
-	attrPrimaryKey     = "primary_key"
-	attrExpressionItem = "expression_item"
-	attrTwoColumn      = "two_column"
-	attrCollapsible    = "collapsible"
-	attrReadonly       = "readonly"
-	attrFormat         = "format"
+	attrKey             = "key"
+	attrType            = "type"
+	attrLabel           = "label"
+	attrDescription     = "description"
+	attrDefault         = "default"
+	attrOptions         = "options"
+	attrSummaryField    = "summary_field"
+	attrPrimaryKey      = "primary_key"
+	attrExpressionItem  = "expression_item"
+	attrTwoColumn       = "two_column"
+	attrCollapsible     = "collapsible"
+	attrReadonly        = "readonly"
+	attrFormat          = "format"
+	attrUseInStatistics = "use_in_statistics"
 )
 
 // Abilities is the per-type ability vector. Each bool gates a single
@@ -29,19 +30,20 @@ const (
 // save); false = disabled (row hidden, Normalize strips, validator
 // flags any non-zero).
 type Abilities struct {
-	Key            bool `json:"key"`
-	Type           bool `json:"type"`
-	Label          bool `json:"label"`
-	Description    bool `json:"description"`
-	Default        bool `json:"default"`
-	Options        bool `json:"options"`
-	SummaryField   bool `json:"summary_field"`
-	PrimaryKey     bool `json:"primary_key"`
-	ExpressionItem bool `json:"expression_item"`
-	TwoColumn      bool `json:"two_column"`
-	Collapsible    bool `json:"collapsible"`
-	Readonly       bool `json:"readonly"`
-	Format         bool `json:"format"`
+	Key             bool `json:"key"`
+	Type            bool `json:"type"`
+	Label           bool `json:"label"`
+	Description     bool `json:"description"`
+	Default         bool `json:"default"`
+	Options         bool `json:"options"`
+	SummaryField    bool `json:"summary_field"`
+	PrimaryKey      bool `json:"primary_key"`
+	ExpressionItem  bool `json:"expression_item"`
+	TwoColumn       bool `json:"two_column"`
+	Collapsible     bool `json:"collapsible"`
+	Readonly        bool `json:"readonly"`
+	Format          bool `json:"format"`
+	UseInStatistics bool `json:"use_in_statistics"`
 }
 
 // FieldDescriptor is the per-type record. MetaOnly flags marker types
@@ -84,7 +86,7 @@ func AllFieldTypes() []FieldDescriptor {
 var allEnforcedAttrs = []string{
 	attrLabel, attrDescription, attrDefault, attrOptions, attrSummaryField,
 	attrPrimaryKey, attrExpressionItem, attrTwoColumn, attrCollapsible,
-	attrReadonly, attrFormat,
+	attrReadonly, attrFormat, attrUseInStatistics,
 }
 
 // abilityFor returns the Abilities bool for a given attr name.
@@ -118,6 +120,8 @@ func (a Abilities) abilityFor(attr string) bool {
 		return a.Readonly
 	case attrFormat:
 		return a.Format
+	case attrUseInStatistics:
+		return a.UseInStatistics
 	}
 	return true
 }
@@ -170,6 +174,8 @@ func propertyIsSet(f Field, attr string) bool {
 		return f.Readonly
 	case attrFormat:
 		return f.Format != ""
+	case attrUseInStatistics:
+		return f.UseInStatistics
 	}
 	return false
 }

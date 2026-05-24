@@ -62,6 +62,7 @@ export class Abilities {
     "collapsible": boolean;
     "readonly": boolean;
     "format": boolean;
+    "use_in_statistics": boolean;
 
     /** Creates a new Abilities instance. */
     constructor($$source: Partial<Abilities> = {}) {
@@ -103,6 +104,9 @@ export class Abilities {
         }
         if (!("format" in $$source)) {
             this["format"] = false;
+        }
+        if (!("use_in_statistics" in $$source)) {
+            this["use_in_statistics"] = false;
         }
 
         Object.assign(this, $$source);
@@ -362,6 +366,17 @@ export class Field {
     "two_column": boolean;
     "collapsible"?: boolean | null;
     "readonly": boolean;
+
+    /**
+     * UseInStatistics opts a field into the statistics index. Default
+     * false: only flagged fields are materialised into form_values, so
+     * the index stays lean and the author declares what's meaningful.
+     * For table fields it gates the field as a whole; StatisticsColumns
+     * then enumerates which columns (by their option `value` key) get
+     * indexed. Lists carry a single column, so the flag alone suffices.
+     */
+    "use_in_statistics": boolean;
+    "statistics_columns"?: string[];
     "default": any;
     "options": any[];
     "primary_key"?: boolean;
@@ -408,6 +423,9 @@ export class Field {
         if (!("readonly" in $$source)) {
             this["readonly"] = false;
         }
+        if (!("use_in_statistics" in $$source)) {
+            this["use_in_statistics"] = false;
+        }
         if (!("default" in $$source)) {
             this["default"] = null;
         }
@@ -422,14 +440,18 @@ export class Field {
      * Creates a new Field instance from a string or object.
      */
     static createFrom($$source: any = {}): Field {
-        const $$createField12_0 = $$createType7;
-        const $$createField16_0 = $$createType9;
+        const $$createField12_0 = $$createType4;
+        const $$createField14_0 = $$createType7;
+        const $$createField18_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("statistics_columns" in $$parsedSource) {
+            $$parsedSource["statistics_columns"] = $$createField12_0($$parsedSource["statistics_columns"]);
+        }
         if ("options" in $$parsedSource) {
-            $$parsedSource["options"] = $$createField12_0($$parsedSource["options"]);
+            $$parsedSource["options"] = $$createField14_0($$parsedSource["options"]);
         }
         if ("map" in $$parsedSource) {
-            $$parsedSource["map"] = $$createField16_0($$parsedSource["map"]);
+            $$parsedSource["map"] = $$createField18_0($$parsedSource["map"]);
         }
         return new Field($$parsedSource as Partial<Field>);
     }
