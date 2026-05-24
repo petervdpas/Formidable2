@@ -146,7 +146,7 @@
 
 .stat-heatmap {
     display: grid;
-    grid-template-columns: max-content repeat(var(--heatmap-cols, 1), minmax(2.5rem, 1fr));
+    grid-template-columns: max-content repeat(var(--heatmap-cols, 1), minmax(1.75rem, 1fr));
     gap: 2px;
     font-size: 0.8rem;
     overflow-x: auto;
@@ -156,17 +156,29 @@
     color: var(--color-text-muted, #888);
     padding: var(--space-1) var(--space-2);
     white-space: nowrap;
+    align-self: end;
 }
+/* Column headers run vertically so long labels (e.g. procedure names)
+   don't overlap; full text stays in the title tooltip. */
 .stat-heatmap-col {
     font-weight: 600;
-    text-align: center;
-    padding: var(--space-1);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
+    max-height: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: var(--space-1) 0;
+    justify-self: center;
     align-self: end;
 }
 .stat-heatmap-rowlabel {
     font-weight: 600;
     padding: var(--space-1) var(--space-2);
     white-space: nowrap;
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .stat-heatmap-cell {
     text-align: center;

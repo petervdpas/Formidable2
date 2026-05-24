@@ -42,9 +42,14 @@ const view = computed(() => {
 <template>
   <div v-if="view" class="stat-heatmap" :style="{ '--heatmap-cols': view.cols }">
     <div class="stat-heatmap-corner">{{ view.rowSource }} \ {{ view.colSource }}</div>
-    <div v-for="(c, ci) in view.colLabels" :key="`c${ci}`" class="stat-heatmap-col">{{ c }}</div>
+    <div
+      v-for="(c, ci) in view.colLabels"
+      :key="`c${ci}`"
+      class="stat-heatmap-col"
+      :title="c"
+    >{{ c }}</div>
     <template v-for="(row, ri) in view.cells" :key="`r${ri}`">
-      <div class="stat-heatmap-rowlabel">{{ view.rowLabels[ri] }}</div>
+      <div class="stat-heatmap-rowlabel" :title="view.rowLabels[ri]">{{ view.rowLabels[ri] }}</div>
       <div
         v-for="(cell, ci) in row"
         :key="`r${ri}c${ci}`"
