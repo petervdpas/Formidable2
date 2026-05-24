@@ -23,6 +23,7 @@
   "workspace.cleanup.kind.extra_field": "Extra field",
   "workspace.cleanup.kind.type_mismatch": "Type mismatch",
   "workspace.cleanup.kind.bad_date_format": "Bad date format",
+  "workspace.cleanup.kind.date_anomaly": "Date anomaly (fix by hand)",
   "workspace.cleanup.kind.meta_missing": "Meta missing",
   "workspace.cleanup.kind.meta_bad_format": "Meta bad format",
   "workspace.cleanup.kind.unreadable": "Unreadable",

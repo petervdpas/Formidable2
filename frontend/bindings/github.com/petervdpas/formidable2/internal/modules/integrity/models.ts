@@ -283,6 +283,22 @@ export class Issue {
     "path"?: string;
     "detail"?: string;
 
+    /**
+     * Value is the offending value as a literal string, surfaced in the
+     * report so the user can see exactly what needs fixing (especially
+     * for date anomalies they must resolve by hand). Empty when there's
+     * no single meaningful value (e.g. a missing field).
+     */
+    "value"?: string;
+
+    /**
+     * Suggest is an optional resolved value the fixer should write
+     * instead of re-deriving one. Set for table date cells whose column
+     * format was inferred: it carries the conformant ISO date so Coerce
+     * is deterministic. Empty for issues the fixer resolves on its own.
+     */
+    "suggest"?: string;
+
     /** Creates a new Issue instance. */
     constructor($$source: Partial<Issue> = {}) {
         if (!("kind" in $$source)) {
@@ -336,9 +352,22 @@ export enum IssueKind {
     /**
      * IssueBadDateFormat - value is a string but doesn't parse as
      * "YYYY-MM-DD". Distinct from IssueTypeMismatch so the UI can
-     * offer a date-specific quick-fix.
+     * offer a date-specific quick-fix. For table date columns the
+     * analyzer only emits this for values that match the column's
+     * inferred dominant format; the resolved ISO value rides along in
+     * Suggest so the fixer converts deterministically (no re-guessing).
      */
     IssueBadDateFormat = "bad_date_format",
+
+    /**
+     * IssueDateAnomaly - a date value inside a table date column that
+     * doesn't fit the column's inferred dominant format (different
+     * separator, contradicts the day/month order, unparseable, or the
+     * column had no decisive evidence so the format is undecidable).
+     * There's no safe automatic conversion: the doctor surfaces it for
+     * the user to fix by hand. UI offers Clear / Skip, not Coerce.
+     */
+    IssueDateAnomaly = "date_anomaly",
 
     /**
      * IssueMetaMissing - a required meta key is empty.

@@ -177,15 +177,26 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		return setAtPath(draft.Data, iss.Path, defaultForFieldType(f.Type))
 
 	case FixCoerce:
+		// date_anomaly has no safe automatic conversion - the value
+		// didn't fit the column's inferred format. Leave it for a manual
+		// edit (or Clear); never guess here.
+		if iss.Kind == IssueDateAnomaly {
+			return false, "date anomaly: fix by hand or Clear", nil
+		}
 		// bad_date_format is always a date - including inside a table
 		// cell, whose leaf is an array index with no lookupField-able
-		// field. Route it straight through date coercion via the leaf
-		// accessor so top-level date fields and table date cells share
-		// one code path.
+		// field. Route it through the leaf accessor so top-level date
+		// fields and table date cells share one code path. Table cells
+		// carry the analyzer's inferred ISO in Suggest (deterministic);
+		// top-level fields fall back to blind layout coercion.
 		if iss.Kind == IssueBadDateFormat {
 			get, set, err := leafAccess(draft.Data, iss.Path)
 			if err != nil {
 				return false, fmt.Sprintf("walk %q: %v", iss.Path, err), nil
+			}
+			if iss.Suggest != "" {
+				set(iss.Suggest)
+				return true, "", nil
 			}
 			coerced, ok := coerceForFieldType("date", get())
 			if !ok {
@@ -222,10 +233,10 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		})
 
 	case FixClear:
-		// A bad date clears to an empty string whether it's a top-level
-		// field or a table cell; the array-index leaf accessor handles
-		// both. defaultForFieldType("date") is also "".
-		if iss.Kind == IssueBadDateFormat {
+		// A bad or anomalous date clears to an empty string whether it's
+		// a top-level field or a table cell; the array-index leaf
+		// accessor handles both. defaultForFieldType("date") is also "".
+		if iss.Kind == IssueBadDateFormat || iss.Kind == IssueDateAnomaly {
 			_, set, err := leafAccess(draft.Data, iss.Path)
 			if err != nil {
 				return false, fmt.Sprintf("walk %q: %v", iss.Path, err), nil

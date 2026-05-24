@@ -34,8 +34,19 @@ const (
 
 	// IssueBadDateFormat - value is a string but doesn't parse as
 	// "YYYY-MM-DD". Distinct from IssueTypeMismatch so the UI can
-	// offer a date-specific quick-fix.
+	// offer a date-specific quick-fix. For table date columns the
+	// analyzer only emits this for values that match the column's
+	// inferred dominant format; the resolved ISO value rides along in
+	// Suggest so the fixer converts deterministically (no re-guessing).
 	IssueBadDateFormat IssueKind = "bad_date_format"
+
+	// IssueDateAnomaly - a date value inside a table date column that
+	// doesn't fit the column's inferred dominant format (different
+	// separator, contradicts the day/month order, unparseable, or the
+	// column had no decisive evidence so the format is undecidable).
+	// There's no safe automatic conversion: the doctor surfaces it for
+	// the user to fix by hand. UI offers Clear / Skip, not Coerce.
+	IssueDateAnomaly IssueKind = "date_anomaly"
 
 	// IssueMetaMissing - a required meta key is empty.
 	IssueMetaMissing IssueKind = "meta_missing"
@@ -56,6 +67,16 @@ type Issue struct {
 	Kind   IssueKind `json:"kind"`
 	Path   string    `json:"path,omitempty"`
 	Detail string    `json:"detail,omitempty"`
+	// Value is the offending value as a literal string, surfaced in the
+	// report so the user can see exactly what needs fixing (especially
+	// for date anomalies they must resolve by hand). Empty when there's
+	// no single meaningful value (e.g. a missing field).
+	Value string `json:"value,omitempty"`
+	// Suggest is an optional resolved value the fixer should write
+	// instead of re-deriving one. Set for table date cells whose column
+	// format was inferred: it carries the conformant ISO date so Coerce
+	// is deterministic. Empty for issues the fixer resolves on its own.
+	Suggest string `json:"suggest,omitempty"`
 }
 
 // FormReport groups every issue found in one form. Filename is the

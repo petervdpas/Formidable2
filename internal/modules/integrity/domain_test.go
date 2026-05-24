@@ -140,10 +140,28 @@ func tableForm() *storage.Form {
 		Data: map[string]any{
 			"title": "hello",
 			"history": []any{
-				[]any{"10-11-2025", "10-11-2025", float64(3), true},
+				// Date column (col 1) is clean ISO so the number/bool
+				// tests below aren't perturbed by date inference.
+				[]any{"10-11-2025", "2025-11-10", float64(3), true},
 				[]any{"row two", "2025-01-01", float64(5), false},
 			},
 		},
+	}
+}
+
+// dateTableForm builds a tplWithTable form whose date column (col 1)
+// holds the given values, one per row. Used by the date-inference tests.
+func dateTableForm(values ...string) *storage.Form {
+	rows := make([]any, len(values))
+	for i, v := range values {
+		rows[i] = []any{"lbl", v}
+	}
+	return &storage.Form{
+		Meta: storage.FormMeta{
+			Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+		},
+		Data: map[string]any{"title": "hi", "history": rows},
 	}
 }
 
@@ -274,21 +292,74 @@ func TestAnalyze_DetectsBadDateFormat(t *testing.T) {
 	findIssue(t, r, "a.meta.json", IssueBadDateFormat, "due")
 }
 
-func TestAnalyze_DetectsBadDateInTableColumn(t *testing.T) {
-	f := tableForm()
+func TestAnalyze_InfersColumnFormatAndFlagsConformant(t *testing.T) {
+	// "25-12-2025" is decisive DD-MM (no month 25), so the column format
+	// is DD-MM. "10-11-2025" conforms and is flagged bad_date_format with
+	// the inferred ISO suggestion; the ISO row is clean.
+	f := dateTableForm("10-11-2025", "25-12-2025", "2025-01-01")
 	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("tbl.yaml")
-	// Row 0 col 1 holds "10-11-2025" (DD-MM-YYYY); row 1 is already ISO.
-	findIssue(t, r, "a.meta.json", IssueBadDateFormat, "history[0][1]")
+
+	iss := findIssue(t, r, "a.meta.json", IssueBadDateFormat, "history[0][1]")
+	if iss.Suggest != "2025-11-10" {
+		t.Errorf("Suggest=%q; want 2025-11-10 (DD-MM inferred)", iss.Suggest)
+	}
+	findIssue(t, r, "a.meta.json", IssueBadDateFormat, "history[1][1]") // 25-12-2025
 }
 
-func TestAnalyze_IgnoresGoodDateAndStringColumnsInTable(t *testing.T) {
-	f := tableForm()
-	// Make the only bad date good, leaving the other columns valid.
-	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10"
+func TestAnalyze_FlagsNonConformingValueAsAnomaly(t *testing.T) {
+	// Column format is DD-MM (from 25-12-2025); the slash value uses a
+	// different separator, so it's an anomaly to fix by hand.
+	f := dateTableForm("25-12-2025", "11/06/2025")
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+
+	findIssue(t, r, "a.meta.json", IssueBadDateFormat, "history[0][1]")
+	anom := findIssue(t, r, "a.meta.json", IssueDateAnomaly, "history[1][1]")
+	if anom.Value != "11/06/2025" {
+		t.Errorf("anomaly Value=%q; want the raw string 11/06/2025", anom.Value)
+	}
+}
+
+func TestAnalyze_UndecidableColumnFlagsAllAsAnomaly(t *testing.T) {
+	// Every value is ambiguous (both parts <= 12), so DD/MM vs MM/DD
+	// can't be decided. The doctor refuses to guess.
+	f := dateTableForm("03/04/2025", "05/06/2025")
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+
+	findIssue(t, r, "a.meta.json", IssueDateAnomaly, "history[0][1]")
+	findIssue(t, r, "a.meta.json", IssueDateAnomaly, "history[1][1]")
+}
+
+func TestAnalyze_IgnoresIsoAndStringColumnsInTable(t *testing.T) {
+	f := dateTableForm("2025-11-10", "2025-01-01") // all ISO
 	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("tbl.yaml")
 	mustZeroIssues(t, r)
+}
+
+func TestAnalyze_ConflictingDecisiveVotes_MinorityIsAnomaly(t *testing.T) {
+	// One value is decisively DD-MM (25-12), another decisively MM-DD
+	// (12-25). DD-MM wins the tie (stable order), so 25-12 conforms and
+	// 12-25 - which can't be read as DD-MM - is the anomaly.
+	f := dateTableForm("25-12-2025", "12-25-2025")
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+
+	iss := findIssue(t, r, "a.meta.json", IssueBadDateFormat, "history[0][1]")
+	if iss.Suggest != "2025-12-25" {
+		t.Errorf("Suggest=%q; want 2025-12-25", iss.Suggest)
+	}
+	findIssue(t, r, "a.meta.json", IssueDateAnomaly, "history[1][1]")
+}
+
+func TestAnalyze_NonStringDateCellIsAnomaly(t *testing.T) {
+	f := dateTableForm("25-12-2025") // decisive DD-MM so column is decided
+	f.Data["history"].([]any)[0].([]any)[1] = float64(20251110)
+	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+	r, _ := m.AnalyzeTemplate("tbl.yaml")
+	findIssue(t, r, "a.meta.json", IssueDateAnomaly, "history[0][1]")
 }
 
 func TestAnalyze_DetectsBadNumberInTableColumn(t *testing.T) {

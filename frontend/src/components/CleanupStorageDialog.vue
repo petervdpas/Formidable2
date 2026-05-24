@@ -104,6 +104,14 @@ function strategiesFor(kind: string): { id: string; labelKey: string }[] {
         { id: "clear",  labelKey: "workspace.cleanup.strategy.clear" },
         { id: "skip",   labelKey: "workspace.cleanup.strategy.skip" },
       ];
+    case IssueKind.IssueDateAnomaly:
+      // No safe automatic conversion - the value didn't fit the column's
+      // inferred format. Default to skip (leave it for a manual fix);
+      // Clear is the opt-in destructive alternative. Never coerce.
+      return [
+        { id: "skip",  labelKey: "workspace.cleanup.strategy.skip" },
+        { id: "clear", labelKey: "workspace.cleanup.strategy.clear" },
+      ];
     case IssueKind.IssueMetaMissing:
       return [
         { id: "mint_uuid", labelKey: "workspace.cleanup.strategy.mint_uuid" },
@@ -232,6 +240,7 @@ function issueKindLabel(kind: string): string {
     case IssueKind.IssueExtraField:      return t("workspace.cleanup.kind.extra_field");
     case IssueKind.IssueTypeMismatch:    return t("workspace.cleanup.kind.type_mismatch");
     case IssueKind.IssueBadDateFormat:   return t("workspace.cleanup.kind.bad_date_format");
+    case IssueKind.IssueDateAnomaly:     return t("workspace.cleanup.kind.date_anomaly");
     case IssueKind.IssueMetaMissing:     return t("workspace.cleanup.kind.meta_missing");
     case IssueKind.IssueMetaBadFormat:   return t("workspace.cleanup.kind.meta_bad_format");
     case IssueKind.IssueUnreadable:      return t("workspace.cleanup.kind.unreadable");
@@ -245,6 +254,7 @@ function issueKindClass(kind: string): string {
       return "danger";
     case IssueKind.IssueTypeMismatch:
     case IssueKind.IssueBadDateFormat:
+    case IssueKind.IssueDateAnomaly:
     case IssueKind.IssueMetaBadFormat:
     case IssueKind.IssueMetaMissing:
       return "warn";
@@ -364,6 +374,8 @@ function issueKindClass(kind: string): string {
           >
             <span class="cleanup-issue-kind">{{ issueKindLabel(iss.kind) }}</span>
             <code v-if="iss.path" class="cleanup-issue-path">{{ iss.path }}</code>
+            <code v-if="iss.value" class="cleanup-issue-value">{{ iss.value }}</code>
+            <span v-if="iss.suggest" class="cleanup-issue-suggest muted small">&rarr; {{ iss.suggest }}</span>
             <span v-if="iss.detail" class="cleanup-issue-detail muted small">{{ iss.detail }}</span>
           </li>
         </ul>

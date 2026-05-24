@@ -23,6 +23,7 @@
   "workspace.cleanup.kind.extra_field": "Onbekend veld",
   "workspace.cleanup.kind.type_mismatch": "Typeconflict",
   "workspace.cleanup.kind.bad_date_format": "Foutief datumformaat",
+  "workspace.cleanup.kind.date_anomaly": "Datumafwijking (handmatig herstellen)",
   "workspace.cleanup.kind.meta_missing": "Meta ontbreekt",
   "workspace.cleanup.kind.meta_bad_format": "Meta foutief formaat",
   "workspace.cleanup.kind.unreadable": "Onleesbaar",

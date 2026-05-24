@@ -239,39 +239,59 @@ func TestFix_Clear_BadDate(t *testing.T) {
 	}
 }
 
-func TestFix_Coerce_BadDateInTableCell(t *testing.T) {
-	f := tableForm() // row 0 col 1 = "10-11-2025" (DD-MM-YYYY)
+func TestFix_Coerce_TableDateUsesInferredFormat(t *testing.T) {
+	// 25-12-2025 pins the column to DD-MM, so the ambiguous 10-11-2025
+	// resolves to 2025-11-10 (Nov 10), NOT 2025-10-11. This is the whole
+	// point of inference over blind per-value guessing.
+	f := dateTableForm("10-11-2025", "25-12-2025")
 	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
 
 	res := h.runPlan(FixPlanItem{Kind: IssueBadDateFormat, Strategy: FixCoerce})
 
-	if res.Applied != 1 {
-		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
+	if res.Applied != 2 {
+		t.Fatalf("Applied=%d; want 2: %+v", res.Applied, res)
 	}
 	rows := h.loadSaved("a.meta.json").Data["history"].([]any)
-	got := rows[0].([]any)[1]
-	if got != "2025-11-10" {
-		t.Errorf("history[0][1]=%v; want ISO 2025-11-10", got)
+	if got := rows[0].([]any)[1]; got != "2025-11-10" {
+		t.Errorf("history[0][1]=%v; want 2025-11-10 (DD-MM inferred)", got)
 	}
-	// The string column (date-looking text) is left verbatim.
-	if label := rows[0].([]any)[0]; label != "10-11-2025" {
-		t.Errorf("string column mutated: %v", label)
+	if got := rows[1].([]any)[1]; got != "2025-12-25" {
+		t.Errorf("history[1][1]=%v; want 2025-12-25", got)
 	}
 }
 
-func TestFix_Clear_BadDateInTableCell(t *testing.T) {
-	f := tableForm()
-	f.Data["history"].([]any)[0].([]any)[1] = "wibble"
+func TestFix_DateAnomaly_CoerceIsSkipped(t *testing.T) {
+	// DD-MM column with a slash outlier: the outlier is an anomaly and
+	// must NOT be coerced (left for a manual fix).
+	f := dateTableForm("25-12-2025", "11/06/2025")
 	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
 
-	res := h.runPlan(FixPlanItem{Kind: IssueBadDateFormat, Strategy: FixClear})
+	h.runPlan(
+		FixPlanItem{Kind: IssueBadDateFormat, Strategy: FixCoerce},
+		FixPlanItem{Kind: IssueDateAnomaly, Strategy: FixCoerce},
+	)
+
+	rows := h.loadSaved("a.meta.json").Data["history"].([]any)
+	if got := rows[0].([]any)[1]; got != "2025-12-25" {
+		t.Errorf("conformant cell history[0][1]=%v; want 2025-12-25", got)
+	}
+	if got := rows[1].([]any)[1]; got != "11/06/2025" {
+		t.Errorf("anomaly history[1][1]=%v; want untouched 11/06/2025", got)
+	}
+}
+
+func TestFix_DateAnomaly_ClearEmpties(t *testing.T) {
+	f := dateTableForm("25-12-2025", "11/06/2025")
+	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
+
+	res := h.runPlan(FixPlanItem{Kind: IssueDateAnomaly, Strategy: FixClear})
 
 	if res.Applied != 1 {
 		t.Fatalf("Applied=%d; want 1: %+v", res.Applied, res)
 	}
-	got := h.loadSaved("a.meta.json").Data["history"].([]any)[0].([]any)[1]
+	got := h.loadSaved("a.meta.json").Data["history"].([]any)[1].([]any)[1]
 	if got != "" {
-		t.Errorf("history[0][1]=%v; want empty string", got)
+		t.Errorf("history[1][1]=%v; want empty string", got)
 	}
 }
 

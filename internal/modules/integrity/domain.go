@@ -294,33 +294,115 @@ func checkField(f template.Field, data map[string]any, pathPrefix string) []Issu
 // (the same positional mapping FormFieldTable uses). Cells are addressed
 // positionally, so issue paths are "tableKey[row][col]" - the fixer
 // reaches them the same way it reaches a top-level field.
+//
+// Date columns are special: rather than guess per-value, the doctor
+// infers the column's dominant entry format (see checkDateColumn) and
+// only auto-flags values that conform to it, referring the rest as
+// anomalies. Number / bool columns are checked per-cell.
 func checkTableCells(f template.Field, v any, path string) []Issue {
 	rows, ok := v.([]any)
 	if !ok {
 		return nil // non-array shape is already flagged by checkValueType
 	}
 	var out []Issue
-	for ri, raw := range rows {
-		cells, ok := raw.([]any)
-		if !ok {
+	for ci := 0; ci < len(f.Options); ci++ {
+		colType := columnType(f.Options[ci])
+		if colType == "date" {
+			out = append(out, checkDateColumn(rows, ci, path)...)
 			continue
 		}
-		for ci, cell := range cells {
-			if ci >= len(f.Options) {
+		for ri, raw := range rows {
+			cells, ok := raw.([]any)
+			if !ok || ci >= len(cells) {
 				continue
 			}
 			cellPath := fmt.Sprintf("%s[%d][%d]", path, ri, ci)
-			out = append(out, checkCell(columnType(f.Options[ci]), cell, cellPath)...)
+			out = append(out, checkCell(colType, cells[ci], cellPath)...)
 		}
 	}
 	return out
 }
 
-// checkCell validates one table cell against its column type. Empty
-// cells (nil or "") are always accepted - short rows are padded with ""
-// and a freshly added row carries type defaults, so neither should
-// surface as drift. date / number / bool are checked; string and
-// dropdown columns are tolerant (the renderer string-coerces on read).
+// checkDateColumn diagnoses one date column across a table's rows. It
+// infers the column's dominant entry format from the values that pin it
+// down unambiguously (inferColumnDateLayout), then classifies each cell:
+//   - empty or already ISO YYYY-MM-DD: fine, no issue.
+//   - conforms to the inferred format: bad_date_format, with the
+//     resolved ISO carried in Suggest so the fixer converts it directly.
+//   - non-string, or doesn't conform, or the column was undecidable:
+//     date_anomaly, left for the user to fix by hand.
+func checkDateColumn(rows []any, ci int, path string) []Issue {
+	var values []string
+	for _, raw := range rows {
+		cells, ok := raw.([]any)
+		if !ok || ci >= len(cells) {
+			continue
+		}
+		if s, ok := cells[ci].(string); ok {
+			values = append(values, s)
+		}
+	}
+	layout, decided := inferColumnDateLayout(values)
+
+	var out []Issue
+	for ri, raw := range rows {
+		cells, ok := raw.([]any)
+		if !ok || ci >= len(cells) {
+			continue
+		}
+		cell := cells[ci]
+		if cell == nil {
+			continue
+		}
+		cellPath := fmt.Sprintf("%s[%d][%d]", path, ri, ci)
+		s, ok := cell.(string)
+		if !ok {
+			out = append(out, Issue{
+				Kind:   IssueDateAnomaly,
+				Path:   cellPath,
+				Detail: fmt.Sprintf("expected a date string, got %T", cell),
+				Value:  fmt.Sprintf("%v", cell),
+			})
+			continue
+		}
+		if s == "" || isISODate(s) {
+			continue
+		}
+		if !decided {
+			out = append(out, Issue{
+				Kind:   IssueDateAnomaly,
+				Path:   cellPath,
+				Detail: "column date format undecidable",
+				Value:  s,
+			})
+			continue
+		}
+		if t, ok := parsesDateExactly(layout, s); ok {
+			iso := t.Format(isoDate)
+			out = append(out, Issue{
+				Kind:    IssueBadDateFormat,
+				Path:    cellPath,
+				Detail:  fmt.Sprintf("reformat to %s", iso),
+				Value:   s,
+				Suggest: iso,
+			})
+			continue
+		}
+		out = append(out, Issue{
+			Kind:   IssueDateAnomaly,
+			Path:   cellPath,
+			Detail: fmt.Sprintf("does not match the column format (%s)", layout),
+			Value:  s,
+		})
+	}
+	return out
+}
+
+// checkCell validates one non-date table cell against its column type.
+// Empty cells (nil or "") are always accepted - short rows are padded
+// with "" and a freshly added row carries type defaults, so neither
+// should surface as drift. string and dropdown columns are tolerant
+// (the renderer string-coerces on read).
 func checkCell(colType string, cell any, path string) []Issue {
 	if cell == nil {
 		return nil
@@ -329,28 +411,13 @@ func checkCell(colType string, cell any, path string) []Issue {
 		return nil
 	}
 	switch colType {
-	case "date":
-		s, ok := cell.(string)
-		if !ok {
-			return []Issue{{
-				Kind:   IssueTypeMismatch,
-				Path:   path,
-				Detail: fmt.Sprintf("expected date string, got %T", cell),
-			}}
-		}
-		if _, err := time.Parse("2006-01-02", s); err != nil {
-			return []Issue{{
-				Kind:   IssueBadDateFormat,
-				Path:   path,
-				Detail: fmt.Sprintf("not YYYY-MM-DD: %q", s),
-			}}
-		}
 	case "number":
 		if !isNumeric(cell) {
 			return []Issue{{
 				Kind:   IssueTypeMismatch,
 				Path:   path,
 				Detail: fmt.Sprintf("expected number, got %T", cell),
+				Value:  fmt.Sprintf("%v", cell),
 			}}
 		}
 	case "bool":
@@ -359,10 +426,79 @@ func checkCell(colType string, cell any, path string) []Issue {
 				Kind:   IssueTypeMismatch,
 				Path:   path,
 				Detail: fmt.Sprintf("expected bool, got %T", cell),
+				Value:  fmt.Sprintf("%v", cell),
 			}}
 		}
 	}
 	return nil
+}
+
+const isoDate = "2006-01-02"
+
+// dateCandidateLayouts are the non-ISO input formats the doctor knows.
+// Order matters only for deterministic tie-breaks; disambiguation comes
+// from values that parse under exactly one layout, not from this order.
+var dateCandidateLayouts = []string{
+	"02-01-2006", // DD-MM-YYYY
+	"01-02-2006", // MM-DD-YYYY
+	"02/01/2006", // DD/MM/YYYY
+	"01/02/2006", // MM/DD/YYYY
+	"02.01.2006", // DD.MM.YYYY (common in NL/DE)
+	"01.02.2006", // MM.DD.YYYY
+	"2006/01/02", // YYYY/MM/DD
+}
+
+// isISODate reports whether s is exactly a YYYY-MM-DD date.
+func isISODate(s string) bool {
+	t, err := time.Parse(isoDate, s)
+	return err == nil && t.Format(isoDate) == s
+}
+
+// parsesDateExactly parses s under layout and confirms reformatting
+// reproduces s, rejecting Go's lenient matches (e.g. a 1-digit day fed
+// to a 2-digit layout) so a match is a true shape match.
+func parsesDateExactly(layout, s string) (time.Time, bool) {
+	t, err := time.Parse(layout, s)
+	if err != nil || t.Format(layout) != s {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+// inferColumnDateLayout picks the dominant input layout for a column's
+// date strings. Only values that parse under exactly one candidate
+// layout cast a vote (a value where both DD/MM and MM/DD parse is
+// ambiguous and abstains); the layout with the most votes wins. Returns
+// ("", false) when nothing is decisive, so the caller treats the whole
+// column as anomalies rather than guessing.
+func inferColumnDateLayout(values []string) (string, bool) {
+	votes := map[string]int{}
+	for _, v := range values {
+		if v == "" || isISODate(v) {
+			continue
+		}
+		matched := ""
+		count := 0
+		for _, l := range dateCandidateLayouts {
+			if _, ok := parsesDateExactly(l, v); ok {
+				matched = l
+				count++
+			}
+		}
+		if count == 1 {
+			votes[matched]++
+		}
+	}
+	best, bestN := "", 0
+	for _, l := range dateCandidateLayouts { // stable iteration for ties
+		if votes[l] > bestN {
+			best, bestN = l, votes[l]
+		}
+	}
+	if bestN == 0 {
+		return "", false
+	}
+	return best, true
 }
 
 // columnType reads the declared type off a table column option
