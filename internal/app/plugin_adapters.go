@@ -248,7 +248,7 @@ type statSourceOptions struct {
 	tpl *template.Manager
 }
 
-func (s statSourceOptions) DimensionLabels(tplFile string, src stat.SourceRef) ([]string, bool) {
+func (s statSourceOptions) DimensionLabels(tplFile string, src stat.SourceRef) ([]stat.CategoryOption, bool) {
 	t, err := s.tpl.LoadTemplate(tplFile)
 	if err != nil {
 		return nil, false
@@ -257,19 +257,20 @@ func (s statSourceOptions) DimensionLabels(tplFile string, src stat.SourceRef) (
 }
 
 // dimensionOptionLabels returns the full ordered category set for a
-// dimension source whose categories are fixed by definition: a facet's
-// option labels (facets store the label as the selected value), or a
-// choice field's option values (dropdown/radio/multioption store the
-// value; boolean indexes as "true"/"false"). Open-ended sources - dates,
-// numbers, free text, and (for now) table columns - return ok=false so the
-// engine falls back to the values present in the data.
-func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]string, bool) {
+// dimension source whose categories are fixed by definition. Each option
+// carries the stored Value (the group-by key) and the display Label: a
+// facet stores its label as the value (Value==Label); a choice field
+// stores the option value and displays its caption (dropdown / radio /
+// multioption / boolean). Open-ended sources - dates, numbers, free text,
+// and (for now) table columns - return ok=false so the engine falls back
+// to the values present in the data.
+func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]stat.CategoryOption, bool) {
 	if src.Kind == stat.SourceFacet {
 		for _, f := range t.Facets {
 			if f.Key == src.Key {
-				out := make([]string, 0, len(f.Options))
+				out := make([]stat.CategoryOption, 0, len(f.Options))
 				for _, o := range f.Options {
-					out = append(out, o.Label)
+					out = append(out, stat.CategoryOption{Value: o.Label, Label: o.Label})
 				}
 				return out, true
 			}
@@ -285,30 +286,44 @@ func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]string, 
 		}
 		switch fld.Type {
 		case "dropdown", "radio", "multioption":
-			return optionValues(fld.Options), true
+			opts := choiceOptions(fld.Options)
+			return opts, len(opts) > 0
 		case "boolean":
-			return []string{"true", "false"}, true
+			opts := choiceOptions(fld.Options)
+			if len(opts) == 0 {
+				// Booleans index as "true"/"false"; show both even with no
+				// custom option labels.
+				opts = []stat.CategoryOption{{Value: "true", Label: "true"}, {Value: "false", Label: "false"}}
+			}
+			return opts, true
 		}
 		return nil, false
 	}
 	return nil, false
 }
 
-// optionValues pulls the `value` of each option (string options are their
-// own value), skipping blanks. Mirrors what pickValues stores for choice
-// fields, so the axis labels line up with the indexed values.
-func optionValues(options []any) []string {
-	out := make([]string, 0, len(options))
+// choiceOptions maps a choice field's options to value/label pairs. String
+// options are their own value+label; {value,label} maps use value as the
+// group-by key (what pickValues stores) and label for display, defaulting
+// the label to the value when blank. Blank values are skipped.
+func choiceOptions(options []any) []stat.CategoryOption {
+	out := make([]stat.CategoryOption, 0, len(options))
 	for _, o := range options {
 		switch v := o.(type) {
 		case string:
 			if v != "" {
-				out = append(out, v)
+				out = append(out, stat.CategoryOption{Value: v, Label: v})
 			}
 		case map[string]any:
-			if s, _ := v["value"].(string); s != "" {
-				out = append(out, s)
+			val, _ := v["value"].(string)
+			if val == "" {
+				continue
 			}
+			lbl, _ := v["label"].(string)
+			if lbl == "" {
+				lbl = val
+			}
+			out = append(out, stat.CategoryOption{Value: val, Label: lbl})
 		}
 	}
 	return out

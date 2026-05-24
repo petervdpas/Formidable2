@@ -32,12 +32,15 @@ func TestDimensionOptionLabels(t *testing.T) {
 	cases := []struct {
 		name   string
 		src    stat.SourceRef
-		want   []string
+		want   []stat.CategoryOption
 		wantOK bool
 	}{
-		{"facet full ordered labels", stat.SourceRef{Kind: stat.SourceFacet, Key: "tshirt"}, []string{"LARGE", "MEDIUM", "SMALL"}, true},
-		{"dropdown option values", stat.SourceRef{Kind: stat.SourceField, Key: "status"}, []string{"open", "closed"}, true},
-		{"boolean true/false", stat.SourceRef{Kind: stat.SourceField, Key: "done"}, []string{"true", "false"}, true},
+		{"facet labels (value==label)", stat.SourceRef{Kind: stat.SourceFacet, Key: "tshirt"},
+			[]stat.CategoryOption{{Value: "LARGE", Label: "LARGE"}, {Value: "MEDIUM", Label: "MEDIUM"}, {Value: "SMALL", Label: "SMALL"}}, true},
+		{"dropdown value+label", stat.SourceRef{Kind: stat.SourceField, Key: "status"},
+			[]stat.CategoryOption{{Value: "open", Label: "Open"}, {Value: "closed", Label: "Closed"}}, true},
+		{"boolean true/false", stat.SourceRef{Kind: stat.SourceField, Key: "done"},
+			[]stat.CategoryOption{{Value: "true", Label: "true"}, {Value: "false", Label: "false"}}, true},
 		{"number has no fixed set", stat.SourceRef{Kind: stat.SourceField, Key: "amount"}, nil, false},
 		{"date has no fixed set", stat.SourceRef{Kind: stat.SourceField, Key: "due"}, nil, false},
 		{"table column deferred", stat.SourceRef{Kind: stat.SourceField, Key: "status", Column: "x"}, nil, false},

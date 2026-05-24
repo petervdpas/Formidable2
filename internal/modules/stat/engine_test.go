@@ -164,9 +164,16 @@ func TestEvaluate_RejectsTableColumnSources(t *testing.T) {
 
 type fakeOptions struct{ labels map[string][]string }
 
-func (f fakeOptions) DimensionLabels(_ string, src SourceRef) ([]string, bool) {
+func (f fakeOptions) DimensionLabels(_ string, src SourceRef) ([]CategoryOption, bool) {
 	l, ok := f.labels[src.Key]
-	return l, ok
+	if !ok {
+		return nil, false
+	}
+	out := make([]CategoryOption, len(l))
+	for i, v := range l {
+		out[i] = CategoryOption{Value: v, Label: v}
+	}
+	return out, true
 }
 
 func TestEvaluate_FixedCategorySet_ShowsZeroCountInOrder(t *testing.T) {
@@ -202,6 +209,52 @@ func TestEvaluate_FixedCategorySet_ShowsZeroCountInOrder(t *testing.T) {
 	}
 	if c := findCell(g, 1); c != nil {
 		t.Errorf("MEDIUM should have no cell (zero), got %+v", c)
+	}
+}
+
+type fakeOptionPairs struct{ opts map[string][]CategoryOption }
+
+func (f fakeOptionPairs) DimensionLabels(_ string, src SourceRef) ([]CategoryOption, bool) {
+	o, ok := f.opts[src.Key]
+	return o, ok
+}
+
+func TestEvaluate_DisplaysLabelButGroupsByValue(t *testing.T) {
+	// Index stores option values ("open"/"closed"); the axis should show
+	// the friendly labels, and a defined-but-absent option ("wip") appears
+	// with zero.
+	idx := &fakeIndex{
+		total: 3,
+		raw: []index.StatRawRow{
+			{Dims: []string{"open"}}, {Dims: []string{"closed"}}, {Dims: []string{"open"}},
+		},
+	}
+	m := NewManager(idx)
+	m.SetSourceOptions(fakeOptionPairs{opts: map[string][]CategoryOption{
+		"status": {
+			{Value: "open", Label: "Open"},
+			{Value: "closed", Label: "Closed"},
+			{Value: "wip", Label: "In progress"},
+		},
+	}})
+	g, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "status"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"Open", "Closed", "In progress"}; !reflect.DeepEqual(g.Axes[0].Labels, want) {
+		t.Fatalf("labels = %v, want %v", g.Axes[0].Labels, want)
+	}
+	if c := findCell(g, 0); c == nil || c.Values[0] != 2 {
+		t.Errorf("Open (stored 'open') = %+v, want 2", c)
+	}
+	if c := findCell(g, 1); c == nil || c.Values[0] != 1 {
+		t.Errorf("Closed = %+v, want 1", c)
+	}
+	if c := findCell(g, 2); c != nil {
+		t.Errorf("In progress should be zero (no cell), got %+v", c)
 	}
 }
 

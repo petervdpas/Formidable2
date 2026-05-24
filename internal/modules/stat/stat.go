@@ -47,14 +47,23 @@ type Index interface {
 	AggregateRaw(template string, dims []index.AggDim, numKeys []string) ([]index.StatRawRow, error)
 }
 
-// SourceOptions supplies the full, ordered category labels for a
-// dimension source that has a fixed set (e.g. a facet's options), so the
-// grid shows every defined category - including zero-count ones - in the
-// author's order rather than only the values present in the data. Returns
-// ok=false for open-ended sources (dates, numbers, free text), which fall
-// back to the sorted present values.
+// CategoryOption is one fixed category of a dimension source: Value is
+// what the index stores (the group-by key); Label is what to display. For
+// a facet the two are equal (it stores its option label); for a choice
+// field Value is the option value and Label its human caption.
+type CategoryOption struct {
+	Value string
+	Label string
+}
+
+// SourceOptions supplies the full, ordered category set for a dimension
+// source that has a fixed one (a facet / choice field), so the grid shows
+// every defined category - including zero-count ones - in the author's
+// order, displayed by Label but grouped by Value. Returns ok=false for
+// open-ended sources (dates, numbers, free text), which fall back to the
+// sorted present values.
 type SourceOptions interface {
-	DimensionLabels(template string, src SourceRef) (labels []string, ok bool)
+	DimensionLabels(template string, src SourceRef) (opts []CategoryOption, ok bool)
 }
 
 // Manager turns index aggregates into chart-neutral Results and grids.

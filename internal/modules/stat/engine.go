@@ -104,47 +104,58 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	// set). This is what surfaces zero-count categories instead of dropping
 	// them.
 	axes := make([]GridAxis, nd)
-	labelIdx := make([]map[string]int, nd)
+	labelIdx := make([]map[string]int, nd) // keyed by stored value -> axis index
 	for i := range axes {
 		dim := cfg.Dimensions[i]
 		axes[i] = GridAxis{Source: sourceLabel(dim.Source, dim.Bin)}
+		labelIdx[i] = map[string]int{}
 
 		present := map[string]bool{}
 		for _, r := range rows {
 			present[r.Dims[i]] = true
 		}
 
-		var labels []string
-		if m.opts != nil && dim.Bin == BinNone {
-			if defined, ok := m.opts.DimensionLabels(template, dim.Source); ok {
-				seen := map[string]bool{}
-				for _, l := range defined {
-					if !seen[l] {
-						seen[l] = true
-						labels = append(labels, l)
-					}
-				}
-				extra := make([]string, 0)
-				for l := range present {
-					if !seen[l] {
-						extra = append(extra, l)
-					}
-				}
-				sort.Strings(extra)
-				labels = append(labels, extra...)
+		// add appends one category: index it by its stored value, display
+		// its label.
+		add := func(value, label string) {
+			if _, dup := labelIdx[i][value]; dup {
+				return
 			}
-		}
-		if labels == nil {
-			for l := range present {
-				labels = append(labels, l)
-			}
-			sort.Strings(labels)
+			labelIdx[i][value] = len(axes[i].Labels)
+			axes[i].Labels = append(axes[i].Labels, label)
 		}
 
-		axes[i].Labels = labels
-		labelIdx[i] = make(map[string]int, len(labels))
-		for idx, lbl := range labels {
-			labelIdx[i][lbl] = idx
+		var fixed []CategoryOption
+		if m.opts != nil && dim.Bin == BinNone {
+			if defined, ok := m.opts.DimensionLabels(template, dim.Source); ok {
+				fixed = defined
+			}
+		}
+		if fixed != nil {
+			for _, o := range fixed {
+				add(o.Value, o.Label)
+			}
+			// Present-but-undefined stored values (stale/unset) appended,
+			// shown as themselves.
+			extra := make([]string, 0)
+			for v := range present {
+				if _, known := labelIdx[i][v]; !known {
+					extra = append(extra, v)
+				}
+			}
+			sort.Strings(extra)
+			for _, v := range extra {
+				add(v, v)
+			}
+		} else {
+			vals := make([]string, 0, len(present))
+			for v := range present {
+				vals = append(vals, v)
+			}
+			sort.Strings(vals)
+			for _, v := range vals {
+				add(v, v)
+			}
 		}
 	}
 
