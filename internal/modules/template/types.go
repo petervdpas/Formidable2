@@ -22,18 +22,33 @@ import (
 // can name "who last touched this template" without walking git log,
 // matching how it identifies record overrides.
 type Template struct {
-	Name              string     `yaml:"name" json:"name"`
-	Filename          string     `yaml:"filename" json:"filename"`
-	AuthorName        string     `yaml:"author_name,omitempty" json:"author_name,omitempty"`
-	AuthorEmail       string     `yaml:"author_email,omitempty" json:"author_email,omitempty"`
-	ItemField         string     `yaml:"item_field,omitempty" json:"item_field"`
-	MarkdownTemplate  string     `yaml:"markdown_template,omitempty" json:"markdown_template"`
-	SidebarExpression string     `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
-	EnableCollection  bool       `yaml:"enable_collection,omitempty" json:"enable_collection"`
-	PDF               *PDFConfig `yaml:"pdf,omitempty" json:"pdf,omitempty"`
-	Facets            []Facet    `yaml:"facets,omitempty" json:"facets"`
-	Fields            []Field    `yaml:"fields" json:"fields"`
-	NeedsResave       bool       `yaml:"-" json:"needs_resave"`
+	Name              string      `yaml:"name" json:"name"`
+	Filename          string      `yaml:"filename" json:"filename"`
+	AuthorName        string      `yaml:"author_name,omitempty" json:"author_name,omitempty"`
+	AuthorEmail       string      `yaml:"author_email,omitempty" json:"author_email,omitempty"`
+	ItemField         string      `yaml:"item_field,omitempty" json:"item_field"`
+	MarkdownTemplate  string      `yaml:"markdown_template,omitempty" json:"markdown_template"`
+	SidebarExpression string      `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
+	EnableCollection  bool        `yaml:"enable_collection,omitempty" json:"enable_collection"`
+	PDF               *PDFConfig  `yaml:"pdf,omitempty" json:"pdf,omitempty"`
+	Facets            []Facet     `yaml:"facets,omitempty" json:"facets"`
+	Statistics        []Statistic `yaml:"statistics,omitempty" json:"statistics"`
+	Fields            []Field     `yaml:"fields" json:"fields"`
+	NeedsResave       bool        `yaml:"-" json:"needs_resave"`
+}
+
+// Statistic is one author-defined "Statistical Insight" (the feature's
+// display name): a named statistical DSL expression stored on the
+// template. Evaluated by the statistical engine into a rank-N values
+// grid; rendered however a consumer (plugin/Lua, later reports) chooses.
+// Name is the identifier consumers fetch by; Label is the display title;
+// DSL is the serialized statistical-DSL string (see
+// internal/modules/statistical and design/statistics-dsl.md).
+// "Statistic" (not "Insight") avoids colliding with Application Insights.
+type Statistic struct {
+	Name  string `yaml:"name" json:"name"`
+	Label string `yaml:"label,omitempty" json:"label,omitempty"`
+	DSL   string `yaml:"dsl" json:"dsl"`
 }
 
 // UnmarshalYAML accepts both the new `facets:` shape and the legacy
@@ -43,7 +58,7 @@ type Template struct {
 func (t *Template) UnmarshalYAML(node *yaml.Node) error {
 	type tplAlias Template
 	aux := struct {
-		*tplAlias        `yaml:",inline"`
+		*tplAlias      `yaml:",inline"`
 		LegacyFlagDefs []FacetOption `yaml:"flag_definitions"`
 	}{tplAlias: (*tplAlias)(t)}
 	if err := node.Decode(&aux); err != nil {
@@ -68,7 +83,7 @@ func (t *Template) UnmarshalYAML(node *yaml.Node) error {
 // a built-in theme name ("default", "technical", …), a filesystem
 // path to a custom .css, or raw CSS content.
 type PDFConfig struct {
-	Style string         `yaml:"style,omitempty" json:"style,omitempty"`
+	Style string          `yaml:"style,omitempty" json:"style,omitempty"`
 	Cover *PDFCoverConfig `yaml:"cover,omitempty" json:"cover,omitempty"`
 }
 
@@ -128,23 +143,23 @@ type FacetOption struct {
 // downstream consumers ignore irrelevant fields.
 type Field struct {
 	// Common
-	Key            string  `yaml:"key" json:"key"`
-	Type           string  `yaml:"type" json:"type"`
-	Label          string  `yaml:"label,omitempty" json:"label"`
-	Description    string  `yaml:"description,omitempty" json:"description"`
+	Key         string `yaml:"key" json:"key"`
+	Type        string `yaml:"type" json:"type"`
+	Label       string `yaml:"label,omitempty" json:"label"`
+	Description string `yaml:"description,omitempty" json:"description"`
 	// I18n is the optional base key for plugin field translation.
 	// When set, the renderer resolves `<plugin-namespace>.<I18n>.<sub>`
 	// for sub-keys `label`, `description`, `placeholder` via the
 	// active locale, falling back to the literal Label/Description
 	// on miss. Templates don't need this (user-authored labels are
 	// the literal source); it's foremost a plugin-form.json signal.
-	I18n         string `yaml:"i18n,omitempty" json:"i18n,omitempty"`
-	SummaryField   string  `yaml:"summary_field,omitempty" json:"summary_field,omitempty"`
-	ExpressionItem bool    `yaml:"expression_item,omitempty" json:"expression_item"`
-	LevelScope     int     `yaml:"level_scope" json:"level_scope"`
-	TwoColumn      bool    `yaml:"two_column,omitempty" json:"two_column"`
-	Collapsible    *bool   `yaml:"collapsible,omitempty" json:"collapsible,omitempty"`
-	Readonly       bool    `yaml:"readonly,omitempty" json:"readonly"`
+	I18n           string `yaml:"i18n,omitempty" json:"i18n,omitempty"`
+	SummaryField   string `yaml:"summary_field,omitempty" json:"summary_field,omitempty"`
+	ExpressionItem bool   `yaml:"expression_item,omitempty" json:"expression_item"`
+	LevelScope     int    `yaml:"level_scope" json:"level_scope"`
+	TwoColumn      bool   `yaml:"two_column,omitempty" json:"two_column"`
+	Collapsible    *bool  `yaml:"collapsible,omitempty" json:"collapsible,omitempty"`
+	Readonly       bool   `yaml:"readonly,omitempty" json:"readonly"`
 	// UseInStatistics opts a field into the statistics index. Default
 	// false: only flagged fields are materialised into form_values, so
 	// the index stays lean and the author declares what's meaningful.
@@ -153,9 +168,9 @@ type Field struct {
 	// indexed. Lists carry a single column, so the flag alone suffices.
 	UseInStatistics   bool     `yaml:"use_in_statistics,omitempty" json:"use_in_statistics"`
 	StatisticsColumns []string `yaml:"statistics_columns,omitempty" json:"statistics_columns,omitempty"`
-	Default        any     `yaml:"default,omitempty" json:"default"`
-	Options        []any   `yaml:"options,omitempty" json:"options"`
-	PrimaryKey     bool    `yaml:"primary_key,omitempty" json:"primary_key,omitempty"`
+	Default           any      `yaml:"default,omitempty" json:"default"`
+	Options           []any    `yaml:"options,omitempty" json:"options"`
+	PrimaryKey        bool     `yaml:"primary_key,omitempty" json:"primary_key,omitempty"`
 
 	// textarea-specific
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`

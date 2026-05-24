@@ -32,6 +32,7 @@ func Normalize(t *Template) {
 	for i := range t.Fields {
 		normalizeField(&t.Fields[i])
 	}
+	normalizeStatistics(t)
 	t.Fields = assignLevelScopes(t.Fields)
 	for i := range t.Fields {
 		if t.Fields[i].LevelScope > 0 && t.Fields[i].ExpressionItem {
@@ -42,6 +43,36 @@ func Normalize(t *Template) {
 		}
 		stripDisabledAttributes(&t.Fields[i])
 	}
+}
+
+// normalizeStatistics is the authoritative cleanup for a template's
+// statistical-insight objects: trim names, drop entries missing a name
+// or DSL, and dedupe by name (first wins, order preserved). It does NOT
+// parse the DSL here - that keeps the template package decoupled from
+// the statistical engine; the engine reports DSL errors at evaluation.
+func normalizeStatistics(t *Template) {
+	if len(t.Statistics) == 0 {
+		t.Statistics = nil
+		return
+	}
+	seen := map[string]bool{}
+	kept := make([]Statistic, 0, len(t.Statistics))
+	for _, s := range t.Statistics {
+		name := strings.TrimSpace(s.Name)
+		dsl := strings.TrimSpace(s.DSL)
+		if name == "" || dsl == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		s.Name = name
+		s.DSL = dsl
+		kept = append(kept, s)
+	}
+	if len(kept) == 0 {
+		t.Statistics = nil
+		return
+	}
+	t.Statistics = kept
 }
 
 func stripDisabledAttributes(f *Field) {

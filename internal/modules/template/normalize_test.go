@@ -160,6 +160,54 @@ func TestNormalize_StatisticsColumns_AllInvalidBecomesNil(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Normalize - statistical insights (named DSL objects on the template)
+// ─────────────────────────────────────────────────────────────────────
+
+func TestNormalize_Statistics_TrimsAndDropsEmpty(t *testing.T) {
+	tpl := &Template{Statistics: []Statistic{
+		{Name: "  by-status  ", DSL: `count() by F["status"]`},
+		{Name: "", DSL: `count()`},      // no name -> dropped
+		{Name: "blank-dsl", DSL: "   "}, // no dsl -> dropped
+	}}
+	Normalize(tpl)
+	if len(tpl.Statistics) != 1 {
+		t.Fatalf("got %d statistics, want 1: %+v", len(tpl.Statistics), tpl.Statistics)
+	}
+	if tpl.Statistics[0].Name != "by-status" {
+		t.Errorf("name = %q, want trimmed %q", tpl.Statistics[0].Name, "by-status")
+	}
+}
+
+func TestNormalize_Statistics_DedupesByNameFirstWins(t *testing.T) {
+	tpl := &Template{Statistics: []Statistic{
+		{Name: "dup", DSL: `count() by F["a"]`},
+		{Name: "dup", DSL: `count() by F["b"]`},
+		{Name: "other", DSL: `count()`},
+	}}
+	Normalize(tpl)
+	if len(tpl.Statistics) != 2 {
+		t.Fatalf("got %d statistics, want 2 (deduped): %+v", len(tpl.Statistics), tpl.Statistics)
+	}
+	if tpl.Statistics[0].Name != "dup" || tpl.Statistics[0].DSL != `count() by F["a"]` {
+		t.Errorf("first-wins broken: %+v", tpl.Statistics[0])
+	}
+	if tpl.Statistics[1].Name != "other" {
+		t.Errorf("order not preserved: %+v", tpl.Statistics)
+	}
+}
+
+func TestNormalize_Statistics_AllInvalidBecomesNil(t *testing.T) {
+	tpl := &Template{Statistics: []Statistic{
+		{Name: "", DSL: `count()`},
+		{Name: "x", DSL: ""},
+	}}
+	Normalize(tpl)
+	if tpl.Statistics != nil {
+		t.Errorf("Statistics = %+v, want nil when nothing valid remains", tpl.Statistics)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Normalize - robustness (unhappy paths)
 // ─────────────────────────────────────────────────────────────────────
 
