@@ -132,3 +132,54 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* ── Grid renderer (rank-N statistic output) ────────────────────────── */
+
+.stat-pie-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+.stat-pie-svg { flex: 0 0 auto; }
+.stat-pie-slice { stroke: var(--color-bg, #fff); stroke-width: 1; }
+
+.stat-heatmap {
+    display: grid;
+    grid-template-columns: max-content repeat(var(--heatmap-cols, 1), minmax(2.5rem, 1fr));
+    gap: 2px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+}
+.stat-heatmap-corner {
+    font-size: 0.7rem;
+    color: var(--color-text-muted, #888);
+    padding: var(--space-1) var(--space-2);
+    white-space: nowrap;
+}
+.stat-heatmap-col {
+    font-weight: 600;
+    text-align: center;
+    padding: var(--space-1);
+    align-self: end;
+}
+.stat-heatmap-rowlabel {
+    font-weight: 600;
+    padding: var(--space-1) var(--space-2);
+    white-space: nowrap;
+}
+.stat-heatmap-cell {
+    text-align: center;
+    padding: var(--space-1);
+    border-radius: 3px;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-view-controls {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+.stat-view-total {
+    margin: var(--space-2) 0 0;
+}

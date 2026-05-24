@@ -69,6 +69,17 @@ export function Distribution(template: string, fieldKey: string, col: number | n
 }
 
 /**
+ * EvaluateDSL evaluates a raw statistical-DSL string against the index.
+ * The builder uses it to preview a statistic's output before it is saved
+ * (EvaluateObject needs the object persisted to resolve it by name).
+ */
+export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<$models.Grid | null> {
+    return $Call.ByID(2268999486, template, dsl).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
  * EvaluateObject resolves a template's named statistical object to its
  * DSL, evaluates it against the index, and returns the rank-N Grid. This
  * is the surface the frontend renderer and the Lua binding consume.

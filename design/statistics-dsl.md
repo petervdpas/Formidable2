@@ -166,7 +166,14 @@ and `stat.Parse(string)`.
    "Statistics" tab in the template editor (TemplatesWorkspace). i18n ns
    statistics.json (en+nl). (Step 4, Lua/Wails Evaluate, intentionally
    still pending - the builder only needs Compile/Parse.)
-6. Renderer: extend StatChart to consume Grid (rank-aware), add pie/heatmap.
+6. DONE - Renderer. `components/stat/grid.ts` (local Grid type +
+   densify helpers) + rank-aware components: StatGridScalars (rank-0),
+   StatGridBar / StatGridPie (rank-1), StatGridHeatmap (rank-2), dispatched
+   by StatGrid.vue; StatGridDialog wraps them with a chart-type toggle
+   (bar/pie on rank-1) + measure picker. Wired as a "View" button on the
+   Statistics tab (calls Stat.EvaluateDSL on the draft DSL, so it works
+   before save). Rank > 2 shows "nothing to render" (deferred). Stat
+   service also gained EvaluateDSL for this preview path.
 
 ## Deferred
 

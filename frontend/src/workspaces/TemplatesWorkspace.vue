@@ -14,6 +14,9 @@ import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FacetEditorModal from "../components/FacetEditorModal.vue";
 import StatisticsBuilderModal from "../components/StatisticsBuilderModal.vue";
+import StatGridDialog from "../components/stat/StatGridDialog.vue";
+import { type Grid } from "../components/stat/grid";
+import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
 import FacetIcon from "../components/FacetIcon.vue";
 import { useFacetMeta } from "../composables/useFacetMeta";
 import { Facet, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -640,6 +643,26 @@ function applyStatistic(s: Statistic) {
   statBuilderOpen.value = false;
 }
 
+// View an evaluated statistic. Uses EvaluateDSL on the draft's current
+// DSL so it works on unsaved edits too (the statistic's own row need not
+// be persisted; it only reads the template's already-indexed values).
+const statViewOpen = ref(false);
+const statViewGrid = ref<Grid | null>(null);
+const statViewTitle = ref("");
+
+async function openViewStatistic(s: Statistic) {
+  const tpl = selectedFilename.value;
+  if (!tpl) return;
+  try {
+    const grid = await StatSvc.EvaluateDSL(tpl, s.dsl);
+    statViewGrid.value = grid as unknown as Grid;
+    statViewTitle.value = s.label || s.name;
+    statViewOpen.value = true;
+  } catch (e) {
+    toast.error("workspace.templates.statistics.view_failed", [backendErrMessage(e)]);
+  }
+}
+
 // ── Facet editor dialog ──────────────────────────────────────────────
 // Edits one facet at a time. editingIndex = -1 means "adding a new
 // facet"; ≥0 means "editing the facet at that index in draft.facets".
@@ -1045,6 +1068,12 @@ setTopbarMenu(() => [
                       <button
                         class="tool-btn"
                         type="button"
+                        :title="t('workspace.templates.statistics.view')"
+                        @click="openViewStatistic(s)"
+                      >{{ t('workspace.templates.statistics.view') }}</button>
+                      <button
+                        class="tool-btn"
+                        type="button"
                         :title="t('workspace.templates.statistics.edit')"
                         @click="openEditStatistic(i)"
                       >{{ t('workspace.templates.statistics.edit') }}</button>
@@ -1269,6 +1298,14 @@ setTopbarMenu(() => [
     :initial="editingStat"
     @close="statBuilderOpen = false"
     @apply="applyStatistic"
+  />
+
+  <!-- Evaluated-statistic viewer (rank-N grid renderer) -->
+  <StatGridDialog
+    :open="statViewOpen"
+    :title="statViewTitle"
+    :grid="statViewGrid"
+    @close="statViewOpen = false"
   />
 </template>
 

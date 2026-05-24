@@ -79,6 +79,13 @@ func (s *Service) BuilderMeasureOps() []MeasureOpDescriptor { return MeasureOps(
 // BuilderBins is the date-bin catalog for the dimension binning picker.
 func (s *Service) BuilderBins() []Bin { return Bins() }
 
+// EvaluateDSL evaluates a raw statistical-DSL string against the index.
+// The builder uses it to preview a statistic's output before it is saved
+// (EvaluateObject needs the object persisted to resolve it by name).
+func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error) {
+	return s.m.EvaluateDSL(template, dsl)
+}
+
 // EvaluateObject resolves a template's named statistical object to its
 // DSL, evaluates it against the index, and returns the rank-N Grid. This
 // is the surface the frontend renderer and the Lua binding consume.
