@@ -13,6 +13,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/gigot"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
+	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -128,6 +129,22 @@ func main() {
 	}
 
 	mainWin := wapp.Window.NewWithOptions(winOpts)
+
+	// Unsaved-changes guard. RegisterHook runs synchronously BEFORE the
+	// window's built-in destroy listener (and before the aux-window
+	// closer below), so cancelling here keeps the window open. The SPA
+	// mirrors the active form's dirty state via system.SetUnsavedChanges;
+	// when set, an OS-driven close (X button, Cmd+Q) is vetoed and we
+	// ask the frontend to show its Save / Discard / Cancel dialog. The
+	// frontend calls system.ConfirmClose() once the user chooses to
+	// leave, which flips AllowClose and re-triggers the close.
+	mainWin.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		if system.AllowClose() || !system.UnsavedChanges() {
+			return
+		}
+		e.Cancel()
+		wapp.Event.Emit("app:close-requested", nil)
+	})
 
 	// Closing the main window must take auxiliary windows (wiki,
 	// swagger, future popouts) with it — otherwise they're orphaned

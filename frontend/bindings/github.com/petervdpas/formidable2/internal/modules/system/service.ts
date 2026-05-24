@@ -19,6 +19,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * ConfirmClose lifts the close veto and quits. The frontend calls this
+ * after its unsaved-changes guard resolves to Save or Discard.
+ */
+export function ConfirmClose(): $CancellablePromise<void> {
+    return $Call.ByID(493449693);
+}
+
 export function CopyFile($from: string, to: string, overwrite: boolean): $CancellablePromise<void> {
     return $Call.ByID(1149513242, $from, to, overwrite);
 }
@@ -109,6 +117,14 @@ export function Restart(): $CancellablePromise<void> {
 
 export function SaveFile(path: string, content: string): $CancellablePromise<void> {
     return $Call.ByID(1501752358, path, content);
+}
+
+/**
+ * SetUnsavedChanges lets the frontend keep the backend in sync with the
+ * active form's dirty state. Called from a watcher in StorageWorkspace.
+ */
+export function SetUnsavedChanges(b: boolean): $CancellablePromise<void> {
+    return $Call.ByID(297477440, b);
 }
 
 // Private type creation functions

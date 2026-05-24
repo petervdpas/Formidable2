@@ -12,6 +12,8 @@ import { useActiveWorkspace } from "./composables/useActiveWorkspace";
 import { useRestartGate } from "./composables/useRestartGate";
 import { useConfig } from "./composables/useConfig";
 import { useRibbonAvailability } from "./composables/useRibbonAvailability";
+import { confirmLeave } from "./composables/useNavGuard";
+import { Service as SystemSvc } from "../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 
 useTheme(); // installs the data-theme attribute reactively
 
@@ -31,6 +33,17 @@ function onContextMenu(e: MouseEvent) {
 const activeWorkspace = computed(
   () => WORKSPACES.find((w) => w.id === active.value) ?? WORKSPACES[0],
 );
+
+// Switching workspace from the rail can pull the user away from a dirty
+// form. Ask the active workspace's guard first; abort the switch if the
+// user cancels. Programmatic setActive (boot restore, disabled-redirect,
+// nav:changed) intentionally bypasses this - it isn't a user choosing to
+// abandon edits, and nav:changed is itself a form-open.
+async function onSelectWorkspace(id: WorkspaceId) {
+  if (id === active.value) return;
+  if (!(await confirmLeave())) return;
+  setActive(id);
+}
 
 // Don't mount any workspace until we have the persisted config
 // snapshot - otherwise SplitPane reads its :initial before
@@ -92,6 +105,12 @@ watch(
 // then flip the active workspace to Storage. The event payload is
 // { template, datafile, fragment? }.
 let unsubNav: (() => void) | null = null;
+
+// app:close-requested - backend WindowClosing hook vetoed an OS-driven
+// close because the active form has unsaved changes. Run the same guard;
+// if the user chooses Save / Discard, tell the backend it may close.
+// Cancel leaves the (already-vetoed) window open.
+let unsubClose: (() => void) | null = null;
 onMounted(() => {
   unsubNav = Events.On("nav:changed", () => {
     void reload();
@@ -99,18 +118,25 @@ onMounted(() => {
       setActive("storage");
     }
   });
+  unsubClose = Events.On("app:close-requested", async () => {
+    if (await confirmLeave()) {
+      void SystemSvc.ConfirmClose();
+    }
+  });
   window.addEventListener("contextmenu", onContextMenu);
 });
 onBeforeUnmount(() => {
   unsubNav?.();
   unsubNav = null;
+  unsubClose?.();
+  unsubClose = null;
   window.removeEventListener("contextmenu", onContextMenu);
 });
 </script>
 
 <template>
   <div class="app-shell">
-    <Ribbon :active="active" @select="setActive" />
+    <Ribbon :active="active" @select="onSelectWorkspace" />
     <Topbar />
     <main class="app-main">
       <component v-if="ready" :is="activeWorkspace.component" />

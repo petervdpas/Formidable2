@@ -6,6 +6,7 @@ import Badge from "../components/Badge.vue";
 import CopyButton from "../components/CopyButton.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
+import UnsavedChangesDialog from "../components/UnsavedChangesDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
 import ImportCSVDialog from "../components/ImportCSVDialog.vue";
 import ExportCSVDialog from "../components/ExportCSVDialog.vue";
@@ -26,6 +27,7 @@ import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
+import { setNavGuard } from "../composables/useNavGuard";
 import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
@@ -53,6 +55,57 @@ const toast = useToast();
 const statusBar = useStatusBar();
 
 const sidebarWidth = computed(() => bootConfig.value?.sidebar_width || 280);
+
+// ── Unsaved-changes guard ────────────────────────────────────────────
+// One dialog drives every "leaving a dirty form" path: switching entry
+// or template (the watcher below), switching workspace (App.vue via
+// useNavGuard), and closing the app (backend WindowClosing hook ->
+// "app:close-requested" -> App.vue). guardLeave resolves true when it's
+// safe to proceed and false to abort (Cancel).
+type LeaveChoice = "save" | "discard" | "cancel";
+const leavePromptOpen = ref(false);
+let leaveResolver: ((c: LeaveChoice) => void) | null = null;
+
+function askLeave(): Promise<LeaveChoice> {
+  leavePromptOpen.value = true;
+  return new Promise<LeaveChoice>((resolve) => {
+    leaveResolver = resolve;
+  });
+}
+
+function resolveLeave(choice: LeaveChoice) {
+  leavePromptOpen.value = false;
+  leaveResolver?.(choice);
+  leaveResolver = null;
+}
+
+async function guardLeave(): Promise<boolean> {
+  if (!dirty.value) return true;
+  const choice = await askLeave();
+  if (choice === "cancel") return false;
+  if (choice === "save") {
+    const result = await save();
+    if (!result.ok) {
+      toast.error("workspace.storage.save.error", [result.message ?? ""]);
+      return false; // keep the user on the form rather than lose data
+    }
+    return true;
+  }
+  reset(); // discard: drop the draft edits so dirty clears
+  return true;
+}
+
+// Register the guard while this workspace is mounted; App.vue's
+// rail-switch and app-close handlers consult it via confirmLeave().
+setNavGuard(guardLeave);
+onBeforeUnmount(() => {
+  setNavGuard(null);
+  void SystemSvc.SetUnsavedChanges(false);
+});
+
+// Mirror the active form's dirty state into the backend so the
+// WindowClosing hook knows whether to veto an OS-driven close.
+watch(dirty, (d) => { void SystemSvc.SetUnsavedChanges(d); }, { immediate: true });
 
 // Active template's filename - provided downward so per-type field
 // components that need it (image saves into <storage>/<tplName>/images/,
@@ -264,11 +317,41 @@ const selectedDataFile = computed<string>({
   set: (v) => { void updateConfig({ selected_data_file: v }); },
 });
 
+// `loaded*` track the (template, datafile) the current draft reflects,
+// so the watcher can tell a real navigation from a no-op and revert the
+// config selection when the user cancels. `reverting` suppresses the
+// guard while we restore the prior selection.
+let loadedTpl = "";
+let loadedDf = "";
+let reverting = false;
+
 watch(
   [selectedTemplate, selectedDataFile],
   async ([tpl, df], oldVals) => {
+    if (reverting) {
+      reverting = false;
+      return;
+    }
+
+    // Leaving a loaded form for a different selection: prompt if dirty.
+    // On cancel, restore the previous config selection and bail.
+    const changed = tpl !== loadedTpl || df !== loadedDf;
+    if (changed && (loadedTpl || loadedDf) && draft.value) {
+      const ok = await guardLeave();
+      if (!ok) {
+        reverting = true;
+        void updateConfig({
+          selected_template: loadedTpl,
+          selected_data_file: loadedDf,
+        });
+        return;
+      }
+    }
+
     if (!tpl || !df) {
       close();
+      loadedTpl = tpl;
+      loadedDf = df;
       return;
     }
     // If the template changed, drop the prior form (different schema)
@@ -276,6 +359,8 @@ watch(
     const prevTpl = oldVals?.[0];
     if (prevTpl && prevTpl !== tpl) close();
     await open(tpl, df);
+    loadedTpl = tpl;
+    loadedDf = df;
     // `df` is the config-persisted stem; `draft.datafile` is the
     // actual on-disk filename (e.g. "projectstatus.meta.json").
     statusBar.setSelected(draft.value?.datafile ?? df);
@@ -1101,6 +1186,20 @@ setTopbarMenu(() => [
     variant="danger"
     @cancel="deleteOpen = false"
     @confirm="confirmDelete"
+  />
+
+  <!-- Unsaved-changes guard: shown when navigating away from a dirty
+       form (entry / template switch, workspace switch, or app close). -->
+  <UnsavedChangesDialog
+    :open="leavePromptOpen"
+    :title="t('workspace.storage.unsaved.title')"
+    :message="t('workspace.storage.unsaved.message', [view?.datafile ?? ''])"
+    :save-label="t('workspace.storage.unsaved.save')"
+    :discard-label="t('workspace.storage.unsaved.discard')"
+    :cancel-label="t('common.cancel')"
+    @save="resolveLeave('save')"
+    @discard="resolveLeave('discard')"
+    @cancel="resolveLeave('cancel')"
   />
 
   <!-- Import CSV dialog -->

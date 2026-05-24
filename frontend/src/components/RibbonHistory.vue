@@ -5,6 +5,7 @@ import { Events } from "@wailsio/runtime";
 import { Service as HistorySvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/history";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useConfig } from "../composables/useConfig";
+import { confirmLeave } from "../composables/useNavGuard";
 
 const { t } = useI18n();
 const { active } = useActiveWorkspace();
@@ -29,11 +30,13 @@ async function refresh() {
 
 async function back() {
   if (!canBack.value) return;
+  if (!(await confirmLeave())) return; // guard before moving the history pointer
   await HistorySvc.Back();
 }
 
 async function forward() {
   if (!canForward.value) return;
+  if (!(await confirmLeave())) return;
   await HistorySvc.Forward();
 }
 
