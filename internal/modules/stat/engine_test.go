@@ -144,21 +144,77 @@ func TestEvaluate_NullMeasureValuesExcluded(t *testing.T) {
 	}
 }
 
-func TestEvaluate_RejectsTableColumnSources(t *testing.T) {
-	m := NewManager(&fakeIndex{})
-	cases := []StatConfig{
-		{
-			Measures:   []Measure{{Op: OpCount}},
-			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "items", Column: "qty"}}},
-		},
-		{
-			Measures: []Measure{{Op: OpSum, Source: &SourceRef{Kind: SourceField, Key: "items", Column: "qty"}}},
+type fakeColResolver struct{ idx map[string]int }
+
+func (f fakeColResolver) ColumnIndex(_, fieldKey, columnKey string) (int, bool) {
+	v, ok := f.idx[fieldKey+"."+columnKey]
+	return v, ok
+}
+
+func TestEvaluate_TableColumnDimension_CountsCells(t *testing.T) {
+	// Three stored-procedure cells across the forms: direct, via, direct.
+	idx := &fakeIndex{
+		total: 2,
+		raw: []index.StatRawRow{
+			{Dims: []string{"direct"}}, {Dims: []string{"via"}}, {Dims: []string{"direct"}},
 		},
 	}
-	for i, cfg := range cases {
-		if _, err := m.Evaluate("t", cfg); err == nil {
-			t.Errorf("[%d] expected table-column rejection, got nil", i)
-		}
+	m := NewManager(idx)
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1}})
+	g, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]float64{}
+	for ci, c := range g.Cells {
+		want[g.Axes[0].Labels[g.Cells[ci].Coords[0]]] = c.Values[0]
+	}
+	if want["direct"] != 2 || want["via"] != 1 {
+		t.Errorf("cell counts = %v, want direct:2 via:1", want)
+	}
+}
+
+func TestEvaluate_TableColumnNeedsResolver(t *testing.T) {
+	m := NewManager(&fakeIndex{}) // no column resolver
+	_, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
+	})
+	if err == nil {
+		t.Error("expected error when a table-column source has no resolver")
+	}
+}
+
+func TestEvaluate_RejectsTwoTableColumnSources(t *testing.T) {
+	m := NewManager(&fakeIndex{})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1, "sp.via": 2}})
+	_, err := m.Evaluate("t", StatConfig{
+		Measures: []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{
+			{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}},
+			{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "via"}},
+		},
+	})
+	if err == nil {
+		t.Error("expected rejection of two table-column sources (fan-out)")
+	}
+}
+
+func TestEvaluate_RejectsNumericMeasureWithTableDim(t *testing.T) {
+	m := NewManager(&fakeIndex{})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1}})
+	_, err := m.Evaluate("t", StatConfig{
+		Measures: []Measure{
+			{Op: OpCount},
+			{Op: OpAvg, Source: &SourceRef{Kind: SourceField, Key: "amount"}},
+		},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
+	})
+	if err == nil {
+		t.Error("expected rejection: numeric measure alongside a table-column dimension")
 	}
 }
 

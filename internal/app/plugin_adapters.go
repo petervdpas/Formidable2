@@ -329,6 +329,42 @@ func choiceOptions(options []any) []stat.CategoryOption {
 	return out
 }
 
+// statColumnResolver maps a table field's column value-key to its
+// positional index in form_values.col (the order of the field's options),
+// implementing stat.ColumnResolver so a table-column DSL source can be
+// turned into the indexed column.
+type statColumnResolver struct {
+	tpl *template.Manager
+}
+
+func (s statColumnResolver) ColumnIndex(tplFile, fieldKey, columnKey string) (int, bool) {
+	t, err := s.tpl.LoadTemplate(tplFile)
+	if err != nil {
+		return 0, false
+	}
+	return columnIndexIn(t, fieldKey, columnKey)
+}
+
+// columnIndexIn finds a table field's column position by its option value
+// key. The position matches what pickValues stores in form_values.col
+// (cells are indexed by their position in the field's options).
+func columnIndexIn(t *template.Template, fieldKey, columnKey string) (int, bool) {
+	for _, f := range t.Fields {
+		if f.Key != fieldKey {
+			continue
+		}
+		for i, o := range f.Options {
+			if m, ok := o.(map[string]any); ok {
+				if v, _ := m["value"].(string); v == columnKey {
+					return i, true
+				}
+			}
+		}
+		return 0, false
+	}
+	return 0, false
+}
+
 // pluginStatObjectAdapter bridges Stat.EvaluateObject into the Lua
 // formidable.statistical(tpl, name) surface, flattening the Grid to the
 // JSON-shaped map the Lua bridge round-trips.

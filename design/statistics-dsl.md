@@ -175,8 +175,25 @@ and `stat.Parse(string)`.
    before save). Rank > 2 shows "nothing to render" (deferred). Stat
    service also gained EvaluateDSL for this preview path.
 
+## Table-column sources (lifted, guarded)
+
+Table-column sources `F["table"]["col"]` are supported for the cases that
+are exactly correct, and rejected for the ones that would over-count via
+the fan-out of a one-to-many join:
+- allowed: a single table-column **dimension** with `count()` (optionally
+  crossed with scalar/facet dims, which attribute per cell), e.g.
+  `count() by F["stored-procedures"]["access"]`; and a `sum`/`avg`/... over
+  a table-column **numeric source** when the dimensions are scalar/facet.
+- rejected (clear error): two table-column sources; or a numeric measure
+  alongside a table-column dimension.
+Mechanics: `index.AggDim.Col` / `AggNum.Col` add column-indexed joins;
+`stat.ColumnResolver` (app: `statColumnResolver` over the template field
+options) maps the DSL column key to the positional `form_values.col`.
+
 ## Deferred
 
 - `where` filters (reserved keyword).
 - Numeric-range binning for number dimensions (only date binning in v1).
 - Rank > 2 rendering (engine produces it; renderer flattens what it can show).
+- Fixed-option set + labels for table-column dimensions (a table dropdown
+  column still shows present values, not its full choice set / captions).

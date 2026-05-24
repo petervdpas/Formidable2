@@ -388,6 +388,7 @@ func New(d Deps) (*App, error) {
 	// dataprovider); no disk access of its own.
 	statM := stat.NewManager(idxM)
 	statM.SetSourceOptions(statSourceOptions{tpl: tplM})
+	statM.SetColumnResolver(statColumnResolver{tpl: tplM})
 	statSvc := stat.NewService(statM, statTemplateSource{tpl: tplM})
 
 	// EnabledTemplates self-healing: when a template file is deleted, the

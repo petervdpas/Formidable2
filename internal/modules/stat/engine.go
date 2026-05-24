@@ -47,45 +47,97 @@ func (m *Manager) EvaluateDSL(template, dsl string) (*Grid, error) {
 }
 
 // Evaluate runs a StatConfig against the index and shapes the result into
-// a Grid. Scalar field and facet sources only; table-column sources are
-// deferred and rejected with a clear error.
+// a Grid. Supports scalar field, facet and (a single) table-column source;
+// see the fan-out guard below for the combinations rejected to avoid
+// over-counting.
 func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	if len(cfg.Measures) == 0 {
 		return nil, fmt.Errorf("stat: config has no measures")
 	}
 
+	// Fan-out guard: a table-column source joins one row per cell (many per
+	// form). More than one such source would multiply (cartesian) and
+	// over-count; and a numeric measure over a scalar alongside a
+	// table-column dimension would repeat the scalar per cell. Both are
+	// rejected; a single table-column dimension with count() is exact.
+	tableSrc := 0
+	hasTableDim := false
+	for _, d := range cfg.Dimensions {
+		if d.Source.Column != "" {
+			tableSrc++
+			hasTableDim = true
+		}
+	}
+	for _, ms := range cfg.Measures {
+		if ms.Source != nil && ms.Source.Column != "" {
+			tableSrc++
+		}
+	}
+	if tableSrc > 1 {
+		return nil, fmt.Errorf("stat: a statistic may use at most one table-column source (more would over-count)")
+	}
+	if hasTableDim {
+		for _, ms := range cfg.Measures {
+			if ms.Op != OpCount {
+				return nil, fmt.Errorf("stat: a table-column dimension supports only count() (numeric measures would over-count)")
+			}
+		}
+	}
+
+	// resolveCol turns a table-column source's column key into its
+	// positional index; scalar/facet sources resolve to nil.
+	resolveCol := func(s SourceRef) (*int, error) {
+		if s.Column == "" {
+			return nil, nil
+		}
+		if m.cols == nil {
+			return nil, fmt.Errorf("stat: table-column source %q[%q] needs a column resolver", s.Key, s.Column)
+		}
+		idx, ok := m.cols.ColumnIndex(template, s.Key, s.Column)
+		if !ok {
+			return nil, fmt.Errorf("stat: table column %q[%q] not found", s.Key, s.Column)
+		}
+		return &idx, nil
+	}
+
 	dims := make([]index.AggDim, len(cfg.Dimensions))
 	for i, d := range cfg.Dimensions {
-		if d.Source.Column != "" {
-			return nil, fmt.Errorf("stat: table-column dimension %q[%q] not yet supported by the engine", d.Source.Key, d.Source.Column)
-		}
 		kind := "field"
 		if d.Source.Kind == SourceFacet {
 			kind = "facet"
 		}
-		dims[i] = index.AggDim{Kind: kind, Key: d.Source.Key, DateWidth: binWidth(d.Bin)}
+		col, err := resolveCol(d.Source)
+		if err != nil {
+			return nil, err
+		}
+		dims[i] = index.AggDim{Kind: kind, Key: d.Source.Key, Col: col, DateWidth: binWidth(d.Bin)}
 	}
 
-	// Distinct numeric source keys for the reducing measures (count has none).
+	// Distinct numeric sources for the reducing measures, keyed by
+	// (key,column) so two columns of one table field don't collide.
+	numKeyFor := func(s *SourceRef) string { return s.Key + "\x00" + s.Column }
 	numIdx := map[string]int{}
-	var numKeys []string
+	var nums []index.AggNum
 	for _, ms := range cfg.Measures {
 		if ms.Source == nil {
 			continue
 		}
-		if ms.Source.Column != "" {
-			return nil, fmt.Errorf("stat: table-column measure source %q[%q] not yet supported", ms.Source.Key, ms.Source.Column)
-		}
 		if ms.Source.Kind != SourceField {
 			return nil, fmt.Errorf("stat: measure source must be a field")
 		}
-		if _, ok := numIdx[ms.Source.Key]; !ok {
-			numIdx[ms.Source.Key] = len(numKeys)
-			numKeys = append(numKeys, ms.Source.Key)
+		k := numKeyFor(ms.Source)
+		if _, ok := numIdx[k]; ok {
+			continue
 		}
+		col, err := resolveCol(*ms.Source)
+		if err != nil {
+			return nil, err
+		}
+		numIdx[k] = len(nums)
+		nums = append(nums, index.AggNum{Key: ms.Source.Key, Col: col})
 	}
 
-	rows, err := m.idx.AggregateRaw(template, dims, numKeys)
+	rows, err := m.idx.AggregateRaw(template, dims, nums)
 	if err != nil {
 		return nil, err
 	}
@@ -175,12 +227,12 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		key := coordKey(coords)
 		g := groups[key]
 		if g == nil {
-			g = &group{coords: coords, nums: make([][]float64, len(numKeys))}
+			g = &group{coords: coords, nums: make([][]float64, len(nums))}
 			groups[key] = g
 			order = append(order, key)
 		}
 		g.count++
-		for j := range numKeys {
+		for j := range nums {
 			if r.Nums[j].Valid {
 				g.nums[j] = append(g.nums[j], r.Nums[j].Float64)
 			}
@@ -197,7 +249,11 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		g := groups[key]
 		vals := make([]float64, len(cfg.Measures))
 		for i, ms := range cfg.Measures {
-			vals[i] = reduceMeasure(ms, g.count, g.nums, numIdx)
+			if ms.Op == OpCount {
+				vals[i] = float64(g.count)
+				continue
+			}
+			vals[i] = reduceNumeric(ms, g.nums[numIdx[numKeyFor(ms.Source)]])
 		}
 		cells = append(cells, GridCell{Coords: g.coords, Values: vals})
 	}
@@ -205,11 +261,7 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	return &Grid{Axes: axes, Measures: measures, Cells: cells, Total: total}, nil
 }
 
-func reduceMeasure(ms Measure, count int, nums [][]float64, numIdx map[string]int) float64 {
-	if ms.Op == OpCount {
-		return float64(count)
-	}
-	vals := nums[numIdx[ms.Source.Key]]
+func reduceNumeric(ms Measure, vals []float64) float64 {
 	s, ok := Summarize(vals, ms.Arg)
 	if !ok {
 		return 0

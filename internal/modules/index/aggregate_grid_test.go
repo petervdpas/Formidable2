@@ -16,7 +16,7 @@ func countByDim(rows []StatRawRow) map[string]int {
 
 func TestAggregateRaw_ScalarFieldWithNumericSource(t *testing.T) {
 	m := seedValuesDB(t)
-	rows, err := m.AggregateRaw("basic.yaml", []AggDim{{Kind: "field", Key: "status"}}, []string{"amount"})
+	rows, err := m.AggregateRaw("basic.yaml", []AggDim{{Kind: "field", Key: "status"}}, []AggNum{{Key: "amount"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,6 +76,43 @@ func TestAggregateRaw_Rank0OneRowPerForm(t *testing.T) {
 		if len(r.Dims) != 0 || len(r.Nums) != 0 {
 			t.Errorf("rank-0 row should be empty, got %+v", r)
 		}
+	}
+}
+
+func TestAggregateRaw_TableColumnDimension(t *testing.T) {
+	m := seedValuesDB(t)
+	c0 := 0 // items col0 = text "row-<file>"
+	rows, err := m.AggregateRaw("basic.yaml", []AggDim{{Kind: "field", Key: "items", Col: &c0}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("got %d rows, want 3 (one per table cell)", len(rows))
+	}
+	for _, r := range rows {
+		if len(r.Dims) != 1 || r.Dims[0] == "" {
+			t.Errorf("table-column row malformed: %+v", r)
+		}
+	}
+}
+
+func TestAggregateRaw_TableColumnNumericSource(t *testing.T) {
+	m := seedValuesDB(t)
+	c1 := 1 // items col1 = qty (number)
+	rows, err := m.AggregateRaw("basic.yaml",
+		[]AggDim{{Kind: "field", Key: "status"}}, []AggNum{{Key: "items", Col: &c1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := map[string]float64{}
+	for _, r := range rows {
+		if r.Nums[0].Valid {
+			sum[r.Dims[0]] += r.Nums[0].Float64
+		}
+	}
+	// qty: a(high)=2, b(low)=3, c(high)=5 -> high:7 low:3
+	if sum["high"] != 7 || sum["low"] != 3 {
+		t.Errorf("qty sum by status = %v, want high:7 low:3", sum)
 	}
 }
 

@@ -44,7 +44,14 @@ type Index interface {
 	FacetDistribution(template, facetKey string) ([]index.Bucket, error)
 	FacetCross(template, keyA, keyB string) ([]index.CrossCell, error)
 	DateSeries(template, fieldKey string, col *int, period string) ([]index.Bucket, error)
-	AggregateRaw(template string, dims []index.AggDim, numKeys []string) ([]index.StatRawRow, error)
+	AggregateRaw(template string, dims []index.AggDim, nums []index.AggNum) ([]index.StatRawRow, error)
+}
+
+// ColumnResolver maps a table field's column value-key to its positional
+// form_values.col index, so the engine can turn a table-column DSL source
+// (F["table"]["colKey"]) into the indexed column. ok=false when unknown.
+type ColumnResolver interface {
+	ColumnIndex(template, fieldKey, columnKey string) (int, bool)
 }
 
 // CategoryOption is one fixed category of a dimension source: Value is
@@ -70,6 +77,7 @@ type SourceOptions interface {
 type Manager struct {
 	idx  Index
 	opts SourceOptions
+	cols ColumnResolver
 }
 
 func NewManager(idx Index) *Manager { return &Manager{idx: idx} }
@@ -77,6 +85,10 @@ func NewManager(idx Index) *Manager { return &Manager{idx: idx} }
 // SetSourceOptions wires the optional fixed-category resolver used by
 // Evaluate to give facet/choice dimensions their full ordered axis.
 func (m *Manager) SetSourceOptions(o SourceOptions) { m.opts = o }
+
+// SetColumnResolver wires the optional table-column key->index resolver
+// used by Evaluate to support table-column dimension/measure sources.
+func (m *Manager) SetColumnResolver(c ColumnResolver) { m.cols = c }
 
 // TotalForms is the form-count denominator for percentage stats.
 func (m *Manager) TotalForms(template string) (int, error) {

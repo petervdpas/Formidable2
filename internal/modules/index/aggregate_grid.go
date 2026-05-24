@@ -6,14 +6,23 @@ import (
 	"strings"
 )
 
-// AggDim is one grouping axis for AggregateRaw: a scalar field's value or
-// a facet's selected option, optionally date-binned. DateWidth is the
-// substr length applied to an ISO date (4 year, 7 month, 10 day); 0 means
-// group by the raw text value.
+// AggDim is one grouping axis for AggregateRaw: a scalar field's value, a
+// table column's value (Col set), or a facet's selected option, optionally
+// date-binned. Col is the positional form_values.col index (nil = scalar
+// field; ignored for facets). DateWidth is the substr length applied to an
+// ISO date (4 year, 7 month, 10 day); 0 = raw text value.
 type AggDim struct {
 	Kind      string // "field" | "facet"
 	Key       string
+	Col       *int
 	DateWidth int
+}
+
+// AggNum is a numeric source for a reducing measure: a scalar field
+// (Col nil) or a table column (Col set).
+type AggNum struct {
+	Key string
+	Col *int
 }
 
 // StatRawRow is one form's contribution to an aggregation: the category
@@ -30,15 +39,25 @@ type StatRawRow struct {
 // source field's value. The statistical engine groups and reduces these
 // in Go, so median/stddev/percentile compute uniformly with sum/avg/count.
 //
-// Scalar field and facet dimensions only; numeric sources are scalar
-// fields (col IS NULL). Table-column sources are a later iteration - the
-// engine rejects them before calling here. Dimensions INNER JOIN (a form
-// missing a dimension value is excluded); numeric sources LEFT JOIN (a
-// missing value is invalid, not a dropped row), so a count() measure still
-// sees every form that has the grouping values.
-func (m *Manager) AggregateRaw(template string, dims []AggDim, numKeys []string) ([]StatRawRow, error) {
+// Scalar field, table-column and facet dimensions; numeric sources are
+// scalar fields or table columns. A column join (Col set) fans to one row
+// per matching cell - the caller (stat engine) limits a statistic to a
+// single such one-to-many source to avoid a cartesian over-count.
+// Dimensions INNER JOIN (a form missing a dimension value is excluded);
+// numeric sources LEFT JOIN (a missing value is invalid, not a dropped
+// row), so a count() measure still sees every matching row.
+func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum) ([]StatRawRow, error) {
 	var sel, joins []string
 	var args []any
+
+	// colPred returns the SQL for matching a form_values column plus the
+	// extra arg (if any); a nil col matches the scalar (col IS NULL) row.
+	colPred := func(alias string, col *int) (string, []any) {
+		if col == nil {
+			return alias + ".col IS NULL", nil
+		}
+		return alias + ".col = ?", []any{*col}
+	}
 
 	for i, d := range dims {
 		alias := fmt.Sprintf("d%d", i)
@@ -50,10 +69,12 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, numKeys []string)
 			sel = append(sel, fmt.Sprintf("COALESCE(%s.selected,'')", alias))
 			continue
 		}
+		pred, pArgs := colPred(alias, d.Col)
 		cond := fmt.Sprintf(
-			"JOIN form_values %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.field_key=? AND %[1]s.col IS NULL AND %[1]s.text_value IS NOT NULL AND %[1]s.text_value<>''",
-			alias)
+			"JOIN form_values %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.field_key=? AND %[2]s AND %[1]s.text_value IS NOT NULL AND %[1]s.text_value<>''",
+			alias, pred)
 		args = append(args, d.Key)
+		args = append(args, pArgs...)
 		if d.DateWidth > 0 {
 			cond += fmt.Sprintf(" AND %s.value_type='date'", alias)
 			joins = append(joins, cond)
@@ -64,12 +85,14 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, numKeys []string)
 		}
 	}
 
-	for j, key := range numKeys {
+	for j, n := range nums {
 		alias := fmt.Sprintf("n%d", j)
+		pred, pArgs := colPred(alias, n.Col)
 		joins = append(joins, fmt.Sprintf(
-			"LEFT JOIN form_values %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.field_key=? AND %[1]s.col IS NULL AND %[1]s.num_value IS NOT NULL",
-			alias))
-		args = append(args, key)
+			"LEFT JOIN form_values %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.field_key=? AND %[2]s AND %[1]s.num_value IS NOT NULL",
+			alias, pred))
+		args = append(args, n.Key)
+		args = append(args, pArgs...)
 		sel = append(sel, fmt.Sprintf("%s.num_value", alias))
 	}
 
@@ -86,7 +109,7 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, numKeys []string)
 	}
 	defer rows.Close()
 
-	nd, nn := len(dims), len(numKeys)
+	nd, nn := len(dims), len(nums)
 	var out []StatRawRow
 	for rows.Next() {
 		dimVals := make([]sql.NullString, nd)

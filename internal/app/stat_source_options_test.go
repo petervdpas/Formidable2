@@ -23,7 +23,26 @@ func demoStatTemplate() *template.Template {
 			{Key: "done", Type: "boolean"},
 			{Key: "amount", Type: "number"},
 			{Key: "due", Type: "date"},
+			{Key: "sp", Type: "table", Options: []any{
+				map[string]any{"value": "procedure", "type": "string"},
+				map[string]any{"value": "access", "type": "dropdown"},
+				map[string]any{"value": "via", "type": "string"},
+			}},
 		},
+	}
+}
+
+func TestColumnIndex(t *testing.T) {
+	tpl := demoStatTemplate()
+	got, ok := columnIndexIn(tpl, "sp", "access")
+	if !ok || got != 1 {
+		t.Errorf("sp.access -> (%d,%v), want (1,true)", got, ok)
+	}
+	if _, ok := columnIndexIn(tpl, "sp", "ghost"); ok {
+		t.Error("unknown column should be ok=false")
+	}
+	if _, ok := columnIndexIn(tpl, "ghost", "access"); ok {
+		t.Error("unknown field should be ok=false")
 	}
 }
 
