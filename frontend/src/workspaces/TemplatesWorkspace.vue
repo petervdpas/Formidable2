@@ -1305,6 +1305,7 @@ setTopbarMenu(() => [
     :open="statViewOpen"
     :title="statViewTitle"
     :grid="statViewGrid"
+    :facets="draft?.facets ?? []"
     @close="statViewOpen = false"
   />
 </template>

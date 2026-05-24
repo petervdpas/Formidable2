@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { type Grid, scalarValues, fmtNum } from "./grid";
 
 // Rank-0 grid: one card per measure (the measure label is its own
-// caption, e.g. "count", "avg(amount)").
-const props = defineProps<{ grid: Grid }>();
+// caption, e.g. "count", "avg(amount)"). facets/measureIndex are accepted
+// for a uniform dispatch signature but unused here.
+const props = defineProps<{ grid: Grid; facets?: Facet[]; measureIndex?: number }>();
 const cards = computed(() => scalarValues(props.grid));
 </script>
 

@@ -1,22 +1,26 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { type Grid, denseRank1, fmtNum } from "./grid";
+import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { type Grid, denseRank1, facetColorToken, fmtNum } from "./grid";
 import { CHART_PALETTE } from "./types";
 
 // Rank-1 grid as a pie of one measure across axis 0's labels. Slices are
 // proportional to each label's value over their sum (negative/zero values
-// are dropped - a pie can't show them). Same data a bar would use; the
-// renderer is the consumer's choice, not the statistic's.
+// are dropped - a pie can't show them). When the axis is a facet, slices
+// take the facet option's authored color (matching its pills); otherwise
+// the neutral chart palette. The renderer is the consumer's choice, not
+// the statistic's.
 const props = withDefaults(
-  defineProps<{ grid: Grid; measureIndex?: number; size?: number }>(),
+  defineProps<{ grid: Grid; facets?: Facet[]; measureIndex?: number; size?: number }>(),
   { measureIndex: 0, size: 220 },
 );
 
 const view = computed(() => {
   const labels = props.grid.axes[0]?.labels ?? [];
+  const axisSource = props.grid.axes[0]?.source ?? "";
   const values = denseRank1(props.grid, props.measureIndex);
   const slices = labels
-    .map((label, i) => ({ label: label === "" ? "(unset)" : label, value: values[i] ?? 0 }))
+    .map((raw, i) => ({ raw, label: raw === "" ? "(unset)" : raw, value: values[i] ?? 0 }))
     .filter((s) => s.value > 0);
   const total = slices.reduce((a, s) => a + s.value, 0);
   if (total <= 0) return null;
@@ -41,9 +45,12 @@ const view = computed(() => {
       frac >= 1
         ? `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r} Z`
         : `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+    const token = facetColorToken(props.facets, axisSource, s.raw);
     return {
       d,
-      color: CHART_PALETTE[i % CHART_PALETTE.length],
+      // Facet option color via currentColor + expr-text-<token>; else palette.
+      fill: token ? "currentColor" : CHART_PALETTE[i % CHART_PALETTE.length],
+      colorClass: token ? `expr-text-${token}` : "",
       label: s.label,
       value: fmtNum(s.value),
       pct: Math.round(frac * 100),
@@ -65,14 +72,18 @@ const view = computed(() => {
           v-for="(a, i) in view.arcs"
           :key="`slice-${i}`"
           :d="a.d"
-          :fill="a.color"
+          :fill="a.fill"
+          :class="['stat-pie-slice', a.colorClass]"
           fill-opacity="0.82"
-          class="stat-pie-slice"
         />
       </svg>
       <ul class="stat-legend">
         <li v-for="(a, i) in view.arcs" :key="`leg-${i}`" class="stat-legend-row">
-          <span class="stat-legend-swatch" :style="{ background: a.color }" />
+          <span
+            class="stat-legend-swatch"
+            :class="a.colorClass"
+            :style="a.colorClass ? { background: 'currentColor' } : { background: a.fill }"
+          />
           <span class="stat-legend-label">{{ a.label }} - {{ a.value }} ({{ a.pct }}%)</span>
         </li>
       </ul>

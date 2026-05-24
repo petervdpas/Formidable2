@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { type Grid, denseRank1, fmtNum } from "./grid";
+import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { type Grid, denseRank1, facetColorToken, fmtNum } from "./grid";
 
 // Rank-1 grid as a horizontal bar chart of one measure across axis 0's
 // labels. Mirrors the StatBar layout (it themes for free). Percentages
-// are shown against grid.total when the measure is a count.
+// are shown against grid.total when the measure is a count. When the axis
+// is a facet, each bar takes the facet option's authored color.
 const props = withDefaults(
   defineProps<{
     grid: Grid;
+    facets?: Facet[];
     measureIndex?: number;
     width?: number;
     height?: number;
@@ -25,6 +28,7 @@ const isCount = computed(() => (props.grid.measures[props.measureIndex] ?? "") =
 
 const view = computed(() => {
   const labels = props.grid.axes[0]?.labels ?? [];
+  const axisSource = props.grid.axes[0]?.source ?? "";
   const values = denseRank1(props.grid, props.measureIndex);
   if (labels.length === 0) return null;
 
@@ -32,15 +36,19 @@ const view = computed(() => {
   const barAreaW = props.width - PAD_LEFT - PAD_RIGHT;
   const total = props.grid.total ?? 0;
 
-  const rows = labels.map((label, i) => {
+  const rows = labels.map((raw, i) => {
     const value = values[i] ?? 0;
     const pct = isCount.value && total > 0 ? Math.round((value / total) * 100) : null;
+    const token = facetColorToken(props.facets, axisSource, raw);
     return {
       y: PAD_TOP + i * (BAR_HEIGHT + BAR_GAP),
       width: (Math.abs(value) / max) * barAreaW,
-      label: label === "" ? "(unset)" : label,
+      label: raw === "" ? "(unset)" : raw,
       text: fmtNum(value),
       pct,
+      // Facet option color (currentColor + class) or the default .stat-bar fill.
+      colorClass: token ? `expr-text-${token}` : "",
+      fill: token ? "currentColor" : "",
     };
   });
 
@@ -59,7 +67,14 @@ const view = computed(() => {
     >
       <g v-for="(row, i) in view.rows" :key="`bar-${i}`">
         <text :x="PAD_LEFT - 4" :y="row.y + 13" text-anchor="end" class="stat-bar-label">{{ row.label }}</text>
-        <rect :x="PAD_LEFT" :y="row.y" :width="row.width" :height="BAR_HEIGHT" class="stat-bar" />
+        <rect
+          :x="PAD_LEFT"
+          :y="row.y"
+          :width="row.width"
+          :height="BAR_HEIGHT"
+          :class="['stat-bar', row.colorClass]"
+          :fill="row.fill || undefined"
+        />
         <text :x="PAD_LEFT + row.width + 6" :y="row.y + 13" class="stat-bar-value">
           {{ row.text }}<tspan v-if="row.pct !== null"> ({{ row.pct }}%)</tspan>
         </text>

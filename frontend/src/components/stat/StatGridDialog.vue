@@ -5,14 +5,17 @@ import Modal from "../Modal.vue";
 import { SelectField } from "../fields";
 import StatGrid from "./StatGrid.vue";
 import { type Grid, gridRank } from "./grid";
+import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 // Glance-and-close dialog for one evaluated statistic. Rank decides the
 // available chart types (the statistic carries no presentation), and a
-// measure picker appears when the grid has more than one measure.
+// measure picker appears when the grid has more than one measure. facets
+// lets rank-1 charts color categories by their facet option colors.
 const props = defineProps<{
   open: boolean;
   title?: string;
   grid: Grid | null;
+  facets?: Facet[];
 }>();
 
 const emit = defineEmits<{ close: [] }>();
@@ -68,7 +71,7 @@ watch(
       />
     </div>
 
-    <StatGrid :grid="grid" :type="chartType" :measure-index="measureIndex" />
+    <StatGrid :grid="grid" :type="chartType" :measure-index="measureIndex" :facets="facets" />
 
     <p v-if="grid && grid.total >= 0" class="muted small stat-view-total">
       {{ t('workspace.templates.stat_view.total', [grid.total]) }}

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { type Grid, denseRank2, fmtNum } from "./grid";
 
 // Rank-2 grid as a heatmap of one measure: axis 0 = rows, axis 1 = cols.
 // Cell shade scales with the value over the matrix max. The corner names
-// the two source axes.
+// the two source axes. facets is accepted for a uniform dispatch
+// signature but unused (cells span two facets, so per-option color
+// wouldn't be meaningful).
 const props = withDefaults(
-  defineProps<{ grid: Grid; measureIndex?: number }>(),
+  defineProps<{ grid: Grid; facets?: Facet[]; measureIndex?: number }>(),
   { measureIndex: 0 },
 );
 
