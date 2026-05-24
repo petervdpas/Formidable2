@@ -40,3 +40,25 @@ func (s *Service) NumericStats(template, fieldKey string, col *int, percentile *
 func (s *Service) TimeSeries(template, fieldKey string, col *int, period string) (*Result, error) {
 	return s.m.TimeSeries(template, fieldKey, col, period)
 }
+
+// CompileDSL serializes a StatConfig into the canonical statistical-DSL
+// string. The Statistical Insight builder dialog calls this on save; the
+// stored string is what evaluation (step 4) later parses + runs.
+func (s *Service) CompileDSL(cfg StatConfig) (string, error) {
+	return Compile(cfg)
+}
+
+// ParseDSL turns a stored statistical-DSL string back into a StatConfig
+// so the builder can re-open it for editing. Strict: an unrecognised
+// string is an error, letting the dialog show a clean "couldn't load"
+// flow rather than silently misreading.
+func (s *Service) ParseDSL(dsl string) (StatConfig, error) {
+	return Parse(dsl)
+}
+
+// BuilderMeasureOps is the measure catalog (op + input rules) the builder
+// renders its op picker from - backend owns the vocabulary, not the UI.
+func (s *Service) BuilderMeasureOps() []MeasureOpDescriptor { return MeasureOps() }
+
+// BuilderBins is the date-bin catalog for the dimension binning picker.
+func (s *Service) BuilderBins() []Bin { return Bins() }

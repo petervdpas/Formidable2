@@ -13,9 +13,10 @@ import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog
 import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FacetEditorModal from "../components/FacetEditorModal.vue";
+import StatisticsBuilderModal from "../components/StatisticsBuilderModal.vue";
 import FacetIcon from "../components/FacetIcon.vue";
 import { useFacetMeta } from "../composables/useFacetMeta";
-import { Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Facet, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import CodeEditor from "../components/CodeEditor.vue";
 import Tabs from "../components/Tabs.vue";
 import {
@@ -591,12 +592,53 @@ watch(
 );
 
 // ── Setup-info tabs (Template Code / Sidebar Expression / Facets) ───
-const setupTab = ref<"code" | "expression" | "facets">("code");
+const setupTab = ref<"code" | "expression" | "facets" | "statistics">("code");
 const setupTabItems = computed(() => [
   { id: "code", label: t("workspace.templates.setup.template_code") },
   { id: "expression", label: t("workspace.templates.setup.sidebar_expression") },
   { id: "facets", label: t("workspace.templates.setup.facets") },
+  { id: "statistics", label: t("workspace.templates.setup.statistics") },
 ]);
+
+// ── Statistical Engine: named statistical objects on the template ─────
+// Edits one statistic at a time via StatisticsBuilderModal. The builder
+// round-trips the DSL string through the backend (stat.Compile/Parse).
+const statBuilderOpen = ref(false);
+const editingStatIndex = ref(-1);
+const editingStat = ref<Statistic | null>(null);
+
+function openAddStatistic() {
+  if (!draft.value) return;
+  editingStatIndex.value = -1;
+  editingStat.value = null;
+  statBuilderOpen.value = true;
+}
+
+function openEditStatistic(idx: number) {
+  if (!draft.value) return;
+  const s = draft.value.statistics?.[idx];
+  if (!s) return;
+  editingStatIndex.value = idx;
+  editingStat.value = new Statistic({ name: s.name, label: s.label, dsl: s.dsl });
+  statBuilderOpen.value = true;
+}
+
+function removeStatistic(idx: number) {
+  if (!draft.value) return;
+  const cur = draft.value.statistics ?? [];
+  draft.value.statistics = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
+}
+
+function applyStatistic(s: Statistic) {
+  if (!draft.value) return;
+  const cur = draft.value.statistics ?? [];
+  if (editingStatIndex.value < 0) {
+    draft.value.statistics = [...cur, s];
+  } else {
+    draft.value.statistics = cur.map((existing, i) => (i === editingStatIndex.value ? s : existing));
+  }
+  statBuilderOpen.value = false;
+}
 
 // ── Facet editor dialog ──────────────────────────────────────────────
 // Edits one facet at a time. editingIndex = -1 means "adding a new
@@ -983,6 +1025,44 @@ setTopbarMenu(() => [
                   </div>
                 </div>
               </template>
+
+              <template #statistics>
+                <div class="setup-tab-pane">
+                  <p
+                    v-if="!draft.statistics || draft.statistics.length === 0"
+                    class="muted small"
+                  >
+                    {{ t('workspace.templates.statistics.empty') }}
+                  </p>
+                  <ul v-else class="stat-rows">
+                    <li
+                      v-for="(s, i) in draft.statistics"
+                      :key="s.name"
+                      class="stat-row"
+                    >
+                      <span class="stat-row-name mono">{{ s.name }}</span>
+                      <code class="stat-row-dsl">{{ s.dsl }}</code>
+                      <button
+                        class="tool-btn"
+                        type="button"
+                        :title="t('workspace.templates.statistics.edit')"
+                        @click="openEditStatistic(i)"
+                      >{{ t('workspace.templates.statistics.edit') }}</button>
+                      <button
+                        class="tool-btn danger"
+                        type="button"
+                        :title="t('workspace.templates.statistics.remove')"
+                        @click="removeStatistic(i)"
+                      >×</button>
+                    </li>
+                  </ul>
+                  <div class="setup-tab-actions">
+                    <button class="tool-btn" type="button" @click="openAddStatistic">
+                      + {{ t('workspace.templates.statistics.add') }}
+                    </button>
+                  </div>
+                </div>
+              </template>
             </Tabs>
           </div>
 
@@ -1178,6 +1258,17 @@ setTopbarMenu(() => [
     :existing-keys="otherFacetKeys"
     @close="facetEditorOpen = false"
     @apply="applyFacet"
+  />
+
+  <!-- Statistical Engine: edits one named statistical object at a time -->
+  <StatisticsBuilderModal
+    v-if="draft"
+    :open="statBuilderOpen"
+    :fields="draft.fields ?? []"
+    :facets="draft.facets ?? []"
+    :initial="editingStat"
+    @close="statBuilderOpen = false"
+    @apply="applyStatistic"
   />
 </template>
 

@@ -6,6 +6,150 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Bin buckets a date dimension; "" means no binning (group by raw value).
+ */
+export enum Bin {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    BinNone = "",
+    BinYear = "year",
+    BinMonth = "month",
+    BinDay = "day",
+};
+
+/**
+ * Dimension is one group-by axis: a source, optionally date-binned.
+ */
+export class Dimension {
+    "Source": SourceRef;
+    "Bin": Bin;
+
+    /** Creates a new Dimension instance. */
+    constructor($$source: Partial<Dimension> = {}) {
+        if (!("Source" in $$source)) {
+            this["Source"] = (new SourceRef());
+        }
+        if (!("Bin" in $$source)) {
+            this["Bin"] = Bin.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Dimension instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Dimension {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Source" in $$parsedSource) {
+            $$parsedSource["Source"] = $$createField0_0($$parsedSource["Source"]);
+        }
+        return new Dimension($$parsedSource as Partial<Dimension>);
+    }
+}
+
+/**
+ * Measure is one cell value layer: count() (no source), a reduce over a
+ * numeric field source, or percentile(source, p).
+ */
+export class Measure {
+    "Op": MeasureOp;
+
+    /**
+     * nil only for count
+     */
+    "Source": SourceRef | null;
+
+    /**
+     * percentile p; nil otherwise
+     */
+    "Arg": number | null;
+
+    /** Creates a new Measure instance. */
+    constructor($$source: Partial<Measure> = {}) {
+        if (!("Op" in $$source)) {
+            this["Op"] = MeasureOp.$zero;
+        }
+        if (!("Source" in $$source)) {
+            this["Source"] = null;
+        }
+        if (!("Arg" in $$source)) {
+            this["Arg"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Measure instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Measure {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Source" in $$parsedSource) {
+            $$parsedSource["Source"] = $$createField1_0($$parsedSource["Source"]);
+        }
+        return new Measure($$parsedSource as Partial<Measure>);
+    }
+}
+
+/**
+ * MeasureOp is the aggregation a measure applies to each cell.
+ */
+export enum MeasureOp {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    OpCount = "count",
+    OpSum = "sum",
+    OpAvg = "avg",
+    OpMin = "min",
+    OpMax = "max",
+    OpMedian = "median",
+    OpStddev = "stddev",
+    OpPercentile = "percentile",
+};
+
+/**
+ * MeasureOpDescriptor describes one measure operation: the op id plus
+ * whether it needs a numeric field source and a numeric argument.
+ */
+export class MeasureOpDescriptor {
+    "op": MeasureOp;
+    "needs_source": boolean;
+    "needs_arg": boolean;
+
+    /** Creates a new MeasureOpDescriptor instance. */
+    constructor($$source: Partial<MeasureOpDescriptor> = {}) {
+        if (!("op" in $$source)) {
+            this["op"] = MeasureOp.$zero;
+        }
+        if (!("needs_source" in $$source)) {
+            this["needs_source"] = false;
+        }
+        if (!("needs_arg" in $$source)) {
+            this["needs_arg"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MeasureOpDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MeasureOpDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MeasureOpDescriptor($$parsedSource as Partial<MeasureOpDescriptor>);
+    }
+}
+
+/**
  * Result is the chart-neutral output of every stat query. Categories
  * are the x-axis labels; Series are the aligned value rows; Scalars
  * carries single-number stats that don't fit the grid (count, avg,
@@ -35,9 +179,9 @@ export class Result {
      * Creates a new Result instance from a string or object.
      */
     static createFrom($$source: any = {}): Result {
-        const $$createField1_0 = $$createType0;
-        const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType3;
+        const $$createField1_0 = $$createType2;
+        const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("categories" in $$parsedSource) {
             $$parsedSource["categories"] = $$createField1_0($$parsedSource["categories"]);
@@ -75,7 +219,7 @@ export class Series {
      * Creates a new Series instance from a string or object.
      */
     static createFrom($$source: any = {}): Series {
-        const $$createField1_0 = $$createType4;
+        const $$createField1_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField1_0($$parsedSource["values"]);
@@ -84,9 +228,103 @@ export class Series {
     }
 }
 
+/**
+ * SourceKind distinguishes a field source from a facet source.
+ */
+export enum SourceKind {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    SourceField = "field",
+    SourceFacet = "facet",
+};
+
+/**
+ * SourceRef references a statistical source by key: a field (optionally a
+ * table column by its option value-key) or a facet. Column is "" for a
+ * scalar field or a facet.
+ */
+export class SourceRef {
+    "Kind": SourceKind;
+    "Key": string;
+    "Column": string;
+
+    /** Creates a new SourceRef instance. */
+    constructor($$source: Partial<SourceRef> = {}) {
+        if (!("Kind" in $$source)) {
+            this["Kind"] = SourceKind.$zero;
+        }
+        if (!("Key" in $$source)) {
+            this["Key"] = "";
+        }
+        if (!("Column" in $$source)) {
+            this["Column"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SourceRef instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SourceRef {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SourceRef($$parsedSource as Partial<SourceRef>);
+    }
+}
+
+/**
+ * StatConfig is the parsed statistical DSL: one or more measures (cell
+ * value layers) over zero or more dimensions (axes). No dimensions => a
+ * rank-0 scalar; one => a 1D array; two => a 2D matrix; and so on.
+ * 
+ * Named StatConfig (not Config) to stay unambiguous inside the stat
+ * package, which already carries Result/Series.
+ */
+export class StatConfig {
+    "Measures": Measure[];
+    "Dimensions": Dimension[];
+
+    /** Creates a new StatConfig instance. */
+    constructor($$source: Partial<StatConfig> = {}) {
+        if (!("Measures" in $$source)) {
+            this["Measures"] = [];
+        }
+        if (!("Dimensions" in $$source)) {
+            this["Dimensions"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StatConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StatConfig {
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Measures" in $$parsedSource) {
+            $$parsedSource["Measures"] = $$createField0_0($$parsedSource["Measures"]);
+        }
+        if ("Dimensions" in $$parsedSource) {
+            $$parsedSource["Dimensions"] = $$createField1_0($$parsedSource["Dimensions"]);
+        }
+        return new StatConfig($$parsedSource as Partial<StatConfig>);
+    }
+}
+
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = Series.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = $Create.Array($Create.Any);
+const $$createType0 = SourceRef.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = Series.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = $Create.Array($Create.Any);
+const $$createType7 = Measure.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = Dimension.createFrom;
+const $$createType10 = $Create.Array($$createType9);

@@ -23,11 +23,39 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * BuilderBins is the date-bin catalog for the dimension binning picker.
+ */
+export function BuilderBins(): $CancellablePromise<$models.Bin[]> {
+    return $Call.ByID(759425425).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
+ * BuilderMeasureOps is the measure catalog (op + input rules) the builder
+ * renders its op picker from - backend owns the vocabulary, not the UI.
+ */
+export function BuilderMeasureOps(): $CancellablePromise<$models.MeasureOpDescriptor[]> {
+    return $Call.ByID(61375399).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * CompileDSL serializes a StatConfig into the canonical statistical-DSL
+ * string. The Statistical Insight builder dialog calls this on save; the
+ * stored string is what evaluation (step 4) later parses + runs.
+ */
+export function CompileDSL(cfg: $models.StatConfig): $CancellablePromise<string> {
+    return $Call.ByID(1028174896, cfg);
+}
+
+/**
  * CrossTab is the pair-combination matrix between two facets.
  */
 export function CrossTab(template: string, keyA: string, keyB: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(721428515, template, keyA, keyB).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType4($result);
     });
 }
 
@@ -36,7 +64,7 @@ export function CrossTab(template: string, keyA: string, keyB: string): $Cancell
  */
 export function Distribution(template: string, fieldKey: string, col: number | null): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(3246012510, template, fieldKey, col).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType4($result);
     });
 }
 
@@ -45,7 +73,7 @@ export function Distribution(template: string, fieldKey: string, col: number | n
  */
 export function FacetDistribution(template: string, facetKey: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(248037669, template, facetKey).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType4($result);
     });
 }
 
@@ -55,7 +83,19 @@ export function FacetDistribution(template: string, facetKey: string): $Cancella
  */
 export function NumericStats(template: string, fieldKey: string, col: number | null, percentile: number | null): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2728644434, template, fieldKey, col, percentile).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType4($result);
+    });
+}
+
+/**
+ * ParseDSL turns a stored statistical-DSL string back into a StatConfig
+ * so the builder can re-open it for editing. Strict: an unrecognised
+ * string is an error, letting the dialog show a clean "couldn't load"
+ * flow rather than silently misreading.
+ */
+export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
+    return $Call.ByID(2598631634, dsl).then(($result: any) => {
+        return $$createType5($result);
     });
 }
 
@@ -65,10 +105,14 @@ export function NumericStats(template: string, fieldKey: string, col: number | n
  */
 export function TimeSeries(template: string, fieldKey: string, col: number | null, period: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(4140051192, template, fieldKey, col, period).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType4($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.Result.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $models.MeasureOpDescriptor.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.Result.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $models.StatConfig.createFrom;

@@ -7,6 +7,14 @@ export {
 };
 
 export {
+    Bin,
+    Dimension,
+    Measure,
+    MeasureOp,
+    MeasureOpDescriptor,
     Result,
-    Series
+    Series,
+    SourceKind,
+    SourceRef,
+    StatConfig
 } from "./models.js";

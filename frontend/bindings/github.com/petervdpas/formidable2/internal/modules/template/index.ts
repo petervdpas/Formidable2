@@ -28,6 +28,7 @@ export {
     PDFCoverConfig,
     Shape,
     ShapeInfo,
+    Statistic,
     SubRow,
     SubRowEntry,
     TableColumnTypeDescriptor,

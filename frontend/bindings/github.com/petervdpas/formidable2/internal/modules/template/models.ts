@@ -907,6 +907,40 @@ export class ShapeInfo {
 }
 
 /**
+ * Statistic is one author-defined statistical object: a named statistical
+ * DSL expression stored on the template. The Statistical Engine evaluates
+ * it into a rank-N values grid; a consumer (plugin/Lua, later reports)
+ * renders it. Name is the identifier consumers fetch by; Label is the
+ * display title; DSL is the serialized statistical-DSL string (see
+ * internal/modules/stat and design/statistics-dsl.md).
+ */
+export class Statistic {
+    "name": string;
+    "label"?: string;
+    "dsl": string;
+
+    /** Creates a new Statistic instance. */
+    constructor($$source: Partial<Statistic> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("dsl" in $$source)) {
+            this["dsl"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Statistic instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Statistic {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Statistic($$parsedSource as Partial<Statistic>);
+    }
+}
+
+/**
  * SubRow declares an extra editor row that appears below the main
  * option row when its triggering dropdown column's current value is
  * this one. The user's input is stored as a single pipe-delimited
@@ -1032,6 +1066,7 @@ export class Template {
     "enable_collection": boolean;
     "pdf"?: PDFConfig | null;
     "facets": Facet[];
+    "statistics": Statistic[];
     "fields": Field[];
     "needs_resave": boolean;
 
@@ -1058,6 +1093,9 @@ export class Template {
         if (!("facets" in $$source)) {
             this["facets"] = [];
         }
+        if (!("statistics" in $$source)) {
+            this["statistics"] = [];
+        }
         if (!("fields" in $$source)) {
             this["fields"] = [];
         }
@@ -1074,7 +1112,8 @@ export class Template {
     static createFrom($$source: any = {}): Template {
         const $$createField8_0 = $$createType27;
         const $$createField9_0 = $$createType29;
-        const $$createField10_0 = $$createType30;
+        const $$createField10_0 = $$createType31;
+        const $$createField11_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -1082,8 +1121,11 @@ export class Template {
         if ("facets" in $$parsedSource) {
             $$parsedSource["facets"] = $$createField9_0($$parsedSource["facets"]);
         }
+        if ("statistics" in $$parsedSource) {
+            $$parsedSource["statistics"] = $$createField10_0($$parsedSource["statistics"]);
+        }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField10_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField11_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }
@@ -1162,4 +1204,6 @@ const $$createType26 = PDFConfig.createFrom;
 const $$createType27 = $Create.Nullable($$createType26);
 const $$createType28 = Facet.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = $Create.Array($$createType13);
+const $$createType30 = Statistic.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = $Create.Array($$createType13);

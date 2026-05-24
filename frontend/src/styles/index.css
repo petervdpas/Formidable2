@@ -52,6 +52,7 @@
 @import "./journal-feed.css";
 @import "./expression.css";
 @import "./expression-builder.css";
+@import "./statistics-builder.css";
 @import "./facet-picker.css";
 @import "./cleanup-storage.css";
 @import "./csv-import.css";

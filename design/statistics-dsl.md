@@ -149,11 +149,23 @@ and `stat.Parse(string)`.
    keep template decoupled). Tests in template/normalize_test.go.
 2. DONE - DSL `stat.Compile`/`stat.Parse` + `StatConfig` types + round-trip
    identity tests (stat/dsl*.go, stat/dsl_test.go).
-3. Engine: StatConfig -> SQL GROUP BY over form_values/form_facets -> Grid.
-   Tests over a seeded index (mixed field + facet dimensions, each measure).
+3. DONE - Engine: `stat.Manager.Evaluate(template, StatConfig) -> Grid`.
+   `index.AggregateRaw` fetches one row per form (scalar field + facet
+   dims, date bins, LEFT-joined numeric sources); `stat` groups + reduces
+   in Go (count + Summarize for sum/avg/min/max/median/stddev/percentile)
+   into sparse Grid cells. Table-column sources rejected (deferred). Tests:
+   index/aggregate_grid_test.go (real SQL) + stat/engine_test.go (shaping).
 4. Wails `Stat.EvaluateObject(template, name) -> Grid` + Lua binding
    (`formidable.statistical(name)`).
-5. Builder dialog (mirrors expressionBuilder structure).
+5. DONE - Builder dialog. `StatisticsBuilderModal.vue` composes measures
+   + dimensions (sources = the template's use_in_statistics fields/columns
+   + facets) and round-trips the DSL string via `Stat.CompileDSL` /
+   `Stat.ParseDSL`. The op/bin catalog + input rules come from the backend
+   (`Stat.BuilderMeasureOps` / `BuilderBins`); the UI is a backend-driven
+   string-builder, not a DSL re-implementation. Managed from a new
+   "Statistics" tab in the template editor (TemplatesWorkspace). i18n ns
+   statistics.json (en+nl). (Step 4, Lua/Wails Evaluate, intentionally
+   still pending - the builder only needs Compile/Parse.)
 6. Renderer: extend StatChart to consume Grid (rank-aware), add pie/heatmap.
 
 ## Deferred

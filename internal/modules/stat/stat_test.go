@@ -16,6 +16,11 @@ type fakeIndex struct {
 	facet   []index.Bucket
 	cross   []index.CrossCell
 	dates   []index.Bucket
+	raw     []index.StatRawRow
+}
+
+func (f *fakeIndex) AggregateRaw(string, []index.AggDim, []string) ([]index.StatRawRow, error) {
+	return f.raw, nil
 }
 
 func (f *fakeIndex) TotalForms(string) (int, error) { return f.total, nil }

@@ -44,6 +44,7 @@ type Index interface {
 	FacetDistribution(template, facetKey string) ([]index.Bucket, error)
 	FacetCross(template, keyA, keyB string) ([]index.CrossCell, error)
 	DateSeries(template, fieldKey string, col *int, period string) ([]index.Bucket, error)
+	AggregateRaw(template string, dims []index.AggDim, numKeys []string) ([]index.StatRawRow, error)
 }
 
 // Manager turns index aggregates into chart-neutral Results.
