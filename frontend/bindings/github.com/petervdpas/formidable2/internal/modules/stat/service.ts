@@ -69,6 +69,17 @@ export function Distribution(template: string, fieldKey: string, col: number | n
 }
 
 /**
+ * EvaluateObject resolves a template's named statistical object to its
+ * DSL, evaluates it against the index, and returns the rank-N Grid. This
+ * is the surface the frontend renderer and the Lua binding consume.
+ */
+export function EvaluateObject(template: string, name: string): $CancellablePromise<$models.Grid | null> {
+    return $Call.ByID(864923500, template, name).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
  * FacetDistribution counts set forms by a facet's selected option.
  */
 export function FacetDistribution(template: string, facetKey: string): $CancellablePromise<$models.Result | null> {
@@ -95,7 +106,7 @@ export function NumericStats(template: string, fieldKey: string, col: number | n
  */
 export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
     return $Call.ByID(2598631634, dsl).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -115,4 +126,6 @@ const $$createType1 = $models.MeasureOpDescriptor.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $models.Result.createFrom;
 const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = $models.StatConfig.createFrom;
+const $$createType5 = $models.Grid.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = $models.StatConfig.createFrom;

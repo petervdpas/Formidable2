@@ -53,6 +53,128 @@ export class Dimension {
 }
 
 /**
+ * Grid is the rank-N output of evaluating a StatConfig: one Axis per
+ * dimension (in declared order), the measure labels, and sparse Cells
+ * (a coordinate tuple into the axes plus one value per measure). Total is
+ * the form-count denominator for percentages. No dimensions => one cell
+ * with empty coords (a rank-0 scalar).
+ */
+export class Grid {
+    "axes": GridAxis[];
+    "measures": string[];
+    "cells": GridCell[];
+    "total": number;
+
+    /** Creates a new Grid instance. */
+    constructor($$source: Partial<Grid> = {}) {
+        if (!("axes" in $$source)) {
+            this["axes"] = [];
+        }
+        if (!("measures" in $$source)) {
+            this["measures"] = [];
+        }
+        if (!("cells" in $$source)) {
+            this["cells"] = [];
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Grid instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Grid {
+        const $$createField0_0 = $$createType2;
+        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("axes" in $$parsedSource) {
+            $$parsedSource["axes"] = $$createField0_0($$parsedSource["axes"]);
+        }
+        if ("measures" in $$parsedSource) {
+            $$parsedSource["measures"] = $$createField1_0($$parsedSource["measures"]);
+        }
+        if ("cells" in $$parsedSource) {
+            $$parsedSource["cells"] = $$createField2_0($$parsedSource["cells"]);
+        }
+        return new Grid($$parsedSource as Partial<Grid>);
+    }
+}
+
+/**
+ * GridAxis is one dimension: a source label and its distinct category
+ * ticks (sorted for stable output).
+ */
+export class GridAxis {
+    "source": string;
+    "labels": string[];
+
+    /** Creates a new GridAxis instance. */
+    constructor($$source: Partial<GridAxis> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("labels" in $$source)) {
+            this["labels"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GridAxis instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GridAxis {
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("labels" in $$parsedSource) {
+            $$parsedSource["labels"] = $$createField1_0($$parsedSource["labels"]);
+        }
+        return new GridAxis($$parsedSource as Partial<GridAxis>);
+    }
+}
+
+/**
+ * GridCell is one populated coordinate: indices into each axis and the
+ * value of each measure (aligned to Grid.Measures).
+ */
+export class GridCell {
+    "coords": number[];
+    "values": number[];
+
+    /** Creates a new GridCell instance. */
+    constructor($$source: Partial<GridCell> = {}) {
+        if (!("coords" in $$source)) {
+            this["coords"] = [];
+        }
+        if (!("values" in $$source)) {
+            this["values"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GridCell instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GridCell {
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("coords" in $$parsedSource) {
+            $$parsedSource["coords"] = $$createField0_0($$parsedSource["coords"]);
+        }
+        if ("values" in $$parsedSource) {
+            $$parsedSource["values"] = $$createField1_0($$parsedSource["values"]);
+        }
+        return new GridCell($$parsedSource as Partial<GridCell>);
+    }
+}
+
+/**
  * Measure is one cell value layer: count() (no source), a reduce over a
  * numeric field source, or percentile(source, p).
  */
@@ -88,7 +210,7 @@ export class Measure {
      * Creates a new Measure instance from a string or object.
      */
     static createFrom($$source: any = {}): Measure {
-        const $$createField1_0 = $$createType1;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Source" in $$parsedSource) {
             $$parsedSource["Source"] = $$createField1_0($$parsedSource["Source"]);
@@ -179,9 +301,9 @@ export class Result {
      * Creates a new Result instance from a string or object.
      */
     static createFrom($$source: any = {}): Result {
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType4;
-        const $$createField3_0 = $$createType5;
+        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("categories" in $$parsedSource) {
             $$parsedSource["categories"] = $$createField1_0($$parsedSource["categories"]);
@@ -219,7 +341,7 @@ export class Series {
      * Creates a new Series instance from a string or object.
      */
     static createFrom($$source: any = {}): Series {
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField1_0($$parsedSource["values"]);
@@ -303,8 +425,8 @@ export class StatConfig {
      * Creates a new StatConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): StatConfig {
-        const $$createField0_0 = $$createType8;
-        const $$createField1_0 = $$createType10;
+        const $$createField0_0 = $$createType13;
+        const $$createField1_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Measures" in $$parsedSource) {
             $$parsedSource["Measures"] = $$createField0_0($$parsedSource["Measures"]);
@@ -318,13 +440,18 @@ export class StatConfig {
 
 // Private type creation functions
 const $$createType0 = SourceRef.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = Series.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType1 = GridAxis.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = GridCell.createFrom;
+const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = $Create.Array($Create.Any);
-const $$createType7 = Measure.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = Dimension.createFrom;
+const $$createType7 = $Create.Array($Create.Any);
+const $$createType8 = $Create.Nullable($$createType0);
+const $$createType9 = Series.createFrom;
 const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $Create.Map($Create.Any, $Create.Any);
+const $$createType12 = Measure.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = Dimension.createFrom;
+const $$createType15 = $Create.Array($$createType14);

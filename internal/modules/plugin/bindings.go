@@ -107,6 +107,15 @@ type FacetStatsAccess interface {
 	TotalForms(template string) (int, error)
 }
 
+// StatObjectAccess is the formidable.statistical(tpl, name) surface -
+// evaluate a template's named statistical object (composed in the
+// Statistical Engine builder) into a rank-N values grid, flattened to a
+// map[string]any for Lua. The grid is presentation-free; the plugin
+// renders it.
+type StatObjectAccess interface {
+	EvaluateObject(template, name string) (map[string]any, error)
+}
+
 // ExecOptions narrows what `formidable.exec(cmd, args, opts)`
 // accepts. Cwd / Env / Timeout map to the corresponding os/exec
 // fields. Keeping it a Go struct rather than a free-form map
@@ -680,6 +689,25 @@ func buildFacetsTable(L *lua.LState, f FacetStatsAccess) *lua.LTable {
 		return 1
 	}))
 	return tbl
+}
+
+// buildStatisticalValue returns the callable for
+// `formidable.statistical(tpl, name)` - it evaluates a template's named
+// statistical object and pushes the grid as a Lua table. A callable (not
+// a table) mirrors how `formidable.exec` is shaped.
+func buildStatisticalValue(L *lua.LState, a StatObjectAccess) lua.LValue {
+	if a == nil {
+		return L.NewFunction(nilGuard("statistical"))
+	}
+	return L.NewFunction(func(L *lua.LState) int {
+		out, err := a.EvaluateObject(L.CheckString(1), L.CheckString(2))
+		if err != nil {
+			L.RaiseError("statistical: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
+	})
 }
 
 // buildExecValue returns the function value for `formidable.exec`.

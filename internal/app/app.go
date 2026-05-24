@@ -387,6 +387,7 @@ func New(d Deps) (*App, error) {
 	// form_values / form_facets. Holds idxM directly (same lifetime as
 	// dataprovider); no disk access of its own.
 	statM := stat.NewManager(idxM)
+	statSvc := stat.NewService(statM, statTemplateSource{tpl: tplM})
 
 	// EnabledTemplates self-healing: when a template file is deleted, the
 	// active profile's EnabledTemplates list must drop the stale entry so
@@ -592,7 +593,10 @@ func New(d Deps) (*App, error) {
 		// (meta-tag) both read index-backed aggregates.
 		Stats:  pluginStatsAdapter{st: statM},
 		Facets: pluginStatsAdapter{st: statM},
-		Locale: pluginLocaleAdapter{cfg: cfgM},
+		// formidable.statistical(tpl, name): evaluate a named statistical
+		// object (Statistical Engine) into a rank-N grid for plugins.
+		StatObject: pluginStatObjectAdapter{svc: statSvc},
+		Locale:     pluginLocaleAdapter{cfg: cfgM},
 	})
 	// Materialize the embedded plugin library to <pluginsDir>. Mirrors
 	// the pdf cover scaffold: ships the seed inside the binary so every
@@ -679,7 +683,7 @@ func New(d Deps) (*App, error) {
 		Gigot:             newGigotService(gigotM, credentialM, cfgM, jrnM, emitter),
 		Credential:        credential.NewService(credentialM),
 		Monitor:           monitor.NewService(monitorM),
-		Stat:              stat.NewService(statM),
+		Stat:              statSvc,
 		Expression:        expression.NewService(expressionM),
 		History:           historySvc,
 		Integrity:         integrity.NewService(integrityM),

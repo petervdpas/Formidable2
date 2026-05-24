@@ -1432,3 +1432,31 @@ func TestBindings_Facets_NotConfigured_Errors(t *testing.T) {
 		t.Fatal("expected 'facets: not configured' error")
 	}
 }
+
+type mockStatObject struct{ gotTpl, gotName string }
+
+func (m *mockStatObject) EvaluateObject(tpl, name string) (map[string]any, error) {
+	m.gotTpl, m.gotName = tpl, name
+	return map[string]any{"total": 5, "measures": []any{"count"}}, nil
+}
+
+func TestBindings_Statistical_EvaluatesNamedObject(t *testing.T) {
+	ms := &mockStatObject{}
+	got := run(t,
+		`function run() local g = formidable.statistical("demo.yaml", "by-status"); return { total = g.total } end`,
+		scriptOpts{StatObject: ms})
+	m, ok := got.Value.(map[string]any)
+	if !ok || m["total"] != float64(5) {
+		t.Fatalf("return = %v, want total 5", got.Value)
+	}
+	if ms.gotTpl != "demo.yaml" || ms.gotName != "by-status" {
+		t.Errorf("args = (%q, %q), want (demo.yaml, by-status)", ms.gotTpl, ms.gotName)
+	}
+}
+
+func TestBindings_Statistical_NotConfigured_Errors(t *testing.T) {
+	err := runErr(t, `function run() return formidable.statistical("t", "n") end`, scriptOpts{})
+	if err == nil {
+		t.Fatal("expected 'statistical: not configured' error")
+	}
+}

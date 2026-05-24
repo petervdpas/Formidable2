@@ -168,3 +168,62 @@ func TestEvaluate_RejectsEmptyMeasures(t *testing.T) {
 		t.Error("expected error for empty measures")
 	}
 }
+
+func TestManager_EvaluateDSL_ParsesThenEvaluates(t *testing.T) {
+	idx := &fakeIndex{
+		total: 2,
+		raw:   []index.StatRawRow{{Dims: []string{"a"}}, {Dims: []string{"a"}}},
+	}
+	g, err := NewManager(idx).EvaluateDSL("t", `count() by F["status"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := findCell(g, 0); c == nil || c.Values[0] != 2 {
+		t.Errorf("cell = %+v, want count 2", c)
+	}
+}
+
+func TestManager_EvaluateDSL_BadDSLErrors(t *testing.T) {
+	if _, err := NewManager(&fakeIndex{}).EvaluateDSL("t", "this is not a dsl"); err == nil {
+		t.Error("expected a parse error")
+	}
+}
+
+type fakeSource struct{ dsl map[string]string }
+
+func (f fakeSource) StatisticDSL(_, name string) (string, bool, error) {
+	d, ok := f.dsl[name]
+	return d, ok, nil
+}
+
+func TestService_EvaluateObject_ResolvesNameThenRuns(t *testing.T) {
+	idx := &fakeIndex{
+		total: 3,
+		raw:   []index.StatRawRow{{Dims: []string{"high"}}, {Dims: []string{"low"}}, {Dims: []string{"high"}}},
+	}
+	svc := NewService(NewManager(idx), fakeSource{dsl: map[string]string{"by-status": `count() by F["status"]`}})
+	g, err := svc.EvaluateObject("t", "by-status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Total != 3 || len(g.Axes) != 1 {
+		t.Fatalf("grid = %+v", g)
+	}
+	if c := findCell(g, 0); c == nil || c.Values[0] != 2 {
+		t.Errorf("high cell = %+v, want count 2", c)
+	}
+}
+
+func TestService_EvaluateObject_UnknownNameErrors(t *testing.T) {
+	svc := NewService(NewManager(&fakeIndex{}), fakeSource{dsl: map[string]string{}})
+	if _, err := svc.EvaluateObject("t", "ghost"); err == nil {
+		t.Error("expected error for unknown statistic name")
+	}
+}
+
+func TestService_EvaluateObject_NilSourceErrors(t *testing.T) {
+	svc := NewService(NewManager(&fakeIndex{}), nil)
+	if _, err := svc.EvaluateObject("t", "x"); err == nil {
+		t.Error("expected error when no source configured")
+	}
+}

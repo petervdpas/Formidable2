@@ -220,6 +220,41 @@ func (a pluginStatsAdapter) TotalForms(template string) (int, error) {
 	return a.st.TotalForms(template)
 }
 
+// statTemplateSource resolves a template's named statistical object to
+// its stored DSL string, implementing stat.StatisticSource over the
+// template manager. Used by Stat.EvaluateObject (Wails + Lua).
+type statTemplateSource struct {
+	tpl *template.Manager
+}
+
+func (s statTemplateSource) StatisticDSL(tplFile, name string) (string, bool, error) {
+	t, err := s.tpl.LoadTemplate(tplFile)
+	if err != nil {
+		return "", false, err
+	}
+	for _, st := range t.Statistics {
+		if st.Name == name {
+			return st.DSL, true, nil
+		}
+	}
+	return "", false, nil
+}
+
+// pluginStatObjectAdapter bridges Stat.EvaluateObject into the Lua
+// formidable.statistical(tpl, name) surface, flattening the Grid to the
+// JSON-shaped map the Lua bridge round-trips.
+type pluginStatObjectAdapter struct {
+	svc *stat.Service
+}
+
+func (a pluginStatObjectAdapter) EvaluateObject(template, name string) (map[string]any, error) {
+	g, err := a.svc.EvaluateObject(template, name)
+	if err != nil {
+		return nil, err
+	}
+	return toJSONMap(g)
+}
+
 // statResultMap collapses a (Result, error) pair into the JSON map the
 // Lua bridge expects, short-circuiting on error.
 func statResultMap(res *stat.Result, err error) (map[string]any, error) {

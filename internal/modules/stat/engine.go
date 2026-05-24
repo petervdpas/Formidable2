@@ -35,6 +35,17 @@ type GridCell struct {
 	Values []float64 `json:"values"`
 }
 
+// EvaluateDSL parses a statistical-DSL string and evaluates it against the
+// index. Convenience for callers that hold the stored DSL string (the
+// Wails service, the Lua binding) rather than a built Config.
+func (m *Manager) EvaluateDSL(template, dsl string) (*Grid, error) {
+	cfg, err := Parse(dsl)
+	if err != nil {
+		return nil, err
+	}
+	return m.Evaluate(template, cfg)
+}
+
 // Evaluate runs a StatConfig against the index and shapes the result into
 // a Grid. Scalar field and facet sources only; table-column sources are
 // deferred and rejected with a clear error.

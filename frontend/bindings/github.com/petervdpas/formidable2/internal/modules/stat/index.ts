@@ -9,6 +9,9 @@ export {
 export {
     Bin,
     Dimension,
+    Grid,
+    GridAxis,
+    GridCell,
     Measure,
     MeasureOp,
     MeasureOpDescriptor,

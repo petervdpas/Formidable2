@@ -42,6 +42,7 @@ type ManagerDeps struct {
 	API        HTTPClient
 	Stats      StatsAccess
 	Facets     FacetStatsAccess
+	StatObject StatObjectAccess
 	RunBarOut  RunBarEmitter
 	RunStatOut RunStatusEmitter
 	// Locale supplies the user's currently-active locale id at Run
@@ -326,6 +327,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		API:          m.deps.API,
 		Stats:        m.deps.Stats,
 		Facets:       m.deps.Facets,
+		StatObject:   m.deps.StatObject,
 		RunBarOut:    m.deps.RunBarOut,
 		RunStatOut:   m.deps.RunStatOut,
 		I18nMessages: m.messagesForPlugin(pluginID),
