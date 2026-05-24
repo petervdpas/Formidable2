@@ -177,6 +177,50 @@ func TestEvaluate_TableColumnDimension_CountsCells(t *testing.T) {
 	}
 }
 
+func TestEvaluate_ScalarCrossedWithTableColumn(t *testing.T) {
+	// The real ODS case: count stored-procedure cells per entity x access.
+	// The table column fans out one row per cell; each is attributed to the
+	// form's scalar (entity) value. Allowed by the guard (1 table source +
+	// scalar dim + count).
+	idx := &fakeIndex{
+		total: 2,
+		raw: []index.StatRawRow{
+			{Dims: []string{"dbo.A", "direct"}},
+			{Dims: []string{"dbo.A", "via"}},
+			{Dims: []string{"dbo.A", "direct"}},
+			{Dims: []string{"dbo.B", "via"}},
+		},
+	}
+	m := NewManager(idx)
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 0}})
+	g, err := m.Evaluate("t", StatConfig{
+		Measures: []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{
+			{Source: SourceRef{Kind: SourceField, Key: "entity"}},
+			{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(g.Axes[0].Labels, []string{"dbo.A", "dbo.B"}) ||
+		!reflect.DeepEqual(g.Axes[1].Labels, []string{"direct", "via"}) {
+		t.Fatalf("axes = %+v", g.Axes)
+	}
+	if c := findCell(g, 0, 0); c == nil || c.Values[0] != 2 { // dbo.A x direct
+		t.Errorf("(dbo.A,direct) = %+v, want 2", c)
+	}
+	if c := findCell(g, 0, 1); c == nil || c.Values[0] != 1 { // dbo.A x via
+		t.Errorf("(dbo.A,via) = %+v, want 1", c)
+	}
+	if c := findCell(g, 1, 1); c == nil || c.Values[0] != 1 { // dbo.B x via
+		t.Errorf("(dbo.B,via) = %+v, want 1", c)
+	}
+	if c := findCell(g, 1, 0); c != nil { // dbo.B x direct never occurs
+		t.Errorf("(dbo.B,direct) should be absent, got %+v", c)
+	}
+}
+
 func TestEvaluate_TableColumnNeedsResolver(t *testing.T) {
 	m := NewManager(&fakeIndex{}) // no column resolver
 	_, err := m.Evaluate("t", StatConfig{
@@ -331,6 +375,59 @@ func TestEvaluate_PresentValueAppendedWhenNotInDefinedSet(t *testing.T) {
 	// Defined order first (LARGE, SMALL), then stale present value appended.
 	if want := []string{"LARGE", "SMALL", "STALE"}; !reflect.DeepEqual(g.Axes[0].Labels, want) {
 		t.Errorf("labels = %v, want %v", g.Axes[0].Labels, want)
+	}
+}
+
+func TestEvaluate_TopN_KeepsBiggestDropsTail(t *testing.T) {
+	// Five entities with counts a:1 b:5 c:2 d:4 e:3; top 3 keeps b,d,e
+	// (ranked desc), drops a and c.
+	idx := &fakeIndex{total: 15}
+	for _, r := range []struct {
+		label string
+		n     int
+	}{{"a", 1}, {"b", 5}, {"c", 2}, {"d", 4}, {"e", 3}} {
+		for i := 0; i < r.n; i++ {
+			idx.raw = append(idx.raw, index.StatRawRow{Dims: []string{r.label}})
+		}
+	}
+	m := NewManager(idx)
+	g, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "entity"}, Top: 3}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"b", "d", "e"}; !reflect.DeepEqual(g.Axes[0].Labels, want) {
+		t.Fatalf("labels = %v, want %v (top-3 by count, desc)", g.Axes[0].Labels, want)
+	}
+	if len(g.Cells) != 3 {
+		t.Errorf("cells = %d, want 3 (tail dropped)", len(g.Cells))
+	}
+	// b is index 0 with count 5.
+	if c := findCell(g, 0); c == nil || c.Values[0] != 5 {
+		t.Errorf("top cell = %+v, want b=5", c)
+	}
+	// Total stays the full form count, not the kept sum.
+	if g.Total != 15 {
+		t.Errorf("total = %d, want 15 (unchanged by top-N)", g.Total)
+	}
+}
+
+func TestEvaluate_TopN_NoOpWhenFewerCategories(t *testing.T) {
+	idx := &fakeIndex{
+		total: 2,
+		raw:   []index.StatRawRow{{Dims: []string{"x"}}, {Dims: []string{"y"}}},
+	}
+	g, err := NewManager(idx).Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "f"}, Top: 10}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Axes[0].Labels) != 2 {
+		t.Errorf("labels = %v, want both kept (top 10 > 2 categories)", g.Axes[0].Labels)
 	}
 }
 

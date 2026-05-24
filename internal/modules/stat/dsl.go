@@ -13,7 +13,7 @@ package stat
 //	           | reduce "(" numSource ")"
 //	           | "percentile" "(" numSource "," number ")"
 //	reduce    := "sum" | "avg" | "min" | "max" | "median" | "stddev"
-//	dimension := source bin?
+//	dimension := source bin? ( "top" number )?       // top N: 1..20
 //	source    := "F[" str "]" ( "[" str "]" )?      // field, or table column by value-key
 //	           | "Facet[" str "]"                    // facet
 //	numSource := "F[" str "]" ( "[" str "]" )?       // must be a field source
@@ -75,10 +75,13 @@ const (
 
 var validBins = map[Bin]bool{BinYear: true, BinMonth: true, BinDay: true}
 
-// Dimension is one group-by axis: a source, optionally date-binned.
+// Dimension is one group-by axis: a source, optionally date-binned, and
+// optionally capped to its Top-N categories (ranked by the first measure,
+// the tail dropped). Top 0 means all categories; valid Top is 1..20.
 type Dimension struct {
 	Source SourceRef
 	Bin    Bin
+	Top    int
 }
 
 // StatConfig is the parsed statistical DSL: one or more measures (cell

@@ -318,5 +318,17 @@ func (p *dslParser) dimension() (Dimension, error) {
 		p.advance()
 		d.Bin = b
 	}
+	if p.peek().kind == tkIdent && p.peek().val == "top" {
+		p.advance()
+		nt, err := p.expect(tkNumber, "a top-N count")
+		if err != nil {
+			return Dimension{}, err
+		}
+		n, err := strconv.Atoi(nt.val)
+		if err != nil {
+			return Dimension{}, fmt.Errorf("stat dsl: bad top count %q", nt.val)
+		}
+		d.Top = n
+	}
 	return d, nil
 }

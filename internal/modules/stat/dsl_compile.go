@@ -92,6 +92,12 @@ func compileDimension(d Dimension) (string, error) {
 		}
 		out += "@" + string(d.Bin)
 	}
+	if d.Top != 0 {
+		if d.Top < 1 || d.Top > 20 {
+			return "", fmt.Errorf("stat dsl: top must be between 1 and 20, got %d", d.Top)
+		}
+		out += " top " + strconv.Itoa(d.Top)
+	}
 	return out, nil
 }
 

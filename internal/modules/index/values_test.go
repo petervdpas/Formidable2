@@ -297,18 +297,32 @@ func TestPickValues_TableNonMatrixDataIsSafe(t *testing.T) {
 
 // ── free-text types never index, even when flagged ───────────────────
 
-func TestPickValues_FreeTextTypesNeverIndexEvenWhenFlagged(t *testing.T) {
+func TestPickValues_TextFieldIndexedWhenFlagged(t *testing.T) {
+	fields := []template.Field{{Key: "base-table", Type: "text", UseInStatistics: true}}
+	rows := pickValues(fields, map[string]any{"base-table": "dbo.Customer"})
+	got := findValue(rows, "base-table", -1)
+	if got == nil || got.ValueType != "text" || got.Text != "dbo.Customer" {
+		t.Fatalf("text row = %v, want text/dbo.Customer", got)
+	}
+}
+
+func TestPickValues_TextFieldUnflaggedSkipped(t *testing.T) {
+	fields := []template.Field{{Key: "base-table", Type: "text"}}
+	rows := pickValues(fields, map[string]any{"base-table": "dbo.Customer"})
+	if len(rows) != 0 {
+		t.Errorf("unflagged text produced %d rows, want 0", len(rows))
+	}
+}
+
+func TestPickValues_LongTextTypesNeverIndexEvenWhenFlagged(t *testing.T) {
 	fields := []template.Field{
 		{Key: "notes", Type: "textarea", UseInStatistics: true},
-		{Key: "title", Type: "text", UseInStatistics: true},
 		{Key: "gid", Type: "guid", UseInStatistics: true},
 	}
-	data := map[string]any{
-		"notes": "long body", "title": "hello", "gid": "abc",
-	}
+	data := map[string]any{"notes": "long body", "gid": "abc"}
 	rows := pickValues(fields, data)
 	if len(rows) != 0 {
-		t.Errorf("expected no rows for free-text/guid even when flagged, got %d: %+v", len(rows), rows)
+		t.Errorf("expected no rows for textarea/guid even when flagged, got %d: %+v", len(rows), rows)
 	}
 }
 

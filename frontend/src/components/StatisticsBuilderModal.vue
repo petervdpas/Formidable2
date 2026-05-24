@@ -41,6 +41,7 @@ interface Measure {
 interface Dimension {
   Source: SourceRef;
   Bin: string;
+  Top: number;
 }
 interface StatConfig {
   Measures: Measure[];
@@ -76,6 +77,7 @@ interface SourceOpt {
   label: string;
   numeric: boolean;
   date: boolean;
+  text: boolean; // a free-text field: high-cardinality, prefill a top-N cap
 }
 
 function srcKey(s: SourceRef): string {
@@ -101,6 +103,7 @@ const sources = computed<SourceOpt[]>(() => {
           label: `${flabel} / ${clabel}`,
           numeric: ctype === "number",
           date: ctype === "date",
+          text: false,
         });
       }
     } else {
@@ -111,12 +114,13 @@ const sources = computed<SourceOpt[]>(() => {
         label: flabel,
         numeric: f.type === "number" || f.type === "range",
         date: f.type === "date",
+        text: f.type === "text",
       });
     }
   }
   for (const fc of props.facets ?? []) {
     const ref: SourceRef = { Kind: "facet", Key: fc.key, Column: "" };
-    out.push({ key: srcKey(ref), ref, label: fc.key, numeric: false, date: false });
+    out.push({ key: srcKey(ref), ref, label: fc.key, numeric: false, date: false, text: false });
   }
   return out;
 });
@@ -221,7 +225,10 @@ function setMeasureArg(i: number, v: string) {
 function addDimension() {
   const first = sources.value[0];
   if (!first) return;
-  config.value.Dimensions = [...config.value.Dimensions, { Source: { ...first.ref }, Bin: Bin.BinNone }];
+  config.value.Dimensions = [
+    ...config.value.Dimensions,
+    { Source: { ...first.ref }, Bin: Bin.BinNone, Top: first.text ? 10 : 0 },
+  ];
 }
 function removeDimension(i: number) {
   config.value.Dimensions = config.value.Dimensions.filter((_, j) => j !== i);
@@ -229,12 +236,26 @@ function removeDimension(i: number) {
 function setDimensionSource(i: number, key: string) {
   const s = sourceByKey.value[key];
   if (!s) return;
-  config.value.Dimensions = config.value.Dimensions.map((x, j) =>
-    j === i ? { Source: { ...s.ref }, Bin: s.date ? x.Bin : Bin.BinNone } : x,
-  );
+  config.value.Dimensions = config.value.Dimensions.map((x, j) => {
+    if (j !== i) return x;
+    // Prefill a top-10 cap when switching to a (high-cardinality) text
+    // source, unless a cap is already set. top-N is generic - any
+    // dimension can carry one; only the prefill is text-specific.
+    const top = s.text && (x.Top ?? 0) === 0 ? 10 : x.Top ?? 0;
+    return { Source: { ...s.ref }, Bin: s.date ? x.Bin : Bin.BinNone, Top: top };
+  });
 }
 function setDimensionBin(i: number, bin: string) {
   config.value.Dimensions = config.value.Dimensions.map((x, j) => (j === i ? { ...x, Bin: bin } : x));
+}
+function setDimensionTop(i: number, v: string) {
+  let n = Math.floor(Number(v));
+  if (!Number.isFinite(n) || n <= 0) {
+    n = 0; // no cap
+  } else {
+    n = Math.min(20, Math.max(1, n));
+  }
+  config.value.Dimensions = config.value.Dimensions.map((x, j) => (j === i ? { ...x, Top: n } : x));
 }
 
 // ── DSL compile preview ─────────────────────────────────────────────
@@ -405,6 +426,14 @@ async function onApply() {
                 :options="binOptions"
                 class="options-cell"
                 @update:model-value="(v: string) => setDimensionBin(i, v)"
+              />
+              <TextField
+                type="number"
+                lazy
+                :model-value="d.Top ? String(d.Top) : ''"
+                class="stat-builder-arg"
+                :placeholder="t('workspace.templates.stat_builder.top')"
+                @update:model-value="(v: string) => setDimensionTop(i, v)"
               />
               <button
                 type="button"

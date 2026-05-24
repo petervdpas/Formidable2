@@ -61,7 +61,7 @@ measure   := "count" "(" ")"
            | reduce "(" numSource ")"
            | "percentile" "(" numSource "," number ")"
 reduce    := "sum" | "avg" | "min" | "max" | "median" | "stddev"
-dimension := source bin?
+dimension := source bin? ( "top" number )?     // top N: keep N biggest, 1..20
 source    := "F[" str "]" ( "[" str "]" )?      // field, or table column by value-key
            | "Facet[" str "]"                    // facet
 numSource := "F[" str "]" ( "[" str "]" )?       // must resolve to numeric field/column
@@ -77,6 +77,11 @@ Decisions taken:
   measure is a value layer per cell. Measure vocabulary is extensible: count,
   sum, avg, min, max, median, stddev, percentile, ... ("distribution" is just
   `count()` over a dimension, i.e. the rank-1 count).
+- **top N** (generic, any dimension): keep the N categories with the highest
+  first-measure total, ranked desc, **drop the tail** (Total stays the full
+  form count). Range 1..20 (engine clamps; Compile rejects out of range).
+  Mitigates a high-cardinality axis, e.g. `count() by F["base-table"] top 10`.
+  Builder prefills 10 for a text-field dimension; others default to no cap.
 - **Filters** (a `where` clause to scope which forms count) are **deferred**;
   the keyword is reserved.
 

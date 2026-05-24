@@ -21,11 +21,14 @@ export enum Bin {
 };
 
 /**
- * Dimension is one group-by axis: a source, optionally date-binned.
+ * Dimension is one group-by axis: a source, optionally date-binned, and
+ * optionally capped to its Top-N categories (ranked by the first measure,
+ * the tail dropped). Top 0 means all categories; valid Top is 1..20.
  */
 export class Dimension {
     "Source": SourceRef;
     "Bin": Bin;
+    "Top": number;
 
     /** Creates a new Dimension instance. */
     constructor($$source: Partial<Dimension> = {}) {
@@ -34,6 +37,9 @@ export class Dimension {
         }
         if (!("Bin" in $$source)) {
             this["Bin"] = Bin.$zero;
+        }
+        if (!("Top" in $$source)) {
+            this["Top"] = 0;
         }
 
         Object.assign(this, $$source);

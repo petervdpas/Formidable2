@@ -73,6 +73,7 @@ func TestAbilities_TwoColumn_DisabledOnGuidApiAndLoopMeta(t *testing.T) {
 
 func TestAbilities_UseInStatistics_OnlyOnAggregatableTypes(t *testing.T) {
 	allowed := stringSet(
+		"text",
 		"number", "range", "date", "boolean",
 		"dropdown", "multioption", "radio",
 		"list", "table", "tags",

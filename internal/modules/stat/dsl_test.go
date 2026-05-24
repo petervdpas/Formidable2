@@ -84,6 +84,22 @@ func TestCompile_Canonical(t *testing.T) {
 			cfg:  StatConfig{Measures: []Measure{{Op: OpCount}}},
 			want: `count()`,
 		},
+		{
+			name: "top-N on a dimension",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpCount}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}, Top: 10}},
+			},
+			want: `count() by F["base-table"] top 10`,
+		},
+		{
+			name: "top-N after a date bin",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpCount}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "due"}, Bin: BinMonth, Top: 12}},
+			},
+			want: `count() by F["due"]@month top 12`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -109,6 +125,8 @@ func TestCompile_Rejects(t *testing.T) {
 		{"avg over facet", StatConfig{Measures: []Measure{{Op: OpAvg, Source: &SourceRef{Kind: SourceFacet, Key: "p"}}}}},
 		{"percentile without arg", StatConfig{Measures: []Measure{{Op: OpPercentile, Source: &SourceRef{Kind: SourceField, Key: "x"}}}}},
 		{"unknown op", StatConfig{Measures: []Measure{{Op: "bogus"}}}},
+		{"top below range", StatConfig{Measures: []Measure{{Op: OpCount}}, Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "x"}, Top: 0 - 1}}}},
+		{"top above range", StatConfig{Measures: []Measure{{Op: OpCount}}, Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "x"}, Top: 21}}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -171,6 +189,8 @@ func TestParse_Rejects(t *testing.T) {
 		`count() extra`,             // trailing tokens
 		`F["x"]`,                    // no measure
 		`count() by F[status]`,      // unquoted key
+		`count() by F["x"] top`,     // top without a number
+		`count() by F["x"] top abc`, // top with a non-number
 	}
 	for _, src := range bad {
 		t.Run(src, func(t *testing.T) {
@@ -208,6 +228,10 @@ func TestRoundTrip_Identity(t *testing.T) {
 		{
 			Measures:   []Measure{{Op: OpSum, Source: &SourceRef{Kind: SourceField, Key: "items", Column: "qty"}}},
 			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "hyphen-key"}, Bin: BinDay}},
+		},
+		{
+			Measures:   []Measure{{Op: OpCount}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}, Top: 10}},
 		},
 	}
 	for i, cfg := range configs {

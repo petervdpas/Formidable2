@@ -258,7 +258,58 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		cells = append(cells, GridCell{Coords: g.coords, Values: vals})
 	}
 
-	return &Grid{Axes: axes, Measures: measures, Cells: cells, Total: total}, nil
+	grid := &Grid{Axes: axes, Measures: measures, Cells: cells, Total: total}
+
+	// Top-N: cap a (typically high-cardinality) dimension to its biggest
+	// categories by the first measure, dropping the tail. Total is left as
+	// the full form count.
+	for i, d := range cfg.Dimensions {
+		if d.Top > 0 {
+			applyTopN(grid, i, min(d.Top, 20))
+		}
+	}
+	return grid, nil
+}
+
+// applyTopN keeps the n highest categories on axis `ax` (ranked by the
+// first measure's total, descending; ties keep original order), reindexes
+// the axis and cells, and drops cells in the removed categories.
+func applyTopN(g *Grid, ax, n int) {
+	labels := g.Axes[ax].Labels
+	if n >= len(labels) || len(labels) == 0 {
+		return
+	}
+	totals := make([]float64, len(labels))
+	for _, c := range g.Cells {
+		if len(c.Values) > 0 {
+			totals[c.Coords[ax]] += c.Values[0]
+		}
+	}
+	order := make([]int, len(labels))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool { return totals[order[a]] > totals[order[b]] })
+
+	remap := make(map[int]int, n)
+	newLabels := make([]string, n)
+	for newIdx, oldIdx := range order[:n] {
+		remap[oldIdx] = newIdx
+		newLabels[newIdx] = labels[oldIdx]
+	}
+	g.Axes[ax].Labels = newLabels
+
+	kept := make([]GridCell, 0, len(g.Cells))
+	for _, c := range g.Cells {
+		ni, ok := remap[c.Coords[ax]]
+		if !ok {
+			continue
+		}
+		coords := append([]int(nil), c.Coords...)
+		coords[ax] = ni
+		kept = append(kept, GridCell{Coords: coords, Values: c.Values})
+	}
+	g.Cells = kept
 }
 
 func reduceNumeric(ms Measure, vals []float64) float64 {

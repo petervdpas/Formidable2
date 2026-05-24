@@ -22,10 +22,10 @@ var dateLayouts = []string{
 // pickValues projects a (template fields, form data) pair into the
 // aggregatable rows stored in form_values. Only fields the author
 // flagged with use_in_statistics are materialised, and only types that
-// make chart sense: numeric (number, range), date, boolean,
+// make chart sense: numeric (number, range), date, boolean, short text,
 // single-choice (dropdown, radio), multi-value (multioption / list /
 // tags, one row per entry), and selected table columns (one row per
-// cell, typed from the column's declared `type`). Free text, guid, api
+// cell, typed from the column's declared `type`). Textarea, guid, api
 // and image fields have no chartable shape and are skipped.
 func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 	var out []FormValueRow
@@ -49,7 +49,10 @@ func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 			}
 		case "boolean":
 			out = append(out, boolRow(fld.Key, raw))
-		case "dropdown", "radio":
+		case "text", "dropdown", "radio":
+			// A short text field is opt-in only (the author flags it when
+			// its values are a meaningful category, e.g. an entity name);
+			// indexed the same as a single-choice value.
 			if s := asText(raw); s != "" {
 				out = append(out, FormValueRow{FieldKey: fld.Key, ValueType: "text", Text: s})
 			}

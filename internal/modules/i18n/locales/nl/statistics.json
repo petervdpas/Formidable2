@@ -16,6 +16,7 @@
   "workspace.templates.stat_builder.measures": "Maten",
   "workspace.templates.stat_builder.dimensions": "Dimensies",
   "workspace.templates.stat_builder.dimensions_hint": "Elke dimensie voegt een as toe: één is een array, twee een matrix.",
+  "workspace.templates.stat_builder.top": "Top N",
   "workspace.templates.stat_builder.add_measure": "Maat toevoegen",
   "workspace.templates.stat_builder.add_dimension": "Dimensie toevoegen",
   "workspace.templates.stat_builder.preview": "DSL",

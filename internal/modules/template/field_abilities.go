@@ -17,7 +17,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: true, Format: false, UseInStatistics: false,
+			Readonly: true, Format: false, UseInStatistics: true,
 		},
 	},
 	"textarea": {
