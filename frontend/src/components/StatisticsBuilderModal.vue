@@ -165,12 +165,17 @@ const opLabelKeys: Record<string, string> = {
   stddev: "workspace.templates.stat_builder.op.stddev",
   percentile: "workspace.templates.stat_builder.op.percentile",
 };
-const measureOpOptions = computed(() =>
-  measureOps.value.map((d) => ({
-    value: d.op as string,
-    label: opLabelKeys[d.op] ? t(opLabelKeys[d.op]) : (d.op as string),
-  })),
-);
+const measureOpOptions = computed(() => {
+  // Hide source-needing ops (sum/avg/...) when the template has no numeric
+  // source to feed them - count() is the only sensible measure then.
+  const haveNumeric = numericSourceOptions.value.length > 0;
+  return measureOps.value
+    .filter((d) => haveNumeric || !d.needs_source)
+    .map((d) => ({
+      value: d.op as string,
+      label: opLabelKeys[d.op] ? t(opLabelKeys[d.op]) : (d.op as string),
+    }));
+});
 
 const binLabelKeys: Record<string, string> = {
   "": "workspace.templates.stat_builder.bin.none",
@@ -215,9 +220,13 @@ function setMeasureSource(i: number, key: string) {
   );
 }
 function setMeasureArg(i: number, v: string) {
-  const n = Number(v);
+  // Percentile arg: 0..100. Empty / non-numeric snaps to a sensible 90.
+  const trimmed = v.trim();
+  let n = trimmed === "" ? 90 : Number(trimmed);
+  if (!Number.isFinite(n)) n = 90;
+  else n = Math.min(100, Math.max(0, n));
   config.value.Measures = config.value.Measures.map((x, j) =>
-    j === i ? { ...x, Arg: Number.isNaN(n) ? null : n } : x,
+    j === i ? { ...x, Arg: n } : x,
   );
 }
 
@@ -384,6 +393,9 @@ async function onApply() {
                 v-if="opNeedsArg(m.Op)"
                 type="number"
                 lazy
+                :min="0"
+                :max="100"
+                :step="1"
                 :model-value="String(m.Arg ?? 90)"
                 class="stat-builder-arg"
                 @update:model-value="(v: string) => setMeasureArg(i, v)"
@@ -430,6 +442,9 @@ async function onApply() {
               <TextField
                 type="number"
                 lazy
+                :min="1"
+                :max="20"
+                :step="1"
                 :model-value="d.Top ? String(d.Top) : ''"
                 class="stat-builder-arg"
                 :placeholder="t('workspace.templates.stat_builder.top')"
