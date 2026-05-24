@@ -46,10 +46,11 @@ func Normalize(t *Template) {
 }
 
 // normalizeStatistics is the authoritative cleanup for a template's
-// statistical-insight objects: trim names, drop entries missing a name
-// or DSL, and dedupe by name (first wins, order preserved). It does NOT
-// parse the DSL here - that keeps the template package decoupled from
-// the statistical engine; the engine reports DSL errors at evaluation.
+// statistical objects (the Statistical Engine's per-template specs):
+// trim names, drop entries missing a name or DSL, and dedupe by name
+// (first wins, order preserved). It does NOT parse the DSL here - that
+// keeps the template package decoupled from the Statistical Engine; the
+// engine reports DSL errors at evaluation.
 func normalizeStatistics(t *Template) {
 	if len(t.Statistics) == 0 {
 		t.Statistics = nil

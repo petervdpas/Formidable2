@@ -160,7 +160,7 @@ func TestNormalize_StatisticsColumns_AllInvalidBecomesNil(t *testing.T) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Normalize - statistical insights (named DSL objects on the template)
+// Normalize - statistical objects (Statistical Engine specs on a template)
 // ─────────────────────────────────────────────────────────────────────
 
 func TestNormalize_Statistics_TrimsAndDropsEmpty(t *testing.T) {

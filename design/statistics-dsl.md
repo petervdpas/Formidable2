@@ -1,9 +1,10 @@
-# Statistics DSL - design
+# Statistical Engine - DSL design
 
-Status: design, not built. Decided 2026-05-24.
+Status: design + DSL built (steps 1-2). Decided 2026-05-24.
 
-A template-authored, presentation-free statistics layer. The author composes
-named **statistical objects** (a small DSL) in a builder. Each object, when
+The Statistical Engine is a template-authored, presentation-free statistics
+layer. The author composes named **statistical objects** (a small DSL) in a
+builder. Each object, when
 evaluated, returns an N-dimensional grid of values. Lua/plugins fetch an
 object by name, evaluate it, and render it however they like. Analysis reports
 reuse the same path later.

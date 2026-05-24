@@ -37,14 +37,12 @@ type Template struct {
 	NeedsResave       bool        `yaml:"-" json:"needs_resave"`
 }
 
-// Statistic is one author-defined "Statistical Insight" (the feature's
-// display name): a named statistical DSL expression stored on the
-// template. Evaluated by the statistical engine into a rank-N values
-// grid; rendered however a consumer (plugin/Lua, later reports) chooses.
-// Name is the identifier consumers fetch by; Label is the display title;
-// DSL is the serialized statistical-DSL string (see
-// internal/modules/statistical and design/statistics-dsl.md).
-// "Statistic" (not "Insight") avoids colliding with Application Insights.
+// Statistic is one author-defined statistical object: a named statistical
+// DSL expression stored on the template. The Statistical Engine evaluates
+// it into a rank-N values grid; a consumer (plugin/Lua, later reports)
+// renders it. Name is the identifier consumers fetch by; Label is the
+// display title; DSL is the serialized statistical-DSL string (see
+// internal/modules/stat and design/statistics-dsl.md).
 type Statistic struct {
 	Name  string `yaml:"name" json:"name"`
 	Label string `yaml:"label,omitempty" json:"label,omitempty"`
