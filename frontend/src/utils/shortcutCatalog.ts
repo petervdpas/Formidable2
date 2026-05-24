@@ -40,6 +40,8 @@ export const SHORTCUT_CATALOG: ShortcutCatalogGroup[] = [
       { combo: "Mod+S", descriptionKey: "workspace.information.shortcuts.action.save_entry" },
       { combo: "Mod+N", descriptionKey: "workspace.information.shortcuts.action.new_entry" },
       { combo: "Mod+D", descriptionKey: "workspace.information.shortcuts.action.delete_entry" },
+      { combo: "Mod+Z", descriptionKey: "workspace.information.shortcuts.action.undo_entry", scopeKey: "workspace.information.shortcuts.scope.entry_focus_outside" },
+      { combo: "Mod+Shift+Z", descriptionKey: "workspace.information.shortcuts.action.redo_entry", scopeKey: "workspace.information.shortcuts.scope.entry_focus_outside" },
       { combo: "Mod+M", descriptionKey: "workspace.information.shortcuts.action.toggle_meta" },
       { combo: "Ctrl+Shift+M", descriptionKey: "workspace.information.shortcuts.action.preview_markdown" },
       { combo: "Ctrl+Shift+H", descriptionKey: "workspace.information.shortcuts.action.preview_html" },

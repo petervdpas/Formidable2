@@ -19,12 +19,22 @@ const props = withDefaults(defineProps<{
   step?: number | string;
   /** When true, render an X button while the value is non-empty. */
   clearable?: boolean;
+  /**
+   * Commit the model on the native "change" event (blur / Enter) rather
+   * than on every keystroke. Lets the user type intermediate values
+   * without a per-keystroke clamp fighting the input.
+   */
+  lazy?: boolean;
 }>(), {
   type: "text",
 });
 
 function clear() {
   model.value = "";
+}
+
+function onChange(e: Event) {
+  model.value = (e.target as HTMLInputElement).value;
 }
 
 const showClear = () =>
@@ -44,7 +54,9 @@ const showClear = () =>
       :max="max"
       :step="step"
       :class="['field-input', { invalid }]"
-      v-model="model"
+      :value="model"
+      @input="lazy ? undefined : onChange($event)"
+      @change="onChange"
     />
     <button
       v-if="showClear()"

@@ -48,7 +48,7 @@ const { config, update: updateConfig } = useConfig();
 // always reflects the current profile's curation with no JS-side
 // intersection.
 const { enabledFilenames: templateFilenames, cache: templateCache } = useTemplates();
-const { view, draft, dirty, open, close, save, reset, remove } = useFormView();
+const { view, draft, dirty, canUndo, canRedo, undo, redo, open, close, save, reset, remove } = useFormView();
 const toast = useToast();
 const statusBar = useStatusBar();
 
@@ -746,6 +746,21 @@ setTopbarMenu(() => [
         disabled: !dirty.value,
         onClick: reset,
       },
+      { type: "separator", id: "sep-undo" },
+      {
+        id: "undo",
+        labelKey: "workspace.storage.undo",
+        combo: "Mod+Z",
+        disabled: !canUndo.value,
+        onClick: undo,
+      },
+      {
+        id: "redo",
+        labelKey: "workspace.storage.redo",
+        combo: "Mod+Shift+Z",
+        disabled: !canRedo.value,
+        onClick: redo,
+      },
       { type: "separator", id: "sep" },
       {
         id: "refresh",
@@ -857,6 +872,22 @@ setTopbarMenu(() => [
       <Badge v-if="dirty" variant="warn">
         {{ t('workspace.storage.dirty_indicator') }}
       </Badge>
+      <button
+        v-if="view"
+        class="tool-btn"
+        :disabled="!canUndo"
+        :title="t('workspace.storage.undo')"
+        :aria-label="t('workspace.storage.undo')"
+        @click="undo"
+      >↶</button>
+      <button
+        v-if="view"
+        class="tool-btn"
+        :disabled="!canRedo"
+        :title="t('workspace.storage.redo')"
+        :aria-label="t('workspace.storage.redo')"
+        @click="redo"
+      >↷</button>
       <button
         v-if="view"
         class="tool-btn primary"

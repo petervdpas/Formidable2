@@ -147,7 +147,7 @@ function setDateArg(v: number) {
         type="number"
         class="expr-pred-num"
         :value="predicate.numberValue ?? 0"
-        @input="setNumberValue(Number(($event.target as HTMLInputElement).value))"
+        @change="setNumberValue(Number(($event.target as HTMLInputElement).value))"
       />
     </template>
 
@@ -167,7 +167,7 @@ function setDateArg(v: number) {
         type="number"
         class="expr-pred-num"
         :value="predicate.dateArg ?? 0"
-        @input="setDateArg(Number(($event.target as HTMLInputElement).value))"
+        @change="setDateArg(Number(($event.target as HTMLInputElement).value))"
       />
     </template>
   </div>

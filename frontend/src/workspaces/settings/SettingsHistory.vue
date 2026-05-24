@@ -42,6 +42,7 @@ async function patchHistory(partial: Record<string, unknown>) {
     <FormRow :label="t('config.history.max_size')">
       <TextField
         type="number"
+        lazy
         :model-value="String(cfg.history.max_size)"
         @update:model-value="(v) => patchHistory({ max_size: Number(v) || 0 })"
       />

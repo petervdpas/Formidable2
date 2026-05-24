@@ -110,6 +110,7 @@ function clampToast(n: number): number {
     >
       <TextField
         type="number"
+        lazy
         :min="SIDEBAR_MIN"
         :max="SIDEBAR_MAX"
         :model-value="String(cfg.sidebar_width || 280)"
@@ -122,6 +123,7 @@ function clampToast(n: number): number {
     >
       <TextField
         type="number"
+        lazy
         :min="TOAST_MIN"
         :max="TOAST_MAX"
         :model-value="String(cfg.toast_timeout || TOAST_DEFAULT)"

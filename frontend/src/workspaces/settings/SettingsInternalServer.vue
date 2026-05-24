@@ -24,6 +24,7 @@ const cfg = computed(() => config.value!);
     <FormRow :label="t('settings.field.listening_port')">
       <TextField
         type="number"
+        lazy
         :model-value="String(cfg.internal_server_port)"
         @update:model-value="(v) => update({ internal_server_port: Number(v) || 0 })"
       />

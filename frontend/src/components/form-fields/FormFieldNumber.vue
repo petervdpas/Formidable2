@@ -20,5 +20,5 @@ const value = computed<string>({
 </script>
 
 <template>
-  <TextField type="number" v-model="value" :readonly="field.readonly" />
+  <TextField type="number" lazy v-model="value" :readonly="field.readonly" />
 </template>

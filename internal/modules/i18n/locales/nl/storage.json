@@ -70,6 +70,8 @@
   "workspace.storage.preview.markdown_empty": "Sla het formulier op om de gerenderde markdown te zien.",
   "workspace.storage.preview.markdown_handle": "Markdown",
   "workspace.storage.reset": "Herstellen",
+  "workspace.storage.undo": "Ongedaan maken",
+  "workspace.storage.redo": "Opnieuw",
   "workspace.storage.save": "Opslaan",
   "workspace.storage.save.error": "Kon formulier niet opslaan: {0}",
   "workspace.storage.save.success": "Formulier “{0}” opgeslagen.",

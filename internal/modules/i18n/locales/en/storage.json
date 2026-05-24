@@ -70,6 +70,8 @@
   "workspace.storage.preview.markdown_empty": "Save the form to see the rendered markdown.",
   "workspace.storage.preview.markdown_handle": "Markdown",
   "workspace.storage.reset": "Reset",
+  "workspace.storage.undo": "Undo",
+  "workspace.storage.redo": "Redo",
   "workspace.storage.save": "Save",
   "workspace.storage.save.error": "Could not save form: {0}",
   "workspace.storage.save.success": "Form “{0}” saved.",

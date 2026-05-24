@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   Service as FormSvc,
   SavePayload,
@@ -20,6 +20,84 @@ export function useFormView() {
   const loading = ref(false);
   const error = ref<string>("");
 
+  // ── undo / redo ───────────────────────────────────────────────────
+  // Edit history for the working draft. Components mutate draft.values /
+  // draft.meta directly via v-model, so there's no single commit point
+  // to hook; instead a debounced deep watch records snapshots. A burst
+  // of keystrokes (or a lazy-committed number field) collapses into one
+  // undo step. Snapshots cover exactly what `dirty` tracks: values +
+  // meta (loop edits live under values[key], so they're included).
+  const UNDO_CAP = 200;
+  const RECORD_DELAY_MS = 400;
+  const undoStack = ref<string[]>([]);
+  const redoStack = ref<string[]>([]);
+  let baseline = "";
+  let recordTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const canUndo = computed(() => undoStack.value.length > 0);
+  const canRedo = computed(() => redoStack.value.length > 0);
+
+  function snap(): string {
+    return JSON.stringify({ values: draft.value?.values, meta: draft.value?.meta });
+  }
+
+  // Commit any pending edit burst as one undo step. Called by the
+  // debounce timer and synchronously before an undo so in-progress
+  // edits become their own reversible step.
+  function flushRecord() {
+    if (recordTimer) {
+      clearTimeout(recordTimer);
+      recordTimer = null;
+    }
+    if (!draft.value) return;
+    const cur = snap();
+    if (cur === baseline) return;
+    undoStack.value.push(baseline);
+    if (undoStack.value.length > UNDO_CAP) undoStack.value.shift();
+    redoStack.value = [];
+    baseline = cur;
+  }
+
+  function scheduleRecord() {
+    if (recordTimer) clearTimeout(recordTimer);
+    recordTimer = setTimeout(flushRecord, RECORD_DELAY_MS);
+  }
+
+  // Apply a snapshot to the draft and rebaseline synchronously, so the
+  // deep watch the mutation triggers finds no diff and records nothing.
+  function applySnap(s: string) {
+    if (!draft.value) return;
+    const p = JSON.parse(s) as { values: FormView["values"]; meta: FormView["meta"] };
+    draft.value.values = p.values;
+    draft.value.meta = p.meta;
+    baseline = s;
+  }
+
+  function resetHistory() {
+    if (recordTimer) {
+      clearTimeout(recordTimer);
+      recordTimer = null;
+    }
+    undoStack.value = [];
+    redoStack.value = [];
+    baseline = snap();
+  }
+
+  function undo() {
+    flushRecord();
+    if (!canUndo.value) return;
+    redoStack.value.push(snap());
+    applySnap(undoStack.value.pop()!);
+  }
+
+  function redo() {
+    if (!canRedo.value) return;
+    undoStack.value.push(snap());
+    applySnap(redoStack.value.pop()!);
+  }
+
+  watch(draft, scheduleRecord, { deep: true });
+
   // ── load / refresh ────────────────────────────────────────────────
   async function open(templateName: string, datafile: string) {
     loading.value = true;
@@ -28,10 +106,12 @@ export function useFormView() {
       const v = await FormSvc.BuildView(templateName, datafile);
       view.value = v;
       draft.value = clone(v);
+      resetHistory();
     } catch (e) {
       error.value = String(e);
       view.value = null;
       draft.value = null;
+      resetHistory();
     } finally {
       loading.value = false;
     }
@@ -41,6 +121,7 @@ export function useFormView() {
     view.value = null;
     draft.value = null;
     error.value = "";
+    resetHistory();
   }
 
   // ── dirty tracking ────────────────────────────────────────────────
@@ -64,6 +145,9 @@ export function useFormView() {
     if (!draft.value.datafile) {
       return { ok: false, message: "datafile missing" };
     }
+    // Capture any in-progress edit burst as an undo step before the
+    // draft is replaced, so undo still reaches the pre-save state.
+    flushRecord();
     try {
       const payload = new SavePayload({
         datafile: draft.value.datafile,
@@ -73,6 +157,9 @@ export function useFormView() {
       const next = await FormSvc.SaveValues(draft.value.template.filename, payload);
       view.value = next;
       draft.value = clone(next);
+      // Rebaseline to the saved shape but keep the stacks: undo after a
+      // save reverts to the pre-save edits (re-marking the form dirty).
+      baseline = snap();
       return { ok: true };
     } catch (e) {
       return { ok: false, message: String(e) };
@@ -103,6 +190,10 @@ export function useFormView() {
     loading,
     error,
     dirty,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
     open,
     close,
     save,

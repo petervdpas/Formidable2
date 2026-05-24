@@ -213,6 +213,7 @@ function asNumber(v: unknown): number {
               <TextField
                 v-else-if="col.type === 'number'"
                 type="number"
+                lazy
                 :model-value="asString(row[ci])"
                 @update:model-value="(v) => setCell(ri, ci, asNumber(v))"
                 :readonly="field.readonly"
