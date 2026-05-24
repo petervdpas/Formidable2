@@ -52,6 +52,8 @@
   "csv.transform.trimupper": "Inkorten + Hoofd",
   "csv.transform.uppercase": "Hoofdletters",
   "csv.transformed": "Getransformeerd",
+  "field.count.rows": "rij | rijen",
+  "field.count.items": "item | items",
   "field.link.bare": "Kale link",
   "field.link.clear.confirm": "Deze link wissen? Het doel en de linktekst worden gereset.",
   "field.link.clear.title": "Link wissen?",

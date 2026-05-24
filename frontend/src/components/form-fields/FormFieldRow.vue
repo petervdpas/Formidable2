@@ -36,6 +36,21 @@ const collapsed = ref<boolean>(config.value?.field_state_collapsed === true);
 const labelText = computed(() => fieldLabel(props.i18nNamespace, props.field));
 const descriptionText = computed(() => fieldDescription(props.i18nNamespace, props.field));
 
+// list and table values are top-level arrays (rows / items). Surface the
+// count next to the label so authors see how full a collection is
+// without expanding it. Null for every other type (no badge).
+const ROW_COUNT_TYPES = new Set(["list", "table"]);
+const rowCount = computed<number | null>(() => {
+  if (!ROW_COUNT_TYPES.has(props.field.type)) return null;
+  return Array.isArray(props.modelValue) ? props.modelValue.length : 0;
+});
+// table counts "rows" / "rijen"; list counts "items". The unit word is
+// pluralized via vue-i18n's `singular | plural` form; the number is
+// rendered separately so we don't depend on the plural-count variable.
+const rowCountUnitKey = computed(() =>
+  props.field.type === "table" ? "field.count.rows" : "field.count.items",
+);
+
 function toggle() {
   collapsed.value = !collapsed.value;
 }
@@ -59,6 +74,7 @@ function toggle() {
           @click="toggle"
         >{{ collapsed ? '▶' : '▼' }}</button>
         {{ labelText }}
+        <span v-if="rowCount !== null" class="form-field-count">{{ rowCount }} {{ t(rowCountUnitKey, rowCount) }}</span>
       </label>
       <p v-if="descriptionText" class="form-field-description">
         {{ descriptionText }}

@@ -52,6 +52,8 @@
   "csv.transform.trimupper": "Trim + Upper",
   "csv.transform.uppercase": "Uppercase",
   "csv.transformed": "Transformed",
+  "field.count.rows": "row | rows",
+  "field.count.items": "item | items",
   "field.link.bare": "Bare Link",
   "field.link.clear.confirm": "Clear this link? The target and link text will be reset.",
   "field.link.clear.title": "Clear link?",

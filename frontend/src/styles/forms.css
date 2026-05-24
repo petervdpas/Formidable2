@@ -197,6 +197,19 @@
     color: var(--color-text);
 }
 
+/* Row/item count badge after a list or table label. */
+.form-field-count {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--muted-color, #888);
+    background: var(--color-surface-2, rgba(0, 0, 0, 0.06));
+    border-radius: 999px;
+}
+
 .form-field-description {
     margin: 4px 0 0;
     font-size: var(--font-size-sm);
