@@ -30,6 +30,42 @@ func TestBooleanFieldDescriptor_HasFixedOptionsShape(t *testing.T) {
 	if got.OptionsShape.Rows[1].Defaults["value"] != "false" {
 		t.Fatalf("row 1 default value should be 'false'")
 	}
+	if len(got.OptionsShape.LockedColumns) != 1 || got.OptionsShape.LockedColumns[0] != "value" {
+		t.Fatalf("boolean should lock the value column; got %+v", got.OptionsShape.LockedColumns)
+	}
+}
+
+func TestRangeFieldDescriptor_HasFixedMinMaxStep(t *testing.T) {
+	defs := AllFieldTypes()
+	var got *FieldDescriptor
+	for i := range defs {
+		if defs[i].ID == "range" {
+			d := defs[i]
+			got = &d
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("range descriptor missing")
+	}
+	if got.OptionsShape == nil {
+		t.Fatalf("range should advertise a FixedOptionsShape; got nil")
+	}
+	if len(got.OptionsShape.Rows) != 3 {
+		t.Fatalf("range shape must have exactly 3 rows (min/max/step); got %d", len(got.OptionsShape.Rows))
+	}
+	want := []struct {
+		key, val string
+	}{{"min", "0"}, {"max", "10"}, {"step", "1"}}
+	for i, w := range want {
+		r := got.OptionsShape.Rows[i]
+		if r.Defaults["value"] != w.key || r.Defaults["label"] != w.val {
+			t.Fatalf("row %d should be value=%q label=%q; got %+v", i, w.key, w.val, r.Defaults)
+		}
+	}
+	if len(got.OptionsShape.LockedColumns) != 1 || got.OptionsShape.LockedColumns[0] != "value" {
+		t.Fatalf("range should lock the value column (only the number is editable); got %+v", got.OptionsShape.LockedColumns)
+	}
 }
 
 func TestTableColumnTypes_DropdownAndBoolHaveSubRow(t *testing.T) {

@@ -13,7 +13,12 @@ import {
 } from "./fields";
 import APIFieldEditor from "./APIFieldEditor.vue";
 import type { OptionRow } from "./fields/OptionsEditor.vue";
-import { columnsFor, fixedRowsFor, SUPPORTED_OPTION_TYPES } from "../types/option-presets";
+import {
+  columnsFor,
+  fixedRowsFor,
+  lockedColumnsFor,
+  SUPPORTED_OPTION_TYPES,
+} from "../types/option-presets";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useToast } from "../composables/useToast";
 import { formatError } from "../utils/templateValidation";
@@ -123,12 +128,44 @@ const typeOptions = computed(() => {
 // textarea, Format should be "markdown" - that's what the dropdown
 // shows by default, and it's what the original Formidable saves to
 // YAML. Without this, an empty draft confirms with format unset.
+// Shape signature for a type's options: the ordered column keys plus the
+// fixed-row count. Two types with the same signature (dropdown / radio /
+// multioption all share value+label, no fixed rows) can carry options
+// across a type switch; a differing signature means the old options don't
+// fit the new editor (boolean's fixed true/false rows leaking into range
+// or table, list's type column, etc.) and must be reset.
+function optionSignature(typeId: string): string {
+  const cols = (columnsFor(typeId) ?? []).map((c) => c.key).join(",");
+  const fixed = (fixedRowsFor(typeId) ?? []).length;
+  return `${cols}|${fixed}`;
+}
+
 watch(
   () => draft.value?.type,
-  (type) => {
+  (type, prevType) => {
     if (!draft.value) return;
+    // Genuine user type change (not the initial load, where prevType is
+    // undefined). When the option shape differs from the previous type,
+    // stale rows would leak across, so reset; the new type then seeds
+    // cleanly (fixed-row types like boolean get their defaults via
+    // OptionsEditor). statistics_columns rides along since it names the
+    // table's columns.
+    if (
+      prevType !== undefined &&
+      type !== prevType &&
+      optionSignature(type ?? "") !== optionSignature(prevType)
+    ) {
+      draft.value.options = [];
+      draft.value.statistics_columns = [];
+    }
     if (type === "textarea" && !draft.value.format) {
       draft.value.format = "markdown";
+    }
+    // A guid field's key is always "id" - mirror backend Normalize
+    // (template/normalize.go) so the readonly Key input shows it
+    // immediately instead of an empty/stale key.
+    if (type === "guid") {
+      draft.value.key = "id";
     }
   },
 );
@@ -178,6 +215,7 @@ const optionsSupported = computed(() => SUPPORTED_OPTION_TYPES.has(draft.value?.
 
 const optionColumns = computed(() => columnsFor(draft.value?.type || "") ?? []);
 const optionFixedRows = computed(() => fixedRowsFor(draft.value?.type || "") ?? undefined);
+const optionLockedColumns = computed(() => lockedColumnsFor(draft.value?.type || ""));
 
 const optionRows = computed<OptionRow[]>({
   get: () => {
@@ -434,6 +472,7 @@ const dialogStyle = computed<Record<string, string>>(() => {
             v-model="optionRows"
             :columns="optionColumns"
             :fixed-rows="optionFixedRows"
+            :locked-columns="optionLockedColumns"
           />
           <p v-else class="muted small options-unavailable">
             {{ t('workspace.templates.field_edit.row.options_unavailable') }}

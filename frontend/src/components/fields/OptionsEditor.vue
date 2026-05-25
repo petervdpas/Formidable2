@@ -72,7 +72,15 @@ export type FixedRowConfig = {
 const props = defineProps<{
   columns: ColumnDef[];
   fixedRows?: FixedRowConfig[];
+  /** Column keys rendered read-only across every row - e.g. the
+   *  structural "value" of a boolean / range fixed shape, where only
+   *  the label is editable. */
+  lockedColumns?: string[];
 }>();
+
+function isLocked(key: string): boolean {
+  return !!props.lockedColumns?.includes(key);
+}
 
 const model = defineModel<OptionRow[]>({ default: () => [] });
 
@@ -190,6 +198,7 @@ function getCell(row: OptionRow, col: ColumnDef): string {
               :model-value="getCell(row, col)"
               @update:model-value="(v) => setCell(i, col, v)"
               :placeholder="col.placeholder"
+              :readonly="isLocked(col.key)"
               class="options-cell"
             />
             <SelectField
@@ -197,6 +206,7 @@ function getCell(row: OptionRow, col: ColumnDef): string {
               :model-value="getCell(row, col)"
               @update:model-value="(v) => setCell(i, col, v)"
               :options="col.options.map((o) => ({ value: o, label: o }))"
+              :disabled="isLocked(col.key)"
               class="options-cell"
             />
           </template>

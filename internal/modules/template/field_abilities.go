@@ -46,6 +46,14 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
 		},
+		OptionsShape: &FixedOptionsShape{
+			Rows: []FixedOptionRow{
+				{LabelKey: "workspace.templates.field_edit.range.min", Defaults: map[string]any{"value": "min", "label": "0"}},
+				{LabelKey: "workspace.templates.field_edit.range.max", Defaults: map[string]any{"value": "max", "label": "10"}},
+				{LabelKey: "workspace.templates.field_edit.range.step", Defaults: map[string]any{"value": "step", "label": "1"}},
+			},
+			LockedColumns: []string{"value"},
+		},
 	},
 	"date": {
 		ID: "date",
@@ -69,6 +77,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 				{LabelKey: "common.true", Defaults: map[string]any{"value": "true", "label": "Yes"}},
 				{LabelKey: "common.false", Defaults: map[string]any{"value": "false", "label": "No"}},
 			},
+			LockedColumns: []string{"value"},
 		},
 	},
 	"dropdown": {

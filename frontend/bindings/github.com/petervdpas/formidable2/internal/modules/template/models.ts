@@ -600,9 +600,13 @@ export class FixedOptionRow {
 /**
  * FixedOptionsShape declares the options array's fixed arity for a
  * field type. nil/empty Rows = free-form (add/remove enabled).
+ * LockedColumns names the column keys the editor renders read-only
+ * across every row (e.g. the structural "value" key for boolean's
+ * true/false or range's min/max/step - only the label is editable).
  */
 export class FixedOptionsShape {
     "rows": FixedOptionRow[];
+    "locked_columns"?: string[];
 
     /** Creates a new FixedOptionsShape instance. */
     constructor($$source: Partial<FixedOptionsShape> = {}) {
@@ -618,9 +622,13 @@ export class FixedOptionsShape {
      */
     static createFrom($$source: any = {}): FixedOptionsShape {
         const $$createField0_0 = $$createType19;
+        const $$createField1_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
+        }
+        if ("locked_columns" in $$parsedSource) {
+            $$parsedSource["locked_columns"] = $$createField1_0($$parsedSource["locked_columns"]);
         }
         return new FixedOptionsShape($$parsedSource as Partial<FixedOptionsShape>);
     }

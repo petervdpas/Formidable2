@@ -146,6 +146,21 @@
     border-color: var(--type-border);
 }
 
+/* Keep this dialog's height steady: the header + footer stay pinned and
+   only the field settings scroll between them. Scoped here (not in the
+   shared Modal) because Modal backs every dialog in the app. */
+.modal-dialog.field-edit-tinted {
+    overflow: hidden;
+}
+.modal-dialog.field-edit-tinted .modal-header,
+.modal-dialog.field-edit-tinted .modal-footer {
+    flex: 0 0 auto;
+}
+.modal-dialog.field-edit-tinted .modal-body {
+    min-height: 0;
+    overflow: auto;
+}
+
 .modal-dialog.field-edit-tinted .modal-header,
 .modal-dialog.field-edit-tinted .modal-footer {
     border-color: color-mix(in oklab, currentColor 25%, transparent);
@@ -160,10 +175,12 @@
     background: color-mix(in oklab, currentColor 15%, transparent);
 }
 
-/* Form section frame - transparent so the floor color shows through. */
+/* No section frame here: the scrolling body is already bounded by the
+   header + footer dividers, so the inner border is redundant. */
 .modal-dialog.field-edit-tinted .form-section {
     background: transparent;
-    border-color: color-mix(in oklab, currentColor 25%, transparent);
+    border: none;
+    padding: 0;
 }
 
 /* Labels + descriptions inherit the tint text color. */

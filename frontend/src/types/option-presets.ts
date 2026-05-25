@@ -199,3 +199,12 @@ export function fixedRowsFor(typeId: string): FixedRowConfig[] | null {
     defaults: (r.defaults ?? {}) as OptionRow,
   }));
 }
+
+// Column keys the editor renders read-only for a fixed-shape type
+// (e.g. the structural "value" of boolean's true/false or range's
+// min/max/step). Empty for free-form / unlocked types.
+export function lockedColumnsFor(typeId: string): string[] {
+  const def = _fieldDescriptors[typeId];
+  const shape = def?.options_shape as FixedOptionsShape | null | undefined;
+  return shape?.locked_columns ? [...shape.locked_columns] : [];
+}

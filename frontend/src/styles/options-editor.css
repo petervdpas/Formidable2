@@ -20,8 +20,11 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-height: 200px;
+    max-height: 160px;
     overflow-y: auto;
+    /* Keep the scrollbar clear of the row's remove (−) button so it
+       stays clickable when the list overflows. */
+    padding-right: 8px;
 }
 
 .options-row {

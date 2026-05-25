@@ -51,6 +51,10 @@ type FixedOptionRow struct {
 
 // FixedOptionsShape declares the options array's fixed arity for a
 // field type. nil/empty Rows = free-form (add/remove enabled).
+// LockedColumns names the column keys the editor renders read-only
+// across every row (e.g. the structural "value" key for boolean's
+// true/false or range's min/max/step - only the label is editable).
 type FixedOptionsShape struct {
-	Rows []FixedOptionRow `json:"rows"`
+	Rows          []FixedOptionRow `json:"rows"`
+	LockedColumns []string         `json:"locked_columns,omitempty"`
 }
