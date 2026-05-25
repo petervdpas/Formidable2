@@ -29,7 +29,9 @@ const facets = computed(() => (chart.value?.facets ?? undefined) as Facet[] | un
   <div class="form-widget form-widget-chart">
     <label v-if="widget.label" class="form-widget-label">{{ widget.label }}</label>
     <div class="chart-widget-display">
-      <StatGrid v-if="grid" :grid="grid" :type="type" :facets="facets" />
+      <div v-if="grid" class="chart-widget-canvas">
+        <StatGrid :grid="grid" :type="type" :facets="facets" />
+      </div>
       <p v-else class="muted small chart-widget-empty">-</p>
     </div>
   </div>

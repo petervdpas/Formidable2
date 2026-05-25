@@ -112,12 +112,13 @@
     overflow: auto;
 }
 
-/* The rendered chart self-centers in the display and caps its width so
-   a wider window doesn't stretch it; labels and bars stay legible. */
-.chart-widget-display > .stat-chart {
+/* The chart sits on its own centered, padded canvas, capped so a wider
+   window doesn't stretch it; labels and bars stay legible. */
+.chart-widget-canvas {
     width: 100%;
-    max-width: 760px;
+    max-width: 720px;
     margin: auto;
+    padding: var(--space-2) var(--space-3);
 }
 
 .chart-widget-empty {

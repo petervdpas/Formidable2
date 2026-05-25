@@ -31,11 +31,12 @@ const view = computed(() => {
   const values = denseRank1(props.grid, props.measureIndex);
   if (labels.length === 0) return null;
 
-  // Left gutter sizes to the longest label (~6.5 viewBox units/char)
-  // so long facet-option names aren't clipped, capped so the bars keep
-  // room.
+  // Left gutter sizes to the longest label so long facet-option names
+  // aren't clipped at the viewBox edge. ~8 units/char + margin is
+  // generous enough for the 12px label font once the canvas caps the
+  // horizontal stretch; capped so the bars still get room.
   const maxChars = Math.max(0, ...labels.map((l) => (l === "" ? 7 : l.length)));
-  const padLeft = Math.min(300, Math.max(120, Math.round(maxChars * 6.5) + 16));
+  const padLeft = Math.min(340, Math.max(130, Math.round(maxChars * 8) + 24));
 
   const max = Math.max(1, ...values.map((v) => Math.abs(v)));
   const barAreaW = props.width - padLeft - PAD_RIGHT;
