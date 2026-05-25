@@ -57,27 +57,28 @@ func newSandboxedState() *lua.LState {
 // instead of silently doing nothing. This makes test failures
 // loud and makes wiring gaps in app.go obvious.
 type runtimeDeps struct {
-	LogSink     *[]string
-	ToastSink   *[]ToastEvent
-	RunBarOut   RunBarEmitter
-	RunStatOut  RunStatusEmitter
-	RunChartOut RunChartEmitter
-	Ctx         context.Context
-	PluginID    string
-	Plugin      PluginInfo
-	KV          *KV
-	Template    TemplateAccess
-	Collection  CollectionAccess
-	Form        FormAccess
-	Render      RenderAccess
-	FM          FMAccess
-	FS          FSAccess
-	Storage     StorageAccess
-	Exec        ExecRunner
-	API         HTTPClient
-	Stats       StatsAccess
-	Facets      FacetStatsAccess
-	StatObject  StatObjectAccess
+	LogSink       *[]string
+	ToastSink     *[]ToastEvent
+	RunBarOut     RunBarEmitter
+	RunStatOut    RunStatusEmitter
+	RunChartOut   RunChartEmitter
+	RunOptionsOut RunOptionsEmitter
+	Ctx           context.Context
+	PluginID      string
+	Plugin        PluginInfo
+	KV            *KV
+	Template      TemplateAccess
+	Collection    CollectionAccess
+	Form          FormAccess
+	Render        RenderAccess
+	FM            FMAccess
+	FS            FSAccess
+	Storage       StorageAccess
+	Exec          ExecRunner
+	API           HTTPClient
+	Stats         StatsAccess
+	Facets        FacetStatsAccess
+	StatObject    StatObjectAccess
 	// I18nMessages is the plugin's translation map for the active
 	// locale, already stripped of its `plugin.<id>.` prefix so
 	// formidable.i18n.t("commands.run.label") is a direct lookup.
@@ -105,7 +106,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("form", buildFormTable(L, deps.Form))
 	f.RawSetString("render", buildRenderTable(L, deps.PluginID, deps.Render, deps.FM))
 	f.RawSetString("fm", buildFMTable(L, deps.PluginID, deps.FM))
-	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut, deps.RunChartOut))
+	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut, deps.RunChartOut, deps.RunOptionsOut))
 	f.RawSetString("storage", buildStorageTable(L, deps.Storage))
 	f.RawSetString("stats", buildStatsTable(L, deps.Stats))
 	f.RawSetString("facets", buildFacetsTable(L, deps.Facets))
@@ -233,24 +234,25 @@ type scriptOpts struct {
 
 	// Access deps - leave nil to disable a namespace; calls into
 	// it from Lua then raise a "<namespace>: not configured" error.
-	PluginID    string
-	Plugin      PluginInfo
-	KV          *KV
-	Template    TemplateAccess
-	Collection  CollectionAccess
-	Form        FormAccess
-	Render      RenderAccess
-	FM          FMAccess
-	FS          FSAccess
-	Storage     StorageAccess
-	Exec        ExecRunner
-	API         HTTPClient
-	Stats       StatsAccess
-	Facets      FacetStatsAccess
-	StatObject  StatObjectAccess
-	RunBarOut   RunBarEmitter
-	RunStatOut  RunStatusEmitter
-	RunChartOut RunChartEmitter
+	PluginID      string
+	Plugin        PluginInfo
+	KV            *KV
+	Template      TemplateAccess
+	Collection    CollectionAccess
+	Form          FormAccess
+	Render        RenderAccess
+	FM            FMAccess
+	FS            FSAccess
+	Storage       StorageAccess
+	Exec          ExecRunner
+	API           HTTPClient
+	Stats         StatsAccess
+	Facets        FacetStatsAccess
+	StatObject    StatObjectAccess
+	RunBarOut     RunBarEmitter
+	RunStatOut    RunStatusEmitter
+	RunChartOut   RunChartEmitter
+	RunOptionsOut RunOptionsEmitter
 	// I18nMessages: plugin's translation map for the active locale
 	// (prefix already stripped). nil = no translations available.
 	I18nMessages map[string]string
@@ -272,28 +274,29 @@ func runScript(opts scriptOpts) (RunResult, error) {
 	var logs []string
 	var toasts []ToastEvent
 	installFormidable(L, runtimeDeps{
-		LogSink:     &logs,
-		ToastSink:   &toasts,
-		RunBarOut:   opts.RunBarOut,
-		RunStatOut:  opts.RunStatOut,
-		RunChartOut: opts.RunChartOut,
-		Ctx:         opts.Ctx,
-		PluginID:     opts.PluginID,
-		Plugin:       opts.Plugin,
-		KV:           opts.KV,
-		Template:     opts.Template,
-		Collection:   opts.Collection,
-		Form:         opts.Form,
-		Render:       opts.Render,
-		FM:           opts.FM,
-		FS:           opts.FS,
-		Storage:      opts.Storage,
-		Exec:         opts.Exec,
-		API:          opts.API,
-		Stats:        opts.Stats,
-		Facets:       opts.Facets,
-		StatObject:   opts.StatObject,
-		I18nMessages: opts.I18nMessages,
+		LogSink:       &logs,
+		ToastSink:     &toasts,
+		RunBarOut:     opts.RunBarOut,
+		RunStatOut:    opts.RunStatOut,
+		RunChartOut:   opts.RunChartOut,
+		RunOptionsOut: opts.RunOptionsOut,
+		Ctx:           opts.Ctx,
+		PluginID:      opts.PluginID,
+		Plugin:        opts.Plugin,
+		KV:            opts.KV,
+		Template:      opts.Template,
+		Collection:    opts.Collection,
+		Form:          opts.Form,
+		Render:        opts.Render,
+		FM:            opts.FM,
+		FS:            opts.FS,
+		Storage:       opts.Storage,
+		Exec:          opts.Exec,
+		API:           opts.API,
+		Stats:         opts.Stats,
+		Facets:        opts.Facets,
+		StatObject:    opts.StatObject,
+		I18nMessages:  opts.I18nMessages,
 	})
 
 	if err := L.DoString(opts.Source); err != nil {

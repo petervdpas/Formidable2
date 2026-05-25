@@ -588,6 +588,9 @@ func New(d Deps) (*App, error) {
 		RunChartOut: func(evt plugin.RunChartEvent) {
 			emitter.Emit("plugin:run:chart", evt)
 		},
+		RunOptionsOut: func(evt plugin.RunOptionsEvent) {
+			emitter.Emit("plugin:run:options", evt)
+		},
 		Exec: plugin.OSExec{},
 		// HTTPClient is satisfied by a wiki+system adapter - plugins
 		// that flag requires_internal_server in their manifest get

@@ -53,11 +53,17 @@ const stopping = ref(false);
 const bar = ref<RunBar | null>(null);
 const status = ref<string>("");
 const chart = ref<RunChartSpec | null>(null);
+// fieldOptions overlays a form field's option list at runtime, keyed
+// by field key. Fed by formidable.run.options so a plugin can steer
+// e.g. the shape dropdown's choices from the picked object's rank.
+// Cleared on open/close, NOT on run start (an on-change run sets it).
+const fieldOptions = ref<Record<string, unknown[]>>({});
 
 let eventRefcount = 0;
 let unsubscribeBar: (() => void) | null = null;
 let unsubscribeStatus: (() => void) | null = null;
 let unsubscribeChart: (() => void) | null = null;
+let unsubscribeOptions: (() => void) | null = null;
 
 function unwrap(evt: unknown): unknown {
   // Wails wraps payloads as { data: <go-struct>, ... }; tolerate
@@ -93,6 +99,13 @@ function ensureSubscription() {
         chart.value = e?.spec ?? null;
       });
     }
+    if (!unsubscribeOptions) {
+      unsubscribeOptions = Events.On("plugin:run:options", (evt: unknown) => {
+        const e = unwrap(evt) as { field?: string; options?: unknown[] } | undefined;
+        if (!e?.field) return;
+        fieldOptions.value = { ...fieldOptions.value, [e.field]: e.options ?? [] };
+      });
+    }
   }
   eventRefcount += 1;
 }
@@ -112,6 +125,10 @@ function releaseSubscription() {
       unsubscribeChart();
       unsubscribeChart = null;
     }
+    if (unsubscribeOptions) {
+      unsubscribeOptions();
+      unsubscribeOptions = null;
+    }
   }
 }
 
@@ -123,6 +140,7 @@ export function openGlobalPluginRun(
   bar.value = null;
   status.value = "";
   chart.value = null;
+  fieldOptions.value = {};
   openRequest.value = { plugin, extraCtx };
   return true;
 }
@@ -132,6 +150,7 @@ export function closeGlobalPluginRun(): void {
   bar.value = null;
   status.value = "";
   chart.value = null;
+  fieldOptions.value = {};
   stopping.value = false;
 }
 
@@ -167,5 +186,5 @@ export async function cancelGlobalPluginRun(): Promise<void> {
 export function useGlobalPluginRun() {
   onMounted(ensureSubscription);
   onUnmounted(releaseSubscription);
-  return { openRequest, running, stopping, bar, status, chart };
+  return { openRequest, running, stopping, bar, status, chart, fieldOptions };
 }

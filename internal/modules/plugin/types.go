@@ -165,6 +165,13 @@ type Command struct {
 	HideLog    bool   `json:"hide_log"`
 	LogAsToast bool   `json:"log_as_toast"`
 	FormButton bool   `json:"form_button"`
+	// OnChange marks the command the host runs whenever a form field
+	// changes (run_mode "form"), before any Draw button is pressed.
+	// ctx carries the current form values plus `changed` = the key of
+	// the field that changed, so the Lua can react - e.g. evaluate the
+	// picked object and steer another field's options via
+	// formidable.run.options. Not rendered as a button.
+	OnChange bool `json:"on_change"`
 }
 
 // Plugin is a discovered, validated plugin entry held by the
@@ -233,6 +240,18 @@ type RunStatusEvent struct {
 // and hands them to StatChart. Cleared at the start of every Run.
 type RunChartEvent struct {
 	Spec map[string]any `json:"spec"`
+}
+
+// RunOptionsEvent is emitted by formidable.run.options(fieldKey, opts):
+// the plugin steers a form field's option list at runtime (e.g. set the
+// shape field's choices from the picked object's rank). Same live
+// mechanism as the other run.* events. Field is the form field's key;
+// Options is the new option list (each entry a {value, label} map or a
+// bare string). The frontend overlays these on the field's static
+// options and re-selects a valid value if the current one drops out.
+type RunOptionsEvent struct {
+	Field   string `json:"field"`
+	Options []any  `json:"options"`
 }
 
 // RunResult is the JSON-shaped envelope returned to Vue. Value

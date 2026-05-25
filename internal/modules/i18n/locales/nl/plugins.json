@@ -27,6 +27,8 @@
   "workspace.plugins.commands.label": "Label",
   "workspace.plugins.commands.log_as_toast": "Log als toast",
   "workspace.plugins.commands.log_as_toast_title": "Toon elke formidable.log.* regel ook als live toast",
+  "workspace.plugins.commands.on_change": "Bij wijziging",
+  "workspace.plugins.commands.on_change_title": "Voer dit commando uit zodra een formulierveld wijzigt (vóór Tekenen), zodat het andere velden kan sturen via formidable.run.options",
   "workspace.plugins.commands.show_log": "Toon Log",
   "workspace.plugins.commands.show_log_title": "Toon het logvenster na uitvoeren",
   "workspace.plugins.commands.show_output": "Toon Resultaat",

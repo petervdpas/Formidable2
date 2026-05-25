@@ -73,7 +73,7 @@ const view = computed(() => {
           :width="row.width"
           :height="BAR_HEIGHT"
           :class="['stat-bar', row.colorClass]"
-          :fill="row.fill || undefined"
+          :style="row.fill ? { fill: 'currentColor' } : undefined"
         />
         <text :x="PAD_LEFT + row.width + 6" :y="row.y + 13" class="stat-bar-value">
           {{ row.text }}<tspan v-if="row.pct !== null"> ({{ row.pct }}%)</tspan>

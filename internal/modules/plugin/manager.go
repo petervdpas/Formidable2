@@ -43,9 +43,10 @@ type ManagerDeps struct {
 	Stats      StatsAccess
 	Facets     FacetStatsAccess
 	StatObject StatObjectAccess
-	RunBarOut   RunBarEmitter
-	RunStatOut  RunStatusEmitter
-	RunChartOut RunChartEmitter
+	RunBarOut     RunBarEmitter
+	RunStatOut    RunStatusEmitter
+	RunChartOut   RunChartEmitter
+	RunOptionsOut RunOptionsEmitter
 	// Locale supplies the user's currently-active locale id at Run
 	// time so per-plugin i18n is sourced from the right bundle. nil =
 	// the runtime falls back to "en" - plugin.MessagesForLocale("en").
@@ -353,10 +354,11 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 		Stats:        m.deps.Stats,
 		Facets:       m.deps.Facets,
 		StatObject:   m.deps.StatObject,
-		RunBarOut:    m.deps.RunBarOut,
-		RunStatOut:   m.deps.RunStatOut,
-		RunChartOut:  m.deps.RunChartOut,
-		I18nMessages: m.messagesForPlugin(pluginID),
+		RunBarOut:     m.deps.RunBarOut,
+		RunStatOut:    m.deps.RunStatOut,
+		RunChartOut:   m.deps.RunChartOut,
+		RunOptionsOut: m.deps.RunOptionsOut,
+		I18nMessages:  m.messagesForPlugin(pluginID),
 	})
 }
 

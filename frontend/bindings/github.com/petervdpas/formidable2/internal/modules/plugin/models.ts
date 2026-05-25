@@ -35,6 +35,16 @@ export class Command {
     "log_as_toast": boolean;
     "form_button": boolean;
 
+    /**
+     * OnChange marks the command the host runs whenever a form field
+     * changes (run_mode "form"), before any Draw button is pressed.
+     * ctx carries the current form values plus `changed` = the key of
+     * the field that changed, so the Lua can react - e.g. evaluate the
+     * picked object and steer another field's options via
+     * formidable.run.options. Not rendered as a button.
+     */
+    "on_change": boolean;
+
     /** Creates a new Command instance. */
     constructor($$source: Partial<Command> = {}) {
         if (!("id" in $$source)) {
@@ -54,6 +64,9 @@ export class Command {
         }
         if (!("form_button" in $$source)) {
             this["form_button"] = false;
+        }
+        if (!("on_change" in $$source)) {
+            this["on_change"] = false;
         }
 
         Object.assign(this, $$source);

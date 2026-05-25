@@ -157,6 +157,11 @@ type RunStatusEmitter func(RunStatusEvent)
 // re-renders when the Lua pushes a new spec.
 type RunChartEmitter func(RunChartEvent)
 
+// RunOptionsEmitter receives one RunOptionsEvent per
+// formidable.run.options call. Same semantics as RunBarEmitter: the
+// host re-options a form field when the Lua pushes a new list.
+type RunOptionsEmitter func(RunOptionsEvent)
+
 // ─────────────────────────────────────────────────────────────────
 // Namespace builders - each returns a Lua table that goes onto
 // `formidable.*`. When the access dep is nil the table still gets
@@ -476,7 +481,7 @@ func buildFMTable(L *lua.LState, pluginID string, fm FMAccess) *lua.LTable {
 // re-renders live. Nil emitters raise "run: not configured" - a
 // misconfigured runtime fails loud rather than silently dropping
 // state updates.
-func buildRunTable(L *lua.LState, barEmit RunBarEmitter, statusEmit RunStatusEmitter, chartEmit RunChartEmitter) *lua.LTable {
+func buildRunTable(L *lua.LState, barEmit RunBarEmitter, statusEmit RunStatusEmitter, chartEmit RunChartEmitter, optionsEmit RunOptionsEmitter) *lua.LTable {
 	tbl := L.NewTable()
 	if barEmit == nil {
 		tbl.RawSetString("bar", L.NewFunction(nilGuard("run")))
@@ -503,6 +508,16 @@ func buildRunTable(L *lua.LState, barEmit RunBarEmitter, statusEmit RunStatusEmi
 		tbl.RawSetString("chart", L.NewFunction(func(L *lua.LState) int {
 			spec, _ := luaToGo(L.CheckTable(1)).(map[string]any)
 			chartEmit(RunChartEvent{Spec: spec})
+			return 0
+		}))
+	}
+	if optionsEmit == nil {
+		tbl.RawSetString("options", L.NewFunction(nilGuard("run")))
+	} else {
+		tbl.RawSetString("options", L.NewFunction(func(L *lua.LState) int {
+			field := L.CheckString(1)
+			opts, _ := luaToGo(L.CheckTable(2)).([]any)
+			optionsEmit(RunOptionsEvent{Field: field, Options: opts})
 			return 0
 		}))
 	}

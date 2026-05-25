@@ -602,6 +602,32 @@ func TestBindings_Run_Chart_StreamsSpecThroughEmitter(t *testing.T) {
 	}
 }
 
+func TestBindings_Run_Options_StreamsThroughEmitter(t *testing.T) {
+	var got []RunOptionsEvent
+	emit := func(e RunOptionsEvent) { got = append(got, e) }
+	run(t, `
+		function run()
+			formidable.run.options("shape", {
+				{ value = "bar", label = "Bar" },
+				{ value = "pie", label = "Pie" },
+			})
+		end`,
+		scriptOpts{RunOptionsOut: emit})
+	if len(got) != 1 {
+		t.Fatalf("got %d options events, want 1: %+v", len(got), got)
+	}
+	if got[0].Field != "shape" {
+		t.Fatalf("field = %q, want shape", got[0].Field)
+	}
+	if len(got[0].Options) != 2 {
+		t.Fatalf("got %d options, want 2", len(got[0].Options))
+	}
+	first, ok := got[0].Options[0].(map[string]any)
+	if !ok || first["value"] != "bar" || first["label"] != "Bar" {
+		t.Fatalf("option[0] = %+v", got[0].Options[0])
+	}
+}
+
 func TestBindings_Run_Bar_OptionalArgs(t *testing.T) {
 	var got []RunBarEvent
 	emit := func(e RunBarEvent) { got = append(got, e) }
@@ -1461,7 +1487,14 @@ type mockStatObject struct {
 
 func (m *mockStatObject) EvaluateObject(tpl, name string) (map[string]any, error) {
 	m.gotTpl, m.gotName = tpl, name
-	return map[string]any{"total": 5, "measures": []any{"count"}}, nil
+	// Rank-1 grid (one axis) so callers that branch on rank see a 1-D
+	// object; total stays 5 for the eval-shape assertions.
+	return map[string]any{
+		"total":    5,
+		"measures": []any{"count"},
+		"axes":     []any{map[string]any{"source": "x", "labels": []any{"a", "b"}}},
+		"cells":    []any{},
+	}, nil
 }
 
 func (m *mockStatObject) ListObjects(tpl string) ([]map[string]any, error) {

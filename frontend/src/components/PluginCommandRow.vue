@@ -82,6 +82,13 @@ const { t } = useI18n();
         <span>{{ t('workspace.plugins.commands.log_as_toast') }}</span>
         <SwitchField v-model="command.log_as_toast" />
       </label>
+      <label
+        class="cmd-toggle"
+        :title="t('workspace.plugins.commands.on_change_title')"
+      >
+        <span>{{ t('workspace.plugins.commands.on_change') }}</span>
+        <SwitchField v-model="command.on_change" />
+      </label>
     </div>
   </li>
 </template>

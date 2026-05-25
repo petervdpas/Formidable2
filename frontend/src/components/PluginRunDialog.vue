@@ -45,7 +45,7 @@ import ChartWidget from "./widgets/ChartWidget.vue";
 
 const { t } = useI18n();
 const toast = useToast();
-const { openRequest, running, stopping } = useGlobalPluginRun();
+const { openRequest, running, stopping, fieldOptions } = useGlobalPluginRun();
 
 const plugin = computed<ListResult | null>(() => openRequest.value?.plugin ?? null);
 const extraCtx = computed<Record<string, unknown>>(() => openRequest.value?.extraCtx ?? {});
@@ -102,6 +102,66 @@ const mainEntries = computed(() =>
   formEntries.value.filter((e) => !isChartWidget(e)),
 );
 const hasChart = computed(() => chartEntries.value.length > 0);
+
+// The on-change command runs whenever a form field changes (and once
+// on open), so the plugin can steer other fields via run.options
+// before the user draws. Never rendered as a button.
+const onChangeCommand = computed(
+  () => plugin.value?.manifest.commands?.find((c) => c.on_change) ?? null,
+);
+
+// effectiveField overlays any runtime option list the plugin pushed
+// (run.options) onto a field's static options, so a steered dropdown
+// shows the plugin-chosen choices.
+function effectiveField(field: Field): Field {
+  const override = field.key ? fieldOptions.value[field.key] : undefined;
+  if (!override) return field;
+  return { ...field, options: override } as Field;
+}
+
+let onChangeBusy = false;
+async function runOnChange(changed: string): Promise<void> {
+  const p = plugin.value;
+  const cmd = onChangeCommand.value;
+  if (!p || !cmd || onChangeBusy) return;
+  onChangeBusy = true;
+  try {
+    await PluginSvc.Run(p.id, cmd.id, {
+      ...extraCtx.value,
+      ...runValues.value,
+      changed,
+    });
+  } catch {
+    /* on-change is best-effort; a failure just leaves options as-is */
+  } finally {
+    onChangeBusy = false;
+  }
+}
+
+function onFieldInput(key: string, v: unknown): void {
+  runValues.value[key] = v;
+  if (onChangeCommand.value) void runOnChange(key);
+}
+
+// When a steered option list drops the field's current value, snap it
+// to the first available option so the form never holds an invalid
+// selection (e.g. shape was "pie" but the new object only allows
+// "heatmap").
+watch(
+  fieldOptions,
+  (opts) => {
+    for (const key of Object.keys(opts)) {
+      const list = opts[key] ?? [];
+      const values = list.map((o) =>
+        typeof o === "string" ? o : (o as { value?: unknown })?.value,
+      );
+      if (values.length > 0 && !values.includes(runValues.value[key])) {
+        runValues.value[key] = values[0];
+      }
+    }
+  },
+  { deep: true },
+);
 
 function initialRunValues(entries: Array<Field | Widget>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -171,6 +231,11 @@ watch(
     } else {
       descriptionHTML.value = "";
     }
+
+    // Kick the on-change handler once on open so a steered field (e.g.
+    // the shape options for the default object) is correct before the
+    // user touches anything.
+    if (onChangeCommand.value) void runOnChange("");
   },
   { immediate: true },
 );
@@ -282,10 +347,10 @@ function close() {
             />
             <FormFieldRow
               v-else-if="!isWidget(entry)"
-              :field="entry"
+              :field="effectiveField(entry)"
               :model-value="runValues[entry.key]"
               :i18n-namespace="plugin ? `plugin.${plugin.id}` : undefined"
-              @update:model-value="(v: unknown) => (runValues[entry.key] = v)"
+              @update:model-value="(v: unknown) => onFieldInput(entry.key, v)"
             />
           </template>
           <div

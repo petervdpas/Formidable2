@@ -151,6 +151,27 @@ func TestLoadManifest_TolerantToUnknownFields(t *testing.T) {
 	}
 }
 
+func TestLoadManifest_CommandOnChangeRoundtrip(t *testing.T) {
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo", "version": "0.1.0",
+		"commands": [
+			{"id": "refresh", "label": "Refresh", "on_change": true},
+			{"id": "draw", "label": "Draw", "form_button": true}
+		]
+	}`, "function refresh() end\nfunction draw() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !got.Commands[0].OnChange {
+		t.Fatalf("commands[0].OnChange = false, want true")
+	}
+	if got.Commands[1].OnChange {
+		t.Fatalf("commands[1].OnChange should default false")
+	}
+}
+
 func TestLoadManifest_CommandFnDefaultsToID(t *testing.T) {
 	// `Fn` is optional; when omitted the command id is also the
 	// Lua function name. Documented in types.go.

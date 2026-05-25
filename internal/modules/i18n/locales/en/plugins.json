@@ -27,6 +27,8 @@
   "workspace.plugins.commands.label": "Label",
   "workspace.plugins.commands.log_as_toast": "Show log as toast",
   "workspace.plugins.commands.log_as_toast_title": "Surface every formidable.log.* line as a live toast",
+  "workspace.plugins.commands.on_change": "Run on change",
+  "workspace.plugins.commands.on_change_title": "Run this command whenever a form field changes (before any Draw), so it can steer other fields via formidable.run.options",
   "workspace.plugins.commands.show_log": "Show Log",
   "workspace.plugins.commands.show_log_title": "Show the log panel after running",
   "workspace.plugins.commands.show_output": "Show Result",
