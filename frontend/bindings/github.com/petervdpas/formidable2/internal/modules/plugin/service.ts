@@ -137,6 +137,21 @@ export function List(): $CancellablePromise<$models.ListResult[]> {
 }
 
 /**
+ * ListForTemplate returns the plugins to show in workspace `ws`
+ * given `template` as the active selection. Template-bearing
+ * workspaces (storage / templates) query this whenever the selected
+ * template changes: it combines the plain workspace plugins with the
+ * template-scoped ones bound to `template`. An empty `template`
+ * yields only the workspace plugins. Unknown ids return an empty
+ * slice so the caller can render unconditionally.
+ */
+export function ListForTemplate(ws: string, template: string): $CancellablePromise<$models.ListResult[]> {
+    return $Call.ByID(3587214068, ws, template).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * ListForWorkspace returns the plugins whose manifest declares an
  * attachment to the given workspace id. Workspaces query this on
  * mount to build their topbar plugin menu; an unknown id returns

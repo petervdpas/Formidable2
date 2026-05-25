@@ -1,4 +1,4 @@
-import { ref, onBeforeUnmount } from "vue";
+import { ref, watch, onBeforeUnmount } from "vue";
 import {
   Service as PluginSvc,
   type ListResult,
@@ -9,40 +9,59 @@ import { pluginName } from "../utils/pluginI18n";
 
 // useWorkspacePluginMenu returns a reactive `buildMenu()` that any
 // workspace can call inside its setTopbarMenu() getter. The result is
-// a "Plugins" group containing one item per plugin whose manifest
-// attaches to the given workspace id. Clicking an item opens the
-// global PluginRunDialog with the plugin and a workspace ctx - the
-// dialog then renders modal-mode cards or form-mode fields based on
-// the manifest's run_mode, exactly mirroring the in-workspace Run UI.
+// a "Plugins" group containing one item per plugin the backend says
+// belongs in this workspace given the active template selection.
+// Clicking an item opens the global PluginRunDialog with the plugin
+// and a workspace ctx - the dialog renders modal-mode cards or
+// form-mode fields based on the manifest's run_mode.
 //
-// Empty list → null group → spread into [] folds away cleanly so the
-// workspace doesn't render a "Plugins" header when nothing is
-// attached. Refresh fires on `formidable:context-reloaded` so a
-// pull/clone surfaces newly-installed plugins without a remount.
+// Two channels combine on the backend (plugin.ListForTemplate):
+//   - plain workspace plugins (no `templates`) always show;
+//   - template-scoped plugins (manifest `templates`) show only while
+//     one of their templates is the active selection.
+// The match lives in Go; this composable just re-queries when the
+// selected template changes and renders whatever comes back.
 //
-// `selectionFeeder`, when supplied, is called at click time to mint
-// the workspace's current selection state - e.g. the Storage
-// workspace passes { template: <filename> } so a plugin scoped to
-// "this template" (like wikiwonder) gets the selection in its ctx
-// without having to enumerate the catalog.
+// `selectedTemplate`, when supplied, is a reactive getter for the
+// workspace's current template filename (e.g. Storage passes its
+// selectedTemplate). It drives both the backend filter and the
+// click-time ctx. Template-less workspaces (profiles, collaboration,
+// information) omit it: the backend then returns only the workspace
+// channel. Empty list -> null group -> spreads into [] cleanly.
+// Refresh also fires on `formidable:context-reloaded`.
 
-type SelectionFeeder = () => Record<string, unknown>;
+type TemplateGetter = () => string;
 
 export function useWorkspacePluginMenu(
   workspaceID: string,
-  selectionFeeder?: SelectionFeeder,
+  selectedTemplate?: TemplateGetter,
 ) {
   const plugins = ref<ListResult[]>([]);
   const { running } = useGlobalPluginRun();
 
+  function currentTemplate(): string {
+    return selectedTemplate ? selectedTemplate() : "";
+  }
+
   async function refresh(): Promise<void> {
     try {
-      plugins.value = await PluginSvc.ListForWorkspace(workspaceID);
+      plugins.value = await PluginSvc.ListForTemplate(
+        workspaceID,
+        currentTemplate(),
+      );
     } catch {
       plugins.value = [];
     }
   }
   void refresh();
+
+  // Re-query whenever the active template changes so a template-scoped
+  // plugin appears/disappears as the user moves between records.
+  if (selectedTemplate) {
+    watch(selectedTemplate, () => {
+      void refresh();
+    });
+  }
 
   if (typeof window !== "undefined") {
     const handler = () => {
@@ -57,6 +76,7 @@ export function useWorkspacePluginMenu(
   function buildMenu(): MenuGroup | null {
     if (plugins.value.length === 0) return null;
     const isRunning = running.value;
+    const tpl = currentTemplate();
     const items: MenuAction[] = plugins.value.map((p) => ({
       id: p.id,
       labelKey: "menu.plugins.workspace.item",
@@ -64,10 +84,7 @@ export function useWorkspacePluginMenu(
       disabled: isRunning,
       onClick: () => {
         const extra: Record<string, unknown> = { workspace: workspaceID };
-        if (selectionFeeder) {
-          const sel = selectionFeeder();
-          for (const k of Object.keys(sel)) extra[k] = sel[k];
-        }
+        if (tpl) extra.template = tpl;
         openGlobalPluginRun(p, extra);
       },
     }));

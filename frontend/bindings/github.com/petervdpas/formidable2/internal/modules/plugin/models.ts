@@ -216,6 +216,19 @@ export class Manifest {
     "workspaces"?: string[];
 
     /**
+     * Templates narrows a workspace attachment to specific templates,
+     * matched by exact filename against the active selection (e.g.
+     * "books.yaml"). A non-empty list makes the plugin
+     * template-scoped: it contributes a topbar entry only while one of
+     * these templates is selected in a template-bearing workspace
+     * (storage / templates). An empty/omitted list leaves the plugin
+     * in the plain workspace channel - it shows whenever its workspace
+     * is active, regardless of selection. The two channels are
+     * orthogonal; Templates only narrows, never broadens.
+     */
+    "templates"?: string[];
+
+    /**
      * Debug toggles the collapsible debug/output panel at the bottom
      * of the Run modal. Off by default - plugin authors flip it on
      * while iterating, then turn it off when shipping.
@@ -249,13 +262,17 @@ export class Manifest {
      */
     static createFrom($$source: any = {}): Manifest {
         const $$createField8_0 = $$createType0;
-        const $$createField10_0 = $$createType3;
+        const $$createField9_0 = $$createType0;
+        const $$createField11_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("workspaces" in $$parsedSource) {
             $$parsedSource["workspaces"] = $$createField8_0($$parsedSource["workspaces"]);
         }
+        if ("templates" in $$parsedSource) {
+            $$parsedSource["templates"] = $$createField9_0($$parsedSource["templates"]);
+        }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField10_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField11_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }

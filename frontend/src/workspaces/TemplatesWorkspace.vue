@@ -777,7 +777,7 @@ async function confirmDeleteTemplate() {
 // ── Topbar menu ──────────────────────────────────────────────────────
 const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu(
   "templates",
-  () => (selectedFilename.value ? { template: selectedFilename.value } : {}),
+  () => selectedFilename.value ?? "",
 );
 setTopbarMenu(() => [
   {

@@ -808,7 +808,7 @@ function openExportPdf() {
 // every template in the catalog.
 const { buildMenu: buildPluginsMenu } = useWorkspacePluginMenu(
   "storage",
-  () => (selectedTemplate.value ? { template: selectedTemplate.value } : {}),
+  () => selectedTemplate.value ?? "",
 );
 
 setTopbarMenu(() => [

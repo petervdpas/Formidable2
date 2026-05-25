@@ -174,6 +174,109 @@ func TestManager_ListForWorkspace_RejectsUnknownAndEmpty(t *testing.T) {
 	}
 }
 
+func TestManager_ListForTemplate_NarrowsByBinding(t *testing.T) {
+	// Three storage plugins:
+	//   - "ws"    : no templates -> workspace channel, always shows
+	//   - "books" : templates ["books.yaml"] -> only when books selected
+	//   - "notes" : templates ["notes.yaml"] -> only when notes selected
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "ws", `{
+		"manifest_version": 1, "id": "ws", "name": "WS",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	writePlugin(t, pluginsDir, "books", `{
+		"manifest_version": 1, "id": "books", "name": "Books",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"templates": ["books.yaml"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	writePlugin(t, pluginsDir, "notes", `{
+		"manifest_version": 1, "id": "notes", "name": "Notes",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"templates": ["notes.yaml"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// books.yaml selected: workspace plugin + the books-scoped one
+	// (sorted by id -> books, ws).
+	got := m.ListForTemplate(WorkspaceStorage, "books.yaml")
+	if want := []string{"books", "ws"}; !slicesEqual(ids(got), want) {
+		t.Fatalf("books selection: got %v, want %v", ids(got), want)
+	}
+	// notes.yaml selected: workspace plugin + the notes-scoped one.
+	got = m.ListForTemplate(WorkspaceStorage, "notes.yaml")
+	if want := []string{"notes", "ws"}; !slicesEqual(ids(got), want) {
+		t.Fatalf("notes selection: got %v, want %v", ids(got), want)
+	}
+	// Unrelated template: only the workspace plugin.
+	got = m.ListForTemplate(WorkspaceStorage, "other.yaml")
+	if want := []string{"ws"}; !slicesEqual(ids(got), want) {
+		t.Fatalf("other selection: got %v, want %v", ids(got), want)
+	}
+	// No selection: template-scoped plugins stay hidden.
+	got = m.ListForTemplate(WorkspaceStorage, "")
+	if want := []string{"ws"}; !slicesEqual(ids(got), want) {
+		t.Fatalf("no selection: got %v, want %v", ids(got), want)
+	}
+}
+
+func TestManager_ListForWorkspace_ExcludesTemplateScoped(t *testing.T) {
+	// A template-scoped plugin must never appear in the plain
+	// workspace channel - only via ListForTemplate with a match.
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "scoped", `{
+		"manifest_version": 1, "id": "scoped", "name": "Scoped",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"templates": ["books.yaml"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got := m.ListForWorkspace(WorkspaceStorage); got != nil {
+		t.Fatalf("template-scoped plugin leaked into workspace channel: %v", ids(got))
+	}
+}
+
+func TestManager_ListForTemplate_RejectsUnknownWorkspace(t *testing.T) {
+	m, pluginsDir := newTestManager(t)
+	writePlugin(t, pluginsDir, "a", `{
+		"manifest_version": 1, "id": "a", "name": "A",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"templates": ["books.yaml"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	_ = m.Refresh()
+	if got := m.ListForTemplate("bogus", "books.yaml"); got != nil {
+		t.Fatalf("unknown ws should be nil, got %v", ids(got))
+	}
+	if got := m.ListForTemplate("", "books.yaml"); got != nil {
+		t.Fatalf("empty ws should be nil, got %v", ids(got))
+	}
+}
+
+// slicesEqual reports order-sensitive equality of two string slices.
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // ids extracts just the ids from a Plugin slice for compact test diagnostics.
 func ids(ps []Plugin) []string {
 	out := make([]string, len(ps))

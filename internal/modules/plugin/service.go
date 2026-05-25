@@ -61,6 +61,22 @@ func (s *Service) ListForWorkspace(ws string) []ListResult {
 	return out
 }
 
+// ListForTemplate returns the plugins to show in workspace `ws`
+// given `template` as the active selection. Template-bearing
+// workspaces (storage / templates) query this whenever the selected
+// template changes: it combines the plain workspace plugins with the
+// template-scoped ones bound to `template`. An empty `template`
+// yields only the workspace plugins. Unknown ids return an empty
+// slice so the caller can render unconditionally.
+func (s *Service) ListForTemplate(ws, template string) []ListResult {
+	plugins := s.m.ListForTemplate(ws, template)
+	out := make([]ListResult, 0, len(plugins))
+	for _, p := range plugins {
+		out = append(out, ListResult{ID: p.Manifest.ID, Manifest: p.Manifest})
+	}
+	return out
+}
+
 // ListWorkspaces returns the closed enum of workspace ids a plugin
 // manifest may attach to. The manifest-editor dropdown reads this
 // directly so adding a workspace on the Go side surfaces without a

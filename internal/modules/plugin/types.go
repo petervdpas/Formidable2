@@ -109,6 +109,16 @@ type Manifest struct {
 	// means the plugin is unattached and only surfaces from the
 	// Plugins workspace's Run modal.
 	Workspaces []string `json:"workspaces,omitempty"`
+	// Templates narrows a workspace attachment to specific templates,
+	// matched by exact filename against the active selection (e.g.
+	// "books.yaml"). A non-empty list makes the plugin
+	// template-scoped: it contributes a topbar entry only while one of
+	// these templates is selected in a template-bearing workspace
+	// (storage / templates). An empty/omitted list leaves the plugin
+	// in the plain workspace channel - it shows whenever its workspace
+	// is active, regardless of selection. The two channels are
+	// orthogonal; Templates only narrows, never broadens.
+	Templates []string `json:"templates,omitempty"`
 	// Debug toggles the collapsible debug/output panel at the bottom
 	// of the Run modal. Off by default - plugin authors flip it on
 	// while iterating, then turn it off when shipping.

@@ -326,6 +326,72 @@ func TestLoadManifest_WorkspacesRejectsDuplicates(t *testing.T) {
 	}
 }
 
+func TestLoadManifest_TemplatesRoundtrip(t *testing.T) {
+	// A template-scoped plugin lists the exact template filenames it
+	// attaches to. The list round-trips verbatim.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"templates": ["books.yaml", "notes.yaml"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(got.Templates) != 2 ||
+		got.Templates[0] != "books.yaml" ||
+		got.Templates[1] != "notes.yaml" {
+		t.Fatalf("templates: %+v", got.Templates)
+	}
+}
+
+func TestLoadManifest_TemplatesOmittedDefaultsEmpty(t *testing.T) {
+	// Omitted `templates` is the common case - a plain workspace
+	// plugin. Surfaces as nil/empty so the workspace channel applies.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"workspaces": ["storage"],
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(got.Templates) != 0 {
+		t.Fatalf("templates should default empty: %+v", got.Templates)
+	}
+}
+
+func TestLoadManifest_TemplatesRejectsEmptyAndDuplicate(t *testing.T) {
+	cases := map[string]string{
+		"empty string in list": `{
+			"manifest_version": 1, "id": "demo", "name": "X", "version": "0.1.0",
+			"workspaces": ["storage"],
+			"templates": [""],
+			"commands": [{"id": "run", "label": "Run"}]}`,
+		"duplicate entry": `{
+			"manifest_version": 1, "id": "demo", "name": "X", "version": "0.1.0",
+			"workspaces": ["storage"],
+			"templates": ["books.yaml", "books.yaml"],
+			"commands": [{"id": "run", "label": "Run"}]}`,
+	}
+	for name, manifest := range cases {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			dir := writePlugin(t, root, "demo", manifest, "function run() end")
+			_, err := LoadManifest(dir)
+			if !errors.Is(err, ErrManifestInvalid) {
+				t.Fatalf("want ErrManifestInvalid, got %v", err)
+			}
+		})
+	}
+}
+
 func TestValidWorkspaces_StableContent(t *testing.T) {
 	// The enum is the frontend's source of truth - pin the values so
 	// a careless rename here is a test failure, not a silent UI break.

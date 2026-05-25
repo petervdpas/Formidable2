@@ -170,11 +170,28 @@ func (m *Manager) List() []Plugin {
 	return out
 }
 
-// ListForWorkspace returns the discovered plugins whose manifest
-// declares an attachment to the given workspace id, sorted by id
-// for stable menu ordering. Unknown or empty `ws` returns nil
-// without scanning - the workspace just renders no plugin menu.
+// ListForWorkspace returns the plain workspace-channel plugins for
+// ws: those attached to it that are NOT template-scoped. A plugin
+// with a non-empty Templates list is excluded here - it only
+// surfaces through ListForTemplate when a matching template is
+// selected. Sorted by id for stable menu ordering. Unknown or empty
+// `ws` returns nil without scanning.
 func (m *Manager) ListForWorkspace(ws string) []Plugin {
+	return m.ListForTemplate(ws, "")
+}
+
+// ListForTemplate returns the plugins to show in workspace ws given
+// `template` as the active selection. Two channels combine:
+//   - workspace plugins (empty Templates) always show for ws;
+//   - template-scoped plugins (non-empty Templates) show only when
+//     template != "" and Templates contains it.
+//
+// Passing template == "" yields just the workspace-channel plugins,
+// so the non-template workspaces (profiles / collaboration /
+// information) call this via ListForWorkspace and never see a
+// template-scoped entry. Unknown or empty `ws` returns nil. Sorted
+// by id for stable menu ordering.
+func (m *Manager) ListForTemplate(ws, template string) []Plugin {
 	if !isValidWorkspace(ws) {
 		return nil
 	}
@@ -182,7 +199,14 @@ func (m *Manager) ListForWorkspace(ws string) []Plugin {
 	defer m.mu.RUnlock()
 	var out []Plugin
 	for _, p := range m.plugins {
-		if slices.Contains(p.Manifest.Workspaces, ws) {
+		if !slices.Contains(p.Manifest.Workspaces, ws) {
+			continue
+		}
+		if len(p.Manifest.Templates) == 0 {
+			out = append(out, p)
+			continue
+		}
+		if template != "" && slices.Contains(p.Manifest.Templates, template) {
 			out = append(out, p)
 		}
 	}

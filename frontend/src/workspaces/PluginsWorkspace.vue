@@ -12,7 +12,10 @@ import PluginI18nEditor from "../components/PluginI18nEditor.vue";
 import PluginResultPanel from "../components/PluginResultPanel.vue";
 import FieldEditModal from "../components/FieldEditModal.vue";
 import FormFieldRow from "../components/form-fields/FormFieldRow.vue";
-import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import {
+  Service as TemplateSvc,
+  type Field,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { getFieldTypeDef } from "../types/field-types";
 import {
   Service as PluginSvc,
@@ -80,6 +83,40 @@ function setWorkspaceAttached(ws: string, on: boolean) {
     draftManifest.value.workspaces = [...cur, ws];
   } else {
     draftManifest.value.workspaces = cur.filter((w) => w !== ws);
+  }
+}
+
+// Manifest.templates binds the plugin to specific template filenames -
+// it then surfaces in the storage/templates topbar only while one of
+// these is the active selection. The picker reads the live template
+// list from the backend (single source of truth); selecting none
+// leaves the plugin in the plain workspace channel.
+const templateFilenames = ref<string[]>([]);
+async function loadTemplateFilenames(): Promise<void> {
+  try {
+    templateFilenames.value = (await TemplateSvc.ListTemplates()) ?? [];
+  } catch {
+    templateFilenames.value = [];
+  }
+}
+void loadTemplateFilenames();
+if (typeof window !== "undefined") {
+  window.addEventListener("formidable:context-reloaded", () => {
+    void loadTemplateFilenames();
+  });
+}
+
+function isTemplateBound(tpl: string): boolean {
+  return (draftManifest.value?.templates ?? []).includes(tpl);
+}
+function setTemplateBound(tpl: string, on: boolean) {
+  if (!draftManifest.value) return;
+  const cur = draftManifest.value.templates ?? [];
+  if (on) {
+    if (cur.includes(tpl)) return;
+    draftManifest.value.templates = [...cur, tpl];
+  } else {
+    draftManifest.value.templates = cur.filter((w) => w !== tpl);
   }
 }
 
@@ -766,6 +803,27 @@ setTopbarMenu(() => [
             :model-value="isWorkspaceAttached(ws)"
             @update:model-value="(v: boolean) => setWorkspaceAttached(ws, v)"
             :label="t(`ribbon.${ws}`)"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
+        </FormSection>
+
+        <FormSection
+          :title="t('workspace.plugins.templates.title')"
+          :subtitle="t('workspace.plugins.templates.subtitle')"
+          collapsible
+          default-collapsed
+        >
+          <p
+            v-if="templateFilenames.length === 0"
+            class="muted small"
+          >{{ t('workspace.plugins.templates.empty') }}</p>
+          <FormSwitchRow
+            v-for="tpl in templateFilenames"
+            :key="tpl"
+            :model-value="isTemplateBound(tpl)"
+            @update:model-value="(v: boolean) => setTemplateBound(tpl, v)"
+            :label="tpl"
             :on-label="t('common.on')"
             :off-label="t('common.off')"
           />

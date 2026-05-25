@@ -93,6 +93,16 @@ func validateManifest(m *Manifest) error {
 		}
 		seenWs[ws] = struct{}{}
 	}
+	seenTpl := make(map[string]struct{}, len(m.Templates))
+	for i, tpl := range m.Templates {
+		if strings.TrimSpace(tpl) == "" {
+			return fmt.Errorf("%w: templates[%d] is empty", ErrManifestInvalid, i)
+		}
+		if _, dup := seenTpl[tpl]; dup {
+			return fmt.Errorf("%w: templates lists %q twice", ErrManifestInvalid, tpl)
+		}
+		seenTpl[tpl] = struct{}{}
+	}
 	for i, c := range m.Commands {
 		if strings.TrimSpace(c.ID) == "" {
 			return fmt.Errorf("%w: command[%d] empty id", ErrManifestInvalid, i)
