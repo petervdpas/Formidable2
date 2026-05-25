@@ -4,16 +4,22 @@ import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/
 import { type Grid, denseRank1, facetColorToken, fmtNum } from "./grid";
 import { CHART_PALETTE } from "./types";
 
-// Rank-1 grid as a pie of one measure across axis 0's labels. Slices are
-// proportional to each label's value over their sum (negative/zero values
-// are dropped - a pie can't show them). When the axis is a facet, slices
-// take the facet option's authored color (matching its pills); otherwise
-// the neutral chart palette. The renderer is the consumer's choice, not
-// the statistic's.
+// Rank-1 grid as a pie of one measure across axis 0's labels, with the
+// legend drawn INSIDE the same <svg> (swatch + text) so the chart is a
+// single self-contained SVG - it renders identically everywhere
+// (browser, VS Code, Inkscape) and exports cleanly. Slices are
+// proportional to each label's value over their sum (negative/zero
+// dropped). When the axis is a facet, slices/swatches take the facet
+// option's authored color; otherwise the neutral palette.
 const props = withDefaults(
   defineProps<{ grid: Grid; facets?: Facet[]; measureIndex?: number; size?: number }>(),
-  { measureIndex: 0, size: 220 },
+  { measureIndex: 0, size: 200 },
 );
+
+const PAD = 22; // margin around the whole chart (pie + legend)
+const GAP = 16; // between pie and legend
+const ROW = 22; // legend row height
+const SWATCH = 13;
 
 const view = computed(() => {
   const labels = props.grid.axes[0]?.labels ?? [];
@@ -25,69 +31,85 @@ const view = computed(() => {
   const total = slices.reduce((a, s) => a + s.value, 0);
   if (total <= 0) return null;
 
-  const r = props.size / 2;
-  const cx = r;
-  const cy = r;
-  let angle = -Math.PI / 2; // start at 12 o'clock
+  const pie = props.size;
+  const r = pie / 2;
+
+  // Legend text per slice + viewBox width sized to the longest line.
+  const texts = slices.map(
+    (s) => `${s.label} - ${fmtNum(s.value)} (${Math.round((s.value / total) * 100)}%)`,
+  );
+  const maxChars = Math.max(0, ...texts.map((t) => t.length));
+  const legendW = SWATCH + 8 + Math.round(maxChars * 6.2);
+  const W = Math.max(pie, legendW) + PAD * 2;
+  const pieX = (W - pie) / 2;
+
+  let angle = -Math.PI / 2; // 12 o'clock
   const arcs = slices.map((s, i) => {
     const frac = s.value / total;
     const start = angle;
     const end = angle + frac * Math.PI * 2;
     angle = end;
-    const x1 = cx + r * Math.cos(start);
-    const y1 = cy + r * Math.sin(start);
-    const x2 = cx + r * Math.cos(end);
-    const y2 = cy + r * Math.sin(end);
+    const x1 = r + r * Math.cos(start);
+    const y1 = r + r * Math.sin(start);
+    const x2 = r + r * Math.cos(end);
+    const y2 = r + r * Math.sin(end);
     const large = end - start > Math.PI ? 1 : 0;
-    // A full single slice (frac===1) can't be drawn as an arc (start==end);
-    // render it as a full circle path instead.
     const d =
       frac >= 1
-        ? `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.01} ${cy - r} Z`
-        : `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+        ? `M ${r} ${0} A ${r} ${r} 0 1 1 ${r - 0.01} ${0} Z`
+        : `M ${r} ${r} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
     const token = facetColorToken(props.facets, axisSource, s.raw);
     return {
       d,
-      // Facet option color via currentColor + expr-text-<token>; else palette.
-      fill: token ? "currentColor" : CHART_PALETTE[i % CHART_PALETTE.length],
       colorClass: token ? `expr-text-${token}` : "",
-      label: s.label,
-      value: fmtNum(s.value),
-      pct: Math.round(frac * 100),
+      fill: token ? "" : CHART_PALETTE[i % CHART_PALETTE.length],
+      text: texts[i],
     };
   });
-  return { arcs, size: props.size };
+
+  const legendY0 = PAD + pie + GAP;
+  const legend = arcs.map((a, i) => ({
+    y: legendY0 + i * ROW,
+    colorClass: a.colorClass,
+    fill: a.fill,
+    text: a.text,
+  }));
+  const H = legendY0 + arcs.length * ROW + PAD;
+  return { arcs, legend, pieX, W, H };
 });
 </script>
 
 <template>
-  <div class="stat-chart stat-pie-wrap">
-    <template v-if="view">
-      <svg
-        class="stat-svg stat-pie-svg"
-        :viewBox="`0 0 ${view.size} ${view.size}`"
-        :style="{ width: `${view.size}px`, height: `${view.size}px` }"
-      >
+  <div class="stat-chart">
+    <svg
+      v-if="view"
+      class="stat-svg stat-pie-svg"
+      :viewBox="`0 0 ${view.W} ${view.H}`"
+      :style="{ width: `${view.W}px`, maxWidth: '100%', height: 'auto' }"
+    >
+      <g :transform="`translate(${view.pieX}, ${PAD})`">
         <path
           v-for="(a, i) in view.arcs"
           :key="`slice-${i}`"
           :d="a.d"
-          :fill="a.fill"
           :class="['stat-pie-slice', a.colorClass]"
+          :style="{ fill: a.colorClass ? 'currentColor' : a.fill }"
           fill-opacity="0.82"
         />
-      </svg>
-      <ul class="stat-legend">
-        <li v-for="(a, i) in view.arcs" :key="`leg-${i}`" class="stat-legend-row">
-          <span
-            class="stat-legend-swatch"
-            :class="a.colorClass"
-            :style="a.colorClass ? { background: 'currentColor' } : { background: a.fill }"
-          />
-          <span class="stat-legend-label">{{ a.label }} - {{ a.value }} ({{ a.pct }}%)</span>
-        </li>
-      </ul>
-    </template>
+      </g>
+      <g v-for="(l, i) in view.legend" :key="`leg-${i}`">
+        <rect
+          :x="PAD"
+          :y="l.y"
+          :width="SWATCH"
+          :height="SWATCH"
+          rx="2"
+          :class="l.colorClass"
+          :style="{ fill: l.colorClass ? 'currentColor' : l.fill }"
+        />
+        <text :x="PAD + SWATCH + 6" :y="l.y + SWATCH - 2" class="stat-bar-label">{{ l.text }}</text>
+      </g>
+    </svg>
     <p v-else class="stat-empty">No data.</p>
   </div>
 </template>

@@ -93,6 +93,8 @@
   "workspace.plugins.stop": "Stop",
   "workspace.plugins.stopping": "Stoppen…",
   "workspace.plugins.cancelled": "Plug-in afgebroken.",
+  "workspace.plugins.chart.download": "SVG downloaden",
+  "workspace.plugins.chart.download_ok": "Grafiek opgeslagen.",
   "workspace.plugins.save": "Opslaan",
   "workspace.plugins.save_error": "Plugin opslaan mislukt: {0}",
   "workspace.plugins.save_success": "Plugin '{0}' opgeslagen.",

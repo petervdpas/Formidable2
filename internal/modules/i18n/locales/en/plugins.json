@@ -93,6 +93,8 @@
   "workspace.plugins.stop": "Stop",
   "workspace.plugins.stopping": "Stopping…",
   "workspace.plugins.cancelled": "Plugin run cancelled.",
+  "workspace.plugins.chart.download": "Download SVG",
+  "workspace.plugins.chart.download_ok": "Chart saved.",
   "workspace.plugins.save": "Save",
   "workspace.plugins.save_error": "Failed to save plugin: {0}",
   "workspace.plugins.save_success": "Plugin '{0}' saved.",
