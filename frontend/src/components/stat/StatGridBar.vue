@@ -18,7 +18,6 @@ const props = withDefaults(
   { measureIndex: 0, width: 520, height: 200 },
 );
 
-const PAD_LEFT = 120;
 const PAD_RIGHT = 60;
 const PAD_TOP = 12;
 const BAR_HEIGHT = 18;
@@ -32,8 +31,14 @@ const view = computed(() => {
   const values = denseRank1(props.grid, props.measureIndex);
   if (labels.length === 0) return null;
 
+  // Left gutter sizes to the longest label (~6.5 viewBox units/char)
+  // so long facet-option names aren't clipped, capped so the bars keep
+  // room.
+  const maxChars = Math.max(0, ...labels.map((l) => (l === "" ? 7 : l.length)));
+  const padLeft = Math.min(300, Math.max(120, Math.round(maxChars * 6.5) + 16));
+
   const max = Math.max(1, ...values.map((v) => Math.abs(v)));
-  const barAreaW = props.width - PAD_LEFT - PAD_RIGHT;
+  const barAreaW = props.width - padLeft - PAD_RIGHT;
   const total = props.grid.total ?? 0;
 
   const rows = labels.map((raw, i) => {
@@ -52,8 +57,8 @@ const view = computed(() => {
     };
   });
 
-  const minHeight = PAD_TOP + rows.length * (BAR_HEIGHT + BAR_GAP) + 4;
-  return { rows, height: Math.max(props.height, minHeight) };
+  const height = PAD_TOP + rows.length * (BAR_HEIGHT + BAR_GAP) + 4;
+  return { rows, padLeft, height };
 });
 </script>
 
@@ -66,16 +71,16 @@ const view = computed(() => {
       preserveAspectRatio="none"
     >
       <g v-for="(row, i) in view.rows" :key="`bar-${i}`">
-        <text :x="PAD_LEFT - 4" :y="row.y + 13" text-anchor="end" class="stat-bar-label">{{ row.label }}</text>
+        <text :x="view.padLeft - 4" :y="row.y + 13" text-anchor="end" class="stat-bar-label">{{ row.label }}</text>
         <rect
-          :x="PAD_LEFT"
+          :x="view.padLeft"
           :y="row.y"
           :width="row.width"
           :height="BAR_HEIGHT"
           :class="['stat-bar', row.colorClass]"
           :style="row.fill ? { fill: 'currentColor' } : undefined"
         />
-        <text :x="PAD_LEFT + row.width + 6" :y="row.y + 13" class="stat-bar-value">
+        <text :x="view.padLeft + row.width + 6" :y="row.y + 13" class="stat-bar-value">
           {{ row.text }}<tspan v-if="row.pct !== null"> ({{ row.pct }}%)</tspan>
         </text>
       </g>
