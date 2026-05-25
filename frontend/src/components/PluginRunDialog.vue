@@ -88,6 +88,21 @@ const visibleCommands = computed(() => {
   return all.filter((c) => !c.form_button);
 });
 
+// Chart widgets take the right column of the run window; the form
+// fields (parameters) and other widgets stay on the left. Splitting
+// here keeps the render-order of the left column intact while pulling
+// chart widgets out to the display side.
+function isChartWidget(entry: Field | Widget): boolean {
+  return isWidget(entry) && entry.kind === WidgetKind.KindChart;
+}
+const chartEntries = computed(() =>
+  formEntries.value.filter((e): e is Widget => isChartWidget(e)),
+);
+const mainEntries = computed(() =>
+  formEntries.value.filter((e) => !isChartWidget(e)),
+);
+const hasChart = computed(() => chartEntries.value.length > 0);
+
 function initialRunValues(entries: Array<Field | Widget>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const e of entries) {
@@ -240,63 +255,72 @@ function close() {
           : t('workspace.plugins.run_title', [pluginName(plugin)])
         : ''
     "
-    width="640px"
+    :width="hasChart ? 'min(960px, 92vw)' : '640px'"
     :maximizable="!!plugin?.manifest.maximizable && runMode === 'form'"
     @close="close"
   >
     <div v-if="plugin" class="run-modal">
-      <section v-if="runMode === 'form'" class="run-form">
-        <div
-          v-if="descriptionHTML"
-          class="section-info"
-          v-html="descriptionHTML"
-        ></div>
-        <template v-for="(entry, i) in formEntries" :key="i">
-          <ProgressBarWidget
-            v-if="isWidget(entry) && entry.kind === WidgetKind.KindProgressBar"
-            :widget="entry"
-          />
-          <StatusMessageWidget
-            v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindStatusMessage"
-            :widget="entry"
-          />
+      <section
+        v-if="runMode === 'form'"
+        class="run-form"
+        :class="{ 'run-form-split': hasChart }"
+      >
+        <div class="run-form-main">
+          <div
+            v-if="descriptionHTML"
+            class="section-info"
+            v-html="descriptionHTML"
+          ></div>
+          <template v-for="(entry, i) in mainEntries" :key="i">
+            <ProgressBarWidget
+              v-if="isWidget(entry) && entry.kind === WidgetKind.KindProgressBar"
+              :widget="entry"
+            />
+            <StatusMessageWidget
+              v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindStatusMessage"
+              :widget="entry"
+            />
+            <FormFieldRow
+              v-else-if="!isWidget(entry)"
+              :field="entry"
+              :model-value="runValues[entry.key]"
+              :i18n-namespace="plugin ? `plugin.${plugin.id}` : undefined"
+              @update:model-value="(v: unknown) => (runValues[entry.key] = v)"
+            />
+          </template>
+          <div
+            v-if="visibleCommands.length > 0"
+            class="run-form-buttons"
+          >
+            <button
+              v-for="cmd in visibleCommands"
+              :key="cmd.id"
+              class="tool-btn primary"
+              :disabled="running"
+              @click="runCommand(cmd)"
+            >
+              <span v-if="runningCmd === cmd.id">
+                {{ t('workspace.plugins.running') }}
+              </span>
+              <span v-else>{{ plugin ? commandLabel(plugin.id, cmd) : cmd.label || cmd.id }}</span>
+            </button>
+            <button
+              v-if="running"
+              class="tool-btn"
+              type="button"
+              :disabled="stopping"
+              @click="stopRun"
+            >
+              {{ stopping ? t('workspace.plugins.stopping') : t('workspace.plugins.stop') }}
+            </button>
+          </div>
+        </div>
+        <div v-if="hasChart" class="run-form-charts">
           <ChartWidget
-            v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindChart"
-            :widget="entry"
+            v-for="(w, i) in chartEntries"
+            :key="'chart-' + i"
+            :widget="w"
           />
-          <FormFieldRow
-            v-else-if="!isWidget(entry)"
-            :field="entry"
-            :model-value="runValues[entry.key]"
-            :i18n-namespace="plugin ? `plugin.${plugin.id}` : undefined"
-            @update:model-value="(v: unknown) => (runValues[entry.key] = v)"
-          />
-        </template>
-        <div
-          v-if="visibleCommands.length > 0"
-          class="run-form-buttons"
-        >
-          <button
-            v-for="cmd in visibleCommands"
-            :key="cmd.id"
-            class="tool-btn primary"
-            :disabled="running"
-            @click="runCommand(cmd)"
-          >
-            <span v-if="runningCmd === cmd.id">
-              {{ t('workspace.plugins.running') }}
-            </span>
-            <span v-else>{{ plugin ? commandLabel(plugin.id, cmd) : cmd.label || cmd.id }}</span>
-          </button>
-          <button
-            v-if="running"
-            class="tool-btn"
-            type="button"
-            :disabled="stopping"
-            @click="stopRun"
-          >
-            {{ stopping ? t('workspace.plugins.stopping') : t('workspace.plugins.stop') }}
-          </button>
         </div>
       </section>
 

@@ -56,6 +56,35 @@
     max-height: none;
 }
 
+/* Split run form: parameters (fields) on the left, the chart widget on
+   the right. The user picks an object + shape on the left and the chart
+   draws on the right. Falls back to a single column with no chart. */
+/* Higher specificity than the .run-form base rule (which is defined
+   later in this file and also sets flex-direction) so the split wins. */
+.run-form.run-form-split {
+    flex-direction: row;
+    align-items: stretch;
+}
+
+.run-form-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.run-form.run-form-split .run-form-main {
+    flex: 0 0 300px;
+    min-width: 0;
+}
+
+.run-form-charts {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
 /* Chart widget: a passive display wrapper (like progressbar /
    statusmessage) that renders whatever the plugin pushes via
    formidable.run.chart. Grows to fill the expandable run window. */

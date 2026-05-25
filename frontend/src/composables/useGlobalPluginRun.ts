@@ -42,6 +42,9 @@ interface RunChartSpec {
   type?: string;
   title?: string;
   result?: unknown;
+  // The template's facets, when the plugin passes them, so the chart
+  // colors categories with the facets' authored option colors.
+  facets?: unknown;
 }
 
 const openRequest = ref<OpenRequest | null>(null);
