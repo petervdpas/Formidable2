@@ -46,6 +46,7 @@ import {
 } from "../composables/useGlobalPluginRun";
 import ProgressBarWidget from "../components/widgets/ProgressBarWidget.vue";
 import StatusMessageWidget from "../components/widgets/StatusMessageWidget.vue";
+import ChartWidget from "../components/widgets/ChartWidget.vue";
 import {
   Widget,
   Kind as WidgetKind,
@@ -565,8 +566,14 @@ function nextWidgetID(prefix: string): string {
   return `${prefix}${n}`;
 }
 
+const WIDGET_ID_PREFIX: Record<string, string> = {
+  [WidgetKind.KindProgressBar]: "bar",
+  [WidgetKind.KindStatusMessage]: "msg",
+  [WidgetKind.KindChart]: "chart",
+};
+
 function addWidget(kind: WidgetKind) {
-  const id = nextWidgetID(kind === WidgetKind.KindProgressBar ? "bar" : "msg");
+  const id = nextWidgetID(WIDGET_ID_PREFIX[kind] ?? "widget");
   const w = new Widget({ id, kind, label: "" });
   draftForm.value = [...(draftForm.value ?? []), w];
 }
@@ -845,7 +852,6 @@ setTopbarMenu(() => [
               :options="[
                 { value: 'modal', label: t('workspace.plugins.run_mode.modal') },
                 { value: 'form',  label: t('workspace.plugins.run_mode.form')  },
-                { value: 'chart', label: t('workspace.plugins.run_mode.chart') },
               ]"
             />
           </FormRow>
@@ -1031,6 +1037,13 @@ setTopbarMenu(() => [
             >
               + {{ t('workspace.plugins.form.add_statusmessage') }}
             </button>
+            <button
+              class="tool-btn"
+              type="button"
+              @click="addWidget(WidgetKind.KindChart)"
+            >
+              + {{ t('workspace.plugins.form.add_chart') }}
+            </button>
           </div>
         </section>
 
@@ -1195,6 +1208,12 @@ setTopbarMenu(() => [
           <StatusMessageWidget
             v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindStatusMessage"
             :widget="entry"
+          />
+          <ChartWidget
+            v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindChart && selectedPlugin"
+            :widget="entry"
+            :plugin="selectedPlugin"
+            template=""
           />
           <FormFieldRow
             v-else-if="!isWidget(entry)"

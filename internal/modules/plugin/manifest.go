@@ -75,11 +75,11 @@ func validateManifest(m *Manifest) error {
 	// "Form" / "Modal" early so authors get a load-time error
 	// rather than a silent fallback at runtime.
 	switch m.RunMode {
-	case "", RunModeModal, RunModeForm, RunModeChart:
+	case "", RunModeModal, RunModeForm:
 		// ok
 	default:
-		return fmt.Errorf("%w: bad run_mode %q (want %q, %q or %q)",
-			ErrManifestInvalid, m.RunMode, RunModeModal, RunModeForm, RunModeChart)
+		return fmt.Errorf("%w: bad run_mode %q (want %q or %q)",
+			ErrManifestInvalid, m.RunMode, RunModeModal, RunModeForm)
 	}
 	seenWs := make(map[string]struct{}, len(m.Workspaces))
 	for i, ws := range m.Workspaces {

@@ -133,16 +133,9 @@ type Manifest struct {
 // RunMode* - the closed enum of values RunMode accepts. Empty is
 // also tolerated and behaves like RunModeModal so legacy manifests
 // don't need a backfill.
-//
-// RunModeChart drives the split chart window: the host renders a
-// statistical-object picker and a chart-shape picker on the left and
-// the rendered chart on the right, re-running the plugin's command
-// (ctx = {template, object, shape}) on every change. The command is
-// expected to return a chart envelope ({chart={type,result}}).
 const (
 	RunModeModal = "modal"
 	RunModeForm  = "form"
-	RunModeChart = "chart"
 )
 
 // Command is one user-runnable entry exposed by the plugin. `ID`

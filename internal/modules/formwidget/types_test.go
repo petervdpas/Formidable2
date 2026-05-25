@@ -11,6 +11,8 @@ func TestWidget_Validate_HappyPath(t *testing.T) {
 		{ID: "status_1", Kind: KindStatusMessage},
 		{ID: "current-file", Kind: KindStatusMessage, Label: "Current file"},
 		{ID: "p", Kind: KindProgressBar},
+		{ID: "chart1", Kind: KindChart},
+		{ID: "stats-chart", Kind: KindChart, Label: "Statistics"},
 	}
 	for _, w := range cases {
 		if err := w.Validate(); err != nil {

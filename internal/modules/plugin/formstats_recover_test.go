@@ -67,21 +67,18 @@ func managerWithStats(t *testing.T) (*Manager, string) {
 		Template:   &mockTemplate{all: demoTemplate()},
 		Stats:      &mockStats{},
 		Facets:     &mockFacets{},
+		StatObject: &mockStatObject{},
 	})
 	return m, pluginsDir
 }
 
-// TestFormstats_RunButtonProducesCharts drives the REAL Manager.Run
-// path against the shipped formstats files: it discovers the plugin
-// from disk, resolves the command's function via FnNameFor, and runs
-// it with a workspace ctx - exactly what clicking the Run button does.
-//
-// This is the test that guards the Run-button bug: the command id is
-// "charts" while the script defines `function run`, so without the
-// command's "fn": "run" binding Manager.Run looks for a global `charts`
-// and fails with "function not defined". The earlier runScript-based
-// test hardcoded Fn="run" and so could never catch that mismatch.
-func TestFormstats_RunButtonProducesCharts(t *testing.T) {
+// TestFormstats_DrawProducesChart drives the REAL Manager.Run path
+// against the shipped formstats files: it discovers the plugin from
+// disk, resolves the command's function via FnNameFor, and runs the
+// `draw` command the chart widget calls with {template, object, shape}.
+// Guards the fn binding (command id "draw" maps to global `draw` via
+// "fn": "draw") and the chart-envelope return shape the widget renders.
+func TestFormstats_DrawProducesChart(t *testing.T) {
 	manifest, main := readFormstats(t)
 	m, pluginsDir := managerWithStats(t)
 	writePlugin(t, pluginsDir, "formstats", manifest, main)
@@ -89,7 +86,6 @@ func TestFormstats_RunButtonProducesCharts(t *testing.T) {
 		t.Fatalf("refresh: %v", err)
 	}
 
-	// Sanity: the plugin was discovered with at least one command.
 	plugins := m.List()
 	if len(plugins) != 1 || plugins[0].Manifest.ID != "formstats" {
 		t.Fatalf("discovered %+v", plugins)
@@ -99,6 +95,8 @@ func TestFormstats_RunButtonProducesCharts(t *testing.T) {
 	res, err := m.Run("formstats", cmdID, map[string]any{
 		"workspace": "storage",
 		"template":  "demo.yaml",
+		"object":    "by-status",
+		"shape":     "bar",
 	})
 	if err != nil {
 		t.Fatalf("Run(%q): %v", cmdID, err)
@@ -108,27 +106,29 @@ func TestFormstats_RunButtonProducesCharts(t *testing.T) {
 	if !ok {
 		t.Fatalf("return not a map: %T = %v", res.Value, res.Value)
 	}
-	charts, ok := out["charts"].([]any)
+	chart, ok := out["chart"].(map[string]any)
 	if !ok {
-		t.Fatalf("charts not a slice: %T = %v (full=%v)", out["charts"], out["charts"], out)
+		t.Fatalf("chart not a map: %T = %v (full=%v)", out["chart"], out["chart"], out)
 	}
-	t.Logf("charts produced: %d", len(charts))
-	if len(charts) == 0 {
-		t.Fatalf("no charts produced; toasts=%v logs=%v", res.Toasts, res.LogLines)
+	if chart["type"] != "bar" {
+		t.Fatalf("chart.type = %v, want bar", chart["type"])
+	}
+	if chart["result"] == nil {
+		t.Fatal("chart.result missing")
 	}
 }
 
-// TestFormstats_NoTemplateCtxWarns verifies the empty-ctx path: clicking
-// Run with no selected template returns ok=false and a warning toast
-// rather than erroring.
-func TestFormstats_NoTemplateCtxWarns(t *testing.T) {
+// TestFormstats_DrawNoTemplateReturnsNotOk verifies the empty-ctx path:
+// drawing with no selected template returns ok=false without erroring
+// (the widget simply shows nothing).
+func TestFormstats_DrawNoTemplateReturnsNotOk(t *testing.T) {
 	manifest, main := readFormstats(t)
 	m, pluginsDir := managerWithStats(t)
 	writePlugin(t, pluginsDir, "formstats", manifest, main)
 	if err := m.Refresh(); err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
-	res, err := m.Run("formstats", "charts", map[string]any{})
+	res, err := m.Run("formstats", "draw", map[string]any{})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -136,7 +136,27 @@ func TestFormstats_NoTemplateCtxWarns(t *testing.T) {
 	if out["ok"] != false {
 		t.Fatalf("want ok=false, got %v", out["ok"])
 	}
-	if len(res.Toasts) == 0 {
-		t.Fatal("expected a warning toast about no template")
+}
+
+// TestFormstats_DrawNoObjectReturnsOkNoChart verifies the
+// template-but-no-object path: ok=true with no chart, so the widget
+// waits for the user to pick an object.
+func TestFormstats_DrawNoObjectReturnsOkNoChart(t *testing.T) {
+	manifest, main := readFormstats(t)
+	m, pluginsDir := managerWithStats(t)
+	writePlugin(t, pluginsDir, "formstats", manifest, main)
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	res, err := m.Run("formstats", "draw", map[string]any{"template": "demo.yaml"})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	out, _ := res.Value.(map[string]any)
+	if out["ok"] != true {
+		t.Fatalf("want ok=true, got %v", out["ok"])
+	}
+	if out["chart"] != nil {
+		t.Fatalf("want no chart, got %v", out["chart"])
 	}
 }

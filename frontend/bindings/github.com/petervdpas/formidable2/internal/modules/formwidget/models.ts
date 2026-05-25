@@ -29,6 +29,16 @@ export enum Kind {
      * user sees "what's happening right now".
      */
     KindStatusMessage = "statusmessage",
+
+    /**
+     * KindChart renders an interactive statistical chart: the widget
+     * owns a statistical-object picker (Stat.ListObjects on the active
+     * template) and a chart-shape picker (Stat.ChartShapes), runs the
+     * plugin's command with the selection as ctx, and draws the
+     * returned chart envelope. Unlike the other kinds it drives the
+     * Lua call itself rather than being fed by a run-scoped event.
+     */
+    KindChart = "chart",
 };
 
 /**

@@ -39,6 +39,14 @@ const (
 	// typically push the current item's name/path here so the
 	// user sees "what's happening right now".
 	KindStatusMessage Kind = "statusmessage"
+
+	// KindChart renders an interactive statistical chart: the widget
+	// owns a statistical-object picker (Stat.ListObjects on the active
+	// template) and a chart-shape picker (Stat.ChartShapes), runs the
+	// plugin's command with the selection as ctx, and draws the
+	// returned chart envelope. Unlike the other kinds it drives the
+	// Lua call itself rather than being fed by a run-scoped event.
+	KindChart Kind = "chart"
 )
 
 // Widget is one entry inside a plugin's form.json - the same list
@@ -82,7 +90,7 @@ func (w Widget) Validate() error {
 		return fmt.Errorf("%w: id %q must match %s", ErrWidgetInvalid, id, validIDRe.String())
 	}
 	switch w.Kind {
-	case KindProgressBar, KindStatusMessage:
+	case KindProgressBar, KindStatusMessage, KindChart:
 		// ok
 	case "":
 		return fmt.Errorf("%w: empty kind for id %q", ErrWidgetInvalid, id)
