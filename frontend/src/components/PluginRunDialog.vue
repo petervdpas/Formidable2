@@ -88,13 +88,6 @@ const visibleCommands = computed(() => {
   return all.filter((c) => !c.form_button);
 });
 
-// The active template (fed by the workspace selection feeder) - the
-// chart widget reads it to scope its statistical-object picker.
-const currentTemplate = computed(() => {
-  const v = extraCtx.value.template;
-  return typeof v === "string" ? v : "";
-});
-
 function initialRunValues(entries: Array<Field | Widget>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const e of entries) {
@@ -270,8 +263,6 @@ function close() {
           <ChartWidget
             v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindChart"
             :widget="entry"
-            :plugin="plugin"
-            :template="currentTemplate"
           />
           <FormFieldRow
             v-else-if="!isWidget(entry)"

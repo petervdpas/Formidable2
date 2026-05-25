@@ -8,7 +8,6 @@ export {
 
 export {
     Bin,
-    ChartShapeDescriptor,
     Dimension,
     Filter,
     FilterOp,

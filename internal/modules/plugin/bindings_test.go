@@ -581,6 +581,27 @@ func TestBindings_Run_Bar_StreamsThroughEmitter(t *testing.T) {
 	}
 }
 
+func TestBindings_Run_Chart_StreamsSpecThroughEmitter(t *testing.T) {
+	var got []RunChartEvent
+	emit := func(e RunChartEvent) { got = append(got, e) }
+	run(t, `
+		function run()
+			formidable.run.chart({ type = "bar", title = "T", result = { total = 7 } })
+		end`,
+		scriptOpts{RunChartOut: emit})
+	if len(got) != 1 {
+		t.Fatalf("got %d chart events, want 1: %+v", len(got), got)
+	}
+	spec := got[0].Spec
+	if spec["type"] != "bar" || spec["title"] != "T" {
+		t.Fatalf("spec = %+v", spec)
+	}
+	res, ok := spec["result"].(map[string]any)
+	if !ok || res["total"] != float64(7) {
+		t.Fatalf("spec.result = %+v", spec["result"])
+	}
+}
+
 func TestBindings_Run_Bar_OptionalArgs(t *testing.T) {
 	var got []RunBarEvent
 	emit := func(e RunBarEvent) { got = append(got, e) }

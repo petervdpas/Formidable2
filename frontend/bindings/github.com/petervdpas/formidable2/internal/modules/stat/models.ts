@@ -21,39 +21,6 @@ export enum Bin {
 };
 
 /**
- * ChartShapeDescriptor is one selectable chart shape for the plugin
- * chart run-mode. Name is the value a plugin sets as the chart
- * envelope's `type` (consumed by the frontend StatChart dispatcher);
- * LabelKey is the i18n key the frontend resolves for the human label
- * (raw Name as fallback). Backend owns this catalog so adding a shape
- * is one entry here, surfaced to the UI without a frontend edit.
- */
-export class ChartShapeDescriptor {
-    "name": string;
-    "label_key": string;
-
-    /** Creates a new ChartShapeDescriptor instance. */
-    constructor($$source: Partial<ChartShapeDescriptor> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("label_key" in $$source)) {
-            this["label_key"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ChartShapeDescriptor instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ChartShapeDescriptor {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ChartShapeDescriptor($$parsedSource as Partial<ChartShapeDescriptor>);
-    }
-}
-
-/**
  * Dimension is one group-by axis: a source, optionally date-binned, and
  * optionally capped to its Top-N categories (ranked by the first measure,
  * the tail dropped). Top 0 means all categories; valid Top is 1..20.

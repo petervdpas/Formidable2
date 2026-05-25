@@ -1210,10 +1210,8 @@ setTopbarMenu(() => [
             :widget="entry"
           />
           <ChartWidget
-            v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindChart && selectedPlugin"
+            v-else-if="isWidget(entry) && entry.kind === WidgetKind.KindChart"
             :widget="entry"
-            :plugin="selectedPlugin"
-            template=""
           />
           <FormFieldRow
             v-else-if="!isWidget(entry)"

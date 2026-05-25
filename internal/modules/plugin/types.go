@@ -225,6 +225,16 @@ type RunStatusEvent struct {
 	Text string `json:"text"`
 }
 
+// RunChartEvent is one chart spec emitted by formidable.run.chart(spec).
+// Same live-widget mechanism as RunBarEvent / RunStatusEvent: a chart
+// widget the author dropped into the form re-renders when it arrives.
+// Spec is the raw envelope the Lua passed ({type, title, result}); the
+// frontend reads `type` (chart shape) and `result` (the stat Result)
+// and hands them to StatChart. Cleared at the start of every Run.
+type RunChartEvent struct {
+	Spec map[string]any `json:"spec"`
+}
+
 // RunResult is the JSON-shaped envelope returned to Vue. Value
 // holds the Lua function's return value after lvalue→Go
 // conversion; LogLines collects formidable.log.* output emitted

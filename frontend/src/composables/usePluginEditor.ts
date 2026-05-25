@@ -46,7 +46,9 @@ function deepEqual(a: unknown, b: unknown): boolean {
 export function isWidget(entry: Field | Widget): entry is Widget {
   const k = (entry as Widget).kind;
   return (
-    k === WidgetKind.KindProgressBar || k === WidgetKind.KindStatusMessage
+    k === WidgetKind.KindProgressBar ||
+    k === WidgetKind.KindStatusMessage ||
+    k === WidgetKind.KindChart
   );
 }
 

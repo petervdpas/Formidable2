@@ -103,11 +103,6 @@ func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error) {
 	return s.m.EvaluateDSL(template, dsl)
 }
 
-// ChartShapes returns the chart-shape catalog the plugin chart
-// run-mode offers in its shape dropdown. Backend-owned so the UI never
-// hardcodes the list.
-func (s *Service) ChartShapes() []ChartShapeDescriptor { return ChartShapes() }
-
 // ListObjects returns the catalog of named statistical objects defined
 // on a template (name, label, DSL). The frontend lists them and the
 // Lua binding enumerates them; either then calls EvaluateObject(name)

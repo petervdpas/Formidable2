@@ -35,15 +35,26 @@ interface RunBar {
   total: number;
 }
 
+// RunChartSpec is the chart envelope a plugin pushes via
+// formidable.run.chart(spec): `type` is the chart shape (StatChart
+// override) and `result` is the stat Result the chart widget renders.
+interface RunChartSpec {
+  type?: string;
+  title?: string;
+  result?: unknown;
+}
+
 const openRequest = ref<OpenRequest | null>(null);
 const running = ref(false);
 const stopping = ref(false);
 const bar = ref<RunBar | null>(null);
 const status = ref<string>("");
+const chart = ref<RunChartSpec | null>(null);
 
 let eventRefcount = 0;
 let unsubscribeBar: (() => void) | null = null;
 let unsubscribeStatus: (() => void) | null = null;
+let unsubscribeChart: (() => void) | null = null;
 
 function unwrap(evt: unknown): unknown {
   // Wails wraps payloads as { data: <go-struct>, ... }; tolerate
@@ -73,6 +84,12 @@ function ensureSubscription() {
         status.value = String(e.text ?? "");
       });
     }
+    if (!unsubscribeChart) {
+      unsubscribeChart = Events.On("plugin:run:chart", (evt: unknown) => {
+        const e = unwrap(evt) as { spec?: RunChartSpec } | undefined;
+        chart.value = e?.spec ?? null;
+      });
+    }
   }
   eventRefcount += 1;
 }
@@ -88,6 +105,10 @@ function releaseSubscription() {
       unsubscribeStatus();
       unsubscribeStatus = null;
     }
+    if (unsubscribeChart) {
+      unsubscribeChart();
+      unsubscribeChart = null;
+    }
   }
 }
 
@@ -98,6 +119,7 @@ export function openGlobalPluginRun(
   if (running.value) return false;
   bar.value = null;
   status.value = "";
+  chart.value = null;
   openRequest.value = { plugin, extraCtx };
   return true;
 }
@@ -106,6 +128,7 @@ export function closeGlobalPluginRun(): void {
   openRequest.value = null;
   bar.value = null;
   status.value = "";
+  chart.value = null;
   stopping.value = false;
 }
 
@@ -115,6 +138,7 @@ export function setGlobalPluginRunning(v: boolean): void {
     // last bar/status values don't flash before the first new tick.
     bar.value = null;
     status.value = "";
+    chart.value = null;
   }
   running.value = v;
   if (!v) {
@@ -140,5 +164,5 @@ export async function cancelGlobalPluginRun(): Promise<void> {
 export function useGlobalPluginRun() {
   onMounted(ensureSubscription);
   onUnmounted(releaseSubscription);
-  return { openRequest, running, stopping, bar, status };
+  return { openRequest, running, stopping, bar, status, chart };
 }

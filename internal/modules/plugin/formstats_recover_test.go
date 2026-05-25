@@ -53,34 +53,38 @@ func demoTemplate() map[string]map[string]any {
 }
 
 // managerWithStats mirrors newTestManager but additionally wires the
-// template / stats / facets mocks the formstats plugin needs.
-func managerWithStats(t *testing.T) (*Manager, string) {
+// template / stats / facets mocks the formstats plugin needs, plus a
+// RunChartOut capture so tests can assert the chart spec the plugin
+// pushes via formidable.run.chart.
+func managerWithStats(t *testing.T) (*Manager, string, *[]RunChartEvent) {
 	t.Helper()
 	root := t.TempDir()
 	pluginsDir := filepath.Join(root, "plugins")
 	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
+	charts := &[]RunChartEvent{}
 	m := NewManager(ManagerDeps{
-		PluginsDir: pluginsDir,
-		KV:         NewKV(kvTestFS{}, filepath.Join(pluginsDir, ".kv")),
-		Template:   &mockTemplate{all: demoTemplate()},
-		Stats:      &mockStats{},
-		Facets:     &mockFacets{},
-		StatObject: &mockStatObject{},
+		PluginsDir:  pluginsDir,
+		KV:          NewKV(kvTestFS{}, filepath.Join(pluginsDir, ".kv")),
+		Template:    &mockTemplate{all: demoTemplate()},
+		Stats:       &mockStats{},
+		Facets:      &mockFacets{},
+		StatObject:  &mockStatObject{},
+		RunChartOut: func(e RunChartEvent) { *charts = append(*charts, e) },
 	})
-	return m, pluginsDir
+	return m, pluginsDir, charts
 }
 
-// TestFormstats_DrawProducesChart drives the REAL Manager.Run path
-// against the shipped formstats files: it discovers the plugin from
-// disk, resolves the command's function via FnNameFor, and runs the
-// `draw` command the chart widget calls with {template, object, shape}.
-// Guards the fn binding (command id "draw" maps to global `draw` via
-// "fn": "draw") and the chart-envelope return shape the widget renders.
-func TestFormstats_DrawProducesChart(t *testing.T) {
+// TestFormstats_DrawPushesChartSpec drives the REAL Manager.Run path
+// against the shipped formstats files: it discovers the plugin, runs
+// the `draw` form-button command with {template, object, shape}, and
+// asserts the plugin STEERS the chart widget by pushing a spec through
+// formidable.run.chart (not by returning it). Guards both the fn
+// binding ("draw") and the run.chart contract the widget consumes.
+func TestFormstats_DrawPushesChartSpec(t *testing.T) {
 	manifest, main := readFormstats(t)
-	m, pluginsDir := managerWithStats(t)
+	m, pluginsDir, charts := managerWithStats(t)
 	writePlugin(t, pluginsDir, "formstats", manifest, main)
 	if err := m.Refresh(); err != nil {
 		t.Fatalf("refresh: %v", err)
@@ -101,29 +105,27 @@ func TestFormstats_DrawProducesChart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run(%q): %v", cmdID, err)
 	}
-
-	out, ok := res.Value.(map[string]any)
-	if !ok {
-		t.Fatalf("return not a map: %T = %v", res.Value, res.Value)
+	if out, _ := res.Value.(map[string]any); out["ok"] != true {
+		t.Fatalf("want ok=true, got %v", res.Value)
 	}
-	chart, ok := out["chart"].(map[string]any)
-	if !ok {
-		t.Fatalf("chart not a map: %T = %v (full=%v)", out["chart"], out["chart"], out)
+	if len(*charts) != 1 {
+		t.Fatalf("want 1 run.chart event, got %d", len(*charts))
 	}
-	if chart["type"] != "bar" {
-		t.Fatalf("chart.type = %v, want bar", chart["type"])
+	spec := (*charts)[0].Spec
+	if spec["type"] != "bar" {
+		t.Fatalf("spec.type = %v, want bar", spec["type"])
 	}
-	if chart["result"] == nil {
-		t.Fatal("chart.result missing")
+	if spec["result"] == nil {
+		t.Fatal("spec.result missing")
 	}
 }
 
 // TestFormstats_DrawNoTemplateReturnsNotOk verifies the empty-ctx path:
-// drawing with no selected template returns ok=false without erroring
-// (the widget simply shows nothing).
+// drawing with no selected template returns ok=false and pushes no
+// chart.
 func TestFormstats_DrawNoTemplateReturnsNotOk(t *testing.T) {
 	manifest, main := readFormstats(t)
-	m, pluginsDir := managerWithStats(t)
+	m, pluginsDir, charts := managerWithStats(t)
 	writePlugin(t, pluginsDir, "formstats", manifest, main)
 	if err := m.Refresh(); err != nil {
 		t.Fatalf("refresh: %v", err)
@@ -132,18 +134,20 @@ func TestFormstats_DrawNoTemplateReturnsNotOk(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	out, _ := res.Value.(map[string]any)
-	if out["ok"] != false {
-		t.Fatalf("want ok=false, got %v", out["ok"])
+	if out, _ := res.Value.(map[string]any); out["ok"] != false {
+		t.Fatalf("want ok=false, got %v", res.Value)
+	}
+	if len(*charts) != 0 {
+		t.Fatalf("want no chart pushed, got %d", len(*charts))
 	}
 }
 
 // TestFormstats_DrawNoObjectReturnsOkNoChart verifies the
-// template-but-no-object path: ok=true with no chart, so the widget
-// waits for the user to pick an object.
+// template-but-no-object path: ok=true, no chart pushed, so the widget
+// keeps waiting for the user to pick an object.
 func TestFormstats_DrawNoObjectReturnsOkNoChart(t *testing.T) {
 	manifest, main := readFormstats(t)
-	m, pluginsDir := managerWithStats(t)
+	m, pluginsDir, charts := managerWithStats(t)
 	writePlugin(t, pluginsDir, "formstats", manifest, main)
 	if err := m.Refresh(); err != nil {
 		t.Fatalf("refresh: %v", err)
@@ -152,11 +156,10 @@ func TestFormstats_DrawNoObjectReturnsOkNoChart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	out, _ := res.Value.(map[string]any)
-	if out["ok"] != true {
-		t.Fatalf("want ok=true, got %v", out["ok"])
+	if out, _ := res.Value.(map[string]any); out["ok"] != true {
+		t.Fatalf("want ok=true, got %v", res.Value)
 	}
-	if out["chart"] != nil {
-		t.Fatalf("want no chart, got %v", out["chart"])
+	if len(*charts) != 0 {
+		t.Fatalf("want no chart pushed, got %d", len(*charts))
 	}
 }

@@ -56,8 +56,9 @@
     max-height: none;
 }
 
-/* Chart widget: object/shape pickers on the left, rendered chart on
-   the right. Self-contained - it owns its pickers and the Lua call. */
+/* Chart widget: a passive display wrapper (like progressbar /
+   statusmessage) that renders whatever the plugin pushes via
+   formidable.run.chart. Grows to fill the expandable run window. */
 .form-widget-chart {
     flex: 1 1 auto;
     min-height: 0;
@@ -66,30 +67,10 @@
     gap: var(--space-1);
 }
 
-.chart-widget {
-    display: flex;
-    gap: var(--space-3);
-    align-items: stretch;
-    flex: 1 1 auto;
-    min-height: 42vh;
-}
-
-.chart-widget-params {
-    flex: 0 0 240px;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-}
-
-.chart-widget-field {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
 .chart-widget-display {
     flex: 1 1 auto;
     min-width: 0;
+    min-height: 42vh;
     display: flex;
     flex-direction: column;
     justify-content: center;

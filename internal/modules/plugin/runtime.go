@@ -61,6 +61,7 @@ type runtimeDeps struct {
 	ToastSink   *[]ToastEvent
 	RunBarOut   RunBarEmitter
 	RunStatOut  RunStatusEmitter
+	RunChartOut RunChartEmitter
 	Ctx         context.Context
 	PluginID    string
 	Plugin      PluginInfo
@@ -104,7 +105,7 @@ func installFormidable(L *lua.LState, deps runtimeDeps) {
 	f.RawSetString("form", buildFormTable(L, deps.Form))
 	f.RawSetString("render", buildRenderTable(L, deps.PluginID, deps.Render, deps.FM))
 	f.RawSetString("fm", buildFMTable(L, deps.PluginID, deps.FM))
-	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut))
+	f.RawSetString("run", buildRunTable(L, deps.RunBarOut, deps.RunStatOut, deps.RunChartOut))
 	f.RawSetString("storage", buildStorageTable(L, deps.Storage))
 	f.RawSetString("stats", buildStatsTable(L, deps.Stats))
 	f.RawSetString("facets", buildFacetsTable(L, deps.Facets))
@@ -249,6 +250,7 @@ type scriptOpts struct {
 	StatObject  StatObjectAccess
 	RunBarOut   RunBarEmitter
 	RunStatOut  RunStatusEmitter
+	RunChartOut RunChartEmitter
 	// I18nMessages: plugin's translation map for the active locale
 	// (prefix already stripped). nil = no translations available.
 	I18nMessages map[string]string
@@ -270,11 +272,12 @@ func runScript(opts scriptOpts) (RunResult, error) {
 	var logs []string
 	var toasts []ToastEvent
 	installFormidable(L, runtimeDeps{
-		LogSink:    &logs,
-		ToastSink:  &toasts,
-		RunBarOut:  opts.RunBarOut,
-		RunStatOut: opts.RunStatOut,
-		Ctx:        opts.Ctx,
+		LogSink:     &logs,
+		ToastSink:   &toasts,
+		RunBarOut:   opts.RunBarOut,
+		RunStatOut:  opts.RunStatOut,
+		RunChartOut: opts.RunChartOut,
+		Ctx:         opts.Ctx,
 		PluginID:     opts.PluginID,
 		Plugin:       opts.Plugin,
 		KV:           opts.KV,
