@@ -482,11 +482,41 @@ func TestManager_EvaluateDSL_BadDSLErrors(t *testing.T) {
 	}
 }
 
-type fakeSource struct{ dsl map[string]string }
+type fakeSource struct {
+	dsl  map[string]string
+	list []StatObject
+}
 
 func (f fakeSource) StatisticDSL(_, name string) (string, bool, error) {
 	d, ok := f.dsl[name]
 	return d, ok, nil
+}
+
+func (f fakeSource) ListStatistics(_ string) ([]StatObject, error) {
+	return f.list, nil
+}
+
+func TestService_ListObjects_ReturnsCatalog(t *testing.T) {
+	want := []StatObject{
+		{Name: "by-status", Label: "By status", DSL: `count() by F["status"]`},
+		{Name: "raw", DSL: `count()`},
+	}
+	svc := NewService(NewManager(&fakeIndex{}), fakeSource{list: want})
+	got, err := svc.ListObjects("t")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(got) != 2 || got[0].Name != "by-status" || got[0].Label != "By status" ||
+		got[0].DSL != `count() by F["status"]` || got[1].Name != "raw" || got[1].Label != "" {
+		t.Fatalf("catalog = %+v", got)
+	}
+}
+
+func TestService_ListObjects_NoSourceErrors(t *testing.T) {
+	svc := NewService(NewManager(&fakeIndex{}), nil)
+	if _, err := svc.ListObjects("t"); err == nil {
+		t.Fatal("expected error when no source configured")
+	}
 }
 
 func TestService_EvaluateObject_ResolvesNameThenRuns(t *testing.T) {

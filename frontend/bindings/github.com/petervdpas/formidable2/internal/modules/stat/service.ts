@@ -52,6 +52,17 @@ export function BuilderMeasureOps(): $CancellablePromise<$models.MeasureOpDescri
 }
 
 /**
+ * ChartShapes returns the chart-shape catalog the plugin chart
+ * run-mode offers in its shape dropdown. Backend-owned so the UI never
+ * hardcodes the list.
+ */
+export function ChartShapes(): $CancellablePromise<$models.ChartShapeDescriptor[]> {
+    return $Call.ByID(3856175870).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
  * CompileDSL serializes a StatConfig into the canonical statistical-DSL
  * string. The Statistical Insight builder dialog calls this on save; the
  * stored string is what evaluation (step 4) later parses + runs.
@@ -65,7 +76,7 @@ export function CompileDSL(cfg: $models.StatConfig): $CancellablePromise<string>
  */
 export function CrossTab(template: string, keyA: string, keyB: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(721428515, template, keyA, keyB).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -74,7 +85,7 @@ export function CrossTab(template: string, keyA: string, keyB: string): $Cancell
  */
 export function Distribution(template: string, fieldKey: string, col: number | null): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(3246012510, template, fieldKey, col).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -85,7 +96,7 @@ export function Distribution(template: string, fieldKey: string, col: number | n
  */
 export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(2268999486, template, dsl).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -96,7 +107,7 @@ export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<
  */
 export function EvaluateObject(template: string, name: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(864923500, template, name).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -105,7 +116,19 @@ export function EvaluateObject(template: string, name: string): $CancellableProm
  */
 export function FacetDistribution(template: string, facetKey: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(248037669, template, facetKey).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
+    });
+}
+
+/**
+ * ListObjects returns the catalog of named statistical objects defined
+ * on a template (name, label, DSL). The frontend lists them and the
+ * Lua binding enumerates them; either then calls EvaluateObject(name)
+ * to run one. DSL is exposed for display, not required for evaluation.
+ */
+export function ListObjects(template: string): $CancellablePromise<$models.StatObject[]> {
+    return $Call.ByID(1835086144, template).then(($result: any) => {
+        return $$createType12($result);
     });
 }
 
@@ -115,7 +138,7 @@ export function FacetDistribution(template: string, facetKey: string): $Cancella
  */
 export function NumericStats(template: string, fieldKey: string, col: number | null, percentile: number | null): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2728644434, template, fieldKey, col, percentile).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -127,7 +150,7 @@ export function NumericStats(template: string, fieldKey: string, col: number | n
  */
 export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
     return $Call.ByID(2598631634, dsl).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType13($result);
     });
 }
 
@@ -137,7 +160,7 @@ export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
  */
 export function TimeSeries(template: string, fieldKey: string, col: number | null, period: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(4140051192, template, fieldKey, col, period).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -147,8 +170,12 @@ const $$createType1 = $models.FilterOpDescriptor.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $models.MeasureOpDescriptor.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.Result.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $models.Grid.createFrom;
+const $$createType5 = $models.ChartShapeDescriptor.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.Result.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = $models.StatConfig.createFrom;
+const $$createType9 = $models.Grid.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = $models.StatObject.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $models.StatConfig.createFrom;

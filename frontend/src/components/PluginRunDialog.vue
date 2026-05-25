@@ -27,7 +27,14 @@ import { Kind as WidgetKind } from "../../bindings/github.com/petervdpas/formida
 import { isWidget } from "../composables/usePluginEditor";
 import { pluginName, pluginDescription, commandLabel } from "../utils/pluginI18n";
 import StatChartDialog from "./stat/StatChartDialog.vue";
-import { extractCharts, type ChartEnvelope } from "./stat/types";
+import StatChart from "./stat/StatChart.vue";
+import { extractCharts, type ChartEnvelope, type StatResult } from "./stat/types";
+import { SelectField } from "./fields";
+import {
+  Service as StatSvc,
+  type StatObject,
+  type ChartShapeDescriptor,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
 
 // PluginRunDialog mirrors PluginsWorkspace's inline Run modal but is
 // mounted once at the App level and driven entirely by the manifest
@@ -76,7 +83,7 @@ async function stopRun() {
 }
 
 const runMode = computed(
-  () => (plugin.value?.manifest.run_mode || "modal") as "modal" | "form",
+  () => (plugin.value?.manifest.run_mode || "modal") as "modal" | "form" | "chart",
 );
 
 const visibleCommands = computed(() => {
@@ -85,6 +92,96 @@ const visibleCommands = computed(() => {
     return all.filter((c) => c.form_button);
   }
   return all.filter((c) => !c.form_button);
+});
+
+// ── Chart run-mode ────────────────────────────────────────────────
+// Left panel: a statistical-object picker (from StatSvc.ListObjects on
+// the active template) and a chart-shape picker (from StatSvc.
+// ChartShapes - both backend-owned). On every change the host runs the
+// plugin's first command with ctx = {...extraCtx, object, shape}; the
+// Lua command returns a chart envelope which we render on the right.
+const currentTemplate = computed(() => {
+  const v = extraCtx.value.template;
+  return typeof v === "string" ? v : "";
+});
+const statObjects = ref<StatObject[]>([]);
+const chartShapes = ref<ChartShapeDescriptor[]>([]);
+const selectedObject = ref<string>("");
+const selectedShape = ref<string>("");
+const chartResult = ref<StatResult | null>(null);
+const chartResultType = ref<string>("");
+
+const chartCommand = computed<Command | null>(
+  () => plugin.value?.manifest.commands?.[0] ?? null,
+);
+
+const objectOptions = computed(() =>
+  statObjects.value.map((o) => ({ value: o.name, label: o.label || o.name })),
+);
+const shapeOptions = computed(() =>
+  chartShapes.value.map((s) => ({ value: s.name, label: t(s.label_key) })),
+);
+
+async function loadChartParams(): Promise<void> {
+  statObjects.value = [];
+  chartShapes.value = [];
+  selectedObject.value = "";
+  selectedShape.value = "";
+  chartResult.value = null;
+  chartResultType.value = "";
+  try {
+    const [objs, shapes] = await Promise.all([
+      StatSvc.ListObjects(currentTemplate.value),
+      StatSvc.ChartShapes(),
+    ]);
+    statObjects.value = objs ?? [];
+    chartShapes.value = shapes ?? [];
+    selectedObject.value = statObjects.value[0]?.name ?? "";
+    selectedShape.value = chartShapes.value[0]?.name ?? "";
+  } catch {
+    /* leave pickers empty; the empty-state message shows */
+  }
+}
+
+async function runChart(): Promise<void> {
+  const p = plugin.value;
+  const cmd = chartCommand.value;
+  if (!p || !cmd || !selectedObject.value || !selectedShape.value) return;
+  runningCmd.value = cmd.id;
+  setGlobalPluginRunning(true);
+  try {
+    const ctx: Record<string, unknown> = {
+      ...extraCtx.value,
+      object: selectedObject.value,
+      shape: selectedShape.value,
+    };
+    const res = await PluginSvc.Run(p.id, cmd.id, ctx);
+    runResults.value[cmd.id] = res;
+    if (res.kind === "ok") {
+      const charts = extractCharts(res.value);
+      const first = charts[0];
+      chartResult.value = first?.result ?? null;
+      chartResultType.value = first?.type || selectedShape.value;
+    } else if (res.kind === "busy") {
+      toast.warn(res.message || "plugin: another command is currently running");
+    }
+    for (const ev of res.toasts ?? []) {
+      const fn = toast[ev.level as "info" | "success" | "warn" | "error"];
+      if (fn) fn(ev.message);
+    }
+  } catch (err) {
+    runResults.value[cmd.id] = new RunResultDTO({
+      kind: "runtime_error",
+      message: String(err),
+    });
+  } finally {
+    runningCmd.value = "";
+    setGlobalPluginRunning(false);
+  }
+}
+
+watch([selectedObject, selectedShape], () => {
+  if (runMode.value === "chart") void runChart();
 });
 
 function initialRunValues(entries: Array<Field | Widget>): Record<string, unknown> {
@@ -154,6 +251,10 @@ watch(
       }
     } else {
       descriptionHTML.value = "";
+    }
+
+    if (p.manifest.run_mode === "chart") {
+      await loadChartParams();
     }
   },
   { immediate: true },
@@ -239,11 +340,49 @@ function close() {
           : t('workspace.plugins.run_title', [pluginName(plugin)])
         : ''
     "
-    width="640px"
+    :width="runMode === 'chart' ? 'min(960px, 92vw)' : '640px'"
+    :maximizable="!!plugin?.manifest.maximizable"
     @close="close"
   >
-    <div v-if="plugin" class="run-modal">
-      <section v-if="runMode === 'form'" class="run-form">
+    <div v-if="plugin" class="run-modal" :class="{ 'is-chart': runMode === 'chart' }">
+      <section v-if="runMode === 'chart'" class="plugin-chart-split">
+        <div class="plugin-chart-params">
+          <label class="plugin-chart-field">
+            <span class="small muted">{{ t('workspace.plugins.chart.object') }}</span>
+            <SelectField
+              v-model="selectedObject"
+              :options="objectOptions"
+              :disabled="running || objectOptions.length === 0"
+              :placeholder="t('workspace.plugins.chart.object_placeholder')"
+            />
+          </label>
+          <label class="plugin-chart-field">
+            <span class="small muted">{{ t('workspace.plugins.chart.shape') }}</span>
+            <SelectField
+              v-model="selectedShape"
+              :options="shapeOptions"
+              :disabled="running || shapeOptions.length === 0"
+            />
+          </label>
+          <p
+            v-if="objectOptions.length === 0"
+            class="muted small"
+          >{{ t('workspace.plugins.chart.no_objects') }}</p>
+        </div>
+        <div class="plugin-chart-display">
+          <StatChart
+            v-if="chartResult"
+            :result="chartResult"
+            :type="chartResultType"
+          />
+          <p
+            v-else
+            class="muted small plugin-chart-empty"
+          >{{ t('workspace.plugins.chart.no_data') }}</p>
+        </div>
+      </section>
+
+      <section v-else-if="runMode === 'form'" class="run-form">
         <div
           v-if="descriptionHTML"
           class="section-info"

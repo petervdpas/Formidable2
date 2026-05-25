@@ -2,12 +2,25 @@ package stat
 
 import "fmt"
 
-// StatisticSource resolves a template's named statistical object to its
-// stored DSL string. The app implements it over the template manager;
-// keeping it an interface lets the stat package stay free of a template
-// dependency.
+// StatObject is a named statistical object defined on a template: its
+// identifier, optional human label, and the DSL the engine evaluates.
+// Mirrors template.Statistic without the template dependency, so the
+// catalog can travel to Vue and Lua via the Service.
+type StatObject struct {
+	Name  string `json:"name"`
+	Label string `json:"label,omitempty"`
+	DSL   string `json:"dsl"`
+}
+
+// StatisticSource resolves a template's named statistical objects. The
+// app implements it over the template manager; keeping it an interface
+// lets the stat package stay free of a template dependency.
 type StatisticSource interface {
 	StatisticDSL(template, name string) (dsl string, ok bool, err error)
+	// ListStatistics returns every named statistical object on the
+	// template in definition order. Empty when the template has none;
+	// error only on a load failure.
+	ListStatistics(template string) ([]StatObject, error)
 }
 
 // Service is the Wails-bound facade for the stat module. Vue calls
@@ -88,6 +101,22 @@ func (s *Service) BuilderFilterOps() []FilterOpDescriptor { return FilterOps() }
 // (EvaluateObject needs the object persisted to resolve it by name).
 func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error) {
 	return s.m.EvaluateDSL(template, dsl)
+}
+
+// ChartShapes returns the chart-shape catalog the plugin chart
+// run-mode offers in its shape dropdown. Backend-owned so the UI never
+// hardcodes the list.
+func (s *Service) ChartShapes() []ChartShapeDescriptor { return ChartShapes() }
+
+// ListObjects returns the catalog of named statistical objects defined
+// on a template (name, label, DSL). The frontend lists them and the
+// Lua binding enumerates them; either then calls EvaluateObject(name)
+// to run one. DSL is exposed for display, not required for evaluation.
+func (s *Service) ListObjects(template string) ([]StatObject, error) {
+	if s.src == nil {
+		return nil, fmt.Errorf("stat: no statistic source configured")
+	}
+	return s.src.ListStatistics(template)
 }
 
 // EvaluateObject resolves a template's named statistical object to its

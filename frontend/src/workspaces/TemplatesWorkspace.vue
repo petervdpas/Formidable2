@@ -1063,7 +1063,7 @@ setTopbarMenu(() => [
                       :key="s.name"
                       class="stat-row"
                     >
-                      <span class="stat-row-name mono">{{ s.name }}</span>
+                      <span class="stat-row-name">{{ s.label || s.name }}</span>
                       <code class="stat-row-dsl">{{ s.dsl }}</code>
                       <button
                         class="tool-btn"

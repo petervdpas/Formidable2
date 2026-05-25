@@ -8,6 +8,7 @@ export {
 
 export {
     Bin,
+    ChartShapeDescriptor,
     Dimension,
     Filter,
     FilterOp,
@@ -22,5 +23,6 @@ export {
     Series,
     SourceKind,
     SourceRef,
-    StatConfig
+    StatConfig,
+    StatObject
 } from "./models.js";

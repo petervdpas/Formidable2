@@ -845,9 +845,17 @@ setTopbarMenu(() => [
               :options="[
                 { value: 'modal', label: t('workspace.plugins.run_mode.modal') },
                 { value: 'form',  label: t('workspace.plugins.run_mode.form')  },
+                { value: 'chart', label: t('workspace.plugins.run_mode.chart') },
               ]"
             />
           </FormRow>
+          <FormSwitchRow
+            v-model="draftManifest.maximizable"
+            :label="t('workspace.plugins.manifest.maximizable')"
+            :description="t('workspace.plugins.manifest.maximizable_help')"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+          />
           <FormSwitchRow
             v-model="draftManifest.debug"
             :label="t('workspace.plugins.manifest.debug')"

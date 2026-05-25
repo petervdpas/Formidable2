@@ -1433,17 +1433,60 @@ func TestBindings_Facets_NotConfigured_Errors(t *testing.T) {
 	}
 }
 
-type mockStatObject struct{ gotTpl, gotName string }
+type mockStatObject struct {
+	gotTpl, gotName string
+	gotListTpl      string
+}
 
 func (m *mockStatObject) EvaluateObject(tpl, name string) (map[string]any, error) {
 	m.gotTpl, m.gotName = tpl, name
 	return map[string]any{"total": 5, "measures": []any{"count"}}, nil
 }
 
+func (m *mockStatObject) ListObjects(tpl string) ([]map[string]any, error) {
+	m.gotListTpl = tpl
+	return []map[string]any{
+		{"name": "by-status", "label": "By status", "dsl": `count() by F["status"]`},
+		{"name": "raw", "label": "", "dsl": "count()"},
+	}, nil
+}
+
 func TestBindings_Statistical_EvaluatesNamedObject(t *testing.T) {
 	ms := &mockStatObject{}
 	got := run(t,
 		`function run() local g = formidable.statistical("demo.yaml", "by-status"); return { total = g.total } end`,
+		scriptOpts{StatObject: ms})
+	m, ok := got.Value.(map[string]any)
+	if !ok || m["total"] != float64(5) {
+		t.Fatalf("return = %v, want total 5", got.Value)
+	}
+	if ms.gotTpl != "demo.yaml" || ms.gotName != "by-status" {
+		t.Errorf("args = (%q, %q), want (demo.yaml, by-status)", ms.gotTpl, ms.gotName)
+	}
+}
+
+func TestBindings_Statistical_ListReturnsCatalog(t *testing.T) {
+	ms := &mockStatObject{}
+	got := run(t,
+		`function run()
+			local objs = formidable.statistical.list("demo.yaml")
+			return { n = #objs, first = objs[1].name, label = objs[1].label, dsl = objs[1].dsl }
+		end`,
+		scriptOpts{StatObject: ms})
+	m, ok := got.Value.(map[string]any)
+	if !ok || m["n"] != float64(2) || m["first"] != "by-status" ||
+		m["label"] != "By status" || m["dsl"] != `count() by F["status"]` {
+		t.Fatalf("return = %v", got.Value)
+	}
+	if ms.gotListTpl != "demo.yaml" {
+		t.Errorf("list arg = %q, want demo.yaml", ms.gotListTpl)
+	}
+}
+
+func TestBindings_Statistical_EvalMethodMatchesCallable(t *testing.T) {
+	ms := &mockStatObject{}
+	got := run(t,
+		`function run() local g = formidable.statistical.eval("demo.yaml", "by-status"); return { total = g.total } end`,
 		scriptOpts{StatObject: ms})
 	m, ok := got.Value.(map[string]any)
 	if !ok || m["total"] != float64(5) {

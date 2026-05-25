@@ -234,6 +234,13 @@ export class Manifest {
      * while iterating, then turn it off when shipping.
      */
     "debug": boolean;
+
+    /**
+     * Maximizable adds the expand/restore button to the plugin's run
+     * window (same control as the Import/Export dialogs). Off by
+     * default; authors of chart / wide-output plugins turn it on.
+     */
+    "maximizable": boolean;
     "commands"?: Command[];
 
     /** Creates a new Manifest instance. */
@@ -253,6 +260,9 @@ export class Manifest {
         if (!("debug" in $$source)) {
             this["debug"] = false;
         }
+        if (!("maximizable" in $$source)) {
+            this["maximizable"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -263,7 +273,7 @@ export class Manifest {
     static createFrom($$source: any = {}): Manifest {
         const $$createField8_0 = $$createType0;
         const $$createField9_0 = $$createType0;
-        const $$createField11_0 = $$createType3;
+        const $$createField12_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("workspaces" in $$parsedSource) {
             $$parsedSource["workspaces"] = $$createField8_0($$parsedSource["workspaces"]);
@@ -272,7 +282,7 @@ export class Manifest {
             $$parsedSource["templates"] = $$createField9_0($$parsedSource["templates"]);
         }
         if ("commands" in $$parsedSource) {
-            $$parsedSource["commands"] = $$createField11_0($$parsedSource["commands"]);
+            $$parsedSource["commands"] = $$createField12_0($$parsedSource["commands"]);
         }
         return new Manifest($$parsedSource as Partial<Manifest>);
     }

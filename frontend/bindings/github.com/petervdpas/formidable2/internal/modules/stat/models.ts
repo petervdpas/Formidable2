@@ -21,6 +21,39 @@ export enum Bin {
 };
 
 /**
+ * ChartShapeDescriptor is one selectable chart shape for the plugin
+ * chart run-mode. Name is the value a plugin sets as the chart
+ * envelope's `type` (consumed by the frontend StatChart dispatcher);
+ * LabelKey is the i18n key the frontend resolves for the human label
+ * (raw Name as fallback). Backend owns this catalog so adding a shape
+ * is one entry here, surfaced to the UI without a frontend edit.
+ */
+export class ChartShapeDescriptor {
+    "name": string;
+    "label_key": string;
+
+    /** Creates a new ChartShapeDescriptor instance. */
+    constructor($$source: Partial<ChartShapeDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChartShapeDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChartShapeDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ChartShapeDescriptor($$parsedSource as Partial<ChartShapeDescriptor>);
+    }
+}
+
+/**
  * Dimension is one group-by axis: a source, optionally date-binned, and
  * optionally capped to its Top-N categories (ranked by the first measure,
  * the tail dropped). Top 0 means all categories; valid Top is 1..20.
@@ -536,6 +569,38 @@ export class StatConfig {
             $$parsedSource["Filters"] = $$createField2_0($$parsedSource["Filters"]);
         }
         return new StatConfig($$parsedSource as Partial<StatConfig>);
+    }
+}
+
+/**
+ * StatObject is a named statistical object defined on a template: its
+ * identifier, optional human label, and the DSL the engine evaluates.
+ * Mirrors template.Statistic without the template dependency, so the
+ * catalog can travel to Vue and Lua via the Service.
+ */
+export class StatObject {
+    "name": string;
+    "label"?: string;
+    "dsl": string;
+
+    /** Creates a new StatObject instance. */
+    constructor($$source: Partial<StatObject> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("dsl" in $$source)) {
+            this["dsl"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StatObject instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StatObject {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StatObject($$parsedSource as Partial<StatObject>);
     }
 }
 

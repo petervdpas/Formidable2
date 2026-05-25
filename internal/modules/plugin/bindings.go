@@ -107,12 +107,14 @@ type FacetStatsAccess interface {
 	TotalForms(template string) (int, error)
 }
 
-// StatObjectAccess is the formidable.statistical(tpl, name) surface -
-// evaluate a template's named statistical object (composed in the
-// Statistical Engine builder) into a rank-N values grid, flattened to a
-// map[string]any for Lua. The grid is presentation-free; the plugin
-// renders it.
+// StatObjectAccess is the formidable.statistical surface - the
+// template's named statistical objects (composed in the Statistical
+// Engine builder). ListObjects enumerates the catalog ({name, label,
+// dsl} per entry); EvaluateObject runs one by name into a rank-N
+// values grid, flattened to a map[string]any for Lua. Both are
+// presentation-free; the plugin renders the result.
 type StatObjectAccess interface {
+	ListObjects(template string) ([]map[string]any, error)
 	EvaluateObject(template, name string) (map[string]any, error)
 }
 
@@ -691,23 +693,50 @@ func buildFacetsTable(L *lua.LState, f FacetStatsAccess) *lua.LTable {
 	return tbl
 }
 
-// buildStatisticalValue returns the callable for
-// `formidable.statistical(tpl, name)` - it evaluates a template's named
-// statistical object and pushes the grid as a Lua table. A callable (not
-// a table) mirrors how `formidable.exec` is shaped.
+// buildStatisticalValue returns the `formidable.statistical` value: a
+// table exposing
+//   - statistical.list(tpl)        -> {{name, label, dsl}, ...}
+//   - statistical.eval(tpl, name)  -> evaluated rank-N grid
+//
+// plus a __call metatable so the legacy callable form
+// `statistical(tpl, name)` keeps evaluating (back-compat with plugins
+// authored before .list existed). All return values are
+// presentation-free; the plugin shapes them into charts.
 func buildStatisticalValue(L *lua.LState, a StatObjectAccess) lua.LValue {
 	if a == nil {
 		return L.NewFunction(nilGuard("statistical"))
 	}
-	return L.NewFunction(func(L *lua.LState) int {
-		out, err := a.EvaluateObject(L.CheckString(1), L.CheckString(2))
+	eval := func(tpl, name string) func(*lua.LState) int {
+		return func(L *lua.LState) int {
+			out, err := a.EvaluateObject(tpl, name)
+			if err != nil {
+				L.RaiseError("statistical: %v", err)
+				return 0
+			}
+			L.Push(goToLua(L, out))
+			return 1
+		}
+	}
+	tbl := L.NewTable()
+	tbl.RawSetString("list", L.NewFunction(func(L *lua.LState) int {
+		out, err := a.ListObjects(L.CheckString(1))
 		if err != nil {
-			L.RaiseError("statistical: %v", err)
+			L.RaiseError("statistical.list: %v", err)
 			return 0
 		}
 		L.Push(goToLua(L, out))
 		return 1
-	})
+	}))
+	tbl.RawSetString("eval", L.NewFunction(func(L *lua.LState) int {
+		return eval(L.CheckString(1), L.CheckString(2))(L)
+	}))
+	// __call shifts past the table receiver (self) to (tpl, name).
+	mt := L.NewTable()
+	mt.RawSetString("__call", L.NewFunction(func(L *lua.LState) int {
+		return eval(L.CheckString(2), L.CheckString(3))(L)
+	}))
+	L.SetMetatable(tbl, mt)
+	return tbl
 }
 
 // buildExecValue returns the function value for `formidable.exec`.

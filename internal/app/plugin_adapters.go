@@ -241,6 +241,18 @@ func (s statTemplateSource) StatisticDSL(tplFile, name string) (string, bool, er
 	return "", false, nil
 }
 
+func (s statTemplateSource) ListStatistics(tplFile string) ([]stat.StatObject, error) {
+	t, err := s.tpl.LoadTemplate(tplFile)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]stat.StatObject, 0, len(t.Statistics))
+	for _, st := range t.Statistics {
+		out = append(out, stat.StatObject{Name: st.Name, Label: st.Label, DSL: st.DSL})
+	}
+	return out, nil
+}
+
 // statSourceOptions gives the stat engine a facet dimension's full,
 // ordered option labels, so a statistic shows every defined option
 // (including zero-count ones) instead of only the values present in the
@@ -433,6 +445,18 @@ func columnIndexIn(t *template.Template, fieldKey, columnKey string) (int, bool)
 // JSON-shaped map the Lua bridge round-trips.
 type pluginStatObjectAdapter struct {
 	svc *stat.Service
+}
+
+func (a pluginStatObjectAdapter) ListObjects(template string) ([]map[string]any, error) {
+	objs, err := a.svc.ListObjects(template)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0, len(objs))
+	for _, o := range objs {
+		out = append(out, map[string]any{"name": o.Name, "label": o.Label, "dsl": o.DSL})
+	}
+	return out, nil
 }
 
 func (a pluginStatObjectAdapter) EvaluateObject(template, name string) (map[string]any, error) {

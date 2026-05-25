@@ -199,6 +199,57 @@ func TestLoadManifest_RunModeRoundtrip(t *testing.T) {
 	}
 }
 
+func TestLoadManifest_MaximizableRoundtrip(t *testing.T) {
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"maximizable": true,
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !got.Maximizable {
+		t.Fatalf("Maximizable = false, want true")
+	}
+}
+
+func TestLoadManifest_MaximizableDefaultsFalse(t *testing.T) {
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got.Maximizable {
+		t.Fatalf("Maximizable should default false")
+	}
+}
+
+func TestLoadManifest_RunModeChartAccepted(t *testing.T) {
+	// "chart" is the split object/shape picker + live chart window.
+	root := t.TempDir()
+	dir := writePlugin(t, root, "demo", `{
+		"manifest_version": 1, "id": "demo", "name": "Demo",
+		"version": "0.1.0",
+		"run_mode": "chart",
+		"commands": [{"id": "run", "label": "Run"}]
+	}`, "function run() end")
+	got, err := LoadManifest(dir)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if got.RunMode != RunModeChart {
+		t.Fatalf("RunMode = %q, want %q", got.RunMode, RunModeChart)
+	}
+}
+
 func TestLoadManifest_RunModeDefaultsEmpty(t *testing.T) {
 	// A manifest without run_mode loads with RunMode == "" - the
 	// frontend treats that as "modal" without writing a default
