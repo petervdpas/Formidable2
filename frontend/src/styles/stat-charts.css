@@ -53,6 +53,37 @@
   font-family: var(--font-monospace, monospace);
 }
 
+/* SVG scalar cards (StatGridScalars rendered as SVG) */
+.stat-svg-card {
+  fill: none;
+  stroke: var(--color-border);
+}
+
+.stat-svg-value {
+  fill: var(--color-text);
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-monospace, monospace);
+}
+
+.stat-svg-caption {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* SVG heatmap (StatGridHeatmap rendered as SVG) */
+.stat-svg-heatcell {
+  fill: var(--color-accent, #5b9cff);
+  stroke: var(--color-surface);
+  stroke-width: 1;
+}
+
+.stat-svg-corner {
+  fill: var(--color-text-muted);
+  font-size: 10px;
+}
+
 /* Line (timeseries) */
 .stat-line {
   fill: none;

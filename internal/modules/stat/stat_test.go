@@ -36,77 +36,120 @@ func (f *fakeIndex) DateSeries(string, string, *int, string) ([]index.Bucket, er
 	return f.dates, nil
 }
 
-func TestDistribution_ShapesBucketsAndTotal(t *testing.T) {
+// cell1 reads the rank-1 cell value at axis-0 index i (0 if absent).
+func cell1(g *Grid, i int) float64 {
+	for _, c := range g.Cells {
+		if len(c.Coords) == 1 && c.Coords[0] == i {
+			return c.Values[0]
+		}
+	}
+	return 0
+}
+
+// cell2 reads the rank-2 cell value at (a, b) (0 if absent).
+func cell2(g *Grid, a, b int) float64 {
+	for _, c := range g.Cells {
+		if len(c.Coords) == 2 && c.Coords[0] == a && c.Coords[1] == b {
+			return c.Values[0]
+		}
+	}
+	return 0
+}
+
+// measure reads the rank-0 cell's value for a named measure (-1 if absent).
+func measure(g *Grid, name string) float64 {
+	for i, m := range g.Measures {
+		if m == name {
+			return g.Cells[0].Values[i]
+		}
+	}
+	return -1
+}
+
+func TestDistribution_ShapesGridAndTotal(t *testing.T) {
 	m := NewManager(&fakeIndex{
 		total:   5,
 		valDist: []index.Bucket{{Label: "high", Count: 2}, {Label: "low", Count: 1}},
 	})
-	res, err := m.Distribution("t", "status", nil)
+	g, err := m.Distribution("t", "status", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Kind != KindDistribution {
-		t.Errorf("kind = %q", res.Kind)
+	if g.Total != 5 {
+		t.Errorf("total = %d, want 5", g.Total)
 	}
-	if res.Total != 5 {
-		t.Errorf("total = %d, want 5", res.Total)
+	if len(g.Axes) != 1 || g.Axes[0].Source != "status" {
+		t.Fatalf("axes = %+v, want one axis sourced 'status'", g.Axes)
 	}
-	if len(res.Categories) != 2 || res.Categories[0] != "high" {
-		t.Errorf("categories = %v", res.Categories)
+	if len(g.Axes[0].Labels) != 2 || g.Axes[0].Labels[0] != "high" {
+		t.Errorf("labels = %v", g.Axes[0].Labels)
 	}
-	if len(res.Series) != 1 || res.Series[0].Name != "count" {
-		t.Fatalf("series = %+v", res.Series)
+	if len(g.Measures) != 1 || g.Measures[0] != "count" {
+		t.Errorf("measures = %v", g.Measures)
 	}
-	if res.Series[0].Values[0] != 2 || res.Series[0].Values[1] != 1 {
-		t.Errorf("values = %v, want [2 1]", res.Series[0].Values)
+	if cell1(g, 0) != 2 || cell1(g, 1) != 1 {
+		t.Errorf("values = [%v %v], want [2 1]", cell1(g, 0), cell1(g, 1))
 	}
 }
 
-func TestNumericStats_FlattensSummary(t *testing.T) {
-	m := NewManager(&fakeIndex{total: 3, nums: []float64{10, 20, 30}})
-	res, err := m.NumericStats("t", "amount", nil, nil)
+func TestFacetDistribution_AxisSourceIsFacetKey(t *testing.T) {
+	// The axis source must be the facet key so a renderer can color
+	// categories with the facet's authored option colors.
+	m := NewManager(&fakeIndex{
+		total: 3,
+		facet: []index.Bucket{{Label: "AANWEZIG", Count: 2}},
+	})
+	g, err := m.FacetDistribution("t", "fcdm")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Kind != KindScalarStats {
-		t.Errorf("kind = %q", res.Kind)
+	if len(g.Axes) != 1 || g.Axes[0].Source != "fcdm" {
+		t.Fatalf("axes = %+v, want source 'fcdm'", g.Axes)
 	}
-	if res.Scalars["sum"] != 60 || res.Scalars["avg"] != 20 || res.Scalars["count"] != 3 {
-		t.Errorf("scalars = %v", res.Scalars)
+}
+
+func TestNumericStats_Rank0Measures(t *testing.T) {
+	m := NewManager(&fakeIndex{total: 3, nums: []float64{10, 20, 30}})
+	g, err := m.NumericStats("t", "amount", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Axes) != 0 {
+		t.Errorf("rank-0 expected, got axes %+v", g.Axes)
+	}
+	if measure(g, "sum") != 60 || measure(g, "avg") != 20 || measure(g, "count") != 3 {
+		t.Errorf("measures wrong: sum=%v avg=%v count=%v", measure(g, "sum"), measure(g, "avg"), measure(g, "count"))
 	}
 }
 
 func TestNumericStats_EmptyHasZeroCount(t *testing.T) {
 	m := NewManager(&fakeIndex{total: 3, nums: nil})
-	res, err := m.NumericStats("t", "amount", nil, nil)
+	g, err := m.NumericStats("t", "amount", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Scalars["count"] != 0 {
-		t.Errorf("empty count = %v, want 0", res.Scalars["count"])
+	if measure(g, "count") != 0 {
+		t.Errorf("empty count = %v, want 0", measure(g, "count"))
 	}
 }
 
-func TestTimeSeries_KindAndOrder(t *testing.T) {
+func TestTimeSeries_Rank1Order(t *testing.T) {
 	m := NewManager(&fakeIndex{
 		total: 3,
 		dates: []index.Bucket{{Label: "2026-01", Count: 2}, {Label: "2026-02", Count: 1}},
 	})
-	res, err := m.TimeSeries("t", "due", nil, "month")
+	g, err := m.TimeSeries("t", "due", nil, "month")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Kind != KindTimeSeries {
-		t.Errorf("kind = %q, want timeseries", res.Kind)
-	}
-	if res.Categories[0] != "2026-01" || res.Categories[1] != "2026-02" {
-		t.Errorf("categories = %v", res.Categories)
+	if len(g.Axes) != 1 || g.Axes[0].Labels[0] != "2026-01" || g.Axes[0].Labels[1] != "2026-02" {
+		t.Errorf("labels = %v, want [2026-01 2026-02]", g.Axes[0].Labels)
 	}
 }
 
-func TestCrossTab_MatrixZeroFilled(t *testing.T) {
+func TestCrossTab_Rank2ZeroFilled(t *testing.T) {
 	// A in {p,q}, B in {x,y}; only (p,x), (p,y), (q,x) present. (q,y)
-	// must zero-fill.
+	// has no cell (reads 0).
 	m := NewManager(&fakeIndex{
 		total: 4,
 		cross: []index.CrossCell{
@@ -115,25 +158,21 @@ func TestCrossTab_MatrixZeroFilled(t *testing.T) {
 			{A: "q", B: "x", Count: 3},
 		},
 	})
-	res, err := m.CrossTab("t", "ka", "kb")
+	g, err := m.CrossTab("t", "ka", "kb")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Kind != KindCrosstab {
-		t.Errorf("kind = %q", res.Kind)
+	if len(g.Axes) != 2 || g.Axes[0].Source != "ka" || g.Axes[1].Source != "kb" {
+		t.Fatalf("axes = %+v", g.Axes)
 	}
-	if len(res.Categories) != 2 || res.Categories[0] != "p" || res.Categories[1] != "q" {
-		t.Fatalf("categories = %v, want [p q]", res.Categories)
+	if len(g.Axes[0].Labels) != 2 || g.Axes[0].Labels[0] != "p" || g.Axes[0].Labels[1] != "q" {
+		t.Fatalf("axis0 labels = %v, want [p q]", g.Axes[0].Labels)
 	}
-	// series are per-B: x and y.
-	byName := map[string][]float64{}
-	for _, s := range res.Series {
-		byName[s.Name] = s.Values
+	// sorted: p=0,q=1 / x=0,y=1.
+	if cell2(g, 0, 0) != 1 || cell2(g, 0, 1) != 2 || cell2(g, 1, 0) != 3 {
+		t.Errorf("cells wrong: (p,x)=%v (p,y)=%v (q,x)=%v", cell2(g, 0, 0), cell2(g, 0, 1), cell2(g, 1, 0))
 	}
-	if got := byName["x"]; len(got) != 2 || got[0] != 1 || got[1] != 3 {
-		t.Errorf("series x = %v, want [1 3]", got)
-	}
-	if got := byName["y"]; len(got) != 2 || got[0] != 2 || got[1] != 0 {
-		t.Errorf("series y = %v, want [2 0] (q,y zero-filled)", got)
+	if cell2(g, 1, 1) != 0 {
+		t.Errorf("(q,y) should be 0, got %v", cell2(g, 1, 1))
 	}
 }

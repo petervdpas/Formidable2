@@ -198,23 +198,23 @@ type pluginStatsAdapter struct {
 }
 
 func (a pluginStatsAdapter) Distribution(template, fieldKey string, col *int) (map[string]any, error) {
-	return statResultMap(a.st.Distribution(template, fieldKey, col))
+	return statGridMap(a.st.Distribution(template, fieldKey, col))
 }
 
 func (a pluginStatsAdapter) NumericStats(template, fieldKey string, col *int, percentile *float64) (map[string]any, error) {
-	return statResultMap(a.st.NumericStats(template, fieldKey, col, percentile))
+	return statGridMap(a.st.NumericStats(template, fieldKey, col, percentile))
 }
 
 func (a pluginStatsAdapter) TimeSeries(template, fieldKey string, col *int, period string) (map[string]any, error) {
-	return statResultMap(a.st.TimeSeries(template, fieldKey, col, period))
+	return statGridMap(a.st.TimeSeries(template, fieldKey, col, period))
 }
 
 func (a pluginStatsAdapter) FacetDistribution(template, facetKey string) (map[string]any, error) {
-	return statResultMap(a.st.FacetDistribution(template, facetKey))
+	return statGridMap(a.st.FacetDistribution(template, facetKey))
 }
 
 func (a pluginStatsAdapter) FacetCross(template, keyA, keyB string) (map[string]any, error) {
-	return statResultMap(a.st.CrossTab(template, keyA, keyB))
+	return statGridMap(a.st.CrossTab(template, keyA, keyB))
 }
 
 func (a pluginStatsAdapter) TotalForms(template string) (int, error) {
@@ -467,13 +467,13 @@ func (a pluginStatObjectAdapter) EvaluateObject(template, name string) (map[stri
 	return toJSONMap(g)
 }
 
-// statResultMap collapses a (Result, error) pair into the JSON map the
-// Lua bridge expects, short-circuiting on error.
-func statResultMap(res *stat.Result, err error) (map[string]any, error) {
+// statGridMap collapses a (*Grid, error) pair into the JSON map the Lua
+// bridge expects, short-circuiting on error.
+func statGridMap(g *stat.Grid, err error) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return toJSONMap(res)
+	return toJSONMap(g)
 }
 
 // pluginHTTPAdapter wires plugin.HTTPClient to the running wiki

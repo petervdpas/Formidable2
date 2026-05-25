@@ -4,9 +4,9 @@ import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/
 import { type Grid, denseRank1, facetColorToken, fmtNum } from "./grid";
 
 // Rank-1 grid as a horizontal bar chart of one measure across axis 0's
-// labels. Mirrors the StatBar layout (it themes for free). Percentages
-// are shown against grid.total when the measure is a count. When the axis
-// is a facet, each bar takes the facet option's authored color.
+// labels. Percentages are shown against grid.total when the measure is a
+// count. When the axis is a facet, each bar takes the facet option's
+// authored color.
 const props = withDefaults(
   defineProps<{
     grid: Grid;

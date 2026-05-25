@@ -26,8 +26,6 @@ import type { Widget } from "../../bindings/github.com/petervdpas/formidable2/in
 import { Kind as WidgetKind } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/formwidget";
 import { isWidget } from "../composables/usePluginEditor";
 import { pluginName, pluginDescription, commandLabel } from "../utils/pluginI18n";
-import StatChartDialog from "./stat/StatChartDialog.vue";
-import { extractCharts, type ChartEnvelope } from "./stat/types";
 import ChartWidget from "./widgets/ChartWidget.vue";
 
 // PluginRunDialog mirrors PluginsWorkspace's inline Run modal but is
@@ -58,19 +56,6 @@ const runValues = ref<Record<string, unknown>>({});
 const runResults = ref<Record<string, RunResultDTO>>({});
 const runningCmd = ref<string>("");
 const descriptionHTML = ref<string>("");
-
-// Chart output: when a command returns a chart envelope (see
-// extractCharts), the host opens this glance-and-close dialog over the
-// run modal instead of leaving the data buried in the debug panel.
-const chartList = ref<ChartEnvelope[]>([]);
-const chartTitle = ref<string>("");
-const chartOpen = ref(false);
-
-function closeChart() {
-  chartOpen.value = false;
-  chartList.value = [];
-  chartTitle.value = "";
-}
 
 async function stopRun() {
   await cancelGlobalPluginRun();
@@ -259,16 +244,6 @@ async function runCommand(cmd: Command) {
     }
     const res = await PluginSvc.Run(p.id, cmd.id, ctx);
     runResults.value[cmd.id] = res;
-    if (res.kind === "ok") {
-      const charts = extractCharts(res.value);
-      if (charts.length > 0) {
-        chartList.value = charts;
-        chartTitle.value = plugin.value
-          ? commandLabel(plugin.value.id, cmd)
-          : cmd.label || cmd.id;
-        chartOpen.value = true;
-      }
-    }
     if (res.kind === "busy") {
       toast.warn(res.message || "plugin: another command is currently running");
     } else if (res.kind === "cancelled") {
@@ -304,7 +279,6 @@ async function runCommand(cmd: Command) {
 }
 
 function close() {
-  closeChart();
   closeGlobalPluginRun();
 }
 
@@ -424,11 +398,4 @@ function close() {
       </button>
     </template>
   </Modal>
-
-  <StatChartDialog
-    :open="chartOpen"
-    :title="chartTitle"
-    :charts="chartList"
-    @close="closeChart"
-  />
 </template>

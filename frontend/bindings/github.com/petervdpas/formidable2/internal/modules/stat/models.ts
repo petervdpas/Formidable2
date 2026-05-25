@@ -364,85 +364,6 @@ export class MeasureOpDescriptor {
 }
 
 /**
- * Result is the chart-neutral output of every stat query. Categories
- * are the x-axis labels; Series are the aligned value rows; Scalars
- * carries single-number stats that don't fit the grid (count, avg,
- * median, ...). Total is the form denominator, so a plugin can render
- * percentages without a second call.
- */
-export class Result {
-    "kind": string;
-    "categories"?: string[];
-    "series"?: Series[];
-    "scalars"?: { [_ in string]?: number };
-    "total": number;
-
-    /** Creates a new Result instance. */
-    constructor($$source: Partial<Result> = {}) {
-        if (!("kind" in $$source)) {
-            this["kind"] = "";
-        }
-        if (!("total" in $$source)) {
-            this["total"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Result instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Result {
-        const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType11;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("categories" in $$parsedSource) {
-            $$parsedSource["categories"] = $$createField1_0($$parsedSource["categories"]);
-        }
-        if ("series" in $$parsedSource) {
-            $$parsedSource["series"] = $$createField2_0($$parsedSource["series"]);
-        }
-        if ("scalars" in $$parsedSource) {
-            $$parsedSource["scalars"] = $$createField3_0($$parsedSource["scalars"]);
-        }
-        return new Result($$parsedSource as Partial<Result>);
-    }
-}
-
-/**
- * Series is one named row of numbers aligned to a Result's Categories.
- */
-export class Series {
-    "name": string;
-    "values": number[];
-
-    /** Creates a new Series instance. */
-    constructor($$source: Partial<Series> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("values" in $$source)) {
-            this["values"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Series instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Series {
-        const $$createField1_0 = $$createType7;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("values" in $$parsedSource) {
-            $$parsedSource["values"] = $$createField1_0($$parsedSource["values"]);
-        }
-        return new Series($$parsedSource as Partial<Series>);
-    }
-}
-
-/**
  * SourceKind distinguishes a field source from a facet source.
  */
 export enum SourceKind {
@@ -522,9 +443,9 @@ export class StatConfig {
      * Creates a new StatConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): StatConfig {
-        const $$createField0_0 = $$createType13;
-        const $$createField1_0 = $$createType15;
-        const $$createField2_0 = $$createType17;
+        const $$createField0_0 = $$createType10;
+        const $$createField1_0 = $$createType12;
+        const $$createField2_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Measures" in $$parsedSource) {
             $$parsedSource["Measures"] = $$createField0_0($$parsedSource["Measures"]);
@@ -581,12 +502,9 @@ const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = $Create.Array($Create.Any);
 const $$createType7 = $Create.Array($Create.Any);
 const $$createType8 = $Create.Nullable($$createType0);
-const $$createType9 = Series.createFrom;
+const $$createType9 = Measure.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $Create.Map($Create.Any, $Create.Any);
-const $$createType12 = Measure.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = Dimension.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = Filter.createFrom;
-const $$createType17 = $Create.Array($$createType16);
+const $$createType11 = Dimension.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = Filter.createFrom;
+const $$createType14 = $Create.Array($$createType13);

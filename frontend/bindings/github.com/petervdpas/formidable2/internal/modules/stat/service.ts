@@ -61,18 +61,19 @@ export function CompileDSL(cfg: $models.StatConfig): $CancellablePromise<string>
 }
 
 /**
- * CrossTab is the pair-combination matrix between two facets.
+ * CrossTab is the pair-combination matrix between two facets (rank-2).
  */
-export function CrossTab(template: string, keyA: string, keyB: string): $CancellablePromise<$models.Result | null> {
+export function CrossTab(template: string, keyA: string, keyB: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(721428515, template, keyA, keyB).then(($result: any) => {
         return $$createType6($result);
     });
 }
 
 /**
- * Distribution counts forms by a field's (or table column's) value.
+ * Distribution counts forms by a field's (or table column's) value, as
+ * a rank-1 Grid.
  */
-export function Distribution(template: string, fieldKey: string, col: number | null): $CancellablePromise<$models.Result | null> {
+export function Distribution(template: string, fieldKey: string, col: number | null): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(3246012510, template, fieldKey, col).then(($result: any) => {
         return $$createType6($result);
     });
@@ -85,7 +86,7 @@ export function Distribution(template: string, fieldKey: string, col: number | n
  */
 export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(2268999486, template, dsl).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType6($result);
     });
 }
 
@@ -96,14 +97,14 @@ export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<
  */
 export function EvaluateObject(template: string, name: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(864923500, template, name).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType6($result);
     });
 }
 
 /**
  * FacetDistribution counts set forms by a facet's selected option.
  */
-export function FacetDistribution(template: string, facetKey: string): $CancellablePromise<$models.Result | null> {
+export function FacetDistribution(template: string, facetKey: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(248037669, template, facetKey).then(($result: any) => {
         return $$createType6($result);
     });
@@ -117,15 +118,15 @@ export function FacetDistribution(template: string, facetKey: string): $Cancella
  */
 export function ListObjects(template: string): $CancellablePromise<$models.StatObject[]> {
     return $Call.ByID(1835086144, template).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType8($result);
     });
 }
 
 /**
  * NumericStats reduces a numeric field / table column to summary
- * scalars (min/max/sum/avg/median/stddev[/percentile]).
+ * measures (min/max/sum/avg/median/stddev[/percentile]) as a rank-0 Grid.
  */
-export function NumericStats(template: string, fieldKey: string, col: number | null, percentile: number | null): $CancellablePromise<$models.Result | null> {
+export function NumericStats(template: string, fieldKey: string, col: number | null, percentile: number | null): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(2728644434, template, fieldKey, col, percentile).then(($result: any) => {
         return $$createType6($result);
     });
@@ -139,15 +140,15 @@ export function NumericStats(template: string, fieldKey: string, col: number | n
  */
 export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
     return $Call.ByID(2598631634, dsl).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType9($result);
     });
 }
 
 /**
  * TimeSeries buckets a date field / column by period ("year" | "month"
- * | "day") and counts forms per bucket.
+ * | "day") and counts forms per bucket, as a rank-1 Grid.
  */
-export function TimeSeries(template: string, fieldKey: string, col: number | null, period: string): $CancellablePromise<$models.Result | null> {
+export function TimeSeries(template: string, fieldKey: string, col: number | null, period: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(4140051192, template, fieldKey, col, period).then(($result: any) => {
         return $$createType6($result);
     });
@@ -159,10 +160,8 @@ const $$createType1 = $models.FilterOpDescriptor.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $models.MeasureOpDescriptor.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.Result.createFrom;
+const $$createType5 = $models.Grid.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $models.Grid.createFrom;
-const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = $models.StatObject.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $models.StatConfig.createFrom;
+const $$createType7 = $models.StatObject.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.StatConfig.createFrom;

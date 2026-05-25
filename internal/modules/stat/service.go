@@ -43,30 +43,31 @@ func NewService(m *Manager, src StatisticSource) *Service {
 	return &Service{m: m, src: src}
 }
 
-// Distribution counts forms by a field's (or table column's) value.
-func (s *Service) Distribution(template, fieldKey string, col *int) (*Result, error) {
+// Distribution counts forms by a field's (or table column's) value, as
+// a rank-1 Grid.
+func (s *Service) Distribution(template, fieldKey string, col *int) (*Grid, error) {
 	return s.m.Distribution(template, fieldKey, col)
 }
 
 // FacetDistribution counts set forms by a facet's selected option.
-func (s *Service) FacetDistribution(template, facetKey string) (*Result, error) {
+func (s *Service) FacetDistribution(template, facetKey string) (*Grid, error) {
 	return s.m.FacetDistribution(template, facetKey)
 }
 
-// CrossTab is the pair-combination matrix between two facets.
-func (s *Service) CrossTab(template, keyA, keyB string) (*Result, error) {
+// CrossTab is the pair-combination matrix between two facets (rank-2).
+func (s *Service) CrossTab(template, keyA, keyB string) (*Grid, error) {
 	return s.m.CrossTab(template, keyA, keyB)
 }
 
 // NumericStats reduces a numeric field / table column to summary
-// scalars (min/max/sum/avg/median/stddev[/percentile]).
-func (s *Service) NumericStats(template, fieldKey string, col *int, percentile *float64) (*Result, error) {
+// measures (min/max/sum/avg/median/stddev[/percentile]) as a rank-0 Grid.
+func (s *Service) NumericStats(template, fieldKey string, col *int, percentile *float64) (*Grid, error) {
 	return s.m.NumericStats(template, fieldKey, col, percentile)
 }
 
 // TimeSeries buckets a date field / column by period ("year" | "month"
-// | "day") and counts forms per bucket.
-func (s *Service) TimeSeries(template, fieldKey string, col *int, period string) (*Result, error) {
+// | "day") and counts forms per bucket, as a rank-1 Grid.
+func (s *Service) TimeSeries(template, fieldKey string, col *int, period string) (*Grid, error) {
 	return s.m.TimeSeries(template, fieldKey, col, period)
 }
 

@@ -1,10 +1,20 @@
 // Local structural mirror of the Go stat.Grid (rank-N values grid). Kept
-// local (like StatResult in ./types) so the Grid chart components don't
-// hard-depend on the generated bindings; the generated type is
-// structurally assignable. The rank is axes.length: 0 = scalar cards,
-// 1 = bar/pie, 2 = heatmap.
+// local so the Grid chart components don't hard-depend on the generated
+// bindings; the generated type is structurally assignable. The rank is
+// axes.length: 0 = scalar cards, 1 = bar/pie, 2 = heatmap.
 
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+
+// Neutral fallback palette for non-facet categories (a facet axis uses
+// the facets' authored option colors via facetColorToken instead).
+export const CHART_PALETTE = [
+  "var(--color-accent, #5b9cff)",
+  "var(--color-accent-2, #f08c5a)",
+  "var(--color-success, #5fc37a)",
+  "var(--color-warn, #d4a64a)",
+  "var(--color-danger, #d96666)",
+  "var(--color-text-muted, #888)",
+];
 
 export interface GridAxis {
   source: string;

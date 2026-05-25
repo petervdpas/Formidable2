@@ -18,8 +18,6 @@ export {
     Measure,
     MeasureOp,
     MeasureOpDescriptor,
-    Result,
-    Series,
     SourceKind,
     SourceRef,
     StatConfig,

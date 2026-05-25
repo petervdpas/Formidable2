@@ -36,8 +36,8 @@ interface RunBar {
 }
 
 // RunChartSpec is the chart envelope a plugin pushes via
-// formidable.run.chart(spec): `type` is the chart shape (StatChart
-// override) and `result` is the stat Result the chart widget renders.
+// formidable.run.chart(spec): `type` is the chart shape (StatGrid
+// override) and `result` is the stat Grid the chart widget renders.
 interface RunChartSpec {
   type?: string;
   title?: string;
