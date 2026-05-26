@@ -25,16 +25,134 @@
     font-size: var(--font-size-sm);
 }
 
-.stat-builder-fieldset {
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    padding: var(--space-2) var(--space-3) var(--space-3);
+/* Master-detail block builder: the left list is the statistic's outline of
+   small typed blocks; the right pane edits the one selected block. */
+.stat-builder-split {
+    display: flex;
+    gap: var(--space-3);
+    align-items: stretch;
+    min-height: 240px;
 }
 
-.stat-builder-fieldset > legend {
-    font-weight: 600;
-    font-size: var(--font-size-sm);
-    padding: 0 var(--space-2);
+.stat-builder-blocklist {
+    flex: 0 0 220px;
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: var(--space-3);
+    border-right: 1px solid var(--color-border);
+    overflow: auto;
+    max-height: 360px;
+}
+
+.stat-block-group {
+    font-weight: 700;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted, #888);
+    margin-top: var(--space-2);
+}
+.stat-block-group:first-child {
+    margin-top: 0;
+}
+
+.stat-block-dndlist {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* A small typed block chip. Left edge colors it by kind; selected fills. */
+.stat-block-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-align: left;
+    padding: 5px var(--space-2);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-text-muted, #888);
+    border-radius: 5px;
+    background: var(--color-surface-2, rgba(0, 0, 0, 0.04));
+    color: var(--color-text);
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.stat-block-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stat-block-item .dnd-handle {
+    flex: 0 0 auto;
+    cursor: grab;
+    color: var(--color-text-muted, #888);
+    font-size: 0.8rem;
+}
+.stat-block-item.is-measure {
+    border-left-color: var(--color-accent, #5b9cff);
+}
+.stat-block-item.is-dimension {
+    border-left-color: var(--color-success, #5fc37a);
+}
+.stat-block-item.is-filter {
+    border-left-color: var(--color-warn, #d4a64a);
+}
+.stat-block-item.is-percent {
+    border-left-color: #b388eb;
+}
+.stat-block-item.is-selected {
+    background: color-mix(in srgb, var(--color-accent, #5b9cff) 16%, transparent);
+    border-color: var(--color-accent, #5b9cff);
+}
+
+.stat-block-add {
+    text-align: left;
+    padding: 4px var(--space-2);
+    border: 1px dashed var(--color-border);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--color-text-muted, #888);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.stat-block-add:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.stat-builder-blockedit {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.stat-block-remove {
+    align-self: flex-start;
+    margin-top: var(--space-2);
+}
+
+/* Live preview: the real chart, rendered as you build. */
+.stat-builder-livepreview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.stat-builder-livepreview-canvas {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: var(--space-2);
+    background: var(--color-surface-2, rgba(0, 0, 0, 0.04));
+    overflow: auto;
+    max-height: 320px;
 }
 
 .stat-builder-hint {
@@ -114,13 +232,31 @@
     flex: 0 0 auto;
 }
 
-/* Composite builder: the branch label sits left of its child-object select. */
-.stat-composite-branch {
+/* Composite builder: each branch is a block chip (like the sidebar blocks),
+   with its child-object select beside it. */
+.stat-composite-branches {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.stat-composite-row {
     display: flex;
     align-items: center;
+    gap: var(--space-2);
+}
+
+.stat-composite-branch {
+    flex: 0 0 40%;
+    max-width: 40%;
+    cursor: default;
     font-weight: 600;
-    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.stat-composite-childsel {
+    flex: 1 1 auto;
+    min-width: 0;
 }

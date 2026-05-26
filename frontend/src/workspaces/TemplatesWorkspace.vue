@@ -1357,6 +1357,7 @@ setTopbarMenu(() => [
   <StatisticsBuilderModal
     v-if="draft"
     :open="statBuilderOpen"
+    :template="selectedFilename || ''"
     :fields="draft.fields ?? []"
     :facets="draft.facets ?? []"
     :initial="editingStat"

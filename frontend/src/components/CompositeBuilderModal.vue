@@ -135,35 +135,39 @@ function onApply() {
         </label>
       </div>
 
-      <fieldset class="stat-builder-fieldset">
-        <legend>{{ t('workspace.templates.composite_builder.parent') }}</legend>
+      <div class="stat-builder-blockedit">
+        <div class="stat-block-group">{{ t('workspace.templates.composite_builder.parent') }}</div>
         <SelectField
           :model-value="parent"
           :options="parentOptions"
           :placeholder="t('workspace.templates.composite_builder.pick_parent')"
           @update:model-value="setParent"
         />
-      </fieldset>
 
-      <fieldset v-if="parent" class="stat-builder-fieldset">
-        <legend>{{ t('workspace.templates.composite_builder.branches') }}</legend>
-        <p class="muted small stat-builder-hint">
-          {{ t('workspace.templates.composite_builder.branches_hint') }}
-        </p>
-        <div class="options-editor">
-          <div class="options-rows">
-            <div v-for="b in branches" :key="b.branch" class="options-row">
-              <span class="options-cell stat-composite-branch">{{ b.branch }}</span>
+        <template v-if="parent">
+          <div class="stat-block-group">{{ t('workspace.templates.composite_builder.branches') }}</div>
+          <p class="muted small stat-builder-hint">
+            {{ t('workspace.templates.composite_builder.branches_hint') }}
+          </p>
+          <div class="stat-composite-branches">
+            <div v-for="b in branches" :key="b.branch" class="stat-composite-row">
+              <span
+                :class="[
+                  'stat-block-item',
+                  childByBranch[b.branch] ? 'is-dimension' : 'is-filter',
+                  'stat-composite-branch',
+                ]"
+              >{{ b.branch }}</span>
               <SelectField
                 :model-value="childByBranch[b.branch] || ''"
                 :options="childOptionsFor(b.branch)"
-                class="options-cell"
+                class="stat-composite-childsel"
                 @update:model-value="(v: string) => setChild(b.branch, v)"
               />
             </div>
           </div>
-        </div>
-      </fieldset>
+        </template>
+      </div>
     </div>
 
     <template #footer>

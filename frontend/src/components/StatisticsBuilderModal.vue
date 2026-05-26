@@ -11,6 +11,7 @@
  */
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import Modal from "./Modal.vue";
 import { SelectField, TextField } from "./fields";
 import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
@@ -59,6 +60,8 @@ interface StatConfig {
 
 const props = defineProps<{
   open: boolean;
+  /** Active template filename, so the live preview can evaluate the DSL. */
+  template: string;
   fields: Field[];
   facets: Facet[];
   /** The statistic being edited, or null to compose a new one. */
@@ -348,7 +351,101 @@ function setFilterValue(i: number, v: string) {
   config.value.Filters = config.value.Filters.map((x, j) => (j === i ? { ...x, Value: v } : x));
 }
 
-// ── DSL compile preview ─────────────────────────────────────────────
+// ── Block selection (master-detail) ─────────────────────────────────
+// The left list is the statistic's outline (typed block chips); the right
+// pane edits the one selected block. Keeps only one block's controls on
+// screen at a time instead of stacking every section.
+type BlockKind = "measure" | "dimension" | "filter" | "percent";
+const selected = ref<{ kind: BlockKind; index: number }>({ kind: "measure", index: 0 });
+
+function selectBlock(kind: BlockKind, index: number) {
+  selected.value = { kind, index };
+}
+
+// Stable dnd key per block object, kept off the data (a WeakMap, not an id
+// field) so the StatConfig sent to compile stays clean. Reordering splices
+// the same object references, so keys hold during a drag.
+const keyMap = new WeakMap<object, string>();
+let keySeq = 0;
+function blockKey(o: object): string {
+  let k = keyMap.get(o);
+  if (!k) {
+    k = `k${++keySeq}`;
+    keyMap.set(o, k);
+  }
+  return k;
+}
+function isSelected(kind: BlockKind, index: number): boolean {
+  return selected.value.kind === kind && selected.value.index === index;
+}
+// After a removal, fall back to the first measure (always present once one
+// exists) or the always-present percentage block.
+function selectSafe() {
+  selected.value = config.value.Measures.length > 0
+    ? { kind: "measure", index: 0 }
+    : { kind: "percent", index: 0 };
+}
+
+const curMeasure = computed(() =>
+  selected.value.kind === "measure" ? (config.value.Measures[selected.value.index] ?? null) : null,
+);
+const curDimension = computed(() =>
+  selected.value.kind === "dimension" ? (config.value.Dimensions[selected.value.index] ?? null) : null,
+);
+const curFilter = computed(() =>
+  selected.value.kind === "filter" ? (config.value.Filters[selected.value.index] ?? null) : null,
+);
+
+// Compact one-line summaries shown on each sidebar chip.
+function measureSummary(m: Measure): string {
+  const op = opLabelKeys[m.Op] ? t(opLabelKeys[m.Op]) : m.Op;
+  if (!opNeedsSource(m.Op) || !m.Source) return op;
+  return `${op} · ${sourceByKey.value[srcKey(m.Source)]?.label ?? m.Source.Key}`;
+}
+function dimensionSummary(d: Dimension): string {
+  const lbl = sourceByKey.value[srcKey(d.Source)]?.label ?? d.Source.Key;
+  return d.Top ? `${lbl} · top ${d.Top}` : lbl;
+}
+function filterSummary(f: Filter): string {
+  const lbl = sourceByKey.value[srcKey(f.Source)]?.label ?? f.Source.Key;
+  return `${lbl} ${f.Op} ${f.Value || "…"}`;
+}
+function percentSummary(): string {
+  const v = config.value.Percent || "distribution";
+  return pctBaseLabelKeys[v] ? t(pctBaseLabelKeys[v]) : v;
+}
+
+// Add-then-select wrappers, so a new block opens in the editor.
+function addMeasureSel() {
+  addMeasure();
+  selectBlock("measure", config.value.Measures.length - 1);
+}
+function addDimensionSel() {
+  const n = config.value.Dimensions.length;
+  addDimension();
+  if (config.value.Dimensions.length > n) selectBlock("dimension", n);
+}
+function addFilterSel() {
+  const n = config.value.Filters.length;
+  addFilter();
+  if (config.value.Filters.length > n) selectBlock("filter", n);
+}
+function removeMeasureSel(i: number) {
+  removeMeasure(i);
+  selectSafe();
+}
+function removeDimensionSel(i: number) {
+  removeDimension(i);
+  selectSafe();
+}
+function removeFilterSel(i: number) {
+  removeFilter(i);
+  selectSafe();
+}
+
+// ── DSL compile ─────────────────────────────────────────────────────
+// recompile() turns the block sentence into the canonical DSL; StatLivePreview
+// (a secondary component) takes that DSL and renders the live chart.
 async function recompile() {
   if (config.value.Measures.length === 0) {
     dslPreview.value = "";
@@ -413,6 +510,7 @@ watch(
       label.value = "";
       config.value = freshConfig();
     }
+    selected.value = { kind: "measure", index: 0 };
     await recompile();
   },
   { immediate: true },
@@ -438,7 +536,7 @@ async function onApply() {
   <Modal
     :open="open"
     :title="t('workspace.templates.stat_builder.title')"
-    width="760px"
+    width="860px"
     @close="emit('close')"
   >
     <p v-if="parseWarn" class="stat-builder-warn small">
@@ -460,162 +558,194 @@ async function onApply() {
         </label>
       </div>
 
-      <!-- MEASURES -->
-      <fieldset class="stat-builder-fieldset">
-        <legend>{{ t('workspace.templates.stat_builder.measures') }}</legend>
-        <div class="options-editor">
-          <div class="options-rows">
-            <div v-for="(m, i) in config.Measures" :key="`m${i}`" class="options-row">
-              <SelectField
-                :model-value="m.Op"
-                :options="measureOpOptions"
-                class="options-cell"
-                @update:model-value="(v: string) => setMeasureOp(i, v)"
-              />
-              <SelectField
-                v-if="opNeedsSource(m.Op)"
-                :model-value="m.Source ? srcKey(m.Source) : ''"
-                :options="numericSourceOptions"
-                class="options-cell"
-                @update:model-value="(v: string) => setMeasureSource(i, v)"
-              />
-              <TextField
-                v-if="opNeedsArg(m.Op)"
-                type="number"
-                lazy
-                :min="0"
-                :max="100"
-                :step="1"
-                :model-value="String(m.Arg ?? 90)"
-                class="stat-builder-arg"
-                @update:model-value="(v: string) => setMeasureArg(i, v)"
-              />
+      <!-- BLOCKS: left = the statistic's outline, right = the selected block -->
+      <div class="stat-builder-split">
+        <aside class="stat-builder-blocklist">
+          <div class="stat-block-group">{{ t('workspace.templates.stat_builder.measures') }}</div>
+          <draggable
+            v-model="config.Measures"
+            tag="div"
+            class="stat-block-dndlist"
+            handle=".dnd-handle"
+            :animation="150"
+            ghost-class="dnd-ghost"
+            chosen-class="dnd-chosen"
+            drag-class="dnd-drag"
+            :item-key="blockKey"
+          >
+            <template #item="{ element: m, index: i }">
               <button
                 type="button"
-                class="btn-ghost-icon"
-                :title="t('workspace.templates.stat_builder.remove')"
-                @click="removeMeasure(i)"
-              >−</button>
-            </div>
-          </div>
+                :class="['stat-block-item', 'is-measure', { 'is-selected': isSelected('measure', i) }]"
+                @click="selectBlock('measure', i)"
+              >
+                <span class="dnd-handle" aria-hidden="true">☰</span>
+                <span class="stat-block-text">{{ measureSummary(m) }}</span>
+              </button>
+            </template>
+          </draggable>
+          <button type="button" class="stat-block-add" @click="addMeasureSel">
+            + {{ t('workspace.templates.stat_builder.add_measure') }}
+          </button>
+
+          <div class="stat-block-group">{{ t('workspace.templates.stat_builder.dimensions') }}</div>
+          <draggable
+            v-model="config.Dimensions"
+            tag="div"
+            class="stat-block-dndlist"
+            handle=".dnd-handle"
+            :animation="150"
+            ghost-class="dnd-ghost"
+            chosen-class="dnd-chosen"
+            drag-class="dnd-drag"
+            :item-key="blockKey"
+          >
+            <template #item="{ element: d, index: i }">
+              <button
+                type="button"
+                :class="['stat-block-item', 'is-dimension', { 'is-selected': isSelected('dimension', i) }]"
+                @click="selectBlock('dimension', i)"
+              >
+                <span class="dnd-handle" aria-hidden="true">☰</span>
+                <span class="stat-block-text">{{ dimensionSummary(d) }}</span>
+              </button>
+            </template>
+          </draggable>
+          <button type="button" class="stat-block-add" :disabled="!hasSources" @click="addDimensionSel">
+            + {{ t('workspace.templates.stat_builder.add_dimension') }}
+          </button>
+
+          <div class="stat-block-group">{{ t('workspace.templates.stat_builder.filters') }}</div>
+          <button
+            v-for="(f, i) in config.Filters"
+            :key="`bf${i}`"
+            type="button"
+            :class="['stat-block-item', 'is-filter', { 'is-selected': isSelected('filter', i) }]"
+            @click="selectBlock('filter', i)"
+          >
+            <span class="stat-block-text">{{ filterSummary(f) }}</span>
+          </button>
+          <button type="button" class="stat-block-add" :disabled="!hasSources" @click="addFilterSel">
+            + {{ t('workspace.templates.stat_builder.add_filter') }}
+          </button>
+
+          <div class="stat-block-group">{{ t('workspace.templates.stat_builder.pct.legend') }}</div>
           <button
             type="button"
-            class="btn-ghost-block"
-            :title="t('workspace.templates.stat_builder.add_measure')"
-            @click="addMeasure"
-          >+ {{ t('workspace.templates.stat_builder.add_measure') }}</button>
-        </div>
-      </fieldset>
+            :class="['stat-block-item', 'is-percent', { 'is-selected': isSelected('percent', 0) }]"
+            @click="selectBlock('percent', 0)"
+          >{{ percentSummary() }}</button>
+        </aside>
 
-      <!-- DIMENSIONS -->
-      <fieldset class="stat-builder-fieldset">
-        <legend>{{ t('workspace.templates.stat_builder.dimensions') }}</legend>
-        <p class="muted small stat-builder-hint">
-          {{ t('workspace.templates.stat_builder.dimensions_hint') }}
-        </p>
-        <div class="options-editor">
-          <div class="options-rows">
-            <div v-for="(d, i) in config.Dimensions" :key="`d${i}`" class="options-row">
-              <SelectField
-                :model-value="srcKey(d.Source)"
-                :options="allSourceOptions"
-                class="options-cell"
-                @update:model-value="(v: string) => setDimensionSource(i, v)"
-              />
-              <SelectField
-                v-if="dimIsDate(d)"
-                :model-value="d.Bin"
-                :options="binOptions"
-                class="options-cell"
-                @update:model-value="(v: string) => setDimensionBin(i, v)"
-              />
+        <section class="stat-builder-blockedit">
+          <!-- MEASURE -->
+          <template v-if="curMeasure">
+            <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.measures') }}</span>
+            <SelectField
+              :model-value="curMeasure.Op"
+              :options="measureOpOptions"
+              @update:model-value="(v: string) => setMeasureOp(selected.index, v)"
+            />
+            <SelectField
+              v-if="opNeedsSource(curMeasure.Op)"
+              :model-value="curMeasure.Source ? srcKey(curMeasure.Source) : ''"
+              :options="numericSourceOptions"
+              @update:model-value="(v: string) => setMeasureSource(selected.index, v)"
+            />
+            <TextField
+              v-if="opNeedsArg(curMeasure.Op)"
+              type="number"
+              lazy
+              :min="0"
+              :max="100"
+              :step="1"
+              :model-value="String(curMeasure.Arg ?? 90)"
+              class="stat-builder-arg"
+              @update:model-value="(v: string) => setMeasureArg(selected.index, v)"
+            />
+            <button
+              type="button"
+              class="tool-btn danger stat-block-remove"
+              :disabled="config.Measures.length <= 1"
+              @click="removeMeasureSel(selected.index)"
+            >{{ t('workspace.templates.stat_builder.remove') }}</button>
+          </template>
+
+          <!-- GROUP BY -->
+          <template v-else-if="curDimension">
+            <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.dimensions') }}</span>
+            <p class="muted small stat-builder-hint">{{ t('workspace.templates.stat_builder.dimensions_hint') }}</p>
+            <SelectField
+              :model-value="srcKey(curDimension.Source)"
+              :options="allSourceOptions"
+              @update:model-value="(v: string) => setDimensionSource(selected.index, v)"
+            />
+            <SelectField
+              v-if="dimIsDate(curDimension)"
+              :model-value="curDimension.Bin"
+              :options="binOptions"
+              @update:model-value="(v: string) => setDimensionBin(selected.index, v)"
+            />
+            <label class="stat-builder-field">
+              <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.top') }}</span>
               <TextField
                 type="number"
                 lazy
                 :min="1"
                 :max="20"
                 :step="1"
-                :model-value="d.Top ? String(d.Top) : ''"
+                :model-value="curDimension.Top ? String(curDimension.Top) : ''"
                 class="stat-builder-arg"
-                :placeholder="t('workspace.templates.stat_builder.top')"
-                @update:model-value="(v: string) => setDimensionTop(i, v)"
+                :title="t('workspace.templates.stat_builder.top_hint')"
+                @update:model-value="(v: string) => setDimensionTop(selected.index, v)"
               />
-              <button
-                type="button"
-                class="btn-ghost-icon"
-                :title="t('workspace.templates.stat_builder.remove')"
-                @click="removeDimension(i)"
-              >−</button>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="btn-ghost-block"
-            :disabled="!hasSources"
-            :title="t('workspace.templates.stat_builder.add_dimension')"
-            @click="addDimension"
-          >+ {{ t('workspace.templates.stat_builder.add_dimension') }}</button>
-        </div>
-      </fieldset>
+            </label>
+            <button type="button" class="tool-btn danger stat-block-remove" @click="removeDimensionSel(selected.index)">
+              {{ t('workspace.templates.stat_builder.remove') }}
+            </button>
+          </template>
 
-      <!-- FILTERS (where) -->
-      <fieldset class="stat-builder-fieldset">
-        <legend>{{ t('workspace.templates.stat_builder.filters') }}</legend>
-        <div class="options-editor">
-          <div class="options-rows">
-            <div v-for="(f, i) in config.Filters" :key="`f${i}`" class="options-row">
-              <SelectField
-                :model-value="srcKey(f.Source)"
-                :options="allSourceOptions"
-                class="options-cell"
-                @update:model-value="(v: string) => setFilterSource(i, v)"
-              />
-              <SelectField
-                :model-value="f.Op"
-                :options="filterOpOptionsFor(f)"
-                class="stat-builder-op"
-                @update:model-value="(v: string) => setFilterOp(i, v)"
-              />
-              <TextField
-                :type="filterOpIsNumeric(f.Op) ? 'number' : 'text'"
-                lazy
-                :model-value="f.Value"
-                class="options-cell"
-                :placeholder="t('workspace.templates.stat_builder.filter_value')"
-                @update:model-value="(v: string) => setFilterValue(i, v)"
-              />
-              <button
-                type="button"
-                class="btn-ghost-icon"
-                :title="t('workspace.templates.stat_builder.remove')"
-                @click="removeFilter(i)"
-              >−</button>
-            </div>
-          </div>
-          <button
-            type="button"
-            class="btn-ghost-block"
-            :disabled="!hasSources"
-            :title="t('workspace.templates.stat_builder.add_filter')"
-            @click="addFilter"
-          >+ {{ t('workspace.templates.stat_builder.add_filter') }}</button>
-        </div>
-      </fieldset>
+          <!-- WHERE -->
+          <template v-else-if="curFilter">
+            <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.filters') }}</span>
+            <SelectField
+              :model-value="srcKey(curFilter.Source)"
+              :options="allSourceOptions"
+              @update:model-value="(v: string) => setFilterSource(selected.index, v)"
+            />
+            <SelectField
+              :model-value="curFilter.Op"
+              :options="filterOpOptionsFor(curFilter)"
+              @update:model-value="(v: string) => setFilterOp(selected.index, v)"
+            />
+            <TextField
+              :type="filterOpIsNumeric(curFilter.Op) ? 'number' : 'text'"
+              lazy
+              :model-value="curFilter.Value"
+              :placeholder="t('workspace.templates.stat_builder.filter_value')"
+              @update:model-value="(v: string) => setFilterValue(selected.index, v)"
+            />
+            <button type="button" class="tool-btn danger stat-block-remove" @click="removeFilterSel(selected.index)">
+              {{ t('workspace.templates.stat_builder.remove') }}
+            </button>
+          </template>
 
-      <!-- PERCENTAGE BASE -->
-      <fieldset class="stat-builder-fieldset">
-        <legend>{{ t('workspace.templates.stat_builder.pct.legend') }}</legend>
-        <p class="muted small stat-builder-hint">
-          {{ t('workspace.templates.stat_builder.pct.hint') }}
-        </p>
-        <SelectField
-          :model-value="config.Percent || 'distribution'"
-          :options="percentBaseOptions"
-          @update:model-value="setPercent"
-        />
-      </fieldset>
+          <!-- PERCENTAGE BASE -->
+          <template v-else-if="selected.kind === 'percent'">
+            <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.pct.legend') }}</span>
+            <p class="muted small stat-builder-hint">{{ t('workspace.templates.stat_builder.pct.hint') }}</p>
+            <SelectField
+              :model-value="config.Percent || 'distribution'"
+              :options="percentBaseOptions"
+              @update:model-value="setPercent"
+            />
+          </template>
 
-      <!-- PREVIEW -->
+          <p v-else class="muted small">{{ t('workspace.templates.stat_builder.select_block') }}</p>
+        </section>
+      </div>
+
+      <!-- DSL readout (advanced) -->
       <div class="stat-builder-preview">
         <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.preview') }}</span>
         <code v-if="dslPreview" class="stat-builder-dsl">{{ dslPreview }}</code>
