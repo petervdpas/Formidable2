@@ -14,6 +14,7 @@ package stat
 //	op        := "eq" | "ne" | "lt" | "le" | "gt" | "ge"
 //	             // eq/ne take a quoted string; lt/le/gt/ge take a number
 //	measure   := "count" "(" ")"
+//	           | "records" "(" ")"              // distinct forms, not rows
 //	           | reduce "(" numSource ")"
 //	           | "percentile" "(" numSource "," number ")"
 //	reduce    := "sum" | "avg" | "min" | "max" | "median" | "stddev"
@@ -45,6 +46,7 @@ type MeasureOp string
 
 const (
 	OpCount      MeasureOp = "count"
+	OpRecords    MeasureOp = "records"
 	OpSum        MeasureOp = "sum"
 	OpAvg        MeasureOp = "avg"
 	OpMin        MeasureOp = "min"
@@ -59,8 +61,11 @@ var reduceOps = map[MeasureOp]bool{
 	OpSum: true, OpAvg: true, OpMin: true, OpMax: true, OpMedian: true, OpStddev: true,
 }
 
-// Measure is one cell value layer: count() (no source), a reduce over a
-// numeric field source, or percentile(source, p).
+// Measure is one cell value layer: count() (rows, no source), records()
+// (distinct contributing forms, no source), a reduce over a numeric field
+// source, or percentile(source, p). records() differs from count() only on a
+// fanned-out (table-column) source, where one form yields many rows: count()
+// tallies the rows, records() tallies the distinct forms.
 type Measure struct {
 	Op     MeasureOp
 	Source *SourceRef // nil only for count

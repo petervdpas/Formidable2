@@ -35,6 +35,7 @@
   "workspace.templates.stat_builder.parse_failed": "Could not read the saved statistic; it was reset.",
   "workspace.templates.stat_builder.no_sources": "No statistical sources yet: flag fields as statistical or add facets first.",
   "workspace.templates.stat_builder.op.count": "Count",
+  "workspace.templates.stat_builder.op.records": "Records (distinct)",
   "workspace.templates.stat_builder.op.sum": "Sum",
   "workspace.templates.stat_builder.op.avg": "Average",
   "workspace.templates.stat_builder.op.min": "Minimum",

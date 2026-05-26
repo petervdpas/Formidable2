@@ -116,6 +116,26 @@ func TestAggregateRaw_TableColumnNumericSource(t *testing.T) {
 	}
 }
 
+func TestAggregateRaw_CarriesFormIdentity(t *testing.T) {
+	m := seedValuesDB(t)
+	c0 := 0 // items col0 fans one row per table cell; each row keeps its form
+	rows, err := m.AggregateRaw("basic.yaml", []AggDim{{Kind: "field", Key: "items", Col: &c0}}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms := map[string]struct{}{}
+	for _, r := range rows {
+		if r.Form == "" {
+			t.Errorf("row missing form identity: %+v", r)
+		}
+		forms[r.Form] = struct{}{}
+	}
+	// One items cell per form, three forms -> three distinct filenames.
+	if len(forms) != 3 {
+		t.Errorf("distinct forms = %d, want 3", len(forms))
+	}
+}
+
 func TestAggregateRaw_FilterEquality(t *testing.T) {
 	m := seedValuesDB(t)
 	rows, err := m.AggregateRaw("basic.yaml", nil, nil,

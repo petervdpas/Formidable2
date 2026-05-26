@@ -83,9 +83,19 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	}
 	if hasTableDim {
 		for _, ms := range cfg.Measures {
-			if ms.Op != OpCount {
-				return nil, fmt.Errorf("stat: a table-column dimension supports only count() (numeric measures would over-count)")
+			if ms.Op != OpCount && ms.Op != OpRecords {
+				return nil, fmt.Errorf("stat: a table-column dimension supports only count()/records() (numeric measures would over-count)")
 			}
+		}
+	}
+
+	// records() counts distinct contributing forms per category, so the
+	// reducer must track form identity per group (skipped otherwise).
+	needRecords := false
+	for _, ms := range cfg.Measures {
+		if ms.Op == OpRecords {
+			needRecords = true
+			break
 		}
 	}
 
@@ -236,7 +246,8 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	type group struct {
 		coords []int
 		count  int
-		nums   [][]float64 // aligned to numKeys
+		forms  map[string]struct{} // distinct contributing forms; nil unless records() asked
+		nums   [][]float64         // aligned to numKeys
 	}
 	groups := map[string]*group{}
 	var order []string
@@ -249,10 +260,16 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		g := groups[key]
 		if g == nil {
 			g = &group{coords: coords, nums: make([][]float64, len(nums))}
+			if needRecords {
+				g.forms = map[string]struct{}{}
+			}
 			groups[key] = g
 			order = append(order, key)
 		}
 		g.count++
+		if needRecords {
+			g.forms[r.Form] = struct{}{}
+		}
 		for j := range nums {
 			if r.Nums[j].Valid {
 				g.nums[j] = append(g.nums[j], r.Nums[j].Float64)
@@ -272,6 +289,10 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		for i, ms := range cfg.Measures {
 			if ms.Op == OpCount {
 				vals[i] = float64(g.count)
+				continue
+			}
+			if ms.Op == OpRecords {
+				vals[i] = float64(len(g.forms))
 				continue
 			}
 			vals[i] = reduceNumeric(ms, g.nums[numIdx[numKeyFor(ms.Source)]])
@@ -392,6 +413,9 @@ func sourceLabel(s SourceRef, bin Bin) string {
 func measureLabel(ms Measure) string {
 	if ms.Op == OpCount {
 		return "count"
+	}
+	if ms.Op == OpRecords {
+		return "records"
 	}
 	if ms.Op == OpPercentile && ms.Arg != nil {
 		return "p" + formatNum(*ms.Arg) + "(" + srcKey(ms.Source) + ")"

@@ -35,6 +35,7 @@
   "workspace.templates.stat_builder.parse_failed": "Kon de opgeslagen statistiek niet lezen; deze is gereset.",
   "workspace.templates.stat_builder.no_sources": "Nog geen statistische bronnen: markeer velden als statistisch of voeg eerst facetten toe.",
   "workspace.templates.stat_builder.op.count": "Aantal",
+  "workspace.templates.stat_builder.op.records": "Records (uniek)",
   "workspace.templates.stat_builder.op.sum": "Som",
   "workspace.templates.stat_builder.op.avg": "Gemiddelde",
   "workspace.templates.stat_builder.op.min": "Minimum",

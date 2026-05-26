@@ -267,8 +267,11 @@ export class GridCell {
 }
 
 /**
- * Measure is one cell value layer: count() (no source), a reduce over a
- * numeric field source, or percentile(source, p).
+ * Measure is one cell value layer: count() (rows, no source), records()
+ * (distinct contributing forms, no source), a reduce over a numeric field
+ * source, or percentile(source, p). records() differs from count() only on a
+ * fanned-out (table-column) source, where one form yields many rows: count()
+ * tallies the rows, records() tallies the distinct forms.
  */
 export class Measure {
     "Op": MeasureOp;
@@ -321,6 +324,7 @@ export enum MeasureOp {
     $zero = "",
 
     OpCount = "count",
+    OpRecords = "records",
     OpSum = "sum",
     OpAvg = "avg",
     OpMin = "min",

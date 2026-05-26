@@ -165,6 +165,7 @@ function opNeedsArg(op: string): boolean {
 
 const opLabelKeys: Record<string, string> = {
   count: "workspace.templates.stat_builder.op.count",
+  records: "workspace.templates.stat_builder.op.records",
   sum: "workspace.templates.stat_builder.op.sum",
   avg: "workspace.templates.stat_builder.op.avg",
   min: "workspace.templates.stat_builder.op.min",

@@ -66,11 +66,11 @@ func compileFilter(f Filter) (string, error) {
 
 func compileMeasure(m Measure) (string, error) {
 	switch {
-	case m.Op == OpCount:
+	case m.Op == OpCount || m.Op == OpRecords:
 		if m.Source != nil {
-			return "", fmt.Errorf("stat dsl: count() takes no source")
+			return "", fmt.Errorf("stat dsl: %s() takes no source", m.Op)
 		}
-		return "count()", nil
+		return string(m.Op) + "()", nil
 	case m.Op == OpPercentile:
 		if err := requireFieldSource(m.Source, "percentile"); err != nil {
 			return "", err

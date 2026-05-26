@@ -85,6 +85,22 @@ func TestCompile_Canonical(t *testing.T) {
 			want: `count()`,
 		},
 		{
+			name: "distinct-form count by table column",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpRecords}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
+			},
+			want: `records() by F["code-repositories"]["application"] top 10`,
+		},
+		{
+			name: "count and records together",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "status"}}},
+			},
+			want: `count(), records() by F["status"]`,
+		},
+		{
 			name: "top-N on a dimension",
 			cfg: StatConfig{
 				Measures:   []Measure{{Op: OpCount}},
@@ -141,6 +157,7 @@ func TestCompile_Rejects(t *testing.T) {
 	}{
 		{"no measures", StatConfig{}},
 		{"count with source", StatConfig{Measures: []Measure{{Op: OpCount, Source: &SourceRef{Kind: SourceField, Key: "x"}}}}},
+		{"records with source", StatConfig{Measures: []Measure{{Op: OpRecords, Source: &SourceRef{Kind: SourceField, Key: "x"}}}}},
 		{"avg without source", StatConfig{Measures: []Measure{{Op: OpAvg}}}},
 		{"avg over facet", StatConfig{Measures: []Measure{{Op: OpAvg, Source: &SourceRef{Kind: SourceFacet, Key: "p"}}}}},
 		{"percentile without arg", StatConfig{Measures: []Measure{{Op: OpPercentile, Source: &SourceRef{Kind: SourceField, Key: "x"}}}}},
@@ -206,6 +223,7 @@ func TestParse_Rejects(t *testing.T) {
 		`count() by`,                // dangling by
 		`count() by F["x"`,          // unterminated bracket
 		`avg(Facet["p"])`,           // reduce over facet
+		`records(F["x"])`,           // records takes no source
 		`bogus()`,                   // unknown measure
 		`count() by F["due"]@decade`, // bad bin
 		`count() extra`,             // trailing tokens
@@ -259,6 +277,10 @@ func TestRoundTrip_Identity(t *testing.T) {
 		{
 			Measures:   []Measure{{Op: OpCount}},
 			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}, Top: 10}},
+		},
+		{
+			Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
 		},
 		{
 			Measures:   []Measure{{Op: OpCount}},

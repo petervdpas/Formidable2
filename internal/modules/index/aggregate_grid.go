@@ -39,11 +39,13 @@ type AggFilter struct {
 	Value string
 }
 
-// StatRawRow is one form's contribution to an aggregation: the category
-// label per dimension (aligned to AggregateRaw's dims) and the num_value
-// of each requested numeric source (aligned to numKeys; invalid when the
-// form has no value for that source).
+// StatRawRow is one form's contribution to an aggregation: the source
+// form's filename (so the engine can count distinct forms, not just rows),
+// the category label per dimension (aligned to AggregateRaw's dims) and the
+// num_value of each requested numeric source (aligned to numKeys; invalid
+// when the form has no value for that source).
 type StatRawRow struct {
+	Form string
 	Dims []string
 	Nums []sql.NullFloat64
 }
@@ -149,11 +151,12 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum, fi
 		args = append(args, arg)
 	}
 
-	if len(sel) == 0 {
-		sel = append(sel, "1") // rank-0 count with no numeric source: one marker per form
-	}
-
-	q := "SELECT " + strings.Join(sel, ", ") + " FROM forms f " + strings.Join(joins, " ") + " WHERE f.template=?"
+	// f.filename leads every row so the engine can count distinct forms
+	// (the heaviness of a category) and not just fanned-out cell rows. It
+	// also makes the rank-0 (no dims, no nums) case a real column, so no
+	// marker placeholder is needed.
+	allSel := append([]string{"f.filename"}, sel...)
+	q := "SELECT " + strings.Join(allSel, ", ") + " FROM forms f " + strings.Join(joins, " ") + " WHERE f.template=?"
 	args = append(args, template)
 
 	rows, err := m.db.Query(q, args...)
@@ -165,23 +168,21 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum, fi
 	nd, nn := len(dims), len(nums)
 	var out []StatRawRow
 	for rows.Next() {
+		var form string
 		dimVals := make([]sql.NullString, nd)
 		numVals := make([]sql.NullFloat64, nn)
-		dest := make([]any, 0, nd+nn+1)
+		dest := make([]any, 0, 1+nd+nn)
+		dest = append(dest, &form)
 		for i := range dimVals {
 			dest = append(dest, &dimVals[i])
 		}
 		for j := range numVals {
 			dest = append(dest, &numVals[j])
 		}
-		if nd+nn == 0 {
-			var marker int
-			dest = append(dest, &marker)
-		}
 		if err := rows.Scan(dest...); err != nil {
 			return nil, fmt.Errorf("index: scan aggregate raw: %w", err)
 		}
-		r := StatRawRow{Dims: make([]string, nd), Nums: numVals}
+		r := StatRawRow{Form: form, Dims: make([]string, nd), Nums: numVals}
 		for i, dv := range dimVals {
 			r.Dims[i] = dv.String
 		}

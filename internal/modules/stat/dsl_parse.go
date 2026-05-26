@@ -254,11 +254,11 @@ func (p *dslParser) measure() (Measure, error) {
 		return Measure{}, err
 	}
 	switch {
-	case op == OpCount:
+	case op == OpCount || op == OpRecords:
 		if _, err := p.expect(tkRParen, "')'"); err != nil {
 			return Measure{}, err
 		}
-		return Measure{Op: OpCount}, nil
+		return Measure{Op: op}, nil
 	case op == OpPercentile:
 		src, err := p.fieldSource(string(op))
 		if err != nil {

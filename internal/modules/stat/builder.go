@@ -15,19 +15,19 @@ type MeasureOpDescriptor struct {
 
 // measureOpOrder is the catalog order the builder presents.
 var measureOpOrder = []MeasureOp{
-	OpCount, OpSum, OpAvg, OpMin, OpMax, OpMedian, OpStddev, OpPercentile,
+	OpCount, OpRecords, OpSum, OpAvg, OpMin, OpMax, OpMedian, OpStddev, OpPercentile,
 }
 
 // MeasureOps returns the ordered measure catalog with input rules. The
-// rules are derived from the same facts Compile/Parse enforce (count
-// takes no source; percentile takes an argument; every other op reduces
-// a numeric source), so there is one expression of the rule set.
+// rules are derived from the same facts Compile/Parse enforce (count and
+// records take no source; percentile takes an argument; every other op
+// reduces a numeric source), so there is one expression of the rule set.
 func MeasureOps() []MeasureOpDescriptor {
 	out := make([]MeasureOpDescriptor, 0, len(measureOpOrder))
 	for _, op := range measureOpOrder {
 		out = append(out, MeasureOpDescriptor{
 			Op:          op,
-			NeedsSource: op != OpCount,
+			NeedsSource: op != OpCount && op != OpRecords,
 			NeedsArg:    op == OpPercentile,
 		})
 	}

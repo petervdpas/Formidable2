@@ -221,6 +221,98 @@ func TestEvaluate_ScalarCrossedWithTableColumn(t *testing.T) {
 	}
 }
 
+func TestEvaluate_Records_CountsDistinctFormsNotRows(t *testing.T) {
+	// The ODS case: form x lists FMU on two components (two rows), form y
+	// lists it once. count() = 3 mentions; records() = 2 storage-items hit.
+	idx := &fakeIndex{
+		total: 2,
+		raw: []index.StatRawRow{
+			{Form: "x.meta.json", Dims: []string{"FMU"}},
+			{Form: "x.meta.json", Dims: []string{"FMU"}},
+			{Form: "y.meta.json", Dims: []string{"FMU"}},
+			{Form: "x.meta.json", Dims: []string{"Gradework"}},
+		},
+	}
+	m := NewManager(idx)
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	g, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(g.Measures, []string{"count", "records"}) {
+		t.Fatalf("measures = %v", g.Measures)
+	}
+	by := map[string][]float64{}
+	for _, c := range g.Cells {
+		by[g.Axes[0].Labels[c.Coords[0]]] = c.Values
+	}
+	// FMU: 3 mentions, 2 distinct storage-items.
+	if got := by["FMU"]; len(got) != 2 || got[0] != 3 || got[1] != 2 {
+		t.Errorf("FMU = %v, want [3 2] (count 3, records 2)", got)
+	}
+	// Gradework: 1 mention, 1 storage-item.
+	if got := by["Gradework"]; len(got) != 2 || got[0] != 1 || got[1] != 1 {
+		t.Errorf("Gradework = %v, want [1 1]", got)
+	}
+}
+
+func TestEvaluate_Records_RanksByFirstMeasure(t *testing.T) {
+	// count() first, records() second, top 2: the top-N is chosen by
+	// mentions (count), the heaviness (records) rides along.
+	idx := &fakeIndex{
+		total: 4,
+		raw: []index.StatRawRow{
+			// A: 4 mentions across 2 forms.
+			{Form: "f1", Dims: []string{"A"}}, {Form: "f1", Dims: []string{"A"}},
+			{Form: "f2", Dims: []string{"A"}}, {Form: "f2", Dims: []string{"A"}},
+			// B: 3 mentions across 3 forms.
+			{Form: "f1", Dims: []string{"B"}}, {Form: "f2", Dims: []string{"B"}}, {Form: "f3", Dims: []string{"B"}},
+			// C: 1 mention, 1 form (dropped by top 2).
+			{Form: "f4", Dims: []string{"C"}},
+		},
+	}
+	m := NewManager(idx)
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	g, err := m.Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 2}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Ranked by count desc: A (4), B (3). C dropped.
+	if want := []string{"A", "B"}; !reflect.DeepEqual(g.Axes[0].Labels, want) {
+		t.Fatalf("labels = %v, want %v", g.Axes[0].Labels, want)
+	}
+	// A: count 4, records 2. B: count 3, records 3.
+	if c := findCell(g, 0); c == nil || c.Values[0] != 4 || c.Values[1] != 2 {
+		t.Errorf("A = %+v, want count4 records2", c)
+	}
+	if c := findCell(g, 1); c == nil || c.Values[0] != 3 || c.Values[1] != 3 {
+		t.Errorf("B = %+v, want count3 records3", c)
+	}
+}
+
+func TestEvaluate_RejectsNumericMeasureAlongsideRecordsWithTableDim(t *testing.T) {
+	// records() is allowed on a table-column dimension, but a numeric
+	// measure beside it would over-count (it repeats per fanned cell).
+	m := NewManager(&fakeIndex{})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	_, err := m.Evaluate("t", StatConfig{
+		Measures: []Measure{
+			{Op: OpRecords},
+			{Op: OpAvg, Source: &SourceRef{Kind: SourceField, Key: "amount"}},
+		},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}}},
+	})
+	if err == nil {
+		t.Error("expected rejection: numeric measure alongside records() on a table-column dimension")
+	}
+}
+
 func TestEvaluate_TableColumnNeedsResolver(t *testing.T) {
 	m := NewManager(&fakeIndex{}) // no column resolver
 	_, err := m.Evaluate("t", StatConfig{
