@@ -133,7 +133,7 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 					EnableCollection: enable,
 				}
 			}
-			w.handler = NewHandler(w.stub, w.stubSt, w.stubWr, w.stubTpl)
+			w.handler = NewHandler(w.stub, w.stubSt, w.stubWr, w.stubTpl, nil)
 			return nil
 		})
 

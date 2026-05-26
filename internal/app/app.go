@@ -474,7 +474,7 @@ func New(d Deps) (*App, error) {
 	// longest-prefix match.
 	// stoM appears twice - once as Storage (LoadForm), once as Writer
 	// (SaveForm/DeleteForm). Same instance, narrow per-concern interfaces.
-	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM)
+	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM, statSvc)
 
 	// Auth scaffolding - Desktop mode. Two handlers cover the two
 	// transports the api rides on:

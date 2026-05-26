@@ -635,6 +635,105 @@ func pathsForReadAPI() map[string]any {
 				},
 			},
 		},
+		"/statistics/{template}": map[string]any{
+			"get": map[string]any{
+				"summary":     "List the template's named statistical objects",
+				"description": "Each object is a DSL distribution or a composite (hop route). Evaluate one at /statistics/<stem>/<name>.",
+				"parameters":  []any{param("TemplateParam")},
+				"responses": map[string]any{
+					"200": jsonInline(map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"template": map[string]any{"type": "string"},
+							"statistics": map[string]any{
+								"type": "array",
+								"items": map[string]any{
+									"type": "object",
+									"properties": map[string]any{
+										"name":  map[string]any{"type": "string"},
+										"label": map[string]any{"type": "string"},
+										"kind":  map[string]any{"type": "string", "enum": []any{"dsl", "composite"}},
+										"dsl":   map[string]any{"type": "string"},
+										"href":  map[string]any{"type": "string"},
+									},
+								},
+							},
+						},
+					}),
+					"403": errResp("collection-disabled"),
+				},
+			},
+			"post": map[string]any{
+				"summary":     "Evaluate an ad-hoc statistical DSL",
+				"description": "Body `{ \"dsl\": \"count() by F[...]\" }`. Returns the presentation-free grid (axes, measures, cells[].values, cells[].pct), ready to reshape (e.g. into an R data.frame).",
+				"parameters":  []any{param("TemplateParam")},
+				"requestBody": map[string]any{
+					"required": true,
+					"content": map[string]any{
+						"application/json": map[string]any{
+							"schema": map[string]any{
+								"type":     "object",
+								"required": []any{"dsl"},
+								"properties": map[string]any{
+									"dsl": map[string]any{"type": "string"},
+								},
+							},
+						},
+					},
+				},
+				"responses": map[string]any{
+					"200": jsonInline(statGridSchema()),
+					"400": errResp("bad-dsl"),
+					"403": errResp("collection-disabled"),
+					"422": errResp("bad-dsl"),
+				},
+			},
+		},
+		"/statistics/{template}/{name}": map[string]any{
+			"get": map[string]any{
+				"summary":     "Evaluate a named statistical object",
+				"description": "Returns a rank-N grid for a plain object, or a composite grid (parent + per-branch child grids) for a composite.",
+				"parameters": []any{
+					param("TemplateParam"),
+					map[string]any{
+						"name":        "name",
+						"in":          "path",
+						"required":    true,
+						"description": "Statistical object name",
+						"schema":      map[string]any{"type": "string"},
+					},
+				},
+				"responses": map[string]any{
+					"200": jsonInline(statGridSchema()),
+					"403": errResp("collection-disabled"),
+					"404": errResp("not-found"),
+					"422": errResp("evaluate-failed"),
+				},
+			},
+		},
+	}
+}
+
+// jsonInline wraps an inline schema as a 200 application/json response, for
+// endpoints whose shapes don't warrant a named component schema.
+func jsonInline(schema map[string]any) map[string]any {
+	return map[string]any{
+		"description": "OK",
+		"content": map[string]any{
+			"application/json": map[string]any{"schema": schema},
+		},
+	}
+}
+
+// statGridSchema loosely describes the engine's grid (and composite grid)
+// JSON: rank-N axes/measures/sparse cells with server-computed percentages.
+// Kept inline and permissive (additionalProperties) so composite grids
+// validate against the same response without a second named schema.
+func statGridSchema() map[string]any {
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": true,
+		"description":          "Rank-N grid (axes, measures, cells[].values, cells[].pct) or composite grid (parent, branches[].child).",
 	}
 }
 

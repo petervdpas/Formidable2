@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/stat"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -51,23 +52,36 @@ type Templates interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
+// Stats is the read surface for the /api/statistics/* endpoints: the
+// template's named statistical objects and their evaluated grids. The
+// real *stat.Service satisfies it; the engine owns the aggregation, the
+// API just serves the JSON so external consumers (R, scripts) can fetch
+// the same presentation-free grids the UI renders.
+type Stats interface {
+	ListObjects(template string) ([]stat.StatObject, error)
+	EvaluateObject(template, name string) (*stat.Grid, error)
+	EvaluateComposite(template, name string) (*stat.CompositeGrid, error)
+	EvaluateDSL(template, dsl string) (*stat.Grid, error)
+}
+
 // Handler exposes the /api/* routes as an http.Handler. The composition
 // root mounts the returned handler at the root mux's "/api/" prefix -
 // the api mux itself uses fully-qualified paths so no StripPrefix is
 // needed.
 type Handler struct {
-	dp  Provider
-	st  Storage
-	wr  Writer
-	tpl Templates
+	dp    Provider
+	st    Storage
+	wr    Writer
+	tpl   Templates
+	stats Stats
 }
 
 // NewHandler builds the API handler. Returns the underlying mux as
 // http.Handler so callers compose it through the standard interface;
 // route shapes stay private to this file and can be evolved without
 // rippling out.
-func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates) http.Handler {
-	h := &Handler{dp: dp, st: st, wr: wr, tpl: tpl}
+func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates, stats Stats) http.Handler {
+	h := &Handler{dp: dp, st: st, wr: wr, tpl: tpl, stats: stats}
 	mux := http.NewServeMux()
 	// Go 1.22+ typed patterns. Full paths (incl. "/api") so the
 	// composition root can mount this at the root mux without
@@ -110,5 +124,12 @@ func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates) http.Handler 
 	// slideout's <img src=…> via Wails AssetMiddleware so the markdown
 	// stays free of inlined base64.
 	mux.HandleFunc("/api/images/{tpl}/{filename}", h.imageBytes)
+	// Statistics live under their own prefix (not the collections subtree)
+	// so the {name} segment can't collide with /collections/{tpl}/{id}/...
+	// under Go's strict-mux ambiguity check. GET lists the named objects;
+	// GET /{name} evaluates one to its JSON grid (or composite grid); POST
+	// evaluates an ad-hoc DSL.
+	mux.HandleFunc("/api/statistics/{tpl}", h.statistics)
+	mux.HandleFunc("/api/statistics/{tpl}/{name}", h.statistic)
 	return mux
 }
