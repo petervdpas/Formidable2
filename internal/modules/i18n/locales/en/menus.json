@@ -3,6 +3,7 @@
   "menu.data.export": "Export CSV...",
   "menu.data.export_pdf": "Export PDF...",
   "menu.data.import": "Import CSV...",
+  "menu.data.reindex": "Reindex Search Index",
   "menu.file": "File",
   "menu.file.openStorageFolder": "Open Storage Folder",
   "menu.file.openTemplateFolder": "Open Template Folder",
@@ -21,6 +22,7 @@
   "menu.template.delete": "Delete…",
   "menu.utilities": "Utilities",
   "menu.utilities.cleanupStorage": "Cleanup Storage…",
+  "menu.utilities.reindex": "Reindex Search Index",
   "menu.utilities.inject_pdf_frontmatter": "Inject PDF Frontmatter…",
   "menu.utilities.migrate_pdf_frontmatter": "Migrate PDF Frontmatter…"
 }

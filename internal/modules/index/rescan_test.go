@@ -327,3 +327,89 @@ func TestRescanAll_DeletesOrphanTemplates(t *testing.T) {
 		t.Errorf("forms not cascaded: %+v", formRows)
 	}
 }
+
+// TestRescanTemplate_ForceReindexesItems is the core reason the function
+// exists: RescanAll is mtime-diff based, so a storage item whose bytes
+// didn't change is skipped even when its derived search body should be
+// rebuilt. RescanTemplate force re-reads every item regardless of mtime.
+func TestRescanTemplate_ForceReindexesItems(t *testing.T) {
+	f := newRescanFixture(t)
+	f.addTemplateOnDisk(t, "doc", "name: Doc\n", 1)
+	f.addFormOnDisk(t, "doc", "a.meta.json", "x", 10)
+	f.registerTemplate("doc", []template.Field{{Key: "body", Type: "text"}}, 1)
+	f.registerForm("doc", "a.meta.json", map[string]any{"body": "alpha"}, 10)
+	must(t, f.hand.RescanAll(context.Background()))
+
+	if rows, _ := f.mgr.SearchForms("doc.yaml", "alpha", QueryOpts{}); len(rows) != 1 {
+		t.Fatalf("initial body not indexed: %d hits", len(rows))
+	}
+
+	// Item content changes but the on-disk mtime/size do not (e.g. the
+	// projection logic changed, not the file). RescanAll must NOT pick it
+	// up - that's exactly the gap RescanTemplate fills.
+	f.registerForm("doc", "a.meta.json", map[string]any{"body": "omega"}, 10)
+	must(t, f.hand.RescanAll(context.Background()))
+	if rows, _ := f.mgr.SearchForms("doc.yaml", "omega", QueryOpts{}); len(rows) != 0 {
+		t.Fatalf("RescanAll re-read an unchanged file (test premise broken): %d hits", len(rows))
+	}
+
+	must(t, f.hand.RescanTemplate(context.Background(), "doc.yaml"))
+	if rows, _ := f.mgr.SearchForms("doc.yaml", "omega", QueryOpts{}); len(rows) != 1 {
+		t.Errorf("force reindex missed the new body: %d hits", len(rows))
+	}
+	if rows, _ := f.mgr.SearchForms("doc.yaml", "alpha", QueryOpts{}); len(rows) != 0 {
+		t.Errorf("stale body still searchable after reindex: %d hits", len(rows))
+	}
+}
+
+// TestRescanTemplate_DropsOrphans: an item removed from disk must lose
+// its index row when the collection is reindexed.
+func TestRescanTemplate_DropsOrphans(t *testing.T) {
+	f := newRescanFixture(t)
+	f.addTemplateOnDisk(t, "doc", "name: Doc\n", 1)
+	f.addFormOnDisk(t, "doc", "a.meta.json", "x", 10)
+	f.addFormOnDisk(t, "doc", "b.meta.json", "x", 11)
+	f.registerTemplate("doc", []template.Field{{Key: "body", Type: "text"}}, 1)
+	f.registerForm("doc", "a.meta.json", map[string]any{"body": "alpha"}, 10)
+	f.registerForm("doc", "b.meta.json", map[string]any{"body": "beta"}, 11)
+	must(t, f.hand.RescanAll(context.Background()))
+
+	if err := os.Remove(filepath.Join(f.root, "storage", "doc", "b.meta.json")); err != nil {
+		t.Fatal(err)
+	}
+	must(t, f.hand.RescanTemplate(context.Background(), "doc.yaml"))
+
+	if _, ok, _ := f.mgr.GetForm("doc.yaml", "b.meta.json"); ok {
+		t.Error("orphan b.meta.json still indexed")
+	}
+	if _, ok, _ := f.mgr.GetForm("doc.yaml", "a.meta.json"); !ok {
+		t.Error("a.meta.json should remain")
+	}
+}
+
+// TestRescanTemplate_TemplateGoneDeletes: reindexing a template whose
+// YAML no longer exists on disk collapses to a delete (cascade clears
+// the collection) rather than erroring.
+func TestRescanTemplate_TemplateGoneDeletes(t *testing.T) {
+	f := newRescanFixture(t)
+	f.addTemplateOnDisk(t, "doc", "name: Doc\n", 1)
+	f.addFormOnDisk(t, "doc", "a.meta.json", "x", 10)
+	f.registerTemplate("doc", []template.Field{{Key: "body", Type: "text"}}, 1)
+	f.registerForm("doc", "a.meta.json", map[string]any{"body": "alpha"}, 10)
+	must(t, f.hand.RescanAll(context.Background()))
+
+	if err := os.Remove(filepath.Join(f.root, "templates", "doc.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	must(t, f.hand.RescanTemplate(context.Background(), "doc.yaml"))
+
+	tpls, _ := f.mgr.ListTemplates()
+	for _, tr := range tpls {
+		if tr.Filename == "doc.yaml" {
+			t.Error("template row not deleted")
+		}
+	}
+	if rows, _ := f.mgr.ListForms("doc.yaml", QueryOpts{}); len(rows) != 0 {
+		t.Errorf("collection not cascaded: %+v", rows)
+	}
+}

@@ -59,6 +59,12 @@ type Indexer interface {
 // authoritative - same posture as the Indexer write hook.
 type FormReader interface {
 	ListSummaries(templateFilename string) ([]FormSummary, error)
+	// SearchSummaries returns the summaries of forms in one template
+	// whose full text matches query, ranked by relevance. Unlike
+	// ListSummaries there is no disk fallback: full-text search is an
+	// index-only capability (a disk walk has no inverted index to query),
+	// so a missing or erroring reader surfaces as an error to the caller.
+	SearchSummaries(templateFilename, query string) ([]FormSummary, error)
 }
 
 // Manager owns CRUD over the per-template storage tree.
@@ -393,6 +399,18 @@ func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, err
 			"template", templateFilename, "err", err)
 	}
 	return m.extendedListFormsFromDisk(templateFilename)
+}
+
+// SearchForms returns the summaries of forms in one template whose full
+// text matches query, ranked by relevance. It is backed entirely by the
+// installed FormReader (the SQLite FTS index); with no reader installed
+// there is nothing to search, so it returns an error rather than walking
+// disk. An empty query yields no rows (a blank search matches nothing).
+func (m *Manager) SearchForms(templateFilename, query string) ([]FormSummary, error) {
+	if m.reader == nil {
+		return nil, errors.New("storage: full-text search requires the index (no reader installed)")
+	}
+	return m.reader.SearchSummaries(templateFilename, query)
 }
 
 // extendedListFormsFromDisk is the original walk-every-file path.

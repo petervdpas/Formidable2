@@ -658,14 +658,24 @@ func TestDeleteForm_MissingIsNoOp(t *testing.T) {
 // returns; calls counts how many times the manager consulted the
 // reader (used to assert the disk fallback didn't run).
 type fakeFormReader struct {
-	out   []FormSummary
-	err   error
-	calls int
+	out         []FormSummary
+	err         error
+	calls       int
+	searchOut   []FormSummary
+	searchErr   error
+	searchCalls int
+	lastQuery   string
 }
 
 func (f *fakeFormReader) ListSummaries(_ string) ([]FormSummary, error) {
 	f.calls++
 	return f.out, f.err
+}
+
+func (f *fakeFormReader) SearchSummaries(_, query string) ([]FormSummary, error) {
+	f.searchCalls++
+	f.lastQuery = query
+	return f.searchOut, f.searchErr
 }
 
 func TestExtendedListForms_PrefersReaderWhenInstalled(t *testing.T) {
@@ -693,6 +703,42 @@ func TestExtendedListForms_PrefersReaderWhenInstalled(t *testing.T) {
 	}
 	if len(out) != 1 || out[0].Title != "reader-title" {
 		t.Errorf("reader result not surfaced: %+v", out)
+	}
+}
+
+func TestSearchForms_UsesReader(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	reader := &fakeFormReader{searchOut: []FormSummary{
+		{Filename: "hit.meta.json", Title: "Hit"},
+	}}
+	m.SetReader(reader)
+
+	out, err := m.SearchForms("basic.yaml", "needle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reader.searchCalls != 1 || reader.lastQuery != "needle" {
+		t.Errorf("reader not consulted correctly: calls=%d query=%q", reader.searchCalls, reader.lastQuery)
+	}
+	if len(out) != 1 || out[0].Filename != "hit.meta.json" {
+		t.Errorf("search result not surfaced: %+v", out)
+	}
+}
+
+func TestSearchForms_NoReaderErrors(t *testing.T) {
+	// No disk fallback for search: without an index there's nothing to
+	// query, so the caller gets an error rather than a silent empty list.
+	m, _, _, _ := newTestStack(t)
+	if _, err := m.SearchForms("basic.yaml", "needle"); err == nil {
+		t.Fatal("expected error when no reader installed")
+	}
+}
+
+func TestSearchForms_PropagatesReaderError(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	m.SetReader(&fakeFormReader{searchErr: errors.New("fts boom")})
+	if _, err := m.SearchForms("basic.yaml", "needle"); err == nil {
+		t.Fatal("expected reader error to propagate")
 	}
 }
 

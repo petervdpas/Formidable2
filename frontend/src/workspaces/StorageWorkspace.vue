@@ -14,6 +14,7 @@ import ExportPDFDialog from "../components/ExportPDFDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
+import StorageSearch from "../components/StorageSearch.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFacetFilter from "../components/StorageFacetFilter.vue";
 import StorageMetaBlock from "../components/StorageMetaBlock.vue";
@@ -35,6 +36,7 @@ import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formi
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
 import { backendErrMessage } from "../utils/backendError";
 import { scrollToActiveRow } from "../utils/scrollToActiveRow";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -447,11 +449,51 @@ async function pickForm(filename: string) {
 const facetFilters = ref<Record<string, string>>({});
 const tagFilter = ref("");
 
-// Reset facet filters when the active template changes - the new
-// template's facets may differ, which would otherwise leave the
-// sidebar mysteriously empty.
+// ── Full-text search (opt-in via config.enable_full_text_search) ─────
+// When enabled, the sidebar grows a search box that queries the FTS
+// index for this collection. searchResults holds the backend's ranked
+// matches (null = not searching, so the plain list shows). Search runs
+// over the whole collection on the backend; the facet/tag filters above
+// still compose on top of whichever set is showing.
+const ftsEnabled = computed(() => !!config.value?.enable_full_text_search);
+const searchQuery = ref("");
+const searchResults = ref<FormSummary[] | null>(null);
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function runSearch(): Promise<void> {
+  const tpl = selectedTemplate.value;
+  const q = searchQuery.value.trim();
+  if (!ftsEnabled.value || !tpl || q === "") {
+    searchResults.value = null;
+    return;
+  }
+  try {
+    searchResults.value = await StorageSvc.SearchForms(tpl, q);
+  } catch (err) {
+    listError.value = backendErrMessage(err);
+    searchResults.value = [];
+  }
+}
+
+// Debounce keystrokes so we don't fire an FTS query per character.
+watch(searchQuery, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { void runSearch(); }, 180);
+});
+onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer); });
+
+function clearSearch() {
+  searchQuery.value = "";
+  searchResults.value = null;
+}
+
+// Reset facet filters AND the search box when the active template
+// changes - the new template's facets may differ (otherwise the
+// sidebar looks mysteriously empty), and a stale query from the prior
+// collection shouldn't carry over.
 watch(selectedTemplate, () => {
   facetFilters.value = {};
+  clearSearch();
 });
 
 // Show a filter chip per facet key only when ≥1 record actually has
@@ -489,8 +531,17 @@ function clearFilters() {
   tagFilter.value = "";
 }
 
+// Search (when active) narrows the base set the facet/tag filters then
+// refine; otherwise the full list is the base. Search results keep the
+// backend's relevance order.
+const baseSummaries = computed(() =>
+  ftsEnabled.value && searchResults.value !== null
+    ? searchResults.value
+    : summaries.value,
+);
+
 const visibleSummaries = computed(() => {
-  let out = summaries.value;
+  let out = baseSummaries.value;
   const active = Object.entries(facetFilters.value).filter(([, v]) => v !== "");
   if (active.length > 0) {
     out = out.filter((s) => {
@@ -763,6 +814,26 @@ async function openStorageFolder() {
   }
 }
 
+// Data → Reindex: force-rebuild this collection's index rows (search
+// body, values, tags, facets, title) from disk, then re-read the list
+// and re-run any active search so the sidebar reflects the rebuild.
+const reindexing = ref(false);
+async function reindexCollection() {
+  const tpl = selectedTemplate.value;
+  if (!tpl || reindexing.value) return;
+  reindexing.value = true;
+  try {
+    await IndexSvc.RescanTemplate(tpl);
+    await refreshList();
+    if (searchResults.value !== null) await runSearch();
+    toast.success("workspace.storage.reindex.success", [tpl]);
+  } catch (e) {
+    toast.error("workspace.storage.reindex.error", [backendErrMessage(e)]);
+  } finally {
+    reindexing.value = false;
+  }
+}
+
 // ── CSV import / export dialogs ─────────────────────────────────────
 // Wails-side CSV import/export is collection-independent at the backend
 // (storage.ImportCsvRow + csv.Export both operate per-form). The
@@ -929,6 +1000,13 @@ setTopbarMenu(() => [
         disabled: !selectedTemplate.value || !csvAllowed.value,
         onClick: openExportCsv,
       },
+      { type: "separator", id: "data-sep-reindex" },
+      {
+        id: "reindexCollection",
+        labelKey: "menu.data.reindex",
+        disabled: !selectedTemplate.value || reindexing.value,
+        onClick: reindexCollection,
+      },
       // PDF export is hidden entirely while the engine is inactive -
       // user activates it from the Information workspace. The
       // separator rides along so the menu doesn't show a dangling
@@ -1015,7 +1093,11 @@ setTopbarMenu(() => [
       <div class="sidebar-section">
         <div class="sidebar-section-head">
           <span class="sidebar-label">{{ t('workspace.storage.forms_heading') }}</span>
-          <FilteredCount :visible="visibleSummaries.length" :total="summaries.length" />
+          <FilteredCount :visible="visibleSummaries.length" :total="baseSummaries.length" />
+        </div>
+
+        <div v-if="ftsEnabled" class="sidebar-section">
+          <StorageSearch v-model="searchQuery" />
         </div>
 
         <div v-if="usedFacets.length > 0" class="sidebar-toolbar">
@@ -1048,7 +1130,9 @@ setTopbarMenu(() => [
         </p>
         <p v-else-if="listError" class="form-error small">{{ listError }}</p>
         <p v-else-if="visibleSummaries.length === 0" class="muted small">
-          {{ t('workspace.storage.empty') }}
+          {{ ftsEnabled && searchResults !== null
+            ? t('workspace.storage.search.empty')
+            : t('workspace.storage.empty') }}
         </p>
 
         <ul v-else class="form-list">

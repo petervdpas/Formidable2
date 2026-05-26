@@ -196,50 +196,10 @@ func (m *Manager) queryForms(spec formsQuerySpec, opts QueryOpts) ([]FormRow, er
 	}
 	defer rows.Close()
 
-	var (
-		out   []FormRow
-		ccn   sql.NullString
-		cce   sql.NullString
-		ucn   sql.NullString
-		uce   sql.NullString
-		expI  sql.NullString
-		fmTit sql.NullString
-		idCol sql.NullString
-		title sql.NullString
-		creAt sql.NullString
-		updAt sql.NullString
-	)
-	for rows.Next() {
-		var r FormRow
-		var tagsJoined string
-		if err := rows.Scan(
-			&r.Template, &r.Filename, &idCol, &title, &fmTit,
-			&creAt, &ccn, &cce,
-			&updAt, &ucn, &uce,
-			&expI, &r.Mtime, &r.Size,
-			&tagsJoined,
-		); err != nil {
-			return nil, fmt.Errorf("index: scan form: %w", err)
-		}
-		r.ID = idCol.String
-		r.Title = title.String
-		r.FmTitle = fmTit.String
-		r.Created = creAt.String
-		r.CreatedName = ccn.String
-		r.CreatedEmail = cce.String
-		r.Updated = updAt.String
-		r.UpdatedName = ucn.String
-		r.UpdatedEmail = uce.String
-		r.ExpressionItems = expI.String
-		if tagsJoined != "" {
-			r.Tags = strings.Split(tagsJoined, "\x1f")
-		}
-		out = append(out, r)
-	}
-	if err := rows.Err(); err != nil {
+	out, err := scanFormRows(rows)
+	if err != nil {
 		return nil, err
 	}
-
 	if len(out) == 0 {
 		return out, nil
 	}

@@ -24,7 +24,7 @@ import (
 // schemaVersion is the version this binary writes and accepts. A DB
 // file stamped with a higher version is rejected (we don't downgrade);
 // a lower version triggers the matching forward migration.
-const schemaVersion = 3
+const schemaVersion = 4
 
 // migrations are applied in order; each one bumps meta.version when it
 // returns successfully. Index 0 is unused so the slice index lines up
@@ -34,6 +34,7 @@ var migrations = []string{
 	migrationV1,
 	migrationV2,
 	migrationV3,
+	migrationV4,
 }
 
 // migrationV1 is the initial schema. Lives as a Go string so the file
@@ -152,6 +153,49 @@ CREATE TABLE form_values (
     FOREIGN KEY (template, filename) REFERENCES forms(template, filename) ON DELETE CASCADE
 );
 CREATE INDEX idx_form_values_lookup ON form_values(template, field_key, col);
+
+DELETE FROM forms;
+`
+
+// migrationV4 lands full-text search on the index side. form_search
+// holds one row per form carrying the human-readable text the reconcile
+// pipeline flattens out of every prose field (title + body); form_fts
+// is an FTS5 external-content index over it (it stores only the inverted
+// index, reading the columns back from form_search by rowid, so the
+// prose isn't duplicated). Three triggers keep the FTS shadow tables in
+// lock-step with form_search insert/delete/update - and because the
+// reconciler drives form_search with direct DELETE/INSERT (never a bare
+// cascade), the triggers always fire. form_search FK-cascades off forms
+// for the rebuild-on-delete path. DELETE FROM forms forces RescanAll to
+// repopulate every row with body text - same rationale as v2/v3.
+const migrationV4 = `
+CREATE TABLE form_search (
+    template TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    title    TEXT,
+    body     TEXT,
+    PRIMARY KEY (template, filename),
+    FOREIGN KEY (template, filename) REFERENCES forms(template, filename) ON DELETE CASCADE
+);
+
+CREATE VIRTUAL TABLE form_fts USING fts5(
+    title,
+    body,
+    content='form_search',
+    content_rowid='rowid',
+    tokenize='unicode61 remove_diacritics 2'
+);
+
+CREATE TRIGGER form_search_ai AFTER INSERT ON form_search BEGIN
+    INSERT INTO form_fts(rowid, title, body) VALUES (new.rowid, new.title, new.body);
+END;
+CREATE TRIGGER form_search_ad AFTER DELETE ON form_search BEGIN
+    INSERT INTO form_fts(form_fts, rowid, title, body) VALUES ('delete', old.rowid, old.title, old.body);
+END;
+CREATE TRIGGER form_search_au AFTER UPDATE ON form_search BEGIN
+    INSERT INTO form_fts(form_fts, rowid, title, body) VALUES ('delete', old.rowid, old.title, old.body);
+    INSERT INTO form_fts(rowid, title, body) VALUES (new.rowid, new.title, new.body);
+END;
 
 DELETE FROM forms;
 `

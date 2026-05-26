@@ -31,6 +31,7 @@ import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/f
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
+import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
 import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
 import { scrollToActiveRow } from "../utils/scrollToActiveRow";
@@ -402,6 +403,27 @@ const generateOpen = ref(false);
 
 // ── Cleanup-storage dialog (Utilities → Cleanup Storage) ────────────
 const cleanupOpen = ref(false);
+
+// ── Reindex collection (Utilities → Reindex Search Index) ───────────
+// Force-reindexes the selected template's storage items: the backend
+// re-reads every record from disk and rebuilds its index rows (search
+// body, values, tags, facets, title). Cheap escape hatch for when the
+// full-text index is suspected of having drifted, or after a build
+// that changed how records are indexed.
+const reindexing = ref(false);
+async function reindexCollection() {
+  const fn = selectedFilename.value;
+  if (!fn || reindexing.value) return;
+  reindexing.value = true;
+  try {
+    await IndexSvc.RescanTemplate(fn);
+    toast.success("workspace.templates.reindex.success", [fn]);
+  } catch (e) {
+    toast.error("workspace.templates.reindex.error", [backendErrMessage(e)]);
+  } finally {
+    reindexing.value = false;
+  }
+}
 
 // ── PDF frontmatter utilities (Utilities → Inject / Migrate PDF FM) ──
 // Inject prepends the canonical picoloom scaffold to markdown_template
@@ -849,6 +871,12 @@ setTopbarMenu(() => [
         labelKey: "menu.utilities.cleanupStorage",
         disabled: !selectedFilename.value,
         onClick: () => { cleanupOpen.value = true; },
+      },
+      {
+        id: "reindexCollection",
+        labelKey: "menu.utilities.reindex",
+        disabled: !selectedFilename.value || reindexing.value,
+        onClick: reindexCollection,
       },
       { type: "separator", id: "utils-sep-pdf" },
       {

@@ -107,6 +107,21 @@ func (r *indexFormReader) ListSummaries(templateFilename string) ([]storage.Form
 	return out, nil
 }
 
+// SearchSummaries satisfies storage.FormReader. Orders by FTS5
+// relevance (SearchForms' own ranking), so the most relevant matches
+// lead - search results aren't filename-sorted like the plain list.
+func (r *indexFormReader) SearchSummaries(templateFilename, query string) ([]storage.FormSummary, error) {
+	rows, err := r.idx.SearchForms(templateFilename, query, index.QueryOpts{})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]storage.FormSummary, 0, len(rows))
+	for _, fr := range rows {
+		out = append(out, formRowToSummary(fr))
+	}
+	return out, nil
+}
+
 func formRowToSummary(r index.FormRow) storage.FormSummary {
 	s := storage.FormSummary{
 		Filename: r.Filename,

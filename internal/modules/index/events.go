@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -247,9 +248,53 @@ func buildFormRow(t *template.Template, f *storage.Form, templateFilename, dataf
 	row.Title = pickTitle(t.ItemField, f.Data, datafile)
 	row.Tags = pickTags(tagsKey, f.Data)
 	row.Values = pickValues(t.Fields, f.Data)
+	row.SearchBody = pickSearchBody(t.Fields, f.Data)
 	row.ExpressionItems = encodeExpressionItems(expressionFields, f.Data)
 
 	return row
+}
+
+// pickSearchBody flattens every prose field of a form into one blank-
+// separated string for the FTS5 body column. Unlike pickValues (which
+// is opt-in and aggregation-shaped), search wants the whole readable
+// document, so it pulls text from every field that carries words:
+// short/long text, single- and multi-choice labels, list/tag entries,
+// and table cells. Structured-only fields (guid, image, api) and the
+// title (indexed in its own FTS column) are skipped. Field order is the
+// template's, so the body reads top to bottom like the form.
+func pickSearchBody(fields []template.Field, data map[string]any) string {
+	var b strings.Builder
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return
+		}
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString(s)
+	}
+	for _, fld := range fields {
+		raw, ok := data[fld.Key]
+		if !ok {
+			continue
+		}
+		switch fld.Type {
+		case "text", "textarea", "dropdown", "radio":
+			add(asText(raw))
+		case "multioption", "list", "tags":
+			for _, item := range asSlice(raw) {
+				add(asText(item))
+			}
+		case "table":
+			for _, rowAny := range asSlice(raw) {
+				for _, cell := range asSlice(rowAny) {
+					add(asText(cell))
+				}
+			}
+		}
+	}
+	return b.String()
 }
 
 // pickTitle implements the same "item_field value, else filename"

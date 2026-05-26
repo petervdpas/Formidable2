@@ -37,6 +37,14 @@ function patchButtons(partial: Record<string, unknown>) {
         :off-label="t('common.disabled')"
       />
     </FormRow>
+    <FormRow :label="t('config.enable_full_text_search')">
+      <SwitchField
+        :model-value="cfg.enable_full_text_search"
+        @update:model-value="(v) => update({ enable_full_text_search: v })"
+        :on-label="t('common.enabled')"
+        :off-label="t('common.disabled')"
+      />
+    </FormRow>
     <FormRow :label="t('config.io_collection_only')">
       <SwitchField
         :model-value="cfg.io_collection_only"

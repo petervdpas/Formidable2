@@ -23,6 +23,8 @@
   "workspace.templates.delete.confirm": "Permanently delete the template “{0}”? This action can't be undone.",
   "workspace.templates.delete.error": "Could not delete template: {0}",
   "workspace.templates.open_folder.error": "Could not open folder: {0}",
+  "workspace.templates.reindex.success": "Reindexed “{0}”.",
+  "workspace.templates.reindex.error": "Reindex failed: {0}",
   "workspace.templates.pdf_fm.title_inject": "Inject PDF frontmatter",
   "workspace.templates.pdf_fm.title_migrate": "Migrate PDF frontmatter",
   "workspace.templates.pdf_fm.intro_inject": "Prepend the canonical picoloom v2 frontmatter scaffold to this template's markdown. Existing body is preserved. Click Apply to update the editor. You still need to Save the template afterwards.",

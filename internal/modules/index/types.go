@@ -38,8 +38,12 @@ type FormRow struct {
 	Tags            []string
 	Facets          []FormFacet
 	Values          []FormValueRow
-	Mtime           int64
-	Size            int64
+	// SearchBody is the flattened human-readable text of every prose
+	// field, fed to the FTS5 body column. Derived at reconcile time and
+	// not stored on the forms row itself - it lives only in form_search.
+	SearchBody string
+	Mtime      int64
+	Size       int64
 }
 
 // FormValueRow is one materialized, aggregatable value in the

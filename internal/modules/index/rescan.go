@@ -5,8 +5,85 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 )
+
+// RescanTemplate force-reindexes one template's collection: it re-reads
+// every storage item (.meta.json) of the template from disk regardless
+// of mtime, re-derives its index rows (title, tags, facets, values, and
+// the FTS search body), and drops index rows for items no longer on
+// disk. The template row itself is refreshed too.
+//
+// This is the on-demand rebuild path, distinct from RescanAll (mtime-
+// diff, so it skips a file whose bytes are unchanged even when our
+// projection logic changed) and from OnTemplateChanged (fires only on a
+// template save). Use it to rebuild a collection after a projection-
+// logic change ships, or when an item is suspected of having drifted
+// out of agreement with disk.
+//
+// A missing template on disk is treated as a delete (cascade removes
+// the collection). Per-item load failures are accumulated and returned
+// joined, never aborting the rest of the rebuild - same posture as
+// RescanAll.
+func (h *EventHandler) RescanTemplate(ctx context.Context, templateFilename string) error {
+	if h.root == "" {
+		return errors.New("index: RescanTemplate: root not set (call SetRoot)")
+	}
+
+	tplPath := filepath.Join(h.root, "templates", templateFilename)
+	info, err := os.Stat(tplPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return h.OnTemplateDeleted(templateFilename)
+	}
+	if err != nil {
+		return fmt.Errorf("index: stat template %q: %w", templateFilename, err)
+	}
+
+	tplRow, err := h.loadTemplateRow(FileEntry{
+		Filename: templateFilename,
+		Mtime:    info.ModTime().UnixNano(),
+		Size:     info.Size(),
+	})
+	if err != nil {
+		return err
+	}
+	batch := ReconcileBatch{UpsertTemplates: []TemplateRow{tplRow}}
+	var loadErrs []error
+
+	stem := strings.TrimSuffix(templateFilename, ".yaml")
+	diskForms, err := listFilesBySuffix(filepath.Join(h.root, "storage", stem), ".meta.json")
+	if err != nil {
+		return fmt.Errorf("index: scan storage for %q: %w", templateFilename, err)
+	}
+	onDisk := make(map[string]bool, len(diskForms))
+	for _, e := range diskForms {
+		onDisk[e.Filename] = true
+		row, err := h.loadFormRow(templateFilename, e)
+		if err != nil {
+			loadErrs = append(loadErrs, err)
+			continue
+		}
+		batch.UpsertForms = append(batch.UpsertForms, row)
+	}
+
+	indexed, err := h.listIndexedFormFiles(templateFilename)
+	if err != nil {
+		return fmt.Errorf("index: list indexed forms for %q: %w", templateFilename, err)
+	}
+	for _, name := range indexed {
+		if !onDisk[name] {
+			batch.DeleteForms = append(batch.DeleteForms, FormRef{Template: templateFilename, Filename: name})
+		}
+	}
+
+	if err := Reconcile(h.m.DB(), batch); err != nil {
+		loadErrs = append(loadErrs, err)
+	}
+	return errors.Join(loadErrs...)
+}
 
 // loadErrs accumulates per-template / per-form load failures during a
 // RescanAll. One bad file (malformed JSON, missing template, etc.)

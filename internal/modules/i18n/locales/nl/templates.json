@@ -23,6 +23,8 @@
   "workspace.templates.delete.confirm": "Sjabloon “{0}” permanent verwijderen? Dit kan niet ongedaan worden gemaakt.",
   "workspace.templates.delete.error": "Kon sjabloon niet verwijderen: {0}",
   "workspace.templates.open_folder.error": "Kon map niet openen: {0}",
+  "workspace.templates.reindex.success": "“{0}” opnieuw geïndexeerd.",
+  "workspace.templates.reindex.error": "Herindexeren mislukt: {0}",
   "workspace.templates.pdf_fm.title_inject": "PDF-frontmatter injecteren",
   "workspace.templates.pdf_fm.title_migrate": "PDF-frontmatter migreren",
   "workspace.templates.pdf_fm.intro_inject": "Voeg het canonieke picoloom v2 frontmatter-sjabloon vooraan toe aan de markdown van dit sjabloon. De bestaande body blijft behouden. Klik op Toepassen om de editor bij te werken. Daarna moet je het sjabloon nog Opslaan.",

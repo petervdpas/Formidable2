@@ -23,6 +23,7 @@ export class Config {
     "development_enable": boolean;
     "logging_enabled": boolean;
     "enable_plugins": boolean;
+    "enable_full_text_search": boolean;
     "update_check": boolean;
     "context_mode": string;
     "context_ribbon": string;
@@ -85,6 +86,9 @@ export class Config {
         }
         if (!("enable_plugins" in $$source)) {
             this["enable_plugins"] = false;
+        }
+        if (!("enable_full_text_search" in $$source)) {
+            this["enable_full_text_search"] = false;
         }
         if (!("update_check" in $$source)) {
             this["update_check"] = false;
@@ -166,22 +170,22 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField18_0 = $$createType0;
-        const $$createField31_0 = $$createType1;
-        const $$createField34_0 = $$createType2;
-        const $$createField35_0 = $$createType3;
+        const $$createField19_0 = $$createType0;
+        const $$createField32_0 = $$createType1;
+        const $$createField35_0 = $$createType2;
+        const $$createField36_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enabled_templates" in $$parsedSource) {
-            $$parsedSource["enabled_templates"] = $$createField18_0($$parsedSource["enabled_templates"]);
+            $$parsedSource["enabled_templates"] = $$createField19_0($$parsedSource["enabled_templates"]);
         }
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField31_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField32_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField34_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField35_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField35_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField36_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }

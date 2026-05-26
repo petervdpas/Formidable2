@@ -5,6 +5,7 @@
   "config.development_enable": "Development Mode",
   "config.enable_internal_server": "Internal Server",
   "config.enable_plugins": "Plugins",
+  "config.enable_full_text_search": "Full-Text Search",
   "config.history.enabled": "History",
   "config.history.max_size": "History Max Size",
   "config.history.persist": "Persist History",

@@ -35,6 +35,13 @@ func (s *Service) ExtendedListForms(templateFilename string) ([]FormSummary, err
 	return s.m.ExtendedListForms(templateFilename)
 }
 
+// SearchForms runs a full-text query over one template's collection and
+// returns matching summaries ranked by relevance. Backed by the SQLite
+// FTS index; an empty query returns no rows.
+func (s *Service) SearchForms(templateFilename, query string) ([]FormSummary, error) {
+	return s.m.SearchForms(templateFilename, query)
+}
+
 func (s *Service) LoadForm(templateFilename, datafile string) *Form {
 	return s.m.LoadForm(templateFilename, datafile)
 }

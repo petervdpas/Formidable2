@@ -3,6 +3,7 @@
   "menu.data.export": "CSV exporteren...",
   "menu.data.export_pdf": "PDF exporteren...",
   "menu.data.import": "CSV importeren...",
+  "menu.data.reindex": "Zoekindex herbouwen",
   "menu.file": "Bestand",
   "menu.file.openStorageFolder": "Open opslagmap",
   "menu.file.openTemplateFolder": "Open sjablonenmap",
@@ -21,6 +22,7 @@
   "menu.template.delete": "Verwijderen…",
   "menu.utilities": "Hulpmiddelen",
   "menu.utilities.cleanupStorage": "Opslag opschonen…",
+  "menu.utilities.reindex": "Zoekindex herbouwen",
   "menu.utilities.inject_pdf_frontmatter": "PDF-frontmatter injecteren…",
   "menu.utilities.migrate_pdf_frontmatter": "PDF-frontmatter migreren…"
 }

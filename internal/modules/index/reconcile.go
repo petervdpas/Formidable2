@@ -191,6 +191,21 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 	}
 	defer insertValue.Close()
 
+	clearSearch, err := tx.Prepare(`DELETE FROM form_search WHERE template = ? AND filename = ?`)
+	if err != nil {
+		return fmt.Errorf("index: prepare clear search: %w", err)
+	}
+	defer clearSearch.Close()
+
+	insertSearch, err := tx.Prepare(`
+		INSERT INTO form_search (template, filename, title, body)
+		VALUES (?, ?, ?, ?)
+	`)
+	if err != nil {
+		return fmt.Errorf("index: prepare insert search: %w", err)
+	}
+	defer insertSearch.Close()
+
 	for _, r := range rows {
 		if _, err := formStmt.Exec(
 			r.Template, r.Filename, r.ID, r.Title, r.FmTitle,
@@ -255,6 +270,16 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 				return fmt.Errorf("index: insert value %q for %q/%q: %w", v.FieldKey, r.Template, r.Filename, err)
 			}
 		}
+
+		// Search re-sync, same replace-all shape. The direct DELETE +
+		// INSERT on form_search fire its triggers, which keep the FTS5
+		// shadow index in step. One row per form (title + flattened body).
+		if _, err := clearSearch.Exec(r.Template, r.Filename); err != nil {
+			return fmt.Errorf("index: clear search for %q/%q: %w", r.Template, r.Filename, err)
+		}
+		if _, err := insertSearch.Exec(r.Template, r.Filename, r.Title, r.SearchBody); err != nil {
+			return fmt.Errorf("index: insert search for %q/%q: %w", r.Template, r.Filename, err)
+		}
 	}
 	return nil
 }
@@ -263,12 +288,24 @@ func deleteForms(tx *sql.Tx, refs []FormRef) error {
 	if len(refs) == 0 {
 		return nil
 	}
+	// Drop the search row first with a direct DELETE so its trigger fires
+	// and the FTS5 entry is retracted. A bare FK cascade off forms is not
+	// guaranteed to fire the trigger, so we don't rely on it.
+	clearSearch, err := tx.Prepare(`DELETE FROM form_search WHERE template = ? AND filename = ?`)
+	if err != nil {
+		return fmt.Errorf("index: prepare delete search: %w", err)
+	}
+	defer clearSearch.Close()
+
 	stmt, err := tx.Prepare(`DELETE FROM forms WHERE template = ? AND filename = ?`)
 	if err != nil {
 		return fmt.Errorf("index: prepare delete form: %w", err)
 	}
 	defer stmt.Close()
 	for _, r := range refs {
+		if _, err := clearSearch.Exec(r.Template, r.Filename); err != nil {
+			return fmt.Errorf("index: clear search %q/%q: %w", r.Template, r.Filename, err)
+		}
 		if _, err := stmt.Exec(r.Template, r.Filename); err != nil {
 			return fmt.Errorf("index: delete form %q/%q: %w", r.Template, r.Filename, err)
 		}

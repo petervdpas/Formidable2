@@ -117,6 +117,7 @@ type App struct {
 	Manual        *manual.Service
 	CodeFormatter *codeformatter.Service
 	UpdateCheck   *updatecheck.Service
+	Index         *index.Service
 
 	templateManager   *template.Manager
 	storageManager    *storage.Manager
@@ -700,6 +701,7 @@ func New(d Deps) (*App, error) {
 		Manual:            manual.NewService(),
 		CodeFormatter:     codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
 		UpdateCheck:       updatecheck.NewService(updateCheckM, openInDefaultBrowser),
+		Index:             index.NewService(ehM),
 		templateManager:   tplM,
 		storageManager:    stoM,
 		formManager:       formM,

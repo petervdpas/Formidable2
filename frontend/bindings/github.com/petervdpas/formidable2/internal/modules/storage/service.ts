@@ -104,6 +104,17 @@ export function SaveImageFile(templateFilename: string, name: string, content: s
 }
 
 /**
+ * SearchForms runs a full-text query over one template's collection and
+ * returns matching summaries ranked by relevance. Backed by the SQLite
+ * FTS index; an empty query returns no rows.
+ */
+export function SearchForms(templateFilename: string, query: string): $CancellablePromise<$models.FormSummary[]> {
+    return $Call.ByID(3000744366, templateFilename, query).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * TemplateStorageDir returns the absolute path of this template's
  * storage folder. Used by the Utilities menu's "Open Storage Folder"
  * action; the frontend pipes the result through System.OpenExternal.
