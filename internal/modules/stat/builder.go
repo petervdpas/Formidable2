@@ -37,6 +37,10 @@ func MeasureOps() []MeasureOpDescriptor {
 // Bins is the ordered catalog of date-bin options (including "none").
 func Bins() []Bin { return []Bin{BinNone, BinYear, BinMonth, BinDay} }
 
+// PercentBases is the ordered catalog of percentage denominators the builder
+// offers; the engine owns the set, the UI only labels them.
+func PercentBases() []PercentBase { return []PercentBase{PctDistribution, PctForms, PctNone} }
+
 // FilterOpDescriptor describes a where-clause operator: Numeric is true
 // when its value is a number (comparison) rather than a text literal
 // (equality). The builder uses this to render the value input and to

@@ -206,6 +206,19 @@ func (p *dslParser) object() (StatConfig, error) {
 			cfg.Filters = append(cfg.Filters, f)
 		}
 	}
+	if p.peek().kind == tkIdent && p.peek().val == "pct" {
+		p.advance()
+		bt := p.peek()
+		if bt.kind != tkIdent {
+			return cfg, fmt.Errorf("stat dsl: expected a percent base after 'pct', got %q", bt.val)
+		}
+		base := PercentBase(bt.val)
+		if !validPercentBases[base] {
+			return cfg, fmt.Errorf("stat dsl: invalid percent base %q (want distribution/forms/none)", bt.val)
+		}
+		p.advance()
+		cfg.Percent = base
+	}
 	return cfg, nil
 }
 

@@ -112,6 +112,10 @@ func (s *Service) BuilderMeasureOps() []MeasureOpDescriptor { return MeasureOps(
 // BuilderBins is the date-bin catalog for the dimension binning picker.
 func (s *Service) BuilderBins() []Bin { return Bins() }
 
+// BuilderPercentBases is the percentage-denominator catalog for the builder's
+// percent-base picker (distribution / forms / none).
+func (s *Service) BuilderPercentBases() []PercentBase { return PercentBases() }
+
 // BuilderFilterOps is the where-clause operator catalog for the filter
 // picker (op + whether its value is numeric).
 func (s *Service) BuilderFilterOps() []FilterOpDescriptor { return FilterOps() }

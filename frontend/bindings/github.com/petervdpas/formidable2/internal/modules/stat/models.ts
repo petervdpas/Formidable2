@@ -452,12 +452,15 @@ export class GridAxis {
 }
 
 /**
- * GridCell is one populated coordinate: indices into each axis and the
- * value of each measure (aligned to Grid.Measures).
+ * GridCell is one populated coordinate: indices into each axis, the value of
+ * each measure (aligned to Grid.Measures), and each value's share (0-100) of
+ * that measure's total across the grid. Pct is computed server-side so every
+ * renderer reads the same figure instead of recomputing it.
  */
 export class GridCell {
     "coords": number[];
     "values": number[];
+    "pct": number[];
 
     /** Creates a new GridCell instance. */
     constructor($$source: Partial<GridCell> = {}) {
@@ -466,6 +469,9 @@ export class GridCell {
         }
         if (!("values" in $$source)) {
             this["values"] = [];
+        }
+        if (!("pct" in $$source)) {
+            this["pct"] = [];
         }
 
         Object.assign(this, $$source);
@@ -477,12 +483,16 @@ export class GridCell {
     static createFrom($$source: any = {}): GridCell {
         const $$createField0_0 = $$createType14;
         const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coords" in $$parsedSource) {
             $$parsedSource["coords"] = $$createField0_0($$parsedSource["coords"]);
         }
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField1_0($$parsedSource["values"]);
+        }
+        if ("pct" in $$parsedSource) {
+            $$parsedSource["pct"] = $$createField2_0($$parsedSource["pct"]);
         }
         return new GridCell($$parsedSource as Partial<GridCell>);
     }
@@ -590,6 +600,35 @@ export class MeasureOpDescriptor {
 }
 
 /**
+ * PercentBase selects the denominator the engine uses for each cell's
+ * computed percentage. It is an authored setting on the object (the builder
+ * sets it, the DSL carries it), not a render-time choice.
+ */
+export enum PercentBase {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * PctDistribution: share of the measure's total across this grid's cells
+     * (categories sum to 100%). The default; an empty PercentBase means this.
+     */
+    PctDistribution = "distribution",
+
+    /**
+     * PctForms: share of all forms (grid Total), so e.g. partially-filled or
+     * multi-value distributions read against the record count.
+     */
+    PctForms = "forms",
+
+    /**
+     * PctNone: no percentage computed.
+     */
+    PctNone = "none",
+};
+
+/**
  * SourceKind distinguishes a field source from a facet source.
  */
 export enum SourceKind {
@@ -639,8 +678,8 @@ export class SourceRef {
 /**
  * StatConfig is the parsed statistical DSL: one or more measures (cell
  * value layers) over zero or more dimensions (axes), optionally scoped by
- * AND-ed equality filters. No dimensions => a rank-0 scalar; one => a 1D
- * array; two => a 2D matrix; and so on.
+ * AND-ed equality filters, with a percentage base. No dimensions => a rank-0
+ * scalar; one => a 1D array; two => a 2D matrix; and so on.
  * 
  * Named StatConfig (not Config) to stay unambiguous inside the stat
  * package, which already carries Result/Series.
@@ -649,6 +688,11 @@ export class StatConfig {
     "Measures": Measure[];
     "Dimensions": Dimension[];
     "Filters": Filter[];
+
+    /**
+     * "" means PctDistribution
+     */
+    "Percent": PercentBase;
 
     /** Creates a new StatConfig instance. */
     constructor($$source: Partial<StatConfig> = {}) {
@@ -660,6 +704,9 @@ export class StatConfig {
         }
         if (!("Filters" in $$source)) {
             this["Filters"] = [];
+        }
+        if (!("Percent" in $$source)) {
+            this["Percent"] = PercentBase.$zero;
         }
 
         Object.assign(this, $$source);

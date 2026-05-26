@@ -28,11 +28,14 @@ type GridAxis struct {
 	Labels []string `json:"labels"`
 }
 
-// GridCell is one populated coordinate: indices into each axis and the
-// value of each measure (aligned to Grid.Measures).
+// GridCell is one populated coordinate: indices into each axis, the value of
+// each measure (aligned to Grid.Measures), and each value's share (0-100) of
+// that measure's total across the grid. Pct is computed server-side so every
+// renderer reads the same figure instead of recomputing it.
 type GridCell struct {
 	Coords []int     `json:"coords"`
 	Values []float64 `json:"values"`
+	Pct    []float64 `json:"pct"`
 }
 
 // EvaluateDSL parses a statistical-DSL string and evaluates it against the
@@ -310,7 +313,44 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 			applyTopN(grid, i, min(d.Top, 20))
 		}
 	}
+	addPercents(grid, cfg.Percent)
 	return grid, nil
+}
+
+// addPercents fills each cell's Pct with its share (0-100) per the authored
+// base: PctDistribution (and "") divides by each measure's total across the
+// grid's (post-top-N) cells, so categories sum to 100%; PctForms divides by
+// the form count (grid Total); PctNone leaves Pct unset. Computed once in Go
+// so every renderer reads one figure rather than dividing in JS.
+func addPercents(g *Grid, base PercentBase) {
+	if base == PctNone {
+		return
+	}
+	nm := len(g.Measures)
+	if nm == 0 {
+		return
+	}
+	denoms := make([]float64, nm)
+	if base == PctForms {
+		for m := range denoms {
+			denoms[m] = float64(g.Total)
+		}
+	} else {
+		for _, c := range g.Cells {
+			for m := 0; m < nm && m < len(c.Values); m++ {
+				denoms[m] += c.Values[m]
+			}
+		}
+	}
+	for i := range g.Cells {
+		c := &g.Cells[i]
+		c.Pct = make([]float64, len(c.Values))
+		for m := range c.Values {
+			if m < nm && denoms[m] != 0 {
+				c.Pct[m] = c.Values[m] / denoms[m] * 100
+			}
+		}
+	}
 }
 
 // applyTopN keeps the n highest categories on axis `ax` (ranked by the

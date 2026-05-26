@@ -46,6 +46,14 @@ func Compile(cfg StatConfig) (string, error) {
 		}
 		out += " where " + strings.Join(preds, " and ")
 	}
+	// The percentage base is canonical only when non-default: "" and
+	// "distribution" both omit the clause, so round-trip stays stable.
+	if cfg.Percent != "" && cfg.Percent != PctDistribution {
+		if !validPercentBases[cfg.Percent] {
+			return "", fmt.Errorf("stat dsl: invalid percent base %q", cfg.Percent)
+		}
+		out += " pct " + string(cfg.Percent)
+	}
 	return out, nil
 }
 

@@ -10,6 +10,8 @@ package stat
 //
 //	object    := measure ("," measure)*  ( "by" dimension ("," dimension)* )?
 //	             ( "where" filter ( "and" filter )* )?
+//	             ( "pct" base )?                      // percentage denominator
+//	base      := "distribution" | "forms" | "none"   // default: distribution
 //	filter    := source op value                     // scope, AND-chained
 //	op        := "eq" | "ne" | "lt" | "le" | "gt" | "ge"
 //	             // eq/ne take a quoted string; lt/le/gt/ge take a number
@@ -120,10 +122,28 @@ type Filter struct {
 	Value  string
 }
 
+// PercentBase selects the denominator the engine uses for each cell's
+// computed percentage. It is an authored setting on the object (the builder
+// sets it, the DSL carries it), not a render-time choice.
+type PercentBase string
+
+const (
+	// PctDistribution: share of the measure's total across this grid's cells
+	// (categories sum to 100%). The default; an empty PercentBase means this.
+	PctDistribution PercentBase = "distribution"
+	// PctForms: share of all forms (grid Total), so e.g. partially-filled or
+	// multi-value distributions read against the record count.
+	PctForms PercentBase = "forms"
+	// PctNone: no percentage computed.
+	PctNone PercentBase = "none"
+)
+
+var validPercentBases = map[PercentBase]bool{PctDistribution: true, PctForms: true, PctNone: true}
+
 // StatConfig is the parsed statistical DSL: one or more measures (cell
 // value layers) over zero or more dimensions (axes), optionally scoped by
-// AND-ed equality filters. No dimensions => a rank-0 scalar; one => a 1D
-// array; two => a 2D matrix; and so on.
+// AND-ed equality filters, with a percentage base. No dimensions => a rank-0
+// scalar; one => a 1D array; two => a 2D matrix; and so on.
 //
 // Named StatConfig (not Config) to stay unambiguous inside the stat
 // package, which already carries Result/Series.
@@ -131,4 +151,5 @@ type StatConfig struct {
 	Measures   []Measure
 	Dimensions []Dimension
 	Filters    []Filter
+	Percent    PercentBase // "" means PctDistribution
 }

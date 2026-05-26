@@ -131,12 +131,14 @@ func (m *Manager) NumericStats(template, fieldKey string, col *int, percentile *
 			values = append(values, *s.Percentile)
 		}
 	}
-	return &Grid{
+	g := &Grid{
 		Axes:     []GridAxis{},
 		Measures: measures,
 		Cells:    []GridCell{{Coords: []int{}, Values: values}},
 		Total:    total,
-	}, nil
+	}
+	addPercents(g, PctDistribution)
+	return g, nil
 }
 
 // CrossTab is the pair-combination matrix between two facets, as a
@@ -189,12 +191,14 @@ func (m *Manager) CrossTab(template, keyA, keyB string) (*Grid, error) {
 			grid = append(grid, GridCell{Coords: []int{aIdx[a], bIdx[b]}, Values: []float64{float64(n)}})
 		}
 	}
-	return &Grid{
+	g := &Grid{
 		Axes:     []GridAxis{{Source: keyA, Labels: aLabels}, {Source: keyB, Labels: bLabels}},
 		Measures: []string{"count"},
 		Cells:    grid,
 		Total:    total,
-	}, nil
+	}
+	addPercents(g, PctDistribution)
+	return g, nil
 }
 
 // bucketsToGrid is the shared rank-1 shaper: labels → axis ticks, counts
@@ -211,10 +215,12 @@ func (m *Manager) bucketsToGrid(template, source string, buckets []index.Bucket)
 		labels[i] = b.Label
 		cells = append(cells, GridCell{Coords: []int{i}, Values: []float64{float64(b.Count)}})
 	}
-	return &Grid{
+	g := &Grid{
 		Axes:     []GridAxis{{Source: source, Labels: labels}},
 		Measures: []string{"count"},
 		Cells:    cells,
 		Total:    total,
-	}, nil
+	}
+	addPercents(g, PctDistribution)
+	return g, nil
 }

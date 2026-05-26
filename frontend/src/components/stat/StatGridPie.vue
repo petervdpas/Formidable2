@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { type Grid, denseRank1, facetColorToken, fmtNum, byValueDesc, CHART_PALETTE } from "./grid";
+import { type Grid, denseRank1, densePct, facetColorToken, fmtNum, byValueDesc, CHART_PALETTE } from "./grid";
 
 // Rank-1 grid as a pie of one measure across axis 0's labels, with the
 // legend drawn INSIDE the same <svg> (swatch + text) so the chart is a
@@ -24,8 +24,9 @@ const view = computed(() => {
   const labels = props.grid.axes[0]?.labels ?? [];
   const axisSource = props.grid.axes[0]?.source ?? "";
   const values = denseRank1(props.grid, props.measureIndex);
+  const pcts = densePct(props.grid, props.measureIndex);
   const slices = labels
-    .map((raw, i) => ({ raw, label: raw === "" ? "(unset)" : raw, value: values[i] ?? 0 }))
+    .map((raw, i) => ({ raw, label: raw === "" ? "(unset)" : raw, value: values[i] ?? 0, pct: pcts[i] ?? 0 }))
     .filter((s) => s.value > 0)
     .sort(byValueDesc);
   const total = slices.reduce((a, s) => a + s.value, 0);
@@ -36,7 +37,7 @@ const view = computed(() => {
 
   // Legend text per slice + viewBox width sized to the longest line.
   const texts = slices.map(
-    (s) => `${s.label} - ${fmtNum(s.value)} (${Math.round((s.value / total) * 100)}%)`,
+    (s) => `${s.label} - ${fmtNum(s.value)} (${Math.round(s.pct)}%)`,
   );
   const maxChars = Math.max(0, ...texts.map((t) => t.length));
   const legendW = SWATCH + 8 + Math.round(maxChars * 6.2);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { type Grid, denseRank1, facetColorToken, fmtNum, byValueDesc } from "./grid";
+import { type Grid, denseRank1, densePct, facetColorToken, fmtNum, byValueDesc } from "./grid";
 
 // Rank-1 grid as a horizontal bar chart of one measure across axis 0's
 // labels. Percentages are shown against grid.total when the measure is a
@@ -29,6 +29,7 @@ const view = computed(() => {
   const labels = props.grid.axes[0]?.labels ?? [];
   const axisSource = props.grid.axes[0]?.source ?? "";
   const values = denseRank1(props.grid, props.measureIndex);
+  const pcts = densePct(props.grid, props.measureIndex);
   if (labels.length === 0) return null;
 
   // Left gutter sizes to the longest label so long facet-option names
@@ -40,7 +41,6 @@ const view = computed(() => {
 
   const max = Math.max(1, ...values.map((v) => Math.abs(v)));
   const barAreaW = props.width - padLeft - PAD_RIGHT;
-  const total = props.grid.total ?? 0;
 
   // Bars read highest-first by the measure on screen. Display order is a
   // renderer concern (the dialog can switch the shown measure), so it is
@@ -50,7 +50,8 @@ const view = computed(() => {
   const rows = labels
     .map((raw, i) => {
       const value = values[i] ?? 0;
-      const pct = isCount.value && total > 0 ? Math.round((value / total) * 100) : null;
+      // Share of the distribution, computed server-side; shown for count.
+      const pct = isCount.value ? Math.round(pcts[i] ?? 0) : null;
       const token = facetColorToken(props.facets, axisSource, raw);
       return {
         value,

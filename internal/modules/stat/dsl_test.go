@@ -101,6 +101,24 @@ func TestCompile_Canonical(t *testing.T) {
 			want: `count(), records() by F["status"]`,
 		},
 		{
+			name: "percent base forms",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpCount}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "status"}}},
+				Percent:    PctForms,
+			},
+			want: `count() by F["status"] pct forms`,
+		},
+		{
+			name: "percent base distribution is the default and omitted",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpCount}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "status"}}},
+				Percent:    PctDistribution,
+			},
+			want: `count() by F["status"]`,
+		},
+		{
 			name: "top-N on a dimension",
 			cfg: StatConfig{
 				Measures:   []Measure{{Op: OpCount}},
@@ -281,6 +299,16 @@ func TestRoundTrip_Identity(t *testing.T) {
 		{
 			Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
 			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
+		},
+		{
+			Measures:   []Measure{{Op: OpCount}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "status"}}},
+			Percent:    PctForms,
+		},
+		{
+			Measures:   []Measure{{Op: OpCount}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "status"}}},
+			Percent:    PctNone,
 		},
 		{
 			Measures:   []Measure{{Op: OpCount}},

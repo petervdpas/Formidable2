@@ -24,6 +24,7 @@ export {
     Measure,
     MeasureOp,
     MeasureOpDescriptor,
+    PercentBase,
     SourceKind,
     SourceRef,
     StatConfig,

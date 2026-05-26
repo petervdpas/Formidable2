@@ -36,6 +36,9 @@ export interface GridAxis {
 export interface GridCell {
   coords: number[];
   values: number[];
+  // Share (0-100) of each measure's total across the grid, computed in Go so
+  // every renderer reads one figure instead of dividing in JS.
+  pct?: number[];
 }
 export interface Grid {
   axes: GridAxis[];
@@ -86,6 +89,17 @@ export function denseRank1(g: Grid, measureIdx: number): number[] {
   return out;
 }
 
+/** Dense 1D vector of one measure's server-computed percentage share
+ *  (0-100) aligned to axis 0's labels. */
+export function densePct(g: Grid, measureIdx: number): number[] {
+  const n = g.axes[0]?.labels.length ?? 0;
+  const out = new Array<number>(n).fill(0);
+  for (const c of g.cells) {
+    if (c.coords.length === 1) out[c.coords[0]] = c.pct?.[measureIdx] ?? 0;
+  }
+  return out;
+}
+
 /** Dense rows x cols matrix of one measure (axis0 = rows, axis1 = cols). */
 export function denseRank2(g: Grid, measureIdx: number): number[][] {
   const rows = g.axes[0]?.labels.length ?? 0;
@@ -93,6 +107,18 @@ export function denseRank2(g: Grid, measureIdx: number): number[][] {
   const out = Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
   for (const c of g.cells) {
     if (c.coords.length === 2) out[c.coords[0]][c.coords[1]] = c.values[measureIdx] ?? 0;
+  }
+  return out;
+}
+
+/** Dense rows x cols matrix of one measure's server-computed percentage
+ *  share (0-100), aligned to the rank-2 axes. */
+export function denseRank2Pct(g: Grid, measureIdx: number): number[][] {
+  const rows = g.axes[0]?.labels.length ?? 0;
+  const cols = g.axes[1]?.labels.length ?? 0;
+  const out = Array.from({ length: rows }, () => new Array<number>(cols).fill(0));
+  for (const c of g.cells) {
+    if (c.coords.length === 2) out[c.coords[0]][c.coords[1]] = c.pct?.[measureIdx] ?? 0;
   }
   return out;
 }

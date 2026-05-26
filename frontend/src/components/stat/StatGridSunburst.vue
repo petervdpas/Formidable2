@@ -5,6 +5,7 @@ import {
   type CompositeGrid,
   type Grid,
   denseRank1,
+  densePct,
   facetColorToken,
   byValueDesc,
   fmtNum,
@@ -60,12 +61,19 @@ interface Slice {
   raw: string;
   label: string;
   value: number;
+  pct: number; // server-computed share of the measure total
 }
 function slicesOf(g: Grid, measureIdx: number): Slice[] {
   const labels = g.axes[0]?.labels ?? [];
   const values = denseRank1(g, measureIdx);
+  const pcts = densePct(g, measureIdx);
   return labels
-    .map((raw, i) => ({ raw, label: raw === "" ? "(unset)" : raw, value: values[i] ?? 0 }))
+    .map((raw, i) => ({
+      raw,
+      label: raw === "" ? "(unset)" : raw,
+      value: values[i] ?? 0,
+      pct: pcts[i] ?? 0,
+    }))
     .filter((s) => s.value > 0)
     .sort(byValueDesc);
 }
@@ -135,7 +143,7 @@ const view = computed(() => {
       false,
       token ? `expr-text-${token}` : "",
       token ? "" : CHART_PALETTE[(arcs.length - 1) % CHART_PALETTE.length],
-      `${s.label} - ${fmtNum(s.value)} (${Math.round(frac * 100)}%)`,
+      `${s.label} - ${fmtNum(s.value)} (${Math.round(s.pct)}%)`,
     );
 
     const child = childByBranch.get(s.raw);
@@ -147,11 +155,13 @@ const view = computed(() => {
 
     let ca = a0;
     childSlices.forEach((cs) => {
-      const cf = (cs.value / childTotal) * frac; // fill the parent arc proportionally
-      const ca1 = ca + cf * Math.PI * 2;
+      const share = cs.value / childTotal; // share of the branch, sums to 100%
+      const ca1 = ca + share * frac * Math.PI * 2; // fill the parent arc proportionally
       const fill = CHART_PALETTE[childColor % CHART_PALETTE.length];
       arcs.push({ d: ringSeg(c, rp, rc, ca, ca1), colorClass: "", fill });
-      pushLegend(true, false, "", fill, `${cs.label} - ${fmtNum(cs.value)}`);
+      // Raw value plus its server-computed share of the branch, so the legend
+      // speaks the same language as the arc (the shares roll up to the slice).
+      pushLegend(true, false, "", fill, `${cs.label} - ${fmtNum(cs.value)} (${Math.round(cs.pct)}%)`);
       childColor++;
       ca = ca1;
     });

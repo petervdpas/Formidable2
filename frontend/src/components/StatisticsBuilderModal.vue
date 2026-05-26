@@ -54,6 +54,7 @@ interface StatConfig {
   Measures: Measure[];
   Dimensions: Dimension[];
   Filters: Filter[];
+  Percent: string; // "" = distribution (default)
 }
 
 const props = defineProps<{
@@ -73,7 +74,7 @@ const { t } = useI18n();
 
 const name = ref("");
 const label = ref("");
-const config = ref<StatConfig>({ Measures: [], Dimensions: [], Filters: [] });
+const config = ref<StatConfig>({ Measures: [], Dimensions: [], Filters: [], Percent: "" });
 const dslPreview = ref("");
 const compileError = ref("");
 const parseWarn = ref(false);
@@ -195,6 +196,21 @@ const binLabelKeys: Record<string, string> = {
 const binOptions = computed(() =>
   bins.value.map((b) => ({ value: b, label: binLabelKeys[b] ? t(binLabelKeys[b]) : b })),
 );
+
+// Percentage base: which denominator the engine uses for each cell's pct.
+// Catalog from the backend; the UI only labels it.
+const percentBases = ref<string[]>([]);
+const pctBaseLabelKeys: Record<string, string> = {
+  distribution: "workspace.templates.stat_builder.pct.distribution",
+  forms: "workspace.templates.stat_builder.pct.forms",
+  none: "workspace.templates.stat_builder.pct.none",
+};
+const percentBaseOptions = computed(() =>
+  percentBases.value.map((b) => ({ value: b, label: pctBaseLabelKeys[b] ? t(pctBaseLabelKeys[b]) : b })),
+);
+function setPercent(v: string) {
+  config.value = { ...config.value, Percent: v };
+}
 
 function dimIsDate(d: Dimension): boolean {
   return !!sourceByKey.value[srcKey(d.Source)]?.date;
@@ -350,7 +366,7 @@ watch(config, () => void recompile(), { deep: true });
 
 // ── Open: load initial or start fresh ───────────────────────────────
 function freshConfig(): StatConfig {
-  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [], Filters: [] };
+  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [], Filters: [], Percent: "" };
 }
 
 watch(
@@ -361,14 +377,16 @@ watch(
     compileError.value = "";
     dslPreview.value = "";
     if (measureOps.value.length === 0) {
-      const [ops, bs, fops] = await Promise.all([
+      const [ops, bs, fops, pbs] = await Promise.all([
         StatSvc.BuilderMeasureOps(),
         StatSvc.BuilderBins(),
         StatSvc.BuilderFilterOps(),
+        StatSvc.BuilderPercentBases(),
       ]);
       measureOps.value = ops;
       bins.value = bs;
       filterOps.value = fops;
+      percentBases.value = pbs;
     }
     if (props.initial) {
       name.value = props.initial.name;
@@ -381,6 +399,7 @@ watch(
             Measures: (parsed.Measures ?? []) as Measure[],
             Dimensions: (parsed.Dimensions ?? []) as Dimension[],
             Filters: (parsed.Filters ?? []) as Filter[],
+            Percent: (parsed.Percent ?? "") as string,
           };
         } catch {
           config.value = freshConfig();
@@ -581,6 +600,19 @@ async function onApply() {
             @click="addFilter"
           >+ {{ t('workspace.templates.stat_builder.add_filter') }}</button>
         </div>
+      </fieldset>
+
+      <!-- PERCENTAGE BASE -->
+      <fieldset class="stat-builder-fieldset">
+        <legend>{{ t('workspace.templates.stat_builder.pct.legend') }}</legend>
+        <p class="muted small stat-builder-hint">
+          {{ t('workspace.templates.stat_builder.pct.hint') }}
+        </p>
+        <SelectField
+          :model-value="config.Percent || 'distribution'"
+          :options="percentBaseOptions"
+          @update:model-value="setPercent"
+        />
       </fieldset>
 
       <!-- PREVIEW -->

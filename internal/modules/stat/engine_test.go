@@ -60,6 +60,64 @@ func TestEvaluate_Rank1_CountAndAvg(t *testing.T) {
 	}
 }
 
+func TestEvaluate_AddsPercentShareOfMeasureTotal(t *testing.T) {
+	idx := &fakeIndex{total: 4, raw: []index.StatRawRow{
+		{Dims: []string{"a"}}, {Dims: []string{"a"}}, {Dims: []string{"a"}}, {Dims: []string{"b"}},
+	}}
+	g, err := NewManager(idx).Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "x"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// a = 3 of 4 mentions = 75%, b = 1 of 4 = 25% (share of the measure total,
+	// not of grid.Total). Computed server-side, on every cell.
+	if c := findCell(g, 0); c == nil || c.Pct[0] != 75 {
+		t.Errorf("a pct = %+v, want 75", c)
+	}
+	if c := findCell(g, 1); c == nil || c.Pct[0] != 25 {
+		t.Errorf("b pct = %+v, want 25", c)
+	}
+}
+
+func TestEvaluate_PercentBaseForms_DividesByFormCount(t *testing.T) {
+	// 3 mentions across 2 forms (total). pct forms: a = 2 of 2 forms = 100%.
+	idx := &fakeIndex{total: 2, raw: []index.StatRawRow{
+		{Dims: []string{"a"}}, {Dims: []string{"a"}}, {Dims: []string{"b"}},
+	}}
+	g, err := NewManager(idx).Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "x"}}},
+		Percent:    PctForms,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// a = 2 mentions of 2 forms = 100%, b = 1 of 2 = 50% (vs 67/33 for distribution).
+	if c := findCell(g, 0); c == nil || c.Pct[0] != 100 {
+		t.Errorf("a pct(forms) = %+v, want 100", c)
+	}
+	if c := findCell(g, 1); c == nil || c.Pct[0] != 50 {
+		t.Errorf("b pct(forms) = %+v, want 50", c)
+	}
+}
+
+func TestEvaluate_PercentBaseNone_LeavesPctUnset(t *testing.T) {
+	idx := &fakeIndex{total: 2, raw: []index.StatRawRow{{Dims: []string{"a"}}, {Dims: []string{"b"}}}}
+	g, err := NewManager(idx).Evaluate("t", StatConfig{
+		Measures:   []Measure{{Op: OpCount}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "x"}}},
+		Percent:    PctNone,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := findCell(g, 0); c == nil || c.Pct != nil {
+		t.Errorf("pct should be unset for 'none', got %+v", c)
+	}
+}
+
 func TestEvaluate_Rank0_Count(t *testing.T) {
 	idx := &fakeIndex{
 		total: 3,

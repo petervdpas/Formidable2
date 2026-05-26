@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { type Grid, denseRank2, fmtNum } from "./grid";
+import { type Grid, denseRank2, denseRank2Pct, fmtNum } from "./grid";
 
 // Rank-2 grid as a heatmap of one measure: axis 0 = rows, axis 1 = cols.
 // Drawn as a single SVG (cell rects shaded by value over the matrix max,
@@ -15,8 +15,8 @@ const props = withDefaults(
 );
 
 const PAD = 22;
-const CELL_W = 40;
-const CELL_H = 28;
+const CELL_W = 44;
+const CELL_H = 36; // two lines: the value, then its share of the matrix
 
 function unset(l: string): string {
   return l === "" ? "(unset)" : l;
@@ -31,6 +31,7 @@ const view = computed(() => {
   if (rowLabels.length === 0 || colLabels.length === 0) return null;
 
   const matrix = denseRank2(props.grid, props.measureIndex);
+  const pctMatrix = denseRank2Pct(props.grid, props.measureIndex);
   let max = 0;
   for (const r of matrix) for (const v of r) max = Math.max(max, Math.abs(v));
 
@@ -51,6 +52,8 @@ const view = computed(() => {
       // 0.12 floor so a populated-but-tiny cell still reads as filled.
       alpha: max > 0 && v !== 0 ? 0.12 + 0.78 * (Math.abs(v) / max) : 0,
       text: v === 0 ? "" : fmtNum(v),
+      // Server-computed share of the matrix total (% of all cells).
+      pct: v === 0 ? "" : `${Math.round(pctMatrix[ri][ci])}%`,
     })),
   );
   const cols = colLabels.map((label, ci) => ({ label, cx: gridX + ci * CELL_W + CELL_W / 2 }));
@@ -108,10 +111,17 @@ const view = computed(() => {
           <text
             v-if="cell.text"
             :x="cell.x + CELL_W / 2"
-            :y="cell.y + CELL_H / 2 + 4"
+            :y="cell.y + CELL_H / 2 - 1"
             text-anchor="middle"
             class="stat-bar-value"
           >{{ cell.text }}</text>
+          <text
+            v-if="cell.pct"
+            :x="cell.x + CELL_W / 2"
+            :y="cell.y + CELL_H / 2 + 11"
+            text-anchor="middle"
+            class="stat-heat-pct"
+          >{{ cell.pct }}</text>
         </g>
       </template>
     </svg>

@@ -53,6 +53,14 @@
   font-family: var(--font-monospace, monospace);
 }
 
+/* Heatmap cell secondary line: the cell's share of the matrix total. */
+.stat-heat-pct {
+  font-size: 9px;
+  fill: var(--color-text-muted);
+  font-family: var(--font-monospace, monospace);
+  opacity: 0.85;
+}
+
 /* SVG scalar cards (StatGridScalars rendered as SVG) */
 .stat-svg-card {
   fill: none;
