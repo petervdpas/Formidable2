@@ -61,11 +61,23 @@ export function CompileDSL(cfg: $models.StatConfig): $CancellablePromise<string>
 }
 
 /**
+ * CompositeOptions reports the composites (hop routes) buildable from the
+ * template's named objects: each rank-1 parent and, per branch, the existing
+ * children that can drill it. The builder renders only these, so the structure
+ * gates what the author can wire. Backend steers the frontend.
+ */
+export function CompositeOptions(template: string): $CancellablePromise<$models.CompositeOption[]> {
+    return $Call.ByID(1204583787, template).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
  * CrossTab is the pair-combination matrix between two facets (rank-2).
  */
 export function CrossTab(template: string, keyA: string, keyB: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(721428515, template, keyA, keyB).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -75,7 +87,20 @@ export function CrossTab(template: string, keyA: string, keyB: string): $Cancell
  */
 export function Distribution(template: string, fieldKey: string, col: number | null): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(3246012510, template, fieldKey, col).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
+    });
+}
+
+/**
+ * EvaluateComposite resolves a template's named composite object (a hop
+ * route) and evaluates it: the parent rank-1 grid plus a child grid per
+ * drilled branch (nil for solid leaves). Errors if the name is unknown or
+ * is not a composite. This is the surface the sunburst/drill renderer
+ * consumes; plain objects use EvaluateObject.
+ */
+export function EvaluateComposite(template: string, name: string): $CancellablePromise<$models.CompositeGrid | null> {
+    return $Call.ByID(138719682, template, name).then(($result: any) => {
+        return $$createType10($result);
     });
 }
 
@@ -86,7 +111,7 @@ export function Distribution(template: string, fieldKey: string, col: number | n
  */
 export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(2268999486, template, dsl).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -97,7 +122,7 @@ export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<
  */
 export function EvaluateObject(template: string, name: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(864923500, template, name).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -106,7 +131,7 @@ export function EvaluateObject(template: string, name: string): $CancellableProm
  */
 export function FacetDistribution(template: string, facetKey: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(248037669, template, facetKey).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -118,7 +143,7 @@ export function FacetDistribution(template: string, facetKey: string): $Cancella
  */
 export function ListObjects(template: string): $CancellablePromise<$models.StatObject[]> {
     return $Call.ByID(1835086144, template).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType12($result);
     });
 }
 
@@ -128,7 +153,7 @@ export function ListObjects(template: string): $CancellablePromise<$models.StatO
  */
 export function NumericStats(template: string, fieldKey: string, col: number | null, percentile: number | null): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(2728644434, template, fieldKey, col, percentile).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -140,7 +165,7 @@ export function NumericStats(template: string, fieldKey: string, col: number | n
  */
 export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
     return $Call.ByID(2598631634, dsl).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType13($result);
     });
 }
 
@@ -150,7 +175,7 @@ export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
  */
 export function TimeSeries(template: string, fieldKey: string, col: number | null, period: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(4140051192, template, fieldKey, col, period).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -160,8 +185,12 @@ const $$createType1 = $models.FilterOpDescriptor.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $models.MeasureOpDescriptor.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.Grid.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $models.StatObject.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $models.StatConfig.createFrom;
+const $$createType5 = $models.CompositeOption.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.Grid.createFrom;
+const $$createType8 = $Create.Nullable($$createType7);
+const $$createType9 = $models.CompositeGrid.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = $models.StatObject.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $models.StatConfig.createFrom;

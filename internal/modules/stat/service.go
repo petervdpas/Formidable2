@@ -3,13 +3,32 @@ package stat
 import "fmt"
 
 // StatObject is a named statistical object defined on a template: its
-// identifier, optional human label, and the DSL the engine evaluates.
-// Mirrors template.Statistic without the template dependency, so the
-// catalog can travel to Vue and Lua via the Service.
+// identifier, optional human label, and either a DSL (a plain object the
+// engine evaluates) or a Composite spec (a hop route referencing other
+// objects by name). Exactly one of DSL / Composite is set. Mirrors
+// template.Statistic without the template dependency, so the catalog can
+// travel to Vue and Lua via the Service.
 type StatObject struct {
-	Name  string `json:"name"`
-	Label string `json:"label,omitempty"`
-	DSL   string `json:"dsl"`
+	Name      string         `json:"name"`
+	Label     string         `json:"label,omitempty"`
+	DSL       string         `json:"dsl"`
+	Composite *CompositeSpec `json:"composite,omitempty"`
+}
+
+// CompositeSpec is the stored form of a composite (hop route): a parent
+// object name plus per-branch child object names. Resolved against the
+// template's other objects by ResolveComposite. Kept name-based (not
+// inlined configs) so the parent and children stay single sources of truth.
+type CompositeSpec struct {
+	Parent string              `json:"parent"`
+	Edges  []CompositeEdgeSpec `json:"edges"`
+}
+
+// CompositeEdgeSpec maps one parent branch value to the child object that
+// drills it.
+type CompositeEdgeSpec struct {
+	Branch string `json:"branch"`
+	Child  string `json:"child"`
 }
 
 // StatisticSource resolves a template's named statistical objects. The
@@ -113,6 +132,68 @@ func (s *Service) ListObjects(template string) ([]StatObject, error) {
 		return nil, fmt.Errorf("stat: no statistic source configured")
 	}
 	return s.src.ListStatistics(template)
+}
+
+// CompositeOptions reports the composites (hop routes) buildable from the
+// template's named objects: each rank-1 parent and, per branch, the existing
+// children that can drill it. The builder renders only these, so the structure
+// gates what the author can wire. Backend steers the frontend.
+func (s *Service) CompositeOptions(template string) ([]CompositeOption, error) {
+	if s.src == nil {
+		return nil, fmt.Errorf("stat: no statistic source configured")
+	}
+	objs, err := s.src.ListStatistics(template)
+	if err != nil {
+		return nil, err
+	}
+	return CompositeOptions(objs), nil
+}
+
+// EvaluateComposite resolves a template's named composite object (a hop
+// route) and evaluates it: the parent rank-1 grid plus a child grid per
+// drilled branch (nil for solid leaves). Errors if the name is unknown or
+// is not a composite. This is the surface the sunburst/drill renderer
+// consumes; plain objects use EvaluateObject.
+func (s *Service) EvaluateComposite(template, name string) (*CompositeGrid, error) {
+	if s.src == nil {
+		return nil, fmt.Errorf("stat: no statistic source configured")
+	}
+	objs, err := s.src.ListStatistics(template)
+	if err != nil {
+		return nil, err
+	}
+	catalog := make(catalogConfigs, len(objs))
+	for _, o := range objs {
+		catalog[o.Name] = o
+	}
+	obj, ok := catalog[name]
+	if !ok {
+		return nil, fmt.Errorf("stat: no statistic %q on template %q", name, template)
+	}
+	if obj.Composite == nil {
+		return nil, fmt.Errorf("stat: statistic %q is not a composite", name)
+	}
+	comp, err := ResolveComposite(*obj.Composite, catalog)
+	if err != nil {
+		return nil, err
+	}
+	return s.m.EvaluateComposite(template, comp)
+}
+
+// catalogConfigs adapts a template's object catalog (name -> object) to the
+// ObjectConfigs the composite resolver needs: it parses a plain object's DSL
+// and rejects unknown names and composites (no nesting).
+type catalogConfigs map[string]StatObject
+
+func (c catalogConfigs) Config(name string) (StatConfig, error) {
+	o, ok := c[name]
+	if !ok {
+		return StatConfig{}, fmt.Errorf("object %q not found", name)
+	}
+	if o.Composite != nil {
+		return StatConfig{}, fmt.Errorf("object %q is a composite and cannot be nested", name)
+	}
+	return Parse(o.DSL)
 }
 
 // EvaluateObject resolves a template's named statistical object to its

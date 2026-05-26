@@ -47,10 +47,11 @@ func Normalize(t *Template) {
 
 // normalizeStatistics is the authoritative cleanup for a template's
 // statistical objects (the Statistical Engine's per-template specs):
-// trim names, drop entries missing a name or DSL, and dedupe by name
-// (first wins, order preserved). It does NOT parse the DSL here - that
-// keeps the template package decoupled from the Statistical Engine; the
-// engine reports DSL errors at evaluation.
+// trim names, drop entries that are neither a DSL object nor a composite
+// (a composite needs a parent), and dedupe by name (first wins, order
+// preserved). It does NOT parse the DSL or resolve the composite here -
+// that keeps the template package decoupled from the Statistical Engine,
+// which reports DSL / relation errors at evaluation.
 func normalizeStatistics(t *Template) {
 	if len(t.Statistics) == 0 {
 		t.Statistics = nil
@@ -61,7 +62,8 @@ func normalizeStatistics(t *Template) {
 	for _, s := range t.Statistics {
 		name := strings.TrimSpace(s.Name)
 		dsl := strings.TrimSpace(s.DSL)
-		if name == "" || dsl == "" || seen[name] {
+		composite := s.Composite != nil && strings.TrimSpace(s.Composite.Parent) != ""
+		if name == "" || (dsl == "" && !composite) || seen[name] {
 			continue
 		}
 		seen[name] = true

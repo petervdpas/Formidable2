@@ -21,6 +21,228 @@ export enum Bin {
 };
 
 /**
+ * BranchGrid is one parent category and the child object drilling it (nil = a
+ * leaf with no edge).
+ */
+export class BranchGrid {
+    "branch": string;
+    "child": Grid | null;
+
+    /** Creates a new BranchGrid instance. */
+    constructor($$source: Partial<BranchGrid> = {}) {
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("child" in $$source)) {
+            this["child"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BranchGrid instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BranchGrid {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("child" in $$parsedSource) {
+            $$parsedSource["child"] = $$createField1_0($$parsedSource["child"]);
+        }
+        return new BranchGrid($$parsedSource as Partial<BranchGrid>);
+    }
+}
+
+/**
+ * CompositeEdgeOption is one branch of a parent and the child objects eligible
+ * to drill it.
+ */
+export class CompositeEdgeOption {
+    /**
+     * a parent branch value (a child's eq-filter value on the base)
+     */
+    "branch": string;
+
+    /**
+     * names of eligible child objects
+     */
+    "children": string[];
+
+    /** Creates a new CompositeEdgeOption instance. */
+    constructor($$source: Partial<CompositeEdgeOption> = {}) {
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("children" in $$source)) {
+            this["children"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CompositeEdgeOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CompositeEdgeOption {
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("children" in $$parsedSource) {
+            $$parsedSource["children"] = $$createField1_0($$parsedSource["children"]);
+        }
+        return new CompositeEdgeOption($$parsedSource as Partial<CompositeEdgeOption>);
+    }
+}
+
+/**
+ * CompositeEdgeSpec maps one parent branch value to the child object that
+ * drills it.
+ */
+export class CompositeEdgeSpec {
+    "branch": string;
+    "child": string;
+
+    /** Creates a new CompositeEdgeSpec instance. */
+    constructor($$source: Partial<CompositeEdgeSpec> = {}) {
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("child" in $$source)) {
+            this["child"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CompositeEdgeSpec instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CompositeEdgeSpec {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CompositeEdgeSpec($$parsedSource as Partial<CompositeEdgeSpec>);
+    }
+}
+
+/**
+ * CompositeGrid is the evaluated composite: the parent rank-1 grid plus, in
+ * the parent's axis order, the child grid that drills each category (nil for a
+ * solid leaf).
+ */
+export class CompositeGrid {
+    "parent": Grid | null;
+    "branches": BranchGrid[];
+
+    /** Creates a new CompositeGrid instance. */
+    constructor($$source: Partial<CompositeGrid> = {}) {
+        if (!("parent" in $$source)) {
+            this["parent"] = null;
+        }
+        if (!("branches" in $$source)) {
+            this["branches"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CompositeGrid instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CompositeGrid {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("parent" in $$parsedSource) {
+            $$parsedSource["parent"] = $$createField0_0($$parsedSource["parent"]);
+        }
+        if ("branches" in $$parsedSource) {
+            $$parsedSource["branches"] = $$createField1_0($$parsedSource["branches"]);
+        }
+        return new CompositeGrid($$parsedSource as Partial<CompositeGrid>);
+    }
+}
+
+/**
+ * CompositeOption is one composite the builder may offer: a rank-1 parent
+ * object and, per branch, the existing child objects that can drill it (those
+ * whose DSL already filters the parent base to that branch value). The frontend
+ * renders only these, so an author can only wire links the engine will accept.
+ * Backend steers; the structure is the gate.
+ */
+export class CompositeOption {
+    /**
+     * parent object name
+     */
+    "parent": string;
+
+    /**
+     * the base (group-by) source the children must filter
+     */
+    "base": string;
+    "edges": CompositeEdgeOption[];
+
+    /** Creates a new CompositeOption instance. */
+    constructor($$source: Partial<CompositeOption> = {}) {
+        if (!("parent" in $$source)) {
+            this["parent"] = "";
+        }
+        if (!("base" in $$source)) {
+            this["base"] = "";
+        }
+        if (!("edges" in $$source)) {
+            this["edges"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CompositeOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CompositeOption {
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("edges" in $$parsedSource) {
+            $$parsedSource["edges"] = $$createField2_0($$parsedSource["edges"]);
+        }
+        return new CompositeOption($$parsedSource as Partial<CompositeOption>);
+    }
+}
+
+/**
+ * CompositeSpec is the stored form of a composite (hop route): a parent
+ * object name plus per-branch child object names. Resolved against the
+ * template's other objects by ResolveComposite. Kept name-based (not
+ * inlined configs) so the parent and children stay single sources of truth.
+ */
+export class CompositeSpec {
+    "parent": string;
+    "edges": CompositeEdgeSpec[];
+
+    /** Creates a new CompositeSpec instance. */
+    constructor($$source: Partial<CompositeSpec> = {}) {
+        if (!("parent" in $$source)) {
+            this["parent"] = "";
+        }
+        if (!("edges" in $$source)) {
+            this["edges"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CompositeSpec instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CompositeSpec {
+        const $$createField1_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("edges" in $$parsedSource) {
+            $$parsedSource["edges"] = $$createField1_0($$parsedSource["edges"]);
+        }
+        return new CompositeSpec($$parsedSource as Partial<CompositeSpec>);
+    }
+}
+
+/**
  * Dimension is one group-by axis: a source, optionally date-binned, and
  * optionally capped to its Top-N categories (ranked by the first measure,
  * the tail dropped). Top 0 means all categories; valid Top is 1..20.
@@ -49,7 +271,7 @@ export class Dimension {
      * Creates a new Dimension instance from a string or object.
      */
     static createFrom($$source: any = {}): Dimension {
-        const $$createField0_0 = $$createType0;
+        const $$createField0_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Source" in $$parsedSource) {
             $$parsedSource["Source"] = $$createField0_0($$parsedSource["Source"]);
@@ -87,7 +309,7 @@ export class Filter {
      * Creates a new Filter instance from a string or object.
      */
     static createFrom($$source: any = {}): Filter {
-        const $$createField0_0 = $$createType0;
+        const $$createField0_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Source" in $$parsedSource) {
             $$parsedSource["Source"] = $$createField0_0($$parsedSource["Source"]);
@@ -179,9 +401,9 @@ export class Grid {
      * Creates a new Grid instance from a string or object.
      */
     static createFrom($$source: any = {}): Grid {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType5;
+        const $$createField0_0 = $$createType11;
+        const $$createField1_0 = $$createType2;
+        const $$createField2_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("axes" in $$parsedSource) {
             $$parsedSource["axes"] = $$createField0_0($$parsedSource["axes"]);
@@ -220,7 +442,7 @@ export class GridAxis {
      * Creates a new GridAxis instance from a string or object.
      */
     static createFrom($$source: any = {}): GridAxis {
-        const $$createField1_0 = $$createType3;
+        const $$createField1_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("labels" in $$parsedSource) {
             $$parsedSource["labels"] = $$createField1_0($$parsedSource["labels"]);
@@ -253,8 +475,8 @@ export class GridCell {
      * Creates a new GridCell instance from a string or object.
      */
     static createFrom($$source: any = {}): GridCell {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType7;
+        const $$createField0_0 = $$createType14;
+        const $$createField1_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coords" in $$parsedSource) {
             $$parsedSource["coords"] = $$createField0_0($$parsedSource["coords"]);
@@ -305,7 +527,7 @@ export class Measure {
      * Creates a new Measure instance from a string or object.
      */
     static createFrom($$source: any = {}): Measure {
-        const $$createField1_0 = $$createType8;
+        const $$createField1_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Source" in $$parsedSource) {
             $$parsedSource["Source"] = $$createField1_0($$parsedSource["Source"]);
@@ -447,9 +669,9 @@ export class StatConfig {
      * Creates a new StatConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): StatConfig {
-        const $$createField0_0 = $$createType10;
-        const $$createField1_0 = $$createType12;
-        const $$createField2_0 = $$createType14;
+        const $$createField0_0 = $$createType18;
+        const $$createField1_0 = $$createType20;
+        const $$createField2_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Measures" in $$parsedSource) {
             $$parsedSource["Measures"] = $$createField0_0($$parsedSource["Measures"]);
@@ -466,14 +688,17 @@ export class StatConfig {
 
 /**
  * StatObject is a named statistical object defined on a template: its
- * identifier, optional human label, and the DSL the engine evaluates.
- * Mirrors template.Statistic without the template dependency, so the
- * catalog can travel to Vue and Lua via the Service.
+ * identifier, optional human label, and either a DSL (a plain object the
+ * engine evaluates) or a Composite spec (a hop route referencing other
+ * objects by name). Exactly one of DSL / Composite is set. Mirrors
+ * template.Statistic without the template dependency, so the catalog can
+ * travel to Vue and Lua via the Service.
  */
 export class StatObject {
     "name": string;
     "label"?: string;
     "dsl": string;
+    "composite"?: CompositeSpec | null;
 
     /** Creates a new StatObject instance. */
     constructor($$source: Partial<StatObject> = {}) {
@@ -491,24 +716,38 @@ export class StatObject {
      * Creates a new StatObject instance from a string or object.
      */
     static createFrom($$source: any = {}): StatObject {
+        const $$createField3_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("composite" in $$parsedSource) {
+            $$parsedSource["composite"] = $$createField3_0($$parsedSource["composite"]);
+        }
         return new StatObject($$parsedSource as Partial<StatObject>);
     }
 }
 
 // Private type creation functions
-const $$createType0 = SourceRef.createFrom;
-const $$createType1 = GridAxis.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = GridCell.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $Create.Array($Create.Any);
-const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = $Create.Nullable($$createType0);
-const $$createType9 = Measure.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = Dimension.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = Filter.createFrom;
-const $$createType14 = $Create.Array($$createType13);
+const $$createType0 = Grid.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = BranchGrid.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = CompositeEdgeOption.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = CompositeEdgeSpec.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = SourceRef.createFrom;
+const $$createType10 = GridAxis.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = GridCell.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = $Create.Array($Create.Any);
+const $$createType15 = $Create.Array($Create.Any);
+const $$createType16 = $Create.Nullable($$createType9);
+const $$createType17 = Measure.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = Dimension.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = Filter.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = CompositeSpec.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);

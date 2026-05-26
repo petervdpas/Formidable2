@@ -196,6 +196,25 @@ func TestNormalize_Statistics_DedupesByNameFirstWins(t *testing.T) {
 	}
 }
 
+func TestNormalize_Statistics_KeepsComposite_DropsParentlessOne(t *testing.T) {
+	tpl := &Template{Statistics: []Statistic{
+		{Name: "in-use", DSL: `count() by Facet["flag"]`},
+		{Name: "in-use-by-app", Composite: &StatComposite{
+			Parent: "in-use",
+			Edges:  []StatCompositeEdge{{Branch: "IN GEBRUIK", Child: "applications"}},
+		}},
+		{Name: "no-parent", Composite: &StatComposite{}}, // composite without a parent -> dropped
+	}}
+	Normalize(tpl)
+	if len(tpl.Statistics) != 2 {
+		t.Fatalf("got %d statistics, want 2 (composite kept, parentless dropped): %+v", len(tpl.Statistics), tpl.Statistics)
+	}
+	c := tpl.Statistics[1]
+	if c.Name != "in-use-by-app" || c.Composite == nil || c.Composite.Parent != "in-use" {
+		t.Errorf("composite not preserved: %+v", c)
+	}
+}
+
 func TestNormalize_Statistics_AllInvalidBecomesNil(t *testing.T) {
 	tpl := &Template{Statistics: []Statistic{
 		{Name: "", DSL: `count()`},

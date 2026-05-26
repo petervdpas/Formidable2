@@ -248,9 +248,23 @@ func (s statTemplateSource) ListStatistics(tplFile string) ([]stat.StatObject, e
 	}
 	out := make([]stat.StatObject, 0, len(t.Statistics))
 	for _, st := range t.Statistics {
-		out = append(out, stat.StatObject{Name: st.Name, Label: st.Label, DSL: st.DSL})
+		out = append(out, stat.StatObject{Name: st.Name, Label: st.Label, DSL: st.DSL, Composite: toStatComposite(st.Composite)})
 	}
 	return out, nil
+}
+
+// toStatComposite maps a template's stored composite spec onto the stat
+// package's CompositeSpec, keeping the template package free of a stat
+// dependency. nil (a plain DSL object) maps to nil.
+func toStatComposite(c *template.StatComposite) *stat.CompositeSpec {
+	if c == nil {
+		return nil
+	}
+	edges := make([]stat.CompositeEdgeSpec, 0, len(c.Edges))
+	for _, e := range c.Edges {
+		edges = append(edges, stat.CompositeEdgeSpec{Branch: e.Branch, Child: e.Child})
+	}
+	return &stat.CompositeSpec{Parent: c.Parent, Edges: edges}
 }
 
 // statSourceOptions gives the stat engine a facet dimension's full,

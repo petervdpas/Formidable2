@@ -28,6 +28,8 @@ export {
     PDFCoverConfig,
     Shape,
     ShapeInfo,
+    StatComposite,
+    StatCompositeEdge,
     Statistic,
     SubRow,
     SubRowEntry,

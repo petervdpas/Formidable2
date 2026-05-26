@@ -915,17 +915,82 @@ export class ShapeInfo {
 }
 
 /**
- * Statistic is one author-defined statistical object: a named statistical
- * DSL expression stored on the template. The Statistical Engine evaluates
- * it into a rank-N values grid; a consumer (plugin/Lua, later reports)
- * renders it. Name is the identifier consumers fetch by; Label is the
- * display title; DSL is the serialized statistical-DSL string (see
- * internal/modules/stat and design/statistics-dsl.md).
+ * StatComposite is the stored form of a composite object: a parent object
+ * name and per-branch child object names. The engine resolves the names
+ * against the template's other objects and checks that each child filters
+ * the parent's branch dimension to its branch value.
+ */
+export class StatComposite {
+    "parent": string;
+    "edges": StatCompositeEdge[];
+
+    /** Creates a new StatComposite instance. */
+    constructor($$source: Partial<StatComposite> = {}) {
+        if (!("parent" in $$source)) {
+            this["parent"] = "";
+        }
+        if (!("edges" in $$source)) {
+            this["edges"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StatComposite instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StatComposite {
+        const $$createField1_0 = $$createType25;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("edges" in $$parsedSource) {
+            $$parsedSource["edges"] = $$createField1_0($$parsedSource["edges"]);
+        }
+        return new StatComposite($$parsedSource as Partial<StatComposite>);
+    }
+}
+
+/**
+ * StatCompositeEdge maps one parent branch value to the child object that
+ * drills it.
+ */
+export class StatCompositeEdge {
+    "branch": string;
+    "child": string;
+
+    /** Creates a new StatCompositeEdge instance. */
+    constructor($$source: Partial<StatCompositeEdge> = {}) {
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("child" in $$source)) {
+            this["child"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StatCompositeEdge instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StatCompositeEdge {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StatCompositeEdge($$parsedSource as Partial<StatCompositeEdge>);
+    }
+}
+
+/**
+ * Statistic is one author-defined statistical object. It is either a plain
+ * object (a DSL the Statistical Engine evaluates into a rank-N grid) or a
+ * Composite (a hop route referencing other objects by name); exactly one of
+ * DSL / Composite is set. Name is the identifier consumers fetch by; Label
+ * is the display title. See internal/modules/stat,
+ * design/statistics-dsl.md and design/statistics-composite.md.
  */
 export class Statistic {
     "name": string;
     "label"?: string;
     "dsl": string;
+    "composite"?: StatComposite | null;
 
     /** Creates a new Statistic instance. */
     constructor($$source: Partial<Statistic> = {}) {
@@ -943,7 +1008,11 @@ export class Statistic {
      * Creates a new Statistic instance from a string or object.
      */
     static createFrom($$source: any = {}): Statistic {
+        const $$createField3_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("composite" in $$parsedSource) {
+            $$parsedSource["composite"] = $$createField3_0($$parsedSource["composite"]);
+        }
         return new Statistic($$parsedSource as Partial<Statistic>);
     }
 }
@@ -977,7 +1046,7 @@ export class SubRow {
      * Creates a new SubRow instance from a string or object.
      */
     static createFrom($$source: any = {}): SubRow {
-        const $$createField4_0 = $$createType25;
+        const $$createField4_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField4_0($$parsedSource["entries"]);
@@ -1118,10 +1187,10 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField8_0 = $$createType27;
-        const $$createField9_0 = $$createType29;
-        const $$createField10_0 = $$createType31;
-        const $$createField11_0 = $$createType32;
+        const $$createField8_0 = $$createType31;
+        const $$createField9_0 = $$createType33;
+        const $$createField10_0 = $$createType35;
+        const $$createField11_0 = $$createType36;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -1206,12 +1275,16 @@ const $$createType20 = SubRow.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
 const $$createType22 = PDFCoverConfig.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = SubRowEntry.createFrom;
+const $$createType24 = StatCompositeEdge.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = PDFConfig.createFrom;
+const $$createType26 = StatComposite.createFrom;
 const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = Facet.createFrom;
+const $$createType28 = SubRowEntry.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = Statistic.createFrom;
-const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = $Create.Array($$createType13);
+const $$createType30 = PDFConfig.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = Facet.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = Statistic.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = $Create.Array($$createType13);

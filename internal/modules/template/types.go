@@ -37,16 +37,33 @@ type Template struct {
 	NeedsResave       bool        `yaml:"-" json:"needs_resave"`
 }
 
-// Statistic is one author-defined statistical object: a named statistical
-// DSL expression stored on the template. The Statistical Engine evaluates
-// it into a rank-N values grid; a consumer (plugin/Lua, later reports)
-// renders it. Name is the identifier consumers fetch by; Label is the
-// display title; DSL is the serialized statistical-DSL string (see
-// internal/modules/stat and design/statistics-dsl.md).
+// Statistic is one author-defined statistical object. It is either a plain
+// object (a DSL the Statistical Engine evaluates into a rank-N grid) or a
+// Composite (a hop route referencing other objects by name); exactly one of
+// DSL / Composite is set. Name is the identifier consumers fetch by; Label
+// is the display title. See internal/modules/stat,
+// design/statistics-dsl.md and design/statistics-composite.md.
 type Statistic struct {
-	Name  string `yaml:"name" json:"name"`
-	Label string `yaml:"label,omitempty" json:"label,omitempty"`
-	DSL   string `yaml:"dsl" json:"dsl"`
+	Name      string         `yaml:"name" json:"name"`
+	Label     string         `yaml:"label,omitempty" json:"label,omitempty"`
+	DSL       string         `yaml:"dsl,omitempty" json:"dsl"`
+	Composite *StatComposite `yaml:"composite,omitempty" json:"composite,omitempty"`
+}
+
+// StatComposite is the stored form of a composite object: a parent object
+// name and per-branch child object names. The engine resolves the names
+// against the template's other objects and checks that each child filters
+// the parent's branch dimension to its branch value.
+type StatComposite struct {
+	Parent string              `yaml:"parent" json:"parent"`
+	Edges  []StatCompositeEdge `yaml:"edges,omitempty" json:"edges"`
+}
+
+// StatCompositeEdge maps one parent branch value to the child object that
+// drills it.
+type StatCompositeEdge struct {
+	Branch string `yaml:"branch" json:"branch"`
+	Child  string `yaml:"child" json:"child"`
 }
 
 // UnmarshalYAML accepts both the new `facets:` shape and the legacy

@@ -8,6 +8,12 @@ export {
 
 export {
     Bin,
+    BranchGrid,
+    CompositeEdgeOption,
+    CompositeEdgeSpec,
+    CompositeGrid,
+    CompositeOption,
+    CompositeSpec,
     Dimension,
     Filter,
     FilterOp,
