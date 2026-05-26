@@ -4,24 +4,27 @@ import { useI18n } from "vue-i18n";
 import Modal from "../Modal.vue";
 import { SelectField } from "../fields";
 import StatGrid from "./StatGrid.vue";
-import { type Grid, gridRank } from "./grid";
+import { type Grid, type CompositeGrid, gridRank, isCompositeGrid } from "./grid";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 // Glance-and-close dialog for one evaluated statistic. Rank decides the
 // available chart types (the statistic carries no presentation), and a
 // measure picker appears when the grid has more than one measure. facets
-// lets rank-1 charts color categories by their facet option colors.
+// lets rank-1 charts color categories by their facet option colors. A
+// composite (hop route) draws as a sunburst with no chart/measure controls.
 const props = defineProps<{
   open: boolean;
   title?: string;
-  grid: Grid | null;
+  grid: Grid | CompositeGrid | null;
   facets?: Facet[];
 }>();
 
 const emit = defineEmits<{ close: [] }>();
 const { t } = useI18n();
 
-const rank = computed(() => gridRank(props.grid));
+const composite = computed(() => isCompositeGrid(props.grid));
+const plainGrid = computed(() => (composite.value ? null : (props.grid as Grid | null)));
+const rank = computed(() => gridRank(plainGrid.value));
 
 const chartType = ref<string>("");
 const measureIndex = ref<number>(0);
@@ -37,7 +40,7 @@ const chartTypeOptions = computed(() => {
 });
 
 const measureOptions = computed(() =>
-  (props.grid?.measures ?? []).map((m, i) => ({ value: String(i), label: m })),
+  (plainGrid.value?.measures ?? []).map((m, i) => ({ value: String(i), label: m })),
 );
 
 // Reset selectors whenever a new grid arrives.
@@ -73,8 +76,8 @@ watch(
 
     <StatGrid :grid="grid" :type="chartType" :measure-index="measureIndex" :facets="facets" />
 
-    <p v-if="grid && grid.total >= 0" class="muted small stat-view-total">
-      {{ t('workspace.templates.stat_view.total', [grid.total]) }}
+    <p v-if="plainGrid && plainGrid.total >= 0" class="muted small stat-view-total">
+      {{ t('workspace.templates.stat_view.total', [plainGrid.total]) }}
     </p>
 
     <template #footer>

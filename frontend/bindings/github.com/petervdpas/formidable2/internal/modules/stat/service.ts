@@ -105,6 +105,18 @@ export function EvaluateComposite(template: string, name: string): $CancellableP
 }
 
 /**
+ * EvaluateCompositeSpec evaluates an inline composite spec against the
+ * template's saved objects (the parent and children, referenced by name,
+ * must already exist). The builder uses it to preview a composite before the
+ * composite object itself is saved, mirroring EvaluateDSL for plain objects.
+ */
+export function EvaluateCompositeSpec(template: string, spec: $models.CompositeSpec): $CancellablePromise<$models.CompositeGrid | null> {
+    return $Call.ByID(4017830245, template, spec).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
+/**
  * EvaluateDSL evaluates a raw statistical-DSL string against the index.
  * The builder uses it to preview a statistic's output before it is saved
  * (EvaluateObject needs the object persisted to resolve it by name).

@@ -48,6 +48,25 @@ export function gridRank(g: Grid | null): number {
   return g?.axes?.length ?? 0;
 }
 
+// CompositeGrid mirrors the Go stat.CompositeGrid: a parent rank-1 grid plus,
+// in the parent's axis order, the child grid drilling each branch (null = a
+// solid leaf with no edge). Local mirror, like Grid, so the sunburst renderer
+// doesn't hard-depend on the generated bindings.
+export interface BranchGrid {
+  branch: string;
+  child: Grid | null;
+}
+export interface CompositeGrid {
+  parent: Grid;
+  branches: BranchGrid[];
+}
+
+/** True when a value is a CompositeGrid (parent + branches) rather than a
+ *  plain rank-N Grid, so the dispatcher can route it to the sunburst. */
+export function isCompositeGrid(g: unknown): g is CompositeGrid {
+  return !!g && typeof g === "object" && "parent" in g && "branches" in g;
+}
+
 /** Stable comparator that orders rank-1 chart entries highest-first by the
  *  measure on screen. Shared by the bar and pie renderers so both read the
  *  same way: display order is a renderer concern (the shown measure is

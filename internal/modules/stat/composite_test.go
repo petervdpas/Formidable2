@@ -333,6 +333,32 @@ func TestService_EvaluateComposite_ResolvesStoredComposite(t *testing.T) {
 	}
 }
 
+func TestService_EvaluateCompositeSpec_EvaluatesInlineAgainstSavedObjects(t *testing.T) {
+	forms := []index.FormRow{
+		odsFormFlag("r1.meta.json", "IN GEBRUIK", "FMU"),
+		odsFormFlag("r2.meta.json", "NIET IN GEBRUIK", "FMU"),
+	}
+	m := NewManager(realIndex(t, forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	// Only the parent + child are saved; the composite itself is not (the
+	// builder is previewing it before save).
+	svc := NewService(m, fakeSource{list: []StatObject{
+		{Name: "in-use", DSL: `count() by Facet["flag"]`},
+		{Name: "applications", DSL: `count(), records() by F["code-repositories"]["application"] where Facet["flag"] eq "IN GEBRUIK"`},
+	}})
+
+	cg, err := svc.EvaluateCompositeSpec("ods.yaml", CompositeSpec{
+		Parent: "in-use",
+		Edges:  []CompositeEdgeSpec{{Branch: "IN GEBRUIK", Child: "applications"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cg.Branches) != 2 || cg.Branches[0].Branch != "IN GEBRUIK" || cg.Branches[0].Child == nil {
+		t.Fatalf("composite spec eval = %+v", cg.Branches)
+	}
+}
+
 func TestService_EvaluateComposite_NotACompositeErrors(t *testing.T) {
 	svc := NewService(NewManager(&fakeIndex{}), fakeSource{list: []StatObject{
 		{Name: "in-use", DSL: `count() by Facet["flag"]`},

@@ -14,9 +14,11 @@ import TemplateListItem from "../components/TemplateListItem.vue";
 import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FacetEditorModal from "../components/FacetEditorModal.vue";
 import StatisticsBuilderModal from "../components/StatisticsBuilderModal.vue";
+import CompositeBuilderModal from "../components/CompositeBuilderModal.vue";
 import StatGridDialog from "../components/stat/StatGridDialog.vue";
-import { type Grid } from "../components/stat/grid";
+import { type Grid, type CompositeGrid } from "../components/stat/grid";
 import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
+import type { CompositeSpec } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat/models";
 import FacetIcon from "../components/FacetIcon.vue";
 import { useFacetMeta } from "../composables/useFacetMeta";
 import { Facet, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -644,6 +646,13 @@ function openEditStatistic(idx: number) {
   const s = draft.value.statistics?.[idx];
   if (!s) return;
   editingStatIndex.value = idx;
+  // A composite object reopens in the composite builder; a plain DSL object
+  // in the DSL builder.
+  if (s.composite) {
+    editingComposite.value = s;
+    compositeBuilderOpen.value = true;
+    return;
+  }
   editingStat.value = new Statistic({ name: s.name, label: s.label, dsl: s.dsl });
   statBuilderOpen.value = true;
 }
@@ -665,19 +674,42 @@ function applyStatistic(s: Statistic) {
   statBuilderOpen.value = false;
 }
 
+// ── Composite (hop route) objects: authored via CompositeBuilderModal,
+// which is driven by the backend's CompositeOptions (only valid parent/child
+// links are offered). Shares the statistics list + apply path with the DSL
+// builder; editingStatIndex steers insert vs replace for both.
+const compositeBuilderOpen = ref(false);
+const editingComposite = ref<Statistic | null>(null);
+
+function openAddComposite() {
+  if (!draft.value) return;
+  editingStatIndex.value = -1;
+  editingComposite.value = null;
+  compositeBuilderOpen.value = true;
+}
+
+function applyComposite(s: Statistic) {
+  applyStatistic(s);
+  compositeBuilderOpen.value = false;
+}
+
 // View an evaluated statistic. Uses EvaluateDSL on the draft's current
 // DSL so it works on unsaved edits too (the statistic's own row need not
 // be persisted; it only reads the template's already-indexed values).
 const statViewOpen = ref(false);
-const statViewGrid = ref<Grid | null>(null);
+const statViewGrid = ref<Grid | CompositeGrid | null>(null);
 const statViewTitle = ref("");
 
 async function openViewStatistic(s: Statistic) {
   const tpl = selectedFilename.value;
   if (!tpl) return;
   try {
-    const grid = await StatSvc.EvaluateDSL(tpl, s.dsl);
-    statViewGrid.value = grid as unknown as Grid;
+    // A composite previews its spec inline (its parent + children are
+    // already saved); a plain object evaluates its DSL.
+    const grid = s.composite
+      ? await StatSvc.EvaluateCompositeSpec(tpl, s.composite as unknown as CompositeSpec)
+      : await StatSvc.EvaluateDSL(tpl, s.dsl);
+    statViewGrid.value = grid as unknown as Grid | CompositeGrid;
     statViewTitle.value = s.label || s.name;
     statViewOpen.value = true;
   } catch (e) {
@@ -1092,7 +1124,8 @@ setTopbarMenu(() => [
                       class="stat-row"
                     >
                       <span class="stat-row-name">{{ s.label || s.name }}</span>
-                      <code class="stat-row-dsl">{{ s.dsl }}</code>
+                      <code v-if="s.composite" class="stat-row-dsl">{{ t('workspace.templates.statistics.composite_summary', [s.composite.parent, s.composite.edges.length]) }}</code>
+                      <code v-else class="stat-row-dsl">{{ s.dsl }}</code>
                       <button
                         class="tool-btn"
                         type="button"
@@ -1116,6 +1149,9 @@ setTopbarMenu(() => [
                   <div class="setup-tab-actions">
                     <button class="tool-btn" type="button" @click="openAddStatistic">
                       + {{ t('workspace.templates.statistics.add') }}
+                    </button>
+                    <button class="tool-btn" type="button" @click="openAddComposite">
+                      + {{ t('workspace.templates.statistics.add_composite') }}
                     </button>
                   </div>
                 </div>
@@ -1328,7 +1364,19 @@ setTopbarMenu(() => [
     @apply="applyStatistic"
   />
 
-  <!-- Evaluated-statistic viewer (rank-N grid renderer) -->
+  <!-- Composite (hop route) builder: parent + per-branch children, driven
+       by the backend's CompositeOptions -->
+  <CompositeBuilderModal
+    v-if="draft"
+    :open="compositeBuilderOpen"
+    :template="selectedFilename || ''"
+    :statistics="draft.statistics ?? []"
+    :initial="editingComposite"
+    @close="compositeBuilderOpen = false"
+    @apply="applyComposite"
+  />
+
+  <!-- Evaluated-statistic viewer (rank-N grid + composite sunburst) -->
   <StatGridDialog
     :open="statViewOpen"
     :title="statViewTitle"

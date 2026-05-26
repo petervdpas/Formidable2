@@ -180,6 +180,29 @@ func (s *Service) EvaluateComposite(template, name string) (*CompositeGrid, erro
 	return s.m.EvaluateComposite(template, comp)
 }
 
+// EvaluateCompositeSpec evaluates an inline composite spec against the
+// template's saved objects (the parent and children, referenced by name,
+// must already exist). The builder uses it to preview a composite before the
+// composite object itself is saved, mirroring EvaluateDSL for plain objects.
+func (s *Service) EvaluateCompositeSpec(template string, spec CompositeSpec) (*CompositeGrid, error) {
+	if s.src == nil {
+		return nil, fmt.Errorf("stat: no statistic source configured")
+	}
+	objs, err := s.src.ListStatistics(template)
+	if err != nil {
+		return nil, err
+	}
+	catalog := make(catalogConfigs, len(objs))
+	for _, o := range objs {
+		catalog[o.Name] = o
+	}
+	comp, err := ResolveComposite(spec, catalog)
+	if err != nil {
+		return nil, err
+	}
+	return s.m.EvaluateComposite(template, comp)
+}
+
 // catalogConfigs adapts a template's object catalog (name -> object) to the
 // ObjectConfigs the composite resolver needs: it parses a plain object's DSL
 // and rejects unknown names and composites (no nesting).

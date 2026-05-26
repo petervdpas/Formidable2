@@ -113,3 +113,14 @@
     max-width: 5.5rem;
     flex: 0 0 auto;
 }
+
+/* Composite builder: the branch label sits left of its child-object select. */
+.stat-composite-branch {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
