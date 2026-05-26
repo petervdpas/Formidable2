@@ -283,6 +283,55 @@ func initIndexScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^I run RescanTemplate for "([^"]*)"$`, func(tpl string) error {
+		return w.active.hand.RescanTemplate(context.Background(), tpl)
+	})
+
+	ctx.Step(`^I run RescanTemplate for "([^"]*)" tolerating load errors$`, func(tpl string) error {
+		w.lastErr = w.active.hand.RescanTemplate(context.Background(), tpl)
+		return nil
+	})
+
+	ctx.Step(`^the last reindex error mentions "([^"]*)"$`, func(needle string) error {
+		if w.lastErr == nil {
+			return fmt.Errorf("expected an error from RescanTemplate, got nil")
+		}
+		if !strings.Contains(w.lastErr.Error(), needle) {
+			return fmt.Errorf("error %q does not mention %q", w.lastErr.Error(), needle)
+		}
+		return nil
+	})
+
+	ctx.Step(`^searching "([^"]*)" for "([^"]*)" yields forms "([^"]*)"$`,
+		func(tpl, query, csv string) error {
+			rows, err := w.active.mgr.SearchForms(tpl, query, QueryOpts{})
+			if err != nil {
+				return err
+			}
+			got := make([]string, len(rows))
+			for i, r := range rows {
+				got[i] = r.Filename
+			}
+			sort.Strings(got)
+			want := splitCSV(csv)
+			if !equalStrings(got, want) {
+				return fmt.Errorf("search %q = %v, want %v", query, got, want)
+			}
+			return nil
+		})
+
+	ctx.Step(`^searching "([^"]*)" for "([^"]*)" yields (\d+) forms$`,
+		func(tpl, query string, n int) error {
+			rows, err := w.active.mgr.SearchForms(tpl, query, QueryOpts{})
+			if err != nil {
+				return err
+			}
+			if len(rows) != n {
+				return fmt.Errorf("search %q = %d forms, want %d", query, len(rows), n)
+			}
+			return nil
+		})
+
 	// ── Assertions ───────────────────────────────────────────────
 
 	ctx.Step(`^the index lists templates "([^"]*)"$`, func(csv string) error {

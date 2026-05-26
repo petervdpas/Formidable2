@@ -413,3 +413,22 @@ func TestRescanTemplate_TemplateGoneDeletes(t *testing.T) {
 		t.Errorf("collection not cascaded: %+v", rows)
 	}
 }
+
+// TestRescanTemplate_RootUnset is the guard for a misconfigured handler:
+// RescanTemplate needs the context root to scan disk, so it errors
+// rather than silently no-opping when SetRoot was never called.
+func TestRescanTemplate_RootUnset(t *testing.T) {
+	m, err := NewManager(filepath.Join(t.TempDir(), "i.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { m.Close() })
+	h := NewEventHandler(m,
+		&fakeTemplateLoader{tpls: map[string]*TemplateRecord{}},
+		&fakeFormStore{forms: map[string]*FormRecord{}},
+	)
+	// No SetRoot.
+	if err := h.RescanTemplate(context.Background(), "doc.yaml"); err == nil {
+		t.Fatal("expected error when root is unset")
+	}
+}

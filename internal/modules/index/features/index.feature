@@ -144,3 +144,97 @@ Feature: Per-profile index
     And I run RescanAll
     And I switch back to profile "A"
     Then the index lists templates "a.yaml"
+
+  # ── Full-text search (FTS5 index built through the reconcile path) ─
+
+  Scenario: Full-text search finds records by their field text
+    Given a template "notes.yaml" on disk with fields:
+      | key  | type     |
+      | body | textarea |
+    And a form "fiber.meta.json" under "notes.yaml" with values:
+      | key  | value                                |
+      | body | fiber optic cable through the duct   |
+    And a form "copper.meta.json" under "notes.yaml" with values:
+      | key  | value                                |
+      | body | copper cabling at the patch panel    |
+    When I run RescanAll
+    Then searching "notes.yaml" for "fiber" yields forms "fiber.meta.json"
+    And searching "notes.yaml" for "duct" yields forms "fiber.meta.json"
+    And searching "notes.yaml" for "panel" yields forms "copper.meta.json"
+
+  Scenario: Multi-term search is an AND over the record text
+    Given a template "notes.yaml" on disk with fields:
+      | key  | type     |
+      | body | textarea |
+    And a form "a.meta.json" under "notes.yaml" with values:
+      | key  | value                              |
+      | body | fiber optic cable through the duct |
+    And a form "b.meta.json" under "notes.yaml" with values:
+      | key  | value                       |
+      | body | fiber spliced near the riser |
+    When I run RescanAll
+    Then searching "notes.yaml" for "fiber duct" yields forms "a.meta.json"
+    And searching "notes.yaml" for "fiber" yields 2 forms
+
+  Scenario: A blank query matches nothing
+    Given a template "notes.yaml" on disk with fields:
+      | key  | type     |
+      | body | textarea |
+    And a form "a.meta.json" under "notes.yaml" with values:
+      | key  | value |
+      | body | hello |
+    When I run RescanAll
+    Then searching "notes.yaml" for "   " yields 0 forms
+
+  Scenario: Raw FTS operators in the query do not error
+    Given a template "notes.yaml" on disk with fields:
+      | key  | type     |
+      | body | textarea |
+    And a form "a.meta.json" under "notes.yaml" with values:
+      | key  | value |
+      | body | hello |
+    When I run RescanAll
+    Then searching "notes.yaml" for "cable AND (" yields 0 forms
+
+  # ── On-demand reindex (RescanTemplate) ───────────────────────────
+
+  Scenario: Reindex a collection drops a form deleted from disk
+    Given a template "notes.yaml" on disk with fields:
+      | key  | type     |
+      | body | textarea |
+    And a form "keep.meta.json" under "notes.yaml" with values:
+      | key  | value |
+      | body | keep me |
+    And a form "drop.meta.json" under "notes.yaml" with values:
+      | key  | value |
+      | body | drop me |
+    And I run RescanAll
+    And the form "drop.meta.json" under "notes.yaml" is removed from disk
+    When I run RescanTemplate for "notes.yaml"
+    Then the index has 1 forms for template "notes.yaml"
+    And searching "notes.yaml" for "drop" yields 0 forms
+
+  Scenario: Reindex tolerates a malformed form and rebuilds the rest
+    Given a template "notes.yaml" on disk with fields:
+      | key  | type     |
+      | body | textarea |
+    And a form "good.meta.json" under "notes.yaml" with values:
+      | key  | value |
+      | body | indexed text |
+    And a malformed form "BAD.meta.json" exists under "notes.yaml"
+    When I run RescanTemplate for "notes.yaml" tolerating load errors
+    Then the last reindex error mentions "BAD.meta.json"
+    And the index has 1 forms for template "notes.yaml"
+    And searching "notes.yaml" for "indexed" yields forms "good.meta.json"
+
+  Scenario: Reindexing a template removed from disk wipes its collection
+    Given a template "notes.yaml" on disk with fields:
+      | key  | type     |
+      | body | textarea |
+    And a form "a.meta.json" under "notes.yaml" with values:
+      | key  | value |
+      | body | hello |
+    And I run RescanAll
+    And the template "notes.yaml" is removed from disk
+    When I run RescanTemplate for "notes.yaml"
+    Then the index has 0 forms for template "notes.yaml"
