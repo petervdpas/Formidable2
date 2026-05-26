@@ -48,6 +48,14 @@ export function gridRank(g: Grid | null): number {
   return g?.axes?.length ?? 0;
 }
 
+/** Stable comparator that orders rank-1 chart entries highest-first by the
+ *  measure on screen. Shared by the bar and pie renderers so both read the
+ *  same way: display order is a renderer concern (the shown measure is
+ *  switchable), distinct from the axis order top-N uses to pick categories. */
+export function byValueDesc<T extends { value: number }>(a: T, b: T): number {
+  return b.value - a.value;
+}
+
 /** Dense 1D vector of one measure's values aligned to axis 0's labels
  *  (sparse cells default to 0). */
 export function denseRank1(g: Grid, measureIdx: number): number[] {

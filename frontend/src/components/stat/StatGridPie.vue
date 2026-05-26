@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { type Grid, denseRank1, facetColorToken, fmtNum, CHART_PALETTE } from "./grid";
+import { type Grid, denseRank1, facetColorToken, fmtNum, byValueDesc, CHART_PALETTE } from "./grid";
 
 // Rank-1 grid as a pie of one measure across axis 0's labels, with the
 // legend drawn INSIDE the same <svg> (swatch + text) so the chart is a
@@ -26,7 +26,8 @@ const view = computed(() => {
   const values = denseRank1(props.grid, props.measureIndex);
   const slices = labels
     .map((raw, i) => ({ raw, label: raw === "" ? "(unset)" : raw, value: values[i] ?? 0 }))
-    .filter((s) => s.value > 0);
+    .filter((s) => s.value > 0)
+    .sort(byValueDesc);
   const total = slices.reduce((a, s) => a + s.value, 0);
   if (total <= 0) return null;
 

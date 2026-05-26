@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { type Grid, denseRank1, facetColorToken, fmtNum } from "./grid";
+import { type Grid, denseRank1, facetColorToken, fmtNum, byValueDesc } from "./grid";
 
 // Rank-1 grid as a horizontal bar chart of one measure across axis 0's
 // labels. Percentages are shown against grid.total when the measure is a
@@ -42,21 +42,29 @@ const view = computed(() => {
   const barAreaW = props.width - padLeft - PAD_RIGHT;
   const total = props.grid.total ?? 0;
 
-  const rows = labels.map((raw, i) => {
-    const value = values[i] ?? 0;
-    const pct = isCount.value && total > 0 ? Math.round((value / total) * 100) : null;
-    const token = facetColorToken(props.facets, axisSource, raw);
-    return {
-      y: PAD_TOP + i * (BAR_HEIGHT + BAR_GAP),
-      width: (Math.abs(value) / max) * barAreaW,
-      label: raw === "" ? "(unset)" : raw,
-      text: fmtNum(value),
-      pct,
-      // Facet option color (currentColor + class) or the default .stat-bar fill.
-      colorClass: token ? `expr-text-${token}` : "",
-      fill: token ? "currentColor" : "",
-    };
-  });
+  // Bars read highest-first by the measure on screen. Display order is a
+  // renderer concern (the dialog can switch the shown measure), so it is
+  // sorted here rather than baked into the axis: top-N already ranks the
+  // axis by the FIRST measure to pick the categories; this re-sorts by the
+  // one actually being drawn. Stable, so equal values keep axis order.
+  const rows = labels
+    .map((raw, i) => {
+      const value = values[i] ?? 0;
+      const pct = isCount.value && total > 0 ? Math.round((value / total) * 100) : null;
+      const token = facetColorToken(props.facets, axisSource, raw);
+      return {
+        value,
+        width: (Math.abs(value) / max) * barAreaW,
+        label: raw === "" ? "(unset)" : raw,
+        text: fmtNum(value),
+        pct,
+        // Facet option color (currentColor + class) or the default .stat-bar fill.
+        colorClass: token ? `expr-text-${token}` : "",
+        fill: token ? "currentColor" : "",
+      };
+    })
+    .sort(byValueDesc)
+    .map((r, i) => ({ ...r, y: PAD_TOP + i * (BAR_HEIGHT + BAR_GAP) }));
 
   const height = PAD_TOP + rows.length * (BAR_HEIGHT + BAR_GAP) + 4;
   return { rows, padLeft, height };
