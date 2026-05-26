@@ -7,13 +7,26 @@ import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/
 
 // Neutral fallback palette for non-facet categories (a facet axis uses
 // the facets' authored option colors via facetColorToken instead).
+// Ordered most-distinct-first so a top-N chart (N up to 20) keeps adjacent
+// categories separable: the first ten are well-spaced hues, the tail fills
+// out the rest. The first five stay theme-tied for in-app harmony.
 export const CHART_PALETTE = [
-  "var(--color-accent, #5b9cff)",
-  "var(--color-accent-2, #f08c5a)",
-  "var(--color-success, #5fc37a)",
-  "var(--color-warn, #d4a64a)",
-  "var(--color-danger, #d96666)",
-  "var(--color-text-muted, #888)",
+  "var(--color-accent, #5b9cff)", // blue
+  "var(--color-accent-2, #f08c5a)", // orange
+  "var(--color-success, #5fc37a)", // green
+  "var(--color-warn, #d4a64a)", // amber
+  "var(--color-danger, #d96666)", // red
+  "#b388eb", // violet
+  "#4dd0c1", // teal
+  "#e879b9", // pink
+  "#c0ca33", // lime
+  "var(--color-text-muted, #8a93a6)", // slate grey
+  "#a1887f", // taupe
+  "#7e6bd4", // indigo
+  "#e0935b", // ochre
+  "#5aa9e6", // sky
+  "#8bc34a", // leaf
+  "#cf6679", // rose
 ];
 
 export interface GridAxis {
