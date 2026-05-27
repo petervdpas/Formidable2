@@ -56,6 +56,7 @@ interface StatConfig {
   Dimensions: Dimension[];
   Filters: Filter[];
   Percent: string; // "" = distribution (default)
+  Scale: string; // "" = unweighted; else a scaling object's name
 }
 
 const props = defineProps<{
@@ -64,6 +65,8 @@ const props = defineProps<{
   template: string;
   fields: Field[];
   facets: Facet[];
+  /** Scaling objects on the template, for the optional weighting picker. */
+  scalings: Statistic[];
   /** The statistic being edited, or null to compose a new one. */
   initial: Statistic | null;
 }>();
@@ -77,7 +80,7 @@ const { t } = useI18n();
 
 const name = ref("");
 const label = ref("");
-const config = ref<StatConfig>({ Measures: [], Dimensions: [], Filters: [], Percent: "" });
+const config = ref<StatConfig>({ Measures: [], Dimensions: [], Filters: [], Percent: "", Scale: "" });
 const dslPreview = ref("");
 const compileError = ref("");
 const parseWarn = ref(false);
@@ -234,6 +237,19 @@ function setPercent(v: string) {
   config.value = { ...config.value, Percent: v };
 }
 
+// Scaling: an optional reusable weighting (a scaling object referenced by
+// name). The picker lists the template's scaling objects plus "none". Weighting
+// only changes count()/records() values, so it's a no-op on numeric-only
+// measures, but the picker stays available either way.
+const scaleOptions = computed(() => [
+  { value: "", label: t("workspace.templates.stat_builder.scale.none") },
+  ...(props.scalings ?? []).map((s) => ({ value: s.name, label: s.label || s.name })),
+]);
+const hasScalings = computed(() => (props.scalings ?? []).length > 0);
+function setScale(v: string) {
+  config.value = { ...config.value, Scale: v };
+}
+
 function dimIsDate(d: Dimension): boolean {
   return !!sourceByKey.value[srcKey(d.Source)]?.date;
 }
@@ -387,7 +403,7 @@ function setFilterValue(i: number, v: string) {
 // The left list is the statistic's outline (typed block chips); the right
 // pane edits the one selected block. Keeps only one block's controls on
 // screen at a time instead of stacking every section.
-type BlockKind = "measure" | "dimension" | "filter" | "percent";
+type BlockKind = "measure" | "dimension" | "filter" | "percent" | "scale";
 const selected = ref<{ kind: BlockKind; index: number }>({ kind: "measure", index: 0 });
 
 function selectBlock(kind: BlockKind, index: number) {
@@ -446,6 +462,11 @@ function percentSummary(): string {
   const v = config.value.Percent || "distribution";
   return pctBaseLabelKeys[v] ? t(pctBaseLabelKeys[v]) : v;
 }
+function scaleSummary(): string {
+  if (!config.value.Scale) return t("workspace.templates.stat_builder.scale.none");
+  const s = (props.scalings ?? []).find((x) => x.name === config.value.Scale);
+  return s?.label || config.value.Scale;
+}
 
 // Add-then-select wrappers, so a new block opens in the editor.
 function addMeasureSel() {
@@ -495,7 +516,7 @@ watch(config, () => void recompile(), { deep: true });
 
 // ── Open: load initial or start fresh ───────────────────────────────
 function freshConfig(): StatConfig {
-  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [], Filters: [], Percent: "" };
+  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [], Filters: [], Percent: "", Scale: "" };
 }
 
 watch(
@@ -529,6 +550,7 @@ watch(
             Dimensions: (parsed.Dimensions ?? []) as Dimension[],
             Filters: (parsed.Filters ?? []) as Filter[],
             Percent: (parsed.Percent ?? "") as string,
+            Scale: (parsed.Scale ?? "") as string,
           };
         } catch {
           config.value = freshConfig();
@@ -667,6 +689,15 @@ async function onApply() {
             :class="['stat-block-item', 'is-percent', { 'is-selected': isSelected('percent', 0) }]"
             @click="selectBlock('percent', 0)"
           >{{ percentSummary() }}</button>
+
+          <template v-if="hasScalings">
+            <div class="stat-block-group">{{ t('workspace.templates.stat_builder.scale.legend') }}</div>
+            <button
+              type="button"
+              :class="['stat-block-item', 'is-scale', { 'is-selected': isSelected('scale', 0) }]"
+              @click="selectBlock('scale', 0)"
+            >{{ scaleSummary() }}</button>
+          </template>
         </aside>
 
         <section class="stat-builder-blockedit">
@@ -777,6 +808,17 @@ async function onApply() {
               :model-value="config.Percent || 'distribution'"
               :options="percentBaseOptions"
               @update:model-value="setPercent"
+            />
+          </template>
+
+          <!-- SCALE (weighting) -->
+          <template v-else-if="selected.kind === 'scale'">
+            <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.scale.legend') }}</span>
+            <p class="muted small stat-builder-hint">{{ t('workspace.templates.stat_builder.scale.hint') }}</p>
+            <SelectField
+              :model-value="config.Scale"
+              :options="scaleOptions"
+              @update:model-value="setScale"
             />
           </template>
 

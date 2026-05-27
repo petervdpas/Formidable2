@@ -79,6 +79,34 @@ func TestStatisticsList_ReturnsCatalog(t *testing.T) {
 	}
 }
 
+func TestStatisticsList_IncludesScalingKind(t *testing.T) {
+	s := &stubStats{objs: []stat.StatObject{
+		{Name: "gas-apps", DSL: `records() by F["x"] scale "fcdm-urgency"`},
+		{Name: "fcdm-urgency", Scaling: &stat.Scaling{Source: stat.SourceRef{Kind: stat.SourceFacet, Key: "fcdm"}}},
+	}}
+	rec := do(t, statsHandler(s), http.MethodGet, "/api/statistics/recepten")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
+	}
+	out := decode[statisticsListResponse](t, rec)
+	if out.Statistics[1].Kind != "scaling" {
+		t.Errorf("scaling entry kind = %q, want scaling", out.Statistics[1].Kind)
+	}
+	if out.Statistics[1].Href != "" {
+		t.Errorf("scaling entry should have no href, got %q", out.Statistics[1].Href)
+	}
+}
+
+func TestStatisticEval_ScalingIs404(t *testing.T) {
+	s := &stubStats{objs: []stat.StatObject{
+		{Name: "fcdm-urgency", Scaling: &stat.Scaling{Source: stat.SourceRef{Kind: stat.SourceFacet, Key: "fcdm"}}},
+	}}
+	rec := do(t, statsHandler(s), http.MethodGet, "/api/statistics/recepten/fcdm-urgency")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 (scaling has no grid)", rec.Code)
+	}
+}
+
 func TestStatisticsList_CollectionDisabledIs403(t *testing.T) {
 	// basic.yaml is not collection-enabled in newStub().
 	rec := do(t, statsHandler(&stubStats{}), http.MethodGet, "/api/statistics/basic")

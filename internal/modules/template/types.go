@@ -37,17 +37,19 @@ type Template struct {
 	NeedsResave       bool        `yaml:"-" json:"needs_resave"`
 }
 
-// Statistic is one author-defined statistical object. It is either a plain
-// object (a DSL the Statistical Engine evaluates into a rank-N grid) or a
-// Composite (a hop route referencing other objects by name); exactly one of
-// DSL / Composite is set. Name is the identifier consumers fetch by; Label
-// is the display title. See internal/modules/stat,
-// design/statistics-dsl.md and design/statistics-composite.md.
+// Statistic is one author-defined statistical object. It is a plain object (a
+// DSL the Statistical Engine evaluates into a rank-N grid), a Composite (a hop
+// route referencing other objects by name), or a Scaling (a reusable weighting
+// other objects reference by name); exactly one of DSL / Composite / Scaling
+// is set. Name is the identifier consumers fetch by; Label is the display
+// title. See internal/modules/stat, design/statistics-dsl.md and
+// design/statistics-composite.md.
 type Statistic struct {
 	Name      string         `yaml:"name" json:"name"`
 	Label     string         `yaml:"label,omitempty" json:"label,omitempty"`
 	DSL       string         `yaml:"dsl,omitempty" json:"dsl"`
 	Composite *StatComposite `yaml:"composite,omitempty" json:"composite,omitempty"`
+	Scaling   *StatScaling   `yaml:"scaling,omitempty" json:"scaling,omitempty"`
 }
 
 // StatComposite is the stored form of a composite object: a parent object
@@ -64,6 +66,31 @@ type StatComposite struct {
 type StatCompositeEdge struct {
 	Branch string `yaml:"branch" json:"branch"`
 	Child  string `yaml:"child" json:"child"`
+}
+
+// StatScaling is the stored form of a scaling object: a per-form categorical
+// source and an option->factor map, plus the factor for unlisted options (and
+// forms with no value). Source must be a facet or a scalar dropdown/radio
+// field (per-form), never a table column. Other objects reference it by name
+// through their DSL `scale "<name>"` clause.
+type StatScaling struct {
+	Source  StatSource        `yaml:"source" json:"source"`
+	Weights []StatWeightEntry `yaml:"weights,omitempty" json:"weights"`
+	Default float64           `yaml:"default" json:"default"`
+}
+
+// StatSource is a serialised source reference (mirrors stat.SourceRef): a
+// field (optionally a table column by value-key) or a facet.
+type StatSource struct {
+	Kind   string `yaml:"kind" json:"kind"` // "field" | "facet"
+	Key    string `yaml:"key" json:"key"`
+	Column string `yaml:"column,omitempty" json:"column,omitempty"`
+}
+
+// StatWeightEntry maps one option value to its multiplier.
+type StatWeightEntry struct {
+	Label  string  `yaml:"label" json:"label"`
+	Factor float64 `yaml:"factor" json:"factor"`
 }
 
 // UnmarshalYAML accepts both the new `facets:` shape and the legacy

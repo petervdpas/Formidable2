@@ -10,6 +10,7 @@ package stat
 //
 //	object    := measure ("," measure)*  ( "by" dimension ("," dimension)* )?
 //	             ( "where" filter ( "and" filter )* )?
+//	             ( "scale" str )?                     // weighting object, by name
 //	             ( "pct" base )?                      // percentage denominator
 //	base      := "distribution" | "forms" | "none"   // default: distribution
 //	filter    := source op value                     // scope, AND-chained
@@ -152,4 +153,10 @@ type StatConfig struct {
 	Dimensions []Dimension
 	Filters    []Filter
 	Percent    PercentBase // "" means PctDistribution
+	// Scale is the name of a scaling object that weights this object's
+	// count()/records() contributions per form. "" means unweighted. The
+	// referenced object owns the source + option->factor map; this only
+	// carries the reference, resolved at evaluate time (like a composite's
+	// parent/child names).
+	Scale string
 }

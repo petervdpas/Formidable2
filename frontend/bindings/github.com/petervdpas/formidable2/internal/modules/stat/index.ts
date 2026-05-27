@@ -25,8 +25,10 @@ export {
     MeasureOp,
     MeasureOpDescriptor,
     PercentBase,
+    Scaling,
     SourceKind,
     SourceRef,
     StatConfig,
-    StatObject
+    StatObject,
+    WeightEntry
 } from "./models.js";

@@ -248,7 +248,13 @@ func (s statTemplateSource) ListStatistics(tplFile string) ([]stat.StatObject, e
 	}
 	out := make([]stat.StatObject, 0, len(t.Statistics))
 	for _, st := range t.Statistics {
-		out = append(out, stat.StatObject{Name: st.Name, Label: st.Label, DSL: st.DSL, Composite: toStatComposite(st.Composite)})
+		out = append(out, stat.StatObject{
+			Name:      st.Name,
+			Label:     st.Label,
+			DSL:       st.DSL,
+			Composite: toStatComposite(st.Composite),
+			Scaling:   toStatScaling(st.Scaling),
+		})
 	}
 	return out, nil
 }
@@ -265,6 +271,28 @@ func toStatComposite(c *template.StatComposite) *stat.CompositeSpec {
 		edges = append(edges, stat.CompositeEdgeSpec{Branch: e.Branch, Child: e.Child})
 	}
 	return &stat.CompositeSpec{Parent: c.Parent, Edges: edges}
+}
+
+// toStatScaling maps a template's stored scaling spec onto the stat package's
+// Scaling, keeping the template package free of a stat dependency. nil maps to
+// nil.
+func toStatScaling(sc *template.StatScaling) *stat.Scaling {
+	if sc == nil {
+		return nil
+	}
+	kind := stat.SourceField
+	if sc.Source.Kind == "facet" {
+		kind = stat.SourceFacet
+	}
+	weights := make([]stat.WeightEntry, 0, len(sc.Weights))
+	for _, w := range sc.Weights {
+		weights = append(weights, stat.WeightEntry{Label: w.Label, Factor: w.Factor})
+	}
+	return &stat.Scaling{
+		Source:  stat.SourceRef{Kind: kind, Key: sc.Source.Key, Column: sc.Source.Column},
+		Weights: weights,
+		Default: sc.Default,
+	}
 }
 
 // statSourceOptions gives the stat engine a facet dimension's full,

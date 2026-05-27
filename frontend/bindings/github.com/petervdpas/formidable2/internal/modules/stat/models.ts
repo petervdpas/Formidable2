@@ -629,6 +629,49 @@ export enum PercentBase {
 };
 
 /**
+ * Scaling is the resolved weighting: the per-form source, the option->factor
+ * map (as an ordered slice), and the factor for any option not listed (and for
+ * forms with no value). Source must be a per-form facet or scalar field, never
+ * a table column (whose value is per-row, not per-form).
+ */
+export class Scaling {
+    "source": SourceRef;
+    "weights": WeightEntry[];
+    "default": number;
+
+    /** Creates a new Scaling instance. */
+    constructor($$source: Partial<Scaling> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = (new SourceRef());
+        }
+        if (!("weights" in $$source)) {
+            this["weights"] = [];
+        }
+        if (!("default" in $$source)) {
+            this["default"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Scaling instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Scaling {
+        const $$createField0_0 = $$createType9;
+        const $$createField1_0 = $$createType18;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField0_0($$parsedSource["source"]);
+        }
+        if ("weights" in $$parsedSource) {
+            $$parsedSource["weights"] = $$createField1_0($$parsedSource["weights"]);
+        }
+        return new Scaling($$parsedSource as Partial<Scaling>);
+    }
+}
+
+/**
  * SourceKind distinguishes a field source from a facet source.
  */
 export enum SourceKind {
@@ -694,6 +737,15 @@ export class StatConfig {
      */
     "Percent": PercentBase;
 
+    /**
+     * Scale is the name of a scaling object that weights this object's
+     * count()/records() contributions per form. "" means unweighted. The
+     * referenced object owns the source + option->factor map; this only
+     * carries the reference, resolved at evaluate time (like a composite's
+     * parent/child names).
+     */
+    "Scale": string;
+
     /** Creates a new StatConfig instance. */
     constructor($$source: Partial<StatConfig> = {}) {
         if (!("Measures" in $$source)) {
@@ -708,6 +760,9 @@ export class StatConfig {
         if (!("Percent" in $$source)) {
             this["Percent"] = PercentBase.$zero;
         }
+        if (!("Scale" in $$source)) {
+            this["Scale"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -716,9 +771,9 @@ export class StatConfig {
      * Creates a new StatConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): StatConfig {
-        const $$createField0_0 = $$createType18;
-        const $$createField1_0 = $$createType20;
-        const $$createField2_0 = $$createType22;
+        const $$createField0_0 = $$createType20;
+        const $$createField1_0 = $$createType22;
+        const $$createField2_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Measures" in $$parsedSource) {
             $$parsedSource["Measures"] = $$createField0_0($$parsedSource["Measures"]);
@@ -747,6 +802,13 @@ export class StatObject {
     "dsl": string;
     "composite"?: CompositeSpec | null;
 
+    /**
+     * Scaling is set when this object is a scaling (a reusable weighting),
+     * in which case DSL is empty. Other objects reference it by name through
+     * their DSL `scale "<name>"` clause.
+     */
+    "scaling"?: Scaling | null;
+
     /** Creates a new StatObject instance. */
     constructor($$source: Partial<StatObject> = {}) {
         if (!("name" in $$source)) {
@@ -763,12 +825,47 @@ export class StatObject {
      * Creates a new StatObject instance from a string or object.
      */
     static createFrom($$source: any = {}): StatObject {
-        const $$createField3_0 = $$createType24;
+        const $$createField3_0 = $$createType26;
+        const $$createField4_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("composite" in $$parsedSource) {
             $$parsedSource["composite"] = $$createField3_0($$parsedSource["composite"]);
         }
+        if ("scaling" in $$parsedSource) {
+            $$parsedSource["scaling"] = $$createField4_0($$parsedSource["scaling"]);
+        }
         return new StatObject($$parsedSource as Partial<StatObject>);
+    }
+}
+
+/**
+ * WeightEntry maps one option value to its multiplier. Label is the stored
+ * value the dimension carries: a facet's selected option label, or a
+ * dropdown/radio field's option value. Kept an ordered slice (not a map) so
+ * the spec serialises deterministically.
+ */
+export class WeightEntry {
+    "label": string;
+    "factor": number;
+
+    /** Creates a new WeightEntry instance. */
+    constructor($$source: Partial<WeightEntry> = {}) {
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("factor" in $$source)) {
+            this["factor"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WeightEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WeightEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WeightEntry($$parsedSource as Partial<WeightEntry>);
     }
 }
 
@@ -790,11 +887,15 @@ const $$createType13 = $Create.Array($$createType12);
 const $$createType14 = $Create.Array($Create.Any);
 const $$createType15 = $Create.Array($Create.Any);
 const $$createType16 = $Create.Nullable($$createType9);
-const $$createType17 = Measure.createFrom;
+const $$createType17 = WeightEntry.createFrom;
 const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = Dimension.createFrom;
+const $$createType19 = Measure.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = Filter.createFrom;
+const $$createType21 = Dimension.createFrom;
 const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = CompositeSpec.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
+const $$createType23 = Filter.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = CompositeSpec.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = Scaling.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);

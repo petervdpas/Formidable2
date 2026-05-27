@@ -13,6 +13,10 @@ type StatObject struct {
 	Label     string         `json:"label,omitempty"`
 	DSL       string         `json:"dsl"`
 	Composite *CompositeSpec `json:"composite,omitempty"`
+	// Scaling is set when this object is a scaling (a reusable weighting),
+	// in which case DSL is empty. Other objects reference it by name through
+	// their DSL `scale "<name>"` clause.
+	Scaling *Scaling `json:"scaling,omitempty"`
 }
 
 // CompositeSpec is the stored form of a composite (hop route): a parent
@@ -122,9 +126,22 @@ func (s *Service) BuilderFilterOps() []FilterOpDescriptor { return FilterOps() }
 
 // EvaluateDSL evaluates a raw statistical-DSL string against the index.
 // The builder uses it to preview a statistic's output before it is saved
-// (EvaluateObject needs the object persisted to resolve it by name).
+// (EvaluateObject needs the object persisted to resolve it by name). A
+// `scale "<name>"` clause is resolved against the template's saved objects,
+// so the referenced scaling must already exist (like composite children).
 func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error) {
-	return s.m.EvaluateDSL(template, dsl)
+	cfg, err := Parse(dsl)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Scale == "" {
+		return s.m.Evaluate(template, cfg)
+	}
+	catalog, err := s.loadCatalog(template)
+	if err != nil {
+		return nil, err
+	}
+	return s.evaluateResolved(template, cfg, catalog)
 }
 
 // ListObjects returns the catalog of named statistical objects defined
@@ -223,19 +240,71 @@ func (c catalogConfigs) Config(name string) (StatConfig, error) {
 	return Parse(o.DSL)
 }
 
+// Scaling resolves a scale-clause name to its weighting (implements
+// ScalingSource). Errors on an unknown name or an object that isn't a scaling.
+func (c catalogConfigs) Scaling(name string) (*Scaling, error) {
+	o, ok := c[name]
+	if !ok {
+		return nil, fmt.Errorf("scaling %q not found", name)
+	}
+	if o.Scaling == nil {
+		return nil, fmt.Errorf("object %q is not a scaling", name)
+	}
+	return o.Scaling, nil
+}
+
+// evaluateResolved evaluates a parsed config against the index, resolving an
+// optional scale-clause reference through the catalog first. The single path
+// behind EvaluateObject and the builder preview so both apply weighting the
+// same way.
+func (s *Service) evaluateResolved(template string, cfg StatConfig, catalog catalogConfigs) (*Grid, error) {
+	if cfg.Scale == "" {
+		return s.m.Evaluate(template, cfg)
+	}
+	sc, err := catalog.Scaling(cfg.Scale)
+	if err != nil {
+		return nil, err
+	}
+	return s.m.EvaluateScaled(template, cfg, sc)
+}
+
+// loadCatalog reads the template's objects into a name->object catalog.
+func (s *Service) loadCatalog(template string) (catalogConfigs, error) {
+	if s.src == nil {
+		return nil, fmt.Errorf("stat: no statistic source configured")
+	}
+	objs, err := s.src.ListStatistics(template)
+	if err != nil {
+		return nil, err
+	}
+	catalog := make(catalogConfigs, len(objs))
+	for _, o := range objs {
+		catalog[o.Name] = o
+	}
+	return catalog, nil
+}
+
 // EvaluateObject resolves a template's named statistical object to its
 // DSL, evaluates it against the index, and returns the rank-N Grid. This
 // is the surface the frontend renderer and the Lua binding consume.
 func (s *Service) EvaluateObject(template, name string) (*Grid, error) {
-	if s.src == nil {
-		return nil, fmt.Errorf("stat: no statistic source configured")
-	}
-	dsl, ok, err := s.src.StatisticDSL(template, name)
+	catalog, err := s.loadCatalog(template)
 	if err != nil {
 		return nil, err
 	}
+	obj, ok := catalog[name]
 	if !ok {
 		return nil, fmt.Errorf("stat: no statistic %q on template %q", name, template)
 	}
-	return s.m.EvaluateDSL(template, dsl)
+	if obj.Composite != nil {
+		return nil, fmt.Errorf("stat: statistic %q is a composite; use EvaluateComposite", name)
+	}
+	if obj.Scaling != nil {
+		return nil, fmt.Errorf("stat: statistic %q is a scaling and has no grid of its own", name)
+	}
+	cfg, err := Parse(obj.DSL)
+	if err != nil {
+		return nil, err
+	}
+	return s.evaluateResolved(template, cfg, catalog)
 }

@@ -49,14 +49,71 @@ func (m *Manager) EvaluateDSL(template, dsl string) (*Grid, error) {
 	return m.Evaluate(template, cfg)
 }
 
+// formCategory returns each form's stored value for a per-form source (a
+// facet's selected option or a scalar field's value), keyed by form filename.
+// Used to resolve a scaling weight per form. A second, unfiltered aggregate
+// over just this source: forms without a value are simply absent (INNER JOIN),
+// so the caller's default factor applies. Column-bearing sources are rejected
+// upstream (Scaling.validate), so the dim here is always scalar.
+func (m *Manager) formCategory(template string, src SourceRef) (map[string]string, error) {
+	kind := "field"
+	if src.Kind == SourceFacet {
+		kind = "facet"
+	}
+	rows, err := m.idx.AggregateRaw(template, []index.AggDim{{Kind: kind, Key: src.Key}}, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(rows))
+	for _, r := range rows {
+		if len(r.Dims) > 0 {
+			out[r.Form] = r.Dims[0]
+		}
+	}
+	return out, nil
+}
+
 // Evaluate runs a StatConfig against the index and shapes the result into
 // a Grid. Supports scalar field, facet and (a single) table-column source;
 // see the fan-out guard below for the combinations rejected to avoid
 // over-counting.
 func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
+	return m.EvaluateScaled(template, cfg, nil)
+}
+
+// EvaluateScaled is Evaluate with an optional weighting: when sc is non-nil,
+// each count()/records() measure sums a per-form factor (drawn from sc's
+// source) instead of adding 1. Numeric reduces are unaffected. sc is resolved
+// by the caller (the Service, from the DSL scale name); pass nil for the plain
+// path.
+func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (*Grid, error) {
 	if len(cfg.Measures) == 0 {
 		return nil, fmt.Errorf("stat: config has no measures")
 	}
+
+	// Resolve the weighting up front: validate the source is per-form and
+	// build a form -> factor lookup. A second, unfiltered aggregate over the
+	// scale source gives each form's category; forms missing it fall to the
+	// default factor.
+	var weightOf func(form string) float64
+	if sc != nil {
+		if err := sc.validate(); err != nil {
+			return nil, err
+		}
+		labels, err := m.formCategory(template, sc.Source)
+		if err != nil {
+			return nil, err
+		}
+		wmap := sc.weightMap()
+		def := sc.Default
+		weightOf = func(form string) float64 {
+			if w, ok := wmap[labels[form]]; ok {
+				return w
+			}
+			return def
+		}
+	}
+	needScale := weightOf != nil
 
 	// Fan-out guard: a table-column source joins one row per cell (many per
 	// form). More than one such source would multiply (cartesian) and
@@ -93,7 +150,9 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	}
 
 	// records() counts distinct contributing forms per category, so the
-	// reducer must track form identity per group (skipped otherwise).
+	// reducer must track form identity per group. A weighted records() also
+	// needs the form set (to sum a factor per distinct form), so scaling
+	// forces form tracking too.
 	needRecords := false
 	for _, ms := range cfg.Measures {
 		if ms.Op == OpRecords {
@@ -101,6 +160,7 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 			break
 		}
 	}
+	needForms := needRecords || needScale
 
 	// resolveCol turns a table-column source's column key into its
 	// positional index; scalar/facet sources resolve to nil.
@@ -249,7 +309,8 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	type group struct {
 		coords []int
 		count  int
-		forms  map[string]struct{} // distinct contributing forms; nil unless records() asked
+		forms  map[string]struct{} // distinct contributing forms; nil unless tracked
+		wcount float64             // weighted row sum (scaled count); only when scaling
 		nums   [][]float64         // aligned to numKeys
 	}
 	groups := map[string]*group{}
@@ -263,15 +324,18 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		g := groups[key]
 		if g == nil {
 			g = &group{coords: coords, nums: make([][]float64, len(nums))}
-			if needRecords {
+			if needForms {
 				g.forms = map[string]struct{}{}
 			}
 			groups[key] = g
 			order = append(order, key)
 		}
 		g.count++
-		if needRecords {
+		if needForms {
 			g.forms[r.Form] = struct{}{}
+		}
+		if needScale {
+			g.wcount += weightOf(r.Form)
 		}
 		for j := range nums {
 			if r.Nums[j].Valid {
@@ -291,11 +355,23 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 		vals := make([]float64, len(cfg.Measures))
 		for i, ms := range cfg.Measures {
 			if ms.Op == OpCount {
-				vals[i] = float64(g.count)
+				if needScale {
+					vals[i] = g.wcount // sum of per-row factors
+				} else {
+					vals[i] = float64(g.count)
+				}
 				continue
 			}
 			if ms.Op == OpRecords {
-				vals[i] = float64(len(g.forms))
+				if needScale {
+					var s float64 // sum of per-distinct-form factors
+					for f := range g.forms {
+						s += weightOf(f)
+					}
+					vals[i] = s
+				} else {
+					vals[i] = float64(len(g.forms))
+				}
 				continue
 			}
 			vals[i] = reduceNumeric(ms, g.nums[numIdx[numKeyFor(ms.Source)]])

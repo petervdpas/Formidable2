@@ -979,18 +979,125 @@ export class StatCompositeEdge {
 }
 
 /**
- * Statistic is one author-defined statistical object. It is either a plain
- * object (a DSL the Statistical Engine evaluates into a rank-N grid) or a
- * Composite (a hop route referencing other objects by name); exactly one of
- * DSL / Composite is set. Name is the identifier consumers fetch by; Label
- * is the display title. See internal/modules/stat,
- * design/statistics-dsl.md and design/statistics-composite.md.
+ * StatScaling is the stored form of a scaling object: a per-form categorical
+ * source and an option->factor map, plus the factor for unlisted options (and
+ * forms with no value). Source must be a facet or a scalar dropdown/radio
+ * field (per-form), never a table column. Other objects reference it by name
+ * through their DSL `scale "<name>"` clause.
+ */
+export class StatScaling {
+    "source": StatSource;
+    "weights": StatWeightEntry[];
+    "default": number;
+
+    /** Creates a new StatScaling instance. */
+    constructor($$source: Partial<StatScaling> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = (new StatSource());
+        }
+        if (!("weights" in $$source)) {
+            this["weights"] = [];
+        }
+        if (!("default" in $$source)) {
+            this["default"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StatScaling instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StatScaling {
+        const $$createField0_0 = $$createType26;
+        const $$createField1_0 = $$createType28;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField0_0($$parsedSource["source"]);
+        }
+        if ("weights" in $$parsedSource) {
+            $$parsedSource["weights"] = $$createField1_0($$parsedSource["weights"]);
+        }
+        return new StatScaling($$parsedSource as Partial<StatScaling>);
+    }
+}
+
+/**
+ * StatSource is a serialised source reference (mirrors stat.SourceRef): a
+ * field (optionally a table column by value-key) or a facet.
+ */
+export class StatSource {
+    /**
+     * "field" | "facet"
+     */
+    "kind": string;
+    "key": string;
+    "column"?: string;
+
+    /** Creates a new StatSource instance. */
+    constructor($$source: Partial<StatSource> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StatSource instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StatSource {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StatSource($$parsedSource as Partial<StatSource>);
+    }
+}
+
+/**
+ * StatWeightEntry maps one option value to its multiplier.
+ */
+export class StatWeightEntry {
+    "label": string;
+    "factor": number;
+
+    /** Creates a new StatWeightEntry instance. */
+    constructor($$source: Partial<StatWeightEntry> = {}) {
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("factor" in $$source)) {
+            this["factor"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StatWeightEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StatWeightEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StatWeightEntry($$parsedSource as Partial<StatWeightEntry>);
+    }
+}
+
+/**
+ * Statistic is one author-defined statistical object. It is a plain object (a
+ * DSL the Statistical Engine evaluates into a rank-N grid), a Composite (a hop
+ * route referencing other objects by name), or a Scaling (a reusable weighting
+ * other objects reference by name); exactly one of DSL / Composite / Scaling
+ * is set. Name is the identifier consumers fetch by; Label is the display
+ * title. See internal/modules/stat, design/statistics-dsl.md and
+ * design/statistics-composite.md.
  */
 export class Statistic {
     "name": string;
     "label"?: string;
     "dsl": string;
     "composite"?: StatComposite | null;
+    "scaling"?: StatScaling | null;
 
     /** Creates a new Statistic instance. */
     constructor($$source: Partial<Statistic> = {}) {
@@ -1008,10 +1115,14 @@ export class Statistic {
      * Creates a new Statistic instance from a string or object.
      */
     static createFrom($$source: any = {}): Statistic {
-        const $$createField3_0 = $$createType27;
+        const $$createField3_0 = $$createType30;
+        const $$createField4_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("composite" in $$parsedSource) {
             $$parsedSource["composite"] = $$createField3_0($$parsedSource["composite"]);
+        }
+        if ("scaling" in $$parsedSource) {
+            $$parsedSource["scaling"] = $$createField4_0($$parsedSource["scaling"]);
         }
         return new Statistic($$parsedSource as Partial<Statistic>);
     }
@@ -1046,7 +1157,7 @@ export class SubRow {
      * Creates a new SubRow instance from a string or object.
      */
     static createFrom($$source: any = {}): SubRow {
-        const $$createField4_0 = $$createType29;
+        const $$createField4_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField4_0($$parsedSource["entries"]);
@@ -1187,10 +1298,10 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField8_0 = $$createType31;
-        const $$createField9_0 = $$createType33;
-        const $$createField10_0 = $$createType35;
-        const $$createField11_0 = $$createType36;
+        const $$createField8_0 = $$createType36;
+        const $$createField9_0 = $$createType38;
+        const $$createField10_0 = $$createType40;
+        const $$createField11_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -1277,14 +1388,19 @@ const $$createType22 = PDFCoverConfig.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
 const $$createType24 = StatCompositeEdge.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = StatComposite.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = SubRowEntry.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = PDFConfig.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = Facet.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = Statistic.createFrom;
-const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = $Create.Array($$createType13);
+const $$createType26 = StatSource.createFrom;
+const $$createType27 = StatWeightEntry.createFrom;
+const $$createType28 = $Create.Array($$createType27);
+const $$createType29 = StatComposite.createFrom;
+const $$createType30 = $Create.Nullable($$createType29);
+const $$createType31 = StatScaling.createFrom;
+const $$createType32 = $Create.Nullable($$createType31);
+const $$createType33 = SubRowEntry.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = PDFConfig.createFrom;
+const $$createType36 = $Create.Nullable($$createType35);
+const $$createType37 = Facet.createFrom;
+const $$createType38 = $Create.Array($$createType37);
+const $$createType39 = Statistic.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = $Create.Array($$createType13);

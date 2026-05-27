@@ -154,6 +154,24 @@ func TestCompile_Canonical(t *testing.T) {
 			},
 			want: `count() where F["amount"] gt 100 and Facet["fcdm"] ne "AANWEZIG"`,
 		},
+		{
+			name: "scale reference",
+			cfg: StatConfig{
+				Measures:   []Measure{{Op: OpRecords}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
+				Scale:      "fcdm-urgency",
+			},
+			want: `records() by F["code-repositories"]["application"] top 10 scale "fcdm-urgency"`,
+		},
+		{
+			name: "scale before pct (canonical order)",
+			cfg: StatConfig{
+				Measures: []Measure{{Op: OpCount}},
+				Scale:    "w",
+				Percent:  PctForms,
+			},
+			want: `count() scale "w" pct forms`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -317,6 +335,18 @@ func TestRoundTrip_Identity(t *testing.T) {
 				{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "procedure"}, Op: FilterEq, Value: "P1"},
 				{Source: SourceRef{Kind: SourceField, Key: "amount"}, Op: FilterGe, Value: "5"},
 			},
+		},
+		{
+			Measures:   []Measure{{Op: OpRecords}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
+			Filters:    []Filter{{Source: SourceRef{Kind: SourceFacet, Key: "flag"}, Op: FilterEq, Value: "IN GEBRUIK"}},
+			Scale:      "fcdm-urgency",
+		},
+		{
+			Measures:   []Measure{{Op: OpRecords}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
+			Scale:      "fcdm-urgency",
+			Percent:    PctNone,
 		},
 	}
 	for i, cfg := range configs {

@@ -129,7 +129,9 @@ export function EvaluateCompositeSpec(template: string, spec: $models.CompositeS
 /**
  * EvaluateDSL evaluates a raw statistical-DSL string against the index.
  * The builder uses it to preview a statistic's output before it is saved
- * (EvaluateObject needs the object persisted to resolve it by name).
+ * (EvaluateObject needs the object persisted to resolve it by name). A
+ * `scale "<name>"` clause is resolved against the template's saved objects,
+ * so the referenced scaling must already exist (like composite children).
  */
 export function EvaluateDSL(template: string, dsl: string): $CancellablePromise<$models.Grid | null> {
     return $Call.ByID(2268999486, template, dsl).then(($result: any) => {

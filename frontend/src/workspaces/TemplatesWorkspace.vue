@@ -15,6 +15,7 @@ import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
 import FacetEditorModal from "../components/FacetEditorModal.vue";
 import StatisticsBuilderModal from "../components/StatisticsBuilderModal.vue";
 import CompositeBuilderModal from "../components/CompositeBuilderModal.vue";
+import ScalingBuilderModal from "../components/ScalingBuilderModal.vue";
 import StatGridDialog from "../components/stat/StatGridDialog.vue";
 import { type Grid, type CompositeGrid } from "../components/stat/grid";
 import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
@@ -655,11 +656,15 @@ function openEditStatistic(idx: number) {
   const s = draft.value.statistics?.[idx];
   if (!s) return;
   editingStatIndex.value = idx;
-  // A composite object reopens in the composite builder; a plain DSL object
-  // in the DSL builder.
+  // Reopen each object kind in its own builder.
   if (s.composite) {
     editingComposite.value = s;
     compositeBuilderOpen.value = true;
+    return;
+  }
+  if (s.scaling) {
+    editingScaling.value = s;
+    scalingBuilderOpen.value = true;
     return;
   }
   editingStat.value = new Statistic({ name: s.name, label: s.label, dsl: s.dsl });
@@ -700,6 +705,25 @@ function openAddComposite() {
 function applyComposite(s: Statistic) {
   applyStatistic(s);
   compositeBuilderOpen.value = false;
+}
+
+// ── Scaling objects (reusable weightings): authored via ScalingBuilderModal.
+// A scaling has no grid of its own; plain objects reference it by name through
+// the stat builder's scale picker. Shares the statistics list + apply path.
+const scalingBuilderOpen = ref(false);
+const editingScaling = ref<Statistic | null>(null);
+const scalings = computed(() => (draft.value?.statistics ?? []).filter((s) => !!s.scaling));
+
+function openAddScaling() {
+  if (!draft.value) return;
+  editingStatIndex.value = -1;
+  editingScaling.value = null;
+  scalingBuilderOpen.value = true;
+}
+
+function applyScaling(s: Statistic) {
+  applyStatistic(s);
+  scalingBuilderOpen.value = false;
 }
 
 // View an evaluated statistic. Uses EvaluateDSL on the draft's current
@@ -1134,8 +1158,10 @@ setTopbarMenu(() => [
                     >
                       <span class="stat-row-name">{{ s.label || s.name }}</span>
                       <code v-if="s.composite" class="stat-row-dsl">{{ t('workspace.templates.statistics.composite_summary', [s.composite.parent, s.composite.edges.length]) }}</code>
+                      <code v-else-if="s.scaling" class="stat-row-dsl">{{ t('workspace.templates.statistics.scaling_summary', [s.scaling.source.key, s.scaling.weights.length]) }}</code>
                       <code v-else class="stat-row-dsl">{{ s.dsl }}</code>
                       <button
+                        v-if="!s.scaling"
                         class="tool-btn"
                         type="button"
                         :title="t('workspace.templates.statistics.view')"
@@ -1161,6 +1187,9 @@ setTopbarMenu(() => [
                     </button>
                     <button class="tool-btn" type="button" @click="openAddComposite">
                       + {{ t('workspace.templates.statistics.add_composite') }}
+                    </button>
+                    <button class="tool-btn" type="button" @click="openAddScaling">
+                      + {{ t('workspace.templates.statistics.add_scaling') }}
                     </button>
                   </div>
                 </div>
@@ -1369,6 +1398,7 @@ setTopbarMenu(() => [
     :template="selectedFilename || ''"
     :fields="draft.fields ?? []"
     :facets="draft.facets ?? []"
+    :scalings="scalings"
     :initial="editingStat"
     @close="statBuilderOpen = false"
     @apply="applyStatistic"
@@ -1384,6 +1414,17 @@ setTopbarMenu(() => [
     :initial="editingComposite"
     @close="compositeBuilderOpen = false"
     @apply="applyComposite"
+  />
+
+  <!-- Scaling (reusable weighting) builder: per-form source + option factors -->
+  <ScalingBuilderModal
+    v-if="draft"
+    :open="scalingBuilderOpen"
+    :fields="draft.fields ?? []"
+    :facets="draft.facets ?? []"
+    :initial="editingScaling"
+    @close="scalingBuilderOpen = false"
+    @apply="applyScaling"
   />
 
   <!-- Evaluated-statistic viewer (rank-N grid + composite sunburst) -->

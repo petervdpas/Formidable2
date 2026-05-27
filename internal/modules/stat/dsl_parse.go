@@ -206,18 +206,39 @@ func (p *dslParser) object() (StatConfig, error) {
 			cfg.Filters = append(cfg.Filters, f)
 		}
 	}
-	if p.peek().kind == tkIdent && p.peek().val == "pct" {
-		p.advance()
-		bt := p.peek()
-		if bt.kind != tkIdent {
-			return cfg, fmt.Errorf("stat dsl: expected a percent base after 'pct', got %q", bt.val)
+	// Trailing config clauses (scale, pct) in any author order; each at most
+	// once. Compile emits them in a fixed order, so round-trip stays stable.
+	seen := map[string]bool{}
+	for p.peek().kind == tkIdent && (p.peek().val == "pct" || p.peek().val == "scale") {
+		kw := p.peek().val
+		if seen[kw] {
+			return cfg, fmt.Errorf("stat dsl: duplicate %q clause", kw)
 		}
-		base := PercentBase(bt.val)
-		if !validPercentBases[base] {
-			return cfg, fmt.Errorf("stat dsl: invalid percent base %q (want distribution/forms/none)", bt.val)
-		}
+		seen[kw] = true
 		p.advance()
-		cfg.Percent = base
+		switch kw {
+		case "pct":
+			bt := p.peek()
+			if bt.kind != tkIdent {
+				return cfg, fmt.Errorf("stat dsl: expected a percent base after 'pct', got %q", bt.val)
+			}
+			base := PercentBase(bt.val)
+			if !validPercentBases[base] {
+				return cfg, fmt.Errorf("stat dsl: invalid percent base %q (want distribution/forms/none)", bt.val)
+			}
+			p.advance()
+			cfg.Percent = base
+		case "scale":
+			// A quoted name (object names may contain hyphens, not ident chars).
+			nt, err := p.expect(tkString, "a quoted scaling object name")
+			if err != nil {
+				return cfg, err
+			}
+			if nt.val == "" {
+				return cfg, fmt.Errorf("stat dsl: scale name must not be empty")
+			}
+			cfg.Scale = nt.val
+		}
 	}
 	return cfg, nil
 }

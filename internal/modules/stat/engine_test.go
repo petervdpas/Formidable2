@@ -674,7 +674,7 @@ func TestService_EvaluateObject_ResolvesNameThenRuns(t *testing.T) {
 		total: 3,
 		raw:   []index.StatRawRow{{Dims: []string{"high"}}, {Dims: []string{"low"}}, {Dims: []string{"high"}}},
 	}
-	svc := NewService(NewManager(idx), fakeSource{dsl: map[string]string{"by-status": `count() by F["status"]`}})
+	svc := NewService(NewManager(idx), fakeSource{list: []StatObject{{Name: "by-status", DSL: `count() by F["status"]`}}})
 	g, err := svc.EvaluateObject("t", "by-status")
 	if err != nil {
 		t.Fatal(err)
@@ -688,7 +688,7 @@ func TestService_EvaluateObject_ResolvesNameThenRuns(t *testing.T) {
 }
 
 func TestService_EvaluateObject_UnknownNameErrors(t *testing.T) {
-	svc := NewService(NewManager(&fakeIndex{}), fakeSource{dsl: map[string]string{}})
+	svc := NewService(NewManager(&fakeIndex{}), fakeSource{list: []StatObject{}})
 	if _, err := svc.EvaluateObject("t", "ghost"); err == nil {
 		t.Error("expected error for unknown statistic name")
 	}

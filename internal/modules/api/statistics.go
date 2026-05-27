@@ -14,7 +14,7 @@ type statObjectEntry struct {
 	Label string `json:"label,omitempty"`
 	Kind  string `json:"kind"`
 	DSL   string `json:"dsl,omitempty"`
-	Href  string `json:"href"`
+	Href  string `json:"href,omitempty"`
 }
 
 // statisticsListResponse is the body of GET /api/statistics/{tpl}.
@@ -60,16 +60,24 @@ func (h *Handler) statisticsList(w http.ResponseWriter, r *http.Request, tplFile
 	out := statisticsListResponse{Template: stem, Statistics: make([]statObjectEntry, 0, len(objs))}
 	for _, o := range objs {
 		kind := "dsl"
-		if o.Composite != nil {
+		switch {
+		case o.Composite != nil:
 			kind = "composite"
+		case o.Scaling != nil:
+			kind = "scaling"
 		}
-		out.Statistics = append(out.Statistics, statObjectEntry{
+		entry := statObjectEntry{
 			Name:  o.Name,
 			Label: o.Label,
 			Kind:  kind,
 			DSL:   o.DSL,
-			Href:  "/api/statistics/" + stem + "/" + o.Name,
-		})
+		}
+		// A scaling is a reusable weighting referenced by other objects; it
+		// has no grid of its own, so no evaluation href.
+		if kind != "scaling" {
+			entry.Href = "/api/statistics/" + stem + "/" + o.Name
+		}
+		out.Statistics = append(out.Statistics, entry)
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -118,16 +126,23 @@ func (h *Handler) statistic(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusInternalServerError, "internal-error")
 		return
 	}
-	var composite bool
+	var composite, scaling bool
 	var found bool
 	for _, o := range objs {
 		if o.Name == name {
 			found = true
 			composite = o.Composite != nil
+			scaling = o.Scaling != nil
 			break
 		}
 	}
 	if !found {
+		writeJSONError(w, http.StatusNotFound, "not-found")
+		return
+	}
+	if scaling {
+		// A scaling is a weighting referenced by other objects, not a grid;
+		// there is nothing to evaluate on its own.
 		writeJSONError(w, http.StatusNotFound, "not-found")
 		return
 	}
