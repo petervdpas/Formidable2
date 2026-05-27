@@ -274,6 +274,7 @@ function issueKindClass(kind: string): string {
     :open="open"
     :title="t('workspace.cleanup.title')"
     width="780px"
+    scroll
     @close="emit('close')"
   >
     <p class="cleanup-intro muted small">

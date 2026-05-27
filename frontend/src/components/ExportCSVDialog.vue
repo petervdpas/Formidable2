@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
+import ExportCsvRow, { type ExportRow, type SourceOption } from "./ExportCsvRow.vue";
 import { useDialog } from "../composables/useDialog";
 import { useToast } from "../composables/useToast";
 import { backendErrMessage } from "../utils/backendError";
@@ -27,19 +28,6 @@ const { t } = useI18n();
 const { chooseSaveFile } = useDialog();
 const toast = useToast();
 
-type ExportRow = {
-  id: string;
-  include: boolean;
-  computed: boolean;
-  header: string;
-  sourceKeys: string[];
-  separator: string;
-  rule: string;
-  param: string;
-};
-
-type SourceOption = { value: string; label: string };
-
 const delimiter = ref(",");
 const alignSource = ref("");
 const rows = ref<ExportRow[]>([]);
@@ -50,44 +38,6 @@ const previewCache = ref<string[]>([]);
 const exporting = ref(false);
 const exportError = ref("");
 const computedSeq = ref(0);
-
-// Same transform metadata as the Import dialog. Kept in-file rather
-// than shared so the dialogs stay independently editable.
-const transformRules: string[] = [
-  "none", "trim", "lowercase", "uppercase", "capitalize",
-  "trim+lower", "trim+upper", "trim+cap",
-  "first-n", "last-n", "split", "bool-match", "split-table",
-];
-const transformLabelKey: Record<string, string> = {
-  "none": "csv.transform.none",
-  "trim": "csv.transform.trim",
-  "lowercase": "csv.transform.lowercase",
-  "uppercase": "csv.transform.uppercase",
-  "capitalize": "csv.transform.capitalize",
-  "trim+lower": "csv.transform.trimlower",
-  "trim+upper": "csv.transform.trimupper",
-  "trim+cap": "csv.transform.trimcap",
-  "first-n": "csv.transform.firstn",
-  "last-n": "csv.transform.lastn",
-  "split": "csv.transform.split",
-  "bool-match": "csv.transform.boolmatch",
-  "split-table": "csv.transform.splittable",
-};
-const paramPlaceholder: Record<string, string> = {
-  "first-n": "N",
-  "last-n": "N",
-  "split": ", ; |",
-  "bool-match": "",
-  "split-table": "; ,",
-};
-const paramInputType: Record<string, "number" | "text"> = {
-  "first-n": "number",
-  "last-n": "number",
-};
-
-function fieldLabel(key: string): string {
-  return labelByKey.value.get(key) ?? key;
-}
 
 // The backend owns the column rules: which field types are exportable,
 // which fields are alignable, and how an aligned table expands into dotted
@@ -161,15 +111,6 @@ function addComputed() {
 
 function removeRow(idx: number) {
   rows.value.splice(idx, 1);
-}
-
-function addSourceToRow(row: ExportRow, fieldKey: string) {
-  if (!fieldKey || row.sourceKeys.includes(fieldKey)) return;
-  row.sourceKeys.push(fieldKey);
-}
-
-function removeSource(row: ExportRow, idx: number) {
-  row.sourceKeys.splice(idx, 1);
 }
 
 const includedRows = computed(() => rows.value.filter((r) => r.include));
@@ -305,72 +246,15 @@ async function doExport() {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(row, i) in rows" :key="row.id">
-          <td class="csv-export-td-narrow">
-            <input type="checkbox" v-model="row.include" />
-          </td>
-          <td>
-            <template v-if="!row.computed">
-              <span class="muted small">{{ fieldLabel(row.sourceKeys[0]) }}</span>
-            </template>
-            <template v-else>
-              <div class="csv-export-chips">
-                <span v-for="(key, ki) in row.sourceKeys" :key="ki" class="csv-export-chip">
-                  {{ fieldLabel(key) }}
-                  <button
-                    type="button"
-                    class="csv-export-chip-x"
-                    @click="removeSource(row, ki)"
-                    :aria-label="t('common.remove')"
-                  >×</button>
-                </span>
-                <select
-                  class="csv-export-chip-add"
-                  :value="''"
-                  @change="addSourceToRow(row, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
-                >
-                  <option value="">{{ t('csv.export.add.field') }}</option>
-                  <option v-for="o in sourceOptions" :key="o.value" :value="o.value">
-                    {{ o.label }}
-                  </option>
-                </select>
-              </div>
-            </template>
-          </td>
-          <td>
-            <input v-model="row.header" class="csv-export-header-input" />
-          </td>
-          <td class="csv-export-td-narrow">
-            <span v-if="!row.computed" class="muted">-</span>
-            <input v-else v-model="row.separator" class="csv-import-concat-input" />
-          </td>
-          <td class="csv-import-td-transform">
-            <select v-model="row.rule">
-              <option v-for="r in transformRules" :key="r" :value="r">
-                {{ t(transformLabelKey[r]) }}
-              </option>
-            </select>
-            <input
-              v-if="paramPlaceholder[row.rule] !== undefined"
-              :type="paramInputType[row.rule] ?? 'text'"
-              :placeholder="row.rule === 'bool-match' ? t('csv.transform.boolmatch.placeholder') : paramPlaceholder[row.rule]"
-              v-model="row.param"
-              class="csv-import-param"
-            />
-          </td>
-          <td class="csv-import-td-preview muted small">
-            {{ row.include ? (previewCache[includedRows.indexOf(row)] ?? "") : "" }}
-          </td>
-          <td class="csv-export-td-narrow">
-            <button
-              v-if="row.computed"
-              type="button"
-              class="csv-export-row-x"
-              :aria-label="t('common.remove')"
-              @click="removeRow(i)"
-            >×</button>
-          </td>
-        </tr>
+        <ExportCsvRow
+          v-for="(row, i) in rows"
+          :key="row.id"
+          :row="row"
+          :source-options="sourceOptions"
+          :label-by-key="labelByKey"
+          :preview="row.include ? (previewCache[includedRows.indexOf(row)] ?? '') : ''"
+          @remove="removeRow(i)"
+        />
       </tbody>
     </table>
 

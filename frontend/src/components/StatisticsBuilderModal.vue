@@ -591,6 +591,7 @@ async function onApply() {
     :open="open"
     :title="t('workspace.templates.stat_builder.title')"
     width="860px"
+    scroll
     @close="emit('close')"
   >
     <p v-if="parseWarn" class="stat-builder-warn small">

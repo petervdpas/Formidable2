@@ -62,7 +62,10 @@
   font-family: var(--font-mono);
   font-size: 0.875rem;
 }
-.csv-import-td-transform {
+/* The transform control lives in an inner flex wrapper, NOT on the <td>
+   itself - display:flex on a table cell drops it out of the table layout,
+   which made the Transform column drift out of alignment with its row. */
+.csv-transform-cell {
   display: flex;
   gap: var(--space-2);
   align-items: center;

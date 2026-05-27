@@ -279,6 +279,7 @@ const canApply = computed(() => {
     :open="open"
     :title="t('workspace.templates.expression_builder.title')"
     width="900px"
+    scroll
     @close="emit('close')"
   >
     <p v-if="parseError" class="expr-builder-error small">

@@ -114,6 +114,7 @@ function onApply() {
     :open="open"
     :title="t('workspace.templates.composite_builder.title')"
     width="640px"
+    scroll
     @close="emit('close')"
   >
     <p class="muted small stat-builder-hint">

@@ -96,6 +96,7 @@ const filteredItems = () => {
     :open="open"
     width="560px"
     :title="t('workspace.storage.api_picker.title')"
+    scroll
     @close="emit('close')"
   >
     <div class="api-picker">

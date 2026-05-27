@@ -103,7 +103,13 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    padding: 0 var(--space-4) var(--space-2);
+    padding: var(--space-4) var(--space-4) var(--space-2);
+}
+/* When a #head precedes the scroll region it already supplies the top
+   spacing, so the scroll region sits flush under it. Without a #head
+   (most dialogs) the scroll region keeps its own top padding. */
+.modal-pane-head + .modal-pane-scroll {
+    padding-top: 0;
 }
 .modal-pane-foot {
     flex: 0 0 auto;

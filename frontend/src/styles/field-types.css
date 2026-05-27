@@ -146,21 +146,8 @@
     border-color: var(--type-border);
 }
 
-/* Keep this dialog's height steady: the header + footer stay pinned and
-   only the field settings scroll between them. Scoped here (not in the
-   shared Modal) because Modal backs every dialog in the app. */
-.modal-dialog.field-edit-tinted {
-    overflow: hidden;
-}
-.modal-dialog.field-edit-tinted .modal-header,
-.modal-dialog.field-edit-tinted .modal-footer {
-    flex: 0 0 auto;
-}
-.modal-dialog.field-edit-tinted .modal-body {
-    min-height: 0;
-    overflow: auto;
-}
-
+/* Height pinning (header/footer fixed, body scrolls) now comes from the
+   shared Modal :scroll mode; only the tint stays bespoke here. */
 .modal-dialog.field-edit-tinted .modal-header,
 .modal-dialog.field-edit-tinted .modal-footer {
     border-color: color-mix(in oklab, currentColor 25%, transparent);

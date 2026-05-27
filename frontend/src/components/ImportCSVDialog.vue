@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
+import ImportCsvRow, { type Mapping } from "./ImportCsvRow.vue";
 import { useDialog } from "../composables/useDialog";
 import { useToast } from "../composables/useToast";
 import { backendErrMessage } from "../utils/backendError";
@@ -29,13 +30,6 @@ const { t } = useI18n();
 const { chooseFile } = useDialog();
 const toast = useToast();
 
-type Mapping = {
-  header: string;
-  fieldKey: string;
-  rule: string;
-  param: string;
-};
-
 type SourceOption = { value: string; label: string };
 
 const file = ref("");
@@ -55,39 +49,6 @@ const alignSource = ref("");
 const alignable = ref<SourceOption[]>([]);
 const subTargets = ref<SourceOption[]>([]);
 const groupKey = ref("");
-
-// Rules that expose a param input + their placeholder source.
-const paramPlaceholder: Record<string, string> = {
-  "first-n": "N",
-  "last-n": "N",
-  "split": ", ; |",
-  "bool-match": "",
-  "split-table": "; ,",
-};
-const paramInputType: Record<string, "number" | "text"> = {
-  "first-n": "number",
-  "last-n": "number",
-};
-const transformRules: string[] = [
-  "none", "trim", "lowercase", "uppercase", "capitalize",
-  "trim+lower", "trim+upper", "trim+cap",
-  "first-n", "last-n", "split", "bool-match", "split-table",
-];
-const transformLabelKey: Record<string, string> = {
-  "none": "csv.transform.none",
-  "trim": "csv.transform.trim",
-  "lowercase": "csv.transform.lowercase",
-  "uppercase": "csv.transform.uppercase",
-  "capitalize": "csv.transform.capitalize",
-  "trim+lower": "csv.transform.trimlower",
-  "trim+upper": "csv.transform.trimupper",
-  "trim+cap": "csv.transform.trimcap",
-  "first-n": "csv.transform.firstn",
-  "last-n": "csv.transform.lastn",
-  "split": "csv.transform.split",
-  "bool-match": "csv.transform.boolmatch",
-  "split-table": "csv.transform.splittable",
-};
 
 // Mappable fields come from the backend (excluded types stripped there,
 // one source of truth). The dialog still needs the FieldSpec list locally
@@ -438,37 +399,14 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(m, i) in mappings" :key="i">
-          <td class="csv-import-td-header">{{ m.header }}</td>
-          <td>
-            <select v-model="m.fieldKey">
-              <option value="">{{ t('csv.skip') }}</option>
-              <option v-for="o in targetOptions" :key="o.value" :value="o.value">
-                {{ o.label }}
-              </option>
-            </select>
-          </td>
-          <td class="csv-import-td-transform">
-            <select v-model="m.rule">
-              <option v-for="r in transformRules" :key="r" :value="r">
-                {{ t(transformLabelKey[r]) }}
-              </option>
-            </select>
-            <input
-              v-if="paramPlaceholder[m.rule] !== undefined"
-              :type="paramInputType[m.rule] ?? 'text'"
-              :placeholder="m.rule === 'bool-match' ? t('csv.transform.boolmatch.placeholder') : paramPlaceholder[m.rule]"
-              v-model="m.param"
-              class="csv-import-param"
-            />
-          </td>
-          <td class="csv-import-td-preview muted small">
-            {{ rawPreviewCache[i] ?? "" }}
-          </td>
-          <td class="csv-import-td-preview">
-            {{ typedPreviewCache[i] ?? "" }}
-          </td>
-        </tr>
+        <ImportCsvRow
+          v-for="(m, i) in mappings"
+          :key="i"
+          :mapping="m"
+          :target-options="targetOptions"
+          :raw-preview="rawPreviewCache[i] ?? ''"
+          :typed-preview="typedPreviewCache[i] ?? ''"
+        />
       </tbody>
     </table>
 

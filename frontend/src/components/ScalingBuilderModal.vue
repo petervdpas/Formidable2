@@ -147,6 +147,7 @@ function onApply() {
     :open="open"
     :title="t('workspace.templates.scaling_builder.title')"
     width="560px"
+    scroll
     @close="emit('close')"
   >
     <p class="muted small stat-builder-hint">
