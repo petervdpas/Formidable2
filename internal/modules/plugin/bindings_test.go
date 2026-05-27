@@ -1500,8 +1500,19 @@ func (m *mockStatObject) EvaluateObject(tpl, name string) (map[string]any, error
 func (m *mockStatObject) ListObjects(tpl string) ([]map[string]any, error) {
 	m.gotListTpl = tpl
 	return []map[string]any{
-		{"name": "by-status", "label": "By status", "dsl": `count() by F["status"]`},
-		{"name": "raw", "label": "", "dsl": "count()"},
+		{"name": "by-status", "label": "By status", "dsl": `count() by F["status"]`, "kind": "dsl"},
+		{"name": "raw", "label": "", "dsl": "count()", "kind": "dsl"},
+		{"name": "in-use-by-app", "label": "Drill", "dsl": "", "kind": "composite"},
+	}, nil
+}
+
+func (m *mockStatObject) EvaluateComposite(tpl, name string) (map[string]any, error) {
+	m.gotTpl, m.gotName = tpl, name
+	// A {parent, branches} grid - the shape StatGrid detects as a composite
+	// and draws as a sunburst.
+	return map[string]any{
+		"parent":   map[string]any{"axes": []any{map[string]any{"source": "flag", "labels": []any{"IN GEBRUIK"}}}},
+		"branches": []any{map[string]any{"branch": "IN GEBRUIK", "child": nil}},
 	}, nil
 }
 
@@ -1528,12 +1539,43 @@ func TestBindings_Statistical_ListReturnsCatalog(t *testing.T) {
 		end`,
 		scriptOpts{StatObject: ms})
 	m, ok := got.Value.(map[string]any)
-	if !ok || m["n"] != float64(2) || m["first"] != "by-status" ||
+	if !ok || m["n"] != float64(3) || m["first"] != "by-status" ||
 		m["label"] != "By status" || m["dsl"] != `count() by F["status"]` {
 		t.Fatalf("return = %v", got.Value)
 	}
 	if ms.gotListTpl != "demo.yaml" {
 		t.Errorf("list arg = %q, want demo.yaml", ms.gotListTpl)
+	}
+}
+
+func TestBindings_Statistical_ListReportsKind(t *testing.T) {
+	ms := &mockStatObject{}
+	got := run(t,
+		`function run()
+			local objs = formidable.statistical.list("demo.yaml")
+			return { k1 = objs[1].kind, k3 = objs[3].kind }
+		end`,
+		scriptOpts{StatObject: ms})
+	m, ok := got.Value.(map[string]any)
+	if !ok || m["k1"] != "dsl" || m["k3"] != "composite" {
+		t.Fatalf("return = %v, want k1=dsl k3=composite", got.Value)
+	}
+}
+
+func TestBindings_Statistical_EvalCompositeReturnsParentBranches(t *testing.T) {
+	ms := &mockStatObject{}
+	got := run(t,
+		`function run()
+			local g = formidable.statistical.evalComposite("demo.yaml", "in-use-by-app")
+			return { branch = g.branches[1].branch, src = g.parent.axes[1].source }
+		end`,
+		scriptOpts{StatObject: ms})
+	m, ok := got.Value.(map[string]any)
+	if !ok || m["branch"] != "IN GEBRUIK" || m["src"] != "flag" {
+		t.Fatalf("return = %v, want a {parent, branches} composite grid", got.Value)
+	}
+	if ms.gotTpl != "demo.yaml" || ms.gotName != "in-use-by-app" {
+		t.Errorf("args = (%q, %q), want (demo.yaml, in-use-by-app)", ms.gotTpl, ms.gotName)
 	}
 }
 

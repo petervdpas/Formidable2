@@ -496,7 +496,13 @@ func (a pluginStatObjectAdapter) ListObjects(template string) ([]map[string]any,
 	}
 	out := make([]map[string]any, 0, len(objs))
 	for _, o := range objs {
-		out = append(out, map[string]any{"name": o.Name, "label": o.Label, "dsl": o.DSL})
+		kind := "dsl"
+		if o.Composite != nil {
+			kind = "composite"
+		} else if o.Scaling != nil {
+			kind = "scaling"
+		}
+		out = append(out, map[string]any{"name": o.Name, "label": o.Label, "dsl": o.DSL, "kind": kind})
 	}
 	return out, nil
 }
@@ -507,6 +513,14 @@ func (a pluginStatObjectAdapter) EvaluateObject(template, name string) (map[stri
 		return nil, err
 	}
 	return toJSONMap(g)
+}
+
+func (a pluginStatObjectAdapter) EvaluateComposite(template, name string) (map[string]any, error) {
+	cg, err := a.svc.EvaluateComposite(template, name)
+	if err != nil {
+		return nil, err
+	}
+	return toJSONMap(cg)
 }
 
 // statGridMap collapses a (*Grid, error) pair into the JSON map the Lua

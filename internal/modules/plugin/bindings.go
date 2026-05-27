@@ -110,12 +110,15 @@ type FacetStatsAccess interface {
 // StatObjectAccess is the formidable.statistical surface - the
 // template's named statistical objects (composed in the Statistical
 // Engine builder). ListObjects enumerates the catalog ({name, label,
-// dsl} per entry); EvaluateObject runs one by name into a rank-N
-// values grid, flattened to a map[string]any for Lua. Both are
-// presentation-free; the plugin renders the result.
+// dsl, kind} per entry, kind being "dsl" | "composite" | "scaling");
+// EvaluateObject runs a plain object by name into a rank-N values grid;
+// EvaluateComposite runs a composite (hop route) into a {parent,
+// branches} grid for the sunburst renderer. All are presentation-free,
+// flattened to map[string]any for Lua; the plugin renders the result.
 type StatObjectAccess interface {
 	ListObjects(template string) ([]map[string]any, error)
 	EvaluateObject(template, name string) (map[string]any, error)
+	EvaluateComposite(template, name string) (map[string]any, error)
 }
 
 // ExecOptions narrows what `formidable.exec(cmd, args, opts)`
@@ -724,8 +727,9 @@ func buildFacetsTable(L *lua.LState, f FacetStatsAccess) *lua.LTable {
 
 // buildStatisticalValue returns the `formidable.statistical` value: a
 // table exposing
-//   - statistical.list(tpl)        -> {{name, label, dsl}, ...}
-//   - statistical.eval(tpl, name)  -> evaluated rank-N grid
+//   - statistical.list(tpl)               -> {{name, label, dsl, kind}, ...}
+//   - statistical.eval(tpl, name)         -> evaluated rank-N grid
+//   - statistical.evalComposite(tpl, name)-> {parent, branches} (sunburst)
 //
 // plus a __call metatable so the legacy callable form
 // `statistical(tpl, name)` keeps evaluating (back-compat with plugins
@@ -758,6 +762,15 @@ func buildStatisticalValue(L *lua.LState, a StatObjectAccess) lua.LValue {
 	}))
 	tbl.RawSetString("eval", L.NewFunction(func(L *lua.LState) int {
 		return eval(L.CheckString(1), L.CheckString(2))(L)
+	}))
+	tbl.RawSetString("evalComposite", L.NewFunction(func(L *lua.LState) int {
+		out, err := a.EvaluateComposite(L.CheckString(1), L.CheckString(2))
+		if err != nil {
+			L.RaiseError("statistical.evalComposite: %v", err)
+			return 0
+		}
+		L.Push(goToLua(L, out))
+		return 1
 	}))
 	// __call shifts past the table receiver (self) to (tpl, name).
 	mt := L.NewTable()
