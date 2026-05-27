@@ -255,7 +255,8 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 	}
 
 	envelope := Sanitize(data, fields, opts)
-	r := m.sfr.SaveFromBase(dir, datafile, envelope, sfr.Options{})
+	ordered := orderedForm{Meta: envelope.Meta, Data: orderData(envelope.Data, fields)}
+	r := m.sfr.SaveFromBase(dir, datafile, ordered, sfr.Options{})
 	if r.Success && m.indexer != nil {
 		if err := m.indexer.OnFormChanged(templateFilename, datafile); err != nil {
 			m.log.Warn("storage indexer save hook failed",
@@ -286,7 +287,9 @@ func (m *Manager) SaveFormExact(ctx context.Context, templateFilename, datafile 
 	if err := m.fs.EnsureDirectory(dir); err != nil {
 		return SaveResult{Success: false, Error: err.Error()}
 	}
-	r := m.sfr.SaveFromBase(dir, datafile, form, sfr.Options{})
+	fields := m.fieldsFor(templateFilename)
+	ordered := orderedForm{Meta: form.Meta, Data: orderData(form.Data, fields)}
+	r := m.sfr.SaveFromBase(dir, datafile, ordered, sfr.Options{})
 	if r.Success && m.indexer != nil {
 		if err := m.indexer.OnFormChanged(templateFilename, datafile); err != nil {
 			m.log.Warn("storage indexer save hook failed",
