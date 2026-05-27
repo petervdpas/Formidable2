@@ -9,6 +9,7 @@ import {
   facetColorToken,
   byValueDesc,
   fmtNum,
+  fmtPct,
   CHART_PALETTE,
 } from "./grid";
 
@@ -143,7 +144,7 @@ const view = computed(() => {
       false,
       token ? `expr-text-${token}` : "",
       token ? "" : CHART_PALETTE[(arcs.length - 1) % CHART_PALETTE.length],
-      `${s.label} - ${fmtNum(s.value)} (${Math.round(s.pct)}%)`,
+      `${s.label} - ${fmtNum(s.value)} (${fmtPct(s.pct)}%)`,
     );
 
     const child = childByBranch.get(s.raw);
@@ -161,7 +162,7 @@ const view = computed(() => {
       arcs.push({ d: ringSeg(c, rp, rc, ca, ca1), colorClass: "", fill });
       // Raw value plus its server-computed share of the branch, so the legend
       // speaks the same language as the arc (the shares roll up to the slice).
-      pushLegend(true, false, "", fill, `${cs.label} - ${fmtNum(cs.value)} (${Math.round(cs.pct)}%)`);
+      pushLegend(true, false, "", fill, `${cs.label} - ${fmtNum(cs.value)} (${fmtPct(cs.pct)}%)`);
       childColor++;
       ca = ca1;
     });

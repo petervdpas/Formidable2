@@ -151,3 +151,20 @@ export function fmtNum(v: number): string {
   if (Number.isInteger(v)) return String(v);
   return v.toFixed(2).replace(/\.?0+$/, "");
 }
+
+/** Decimal places for percentage labels. 0 (whole numbers) is the historical
+ *  default; setPctDecimals lets app config override it once at load so every
+ *  renderer formats consistently. */
+let pctDecimals = 0;
+
+/** Set the percentage-label precision (clamped 0-3). Driven by app config. */
+export function setPctDecimals(n: number): void {
+  pctDecimals = Math.max(0, Math.min(3, Math.floor(n)));
+}
+
+/** Format a percentage (0-100) for a chart label at the configured precision.
+ *  Trailing zeros are kept so sibling slices align (e.g. "20.0%" / "26.9%").
+ *  The single source of truth for percent formatting across all renderers. */
+export function fmtPct(v: number, decimals = pctDecimals): string {
+  return v.toFixed(decimals);
+}

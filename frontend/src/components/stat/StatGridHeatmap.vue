@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { type Grid, denseRank2, denseRank2Pct, fmtNum } from "./grid";
+import { type Grid, denseRank2, denseRank2Pct, fmtNum, fmtPct } from "./grid";
 
 // Rank-2 grid as a heatmap of one measure: axis 0 = rows, axis 1 = cols.
 // Drawn as a single SVG (cell rects shaded by value over the matrix max,
@@ -53,7 +53,7 @@ const view = computed(() => {
       alpha: max > 0 && v !== 0 ? 0.12 + 0.78 * (Math.abs(v) / max) : 0,
       text: v === 0 ? "" : fmtNum(v),
       // Server-computed share of the matrix total (% of all cells).
-      pct: v === 0 ? "" : `${Math.round(pctMatrix[ri][ci])}%`,
+      pct: v === 0 ? "" : `${fmtPct(pctMatrix[ri][ci])}%`,
     })),
   );
   const cols = colLabels.map((label, ci) => ({ label, cx: gridX + ci * CELL_W + CELL_W / 2 }));

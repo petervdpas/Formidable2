@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Facet } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { type Grid, denseRank1, densePct, facetColorToken, fmtNum, byValueDesc } from "./grid";
+import { type Grid, denseRank1, densePct, facetColorToken, fmtNum, fmtPct, byValueDesc } from "./grid";
 
 // Rank-1 grid as a horizontal bar chart of one measure across axis 0's
 // labels. Percentages are shown against grid.total when the measure is a
@@ -51,7 +51,7 @@ const view = computed(() => {
     .map((raw, i) => {
       const value = values[i] ?? 0;
       // Share of the distribution, computed server-side; shown for count.
-      const pct = isCount.value ? Math.round(pcts[i] ?? 0) : null;
+      const pct = isCount.value ? fmtPct(pcts[i] ?? 0) : null;
       const token = facetColorToken(props.facets, axisSource, raw);
       return {
         value,
