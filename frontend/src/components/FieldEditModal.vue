@@ -142,22 +142,8 @@ function optionSignature(typeId: string): string {
 
 watch(
   () => draft.value?.type,
-  (type, prevType) => {
+  (type) => {
     if (!draft.value) return;
-    // Genuine user type change (not the initial load, where prevType is
-    // undefined). When the option shape differs from the previous type,
-    // stale rows would leak across, so reset; the new type then seeds
-    // cleanly (fixed-row types like boolean get their defaults via
-    // OptionsEditor). statistics_columns rides along since it names the
-    // table's columns.
-    if (
-      prevType !== undefined &&
-      type !== prevType &&
-      optionSignature(type ?? "") !== optionSignature(prevType)
-    ) {
-      draft.value.options = [];
-      draft.value.statistics_columns = [];
-    }
     if (type === "textarea" && !draft.value.format) {
       draft.value.format = "markdown";
     }
@@ -169,6 +155,22 @@ watch(
     }
   },
 );
+
+// Option-reset belongs to a USER type change, never to loading a field.
+// When the new type's option shape differs from the old one's, stale rows
+// would leak across, so reset; the new type then seeds cleanly. Driving
+// this from the dropdown (not a watch on draft.type) avoids wiping a
+// freshly-loaded field's options just because the previous draft in the
+// session had a different type.
+function onTypeChange(next: string) {
+  if (!draft.value) return;
+  const prev = draft.value.type || "";
+  if (next !== prev && optionSignature(next) !== optionSignature(prev)) {
+    draft.value.options = [];
+    draft.value.statistics_columns = [];
+  }
+  draft.value.type = next;
+}
 
 function showRow(row: FieldEditRowId): boolean {
   if (!draft.value) return false;
@@ -381,7 +383,11 @@ const dialogStyle = computed<Record<string, string>>(() => {
           v-if="showRow('type')"
           :label="t('workspace.templates.field_edit.row.type')"
         >
-          <SelectField v-model="draft.type" :options="typeOptions" />
+          <SelectField
+            :model-value="draft.type"
+            :options="typeOptions"
+            @update:model-value="onTypeChange"
+          />
         </FormRow>
 
         <FormRow
