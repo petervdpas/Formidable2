@@ -43,6 +43,7 @@ type csvWorld struct {
 	suggestions []SuggestedMapping
 	transformed string
 	coerced     any
+	importForms []ImportForm
 }
 
 func initCsvScenario(ctx *godog.ScenarioContext) {
@@ -67,6 +68,7 @@ func initCsvScenario(ctx *godog.ScenarioContext) {
 		w.suggestions = nil
 		w.transformed = ""
 		w.coerced = nil
+		w.importForms = nil
 		return ctx, nil
 	})
 

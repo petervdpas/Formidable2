@@ -1,7 +1,6 @@
 package csv
 
 import (
-	"encoding/json"
 	"errors"
 	"strings"
 )
@@ -237,8 +236,7 @@ func resolveSourceValue(entry map[string]any, sourceKey string, fields map[strin
 		}
 		// Bare alignment root - stringify the item.
 		if m, isMap := item.(map[string]any); isMap {
-			b, _ := json.Marshal(m)
-			return string(b)
+			return jsonString(m)
 		}
 		return asString(item)
 	}

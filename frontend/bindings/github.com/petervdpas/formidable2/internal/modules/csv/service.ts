@@ -33,6 +33,18 @@ export function ApplyTransform(value: string, rule: string, param: string, mode:
 }
 
 /**
+ * BuildImportForms reconstructs entries from parsed CSV rows, the inverse
+ * of Export. An aligned plan regroups the export's multiplied rows back
+ * into one entry per group with its nested list/table rebuilt; the dialog
+ * then saves each returned form.
+ */
+export function BuildImportForms(plan: $models.ImportPlan, headers: string[], rows: string[][], fields: $models.FieldSpec[]): $CancellablePromise<$models.ImportForm[]> {
+    return $Call.ByID(4214359296, plan, headers, rows, fields).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * CoercePreview returns a display-shaped string for the typed value.
  */
 export function CoercePreview(raw: string, fieldType: string, options: any[]): $CancellablePromise<string> {
@@ -46,7 +58,7 @@ export function CoercePreview(raw: string, fieldType: string, options: any[]): $
  */
 export function CoerceTableRows(cols: $models.TableColumn[], rows: string[][]): $CancellablePromise<any[][]> {
     return $Call.ByID(2925409190, cols, rows).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -64,7 +76,7 @@ export function CoerceValue(raw: string, fieldType: string, options: any[]): $Ca
  */
 export function ExcludedFieldTypes(): $CancellablePromise<string[]> {
     return $Call.ByID(3131073099).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -75,7 +87,7 @@ export function ExcludedFieldTypes(): $CancellablePromise<string[]> {
  */
 export function Export(templateFilename: string, plan: $models.ExportPlan): $CancellablePromise<$models.ExportResult> {
     return $Call.ByID(2563447778, templateFilename, plan).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -86,7 +98,7 @@ export function Export(templateFilename: string, plan: $models.ExportPlan): $Can
  */
 export function ExportSchema(templateFilename: string, alignSource: string): $CancellablePromise<$models.ExportSchema> {
     return $Call.ByID(4146878669, templateFilename, alignSource).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -104,7 +116,7 @@ export function FormatValue(val: any, fieldType: string): $CancellablePromise<st
  */
 export function MappableFields(fields: $models.FieldSpec[]): $CancellablePromise<$models.FieldSpec[]> {
     return $Call.ByID(113676927, fields).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -115,13 +127,13 @@ export function MappableFields(fields: $models.FieldSpec[]): $CancellablePromise
  */
 export function MappableFieldsForTemplate(templateFilename: string): $CancellablePromise<$models.FieldSpec[]> {
     return $Call.ByID(3036908716, templateFilename).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
 export function Preview(filePath: string, delimiter: string): $CancellablePromise<$models.PreviewResult> {
     return $Call.ByID(1142599248, filePath, delimiter).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -131,7 +143,7 @@ export function Preview(filePath: string, delimiter: string): $CancellablePromis
  */
 export function PreviewExport(templateFilename: string, plan: $models.ExportPlan): $CancellablePromise<$models.PreviewRowResult> {
     return $Call.ByID(617446806, templateFilename, plan).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -141,7 +153,7 @@ export function PreviewExport(templateFilename: string, plan: $models.ExportPlan
  */
 export function SuggestMappings(headers: string[], fields: $models.FieldSpec[]): $CancellablePromise<$models.SuggestedMapping[]> {
     return $Call.ByID(1554962185, headers, fields).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -151,26 +163,28 @@ export function SuggestMappings(headers: string[], fields: $models.FieldSpec[]):
  */
 export function TransformRules(): $CancellablePromise<string[]> {
     return $Call.ByID(1932744663).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
 export function Write(filePath: string, rows: string[][], delimiter: string): $CancellablePromise<$models.WriteResult> {
     return $Call.ByID(614530563, filePath, rows, delimiter).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
+const $$createType0 = $models.ImportForm.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $models.ExportResult.createFrom;
-const $$createType4 = $models.ExportSchema.createFrom;
-const $$createType5 = $models.FieldSpec.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.PreviewResult.createFrom;
-const $$createType8 = $models.PreviewRowResult.createFrom;
-const $$createType9 = $models.SuggestedMapping.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $models.WriteResult.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = $models.ExportResult.createFrom;
+const $$createType6 = $models.ExportSchema.createFrom;
+const $$createType7 = $models.FieldSpec.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.PreviewResult.createFrom;
+const $$createType10 = $models.PreviewRowResult.createFrom;
+const $$createType11 = $models.SuggestedMapping.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $models.WriteResult.createFrom;

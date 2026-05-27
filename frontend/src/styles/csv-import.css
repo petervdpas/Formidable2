@@ -50,13 +50,13 @@
 .csv-import-table th,
 .csv-import-table td {
   padding: var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: middle;
 }
 .csv-import-table th {
   font-weight: 600;
-  background: var(--bg-subtle);
+  background: var(--color-surface);
 }
 .csv-import-td-header {
   font-family: var(--font-mono);
@@ -169,8 +169,15 @@
   font-size: 0.8125rem;
 }
 
-.csv-export-actions {
-  margin-top: var(--space-3);
-  display: flex;
-  gap: var(--space-2);
+/* In a Modal :scroll body, keep the table's column headers visible while
+   its rows scroll under them. The pinned head/foot + scrolling middle are
+   provided generically by Modal (see .modal-pane-* in modals.css). */
+.modal-pane-scroll .csv-import-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+/* "Add computed" sits at the left of the footer; Cancel/Export stay right. */
+.csv-export-add-computed {
+  margin-right: auto;
 }

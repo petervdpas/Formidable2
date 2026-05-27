@@ -17,12 +17,18 @@ const props = withDefaults(
      *  toggles the dialog between its caller-supplied size and the
      *  full viewport (minus the backdrop padding). */
     maximizable?: boolean;
+    /** When true, the dialog body is a flex column: the #head and #foot
+     *  slots stay pinned and the default slot scrolls between them. Use
+     *  for long forms/tables so the controls and column headers don't
+     *  scroll out of view. */
+    scroll?: boolean;
   }>(),
   {
     closeOnBackdrop: true,
     closeOnEsc: true,
     width: "480px",
     maximizable: false,
+    scroll: false,
   },
 );
 
@@ -94,7 +100,7 @@ onBeforeUnmount(() => {
       <div v-if="open" class="modal-backdrop" @click.self="onBackdropClick">
         <div
           ref="dialog"
-          :class="['modal-dialog', dialogClass]"
+          :class="['modal-dialog', dialogClass, { 'modal-scrolling': scroll }]"
           :style="computedStyle"
           role="dialog"
           aria-modal="true"
@@ -125,7 +131,18 @@ onBeforeUnmount(() => {
             >×</button>
           </header>
 
-          <div class="modal-body">
+          <div v-if="scroll" class="modal-body modal-body-scroll">
+            <div v-if="$slots.head" class="modal-pane-head">
+              <slot name="head" />
+            </div>
+            <div class="modal-pane-scroll">
+              <slot />
+            </div>
+            <div v-if="$slots.foot" class="modal-pane-foot">
+              <slot name="foot" />
+            </div>
+          </div>
+          <div v-else class="modal-body">
             <slot />
           </div>
 

@@ -81,3 +81,20 @@ func TestFormatValue_Default(t *testing.T) {
 		t.Errorf("FormatValue(num as text) = %q", got)
 	}
 }
+
+func TestFormatValue_TableDoesNotHTMLEscape(t *testing.T) {
+	val := []any{[]any{"CIO&CIPV", "Product Owner"}}
+	got := FormatValue(val, "table")
+	want := `[["CIO&CIPV","Product Owner"]]`
+	if got != want {
+		t.Errorf("FormatValue table = %q, want %q (no \\u0026 escaping)", got, want)
+	}
+}
+
+func TestFormatValue_ListDoesNotHTMLEscape(t *testing.T) {
+	got := FormatValue([]any{"a&b", "c<d"}, "list")
+	want := `["a&b","c<d"]`
+	if got != want {
+		t.Errorf("FormatValue list = %q, want %q", got, want)
+	}
+}

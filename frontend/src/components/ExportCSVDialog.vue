@@ -258,15 +258,17 @@ async function doExport() {
     :open="open"
     :title="t('csv.export.title')"
     width="800px"
+    scroll
     maximizable
     @close="emit('close')"
   >
-    <div class="csv-import-target">
-      <span class="csv-import-target-label">{{ t('csv.template') }}:</span>
-      <code class="csv-import-target-value">{{ template?.name || templateFilename }}</code>
-    </div>
+    <template #head>
+      <div class="csv-import-target">
+        <span class="csv-import-target-label">{{ t('csv.template') }}:</span>
+        <code class="csv-import-target-value">{{ template?.name || templateFilename }}</code>
+      </div>
 
-    <div class="csv-export-toprow">
+      <div class="csv-export-toprow">
       <div class="csv-export-field-group">
         <label class="csv-export-field-label">{{ t('csv.delimiter') }}</label>
         <select v-model="delimiter">
@@ -284,10 +286,11 @@ async function doExport() {
             {{ o.label }}
           </option>
         </select>
+        </div>
       </div>
-    </div>
 
-    <div v-if="exportError" class="form-error">{{ exportError }}</div>
+      <div v-if="exportError" class="form-error">{{ exportError }}</div>
+    </template>
 
     <table class="csv-import-table">
       <thead>
@@ -371,13 +374,10 @@ async function doExport() {
       </tbody>
     </table>
 
-    <div class="csv-export-actions">
-      <button type="button" class="tool-btn" @click="addComputed">
+    <template #footer>
+      <button type="button" class="tool-btn csv-export-add-computed" @click="addComputed">
         {{ t('csv.export.add.computed') }}
       </button>
-    </div>
-
-    <template #footer>
       <button class="tool-btn" type="button" @click="emit('close')">
         {{ t('common.cancel') }}
       </button>

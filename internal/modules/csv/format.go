@@ -1,6 +1,24 @@
 package csv
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+	"strings"
+)
+
+// jsonString marshals v the way JavaScript's JSON.stringify does: without
+// HTML-escaping &, <, > into & / < / >. Go's json.Marshal
+// escapes those by default, which leaked "&" into exported table /
+// list cells; the old Formidable produced readable "&".
+func jsonString(v any) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return ""
+	}
+	return strings.TrimRight(buf.String(), "\n")
+}
 
 // FormatValue is the reverse of Coerce - it turns a stored typed value
 // back into a CSV-friendly string. Mirrors `formatValue` in the old
@@ -24,15 +42,13 @@ func FormatValue(val any, fieldType string) string {
 
 	case "multioption", "tags", "list":
 		if arr, ok := val.([]any); ok {
-			b, _ := json.Marshal(arr)
-			return string(b)
+			return jsonString(arr)
 		}
 		return asString(val)
 
 	case "table":
 		if arr, ok := val.([]any); ok {
-			b, _ := json.Marshal(arr)
-			return string(b)
+			return jsonString(arr)
 		}
 		return ""
 

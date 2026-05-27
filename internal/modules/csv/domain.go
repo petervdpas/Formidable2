@@ -108,22 +108,25 @@ func (m *Manager) Preview(filePath, delimiter string) (PreviewResult, error) {
 }
 
 // Write serializes rows (first row = headers, then data) to filePath.
-// Empty delimiter falls back to comma. Output uses LF line endings (not CRLF)
-// to match the original JS implementation.
+// Empty delimiter falls back to comma. Output uses LF line endings (not
+// CRLF) to match the original JS implementation. Every field is quoted
+// (not just those that strictly need it per RFC 4180): always-quoting
+// makes the file parse unambiguously in Excel regardless of the locale's
+// delimiter, and matches the original Formidable's export. Embedded
+// quotes are escaped by doubling.
 func (m *Manager) Write(filePath string, rows [][]string, delimiter string) WriteResult {
 	delim := pickDelimiter(delimiter)
 	var out strings.Builder
-	if len(rows) > 0 {
-		w := stdcsv.NewWriter(&out)
-		w.Comma = delim
-		w.UseCRLF = false
-		if err := w.WriteAll(rows); err != nil {
-			return WriteResult{Success: false, Error: err.Error()}
+	for _, row := range rows {
+		for i, field := range row {
+			if i > 0 {
+				out.WriteRune(delim)
+			}
+			out.WriteByte('"')
+			out.WriteString(strings.ReplaceAll(field, `"`, `""`))
+			out.WriteByte('"')
 		}
-		w.Flush()
-		if err := w.Error(); err != nil {
-			return WriteResult{Success: false, Error: err.Error()}
-		}
+		out.WriteByte('\n')
 	}
 	if err := m.fs.SaveFile(filePath, out.String()); err != nil {
 		return WriteResult{Success: false, Error: err.Error()}

@@ -243,6 +243,119 @@ export class FieldSpec {
 }
 
 /**
+ * ImportColumn maps one CSV header onto an import target. Target is a
+ * plain field key ("audit_control_id"), or a dotted "tablekey.subkey"
+ * addressing one column of the aligned table (the inverse of the dotted
+ * source keys the export writes).
+ */
+export class ImportColumn {
+    "header": string;
+    "target": string;
+    "transform": Transform;
+
+    /** Creates a new ImportColumn instance. */
+    constructor($$source: Partial<ImportColumn> = {}) {
+        if (!("header" in $$source)) {
+            this["header"] = "";
+        }
+        if (!("target" in $$source)) {
+            this["target"] = "";
+        }
+        if (!("transform" in $$source)) {
+            this["transform"] = (new Transform());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportColumn instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportColumn {
+        const $$createField2_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("transform" in $$parsedSource) {
+            $$parsedSource["transform"] = $$createField2_0($$parsedSource["transform"]);
+        }
+        return new ImportColumn($$parsedSource as Partial<ImportColumn>);
+    }
+}
+
+/**
+ * ImportForm is one reconstructed entry. Key is the group key value that
+ * identified it (empty when ungrouped); callers use it to derive a stable
+ * filename.
+ */
+export class ImportForm {
+    "key": string;
+    "data": { [_ in string]?: any };
+
+    /** Creates a new ImportForm instance. */
+    constructor($$source: Partial<ImportForm> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("data" in $$source)) {
+            this["data"] = {};
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportForm instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportForm {
+        const $$createField1_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("data" in $$parsedSource) {
+            $$parsedSource["data"] = $$createField1_0($$parsedSource["data"]);
+        }
+        return new ImportForm($$parsedSource as Partial<ImportForm>);
+    }
+}
+
+/**
+ * ImportPlan describes how CSV rows reconstruct form entries, the inverse
+ * of ExportPlan. When AlignSource is empty every row becomes one entry.
+ * When AlignSource names a list/table field, rows sharing the same
+ * GroupKey value collapse into a single entry whose aligned field gathers
+ * one item per row, undoing the export's row-multiplication.
+ */
+export class ImportPlan {
+    "columns": ImportColumn[];
+    "alignSource": string;
+    "groupKey": string;
+
+    /** Creates a new ImportPlan instance. */
+    constructor($$source: Partial<ImportPlan> = {}) {
+        if (!("columns" in $$source)) {
+            this["columns"] = [];
+        }
+        if (!("alignSource" in $$source)) {
+            this["alignSource"] = "";
+        }
+        if (!("groupKey" in $$source)) {
+            this["groupKey"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportPlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportPlan {
+        const $$createField0_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("columns" in $$parsedSource) {
+            $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
+        }
+        return new ImportPlan($$parsedSource as Partial<ImportPlan>);
+    }
+}
+
+/**
  * PreviewResult is the parsed shape returned by Preview. Mirrors the JS
  * `{headers, rows, rowCount, error}` so frontend handlers don't need
  * to branch on shape.
@@ -443,3 +556,6 @@ const $$createType5 = ExportPlan.createFrom;
 const $$createType6 = ExportSourceOption.createFrom;
 const $$createType7 = $Create.Array($$createType6);
 const $$createType8 = $Create.Array($Create.Any);
+const $$createType9 = $Create.Map($Create.Any, $Create.Any);
+const $$createType10 = ImportColumn.createFrom;
+const $$createType11 = $Create.Array($$createType10);

@@ -8,6 +8,8 @@ import { backendErrMessage } from "../utils/backendError";
 import {
   Service as CsvSvc,
   FieldSpec,
+  ImportColumn,
+  ImportPlan,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import type { PreviewResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -34,6 +36,8 @@ type Mapping = {
   param: string;
 };
 
+type SourceOption = { value: string; label: string };
+
 const file = ref("");
 const delimiter = ref(",");
 const preview = ref<PreviewResult | null>(null);
@@ -42,6 +46,15 @@ const filenameField = ref("");
 const concatSep = ref(" ");
 const importing = ref(false);
 const importError = ref("");
+
+// Reversible (aligned) import: when alignSource names a list/table field,
+// rows sharing groupKey collapse back into one entry with that field
+// rebuilt - the inverse of the export's "Align rows on". subTargets are
+// the dotted "table.subkey" targets the mapping dropdown then also offers.
+const alignSource = ref("");
+const alignable = ref<SourceOption[]>([]);
+const subTargets = ref<SourceOption[]>([]);
+const groupKey = ref("");
 
 // Rules that expose a param input + their placeholder source.
 const paramPlaceholder: Record<string, string> = {
@@ -103,13 +116,53 @@ watch(
     importing.value = false;
     importError.value = "";
     mappableFields.value = [];
+    alignSource.value = "";
+    alignable.value = [];
+    subTargets.value = [];
+    groupKey.value = "";
     try {
       mappableFields.value = await CsvSvc.MappableFieldsForTemplate(props.templateFilename);
+      // Default the group key to the template's guid field (the export
+      // repeats it on every aligned row), falling back to the first field.
+      const guid = mappableFields.value.find((f) => f.type === "guid");
+      groupKey.value = guid?.key ?? mappableFields.value[0]?.key ?? "";
+      await refreshAlign();
     } catch (e) {
       importError.value = backendErrMessage(e);
     }
   },
 );
+
+// Fetch the alignable fields and, when a table is the align target, the
+// dotted "table.subkey" targets - reusing the export schema so both
+// dialogs share one contract. Called on open and on each align change.
+async function refreshAlign() {
+  if (!props.templateFilename) return;
+  try {
+    const schema = await CsvSvc.ExportSchema(props.templateFilename, alignSource.value);
+    if (schema.error) return;
+    alignable.value = (schema.alignable ?? []).map((o) => ({ value: o.value, label: o.label }));
+    alignSource.value = schema.plan?.alignSource ?? "";
+    const prefix = alignSource.value ? `${alignSource.value}.` : "";
+    subTargets.value = prefix
+      ? (schema.sources ?? [])
+          .filter((o) => o.value.startsWith(prefix))
+          .map((o) => ({ value: o.value, label: o.label }))
+      : [];
+  } catch (e) {
+    importError.value = backendErrMessage(e);
+  }
+}
+
+// The mapping target dropdown offers the flat mappable fields plus, when
+// aligned on a table, that table's dotted column targets.
+const targetOptions = computed<SourceOption[]>(() => {
+  const flat = mappableFields.value.map((f) => ({
+    value: f.key,
+    label: `${f.label || f.key} (${f.type})`,
+  }));
+  return [...flat, ...subTargets.value];
+});
 
 // Re-parse whenever the delimiter flips while a file is already chosen.
 watch(delimiter, async () => {
@@ -252,17 +305,10 @@ async function doImport() {
   if (!preview.value || !hasMapping.value) return;
   importing.value = true;
   importError.value = "";
-  let success = 0;
-  let failed = 0;
   try {
-    const total = preview.value.rows.length;
-    for (let i = 0; i < total; i++) {
-      const { data, stem } = await buildRowData(i);
-      const filename = `${stem}.meta.json`;
-      const r = await StorageSvc.ImportCsvRow(props.templateFilename, filename, data);
-      if (r.success) success++;
-      else failed++;
-    }
+    const { success, failed } = alignSource.value
+      ? await importAligned()
+      : await importPerRow();
     if (failed === 0) {
       toast.success("csv.import.success", [success]);
     } else {
@@ -276,6 +322,56 @@ async function doImport() {
     importing.value = false;
   }
 }
+
+// Unaligned: one entry per CSV row (the original behaviour).
+async function importPerRow(): Promise<{ success: number; failed: number }> {
+  let success = 0;
+  let failed = 0;
+  const total = preview.value!.rows.length;
+  for (let i = 0; i < total; i++) {
+    const { data, stem } = await buildRowData(i);
+    const r = await StorageSvc.ImportCsvRow(props.templateFilename, `${stem}.meta.json`, data);
+    if (r.success) success++;
+    else failed++;
+  }
+  return { success, failed };
+}
+
+// Aligned: hand the whole sheet to the backend, which regroups the
+// multiplied rows back into one entry per group with the nested
+// list/table rebuilt, then save each reconstructed entry.
+async function importAligned(): Promise<{ success: number; failed: number }> {
+  const pr = preview.value!;
+  const columns = mappings.value
+    .filter((m) => m.fieldKey)
+    .map((m) =>
+      ImportColumn.createFrom({
+        header: m.header,
+        target: m.fieldKey,
+        transform: { rule: m.rule, param: m.param },
+      }),
+    );
+  const plan = ImportPlan.createFrom({
+    columns,
+    alignSource: alignSource.value,
+    groupKey: groupKey.value,
+  });
+  const forms = await CsvSvc.BuildImportForms(plan, pr.headers, pr.rows, mappableFields.value);
+  let success = 0;
+  let failed = 0;
+  for (let i = 0; i < forms.length; i++) {
+    const f = forms[i];
+    const stem = sanitizeStem(f.key ?? "") || `import-${i + 1}-${Date.now()}`;
+    const r = await StorageSvc.ImportCsvRow(
+      props.templateFilename,
+      `${stem}.meta.json`,
+      f.data as Record<string, unknown>,
+    );
+    if (r.success) success++;
+    else failed++;
+  }
+  return { success, failed };
+}
 </script>
 
 <template>
@@ -283,9 +379,11 @@ async function doImport() {
     :open="open"
     :title="t('csv.import.title')"
     width="800px"
+    scroll
     maximizable
     @close="emit('close')"
   >
+    <template #head>
     <div class="csv-import-target">
       <span class="csv-import-target-label">{{ t('csv.template') }}:</span>
       <code class="csv-import-target-value">{{ template?.name || templateFilename }}</code>
@@ -307,9 +405,27 @@ async function doImport() {
           <option value="|">{{ t('csv.delimiter.pipe') }}</option>
         </select>
       </div>
+      <div v-if="alignable.length" class="csv-import-delim">
+        <label class="muted small">{{ t('csv.import.align') }}</label>
+        <select v-model="alignSource" @change="refreshAlign">
+          <option value="">{{ t('csv.import.align.none') }}</option>
+          <option v-for="o in alignable" :key="o.value" :value="o.value">
+            {{ o.label }}
+          </option>
+        </select>
+      </div>
+      <div v-if="alignSource" class="csv-import-delim">
+        <label class="muted small">{{ t('csv.import.group') }}</label>
+        <select v-model="groupKey">
+          <option v-for="f in mappableFields" :key="f.key" :value="f.key">
+            {{ f.label || f.key }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <div v-if="importError" class="form-error">{{ importError }}</div>
+    </template>
 
     <table v-if="preview && mappings.length" class="csv-import-table">
       <thead>
@@ -327,8 +443,8 @@ async function doImport() {
           <td>
             <select v-model="m.fieldKey">
               <option value="">{{ t('csv.skip') }}</option>
-              <option v-for="f in mappableFields" :key="f.key" :value="f.key">
-                {{ f.label || f.key }} ({{ f.type }})
+              <option v-for="o in targetOptions" :key="o.value" :value="o.value">
+                {{ o.label }}
               </option>
             </select>
           </td>
@@ -356,7 +472,8 @@ async function doImport() {
       </tbody>
     </table>
 
-    <div v-if="preview && mappings.length" class="csv-import-bottom">
+    <template v-if="preview && mappings.length" #foot>
+    <div class="csv-import-bottom">
       <div class="csv-import-concat muted small">
         <span>{{ t('csv.concat.hint') }}</span>
         <label>
@@ -380,6 +497,7 @@ async function doImport() {
         {{ t('csv.rows.found', [preview.rowCount]) }}
       </div>
     </div>
+    </template>
 
     <template #footer>
       <button class="tool-btn" type="button" @click="emit('close')">

@@ -1,7 +1,6 @@
 package csv
 
 import (
-	"encoding/json"
 	"strconv"
 	"strings"
 	"unicode"
@@ -162,8 +161,7 @@ func splitTable(val, param string, mode Mode) string {
 		}
 		return strings.Join(rows, " | ")
 	}
-	b, _ := json.Marshal(grid)
-	return string(b)
+	return jsonString(grid)
 }
 
 // parseSeps reads "rowSep colSep" (whitespace-separated). Either piece

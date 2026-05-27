@@ -58,3 +58,20 @@ Feature: CSV import mapping and coercion
   Scenario: Coerce a tags cell into a list
     When I coerce "red; green; blue" as "tags"
     Then the coerced list is "red,green,blue"
+
+  Scenario: An aligned export imports back into the original entry (reversible)
+    Given the template "audit.yaml" has fields:
+      | key  | type  | label | options         |
+      | id   | guid  | ID    |                 |
+      | name | text  | Name  |                 |
+      | gap  | table | GAP   | onderdeel,actie |
+    And the form "audit.yaml" has data:
+      | key  | value                                     |
+      | id   | g1                                        |
+      | name | Alice                                     |
+      | gap  | [["Governance","DOR"],["CIB","Workflow"]] |
+    When I export "audit.yaml" aligned on "gap" with columns "id,name,gap.onderdeel,gap.actie"
+    And I import the last export of "audit.yaml" aligned on "gap" grouped by "id"
+    Then the import yields 1 form(s)
+    And import form 0 field "name" equals "Alice"
+    And import form 0 table "gap" has 2 rows

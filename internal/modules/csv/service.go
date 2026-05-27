@@ -107,3 +107,11 @@ func (s *Service) Export(templateFilename string, plan ExportPlan) ExportResult 
 func (s *Service) PreviewExport(templateFilename string, plan ExportPlan) PreviewRowResult {
 	return s.m.PreviewExport(templateFilename, plan)
 }
+
+// BuildImportForms reconstructs entries from parsed CSV rows, the inverse
+// of Export. An aligned plan regroups the export's multiplied rows back
+// into one entry per group with its nested list/table rebuilt; the dialog
+// then saves each returned form.
+func (s *Service) BuildImportForms(plan ImportPlan, headers []string, rows [][]string, fields []FieldSpec) []ImportForm {
+	return BuildImportForms(plan, headers, rows, fields)
+}
