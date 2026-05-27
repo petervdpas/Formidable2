@@ -190,6 +190,32 @@ func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 	return &out
 }
 
+// LoadFormRaw parses the on-disk envelope WITHOUT sanitizing. Sanitize
+// fills defaults and mirrors the guid field in lockstep with meta.id, so
+// LoadForm masks on-disk drift; the integrity doctor needs the raw shape
+// to detect a guid field that is empty on disk while meta.id is set.
+// Meta carries only the id here (the only field the raw guid check reads);
+// Data is the stored data map verbatim.
+func (m *Manager) LoadFormRaw(templateFilename, datafile string) *Form {
+	if datafile == "" {
+		return nil
+	}
+	dir := m.templateDir(templateFilename)
+	raw, err := m.sfr.LoadFromBase(dir, datafile, sfr.Options{})
+	if err != nil {
+		return nil
+	}
+	rawMap, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	data, meta := splitEnvelope(rawMap)
+	return &Form{
+		Meta: FormMeta{ID: stringOrEmpty(meta["id"])},
+		Data: data,
+	}
+}
+
 // SaveForm sanitizes the input against the template's fields and writes
 // the resulting envelope as JSON. ctx is consulted by stamp() for the
 // auth.Identity that attributes Updated (and Created on first save) -

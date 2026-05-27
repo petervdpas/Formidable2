@@ -63,37 +63,44 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		} else {
 			data[f.Key] = defaultForType(f.Type)
 		}
+		// A legacy form may carry "" for an empty array-shaped field
+		// (multioption/list/table). Normalise the unset sentinel to the
+		// typed empty so the shape is always valid and a save heals disk.
+		if s, ok := data[f.Key].(string); ok && s == "" {
+			if def, isArr := defaultForType(f.Type).([]any); isArr {
+				data[f.Key] = def
+			}
+		}
 	}
 
-	// Resolve id - prefer explicit options, then raw.meta, then _meta,
-	// then raw.data.id. If the template declares a guid field and we
-	// still don't have one, generate it.
+	// The guid field in the data block is the identity source; meta.id
+	// mirrors it. Resolve field-first, then fall back to an explicitly
+	// preserved id (SaveForm passes prev.Meta.ID so meta backfills an
+	// empty field), then the stored meta.id, then any injected id. When
+	// the template declares a guid field and nothing carries an id yet,
+	// mint one.
+	guidKey := ""
+	for _, f := range fields {
+		if f.Type == "guid" {
+			guidKey = f.Key
+			break
+		}
+	}
 	id := firstNonEmpty(
+		stringOrEmpty(rawData[guidKey]),
 		opts.ID,
 		stringOrEmpty(rawMeta["id"]),
 		stringOrEmpty(injected["id"]),
-		stringOrEmpty(rawData["id"]),
 	)
-	if id == "" {
-		for _, f := range fields {
-			if f.Type == "guid" {
-				id = uuid.NewString()
-				break
-			}
-		}
+	if id == "" && guidKey != "" {
+		id = uuid.NewString()
 	}
 
-	// Keep the guid field's data value in lockstep with meta.id. The
-	// field is the identity source (rawData feeds the id resolution
-	// above); once resolved, the id is mirrored back into the field so
-	// consumers reading the data block (CSV export, the API) see it and
-	// the integrity doctor finds no drift.
-	if id != "" {
-		for _, f := range fields {
-			if f.Type == "guid" {
-				data[f.Key] = id
-			}
-		}
+	// Mirror the resolved id back into the guid field so disk carries it
+	// in BOTH meta.id and data, and downstream readers (CSV export, the
+	// API, the integrity doctor) never see drift.
+	if id != "" && guidKey != "" {
+		data[guidKey] = id
 	}
 
 	// Tags: collect from options + raw meta + injected + tags-typed fields.

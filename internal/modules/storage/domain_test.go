@@ -148,6 +148,33 @@ func TestSanitize_PreservedIDBackfillsEmptyGuidField(t *testing.T) {
 	}
 }
 
+func TestSanitize_EmptyStringArrayFieldNormalisedToTypedEmpty(t *testing.T) {
+	// Legacy forms wrote "" for an empty array-shaped field; sanitize must
+	// normalise that unset sentinel to the typed empty so the shape is valid.
+	fields := []template.Field{
+		{Key: "rows", Type: "table"},
+		{Key: "picks", Type: "multioption"},
+		{Key: "items", Type: "list"},
+	}
+	raw := map[string]any{"rows": "", "picks": "", "items": ""}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	for _, k := range []string{"rows", "picks", "items"} {
+		if _, ok := out.Data[k].([]any); !ok {
+			t.Errorf("data[%q] = %#v (%T), want []any", k, out.Data[k], out.Data[k])
+		}
+	}
+}
+
+func TestSanitize_NonEmptyStringArrayFieldIsLeftForTheDoctor(t *testing.T) {
+	// A non-empty string in an array field is genuine drift, not an unset
+	// sentinel - sanitize must not silently coerce it away.
+	fields := []template.Field{{Key: "rows", Type: "table"}}
+	out := Sanitize(map[string]any{"rows": "oops"}, fields, SanitizeOptions{})
+	if out.Data["rows"] != "oops" {
+		t.Errorf("data[rows] = %#v, want \"oops\" preserved", out.Data["rows"])
+	}
+}
+
 func TestSanitize_NoIdWhenNoGuidFieldAndNothingProvided(t *testing.T) {
 	fields := []template.Field{{Key: "title", Type: "text"}}
 	out := Sanitize(map[string]any{"title": "X"}, fields, SanitizeOptions{})

@@ -24,6 +24,15 @@ type StorageReader interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
+// RawFormReader is an optional surface: when the injected StorageReader
+// also exposes LoadFormRaw, the analyzer runs the guid-sync check against
+// the un-sanitized on-disk form. LoadForm sanitizes, mirroring the guid
+// field onto meta.id, which would otherwise hide a form whose data.id is
+// empty on disk.
+type RawFormReader interface {
+	LoadFormRaw(templateFilename, datafile string) *storage.Form
+}
+
 // Manager owns the analyze logic. Stateless aside from its
 // collaborators; safe to share across goroutines.
 type Manager struct {
@@ -67,6 +76,7 @@ func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 			issues = []Issue{{Kind: IssueUnreadable, Detail: "form file could not be parsed"}}
 		} else {
 			issues = analyzeForm(tpl, f)
+			issues = append(issues, m.guidSyncIssues(templateFilename, fn, tpl, f.Meta, f.Data)...)
 		}
 		if len(issues) > 0 {
 			report.Forms = append(report.Forms, FormReport{Filename: fn, Issues: issues})
@@ -87,8 +97,21 @@ func analyzeForm(tpl *template.Template, f *storage.Form) []Issue {
 	var out []Issue
 	out = append(out, checkMeta(tpl, f.Meta)...)
 	out = append(out, checkData(tpl.Fields, f.Data, "")...)
-	out = append(out, checkGuidSync(tpl, f.Meta, f.Data)...)
 	return out
+}
+
+// guidSyncIssues runs the guid-sync check against the raw on-disk form
+// when the storage reader exposes LoadFormRaw; otherwise it falls back to
+// the already-loaded (sanitized) meta/data. LoadForm sanitizes and mirrors
+// the guid field onto meta.id, which would hide a form whose data.id is
+// empty on disk - so detection must read raw to find real drift.
+func (m *Manager) guidSyncIssues(templateFilename, fn string, tpl *template.Template, meta storage.FormMeta, data map[string]any) []Issue {
+	if raw, ok := m.storage.(RawFormReader); ok {
+		if rf := raw.LoadFormRaw(templateFilename, fn); rf != nil {
+			return checkGuidSync(tpl, rf.Meta, rf.Data)
+		}
+	}
+	return checkGuidSync(tpl, meta, data)
 }
 
 // checkGuidSync flags guid fields whose data value drifts from meta.id.
@@ -666,6 +689,12 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 
 	case "tags", "multioption", "list", "table":
 		if _, ok := v.([]any); ok {
+			return nil
+		}
+		// An empty string is the unset sentinel (legacy forms wrote "" for
+		// an empty array field); treat it like nil, not as drift. A
+		// non-empty string is genuine type drift and still flags.
+		if s, ok := v.(string); ok && s == "" {
 			return nil
 		}
 		return []Issue{{

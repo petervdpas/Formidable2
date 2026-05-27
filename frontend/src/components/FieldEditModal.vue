@@ -311,10 +311,19 @@ function submit() {
   emit("confirm", draft.value);
 }
 
+// The loop pair (loopstart / loopstop) shares the single `looper` color
+// set, matching the field-row list. The raw type still labels the pill;
+// only the color-var lookup is canonicalised so the dialog isn't left on
+// the default dark floor.
+function colorTypeFor(type: string): string {
+  if (type === "loopstart" || type === "loopstop") return "looper";
+  return type;
+}
+
 // Badge in the modal header - uses the per-type badge color so it
 // pops on the type-tinted dialog floor.
 const typePillStyle = computed(() => {
-  const type = draft.value?.type || "text";
+  const type = colorTypeFor(draft.value?.type || "text");
   return {
     background: `var(--field-type-${type}-badge, var(--color-accent))`,
     color: `var(--field-type-${type}-text, #fff)`,
@@ -326,7 +335,7 @@ const typePillStyle = computed(() => {
 // borders pick the right contrast via .modal-dialog.tinted overrides
 // in styles/field-types.css.
 const dialogStyle = computed<Record<string, string>>(() => {
-  const type = draft.value?.type || "text";
+  const type = colorTypeFor(draft.value?.type || "text");
   return {
     "--type-bg":     `var(--field-type-${type}-bg, var(--color-bg))`,
     "--type-text":   `var(--field-type-${type}-text, var(--color-text))`,

@@ -82,6 +82,7 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 		// the storage view between iterations.
 		draft := cloneForm(original)
 		issues := analyzeForm(tpl, draft)
+		issues = append(issues, m.guidSyncIssues(templateFilename, fn, tpl, draft.Meta, draft.Data)...)
 
 		outcome := FixOutcome{Filename: fn}
 		for _, iss := range issues {
