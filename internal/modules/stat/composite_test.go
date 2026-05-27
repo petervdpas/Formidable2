@@ -478,14 +478,50 @@ func TestComposite_Evaluate_EdgeScaleWeightsChild(t *testing.T) {
 	}
 }
 
+// TestComposite_Evaluate_ParentScaleWeightsRing checks a composite parent's own
+// scale clause weights the parent ring, so both branch slices are weighted (not
+// just the drilled child). count() weighted sums one factor per form.
+func TestComposite_Evaluate_ParentScaleWeightsRing(t *testing.T) {
+	forms := []index.FormRow{
+		formFlagFcdm("r1.meta.json", "IN GEBRUIK", "NIET AANWEZIG", "FMU"), // factor 2
+		formFlagFcdm("r2.meta.json", "IN GEBRUIK", "AANWEZIG", "FMU"),      // factor 0.5
+		formFlagFcdm("r3.meta.json", "NIET IN GEBRUIK", "AANWEZIG", "FMU"), // factor 0.5
+	}
+	m := NewManager(realIndex(t, forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	sc := &Scaling{
+		Source:  SourceRef{Kind: SourceFacet, Key: "fcdm"},
+		Weights: []WeightEntry{{Label: "AANWEZIG", Factor: 0.5}, {Label: "NIET AANWEZIG", Factor: 2}},
+		Default: 1,
+	}
+	cg, err := m.EvaluateComposite("ods.yaml", Composite{
+		Parent:      flagParent(),
+		ParentScale: sc,
+		Edges:       []Edge{{Branch: "IN GEBRUIK", Child: appChild("IN GEBRUIK"), Scale: sc}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]float64{}
+	for _, c := range cg.Parent.Cells {
+		got[cg.Parent.Axes[0].Labels[c.Coords[0]]] = c.Values[0]
+	}
+	if got["IN GEBRUIK"] != 2.5 { // r1 (2) + r2 (0.5)
+		t.Errorf("IN GEBRUIK weighted = %v, want 2.5", got["IN GEBRUIK"])
+	}
+	if got["NIET IN GEBRUIK"] != 0.5 { // r3 (0.5)
+		t.Errorf("NIET IN GEBRUIK weighted = %v, want 0.5", got["NIET IN GEBRUIK"])
+	}
+}
+
 // TestResolveComposite_ResolvesChildScale checks the resolver attaches each
 // child's weighting to its edge.
 func TestResolveComposite_ResolvesChildScale(t *testing.T) {
 	child := appChild("IN GEBRUIK")
 	child.Scale = "fcdm-urgency"
 	cat := catalogConfigs{
-		"in-use":      {Name: "in-use", DSL: `count() by Facet["flag"]`},
-		"apps":        {Name: "apps", DSL: compileMust(t, child)},
+		"in-use":       {Name: "in-use", DSL: `count() by Facet["flag"]`},
+		"apps":         {Name: "apps", DSL: compileMust(t, child)},
 		"fcdm-urgency": {Name: "fcdm-urgency", Scaling: &Scaling{Source: SourceRef{Kind: SourceFacet, Key: "fcdm"}, Default: 1}},
 	}
 	comp, err := ResolveComposite(CompositeSpec{

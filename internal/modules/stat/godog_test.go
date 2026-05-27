@@ -291,6 +291,13 @@ func initStatScenario(ctx *godog.ScenarioContext) {
 		return checkValue(w.grid, app, 0, want, valueOnAxis0)
 	})
 
+	ctx.Step(`^parent branch "([^"]*)" weighs "([^"]*)"$`, func(branch, want string) error {
+		if w.comp == nil {
+			return fmt.Errorf("no composite evaluated")
+		}
+		return checkValue(w.comp.Parent, branch, 0, want, valueOnAxis0)
+	})
+
 	ctx.Step(`^in branch "([^"]*)" application "([^"]*)" weighs "([^"]*)"$`, func(branch, app, want string) error {
 		for _, b := range w.comp.Branches {
 			if b.Branch == branch {

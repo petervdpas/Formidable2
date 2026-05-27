@@ -40,6 +40,22 @@ Feature: Composite statistical objects (hop routes)
     Then evaluation succeeds
     And in branch "IN GEBRUIK" application "FMU" weighs "2.5"
 
+  Scenario: A scaled parent weights both slices of the parent ring
+    Given a statistic "in-use-weighted":
+      """
+      count() by Facet["flag"] scale "fcdm-urgency"
+      """
+    And a statistic "apps":
+      """
+      records() by F["code-repositories"]["application"] where Facet["flag"] eq "IN GEBRUIK" scale "fcdm-urgency"
+      """
+    And a composite "weighted-by-app" drills "in-use-weighted" branch "IN GEBRUIK" into "apps"
+    When I evaluate the composite "weighted-by-app"
+    Then evaluation succeeds
+    And parent branch "IN GEBRUIK" weighs "2.5"
+    And parent branch "NIET IN GEBRUIK" weighs "0.5"
+    And in branch "IN GEBRUIK" application "FMU" weighs "2.5"
+
   Scenario: A child that does not filter the base to the branch is rejected
     Given a statistic "apps-unscoped":
       """
