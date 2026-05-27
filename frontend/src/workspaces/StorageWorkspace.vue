@@ -28,6 +28,7 @@ import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
+import { useListKeyNav } from "../composables/useListKeyNav";
 import { setNavGuard } from "../composables/useNavGuard";
 import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
@@ -441,6 +442,17 @@ async function pickForm(filename: string) {
   if (!tpl || !filename) return;
   await followFormidable(`formidable://${tpl}:${filename}`);
 }
+
+// ArrowUp/ArrowDown step the visible record list. pickForm routes through the
+// formidable:// link, so the unsaved-changes guard fires just as it does on a
+// click.
+useListKeyNav({
+  keys: () => visibleSummaries.value.map((s) => s.filename),
+  current: () => selectedDataFile.value,
+  select: (filename) => { void pickForm(filename); },
+  enabled: () => !!selectedTemplate.value,
+  container: () => listScrollEl.value,
+});
 
 // ── Sidebar filters ─────────────────────────────────────────────────
 // facetFilters: per-facet selected-label (or "" = no filter for that

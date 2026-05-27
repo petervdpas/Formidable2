@@ -46,6 +46,7 @@ import {
   SelectField,
 } from "../components/fields";
 import { useTemplates, isValidTemplateFilename } from "../composables/useTemplates";
+import { useListKeyNav } from "../composables/useListKeyNav";
 import { recomputeLevelScopes } from "../utils/fieldScopes";
 import FieldUnitList from "../components/FieldUnitList.vue";
 import { useTemplateEditor } from "../composables/useTemplateEditor";
@@ -82,6 +83,14 @@ const {
 } = useTemplates();
 
 const { draft, dirty, itemFieldOptions, save, reset } = useTemplateEditor();
+
+// ArrowUp/ArrowDown step the template list, mirroring the list item's @pick.
+useListKeyNav({
+  keys: () => filenames.value,
+  current: () => selectedFilename.value ?? "",
+  select: (name) => { selectedFilename.value = name; },
+  container: () => listScrollEl.value,
+});
 
 // Two-way sync between the sidebar selection and config. Config is
 // the single source of truth - Storage's dropdown writes there too,
