@@ -80,6 +80,13 @@ func clampNumericSettings(cfg *Config) bool {
 		cfg.ToastTimeout = ToastTimeoutMax
 		changed = true
 	}
+	if cfg.DecimalPrecision < DecimalPrecisionMin {
+		cfg.DecimalPrecision = DecimalPrecisionMin
+		changed = true
+	} else if cfg.DecimalPrecision > DecimalPrecisionMax {
+		cfg.DecimalPrecision = DecimalPrecisionMax
+		changed = true
+	}
 	return changed
 }
 

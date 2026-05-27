@@ -145,11 +145,17 @@ export function facetColorToken(
   return o?.color || null;
 }
 
-/** Compact number formatting: integers stay integers, fractions show up
- *  to two decimals with trailing zeros trimmed. */
-export function fmtNum(v: number): string {
+/** Fixed-precision float formatting shared by value and percentage labels:
+ *  integers stay integers, fractions show up to `decimals` places with
+ *  trailing zeros trimmed (so 50.0 -> "50", 26.95 -> "26.9" at one decimal). */
+function fmtFixed(v: number, decimals: number): string {
   if (Number.isInteger(v)) return String(v);
-  return v.toFixed(2).replace(/\.?0+$/, "");
+  return v.toFixed(decimals).replace(/\.?0+$/, "");
+}
+
+/** Compact value formatting: up to two decimals, trailing zeros trimmed. */
+export function fmtNum(v: number): string {
+  return fmtFixed(v, 2);
 }
 
 /** Decimal places for percentage labels. 0 (whole numbers) is the historical
@@ -162,9 +168,10 @@ export function setPctDecimals(n: number): void {
   pctDecimals = Math.max(0, Math.min(3, Math.floor(n)));
 }
 
-/** Format a percentage (0-100) for a chart label at the configured precision.
- *  Trailing zeros are kept so sibling slices align (e.g. "20.0%" / "26.9%").
- *  The single source of truth for percent formatting across all renderers. */
+/** Format a percentage (0-100) at the configured precision. A percent is just
+ *  a float, so this borrows fmtNum's float formatting (integers stay whole,
+ *  trailing zeros trimmed) rather than rounding. Single source of truth for
+ *  percent formatting across all renderers. */
 export function fmtPct(v: number, decimals = pctDecimals): string {
-  return v.toFixed(decimals);
+  return fmtFixed(v, decimals);
 }

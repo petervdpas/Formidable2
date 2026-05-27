@@ -81,6 +81,13 @@ function clampToast(n: number): number {
   if (Number.isNaN(n)) return TOAST_DEFAULT;
   return Math.min(TOAST_MAX, Math.max(TOAST_MIN, Math.round(n)));
 }
+
+const DECIMAL_PRECISION_MIN = 0;
+const DECIMAL_PRECISION_MAX = 3;
+function clampDecimalPrecision(n: number): number {
+  if (Number.isNaN(n)) return DECIMAL_PRECISION_MIN;
+  return Math.min(DECIMAL_PRECISION_MAX, Math.max(DECIMAL_PRECISION_MIN, Math.round(n)));
+}
 </script>
 
 <template>
@@ -128,6 +135,19 @@ function clampToast(n: number): number {
         :max="TOAST_MAX"
         :model-value="String(cfg.toast_timeout || TOAST_DEFAULT)"
         @update:model-value="(v) => update({ toast_timeout: clampToast(Number(v)) })"
+      />
+    </FormRow>
+    <FormRow
+      :label="t('settings.field.decimal_precision')"
+      :description="t('settings.desc.decimal_precision')"
+    >
+      <TextField
+        type="number"
+        lazy
+        :min="DECIMAL_PRECISION_MIN"
+        :max="DECIMAL_PRECISION_MAX"
+        :model-value="String(cfg.decimal_precision ?? 0)"
+        @update:model-value="(v) => update({ decimal_precision: clampDecimalPrecision(Number(v)) })"
       />
     </FormRow>
     <FormRow :label="t('config.use_expressions')">

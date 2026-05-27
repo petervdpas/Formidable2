@@ -8,6 +8,12 @@ const (
 	ToastTimeoutMin     = 2
 	ToastTimeoutMax     = 15
 	ToastTimeoutDefault = 5
+
+	// DecimalPrecision: how many decimals chart percentage labels show.
+	// 0 = whole numbers (the historical look).
+	DecimalPrecisionMin     = 0
+	DecimalPrecisionMax     = 3
+	DecimalPrecisionDefault = 0
 )
 
 // defaultConfig returns a Config populated with the same defaults as
@@ -50,8 +56,9 @@ func defaultConfig() Config {
 			Width:  1024,
 			Height: 800,
 		},
-		SidebarWidth: 280,
-		ToastTimeout: ToastTimeoutDefault,
+		SidebarWidth:     280,
+		ToastTimeout:     ToastTimeoutDefault,
+		DecimalPrecision: DecimalPrecisionDefault,
 		StatusButtons: StatusButtons{
 			Reloader:   true,
 			Charpicker: true,

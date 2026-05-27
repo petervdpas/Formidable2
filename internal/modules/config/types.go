@@ -8,43 +8,44 @@ package config
 // Field names and JSON tags are preserved so existing user.json files
 // load without migration.
 type Config struct {
-	ProfileName          string         `json:"profile_name"`
-	Theme                string         `json:"theme"`
-	ShowPasteButtons     bool           `json:"show_paste_buttons"`
-	UseExpressions       bool           `json:"use_expressions"`
-	ShowMetaSection      bool           `json:"show_meta_section"`
-	IoCollectionOnly     bool           `json:"io_collection_only"`
-	LoopStateCollapsed   bool           `json:"loop_state_collapsed"`
-	FieldStateCollapsed  bool           `json:"field_state_collapsed"`
-	FontSize             int            `json:"font_size"`
-	DevelopmentEnable    bool           `json:"development_enable"`
-	LoggingEnabled       bool           `json:"logging_enabled"`
-	EnablePlugins        bool           `json:"enable_plugins"`
-	EnableFullTextSearch bool           `json:"enable_full_text_search"`
-	UpdateCheck          bool           `json:"update_check"`
-	ContextMode          string         `json:"context_mode"`
-	ContextRibbon        string         `json:"context_ribbon"`
-	ContextFolder        string         `json:"context_folder"`
-	SelectedTemplate     string         `json:"selected_template"`
-	SelectedDataFile     string         `json:"selected_data_file"`
-	EnabledTemplates     []string       `json:"enabled_templates"`
-	AuthorName           string         `json:"author_name"`
-	AuthorEmail          string         `json:"author_email"`
-	Language             string         `json:"language"`
-	RemoteBackend        string         `json:"remote_backend"`
-	GitRoot              string         `json:"git_root"`
-	GitBranch            string         `json:"git_branch"`
-	GitSelfCloned        bool           `json:"git_self_cloned"`
-	GigotBaseURL         string         `json:"gigot_base_url"`
-	GigotRepoName        string         `json:"gigot_repo_name"`
-	GigotToken           string         `json:"gigot_token"`
-	EnableInternalServer bool           `json:"enable_internal_server"`
-	InternalServerPort   int            `json:"internal_server_port"`
-	WindowBounds  WindowBounds  `json:"window_bounds"`
-	SidebarWidth  int           `json:"sidebar_width"`
-	ToastTimeout  int           `json:"toast_timeout"`
-	StatusButtons StatusButtons `json:"status_buttons"`
-	History       History       `json:"history"`
+	ProfileName          string        `json:"profile_name"`
+	Theme                string        `json:"theme"`
+	ShowPasteButtons     bool          `json:"show_paste_buttons"`
+	UseExpressions       bool          `json:"use_expressions"`
+	ShowMetaSection      bool          `json:"show_meta_section"`
+	IoCollectionOnly     bool          `json:"io_collection_only"`
+	LoopStateCollapsed   bool          `json:"loop_state_collapsed"`
+	FieldStateCollapsed  bool          `json:"field_state_collapsed"`
+	FontSize             int           `json:"font_size"`
+	DevelopmentEnable    bool          `json:"development_enable"`
+	LoggingEnabled       bool          `json:"logging_enabled"`
+	EnablePlugins        bool          `json:"enable_plugins"`
+	EnableFullTextSearch bool          `json:"enable_full_text_search"`
+	UpdateCheck          bool          `json:"update_check"`
+	ContextMode          string        `json:"context_mode"`
+	ContextRibbon        string        `json:"context_ribbon"`
+	ContextFolder        string        `json:"context_folder"`
+	SelectedTemplate     string        `json:"selected_template"`
+	SelectedDataFile     string        `json:"selected_data_file"`
+	EnabledTemplates     []string      `json:"enabled_templates"`
+	AuthorName           string        `json:"author_name"`
+	AuthorEmail          string        `json:"author_email"`
+	Language             string        `json:"language"`
+	RemoteBackend        string        `json:"remote_backend"`
+	GitRoot              string        `json:"git_root"`
+	GitBranch            string        `json:"git_branch"`
+	GitSelfCloned        bool          `json:"git_self_cloned"`
+	GigotBaseURL         string        `json:"gigot_base_url"`
+	GigotRepoName        string        `json:"gigot_repo_name"`
+	GigotToken           string        `json:"gigot_token"`
+	EnableInternalServer bool          `json:"enable_internal_server"`
+	InternalServerPort   int           `json:"internal_server_port"`
+	WindowBounds         WindowBounds  `json:"window_bounds"`
+	SidebarWidth         int           `json:"sidebar_width"`
+	ToastTimeout         int           `json:"toast_timeout"`
+	DecimalPrecision     int           `json:"decimal_precision"`
+	StatusButtons        StatusButtons `json:"status_buttons"`
+	History              History       `json:"history"`
 }
 
 // WindowBounds - X/Y are pointers so absent (centered) is distinguishable
@@ -66,11 +67,11 @@ type StatusButtons struct {
 }
 
 type History struct {
-	Enabled bool  `json:"enabled"`
-	Persist bool  `json:"persist"`
-	MaxSize int   `json:"max_size"`
+	Enabled bool     `json:"enabled"`
+	Persist bool     `json:"persist"`
+	MaxSize int      `json:"max_size"`
 	Stack   []string `json:"stack"`
-	Index   int   `json:"index"`
+	Index   int      `json:"index"`
 }
 
 // BootConfig points at the active profile and is stored in config/.boot.json.
@@ -83,9 +84,9 @@ type BootConfig struct {
 // in the Electron app. Per-template storage folders are auto-created and
 // scanned for `.meta.json` (forms) and image files.
 type VirtualStructure struct {
-	Context                string                            `json:"context"`
-	Templates              string                            `json:"templates"`
-	Storage                string                            `json:"storage"`
+	Context                string                           `json:"context"`
+	Templates              string                           `json:"templates"`
+	Storage                string                           `json:"storage"`
 	TemplateStorageFolders map[string]TemplateStorageFolder `json:"templateStorageFolders"`
 }
 

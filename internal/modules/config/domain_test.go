@@ -243,6 +243,42 @@ func TestParseUserConfig_ToastTimeoutAboveMaxClampsToMax(t *testing.T) {
 	}
 }
 
+func TestParseUserConfig_DefaultDecimalPrecisionFilledWhenMissing(t *testing.T) {
+	raw := `{"theme":"dark"}`
+	cfg, changed, err := parseUserConfig(raw)
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if cfg.DecimalPrecision != DecimalPrecisionDefault {
+		t.Errorf("default not filled: got %d, want %d", cfg.DecimalPrecision, DecimalPrecisionDefault)
+	}
+	if !changed {
+		t.Error("a missing required key must trigger changed=true so the profile is rewritten with the default")
+	}
+}
+
+func TestParseUserConfig_DecimalPrecisionClamped(t *testing.T) {
+	for _, tc := range []struct{ in, want int }{
+		{-1, DecimalPrecisionMin},
+		{99, DecimalPrecisionMax},
+		{2, 2}, // in-range value is untouched
+	} {
+		full := defaultConfig()
+		full.DecimalPrecision = tc.in
+		bytes, _ := json.Marshal(full)
+		cfg, changed, err := parseUserConfig(string(bytes))
+		if err != nil {
+			t.Fatalf("parseUserConfig(%d): %v", tc.in, err)
+		}
+		if cfg.DecimalPrecision != tc.want {
+			t.Errorf("decimal_precision=%d in, got %d, want %d", tc.in, cfg.DecimalPrecision, tc.want)
+		}
+		if wantChanged := tc.in != tc.want; changed != wantChanged {
+			t.Errorf("in=%d: changed=%v, want %v", tc.in, changed, wantChanged)
+		}
+	}
+}
+
 func TestParseUserConfig_ToastTimeoutNegativeClampsToMin(t *testing.T) {
 	full := defaultConfig()
 	full.ToastTimeout = -7
@@ -274,13 +310,13 @@ func TestParseUserConfig_ToastTimeoutInRangePassesThrough(t *testing.T) {
 
 func TestNormalizeProfileFilename(t *testing.T) {
 	cases := map[string]string{
-		"User.json":          "user.json",
-		"My Profile.JSON":    "my-profile.json",
-		"weird !! name":      "weird-name.json",
-		"---trim---.json":    "trim.json",
-		"":                   "",
-		"---":                "",
-		"/path/to/Foo.json":  "foo.json",
+		"User.json":         "user.json",
+		"My Profile.JSON":   "my-profile.json",
+		"weird !! name":     "weird-name.json",
+		"---trim---.json":   "trim.json",
+		"":                  "",
+		"---":               "",
+		"/path/to/Foo.json": "foo.json",
 	}
 	for in, want := range cases {
 		if got := normalizeProfileFilename(in); got != want {
@@ -333,7 +369,7 @@ func TestUpdateUserConfig_PartialMerge(t *testing.T) {
 	m, _, root := newTestManager(t)
 
 	if _, err := m.UpdateUserConfig(map[string]any{
-		"theme": "dark",
+		"theme":     "dark",
 		"font_size": 16,
 	}); err != nil {
 		t.Fatalf("UpdateUserConfig: %v", err)
@@ -368,17 +404,17 @@ func TestUpdateUserConfig_NoLostUpdatesUnderConcurrency(t *testing.T) {
 
 	type write struct{ field, value string }
 	writes := []write{
-		{"profile_name",     "Goro_PN"},
-		{"theme",            "purplish"},
-		{"language",         "nl"},
-		{"author_name",      "Goro_AN"},
-		{"author_email",     "goro@example.com"},
-		{"gigot_base_url",   "https://goro.example/u"},
-		{"gigot_repo_name",  "Goro_REPO"},
-		{"gigot_token",      "Goro_TOKEN"},
-		{"git_root",         "/goro/root"},
-		{"git_branch",       "goro-branch"},
-		{"remote_backend",   "git"},
+		{"profile_name", "Goro_PN"},
+		{"theme", "purplish"},
+		{"language", "nl"},
+		{"author_name", "Goro_AN"},
+		{"author_email", "goro@example.com"},
+		{"gigot_base_url", "https://goro.example/u"},
+		{"gigot_repo_name", "Goro_REPO"},
+		{"gigot_token", "Goro_TOKEN"},
+		{"git_root", "/goro/root"},
+		{"git_branch", "goro-branch"},
+		{"remote_backend", "git"},
 		{"selected_data_file", "goro.meta.json"},
 	}
 

@@ -11,6 +11,7 @@ import { useTheme } from "./composables/useTheme";
 import { useActiveWorkspace } from "./composables/useActiveWorkspace";
 import { useRestartGate } from "./composables/useRestartGate";
 import { useConfig } from "./composables/useConfig";
+import { setPctDecimals } from "./components/stat/grid";
 import { useRibbonAvailability } from "./composables/useRibbonAvailability";
 import { confirmLeave } from "./composables/useNavGuard";
 import { Service as SystemSvc } from "../bindings/github.com/petervdpas/formidable2/internal/modules/system";
@@ -76,6 +77,15 @@ watch(active, (id) => {
   if (!restored) return;
   void update({ context_ribbon: id });
 });
+
+// decimal_precision is a generic user config setting; push it into the stat
+// renderers' shared formatter whenever config loads or changes, so every chart
+// opened afterwards formats percentages the same.
+watch(
+  () => config.value?.decimal_precision,
+  (n) => setPctDecimals(n ?? 0),
+  { immediate: true },
+);
 
 // Redirect away from a disabled workspace. Triggers in two scenarios:
 //   1. At boot, after availability resolves, if the persisted ribbon
