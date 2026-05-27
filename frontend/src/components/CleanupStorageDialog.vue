@@ -122,6 +122,11 @@ function strategiesFor(kind: string): { id: string; labelKey: string }[] {
         { id: "restamp", labelKey: "workspace.cleanup.strategy.restamp" },
         { id: "skip",    labelKey: "workspace.cleanup.strategy.skip" },
       ];
+    case IssueKind.IssueGuidUnsynced:
+      return [
+        { id: "sync_guid", labelKey: "workspace.cleanup.strategy.sync_guid" },
+        { id: "skip",      labelKey: "workspace.cleanup.strategy.skip" },
+      ];
     case IssueKind.IssueUnreadable:
       // Unreadable can't be repaired in-app; the only "action" is to
       // open the file in an external editor. The summary still lists

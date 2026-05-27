@@ -69,3 +69,52 @@ Feature: Storage integrity analysis
   Scenario: Unknown template returns an error
     When I analyze "ghost.yaml"
     Then an integrity error occurred
+
+  # A guid field is the form's identity source: meta.id must mirror it,
+  # and an empty field is backfilled from meta.id. The cleanup tool flags
+  # the drift (guid_unsynced) and repairs it via sync_guid.
+
+  Scenario: A guid field matching meta.id is clean
+    Given a template "ids.yaml" with fields:
+      | key | type |
+      | id  | guid |
+    And a form "a.meta.json" with meta id "G-1" and data:
+      | key | value |
+      | id  | G-1   |
+    When I analyze "ids.yaml"
+    Then the report has 0 issues
+
+  Scenario: An empty guid field while meta.id is set is drift
+    Given a template "ids.yaml" with fields:
+      | key | type |
+      | id  | guid |
+    And a form "a.meta.json" with meta id "G-9" and data:
+      | key | value |
+      | id  |       |
+    When I analyze "ids.yaml"
+    Then the report has a "guid_unsynced" issue at "id" on "a.meta.json"
+
+  Scenario: Repairing an empty guid field backfills it from meta.id
+    Given a template "ids.yaml" with fields:
+      | key | type |
+      | id  | guid |
+    And a form "a.meta.json" with meta id "G-9" and data:
+      | key | value |
+      | id  |       |
+    When I repair "guid_unsynced" with strategy "sync_guid" on "ids.yaml"
+    Then the repair applied 1 fix
+    And the form "a.meta.json" data "id" equals the meta id
+    And the form "a.meta.json" meta id equals "G-9"
+    And the repair leaves 0 issues
+
+  Scenario: The guid field is canonical - meta.id is synced from a populated field
+    Given a template "ids.yaml" with fields:
+      | key | type |
+      | id  | guid |
+    And a form "a.meta.json" with meta id "stale" and data:
+      | key | value     |
+      | id  | real-guid |
+    When I repair "guid_unsynced" with strategy "sync_guid" on "ids.yaml"
+    Then the repair applied 1 fix
+    And the form "a.meta.json" meta id equals "real-guid"
+    And the repair leaves 0 issues

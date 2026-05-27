@@ -26,6 +26,7 @@
   "workspace.cleanup.kind.date_anomaly": "Date anomaly (fix by hand)",
   "workspace.cleanup.kind.meta_missing": "Meta missing",
   "workspace.cleanup.kind.meta_bad_format": "Meta bad format",
+  "workspace.cleanup.kind.guid_unsynced": "Guid field out of sync",
   "workspace.cleanup.kind.unreadable": "Unreadable",
   "workspace.cleanup.strategy.strip": "Strip from data",
   "workspace.cleanup.strategy.fill_default": "Fill with default",
@@ -33,6 +34,7 @@
   "workspace.cleanup.strategy.clear": "Clear to default",
   "workspace.cleanup.strategy.mint_uuid": "Mint a new UUID",
   "workspace.cleanup.strategy.restamp": "Re-stamp / clear",
+  "workspace.cleanup.strategy.sync_guid": "Sync guid with meta id",
   "workspace.cleanup.strategy.skip": "Skip (do nothing)",
   "workspace.cleanup.strategy.open_external": "Edit file manually"
 }

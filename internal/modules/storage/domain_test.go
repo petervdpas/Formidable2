@@ -105,6 +105,49 @@ func TestSanitize_GeneratesGuidWhenTemplateHasGuidField(t *testing.T) {
 	}
 }
 
+func TestSanitize_GuidFieldDataMirrorsMetaID(t *testing.T) {
+	fields := []template.Field{
+		{Key: "id", Type: "guid"},
+		{Key: "title", Type: "text"},
+	}
+	out := Sanitize(map[string]any{"title": "X"}, fields, SanitizeOptions{})
+	if out.Meta.ID == "" {
+		t.Fatal("expected generated meta.id")
+	}
+	if got, _ := out.Data["id"].(string); got != out.Meta.ID {
+		t.Errorf("data[id] = %q, want it mirrored from meta.id %q", got, out.Meta.ID)
+	}
+}
+
+func TestSanitize_GuidFieldDrivesMetaID(t *testing.T) {
+	// The field is the identity source: a guid present in the data feeds
+	// meta.id, and both end up equal.
+	fields := []template.Field{
+		{Key: "id", Type: "guid"},
+		{Key: "title", Type: "text"},
+	}
+	out := Sanitize(map[string]any{"id": "field-guid", "title": "X"}, fields, SanitizeOptions{})
+	if out.Meta.ID != "field-guid" {
+		t.Errorf("meta.id = %q, want field-guid", out.Meta.ID)
+	}
+	if got, _ := out.Data["id"].(string); got != "field-guid" {
+		t.Errorf("data[id] = %q, want field-guid", got)
+	}
+}
+
+func TestSanitize_PreservedIDBackfillsEmptyGuidField(t *testing.T) {
+	// On edit the caller preserves the prior identity via opts.ID; an
+	// emptied guid field is restored from it so data and meta stay synced.
+	fields := []template.Field{{Key: "id", Type: "guid"}, {Key: "title", Type: "text"}}
+	out := Sanitize(map[string]any{"id": "", "title": "X"}, fields, SanitizeOptions{ID: "prev-id"})
+	if out.Meta.ID != "prev-id" {
+		t.Errorf("meta.id = %q, want prev-id", out.Meta.ID)
+	}
+	if got, _ := out.Data["id"].(string); got != "prev-id" {
+		t.Errorf("data[id] = %q, want prev-id (backfilled)", got)
+	}
+}
+
 func TestSanitize_NoIdWhenNoGuidFieldAndNothingProvided(t *testing.T) {
 	fields := []template.Field{{Key: "title", Type: "text"}}
 	out := Sanitize(map[string]any{"title": "X"}, fields, SanitizeOptions{})

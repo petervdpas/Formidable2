@@ -31,6 +31,11 @@ const (
 	// meta_missing on guid templates.
 	FixMintUUID FixStrategy = "mint_uuid"
 
+	// FixSyncGuid - write meta.id into the guid data field so the two
+	// agree. Used for guid_unsynced. Lossless: the data field carried no
+	// authoritative id of its own (meta.id is canonical).
+	FixSyncGuid FixStrategy = "sync_guid"
+
 	// FixRestamp - overwrite a bad timestamp with time.Now().UTC().
 	// Used for meta_bad_format on meta.created and meta.updated. For
 	// meta.flag_state the same strategy clears the stale label

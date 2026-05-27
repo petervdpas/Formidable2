@@ -28,10 +28,11 @@ func TestFeatures(t *testing.T) {
 }
 
 type integrityWorld struct {
-	tpl     *template.Template
-	forms   map[string]*storage.Form
-	report  Report
-	lastErr error
+	tpl       *template.Template
+	forms     map[string]*storage.Form
+	report    Report
+	fixResult FixResult
+	lastErr   error
 }
 
 func initIntegrityScenario(ctx *godog.ScenarioContext) {
@@ -41,6 +42,7 @@ func initIntegrityScenario(ctx *godog.ScenarioContext) {
 		w.tpl = nil
 		w.forms = map[string]*storage.Form{}
 		w.report = Report{}
+		w.fixResult = FixResult{}
 		w.lastErr = nil
 		return ctx, nil
 	})
@@ -81,8 +83,48 @@ func initIntegrityScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^a form "([^"]*)" with meta id "([^"]*)" and data:$`, func(fn, id string, tbl *godog.Table) error {
+		f := &storage.Form{
+			Meta: storage.FormMeta{
+				ID:      id,
+				Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+				Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"},
+			},
+			Data: map[string]any{},
+		}
+		for _, row := range tbl.Rows[1:] {
+			if len(row.Cells) < 2 {
+				return fmt.Errorf("data row needs key,value; got %v", row.Cells)
+			}
+			k := row.Cells[0].Value
+			f.Data[k] = coerceValue(w.tpl, k, row.Cells[1].Value)
+		}
+		w.forms[fn] = f
+		return nil
+	})
+
 	ctx.Step(`^an unreadable form "([^"]*)"$`, func(fn string) error {
 		w.forms[fn] = nil
+		return nil
+	})
+
+	ctx.Step(`^I repair "([^"]*)" with strategy "([^"]*)" on "([^"]*)"$`, func(kind, strat, tplName string) error {
+		st := &stubTemplates{ts: map[string]*template.Template{}}
+		if w.tpl != nil {
+			st.ts[w.tpl.Filename] = w.tpl
+		}
+		so := &stubStorage{forms: map[string]map[string]*storage.Form{}}
+		if w.tpl != nil {
+			so.forms[w.tpl.Filename] = w.forms
+		}
+		m := NewManager(st, so)
+		m.SetWriter(newStubWriter(so))
+		w.fixResult, w.lastErr = m.FixTemplate(tplName, FixPlan{
+			Items: []FixPlanItem{{Kind: IssueKind(kind), Strategy: FixStrategy(strat)}},
+		})
+		if w.tpl != nil {
+			w.forms = so.forms[w.tpl.Filename]
+		}
 		return nil
 	})
 
@@ -153,6 +195,46 @@ func initIntegrityScenario(ctx *godog.ScenarioContext) {
 			}
 		}
 		return fmt.Errorf("form %q not in report", fn)
+	})
+
+	ctx.Step(`^the form "([^"]*)" data "([^"]*)" equals the meta id$`, func(fn, field string) error {
+		f := w.forms[fn]
+		if f == nil {
+			return fmt.Errorf("no form %q", fn)
+		}
+		got, _ := f.Data[field].(string)
+		if got == "" {
+			return fmt.Errorf("data[%q] is empty, expected meta.id", field)
+		}
+		if got != f.Meta.ID {
+			return fmt.Errorf("data[%q]=%q != meta.id %q", field, got, f.Meta.ID)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the form "([^"]*)" meta id equals "([^"]*)"$`, func(fn, want string) error {
+		f := w.forms[fn]
+		if f == nil {
+			return fmt.Errorf("no form %q", fn)
+		}
+		if f.Meta.ID != want {
+			return fmt.Errorf("meta.id = %q, want %q", f.Meta.ID, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the repair applied (\d+) fix(?:es)?$`, func(n int) error {
+		if w.fixResult.Applied != n {
+			return fmt.Errorf("applied = %d, want %d", w.fixResult.Applied, n)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the repair leaves (\d+) issues?$`, func(n int) error {
+		if w.fixResult.ScannedAfter != n {
+			return fmt.Errorf("scanned_after = %d, want %d", w.fixResult.ScannedAfter, n)
+		}
+		return nil
 	})
 
 	ctx.Step(`^an integrity error occurred$`, func() error {

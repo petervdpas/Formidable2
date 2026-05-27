@@ -55,6 +55,13 @@ const (
 	// parseable RFC3339 timestamp.
 	IssueMetaBadFormat IssueKind = "meta_bad_format"
 
+	// IssueGuidUnsynced - the form declares a guid field whose data value
+	// doesn't match meta.id (typically blank, since meta.id holds the
+	// canonical guid and the data field was never mirrored). Surfaces so
+	// downstream consumers that read the data block (CSV export, the API)
+	// see the id. Suggest carries meta.id so the fix writes it verbatim.
+	IssueGuidUnsynced IssueKind = "guid_unsynced"
+
 	// IssueUnreadable - the form file couldn't be loaded or parsed.
 	// Stops further analysis of that form; emitted as the single issue.
 	IssueUnreadable IssueKind = "unreadable"

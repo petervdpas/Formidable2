@@ -33,6 +33,16 @@ type csvWorld struct {
 	preview    PreviewResult
 	previewErr error
 	write      WriteResult
+	// export scenarios
+	tplFields map[string][]FieldSpec
+	forms     map[string][]map[string]any
+	schema    ExportSchema
+	exportRes ExportResult
+	// import scenarios
+	mappable    []FieldSpec
+	suggestions []SuggestedMapping
+	transformed string
+	coerced     any
 }
 
 func initCsvScenario(ctx *godog.ScenarioContext) {
@@ -44,11 +54,19 @@ func initCsvScenario(ctx *godog.ScenarioContext) {
 			return ctx, err
 		}
 		w.tmp = dir
-		w.sys = nil
+		w.sys = system.NewManager(dir, nil)
 		w.m = nil
 		w.preview = PreviewResult{}
 		w.previewErr = nil
 		w.write = WriteResult{}
+		w.tplFields = map[string][]FieldSpec{}
+		w.forms = map[string][]map[string]any{}
+		w.schema = ExportSchema{}
+		w.exportRes = ExportResult{}
+		w.mappable = nil
+		w.suggestions = nil
+		w.transformed = ""
+		w.coerced = nil
 		return ctx, nil
 	})
 
@@ -196,6 +214,9 @@ func initCsvScenario(ctx *godog.ScenarioContext) {
 		}
 		return nil
 	})
+
+	initExportSteps(ctx, w)
+	initImportSteps(ctx, w)
 }
 
 func assertRowContains(w *csvWorld, idx int, want string) error {

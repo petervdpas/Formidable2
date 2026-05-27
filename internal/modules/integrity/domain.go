@@ -87,6 +87,41 @@ func analyzeForm(tpl *template.Template, f *storage.Form) []Issue {
 	var out []Issue
 	out = append(out, checkMeta(tpl, f.Meta)...)
 	out = append(out, checkData(tpl.Fields, f.Data, "")...)
+	out = append(out, checkGuidSync(tpl, f.Meta, f.Data)...)
+	return out
+}
+
+// checkGuidSync flags guid fields whose data value drifts from meta.id.
+// The guid field is the identity source: meta.id should mirror it, and a
+// field left empty should be backfilled from meta.id so consumers reading
+// the data block (export, API) get the id. Suggest carries the canonical
+// value (the field's own value when set, else meta.id). Only runs when
+// meta.id is set - a blank meta.id is the separate meta_missing issue.
+func checkGuidSync(tpl *template.Template, meta storage.FormMeta, data map[string]any) []Issue {
+	if meta.ID == "" || data == nil {
+		return nil
+	}
+	var out []Issue
+	for _, f := range tpl.Fields {
+		if f.Type != "guid" {
+			continue
+		}
+		cur, _ := data[f.Key].(string)
+		if cur == meta.ID {
+			continue
+		}
+		canonical := cur
+		if canonical == "" {
+			canonical = meta.ID
+		}
+		out = append(out, Issue{
+			Kind:    IssueGuidUnsynced,
+			Path:    f.Key,
+			Value:   cur,
+			Suggest: canonical,
+			Detail:  "guid field and meta.id disagree",
+		})
+	}
 	return out
 }
 

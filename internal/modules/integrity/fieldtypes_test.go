@@ -42,7 +42,10 @@ func fieldTypeCases() []fieldTypeCase {
 		{fieldType: "file-path", happy: "/tmp/x.txt", unhappy: map[string]any{"x": 1}, wantKind: IssueTypeMismatch, emptyValue: ""},
 		{fieldType: "folder-path", happy: "/var/log", unhappy: 5, wantKind: IssueTypeMismatch, emptyValue: ""},
 		{fieldType: "image", happy: "screen.png", unhappy: float64(0), wantKind: IssueTypeMismatch, emptyValue: ""},
-		{fieldType: "guid", happy: "11111111-2222-3333-4444-555555555555", unhappy: 42, wantKind: IssueTypeMismatch, emptyValue: ""},
+		// guid's data value must mirror meta.id (the harness sets meta.id
+		// to "fixture-id"), so the happy value matches it; an empty guid
+		// is the guid_unsynced drift covered by its own test below.
+		{fieldType: "guid", happy: "fixture-id", unhappy: 42, wantKind: IssueTypeMismatch, emptyValue: "", skipEmpty: true},
 
 		{fieldType: "date", happy: "2026-06-01", unhappy: float64(20260601), wantKind: IssueTypeMismatch, emptyValue: ""},
 
@@ -155,6 +158,15 @@ func TestFieldType_Link_AcceptsEmptyMap(t *testing.T) {
 		fieldTypeCase{fieldType: "link"},
 		map[string]any{"href": "", "text": ""})
 	mustZeroIssues(t, r)
+}
+
+func TestFieldType_Guid_EmptyDataIsUnsyncedDrift(t *testing.T) {
+	// An empty guid data field while meta.id is set is the exact bug the
+	// cleanup tool repairs: the data block never mirrored the canonical id.
+	r := runFieldTypeCase(t,
+		fieldTypeCase{fieldType: "guid"},
+		"")
+	findIssue(t, r, "a.meta.json", IssueGuidUnsynced, "v")
 }
 
 func TestFieldType_API_AcceptsNil(t *testing.T) {

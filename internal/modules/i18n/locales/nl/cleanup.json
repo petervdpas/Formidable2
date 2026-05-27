@@ -26,6 +26,7 @@
   "workspace.cleanup.kind.date_anomaly": "Datumafwijking (handmatig herstellen)",
   "workspace.cleanup.kind.meta_missing": "Meta ontbreekt",
   "workspace.cleanup.kind.meta_bad_format": "Meta foutief formaat",
+  "workspace.cleanup.kind.guid_unsynced": "Guid-veld niet gesynchroniseerd",
   "workspace.cleanup.kind.unreadable": "Onleesbaar",
   "workspace.cleanup.strategy.strip": "Verwijder uit data",
   "workspace.cleanup.strategy.fill_default": "Vul met standaard",
@@ -33,6 +34,7 @@
   "workspace.cleanup.strategy.clear": "Leegmaken (standaard)",
   "workspace.cleanup.strategy.mint_uuid": "Nieuwe UUID genereren",
   "workspace.cleanup.strategy.restamp": "Tijdstempel/markeren",
+  "workspace.cleanup.strategy.sync_guid": "Guid synchroniseren met meta-id",
   "workspace.cleanup.strategy.skip": "Overslaan (niets doen)",
   "workspace.cleanup.strategy.open_external": "Handmatig openen"
 }

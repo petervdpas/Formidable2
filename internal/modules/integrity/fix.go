@@ -137,7 +137,7 @@ func validatePlan(plan FixPlan) error {
 	for _, it := range plan.Items {
 		switch it.Strategy {
 		case FixStrip, FixFillDefault, FixCoerce, FixClear,
-			FixMintUUID, FixRestamp, FixSkip:
+			FixMintUUID, FixSyncGuid, FixRestamp, FixSkip:
 		default:
 			return fmt.Errorf(
 				"integrity: unknown strategy %q for kind %q", it.Strategy, it.Kind,
@@ -265,6 +265,23 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		}
 		draft.Meta.ID = uuid.NewString()
 		return true, "", nil
+
+	case FixSyncGuid:
+		if iss.Kind != IssueGuidUnsynced {
+			return false, "sync_guid only applies to guid_unsynced", nil
+		}
+		// The guid field is the identity source: when it holds a value,
+		// meta.id mirrors it. Only when the field is empty do we backfill
+		// the field from meta.id.
+		field, _ := draft.Data[iss.Path].(string)
+		if field != "" {
+			draft.Meta.ID = field
+			return true, "", nil
+		}
+		if draft.Meta.ID != "" {
+			return setAtPath(draft.Data, iss.Path, draft.Meta.ID)
+		}
+		return false, "guid field and meta.id are both empty", nil
 
 	case FixRestamp:
 		if iss.Kind != IssueMetaBadFormat {

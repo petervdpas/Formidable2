@@ -83,6 +83,19 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		}
 	}
 
+	// Keep the guid field's data value in lockstep with meta.id. The
+	// field is the identity source (rawData feeds the id resolution
+	// above); once resolved, the id is mirrored back into the field so
+	// consumers reading the data block (CSV export, the API) see it and
+	// the integrity doctor finds no drift.
+	if id != "" {
+		for _, f := range fields {
+			if f.Type == "guid" {
+				data[f.Key] = id
+			}
+		}
+	}
+
 	// Tags: collect from options + raw meta + injected + tags-typed fields.
 	tags := map[string]struct{}{}
 	addTags := func(in any) {
