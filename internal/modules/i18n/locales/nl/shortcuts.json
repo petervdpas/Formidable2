@@ -1,0 +1,21 @@
+{
+  "workspace.information.shortcuts.intro": "Globale sneltoetsen die werken zolang de bijbehorende werkomgeving actief is. {0} is op dit systeem de primaire modifier-toets.",
+  "workspace.information.shortcuts.group.templates": "Sjablonen",
+  "workspace.information.shortcuts.action.save_template": "Het huidige sjabloon opslaan",
+  "workspace.information.shortcuts.action.new_template": "Een nieuw sjabloon aanmaken",
+  "workspace.information.shortcuts.action.delete_template": "Het geselecteerde sjabloon verwijderen",
+  "workspace.information.shortcuts.action.prev_template": "Het vorige sjabloon selecteren",
+  "workspace.information.shortcuts.action.next_template": "Het volgende sjabloon selecteren",
+  "workspace.information.shortcuts.group.storage": "Opslag",
+  "workspace.information.shortcuts.action.save_entry": "Het huidige item opslaan",
+  "workspace.information.shortcuts.action.new_entry": "Een nieuw item aanmaken",
+  "workspace.information.shortcuts.action.delete_entry": "Het geselecteerde item verwijderen",
+  "workspace.information.shortcuts.action.undo_entry": "De laatste wijziging aan dit item ongedaan maken",
+  "workspace.information.shortcuts.action.redo_entry": "De laatst ongedaangemaakte wijziging opnieuw uitvoeren",
+  "workspace.information.shortcuts.scope.entry_focus_outside": "Wanneer de focus buiten een veld ligt",
+  "workspace.information.shortcuts.action.toggle_meta": "Meta-blok tonen of verbergen",
+  "workspace.information.shortcuts.action.preview_markdown": "Markdown-uitschuifpaneel openen of sluiten",
+  "workspace.information.shortcuts.action.preview_html": "HTML-uitschuifpaneel openen of sluiten",
+  "workspace.information.shortcuts.action.prev_entry": "Het vorige item selecteren",
+  "workspace.information.shortcuts.action.next_entry": "Het volgende item selecteren"
+}

@@ -32,6 +32,8 @@ export const SHORTCUT_CATALOG: ShortcutCatalogGroup[] = [
       { combo: "Mod+S", descriptionKey: "workspace.information.shortcuts.action.save_template" },
       { combo: "Mod+N", descriptionKey: "workspace.information.shortcuts.action.new_template" },
       { combo: "Mod+D", descriptionKey: "workspace.information.shortcuts.action.delete_template" },
+      { combo: "ArrowUp", descriptionKey: "workspace.information.shortcuts.action.prev_template", scopeKey: "workspace.information.shortcuts.scope.entry_focus_outside" },
+      { combo: "ArrowDown", descriptionKey: "workspace.information.shortcuts.action.next_template", scopeKey: "workspace.information.shortcuts.scope.entry_focus_outside" },
     ],
   },
   {
@@ -45,6 +47,8 @@ export const SHORTCUT_CATALOG: ShortcutCatalogGroup[] = [
       { combo: "Mod+M", descriptionKey: "workspace.information.shortcuts.action.toggle_meta" },
       { combo: "Ctrl+Shift+M", descriptionKey: "workspace.information.shortcuts.action.preview_markdown" },
       { combo: "Ctrl+Shift+H", descriptionKey: "workspace.information.shortcuts.action.preview_html" },
+      { combo: "ArrowUp", descriptionKey: "workspace.information.shortcuts.action.prev_entry", scopeKey: "workspace.information.shortcuts.scope.entry_focus_outside" },
+      { combo: "ArrowDown", descriptionKey: "workspace.information.shortcuts.action.next_entry", scopeKey: "workspace.information.shortcuts.scope.entry_focus_outside" },
     ],
   },
 ];

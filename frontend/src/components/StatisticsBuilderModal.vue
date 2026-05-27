@@ -90,6 +90,10 @@ interface SourceOpt {
   numeric: boolean;
   date: boolean;
   text: boolean; // a free-text field: high-cardinality, prefill a top-N cap
+  // Closed value set (facet option labels). When present, a filter on this
+  // source offers a dropdown instead of free text, so the author can't mistype
+  // a value that exists nowhere in the data.
+  choices?: { value: string; label: string }[];
 }
 
 function srcKey(s: SourceRef): string {
@@ -120,6 +124,14 @@ const sources = computed<SourceOpt[]>(() => {
       }
     } else {
       const ref: SourceRef = { Kind: "field", Key: f.key, Column: "" };
+      // dropdown/radio fields store the chosen option's `value`, so that's
+      // the closed set a filter should compare against.
+      let choices: { value: string; label: string }[] | undefined;
+      if (f.type === "dropdown" || f.type === "radio") {
+        choices = ((f.options ?? []) as Array<Record<string, unknown>>)
+          .map((o) => ({ value: String(o?.value ?? ""), label: String(o?.label ?? o?.value ?? "") }))
+          .filter((c) => c.value !== "");
+      }
       out.push({
         key: srcKey(ref),
         ref,
@@ -127,12 +139,19 @@ const sources = computed<SourceOpt[]>(() => {
         numeric: f.type === "number" || f.type === "range",
         date: f.type === "date",
         text: f.type === "text",
+        choices,
       });
     }
   }
   for (const fc of props.facets ?? []) {
     const ref: SourceRef = { Kind: "facet", Key: fc.key, Column: "" };
-    out.push({ key: srcKey(ref), ref, label: fc.key, numeric: false, date: false, text: false });
+    // A facet filter matches the selected option's label, so the closed set
+    // of choices is exactly the option labels.
+    const choices = (fc.options ?? [])
+      .map((o) => o.label)
+      .filter((l) => l !== "")
+      .map((l) => ({ value: l, label: l }));
+    out.push({ key: srcKey(ref), ref, label: fc.key, numeric: false, date: false, text: false, choices });
   }
   return out;
 });
@@ -341,8 +360,21 @@ function setFilterSource(i: number, key: string) {
     if (j !== i) return x;
     // A comparison op on a non-numeric source is invalid - fall back to eq.
     const op = !s.numeric && filterOpIsNumeric(x.Op) ? FilterOp.FilterEq : x.Op;
-    return { Source: { ...s.ref }, Op: op, Value: x.Value };
+    // Switching to a closed-set source whose current value isn't a valid
+    // choice: seed the first option so the dropdown never lands on a value
+    // that matches nothing.
+    let value = x.Value;
+    if (s.choices && s.choices.length > 0 && !s.choices.some((c) => c.value === value)) {
+      value = s.choices[0].value;
+    }
+    return { Source: { ...s.ref }, Op: op, Value: value };
   });
+}
+
+// Closed value set for the selected filter's source, or null for free text.
+function filterChoicesFor(f: Filter): { value: string; label: string }[] | null {
+  const c = sourceByKey.value[srcKey(f.Source)]?.choices;
+  return c && c.length > 0 ? c : null;
 }
 function setFilterOp(i: number, op: string) {
   config.value.Filters = config.value.Filters.map((x, j) => (j === i ? { ...x, Op: op } : x));
@@ -718,7 +750,14 @@ async function onApply() {
               :options="filterOpOptionsFor(curFilter)"
               @update:model-value="(v: string) => setFilterOp(selected.index, v)"
             />
+            <SelectField
+              v-if="filterChoicesFor(curFilter)"
+              :model-value="curFilter.Value"
+              :options="filterChoicesFor(curFilter)!"
+              @update:model-value="(v: string) => setFilterValue(selected.index, v)"
+            />
             <TextField
+              v-else
               :type="filterOpIsNumeric(curFilter.Op) ? 'number' : 'text'"
               lazy
               :model-value="curFilter.Value"
