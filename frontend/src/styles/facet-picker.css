@@ -232,11 +232,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 38vh;
-  overflow-y: auto;
-  /* Tiny right pad so the scrollbar doesn't sit flush against the
-     swatch-popover and the remove-row button. */
-  padding-right: 4px;
 }
 .facet-builder-row {
   display: grid;

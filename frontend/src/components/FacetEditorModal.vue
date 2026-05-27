@@ -11,6 +11,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import Modal from "./Modal.vue";
+import ScrollList from "./ScrollList.vue";
 import SwatchPicker, { type SwatchOption } from "./SwatchPicker.vue";
 import {
   Facet,
@@ -258,8 +259,8 @@ const keyErrorMessage = computed(() => {
       {{ t('facet.builder.empty') }}
     </p>
 
+    <ScrollList v-else max-height="38vh">
     <draggable
-      v-else
       v-model="draftOptions"
       tag="ul"
       class="facet-builder-list"
@@ -312,6 +313,7 @@ const keyErrorMessage = computed(() => {
         </li>
       </template>
     </draggable>
+    </ScrollList>
 
     <div class="facet-builder-add-row">
       <button

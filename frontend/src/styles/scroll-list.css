@@ -1,0 +1,9 @@
+/* ScrollList: a bounded vertically-scrolling container for in-dialog
+   lists that can outgrow their dialog. The max-height comes from the
+   component prop (bound inline); everything else lives here. */
+.scroll-list {
+    overflow-y: auto;
+    /* Keep the scrollbar off the row controls (number steppers, remove
+       buttons) on the right edge. */
+    padding-right: 4px;
+}

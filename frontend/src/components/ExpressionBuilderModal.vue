@@ -15,6 +15,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
+import ScrollList from "./ScrollList.vue";
 import PredicateRow from "./expressionBuilder/PredicateRow.vue";
 import OutcomeEditor from "./expressionBuilder/OutcomeEditor.vue";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
@@ -279,7 +280,6 @@ const canApply = computed(() => {
     :open="open"
     :title="t('workspace.templates.expression_builder.title')"
     width="900px"
-    scroll
     @close="emit('close')"
   >
     <p v-if="parseError" class="expr-builder-error small">
@@ -312,30 +312,32 @@ const canApply = computed(() => {
         >
           {{ t('workspace.templates.expression_builder.rules.empty') }}
         </p>
-        <ul v-else class="expr-builder-list">
-          <li
-            v-for="r in rules"
-            :key="r.id"
-            class="expr-builder-list-row"
-            :class="{ selected: selectedRuleId === r.id }"
-            @click="selectRule(r.id)"
-          >
-            <span class="expr-builder-list-text">
-              <span class="expr-builder-list-label">
-                {{ t('workspace.templates.expression_builder.rule_n', { n: ruleIndex(r.id) + 1 }) }}
+        <ScrollList v-else max-height="36vh">
+          <ul class="expr-builder-list">
+            <li
+              v-for="r in rules"
+              :key="r.id"
+              class="expr-builder-list-row"
+              :class="{ selected: selectedRuleId === r.id }"
+              @click="selectRule(r.id)"
+            >
+              <span class="expr-builder-list-text">
+                <span class="expr-builder-list-label">
+                  {{ t('workspace.templates.expression_builder.rule_n', { n: ruleIndex(r.id) + 1 }) }}
+                </span>
+                <span class="expr-builder-list-meta muted small">
+                  {{ ruleSummary(r) }}
+                </span>
               </span>
-              <span class="expr-builder-list-meta muted small">
-                {{ ruleSummary(r) }}
-              </span>
-            </span>
-            <button
-              class="expr-builder-rule-remove"
-              type="button"
-              :title="t('workspace.templates.expression_builder.rules.remove')"
-              @click.stop="removeRule(r.id)"
-            >×</button>
-          </li>
-        </ul>
+              <button
+                class="expr-builder-rule-remove"
+                type="button"
+                :title="t('workspace.templates.expression_builder.rules.remove')"
+                @click.stop="removeRule(r.id)"
+              >×</button>
+            </li>
+          </ul>
+        </ScrollList>
         <div
           class="expr-builder-default-row"
           :class="{ selected: editingDefault }"
@@ -370,30 +372,32 @@ const canApply = computed(() => {
             <h4 class="expr-builder-section-title">
               {{ t('workspace.templates.expression_builder.predicates_block') }}
             </h4>
-            <ul
+            <ScrollList
               v-if="(selectedRule.predicates ?? []).length"
-              class="expr-builder-pred-list"
+              max-height="18vh"
             >
-              <li
-                v-for="(p, i) in selectedRule.predicates"
-                :key="i"
-                class="expr-builder-pred-item"
-              >
-                <PredicateRow
-                  :predicate="p"
-                  :field="fieldByKey(p.fieldKey)"
-                  :enum-ops="enumOps"
-                  :number-ops="numberOps"
-                  :date-ops="dateOps"
-                />
-                <button
-                  class="expr-builder-rule-remove"
-                  type="button"
-                  :title="t('workspace.templates.expression_builder.predicate.remove')"
-                  @click="removePredicate(i)"
-                >×</button>
-              </li>
-            </ul>
+              <ul class="expr-builder-pred-list">
+                <li
+                  v-for="(p, i) in selectedRule.predicates"
+                  :key="i"
+                  class="expr-builder-pred-item"
+                >
+                  <PredicateRow
+                    :predicate="p"
+                    :field="fieldByKey(p.fieldKey)"
+                    :enum-ops="enumOps"
+                    :number-ops="numberOps"
+                    :date-ops="dateOps"
+                  />
+                  <button
+                    class="expr-builder-rule-remove"
+                    type="button"
+                    :title="t('workspace.templates.expression_builder.predicate.remove')"
+                    @click="removePredicate(i)"
+                  >×</button>
+                </li>
+              </ul>
+            </ScrollList>
             <p v-else class="muted small">
               {{ t('workspace.templates.expression_builder.predicate.no_predicates') }}
             </p>

@@ -14,6 +14,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
+import ScrollList from "./ScrollList.vue";
 import { SelectField, TextField } from "./fields";
 import type { Field, Facet, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -147,7 +148,6 @@ function onApply() {
     :open="open"
     :title="t('workspace.templates.scaling_builder.title')"
     width="560px"
-    scroll
     @close="emit('close')"
   >
     <p class="muted small stat-builder-hint">
@@ -183,7 +183,7 @@ function onApply() {
           <p class="muted small stat-builder-hint">
             {{ t('workspace.templates.scaling_builder.weights_hint') }}
           </p>
-          <div class="stat-scaling-weights">
+          <ScrollList max-height="34vh" class="stat-scaling-weights">
             <div v-for="c in currentSource.choices" :key="c.value" class="stat-scaling-row">
               <span class="stat-scaling-option">{{ c.label }}</span>
               <TextField
@@ -194,7 +194,7 @@ function onApply() {
                 @update:model-value="(v: string) => setFactor(c.value, v)"
               />
             </div>
-          </div>
+          </ScrollList>
 
           <label class="stat-builder-field stat-scaling-default">
             <span class="stat-builder-field-label">{{ t('workspace.templates.scaling_builder.default') }}</span>
