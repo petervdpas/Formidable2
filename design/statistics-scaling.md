@@ -125,9 +125,14 @@ the named scaling, and call `EvaluateScaled`. An unknown scale name is an error,
 not a silent unweighted run. A scaling object has no grid of its own, so
 evaluating one directly errors (REST returns 404; the list omits its eval href).
 
-v1 boundary: scaling is applied to **top-level object evaluation**, not to a
-composite's children (those evaluate through `Manager.Evaluate` directly). Easy
-to lift later by routing child evaluation through the resolver.
+Composite children honor scale too. `ResolveComposite` resolves each child's
+(and the parent's) scale-clause name into a `*Scaling` and attaches it to the
+`Edge` (and `Composite`), and `EvaluateComposite` evaluates through
+`EvaluateScaled`. So a drilled child is weighted exactly as it is standalone; a
+child that names a scale the source cannot resolve is an error, never a silent
+unweighted ring. (Earlier the child evaluated through `Manager.Evaluate`, which
+dropped the clause; the composite ring showed raw counts while the standalone
+object showed weighted sums.)
 
 ## Builder and renderer
 

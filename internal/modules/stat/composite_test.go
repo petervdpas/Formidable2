@@ -382,6 +382,148 @@ func TestService_EvaluateComposite_NoSourceErrors(t *testing.T) {
 	}
 }
 
+// formFlagFcdm carries both the flag facet (so a composite parent can split on
+// it) and the fcdm coverage facet (so a scaling can weight the drilled child).
+func formFlagFcdm(file, flag, fcdm string, apps ...string) index.FormRow {
+	r := odsForm(file, apps...)
+	r.Facets = []index.FormFacet{
+		{Key: "flag", Set: true, Selected: flag},
+		{Key: "fcdm", Set: true, Selected: fcdm},
+	}
+	return r
+}
+
+// TestService_EvaluateComposite_DrilledChildHonorsScale is the regression for
+// the v1 boundary: a composite child carrying a `scale "<name>"` clause must be
+// weighted when drilled, exactly as it is standalone. Before the fix the child
+// evaluated through Manager.Evaluate (scale dropped), so the drilled ring showed
+// raw counts while the standalone object showed weighted sums.
+func TestService_EvaluateComposite_DrilledChildHonorsScale(t *testing.T) {
+	forms := []index.FormRow{
+		formFlagFcdm("r1.meta.json", "IN GEBRUIK", "NIET AANWEZIG", "FMU"), // factor 2
+		formFlagFcdm("r2.meta.json", "IN GEBRUIK", "AANWEZIG", "FMU"),      // factor 0.5
+		formFlagFcdm("r3.meta.json", "NIET IN GEBRUIK", "AANWEZIG", "FMU"), // out of branch
+	}
+	m := NewManager(realIndex(t, forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	svc := NewService(m, fakeSource{list: []StatObject{
+		{Name: "in-use", DSL: `count() by Facet["flag"]`},
+		{Name: "apps", DSL: `records() by F["code-repositories"]["application"] where Facet["flag"] eq "IN GEBRUIK" scale "fcdm-urgency"`},
+		{Name: "fcdm-urgency", Scaling: &Scaling{
+			Source:  SourceRef{Kind: SourceFacet, Key: "fcdm"},
+			Weights: []WeightEntry{{Label: "AANWEZIG", Factor: 0.5}, {Label: "NIET AANWEZIG", Factor: 2}},
+			Default: 1,
+		}},
+		{Name: "in-use-by-app", Composite: &CompositeSpec{
+			Parent: "in-use",
+			Edges:  []CompositeEdgeSpec{{Branch: "IN GEBRUIK", Child: "apps"}},
+		}},
+	}})
+
+	cg, err := svc.EvaluateComposite("ods.yaml", "in-use-by-app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := cg.Branches[0]
+	if in.Branch != "IN GEBRUIK" || in.Child == nil {
+		t.Fatalf("IN GEBRUIK should drill, got %+v", in)
+	}
+	var fmu float64
+	for _, c := range in.Child.Cells {
+		if in.Child.Axes[0].Labels[c.Coords[0]] == "FMU" {
+			fmu = c.Values[0]
+		}
+	}
+	// FMU across r1 (2) + r2 (0.5) = 2.5 weighted records, not 2 raw distinct forms.
+	if fmu != 2.5 {
+		t.Errorf("drilled FMU weighted records = %v, want 2.5 (child scale honored)", fmu)
+	}
+}
+
+// TestComposite_Evaluate_EdgeScaleWeightsChild is the Manager-level counterpart:
+// a resolved Edge.Scale weights the drilled child grid.
+func TestComposite_Evaluate_EdgeScaleWeightsChild(t *testing.T) {
+	forms := []index.FormRow{
+		formFlagFcdm("r1.meta.json", "IN GEBRUIK", "NIET AANWEZIG", "FMU"),
+		formFlagFcdm("r2.meta.json", "IN GEBRUIK", "AANWEZIG", "FMU"),
+	}
+	m := NewManager(realIndex(t, forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+
+	sc := &Scaling{
+		Source:  SourceRef{Kind: SourceFacet, Key: "fcdm"},
+		Weights: []WeightEntry{{Label: "AANWEZIG", Factor: 0.5}, {Label: "NIET AANWEZIG", Factor: 2}},
+		Default: 1,
+	}
+	cg, err := m.EvaluateComposite("ods.yaml", Composite{
+		Parent: flagParent(),
+		Edges:  []Edge{{Branch: "IN GEBRUIK", Child: appChild("IN GEBRUIK"), Scale: sc}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := cg.Branches[0]
+	if in.Child == nil {
+		t.Fatal("IN GEBRUIK should drill")
+	}
+	// appChild measures count() then records(); records is Values[1].
+	var fmuRecords float64
+	for _, c := range in.Child.Cells {
+		if in.Child.Axes[0].Labels[c.Coords[0]] == "FMU" {
+			fmuRecords = c.Values[1]
+		}
+	}
+	if fmuRecords != 2.5 {
+		t.Errorf("drilled FMU weighted records = %v, want 2.5", fmuRecords)
+	}
+}
+
+// TestResolveComposite_ResolvesChildScale checks the resolver attaches each
+// child's weighting to its edge.
+func TestResolveComposite_ResolvesChildScale(t *testing.T) {
+	child := appChild("IN GEBRUIK")
+	child.Scale = "fcdm-urgency"
+	cat := catalogConfigs{
+		"in-use":      {Name: "in-use", DSL: `count() by Facet["flag"]`},
+		"apps":        {Name: "apps", DSL: compileMust(t, child)},
+		"fcdm-urgency": {Name: "fcdm-urgency", Scaling: &Scaling{Source: SourceRef{Kind: SourceFacet, Key: "fcdm"}, Default: 1}},
+	}
+	comp, err := ResolveComposite(CompositeSpec{
+		Parent: "in-use",
+		Edges:  []CompositeEdgeSpec{{Branch: "IN GEBRUIK", Child: "apps"}},
+	}, cat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(comp.Edges) != 1 || comp.Edges[0].Scale == nil {
+		t.Fatalf("edge scale not resolved: %+v", comp.Edges)
+	}
+}
+
+// TestResolveComposite_ErrorsWhenSourceCannotResolveScale guards the no-silent-
+// drop rule: a child names a scale but the source cannot resolve scalings, so
+// resolution errors rather than charting an unweighted child.
+func TestResolveComposite_ErrorsWhenSourceCannotResolveScale(t *testing.T) {
+	child := appChild("IN GEBRUIK")
+	child.Scale = "fcdm-urgency"
+	src := stubConfigs{"in-use": flagParent(), "apps": child}
+	if _, err := ResolveComposite(CompositeSpec{
+		Parent: "in-use",
+		Edges:  []CompositeEdgeSpec{{Branch: "IN GEBRUIK", Child: "apps"}},
+	}, src); err == nil {
+		t.Error("expected error: child has a scale clause but the source cannot resolve scalings")
+	}
+}
+
+func compileMust(t *testing.T, cfg StatConfig) string {
+	t.Helper()
+	s, err := Compile(cfg)
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	return s
+}
+
 func TestComposite_Evaluate_UnknownBranchErrors(t *testing.T) {
 	forms := []index.FormRow{odsFormFlag("r1.meta.json", "IN GEBRUIK", "FMU")}
 	m := NewManager(realIndex(t, forms))

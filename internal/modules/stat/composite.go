@@ -11,16 +11,22 @@ import "fmt"
 // the wiring plus the relation check.
 
 // Edge attaches one parent-branch value to a child object that drills into it.
+// Scale carries the child's resolved weighting (its `scale "<name>"` clause), so
+// a drilled branch honors the same weighting it would standalone; nil when the
+// child has no scale clause.
 type Edge struct {
 	Branch string
 	Child  StatConfig
+	Scale  *Scaling
 }
 
 // Composite is a rank-1 parent plus per-branch drill edges. A branch with no
-// edge is a solid leaf.
+// edge is a solid leaf. ParentScale is the parent's resolved weighting, nil
+// when the parent has no scale clause.
 type Composite struct {
-	Parent StatConfig
-	Edges  []Edge
+	Parent      StatConfig
+	ParentScale *Scaling
+	Edges       []Edge
 }
 
 // branchDim returns the parent's single branch dimension. A composite parent
@@ -157,15 +163,39 @@ func ResolveComposite(spec CompositeSpec, src ObjectConfigs) (Composite, error) 
 	if err != nil {
 		return Composite{}, fmt.Errorf("stat: composite parent: %w", err)
 	}
+	parentScale, err := resolveScale(src, parentCfg)
+	if err != nil {
+		return Composite{}, fmt.Errorf("stat: composite parent scale: %w", err)
+	}
 	edges := make([]Edge, 0, len(spec.Edges))
 	for _, e := range spec.Edges {
 		childCfg, err := src.Config(e.Child)
 		if err != nil {
 			return Composite{}, fmt.Errorf("stat: composite child for branch %q: %w", e.Branch, err)
 		}
-		edges = append(edges, Edge{Branch: e.Branch, Child: childCfg})
+		sc, err := resolveScale(src, childCfg)
+		if err != nil {
+			return Composite{}, fmt.Errorf("stat: composite child scale for branch %q: %w", e.Branch, err)
+		}
+		edges = append(edges, Edge{Branch: e.Branch, Child: childCfg, Scale: sc})
 	}
-	return Composite{Parent: parentCfg, Edges: edges}, nil
+	return Composite{Parent: parentCfg, ParentScale: parentScale, Edges: edges}, nil
+}
+
+// resolveScale turns a config's scale-clause name into its weighting. An empty
+// clause is no weighting (nil). A named clause needs the source to resolve
+// scalings (the Service's catalog does; a bare ObjectConfigs stub does not),
+// otherwise it is an error rather than a silent unweighted run, matching how a
+// composite never silently charts the wrong subset.
+func resolveScale(src ObjectConfigs, cfg StatConfig) (*Scaling, error) {
+	if cfg.Scale == "" {
+		return nil, nil
+	}
+	ss, ok := src.(ScalingSource)
+	if !ok {
+		return nil, fmt.Errorf("scale %q requested but source cannot resolve scalings", cfg.Scale)
+	}
+	return ss.Scaling(cfg.Scale)
 }
 
 // CompositeGrid is the evaluated composite: the parent rank-1 grid plus, in
@@ -193,14 +223,14 @@ func (m *Manager) EvaluateComposite(template string, c Composite) (*CompositeGri
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	parent, err := m.Evaluate(template, c.Parent)
+	parent, err := m.EvaluateScaled(template, c.Parent, c.ParentScale)
 	if err != nil {
 		return nil, err
 	}
 
-	childByBranch := make(map[string]StatConfig, len(c.Edges))
+	edgeByBranch := make(map[string]Edge, len(c.Edges))
 	for _, e := range c.Edges {
-		childByBranch[e.Branch] = e.Child
+		edgeByBranch[e.Branch] = e
 	}
 
 	var labels []string
@@ -220,8 +250,8 @@ func (m *Manager) EvaluateComposite(template string, c Composite) (*CompositeGri
 	branches := make([]BranchGrid, len(labels))
 	for i, l := range labels {
 		bg := BranchGrid{Branch: l}
-		if cfg, ok := childByBranch[l]; ok {
-			cg, err := m.Evaluate(template, cfg)
+		if e, ok := edgeByBranch[l]; ok {
+			cg, err := m.EvaluateScaled(template, e.Child, e.Scale)
 			if err != nil {
 				return nil, fmt.Errorf("stat: composite child for branch %q: %w", l, err)
 			}
