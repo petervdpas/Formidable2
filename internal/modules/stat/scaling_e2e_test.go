@@ -147,6 +147,50 @@ func TestService_EvaluateObject_ResolvesScaleByName(t *testing.T) {
 	}
 }
 
+// TestEvaluateScaled_PctFormsUsesWeightedDenominator is the regression for the
+// apples-to-pears percentage bug: with scaling, the cell values are weighted
+// sums, so `pct forms` must divide by the weighted form total, not the raw
+// form count (which produced >100% nonsense like 153%).
+func TestEvaluateScaled_PctFormsUsesWeightedDenominator(t *testing.T) {
+	forms := []index.FormRow{
+		fcdmForm("r1.meta.json", "NIET AANWEZIG", "FMU"),  // factor 4
+		fcdmForm("r2.meta.json", "NIET AANWEZIG", "FMU"),  // factor 4
+		fcdmForm("r3.meta.json", "AANWEZIG", "Gradework"), // factor 1
+		fcdmForm("r4.meta.json", "AANWEZIG", "Gradework"), // factor 1
+	}
+	m := NewManager(realIndex(t, forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+
+	cfg, _ := Parse(`records() by F["code-repositories"]["application"] pct forms`)
+	sc := &Scaling{
+		Source:  SourceRef{Kind: SourceFacet, Key: "fcdm"},
+		Weights: []WeightEntry{{Label: "AANWEZIG", Factor: 1}, {Label: "NIET AANWEZIG", Factor: 4}},
+		Default: 1,
+	}
+	g, err := m.EvaluateScaled("ods.yaml", cfg, sc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Weighted form total = 4+4+1+1 = 10 (not the raw count 4). FMU weighs 8,
+	// so its forms share is 8/10 = 80%, not the broken 8/4 = 200%.
+	pct := map[string]float64{}
+	val := map[string]float64{}
+	for _, c := range g.Cells {
+		label := g.Axes[0].Labels[c.Coords[0]]
+		val[label] = c.Values[0]
+		pct[label] = c.Pct[0]
+	}
+	if val["FMU"] != 8 {
+		t.Errorf("FMU weighted records = %v, want 8", val["FMU"])
+	}
+	if !nearly(pct["FMU"], 80) {
+		t.Errorf("FMU pct forms = %v, want 80 (weighted denominator 10)", pct["FMU"])
+	}
+	if !nearly(pct["Gradework"], 20) {
+		t.Errorf("Gradework pct forms = %v, want 20", pct["Gradework"])
+	}
+}
+
 // TestEvaluateScaled_RejectsTableColumnSource guards the per-form rule: a
 // table-column scaling source has no single per-form weight.
 func TestEvaluateScaled_RejectsTableColumnSource(t *testing.T) {

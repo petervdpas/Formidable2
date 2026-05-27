@@ -137,7 +137,7 @@ func (m *Manager) NumericStats(template, fieldKey string, col *int, percentile *
 		Cells:    []GridCell{{Coords: []int{}, Values: values}},
 		Total:    total,
 	}
-	addPercents(g, PctDistribution)
+	addPercents(g, PctDistribution, float64(g.Total))
 	return g, nil
 }
 
@@ -197,7 +197,7 @@ func (m *Manager) CrossTab(template, keyA, keyB string) (*Grid, error) {
 		Cells:    grid,
 		Total:    total,
 	}
-	addPercents(g, PctDistribution)
+	addPercents(g, PctDistribution, float64(g.Total))
 	return g, nil
 }
 
@@ -221,6 +221,6 @@ func (m *Manager) bucketsToGrid(template, source string, buckets []index.Bucket)
 		Cells:    cells,
 		Total:    total,
 	}
-	addPercents(g, PctDistribution)
+	addPercents(g, PctDistribution, float64(g.Total))
 	return g, nil
 }

@@ -96,6 +96,9 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 	// scale source gives each form's category; forms missing it fall to the
 	// default factor.
 	var weightOf func(form string) float64
+	var scaleLabels map[string]string
+	var scaleWmap map[string]float64
+	var scaleDef float64
 	if sc != nil {
 		if err := sc.validate(); err != nil {
 			return nil, err
@@ -104,13 +107,14 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 		if err != nil {
 			return nil, err
 		}
-		wmap := sc.weightMap()
-		def := sc.Default
+		scaleLabels = labels
+		scaleWmap = sc.weightMap()
+		scaleDef = sc.Default
 		weightOf = func(form string) float64 {
-			if w, ok := wmap[labels[form]]; ok {
+			if w, ok := scaleWmap[scaleLabels[form]]; ok {
 				return w
 			}
-			return def
+			return scaleDef
 		}
 	}
 	needScale := weightOf != nil
@@ -389,16 +393,37 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 			applyTopN(grid, i, min(d.Top, 20))
 		}
 	}
-	addPercents(grid, cfg.Percent)
+	// The "forms" percentage base divides by the form count. Under scaling the
+	// cell values are weighted sums, so the denominator must be the weighted
+	// form total (sum of each form's factor) instead of the raw count, or a
+	// weighted numerator over a raw denominator yields nonsense (e.g. 153%).
+	formsDenom := float64(total)
+	if needScale {
+		var wt float64
+		for _, lbl := range scaleLabels {
+			if w, ok := scaleWmap[lbl]; ok {
+				wt += w
+			} else {
+				wt += scaleDef
+			}
+		}
+		if missing := total - len(scaleLabels); missing > 0 {
+			wt += float64(missing) * scaleDef
+		}
+		formsDenom = wt
+	}
+	addPercents(grid, cfg.Percent, formsDenom)
 	return grid, nil
 }
 
 // addPercents fills each cell's Pct with its share (0-100) per the authored
 // base: PctDistribution (and "") divides by each measure's total across the
 // grid's (post-top-N) cells, so categories sum to 100%; PctForms divides by
-// the form count (grid Total); PctNone leaves Pct unset. Computed once in Go
-// so every renderer reads one figure rather than dividing in JS.
-func addPercents(g *Grid, base PercentBase) {
+// formsDenom (the form count, or the weighted form total when scaling, so the
+// numerator and denominator share a currency); PctNone leaves Pct unset.
+// Computed once in Go so every renderer reads one figure rather than dividing
+// in JS.
+func addPercents(g *Grid, base PercentBase, formsDenom float64) {
 	if base == PctNone {
 		return
 	}
@@ -409,7 +434,7 @@ func addPercents(g *Grid, base PercentBase) {
 	denoms := make([]float64, nm)
 	if base == PctForms {
 		for m := range denoms {
-			denoms[m] = float64(g.Total)
+			denoms[m] = formsDenom
 		}
 	} else {
 		for _, c := range g.Cells {
