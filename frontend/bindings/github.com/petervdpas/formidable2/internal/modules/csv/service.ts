@@ -33,18 +33,6 @@ export function ApplyTransform(value: string, rule: string, param: string, mode:
 }
 
 /**
- * BuildPreviewRows is the export-dialog's live preview helper. It runs
- * the same row-building pipeline as Export but on caller-supplied
- * entries (typically one) - no storage round trip. Always includes the
- * header row at index 0.
- */
-export function BuildPreviewRows(plan: $models.ExportPlan, entries: { [_ in string]?: any }[], fields: $models.FieldSpec[]): $CancellablePromise<string[][]> {
-    return $Call.ByID(1765116917, plan, entries, fields).then(($result: any) => {
-        return $$createType1($result);
-    });
-}
-
-/**
  * CoercePreview returns a display-shaped string for the typed value.
  */
 export function CoercePreview(raw: string, fieldType: string, options: any[]): $CancellablePromise<string> {
@@ -58,7 +46,7 @@ export function CoercePreview(raw: string, fieldType: string, options: any[]): $
  */
 export function CoerceTableRows(cols: $models.TableColumn[], rows: string[][]): $CancellablePromise<any[][]> {
     return $Call.ByID(2925409190, cols, rows).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType1($result);
     });
 }
 
@@ -76,16 +64,28 @@ export function CoerceValue(raw: string, fieldType: string, options: any[]): $Ca
  */
 export function ExcludedFieldTypes(): $CancellablePromise<string[]> {
     return $Call.ByID(3131073099).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType2($result);
     });
 }
 
 /**
- * Export is the one-call export pipeline: list forms, load each, build
- * the row grid. The frontend then hands Rows to Write(filePath, ...).
+ * Export is the one-call export pipeline: resolve fields, list forms,
+ * load each, build the row grid. The frontend then hands Rows to
+ * Write(filePath, ...).
  */
-export function Export(templateFilename: string, plan: $models.ExportPlan, fields: $models.FieldSpec[]): $CancellablePromise<$models.ExportResult> {
-    return $Call.ByID(2563447778, templateFilename, plan, fields).then(($result: any) => {
+export function Export(templateFilename: string, plan: $models.ExportPlan): $CancellablePromise<$models.ExportResult> {
+    return $Call.ByID(2563447778, templateFilename, plan).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * ExportSchema returns the default column plan, alignable fields, and
+ * source options for an alignment choice, all derived backend-side from
+ * the template's field schema.
+ */
+export function ExportSchema(templateFilename: string, alignSource: string): $CancellablePromise<$models.ExportSchema> {
+    return $Call.ByID(4146878669, templateFilename, alignSource).then(($result: any) => {
         return $$createType4($result);
     });
 }
@@ -108,9 +108,30 @@ export function MappableFields(fields: $models.FieldSpec[]): $CancellablePromise
     });
 }
 
+/**
+ * MappableFieldsForTemplate returns the template's CSV-mappable field
+ * specs (excluded types stripped), sourced backend-side so the import
+ * dialog need not re-derive the exclusion rule.
+ */
+export function MappableFieldsForTemplate(templateFilename: string): $CancellablePromise<$models.FieldSpec[]> {
+    return $Call.ByID(3036908716, templateFilename).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
 export function Preview(filePath: string, delimiter: string): $CancellablePromise<$models.PreviewResult> {
     return $Call.ByID(1142599248, filePath, delimiter).then(($result: any) => {
         return $$createType7($result);
+    });
+}
+
+/**
+ * PreviewExport returns the single data row the dialog shows under each
+ * column, built from the template's first stored form.
+ */
+export function PreviewExport(templateFilename: string, plan: $models.ExportPlan): $CancellablePromise<$models.PreviewRowResult> {
+    return $Call.ByID(617446806, templateFilename, plan).then(($result: any) => {
+        return $$createType8($result);
     });
 }
 
@@ -120,7 +141,7 @@ export function Preview(filePath: string, delimiter: string): $CancellablePromis
  */
 export function SuggestMappings(headers: string[], fields: $models.FieldSpec[]): $CancellablePromise<$models.SuggestedMapping[]> {
     return $Call.ByID(1554962185, headers, fields).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType10($result);
     });
 }
 
@@ -130,13 +151,13 @@ export function SuggestMappings(headers: string[], fields: $models.FieldSpec[]):
  */
 export function TransformRules(): $CancellablePromise<string[]> {
     return $Call.ByID(1932744663).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType2($result);
     });
 }
 
 export function Write(filePath: string, rows: string[][], delimiter: string): $CancellablePromise<$models.WriteResult> {
     return $Call.ByID(614530563, filePath, rows, delimiter).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType11($result);
     });
 }
 
@@ -144,11 +165,12 @@ export function Write(filePath: string, rows: string[][], delimiter: string): $C
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.ExportResult.createFrom;
+const $$createType3 = $models.ExportResult.createFrom;
+const $$createType4 = $models.ExportSchema.createFrom;
 const $$createType5 = $models.FieldSpec.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = $models.PreviewResult.createFrom;
-const $$createType8 = $models.SuggestedMapping.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.WriteResult.createFrom;
+const $$createType8 = $models.PreviewRowResult.createFrom;
+const $$createType9 = $models.SuggestedMapping.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $models.WriteResult.createFrom;

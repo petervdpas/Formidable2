@@ -122,6 +122,85 @@ export class ExportResult {
 }
 
 /**
+ * ExportSchema is everything the export dialog needs to render its columns
+ * for a given alignment, derived entirely on the backend: the default
+ * column Plan (with an aligned table expanded into per-column rows), the
+ * Alignable list/table fields for the align dropdown, and the Sources for
+ * the computed-column picker. The dialog only renders and edits this.
+ */
+export class ExportSchema {
+    "plan": ExportPlan;
+    "alignable": ExportSourceOption[];
+    "sources": ExportSourceOption[];
+    "error"?: string;
+
+    /** Creates a new ExportSchema instance. */
+    constructor($$source: Partial<ExportSchema> = {}) {
+        if (!("plan" in $$source)) {
+            this["plan"] = (new ExportPlan());
+        }
+        if (!("alignable" in $$source)) {
+            this["alignable"] = [];
+        }
+        if (!("sources" in $$source)) {
+            this["sources"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportSchema instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportSchema {
+        const $$createField0_0 = $$createType5;
+        const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("plan" in $$parsedSource) {
+            $$parsedSource["plan"] = $$createField0_0($$parsedSource["plan"]);
+        }
+        if ("alignable" in $$parsedSource) {
+            $$parsedSource["alignable"] = $$createField1_0($$parsedSource["alignable"]);
+        }
+        if ("sources" in $$parsedSource) {
+            $$parsedSource["sources"] = $$createField2_0($$parsedSource["sources"]);
+        }
+        return new ExportSchema($$parsedSource as Partial<ExportSchema>);
+    }
+}
+
+/**
+ * ExportSourceOption is one selectable source key for the export dialog,
+ * paired with a display label. Value may be a plain field key or a dotted
+ * "table.column" subkey; the dialog never constructs these itself.
+ */
+export class ExportSourceOption {
+    "value": string;
+    "label": string;
+
+    /** Creates a new ExportSourceOption instance. */
+    constructor($$source: Partial<ExportSourceOption> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportSourceOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportSourceOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ExportSourceOption($$parsedSource as Partial<ExportSourceOption>);
+    }
+}
+
+/**
  * FieldSpec is the Wails-friendly subset of template.Field needed by the
  * CSV mapping UI. The dialog passes this from the template it already
  * has cached on the frontend, so the backend doesn't reload templates.
@@ -154,7 +233,7 @@ export class FieldSpec {
      * Creates a new FieldSpec instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldSpec {
-        const $$createField3_0 = $$createType5;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("options" in $$parsedSource) {
             $$parsedSource["options"] = $$createField3_0($$parsedSource["options"]);
@@ -203,6 +282,36 @@ export class PreviewResult {
             $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
         }
         return new PreviewResult($$parsedSource as Partial<PreviewResult>);
+    }
+}
+
+/**
+ * PreviewRowResult is the single data row the dialog shows under each
+ * column. Cells is blank-filled when the template has no entries.
+ */
+export class PreviewRowResult {
+    "cells": string[];
+    "error"?: string;
+
+    /** Creates a new PreviewRowResult instance. */
+    constructor($$source: Partial<PreviewRowResult> = {}) {
+        if (!("cells" in $$source)) {
+            this["cells"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PreviewRowResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PreviewRowResult {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("cells" in $$parsedSource) {
+            $$parsedSource["cells"] = $$createField0_0($$parsedSource["cells"]);
+        }
+        return new PreviewRowResult($$parsedSource as Partial<PreviewRowResult>);
     }
 }
 
@@ -262,7 +371,7 @@ export class TableColumn {
      * Creates a new TableColumn instance from a string or object.
      */
     static createFrom($$source: any = {}): TableColumn {
-        const $$createField1_0 = $$createType5;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("choices" in $$parsedSource) {
             $$parsedSource["choices"] = $$createField1_0($$parsedSource["choices"]);
@@ -330,4 +439,7 @@ const $$createType1 = Transform.createFrom;
 const $$createType2 = ExportColumn.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($$createType0);
-const $$createType5 = $Create.Array($Create.Any);
+const $$createType5 = ExportPlan.createFrom;
+const $$createType6 = ExportSourceOption.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Array($Create.Any);

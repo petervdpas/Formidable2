@@ -23,6 +23,14 @@ type formsSource interface {
 	LoadFormData(tpl, datafile string) map[string]any
 }
 
+// templateSource hands the export side the field schema for a template
+// so the backend (not the dialog) owns excluded types, alignability, and
+// the dotted "table.column" key contract. *template.Manager satisfies it
+// via a thin adapter wired in app.go.
+type templateSource interface {
+	Fields(tpl string) ([]FieldSpec, error)
+}
+
 const defaultDelimiter = ","
 
 // Manager wraps encoding/csv with Formidable's preview/write conventions.
@@ -30,6 +38,7 @@ const defaultDelimiter = ","
 type Manager struct {
 	fs    fs
 	forms formsSource
+	tpl   templateSource
 	log   *slog.Logger
 }
 
@@ -47,6 +56,12 @@ func NewManager(filesystem fs, log *slog.Logger) *Manager {
 // "storage unavailable" error if this was never called.
 func (m *Manager) SetForms(f formsSource) {
 	m.forms = f
+}
+
+// SetTemplate installs the template dependency. ExportSchema/Export
+// return a "template unavailable" error if this was never called.
+func (m *Manager) SetTemplate(t templateSource) {
+	m.tpl = t
 }
 
 // Preview reads filePath as a CSV and returns its header row plus the

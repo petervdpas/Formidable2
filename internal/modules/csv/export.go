@@ -2,6 +2,7 @@ package csv
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 )
 
@@ -39,12 +40,50 @@ type ExportResult struct {
 	Error string     `json:"error,omitempty"`
 }
 
+// fieldsFor resolves a template's field schema through the template
+// dependency. Returns an error when the dependency was never wired.
+func (m *Manager) fieldsFor(templateFilename string) ([]FieldSpec, error) {
+	if m.tpl == nil {
+		return nil, errors.New("csv: template dependency not configured")
+	}
+	return m.tpl.Fields(templateFilename)
+}
+
+// MappableFieldsForTemplate loads a template's field schema and returns
+// the subset that can map to a CSV column (excluded types stripped). The
+// import dialog uses this instead of re-deriving the excluded-type set on
+// the client.
+func (m *Manager) MappableFieldsForTemplate(templateFilename string) ([]FieldSpec, error) {
+	fields, err := m.fieldsFor(templateFilename)
+	if err != nil {
+		return nil, err
+	}
+	return MappableFields(fields), nil
+}
+
+// ExportSchema returns the default column plan, alignable fields, and
+// source options for one alignment choice. The dialog renders this rather
+// than re-deriving excluded types, alignability, or the dotted-key
+// contract on the client.
+func (m *Manager) ExportSchema(templateFilename, alignSource string) ExportSchema {
+	fields, err := m.fieldsFor(templateFilename)
+	if err != nil {
+		return ExportSchema{Error: err.Error()}
+	}
+	return BuildExportSchema(fields, alignSource)
+}
+
 // Export loads every form for the named template through the forms
-// dependency and runs BuildExportRows on them. Returns ExportResult
-// with Error set when the storage dep was never wired or listing fails.
-func (m *Manager) Export(templateFilename string, plan ExportPlan, fields []FieldSpec) ExportResult {
+// dependency and runs BuildExportRows on them. Field specs come from the
+// template dependency, so the caller no longer supplies them. Returns
+// ExportResult with Error set when a dependency is missing or a load fails.
+func (m *Manager) Export(templateFilename string, plan ExportPlan) ExportResult {
 	if m.forms == nil {
 		return ExportResult{Error: "csv: storage dependency not configured"}
+	}
+	fields, err := m.fieldsFor(templateFilename)
+	if err != nil {
+		return ExportResult{Error: err.Error()}
 	}
 	files, err := m.forms.ListForms(templateFilename)
 	if err != nil {
@@ -62,6 +101,36 @@ func (m *Manager) Export(templateFilename string, plan ExportPlan, fields []Fiel
 		Rows:  BuildExportRows(plan, entries, fields),
 		Count: len(entries),
 	}
+}
+
+// PreviewExport builds the single data row shown beneath each column in
+// the dialog, using the template's first stored form as the sample. Cells
+// are blank-filled when the template has no entries.
+func (m *Manager) PreviewExport(templateFilename string, plan ExportPlan) PreviewRowResult {
+	blank := make([]string, len(plan.Columns))
+	if m.forms == nil {
+		return PreviewRowResult{Error: "csv: storage dependency not configured"}
+	}
+	fields, err := m.fieldsFor(templateFilename)
+	if err != nil {
+		return PreviewRowResult{Error: err.Error()}
+	}
+	files, err := m.forms.ListForms(templateFilename)
+	if err != nil {
+		return PreviewRowResult{Error: err.Error()}
+	}
+	if len(files) == 0 {
+		return PreviewRowResult{Cells: blank}
+	}
+	data := m.forms.LoadFormData(templateFilename, files[0])
+	if data == nil {
+		return PreviewRowResult{Cells: blank}
+	}
+	rows := BuildExportRows(plan, []map[string]any{data}, fields)
+	if len(rows) > 1 {
+		return PreviewRowResult{Cells: rows[1]}
+	}
+	return PreviewRowResult{Cells: blank}
 }
 
 // BuildExportRows turns a stream of stored entries into the rectangle

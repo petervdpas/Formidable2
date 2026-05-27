@@ -81,16 +81,29 @@ func (s *Service) FormatValue(val any, fieldType string) string {
 	return FormatValue(val, fieldType)
 }
 
-// Export is the one-call export pipeline: list forms, load each, build
-// the row grid. The frontend then hands Rows to Write(filePath, ...).
-func (s *Service) Export(templateFilename string, plan ExportPlan, fields []FieldSpec) ExportResult {
-	return s.m.Export(templateFilename, plan, fields)
+// MappableFieldsForTemplate returns the template's CSV-mappable field
+// specs (excluded types stripped), sourced backend-side so the import
+// dialog need not re-derive the exclusion rule.
+func (s *Service) MappableFieldsForTemplate(templateFilename string) ([]FieldSpec, error) {
+	return s.m.MappableFieldsForTemplate(templateFilename)
 }
 
-// BuildPreviewRows is the export-dialog's live preview helper. It runs
-// the same row-building pipeline as Export but on caller-supplied
-// entries (typically one) - no storage round trip. Always includes the
-// header row at index 0.
-func (s *Service) BuildPreviewRows(plan ExportPlan, entries []map[string]any, fields []FieldSpec) [][]string {
-	return BuildExportRows(plan, entries, fields)
+// ExportSchema returns the default column plan, alignable fields, and
+// source options for an alignment choice, all derived backend-side from
+// the template's field schema.
+func (s *Service) ExportSchema(templateFilename, alignSource string) ExportSchema {
+	return s.m.ExportSchema(templateFilename, alignSource)
+}
+
+// Export is the one-call export pipeline: resolve fields, list forms,
+// load each, build the row grid. The frontend then hands Rows to
+// Write(filePath, ...).
+func (s *Service) Export(templateFilename string, plan ExportPlan) ExportResult {
+	return s.m.Export(templateFilename, plan)
+}
+
+// PreviewExport returns the single data row the dialog shows under each
+// column, built from the template's first stored form.
+func (s *Service) PreviewExport(templateFilename string, plan ExportPlan) PreviewRowResult {
+	return s.m.PreviewExport(templateFilename, plan)
 }

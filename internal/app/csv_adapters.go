@@ -1,7 +1,9 @@
 package app
 
 import (
+	"github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // csvFormsAdapter satisfies csv.formsSource - a tiny shim so the csv
@@ -26,4 +28,29 @@ func (a *csvFormsAdapter) LoadFormData(tpl, datafile string) map[string]any {
 		return nil
 	}
 	return f.Data
+}
+
+// csvTemplateAdapter satisfies csv.templateSource - it loads a template
+// and projects its fields into the csv module's FieldSpec shape so the
+// exporter owns excluded types, alignability, and the dotted-key contract
+// without importing the template package's full Field type.
+type csvTemplateAdapter struct {
+	tpl *template.Manager
+}
+
+func (a *csvTemplateAdapter) Fields(name string) ([]csv.FieldSpec, error) {
+	t, err := a.tpl.LoadTemplate(name)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]csv.FieldSpec, 0, len(t.Fields))
+	for _, f := range t.Fields {
+		out = append(out, csv.FieldSpec{
+			Key:     f.Key,
+			Type:    f.Type,
+			Label:   f.Label,
+			Options: f.Options,
+		})
+	}
+	return out, nil
 }

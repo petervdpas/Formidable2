@@ -76,21 +76,10 @@ const transformLabelKey: Record<string, string> = {
   "split-table": "csv.transform.splittable",
 };
 
-// Mappable fields derived from the template - excluded types stripped.
-// FieldSpec instances are also what SuggestMappings / Coerce expect.
-const mappableFields = computed<FieldSpec[]>(() => {
-  const tpl = props.template;
-  if (!tpl?.fields) return [];
-  const excluded = new Set(["loopstart", "loopstop", "image", "code", "api"]);
-  return tpl.fields
-    .filter((f) => !excluded.has(f.type))
-    .map((f) => FieldSpec.createFrom({
-      key: f.key,
-      type: f.type,
-      label: f.label ?? "",
-      options: f.options ?? [],
-    }));
-});
+// Mappable fields come from the backend (excluded types stripped there,
+// one source of truth). The dialog still needs the FieldSpec list locally
+// to drive the mapping dropdown and per-cell coerce previews.
+const mappableFields = ref<FieldSpec[]>([]);
 
 const fieldByKey = computed(() => {
   const m = new Map<string, FieldSpec>();
@@ -103,7 +92,7 @@ const fieldByKey = computed(() => {
 // against the old fields would be a silent footgun.
 watch(
   () => props.open,
-  (isOpen) => {
+  async (isOpen) => {
     if (!isOpen) return;
     file.value = "";
     delimiter.value = ",";
@@ -113,6 +102,12 @@ watch(
     concatSep.value = " ";
     importing.value = false;
     importError.value = "";
+    mappableFields.value = [];
+    try {
+      mappableFields.value = await CsvSvc.MappableFieldsForTemplate(props.templateFilename);
+    } catch (e) {
+      importError.value = backendErrMessage(e);
+    }
   },
 );
 

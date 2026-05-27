@@ -213,6 +213,7 @@ func New(d Deps) (*App, error) {
 	// template - that lives behind csv.formsSource and storage satisfies
 	// it via a small adapter.
 	csvM.SetForms(&csvFormsAdapter{sto: stoM})
+	csvM.SetTemplate(&csvTemplateAdapter{tpl: tplM})
 
 	// Form manager - orchestrates template + storage + config defaults
 	// for the Storage workspace's per-form view. configAdapter is a

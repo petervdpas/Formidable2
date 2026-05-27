@@ -7,12 +7,10 @@ import { useToast } from "../composables/useToast";
 import { backendErrMessage } from "../utils/backendError";
 import {
   Service as CsvSvc,
-  FieldSpec,
   ExportColumn,
   ExportPlan,
   Transform as ExpTransform,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
-import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -40,10 +38,14 @@ type ExportRow = {
   param: string;
 };
 
+type SourceOption = { value: string; label: string };
+
 const delimiter = ref(",");
 const alignSource = ref("");
 const rows = ref<ExportRow[]>([]);
-const sampleEntry = ref<Record<string, unknown> | null>(null);
+const alignable = ref<SourceOption[]>([]);
+const sourceOptions = ref<SourceOption[]>([]);
+const labelByKey = ref<Map<string, string>>(new Map());
 const previewCache = ref<string[]>([]);
 const exporting = ref(false);
 const exportError = ref("");
@@ -83,50 +85,46 @@ const paramInputType: Record<string, "number" | "text"> = {
   "last-n": "number",
 };
 
-const mappableFields = computed<FieldSpec[]>(() => {
-  const tpl = props.template;
-  if (!tpl?.fields) return [];
-  const excluded = new Set(["loopstart", "loopstop", "image", "code", "api"]);
-  return tpl.fields
-    .filter((f) => !excluded.has(f.type))
-    .map((f) => FieldSpec.createFrom({
-      key: f.key,
-      type: f.type,
-      label: f.label ?? "",
-      options: f.options ?? [],
-    }));
-});
-
-const fieldByKey = computed(() => {
-  const m = new Map<string, FieldSpec>();
-  for (const f of mappableFields.value) m.set(f.key, f);
-  return m;
-});
-
-// Templates can declare list/table fields. Alignment only makes sense
-// for those - the dropdown lists them so the user picks which (if any)
-// field to unroll across rows.
-const alignableFields = computed(() =>
-  mappableFields.value.filter((f) => f.type === "list" || f.type === "table"),
-);
-
 function fieldLabel(key: string): string {
-  const f = fieldByKey.value.get(key);
-  if (!f) return key;
-  return f.label ? `${f.label} (${f.type})` : `${f.key} (${f.type})`;
+  return labelByKey.value.get(key) ?? key;
 }
 
-function defaultRows(): ExportRow[] {
-  return mappableFields.value.map((f) => ({
-    id: `dflt-${f.key}`,
-    include: true,
-    computed: false,
-    header: f.key,
-    sourceKeys: [f.key],
-    separator: "",
-    rule: "none",
-    param: "",
-  }));
+// The backend owns the column rules: which field types are exportable,
+// which fields are alignable, and how an aligned table expands into dotted
+// "table.column" keys. refreshSchema fetches that schema for the current
+// alignment and rebuilds the default rows from it. Computed columns the
+// user added are preserved across an alignment change.
+async function refreshSchema(preserveComputed: boolean) {
+  if (!props.templateFilename) return;
+  const userComputed = preserveComputed ? rows.value.filter((r) => r.computed) : [];
+  try {
+    const schema = await CsvSvc.ExportSchema(props.templateFilename, alignSource.value);
+    if (schema.error) {
+      exportError.value = schema.error;
+      return;
+    }
+    alignable.value = (schema.alignable ?? []).map((o) => ({ value: o.value, label: o.label }));
+    sourceOptions.value = (schema.sources ?? []).map((o) => ({ value: o.value, label: o.label }));
+    const labels = new Map<string, string>();
+    for (const o of sourceOptions.value) labels.set(o.value, o.label);
+    for (const o of alignable.value) labels.set(o.value, o.label);
+    labelByKey.value = labels;
+    // Echo the backend's validated alignSource (clears an unknown pick).
+    alignSource.value = schema.plan?.alignSource ?? "";
+    const defaults: ExportRow[] = (schema.plan?.columns ?? []).map((c) => ({
+      id: `dflt-${c.sourceKeys[0] ?? c.header}`,
+      include: true,
+      computed: false,
+      header: c.header,
+      sourceKeys: [...c.sourceKeys],
+      separator: c.separator ?? "",
+      rule: c.transform?.rule || "none",
+      param: c.transform?.param || "",
+    }));
+    rows.value = [...defaults, ...userComputed];
+  } catch (e) {
+    exportError.value = backendErrMessage(e);
+  }
 }
 
 // Reset everything when the dialog opens - the user may have switched
@@ -138,30 +136,14 @@ watch(
     if (!isOpen) return;
     delimiter.value = ",";
     alignSource.value = "";
-    rows.value = defaultRows();
-    sampleEntry.value = null;
+    rows.value = [];
     previewCache.value = [];
     exporting.value = false;
     exportError.value = "";
     computedSeq.value = 0;
-    await loadSample();
+    await refreshSchema(false);
   },
 );
-
-async function loadSample() {
-  if (!props.templateFilename) return;
-  try {
-    const files = await StorageSvc.ListForms(props.templateFilename);
-    if (!files || files.length === 0) {
-      sampleEntry.value = null;
-      return;
-    }
-    const form = await StorageSvc.LoadForm(props.templateFilename, files[0]);
-    sampleEntry.value = (form?.data as Record<string, unknown>) ?? null;
-  } catch {
-    sampleEntry.value = null;
-  }
-}
 
 function addComputed() {
   computedSeq.value++;
@@ -214,19 +196,18 @@ function buildPlan(): ExportPlan {
 }
 
 // Re-render the live preview whenever any column state changes. The
-// preview is the first data row of BuildPreviewRows fed with one entry
-// (or zero - then we just blank everything).
+// backend builds the first data row from the template's first stored form
+// (PreviewExport); cells line up with the included columns in order.
 watch(
-  [rows, alignSource, sampleEntry, mappableFields],
+  [rows, () => props.templateFilename],
   async () => {
-    if (!sampleEntry.value || includedRows.value.length === 0) {
+    if (!props.templateFilename || includedRows.value.length === 0) {
       previewCache.value = includedRows.value.map(() => "");
       return;
     }
     try {
-      const plan = buildPlan();
-      const grid = await CsvSvc.BuildPreviewRows(plan, [sampleEntry.value], mappableFields.value);
-      previewCache.value = grid.length > 1 ? grid[1] : grid[0]?.map(() => "") ?? [];
+      const res = await CsvSvc.PreviewExport(props.templateFilename, buildPlan());
+      previewCache.value = res.cells ?? includedRows.value.map(() => "");
     } catch {
       previewCache.value = includedRows.value.map(() => "");
     }
@@ -248,7 +229,7 @@ async function doExport() {
       return;
     }
     const plan = buildPlan();
-    const result = await CsvSvc.Export(props.templateFilename, plan, mappableFields.value);
+    const result = await CsvSvc.Export(props.templateFilename, plan);
     if (result.error) {
       exportError.value = result.error;
       toast.error("csv.export.failed");
@@ -297,10 +278,10 @@ async function doExport() {
       </div>
       <div class="csv-export-field-group">
         <label class="csv-export-field-label">{{ t('csv.export.align') }}</label>
-        <select v-model="alignSource">
+        <select v-model="alignSource" @change="refreshSchema(true)">
           <option value="">{{ t('csv.export.align.none') }}</option>
-          <option v-for="f in alignableFields" :key="f.key" :value="f.key">
-            {{ fieldLabel(f.key) }}
+          <option v-for="o in alignable" :key="o.value" :value="o.value">
+            {{ o.label }}
           </option>
         </select>
       </div>
@@ -346,8 +327,8 @@ async function doExport() {
                   @change="addSourceToRow(row, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
                 >
                   <option value="">{{ t('csv.export.add.field') }}</option>
-                  <option v-for="f in mappableFields" :key="f.key" :value="f.key">
-                    {{ fieldLabel(f.key) }}
+                  <option v-for="o in sourceOptions" :key="o.value" :value="o.value">
+                    {{ o.label }}
                   </option>
                 </select>
               </div>
