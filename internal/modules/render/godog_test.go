@@ -37,6 +37,7 @@ type renderWorld struct {
 	htmlErr    error
 	parsedFM   map[string]any
 	parsedBody string
+	report     ValidationReport
 }
 
 func initRenderScenario(ctx *godog.ScenarioContext) {
@@ -305,6 +306,61 @@ func initRenderScenario(ctx *godog.ScenarioContext) {
 		decoded := strings.ReplaceAll(want, `\n`, "\n")
 		if w.parsedBody != decoded {
 			return fmt.Errorf("body = %q, want %q", w.parsedBody, decoded)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I validate the markdown template:$`, func(body *godog.DocString) error {
+		w.report = ValidateMarkdownTemplate(body.Content)
+		return nil
+	})
+
+	ctx.Step(`^validation succeeds$`, func() error {
+		if !w.report.OK {
+			return fmt.Errorf("validation failed: %+v", w.report.Diagnostics)
+		}
+		return nil
+	})
+
+	ctx.Step(`^validation fails$`, func() error {
+		if w.report.OK {
+			return fmt.Errorf("expected validation to fail, got: %+v", w.report)
+		}
+		return nil
+	})
+
+	ctx.Step(`^validation has (\d+) diagnostics?$`, func(n int) error {
+		if len(w.report.Diagnostics) != n {
+			return fmt.Errorf("diagnostic count = %d, want %d (%+v)",
+				len(w.report.Diagnostics), n, w.report.Diagnostics)
+		}
+		return nil
+	})
+
+	ctx.Step(`^validation reports an error containing "([^"]*)"$`, func(needle string) error {
+		for _, d := range w.report.Diagnostics {
+			if d.Severity == SeverityError && strings.Contains(d.Message, needle) {
+				return nil
+			}
+		}
+		return fmt.Errorf("no error diagnostic containing %q; got %+v", needle, w.report.Diagnostics)
+	})
+
+	ctx.Step(`^validation reports a warning for helper "([^"]*)"$`, func(name string) error {
+		for _, d := range w.report.Diagnostics {
+			if d.Severity == SeverityWarning && d.Helper == name {
+				return nil
+			}
+		}
+		return fmt.Errorf("no warning for helper %q; got %+v", name, w.report.Diagnostics)
+	})
+
+	ctx.Step(`^the first diagnostic is on a non-zero line$`, func() error {
+		if len(w.report.Diagnostics) == 0 {
+			return fmt.Errorf("no diagnostics")
+		}
+		if w.report.Diagnostics[0].Line == 0 {
+			return fmt.Errorf("expected Line > 0, got 0 (%+v)", w.report.Diagnostics[0])
 		}
 		return nil
 	})

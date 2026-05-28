@@ -99,3 +99,79 @@ Feature: Markdown render pipeline
     Then the frontmatter title is "Hello"
     And the frontmatter count is 3
     And the frontmatter body is "# body\n"
+
+  Scenario: Validator accepts an empty template
+    When I validate the markdown template:
+      """
+      """
+    Then validation succeeds
+    And validation has 0 diagnostics
+
+  Scenario: Validator accepts a template built from catalog helpers
+    When I validate the markdown template:
+      """
+      # {{field "title"}}
+
+      {{#if (fieldRaw "tags")}}
+      {{yamlList (fieldRaw "tags")}}
+      {{else}}
+      _no tags_
+      {{/if}}
+      """
+    Then validation succeeds
+    And validation has 0 diagnostics
+
+  Scenario: Validator surfaces a parse error with line info (the {{/else}} typo)
+    When I validate the markdown template:
+      """
+      {{#if x}}
+      A
+      {{/else}}
+      B
+      {{/if}}
+      """
+    Then validation fails
+    And validation reports an error containing "Parse error"
+    And the first diagnostic is on a non-zero line
+
+  Scenario: Validator warns on an unknown inline helper
+    When I validate the markdown template:
+      """
+      {{filed "title"}}
+      """
+    Then validation succeeds
+    And validation has 1 diagnostic
+    And validation reports a warning for helper "filed"
+
+  Scenario: Validator warns on an unknown block helper
+    When I validate the markdown template:
+      """
+      {{#wat items}}x{{/wat}}
+      """
+    Then validation succeeds
+    And validation has 1 diagnostic
+    And validation reports a warning for helper "wat"
+
+  Scenario: Validator does not flag bare lookups
+    When I validate the markdown template:
+      """
+      {{title}} and {{some.path}}
+      """
+    Then validation succeeds
+    And validation has 0 diagnostics
+
+  Scenario: Validator dedupes repeated unknown helpers
+    When I validate the markdown template:
+      """
+      {{filed "a"}} {{filed "b"}} {{filed "c"}}
+      """
+    Then validation has 1 diagnostic
+    And validation reports a warning for helper "filed"
+
+  Scenario: Validator checks helper names inside subexpressions
+    When I validate the markdown template:
+      """
+      {{#if (filed "x")}}A{{/if}}
+      """
+    Then validation has 1 diagnostic
+    And validation reports a warning for helper "filed"

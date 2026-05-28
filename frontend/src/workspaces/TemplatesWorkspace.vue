@@ -35,6 +35,8 @@ import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/form
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
+import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
+import type { ValidationReport, Diagnostic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render/models";
 import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
 import { scrollToActiveRow } from "../utils/scrollToActiveRow";
@@ -543,6 +545,58 @@ async function applyGenerated(shape: string, opts: GeneratorOptions) {
   }
 }
 
+// ── Markdown-template validation ─────────────────────────────────────
+// Live-validates draft.markdown_template via the render module's
+// parser. Cheap (single raymond Parse + AST walk), so a 300ms debounce
+// against keystrokes is plenty - and we skip the call entirely when
+// the editor is empty.
+const templateValidation = ref<ValidationReport | null>(null);
+const templateValidationPending = ref(false);
+let validateTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function runTemplateValidation(src: string) {
+  if (!src || !src.trim()) {
+    templateValidation.value = { ok: true, diagnostics: [] } as ValidationReport;
+    return;
+  }
+  try {
+    templateValidation.value = await RenderSvc.ValidateMarkdownTemplate(src);
+  } catch {
+    templateValidation.value = null;
+  }
+}
+
+watch(
+  () => draft.value?.markdown_template ?? "",
+  (src) => {
+    templateValidationPending.value = true;
+    if (validateTimer) clearTimeout(validateTimer);
+    validateTimer = setTimeout(async () => {
+      await runTemplateValidation(src);
+      templateValidationPending.value = false;
+    }, 300);
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (validateTimer) clearTimeout(validateTimer);
+});
+
+const templateErrorDiagnostic = computed<Diagnostic | null>(() => {
+  const diags = templateValidation.value?.diagnostics ?? [];
+  return diags.find((d) => d.severity === "error") ?? null;
+});
+
+const templateWarningDiagnostics = computed<Diagnostic[]>(() => {
+  const diags = templateValidation.value?.diagnostics ?? [];
+  return diags.filter((d) => d.severity === "warning");
+});
+
+const templateValidationOK = computed(() =>
+  templateValidation.value?.ok === true && (templateValidation.value?.diagnostics?.length ?? 0) === 0,
+);
+
 // ── Expression-builder dialog ────────────────────────────────────────
 // Visual builder for sidebar_expression. The dialog is the only way
 // to edit the source - the textarea is rendered read-only - so the
@@ -1038,6 +1092,34 @@ setTopbarMenu(() => [
                     :height="180"
                     :title="`${draft.name || selectedFilename} • ${t('workspace.templates.setup.template_code')}`"
                   />
+                  <div
+                    v-if="draft.markdown_template && draft.markdown_template.trim()"
+                    class="template-validate-status"
+                  >
+                    <p
+                      v-if="templateErrorDiagnostic"
+                      class="template-validate-line error"
+                    >
+                      {{
+                        templateErrorDiagnostic.line
+                          ? t('workspace.templates.setup.validate.error_line', [String(templateErrorDiagnostic.line), templateErrorDiagnostic.message])
+                          : t('workspace.templates.setup.validate.error_no_line', [templateErrorDiagnostic.message])
+                      }}
+                    </p>
+                    <p
+                      v-for="(w, i) in templateWarningDiagnostics"
+                      :key="`warn-${i}-${w.helper}`"
+                      class="template-validate-line warning"
+                    >
+                      {{ w.message }}
+                    </p>
+                    <p
+                      v-if="!templateErrorDiagnostic && templateValidationOK"
+                      class="template-validate-line ok"
+                    >
+                      {{ t('workspace.templates.setup.validate.ok') }}
+                    </p>
+                  </div>
                   <p class="muted small setup-tab-help">
                     {{ t('workspace.templates.setup.template_code_help') }}
                   </p>

@@ -62,8 +62,20 @@ export function RenderMarkdown(templateName: string, datafile: string): $Cancell
     return $Call.ByID(2775873335, templateName, datafile);
 }
 
+/**
+ * ValidateMarkdownTemplate parses the given Handlebars source and
+ * reports parse errors plus helper-name warnings. Cheap enough to call
+ * on every keystroke (debounced from the frontend).
+ */
+export function ValidateMarkdownTemplate(src: string): $CancellablePromise<$models.ValidationReport> {
+    return $Call.ByID(1954975287, src).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.HelperDescriptor.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.Result.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $models.ValidationReport.createFrom;

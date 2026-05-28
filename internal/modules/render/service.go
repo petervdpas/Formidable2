@@ -38,3 +38,10 @@ func (s *Service) RenderFullHTML(templateName, datafile string) (string, error) 
 func (s *Service) ListHelpers() []HelperDescriptor {
 	return Catalog()
 }
+
+// ValidateMarkdownTemplate parses the given Handlebars source and
+// reports parse errors plus helper-name warnings. Cheap enough to call
+// on every keystroke (debounced from the frontend).
+func (s *Service) ValidateMarkdownTemplate(src string) ValidationReport {
+	return ValidateMarkdownTemplate(src)
+}

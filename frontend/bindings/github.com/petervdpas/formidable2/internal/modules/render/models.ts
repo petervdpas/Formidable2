@@ -6,6 +6,38 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Diagnostic is one finding from ValidateMarkdownTemplate. Errors are
+ * fatal (template won't render); warnings flag suspicious things like
+ * unknown helper names that would silently render to nothing.
+ */
+export class Diagnostic {
+    "severity": string;
+    "message": string;
+    "line"?: number;
+    "helper"?: string;
+
+    /** Creates a new Diagnostic instance. */
+    constructor($$source: Partial<Diagnostic> = {}) {
+        if (!("severity" in $$source)) {
+            this["severity"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Diagnostic instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Diagnostic {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Diagnostic($$parsedSource as Partial<Diagnostic>);
+    }
+}
+
+/**
  * HelperCategory groups helpers into discoverable sections in the
  * frontend reference panel. Stable string constants - frontend uses
  * them as i18n key suffixes (e.g. `render.helpers.category.field`).
@@ -124,3 +156,41 @@ export class Result {
         return new Result($$parsedSource as Partial<Result>);
     }
 }
+
+/**
+ * ValidationReport is the result of ValidateMarkdownTemplate. OK is
+ * true exactly when no error-severity diagnostics were found.
+ * Diagnostics is never nil so JS callers can iterate without a guard.
+ */
+export class ValidationReport {
+    "ok": boolean;
+    "diagnostics": Diagnostic[];
+
+    /** Creates a new ValidationReport instance. */
+    constructor($$source: Partial<ValidationReport> = {}) {
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
+        }
+        if (!("diagnostics" in $$source)) {
+            this["diagnostics"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ValidationReport instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ValidationReport {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("diagnostics" in $$parsedSource) {
+            $$parsedSource["diagnostics"] = $$createField1_0($$parsedSource["diagnostics"]);
+        }
+        return new ValidationReport($$parsedSource as Partial<ValidationReport>);
+    }
+}
+
+// Private type creation functions
+const $$createType0 = Diagnostic.createFrom;
+const $$createType1 = $Create.Array($$createType0);

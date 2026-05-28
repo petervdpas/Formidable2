@@ -7,7 +7,9 @@ export {
 };
 
 export {
+    Diagnostic,
     HelperCategory,
     HelperDescriptor,
-    Result
+    Result,
+    ValidationReport
 } from "./models.js";

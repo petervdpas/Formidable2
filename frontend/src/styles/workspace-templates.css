@@ -167,6 +167,27 @@
     display: flex;
     justify-content: flex-start;
 }
+.template-validate-status {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+.template-validate-line {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    white-space: pre-wrap;
+}
+.template-validate-line.ok {
+    color: var(--color-success, #15803d);
+}
+.template-validate-line.warning {
+    color: var(--color-warning, #b45309);
+}
+.template-validate-line.error {
+    color: var(--color-error, #b91c1c);
+}
 
 /* Flag-definitions row in Setup Information - a chip-strip preview of
    the current defs + a Builder button to open the modal. */

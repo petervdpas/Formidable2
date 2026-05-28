@@ -715,8 +715,11 @@ const mdOpen = ref(false);
 const htmlOpen = ref(false);
 const markdown = ref("");
 const html = ref("");
+const markdownError = ref("");
+const htmlError = ref("");
 
 async function refreshMarkdown() {
+  markdownError.value = "";
   if (!view.value?.saved || !draft.value?.template?.filename || !draft.value?.datafile) {
     markdown.value = "";
     return;
@@ -726,20 +729,23 @@ async function refreshMarkdown() {
       draft.value.template.filename,
       draft.value.datafile,
     );
-  } catch {
+  } catch (err) {
     markdown.value = "";
+    markdownError.value = backendErrMessage(err);
   }
 }
 
 async function refreshHtml() {
+  htmlError.value = "";
   if (!markdown.value) {
     html.value = "";
     return;
   }
   try {
     html.value = await RenderSvc.RenderHTML(markdown.value);
-  } catch {
+  } catch (err) {
     html.value = "";
+    htmlError.value = backendErrMessage(err);
   }
 }
 
@@ -1209,6 +1215,10 @@ setTopbarMenu(() => [
         />
       </template>
       <pre v-if="markdown" class="preview-markdown">{{ markdown }}</pre>
+      <div v-else-if="markdownError" class="preview-error">
+        <p class="preview-error-title">{{ t('workspace.storage.preview.markdown_error') }}</p>
+        <pre class="preview-error-body">{{ markdownError }}</pre>
+      </div>
       <p v-else class="muted small">{{ t('workspace.storage.preview.markdown_empty') }}</p>
     </RightSlideout>
     <RightSlideout
@@ -1233,6 +1243,10 @@ setTopbarMenu(() => [
         v-html="html"
         @click="onHtmlPreviewClick"
       />
+      <div v-else-if="htmlError" class="preview-error">
+        <p class="preview-error-title">{{ t('workspace.storage.preview.html_error') }}</p>
+        <pre class="preview-error-body">{{ htmlError }}</pre>
+      </div>
       <p v-else class="muted small">{{ t('workspace.storage.preview.html_empty') }}</p>
     </RightSlideout>
   </template>
