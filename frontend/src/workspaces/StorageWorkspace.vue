@@ -11,6 +11,7 @@ import RightSlideout from "../components/RightSlideout.vue";
 import ImportCSVDialog from "../components/ImportCSVDialog.vue";
 import ExportCSVDialog from "../components/ExportCSVDialog.vue";
 import ExportPDFDialog from "../components/ExportPDFDialog.vue";
+import QueryDialog from "../components/QueryDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
@@ -897,6 +898,12 @@ function openExportCsv() {
   exportCsvOpen.value = true;
 }
 
+const queryOpen = ref(false);
+function openQuery() {
+  if (!selectedTemplate.value) return;
+  queryOpen.value = true;
+}
+
 const exportPdfOpen = ref(false);
 const { status: pdfStatus } = usePDFActivation();
 const pdfActive = computed(() => pdfStatus.value?.active === true);
@@ -1031,6 +1038,12 @@ setTopbarMenu(() => [
         labelKey: "menu.data.export",
         disabled: !selectedTemplate.value || !csvAllowed.value,
         onClick: openExportCsv,
+      },
+      {
+        id: "query",
+        labelKey: "menu.data.query",
+        disabled: !selectedTemplate.value,
+        onClick: openQuery,
       },
       { type: "separator", id: "data-sep-reindex" },
       {
@@ -1349,6 +1362,14 @@ setTopbarMenu(() => [
     :template-filename="selectedTemplate"
     :datafile="view?.datafile ?? ''"
     @close="exportPdfOpen = false"
+  />
+
+  <!-- Query dialog (read-only SELECT over indexed values) -->
+  <QueryDialog
+    :open="queryOpen"
+    :template-filename="selectedTemplate"
+    :template="activeTemplateObj"
+    @close="queryOpen = false"
   />
 </template>
 

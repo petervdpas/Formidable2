@@ -180,6 +180,12 @@ func orderClause(cols []ProjectCol, sorts []ProjectSort) string {
 	return " ORDER BY " + strings.Join(parts, ", ")
 }
 
+// FilterOps lists the comparison operators AggFilter accepts, in display
+// order: eq/ne compare text, lt/le/gt/ge compare numbers. The single
+// published source for a query UI's operator picker; filterJoins is the
+// validator and a test guards the two against drift.
+var FilterOps = []string{"eq", "ne", "lt", "le", "gt", "ge"}
+
 // colPred returns the SQL predicate matching a form_values column plus
 // any extra arg; a nil col matches the scalar (col IS NULL) row. Shared
 // by AggregateRaw and ProjectRows.

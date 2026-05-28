@@ -3,6 +3,7 @@
   "menu.data.export": "CSV exporteren...",
   "menu.data.export_pdf": "PDF exporteren...",
   "menu.data.import": "CSV importeren...",
+  "menu.data.query": "Query...",
   "menu.data.reindex": "Zoekindex herbouwen",
   "menu.file": "Bestand",
   "menu.file.openStorageFolder": "Open opslagmap",

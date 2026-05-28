@@ -173,6 +173,19 @@ func TestProjectRows_BadNumericFilter(t *testing.T) {
 	}
 }
 
+// FilterOps must stay in lockstep with what filterJoins accepts: every
+// published op resolves, and an op outside the set is rejected.
+func TestFilterOps_AllAcceptedNoDrift(t *testing.T) {
+	for _, op := range FilterOps {
+		if _, _, err := filterJoins([]AggFilter{{Kind: "field", Key: "x", Op: op, Value: "1"}}); err != nil {
+			t.Errorf("published op %q rejected by filterJoins: %v", op, err)
+		}
+	}
+	if _, _, err := filterJoins([]AggFilter{{Kind: "field", Key: "x", Op: "nope", Value: "1"}}); err == nil {
+		t.Error("filterJoins accepted an op not in FilterOps")
+	}
+}
+
 func TestProjectRows_UnknownFilterOp(t *testing.T) {
 	m := seedValuesDB(t)
 	_, err := m.ProjectRows("basic.yaml", ProjectSpec{
