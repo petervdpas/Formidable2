@@ -253,7 +253,13 @@ func renderFieldValueBlock(f Field, opts GeneratorOptions) string {
 	typ := strings.ToLower(f.Type)
 	imgMode := opts.ImgMode
 	switch typ {
-	case "boolean", "checkbox":
+	case "facet":
+		// Virtual field - its value lives in meta.facets[FacetKey], not
+		// in form.data, so {{field}} would always return empty here.
+		// {{virtual-field}} dispatches on the template's field type and
+		// projects the right value (the selected facet option label).
+		return fmt.Sprintf(`{{virtual-field "%s"}}`, key)
+	case "boolean":
 		return fmt.Sprintf(
 			"{{#if (fieldRaw \"%s\")}}\n✅ %s is checked\n{{else}}\n❌ %s is not checked\n{{/if}}",
 			key, label, label,
@@ -359,6 +365,13 @@ _No tags specified_
 }
 
 func collectLogs(logs *[]string, key, typ string) {
+	if typ == "facet" {
+		// Virtual fields carry no data slot - fieldRaw is meaningless.
+		// Surface the projection that {{virtual-field}} resolves so
+		// the debug block shows the selected option label instead.
+		*logs = append(*logs, fmt.Sprintf("> **%s** _(facet)_: `{{virtual-field \"%s\"}}`", key, key))
+		return
+	}
 	*logs = append(*logs, fmt.Sprintf("> **%s**: `{{json (fieldRaw \"%s\")}}`", key, key))
 	switch typ {
 	case "dropdown", "radio", "multioption", "table":
@@ -484,6 +497,8 @@ func tableRowForField(f Field, key string, imgMode ImgMode) string {
 		label = key
 	}
 	switch strings.ToLower(f.Type) {
+	case "facet":
+		return fmt.Sprintf(`| %s | {{virtual-field "%s"}} |`, label, key)
 	case "tags":
 		return fmt.Sprintf(`| %s | {{tags (fieldRaw "%s")}} |`, label, key)
 	case "image":
@@ -533,6 +548,14 @@ func generateFrontmatter(fields []Field) string {
 			continue
 		}
 		seen[key] = true
+		// Virtual fields (facet) have no data slot - read the
+		// projection via the virtual-field helper instead of fieldRaw.
+		// Quote-wrap the helper call so YAML parses the value as a
+		// string even when the resolved label contains a colon, etc.
+		if t == "facet" {
+			lines = append(lines, fmt.Sprintf(`%s: '{{virtual-field "%s"}}'`, key, key))
+			continue
+		}
 		lines = append(lines, fmt.Sprintf(`%s: {{json (fieldRaw "%s")}}`, key, key))
 	}
 	lines = append(lines, "---", "")
