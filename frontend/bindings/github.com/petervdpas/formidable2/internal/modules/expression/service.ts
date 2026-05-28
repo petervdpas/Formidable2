@@ -18,6 +18,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as builder$0 from "./builder/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as template$0 from "../template/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -92,6 +95,31 @@ export function BuilderDefaultRule(): $CancellablePromise<builder$0.Rule> {
 }
 
 /**
+ * BuilderFieldOptions returns the value/label pairs the predicate
+ * value-picker should offer for the given field, resolving virtual
+ * types (facet → bound facet's labels) so the frontend stays
+ * type-agnostic. Empty slice when the field has no enumerable
+ * options or the binding can't be resolved.
+ */
+export function BuilderFieldOptions(field: template$0.Field, facets: template$0.Facet[]): $CancellablePromise<builder$0.FieldOption[]> {
+    return $Call.ByID(3903075233, field, facets).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * BuilderIsDisplayableFieldType reports whether a field type may
+ * appear in the OutcomeEditor's display pickers (FieldValue /
+ * FieldLabel). Virtual types (facet, future derived fields) return
+ * false: their value is rendered by a dedicated widget so
+ * concatenating it into a label string would be redundant. Frontend
+ * honors this signal so display/criteria split stays backend-owned.
+ */
+export function BuilderIsDisplayableFieldType(fieldType: string): $CancellablePromise<boolean> {
+    return $Call.ByID(2385018337, fieldType);
+}
+
+/**
  * BuilderKindForFieldType reports the rule kind for a Field.Type, or
  * "" when the type does not participate in predicates. Frontend uses
  * this to gate predicate construction (only state-bearing + date
@@ -107,7 +135,7 @@ export function BuilderKindForFieldType(fieldType: string): $CancellablePromise<
  */
 export function BuilderOperatorsForKind(kind: string): $CancellablePromise<builder$0.Operator[]> {
     return $Call.ByID(3209858457, kind).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -132,7 +160,7 @@ export function BuilderParse(src: string, fields: builder$0.FieldRef[]): $Cancel
  */
 export function Evaluate(src: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.Result> {
     return $Call.ByID(3315345587, src, ctx).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -144,7 +172,7 @@ export function Evaluate(src: string, ctx: { [_ in string]?: any }): $Cancellabl
  */
 export function EvaluateList(templateName: string): $CancellablePromise<$models.Result[]> {
     return $Call.ByID(3129605659, templateName).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -157,7 +185,7 @@ export function EvaluateList(templateName: string): $CancellablePromise<$models.
  */
 export function EvaluateListMany(templateName: string, datafiles: string[]): $CancellablePromise<$models.Result[]> {
     return $Call.ByID(2738239460, templateName, datafiles).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -170,7 +198,7 @@ export function EvaluateListMany(templateName: string, datafiles: string[]): $Ca
  */
 export function EvaluateListOne(templateName: string, datafile: string): $CancellablePromise<$models.Result> {
     return $Call.ByID(2616284681, templateName, datafile).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -180,7 +208,9 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = builder$0.Config.createFrom;
 const $$createType3 = builder$0.Predicate.createFrom;
 const $$createType4 = builder$0.Rule.createFrom;
-const $$createType5 = builder$0.Operator.createFrom;
+const $$createType5 = builder$0.FieldOption.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.Result.createFrom;
+const $$createType7 = builder$0.Operator.createFrom;
 const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.Result.createFrom;
+const $$createType10 = $Create.Array($$createType9);

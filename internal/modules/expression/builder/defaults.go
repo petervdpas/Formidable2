@@ -13,7 +13,7 @@ func KindForField(fieldType string) (RuleKind, bool) {
 	switch strings.ToLower(strings.TrimSpace(fieldType)) {
 	case "boolean":
 		return KindBoolean, true
-	case "dropdown", "radio":
+	case "dropdown", "radio", "facet":
 		return KindEnum, true
 	case "number", "range":
 		return KindNumber, true

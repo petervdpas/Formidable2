@@ -46,7 +46,7 @@ func TestRegistry_FacetHasExpectedAbilities(t *testing.T) {
 	want := Abilities{
 		Key: true, Type: true, Label: true, Description: true,
 		Default: true, Options: false, SummaryField: false, PrimaryKey: false,
-		ExpressionItem: false, TwoColumn: true, Collapsible: false,
+		ExpressionItem: true, TwoColumn: true, Collapsible: false,
 		Readonly: false, Format: true, UseInStatistics: false,
 		FacetKey: true,
 	}

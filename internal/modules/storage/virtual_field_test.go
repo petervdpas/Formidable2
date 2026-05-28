@@ -138,3 +138,67 @@ func TestSanitize_StrayDataKeyNotInTemplateIsAlreadyIgnored(t *testing.T) {
 		t.Errorf("only template-declared keys should land in Data; got %#v", out.Data)
 	}
 }
+
+// ── ExpressionItem harvest for virtual facet field ──────────────────
+
+func TestExtendedLoadForm_FacetExpressionItemHarvestedFromMeta(t *testing.T) {
+	m, sys, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml", ItemField: "title",
+		Facets: []template.Facet{{
+			Key:  "status",
+			Icon: "fa-flag",
+			Options: []template.FacetOption{
+				{Label: "OPEN", Color: "blue"},
+				{Label: "CLOSED", Color: "gray"},
+			},
+		}},
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", ExpressionItem: true},
+		},
+	})
+	_ = sys.SaveFile("storage/basic/x.meta.json",
+		`{"meta":{"id":"abc","template":"basic","facets":{"status":{"set":true,"selected":"OPEN"}}},"data":{"title":"Hello"}}`)
+
+	got, err := m.ExtendedLoadForm("basic.yaml", "x.meta.json")
+	if err != nil {
+		t.Fatalf("ExtendedLoadForm: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected summary, got nil")
+	}
+	v, ok := got.ExpressionItems["status_inline"].(string)
+	if !ok {
+		t.Fatalf("ExpressionItems[status_inline] = %#v, want string", got.ExpressionItems["status_inline"])
+	}
+	if v != "OPEN" {
+		t.Errorf("ExpressionItems[status_inline] = %q, want %q (harvested from meta.facets[status].selected)", v, "OPEN")
+	}
+}
+
+func TestExtendedLoadForm_UnsetFacetExpressionItemOmitted(t *testing.T) {
+	m, sys, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml", ItemField: "title",
+		Facets: []template.Facet{{
+			Key:     "status",
+			Icon:    "fa-flag",
+			Options: []template.FacetOption{{Label: "OPEN", Color: "blue"}},
+		}},
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", ExpressionItem: true},
+		},
+	})
+	_ = sys.SaveFile("storage/basic/x.meta.json",
+		`{"meta":{"id":"abc","template":"basic"},"data":{"title":"Hello"}}`)
+
+	got, err := m.ExtendedLoadForm("basic.yaml", "x.meta.json")
+	if err != nil {
+		t.Fatalf("ExtendedLoadForm: %v", err)
+	}
+	if _, present := got.ExpressionItems["status_inline"]; present {
+		t.Errorf("unset facet must not appear in ExpressionItems; got %+v", got.ExpressionItems)
+	}
+}

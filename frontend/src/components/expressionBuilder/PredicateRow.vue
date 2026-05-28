@@ -8,7 +8,7 @@
  */
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { SwitchField } from "../fields";
+import { SelectField, SwitchField } from "../fields";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import {
   DateOp,
@@ -16,6 +16,7 @@ import {
   NumberOp,
   RuleKind,
   type DateOpDescriptor,
+  type FieldOption,
   type Operator,
   type Predicate,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
@@ -23,6 +24,11 @@ import {
 const props = defineProps<{
   predicate: Predicate;
   field: Field | null;
+  /** Pre-resolved option list for the field (backend-driven via
+   *  ExpressionSvc.BuilderFieldOptions in the parent modal). Empty
+   *  for non-enumerable types and for facet fields whose binding
+   *  doesn't resolve. */
+  options: FieldOption[];
   enumOps: Operator[];
   numberOps: Operator[];
   dateOps: DateOpDescriptor[];
@@ -32,15 +38,7 @@ const { t } = useI18n();
 
 const fieldLabel = computed(() => props.field?.label || props.field?.key || props.predicate.fieldKey);
 
-// Field options come off the template Field as an `any[]` shape;
-// normalise to {value, label} pairs for the value checkboxes.
-const fieldOptions = computed<Array<{ value: string; label: string }>>(() => {
-  const raw = (props.field?.options ?? []) as any[];
-  return raw.map((o) => ({
-    value: String(o?.value ?? ""),
-    label: String(o?.label ?? o?.value ?? ""),
-  }));
-});
+const fieldOptions = computed<FieldOption[]>(() => props.options ?? []);
 
 const dateOpDescriptor = computed<DateOpDescriptor | null>(
   () => props.dateOps.find((d) => d.op === props.predicate.dateOp) ?? null,
@@ -56,15 +54,27 @@ function setEnumOp(v: string) {
   props.predicate.enumOp = v as EnumOp;
 }
 
-function toggleEnumValue(value: string, on: boolean) {
-  const cur = props.predicate.enumValues ?? [];
-  if (on) {
-    if (!cur.includes(value)) {
-      props.predicate.enumValues = [...cur, value];
-    }
-  } else {
-    props.predicate.enumValues = cur.filter((v) => v !== value);
-  }
+const selectedEnumValues = computed<string[]>(() => props.predicate.enumValues ?? []);
+
+// Options the user can still add to the predicate (current options
+// minus anything already chosen). Drives the add-value dropdown so
+// the picker only offers fresh values.
+const addableEnumOptions = computed<FieldOption[]>(() =>
+  fieldOptions.value.filter((o) => !selectedEnumValues.value.includes(o.value)),
+);
+
+function labelForEnumValue(value: string): string {
+  return fieldOptions.value.find((o) => o.value === value)?.label ?? value;
+}
+
+function addEnumValue(value: string) {
+  if (!value) return;
+  if (selectedEnumValues.value.includes(value)) return;
+  props.predicate.enumValues = [...selectedEnumValues.value, value];
+}
+
+function removeEnumValue(value: string) {
+  props.predicate.enumValues = selectedEnumValues.value.filter((v) => v !== value);
 }
 
 function setNumberOp(v: string) {
@@ -105,7 +115,7 @@ function setDateArg(v: number) {
       @update:model-value="setBoolValue"
     />
 
-    <!-- Enum: op picker + value checkboxes from field options -->
+    <!-- Enum: op picker + chip-list of selected values + dropdown to add -->
     <template v-else-if="predicate.kind === RuleKind.KindEnum">
       <select
         class="expr-pred-op"
@@ -117,18 +127,27 @@ function setDateArg(v: number) {
         </option>
       </select>
       <div class="expr-pred-enum-values">
-        <label
-          v-for="opt in fieldOptions"
-          :key="opt.value"
-          class="expr-pred-enum-opt"
+        <span
+          v-for="v in selectedEnumValues"
+          :key="v"
+          class="expr-pred-enum-chip"
         >
-          <input
-            type="checkbox"
-            :checked="(predicate.enumValues ?? []).includes(opt.value)"
-            @change="toggleEnumValue(opt.value, ($event.target as HTMLInputElement).checked)"
-          />
-          {{ opt.label }}
-        </label>
+          {{ labelForEnumValue(v) }}
+          <button
+            type="button"
+            class="expr-pred-enum-chip-remove"
+            :title="t('workspace.templates.expression_builder.predicate.remove_value')"
+            @click="removeEnumValue(v)"
+          >×</button>
+        </span>
+        <SelectField
+          v-if="addableEnumOptions.length > 0"
+          :model-value="''"
+          :options="addableEnumOptions"
+          :placeholder="t('workspace.templates.expression_builder.predicate.add_value')"
+          class="expr-pred-enum-add"
+          @update:model-value="addEnumValue"
+        />
       </div>
     </template>
 

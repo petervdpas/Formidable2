@@ -122,14 +122,14 @@
     --field-type-api-badge:  #4dd0e1;
     --field-type-api-text:   #f7fbfc;
 
-    /* Facet (virtual) - pure highlighter yellow. Owns the bright-yellow
-       slot that no other type uses (nearest neighbours: file-path =
-       orange-amber, table = peach, list/tags = greens). Facets are the
-       record's classifiers / highlighters; the marker-pen association
-       is the UX cue. Dark text on yellow is the legible pairing. */
-    --field-type-facet-bg:     #ffeb3b;
-    --field-type-facet-border: #fbc02d;
-    --field-type-facet-badge:  #f9a825;
+    /* Facet (virtual) - warm muted yellow. Owns the yellow slot no
+       other type uses (nearest neighbours: file-path = orange-amber,
+       table = peach, list/tags = greens). The marker-pen association
+       still reads; saturation dropped so the dialog doesn't dominate
+       the palette. Dark text on yellow is the legible pairing. */
+    --field-type-facet-bg:     #d4b73a;
+    --field-type-facet-border: #b8992e;
+    --field-type-facet-badge:  #c9a82a;
     --field-type-facet-text:   #222222;
 }
 

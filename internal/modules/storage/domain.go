@@ -499,6 +499,16 @@ func (m *Manager) summaryFor(templateFilename, filename string, tpl *template.Te
 		if !fld.ExpressionItem {
 			continue
 		}
+		if fld.Type == "facet" {
+			// Virtual facet field has no Data slot; its value lives in
+			// meta.facets[<facet_key>].Selected. Harvest only when the
+			// facet is set AND has a non-empty Selected so an explicit
+			// clear doesn't surface as an empty-string variable.
+			if state, ok := f.Meta.Facets[fld.FacetKey]; ok && state.Set && state.Selected != "" {
+				expressionItems[fld.Key] = state.Selected
+			}
+			continue
+		}
 		if v, ok := f.Data[fld.Key]; ok && v != nil && v != "" {
 			expressionItems[fld.Key] = v
 		}

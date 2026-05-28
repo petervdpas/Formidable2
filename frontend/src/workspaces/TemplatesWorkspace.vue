@@ -1141,6 +1141,7 @@ setTopbarMenu(() => [
     v-if="draft"
     :open="expressionBuilderOpen"
     :fields="draft.fields ?? []"
+    :facets="draft.facets ?? []"
     :initial="draft.sidebar_expression"
     @close="expressionBuilderOpen = false"
     @apply="applyExpressionBuilder"

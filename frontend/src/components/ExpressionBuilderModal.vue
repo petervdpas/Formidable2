@@ -18,7 +18,7 @@ import Modal from "./Modal.vue";
 import ScrollList from "./ScrollList.vue";
 import PredicateRow from "./expressionBuilder/PredicateRow.vue";
 import OutcomeEditor from "./expressionBuilder/OutcomeEditor.vue";
-import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field, Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import {
   Config,
@@ -34,6 +34,10 @@ import { backendErrMessage } from "../utils/backendError";
 const props = defineProps<{
   open: boolean;
   fields: Field[];
+  /** Template's facets - threaded to the backend so virtual facet
+   *  fields can resolve their predicate option labels (the bound
+   *  facet's option list). Defaults to []. */
+  facets?: Facet[];
   initial?: string;
 }>();
 
@@ -73,6 +77,22 @@ async function refreshPredicateableFields() {
   predicateableFields.value = out;
 }
 
+// Backend signal again: which field types are valid in OUTCOME display
+// parts (FieldValue / FieldLabel). Virtual types (facet, future
+// derived fields) return false so they appear only as predicates,
+// never as concatenated label parts. Mirrors the predicate refresh
+// pattern so the frontend stays a thin renderer of backend rules.
+const displayableFields = ref<Field[]>([]);
+
+async function refreshDisplayableFields() {
+  const out: Field[] = [];
+  for (const f of expressionFields.value) {
+    const ok = await ExpressionSvc.BuilderIsDisplayableFieldType(f.type || "");
+    if (ok) out.push(f);
+  }
+  displayableFields.value = out;
+}
+
 const enumFields = computed(() =>
   expressionFields.value.filter((f) => {
     const tt = (f.type || "").toLowerCase();
@@ -84,12 +104,27 @@ function fieldByKey(key: string): Field | null {
   return expressionFields.value.find((f) => f.key === key) ?? null;
 }
 
+// Backend-resolved option list per field. Populated by
+// refreshFieldOptions: for each expression field we call
+// ExpressionSvc.BuilderFieldOptions(field, facets), which routes
+// to builder.OptionsForField - dropdown/radio read field.options
+// directly, facet resolves via the bound facet's options. Frontend
+// never decides; it just renders what the backend returned.
+const optionsByKey = ref<Map<string, FieldOption[]>>(new Map());
+
+async function refreshFieldOptions() {
+  const next = new Map<string, FieldOption[]>();
+  const list = expressionFields.value;
+  const facets = props.facets ?? [];
+  const results = await Promise.all(
+    list.map((f) => ExpressionSvc.BuilderFieldOptions(f, facets)),
+  );
+  list.forEach((f, i) => next.set(f.key, results[i] ?? []));
+  optionsByKey.value = next;
+}
+
 function fieldOptionsFor(key: string): FieldOption[] {
-  const raw = (fieldByKey(key)?.options ?? []) as any[];
-  return raw.map((o) => ({
-    value: String(o?.value ?? ""),
-    label: String(o?.label ?? o?.value ?? ""),
-  }));
+  return optionsByKey.value.get(key) ?? [];
 }
 
 // ── Config state ────────────────────────────────────────────────
@@ -150,7 +185,12 @@ watch(
     applyError.value = "";
     parseError.value = "";
     addPredicateField.value = "";
-    await Promise.all([loadMetadata(), refreshPredicateableFields()]);
+    await Promise.all([
+      loadMetadata(),
+      refreshPredicateableFields(),
+      refreshDisplayableFields(),
+      refreshFieldOptions(),
+    ]);
 
     // Preload the existing sidebar_expression so the dialog opens on
     // the user's last-saved state. Strict parser - only the AST shape
@@ -385,6 +425,7 @@ const canApply = computed(() => {
                   <PredicateRow
                     :predicate="p"
                     :field="fieldByKey(p.fieldKey)"
+                    :options="fieldOptionsFor(p.fieldKey)"
                     :enum-ops="enumOps"
                     :number-ops="numberOps"
                     :date-ops="dateOps"
@@ -426,7 +467,7 @@ const canApply = computed(() => {
             </h4>
             <OutcomeEditor
               :outcome="editingOutcome"
-              :expression-fields="expressionFields"
+              :expression-fields="displayableFields"
               :enum-fields="enumFields"
             />
           </section>

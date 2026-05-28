@@ -1,6 +1,9 @@
 package expression
 
-import "github.com/petervdpas/formidable2/internal/modules/expression/builder"
+import (
+	"github.com/petervdpas/formidable2/internal/modules/expression/builder"
+	"github.com/petervdpas/formidable2/internal/modules/template"
+)
 
 // Service is the Wails-bound facade for the expression module. Vue
 // calls Evaluate for one-off expressions and EvaluateList to
@@ -57,6 +60,25 @@ func (s *Service) BuilderKindForFieldType(fieldType string) string {
 		return string(k)
 	}
 	return ""
+}
+
+// BuilderIsDisplayableFieldType reports whether a field type may
+// appear in the OutcomeEditor's display pickers (FieldValue /
+// FieldLabel). Virtual types (facet, future derived fields) return
+// false: their value is rendered by a dedicated widget so
+// concatenating it into a label string would be redundant. Frontend
+// honors this signal so display/criteria split stays backend-owned.
+func (s *Service) BuilderIsDisplayableFieldType(fieldType string) bool {
+	return builder.IsDisplayableFieldType(fieldType)
+}
+
+// BuilderFieldOptions returns the value/label pairs the predicate
+// value-picker should offer for the given field, resolving virtual
+// types (facet → bound facet's labels) so the frontend stays
+// type-agnostic. Empty slice when the field has no enumerable
+// options or the binding can't be resolved.
+func (s *Service) BuilderFieldOptions(field template.Field, facets []template.Facet) []builder.FieldOption {
+	return builder.OptionsForField(field, facets)
 }
 
 // BuilderDefaultPredicate returns a freshly-initialised Predicate

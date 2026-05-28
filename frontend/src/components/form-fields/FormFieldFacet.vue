@@ -21,6 +21,7 @@
 import { computed, inject } from "vue";
 import { useI18n } from "vue-i18n";
 import { SelectField, type SelectOption } from "../fields";
+import FacetIcon from "../FacetIcon.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { FacetState } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { FACET_CONTEXT_KEY, type FacetContext } from "../../composables/facetContext";
@@ -127,7 +128,11 @@ const unavailableMessage = computed(() => {
         :checked="state.set && state.selected === o.label"
         @change="pickRadio(o.label)"
       />
-      <span class="facet-field-swatch" :class="`facet-swatch-${o.color}`"></span>
+      <FacetIcon
+        class="facet-field-radio-icon"
+        :class="`expr-text-${o.color}`"
+        :icon="facet!.icon"
+      />
       <span class="facet-field-radio-label">{{ o.label }}</span>
     </label>
     <button

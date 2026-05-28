@@ -12,6 +12,7 @@ func TestKindForField(t *testing.T) {
 		{"BOOLEAN", KindBoolean, true},
 		{"dropdown", KindEnum, true},
 		{"radio", KindEnum, true},
+		{"facet", KindEnum, true},
 		{"number", KindNumber, true},
 		{"range", KindNumber, true},
 		{"date", KindDate, true},

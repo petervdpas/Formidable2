@@ -58,6 +58,8 @@
   "workspace.templates.expression_builder.outcome.text_part_remove": "Remove part",
   "workspace.templates.expression_builder.outcome.text_part_reorder": "Drag to reorder",
   "workspace.templates.expression_builder.predicate.add_for": "+ Add predicate for…",
+  "workspace.templates.expression_builder.predicate.add_value": "+ Add value…",
+  "workspace.templates.expression_builder.predicate.remove_value": "Remove value",
   "workspace.templates.expression_builder.predicate.no_predicates": "No predicates. This rule always matches when reached.",
   "workspace.templates.expression_builder.predicate.remove": "Remove predicate",
   "workspace.templates.expression_builder.predicates_block": "Predicates (all must match)",

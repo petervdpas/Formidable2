@@ -375,12 +375,9 @@
   border-radius: var(--radius-md);
 }
 
-.facet-field-swatch {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  border: 1px solid var(--color-border);
+.facet-field-radio-icon {
+  width: 16px;
+  height: 16px;
   flex: 0 0 auto;
 }
 
