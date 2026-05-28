@@ -113,7 +113,14 @@ const boundFacet = computed(() => {
 
 const facetDefaultOptions = computed(() => {
   const opts = boundFacet.value?.options ?? [];
-  return opts.map((o) => ({ value: o.label, label: o.label }));
+  // Lead with a selectable "(not set)" entry so the user can clear a
+  // previously-picked default. SelectField's placeholder prop renders
+  // the same label but as a disabled option, which traps the user
+  // once any real value has been picked.
+  return [
+    { value: "", label: t("facet.field.placeholder") },
+    ...opts.map((o) => ({ value: o.label, label: o.label })),
+  ];
 });
 
 const facetDefaultValue = computed<string>({
@@ -594,7 +601,6 @@ const dialogStyle = computed<Record<string, string>>(() => {
             v-if="isFacetType"
             v-model="facetDefaultValue"
             :options="facetDefaultOptions"
-            :placeholder="t('facet.field.placeholder')"
           />
           <TextField v-else v-model="defaultAsString" />
         </FormRow>
