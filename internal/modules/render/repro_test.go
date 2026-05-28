@@ -17,7 +17,7 @@ func TestRepro_RecipeTableNoBlankLines(t *testing.T) {
 		MarkdownTemplate: `## Ingredienten
 
 {{#with (fieldMeta "ingredienten" "options") as |headers|}}
-|{{#each headers}}{{label}}{{^label}}{{value}}{{/label}} |{{/each}}
+|{{#each headers}}{{#if label}}{{label}}{{else}}{{value}}{{/if}} |{{/each}}
 |{{#each headers}}--|{{/each}}
   {{/with}}
   {{#each (fieldRaw "ingredienten")}}

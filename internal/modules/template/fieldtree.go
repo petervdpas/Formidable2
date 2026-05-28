@@ -21,7 +21,9 @@ type FieldUnit struct {
 	Field *Field      `json:"field,omitempty"`
 	Start *Field      `json:"start,omitempty"`
 	Stop  *Field      `json:"stop,omitempty"`
-	Items []FieldUnit `json:"items,omitempty"`
+	// No omitempty: an empty loop must round-trip as `"items": []` so the
+	// frontend's drag-into-loop binding mutates a persistent array.
+	Items []FieldUnit `json:"items"`
 }
 
 const (

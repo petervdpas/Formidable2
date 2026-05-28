@@ -1,7 +1,9 @@
 package template
 
 import (
+	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -191,6 +193,31 @@ func TestFlattenFieldTree_NilAndEmpty(t *testing.T) {
 	}
 	if fields := FlattenFieldTree([]FieldUnit{}); len(fields) != 0 {
 		t.Fatalf("FlattenFieldTree([]) should return empty, got %+v", fields)
+	}
+}
+
+// Regression: empty-loop items must serialise as `"items": []`, not be
+// dropped by omitempty. The frontend's vuedraggable :list binding needs
+// a real array reference to mutate; with an omitted key, dragging into
+// the loop falls into a temporary fallback array and the field vanishes.
+func TestFieldUnit_EmptyLoopItemsRoundTripsAsEmptyArray(t *testing.T) {
+	fields := []Field{
+		{Key: "outer", Type: "loopstart"},
+		{Key: "outer", Type: "loopstop"},
+	}
+	units := BuildFieldTree(fields)
+	if len(units) != 1 || units[0].Kind != "loop" {
+		t.Fatalf("expected one loop unit, got %+v", units)
+	}
+	if units[0].Items == nil {
+		t.Fatalf("Items must be non-nil empty slice, got nil")
+	}
+	raw, err := json.Marshal(units[0])
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), `"items":[]`) {
+		t.Errorf("JSON must contain `\"items\":[]`, got: %s", raw)
 	}
 }
 

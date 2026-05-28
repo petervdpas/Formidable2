@@ -524,12 +524,20 @@ export class FieldUnit {
     "field"?: Field | null;
     "start"?: Field | null;
     "stop"?: Field | null;
-    "items"?: FieldUnit[];
+
+    /**
+     * No omitempty: an empty loop must round-trip as `"items": []` so the
+     * frontend's drag-into-loop binding mutates a persistent array.
+     */
+    "items": FieldUnit[];
 
     /** Creates a new FieldUnit instance. */
     constructor($$source: Partial<FieldUnit> = {}) {
         if (!("kind" in $$source)) {
             this["kind"] = "";
+        }
+        if (!("items" in $$source)) {
+            this["items"] = [];
         }
 
         Object.assign(this, $$source);

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
 import Badge from "../components/Badge.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
-import FieldEditModal from "../components/FieldEditModal.vue";
+import TemplateFieldsSection from "../components/TemplateFieldsSection.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CleanupStorageDialog from "../components/CleanupStorageDialog.vue";
 import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog.vue";
@@ -28,18 +28,15 @@ import Tabs from "../components/Tabs.vue";
 import {
   Service as TemplateSvc,
   GeneratorOptions,
-  FieldUnit,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
-import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
-import type { ValidationReport, Diagnostic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render/models";
+import { useTemplateValidation } from "../composables/useTemplateValidation";
 import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
-import { scrollToActiveRow } from "../utils/scrollToActiveRow";
 import {
   FormSection,
   FormRow,
@@ -48,23 +45,21 @@ import {
   TextareaField,
   SelectField,
 } from "../components/fields";
-import { useTemplates, isValidTemplateFilename } from "../composables/useTemplates";
+import { useTemplates } from "../composables/useTemplates";
+import { useTemplateCreate } from "../composables/useTemplateCreate";
+import { useTemplateSelection } from "../composables/useTemplateSelection";
 import { useListKeyNav } from "../composables/useListKeyNav";
-import { recomputeLevelScopes } from "../utils/fieldScopes";
-import FieldUnitList from "../components/FieldUnitList.vue";
 import { useTemplateEditor } from "../composables/useTemplateEditor";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useToast } from "../composables/useToast";
 import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
-import { useConfig } from "../composables/useConfig";
 import { watch } from "vue";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
-const { config, update: updateConfig } = useConfig();
 const toast = useToast();
 const statusBar = useStatusBar();
 
@@ -81,7 +76,6 @@ const {
   selectedTemplate,
   refresh,
   refreshOne,
-  create,
   remove,
 } = useTemplates();
 
@@ -95,89 +89,7 @@ useListKeyNav({
   container: () => listScrollEl.value,
 });
 
-// Two-way sync between the sidebar selection and config. Config is
-// the single source of truth - Storage's dropdown writes there too,
-// so any cross-workspace change propagates here live.
-//
-// Direction 1: config.selected_template → sidebar highlight. Fires
-// whenever the config value or the loaded filenames list changes
-// (need both - config can name a template that hasn't loaded yet
-// during early boot).
-watch(
-  [() => config.value?.selected_template ?? "", filenames],
-  ([want, list]) => {
-    if (!list.length || !want) return;
-    if (!list.includes(want)) return;
-    if (selectedFilename.value !== want) selectedFilename.value = want;
-  },
-  { immediate: true },
-);
-
-// Direction 2: sidebar click → config. Skip when config already
-// reflects this choice (avoids a redundant write triggered by the
-// mirror watcher above).
-watch(selectedFilename, (fn) => {
-  if (!fn) return;
-  if (config.value?.selected_template !== fn) {
-    void updateConfig({ selected_template: fn });
-  }
-  statusBar.setSelected(fn);
-});
-
-// Scroll the active template row into view once after the list and
-// selection are both available. Two cases mirror the storage workspace:
-//  - In-app navigation: layout is settled, the scroll runs synchronously
-//    on the first attempt.
-//  - First startup: the splash blocks flex layout, so .sidebar-scroll
-//    reads as ~8px until layout settles. The ResizeObserver below
-//    retries on each resize until the container has a real viewport.
-// hasScrolled stays true after the first successful scroll so save /
-// refresh / clicks don't yank the viewport.
-const listScrollEl = ref<HTMLElement | null>(null);
-let hasScrolled = false;
-let pendingScrollObserver: ResizeObserver | null = null;
-
-function cancelPendingScroll() {
-  pendingScrollObserver?.disconnect();
-  pendingScrollObserver = null;
-}
-
-onBeforeUnmount(cancelPendingScroll);
-
-watch(
-  [filenames, selectedFilename],
-  async ([list, want]) => {
-    if (hasScrolled) return;
-    if (!list.length || !want) return;
-    if (!list.includes(want)) return;
-    cancelPendingScroll();
-    await nextTick();
-    const container = listScrollEl.value;
-    if (!container) return;
-
-    const SETTLED_MIN_HEIGHT = 140;
-    const attempt = (): boolean => {
-      if (container.clientHeight < SETTLED_MIN_HEIGHT) return false;
-      if (scrollToActiveRow(container, want)) {
-        hasScrolled = true;
-        return true;
-      }
-      return false;
-    };
-
-    if (attempt()) return;
-
-    const ro = new ResizeObserver(() => {
-      if (attempt()) {
-        ro.disconnect();
-        if (pendingScrollObserver === ro) pendingScrollObserver = null;
-      }
-    });
-    ro.observe(container);
-    pendingScrollObserver = ro;
-  },
-  { immediate: true },
-);
+const { listScrollEl } = useTemplateSelection(filenames, selectedFilename);
 
 // ── Refresh feedback ──────────────────────────────────────────────────
 async function doRefresh() {
@@ -259,157 +171,29 @@ const itemFieldSelectOptions = computed(() => {
   return opts;
 });
 
-// ── Create modal ─────────────────────────────────────────────────────
-const createOpen = ref(false);
-const createInput = ref("");
-const createError = ref<string>("");
+const {
+  open: createOpen,
+  input: createInput,
+  error: createError,
+  openCreate,
+  submitCreate,
+} = useTemplateCreate();
 
-function openCreate() {
-  createInput.value = "";
-  createError.value = "";
-  createOpen.value = true;
-}
-
-async function submitCreate() {
-  const name = createInput.value.trim();
-  if (!isValidTemplateFilename(name)) {
-    createError.value = t("workspace.templates.create.invalid");
-    return;
-  }
-  const result = await create(name);
-  if (!result.ok) {
-    createError.value = result.code === "exists"
-      ? t("workspace.templates.create.exists")
-      : t("workspace.templates.create.error", [result.message ?? "?"]);
-    return;
-  }
-  toast.success("workspace.templates.create.success", [name]);
-  statusBar.setCreated(name);
-  createOpen.value = false;
-}
-
-// ── Field tree (loop blocks as drag units) ───────────────────────────
-// Backend owns the tree shape - internal/modules/template/fieldtree.go
-// pairs loopstart/loopstop and folds them into one indivisible
-// FieldUnit so the editor can't reorder a row across a loop boundary
-// by mistake. The flat draft.fields stays the source of truth; this
-// `tree` ref is a view over it that gets rebuilt whenever draft.fields
-// changes from outside drag-drop (template switch, add/edit/delete).
-const tree = ref<FieldUnit[]>([]);
-let lastWritten: Field[] | null = null;
-
-async function rebuildTree(): Promise<void> {
-  const fields = draft.value?.fields ?? [];
-  tree.value = await TemplateSvc.BuildFieldTree(fields);
-}
-
-async function commitTree(): Promise<void> {
-  if (!draft.value) return;
-  const flat = await TemplateSvc.FlattenFieldTree(tree.value);
-  recomputeLevelScopes(flat);
-  lastWritten = flat;
-  draft.value.fields = flat;
-}
-
-watch(
-  () => draft.value?.fields,
-  (fields) => {
-    if (fields && fields === lastWritten) return;
-    void rebuildTree();
-  },
-  { immediate: true },
-);
-
-// ── Field edit / add ─────────────────────────────────────────────────
-// editUnit holds the tree-resident FieldUnit being edited (null for
-// create). Identity is the JS object reference itself - no key/type
-// lookup, no flat-index bookkeeping. applyEdit mutates the unit in
-// place and commitTree flushes the resulting tree to draft.fields.
-const editOpen = ref(false);
-const editUnit = ref<FieldUnit | null>(null);
-const editField = ref<Field | null>(null);
-const editIsNew = ref(false);
-
-function openEdit(u: FieldUnit) {
-  if (!u) return;
-  editUnit.value = u;
-  editField.value = u.kind === "loop" ? (u.start ?? null) : (u.field ?? null);
-  editIsNew.value = false;
-  editOpen.value = true;
-}
+// ── Field tree (extracted into TemplateFieldsSection) ───────────────
+// Topbar "+ New Field" calls into the section via its exposed
+// openAddField; the section emits update(flat) when the user edits or
+// deletes, and we write back to draft.fields here so dirty-detection
+// in useTemplateEditor sees the change.
+const fieldsSection = ref<InstanceType<typeof TemplateFieldsSection> | null>(null);
 
 function openAddField() {
   if (!draft.value) return;
-  editUnit.value = null;
-  editField.value = null;
-  editIsNew.value = true;
-  editOpen.value = true;
+  fieldsSection.value?.openAddField();
 }
 
-function applyEdit(updated: Field) {
+function onFieldsUpdate(flat: Field[]) {
   if (!draft.value) return;
-
-  if (editIsNew.value) {
-    // Looper synth: picking "looper" materialises as a loop unit
-    // with a paired loopstart/loopstop sharing the same key/label.
-    if (updated.type === "looper") {
-      const key = (updated.key || "").trim();
-      const label = updated.label || key;
-      tree.value.push(new FieldUnit({
-        kind: "loop",
-        start: { key, label, type: "loopstart" } as Field,
-        stop: { key, label, type: "loopstop" } as Field,
-        items: [],
-      }));
-    } else {
-      tree.value.push(new FieldUnit({ kind: "field", field: updated }));
-    }
-    void commitTree();
-  } else if (editUnit.value) {
-    const u = editUnit.value;
-    if (u.kind === "field") {
-      u.field = updated;
-    } else if (u.kind === "loop" && u.start && u.stop) {
-      // loopstart/loopstop share key + label. Keep their types as
-      // markers (the modal might not surface those) and propagate
-      // any other edits the user made to start.
-      const key = (updated.key || "").trim();
-      const label = updated.label || key;
-      u.start = { ...u.start, ...updated, key, label, type: "loopstart" } as Field;
-      u.stop = { ...u.stop, key, label, type: "loopstop" } as Field;
-    }
-    void commitTree();
-  }
-
-  editOpen.value = false;
-  editField.value = null;
-  editUnit.value = null;
-  editIsNew.value = false;
-}
-
-const deleteOpen = ref(false);
-const deleteUnit = ref<FieldUnit | null>(null);
-
-function openDelete(u: FieldUnit) {
-  if (!u) return;
-  deleteUnit.value = u;
-  deleteOpen.value = true;
-}
-
-// Remove the unit identified by reference from anywhere in the tree.
-// Returns true on success. The caller is responsible for committing.
-function removeUnitByRef(units: FieldUnit[], target: FieldUnit): boolean {
-  const idx = units.indexOf(target);
-  if (idx !== -1) {
-    units.splice(idx, 1);
-    return true;
-  }
-  for (const u of units) {
-    if (u.kind === "loop" && u.items) {
-      if (removeUnitByRef(u.items, target)) return true;
-    }
-  }
-  return false;
+  draft.value.fields = flat;
 }
 
 // ── Generate-template dialog ─────────────────────────────────────────
@@ -545,57 +329,11 @@ async function applyGenerated(shape: string, opts: GeneratorOptions) {
   }
 }
 
-// ── Markdown-template validation ─────────────────────────────────────
-// Live-validates draft.markdown_template via the render module's
-// parser. Cheap (single raymond Parse + AST walk), so a 300ms debounce
-// against keystrokes is plenty - and we skip the call entirely when
-// the editor is empty.
-const templateValidation = ref<ValidationReport | null>(null);
-const templateValidationPending = ref(false);
-let validateTimer: ReturnType<typeof setTimeout> | null = null;
-
-async function runTemplateValidation(src: string) {
-  if (!src || !src.trim()) {
-    templateValidation.value = { ok: true, diagnostics: [] } as ValidationReport;
-    return;
-  }
-  try {
-    templateValidation.value = await RenderSvc.ValidateMarkdownTemplate(src);
-  } catch {
-    templateValidation.value = null;
-  }
-}
-
-watch(
-  () => draft.value?.markdown_template ?? "",
-  (src) => {
-    templateValidationPending.value = true;
-    if (validateTimer) clearTimeout(validateTimer);
-    validateTimer = setTimeout(async () => {
-      await runTemplateValidation(src);
-      templateValidationPending.value = false;
-    }, 300);
-  },
-  { immediate: true },
-);
-
-onBeforeUnmount(() => {
-  if (validateTimer) clearTimeout(validateTimer);
-});
-
-const templateErrorDiagnostic = computed<Diagnostic | null>(() => {
-  const diags = templateValidation.value?.diagnostics ?? [];
-  return diags.find((d) => d.severity === "error") ?? null;
-});
-
-const templateWarningDiagnostics = computed<Diagnostic[]>(() => {
-  const diags = templateValidation.value?.diagnostics ?? [];
-  return diags.filter((d) => d.severity === "warning");
-});
-
-const templateValidationOK = computed(() =>
-  templateValidation.value?.ok === true && (templateValidation.value?.diagnostics?.length ?? 0) === 0,
-);
+const {
+  errorDiagnostic: templateErrorDiagnostic,
+  warningDiagnostics: templateWarningDiagnostics,
+  isOK: templateValidationOK,
+} = useTemplateValidation(() => draft.value?.markdown_template ?? "");
 
 // ── Expression-builder dialog ────────────────────────────────────────
 // Visual builder for sidebar_expression. The dialog is the only way
@@ -861,30 +599,6 @@ const otherFacetKeys = computed(() => {
     .filter((_, i) => i !== editingFacetIndex.value)
     .map((f) => f.key);
 });
-
-const deleteFieldName = computed(() => {
-  const u = deleteUnit.value;
-  if (!u) return "";
-  if (u.kind === "loop") return u.start?.label || u.start?.key || "";
-  return u.field?.label || u.field?.key || "";
-});
-
-function confirmDelete() {
-  const u = deleteUnit.value;
-  if (!u || !draft.value) {
-    deleteOpen.value = false;
-    deleteUnit.value = null;
-    return;
-  }
-  // Deleting a loop unit removes the whole unit (start + items + stop)
-  // in one step - no separate loopstart/loopstop pair-removal walk is
-  // needed. Orphan markers (rendered as plain field rows) drop
-  // individually, which is what the user wants.
-  removeUnitByRef(tree.value, u);
-  void commitTree();
-  deleteOpen.value = false;
-  deleteUnit.value = null;
-}
 
 // ── Delete template ──────────────────────────────────────────────────
 const deleteTplOpen = ref(false);
@@ -1291,21 +1005,11 @@ setTopbarMenu(() => [
           />
         </FormSection>
 
-        <FormSection :title="t('workspace.templates.fields.title')">
-          <div class="fields-content">
-          <p v-if="!draft.fields || draft.fields.length === 0" class="muted small">
-            {{ t('workspace.templates.fields.empty') }}
-          </p>
-          <FieldUnitList
-            v-else
-            :units="tree"
-            :depth="0"
-            @change="commitTree"
-            @edit-unit="openEdit"
-            @delete-unit="openDelete"
-          />
-          </div>
-        </FormSection>
+        <TemplateFieldsSection
+          ref="fieldsSection"
+          :fields="draft.fields ?? []"
+          @update="onFieldsUpdate"
+        />
       </template>
     </template>
   </SplitPane>
@@ -1339,27 +1043,6 @@ setTopbarMenu(() => [
       </button>
     </template>
   </Modal>
-
-  <!-- Field edit / add modal -->
-  <FieldEditModal
-    :open="editOpen"
-    :field="editField"
-    :is-new="editIsNew"
-    @close="editOpen = false"
-    @confirm="applyEdit"
-  />
-
-  <!-- Delete-field confirm -->
-  <ConfirmDialog
-    :open="deleteOpen"
-    :title="t('workspace.templates.field_edit.delete_title')"
-    :message="t('workspace.templates.field_edit.delete_confirm', [deleteFieldName])"
-    :confirm-label="t('workspace.profiles.action.delete')"
-    :cancel-label="t('common.cancel')"
-    variant="danger"
-    @cancel="deleteOpen = false"
-    @confirm="confirmDelete"
-  />
 
   <!-- Delete-template confirm -->
   <ConfirmDialog
