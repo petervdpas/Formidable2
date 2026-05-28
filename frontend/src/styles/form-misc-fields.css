@@ -28,11 +28,21 @@
     cursor: pointer;
 }
 
-/* ── Radio (inline group) ────────────────────────────────────────── */
+/* ── Radio (inline group) ──────────────────────────────────────────
+ * Horizontal by default (single full-width field has the room to
+ * spread); when the field is in two-column mode the parent
+ * .form-field-row.two-column flips us to a vertical stack so the
+ * narrow column doesn't crowd the labels. Mirror rule lives on
+ * .facet-field--radio in facet-picker.css. */
 .radio-row {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
+}
+.form-field-row.two-column .radio-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
 }
 .radio-cell {
     display: flex;

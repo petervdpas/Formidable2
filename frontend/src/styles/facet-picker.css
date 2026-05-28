@@ -356,7 +356,17 @@
   gap: var(--space-2);
 }
 
+/* Radio layout follows the field's two_column setting: horizontal when
+   the field claims full width (lots of room), vertical when it shares
+   a row with another field (narrow). Same rule scopes .radio-row
+   below; both renderers stay in sync without per-component logic. */
 .facet-field--radio {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+.form-field-row.two-column .facet-field--radio {
   flex-direction: column;
   align-items: stretch;
   gap: 4px;
