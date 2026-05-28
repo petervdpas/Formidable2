@@ -23,5 +23,10 @@
   "facet.builder.error.unknown_color": "Unknown color.",
   "facet.builder.error.key_empty": "Key is required.",
   "facet.builder.error.key_invalid": "Key must match a-z, 0-9, _, -.",
-  "facet.builder.error.key_duplicate": "Another facet already uses this key."
+  "facet.builder.error.key_duplicate": "Another facet already uses this key.",
+  "facet.field.unavailable": "Inline facet picker is unavailable in this context.",
+  "facet.field.missing_binding": "This facet field has no binding configured.",
+  "facet.field.unknown_facet": "Bound facet \"{key}\" is not defined on this template.",
+  "facet.field.placeholder": "Not set",
+  "facet.field.clear": "Clear"
 }

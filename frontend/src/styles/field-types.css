@@ -121,6 +121,16 @@
     --field-type-api-border: #80deea;
     --field-type-api-badge:  #4dd0e1;
     --field-type-api-text:   #f7fbfc;
+
+    /* Facet (virtual) - pure highlighter yellow. Owns the bright-yellow
+       slot that no other type uses (nearest neighbours: file-path =
+       orange-amber, table = peach, list/tags = greens). Facets are the
+       record's classifiers / highlighters; the marker-pen association
+       is the UX cue. Dark text on yellow is the legible pairing. */
+    --field-type-facet-bg:     #ffeb3b;
+    --field-type-facet-border: #fbc02d;
+    --field-type-facet-badge:  #f9a825;
+    --field-type-facet-text:   #222222;
 }
 
 /* ── Field row in the Field Information list ─────────────────────── */
@@ -313,6 +323,12 @@
     border-left-color: var(--field-type-api-border);
     color: var(--field-type-api-text);
     --field-row-badge-bg: var(--field-type-api-badge);
+}
+.field-row[data-type="facet"] {
+    background: var(--field-type-facet-bg);
+    border-left-color: var(--field-type-facet-border);
+    color: var(--field-type-facet-text);
+    --field-row-badge-bg: var(--field-type-facet-badge);
 }
 
 .field-row[data-type="loopstart"],

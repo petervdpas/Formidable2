@@ -613,6 +613,25 @@ fields:
 		return fmt.Errorf("field %q not in reloaded fields", key)
 	})
 
+	ctx.Step(`^the loaded field "([^"]*)" has facet_key "([^"]*)" and format "([^"]*)"$`, func(key, wantFK, wantFmt string) error {
+		if w.reloaded == nil {
+			return fmt.Errorf("no reloaded template")
+		}
+		for _, f := range w.reloaded.Fields {
+			if f.Key != key {
+				continue
+			}
+			if f.FacetKey != wantFK {
+				return fmt.Errorf("facet_key = %q, want %q", f.FacetKey, wantFK)
+			}
+			if f.Format != wantFmt {
+				return fmt.Errorf("format = %q, want %q", f.Format, wantFmt)
+			}
+			return nil
+		}
+		return fmt.Errorf("field %q not in reloaded fields", key)
+	})
+
 	ctx.Step(`^the marshaled YAML does not contain "([^"]*)"$`, func(unwanted string) error {
 		if strings.Contains(string(w.yamlBlob), unwanted) {
 			return fmt.Errorf("YAML should not contain %q; got:\n%s", unwanted, w.yamlBlob)
@@ -758,6 +777,12 @@ func tableToFields(table *godog.Table) []Field {
 		}
 		if i, ok := headers["label"]; ok {
 			f.Label = r.Cells[i].Value
+		}
+		if i, ok := headers["facet_key"]; ok {
+			f.FacetKey = r.Cells[i].Value
+		}
+		if i, ok := headers["format"]; ok {
+			f.Format = r.Cells[i].Value
 		}
 		out = append(out, f)
 	}

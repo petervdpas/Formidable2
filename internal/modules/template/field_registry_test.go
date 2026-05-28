@@ -22,6 +22,7 @@ func TestValidate_KnownTypesNotFlaggedAsUnknown(t *testing.T) {
 		"textarea", "number", "range", "date",
 		"file-path", "folder-path",
 		"list", "table", "image", "link", "tags", "api",
+		"facet",
 	}
 	for _, ty := range known {
 		f := Field{Key: "k", Type: ty}

@@ -18,6 +18,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: true, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"textarea": {
@@ -27,6 +28,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: true, Format: true, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"number": {
@@ -36,6 +38,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"range": {
@@ -45,6 +48,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 		OptionsShape: &FixedOptionsShape{
 			Rows: []FixedOptionRow{
@@ -62,6 +66,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"boolean": {
@@ -71,6 +76,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 		OptionsShape: &FixedOptionsShape{
 			Rows: []FixedOptionRow{
@@ -87,6 +93,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"multioption": {
@@ -96,6 +103,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"radio": {
@@ -105,6 +113,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"file-path": {
@@ -114,6 +123,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: true, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"folder-path": {
@@ -123,6 +133,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: true, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"list": {
@@ -132,6 +143,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: true,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"table": {
@@ -141,6 +153,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: true,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"image": {
@@ -150,6 +163,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"link": {
@@ -159,6 +173,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: true,
 			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"tags": {
@@ -168,6 +183,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
+			FacetKey: false,
 		},
 	},
 	"api": {
@@ -177,6 +193,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: false, Options: false, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"guid": {
@@ -186,6 +203,17 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+	},
+	"facet": {
+		ID: "facet", Virtual: true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: true, Description: true,
+			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			Readonly: false, Format: true, UseInStatistics: false,
+			FacetKey: true,
 		},
 	},
 	"looper": {
@@ -195,6 +223,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"loopstart": {
@@ -204,6 +233,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: false, Options: false, SummaryField: true, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 	"loopstop": {
@@ -213,6 +243,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
 		},
 	},
 }
@@ -226,6 +257,6 @@ var orderedTypes = []string{
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
-	"api", "guid",
+	"api", "guid", "facet",
 	"looper", "loopstart", "loopstop",
 }

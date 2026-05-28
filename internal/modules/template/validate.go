@@ -52,7 +52,63 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, levelScopeMismatchErrors(t.Fields, canonical)...)
 	errs = append(errs, expressionItemLevelScopeErrors(canonical)...)
 	errs = append(errs, facetsErrors(t.Facets)...)
+	errs = append(errs, facetFieldErrors(t)...)
 
+	return errs
+}
+
+// facetFieldErrors flags problems specific to virtual facet fields:
+// missing FacetKey, FacetKey not matched by any template-declared
+// facet, or Format set to anything other than "" / "radio" / "dropdown".
+// The empty-Format case is a green path: Normalize coerces it to
+// "radio" before save, but Validate runs before Normalize on some
+// import paths so we must accept it as valid here.
+func facetFieldErrors(t *Template) []ValidationError {
+	if t == nil {
+		return nil
+	}
+	declared := map[string]bool{}
+	for _, f := range t.Facets {
+		if f.Key != "" {
+			declared[f.Key] = true
+		}
+	}
+	var errs []ValidationError
+	for i := range t.Fields {
+		f := t.Fields[i]
+		if f.Type != "facet" {
+			continue
+		}
+		ff := f
+		if f.FacetKey == "" {
+			errs = append(errs, ValidationError{
+				Type:    "facet-field-missing-key",
+				Field:   &ff,
+				Index:   i,
+				Key:     f.Key,
+				Message: "Facet field is missing facet_key",
+			})
+		} else if !declared[f.FacetKey] {
+			errs = append(errs, ValidationError{
+				Type:    "facet-field-unknown-key",
+				Field:   &ff,
+				Index:   i,
+				Key:     f.Key,
+				Detail:  map[string]any{"facet_key": f.FacetKey},
+				Message: "Facet field references unknown facet: " + f.FacetKey,
+			})
+		}
+		if f.Format != "" && !facetFormats[f.Format] {
+			errs = append(errs, ValidationError{
+				Type:    "facet-field-bad-format",
+				Field:   &ff,
+				Index:   i,
+				Key:     f.Key,
+				Detail:  map[string]any{"format": f.Format},
+				Message: "Facet field format must be radio or dropdown; got: " + f.Format,
+			})
+		}
+	}
 	return errs
 }
 

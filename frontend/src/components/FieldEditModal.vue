@@ -19,7 +19,7 @@ import {
   lockedColumnsFor,
   SUPPORTED_OPTION_TYPES,
 } from "../types/option-presets";
-import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field, Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useToast } from "../composables/useToast";
 import { formatError } from "../utils/templateValidation";
 import {
@@ -42,6 +42,12 @@ const props = defineProps<{
    *  so workflow-irrelevant types (image, list, api, …) are
    *  hidden from the dropdown. */
   allowedTypes?: string[];
+  /** Facets declared on the surrounding template - used to populate
+   *  the facet_key binding dropdown when the user picks type "facet".
+   *  Empty (the default) means "no facets configured": the facet rows
+   *  still show but the binding picker is empty and Confirm is
+   *  disabled with a hint pointing the user at the Facets tab. */
+  availableFacets?: Facet[];
 }>();
 
 const emit = defineEmits<{
@@ -62,7 +68,38 @@ const expressionItemInvalid = computed<boolean>(() => {
   return scope > 0 && !!draft.value.expression_item;
 });
 
-const canConfirm = computed<boolean>(() => !expressionItemInvalid.value);
+const isFacetType = computed(() => draft.value?.type === "facet");
+
+const facetBindingMissing = computed<boolean>(() => {
+  if (!isFacetType.value) return false;
+  const key = (draft.value?.facet_key ?? "").trim();
+  if (key === "") return true;
+  const known = (props.availableFacets ?? []).some((f) => f.key === key);
+  return !known;
+});
+
+const canConfirm = computed<boolean>(
+  () => !expressionItemInvalid.value && !facetBindingMissing.value,
+);
+
+const facetBindingOptions = computed(() =>
+  (props.availableFacets ?? []).map((f) => ({ value: f.key, label: f.key })),
+);
+
+const facetFormatOptions = computed(() => [
+  { value: "radio", label: t("workspace.templates.field_edit.facet.presentation_radio") },
+  { value: "dropdown", label: t("workspace.templates.field_edit.facet.presentation_dropdown") },
+]);
+
+const textareaFormatOptions = computed(() => [
+  { value: "markdown", label: "Markdown" },
+  { value: "plain", label: "Plain text" },
+]);
+
+const formatOptionsForType = computed(() => {
+  if (isFacetType.value) return facetFormatOptions.value;
+  return textareaFormatOptions.value;
+});
 
 watch(
   () => draft.value?.expression_item,
@@ -147,6 +184,9 @@ watch(
     if (type === "textarea" && !draft.value.format) {
       draft.value.format = "markdown";
     }
+    if (type === "facet" && !draft.value.format) {
+      draft.value.format = "radio";
+    }
     // A guid field's key is always "id" - mirror backend Normalize
     // (template/normalize.go) so the readonly Key input shows it
     // immediately instead of an empty/stale key.
@@ -168,6 +208,19 @@ function onTypeChange(next: string) {
   if (next !== prev && optionSignature(next) !== optionSignature(prev)) {
     draft.value.options = [];
     draft.value.statistics_columns = [];
+  }
+  // Clear facet_key when leaving facet (Normalize would strip it on
+  // save anyway, but the UI shouldn't carry a stale binding while the
+  // new type's editor sections are visible). When entering facet,
+  // reset format to the canonical "radio" if currently empty/unknown.
+  if (prev === "facet" && next !== "facet") {
+    draft.value.facet_key = "";
+  }
+  if (next === "facet") {
+    if (!draft.value.facet_key) draft.value.facet_key = "";
+    if (draft.value.format !== "radio" && draft.value.format !== "dropdown") {
+      draft.value.format = "radio";
+    }
   }
   draft.value.type = next;
 }
@@ -392,14 +445,31 @@ const dialogStyle = computed<Record<string, string>>(() => {
 
         <FormRow
           v-if="showRow('format')"
-          :label="t('workspace.templates.field_edit.row.format')"
+          :label="isFacetType
+            ? t('workspace.templates.field_edit.facet.presentation_label')
+            : t('workspace.templates.field_edit.row.format')"
         >
           <SelectField
             v-model="draft.format"
-            :options="[
-              { value: 'markdown', label: 'Markdown' },
-              { value: 'plain', label: 'Plain text' },
-            ]"
+            :options="formatOptionsForType"
+          />
+        </FormRow>
+
+        <FormRow
+          v-if="isFacetType"
+          :label="t('workspace.templates.field_edit.facet.binding_label')"
+        >
+          <p
+            v-if="(availableFacets ?? []).length === 0"
+            class="muted small"
+          >
+            {{ t('workspace.templates.field_edit.facet.binding_empty_hint') }}
+          </p>
+          <SelectField
+            v-else
+            v-model="draft.facet_key"
+            :options="facetBindingOptions"
+            :placeholder="t('workspace.templates.field_edit.facet.binding_placeholder')"
           />
         </FormRow>
 

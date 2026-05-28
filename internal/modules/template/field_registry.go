@@ -22,6 +22,7 @@ const (
 	attrReadonly        = "readonly"
 	attrFormat          = "format"
 	attrUseInStatistics = "use_in_statistics"
+	attrFacetKey        = "facet_key"
 )
 
 // Abilities is the per-type ability vector. Each bool gates a single
@@ -44,17 +45,22 @@ type Abilities struct {
 	Readonly        bool `json:"readonly"`
 	Format          bool `json:"format"`
 	UseInStatistics bool `json:"use_in_statistics"`
+	FacetKey        bool `json:"facet_key"`
 }
 
 // FieldDescriptor is the per-type record. MetaOnly flags marker types
 // (looper, loopstart, loopstop) that don't carry a stored value but
-// still participate in validation. OptionsShape is non-nil when the
-// type's options array has a fixed arity (e.g. boolean = exactly two
-// rows for the True/False labels) - the frontend's OptionsEditor
-// gates add/remove on this and pre-fills with the supplied defaults.
+// still participate in validation. Virtual flags types that participate
+// in template layout + validation but do NOT seed a slot in
+// storage.Form.Data; their value lives elsewhere (e.g. facet → meta.facets).
+// OptionsShape is non-nil when the type's options array has a fixed
+// arity (e.g. boolean = exactly two rows for the True/False labels) -
+// the frontend's OptionsEditor gates add/remove on this and pre-fills
+// with the supplied defaults.
 type FieldDescriptor struct {
 	ID           string             `json:"id"`
 	MetaOnly     bool               `json:"meta_only"`
+	Virtual      bool               `json:"virtual"`
 	Abilities    Abilities          `json:"abilities"`
 	OptionsShape *FixedOptionsShape `json:"options_shape,omitempty"`
 }
@@ -63,6 +69,15 @@ type FieldDescriptor struct {
 func IsKnownFieldType(t string) bool {
 	_, ok := fieldDescriptors[t]
 	return ok
+}
+
+// IsVirtualFieldType reports whether the given type id is registered
+// as a virtual field. Virtual fields do not occupy a slot in
+// storage.Form.Data; storage.Sanitize uses this to skip them when
+// seeding the data map.
+func IsVirtualFieldType(t string) bool {
+	def, ok := fieldDescriptors[t]
+	return ok && def.Virtual
 }
 
 // AllFieldTypes returns the matrix as a slice in the stable order
@@ -86,7 +101,7 @@ func AllFieldTypes() []FieldDescriptor {
 var allEnforcedAttrs = []string{
 	attrLabel, attrDescription, attrDefault, attrOptions, attrSummaryField,
 	attrPrimaryKey, attrExpressionItem, attrTwoColumn, attrCollapsible,
-	attrReadonly, attrFormat, attrUseInStatistics,
+	attrReadonly, attrFormat, attrUseInStatistics, attrFacetKey,
 }
 
 // abilityFor returns the Abilities bool for a given attr name.
@@ -122,6 +137,8 @@ func (a Abilities) abilityFor(attr string) bool {
 		return a.Format
 	case attrUseInStatistics:
 		return a.UseInStatistics
+	case attrFacetKey:
+		return a.FacetKey
 	}
 	return true
 }
@@ -176,6 +193,8 @@ func propertyIsSet(f Field, attr string) bool {
 		return f.Format != ""
 	case attrUseInStatistics:
 		return f.UseInStatistics
+	case attrFacetKey:
+		return f.FacetKey != ""
 	}
 	return false
 }

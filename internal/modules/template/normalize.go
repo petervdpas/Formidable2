@@ -14,6 +14,13 @@ var textareaFormats = map[string]bool{
 	"plain":    true,
 }
 
+// facetFormats are the allowed presentation modes for a virtual facet
+// field. Empty / unknown values are coerced to "radio" by Normalize.
+var facetFormats = map[string]bool{
+	"radio":    true,
+	"dropdown": true,
+}
+
 // Normalize coerces a Template's fields into the shape the rest of the
 // pipeline (and downstream renderers) expects, mirroring the original
 // JS field-schema normalizer. Idempotent: safe to call repeatedly.
@@ -118,6 +125,8 @@ func clearProperty(f *Field, attr string) {
 	case attrUseInStatistics:
 		f.UseInStatistics = false
 		f.StatisticsColumns = nil
+	case attrFacetKey:
+		f.FacetKey = ""
 	}
 }
 
@@ -132,7 +141,15 @@ func normalizeField(f *Field) {
 		f.Format = canon
 		return
 	}
-	// All non-textarea types: format has no meaning, drop it.
+	if f.Type == "facet" {
+		canon := strings.ToLower(strings.TrimSpace(f.Format))
+		if !facetFormats[canon] {
+			canon = "radio"
+		}
+		f.Format = canon
+		return
+	}
+	// All other types: format has no meaning, drop it.
 	f.Format = ""
 }
 

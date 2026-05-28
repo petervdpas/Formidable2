@@ -63,6 +63,7 @@ export class Abilities {
     "readonly": boolean;
     "format": boolean;
     "use_in_statistics": boolean;
+    "facet_key": boolean;
 
     /** Creates a new Abilities instance. */
     constructor($$source: Partial<Abilities> = {}) {
@@ -107,6 +108,9 @@ export class Abilities {
         }
         if (!("use_in_statistics" in $$source)) {
             this["use_in_statistics"] = false;
+        }
+        if (!("facet_key" in $$source)) {
+            this["facet_key"] = false;
         }
 
         Object.assign(this, $$source);
@@ -397,6 +401,15 @@ export class Field {
     "collection"?: string;
     "map"?: APIMap[];
 
+    /**
+     * facet-specific. FacetKey binds a virtual facet field to one of
+     * the template's declared facets by key. Value is read/written
+     * against meta.facets[FacetKey] (FacetState{Set, Selected}),
+     * never against data. Format on a facet field carries the
+     * presentation mode ("radio" | "dropdown"; empty = radio).
+     */
+    "facet_key"?: string;
+
     /** Creates a new Field instance. */
     constructor($$source: Partial<Field> = {}) {
         if (!("key" in $$source)) {
@@ -460,14 +473,18 @@ export class Field {
 /**
  * FieldDescriptor is the per-type record. MetaOnly flags marker types
  * (looper, loopstart, loopstop) that don't carry a stored value but
- * still participate in validation. OptionsShape is non-nil when the
- * type's options array has a fixed arity (e.g. boolean = exactly two
- * rows for the True/False labels) - the frontend's OptionsEditor
- * gates add/remove on this and pre-fills with the supplied defaults.
+ * still participate in validation. Virtual flags types that participate
+ * in template layout + validation but do NOT seed a slot in
+ * storage.Form.Data; their value lives elsewhere (e.g. facet → meta.facets).
+ * OptionsShape is non-nil when the type's options array has a fixed
+ * arity (e.g. boolean = exactly two rows for the True/False labels) -
+ * the frontend's OptionsEditor gates add/remove on this and pre-fills
+ * with the supplied defaults.
  */
 export class FieldDescriptor {
     "id": string;
     "meta_only": boolean;
+    "virtual": boolean;
     "abilities": Abilities;
     "options_shape"?: FixedOptionsShape | null;
 
@@ -478,6 +495,9 @@ export class FieldDescriptor {
         }
         if (!("meta_only" in $$source)) {
             this["meta_only"] = false;
+        }
+        if (!("virtual" in $$source)) {
+            this["virtual"] = false;
         }
         if (!("abilities" in $$source)) {
             this["abilities"] = (new Abilities());
@@ -490,14 +510,14 @@ export class FieldDescriptor {
      * Creates a new FieldDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldDescriptor {
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType12;
+        const $$createField3_0 = $$createType10;
+        const $$createField4_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
-            $$parsedSource["abilities"] = $$createField2_0($$parsedSource["abilities"]);
+            $$parsedSource["abilities"] = $$createField3_0($$parsedSource["abilities"]);
         }
         if ("options_shape" in $$parsedSource) {
-            $$parsedSource["options_shape"] = $$createField3_0($$parsedSource["options_shape"]);
+            $$parsedSource["options_shape"] = $$createField4_0($$parsedSource["options_shape"]);
         }
         return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
     }

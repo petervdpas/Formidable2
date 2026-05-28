@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Read(//home/peter/Projects/Formidable/**)"
+      "Read(//home/peter/Projects/Formidable/**)",
+      "Bash(go test *)"
     ]
   }
 }

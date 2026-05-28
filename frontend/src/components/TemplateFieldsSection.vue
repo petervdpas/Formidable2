@@ -9,7 +9,7 @@ import {
   Service as TemplateSvc,
   FieldUnit,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field, Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { recomputeLevelScopes } from "../utils/fieldScopes";
 
 // TemplateFieldsSection
@@ -26,6 +26,10 @@ import { recomputeLevelScopes } from "../utils/fieldScopes";
 
 const props = defineProps<{
   fields: Field[];
+  /** Facets declared on the surrounding template draft. Threaded down
+   *  to FieldEditModal so the virtual `facet` field type can bind to
+   *  one by key. Defaults to [] when the parent doesn't pass it. */
+  facets?: Facet[];
 }>();
 
 const emit = defineEmits<{
@@ -207,6 +211,7 @@ defineExpose({ openAddField });
     :open="editOpen"
     :field="editField"
     :is-new="editIsNew"
+    :available-facets="facets ?? []"
     @close="editOpen = false"
     @confirm="applyEdit"
   />

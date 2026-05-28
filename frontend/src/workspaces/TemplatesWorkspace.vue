@@ -1008,6 +1008,7 @@ setTopbarMenu(() => [
         <TemplateFieldsSection
           ref="fieldsSection"
           :fields="draft.fields ?? []"
+          :facets="draft.facets ?? []"
           @update="onFieldsUpdate"
         />
       </template>

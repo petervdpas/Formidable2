@@ -226,6 +226,13 @@ type Field struct {
 	Collection string   `yaml:"collection,omitempty" json:"collection,omitempty"`
 	Map        []APIMap `yaml:"map,omitempty" json:"map,omitempty"`
 
+	// facet-specific. FacetKey binds a virtual facet field to one of
+	// the template's declared facets by key. Value is read/written
+	// against meta.facets[FacetKey] (FacetState{Set, Selected}),
+	// never against data. Format on a facet field carries the
+	// presentation mode ("radio" | "dropdown"; empty = radio).
+	FacetKey string `yaml:"facet_key,omitempty" json:"facet_key,omitempty"`
+
 	// Extra fields preserved verbatim (e.g. plugin-specific metadata).
 	Extra map[string]any `yaml:",inline" json:"-"`
 }

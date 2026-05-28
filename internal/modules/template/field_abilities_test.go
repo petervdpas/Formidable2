@@ -36,8 +36,8 @@ func TestAbilities_SummaryField_OnlyOnLoopstart(t *testing.T) {
 	assertAbilityMatchesSet(t, "SummaryField", allowed, func(a Abilities) bool { return a.SummaryField })
 }
 
-func TestAbilities_Format_OnlyOnTextarea(t *testing.T) {
-	allowed := stringSet("textarea")
+func TestAbilities_Format_OnlyOnTextareaAndFacet(t *testing.T) {
+	allowed := stringSet("textarea", "facet")
 	assertAbilityMatchesSet(t, "Format", allowed, func(a Abilities) bool { return a.Format })
 }
 
@@ -69,6 +69,11 @@ func TestAbilities_PrimaryKey_DisabledOnGuidAndLoopMeta(t *testing.T) {
 func TestAbilities_TwoColumn_DisabledOnGuidApiAndLoopMeta(t *testing.T) {
 	disallowed := stringSet("guid", "api", "looper", "loopstart", "loopstop")
 	assertAbilityDisabledOn(t, "TwoColumn", disallowed, func(a Abilities) bool { return a.TwoColumn })
+}
+
+func TestAbilities_FacetKey_OnlyOnFacet(t *testing.T) {
+	allowed := stringSet("facet")
+	assertAbilityMatchesSet(t, "FacetKey", allowed, func(a Abilities) bool { return a.FacetKey })
 }
 
 func TestAbilities_UseInStatistics_OnlyOnAggregatableTypes(t *testing.T) {

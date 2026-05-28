@@ -23,5 +23,10 @@
   "facet.builder.error.unknown_color": "Onbekende kleur.",
   "facet.builder.error.key_empty": "Sleutel is verplicht.",
   "facet.builder.error.key_invalid": "Sleutel moet voldoen aan a-z, 0-9, _, -.",
-  "facet.builder.error.key_duplicate": "Een ander facet gebruikt deze sleutel al."
+  "facet.builder.error.key_duplicate": "Een ander facet gebruikt deze sleutel al.",
+  "facet.field.unavailable": "Inline facet-keuze is niet beschikbaar in deze context.",
+  "facet.field.missing_binding": "Dit facet-veld heeft geen koppeling.",
+  "facet.field.unknown_facet": "Gekoppeld facet \"{key}\" is niet gedefinieerd op dit template.",
+  "facet.field.placeholder": "Niet ingesteld",
+  "facet.field.clear": "Wissen"
 }

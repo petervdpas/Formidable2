@@ -28,6 +28,7 @@ import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
+import { FACET_CONTEXT_KEY } from "../composables/facetContext";
 import { useListKeyNav } from "../composables/useListKeyNav";
 import { setNavGuard } from "../composables/useNavGuard";
 import { usePDFActivation } from "../composables/usePDFActivation";
@@ -162,6 +163,19 @@ function onFacetStateChange(key: string, state: FacetState) {
     selected: state.selected ?? "",
   });
 }
+
+// Bridge for inline virtual facet field renderers (FormFieldFacet).
+// Same data, same writer as the StorageMetaBlock corner picker, so
+// both setters stay in sync without a second source of truth.
+const facetsStateView = computed<{ [key: string]: FacetState | undefined }>(() => {
+  return draft.value?.meta?.facets ?? {};
+});
+
+provide(FACET_CONTEXT_KEY, {
+  facets,
+  state: facetsStateView,
+  onChange: onFacetStateChange,
+});
 
 // ── Form list (sidebar) ──────────────────────────────────────────────
 const summaries = ref<FormSummary[]>([]);

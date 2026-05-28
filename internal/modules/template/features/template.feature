@@ -375,7 +375,7 @@ Feature: Template management
     And the registry contains "table"
     And the registry contains "loopstart"
     And the registry first id is "text"
-    And the registry size is 21
+    And the registry size is 22
 
   # ── Collapsible YAML round-trip ───────────────────────────────────
 
@@ -390,3 +390,34 @@ Feature: Template management
       | t   | text |
     When I marshal the template and reload it
     Then the marshaled YAML does not contain "collapsible"
+
+  # ── Virtual facet field ───────────────────────────────────────────
+
+  Scenario: Facet field round-trips through YAML when bound to a declared facet
+    Given a template with fields:
+      | key           | type  | facet_key | format |
+      | title         | text  |           |        |
+      | status_inline | facet | status    | radio  |
+    And the template has facet "status" with icon "fa-flag" and options:
+      | label | color |
+      | OPEN  | blue  |
+    When I marshal the template and reload it
+    Then the loaded field "status_inline" has facet_key "status" and format "radio"
+
+  Scenario: Validate flags a facet field with no facet_key
+    Given a template with fields:
+      | key | type  |
+      | f   | facet |
+    And the template has facet "status" with icon "fa-flag" and options:
+      | label | color |
+      | OPEN  | blue  |
+    Then validation reports a "facet-field-missing-key" error
+
+  Scenario: Validate flags a facet field bound to an undeclared facet
+    Given a template with fields:
+      | key | type  | facet_key |
+      | f   | facet | ghost     |
+    And the template has facet "status" with icon "fa-flag" and options:
+      | label | color |
+      | OPEN  | blue  |
+    Then validation reports a "facet-field-unknown-key" error

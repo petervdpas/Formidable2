@@ -53,6 +53,7 @@ const LABEL_KEYS: Record<string, string> = {
   tags: "workspace.templates.field_type.tags",
   api: "workspace.templates.field_type.api",
   guid: "workspace.templates.field_type.guid",
+  facet: "workspace.templates.field_type.facet",
   looper: "workspace.templates.field_type.looper",
   loopstart: "workspace.templates.field_type.loopstart",
   loopstop: "workspace.templates.field_type.loopstop",

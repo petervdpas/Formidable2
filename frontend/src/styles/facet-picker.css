@@ -344,3 +344,56 @@
   gap: var(--space-3);
   margin-top: var(--space-2);
 }
+
+/* ── Inline virtual facet field (FormFieldFacet) ───────────────────────
+   Lives next to the regular form field renderers; reuses the
+   .facet-swatch-* palette already defined above. */
+
+.facet-field {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.facet-field--radio {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.facet-field-radio-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.facet-field-radio-cell:hover {
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+}
+
+.facet-field-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border);
+  flex: 0 0 auto;
+}
+
+.facet-field-radio-label {
+  font-size: 13px;
+}
+
+.facet-field-clear {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.facet-field-unavailable {
+  padding: 4px 0;
+  font-style: italic;
+}

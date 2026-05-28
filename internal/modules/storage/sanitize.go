@@ -56,6 +56,13 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		if skip[f.Key] {
 			continue
 		}
+		// Virtual fields (e.g. facet) participate in template layout but
+		// do NOT seed a slot in data; their value lives elsewhere (facet
+		// → meta.facets[facet_key]). Drop any stray rawData entry that
+		// names a virtual key so old payloads can't smuggle data in.
+		if template.IsVirtualFieldType(f.Type) {
+			continue
+		}
 		if v, ok := rawData[f.Key]; ok {
 			data[f.Key] = v
 		} else if f.Default != nil {
