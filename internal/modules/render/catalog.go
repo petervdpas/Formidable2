@@ -104,6 +104,7 @@ var builtinHelpers = []HelperDescriptor{
 	{Name: "fieldDescription", Signature: `{{fieldDescription "key"}}`, Description: "Description string from the field's template definition.", Example: `{{fieldDescription "status"}}`, Category: HelperCategoryField},
 	{Name: "fieldMeta", Signature: `{{fieldMeta "key" "prop"}}`, Description: "Read a property off the field's template definition (`key`, `type`, `label`, `description`, `options`, or empty for the whole field).", Example: `{{fieldMeta "status" "type"}}`, Category: HelperCategoryField},
 	{Name: "fieldRaw", Signature: `{{fieldRaw "key"}}`, Description: "Raw stored value for a field - bypasses the formatting in `{{field}}`.", Example: `{{fieldRaw "tags"}}`, Category: HelperCategoryField},
+	{Name: "virtual-field", Signature: `{{virtual-field "key"}}`, Description: "Render a virtual (data-less) field's projection by template field key. Today: facet fields → the selected option label, empty when unset. Use `{{field}}` for regular fields; this helper fails safe to empty for any non-virtual key.", Example: `{{virtual-field "status_inline"}}`, Category: HelperCategoryField},
 
 	// ── image ────────────────────────────────────────────────────
 	{Name: "imageBase64", Signature: `{{imageBase64 "key"}}`, Description: "`data:<mime>;base64,…` URL for an image field's stored filename. Used for self-contained markdown exports.", Example: `![logo]({{imageBase64 "logo"}})`, Category: HelperCategoryImage},

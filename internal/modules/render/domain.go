@@ -115,13 +115,34 @@ func (m *Manager) RenderMarkdown(templateName, datafile string) (string, error) 
 		return "", fmt.Errorf("render: load template %q: %w", templateName, err)
 	}
 	values := map[string]any{}
+	var facets map[string]string
 	if datafile != "" {
 		if loaded := m.storage.LoadForm(templateName, datafile); loaded != nil {
 			values = loaded.Data
+			facets = flattenFacets(loaded.Meta.Facets)
 		}
 	}
 	opts := m.optionsFor(templateName, datafile)
+	opts.Facets = facets
 	return RenderMarkdown(values, tpl, opts)
+}
+
+// flattenFacets reduces the storage-side FacetState map to the
+// {facetKey: selectedLabel} shape the renderer consumes. Unset
+// entries (set=false) drop out so {{virtual-field}} surfaces empty
+// for an explicitly cleared facet, never the stale Selected string.
+func flattenFacets(in map[string]storage.FacetState) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		if !v.Set {
+			continue
+		}
+		out[k] = v.Selected
+	}
+	return out
 }
 
 // RenderHTMLOnly is exposed as a Wails method so Vue can re-render

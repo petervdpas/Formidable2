@@ -250,6 +250,11 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	// Implementation lives in helpers_field.go.
 	registerFieldHelper(tpl, opts)
 
+	// {{virtual-field "key"}} - renders a virtual (data-less) field's
+	// projection. Today: facet → selected label via opts.Facets.
+	// Implementation lives in helpers_virtual.go.
+	registerVirtualFieldHelper(tpl, opts, rootFields)
+
 	// ── meta helpers ────────────────────────────────────────────
 	//
 	// Identity of the (template, datafile) pair being rendered. Plug

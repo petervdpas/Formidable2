@@ -65,6 +65,15 @@ type Options struct {
 	// strings are tolerated - the helpers then expand to "".
 	TemplateFilename string
 	Datafile         string
+
+	// Facets is the per-record facet projection consumed by the
+	// {{virtual-field}} helper: map[facetKey]selectedLabel, with
+	// missing / unset entries treated as the empty string. Kept as
+	// a plain string-to-string map (rather than importing the
+	// storage.FacetState type) so the render package stays decoupled
+	// from storage - the Manager flattens loaded.Meta.Facets into
+	// this shape before calling RenderMarkdown.
+	Facets map[string]string
 }
 
 // Result is the dual-stage output of RenderForm.
