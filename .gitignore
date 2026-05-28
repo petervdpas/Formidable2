@@ -9,6 +9,11 @@ frontend/node_modules
 build/linux/appimage/build
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 
+# Rendered at build time from the matching .tmpl files (carries
+# __VERSION__ marker) by both Actions and `wails3 task windows:render:resources`.
+build/windows/wails.exe.manifest
+build/windows/info.json
+
 # Runtime user data: lives under context_folder which defaults to ./Examples
 # in dev. The Examples/ tree is dev-only sample data and never tracked.
 Examples/

@@ -131,13 +131,14 @@ jobs:
         shell: pwsh
         run: wails3 generate bindings -clean -ts
 
-      - name: Patch version into Windows resource files
-        # PE resources (file_version, ProductVersion, manifest assemblyIdentity)
-        # are baked at .syso compile time and don't pick up the ldflags
-        # injection used for about.Version. Rewrite them from the tag so the
-        # binary's Properties dialog and uninstaller registry entry match
-        # the release. Non-numeric VERSION (dev builds, workflow_dispatch)
-        # falls back to 0.0.0 since PE FixedFileInfo requires numeric.
+      - name: Render Windows resource templates
+        # build/windows/{wails.exe.manifest,info.json} are gitignored
+        # build artifacts. The committed source lives in matching .tmpl
+        # files carrying a literal __VERSION__ marker. Substitute the
+        # release tag (or pad to 3-part 0.0.0 for non-numeric workflow_dispatch
+        # builds; PE FixedFileInfo requires numeric) and write the rendered
+        # files at the paths wails3 generate syso reads in the next step.
+        # Local builds run the equivalent render:resources Task target.
         shell: pwsh
         run: |
           $ver = "${{ steps.version.outputs.VERSION }}"
@@ -148,20 +149,16 @@ jobs:
           }
           while ($parts.Count -lt 3) { $parts += '0' }
           $ver3 = ($parts[0..2]) -join '.'
-          $ver4 = "$ver3.0"
 
-          $infoPath = "build/windows/info.json"
-          $info = Get-Content $infoPath -Raw | ConvertFrom-Json
-          $info.fixed.file_version = $ver3
-          $info.info.'0000'.ProductVersion = $ver3
-          $info | ConvertTo-Json -Depth 10 | Set-Content $infoPath -NoNewline
+          (Get-Content "build/windows/wails.exe.manifest.tmpl" -Raw) `
+            -replace '__VERSION__', $ver3 |
+            Set-Content "build/windows/wails.exe.manifest" -NoNewline
 
-          $manifestPath = "build/windows/wails.exe.manifest"
-          $manifest = Get-Content $manifestPath -Raw
-          $manifest = $manifest -replace '(name="eu\.mnemonics\.formidable"\s+version=)"[^"]*"', ('$1"' + $ver4 + '"')
-          Set-Content $manifestPath -Value $manifest -NoNewline
+          (Get-Content "build/windows/info.json.tmpl" -Raw) `
+            -replace '__VERSION__', $ver3 |
+            Set-Content "build/windows/info.json" -NoNewline
 
-          Write-Host "Patched PE versions: file/ProductVersion=$ver3, manifest=$ver4"
+          Write-Host "Rendered PE resources at version $ver3 (manifest gets .0 appended via template)"
 
       - name: Generate Windows resource file (.syso)
         shell: pwsh
@@ -179,7 +176,7 @@ jobs:
           $ver = "${{ steps.version.outputs.VERSION }}"
           New-Item -ItemType Directory -Force -Path bin | Out-Null
           go build -tags production -trimpath -buildvcs=false `
-            -ldflags="-buildid= -H windowsgui -X ${env:VERSION_PATH}=$ver" `
+            -ldflags="-s -w -buildid= -H windowsgui -X ${env:VERSION_PATH}=$ver" `
             -o bin/Formidable.exe .
           Remove-Item *.syso
 
@@ -282,7 +279,7 @@ jobs:
           mkdir -p bin
           VERSION="${{ steps.version.outputs.VERSION }}"
           go build -tags production -trimpath -buildvcs=false \
-            -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
+            -ldflags="-s -w -buildid= -X ${VERSION_PATH}=${VERSION}" \
             -o bin/Formidable .
 
       - name: Patch nfpm version
@@ -297,14 +294,14 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p dist
-          # Portable tarball — version-free filename.
+          # Portable tarball, version-free filename.
           STAGE="$(mktemp -d)/Formidable-linux-amd64"
           mkdir -p "$STAGE"
           cp bin/Formidable "$STAGE/"
           cp build/appicon.png "$STAGE/Formidable.png"
           [ -f README.md ] && cp README.md "$STAGE/"
           tar -C "$(dirname "$STAGE")" -czf dist/Formidable-linux-amd64.tar.gz "$(basename "$STAGE")"
-          # .deb — rename the versioned nfpm output to a version-free name.
+          # .deb: rename the versioned nfpm output to a version-free name.
           # Match by extension to avoid casing surprises (wails3 -name "Formidable"
           # produces Formidable_*.deb, nfpm yaml's lowercase produces formidable_*.deb).
           mv bin/*.deb dist/Formidable-linux-amd64.deb
@@ -381,7 +378,7 @@ jobs:
           mkdir -p bin
           VERSION="${{ steps.version.outputs.VERSION }}"
           go build -tags production -trimpath -buildvcs=false \
-            -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
+            -ldflags="-s -w -buildid= -X ${VERSION_PATH}=${VERSION}" \
             -o bin/Formidable .
 
       - name: Patch nfpm version
@@ -467,7 +464,7 @@ jobs:
           mkdir -p bin
           GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-s -w -buildid= -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable .
 
           sed -i "s/^version:.*/version: \"${VERSION}\"/" build/linux/nfpm/nfpm.yaml
@@ -557,11 +554,11 @@ jobs:
           mkdir -p bin
           GOOS=darwin GOARCH=amd64 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-s -w -buildid= -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable-amd64 .
           GOOS=darwin GOARCH=arm64 \
             go build -tags production -trimpath -buildvcs=false \
-              -ldflags="-buildid= -X ${VERSION_PATH}=${VERSION}" \
+              -ldflags="-s -w -buildid= -X ${VERSION_PATH}=${VERSION}" \
               -o bin/Formidable-arm64 .
           lipo -create -output bin/Formidable bin/Formidable-amd64 bin/Formidable-arm64
           rm bin/Formidable-amd64 bin/Formidable-arm64
@@ -599,7 +596,7 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p dist
-          cp bin/Formidable-macos-universal.dmg dist/
+          cp bin/Formidable-macos-universal.dmg "dist/Formidable-macos-universal.dmg"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

@@ -1,10 +1,10 @@
 {
 	"fixed": {
-		"file_version": "2.4.5"
+		"file_version": "2.4.26"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "2.4.5",
+			"ProductVersion": "2.4.26",
 			"CompanyName": "Peter van de Pas",
 			"FileDescription": "Desktop editor for YAML templates, Markdown forms, and PDF export",
 			"LegalCopyright": "(c) 2026, Peter van de Pas",

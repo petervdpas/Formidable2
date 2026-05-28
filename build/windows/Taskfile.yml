@@ -110,9 +110,37 @@ tasks:
     vars:
       FORMAT: '{{.FORMAT | default "nsis"}}'
 
+  render:resources:
+    summary: Renders wails.exe.manifest and info.json from their .tmpl files
+    desc: |
+      Source of truth for Windows PE version metadata.
+      windows/wails.exe.manifest.tmpl and windows/info.json.tmpl carry
+      a literal __VERSION__ marker; this task substitutes the working
+      tree's git-described version (after stripping any -N-gHASH or
+      -dirty suffix, since PE FixedFileInfo requires numeric) and writes
+      the rendered files at the paths wails3 generate syso reads. The
+      rendered files are build artifacts, not source - .gitignored.
+      The release workflow renders the same templates the same way.
+    internal: true
+    dir: build
+    vars:
+      STAMP_VERSION:
+        sh: 'echo "{{.VERSION}}" | sed -E "s/-.*$//"'
+    cmds:
+      - cmd: |
+          sed "s/__VERSION__/{{.STAMP_VERSION}}/g" windows/wails.exe.manifest.tmpl > windows/wails.exe.manifest
+          sed "s/__VERSION__/{{.STAMP_VERSION}}/g" windows/info.json.tmpl > windows/info.json
+        platforms: [linux, darwin]
+      - cmd: |
+          powershell -NoProfile -Command "(Get-Content windows/wails.exe.manifest.tmpl) -replace '__VERSION__', '{{.STAMP_VERSION}}' | Set-Content windows/wails.exe.manifest"
+          powershell -NoProfile -Command "(Get-Content windows/info.json.tmpl) -replace '__VERSION__', '{{.STAMP_VERSION}}' | Set-Content windows/info.json"
+        platforms: [windows]
+
   generate:syso:
     summary: Generates Windows `.syso` file
     dir: build
+    deps:
+      - task: render:resources
     cmds:
       - wails3 generate syso -arch {{.ARCH}} -icon windows/icon.ico -manifest windows/wails.exe.manifest -info windows/info.json -out ../wails_windows_{{.ARCH}}.syso
     vars:
@@ -126,15 +154,20 @@ tasks:
     cmds:
       # Create the Microsoft WebView2 bootstrapper if it doesn't exist
       - wails3 generate webview2bootstrapper -dir "{{.ROOT_DIR}}/build/windows/nsis"
-      - | 
+      - |
         {{if eq OS "windows"}}
-        makensis -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" project.nsi
+        makensis -DINFO_PRODUCTVERSION={{.STAMP_VERSION}} -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" project.nsi
         {{else}}
-        makensis -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" project.nsi
+        makensis -DINFO_PRODUCTVERSION={{.STAMP_VERSION}} -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" project.nsi
         {{end}}
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
       ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'
+      # Strip any -N-gHASH or -dirty suffix from git describe so the
+      # 4-part PE VIProductVersion the .nsi builds from it stays numeric
+      # (NSIS pads ".0" itself, but rejects non-numeric segments).
+      STAMP_VERSION:
+        sh: 'echo "{{.VERSION}}" | sed -E "s/-.*$//"'
 
   create:msix:package:
     summary: Creates an MSIX package
