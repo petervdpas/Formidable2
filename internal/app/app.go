@@ -43,6 +43,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/petervdpas/formidable2/internal/modules/pdf"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
+	"github.com/petervdpas/formidable2/internal/modules/query"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/stat"
@@ -109,6 +110,7 @@ type App struct {
 	Credential    *credential.Service
 	Monitor       *monitor.Service
 	Stat          *stat.Service
+	Query         *query.Service
 	Expression    *expression.Service
 	History       *history.Service
 	Integrity     *integrity.Service
@@ -393,6 +395,11 @@ func New(d Deps) (*App, error) {
 	statM.SetColumnResolver(statColumnResolver{tpl: tplM})
 	statSvc := stat.NewService(statM, statTemplateSource{tpl: tplM})
 
+	// Query - read-only SELECT (FDRM) over the same form_values datacore,
+	// a sibling consumer of idxM alongside stat. Owns no SQL of its own.
+	queryM := query.NewManager(idxM)
+	querySvc := query.NewService(queryM)
+
 	// EnabledTemplates self-healing: when a template file is deleted, the
 	// active profile's EnabledTemplates list must drop the stale entry so
 	// downstream pickers (storage, wiki, api) reflect reality. We hand
@@ -475,7 +482,7 @@ func New(d Deps) (*App, error) {
 	// longest-prefix match.
 	// stoM appears twice - once as Storage (LoadForm), once as Writer
 	// (SaveForm/DeleteForm). Same instance, narrow per-concern interfaces.
-	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM, statSvc)
+	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM, statSvc, querySvc)
 
 	// Auth scaffolding - Desktop mode. Two handlers cover the two
 	// transports the api rides on:
@@ -694,6 +701,7 @@ func New(d Deps) (*App, error) {
 		Credential:        credential.NewService(credentialM),
 		Monitor:           monitor.NewService(monitorM),
 		Stat:              statSvc,
+		Query:             querySvc,
 		Expression:        expression.NewService(expressionM),
 		History:           historySvc,
 		Integrity:         integrity.NewService(integrityM),

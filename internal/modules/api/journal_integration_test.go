@@ -85,7 +85,7 @@ func TestPOST_API_WriteIsJournaled(t *testing.T) {
 		forms: map[string][]dataprovider.FormSummary{},
 	}
 
-	h := NewHandler(sp, stoM, stoM, tplM, nil)
+	h := NewHandler(sp, stoM, stoM, tplM, nil, nil)
 
 	// Single POST → 201.
 	req := httptest.NewRequest(http.MethodPost, "/api/collections/recepten",
@@ -176,7 +176,7 @@ func TestDELETE_API_WriteIsJournaled(t *testing.T) {
 		},
 	}
 
-	h := NewHandler(sp, stoM, stoM, tplM, nil)
+	h := NewHandler(sp, stoM, stoM, tplM, nil, nil)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/collections/recepten/g-abc", nil)
 	rec := httptest.NewRecorder()

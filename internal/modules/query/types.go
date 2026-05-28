@@ -1,0 +1,83 @@
+// Package query is a constrained, read-only SELECT surface over the
+// index module's form_values store. It is a sibling consumer of index
+// alongside stat: stat turns the same datacore into chart grids, query
+// turns it into row listings and ad-hoc group/count views. Query owns no
+// SQL - it translates a Spec into index.ProjectRows / index.AggregateRaw
+// calls and shapes the result. Scope is deliberately single-template: no
+// cross-template joins, no subqueries, no user SQL. See the datacore
+// boundary discussion in design notes.
+package query
+
+// Source identifies one indexed value: a scalar field, a table column
+// (Col set to its positional form_values.col index), or a facet. Mirrors
+// the (Kind, Key, Col) shape index.ProjectCol / index.AggDim use, so the
+// translation is one-to-one.
+type Source struct {
+	Kind string `json:"kind"` // "field" | "facet"
+	Key  string `json:"key"`
+	Col  *int   `json:"col,omitempty"`
+}
+
+// Column is one projected output column: a display Header plus the
+// indexed Source it reads.
+type Column struct {
+	Header string `json:"header"`
+	Source Source `json:"source"`
+}
+
+// Filter scopes the query to rows where Source satisfies the comparison.
+// Op is eq/ne (text) or lt/le/gt/ge (numeric); validation lives in the
+// index layer so there is one definition of the comparison semantics.
+type Filter struct {
+	Source Source `json:"source"`
+	Op     string `json:"op"`
+	Value  string `json:"value"`
+}
+
+// Sort orders the result by a projected column (Column index into Spec
+// Columns). Numeric sorts on the parsed number, so a number column
+// orders 2 < 10 rather than lexically. Honored in row-listing mode;
+// group mode orders by group key (explicit group-mode sort is a
+// follow-up).
+type Sort struct {
+	Column  int  `json:"column"`
+	Desc    bool `json:"desc"`
+	Numeric bool `json:"numeric"`
+}
+
+// Spec is a full query request. With no GroupBy it is a row listing
+// (each form/cell a row), reusing index.ProjectRows; Distinct collapses
+// the projected tuple (the flatten-list/table-and-distinct case). With
+// GroupBy it is an aggregation over index.AggregateRaw: the result
+// carries the group columns plus, when Count is set, a count of the rows
+// contributing to each group.
+type Spec struct {
+	Template    string   `json:"template"`
+	Columns     []Column `json:"columns"`
+	Filters     []Filter `json:"filters,omitempty"`
+	Distinct    bool     `json:"distinct,omitempty"`
+	GroupBy     []int    `json:"groupBy,omitempty"`
+	Count       bool     `json:"count,omitempty"`
+	CountHeader string   `json:"countHeader,omitempty"`
+	OrderBy     []Sort   `json:"orderBy,omitempty"`
+	Limit       int      `json:"limit,omitempty"`
+}
+
+// Cell is one output value: Text is the display string; Num carries the
+// parsed number when the value had one, so the REST consumer can emit a
+// real JSON number instead of a quoted string.
+type Cell struct {
+	Text string   `json:"text"`
+	Num  *float64 `json:"num,omitempty"`
+}
+
+// Result is the query output: Columns are the header strings (group
+// columns plus the count header in group mode), Rows the typed cells.
+// Count is the number of result rows; Total is the template's full form
+// count, a denominator for "N of M" context.
+type Result struct {
+	Columns []string `json:"columns"`
+	Rows    [][]Cell `json:"rows"`
+	Count   int      `json:"count"`
+	Total   int      `json:"total"`
+}

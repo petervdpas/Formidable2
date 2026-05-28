@@ -3,7 +3,6 @@ package index
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -66,15 +65,6 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum, fi
 	var sel, joins []string
 	var args []any
 
-	// colPred returns the SQL for matching a form_values column plus the
-	// extra arg (if any); a nil col matches the scalar (col IS NULL) row.
-	colPred := func(alias string, col *int) (string, []any) {
-		if col == nil {
-			return alias + ".col IS NULL", nil
-		}
-		return alias + ".col = ?", []any{*col}
-	}
-
 	for i, d := range dims {
 		alias := fmt.Sprintf("d%d", i)
 		if d.Kind == "facet" {
@@ -112,44 +102,12 @@ func (m *Manager) AggregateRaw(template string, dims []AggDim, nums []AggNum, fi
 		sel = append(sel, fmt.Sprintf("%s.num_value", alias))
 	}
 
-	cmpSym := map[string]string{"lt": "<", "le": "<=", "gt": ">", "ge": ">="}
-	for k, fl := range filters {
-		alias := fmt.Sprintf("w%d", k)
-		if fl.Kind == "facet" {
-			op := "="
-			if fl.Op == "ne" {
-				op = "<>"
-			}
-			joins = append(joins, fmt.Sprintf(
-				"JOIN form_facets %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.facet_key=? AND %[1]s.set_flag=1 AND COALESCE(%[1]s.selected,'') %[2]s ?",
-				alias, op))
-			args = append(args, fl.Key, fl.Value)
-			continue
-		}
-		pred, pArgs := colPred(alias, fl.Col)
-		var cond string
-		var arg any
-		switch fl.Op {
-		case "eq":
-			cond, arg = alias+".text_value = ?", fl.Value
-		case "ne":
-			cond, arg = alias+".text_value <> ?", fl.Value
-		case "lt", "le", "gt", "ge":
-			n, err := strconv.ParseFloat(fl.Value, 64)
-			if err != nil {
-				return nil, fmt.Errorf("index: filter %s needs a number, got %q", fl.Op, fl.Value)
-			}
-			cond, arg = fmt.Sprintf("%s.num_value %s ?", alias, cmpSym[fl.Op]), n
-		default:
-			return nil, fmt.Errorf("index: unknown filter op %q", fl.Op)
-		}
-		joins = append(joins, fmt.Sprintf(
-			"JOIN form_values %[1]s ON %[1]s.template=f.template AND %[1]s.filename=f.filename AND %[1]s.field_key=? AND %[2]s AND %[3]s",
-			alias, pred, cond))
-		args = append(args, fl.Key)
-		args = append(args, pArgs...)
-		args = append(args, arg)
+	fJoins, fArgs, err := filterJoins(filters)
+	if err != nil {
+		return nil, err
 	}
+	joins = append(joins, fJoins...)
+	args = append(args, fArgs...)
 
 	// f.filename leads every row so the engine can count distinct forms
 	// (the heaviness of a category) and not just fanned-out cell rows. It

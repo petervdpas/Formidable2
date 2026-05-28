@@ -479,7 +479,125 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
+	// /collections/{template}/query - read-only SELECT (FDRM) over the
+	// template's statistics-indexed values.
+	paths["/collections/{template}/query"] = map[string]any{
+		"post": map[string]any{
+			"summary": "Run a constrained query over indexed values",
+			"description": "Read-only query over the template's statistics-indexed fields and facets: " +
+				"project columns, filter, distinct, group/count, sort, limit. Only fields flagged " +
+				"`use_in_statistics` (plus facets) are queryable. The {template} path segment is " +
+				"authoritative; any `template` in the body is ignored.",
+			"parameters": []any{param("TemplateParam")},
+			"requestBody": map[string]any{
+				"required": true,
+				"content": map[string]any{
+					"application/json": map[string]any{"schema": querySpecSchema()},
+				},
+			},
+			"responses": map[string]any{
+				"200": jsonInline(queryResultSchema()),
+				"400": errResp("invalid-json"),
+				"403": errResp("collection-disabled"),
+				"422": errResp("bad-query"),
+			},
+		},
+	}
+
 	return paths
+}
+
+// querySource describes the (kind, key, col) reference a query column or
+// filter targets - a field, a table column (col set), or a facet.
+func querySourceSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"kind", "key"},
+		"properties": map[string]any{
+			"kind": map[string]any{"type": "string", "enum": []string{"field", "facet"}},
+			"key":  map[string]any{"type": "string"},
+			"col":  map[string]any{"type": "integer", "description": "Table column index; omit for scalar fields."},
+		},
+	}
+}
+
+// querySpecSchema describes the POST body. Single-template by design: no
+// cross-template joins. With groupBy set the result is a group/count
+// aggregation; otherwise a row listing (distinct collapses the tuple).
+func querySpecSchema() map[string]any {
+	src := querySourceSchema()
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"columns": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type":     "object",
+					"required": []string{"header", "source"},
+					"properties": map[string]any{
+						"header": map[string]any{"type": "string"},
+						"source": src,
+					},
+				},
+			},
+			"filters": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type":     "object",
+					"required": []string{"source", "op", "value"},
+					"properties": map[string]any{
+						"source": src,
+						"op":     map[string]any{"type": "string", "enum": []string{"eq", "ne", "lt", "le", "gt", "ge"}},
+						"value":  map[string]any{"type": "string"},
+					},
+				},
+			},
+			"distinct":    map[string]any{"type": "boolean"},
+			"groupBy":     map[string]any{"type": "array", "items": map[string]any{"type": "integer"}, "description": "Column indices to group by."},
+			"count":       map[string]any{"type": "boolean", "description": "Append a per-group count column (group mode)."},
+			"countHeader": map[string]any{"type": "string"},
+			"orderBy": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type":     "object",
+					"required": []string{"column"},
+					"properties": map[string]any{
+						"column":  map[string]any{"type": "integer"},
+						"desc":    map[string]any{"type": "boolean"},
+						"numeric": map[string]any{"type": "boolean"},
+					},
+				},
+			},
+			"limit": map[string]any{"type": "integer"},
+		},
+	}
+}
+
+// queryResultSchema describes the typed result: header strings plus rows
+// of {text, num} cells (num present where the value parsed as a number).
+func queryResultSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"columns", "count", "total"},
+		"properties": map[string]any{
+			"columns": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"rows": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"text": map[string]any{"type": "string"},
+							"num":  map[string]any{"type": "number"},
+						},
+					},
+				},
+			},
+			"count": map[string]any{"type": "integer", "description": "Number of result rows."},
+			"total": map[string]any{"type": "integer", "description": "Total forms in the template (denominator)."},
+		},
+	}
 }
 
 // pathsForReadAPI declares every GET/HEAD route the package serves.

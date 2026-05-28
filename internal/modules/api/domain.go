@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/query"
 	"github.com/petervdpas/formidable2/internal/modules/stat"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -64,6 +65,14 @@ type Stats interface {
 	EvaluateDSL(template, dsl string) (*stat.Grid, error)
 }
 
+// Query runs a constrained SELECT (the FDRM query surface) over a
+// template's indexed values. The real *query.Service satisfies Run; the
+// query engine owns the datacore access, the API just serves the typed
+// Result so external consumers can fetch the same rows the UI panel shows.
+type Query interface {
+	Run(spec query.Spec) (query.Result, error)
+}
+
 // Handler exposes the /api/* routes as an http.Handler. The composition
 // root mounts the returned handler at the root mux's "/api/" prefix -
 // the api mux itself uses fully-qualified paths so no StripPrefix is
@@ -74,14 +83,15 @@ type Handler struct {
 	wr    Writer
 	tpl   Templates
 	stats Stats
+	qry   Query
 }
 
 // NewHandler builds the API handler. Returns the underlying mux as
 // http.Handler so callers compose it through the standard interface;
 // route shapes stay private to this file and can be evolved without
 // rippling out.
-func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates, stats Stats) http.Handler {
-	h := &Handler{dp: dp, st: st, wr: wr, tpl: tpl, stats: stats}
+func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates, stats Stats, qry Query) http.Handler {
+	h := &Handler{dp: dp, st: st, wr: wr, tpl: tpl, stats: stats, qry: qry}
 	mux := http.NewServeMux()
 	// Go 1.22+ typed patterns. Full paths (incl. "/api") so the
 	// composition root can mount this at the root mux without
@@ -117,6 +127,9 @@ func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates, stats Stats) 
 	// previously hit /design/<id> just swaps to /<id>/design.
 	mux.HandleFunc("/api/collections/{tpl}/design", h.design)
 	mux.HandleFunc("/api/collections/{tpl}/facets", h.facets)
+	// Read-only SELECT over the template's indexed values. A literal
+	// segment like /count, so it's matched ahead of /{id}.
+	mux.HandleFunc("/api/collections/{tpl}/query", h.query)
 	mux.HandleFunc("/api/collections/{tpl}/export.ndjson", h.exportNDJSON)
 	mux.HandleFunc("/api/collections/{tpl}/export.csv", h.exportCSV)
 	mux.HandleFunc("/api/collections/{tpl}/{id}", h.itemAny)
