@@ -40,6 +40,7 @@ func Normalize(t *Template) {
 		normalizeField(&t.Fields[i])
 	}
 	normalizeStatistics(t)
+	normalizeFacetFieldDefaults(t)
 	t.Fields = assignLevelScopes(t.Fields)
 	for i := range t.Fields {
 		if t.Fields[i].LevelScope > 0 && t.Fields[i].ExpressionItem {
@@ -49,6 +50,40 @@ func Normalize(t *Template) {
 			t.Fields[i].Key = "id"
 		}
 		stripDisabledAttributes(&t.Fields[i])
+	}
+}
+
+// normalizeFacetFieldDefaults coerces each virtual facet field's
+// Default against the bound facet's option labels: empty / nil /
+// unknown / unresolvable-binding all clear to nil. Runs at template
+// scope (not in normalizeField) because the per-field pass has no
+// access to t.Facets.
+func normalizeFacetFieldDefaults(t *Template) {
+	if t == nil {
+		return
+	}
+	options := map[string]map[string]bool{}
+	for _, f := range t.Facets {
+		opts := make(map[string]bool, len(f.Options))
+		for _, o := range f.Options {
+			opts[o.Label] = true
+		}
+		options[f.Key] = opts
+	}
+	for i := range t.Fields {
+		f := &t.Fields[i]
+		if f.Type != "facet" {
+			continue
+		}
+		s, ok := f.Default.(string)
+		if !ok || s == "" {
+			f.Default = nil
+			continue
+		}
+		known, ok := options[f.FacetKey]
+		if !ok || !known[s] {
+			f.Default = nil
+		}
 	}
 }
 

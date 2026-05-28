@@ -108,6 +108,31 @@ func facetFieldErrors(t *Template) []ValidationError {
 				Message: "Facet field format must be radio or dropdown; got: " + f.Format,
 			})
 		}
+		if def, ok := f.Default.(string); ok && def != "" && declared[f.FacetKey] {
+			known := false
+			for _, fc := range t.Facets {
+				if fc.Key != f.FacetKey {
+					continue
+				}
+				for _, o := range fc.Options {
+					if o.Label == def {
+						known = true
+						break
+					}
+				}
+				break
+			}
+			if !known {
+				errs = append(errs, ValidationError{
+					Type:    "facet-field-bad-default",
+					Field:   &ff,
+					Index:   i,
+					Key:     f.Key,
+					Detail:  map[string]any{"default": def, "facet_key": f.FacetKey},
+					Message: "Facet field default " + def + " is not an option of facet " + f.FacetKey,
+				})
+			}
+		}
 	}
 	return errs
 }

@@ -176,6 +176,7 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 	updated := resolveAuditEntry(opts.Updated, rawMeta["updated"], injected["updated"], legacyAuthor, now)
 
 	facets := resolveFacets(opts.Facets, rawMeta, injected)
+	facets = seedFacetFieldDefaults(facets, fields)
 
 	templateName := firstNonEmpty(
 		stringOrEmpty(rawMeta["template"]),
@@ -195,6 +196,30 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		},
 		Data: data,
 	}
+}
+
+// seedFacetFieldDefaults seeds meta.facets[facet_key] from a virtual
+// facet field's Default ONLY when the form has no existing entry for
+// that key. An explicit {set:false, selected:""} counts as existing
+// (the user cleared the picker; Default must not resurrect it).
+func seedFacetFieldDefaults(facets map[string]FacetState, fields []template.Field) map[string]FacetState {
+	for _, f := range fields {
+		if f.Type != "facet" || f.FacetKey == "" {
+			continue
+		}
+		def, ok := f.Default.(string)
+		if !ok || def == "" {
+			continue
+		}
+		if facets == nil {
+			facets = map[string]FacetState{}
+		}
+		if _, present := facets[f.FacetKey]; present {
+			continue
+		}
+		facets[f.FacetKey] = FacetState{Set: true, Selected: def}
+	}
+	return facets
 }
 
 // resolveFacets returns the per-form facets map using opts when set

@@ -101,6 +101,50 @@ const formatOptionsForType = computed(() => {
   return textareaFormatOptions.value;
 });
 
+// Default for a facet field is one of the bound facet's option labels
+// (or unset). Picker options come from the live availableFacets prop
+// so renaming a facet's options updates the picker immediately.
+const boundFacet = computed(() => {
+  if (!isFacetType.value) return null;
+  const key = (draft.value?.facet_key ?? "").trim();
+  if (key === "") return null;
+  return (props.availableFacets ?? []).find((f) => f.key === key) ?? null;
+});
+
+const facetDefaultOptions = computed(() => {
+  const opts = boundFacet.value?.options ?? [];
+  return opts.map((o) => ({ value: o.label, label: o.label }));
+});
+
+const facetDefaultValue = computed<string>({
+  get: () => {
+    const v = draft.value?.default;
+    return typeof v === "string" ? v : "";
+  },
+  set: (v: string) => {
+    if (!draft.value) return;
+    // Empty selection clears Default to null, matching backend Normalize
+    // (template/normalize.go normalizeFacetFieldDefaults clears empty
+    // strings and unknown labels to nil).
+    draft.value.default = v === "" ? null : v;
+  },
+});
+
+// Changing the bound facet invalidates any previously-picked Default
+// (its labels may no longer exist). Clear it so the picker doesn't
+// silently carry a stale value through Confirm; backend Normalize
+// would clear it on save anyway, this just keeps the UI honest.
+watch(
+  () => draft.value?.facet_key,
+  () => {
+    if (!isFacetType.value || !draft.value) return;
+    const cur = typeof draft.value.default === "string" ? draft.value.default : "";
+    if (cur === "") return;
+    const known = facetDefaultOptions.value.some((o) => o.value === cur);
+    if (!known) draft.value.default = null;
+  },
+);
+
 watch(
   () => draft.value?.expression_item,
   (now, prev) => {
@@ -444,36 +488,6 @@ const dialogStyle = computed<Record<string, string>>(() => {
         </FormRow>
 
         <FormRow
-          v-if="showRow('format')"
-          :label="isFacetType
-            ? t('workspace.templates.field_edit.facet.presentation_label')
-            : t('workspace.templates.field_edit.row.format')"
-        >
-          <SelectField
-            v-model="draft.format"
-            :options="formatOptionsForType"
-          />
-        </FormRow>
-
-        <FormRow
-          v-if="isFacetType"
-          :label="t('workspace.templates.field_edit.facet.binding_label')"
-        >
-          <p
-            v-if="(availableFacets ?? []).length === 0"
-            class="muted small"
-          >
-            {{ t('workspace.templates.field_edit.facet.binding_empty_hint') }}
-          </p>
-          <SelectField
-            v-else
-            v-model="draft.facet_key"
-            :options="facetBindingOptions"
-            :placeholder="t('workspace.templates.field_edit.facet.binding_placeholder')"
-          />
-        </FormRow>
-
-        <FormRow
           v-if="showRow('expression_item')"
           :label="t('workspace.templates.field_edit.row.expression_item')"
         >
@@ -529,6 +543,36 @@ const dialogStyle = computed<Record<string, string>>(() => {
         </FormRow>
 
         <FormRow
+          v-if="showRow('format')"
+          :label="isFacetType
+            ? t('workspace.templates.field_edit.facet.presentation_label')
+            : t('workspace.templates.field_edit.row.format')"
+        >
+          <SelectField
+            v-model="draft.format"
+            :options="formatOptionsForType"
+          />
+        </FormRow>
+
+        <FormRow
+          v-if="isFacetType"
+          :label="t('workspace.templates.field_edit.facet.binding_label')"
+        >
+          <p
+            v-if="(availableFacets ?? []).length === 0"
+            class="muted small"
+          >
+            {{ t('workspace.templates.field_edit.facet.binding_empty_hint') }}
+          </p>
+          <SelectField
+            v-else
+            v-model="draft.facet_key"
+            :options="facetBindingOptions"
+            :placeholder="t('workspace.templates.field_edit.facet.binding_placeholder')"
+          />
+        </FormRow>
+
+        <FormRow
           v-if="showRow('label')"
           :label="t('workspace.templates.field_edit.row.label')"
         >
@@ -546,7 +590,13 @@ const dialogStyle = computed<Record<string, string>>(() => {
           v-if="showRow('default')"
           :label="t('workspace.templates.field_edit.row.default')"
         >
-          <TextField v-model="defaultAsString" />
+          <SelectField
+            v-if="isFacetType"
+            v-model="facetDefaultValue"
+            :options="facetDefaultOptions"
+            :placeholder="t('facet.field.placeholder')"
+          />
+          <TextField v-else v-model="defaultAsString" />
         </FormRow>
 
         <FormRow

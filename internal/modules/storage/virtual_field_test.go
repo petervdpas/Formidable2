@@ -55,6 +55,74 @@ func TestSanitize_VirtualFacetFieldWithDataKeyCollisionStillSkipsData(t *testing
 	}
 }
 
+func TestSanitize_FacetFieldDefaultSeedsMetaFacetsOnFreshRecord(t *testing.T) {
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+		{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN"},
+	}
+	raw := map[string]any{"title": "Hello"}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	got, ok := out.Meta.Facets["status"]
+	if !ok {
+		t.Fatalf("expected meta.facets[status] to be seeded from Default; got Facets=%+v", out.Meta.Facets)
+	}
+	if !got.Set || got.Selected != "OPEN" {
+		t.Errorf("seeded state = %+v, want Set:true Selected:OPEN", got)
+	}
+}
+
+func TestSanitize_FacetFieldDefaultDoesNotOverrideExistingState(t *testing.T) {
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+		{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN"},
+	}
+	raw := map[string]any{
+		"title": "Hello",
+		"_meta": map[string]any{
+			"facets": map[string]any{
+				"status": map[string]any{"set": true, "selected": "CLOSED"},
+			},
+		},
+	}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	if got := out.Meta.Facets["status"].Selected; got != "CLOSED" {
+		t.Errorf("existing state must win over Default; got Selected=%q", got)
+	}
+}
+
+func TestSanitize_FacetFieldExplicitUnsetCountsAsExisting(t *testing.T) {
+	// A record that's been touched and the user cleared the facet ends
+	// up with {set:false, selected:""}. That is an explicit state and
+	// Default must NOT re-seed over it.
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+		{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN"},
+	}
+	raw := map[string]any{
+		"title": "Hello",
+		"_meta": map[string]any{
+			"facets": map[string]any{
+				"status": map[string]any{"set": false, "selected": ""},
+			},
+		},
+	}
+	out := Sanitize(raw, fields, SanitizeOptions{})
+	if got := out.Meta.Facets["status"]; got.Set || got.Selected != "" {
+		t.Errorf("explicit unset must be preserved; got %+v", got)
+	}
+}
+
+func TestSanitize_FacetFieldNoDefaultMeansNoSeed(t *testing.T) {
+	fields := []template.Field{
+		{Key: "title", Type: "text"},
+		{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio"},
+	}
+	out := Sanitize(map[string]any{"title": "Hello"}, fields, SanitizeOptions{})
+	if _, ok := out.Meta.Facets["status"]; ok {
+		t.Errorf("no Default should seed nothing; got Facets=%+v", out.Meta.Facets)
+	}
+}
+
 func TestSanitize_StrayDataKeyNotInTemplateIsAlreadyIgnored(t *testing.T) {
 	// Sanity guard: the existing per-template-field loop already only
 	// seeds keys it knows about. This pins that behavior in case a

@@ -128,3 +128,84 @@ func TestNormalize_FacetKeyStrippedFromNonFacetField(t *testing.T) {
 		t.Errorf("FacetKey on text must be stripped; got %q", got)
 	}
 }
+
+// ── Facet field Default ─────────────────────────────────────────────
+
+func TestValidate_FacetFieldUnknownDefault(t *testing.T) {
+	tpl := &Template{
+		Facets: []Facet{{Key: "status", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "status", Default: "GHOST"}},
+	}
+	errs := Validate(tpl)
+	if !hasErr(errs, "facet-field-bad-default") {
+		t.Errorf("expected facet-field-bad-default; got %+v", errs)
+	}
+}
+
+func TestValidate_FacetFieldKnownDefaultAccepted(t *testing.T) {
+	tpl := &Template{
+		Facets: []Facet{{Key: "status", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "status", Default: "OPEN"}},
+	}
+	errs := Validate(tpl)
+	if hasErr(errs, "facet-field-bad-default") {
+		t.Errorf("known default must be accepted; got %+v", errs)
+	}
+}
+
+func TestValidate_FacetFieldEmptyDefaultAccepted(t *testing.T) {
+	tpl := &Template{
+		Facets: []Facet{{Key: "status", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "status"}},
+	}
+	errs := Validate(tpl)
+	if hasErr(errs, "facet-field-bad-default") {
+		t.Errorf("empty default must be accepted; got %+v", errs)
+	}
+}
+
+func TestNormalize_FacetUnknownDefaultClearedToNil(t *testing.T) {
+	tpl := &Template{
+		Facets: []Facet{{Key: "s", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "s", Default: "GHOST"}},
+	}
+	Normalize(tpl)
+	if got := tpl.Fields[0].Default; got != nil {
+		t.Errorf("Default = %#v, want nil", got)
+	}
+}
+
+func TestNormalize_FacetKnownDefaultPreserved(t *testing.T) {
+	tpl := &Template{
+		Facets: []Facet{{Key: "s", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "s", Default: "OPEN"}},
+	}
+	Normalize(tpl)
+	if got, want := tpl.Fields[0].Default, "OPEN"; got != want {
+		t.Errorf("Default = %#v, want %q", got, want)
+	}
+}
+
+func TestNormalize_FacetEmptyStringDefaultClearedToNil(t *testing.T) {
+	tpl := &Template{
+		Facets: []Facet{{Key: "s", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "s", Default: ""}},
+	}
+	Normalize(tpl)
+	if got := tpl.Fields[0].Default; got != nil {
+		t.Errorf("Default = %#v, want nil (empty stays cleared)", got)
+	}
+}
+
+func TestNormalize_FacetDefaultClearedWhenFacetKeyMissing(t *testing.T) {
+	tpl := &Template{
+		Facets: []Facet{{Key: "s", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		// FacetKey points at a facet that doesn't exist; Default can't be
+		// trusted, so Normalize clears it.
+		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "ghost", Default: "OPEN"}},
+	}
+	Normalize(tpl)
+	if got := tpl.Fields[0].Default; got != nil {
+		t.Errorf("Default = %#v, want nil (FacetKey unresolved)", got)
+	}
+}
