@@ -28,6 +28,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/collaboration/git/sysgit"
 	"github.com/petervdpas/formidable2/internal/modules/config"
 	"github.com/petervdpas/formidable2/internal/modules/csv"
+	"github.com/petervdpas/formidable2/internal/modules/datacore"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/dialog"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
@@ -111,6 +112,7 @@ type App struct {
 	Monitor       *monitor.Service
 	Stat          *stat.Service
 	Query         *query.Service
+	Datacore      *datacore.Service
 	Expression    *expression.Service
 	History       *history.Service
 	Integrity     *integrity.Service
@@ -401,6 +403,14 @@ func New(d Deps) (*App, error) {
 	// queryable and table rows stay row-aligned.
 	queryM := query.NewManager(newQueryLoaderAdapter(tplM, stoM))
 	querySvc := query.NewService(queryM)
+
+	// Datacore - additive, read-only perspectives (distribution, cross,
+	// aggregate, loop summary) over a tensor built from the template's live
+	// forms. Reads form data like query does; touches nothing the index or
+	// stat path relies on.
+	datacoreSvc := datacore.NewService(func(tpl string) datacore.Loader {
+		return newDatacoreLoaderAdapter(tplM, stoM, tpl)
+	})
 
 	// EnabledTemplates self-healing: when a template file is deleted, the
 	// active profile's EnabledTemplates list must drop the stale entry so
@@ -704,6 +714,7 @@ func New(d Deps) (*App, error) {
 		Monitor:           monitor.NewService(monitorM),
 		Stat:              statSvc,
 		Query:             querySvc,
+		Datacore:          datacoreSvc,
 		Expression:        expression.NewService(expressionM),
 		History:           historySvc,
 		Integrity:         integrity.NewService(integrityM),

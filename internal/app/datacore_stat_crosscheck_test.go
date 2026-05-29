@@ -3,7 +3,9 @@ package app
 import (
 	"math"
 	"path/filepath"
+	"sort"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/datacore"
@@ -244,6 +246,177 @@ func assertSameAgg(t *testing.T, label string, idxM *index.Manager, field string
 }
 
 func ftoa(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) }
+
+// TestDatacore_DateSeriesMatchesIndex proves the date histogram agrees with
+// index.DateSeries for every period. index buckets the stored ISO date by a
+// prefix width; datacore parses the date and formats it to the period. On
+// real ISO dates the two must produce identical buckets.
+func TestDatacore_DateSeriesMatchesIndex(t *testing.T) {
+	dates := map[string]string{
+		"a.meta.json": "2026-01-15",
+		"b.meta.json": "2026-01-20",
+		"c.meta.json": "2026-02-05",
+		"d.meta.json": "2027-03-01",
+	}
+
+	idxM, err := index.NewManager(filepath.Join(t.TempDir(), "x.db"))
+	if err != nil {
+		t.Fatalf("index.NewManager: %v", err)
+	}
+	t.Cleanup(func() { idxM.Close() })
+
+	var forms []index.FormRow
+	for file, due := range dates {
+		forms = append(forms, index.FormRow{
+			Template: "basic.yaml", Filename: file, Mtime: 100,
+			Values: []index.FormValueRow{{FieldKey: "due", ValueType: "date", Text: due}},
+		})
+	}
+	if err := index.Reconcile(idxM.DB(), index.ReconcileBatch{
+		UpsertTemplates: []index.TemplateRow{{Filename: "basic.yaml", Name: "basic", Mtime: 100}},
+		UpsertForms:     forms,
+	}); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	dt := datacore.New()
+	for file, due := range dates {
+		dt.Ingest(datacore.Record{ID: file, Fields: map[string]string{"due": due}})
+	}
+
+	for _, period := range []string{"year", "month", "day"} {
+		idxSeries, err := idxM.DateSeries("basic.yaml", "due", nil, period)
+		if err != nil {
+			t.Fatalf("index date series %s: %v", period, err)
+		}
+		dcSeries := dt.View().DateSeries("due", period)
+
+		want := map[string]int{}
+		for _, b := range idxSeries {
+			want[b.Label] = b.Count
+		}
+		got := map[string]int{}
+		for _, b := range dcSeries.Buckets {
+			got[b.Value] = b.Count
+		}
+		if len(want) != len(got) {
+			t.Fatalf("%s: bucket counts differ: index=%v datacore=%v", period, want, got)
+		}
+		for k, n := range want {
+			if got[k] != n {
+				t.Fatalf("%s: bucket %q index=%d datacore=%d", period, k, n, got[k])
+			}
+		}
+	}
+}
+
+// TestDatacore_AggregateRawMatchesIndex proves the raw grid agrees with
+// index.AggregateRaw for the scalar/facet/date core: two dims (region field +
+// tier facet), one numeric measure (amount), filtered to active status. Both
+// engines must emit the same (form, dims, nums) rows. Table-column dims are
+// excluded here on purpose (datacore aligns rows where the index fans).
+func TestDatacore_AggregateRawMatchesIndex(t *testing.T) {
+	type form struct {
+		id, region, tier, status string
+		amount                   float64
+		hasAmount                bool
+	}
+	fixture := []form{
+		{"a.meta.json", "east", "GOLD", "active", 10, true},
+		{"b.meta.json", "east", "SILVER", "active", 30, true},
+		{"c.meta.json", "west", "GOLD", "retired", 20, true},
+		{"d.meta.json", "west", "GOLD", "active", 0, false}, // no amount
+	}
+
+	idxM, err := index.NewManager(filepath.Join(t.TempDir(), "x.db"))
+	if err != nil {
+		t.Fatalf("index.NewManager: %v", err)
+	}
+	t.Cleanup(func() { idxM.Close() })
+
+	var forms []index.FormRow
+	for _, f := range fixture {
+		vals := []index.FormValueRow{
+			{FieldKey: "region", ValueType: "text", Text: f.region},
+			{FieldKey: "status", ValueType: "text", Text: f.status},
+		}
+		if f.hasAmount {
+			amt := f.amount
+			vals = append(vals, index.FormValueRow{FieldKey: "amount", ValueType: "number", Num: &amt, Text: ftoa(amt)})
+		}
+		forms = append(forms, index.FormRow{
+			Template: "basic.yaml", Filename: f.id, Mtime: 100,
+			Facets: []index.FormFacet{{Key: "tier", Set: true, Selected: f.tier}},
+			Values: vals,
+		})
+	}
+	if err := index.Reconcile(idxM.DB(), index.ReconcileBatch{
+		UpsertTemplates: []index.TemplateRow{{Filename: "basic.yaml", Name: "basic", Mtime: 100}},
+		UpsertForms:     forms,
+	}); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	idxRows, err := idxM.AggregateRaw("basic.yaml",
+		[]index.AggDim{{Kind: "field", Key: "region"}, {Kind: "facet", Key: "tier"}},
+		[]index.AggNum{{Key: "amount"}},
+		[]index.AggFilter{{Kind: "field", Key: "status", Op: "eq", Value: "active"}},
+	)
+	if err != nil {
+		t.Fatalf("index AggregateRaw: %v", err)
+	}
+
+	dt := datacore.New()
+	for _, f := range fixture {
+		fields := map[string]string{"region": f.region, "status": f.status}
+		if f.hasAmount {
+			fields["amount"] = ftoa(f.amount)
+		}
+		dt.Ingest(datacore.Record{ID: f.id, Fields: fields, Facets: map[string]string{"tier": f.tier}})
+	}
+	dcRows := dt.View().Grid(
+		[]datacore.GridDim{{Field: "region"}, {Field: "facet:tier"}},
+		[]datacore.GridNum{{Field: "amount"}},
+		[]datacore.GridFilter{{Field: "status", Op: "eq", Value: "active"}},
+	)
+
+	want := indexRawKeys(idxRows)
+	got := datacoreRawKeys(dcRows)
+	if len(want) != len(got) {
+		t.Fatalf("row count differs: index=%v datacore=%v", want, got)
+	}
+	for i := range want {
+		if want[i] != got[i] {
+			t.Fatalf("row %d differs: index=%q datacore=%q", i, want[i], got[i])
+		}
+	}
+}
+
+func indexRawKeys(rows []index.StatRawRow) []string {
+	ks := make([]string, len(rows))
+	for i, r := range rows {
+		num := "∅"
+		if len(r.Nums) > 0 && r.Nums[0].Valid {
+			num = strconv.FormatFloat(r.Nums[0].Float64, 'f', -1, 64)
+		}
+		ks[i] = r.Form + "|" + strings.Join(r.Dims, ",") + "|" + num
+	}
+	sort.Strings(ks)
+	return ks
+}
+
+func datacoreRawKeys(rows []datacore.GridRow) []string {
+	ks := make([]string, len(rows))
+	for i, r := range rows {
+		num := "∅"
+		if len(r.Nums) > 0 && r.Nums[0].OK {
+			num = strconv.FormatFloat(r.Nums[0].Value, 'f', -1, 64)
+		}
+		ks[i] = r.Form + "|" + strings.Join(r.Dims, ",") + "|" + num
+	}
+	sort.Strings(ks)
+	return ks
+}
 
 func assertSameDistribution(t *testing.T, label string, idx []index.Bucket, dc []datacore.Bucket) {
 	t.Helper()
