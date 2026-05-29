@@ -110,6 +110,27 @@ func tplWithFlag() *template.Template {
 	}
 }
 
+// tplWithFacetField declares a virtual facet field. Its value lives in
+// meta.facets, never in data, so the integrity walker must not expect a
+// data slot for it.
+func tplWithFacetField() *template.Template {
+	return &template.Template{
+		Name: "Faceted", Filename: "fc.yaml",
+		Facets: []template.Facet{{
+			Key:  "status",
+			Icon: "fa-flag",
+			Options: []template.FacetOption{
+				{Label: "OPEN", Color: "green"},
+				{Label: "DONE", Color: "blue"},
+			},
+		}},
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "statusfield", Type: "facet", FacetKey: "status"},
+		},
+	}
+}
+
 // tplWithTable has a table field whose second column is date-typed.
 // Column types live on the options (one per column, in order), matching
 // FormFieldTable's positional column mapping.
@@ -218,6 +239,28 @@ func TestAnalyze_NoIssues_OnCleanForm(t *testing.T) {
 		t.Errorf("want FormCount=1, got %d", r.FormCount)
 	}
 	mustZeroIssues(t, r)
+}
+
+func TestAnalyze_VirtualFacetField_NotFlagged(t *testing.T) {
+	// A clean form carries only the real data field; the facet's value
+	// lives in meta.facets. The virtual facet field must not be flagged
+	// as a missing data field, and a stray data slot for it must not be
+	// flagged as an extra field.
+	clean := &storage.Form{Data: map[string]any{"title": "hello"}}
+	m := newM(t, tplWithFacetField(), map[string]*storage.Form{"a.meta.json": clean})
+	r, err := m.AnalyzeTemplate("fc.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustZeroIssues(t, r)
+
+	stray := &storage.Form{Data: map[string]any{"title": "hello", "statusfield": "OPEN"}}
+	m2 := newM(t, tplWithFacetField(), map[string]*storage.Form{"b.meta.json": stray})
+	r2, err := m2.AnalyzeTemplate("fc.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustZeroIssues(t, r2)
 }
 
 func TestAnalyze_NoForms_ReturnsEmptyReport(t *testing.T) {

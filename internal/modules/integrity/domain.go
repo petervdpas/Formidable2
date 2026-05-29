@@ -278,6 +278,15 @@ func checkData(fields []template.Field, data map[string]any, pathPrefix string) 
 		if skip[f.Key] {
 			continue
 		}
+		// Virtual fields (e.g. facet) store their value outside data
+		// (meta.facets); storage.Sanitize never seeds a data slot for
+		// them. Treat the key as allowed-but-not-required: mark it
+		// expected so a stray legacy data value isn't flagged extra, but
+		// skip the per-field check so its absence isn't flagged missing.
+		if template.IsVirtualFieldType(f.Type) {
+			expected[f.Key] = struct{}{}
+			continue
+		}
 		expected[f.Key] = struct{}{}
 		out = append(out, checkField(f, data, pathPrefix)...)
 	}
