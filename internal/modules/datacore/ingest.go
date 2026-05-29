@@ -14,6 +14,9 @@ type Record struct {
 	// identities it points at. This is the FDRM cross-record edge, the
 	// thing Unfold walks recursively.
 	Links map[string][]string
+	// Label is an optional human display name for the record (e.g. its
+	// title field), used by the graph view. Empty falls back to the ID.
+	Label string
 }
 
 // Ingest writes one record into the tensor.
@@ -25,6 +28,9 @@ type Record struct {
 // references each row under the table's field, so Follow walks record -> rows.
 func (t *Tensor) Ingest(r Record) {
 	t.markRoot(r.ID)
+	if r.Label != "" {
+		t.labels[t.iax.intern(r.ID)] = r.Label
+	}
 	for f, v := range r.Fields {
 		t.Put(r.ID, f, Universal, v)
 	}

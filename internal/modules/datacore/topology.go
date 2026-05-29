@@ -59,8 +59,7 @@ func (t *Tensor) Graph(limit int) Graph {
 		if t.rootSet[s] {
 			kind = "root"
 		}
-		label := t.iax.label(s)
-		g.Nodes = append(g.Nodes, GraphNode{ID: label, Label: label, Kind: kind})
+		g.Nodes = append(g.Nodes, GraphNode{ID: t.iax.label(s), Label: t.nodeLabel(s), Kind: kind})
 	}
 
 	for k := range t.is {
@@ -74,6 +73,85 @@ func (t *Tensor) Graph(limit int) Graph {
 				Target: t.iax.label(tgt),
 				Field:  t.fax.label(t.fs[k]),
 			})
+		}
+	}
+	return g
+}
+
+// GraphFrom projects the flower around one identity: the start node, its
+// value cells as labeled "field" leaf nodes, and the identities it references
+// (loop rows, links) followed to depth hops. Field nodes are attached only to
+// the start identity, so the caller unfolds the structure a node at a time:
+// click a row and GraphFrom on it reveals that row's columns. Returns an empty
+// graph if rootID is unknown.
+func (t *Tensor) GraphFrom(rootID string, depth int) Graph {
+	root, ok := t.iax.lookup(rootID)
+	var g Graph
+	if !ok {
+		return g
+	}
+
+	nodeSeen := map[string]bool{}
+	addIdentity := func(s sym) {
+		id := t.iax.label(s)
+		if nodeSeen[id] {
+			return
+		}
+		nodeSeen[id] = true
+		kind := "row"
+		if t.rootSet[s] {
+			kind = "root"
+		}
+		g.Nodes = append(g.Nodes, GraphNode{ID: id, Label: t.nodeLabel(s), Kind: kind})
+	}
+	addIdentity(root)
+
+	rootLabel := t.iax.label(root)
+	for k := range t.is {
+		if t.is[k] != root || t.ref[k] != 0 {
+			continue
+		}
+		field := t.fax.label(t.fs[k])
+		fid := rootLabel + "\x1f" + field
+		if !nodeSeen[fid] {
+			nodeSeen[fid] = true
+			g.Nodes = append(g.Nodes, GraphNode{ID: fid, Label: t.val[k], Kind: "field"})
+		}
+		g.Edges = append(g.Edges, GraphEdge{Source: rootLabel, Target: fid, Field: field})
+	}
+
+	included := map[sym]bool{root: true}
+	edgeSeen := map[string]bool{}
+	type frontier struct {
+		id sym
+		d  int
+	}
+	queue := []frontier{{root, 0}}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		if cur.d >= depth {
+			continue
+		}
+		for k := range t.is {
+			if t.is[k] != cur.id || t.ref[k] == 0 {
+				continue
+			}
+			tgt := t.ref[k]
+			addIdentity(tgt)
+			ek := t.iax.label(cur.id) + "\x1f" + t.iax.label(tgt) + "\x1f" + t.fax.label(t.fs[k])
+			if !edgeSeen[ek] {
+				edgeSeen[ek] = true
+				g.Edges = append(g.Edges, GraphEdge{
+					Source: t.iax.label(cur.id),
+					Target: t.iax.label(tgt),
+					Field:  t.fax.label(t.fs[k]),
+				})
+			}
+			if !included[tgt] {
+				included[tgt] = true
+				queue = append(queue, frontier{tgt, cur.d + 1})
+			}
 		}
 	}
 	return g

@@ -1,11 +1,12 @@
 {
   "datacore.graph_title": "Datacore-grafiek",
-  "datacore.node_cap": "Max. knopen",
-  "datacore.reload": "Opnieuw laden",
+  "datacore.click_hint": "Klik op een knoop om de koppelingen uit te vouwen; sleep om te herschikken.",
+  "datacore.reset": "Opnieuw",
   "datacore.loading": "Grafiek wordt opgebouwd...",
-  "datacore.empty": "Geen gegevens om te tonen.",
-  "datacore.capped": "De eerste {n} knopen worden getoond; de grafiek is afgekapt.",
+  "datacore.empty": "Niets om te tonen voor dit record.",
+  "datacore.no_record": "Selecteer eerst een record.",
   "datacore.count": "{nodes} knopen, {edges} verbindingen",
   "datacore.legend_root": "Record",
-  "datacore.legend_row": "Rij / koppeling"
+  "datacore.legend_row": "Rij / koppeling",
+  "datacore.legend_field": "Veld"
 }

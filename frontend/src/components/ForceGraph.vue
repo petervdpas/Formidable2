@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { shallowRef, triggerRef, onBeforeUnmount, useTemplateRef, watch } from "vue";
+import { shallowRef, ref, triggerRef, onBeforeUnmount, useTemplateRef, watch } from "vue";
 
 // A small force-directed node-link renderer: nodes repel, edges pull like
-// springs, a gentle gravity keeps the web centered, and the simulation cools
-// to rest. Drag a node to pin and re-heat it. Hand-rolled SVG, consistent
-// with the other charts; no graph library.
+// springs, gravity keeps the web centered, and the simulation cools to rest.
+// Drag a node to pin it; a click (no drag) emits node-click so the caller can
+// unfold it. Drag empty space to pan, wheel to zoom (to the cursor). When the
+// node/edge props grow, existing positions are preserved and only new nodes
+// are seeded, so expanding doesn't reshuffle the layout. Hand-rolled SVG.
 
 interface InNode {
   id: string;
   label: string;
-  kind: string; // "root" | "row"
+  kind: string; // "root" | "row" | "field"
 }
 interface InEdge {
   source: string;
@@ -27,6 +29,8 @@ const props = withDefaults(
   { width: 760, height: 520 },
 );
 
+const emit = defineEmits<{ (e: "node-click", id: string): void }>();
+
 interface SimNode extends InNode {
   x: number;
   y: number;
@@ -43,9 +47,21 @@ const sim = shallowRef<SimNode[]>([]);
 const links = shallowRef<SimEdge[]>([]);
 const svgRef = useTemplateRef<SVGSVGElement>("svg");
 
+const zoom = ref(1);
+const panX = ref(0);
+const panY = ref(0);
+
 let raf = 0;
 let alpha = 0;
 let dragging = -1;
+let downX = 0;
+let downY = 0;
+let moved = false;
+let panning = false;
+let panStartX = 0;
+let panStartY = 0;
+let panOrigX = 0;
+let panOrigY = 0;
 
 const REPULSION = 2600;
 const SPRING = 0.02;
@@ -53,18 +69,17 @@ const REST = 90;
 const GRAVITY = 0.015;
 const FRICTION = 0.85;
 const MIN_ALPHA = 0.02;
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
-function build() {
+function merge() {
   const cx = props.width / 2;
   const cy = props.height / 2;
-  const n = props.nodes.length;
-  const r = Math.min(cx, cy) * 0.8;
-  // Golden-angle seed layout so nodes start spread out, not stacked.
-  const golden = Math.PI * (3 - Math.sqrt(5));
+  const prev = new Map(sim.value.map((n) => [n.id, n]));
   sim.value = props.nodes.map((node, i) => {
-    const t = n > 1 ? i / (n - 1) : 0;
-    const rad = r * Math.sqrt(t);
-    const ang = i * golden;
+    const ex = prev.get(node.id);
+    if (ex) return { ...node, x: ex.x, y: ex.y, vx: ex.vx, vy: ex.vy };
+    const rad = 30 + (i % 9) * 7;
+    const ang = i * GOLDEN;
     return { ...node, x: cx + rad * Math.cos(ang), y: cy + rad * Math.sin(ang), vx: 0, vy: 0 };
   });
   const idx = new Map<string, number>();
@@ -72,7 +87,7 @@ function build() {
   links.value = props.edges
     .map((e) => ({ a: idx.get(e.source) ?? -1, b: idx.get(e.target) ?? -1, field: e.field }))
     .filter((l) => l.a >= 0 && l.b >= 0);
-  reheat(1);
+  reheat(0.8);
 }
 
 function reheat(to: number) {
@@ -100,8 +115,8 @@ function step() {
         dy = 0.1;
         d2 = dx * dx + dy * dy;
       }
-      const f = REPULSION / d2;
       const d = Math.sqrt(d2);
+      const f = REPULSION / d2;
       fx += (dx / d) * f;
       fy += (dy / d) * f;
     }
@@ -143,43 +158,92 @@ function step() {
   }
 }
 
-function toLocal(e: PointerEvent): { x: number; y: number } {
+// Map a pointer event to graph-space coordinates, inverting pan + zoom.
+function toGraph(e: PointerEvent): { x: number; y: number } {
   const svg = svgRef.value;
   if (!svg) return { x: 0, y: 0 };
   const rect = svg.getBoundingClientRect();
-  return {
-    x: ((e.clientX - rect.left) / rect.width) * props.width,
-    y: ((e.clientY - rect.top) / rect.height) * props.height,
-  };
+  const vbx = ((e.clientX - rect.left) / rect.width) * props.width;
+  const vby = ((e.clientY - rect.top) / rect.height) * props.height;
+  return { x: (vbx - panX.value) / zoom.value, y: (vby - panY.value) / zoom.value };
 }
 
-function onDown(i: number, e: PointerEvent) {
+function onNodeDown(i: number, e: PointerEvent) {
   dragging = i;
-  (e.target as Element).setPointerCapture?.(e.pointerId);
+  moved = false;
+  downX = e.clientX;
+  downY = e.clientY;
   reheat(0.4);
 }
+function onSvgDown(e: PointerEvent) {
+  if (dragging >= 0) return;
+  panning = true;
+  panStartX = e.clientX;
+  panStartY = e.clientY;
+  panOrigX = panX.value;
+  panOrigY = panY.value;
+}
 function onMove(e: PointerEvent) {
-  if (dragging < 0) return;
-  const p = toLocal(e);
-  const a = sim.value[dragging];
-  a.x = p.x;
-  a.y = p.y;
-  a.vx = 0;
-  a.vy = 0;
-  triggerRef(sim);
+  if (dragging >= 0) {
+    if (Math.abs(e.clientX - downX) > 4 || Math.abs(e.clientY - downY) > 4) moved = true;
+    const p = toGraph(e);
+    const a = sim.value[dragging];
+    a.x = p.x;
+    a.y = p.y;
+    a.vx = 0;
+    a.vy = 0;
+    triggerRef(sim);
+    return;
+  }
+  if (panning) {
+    const svg = svgRef.value;
+    const scale = svg ? props.width / svg.getBoundingClientRect().width : 1;
+    panX.value = panOrigX + (e.clientX - panStartX) * scale;
+    panY.value = panOrigY + (e.clientY - panStartY) * scale;
+  }
 }
 function onUp() {
-  if (dragging < 0) return;
-  dragging = -1;
-  reheat(0.2);
+  if (dragging >= 0) {
+    const node = sim.value[dragging];
+    dragging = -1;
+    if (!moved && node) emit("node-click", node.id);
+    reheat(0.2);
+    return;
+  }
+  panning = false;
+}
+
+function zoomAt(vbx: number, vby: number, factor: number) {
+  const gx = (vbx - panX.value) / zoom.value;
+  const gy = (vby - panY.value) / zoom.value;
+  const z = Math.max(0.2, Math.min(5, zoom.value * factor));
+  panX.value = vbx - gx * z;
+  panY.value = vby - gy * z;
+  zoom.value = z;
+}
+function onWheel(e: WheelEvent) {
+  e.preventDefault();
+  const svg = svgRef.value;
+  if (!svg) return;
+  const rect = svg.getBoundingClientRect();
+  const vbx = ((e.clientX - rect.left) / rect.width) * props.width;
+  const vby = ((e.clientY - rect.top) / rect.height) * props.height;
+  zoomAt(vbx, vby, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+}
+function zoomBy(factor: number) {
+  zoomAt(props.width / 2, props.height / 2, factor);
+}
+function resetView() {
+  zoom.value = 1;
+  panX.value = 0;
+  panY.value = 0;
 }
 
 function short(label: string): string {
-  const tail = label.includes("#") ? label.slice(label.lastIndexOf("#") + 1) : label;
-  return tail.length > 18 ? tail.slice(0, 17) + "…" : tail;
+  return label.length > 22 ? label.slice(0, 21) + "…" : label;
 }
 
-watch(() => [props.nodes, props.edges], build, { immediate: true });
+watch(() => [props.nodes, props.edges], merge, { immediate: true });
 
 onBeforeUnmount(() => {
   if (raf) cancelAnimationFrame(raf);
@@ -187,36 +251,47 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <svg
-    ref="svg"
-    class="force-graph"
-    :viewBox="`0 0 ${width} ${height}`"
-    preserveAspectRatio="xMidYMid meet"
-    @pointermove="onMove"
-    @pointerup="onUp"
-    @pointerleave="onUp"
-  >
-    <line
-      v-for="(l, i) in links"
-      :key="`e${i}`"
-      class="force-edge"
-      :x1="sim[l.a].x"
-      :y1="sim[l.a].y"
-      :x2="sim[l.b].x"
-      :y2="sim[l.b].y"
+  <div class="force-graph-wrap">
+    <svg
+      ref="svg"
+      class="force-graph"
+      :viewBox="`0 0 ${width} ${height}`"
+      preserveAspectRatio="xMidYMid meet"
+      @pointerdown="onSvgDown"
+      @pointermove="onMove"
+      @pointerup="onUp"
+      @pointerleave="onUp"
+      @wheel="onWheel"
     >
-      <title>{{ l.field }}</title>
-    </line>
-    <g
-      v-for="(node, i) in sim"
-      :key="node.id"
-      :class="['force-node', `force-node--${node.kind}`]"
-      :transform="`translate(${node.x}, ${node.y})`"
-      @pointerdown="onDown(i, $event)"
-    >
-      <circle :r="node.kind === 'root' ? 9 : 5" />
-      <text :x="node.kind === 'root' ? 12 : 8" y="4">{{ short(node.label) }}</text>
-      <title>{{ node.label }}</title>
-    </g>
-  </svg>
+      <g :transform="`translate(${panX} ${panY}) scale(${zoom})`">
+        <line
+          v-for="(l, i) in links"
+          :key="`e${i}`"
+          class="force-edge"
+          :x1="sim[l.a].x"
+          :y1="sim[l.a].y"
+          :x2="sim[l.b].x"
+          :y2="sim[l.b].y"
+        >
+          <title>{{ l.field }}</title>
+        </line>
+        <g
+          v-for="(node, i) in sim"
+          :key="node.id"
+          :class="['force-node', `force-node--${node.kind}`]"
+          :transform="`translate(${node.x}, ${node.y})`"
+          @pointerdown.stop="onNodeDown(i, $event)"
+        >
+          <circle :r="node.kind === 'root' ? 9 : node.kind === 'field' ? 4 : 5" />
+          <text v-if="node.kind !== 'row'" x="11" y="4">{{ short(node.label) }}</text>
+          <title>{{ node.label }}</title>
+        </g>
+      </g>
+    </svg>
+    <div class="force-zoom">
+      <button type="button" title="Zoom in" @click="zoomBy(1.2)">+</button>
+      <button type="button" title="Zoom out" @click="zoomBy(1 / 1.2)">−</button>
+      <button type="button" title="Reset view" @click="resetView">⤢</button>
+    </div>
+  </div>
 </template>

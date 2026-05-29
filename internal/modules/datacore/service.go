@@ -91,6 +91,16 @@ func (s *Service) Graph(template string, limit int) (Graph, error) {
 	return t.Graph(limit), nil
 }
 
+// GraphFrom projects the subgraph reachable from one record (rootID, a node
+// id) up to depth hops, for the per-record flower and click-to-unfold.
+func (s *Service) GraphFrom(template, rootID string, depth int) (Graph, error) {
+	t, err := Build(s.factory(template))
+	if err != nil {
+		return Graph{}, err
+	}
+	return t.GraphFrom(rootID, depth), nil
+}
+
 // AggregateRaw produces the raw grid rows (form + dim values + numeric
 // measures) that feed statistical aggregation, over root fields, facets, and
 // date-bucketed dims. The caller groups and reduces.

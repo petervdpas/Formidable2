@@ -89,6 +89,65 @@ func TestGraphCapKeepsRootsFirstAndDropsDanglingEdges(t *testing.T) {
 	}
 }
 
+func fieldNode(g Graph) (GraphNode, bool) {
+	for _, n := range g.Nodes {
+		if n.Kind == "field" {
+			return n, true
+		}
+	}
+	return GraphNode{}, false
+}
+
+func TestGraphFromRootsTheFlower(t *testing.T) {
+	dt := graphFixture()
+
+	// Depth 1 from A: A, its title field-node, its 2 item rows, and B.
+	g := dt.GraphFrom("A", 1)
+	if len(g.Nodes) != 5 {
+		t.Fatalf("depth-1 nodes = %d, want 5 (A + title field + 2 rows + B)", len(g.Nodes))
+	}
+	// Edges: A->title, A->row0, A->row1, A->B.
+	if len(g.Edges) != 4 {
+		t.Fatalf("depth-1 edges = %d, want 4", len(g.Edges))
+	}
+	fn, ok := fieldNode(g)
+	if !ok || fn.Label != "Alpha" {
+		t.Fatalf("field node = %+v, want title value Alpha", fn)
+	}
+
+	// Depth 0: the root and its own fields, no ref-children.
+	g0 := dt.GraphFrom("A", 0)
+	if len(g0.Nodes) != 2 {
+		t.Fatalf("depth-0 nodes = %d, want 2 (A + title field)", len(g0.Nodes))
+	}
+
+	// Expanding a row reveals that row's columns as field nodes.
+	gr := dt.GraphFrom("A#items#0", 1)
+	frow, ok := fieldNode(gr)
+	if !ok || frow.Label != "disk" {
+		t.Fatalf("row column node = %+v, want name value disk", frow)
+	}
+}
+
+func TestGraphFromUnknownRoot(t *testing.T) {
+	if g := graphFixture().GraphFrom("nope", 2); len(g.Nodes) != 0 {
+		t.Fatalf("unknown root = %+v, want empty", g)
+	}
+}
+
+func TestGraphUsesRecordLabel(t *testing.T) {
+	dt := New()
+	dt.Ingest(Record{ID: "rec1.json", Label: "Quarterly Report", Fields: map[string]string{"x": "1"}})
+
+	g := dt.GraphFrom("rec1.json", 0)
+	if g.Nodes[0].ID != "rec1.json" || g.Nodes[0].Label != "Quarterly Report" {
+		t.Fatalf("root node = %+v, want id rec1.json label 'Quarterly Report'", g.Nodes[0])
+	}
+	if g.Nodes[0].Kind != "root" {
+		t.Fatalf("root kind = %q, want root", g.Nodes[0].Kind)
+	}
+}
+
 func TestGraphEmptyTensor(t *testing.T) {
 	g := New().Graph(0)
 	if len(g.Nodes) != 0 || len(g.Edges) != 0 || g.Capped {

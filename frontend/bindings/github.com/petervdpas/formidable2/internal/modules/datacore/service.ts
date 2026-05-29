@@ -91,6 +91,16 @@ export function Graph(template: string, limit: number): $CancellablePromise<$mod
 }
 
 /**
+ * GraphFrom projects the subgraph reachable from one record (rootID, a node
+ * id) up to depth hops, for the per-record flower and click-to-unfold.
+ */
+export function GraphFrom(template: string, rootID: string, depth: number): $CancellablePromise<$models.Graph> {
+    return $Call.ByID(3090347177, template, rootID, depth).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
  * Summarize lands a per-record loop summary on each root: linkField's rows
  * reduced by valueField (empty valueField gives a plain count summary).
  */

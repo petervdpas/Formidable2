@@ -58,14 +58,16 @@ func (a *datacoreLoaderAdapter) Records() ([]datacore.Record, error) {
 // datacoreRecord shapes one live form into a Record. Scalars become fields;
 // tables and multi-valued fields (list/tags/multioption) become row-identity
 // tables (a multi-valued field is a one-column table whose column is "value");
-// set facets become context-keyed values. The identity is the form GUID when
-// present, else its filename.
+// set facets become context-keyed values. The identity is the filename, so the
+// studio (which works in filenames) can anchor the graph on the selected item;
+// the label is the template's item field, falling back to the filename.
 func datacoreRecord(tpl *template.Template, file string, f *storage.Form) datacore.Record {
-	id := f.Meta.ID
-	if id == "" {
-		id = file
+	rec := datacore.Record{ID: file}
+	if tpl.ItemField != "" {
+		if v, ok := f.Data[tpl.ItemField]; ok {
+			rec.Label = dcText(v)
+		}
 	}
-	rec := datacore.Record{ID: id}
 
 	for _, fld := range tpl.Fields {
 		if datacoreSkipTypes[fld.Type] {

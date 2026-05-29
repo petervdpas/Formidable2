@@ -1385,10 +1385,11 @@ setTopbarMenu(() => [
     @close="queryOpen = false"
   />
 
-  <!-- Datacore graph (live node-link view of the tensor) -->
+  <!-- Datacore graph (live node-link view rooted at the selected record) -->
   <DatacoreGraphDialog
     :open="graphOpen"
     :template-filename="selectedTemplate"
+    :record="view?.datafile ?? ''"
     @close="graphOpen = false"
   />
 </template>

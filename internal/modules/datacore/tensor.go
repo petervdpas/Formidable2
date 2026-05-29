@@ -65,10 +65,20 @@ type Tensor struct {
 
 	rootList []sym // top-level identities (records), in ingest order
 	rootSet  map[sym]bool
+	labels   map[sym]string // optional display label per identity
 }
 
 func New() *Tensor {
-	return &Tensor{iax: newAxis(), fax: newAxis(), max: newAxis(), rootSet: map[sym]bool{}}
+	return &Tensor{iax: newAxis(), fax: newAxis(), max: newAxis(), rootSet: map[sym]bool{}, labels: map[sym]string{}}
+}
+
+// nodeLabel is the display label for an identity: its stored label if one was
+// set at ingest, else the identity itself.
+func (t *Tensor) nodeLabel(s sym) string {
+	if l := t.labels[s]; l != "" {
+		return l
+	}
+	return t.iax.label(s)
 }
 
 // markRoot records an identity as a root: a top-level record, not a sub-

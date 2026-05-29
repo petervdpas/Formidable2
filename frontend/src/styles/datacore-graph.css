@@ -53,6 +53,10 @@
   background: var(--color-text-muted, #8a93a6);
 }
 
+.datacore-dot--field {
+  background: var(--color-success, #5fc37a);
+}
+
 .datacore-graph__capped {
   margin: 0;
   color: var(--color-warn, #d4a64a);
@@ -62,14 +66,49 @@
   color: var(--color-danger, #d96666);
 }
 
-.force-graph {
+.force-graph-wrap {
+  position: relative;
   width: 100%;
   height: 60vh;
   min-height: 24rem;
+}
+
+.force-graph {
+  width: 100%;
+  height: 100%;
   background: var(--color-surface-2, var(--color-surface));
   border: 1px solid var(--color-border, #2a3142);
   border-radius: var(--radius-md, 6px);
   touch-action: none;
+  cursor: grab;
+}
+
+.force-zoom {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.force-zoom button {
+  width: 1.8rem;
+  height: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text, #d7dce5);
+  background: var(--color-surface, #1c2230);
+  border: 1px solid var(--color-border, #2a3142);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+
+.force-zoom button:hover {
+  background: var(--color-surface-2, #232a3a);
 }
 
 .force-edge {
@@ -97,6 +136,15 @@
 
 .force-node--row circle {
   fill: var(--color-text-muted, #8a93a6);
+}
+
+.force-node--field circle {
+  fill: var(--color-success, #5fc37a);
+}
+
+.force-node--field text {
+  font-size: 10px;
+  fill: var(--color-text-muted, #b6bdc9);
 }
 
 .force-node text {

@@ -1,11 +1,12 @@
 {
   "datacore.graph_title": "Datacore graph",
-  "datacore.node_cap": "Max nodes",
-  "datacore.reload": "Reload",
+  "datacore.click_hint": "Click a node to unfold its links; drag to rearrange.",
+  "datacore.reset": "Reset",
   "datacore.loading": "Building graph...",
-  "datacore.empty": "No data to graph.",
-  "datacore.capped": "Showing the first {n} nodes; the graph is truncated.",
+  "datacore.empty": "Nothing to graph for this record.",
+  "datacore.no_record": "Select a record first.",
   "datacore.count": "{nodes} nodes, {edges} edges",
   "datacore.legend_root": "Record",
-  "datacore.legend_row": "Row / link"
+  "datacore.legend_row": "Row / link",
+  "datacore.legend_field": "Field"
 }
