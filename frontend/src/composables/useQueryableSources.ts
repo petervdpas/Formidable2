@@ -26,6 +26,11 @@ export interface QueryableSource {
   numeric: boolean;
   date: boolean;
   text: boolean; // high-cardinality free text - caller may prefill a limit
+  // multi marks a source that fans one row per entry when projected: a
+  // table column, or a list/tags/multioption field (stored one-row-per-
+  // entry in form_values). Two such columns can't be row-aligned from the
+  // index, so the query UI allows at most one per query.
+  multi: boolean;
   // Closed value set (dropdown/radio option values, or facet option labels):
   // a filter on this source offers a dropdown instead of free text so the
   // user can't type a value that exists nowhere in the data.
@@ -63,6 +68,7 @@ export function deriveQueryableSources(tpl: Template | null): QueryableSource[] 
           numeric: ctype === "number",
           date: ctype === "date",
           text: false,
+          multi: true, // a table column fans one row per table row
         });
       }
       continue;
@@ -82,6 +88,7 @@ export function deriveQueryableSources(tpl: Template | null): QueryableSource[] 
       numeric: f.type === "number" || f.type === "range",
       date: f.type === "date",
       text: f.type === "text",
+      multi: f.type === "list" || f.type === "multioption" || f.type === "tags",
       choices,
     });
   }
@@ -92,7 +99,7 @@ export function deriveQueryableSources(tpl: Template | null): QueryableSource[] 
       .map((o) => o.label)
       .filter((l) => l !== "")
       .map((l) => ({ value: l, label: l }));
-    out.push({ id: srcId(source), label: fc.key, source, numeric: false, date: false, text: false, choices });
+    out.push({ id: srcId(source), label: fc.key, source, numeric: false, date: false, text: false, multi: false, choices });
   }
 
   return out;

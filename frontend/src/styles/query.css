@@ -52,6 +52,11 @@
 .query-th-narrow {
   width: 4rem;
 }
+/* A fanning (table/list) source is highlighted so it's clear why only one
+   may be projected at a time. */
+.query-multi {
+  border-color: var(--color-accent, var(--color-border));
+}
 .query-td-center {
   text-align: center;
 }

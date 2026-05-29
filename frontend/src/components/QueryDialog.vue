@@ -43,11 +43,13 @@ const OP_LABEL_KEYS: Record<string, string> = {
   ge: "query.op.ge",
 };
 
+type SortDir = "none" | "asc" | "desc";
 interface ColumnRow {
   id: string;
   header: string;
   sourceId: string;
   group: boolean;
+  sort: SortDir;
 }
 interface FilterRow {
   id: string;
@@ -74,7 +76,13 @@ const errorMsg = ref("");
 let seq = 0;
 
 const grouping = computed(() => columns.value.some((c) => c.group && c.sourceId));
-const canRun = computed(() => columns.value.some((c) => c.sourceId));
+// Two fanning (table / list / tags) columns can't be row-aligned from the
+// index, so at most one may be projected at a time.
+const multiCount = computed(
+  () => columns.value.filter((c) => sourceById.value[c.sourceId]?.multi).length,
+);
+const tooManyMulti = computed(() => multiCount.value > 1);
+const canRun = computed(() => columns.value.some((c) => c.sourceId) && !tooManyMulti.value);
 
 watch(
   () => props.open,
@@ -90,13 +98,20 @@ watch(
     running.value = false;
     seq = 0;
     // Default to every queryable source as a column, like CSV export, so
-    // the user sees data on the first Run and trims down from there.
-    columns.value = sources.value.map((s) => ({
-      id: `col-${seq++}`,
-      header: s.label,
-      sourceId: s.id,
-      group: false,
-    }));
+    // the user sees data on the first Run and trims down from there. Keep
+    // the default valid: include at most one fanning (table/list) column.
+    {
+      const cols: ColumnRow[] = [];
+      let multiUsed = false;
+      for (const s of sources.value) {
+        if (s.multi) {
+          if (multiUsed) continue;
+          multiUsed = true;
+        }
+        cols.push({ id: `col-${seq++}`, header: s.label, sourceId: s.id, group: false, sort: "none" });
+      }
+      columns.value = cols;
+    }
     if (ops.value.length === 0) {
       try {
         ops.value = await QuerySvc.FilterOps();
@@ -108,7 +123,7 @@ watch(
 );
 
 function addColumn() {
-  columns.value.push({ id: `col-${seq++}`, header: "", sourceId: sources.value[0]?.id ?? "", group: false });
+  columns.value.push({ id: `col-${seq++}`, header: "", sourceId: sources.value[0]?.id ?? "", group: false, sort: "none" });
 }
 function removeColumn(i: number) {
   columns.value.splice(i, 1);
@@ -121,18 +136,21 @@ function removeFilter(i: number) {
 }
 
 function buildSpec(): Spec {
-  const cols = columns.value
-    .filter((c) => c.sourceId && sourceById.value[c.sourceId])
-    .map((c) => {
-      const src = sourceById.value[c.sourceId].source;
-      return { header: c.header || sourceById.value[c.sourceId].label, source: src };
-    });
+  // One filtered list so column indices in groupBy / orderBy line up with
+  // the columns actually sent.
+  const valid = columns.value.filter((c) => c.sourceId && sourceById.value[c.sourceId]);
+  const cols = valid.map((c) => ({
+    header: c.header || sourceById.value[c.sourceId].label,
+    source: sourceById.value[c.sourceId].source,
+  }));
   const groupBy: number[] = [];
-  columns.value
-    .filter((c) => c.sourceId && sourceById.value[c.sourceId])
-    .forEach((c, i) => {
-      if (c.group) groupBy.push(i);
-    });
+  const orderBy: { column: number; desc: boolean; numeric: boolean }[] = [];
+  valid.forEach((c, i) => {
+    if (c.group) groupBy.push(i);
+    if (c.sort !== "none") {
+      orderBy.push({ column: i, desc: c.sort === "desc", numeric: !!sourceById.value[c.sourceId].numeric });
+    }
+  });
   const flts = filters.value
     .filter((f) => f.sourceId && sourceById.value[f.sourceId])
     .map((f) => ({ source: sourceById.value[f.sourceId].source, op: f.op, value: f.value }));
@@ -143,6 +161,7 @@ function buildSpec(): Spec {
     distinct: groupBy.length === 0 && distinct.value,
     groupBy,
     count: groupBy.length > 0 && count.value,
+    orderBy,
     limit: limit.value > 0 ? limit.value : 0,
   });
 }
@@ -214,24 +233,33 @@ async function exportCsv() {
             <th>{{ t('query.column.source') }}</th>
             <th>{{ t('query.column.header') }}</th>
             <th class="query-th-narrow">{{ t('query.column.group') }}</th>
+            <th class="query-th-narrow">{{ t('query.column.sort') }}</th>
             <th class="query-th-narrow"></th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(c, i) in columns" :key="c.id">
             <td>
-              <select v-model="c.sourceId">
+              <select v-model="c.sourceId" :class="{ 'query-multi': sourceById[c.sourceId]?.multi }">
                 <option v-for="s in sources" :key="s.id" :value="s.id">{{ s.label }}</option>
               </select>
             </td>
             <td><input v-model="c.header" type="text" :placeholder="sourceById[c.sourceId]?.label" /></td>
             <td class="query-td-center"><input v-model="c.group" type="checkbox" /></td>
+            <td>
+              <select v-model="c.sort">
+                <option value="none">{{ t('query.sort.none') }}</option>
+                <option value="asc">{{ t('query.sort.asc') }}</option>
+                <option value="desc">{{ t('query.sort.desc') }}</option>
+              </select>
+            </td>
             <td class="query-td-center">
               <button type="button" class="tool-btn danger" @click="removeColumn(i)">×</button>
             </td>
           </tr>
         </tbody>
       </table>
+      <p v-if="tooManyMulti" class="form-error">{{ t('query.too_many_multi') }}</p>
     </section>
 
     <section class="query-section">
