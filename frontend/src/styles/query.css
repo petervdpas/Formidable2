@@ -14,6 +14,14 @@
   font-family: var(--font-mono, monospace);
 }
 
+/* Each tab caps its height and scrolls on its own, so a long column /
+   filter / group / order list (or the SQL preview) doesn't stretch the
+   dialog past the result table below it. */
+.query-tabs .tab-pane {
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
 .query-section {
   margin-bottom: 1rem;
 }
@@ -22,6 +30,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+/* Inside a scrolling tab, the head (hint + Add button) stays pinned at the
+   top while the rows scroll under it. Generic: every tab's head sticks, so
+   Add is always reachable. The opaque background covers scrolling rows. */
+.query-tabs .query-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface);
+  padding: 0.25rem 0;
   margin-bottom: 0.5rem;
 }
 .query-section-head h4 {
@@ -146,6 +165,14 @@
 .query-anomalies ul {
   margin: 0.25rem 0 0;
   padding-left: 1.25rem;
+}
+/* The result set scrolls on its own in a fixed-height region so the header
+   stays pinned and the rest of the dialog doesn't grow with the data. */
+.query-result-scroll {
+  max-height: 20rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
 }
 /* The result header is data, not a muted picker label: full-contrast text
    on a solid surface so it stays readable while rows scroll under it. */
