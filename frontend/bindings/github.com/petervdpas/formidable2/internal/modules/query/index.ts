@@ -7,11 +7,15 @@ export {
 };
 
 export {
+    Anomaly,
     Cell,
+    Choice,
     Column,
     Filter,
+    Measure,
     Result,
     Sort,
     Source,
+    SourceInfo,
     Spec
 } from "./models.js";

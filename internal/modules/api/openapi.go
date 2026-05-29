@@ -90,25 +90,25 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	}
 
 	schemas := map[string]any{
-		"ItemBase":       schemaItemBase(),
-		"ItemSummary":    schemaItemSummary(),
-		"FormMeta":         schemaFormMeta(),
-		"FacetState":       schemaFacetState(),
-		"FacetDefinition":  schemaFacetDefinition(),
-		"FacetOption":      schemaFacetOption(),
-		"FacetsResponse":   schemaFacetsResponse(),
-		"AuditEntry":     schemaAuditEntry(),
-		"TemplateRow":    schemaTemplateRow(),
-		"CountResponse":  schemaCountResponse(),
-		"ListResponse":   schemaListResponse(),
-		"TemplateField":  schemaTemplateField(),
-		"TemplateDesign": schemaTemplateDesign(),
-		"GUIDResponse":   schemaGUIDResponse(),
-		"FieldPatchBody": schemaFieldPatchBody(),
-		"BatchRequest":   schemaBatchRequest(),
-		"BatchResponse":  schemaBatchResponse(),
-		"BatchResultRow": schemaBatchResultRow(),
-		"BatchErrorRow":  schemaBatchErrorRow(),
+		"ItemBase":        schemaItemBase(),
+		"ItemSummary":     schemaItemSummary(),
+		"FormMeta":        schemaFormMeta(),
+		"FacetState":      schemaFacetState(),
+		"FacetDefinition": schemaFacetDefinition(),
+		"FacetOption":     schemaFacetOption(),
+		"FacetsResponse":  schemaFacetsResponse(),
+		"AuditEntry":      schemaAuditEntry(),
+		"TemplateRow":     schemaTemplateRow(),
+		"CountResponse":   schemaCountResponse(),
+		"ListResponse":    schemaListResponse(),
+		"TemplateField":   schemaTemplateField(),
+		"TemplateDesign":  schemaTemplateDesign(),
+		"GUIDResponse":    schemaGUIDResponse(),
+		"FieldPatchBody":  schemaFieldPatchBody(),
+		"BatchRequest":    schemaBatchRequest(),
+		"BatchResponse":   schemaBatchResponse(),
+		"BatchResultRow":  schemaBatchResultRow(),
+		"BatchErrorRow":   schemaBatchErrorRow(),
 	}
 	maps.Copy(schemas, dataSchemas)
 	maps.Copy(schemas, itemSchemas)
@@ -138,17 +138,17 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 		"description": "Template id (stem)",
 	}
 	idParam := map[string]any{
-		"name":     "id",
-		"in":       "path",
-		"required": true,
-		"schema":   map[string]any{"type": "string"},
+		"name":        "id",
+		"in":          "path",
+		"required":    true,
+		"schema":      map[string]any{"type": "string"},
 		"description": "Item GUID",
 	}
 	keyParam := map[string]any{
-		"name":     "key",
-		"in":       "path",
-		"required": true,
-		"schema":   map[string]any{"type": "string"},
+		"name":        "key",
+		"in":          "path",
+		"required":    true,
+		"schema":      map[string]any{"type": "string"},
 		"description": "Field key within the template",
 	}
 
@@ -210,9 +210,9 @@ func withFacetPaths(paths map[string]any, facetsByStem map[string][]template.Fac
 				"schema": map[string]any{"type": "string"},
 			},
 			map[string]any{
-				"name":   "tags",
-				"in":     "query",
-				"schema": map[string]any{"type": "string"},
+				"name":        "tags",
+				"in":          "query",
+				"schema":      map[string]any{"type": "string"},
 				"description": "Comma-separated tag list (AND across entries).",
 			},
 		}
@@ -233,9 +233,9 @@ func withFacetPaths(paths map[string]any, facetsByStem map[string][]template.Fac
 		}
 		paths["/collections/"+stem] = map[string]any{
 			"get": map[string]any{
-				"summary": "List items in `" + stem + "` (facet-filterable)",
+				"summary":     "List items in `" + stem + "` (facet-filterable)",
 				"description": "Per-template list endpoint. Same behaviour as /collections/{template} but documents the declared facets as typed query parameters with their option labels as enums.",
-				"parameters": params,
+				"parameters":  params,
 				"responses": map[string]any{
 					"200": map[string]any{
 						"description": "OK",
@@ -308,10 +308,10 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 	}
 	upsertQuery := []any{
 		map[string]any{
-			"name":     "upsert",
-			"in":       "query",
-			"required": false,
-			"schema":   map[string]any{"type": "boolean", "default": false},
+			"name":        "upsert",
+			"in":          "query",
+			"required":    false,
+			"schema":      map[string]any{"type": "boolean", "default": false},
 			"description": "Allow create when the item is missing.",
 		},
 	}
@@ -353,7 +353,7 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 				"200": map[string]any{
 					"description": "Image bytes or data URL string.",
 					"content": map[string]any{
-						"image/*":                  map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}},
+						"image/*":                   map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}},
 						"text/plain; charset=utf-8": map[string]any{"schema": map[string]any{"type": "string"}},
 					},
 				},
@@ -385,8 +385,8 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 	// PUT/PATCH/DELETE.
 	if entry, ok := paths["/collections/{template}/{id}"].(map[string]any); ok {
 		entry["put"] = map[string]any{
-			"summary":    "Replace item by GUID (or upsert)",
-			"parameters": append([]any{param("TemplateParam"), param("IdParam")}, upsertQuery...),
+			"summary":     "Replace item by GUID (or upsert)",
+			"parameters":  append([]any{param("TemplateParam"), param("IdParam")}, upsertQuery...),
 			"requestBody": upsertBody(),
 			"responses": map[string]any{
 				"200": itemOneOf("Replaced"),
@@ -398,8 +398,8 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 			},
 		}
 		entry["patch"] = map[string]any{
-			"summary":    "Merge update (partial) by GUID",
-			"parameters": []any{param("TemplateParam"), param("IdParam")},
+			"summary":     "Merge update (partial) by GUID",
+			"parameters":  []any{param("TemplateParam"), param("IdParam")},
 			"requestBody": upsertPartialBody(),
 			"responses": map[string]any{
 				"200": itemOneOf("OK"),
@@ -552,9 +552,22 @@ func querySpecSchema() map[string]any {
 					},
 				},
 			},
-			"distinct":    map[string]any{"type": "boolean"},
-			"groupBy":     map[string]any{"type": "array", "items": map[string]any{"type": "integer"}, "description": "Column indices to group by."},
-			"count":       map[string]any{"type": "boolean", "description": "Append a per-group count column (group mode)."},
+			"distinct": map[string]any{"type": "boolean"},
+			"groupBy":  map[string]any{"type": "array", "items": map[string]any{"type": "integer"}, "description": "Column indices to group by."},
+			"measures": map[string]any{
+				"type":        "array",
+				"description": "Aggregate columns (group mode): a function over a source.",
+				"items": map[string]any{
+					"type":     "object",
+					"required": []string{"func", "header"},
+					"properties": map[string]any{
+						"func":   map[string]any{"type": "string", "enum": []string{"count", "count_distinct", "sum", "avg", "min", "max"}},
+						"source": src,
+						"header": map[string]any{"type": "string"},
+					},
+				},
+			},
+			"count":       map[string]any{"type": "boolean", "description": "Append a per-group count column (group mode; superseded by measures)."},
 			"countHeader": map[string]any{"type": "string"},
 			"orderBy": map[string]any{
 				"type": "array",
@@ -596,6 +609,19 @@ func queryResultSchema() map[string]any {
 			},
 			"count": map[string]any{"type": "integer", "description": "Number of result rows."},
 			"total": map[string]any{"type": "integer", "description": "Total forms in the template (denominator)."},
+			"anomalies": map[string]any{
+				"type":        "array",
+				"description": "Typed cells that did not round-trip to their declared type (surfaced, not dropped).",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"form":     map[string]any{"type": "string"},
+						"column":   map[string]any{"type": "string"},
+						"value":    map[string]any{"type": "string"},
+						"expected": map[string]any{"type": "string"},
+					},
+				},
+			},
 		},
 	}
 }

@@ -6,6 +6,42 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Anomaly names one cell that betrayed its column's declared type.
+ */
+export class Anomaly {
+    "form": string;
+    "column": string;
+    "value": string;
+    "expected": string;
+
+    /** Creates a new Anomaly instance. */
+    constructor($$source: Partial<Anomaly> = {}) {
+        if (!("form" in $$source)) {
+            this["form"] = "";
+        }
+        if (!("column" in $$source)) {
+            this["column"] = "";
+        }
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("expected" in $$source)) {
+            this["expected"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Anomaly instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Anomaly {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Anomaly($$parsedSource as Partial<Anomaly>);
+    }
+}
+
+/**
  * Cell is one output value: Text is the display string; Num carries the
  * parsed number when the value had one, so the REST consumer can emit a
  * real JSON number instead of a quoted string.
@@ -29,6 +65,35 @@ export class Cell {
     static createFrom($$source: any = {}): Cell {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new Cell($$parsedSource as Partial<Cell>);
+    }
+}
+
+/**
+ * Choice is one closed-set value a filter can offer as a dropdown instead
+ * of free text (dropdown/radio option values, or facet option labels).
+ */
+export class Choice {
+    "value": string;
+    "label": string;
+
+    /** Creates a new Choice instance. */
+    constructor($$source: Partial<Choice> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Choice instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Choice {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Choice($$parsedSource as Partial<Choice>);
     }
 }
 
@@ -104,6 +169,48 @@ export class Filter {
 }
 
 /**
+ * Measure is one aggregate column in group mode: a function applied to a
+ * source over the rows of each group. Func is count / count_distinct /
+ * sum / avg / min / max; Source is ignored for count and count_distinct
+ * (they count rows / distinct source forms). Header is the output label.
+ * Numeric measures coerce each cell to a number at execute time and skip
+ * the ones that don't parse, so a stray non-numeric value can't fail the
+ * whole aggregate (the "doctor" stance: apply type, tolerate outliers).
+ */
+export class Measure {
+    "func": string;
+    "source": Source;
+    "header": string;
+
+    /** Creates a new Measure instance. */
+    constructor($$source: Partial<Measure> = {}) {
+        if (!("func" in $$source)) {
+            this["func"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = (new Source());
+        }
+        if (!("header" in $$source)) {
+            this["header"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Measure instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Measure {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField1_0($$parsedSource["source"]);
+        }
+        return new Measure($$parsedSource as Partial<Measure>);
+    }
+}
+
+/**
  * Result is the query output: Columns are the header strings (group
  * columns plus the count header in group mode), Rows the typed cells.
  * Count is the number of result rows; Total is the template's full form
@@ -114,6 +221,15 @@ export class Result {
     "rows": Cell[][];
     "count": number;
     "total": number;
+
+    /**
+     * Anomalies are integrity violations found while running: a cell in a
+     * typed (number/date) column that does not coerce back to its declared
+     * type. The input form enforces field types, so a value that won't
+     * round-trip means the stored data is corrupt, not a tolerable outlier.
+     * They are surfaced, never silently dropped.
+     */
+    "anomalies"?: Anomaly[];
 
     /** Creates a new Result instance. */
     constructor($$source: Partial<Result> = {}) {
@@ -139,12 +255,16 @@ export class Result {
     static createFrom($$source: any = {}): Result {
         const $$createField0_0 = $$createType1;
         const $$createField1_0 = $$createType4;
+        const $$createField4_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField0_0($$parsedSource["columns"]);
         }
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
+        }
+        if ("anomalies" in $$parsedSource) {
+            $$parsedSource["anomalies"] = $$createField4_0($$parsedSource["anomalies"]);
         }
         return new Result($$parsedSource as Partial<Result>);
     }
@@ -222,6 +342,69 @@ export class Source {
 }
 
 /**
+ * SourceInfo describes one selectable source for the query UI: its stable
+ * id, a display label, the Source it maps to, and the capabilities the
+ * dialog needs. The backend owns this list (derived from the template) so
+ * the frontend never reimplements which fields/columns/facets exist or how
+ * they behave. Fans marks a multi-valued source (a table column, or a
+ * list/tags/multioption field) that explodes into rows; Aggregatable marks
+ * a numeric source a sum/avg/min/max measure can target.
+ */
+export class SourceInfo {
+    "id": string;
+    "label": string;
+    "source": Source;
+    "numeric": boolean;
+    "date": boolean;
+    "fans": boolean;
+    "aggregatable": boolean;
+    "choices"?: Choice[];
+
+    /** Creates a new SourceInfo instance. */
+    constructor($$source: Partial<SourceInfo> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = (new Source());
+        }
+        if (!("numeric" in $$source)) {
+            this["numeric"] = false;
+        }
+        if (!("date" in $$source)) {
+            this["date"] = false;
+        }
+        if (!("fans" in $$source)) {
+            this["fans"] = false;
+        }
+        if (!("aggregatable" in $$source)) {
+            this["aggregatable"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SourceInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SourceInfo {
+        const $$createField2_0 = $$createType0;
+        const $$createField7_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField2_0($$parsedSource["source"]);
+        }
+        if ("choices" in $$parsedSource) {
+            $$parsedSource["choices"] = $$createField7_0($$parsedSource["choices"]);
+        }
+        return new SourceInfo($$parsedSource as Partial<SourceInfo>);
+    }
+}
+
+/**
  * Spec is a full query request. With no GroupBy it is a row listing
  * (each form/cell a row), reusing index.ProjectRows; Distinct collapses
  * the projected tuple (the flatten-list/table-and-distinct case). With
@@ -235,6 +418,7 @@ export class Spec {
     "filters"?: Filter[];
     "distinct"?: boolean;
     "groupBy"?: number[];
+    "measures"?: Measure[];
     "count"?: boolean;
     "countHeader"?: string;
     "orderBy"?: Sort[];
@@ -256,10 +440,11 @@ export class Spec {
      * Creates a new Spec instance from a string or object.
      */
     static createFrom($$source: any = {}): Spec {
-        const $$createField1_0 = $$createType6;
-        const $$createField2_0 = $$createType8;
-        const $$createField4_0 = $$createType9;
-        const $$createField7_0 = $$createType11;
+        const $$createField1_0 = $$createType10;
+        const $$createField2_0 = $$createType12;
+        const $$createField4_0 = $$createType13;
+        const $$createField5_0 = $$createType15;
+        const $$createField8_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("columns" in $$parsedSource) {
             $$parsedSource["columns"] = $$createField1_0($$parsedSource["columns"]);
@@ -270,8 +455,11 @@ export class Spec {
         if ("groupBy" in $$parsedSource) {
             $$parsedSource["groupBy"] = $$createField4_0($$parsedSource["groupBy"]);
         }
+        if ("measures" in $$parsedSource) {
+            $$parsedSource["measures"] = $$createField5_0($$parsedSource["measures"]);
+        }
         if ("orderBy" in $$parsedSource) {
-            $$parsedSource["orderBy"] = $$createField7_0($$parsedSource["orderBy"]);
+            $$parsedSource["orderBy"] = $$createField8_0($$parsedSource["orderBy"]);
         }
         return new Spec($$parsedSource as Partial<Spec>);
     }
@@ -283,10 +471,16 @@ const $$createType1 = $Create.Array($Create.Any);
 const $$createType2 = Cell.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = Column.createFrom;
+const $$createType5 = Anomaly.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = Filter.createFrom;
+const $$createType7 = Choice.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $Create.Array($Create.Any);
-const $$createType10 = Sort.createFrom;
-const $$createType11 = $Create.Array($$createType10);
+const $$createType9 = Column.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = Filter.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $Create.Array($Create.Any);
+const $$createType14 = Measure.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = Sort.createFrom;
+const $$createType17 = $Create.Array($$createType16);

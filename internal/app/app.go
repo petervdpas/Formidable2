@@ -395,9 +395,11 @@ func New(d Deps) (*App, error) {
 	statM.SetColumnResolver(statColumnResolver{tpl: tplM})
 	statSvc := stat.NewService(statM, statTemplateSource{tpl: tplM})
 
-	// Query - read-only SELECT (FDRM) over the same form_values datacore,
-	// a sibling consumer of idxM alongside stat. Owns no SQL of its own.
-	queryM := query.NewManager(idxM)
+	// Query - read-only SELECT (FDRM) that prepares an in-memory matrix
+	// from the template's form data (via template + storage) and runs the
+	// spec over it. Reads forms directly, not the index, so any field is
+	// queryable and table rows stay row-aligned.
+	queryM := query.NewManager(newQueryLoaderAdapter(tplM, stoM))
 	querySvc := query.NewService(queryM)
 
 	// EnabledTemplates self-healing: when a template file is deleted, the

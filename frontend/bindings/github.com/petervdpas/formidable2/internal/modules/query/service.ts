@@ -17,6 +17,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * Explain returns a read-only SQL-shaped preview of a spec, rendered by
+ * the backend so it stays truthful to what the engine runs.
+ */
+export function Explain(spec: $models.Spec): $CancellablePromise<string> {
+    return $Call.ByID(2448824887, spec);
+}
+
+/**
  * FilterOps returns the comparison operators a filter may use, in display
  * order. Backend-owned (sourced from the datacore) so the query panel's
  * operator picker can't drift from what the engine accepts.
@@ -38,6 +46,20 @@ export function Run(spec: $models.Spec): $CancellablePromise<$models.Result> {
     });
 }
 
+/**
+ * Sources lists the queryable sources for a template (fields, table
+ * columns, facets) with their capabilities, for the query panel's column,
+ * filter, group and measure pickers. Backend-owned so the frontend never
+ * reimplements the source universe.
+ */
+export function Sources(template: string): $CancellablePromise<$models.SourceInfo[]> {
+    return $Call.ByID(2517068050, template).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = $models.Result.createFrom;
+const $$createType2 = $models.SourceInfo.createFrom;
+const $$createType3 = $Create.Array($$createType2);
