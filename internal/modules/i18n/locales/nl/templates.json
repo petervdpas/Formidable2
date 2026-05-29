@@ -111,6 +111,8 @@
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Opties",
   "workspace.templates.field_edit.row.options_unavailable": "Opties niet beschikbaar voor dit veldtype.",
+  "workspace.templates.field_edit.row.summary_field": "Samenvattingsveld",
+  "workspace.templates.field_edit.row.summary_field_none": "(geen)",
   "workspace.templates.options.bool_subrow": "True/False-opties",
   "workspace.templates.options.dropdown_subrow": "Dropdown-opties",
   "workspace.templates.options.bool_placeholder_true": "Ja",

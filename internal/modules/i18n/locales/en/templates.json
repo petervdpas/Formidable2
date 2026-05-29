@@ -111,6 +111,8 @@
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Options",
   "workspace.templates.field_edit.row.options_unavailable": "Options not available for this field type.",
+  "workspace.templates.field_edit.row.summary_field": "Summary field",
+  "workspace.templates.field_edit.row.summary_field_none": "(none)",
   "workspace.templates.options.bool_subrow": "True/False options",
   "workspace.templates.options.dropdown_subrow": "Dropdown options",
   "workspace.templates.options.bool_placeholder_true": "Yes",

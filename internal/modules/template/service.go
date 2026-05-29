@@ -121,3 +121,11 @@ func (s *Service) BuildFieldTree(fields []Field) []FieldUnit {
 func (s *Service) FlattenFieldTree(units []FieldUnit) []Field {
 	return FlattenFieldTree(units)
 }
+
+// SummaryFieldCandidates lists the direct child fields of the loop
+// whose loopstart carries loopKey, as {key,label} options for the
+// field-edit modal's Summary field picker. Backend owns the candidate
+// set so the frontend doesn't re-derive loop membership.
+func (s *Service) SummaryFieldCandidates(fields []Field, loopKey string) []SummaryFieldOption {
+	return SummaryFieldCandidates(fields, loopKey)
+}

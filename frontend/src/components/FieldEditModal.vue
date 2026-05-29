@@ -10,6 +10,7 @@ import {
   SelectField,
   SwitchField,
   OptionsEditor,
+  FieldSelector,
 } from "./fields";
 import APIFieldEditor from "./APIFieldEditor.vue";
 import type { OptionRow } from "./fields/OptionsEditor.vue";
@@ -48,6 +49,12 @@ const props = defineProps<{
    *  still show but the binding picker is empty and Confirm is
    *  disabled with a hint pointing the user at the Facets tab. */
   availableFacets?: Facet[];
+  /** Loop summary-field candidates (loopstart only): the loop's direct
+   *  child fields as {value,label} pairs, supplied by the parent from
+   *  the backend. Feeds the Summary field picker so a loopstart can bind
+   *  its collapsed-item summary to one of its own children. Empty for
+   *  every non-loop field type. */
+  summaryFieldOptions?: { key: string; label: string }[];
 }>();
 
 const emit = defineEmits<{
@@ -69,6 +76,17 @@ const expressionItemInvalid = computed<boolean>(() => {
 });
 
 const isFacetType = computed(() => draft.value?.type === "facet");
+
+// Summary-field picker (loopstart only). Candidates come from the
+// backend via the parent; FieldSelector renders the list and the
+// leading "(none)" entry. The Field carries summary_field as an
+// optional string, so the model coerces null/undefined to "".
+const summaryFieldValue = computed<string>({
+  get: () => draft.value?.summary_field ?? "",
+  set: (v: string) => {
+    if (draft.value) draft.value.summary_field = v;
+  },
+});
 
 const facetBindingMissing = computed<boolean>(() => {
   if (!isFacetType.value) return false;
@@ -491,6 +509,17 @@ const dialogStyle = computed<Record<string, string>>(() => {
             :model-value="draft.type"
             :options="typeOptions"
             @update:model-value="onTypeChange"
+          />
+        </FormRow>
+
+        <FormRow
+          v-if="showRow('summary_field')"
+          :label="t('workspace.templates.field_edit.row.summary_field')"
+        >
+          <FieldSelector
+            v-model="summaryFieldValue"
+            :fields="summaryFieldOptions ?? []"
+            :empty-label="t('workspace.templates.field_edit.row.summary_field_none')"
           />
         </FormRow>
 

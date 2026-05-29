@@ -9,7 +9,7 @@ import {
   Service as TemplateSvc,
   FieldUnit,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import type { Field, Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field, Facet, SummaryFieldOption } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { recomputeLevelScopes } from "../utils/fieldScopes";
 
 // TemplateFieldsSection
@@ -77,11 +77,19 @@ const editOpen = ref(false);
 const editUnit = ref<FieldUnit | null>(null);
 const editField = ref<Field | null>(null);
 const editIsNew = ref(false);
+// Loop summary-field candidates for the field being edited. Backend
+// (template.SummaryFieldCandidates) owns loop membership; we fetch the
+// direct child fields by the loopstart key whenever a loop is opened.
+const summaryFieldOptions = ref<SummaryFieldOption[]>([]);
 
-function openEdit(u: FieldUnit) {
+async function openEdit(u: FieldUnit) {
   if (!u) return;
   editUnit.value = u;
   editField.value = u.kind === "loop" ? (u.start ?? null) : (u.field ?? null);
+  summaryFieldOptions.value =
+    u.kind === "loop" && u.start?.key
+      ? (await TemplateSvc.SummaryFieldCandidates(props.fields ?? [], u.start.key)) ?? []
+      : [];
   editIsNew.value = false;
   editOpen.value = true;
 }
@@ -89,6 +97,7 @@ function openEdit(u: FieldUnit) {
 function openAddField() {
   editUnit.value = null;
   editField.value = null;
+  summaryFieldOptions.value = [];
   editIsNew.value = true;
   editOpen.value = true;
 }
@@ -212,6 +221,7 @@ defineExpose({ openAddField });
     :field="editField"
     :is-new="editIsNew"
     :available-facets="facets ?? []"
+    :summary-field-options="summaryFieldOptions"
     @close="editOpen = false"
     @confirm="applyEdit"
   />

@@ -159,13 +159,25 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
 }
 
 /**
+ * SummaryFieldCandidates lists the direct child fields of the loop
+ * whose loopstart carries loopKey, as {key,label} options for the
+ * field-edit modal's Summary field picker. Backend owns the candidate
+ * set so the frontend doesn't re-derive loop membership.
+ */
+export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string): $CancellablePromise<$models.SummaryFieldOption[]> {
+    return $Call.ByID(2530304310, fields, loopKey).then(($result: any) => {
+        return $$createType20($result);
+    });
+}
+
+/**
  * TableColumnTypes returns the canonical column-type vocabulary the
  * Edit Field modal's `table` preset surfaces. Single source of truth
  * - the frontend MUST NOT keep a parallel hardcoded list.
  */
 export function TableColumnTypes(): $CancellablePromise<$models.TableColumnTypeDescriptor[]> {
     return $Call.ByID(3301892111).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType22($result);
     });
 }
 
@@ -188,7 +200,7 @@ export function TemplatesDir(): $CancellablePromise<string> {
  */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType24($result);
     });
 }
 
@@ -212,7 +224,9 @@ const $$createType15 = $models.LoadManyResult.createFrom;
 const $$createType16 = $Create.Array($$createType15);
 const $$createType17 = $models.Template.createFrom;
 const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = $models.TableColumnTypeDescriptor.createFrom;
+const $$createType19 = $models.SummaryFieldOption.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $models.ValidationError.createFrom;
+const $$createType21 = $models.TableColumnTypeDescriptor.createFrom;
 const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = $models.ValidationError.createFrom;
+const $$createType24 = $Create.Array($$createType23);

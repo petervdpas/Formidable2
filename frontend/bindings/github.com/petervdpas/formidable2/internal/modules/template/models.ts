@@ -1227,6 +1227,35 @@ export class SubRowEntry {
 }
 
 /**
+ * SummaryFieldOption is a candidate for a loopstart's summary_field
+ * binding: one direct child field of the loop, by key + display label.
+ */
+export class SummaryFieldOption {
+    "key": string;
+    "label": string;
+
+    /** Creates a new SummaryFieldOption instance. */
+    constructor($$source: Partial<SummaryFieldOption> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SummaryFieldOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SummaryFieldOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SummaryFieldOption($$parsedSource as Partial<SummaryFieldOption>);
+    }
+}
+
+/**
  * TableColumnTypeDescriptor names one column type the Edit Field
  * modal's `table` preset offers in its column-type dropdown. Today
  * these strings are pure UI vocabulary - the Go side does not yet

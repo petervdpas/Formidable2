@@ -43,7 +43,7 @@ import {
   FormSwitchRow,
   TextField,
   TextareaField,
-  SelectField,
+  FieldSelector,
 } from "../components/fields";
 import { useTemplates } from "../composables/useTemplates";
 import { useTemplateCreate } from "../composables/useTemplateCreate";
@@ -158,17 +158,6 @@ const hasGuidField = computed(() => {
 });
 const collectionToggleDisabled = computed(() => {
   return !hasGuidField.value && !draft.value?.enable_collection;
-});
-
-// ── Item Field options for the Setup dropdown ─────────────────────────
-const itemFieldSelectOptions = computed(() => {
-  const opts: { value: string; label: string }[] = [
-    { value: "", label: t("workspace.templates.item_field_none") },
-  ];
-  for (const f of itemFieldOptions.value) {
-    opts.push({ value: f.key, label: `${f.label} (${f.key})` });
-  }
-  return opts;
 });
 
 const {
@@ -790,10 +779,11 @@ setTopbarMenu(() => [
             <TextField v-model="draft.name" />
           </FormRow>
           <FormRow :label="t('workspace.templates.setup.item_field')">
-            <SelectField
+            <FieldSelector
               :model-value="draft.item_field || ''"
               @update:model-value="(v) => (draft && (draft.item_field = v))"
-              :options="itemFieldSelectOptions"
+              :fields="itemFieldOptions"
+              :empty-label="t('workspace.templates.item_field_none')"
             />
           </FormRow>
           <div class="setup-tabs-block">

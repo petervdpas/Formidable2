@@ -36,6 +36,7 @@ export {
     Statistic,
     SubRow,
     SubRowEntry,
+    SummaryFieldOption,
     TableColumnTypeDescriptor,
     Template,
     ValidationError

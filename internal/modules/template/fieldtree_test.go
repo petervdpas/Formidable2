@@ -221,6 +221,69 @@ func TestFieldUnit_EmptyLoopItemsRoundTripsAsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestSummaryFieldCandidates_SimpleLoop(t *testing.T) {
+	fields := []Field{
+		{Key: "before", Type: "text"},
+		{Key: "loop", Type: "loopstart", SummaryField: "title"},
+		{Key: "title", Type: "text", Label: "Title"},
+		{Key: "body", Type: "textarea"},
+		{Key: "loop", Type: "loopstop"},
+		{Key: "after", Type: "text"},
+	}
+	got := SummaryFieldCandidates(fields, "loop")
+	want := []SummaryFieldOption{
+		{Key: "title", Label: "Title"},
+		{Key: "body", Label: "body"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("candidates mismatch\n got: %+v\nwant: %+v", got, want)
+	}
+}
+
+func TestSummaryFieldCandidates_UnknownLoopKey(t *testing.T) {
+	fields := []Field{
+		{Key: "loop", Type: "loopstart"},
+		{Key: "x", Type: "text"},
+		{Key: "loop", Type: "loopstop"},
+	}
+	if got := SummaryFieldCandidates(fields, "nope"); len(got) != 0 {
+		t.Fatalf("unknown loop key should yield no candidates, got %+v", got)
+	}
+}
+
+func TestSummaryFieldCandidates_NestedDirectChildrenOnly(t *testing.T) {
+	// The outer loop offers its direct fields plus excludes the nested
+	// loop's markers and interior; the nested loop offers its own.
+	fields := []Field{
+		{Key: "outer", Type: "loopstart"},
+		{Key: "x", Type: "text"},
+		{Key: "inner", Type: "loopstart"},
+		{Key: "y", Type: "text"},
+		{Key: "inner", Type: "loopstop"},
+		{Key: "z", Type: "text"},
+		{Key: "outer", Type: "loopstop"},
+	}
+	outer := SummaryFieldCandidates(fields, "outer")
+	wantOuter := []SummaryFieldOption{
+		{Key: "x", Label: "x"},
+		{Key: "z", Label: "z"},
+	}
+	if !reflect.DeepEqual(outer, wantOuter) {
+		t.Fatalf("outer candidates mismatch\n got: %+v\nwant: %+v", outer, wantOuter)
+	}
+	inner := SummaryFieldCandidates(fields, "inner")
+	wantInner := []SummaryFieldOption{{Key: "y", Label: "y"}}
+	if !reflect.DeepEqual(inner, wantInner) {
+		t.Fatalf("inner candidates mismatch\n got: %+v\nwant: %+v", inner, wantInner)
+	}
+}
+
+func TestSummaryFieldCandidates_NilAndEmpty(t *testing.T) {
+	if got := SummaryFieldCandidates(nil, "loop"); got == nil {
+		t.Fatalf("nil fields should return non-nil slice for JSON friendliness")
+	}
+}
+
 func TestBuildFieldTree_CaseInsensitiveType(t *testing.T) {
 	// YAML round-trip + hand edits can produce mixed casing. Pairing
 	// must still recognise the markers.

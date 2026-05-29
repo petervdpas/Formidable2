@@ -102,6 +102,50 @@ func (b *treeBuilder) consumeUntil(stopKey string, inLoop bool) []FieldUnit {
 	return out
 }
 
+// SummaryFieldOption is a candidate for a loopstart's summary_field
+// binding: one direct child field of the loop, by key + display label.
+type SummaryFieldOption struct {
+	Key   string `json:"key"`
+	Label string `json:"label"`
+}
+
+// SummaryFieldCandidates returns the direct child fields of the loop
+// whose loopstart carries loopKey, as summary_field options. These are
+// the level-1 inputs the collapsed-item summary can bind to; loop
+// markers and deeper-nested fields are excluded (a nested loop's fields
+// live in their own per-iteration record, not the parent's). Returns an
+// empty slice when loopKey names no loop.
+func SummaryFieldCandidates(fields []Field, loopKey string) []SummaryFieldOption {
+	tree := BuildFieldTree(fields)
+	var find func(us []FieldUnit) []FieldUnit
+	find = func(us []FieldUnit) []FieldUnit {
+		for _, u := range us {
+			if u.Kind != UnitKindLoop {
+				continue
+			}
+			if u.Start != nil && u.Start.Key == loopKey {
+				return u.Items
+			}
+			if items := find(u.Items); items != nil {
+				return items
+			}
+		}
+		return nil
+	}
+	out := []SummaryFieldOption{}
+	for _, u := range find(tree) {
+		if u.Kind != UnitKindField || u.Field == nil {
+			continue
+		}
+		label := u.Field.Label
+		if label == "" {
+			label = u.Field.Key
+		}
+		out = append(out, SummaryFieldOption{Key: u.Field.Key, Label: label})
+	}
+	return out
+}
+
 // FlattenFieldTree is the inverse of BuildFieldTree. By construction
 // it guarantees that every loop's start sits immediately before its
 // items and its stop immediately after - the bracket invariant that
