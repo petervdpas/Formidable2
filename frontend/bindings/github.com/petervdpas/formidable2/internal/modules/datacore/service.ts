@@ -80,12 +80,23 @@ export function Distribution(template: string, follow: string, field: string): $
 }
 
 /**
+ * Graph projects the template's tensor as a node-link graph (records and loop
+ * rows as nodes, refs as edges) for the visual explorer. limit caps the node
+ * count (0 = no cap); roots are kept before rows and dangling edges dropped.
+ */
+export function Graph(template: string, limit: number): $CancellablePromise<$models.Graph> {
+    return $Call.ByID(2962646449, template, limit).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
  * Summarize lands a per-record loop summary on each root: linkField's rows
  * reduced by valueField (empty valueField gives a plain count summary).
  */
 export function Summarize(template: string, linkField: string, valueField: string): $CancellablePromise<$models.RootSummary[]> {
     return $Call.ByID(934877232, template, linkField, valueField).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType9($result);
     });
 }
 
@@ -97,5 +108,6 @@ const $$createType3 = $models.CrossTab.createFrom;
 const $$createType4 = $models.Series.createFrom;
 const $$createType5 = $models.Bucket.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.RootSummary.createFrom;
-const $$createType8 = $Create.Array($$createType7);
+const $$createType7 = $models.Graph.createFrom;
+const $$createType8 = $models.RootSummary.createFrom;
+const $$createType9 = $Create.Array($$createType8);

@@ -1,0 +1,11 @@
+{
+  "datacore.graph_title": "Datacore graph",
+  "datacore.node_cap": "Max nodes",
+  "datacore.reload": "Reload",
+  "datacore.loading": "Building graph...",
+  "datacore.empty": "No data to graph.",
+  "datacore.capped": "Showing the first {n} nodes; the graph is truncated.",
+  "datacore.count": "{nodes} nodes, {edges} edges",
+  "datacore.legend_root": "Record",
+  "datacore.legend_row": "Row / link"
+}

@@ -1,0 +1,11 @@
+{
+  "datacore.graph_title": "Datacore-grafiek",
+  "datacore.node_cap": "Max. knopen",
+  "datacore.reload": "Opnieuw laden",
+  "datacore.loading": "Grafiek wordt opgebouwd...",
+  "datacore.empty": "Geen gegevens om te tonen.",
+  "datacore.capped": "De eerste {n} knopen worden getoond; de grafiek is afgekapt.",
+  "datacore.count": "{nodes} knopen, {edges} verbindingen",
+  "datacore.legend_root": "Record",
+  "datacore.legend_row": "Rij / koppeling"
+}

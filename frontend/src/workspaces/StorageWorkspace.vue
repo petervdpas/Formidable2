@@ -12,6 +12,7 @@ import ImportCSVDialog from "../components/ImportCSVDialog.vue";
 import ExportCSVDialog from "../components/ExportCSVDialog.vue";
 import ExportPDFDialog from "../components/ExportPDFDialog.vue";
 import QueryDialog from "../components/QueryDialog.vue";
+import DatacoreGraphDialog from "../components/DatacoreGraphDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
@@ -904,6 +905,12 @@ function openQuery() {
   queryOpen.value = true;
 }
 
+const graphOpen = ref(false);
+function openGraph() {
+  if (!selectedTemplate.value) return;
+  graphOpen.value = true;
+}
+
 const exportPdfOpen = ref(false);
 const { status: pdfStatus } = usePDFActivation();
 const pdfActive = computed(() => pdfStatus.value?.active === true);
@@ -1044,6 +1051,12 @@ setTopbarMenu(() => [
         labelKey: "menu.data.query",
         disabled: !selectedTemplate.value,
         onClick: openQuery,
+      },
+      {
+        id: "graph",
+        labelKey: "menu.data.graph",
+        disabled: !selectedTemplate.value,
+        onClick: openGraph,
       },
       { type: "separator", id: "data-sep-reindex" },
       {
@@ -1370,6 +1383,13 @@ setTopbarMenu(() => [
     :template-filename="selectedTemplate"
     :template="activeTemplateObj"
     @close="queryOpen = false"
+  />
+
+  <!-- Datacore graph (live node-link view of the tensor) -->
+  <DatacoreGraphDialog
+    :open="graphOpen"
+    :template-filename="selectedTemplate"
+    @close="graphOpen = false"
   />
 </template>
 

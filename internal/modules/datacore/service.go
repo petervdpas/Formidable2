@@ -80,6 +80,17 @@ func (s *Service) DateSeries(template, follow, field, period string) (Series, er
 	return v.DateSeries(field, period), nil
 }
 
+// Graph projects the template's tensor as a node-link graph (records and loop
+// rows as nodes, refs as edges) for the visual explorer. limit caps the node
+// count (0 = no cap); roots are kept before rows and dangling edges dropped.
+func (s *Service) Graph(template string, limit int) (Graph, error) {
+	t, err := Build(s.factory(template))
+	if err != nil {
+		return Graph{}, err
+	}
+	return t.Graph(limit), nil
+}
+
 // AggregateRaw produces the raw grid rows (form + dim values + numeric
 // measures) that feed statistical aggregation, over root fields, facets, and
 // date-bucketed dims. The caller groups and reduces.

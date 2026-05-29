@@ -199,6 +199,118 @@ export class CrossTab {
 }
 
 /**
+ * Graph is the node-link view of the tensor's reference sub-structure: nodes
+ * are identities, edges are refs. This is the tensor read as a labeled
+ * directed graph rather than as a table.
+ */
+export class Graph {
+    "nodes": GraphNode[];
+    "edges": GraphEdge[];
+    "capped": boolean;
+
+    /** Creates a new Graph instance. */
+    constructor($$source: Partial<Graph> = {}) {
+        if (!("nodes" in $$source)) {
+            this["nodes"] = [];
+        }
+        if (!("edges" in $$source)) {
+            this["edges"] = [];
+        }
+        if (!("capped" in $$source)) {
+            this["capped"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Graph instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Graph {
+        const $$createField0_0 = $$createType6;
+        const $$createField1_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("nodes" in $$parsedSource) {
+            $$parsedSource["nodes"] = $$createField0_0($$parsedSource["nodes"]);
+        }
+        if ("edges" in $$parsedSource) {
+            $$parsedSource["edges"] = $$createField1_0($$parsedSource["edges"]);
+        }
+        return new Graph($$parsedSource as Partial<Graph>);
+    }
+}
+
+/**
+ * GraphEdge is one reference: a directed edge from Source to Target labeled by
+ * the field that carries the ref (the loop field, or the link field).
+ */
+export class GraphEdge {
+    "source": string;
+    "target": string;
+    "field": string;
+
+    /** Creates a new GraphEdge instance. */
+    constructor($$source: Partial<GraphEdge> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            this["target"] = "";
+        }
+        if (!("field" in $$source)) {
+            this["field"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GraphEdge instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GraphEdge {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GraphEdge($$parsedSource as Partial<GraphEdge>);
+    }
+}
+
+/**
+ * GraphNode is one identity in the node-link view: a record (root) or a
+ * sub-identity (a table/loop row, or a linked record).
+ */
+export class GraphNode {
+    "id": string;
+    "label": string;
+
+    /**
+     * "root" | "row"
+     */
+    "kind": string;
+
+    /** Creates a new GraphNode instance. */
+    constructor($$source: Partial<GraphNode> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GraphNode instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GraphNode {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GraphNode($$parsedSource as Partial<GraphNode>);
+    }
+}
+
+/**
  * GridDim is one dimension of a raw grid: a field to group by. Field is a root
  * field key, or "facet:<key>" for a facet. DateWidth > 0 buckets the value as
  * a date prefix (4 = year, 10 = day, else month).
@@ -315,7 +427,7 @@ export class GridRow {
      */
     static createFrom($$source: any = {}): GridRow {
         const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType6;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Dims" in $$parsedSource) {
             $$parsedSource["Dims"] = $$createField1_0($$parsedSource["Dims"]);
@@ -385,7 +497,7 @@ export class RootSummary {
      * Creates a new RootSummary instance from a string or object.
      */
     static createFrom($$source: any = {}): RootSummary {
-        const $$createField2_0 = $$createType7;
+        const $$createField2_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Agg" in $$parsedSource) {
             $$parsedSource["Agg"] = $$createField2_0($$parsedSource["Agg"]);
@@ -422,7 +534,7 @@ export class Series {
      * Creates a new Series instance from a string or object.
      */
     static createFrom($$source: any = {}): Series {
-        const $$createField1_0 = $$createType9;
+        const $$createField1_0 = $$createType13;
         const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Buckets" in $$parsedSource) {
@@ -441,8 +553,12 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
 const $$createType3 = CrossCell.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = NumCell.createFrom;
+const $$createType5 = GraphNode.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = Aggregate.createFrom;
-const $$createType8 = Bucket.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType7 = GraphEdge.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = NumCell.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = Aggregate.createFrom;
+const $$createType12 = Bucket.createFrom;
+const $$createType13 = $Create.Array($$createType12);

@@ -4,6 +4,7 @@
   "menu.data.export_pdf": "Export PDF...",
   "menu.data.import": "Import CSV...",
   "menu.data.query": "Query...",
+  "menu.data.graph": "Graph...",
   "menu.data.reindex": "Reindex Search Index",
   "menu.file": "File",
   "menu.file.openStorageFolder": "Open Storage Folder",
