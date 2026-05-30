@@ -176,18 +176,31 @@ is verification on top of the gate, not a replacement for it.
 
 ## Rollout
 
-1. Build `datacoreStatIndex` + `columnKeyIn`. No wiring yet.
-2. Test layer 1 (per-method parity + unhappy/boundary) green under `-race`.
-3. Settle edge 2 (facet empty bucket); add its parity test.
+1. Build `datacoreStatIndex` + `columnKeyIn`. No wiring yet. DONE.
+2. Test layer 1 (per-method parity + unhappy/boundary) green under `-race`. DONE.
+3. Settle edge 2 (facet empty bucket); add its parity test. DONE (accept divergence).
 4. Test layer 2 (DSL parity through `stat.Manager`, both engines) green: the
-   real gate.
-5. Test layers 3-5 (randomized parity, divergence pins, concurrency) green.
-6. Add the `stat_engine` flag, default `index`. Wire the picker in `app.go`.
-7. Optional shadow run on real templates; review the `slog` mismatch tail.
-8. Flip to `datacore` per-profile for live use once the gate is clean; keep the
-   index path as the fallback.
+   real gate. DONE (+ scaled + composite).
+5. Test layers 3-5 (randomized parity, divergence pins, concurrency) green. DONE.
+6. Add the `stat_engine` flag, default `index`. Wire the picker in `app.go`. DONE
+   (`config.StatEngine`, `chooseStatIndex`, logged at startup).
+7. Shadow mode built: `shadowStatIndex` runs datacore alongside the index,
+   returns the index result, logs divergences (the facet "(unset)" case
+   whitelisted). Set `stat_engine: "shadow"` and enable logging, then watch
+   Information -> Logging for "stat shadow divergence" lines on real templates.
+8. Flip to `datacore` per-profile for live use once the shadow tail is clean;
+   the index path stays the fallback (flip the flag back, no state to undo).
 9. Later, separate change: retire the index's compute methods (the `aggregate*`
    files) once datacore has driven stat in production with no surprises.
+
+Steps 1-7 are done. 8 (the flip) and 9 (retiring index compute) are the only
+ones left, and both are explicit, reversible user decisions.
+
+## Not yet built: a Settings control
+
+The flag is config-only (`stat_engine` in user.json), settable by hand or by a
+future Settings dropdown. No UI control was added; the three values are a small
+fixed set (index / shadow / datacore) that would suit a select, not a toggle.
 
 No step past 1 touches anything a user sees until step 8, and that step is one
 flag with the index still a fallback. Steps 2-5 are pure test work: the flip is

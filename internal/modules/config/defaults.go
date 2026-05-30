@@ -34,6 +34,7 @@ func defaultConfig() Config {
 		LoggingEnabled:       false,
 		EnablePlugins:        false,
 		EnableFullTextSearch: false,
+		StatEngine:           "index",
 		UpdateCheck:          false,
 		ContextMode:          "template",
 		ContextRibbon:        "templates",

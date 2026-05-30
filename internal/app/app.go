@@ -389,10 +389,22 @@ func New(d Deps) (*App, error) {
 	stoM.SetIndexer(ehM)
 	stoM.SetReader(newIndexFormReader(idxM))
 
-	// Stat - chart-neutral statistics over the index's materialized
-	// form_values / form_facets. Holds idxM directly (same lifetime as
-	// dataprovider); no disk access of its own.
-	statM := stat.NewManager(idxM)
+	// Datacore - additive, read-only perspectives (distribution, cross,
+	// aggregate, loop summary) over a tensor built from the template's live
+	// forms. Reads form data like query does; touches nothing the index or
+	// stat path relies on. Built before stat so the stat engine flag can route
+	// statistics through it (see chooseStatIndex).
+	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
+		return newDatacoreLoaderAdapter(tplM, stoM, tpl)
+	}, newDatacoreIndexPlanner(idxM))
+
+	// Stat - chart-neutral statistics. The engine flag (config.StatEngine)
+	// picks which stat.Index computes: the index's EAV aggregates (default),
+	// the datacore tensor, or a shadow that runs datacore alongside the index
+	// and logs divergences. The default keeps the historical behavior exactly.
+	statIdx, statEngine := chooseStatIndex(bootCfg.StatEngine, idxM, datacoreSvc, tplM, d.Logger)
+	d.Logger.Info("stat engine selected", "engine", statEngine)
+	statM := stat.NewManager(statIdx)
 	statM.SetSourceOptions(statSourceOptions{tpl: tplM})
 	statM.SetColumnResolver(statColumnResolver{tpl: tplM})
 	statSvc := stat.NewService(statM, statTemplateSource{tpl: tplM})
@@ -403,14 +415,6 @@ func New(d Deps) (*App, error) {
 	// queryable and table rows stay row-aligned.
 	queryM := query.NewManager(newQueryLoaderAdapter(tplM, stoM))
 	querySvc := query.NewService(queryM)
-
-	// Datacore - additive, read-only perspectives (distribution, cross,
-	// aggregate, loop summary) over a tensor built from the template's live
-	// forms. Reads form data like query does; touches nothing the index or
-	// stat path relies on.
-	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
-		return newDatacoreLoaderAdapter(tplM, stoM, tpl)
-	}, newDatacoreIndexPlanner(idxM))
 
 	// EnabledTemplates self-healing: when a template file is deleted, the
 	// active profile's EnabledTemplates list must drop the stale entry so

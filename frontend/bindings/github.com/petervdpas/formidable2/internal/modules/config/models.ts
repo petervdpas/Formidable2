@@ -24,6 +24,14 @@ export class Config {
     "logging_enabled": boolean;
     "enable_plugins": boolean;
     "enable_full_text_search": boolean;
+
+    /**
+     * StatEngine selects which engine computes statistics: "index" (default,
+     * the SQLite EAV aggregates), "shadow" (index authoritative, datacore run
+     * alongside and divergences logged), or "datacore" (the in-memory tensor).
+     * Unknown values fall back to "index". See design/datacore-stat-migration.md.
+     */
+    "stat_engine": string;
     "update_check": boolean;
     "context_mode": string;
     "context_ribbon": string;
@@ -90,6 +98,9 @@ export class Config {
         }
         if (!("enable_full_text_search" in $$source)) {
             this["enable_full_text_search"] = false;
+        }
+        if (!("stat_engine" in $$source)) {
+            this["stat_engine"] = "";
         }
         if (!("update_check" in $$source)) {
             this["update_check"] = false;
@@ -174,22 +185,22 @@ export class Config {
      * Creates a new Config instance from a string or object.
      */
     static createFrom($$source: any = {}): Config {
-        const $$createField19_0 = $$createType0;
-        const $$createField32_0 = $$createType1;
-        const $$createField36_0 = $$createType2;
-        const $$createField37_0 = $$createType3;
+        const $$createField20_0 = $$createType0;
+        const $$createField33_0 = $$createType1;
+        const $$createField37_0 = $$createType2;
+        const $$createField38_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enabled_templates" in $$parsedSource) {
-            $$parsedSource["enabled_templates"] = $$createField19_0($$parsedSource["enabled_templates"]);
+            $$parsedSource["enabled_templates"] = $$createField20_0($$parsedSource["enabled_templates"]);
         }
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField32_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField33_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField36_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField37_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField37_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField38_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
     }
