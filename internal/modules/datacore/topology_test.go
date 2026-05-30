@@ -89,43 +89,84 @@ func TestGraphCapKeepsRootsFirstAndDropsDanglingEdges(t *testing.T) {
 	}
 }
 
-func fieldNode(g Graph) (GraphNode, bool) {
+func hasNode(g Graph, kind, label string) bool {
 	for _, n := range g.Nodes {
-		if n.Kind == "field" {
-			return n, true
+		if n.Kind == kind && n.Label == label {
+			return true
 		}
 	}
-	return GraphNode{}, false
+	return false
 }
 
-func TestGraphFromRootsTheFlower(t *testing.T) {
+func kindCount(g Graph, kind string) int {
+	n := 0
+	for _, node := range g.Nodes {
+		if node.Kind == kind {
+			n++
+		}
+	}
+	return n
+}
+
+func TestGraphFromLevels(t *testing.T) {
 	dt := graphFixture()
 
-	// Depth 1 from A: A, its title field-node, its 2 item rows, and B.
-	g := dt.GraphFrom("A", 1)
-	if len(g.Nodes) != 5 {
-		t.Fatalf("depth-1 nodes = %d, want 5 (A + title field + 2 rows + B)", len(g.Nodes))
-	}
-	// Edges: A->title, A->row0, A->row1, A->B.
-	if len(g.Edges) != 4 {
-		t.Fatalf("depth-1 edges = %d, want 4", len(g.Edges))
-	}
-	fn, ok := fieldNode(g)
-	if !ok || fn.Label != "Alpha" {
-		t.Fatalf("field node = %+v, want title value Alpha", fn)
-	}
-
-	// Depth 0: the root and its own fields, no ref-children.
+	// Level 0: the root only.
 	g0 := dt.GraphFrom("A", 0)
-	if len(g0.Nodes) != 2 {
-		t.Fatalf("depth-0 nodes = %d, want 2 (A + title field)", len(g0.Nodes))
+	if len(g0.Nodes) != 1 || g0.Nodes[0].ID != "A" {
+		t.Fatalf("level-0 = %+v, want just A", g0.Nodes)
 	}
 
-	// Expanding a row reveals that row's columns as field nodes.
+	// Level 1: root + fields. Scalar "title" as a value node, "items" and
+	// "owner" as field nodes, but no rows or linked records yet.
+	g1 := dt.GraphFrom("A", 1)
+	if !hasNode(g1, "field", "Alpha") || !hasNode(g1, "field", "items") || !hasNode(g1, "field", "owner") {
+		t.Fatalf("level-1 fields = %+v", g1.Nodes)
+	}
+	if kindCount(g1, "row") != 0 {
+		t.Fatalf("level-1 rows = %d, want 0 (rows are level 2)", kindCount(g1, "row"))
+	}
+	if hasNode(g1, "root", "B") {
+		t.Fatal("level-1 must not include the linked record B yet")
+	}
+	// Nodes: A, Alpha, items, owner = 4. Edges: A->Alpha, A->items, A->owner.
+	if len(g1.Nodes) != 4 || len(g1.Edges) != 3 {
+		t.Fatalf("level-1 = %d nodes, %d edges; want 4 and 3", len(g1.Nodes), len(g1.Edges))
+	}
+
+	// Level 2: + the rows under items and the linked record B under owner.
+	g2 := dt.GraphFrom("A", 2)
+	if kindCount(g2, "row") != 2 {
+		t.Fatalf("level-2 rows = %d, want 2", kindCount(g2, "row"))
+	}
+	if !hasNode(g2, "root", "B") {
+		t.Fatal("level-2 missing linked record B")
+	}
+	if len(g2.Nodes) != 7 || len(g2.Edges) != 6 {
+		t.Fatalf("level-2 = %d nodes, %d edges; want 7 and 6", len(g2.Nodes), len(g2.Edges))
+	}
+
+	// Expanding a row at level 1 reveals that row's column values.
 	gr := dt.GraphFrom("A#items#0", 1)
-	frow, ok := fieldNode(gr)
-	if !ok || frow.Label != "disk" {
-		t.Fatalf("row column node = %+v, want name value disk", frow)
+	if !hasNode(gr, "field", "disk") {
+		t.Fatalf("row expand = %+v, want a 'disk' column value node", gr.Nodes)
+	}
+}
+
+func TestGraphRowNodesAreLabeled(t *testing.T) {
+	dt := New()
+	dt.Ingest(Record{
+		ID:     "rec.json",
+		Tables: map[string][]map[string]string{"attributes": {{"name": "Functioneel"}, {"name": "Afgewezen"}}},
+		TableLabels: map[string][]string{
+			"attributes": {"Functioneel", "Afgewezen"},
+		},
+	})
+
+	// Rows appear at level 2; they carry their first-column labels.
+	g := dt.GraphFrom("rec.json", 2)
+	if !hasNode(g, "row", "Functioneel") || !hasNode(g, "row", "Afgewezen") {
+		t.Fatalf("row nodes = %+v, want labeled Functioneel + Afgewezen", g.Nodes)
 	}
 }
 

@@ -79,9 +79,11 @@ func datacoreRecord(tpl *template.Template, file string, f *storage.Form) dataco
 		}
 		switch {
 		case fld.Type == "table":
-			addTable(&rec, fld.Key, dcTableRows(fld, v))
+			rows, labels := dcTableRows(fld, v)
+			addTable(&rec, fld.Key, rows, labels)
 		case isMultiValued(fld.Type):
-			addTable(&rec, fld.Key, dcMultiRows(v))
+			rows, labels := dcMultiRows(v)
+			addTable(&rec, fld.Key, rows, labels)
 		default:
 			if s := dcText(v); s != "" {
 				if rec.Fields == nil {
@@ -103,7 +105,7 @@ func datacoreRecord(tpl *template.Template, file string, f *storage.Form) dataco
 	return rec
 }
 
-func addTable(rec *datacore.Record, field string, rows []map[string]string) {
+func addTable(rec *datacore.Record, field string, rows []map[string]string, labels []string) {
 	if len(rows) == 0 {
 		return
 	}
@@ -111,6 +113,10 @@ func addTable(rec *datacore.Record, field string, rows []map[string]string) {
 		rec.Tables = map[string][]map[string]string{}
 	}
 	rec.Tables[field] = rows
+	if rec.TableLabels == nil {
+		rec.TableLabels = map[string][]string{}
+	}
+	rec.TableLabels[field] = labels
 }
 
 func isMultiValued(t string) bool {
@@ -118,8 +124,10 @@ func isMultiValued(t string) bool {
 }
 
 // dcTableRows maps each table row's positional cells onto their column keys
-// (the option `value` of each column), dropping blank cells.
-func dcTableRows(fld template.Field, v any) []map[string]string {
+// (the option `value` of each column), dropping blank cells. The second return
+// is a per-row label: the first non-empty column value, used to name the row
+// node in the graph.
+func dcTableRows(fld template.Field, v any) ([]map[string]string, []string) {
 	cols := make([]string, len(fld.Options))
 	for i, opt := range fld.Options {
 		if mp, ok := opt.(map[string]any); ok {
@@ -127,32 +135,40 @@ func dcTableRows(fld template.Field, v any) []map[string]string {
 		}
 	}
 	var rows []map[string]string
+	var labels []string
 	for _, e := range dcSlice(v) {
 		cells := dcSlice(e)
 		row := map[string]string{}
+		label := ""
 		for i, colKey := range cols {
 			if colKey == "" || i >= len(cells) {
 				continue
 			}
 			if s := dcText(cells[i]); s != "" {
 				row[colKey] = s
+				if label == "" {
+					label = s
+				}
 			}
 		}
 		if len(row) > 0 {
 			rows = append(rows, row)
+			labels = append(labels, label)
 		}
 	}
-	return rows
+	return rows, labels
 }
 
-func dcMultiRows(v any) []map[string]string {
+func dcMultiRows(v any) ([]map[string]string, []string) {
 	var rows []map[string]string
+	var labels []string
 	for _, e := range dcSlice(v) {
 		if s := dcText(e); s != "" {
 			rows = append(rows, map[string]string{"value": s})
+			labels = append(labels, s)
 		}
 	}
-	return rows
+	return rows, labels
 }
 
 func dcSlice(v any) []any {

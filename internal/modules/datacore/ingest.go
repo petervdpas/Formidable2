@@ -17,6 +17,9 @@ type Record struct {
 	// Label is an optional human display name for the record (e.g. its
 	// title field), used by the graph view. Empty falls back to the ID.
 	Label string
+	// TableLabels gives an optional display label per table row (in row
+	// order), keyed by table field, used to label row nodes in the graph.
+	TableLabels map[string][]string
 }
 
 // Ingest writes one record into the tensor.
@@ -38,10 +41,14 @@ func (t *Tensor) Ingest(r Record) {
 		t.Put(r.ID, facetField(k), Universal, v)
 	}
 	for field, rows := range r.Tables {
+		labs := r.TableLabels[field]
 		for n, row := range rows {
 			rowID := r.ID + "#" + field + "#" + strconv.Itoa(n)
 			for col, v := range row {
 				t.Put(rowID, col, Universal, v)
+			}
+			if n < len(labs) && labs[n] != "" {
+				t.labels[t.iax.intern(rowID)] = labs[n]
 			}
 			t.PutRef(r.ID, field, Universal, rowID)
 		}

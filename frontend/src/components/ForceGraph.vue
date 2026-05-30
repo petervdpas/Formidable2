@@ -53,6 +53,7 @@ const panY = ref(0);
 
 let raf = 0;
 let alpha = 0;
+let autofit = true;
 let dragging = -1;
 let downX = 0;
 let downY = 0;
@@ -87,6 +88,7 @@ function merge() {
   links.value = props.edges
     .map((e) => ({ a: idx.get(e.source) ?? -1, b: idx.get(e.target) ?? -1, field: e.field }))
     .filter((l) => l.a >= 0 && l.b >= 0);
+  autofit = true;
   reheat(0.8);
 }
 
@@ -155,7 +157,37 @@ function step() {
     raf = requestAnimationFrame(step);
   } else {
     raf = 0;
+    if (autofit) {
+      autofit = false;
+      fitView();
+    }
   }
+}
+
+// Scale and center the view so the node bounding box fills the canvas with a
+// margin. Runs once after the layout settles (autofit), and on the fit button.
+function fitView() {
+  const nodes = sim.value;
+  if (!nodes.length) return;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const n of nodes) {
+    // Include the label's extent to the right so text isn't clipped at fit.
+    const labelW = 12 + short(n.label).length * 6.2;
+    if (n.x - 10 < minX) minX = n.x - 10;
+    if (n.y - 10 < minY) minY = n.y - 10;
+    if (n.x + labelW > maxX) maxX = n.x + labelW;
+    if (n.y + 10 > maxY) maxY = n.y + 10;
+  }
+  const pad = 30;
+  const bw = Math.max(1, maxX - minX);
+  const bh = Math.max(1, maxY - minY);
+  const z = Math.min((props.width - 2 * pad) / bw, (props.height - 2 * pad) / bh, 2.4);
+  zoom.value = z;
+  panX.value = props.width / 2 - ((minX + maxX) / 2) * z;
+  panY.value = props.height / 2 - ((minY + maxY) / 2) * z;
 }
 
 // Map a pointer event to graph-space coordinates, inverting pan + zoom.
@@ -171,12 +203,14 @@ function toGraph(e: PointerEvent): { x: number; y: number } {
 function onNodeDown(i: number, e: PointerEvent) {
   dragging = i;
   moved = false;
+  autofit = false;
   downX = e.clientX;
   downY = e.clientY;
   reheat(0.4);
 }
 function onSvgDown(e: PointerEvent) {
   if (dragging >= 0) return;
+  autofit = false;
   panning = true;
   panStartX = e.clientX;
   panStartY = e.clientY;
@@ -223,6 +257,7 @@ function zoomAt(vbx: number, vby: number, factor: number) {
 }
 function onWheel(e: WheelEvent) {
   e.preventDefault();
+  autofit = false;
   const svg = svgRef.value;
   if (!svg) return;
   const rect = svg.getBoundingClientRect();
@@ -231,12 +266,8 @@ function onWheel(e: WheelEvent) {
   zoomAt(vbx, vby, e.deltaY < 0 ? 1.12 : 1 / 1.12);
 }
 function zoomBy(factor: number) {
+  autofit = false;
   zoomAt(props.width / 2, props.height / 2, factor);
-}
-function resetView() {
-  zoom.value = 1;
-  panX.value = 0;
-  panY.value = 0;
 }
 
 function short(label: string): string {
@@ -283,7 +314,7 @@ onBeforeUnmount(() => {
           @pointerdown.stop="onNodeDown(i, $event)"
         >
           <circle :r="node.kind === 'root' ? 9 : node.kind === 'field' ? 4 : 5" />
-          <text v-if="node.kind !== 'row'" x="11" y="4">{{ short(node.label) }}</text>
+          <text x="11" y="4">{{ short(node.label) }}</text>
           <title>{{ node.label }}</title>
         </g>
       </g>
@@ -291,7 +322,7 @@ onBeforeUnmount(() => {
     <div class="force-zoom">
       <button type="button" title="Zoom in" @click="zoomBy(1.2)">+</button>
       <button type="button" title="Zoom out" @click="zoomBy(1 / 1.2)">−</button>
-      <button type="button" title="Reset view" @click="resetView">⤢</button>
+      <button type="button" title="Fit to view" @click="fitView">⤢</button>
     </div>
   </div>
 </template>

@@ -11,7 +11,7 @@
   flex-wrap: wrap;
 }
 
-.datacore-graph__cap {
+.datacore-graph__detail {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -19,8 +19,10 @@
   color: var(--color-text-muted);
 }
 
-.datacore-graph__cap input {
-  width: 5rem;
+.datacore-graph__level {
+  min-width: 4rem;
+  text-align: center;
+  color: var(--color-text);
 }
 
 .datacore-graph__count {

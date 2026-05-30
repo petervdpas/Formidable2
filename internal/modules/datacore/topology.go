@@ -1,5 +1,7 @@
 package datacore
 
+import "strconv"
+
 // GraphNode is one identity in the node-link view: a record (root) or a
 // sub-identity (a table/loop row, or a linked record).
 type GraphNode struct {
@@ -78,13 +80,19 @@ func (t *Tensor) Graph(limit int) Graph {
 	return g
 }
 
-// GraphFrom projects the flower around one identity: the start node, its
-// value cells as labeled "field" leaf nodes, and the identities it references
-// (loop rows, links) followed to depth hops. Field nodes are attached only to
-// the start identity, so the caller unfolds the structure a node at a time:
-// click a row and GraphFrom on it reveals that row's columns. Returns an empty
-// graph if rootID is unknown.
-func (t *Tensor) GraphFrom(rootID string, depth int) Graph {
+// GraphFrom projects the flower around one identity at a level of detail:
+//
+//	level 0: the start node only
+//	level 1: + its fields (scalar/facet values as leaf nodes, and table/list/
+//	         link fields as field nodes), but no rows under the ref fields
+//	level 2: + the rows/targets hanging under each reference field
+//
+// A scalar field is a leaf labeled by its value; a reference field is a node
+// labeled by the field name with its rows under it (a table reads as a
+// field-with-rows). The dialog drives the base level for the record and uses a
+// per-node call to unfold a clicked row or linked record further. Empty graph
+// if rootID is unknown.
+func (t *Tensor) GraphFrom(rootID string, level int) Graph {
 	root, ok := t.iax.lookup(rootID)
 	var g Graph
 	if !ok {
@@ -104,54 +112,66 @@ func (t *Tensor) GraphFrom(rootID string, depth int) Graph {
 		}
 		g.Nodes = append(g.Nodes, GraphNode{ID: id, Label: t.nodeLabel(s), Kind: kind})
 	}
+	addNode := func(id, label, kind string) {
+		if nodeSeen[id] {
+			return
+		}
+		nodeSeen[id] = true
+		g.Nodes = append(g.Nodes, GraphNode{ID: id, Label: label, Kind: kind})
+	}
 	addIdentity(root)
-
+	if level < 1 {
+		return g
+	}
 	rootLabel := t.iax.label(root)
+
+	// Group the start identity's cells by field, preserving first-seen order,
+	// so each field becomes one node (a value leaf, or a container for refs).
+	type cells struct {
+		values []string
+		refs   []sym
+	}
+	order := make([]string, 0)
+	byField := map[string]*cells{}
 	for k := range t.is {
-		if t.is[k] != root || t.ref[k] != 0 {
+		if t.is[k] != root {
 			continue
 		}
-		field := t.fax.label(t.fs[k])
-		fid := rootLabel + "\x1f" + field
-		if !nodeSeen[fid] {
-			nodeSeen[fid] = true
-			g.Nodes = append(g.Nodes, GraphNode{ID: fid, Label: t.val[k], Kind: "field"})
+		f := t.fax.label(t.fs[k])
+		fc := byField[f]
+		if fc == nil {
+			fc = &cells{}
+			byField[f] = fc
+			order = append(order, f)
 		}
-		g.Edges = append(g.Edges, GraphEdge{Source: rootLabel, Target: fid, Field: field})
+		if t.ref[k] == 0 {
+			fc.values = append(fc.values, t.val[k])
+		} else {
+			fc.refs = append(fc.refs, t.ref[k])
+		}
 	}
 
-	included := map[sym]bool{root: true}
-	edgeSeen := map[string]bool{}
-	type frontier struct {
-		id sym
-		d  int
-	}
-	queue := []frontier{{root, 0}}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		if cur.d >= depth {
+	for _, f := range order {
+		fc := byField[f]
+		fid := rootLabel + "\x1f" + f
+		if len(fc.refs) > 0 {
+			addNode(fid, f, "field")
+			g.Edges = append(g.Edges, GraphEdge{Source: rootLabel, Target: fid, Field: f})
+			if level >= 2 {
+				for _, tgt := range fc.refs {
+					addIdentity(tgt)
+					g.Edges = append(g.Edges, GraphEdge{Source: fid, Target: t.iax.label(tgt), Field: ""})
+				}
+			}
 			continue
 		}
-		for k := range t.is {
-			if t.is[k] != cur.id || t.ref[k] == 0 {
-				continue
+		for i, v := range fc.values {
+			vid := fid
+			if len(fc.values) > 1 {
+				vid = fid + "\x1f" + strconv.Itoa(i)
 			}
-			tgt := t.ref[k]
-			addIdentity(tgt)
-			ek := t.iax.label(cur.id) + "\x1f" + t.iax.label(tgt) + "\x1f" + t.fax.label(t.fs[k])
-			if !edgeSeen[ek] {
-				edgeSeen[ek] = true
-				g.Edges = append(g.Edges, GraphEdge{
-					Source: t.iax.label(cur.id),
-					Target: t.iax.label(tgt),
-					Field:  t.fax.label(t.fs[k]),
-				})
-			}
-			if !included[tgt] {
-				included[tgt] = true
-				queue = append(queue, frontier{tgt, cur.d + 1})
-			}
+			addNode(vid, v, "field")
+			g.Edges = append(g.Edges, GraphEdge{Source: rootLabel, Target: vid, Field: f})
 		}
 	}
 	return g

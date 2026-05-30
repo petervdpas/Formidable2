@@ -1,6 +1,10 @@
 {
   "datacore.graph_title": "Datacore graph",
   "datacore.click_hint": "Click a node to unfold its links; drag to rearrange.",
+  "datacore.detail": "Detail",
+  "datacore.level_root": "Record",
+  "datacore.level_fields": "Fields",
+  "datacore.level_rows": "Rows",
   "datacore.reset": "Reset",
   "datacore.loading": "Building graph...",
   "datacore.empty": "Nothing to graph for this record.",
