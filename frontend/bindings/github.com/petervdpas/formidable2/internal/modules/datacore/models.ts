@@ -7,8 +7,15 @@ import { Create as $Create } from "@wailsio/runtime";
 
 /**
  * Aggregate is the result of a numeric reduction over a field: the summary
- * computed in one pass over the coercible values, plus any value that refused
- * to coerce. With no numeric values N is 0 and Min/Max/Mean are 0.
+ * computed in one pass over the coercible values, the raw coercible values
+ * themselves, plus any value that refused to coerce. With no numeric values N
+ * is 0 and Min/Max/Mean are 0.
+ * 
+ * Values holds the coerced numbers in working-set order, so a caller can run
+ * the order-independent statistics SQLite has no built-ins for (median,
+ * stddev, percentile) without a second pass. It is exactly the set that fed
+ * N/Sum: blanks are absence and excluded, non-coercible values go to
+ * Anomalies, not here. len(Values) == N.
  */
 export class Aggregate {
     "N": number;
@@ -16,6 +23,7 @@ export class Aggregate {
     "Min": number;
     "Max": number;
     "Mean": number;
+    "Values": number[];
     "Anomalies": Anomaly[];
 
     /** Creates a new Aggregate instance. */
@@ -35,6 +43,9 @@ export class Aggregate {
         if (!("Mean" in $$source)) {
             this["Mean"] = 0;
         }
+        if (!("Values" in $$source)) {
+            this["Values"] = [];
+        }
         if (!("Anomalies" in $$source)) {
             this["Anomalies"] = [];
         }
@@ -46,10 +57,14 @@ export class Aggregate {
      * Creates a new Aggregate instance from a string or object.
      */
     static createFrom($$source: any = {}): Aggregate {
-        const $$createField5_0 = $$createType1;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Values" in $$parsedSource) {
+            $$parsedSource["Values"] = $$createField5_0($$parsedSource["Values"]);
+        }
         if ("Anomalies" in $$parsedSource) {
-            $$parsedSource["Anomalies"] = $$createField5_0($$parsedSource["Anomalies"]);
+            $$parsedSource["Anomalies"] = $$createField6_0($$parsedSource["Anomalies"]);
         }
         return new Aggregate($$parsedSource as Partial<Aggregate>);
     }
@@ -181,9 +196,9 @@ export class CrossTab {
      * Creates a new CrossTab instance from a string or object.
      */
     static createFrom($$source: any = {}): CrossTab {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType4;
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Rows" in $$parsedSource) {
             $$parsedSource["Rows"] = $$createField0_0($$parsedSource["Rows"]);
@@ -227,8 +242,8 @@ export class Graph {
      * Creates a new Graph instance from a string or object.
      */
     static createFrom($$source: any = {}): Graph {
-        const $$createField0_0 = $$createType6;
-        const $$createField1_0 = $$createType8;
+        const $$createField0_0 = $$createType7;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField0_0($$parsedSource["nodes"]);
@@ -426,8 +441,8 @@ export class GridRow {
      * Creates a new GridRow instance from a string or object.
      */
     static createFrom($$source: any = {}): GridRow {
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType10;
+        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Dims" in $$parsedSource) {
             $$parsedSource["Dims"] = $$createField1_0($$parsedSource["Dims"]);
@@ -514,8 +529,8 @@ export class Predicate {
      * Creates a new Predicate instance from a string or object.
      */
     static createFrom($$source: any = {}): Predicate {
-        const $$createField0_0 = $$createType11;
-        const $$createField1_0 = $$createType11;
+        const $$createField0_0 = $$createType12;
+        const $$createField1_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Equals" in $$parsedSource) {
             $$parsedSource["Equals"] = $$createField0_0($$parsedSource["Equals"]);
@@ -556,7 +571,7 @@ export class RootSummary {
      * Creates a new RootSummary instance from a string or object.
      */
     static createFrom($$source: any = {}): RootSummary {
-        const $$createField2_0 = $$createType12;
+        const $$createField2_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Agg" in $$parsedSource) {
             $$parsedSource["Agg"] = $$createField2_0($$parsedSource["Agg"]);
@@ -593,8 +608,8 @@ export class Series {
      * Creates a new Series instance from a string or object.
      */
     static createFrom($$source: any = {}): Series {
-        const $$createField1_0 = $$createType14;
-        const $$createField2_0 = $$createType1;
+        const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Buckets" in $$parsedSource) {
             $$parsedSource["Buckets"] = $$createField1_0($$parsedSource["Buckets"]);
@@ -607,18 +622,19 @@ export class Series {
 }
 
 // Private type creation functions
-const $$createType0 = Anomaly.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = CrossCell.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = GraphNode.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = GraphEdge.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = NumCell.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $Create.Map($Create.Any, $Create.Any);
-const $$createType12 = Aggregate.createFrom;
-const $$createType13 = Bucket.createFrom;
-const $$createType14 = $Create.Array($$createType13);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Anomaly.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = CrossCell.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = GraphNode.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = GraphEdge.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = NumCell.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $Create.Map($Create.Any, $Create.Any);
+const $$createType13 = Aggregate.createFrom;
+const $$createType14 = Bucket.createFrom;
+const $$createType15 = $Create.Array($$createType14);

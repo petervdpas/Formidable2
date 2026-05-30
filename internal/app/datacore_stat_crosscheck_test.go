@@ -220,6 +220,102 @@ func TestDatacore_AggregateMatchesIndexNumericValues(t *testing.T) {
 	assertSameAgg(t, "cost (table column)", idxM, "items", &col0, dt.View().Follow("items").Aggregate("cost"))
 }
 
+// TestDatacore_AggregateValuesMatchIndexNumericValues proves Aggregate.Values
+// carries the same raw numbers stat reads from index.NumericValues, so the
+// stat layer can compute median/stddev/percentile off the tensor without a
+// second extraction. Order differs (datacore is working-set order, the index
+// has no ORDER BY), so the two are compared as multisets; the median computed
+// from each must then agree, which is the property stat actually needs.
+func TestDatacore_AggregateValuesMatchIndexNumericValues(t *testing.T) {
+	type form struct {
+		id     string
+		amount float64
+		costs  []float64
+	}
+	fixture := []form{
+		{"a.meta.json", 10, []float64{100, 50}},
+		{"b.meta.json", 30, []float64{25}},
+		{"c.meta.json", 20, []float64{200, 5, 5}},
+		{"d.meta.json", 40, nil},
+	}
+
+	idxM, err := index.NewManager(filepath.Join(t.TempDir(), "x.db"))
+	if err != nil {
+		t.Fatalf("index.NewManager: %v", err)
+	}
+	t.Cleanup(func() { idxM.Close() })
+
+	col0 := 0
+	var forms []index.FormRow
+	for _, f := range fixture {
+		amt := f.amount
+		vals := []index.FormValueRow{{FieldKey: "amount", ValueType: "number", Num: &amt, Text: ftoa(amt)}}
+		for _, c := range f.costs {
+			cc, ci := c, col0
+			vals = append(vals, index.FormValueRow{FieldKey: "items", Col: &ci, ValueType: "number", Num: &cc, Text: ftoa(c)})
+		}
+		forms = append(forms, index.FormRow{Template: "basic.yaml", Filename: f.id, Mtime: 100, Values: vals})
+	}
+	if err := index.Reconcile(idxM.DB(), index.ReconcileBatch{
+		UpsertTemplates: []index.TemplateRow{{Filename: "basic.yaml", Name: "basic", Mtime: 100}},
+		UpsertForms:     forms,
+	}); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	dt := datacore.New()
+	for _, f := range fixture {
+		rows := make([]map[string]string, len(f.costs))
+		for i, c := range f.costs {
+			rows[i] = map[string]string{"cost": ftoa(c)}
+		}
+		dt.Ingest(datacore.Record{
+			ID:     f.id,
+			Fields: map[string]string{"amount": ftoa(f.amount)},
+			Tables: map[string][]map[string]string{"items": rows},
+		})
+	}
+
+	assertSameValues(t, "amount (scalar)", idxM, "amount", nil, dt.View().Aggregate("amount").Values)
+	assertSameValues(t, "cost (table column)", idxM, "items", &col0, dt.View().Follow("items").Aggregate("cost").Values)
+}
+
+func assertSameValues(t *testing.T, label string, idxM *index.Manager, field string, col *int, dc []float64) {
+	t.Helper()
+	idx, err := idxM.NumericValues("basic.yaml", field, col)
+	if err != nil {
+		t.Fatalf("%s: index NumericValues: %v", label, err)
+	}
+	gotIdx := append([]float64{}, idx...)
+	gotDC := append([]float64{}, dc...)
+	sort.Float64s(gotIdx)
+	sort.Float64s(gotDC)
+	if len(gotIdx) != len(gotDC) {
+		t.Fatalf("%s: value count index=%d datacore=%d", label, len(gotIdx), len(gotDC))
+	}
+	for i := range gotIdx {
+		if math.Abs(gotIdx[i]-gotDC[i]) > 1e-9 {
+			t.Fatalf("%s: sorted values differ at %d: index=%g datacore=%g", label, i, gotIdx[i], gotDC[i])
+		}
+	}
+	if math.Abs(median(gotIdx)-median(gotDC)) > 1e-9 {
+		t.Fatalf("%s: median index=%g datacore=%g", label, median(gotIdx), median(gotDC))
+	}
+}
+
+// median of an already-sorted slice; the order-independent statistic stat
+// needs Values for. Empty slice is 0.
+func median(sorted []float64) float64 {
+	n := len(sorted)
+	if n == 0 {
+		return 0
+	}
+	if n%2 == 1 {
+		return sorted[n/2]
+	}
+	return (sorted[n/2-1] + sorted[n/2]) / 2
+}
+
 func assertSameAgg(t *testing.T, label string, idxM *index.Manager, field string, col *int, dc datacore.Aggregate) {
 	t.Helper()
 	vals, err := idxM.NumericValues("basic.yaml", field, col)

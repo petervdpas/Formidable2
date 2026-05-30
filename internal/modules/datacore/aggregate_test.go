@@ -78,6 +78,39 @@ func TestAggregateUnknownFieldIsZeroValued(t *testing.T) {
 	}
 }
 
+// Values carries the raw coercible numbers in working-set order, so the caller
+// can run median/stddev/percentile without a second pass. It is exactly the
+// set that fed N/Sum: a blank (absence) and a non-coercible value (anomaly)
+// are both excluded, and len(Values) == N.
+func TestAggregateValuesCarryRawCoercibleNumbersInOrder(t *testing.T) {
+	dt := New()
+	dt.Ingest(Record{ID: "a", Fields: map[string]string{"amount": "30"}})
+	dt.Ingest(Record{ID: "b", Fields: map[string]string{"amount": "oops"}}) // anomaly
+	dt.Ingest(Record{ID: "c", Fields: map[string]string{}})                 // blank, absence
+	dt.Ingest(Record{ID: "d", Fields: map[string]string{"amount": "10"}})
+	dt.Ingest(Record{ID: "e", Fields: map[string]string{"amount": "20"}})
+
+	a := dt.View().Aggregate("amount")
+	if len(a.Values) != a.N {
+		t.Fatalf("len(Values) = %d, want N = %d", len(a.Values), a.N)
+	}
+	want := []float64{30, 10, 20} // ingest order, anomaly and blank skipped
+	if len(a.Values) != len(want) {
+		t.Fatalf("Values = %v, want %v", a.Values, want)
+	}
+	for i, v := range want {
+		if !eq(a.Values[i], v) {
+			t.Fatalf("Values = %v, want %v (order = working set)", a.Values, want)
+		}
+	}
+}
+
+func TestAggregateEmptyHasNoValues(t *testing.T) {
+	if a := New().View().Aggregate("amount"); len(a.Values) != 0 {
+		t.Fatalf("empty Values = %v, want none", a.Values)
+	}
+}
+
 // Aggregate over a followed table column: the reduction runs on the loop rows,
 // not the parent forms.
 func TestAggregateOverFollowedTableColumn(t *testing.T) {

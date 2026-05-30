@@ -17,14 +17,22 @@ type Anomaly struct {
 }
 
 // Aggregate is the result of a numeric reduction over a field: the summary
-// computed in one pass over the coercible values, plus any value that refused
-// to coerce. With no numeric values N is 0 and Min/Max/Mean are 0.
+// computed in one pass over the coercible values, the raw coercible values
+// themselves, plus any value that refused to coerce. With no numeric values N
+// is 0 and Min/Max/Mean are 0.
+//
+// Values holds the coerced numbers in working-set order, so a caller can run
+// the order-independent statistics SQLite has no built-ins for (median,
+// stddev, percentile) without a second pass. It is exactly the set that fed
+// N/Sum: blanks are absence and excluded, non-coercible values go to
+// Anomalies, not here. len(Values) == N.
 type Aggregate struct {
 	N         int
 	Sum       float64
 	Min       float64
 	Max       float64
 	Mean      float64
+	Values    []float64
 	Anomalies []Anomaly
 }
 
@@ -52,6 +60,7 @@ func (p *Perspective) Aggregate(field string) Aggregate {
 		}
 		a.N++
 		a.Sum += n
+		a.Values = append(a.Values, n)
 		if first || n < a.Min {
 			a.Min = n
 		}
