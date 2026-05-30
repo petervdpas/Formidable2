@@ -21,6 +21,19 @@ type ColumnNamer interface {
 	ColumnKey(tplFile, fieldKey string, col int) (string, bool)
 }
 
+// Reducer is the slice of datacore's read API the stat adapter needs: the
+// per-template, optionally-followed perspectives it maps into stat results.
+// *datacore.Service satisfies it; depending on this interface (not the concrete
+// service) keeps the seam decoupled and lets tests pass a fake.
+type Reducer interface {
+	Count(template, follow string) (int, error)
+	Distribution(template, follow, field string) ([]datacore.Bucket, error)
+	Aggregate(template, follow, field string) (datacore.Aggregate, error)
+	Cross(template, follow, rowField, colField string) (datacore.CrossTab, error)
+	DateSeries(template, follow, field, period string) (datacore.Series, error)
+	AggregateRaw(template string, dims []datacore.GridDim, nums []datacore.GridNum, filters []datacore.GridFilter) ([]datacore.GridRow, error)
+}
+
 // DatacoreIndex satisfies stat.Index with the datacore tensor behind it. It is
 // the drop-in for *index.Manager on the stat seam: same method set, same result
 // shapes (index.Bucket / CrossCell / StatRawRow), different engine.
@@ -30,12 +43,12 @@ type ColumnNamer interface {
 // (table, columnKey). The ColumnNamer reverses the template's column options to
 // bridge the two, and a Follow on the table reaches the rows.
 type DatacoreIndex struct {
-	dc   *datacore.Service
+	dc   Reducer
 	cols ColumnNamer
 }
 
 // New builds a datacore-backed stat.Index.
-func New(dc *datacore.Service, cols ColumnNamer) *DatacoreIndex {
+func New(dc Reducer, cols ColumnNamer) *DatacoreIndex {
 	return &DatacoreIndex{dc: dc, cols: cols}
 }
 
