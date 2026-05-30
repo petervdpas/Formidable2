@@ -108,6 +108,11 @@ func datacoreRecord(tpl *template.Template, file string, f *storage.Form) dataco
 		}
 	}
 
+	// A facet that is set but unselected carries no value: blank is absence,
+	// uniformly for fields and facets (the substrate ruling). So datacore does
+	// not manufacture the index's "(unset)" bucket; this is the intended
+	// divergence settled for the stat migration (design/datacore-stat-migration.md),
+	// pinned by TestStatAdapter_FacetUnsetBucketDiverges.
 	for k, st := range f.Meta.Facets {
 		if st.Set && st.Selected != "" {
 			if rec.Facets == nil {
