@@ -51,6 +51,15 @@ export function Count(template: string, follow: string): $CancellablePromise<num
 }
 
 /**
+ * CountWhere is Count over the record set narrowed by pred. The planner pushes
+ * the predicate to the index, so the tensor only counts the matching records.
+ * With no planner wired it falls back to narrowing in memory, same answer.
+ */
+export function CountWhere(template: string, follow: string, pred: $models.Predicate): $CancellablePromise<number> {
+    return $Call.ByID(2896119657, template, follow, pred);
+}
+
+/**
  * Cross is the rank-2 contingency of two fields over the working set.
  */
 export function Cross(template: string, follow: string, rowField: string, colField: string): $CancellablePromise<$models.CrossTab> {
@@ -75,6 +84,18 @@ export function DateSeries(template: string, follow: string, field: string, peri
  */
 export function Distribution(template: string, follow: string, field: string): $CancellablePromise<$models.Bucket[]> {
     return $Call.ByID(2219453917, template, follow, field).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * DistributionWhere is Distribution over the record set narrowed by pred. This
+ * is the canonical seam shape: the index decides which records exist, the
+ * tensor reduces them. The result equals the full Distribution with an
+ * equivalent in-memory Where, just computed over fewer ingested records.
+ */
+export function DistributionWhere(template: string, follow: string, pred: $models.Predicate, field: string): $CancellablePromise<$models.Bucket[]> {
+    return $Call.ByID(3093720208, template, follow, pred, field).then(($result: any) => {
         return $$createType6($result);
     });
 }

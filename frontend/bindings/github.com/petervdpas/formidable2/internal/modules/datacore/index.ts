@@ -20,6 +20,7 @@ export {
     GridNum,
     GridRow,
     NumCell,
+    Predicate,
     RootSummary,
     Series
 } from "./models.js";

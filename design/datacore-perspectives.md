@@ -76,6 +76,38 @@ decision stat and query each have to make for themselves.
 
 The planner is the seam between the two layers.
 
+### The seam, built (2026-05-30)
+
+The first cut of the planner exists in code, additive and read-only. The shape:
+
+- `datacore.Predicate` is a narrowing request: facet equality, scalar field
+  equality, full-text search. Empty means "no narrowing, build everything".
+- `datacore.Planner` is the seam interface: `Plan(template, pred) -> (ids,
+  narrowed, err)`. `narrowed=false` means "not pushable, fall back to a full
+  build", so a missing planner or an unanswerable predicate is always correct,
+  just unaccelerated.
+- `datacore.SubsetLoader` lets the loader materialize only the narrowed ids.
+  A plain loader still works (load all, filter), so the seam never forces the
+  interface on a fixture or a future source.
+- `buildNarrowed` ties them together: planner narrows which records exist, the
+  tensor computes over them. The reducers gain `*Where` variants
+  (`CountWhere`, `DistributionWhere`) that carry a predicate.
+
+The index side is `datacoreIndexPlanner` (composition root): full-text Search
+hits FTS5, Facet conditions filter the indexed facet rows, field Equals hits a
+new `index.FormsWithValue` query over `form_values`. Conditions are
+intersected (the predicate is an AND). The contract is parity-tested: narrowing
+through the real SQLite index produces the same answer as selecting the same
+set in memory with `Where` over the full tensor, for facet, scalar, and
+two-condition-interaction predicates, plus the empty, no-overlap, and
+concurrent paths.
+
+What this unblocks: stat and query can now push a filter down to the index and
+compute the narrowed set in the tensor, instead of either reading every form
+(datacore today) or being capped by EAV (the index today). That is the
+prerequisite for routing stat or query through datacore without a performance
+regression. Those migrations are not started.
+
 ## Why the flags survive
 
 `use_in_statistics` stays, unchanged in purpose. On the index it does double

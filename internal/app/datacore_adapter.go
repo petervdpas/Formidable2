@@ -36,11 +36,25 @@ var datacoreSkipTypes = map[string]bool{
 // Record. A malformed/missing form (LoadForm returns nil) is skipped rather
 // than failing the whole build, matching the query and index tolerance.
 func (a *datacoreLoaderAdapter) Records() ([]datacore.Record, error) {
-	tpl, err := a.tpl.LoadTemplate(a.templateFile)
+	files, err := a.sto.ListForms(a.templateFile)
 	if err != nil {
 		return nil, err
 	}
-	files, err := a.sto.ListForms(a.templateFile)
+	return a.load(files)
+}
+
+// LoadSubset materializes only the named forms, satisfying datacore's
+// SubsetLoader so the planner seam can ingest just the index-narrowed records
+// instead of every form. Missing ids are skipped, matching Records tolerance.
+func (a *datacoreLoaderAdapter) LoadSubset(ids []string) ([]datacore.Record, error) {
+	return a.load(ids)
+}
+
+// load shapes the named forms into Records, loading the template once and
+// skipping any form that fails to read (same tolerance as the query and index
+// adapters).
+func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) {
+	tpl, err := a.tpl.LoadTemplate(a.templateFile)
 	if err != nil {
 		return nil, err
 	}

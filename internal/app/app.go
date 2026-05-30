@@ -408,9 +408,9 @@ func New(d Deps) (*App, error) {
 	// aggregate, loop summary) over a tensor built from the template's live
 	// forms. Reads form data like query does; touches nothing the index or
 	// stat path relies on.
-	datacoreSvc := datacore.NewService(func(tpl string) datacore.Loader {
+	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
 		return newDatacoreLoaderAdapter(tplM, stoM, tpl)
-	})
+	}, newDatacoreIndexPlanner(idxM))
 
 	// EnabledTemplates self-healing: when a template file is deleted, the
 	// active profile's EnabledTemplates list must drop the stale entry so

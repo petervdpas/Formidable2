@@ -16,12 +16,28 @@ type LoaderFactory func(template string) Loader
 // records.
 type Service struct {
 	factory LoaderFactory
+	planner Planner // optional; nil = never narrow, always build from every record
 }
 
 func NewService(factory LoaderFactory) *Service { return &Service{factory: factory} }
 
+// NewServiceWithPlanner wires the planner seam: narrowed reducers (the *Where
+// methods) push their predicate down to the planner (the SQLite index) so the
+// tensor only ingests the matching records. The non-narrowed methods are
+// unaffected and build from every record exactly as before.
+func NewServiceWithPlanner(factory LoaderFactory, planner Planner) *Service {
+	return &Service{factory: factory, planner: planner}
+}
+
 func (s *Service) view(template, follow string) (*Perspective, error) {
-	t, err := Build(s.factory(template))
+	return s.viewWhere(template, follow, Predicate{})
+}
+
+// viewWhere builds the working set, narrowing the record set through the
+// planner first when the predicate asks for it. An empty predicate is the
+// plain full build, so view delegates here with nothing to narrow.
+func (s *Service) viewWhere(template, follow string, pred Predicate) (*Perspective, error) {
+	t, err := buildNarrowed(s.factory(template), s.planner, template, pred)
 	if err != nil {
 		return nil, err
 	}
@@ -39,6 +55,29 @@ func (s *Service) Count(template, follow string) (int, error) {
 		return 0, err
 	}
 	return v.Count(), nil
+}
+
+// CountWhere is Count over the record set narrowed by pred. The planner pushes
+// the predicate to the index, so the tensor only counts the matching records.
+// With no planner wired it falls back to narrowing in memory, same answer.
+func (s *Service) CountWhere(template, follow string, pred Predicate) (int, error) {
+	v, err := s.viewWhere(template, follow, pred)
+	if err != nil {
+		return 0, err
+	}
+	return v.Count(), nil
+}
+
+// DistributionWhere is Distribution over the record set narrowed by pred. This
+// is the canonical seam shape: the index decides which records exist, the
+// tensor reduces them. The result equals the full Distribution with an
+// equivalent in-memory Where, just computed over fewer ingested records.
+func (s *Service) DistributionWhere(template, follow string, pred Predicate, field string) ([]Bucket, error) {
+	v, err := s.viewWhere(template, follow, pred)
+	if err != nil {
+		return nil, err
+	}
+	return v.Distribution(field), nil
 }
 
 // Distribution is the rank-1 marginal of field over the (optionally followed)

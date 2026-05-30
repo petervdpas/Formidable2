@@ -114,6 +114,31 @@ func (m *Manager) GetForm(template, datafile string) (*FormRow, bool, error) {
 	return &r, true, nil
 }
 
+// FormsWithValue returns the filenames of forms in template whose scalar value
+// (col IS NULL) for fieldKey equals value. It is the field-equality narrowing
+// the datacore planner pushes down: the index finds the matching forms so the
+// tensor ingests only those instead of every one.
+func (m *Manager) FormsWithValue(template, fieldKey, value string) ([]string, error) {
+	rows, err := m.db.Query(`
+		SELECT filename
+		FROM form_values
+		WHERE template = ? AND field_key = ? AND col IS NULL AND text_value = ?
+	`, template, fieldKey, value)
+	if err != nil {
+		return nil, fmt.Errorf("index: forms with value %q.%q: %w", template, fieldKey, err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var f string
+		if err := rows.Scan(&f); err != nil {
+			return nil, fmt.Errorf("index: scan filename: %w", err)
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 // ── internals ────────────────────────────────────────────────────────
 
 // formsQuerySpec is the small set of "where shapes" the read API

@@ -14,9 +14,5 @@ func Build(l Loader) (*Tensor, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := New()
-	for _, r := range recs {
-		t.Ingest(r)
-	}
-	return t, nil
+	return buildFromRecords(recs), nil
 }

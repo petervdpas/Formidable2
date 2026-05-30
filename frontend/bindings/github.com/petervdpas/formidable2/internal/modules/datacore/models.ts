@@ -469,6 +469,65 @@ export class NumCell {
 }
 
 /**
+ * Predicate is a narrowing request the planner can satisfy from a fast store
+ * before the tensor is built. Equals matches scalar field values, Facets
+ * matches set facet options, Search is a full-text query. An empty Predicate
+ * narrows nothing, so the tensor is built from every record.
+ * 
+ * A predicate is a row filter the planner pushes down to the index instead of
+ * the tensor selecting in memory: narrowing here is the same set as a Where on
+ * each named field, just decided by the fast store. The seam's contract is
+ * that the two agree (see the cross-check parity test).
+ */
+export class Predicate {
+    /**
+     * field key -> exact value
+     */
+    "Equals": { [_ in string]?: string };
+
+    /**
+     * facet key -> selected option
+     */
+    "Facets": { [_ in string]?: string };
+
+    /**
+     * full-text query
+     */
+    "Search": string;
+
+    /** Creates a new Predicate instance. */
+    constructor($$source: Partial<Predicate> = {}) {
+        if (!("Equals" in $$source)) {
+            this["Equals"] = {};
+        }
+        if (!("Facets" in $$source)) {
+            this["Facets"] = {};
+        }
+        if (!("Search" in $$source)) {
+            this["Search"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Predicate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Predicate {
+        const $$createField0_0 = $$createType11;
+        const $$createField1_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("Equals" in $$parsedSource) {
+            $$parsedSource["Equals"] = $$createField0_0($$parsedSource["Equals"]);
+        }
+        if ("Facets" in $$parsedSource) {
+            $$parsedSource["Facets"] = $$createField1_0($$parsedSource["Facets"]);
+        }
+        return new Predicate($$parsedSource as Partial<Predicate>);
+    }
+}
+
+/**
  * RootSummary is one root's loop summary: its identity, the loop length (count
  * of sub-identities it links under the link field), and the numeric reduction
  * of a value field over only that root's rows.
@@ -497,7 +556,7 @@ export class RootSummary {
      * Creates a new RootSummary instance from a string or object.
      */
     static createFrom($$source: any = {}): RootSummary {
-        const $$createField2_0 = $$createType11;
+        const $$createField2_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Agg" in $$parsedSource) {
             $$parsedSource["Agg"] = $$createField2_0($$parsedSource["Agg"]);
@@ -534,7 +593,7 @@ export class Series {
      * Creates a new Series instance from a string or object.
      */
     static createFrom($$source: any = {}): Series {
-        const $$createField1_0 = $$createType13;
+        const $$createField1_0 = $$createType14;
         const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Buckets" in $$parsedSource) {
@@ -559,6 +618,7 @@ const $$createType7 = GraphEdge.createFrom;
 const $$createType8 = $Create.Array($$createType7);
 const $$createType9 = NumCell.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = Aggregate.createFrom;
-const $$createType12 = Bucket.createFrom;
-const $$createType13 = $Create.Array($$createType12);
+const $$createType11 = $Create.Map($Create.Any, $Create.Any);
+const $$createType12 = Aggregate.createFrom;
+const $$createType13 = Bucket.createFrom;
+const $$createType14 = $Create.Array($$createType13);
