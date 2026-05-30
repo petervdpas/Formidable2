@@ -326,18 +326,25 @@ export class GraphNode {
 }
 
 /**
- * GridDim is one dimension of a raw grid: a field to group by. Field is a root
- * field key, or "facet:<key>" for a facet. DateWidth > 0 buckets the value as
+ * GridDim is one dimension of a raw grid: a field to group by. Field is a field
+ * key (or "facet:<key>" for a facet). When Table is set, the dimension lives on
+ * that table's rows and the grid fans one output row per table row, reading the
+ * value off the row identity; when Table is empty the value is read off the
+ * root and broadcast onto every fanned row. DateWidth > 0 buckets the value as
  * a date prefix (4 = year, 10 = day, else month).
  */
 export class GridDim {
     "Field": string;
+    "Table": string;
     "DateWidth": number;
 
     /** Creates a new GridDim instance. */
     constructor($$source: Partial<GridDim> = {}) {
         if (!("Field" in $$source)) {
             this["Field"] = "";
+        }
+        if (!("Table" in $$source)) {
+            this["Table"] = "";
         }
         if (!("DateWidth" in $$source)) {
             this["DateWidth"] = 0;
@@ -389,16 +396,21 @@ export class GridFilter {
 }
 
 /**
- * GridNum is one numeric measure column of a raw grid: a root field coerced to
- * a number per row.
+ * GridNum is one numeric measure column of a raw grid, coerced to a number per
+ * row. Table follows the same rule as GridDim: empty reads off the root, set
+ * reads off the fanned table row.
  */
 export class GridNum {
     "Field": string;
+    "Table": string;
 
     /** Creates a new GridNum instance. */
     constructor($$source: Partial<GridNum> = {}) {
         if (!("Field" in $$source)) {
             this["Field"] = "";
+        }
+        if (!("Table" in $$source)) {
+            this["Table"] = "";
         }
 
         Object.assign(this, $$source);

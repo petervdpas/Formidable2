@@ -1,5 +1,10 @@
 package datacore
 
+import (
+	"fmt"
+	"strings"
+)
+
 // LoaderFactory builds a Loader for one template. The composition root wires
 // it to whatever holds the live data (template + storage), so the service
 // stays dependency-free.
@@ -144,6 +149,9 @@ func (s *Service) GraphFrom(template, rootID string, depth int) (Graph, error) {
 // measures) that feed statistical aggregation, over root fields, facets, and
 // date-bucketed dims. The caller groups and reduces.
 func (s *Service) AggregateRaw(template string, dims []GridDim, nums []GridNum, filters []GridFilter) ([]GridRow, error) {
+	if tables := fanTablesOf(dims, nums); len(tables) > 1 {
+		return nil, fmt.Errorf("datacore: aggregate raw: table-column dims and measures must share one table, got %s", strings.Join(tables, ", "))
+	}
 	t, err := Build(s.factory(template))
 	if err != nil {
 		return nil, err

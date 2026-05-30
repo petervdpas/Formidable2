@@ -488,6 +488,72 @@ func TestDatacore_AggregateRawMatchesIndex(t *testing.T) {
 	}
 }
 
+// TestDatacore_TableColumnFanAlignsWhereIndexCartesians is the divergence gap 2
+// closes, made concrete. Two columns of one table (category, vendor) over a
+// two-row table describe two real pairs: (food, acme) and (travel, rail). The
+// index stores each column as (field_key, col) with no row index, so crossing
+// the two columns self-joins into all 4 combinations (a cartesian over-count).
+// datacore keeps each table row as its own identity and reads both columns off
+// it, so it emits exactly the 2 real pairs. This is a deliberate divergence,
+// not a parity miss: datacore is correct where the index is not.
+func TestDatacore_TableColumnFanAlignsWhereIndexCartesians(t *testing.T) {
+	idxM, err := index.NewManager(filepath.Join(t.TempDir(), "x.db"))
+	if err != nil {
+		t.Fatalf("index.NewManager: %v", err)
+	}
+	t.Cleanup(func() { idxM.Close() })
+
+	col0, col1 := 0, 1
+	forms := []index.FormRow{{
+		Template: "basic.yaml", Filename: "a.meta.json", Mtime: 100,
+		Values: []index.FormValueRow{
+			{FieldKey: "items", Col: &col0, ValueType: "text", Text: "food"},   // row 0 category
+			{FieldKey: "items", Col: &col0, ValueType: "text", Text: "travel"}, // row 1 category
+			{FieldKey: "items", Col: &col1, ValueType: "text", Text: "acme"},   // row 0 vendor
+			{FieldKey: "items", Col: &col1, ValueType: "text", Text: "rail"},   // row 1 vendor
+		},
+	}}
+	if err := index.Reconcile(idxM.DB(), index.ReconcileBatch{
+		UpsertTemplates: []index.TemplateRow{{Filename: "basic.yaml", Name: "basic", Mtime: 100}},
+		UpsertForms:     forms,
+	}); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	idxRows, err := idxM.AggregateRaw("basic.yaml",
+		[]index.AggDim{{Kind: "field", Key: "items", Col: &col0}, {Kind: "field", Key: "items", Col: &col1}},
+		nil, nil,
+	)
+	if err != nil {
+		t.Fatalf("index AggregateRaw: %v", err)
+	}
+	if len(idxRows) != 4 {
+		t.Fatalf("index rows = %d, want 4 (the cartesian over-count datacore avoids)", len(idxRows))
+	}
+
+	dt := datacore.New()
+	dt.Ingest(datacore.Record{ID: "a.meta.json", Tables: map[string][]map[string]string{
+		"items": {
+			{"category": "food", "vendor": "acme"},
+			{"category": "travel", "vendor": "rail"},
+		},
+	}})
+	dcRows := dt.View().Grid(
+		[]datacore.GridDim{{Field: "category", Table: "items"}, {Field: "vendor", Table: "items"}},
+		nil, nil,
+	)
+	if len(dcRows) != 2 {
+		t.Fatalf("datacore rows = %d, want 2 (aligned, no cartesian)", len(dcRows))
+	}
+	pairs := map[string]bool{}
+	for _, r := range dcRows {
+		pairs[r.Dims[0]+"/"+r.Dims[1]] = true
+	}
+	if !pairs["food/acme"] || !pairs["travel/rail"] || len(pairs) != 2 {
+		t.Fatalf("datacore pairs = %v, want exactly food/acme + travel/rail", pairs)
+	}
+}
+
 func indexRawKeys(rows []index.StatRawRow) []string {
 	ks := make([]string, len(rows))
 	for i, r := range rows {
