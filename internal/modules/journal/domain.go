@@ -12,8 +12,7 @@ import (
 	"time"
 )
 
-// fs is the narrow filesystem surface the journal needs.
-// *system.Manager satisfies it.
+// fs is the filesystem surface the journal needs.
 type fs interface {
 	ResolvePath(segments ...string) string
 	EnsureDirectory(path string) error

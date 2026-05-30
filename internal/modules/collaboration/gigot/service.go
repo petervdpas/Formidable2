@@ -25,24 +25,20 @@ type Service struct {
 }
 
 // CredentialReader resolves the GiGot subscription bearer for a
-// keychain account. Empty string + nil error means "no entry"; the
-// Service treats that as a misconfigured profile rather than an
-// anonymous attempt (gigot has no anonymous mode).
+// keychain account. Empty string + nil error means "no entry".
 type CredentialReader interface {
 	Get(account string) (string, error)
 }
 
-// ProfileReader yields the active profile filename. Used to compose
-// the canonical credential account `<profile>:gigot:<repoName>`.
-// Returning "" disables keychain auto-resolve.
+// ProfileReader yields the active profile filename. Returning ""
+// disables keychain auto-resolve.
 type ProfileReader interface {
 	CurrentProfileFilename() string
 }
 
 // ConfigReader yields the gigot-related fields off the active profile.
-// Implemented by config.Manager. Author may return empty strings - the
-// Service drops the Author block on outbound CommitRequests in that
-// case so the server falls back to the subscription's default identity.
+// Author may return empty strings, in which case the Service drops the
+// Author block so the server uses the subscription's default identity.
 type ConfigReader interface {
 	GigotBaseURL() string
 	GigotRepoName() string

@@ -23,9 +23,7 @@ import (
 	"time"
 )
 
-// fs is the narrow filesystem surface this module needs. *system.Manager
-// satisfies it. Declared here per the architecture rule that consumers
-// own their dependency interfaces.
+// fs is the filesystem surface this module needs.
 type fs interface {
 	ResolvePath(segments ...string) string
 	JoinPath(segments ...string) string

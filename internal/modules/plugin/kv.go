@@ -8,9 +8,7 @@ import (
 	"sync"
 )
 
-// kvFS is the fs surface KV needs. *system.Manager satisfies it
-// (see app.go); tests pass a small struct that talks to t.TempDir().
-// Kept minimal so swapping backends is a one-line change later.
+// kvFS is the fs surface KV needs.
 type kvFS interface {
 	EnsureDirectory(path string) error
 	FileExists(path string) bool

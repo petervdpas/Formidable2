@@ -15,8 +15,7 @@ import (
 // rank-2 for cross-tabs, rank-0 (one cell, many measures) for numeric
 // summaries.
 
-// Index is the narrow slice of index.Manager the stat module needs.
-// *index.Manager satisfies it; tests pass a fake.
+// Index is the read surface the stat engine computes through.
 type Index interface {
 	TotalForms(template string) (int, error)
 	ValueDistribution(template, fieldKey string, col *int) ([]index.Bucket, error)

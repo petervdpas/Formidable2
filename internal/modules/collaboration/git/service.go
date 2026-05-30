@@ -26,16 +26,14 @@ type Service struct {
 	sys     Sysgit
 }
 
-// FlagReader exposes per-profile toggles that affect transport
-// selection. Today: GitSelfCloned. Implemented by config.Manager.
+// FlagReader exposes per-profile toggles that affect transport selection.
 type FlagReader interface {
 	GitSelfCloned() bool
 }
 
-// Sysgit is the system-git transport surface the Service shells out
-// to in self-cloned mode. *sysgit.Runner satisfies it; tests inject
-// fakes. Available() is checked before every dispatch so a missing
-// binary degrades to the go-git fallback path.
+// Sysgit is the system-git transport used in self-cloned mode.
+// Available() is checked before every dispatch so a missing binary
+// degrades to the go-git fallback path.
 type Sysgit interface {
 	Available() bool
 	Fetch(workdir, remote string) error
@@ -44,18 +42,13 @@ type Sysgit interface {
 }
 
 // CredentialReader resolves a stored secret for an HTTPS auth account.
-// Empty string + nil error means "no entry"; the Service treats that
-// as an anonymous attempt and lets the remote's 401 surface as the
-// caller-visible error.
+// Empty string + nil error means "no entry", treated as an anonymous attempt.
 type CredentialReader interface {
 	Get(account string) (string, error)
 }
 
-// ProfileReader yields the active profile filename. The Service uses
-// it to compose the canonical credential account
-// `<profile>:git:<remote_url>` - same format the frontend
-// useCredentialAccount composable produces. Returning "" disables
-// keychain auto-resolve (no profile yet → no scoped secret to look up).
+// ProfileReader yields the active profile filename. Returning ""
+// disables keychain auto-resolve.
 type ProfileReader interface {
 	CurrentProfileFilename() string
 }
@@ -100,11 +93,11 @@ func (s *Service) useSysgit() bool {
 	return s.sys.Available()
 }
 
-func (s *Service) IsGitRepo(path string) bool                       { return s.m.IsGitRepo(path) }
-func (s *Service) RepoRoot(path string) (string, error)             { return s.m.RepoRoot(path) }
-func (s *Service) Status(path string) (*Status, error)              { return s.m.Status(path) }
-func (s *Service) Branches(path string) (*Branches, error)          { return s.m.Branches(path) }
-func (s *Service) Log(path string, limit int) ([]Commit, error)     { return s.m.Log(path, limit) }
+func (s *Service) IsGitRepo(path string) bool                   { return s.m.IsGitRepo(path) }
+func (s *Service) RepoRoot(path string) (string, error)         { return s.m.RepoRoot(path) }
+func (s *Service) Status(path string) (*Status, error)          { return s.m.Status(path) }
+func (s *Service) Branches(path string) (*Branches, error)      { return s.m.Branches(path) }
+func (s *Service) Log(path string, limit int) ([]Commit, error) { return s.m.Log(path, limit) }
 func (s *Service) LogGraph(path string, limit int) ([]GraphCommit, error) {
 	return s.m.LogGraph(path, limit)
 }

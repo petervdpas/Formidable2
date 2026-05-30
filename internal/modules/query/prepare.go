@@ -21,8 +21,7 @@ type FormData struct {
 	Facets   map[string]string
 }
 
-// Loader supplies what prepare flattens: a template and its forms. Kept
-// narrow so the query module doesn't depend on storage internals.
+// Loader supplies what prepare flattens: a template and its forms.
 type Loader interface {
 	Template(name string) (*template.Template, error)
 	Forms(name string) ([]FormData, error)

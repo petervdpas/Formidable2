@@ -11,10 +11,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// Provider is the narrow read surface the API handler needs from the
-// dataprovider. Declared as an interface so unit tests can supply a
-// hand-rolled stub without standing up SQLite + the real index. The
-// real *dataprovider.Manager satisfies this without an adapter.
+// Provider is the read surface the API needs from the dataprovider.
 type Provider interface {
 	ListTemplates(ctx context.Context) ([]dataprovider.TemplateSummary, error)
 	IsCollectionEnabled(ctx context.Context, template string) bool
@@ -23,41 +20,28 @@ type Provider interface {
 	ResolveCollectionByID(ctx context.Context, template, id string) (*dataprovider.CollectionItem, bool, error)
 }
 
-// Storage is the bytes-side surface the API needs:
-//   - LoadForm: meta + data block for /api/collections/{tpl}/{id}
-//   - OpenImageFile: raw image bytes + MIME for /api/images/{tpl}/{filename}
-//
-// The real *storage.Manager satisfies this without an adapter.
-// OpenImageFile returns (nil, "", nil) for a missing file so the api
-// handler can map that to 404 without sniffing the error string.
+// Storage is the bytes-side read surface: a form's meta+data and raw image
+// bytes. OpenImageFile returns nil for a missing file so the handler maps it
+// to 404 without sniffing the error.
 type Storage interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 	OpenImageFile(templateFilename, name string) ([]byte, string, error)
 }
 
-// Writer is the write-side surface used by the POST/PUT/PATCH/DELETE
-// endpoints. Kept separate from Storage so a future security audit
-// can grep "Writer" to find every write path. The real *storage.Manager
-// satisfies both - the indexer hook attached to SaveForm/DeleteForm
-// keeps SQLite consistent without the api module having to know about
-// the index at all.
+// Writer is the write side (POST/PUT/PATCH/DELETE), split from Storage so an
+// audit can grep "Writer" to find every write path.
 type Writer interface {
 	SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) storage.SaveResult
 	DeleteForm(templateFilename, datafile string) error
 }
 
-// Templates is the surface the API needs to answer the design
-// endpoint: the full parsed template (fields + metadata). The real
-// *template.Manager already exposes LoadTemplate with this signature.
+// Templates loads a parsed template, for the design endpoint.
 type Templates interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// Stats is the read surface for the /api/statistics/* endpoints: the
-// template's named statistical objects and their evaluated grids. The
-// real *stat.Service satisfies it; the engine owns the aggregation, the
-// API just serves the JSON so external consumers (R, scripts) can fetch
-// the same presentation-free grids the UI renders.
+// Stats is the read surface for /api/statistics/*: a template's named
+// objects and their evaluated grids.
 type Stats interface {
 	ListObjects(template string) ([]stat.StatObject, error)
 	EvaluateObject(template, name string) (*stat.Grid, error)
@@ -65,10 +49,7 @@ type Stats interface {
 	EvaluateDSL(template, dsl string) (*stat.Grid, error)
 }
 
-// Query runs a constrained SELECT (the FDRM query surface) over a
-// template's indexed values. The real *query.Service satisfies Run; the
-// query engine owns the datacore access, the API just serves the typed
-// Result so external consumers can fetch the same rows the UI panel shows.
+// Query runs a constrained SELECT (FDRM) over a template's values.
 type Query interface {
 	Run(spec query.Spec) (query.Result, error)
 }

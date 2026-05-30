@@ -95,14 +95,14 @@ func isValidWorkspace(ws string) bool {
 //     it renders at the top of the Run modal and every command
 //     receives the current form values as ctx.
 type Manifest struct {
-	ManifestVersion        int      `json:"manifest_version"`
-	ID                     string   `json:"id"`
-	Name                   string   `json:"name"`
-	Version                string   `json:"version"`
-	Description            string   `json:"description,omitempty"`
-	Author                 string   `json:"author,omitempty"`
-	RunMode                string   `json:"run_mode,omitempty"`
-	RequiresInternalServer bool     `json:"requires_internal_server,omitempty"`
+	ManifestVersion        int    `json:"manifest_version"`
+	ID                     string `json:"id"`
+	Name                   string `json:"name"`
+	Version                string `json:"version"`
+	Description            string `json:"description,omitempty"`
+	Author                 string `json:"author,omitempty"`
+	RunMode                string `json:"run_mode,omitempty"`
+	RequiresInternalServer bool   `json:"requires_internal_server,omitempty"`
 	// Workspaces lists the workspace IDs (from the Workspace* enum
 	// in this file) where the plugin contributes a topbar menu
 	// entry. Each entry must be a known workspace ID; nil/empty
@@ -303,12 +303,9 @@ type HTTPResponse struct {
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
-// HTTPClient is the interface the runtime needs to expose
-// formidable.api to Lua scripts. The plugin module is intentionally
-// unaware of *what* the client points at - production wraps the
-// wiki HTTP server in app.go, but the contract is just "an HTTP
-// transport." IsAvailable is queried in the Run preflight when
-// manifest.RequiresInternalServer is true; tests pass a small fake.
+// HTTPClient is the HTTP transport the runtime exposes as formidable.api.
+// IsAvailable is queried in the Run preflight when
+// manifest.RequiresInternalServer is true.
 type HTTPClient interface {
 	IsAvailable() bool
 	Fetch(method, path, body string, headers map[string]string) (HTTPResponse, error)

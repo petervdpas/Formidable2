@@ -8,14 +8,12 @@ import (
 )
 
 // journalContext yields the active context folder (the absolute path
-// containing .changes.log). *journal.Manager satisfies this - kept as
-// a local interface so monitor doesn't import journal.
+// containing .changes.log).
 type journalContext interface {
 	ContextFolder() string
 }
 
-// journalFS is the narrow filesystem surface JournalSource needs from
-// the system manager. *system.Manager satisfies this.
+// journalFS is the filesystem surface JournalSource needs.
 type journalFS interface {
 	FileExists(path string) bool
 	LoadFile(path string) (string, error)

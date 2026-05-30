@@ -123,37 +123,25 @@ type InitResult struct {
 	Reason  string `json:"reason"`
 }
 
-// Recorder is the narrow surface sync backends (git, gigot) call into
-// after a Push or Pull. *Manager satisfies it directly so the
-// composition root can pass `jrnM` straight to the backend's NewService
-// - no per-backend adapter needed. Defined here at the producer side so
-// each backend imports one canonical shape rather than redeclaring an
-// identical interface locally.
+// Recorder is the surface sync backends (git, gigot) call after a Push or Pull.
 type Recorder interface {
 	RecordSync(backend, version string, pushed, pulled int)
 	RecordRemoteSeen(backend, version string)
 }
 
-// Reader is the journal's read-only state surface. Sync backends use it
-// for journal-aware flows like auto-stash, where the pull pre-flight
-// needs to know which paths Formidable mutated since the last sync -
-// strictly narrower than reading the on-disk log.
+// Reader is the journal's read-only state surface: which paths Formidable
+// mutated since the last sync.
 type Reader interface {
 	Pending(backend string) PendingResult
 }
 
-// Journal combines Recorder + Reader for callers that need both. The
-// git Service uses it: Recorder for post-Push/Pull cursor updates,
-// Reader for PullWithStash's snapshot manifest. *Manager satisfies it
-// directly; tests inject a small fake.
+// Journal combines Recorder + Reader for callers that need both.
 type Journal interface {
 	Recorder
 	Reader
 }
 
-// EventEmitter is the interface the journal uses to publish change
-// events. The composition root (internal/app) wires a Wails-backed
-// implementation; tests inject a stub. Nil is allowed and silences emit.
+// EventEmitter publishes journal change events. Nil silences emit.
 type EventEmitter interface {
 	Emit(name string, data any)
 }

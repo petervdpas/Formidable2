@@ -5,11 +5,7 @@ import (
 	"fmt"
 )
 
-// TemplateProvider abstracts the template module so this package can
-// stay layer-clean (no template import → no risk of an import cycle
-// when template eventually wants to consume an Expression hook).
-// Returned `Template` is opaque to the engine; we read only what the
-// sidebar needs.
+// TemplateProvider is the template surface the sidebar evaluator needs.
 type TemplateProvider interface {
 	// LookupExpression returns the template's sidebar expression and the
 	// list of expression-flagged fields with their option metadata.
@@ -29,10 +25,8 @@ type ExpressionField struct {
 	Options map[string]string
 }
 
-// StorageProvider abstracts the storage module's list-with-context
-// surface. Each Record carries the harvested ExpressionItems map for
-// one record; that map IS the per-row evaluation context, so the
-// engine never reads template Field metadata at evaluate time.
+// StorageProvider is the storage list-with-context surface. Each Record's
+// harvested context map is the per-row evaluation context.
 type StorageProvider interface {
 	ListForExpression(templateName string) ([]Record, error)
 	// LookupForExpression returns one record by datafile so the

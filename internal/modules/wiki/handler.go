@@ -18,11 +18,7 @@ import (
 	tpl "github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// Provider is the narrow read-only surface the wiki handler needs
-// from `*dataprovider.Manager`. Declared here as an interface so the
-// HTTP unit tests can swap in a hand-rolled stub without spinning up
-// SQLite + the full module graph. The composition root passes the
-// real `*dataprovider.Manager`, which already satisfies this shape.
+// Provider is the read surface the wiki needs from the dataprovider.
 type Provider interface {
 	ListTemplates(ctx context.Context) ([]dataprovider.TemplateSummary, error)
 	GetTemplate(ctx context.Context, filename string) (*dataprovider.TemplateSummary, bool, error)
@@ -31,43 +27,27 @@ type Provider interface {
 	RenderForm(ctx context.Context, template, datafile string) (*dataprovider.RenderedPage, error)
 }
 
-// Storage is the bytes-side surface the wiki uses for `/storage/*`
-// and per-form facet state on the template detail page.
-//
-//   - OpenImageFile: image bytes (nil/empty on missing) for /storage/*.
-//   - LoadForm: per-form metadata (meta.Facets, meta.Tags) used by the
-//     template page to render facet chips next to each row. Returns nil
-//     when the form doesn't exist, mirroring the storage manager's own
-//     contract.
-//
-// The real `*storage.Manager` satisfies both without an adapter; tests
-// pass in stubs.
+// Storage is the bytes side: image bytes for /storage/*, and LoadForm for the
+// per-form facet/tag state the template page shows as chips (both nil on a
+// missing file).
 type Storage interface {
 	OpenImageFile(templateFilename, name string) ([]byte, string, error)
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
-// Templates is the surface the wiki needs to read per-template facet
-// definitions (template.Template.Facets). The real `*template.Manager`
-// satisfies this directly; the wiki handler tolerates nil for backwards
-// compatibility with old tests - facet chips simply don't render then.
+// Templates reads per-template facet definitions. Nil is tolerated: facet
+// chips just don't render.
 type Templates interface {
 	LoadTemplate(name string) (*tpl.Template, error)
 }
 
-// Expressioner is the sidebar-expression surface the wiki needs. The
-// real `*expression.Manager` satisfies it directly; tests pass a stub.
-// May be nil - the form list then falls back to the bare filename for
-// every row.
+// Expressioner computes each row's sub-label. Nil falls back to the filename.
 type Expressioner interface {
 	EvaluateList(templateName string) ([]expression.Result, error)
 }
 
-// EnabledTemplateFilter is the per-profile template curation surface
-// the wiki consults to hide templates the user has marked as disabled
-// in Settings → Templates. `*config.Manager` satisfies this directly;
-// composition root wires it via SetEnabledFilter. Nil disables filtering
-// - every template the dataprovider exposes is visible.
+// EnabledTemplateFilter hides templates disabled per-profile in Settings.
+// Nil shows every template.
 type EnabledTemplateFilter interface {
 	IsTemplateEnabled(filename string) bool
 	FilterEnabled(filenames []string) []string

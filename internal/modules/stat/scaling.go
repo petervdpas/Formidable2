@@ -59,8 +59,7 @@ func (s Scaling) weightMap() map[string]float64 {
 	return m
 }
 
-// ScalingSource resolves a scaling object by name to its weighting. The
-// catalog backs it; tests pass a stub. Mirrors ObjectConfigs for composites.
+// ScalingSource resolves a scaling object by name to its weighting.
 type ScalingSource interface {
 	Scaling(name string) (*Scaling, error)
 }

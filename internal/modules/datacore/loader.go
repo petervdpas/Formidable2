@@ -1,9 +1,7 @@
 package datacore
 
-// Loader is the seam between the tensor and wherever records live (storage, a
-// fixture, a remote source). datacore depends only on this interface, never
-// on a concrete store, so the substrate stays self-contained and the mapping
-// from a live template lives at the composition root.
+// Loader is the seam between the tensor and wherever records live (storage,
+// a fixture, a remote source).
 type Loader interface {
 	Records() ([]Record, error)
 }

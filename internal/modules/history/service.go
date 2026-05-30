@@ -2,25 +2,17 @@ package history
 
 import "log/slog"
 
-// Navigator is what the controller needs from nav to replay a Back/
-// Forward target. The composition root wraps nav.Manager.NavigateTo
-// Formidable (which returns *Result, error) into this thinner shape so
-// history doesn't have to import nav and create a cycle (nav imports
-// history to push on successful navigation).
+// Navigator replays a Back/Forward target.
 type Navigator interface {
 	NavigateToFormidable(href string) error
 }
 
-// EventEmitter mirrors nav.EventEmitter - composition root injects a
-// Wails-backed implementation; nil is allowed and silences emit.
+// EventEmitter broadcasts state events. Nil silences emit.
 type EventEmitter interface {
 	Emit(name string, data any)
 }
 
-// Persister writes the current stack snapshot back to user config when
-// history.persist is on. Composition root supplies a shim that reads
-// the live config flag and no-ops when persist is off - Controller is
-// kept oblivious to the setting.
+// Persister writes the current stack snapshot back to user config.
 type Persister interface {
 	PersistSnapshot(s Snapshot)
 }

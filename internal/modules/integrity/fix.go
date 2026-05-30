@@ -13,14 +13,9 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// StorageWriter is the post-Fix write surface. Production code passes
-// the storage manager's "save the whole envelope, don't merge prev"
-// adapter; tests pass a stub that mirrors the saved form back into the
-// in-memory store so the post-fix re-analyze sees the new shape.
-//
-// The interface intentionally takes the full *storage.Form rather than
-// just data, because meta-targeting strategies (MintUUID, Restamp)
-// need to commit a mutated meta block alongside the data.
+// StorageWriter is the post-Fix write surface. Takes the full
+// *storage.Form so meta-targeting strategies (MintUUID, Restamp) can
+// commit a mutated meta block alongside the data.
 type StorageWriter interface {
 	SaveForm(ctx context.Context, templateFilename, datafile string, form *storage.Form) error
 }

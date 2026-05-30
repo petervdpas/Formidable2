@@ -9,8 +9,7 @@ import (
 	"strings"
 )
 
-// fs is the narrow filesystem surface this module needs.
-// *system.Manager satisfies it.
+// fs is the filesystem surface this module needs.
 type fs interface {
 	ResolvePath(segments ...string) string
 	EnsureDirectory(path string) error

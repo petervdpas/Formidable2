@@ -20,35 +20,23 @@ import (
 const exportTimeout = 60 * time.Second
 
 // renderer is the slice of render.Manager the pdf module needs.
-// Satisfied by *render.Manager in production; tests inject a stub.
 type renderer interface {
 	RenderMarkdown(templateFilename, datafile string) (string, error)
 }
 
-// storageFS is the slice of storage.Manager the pdf module needs:
-// the absolute filesystem location where a given template's forms +
-// assets live. Used both for SourceDir resolution (so picoloom can
-// load relative-path images authored in markdown) and as the
-// default output directory ("next to the form") when neither
-// ExportOpts.OutputPath nor Status.ExportDir is set.
-//
-// Satisfied by *storage.Manager.
+// storageFS yields a template's storage dir: used for SourceDir
+// resolution (relative-path images) and as the default output directory.
 type storageFS interface {
 	TemplateStorageDir(templateFilename string) string
 }
 
-// templateLoader is the slice of template.Manager the pdf module
-// needs to read per-template PDF defaults (style + cover) and feed
-// them into the manifest merge layer. Satisfied by *template.Manager;
-// may be nil - Export falls through to a doc-frontmatter-only Merge
-// when not wired.
+// templateLoader reads per-template PDF defaults (style + cover) for the
+// manifest merge layer. May be nil; Export falls through to doc-frontmatter only.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
 // converter is the slice of picoloom.Converter we exercise.
-// *picoloom.Converter satisfies this directly; tests inject a stub
-// so the unit suite never boots Chrome.
 type converter interface {
 	Convert(ctx context.Context, input picoloom.Input) (*picoloom.ConvertResult, error)
 	Close() error

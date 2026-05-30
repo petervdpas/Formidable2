@@ -15,7 +15,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// fs is the narrow filesystem surface storage needs (beyond sfr).
+// fs is the filesystem surface storage needs (beyond sfr).
 type fs interface {
 	ResolvePath(segments ...string) string
 	JoinPath(segments ...string) string
@@ -27,8 +27,7 @@ type fs interface {
 	ListFiles(dir string) ([]string, error)
 }
 
-// templateLoader is the narrow interface the storage module needs from
-// template - load by filename. Mirrors template.Manager.LoadTemplate.
+// templateLoader is what storage needs from template: load by filename.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
@@ -38,25 +37,17 @@ const (
 	imagesDir = "images"
 )
 
-// Indexer is the post-write hook surface a downstream cache plugs
-// into for forms (the SQLite index used by the wiki/API). Failures
-// are logged at the manager and never propagated - the index is a
-// derived view, never authoritative.
+// Indexer is the post-write hook for forms (the SQLite index). Failures
+// are logged and never propagated; the index is a derived view.
 type Indexer interface {
 	OnFormChanged(templateFilename, datafile string) error
 	OnFormDeleted(templateFilename, datafile string) error
 }
 
-// FormReader is the symmetric read-side surface for the same cache:
-// when installed, ExtendedListForms consults it instead of walking
-// disk per record. The composition root supplies an adapter around
-// *index.Manager. Implementations should return summaries in the
-// filename-ascending order the original disk path used, so existing
-// frontends see no observable change.
-//
-// A reader-side error is non-fatal: the manager logs it and falls
-// back to the disk path. The index is a derived view, never
-// authoritative - same posture as the Indexer write hook.
+// FormReader is the read-side of the same cache: ExtendedListForms
+// consults it instead of walking disk per record. Summaries come back in
+// filename-ascending order. A reader error is non-fatal: the manager logs
+// it and falls back to the disk path.
 type FormReader interface {
 	ListSummaries(templateFilename string) ([]FormSummary, error)
 	// SearchSummaries returns the summaries of forms in one template

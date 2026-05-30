@@ -9,26 +9,20 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// TemplateLoader is the narrow surface the analyzer needs from the
-// template module: load a template by its filename (e.g. "basic.yaml").
+// TemplateLoader loads a template by its filename (e.g. "basic.yaml").
 type TemplateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// StorageReader is the narrow surface the analyzer needs from the
-// storage module: list the forms under a template, load each one.
-// Both signatures match storage.Manager exactly so the composition
-// root can inject *storage.Manager directly.
+// StorageReader lists the forms under a template and loads each one.
 type StorageReader interface {
 	ListForms(templateFilename string) ([]string, error)
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
-// RawFormReader is an optional surface: when the injected StorageReader
-// also exposes LoadFormRaw, the analyzer runs the guid-sync check against
-// the un-sanitized on-disk form. LoadForm sanitizes, mirroring the guid
-// field onto meta.id, which would otherwise hide a form whose data.id is
-// empty on disk.
+// RawFormReader is optional: when present, the analyzer runs the guid-sync
+// check against the un-sanitized on-disk form, since LoadForm mirrors the
+// guid field onto meta.id and would otherwise hide drift.
 type RawFormReader interface {
 	LoadFormRaw(templateFilename, datafile string) *storage.Form
 }

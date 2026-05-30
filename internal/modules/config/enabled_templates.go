@@ -6,11 +6,7 @@ import (
 	"sort"
 )
 
-// TemplateLister is the narrow surface needed by ReconcileEnabledTemplates
-// + ListEnabledTemplates to find out which template files actually exist
-// on disk. template.Manager satisfies it directly; the composition root
-// wires the dependency via SetTemplateLister so config doesn't import
-// template.
+// TemplateLister reports which template files exist on disk.
 type TemplateLister interface {
 	ListTemplates() ([]string, error)
 }

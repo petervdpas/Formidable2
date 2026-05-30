@@ -1,7 +1,6 @@
 package system
 
 // FS is the filesystem-facing surface that downstream modules depend on.
-// *Manager satisfies this interface.
 type FS interface {
 	AppRoot() string
 	ResolvePath(segments ...string) string
@@ -29,11 +28,11 @@ type DirEntry struct {
 }
 
 type FetchOptions struct {
-	Method        string            `json:"method"`
-	Headers       map[string]string `json:"headers"`
-	Body          string            `json:"body"`
-	TimeoutSecs   int               `json:"timeoutSecs"`
-	FollowRedirs  bool              `json:"followRedirects"`
+	Method       string            `json:"method"`
+	Headers      map[string]string `json:"headers"`
+	Body         string            `json:"body"`
+	TimeoutSecs  int               `json:"timeoutSecs"`
+	FollowRedirs bool              `json:"followRedirects"`
 }
 
 type FetchResult struct {
@@ -43,8 +42,7 @@ type FetchResult struct {
 	URL        string            `json:"url"`
 }
 
-// JournalEmitter lets the journal module observe filesystem mutations
-// without system depending on it. Wired in the composition root.
+// JournalEmitter lets the journal observe filesystem mutations.
 type JournalEmitter interface {
 	RecordOp(op string, path string, meta map[string]any)
 }

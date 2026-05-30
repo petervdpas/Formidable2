@@ -146,11 +146,8 @@ func CompositeOptions(objects []StatObject) []CompositeOption {
 	return out
 }
 
-// ObjectConfigs resolves a named plain object to its parsed config. The
-// composite resolver depends only on this, not on how objects are stored or
-// catalogued: an implementation errors on an unknown name and on a composite
-// (no DSL to parse, no nesting). The Service backs it with the template's
-// object catalog; tests pass a stub.
+// ObjectConfigs resolves a named plain object to its parsed config.
+// Errors on an unknown name and on a composite (no DSL to parse).
 type ObjectConfigs interface {
 	Config(name string) (StatConfig, error)
 }

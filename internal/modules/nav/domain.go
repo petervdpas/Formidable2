@@ -8,38 +8,30 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// templateLoader is the narrow surface nav needs from the template
-// module - load by filename to confirm the target template exists.
+// templateLoader loads a template by filename to confirm it exists.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// formStore is the narrow surface nav needs from the storage module -
-// load by (template, datafile) to confirm the target form exists.
-// LoadForm returns nil for missing/unreadable, which is exactly the
-// signal we need.
+// formStore loads a form by (template, datafile) to confirm it exists.
+// LoadForm returns nil for missing/unreadable.
 type formStore interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
-// configWriter is what nav needs from config - write three keys
-// atomically (selected_template, selected_data_file, context_ribbon).
-// Composition root supplies a thin shim around config.Manager.
+// configWriter writes selected_template, selected_data_file, and
+// context_ribbon atomically.
 type configWriter interface {
 	UpdateUserConfig(partial map[string]any) error
 }
 
-// EventEmitter mirrors journal.EventEmitter - composition root wires a
-// Wails-backed implementation; tests inject a stub. Nil is allowed and
-// silences emit.
+// EventEmitter publishes nav change events. Nil silences emit.
 type EventEmitter interface {
 	Emit(name string, data any)
 }
 
-// HistoryPusher is the narrow surface nav needs from history - push
-// the canonical href onto the back/forward stack after a successful
-// navigation. Composition root injects history.Service; nil is allowed
-// (history feature disabled or not yet wired) and silences pushes.
+// HistoryPusher pushes the canonical href onto the back/forward stack
+// after a successful navigation. Nil silences pushes.
 type HistoryPusher interface {
 	Push(href string)
 }

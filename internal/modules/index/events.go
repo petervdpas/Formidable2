@@ -25,15 +25,12 @@ type FormRecord struct {
 	Mtime int64
 }
 
-// TemplateLoader is the narrow interface the event handler needs from
-// the template module. The composition root supplies an adapter
-// around *template.Manager that also stat()s the file for mtime.
+// TemplateLoader loads a template plus its file mtime.
 type TemplateLoader interface {
 	LoadTemplate(filename string) (*TemplateRecord, error)
 }
 
-// FormStore mirrors TemplateLoader for forms - adapter around
-// *storage.Manager.
+// FormStore loads a form plus its file mtime.
 type FormStore interface {
 	LoadForm(templateFilename, datafile string) (*FormRecord, error)
 }

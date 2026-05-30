@@ -23,8 +23,6 @@ type ColumnNamer interface {
 
 // Reducer is the slice of datacore's read API the stat adapter needs: the
 // per-template, optionally-followed perspectives it maps into stat results.
-// *datacore.Service satisfies it; depending on this interface (not the concrete
-// service) keeps the seam decoupled and lets tests pass a fake.
 type Reducer interface {
 	Count(template, follow string) (int, error)
 	Distribution(template, follow, field string) ([]datacore.Bucket, error)

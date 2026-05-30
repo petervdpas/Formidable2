@@ -47,24 +47,17 @@ type RenderAccess interface {
 	RenderHTML(templateFilename, datafile string) (string, error)
 }
 
-// FMAccess is the formidable.fm.* surface - YAML frontmatter
-// parse/build helpers backed by the render module. Lua plugins
-// can't safely YAML-parse on their own, and asking every plugin
-// author to ship a parser is a sharp edge - so the operations
-// the renderer already uses (ParseFrontmatter / BuildFrontmatter)
-// are exposed verbatim. Parse returns (data, body) where body is
-// the markdown with the leading `---…---` block removed; data is
-// nil when no frontmatter was present. Build re-emits a leading
-// frontmatter block from data and prepends it to body; nil/empty
-// data returns body unchanged.
+// FMAccess is the formidable.fm.* surface: YAML frontmatter parse/build
+// helpers. Parse returns (data, body) with the leading `---...---` block
+// removed; data is nil when no frontmatter was present. Build re-emits a
+// frontmatter block from data; nil/empty data returns body unchanged.
 type FMAccess interface {
 	Parse(markdown string) (map[string]any, string, error)
 	Build(data map[string]any, body string) string
 }
 
-// FSAccess is the formidable.fs.* surface. v1 is unsandboxed -
-// plugin authors are trusted (they wrote the plugin); the user
-// reviewed it before installing into <AppRoot>/plugins/.
+// FSAccess is the formidable.fs.* surface. Unsandboxed: plugin authors
+// are trusted, and the user reviewed the plugin before installing it.
 type FSAccess interface {
 	Read(path string) (string, error)
 	Write(path, content string) error
@@ -75,13 +68,9 @@ type FSAccess interface {
 	Remove(path string) error
 }
 
-// StorageAccess is the formidable.storage.* surface - direct access
-// to bytes the storage manager owns (template/<stem>/images/<name>).
-// Plugins that export to disk (wikiwonder) need to copy referenced
-// images alongside the generated markdown; reading via OS path would
-// require leaking the storage root into Lua. ImageBytes returns
-// (nil, nil) when the file isn't present so plugins can skip without
-// branching on errors.
+// StorageAccess is the formidable.storage.* surface: image bytes the
+// storage manager owns (template/<stem>/images/<name>). ImageBytes
+// returns (nil, nil) when the file isn't present.
 type StorageAccess interface {
 	ImageBytes(templateFilename, name string) ([]byte, error)
 }
@@ -107,14 +96,10 @@ type FacetStatsAccess interface {
 	TotalForms(template string) (int, error)
 }
 
-// StatObjectAccess is the formidable.statistical surface - the
-// template's named statistical objects (composed in the Statistical
-// Engine builder). ListObjects enumerates the catalog ({name, label,
-// dsl, kind} per entry, kind being "dsl" | "composite" | "scaling");
-// EvaluateObject runs a plain object by name into a rank-N values grid;
-// EvaluateComposite runs a composite (hop route) into a {parent,
-// branches} grid for the sunburst renderer. All are presentation-free,
-// flattened to map[string]any for Lua; the plugin renders the result.
+// StatObjectAccess is the formidable.statistical surface: a template's
+// named statistical objects. ListObjects enumerates the catalog ({name,
+// label, dsl, kind}); EvaluateObject runs one into a rank-N values grid;
+// EvaluateComposite runs a hop route into a {parent, branches} grid.
 type StatObjectAccess interface {
 	ListObjects(template string) ([]map[string]any, error)
 	EvaluateObject(template, name string) (map[string]any, error)
@@ -138,9 +123,7 @@ type ExecResult struct {
 	Exit   int
 }
 
-// ExecRunner is the formidable.exec surface. Implementations:
-//   - real: os/exec wrapper in exec.go (planned slice 7 wiring)
-//   - test: mockExec in bindings_test.go
+// ExecRunner is the formidable.exec surface.
 type ExecRunner interface {
 	Exec(cmd string, args []string, opts ExecOptions) (ExecResult, error)
 }

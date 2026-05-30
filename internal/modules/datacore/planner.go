@@ -21,22 +21,15 @@ func (p Predicate) Empty() bool {
 }
 
 // Planner narrows the candidate identities for a template+predicate before the
-// tensor is built. It is the seam to a fast store (the SQLite index): it
-// returns the ids that match, so only those records are materialized instead
-// of every one.
-//
-// narrowed=false means "not narrowed, load everything" - an empty predicate,
-// no planner, or a predicate the store cannot push down. That keeps the result
-// correct (just not accelerated): the caller falls back to the full build.
+// tensor is built, returning the matching ids. narrowed=false means "load
+// everything", so the caller falls back to the full build.
 type Planner interface {
 	Plan(template string, pred Predicate) (ids []string, narrowed bool, err error)
 }
 
 // SubsetLoader is a Loader that can materialize only a named subset of records.
-// When the planner narrows, the service loads just the matching ids through
-// this path. A Loader that doesn't implement it still works: loadSubset falls
-// back to loading every record and keeping the id set, which is correct but
-// reads everything (so the acceleration is lost, not the answer).
+// A plain Loader still works: loadSubset falls back to reading every record and
+// filtering by id (correct, just not accelerated).
 type SubsetLoader interface {
 	Loader
 	LoadSubset(ids []string) ([]Record, error)

@@ -17,14 +17,10 @@ import (
 	"strings"
 )
 
-// Executor is the seam tests stub. Real wiring uses os/exec; tests
-// inject a fake so the unit pass doesn't spawn `git`.
-//
-// Both stdout and stderr are captured because git splits its
-// up-to-date messages between them: `git push` reports "Everything
-// up-to-date" on stderr, `git pull` reports "Already up to date." on
-// stdout. The dispatcher needs both to translate into a result the
-// journal can consume without recording phantom sync markers.
+// Executor runs the git binary. Both stdout and stderr are captured
+// because git splits its up-to-date messages between them: `git push`
+// reports "Everything up-to-date" on stderr, `git pull` reports
+// "Already up to date." on stdout.
 type Executor interface {
 	LookPath(name string) (string, error)
 	Run(workdir, name string, args []string) (stdout, stderr string, err error)

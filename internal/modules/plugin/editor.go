@@ -12,10 +12,7 @@ import (
 	"path/filepath"
 )
 
-// editorFS is the fs surface the editor methods need. *system.Manager
-// satisfies it (its absolute-path branch keeps things working when the
-// plugins folder lives outside AppRoot). Mirrors kvFS but adds
-// DeleteFolder for tearing the whole plugin tree down.
+// editorFS is the fs surface the editor methods need.
 type editorFS interface {
 	EnsureDirectory(path string) error
 	FileExists(path string) bool

@@ -10,8 +10,7 @@ import "net/http"
 const DesktopFallbackSubject = "<desktop>"
 
 // Resolver maps an incoming HTTP request to a resolved caller Identity.
-// Implementations should never panic; failures must surface as errors
-// so middleware can pick the right response code.
+// Failures surface as errors, never panics, so middleware picks the response code.
 type Resolver interface {
 	Resolve(r *http.Request) (Identity, error)
 }
@@ -55,9 +54,7 @@ func (d *DesktopResolver) Resolve(_ *http.Request) (Identity, error) {
 	}, nil
 }
 
-// SubscriptionStore is the read surface a SubscriptionResolver consults
-// when matching incoming bearer tokens. Today no backend implements it;
-// the future config-rooted store will live alongside profile state.
+// SubscriptionStore is the read surface for matching incoming bearer tokens.
 type SubscriptionStore interface {
 	FindByToken(tokenHash string) (Subscription, error)
 }

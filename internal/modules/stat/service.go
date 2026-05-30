@@ -35,9 +35,7 @@ type CompositeEdgeSpec struct {
 	Child  string `json:"child"`
 }
 
-// StatisticSource resolves a template's named statistical objects. The
-// app implements it over the template manager; keeping it an interface
-// lets the stat package stay free of a template dependency.
+// StatisticSource resolves a template's named statistical objects.
 type StatisticSource interface {
 	StatisticDSL(template, name string) (dsl string, ok bool, err error)
 	// ListStatistics returns every named statistical object on the

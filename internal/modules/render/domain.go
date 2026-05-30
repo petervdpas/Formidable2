@@ -8,14 +8,12 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// templateLoader - what the render Manager needs from the template
-// module. Satisfied by *template.Manager.
+// templateLoader is what the render Manager needs from the template module.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// formStore - what the render Manager needs from the storage module.
-// Satisfied by *storage.Manager.
+// formStore is what the render Manager needs from the storage module.
 type formStore interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }

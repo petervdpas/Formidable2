@@ -13,11 +13,9 @@ import (
 	"time"
 )
 
-// Filesystem is the narrow surface Manager needs for atomic writes.
-// system.Manager satisfies it directly. Local interface so this
-// package compiles standalone; the composition root injects the real
-// implementation. Atomic on success - temp file + fsync + rename -
-// so a crash mid-write never leaves a partial sync.json on disk.
+// Filesystem is the atomic-write surface Manager needs. SaveFile is
+// atomic on success (temp file, fsync, rename), so a crash mid-write
+// never leaves a partial sync.json on disk.
 type Filesystem interface {
 	SaveFile(path string, content string) error
 }

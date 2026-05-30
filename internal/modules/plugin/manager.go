@@ -29,20 +29,20 @@ type ManagerDeps struct {
 	PluginsDir string
 	Logger     *slog.Logger
 
-	KV          *KV
-	Editor      editorFS
-	Template    TemplateAccess
-	Collection  CollectionAccess
-	Form        FormAccess
-	Render      RenderAccess
-	FM          FMAccess
-	FS          FSAccess
-	Storage    StorageAccess
-	Exec       ExecRunner
-	API        HTTPClient
-	Stats      StatsAccess
-	Facets     FacetStatsAccess
-	StatObject StatObjectAccess
+	KV            *KV
+	Editor        editorFS
+	Template      TemplateAccess
+	Collection    CollectionAccess
+	Form          FormAccess
+	Render        RenderAccess
+	FM            FMAccess
+	FS            FSAccess
+	Storage       StorageAccess
+	Exec          ExecRunner
+	API           HTTPClient
+	Stats         StatsAccess
+	Facets        FacetStatsAccess
+	StatObject    StatObjectAccess
 	RunBarOut     RunBarEmitter
 	RunStatOut    RunStatusEmitter
 	RunChartOut   RunChartEmitter
@@ -53,10 +53,8 @@ type ManagerDeps struct {
 	Locale LocaleProvider
 }
 
-// LocaleProvider returns the user's active locale id at the moment
-// Manager.Run is about to fire. Plugin runs are cheap enough that
-// re-reading per call is fine; this also means a locale switch
-// mid-session reflects in the next Run with no extra wiring.
+// LocaleProvider returns the user's active locale id, re-read per Run so a
+// mid-session switch reflects in the next Run.
 type LocaleProvider interface {
 	ActiveLocale() string
 }
@@ -340,20 +338,20 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 			Debug:                  p.Manifest.Debug,
 			Form:                   loadFormFields(p.Dir),
 		},
-		PluginID:     pluginID,
-		KV:           m.deps.KV,
-		Template:     m.deps.Template,
-		Collection:   m.deps.Collection,
-		Form:         m.deps.Form,
-		Render:       m.deps.Render,
-		FM:           m.deps.FM,
-		FS:           m.deps.FS,
-		Storage:      m.deps.Storage,
-		Exec:         m.deps.Exec,
-		API:          m.deps.API,
-		Stats:        m.deps.Stats,
-		Facets:       m.deps.Facets,
-		StatObject:   m.deps.StatObject,
+		PluginID:      pluginID,
+		KV:            m.deps.KV,
+		Template:      m.deps.Template,
+		Collection:    m.deps.Collection,
+		Form:          m.deps.Form,
+		Render:        m.deps.Render,
+		FM:            m.deps.FM,
+		FS:            m.deps.FS,
+		Storage:       m.deps.Storage,
+		Exec:          m.deps.Exec,
+		API:           m.deps.API,
+		Stats:         m.deps.Stats,
+		Facets:        m.deps.Facets,
+		StatObject:    m.deps.StatObject,
 		RunBarOut:     m.deps.RunBarOut,
 		RunStatOut:    m.deps.RunStatOut,
 		RunChartOut:   m.deps.RunChartOut,

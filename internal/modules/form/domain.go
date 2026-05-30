@@ -11,14 +11,12 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// templateLoader - what form needs from the template module. Satisfied
-// by *template.Manager.
+// templateLoader is what form needs from the template module.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// formStore - what form needs from the storage module. Satisfied by
-// *storage.Manager.
+// formStore is what form needs from the storage module.
 type formStore interface {
 	EnsureFormDir(templateFilename string) error
 	ListForms(templateFilename string) ([]string, error)
@@ -28,11 +26,7 @@ type formStore interface {
 	DeleteForm(templateFilename, datafile string) error
 }
 
-// configReader - minimal config surface form needs. Satisfied by a
-// thin adapter on *config.Manager (composition root supplies it).
-//
-// Kept narrow so config doesn't have to depend on form's value types,
-// nor form on config's full Config struct.
+// configReader is the config surface form needs.
 type configReader interface {
 	FormDefaults() ConfigDefaults
 }

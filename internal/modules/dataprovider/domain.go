@@ -6,10 +6,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 )
 
-// Index is what dataprovider needs from the index module. We declare
-// it as an interface so unit tests can supply a fake without spinning
-// up SQLite, and so a future caching layer can wrap *index.Manager
-// without touching dataprovider itself.
+// Index is what dataprovider needs from the index module.
 type Index interface {
 	ListTemplates() ([]index.TemplateRow, error)
 	ListForms(template string, opts index.QueryOpts) ([]index.FormRow, error)
@@ -18,17 +15,14 @@ type Index interface {
 	Rev() (int64, error)
 }
 
-// Renderer is what dataprovider needs from the render module - just
-// the (template, datafile) → markdown+HTML pair. Same fake-friendly
-// motivation as Index.
+// Renderer is what dataprovider needs from the render module: the
+// (template, datafile) to markdown+HTML pair.
 type Renderer interface {
 	RenderForm(templateName, datafile string) (*render.Result, error)
 }
 
-// Storage is what dataprovider needs from the storage module to read
-// raw form data - only used by FetchAPIFieldRow today (api-field
-// projection at picker time). Returns nil for missing forms, matching
-// storage.Manager.LoadForm semantics.
+// Storage is what dataprovider needs to read raw form data. Returns nil
+// for missing forms.
 type Storage interface {
 	LoadForm(template, datafile string) *storage.Form
 }

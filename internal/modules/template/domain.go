@@ -11,8 +11,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/util/keymu"
 )
 
-// fs is the narrow filesystem surface this module needs.
-// *system.Manager satisfies it.
+// fs is the filesystem surface this module needs.
 type fs interface {
 	ResolvePath(segments ...string) string
 	JoinPath(segments ...string) string
@@ -25,24 +24,19 @@ type fs interface {
 }
 
 const (
-	templateExt    = ".yaml"
-	basicYAMLName  = "basic.yaml"
+	templateExt   = ".yaml"
+	basicYAMLName = "basic.yaml"
 )
 
-// Indexer is the post-write hook surface a downstream cache (e.g. the
-// SQLite index used by the wiki/API) plugs into. Manager fires it
-// after a successful Save/Delete; failures are logged at the manager
-// and never propagated - the index is a derived view, never authoritative.
+// Indexer is the post-write hook (the SQLite index) fired after a
+// successful Save/Delete. Failures are logged and never propagated.
 type Indexer interface {
 	OnTemplateChanged(filename string) error
 	OnTemplateDeleted(filename string) error
 }
 
-// Observer is a deletion-only post-hook for *additional* listeners that
-// aren't the authoritative Indexer. Currently the use case is
-// config.Manager pruning a profile's EnabledTemplates list when a
-// template disappears. Multiple observers may be registered; failures
-// are logged and never propagated.
+// Observer is a deletion-only post-hook for additional listeners beyond
+// the Indexer. Multiple may register; failures are logged, not propagated.
 type Observer interface {
 	OnTemplateDeleted(filename string) error
 }
@@ -55,16 +49,8 @@ type ObserverFunc func(filename string) error
 // OnTemplateDeleted satisfies Observer.
 func (f ObserverFunc) OnTemplateDeleted(name string) error { return f(name) }
 
-// CreationObserver is a peer of Observer that fires when SaveTemplate
-// writes a brand-new file (one that didn't exist on disk before this
-// save). Updates of existing templates do NOT fire it - the Indexer
-// already handles the "something changed" surface via OnTemplateChanged,
-// so this hook stays focused on the create-once moment.
-//
-// Use case: auto-enable a newly-created template in the active
-// profile's EnabledTemplates list, so the editor sidebar (which is
-// filtered by enablement) shows the just-created template immediately
-// instead of hiding it pending a Settings → Templates toggle.
+// CreationObserver fires when SaveTemplate writes a brand-new file.
+// Updates of existing templates do NOT fire it.
 type CreationObserver interface {
 	OnTemplateCreated(filename string) error
 }
@@ -76,12 +62,9 @@ type CreationObserverFunc func(filename string) error
 // OnTemplateCreated satisfies CreationObserver.
 func (f CreationObserverFunc) OnTemplateCreated(name string) error { return f(name) }
 
-// AuthorReader yields the active profile's identity. SaveTemplate uses
-// it to stamp Template.AuthorName / Template.AuthorEmail when the
-// caller leaves them empty (mirrors how record .meta.json files carry
-// meta.author_name / meta.author_email). Composition root wires this
-// to config.Manager. Nil disables the auto-fill - saves still succeed
-// but the fields stay empty.
+// AuthorReader yields the active profile's identity, used to stamp
+// Template.AuthorName / AuthorEmail when the caller leaves them empty.
+// Nil disables the auto-fill.
 type AuthorReader interface {
 	Author() (name, email string)
 }
@@ -110,9 +93,9 @@ type Manager struct {
 	creationObs  []CreationObserver
 	author       AuthorReader
 
-	loadMu   keymu.Map
-	cacheMu  sync.RWMutex
-	cache    map[string]*Template
+	loadMu  keymu.Map
+	cacheMu sync.RWMutex
+	cache   map[string]*Template
 }
 
 // NewManager constructs a template manager rooted at <templatesDir> under

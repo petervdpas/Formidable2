@@ -7,26 +7,21 @@ import (
 	"strings"
 )
 
-// fs is the narrow filesystem surface this module needs.
-// *system.Manager satisfies it.
+// fs is the filesystem surface this module needs.
 type fs interface {
 	LoadFile(path string) (string, error)
 	SaveFile(path string, content string) error
 }
 
-// formsSource is the narrow storage surface BuildExportRows needs.
-// *storage.Manager satisfies it via a thin adapter wired in app.go.
-// Optional: callers that only use Preview/Write/transforms can leave
-// the manager's forms field nil.
+// formsSource is the storage surface BuildExportRows needs. Optional:
+// callers that only use Preview/Write/transforms can leave it nil.
 type formsSource interface {
 	ListForms(tpl string) ([]string, error)
 	LoadFormData(tpl, datafile string) map[string]any
 }
 
-// templateSource hands the export side the field schema for a template
-// so the backend (not the dialog) owns excluded types, alignability, and
-// the dotted "table.column" key contract. *template.Manager satisfies it
-// via a thin adapter wired in app.go.
+// templateSource hands the export side a template's field schema so the
+// backend owns excluded types, alignability, and the dotted "table.column" key.
 type templateSource interface {
 	Fields(tpl string) ([]FieldSpec, error)
 }
