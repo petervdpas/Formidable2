@@ -98,7 +98,7 @@ func TestComposite_Evaluate_DrillsBranchAndLeavesSiblingSolid(t *testing.T) {
 		odsFormFlag("r2.meta.json", "IN GEBRUIK", "FMU"),
 		odsFormFlag("r3.meta.json", "NIET IN GEBRUIK", "FMU"),
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 
 	cg, err := m.EvaluateComposite("ods.yaml", Composite{
@@ -302,7 +302,7 @@ func TestService_EvaluateComposite_ResolvesStoredComposite(t *testing.T) {
 		odsFormFlag("r2.meta.json", "IN GEBRUIK", "FMU"),
 		odsFormFlag("r3.meta.json", "NIET IN GEBRUIK", "FMU"),
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 	svc := NewService(m, fakeSource{list: []StatObject{
 		{Name: "in-use", DSL: `count() by Facet["flag"]`},
@@ -338,7 +338,7 @@ func TestService_EvaluateCompositeSpec_EvaluatesInlineAgainstSavedObjects(t *tes
 		odsFormFlag("r1.meta.json", "IN GEBRUIK", "FMU"),
 		odsFormFlag("r2.meta.json", "NIET IN GEBRUIK", "FMU"),
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 	// Only the parent + child are saved; the composite itself is not (the
 	// builder is previewing it before save).
@@ -404,7 +404,7 @@ func TestService_EvaluateComposite_DrilledChildHonorsScale(t *testing.T) {
 		formFlagFcdm("r2.meta.json", "IN GEBRUIK", "AANWEZIG", "FMU"),      // factor 0.5
 		formFlagFcdm("r3.meta.json", "NIET IN GEBRUIK", "AANWEZIG", "FMU"), // out of branch
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 	svc := NewService(m, fakeSource{list: []StatObject{
 		{Name: "in-use", DSL: `count() by Facet["flag"]`},
@@ -447,7 +447,7 @@ func TestComposite_Evaluate_EdgeScaleWeightsChild(t *testing.T) {
 		formFlagFcdm("r1.meta.json", "IN GEBRUIK", "NIET AANWEZIG", "FMU"),
 		formFlagFcdm("r2.meta.json", "IN GEBRUIK", "AANWEZIG", "FMU"),
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 
 	sc := &Scaling{
@@ -487,7 +487,7 @@ func TestComposite_Evaluate_ParentScaleWeightsRing(t *testing.T) {
 		formFlagFcdm("r2.meta.json", "IN GEBRUIK", "AANWEZIG", "FMU"),      // factor 0.5
 		formFlagFcdm("r3.meta.json", "NIET IN GEBRUIK", "AANWEZIG", "FMU"), // factor 0.5
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 	sc := &Scaling{
 		Source:  SourceRef{Kind: SourceFacet, Key: "fcdm"},
@@ -562,7 +562,7 @@ func compileMust(t *testing.T, cfg StatConfig) string {
 
 func TestComposite_Evaluate_UnknownBranchErrors(t *testing.T) {
 	forms := []index.FormRow{odsFormFlag("r1.meta.json", "IN GEBRUIK", "FMU")}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 
 	_, err := m.EvaluateComposite("ods.yaml", Composite{

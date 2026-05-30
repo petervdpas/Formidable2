@@ -21,11 +21,6 @@ type Config struct {
 	LoggingEnabled       bool          `json:"logging_enabled"`
 	EnablePlugins        bool          `json:"enable_plugins"`
 	EnableFullTextSearch bool          `json:"enable_full_text_search"`
-	// StatEngine selects which engine computes statistics: "index" (default,
-	// the SQLite EAV aggregates), "shadow" (index authoritative, datacore run
-	// alongside and divergences logged), or "datacore" (the in-memory tensor).
-	// Unknown values fall back to "index". See design/datacore-stat-migration.md.
-	StatEngine string `json:"stat_engine"`
 	UpdateCheck          bool          `json:"update_check"`
 	ContextMode          string        `json:"context_mode"`
 	ContextRibbon        string        `json:"context_ribbon"`

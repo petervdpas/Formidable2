@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -43,48 +42,28 @@ func statColorWriter() io.Writer {
 type statWorld struct {
 	forms   []index.FormRow
 	objects []StatObject
-	dir     string
-	im      *index.Manager
+	backend Index
 
 	grid    *Grid
 	comp    *CompositeGrid
 	evalErr error
 }
 
-// build stands up a real index over the accumulated forms once the first
-// evaluation step runs.
+// build stands up the datacore engine over the accumulated forms once the first
+// evaluation step runs. The fixtures stay index.FormRow; recordsFromForms feeds
+// them to the tensor, so these scenarios verify the shipped engine.
 func (w *statWorld) build() error {
-	dir, err := os.MkdirTemp("", "stat-godog-*")
-	if err != nil {
-		return err
-	}
-	w.dir = dir
-	im, err := index.NewManager(filepath.Join(dir, "idx.db"))
-	if err != nil {
-		return err
-	}
-	w.im = im
-	batch := index.ReconcileBatch{
-		UpsertTemplates: []index.TemplateRow{{Filename: "ods.yaml", Name: "ODS", Mtime: 1}},
-		UpsertForms:     w.forms,
-	}
-	return index.Reconcile(im.DB(), batch)
+	w.backend = datacoreBackend(w.forms)
+	return nil
 }
 
 func (w *statWorld) service() *Service {
-	m := NewManager(w.im)
+	m := NewManager(w.backend)
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 	return NewService(m, fakeSource{list: w.objects})
 }
 
-func (w *statWorld) cleanup() {
-	if w.im != nil {
-		_ = w.im.Close()
-	}
-	if w.dir != "" {
-		_ = os.RemoveAll(w.dir)
-	}
-}
+func (w *statWorld) cleanup() {}
 
 // numCell is a scalar numeric field value (Col nil); scoreField below uses it.
 func numCell(key string, n float64) index.FormValueRow {

@@ -53,6 +53,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 	"github.com/petervdpas/formidable2/internal/modules/updatecheck"
 	"github.com/petervdpas/formidable2/internal/modules/wiki"
+	"github.com/petervdpas/formidable2/internal/statengine"
 )
 
 // EmitFunc bridges journal events to whatever transport the host
@@ -389,22 +390,18 @@ func New(d Deps) (*App, error) {
 	stoM.SetIndexer(ehM)
 	stoM.SetReader(newIndexFormReader(idxM))
 
-	// Datacore - additive, read-only perspectives (distribution, cross,
-	// aggregate, loop summary) over a tensor built from the template's live
-	// forms. Reads form data like query does; touches nothing the index or
-	// stat path relies on. Built before stat so the stat engine flag can route
-	// statistics through it (see chooseStatIndex).
+	// Datacore - the statistics engine, and additive read-only perspectives
+	// (distribution, cross, aggregate, loop summary) over a tensor built from
+	// the template's live forms. Reads form data like query does. Built before
+	// stat because stat now computes through it.
 	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
 		return newDatacoreLoaderAdapter(tplM, stoM, tpl)
 	}, newDatacoreIndexPlanner(idxM))
 
-	// Stat - chart-neutral statistics. The engine flag (config.StatEngine)
-	// picks which stat.Index computes: the index's EAV aggregates (default),
-	// the datacore tensor, or a shadow that runs datacore alongside the index
-	// and logs divergences. The default keeps the historical behavior exactly.
-	statIdx, statEngine := chooseStatIndex(bootCfg.StatEngine, idxM, datacoreSvc, tplM, d.Logger)
-	d.Logger.Info("stat engine selected", "engine", statEngine)
-	statM := stat.NewManager(statIdx)
+	// Stat - chart-neutral statistics, computed on the datacore tensor. The
+	// index's aggregate methods survive only as the parity-test oracle; nothing
+	// at runtime routes statistics through them anymore.
+	statM := stat.NewManager(statengine.New(datacoreSvc, statengine.TemplateColumnNamer{Tpl: tplM}))
 	statM.SetSourceOptions(statSourceOptions{tpl: tplM})
 	statM.SetColumnResolver(statColumnResolver{tpl: tplM})
 	statSvc := stat.NewService(statM, statTemplateSource{tpl: tplM})
@@ -620,7 +617,7 @@ func New(d Deps) (*App, error) {
 		// HTTPClient is satisfied by a wiki+system adapter - plugins
 		// that flag requires_internal_server in their manifest get
 		// formidable.api.fetch wired against the running wiki server.
-		API:    pluginHTTPAdapter{wiki: wikiM, sys: sysM},
+		API: pluginHTTPAdapter{wiki: wikiM, sys: sysM},
 		// Stats + facets share one adapter over the stat manager:
 		// formidable.stats.* (field/table/date) and formidable.facets.*
 		// (meta-tag) both read index-backed aggregates.

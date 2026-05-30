@@ -2,18 +2,12 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import Badge from "../../components/Badge.vue";
-import { FormSection, FormRow, FormSwitchRow, SwitchField, SelectField } from "../../components/fields";
+import { FormSection, FormRow, FormSwitchRow, SwitchField } from "../../components/fields";
 import { useConfig } from "../../composables/useConfig";
 
 const { t } = useI18n();
 const { config, update } = useConfig();
 const cfg = computed(() => config.value!);
-
-const statEngineOptions = computed(() => [
-  { value: "index", label: t("config.stat_engine_index") },
-  { value: "shadow", label: t("config.stat_engine_shadow") },
-  { value: "datacore", label: t("config.stat_engine_datacore") },
-]);
 
 const gitEnabled   = computed(() => cfg.value.remote_backend === "git");
 const gigotEnabled = computed(() => cfg.value.remote_backend === "gigot");
@@ -73,13 +67,6 @@ function patchButtons(partial: Record<string, unknown>) {
         @update:model-value="(v) => update({ logging_enabled: v })"
         :on-label="t('common.enabled')"
         :off-label="t('common.disabled')"
-      />
-    </FormRow>
-    <FormRow :label="t('config.stat_engine')" :description="t('config.stat_engine_hint')">
-      <SelectField
-        :model-value="cfg.stat_engine || 'index'"
-        @update:model-value="(v) => update({ stat_engine: v })"
-        :options="statEngineOptions"
       />
     </FormRow>
   </FormSection>

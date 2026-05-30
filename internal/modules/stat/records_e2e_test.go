@@ -1,32 +1,10 @@
 package stat
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/index"
 )
-
-// realIndex builds a real on-disk index.Manager (real SQLite, real
-// reconcile, real AggregateRaw) so the records() measure is exercised end
-// to end rather than against a hand-fed fake. *index.Manager satisfies the
-// stat.Index interface.
-func realIndex(t *testing.T, forms []index.FormRow) *index.Manager {
-	t.Helper()
-	im, err := index.NewManager(filepath.Join(t.TempDir(), "idx.db"))
-	if err != nil {
-		t.Fatalf("open index: %v", err)
-	}
-	t.Cleanup(func() { _ = im.Close() })
-	batch := index.ReconcileBatch{
-		UpsertTemplates: []index.TemplateRow{{Filename: "ods.yaml", Name: "ODS", Mtime: 1}},
-		UpsertForms:     forms,
-	}
-	if err := index.Reconcile(im.DB(), batch); err != nil {
-		t.Fatalf("reconcile: %v", err)
-	}
-	return im
-}
 
 // appCell is one Code-repositories row contributing an Application value in
 // column 0 (matching the resolver below).
@@ -44,7 +22,7 @@ func odsForm(file string, apps ...string) index.FormRow {
 }
 
 func odsManager(t *testing.T, forms []index.FormRow) *Manager {
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 	return m
 }
@@ -138,7 +116,7 @@ func TestRecords_EndToEnd_ScalarDimEqualsCount(t *testing.T) {
 		{Template: "ods.yaml", Filename: "b.meta.json", Mtime: 1, Values: []index.FormValueRow{statusVal("active")}},
 		{Template: "ods.yaml", Filename: "c.meta.json", Mtime: 1, Values: []index.FormValueRow{statusVal("retired")}},
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 
 	g, err := m.EvaluateDSL("ods.yaml", `count(), records() by F["status"]`)
 	if err != nil {

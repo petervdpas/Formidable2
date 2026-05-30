@@ -26,7 +26,7 @@ func TestEvaluateScaled_RecordsWeightedByFacet(t *testing.T) {
 		fcdmForm("y.meta.json", "NIET AANWEZIG", "FMU"),   // low coverage -> 2
 		fcdmForm("z.meta.json", "", "Gradework"),          // unset -> default 1
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 
 	cfg, err := Parse(`records() by F["code-repositories"]["application"] top 10`)
@@ -80,7 +80,7 @@ func TestEvaluateScaled_CountWeightedPerRow(t *testing.T) {
 		fcdmForm("x.meta.json", "AANWEZIG", "FMU", "FMU"), // 2 rows x 0.5
 		fcdmForm("y.meta.json", "NIET AANWEZIG", "FMU"),   // 1 row x 2
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 
 	cfg, _ := Parse(`count() by F["code-repositories"]["application"] top 10`)
@@ -107,7 +107,7 @@ func TestService_EvaluateObject_ResolvesScaleByName(t *testing.T) {
 		fcdmForm("x.meta.json", "AANWEZIG", "FMU"),      // 0.5
 		fcdmForm("y.meta.json", "NIET AANWEZIG", "FMU"), // 2
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 
 	catalog := []StatObject{
@@ -158,7 +158,7 @@ func TestEvaluateScaled_PctFormsUsesWeightedDenominator(t *testing.T) {
 		fcdmForm("r3.meta.json", "AANWEZIG", "Gradework"), // factor 1
 		fcdmForm("r4.meta.json", "AANWEZIG", "Gradework"), // factor 1
 	}
-	m := NewManager(realIndex(t, forms))
+	m := NewManager(datacoreBackend(forms))
 	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
 
 	cfg, _ := Parse(`records() by F["code-repositories"]["application"] pct forms`)
@@ -194,7 +194,7 @@ func TestEvaluateScaled_PctFormsUsesWeightedDenominator(t *testing.T) {
 // TestEvaluateScaled_RejectsTableColumnSource guards the per-form rule: a
 // table-column scaling source has no single per-form weight.
 func TestEvaluateScaled_RejectsTableColumnSource(t *testing.T) {
-	m := NewManager(realIndex(t, nil))
+	m := NewManager(datacoreBackend(nil))
 	cfg, _ := Parse(`records() by F["base-table"]`)
 	sc := &Scaling{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Default: 1}
 	if _, err := m.EvaluateScaled("ods.yaml", cfg, sc); err == nil {
