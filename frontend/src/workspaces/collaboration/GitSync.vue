@@ -15,6 +15,7 @@ import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/fo
 import { useConfig } from "../../composables/useConfig";
 import { isValidAuthor } from "../../composables/useAuthorValidation";
 import { useToast } from "../../composables/useToast";
+import { useActiveOps } from "../../composables/useActiveOps";
 import { backendErrMessage } from "../../utils/backendError";
 
 // Sync workspace - combined status + commit screen for the active
@@ -54,6 +55,14 @@ const inFlight = ref(false);
 const pushing = ref(false);
 const pulling = ref(false);
 const fetching = ref(false);
+
+// SSOT: the op-tracker (backend) owns whether a commit/push/pull is running, so
+// a reload or another view reflects it; the local latches only cover the click
+// gap before optrack:changed lands.
+const { isRunning } = useActiveOps();
+const commitRunning = computed(() => inFlight.value || isRunning("git:commit"));
+const pushRunning = computed(() => pushing.value || isRunning("git:push"));
+const pullRunning = computed(() => pulling.value || isRunning("git:pull"));
 
 // PAT lookup is server-side: GitSvc.Push / Fetch resolve the stored
 // PAT from the OS keychain when we send pat="". The frontend never
@@ -114,7 +123,7 @@ watch(gitRoot, () => load(false));
 // intercepts an invalid identity and opens AuthorIdentityDialog,
 // which is a much better UX than silently disabling the button.
 const canCommit = computed(() => {
-  if (inFlight.value) return false;
+  if (commitRunning.value) return false;
   if (!status.value) return false;
   if (status.value.clean) return false;
   if (status.value.detached) return false;
@@ -149,7 +158,7 @@ async function fetchRemote() {
 }
 
 const canPush = computed(() => {
-  if (pushing.value) return false;
+  if (pushRunning.value) return false;
   if (!status.value) return false;
   if (status.value.detached) return false;
   if (!status.value.tracking) return false;
@@ -157,7 +166,7 @@ const canPush = computed(() => {
 });
 
 const canPull = computed(() => {
-  if (pulling.value) return false;
+  if (pullRunning.value) return false;
   if (!status.value) return false;
   if (status.value.detached) return false;
   if (!status.value.tracking) return false;
@@ -359,8 +368,8 @@ async function confirmDiscard() {
     :error-msg="errorMsg"
     :can-pull="canPull"
     :can-push="canPush"
-    :pulling="pulling"
-    :pushing="pushing"
+    :pulling="pullRunning"
+    :pushing="pushRunning"
     @refresh="load(true)"
     @fetch="fetchRemote"
     @pull="pull"
@@ -387,7 +396,7 @@ async function confirmDiscard() {
           :disabled="!canCommit"
           @click="commit"
         >
-          {{ inFlight ? t('workspace.collaboration.commit.running') : t('workspace.collaboration.commit.button') }}
+          {{ commitRunning ? t('workspace.collaboration.commit.running') : t('workspace.collaboration.commit.button') }}
         </button>
       </div>
     </FormRow>

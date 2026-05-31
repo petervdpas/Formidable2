@@ -32,6 +32,18 @@ func TestService_GitOps_RejectedWhileSameKindRuns(t *testing.T) {
 	}
 }
 
+// The auto-stash pull shares the git:pull kind: it cannot run while a plain
+// pull (or another stash pull) is in flight.
+func TestService_PullWithStash_RejectedWhilePullRuns(t *testing.T) {
+	s := NewService(NewManager(), nil, nil, nil)
+	reg := optrack.NewRegistry()
+	AttachOps(s, reg)
+	reg.Begin("git:pull") // a pull is already in flight
+	if _, err := s.PullWithStash(PullOptions{}); !errors.Is(err, optrack.ErrAlreadyRunning) {
+		t.Fatalf("stash pull must be rejected while a pull runs, got %v", err)
+	}
+}
+
 // Without a registry a git op is unguarded: it proceeds past the guard and
 // fails on the real git error, never on ErrAlreadyRunning.
 func TestService_Clone_NilRegistryNotBlocked(t *testing.T) {

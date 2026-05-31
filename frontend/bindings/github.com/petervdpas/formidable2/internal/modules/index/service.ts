@@ -17,7 +17,8 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 /**
  * RescanTemplate force-reindexes the given template's collection from
  * disk (see EventHandler.RescanTemplate). Wails supplies no request
- * context here, so a background context is used.
+ * context here, so a background context is used. Tracked and guarded per
+ * template, so the same collection cannot reindex twice at once.
  */
 export function RescanTemplate(templateFilename: string): $CancellablePromise<void> {
     return $Call.ByID(2348303870, templateFilename);

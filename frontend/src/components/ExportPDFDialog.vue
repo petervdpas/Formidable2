@@ -5,6 +5,7 @@ import Modal from "./Modal.vue";
 import { useDialog } from "../composables/useDialog";
 import { useToast } from "../composables/useToast";
 import { usePDFActivation } from "../composables/usePDFActivation";
+import { useActiveOps } from "../composables/useActiveOps";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import type {
   CoverDescriptor,
@@ -213,8 +214,13 @@ function joinPath(dir: string, name: string): string {
   return dir + "/" + name;
 }
 
+// SSOT: the op-tracker (backend) owns "an export is running", so a reopened
+// dialog or reload reflects it and won't race a second export on the same
+// Chrome; the local latch only covers the click gap before optrack:changed.
+const { isRunning } = useActiveOps();
+const exportRunning = computed(() => exporting.value || isRunning("pdf:export"));
 const canExport = computed(
-  () => !!filename.value.trim() && !exporting.value,
+  () => !!filename.value.trim() && !exportRunning.value,
 );
 
 async function doExport() {
@@ -342,7 +348,7 @@ async function doExport() {
         :disabled="!canExport"
         @click="doExport"
       >
-        {{ exporting ? t('pdf.export.dialog.action.exporting') : t('pdf.export.dialog.action.export') }}
+        {{ exportRunning ? t('pdf.export.dialog.action.exporting') : t('pdf.export.dialog.action.export') }}
       </button>
     </template>
   </Modal>

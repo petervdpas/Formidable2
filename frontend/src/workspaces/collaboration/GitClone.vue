@@ -16,6 +16,7 @@ import { useConfig } from "../../composables/useConfig";
 import { useCredentialAccount } from "../../composables/useCredentialAccount";
 import { useCredentialStatus } from "../../composables/useCredentialStatus";
 import { useToast } from "../../composables/useToast";
+import { useActiveOps } from "../../composables/useActiveOps";
 import { backendErrMessage } from "../../utils/backendError";
 
 // One-shot Git clone form. PAT is held in a local ref only - never
@@ -45,6 +46,11 @@ const pat = ref("");
 const saveToken = ref(false);
 const inFlight = ref(false);
 
+// SSOT: the op-tracker (backend) owns "a clone is running", so a reload reflects
+// it; the local latch only covers the click gap before optrack:changed lands.
+const { isRunning } = useActiveOps();
+const cloneRunning = computed(() => inFlight.value || isRunning("git:clone"));
+
 const keychainAccount = computed(() => {
   const u = url.value.trim();
   if (!u || !profileFilename.value) return "";
@@ -66,7 +72,7 @@ const patStatusVariant = computed<"ok" | undefined>(
 );
 
 const canClone = () =>
-  !inFlight.value && url.value.trim() !== "" && dest.value.trim() !== "";
+  !cloneRunning.value && url.value.trim() !== "" && dest.value.trim() !== "";
 
 async function clone() {
   if (!canClone()) return;
@@ -163,7 +169,7 @@ async function clone() {
       :disabled="!canClone()"
       @click="clone"
     >
-      {{ inFlight ? t('workspace.collaboration.clone.running') : t('workspace.collaboration.clone.button') }}
+      {{ cloneRunning ? t('workspace.collaboration.clone.running') : t('workspace.collaboration.clone.button') }}
     </button>
   </div>
 </template>

@@ -25,7 +25,8 @@ export function Branches(path: string): $CancellablePromise<$models.Branches | n
 }
 
 /**
- * Clone brings a whole new working tree in, so it announces context:reloaded on success.
+ * Clone brings a whole new working tree in, so it announces context:reloaded on
+ * success; tracked and guarded against a concurrent second clone.
  */
 export function Clone(opts: $models.CloneOptions): $CancellablePromise<$models.CloneResult | null> {
     return $Call.ByID(3869084983, opts).then(($result: any) => {
@@ -33,6 +34,10 @@ export function Clone(opts: $models.CloneOptions): $CancellablePromise<$models.C
     });
 }
 
+/**
+ * Commit can run long on a large worktree, so it is tracked and guarded against
+ * a concurrent second commit; the guard releases when it ends.
+ */
 export function Commit(opts: $models.CommitOptions): $CancellablePromise<$models.CommitResult | null> {
     return $Call.ByID(2190917583, opts).then(($result: any) => {
         return $$createType5($result);
@@ -79,6 +84,7 @@ export function LogGraph(path: string, limit: number): $CancellablePromise<$mode
 
 /**
  * Pull fetches + merges the upstream branch via sysgit or go-git, recording remote-seen on success.
+ * Tracked and guarded against a concurrent second pull (covers both transports).
  */
 export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2931175689, opts).then(($result: any) => {
@@ -98,6 +104,7 @@ export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$m
 
 /**
  * Push sends commits to the remote; AlreadyUpToDate records remote-seen, advancing records a sync marker.
+ * Tracked and guarded against a concurrent second push (covers both transports).
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {

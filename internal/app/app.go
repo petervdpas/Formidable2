@@ -291,6 +291,7 @@ func New(d Deps) (*App, error) {
 
 	emitter := &emitterRelay{}
 	opsRegistry := optrack.NewRegistry()
+	opsRegistry.SetEmitter(emitter)
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
 	// History: back/forward stack over formidable:// hrefs. Manager is

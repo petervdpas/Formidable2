@@ -261,6 +261,11 @@ func (s *Service) headHash(path string) string {
 // PullWithStash is the journal-aware auto-stash variant of Pull. The pending set is narrower than `git status`
 // (only journal-dirty paths), so external edits don't get stashed; no pending degrades to a plain pull.
 func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
+	_, release, err := optrack.Guard(s.ops, "git:pull")
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
 	}

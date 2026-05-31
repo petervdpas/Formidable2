@@ -72,7 +72,8 @@ export function ExportCoverArchive(name: string, zipPath: string): $CancellableP
 }
 
 /**
- * ExportPDF renders the form to a PDF on disk; see Manager.Export.
+ * ExportPDF renders the form to a PDF on disk; see Manager.Export. Tracked and
+ * guarded against a concurrent second export, which would race the same Chrome.
  */
 export function ExportPDF(templateFilename: string, datafile: string, opts: $models.ExportOpts): $CancellablePromise<$models.Result> {
     return $Call.ByID(691812250, templateFilename, datafile, opts).then(($result: any) => {

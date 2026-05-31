@@ -32,6 +32,7 @@ import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
 import { FACET_CONTEXT_KEY } from "../composables/facetContext";
+import { useActiveOps } from "../composables/useActiveOps";
 import { useListKeyNav } from "../composables/useListKeyNav";
 import { setNavGuard } from "../composables/useNavGuard";
 import { usePDFActivation } from "../composables/usePDFActivation";
@@ -865,10 +866,17 @@ async function openStorageFolder() {
 // Data → Reindex: force-rebuild this collection's index rows (search
 // body, values, tags, facets, title) from disk, then re-read the list
 // and re-run any active search so the sidebar reflects the rebuild.
+// SSOT: the op-tracker (backend) decides whether a reindex is in flight, so a
+// reload or another view reflects it; the local latch only covers the click
+// gap before the backend's optrack:changed lands.
+const { isRunning } = useActiveOps();
 const reindexing = ref(false);
+function reindexBusy(tpl: string): boolean {
+  return reindexing.value || isRunning("index:rescan:" + tpl);
+}
 async function reindexCollection() {
   const tpl = selectedTemplate.value;
-  if (!tpl || reindexing.value) return;
+  if (!tpl || reindexBusy(tpl)) return;
   reindexing.value = true;
   try {
     await IndexSvc.RescanTemplate(tpl);
@@ -1076,7 +1084,7 @@ setTopbarMenu(() => [
       {
         id: "reindexCollection",
         labelKey: "menu.data.reindex",
-        disabled: !selectedTemplate.value || reindexing.value,
+        disabled: !selectedTemplate.value || reindexBusy(selectedTemplate.value),
         onClick: reindexCollection,
       },
       // PDF export is hidden entirely while the engine is inactive -

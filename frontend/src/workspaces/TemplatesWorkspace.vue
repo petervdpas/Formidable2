@@ -55,6 +55,7 @@ import { useToast } from "../composables/useToast";
 import { useStatusBar } from "../composables/useStatusBar";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
+import { useActiveOps } from "../composables/useActiveOps";
 import { watch } from "vue";
 import type { Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -197,10 +198,16 @@ const cleanupOpen = ref(false);
 // body, values, tags, facets, title). Cheap escape hatch for when the
 // full-text index is suspected of having drifted, or after a build
 // that changed how records are indexed.
+// SSOT: the op-tracker (backend) owns "is a reindex running"; the local latch
+// only covers the click gap before optrack:changed lands.
+const { isRunning } = useActiveOps();
 const reindexing = ref(false);
+function reindexBusy(fn: string): boolean {
+  return reindexing.value || isRunning("index:rescan:" + fn);
+}
 async function reindexCollection() {
   const fn = selectedFilename.value;
-  if (!fn || reindexing.value) return;
+  if (!fn || reindexBusy(fn)) return;
   reindexing.value = true;
   try {
     await IndexSvc.RescanTemplate(fn);
@@ -697,7 +704,7 @@ setTopbarMenu(() => [
       {
         id: "reindexCollection",
         labelKey: "menu.utilities.reindex",
-        disabled: !selectedFilename.value || reindexing.value,
+        disabled: !selectedFilename.value || reindexBusy(selectedFilename.value),
         onClick: reindexCollection,
       },
       { type: "separator", id: "utils-sep-pdf" },
