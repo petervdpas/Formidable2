@@ -276,7 +276,7 @@ func TestTemplate_FormList_UsesExpressionSubtitles(t *testing.T) {
 		items: map[string][]expression.Result{
 			"basic.yaml": {
 				{Filename: "x.meta.json", Text: "Direct + Indirect", Classes: []string{"expr-text-green"}, Color: "#0a0"},
-				{Filename: "y.meta.json", Text: "NIET IN GEBRUIK", Classes: []string{"expr-text-gray"}},
+				{Filename: "y.meta.json", Text: "NIET IN OMLOOP", Classes: []string{"expr-text-gray"}},
 			},
 		},
 	}
@@ -291,7 +291,7 @@ func TestTemplate_FormList_UsesExpressionSubtitles(t *testing.T) {
 	if !strings.Contains(body, "Direct + Indirect") && !strings.Contains(body, "Direct &#43; Indirect") {
 		t.Errorf("expression subtitle missing; body=%q", body)
 	}
-	if !strings.Contains(body, "NIET IN GEBRUIK") {
+	if !strings.Contains(body, "NIET IN OMLOOP") {
 		t.Errorf("second expression subtitle missing; body=%q", body)
 	}
 	if !strings.Contains(body, "expr-text-green") {

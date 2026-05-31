@@ -59,7 +59,7 @@ func (w *statWorld) build() error {
 
 func (w *statWorld) service() *Service {
 	m := NewManager(w.backend)
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"components.item": 0}})
 	return NewService(m, fakeSource{list: w.objects})
 }
 
@@ -110,7 +110,7 @@ func initStatScenario(ctx *godog.ScenarioContext) {
 
 	// ── Data setup ─────────────────────────────────────────────────────
 
-	ctx.Step(`^the ODS records:$`, func(table *godog.Table) error {
+	ctx.Step(`^the SAMPLE records:$`, func(table *godog.Table) error {
 		if len(table.Rows) < 1 {
 			return fmt.Errorf("records table needs a header row")
 		}
@@ -131,13 +131,13 @@ func initStatScenario(ctx *godog.ScenarioContext) {
 					apps = append(apps, a)
 				}
 			}
-			r := odsForm(cell("filename"), apps...)
+			r := sampForm(cell("filename"), apps...)
 			facets := []index.FormFacet{}
 			if v := cell("flag"); v != "" {
 				facets = append(facets, index.FormFacet{Key: "flag", Set: true, Selected: v})
 			}
-			if v := cell("fcdm"); v != "" {
-				facets = append(facets, index.FormFacet{Key: "fcdm", Set: true, Selected: v})
+			if v := cell("qzm"); v != "" {
+				facets = append(facets, index.FormFacet{Key: "qzm", Set: true, Selected: v})
 			}
 			r.Facets = facets
 			if v := cell("score"); v != "" {
@@ -198,7 +198,7 @@ func initStatScenario(ctx *godog.ScenarioContext) {
 		if err := w.build(); err != nil {
 			return err
 		}
-		w.grid, w.evalErr = w.service().EvaluateObject("ods.yaml", name)
+		w.grid, w.evalErr = w.service().EvaluateObject("samp.yaml", name)
 		return nil
 	})
 
@@ -206,7 +206,7 @@ func initStatScenario(ctx *godog.ScenarioContext) {
 		if err := w.build(); err != nil {
 			return err
 		}
-		w.grid, w.evalErr = w.service().EvaluateDSL("ods.yaml", strings.TrimSpace(doc.Content))
+		w.grid, w.evalErr = w.service().EvaluateDSL("samp.yaml", strings.TrimSpace(doc.Content))
 		return nil
 	})
 
@@ -214,7 +214,7 @@ func initStatScenario(ctx *godog.ScenarioContext) {
 		if err := w.build(); err != nil {
 			return err
 		}
-		w.comp, w.evalErr = w.service().EvaluateComposite("ods.yaml", name)
+		w.comp, w.evalErr = w.service().EvaluateComposite("samp.yaml", name)
 		return nil
 	})
 
@@ -338,7 +338,7 @@ func initStatScenario(ctx *godog.ScenarioContext) {
 		svc := w.service()
 		for _, row := range table.Rows {
 			src := strings.TrimSpace(row.Cells[0].Value)
-			if _, err := svc.EvaluateDSL("ods.yaml", src); err == nil {
+			if _, err := svc.EvaluateDSL("samp.yaml", src); err == nil {
 				return fmt.Errorf("expected evaluation error for %q, got none", src)
 			}
 		}

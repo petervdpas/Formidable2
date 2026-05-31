@@ -24,7 +24,7 @@ keywords:
   - Governance
   - BC.01
 titlepage-color: F8F8F8
-titlepage-logo: C:/Projects/team/data/fontys-logo.png
+titlepage-logo: C:/Projects/team/data/northwind-logo.png
 toc: true
 toc-title: Inhoudsopgave
 ---

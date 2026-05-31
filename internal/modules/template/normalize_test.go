@@ -201,7 +201,7 @@ func TestNormalize_Statistics_KeepsComposite_DropsParentlessOne(t *testing.T) {
 		{Name: "in-use", DSL: `count() by Facet["flag"]`},
 		{Name: "in-use-by-app", Composite: &StatComposite{
 			Parent: "in-use",
-			Edges:  []StatCompositeEdge{{Branch: "IN GEBRUIK", Child: "applications"}},
+			Edges:  []StatCompositeEdge{{Branch: "IN OMLOOP", Child: "applications"}},
 		}},
 		{Name: "no-parent", Composite: &StatComposite{}}, // composite without a parent -> dropped
 	}}

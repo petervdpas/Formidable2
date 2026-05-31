@@ -172,7 +172,7 @@ func TestInjectPDFMetadata_UnicodeRoundTrip(t *testing.T) {
 	in := minimalPDF(t)
 	out, err := InjectPDFMetadata(in, PDFMetadata{
 		Title:    "Datastroom - definitie",
-		Author:   "Peter - Fontys 🎓",
+		Author:   "Peter - Northwind 🎓",
 		Keywords: []string{"audit", "compliance", "デザイン"},
 	})
 	if err != nil {
@@ -185,7 +185,7 @@ func TestInjectPDFMetadata_UnicodeRoundTrip(t *testing.T) {
 	if got.Title != "Datastroom - definitie" {
 		t.Errorf("Title = %q", got.Title)
 	}
-	if got.Author != "Peter - Fontys 🎓" {
+	if got.Author != "Peter - Northwind 🎓" {
 		t.Errorf("Author = %q", got.Author)
 	}
 	wantKeyword := "デザイン"

@@ -572,7 +572,7 @@ keywords: '[Governance, {{field "nba-id"}}, {{tags (fieldRaw "nba-tags") withHas
 titlepage-color: #F8F8F8
 titlepage-text-color: 552255
 titlepage-rule-color: 552255
-titlepage-logo: C:/Projects/team/data/fontys-logo.png
+titlepage-logo: C:/Projects/team/data/northwind-logo.png
 logo-width: 140pt
 table-use-row-colors: true
 table-row-color: "D3D3D3"
@@ -608,9 +608,9 @@ toc-own-page: true
 	// `C:` colon-after-letter pattern.
 	legacyMustContain := []string{
 		"legacy:",
-		"F8F8F8",                                // hash color preserved (with or without `#`)
-		"552255",                                // numeric color preserved
-		"C:/Projects/team/data/fontys-logo.png", // colon-in-path
+		"F8F8F8", // hash color preserved (with or without `#`)
+		"552255", // numeric color preserved
+		"C:/Projects/team/data/northwind-logo.png", // colon-in-path
 		"140pt",
 		"Inhoudsopgave",
 	}
@@ -663,12 +663,12 @@ func TestMigrate_WindowsPathColonPreserved(t *testing.T) {
 	// Defensive: yaml.v3 already handles `C:/path` correctly (colon
 	// not followed by space stays in scalar), but pin the behavior
 	// so a future preprocessor change can't regress it.
-	src := "---\ntitlepage-logo: C:/Projects/team/data/fontys-logo.png\n---\nbody\n"
+	src := "---\ntitlepage-logo: C:/Projects/team/data/northwind-logo.png\n---\nbody\n"
 	got, err := MigrateFrontmatter(src)
 	if err != nil {
 		t.Fatalf("Migrate: %v", err)
 	}
-	if !strings.Contains(got.Markdown, "C:/Projects/team/data/fontys-logo.png") {
+	if !strings.Contains(got.Markdown, "C:/Projects/team/data/northwind-logo.png") {
 		t.Errorf("Windows path with colon mangled:\n%s", got.Markdown)
 	}
 }

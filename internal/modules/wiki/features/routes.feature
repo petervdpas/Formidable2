@@ -27,13 +27,13 @@ Feature: Read-path routes
   Scenario: Template page renders expression subtitles when configured
     Given the expression engine yields for "basic.yaml" (filename, text):
       | x.meta.json | Direct + Indirect |
-      | y.meta.json | NIET IN GEBRUIK   |
+      | y.meta.json | NIET IN OMLOOP   |
     When I GET "/template/basic"
     Then the response status is 200
     # html/template escapes "+" as "&#43;" - assert on the escaped form
     # so the scenario doesn't drift if the template encoding changes.
     And the html body contains "Direct &#43; Indirect"
-    And the html body contains "NIET IN GEBRUIK"
+    And the html body contains "NIET IN OMLOOP"
 
   Scenario: Template page falls back to filename when no expression configured
     # Empty expression stub → ErrNoExpression → subtitle is the filename.

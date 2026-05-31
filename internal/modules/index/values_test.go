@@ -299,16 +299,16 @@ func TestPickValues_TableNonMatrixDataIsSafe(t *testing.T) {
 
 func TestPickValues_TextFieldIndexedWhenFlagged(t *testing.T) {
 	fields := []template.Field{{Key: "base-table", Type: "text", UseInStatistics: true}}
-	rows := pickValues(fields, map[string]any{"base-table": "dbo.Customer"})
+	rows := pickValues(fields, map[string]any{"base-table": "scm.Customer"})
 	got := findValue(rows, "base-table", -1)
-	if got == nil || got.ValueType != "text" || got.Text != "dbo.Customer" {
-		t.Fatalf("text row = %v, want text/dbo.Customer", got)
+	if got == nil || got.ValueType != "text" || got.Text != "scm.Customer" {
+		t.Fatalf("text row = %v, want text/scm.Customer", got)
 	}
 }
 
 func TestPickValues_TextFieldUnflaggedSkipped(t *testing.T) {
 	fields := []template.Field{{Key: "base-table", Type: "text"}}
-	rows := pickValues(fields, map[string]any{"base-table": "dbo.Customer"})
+	rows := pickValues(fields, map[string]any{"base-table": "scm.Customer"})
 	if len(rows) != 0 {
 		t.Errorf("unflagged text produced %d rows, want 0", len(rows))
 	}

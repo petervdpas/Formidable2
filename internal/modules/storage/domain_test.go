@@ -234,7 +234,7 @@ func TestSanitize_TagsFieldIsSourceOfTruth_NoStaleMetaUnion(t *testing.T) {
 		"title": "X",
 		"tags":  []any{"test"},
 		"_meta": map[string]any{
-			"tags": []any{"ongebruikt"},
+			"tags": []any{"archived"},
 		},
 	}
 	out := Sanitize(raw, fields, SanitizeOptions{})
@@ -254,7 +254,7 @@ func TestSanitize_TagsFieldIsSourceOfTruth_EnvelopeShape(t *testing.T) {
 	}
 	raw := map[string]any{
 		"meta": map[string]any{
-			"tags": []any{"ongebruikt"},
+			"tags": []any{"archived"},
 		},
 		"data": map[string]any{
 			"title": "X",

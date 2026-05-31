@@ -81,8 +81,8 @@ func TestStatisticsList_ReturnsCatalog(t *testing.T) {
 
 func TestStatisticsList_IncludesScalingKind(t *testing.T) {
 	s := &stubStats{objs: []stat.StatObject{
-		{Name: "gas-apps", DSL: `records() by F["x"] scale "fcdm-urgency"`},
-		{Name: "fcdm-urgency", Scaling: &stat.Scaling{Source: stat.SourceRef{Kind: stat.SourceFacet, Key: "fcdm"}}},
+		{Name: "gas-apps", DSL: `records() by F["x"] scale "qzm-urgency"`},
+		{Name: "qzm-urgency", Scaling: &stat.Scaling{Source: stat.SourceRef{Kind: stat.SourceFacet, Key: "qzm"}}},
 	}}
 	rec := do(t, statsHandler(s), http.MethodGet, "/api/statistics/recepten")
 	if rec.Code != http.StatusOK {
@@ -99,9 +99,9 @@ func TestStatisticsList_IncludesScalingKind(t *testing.T) {
 
 func TestStatisticEval_ScalingIs404(t *testing.T) {
 	s := &stubStats{objs: []stat.StatObject{
-		{Name: "fcdm-urgency", Scaling: &stat.Scaling{Source: stat.SourceRef{Kind: stat.SourceFacet, Key: "fcdm"}}},
+		{Name: "qzm-urgency", Scaling: &stat.Scaling{Source: stat.SourceRef{Kind: stat.SourceFacet, Key: "qzm"}}},
 	}}
-	rec := do(t, statsHandler(s), http.MethodGet, "/api/statistics/recepten/fcdm-urgency")
+	rec := do(t, statsHandler(s), http.MethodGet, "/api/statistics/recepten/qzm-urgency")
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404 (scaling has no grid)", rec.Code)
 	}

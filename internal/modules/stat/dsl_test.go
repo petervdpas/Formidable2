@@ -88,9 +88,9 @@ func TestCompile_Canonical(t *testing.T) {
 			name: "distinct-form count by table column",
 			cfg: StatConfig{
 				Measures:   []Measure{{Op: OpRecords}},
-				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
 			},
-			want: `records() by F["code-repositories"]["application"] top 10`,
+			want: `records() by F["components"]["item"] top 10`,
 		},
 		{
 			name: "count and records together",
@@ -139,9 +139,9 @@ func TestCompile_Canonical(t *testing.T) {
 			cfg: StatConfig{
 				Measures:   []Measure{{Op: OpCount}},
 				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}}},
-				Filters:    []Filter{{Source: SourceRef{Kind: SourceField, Key: "stored-procedures", Column: "procedure"}, Op: FilterEq, Value: "Proc1"}},
+				Filters:    []Filter{{Source: SourceRef{Kind: SourceField, Key: "datasets", Column: "entry"}, Op: FilterEq, Value: "Item1"}},
 			},
-			want: `count() by F["base-table"] where F["stored-procedures"]["procedure"] eq "Proc1"`,
+			want: `count() by F["base-table"] where F["datasets"]["entry"] eq "Item1"`,
 		},
 		{
 			name: "where numeric comparison, AND-chained with a facet ne",
@@ -149,19 +149,19 @@ func TestCompile_Canonical(t *testing.T) {
 				Measures: []Measure{{Op: OpCount}},
 				Filters: []Filter{
 					{Source: SourceRef{Kind: SourceField, Key: "amount"}, Op: FilterGt, Value: "100"},
-					{Source: SourceRef{Kind: SourceFacet, Key: "fcdm"}, Op: FilterNe, Value: "AANWEZIG"},
+					{Source: SourceRef{Kind: SourceFacet, Key: "qzm"}, Op: FilterNe, Value: "ZONNIG"},
 				},
 			},
-			want: `count() where F["amount"] gt 100 and Facet["fcdm"] ne "AANWEZIG"`,
+			want: `count() where F["amount"] gt 100 and Facet["qzm"] ne "ZONNIG"`,
 		},
 		{
 			name: "scale reference",
 			cfg: StatConfig{
 				Measures:   []Measure{{Op: OpRecords}},
-				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
-				Scale:      "fcdm-urgency",
+				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
+				Scale:      "qzm-urgency",
 			},
-			want: `records() by F["code-repositories"]["application"] top 10 scale "fcdm-urgency"`,
+			want: `records() by F["components"]["item"] top 10 scale "qzm-urgency"`,
 		},
 		{
 			name: "scale before pct (canonical order)",
@@ -253,20 +253,20 @@ func TestParse_TableColumnAndPercentile(t *testing.T) {
 
 func TestParse_Rejects(t *testing.T) {
 	bad := []string{
-		``,                          // empty
-		`count`,                     // missing parens
-		`count(`,                    // unterminated
-		`count() by`,                // dangling by
-		`count() by F["x"`,          // unterminated bracket
-		`avg(Facet["p"])`,           // reduce over facet
-		`records(F["x"])`,           // records takes no source
-		`bogus()`,                   // unknown measure
-		`count() by F["due"]@decade`, // bad bin
-		`count() extra`,             // trailing tokens
-		`F["x"]`,                    // no measure
-		`count() by F[status]`,      // unquoted key
-		`count() by F["x"] top`,     // top without a number
-		`count() by F["x"] top abc`, // top with a non-number
+		``,                               // empty
+		`count`,                          // missing parens
+		`count(`,                         // unterminated
+		`count() by`,                     // dangling by
+		`count() by F["x"`,               // unterminated bracket
+		`avg(Facet["p"])`,                // reduce over facet
+		`records(F["x"])`,                // records takes no source
+		`bogus()`,                        // unknown measure
+		`count() by F["due"]@decade`,     // bad bin
+		`count() extra`,                  // trailing tokens
+		`F["x"]`,                         // no measure
+		`count() by F[status]`,           // unquoted key
+		`count() by F["x"] top`,          // top without a number
+		`count() by F["x"] top abc`,      // top with a non-number
 		`count() where`,                  // dangling where
 		`count() where F["x"]`,           // filter missing op + value
 		`count() where F["x"] eq 5`,      // eq needs a quoted string
@@ -316,7 +316,7 @@ func TestRoundTrip_Identity(t *testing.T) {
 		},
 		{
 			Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
-			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
 		},
 		{
 			Measures:   []Measure{{Op: OpCount}},
@@ -332,20 +332,20 @@ func TestRoundTrip_Identity(t *testing.T) {
 			Measures:   []Measure{{Op: OpCount}},
 			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "base-table"}, Top: 10}},
 			Filters: []Filter{
-				{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "procedure"}, Op: FilterEq, Value: "P1"},
+				{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "entry"}, Op: FilterEq, Value: "P1"},
 				{Source: SourceRef{Kind: SourceField, Key: "amount"}, Op: FilterGe, Value: "5"},
 			},
 		},
 		{
 			Measures:   []Measure{{Op: OpRecords}},
-			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
-			Filters:    []Filter{{Source: SourceRef{Kind: SourceFacet, Key: "flag"}, Op: FilterEq, Value: "IN GEBRUIK"}},
-			Scale:      "fcdm-urgency",
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
+			Filters:    []Filter{{Source: SourceRef{Kind: SourceFacet, Key: "flag"}, Op: FilterEq, Value: "IN OMLOOP"}},
+			Scale:      "qzm-urgency",
 		},
 		{
 			Measures:   []Measure{{Op: OpRecords}},
-			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 10}},
-			Scale:      "fcdm-urgency",
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
+			Scale:      "qzm-urgency",
 			Percent:    PctNone,
 		},
 	}

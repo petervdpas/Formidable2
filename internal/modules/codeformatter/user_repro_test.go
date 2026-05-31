@@ -5,17 +5,17 @@ import (
 	"testing"
 )
 
-// TestFormat_Markdown_UserFCDMTemplate runs the formatter on the exact
+// TestFormat_Markdown_UserQZMTemplate runs the formatter on the exact
 // template the user pasted, and verifies (a) the frontmatter survives
 // the round-trip with proper nesting intact, and (b) the markdown body
 // is byte-identical to the input - Handlebars expressions are NOT
 // rewritten, NOT line-wrapped, NOT touched in any way.
-func TestFormat_Markdown_UserFCDMTemplate(t *testing.T) {
+func TestFormat_Markdown_UserQZMTemplate(t *testing.T) {
 	frontmatter := `---
 cover:
   template: classic
   title: Auto-generated Report
-  subtitle: FCDM Entities
+  subtitle: QZM Entities
   author: Formidable Generator
 toc:
   title: Contents
@@ -25,7 +25,7 @@ footer:
   position: center
   showPageNumber: true
 style: ""
-keywords: [fcdm, entities]
+keywords: [qzm, entities]
 ---
 `
 	body := `

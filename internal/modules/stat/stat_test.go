@@ -27,7 +27,7 @@ func (f *fakeIndex) TotalForms(string) (int, error) { return f.total, nil }
 func (f *fakeIndex) ValueDistribution(string, string, *int) ([]index.Bucket, error) {
 	return f.valDist, nil
 }
-func (f *fakeIndex) NumericValues(string, string, *int) ([]float64, error)   { return f.nums, nil }
+func (f *fakeIndex) NumericValues(string, string, *int) ([]float64, error)    { return f.nums, nil }
 func (f *fakeIndex) FacetDistribution(string, string) ([]index.Bucket, error) { return f.facet, nil }
 func (f *fakeIndex) FacetCross(string, string, string) ([]index.CrossCell, error) {
 	return f.cross, nil
@@ -97,14 +97,14 @@ func TestFacetDistribution_AxisSourceIsFacetKey(t *testing.T) {
 	// categories with the facet's authored option colors.
 	m := NewManager(&fakeIndex{
 		total: 3,
-		facet: []index.Bucket{{Label: "AANWEZIG", Count: 2}},
+		facet: []index.Bucket{{Label: "ZONNIG", Count: 2}},
 	})
-	g, err := m.FacetDistribution("t", "fcdm")
+	g, err := m.FacetDistribution("t", "qzm")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(g.Axes) != 1 || g.Axes[0].Source != "fcdm" {
-		t.Fatalf("axes = %+v, want source 'fcdm'", g.Axes)
+	if len(g.Axes) != 1 || g.Axes[0].Source != "qzm" {
+		t.Fatalf("axes = %+v, want source 'qzm'", g.Axes)
 	}
 }
 

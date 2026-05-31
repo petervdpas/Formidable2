@@ -1511,8 +1511,8 @@ func (m *mockStatObject) EvaluateComposite(tpl, name string) (map[string]any, er
 	// A {parent, branches} grid - the shape StatGrid detects as a composite
 	// and draws as a sunburst.
 	return map[string]any{
-		"parent":   map[string]any{"axes": []any{map[string]any{"source": "flag", "labels": []any{"IN GEBRUIK"}}}},
-		"branches": []any{map[string]any{"branch": "IN GEBRUIK", "child": nil}},
+		"parent":   map[string]any{"axes": []any{map[string]any{"source": "flag", "labels": []any{"IN OMLOOP"}}}},
+		"branches": []any{map[string]any{"branch": "IN OMLOOP", "child": nil}},
 	}, nil
 }
 
@@ -1571,7 +1571,7 @@ func TestBindings_Statistical_EvalCompositeReturnsParentBranches(t *testing.T) {
 		end`,
 		scriptOpts{StatObject: ms})
 	m, ok := got.Value.(map[string]any)
-	if !ok || m["branch"] != "IN GEBRUIK" || m["src"] != "flag" {
+	if !ok || m["branch"] != "IN OMLOOP" || m["src"] != "flag" {
 		t.Fatalf("return = %v, want a {parent, branches} composite grid", got.Value)
 	}
 	if ms.gotTpl != "demo.yaml" || ms.gotName != "in-use-by-app" {

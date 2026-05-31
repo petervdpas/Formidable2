@@ -27,7 +27,7 @@ func cellValue(v index.FormValueRow) string {
 // assertions are unchanged and now verify the engine actually in production.
 
 // colNamer is the test ColumnNamer: field -> col index -> column value-key. The
-// e2e fixtures use a single table column (code-repositories col 0 = the
+// e2e fixtures use a single table column (components col 0 = the
 // application name), matching the fakeColResolver the tests already wire.
 type colNamer map[string]map[int]string
 
@@ -42,7 +42,7 @@ func (n colNamer) ColumnKey(_, fieldKey string, col int) (string, bool) {
 
 // repoNamer mirrors the fakeColResolver every e2e test installs. Passing it
 // everywhere is harmless for scalar-only fixtures (it is simply never consulted).
-var repoNamer = colNamer{"code-repositories": {0: "application"}}
+var repoNamer = colNamer{"components": {0: "item"}}
 
 // recordsFromForms projects index.FormRow fixtures into datacore records.
 // Scalar values (Col nil) become fields; each table-column value (Col set)

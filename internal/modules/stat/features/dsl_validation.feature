@@ -15,12 +15,12 @@ Feature: Statistical DSL validation
       | count() pct sideways                       |
 
   Scenario: Well-formed DSL that would over-count or dangle fails to evaluate
-    Given the ODS records:
+    Given the SAMPLE records:
       | filename     | flag       | apps      | score |
-      | r1.meta.json | IN GEBRUIK | FMU       | 10    |
-      | r2.meta.json | IN GEBRUIK | Gradework | 20    |
+      | r1.meta.json | IN OMLOOP | QMU       | 10    |
+      | r2.meta.json | IN OMLOOP | Bladework | 20    |
     Then these statistics fail to evaluate:
-      | sum(F["score"]) by F["code-repositories"]["application"]                                  |
+      | sum(F["score"]) by F["components"]["item"]                                  |
       | count() where Facet["flag"] gt 5                                                          |
-      | count() by F["code-repositories"]["application"] where F["code-repositories"]["application"] eq "FMU" |
-      | records() by F["code-repositories"]["application"] scale "no-such-scaling"                |
+      | count() by F["components"]["item"] where F["components"]["item"] eq "QMU" |
+      | records() by F["components"]["item"] scale "no-such-scaling"                |

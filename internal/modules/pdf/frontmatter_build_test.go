@@ -396,14 +396,14 @@ func TestBuildFrontmatter_AllFieldsPopulated(t *testing.T) {
 		Cover: &InjectCoverConfig{
 			Template:     "classic",
 			Title:        "Audit Control",
-			Subtitle:     "FCDM 2026",
+			Subtitle:     "QZM 2026",
 			Author:       "Team Integration Services",
 			AuthorTitle:  "Architect",
-			Organization: "Fontys",
+			Organization: "Northwind",
 			Date:         "2026-05-16",
 			Version:      "1.0",
 			ClientName:   "Hogeschool",
-			ProjectName:  "FCDM",
+			ProjectName:  "QZM",
 			DocumentType: "Audit Report",
 			DocumentID:   "AC-001",
 			Description:  "Annual review.",
@@ -423,7 +423,7 @@ func TestBuildFrontmatter_AllFieldsPopulated(t *testing.T) {
 			Name:         "Peter van de Pas",
 			Title:        "Architect",
 			Email:        "peter@example.org",
-			Organization: "Fontys",
+			Organization: "Northwind",
 			ImagePath:    "/home/peter/sig.png",
 			Phone:        "+31 0000000",
 			Address:      "Eindhoven",
@@ -439,7 +439,7 @@ func TestBuildFrontmatter_AllFieldsPopulated(t *testing.T) {
 		"style: technical",
 		"page:", "size: a4", "orientation: portrait",
 		"cover:", "template: classic", "title: Audit Control",
-		"organization: Fontys", "logo: formidable.svg",
+		"organization: Northwind", "logo: formidable.svg",
 		"toc:", "title: Inhoudsopgave", "maxDepth: 3",
 		"footer:", "position: center", "showPageNumber: true",
 		"signature:", "name: Peter van de Pas", "email: peter@example.org",
@@ -524,7 +524,7 @@ func TestBuildFrontmatter_UnicodeValues(t *testing.T) {
 		Cover: &InjectCoverConfig{
 			Title:    "Datastroom - definitie",
 			Subtitle: "デザイン文書",
-			Author:   "Peter - Fontys 🎓",
+			Author:   "Peter - Northwind 🎓",
 		},
 	})
 	if err != nil {
@@ -544,7 +544,7 @@ func TestBuildFrontmatter_UnicodeValues(t *testing.T) {
 	if fm.Cover.Subtitle != "デザイン文書" {
 		t.Errorf("Subtitle round-trip lost: %q", fm.Cover.Subtitle)
 	}
-	if fm.Cover.Author != "Peter - Fontys 🎓" {
+	if fm.Cover.Author != "Peter - Northwind 🎓" {
 		t.Errorf("Author round-trip lost: %q", fm.Cover.Author)
 	}
 }

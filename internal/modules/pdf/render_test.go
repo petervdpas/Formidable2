@@ -652,7 +652,7 @@ func TestExport_ManifestCoverProjectsThroughToFactory(t *testing.T) {
 			Cover: &template.PDFCoverConfig{
 				Template:     "banner",
 				Title:        "Manifest Title",
-				Organization: "Fontys",
+				Organization: "Northwind",
 			},
 		},
 	}
@@ -667,8 +667,8 @@ func TestExport_ManifestCoverProjectsThroughToFactory(t *testing.T) {
 	if cf.last.seen.Cover.Title != "Manifest Title" {
 		t.Errorf("cover.Title = %q, want Manifest Title", cf.last.seen.Cover.Title)
 	}
-	if cf.last.seen.Cover.Organization != "Fontys" {
-		t.Errorf("cover.Organization = %q, want Fontys", cf.last.seen.Cover.Organization)
+	if cf.last.seen.Cover.Organization != "Northwind" {
+		t.Errorf("cover.Organization = %q, want Northwind", cf.last.seen.Cover.Organization)
 	}
 	if cf.coverTS == nil {
 		t.Fatalf("factory got nil TemplateSet; manifest cover.template=banner should produce one")
@@ -692,7 +692,7 @@ func TestExport_DocFMOverridesManifestCoverFields(t *testing.T) {
 			Cover: &template.PDFCoverConfig{
 				Template:     "classic",
 				Title:        "Manifest Title",
-				Organization: "Fontys",
+				Organization: "Northwind",
 			},
 		},
 	}
@@ -708,8 +708,8 @@ func TestExport_DocFMOverridesManifestCoverFields(t *testing.T) {
 	if c.Title != "Doc Title" {
 		t.Errorf("Title = %q, want Doc Title (doc wins)", c.Title)
 	}
-	if c.Organization != "Fontys" {
-		t.Errorf("Organization = %q, want Fontys (manifest cascades)", c.Organization)
+	if c.Organization != "Northwind" {
+		t.Errorf("Organization = %q, want Northwind (manifest cascades)", c.Organization)
 	}
 	if cf.coverTS == nil || cf.coverTS.Name != "classic" {
 		t.Errorf("TemplateSet = %+v, want classic from manifest", cf.coverTS)

@@ -5,48 +5,48 @@ Feature: Scaling (weighted measures)
   See design/statistics-scaling.md.
 
   Background:
-    Given the ODS records:
-      | filename     | flag       | fcdm          | apps      |
-      | r1.meta.json | IN GEBRUIK | NIET AANWEZIG | FMU,FMU   |
-      | r2.meta.json | IN GEBRUIK | AANWEZIG      | FMU       |
-      | r3.meta.json | IN GEBRUIK |               | Gradework |
-    And a scaling "fcdm-urgency" over facet "fcdm" with default factor "1":
+    Given the SAMPLE records:
+      | filename     | flag       | qzm          | apps      |
+      | r1.meta.json | IN OMLOOP | NIET ZONNIG | QMU,QMU   |
+      | r2.meta.json | IN OMLOOP | ZONNIG      | QMU       |
+      | r3.meta.json | IN OMLOOP |               | Bladework |
+    And a scaling "qzm-urgency" over facet "qzm" with default factor "1":
       | option        | factor |
-      | AANWEZIG      | 0.5    |
-      | NIET AANWEZIG | 2      |
+      | ZONNIG      | 0.5    |
+      | NIET ZONNIG | 2      |
 
   Scenario: records() + scale sums one factor per distinct form
     Given a statistic "apps":
       """
-      records() by F["code-repositories"]["application"] scale "fcdm-urgency"
+      records() by F["components"]["item"] scale "qzm-urgency"
       """
     When I evaluate the statistic "apps"
     Then evaluation succeeds
-    And application "FMU" weighs "2.5"
+    And application "QMU" weighs "2.5"
 
   Scenario: count() + scale sums one factor per row
     Given a statistic "apps":
       """
-      count() by F["code-repositories"]["application"] scale "fcdm-urgency"
+      count() by F["components"]["item"] scale "qzm-urgency"
       """
     When I evaluate the statistic "apps"
     Then evaluation succeeds
-    And application "FMU" weighs "4.5"
+    And application "QMU" weighs "4.5"
 
   Scenario: A form with the facet unset falls to the default factor
     Given a statistic "apps":
       """
-      records() by F["code-repositories"]["application"] scale "fcdm-urgency"
+      records() by F["components"]["item"] scale "qzm-urgency"
       """
     When I evaluate the statistic "apps"
     Then evaluation succeeds
-    And application "Gradework" weighs "1"
+    And application "Bladework" weighs "1"
 
   Scenario: Without a scale clause records() counts distinct forms
     Given a statistic "apps-plain":
       """
-      records() by F["code-repositories"]["application"]
+      records() by F["components"]["item"]
       """
     When I evaluate the statistic "apps-plain"
     Then evaluation succeeds
-    And application "FMU" weighs "2"
+    And application "QMU" weighs "2"

@@ -31,7 +31,7 @@ func TestRepair_NestsFlatPDFFrontmatter(t *testing.T) {
 cover:
 template: classic
 title: Auto-generated Report
-subtitle: FCDM Entities
+subtitle: QZM Entities
 author: Formidable Generator
 toc:
 title: Contents
@@ -43,7 +43,7 @@ showPageNumber: true
 text: Formidable
 documentID: ""
 style: ""
-keywords: [fcdm, entities]
+keywords: [qzm, entities]
 ---
 
 ## body
@@ -54,7 +54,7 @@ keywords: [fcdm, entities]
 	}
 
 	checks := []string{
-		"cover:\n  template: classic\n  title: Auto-generated Report\n  subtitle: FCDM Entities\n  author: Formidable Generator",
+		"cover:\n  template: classic\n  title: Auto-generated Report\n  subtitle: QZM Entities\n  author: Formidable Generator",
 		"toc:\n  title: Contents\n  minDepth: 1\n  maxDepth: 3",
 		"footer:\n  position: center\n  showPageNumber: true\n  text: Formidable\n  documentID: \"\"",
 	}

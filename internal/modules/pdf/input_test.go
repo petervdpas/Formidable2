@@ -479,7 +479,7 @@ func TestBuildInput_FooterBlock(t *testing.T) {
 		Enabled:        ptrBool(true),
 		Position:       "right",
 		ShowPageNumber: ptrBool(true),
-		Text:           "© Fontys",
+		Text:           "© Northwind",
 		DocumentID:     "DOC-001",
 		Date:           "2026-05-15",
 		Status:         "DRAFT",
@@ -489,7 +489,7 @@ func TestBuildInput_FooterBlock(t *testing.T) {
 		t.Fatalf("Footer = nil")
 	}
 	if in.Footer.Position != "right" || !in.Footer.ShowPageNumber ||
-		in.Footer.Text != "© Fontys" || in.Footer.DocumentID != "DOC-001" ||
+		in.Footer.Text != "© Northwind" || in.Footer.DocumentID != "DOC-001" ||
 		in.Footer.Date != "2026-05-15" || in.Footer.Status != "DRAFT" {
 		t.Errorf("Footer = %+v", in.Footer)
 	}

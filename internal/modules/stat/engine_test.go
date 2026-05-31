@@ -210,7 +210,7 @@ func (f fakeColResolver) ColumnIndex(_, fieldKey, columnKey string) (int, bool) 
 }
 
 func TestEvaluate_TableColumnDimension_CountsCells(t *testing.T) {
-	// Three stored-procedure cells across the forms: direct, via, direct.
+	// Three dataset cells across the forms: direct, via, direct.
 	idx := &fakeIndex{
 		total: 2,
 		raw: []index.StatRawRow{
@@ -218,10 +218,10 @@ func TestEvaluate_TableColumnDimension_CountsCells(t *testing.T) {
 		},
 	}
 	m := NewManager(idx)
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"grp.access": 1}})
 	g, err := m.Evaluate("t", StatConfig{
 		Measures:   []Measure{{Op: OpCount}},
-		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "access"}}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -236,66 +236,66 @@ func TestEvaluate_TableColumnDimension_CountsCells(t *testing.T) {
 }
 
 func TestEvaluate_ScalarCrossedWithTableColumn(t *testing.T) {
-	// The real ODS case: count stored-procedure cells per entity x access.
+	// The cross-dimension case: count dataset cells per entity x access.
 	// The table column fans out one row per cell; each is attributed to the
 	// form's scalar (entity) value. Allowed by the guard (1 table source +
 	// scalar dim + count).
 	idx := &fakeIndex{
 		total: 2,
 		raw: []index.StatRawRow{
-			{Dims: []string{"dbo.A", "direct"}},
-			{Dims: []string{"dbo.A", "via"}},
-			{Dims: []string{"dbo.A", "direct"}},
-			{Dims: []string{"dbo.B", "via"}},
+			{Dims: []string{"scm.A", "direct"}},
+			{Dims: []string{"scm.A", "via"}},
+			{Dims: []string{"scm.A", "direct"}},
+			{Dims: []string{"scm.B", "via"}},
 		},
 	}
 	m := NewManager(idx)
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 0}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"grp.access": 0}})
 	g, err := m.Evaluate("t", StatConfig{
 		Measures: []Measure{{Op: OpCount}},
 		Dimensions: []Dimension{
 			{Source: SourceRef{Kind: SourceField, Key: "entity"}},
-			{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}},
+			{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "access"}},
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(g.Axes[0].Labels, []string{"dbo.A", "dbo.B"}) ||
+	if !reflect.DeepEqual(g.Axes[0].Labels, []string{"scm.A", "scm.B"}) ||
 		!reflect.DeepEqual(g.Axes[1].Labels, []string{"direct", "via"}) {
 		t.Fatalf("axes = %+v", g.Axes)
 	}
-	if c := findCell(g, 0, 0); c == nil || c.Values[0] != 2 { // dbo.A x direct
-		t.Errorf("(dbo.A,direct) = %+v, want 2", c)
+	if c := findCell(g, 0, 0); c == nil || c.Values[0] != 2 { // scm.A x direct
+		t.Errorf("(scm.A,direct) = %+v, want 2", c)
 	}
-	if c := findCell(g, 0, 1); c == nil || c.Values[0] != 1 { // dbo.A x via
-		t.Errorf("(dbo.A,via) = %+v, want 1", c)
+	if c := findCell(g, 0, 1); c == nil || c.Values[0] != 1 { // scm.A x via
+		t.Errorf("(scm.A,via) = %+v, want 1", c)
 	}
-	if c := findCell(g, 1, 1); c == nil || c.Values[0] != 1 { // dbo.B x via
-		t.Errorf("(dbo.B,via) = %+v, want 1", c)
+	if c := findCell(g, 1, 1); c == nil || c.Values[0] != 1 { // scm.B x via
+		t.Errorf("(scm.B,via) = %+v, want 1", c)
 	}
-	if c := findCell(g, 1, 0); c != nil { // dbo.B x direct never occurs
-		t.Errorf("(dbo.B,direct) should be absent, got %+v", c)
+	if c := findCell(g, 1, 0); c != nil { // scm.B x direct never occurs
+		t.Errorf("(scm.B,direct) should be absent, got %+v", c)
 	}
 }
 
 func TestEvaluate_Records_CountsDistinctFormsNotRows(t *testing.T) {
-	// The ODS case: form x lists FMU on two components (two rows), form y
+	// The SAMPLE case: form x lists QMU on two components (two rows), form y
 	// lists it once. count() = 3 mentions; records() = 2 storage-items hit.
 	idx := &fakeIndex{
 		total: 2,
 		raw: []index.StatRawRow{
-			{Form: "x.meta.json", Dims: []string{"FMU"}},
-			{Form: "x.meta.json", Dims: []string{"FMU"}},
-			{Form: "y.meta.json", Dims: []string{"FMU"}},
-			{Form: "x.meta.json", Dims: []string{"Gradework"}},
+			{Form: "x.meta.json", Dims: []string{"QMU"}},
+			{Form: "x.meta.json", Dims: []string{"QMU"}},
+			{Form: "y.meta.json", Dims: []string{"QMU"}},
+			{Form: "x.meta.json", Dims: []string{"Bladework"}},
 		},
 	}
 	m := NewManager(idx)
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"components.item": 0}})
 	g, err := m.Evaluate("t", StatConfig{
 		Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
-		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -307,13 +307,13 @@ func TestEvaluate_Records_CountsDistinctFormsNotRows(t *testing.T) {
 	for _, c := range g.Cells {
 		by[g.Axes[0].Labels[c.Coords[0]]] = c.Values
 	}
-	// FMU: 3 mentions, 2 distinct storage-items.
-	if got := by["FMU"]; len(got) != 2 || got[0] != 3 || got[1] != 2 {
-		t.Errorf("FMU = %v, want [3 2] (count 3, records 2)", got)
+	// QMU: 3 mentions, 2 distinct storage-items.
+	if got := by["QMU"]; len(got) != 2 || got[0] != 3 || got[1] != 2 {
+		t.Errorf("QMU = %v, want [3 2] (count 3, records 2)", got)
 	}
-	// Gradework: 1 mention, 1 storage-item.
-	if got := by["Gradework"]; len(got) != 2 || got[0] != 1 || got[1] != 1 {
-		t.Errorf("Gradework = %v, want [1 1]", got)
+	// Bladework: 1 mention, 1 storage-item.
+	if got := by["Bladework"]; len(got) != 2 || got[0] != 1 || got[1] != 1 {
+		t.Errorf("Bladework = %v, want [1 1]", got)
 	}
 }
 
@@ -333,10 +333,10 @@ func TestEvaluate_Records_RanksByFirstMeasure(t *testing.T) {
 		},
 	}
 	m := NewManager(idx)
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"components.item": 0}})
 	g, err := m.Evaluate("t", StatConfig{
 		Measures:   []Measure{{Op: OpCount}, {Op: OpRecords}},
-		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}, Top: 2}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 2}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -358,13 +358,13 @@ func TestEvaluate_RejectsNumericMeasureAlongsideRecordsWithTableDim(t *testing.T
 	// records() is allowed on a table-column dimension, but a numeric
 	// measure beside it would over-count (it repeats per fanned cell).
 	m := NewManager(&fakeIndex{})
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"code-repositories.application": 0}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"components.item": 0}})
 	_, err := m.Evaluate("t", StatConfig{
 		Measures: []Measure{
 			{Op: OpRecords},
 			{Op: OpAvg, Source: &SourceRef{Kind: SourceField, Key: "amount"}},
 		},
-		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "code-repositories", Column: "application"}}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}}},
 	})
 	if err == nil {
 		t.Error("expected rejection: numeric measure alongside records() on a table-column dimension")
@@ -375,7 +375,7 @@ func TestEvaluate_TableColumnNeedsResolver(t *testing.T) {
 	m := NewManager(&fakeIndex{}) // no column resolver
 	_, err := m.Evaluate("t", StatConfig{
 		Measures:   []Measure{{Op: OpCount}},
-		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "access"}}},
 	})
 	if err == nil {
 		t.Error("expected error when a table-column source has no resolver")
@@ -384,12 +384,12 @@ func TestEvaluate_TableColumnNeedsResolver(t *testing.T) {
 
 func TestEvaluate_RejectsTwoTableColumnSources(t *testing.T) {
 	m := NewManager(&fakeIndex{})
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1, "sp.via": 2}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"grp.access": 1, "grp.via": 2}})
 	_, err := m.Evaluate("t", StatConfig{
 		Measures: []Measure{{Op: OpCount}},
 		Dimensions: []Dimension{
-			{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}},
-			{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "via"}},
+			{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "access"}},
+			{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "via"}},
 		},
 	})
 	if err == nil {
@@ -399,13 +399,13 @@ func TestEvaluate_RejectsTwoTableColumnSources(t *testing.T) {
 
 func TestEvaluate_RejectsNumericMeasureWithTableDim(t *testing.T) {
 	m := NewManager(&fakeIndex{})
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"grp.access": 1}})
 	_, err := m.Evaluate("t", StatConfig{
 		Measures: []Measure{
 			{Op: OpCount},
 			{Op: OpAvg, Source: &SourceRef{Kind: SourceField, Key: "amount"}},
 		},
-		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "access"}}},
 	})
 	if err == nil {
 		t.Error("expected rejection: numeric measure alongside a table-column dimension")
@@ -585,7 +585,7 @@ func TestEvaluate_RejectsFacetComparisonFilter(t *testing.T) {
 	m := NewManager(&fakeIndex{})
 	_, err := m.Evaluate("t", StatConfig{
 		Measures: []Measure{{Op: OpCount}},
-		Filters:  []Filter{{Source: SourceRef{Kind: SourceFacet, Key: "fcdm"}, Op: FilterGt, Value: "5"}},
+		Filters:  []Filter{{Source: SourceRef{Kind: SourceFacet, Key: "qzm"}, Op: FilterGt, Value: "5"}},
 	})
 	if err == nil {
 		t.Error("expected rejection: comparison operator on a facet")
@@ -594,11 +594,11 @@ func TestEvaluate_RejectsFacetComparisonFilter(t *testing.T) {
 
 func TestEvaluate_RejectsTwoTableSourcesViaFilter(t *testing.T) {
 	m := NewManager(&fakeIndex{})
-	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"sp.access": 1, "sp.procedure": 0}})
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"grp.access": 1, "grp.procedure": 0}})
 	_, err := m.Evaluate("t", StatConfig{
 		Measures:   []Measure{{Op: OpCount}},
-		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "access"}}},
-		Filters:    []Filter{{Source: SourceRef{Kind: SourceField, Key: "sp", Column: "procedure"}, Op: FilterEq, Value: "X"}},
+		Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "access"}}},
+		Filters:    []Filter{{Source: SourceRef{Kind: SourceField, Key: "grp", Column: "entry"}, Op: FilterEq, Value: "X"}},
 	})
 	if err == nil {
 		t.Error("expected rejection: a table-column dimension plus a table-column filter is two table sources")
