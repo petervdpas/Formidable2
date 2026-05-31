@@ -1,57 +1,35 @@
 package integrity
 
-// FixStrategy names a concrete repair action. The set is closed -
-// every kind maps to one or more strategies, and unknown strategies
-// fail Fix-time rather than at the per-issue level.
+// FixStrategy names a concrete repair action; the set is closed and unknown strategies fail at Fix-time.
 type FixStrategy string
 
 const (
-	// FixStrip - remove the offending key from the data map. Used for
-	// extra_field. Lossless: the data was orphaned from the template.
+	// FixStrip removes an orphaned data key (extra_field).
 	FixStrip FixStrategy = "strip"
 
-	// FixFillDefault - write the per-type default for a missing field
-	// (matches storage.Sanitize's defaultForType). Used for missing_field.
+	// FixFillDefault writes the per-type default for a missing field.
 	FixFillDefault FixStrategy = "fill_default"
 
-	// FixCoerce - attempt to convert a wrong-typed value into the
-	// declared type. Used for type_mismatch and bad_date_format. Items
-	// where coercion fails are reported as "skipped" in the result and
-	// the form is left untouched.
+	// FixCoerce converts a wrong-typed value to the declared type; failures are reported skipped.
 	FixCoerce FixStrategy = "coerce"
 
-	// FixClear - wipe the value back to the per-type default. Same
-	// effect as FixFillDefault but applied to a populated-but-wrong
-	// value rather than an absent one. Used for type_mismatch /
-	// bad_date_format when the user prefers "clear and re-enter" over
-	// "attempt to coerce".
+	// FixClear wipes a populated-but-wrong value back to the per-type default.
 	FixClear FixStrategy = "clear"
 
-	// FixMintUUID - generate a fresh UUID for meta.id. Used for
-	// meta_missing on guid templates.
+	// FixMintUUID generates a fresh meta.id (meta_missing on guid templates).
 	FixMintUUID FixStrategy = "mint_uuid"
 
-	// FixSyncGuid - write meta.id into the guid data field so the two
-	// agree. Used for guid_unsynced. Lossless: the data field carried no
-	// authoritative id of its own (meta.id is canonical).
+	// FixSyncGuid writes meta.id (canonical) into the guid data field.
 	FixSyncGuid FixStrategy = "sync_guid"
 
-	// FixRestamp - overwrite a bad timestamp with time.Now().UTC().
-	// Used for meta_bad_format on meta.created and meta.updated. For
-	// meta.flag_state the same strategy clears the stale label
-	// (different concrete change, same intent: "make it valid").
+	// FixRestamp overwrites a bad timestamp with now, or clears a stale facet label (same intent: make it valid).
 	FixRestamp FixStrategy = "restamp"
 
-	// FixSkip - leave the issue alone. Used as the sentinel for kinds
-	// where no in-app repair exists (unreadable: needs the user to
-	// edit the file). Selecting Skip from the UI means "don't change
-	// anything for issues of this kind".
+	// FixSkip leaves the issue alone; the sentinel for kinds with no in-app repair (unreadable).
 	FixSkip FixStrategy = "skip"
 )
 
-// FixPlanItem says how to repair every issue of a given kind in this
-// run. There is at most one item per kind - the UI summarises by kind
-// so the user picks one strategy for all forms in that bucket.
+// FixPlanItem maps one issue kind to one strategy (at most one item per kind).
 type FixPlanItem struct {
 	Kind     IssueKind   `json:"kind"`
 	Strategy FixStrategy `json:"strategy"`
@@ -64,25 +42,14 @@ type FixPlan struct {
 
 // FixOutcome is the per-form summary of what changed.
 type FixOutcome struct {
-	Filename string `json:"filename"`
-	// Applied is the count of issues actually repaired in this form.
-	Applied int `json:"applied"`
-	// Skipped is the count of issues left alone because Skip was
-	// chosen for their kind, the strategy couldn't apply (e.g. coerce
-	// failed), or no plan item targeted them.
-	Skipped int `json:"skipped"`
-	// Saved indicates whether the form file was rewritten. False when
-	// Applied was 0 - no work means no write.
-	Saved bool `json:"saved"`
-	// Notes carries human-readable per-form annotations: failed
-	// coercions, "form skipped because unreadable", etc.
-	Notes []string `json:"notes,omitempty"`
+	Filename string   `json:"filename"`
+	Applied  int      `json:"applied"`
+	Skipped  int      `json:"skipped"`
+	Saved    bool     `json:"saved"`
+	Notes    []string `json:"notes,omitempty"`
 }
 
-// FixResult is the aggregate response to a Fix call. ScannedAfter is
-// the issue count from a fresh analyze pass run after writes, so the
-// frontend can show "X repaired, Y still remain" without a second
-// round-trip.
+// FixResult is the aggregate Fix response; ScannedAfter is a fresh analyze count so the UI can show "Y remain".
 type FixResult struct {
 	FormsTouched int          `json:"forms_touched"`
 	FormsSaved   int          `json:"forms_saved"`

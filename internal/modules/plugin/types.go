@@ -1,22 +1,9 @@
-// Package plugin owns Formidable's user-extensibility surface: a
-// sandboxed Lua runtime (gopher-lua) that runs scripts shipped in
-// <AppRoot>/plugins/<id>/{plugin.json, main.lua}.
+// Package plugin owns Formidable's extensibility surface: a sandboxed gopher-lua runtime that runs
+// scripts at <AppRoot>/plugins/<id>/{plugin.json, main.lua}.
 //
-// Slice 1 (this file's scope) covers on-demand commands only -
-// the user clicks "Run" in the Plugins workspace, the script
-// executes once, returns a JSON-serialisable value. No event
-// hooks, no in-Lua dialogs yet; those are slice 2 + 3.
-//
-// Tight contract: every public surface here is small and explicit
-// so it can be evolved under semver without surprising plugin
-// authors. Two version numbers protect that:
-//
-//   - ManifestSchemaVersion - the on-disk plugin.json shape. Bumped
-//     when a field's meaning changes; older manifests stay loadable
-//     until we drop them on a major release.
-//   - LuaAPIVersion         - the in-VM `formidable.api_version`
-//     constant. Plugins can `assert(formidable.api_version >= 1)`
-//     before using the surface.
+// Two version numbers gate compatibility:
+//   - ManifestSchemaVersion: the on-disk plugin.json shape; bumped when a field's meaning changes.
+//   - LuaAPIVersion: the in-VM `formidable.api_version` constant, for `assert(formidable.api_version >= 1)`.
 package plugin
 
 import (
@@ -24,31 +11,14 @@ import (
 	"slices"
 )
 
-// ManifestSchemaVersion is the only manifest schema understood by
-// this build. Bumped when plugin.json's required fields change
-// shape. Manifests with a higher schema version are rejected with
-// ErrManifestVersion; lower versions can be supported via
-// migration in manifest.go when we ever bump.
+// ManifestSchemaVersion is the only manifest schema this build understands; higher versions are rejected with ErrManifestVersion.
 const ManifestSchemaVersion = 1
 
-// LuaAPIVersion is exposed inside the VM as
-// `formidable.api_version`. Bumped when the `formidable.*` Lua
-// surface changes in a non-additive way. Adding a new function to
-// an existing namespace does NOT bump this; renaming or removing
-// one does.
+// LuaAPIVersion is exposed as `formidable.api_version`; bumped on non-additive changes (rename/remove), not on adding a function.
 const LuaAPIVersion = 1
 
-// Workspace* - the closed enum of workspace IDs a plugin may
-// attach to via Manifest.Workspaces. An empty list (or omitted
-// field) means "not attached to any workspace" - the plugin is
-// still runnable from the Plugins workspace's Run modal but no
-// topbar menu item is contributed elsewhere. A plugin may attach
-// to several workspaces at once.
-//
-// Kept here rather than on the frontend so the backend stays the
-// single source of truth: Service.ListWorkspaces() ships the list
-// to Vue's manifest-editor dropdown. Adding a workspace = one new
-// constant + entry in ValidWorkspaces.
+// Workspace* is the closed enum a plugin may attach to via Manifest.Workspaces; an empty list leaves it runnable only from the Plugins Run modal.
+// Kept backend-side so ValidWorkspaces is the single source of truth for Vue's manifest-editor dropdown.
 const (
 	WorkspaceStorage       = "storage"
 	WorkspaceTemplates     = "templates"
@@ -57,12 +27,7 @@ const (
 	WorkspaceInformation   = "information"
 )
 
-// ValidWorkspaces returns the closed enum of workspace IDs a
-// plugin manifest may declare. Order matches the ribbon's natural
-// reading order so the frontend dropdown is consistent without
-// re-sorting. The Plugins workspace itself is intentionally
-// excluded - that's the management view where every plugin lives
-// regardless of attachment.
+// ValidWorkspaces returns the workspace IDs a manifest may declare, in ribbon reading order. The Plugins workspace is excluded (it lists every plugin regardless).
 func ValidWorkspaces() []string {
 	return []string{
 		WorkspaceStorage,
@@ -73,27 +38,13 @@ func ValidWorkspaces() []string {
 	}
 }
 
-// isValidWorkspace reports whether ws is one of the known
-// workspace IDs. Empty is allowed at validate-time (means "no
-// attachment") and handled separately by validateManifest.
+// isValidWorkspace reports whether ws is a known workspace ID (empty is handled separately by validateManifest).
 func isValidWorkspace(ws string) bool {
 	return slices.Contains(ValidWorkspaces(), ws)
 }
 
-// Manifest is the parsed plugin.json. Field names mirror the JSON
-// shape one-for-one; the `manifest_version` JSON field is required
-// and equals ManifestSchemaVersion for now.
-//
-// Versionable surface: extra unknown fields are tolerated by
-// json.Unmarshal so plugins authored against a newer Formidable
-// don't silently break here - they just don't use the new fields.
-//
-// RunMode controls how the user interacts with the plugin:
-//   - "" (default) / "modal" - Run modal lists each command as a
-//     card; ctx is empty for every call.
-//   - "form" - the plugin's form (form.json) is the entry point;
-//     it renders at the top of the Run modal and every command
-//     receives the current form values as ctx.
+// Manifest is the parsed plugin.json. Unknown fields are tolerated so newer-authored plugins don't break.
+// RunMode: "" / "modal" lists each command as a card (empty ctx); "form" makes form.json the entry point (every command receives the form values as ctx).
 type Manifest struct {
 	ManifestVersion        int    `json:"manifest_version"`
 	ID                     string `json:"id"`
@@ -103,60 +54,26 @@ type Manifest struct {
 	Author                 string `json:"author,omitempty"`
 	RunMode                string `json:"run_mode,omitempty"`
 	RequiresInternalServer bool   `json:"requires_internal_server,omitempty"`
-	// Workspaces lists the workspace IDs (from the Workspace* enum
-	// in this file) where the plugin contributes a topbar menu
-	// entry. Each entry must be a known workspace ID; nil/empty
-	// means the plugin is unattached and only surfaces from the
-	// Plugins workspace's Run modal.
+	// Workspaces lists where the plugin contributes a topbar entry; nil/empty leaves it Run-modal-only.
 	Workspaces []string `json:"workspaces,omitempty"`
-	// Templates narrows a workspace attachment to specific templates,
-	// matched by exact filename against the active selection (e.g.
-	// "books.yaml"). A non-empty list makes the plugin
-	// template-scoped: it contributes a topbar entry only while one of
-	// these templates is selected in a template-bearing workspace
-	// (storage / templates). An empty/omitted list leaves the plugin
-	// in the plain workspace channel - it shows whenever its workspace
-	// is active, regardless of selection. The two channels are
-	// orthogonal; Templates only narrows, never broadens.
+	// Templates narrows a workspace attachment to exact template filenames; non-empty makes the plugin template-scoped (shows only while a listed template is selected). It only narrows, never broadens.
 	Templates []string `json:"templates,omitempty"`
-	// Debug toggles the collapsible debug/output panel at the bottom
-	// of the Run modal. Off by default - plugin authors flip it on
-	// while iterating, then turn it off when shipping.
+	// Debug toggles the collapsible debug/output panel in the Run modal.
 	Debug bool `json:"debug"`
-	// Maximizable adds the expand/restore button to the plugin's run
-	// window (same control as the Import/Export dialogs). Off by
-	// default; authors of chart / wide-output plugins turn it on.
+	// Maximizable adds the expand/restore button to the run window.
 	Maximizable bool      `json:"maximizable"`
 	Commands    []Command `json:"commands,omitempty"`
 }
 
-// RunMode* - the closed enum of values RunMode accepts. Empty is
-// also tolerated and behaves like RunModeModal so legacy manifests
-// don't need a backfill.
+// RunMode* is the closed enum RunMode accepts; empty behaves like RunModeModal so legacy manifests need no backfill.
 const (
 	RunModeModal = "modal"
 	RunModeForm  = "form"
 )
 
-// Command is one user-runnable entry exposed by the plugin. `ID`
-// is referenced by Manager.Run; `Fn` is the Lua function name
-// inside main.lua that gets called. When Fn is empty the command
-// ID itself is used as the function name (so a command with
-// id="export" calls global function `export(ctx)` in Lua).
-//
-// HideOutput and HideLog let a command opt out of showing the
-// corresponding panel in the Run dialog - useful for "fire and
-// forget" actions whose return value is irrelevant. LogAsToast
-// additionally surfaces every formidable.log.* line as a live
-// toast, useful while developing a plugin. FormButton marks the
-// command as a button to be rendered inside the plugin's form
-// (when one exists) - the form runtime reads this when wiring its
-// action bar; it's a manifest hint with no behavior yet on the
-// Run modal side.
-//
-// All four boolean flags are written explicitly (no omitempty) so
-// hand-editors see every available option at a glance and diffs
-// stay legible (a change reads "true → false", not "added field").
+// Command is one user-runnable entry. Fn is the Lua function name; empty Fn uses ID (id="export" calls global `export(ctx)`).
+// HideOutput/HideLog hide the Run-dialog panels; LogAsToast mirrors log lines as live toasts; FormButton renders it in the form's action bar.
+// The boolean flags are written explicitly (no omitempty) so diffs read "true → false", not "added field".
 type Command struct {
 	ID         string `json:"id"`
 	Label      string `json:"label"`
@@ -165,28 +82,17 @@ type Command struct {
 	HideLog    bool   `json:"hide_log"`
 	LogAsToast bool   `json:"log_as_toast"`
 	FormButton bool   `json:"form_button"`
-	// OnChange marks the command the host runs whenever a form field
-	// changes (run_mode "form"), before any Draw button is pressed.
-	// ctx carries the current form values plus `changed` = the key of
-	// the field that changed, so the Lua can react - e.g. evaluate the
-	// picked object and steer another field's options via
-	// formidable.run.options. Not rendered as a button.
+	// OnChange runs (run_mode "form") whenever a form field changes; ctx carries the form values plus `changed` = the changed field's key, so Lua can steer other fields via formidable.run.options. Not a button.
 	OnChange bool `json:"on_change"`
 }
 
-// Plugin is a discovered, validated plugin entry held by the
-// Manager. Dir is the absolute path to the plugin folder; the
-// runtime resolves main.lua as Dir + "/main.lua".
+// Plugin is a discovered, validated plugin entry; Dir is the absolute plugin folder.
 type Plugin struct {
 	Manifest Manifest `json:"manifest"`
 	Dir      string   `json:"dir"`
 }
 
-// PluginInfo is the immutable snapshot Lua scripts read via
-// formidable.plugin.*. Built once per Run from the manifest plus
-// the command being dispatched, so a script can branch on its
-// own identity, mode, or current command without going through
-// the bound Vue services.
+// PluginInfo is the immutable per-Run snapshot Lua scripts read via formidable.plugin.*.
 type PluginInfo struct {
 	ID                     string
 	Name                   string
@@ -197,80 +103,47 @@ type PluginInfo struct {
 	Command                string // command id currently running
 	RequiresInternalServer bool
 	Debug                  bool
-	// Form is the parsed contents of form.json - an array of field
-	// definitions when the plugin has one, or nil/empty when it
-	// doesn't. Surfaces in Lua as `formidable.plugin.form` so
-	// scripts can introspect the schema (and dump it via
-	// formidable.json.encode for debugging).
+	// Form is the parsed form.json (field definitions, or nil), surfaced in Lua as `formidable.plugin.form`.
 	Form []map[string]any
 }
 
-// ToastEvent is one user-facing toast a plugin script asked the
-// frontend to show via formidable.toast.{info,success,warn,error}.
-// Collected during a Run; surfaced on RunResult.Toasts so Vue can
-// dispatch them through useToast verbatim.
+// ToastEvent is one toast a script requested via formidable.toast.*, collected during a Run.
 type ToastEvent struct {
 	Level   string `json:"level"`
 	Message string `json:"message"`
 }
 
-// RunBarEvent is one tick emitted by formidable.run.bar(done, total).
-// Total == 0 means "indeterminate" - the bar should animate without a
-// concrete percentage. The frontend stores the latest event in a
-// per-run ref and feeds it to any progressbar widget the plugin
-// author dropped into their form. Cleared at the start of every Run.
+// RunBarEvent is one tick from formidable.run.bar(done, total); Total == 0 means indeterminate. Cleared at the start of every Run.
 type RunBarEvent struct {
 	Done  int `json:"done"`
 	Total int `json:"total"`
 }
 
-// RunStatusEvent is one message emitted by formidable.run.status(text).
-// Cleared at the start of every Run. Plugin authors typically pump
-// the current item's label/path/filename here so a statusmessage
-// widget can show "what is the plugin doing right now."
+// RunStatusEvent is one message from formidable.run.status(text), for a statusmessage widget. Cleared at the start of every Run.
 type RunStatusEvent struct {
 	Text string `json:"text"`
 }
 
-// RunChartEvent is one chart spec emitted by formidable.run.chart(spec).
-// Same live-widget mechanism as RunBarEvent / RunStatusEvent: a chart
-// widget the author dropped into the form re-renders when it arrives.
-// Spec is the raw envelope the Lua passed ({type, title, result}); the
-// frontend reads `type` (chart shape) and `result` (the stat Result)
-// and hands them to StatChart. Cleared at the start of every Run.
+// RunChartEvent is one spec from formidable.run.chart(spec); Spec is {type, title, result}, fed to StatChart. Cleared at the start of every Run.
 type RunChartEvent struct {
 	Spec map[string]any `json:"spec"`
 }
 
-// RunOptionsEvent is emitted by formidable.run.options(fieldKey, opts):
-// the plugin steers a form field's option list at runtime (e.g. set the
-// shape field's choices from the picked object's rank). Same live
-// mechanism as the other run.* events. Field is the form field's key;
-// Options is the new option list (each entry a {value, label} map or a
-// bare string). The frontend overlays these on the field's static
-// options and re-selects a valid value if the current one drops out.
+// RunOptionsEvent is from formidable.run.options(fieldKey, opts): it overlays a field's option list at runtime.
+// Options entries are {value, label} maps or bare strings; the frontend re-selects a valid value if the current one drops out.
 type RunOptionsEvent struct {
 	Field   string `json:"field"`
 	Options []any  `json:"options"`
 }
 
-// RunResult is the JSON-shaped envelope returned to Vue. Value
-// holds the Lua function's return value after lvalue→Go
-// conversion; LogLines collects formidable.log.* output emitted
-// during the call so the workspace panel can show it next to the
-// result; Toasts collects formidable.toast.* events for the
-// frontend to surface as live notifications.
+// RunResult is the JSON envelope returned to Vue: the converted Value plus collected LogLines and Toasts.
 type RunResult struct {
 	Value    any          `json:"value"`
 	LogLines []string     `json:"logLines,omitempty"`
 	Toasts   []ToastEvent `json:"toasts,omitempty"`
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Error sentinels - closed vocabulary the Service surfaces to Vue
-// so the frontend can branch on Kind (not on message text).
-// ─────────────────────────────────────────────────────────────────
-
+// Error sentinels: the closed vocabulary the Service surfaces to Vue so the frontend branches on Kind, not message text.
 var (
 	ErrManifestVersion  = errors.New("plugin: unsupported manifest_version")
 	ErrManifestInvalid  = errors.New("plugin: invalid manifest")
@@ -278,34 +151,20 @@ var (
 	ErrCommandNotFound  = errors.New("plugin: command not found")
 	ErrPluginExists     = errors.New("plugin: already exists")
 	ErrServerNotRunning = errors.New("plugin: requires the internal server, but it's stopped")
-	// ErrPluginBusy is returned when Manager.Run is invoked while
-	// another command is already in flight. Plugins are serialized
-	// globally - gopher-lua VMs are per-call but their bound services
-	// (KV writes, render, fs) aren't safe to interleave, and the UX
-	// contract is "one plugin at a time" anyway. Frontend surfaces
-	// this as Kind="busy" via Service.Run.
+	// ErrPluginBusy: plugins run one at a time. VMs are per-call but their bound services (KV/render/fs) aren't safe to interleave.
 	ErrPluginBusy = errors.New("plugin: another command is currently running")
-	// ErrPluginCancelled is returned when a run's context was
-	// cancelled mid-VM (the user pressed Stop, the host shut down,
-	// etc.). The runtime maps gopher-lua's "context canceled"
-	// surface to this sentinel so the Service layer can branch on
-	// Kind="cancelled" instead of inspecting the wrapped error text.
+	// ErrPluginCancelled: the runtime maps gopher-lua's "context canceled" to this so the Service can branch on Kind="cancelled".
 	ErrPluginCancelled = errors.New("plugin: cancelled")
 )
 
-// HTTPResponse is what formidable.api.fetch returns to Lua. Body
-// is the raw response text (plugin authors decode JSON via
-// formidable.json.decode); Headers maps lowercased header names
-// to joined values.
+// HTTPResponse is what formidable.api.fetch returns to Lua; Headers maps lowercased header names to joined values.
 type HTTPResponse struct {
 	Status  int               `json:"status"`
 	Body    string            `json:"body"`
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
-// HTTPClient is the HTTP transport the runtime exposes as formidable.api.
-// IsAvailable is queried in the Run preflight when
-// manifest.RequiresInternalServer is true.
+// HTTPClient is the transport exposed as formidable.api; IsAvailable is queried in the Run preflight when RequiresInternalServer is set.
 type HTTPClient interface {
 	IsAvailable() bool
 	Fetch(method, path, body string, headers map[string]string) (HTTPResponse, error)

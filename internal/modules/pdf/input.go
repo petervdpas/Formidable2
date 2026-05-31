@@ -10,20 +10,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Frontmatter is the typed YAML schema for PDF export configuration.
-// The shape mirrors picoloom.Input 1:1, with one Formidable-specific
-// addition: each major block carries an Enabled flag that gates
-// whether the block contributes to the final picoloom.Input. picoloom
-// itself uses nil pointers for "no cover / no toc / etc"; the Enabled
-// flag lets all four merge layers reason about presence in a uniform
-// way (a higher layer can say "explicitly no cover" against a lower
-// layer that asserts one).
-//
-// Sub-blocks are pointers so "no opinion" (nil) cleanly differs from
-// "explicitly empty" (non-nil zero). Within a non-nil sub-block,
-// scalar zero values cascade to the next layer; *bool fields carry
-// the same semantics for booleans (where false vs unset must be
-// distinguishable).
+// Frontmatter is the typed YAML schema for PDF export, mirroring
+// picoloom.Input plus a per-block Enabled flag so the merge layers can
+// express "explicitly no cover" against a lower layer that asserts one.
+// Sub-blocks are pointers so nil ("no opinion") differs from non-nil
+// zero ("explicitly empty"); *bool fields keep false-vs-unset distinct.
 type Frontmatter struct {
 	Style      string        `yaml:"style,omitempty"`
 	Keywords   []string      `yaml:"keywords,omitempty"`
@@ -43,20 +34,9 @@ type PageFM struct {
 	Margin      float64 `yaml:"margin,omitempty"`
 }
 
-// CoverFM mirrors picoloom.Cover plus the Formidable Enabled gate
-// and two design-selector fields:
-//
-//   - Template: name of an embedded cover layout in the pdf module's
-//     `covers/` library (e.g. "classic", "banner", "corporate"). Picks
-//     a hand-authored HTML layout shipped in the binary.
-//   - TemplatePath: filesystem path to a user-authored cover HTML
-//     file. Resolved against the template's storage dir when relative.
-//     Takes precedence over Template when both are set.
-//
-// Both feed picoloom's WithTemplateSet at converter construction; the
-// cover HTML is rendered against picoloom.Cover via html/template, so
-// the placeholders `{{.Title}}`, `{{.Logo}}`, etc. resolve to the
-// fields below.
+// CoverFM mirrors picoloom.Cover plus the Enabled gate. Template names
+// a library cover; TemplatePath is a user-authored HTML file (relative
+// to the template storage dir) and takes precedence over Template.
 type CoverFM struct {
 	Enabled      *bool  `yaml:"enabled,omitempty"`
 	Template     string `yaml:"template,omitempty"`
@@ -135,27 +115,18 @@ type PageBreaksFM struct {
 	Widows   int   `yaml:"widows,omitempty"`
 }
 
-// ErrFrontmatterMalformed wraps every parse failure surfaced from
-// ParseFrontmatter. Stage 4 (the renderer) treats this as "log a
-// warning and use the merged-defaults Frontmatter" rather than a
-// hard render failure - the body always survives.
+// ErrFrontmatterMalformed wraps a ParseFrontmatter failure. The
+// renderer logs it and falls back to defaults rather than failing;
+// the body always survives.
 var ErrFrontmatterMalformed = errors.New("pdf: frontmatter malformed")
 
 var fmOpenRe = regexp.MustCompile(`(?m)\A---\s*\n`)
 var fmCloseRe = regexp.MustCompile(`(?m)^---\s*$`)
 
-// ParseFrontmatter splits a markdown source into a typed Frontmatter
-// + the body. When the source has no leading `---\n…\n---` block,
-// the returned Frontmatter is the zero value and body is the input
-// verbatim. Malformed YAML, type mismatches, and a missing closing
-// `---` produce a non-nil ErrFrontmatterMalformed; in that case the
-// returned body is the input verbatim so the caller can still render
-// the document with default settings.
-//
-// Stage 4 (render pipeline) passes this through after raymond
-// expansion has already replaced `{{form.x}}` placeholders with
-// concrete strings, so YAML decoding is the only thing happening
-// here.
+// ParseFrontmatter splits markdown into a typed Frontmatter and the
+// body. No `---` block returns the zero Frontmatter + verbatim input.
+// On malformed YAML it returns ErrFrontmatterMalformed with the body
+// still verbatim, so the caller can render with default settings.
 func ParseFrontmatter(md string) (Frontmatter, string, error) {
 	if md == "" {
 		return Frontmatter{}, "", nil
@@ -182,27 +153,16 @@ func ParseFrontmatter(md string) (Frontmatter, string, error) {
 	return fm, body, nil
 }
 
-// Merge combines layers into a single Frontmatter. Layers are passed
-// in priority order: index 0 has the highest precedence (frontmatter
-// from the document), the last index has the lowest (global config).
-// Standard project convention is the four-layer call:
-//
-//	Merge(documentFM, formMetaFM, manifestFM, globalFM)
-//
-// Empty scalar fields and nil pointer fields cascade to the next
-// layer. Sub-blocks merge field-by-field; a nil sub-block in a higher
-// layer means "no opinion at this layer" and the lower layer's block
-// (if any) is used verbatim where the higher's fields are unset.
-//
-// Slice fields (currently just Signature.Links) merge atomically: a
-// non-empty slice in a higher layer fully replaces the lower's slice.
-// Element-by-element merging is intentionally out of scope - links
-// are inherently ordered, and partial overrides would surprise users.
+// Merge combines layers in priority order: index 0 highest (document),
+// last lowest (global config). Empty scalars and nil pointers cascade
+// to the next layer; sub-blocks merge field-by-field. Slice fields
+// (Signature.Links) merge atomically: a non-empty higher slice fully
+// replaces the lower, since links are ordered and partial overrides
+// would surprise users.
 func Merge(layers ...Frontmatter) Frontmatter {
 	if len(layers) == 0 {
 		return Frontmatter{}
 	}
-	// Walk from lowest priority to highest, overlaying each step.
 	out := layers[len(layers)-1]
 	for i := len(layers) - 2; i >= 0; i-- {
 		out = overlay(layers[i], out)
@@ -210,9 +170,8 @@ func Merge(layers ...Frontmatter) Frontmatter {
 	return out
 }
 
-// overlay applies a higher-priority layer on top of a lower-priority
-// base. Where higher has a value the result takes higher's; where
-// higher is empty/nil the result keeps base's. Pure function.
+// overlay applies higher onto base: higher's set fields win, base's
+// fill the rest.
 func overlay(higher, base Frontmatter) Frontmatter {
 	out := base
 	if higher.Style != "" {
@@ -424,15 +383,10 @@ func pickString(dst *string, v string) {
 }
 
 // BuildInput projects a merged Frontmatter into a picoloom.Input.
-// Pure function: no I/O, no Chrome, no file reads. Style is NOT part
-// of picoloom.Input - the caller (Stage 4 render pipeline) reads
-// fm.Style and passes it to picoloom.NewConverter via WithStyle().
-//
-// A sub-block is included in the Input only when the corresponding
-// Frontmatter sub-block is non-nil AND its Enabled flag is not
-// explicitly false. Block presence with no explicit Enabled defaults
-// to opted-in - this matches the design-doc convention "if the
-// author wrote `cover:` they probably meant to use it".
+// Style is NOT part of picoloom.Input; the caller passes fm.Style via
+// WithStyle. A sub-block is included only when non-nil and not
+// explicitly Enabled=false; presence without an explicit Enabled
+// defaults to opted-in.
 func BuildInput(fm Frontmatter, body string) picoloom.Input {
 	in := picoloom.Input{Markdown: body}
 	if fm.Page != nil {

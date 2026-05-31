@@ -1,11 +1,7 @@
 package template
 
-// Field-attribute matrix - the type and helper layer. The actual
-// per-type Abilities map lives in field_abilities.go so the matrix
-// stays grep-friendly. Adding/removing an attribute means: (1) one
-// new constant here, (2) one new bool in Abilities, (3) one case
-// each in propertyIsSet / clearProperty, (4) every type's entry in
-// field_abilities.go gets the new bool set explicitly.
+// Field-attribute matrix. Adding an attribute means: a constant here, a bool in Abilities,
+// a case each in propertyIsSet/clearProperty, and every type's entry in field_abilities.go.
 
 const (
 	attrKey             = "key"
@@ -25,11 +21,8 @@ const (
 	attrFacetKey        = "facet_key"
 )
 
-// Abilities is the per-type ability vector. Each bool gates a single
-// attribute in the field-edit modal AND in backend save-time
-// enforcement. true = enabled (modal row visible, value preserved on
-// save); false = disabled (row hidden, Normalize strips, validator
-// flags any non-zero).
+// Abilities is the per-type ability vector; each bool gates one attribute in the modal and in
+// save-time enforcement (false: row hidden, Normalize strips, validator flags any non-zero).
 type Abilities struct {
 	Key             bool `json:"key"`
 	Type            bool `json:"type"`
@@ -48,15 +41,9 @@ type Abilities struct {
 	FacetKey        bool `json:"facet_key"`
 }
 
-// FieldDescriptor is the per-type record. MetaOnly flags marker types
-// (looper, loopstart, loopstop) that don't carry a stored value but
-// still participate in validation. Virtual flags types that participate
-// in template layout + validation but do NOT seed a slot in
-// storage.Form.Data; their value lives elsewhere (e.g. facet → meta.facets).
-// OptionsShape is non-nil when the type's options array has a fixed
-// arity (e.g. boolean = exactly two rows for the True/False labels) -
-// the frontend's OptionsEditor gates add/remove on this and pre-fills
-// with the supplied defaults.
+// FieldDescriptor is the per-type record. MetaOnly marks value-less marker types (loopstart/loopstop).
+// Virtual marks types that don't seed a storage.Form.Data slot (their value lives elsewhere, e.g. meta.facets).
+// OptionsShape is non-nil when the options array has fixed arity (e.g. boolean = two rows).
 type FieldDescriptor struct {
 	ID           string             `json:"id"`
 	MetaOnly     bool               `json:"meta_only"`
@@ -71,18 +58,13 @@ func IsKnownFieldType(t string) bool {
 	return ok
 }
 
-// IsVirtualFieldType reports whether the given type id is registered
-// as a virtual field. Virtual fields do not occupy a slot in
-// storage.Form.Data; storage.Sanitize uses this to skip them when
-// seeding the data map.
+// IsVirtualFieldType reports whether the type is virtual; storage.Sanitize skips these when seeding data.
 func IsVirtualFieldType(t string) bool {
 	def, ok := fieldDescriptors[t]
 	return ok && def.Virtual
 }
 
-// AllFieldTypes returns the matrix as a slice in the stable order
-// declared by `orderedTypes`. Used by Service.FieldTypes (the
-// Wails-facing single source of truth).
+// AllFieldTypes returns the matrix as a slice in orderedTypes order.
 func AllFieldTypes() []FieldDescriptor {
 	out := make([]FieldDescriptor, 0, len(orderedTypes))
 	for _, id := range orderedTypes {
@@ -95,18 +77,14 @@ func AllFieldTypes() []FieldDescriptor {
 	return out
 }
 
-// allEnforcedAttrs lists every attr name that backend save-validation
-// and Normalize iterate over. Excludes "key" and "type" - those are
-// always present and don't have a corresponding Field-property check.
+// allEnforcedAttrs is every attr that save-validation and Normalize iterate over (excludes always-present key/type).
 var allEnforcedAttrs = []string{
 	attrLabel, attrDescription, attrDefault, attrOptions, attrSummaryField,
 	attrPrimaryKey, attrExpressionItem, attrTwoColumn, attrCollapsible,
 	attrReadonly, attrFormat, attrUseInStatistics, attrFacetKey,
 }
 
-// abilityFor returns the Abilities bool for a given attr name.
-// Returns true (allowed) for unrecognized names so future attrs that
-// the matrix doesn't yet model don't accidentally get stripped.
+// abilityFor returns the Abilities bool for attr; unrecognized names return true so unmodeled attrs aren't stripped.
 func (a Abilities) abilityFor(attr string) bool {
 	switch attr {
 	case attrKey:

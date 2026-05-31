@@ -12,11 +12,9 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// exportTimeout caps how long Chrome can spend on a single document.
-// Picoloom's own default is 30s; we give a more generous ceiling
-// because cold-start Chrome on slow disks can take a few seconds
-// before rendering even begins. Settable later via ExportOpts if a
-// user-facing knob is needed.
+// exportTimeout caps Chrome per document. More generous than picoloom's
+// 30s default because cold-start Chrome on slow disks can take seconds
+// before rendering begins.
 const exportTimeout = 60 * time.Second
 
 // renderer is the slice of render.Manager the pdf module needs.
@@ -42,24 +40,14 @@ type converter interface {
 	Close() error
 }
 
-// converterFactory builds a converter sized for one export call.
-// All arguments are read off the merged frontmatter + opts at call
-// time:
-//
-//   - browserBin: ROD_BROWSER_BIN snapshot (picoloom has no Bin opt).
-//   - style: WithStyle value - theme name, CSS file path, or raw CSS.
-//   - coverTS: optional cover/signature override (Stage 6). nil means
-//     "use picoloom's bundled default cover".
+// converterFactory builds a converter for one export call. browserBin
+// is the ROD_BROWSER_BIN snapshot (picoloom has no Bin opt); coverTS
+// nil means picoloom's default cover.
 type converterFactory func(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error)
 
-// realConverterFactory is the production converterFactory. It sets
-// ROD_BROWSER_BIN if the active browser path is non-empty (Stage 2's
-// activation gate guarantees this for any successful Export call),
-// then builds a picoloom converter. The caller owns Close().
-//
-// Setting ROD_BROWSER_BIN per call is intentional rather than
-// once at Activate time: external processes can clear the env, and
-// the cost is negligible compared to Chrome boot.
+// realConverterFactory builds a picoloom converter. It sets
+// ROD_BROWSER_BIN per call (not once at Activate) because external
+// processes can clear the env and the cost is negligible vs Chrome boot.
 func realConverterFactory(browserBin, style string, coverTS *picoloom.TemplateSet) (converter, error) {
 	if browserBin != "" {
 		_ = os.Setenv("ROD_BROWSER_BIN", browserBin)
@@ -79,26 +67,14 @@ func realConverterFactory(browserBin, style string, coverTS *picoloom.TemplateSe
 }
 
 // Export renders the (templateFilename, datafile) form to a PDF on
-// disk. The pipeline is:
+// disk: render markdown, parse + merge frontmatter, build the
+// picoloom.Input (SourceDir defaults to the template storage dir),
+// convert, then atomically write. Refuses when inactive
+// (ErrPDFNotActivated); concurrent calls for the same form serialize
+// via formMu while distinct forms render in parallel.
 //
-//  1. Refuse the call if the engine is inactive.
-//  2. Serialize concurrent calls for the same form (formMu); distinct
-//     forms render in parallel.
-//  3. Render markdown via the injected render.Manager (Handlebars
-//     stage; frontmatter survives for picoloom to read).
-//  4. Parse + merge frontmatter. Stage 4 only carries the doc layer;
-//     form-meta / manifest / global layers wire in at Stage 6+.
-//  5. Build the picoloom.Input, defaulting SourceDir to the template's
-//     storage directory so relative-path images resolve.
-//  6. Build a converter (sets ROD_BROWSER_BIN, applies WithStyle).
-//  7. Convert, close the converter, atomically write the PDF bytes.
-//
-// Style precedence: ExportOpts.Style > merged frontmatter Style > "".
-// Output path precedence: ExportOpts.OutputPath > Status.ExportDir
-// + basename > template storage dir + basename.
-//
-// All error returns wrap the underlying cause; the typed gate for
-// "engine off" stays errors.Is-compatible with ErrPDFNotActivated.
+// Style precedence: opts.Style > merged Style > "". Output path:
+// opts.OutputPath > ExportDir/basename > storage dir/basename.
 func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Result, error) {
 	started := m.nowFn()
 	m.log.Debug("pdf: export",
@@ -128,9 +104,8 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 	if parseErr != nil {
 		m.log.Warn("pdf: frontmatter parse failed; using defaults",
 			"template", templateFilename, "datafile", datafile, "err", parseErr)
-		// docFM is the zero value here; body is the input verbatim so
-		// the malformed frontmatter still gets shipped to picoloom,
-		// which will strip it the same way. Render proceeds.
+		// body is verbatim so picoloom strips the malformed frontmatter
+		// the same way; render proceeds.
 	}
 
 	manifestFM := m.loadManifestFrontmatter(templateFilename)
@@ -146,22 +121,16 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		input.SourceDir = sourceDir
 	}
 
-	// Cover logo resolution: convert `cover.logo: formidable.svg`
-	// shorthand into a string picoloom + Chrome can actually load
-	// cross-platform. The asset server (when wired) gives us
-	// http://127.0.0.1:.../covers/<file> for central-library logos
-	// - needed on Windows because Chrome inside a file:// document
-	// can't reconcile a bare `C:/…` <img src>. Logos that live
-	// under the document's own sourceDir are returned as relative
-	// paths so picoloom's RewriteRelativePaths handles them. See
-	// BuildCoverLogoSrc for the full search order.
+	// Resolve cover.logo to a string picoloom + Chrome can load
+	// cross-platform. The asset server (when wired) feeds central-library
+	// logos an http:// URL, needed on Windows because Chrome in a file://
+	// document can't load a bare `C:/...` <img src>. See BuildCoverLogoSrc.
 	if input.Cover != nil {
 		input.Cover.Logo = BuildCoverLogoSrc(input.Cover.Logo, input.SourceDir, m.store.fs, m.AssetServer())
 	}
 
-	// Theme precedence: opts.DisableTheme forces empty (picoloom's
-	// built-in default CSS) over both opts.Style and the merge layers.
-	// Otherwise opts.Style wins, then merged.Style.
+	// Theme precedence: DisableTheme forces empty over everything; else
+	// opts.Style, then merged.Style.
 	var style string
 	if !opts.DisableTheme {
 		style = opts.Style
@@ -170,16 +139,9 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		}
 	}
 
-	// Cover precedence:
-	//   1. opts.DisableCover         → no cover (forces picoloom default
-	//                                   layout regardless of any layer)
-	//   2. opts.CoverTemplate != ""  → dialog's explicit pick
-	//   3. merged.Cover.Enabled = false → frontmatter explicitly turned
-	//                                      cover off (BuildInput already
-	//                                      drops the data; we drop the
-	//                                      template here to match)
-	//   4. merged.Cover != nil       → frontmatter / manifest cover
-	//   5. nil                       → picoloom default
+	// Cover precedence: DisableCover > CoverTemplate (dialog pick) >
+	// merged Enabled=false (frontmatter turned it off; BuildInput drops
+	// the data, we drop the template to match) > merged.Cover > nil.
 	var coverFM *CoverFM
 	switch {
 	case opts.DisableCover:
@@ -277,16 +239,10 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 	}, nil
 }
 
-// ResolveExportDefaults previews the Theme + CoverTemplate values
-// Manager.Export would compute for (templateFilename, datafile) when
-// the user gives no opts override. Read-only metadata - not gated on
-// activation, no formMu serialization. Surfaces the same Merge pipeline
-// the real Export uses, so the dialog's "(use frontmatter / template
-// default)" option can show the concrete value that will be applied.
-//
-// Renderer failures bubble up because we can't compute docFM without
-// the rendered markdown. Malformed frontmatter is tolerated (docFM
-// falls to zero, the manifest layer still contributes).
+// ResolveExportDefaults previews the Theme + CoverTemplate Export would
+// compute with no opts override, via the same Merge pipeline. Read-only:
+// not gated on activation, no formMu. Renderer failures bubble up;
+// malformed frontmatter is tolerated.
 func (m *Manager) ResolveExportDefaults(templateFilename, datafile string) (ResolvedExportDefaults, error) {
 	rendered, err := m.renderer.RenderMarkdown(templateFilename, datafile)
 	if err != nil {
@@ -306,11 +262,9 @@ func (m *Manager) ResolveExportDefaults(templateFilename, datafile string) (Reso
 	return out, nil
 }
 
-// failExport maps err to a typed ExportError, emits a structured
-// "pdf: export failed" slog event tagged with the failing stage and
-// elapsed time, then returns the zero Result + the typed error. The
-// stage values are stable strings consumed by the future PDF doctor
-// panel (Stage 7 #4) - keep them lowercase + snake_case.
+// failExport maps err to a typed ExportError, logs a "pdf: export
+// failed" event, and returns the zero Result. The stage strings are
+// stable (consumed by the PDF doctor): keep them lowercase snake_case.
 func (m *Manager) failExport(started time.Time, templateFilename, datafile, stage string, err error) (Result, error) {
 	mapped := MapExportError(err)
 	finishedAt := m.nowFn()
@@ -339,9 +293,8 @@ func (m *Manager) failExport(started time.Time, templateFilename, datafile, stag
 	return Result{}, mapped
 }
 
-// coverNameForLog picks a stable identifier for the cover that was
-// actually used. TemplatePath wins (it's the most specific) over the
-// embedded library name. Returns empty when no cover was selected.
+// coverNameForLog returns a stable cover identifier, preferring the
+// more-specific TemplatePath over the library name.
 func coverNameForLog(fm *CoverFM) string {
 	if fm == nil {
 		return ""
@@ -352,12 +305,9 @@ func coverNameForLog(fm *CoverFM) string {
 	return fm.Template
 }
 
-// loadManifestFrontmatter projects the per-template PDF defaults
-// (template.PDF.Style + template.PDF.Cover) into a Frontmatter value
-// that participates in Merge as the "manifest" layer. Returns the
-// zero Frontmatter when no templateLoader is wired, the template
-// lacks a PDF block, or LoadTemplate fails - manifest defaults are
-// best-effort and must never block a render.
+// loadManifestFrontmatter projects per-template PDF defaults into the
+// Merge "manifest" layer. Returns the zero value on any miss; manifest
+// defaults are best-effort and must never block a render.
 func (m *Manager) loadManifestFrontmatter(templateFilename string) Frontmatter {
 	if m.templates == nil {
 		return Frontmatter{}
@@ -373,9 +323,7 @@ func (m *Manager) loadManifestFrontmatter(templateFilename string) Frontmatter {
 	return out
 }
 
-// projectTemplateCover translates the template-module's PDFCoverConfig
-// into the pdf-module's CoverFM. Trivial 1:1 field copy, kept in one
-// place so future schema additions land in a single spot.
+// projectTemplateCover copies template.PDFCoverConfig into a CoverFM.
 func projectTemplateCover(c *template.PDFCoverConfig) *CoverFM {
 	if c == nil {
 		return nil
@@ -405,16 +353,9 @@ func projectTemplateCover(c *template.PDFCoverConfig) *CoverFM {
 	return out
 }
 
-// resolveOutputPath chooses where the PDF lands:
-//
-//   - ExportOpts.OutputPath wins outright. Absolute is used as-is;
-//     relative is resolved against the ExportDir (or storage dir).
-//   - Empty OutputPath + non-empty ExportDir → ExportDir/<basename>.pdf.
-//   - Otherwise → <template storage dir>/<basename>.pdf ("next to
-//     the form", per design doc Stage 4 default).
-//
-// The basename strips `.meta.json` then any remaining extension, so
-// `adapter-eum.meta.json` → `adapter-eum.pdf`.
+// resolveOutputPath chooses where the PDF lands: opts.OutputPath
+// (absolute as-is, relative against ExportDir/storage) > ExportDir >
+// template storage dir, with the datafile basename.
 func (m *Manager) resolveOutputPath(templateFilename, datafile string, opts ExportOpts, exportDir string) string {
 	if opts.OutputPath != "" {
 		if filepath.IsAbs(opts.OutputPath) {
@@ -433,10 +374,9 @@ func (m *Manager) resolveOutputPath(templateFilename, datafile string, opts Expo
 	return filepath.Clean(filepath.Join(dir, pdfBasename(datafile)))
 }
 
-// pdfBasename derives the bare PDF filename from a form datafile.
-// Strips the `.meta.json` envelope and any residual extension, so a
-// form named `adapter-eum.meta.json` exports as `adapter-eum.pdf`.
-// Falls back to `export.pdf` when the input is empty or extension-only.
+// pdfBasename derives the PDF filename, stripping `.meta.json` and any
+// residual extension (`adapter-eum.meta.json` -> `adapter-eum.pdf`).
+// Falls back to `export.pdf`.
 func pdfBasename(datafile string) string {
 	name := strings.TrimSuffix(datafile, ".meta.json")
 	if ext := filepath.Ext(name); ext != "" {

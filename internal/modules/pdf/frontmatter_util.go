@@ -12,18 +12,12 @@ import (
 )
 
 // ErrFrontmatterAlreadyPresent is returned by InjectFrontmatter when
-// the markdown body already starts with a `---` block. The user
-// should run MigrateFrontmatter instead.
+// the markdown already starts with a `---` block (use MigrateFrontmatter).
 var ErrFrontmatterAlreadyPresent = errors.New("pdf: markdown already has a frontmatter block")
 
-// canonicalScaffold is the full-scaffold picoloom frontmatter the
-// Inject utility prepends to a template's markdown_template. It
-// surfaces every major block (cover + page uncommented; toc / footer
-// / signature / watermark / pageBreaks commented out as starting
-// points) so the user can fill in what they need without having to
-// look up the spec. Stay in sync with internal/modules/pdf/input.go
-// Frontmatter struct - the field names below must match its yaml
-// tags.
+// canonicalScaffold is the full picoloom frontmatter the Inject
+// utility prepends. Field names must stay in sync with the
+// Frontmatter struct's yaml tags in input.go.
 const canonicalScaffold = `---
 # PDF export frontmatter (picoloom v2 shape). Inserted by
 # Formidable's "Inject PDF Frontmatter" utility. See
@@ -107,10 +101,8 @@ cover:
 ---
 `
 
-// InjectFrontmatter prepends the canonical picoloom scaffold to a
-// markdown body that has no existing frontmatter. Refuses with
-// ErrFrontmatterAlreadyPresent when a `---` block is already at the
-// top - that case is for MigrateFrontmatter.
+// InjectFrontmatter prepends the canonical scaffold to a markdown body
+// that has no frontmatter, else returns ErrFrontmatterAlreadyPresent.
 func InjectFrontmatter(markdown string) (string, error) {
 	if fmOpenRe.FindStringIndex(markdown) != nil {
 		return "", ErrFrontmatterAlreadyPresent
@@ -121,29 +113,25 @@ func InjectFrontmatter(markdown string) (string, error) {
 	return canonicalScaffold + markdown, nil
 }
 
-// FrontmatterMigration is the rich result of MigrateFrontmatter: the
-// rewritten markdown plus structured metadata about what changed.
-// The frontend uses this to render a preview / confirm modal before
-// applying the new content to the template editor.
+// FrontmatterMigration is the result of MigrateFrontmatter: rewritten
+// markdown plus structured metadata about what changed.
 type FrontmatterMigration struct {
-	Markdown  string               `json:"markdown"`
-	Mappings  []FrontmatterMapping `json:"mappings"`
-	Preserved []string             `json:"preserved"`
-	Warnings  []string             `json:"warnings"`
-	HadFrontmatter bool            `json:"had_frontmatter"`
+	Markdown       string               `json:"markdown"`
+	Mappings       []FrontmatterMapping `json:"mappings"`
+	Preserved      []string             `json:"preserved"`
+	Warnings       []string             `json:"warnings"`
+	HadFrontmatter bool                 `json:"had_frontmatter"`
 }
 
-// FrontmatterMapping records one key rename or value transform that
-// happened during migration. From is the original eisvogel key; To
-// is the picoloom destination ("cover.title", "page.size", etc.).
+// FrontmatterMapping records one key rename during migration: From is
+// the eisvogel key, To the picoloom destination.
 type FrontmatterMapping struct {
 	From string `json:"from"`
 	To   string `json:"to"`
 }
 
-// eisvogelCoverMap maps eisvogel-style top-level keys to picoloom
-// cover.* field names. Values flow through verbatim - only the key
-// path changes.
+// eisvogelCoverMap maps eisvogel top-level keys to picoloom cover.*
+// names; values flow through verbatim.
 var eisvogelCoverMap = map[string]string{
 	"title":        "title",
 	"subtitle":     "subtitle",
@@ -161,9 +149,8 @@ var eisvogelCoverMap = map[string]string{
 	"authortitle":  "authorTitle",
 }
 
-// eisvogelPaperSizeMap rewrites pandoc/eisvogel `papersize:` values
-// into picoloom-acceptable `page.size:` values. Unknown values pass
-// through verbatim with a warning attached.
+// eisvogelPaperSizeMap rewrites `papersize:` into picoloom `page.size:`;
+// unknown values are preserved with a warning.
 var eisvogelPaperSizeMap = map[string]string{
 	"a4paper":     "a4",
 	"letterpaper": "letter",
@@ -173,10 +160,8 @@ var eisvogelPaperSizeMap = map[string]string{
 	"legal":       "legal",
 }
 
-// picoloomTopLevelKeys is the set of top-level keys MigrateFrontmatter
-// passes through verbatim (already picoloom-shaped). Anything not in
-// this set AND not in the eisvogel mapping tables ends up in the
-// legacy block.
+// picoloomTopLevelKeys are passed through verbatim; anything else not
+// in the eisvogel maps lands in the legacy block.
 var picoloomTopLevelKeys = map[string]bool{
 	"style":      true,
 	"page":       true,
@@ -188,21 +173,12 @@ var picoloomTopLevelKeys = map[string]bool{
 	"pageBreaks": true,
 }
 
-// MigrateFrontmatter scans an eisvogel/pandoc-style frontmatter block
-// and rewrites it into picoloom v2 shape. Unrecognized top-level keys
-// are preserved verbatim under a `legacy:` block at the bottom so no
-// data is lost - the user can review and prune them manually.
-//
-// Behavior:
-//   - No leading `---` block → returns markdown verbatim, HadFrontmatter=false,
-//     no error. (The caller can show "nothing to migrate" instead of
-//     creating noise.)
-//   - Malformed YAML → returns ErrFrontmatterMalformed.
-//   - Already picoloom-shaped keys (cover/page/toc/...) pass through
-//     untouched; mapping only applies to the eisvogel-flat keys.
-//   - When BOTH an eisvogel key and its picoloom destination exist,
-//     the picoloom one wins (the eisvogel one is preserved as legacy
-//     with a warning).
+// MigrateFrontmatter rewrites an eisvogel/pandoc frontmatter block into
+// picoloom v2 shape. Unrecognized keys are preserved under a `legacy:`
+// block so no data is lost. No `---` block returns the input verbatim
+// with HadFrontmatter=false; malformed YAML returns ErrFrontmatterMalformed.
+// When an eisvogel key and its picoloom destination both exist, the
+// picoloom one wins and the eisvogel one is preserved as legacy.
 func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 	openLoc := fmOpenRe.FindStringIndex(markdown)
 	if openLoc == nil {
@@ -217,17 +193,10 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 	body := rest[closeLoc[1]:]
 	body = trimOneLeadingNewline(body)
 
-	// Template source can carry two patterns that confuse yaml.v3:
-	//
-	//  1. Handlebars expressions (`{{field "x"}}`) - `{` is a flow-
-	//     mapping marker, breaks parse.
-	//  2. Values starting with `#` after `: ` - yaml treats them as
-	//     comments and silently drops the value (the user's
-	//     `titlepage-color: #F8F8F8` would migrate to nothing).
-	//
-	// Mask Handlebars first, then quote `#`-leading values so yaml.v3
-	// keeps the value intact. Both transforms are reversed before the
-	// final output is returned.
+	// Two patterns confuse yaml.v3: Handlebars `{{...}}` (`{` is a flow-
+	// mapping marker) and `#`-leading values (treated as comments, value
+	// silently dropped). Mask then quote; both transforms are reversed
+	// before output.
 	masked, hbsTokens := maskHandlebars(rawYAML)
 	masked = quoteHashLeadingValues(masked)
 
@@ -238,9 +207,7 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 		}
 	}
 	// yaml.v3 auto-parses ISO-8601 scalars into time.Time, which would
-	// emit as "2026-05-15T00:00:00Z" on the way back out and mangle the
-	// user's date string. Walk the tree and convert time.Time values
-	// back to "YYYY-MM-DD" (or RFC3339 when the time-of-day matters).
+	// re-emit as "2026-05-15T00:00:00Z" and mangle the user's date.
 	src = sanitizeYAMLValues(src).(map[string]any)
 
 	out := FrontmatterMigration{HadFrontmatter: true}
@@ -249,8 +216,8 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 	coverDst := map[string]any{}
 	pageDst := map[string]any{}
 
-	// Pass 1 - pass-through picoloom-shaped blocks. Merge into the
-	// staging maps so later eisvogel keys see the real picoloom state.
+	// Pass 1: stage picoloom-shaped blocks so Pass 2's eisvogel keys see
+	// the real picoloom state for conflict resolution.
 	keys := sortedKeys(src)
 	for _, k := range keys {
 		if !picoloomTopLevelKeys[k] {
@@ -275,8 +242,8 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 		dst[k] = src[k]
 	}
 
-	// Pass 2 - map eisvogel keys, deferring to the picoloom state set
-	// up in Pass 1 when a conflict arises.
+	// Pass 2: map eisvogel keys, deferring to Pass 1's picoloom state on
+	// conflict.
 	for _, k := range keys {
 		if picoloomTopLevelKeys[k] {
 			continue
@@ -344,7 +311,6 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 		dst["page"] = pageDst
 	}
 
-	// Sorted legacy keys for stable output.
 	preservedKeys := sortedKeys(legacy)
 	out.Preserved = preservedKeys
 
@@ -352,26 +318,18 @@ func MigrateFrontmatter(markdown string) (FrontmatterMigration, error) {
 	if err != nil {
 		return FrontmatterMigration{}, fmt.Errorf("pdf: emit migrated frontmatter: %w", err)
 	}
-	// Restore Handlebars tokens in the emitted YAML and in the body
-	// (yaml.Marshal escaped nothing because the sentinels are plain
-	// alphanumeric; replaceAll is safe).
 	emitted = unmaskHandlebars(emitted, hbsTokens)
 	out.Markdown = "---\n" + emitted + "---\n" + body
 	return out, nil
 }
 
-// quoteHashLeadingRe matches an unquoted key:value line where the
-// value starts with `#`. The capture groups split the line so the
-// rewrite can wrap the value in single quotes while preserving any
-// leading indentation. Anchored to ^...$ in multiline mode so
-// `# comment` lines on their own (no preceding key) are unaffected.
+// quoteHashLeadingRe matches an unquoted key:value line whose value
+// starts with `#`. Anchored multiline so standalone `# comment` lines
+// are unaffected.
 var quoteHashLeadingRe = regexp.MustCompile(`(?m)^(\s*[^\s:#][^:\n]*:\s)(#[^\n]*)$`)
 
-// quoteHashLeadingValues protects values like `titlepage-color: #F8F8F8`
-// from being silently dropped by yaml.v3 (which treats `#` after
-// whitespace as a comment marker). Single-quotes the value, escaping
-// any internal `'` by doubling. Values that already start with a
-// quote pass through untouched.
+// quoteHashLeadingValues single-quotes `#`-leading values so yaml.v3
+// doesn't drop them as comments.
 func quoteHashLeadingValues(src string) string {
 	return quoteHashLeadingRe.ReplaceAllStringFunc(src, func(line string) string {
 		m := quoteHashLeadingRe.FindStringSubmatch(line)
@@ -379,22 +337,18 @@ func quoteHashLeadingValues(src string) string {
 			return line
 		}
 		val := strings.TrimRight(m[2], " \t")
-		// Escape single quotes via YAML's '' convention.
 		escaped := strings.ReplaceAll(val, "'", "''")
 		return m[1] + "'" + escaped + "'"
 	})
 }
 
-// hbsRe matches a single Handlebars expression. Non-greedy so
-// adjacent expressions like `{{a}}{{b}}` produce two matches instead
-// of one wide one. Raymond/Handlebars don't nest delimiters, so this
-// is sufficient.
+// hbsRe matches one Handlebars expression. Non-greedy so `{{a}}{{b}}`
+// produces two matches; Handlebars doesn't nest delimiters.
 var hbsRe = regexp.MustCompile(`\{\{[\s\S]*?\}\}`)
 
-// maskHandlebars replaces every `{{...}}` in src with a unique
-// sentinel and returns the masked string + a token map. The sentinels
-// are plain ASCII identifiers that survive yaml.Marshal/Unmarshal
-// without quoting, so the round trip is lossless.
+// maskHandlebars replaces every `{{...}}` with a unique ASCII sentinel
+// that survives yaml.Marshal/Unmarshal unquoted, so the round trip is
+// lossless. Returns the masked string and a token map.
 func maskHandlebars(src string) (string, map[string]string) {
 	tokens := map[string]string{}
 	i := 0
@@ -407,17 +361,14 @@ func maskHandlebars(src string) (string, map[string]string) {
 	return out, tokens
 }
 
-// unmaskHandlebars restores the original `{{...}}` expressions by
-// replacing each sentinel with its captured source. Idempotent -
-// applying twice has no effect (sentinels are gone after the first
-// pass).
+// unmaskHandlebars restores `{{...}}` from sentinels. Replaces longest
+// keys first so a sentinel never clobbers a prefix substring (e.g.
+// __HBS_1__ inside __HBS_10__).
 func unmaskHandlebars(src string, tokens map[string]string) string {
 	if len(tokens) == 0 {
 		return src
 	}
 	out := src
-	// Sort by length descending so we never replace a prefix substring
-	// (e.g. __HBS_1__ before __HBS_10__).
 	keys := make([]string, 0, len(tokens))
 	for k := range tokens {
 		keys = append(keys, k)
@@ -429,11 +380,9 @@ func unmaskHandlebars(src string, tokens map[string]string) string {
 	return out
 }
 
-// emitMigratedFrontmatter renders the picoloom-shaped destination map
-// plus the legacy block as a YAML body (without the surrounding `---`
-// fences - caller wraps them). Order: picoloom blocks in canonical
-// order first, then the legacy block (so legacy stays visibly at the
-// bottom as "stuff to review").
+// emitMigratedFrontmatter renders dst then the legacy block as an
+// unfenced YAML body, canonical block order first so legacy stays at
+// the bottom as "stuff to review".
 func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preservedKeys []string) (string, error) {
 	var b strings.Builder
 	canonicalOrder := []string{"style", "keywords", "page", "cover", "toc", "footer", "signature", "watermark", "pageBreaks"}
@@ -455,8 +404,7 @@ func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preserve
 		}
 		b.WriteString(chunk)
 	}
-	// Any picoloom-shaped keys we don't recognize (forward-compat -
-	// shouldn't happen today but cheap to handle).
+	// Unrecognized picoloom-shaped keys (forward-compat).
 	for k := range dst {
 		if !contains(canonicalOrder, k) {
 			chunk, err := marshalBlock(k, dst[k])
@@ -487,28 +435,19 @@ func emitMigratedFrontmatter(dst map[string]any, legacy map[string]any, preserve
 	return b.String(), nil
 }
 
-// yamlRawLinePrefix flags a keyword item that should bypass the
-// `- ITEM` block-sequence wrapping and be emitted as a raw line in
-// the output (used by the tags→yamlList rewrite path so the helper
-// invocation lands at column 0 and its multi-line expansion plugs
-// directly into the block sequence).
+// yamlRawLinePrefix flags a keyword item that bypasses `- ITEM`
+// block-sequence wrapping so a `{{yamlList ...}}` lands at column 0 and
+// its multi-line expansion plugs into the block sequence.
 const yamlRawLinePrefix = "__YAML_RAW_LINE__"
 
 // tagsHelperRe matches a standalone `{{tags <ARG> [withHash=<bool>]}}`
-// invocation that wholly fills a keyword element. The argument is
-// captured verbatim - could be a bare identifier, a string literal, a
-// subexpression like `(fieldRaw "x")`, whatever raymond accepts.
-// Anchored so partial matches inside other text don't trigger.
+// filling a whole keyword element; ARG is captured verbatim.
 var tagsHelperRe = regexp.MustCompile(`^\s*\{\{\s*tags\s+(.+?)(?:\s+withHash\s*=\s*\w+)?\s*\}\}\s*$`)
 
-// rewriteTagsHelperToYamlList walks keyword items and rewrites any
-// element that is a sentinel mapping to a wholly-tags-helper source
-// into a raw-line `{{yamlList <ARG>}}` directive. The handlebars
-// expression for a keyword position emits a comma-blob at render
-// time; yamlList emits real list items.
-//
-// Non-sentinel items, sentinels backed by other helpers (e.g.
-// `{{field "x"}}`), and partial matches all pass through untouched.
+// rewriteTagsHelperToYamlList rewrites a wholly-{{tags}} keyword element
+// into a raw-line `{{yamlList <ARG>}}`: tags emits a comma-blob at a
+// keyword position whereas yamlList emits real list items. Other items
+// pass through untouched.
 func rewriteTagsHelperToYamlList(items []any, hbsTokens map[string]string) []any {
 	if len(items) == 0 || len(hbsTokens) == 0 {
 		return items
@@ -534,14 +473,11 @@ func rewriteTagsHelperToYamlList(items []any, hbsTokens map[string]string) []any
 	return out
 }
 
-// marshalKeywordsBlock emits the top-level `keywords:` sequence by
-// hand. yaml.Marshal would emit each element unquoted (the values are
-// either plain words or `__HBS_N__` sentinels - all alphanumeric to
-// the YAML lexer), which means the global unmask pass at the end of
-// MigrateFrontmatter would drop bare `{{…}}` Handlebars expressions
-// into unquoted scalar position - invalid YAML. Quoting sentinel-
-// containing elements ourselves keeps the post-unmask text valid:
-// `'{{…}}'` is a single-quoted scalar.
+// marshalKeywordsBlock emits the `keywords:` sequence by hand because
+// yaml.Marshal would leave sentinel elements unquoted, and the later
+// unmask pass would then drop bare `{{...}}` into unquoted scalar
+// position (invalid YAML). Quoting sentinel elements keeps post-unmask
+// text valid.
 func marshalKeywordsBlock(items []any) string {
 	var b strings.Builder
 	b.WriteString("keywords:\n")
@@ -586,9 +522,6 @@ func needsYAMLQuoting(s string) bool {
 	return false
 }
 
-// marshalBlock emits one top-level YAML block with the form
-// `key: <value>\n` (scalars) or `key:\n  …\n` (maps), without
-// double-indentation.
 func marshalBlock(key string, value any) (string, error) {
 	raw, err := yaml.Marshal(map[string]any{key: value})
 	if err != nil {
@@ -597,11 +530,9 @@ func marshalBlock(key string, value any) (string, error) {
 	return string(raw), nil
 }
 
-// sanitizeYAMLValues walks an unmarshalled YAML tree and converts
-// time.Time scalars back to strings so the round-trip emit doesn't
-// mangle the user's date strings. yaml.v3 auto-parses ISO-8601-ish
-// scalars (e.g. "2026-05-15") into time.Time; without this pass,
-// `date: 2026-05-15` would re-emit as "2026-05-15T00:00:00Z".
+// sanitizeYAMLValues converts time.Time scalars back to date strings so
+// the round-trip emit doesn't turn `date: 2026-05-15` into a full
+// RFC3339 timestamp.
 func sanitizeYAMLValues(v any) any {
 	switch x := v.(type) {
 	case time.Time:
@@ -623,23 +554,12 @@ func sanitizeYAMLValues(v any) any {
 	return v
 }
 
-// parseEisvogelKeywords normalises whatever shape `keywords:` came in
-// as into a YAML sequence (`[]any` of strings) for the migrated
-// frontmatter. Two real-world shapes are recognised:
-//
-//   - YAML sequence: `keywords: [a, b, c]` or block form. yaml.v3
-//     parses these into `[]any`; pass through verbatim.
-//   - Eisvogel/PandocPrint bracket-string DSL:
-//     `keywords: '[Aanpak, Management, {{tags …}}]'`. Strip the outer
-//     brackets, split on commas, trim each element. Handlebars
-//     expressions have already been masked to sentinels by the time we
-//     see the value, so commas inside `{{…}}` are not present and the
-//     split is safe.
-//
-// Returns (nil, false) for any other shape (numeric, plain string
-// without brackets, map, ...) so the caller can preserve the original
-// under legacy with a warning. Empty result → also (nil, false): an
-// empty keywords list is meaningless.
+// parseEisvogelKeywords normalises `keywords:` into a []any of strings.
+// Recognises a YAML sequence and the eisvogel bracket-string DSL
+// (`'[a, b, {{tags ...}}]'`); the comma-split is safe because
+// Handlebars are already masked to comma-free sentinels by this point.
+// Any other shape returns (nil, false) so the caller preserves it under
+// legacy.
 func parseEisvogelKeywords(v any) ([]any, bool) {
 	switch x := v.(type) {
 	case []any:
@@ -685,8 +605,6 @@ func parseEisvogelKeywords(v any) ([]any, bool) {
 	return nil, false
 }
 
-// isEmpty reports whether v represents a "no opinion" YAML value
-// (nil, empty string, empty map / slice).
 func isEmpty(v any) bool {
 	if v == nil {
 		return true

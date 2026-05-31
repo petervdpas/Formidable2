@@ -5,10 +5,7 @@ import (
 	"strings"
 )
 
-// KindForField maps a Field.Type string to its RuleKind. Returns
-// ("", false) for any field type that does NOT participate in
-// predicates (text, list, path, guid…) - callers gate the State /
-// Date pickers on ok=false rather than guess a kind.
+// KindForField maps a field type to its RuleKind; ("", false) for types that accept no predicates.
 func KindForField(fieldType string) (RuleKind, bool) {
 	switch strings.ToLower(strings.TrimSpace(fieldType)) {
 	case "boolean":
@@ -52,9 +49,7 @@ func DefaultPredicateForField(fieldType, fieldKey string) (Predicate, error) {
 	return p, nil
 }
 
-// DefaultRule is an empty Rule - no predicates (so it always matches
-// if reached) and an empty outcome. Frontend assigns the ID after
-// the call.
+// DefaultRule is an empty Rule (no predicates, empty outcome); the frontend assigns the ID.
 func DefaultRule() Rule {
 	return Rule{
 		Predicates: []Predicate{},
@@ -62,9 +57,7 @@ func DefaultRule() Rule {
 	}
 }
 
-// DefaultConfig is the empty config seeded when the dialog opens. No
-// rules, no default-styling - Compile returns "" until the user adds
-// something.
+// DefaultConfig is the empty config the dialog opens with; Compile returns "" until something is added.
 func DefaultConfig() Config {
 	return Config{
 		Rules:   []Rule{},

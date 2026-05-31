@@ -1,85 +1,51 @@
-// Package journal is Formidable's append-only change journal. It
-// records mutations under a context folder's templates/ and storage/
-// trees plus per-backend (git, gigot) sync markers, and tracks the
-// "pending changes" set in memory so reads are O(1).
-//
-// Lifts beyond the JS source:
-//   - In-memory rolling pending state per backend (no full-log scan
-//     on every Pending() call).
-//   - Wails events: every recorded mutation emits "journal:changed"
-//     so frontend pollers can subscribe instead of polling.
-//   - Strongly typed Entry struct (vs. duck-typed JSON in JS).
-//
-// Wails-only: the journal is too internal for the loopback HTTP API.
+// Package journal is Formidable's append-only change journal. It records mutations under a context
+// folder's templates/ and storage/ trees plus per-backend sync markers, and tracks the pending-changes
+// set in memory so reads are O(1). Every recorded mutation emits "journal:changed".
 package journal
 
 const (
-	// Op codes mirror the JS schema/changes.schema.js.
 	OpCreate   = "create"
 	OpUpdate   = "update"
 	OpDelete   = "delete"
 	OpBaseline = "baseline"
 	OpSync     = "sync"
 
-	// Known sync backends.
 	BackendGit   = "git"
 	BackendGigot = "gigot"
 	BackendNone  = "none"
 
-	// Filenames inside the context folder.
 	logFileName    = ".changes.log"
 	cursorFileName = ".changes.cursor"
 
-	// stashDirName is the transient working directory PullWithStash
-	// creates when it auto-stashes pending file contents. Owned by the
-	// git module's PullWithStash flow but managed alongside the other
-	// .changes.* artifacts here so journal.Configure can sweep stale
-	// copies left over from a crashed pull or a pre-fix codebase.
+	// stashDirName is PullWithStash's transient dir; swept here so all .changes.* concerns live in one module.
 	stashDirName = ".changes.stash"
 
-	// Tracked top-level dirs under the context folder.
 	templatesDir = "templates"
 	storageDir   = "storage"
 
-	// findGitMaxDepth caps the upward walk when ensureGitignorePatterns
-	// looks for an enclosing .git so a runaway / on detached mounts
-	// can't walk to the filesystem root forever.
+	// findGitMaxDepth caps the upward .git walk so detached mounts can't walk to the FS root forever.
 	findGitMaxDepth = 10
 )
 
-// gitignorePatterns are appended to the relevant .gitignore on
-// Configure(...) so the journal files (.changes.log + .changes.cursor)
-// never get committed when the user points context at a synced repo.
-//
-// Narrow on purpose: these match exactly the journal's own files in
-// the context root and any subdirectory, but won't silently swallow
-// arbitrary user *.log files (which the JS predecessor did with its
-// `*.log` rule).
+// gitignorePatterns exclude the journal's own .changes.* files; narrow on purpose so arbitrary user *.log files survive.
 var gitignorePatterns = []string{
 	".changes.*",
 	"**/.changes.*",
 }
 
-// knownBackends - used to validate sync entries from disk. The
-// orderedSyncBackends slice below is the same set in the order the
-// frontend should display it; both are derived from this map at init.
+// knownBackends validates sync entries from disk.
 var knownBackends = map[string]bool{
 	BackendGit:   true,
 	BackendGigot: true,
 }
 
-// orderedSyncBackends is the canonical display order for collaboration
-// backends - exposed via Service.ListBackends so the frontend never
-// keeps a parallel hardcoded list. Adding a new backend means adding
-// it here AND in knownBackends; same one-source-of-truth shape as
-// pdf.builtinThemes.
+// orderedSyncBackends is the canonical display order, exposed via Service.ListBackends; keep in sync with knownBackends.
 var orderedSyncBackends = []string{
 	BackendGit,
 	BackendGigot,
 }
 
-// Entry is one journal record. Sync entries fill Backend/Version/...;
-// file-op entries fill Path/Bytes. Encoded as JSONL on disk.
+// Entry is one journal record (sync entries fill Backend/Version/...; file-op entries fill Path/Bytes). JSONL on disk.
 type Entry struct {
 	Ts      string `json:"ts"`
 	Op      string `json:"op"`
@@ -91,9 +57,7 @@ type Entry struct {
 	Pulled  int    `json:"pulled,omitempty"`
 }
 
-// Cursor is the per-backend sync watermark.
-// Ts marks "everything older has reached this backend"; Version is the
-// remote-side identifier (git commit hash, gigot version) at that ts.
+// Cursor is the per-backend sync watermark: Ts marks "everything older has synced"; Version is the remote id at that ts.
 type Cursor struct {
 	Ts      string `json:"ts"`
 	Version string `json:"version"`
@@ -108,9 +72,7 @@ type PendingChange struct {
 	Op   string `json:"op"`
 }
 
-// PendingResult is the shape returned by Pending() and exposed to the
-// frontend. Count is always equal to len(Paths) - kept as a convenience
-// so JS callers don't need to call paths.length.
+// PendingResult is the shape Pending() returns; Count always equals len(Paths).
 type PendingResult struct {
 	Count int             `json:"count"`
 	Paths []PendingChange `json:"paths"`
@@ -129,8 +91,7 @@ type Recorder interface {
 	RecordRemoteSeen(backend, version string)
 }
 
-// Reader is the journal's read-only state surface: which paths Formidable
-// mutated since the last sync.
+// Reader is the journal's read-only state surface.
 type Reader interface {
 	Pending(backend string) PendingResult
 }
@@ -146,7 +107,6 @@ type EventEmitter interface {
 	Emit(name string, data any)
 }
 
-// Wails event names emitted by the journal.
 const (
 	EventChanged = "journal:changed"
 )

@@ -1,27 +1,19 @@
 package builder
 
-// Operator describes one selectable operator in the State-tab picker.
-// LabelKey is an i18n key, not a translated string - keeps the
-// frontend in charge of localisation while the backend remains the
-// authoritative source for which operators exist per kind.
+// Operator is one State-picker operator; LabelKey is an i18n key, not a translated string.
 type Operator struct {
 	Op       string `json:"op"`
 	LabelKey string `json:"labelKey"`
 }
 
-// DateOpDescriptor is one helper in the Date-tab picker. HasArg tells
-// the frontend whether to render the days-window number input next to
-// the helper name (true for *N and ageGt/ageLt; false for the rest).
+// DateOpDescriptor is one Date-picker helper; HasArg gates the days-window input.
 type DateOpDescriptor struct {
 	Op       DateOp `json:"op"`
 	LabelKey string `json:"labelKey"`
 	HasArg   bool   `json:"hasArg"`
 }
 
-// OperatorsForKind returns the operator vocabulary for the State-tab
-// picker. Boolean has no picker (the value IS the predicate, expressed
-// as two rules) and Date is rendered from DateOps() instead - both
-// return empty here so the frontend can branch on length.
+// OperatorsForKind returns the State-picker operators; empty for boolean (the value is the predicate) and date.
 func OperatorsForKind(kind RuleKind) []Operator {
 	switch kind {
 	case KindEnum:
@@ -42,9 +34,7 @@ func OperatorsForKind(kind RuleKind) []Operator {
 	return []Operator{}
 }
 
-// DateOps returns the date-helper vocabulary for the Date-tab picker.
-// Order is the rendering order - ranged helpers (*N variants) follow
-// their boolean counterparts so the picker stays predictable.
+// DateOps returns the Date-picker helper vocabulary in render order.
 func DateOps() []DateOpDescriptor {
 	return []DateOpDescriptor{
 		{Op: DateOpIsOverdue, LabelKey: "expression_builder.date.is_overdue", HasArg: false},

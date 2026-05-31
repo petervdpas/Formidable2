@@ -2,27 +2,15 @@ package template
 
 import "strings"
 
-// FieldUnit is the runtime tree shape the template editor renders.
-// It folds a matched loopstart/loopstop pair (and everything between
-// them) into a single indivisible unit so the UI cannot reorder a row
-// across the loop boundary and create an orphan marker.
-//
-// The flat []Field shape on disk is still the source of truth; this
-// type is a view over it. BuildFieldTree produces the view,
-// FlattenFieldTree returns to the flat form. Orphan loopstart /
-// loopstop rows (no matching partner) are emitted as plain field
-// units so backend validation can still flag them - silently
-// dropping data would be worse than rendering a broken pair.
-//
-// The struct is one shape with a Kind discriminator + nullable
-// payload fields so the Wails-generated TypeScript stays simple.
+// FieldUnit is the editor tree view over the flat []Field source of truth: it folds a matched
+// loopstart/loopstop pair into one indivisible unit so a row can't be reordered across the loop boundary.
+// Orphan markers are emitted as plain field units so validation can still flag them. Kind discriminates.
 type FieldUnit struct {
-	Kind  string      `json:"kind"`
-	Field *Field      `json:"field,omitempty"`
-	Start *Field      `json:"start,omitempty"`
-	Stop  *Field      `json:"stop,omitempty"`
-	// No omitempty: an empty loop must round-trip as `"items": []` so the
-	// frontend's drag-into-loop binding mutates a persistent array.
+	Kind  string `json:"kind"`
+	Field *Field `json:"field,omitempty"`
+	Start *Field `json:"start,omitempty"`
+	Stop  *Field `json:"stop,omitempty"`
+	// No omitempty: an empty loop must round-trip as "items": [] so the drag-into-loop binding mutates a persistent array.
 	Items []FieldUnit `json:"items"`
 }
 
@@ -35,10 +23,8 @@ func loopType(f Field) string {
 	return strings.ToLower(f.Type)
 }
 
-// BuildFieldTree walks the flat fields once and pairs each loopstart
-// with the nearest matching (by key) loopstop. Mirrors the pairing
-// stack in validate.go's loopPairingErrors so the tree shape and the
-// validator agree on what counts as a well-formed pair.
+// BuildFieldTree pairs each loopstart with the nearest matching loopstop, mirroring loopPairingErrors
+// so the tree shape and the validator agree on what's a well-formed pair.
 func BuildFieldTree(fields []Field) []FieldUnit {
 	state := &treeBuilder{src: fields}
 	return state.consumeUntil("", false)
@@ -49,10 +35,7 @@ type treeBuilder struct {
 	pos int
 }
 
-// consumeUntil collects units until it sees a loopstop whose key
-// matches the open `stopKey` (when inLoop is true), or until EOF.
-// Returns the items collected at this depth; the caller checks
-// builder.pos to know whether a matching stop was found.
+// consumeUntil collects units until a matching loopstop (when inLoop) or EOF; caller checks b.pos for the stop.
 func (b *treeBuilder) consumeUntil(stopKey string, inLoop bool) []FieldUnit {
 	out := []FieldUnit{}
 	for b.pos < len(b.src) {
@@ -76,20 +59,17 @@ func (b *treeBuilder) consumeUntil(stopKey string, inLoop bool) []FieldUnit {
 					Items: inner,
 				})
 			} else {
-				// No matching stop within this scope - back up and
-				// emit the start as a plain row, then re-walk what we
-				// consumed at the same level.
+				// No matching stop in scope: back up and emit the start as a plain row, then re-walk.
 				b.pos = savedPos
 				start := start
 				out = append(out, FieldUnit{Kind: UnitKindField, Field: &start})
 			}
 		case "loopstop":
 			if inLoop && f.Key == stopKey {
-				// Don't advance - the caller handles consuming the
-				// matched stop and producing the loop unit.
+				// Don't advance: the caller consumes the matched stop and produces the loop unit.
 				return out
 			}
-			// Orphan stop - emit as plain row.
+			// Orphan stop: emit as plain row.
 			ff := f
 			out = append(out, FieldUnit{Kind: UnitKindField, Field: &ff})
 			b.pos++
@@ -109,12 +89,8 @@ type SummaryFieldOption struct {
 	Label string `json:"label"`
 }
 
-// SummaryFieldCandidates returns the direct child fields of the loop
-// whose loopstart carries loopKey, as summary_field options. These are
-// the level-1 inputs the collapsed-item summary can bind to; loop
-// markers and deeper-nested fields are excluded (a nested loop's fields
-// live in their own per-iteration record, not the parent's). Returns an
-// empty slice when loopKey names no loop.
+// SummaryFieldCandidates returns the loop's direct child fields as summary_field options; loop markers
+// and deeper-nested fields are excluded (nested-loop fields live in their own per-iteration record).
 func SummaryFieldCandidates(fields []Field, loopKey string) []SummaryFieldOption {
 	tree := BuildFieldTree(fields)
 	var find func(us []FieldUnit) []FieldUnit
@@ -146,10 +122,7 @@ func SummaryFieldCandidates(fields []Field, loopKey string) []SummaryFieldOption
 	return out
 }
 
-// FlattenFieldTree is the inverse of BuildFieldTree. By construction
-// it guarantees that every loop's start sits immediately before its
-// items and its stop immediately after - the bracket invariant that
-// makes drag-into-loop corruption impossible at this layer.
+// FlattenFieldTree is the inverse of BuildFieldTree, guaranteeing each loop's start/stop bracket its items.
 func FlattenFieldTree(units []FieldUnit) []Field {
 	out := []Field{}
 	var walk func(us []FieldUnit)

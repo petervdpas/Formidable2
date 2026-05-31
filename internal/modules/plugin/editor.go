@@ -1,9 +1,4 @@
-// Package plugin's editor surface - Create / Save / Delete / GetSource.
-// These are the CRUD primitives the Plugins workspace calls when the
-// user scaffolds a new plugin, edits its manifest + main.lua, or
-// removes it. All writes go through editorFS so production gets
-// atomic+fsync'd writes (via *system.Manager) while tests can swap in
-// a tiny in-memory shim.
+// Editor surface (Create/Save/Delete/GetSource). All writes go through editorFS so production gets atomic+fsync'd writes via *system.Manager.
 package plugin
 
 import (
@@ -21,16 +16,11 @@ type editorFS interface {
 	SaveFile(path, content string) error
 	DeleteFile(path string) error
 	DeleteFolder(path string) error
-	// ListDir returns the names of the entries (files + subfolders)
-	// at path. A missing directory must return (nil, nil) - the
-	// archive exporter relies on that to skip plugins with no files
-	// rather than erroring at the boundary.
+	// ListDir lists entries at path; a missing directory must return (nil, nil) so the archive exporter skips empty plugins instead of erroring.
 	ListDir(path string) ([]string, error)
 }
 
-// SerializeManifest is the canonical writer for plugin.json: 2-space
-// indent, trailing newline, JSON-escaped. Used by Create + Save so
-// the on-disk shape is consistent regardless of write origin.
+// SerializeManifest is the canonical plugin.json writer: 2-space indent, trailing newline.
 func SerializeManifest(m Manifest) ([]byte, error) {
 	raw, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
@@ -39,8 +29,7 @@ func SerializeManifest(m Manifest) ([]byte, error) {
 	return append(raw, '\n'), nil
 }
 
-// DefaultManifest builds a minimal valid manifest for a fresh plugin
-// scaffold. id must already be validID-clean.
+// DefaultManifest builds a minimal valid manifest; id must already be validID-clean.
 func DefaultManifest(id string) Manifest {
 	return Manifest{
 		ManifestVersion: ManifestSchemaVersion,
@@ -51,8 +40,7 @@ func DefaultManifest(id string) Manifest {
 	}
 }
 
-// defaultMainLua is the hello-world stub written next to a fresh
-// manifest. Single command "run" matches DefaultManifest.
+// defaultMainLua is the hello-world stub; its single "run" command matches DefaultManifest.
 const defaultMainLua = `-- ` + "`run`" + ` is invoked when the user clicks Plugin → Run → Run.
 -- Return any JSON-shaped value (number, string, table, nil).
 function run(ctx)
@@ -61,24 +49,11 @@ function run(ctx)
 end
 `
 
-// defaultFormJSON is the empty form definition written alongside a
-// fresh plugin. The visual form builder reads/writes this file; an
-// empty JSON array means "no entries yet". Entries are heterogeneous
-// - each is either a template Field (input) or a formwidget.Widget
-// (live display slot); they share the same ordered list so the
-// author can place widgets anywhere relative to fields without a
-// second file.
+// defaultFormJSON is the empty form definition. Entries are heterogeneous (template Field or formwidget.Widget) in one ordered list, so widgets can sit anywhere among fields.
 const defaultFormJSON = "[]\n"
 
-// Create scaffolds a new plugin folder at <PluginsDir>/<id> with a
-// default manifest and a hello-world main.lua. Refreshes the
-// registry on success so the Plugins workspace sees the new entry
-// immediately.
-//
-// Errors:
-//   - ErrManifestInvalid when id fails validID (path-traversal-safe).
-//   - ErrPluginExists when the target folder already exists.
-//   - underlying I/O errors otherwise.
+// Create scaffolds a new plugin folder at <PluginsDir>/<id> and refreshes the registry.
+// Errors: ErrManifestInvalid (id fails validID, path-traversal-safe), ErrPluginExists, or underlying I/O.
 func (m *Manager) Create(id string) error {
 	if !validID(id) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, id)
@@ -110,18 +85,9 @@ func (m *Manager) Create(id string) error {
 	return m.Refresh()
 }
 
-// Save writes plugin.json + main.lua + form.json for an existing
-// plugin. The path-side id and manifest.ID must agree - renames go
-// through Delete + Create, not Save. formJSON is the raw text of
-// the field schema; the backend treats it as opaque (the schema
-// lives on the frontend, shared with template fields), and an
-// empty string is interpreted as "leave form.json untouched."
-//
-// Errors:
-//   - ErrManifestInvalid when id is malformed, ids disagree, or the
-//     manifest itself fails validation.
-//   - ErrManifestVersion when manifest.ManifestVersion is unsupported.
-//   - ErrPluginNotFound when no folder exists at <PluginsDir>/<id>.
+// Save writes plugin.json + main.lua + form.json. The path id and manifest.ID must agree (renames go through Delete + Create).
+// Backend treats formJSON as opaque; empty means "leave form.json untouched".
+// Errors: ErrManifestInvalid, ErrManifestVersion, ErrPluginNotFound.
 func (m *Manager) Save(id string, manifest Manifest, luaSource, formJSON string) error {
 	if !validID(id) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, id)
@@ -153,8 +119,6 @@ func (m *Manager) Save(id string, manifest Manifest, luaSource, formJSON string)
 	if err := m.deps.Editor.SaveFile(filepath.Join(dir, "main.lua"), luaSource); err != nil {
 		return fmt.Errorf("plugin: write main.lua: %w", err)
 	}
-	// Empty formJSON = "no change to form.json" so callers that don't
-	// touch the form schema can skip a redundant write.
 	if formJSON != "" {
 		if err := m.deps.Editor.SaveFile(filepath.Join(dir, "form.json"), formJSON); err != nil {
 			return fmt.Errorf("plugin: write form.json: %w", err)
@@ -163,9 +127,7 @@ func (m *Manager) Save(id string, manifest Manifest, luaSource, formJSON string)
 	return m.Refresh()
 }
 
-// GetForm reads <PluginsDir>/<id>/form.json. Returns the default
-// empty-array placeholder when the file is missing - keeps callers
-// (the visual builder) free of "is the file here yet?" branches.
+// GetForm reads <PluginsDir>/<id>/form.json, returning the empty-array placeholder when the file is missing.
 func (m *Manager) GetForm(id string) (string, error) {
 	if !validID(id) {
 		return "", fmt.Errorf("%w: bad id %q", ErrManifestInvalid, id)
@@ -188,13 +150,8 @@ func (m *Manager) GetForm(id string) (string, error) {
 	return src, nil
 }
 
-// Delete removes <PluginsDir>/<id> and the plugin's KV file.
-// Refreshes the registry. Idempotent on partial state - if the
-// KV file is missing, the folder removal still proceeds.
-//
-// Errors:
-//   - ErrManifestInvalid for bad ids.
-//   - ErrPluginNotFound when nothing exists at the target path.
+// Delete removes <PluginsDir>/<id> and the plugin's KV file, then refreshes the registry.
+// Errors: ErrManifestInvalid, ErrPluginNotFound.
 func (m *Manager) Delete(id string) error {
 	if !validID(id) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, id)
@@ -209,9 +166,6 @@ func (m *Manager) Delete(id string) error {
 	if err := m.deps.Editor.DeleteFolder(dir); err != nil {
 		return fmt.Errorf("plugin: delete %s: %w", dir, err)
 	}
-	// KV file lives at <plugins>/.kv/<id>.json. DeleteFile is
-	// silent on missing in production (system.Manager) and via os.Remove
-	// returns ENOENT which we ignore - kvTestFS uses os.Remove directly.
 	kvPath := filepath.Join(m.deps.PluginsDir, ".kv", id+".json")
 	if m.deps.Editor.FileExists(kvPath) {
 		_ = m.deps.Editor.DeleteFile(kvPath)

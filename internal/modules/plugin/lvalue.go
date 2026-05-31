@@ -6,14 +6,8 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// luaToGo converts a Lua value to a JSON-shaped Go value:
-// nil → nil, bool → bool, number → float64, string → string,
-// table → []any when array-shaped, else map[string]any.
-//
-// Functions, userdata, threads, and channels are out-of-scope for
-// the JSON envelope we ship to Vue and convert to nil. Plugin
-// authors who try to return one of those see an empty result and
-// can ask formidable.log why.
+// luaToGo converts a Lua value to a JSON-shaped Go value (array-shaped table to []any, else map[string]any).
+// Functions, userdata, threads, and channels are out of scope for the JSON envelope and become nil.
 func luaToGo(lv lua.LValue) any {
 	switch v := lv.(type) {
 	case *lua.LNilType:
@@ -31,11 +25,7 @@ func luaToGo(lv lua.LValue) any {
 	}
 }
 
-// tableToGo decides whether a Lua table is array-shaped (all keys
-// are positive integers 1..N with no holes) or map-shaped, then
-// converts accordingly. Mixed-shape tables (rare but legal in
-// Lua) become maps with stringified keys so the conversion is
-// total - script bugs can't crash the bridge.
+// tableToGo converts an array-shaped Lua table (keys 1..N, no holes) to []any, else to a stringified-key map (total, so script bugs can't crash the bridge).
 func tableToGo(t *lua.LTable) any {
 	hasStringKey := false
 	t.ForEach(func(k, _ lua.LValue) {
@@ -74,9 +64,7 @@ func stringifyKey(k lua.LValue) string {
 	}
 }
 
-// goToLua converts a JSON-shaped Go value back into a Lua value.
-// Counterpart to luaToGo; used to push a context argument across
-// to the script and to round-trip kv values.
+// goToLua converts a JSON-shaped Go value back into a Lua value (counterpart to luaToGo).
 func goToLua(L *lua.LState, v any) lua.LValue {
 	switch x := v.(type) {
 	case nil:
@@ -102,9 +90,7 @@ func goToLua(L *lua.LState, v any) lua.LValue {
 		}
 		return t
 	case []map[string]any:
-		// Concretely-typed slices (e.g. parsed form.json) don't
-		// match []any. Convert each element so ipairs works on
-		// the resulting Lua table.
+		// Concretely-typed slices (e.g. parsed form.json) don't match []any.
 		t := L.NewTable()
 		for _, item := range x {
 			t.Append(goToLua(L, item))

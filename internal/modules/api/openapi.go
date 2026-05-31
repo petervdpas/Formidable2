@@ -8,29 +8,19 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// buildOpenAPISpec assembles the OpenAPI 3.0.3 document. Built from
-// the live template set on every request - Swagger UI consumers see
-// schema changes the moment a template is saved, no regen step.
-//
-// Read-only slice: paths cover GET endpoints only. POST/PUT/PATCH/
-// DELETE/batch are noted in the package's TODO and will join the
-// spec when the write endpoints land.
+// buildOpenAPISpec assembles the OpenAPI 3.0.3 document from the live template set per request.
 func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[string]any, error) {
 	tps, err := dp.ListTemplates(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Resolve collection-enabled templates with full field definitions.
 	enabledStems := []string{}
 	dataSchemas := map[string]any{}
 	itemSchemas := map[string]any{}
 	upsertSchemas := map[string]any{}
 	upsertPartialSchemas := map[string]any{}
-	// templateFacets carries the per-stem Facet slice so we can emit
-	// typed facet.<key> query params on per-template list paths after
-	// the generic paths are assembled. Stems without facets aren't
-	// added - keeps the spec lean.
+	// Per-stem facets, used to emit typed facet.<key> params on per-template paths; lean (no entry when empty).
 	templateFacets := map[string][]template.Facet{}
 	for _, t := range tps {
 		if !t.EnableCollection || t.GuidField == "" {
@@ -38,9 +28,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 		}
 		full, err := tpl.LoadTemplate(t.Filename)
 		if err != nil || full == nil {
-			// A template can be in the index but missing on disk
-			// (race during deletion). Skip - the spec still reflects
-			// what's reachable.
+			// Indexed but missing on disk (delete race); skip so the spec reflects what's reachable.
 			continue
 		}
 		stem := t.Stem
@@ -62,7 +50,6 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 				},
 			},
 		}
-		// Full-replace request body - mirrors POST/PUT shape.
 		upsertSchemas["Upsert_"+stem] = map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -71,8 +58,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 			},
 			"required": []string{"data"},
 		}
-		// Partial-merge request body - same Data_<stem> properties but
-		// nothing required (PATCH allows omitting any subset).
+		// Partial-merge body: same Data_<stem> props but nothing required (PATCH allows any subset).
 		dataSchema := dataSchemas["Data_"+stem].(map[string]any)
 		partialProps := dataSchema["properties"]
 		upsertPartialSchemas["UpsertPartial_"+stem] = map[string]any{
@@ -115,9 +101,7 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	maps.Copy(schemas, upsertSchemas)
 	maps.Copy(schemas, upsertPartialSchemas)
 
-	// Build oneOf-refs across the per-template schemas - used by the
-	// write paths so a single POST/PUT body schema covers all enabled
-	// templates without having to duplicate the path definition.
+	// oneOf-refs so one write-path body schema covers all enabled templates.
 	upsertRefs := []any{}
 	upsertPartialRefs := []any{}
 	itemRefs := []any{}
@@ -182,13 +166,8 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	}, nil
 }
 
-// withFacetPaths appends per-template list paths to the spec for any
-// template that declares facets. Each path mirrors GET /collections/
-// {template} but adds typed facet.<key> query params with the
-// template's option labels as an enum - so Swagger UI shows a real
-// dropdown per facet instead of a generic string box. Templates with
-// no facets are unaffected (no per-template path emitted; the generic
-// /collections/{template} entry still serves them).
+// withFacetPaths appends a per-template list path with typed facet.<key> enum params (Swagger
+// dropdowns) for each template that declares facets; facet-less templates are unaffected.
 func withFacetPaths(paths map[string]any, facetsByStem map[string][]template.Facet) map[string]any {
 	for stem, facets := range facetsByStem {
 		params := []any{
@@ -255,11 +234,7 @@ func withFacetPaths(paths map[string]any, facetsByStem map[string][]template.Fac
 	return paths
 }
 
-// pathsForFullAPI declares every route the package serves - read +
-// write. Refs into components/parameters keep the bodies short and
-// the templated values stay deduped. The per-template upsertRefs /
-// upsertPartialRefs / itemRefs slices are used as `oneOf` lists so
-// one path covers every enabled template.
+// pathsForFullAPI declares every read+write route; the ref slices become oneOf lists so one path covers all templates.
 func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]any {
 	paths := pathsForReadAPI()
 
@@ -316,7 +291,6 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /api/guid utility.
 	paths["/guid"] = map[string]any{
 		"get": map[string]any{
 			"summary":   "Mint a fresh UUID v4",
@@ -324,7 +298,6 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /api/images/{template}/{filename} - image bytes (or data URL).
 	paths["/images/{template}/{filename}"] = map[string]any{
 		"get": map[string]any{
 			"summary":     "Fetch image bytes (or data URL)",
@@ -364,7 +337,6 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /collections/{template} - extend the existing GET entry with POST.
 	if entry, ok := paths["/collections/{template}"].(map[string]any); ok {
 		entry["post"] = map[string]any{
 			"summary":     "Create item (or upsert with ?upsert=true)",
@@ -381,8 +353,6 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		}
 	}
 
-	// /collections/{template}/{id} - extend the existing GET/HEAD with
-	// PUT/PATCH/DELETE.
 	if entry, ok := paths["/collections/{template}/{id}"].(map[string]any); ok {
 		entry["put"] = map[string]any{
 			"summary":     "Replace item by GUID (or upsert)",
@@ -421,7 +391,6 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		}
 	}
 
-	// /collections/{template}/{id}/field/{key} - single-field PATCH.
 	paths["/collections/{template}/{id}/field/{key}"] = map[string]any{
 		"patch": map[string]any{
 			"summary":    "Update a single field by key",
@@ -444,7 +413,6 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /collections/{template}/batch - bulk apply.
 	paths["/collections/{template}/batch"] = map[string]any{
 		"post": map[string]any{
 			"summary":     "Bulk create / replace / merge",
@@ -479,8 +447,6 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 		},
 	}
 
-	// /collections/{template}/query - read-only SELECT (FDRM) over the
-	// template's statistics-indexed values.
 	paths["/collections/{template}/query"] = map[string]any{
 		"post": map[string]any{
 			"summary": "Run a constrained query over indexed values",
@@ -507,8 +473,7 @@ func pathsForFullAPI(upsertRefs, upsertPartialRefs, itemRefs []any) map[string]a
 	return paths
 }
 
-// querySource describes the (kind, key, col) reference a query column or
-// filter targets - a field, a table column (col set), or a facet.
+// querySourceSchema describes the (kind, key, col) reference a query column or filter targets.
 func querySourceSchema() map[string]any {
 	return map[string]any{
 		"type":     "object",
@@ -521,9 +486,7 @@ func querySourceSchema() map[string]any {
 	}
 }
 
-// querySpecSchema describes the POST body. Single-template by design: no
-// cross-template joins. With groupBy set the result is a group/count
-// aggregation; otherwise a row listing (distinct collapses the tuple).
+// querySpecSchema describes the query POST body (single-template; no cross-template joins).
 func querySpecSchema() map[string]any {
 	src := querySourceSchema()
 	return map[string]any{
@@ -586,8 +549,7 @@ func querySpecSchema() map[string]any {
 	}
 }
 
-// queryResultSchema describes the typed result: header strings plus rows
-// of {text, num} cells (num present where the value parsed as a number).
+// queryResultSchema describes the typed result: headers plus rows of {text, num} cells.
 func queryResultSchema() map[string]any {
 	return map[string]any{
 		"type":     "object",
@@ -627,8 +589,6 @@ func queryResultSchema() map[string]any {
 }
 
 // pathsForReadAPI declares every GET/HEAD route the package serves.
-// Refs into components/parameters keep the bodies short and the
-// templated values stay deduped.
 func pathsForReadAPI() map[string]any {
 	param := func(name string) map[string]any {
 		return map[string]any{"$ref": "#/components/parameters/" + name}
@@ -858,8 +818,7 @@ func pathsForReadAPI() map[string]any {
 	}
 }
 
-// jsonInline wraps an inline schema as a 200 application/json response, for
-// endpoints whose shapes don't warrant a named component schema.
+// jsonInline wraps an inline schema as a 200 application/json response.
 func jsonInline(schema map[string]any) map[string]any {
 	return map[string]any{
 		"description": "OK",
@@ -869,10 +828,7 @@ func jsonInline(schema map[string]any) map[string]any {
 	}
 }
 
-// statGridSchema loosely describes the engine's grid (and composite grid)
-// JSON: rank-N axes/measures/sparse cells with server-computed percentages.
-// Kept inline and permissive (additionalProperties) so composite grids
-// validate against the same response without a second named schema.
+// statGridSchema permissively describes the grid (and composite grid) JSON; kept open so both validate against one schema.
 func statGridSchema() map[string]any {
 	return map[string]any{
 		"type":                 "object",
@@ -917,8 +873,7 @@ func errResp(slug string) map[string]any {
 	}
 }
 
-// dataSchemaForTemplate builds an object schema with one property per
-// non-container field. GUID fields are listed in `required`.
+// dataSchemaForTemplate builds an object schema, one property per non-container field; guid fields are required.
 func dataSchemaForTemplate(t *template.Template) map[string]any {
 	props := map[string]any{}
 	required := []string{}
@@ -946,9 +901,7 @@ func dataSchemaForTemplate(t *template.Template) map[string]any {
 	return out
 }
 
-// fieldToProperty maps a single template.Field to a JSON Schema entry
-// (key + body). Container fields (loopstart/loopstop) return ("", nil)
-// - they're not stored in form data.
+// fieldToProperty maps a Field to a JSON Schema (key + body); container fields return ("", nil).
 func fieldToProperty(f template.Field) (string, map[string]any) {
 	schema := map[string]any{}
 	switch f.Type {
@@ -979,8 +932,7 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 		schema["items"] = map[string]any{"type": "string", "enum": values}
 	case "range":
 		schema["type"] = "number"
-		// options are emitted as kv pairs (min/max/step). Read those
-		// out and project to JSON Schema keywords.
+		// range options are kv pairs (min/max/step); project to JSON Schema keywords.
 		for _, raw := range f.Options {
 			if m, ok := raw.(map[string]any); ok {
 				v := m["value"]
@@ -1022,7 +974,7 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 		schema["type"] = "array"
 		schema["items"] = map[string]any{"type": "string"}
 	case "api":
-		// Persisted selection: either bare id (string) or {id, ...mapped}.
+		// Persisted selection: bare id string, or {id, ...mapped}.
 		mapped := map[string]any{}
 		for _, m := range f.Map {
 			if m.Key != "" {
@@ -1044,8 +996,7 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 		schema["type"] = "string"
 	}
 	if f.Description != "" {
-		// Don't clobber a type-specific description (image/api/etc.) -
-		// only set when we haven't already.
+		// Don't clobber a type-specific description (image/api/etc.).
 		if _, has := schema["description"]; !has {
 			schema["description"] = f.Description
 		}
@@ -1053,8 +1004,7 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 	return f.Key, schema
 }
 
-// optionPairs splits template.Field.Options into parallel (values, labels)
-// arrays. Bare scalars become value=label; map entries use both fields.
+// optionPairs splits Options into parallel (values, labels); bare scalars become value=label.
 func optionPairs(opts []any) ([]any, []any) {
 	values := make([]any, 0, len(opts))
 	labels := make([]any, 0, len(opts))
@@ -1081,8 +1031,6 @@ func optionPairs(opts []any) ([]any, []any) {
 	}
 	return values, labels
 }
-
-// ── shared schema definitions ────────────────────────────────────────
 
 func schemaFormMeta() map[string]any {
 	return map[string]any{

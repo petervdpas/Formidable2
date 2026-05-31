@@ -172,4 +172,3 @@ func assertSeedFlag(svc *Service, name string, wantSeed bool) error {
 	return fmt.Errorf("cover image %q not found while checking seed flag (have %v)",
 		name, descNames(got))
 }
-

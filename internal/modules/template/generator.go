@@ -16,12 +16,7 @@ const (
 	ShapeFrontmatter Shape = "frontmatter"
 )
 
-// ImgMode selects how image fields are emitted.
-//
-//	url    - `![Label]({{imageURL "key"}})`. Resolved at render time
-//	         per the consumer's render.Manager (slideout, wiki, …).
-//	inline - `![Label]({{imageBase64 "key"}})`. Bytes inlined as a
-//	         `data:<mime>;base64,…` URL. For self-contained exports.
+// ImgMode selects how image fields are emitted: url -> {{imageURL}}, inline -> {{imageBase64}} (self-contained).
 type ImgMode string
 
 const (
@@ -29,23 +24,11 @@ const (
 	ImgInline ImgMode = "inline"
 )
 
-// GeneratorOptions carries the per-shape sub-choices the dialog
-// surfaces. Bag-of-bools so adding a new option doesn't require
-// signature changes throughout the call chain (Service ↔ generator ↔
-// Wails binding).
-//
-// Defaults match the dialog's defaults: linked URL for images, auto-
-// wrapped loop iterations, lazy api-card output (one-liner per api
-// field).
+// GeneratorOptions carries the per-shape sub-choices the dialog surfaces.
 type GeneratorOptions struct {
 	ImgMode   ImgMode `json:"img_mode"`
 	WrapLoops bool    `json:"wrap_loops"`
-	// ExpandAPI flips api-field output between two visible shapes:
-	//   false → `{{apiSection "key"}}`        (lazy one-liner)
-	//   true  → per-column `- **<label>**: {{apiBlock "key" "col"}}`
-	// Same "visible toggle" rule as ImgMode/WrapLoops - the choice
-	// must materialise in the generated source so the user can see
-	// what they picked at a glance.
+	// ExpandAPI false -> {{apiSection}} one-liner; true -> per-column blocks. Must materialise in the source.
 	ExpandAPI bool `json:"expand_api"`
 }
 
@@ -82,12 +65,8 @@ func Shapes() []ShapeInfo {
 	}
 }
 
-// GenerateMarkdownTemplate produces default Handlebars-flavored markdown
-// for the given fields, in the requested shape and options.
-//
-// Empty/nil fields → empty string. Unknown shape → falls back to report
-// so a stale frontend doesn't produce nothing. Unknown image mode →
-// falls back to ImgURL.
+// GenerateMarkdownTemplate produces default Handlebars markdown for fields in the requested shape.
+// Unknown shape falls back to report; unknown image mode to ImgURL.
 func GenerateMarkdownTemplate(shape Shape, opts GeneratorOptions, fields []Field) string {
 	if len(fields) == 0 {
 		return ""
@@ -109,8 +88,7 @@ func GenerateMarkdownTemplate(shape Shape, opts GeneratorOptions, fields []Field
 	}
 }
 
-// imageHelperCall returns the Handlebars expression used to resolve an
-// image field's URL according to the current ImgMode.
+// imageHelperCall returns the Handlebars expression for an image field's URL per ImgMode.
 func imageHelperCall(key string, mode ImgMode) string {
 	switch mode {
 	case ImgInline:
@@ -120,19 +98,14 @@ func imageHelperCall(key string, mode ImgMode) string {
 	}
 }
 
-// loopBodyWrap inserts {{loopItemBefore}} / {{loopItemAfter}} around
-// an inner loop body when WrapLoops is on. The loop opener stays bare
-// (`{{#loop "key"}}`) regardless - wrap state lives in the body so a
-// reader of the generated source can see at a glance whether iteration
-// wrapping is in effect.
+// loopBodyWrap wraps an inner loop body in {{loopItemBefore/After}} when WrapLoops is on; wrap state
+// lives in the body (not the opener) so a reader sees at a glance whether wrapping is in effect.
 func loopBodyWrap(body string, wrap bool) string {
 	if !wrap {
 		return body
 	}
 	return "{{loopItemBefore}}\n" + body + "\n{{loopItemAfter}}"
 }
-
-// ─── Report shape (port of templateGenerator.js) ──────────────────────
 
 func generateReport(fields []Field, opts GeneratorOptions) string {
 	frontmatter := strings.Join([]string{
@@ -185,7 +158,7 @@ func renderFieldBlocks(fields []Field, headingLevel int, logs *[]string, opts Ge
 				}
 				i++
 			}
-			i-- // correct overshoot
+			i--
 
 			indexField := Field{
 				Key:         loopKey + "_index",
@@ -235,12 +208,7 @@ func generateSingleFieldBlock(f Field, headingLevel int, logs *[]string, opts Ge
 	return header + "\n" + renderFieldValueBlock(f, opts)
 }
 
-// renderFieldValueBlock returns the Handlebars body for one field -
-// shared between report and minimal shapes (minimal just drops the
-// surrounding header and debug logs). Takes the full Field so type-
-// specific branches can read shape-bearing properties (the api branch
-// reads f.Map[] when ExpandAPI is on; the image branch is type/key-
-// only). opts carries the per-shape sub-choices.
+// renderFieldValueBlock returns the Handlebars body for one field, shared between report and minimal shapes.
 func renderFieldValueBlock(f Field, opts GeneratorOptions) string {
 	key := f.Key
 	if key == "" {
@@ -254,10 +222,7 @@ func renderFieldValueBlock(f Field, opts GeneratorOptions) string {
 	imgMode := opts.ImgMode
 	switch typ {
 	case "facet":
-		// Virtual field - its value lives in meta.facets[FacetKey], not
-		// in form.data, so {{field}} would always return empty here.
-		// {{virtual-field}} dispatches on the template's field type and
-		// projects the right value (the selected facet option label).
+		// Value lives in meta.facets, not form.data, so {{field}} would be empty; {{virtual-field}} projects it.
 		return fmt.Sprintf(`{{virtual-field "%s"}}`, key)
 	case "boolean":
 		return fmt.Sprintf(
@@ -325,22 +290,9 @@ _No tags specified_
 			key, label, imageHelperCall(key, imgMode), label,
 		)
 	case "api":
-		// Two visible shapes per the ExpandAPI toggle:
-		//   • OFF → {{apiSection "key"}} - runtime helper renders the
-		//     full embedded card with header + per-column rows. Lazy.
-		//   • ON  → per-column block, wrapped in <section class="api-card">
-		//     so the user can hand-tune individual columns or delete
-		//     some. Each column uses a "header paragraph + value
-		//     paragraph" layout (header on its own line, blank line,
-		//     {{apiBlock}} on the next paragraph). That layout is
-		//     uniform across scalar and block-typed source columns -
-		//     scalars render inline-ish, table/list columns get the
-		//     blank line goldmark needs to lift a markdown table or
-		//     bullet list out into its own block. Without this two-
-		//     paragraph form a {{apiBlock}} that returns a multi-line
-		//     table gets gobbled into the surrounding paragraph and
-		//     the pipes render as literal text.
-		// Empty Map[] → fall back to apiSection (no columns to expand).
+		// ExpandAPI on emits per-column "header paragraph + blank line + {{apiBlock}}" blocks: the blank
+		// line is what goldmark needs to lift a multi-line table/list out of the surrounding paragraph;
+		// without it the pipes render as literal text. Empty Map falls back to apiSection.
 		if opts.ExpandAPI && len(f.Map) > 0 {
 			var b strings.Builder
 			b.WriteString(fmt.Sprintf(
@@ -366,9 +318,7 @@ _No tags specified_
 
 func collectLogs(logs *[]string, key, typ string) {
 	if typ == "facet" {
-		// Virtual fields carry no data slot - fieldRaw is meaningless.
-		// Surface the projection that {{virtual-field}} resolves so
-		// the debug block shows the selected option label instead.
+		// Virtual fields have no data slot; surface the {{virtual-field}} projection instead of fieldRaw.
 		*logs = append(*logs, fmt.Sprintf("> **%s** _(facet)_: `{{virtual-field \"%s\"}}`", key, key))
 		return
 	}
@@ -395,8 +345,6 @@ func buildLogSection(logs []string) string {
 	parts = append(parts, "")
 	return strings.Join(parts, "\n")
 }
-
-// ─── Minimal shape ────────────────────────────────────────────────────
 
 func generateMinimal(fields []Field, opts GeneratorOptions) string {
 	parts := renderMinimalBlocks(fields, 2, opts)
@@ -453,8 +401,6 @@ func renderMinimalBlocks(fields []Field, headingLevel int, opts GeneratorOptions
 	return out
 }
 
-// ─── Table shape ──────────────────────────────────────────────────────
-
 func generateTable(fields []Field, imgMode ImgMode) string {
 	rows := make([]string, 0, len(fields))
 	rows = append(rows, "| Field | Value |")
@@ -510,8 +456,6 @@ func tableRowForField(f Field, key string, imgMode ImgMode) string {
 	}
 }
 
-// ─── Frontmatter-only shape ───────────────────────────────────────────
-
 func generateFrontmatter(fields []Field) string {
 	lines := []string{"---"}
 	seen := map[string]bool{}
@@ -539,19 +483,12 @@ func generateFrontmatter(fields []Field) string {
 		if depth > 0 || seen[key] {
 			continue
 		}
-		// Image fields don't fit a YAML metadata block (they're binary-
-		// shaped), so frontmatter skips them. Api fields are also
-		// skipped - their value is a `{guid, ...denormalised_columns}`
-		// object, which clutters frontmatter; the host can read the
-		// guid via {{apiGuid}} elsewhere if it really needs it.
+		// Image and api fields don't fit a YAML metadata block, so frontmatter skips them.
 		if t == "image" || t == "api" {
 			continue
 		}
 		seen[key] = true
-		// Virtual fields (facet) have no data slot - read the
-		// projection via the virtual-field helper instead of fieldRaw.
-		// Quote-wrap the helper call so YAML parses the value as a
-		// string even when the resolved label contains a colon, etc.
+		// Facet has no data slot; quote-wrap so YAML parses the label as a string even if it contains a colon.
 		if t == "facet" {
 			lines = append(lines, fmt.Sprintf(`%s: '{{virtual-field "%s"}}'`, key, key))
 			continue

@@ -5,20 +5,10 @@ import (
 	"strings"
 )
 
-// extractCoverImageRefs scans a cover .html body for image references
-// that must be bundled when the cover is exported for team sharing.
-// Two source patterns are recognised:
-//
-//   - <img src="…"> attributes
-//   - CSS url(…) inside <style> blocks (single, double, or unquoted)
-//
-// References are skipped when they are URLs (http/https/file/data/
-// protocol-relative), absolute filesystem paths, or contain a `{{`
-// template placeholder - the latter is filled at render time by
-// picoloom from the user's frontmatter (e.g. `cover.logo` →
-// `{{.Logo}}`), so it has no static asset to bundle.
-//
-// Returns refs in first-seen order, de-duplicated.
+// extractCoverImageRefs scans <img src> and CSS url() refs to bundle.
+// URLs, absolute paths, and `{{...}}` placeholders are skipped: a
+// placeholder is filled at render time from frontmatter, so it has no
+// static asset to bundle. Returns first-seen order, de-duplicated.
 var (
 	imgSrcRE = regexp.MustCompile(`(?i)<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')`)
 	cssURLRE = regexp.MustCompile(`(?i)url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s'"]+))\s*\)`)

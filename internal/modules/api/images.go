@@ -6,21 +6,8 @@ import (
 	"strconv"
 )
 
-// imageBytes serves GET /api/images/{tpl}/{filename}.
-//
-// Two formats:
-//   - ?format=raw (default) - image bytes with the file's MIME type.
-//     The slideout's <img src=…> hits this through Wails AssetMiddleware
-//     so the markdown stays free of inlined base64. External callers
-//     (curl, browsers, Swagger UI) can also fetch the bytes directly
-//     when the internal HTTP server is running.
-//   - ?format=url - the data URL string (data:<mime>;base64,<bytes>) as
-//     text. Useful for self-contained exports (single-file HTML/PDF)
-//     where the consumer wants to embed the image inline.
-//
-// Unlike /api/collections, this route does NOT require collection mode
-// - any template that holds image uploads can have its bytes served.
-// Path traversal is rejected by the underlying storage helper.
+// imageBytes serves GET /api/images/{tpl}/{filename}: raw image bytes, or the data: URL string
+// with ?format=url. Does not require collection mode; traversal is rejected by the storage helper.
 func (h *Handler) imageBytes(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet, http.MethodHead:
@@ -52,8 +39,7 @@ func (h *Handler) imageBytes(w http.ResponseWriter, r *http.Request) {
 
 	bytes, mime, err := h.st.OpenImageFile(stem+".yaml", filename)
 	if err != nil {
-		// Underlying validation (empty/traversal) - surface as 400 so
-		// the caller knows the URL itself is malformed, not the data.
+		// Empty/traversal: 400 signals a malformed URL, not bad data.
 		writeJSONError(w, http.StatusBadRequest, "bad-filename")
 		return
 	}

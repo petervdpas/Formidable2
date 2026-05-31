@@ -83,8 +83,7 @@ func NewAssetServer(rootDir string, log *slog.Logger, excludePorts ...int) (*Ass
 	return as, nil
 }
 
-// Addr returns the host:port the listener is bound to. Returns "" if
-// the server has been closed.
+// Addr returns the host:port the listener is bound to, or "" once closed.
 func (as *AssetServer) Addr() string {
 	if as == nil {
 		return ""
@@ -97,10 +96,9 @@ func (as *AssetServer) Addr() string {
 	return as.listener.Addr().String()
 }
 
-// URLFor returns the public URL Chrome should hit to load the given
-// file from the asset server's root dir. Returns "" if the server is
-// closed or the filename contains path separators / traversal
-// segments (caller's responsibility to pass a bare basename).
+// URLFor returns the URL Chrome should hit to load filename from the
+// root dir, or "" if the server is closed or filename is not a bare
+// basename (path separators / traversal rejected).
 func (as *AssetServer) URLFor(filename string) string {
 	if as == nil {
 		return ""
@@ -143,9 +141,8 @@ func (as *AssetServer) Close() error {
 // + give up rather than spin indefinitely.
 const bindRetryLimit = 10
 
-// bindAvoidingPorts wraps net.Listen on 127.0.0.1:0 with a retry loop
-// that closes + re-binds if the OS picks a port in the exclude list.
-// Empty exclude list = one bind attempt, no retry overhead.
+// bindAvoidingPorts binds 127.0.0.1:0, re-binding if the OS hands back
+// a port in excludePorts. Empty list = one attempt, no retry overhead.
 func bindAvoidingPorts(excludePorts []int) (net.Listener, error) {
 	for range bindRetryLimit {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")

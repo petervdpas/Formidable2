@@ -287,4 +287,3 @@ func TestService_SaveCoverImage_RejectsMalformedBase64(t *testing.T) {
 		t.Errorf("want error for malformed base64")
 	}
 }
-

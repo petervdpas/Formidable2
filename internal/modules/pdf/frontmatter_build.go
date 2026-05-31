@@ -8,19 +8,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// InjectConfig is the typed input that BuildFrontmatter renders into
-// a picoloom v2 frontmatter YAML scaffold. The Inject dialog
-// collects values into this shape - toggles per block, dropdowns per
-// enum field, text inputs per cover/footer/signature field - and the
-// backend renders the YAML deterministically.
-//
-// Block pointers are nil when the user's toggle for that block is
-// OFF, so the emitted scaffold contains only the blocks the user
-// asked for. Style is a top-level scalar (no block to gate); empty
-// means "no theme override".
-//
-// Watermark and PageBreaks are intentionally absent - they're
-// power-user features deferred until there's demand.
+// InjectConfig is the typed input BuildFrontmatter renders into a
+// picoloom v2 YAML scaffold. A nil block pointer means the user's
+// toggle for that block is OFF, so it is omitted from the output.
+// Watermark and PageBreaks are intentionally absent (deferred).
 type InjectConfig struct {
 	Style     string                 `json:"style,omitempty"`
 	Keywords  []string               `json:"keywords,omitempty"`
@@ -31,17 +22,15 @@ type InjectConfig struct {
 	Signature *InjectSignatureConfig `json:"signature,omitempty"`
 }
 
-// InjectPageConfig - page layout. Values from ListPageSizes() and
-// ListPageOrientations() drive the dropdowns; the user can also leave
-// fields empty for picoloom defaults.
+// InjectPageConfig is the page-layout block; empty fields fall to
+// picoloom defaults.
 type InjectPageConfig struct {
 	Size        string  `json:"size,omitempty"`
 	Orientation string  `json:"orientation,omitempty"`
 	Margin      float64 `json:"margin,omitempty"`
 }
 
-// InjectCoverConfig - every cover field except the picoloom-internal
-// ones (Enabled / TemplatePath). Empty fields are skipped on emit.
+// InjectCoverConfig holds every cover field except Enabled / TemplatePath.
 type InjectCoverConfig struct {
 	Template     string `json:"template,omitempty"`
 	Title        string `json:"title,omitempty"`
@@ -60,16 +49,16 @@ type InjectCoverConfig struct {
 	Logo         string `json:"logo,omitempty"`
 }
 
-// InjectTOCConfig - table-of-contents block.
+// InjectTOCConfig is the table-of-contents block.
 type InjectTOCConfig struct {
 	Title    string `json:"title,omitempty"`
 	MinDepth int    `json:"min_depth,omitempty"`
 	MaxDepth int    `json:"max_depth,omitempty"`
 }
 
-// InjectFooterConfig - footer block. ShowPageNumber is a value type
-// because the dialog always has a position for the toggle (on/off);
-// nil-vs-false distinction isn't needed at scaffold-emit time.
+// InjectFooterConfig is the footer block. ShowPageNumber is a value
+// (not pointer): the dialog always supplies on/off, so nil-vs-false
+// is moot at scaffold-emit time.
 type InjectFooterConfig struct {
 	Position       string `json:"position,omitempty"`
 	ShowPageNumber bool   `json:"show_page_number"`
@@ -79,8 +68,7 @@ type InjectFooterConfig struct {
 	DocumentID     string `json:"document_id,omitempty"`
 }
 
-// InjectSignatureConfig - signature block. Links (signature.links
-// array) are deferred - out of scope for the v1 wizard.
+// InjectSignatureConfig is the signature block; Links are deferred.
 type InjectSignatureConfig struct {
 	Name         string `json:"name,omitempty"`
 	Title        string `json:"title,omitempty"`
@@ -92,16 +80,11 @@ type InjectSignatureConfig struct {
 	Department   string `json:"department,omitempty"`
 }
 
-// BuildFrontmatter renders the typed InjectConfig into a YAML
-// frontmatter block (surrounded by `---` fences, terminated with a
-// newline). Blocks the user disabled are omitted entirely; empty
-// optional fields are skipped. The output is deterministic - same
-// config in produces the same YAML out - so tests can compare
-// against literal strings.
-//
-// Each enabled sub-block carries an explicit `enabled: true` for
-// readability; this matches what picoloom expects and makes the
-// emitted YAML self-documenting when the user opens the editor later.
+// BuildFrontmatter renders the InjectConfig into a `---`-fenced YAML
+// block. Disabled blocks and empty fields are omitted. Output is
+// deterministic so tests can compare literal strings. Each enabled
+// sub-block carries an explicit `enabled: true` so the emitted YAML
+// is self-documenting.
 func BuildFrontmatter(cfg InjectConfig) (string, error) {
 	fm := Frontmatter{Style: cfg.Style}
 	keywords := append([]string(nil), cfg.Keywords...)
@@ -186,16 +169,14 @@ func BuildFrontmatter(cfg InjectConfig) (string, error) {
 	return "---\n" + out + "---\n", nil
 }
 
-// wholeHandlebarsRe matches a string consisting entirely of a single
-// Handlebars expression. Used by the wizard so a user-typed
-// `{{yamlList (fieldRaw "x")}}` lands at raw-line position instead
-// of getting single-quoted as a scalar.
+// wholeHandlebarsRe matches a string that is entirely one Handlebars
+// expression, so it lands at raw-line position instead of being
+// single-quoted as a scalar.
 var wholeHandlebarsRe = regexp.MustCompile(`^\s*\{\{.+?\}\}\s*$`)
 
-// buildKeywordsBlock emits the column-0 `keywords:` block for the
-// wizard's BuildFrontmatter path. Wholly-handlebars elements drop
-// the `- ` prefix and the single-quoting so the helper expansion
-// plugs into the block sequence at render time.
+// buildKeywordsBlock emits the column-0 `keywords:` block. Wholly-
+// handlebars elements drop the `- ` prefix and quoting so the helper
+// expansion plugs into the block sequence at render time.
 func buildKeywordsBlock(keywords []string) string {
 	items := make([]any, 0, len(keywords))
 	for _, k := range keywords {
@@ -214,11 +195,8 @@ func buildKeywordsBlock(keywords []string) string {
 	return marshalKeywordsBlock(items)
 }
 
-// insertKeywordsBlock splices the column-0 keywords block into a
-// yaml.Marshal'd Frontmatter body right after the `style:` line, or
-// at the top when no style is set. The block sits at the canonical
-// position (style → keywords → page → cover → …) so the wizard
-// output stays readable.
+// insertKeywordsBlock splices the keywords block in after `style:` (or
+// at the top), keeping the canonical block order.
 func insertKeywordsBlock(yamlBody, kwBlock string) string {
 	if kwBlock == "" {
 		return yamlBody
@@ -233,11 +211,8 @@ func insertKeywordsBlock(yamlBody, kwBlock string) string {
 
 // ---------- enum registries ----------
 
-// PageSizeDescriptor / OrientationDescriptor / FooterPositionDescriptor
-// follow the same shape as TableColumnTypeDescriptor / ThemeDescriptor:
-// just a Name string. Human labels come from frontend i18n keys
-// (`pdf.export.dialog.page_size.<name>` etc.). Display order is
-// significant - the slice ordering IS the dropdown ordering.
+// PageSizeDescriptor is a dropdown entry; labels come from frontend
+// i18n. Slice ordering IS the dropdown ordering.
 type PageSizeDescriptor struct {
 	Name string `json:"name"`
 }

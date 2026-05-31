@@ -2,8 +2,8 @@ package wiki
 
 import (
 	"context"
-	_ "embed"
 	"embed"
+	_ "embed"
 	"errors"
 	"html/template"
 	"io/fs"
@@ -53,11 +53,7 @@ type EnabledTemplateFilter interface {
 	FilterEnabled(filenames []string) []string
 }
 
-// Handler owns the read-path routes. NewHandler returns *Handler (which
-// satisfies http.Handler), keeping the router shape internal to this
-// file so route signatures stay changeable without rippling out. The
-// concrete return type also lets the composition root call optional
-// setters (e.g. SetEnabledFilter) after construction.
+// Handler owns the read-path routes; the concrete return type lets the composition root call optional setters.
 type Handler struct {
 	dp     Provider
 	st     Storage
@@ -67,58 +63,36 @@ type Handler struct {
 	mux    *http.ServeMux
 }
 
-// NewHandler builds the read-path handler. `expr` may be nil - wiki then
-// renders the filename as subtitle. Filtering is off by default; call
-// SetEnabledFilter to wire the per-profile template enablement. The
-// Templates surface (per-template facet definitions) is installed later
-// via SetTemplates so old call sites that don't pass it keep compiling;
-// without it facet chips just don't render.
+// NewHandler builds the read-path handler; expr may be nil (filename used as subtitle).
 func NewHandler(dp Provider, st Storage, expr Expressioner) *Handler {
 	h := &Handler{dp: dp, st: st, expr: expr}
 	mux := http.NewServeMux()
-	// Go 1.22+ typed patterns - method + path-segment captures, no
-	// extra router dependency.
 	mux.HandleFunc("GET /{$}", h.index)
 	mux.HandleFunc("GET /template/{tpl}", h.template)
 	mux.HandleFunc("GET /template/{tpl}/form/{datafile}", h.form)
 	mux.HandleFunc("GET /storage/{tpl}/images/{name}", h.image)
-	// Embedded chrome (CSS / JS / images) the wiki templates reference.
-	// `/_/css/formidable-prose.css` is a special pseudo-file: it streams
-	// the bytes from render.ProseCSS() so the same stylesheet that
-	// styles the in-app slideout body styles wiki form bodies - single
-	// source of truth (see render/fulldoc.go and DRY commitment).
+	// /_/css/formidable-prose.css streams render.ProseCSS() so wiki bodies and the in-app
+	// slideout share one stylesheet (single source of truth; see render/fulldoc.go).
 	mux.HandleFunc("GET /_/{path...}", h.static)
 	h.mux = mux
 	return h
 }
 
-// ServeHTTP makes *Handler satisfy http.Handler. Delegates to the
-// internal mux built by NewHandler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-// SetEnabledFilter installs (or clears, with nil) the per-profile
-// template-enablement filter. The wiki's list and detail views consult
-// it on every request - a profile switch in the running app takes
-// effect on the next page load with no re-init.
+// SetEnabledFilter installs (or clears with nil) the per-profile template-enablement filter.
 func (h *Handler) SetEnabledFilter(f EnabledTemplateFilter) {
 	h.filter = f
 }
 
-// SetTemplates installs the per-template facet-definition source. May
-// be cleared with nil - facet pills/chips/filter then collapse to a
-// no-op, but the rest of the wiki keeps rendering. The composition
-// root passes `*template.Manager`; old tests that pre-date facets
-// simply skip this call.
+// SetTemplates installs the per-template facet-definition source (nil collapses facet UI to a no-op).
 func (h *Handler) SetTemplates(t Templates) {
 	h.tpl = t
 }
 
-// templateEnabled is the centralized gate the detail views use: missing
-// filter or empty enabled list → everything passes; otherwise membership
-// check. Empty filename is never enabled - same semantic as the config
-// manager, kept consistent so 404s match the user's mental model.
+// templateEnabled gates the detail views; missing filter or empty enabled list passes everything.
 func (h *Handler) templateEnabled(filename string) bool {
 	if h.filter == nil {
 		return true
@@ -126,44 +100,22 @@ func (h *Handler) templateEnabled(filename string) bool {
 	return h.filter.IsTemplateEnabled(filename)
 }
 
-// staticFS holds the embedded `templates/static/` tree (CSS, JS, img).
-// Served at /_/<path>. The fs.Sub strips the leading "templates/static/"
-// so URLs map cleanly: /_/css/base.css → templates/static/css/base.css.
-//
 //go:embed templates/static
 var staticEmbed embed.FS
 
 var staticFS = func() fs.FS {
 	sub, err := fs.Sub(staticEmbed, "templates/static")
 	if err != nil {
-		// embed.FS guarantees the dir exists at compile time, so this
-		// branch is unreachable. Panic anyway so a future structural
-		// rename surfaces immediately.
+		// Unreachable (embed guarantees the dir); panic so a future rename surfaces immediately.
 		panic("wiki: static fs setup: " + err.Error())
 	}
 	return sub
 }()
 
-// ── HTML view layer ──────────────────────────────────────────────────
-//
-// Each page template (`index`, `template`, `form`) overrides the
-// `title`, `meta`, and `content` blocks defined in the shared
-// `layout.html`. Layout owns the topbar (logo + breadcrumbs + search)
-// and the <link>/<script> tags pointing at the embedded chrome assets.
-// The form *body* always comes from render.Manager - wiki never
-// invokes raymond/goldmark itself.
-
 //go:embed templates/layout.html templates/index.html templates/template.html templates/form.html
 var tplFiles embed.FS
 
-// templateFuncs are the shared funcs every page template needs.
-//
-//   - safeHTML: lets a pre-rendered body string bypass html/template's
-//     auto-escape - used only for `dataprovider.RenderedPage.HTML`,
-//     which came out of goldmark and is therefore trusted.
-//   - jsonString: emits a Go string as a JSON-quoted literal so the
-//     `meta` block can produce valid JSON without ad-hoc escaping
-//     (used by crumbs.js' window.__FORMIDABLE__).
+// templateFuncs: safeHTML trusts goldmark-rendered bodies past auto-escape; jsonString emits a JSON-quoted literal.
 var templateFuncs = template.FuncMap{
 	"safeHTML":   func(s string) template.HTML { return template.HTML(s) },
 	"jsonString": jsonString,
@@ -182,9 +134,7 @@ var (
 	tplForm     = parsePage("form")
 )
 
-// jsonString produces `"escaped"` for a string. Cheap hand-roll -
-// pulling encoding/json just for this is overkill and would require
-// trimming the leading/trailing newline anyway.
+// jsonString produces a JSON-quoted string literal (hand-rolled to avoid encoding/json's trailing newline).
 func jsonString(s string) template.JS {
 	var b strings.Builder
 	b.WriteByte('"')
@@ -215,75 +165,45 @@ func jsonString(s string) template.JS {
 	return template.JS(b.String())
 }
 
-// indexView is what the index.html template binds against.
 type indexView struct {
 	Title     string
 	Templates []indexTemplateRow
 }
 type indexTemplateRow struct {
-	Stem string
-	Name string
-	Href string
-	// Facets is the per-template facet contract projected for display.
-	// Empty when the template declares none; the html/template treats
-	// the surrounding block as a no-op in that case so a row without
-	// facets renders no extra HTML.
+	Stem   string
+	Name   string
+	Href   string
 	Facets []facetPill
 }
 
-// facetPill is the index-page projection of one Facet definition: the
-// key, the FontAwesome icon class (rendered as a CSS hook even when the
-// wiki layout itself doesn't load FA), and the option-colour tokens
-// emitted as small swatches under the pill so the row reads like a
-// quick filter contract.
 type facetPill struct {
 	Key      string
 	Icon     string
 	Swatches []string
 }
 
-// templateView is what template.html binds against. BackHref is gone
-// - the topbar's history nav-buttons handle it now.
 type templateView struct {
-	Title string
-	Stem  string
-	Name  string
-	Forms []templateFormRow
-	// Filters lists the template's facet definitions for the filter
-	// strip above the form list. Empty when the template has no facets
-	// - the surrounding template block then renders nothing.
+	Title   string
+	Stem    string
+	Name    string
+	Forms   []templateFormRow
 	Filters []facetFilter
 }
 type templateFormRow struct {
 	Filename string
 	Title    string
 	Href     string
-	// TagsAttr is the comma-joined tag list emitted into the
-	// `data-tags="..."` attribute. filter.js reads this to drive the
-	// live tag/text filter on the forms list.
-	TagsAttr string
-	// FacetsAttr is the comma-joined "key:label" list of facets that
-	// are SET on this form (set=false entries are skipped). Emitted
-	// into `data-facets="..."` for filter.js. Empty string when no
-	// facets are set.
+	TagsAttr string // data-tags="..." for filter.js
+	// FacetsAttr: comma-joined "key:label" of SET facets, for data-facets="..." (filter.js).
 	FacetsAttr string
-	// Chips are the visible per-row badges for SET facets. Empty when
-	// the form has no facets set.
-	Chips []facetChip
-	// Subtitle is the per-row sub-label rendered under Title. Comes
-	// from the template's sidebar_expression when configured; falls
-	// back to Filename otherwise. SubtitleClasses + SubtitleColor
-	// mirror the in-app sidebar's expression chip styling.
+	Chips      []facetChip
+	// Subtitle comes from sidebar_expression when configured, else Filename.
 	Subtitle        string
 	SubtitleClasses string
 	SubtitleColor   string
 }
 
-// facetChip is the per-row projection of one set FacetState. Color is
-// the option's colour token (looked up from the template's facet
-// definition for the matching Selected label); falls back to empty
-// string when the label isn't in the def (record drifted from spec) -
-// the CSS class then collapses to a neutral chip.
+// facetChip is the per-row projection of one set FacetState; Color falls back to "" (neutral chip) on spec drift.
 type facetChip struct {
 	Key      string
 	Icon     string
@@ -291,10 +211,6 @@ type facetChip struct {
 	Color    string
 }
 
-// facetFilter is the strip-control projection of one Facet. Options
-// are the user-visible labels; the corresponding colour tokens are
-// emitted as data-color-<label> attributes on the <select> so the JS
-// can paint the active selection without re-fetching the contract.
 type facetFilter struct {
 	Key     string
 	Icon    string
@@ -305,15 +221,12 @@ type facetFilterOption struct {
 	Color string
 }
 
-// formView is what form.html binds against.
 type formView struct {
 	Title    string
 	Stem     string
 	Filename string
 	Body     string // raw HTML from the render pipeline
 }
-
-// ── handlers ─────────────────────────────────────────────────────────
 
 func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	tps, err := h.dp.ListTemplates(r.Context())
@@ -322,10 +235,7 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.filter != nil {
-		// Project to filenames, intersect with the enabled list, then
-		// rehydrate. Cheaper than per-row IsTemplateEnabled when the
-		// allowlist is small relative to the corpus, and lets the config
-		// helper own the "empty list = all enabled" semantic.
+		// Intersect with the enabled list via FilterEnabled so config owns the "empty list = all" semantic.
 		names := make([]string, len(tps))
 		for i := range tps {
 			names[i] = tps[i].Filename
@@ -365,9 +275,7 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 	}
 	filename := stem + ".yaml"
 	if !h.templateEnabled(filename) {
-		// 404 (not 403) on disabled templates: don't leak the existence
-		// of a template the user disabled - same shape as "template not
-		// found", same response to teammates following an old link.
+		// 404 not 403: don't leak the existence of a disabled template.
 		writeError(w, http.StatusNotFound, "template not found")
 		return
 	}
@@ -380,10 +288,7 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "template not found")
 		return
 	}
-	// Match the storage workspace's order - filesystem readdir is
-	// alphabetical-by-filename, and that's what the original
-	// Formidable wiki used too. Both views render the same template's
-	// forms in the same order; the user's mental model stays stable.
+	// filename_asc to match the storage workspace order (both views stay consistent).
 	forms, err := h.dp.ListForms(r.Context(), filename, dataprovider.ListOpts{
 		OrderBy: "filename_asc",
 	})
@@ -391,15 +296,8 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// Sidebar expression - same evaluator the in-app storage workspace
-	// uses, keyed by filename. Failures are logged-best-effort: if the
-	// template has no expression (ErrNoExpression) or the engine isn't
-	// wired, we just fall back to filename subtitles.
 	subtitles := h.sidebarSubtitles(filename)
 
-	// Facet contract for this template - drives both the per-row chips
-	// (icon + colour lookup keyed by selected option) and the filter
-	// strip above the list. Nil tpl or no facets ⇒ empty.
 	facetDefs := h.facetDefsFor(filename)
 	colorLookup := buildFacetColorLookup(facetDefs)
 
@@ -419,8 +317,7 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 			row.SubtitleClasses = strings.Join(item.Classes, " ")
 			row.SubtitleColor = item.Color
 		}
-		// Only consult storage when the template actually declares
-		// facets - saves N disk reads on the typical facet-less template.
+		// Only hit storage when facets are declared, saving N disk reads on facet-less templates.
 		if len(facetDefs) > 0 {
 			row.Chips, row.FacetsAttr = h.collectFormFacets(filename, f.Filename, facetDefs, colorLookup)
 		}
@@ -435,10 +332,7 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// facetDefsFor returns the template's facet definitions, or nil when
-// the Templates surface isn't wired / the load fails / the template
-// declares none. Mirrors facetPillsFor but returns the raw Facet slice
-// because the template page needs both icon + options.
+// facetDefsFor returns the template's facet definitions, or nil when unwired / load fails / none declared.
 func (h *Handler) facetDefsFor(filename string) []tpl.Facet {
 	if h.tpl == nil {
 		return nil
@@ -450,10 +344,7 @@ func (h *Handler) facetDefsFor(filename string) []tpl.Facet {
 	return t.Facets
 }
 
-// buildFacetColorLookup pre-computes a key→label→color map so the
-// per-row chip projection doesn't re-scan the def slice for every form
-// + selected option. Records with a Selected that's no longer in the
-// def gracefully fall through to "" (rendered as a neutral chip).
+// buildFacetColorLookup precomputes a key->label->color map so chip projection doesn't rescan per form.
 func buildFacetColorLookup(defs []tpl.Facet) map[string]map[string]string {
 	if len(defs) == 0 {
 		return nil
@@ -469,11 +360,8 @@ func buildFacetColorLookup(defs []tpl.Facet) map[string]map[string]string {
 	return out
 }
 
-// collectFormFacets reads one form via storage and projects its SET
-// facets into (chips, attrAttr). set=false entries are skipped entirely
-// - they're indistinguishable from "facet doesn't apply" for display
-// purposes. Order follows the template's declared facet order so two
-// forms with the same set look identical row-to-row.
+// collectFormFacets projects a form's SET facets into (chips, attr); set=false entries are skipped.
+// Order follows the declared facet order so equal sets render identically row-to-row.
 func (h *Handler) collectFormFacets(
 	templateFilename, datafile string,
 	defs []tpl.Facet,
@@ -508,9 +396,7 @@ func (h *Handler) collectFormFacets(
 	return chips, strings.Join(attrs, ",")
 }
 
-// facetFiltersFromDefs projects the template's facets into the filter
-// strip's binding shape: every option label + its colour token, so the
-// JS can render a coloured marker next to the active selection.
+// facetFiltersFromDefs projects facets into the filter-strip shape (label + colour token per option).
 func facetFiltersFromDefs(defs []tpl.Facet) []facetFilter {
 	if len(defs) == 0 {
 		return nil
@@ -526,10 +412,7 @@ func facetFiltersFromDefs(defs []tpl.Facet) []facetFilter {
 	return out
 }
 
-// facetPillsFor projects the template's facets into the index-page
-// display shape. Returns nil when the Templates surface isn't wired,
-// when LoadTemplate fails, or when the template has no facets - the
-// caller's `{{if .Facets}}` block then renders nothing extra.
+// facetPillsFor projects facets into the index-page display shape; nil when unwired / load fails / none.
 func (h *Handler) facetPillsFor(filename string) []facetPill {
 	if h.tpl == nil {
 		return nil
@@ -549,11 +432,7 @@ func (h *Handler) facetPillsFor(filename string) []facetPill {
 	return out
 }
 
-// sidebarSubtitles returns filename → Result for the given
-// template. Returns nil when no expression is configured, the
-// evaluator wasn't wired, or evaluation failed at the source level -
-// the caller falls back to filename subtitles in any of those cases.
-// Per-row errors are surfaced as item.Error and still keyed in.
+// sidebarSubtitles returns filename->Result, or nil when unconfigured/unwired/failed (caller falls back to filename).
 func (h *Handler) sidebarSubtitles(templateFilename string) map[string]expression.Result {
 	if h.expr == nil {
 		return nil
@@ -586,8 +465,7 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 404 fast on a missing template or missing form - render is
-	// expensive; keep it gated on cheap SQLite checks first.
+	// 404 fast on missing template/form: render is expensive, gate on cheap SQLite checks first.
 	if _, ok, err := h.dp.GetTemplate(r.Context(), filename); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -612,10 +490,7 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 	if title == "" {
 		title = datafile
 	}
-	// `page.HTML` already carries `/template/<stem>/form/<datafile>`
-	// hrefs because the wiki's render.Manager was constructed with a
-	// FormidableLinkURL strategy that rewrites at the source (see
-	// internal/app/app.go's `wikiRender`). No post-process needed.
+	// page.HTML already carries wiki hrefs (the render.Manager's FormidableLinkURL rewrites at the source).
 	writeHTML(w, tplForm, formView{
 		Title:    title,
 		Stem:     stem,
@@ -624,12 +499,7 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// static serves the embedded chrome assets (CSS / JS / logo) at /_/.
-// The path is captured wholesale via the {path...} pattern; we then
-// guard against traversal (Go's mux already cleans, but explicit
-// rejection is cheap and audit-friendly), special-case
-// /_/css/formidable-prose.css to stream from render.ProseCSS, and
-// otherwise serve the embedded byte slice with the right MIME.
+// static serves the embedded chrome assets at /_/, special-casing /_/css/formidable-prose.css to stream render.ProseCSS.
 func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 	rel := r.PathValue("path")
 	if rel == "" || strings.Contains(rel, "..") {
@@ -650,9 +520,7 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-// staticMIME maps the file extension to a MIME type. Limited to the
-// types we actually ship; unknown extensions get the generic
-// application/octet-stream so nothing crashes on a stray file.
+// staticMIME maps a file extension to a MIME type; unknown extensions fall to application/octet-stream.
 func staticMIME(rel string) string {
 	switch path.Ext(rel) {
 	case ".css":
@@ -670,12 +538,7 @@ func staticMIME(rel string) string {
 	}
 }
 
-// image serves a per-template image from storage. The wiki context
-// uses regular HTTP image URLs so the browser can cache them and so
-// the page HTML stays slim. The in-app slideout uses base64 data
-// URLs (set by the composition root's render locator); both flow
-// through the same render pipeline - only the image strategy
-// differs.
+// image serves a per-template image from storage (wiki uses HTTP URLs; the slideout uses base64 data URLs).
 func (h *Handler) image(w http.ResponseWriter, r *http.Request) {
 	stem := r.PathValue("tpl")
 	name := r.PathValue("name")
@@ -697,12 +560,7 @@ func (h *Handler) image(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(raw)
 }
 
-// ── helpers ──────────────────────────────────────────────────────────
-
-// validSegment guards against ../ and other oddities in path
-// captures. Go's mux already strips traversal in the URL path, but
-// the helper is explicit defense + makes the negative test scenarios
-// readable.
+// validSegment guards path captures against traversal (explicit defense; Go's mux already cleans).
 func validSegment(s string) bool {
 	if s == "" {
 		return false
@@ -733,9 +591,7 @@ func pickFormTitle(f dataprovider.FormSummary) string {
 func writeHTML(w http.ResponseWriter, t *template.Template, data any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := t.Execute(w, data); err != nil && !errors.Is(err, http.ErrAbortHandler) {
-		// Don't double-write - the header is already on the wire.
-		// Log via a panic so the manager's serve goroutine surfaces it.
-		// In practice this should never fire on the handcrafted templates.
+		// Header is already on the wire; append a comment rather than re-writing status.
 		_, _ = w.Write([]byte("\n<!-- template error: " + err.Error() + " -->"))
 	}
 }

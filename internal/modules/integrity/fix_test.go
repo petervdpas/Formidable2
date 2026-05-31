@@ -298,7 +298,7 @@ func TestFix_DateAnomaly_ClearEmpties(t *testing.T) {
 func TestFix_Coerce_BadNumberInTableCell(t *testing.T) {
 	f := tableForm()
 	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10" // keep the date valid
-	f.Data["history"].([]any)[0].([]any)[2] = "12"          // number col holds a string
+	f.Data["history"].([]any)[0].([]any)[2] = "12"         // number col holds a string
 	h := newFixHarness(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
 
 	res := h.runPlan(FixPlanItem{Kind: IssueTypeMismatch, Strategy: FixCoerce})

@@ -7,16 +7,12 @@ import (
 	"strings"
 )
 
-// Manager owns the SQLite handle for one profile's index. It exposes
-// fast, read-shaped methods consumed by dataprovider (and tests).
-// Writes happen through Reconcile; the manager doesn't expose direct
-// SQL to keep the contract narrow.
+// Manager owns the SQLite handle for one profile's index, exposing read-shaped methods; writes go through Reconcile.
 type Manager struct {
 	db *sql.DB
 }
 
-// NewManager opens (or creates) the index DB at path and brings its
-// schema up to date.
+// NewManager opens (or creates) the index DB at path and migrates its schema.
 func NewManager(path string) (*Manager, error) {
 	db, err := openIndexDB(path)
 	if err != nil {
@@ -25,18 +21,13 @@ func NewManager(path string) (*Manager, error) {
 	return &Manager{db: db}, nil
 }
 
-// DB exposes the underlying handle so the same package's reconciler
-// can run write transactions without a circular import. Not part of
-// the public API consumed by dataprovider - call Reconcile instead.
+// DB exposes the handle so the same-package reconciler can run write transactions; callers use Reconcile.
 func (m *Manager) DB() *sql.DB { return m.db }
 
-// Close releases the underlying handle. Safe to call once; further
-// reads will error from a closed connection.
+// Close releases the underlying handle.
 func (m *Manager) Close() error { return m.db.Close() }
 
-// Rev returns the monotonic revision counter, bumped once per
-// successful Reconcile batch. The wiki / API uses this as an ETag.
-// A fresh DB returns 0.
+// Rev returns the monotonic revision counter (bumped per Reconcile batch), used as an ETag; fresh DB returns 0.
 func (m *Manager) Rev() (int64, error) {
 	var raw string
 	err := m.db.QueryRow(`SELECT value FROM meta WHERE key='rev'`).Scan(&raw)
@@ -54,7 +45,6 @@ func (m *Manager) Rev() (int64, error) {
 }
 
 // ListTemplates returns all indexed templates ordered by filename ASC.
-// The wiki landing page calls this directly.
 func (m *Manager) ListTemplates() ([]TemplateRow, error) {
 	rows, err := m.db.Query(`
 		SELECT filename, name, item_field, guid_field, tags_field,
@@ -90,9 +80,7 @@ func (m *Manager) ListForms(template string, opts QueryOpts) ([]FormRow, error) 
 	return m.queryForms(formsByTemplateSQL{template: template}, opts)
 }
 
-// ListByTags returns forms across ALL templates that own every listed
-// tag (AND semantics). Same shape and tag-handling as ListForms; the
-// query just spans templates.
+// ListByTags returns forms across all templates owning every listed tag (AND).
 func (m *Manager) ListByTags(tags []string) ([]FormRow, error) {
 	if len(tags) == 0 {
 		return nil, nil
@@ -114,10 +102,8 @@ func (m *Manager) GetForm(template, datafile string) (*FormRow, bool, error) {
 	return &r, true, nil
 }
 
-// FormsWithValue returns the filenames of forms in template whose scalar value
-// (col IS NULL) for fieldKey equals value. It is the field-equality narrowing
-// the datacore planner pushes down: the index finds the matching forms so the
-// tensor ingests only those instead of every one.
+// FormsWithValue returns filenames whose scalar value for fieldKey equals value; the datacore planner
+// pushes this down so the tensor ingests only matching forms.
 func (m *Manager) FormsWithValue(template, fieldKey, value string) ([]string, error) {
 	rows, err := m.db.Query(`
 		SELECT filename
@@ -139,12 +125,7 @@ func (m *Manager) FormsWithValue(template, fieldKey, value string) ([]string, er
 	return out, rows.Err()
 }
 
-// ── internals ────────────────────────────────────────────────────────
-
-// formsQuerySpec is the small set of "where shapes" the read API
-// needs. Each implementation contributes a WHERE clause and the
-// matching args; QueryOpts adds tag filtering, ordering, and limit on
-// top.
+// formsQuerySpec is one WHERE-shape the read API needs; QueryOpts adds tag/order/limit on top.
 type formsQuerySpec interface {
 	where() (sql string, args []any)
 }
@@ -165,24 +146,15 @@ type formsByTagsSQL struct{}
 
 func (formsByTagsSQL) where() (string, []any) { return "1 = 1", nil }
 
-// queryForms is the shared workhorse: builds SELECT … FROM forms with
-// an inner JOIN that re-attaches tags via GROUP_CONCAT, applies the
-// spec's WHERE, the optional tags AND-filter, the OrderBy and limit/
-// offset, then materializes []FormRow with tags split back into a
-// slice.
-//
-// US (\x1f) is used as the GROUP_CONCAT separator - tags shouldn't
-// contain comma but they certainly never contain US, so this is a
-// safer choice for round-trip than the default ','.
+// queryForms builds the forms SELECT (tags re-attached via GROUP_CONCAT), applies the spec WHERE, the
+// optional tags AND-filter, order, and limit/offset. The GROUP_CONCAT separator is US (\x1f), which tags never contain.
 func (m *Manager) queryForms(spec formsQuerySpec, opts QueryOpts) ([]FormRow, error) {
 	whereClause, whereArgs := spec.where()
 
 	var tagAndClause string
 	tagAndArgs := []any{}
 	if len(opts.Tags) > 0 {
-		// Subquery: forms that have at least every requested tag.
-		// COUNT(DISTINCT tag) = N pattern works because primary key on
-		// (template,filename,tag) prevents duplicates.
+		// COUNT(DISTINCT tag)=N selects forms with every requested tag (PK prevents duplicates).
 		placeholders := strings.Repeat("?,", len(opts.Tags))
 		placeholders = strings.TrimRight(placeholders, ",")
 		tagAndClause = fmt.Sprintf(` AND (f.template, f.filename) IN (
@@ -242,9 +214,7 @@ func (m *Manager) queryForms(spec formsQuerySpec, opts QueryOpts) ([]FormRow, er
 	return out, nil
 }
 
-// fetchFacetsFor pulls form_facets entries for the given set of FormRows
-// in one round-trip and returns a lookup map keyed by template+US+filename.
-// Caller stitches the per-row slice back onto each FormRow.
+// fetchFacetsFor pulls form_facets for the given rows in one round-trip, keyed by template+US+filename.
 func (m *Manager) fetchFacetsFor(forms []FormRow) (map[string][]FormFacet, error) {
 	if len(forms) == 0 {
 		return nil, nil
@@ -305,7 +275,7 @@ func limitOffsetSQL(limit, offset int) string {
 	case limit > 0:
 		return fmt.Sprintf("LIMIT %d", limit)
 	case offset > 0:
-		// SQLite requires LIMIT to use OFFSET; -1 = no limit.
+		// SQLite needs LIMIT for OFFSET; -1 = no limit.
 		return fmt.Sprintf("LIMIT -1 OFFSET %d", offset)
 	default:
 		return ""

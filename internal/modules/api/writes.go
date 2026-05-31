@@ -13,9 +13,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// guid answers GET /api/guid. Returns a fresh UUID v4 in JSON. Used
-// by clients that don't ship a UUID library (or just want a server-
-// minted id for create flows).
+// guid answers GET /api/guid with a fresh UUID v4.
 func (h *Handler) guid(w http.ResponseWriter, r *http.Request) {
 	if !onlyGet(w, r) {
 		return
@@ -23,17 +21,13 @@ func (h *Handler) guid(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"guid": uuid.NewString()})
 }
 
-// upsertBody is the shared shape for POST/PUT/PATCH bodies. Both meta
-// and data are optional at the wire level - handlers tighten as needed
-// (e.g. POST requires a guid in data; PATCH treats both as overlay).
+// upsertBody is the shared shape for POST/PUT/PATCH bodies; both maps are optional at the wire level.
 type upsertBody struct {
 	Meta map[string]any `json:"meta"`
 	Data map[string]any `json:"data"`
 }
 
-// readUpsertBody decodes the request body into upsertBody. Empty body
-// is treated as both maps absent (so PATCH-with-empty-body merges
-// nothing - caller decides whether to refuse or no-op).
+// readUpsertBody decodes the request body; an empty body yields both maps absent.
 func readUpsertBody(r *http.Request) (*upsertBody, error) {
 	var b upsertBody
 	if r.Body == nil {
@@ -47,14 +41,8 @@ func readUpsertBody(r *http.Request) (*upsertBody, error) {
 	return &b, nil
 }
 
-// create answers POST /api/collections/{tpl}. ?upsert=true allows the
-// post to overwrite an existing item (matches original Formidable);
-// without upsert, an existing GUID returns 409.
-//
-// Auto-fills the GUID when missing - option B from the design
-// conversation. Original Formidable required clients to supply guid;
-// this is a small extension that pairs with the new GET /api/guid
-// endpoint and avoids forcing every client to bundle a UUID library.
+// create answers POST /api/collections/{tpl}. ?upsert=true overwrites; otherwise an existing GUID is 409.
+// Auto-mints the GUID when missing so create can be a single request.
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	stem := r.PathValue("tpl")
 	if !validStem(stem) {
@@ -68,8 +56,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	t, err := h.tpl.LoadTemplate(tplFilename)
 	if err != nil || t == nil {
-		// IsCollectionEnabled was true but the template can't be
-		// loaded - race during deletion. Treat as disabled.
+		// Enabled but unloadable: race during deletion, treat as disabled.
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -88,14 +75,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 
 	guidKey := guidKeyOf(t)
 	if guidKey == "" {
-		// Indexer's enable-collection check passed without a guid
-		// field - should be impossible, but be explicit.
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
 
-	// Auto-mint a GUID when the client didn't supply one. Mirrors the
-	// /api/guid endpoint server-side so create can be a single request.
 	guidVal, _ := body.Data[guidKey].(string)
 	if strings.TrimSpace(guidVal) == "" {
 		guidVal = uuid.NewString()
@@ -133,7 +116,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status := http.StatusOK // 200 on upsert-replace
+	status := http.StatusOK
 	if isCreate {
 		status = http.StatusCreated
 	}
@@ -141,12 +124,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, status, itemResponseFromWrite(stem, guidVal, filename, body.Meta, body.Data))
 }
 
-// itemPut answers PUT /api/collections/{tpl}/{id}. Replaces an
-// existing item by GUID. With `?upsert=true`, creates the item when
-// it doesn't exist (returning 201) instead of 404. The body's
-// data[guidKey], if present, must equal the path {id} - otherwise
-// 409 guid-mismatch. When absent, the path id is injected so the
-// stored form remains addressable.
+// itemPut answers PUT /api/collections/{tpl}/{id}, replacing by GUID (?upsert=true creates with 201).
+// A body guid, if present, must equal the path {id} (else 409); when absent the path id is injected.
 func (h *Handler) itemPut(w http.ResponseWriter, r *http.Request) {
 	stem := r.PathValue("tpl")
 	id := r.PathValue("id")
@@ -182,7 +161,6 @@ func (h *Handler) itemPut(w http.ResponseWriter, r *http.Request) {
 		body.Meta = map[string]any{}
 	}
 
-	// Body guid (if any) must match path id.
 	if v, ok := body.Data[guidKey]; ok {
 		if s, _ := v.(string); strings.TrimSpace(s) != "" && s != id {
 			writeJSONError(w, http.StatusConflict, "guid-mismatch")
@@ -229,12 +207,8 @@ func (h *Handler) itemPut(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, status, itemResponseFromWrite(stem, id, filename, body.Meta, body.Data))
 }
 
-// itemPatch answers PATCH /api/collections/{tpl}/{id}. Shallow-merges
-// the incoming meta/data into the existing form (per-key override -
-// nested objects/arrays are replaced, not deeply merged, mirroring
-// the original Formidable behaviour). Optional `If-Match` header
-// guards against lost-update by comparing against the collection's
-// current weak ETag - mismatch returns 412.
+// itemPatch answers PATCH /api/collections/{tpl}/{id}, shallow-merging meta/data (per-key override,
+// not deep). Optional If-Match against the collection's weak ETag guards lost updates (412 on mismatch).
 func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 	stem, tplFilename, t, ok := h.writeGuard(w, r)
 	if !ok {
@@ -257,9 +231,7 @@ func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Optional optimistic concurrency. Compare against the current
-	// collection rev's weak ETag - coarser than per-file rev, but
-	// still meaningful: any write to the collection invalidates it.
+	// Optimistic concurrency against the collection-rev weak ETag (any write invalidates it).
 	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" {
 		rev, err := h.dp.CollectionRev(r.Context(), tplFilename)
 		if err != nil {
@@ -278,8 +250,7 @@ func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load the on-disk form for the merge base. nil → race during
-	// deletion; treat as 404 (consistent with item GET).
+	// nil here is a delete race; treat as 404 (consistent with item GET).
 	prior := h.st.LoadForm(tplFilename, existing.Filename)
 	if prior == nil {
 		writeJSONError(w, http.StatusNotFound, "not-found")
@@ -306,16 +277,8 @@ func (h *Handler) itemPatch(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, itemResponseFromWrite(stem, id, existing.Filename, mergedMeta, mergedData))
 }
 
-// batch answers POST /api/collections/{tpl}/batch. Per-item failures
-// are accumulated in the response's `errors` array rather than
-// aborting the whole batch - clients see what landed and what didn't
-// in a single round-trip. The endpoint always returns 200 on a
-// well-formed request, regardless of how many items failed.
-//
-// Modes:
-//   - create  (default) - refuses items whose GUID already exists
-//   - replace          - full upsert; existing items are overwritten
-//   - merge            - shallow-merge upsert (per-key override)
+// batch answers POST /api/collections/{tpl}/batch. Per-item failures accumulate in the response
+// `errors` array; a well-formed request always returns 200. ?mode=create (default)|replace|merge.
 func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
@@ -338,7 +301,6 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 	}
 	switch mode {
 	case "create", "replace", "merge":
-		// ok
 	default:
 		writeJSONError(w, http.StatusBadRequest, "invalid-mode")
 		return
@@ -351,7 +313,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 		} `json:"items"`
 		ItemsPresent bool `json:"-"`
 	}
-	// Decode raw to detect "items" key presence vs nil-explicit.
+	// Decode raw to distinguish "items" absent from explicit-null.
 	var raw map[string]json.RawMessage
 	if r.Body != nil {
 		dec := json.NewDecoder(r.Body)
@@ -412,7 +374,6 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Compose envelope per mode + existence.
 		var envelope map[string]any
 		var filename string
 		if exists && existing != nil {
@@ -432,7 +393,7 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 					"data": mergedData,
 				}
 			} else {
-				// replace - full overwrite, but still force guid
+				// replace: full overwrite, but still force guid
 				data[guidKey] = guidVal
 				envelope = map[string]any{"meta": meta, "data": data}
 			}
@@ -479,14 +440,9 @@ func (h *Handler) batch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// fieldPatch answers PATCH /api/collections/{tpl}/{id}/field/{key}.
-// Surgical single-field update: refuses guid-key (409 guid-immutable),
-// rejects unknown field keys (400 unknown-field), otherwise overlays
-// data[key] = value and force-sets data[guidKey] = id (so the form
-// stays addressable even if the previous on-disk shape was missing it).
-//
-// Body shape: either `{"value": …}` (envelope) or a raw scalar/array/
-// object. Both are accepted to keep curl-style invocations readable.
+// fieldPatch answers PATCH /api/collections/{tpl}/{id}/field/{key}: single-field update.
+// Refuses the guid key (409), rejects unknown keys (400), force-sets data[guidKey]=id so the
+// form stays addressable. Body is either {"value": ...} or a raw scalar/array/object.
 func (h *Handler) fieldPatch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPatch {
 		w.Header().Set("Allow", "PATCH")
@@ -560,10 +516,8 @@ func (h *Handler) fieldPatch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// readFieldValue extracts the value for a single-field PATCH. Accepts
-// either `{"value": …}` (preferred - wraps nulls explicitly) or a raw
-// scalar/array/object. Empty body is rejected (decoder error) so a
-// stray `PATCH .../field/x` doesn't silently null out the field.
+// readFieldValue extracts the value for a single-field PATCH; an empty body is rejected
+// so a stray PATCH .../field/x doesn't silently null out the field.
 func readFieldValue(r *http.Request) (any, error) {
 	if r.Body == nil {
 		return nil, errors.New("api: empty body")
@@ -573,10 +527,7 @@ func readFieldValue(r *http.Request) (any, error) {
 	if err := dec.Decode(&raw); err != nil {
 		return nil, err
 	}
-	// Envelope form: {"value": …}. Detect by checking for the "value"
-	// key (presence, not truthiness - `{"value": null}` means "set the
-	// field to null"). Anything else (including a top-level object
-	// without "value") is taken as the raw value.
+	// Detect the envelope by "value" presence (not truthiness: {"value": null} sets the field to null).
 	if obj, ok := raw.(map[string]any); ok {
 		if v, present := obj["value"]; present {
 			return v, nil
@@ -585,9 +536,7 @@ func readFieldValue(r *http.Request) (any, error) {
 	return raw, nil
 }
 
-// templateHasField returns true when `key` is the key of any field
-// in the template - including container fields, since the original
-// JS find() doesn't distinguish.
+// templateHasField reports whether any field (including containers) has this key.
 func templateHasField(t *template.Template, key string) bool {
 	for _, f := range t.Fields {
 		if f.Key == key {
@@ -597,10 +546,7 @@ func templateHasField(t *template.Template, key string) bool {
 	return false
 }
 
-// itemDelete answers DELETE /api/collections/{tpl}/{id}. 204 No
-// Content on success, 404 when the id can't be resolved. Original
-// Formidable returned 500 on a storage failure; we mirror that
-// (rather than swallowing) so tooling can retry intelligently.
+// itemDelete answers DELETE /api/collections/{tpl}/{id}: 204 on success, 404 unresolved, 500 on storage failure.
 func (h *Handler) itemDelete(w http.ResponseWriter, r *http.Request) {
 	_, tplFilename, _, ok := h.writeGuard(w, r)
 	if !ok {
@@ -624,11 +570,8 @@ func (h *Handler) itemDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// writeGuard does the four checks every write handler shares:
-// validate stem, gate on collection-enabled, load full template,
-// confirm the template still has a guid field. Returns the resolved
-// stem + filename + template + ok=true on success; on failure it has
-// already written the appropriate 403 response.
+// writeGuard runs the checks every write handler shares (valid stem, collection-enabled, loadable template);
+// ok=false means the 403 was already written.
 func (h *Handler) writeGuard(w http.ResponseWriter, r *http.Request) (string, string, *template.Template, bool) {
 	stem := r.PathValue("tpl")
 	id := r.PathValue("id")
@@ -649,10 +592,7 @@ func (h *Handler) writeGuard(w http.ResponseWriter, r *http.Request) (string, st
 	return stem, tplFilename, t, true
 }
 
-// mergeMaps shallow-merges `over` into `base`. nil `over` → returns a
-// shallow copy of `base` so the caller can mutate freely without
-// touching the storage's map. Per-key override matches the original
-// Formidable JS spread merge.
+// mergeMaps shallow-merges over into base, returning a fresh map (caller can mutate freely).
 func mergeMaps(base, over map[string]any) map[string]any {
 	out := make(map[string]any, len(base)+len(over))
 	maps.Copy(out, base)
@@ -660,11 +600,8 @@ func mergeMaps(base, over map[string]any) map[string]any {
 	return out
 }
 
-// deriveNewFilename slugifies the item-field value (e.g. "Brood" →
-// "brood.meta.json") and appends a -2/-3/... suffix when the slug
-// collides with an existing form. Falls back to <guid>.meta.json when
-// the item-field is unset, empty, or slugifies to nothing. Mirrors
-// the original Formidable internalServer behaviour.
+// deriveNewFilename slugifies the item-field value with a -2/-3 suffix on collision,
+// falling back to <guid>.meta.json when the item-field is unset or slugifies to nothing.
 func (h *Handler) deriveNewFilename(t *template.Template, data map[string]any, guid string) (string, error) {
 	itemField := strings.TrimSpace(t.ItemField)
 	var rawVal any
@@ -685,9 +622,8 @@ func (h *Handler) deriveNewFilename(t *template.Template, data map[string]any, g
 	return guid + ".meta.json", errors.New("api: filename collision exhaustion")
 }
 
-// slugify lowercases, strips diacritics, replaces non-alphanumeric
-// runs with `-`, trims leading/trailing dashes, and caps to 80 chars.
-// Matches the original JS slugify so existing forms stay reachable.
+// slugify lowercases, strips diacritics, collapses non-alphanumeric runs to "-", caps to 80 chars.
+// Must match the original JS slugify so existing forms stay reachable.
 func slugify(s string) string {
 	if s == "" {
 		return ""
@@ -705,8 +641,6 @@ func slugify(s string) string {
 				prevDash = true
 			}
 		default:
-			// Non-ASCII letters: try a quick diacritic strip via folding.
-			// Anything that doesn't fall to ASCII is collapsed to a dash.
 			if folded := stripDiacritic(r); folded >= 'a' && folded <= 'z' {
 				b.WriteRune(folded)
 				prevDash = false
@@ -723,9 +657,7 @@ func slugify(s string) string {
 	return out
 }
 
-// stripDiacritic returns the ASCII-folded equivalent of a single rune.
-// Covers common Latin-1 supplement letters (é, ü, ñ, å, …) used in
-// item-field values. Returns 0 when no fold applies.
+// stripDiacritic returns the ASCII-folded equivalent of a Latin-1 letter, or 0 when no fold applies.
 func stripDiacritic(r rune) rune {
 	switch r {
 	case 'á', 'à', 'â', 'ã', 'ä', 'å', 'ą':
@@ -752,9 +684,7 @@ func stripDiacritic(r rune) rune {
 	return 0
 }
 
-// guidKeyOf returns the template's guid-field key. Returns "" when no
-// field has type=guid. Templates with EnableCollection always have
-// one (the indexer's check guarantees it), but defensive nonetheless.
+// guidKeyOf returns the template's guid-field key, or "" when no field has type=guid.
 func guidKeyOf(t *template.Template) string {
 	for _, f := range t.Fields {
 		if f.Type == "guid" {
@@ -764,9 +694,7 @@ func guidKeyOf(t *template.Template) string {
 	return ""
 }
 
-// itemResponseFromWrite shapes a write success body using the same
-// envelope as the read endpoint's itemResponse - clients see one
-// shape across read+write.
+// itemResponseFromWrite shapes a write success body with the same envelope as the read endpoint.
 func itemResponseFromWrite(stem, id, filename string, meta, data map[string]any) itemResponse {
 	if meta == nil {
 		meta = map[string]any{}
@@ -785,19 +713,14 @@ func itemResponseFromWrite(stem, id, filename string, meta, data map[string]any)
 			Self: "/api/collections/" + stem + "/" + id,
 			HTML: "/template/" + stem + "/form/" + filename,
 		},
-		// Rev is left empty on writes - clients re-GET if they need it.
+		// Rev is left empty on writes; clients re-GET if they need it.
 	}
 }
 
-// pickWriteTitle picks a display title for the write response. Uses
-// data["title"] if present, else falls back to filename. The read
-// endpoint uses a richer rule (item_field then filename) but writes
-// don't have access to the template here without an extra load - and
-// clients usually re-GET anyway.
+// pickWriteTitle uses data["title"] if present, else filename.
 func pickWriteTitle(data, _ map[string]any, filename string) string {
 	if t, _ := data["title"].(string); t != "" {
 		return t
 	}
 	return filename
 }
-

@@ -20,15 +20,12 @@ type StorageReader interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
 
-// RawFormReader is optional: when present, the analyzer runs the guid-sync
-// check against the un-sanitized on-disk form, since LoadForm mirrors the
-// guid field onto meta.id and would otherwise hide drift.
+// RawFormReader runs the guid-sync check against the un-sanitized form; LoadForm mirrors guid onto meta.id and would hide drift.
 type RawFormReader interface {
 	LoadFormRaw(templateFilename, datafile string) *storage.Form
 }
 
-// Manager owns the analyze logic. Stateless aside from its
-// collaborators; safe to share across goroutines.
+// Manager owns the analyze logic; stateless aside from collaborators, safe to share across goroutines.
 type Manager struct {
 	templates TemplateLoader
 	storage   StorageReader
@@ -41,11 +38,8 @@ func NewManager(tpl TemplateLoader, sto StorageReader) *Manager {
 	return &Manager{templates: tpl, storage: sto, now: time.Now}
 }
 
-// AnalyzeTemplate inspects every form under templateFilename and returns
-// a Report listing every structural drift. Returning an error means the
-// scan itself couldn't start (unknown template, list failure); a
-// per-form parse error becomes IssueUnreadable inside the report rather
-// than a hard error.
+// AnalyzeTemplate inspects every form under templateFilename, returning a Report of structural drift.
+// An error means the scan couldn't start; a per-form parse error becomes IssueUnreadable in the report.
 func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 	tpl, err := m.templates.LoadTemplate(templateFilename)
 	if err != nil {
@@ -85,8 +79,7 @@ func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 	return report, nil
 }
 
-// analyzeForm runs every check against one loaded form. Returns the
-// flattened issue list (already in deterministic order).
+// analyzeForm runs every check against one loaded form, returning the issue list in deterministic order.
 func analyzeForm(tpl *template.Template, f *storage.Form) []Issue {
 	var out []Issue
 	out = append(out, checkMeta(tpl, f.Meta)...)
@@ -94,11 +87,8 @@ func analyzeForm(tpl *template.Template, f *storage.Form) []Issue {
 	return out
 }
 
-// guidSyncIssues runs the guid-sync check against the raw on-disk form
-// when the storage reader exposes LoadFormRaw; otherwise it falls back to
-// the already-loaded (sanitized) meta/data. LoadForm sanitizes and mirrors
-// the guid field onto meta.id, which would hide a form whose data.id is
-// empty on disk - so detection must read raw to find real drift.
+// guidSyncIssues runs the guid-sync check against the raw form when LoadFormRaw is available, else the
+// sanitized meta/data; raw is needed because LoadForm mirrors guid onto meta.id and would hide real drift.
 func (m *Manager) guidSyncIssues(templateFilename, fn string, tpl *template.Template, meta storage.FormMeta, data map[string]any) []Issue {
 	if raw, ok := m.storage.(RawFormReader); ok {
 		if rf := raw.LoadFormRaw(templateFilename, fn); rf != nil {
@@ -108,12 +98,8 @@ func (m *Manager) guidSyncIssues(templateFilename, fn string, tpl *template.Temp
 	return checkGuidSync(tpl, meta, data)
 }
 
-// checkGuidSync flags guid fields whose data value drifts from meta.id.
-// The guid field is the identity source: meta.id should mirror it, and a
-// field left empty should be backfilled from meta.id so consumers reading
-// the data block (export, API) get the id. Suggest carries the canonical
-// value (the field's own value when set, else meta.id). Only runs when
-// meta.id is set - a blank meta.id is the separate meta_missing issue.
+// checkGuidSync flags guid fields whose data value drifts from meta.id; Suggest carries the canonical value
+// (field value when set, else meta.id). Only runs when meta.id is set (blank is the separate meta_missing issue).
 func checkGuidSync(tpl *template.Template, meta storage.FormMeta, data map[string]any) []Issue {
 	if meta.ID == "" || data == nil {
 		return nil
@@ -142,16 +128,10 @@ func checkGuidSync(tpl *template.Template, meta storage.FormMeta, data map[strin
 	return out
 }
 
-// ─── meta checks ───────────────────────────────────────────────────────
-
-// checkMeta validates the meta block independently of the data map.
-// All checks here are tolerant of empty: an un-set timestamp is OK,
-// only a *bad* one is an issue. Same for flag_state.
+// checkMeta validates the meta block independently of data; empty is tolerated, only a bad value is an issue.
 func checkMeta(tpl *template.Template, meta storage.FormMeta) []Issue {
 	var out []Issue
 
-	// Created / Updated must be parseable RFC3339 (storage writes
-	// RFC3339Nano; both Nano and second-precision parse via that layout).
 	if meta.Created.At != "" && !parseableTimestamp(meta.Created.At) {
 		out = append(out, Issue{
 			Kind:   IssueMetaBadFormat,
@@ -167,8 +147,7 @@ func checkMeta(tpl *template.Template, meta storage.FormMeta) []Issue {
 		})
 	}
 
-	// ID is required when the template declares a guid field. Otherwise
-	// blank is acceptable.
+	// ID is required only when the template declares a guid field.
 	if meta.ID == "" && templateHasGuid(tpl) {
 		out = append(out, Issue{
 			Kind:   IssueMetaMissing,
@@ -177,10 +156,7 @@ func checkMeta(tpl *template.Template, meta storage.FormMeta) []Issue {
 		})
 	}
 
-	// Each facet entry's Selected (when non-empty) must reference an
-	// option label declared by the matching template facet. An empty
-	// Selected is OK - `set: true` without a chosen colour mirrors the
-	// legacy `flagged: true` path. Unknown facet keys are also drift.
+	// Each facet's non-empty Selected must be a declared option; unknown facet keys are also drift.
 	for key, state := range meta.Facets {
 		f := findFacet(tpl, key)
 		if f == nil {
@@ -238,15 +214,8 @@ func facetHasOption(f *template.Facet, label string) bool {
 	return false
 }
 
-// ─── data checks ──────────────────────────────────────────────────────
-
-// checkData walks a flat-or-nested data map against the field list.
-// pathPrefix is empty for top-level data; loop-recursive calls pass
-// e.g. "items[0]." so issue paths read "items[0].name".
-//
-// The walk mirrors storage.Sanitize's loop handling: a loopstart claims
-// data[key] as []any of items, the fields between it and the matching
-// loopstop are the inner fields, and looper/loopstop markers are skipped.
+// checkData walks a data map against the field list, recursing into loops; pathPrefix prefixes nested issue paths.
+// Loop handling mirrors storage.Sanitize: a loopstart claims data[key] as []any of items.
 func checkData(fields []template.Field, data map[string]any, pathPrefix string) []Issue {
 	var out []Issue
 
@@ -272,11 +241,8 @@ func checkData(fields []template.Field, data map[string]any, pathPrefix string) 
 		if skip[f.Key] {
 			continue
 		}
-		// Virtual fields (e.g. facet) store their value outside data
-		// (meta.facets); storage.Sanitize never seeds a data slot for
-		// them. Treat the key as allowed-but-not-required: mark it
-		// expected so a stray legacy data value isn't flagged extra, but
-		// skip the per-field check so its absence isn't flagged missing.
+		// Virtual fields store their value outside data; mark expected (so a stray legacy value isn't flagged
+		// extra) but skip the per-field check (so its absence isn't flagged missing).
 		if template.IsVirtualFieldType(f.Type) {
 			expected[f.Key] = struct{}{}
 			continue
@@ -285,9 +251,7 @@ func checkData(fields []template.Field, data map[string]any, pathPrefix string) 
 		out = append(out, checkField(f, data, pathPrefix)...)
 	}
 
-	// Extra/orphan keys: anything in data that isn't a top-level
-	// expected key. Walk in a stable order so issue lists are
-	// deterministic.
+	// Orphan keys: data keys with no matching field, sorted for deterministic output.
 	extras := make([]string, 0, len(data))
 	for k := range data {
 		if _, ok := expected[k]; !ok {
@@ -309,12 +273,7 @@ func checkData(fields []template.Field, data map[string]any, pathPrefix string) 
 	return out
 }
 
-// matchLoopstop scans forward from start looking for the loopstop whose
-// Key matches loopKey, honouring nested loopstart/loopstop pairs. The
-// template module bounds nesting at depth 2, but this walker doesn't
-// rely on that - it works at any depth. Returns the index of the
-// closing loopstop, or len(fields)-1 if none found (matches how
-// storage.skipLoop degrades on a malformed template).
+// matchLoopstop returns the matching loopstop index, honouring nested pairs at any depth; falls back to the last field.
 func matchLoopstop(fields []template.Field, start int, loopKey string) int {
 	depth := 0
 	for i := start; i < len(fields); i++ {
@@ -331,7 +290,6 @@ func matchLoopstop(fields []template.Field, start int, loopKey string) int {
 	return len(fields) - 1
 }
 
-// checkField runs the per-field checks for a non-loop top-level field.
 func checkField(f template.Field, data map[string]any, pathPrefix string) []Issue {
 	path := pathPrefix + f.Key
 	v, ok := data[f.Key]
@@ -349,21 +307,12 @@ func checkField(f template.Field, data map[string]any, pathPrefix string) []Issu
 	return out
 }
 
-// checkTableCells descends into a table value (rows of column-indexed
-// cells) and validates each cell against its column's declared type.
-// Column types come from f.Options, one per column in declaration order
-// (the same positional mapping FormFieldTable uses). Cells are addressed
-// positionally, so issue paths are "tableKey[row][col]" - the fixer
-// reaches them the same way it reaches a top-level field.
-//
-// Date columns are special: rather than guess per-value, the doctor
-// infers the column's dominant entry format (see checkDateColumn) and
-// only auto-flags values that conform to it, referring the rest as
-// anomalies. Number / bool columns are checked per-cell.
+// checkTableCells validates each cell against its column type (from f.Options, positional). Date columns
+// infer the dominant entry format rather than guess per-value; number/bool columns are checked per-cell.
 func checkTableCells(f template.Field, v any, path string) []Issue {
 	rows, ok := v.([]any)
 	if !ok {
-		return nil // non-array shape is already flagged by checkValueType
+		return nil // non-array shape already flagged by checkValueType
 	}
 	var out []Issue
 	for ci := 0; ci < len(f.Options); ci++ {
@@ -384,14 +333,8 @@ func checkTableCells(f template.Field, v any, path string) []Issue {
 	return out
 }
 
-// checkDateColumn diagnoses one date column across a table's rows. It
-// infers the column's dominant entry format from the values that pin it
-// down unambiguously (inferColumnDateLayout), then classifies each cell:
-//   - empty or already ISO YYYY-MM-DD: fine, no issue.
-//   - conforms to the inferred format: bad_date_format, with the
-//     resolved ISO carried in Suggest so the fixer converts it directly.
-//   - non-string, or doesn't conform, or the column was undecidable:
-//     date_anomaly, left for the user to fix by hand.
+// checkDateColumn infers a date column's dominant format, then flags conforming non-ISO cells as bad_date_format
+// (with the ISO in Suggest) and everything else (non-string, non-conforming, or undecidable) as date_anomaly.
 func checkDateColumn(rows []any, ci int, path string) []Issue {
 	var values []string
 	for _, raw := range rows {
@@ -459,11 +402,7 @@ func checkDateColumn(rows []any, ci int, path string) []Issue {
 	return out
 }
 
-// checkCell validates one non-date table cell against its column type.
-// Empty cells (nil or "") are always accepted - short rows are padded
-// with "" and a freshly added row carries type defaults, so neither
-// should surface as drift. string and dropdown columns are tolerant
-// (the renderer string-coerces on read).
+// checkCell validates one non-date table cell; empty cells (nil or "") are always accepted (short-row padding / defaults).
 func checkCell(colType string, cell any, path string) []Issue {
 	if cell == nil {
 		return nil
@@ -496,9 +435,7 @@ func checkCell(colType string, cell any, path string) []Issue {
 
 const isoDate = "2006-01-02"
 
-// dateCandidateLayouts are the non-ISO input formats the doctor knows.
-// Order matters only for deterministic tie-breaks; disambiguation comes
-// from values that parse under exactly one layout, not from this order.
+// dateCandidateLayouts are the non-ISO input formats; order only breaks ties (disambiguation comes from single-layout parses).
 var dateCandidateLayouts = []string{
 	"02-01-2006", // DD-MM-YYYY
 	"01-02-2006", // MM-DD-YYYY
@@ -515,9 +452,7 @@ func isISODate(s string) bool {
 	return err == nil && t.Format(isoDate) == s
 }
 
-// parsesDateExactly parses s under layout and confirms reformatting
-// reproduces s, rejecting Go's lenient matches (e.g. a 1-digit day fed
-// to a 2-digit layout) so a match is a true shape match.
+// parsesDateExactly parses s under layout and confirms reformatting reproduces s, rejecting Go's lenient matches.
 func parsesDateExactly(layout, s string) (time.Time, bool) {
 	t, err := time.Parse(layout, s)
 	if err != nil || t.Format(layout) != s {
@@ -526,12 +461,8 @@ func parsesDateExactly(layout, s string) (time.Time, bool) {
 	return t, true
 }
 
-// inferColumnDateLayout picks the dominant input layout for a column's
-// date strings. Only values that parse under exactly one candidate
-// layout cast a vote (a value where both DD/MM and MM/DD parse is
-// ambiguous and abstains); the layout with the most votes wins. Returns
-// ("", false) when nothing is decisive, so the caller treats the whole
-// column as anomalies rather than guessing.
+// inferColumnDateLayout picks the dominant layout by majority vote, where only single-layout parses vote
+// (ambiguous values abstain); returns ("", false) when nothing is decisive so the caller treats all as anomalies.
 func inferColumnDateLayout(values []string) (string, bool) {
 	votes := map[string]int{}
 	for _, v := range values {
@@ -551,7 +482,7 @@ func inferColumnDateLayout(values []string) (string, bool) {
 		}
 	}
 	best, bestN := "", 0
-	for _, l := range dateCandidateLayouts { // stable iteration for ties
+	for _, l := range dateCandidateLayouts { // stable for ties
 		if votes[l] > bestN {
 			best, bestN = l, votes[l]
 		}
@@ -562,8 +493,7 @@ func inferColumnDateLayout(values []string) (string, bool) {
 	return best, true
 }
 
-// columnType reads the declared type off a table column option
-// ({value,type,label,choices}); absent/garbled types default to string.
+// columnType reads the declared type off a table column option; absent/garbled defaults to string.
 func columnType(opt any) string {
 	if m, ok := opt.(map[string]any); ok {
 		if t, ok := m["type"].(string); ok && t != "" {
@@ -573,13 +503,11 @@ func columnType(opt any) string {
 	return "string"
 }
 
-// checkLoopValue validates that data[loopKey] is a []any of map[string]any
-// entries, then recurses into each entry against the loop body.
+// checkLoopValue validates data[loopKey] is a []any of objects, then recurses into each against the loop body.
 func checkLoopValue(loopKey string, inner []template.Field, raw any, pathPrefix string) []Issue {
 	path := pathPrefix + loopKey
 	if raw == nil {
-		// Sanitize defaults missing loops to []any{} - an explicit nil
-		// is recoverable but worth flagging as a missing entry.
+		// Sanitize defaults missing loops to []any{}; an explicit nil is recoverable but worth flagging.
 		return []Issue{{
 			Kind:   IssueMissingField,
 			Path:   path,
@@ -611,13 +539,8 @@ func checkLoopValue(loopKey string, inner []template.Field, raw any, pathPrefix 
 	return out
 }
 
-// checkValueType verifies v's Go type matches the declared field type.
-// Returns a single issue or nothing. The "empty" sentinel (zero value
-// for that type, or empty string) is always allowed - sanitize uses
-// type defaults for unset values, and the analyzer should not flag a
-// freshly defaulted form.
+// checkValueType verifies v's Go type matches the field type; empty/nil is always allowed (defaulted values).
 func checkValueType(fieldType string, v any, path string) []Issue {
-	// nil is treated as "empty" - the field exists in data but is unset.
 	if v == nil {
 		return nil
 	}
@@ -634,11 +557,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 		}}
 
 	case "link":
-		// link is `{href, text}` map canonically - FormFieldLink.vue
-		// builds it from a free-form URL or a formidable:// pair. A
-		// bare string is also accepted because legacy forms (and CSV
-		// imports) carry the raw href without the wrapper; the field
-		// component normalises on read.
+		// Canonically a {href, text} map, but a bare string is accepted (legacy/CSV carry the raw href).
 		switch v.(type) {
 		case string, map[string]any:
 			return nil
@@ -694,9 +613,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 		if _, ok := v.([]any); ok {
 			return nil
 		}
-		// An empty string is the unset sentinel (legacy forms wrote "" for
-		// an empty array field); treat it like nil, not as drift. A
-		// non-empty string is genuine type drift and still flags.
+		// "" is the legacy unset sentinel for an array field; treat like nil. A non-empty string is real drift.
 		if s, ok := v.(string); ok && s == "" {
 			return nil
 		}
@@ -717,9 +634,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 		}}
 	}
 
-	// Unknown field type - be permissive. Template validation owns the
-	// "field type is bogus" check; we don't want to double-report it as
-	// a data issue.
+	// Unknown field type: permissive. Template validation owns the bogus-type check.
 	return nil
 }
 

@@ -12,74 +12,41 @@ import (
 	"strings"
 )
 
-// Plugin-archive errors. Mirror the sentinel-error style used by the
-// pdf cover archive so callers can branch with errors.Is. Surfaced
-// through the Wails service so the frontend can render targeted
-// recovery hints instead of generic "import failed" text.
 var (
-	// ErrPluginArchiveInvalid wraps shape problems with the archive:
-	// missing plugin.json, malformed JSON, missing main.lua, or any
-	// other "this zip isn't a plugin bundle" failure.
+	// ErrPluginArchiveInvalid wraps any "this zip isn't a plugin bundle" failure.
 	ErrPluginArchiveInvalid = errors.New("plugin: archive invalid")
 
-	// ErrPluginArchiveTraversal blocks entries whose Clean'd name
-	// escapes the plugin folder (foo/../../bar, absolute paths, etc.).
-	// Treated as a hard refusal - never resolved.
+	// ErrPluginArchiveTraversal is a hard refusal of entries whose Clean'd name escapes the plugin folder.
 	ErrPluginArchiveTraversal = errors.New("plugin: archive path traversal blocked")
 
-	// ErrPluginArchiveExists fires when the target plugin id already
-	// has an on-disk folder and the caller didn't set overwrite=true.
-	// Lets the frontend show a "replace? cancel?" prompt before
-	// destroying user state.
+	// ErrPluginArchiveExists fires when the target id exists and overwrite wasn't set.
 	ErrPluginArchiveExists = errors.New("plugin: target already exists (set overwrite=true to replace)")
 
-	// ErrPluginArchiveNotFound is returned when the named plugin isn't
-	// present at <pluginsDir>/<id>. Distinct from ErrPluginNotFound so
-	// the export caller can give a more specific error.
+	// ErrPluginArchiveNotFound fires when the source plugin isn't at <pluginsDir>/<id>.
 	ErrPluginArchiveNotFound = errors.New("plugin: archive source plugin not found")
 
-	// ErrPluginArchiveOlderVersion fires when an import would overwrite
-	// an installed plugin with a strictly lower version. This is the
-	// only meaning of the `version` field: downgrade-protection on
-	// import. The check is unconditional - overwrite=true cannot
-	// bypass it; the user has to roll the incoming plugin's version
-	// forward (or wipe the on-disk copy by hand) to install it.
+	// ErrPluginArchiveOlderVersion is the only meaning of the version field: downgrade protection.
+	// The check is unconditional; overwrite=true cannot bypass it.
 	ErrPluginArchiveOlderVersion = errors.New("plugin: archive version is older than installed")
 )
 
-// ExportArchiveResult describes what the export bundled. Files is the
-// list of zip-entry names (relative to the plugin folder root) so the
-// UI can render a confirmation panel and the user can spot side files
-// they didn't expect to ship.
+// ExportArchiveResult describes the bundle; Files lists zip-entry names relative to the plugin root.
 type ExportArchiveResult struct {
 	ID      string   `json:"id"`
 	ZipPath string   `json:"zip_path"`
 	Files   []string `json:"files"`
 }
 
-// ImportArchiveResult describes what was materialised on import.
-// Overwritten flags whether an existing plugin's files were replaced.
+// ImportArchiveResult describes the import; Overwritten flags whether an existing plugin was replaced.
 type ImportArchiveResult struct {
 	ID          string   `json:"id"`
 	Overwritten bool     `json:"overwritten"`
 	Files       []string `json:"files"`
 }
 
-// exportPluginArchive bundles <pluginsDir>/<id>/** into a zip at
-// zipPath. The id is validated up front (validID - same rules as
-// Create/Save/Delete) so we never zip from a path the rest of the
-// module would refuse. Hidden files and subfolders that start with
-// "." are skipped recursively - keeps the bundle clean of editor
-// scratch state and matches what Refresh ignores.
-//
-// Subdirectories (i18n/ is the driving case) recurse with depth-first
-// walk; zip entry names use forward slashes so the archive shape is
-// portable across OSes.
-//
-// The .kv state file at <pluginsDir>/.kv/<id>.json is intentionally
-// NOT bundled: it's per-user runtime state, not part of the plugin's
-// distributable shape. A re-import on another machine starts with a
-// fresh KV - same semantic as installing a new plugin.
+// exportPluginArchive bundles <pluginsDir>/<id>/** into a zip at zipPath. id is validated up front; hidden entries
+// are skipped recursively; zip entry names use forward slashes for cross-OS portability.
+// The .kv state file is intentionally NOT bundled: it's per-user runtime state, not part of the distributable shape.
 func exportPluginArchive(fs editorFS, pluginsDir, id, zipPath string) (ExportArchiveResult, error) {
 	var zero ExportArchiveResult
 	if fs == nil {
@@ -118,11 +85,7 @@ func exportPluginArchive(fs editorFS, pluginsDir, id, zipPath string) (ExportArc
 	}, nil
 }
 
-// walkArchiveEntries depth-first walks dir, adding every non-hidden
-// regular file to zw. rel is the running zip-entry prefix using
-// forward slashes (empty at the top level). Hidden entries (names
-// starting with ".") are skipped at every level - applies to both
-// files and subdirectories.
+// walkArchiveEntries depth-first walks dir, adding every non-hidden regular file to zw; rel is the forward-slash zip-entry prefix.
 func walkArchiveEntries(fs editorFS, dir, rel string, zw *zip.Writer, files *[]string) error {
 	entries, err := fs.ListDir(dir)
 	if err != nil {
@@ -155,22 +118,10 @@ func walkArchiveEntries(fs editorFS, dir, rel string, zw *zip.Writer, files *[]s
 	return nil
 }
 
-// importPluginArchive reads a zip at zipPath and writes its contents
-// to <pluginsDir>/<id>/. id is inferred from the embedded plugin.json
-// (NOT from the zip filename), matching the cover-archive contract
-// where the .html stem is authoritative. The zip must:
-//
-//   - Contain plugin.json at the root with a valid id + manifest_version.
-//   - Contain main.lua at the root (mandatory per the manifest contract).
-//   - Place every entry at the top level (no nested folders for v1).
-//   - Contain no path-traversal segments after Clean.
-//
-// When a plugin with the same id is already present, refuses unless
-// overwrite=true. Overwrite first removes the entire existing folder
-// (so stale side files don't survive) before writing the new tree.
-// Note: the plugin's .kv state at <pluginsDir>/.kv/<id>.json is left
-// alone - the user's runtime state outlives the manifest, matching
-// what a Save would do.
+// importPluginArchive writes a zip's contents to <pluginsDir>/<id>/, with id inferred from the embedded plugin.json (NOT the zip filename).
+// The zip must contain a valid plugin.json + main.lua at the root and no post-Clean traversal segments.
+// An existing id refuses unless overwrite=true, which first removes the whole folder so stale side files don't survive.
+// The plugin's .kv state is left alone: runtime state outlives the manifest, as a Save would.
 func importPluginArchive(fs editorFS, pluginsDir, zipPath string, overwrite bool) (ImportArchiveResult, error) {
 	var zero ImportArchiveResult
 	if fs == nil {
@@ -296,12 +247,8 @@ func readArchiveEntry(f *zip.File) (string, error) {
 	return string(b), nil
 }
 
-// readExistingVersion attempts to extract the version from the
-// plugin.json already on disk at <target>/plugin.json. Returns
-// (version, true) on success and ("", false) when the manifest is
-// missing, unreadable, or unparseable - the caller falls back to
-// the normal Exists gate in that case so a tampered install can
-// still be replaced via overwrite=true.
+// readExistingVersion extracts version from the on-disk plugin.json, returning ("", false) when missing/unparseable
+// so the caller falls back to the Exists gate and a tampered install can still be replaced via overwrite=true.
 func readExistingVersion(fs editorFS, target string) (string, bool) {
 	manifestPath := filepath.Join(target, "plugin.json")
 	if !fs.FileExists(manifestPath) {
@@ -323,10 +270,7 @@ func readExistingVersion(fs editorFS, target string) (string, bool) {
 	return m.Version, true
 }
 
-// ExportArchive bundles <PluginsDir>/<id>/* into a zip at zipPath.
-// The id is validated against validID; the editor fs handles the
-// I/O. Refreshes are not necessary - exporting doesn't mutate the
-// registry. See exportPluginArchive for the file-shape contract.
+// ExportArchive bundles <PluginsDir>/<id>/* into a zip at zipPath; see exportPluginArchive for the file-shape contract.
 func (m *Manager) ExportArchive(id, zipPath string) (ExportArchiveResult, error) {
 	if m.deps.Editor == nil {
 		return ExportArchiveResult{}, fmt.Errorf("plugin: editor fs not configured")
@@ -334,10 +278,7 @@ func (m *Manager) ExportArchive(id, zipPath string) (ExportArchiveResult, error)
 	return exportPluginArchive(m.deps.Editor, m.deps.PluginsDir, id, zipPath)
 }
 
-// ImportArchive materialises a plugin-archive zip at zipPath under
-// <PluginsDir>/. Refuses to overwrite an existing plugin unless
-// overwrite=true. On success the registry is Refresh'd so the
-// Plugins workspace sees the new/replaced entry immediately.
+// ImportArchive materialises a plugin-archive zip under <PluginsDir>/, refusing to overwrite unless overwrite=true, then Refreshes the registry.
 func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveResult, error) {
 	if m.deps.Editor == nil {
 		return ImportArchiveResult{}, fmt.Errorf("plugin: editor fs not configured")
@@ -347,9 +288,7 @@ func (m *Manager) ImportArchive(zipPath string, overwrite bool) (ImportArchiveRe
 		return res, err
 	}
 	if refreshErr := m.Refresh(); refreshErr != nil {
-		// Log via the manager's logger but return the import result -
-		// the files landed on disk; a refresh hiccup is recoverable
-		// via the workspace's Refresh button.
+		// Files already landed; return success since a refresh hiccup is recoverable via the workspace Refresh button.
 		m.log.Warn("plugin: refresh after import failed", "id", res.ID, "err", refreshErr)
 	}
 	return res, nil

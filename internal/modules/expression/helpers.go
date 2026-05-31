@@ -1,11 +1,5 @@
-// Package expression provides a sandboxed expression engine used by
-// the sidebar (and other surfaces) to render dynamic labels from a
-// record's harvested ExpressionItems.
-//
-// Helpers ported 1:1 from the original Electron build's
-// controls/expressionHelpers.js. Each helper is pure and deterministic
-// given (input, nowFn). nowFn is package-level so tests can pin a
-// fixed today; production code uses time.Now.
+// Package expression is a sandboxed expression engine that renders dynamic labels from a record's
+// harvested ExpressionItems. Helpers are pure given (input, nowFn); nowFn is package-level so tests can pin today.
 package expression
 
 import (
@@ -17,25 +11,16 @@ import (
 	"time"
 )
 
-// stderr is overridable in tests so debug() output stays out of the
-// `go test -v` log unless the test explicitly captures it.
+// stderr is overridable in tests so debug() output stays out of the test log.
 var stderr io.Writer = os.Stderr
 
-// nowFn is overridable from tests via withFakeNow. Production stays on
-// time.Now. Module-level rather than per-Manager because all helpers
-// pipe through these date utilities and a per-call clock would clutter
-// every signature for no real win.
+// nowFn is overridable from tests via withFakeNow.
 var nowFn = time.Now
 
-// dmyPattern matches `DD-MM-YYYY` - the only legacy date shape the JS
-// original normalised. Anything else passes through unchanged so users
-// can pass ISO strings, free text, or pre-formatted display values
-// without the helper layer mangling them.
+// dmyPattern matches the only legacy date shape normalised here (DD-MM-YYYY); anything else passes through.
 var dmyPattern = regexp.MustCompile(`^\d{2}-\d{2}-\d{4}$`)
 
-// normalizeDate converts a `DD-MM-YYYY` input to ISO `YYYY-MM-DD`.
-// Anything else (including empty, ISO already, or garbage) is returned
-// unchanged - callers test for emptiness or parse failure downstream.
+// normalizeDate converts DD-MM-YYYY to ISO; anything else is returned unchanged.
 func normalizeDate(in any) string {
 	s, ok := in.(string)
 	if !ok || s == "" {
@@ -52,9 +37,7 @@ func today() string {
 	return nowFn().Format("2006-01-02")
 }
 
-// notEmpty mirrors JS's loose-truthy on strings/arrays. Numbers and
-// booleans pass through as "non-empty" because the original treated
-// only nil and "" as empty (so 0 is "not empty", matching JS).
+// notEmpty treats only nil and "" as empty (so 0 and false count as non-empty).
 func notEmpty(v any) bool {
 	if v == nil {
 		return false
@@ -80,11 +63,7 @@ func defaultText(v any, fallback any) any {
 	return v
 }
 
-// typeOf maps Go's reflect kinds onto the JS `typeof`-ish names the
-// original engine emitted, so existing templates keep working without
-// learning a new vocabulary. Maps render as "object", numerics as
-// "number", everything else falls through to reflect's lowercase
-// kind name.
+// typeOf maps Go reflect kinds onto JS typeof-ish names (maps -> "object", numerics -> "number").
 func typeOf(v any) string {
 	if v == nil {
 		return "null"
@@ -107,10 +86,7 @@ func typeOf(v any) string {
 	return rv.Kind().String()
 }
 
-// parseDate normalises any date-shaped input into a time.Time. Returns
-// (zero, false) on parse failure so callers can surface a falsy
-// answer rather than panic. Two accepted shapes: ISO `YYYY-MM-DD` and
-// legacy `DD-MM-YYYY` (already normalised by normalizeDate).
+// parseDate normalises ISO or legacy DD-MM-YYYY input into a time.Time; (zero, false) on parse failure.
 func parseDate(v any) (time.Time, bool) {
 	s := normalizeDate(v)
 	if s == "" {
@@ -123,16 +99,14 @@ func parseDate(v any) (time.Time, bool) {
 	return t, true
 }
 
-// isOverdue: empty value is overdue (matches JS `if (!val) return true`).
-// A real date is overdue when strictly less than today - a date that
-// equals today is "due", not "overdue".
+// isOverdue: empty/unparseable counts as overdue; a real date is overdue only when strictly before today.
 func isOverdue(v any) bool {
 	if !notEmpty(v) {
 		return true
 	}
 	t, ok := parseDate(v)
 	if !ok {
-		return true // un-parseable values are treated as missing → overdue
+		return true
 	}
 	now, _ := time.Parse("2006-01-02", today())
 	return t.Before(now)
@@ -165,9 +139,7 @@ func isToday(v any) bool {
 	return t.Equal(now)
 }
 
-// daysBetween returns calendar days from a → b (b minus a). Garbage
-// inputs return 0 - same falsy contract as the JS original which
-// returned null but in Go the zero value is the closest analogue.
+// daysBetween returns calendar days from a to b (b minus a); garbage inputs return 0.
 func daysBetween(a, b any) int {
 	ta, ok := parseDate(a)
 	if !ok {
@@ -200,8 +172,7 @@ func isOverdueInDays(v any, days int) bool {
 	return diff >= 0 && diff <= days
 }
 
-// isExpiredAfter: (val + days) < today. Matches JS by treating empty
-// as expired so blank deadlines surface in red rather than disappear.
+// isExpiredAfter: (val + days) < today; empty counts as expired so blank deadlines surface rather than disappear.
 func isExpiredAfter(v any, days int) bool {
 	if !notEmpty(v) {
 		return true
@@ -214,9 +185,7 @@ func isExpiredAfter(v any, days int) bool {
 	return expires < today()
 }
 
-// isUpcomingBefore: (val - days) > today. JS-equivalent string
-// comparison so `2026-04-30` < `2026-05-01` lexicographically (ISO
-// dates sort the same as time-ordered).
+// isUpcomingBefore: (val - days) > today, compared as ISO strings (which sort the same as time-ordered).
 func isUpcomingBefore(v any, days int) bool {
 	if !notEmpty(v) {
 		return false
@@ -229,15 +198,12 @@ func isUpcomingBefore(v any, days int) bool {
 	return cutoff > today()
 }
 
-// ageInDays: shorthand for daysBetween(val, today). Always >= 0 for
-// past dates; negative for future ones (matches JS behaviour).
+// ageInDays is daysBetween(val, today): >= 0 for past dates, negative for future.
 func ageInDays(v any) int {
 	return daysBetween(v, today())
 }
 
-// isSimilar: Levenshtein-based similarity ratio (0–1) ≥ threshold.
-// Threshold defaults to 0.8 when the caller passes 0 (matches JS).
-// Both inputs are case-folded so "Hello" and "hello" score 1.0.
+// isSimilar: case-folded Levenshtein similarity ratio >= threshold (default 0.8 when threshold is 0).
 func isSimilar(a, b string, threshold float64) bool {
 	if threshold == 0 {
 		threshold = 0.8
@@ -248,11 +214,7 @@ func isSimilar(a, b string, threshold float64) bool {
 	return stringSimilarity(a, b) >= threshold
 }
 
-// stringSimilarity returns 1 - (edit distance / max length). 0 means
-// completely different; 1 means identical. Empty inputs short-circuit
-// to 0 - the JS original returned 1 for both-empty but the only
-// caller (isSimilar) now special-cases empty to false up front, so
-// this branch is dead code outside direct unit tests.
+// stringSimilarity returns 1 - editDistance/maxLen (1 identical, 0 different); empty inputs short-circuit to 0.
 func stringSimilarity(a, b string) float64 {
 	a = lower(a)
 	b = lower(b)
@@ -271,8 +233,7 @@ func stringSimilarity(a, b string) float64 {
 	return 1 - float64(d)/float64(max)
 }
 
-// levenshtein: standard DP. O(la*lb) time, O(lb) space - only the
-// previous row is needed. Plenty fast for sidebar-sized strings.
+// levenshtein is standard DP edit distance, O(la*lb) time and O(lb) space.
 func levenshtein(a, b string) int {
 	la, lb := len(a), len(b)
 	prev := make([]int, lb+1)
@@ -307,10 +268,7 @@ func min3(a, b, c int) int {
 	return c
 }
 
-// lower is a tiny helper used by isSimilar - pulled out of unicode/strings
-// to avoid an extra import in this file. ASCII-only is fine because
-// the similarity check is a fuzzy heuristic and Unicode case folding
-// would not meaningfully change a tag like "audit_control".
+// lower is an ASCII-only lowercaser; fine here since the similarity check is a fuzzy heuristic.
 func lower(s string) string {
 	out := make([]byte, len(s))
 	for i := 0; i < len(s); i++ {
@@ -323,11 +281,7 @@ func lower(s string) string {
 	return string(out)
 }
 
-// debug is the JS-side `debug(...args)` - logs to stderr and returns
-// the first argument. Useful when authoring an expression: wrap a
-// subexpression to inspect its value at runtime without disturbing
-// the result. Marked `safe=false` in the registry so it ships only
-// when the manager is built with verbose helpers enabled.
+// debug logs to stderr and returns its first argument, for inspecting a subexpression at runtime.
 func debug(args ...any) any {
 	if len(args) == 0 {
 		return nil

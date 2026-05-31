@@ -390,10 +390,10 @@ func TestNormalize_BooleanDefault_GarbageStringClears(t *testing.T) {
 
 func TestNormalize_TagsDefault_StringSplitsOnCommaSemicolon(t *testing.T) {
 	cases := map[string][]any{
-		"alpha,beta,gamma":   {"alpha", "beta", "gamma"},
+		"alpha,beta,gamma":    {"alpha", "beta", "gamma"},
 		"alpha; beta ; gamma": {"alpha", "beta", "gamma"},
-		"  one  , two":       {"one", "two"},
-		"solo":               {"solo"},
+		"  one  , two":        {"one", "two"},
+		"solo":                {"solo"},
 	}
 	for in, want := range cases {
 		tpl := &Template{Fields: []Field{{Key: "t", Type: "tags", Default: in}}}
@@ -449,10 +449,10 @@ func TestNormalize_TextShapeDefault_CoercesNonStringToString(t *testing.T) {
 	// "coerce non-string to string" rule doesn't apply there.
 	types := []string{"text", "textarea", "dropdown", "radio", "file-path", "folder-path", "image"}
 	cases := map[any]string{
-		42:           "42",
+		42:            "42",
 		float64(3.14): "3.14",
-		true:         "true",
-		false:        "false",
+		true:          "true",
+		false:         "false",
 	}
 	for _, typ := range types {
 		for in, want := range cases {
@@ -473,12 +473,12 @@ func TestNormalize_TextShapeDefault_CleansInvisibleChars(t *testing.T) {
 	// These are the typical garbage Word / web rich-text controls
 	// leave in pasted strings.
 	cases := map[string]string{
-		"hello\u00A0world":            "hello world",         // NBSP \u2192 space
-		"hello\u200Bworld":            "helloworld",          // zero-width space
-		"\uFEFFhello":                 "hello",               // BOM at start
-		"a\u200Cb\u200Dc":            "abc",                 // ZWNJ + ZWJ
-		"plain":                       "plain",               // unchanged
-		"keep \u2014 smart quotes":    "keep \u2014 smart quotes", // em-dash kept
+		"hello\u00A0world":         "hello world",              // NBSP \u2192 space
+		"hello\u200Bworld":         "helloworld",               // zero-width space
+		"\uFEFFhello":              "hello",                    // BOM at start
+		"a\u200Cb\u200Dc":          "abc",                      // ZWNJ + ZWJ
+		"plain":                    "plain",                    // unchanged
+		"keep \u2014 smart quotes": "keep \u2014 smart quotes", // em-dash kept
 	}
 	for in, want := range cases {
 		tpl := &Template{Fields: []Field{{Key: "f", Type: "text", Default: in}}}

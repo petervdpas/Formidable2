@@ -156,4 +156,3 @@ func TestService_ResolveExportDefaults_DelegatesToManager(t *testing.T) {
 		t.Errorf("Theme = %q, want manuscript", got.Theme)
 	}
 }
-

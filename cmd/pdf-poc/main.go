@@ -6,7 +6,7 @@
 //   - go-rod's Chrome probe (system browser or managed download)
 //   - picoloom.Converter end-to-end (Markdown -> HTML -> PDF)
 //
-// To be deleted once Stage 0 is signed off — see design/pdf-export.md.
+// To be deleted once Stage 0 is signed off; see design/pdf-export.md.
 package main
 
 import (
@@ -33,7 +33,7 @@ into the Formidable2 build.
 - ` + "`picoloom.NewConverter`" + ` construction (default options)
 - go-rod's Chrome resolution (` + "`ROD_BROWSER_BIN`" + ` -> system paths -> managed download)
 - Markdown -> HTML -> PDF conversion via headless Chrome
-- **Image rendering** — both ` + "`data:`" + ` URLs and ` + "`SourceDir`" + `-relative paths
+- **Image rendering**: both ` + "`data:`" + ` URLs and ` + "`SourceDir`" + `-relative paths
 
 ## Image via SourceDir-relative path
 
@@ -86,7 +86,7 @@ func main() {
 	if err != nil {
 		die("Convert: %v", err)
 	}
-	fmt.Printf("pdf-poc: render done in %s — HTML %d bytes, PDF %d bytes\n",
+	fmt.Printf("pdf-poc: render done in %s, HTML %d bytes, PDF %d bytes\n",
 		time.Since(tRender).Round(time.Millisecond), len(res.HTML), len(res.PDF))
 
 	if err := os.WriteFile(outPath, res.PDF, 0o644); err != nil {

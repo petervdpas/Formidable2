@@ -5,17 +5,8 @@ import (
 	"path/filepath"
 )
 
-// wipeManagedContent removes every file gigot considers "managed"
-// under contextFolder: the templates/ and storage/ subtrees, the
-// allowlisted root files (README.md, .gitignore), and the
-// .formidable/sync.json ledger. The context folder itself, the
-// .formidable/ directory, and any non-managed files survive. A
-// missing context folder is treated as a no-op so the Reclone
-// orchestrator can call this safely on the very first run.
-//
-// This is the explicit-destructive primitive behind Reclone. Use
-// PullLocal for the merge-aware case where local-only edits should
-// survive the round-trip.
+// wipeManagedContent removes managed content (templates/, storage/, allowlisted root files, the ledger); the .formidable/ dir and non-managed files survive.
+// A missing context folder is a no-op so Reclone can call it on the first run. Destructive primitive behind Reclone; use PullLocal for the merge-aware case.
 func wipeManagedContent(contextFolder string) error {
 	if contextFolder == "" {
 		return ErrMissingContext
@@ -45,9 +36,7 @@ func wipeManagedContent(contextFolder string) error {
 	return nil
 }
 
-// removeIfExists deletes a single path and treats "missing" as
-// success. Distinct from os.RemoveAll so the wipe pass doesn't have
-// to special-case file vs directory.
+// removeIfExists deletes a single path, treating "missing" as success.
 func removeIfExists(path string) error {
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return err

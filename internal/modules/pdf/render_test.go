@@ -402,7 +402,7 @@ func TestExport_PerFormSerialization(t *testing.T) {
 		}
 		mu.Unlock()
 		return &fakeBlockingConverter{
-			pdf:    []byte("%PDF-1.4 fake"),
+			pdf: []byte("%PDF-1.4 fake"),
 			finish: func() {
 				time.Sleep(20 * time.Millisecond)
 				mu.Lock()

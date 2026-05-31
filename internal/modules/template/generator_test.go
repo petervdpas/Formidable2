@@ -383,7 +383,7 @@ func TestGenerate_ReportEmitsAPISectionHelper(t *testing.T) {
 	got := GenerateMarkdownTemplate(ShapeReport, defaultOpts(), []Field{
 		{Key: "ref", Type: "api", Label: "Reference",
 			Collection: "addresses.yaml",
-			Map: []APIMap{{Key: "name", Label: "NameAlias"}}},
+			Map:        []APIMap{{Key: "name", Label: "NameAlias"}}},
 	})
 	if !strings.Contains(got, `{{apiSection "ref"}}`) {
 		t.Errorf("report must emit apiSection for api field; got:\n%s", got)

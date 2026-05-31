@@ -608,8 +608,8 @@ toc-own-page: true
 	// `C:` colon-after-letter pattern.
 	legacyMustContain := []string{
 		"legacy:",
-		"F8F8F8",  // hash color preserved (with or without `#`)
-		"552255",  // numeric color preserved
+		"F8F8F8",                                // hash color preserved (with or without `#`)
+		"552255",                                // numeric color preserved
 		"C:/Projects/team/data/fontys-logo.png", // colon-in-path
 		"140pt",
 		"Inhoudsopgave",

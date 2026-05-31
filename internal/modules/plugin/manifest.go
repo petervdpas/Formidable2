@@ -8,16 +8,8 @@ import (
 	"strings"
 )
 
-// LoadManifest reads <dir>/plugin.json and validates it against
-// the current schema. Returns ErrManifestInvalid for any shape
-// problem (missing file, malformed JSON, missing required field)
-// and ErrManifestVersion for unsupported manifest_version. The
-// returned Manifest has its `Dir`-side validation done - main.lua
-// existence is checked here too because shipping a manifest
-// without a script is always a bug, not a "load lazily" concern.
-//
-// Wrap detail in fmt.Errorf("%w: ...") so errors.Is(...) keeps
-// working but a logger gets the underlying cause.
+// LoadManifest reads and validates <dir>/plugin.json, returning ErrManifestInvalid for shape problems and ErrManifestVersion for bad manifest_version.
+// main.lua existence is checked here too: a manifest without a script is always a bug. Errors wrap with %w so errors.Is keeps working.
 func LoadManifest(dir string) (Manifest, error) {
 	path := filepath.Join(dir, "plugin.json")
 	raw, err := os.ReadFile(path)
@@ -45,8 +37,7 @@ func LoadManifest(dir string) (Manifest, error) {
 	return m, nil
 }
 
-// FnNameFor returns the Lua global name to call for a command:
-// the explicit Fn override when set, else the command ID itself.
+// FnNameFor returns the Lua global to call: the explicit Fn override, else the command ID.
 func FnNameFor(c Command) string {
 	if c.Fn != "" {
 		return c.Fn
@@ -54,9 +45,7 @@ func FnNameFor(c Command) string {
 	return c.ID
 }
 
-// validateManifest enforces the field-level invariants documented
-// on Manifest/Command. Errors wrap ErrManifestInvalid so callers
-// can branch with errors.Is.
+// validateManifest enforces the Manifest/Command field invariants, wrapping ErrManifestInvalid.
 func validateManifest(m *Manifest) error {
 	if !validID(m.ID) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, m.ID)
@@ -70,13 +59,9 @@ func validateManifest(m *Manifest) error {
 	if len(m.Commands) == 0 {
 		return fmt.Errorf("%w: at least one command required", ErrManifestInvalid)
 	}
-	// run_mode is optional - empty behaves like "modal" - but if set
-	// it must name one of the known constants. Catches typos like
-	// "Form" / "Modal" early so authors get a load-time error
-	// rather than a silent fallback at runtime.
+	// Empty run_mode behaves like "modal"; validating a set value catches typos at load time, not at runtime.
 	switch m.RunMode {
 	case "", RunModeModal, RunModeForm:
-		// ok
 	default:
 		return fmt.Errorf("%w: bad run_mode %q (want %q or %q)",
 			ErrManifestInvalid, m.RunMode, RunModeModal, RunModeForm)
@@ -111,10 +96,7 @@ func validateManifest(m *Manifest) error {
 	return nil
 }
 
-// validID enforces the on-disk-folder-name contract: lowercase
-// ascii letters, digits, dash, underscore. Rejects "/", "..", and
-// empty so a hand-edited manifest can never escape the plugins
-// root via path traversal when we use the id to resolve files.
+// validID enforces lowercase-ascii / digit / dash / underscore so an id can never escape the plugins root via path traversal.
 func validID(id string) bool {
 	if id == "" {
 		return false

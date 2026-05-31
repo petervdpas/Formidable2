@@ -2,16 +2,7 @@ package storage
 
 import "context"
 
-// Service is the api layer over Manager. Mirrors the Electron
-// `window.api.forms.*` IPC group:
-//   - forms-ensure-dir       → EnsureFormDir
-//   - list-forms             → ListForms
-//   - extended-list-forms    → ExtendedListForms
-//   - load-form              → LoadForm
-//   - save-form              → SaveForm
-//   - delete-form            → DeleteForm
-//   - save-image-file        → SaveImageFile
-//   - csv-import-row         → ImportCsvRow (alias for SaveForm with raw envelope)
+// Service is the Wails layer over Manager.
 type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }
@@ -20,9 +11,7 @@ func (s *Service) EnsureFormDir(templateFilename string) error {
 	return s.m.EnsureFormDir(templateFilename)
 }
 
-// TemplateStorageDir returns the absolute path of this template's
-// storage folder. Used by the Utilities menu's "Open Storage Folder"
-// action; the frontend pipes the result through System.OpenExternal.
+// TemplateStorageDir returns the absolute path of this template's storage folder.
 func (s *Service) TemplateStorageDir(templateFilename string) string {
 	return s.m.TemplateStorageDir(templateFilename)
 }
@@ -35,9 +24,7 @@ func (s *Service) ExtendedListForms(templateFilename string) ([]FormSummary, err
 	return s.m.ExtendedListForms(templateFilename)
 }
 
-// SearchForms runs a full-text query over one template's collection and
-// returns matching summaries ranked by relevance. Backed by the SQLite
-// FTS index; an empty query returns no rows.
+// SearchForms runs a full-text query, returning matching summaries ranked by relevance (empty query: no rows).
 func (s *Service) SearchForms(templateFilename, query string) ([]FormSummary, error) {
 	return s.m.SearchForms(templateFilename, query)
 }
@@ -46,9 +33,7 @@ func (s *Service) LoadForm(templateFilename, datafile string) *Form {
 	return s.m.LoadForm(templateFilename, datafile)
 }
 
-// SaveForm is invoked from the Wails IPC bridge - frontend → service.
-// Wails doesn't surface a request context here, so we pass Background;
-// stamp() then falls back to the AuthorProvider for attribution.
+// SaveForm passes Background because Wails IPC has no request context; stamp() falls back to the AuthorProvider.
 func (s *Service) SaveForm(templateFilename, datafile string, data map[string]any) SaveResult {
 	return s.m.SaveForm(context.Background(), templateFilename, datafile, data)
 }
@@ -66,22 +51,17 @@ func (s *Service) LoadImageFile(templateFilename, name string) (string, error) {
 	return s.m.LoadImageFile(templateFilename, name)
 }
 
-// DeleteImageFile removes the named image from this template's images
-// folder. Missing file is a no-op.
+// DeleteImageFile removes the named image (missing file is a no-op).
 func (s *Service) DeleteImageFile(templateFilename, name string) error {
 	return s.m.DeleteImageFile(templateFilename, name)
 }
 
-// ImportCsvRow is the storage-side of the old `csv-import-row` IPC.
-// The frontend pre-parsed CSV and now wants each row stored as a form.
+// ImportCsvRow stores one pre-parsed CSV row as a form.
 func (s *Service) ImportCsvRow(templateFilename, datafile string, data map[string]any) SaveResult {
 	return s.m.SaveForm(context.Background(), templateFilename, datafile, data)
 }
 
-// MigrateTemplateMeta rewrites every legacy-shaped form under the
-// given template into the new audit-block meta shape. Surfaced in the
-// Cleanup Storage dialog so the user can clear historical files in
-// one click without touching their data or losing original identity.
+// MigrateTemplateMeta rewrites every legacy-shaped form under the template into the new audit-block shape.
 func (s *Service) MigrateTemplateMeta(templateFilename string) (MigrateResult, error) {
 	return s.m.MigrateTemplateMeta(templateFilename)
 }

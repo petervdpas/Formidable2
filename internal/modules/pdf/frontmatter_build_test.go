@@ -392,7 +392,7 @@ func TestBuildFrontmatter_AllFieldsPopulated(t *testing.T) {
 	// missing-field bugs that single-block tests miss.
 	got, err := BuildFrontmatter(InjectConfig{
 		Style: "technical",
-		Page: &InjectPageConfig{Size: "a4", Orientation: "portrait", Margin: 1.0},
+		Page:  &InjectPageConfig{Size: "a4", Orientation: "portrait", Margin: 1.0},
 		Cover: &InjectCoverConfig{
 			Template:     "classic",
 			Title:        "Audit Control",

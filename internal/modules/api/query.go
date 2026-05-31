@@ -7,12 +7,8 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/query"
 )
 
-// query answers POST /api/collections/{tpl}/query: run a constrained
-// SELECT (the FDRM query surface) over the template's indexed values and
-// return the typed Result. The {tpl} path segment is authoritative for
-// the template - any Template in the body is ignored - so a caller can't
-// redirect the query at a non-gated template. Gated by the same
-// collection-enabled check as the rest of /api/* (not by EnabledTemplates).
+// query answers POST /api/collections/{tpl}/query, running a constrained SELECT over indexed values.
+// The {tpl} path segment is authoritative; a body Template is ignored so a caller can't redirect at an ungated template.
 func (h *Handler) query(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
@@ -33,8 +29,7 @@ func (h *Handler) query(w http.ResponseWriter, r *http.Request) {
 	spec.Template = tplFilename
 	res, err := h.qry.Run(spec)
 	if err != nil {
-		// A bad column index / filter op is a client error; the spec
-		// reason isn't leaked as a slug.
+		// Bad column index/filter op is a client error; the reason isn't leaked as a slug.
 		writeJSONError(w, http.StatusUnprocessableEntity, "bad-query")
 		return
 	}

@@ -8,21 +8,8 @@ import (
 	"github.com/expr-lang/expr/parser"
 )
 
-// Convert is a best-effort migrator from legacy sidebar_expression
-// shapes into the new builder canonical form. Frontend triggers it
-// only when Parse fails - the converted output is fed straight back
-// into Parse → Compile so the dialog can edit a clean DSL.
-//
-// Handled legacy shapes:
-//
-//   - [ <X> | <outcome> ]    →   <outcome>     (old "pipe" form)
-//   - [ <ternary> ]          →   <ternary>     (array-wrapped cascade)
-//   - bare identifier `key`  →   F["key"]      (when key ∈ fields)
-//   - bare "literal" in text →   L["literal"]  (inside text concat)
-//
-// Anything Convert can't recognise after the pre-pass surfaces an
-// error so the user knows the source needs hand-editing rather than
-// silently dropping pieces.
+// Convert best-effort migrates legacy sidebar_expression shapes (pipe form, array-wrapped cascade, bare
+// identifiers/literals) into the canonical F/L/O form. Invoked only when Parse fails; unrecognised input errors.
 func Convert(src string, fields []FieldRef) (string, error) {
 	src = strings.TrimSpace(src)
 	if src == "" {
@@ -53,12 +40,8 @@ func Convert(src string, fields []FieldRef) (string, error) {
 	return out, nil
 }
 
-// unwrapPipeForm matches `[ <X> | <Y> ]` and returns <Y>. expr-lang's
-// parser can't read the `|` (it parses pipe as `Y(X)` and expects an
-// identifier on the right), so this transformation has to happen at
-// the text level. In every legacy template we saw, <Y> is fully
-// self-contained - references whatever fields it needs inside its
-// text/classes - so dropping <X> is lossless for chip rendering.
+// unwrapPipeForm matches [ <X> | <Y> ] and returns <Y> (a text-level pass since expr-lang can't read `|`);
+// dropping <X> is lossless because legacy <Y> is self-contained.
 func unwrapPipeForm(s string) string {
 	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
 		return s
@@ -72,13 +55,7 @@ func unwrapPipeForm(s string) string {
 	return right
 }
 
-// unwrapSingletonArray strips `[ X ]` to `X` when X has no top-level
-// comma - i.e. when the array wrapping was decorative rather than a
-// real list. Legacy sources wrapped a single ternary or outcome in
-// `[...]` because old Formidable's runtime evaluated arrays as a
-// per-row sidebar feed; the new engine expects a single Result
-// expression and would CSV-stringify the array, producing garbage
-// (engine.go:219-227).
+// unwrapSingletonArray strips [ X ] to X when X has no top-level comma; the new engine would CSV-stringify the array.
 func unwrapSingletonArray(s string) string {
 	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
 		return s
@@ -90,11 +67,8 @@ func unwrapSingletonArray(s string) string {
 	return inner
 }
 
-// findTopLevelByte returns the index of the first occurrence of `ch`
-// in s at bracket/paren/brace depth 0 and outside string literals.
-// When skipDoubled is true, `||` (or any `XX` repeat) is treated as a
-// different token - necessary for `|` since `||` is logical-or and
-// must not split a pipe form.
+// findTopLevelByte returns the first index of ch at bracket depth 0 outside strings; skipDoubled ignores XX runs
+// (so `||` isn't mistaken for a pipe).
 func findTopLevelByte(s string, ch byte, skipDoubled bool) int {
 	depth := 0
 	inStr := byte(0)
@@ -138,13 +112,8 @@ func findTopLevelByte(s string, ch byte, skipDoubled bool) int {
 	return -1
 }
 
-// mutateConvert walks the AST rewriting two legacy idioms into the
-// canonical F[]/L[]/O[] vocabulary. The inTextChain flag rides down
-// through `+` BinaryNodes inside an outcome's `text:` pair so a
-// bare string literal in `"prefix " + field` gets wrapped, while a
-// string literal somewhere else (like a `==` RHS in a predicate) does
-// NOT - those have to stay literal because Compile emits them
-// verbatim in comparisons.
+// mutateConvert rewrites bare identifiers/literals into F[]/L[]. inTextChain rides down a text: `+` chain so a
+// literal in a text concat is wrapped, but a literal as a predicate `==` RHS stays literal.
 func mutateConvert(np *ast.Node, fieldKeys map[string]bool, inTextChain bool) {
 	switch n := (*np).(type) {
 	case *ast.IdentifierNode:
@@ -175,15 +144,12 @@ func mutateConvert(np *ast.Node, fieldKeys map[string]bool, inTextChain bool) {
 		mutateConvert(&n.Exp1, fieldKeys, inTextChain)
 		mutateConvert(&n.Exp2, fieldKeys, inTextChain)
 	case *ast.CallNode:
-		// Leave the callee identifier alone - that's a helper name,
-		// not a field reference. Arguments may contain field refs
-		// (e.g. isExpiredAfter(<ref>, 30)) so recurse there.
+		// Callee is a helper name, not a field; recurse only into arguments.
 		for i := range n.Arguments {
 			mutateConvert(&n.Arguments[i], fieldKeys, false)
 		}
 	case *ast.MemberNode:
-		// F["k"] / L["s"] / O["k"] are already canonical - don't
-		// descend (we'd otherwise rewrite the IdentifierNode("F")).
+		// F/L/O are already canonical; don't descend (we'd rewrite the IdentifierNode("F")).
 		if id, ok := n.Node.(*ast.IdentifierNode); ok {
 			switch id.Value {
 			case "F", "L", "O":
@@ -207,11 +173,7 @@ func mutateConvert(np *ast.Node, fieldKeys map[string]bool, inTextChain bool) {
 	}
 }
 
-// simplifyBoolCompare normalises legacy explicit boolean comparisons
-// (`F["x"] == true`, `F["x"] != false`) into the bare/negated field
-// reference the new builder's predicate parser expects. The parser
-// rejects `F[..] == true` outright - boolean predicates compile to
-// `F[..]` or `!F[..]`, never to a literal-bool comparison.
+// simplifyBoolCompare normalises F["x"] == true / != false into the bare/negated ref the predicate parser expects.
 func simplifyBoolCompare(n *ast.BinaryNode) (ast.Node, bool) {
 	if n.Operator != "==" && n.Operator != "!=" {
 		return nil, false

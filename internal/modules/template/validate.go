@@ -7,8 +7,7 @@ import (
 
 const maxLoopDepth = 2
 
-// Validate runs all template-level checks and returns the accumulated
-// errors. Mirrors the rules in `controls/templateManager.js`.
+// Validate runs all template-level checks and returns the accumulated errors.
 func Validate(t *Template) []ValidationError {
 	if t == nil || t.Fields == nil {
 		return []ValidationError{{
@@ -57,12 +56,8 @@ func Validate(t *Template) []ValidationError {
 	return errs
 }
 
-// facetFieldErrors flags problems specific to virtual facet fields:
-// missing FacetKey, FacetKey not matched by any template-declared
-// facet, or Format set to anything other than "" / "radio" / "dropdown".
-// The empty-Format case is a green path: Normalize coerces it to
-// "radio" before save, but Validate runs before Normalize on some
-// import paths so we must accept it as valid here.
+// facetFieldErrors flags virtual facet fields with a missing/unknown FacetKey or a bad Format.
+// Empty Format is accepted: Normalize coerces it to "radio", but Validate runs before Normalize on import paths.
 func facetFieldErrors(t *Template) []ValidationError {
 	if t == nil {
 		return nil
@@ -137,10 +132,7 @@ func facetFieldErrors(t *Template) []ValidationError {
 	return errs
 }
 
-// apiGroupOnNonApiErrors flags collection / map populated on a field
-// whose Type is not "api". The api editor section is the only place
-// these belong; carrying them on a text/number/etc. field is dead
-// data and would confuse a downstream consumer that introspects them.
+// apiGroupOnNonApiErrors flags collection/map populated on a non-api field (dead data that confuses consumers).
 func apiGroupOnNonApiErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	for i := range fields {
@@ -164,9 +156,7 @@ func apiGroupOnNonApiErrors(fields []Field) []ValidationError {
 	return errs
 }
 
-// unknownTypeErrors flags fields whose `type` is not in the registry.
-// Catches typos in hand-edited YAML and would-be-foreign types from
-// migrations or plugins.
+// unknownTypeErrors flags fields whose type is missing or not in the registry.
 func unknownTypeErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	for i := range fields {
@@ -197,19 +187,14 @@ func unknownTypeErrors(fields []Field) []ValidationError {
 	return errs
 }
 
-// forbiddenAttributeErrors flags fields that carry properties the
-// registry forbids for their type. Mirrors the original Formidable's
-// `disabledAttributes` UI hide list, but enforced at save-time so
-// hand-edited YAML can't sneak meaningless data past the editor.
+// forbiddenAttributeErrors flags fields carrying properties the registry forbids for their type.
 func forbiddenAttributeErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	for i := range fields {
 		f := fields[i]
 		def, ok := fieldDescriptors[f.Type]
 		if !ok {
-			// Unknown type already reported by unknownTypeErrors -
-			// skip the per-attr check so the user sees one error per
-			// problem, not a flood.
+			// Unknown type already reported by unknownTypeErrors; skip to avoid a flood.
 			continue
 		}
 		for _, attr := range allEnforcedAttrs {
@@ -233,8 +218,7 @@ func forbiddenAttributeErrors(fields []Field) []ValidationError {
 	return errs
 }
 
-// duplicateKeys returns keys that appear more than once, ignoring matched
-// loopstart/loopstop pairs (those legally share a key).
+// duplicateKeys returns keys appearing more than once, ignoring loopstart/loopstop pairs that legally share a key.
 func duplicateKeys(fields []Field) []string {
 	seen := map[string]string{}
 	var dups []string
@@ -273,7 +257,7 @@ func primaryKeyError(fields []Field) *ValidationError {
 	return nil
 }
 
-// loopPairingErrors reports unmatched loopstart/loopstop and key mismatches.
+// loopPairingErrors reports unmatched loopstart/loopstop and loop key mismatches.
 func loopPairingErrors(fields []Field) []ValidationError {
 	var errs []ValidationError
 	type frame struct {
@@ -399,10 +383,7 @@ func singleTagsError(fields []Field) *ValidationError {
 	return nil
 }
 
-// singleGuidError flags more than one `guid` field in a template.
-// Mirror of singleTagsError - a template's GUID is the addressable
-// identity used by the wiki/API resolver, so two guid fields would
-// make IsCollectionEnabled / ResolveByID ambiguous.
+// singleGuidError flags more than one guid field; two would make the wiki/API resolver's identity ambiguous.
 func singleGuidError(fields []Field) *ValidationError {
 	var keys []string
 	for _, f := range fields {
@@ -475,6 +456,4 @@ func apiFieldErrors(fields []Field) []ValidationError {
 	return errs
 }
 
-// key is a tiny accessor used by loopPairingErrors so the same struct
-// can be ranged whether passed by value or pointer.
 func (f Field) key() string { return f.Key }

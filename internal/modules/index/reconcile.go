@@ -5,15 +5,8 @@ import (
 	"fmt"
 )
 
-// Reconcile applies a ReconcileBatch atomically to db. Either every
-// upsert/delete lands and meta.rev bumps once, or nothing does. An
-// empty batch returns nil without bumping rev (callers can run a
-// speculative diff and only commit when something actually moved).
-//
-// Tag synchronization happens *inside* form upsert: any prior
-// (template, filename) tag rows are wiped, then the FormRow's current
-// tag set is re-inserted. This keeps the inverted index in lock-step
-// with the form row without the caller having to compute the diff.
+// Reconcile applies a ReconcileBatch atomically: either everything lands and meta.rev bumps once, or
+// nothing does. An empty batch is a no-op (no rev bump). Tag/facet/value/search rows re-sync inside form upsert.
 func Reconcile(db *sql.DB, batch ReconcileBatch) error {
 	if isEmpty(batch) {
 		return nil
@@ -22,7 +15,7 @@ func Reconcile(db *sql.DB, batch ReconcileBatch) error {
 	if err != nil {
 		return fmt.Errorf("index: begin: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck // Commit clears it; harmless on success
+	defer tx.Rollback() //nolint:errcheck // Commit clears it
 
 	if err := upsertTemplates(tx, batch.UpsertTemplates); err != nil {
 		return err
@@ -217,9 +210,7 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 			return fmt.Errorf("index: upsert form %q/%q: %w", r.Template, r.Filename, err)
 		}
 
-		// Tag re-sync. Wipe whatever was there, re-insert the current
-		// set. Cheap (a form rarely has more than a handful of tags)
-		// and removes the diff burden from the caller.
+		// Tag re-sync: replace-all rather than diff (cheap, and the caller carries no diff burden).
 		if _, err := clearTags.Exec(r.Template, r.Filename); err != nil {
 			return fmt.Errorf("index: clear tags for %q/%q: %w", r.Template, r.Filename, err)
 		}
@@ -237,10 +228,7 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 			}
 		}
 
-		// Facet re-sync mirrors the tag pattern: replace-all, never diff.
-		// The facets map is keyed by facet_key so duplicate keys can't
-		// occur, but a stale row from a previous save with a different
-		// facet set still has to disappear.
+		// Facet re-sync, replace-all (so a stale facet set from a previous save disappears).
 		if _, err := clearFacets.Exec(r.Template, r.Filename); err != nil {
 			return fmt.Errorf("index: clear facets for %q/%q: %w", r.Template, r.Filename, err)
 		}
@@ -253,10 +241,7 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 			}
 		}
 
-		// Value re-sync, same replace-all shape. col / num are nullable
-		// pointers; database/sql's default converter maps a nil pointer
-		// to SQL NULL (scalar fields carry col=NULL, non-numeric cells
-		// carry num=NULL).
+		// Value re-sync, replace-all. col/num are nullable pointers mapping to SQL NULL for scalars / non-numeric cells.
 		if _, err := clearValues.Exec(r.Template, r.Filename); err != nil {
 			return fmt.Errorf("index: clear values for %q/%q: %w", r.Template, r.Filename, err)
 		}
@@ -271,9 +256,7 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 			}
 		}
 
-		// Search re-sync, same replace-all shape. The direct DELETE +
-		// INSERT on form_search fire its triggers, which keep the FTS5
-		// shadow index in step. One row per form (title + flattened body).
+		// Search re-sync via direct DELETE+INSERT on form_search, which fires the triggers that keep FTS5 in step.
 		if _, err := clearSearch.Exec(r.Template, r.Filename); err != nil {
 			return fmt.Errorf("index: clear search for %q/%q: %w", r.Template, r.Filename, err)
 		}
@@ -288,9 +271,7 @@ func deleteForms(tx *sql.Tx, refs []FormRef) error {
 	if len(refs) == 0 {
 		return nil
 	}
-	// Drop the search row first with a direct DELETE so its trigger fires
-	// and the FTS5 entry is retracted. A bare FK cascade off forms is not
-	// guaranteed to fire the trigger, so we don't rely on it.
+	// Drop the search row with a direct DELETE so its trigger fires (a bare FK cascade isn't guaranteed to).
 	clearSearch, err := tx.Prepare(`DELETE FROM form_search WHERE template = ? AND filename = ?`)
 	if err != nil {
 		return fmt.Errorf("index: prepare delete search: %w", err)
@@ -347,9 +328,7 @@ func deleteTemplates(tx *sql.Tx, names []string) error {
 	return nil
 }
 
-// bumpRev increments meta.rev by 1, treating a missing row as 0.
-// The HTTP layer publishes this as an ETag, so a per-batch monotonic
-// counter is exactly the semantic we want.
+// bumpRev increments meta.rev (missing row treated as 0); the HTTP layer publishes it as an ETag.
 func bumpRev(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		INSERT INTO meta (key, value) VALUES ('rev', '1')

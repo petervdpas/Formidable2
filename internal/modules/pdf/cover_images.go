@@ -10,32 +10,20 @@ import (
 	"strings"
 )
 
-// CoverImageDescriptor is one entry returned by ListCoverImages. Mirrors
-// the cover-picker descriptor shape so the frontend can render the
-// image library with the same chrome it uses for covers.
-//
-// IsSeed is true when the filename matches an embedded seed (currently
-// just formidable.svg). The frontend uses this to offer "Reset to
-// default" - deleting a seed image is allowed; the next boot's
-// scaffold pass re-writes it from the embed.
+// CoverImageDescriptor is one entry returned by ListCoverImages.
+// IsSeed flags an embedded seed; deleting one is allowed since the
+// next boot's scaffold re-writes it from the embed.
 type CoverImageDescriptor struct {
 	Name   string `json:"name"`
 	Size   int64  `json:"size"`
 	IsSeed bool   `json:"isSeed"`
 }
 
-// ErrCoverImageInvalid wraps every validation failure on the image
-// surface (bad name, unknown extension, empty body, traversal).
+// ErrCoverImageInvalid wraps every image-surface validation failure.
 var ErrCoverImageInvalid = errors.New("pdf: invalid cover image")
 
-// coverImageNamePattern accepts simple basenames like `logo.png` or
-// `team-banner_v2.svg`. No leading dot, no path separators, no
-// `..` traversal.
 var coverImageNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 
-// coverImageExtensions enumerates the file extensions accepted by
-// SaveCoverImage. Lowercased on entry so `.PNG` works for callers
-// that don't normalise.
 var coverImageExtensions = map[string]struct{}{
 	".png":  {},
 	".jpg":  {},
@@ -45,9 +33,6 @@ var coverImageExtensions = map[string]struct{}{
 	".webp": {},
 }
 
-// seedCoverImageNames returns the basenames of images embedded under
-// covers/images/ in coversFS. Used to flag IsSeed in ListCoverImages
-// and to keep the frontend's reset affordance honest.
 func seedCoverImageNames() []string {
 	out := []string{}
 	embeddedDir := path.Join(coversDir, coverImagesSubdir)
@@ -62,9 +47,8 @@ func seedCoverImageNames() []string {
 	return out
 }
 
-// ListCoverImages scans <AppRoot>/pdf/covers/images/ and returns one
-// descriptor per recognised image. Files with unknown extensions are
-// skipped silently so a stray README.txt doesn't break the picker.
+// ListCoverImages returns one descriptor per recognised image under
+// <AppRoot>/pdf/covers/images/. Unknown extensions are skipped silently.
 func (m *Manager) ListCoverImages() ([]CoverImageDescriptor, error) {
 	if m == nil || m.store == nil || m.store.fs == nil {
 		return nil, nil
@@ -99,9 +83,7 @@ func (m *Manager) ListCoverImages() ([]CoverImageDescriptor, error) {
 	return out, nil
 }
 
-// SaveCoverImage writes data to <AppRoot>/pdf/covers/images/<name>
-// atomically. Validates the filename and extension before touching
-// disk so a bad input can't pollute the directory.
+// SaveCoverImage atomically writes data to <AppRoot>/pdf/covers/images/<name>.
 func (m *Manager) SaveCoverImage(name string, data []byte) error {
 	if m == nil || m.store == nil || m.store.fs == nil {
 		return fmt.Errorf("%w: filesystem unavailable", ErrCoverImageInvalid)
@@ -119,9 +101,7 @@ func (m *Manager) SaveCoverImage(name string, data []byte) error {
 	return nil
 }
 
-// LoadCoverImage reads the raw bytes for one image. Returns
-// ErrCoverImageInvalid for a malformed name; bubbles fs.ErrNotExist
-// (wrapped) when the file is missing.
+// LoadCoverImage reads the raw bytes for one image.
 func (m *Manager) LoadCoverImage(name string) ([]byte, error) {
 	if m == nil || m.store == nil || m.store.fs == nil {
 		return nil, fmt.Errorf("%w: filesystem unavailable", ErrCoverImageInvalid)
@@ -138,8 +118,8 @@ func (m *Manager) LoadCoverImage(name string) ([]byte, error) {
 }
 
 // DeleteCoverImage removes one image. Missing files are a no-op (the
-// frontend's optimistic UI may call delete twice on a race). Seed
-// images are deletable: the next boot's scaffold restores them.
+// optimistic UI may delete twice on a race). Seeds are restored by the
+// next boot's scaffold.
 func (m *Manager) DeleteCoverImage(name string) error {
 	if m == nil || m.store == nil || m.store.fs == nil {
 		return fmt.Errorf("%w: filesystem unavailable", ErrCoverImageInvalid)
@@ -157,9 +137,6 @@ func (m *Manager) DeleteCoverImage(name string) error {
 	return nil
 }
 
-// validateCoverImageName rejects empty strings, traversal, path
-// separators, leading-dot, and unknown extensions in one shot. Case
-// is normalised on the consumer side; this just enforces the shape.
 func validateCoverImageName(name string) error {
 	if name == "" {
 		return fmt.Errorf("%w: empty name", ErrCoverImageInvalid)

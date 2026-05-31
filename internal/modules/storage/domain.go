@@ -44,17 +44,10 @@ type Indexer interface {
 	OnFormDeleted(templateFilename, datafile string) error
 }
 
-// FormReader is the read-side of the same cache: ExtendedListForms
-// consults it instead of walking disk per record. Summaries come back in
-// filename-ascending order. A reader error is non-fatal: the manager logs
-// it and falls back to the disk path.
+// FormReader is the index read-side; ListSummaries returns filename-ascending and falls back to disk on error.
 type FormReader interface {
 	ListSummaries(templateFilename string) ([]FormSummary, error)
-	// SearchSummaries returns the summaries of forms in one template
-	// whose full text matches query, ranked by relevance. Unlike
-	// ListSummaries there is no disk fallback: full-text search is an
-	// index-only capability (a disk walk has no inverted index to query),
-	// so a missing or erroring reader surfaces as an error to the caller.
+	// SearchSummaries has no disk fallback: FTS is index-only, so a missing/erroring reader surfaces as an error.
 	SearchSummaries(templateFilename, query string) ([]FormSummary, error)
 }
 
@@ -70,9 +63,7 @@ type Manager struct {
 	author     AuthorProvider
 }
 
-// NewManager builds the manager. storageDir is the storage root
-// (e.g. "<context>/storage" - the composition root resolves it).
-// log may be nil.
+// NewManager builds the manager rooted at storageDir (the composition root resolves it); log may be nil.
 func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, storageDir string, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
@@ -89,26 +80,17 @@ func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, stor
 	}
 }
 
-// SetIndexer installs the post-write hook for form save/delete.
-// Composition root calls this after building the index event handler.
-// Pass nil to disable.
+// SetIndexer installs the post-write hook for form save/delete (nil disables).
 func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
 
-// SetReader installs the read-side surface for ExtendedListForms.
-// Symmetric with SetIndexer: the composition root supplies an adapter
-// after building the index manager; passing nil disables the
-// fast path and reverts to disk reads.
+// SetReader installs the index read-side for ExtendedListForms (nil reverts to disk reads).
 func (m *Manager) SetReader(r FormReader) { m.reader = r }
 
-// SetAuthorProvider installs the active-profile identity source. Every
-// SaveForm stamps the returned (name, email) onto Updated, and onto
-// Created on first save. Pass nil to fall back to "Unknown".
+// SetAuthorProvider installs the active-profile identity source (nil falls back to "Unknown").
 func (m *Manager) SetAuthorProvider(p AuthorProvider) { m.author = p }
 
-// stamp returns a fresh AuditEntry for the current actor. Resolution
-// order: ctx-scoped auth.Identity (request-scoped - HTTP API + future
-// subscriptions) > AuthorProvider (process-scoped - Wails IPC + plugin
-// host) > ("Unknown", "unknown@example.com") fallback.
+// stamp returns a fresh AuditEntry. Resolution order: ctx auth.Identity (request-scoped) >
+// AuthorProvider (process-scoped) > ("Unknown", "unknown@example.com").
 func (m *Manager) stamp(ctx context.Context) AuditEntry {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if id, ok := auth.IdentityFromContext(ctx); ok && id.Valid() {
@@ -134,9 +116,7 @@ func (m *Manager) stamp(ctx context.Context) AuditEntry {
 	return AuditEntry{At: now, Name: name, Email: email}
 }
 
-// StorageDir returns the absolute storage root, used by the
-// composition root to stat form files (mtime + size for the index
-// loader adapter).
+// StorageDir returns the absolute storage root.
 func (m *Manager) StorageDir() string { return m.storageDir }
 
 // EnsureFormDir creates <storage>/<template-name>/ if missing.
@@ -145,8 +125,7 @@ func (m *Manager) EnsureFormDir(templateFilename string) error {
 	return m.fs.EnsureDirectory(dir)
 }
 
-// ListForms returns the .meta.json filenames inside the template's
-// storage folder. Missing folder → empty slice.
+// ListForms returns the .meta.json filenames in the template's storage folder; missing folder yields an empty slice.
 func (m *Manager) ListForms(templateFilename string) ([]string, error) {
 	dir := m.templateDir(templateFilename)
 	if !m.fs.FileExists(dir) {
@@ -159,8 +138,7 @@ func (m *Manager) ListForms(templateFilename string) ([]string, error) {
 	return files, nil
 }
 
-// LoadForm reads + sanitizes a form. Returns nil if the file is missing
-// or malformed (mirrors JS - frontend treats null as "not found").
+// LoadForm reads + sanitizes a form, returning nil when the file is missing or malformed.
 func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 	if datafile == "" {
 		return nil
@@ -181,12 +159,8 @@ func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 	return &out
 }
 
-// LoadFormRaw parses the on-disk envelope WITHOUT sanitizing. Sanitize
-// fills defaults and mirrors the guid field in lockstep with meta.id, so
-// LoadForm masks on-disk drift; the integrity doctor needs the raw shape
-// to detect a guid field that is empty on disk while meta.id is set.
-// Meta carries only the id here (the only field the raw guid check reads);
-// Data is the stored data map verbatim.
+// LoadFormRaw parses the on-disk envelope WITHOUT sanitizing, so the integrity doctor can detect a
+// guid field that is empty on disk while meta.id is set (LoadForm would mask the drift). Meta carries only id.
 func (m *Manager) LoadFormRaw(templateFilename, datafile string) *Form {
 	if datafile == "" {
 		return nil
@@ -207,12 +181,8 @@ func (m *Manager) LoadFormRaw(templateFilename, datafile string) *Form {
 	}
 }
 
-// SaveForm sanitizes the input against the template's fields and writes
-// the resulting envelope as JSON. ctx is consulted by stamp() for the
-// auth.Identity that attributes Updated (and Created on first save) -
-// HTTP API handlers thread the request context here; non-HTTP callers
-// (Wails IPC, plugin host) pass context.Background() and fall back to
-// the AuthorProvider.
+// SaveForm sanitizes input against the template's fields and writes the envelope as JSON.
+// ctx is consulted by stamp() for the Identity attributing Updated (and Created on first save).
 func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) SaveResult {
 	if datafile == "" {
 		return SaveResult{Success: false, Error: "empty datafile"}
@@ -228,10 +198,7 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 	fields := m.fieldsFor(templateFilename)
 	templateName := strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename))
 
-	// Preserve previously-set id + Created (creator identity is locked
-	// for the lifetime of the record). Updated is always re-stamped
-	// with the current profile so the audit trail reflects "who saved
-	// this last", even when a different profile edits a record.
+	// Created (creator identity) is locked for the record's lifetime; Updated is always re-stamped with the current profile.
 	prev := m.LoadForm(templateFilename, datafile)
 	stamp := m.stamp(ctx)
 	opts := SanitizeOptions{
@@ -257,15 +224,8 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 	return SaveResult{Success: r.Success, Path: r.Path, Error: r.Error}
 }
 
-// SaveFormExact writes a fully-formed envelope as-is, without
-// consulting the previously-stored meta. SaveForm is the everyday
-// path - it preserves prev.Meta.ID / Created so editing a form can't
-// accidentally re-generate identity. SaveFormExact is the escape
-// hatch for callers that are deliberately mutating the meta block -
-// the integrity repair pipeline mints UUIDs and re-stamps timestamps
-// and needs its updated meta to land on disk verbatim. ctx is carried
-// for parity with SaveForm but currently unused (the form's Meta is
-// already fully resolved).
+// SaveFormExact writes a fully-formed envelope verbatim, without consulting prior meta. It is the escape
+// hatch for callers deliberately mutating the meta block (the integrity repair pipeline). ctx is unused here.
 func (m *Manager) SaveFormExact(ctx context.Context, templateFilename, datafile string, form Form) SaveResult {
 	_ = ctx
 	if datafile == "" {
@@ -290,7 +250,7 @@ func (m *Manager) SaveFormExact(ctx context.Context, templateFilename, datafile 
 	return SaveResult{Success: r.Success, Path: r.Path, Error: r.Error}
 }
 
-// DeleteForm removes the form file. Missing is a no-op.
+// DeleteForm removes the form file (missing is a no-op).
 func (m *Manager) DeleteForm(templateFilename, datafile string) error {
 	if datafile == "" {
 		return errors.New("storage: empty datafile")
@@ -308,10 +268,7 @@ func (m *Manager) DeleteForm(templateFilename, datafile string) error {
 	return nil
 }
 
-// LoadImageFile reads <storage>/<template-name>/images/<name> and returns
-// it as a base64 data URL ("data:image/png;base64,…") suitable for direct
-// use as an <img src=""> on the frontend. Missing file → empty string +
-// nil error (mirrors LoadForm's "missing isn't an error" semantics).
+// LoadImageFile returns the image as a base64 data URL; missing file yields "" + nil error.
 func (m *Manager) LoadImageFile(templateFilename, name string) (string, error) {
 	raw, mime, err := m.OpenImageFile(templateFilename, name)
 	if err != nil {
@@ -323,11 +280,8 @@ func (m *Manager) LoadImageFile(templateFilename, name string) (string, error) {
 	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(raw), nil
 }
 
-// OpenImageFile reads the raw image bytes + MIME type without the
-// data-URL framing. Used by the wiki HTTP server which streams the
-// bytes directly through `/storage/<tpl>/images/<name>` - encoding to
-// base64 and decoding in the browser would just bloat the response.
-// Missing file → nil bytes + nil error (mirrors LoadImageFile).
+// OpenImageFile returns raw image bytes + MIME (no data-URL framing) for the wiki to stream directly;
+// missing file yields nil bytes + nil error.
 func (m *Manager) OpenImageFile(templateFilename, name string) ([]byte, string, error) {
 	if name == "" {
 		return nil, "", errors.New("storage: empty image name")
@@ -346,8 +300,7 @@ func (m *Manager) OpenImageFile(templateFilename, name string) ([]byte, string, 
 	return []byte(raw), imageMIMEFromName(name), nil
 }
 
-// imageMIMEFromName maps an image filename's extension to a MIME type.
-// Falls back to application/octet-stream for unknown extensions.
+// imageMIMEFromName maps an extension to a MIME type, defaulting to application/octet-stream.
 func imageMIMEFromName(name string) string {
 	ext := strings.ToLower(filepath.Ext(name))
 	switch ext {
@@ -366,9 +319,7 @@ func imageMIMEFromName(name string) string {
 	}
 }
 
-// DeleteImageFile removes <storage>/<template-name>/images/<name>.
-// Missing file is a no-op (mirrors DeleteForm). Used when the user
-// clears an image field.
+// DeleteImageFile removes an image (missing file is a no-op).
 func (m *Manager) DeleteImageFile(templateFilename, name string) error {
 	if name == "" {
 		return errors.New("storage: empty image name")
@@ -380,8 +331,7 @@ func (m *Manager) DeleteImageFile(templateFilename, name string) error {
 	return m.fs.DeleteFile(full)
 }
 
-// SaveImageFile writes raw bytes to <storage>/<template-name>/images/<name>.
-// Returns SaveResult with the absolute path on success.
+// SaveImageFile writes raw bytes to the template's images folder, returning the absolute path on success.
 func (m *Manager) SaveImageFile(templateFilename, name string, content []byte) SaveResult {
 	if name == "" {
 		return SaveResult{Success: false, Error: "empty image name"}
@@ -400,15 +350,8 @@ func (m *Manager) SaveImageFile(templateFilename, name string, content []byte) S
 	return SaveResult{Success: true, Path: full}
 }
 
-// ExtendedListForms returns each form summary with title resolved from
-// item_field (if set) and any expression-flagged data carried for the
-// sidebar mini-expression evaluator.
-//
-// Fast path: when a FormReader is installed (composition root wires
-// one over the SQLite index), summaries come straight off the index
-// - one query instead of one disk read per record. Reader errors are
-// logged and the disk path runs as a safety net so a transient index
-// problem can't make the studio list go blank.
+// ExtendedListForms returns form summaries (title from item_field, plus expression-flagged data).
+// With a FormReader installed it reads off the index; reader errors fall back to disk so the list can't go blank.
 func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, error) {
 	if m.reader != nil {
 		out, err := m.reader.ListSummaries(templateFilename)
@@ -421,11 +364,8 @@ func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, err
 	return m.extendedListFormsFromDisk(templateFilename)
 }
 
-// SearchForms returns the summaries of forms in one template whose full
-// text matches query, ranked by relevance. It is backed entirely by the
-// installed FormReader (the SQLite FTS index); with no reader installed
-// there is nothing to search, so it returns an error rather than walking
-// disk. An empty query yields no rows (a blank search matches nothing).
+// SearchForms returns full-text matches ranked by relevance, backed entirely by the FTS index;
+// no reader means an error (not a disk walk), and an empty query matches nothing.
 func (m *Manager) SearchForms(templateFilename, query string) ([]FormSummary, error) {
 	if m.reader == nil {
 		return nil, errors.New("storage: full-text search requires the index (no reader installed)")
@@ -433,9 +373,7 @@ func (m *Manager) SearchForms(templateFilename, query string) ([]FormSummary, er
 	return m.reader.SearchSummaries(templateFilename, query)
 }
 
-// extendedListFormsFromDisk is the original walk-every-file path.
-// Kept as a fallback for when the reader isn't installed or errors -
-// the index is a derived view, never authoritative.
+// extendedListFormsFromDisk is the walk-every-file fallback for when the reader is absent or errors.
 func (m *Manager) extendedListFormsFromDisk(templateFilename string) ([]FormSummary, error) {
 	files, err := m.ListForms(templateFilename)
 	if err != nil {
@@ -453,10 +391,7 @@ func (m *Manager) extendedListFormsFromDisk(templateFilename string) ([]FormSumm
 	return out, nil
 }
 
-// ExtendedLoadForm is the single-record analogue of ExtendedListForms.
-// Returns nil when the file is missing - same posture as LoadForm -
-// so the expression module's per-row "this one form changed" path
-// doesn't need to walk every record on disk.
+// ExtendedLoadForm is the single-record analogue of ExtendedListForms; nil when the file is missing.
 func (m *Manager) ExtendedLoadForm(templateFilename, datafile string) (*FormSummary, error) {
 	tpl, _ := m.templates.LoadTemplate(templateFilename)
 	s, ok := m.summaryFor(templateFilename, datafile, tpl)
@@ -491,10 +426,7 @@ func (m *Manager) summaryFor(templateFilename, filename string, tpl *template.Te
 			continue
 		}
 		if fld.Type == "facet" {
-			// Virtual facet field has no Data slot; its value lives in
-			// meta.facets[<facet_key>].Selected. Harvest only when the
-			// facet is set AND has a non-empty Selected so an explicit
-			// clear doesn't surface as an empty-string variable.
+			// Value lives in meta.facets[key].Selected; harvest only when set with a non-empty Selected.
 			if state, ok := f.Meta.Facets[fld.FacetKey]; ok && state.Set && state.Selected != "" {
 				expressionItems[fld.Key] = state.Selected
 			}
@@ -512,27 +444,17 @@ func (m *Manager) summaryFor(templateFilename, filename string, tpl *template.Te
 	}, true
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────
-
 func (m *Manager) templateDir(templateFilename string) string {
 	name := strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename))
 	return filepath.Join(m.storageDir, name)
 }
 
-// TemplateStorageDir is the exported name for templateDir - returns
-// the absolute path of `<storage>/<template-stem>/`. Used by the
-// Cleanup Storage utility to "Open Storage Folder" for the currently
-// selected template via OpenExternal.
+// TemplateStorageDir returns the absolute path of <storage>/<template-stem>/.
 func (m *Manager) TemplateStorageDir(templateFilename string) string {
 	return m.templateDir(templateFilename)
 }
 
-// TemplateImageDir returns the absolute filesystem path of the
-// `<storage>/<template>/images/` folder. Public so the render module
-// (and future internal HTTP server) can build URLs without re-deriving
-// storage layout.
+// TemplateImageDir returns the absolute path of <storage>/<template>/images/.
 func (m *Manager) TemplateImageDir(templateFilename string) string {
 	return filepath.Join(m.templateDir(templateFilename), imagesDir)
 }

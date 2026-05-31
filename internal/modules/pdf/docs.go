@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// directivesFS embeds the per-locale frontmatter reference documents.
-// Each file is `docs/directives.<locale>.md`. English is the fallback.
+// directivesFS embeds the per-locale frontmatter reference docs
+// (docs/directives.<locale>.md); English is the fallback.
 //
 //go:embed docs/directives.*.md
 var directivesFS embed.FS
@@ -15,10 +15,8 @@ var directivesFS embed.FS
 const directivesDir = "docs"
 const directivesFallback = "en"
 
-// directivesDoc returns the embedded markdown reference for the given
-// locale. Unknown locale falls back to English. The returned string is
-// the raw markdown - the caller is responsible for rendering it (the
-// Information panel pipes it through render.Service.RenderHTML).
+// directivesDoc returns the raw markdown reference for locale, falling
+// back to English. The caller renders it.
 func directivesDoc(locale string) (string, error) {
 	locale = strings.ToLower(strings.TrimSpace(locale))
 	if locale == "" {

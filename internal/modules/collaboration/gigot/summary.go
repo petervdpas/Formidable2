@@ -1,10 +1,6 @@
 package gigot
 
-// LedgerSummary walks the context folder and diffs against the
-// client-side track record, returning a serialisable summary the Sync
-// UI can render without hitting the server. Read-only: never writes
-// the ledger, so callers can preview pending state repeatedly without
-// advancing it.
+// LedgerSummary diffs the context folder against the ledger for the Sync UI; read-only, never writes the ledger.
 func (m *Manager) LedgerSummary(contextFolder string) (*LedgerSummary, error) {
 	if contextFolder == "" {
 		return nil, ErrMissingContext

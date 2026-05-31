@@ -10,10 +10,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// TemplateRecord is one template loaded fresh from disk together with
-// its file mtime. Carrying mtime alongside the parsed YAML lets the
-// event handler write a row that matches what the next stale-detect
-// would expect, avoiding a follow-up "changed" rev bump on next boot.
+// TemplateRecord is a fresh-loaded template plus its mtime, so the indexed row matches the next stale-detect.
 type TemplateRecord struct {
 	Template *template.Template
 	Mtime    int64
@@ -35,14 +32,8 @@ type FormStore interface {
 	LoadForm(templateFilename, datafile string) (*FormRecord, error)
 }
 
-// EventHandler bridges template/storage manager events into single-
-// row Reconcile calls on the index. It deliberately does not own the
-// SQLite DB itself; that stays on Manager so reads and writes share
-// one handle.
-//
-// `root` is the context folder (the dir that holds templates/ and
-// storage/). It's only needed by RescanAll - per-event hooks don't
-// touch disk directly. Composition root sets it via SetRoot.
+// EventHandler bridges template/storage events into single-row Reconcile calls; the DB stays on Manager
+// so reads and writes share one handle. root (the context folder) is only needed by RescanAll.
 type EventHandler struct {
 	m         *Manager
 	templates TemplateLoader
@@ -56,21 +47,11 @@ func NewEventHandler(m *Manager, t TemplateLoader, f FormStore) *EventHandler {
 	return &EventHandler{m: m, templates: t, forms: f}
 }
 
-// SetRoot configures the context folder used by RescanAll. Per-event
-// hooks (OnTemplateChanged, OnFormChanged, etc.) don't need it.
+// SetRoot configures the context folder RescanAll uses.
 func (h *EventHandler) SetRoot(path string) { h.root = path }
 
-// OnTemplateChanged is called after a template YAML save. Loads the
-// template fresh, derives the templates row, and - critically -
-// re-derives every form row owned by this template.
-//
-// Why the form re-derive: form columns title / expression_items /
-// tags / facets are projections of the template (item_field,
-// expression_item flags, tags_field). When the template changes,
-// those projections must update too, otherwise ExtendedListForms
-// keeps shipping stale derivations until each form is individually
-// re-saved. Cost is bounded by the number of forms in this one
-// template; on save-heavy templates the user pays once per edit.
+// OnTemplateChanged re-derives the templates row AND every form row, because form columns
+// (title/expression_items/tags/facets) are projections of the template and would otherwise go stale.
 func (h *EventHandler) OnTemplateChanged(filename string) error {
 	rec, err := h.templates.LoadTemplate(filename)
 	if err != nil {
@@ -88,9 +69,7 @@ func (h *EventHandler) OnTemplateChanged(filename string) error {
 	for _, datafile := range formFilenames {
 		formRec, err := h.forms.LoadForm(filename, datafile)
 		if err != nil || formRec == nil || formRec.Form == nil {
-			// Form file is gone / unparseable - skip silently so one
-			// bad file doesn't block the rest of the re-derive.
-			// RescanAll will clean up orphans on next boot.
+			// Gone/unparseable: skip so one bad file doesn't block the re-derive (RescanAll cleans orphans).
 			continue
 		}
 		formRows = append(formRows,
@@ -103,11 +82,7 @@ func (h *EventHandler) OnTemplateChanged(filename string) error {
 	})
 }
 
-// listIndexedFormFiles returns the form basenames currently indexed
-// under the given template. Sourced from the index (one SQL query)
-// rather than disk so we don't widen the EventHandler's surface area
-// to a "list every form on disk" capability - disk-only files arrive
-// via OnFormChanged and are caught up by RescanAll otherwise.
+// listIndexedFormFiles returns the form basenames currently indexed under a template (from the index, not disk).
 func (h *EventHandler) listIndexedFormFiles(templateFilename string) ([]string, error) {
 	rows, err := h.m.DB().Query(
 		`SELECT filename FROM forms WHERE template = ?`,
@@ -128,19 +103,14 @@ func (h *EventHandler) listIndexedFormFiles(templateFilename string) ([]string, 
 	return out, rows.Err()
 }
 
-// OnTemplateDeleted is called after a template YAML delete. The DB's
-// foreign-key cascades wipe the template's forms, form_tags, and
-// images automatically.
+// OnTemplateDeleted deletes the template; FK cascades wipe its forms, form_tags, and images.
 func (h *EventHandler) OnTemplateDeleted(filename string) error {
 	return Reconcile(h.m.DB(), ReconcileBatch{
 		DeleteTemplates: []string{filename},
 	})
 }
 
-// OnFormChanged is called after a form save. Loads the form AND its
-// owning template (we need the template's guid_field/tags_field/
-// item_field to extract the right values from form.Data) and writes
-// the index row.
+// OnFormChanged loads the form and its template (needed to extract id/title/tags from form.Data) and writes the row.
 func (h *EventHandler) OnFormChanged(templateFilename, datafile string) error {
 	tplRec, err := h.templates.LoadTemplate(templateFilename)
 	if err != nil {
@@ -157,20 +127,14 @@ func (h *EventHandler) OnFormChanged(templateFilename, datafile string) error {
 	return Reconcile(h.m.DB(), ReconcileBatch{UpsertForms: []FormRow{row}})
 }
 
-// OnFormDeleted is called after a form delete. FK cascade removes the
-// form_tags rows automatically.
+// OnFormDeleted deletes the form; FK cascade removes its form_tags rows.
 func (h *EventHandler) OnFormDeleted(templateFilename, datafile string) error {
 	return Reconcile(h.m.DB(), ReconcileBatch{
 		DeleteForms: []FormRef{{Template: templateFilename, Filename: datafile}},
 	})
 }
 
-// ── row builders ─────────────────────────────────────────────────────
-
-// buildTemplateRow projects a parsed *template.Template into a
-// TemplateRow. Walks the field list once to derive the (single)
-// guid_field and tags_field - validators upstream guarantee at most
-// one of each per template.
+// buildTemplateRow projects a Template into a TemplateRow, deriving the single guid/tags field.
 func buildTemplateRow(t *template.Template, mtime int64, filename string) TemplateRow {
 	row := TemplateRow{
 		Filename:            filename,
@@ -195,16 +159,8 @@ func buildTemplateRow(t *template.Template, mtime int64, filename string) Templa
 	return row
 }
 
-// buildFormRow projects a (template, form) pair into a FormRow. The
-// template tells us where to look for id (guid_field), title
-// (item_field, with filename fallback), and tags (tags_field - and
-// only that field; storage.FormMeta.Tags is intentionally ignored to
-// keep the index aligned with the schema's intent).
-//
-// templateFilename is taken from the caller (OnFormChanged) rather
-// than t.Filename so the row's foreign key always matches whatever
-// key the templates row was indexed under, even if the template's
-// own `filename` field is stale or differs in case.
+// buildFormRow projects a (template, form) pair into a FormRow; tags come only from tags_field (FormMeta.Tags
+// is intentionally ignored). templateFilename comes from the caller, not t.Filename, so the FK always matches the indexed key.
 func buildFormRow(t *template.Template, f *storage.Form, templateFilename, datafile string, mtime int64) FormRow {
 	row := FormRow{
 		Template:     templateFilename,
@@ -251,14 +207,8 @@ func buildFormRow(t *template.Template, f *storage.Form, templateFilename, dataf
 	return row
 }
 
-// pickSearchBody flattens every prose field of a form into one blank-
-// separated string for the FTS5 body column. Unlike pickValues (which
-// is opt-in and aggregation-shaped), search wants the whole readable
-// document, so it pulls text from every field that carries words:
-// short/long text, single- and multi-choice labels, list/tag entries,
-// and table cells. Structured-only fields (guid, image, api) and the
-// title (indexed in its own FTS column) are skipped. Field order is the
-// template's, so the body reads top to bottom like the form.
+// pickSearchBody flattens every prose field (text, choice labels, list/tag entries, table cells) into the
+// newline-separated FTS5 body, in template order. Structured-only fields (guid/image/api) and the title are skipped.
 func pickSearchBody(fields []template.Field, data map[string]any) string {
 	var b strings.Builder
 	add := func(s string) {
@@ -294,8 +244,7 @@ func pickSearchBody(fields []template.Field, data map[string]any) string {
 	return b.String()
 }
 
-// pickTitle implements the same "item_field value, else filename"
-// fallback the original Formidable wiki uses for its form list.
+// pickTitle returns the item_field value, falling back to the filename.
 func pickTitle(itemField string, data map[string]any, datafile string) string {
 	if itemField != "" {
 		if s, ok := data[itemField].(string); ok && s != "" {
@@ -305,10 +254,7 @@ func pickTitle(itemField string, data map[string]any, datafile string) string {
 	return datafile
 }
 
-// pickFacets projects FormMeta.Facets (key → FacetState) into the
-// reconcile-side slice the index stores in form_facets. Stable
-// iteration order so the reconciler's "delete then re-insert" pattern
-// produces deterministic SQL writes for golden tests.
+// pickFacets projects FormMeta.Facets into the form_facets slice, key-sorted for deterministic SQL writes.
 func pickFacets(in map[string]storage.FacetState) []FormFacet {
 	if len(in) == 0 {
 		return nil
@@ -326,11 +272,7 @@ func pickFacets(in map[string]storage.FacetState) []FormFacet {
 	return out
 }
 
-// pickTags returns the tag slice from data[tagsKey] when tagsKey is
-// non-empty AND the value is a slice (with elements coerced to string).
-// Empty when the template has no tag field - matches the contract
-// that ListByTags only surfaces forms whose templates declare a tag
-// field.
+// pickTags returns the tag slice from data[tagsKey]; empty when the template declares no tag field.
 func pickTags(tagsKey string, data map[string]any) []string {
 	if tagsKey == "" {
 		return nil
@@ -354,9 +296,7 @@ func pickTags(tagsKey string, data map[string]any) []string {
 	return nil
 }
 
-// cleanTags drops empty entries; dedup/normalization is left to
-// Reconcile (which dedupes inside upsertFormsWithTags) and to the
-// writer side that produced the data.
+// cleanTags drops empty entries; dedup/normalization is left to Reconcile and the writer side.
 func cleanTags(in []string) []string {
 	out := make([]string, 0, len(in))
 	for _, t := range in {
@@ -367,10 +307,7 @@ func cleanTags(in []string) []string {
 	return out
 }
 
-// encodeExpressionItems serialises {fieldKey: value} for every field
-// flagged expression_item: true. Matches the wiki's old
-// `expressionItems` blob shape so the sidebar expression engine can
-// keep reading it without a schema change.
+// encodeExpressionItems serialises {fieldKey: value} for every expression_item field as a JSON blob.
 func encodeExpressionItems(keys []string, data map[string]any) string {
 	if len(keys) == 0 {
 		return ""

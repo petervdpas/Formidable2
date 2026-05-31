@@ -10,11 +10,9 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
-// PDFMetadata is what we inject into a PDF's Info dictionary as a
-// post-process step after picoloom renders. Chrome's CDP PrintToPDF
-// only reads the document `<title>`; everything else has to be set
-// directly on the PDF object via pdfcpu. Empty fields are skipped so a
-// metadata pass with one populated field doesn't blank the rest.
+// PDFMetadata is injected into a PDF's Info dictionary after picoloom
+// renders. Chrome's PrintToPDF only reads the document <title>, so the
+// rest has to be set on the PDF via pdfcpu. Empty fields are skipped.
 type PDFMetadata struct {
 	Title    string
 	Author   string
@@ -22,11 +20,9 @@ type PDFMetadata struct {
 	Keywords []string
 }
 
-// HasContent reports whether the metadata struct carries anything
-// worth a post-process pass. Callers use this to skip pdfcpu entirely
-// when the merged frontmatter has nothing to project - pdfcpu's
-// read+optimize round-trip is expensive and there's no point doing it
-// for a blank metadata struct.
+// HasContent reports whether anything is worth a post-process pass, so
+// callers skip pdfcpu's expensive read+optimize round-trip on a blank
+// metadata struct.
 func (m PDFMetadata) HasContent() bool {
 	if strings.TrimSpace(m.Title) != "" ||
 		strings.TrimSpace(m.Author) != "" ||
@@ -41,15 +37,10 @@ func (m PDFMetadata) HasContent() bool {
 	return false
 }
 
-// InjectPDFMetadata reads in, sets the PDF Info-dictionary fields
-// described by md, and returns the rewritten PDF bytes. Empty fields
-// in md are skipped - they neither overwrite existing entries nor
-// remove them. Keywords are added; existing keywords on the input PDF
-// stay (picoloom doesn't author any, so this is a non-issue in
-// practice).
-//
-// Returns the original bytes unchanged when md.HasContent() is false,
-// so callers can unconditionally route through this function.
+// InjectPDFMetadata sets the Info-dictionary fields from md and returns
+// the rewritten PDF. Empty fields are skipped (no overwrite, no remove).
+// Returns the input unchanged when md.HasContent() is false, so callers
+// can route through unconditionally.
 func InjectPDFMetadata(in []byte, md PDFMetadata) ([]byte, error) {
 	if !md.HasContent() {
 		return in, nil
@@ -103,17 +94,9 @@ func InjectPDFMetadata(in []byte, md PDFMetadata) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// buildPDFMetadata projects a merged Frontmatter into the subset of
-// fields we push to the PDF Info dictionary. The mapping mirrors the
-// old eisvogel + hypersetup.latex behaviour: Title/Author come from
-// the cover (the same fields that already render onto the cover
-// page), Subject defers to Cover.Description (best-effort textual
-// summary), Keywords are taken verbatim from the top-level Keywords
-// slice.
-//
-// Empty fields stay empty - the helper produces a struct that
-// HasContent() can short-circuit on so the pdfcpu read+write pass is
-// skipped entirely when nothing needs writing.
+// buildPDFMetadata projects a merged Frontmatter into the Info-dictionary
+// subset: Title/Author from the cover, Subject from Cover.Description,
+// Keywords from the top-level slice.
 func buildPDFMetadata(fm Frontmatter) PDFMetadata {
 	md := PDFMetadata{
 		Keywords: append([]string(nil), fm.Keywords...),
@@ -126,10 +109,7 @@ func buildPDFMetadata(fm Frontmatter) PDFMetadata {
 	return md
 }
 
-// readPDFMetadata is a tiny test helper that reads back the Info
-// dictionary fields we wrote. Lives next to the writer so the two
-// stay shape-coupled; not exported because production code has no
-// reason to round-trip its own output.
+// readPDFMetadata reads back the Info-dictionary fields, for tests.
 func readPDFMetadata(in []byte) (PDFMetadata, error) {
 	conf := model.NewDefaultConfiguration()
 	conf.ValidationMode = model.ValidationRelaxed
@@ -149,4 +129,3 @@ func readPDFMetadata(in []byte) (PDFMetadata, error) {
 	}
 	return out, nil
 }
-

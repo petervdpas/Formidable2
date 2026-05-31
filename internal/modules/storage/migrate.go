@@ -8,21 +8,9 @@ import (
 	"strings"
 )
 
-// MigrateTemplateMeta walks every form under the given template's
-// storage folder and rewrites legacy meta shape (flat author_name /
-// author_email + string-typed created / updated) into the new
-// AuditEntry pair. Files already in the new shape are skipped - the
-// disk file is untouched, mtime preserved, no git churn.
-//
-// Migration is structural, not authorship: the legacy author appears
-// in BOTH Created and Updated (since we can't reconstruct historical
-// update authorship), and the active profile's identity is NOT
-// stamped. SaveFormExact is used rather than SaveForm so the new
-// Updated block reflects the legacy author rather than the migrator.
-//
-// Missing template folder → zero counts, nil error. Per-file failures
-// (corrupt JSON, unreadable file) land in Errors and don't abort the
-// rest of the pass.
+// MigrateTemplateMeta rewrites legacy meta shape into the AuditEntry pair across one template's forms.
+// Migration is structural, not authorship: the legacy author fills both Created and Updated (SaveFormExact,
+// not SaveForm, so the migrator isn't stamped). Already-new files are skipped untouched; per-file errors don't abort.
 func (m *Manager) MigrateTemplateMeta(templateFilename string) (MigrateResult, error) {
 	var res MigrateResult
 	files, err := m.ListForms(templateFilename)
@@ -48,10 +36,7 @@ func (m *Manager) MigrateTemplateMeta(templateFilename string) (MigrateResult, e
 			res.Skipped++
 			continue
 		}
-		// LoadForm runs Sanitize which migrates the legacy keys into
-		// the AuditEntry pair (using the legacy author for both Created
-		// and Updated). SaveFormExact writes that result verbatim, so
-		// the active profile is NOT stamped into Updated.
+		// LoadForm's Sanitize migrates the legacy keys; SaveFormExact writes verbatim so the profile isn't stamped.
 		datafile := strings.TrimSuffix(filename, formExt)
 		f := m.LoadForm(templateFilename, datafile)
 		if f == nil {
@@ -68,16 +53,8 @@ func (m *Manager) MigrateTemplateMeta(templateFilename string) (MigrateResult, e
 	return res, nil
 }
 
-// needsMetaMigration inspects the raw bytes of a `.meta.json` file and
-// returns true when at least one legacy marker is present in its meta
-// block. Markers: flat `author_name` / `author_email` keys, or string
-// (rather than object) values for `created` / `updated`. Cheap parse -
-// we only decode the meta sub-object as map[string]any.
-//
-// Anything that isn't an envelope-shaped {meta:{...}, data:...} JSON
-// returns an error so the caller can flag the file. Missing meta
-// (empty meta map or no meta key) → not legacy, doesn't need migration
-// (Sanitize will fill defaults on next save anyway).
+// needsMetaMigration reports a legacy marker in the meta block: flat author_name/author_email keys,
+// or string-typed created/updated. Non-envelope JSON errors so the caller can flag the file.
 func needsMetaMigration(raw []byte) (bool, error) {
 	var top struct {
 		Meta map[string]json.RawMessage `json:"meta"`
@@ -103,9 +80,7 @@ func needsMetaMigration(raw []byte) (bool, error) {
 	return false, nil
 }
 
-// isJSONString returns true when the raw JSON value is a quoted string
-// (i.e. starts with `"`). New-shape audit blocks are objects, so a
-// string-typed created/updated is a reliable legacy marker.
+// isJSONString reports whether the raw value is a quoted string; audit blocks are objects, so a string is a legacy marker.
 func isJSONString(raw json.RawMessage) bool {
 	trimmed := strings.TrimSpace(string(raw))
 	return len(trimmed) > 0 && trimmed[0] == '"'

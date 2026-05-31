@@ -11,17 +11,8 @@ import (
 	"github.com/expr-lang/expr/vm"
 )
 
-// fieldRefPatcher rewrites builder-emitted field references into
-// the shape expr-lang evaluates against the env map.
-//
-//	F["key"]  →  $env["key"]
-//	L["text"] →  "text"
-//
-// The builder emits F[] / L[] uniformly so concat chains have a
-// predictable AST and so hyphenated keys round-trip identically to
-// plain identifiers (no $env-vs-bare-id forking). O[] is left
-// untouched - it resolves at runtime against the per-record `O`
-// map injected by Manager.EvaluateList.
+// fieldRefPatcher rewrites builder field refs into the env shape: F["key"] -> $env["key"], L["text"] -> "text".
+// O[] is left untouched; it resolves at runtime against the per-record O map injected by Manager.EvaluateList.
 type fieldRefPatcher struct{}
 
 func (fieldRefPatcher) Visit(node *ast.Node) {
@@ -48,53 +39,39 @@ func (fieldRefPatcher) Visit(node *ast.Node) {
 	}
 }
 
-// engine is the low-level compile/evaluate primitive, owning the
-// helper registry and a program cache keyed by expression text. The
-// public Manager wraps it with template/storage-aware methods; tests
-// exercise engine directly via newEngine() so they can pin behaviour
-// without booting a full Manager.
+// engine is the compile/evaluate primitive, owning the helper registry and a program cache keyed by source text.
 type engine struct {
-	helpers map[string]any // name → Go function passed via expr.Env
-	cache   sync.Map       // expression text → *vm.Program
+	helpers map[string]any // name -> Go function passed via expr.Env
+	cache   sync.Map       // expression text -> *vm.Program
 }
 
-// newEngine wires the default helper set. Splitting helper
-// registration from construction lets tests build a stripped engine
-// later if we ever want to (today nothing does - the safe-helpers
-// list is intentionally fixed).
+// newEngine wires the default helper set.
 func newEngine() *engine {
 	return &engine{helpers: builtinHelpers()}
 }
 
-// builtinHelpers returns the default safe-helper map. Mirrors the
-// `safe=true` set from the original controls/expressionHelpers.js
-// (everything except `debug`). The keys are the names callers use in
-// expressions; values are Go functions registered with expr.Env so
-// expr-lang resolves them at compile time.
+// builtinHelpers returns the safe-helper map (everything except debug).
 func builtinHelpers() map[string]any {
 	return map[string]any{
-		"isSimilar":         isSimilar,
-		"typeOf":            typeOf,
-		"today":             today,
-		"isOverdue":         isOverdue,
-		"isDueSoon":         isDueSoon,
-		"isOverdueInDays":   isOverdueInDays,
-		"isExpiredAfter":    isExpiredAfter,
-		"isUpcomingBefore":  isUpcomingBefore,
-		"isFuture":          isFuture,
-		"isToday":           isToday,
-		"daysBetween":       daysBetween,
-		"ageInDays":         ageInDays,
-		"defaultText":       defaultText,
-		"notEmpty":          notEmpty,
+		"isSimilar":        isSimilar,
+		"typeOf":           typeOf,
+		"today":            today,
+		"isOverdue":        isOverdue,
+		"isDueSoon":        isDueSoon,
+		"isOverdueInDays":  isOverdueInDays,
+		"isExpiredAfter":   isExpiredAfter,
+		"isUpcomingBefore": isUpcomingBefore,
+		"isFuture":         isFuture,
+		"isToday":          isToday,
+		"daysBetween":      daysBetween,
+		"ageInDays":        ageInDays,
+		"defaultText":      defaultText,
+		"notEmpty":         notEmpty,
 	}
 }
 
-// Compile parses src and returns a cached *vm.Program. The same env
-// shape (helpers + AllowUndefinedVariables) is used at compile and
-// run time so a missing record field surfaces as nil instead of an
-// "unknown identifier" rejection - matching what users expect when
-// only some records have a given field populated.
+// Compile parses src into a cached *vm.Program; AllowUndefinedVariables makes a missing record field
+// resolve to nil rather than an "unknown identifier" rejection (only some records may populate a field).
 func (e *engine) Compile(src string) (*vm.Program, error) {
 	src = strings.TrimSpace(src)
 	if src == "" {
@@ -120,12 +97,8 @@ func (e *engine) Compile(src string) (*vm.Program, error) {
 	return prog, nil
 }
 
-// wrapHelper boxes a strongly-typed Go function as the variadic
-// `func(...any) (any, error)` shape that expr.Function accepts. This
-// lets us register helpers with their natural Go signatures
-// (`isOverdue(any) bool`) without writing a wrapper per helper. The
-// reflect call sits on the call path but the program-cache means we
-// only pay it once per actual invocation, not per Compile.
+// wrapHelper boxes a typed Go function as the func(...any) (any, error) shape expr.Function accepts,
+// so helpers register with their natural signatures without a hand-written wrapper each.
 func wrapHelper(fn any) func(args ...any) (any, error) {
 	rv := reflect.ValueOf(fn)
 	rt := rv.Type()
@@ -133,9 +106,7 @@ func wrapHelper(fn any) func(args ...any) (any, error) {
 		in := make([]reflect.Value, len(args))
 		for i, a := range args {
 			if a == nil {
-				// Use the zero value of the parameter type so a
-				// missing identifier (resolved to nil) lands in the
-				// helper as its expected zero - matches JS coercion.
+				// A nil (missing identifier) lands in the helper as the param type's zero value.
 				pt := paramTypeAt(rt, i)
 				in[i] = reflect.Zero(pt)
 				continue
@@ -150,8 +121,7 @@ func wrapHelper(fn any) func(args ...any) (any, error) {
 	}
 }
 
-// paramTypeAt returns the i-th parameter's reflect.Type, accounting
-// for variadic helpers (none today, but stay flexible).
+// paramTypeAt returns the i-th parameter's reflect.Type, accounting for variadic helpers.
 func paramTypeAt(rt reflect.Type, i int) reflect.Type {
 	if rt.IsVariadic() && i >= rt.NumIn()-1 {
 		return rt.In(rt.NumIn() - 1).Elem()
@@ -162,17 +132,7 @@ func paramTypeAt(rt reflect.Type, i int) reflect.Type {
 	return rt.In(i)
 }
 
-// Evaluate compiles src (or hits the cache) and runs it against ctx,
-// returning a normalised Result. Three result shapes are
-// recognised:
-//
-//   - string  → {Text: v}
-//   - []any   → {Text: csv(v), Items: stringify(v)}
-//   - map     → unmarshal known keys into Result; unknown keys
-//     ignored so users can't smuggle garbage into the JSON envelope
-//
-// Anything else is stringified into Text via fmt.Sprint - keeps
-// numeric and boolean returns useful without surprising the caller.
+// Evaluate compiles (or caches) src and runs it against ctx, returning a normalised Result (see normalize).
 func (e *engine) Evaluate(src string, ctx map[string]any) (Result, error) {
 	prog, err := e.Compile(src)
 	if err != nil {
@@ -186,12 +146,7 @@ func (e *engine) Evaluate(src string, ctx map[string]any) (Result, error) {
 	return normalize(raw), nil
 }
 
-// mergeHelpersInto returns a fresh map combining ctx and helpers.
-// AllowUndefinedVariables means missing identifiers fall through to
-// nil; we still need helpers in the env so calls like `today()`
-// resolve. ctx wins on collision so a user field named `today` would
-// shadow the helper - surprising but consistent with the JS original
-// where local sandbox bindings beat helper bindings.
+// mergeHelpersInto combines ctx and helpers into a fresh map; ctx wins on collision (a user field shadows a helper).
 func mergeHelpersInto(ctx map[string]any, helpers map[string]any) map[string]any {
 	out := make(map[string]any, len(ctx)+len(helpers))
 	for k, v := range helpers {
@@ -203,10 +158,8 @@ func mergeHelpersInto(ctx map[string]any, helpers map[string]any) map[string]any
 	return out
 }
 
-// normalize converts the raw evaluation result into a Result.
-// Map handling is permissive: unknown keys ignored, type-mismatches
-// stringified rather than erroring so a slightly-off expression
-// degrades gracefully (sidebar shows a value, not an error pill).
+// normalize converts a raw result into a Result; string/[]any/map are mapped, anything else is stringified.
+// Map handling is permissive (unknown keys ignored, mismatches stringified) so an off expression degrades gracefully.
 func normalize(raw any) Result {
 	if raw == nil {
 		return Result{}

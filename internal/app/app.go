@@ -53,6 +53,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 	"github.com/petervdpas/formidable2/internal/modules/updatecheck"
 	"github.com/petervdpas/formidable2/internal/modules/wiki"
+	"github.com/petervdpas/formidable2/internal/server/godoc"
 	"github.com/petervdpas/formidable2/internal/statengine"
 )
 
@@ -542,6 +543,7 @@ func New(d Deps) (*App, error) {
 	// Longest-prefix wins: /api/monitor/ takes precedence over /api/.
 	top.Handle("/api/monitor/", monitorHandler)
 	top.Handle("/api/", apiHandlerNetwork)
+	top.Handle("/godoc/", godoc.Handler())
 	top.Handle("/", wikiHandler)
 	wikiM.SetHandler(top)
 	wikiSvc := wiki.NewService(wikiM,

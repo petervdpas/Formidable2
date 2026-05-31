@@ -1,5 +1,5 @@
 // Command formidable-serve is the directive stub for Formidable's
-// planned server-mode entrypoint. It does not yet do anything — running
+// planned server-mode entrypoint. It does not yet do anything. Running
 // it prints a one-line marker and exits non-zero.
 //
 // Why this file exists as a real binary rather than a doc:
@@ -27,7 +27,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/auth"
 )
 
-const notImplementedMessage = `formidable-serve: not yet implemented — server mode is planned.
+const notImplementedMessage = `formidable-serve: not yet implemented; server mode is planned.
 
 The directive scaffold lives in internal/modules/auth:
   - auth.Mode (Desktop / Server)
@@ -51,7 +51,7 @@ direction is plain in code, not just in design docs.
 
 func main() {
 	// Touch each scaffold symbol so a future refactor that drops one
-	// breaks this build target — the CLI stub's job is to keep the
+	// breaks this build target. The CLI stub's job is to keep the
 	// directive types load-bearing.
 	_ = auth.ModeServer
 	_ = auth.SubscriptionResolver{}

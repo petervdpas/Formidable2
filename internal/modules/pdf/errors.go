@@ -11,36 +11,32 @@ import (
 type ExportErrorCode string
 
 const (
-	CodeEngineInactive       ExportErrorCode = "engine_inactive"
-	CodeRenderFailed         ExportErrorCode = "render_failed"
-	CodeCoverLogoMissing     ExportErrorCode = "cover_logo_missing"
-	CodeCoverTemplateInvalid ExportErrorCode = "cover_template_invalid"
+	CodeEngineInactive        ExportErrorCode = "engine_inactive"
+	CodeRenderFailed          ExportErrorCode = "render_failed"
+	CodeCoverLogoMissing      ExportErrorCode = "cover_logo_missing"
+	CodeCoverTemplateInvalid  ExportErrorCode = "cover_template_invalid"
 	CodeSignatureImageMissing ExportErrorCode = "signature_image_missing"
-	CodeDirectiveInvalid     ExportErrorCode = "directive_invalid"
-	CodeStyleNotFound        ExportErrorCode = "style_not_found"
-	CodeBrowserUnreachable   ExportErrorCode = "browser_unreachable"
-	CodeRenderTimeout        ExportErrorCode = "render_timeout"
-	CodeEmptyMarkdown        ExportErrorCode = "empty_markdown"
-	CodeHTMLConversionFailed ExportErrorCode = "html_conversion_failed"
-	CodePDFGenerationFailed  ExportErrorCode = "pdf_generation_failed"
-	CodeSaveFailed           ExportErrorCode = "save_failed"
-	CodeUnknown              ExportErrorCode = "unknown"
+	CodeDirectiveInvalid      ExportErrorCode = "directive_invalid"
+	CodeStyleNotFound         ExportErrorCode = "style_not_found"
+	CodeBrowserUnreachable    ExportErrorCode = "browser_unreachable"
+	CodeRenderTimeout         ExportErrorCode = "render_timeout"
+	CodeEmptyMarkdown         ExportErrorCode = "empty_markdown"
+	CodeHTMLConversionFailed  ExportErrorCode = "html_conversion_failed"
+	CodePDFGenerationFailed   ExportErrorCode = "pdf_generation_failed"
+	CodeSaveFailed            ExportErrorCode = "save_failed"
+	CodeUnknown               ExportErrorCode = "unknown"
 )
 
-// errEmptyPDF and errSaveFailed are internal sentinels used by
-// Manager.Export so MapExportError can recognise the wrap site without
-// inspecting error strings. They are not part of the public error
-// vocabulary - callers branch on the ExportErrorCode instead.
+// errEmptyPDF and errSaveFailed are internal sentinels so
+// MapExportError can recognise the wrap site without string-matching.
 var (
 	errEmptyPDF   = errors.New("pdf: converter returned empty PDF")
 	errSaveFailed = errors.New("pdf: save failed")
 )
 
-// ExportError is the typed envelope that Service.ExportPDF surfaces
-// when something goes wrong. Its Error() string is JSON-encoded so it
-// survives the Wails boundary unchanged: both the Vue frontend and a
-// future Lua plugin host can parse {code, message, hint} without
-// further serialization choices on the Go side.
+// ExportError is the typed envelope Service.ExportPDF surfaces. Its
+// Error() string is JSON so {code, message, hint} survives the Wails
+// boundary for both the frontend and a future Lua host to parse.
 type ExportError struct {
 	Code    ExportErrorCode `json:"code"`
 	Message string          `json:"message"`
@@ -58,13 +54,10 @@ func (e *ExportError) Error() string {
 
 func (e *ExportError) Unwrap() error { return e.Cause }
 
-// MapExportError converts any error produced by the Export pipeline
-// into a typed ExportError. Returns nil iff err is nil. Already-typed
-// ExportErrors (even wrapped) pass through unchanged.
-//
+// MapExportError converts any Export-pipeline error into a typed
+// ExportError (nil iff err is nil; already-typed errors pass through).
 // Mapping order matters: more-specific sentinels are checked first so
-// e.g. ErrCoverLogoNotFound never falls through to ErrCoverRender's
-// "template render failed" bucket.
+// e.g. ErrCoverLogoNotFound never falls into the ErrCoverRender bucket.
 func MapExportError(err error) *ExportError {
 	if err == nil {
 		return nil

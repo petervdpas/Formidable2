@@ -10,11 +10,8 @@ const (
 	MaxOptionsPerFacet = 16
 )
 
-// FacetColorList is the ordered closed set of color tokens a
-// FacetOption may reference. Mirrors the 16 .expr-bg-* utilities in
-// expression.css - order matters because the frontend renders this
-// list as the swatch grid. The Service exposes it to the frontend
-// via FacetLimits.
+// FacetColorList is the ordered closed set of FacetOption color tokens, mirroring the 16 .expr-bg-*
+// utilities in expression.css. Order matters: the frontend renders this list as the swatch grid.
 var FacetColorList = []string{
 	"red", "orange", "amber", "yellow",
 	"green", "teal", "blue", "purple",
@@ -22,8 +19,7 @@ var FacetColorList = []string{
 	"indigo", "rose", "brown", "slate",
 }
 
-// FacetIconList is the ordered closed set of FontAwesome icon keys a
-// Facet may declare. Same display-order contract as FacetColorList.
+// FacetIconList is the ordered closed set of FontAwesome icon keys a Facet may declare (display order matters).
 var FacetIconList = []string{
 	"fa-flag", "fa-check", "fa-star", "fa-heart",
 	"fa-bookmark", "fa-bell", "fa-shirt", "fa-circle-info",
@@ -31,8 +27,7 @@ var FacetIconList = []string{
 	"fa-tag", "fa-bug", "fa-gear", "fa-fire",
 }
 
-// FacetColors and FacetIcons are lookup sets derived from the ordered
-// lists above; kept for O(1) membership checks during validation.
+// FacetColors and FacetIcons are O(1) membership sets derived from the ordered lists above.
 var (
 	FacetColors = listToSet(FacetColorList)
 	FacetIcons  = listToSet(FacetIconList)
@@ -62,23 +57,14 @@ func IsKnownFacetColor(c string) bool {
 	return ok
 }
 
-// IsKnownFacetIcon reports whether icon is a valid FontAwesome key
-// from the curated palette.
+// IsKnownFacetIcon reports whether icon is in the curated palette.
 func IsKnownFacetIcon(icon string) bool {
 	_, ok := FacetIcons[icon]
 	return ok
 }
 
-// FacetMeta is the wire-shape returned to the frontend so it can
-// render the editor without hardcoding ANY backend constraint. The
-// frontend reads this once at boot via Service.FacetMeta and treats
-// the backend as the single source of truth for:
-//   - max counts (MaxFacets, MaxOptionsPerFacet)
-//   - palettes (Colors, Icons - ordered for display)
-//   - validation patterns (KeyPattern, LabelPattern - compiled in JS)
-//
-// Adding a new backend-owned facet rule means extending this struct;
-// the frontend stays a thin renderer.
+// FacetMeta is the wire shape the frontend reads once at boot so it hardcodes no backend constraint:
+// max counts, ordered palettes, and validation patterns all come from here.
 type FacetMeta struct {
 	MaxFacets          int                      `json:"max_facets"`
 	MaxOptionsPerFacet int                      `json:"max_options_per_facet"`
@@ -90,7 +76,6 @@ type FacetMeta struct {
 }
 
 // GetFacetMeta returns a snapshot of the current facet constraints.
-// Exposed via the Wails Service.
 func GetFacetMeta() FacetMeta {
 	colors := make([]string, len(FacetColorList))
 	copy(colors, FacetColorList)

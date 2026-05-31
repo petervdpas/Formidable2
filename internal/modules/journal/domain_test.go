@@ -35,14 +35,14 @@ func newTestManager(t *testing.T) (*Manager, *system.Manager, string) {
 
 func TestIsTrackedRel(t *testing.T) {
 	cases := map[string]bool{
-		"templates":               true,
-		"templates/basic.yaml":    true,
-		"storage":                 true,
-		"storage/basic/x.json":    true,
-		"config/user.json":        false,
-		"notes.md":                false,
-		"":                        false,
-		"templatesx/foo":          false,
+		"templates":            true,
+		"templates/basic.yaml": true,
+		"storage":              true,
+		"storage/basic/x.json": true,
+		"config/user.json":     false,
+		"notes.md":             false,
+		"":                     false,
+		"templatesx/foo":       false,
 	}
 	for in, want := range cases {
 		if got := isTrackedRel(in); got != want {
@@ -70,7 +70,7 @@ func TestParseLine_HandlesMalformed(t *testing.T) {
 		"",
 		"   ",
 		"not json",
-		`{"ts":"","op":"create","path":"x"}`,        // empty ts
+		`{"ts":"","op":"create","path":"x"}`, // empty ts
 		`{"ts":"2026","op":"unknown","path":"x"}`,   // unknown op
 		`{"ts":"2026","op":"create"}`,               // missing path
 		`{"ts":"2026","op":"sync","backend":"foo"}`, // unknown backend

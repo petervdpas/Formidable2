@@ -11,23 +11,9 @@ import (
 	"strings"
 )
 
-// RescanTemplate force-reindexes one template's collection: it re-reads
-// every storage item (.meta.json) of the template from disk regardless
-// of mtime, re-derives its index rows (title, tags, facets, values, and
-// the FTS search body), and drops index rows for items no longer on
-// disk. The template row itself is refreshed too.
-//
-// This is the on-demand rebuild path, distinct from RescanAll (mtime-
-// diff, so it skips a file whose bytes are unchanged even when our
-// projection logic changed) and from OnTemplateChanged (fires only on a
-// template save). Use it to rebuild a collection after a projection-
-// logic change ships, or when an item is suspected of having drifted
-// out of agreement with disk.
-//
-// A missing template on disk is treated as a delete (cascade removes
-// the collection). Per-item load failures are accumulated and returned
-// joined, never aborting the rest of the rebuild - same posture as
-// RescanAll.
+// RescanTemplate force-reindexes one template's collection regardless of mtime, re-deriving every item's
+// rows and dropping rows for items no longer on disk. Unlike RescanAll it ignores mtime (so it picks up
+// projection-logic changes). A missing template is a delete; per-item failures accumulate, never aborting.
 func (h *EventHandler) RescanTemplate(ctx context.Context, templateFilename string) error {
 	if h.root == "" {
 		return errors.New("index: RescanTemplate: root not set (call SetRoot)")
@@ -85,22 +71,9 @@ func (h *EventHandler) RescanTemplate(ctx context.Context, templateFilename stri
 	return errors.Join(loadErrs...)
 }
 
-// loadErrs accumulates per-template / per-form load failures during a
-// RescanAll. One bad file (malformed JSON, missing template, etc.)
-// must not abort the entire batch - the rest of the index has to keep
-// populating. Returned errors come back joined via errors.Join so the
-// composition root can log them as warnings without losing detail.
-
-// RescanAll diffs the on-disk state under h.root against the index
-// and applies the (added, changed, removed) sets in one transaction.
-// It's the primary recovery path after sync (gigot pull, git pull, an
-// external editor, etc.) - anything that changes disk outside our
-// managers.
-//
-// The implementation is intentionally simple: scan disk, scan index,
-// take the diff per bucket, fetch fresh content via the loaders for
-// added/changed entries, build one ReconcileBatch, apply. If nothing
-// changed the batch is empty and Reconcile is a no-op (no rev bump).
+// RescanAll diffs disk under h.root against the index and applies the (added, changed, removed) sets in one
+// transaction. It's the recovery path after sync or an external editor; an empty diff is a no-op (no rev bump).
+// Per-file load failures accumulate and return joined, never aborting the rest of the rebuild.
 func (h *EventHandler) RescanAll(ctx context.Context) error {
 	if h.root == "" {
 		return errors.New("index: RescanAll: root not set (call SetRoot)")
@@ -118,7 +91,6 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 	batch := ReconcileBatch{}
 	var loadErrs []error
 
-	// ── Templates ────────────────────────────────────────────────
 	tplDiff := diffEntries(disk.Templates, idx.templates)
 	for _, e := range tplDiff.Added {
 		row, err := h.loadTemplateRow(e)
@@ -138,11 +110,7 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 	}
 	batch.DeleteTemplates = append(batch.DeleteTemplates, tplDiff.Removed...)
 
-	// ── Forms ────────────────────────────────────────────────────
-	// Skip orphan storage dirs (no matching template on disk) - their
-	// rows would FK-violate. The previous template-delete in this same
-	// batch removes them via cascade anyway, so there's nothing left
-	// to do for them.
+	// Skip orphan storage dirs (no template on disk): their rows would FK-violate and the cascade handles cleanup.
 	tplFilenamesOnDisk := make(map[string]bool, len(disk.Templates))
 	for _, e := range disk.Templates {
 		tplFilenamesOnDisk[e.Filename] = true
@@ -155,7 +123,6 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 		idxBucket := idx.forms[stem]
 
 		if !tplFilenamesOnDisk[tplFilename] {
-			// Template gone; skip - cascade handles cleanup.
 			continue
 		}
 
@@ -182,7 +149,6 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 		}
 	}
 
-	// ── Images ───────────────────────────────────────────────────
 	allImageStems := mergedStems(disk.Images, idx.images)
 	for _, stem := range allImageStems {
 		tplFilename := stem + ".yaml"
@@ -210,11 +176,8 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 	return errors.Join(loadErrs...)
 }
 
-// loadTemplateRow uses the configured TemplateLoader to fetch the
-// parsed template for entry.Filename, then projects it into a
-// TemplateRow. Mtime + size come from the disk scan (not the loader's
-// record) so the stored row exactly matches what the next stale-
-// detect's stat() will compare against.
+// loadTemplateRow loads and projects a template into a TemplateRow; mtime/size come from the disk scan
+// (not the loader) so the stored row matches the next stale-detect's stat().
 func (h *EventHandler) loadTemplateRow(entry FileEntry) (TemplateRow, error) {
 	rec, err := h.templates.LoadTemplate(entry.Filename)
 	if err != nil {
@@ -228,9 +191,7 @@ func (h *EventHandler) loadTemplateRow(entry FileEntry) (TemplateRow, error) {
 	return row, nil
 }
 
-// loadFormRow does the analogous projection for forms, fetching both
-// the template (needed for guid_field/tags_field/item_field) and the
-// form data via the configured loaders.
+// loadFormRow loads the template (for guid/tags/item field) and form data, projecting them into a FormRow.
 func (h *EventHandler) loadFormRow(templateFilename string, entry FileEntry) (FormRow, error) {
 	tplRec, err := h.templates.LoadTemplate(templateFilename)
 	if err != nil {
@@ -248,19 +209,14 @@ func (h *EventHandler) loadFormRow(templateFilename string, entry FileEntry) (Fo
 	return row, nil
 }
 
-// indexState mirrors ScanResult's shape but is produced by querying
-// the SQLite index. Used only by RescanAll to compute the diff.
+// indexState mirrors ScanResult but is read from the SQLite index; used by RescanAll to compute the diff.
 type indexState struct {
 	templates []FileEntry
-	forms     map[string][]FileEntry // template-stem → entries
+	forms     map[string][]FileEntry // template-stem -> entries
 	images    map[string][]FileEntry
 }
 
-// scanIndexState pulls (filename, mtime) for every templates row, plus
-// (filename, mtime) per form/image bucketed by their template's stem.
-// Size is left at 0 - diffEntries treats equal-size as a tie, and we
-// don't track size in the schema. Mtime mismatches alone drive the
-// "Changed" set, which is what we want.
+// scanIndexState reads (filename, mtime, size) for templates/forms/images, bucketing forms/images by stem.
 func scanIndexState(db *sql.DB) (*indexState, error) {
 	out := &indexState{
 		forms:  map[string][]FileEntry{},

@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-// Cover-archive errors. Mirror the sentinel-error style used elsewhere
-// in the module so callers can branch with errors.Is.
 var (
 	ErrCoverArchiveInvalid   = errors.New("pdf: cover archive invalid")
 	ErrCoverArchiveTraversal = errors.New("pdf: cover archive path traversal blocked")
@@ -19,10 +17,9 @@ var (
 	ErrCoverArchiveNotFound  = errors.New("pdf: cover archive not found")
 )
 
-// ExportCoverArchiveResult describes what was bundled into the zip on
-// export. MissingImages collects refs the .html mentions but that
-// aren't present on disk - surfaced to the UI so the user can decide
-// whether to chase them down before shipping the archive.
+// ExportCoverArchiveResult describes what was bundled into the zip.
+// MissingImages collects refs the .html mentions but that are absent
+// on disk, surfaced so the user can chase them before sharing.
 type ExportCoverArchiveResult struct {
 	Name          string   `json:"name"`
 	ZipPath       string   `json:"zip_path"`
@@ -37,13 +34,8 @@ type ImportCoverArchiveResult struct {
 	Images      []string `json:"images,omitempty"`
 }
 
-// exportCoverArchive zips <onDiskCoversDir>/<name>.html along with
-// every image its <img src=…> and CSS url(…) refs point at, writing
-// the result to zipPath (absolute or AppRoot-relative). Image refs
-// are resolved against <onDiskCoversDir>/images/ first, then
-// <onDiskCoversDir>/. Missing refs do NOT abort the export - they
-// are reported in the result so the user can fix them after import
-// on the other side.
+// exportCoverArchive zips the cover .html plus its image refs.
+// Missing refs do NOT abort; they are reported in the result.
 func exportCoverArchive(fs storeFS, coverName, zipPath string) (ExportCoverArchiveResult, error) {
 	var zero ExportCoverArchiveResult
 	if fs == nil {
@@ -114,18 +106,11 @@ func exportCoverArchive(fs storeFS, coverName, zipPath string) (ExportCoverArchi
 	}, nil
 }
 
-// importCoverArchive reads a cover-archive zip from zipPath and
-// materialises its contents under <onDiskCoversDir>/. The zip must:
-//
-//   - Contain exactly one *.html at the root (the cover).
-//   - Place every other entry under images/ (the cover's bundled assets).
-//   - Contain no path-traversal segments after Clean.
-//
-// The cover .html stem must pass validCoverNameStem (no separators, no
-// leading dot, not "signature") and the body must pass ValidateCover
-// at error severity. If a cover with the same name exists, refuses
-// unless overwrite=true. Image assets always overwrite their disk
-// counterparts - they are bundle-bound resources, not user state.
+// importCoverArchive materialises a cover-archive zip under
+// <onDiskCoversDir>/. The zip must hold exactly one root *.html (the
+// cover) plus assets under images/, with no traversal after Clean.
+// Refuses to clobber an existing cover unless overwrite=true; image
+// assets always overwrite (bundle-bound resources, not user state).
 func importCoverArchive(fs storeFS, zipPath string, overwrite bool) (ImportCoverArchiveResult, error) {
 	var zero ImportCoverArchiveResult
 	if fs == nil {
@@ -219,10 +204,9 @@ func importCoverArchive(fs storeFS, zipPath string, overwrite bool) (ImportCover
 	}, nil
 }
 
-// resolveExportImage looks up an image ref the cover .html mentions,
-// trying <onDiskCoversDir>/images/<ref> first, then
-// <onDiskCoversDir>/<ref>. Mirrors ResolveCoverLogo's priority so the
-// bundle decision matches how the renderer would resolve at runtime.
+// resolveExportImage looks up an image ref, trying images/<ref> then
+// <ref>. Mirrors ResolveCoverLogo's priority so the bundle decision
+// matches runtime resolution.
 func resolveExportImage(fs storeFS, ref string) (string, string, bool) {
 	candidates := []string{
 		path.Join(onDiskCoversDir, coverImagesSubdir, ref),

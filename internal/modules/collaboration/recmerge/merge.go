@@ -1,18 +1,14 @@
 package recmerge
 
-// MergeResult is the outcome of a record-level merge. Exactly one of
-// Merged or Conflict is non-nil on success; Conflict is reserved for
-// immutable-meta violations, which short-circuit the data merge.
+// MergeResult is the outcome of a record-level merge; exactly one of Merged or Conflict is non-nil.
+// Conflict is reserved for immutable-meta violations, which short-circuit the data merge.
 type MergeResult struct {
 	Merged   []byte
 	Conflict *RecordConflict
 }
 
-// Merge applies §10.2 + §10.3 to produce a merged record. The rule is
-// uniform across data field types: neither-changed keeps base;
-// one-side-changed takes the changed side; both-changed-same is a
-// no-op; both-changed-differently resolves by last-writer-wins on
-// meta.updated. Missing keys compare as nil.
+// Merge applies gigot §10.2 + §10.3: neither-changed keeps base, one-side-changed takes that side,
+// both-changed-differently resolves by last-writer-wins on meta.updated. Missing keys compare as nil.
 func Merge(path string, base, theirs, yours Record) (MergeResult, error) {
 	mergedMeta, conflicts := MergeMeta(base.Meta, theirs.Meta, yours.Meta)
 	if len(conflicts) > 0 {
@@ -95,11 +91,7 @@ func Merge(path string, base, theirs, yours Record) (MergeResult, error) {
 	return MergeResult{Merged: bytes}, nil
 }
 
-// IsRecordPath returns true when p matches the
-// storage/<template>/<name>.meta.json path contract - exactly two
-// directory levels, `.meta.json` suffix, no traversal. Used by the
-// caller to gate "should this path go through structured merge?"
-// without dragging path-validation rules across module boundaries.
+// IsRecordPath reports whether p matches storage/<template>/<name>.meta.json (no traversal, not the images dir).
 func IsRecordPath(p string) bool {
 	if p == "" {
 		return false
@@ -123,8 +115,7 @@ func IsRecordPath(p string) bool {
 	return true
 }
 
-// Tiny helpers - kept inline so this file has no import dependency on
-// strings. The merge package is a leaf and the helpers are trivial.
+// Inlined to keep this leaf file free of a strings import.
 
 func endsWith(s, suffix string) bool {
 	if len(s) < len(suffix) {

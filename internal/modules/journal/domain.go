@@ -40,8 +40,7 @@ type Manager struct {
 	nowFn   func() time.Time
 }
 
-// NewManager constructs a journal. emitter may be nil (events silenced).
-// log may be nil (uses slog.Default).
+// NewManager constructs a journal; emitter may be nil (events silenced), log may be nil.
 func NewManager(filesystem fs, log *slog.Logger, emitter EventEmitter) *Manager {
 	if log == nil {
 		log = slog.Default()
@@ -63,9 +62,7 @@ func (m *Manager) SetNowFn(fn func() time.Time) {
 	m.nowFn = fn
 }
 
-// Configure (re)points the journal at a context folder + active backend.
-// On change, the cursor file is read (or seeded) and the in-memory pending
-// state is rebuilt from the existing log.
+// Configure (re)points the journal at a context folder + backend, seeding the cursor and rebuilding pending state.
 func (m *Manager) Configure(contextFolder, backend string) error {
 	m.mu.Lock()
 	m.contextFolder = strings.TrimSpace(contextFolder)
@@ -109,9 +106,7 @@ func (m *Manager) Configure(contextFolder, backend string) error {
 	return nil
 }
 
-// Init writes a baseline entry per existing tracked file (templates/*.yaml
-// and everything under storage/). Skipped when the log already exists,
-// when no context is configured, or when there are no tracked files.
+// Init writes a baseline entry per tracked file; skipped when the log exists, no context is set, or nothing is tracked.
 func (m *Manager) Init() InitResult {
 	m.mu.RLock()
 	ctx := m.contextFolder
@@ -146,13 +141,8 @@ func (m *Manager) Init() InitResult {
 	return InitResult{Created: true, Entries: len(files)}
 }
 
-// RecordOp appends a file mutation. absPath must lie under the configured
-// context folder and under templates/ or storage/; otherwise the call is a
-// silent no-op (mirrors the JS version's path filtering).
-//
-// In local-only mode (backend == "" or "none") the journal is inert - we
-// neither write to disk nor track in-memory pending. Switch the backend
-// to git or gigot to start accumulating.
+// RecordOp appends a file mutation; absPath outside context/templates/storage is a silent no-op.
+// In local-only mode (backend "" or "none") the journal is inert.
 func (m *Manager) RecordOp(op, absPath string, meta map[string]any) {
 	m.mu.RLock()
 	ctx := m.contextFolder
@@ -199,10 +189,7 @@ func (m *Manager) RecordOp(op, absPath string, meta map[string]any) {
 	m.emit(EventChanged, entry)
 }
 
-// RecordSync appends a sync marker for the given backend, advances that
-// backend's cursor, and clears its pending set. Primitive signature so
-// *Manager satisfies the Recorder interface directly - sync backends
-// pass their tuple straight through without an adapter struct.
+// RecordSync appends a sync marker, advances the backend's cursor, and clears its pending set.
 func (m *Manager) RecordSync(backend, version string, pushed, pulled int) {
 	m.mu.RLock()
 	ctx := m.contextFolder
@@ -210,9 +197,7 @@ func (m *Manager) RecordSync(backend, version string, pushed, pulled int) {
 	if ctx == "" || backend == "" {
 		return
 	}
-	// Tightening: refuse unknown backends on the write side so the
-	// cursor map can't temporarily hold entries that parseLine would
-	// drop on the next rebuild.
+	// Refuse unknown backends on write so the cursor map can't hold entries parseLine would later drop.
 	if !knownBackends[backend] {
 		return
 	}
@@ -244,11 +229,7 @@ func (m *Manager) RecordSync(backend, version string, pushed, pulled int) {
 	m.emit(EventChanged, entry)
 }
 
-// RecordRemoteSeen advances only the version of the cursor (no journal
-// entry, no pending change). Called after a successful pull so the
-// head-probe poller can short-circuit. Emits journal:changed so
-// frontend pollers see the post-pull cursor update - symmetric with
-// RecordOp/RecordSync, which both emit on success.
+// RecordRemoteSeen advances only the cursor version after a pull (no log entry), emitting journal:changed so pollers refresh.
 func (m *Manager) RecordRemoteSeen(backend, version string) {
 	m.mu.RLock()
 	ctx := m.contextFolder
@@ -274,9 +255,7 @@ func (m *Manager) RecordRemoteSeen(backend, version string) {
 		m.log.Warn("journal: save cursors (remote-seen) failed", "err", err)
 	}
 
-	// No log entry (pull is inbound), but the cursor moved - emit so
-	// pollers refresh. Entry shape mirrors what callers can already
-	// receive from RecordSync's "sync" event minus pushed/pulled.
+	// No log entry (inbound pull), but the cursor moved; emit so pollers refresh.
 	m.emit(EventChanged, Entry{
 		Ts:      m.nowFn().UTC().Format(time.RFC3339Nano),
 		Op:      OpSync,
@@ -285,16 +264,8 @@ func (m *Manager) RecordRemoteSeen(backend, version string) {
 	})
 }
 
-// RecentEntries returns up to <limit> most-recent log entries, newest
-// first. limit <= 0 means "all". When no context is configured or
-// the log file doesn't exist yet, returns an empty slice (not an
-// error) - matches the inert-mode contract Pending uses.
-//
-// Used by the journal-feed UI: the on-disk log is the canonical
-// chronological view of every mutation + sync that's gone through
-// the system, so a one-shot read is sufficient for a "show me the
-// recent activity" panel. The feed subscribes to `journal:changed`
-// to know when to re-poll.
+// RecentEntries returns up to limit most-recent entries, newest first (limit <= 0 means all);
+// empty slice when no context or log file.
 func (m *Manager) RecentEntries(limit int) []Entry {
 	ctx := m.contextFolderLocked()
 	if ctx == "" {
@@ -317,8 +288,7 @@ func (m *Manager) RecentEntries(limit int) []Entry {
 		}
 		all = append(all, *entry)
 	}
-	// Reverse in-place: parseLine yielded oldest-first; the feed
-	// wants newest-first.
+	// Reverse: parseLine yields oldest-first, the feed wants newest-first.
 	for i, j := 0, len(all)-1; i < j; i, j = i+1, j-1 {
 		all[i], all[j] = all[j], all[i]
 	}
@@ -328,8 +298,7 @@ func (m *Manager) RecentEntries(limit int) []Entry {
 	return all
 }
 
-// Pending returns the pending changes for the given backend.
-// An empty/unknown backend returns an empty result.
+// Pending returns the pending changes for the backend (empty for unknown/none).
 func (m *Manager) Pending(backend string) PendingResult {
 	if backend == "" || backend == BackendNone {
 		return PendingResult{Count: 0, Paths: []PendingChange{}}
@@ -351,16 +320,12 @@ func (m *Manager) ReadCursor() CursorMap {
 	return cloneCursors(m.cursors)
 }
 
-// ContextFolder returns the currently configured context folder. Used by tests.
+// ContextFolder returns the configured context folder.
 func (m *Manager) ContextFolder() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.contextFolder
 }
-
-// ─────────────────────────────────────────────────────────────────────
-// Internals
-// ─────────────────────────────────────────────────────────────────────
 
 func (m *Manager) ensureCursorFile() error {
 	cursorPath := filepath.Join(m.contextFolderLocked(), cursorFileName)
@@ -370,24 +335,8 @@ func (m *Manager) ensureCursorFile() error {
 	return m.fs.SaveFile(cursorPath, "{}\n")
 }
 
-// ensureGitignorePatterns adds the journal-exclusion patterns to the
-// nearest .gitignore so .changes.log and .changes.cursor never get
-// committed when the user points context at a synced repo. Skipped
-// when no backend is active (local-only mode has no version-control
-// concern). Resolution order:
-//
-//  1. <context>/.gitignore exists → patch it (most contexts that opt
-//     into sync will already have one for their own purposes).
-//  2. Else walk up from <context> looking for an enclosing .git → patch
-//     (or create) <repoRoot>/.gitignore so a context inside a larger
-//     repo still keeps the journal local.
-//  3. Else → no-op (no git in scope; nothing to keep clean).
-//
-// Idempotent: existing patterns are detected line-by-line and skipped.
-// Atomic write via fs.SaveFile (tmp+fsync+rename).
-//
-// Best-effort: read/write failures log a warning and return - Configure
-// must not block on a permission glitch in someone else's repo root.
+// ensureGitignorePatterns adds the .changes.* exclusion patterns to the nearest .gitignore (context, else
+// enclosing repo root, else no-op) so the journal stays local in a synced repo. Idempotent and best-effort.
 func (m *Manager) ensureGitignorePatterns() {
 	ctx := m.contextFolderLocked()
 	if ctx == "" {
@@ -439,9 +388,7 @@ func (m *Manager) ensureGitignorePatterns() {
 	}
 }
 
-// resolveGitignoreTarget picks which .gitignore the patterns go into.
-// Returns ("", false) when there's no git in scope (neither a .gitignore
-// in the context nor an enclosing .git anywhere up to findGitMaxDepth).
+// resolveGitignoreTarget picks the .gitignore to patch; ("", false) when no git is in scope.
 func (m *Manager) resolveGitignoreTarget(ctx string) (string, bool) {
 	contextGitignore := filepath.Join(ctx, ".gitignore")
 	if m.fs.FileExists(contextGitignore) {
@@ -454,19 +401,7 @@ func (m *Manager) resolveGitignoreTarget(ctx string) (string, bool) {
 	return filepath.Join(repoRoot, ".gitignore"), true
 }
 
-// sweepStaleStash removes any leftover .changes.stash/ directory
-// inside the context folder. Owned-by-git but family-managed-here:
-// the journal already curates .changes.log + .changes.cursor +
-// .gitignore patches, so taking responsibility for the transient
-// .changes.stash artifact keeps every "files starting with .changes"
-// concern in one module.
-//
-// Called from Configure (boot / context switch). PullWithStash also
-// removes its own stash dir at the end of every run, but a process
-// crash mid-pull or a pre-fix codebase can leave one behind. Best-
-// effort: any RemoveAll error is logged at warn but does not block
-// boot - the user can always delete it by hand and the next pull
-// will sweep it on its own start.
+// sweepStaleStash removes a leftover .changes.stash/ dir (from a crash mid-pull); best-effort, doesn't block boot.
 func (m *Manager) sweepStaleStash() {
 	ctx := m.contextFolderLocked()
 	if ctx == "" {
@@ -482,11 +417,7 @@ func (m *Manager) sweepStaleStash() {
 	}
 }
 
-// findGitRepoRoot walks up from start (inclusive), returning the
-// absolute path of the first ancestor containing a .git entry, or ""
-// if none within findGitMaxDepth levels. Uses fs.FileExists which
-// returns true for both regular files (worktree pointer) and
-// directories (the standard repo layout).
+// findGitRepoRoot returns the first ancestor (from start, inclusive) containing a .git entry, or "" within findGitMaxDepth.
 func (m *Manager) findGitRepoRoot(start string) string {
 	dir, err := filepath.Abs(start)
 	if err != nil {
@@ -516,11 +447,7 @@ func (m *Manager) loadCursors() (CursorMap, error) {
 	}
 	cursors, wasLegacy := sanitizeCursor([]byte(raw))
 	if wasLegacy {
-		// Migrate the on-disk file to the modern object-shaped form so
-		// subsequent loads don't keep re-parsing the legacy string-form.
-		// Best-effort: a write failure logs a warning but does not block
-		// the in-memory state - readers still get correct values either
-		// way (sanitizeCursor handled the translation already).
+		// Persist the modern object form so later loads stop re-parsing legacy; best-effort.
 		if err := m.saveCursors(cursors); err != nil {
 			m.log.Warn("journal: cursor migration write failed", "err", err)
 		}
@@ -546,8 +473,7 @@ func (m *Manager) appendEntry(e Entry) error {
 	return m.fs.AppendFile(logPath, string(raw)+"\n")
 }
 
-// rebuildPending walks the on-disk journal once and computes the
-// pending set for each known backend, applying their respective cursors.
+// rebuildPending computes each backend's pending set from the on-disk journal, applying their cursors.
 func (m *Manager) rebuildPending(cursors CursorMap) (map[string]map[string]string, error) {
 	out := map[string]map[string]string{}
 	for backend := range knownBackends {
@@ -582,8 +508,7 @@ func (m *Manager) rebuildPending(cursors CursorMap) (map[string]map[string]strin
 	return out, nil
 }
 
-// applyEntryToPendingLocked updates per-backend pending after a fresh
-// RecordOp. Caller must hold m.mu (write lock).
+// applyEntryToPendingLocked updates per-backend pending after a RecordOp; caller holds m.mu (write).
 func (m *Manager) applyEntryToPendingLocked(e Entry) {
 	for backend := range knownBackends {
 		bucket, ok := m.pending[backend]
@@ -623,8 +548,7 @@ func (m *Manager) collectTrackedFiles() []string {
 	return out
 }
 
-// contextFolderLocked is a cheap accessor that handles the read-lock for
-// callers that already verified context is set.
+// contextFolderLocked reads contextFolder under the read lock.
 func (m *Manager) contextFolderLocked() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -638,10 +562,6 @@ func (m *Manager) emit(name string, data any) {
 	m.emitter.Emit(name, data)
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Pure helpers
-// ─────────────────────────────────────────────────────────────────────
-
 func isTrackedRel(rel string) bool {
 	return rel == templatesDir ||
 		rel == storageDir ||
@@ -649,8 +569,7 @@ func isTrackedRel(rel string) bool {
 		strings.HasPrefix(rel, storageDir+"/")
 }
 
-// relPosixUnder returns absPath relative to base, with forward slashes.
-// Returns ("", false) when absPath escapes the base.
+// relPosixUnder returns absPath relative to base with forward slashes; ("", false) when it escapes base.
 func relPosixUnder(base, absPath string) (string, bool) {
 	baseAbs, err := filepath.Abs(base)
 	if err != nil {
@@ -670,8 +589,7 @@ func relPosixUnder(base, absPath string) (string, bool) {
 	return filepath.ToSlash(rel), true
 }
 
-// parseLine parses one JSONL line into an Entry. Empty / malformed lines
-// return (nil, nil) so callers can scan a partially-corrupted log.
+// parseLine parses one JSONL line; empty/malformed lines return (nil, nil) so a corrupt log still scans.
 func parseLine(line string) (*Entry, error) {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -699,11 +617,8 @@ func parseLine(line string) (*Entry, error) {
 	return &e, nil
 }
 
-// sanitizeCursor accepts the on-disk JSON and normalises it to a CursorMap.
-// Tolerates the legacy shape where the value was just the sync ts string;
-// the second return reports whether any legacy entry was seen, so
-// loadCursors can write the file back in modern object-form and stop
-// paying the migration cost on every subsequent load.
+// sanitizeCursor normalises the on-disk JSON to a CursorMap, tolerating the legacy ts-string value;
+// the bool reports whether a legacy entry was seen so loadCursors can rewrite the file.
 func sanitizeCursor(raw []byte) (CursorMap, bool) {
 	out := CursorMap{}
 	wasLegacy := false
@@ -741,9 +656,6 @@ func cloneCursors(in CursorMap) CursorMap {
 // ErrNoContext is returned by callers that want to signal the journal isn't ready.
 var ErrNoContext = errors.New("journal: no context folder configured")
 
-// Compile-time assertions that *Manager satisfies the public journal
-// interfaces. Anything that drifts the method signatures fails the
-// build here, not at the distant call site in app.go.
 var (
 	_ Recorder = (*Manager)(nil)
 	_ Reader   = (*Manager)(nil)

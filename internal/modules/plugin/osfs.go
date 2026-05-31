@@ -7,17 +7,8 @@ import (
 	"path/filepath"
 )
 
-// OSFS is the default FSAccess: direct os.* calls, no atomic-write
-// machinery. Plugins use this to read/write paths outside the
-// Formidable storage tree (the "Azure DevOps wiki" use case writes
-// to <home>/wikis/<repo>/...).
-//
-// Atomicity isn't free here, but plugins authoring outside the
-// storage tree are already crossing the trust boundary - if they
-// need durability guarantees they can call OS-level fsync via
-// formidable.exec. Inside the storage tree, plugin authors should
-// prefer formidable.form.save, which goes through the storage
-// manager's atomic-write path.
+// OSFS is the default FSAccess: direct os.* calls, no atomic-write machinery, for paths outside the storage tree.
+// Inside the storage tree, plugins should prefer formidable.form.save, which goes through the atomic-write path.
 type OSFS struct{}
 
 func (OSFS) Read(p string) (string, error) {
@@ -54,11 +45,7 @@ func (OSFS) Exists(p string) bool {
 	return err == nil
 }
 
-// Copy streams from→to, creating the destination's parent dirs. Uses
-// io.Copy so large image transfers don't have to fit in a Lua string.
-// Existing destination is overwritten - the wiki-export use case
-// re-renders images on every run, so refusing to overwrite would mean
-// every run leaves stale files behind.
+// Copy streams from to to via io.Copy (large images needn't fit in a Lua string), creating parent dirs and overwriting the destination.
 func (OSFS) Copy(from, to string) error {
 	if from == "" || to == "" {
 		return errors.New("fs.copy: empty path")
@@ -82,10 +69,7 @@ func (OSFS) Copy(from, to string) error {
 	return nil
 }
 
-// Remove deletes a file or empty directory. Missing target is a no-op
-// - saves plugin authors a stat-then-rm dance. Use os.RemoveAll
-// semantics? No: too easy to nuke a directory by accident. Plugins
-// that want recursive remove can list+remove themselves.
+// Remove deletes a file or empty dir; missing target is a no-op. Not os.RemoveAll: recursive remove is too easy to misfire, so plugins do it themselves.
 func (OSFS) Remove(p string) error {
 	if p == "" {
 		return errors.New("fs.remove: empty path")

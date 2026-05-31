@@ -8,10 +8,8 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// orderedObject marshals its keys in the recorded order rather than Go's
-// alphabetical map default, so the on-disk data block mirrors the
-// template's field declaration order. Values are marshalled compactly;
-// json.MarshalIndent re-indents the whole document afterwards.
+// orderedObject marshals keys in recorded order (not Go's alphabetical map default) so the on-disk
+// data block mirrors the template's field declaration order.
 type orderedObject struct {
 	keys []string
 	vals map[string]any
@@ -40,18 +38,14 @@ func (o orderedObject) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// orderedForm is the write-time envelope: meta serialises in struct order
-// (already deterministic), data follows the template field order.
+// orderedForm is the write-time envelope: meta in struct order, data in template field order.
 type orderedForm struct {
 	Meta FormMeta      `json:"meta"`
 	Data orderedObject `json:"data"`
 }
 
-// orderData reshapes a data map into an orderedObject keyed in template
-// field order. Loop fields recurse so each loop item's inner fields are
-// ordered too. Keys present in data but not declared by the template
-// (orphans the doctor would flag) are appended in sorted order so nothing
-// is dropped on save.
+// orderData reshapes a data map into an orderedObject keyed in template field order, recursing into loops.
+// Keys not declared by the template are appended sorted so nothing is dropped on save.
 func orderData(data map[string]any, fields []template.Field) orderedObject {
 	o := orderedObject{vals: make(map[string]any, len(data))}
 	used := make(map[string]bool, len(data))
@@ -96,9 +90,7 @@ func orderData(data map[string]any, fields []template.Field) orderedObject {
 	return o
 }
 
-// orderLoopItems orders each loop entry's inner field map. Non-map items
-// and non-array values pass through unchanged (the doctor flags shape
-// drift separately).
+// orderLoopItems orders each loop entry's inner field map; non-map/non-array values pass through unchanged.
 func orderLoopItems(raw any, inner []template.Field) any {
 	arr, ok := raw.([]any)
 	if !ok {
@@ -115,9 +107,7 @@ func orderLoopItems(raw any, inner []template.Field) any {
 	return out
 }
 
-// loopEnd returns the index of the loopstop matching the loopstart whose
-// key is loopKey, honouring nested loop pairs. Mirrors integrity's
-// matchLoopstop; falls back to the last field when unpaired.
+// loopEnd returns the matching loopstop index, honouring nested pairs; falls back to the last field when unpaired.
 func loopEnd(fields []template.Field, start int, loopKey string) int {
 	depth := 0
 	for i := start; i < len(fields); i++ {

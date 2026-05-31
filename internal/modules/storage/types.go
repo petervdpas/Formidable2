@@ -1,9 +1,5 @@
-// Package storage owns Formidable's per-template form storage:
-// `<context>/storage/<template-name>/<form>.meta.json` files plus the
-// `images/` subfolder for image fields. Form sanitization is template-
-// driven (defaults filled per field type, tags collected, etc).
-//
-// Mirrors `controls/formManager.js` and `schemas/meta.schema.js` semantics.
+// Package storage owns per-template form storage: storage/<template>/<form>.meta.json files plus
+// the images/ subfolder. Sanitization is template-driven (per-type defaults, tags collected, etc).
 package storage
 
 import "encoding/json"
@@ -14,24 +10,15 @@ type Form struct {
 	Data map[string]any `json:"data"`
 }
 
-// AuditEntry records who did something and when. Used for both
-// FormMeta.Created and FormMeta.Updated. Symmetric to git's
-// author/committer split: Created is set once and preserved across
-// every subsequent save; Updated is re-stamped on every save with the
-// current profile's identity. On read, legacy flat `author_name` +
-// `author_email` + flat `created`/`updated` strings are migrated into
-// the AuditEntry pair; on write only the nested shape is emitted.
+// AuditEntry records who and when, for FormMeta.Created (locked at first save) and Updated (re-stamped each save).
+// On read, legacy flat author/timestamp fields are migrated in; on write only the nested shape is emitted.
 type AuditEntry struct {
 	At    string `json:"at"`
 	Name  string `json:"name"`
 	Email string `json:"email"`
 }
 
-// FormMeta carries identity + audit fields. Tags are deduped+sorted.
-// Facets is keyed by Template.Facets[i].Key; each entry's Set is
-// required (mirrors the legacy `flagged` bool) and Selected may be
-// empty (mirrors the legacy `flag_state` string - `set: true` without
-// a chosen option renders as the facet's uncolored icon).
+// FormMeta carries identity + audit fields; Tags are deduped+sorted, Facets is keyed by Template.Facets[i].Key.
 type FormMeta struct {
 	ID       string                `json:"id"`
 	Template string                `json:"template"`
@@ -41,18 +28,14 @@ type FormMeta struct {
 	Tags     []string              `json:"tags"`
 }
 
-// FacetState is the per-record state for one facet key. Set is the
-// required "is this facet stamped on this form" bool; Selected is the
-// optional option label chosen from the template's facet options.
+// FacetState is the per-record state for one facet: Set (stamped?) plus an optional Selected option label.
 type FacetState struct {
 	Set      bool   `json:"set"`
 	Selected string `json:"selected,omitempty"`
 }
 
-// UnmarshalJSON accepts both the new `facets` map shape and the legacy
-// `flagged` + `flag_state` pair. When the legacy pair is present and
-// the new shape is not, a single synthetic facet keyed "flag" is
-// materialised so on-disk records keep loading unchanged.
+// UnmarshalJSON accepts the new `facets` map and the legacy `flagged`+`flag_state` pair, materialising
+// a synthetic "flag" facet from the legacy pair so on-disk records keep loading unchanged.
 func (m *FormMeta) UnmarshalJSON(data []byte) error {
 	type metaAlias FormMeta
 	aux := struct {
@@ -78,8 +61,7 @@ func (m *FormMeta) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// FormSummary is one row in ExtendedListForms output. Title falls back
-// to filename when item_field is unset or its value is empty.
+// FormSummary is one ExtendedListForms row; Title falls back to filename when item_field is unset/empty.
 type FormSummary struct {
 	Filename        string         `json:"filename"`
 	Meta            FormMeta       `json:"meta"`
@@ -87,13 +69,8 @@ type FormSummary struct {
 	ExpressionItems map[string]any `json:"expressionItems"`
 }
 
-// MigrateResult reports the outcome of MigrateTemplateMeta - a per-
-// template bulk operation that rewrites legacy meta shape (flat
-// author_name/email + string created/updated) into the AuditEntry
-// pair. Migrated files keep their original authorship intact (no
-// Updated.by restamp); already-new files are skipped without touching
-// the file (mtime preserved). Per-file errors land in Errors so the
-// caller can surface them without aborting the whole pass.
+// MigrateResult reports the outcome of MigrateTemplateMeta; migrated files keep their original authorship,
+// already-new files are skipped untouched, and per-file errors land in Errors without aborting the pass.
 type MigrateResult struct {
 	Total    int      `json:"total"`
 	Migrated int      `json:"migrated"`
@@ -101,24 +78,15 @@ type MigrateResult struct {
 	Errors   []string `json:"errors,omitempty"`
 }
 
-// SaveResult mirrors the JS shape used across SFR-backed modules.
+// SaveResult is the success/path/error shape used across SFR-backed modules.
 type SaveResult struct {
 	Success bool   `json:"success"`
 	Path    string `json:"path,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
 
-// SanitizeOptions adjusts how Sanitize normalises the meta block. All
-// fields are optional and default to "fill from raw or generate".
-//
-// Created and Updated override anything in raw meta when their `At`
-// field is non-empty - used by SaveForm to lock the creator across
-// edits (opts.Created = prev.Meta.Created) and to stamp the current
-// profile (opts.Updated = {At: now, Name: profile, Email: profile}).
-//
-// Facets, when non-nil, replaces whatever the raw meta supplied. A nil
-// map lets the raw payload's facets (or legacy `flagged`/`flag_state`
-// pair) survive untouched.
+// SanitizeOptions adjusts how Sanitize normalises the meta block; all fields are optional.
+// Created/Updated override raw meta when their At is set; non-nil Facets replaces raw meta's facets.
 type SanitizeOptions struct {
 	ID           string
 	TemplateName string
@@ -128,8 +96,5 @@ type SanitizeOptions struct {
 	Tags         []string
 }
 
-// AuthorProvider returns the current actor's name + email. Wired by
-// the composition root from config.Manager so storage.SaveForm can
-// stamp Updated.* (and Created.* on first save) with the active
-// profile. Tests may swap a fixed-value provider.
+// AuthorProvider returns the current actor's name + email for stamping Updated (and Created on first save).
 type AuthorProvider func() (name, email string)

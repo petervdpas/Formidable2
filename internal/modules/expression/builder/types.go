@@ -1,23 +1,8 @@
-// Package builder is the construction-side of the expression module.
-// While `expression` evaluates an expr-lang source string against a
-// record context, `builder` *generates* that source from a small,
-// strongly-typed configuration the dialog edits. The two halves
-// share helper vocabulary (date helpers, etc.) but have no other
-// coupling - Compile produces a plain string the Manager later
-// hands to the engine.
-//
-// Mental model: the dialog is a small logic engine. Its inputs are
-// the template's expression_item fields. Its rules are cross-field
-// conjunctions of predicates that map to a styled chip. The rule
-// list walks top-to-bottom (first match wins); the default outcome
-// covers no-match.
+// Package builder generates an expr-lang source string from a strongly-typed Config the dialog edits.
+// Rules walk top-to-bottom (first match wins) and map predicate conjunctions to styled chips; Default covers no-match.
 package builder
 
-// MaxConcatParts caps how many TextSource parts a single Outcome
-// can `+`-join. Sidebar chips are short labels - going past this
-// produces unreadable text and pathological compile/parse work.
-// Both Compile and Parse enforce the cap so hand-authored sources
-// bouncing through Parse → Compile can't smuggle larger chains in.
+// MaxConcatParts caps a single Outcome's `+`-joined TextSource parts; enforced in both Compile and Parse.
 const MaxConcatParts = 10
 
 type RuleKind string
@@ -61,10 +46,7 @@ const (
 	DateOpDateLt           DateOp = "dateLt"
 )
 
-// Predicate is one kind-specific test against one expression_item
-// field. A Rule's match clause ANDs all its Predicates together;
-// pointer fields exist where the zero value is meaningful (a boolean
-// predicate on `false`, a number on `0`, a date arg of `0`).
+// Predicate is one kind-specific test against one field; pointer fields are used where the zero value is meaningful.
 type Predicate struct {
 	Kind     RuleKind `json:"kind"`
 	FieldKey string   `json:"fieldKey"`
@@ -89,30 +71,15 @@ const (
 	TextKindFieldLabel TextKind = "fieldLabel"
 )
 
-// TextSource decides what the chip's text resolves to. Literal renders
-// `Value` verbatim. FieldValue emits a bare reference to FieldKey
-// (engine evaluates the live value). FieldLabel emits a baked
-// value→label ternary over the field's options, falling back to the
-// raw value when no option matches.
+// TextSource decides the chip text: Literal is verbatim, FieldValue is the live value, FieldLabel is the option label.
 type TextSource struct {
 	Kind     TextKind `json:"kind"`
 	Value    string   `json:"value,omitempty"`
 	FieldKey string   `json:"fieldKey,omitempty"`
 }
 
-// Outcome is the styled chip a matching Rule (or the default)
-// produces. Text and Parts both encode the chip text:
-//
-//   - Parts (preferred) is an ordered list of TextSources joined
-//     with `+` so a chip text can mix literals, field values, and
-//     option labels - e.g. `unit-number + " " + street`.
-//   - Text is the legacy single-source form. Compile reads Parts
-//     first; falls back to Text when Parts is empty. Parse always
-//     emits Parts (Text stays nil). Both nil/empty means the chip
-//     renders no text.
-//
-// The remaining fields mirror the runtime Result shape minus
-// filename/error.
+// Outcome is the styled chip a Rule (or default) produces. Parts (the preferred form) is a `+`-joined
+// list of TextSources; Text is the legacy single-source fallback Compile reads when Parts is empty.
 type Outcome struct {
 	Text    *TextSource  `json:"text,omitempty"`
 	Parts   []TextSource `json:"parts,omitempty"`
@@ -121,35 +88,26 @@ type Outcome struct {
 	Classes []string     `json:"classes,omitempty"`
 }
 
-// Rule is a logical AND of Predicates with one Outcome. Empty
-// Predicates always match - useful for the lone-rule case where the
-// user wants exactly one outcome regardless of state.
+// Rule is an AND of Predicates with one Outcome; empty Predicates always match.
 type Rule struct {
 	ID         string      `json:"id"`
 	Predicates []Predicate `json:"predicates,omitempty"`
 	Outcome    Outcome     `json:"outcome"`
 }
 
-// Config is the dialog-session state. Rules are walked top-to-bottom;
-// the first whose predicate clause holds wins. Default is the no-match
-// fallback.
+// Config is the dialog-session state: Rules (first match wins) plus the no-match Default.
 type Config struct {
 	Rules   []Rule  `json:"rules,omitempty"`
 	Default Outcome `json:"default"`
 }
 
-// FieldOption is one entry in a dropdown/radio field's options list.
-// Compile reads it to bake fieldLabel TextSources at construction
-// time so the engine doesn't need an option-lookup helper.
+// FieldOption is one dropdown/radio option; Compile bakes fieldLabel lookups from it.
 type FieldOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
 
-// FieldRef is the slim shape Compile needs from each template field.
-// Key is the variable name in the expression; Type lets Compile
-// validate predicates against their declared kinds; Options drives
-// fieldLabel ternary baking and is empty for non-enum fields.
+// FieldRef is the slim per-field shape Compile needs (Key, Type for validation, Options for fieldLabel baking).
 type FieldRef struct {
 	Key     string        `json:"key"`
 	Type    string        `json:"type"`

@@ -3,8 +3,7 @@ package template
 func boolPtr(b bool) *bool { return &b }
 func intPtr(i int) *int    { return &i }
 
-// basicTemplate is the seed used by SeedBasicIfEmpty. Mirrors the JS
-// `controls/templateManager.js` `seedBasicTemplateIfEmpty` content.
+// basicTemplate is the seed used by SeedBasicIfEmpty.
 func basicTemplate() *Template {
 	return &Template{
 		Name:     "Basic Form",
@@ -54,7 +53,6 @@ func basicTemplate() *Template {
 	}
 }
 
-// guards keep the helpers exported-on-demand (used by storage tests later)
 var (
 	_ = boolPtr
 	_ = intPtr

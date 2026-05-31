@@ -8,40 +8,17 @@ import (
 	"strings"
 )
 
-// pluginsFS embeds the seed plugin library shipped with the binary.
-// On first boot ScaffoldPlugins materializes the tree onto disk at
-// <PluginsDir>/<id>/{plugin.json,main.lua,form.json}; the running
-// system never reads from this embed at refresh time - disk is the
-// source of truth so user edits, imported plugins, and team-shared
-// archives all live side-by-side without an "is this embedded?"
-// branch in the manager.
-//
-// `all:plugins` brings the whole subtree so future side files
-// (icons, fixture data) under a seeded plugin folder come along.
+// pluginsFS embeds the seed plugin library. ScaffoldPlugins materializes it to disk on boot; refresh-time reads only
+// touch disk (disk is the source of truth), so user edits, imports, and shared archives coexist without an "is this embedded?" branch.
 //
 //go:embed all:plugins
 var pluginsFS embed.FS
 
-// seedDir is the directory inside pluginsFS that holds the embedded
-// seed. Anything under <seedDir>/<id>/* gets translated to
-// <PluginsDir>/<id>/* on disk.
 const seedDir = "plugins"
 
-// ScaffoldPlugins writes each embedded seed file under pluginsFS to
-// its counterpart under pluginsDir, but only when the on-disk file is
-// missing. Idempotent - safe to run on every boot. User edits are
-// sacrosanct: once a file exists at the target path, the seed is left
-// alone. Delete-to-reset works for free: removing a file before boot
-// re-scaffolds the bundled copy.
-//
-// Errors writing one seed don't abort the whole pass - the function
-// logs and moves on, mirroring the pdf cover scaffold semantics, so a
-// permission glitch on one file can't block the rest of the library
-// from materializing.
-//
-// fs is the same editorFS the Plugin manager uses for Create/Save/
-// Delete. nil fs is a no-op (matches the manager's "editor not
-// configured" stance).
+// ScaffoldPlugins writes each embedded seed to disk only when the target file is missing.
+// Idempotent and edit-safe (existing files are left alone); delete-to-reset re-scaffolds the bundled copy on next boot.
+// A write error logs and continues so one bad file can't block the rest. nil fs is a no-op.
 func ScaffoldPlugins(fs editorFS, pluginsDir string, log *slog.Logger) error {
 	if fs == nil {
 		return nil

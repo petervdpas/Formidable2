@@ -10,10 +10,10 @@ import (
 )
 
 type frontmatterWorld struct {
-	source    string
-	parsedFM  Frontmatter
+	source     string
+	parsedFM   Frontmatter
 	parsedBody string
-	parseErr  error
+	parseErr   error
 
 	layers map[string]Frontmatter
 	merged Frontmatter

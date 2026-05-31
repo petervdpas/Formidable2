@@ -7,8 +7,6 @@ import (
 )
 
 // statObjectEntry is one named statistical object in the catalog listing.
-// Kind is "dsl" or "composite"; DSL is present for plain objects, empty
-// for composites (whose structure lives on the template, not as a string).
 type statObjectEntry struct {
 	Name  string `json:"name"`
 	Label string `json:"label,omitempty"`
@@ -23,17 +21,12 @@ type statisticsListResponse struct {
 	Statistics []statObjectEntry `json:"statistics"`
 }
 
-// adhocBody is the POST /api/statistics/{tpl} request: an inline DSL to
-// evaluate without naming a stored object.
+// adhocBody is the POST /api/statistics/{tpl} request: an inline DSL to evaluate.
 type adhocBody struct {
 	DSL string `json:"dsl"`
 }
 
-// statistics answers /api/statistics/{tpl}: GET lists the template's named
-// statistical objects; POST evaluates an ad-hoc DSL against it. The grid is
-// the engine's presentation-free JSON (axes / measures / cells[].values /
-// cells[].pct), ready for an external consumer to reshape (e.g. into an R
-// data.frame).
+// statistics answers /api/statistics/{tpl}: GET lists named objects, POST evaluates an ad-hoc DSL.
 func (h *Handler) statistics(w http.ResponseWriter, r *http.Request) {
 	tplFilename, ok := h.statTemplate(w, r)
 	if !ok {
@@ -72,8 +65,7 @@ func (h *Handler) statisticsList(w http.ResponseWriter, r *http.Request, tplFile
 			Kind:  kind,
 			DSL:   o.DSL,
 		}
-		// A scaling is a reusable weighting referenced by other objects; it
-		// has no grid of its own, so no evaluation href.
+		// A scaling has no grid of its own, so no evaluation href.
 		if kind != "scaling" {
 			entry.Href = "/api/statistics/" + stem + "/" + o.Name
 		}
@@ -96,17 +88,14 @@ func (h *Handler) statisticsAdhoc(w http.ResponseWriter, r *http.Request, tplFil
 	}
 	grid, err := h.stats.EvaluateDSL(tplFilename, b.DSL)
 	if err != nil {
-		// A bad DSL is a client error; the engine surfaces the parse/eval
-		// reason, which we don't leak as a slug.
+		// Bad DSL is a client error; the engine's parse/eval reason isn't leaked as a slug.
 		writeJSONError(w, http.StatusUnprocessableEntity, "bad-dsl")
 		return
 	}
 	writeJSON(w, http.StatusOK, grid)
 }
 
-// statistic answers GET /api/statistics/{tpl}/{name}: evaluate one named
-// object to its grid (or, for a composite, its parent+branches grid). The
-// object's kind is resolved from the catalog so the right evaluator runs.
+// statistic answers GET /api/statistics/{tpl}/{name}, evaluating one object (composite or plain) to its grid.
 func (h *Handler) statistic(w http.ResponseWriter, r *http.Request) {
 	if !onlyGet(w, r) {
 		return
@@ -141,8 +130,7 @@ func (h *Handler) statistic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if scaling {
-		// A scaling is a weighting referenced by other objects, not a grid;
-		// there is nothing to evaluate on its own.
+		// A scaling has nothing to evaluate on its own.
 		writeJSONError(w, http.StatusNotFound, "not-found")
 		return
 	}
@@ -164,10 +152,7 @@ func (h *Handler) statistic(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, grid)
 }
 
-// statTemplate validates the {tpl} segment and enforces the same
-// collection-enabled gate as the rest of the API surface, so statistics are
-// exposed exactly for the templates the API already publishes. Returns the
-// ".yaml" filename and ok=false (after writing the error) when blocked.
+// statTemplate validates {tpl} and applies the collection-enabled gate; ok=false means the error was already written.
 func (h *Handler) statTemplate(w http.ResponseWriter, r *http.Request) (string, bool) {
 	stem := r.PathValue("tpl")
 	if !validStem(stem) {

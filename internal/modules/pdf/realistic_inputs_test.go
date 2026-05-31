@@ -361,4 +361,3 @@ func TestResolveExportDefaults_HandlebarsInRenderedOutput(t *testing.T) {
 		t.Logf("Theme parsed as empty; resolver continued gracefully")
 	}
 }
-

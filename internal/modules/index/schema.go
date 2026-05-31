@@ -1,11 +1,5 @@
-// Package index owns the per-profile SQLite index that backs the wiki
-// HTTP server and the future API. It's a *cache* of disk state - the
-// canonical source of truth is always the file system. Reconcile
-// (RescanAll / RescanTemplate / RescanForm) brings the index back into
-// agreement with disk; the index never asserts authority over it.
-//
-// One file per profile lives at <AppRoot>/index/<profile-stem>.db.
-// Profile switch closes the current handle and opens the new one.
+// Package index owns the per-profile SQLite index backing the wiki and API. It is a cache of disk state;
+// the filesystem is canonical and Reconcile brings the index back into agreement. One DB per profile.
 package index
 
 import (
@@ -16,29 +10,23 @@ import (
 	"path/filepath"
 	"strconv"
 
-	// Pure-Go SQLite driver - no CGO, registered as the "sqlite" driver
-	// for database/sql on import.
+	// Pure-Go SQLite driver (no CGO), registered as the "sqlite" driver on import.
 	_ "modernc.org/sqlite"
 )
 
-// schemaVersion is the version this binary writes and accepts. A DB
-// file stamped with a higher version is rejected (we don't downgrade);
-// a lower version triggers the matching forward migration.
+// schemaVersion is the version this binary writes; a higher stamped version is rejected (no downgrade).
 const schemaVersion = 4
 
-// migrations are applied in order; each one bumps meta.version when it
-// returns successfully. Index 0 is unused so the slice index lines up
-// with the version it produces.
+// migrations apply in order, each bumping meta.version on success; index 0 is an unused placeholder.
 var migrations = []string{
-	"", // v0 - placeholder, never applied
+	"", // v0 placeholder, never applied
 	migrationV1,
 	migrationV2,
 	migrationV3,
 	migrationV4,
 }
 
-// migrationV1 is the initial schema. Lives as a Go string so the file
-// is self-contained (no embed FS needed for one tiny migration).
+// migrationV1 is the initial schema.
 const migrationV1 = `
 CREATE TABLE meta (
     key   TEXT PRIMARY KEY,
@@ -96,15 +84,8 @@ CREATE TABLE images (
 );
 `
 
-// migrationV2 lands the facets feature on the index side. It (a)
-// replaces the flat `author` column on forms with split name/email
-// for both Created and Updated audit entries, (b) creates form_facets
-// - one row per facet per form, mirroring form_tags - so the REST
-// `?facet.<k>=L` filter can move from N disk reads to one SQL JOIN,
-// and (c) DELETE FROM forms so the boot-time RescanAll rebuilds every
-// row with the new audit + facet columns populated. The wipe is safe
-// because the index is a derived view of disk; the cascade on
-// form_tags fires automatically.
+// migrationV2 lands facets: split audit name/email, form_facets (so ?facet.<k>=L becomes one JOIN, not N reads),
+// and DELETE FROM forms so RescanAll rebuilds every row populated (safe: the index is a derived view).
 const migrationV2 = `
 ALTER TABLE forms ADD COLUMN created_name  TEXT;
 ALTER TABLE forms ADD COLUMN created_email TEXT;
@@ -128,19 +109,9 @@ CREATE INDEX idx_form_facets_lookup
 DELETE FROM forms;
 `
 
-// migrationV3 lands the statistics feature on the index side. It adds
-// form_values - one row per aggregatable scalar field and one row per
-// table-field cell - so charts can run SUM / AVG / GROUP BY over an
-// indexed column instead of scanning .meta.json bodies at query time.
-// Like form_facets, this is a derived cache: reconcile reads each body
-// once (it already does, for title/tags/facets) and materialises the
-// values here. col is NULL for scalar fields, 0..N for table columns.
-// value_type tags the cell so date grouping / numeric range stats can
-// pick the right column without re-reading the template. num_value
-// holds the parsed number (or epoch seconds for a date); text_value
-// holds the raw/display string (ISO "YYYY-MM-DD" for a date) for
-// distribution group-by. DELETE FROM forms forces RescanAll to rebuild
-// every row with values populated - same rationale as v2.
+// migrationV3 lands statistics: form_values (one row per scalar field, one per table cell) so charts run
+// SUM/AVG/GROUP BY over an index instead of scanning bodies. col is NULL for scalars, 0..N for table columns;
+// num_value holds the parsed number (epoch for dates), text_value the display string. DELETE FROM forms as in v2.
 const migrationV3 = `
 CREATE TABLE form_values (
     template   TEXT NOT NULL,
@@ -157,17 +128,9 @@ CREATE INDEX idx_form_values_lookup ON form_values(template, field_key, col);
 DELETE FROM forms;
 `
 
-// migrationV4 lands full-text search on the index side. form_search
-// holds one row per form carrying the human-readable text the reconcile
-// pipeline flattens out of every prose field (title + body); form_fts
-// is an FTS5 external-content index over it (it stores only the inverted
-// index, reading the columns back from form_search by rowid, so the
-// prose isn't duplicated). Three triggers keep the FTS shadow tables in
-// lock-step with form_search insert/delete/update - and because the
-// reconciler drives form_search with direct DELETE/INSERT (never a bare
-// cascade), the triggers always fire. form_search FK-cascades off forms
-// for the rebuild-on-delete path. DELETE FROM forms forces RescanAll to
-// repopulate every row with body text - same rationale as v2/v3.
+// migrationV4 lands full-text search: form_search (flattened title+body) plus form_fts, an FTS5
+// external-content index over it (no prose duplication). Three triggers keep the FTS shadow in lock-step
+// with form_search; the reconciler drives it via direct DELETE/INSERT (not a bare cascade) so triggers always fire.
 const migrationV4 = `
 CREATE TABLE form_search (
     template TEXT NOT NULL,
@@ -200,20 +163,15 @@ END;
 DELETE FROM forms;
 `
 
-// openIndexDB opens (or creates) the SQLite file at path and brings
-// its schema up to schemaVersion. Foreign keys are enabled so the
-// ON DELETE CASCADE rules in v1 actually fire. WAL mode for slightly
-// better concurrent-reader behavior - not strictly required since we
-// own all writes through one Manager, but it's cheap insurance.
+// openIndexDB opens (or creates) the SQLite file and migrates to schemaVersion. FKs are enabled so the
+// ON DELETE CASCADE rules fire; WAL for concurrent readers.
 func openIndexDB(path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("index: ensure dir: %w", err)
 	}
 
-	// _pragma=foreign_keys(1) enables FK enforcement for THIS connection;
-	// the modernc driver doesn't carry it across pooled connections, so
-	// we keep the pool to one connection (see SetMaxOpenConns below) for
-	// predictable semantics. Same reason for journal_mode=wal.
+	// The modernc driver doesn't carry per-connection pragmas across the pool, so cap at one connection
+	// (SetMaxOpenConns below) for predictable foreign_keys + WAL semantics.
 	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -228,9 +186,7 @@ func openIndexDB(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// migrate brings the DB up to schemaVersion. New file → all migrations
-// from v1 onward. Existing file → only the missing ones. Higher-than-
-// expected version → error.
+// migrate applies the missing migrations up to schemaVersion; a higher-than-expected version errors.
 func migrate(db *sql.DB) error {
 	current, err := readVersion(db)
 	if err != nil {
@@ -247,8 +203,7 @@ func migrate(db *sql.DB) error {
 	return nil
 }
 
-// readVersion returns 0 for a fresh DB (no meta table yet), or the
-// stamped value otherwise.
+// readVersion returns 0 for a fresh DB (no meta table), or the stamped value.
 func readVersion(db *sql.DB) (int, error) {
 	var hasMeta int
 	err := db.QueryRow(
@@ -276,8 +231,7 @@ func readVersion(db *sql.DB) (int, error) {
 	return v, nil
 }
 
-// applyMigration runs the migration at the given version inside a
-// single transaction and stamps meta.version on success.
+// applyMigration runs one version's migration in a transaction and stamps meta.version on success.
 func applyMigration(db *sql.DB, version int) error {
 	if version <= 0 || version >= len(migrations) {
 		return fmt.Errorf("no migration registered for v%d", version)

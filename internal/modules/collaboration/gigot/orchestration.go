@@ -11,19 +11,9 @@ import (
 	"time"
 )
 
-// PushLocal walks the active context folder, diffs against the
-// track-record, and commits changed files to the server. On first
-// sync (no ledger), seeds the ledger from /tree so we don't blindly
-// re-push files the remote already has. Steady state is /head +
-// /commits only.
-//
-// message is the user-supplied commit subject. When blank (or
-// whitespace-only), buildCommitMessage falls back to an auto-generated
-// "<who>: sync N file(s)" audit string so back-end audit trails always
-// have *something* useful even on programmatic pushes.
-//
-// The on-disk state is not assumed to be a git working tree - blob
-// SHAs are computed from raw bytes via GitBlobSha; no .git/ is touched.
+// PushLocal walks the context folder, diffs against the track-record, and commits changed files.
+// On first sync (no ledger) it seeds from /tree so we don't blindly re-push files the remote already has.
+// Blob SHAs come from raw bytes via GitBlobSha; no .git/ is touched.
 func (m *Manager) PushLocal(conn Connection, contextFolder string, message string) (*PushResult, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
@@ -117,24 +107,13 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string, message strin
 	}, nil
 }
 
-// PullLocal fetches the server's tree and writes any blob whose local
-// SHA differs. Files the prior ledger remembered but that vanished
-// from the new tree are deleted locally. The ledger is rebuilt from
-// the authoritative tree, so the server wins any disagreement.
-//
-// Delegates to PullLocalWithProgress with a nil callback - keeps the
-// no-progress callsite simple while the with-callback form drives the
-// frontend's per-file progress bar.
+// PullLocal fetches the server tree and writes any blob whose local SHA differs, deleting vanished managed paths.
+// The ledger is rebuilt from the authoritative tree, so the server wins any disagreement.
 func (m *Manager) PullLocal(conn Connection, contextFolder string) (*PullResult, error) {
 	return m.PullLocalWithProgress(conn, contextFolder, nil)
 }
 
-// PullLocalWithProgress is the progress-instrumented form of PullLocal.
-// The callback receives SyncProgress events at: Start (before any
-// HTTP), Tree (after /tree, with Total set), Delete (once per
-// vanished managed path), Fetch (once per managed tree entry,
-// regardless of SHA-match short-circuit), and Done (at completion).
-// A nil callback degrades to plain PullLocal behaviour.
+// PullLocalWithProgress is the progress-instrumented PullLocal, emitting Start, Tree, Delete, Fetch, Done events; nil cb degrades to PullLocal.
 func (m *Manager) PullLocalWithProgress(conn Connection, contextFolder string, cb ProgressFunc) (*PullResult, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
@@ -237,24 +216,12 @@ func (m *Manager) PullLocalWithProgress(conn Connection, contextFolder string, c
 	}, nil
 }
 
-// Reclone wipes every gigot-managed path under contextFolder
-// (templates/, storage/, allowlisted root files, the ledger) and then
-// pulls a fresh copy from the server. Use when the user wants a
-// guaranteed-clean slate keyed to the server's HEAD - local-only edits
-// in managed paths are LOST, by design. Non-managed files in the
-// context folder (notes, user data, .formidable/context.json marker)
-// are preserved.
-//
-// On a context folder that's already empty, Reclone behaves like an
-// initial clone - wipe is a no-op and the pull populates everything.
+// Reclone wipes every gigot-managed path then pulls fresh from the server. Local-only edits in managed paths are LOST by design; non-managed files are preserved.
 func (m *Manager) Reclone(conn Connection, contextFolder string) (*PullResult, error) {
 	return m.RecloneWithProgress(conn, contextFolder, nil)
 }
 
-// RecloneWithProgress is the progress-instrumented form of Reclone.
-// Emits PhaseWipe before the destructive sweep, then delegates to
-// PullLocalWithProgress for the fetch half - so consumers see the
-// full Start → Wipe → Tree → Delete/Fetch* → Done sequence.
+// RecloneWithProgress is the progress-instrumented Reclone, emitting PhaseWipe before the destructive sweep then delegating to PullLocalWithProgress.
 func (m *Manager) RecloneWithProgress(conn Connection, contextFolder string, cb ProgressFunc) (*PullResult, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
@@ -271,10 +238,7 @@ func (m *Manager) RecloneWithProgress(conn Connection, contextFolder string, cb 
 	return m.PullLocalWithProgress(conn, contextFolder, cb)
 }
 
-// Sync runs PushLocal then PullLocal. A push error aborts before pull
-// so unpushed local changes aren't overwritten - symmetric with the
-// git Service's sync behaviour. message threads through to the push
-// half; the pull half is read-only.
+// Sync runs PushLocal then PullLocal; a push error aborts before pull so unpushed local changes aren't overwritten.
 func (m *Manager) Sync(conn Connection, contextFolder string, message string) (*SyncResult, error) {
 	if err := validateConn(conn, true); err != nil {
 		return nil, err
@@ -306,12 +270,8 @@ func (m *Manager) Sync(conn Connection, contextFolder string, message string) (*
 	}, nil
 }
 
-// seedRecordFromTree fetches the server tree and returns a fresh
-// track-record populated with every reported blob's SHA. Used on
-// first sync so a freshly cloned context doesn't blindly re-push
-// files the remote already has. A 409 (empty repo) returns (nil, nil)
-// so the caller can proceed with the empty ledger and let the commit
-// path surface ErrNoParentVersion.
+// seedRecordFromTree builds a ledger from the server tree so first sync doesn't re-push existing files.
+// A 409 (empty repo) returns (nil, nil) so the caller proceeds with the empty ledger and hits ErrNoParentVersion at commit.
 func (m *Manager) seedRecordFromTree(conn Connection) (*TrackRecord, error) {
 	tree, err := m.Tree(conn)
 	if err != nil {
@@ -328,10 +288,7 @@ func (m *Manager) seedRecordFromTree(conn Connection) (*TrackRecord, error) {
 	return &rec, nil
 }
 
-// managedTreeEntries filters a server tree to only Formidable-managed
-// paths. Anything outside templates/ + storage/ + the root allowlist
-// stays untouched on disk (and untouched in pull's ledger rebuild
-// keeps it tracked for accurate "deletion since" semantics).
+// managedTreeEntries filters a server tree to Formidable-managed paths only.
 func managedTreeEntries(all []TreeEntry) []TreeEntry {
 	out := make([]TreeEntry, 0, len(all))
 	for _, e := range all {
@@ -342,11 +299,8 @@ func managedTreeEntries(all []TreeEntry) []TreeEntry {
 	return out
 }
 
-// reconcileLedger updates the ledger after a successful commit. When
-// the server echoes a changes[] list, use it as the authoritative
-// post-merge state (handles F1 auto-merge where server-resolved
-// content differs from what we sent). Otherwise fall back to the
-// SHAs the diff computed locally.
+// reconcileLedger updates the ledger after commit. A server-echoed changes[] is authoritative post-merge
+// (handles F1 auto-merge where server content differs from what we sent); otherwise fall back to local diff SHAs.
 func reconcileLedger(rec *TrackRecord, diff DiffResult, resp *CommitResponse) {
 	if resp == nil {
 		return
@@ -376,10 +330,7 @@ func reconcileLedger(rec *TrackRecord, diff DiffResult, resp *CommitResponse) {
 	}
 }
 
-// chooseCommitMessage picks the commit subject sent to gigot. A
-// non-blank user-supplied message wins verbatim; whitespace-only or
-// empty falls back to the auto-generated audit string so the server's
-// audit log never carries a literal empty message.
+// chooseCommitMessage returns a non-blank user message verbatim, else the auto-generated audit string.
 func chooseCommitMessage(userMessage string, conn Connection, changes []Change) string {
 	trimmed := strings.TrimSpace(userMessage)
 	if trimmed != "" {
@@ -388,10 +339,7 @@ func chooseCommitMessage(userMessage string, conn Connection, changes []Change) 
 	return buildCommitMessage(conn, changes)
 }
 
-// buildCommitMessage produces an audit-friendly commit subject for a
-// gigot push: "<who>: sync N files" followed by a bulleted list of
-// up to 20 paths. Mirrors the format the gigot server's audit log
-// understands and matches the prior client's output.
+// buildCommitMessage produces "<who>: sync N files" plus a bulleted list of up to 20 paths, matching gigot's audit format.
 func buildCommitMessage(conn Connection, changes []Change) string {
 	who := "Formidable"
 	if conn.Author != nil && conn.Author.Name != "" {
@@ -423,7 +371,6 @@ func buildCommitMessage(conn Connection, changes []Change) string {
 	return header + "\n" + body.String()
 }
 
-// isHTTPStatus reports whether err is a *HTTPError with the given code.
 func isHTTPStatus(err error, code int) bool {
 	var he *HTTPError
 	if !errors.As(err, &he) {

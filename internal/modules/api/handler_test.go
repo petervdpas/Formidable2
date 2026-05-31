@@ -677,4 +677,3 @@ func TestList_RevErrorReturns500(t *testing.T) {
 		t.Errorf("status = %d, want 500", rec.Code)
 	}
 }
-

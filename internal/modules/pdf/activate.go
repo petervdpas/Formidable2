@@ -14,24 +14,17 @@ import (
 )
 
 // versionTimeout caps how long `<bin> --version` can hang. Chrome
-// responds in tens of ms when healthy; anything slower than this is
-// effectively unusable for the activation dialog.
+// responds in tens of ms when healthy; anything slower is unusable.
 const versionTimeout = 3 * time.Second
 
-// prober owns the platform-specific search machinery for Chrome /
-// Chromium binaries. Every external dependency is injected so tests
-// can mock without touching the filesystem or spawning processes.
-//
-//   - fs           checks for a path's existence + executability.
-//   - versions     resolves <path> --version best-effort.
-//   - listCacheDir lists ~/.cache/rod/browser entries (chromium-<rev>).
-//   - expandEnv    expands Windows-style ${VAR} tokens; tests stub.
-//   - envBin       ROD_BROWSER_BIN snapshot at construction time.
-//   - goos         runtime.GOOS at construction time (overridable in tests).
-//   - cacheRoot    go-rod's managed browser root.
+// prober owns the platform-specific Chrome/Chromium search. Every
+// external dependency is injected so tests can mock without touching
+// the filesystem or spawning processes.
 type prober struct {
-	fs           interface{ exists(p string) bool }
-	versions     interface{ get(p string) (string, error) }
+	fs       interface{ exists(p string) bool }
+	versions interface {
+		get(p string) (string, error)
+	}
 	listCacheDir func(root string) ([]string, error)
 	expandEnv    func(s string) string
 
@@ -53,11 +46,9 @@ func newProber() *prober {
 }
 
 // Probe returns every Chrome/Chromium binary the activation flow can
-// adopt, in priority order: env-var override, then platform system
-// paths in their conventional order, then managed-cache picks
-// (highest revision first). Each candidate is best-effort versioned;
-// a binary that refuses `--version` is still returned with empty
-// Version so the dialog can decide whether to surface it.
+// adopt, in priority order: env-var override, then system paths, then
+// managed-cache picks (highest revision first). A binary that refuses
+// `--version` is still returned with empty Version.
 func (p *prober) Probe() ProbeResult {
 	seen := map[string]bool{}
 	candidates := []ChromeCandidate{}
@@ -90,8 +81,8 @@ func (p *prober) Probe() ProbeResult {
 	return ProbeResult{Candidates: candidates}
 }
 
-// systemPaths returns the GOOS-specific conventional install paths,
-// in user-priority order (Google Chrome → Chromium → Edge).
+// systemPaths returns the GOOS-specific install paths, in priority
+// order (Google Chrome > Chromium > Edge).
 func (p *prober) systemPaths() []string {
 	switch p.goos {
 	case "linux":
@@ -123,9 +114,8 @@ func (p *prober) systemPaths() []string {
 	return nil
 }
 
-// managedPaths discovers go-rod's downloaded Chromium revisions and
-// returns binary paths sorted highest-revision-first so the latest
-// pinned download wins.
+// managedPaths returns the go-rod Chromium binary path for the
+// highest downloaded revision.
 func (p *prober) managedPaths() []string {
 	if p.cacheRoot == "" || p.listCacheDir == nil {
 		return nil
@@ -154,8 +144,6 @@ func (p *prober) managedPaths() []string {
 	return []string{filepath.Join(p.cacheRoot, revToEntry[revs[0]], managedBinaryName(p.goos))}
 }
 
-// parseChromiumRevision pulls the integer revision out of go-rod's
-// "chromium-<rev>" directory name. Anything else returns (0, false).
 func parseChromiumRevision(dir string) (int, bool) {
 	const prefix = "chromium-"
 	if !strings.HasPrefix(dir, prefix) {
@@ -168,8 +156,6 @@ func parseChromiumRevision(dir string) (int, bool) {
 	return n, true
 }
 
-// managedBinaryName is the chrome executable name go-rod unpacks
-// inside chromium-<rev>/ for the given GOOS.
 func managedBinaryName(goos string) string {
 	switch goos {
 	case "windows":
@@ -180,9 +166,9 @@ func managedBinaryName(goos string) string {
 	return "chrome"
 }
 
-// defaultRodCacheRoot mirrors go-rod's `os.UserCacheDir() / rod /
-// browser` default. Empty string when the user cache dir is
-// unavailable - probe gracefully skips managed candidates.
+// defaultRodCacheRoot mirrors go-rod's `os.UserCacheDir()/rod/browser`
+// default. Empty when the cache dir is unavailable; probe then skips
+// managed candidates.
 func defaultRodCacheRoot() string {
 	c, err := os.UserCacheDir()
 	if err != nil {
@@ -191,7 +177,6 @@ func defaultRodCacheRoot() string {
 	return filepath.Join(c, "rod", "browser")
 }
 
-// realFS is the production filesystem check - exists + not-a-dir.
 type realFS struct{}
 
 func (realFS) exists(p string) bool {
@@ -202,9 +187,6 @@ func (realFS) exists(p string) bool {
 	return !info.IsDir()
 }
 
-// realVersions runs `<path> --version` with a short timeout and
-// returns the trimmed first line. Used in production; tests inject a
-// fakeVersions instead.
 type realVersions struct{}
 
 func (realVersions) get(path string) (string, error) {
@@ -222,9 +204,8 @@ func (realVersions) get(path string) (string, error) {
 	return line, nil
 }
 
-// realListCacheDir reads the rod browser cache directory and returns
-// child entry names. Missing dir → empty slice (not an error) so the
-// probe treats it as "no managed downloads yet".
+// realListCacheDir returns child entry names; missing dir yields an
+// empty slice (not an error) so probe treats it as "no downloads yet".
 func realListCacheDir(root string) ([]string, error) {
 	dirs, err := os.ReadDir(root)
 	if err != nil {

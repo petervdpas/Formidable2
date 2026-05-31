@@ -1,14 +1,7 @@
 package template
 
-// Per-field-type ability matrix. Every type sets every Abilities bool
-// explicitly - the matrix is fully dense by design so adding/removing
-// an ability anywhere in the codebase forces an audit here.
-//
-// Translated from the original `utils/fieldTypes.js` `disabledAttributes`
-// arrays (inverted: ability=true means the modal row is shown and the
-// value is preserved on save). file-path / folder-path are Formidable2
-// additions with no original counterpart; code/latex types from the
-// original are intentionally not present (removed in Formidable2).
+// Per-field-type ability matrix, fully dense by design so adding/removing an ability forces an audit here.
+// ability=true means the modal row shows and the value is preserved on save.
 
 var fieldDescriptors = map[string]FieldDescriptor{
 	"text": {
@@ -248,10 +241,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 	},
 }
 
-// orderedTypes is the public-facing iteration order of the matrix -
-// stable across calls so the frontend's "Type" dropdown lists types
-// in a predictable order. Mirrors the original JS map declaration
-// order so existing user habits don't shuffle.
+// orderedTypes is the stable iteration order so the frontend's "Type" dropdown is predictable.
 var orderedTypes = []string{
 	"text", "textarea", "number", "range", "date",
 	"boolean", "dropdown", "multioption", "radio",

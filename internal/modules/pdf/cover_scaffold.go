@@ -7,25 +7,16 @@ import (
 	"strings"
 )
 
-// onDiskCoversDir is where covers live at runtime: <AppRoot>/pdf/covers/.
-// Relative to the storeFS root (system.Manager.AppRoot). User-editable
-// + gigot-synced; the embedded library inside the binary serves only
-// as a first-run seed source.
+// onDiskCoversDir is where covers live at runtime, relative to the
+// storeFS root. User-editable + gigot-synced; the embed is only a
+// first-run seed source.
 const onDiskCoversDir = "pdf/covers"
 
-// scaffoldCovers writes each embedded seed under coversFS to its
-// counterpart on disk if (and only if) the on-disk file is missing.
-// Walks the full embedded subtree so subdirectories like images/
-// (where the default formidable.svg logo lives) get scaffolded too.
-// Idempotent - safe to run on every boot. User edits are sacrosanct:
-// once a file exists at the target path, the seed is left alone.
-//
-// Delete-to-reset works for free: removing a file before boot
-// re-scaffolds the bundled copy.
-//
-// Errors writing one seed don't abort the whole pass - the function
-// logs and moves on, so a permission glitch on one file can't block
-// the rest of the library from materializing.
+// scaffoldCovers writes each embedded seed to disk only when the
+// on-disk file is missing. Idempotent; user edits are sacrosanct (an
+// existing file is left alone, so delete-to-reset works for free). A
+// write error on one seed logs and continues rather than aborting the
+// pass.
 func scaffoldCovers(fs storeFS, log *slog.Logger) error {
 	if fs == nil {
 		return nil
@@ -40,8 +31,6 @@ func scaffoldCovers(fs storeFS, log *slog.Logger) error {
 		if d.IsDir() {
 			return nil
 		}
-		// Translate `covers/foo.html` (embedded) → `pdf/covers/foo.html` (disk).
-		// `covers/images/formidable.svg` → `pdf/covers/images/formidable.svg`.
 		rel := strings.TrimPrefix(seedPath, coversDir+"/")
 		diskPath := path.Join(onDiskCoversDir, rel)
 

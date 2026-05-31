@@ -8,22 +8,12 @@ import (
 	"os/exec"
 )
 
-// OSExec is the default ExecRunner: a thin os/exec wrapper that
-// applies the (cwd, env, timeout) options. Args are passed as a
-// slice (no shell), so plugin-supplied input cannot become a
-// shell metacharacter - the trade-off is `formidable.exec` is
-// not a shell; pipelines and redirection don't work without an
-// explicit `bash -c "..."`.
-//
-// Non-zero process exits are NOT errors: they're normal results.
-// Plugin authors branch on res.exit. Only "command not found",
-// startup failure, or timeout return a Go error.
+// OSExec is the default ExecRunner. Args pass as a slice (no shell), so plugin input can't become a shell metacharacter;
+// the trade-off is no pipelines/redirection without an explicit `bash -c`. A non-zero process exit is a normal result,
+// not a Go error: authors branch on res.exit. Only command-not-found, startup failure, or timeout return an error.
 type OSExec struct{}
 
-// Exec runs cmd with args. opts.Cwd / opts.Env / opts.Timeout map
-// to the corresponding os/exec.Cmd fields. opts.Env is *additive*
-// to the inherited environment, not a replacement - most plugin
-// scripts want PATH to keep working.
+// Exec runs cmd with args; opts.Env is additive to the inherited environment (not a replacement) so PATH keeps working.
 func (OSExec) Exec(cmd string, args []string, opts ExecOptions) (ExecResult, error) {
 	ctx := context.Background()
 	if opts.Timeout > 0 {
@@ -52,17 +42,12 @@ func (OSExec) Exec(cmd string, args []string, opts ExecOptions) (ExecResult, err
 		res.Exit = c.ProcessState.ExitCode()
 	}
 
-	// Timeout/cancel from the context propagates even if the process
-	// also reported a non-zero exit (because it was killed by the
-	// signal we delivered). Plugin authors need to know it timed out
-	// rather than seeing the process "exited normally" with -1.
+	// A context timeout/cancel must win even when the killed process also reports a non-zero exit, so authors see "timed out" not "exited -1".
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return res, ctxErr
 	}
 
-	// `*exec.ExitError` is "process ran and exited non-zero" - that
-	// IS the result, not a Go error. Anything else (binary not
-	// found, perm denied, …) propagates.
+	// *exec.ExitError is a normal non-zero exit, not a Go error; anything else (not found, perm denied) propagates.
 	var exitErr *exec.ExitError
 	if err != nil && !errors.As(err, &exitErr) {
 		return res, err

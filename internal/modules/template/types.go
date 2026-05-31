@@ -1,9 +1,5 @@
-// Package template owns Formidable's templates: schema-driven YAML files
-// at <context>/templates/<name>.yaml that declare a form's fields.
-//
-// Mirrors `controls/templateManager.js` semantics. Loop
-// pairing/nesting validation (max depth 2), single tags-field rule,
-// api-field shape rules, collection-mode requires a guid field.
+// Package template owns Formidable's schema-driven YAML templates at templates/<name>.yaml.
+// Validation enforces loop pairing/nesting (max depth 2), a single tags field, and api-field shape rules.
 package template
 
 import (
@@ -13,14 +9,8 @@ import (
 )
 
 // Template is the on-disk shape of a template YAML file.
-//
-// AuthorName / AuthorEmail mirror the per-record author identity that
-// storage/<tpl>/<n>.meta.json carries in its meta envelope. They sit at
-// the YAML root (templates have no separate meta block) and are
-// auto-filled from config.author_name / config.author_email by
-// SaveTemplate when the caller leaves them empty. Purpose: PullWithStash
-// can name "who last touched this template" without walking git log,
-// matching how it identifies record overrides.
+// AuthorName/AuthorEmail sit at the YAML root (no meta block) and are auto-filled by SaveTemplate
+// so PullWithStash can name who last touched the template without walking git log.
 type Template struct {
 	Name              string      `yaml:"name" json:"name"`
 	Filename          string      `yaml:"filename" json:"filename"`
@@ -37,13 +27,8 @@ type Template struct {
 	NeedsResave       bool        `yaml:"-" json:"needs_resave"`
 }
 
-// Statistic is one author-defined statistical object. It is a plain object (a
-// DSL the Statistical Engine evaluates into a rank-N grid), a Composite (a hop
-// route referencing other objects by name), or a Scaling (a reusable weighting
-// other objects reference by name); exactly one of DSL / Composite / Scaling
-// is set. Name is the identifier consumers fetch by; Label is the display
-// title. See internal/modules/stat, design/statistics-dsl.md and
-// design/statistics-composite.md.
+// Statistic is one author-defined statistical object: exactly one of DSL / Composite / Scaling is set.
+// See internal/modules/stat, design/statistics-dsl.md, design/statistics-composite.md.
 type Statistic struct {
 	Name      string         `yaml:"name" json:"name"`
 	Label     string         `yaml:"label,omitempty" json:"label,omitempty"`
@@ -52,35 +37,28 @@ type Statistic struct {
 	Scaling   *StatScaling   `yaml:"scaling,omitempty" json:"scaling,omitempty"`
 }
 
-// StatComposite is the stored form of a composite object: a parent object
-// name and per-branch child object names. The engine resolves the names
-// against the template's other objects and checks that each child filters
-// the parent's branch dimension to its branch value.
+// StatComposite is the stored composite: a parent name plus per-branch child names. The engine
+// checks that each child filters the parent's branch dimension to its branch value.
 type StatComposite struct {
 	Parent string              `yaml:"parent" json:"parent"`
 	Edges  []StatCompositeEdge `yaml:"edges,omitempty" json:"edges"`
 }
 
-// StatCompositeEdge maps one parent branch value to the child object that
-// drills it.
+// StatCompositeEdge maps one parent branch value to the child object that drills it.
 type StatCompositeEdge struct {
 	Branch string `yaml:"branch" json:"branch"`
 	Child  string `yaml:"child" json:"child"`
 }
 
-// StatScaling is the stored form of a scaling object: a per-form categorical
-// source and an option->factor map, plus the factor for unlisted options (and
-// forms with no value). Source must be a facet or a scalar dropdown/radio
-// field (per-form), never a table column. Other objects reference it by name
-// through their DSL `scale "<name>"` clause.
+// StatScaling is the stored scaling: a per-form categorical source plus an option->factor map and a default.
+// Source must be a facet or scalar dropdown/radio field (per-form), never a table column.
 type StatScaling struct {
 	Source  StatSource        `yaml:"source" json:"source"`
 	Weights []StatWeightEntry `yaml:"weights,omitempty" json:"weights"`
 	Default float64           `yaml:"default" json:"default"`
 }
 
-// StatSource is a serialised source reference (mirrors stat.SourceRef): a
-// field (optionally a table column by value-key) or a facet.
+// StatSource is a serialised source reference (mirrors stat.SourceRef).
 type StatSource struct {
 	Kind   string `yaml:"kind" json:"kind"` // "field" | "facet"
 	Key    string `yaml:"key" json:"key"`
@@ -93,10 +71,8 @@ type StatWeightEntry struct {
 	Factor float64 `yaml:"factor" json:"factor"`
 }
 
-// UnmarshalYAML accepts both the new `facets:` shape and the legacy
-// `flag_definitions:` shape. Legacy entries become one synthetic facet
-// keyed "flag" with icon "fa-flag" and the list as its options, so
-// existing on-disk templates keep rendering without rewrites.
+// UnmarshalYAML accepts both `facets:` and legacy `flag_definitions:`; legacy entries become one
+// synthetic facet keyed "flag" so existing on-disk templates keep rendering without rewrites.
 func (t *Template) UnmarshalYAML(node *yaml.Node) error {
 	type tplAlias Template
 	aux := struct {
@@ -116,23 +92,15 @@ func (t *Template) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// PDFConfig is the per-template PDF export defaults: a theme/style
-// selector plus a cover-page block. Both are optional and feed the
-// `manifest` layer in pdf.Merge (precedence: document frontmatter >
-// form meta > template manifest > global config).
-//
-// Style accepts the same values as picoloom's WithStyle option:
-// a built-in theme name ("default", "technical", …), a filesystem
-// path to a custom .css, or raw CSS content.
+// PDFConfig is the per-template PDF export defaults, feeding the manifest layer in pdf.Merge
+// (precedence: document frontmatter > form meta > template manifest > global config).
+// Style accepts the same values as picoloom's WithStyle (theme name, .css path, or raw CSS).
 type PDFConfig struct {
 	Style string          `yaml:"style,omitempty" json:"style,omitempty"`
 	Cover *PDFCoverConfig `yaml:"cover,omitempty" json:"cover,omitempty"`
 }
 
-// PDFCoverConfig mirrors pdf.CoverFM's shape so the template manifest
-// can carry default cover values that document frontmatter can
-// override. Field tags match the document-frontmatter casing so
-// authors get one consistent vocabulary across both layers.
+// PDFCoverConfig mirrors pdf.CoverFM; field tags match document-frontmatter casing for one vocabulary across layers.
 type PDFCoverConfig struct {
 	Enabled      *bool  `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 	Template     string `yaml:"template,omitempty" json:"template,omitempty"`
@@ -153,48 +121,27 @@ type PDFCoverConfig struct {
 	Department   string `yaml:"department,omitempty" json:"department,omitempty"`
 }
 
-// Facet is one named dimension of meta classification on a template:
-// a stable Key (used as the FormMeta.Facets map key), an Icon (a
-// FontAwesome key rendered next to the chosen pill), and a list of
-// mutually-exclusive Options to pick from on each record.
-//
-// Each facet on a record carries a required `set` bool plus an
-// optional `selected` label - see storage.FacetState. Filter chips
-// in the storage view auto-derive from a template's facets but only
-// render when at least one record actually has `set: true` for the
-// facet's key.
-//
-// Templates may declare up to 16 facets, each with up to 16 options.
+// Facet is one named meta-classification dimension: a stable Key (the FormMeta.Facets map key),
+// an Icon, and mutually-exclusive Options. Templates may declare up to 16 facets, each up to 16 options.
 type Facet struct {
 	Key     string        `yaml:"key" json:"key"`
 	Icon    string        `yaml:"icon" json:"icon"`
 	Options []FacetOption `yaml:"options" json:"options"`
 }
 
-// FacetOption is one selectable label within a facet. Label is the
-// user-visible identifier (also used as the value stored in
-// FormMeta.Facets[key].Selected); Color names a token from the
-// shared 16-token palette. Colors may repeat across labels.
+// FacetOption is one selectable label within a facet; Color names a token from the shared 16-token palette.
 type FacetOption struct {
 	Label string `yaml:"label" json:"label"`
 	Color string `yaml:"color" json:"color"`
 }
 
-// Field describes one input in a template. Type-specific properties
-// (run_mode, options, collection, etc.) sit alongside the common ones -
-// downstream consumers ignore irrelevant fields.
+// Field describes one input in a template; type-specific properties sit alongside the common ones.
 type Field struct {
-	// Common
 	Key         string `yaml:"key" json:"key"`
 	Type        string `yaml:"type" json:"type"`
 	Label       string `yaml:"label,omitempty" json:"label"`
 	Description string `yaml:"description,omitempty" json:"description"`
-	// I18n is the optional base key for plugin field translation.
-	// When set, the renderer resolves `<plugin-namespace>.<I18n>.<sub>`
-	// for sub-keys `label`, `description`, `placeholder` via the
-	// active locale, falling back to the literal Label/Description
-	// on miss. Templates don't need this (user-authored labels are
-	// the literal source); it's foremost a plugin-form.json signal.
+	// I18n is the optional base key for plugin field translation (resolves <plugin-ns>.<I18n>.<sub>); templates don't need it.
 	I18n           string `yaml:"i18n,omitempty" json:"i18n,omitempty"`
 	SummaryField   string `yaml:"summary_field,omitempty" json:"summary_field,omitempty"`
 	ExpressionItem bool   `yaml:"expression_item,omitempty" json:"expression_item"`
@@ -202,12 +149,8 @@ type Field struct {
 	TwoColumn      bool   `yaml:"two_column,omitempty" json:"two_column"`
 	Collapsible    *bool  `yaml:"collapsible,omitempty" json:"collapsible,omitempty"`
 	Readonly       bool   `yaml:"readonly,omitempty" json:"readonly"`
-	// UseInStatistics opts a field into the statistics index. Default
-	// false: only flagged fields are materialised into form_values, so
-	// the index stays lean and the author declares what's meaningful.
-	// For table fields it gates the field as a whole; StatisticsColumns
-	// then enumerates which columns (by their option `value` key) get
-	// indexed. Lists carry a single column, so the flag alone suffices.
+	// UseInStatistics opts a field into the statistics index (default false keeps form_values lean).
+	// For table fields it gates the field; StatisticsColumns then enumerates which columns get indexed.
 	UseInStatistics   bool     `yaml:"use_in_statistics,omitempty" json:"use_in_statistics"`
 	StatisticsColumns []string `yaml:"statistics_columns,omitempty" json:"statistics_columns,omitempty"`
 	Default           any      `yaml:"default,omitempty" json:"default"`
@@ -217,38 +160,19 @@ type Field struct {
 	// textarea-specific
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 
-	// api-specific. Collection is the source template (filename or
-	// name). Map is the column list - each entry projects one
-	// level-0 source field into the host form's row at fetch time.
-	// Type is not stored; it is resolved live from the source
-	// template (`source.Fields[Map[i].Key].Type`) so a source-side
-	// rename or type change can't drift a stale cache.
+	// api-specific. Map's column types are resolved live from the source template, never stored, to avoid stale-cache drift.
 	Collection string   `yaml:"collection,omitempty" json:"collection,omitempty"`
 	Map        []APIMap `yaml:"map,omitempty" json:"map,omitempty"`
 
-	// facet-specific. FacetKey binds a virtual facet field to one of
-	// the template's declared facets by key. Value is read/written
-	// against meta.facets[FacetKey] (FacetState{Set, Selected}),
-	// never against data. Format on a facet field carries the
-	// presentation mode ("radio" | "dropdown"; empty = radio).
+	// facet-specific. FacetKey binds a virtual field to a declared facet; value lives in meta.facets[FacetKey], not data.
 	FacetKey string `yaml:"facet_key,omitempty" json:"facet_key,omitempty"`
 
-	// Extra fields preserved verbatim (e.g. plugin-specific metadata).
+	// Extra preserves unknown fields verbatim (e.g. plugin metadata).
 	Extra map[string]any `yaml:",inline" json:"-"`
 }
 
-// APIMap is one column projected from the source template into the
-// host form's api-field row at fetch time.
-//
-//   - Key: source-template field key (must reference a level-0 field).
-//     The same key is used as the column name in the host form's
-//     stored row. Required.
-//   - Label: optional display header for that column. When empty, the
-//     editor / wiki falls back to the source field's Label.
-//
-// Type is intentionally absent - it is derived live from the source
-// template (`source.Fields[Key].Type`). Storing it here would invite
-// drift if the source template's field type changes.
+// APIMap is one column projected from the source template into the host form's api-field row.
+// Type is intentionally absent: it is derived live from the source template to avoid drift.
 type APIMap struct {
 	Key   string `yaml:"key" json:"key"`
 	Label string `yaml:"label,omitempty" json:"label,omitempty"`
@@ -265,10 +189,7 @@ type ValidationError struct {
 	Detail  map[string]any `json:"detail,omitempty"`
 }
 
-// ValidationFailedError wraps a slice of ValidationError. SaveTemplate
-// returns this when validation finds issues so programmatic callers can
-// errors.As to the structured set; the Wails layer just relays Error()
-// to the frontend, which has its own pre-validation gate.
+// ValidationFailedError wraps a slice of ValidationError so callers can errors.As to the structured set.
 type ValidationFailedError struct {
 	Errors []ValidationError
 }
@@ -292,25 +213,20 @@ func joinSemicolon(parts []string) string {
 	return strings.Join(parts, "; ")
 }
 
-// Descriptor is the {name, yaml, storageLocation} bundle returned by
-// GetDescriptor. Mirrors templateManager.getTemplateDescriptor.
+// Descriptor is the {name, yaml, storageLocation} bundle returned by GetDescriptor.
 type Descriptor struct {
 	Name            string    `json:"name"`
 	YAML            *Template `json:"yaml"`
 	StorageLocation string    `json:"storageLocation"`
 }
 
-// ItemField is one row in the "possible item fields" picker (top-level
-// non-loop text fields, used to choose a collection's primary identifier).
+// ItemField is one row in the "possible item fields" picker.
 type ItemField struct {
 	Key   string `json:"key"`
 	Label string `json:"label"`
 }
 
-// LoadManyResult is one slot in LoadMany's response. Template is nil
-// when the file was missing or unparseable - Error carries the
-// per-row failure message. Filename is always stamped so callers can
-// pair the result back to its input slot even when Template is nil.
+// LoadManyResult is one slot in LoadMany's response; Template is nil on failure (Error carries why).
 type LoadManyResult struct {
 	Filename string    `json:"filename"`
 	Template *Template `json:"template,omitempty"`

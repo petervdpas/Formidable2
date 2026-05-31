@@ -15,16 +15,7 @@ import (
 	"sync/atomic"
 )
 
-// ManagerDeps groups the bridges plugins need at runtime. The
-// access interfaces are optional; nil = "this namespace is
-// disabled," and Lua calls into it surface a clear error.
-//
-// Logger may be nil (defaults to slog.Default).
-//
-// Editor is the fs surface used by Create/Save/Delete/GetSource -
-// the workspace's CRUD methods. *system.Manager satisfies it; tests
-// pass an in-test shim. When Editor is nil, CRUD methods return
-// "editor fs not configured" instead of touching disk.
+// ManagerDeps groups the bridges plugins need at runtime. Access interfaces are optional: nil disables that namespace.
 type ManagerDeps struct {
 	PluginsDir string
 	Logger     *slog.Logger
@@ -47,24 +38,18 @@ type ManagerDeps struct {
 	RunStatOut    RunStatusEmitter
 	RunChartOut   RunChartEmitter
 	RunOptionsOut RunOptionsEmitter
-	// Locale supplies the user's currently-active locale id at Run
-	// time so per-plugin i18n is sourced from the right bundle. nil =
-	// the runtime falls back to "en" - plugin.MessagesForLocale("en").
+	// Locale supplies the active locale id at Run time; nil falls back to "en".
 	Locale LocaleProvider
 }
 
-// LocaleProvider returns the user's active locale id, re-read per Run so a
-// mid-session switch reflects in the next Run.
+// LocaleProvider returns the active locale id, re-read per Run so a mid-session switch lands on the next Run.
 type LocaleProvider interface {
 	ActiveLocale() string
 }
 
 // Manager owns the discovered plugin registry and runs commands.
-// Concurrency: List/Get/Run hold a read lock; Refresh holds a
-// write lock while replacing the map atomically. Plugin scripts
-// themselves run with no Manager lock held - gopher-lua isn't
-// goroutine-safe per LState, but each Run spawns a fresh state, so
-// concurrent Runs are independent.
+// Concurrency: List/Get/Run read-lock, Refresh write-locks while swapping the map. Scripts run with no Manager lock;
+// each Run spawns a fresh LState (gopher-lua isn't goroutine-safe per state), so concurrent Runs are independent.
 type Manager struct {
 	deps ManagerDeps
 	log  *slog.Logger
@@ -72,21 +57,15 @@ type Manager struct {
 	mu      sync.RWMutex
 	plugins map[string]Plugin
 
-	// runActive is the one-at-a-time guard for Run. CAS-swapped on
-	// entry so a second Run while a first is in flight fails fast
-	// with ErrPluginBusy rather than queuing or interleaving. Cleared
-	// in the same deferred path that runs after success or failure.
+	// runActive is the one-at-a-time guard for Run; a second Run fails fast with ErrPluginBusy.
 	runActive atomic.Bool
 
-	// cancelMu protects cancelFn - set when a Run starts, called
-	// by Cancel(), nilled in the same defer that releases runActive.
-	// Held briefly; never around Run itself.
+	// cancelMu protects cancelFn (set on Run start, called by Cancel, nilled on Run exit); never held around Run itself.
 	cancelMu sync.Mutex
 	cancelFn context.CancelFunc
 }
 
-// NewManager constructs a Manager. Discovery doesn't run here -
-// call Refresh after wiring (typically once at boot).
+// NewManager constructs a Manager; discovery runs on the first Refresh, not here.
 func NewManager(d ManagerDeps) *Manager {
 	if d.Logger == nil {
 		d.Logger = slog.Default()
@@ -94,19 +73,12 @@ func NewManager(d ManagerDeps) *Manager {
 	return &Manager{deps: d, log: d.Logger, plugins: map[string]Plugin{}}
 }
 
-// Refresh re-scans <PluginsDir> and rebuilds the registry. Safe
-// to call repeatedly. Best-effort: a corrupt manifest in one
-// folder is logged and skipped - other plugins still load.
-//
-// Skipping rules:
-//   - non-directories (stray README.md, archives, etc.)
-//   - hidden folders (".kv", ".cache", anything starting with ".")
-//   - folders missing plugin.json
-//   - folders whose plugin.json fails validation
+// Refresh re-scans <PluginsDir> and rebuilds the registry, best-effort: a corrupt manifest is logged and skipped.
+// Skips non-directories, hidden folders, folders missing plugin.json, and folders whose plugin.json fails validation.
 func (m *Manager) Refresh() error {
 	if _, err := os.Stat(m.deps.PluginsDir); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			// No plugins folder yet → empty registry, not an error.
+			// No plugins folder yet: empty registry, not an error.
 			m.mu.Lock()
 			m.plugins = map[string]Plugin{}
 			m.mu.Unlock()
@@ -139,8 +111,7 @@ func (m *Manager) Refresh() error {
 				"dir", dir, "err", err)
 			continue
 		}
-		// The on-disk folder name and the manifest id should agree
-		// - otherwise two plugins with the same id could collide.
+		// Folder name and manifest id must agree, else two plugins could collide on id.
 		if manifest.ID != e.Name() {
 			m.log.Warn("plugin: id/folder mismatch - skipping",
 				"folder", e.Name(), "manifest_id", manifest.ID)
@@ -155,8 +126,7 @@ func (m *Manager) Refresh() error {
 	return nil
 }
 
-// List returns the registered plugins, sorted by id for stable
-// UI ordering.
+// List returns the registered plugins sorted by id.
 func (m *Manager) List() []Plugin {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -170,27 +140,13 @@ func (m *Manager) List() []Plugin {
 	return out
 }
 
-// ListForWorkspace returns the plain workspace-channel plugins for
-// ws: those attached to it that are NOT template-scoped. A plugin
-// with a non-empty Templates list is excluded here - it only
-// surfaces through ListForTemplate when a matching template is
-// selected. Sorted by id for stable menu ordering. Unknown or empty
-// `ws` returns nil without scanning.
+// ListForWorkspace returns the non-template-scoped plugins for ws (template-scoped ones surface only via ListForTemplate).
 func (m *Manager) ListForWorkspace(ws string) []Plugin {
 	return m.ListForTemplate(ws, "")
 }
 
-// ListForTemplate returns the plugins to show in workspace ws given
-// `template` as the active selection. Two channels combine:
-//   - workspace plugins (empty Templates) always show for ws;
-//   - template-scoped plugins (non-empty Templates) show only when
-//     template != "" and Templates contains it.
-//
-// Passing template == "" yields just the workspace-channel plugins,
-// so the non-template workspaces (profiles / collaboration /
-// information) call this via ListForWorkspace and never see a
-// template-scoped entry. Unknown or empty `ws` returns nil. Sorted
-// by id for stable menu ordering.
+// ListForTemplate returns plugins for workspace ws given the active template: workspace plugins (empty Templates) always,
+// plus template-scoped ones when template != "" and their Templates contains it. Empty template yields workspace-channel only.
 func (m *Manager) ListForTemplate(ws, template string) []Plugin {
 	if !isValidWorkspace(ws) {
 		return nil
@@ -224,11 +180,8 @@ func (m *Manager) Get(id string) (Plugin, bool) {
 	return p, ok
 }
 
-// SaveFormValues writes each entry as its own KV slot keyed by
-// the form field's id, so plugin authors read the same value
-// from Lua via formidable.kv.get(fieldKey). Untouched keys in
-// the plugin's bag (anything outside `values`) are preserved.
-// Silent no-op when KV is unavailable.
+// SaveFormValues writes each entry as its own KV slot keyed by field id, readable from Lua via formidable.kv.get(fieldKey).
+// Keys outside `values` are preserved; no-op when KV is unavailable.
 func (m *Manager) SaveFormValues(pluginID string, values map[string]any) error {
 	if m.deps.KV == nil {
 		return nil
@@ -241,10 +194,7 @@ func (m *Manager) SaveFormValues(pluginID string, values map[string]any) error {
 	return nil
 }
 
-// LoadFormValues returns the values previously stored under each
-// of `fieldKeys`. Missing keys are absent from the result so the
-// caller (the Run modal seeder) can fall back to field defaults
-// for fields the user has never touched.
+// LoadFormValues returns the stored values for fieldKeys; missing keys are absent so the caller can fall back to field defaults.
 func (m *Manager) LoadFormValues(pluginID string, fieldKeys []string) map[string]any {
 	out := map[string]any{}
 	if m.deps.KV == nil {
@@ -260,22 +210,10 @@ func (m *Manager) LoadFormValues(pluginID string, fieldKeys []string) map[string
 	return out
 }
 
-// Run executes a command from a discovered plugin. ctx is the
-// optional argument table passed to the Lua function (nil =
-// no argument). Returns the function's converted return value
-// plus any log lines emitted via formidable.log.* during the
-// call.
-//
-// Cancellation: Manager.Cancel() can be called from any goroutine
-// while a Run is in flight to abort the Lua VM at its next
-// instruction. The cancel handle is stored under cancelMu for the
-// duration of the run and cleared in the same deferred path that
-// releases runActive. Cancelled runs return ErrPluginCancelled.
+// Run executes a plugin command; ctx is the optional Lua argument table. Returns the converted value plus formidable.log.* lines.
+// Manager.Cancel() may fire from any goroutine to abort the VM; cancelled runs return ErrPluginCancelled.
 func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult, error) {
-	// CAS + cancelFn are mutated under one lock so a concurrent
-	// Cancel() can never observe runActive=true with cancelFn=nil.
-	// Anyone who acquires cancelMu either gets here before the CAS
-	// (sees nil, no-op) or after the assignment (sees the live func).
+	// CAS + cancelFn mutate under one lock so Cancel() never observes runActive=true with cancelFn=nil.
 	m.cancelMu.Lock()
 	if !m.runActive.CompareAndSwap(false, true) {
 		m.cancelMu.Unlock()
@@ -299,10 +237,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 	if cmd == nil {
 		return RunResult{}, fmt.Errorf("%w: %s.%s", ErrCommandNotFound, pluginID, commandID)
 	}
-	// Preflight: a plugin that asked for the internal HTTP server
-	// must have one available before any Lua loads. Failing here
-	// surfaces a clean error in the Run modal instead of dying mid-
-	// script on the first formidable.api.fetch call.
+	// Preflight before any Lua loads, so the Run modal shows a clean error instead of dying on the first api.fetch.
 	if p.Manifest.RequiresInternalServer {
 		if m.deps.API == nil || !m.deps.API.IsAvailable() {
 			return RunResult{}, ErrServerNotRunning
@@ -360,10 +295,7 @@ func (m *Manager) Run(pluginID, commandID string, ctx map[string]any) (RunResult
 	})
 }
 
-// messagesForPlugin extracts just this plugin's translation map for
-// the active locale and strips the `plugin.<id>.` prefix so Lua can
-// look up keys with the same shape it sees on disk. nil = no
-// translations available; t() in Lua then returns the key verbatim.
+// messagesForPlugin returns this plugin's active-locale translations with the `plugin.<id>.` prefix stripped, or nil when none.
 func (m *Manager) messagesForPlugin(pluginID string) map[string]string {
 	locale := "en"
 	if m.deps.Locale != nil {
@@ -388,10 +320,7 @@ func (m *Manager) messagesForPlugin(pluginID string) map[string]string {
 	return out
 }
 
-// Cancel signals the currently-running plugin (if any) to abort. The
-// Lua VM's bound context fires Done() and gopher-lua aborts at the
-// next instruction; Run returns ErrPluginCancelled. No-op when no run
-// is in flight.
+// Cancel aborts the running plugin (if any): the VM's bound context fires Done() and gopher-lua stops at the next instruction.
 func (m *Manager) Cancel() {
 	m.cancelMu.Lock()
 	fn := m.cancelFn
@@ -401,14 +330,7 @@ func (m *Manager) Cancel() {
 	}
 }
 
-// loadFormFields reads <pluginDir>/form.json and returns its
-// parsed field array. Tolerates two on-disk shapes:
-//   - bare array of fields (canonical)
-//   - {fields:[...]} object (legacy/experimental)
-//
-// Returns nil on any I/O or parse failure - Lua scripts then see
-// an empty `formidable.plugin.form` table rather than a runtime
-// error mid-call.
+// loadFormFields reads <pluginDir>/form.json, tolerating a bare array (canonical) or a {fields:[...]} object (legacy); nil on any failure.
 func loadFormFields(pluginDir string) []map[string]any {
 	raw, err := os.ReadFile(filepath.Join(pluginDir, "form.json"))
 	if err != nil {

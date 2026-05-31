@@ -7,31 +7,17 @@ import (
 	"time"
 )
 
-// textareaFormats mirrors `schemas/field.schema.js`:
-//   const textareaFormats = new Set(["markdown", "plain"]);
 var textareaFormats = map[string]bool{
 	"markdown": true,
 	"plain":    true,
 }
 
-// facetFormats are the allowed presentation modes for a virtual facet
-// field. Empty / unknown values are coerced to "radio" by Normalize.
 var facetFormats = map[string]bool{
 	"radio":    true,
 	"dropdown": true,
 }
 
-// Normalize coerces a Template's fields into the shape the rest of the
-// pipeline (and downstream renderers) expects, mirroring the original
-// JS field-schema normalizer. Idempotent: safe to call repeatedly.
-//
-// Currently handles:
-//   - textarea: Format is forced to "markdown" or "plain" (default
-//     "markdown" when missing/unknown), case-insensitively.
-//   - non-textarea: Format is stripped - the YAML omitempty tag then
-//     keeps it out of the saved file.
-//
-// nil Template / nil Fields are no-ops (callers might pass partials).
+// Normalize coerces a Template's fields into the canonical shape the pipeline expects. Idempotent.
 func Normalize(t *Template) {
 	if t == nil {
 		return
@@ -53,11 +39,8 @@ func Normalize(t *Template) {
 	}
 }
 
-// normalizeFacetFieldDefaults coerces each virtual facet field's
-// Default against the bound facet's option labels: empty / nil /
-// unknown / unresolvable-binding all clear to nil. Runs at template
-// scope (not in normalizeField) because the per-field pass has no
-// access to t.Facets.
+// normalizeFacetFieldDefaults clears each facet field's Default unless it names a known option label.
+// Runs at template scope because the per-field pass has no access to t.Facets.
 func normalizeFacetFieldDefaults(t *Template) {
 	if t == nil {
 		return
@@ -87,13 +70,8 @@ func normalizeFacetFieldDefaults(t *Template) {
 	}
 }
 
-// normalizeStatistics is the authoritative cleanup for a template's
-// statistical objects (the Statistical Engine's per-template specs):
-// trim names, drop entries that are none of a DSL object, a composite
-// (needs a parent) or a scaling (needs a source key), and dedupe by name
-// (first wins, order preserved). It does NOT parse the DSL or resolve the
-// composite / scaling here - that keeps the template package decoupled from
-// the Statistical Engine, which reports DSL / relation errors at evaluation.
+// normalizeStatistics trims names, drops empty entries, and dedupes by name (first wins). It does NOT
+// parse the DSL or resolve composites, keeping this package decoupled from the Statistical Engine.
 func normalizeStatistics(t *Template) {
 	if len(t.Statistics) == 0 {
 		t.Statistics = nil
@@ -184,18 +162,12 @@ func normalizeField(f *Field) {
 		f.Format = canon
 		return
 	}
-	// All other types: format has no meaning, drop it.
+	// Format has no meaning on other types.
 	f.Format = ""
 }
 
-// normalizeStatisticsColumns is the authoritative cleanup for a table
-// field's per-column statistics selection. It clears the list for any
-// non-table field or a field that isn't flagged use_in_statistics, then
-// dedupes the remainder and drops entries that don't name a real column
-// (matched against each option's `value`), preserving first-seen order.
-// The FieldEditModal applies the same constraints as a UX accelerator;
-// this pass is the source of truth, so manual YAML / imports / plugins
-// can't persist duplicate or dangling column keys.
+// normalizeStatisticsColumns dedupes a table field's stat-column selection and drops keys that don't name
+// a real column; it's the source of truth so manual YAML / imports / plugins can't persist dangling keys.
 func normalizeStatisticsColumns(f *Field) {
 	if !f.UseInStatistics || f.Type != "table" {
 		f.StatisticsColumns = nil
@@ -234,17 +206,9 @@ func normalizeStatisticsColumns(f *Field) {
 	f.StatisticsColumns = kept
 }
 
-// coerceDefault forces f.Default into the Go type the field's data
-// values will take. Without this pass, a YAML/CSV/plugin-authored
-// template that stored Default as the wrong type would seed every new
-// form with mis-typed data - the exact path that produced the
-// "expected number, got string" drift on the `numpy` field. The
-// frontend FieldEditModal does the same coercion as a UX accelerator;
-// this backend pass is the authoritative source of truth.
-//
-// nil defaults pass through unchanged. Unparseable inputs (e.g. the
-// string "seventeen" in a number field) clear to nil so storage.Sanitize
-// falls back to defaultForType on first save.
+// coerceDefault forces f.Default into the field's Go type; without it a wrong-typed Default would seed
+// every new form mis-typed (the "expected number, got string" drift). Unparseable inputs clear to nil
+// so storage.Sanitize falls back to defaultForType on first save.
 func coerceDefault(f *Field) {
 	if f.Default == nil {
 		return
@@ -260,9 +224,7 @@ func coerceDefault(f *Field) {
 		f.Default = coerceDate(f.Default)
 	case "text", "textarea", "dropdown", "radio",
 		"file-path", "folder-path", "image":
-		// link is intentionally absent - its Default may legitimately
-		// be {href, text} map OR a legacy string, so the "non-string
-		// → string" rule doesn't apply.
+		// link is intentionally absent: its Default may be a {href, text} map, not just a string.
 		f.Default = coerceTextShape(f.Default)
 	}
 }
@@ -341,9 +303,7 @@ func coerceArray(v any) any {
 	return v
 }
 
-// dateLayouts is the parse-attempt order for date-typed defaults. ISO
-// is first since it's the wire shape; locale-style fallbacks come
-// after. Output is always ISO YYYY-MM-DD regardless of input.
+// dateLayouts is the parse-attempt order for date-typed defaults (ISO first); output is always ISO.
 var dateLayouts = []string{
 	"2006-01-02",
 	"02/01/2006",
@@ -383,25 +343,12 @@ func coerceTextShape(v any) any {
 	case nil:
 		return nil
 	}
-	// Non-string non-nil (e.g. YAML wrote `default: 42` on a text
-	// field). Render it as its string form so the wire shape matches
-	// what the field component expects on load.
+	// Non-string non-nil (e.g. YAML `default: 42` on a text field): render to string for the wire shape.
 	return fmt.Sprint(v)
 }
 
-// cleanText strips invisible characters that paste from Word / web /
-// PDF rich-text controls injects but a human typing in a plain text
-// field never intends:
-//
-//   - U+00A0 non-breaking space → regular space
-//   - U+200B zero-width space    → removed
-//   - U+200C zero-width non-joiner → removed
-//   - U+200D zero-width joiner   → removed
-//   - U+2060 word joiner         → removed
-//   - U+FEFF BOM / zero-width nbsp → removed
-//
-// Smart quotes, em-dashes, en-dashes, ellipsis etc. are NOT touched -
-// those are often deliberate in human-written content.
+// cleanText converts U+00A0 to a regular space and strips zero-width characters that rich-text paste
+// injects but a human never intends. Smart quotes / dashes / ellipsis are left alone (often deliberate).
 func cleanText(s string) string {
 	if s == "" {
 		return s
@@ -417,7 +364,6 @@ func cleanText(s string) string {
 			'\u200D', // zero-width joiner
 			'\u2060', // word joiner
 			'\uFEFF': // BOM / zero-width nbsp
-			// drop
 		default:
 			b.WriteRune(r)
 		}

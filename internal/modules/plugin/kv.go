@@ -17,21 +17,9 @@ type kvFS interface {
 	DeleteFile(path string) error
 }
 
-// KV is the per-plugin key-value store. Each plugin's bag of
-// values lives at <root>/<plugin-id>.json - one file per plugin
-// so deleting a plugin is just removing its folder + this file.
-//
-// The JSON shape is `map[string]any` so plugin authors can store
-// numbers, strings, bools, lists, and nested maps without thinking
-// about a schema. Lua-side bindings round-trip values through
-// the same lvalue↔Go converter the runtime uses.
-//
-// Reads and writes are serialized through one mutex. Realistic
-// plugin workloads aren't write-heavy, and contention is hard to
-// reason about anyway when scripts can call kv from arbitrary
-// goroutines (hooks fan-in from save paths). One lock keeps the
-// invariant trivial: the in-memory cache and the on-disk file
-// never disagree.
+// KV is the per-plugin key-value store: one <root>/<plugin-id>.json file per plugin, JSON shape map[string]any.
+// All reads and writes serialize through one mutex, since scripts can call kv from arbitrary goroutines (hooks fan in from save paths);
+// the single lock keeps the in-memory cache and the on-disk file from ever disagreeing.
 type KV struct {
 	fs   kvFS
 	root string
@@ -40,17 +28,12 @@ type KV struct {
 	cache map[string]map[string]any // plugin-id → bag
 }
 
-// NewKV constructs an empty KV rooted at <root>. The directory is
-// lazily created on first write - a fresh app with zero plugins
-// using kv leaves no stray folders behind.
+// NewKV constructs an empty KV rooted at <root>; the directory is lazily created on first write.
 func NewKV(fs kvFS, root string) *KV {
 	return &KV{fs: fs, root: root, cache: map[string]map[string]any{}}
 }
 
-// Get returns (value, true, nil) when the key exists, (nil, false, nil)
-// when the plugin has nothing at that key, or (_, _, err) when the
-// on-disk JSON is unparseable. Loads the plugin's bag on first
-// access for that plugin id.
+// Get returns (value, true, nil) when the key exists, (nil, false, nil) when absent, or an error on unparseable JSON.
 func (s *KV) Get(pluginID, key string) (any, bool, error) {
 	if !validID(pluginID) {
 		return nil, false, fmt.Errorf("%w: bad plugin id %q", ErrManifestInvalid, pluginID)
@@ -65,8 +48,7 @@ func (s *KV) Get(pluginID, key string) (any, bool, error) {
 	return v, ok, nil
 }
 
-// Set writes a value for (pluginID, key) and persists the plugin's
-// whole bag atomically. Concurrent Sets serialize on the mutex.
+// Set writes a value for (pluginID, key) and persists the whole bag atomically.
 func (s *KV) Set(pluginID, key string, value any) error {
 	if !validID(pluginID) {
 		return fmt.Errorf("%w: bad plugin id %q", ErrManifestInvalid, pluginID)
@@ -81,8 +63,7 @@ func (s *KV) Set(pluginID, key string, value any) error {
 	return s.saveLocked(pluginID, bag)
 }
 
-// Delete removes a key. Deleting a missing key is a silent no-op
-// - same shape as `delete(map, key)` in Go.
+// Delete removes a key; deleting a missing key is a silent no-op.
 func (s *KV) Delete(pluginID, key string) error {
 	if !validID(pluginID) {
 		return fmt.Errorf("%w: bad plugin id %q", ErrManifestInvalid, pluginID)
@@ -100,8 +81,7 @@ func (s *KV) Delete(pluginID, key string) error {
 	return s.saveLocked(pluginID, bag)
 }
 
-// Keys returns the plugin's keys, sorted ascending. Stable order
-// makes Lua iteration predictable across runs.
+// Keys returns the plugin's keys sorted ascending, for predictable Lua iteration.
 func (s *KV) Keys(pluginID string) ([]string, error) {
 	if !validID(pluginID) {
 		return nil, fmt.Errorf("%w: bad plugin id %q", ErrManifestInvalid, pluginID)
@@ -120,8 +100,7 @@ func (s *KV) Keys(pluginID string) ([]string, error) {
 	return out, nil
 }
 
-// loadLocked returns the plugin's bag, hydrating it from disk on
-// first access. Caller must hold s.mu.
+// loadLocked returns the plugin's bag, hydrating from disk on first access. Caller must hold s.mu.
 func (s *KV) loadLocked(pluginID string) (map[string]any, error) {
 	if bag, ok := s.cache[pluginID]; ok {
 		return bag, nil

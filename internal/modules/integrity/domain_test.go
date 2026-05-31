@@ -408,7 +408,7 @@ func TestAnalyze_NonStringDateCellIsAnomaly(t *testing.T) {
 func TestAnalyze_DetectsBadNumberInTableColumn(t *testing.T) {
 	f := tableForm()
 	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10" // fix the date
-	f.Data["history"].([]any)[0].([]any)[2] = "twelve"      // number col, col 2
+	f.Data["history"].([]any)[0].([]any)[2] = "twelve"     // number col, col 2
 	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("tbl.yaml")
 	findIssue(t, r, "a.meta.json", IssueTypeMismatch, "history[0][2]")
@@ -417,7 +417,7 @@ func TestAnalyze_DetectsBadNumberInTableColumn(t *testing.T) {
 func TestAnalyze_DetectsBadBoolInTableColumn(t *testing.T) {
 	f := tableForm()
 	f.Data["history"].([]any)[0].([]any)[1] = "2025-11-10" // fix the date
-	f.Data["history"].([]any)[0].([]any)[3] = "yes"         // bool col, col 3
+	f.Data["history"].([]any)[0].([]any)[3] = "yes"        // bool col, col 3
 	m := newM(t, tplWithTable(), map[string]*storage.Form{"a.meta.json": f})
 	r, _ := m.AnalyzeTemplate("tbl.yaml")
 	findIssue(t, r, "a.meta.json", IssueTypeMismatch, "history[0][3]")

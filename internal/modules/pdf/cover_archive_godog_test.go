@@ -171,8 +171,8 @@ func initCoverArchiveScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^a cover archive at "([^"]*)" with cover "([^"]*)" and image "([^"]*)"$`, func(zipPath, coverName, image string) error {
 		entries := map[string]string{
-			coverName + ".html":     caCoverWithRefs(coverName, `<img src="`+image+`">`),
-			"images/" + image:        "image-bytes-" + image,
+			coverName + ".html": caCoverWithRefs(coverName, `<img src="`+image+`">`),
+			"images/" + image:   "image-bytes-" + image,
 		}
 		w.mem.files[zipPath] = string(buildZip(entries))
 		return nil
@@ -279,7 +279,7 @@ func initCoverArchiveScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a zip at "([^"]*)" with an unexpected entry "([^"]*)"$`, func(zipPath, entry string) error {
 		w.mem.files[zipPath] = string(buildZip(map[string]string{
 			"team.html": caCoverWithRefs("team", ""),
-			entry:        "x",
+			entry:       "x",
 		}))
 		return nil
 	})

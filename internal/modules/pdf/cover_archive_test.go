@@ -317,9 +317,9 @@ func TestImportCoverArchive_UnhappyPaths(t *testing.T) {
 	t.Run("zip with path traversal", func(t *testing.T) {
 		fs := newArchiveFS(t)
 		fs.files["/tmp/trav.zip"] = string(makeZip(t, map[string]string{
-			"team.html":              validBundlableCover,
-			"../../etc/passwd":       "pwned",
-			"images/../../../oops":   "no",
+			"team.html":            validBundlableCover,
+			"../../etc/passwd":     "pwned",
+			"images/../../../oops": "no",
 		}))
 		_, err := importCoverArchive(fs, "/tmp/trav.zip", false)
 		if !errors.Is(err, ErrCoverArchiveTraversal) {

@@ -4,19 +4,11 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 )
 
-// Service is the Wails-bound surface of the Git collaboration
-// backend. Wraps Manager and adds two cross-cutting concerns:
-//   - when the frontend calls Push/Pull/Fetch without a PAT, the
-//     Service auto-resolves it from the OS keychain via the injected
-//     CredentialReader;
-//   - on success it informs the journal (via journal.Recorder) so
-//     Pending(git) and the cursor stay accurate.
+// Service is the Wails-bound surface of the Git backend. It auto-resolves a missing PAT from the keychain
+// and records journal sync hops on success.
 //
-// The keychain is intentionally NOT exposed to the frontend (see
-// the credential.Service comment) so secrets never round-trip
-// through the Wails bridge. That makes the Service the only layer
-// allowed to read the PAT - Manager itself stays transport-neutral
-// and unaware of credential storage.
+// The PAT never round-trips through the Wails bridge: the Service is the only layer allowed to read it,
+// keeping Manager transport-neutral and unaware of credential storage.
 type Service struct {
 	m       *Manager
 	creds   CredentialReader
@@ -31,9 +23,7 @@ type FlagReader interface {
 	GitSelfCloned() bool
 }
 
-// Sysgit is the system-git transport used in self-cloned mode.
-// Available() is checked before every dispatch so a missing binary
-// degrades to the go-git fallback path.
+// Sysgit is the system-git transport for self-cloned mode; Available() gates dispatch so a missing binary falls back to go-git.
 type Sysgit interface {
 	Available() bool
 	Fetch(workdir, remote string) error
@@ -53,26 +43,17 @@ type ProfileReader interface {
 	CurrentProfileFilename() string
 }
 
-// journalBackend is the Service's identity in the journal cursor map.
-// Same string as journal.BackendGit.
 const journalBackend = journal.BackendGit
 
 func NewService(m *Manager, creds CredentialReader, profile ProfileReader, jrnl journal.Journal) *Service {
 	return &Service{m: m, creds: creds, profile: profile, jrnl: jrnl}
 }
 
-// AttachSysgit enables the "cloned outside Formidable" transport
-// path: when flags.GitSelfCloned() is true, Fetch/Push/Pull shell out
-// to the system git binary so the user's credential helper handles
-// auth. Both args may be nil - that just keeps the go-git fallback
-// in force.
+// AttachSysgit enables the self-cloned transport: when GitSelfCloned() is true, Fetch/Push/Pull shell out to
+// system git so the user's credential helper handles auth. Nil args keep the go-git fallback.
 //
-// This is a package-level function, NOT a method on Service, because
-// the Wails binding generator walks every exported method of a bound
-// service and rejects interface-typed parameters (they're not
-// JSON-serializable across the bridge). A *Service return type would
-// also double Service as both service AND model, producing duplicate
-// "Service" exports in the generated index.ts.
+// Package-level, not a method: the Wails binding generator rejects interface-typed params on bound methods,
+// and a *Service return would double Service as both service and model in the generated index.ts.
 func AttachSysgit(s *Service, flags FlagReader, runner Sysgit) {
 	if s == nil {
 		return
@@ -81,8 +62,6 @@ func AttachSysgit(s *Service, flags FlagReader, runner Sysgit) {
 	s.sys = runner
 }
 
-// useSysgit decides whether a network op should shell out. Toggle on
-// AND binary available is the only path that returns true.
 func (s *Service) useSysgit() bool {
 	if s.flags == nil || s.sys == nil {
 		return false
@@ -109,13 +88,7 @@ func (s *Service) Clone(opts CloneOptions) (*CloneResult, error)    { return s.m
 func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) { return s.m.Commit(opts) }
 func (s *Service) Discard(opts DiscardOptions) error                { return s.m.Discard(opts) }
 
-// Fetch refreshes remote-tracking refs. Two transport paths:
-//
-//   - Self-cloned mode (toggle on + system git on PATH): shell out
-//     via sysgit so the user's credential helper resolves auth - no
-//     PAT round-trip through Formidable's keychain.
-//   - Default: go-git with PAT auto-filled from the keychain entry
-//     for the repo's "origin" URL.
+// Fetch refreshes remote-tracking refs via sysgit (credential helper resolves auth) or go-git with keychain PAT.
 func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 	if s.useSysgit() {
 		if err := s.sys.Fetch(opts.Path, opts.Remote); err != nil {
@@ -129,9 +102,7 @@ func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 	return s.m.Fetch(opts)
 }
 
-// Push sends commits to the named remote. Two transport paths
-// (same shape as Fetch). Journal recording is identical regardless
-// of path: AlreadyUpToDate → remote-seen; advancing → sync marker.
+// Push sends commits to the remote; AlreadyUpToDate records remote-seen, advancing records a sync marker.
 func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 	if s.useSysgit() {
 		return s.pushViaSysgit(opts)
@@ -153,11 +124,7 @@ func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 	return res, nil
 }
 
-// pushViaSysgit shells out to system git, then re-reads HEAD through
-// go-git so the journal cursor advances to the post-push commit. The
-// HEAD read is best-effort - a HEAD failure after a successful push
-// means we skip the journal update but still return the push success
-// to the caller.
+// pushViaSysgit shells out to system git, then best-effort re-reads HEAD via go-git for the journal cursor.
 func (s *Service) pushViaSysgit(opts PushOptions) (*PushResult, error) {
 	upToDate, err := s.sys.Push(opts.Path, opts.Remote)
 	if err != nil {
@@ -174,8 +141,7 @@ func (s *Service) pushViaSysgit(opts PushOptions) (*PushResult, error) {
 	return &PushResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
 }
 
-// Pull fetches + merges the upstream branch. Same dual-transport
-// shape; same journal-recording semantics regardless of path.
+// Pull fetches + merges the upstream branch via sysgit or go-git, recording remote-seen on success.
 func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 	if s.useSysgit() {
 		return s.pullViaSysgit(opts)
@@ -205,9 +171,7 @@ func (s *Service) pullViaSysgit(opts PullOptions) (*PullResult, error) {
 	return &PullResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
 }
 
-// headHash resolves the worktree HEAD for journal recording. Returns
-// "" on any failure - caller treats empty as "skip the journal hop"
-// since recording an unknown version would corrupt the cursor.
+// headHash resolves the worktree HEAD for journal recording; "" means skip the hop (an unknown version would corrupt the cursor).
 func (s *Service) headHash(path string) string {
 	r, err := s.m.open(path)
 	if err != nil {
@@ -220,16 +184,8 @@ func (s *Service) headHash(path string) string {
 	return h.Hash().String()
 }
 
-// PullWithStash is the journal-aware auto-stash variant of Pull. The
-// Service reads the journal's pending set for the git backend and
-// passes it to Manager.PullWithStash; the Manager snapshots, resets,
-// pulls, and restores. Same RecordRemoteSeen behavior as Pull on
-// success - the underlying inner Pull's NewHead is what we record.
-//
-// The pending list includes only paths the journal knows are dirty -
-// strictly narrower than `git status`, so external edits in unrelated
-// files don't get stashed. When the journal has no pending changes,
-// the call degrades to a plain pull.
+// PullWithStash is the journal-aware auto-stash variant of Pull. The pending set is narrower than `git status`
+// (only journal-dirty paths), so external edits don't get stashed; no pending degrades to a plain pull.
 func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 	if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
@@ -254,10 +210,7 @@ func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 	return res, nil
 }
 
-// resolvePAT looks up the stored token for the repo's "origin"
-// remote, scoped by active profile. Any failure (missing creds dep,
-// no profile, no origin, keychain miss / error) collapses to "" so
-// the Push/Fetch attempt proceeds anonymously.
+// resolvePAT reads the keychain token for the origin remote (profile-scoped); any failure collapses to "" (anonymous attempt).
 func (s *Service) resolvePAT(path string) string {
 	if s.creds == nil || s.profile == nil {
 		return ""

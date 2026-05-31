@@ -8,20 +8,8 @@ import (
 	"github.com/expr-lang/expr/parser"
 )
 
-// Parse turns an expr-lang source string back into a Config the
-// dialog can edit. It accepts only the AST shape Compile produces;
-// hand-authored or otherwise-formatted expressions return an error
-// so the dialog can fall back to an empty config (and warn the
-// user that their existing source can't be edited visually).
-//
-// fields is the FieldRef slice for the template's expression-item
-// fields - needed so we can pin a field's RuleKind for predicates
-// (e.g. resolve a bare-identifier predicate as "boolean is true"
-// instead of erroring on the missing comparison) and bound the
-// ageInDays / option-label patterns to known fields.
-//
-// Round-trip identity (Compile → Parse → Compile == identity) is
-// the design contract and is exercised by parse_test.go.
+// Parse turns Compile's output back into a Config; non-canonical sources error so the dialog can fall back.
+// Compile -> Parse -> Compile identity is the design contract (parse_test.go).
 func Parse(src string, fields []FieldRef) (Config, error) {
 	src = strings.TrimSpace(src)
 	if src == "" {
@@ -40,10 +28,7 @@ func Parse(src string, fields []FieldRef) (Config, error) {
 	return cfg, nil
 }
 
-// walkTopLevel processes the ternary chain. Each ConditionalNode
-// becomes a rule; the terminal else (non-conditional) becomes the
-// default outcome. Rule IDs are session-scoped - assigned r1, r2…
-// in encountered order to match the frontend counter.
+// walkTopLevel turns each ConditionalNode into a rule (IDs r1, r2... in order) and the terminal else into Default.
 func walkTopLevel(node ast.Node, cfg *Config) error {
 	cn, ok := node.(*ast.ConditionalNode)
 	if !ok {
@@ -71,11 +56,7 @@ func walkTopLevel(node ast.Node, cfg *Config) error {
 	return walkTopLevel(cn.Exp2, cfg)
 }
 
-// bracketAccess matches a `<Namespace>["arg"]` MemberNode shape and
-// returns (arg, true) when the namespace identifier matches. Used
-// for F[], L[], O[] - the three uniform accessors Compile emits.
-// Anything else (bare identifiers, struct field access, dynamic
-// indexing) returns (_, false).
+// bracketAccess matches a <Namespace>["arg"] MemberNode (F/L/O) and returns (arg, true) on a namespace match.
 func bracketAccess(node ast.Node, namespace string) (string, bool) {
 	mn, ok := node.(*ast.MemberNode)
 	if !ok {
@@ -92,16 +73,11 @@ func bracketAccess(node ast.Node, namespace string) (string, bool) {
 	return sn.Value, true
 }
 
-// fieldKeyOf extracts the key from an `F["key"]` reference. F[] is
-// the only field-value form Compile emits - bare identifiers and
-// $env[] are intentionally rejected so hand-authored or stale
-// expressions fail Parse and trigger the dialog's "couldn't load,
-// cleared" flow rather than silently misinterpreting them.
+// fieldKeyOf extracts the key from F["key"], the only field form Compile emits; bare ids/$env are rejected
+// so stale expressions fail Parse and trigger the dialog's "couldn't load" flow instead of misinterpretation.
 func fieldKeyOf(node ast.Node) (string, bool) {
 	return bracketAccess(node, "F")
 }
-
-// ── Predicate clause ────────────────────────────────────────────
 
 func parsePredicateClause(node ast.Node) ([]Predicate, error) {
 	// Empty predicates compile to literal `true`.
@@ -109,10 +85,7 @@ func parsePredicateClause(node ast.Node) ([]Predicate, error) {
 		return []Predicate{}, nil
 	}
 
-	// && groups: either a single enum-not-equals-multi-value predicate
-	// (`<field> != "a" && <field> != "b" …`) or a cross-field AND of
-	// independent predicates. Disambiguation: same-field-and-all-!= →
-	// enum predicate; otherwise per-leaf predicates.
+	// && is either a same-field enum-not-equals group or a cross-field AND of independent predicates.
 	if bn, ok := node.(*ast.BinaryNode); ok && bn.Operator == "&&" {
 		leaves := flattenAnd(bn)
 		if p, err := parseEnumNotEqualsGroup(leaves); err == nil {
@@ -129,7 +102,7 @@ func parsePredicateClause(node ast.Node) ([]Predicate, error) {
 		return out, nil
 	}
 
-	// || group: enum-equals-multi-value predicate.
+	// || is an enum-equals multi-value predicate.
 	if bn, ok := node.(*ast.BinaryNode); ok && bn.Operator == "||" {
 		p, err := parseEnumEqualsGroup(flattenOr(bn))
 		if err != nil {
@@ -138,7 +111,6 @@ func parsePredicateClause(node ast.Node) ([]Predicate, error) {
 		return []Predicate{p}, nil
 	}
 
-	// Single predicate.
 	p, err := parseSinglePredicate(node)
 	if err != nil {
 		return nil, err
@@ -147,13 +119,13 @@ func parsePredicateClause(node ast.Node) ([]Predicate, error) {
 }
 
 func parseSinglePredicate(node ast.Node) (Predicate, error) {
-	// Bare identifier or $env-lookup → boolean rule with value=true.
+	// F["key"] -> boolean true.
 	if key, ok := fieldKeyOf(node); ok {
 		t := true
 		return Predicate{Kind: KindBoolean, FieldKey: key, BoolValue: &t}, nil
 	}
 
-	// !<ref> → boolean rule with value=false.
+	// !<ref> -> boolean false.
 	if un, ok := node.(*ast.UnaryNode); ok && un.Operator == "!" {
 		key, ok := fieldKeyOf(un.Node)
 		if !ok {
@@ -252,7 +224,6 @@ func parseDateCall(cn *ast.CallNode) (Predicate, error) {
 	case DateOpIsOverdue, DateOpIsToday, DateOpIsFuture,
 		DateOpIsDueSoon, DateOpIsOverdueInDays,
 		DateOpIsExpiredAfter, DateOpIsUpcomingBefore:
-		// ok
 	default:
 		return Predicate{}, fmt.Errorf("unknown date helper %q", id.Value)
 	}
@@ -363,8 +334,6 @@ func flattenAnd(bn *ast.BinaryNode) []ast.Node {
 	return out
 }
 
-// ── Outcome ─────────────────────────────────────────────────────
-
 func parseOutcome(node ast.Node) (Outcome, error) {
 	mn, ok := node.(*ast.MapNode)
 	if !ok {
@@ -386,11 +355,7 @@ func parseOutcome(node ast.Node) (Outcome, error) {
 			if err != nil {
 				return Outcome{}, fmt.Errorf("text: %w", err)
 			}
-			// Single-part text round-trips through the legacy
-			// `Text *TextSource` field so the existing single-source
-			// dialog picker keeps working unchanged. Multi-part
-			// concat round-trips through `Parts` and is preserved
-			// verbatim for the eventual concat-aware UI.
+			// Single-part round-trips through the legacy Text field; multi-part through Parts.
 			if len(parts) == 1 {
 				ts := parts[0]
 				out.Text = &ts
@@ -428,10 +393,7 @@ func parseOutcome(node ast.Node) (Outcome, error) {
 	return out, nil
 }
 
-// mapKeyName accepts either a quoted "text" string key or a bare
-// `text` identifier - Compile emits the latter, but both shapes are
-// valid expr-lang and Parse accepts either to stay tolerant on the
-// edge case where a hand-authored variant came via a similar route.
+// mapKeyName accepts a quoted or bare map key; Compile emits bare, but both are valid expr-lang.
 func mapKeyName(node ast.Node) (string, error) {
 	if sn, ok := node.(*ast.StringNode); ok {
 		return sn.Value, nil
@@ -442,11 +404,7 @@ func mapKeyName(node ast.Node) (string, error) {
 	return "", fmt.Errorf("map key not string or identifier (got %T)", node)
 }
 
-// parseTextChain flattens a `+` chain of L/F/O accessors into the
-// ordered Parts list. A single accessor (no `+`) yields a one-
-// element slice. Anything that isn't an accessor - a number
-// literal, a function call, a struct access - surfaces as an
-// error so the dialog can fall back to its empty config.
+// parseTextChain flattens a `+` chain of L/F/O accessors into ordered Parts; a non-accessor leaf errors.
 func parseTextChain(node ast.Node) ([]TextSource, error) {
 	leaves := flattenPlus(node)
 	if len(leaves) > MaxConcatParts {
@@ -463,12 +421,7 @@ func parseTextChain(node ast.Node) ([]TextSource, error) {
 	return parts, nil
 }
 
-// parseTextSource reads a single text part. Strict shape matching:
-// only the three accessor forms Compile emits.
-//
-//	L["text"] → literal
-//	F["key"]  → fieldValue
-//	O["key"]  → fieldLabel
+// parseTextSource reads one text part, accepting only L (literal) / F (fieldValue) / O (fieldLabel).
 func parseTextSource(node ast.Node) (*TextSource, error) {
 	if v, ok := bracketAccess(node, "L"); ok {
 		return &TextSource{Kind: TextKindLiteral, Value: v}, nil
@@ -482,11 +435,7 @@ func parseTextSource(node ast.Node) (*TextSource, error) {
 	return nil, fmt.Errorf("unrecognised text source %T", node)
 }
 
-// flattenPlus walks a left-leaning chain of `+` BinaryNodes and
-// returns the leaves in source order. A non-`+` node returns as a
-// single-leaf slice. We don't validate the leaf kinds here -
-// callers (parseTextChain) check each leaf against the accessor
-// vocabulary.
+// flattenPlus returns the leaves of a `+` chain in source order (a non-`+` node yields one leaf).
 func flattenPlus(n ast.Node) []ast.Node {
 	bn, ok := n.(*ast.BinaryNode)
 	if !ok || bn.Operator != "+" {
@@ -495,8 +444,6 @@ func flattenPlus(n ast.Node) []ast.Node {
 	return append(flattenPlus(bn.Left), flattenPlus(bn.Right)...)
 }
 
-// ── Number helpers ──────────────────────────────────────────────
-
 func numberValueOf(node ast.Node) (float64, bool) {
 	if n, ok := node.(*ast.IntegerNode); ok {
 		return float64(n.Value), true
@@ -504,8 +451,7 @@ func numberValueOf(node ast.Node) (float64, bool) {
 	if n, ok := node.(*ast.FloatNode); ok {
 		return n.Value, true
 	}
-	// expr-lang parses `-3` as UnaryNode("-", IntegerNode(3)), not as
-	// a signed integer literal - peel one level of unary minus.
+	// expr-lang parses -3 as UnaryNode("-", Integer(3)); peel one level of unary minus.
 	if un, ok := node.(*ast.UnaryNode); ok && un.Operator == "-" {
 		if v, ok := numberValueOf(un.Node); ok {
 			return -v, true

@@ -5,15 +5,8 @@ import (
 	"fmt"
 )
 
-// Service is the Wails-exposed surface for runtime control of the
-// wiki HTTP server. The About workspace toggle calls these methods;
-// future monitoring (request log etc.) will hang off the same
-// service.
-//
-// External actions (open in system browser, open in-app webview
-// window) are delegated to function hooks the composition root
-// installs at construction time. Keeps the wiki module free of any
-// `os/exec` or wails dependency - testable in pure Go.
+// Service is the Wails surface for runtime control of the wiki HTTP server. External actions
+// (open browser/window) are delegated to hooks so the module stays free of os/exec and wails deps.
 type Service struct {
 	m           *Manager
 	port        func() int             // resolves the configured port at call time
@@ -21,12 +14,7 @@ type Service struct {
 	openWindow  func(url string) error // nil → not supported on this build
 }
 
-// NewService builds the service. Panics on nil manager - that's a
-// composition-root bug and must surface immediately, not later in a
-// rare branch. `port` is invoked on each StartServer so a config
-// change between starts picks up the new value without reconstruction.
-// `openBrowser` and `openWindow` may both be nil; callers see a
-// clean error rather than a panic.
+// NewService builds the service; port is invoked per StartServer so a config change is picked up without reconstruction.
 func NewService(m *Manager, port func() int, openBrowser, openWindow func(url string) error) *Service {
 	if m == nil {
 		panic("wiki: NewService called with nil manager")
@@ -42,16 +30,8 @@ func NewService(m *Manager, port func() int, openBrowser, openWindow func(url st
 	}
 }
 
-// InstallWindowOpener installs the function used by OpenInternalWiki
-// to spawn an in-app webview window. main.go calls this after the
-// Wails application is built (the application pointer doesn't exist
-// when the composition root constructs this service). Pass nil to
-// clear.
-//
-// Defined as a package-level function rather than a Service method so
-// Wails' binding generator doesn't expose it to the frontend - the
-// hook is purely a wiring concern between main.go and the service,
-// not part of the Wails-callable API surface.
+// InstallWindowOpener installs the in-app webview opener after the Wails app is built.
+// A package function, not a method, so Wails' binding generator doesn't expose it to the frontend.
 func InstallWindowOpener(s *Service, fn func(url string) error) {
 	if s == nil {
 		return
@@ -59,26 +39,22 @@ func InstallWindowOpener(s *Service, fn func(url string) error) {
 	s.openWindow = fn
 }
 
-// StartServer boots the HTTP listener on the currently-configured
-// port. Already-running → returns Manager's "already running" error.
+// StartServer boots the HTTP listener on the configured port.
 func (s *Service) StartServer() error {
 	return s.m.Start(s.port())
 }
 
-// StopServer gracefully shuts the listener down. No-op when idle.
+// StopServer gracefully shuts the listener down (no-op when idle).
 func (s *Service) StopServer() error {
 	return s.m.Stop()
 }
 
-// GetServerStatus snapshots the current state. Cheap; safe to poll.
+// GetServerStatus snapshots the current state.
 func (s *Service) GetServerStatus() ServerStatus {
 	return s.m.Status()
 }
 
-// OpenInBrowser asks the host platform's default browser to load the
-// wiki root URL. Requires the server to be running so the URL
-// actually responds. The opener function is platform-specific (xdg-
-// open / open / cmd start) and lives in the composition root.
+// OpenInBrowser loads the wiki root URL in the host's default browser; requires the server running.
 func (s *Service) OpenInBrowser() error {
 	url, err := s.rootURL()
 	if err != nil {
@@ -90,11 +66,7 @@ func (s *Service) OpenInBrowser() error {
 	return s.openBrowser(url)
 }
 
-// OpenInternalWiki spawns a new Wails webview window at the wiki
-// root URL. Equivalent to "open in browser" but stays inside the
-// app - the user gets a dedicated window without leaving Formidable.
-// Wails 3 alpha 84 supports this via application.NewWebviewWindow;
-// the composition root supplies the bound function.
+// OpenInternalWiki spawns an in-app Wails webview window at the wiki root URL.
 func (s *Service) OpenInternalWiki() error {
 	url, err := s.rootURL()
 	if err != nil {
@@ -106,9 +78,7 @@ func (s *Service) OpenInternalWiki() error {
 	return s.openWindow(url)
 }
 
-// OpenAPIDocsInBrowser opens the Swagger UI page in the host
-// platform's default browser. Same machinery as OpenInBrowser; only
-// the URL path differs ("/api/docs/" vs "/"). Server must be running.
+// OpenAPIDocsInBrowser opens the Swagger UI page in the host's default browser.
 func (s *Service) OpenAPIDocsInBrowser() error {
 	url, err := s.urlFor("/api/docs/")
 	if err != nil {
@@ -120,9 +90,7 @@ func (s *Service) OpenAPIDocsInBrowser() error {
 	return s.openBrowser(url)
 }
 
-// OpenAPIDocsInWindow spawns the in-app webview window at the
-// Swagger UI URL. Mirrors OpenInternalWiki; the docs become a
-// separate window the user can leave open while editing.
+// OpenAPIDocsInWindow spawns the in-app webview window at the Swagger UI URL.
 func (s *Service) OpenAPIDocsInWindow() error {
 	url, err := s.urlFor("/api/docs/")
 	if err != nil {
@@ -134,16 +102,11 @@ func (s *Service) OpenAPIDocsInWindow() error {
 	return s.openWindow(url)
 }
 
-// rootURL builds the loopback URL for the running server. Returns
-// an error when the server is not running - opening a URL that
-// would 502 isn't useful UX.
 func (s *Service) rootURL() (string, error) {
 	return s.urlFor("/")
 }
 
-// urlFor builds a loopback URL with the given path. Centralised so
-// "server-not-running" handling stays in one place - every opener
-// reuses this and surfaces the same error message.
+// urlFor builds a loopback URL, erroring when the server isn't running.
 func (s *Service) urlFor(path string) (string, error) {
 	st := s.m.Status()
 	if !st.Running {

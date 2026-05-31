@@ -12,7 +12,7 @@ import (
 // default {{field "key"}}, which would always render empty.
 //
 // Kept separate from generator_test.go so all virtual concerns stay
-// grouped — same pattern as the rest of the virtual-field tests.
+// grouped, same pattern as the rest of the virtual-field tests.
 
 func facetFieldsSample() []Field {
 	return []Field{

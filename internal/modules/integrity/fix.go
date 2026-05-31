@@ -13,24 +13,16 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// StorageWriter is the post-Fix write surface. Takes the full
-// *storage.Form so meta-targeting strategies (MintUUID, Restamp) can
-// commit a mutated meta block alongside the data.
+// StorageWriter is the post-Fix write surface; the full *storage.Form lets meta strategies (MintUUID, Restamp) commit a mutated meta block.
 type StorageWriter interface {
 	SaveForm(ctx context.Context, templateFilename, datafile string, form *storage.Form) error
 }
 
-// SetWriter installs the writer the Fix pipeline uses. Manager built
-// without a writer can still Analyze; FixTemplate returns an error if
-// called on a writer-less manager.
+// SetWriter installs the writer the Fix pipeline uses (Analyze works without it; FixTemplate errors).
 func (m *Manager) SetWriter(w StorageWriter) { m.writer = w }
 
-// FixTemplate applies a FixPlan to the issues currently in
-// templateFilename's storage. Each Plan item targets one issue kind
-// with one strategy; issues whose kind isn't in the plan are left
-// untouched. After mutating, the function writes only the forms whose
-// data or meta actually changed, then re-runs Analyze to populate
-// FixResult.ScannedAfter so the frontend can show "still N to go".
+// FixTemplate applies a FixPlan, writing only the forms that actually changed, then re-analyzes
+// to populate ScannedAfter. Issues whose kind isn't in the plan are left untouched.
 func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult, error) {
 	if m.writer == nil {
 		return FixResult{}, fmt.Errorf("integrity: FixTemplate called on writer-less manager")
@@ -60,8 +52,7 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 	for _, fn := range filenames {
 		original := m.storage.LoadForm(templateFilename, fn)
 		if original == nil {
-			// Unreadable in the analyzer's terms - every plan strategy
-			// is moot here, count it once and move on.
+			// Unreadable: every strategy is moot, count once and move on.
 			if _, has := strategyByKind[IssueUnreadable]; has {
 				result.Outcomes = append(result.Outcomes, FixOutcome{
 					Filename: fn,
@@ -73,8 +64,7 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 			continue
 		}
 
-		// Clone the form so we can mutate freely without disturbing
-		// the storage view between iterations.
+		// Clone so we can mutate without disturbing the storage view between iterations.
 		draft := cloneForm(original)
 		issues := analyzeForm(tpl, draft)
 		issues = append(issues, m.guidSyncIssues(templateFilename, fn, tpl, draft.Meta, draft.Data)...)
@@ -120,7 +110,6 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 		return result.Outcomes[i].Filename < result.Outcomes[j].Filename
 	})
 
-	// Re-analyze so the caller can show "X still remain".
 	after, err := m.AnalyzeTemplate(templateFilename)
 	if err == nil {
 		result.ScannedAfter = after.IssueCount
@@ -143,17 +132,13 @@ func validatePlan(plan FixPlan) error {
 	return nil
 }
 
-// applyStrategy mutates `draft` in-place to repair `iss`. Returns
-// (true, note, nil) when the mutation succeeded; (false, note, nil)
-// when the strategy was inapplicable to this specific issue (e.g.
-// Coerce on an unparseable value). Hard errors bubble out.
+// applyStrategy mutates draft in-place to repair iss; (true,...) on success, (false,...) when inapplicable, error bubbles.
 func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat FixStrategy) (bool, string, error) {
 	switch strat {
 	case FixSkip:
 		return false, "", nil
 
 	case FixStrip:
-		// Only meaningful for extra_field.
 		if iss.Kind != IssueExtraField {
 			return false, "strip only applies to extra_field", nil
 		}
@@ -173,18 +158,11 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		return setAtPath(draft.Data, iss.Path, defaultForFieldType(f.Type))
 
 	case FixCoerce:
-		// date_anomaly has no safe automatic conversion - the value
-		// didn't fit the column's inferred format. Leave it for a manual
-		// edit (or Clear); never guess here.
+		// date_anomaly has no safe conversion (it didn't fit the inferred format); never guess.
 		if iss.Kind == IssueDateAnomaly {
 			return false, "date anomaly: fix by hand or Clear", nil
 		}
-		// bad_date_format is always a date - including inside a table
-		// cell, whose leaf is an array index with no lookupField-able
-		// field. Route it through the leaf accessor so top-level date
-		// fields and table date cells share one code path. Table cells
-		// carry the analyzer's inferred ISO in Suggest (deterministic);
-		// top-level fields fall back to blind layout coercion.
+		// bad_date_format (incl. table cells) goes through leafAccess; cells carry inferred ISO in Suggest.
 		if iss.Kind == IssueBadDateFormat {
 			get, set, err := leafAccess(draft.Data, iss.Path)
 			if err != nil {
@@ -201,8 +179,7 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 			set(coerced)
 			return true, "", nil
 		}
-		// Table-cell type mismatch: coerce against the column's type,
-		// since the leaf is an array index with no lookupField-able field.
+		// Table-cell mismatch: coerce against the column type (leaf is an array index, not a field).
 		if colType, ok := columnTypeForTablePath(tpl, iss.Path); ok {
 			get, set, err := leafAccess(draft.Data, iss.Path)
 			if err != nil {
@@ -229,9 +206,7 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		})
 
 	case FixClear:
-		// A bad or anomalous date clears to an empty string whether it's
-		// a top-level field or a table cell; the array-index leaf
-		// accessor handles both. defaultForFieldType("date") is also "".
+		// A bad/anomalous date clears to "" via leafAccess (handles both top-level fields and table cells).
 		if iss.Kind == IssueBadDateFormat || iss.Kind == IssueDateAnomaly {
 			_, set, err := leafAccess(draft.Data, iss.Path)
 			if err != nil {
@@ -240,7 +215,6 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 			set("")
 			return true, "", nil
 		}
-		// Table-cell mismatch clears to the column type's default.
 		if colType, ok := columnTypeForTablePath(tpl, iss.Path); ok {
 			_, set, err := leafAccess(draft.Data, iss.Path)
 			if err != nil {
@@ -266,9 +240,7 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		if iss.Kind != IssueGuidUnsynced {
 			return false, "sync_guid only applies to guid_unsynced", nil
 		}
-		// The guid field is the identity source: when it holds a value,
-		// meta.id mirrors it. Only when the field is empty do we backfill
-		// the field from meta.id.
+		// The guid field is the identity source; meta.id mirrors it, and only an empty field backfills from meta.id.
 		field, _ := draft.Data[iss.Path].(string)
 		if field != "" {
 			draft.Meta.ID = field
@@ -290,9 +262,7 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		case iss.Path == "meta.updated":
 			draft.Meta.Updated.At = now
 		case strings.HasPrefix(iss.Path, "meta.facets."):
-			// Restamp on a facet path clears stale state so the meta
-			// key becomes valid again. .selected suffix clears just the
-			// option; the bare key drops the whole facet entry.
+			// .selected clears just the option; the bare key drops the whole facet entry.
 			rest := strings.TrimPrefix(iss.Path, "meta.facets.")
 			key, suffix, _ := strings.Cut(rest, ".")
 			if suffix == "selected" {
@@ -316,10 +286,7 @@ type mutationError string
 
 func (e mutationError) Error() string { return string(e) }
 
-// mutateAtPath walks `data` following a dotted/indexed path
-// ("items[0].name") and runs `op` on the leaf's parent map. Returns
-// (true, "", nil) on success. If `op` returns errCoerceFailed the
-// helper reports (false, "coerce failed", nil); any other error bubbles.
+// mutateAtPath walks the dotted/indexed path and runs op on the leaf's parent map; errCoerceFailed reports a skip, other errors bubble.
 func mutateAtPath(data map[string]any, path string, op func(parent map[string]any, key string) error) (bool, string, error) {
 	parent, key, err := walkPath(data, path, false)
 	if err != nil {
@@ -349,11 +316,7 @@ func setAtPath(data map[string]any, path string, value any) (bool, string, error
 	return true, "", nil
 }
 
-// walkPath descends `data` to the leaf's parent. "items[0].name" lands
-// on `data["items"].([]any)[0].(map[string]any)`, leafKey="name".
-// `createMissing` controls whether intermediate keys that the parent
-// doesn't have should error or be created on the fly (needed for
-// FillDefault on a missing top-level key).
+// walkPath descends to the leaf's parent map; createMissing creates absent intermediate keys (needed for FillDefault).
 func walkPath(data map[string]any, path string, createMissing bool) (map[string]any, string, error) {
 	segments, err := tokenizePath(path)
 	if err != nil {
@@ -402,12 +365,8 @@ func walkPath(data map[string]any, path string, createMissing bool) (map[string]
 	return parent, leafKey, nil
 }
 
-// columnTypeForTablePath resolves the declared type of the column a
-// table-cell path addresses ("tableKey[row][col]", possibly loop-nested
-// as "loop[i].tableKey[row][col]"). Returns ("", false) when the path
-// isn't a table-cell shape or the column can't be found. Table fields -
-// even loop-nested ones - are flat entries in tpl.Fields, so the table
-// is located by the last string segment (the key just before [row][col]).
+// columnTypeForTablePath resolves the column type a table-cell path addresses; ("", false) when not a table-cell shape.
+// Table fields are flat in tpl.Fields even when loop-nested, so the table is the key just before [row][col].
 func columnTypeForTablePath(tpl *template.Template, path string) (string, bool) {
 	segs, err := tokenizePath(path)
 	if err != nil || len(segs) < 3 {
@@ -435,9 +394,7 @@ func columnTypeForTablePath(tpl *template.Template, path string) (string, bool) 
 	return "", false
 }
 
-// columnCoerceType maps a table column type onto the field-type
-// vocabulary coerceForFieldType / defaultForFieldType understand
-// ("bool" -> "boolean", "string" -> "text"; number/date/dropdown align).
+// columnCoerceType maps a table column type onto the field-type vocabulary ("bool"->"boolean", "string"->"text").
 func columnCoerceType(colType string) string {
 	switch colType {
 	case "bool":
@@ -449,12 +406,8 @@ func columnCoerceType(colType string) string {
 	}
 }
 
-// leafAccess walks `data` to the value addressed by `path` and returns
-// a getter/setter for the leaf. Unlike walkPath it supports an
-// array-index leaf ("table[0][1]") as well as a map-key leaf ("a.b"):
-// table cells are addressed positionally, so their leaf is an int index
-// into the row slice rather than a map key. cloneForm deep-copies the
-// row slices, so writing through the setter persists into draft.Data.
+// leafAccess returns a getter/setter for the leaf, supporting an array-index leaf ("table[0][1]") as well as
+// a map-key leaf. cloneForm deep-copies the row slices so writes through the setter persist into draft.Data.
 func leafAccess(data map[string]any, path string) (func() any, func(any), error) {
 	segs, err := tokenizePath(path)
 	if err != nil {
@@ -505,9 +458,7 @@ func leafAccess(data map[string]any, path string) (func() any, func(any), error)
 	return nil, nil, fmt.Errorf("bad leaf in %q", path)
 }
 
-// tokenizePath splits "items[0].name" into ["items", 0, "name"]. The
-// path grammar matches what analyzeForm produces (dots + bracketed
-// integers); no escaping needed because field keys are slug-shaped.
+// tokenizePath splits "items[0].name" into ["items", 0, "name"]; slug-shaped keys need no escaping.
 func tokenizePath(path string) ([]any, error) {
 	out := []any{}
 	cur := strings.Builder{}
@@ -545,10 +496,7 @@ func tokenizePath(path string) ([]any, error) {
 	return out, nil
 }
 
-// lookupField finds the template.Field whose Key matches the leaf of
-// `path`. Loop-nested paths resolve by walking back from the leaf -
-// the analyzer emits paths shaped "loopKey[idx].innerKey", so the leaf
-// segment is the field key.
+// lookupField finds the Field whose Key matches the path's leaf segment (the field key, even loop-nested).
 func lookupField(tpl *template.Template, path string) *template.Field {
 	segs, err := tokenizePath(path)
 	if err != nil || len(segs) == 0 {
@@ -566,8 +514,7 @@ func lookupField(tpl *template.Template, path string) *template.Field {
 	return nil
 }
 
-// defaultForFieldType mirrors storage.Sanitize's defaultForType. Kept
-// local so the integrity module doesn't reach into storage internals.
+// defaultForFieldType mirrors storage.Sanitize's defaultForType, kept local to avoid reaching into storage internals.
 func defaultForFieldType(t string) any {
 	switch t {
 	case "boolean":
@@ -585,9 +532,7 @@ func defaultForFieldType(t string) any {
 	}
 }
 
-// coerceForFieldType attempts to fit `v` into the field's declared type.
-// Returns (newValue, true) on success, (_, false) when the conversion
-// is unsafe and the strategy should be reported as skipped.
+// coerceForFieldType fits v into the field's type; (_, false) when the conversion is unsafe (reported as skipped).
 func coerceForFieldType(fieldType string, v any) (any, bool) {
 	switch fieldType {
 	case "text", "textarea", "dropdown", "radio",
@@ -663,8 +608,6 @@ func coerceForFieldType(fieldType string, v any) (any, bool) {
 		return nil, false
 
 	case "link":
-		// Tolerant of both shapes - analyzer only flagged this when the
-		// value was something else entirely.
 		switch x := v.(type) {
 		case string:
 			return map[string]any{"href": x, "text": ""}, true
@@ -673,15 +616,11 @@ func coerceForFieldType(fieldType string, v any) (any, bool) {
 		}
 		return nil, false
 	}
-	// Unknown / structurally rich types (table, api): no automatic
-	// coercion. Use FixClear instead.
+	// Structurally rich types (table, api): no automatic coercion. Use FixClear.
 	return nil, false
 }
 
-// cloneForm makes a deep-ish copy of a form so applyStrategy can mutate
-// freely. We don't need a true deep copy because the integrity flow
-// only mutates the top-level data map, the meta struct, and the inner
-// maps of loop items.
+// cloneForm deep-copies the data map (and nested loop items) so applyStrategy can mutate freely.
 func cloneForm(f *storage.Form) *storage.Form {
 	if f == nil {
 		return nil

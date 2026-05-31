@@ -1,37 +1,17 @@
-// Package git owns the Git collaboration backend. Pure go-git
-// (github.com/go-git/go-git/v5) - no shell-out to a system git
-// binary, so end users do not need git installed. Auth-bearing
-// network ops (clone/pull/push) will arrive in a later iteration
-// once credential storage is decided.
-//
-// Phase 1 (this file): read-only inspection - IsGitRepo, RepoRoot,
-// Status, Branches, Log, RemoteInfo. Enough to render the
-// Collaboration → Current Service overview against a real repo.
+// Package git owns the Git collaboration backend. Pure go-git by default (no system git needed);
+// self-cloned mode shells out to system git so the user's credential helper handles auth.
 package git
 
-// Status is a JSON-friendly snapshot of a repository's working tree
-// + HEAD position. Mirrors the subset of `git status` that the
-// Collaboration overview surfaces; richer info (per-file diff hunks
-// etc.) lives in dedicated calls.
+// Status is a JSON-friendly snapshot of a repository's working tree + HEAD position.
 type Status struct {
-	// Branch is the current local branch name (e.g. "main").
-	// Empty when HEAD is detached.
+	// Branch is the current local branch, empty when detached.
 	Branch string `json:"branch"`
-	// Tracking is the configured upstream ref name (e.g.
-	// "refs/remotes/origin/main"), or "" if none / detached.
+	// Tracking is the upstream ref (e.g. "refs/remotes/origin/main"), or "" if none.
 	Tracking string `json:"tracking"`
-	// Detached reports HEAD-not-on-a-branch.
-	Detached bool `json:"detached"`
-	// Clean is true when the worktree has no modifications,
-	// untracked files, or staged changes.
-	Clean bool `json:"clean"`
-	// Ahead is the number of local commits on this branch that
-	// aren't on Tracking. 0 when there's no tracking ref.
-	Ahead int `json:"ahead"`
-	// Behind is the number of remote commits on Tracking that
-	// aren't on this branch. 0 when there's no tracking ref.
-	// Reflects the last-known state of Tracking - call Fetch to
-	// update the remote-tracking ref before reading this.
+	Detached bool   `json:"detached"`
+	Clean    bool   `json:"clean"`
+	Ahead    int    `json:"ahead"`
+	// Behind reflects the last-known Tracking state; call Fetch first to refresh it.
 	Behind int `json:"behind"`
 
 	Modified   []string `json:"modified"`
@@ -44,13 +24,12 @@ type Status struct {
 
 // Branches summarizes local branches plus the active one.
 type Branches struct {
-	// Current is the active branch name; "" when detached.
+	// Current is the active branch, "" when detached.
 	Current string   `json:"current"`
 	Locals  []string `json:"locals"`
 }
 
-// Commit is a JSON-friendly view of a git commit. Time is RFC3339
-// in the commit author's stored offset.
+// Commit is a JSON-friendly view of a git commit; Time is RFC3339 in the author's stored offset.
 type Commit struct {
 	Hash    string `json:"hash"`
 	Short   string `json:"short"`
@@ -60,27 +39,13 @@ type Commit struct {
 	Subject string `json:"subject"`
 }
 
-// ChangeFile is one row in CommitChanges' result. Status uses git's
-// standard single-letter codes:
-//   - A: added (file present in commit, absent in parent)
-//   - M: modified (different blob hash from parent)
-//   - D: deleted (file absent in commit, present in parent)
-//   - R: renamed (path changed, content the same - go-git's basic
-//     detection only; no rename/threshold heuristics)
+// ChangeFile is one CommitChanges row; Status is a single-letter code A/M/D/R (R is exact-content rename only).
 type ChangeFile struct {
 	Path   string `json:"path"`
 	Status string `json:"status"`
 }
 
-// GraphCommit is a richer Commit shape carrying enough metadata to
-// render a per-row dot-and-line graph view (hashes for the parent
-// edges, refs for the branch-tip pills). Time is RFC3339 in the
-// commit author's stored offset, same as Commit.Time.
-//
-// Refs is the set of local branch names whose tips point at this
-// commit, plus "HEAD" when the current head sits here. Lets the
-// frontend render branch pills next to the matching row without a
-// separate /branches lookup.
+// GraphCommit is a Commit enriched with parent hashes (graph edges) and Refs (branch tips plus "HEAD") at this commit.
 type GraphCommit struct {
 	Hash    string   `json:"hash"`
 	Short   string   `json:"short"`
@@ -103,18 +68,9 @@ type Remote struct {
 	URLs []string `json:"urls"`
 }
 
-// CloneOptions describes a clone request. URL and Dest are required;
-// Branch picks an initial checkout (empty = remote's default HEAD).
-//
-// PAT is the Personal Access Token used as the password in HTTP Basic
-// auth (with username "x-access-token" - the GitHub-PAT convention,
-// also accepted by Gitea/GitLab/Bitbucket as long as the username is
-// non-empty). Empty PAT means anonymous (public repos / SSH).
-//
-// IMPORTANT: PAT is read-only at the call site and never persisted by
-// the manager. The frontend keeps it transient - pasted into the
-// clone form, sent over the Wails bridge once, and discarded as soon
-// as the response returns. SSH-based auth lives in a follow-up.
+// CloneOptions describes a clone request. URL and Dest are required; empty Branch uses remote HEAD.
+// PAT is the HTTP Basic password (username "x-access-token"); empty means anonymous.
+// PAT is transient: never persisted by the manager, discarded by the frontend once the response returns.
 type CloneOptions struct {
 	URL    string `json:"url"`
 	Dest   string `json:"dest"`
@@ -122,25 +78,14 @@ type CloneOptions struct {
 	PAT    string `json:"pat"`
 }
 
-// CloneResult is the success envelope: the worktree we cloned into,
-// the commit HEAD now points at, and the branch HEAD now sits on.
-// Branch is empty when the clone produced a detached HEAD (rare -
-// happens when the requested ref isn't a branch). The frontend uses
-// Dest to flip git_root and Branch to flip git_branch once a clone
-// completes, so Current Service reflects what was actually fetched.
+// CloneResult is the success envelope: worktree, HEAD commit, and branch (empty on a detached-HEAD clone).
 type CloneResult struct {
 	Dest   string `json:"dest"`
 	Head   string `json:"head"`
 	Branch string `json:"branch"`
 }
 
-// CommitOptions describes a commit request. Path is any path inside
-// the worktree; Author/Email come from the active profile's config.
-//
-// v1 stages every change in the worktree (modified, untracked,
-// deleted) before committing - matching the "commit everything I
-// touched in this session" mental model. Per-file selection arrives
-// in a later iteration once the UI grows checkboxes.
+// CommitOptions describes a commit request; it stages every worktree change before committing.
 type CommitOptions struct {
 	Path    string `json:"path"`
 	Message string `json:"message"`
@@ -148,107 +93,73 @@ type CommitOptions struct {
 	Email   string `json:"email"`
 }
 
-// CommitResult is the success envelope for a commit: the new commit's
-// full hash plus a 7-char short form for display.
+// CommitResult is the success envelope: the new commit's full hash plus a 7-char short form.
 type CommitResult struct {
 	Hash  string `json:"hash"`
 	Short string `json:"short"`
 }
 
-// FetchOptions describes a fetch request. Path is any path inside
-// the worktree; Remote defaults to "origin" when empty. PAT is the
-// HTTP Basic password (transient - never persisted by the manager,
-// same convention as Clone).
+// FetchOptions describes a fetch request; empty Remote defaults to "origin", PAT is transient (see CloneOptions).
 type FetchOptions struct {
 	Path   string `json:"path"`
 	Remote string `json:"remote"`
 	PAT    string `json:"pat"`
 }
 
-// FetchResult signals whether the remote-tracking refs actually
-// moved. AlreadyUpToDate=true means there was nothing new to
-// pull; the UI can collapse this to "you're current."
+// FetchResult signals whether the remote-tracking refs moved.
 type FetchResult struct {
 	AlreadyUpToDate bool `json:"already_up_to_date"`
 }
 
-// PullOptions describes a pull request - a fetch followed by a
-// merge of the tracking ref into the current branch. Default merge
-// strategy (no rebase). Path is any path inside the worktree;
-// Remote defaults to "origin"; PAT is the HTTPS Basic password
-// (transient, same as Clone).
+// PullOptions describes a pull (fetch + merge, no rebase); empty Remote defaults to "origin", PAT is transient.
 type PullOptions struct {
 	Path   string `json:"path"`
 	Remote string `json:"remote"`
 	PAT    string `json:"pat"`
 }
 
-// PullResult mirrors PushResult / FetchResult: AlreadyUpToDate=true
-// means there were no new commits to merge. NewHead is the local
-// branch's HEAD hash after the pull (== remote HEAD on success);
-// the journal cursor uses it to record "we've seen the remote at
-// this version."
+// PullResult: NewHead is the post-pull local HEAD hash, recorded as the journal cursor version.
 type PullResult struct {
 	AlreadyUpToDate bool   `json:"already_up_to_date"`
 	NewHead         string `json:"new_head"`
 }
 
-// PushOptions describes a push request. The current branch's HEAD
-// is pushed to the matching ref on Remote (default "origin"); we
-// don't expose explicit refspecs in v1.
+// PushOptions describes a push of the current branch HEAD; empty Remote defaults to "origin", PAT is transient.
 type PushOptions struct {
 	Path   string `json:"path"`
 	Remote string `json:"remote"`
 	PAT    string `json:"pat"`
 }
 
-// PushResult signals whether the push actually advanced the remote.
-// AlreadyUpToDate=true means the remote already had every commit;
-// the UI surfaces this as info, not an error. NewHead is the local
-// branch's HEAD hash that's now on the remote (== local HEAD on
-// success); the journal records it as the post-sync cursor version.
+// PushResult: NewHead is the local HEAD hash now on the remote, recorded as the post-sync cursor version.
 type PushResult struct {
 	AlreadyUpToDate bool   `json:"already_up_to_date"`
 	NewHead         string `json:"new_head"`
 }
 
-// StashEntry is one path captured by PullWithStash before the
-// worktree is reset. The entry's Op mirrors the journal record
-// at snapshot time so the restore step knows whether to write the
-// content back (create/update) or re-delete the file (delete).
+// StashEntry is one path captured by PullWithStash before the worktree reset; Op drives the restore (write vs re-delete).
 type StashEntry struct {
-	Path     string `json:"path"`     // worktree-relative, posix slashes
-	Op       string `json:"op"`       // create | update | delete
-	Bytes    int64  `json:"bytes"`    // size of stashed content (0 for delete)
-	OldHash  string `json:"old_hash"` // pre-pull HEAD blob hash, "" if absent
+	Path     string `json:"path"`                // worktree-relative, posix slashes
+	Op       string `json:"op"`                  // create | update | delete
+	Bytes    int64  `json:"bytes"`               // size of stashed content (0 for delete)
+	OldHash  string `json:"old_hash"`            // pre-pull HEAD blob hash, "" if absent
 	StashRef string `json:"stash_ref,omitempty"` // path under .changes.stash/, "" for delete
 }
 
-// StashedPullResult is the outcome of PullWithStash. Pull is the
-// underlying merge result; Restored lists paths whose stashed content
-// we re-applied cleanly; AutoMerged lists paths where the structured
-// recmerge.Merge succeeded; Overridden lists paths where pull won and
-// the user's local change was discarded (with the post-pull commit
-// author/email/time captured so the UI can tell the user who to
-// contact).
+// StashedPullResult is the outcome of PullWithStash: Restored re-applied cleanly, AutoMerged via recmerge,
+// Overridden where pull won and the local change was dropped (with remote authorship captured).
 //
-// Policy: pull always wins on disk. Auto-merge for storage/<tpl>/<n>.meta.json
-// when recmerge can reconcile; otherwise drop the user's change.
-// .changes.stash is always cleaned up - the Overridden list is the
-// only signal the user gets that something was lost.
+// Policy: pull always wins on disk; auto-merge meta.json when recmerge reconciles, else drop the user's change.
+// .changes.stash is always cleaned up; the Overridden list is the only signal that something was lost.
 type StashedPullResult struct {
-	Pull       *PullResult     `json:"pull"`
-	Stashed    []string        `json:"stashed"`
-	Restored   []string        `json:"restored"`
-	AutoMerged []string        `json:"auto_merged"`
+	Pull       *PullResult      `json:"pull"`
+	Stashed    []string         `json:"stashed"`
+	Restored   []string         `json:"restored"`
+	AutoMerged []string         `json:"auto_merged"`
 	Overridden []OverriddenPath `json:"overridden"`
 }
 
-// OverriddenPath names a single path where the user's change was
-// silently dropped in favor of pull's content, plus the commit info
-// for whoever made the remote change so the user knows who to contact.
-// Author/Email/Time come from the most recent commit on the post-pull
-// branch that touched this path.
+// OverriddenPath names a path where the local change was dropped for pull's content, plus the remote commit's authorship.
 type OverriddenPath struct {
 	Path   string `json:"path"`
 	Author string `json:"author"`
@@ -257,36 +168,20 @@ type OverriddenPath struct {
 	Commit string `json:"commit"`
 }
 
-// StashPathPending describes one journal-pending path passed in to
-// PullWithStash. Mirrors journal.PendingChange in shape - declared
-// locally so the git package's signature doesn't import journal types
-// (the Service translates).
+// StashPathPending is one journal-pending path, declared locally so the git signature avoids importing journal types.
 type StashPathPending struct {
 	Path string `json:"path"`
 	Op   string `json:"op"`
 }
 
-// PullWithStashOptions extends PullOptions with the journal-derived
-// stash manifest. Pending is the list of paths Formidable knows are
-// dirty since the last sync; PullWithStash captures their content
-// before the pull and restores after.
+// PullWithStashOptions extends PullOptions with the journal-derived stash manifest of dirty-since-sync paths.
 type PullWithStashOptions struct {
 	PullOptions
 	Pending []StashPathPending `json:"pending"`
 }
 
-// DiscardOptions targets a single worktree file for "throw away the
-// local change to this file." The semantics depend on the file's
-// current status:
-//   - tracked + modified  → worktree restored from HEAD's blob
-//   - tracked + deleted   → file recreated from HEAD's blob
-//   - staged add (no HEAD blob) → unstaged + removed from worktree
-//   - untracked           → removed from worktree
-//
-// Path is any path inside the worktree; File is the worktree-relative
-// path of the file to discard. Path-traversal segments ("..") are
-// rejected so the frontend can pass values straight from Status()
-// without re-validating.
+// DiscardOptions targets a single worktree file to discard its local change.
+// File is worktree-relative; path-traversal segments ("..") are rejected.
 type DiscardOptions struct {
 	Path string `json:"path"`
 	File string `json:"file"`

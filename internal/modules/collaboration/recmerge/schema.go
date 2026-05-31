@@ -7,18 +7,13 @@ import (
 	"sort"
 )
 
-// Record is the parsed form of storage/<template>/<name>.meta.json.
-// Meta and Data are generic maps because the merger treats each data
-// field's value as atomic - typed access is never required.
+// Record is the parsed form of a *.meta.json file; Meta and Data are generic maps (the merger treats each value as atomic).
 type Record struct {
 	Meta map[string]any `json:"meta"`
 	Data map[string]any `json:"data"`
 }
 
-// ParseRecord decodes raw JSON bytes into a Record. Missing meta or
-// data becomes an empty map rather than nil so callers can range over
-// them without nil checks. A completely empty input is accepted and
-// returns an empty Record.
+// ParseRecord decodes raw JSON into a Record; missing meta/data become empty maps, empty input returns an empty Record.
 func ParseRecord(raw []byte) (Record, error) {
 	rec := Record{
 		Meta: map[string]any{},
@@ -46,10 +41,8 @@ func ParseRecord(raw []byte) (Record, error) {
 	return rec, nil
 }
 
-// CanonicalJSON re-serialises the record with all map keys sorted
-// lexicographically at every depth. Array positions are preserved.
-// Two servers merging the same inputs produce byte-identical output,
-// which is load-bearing for mirror-sync and for stable commit hashes.
+// CanonicalJSON re-serialises with map keys sorted at every depth (array order preserved).
+// Byte-identical output across servers is load-bearing for mirror-sync and stable commit hashes.
 func (r Record) CanonicalJSON() ([]byte, error) {
 	envelope := map[string]any{
 		"meta": nilToEmpty(r.Meta),

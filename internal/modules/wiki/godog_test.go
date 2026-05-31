@@ -98,12 +98,12 @@ type world struct {
 	stubTpl *stubTemplates
 
 	// Slice 4 - Service surface
-	svc            *Service
-	configPort     int
+	svc             *Service
+	configPort      int
 	rememberSvcPort int
-	browserURL     string
-	windowURL      string
-	actionErr      error
+	browserURL      string
+	windowURL       string
+	actionErr       error
 }
 
 func (w *world) reset() {

@@ -1,11 +1,5 @@
-// Package sysgit shells out to the system `git` binary for network
-// operations (fetch/push/pull) when the user opts into "self-cloned"
-// mode. Lets Formidable honour the user's existing credential helper
-// (Windows Credential Manager, libsecret, GitHub CLI) instead of
-// managing a separate PAT in its own keychain.
-//
-// Local ops stay on go-git inside the parent package - this layer is
-// only for the auth-bearing transport calls.
+// Package sysgit shells out to the system `git` binary for network ops (fetch/push/pull) in self-cloned mode,
+// so Formidable honours the user's existing credential helper instead of its own keychain PAT.
 package sysgit
 
 import (
@@ -40,17 +34,14 @@ func (realExecutor) Run(workdir, name string, args []string) (string, string, er
 	return stdout.String(), stderr.String(), err
 }
 
-// Runner shells out to system git. Construct once at startup;
-// Available() reflects the detection result and stays stable for the
-// process lifetime.
+// Runner shells out to system git; construct once at startup, Available() stays stable for the process lifetime.
 type Runner struct {
 	exec   Executor
 	binary string
 	log    *slog.Logger
 }
 
-// NewRunner detects the git binary on PATH. Available() is false when
-// detection fails - callers must check before invoking an op.
+// NewRunner detects the git binary on PATH; callers must check Available() before invoking an op.
 func NewRunner(log *slog.Logger) *Runner { return newRunner(realExecutor{}, log) }
 
 func newRunner(ex Executor, log *slog.Logger) *Runner {
@@ -63,23 +54,15 @@ func newRunner(ex Executor, log *slog.Logger) *Runner {
 
 func (r *Runner) Available() bool { return r.binary != "" }
 
-// Binary returns the resolved git path. "" when not available.
+// Binary returns the resolved git path, "" when not available.
 func (r *Runner) Binary() string { return r.binary }
 
-// errNotAvailable is the sentinel for "system git not installed".
-// Service-layer dispatchers translate this into a user-facing error
-// when the toggle is on but the binary is missing.
 var errNotAvailable = errors.New("sysgit: git binary not found on PATH")
 
-// ErrNotAvailable reports the not-installed case so callers can
-// translate it into a localized message without string matching.
+// ErrNotAvailable reports the not-installed case so callers can localize it without string matching.
 func ErrNotAvailable() error { return errNotAvailable }
 
-// Fetch runs `git fetch <remote>` inside workdir. Stderr is folded
-// into the error message so the UI toast shows what git complained
-// about (auth, unknown remote, network) - and the same stderr is
-// emitted as a warn-level log so users without devtools (Windows
-// builds) can find it in Information → Logging.
+// Fetch runs `git fetch <remote>` inside workdir, folding stderr into the error and a warn log.
 func (r *Runner) Fetch(workdir, remote string) error {
 	if !r.Available() {
 		return errNotAvailable
@@ -99,10 +82,7 @@ func (r *Runner) Fetch(workdir, remote string) error {
 	return nil
 }
 
-// Push runs `git push <remote>`. alreadyUpToDate flips true when git
-// reports "Everything up-to-date" on stderr - matches go-git's
-// NoErrAlreadyUpToDate semantics so the journal records remote-seen
-// instead of a phantom sync marker.
+// Push runs `git push <remote>`; alreadyUpToDate flips true on "Everything up-to-date" (git emits it on stderr).
 func (r *Runner) Push(workdir, remote string) (alreadyUpToDate bool, err error) {
 	if !r.Available() {
 		return false, errNotAvailable
@@ -127,10 +107,7 @@ func (r *Runner) Push(workdir, remote string) (alreadyUpToDate bool, err error) 
 	return false, nil
 }
 
-// Pull runs `git pull <remote>`. alreadyUpToDate flips true when git
-// reports "Already up to date." on stdout. Pull goes through the
-// system git binary even though it touches the worktree - that's the
-// whole point of self-cloned mode (credential helper resolves auth).
+// Pull runs `git pull <remote>`; alreadyUpToDate flips true on "Already up to date." (git emits it on stdout).
 func (r *Runner) Pull(workdir, remote string) (alreadyUpToDate bool, err error) {
 	if !r.Available() {
 		return false, errNotAvailable

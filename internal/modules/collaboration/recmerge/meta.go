@@ -7,22 +7,17 @@ import (
 	"time"
 )
 
-// Immutable meta keys that may not change after record creation.
-// Any divergence between base and theirs/yours on these keys emits a
-// FieldConflict{Reason:"immutable"} and blocks the merge.
+// Meta keys that may not change after creation; divergence emits FieldConflict{Reason:"immutable"} and blocks the merge.
 var immutableMetaKeys = []string{"created", "id", "template"}
 
-// MergeMeta applies gigot §10.2 rules for the meta map. base may be
-// nil (first-ever write of a record) - in that case immutability checks
-// degrade to "take whichever side has the value". The returned merged
-// map is independent of all inputs (safe to mutate).
+// MergeMeta applies gigot §10.2 for the meta map. A nil base (first-ever write) degrades immutability checks
+// to "take whichever side has the value". The returned map is independent of all inputs.
 func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConflict) {
 	merged := map[string]any{}
 	var conflicts []FieldConflict
 
 	winner := UpdatedWinner(theirs, yours)
 
-	// Immutability check on fixed keys, against base when available.
 	if base != nil {
 		for _, k := range immutableMetaKeys {
 			bv, bok := base[k]
@@ -45,9 +40,7 @@ func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConfl
 		}
 	}
 
-	// Walk the union of keys and apply per-key rules. Even if an
-	// immutability conflict fired above we still populate merged -
-	// the caller decides whether to use merged or emit the conflicts.
+	// Populate merged even when an immutability conflict fired: the caller chooses merged vs conflicts.
 	for _, k := range unionKeys(base, theirs, yours) {
 		switch k {
 		case "updated":
@@ -57,8 +50,7 @@ func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConfl
 		case "flagged":
 			merged[k] = mergeFlagged(theirs[k], yours[k])
 		case "created", "id", "template":
-			// Immutable: take base if present, else whichever side has it.
-			// If both sides match each other (normal case), take that.
+			// Immutable: prefer base, else whichever side has it.
 			if base != nil {
 				if v, ok := base[k]; ok {
 					merged[k] = v
@@ -71,7 +63,6 @@ func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConfl
 				merged[k] = v
 			}
 		default:
-			// Follow the updated winner for every other key.
 			merged[k] = pickWinner(theirs, yours, k, winner)
 		}
 	}
@@ -79,11 +70,8 @@ func MergeMeta(base, theirs, yours map[string]any) (map[string]any, []FieldConfl
 	return merged, conflicts
 }
 
-// UpdatedWinner returns "theirs" or "yours" based on max(meta.updated.at).
-// Non-RFC3339 or missing values fall back to "yours" so a write with
-// a fresher clock on either side still deterministically resolves.
-// Equal timestamps resolve to "yours" (the incoming side) - arbitrary
-// but stable. Also accepts the legacy flat string form of meta.updated.
+// UpdatedWinner returns "theirs" or "yours" by max(meta.updated.at); ties and unparseable values resolve to "yours" (stable).
+// Accepts both the audit-block object and the legacy flat string form.
 func UpdatedWinner(theirs, yours map[string]any) string {
 	tt, tok := parseUpdated(theirs)
 	yt, yok := parseUpdated(yours)
@@ -111,8 +99,7 @@ func parseUpdated(m map[string]any) (time.Time, bool) {
 	return parseAuditAt(v)
 }
 
-// parseAuditAt accepts both the new audit-block object ({at, name, email})
-// and the legacy flat string form. Returns false when neither parses.
+// parseAuditAt accepts both the audit-block object ({at, name, email}) and the legacy flat string form.
 func parseAuditAt(v any) (time.Time, bool) {
 	if obj, ok := v.(map[string]any); ok {
 		if s, ok := obj["at"].(string); ok {
@@ -144,7 +131,6 @@ func mergeUpdated(theirs, yours any) any {
 	case yok:
 		return yours
 	default:
-		// Neither parsed - pick whichever is non-nil (prefer yours).
 		if yours != nil {
 			return yours
 		}
@@ -231,10 +217,7 @@ func unionKeys(maps ...map[string]any) []string {
 	return out
 }
 
-// deepEqual compares decoded JSON values for semantic equality. It
-// normalises json.Number to its string form so two decoders that
-// differ on number strategy still compare equal when the underlying
-// text is the same.
+// deepEqual compares decoded JSON values, normalising json.Number to its string form so decoder differences don't matter.
 func deepEqual(a, b any) bool {
 	ab, errA := json.Marshal(canonicaliseForCompare(a))
 	bb, errB := json.Marshal(canonicaliseForCompare(b))

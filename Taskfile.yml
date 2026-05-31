@@ -14,14 +14,21 @@ vars:
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
 
 tasks:
+  generate:
+    summary: Regenerates the embedded godoc served by the internal server
+    cmds:
+      - go generate ./internal/server/godoc
+
   build:
     summary: Builds the application
     cmds:
+      - task: generate
       - task: "{{OS}}:build"
 
   package:
     summary: Packages a production build of the application
     cmds:
+      - task: generate
       - task: "{{OS}}:package"
 
   run:

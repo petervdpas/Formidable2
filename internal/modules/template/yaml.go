@@ -6,8 +6,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// marshalYAML serializes a template with deterministic field order
-// (same key sequence as the JS `saveTemplate`) and 2-space indent.
+// marshalYAML serializes a template with deterministic field order and 2-space indent.
 func marshalYAML(t *Template) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)

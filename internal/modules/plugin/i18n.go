@@ -11,17 +11,9 @@ import (
 	"strings"
 )
 
-// MessagesForLocale walks every discovered plugin and merges per-
-// plugin locale files into a single flat map keyed by
-// `plugin.<id>.<key>`. The auto-prefix is the namespace contract -
-// plugin authors never write the prefix themselves, and collisions
-// between plugins are impossible by construction.
-//
-// A plugin without an `i18n/` folder or without a file for `locale`
-// contributes zero keys; that is the common case and not an error.
-// One plugin with a malformed locale file is logged and skipped so
-// it can't take down the whole locale-fetch path the frontend uses
-// on every locale change.
+// MessagesForLocale merges every plugin's locale file into one flat map keyed `plugin.<id>.<key>`.
+// The auto-prefix is the namespace contract (authors never write it; cross-plugin collisions are impossible).
+// A malformed locale file is logged and skipped so it can't take down the whole locale-fetch path.
 func (m *Manager) MessagesForLocale(locale string) map[string]string {
 	out := map[string]string{}
 	m.mu.RLock()
@@ -41,9 +33,7 @@ func (m *Manager) MessagesForLocale(locale string) map[string]string {
 	return out
 }
 
-// loadPluginI18n reads <pluginDir>/i18n/<locale>.json as a flat
-// {key: value} map. Returns (empty, nil) when the file doesn't
-// exist - a plugin with no translations is a valid plugin.
+// loadPluginI18n reads <pluginDir>/i18n/<locale>.json as a flat map, returning (empty, nil) when the file is absent.
 func loadPluginI18n(pluginDir, locale string) (map[string]string, error) {
 	path := filepath.Join(pluginDir, "i18n", locale+".json")
 	raw, err := os.ReadFile(path)
@@ -60,19 +50,10 @@ func loadPluginI18n(pluginDir, locale string) (map[string]string, error) {
 	return out, nil
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Editor surface - per-locale CRUD on <plugin>/i18n/<locale>.json.
-// All writes route through Editor (system.Manager) so they're
-// atomic+fsync'd; reads go through the same fs surface for symmetry
-// and to keep tests on a single shim.
-// ─────────────────────────────────────────────────────────────────
+// Editor surface: per-locale CRUD on <plugin>/i18n/<locale>.json, writes routed through Editor for atomic+fsync.
 
-// GetI18nFile returns the raw key→value map stored on disk for one
-// plugin/locale pair. Empty map (not error) when the file is missing
-// so the editor UI can render an empty key/value table for a fresh
-// locale without a special "first save" branch. Returns
-// ErrPluginNotFound when the plugin folder is missing,
-// ErrManifestInvalid for malformed ids.
+// GetI18nFile returns the on-disk key map for one plugin/locale pair, empty map when the file is missing.
+// Errors: ErrPluginNotFound, ErrManifestInvalid.
 func (m *Manager) GetI18nFile(pluginID, locale string) (map[string]string, error) {
 	if !validID(pluginID) {
 		return nil, fmt.Errorf("%w: bad id %q", ErrManifestInvalid, pluginID)
@@ -99,11 +80,8 @@ func (m *Manager) GetI18nFile(pluginID, locale string) (map[string]string, error
 	return out, nil
 }
 
-// SaveI18nFile writes the canonical JSON shape (sorted keys, 2-space
-// indent, trailing newline) to <plugin>/i18n/<locale>.json. Creates
-// the i18n/ folder on first save. Locale is validated to keep
-// path-traversal ("../escape") and absolute-path inputs out of the
-// plugin tree - only short ascii ids are accepted.
+// SaveI18nFile writes the canonical JSON (sorted keys, 2-space indent, trailing newline) to <plugin>/i18n/<locale>.json.
+// Locale is validated to keep path-traversal and absolute-path inputs out of the plugin tree.
 func (m *Manager) SaveI18nFile(pluginID, locale string, msgs map[string]string) error {
 	if !validID(pluginID) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, pluginID)
@@ -133,9 +111,7 @@ func (m *Manager) SaveI18nFile(pluginID, locale string, msgs map[string]string) 
 	return nil
 }
 
-// DeleteI18nFile removes <plugin>/i18n/<locale>.json. Missing file
-// is a silent no-op so the editor UI doesn't have to branch on
-// "does this locale exist on disk yet?" before sending the delete.
+// DeleteI18nFile removes <plugin>/i18n/<locale>.json; a missing file is a silent no-op.
 func (m *Manager) DeleteI18nFile(pluginID, locale string) error {
 	if !validID(pluginID) {
 		return fmt.Errorf("%w: bad id %q", ErrManifestInvalid, pluginID)
@@ -160,10 +136,7 @@ func (m *Manager) DeleteI18nFile(pluginID, locale string) error {
 	return nil
 }
 
-// ListI18nLocales returns the locale ids the plugin has files for,
-// sorted alphabetically. Empty slice (not error) when the plugin has
-// no `i18n/` folder at all so the editor UI can show "no
-// translations yet" without a stat-error branch.
+// ListI18nLocales returns the plugin's locale ids sorted, empty slice when it has no i18n/ folder.
 func (m *Manager) ListI18nLocales(pluginID string) ([]string, error) {
 	if !validID(pluginID) {
 		return nil, fmt.Errorf("%w: bad id %q", ErrManifestInvalid, pluginID)
@@ -190,9 +163,7 @@ func (m *Manager) ListI18nLocales(pluginID string) ([]string, error) {
 	return out, nil
 }
 
-// marshalI18nFile produces the canonical on-disk shape: sorted
-// flat keys, 2-space indent, trailing newline. Deterministic output
-// means file diffs only show real changes, not key-iteration noise.
+// marshalI18nFile produces the canonical on-disk shape (sorted keys, 2-space indent, trailing newline) so diffs show only real changes.
 func marshalI18nFile(msgs map[string]string) ([]byte, error) {
 	keys := make([]string, 0, len(msgs))
 	for k := range msgs {
@@ -200,8 +171,6 @@ func marshalI18nFile(msgs map[string]string) ([]byte, error) {
 	}
 	sort.Strings(keys)
 	ordered := make(map[string]string, len(keys))
-	// json.Marshal on a map already alpha-sorts string keys, but
-	// being explicit keeps the contract obvious from the body.
 	for _, k := range keys {
 		ordered[k] = msgs[k]
 	}
@@ -212,10 +181,7 @@ func marshalI18nFile(msgs map[string]string) ([]byte, error) {
 	return append(raw, '\n'), nil
 }
 
-// validLocaleID enforces the same ascii-id discipline as plugin ids
-// so a locale string can never escape the plugin's i18n folder via
-// path tricks. vue-i18n / unix locale codes ("en", "nl", "pt-BR")
-// all fit; anything with separators or whitespace doesn't.
+// validLocaleID enforces ascii-id discipline so a locale can't escape the i18n folder via path tricks; codes like "en", "pt-BR" fit.
 func validLocaleID(s string) bool {
 	if s == "" || len(s) > 32 {
 		return false

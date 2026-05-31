@@ -9,34 +9,14 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// Sanitize normalises a raw form payload against a template's fields.
-// The raw input may be in two shapes:
-//
-//	envelope: {meta:{...}, data:{...}}
-//	bare:     {field1: ..., field2: ..., _meta: {...}}
-//
-// Either is accepted. Missing fields receive their default (per type).
-// Loop fields preserve their array shape (no per-cell type defaults).
-// Tags are collected from `tags`-typed fields plus options.Tags +
-// raw.meta.tags + raw._meta.tags, deduped, lowercased, sorted.
-//
-// Created and Updated audit blocks are resolved with precedence:
-//
-//	opts.{Created,Updated}  (when .At != "")
-//	  > raw.meta nested object  (new shape)
-//	  > raw.meta flat author_name/email + flat created/updated string
-//	    (legacy on-disk shape - both blocks adopt the single legacy
-//	    author since we can't reconstruct historical update authorship)
-//	  > {At: now, Name: "Unknown", Email: "unknown@example.com"}
-//
-// Mirrors `schemas/meta.schema.js` behaviour, with an explicit GUID
-// generation rather than JS's `null` placeholder when the template
-// declares a `guid` field.
+// Sanitize normalises a raw form payload against a template's fields. Raw may be the {meta, data}
+// envelope or the bare {field..., _meta} shape; missing fields get their per-type default. Tags are
+// collected, deduped, lowercased, sorted. Audit-block precedence is in resolveAuditEntry. Mints a GUID
+// when the template declares a guid field and nothing carries an id.
 func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions) Form {
 	rawData, rawMeta := splitEnvelope(raw)
 	injected, _ := raw["_meta"].(map[string]any)
 
-	// Walk the fields, filling defaults.
 	data := make(map[string]any, len(fields))
 	skip := map[string]bool{}
 
@@ -56,10 +36,7 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		if skip[f.Key] {
 			continue
 		}
-		// Virtual fields (e.g. facet) participate in template layout but
-		// do NOT seed a slot in data; their value lives elsewhere (facet
-		// → meta.facets[facet_key]). Drop any stray rawData entry that
-		// names a virtual key so old payloads can't smuggle data in.
+		// Virtual fields (facet) seed no data slot; skip so old payloads can't smuggle a value into one.
 		if template.IsVirtualFieldType(f.Type) {
 			continue
 		}
@@ -70,9 +47,7 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		} else {
 			data[f.Key] = defaultForType(f.Type)
 		}
-		// A legacy form may carry "" for an empty array-shaped field
-		// (multioption/list/table). Normalise the unset sentinel to the
-		// typed empty so the shape is always valid and a save heals disk.
+		// Legacy "" for an array-shaped field -> typed empty, so a save heals the shape on disk.
 		if s, ok := data[f.Key].(string); ok && s == "" {
 			if def, isArr := defaultForType(f.Type).([]any); isArr {
 				data[f.Key] = def
@@ -80,12 +55,8 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		}
 	}
 
-	// The guid field in the data block is the identity source; meta.id
-	// mirrors it. Resolve field-first, then fall back to an explicitly
-	// preserved id (SaveForm passes prev.Meta.ID so meta backfills an
-	// empty field), then the stored meta.id, then any injected id. When
-	// the template declares a guid field and nothing carries an id yet,
-	// mint one.
+	// The data-block guid field is the identity source; meta.id mirrors it. Resolve field, then preserved
+	// opts.ID, then stored meta.id, then injected id; mint one when a guid field exists but nothing carries an id.
 	guidKey := ""
 	for _, f := range fields {
 		if f.Type == "guid" {
@@ -103,14 +74,11 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		id = uuid.NewString()
 	}
 
-	// Mirror the resolved id back into the guid field so disk carries it
-	// in BOTH meta.id and data, and downstream readers (CSV export, the
-	// API, the integrity doctor) never see drift.
+	// Mirror id back into the guid field so disk carries it in both meta.id and data (no drift for readers).
 	if id != "" && guidKey != "" {
 		data[guidKey] = id
 	}
 
-	// Tags: collect from options + raw meta + injected + tags-typed fields.
 	tags := map[string]struct{}{}
 	addTags := func(in any) {
 		switch v := in.(type) {
@@ -144,10 +112,8 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 			break
 		}
 	}
-	// When the template owns a tags-typed field, that field is the
-	// single source of truth - the stale `meta.tags` / `_meta.tags`
-	// carried on the envelope (round-tripped from BuildView) must NOT
-	// union back in, or removed tags resurrect on every save.
+	// With a tags-typed field present it is the single source of truth; don't union stale meta.tags back in,
+	// or removed tags resurrect on every save.
 	if !hasTagsField {
 		addTags(rawMeta["tags"])
 		if injected != nil {
@@ -198,10 +164,8 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 	}
 }
 
-// seedFacetFieldDefaults seeds meta.facets[facet_key] from a virtual
-// facet field's Default ONLY when the form has no existing entry for
-// that key. An explicit {set:false, selected:""} counts as existing
-// (the user cleared the picker; Default must not resurrect it).
+// seedFacetFieldDefaults seeds meta.facets[key] from a facet field's Default only when no entry exists;
+// an explicit {set:false} counts as existing so Default doesn't resurrect a cleared picker.
 func seedFacetFieldDefaults(facets map[string]FacetState, fields []template.Field) map[string]FacetState {
 	for _, f := range fields {
 		if f.Type != "facet" || f.FacetKey == "" {
@@ -222,10 +186,8 @@ func seedFacetFieldDefaults(facets map[string]FacetState, fields []template.Fiel
 	return facets
 }
 
-// resolveFacets returns the per-form facets map using opts when set
-// (non-nil), otherwise reading rawMeta["facets"] / injected["facets"]
-// in new shape, otherwise migrating legacy `flagged` + `flag_state`
-// into a single "flag" entry. Returns nil when nothing has state.
+// resolveFacets returns the per-form facets from opts, then new-shape meta, then legacy flagged/flag_state
+// migrated into a single "flag" entry; nil when nothing has state.
 func resolveFacets(optsFacets map[string]FacetState, rawMeta, injected map[string]any) map[string]FacetState {
 	if optsFacets != nil {
 		return cloneFacets(optsFacets)
@@ -295,14 +257,8 @@ func facetsFromAny(v any) (map[string]FacetState, bool) {
 	return out, true
 }
 
-// resolveAuditEntry applies precedence rules for one of the Created /
-// Updated blocks. opts wins outright when its At is non-empty (the
-// caller has explicitly chosen it - typically SaveForm preserving prev
-// or stamping current profile). Otherwise read the nested new-shape
-// object from rawMeta / injected, falling back to legacy flat author
-// + the matching flat timestamp string. If everything is missing,
-// stamp `now` with the "Unknown" author so the meta block is always
-// well-formed.
+// resolveAuditEntry resolves one Created/Updated block: opts wins when its At is set, then the nested
+// new-shape object, then legacy flat author + timestamp, finally now+Unknown so the block is always well-formed.
 func resolveAuditEntry(opts AuditEntry, rawObj, injectedObj any, legacy AuditEntry, now string) AuditEntry {
 	if opts.At != "" {
 		return opts
@@ -313,8 +269,7 @@ func resolveAuditEntry(opts AuditEntry, rawObj, injectedObj any, legacy AuditEnt
 	if entry, ok := auditEntryFromAny(injectedObj); ok {
 		return entry
 	}
-	// Legacy: flat author plus the matching flat created/updated string
-	// already lived on rawObj (was a string, not an object). Pick it up.
+	// Legacy: rawObj was a flat timestamp string (not an object).
 	at := ""
 	if s, ok := rawObj.(string); ok {
 		at = s
@@ -338,10 +293,7 @@ func resolveAuditEntry(opts AuditEntry, rawObj, injectedObj any, legacy AuditEnt
 	return AuditEntry{At: at, Name: name, Email: email}
 }
 
-// auditEntryFromAny pulls At/Name/Email out of a nested map shape. The
-// map may come from JSON decoding (map[string]any). Returns false when
-// the value isn't a map or has no recognisable fields, so the caller
-// can fall through to legacy-shape handling.
+// auditEntryFromAny pulls At/Name/Email from a nested map; false when not a map or no recognisable fields.
 func auditEntryFromAny(v any) (AuditEntry, bool) {
 	m, ok := v.(map[string]any)
 	if !ok {
@@ -356,10 +308,8 @@ func auditEntryFromAny(v any) (AuditEntry, bool) {
 	return AuditEntry{At: at, Name: name, Email: email}, true
 }
 
-// splitEnvelope detects the {meta, data} disk envelope vs. the bare
-// payload. A user field literally named "data" or "meta" must NOT
-// trick us - we only treat the input as an envelope when both keys
-// are non-nil objects.
+// splitEnvelope detects the {meta, data} envelope vs the bare payload; only treats input as an envelope
+// when both keys are non-nil objects, so a user field named "data"/"meta" can't trick it.
 func splitEnvelope(raw map[string]any) (data, meta map[string]any) {
 	dataAny, dOk := raw["data"]
 	metaAny, mOk := raw["meta"]
@@ -374,10 +324,7 @@ func splitEnvelope(raw map[string]any) (data, meta map[string]any) {
 	return raw, map[string]any{}
 }
 
-// skipLoop walks `fields` starting at start, marking every key inside
-// the loop body as skip[key]=true so the outer scanner doesn't consume
-// them as top-level fields. Returns the index of the matching loopstop
-// (or last field if unpaired).
+// skipLoop marks every loop-body key skip=true so the outer scanner skips them; returns the matching loopstop index.
 func skipLoop(fields []template.Field, start int, loopKey string, skip map[string]bool) int {
 	depth := 1
 	for i := start; i < len(fields); i++ {
@@ -408,9 +355,7 @@ func defaultForType(t string) any {
 	case "multioption", "list", "table":
 		return []any{}
 	case "api":
-		// Unset api field has no record picked yet. nil distinguishes
-		// "no value" from a stamped {guid, ...} map; consumers can
-		// treat it as the picker's empty state.
+		// nil distinguishes "no record picked" from a stamped {guid, ...} map.
 		return nil
 	default:
 		return ""

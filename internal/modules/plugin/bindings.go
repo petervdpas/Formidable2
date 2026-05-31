@@ -11,15 +11,7 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-// ─────────────────────────────────────────────────────────────────
-// Access interfaces - the surface formidable.* needs from the rest
-// of the app. Implementations live in app.go (real, wired against
-// template.Manager / dataprovider.Manager / render.Manager / *system.
-// Manager / os/exec) and in bindings_test.go (mocks).
-//
-// Tight contract: each interface lists the *exact* methods Lua can
-// reach, no more. New Lua surface = explicit interface change here.
-// ─────────────────────────────────────────────────────────────────
+// Access interfaces: each lists the exact methods Lua can reach. New Lua surface means an explicit interface change here.
 
 // TemplateAccess is the formidable.template.* surface.
 type TemplateAccess interface {
@@ -32,25 +24,20 @@ type CollectionAccess interface {
 	ListCollection(templateFilename string) ([]map[string]any, error)
 }
 
-// FormAccess is the formidable.form.* surface. SaveForm goes
-// through the storage manager's atomic-write path so plugin
-// writes never produce torn files.
+// FormAccess is the formidable.form.* surface; SaveForm goes through the storage manager's atomic-write path so plugin writes never tear.
 type FormAccess interface {
 	LoadForm(templateFilename, datafile string) (map[string]any, error)
 	SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) error
 }
 
-// RenderAccess is the formidable.render.* surface - rendered
-// markdown / HTML for a (template, datafile) pair.
+// RenderAccess is the formidable.render.* surface: rendered markdown/HTML for a (template, datafile) pair.
 type RenderAccess interface {
 	RenderMarkdown(templateFilename, datafile string) (string, error)
 	RenderHTML(templateFilename, datafile string) (string, error)
 }
 
-// FMAccess is the formidable.fm.* surface: YAML frontmatter parse/build
-// helpers. Parse returns (data, body) with the leading `---...---` block
-// removed; data is nil when no frontmatter was present. Build re-emits a
-// frontmatter block from data; nil/empty data returns body unchanged.
+// FMAccess is the formidable.fm.* surface. Parse returns (data, body) with the `---...---` block removed; data is nil when absent.
+// Build re-emits a frontmatter block from data; nil/empty data returns body unchanged.
 type FMAccess interface {
 	Parse(markdown string) (map[string]any, string, error)
 	Build(data map[string]any, body string) string
@@ -68,48 +55,35 @@ type FSAccess interface {
 	Remove(path string) error
 }
 
-// StorageAccess is the formidable.storage.* surface: image bytes the
-// storage manager owns (template/<stem>/images/<name>). ImageBytes
-// returns (nil, nil) when the file isn't present.
+// StorageAccess is the formidable.storage.* surface; ImageBytes returns (nil, nil) when the file isn't present.
 type StorageAccess interface {
 	ImageBytes(templateFilename, name string) ([]byte, error)
 }
 
-// StatsAccess is the formidable.stats.* surface - chart-neutral
-// statistics over a field's (or table column's) values. Each method
-// returns the stat module's Result already flattened to a
-// map[string]any (kind / categories / series / scalars / total) so
-// goToLua hands the plugin a plain Lua table. col is the table-column
-// index, nil for a scalar field; percentile is in [0,100], nil to skip.
+// StatsAccess is the formidable.stats.* surface; each method returns the stat Result flattened to a map[string]any.
+// col is the table-column index (nil for a scalar field); percentile is in [0,100], nil to skip.
 type StatsAccess interface {
 	Distribution(template, fieldKey string, col *int) (map[string]any, error)
 	NumericStats(template, fieldKey string, col *int, percentile *float64) (map[string]any, error)
 	TimeSeries(template, fieldKey string, col *int, period string) (map[string]any, error)
 }
 
-// FacetStatsAccess is the formidable.facets.* surface - statistics
-// over the meta-tagging facets rather than field values. Same Result
-// map shape as StatsAccess; TotalForms is the percentage denominator.
+// FacetStatsAccess is the formidable.facets.* surface; same Result map shape as StatsAccess, TotalForms is the percentage denominator.
 type FacetStatsAccess interface {
 	FacetDistribution(template, facetKey string) (map[string]any, error)
 	FacetCross(template, keyA, keyB string) (map[string]any, error)
 	TotalForms(template string) (int, error)
 }
 
-// StatObjectAccess is the formidable.statistical surface: a template's
-// named statistical objects. ListObjects enumerates the catalog ({name,
-// label, dsl, kind}); EvaluateObject runs one into a rank-N values grid;
-// EvaluateComposite runs a hop route into a {parent, branches} grid.
+// StatObjectAccess is the formidable.statistical surface. ListObjects yields {name, label, dsl, kind};
+// EvaluateObject runs one into a rank-N values grid; EvaluateComposite runs a hop route into a {parent, branches} grid.
 type StatObjectAccess interface {
 	ListObjects(template string) ([]map[string]any, error)
 	EvaluateObject(template, name string) (map[string]any, error)
 	EvaluateComposite(template, name string) (map[string]any, error)
 }
 
-// ExecOptions narrows what `formidable.exec(cmd, args, opts)`
-// accepts. Cwd / Env / Timeout map to the corresponding os/exec
-// fields. Keeping it a Go struct rather than a free-form map
-// makes the contract impossible to drift.
+// ExecOptions narrows what `formidable.exec(cmd, args, opts)` accepts; a Go struct (not a free-form map) keeps the contract from drifting.
 type ExecOptions struct {
 	Cwd     string
 	Env     map[string]string
@@ -128,36 +102,19 @@ type ExecRunner interface {
 	Exec(cmd string, args []string, opts ExecOptions) (ExecResult, error)
 }
 
-// RunBarEmitter receives one RunBarEvent per formidable.run.bar call.
-// Fires synchronously during the run; production wires it to a Wails
-// event so a progressbar widget the plugin author dropped into their
-// form can re-render live. Nil callback drops events.
+// RunBarEmitter receives one RunBarEvent per formidable.run.bar call, fired synchronously; production wires it to a Wails event. Nil drops events.
 type RunBarEmitter func(RunBarEvent)
 
-// RunStatusEmitter receives one RunStatusEvent per
-// formidable.run.status call. Same semantics as RunBarEmitter.
+// RunStatusEmitter receives one RunStatusEvent per formidable.run.status call (same semantics as RunBarEmitter).
 type RunStatusEmitter func(RunStatusEvent)
 
-// RunChartEmitter receives one RunChartEvent per formidable.run.chart
-// call. Same semantics as RunBarEmitter: a chart widget in the form
-// re-renders when the Lua pushes a new spec.
+// RunChartEmitter receives one RunChartEvent per formidable.run.chart call (same semantics as RunBarEmitter).
 type RunChartEmitter func(RunChartEvent)
 
-// RunOptionsEmitter receives one RunOptionsEvent per
-// formidable.run.options call. Same semantics as RunBarEmitter: the
-// host re-options a form field when the Lua pushes a new list.
+// RunOptionsEmitter receives one RunOptionsEvent per formidable.run.options call (same semantics as RunBarEmitter).
 type RunOptionsEmitter func(RunOptionsEvent)
 
-// ─────────────────────────────────────────────────────────────────
-// Namespace builders - each returns a Lua table that goes onto
-// `formidable.*`. When the access dep is nil the table still gets
-// installed but every call raises a clear "X: not configured"
-// error so plugin authors learn what's missing immediately.
-// ─────────────────────────────────────────────────────────────────
-
-// nilGuard returns a closure that errors with `<ns>: not
-// configured` when L's runtime didn't get the dep wired. Used by
-// every namespace builder so the failure mode is uniform.
+// nilGuard returns a closure that errors `<ns>: not configured` when the dep wasn't wired, so every namespace fails uniformly.
 func nilGuard(ns string) lua.LGFunction {
 	return func(L *lua.LState) int {
 		L.RaiseError("%s: not configured", ns)
@@ -330,10 +287,7 @@ func buildRenderTable(L *lua.LState, pluginID string, r RenderAccess, fm FMAcces
 	tbl.RawSetString("markdown", L.NewFunction(mk(r.RenderMarkdown, "markdown")))
 	tbl.RawSetString("html", L.NewFunction(mk(r.RenderHTML, "html")))
 
-	// render.frontmatter / render.pluginBlock compose render+parse so
-	// plugins don't have to repeat the two-step pattern. Both surfaces
-	// degrade to nil-guards when FM access isn't wired so the failure
-	// mode stays uniform across namespaces.
+	// render.frontmatter / render.pluginBlock compose render+parse; both nil-guard when FM access isn't wired.
 	if fm == nil {
 		tbl.RawSetString("frontmatter", L.NewFunction(nilGuard("render.frontmatter")))
 		tbl.RawSetString("pluginBlock", L.NewFunction(nilGuard("render.pluginBlock")))
@@ -393,15 +347,8 @@ func buildRenderTable(L *lua.LState, pluginID string, r RenderAccess, fm FMAcces
 	return tbl
 }
 
-// buildFMTable mounts formidable.fm.parse / formidable.fm.build /
-// formidable.fm.pluginBlock. Parse returns (data, body); data is a
-// Lua table when frontmatter was present, nil when it wasn't.
-// Build is the inverse: nil/empty data returns body unchanged so
-// plugins can branch on "should I emit any frontmatter at all"
-// cleanly. PluginBlock is the shorthand for the per-plugin FM
-// convention: pass parsed `data` and get back data.plugins[<this
-// plugin id>] or nil. The plugin id is captured at table-build
-// time so plugins never hardcode their own id in the lookup.
+// buildFMTable mounts formidable.fm.parse/build/pluginBlock. pluginBlock maps parsed `data` to data.plugins[<this id>];
+// the id is captured at build time so plugins never hardcode their own id.
 func buildFMTable(L *lua.LState, pluginID string, fm FMAccess) *lua.LTable {
 	tbl := L.NewTable()
 	if fm == nil {
@@ -460,13 +407,7 @@ func buildFMTable(L *lua.LState, pluginID string, fm FMAccess) *lua.LTable {
 	return tbl
 }
 
-// buildRunTable mounts formidable.run.bar(done, total) and
-// formidable.run.status(text). Each fires synchronously into its
-// emitter; production wires them to Wails events so any progressbar
-// or statusmessage widget the plugin author dropped into the form
-// re-renders live. Nil emitters raise "run: not configured" - a
-// misconfigured runtime fails loud rather than silently dropping
-// state updates.
+// buildRunTable mounts formidable.run.bar/status/chart/options; each fires synchronously into its emitter, nil emitters raise "run: not configured".
 func buildRunTable(L *lua.LState, barEmit RunBarEmitter, statusEmit RunStatusEmitter, chartEmit RunChartEmitter, optionsEmit RunOptionsEmitter) *lua.LTable {
 	tbl := L.NewTable()
 	if barEmit == nil {
@@ -580,9 +521,7 @@ func buildFSTable(L *lua.LState, fs FSAccess) *lua.LTable {
 	return tbl
 }
 
-// buildStorageTable mounts `formidable.storage.imageBytes(tpl, name)`.
-// Returned value is a Lua string (8-bit clean - fine for binary) or
-// nil when the file is absent. Errors raise so plugins see the cause.
+// buildStorageTable mounts storage.imageBytes(tpl, name): an 8-bit-clean Lua string (binary-safe) or nil when absent.
 func buildStorageTable(L *lua.LState, s StorageAccess) *lua.LTable {
 	tbl := L.NewTable()
 	if s == nil {
@@ -607,10 +546,7 @@ func buildStorageTable(L *lua.LState, s StorageAccess) *lua.LTable {
 	return tbl
 }
 
-// optIntArg reads an optional integer Lua arg at position n, returning
-// nil when the arg is absent/nil (so a table-column index is passed and
-// a scalar field omits it). optFloatArg is the float64 cousin used for
-// the optional percentile.
+// optIntArg reads an optional integer Lua arg at position n, returning nil when absent (e.g. omitted table-column index).
 func optIntArg(L *lua.LState, n int) *int {
 	if v := L.Get(n); v.Type() == lua.LTNumber {
 		i := int(lua.LVAsNumber(v))
@@ -627,8 +563,7 @@ func optFloatArg(L *lua.LState, n int) *float64 {
 	return nil
 }
 
-// buildStatsTable mounts formidable.stats.distribution / .numeric /
-// .timeSeries. Each pushes the Result map as a Lua table.
+// buildStatsTable mounts stats.distribution/numeric/timeSeries.
 func buildStatsTable(L *lua.LState, s StatsAccess) *lua.LTable {
 	tbl := L.NewTable()
 	if s == nil {
@@ -656,7 +591,7 @@ func buildStatsTable(L *lua.LState, s StatsAccess) *lua.LTable {
 		return 1
 	}))
 	tbl.RawSetString("timeSeries", L.NewFunction(func(L *lua.LState) int {
-		// Lua signature: timeSeries(tpl, field, period [, col]).
+		// Lua signature: timeSeries(tpl, field, period [, col]); col is arg 4, period arg 3.
 		out, err := s.TimeSeries(L.CheckString(1), L.CheckString(2), optIntArg(L, 4), L.CheckString(3))
 		if err != nil {
 			L.RaiseError("stats.timeSeries: %v", err)
@@ -708,16 +643,8 @@ func buildFacetsTable(L *lua.LState, f FacetStatsAccess) *lua.LTable {
 	return tbl
 }
 
-// buildStatisticalValue returns the `formidable.statistical` value: a
-// table exposing
-//   - statistical.list(tpl)               -> {{name, label, dsl, kind}, ...}
-//   - statistical.eval(tpl, name)         -> evaluated rank-N grid
-//   - statistical.evalComposite(tpl, name)-> {parent, branches} (sunburst)
-//
-// plus a __call metatable so the legacy callable form
-// `statistical(tpl, name)` keeps evaluating (back-compat with plugins
-// authored before .list existed). All return values are
-// presentation-free; the plugin shapes them into charts.
+// buildStatisticalValue returns the formidable.statistical value: a table with list/eval/evalComposite plus a
+// __call metatable so the legacy callable form `statistical(tpl, name)` keeps evaluating (pre-.list back-compat).
 func buildStatisticalValue(L *lua.LState, a StatObjectAccess) lua.LValue {
 	if a == nil {
 		return L.NewFunction(nilGuard("statistical"))
@@ -755,7 +682,7 @@ func buildStatisticalValue(L *lua.LState, a StatObjectAccess) lua.LValue {
 		L.Push(goToLua(L, out))
 		return 1
 	}))
-	// __call shifts past the table receiver (self) to (tpl, name).
+	// __call receives self at arg 1, so tpl/name are args 2/3.
 	mt := L.NewTable()
 	mt.RawSetString("__call", L.NewFunction(func(L *lua.LState) int {
 		return eval(L.CheckString(2), L.CheckString(3))(L)
@@ -764,11 +691,7 @@ func buildStatisticalValue(L *lua.LState, a StatObjectAccess) lua.LValue {
 	return tbl
 }
 
-// buildExecValue returns the function value for `formidable.exec`.
-// Note `exec` is a callable directly, not a table - that's how
-// plugin authors expect shell-out to feel: `formidable.exec("git",
-// {"status"})`. Returns a function (not a table) so calling
-// `formidable.exec(...)` works without an extra .run lookup.
+// buildExecValue returns formidable.exec as a callable function (not a table), so `formidable.exec("git", {"status"})` works directly.
 func buildExecValue(L *lua.LState, runner ExecRunner) lua.LValue {
 	if runner == nil {
 		return L.NewFunction(nilGuard("exec"))
@@ -809,14 +732,8 @@ func buildExecValue(L *lua.LState, runner ExecRunner) lua.LValue {
 	})
 }
 
-// buildI18nTable mounts formidable.i18n.t(key). The plugin's
-// translation map is passed in already stripped of its
-// `plugin.<id>.` prefix, so the Lua side can use the same key shape
-// that lives in the plugin's `<plugin>/i18n/<locale>.json` file
-// (e.g. "commands.run.label", "name"). When the messages map is
-// nil/empty or the key is missing, t() returns the key verbatim so
-// the script still produces a non-empty string - same fallback
-// shape vue-i18n uses on the frontend.
+// buildI18nTable mounts formidable.i18n.t(key). msgs is already stripped of its `plugin.<id>.` prefix so keys match the i18n/<locale>.json shape.
+// A missing key returns the key verbatim (same fallback as vue-i18n).
 func buildI18nTable(L *lua.LState, msgs map[string]string) *lua.LTable {
 	t := L.NewTable()
 	t.RawSetString("t", L.NewFunction(func(L *lua.LState) int {
@@ -831,11 +748,7 @@ func buildI18nTable(L *lua.LState, msgs map[string]string) *lua.LTable {
 	return t
 }
 
-// buildAPITable mounts formidable.api.fetch when an HTTPClient is
-// wired. With no client, the namespace exists but every call
-// raises "api: not configured" - same shape as every other
-// namespace nil-guard. Manifests that declare requires_internal_server
-// also gate availability through a Run-time precheck (Manager.Run).
+// buildAPITable mounts formidable.api.fetch when an HTTPClient is wired (else nil-guard); manifests with requires_internal_server also gate via Manager.Run.
 func buildAPITable(L *lua.LState, client HTTPClient) *lua.LTable {
 	t := L.NewTable()
 	if client == nil {
@@ -877,10 +790,7 @@ func buildAPITable(L *lua.LState, client HTTPClient) *lua.LTable {
 	return t
 }
 
-// buildJSONTable mounts formidable.json.encode/decode. Always
-// available - pure utility, no host deps. Round-trips through
-// goToLua / luaToGo so the same lvalue conversion the rest of the
-// runtime uses governs shape.
+// buildJSONTable mounts formidable.json.encode/decode (always available); round-trips through goToLua/luaToGo for consistent shape.
 func buildJSONTable(L *lua.LState) *lua.LTable {
 	t := L.NewTable()
 	t.RawSetString("encode", L.NewFunction(func(L *lua.LState) int {
@@ -906,13 +816,8 @@ func buildJSONTable(L *lua.LState) *lua.LTable {
 	return t
 }
 
-// buildPathTable mounts formidable.path.join / formidable.path.stripExt.
-// Always available - pure utility, no host deps. `join` uses Go's
-// path.Join semantics (forward slashes only; doubles are collapsed;
-// empty segments are ignored), which matches the storage layer's
-// canonical form. `stripExt` removes a known suffix if present -
-// callers pass the exact extension (".yaml", ".meta.json") rather
-// than relying on dot-detection so multi-dot suffixes round-trip.
+// buildPathTable mounts formidable.path.join/stripExt. join uses path.Join (forward-slash, collapses doubles).
+// stripExt removes an exact caller-supplied suffix (".yaml", ".meta.json") so multi-dot suffixes round-trip.
 func buildPathTable(L *lua.LState) *lua.LTable {
 	t := L.NewTable()
 	t.RawSetString("join", L.NewFunction(func(L *lua.LState) int {
@@ -933,11 +838,7 @@ func buildPathTable(L *lua.LState) *lua.LTable {
 	return t
 }
 
-// buildURLTable mounts formidable.url.encode / formidable.url.decode.
-// Uses net/url's PathEscape/PathUnescape so the round-trip matches
-// what the slideout renderer emits in /api/images/<stem>/<name> -
-// spaces become %20, slashes are escaped. Decode raises on invalid
-// %-escapes so plugins see the cause; encode is total.
+// buildURLTable mounts formidable.url.encode/decode via net/url PathEscape/PathUnescape, matching the renderer's /api/images/<stem>/<name> encoding.
 func buildURLTable(L *lua.LState) *lua.LTable {
 	t := L.NewTable()
 	t.RawSetString("encode", L.NewFunction(func(L *lua.LState) int {
@@ -958,12 +859,7 @@ func buildURLTable(L *lua.LState) *lua.LTable {
 	return t
 }
 
-// buildPluginTable exposes the running plugin's own metadata as
-// a read-only Lua table at formidable.plugin. Fields that aren't
-// set in PluginInfo come through as their zero values (empty
-// string, false) - never nil - so plugin authors can sniff them
-// without nil-checking. The table is a fresh per-invocation
-// snapshot; mutating it from Lua is harmless and ignored.
+// buildPluginTable exposes the running plugin's own metadata at formidable.plugin. Unset fields come through as zero values (never nil) so authors skip nil-checks.
 func buildPluginTable(L *lua.LState, info PluginInfo) *lua.LTable {
 	t := L.NewTable()
 	t.RawSetString("id", lua.LString(info.ID))
@@ -975,10 +871,7 @@ func buildPluginTable(L *lua.LState, info PluginInfo) *lua.LTable {
 	t.RawSetString("command", lua.LString(info.Command))
 	t.RawSetString("requires_internal_server", lua.LBool(info.RequiresInternalServer))
 	t.RawSetString("debug", lua.LBool(info.Debug))
-	// `form` is a Lua table (1-indexed) of field definitions, or
-	// an empty table when the plugin has no form.json. goToLua
-	// recursively converts the Go shape so json.encode round-trips
-	// it back to identical JSON.
+	// `form` is a 1-indexed Lua table of field definitions, or empty when the plugin has no form.json.
 	if len(info.Form) == 0 {
 		t.RawSetString("form", L.NewTable())
 	} else {

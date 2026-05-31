@@ -8,21 +8,14 @@ import (
 	"strings"
 )
 
-// FacetIconSpec carries the minimal data needed to render one
-// FontAwesome glyph as inline SVG: the path's `viewBox` (icons have
-// different aspects) and the geometry in `Path`'s `d` attribute. No
-// `xmlns` and no fill - both layers (wiki + Vue) wrap this in their
-// own colour-aware shell.
+// FacetIconSpec carries the viewBox + path d for one inline-SVG glyph; no xmlns/fill (each layer wraps its own shell).
 type FacetIconSpec struct {
 	ViewBox string `json:"viewBox"`
 	Path    string `json:"path"`
 }
 
-// FacetIconSVGs is the parsed catalog of every key in FacetIconList,
-// keyed by the "fa-" prefixed form ("fa-flag", "fa-shirt", …) so it
-// can drop into HTML / JS without further mapping. The map is computed
-// once at init() from `icons/*.svg`; missing files panic at startup
-// so a missing glyph never lands in production silently.
+// FacetIconSVGs is the parsed catalog keyed by the "fa-" form, built at init() from icons/*.svg;
+// missing files panic at startup so a missing glyph never ships silently.
 var FacetIconSVGs map[string]FacetIconSpec
 
 //go:embed icons/*.svg
@@ -49,12 +42,8 @@ func init() {
 	}
 }
 
-// parseFacetIconSVG pulls the viewBox and the first <path d="…"/> out
-// of an SVG byte slice. The upstream FontAwesome SVGs are
-// well-formed and contain exactly one path with a `d` attribute,
-// which is the only data we care about here. Anything more elaborate
-// - gradients, multiple paths - would need a real parser, but the
-// closed icon palette never uses those.
+// parseFacetIconSVG pulls the viewBox and first <path d="..."/> from an SVG; the closed FA palette
+// is always single-path with no gradients, so regex suffices over a real parser.
 func parseFacetIconSVG(raw []byte) (FacetIconSpec, error) {
 	src := string(raw)
 	vb := reIconViewBox.FindStringSubmatch(src)
@@ -68,9 +57,7 @@ func parseFacetIconSVG(raw []byte) (FacetIconSpec, error) {
 	return FacetIconSpec{ViewBox: vb[1], Path: pd[1]}, nil
 }
 
-// FacetIconSpecFor returns the parsed spec for a given key, falling
-// back to fa-flag for unknown / empty input so a stale template
-// reference still renders a real glyph rather than a void.
+// FacetIconSpecFor returns the spec for key, falling back to fa-flag so a stale reference still renders a glyph.
 func FacetIconSpecFor(key string) FacetIconSpec {
 	if spec, ok := FacetIconSVGs[key]; ok {
 		return spec

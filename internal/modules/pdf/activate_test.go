@@ -31,8 +31,8 @@ func (m fakeVersions) get(p string) (string, error) {
 
 func TestProbe_EnvVarOverrideAlwaysFirst(t *testing.T) {
 	fs := fakeFS{
-		"/custom/chrome":     true,
-		"/usr/bin/chromium":  true,
+		"/custom/chrome":    true,
+		"/usr/bin/chromium": true,
 	}
 	vers := fakeVersions{
 		"/custom/chrome":    {version: "Chrome 99.0", err: nil},

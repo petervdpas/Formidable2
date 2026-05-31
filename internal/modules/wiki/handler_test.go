@@ -793,9 +793,9 @@ func TestTemplate_RendersFacetChipsAndDataAttr(t *testing.T) {
 	// Chips: one for each SET facet, carrying the selected option's
 	// colour token (via class) so theme can paint it without inline style.
 	for _, want := range []string{
-		`class="facet-chip facet-color--green"`,  // x.flag=DONE
-		`class="facet-chip facet-color--red"`,    // x.size=L
-		`class="facet-chip facet-color--gray"`,   // y.flag=DRAFT
+		`class="facet-chip facet-color--green"`, // x.flag=DONE
+		`class="facet-chip facet-color--red"`,   // x.size=L
+		`class="facet-chip facet-color--gray"`,  // y.flag=DRAFT
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("body missing chip class %q", want)
