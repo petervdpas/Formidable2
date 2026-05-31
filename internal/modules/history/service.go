@@ -1,15 +1,14 @@
 package history
 
-import "log/slog"
+import (
+	"log/slog"
+
+	"github.com/petervdpas/formidable2/internal/event"
+)
 
 // Navigator replays a Back/Forward target.
 type Navigator interface {
 	NavigateToFormidable(href string) error
-}
-
-// EventEmitter broadcasts state events. Nil silences emit.
-type EventEmitter interface {
-	Emit(name string, data any)
 }
 
 // Persister writes the current stack snapshot back to user config.
@@ -28,12 +27,12 @@ const EventState = "history:state"
 type Controller struct {
 	m         *Manager
 	nav       Navigator
-	emitter   EventEmitter
+	emitter   event.Emitter
 	persister Persister
 	log       *slog.Logger
 }
 
-func NewController(m *Manager, nav Navigator, e EventEmitter, p Persister, log *slog.Logger) *Controller {
+func NewController(m *Manager, nav Navigator, e event.Emitter, p Persister, log *slog.Logger) *Controller {
 	if log == nil {
 		log = slog.Default()
 	}

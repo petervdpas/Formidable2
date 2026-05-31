@@ -42,7 +42,7 @@ func TestValidate_FacetFieldHappyPath(t *testing.T) {
 		Facets: []Facet{{Key: "status", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
 		Fields: []Field{
 			{Key: "title", Type: "text"},
-			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio"},
+			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN"},
 		},
 	}
 	errs := Validate(tpl)
@@ -153,14 +153,16 @@ func TestValidate_FacetFieldKnownDefaultAccepted(t *testing.T) {
 	}
 }
 
-func TestValidate_FacetFieldEmptyDefaultAccepted(t *testing.T) {
+func TestValidate_FacetFieldEmptyDefaultRejected(t *testing.T) {
 	tpl := &Template{
 		Facets: []Facet{{Key: "status", Icon: "fa-flag", Options: []FacetOption{{Label: "OPEN", Color: "blue"}}}},
 		Fields: []Field{{Key: "f", Type: "facet", FacetKey: "status"}},
 	}
 	errs := Validate(tpl)
-	if hasErr(errs, "facet-field-bad-default") {
-		t.Errorf("empty default must be accepted; got %+v", errs)
+	// A virtual facet field must declare a default: an empty one can never auto-fill
+	// a form, leaving the facet silently blank. Reject so the author picks one.
+	if !hasErr(errs, "facet-field-missing-default") {
+		t.Errorf("expected facet-field-missing-default; got %+v", errs)
 	}
 }
 

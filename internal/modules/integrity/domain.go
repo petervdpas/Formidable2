@@ -52,9 +52,10 @@ func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 	}
 
 	report := Report{
-		Template:  templateFilename,
-		FormCount: len(filenames),
-		ScannedAt: m.now(),
+		Template:       templateFilename,
+		FormCount:      len(filenames),
+		ScannedAt:      m.now(),
+		TemplateIssues: checkFacetDefaults(tpl),
 	}
 
 	for _, fn := range filenames {
@@ -65,6 +66,7 @@ func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 		} else {
 			issues = analyzeForm(tpl, f)
 			issues = append(issues, m.guidSyncIssues(templateFilename, fn, tpl, f.Meta, f.Data)...)
+			issues = append(issues, m.facetSeedingIssues(templateFilename, fn, tpl)...)
 		}
 		if len(issues) > 0 {
 			report.Forms = append(report.Forms, FormReport{Filename: fn, Issues: issues})
@@ -77,6 +79,66 @@ func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 	})
 
 	return report, nil
+}
+
+// checkFacetDefaults is a template-level check: a facet bound to a virtual field (Type "facet" with a
+// FacetKey) that declares no default cannot be auto-filled, so it is surfaced once for the author. A facet
+// with no virtual field is intentionally unsettable from the form and is not reported.
+func checkFacetDefaults(tpl *template.Template) []Issue {
+	var out []Issue
+	for _, f := range tpl.Fields {
+		if f.Type != "facet" || f.FacetKey == "" {
+			continue
+		}
+		if def, ok := f.Default.(string); ok && def != "" {
+			continue
+		}
+		out = append(out, Issue{
+			Kind:   IssueFacetNoDefault,
+			Path:   fmt.Sprintf("facets.%s", f.FacetKey),
+			Detail: fmt.Sprintf("facet field %q has no default; forms without an explicit selection stay empty", f.Key),
+		})
+	}
+	return out
+}
+
+// facetSeedingIssues flags facets the form is missing on disk that the template defaults. It reads the
+// RAW form (no seeding) so a sanitized load can't hide the gap; without a RawFormReader it cannot tell.
+func (m *Manager) facetSeedingIssues(templateFilename, fn string, tpl *template.Template) []Issue {
+	raw, ok := m.storage.(RawFormReader)
+	if !ok {
+		return nil
+	}
+	rf := raw.LoadFormRaw(templateFilename, fn)
+	if rf == nil {
+		return nil
+	}
+	return checkFacetSeeding(tpl, rf.Meta.Facets)
+}
+
+// checkFacetSeeding reports each facet field that declares a default but whose key is absent from the
+// on-disk facets. An entry that exists (even an explicit set:false) is left alone, deliberate state wins.
+func checkFacetSeeding(tpl *template.Template, disk map[string]storage.FacetState) []Issue {
+	var out []Issue
+	for _, f := range tpl.Fields {
+		if f.Type != "facet" || f.FacetKey == "" {
+			continue
+		}
+		def, ok := f.Default.(string)
+		if !ok || def == "" {
+			continue
+		}
+		if _, present := disk[f.FacetKey]; present {
+			continue
+		}
+		out = append(out, Issue{
+			Kind:    IssueFacetUnseeded,
+			Path:    fmt.Sprintf("meta.facets.%s", f.FacetKey),
+			Suggest: def,
+			Detail:  fmt.Sprintf("facet %q is absent on disk; defaults to %q", f.FacetKey, def),
+		})
+	}
+	return out
 }
 
 // analyzeForm runs every check against one loaded form, returning the issue list in deterministic order.

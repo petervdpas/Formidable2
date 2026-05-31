@@ -2,10 +2,12 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/cucumber/godog"
@@ -42,6 +44,36 @@ type storageWorld struct {
 	capturedID   string
 	lastTpl      string
 	lastDatafile string
+	migrateRes   MigrateResult
+}
+
+// rawFormPath is the on-disk meta.json path for a template/datafile pair.
+func rawFormPath(tmplFile, datafile string) string {
+	base := strings.TrimSuffix(tmplFile, filepath.Ext(tmplFile))
+	return filepath.Join("storage", base, datafile+".meta.json")
+}
+
+// diskFacet reads the raw on-disk meta.json and returns one facet's state. It
+// deliberately bypasses LoadForm, whose sanitize seeds defaults in memory and
+// masks whether the facet is actually persisted.
+func diskFacet(tmp, tmplFile, datafile, key string) (set bool, selected string, present bool, err error) {
+	raw, err := os.ReadFile(filepath.Join(tmp, rawFormPath(tmplFile, datafile)))
+	if err != nil {
+		return false, "", false, err
+	}
+	var top struct {
+		Meta struct {
+			Facets map[string]struct {
+				Set      bool   `json:"set"`
+				Selected string `json:"selected"`
+			} `json:"facets"`
+		} `json:"meta"`
+	}
+	if err := json.Unmarshal(raw, &top); err != nil {
+		return false, "", false, err
+	}
+	st, ok := top.Meta.Facets[key]
+	return st.Set, st.Selected, ok, nil
 }
 
 func initStorageScenario(ctx *godog.ScenarioContext) {
@@ -398,6 +430,95 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		}
 		return nil
 	})
+
+	// ── Cleanup / facet migration ─────────────────────────────────────
+
+	ctx.Step(`^a template "([^"]*)" with facet "([^"]*)" options "([^"]*)" and a facet field defaulting to "([^"]*)"$`,
+		func(name, facetKey, optionsCSV, def string) error {
+			opts := []template.FacetOption{}
+			for _, o := range strings.Split(optionsCSV, ",") {
+				opts = append(opts, template.FacetOption{Label: o, Color: "blue"})
+			}
+			w.tpl = &template.Template{
+				Name: name, Filename: name + ".yaml",
+				Facets: []template.Facet{{Key: facetKey, Icon: "fa-flag", Options: opts}},
+				Fields: []template.Field{
+					{Key: "title", Type: "text"},
+					{Key: facetKey + "-field", Type: "facet", FacetKey: facetKey, Format: "radio", Default: def},
+				},
+			}
+			return w.tplM.SaveTemplate(w.tpl.Filename, w.tpl)
+		})
+
+	writeRaw := func(tmplFile, datafile, facetsJSON string) error {
+		base := strings.TrimSuffix(tmplFile, filepath.Ext(tmplFile))
+		body := `{"meta":{"id":"` + datafile + `","template":"` + base + `",` +
+			`"created":{"at":"2026-01-01T00:00:00Z","name":"P","email":"p@x"},` +
+			`"updated":{"at":"2026-01-01T00:00:00Z","name":"P","email":"p@x"}` + facetsJSON +
+			`},"data":{"title":"Hi"}}`
+		return w.sys.SaveFile(rawFormPath(tmplFile, datafile), body)
+	}
+
+	ctx.Step(`^a raw form file "([^"]*)" / "([^"]*)" on disk with no facets$`,
+		func(tmplFile, datafile string) error { return writeRaw(tmplFile, datafile, "") })
+
+	ctx.Step(`^a raw form file "([^"]*)" / "([^"]*)" on disk with facet "([^"]*)" selected "([^"]*)"$`,
+		func(tmplFile, datafile, key, selected string) error {
+			return writeRaw(tmplFile, datafile,
+				`,"facets":{"`+key+`":{"set":true,"selected":"`+selected+`"}}`)
+		})
+
+	ctx.Step(`^a raw form file "([^"]*)" / "([^"]*)" on disk with facet "([^"]*)" cleared$`,
+		func(tmplFile, datafile, key string) error {
+			return writeRaw(tmplFile, datafile,
+				`,"facets":{"`+key+`":{"set":false,"selected":""}}`)
+		})
+
+	ctx.Step(`^I run meta migration for "([^"]*)"$`, func(tmplFile string) error {
+		res, err := w.m.MigrateTemplateMeta(tmplFile)
+		if err != nil {
+			return err
+		}
+		w.migrateRes = res
+		return nil
+	})
+
+	ctx.Step(`^the migration migrated (\d+) and skipped (\d+)$`, func(mig, skip int) error {
+		if w.migrateRes.Migrated != mig || w.migrateRes.Skipped != skip {
+			return fmt.Errorf("migrate = %+v, want migrated %d skipped %d", w.migrateRes, mig, skip)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the form file "([^"]*)" / "([^"]*)" on disk has facet "([^"]*)" selected "([^"]*)"$`,
+		func(tmplFile, datafile, key, selected string) error {
+			set, sel, present, err := diskFacet(w.tmp, tmplFile, datafile, key)
+			if err != nil {
+				return err
+			}
+			if !present {
+				return fmt.Errorf("facet %q absent on disk", key)
+			}
+			if !set || sel != selected {
+				return fmt.Errorf("disk facet %q = {set:%v selected:%q}, want set selected %q", key, set, sel, selected)
+			}
+			return nil
+		})
+
+	ctx.Step(`^the form file "([^"]*)" / "([^"]*)" on disk has facet "([^"]*)" cleared$`,
+		func(tmplFile, datafile, key string) error {
+			set, sel, present, err := diskFacet(w.tmp, tmplFile, datafile, key)
+			if err != nil {
+				return err
+			}
+			if !present {
+				return fmt.Errorf("facet %q absent on disk, want explicit set:false", key)
+			}
+			if set || sel != "" {
+				return fmt.Errorf("disk facet %q = {set:%v selected:%q}, want cleared", key, set, sel)
+			}
+			return nil
+		})
 }
 
 func loadFormByDatafile(w *storageWorld) *Form {

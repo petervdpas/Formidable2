@@ -196,6 +196,11 @@ export enum FixStrategy {
     FixRestamp = "restamp",
 
     /**
+     * FixSeedFacet writes the facet field's default onto a form whose disk is missing that facet (facet_unseeded).
+     */
+    FixSeedFacet = "seed_facet",
+
+    /**
      * FixSkip leaves the issue alone; the sentinel for kinds with no in-app repair (unreadable).
      */
     FixSkip = "skip",
@@ -324,10 +329,25 @@ export enum IssueKind {
      * IssueUnreadable: the form file couldn't be loaded or parsed; emitted as the single issue.
      */
     IssueUnreadable = "unreadable",
+
+    /**
+     * IssueFacetNoDefault: a facet bound to a virtual field that declares no default. Template-level
+     * and informational: forms without an explicit selection stay empty, with no default to auto-fill.
+     */
+    IssueFacetNoDefault = "facet_no_default",
+
+    /**
+     * IssueFacetUnseeded: a form's disk is missing a facet the template defaults. Suggest carries the
+     * default so the fixer seeds it; detected via the raw form, since a sanitized load would seed it
+     * in memory and hide the gap.
+     */
+    IssueFacetUnseeded = "facet_unseeded",
 };
 
 /**
  * Report is the result of AnalyzeTemplate; only forms with issues appear in Forms.
+ * TemplateIssues are template-level, informational findings (not per-form drift) and
+ * are kept out of IssueCount so a clean-forms template isn't reported dirty.
  */
 export class Report {
     "template": string;
@@ -335,6 +355,7 @@ export class Report {
     "issue_count": number;
     "scanned_at": time$0.Time;
     "forms"?: FormReport[];
+    "template_issues"?: Issue[];
 
     /** Creates a new Report instance. */
     constructor($$source: Partial<Report> = {}) {
@@ -359,9 +380,13 @@ export class Report {
      */
     static createFrom($$source: any = {}): Report {
         const $$createField4_0 = $$createType8;
+        const $$createField5_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField4_0($$parsedSource["forms"]);
+        }
+        if ("template_issues" in $$parsedSource) {
+            $$parsedSource["template_issues"] = $$createField5_0($$parsedSource["template_issues"]);
         }
         return new Report($$parsedSource as Partial<Report>);
     }

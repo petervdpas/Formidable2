@@ -236,7 +236,6 @@ async function pull() {
       toast.success("workspace.collaboration.pull.success");
     }
     await load(false);
-    window.dispatchEvent(new CustomEvent("formidable:context-reloaded"));
   } catch (err) {
     toast.error("workspace.collaboration.pull.error", [backendErrMessage(err)]);
   } finally {
@@ -273,7 +272,6 @@ async function pullWithStash() {
       toast.success("workspace.collaboration.pull.success");
     }
     await load(false);
-    window.dispatchEvent(new CustomEvent("formidable:context-reloaded"));
   } catch (err) {
     toast.error("workspace.collaboration.pull.error", [backendErrMessage(err)]);
   } finally {

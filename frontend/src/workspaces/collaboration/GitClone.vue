@@ -110,7 +110,6 @@ async function clone() {
       }
 
       toast.success("workspace.collaboration.clone.success");
-      window.dispatchEvent(new CustomEvent("formidable:context-reloaded"));
       // Reset the form.
       url.value = "";
       dest.value = "";

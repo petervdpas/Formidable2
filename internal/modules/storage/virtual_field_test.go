@@ -155,7 +155,7 @@ func TestExtendedLoadForm_FacetExpressionItemHarvestedFromMeta(t *testing.T) {
 		}},
 		Fields: []template.Field{
 			{Key: "title", Type: "text"},
-			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", ExpressionItem: true},
+			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN", ExpressionItem: true},
 		},
 	})
 	_ = sys.SaveFile("storage/basic/x.meta.json",
@@ -188,11 +188,13 @@ func TestExtendedLoadForm_UnsetFacetExpressionItemOmitted(t *testing.T) {
 		}},
 		Fields: []template.Field{
 			{Key: "title", Type: "text"},
-			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", ExpressionItem: true},
+			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN", ExpressionItem: true},
 		},
 	})
+	// Facet explicitly cleared ({set:false}), so the field's Default must not
+	// re-seed it: the expression item stays genuinely unset and omitted.
 	_ = sys.SaveFile("storage/basic/x.meta.json",
-		`{"meta":{"id":"abc","template":"basic"},"data":{"title":"Hello"}}`)
+		`{"meta":{"id":"abc","template":"basic","facets":{"status":{"set":false}}},"data":{"title":"Hello"}}`)
 
 	got, err := m.ExtendedLoadForm("basic.yaml", "x.meta.json")
 	if err != nil {

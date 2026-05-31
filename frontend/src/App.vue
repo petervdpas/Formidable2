@@ -121,7 +121,15 @@ let unsubNav: (() => void) | null = null;
 // if the user chooses Save / Discard, tell the backend it may close.
 // Cancel leaves the (already-vetoed) window open.
 let unsubClose: (() => void) | null = null;
+// Backend drives the reload: a Go service emits context:reloaded after a
+// data-changing op (git pull/clone/discard, gigot sync). Re-dispatch it as the
+// window event the composables already listen to. The frontend never decides
+// on its own when its copy is stale; the backend is the source of truth.
+let unsubContextReloaded: (() => void) | null = null;
 onMounted(() => {
+  unsubContextReloaded = Events.On("context:reloaded", () => {
+    window.dispatchEvent(new CustomEvent("formidable:context-reloaded"));
+  });
   unsubNav = Events.On("nav:changed", () => {
     void reload();
     if (active.value !== "storage") {
@@ -136,6 +144,8 @@ onMounted(() => {
   window.addEventListener("contextmenu", onContextMenu);
 });
 onBeforeUnmount(() => {
+  unsubContextReloaded?.();
+  unsubContextReloaded = null;
   unsubNav?.();
   unsubNav = null;
   unsubClose?.();

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -25,11 +26,6 @@ type configWriter interface {
 	UpdateUserConfig(partial map[string]any) error
 }
 
-// EventEmitter publishes nav change events. Nil silences emit.
-type EventEmitter interface {
-	Emit(name string, data any)
-}
-
 // HistoryPusher pushes the canonical href onto the back/forward stack
 // after a successful navigation. Nil silences pushes.
 type HistoryPusher interface {
@@ -41,13 +37,13 @@ type Manager struct {
 	templates templateLoader
 	storage   formStore
 	config    configWriter
-	emitter   EventEmitter
+	emitter   event.Emitter
 	history   HistoryPusher
 	log       *slog.Logger
 }
 
 // NewManager constructs a nav Manager. log, emitter, and history may be nil.
-func NewManager(t templateLoader, s formStore, c configWriter, e EventEmitter, h HistoryPusher, log *slog.Logger) *Manager {
+func NewManager(t templateLoader, s formStore, c configWriter, e event.Emitter, h HistoryPusher, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}

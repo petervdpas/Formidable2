@@ -136,6 +136,7 @@
   "workspace.templates.field_edit.facet.binding_label": "Bound facet",
   "workspace.templates.field_edit.facet.binding_placeholder": "Pick a facet",
   "workspace.templates.field_edit.facet.binding_empty_hint": "This template has no facets. Add one on the Facets tab first, then bind this field to it.",
+  "workspace.templates.field_edit.facet.default_required": "Pick a default option: a facet field cannot be left without one.",
   "workspace.templates.field_edit.facet.presentation_label": "Presentation",
   "workspace.templates.field_edit.facet.presentation_radio": "Radio buttons",
   "workspace.templates.field_edit.facet.presentation_dropdown": "Dropdown",

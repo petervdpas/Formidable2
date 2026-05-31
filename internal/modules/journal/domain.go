@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/petervdpas/formidable2/internal/event"
 )
 
 // fs is the filesystem surface the journal needs.
@@ -29,7 +31,7 @@ type fs interface {
 type Manager struct {
 	fs      fs
 	log     *slog.Logger
-	emitter EventEmitter
+	emitter event.Emitter
 
 	mu            sync.RWMutex
 	contextFolder string
@@ -41,7 +43,7 @@ type Manager struct {
 }
 
 // NewManager constructs a journal; emitter may be nil (events silenced), log may be nil.
-func NewManager(filesystem fs, log *slog.Logger, emitter EventEmitter) *Manager {
+func NewManager(filesystem fs, log *slog.Logger, emitter event.Emitter) *Manager {
 	if log == nil {
 		log = slog.Default()
 	}

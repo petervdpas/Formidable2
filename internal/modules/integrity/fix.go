@@ -68,6 +68,7 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 		draft := cloneForm(original)
 		issues := analyzeForm(tpl, draft)
 		issues = append(issues, m.guidSyncIssues(templateFilename, fn, tpl, draft.Meta, draft.Data)...)
+		issues = append(issues, m.facetSeedingIssues(templateFilename, fn, tpl)...)
 
 		outcome := FixOutcome{Filename: fn}
 		for _, iss := range issues {
@@ -122,7 +123,7 @@ func validatePlan(plan FixPlan) error {
 	for _, it := range plan.Items {
 		switch it.Strategy {
 		case FixStrip, FixFillDefault, FixCoerce, FixClear,
-			FixMintUUID, FixSyncGuid, FixRestamp, FixSkip:
+			FixMintUUID, FixSyncGuid, FixRestamp, FixSeedFacet, FixSkip:
 		default:
 			return fmt.Errorf(
 				"integrity: unknown strategy %q for kind %q", it.Strategy, it.Kind,
@@ -275,6 +276,17 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		default:
 			return false, fmt.Sprintf("unsupported meta path %q", iss.Path), nil
 		}
+		return true, "", nil
+
+	case FixSeedFacet:
+		if iss.Kind != IssueFacetUnseeded {
+			return false, "seed_facet only applies to facet_unseeded", nil
+		}
+		key := strings.TrimPrefix(iss.Path, "meta.facets.")
+		if draft.Meta.Facets == nil {
+			draft.Meta.Facets = map[string]storage.FacetState{}
+		}
+		draft.Meta.Facets[key] = storage.FacetState{Set: true, Selected: iss.Suggest}
 		return true, "", nil
 	}
 	return false, "", fmt.Errorf("integrity: unhandled strategy %q", strat)

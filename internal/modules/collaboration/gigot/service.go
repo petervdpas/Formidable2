@@ -1,6 +1,7 @@
 package gigot
 
 import (
+	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 )
 
@@ -15,6 +16,7 @@ type Service struct {
 	cfg      ConfigReader
 	jrnl     journal.Journal
 	progress ProgressFunc
+	emit     event.Emitter
 }
 
 // CredentialReader resolves the GiGot subscription bearer (NOT a git PAT) for a keychain account; empty + nil means "no entry".
@@ -52,6 +54,15 @@ func AttachProgress(s *Service, emit func(name string, data any)) {
 	s.progress = func(p SyncProgress) {
 		emit(EventSyncProgress, p)
 	}
+}
+
+// AttachEmitter installs the transport so PullLocal/Reclone announce context:reloaded
+// when they change files, keeping the backend the single source of truth.
+func AttachEmitter(s *Service, emit event.Emitter) {
+	if s == nil {
+		return
+	}
+	s.emit = emit
 }
 
 // resolveConnection builds a per-call Connection from the active profile + keychain; requireRepo lets Ping/Me proceed without a RepoName.
@@ -210,6 +221,9 @@ func (s *Service) PullLocal() (*PullResult, error) {
 	if s.jrnl != nil && res != nil && res.Version != "" {
 		s.jrnl.RecordRemoteSeen(journalBackend, res.Version)
 	}
+	if res != nil && (res.Files > 0 || res.Deleted > 0) {
+		event.Emit(s.emit, "context:reloaded", nil)
+	}
 	return res, nil
 }
 
@@ -225,6 +239,9 @@ func (s *Service) Reclone() (*PullResult, error) {
 	}
 	if s.jrnl != nil && res != nil && res.Version != "" {
 		s.jrnl.RecordRemoteSeen(journalBackend, res.Version)
+	}
+	if res != nil && (res.Files > 0 || res.Deleted > 0) {
+		event.Emit(s.emit, "context:reloaded", nil)
 	}
 	return res, nil
 }

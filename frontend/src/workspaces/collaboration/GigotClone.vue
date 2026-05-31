@@ -242,7 +242,6 @@ async function runClone() {
       String(res.deleted ?? 0),
       res.version ?? "",
     ]);
-    window.dispatchEvent(new CustomEvent("formidable:context-reloaded"));
   } catch (err) {
     toast.error("workspace.collaboration.gigot.clone.error", [backendErrMessage(err)]);
   } finally {
@@ -273,7 +272,6 @@ async function doReclone() {
       String(res.files ?? 0),
       res.version ?? "",
     ]);
-    window.dispatchEvent(new CustomEvent("formidable:context-reloaded"));
   } catch (err) {
     toast.error("workspace.collaboration.gigot.clone.reclone.error", [backendErrMessage(err)]);
   } finally {

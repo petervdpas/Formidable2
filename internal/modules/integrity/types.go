@@ -37,6 +37,15 @@ const (
 
 	// IssueUnreadable: the form file couldn't be loaded or parsed; emitted as the single issue.
 	IssueUnreadable IssueKind = "unreadable"
+
+	// IssueFacetNoDefault: a facet bound to a virtual field that declares no default. Template-level
+	// and informational: forms without an explicit selection stay empty, with no default to auto-fill.
+	IssueFacetNoDefault IssueKind = "facet_no_default"
+
+	// IssueFacetUnseeded: a form's disk is missing a facet the template defaults. Suggest carries the
+	// default so the fixer seeds it; detected via the raw form, since a sanitized load would seed it
+	// in memory and hide the gap.
+	IssueFacetUnseeded IssueKind = "facet_unseeded"
 )
 
 // Issue is one problem in one form; Path is a data location ("key" / "loopKey[idx].field") or a meta key.
@@ -57,10 +66,13 @@ type FormReport struct {
 }
 
 // Report is the result of AnalyzeTemplate; only forms with issues appear in Forms.
+// TemplateIssues are template-level, informational findings (not per-form drift) and
+// are kept out of IssueCount so a clean-forms template isn't reported dirty.
 type Report struct {
-	Template   string       `json:"template"`
-	FormCount  int          `json:"form_count"`
-	IssueCount int          `json:"issue_count"`
-	ScannedAt  time.Time    `json:"scanned_at"`
-	Forms      []FormReport `json:"forms,omitempty"`
+	Template       string       `json:"template"`
+	FormCount      int          `json:"form_count"`
+	IssueCount     int          `json:"issue_count"`
+	ScannedAt      time.Time    `json:"scanned_at"`
+	Forms          []FormReport `json:"forms,omitempty"`
+	TemplateIssues []Issue      `json:"template_issues,omitempty"`
 }

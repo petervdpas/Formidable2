@@ -25,6 +25,9 @@ const (
 	// FixRestamp overwrites a bad timestamp with now, or clears a stale facet label (same intent: make it valid).
 	FixRestamp FixStrategy = "restamp"
 
+	// FixSeedFacet writes the facet field's default onto a form whose disk is missing that facet (facet_unseeded).
+	FixSeedFacet FixStrategy = "seed_facet"
+
 	// FixSkip leaves the issue alone; the sentinel for kinds with no in-app repair (unreadable).
 	FixSkip FixStrategy = "skip"
 )

@@ -97,7 +97,10 @@ const facetBindingMissing = computed<boolean>(() => {
 });
 
 const canConfirm = computed<boolean>(
-  () => !expressionItemInvalid.value && !facetBindingMissing.value,
+  () =>
+    !expressionItemInvalid.value &&
+    !facetBindingMissing.value &&
+    !facetDefaultMissing.value,
 );
 
 const facetBindingOptions = computed(() =>
@@ -153,6 +156,15 @@ const facetDefaultValue = computed<string>({
     // strings and unknown labels to nil).
     draft.value.default = v === "" ? null : v;
   },
+});
+
+// A bound facet field must declare a default (the backend rejects an empty
+// one): forms can never auto-fill a defaultless facet. Block Confirm until the
+// author picks one. Skipped while the binding itself is unresolved.
+const facetDefaultMissing = computed<boolean>(() => {
+  if (!isFacetType.value) return false;
+  if (facetBindingMissing.value) return false;
+  return facetDefaultValue.value.trim() === "";
 });
 
 // Changing the bound facet invalidates any previously-picked Default
@@ -626,11 +638,15 @@ const dialogStyle = computed<Record<string, string>>(() => {
           v-if="showRow('default')"
           :label="t('workspace.templates.field_edit.row.default')"
         >
-          <SelectField
-            v-if="isFacetType"
-            v-model="facetDefaultValue"
-            :options="facetDefaultOptions"
-          />
+          <template v-if="isFacetType">
+            <SelectField
+              v-model="facetDefaultValue"
+              :options="facetDefaultOptions"
+            />
+            <p v-if="facetDefaultMissing" class="muted small">
+              {{ t('workspace.templates.field_edit.facet.default_required') }}
+            </p>
+          </template>
           <TextField v-else v-model="defaultAsString" />
         </FormRow>
 

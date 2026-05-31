@@ -609,7 +609,7 @@ func New(d Deps) (*App, error) {
 		Journal:           journal.NewService(jrnM),
 		Csv:               csv.NewService(csvM),
 		Template:          template.NewService(tplM, tplStorageLocator),
-		Storage:           storage.NewService(stoM),
+		Storage:           storage.NewService(stoM, emitter),
 		Form:              form.NewService(formM),
 		I18n:              i18n.NewService(i18nM),
 		Dialog:            dialog.NewService(),
@@ -618,7 +618,7 @@ func New(d Deps) (*App, error) {
 		Wiki:              wikiSvc,
 		Dataprovider:      dataprovider.NewService(dpM),
 		Plugin:            plugin.NewService(pluginM),
-		Git:               newGitService(gitM, credentialM, cfgM, jrnM, sysgitR),
+		Git:               newGitService(gitM, credentialM, cfgM, jrnM, sysgitR, emitter),
 		Gigot:             newGigotService(gigotM, credentialM, cfgM, jrnM, emitter),
 		Credential:        credential.NewService(credentialM),
 		Monitor:           monitor.NewService(monitorM),
@@ -627,7 +627,7 @@ func New(d Deps) (*App, error) {
 		Datacore:          datacoreSvc,
 		Expression:        expression.NewService(expressionM),
 		History:           historySvc,
-		Integrity:         integrity.NewService(integrityM),
+		Integrity:         integrity.NewService(integrityM, emitter),
 		Logging:           logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
 		PDF:               pdf.NewService(pdfM),
 		Manual:            manual.NewService(),
@@ -659,9 +659,10 @@ func New(d Deps) (*App, error) {
 // newGitService composes git.NewService and git.AttachSysgit so the App
 // wiring stays one map literal. AttachSysgit is package-level (not a
 // method) to keep interface-typed params off the Wails-bound surface.
-func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manager, jrnl journal.Journal, sys git.Sysgit) *git.Service {
+func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manager, jrnl journal.Journal, sys git.Sysgit, em *emitterRelay) *git.Service {
 	svc := git.NewService(m, creds, cfg, jrnl)
 	git.AttachSysgit(svc, cfg, sys)
+	git.AttachEmitter(svc, em)
 	return svc
 }
 
@@ -672,6 +673,7 @@ func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manag
 func newGigotService(m *gigot.Manager, creds gigot.CredentialReader, cfg *config.Manager, jrnl journal.Journal, em *emitterRelay) *gigot.Service {
 	svc := gigot.NewService(m, creds, cfg, cfg, jrnl)
 	gigot.AttachProgress(svc, em.Emit)
+	gigot.AttachEmitter(svc, em)
 	return svc
 }
 

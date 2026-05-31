@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { Events } from "@wailsio/runtime";
 import SplitPane from "../components/SplitPane.vue";
 import Badge from "../components/Badge.vue";
 import CopyButton from "../components/CopyButton.vue";
@@ -304,6 +305,17 @@ watch(selectedTemplate, async () => {
 function onContextReloaded() {
   void refreshList();
 }
+// Backend-driven: a bulk write (cleanup Migrate/Repair) emits storage:changed
+// with the affected template. Re-read the list so the sidebar and open form
+// reflect the corrected meta on disk instead of a stale in-memory view.
+let unsubStorageChanged: (() => void) | undefined;
+function onStorageChanged(ev: unknown) {
+  const data = (ev as { data?: unknown })?.data;
+  const tpl = Array.isArray(data) ? data[0] : data;
+  if (typeof tpl !== "string" || tpl === selectedTemplate.value) {
+    void refreshList();
+  }
+}
 // Templates workspace just saved a template. The backend's
 // OnTemplateChanged already re-derived every form row in the index,
 // so a plain re-fetch picks up the new title / expression sub-label
@@ -318,10 +330,12 @@ function onTemplateSaved(e: Event) {
 onMounted(() => {
   window.addEventListener("formidable:context-reloaded", onContextReloaded);
   window.addEventListener("formidable:template-saved", onTemplateSaved);
+  unsubStorageChanged = Events.On("storage:changed", onStorageChanged);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("formidable:context-reloaded", onContextReloaded);
   window.removeEventListener("formidable:template-saved", onTemplateSaved);
+  unsubStorageChanged?.();
 });
 
 // Live-toggle: flipping use_expressions in Settings re-fetches (or

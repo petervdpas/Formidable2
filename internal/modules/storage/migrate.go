@@ -32,15 +32,18 @@ func (m *Manager) MigrateTemplateMeta(templateFilename string) (MigrateResult, e
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: parse: %v", filename, err))
 			continue
 		}
-		if !needs {
-			res.Skipped++
-			continue
-		}
-		// LoadForm's Sanitize migrates the legacy keys; SaveFormExact writes verbatim so the profile isn't stamped.
+		// LoadForm's Sanitize migrates the legacy keys and seeds facet-field
+		// defaults; SaveFormExact writes verbatim so the profile isn't stamped.
 		datafile := strings.TrimSuffix(filename, formExt)
 		f := m.LoadForm(templateFilename, datafile)
 		if f == nil {
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: load returned nil", filename))
+			continue
+		}
+		// Migrate when a legacy marker is present, or when sanitize produced a
+		// facet the on-disk meta lacks (a seeded default that never persisted).
+		if !needs && !facetsDrift(f, []byte(raw)) {
+			res.Skipped++
 			continue
 		}
 		sr := m.SaveFormExact(context.Background(), templateFilename, datafile, *f)
@@ -51,6 +54,33 @@ func (m *Manager) MigrateTemplateMeta(templateFilename string) (MigrateResult, e
 		res.Migrated++
 	}
 	return res, nil
+}
+
+// facetsDrift reports whether the sanitized form carries a facet that the
+// on-disk meta lacks or sets differently. This catches a facet-field default
+// seeded on load but never persisted (the form predates the field). Explicit
+// on-disk state and real selections match the sanitized form, so they do not
+// drift and are not rewritten.
+func facetsDrift(san *Form, raw []byte) bool {
+	if san == nil || len(san.Meta.Facets) == 0 {
+		return false
+	}
+	var top struct {
+		Meta struct {
+			Facets map[string]struct {
+				Set      bool   `json:"set"`
+				Selected string `json:"selected"`
+			} `json:"facets"`
+		} `json:"meta"`
+	}
+	_ = json.Unmarshal(raw, &top)
+	for key, st := range san.Meta.Facets {
+		d, ok := top.Meta.Facets[key]
+		if !ok || d.Set != st.Set || d.Selected != st.Selected {
+			return true
+		}
+	}
+	return false
 }
 
 // needsMetaMigration reports a legacy marker in the meta block: flat author_name/author_email keys,
@@ -69,6 +99,14 @@ func needsMetaMigration(raw []byte) (bool, error) {
 		return true, nil
 	}
 	if _, ok := top.Meta["author_email"]; ok {
+		return true, nil
+	}
+	// Facets live in meta: the legacy flagged/flag_state pair is a meta-shape
+	// marker too, so a timestamp-current form still needs the facet rewrite.
+	if _, ok := top.Meta["flagged"]; ok {
+		return true, nil
+	}
+	if _, ok := top.Meta["flag_state"]; ok {
 		return true, nil
 	}
 	if v, ok := top.Meta["created"]; ok && isJSONString(v) {

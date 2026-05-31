@@ -73,6 +73,10 @@ async function analyze() {
 const hasReport = computed(() => report.value !== null);
 const clean = computed(() => hasReport.value && (report.value?.issue_count ?? 0) === 0);
 
+// Template-level notes are informational, not per-form drift, so they live
+// outside issue_count and show even when the forms are clean.
+const templateIssues = computed(() => report.value?.template_issues ?? []);
+
 // ── per-kind summary ────────────────────────────────────────────────
 // Group issues by kind, counting both total issues and how many forms
 // have at least one issue of that kind. Reactive on `report`.
@@ -126,6 +130,11 @@ function strategiesFor(kind: string): { id: string; labelKey: string }[] {
       return [
         { id: "sync_guid", labelKey: "workspace.cleanup.strategy.sync_guid" },
         { id: "skip",      labelKey: "workspace.cleanup.strategy.skip" },
+      ];
+    case IssueKind.IssueFacetUnseeded:
+      return [
+        { id: "seed_facet", labelKey: "workspace.cleanup.strategy.seed_facet" },
+        { id: "skip",       labelKey: "workspace.cleanup.strategy.skip" },
       ];
     case IssueKind.IssueUnreadable:
       // Unreadable can't be repaired in-app; the only "action" is to
@@ -203,6 +212,8 @@ async function migrate() {
   error.value = "";
   try {
     lastMigrateResult.value = await StorageSvc.MigrateTemplateMeta(props.templateFilename);
+    // The backend emits storage:changed on a real rewrite; StorageWorkspace
+    // reloads off that. No frontend reload dispatch here.
     // Migration may have fixed meta_bad_format issues lurking in the
     // analyze report; refresh if one was already loaded so the user
     // sees an accurate picture without re-clicking Analyze.
@@ -229,6 +240,8 @@ async function repair() {
     }
     const plan = FixPlan.createFrom({ items });
     lastFixResult.value = await IntegritySvc.Fix(props.templateFilename, plan);
+    // The backend emits storage:changed when Repair writes forms; the storage
+    // view reloads off that. No frontend reload dispatch here.
     // Re-fetch a clean analyze; the backend's ScannedAfter count is
     // authoritative but the frontend wants the per-form drill-down too.
     await analyze();
@@ -249,6 +262,8 @@ function issueKindLabel(kind: string): string {
     case IssueKind.IssueMetaMissing:     return t("workspace.cleanup.kind.meta_missing");
     case IssueKind.IssueMetaBadFormat:   return t("workspace.cleanup.kind.meta_bad_format");
     case IssueKind.IssueUnreadable:      return t("workspace.cleanup.kind.unreadable");
+    case IssueKind.IssueFacetNoDefault:  return t("workspace.cleanup.kind.facet_no_default");
+    case IssueKind.IssueFacetUnseeded:   return t("workspace.cleanup.kind.facet_unseeded");
     default: return kind;
   }
 }
@@ -307,6 +322,23 @@ function issueKindClass(kind: string): string {
           ? t('workspace.cleanup.summary_clean', [report?.form_count ?? 0])
           : t('workspace.cleanup.summary_issues', [report?.issue_count ?? 0, report?.form_count ?? 0]) }}
       </strong>
+    </div>
+
+    <!-- Template-level notes: informational, not repairable. Shown even when
+         the forms are clean, since these are design hints, not data drift. -->
+    <div v-if="templateIssues.length > 0 && !error" class="cleanup-forms">
+      <strong>{{ t('workspace.cleanup.template_hints') }}</strong>
+      <ul class="cleanup-issue-list">
+        <li
+          v-for="(iss, idx) in templateIssues"
+          :key="idx"
+          class="cleanup-issue cleanup-issue-info"
+        >
+          <span class="cleanup-issue-kind">{{ issueKindLabel(iss.kind) }}</span>
+          <code v-if="iss.path" class="cleanup-issue-path">{{ iss.path }}</code>
+          <span v-if="iss.detail" class="cleanup-issue-detail muted small">{{ iss.detail }}</span>
+        </li>
+      </ul>
     </div>
 
     <!-- By-kind summary table with checkbox + strategy dropdown.

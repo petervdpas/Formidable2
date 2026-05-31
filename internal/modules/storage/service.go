@@ -1,11 +1,18 @@
 package storage
 
-import "context"
+import (
+	"context"
+
+	"github.com/petervdpas/formidable2/internal/event"
+)
 
 // Service is the Wails layer over Manager.
-type Service struct{ m *Manager }
+type Service struct {
+	m    *Manager
+	emit event.Emitter
+}
 
-func NewService(m *Manager) *Service { return &Service{m: m} }
+func NewService(m *Manager, emit event.Emitter) *Service { return &Service{m: m, emit: emit} }
 
 func (s *Service) EnsureFormDir(templateFilename string) error {
 	return s.m.EnsureFormDir(templateFilename)
@@ -62,6 +69,11 @@ func (s *Service) ImportCsvRow(templateFilename, datafile string, data map[strin
 }
 
 // MigrateTemplateMeta rewrites every legacy-shaped form under the template into the new audit-block shape.
+// On a real rewrite it emits storage:changed so the frontend reloads the affected forms from disk.
 func (s *Service) MigrateTemplateMeta(templateFilename string) (MigrateResult, error) {
-	return s.m.MigrateTemplateMeta(templateFilename)
+	res, err := s.m.MigrateTemplateMeta(templateFilename)
+	if err == nil && res.Migrated > 0 {
+		event.Emit(s.emit, "storage:changed", templateFilename)
+	}
+	return res, err
 }

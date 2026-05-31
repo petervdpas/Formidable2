@@ -103,21 +103,20 @@ func facetFieldErrors(t *Template) []ValidationError {
 				Message: "Facet field format must be radio or dropdown; got: " + f.Format,
 			})
 		}
-		if def, ok := f.Default.(string); ok && def != "" && declared[f.FacetKey] {
-			known := false
-			for _, fc := range t.Facets {
-				if fc.Key != f.FacetKey {
-					continue
-				}
-				for _, o := range fc.Options {
-					if o.Label == def {
-						known = true
-						break
-					}
-				}
-				break
-			}
-			if !known {
+		if declared[f.FacetKey] {
+			def, _ := f.Default.(string)
+			switch {
+			case strings.TrimSpace(def) == "":
+				// A bound facet field must declare a default, else forms can never auto-fill it.
+				errs = append(errs, ValidationError{
+					Type:    "facet-field-missing-default",
+					Field:   &ff,
+					Index:   i,
+					Key:     f.Key,
+					Detail:  map[string]any{"facet_key": f.FacetKey},
+					Message: "Facet field must declare a default option of facet " + f.FacetKey,
+				})
+			case !facetHasOptionLabel(t.Facets, f.FacetKey, def):
 				errs = append(errs, ValidationError{
 					Type:    "facet-field-bad-default",
 					Field:   &ff,
@@ -130,6 +129,22 @@ func facetFieldErrors(t *Template) []ValidationError {
 		}
 	}
 	return errs
+}
+
+// facetHasOptionLabel reports whether facet key declares an option whose label is def.
+func facetHasOptionLabel(facets []Facet, key, def string) bool {
+	for _, fc := range facets {
+		if fc.Key != key {
+			continue
+		}
+		for _, o := range fc.Options {
+			if o.Label == def {
+				return true
+			}
+		}
+		return false
+	}
+	return false
 }
 
 // apiGroupOnNonApiErrors flags collection/map populated on a non-api field (dead data that confuses consumers).

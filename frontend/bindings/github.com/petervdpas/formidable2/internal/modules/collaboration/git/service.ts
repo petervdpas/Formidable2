@@ -24,6 +24,9 @@ export function Branches(path: string): $CancellablePromise<$models.Branches | n
     });
 }
 
+/**
+ * Clone brings a whole new working tree in, so it announces context:reloaded on success.
+ */
 export function Clone(opts: $models.CloneOptions): $CancellablePromise<$models.CloneResult | null> {
     return $Call.ByID(3869084983, opts).then(($result: any) => {
         return $$createType3($result);
@@ -42,6 +45,9 @@ export function CommitChanges(path: string, hash: string): $CancellablePromise<$
     });
 }
 
+/**
+ * Discard reverts the working tree, so it announces context:reloaded on success.
+ */
 export function Discard(opts: $models.DiscardOptions): $CancellablePromise<void> {
     return $Call.ByID(106030516, opts);
 }

@@ -136,6 +136,7 @@
   "workspace.templates.field_edit.facet.binding_label": "Gekoppeld facet",
   "workspace.templates.field_edit.facet.binding_placeholder": "Kies een facet",
   "workspace.templates.field_edit.facet.binding_empty_hint": "Dit template heeft nog geen facetten. Voeg er één toe op het tabblad Facetten en koppel dit veld daaraan.",
+  "workspace.templates.field_edit.facet.default_required": "Kies een standaardoptie: een facetveld kan niet zonder.",
   "workspace.templates.field_edit.facet.presentation_label": "Weergave",
   "workspace.templates.field_edit.facet.presentation_radio": "Radioknoppen",
   "workspace.templates.field_edit.facet.presentation_dropdown": "Keuzelijst",

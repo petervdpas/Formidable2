@@ -102,11 +102,6 @@ type Journal interface {
 	Reader
 }
 
-// EventEmitter publishes journal change events. Nil silences emit.
-type EventEmitter interface {
-	Emit(name string, data any)
-}
-
 const (
 	EventChanged = "journal:changed"
 )

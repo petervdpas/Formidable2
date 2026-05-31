@@ -245,9 +245,10 @@ func TestSaveValues_ConcurrentDistinctFiles(t *testing.T) {
 // verbatim. See suspectedBugs in the report.
 // ─────────────────────────────────────────────────────────────────────
 
-func TestSaveValues_OutOfRangeFacetSelectionRoundTripsVerbatim(t *testing.T) {
+// A selection that is no longer a declared option (and the facet has no field
+// default) is cleared to empty on save, while the facet stays Set.
+func TestSaveValues_OutOfRangeFacetSelectionClearedToEmpty(t *testing.T) {
 	m, tplM, _, _ := realStack(t)
-	// Template declares facet "status" with options "open"/"closed".
 	_ = tplM.SaveTemplate("t.yaml", &template.Template{
 		Name: "t", Filename: "t.yaml",
 		Facets: []template.Facet{{
@@ -261,7 +262,6 @@ func TestSaveValues_OutOfRangeFacetSelectionRoundTripsVerbatim(t *testing.T) {
 		Fields: []template.Field{{Key: "title", Type: "text"}},
 	})
 
-	// Selected value "bogus" is not among the declared options.
 	res, err := m.SaveValues("t.yaml", SavePayload{
 		Datafile: "f.meta.json",
 		Values:   map[string]any{"title": "x"},
@@ -276,25 +276,61 @@ func TestSaveValues_OutOfRangeFacetSelectionRoundTripsVerbatim(t *testing.T) {
 	}
 	got, ok := res.Meta.Facets["status"]
 	if !ok {
-		t.Fatalf("status facet dropped on save; facets=%+v", res.Meta.Facets)
+		t.Fatalf("declared facet should remain; facets=%+v", res.Meta.Facets)
 	}
-	if !got.Set || got.Selected != "bogus" {
-		t.Errorf("out-of-range selection not preserved: want {Set:true Selected:bogus}, got %+v", got)
+	if !got.Set || got.Selected != "" {
+		t.Errorf("out-of-range selection should clear to empty (Set stays true), got %+v", got)
 	}
-
-	// Confirm it also survives a fresh read from disk.
 	view, err := m.BuildView("t.yaml", "f.meta.json")
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if s := view.Meta.Facets["status"]; s.Selected != "bogus" {
-		t.Errorf("BuildView lost out-of-range facet: %+v", view.Meta.Facets["status"])
+	if s := view.Meta.Facets["status"]; s.Selected != "" {
+		t.Errorf("disk kept invalid selection: %+v", s)
 	}
 }
 
-func TestSaveValues_UndeclaredFacetKeyRoundTripsVerbatim(t *testing.T) {
+// When the facet field declares a default, an out-of-range selection falls back
+// to that default rather than emptying.
+func TestSaveValues_OutOfRangeFacetSelectionUsesDefault(t *testing.T) {
 	m, tplM, _, _ := realStack(t)
-	// Template declares no facets at all.
+	_ = tplM.SaveTemplate("t.yaml", &template.Template{
+		Name: "t", Filename: "t.yaml",
+		Facets: []template.Facet{{
+			Key:  "status",
+			Icon: "fa-flag",
+			Options: []template.FacetOption{
+				{Label: "OPEN", Color: "green"},
+				{Label: "CLOSED", Color: "red"},
+			},
+		}},
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "status-field", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN"},
+		},
+	})
+
+	res, err := m.SaveValues("t.yaml", SavePayload{
+		Datafile: "f.meta.json",
+		Values:   map[string]any{"title": "x"},
+		Meta: storage.FormMeta{
+			Facets: map[string]storage.FacetState{
+				"status": {Set: true, Selected: "bogus"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	if got := res.Meta.Facets["status"]; !got.Set || got.Selected != "OPEN" {
+		t.Errorf("out-of-range should fall back to default OPEN, got %+v", got)
+	}
+}
+
+// A facet key the template does not declare is dropped on save (meta synced to
+// the template's declared keys).
+func TestSaveValues_UndeclaredFacetKeyDropped(t *testing.T) {
+	m, tplM, _, _ := realStack(t)
 	_ = tplM.SaveTemplate("t.yaml", &template.Template{
 		Name: "t", Filename: "t.yaml",
 		Fields: []template.Field{{Key: "title", Type: "text"}},
@@ -312,12 +348,8 @@ func TestSaveValues_UndeclaredFacetKeyRoundTripsVerbatim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	got, ok := res.Meta.Facets["ghostkey"]
-	if !ok {
-		t.Fatalf("undeclared facet key dropped; facets=%+v", res.Meta.Facets)
-	}
-	if !got.Set || got.Selected != "whatever" {
-		t.Errorf("undeclared facet not preserved: want {Set:true Selected:whatever}, got %+v", got)
+	if _, ok := res.Meta.Facets["ghostkey"]; ok {
+		t.Errorf("undeclared facet key should be dropped, got %+v", res.Meta.Facets)
 	}
 }
 

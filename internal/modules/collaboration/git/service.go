@@ -1,6 +1,7 @@
 package git
 
 import (
+	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 )
 
@@ -16,6 +17,7 @@ type Service struct {
 	jrnl    journal.Journal
 	flags   FlagReader
 	sys     Sysgit
+	emit    event.Emitter
 }
 
 // FlagReader exposes per-profile toggles that affect transport selection.
@@ -62,6 +64,16 @@ func AttachSysgit(s *Service, flags FlagReader, runner Sysgit) {
 	s.sys = runner
 }
 
+// AttachEmitter installs the transport so data-changing ops announce context:reloaded
+// for the frontend to reload off, keeping the backend the single source of truth.
+// Package-level for the same binding-generator reason as AttachSysgit.
+func AttachEmitter(s *Service, emit event.Emitter) {
+	if s == nil {
+		return
+	}
+	s.emit = emit
+}
+
 func (s *Service) useSysgit() bool {
 	if s.flags == nil || s.sys == nil {
 		return false
@@ -84,9 +96,25 @@ func (s *Service) CommitChanges(path, hash string) ([]ChangeFile, error) {
 	return s.m.CommitChanges(path, hash)
 }
 func (s *Service) RemoteInfo(path string) (*RemoteInfo, error)      { return s.m.RemoteInfo(path) }
-func (s *Service) Clone(opts CloneOptions) (*CloneResult, error)    { return s.m.Clone(opts) }
 func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) { return s.m.Commit(opts) }
-func (s *Service) Discard(opts DiscardOptions) error                { return s.m.Discard(opts) }
+
+// Clone brings a whole new working tree in, so it announces context:reloaded on success.
+func (s *Service) Clone(opts CloneOptions) (*CloneResult, error) {
+	res, err := s.m.Clone(opts)
+	if err == nil {
+		event.Emit(s.emit, "context:reloaded", nil)
+	}
+	return res, err
+}
+
+// Discard reverts the working tree, so it announces context:reloaded on success.
+func (s *Service) Discard(opts DiscardOptions) error {
+	err := s.m.Discard(opts)
+	if err == nil {
+		event.Emit(s.emit, "context:reloaded", nil)
+	}
+	return err
+}
 
 // Fetch refreshes remote-tracking refs via sysgit (credential helper resolves auth) or go-git with keychain PAT.
 func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
@@ -156,6 +184,9 @@ func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 	if s.jrnl != nil && res.NewHead != "" {
 		s.jrnl.RecordRemoteSeen(journalBackend, res.NewHead)
 	}
+	if !res.AlreadyUpToDate {
+		event.Emit(s.emit, "context:reloaded", nil)
+	}
 	return res, nil
 }
 
@@ -167,6 +198,9 @@ func (s *Service) pullViaSysgit(opts PullOptions) (*PullResult, error) {
 	newHead := s.headHash(opts.Path)
 	if s.jrnl != nil && newHead != "" {
 		s.jrnl.RecordRemoteSeen(journalBackend, newHead)
+	}
+	if !upToDate {
+		event.Emit(s.emit, "context:reloaded", nil)
 	}
 	return &PullResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
 }
@@ -206,6 +240,9 @@ func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 	}
 	if res != nil && res.Pull != nil && s.jrnl != nil && res.Pull.NewHead != "" {
 		s.jrnl.RecordRemoteSeen(journalBackend, res.Pull.NewHead)
+	}
+	if res != nil && res.Pull != nil && !res.Pull.AlreadyUpToDate {
+		event.Emit(s.emit, "context:reloaded", nil)
 	}
 	return res, nil
 }

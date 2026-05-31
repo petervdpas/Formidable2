@@ -65,6 +65,7 @@ export function LoadImageFile(templateFilename: string, name: string): $Cancella
 
 /**
  * MigrateTemplateMeta rewrites every legacy-shaped form under the template into the new audit-block shape.
+ * On a real rewrite it emits storage:changed so the frontend reloads the affected forms from disk.
  */
 export function MigrateTemplateMeta(templateFilename: string): $CancellablePromise<$models.MigrateResult> {
     return $Call.ByID(53088703, templateFilename).then(($result: any) => {

@@ -186,6 +186,68 @@ func seedFacetFieldDefaults(facets map[string]FacetState, fields []template.Fiel
 	return facets
 }
 
+// syncFormFacets normalizes meta facets against the template on save: an undeclared
+// facet key is dropped, and a selection that is no longer a declared option becomes
+// the facet field's default (when valid) or empty, leaving Set as-is.
+// legacyFlagFacetKey is the facet synthesized from the old flagged/flag_state
+// pair; it predates the facets system and may not be declared, so save must not
+// drop it (the doctor still backstops a genuinely orphaned one).
+const legacyFlagFacetKey = "flag"
+
+func syncFormFacets(facets map[string]FacetState, tpl *template.Template) {
+	if facets == nil || tpl == nil {
+		return
+	}
+	for key, st := range facets {
+		if key == legacyFlagFacetKey {
+			continue
+		}
+		fc := declaredFacet(tpl, key)
+		if fc == nil {
+			delete(facets, key)
+			continue
+		}
+		if st.Selected != "" && !facetOptionExists(fc, st.Selected) {
+			def := facetFieldDefault(tpl, key)
+			if def != "" && facetOptionExists(fc, def) {
+				st.Selected = def
+			} else {
+				st.Selected = ""
+			}
+			facets[key] = st
+		}
+	}
+}
+
+func declaredFacet(tpl *template.Template, key string) *template.Facet {
+	for i := range tpl.Facets {
+		if tpl.Facets[i].Key == key {
+			return &tpl.Facets[i]
+		}
+	}
+	return nil
+}
+
+func facetOptionExists(fc *template.Facet, label string) bool {
+	for _, o := range fc.Options {
+		if o.Label == label {
+			return true
+		}
+	}
+	return false
+}
+
+func facetFieldDefault(tpl *template.Template, facetKey string) string {
+	for _, f := range tpl.Fields {
+		if f.Type == "facet" && f.FacetKey == facetKey {
+			if def, ok := f.Default.(string); ok {
+				return def
+			}
+		}
+	}
+	return ""
+}
+
 // resolveFacets returns the per-form facets from opts, then new-shape meta, then legacy flagged/flag_state
 // migrated into a single "flag" entry; nil when nothing has state.
 func resolveFacets(optsFacets map[string]FacetState, rawMeta, injected map[string]any) map[string]FacetState {

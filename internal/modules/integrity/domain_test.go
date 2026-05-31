@@ -48,6 +48,42 @@ func (s *stubStorage) LoadForm(tpl, fn string) *storage.Form {
 	return s.forms[tpl][fn]
 }
 
+// A facet bound to a virtual field with no default cannot be auto-filled, so
+// Analyze surfaces it once at the template level. A bound field WITH a default,
+// and a facet with no virtual field at all, are both fine and stay silent.
+func TestAnalyzeTemplate_FlagsVirtualFacetFieldWithoutDefault(t *testing.T) {
+	tpl := &template.Template{
+		Name: "fc", Filename: "fc.yaml",
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "scope", Type: "facet", FacetKey: "scope"},                    // bound, no default -> flag
+			{Key: "status", Type: "facet", FacetKey: "status", Default: "open"}, // bound, has default -> silent
+		},
+		Facets: []template.Facet{
+			{Key: "scope", Options: []template.FacetOption{{Label: "EXTERN"}, {Label: "INTERN"}}},
+			{Key: "status", Options: []template.FacetOption{{Label: "open"}, {Label: "closed"}}},
+			{Key: "unbound", Options: []template.FacetOption{{Label: "x"}}}, // no virtual field -> silent (expected)
+		},
+	}
+	m := newM(t, tpl, map[string]*storage.Form{})
+
+	r, err := m.AnalyzeTemplate("fc.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.TemplateIssues) != 1 {
+		t.Fatalf("template issues = %+v, want exactly 1 (only scope has no default)", r.TemplateIssues)
+	}
+	if got := r.TemplateIssues[0]; got.Kind != IssueFacetNoDefault || got.Path != "facets.scope" {
+		t.Errorf("issue = %+v, want kind=%s path=facets.scope", got, IssueFacetNoDefault)
+	}
+	// Template hints are informational, not form-data drift, so the form
+	// IssueCount stays 0 and a clean-forms template is not reported dirty.
+	if r.IssueCount != 0 {
+		t.Errorf("form IssueCount = %d, want 0 (template hints are separate)", r.IssueCount)
+	}
+}
+
 // ─── fixtures ─────────────────────────────────────────────────────────
 
 func newM(t *testing.T, tpl *template.Template, forms map[string]*storage.Form) *Manager {

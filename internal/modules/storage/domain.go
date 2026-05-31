@@ -175,8 +175,14 @@ func (m *Manager) LoadFormRaw(templateFilename, datafile string) *Form {
 		return nil
 	}
 	data, meta := splitEnvelope(rawMap)
+	fm := FormMeta{ID: stringOrEmpty(meta["id"])}
+	// Carry the on-disk facets verbatim (no seeding), so the integrity doctor
+	// can see a facet a form is actually missing instead of the seeded default.
+	if f, ok := facetsFromAny(meta["facets"]); ok {
+		fm.Facets = f
+	}
 	return &Form{
-		Meta: FormMeta{ID: stringOrEmpty(meta["id"])},
+		Meta: fm,
 		Data: data,
 	}
 }
@@ -213,6 +219,12 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 	}
 
 	envelope := Sanitize(data, fields, opts)
+	// On save the meta facets sync to the template: an undeclared facet key is
+	// dropped, and a selection that is no longer an option falls back to the
+	// field default or empties (Set stays). The doctor backstops any leftover.
+	if tpl, err := m.templates.LoadTemplate(templateFilename); err == nil && tpl != nil {
+		syncFormFacets(envelope.Meta.Facets, tpl)
+	}
 	ordered := orderedForm{Meta: envelope.Meta, Data: orderData(envelope.Data, fields)}
 	r := m.sfr.SaveFromBase(dir, datafile, ordered, sfr.Options{})
 	if r.Success && m.indexer != nil {

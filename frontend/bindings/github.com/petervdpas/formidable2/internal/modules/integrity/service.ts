@@ -25,6 +25,7 @@ export function Analyze(templateFilename: string): $CancellablePromise<$models.R
 
 /**
  * Fix applies plan to the template's forms and returns the per-form outcome bundle.
+ * When it actually writes forms it emits storage:changed so the frontend reloads them.
  */
 export function Fix(templateFilename: string, plan: $models.FixPlan): $CancellablePromise<$models.FixResult> {
     return $Call.ByID(2890207176, templateFilename, plan).then(($result: any) => {

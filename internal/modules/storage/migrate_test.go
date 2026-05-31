@@ -84,6 +84,118 @@ func TestMigrateTemplateMeta_RewritesLegacyFlatFile(t *testing.T) {
 	}
 }
 
+// A form whose author/timestamps are already new-shape but whose meta still
+// carries the legacy flagged/flag_state pair must migrate: facets live in meta,
+// so a meta migrator that ignores them leaves legacy facet keys on disk.
+func TestMigrateTemplateMeta_RewritesLegacyFacetFlag(t *testing.T) {
+	m, _, tplM, root := newTestStack(t)
+	m.SetAuthorProvider(func() (string, string) { return "Should Not Appear", "wrong@x.com" })
+
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+
+	// New-shape audit blocks (objects), so the author/timestamp triggers do not
+	// fire; the only legacy marker is the flagged/flag_state facet pair.
+	legacy := `{
+  "meta": {
+    "id": "flag-1",
+    "template": "basic",
+    "created": {"at": "2026-05-01T00:00:00Z", "name": "Peter", "email": "peter@example.com"},
+    "updated": {"at": "2026-05-02T00:00:00Z", "name": "Peter", "email": "peter@example.com"},
+    "flagged": true,
+    "flag_state": "INTERN"
+  },
+  "data": {"title": "x"}
+}`
+	path := filepath.Join(root, "storage", "basic", "flag-1.meta.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(legacy), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	res, err := m.MigrateTemplateMeta("basic.yaml")
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if res.Migrated != 1 || res.Skipped != 0 {
+		t.Errorf("legacy facet flag should migrate, got %+v", res)
+	}
+
+	// Legacy keys gone from disk, replaced by a facets entry.
+	raw, _ := os.ReadFile(path)
+	js := string(raw)
+	for _, banned := range []string{`"flag_state"`, `"flagged"`} {
+		if strings.Contains(js, banned) {
+			t.Errorf("disk still has legacy facet key %s: %s", banned, js)
+		}
+	}
+	if !strings.Contains(js, `"facets"`) {
+		t.Errorf("disk should carry a facets entry after migration: %s", js)
+	}
+
+	// Identity preserved (structural migration, not restamped) and the legacy
+	// pair materialized into the synthetic "flag" facet.
+	f := m.LoadForm("basic.yaml", "flag-1")
+	if f == nil {
+		t.Fatal("load nil")
+	}
+	if f.Meta.Updated.Name != "Peter" || f.Meta.Updated.At != "2026-05-02T00:00:00Z" {
+		t.Errorf("identity restamped: %+v", f.Meta.Updated)
+	}
+	if st, ok := f.Meta.Facets["flag"]; !ok || st.Selected != "INTERN" {
+		t.Errorf("migrated facet = %+v (ok=%v), want flag/INTERN", f.Meta.Facets, ok)
+	}
+}
+
+// A form with fully-current meta but no facets block, under a template whose
+// facet field declares a default, must migrate: the seeded default is persisted
+// to disk instead of living only in memory on each load.
+func TestMigrateTemplateMeta_SeedsMissingFacetDefaultOntoDisk(t *testing.T) {
+	m, sys, tplM, root := newTestStack(t)
+	if err := tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml", ItemField: "title",
+		Facets: []template.Facet{{Key: "status", Icon: "fa-flag",
+			Options: []template.FacetOption{{Label: "OPEN", Color: "blue"}}}},
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "status_inline", Type: "facet", FacetKey: "status", Format: "radio", Default: "OPEN"},
+		},
+	}); err != nil {
+		t.Fatalf("save template: %v", err)
+	}
+
+	// Current-shape audit blocks, no legacy markers, no facets block.
+	form := `{"meta":{"id":"f1","template":"basic",` +
+		`"created":{"at":"2026-05-01T00:00:00Z","name":"P","email":"p@x"},` +
+		`"updated":{"at":"2026-05-01T00:00:00Z","name":"P","email":"p@x"}},` +
+		`"data":{"title":"Hi"}}`
+	_ = sys.SaveFile("storage/basic/f1.meta.json", form)
+
+	res, err := m.MigrateTemplateMeta("basic.yaml")
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if res.Migrated != 1 || res.Skipped != 0 {
+		t.Errorf("defaulted facet must seed onto disk, got %+v", res)
+	}
+
+	raw, _ := os.ReadFile(filepath.Join(root, "storage", "basic", "f1.meta.json"))
+	var top map[string]any
+	if err := json.Unmarshal(raw, &top); err != nil {
+		t.Fatalf("reparse: %v", err)
+	}
+	meta, _ := top["meta"].(map[string]any)
+	facets, _ := meta["facets"].(map[string]any)
+	st, _ := facets["status"].(map[string]any)
+	if st == nil || st["selected"] != "OPEN" || st["set"] != true {
+		t.Errorf("disk facets[status] = %+v, want {set:true, selected:OPEN}", st)
+	}
+}
+
 func TestMigrateTemplateMeta_SkipsAlreadyNewShape(t *testing.T) {
 	m, _, tplM, root := newTestStack(t)
 	m.SetAuthorProvider(func() (string, string) { return "Bob", "bob@b.com" })
