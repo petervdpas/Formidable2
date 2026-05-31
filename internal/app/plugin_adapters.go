@@ -17,10 +17,8 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/wiki"
 )
 
-// pluginLocaleAdapter wires plugin.LocaleProvider to the config
-// manager so Manager.Run sources `formidable.i18n.t()` lookups from
-// the active profile's `language`. Read goes through the manager's
-// in-memory cache so per-Run cost is a map read, not disk I/O.
+// pluginLocaleAdapter sources `formidable.i18n.t()` lookups from the active
+// profile's `language`. Reads hit the config manager's in-memory cache.
 type pluginLocaleAdapter struct {
 	cfg *config.Manager
 }
@@ -36,15 +34,12 @@ func (a pluginLocaleAdapter) ActiveLocale() string {
 	return cfg.Language
 }
 
-// Adapters between the plugin module's access interfaces and the
-// existing manager surface. Each adapter is a thin shim - no
-// caching or transformation beyond marshalling typed values into
-// the JSON-shaped maps the Lua bridge expects.
+// Adapters between the plugin module's access interfaces and the existing
+// manager surface. Each is a thin shim that marshals typed values into the
+// JSON-shaped maps the Lua bridge expects.
 
-// toJSONMap converts any JSON-marshalable Go value into a
-// map[string]any, the shape plugin's lvalue.go round-trips
-// through. Used so plugin-side code sees the same JSON shape Vue
-// receives - no parallel type vocabulary to maintain.
+// toJSONMap renders any JSON-marshalable value as the map shape plugin's
+// lvalue.go round-trips, so plugin code sees the same JSON shape Vue receives.
 func toJSONMap(v any) (map[string]any, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {
@@ -57,10 +52,8 @@ func toJSONMap(v any) (map[string]any, error) {
 	return out, nil
 }
 
-// pluginTemplateAdapter implements plugin.TemplateAccess by
-// composing dataprovider (for fast index-backed listing) with
-// the template manager (for full-fat reads, including fields and
-// markdown_template that the plugin may need for code-gen).
+// pluginTemplateAdapter composes dataprovider (fast index-backed listing) with
+// the template manager (full reads, including fields and markdown_template).
 type pluginTemplateAdapter struct {
 	dp  *dataprovider.Manager
 	tpl *template.Manager
@@ -88,10 +81,8 @@ func (a pluginTemplateAdapter) GetTemplate(filename string) (map[string]any, err
 	return toJSONMap(t)
 }
 
-// pluginCollectionAdapter wraps dataprovider.ListForms to give
-// plugins "all forms of a template" without paginating. Plugin
-// scripts that iterate every form (the wiki-export use case) want
-// the full set in one call.
+// pluginCollectionAdapter returns all forms of a template in one call (no
+// pagination), for plugin scripts that iterate every form (wiki-export).
 type pluginCollectionAdapter struct {
 	dp *dataprovider.Manager
 }
@@ -110,10 +101,8 @@ func (a pluginCollectionAdapter) ListCollection(templateFilename string) ([]map[
 	return out, nil
 }
 
-// pluginFormAdapter routes load/save through the storage manager.
-// SaveForm goes through the same atomic-write path the Wails
-// Storage service uses, so plugin writes get the same durability
-// guarantees as user writes.
+// pluginFormAdapter routes load/save through the storage manager, so plugin
+// writes use the same atomic-write path (and durability) as user writes.
 type pluginFormAdapter struct {
 	sto *storage.Manager
 }
@@ -123,9 +112,7 @@ func (a pluginFormAdapter) LoadForm(templateFilename, datafile string) (map[stri
 	if f == nil {
 		return nil, fmt.Errorf("form not found: %s/%s", templateFilename, datafile)
 	}
-	// Plugins receive the inner data only - meta is reserved (the
-	// storage manager owns identity and timestamps and rewrites
-	// them on every save).
+	// Inner data only: storage owns meta (identity, timestamps) and rewrites it on every save.
 	if f.Data == nil {
 		return map[string]any{}, nil
 	}
@@ -140,10 +127,8 @@ func (a pluginFormAdapter) SaveForm(ctx context.Context, templateFilename, dataf
 	return nil
 }
 
-// pluginRenderAdapter exposes the slideout render manager (the
-// same one feeding the Storage workspace preview). Plugins
-// rendering markdown for export-to-wiki get the same output the
-// preview shows.
+// pluginRenderAdapter exposes the slideout render manager, so export-to-wiki
+// plugins render the same markdown the Storage workspace preview shows.
 type pluginRenderAdapter struct {
 	rdr *render.Manager
 }
@@ -160,10 +145,9 @@ func (a pluginRenderAdapter) RenderHTML(templateFilename, datafile string) (stri
 	return a.rdr.RenderHTMLOnly(md)
 }
 
-// pluginStorageAdapter exposes storage image bytes to Lua plugins
-// that export to disk (wikiwonder copies referenced images alongside
-// the generated markdown). Missing files come back as (nil, nil) so
-// the plugin can skip silently rather than branch on errors.
+// pluginStorageAdapter exposes storage image bytes to disk-exporting plugins
+// (wikiwonder copies referenced images alongside the generated markdown).
+// Missing files return (nil, nil) so the plugin can skip silently.
 type pluginStorageAdapter struct {
 	sto *storage.Manager
 }
@@ -173,10 +157,8 @@ func (a pluginStorageAdapter) ImageBytes(templateFilename, name string) ([]byte,
 	return b, err
 }
 
-// pluginFMAdapter exposes the render module's frontmatter helpers
-// to Lua. Stateless - the underlying functions are pure - so the
-// adapter holds no fields. Lives here (not in render's service) so
-// the plugin module stays the sole front door for "what Lua can do."
+// pluginFMAdapter exposes render's pure frontmatter helpers to Lua. Lives here
+// (not in render's service) so plugin stays the sole front door for Lua.
 type pluginFMAdapter struct{}
 
 func (pluginFMAdapter) Parse(markdown string) (map[string]any, string, error) {
@@ -187,12 +169,9 @@ func (pluginFMAdapter) Build(data map[string]any, body string) string {
 	return render.BuildFrontmatter(data, body)
 }
 
-// pluginStatsAdapter bridges the stat manager into Lua's
-// formidable.stats.* and formidable.facets.* namespaces. Each chart-
-// neutral Result is marshalled to the same JSON-shaped map Vue
-// receives, so plugin authors and the frontend share one vocabulary.
-// One adapter satisfies both plugin.StatsAccess and
-// plugin.FacetStatsAccess since they read the same manager.
+// pluginStatsAdapter bridges the stat manager into Lua's formidable.stats.* and
+// formidable.facets.* namespaces. One adapter satisfies both plugin.StatsAccess
+// and plugin.FacetStatsAccess since they read the same manager.
 type pluginStatsAdapter struct {
 	st *stat.Manager
 }
@@ -221,9 +200,8 @@ func (a pluginStatsAdapter) TotalForms(template string) (int, error) {
 	return a.st.TotalForms(template)
 }
 
-// statTemplateSource resolves a template's named statistical object to
-// its stored DSL string, implementing stat.StatisticSource over the
-// template manager. Used by Stat.EvaluateObject (Wails + Lua).
+// statTemplateSource resolves a template's named statistical object to its
+// stored DSL, implementing stat.StatisticSource. Used by Stat.EvaluateObject.
 type statTemplateSource struct {
 	tpl *template.Manager
 }
@@ -259,9 +237,8 @@ func (s statTemplateSource) ListStatistics(tplFile string) ([]stat.StatObject, e
 	return out, nil
 }
 
-// toStatComposite maps a template's stored composite spec onto the stat
-// package's CompositeSpec, keeping the template package free of a stat
-// dependency. nil (a plain DSL object) maps to nil.
+// toStatComposite maps a template's stored composite spec onto stat.CompositeSpec,
+// keeping the template package free of a stat dependency. nil maps to nil.
 func toStatComposite(c *template.StatComposite) *stat.CompositeSpec {
 	if c == nil {
 		return nil
@@ -273,9 +250,8 @@ func toStatComposite(c *template.StatComposite) *stat.CompositeSpec {
 	return &stat.CompositeSpec{Parent: c.Parent, Edges: edges}
 }
 
-// toStatScaling maps a template's stored scaling spec onto the stat package's
-// Scaling, keeping the template package free of a stat dependency. nil maps to
-// nil.
+// toStatScaling maps a template's stored scaling spec onto stat.Scaling,
+// keeping the template package free of a stat dependency. nil maps to nil.
 func toStatScaling(sc *template.StatScaling) *stat.Scaling {
 	if sc == nil {
 		return nil
@@ -295,10 +271,9 @@ func toStatScaling(sc *template.StatScaling) *stat.Scaling {
 	}
 }
 
-// statSourceOptions gives the stat engine a facet dimension's full,
-// ordered option labels, so a statistic shows every defined option
-// (including zero-count ones) instead of only the values present in the
-// data. Open-ended / non-facet sources return ok=false (present-values).
+// statSourceOptions gives the stat engine a dimension's full ordered option
+// labels, so a statistic shows every defined option (including zero-count ones)
+// instead of only values present in the data. Open-ended sources return ok=false.
 type statSourceOptions struct {
 	tpl *template.Manager
 }
@@ -311,14 +286,12 @@ func (s statSourceOptions) DimensionLabels(tplFile string, src stat.SourceRef) (
 	return dimensionOptionLabels(t, src)
 }
 
-// dimensionOptionLabels returns the full ordered category set for a
-// dimension source whose categories are fixed by definition. Each option
-// carries the stored Value (the group-by key) and the display Label: a
-// facet stores its label as the value (Value==Label); a choice field
-// stores the option value and displays its caption (dropdown / radio /
-// multioption / boolean). Open-ended sources - dates, numbers, free text,
-// and (for now) table columns - return ok=false so the engine falls back
-// to the values present in the data.
+// dimensionOptionLabels returns the full ordered category set for a dimension
+// whose categories are fixed by definition. Each option carries the stored
+// Value (group-by key) and display Label: a facet has Value==Label; a choice
+// field stores the option value and displays its caption. Open-ended sources
+// (dates, numbers, free text, table columns) return ok=false so the engine
+// falls back to the values present in the data.
 func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]stat.CategoryOption, bool) {
 	if src.Kind == stat.SourceFacet {
 		for _, f := range t.Facets {
@@ -333,9 +306,8 @@ func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]stat.Cat
 		return nil, false
 	}
 	if src.Column != "" {
-		// Table column: a dropdown/radio column carries its categories in
-		// the column option's pipe-delimited `choices` string. Other column
-		// types have no fixed set.
+		// Dropdown/radio columns carry categories in the option's pipe-delimited
+		// `choices` string; other column types have no fixed set.
 		for _, fld := range t.Fields {
 			if fld.Key != src.Key {
 				continue
@@ -366,8 +338,7 @@ func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]stat.Cat
 		case "boolean":
 			opts := choiceOptions(fld.Options)
 			if len(opts) == 0 {
-				// Booleans index as "true"/"false"; show both even with no
-				// custom option labels.
+				// Booleans index as "true"/"false"; show both even without custom labels.
 				opts = []stat.CategoryOption{{Value: "true", Label: "true"}, {Value: "false", Label: "false"}}
 			}
 			return opts, true
@@ -377,8 +348,8 @@ func dimensionOptionLabels(t *template.Template, src stat.SourceRef) ([]stat.Cat
 	return nil, false
 }
 
-// tableColumnOption finds a table field's column definition by its value
-// key, or nil. Each column is a {value, type, label, choices} map.
+// tableColumnOption finds a table field's column definition by value key, or
+// nil. Each column is a {value, type, label, choices} map.
 func tableColumnOption(options []any, columnKey string) map[string]any {
 	for _, o := range options {
 		if m, ok := o.(map[string]any); ok {
@@ -395,9 +366,8 @@ func asString(v any) string {
 	return s
 }
 
-// parseColumnChoices parses a table dropdown column's `choices` string -
-// pipe-delimited "value:label" pairs (whitespace tolerant, e.g.
-// "via:Indirect | direct:Direct"). A pair with no colon is its own label.
+// parseColumnChoices parses a dropdown column's `choices` string: pipe-delimited
+// "value:label" pairs (whitespace tolerant). A pair with no colon is its own label.
 func parseColumnChoices(s string) []stat.CategoryOption {
 	out := make([]stat.CategoryOption, 0)
 	for _, part := range strings.Split(s, "|") {
@@ -419,10 +389,9 @@ func parseColumnChoices(s string) []stat.CategoryOption {
 	return out
 }
 
-// choiceOptions maps a choice field's options to value/label pairs. String
-// options are their own value+label; {value,label} maps use value as the
-// group-by key (what pickValues stores) and label for display, defaulting
-// the label to the value when blank. Blank values are skipped.
+// choiceOptions maps a choice field's options to value/label pairs. A {value,
+// label} map uses value as the group-by key (what pickValues stores); label
+// defaults to value when blank. Blank values are skipped.
 func choiceOptions(options []any) []stat.CategoryOption {
 	out := make([]stat.CategoryOption, 0, len(options))
 	for _, o := range options {
@@ -446,10 +415,9 @@ func choiceOptions(options []any) []stat.CategoryOption {
 	return out
 }
 
-// statColumnResolver maps a table field's column value-key to its
-// positional index in form_values.col (the order of the field's options),
-// implementing stat.ColumnResolver so a table-column DSL source can be
-// turned into the indexed column.
+// statColumnResolver maps a table column value-key to its positional index in
+// form_values.col (the order of the field's options), implementing
+// stat.ColumnResolver so a table-column DSL source resolves to its column.
 type statColumnResolver struct {
 	tpl *template.Manager
 }
@@ -462,9 +430,9 @@ func (s statColumnResolver) ColumnIndex(tplFile, fieldKey, columnKey string) (in
 	return columnIndexIn(t, fieldKey, columnKey)
 }
 
-// columnIndexIn finds a table field's column position by its option value
-// key. The position matches what pickValues stores in form_values.col
-// (cells are indexed by their position in the field's options).
+// columnIndexIn finds a table column's position by its option value key. The
+// position matches what pickValues stores in form_values.col (cells are indexed
+// by their position in the field's options).
 func columnIndexIn(t *template.Template, fieldKey, columnKey string) (int, bool) {
 	for _, f := range t.Fields {
 		if f.Key != fieldKey {
@@ -483,8 +451,7 @@ func columnIndexIn(t *template.Template, fieldKey, columnKey string) (int, bool)
 }
 
 // pluginStatObjectAdapter bridges Stat.EvaluateObject into the Lua
-// formidable.statistical(tpl, name) surface, flattening the Grid to the
-// JSON-shaped map the Lua bridge round-trips.
+// formidable.statistical(tpl, name) surface, flattening the Grid to a JSON map.
 type pluginStatObjectAdapter struct {
 	svc *stat.Service
 }
@@ -523,8 +490,8 @@ func (a pluginStatObjectAdapter) EvaluateComposite(template, name string) (map[s
 	return toJSONMap(cg)
 }
 
-// statGridMap collapses a (*Grid, error) pair into the JSON map the Lua
-// bridge expects, short-circuiting on error.
+// statGridMap collapses a (*Grid, error) pair into the JSON map the Lua bridge
+// expects, short-circuiting on error.
 func statGridMap(g *stat.Grid, err error) (map[string]any, error) {
 	if err != nil {
 		return nil, err
@@ -532,11 +499,9 @@ func statGridMap(g *stat.Grid, err error) (map[string]any, error) {
 	return toJSONMap(g)
 }
 
-// pluginHTTPAdapter wires plugin.HTTPClient to the running wiki
-// HTTP server. IsAvailable mirrors wiki.Status().Running; Fetch
-// proxies via system.ProxyFetchRemote against the loopback URL on
-// the wiki server's actual port. The plugin module stays unaware
-// of either dependency - both are composed here.
+// pluginHTTPAdapter wires plugin.HTTPClient to the running wiki HTTP server:
+// IsAvailable mirrors wiki.Status().Running; Fetch proxies via
+// system.ProxyFetchRemote against the loopback URL on the wiki's actual port.
 type pluginHTTPAdapter struct {
 	wiki *wiki.Manager
 	sys  *system.Manager

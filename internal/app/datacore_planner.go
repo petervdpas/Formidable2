@@ -8,17 +8,15 @@ import (
 )
 
 // datacoreIndexPlanner is the planner seam between datacore and the SQLite
-// index. Given a narrowing predicate it returns the datafile names that match,
-// so the tensor ingests only those forms instead of every one. This is the
-// "index narrows, datacore computes" split: the index does what an EAV store
-// is fast at (find/filter/FTS), the tensor does what it is fast at (compute).
+// index. Given a narrowing predicate it returns the matching datafile names so
+// the tensor ingests only those forms. This is the "index narrows, datacore
+// computes" split: the index is fast at find/filter/FTS, the tensor at compute.
 //
-// Each condition is pushed to its natural index path and the results are
-// intersected (the predicate is an AND): a full-text Search hits the FTS5
-// index, a Facet condition filters the indexed facet rows, a field Equals hits
-// form_values. A predicate that constrains nothing the index can answer
-// returns narrowed=false, so datacore falls back to a full build (correct,
-// just unaccelerated).
+// The predicate is an AND: each condition is pushed to its natural index path
+// (Search hits FTS5, Facet filters indexed facet rows, Equals hits form_values)
+// and results are intersected. A predicate the index can answer nothing about
+// returns narrowed=false, so datacore falls back to a full build (correct, just
+// unaccelerated).
 type datacoreIndexPlanner struct {
 	idx *index.Manager
 }
@@ -32,9 +30,9 @@ func (p *datacoreIndexPlanner) Plan(template string, pred datacore.Predicate) ([
 		return nil, false, nil
 	}
 
-	// set is nil until the first condition constrains it; after that it is the
-	// running intersection. A nil set at the end means no condition was
-	// pushable, so we decline rather than claim a (wrong) "everything".
+	// nil until the first condition constrains it, then the running
+	// intersection. nil at the end means nothing was pushable: decline rather
+	// than claim a (wrong) "everything".
 	var set map[string]bool
 	intersect := func(match []string) {
 		next := make(map[string]bool, len(match))

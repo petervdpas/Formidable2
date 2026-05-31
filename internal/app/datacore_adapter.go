@@ -10,12 +10,10 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// datacoreLoaderAdapter bridges the template + storage managers into the
-// datacore.Loader the tensor ingests from. It reads structured form data
-// directly (not the index), so any field is reachable and table rows keep
-// their identity. Lives in the composition root for the same reason as the
-// query and index adapters: datacore owns no opinion about storage, and
-// storage owns none about the tensor.
+// datacoreLoaderAdapter bridges template + storage into datacore.Loader.
+// Reads structured form data directly (not the index), so any field is
+// reachable and table rows keep their identity. Lives in the composition
+// root: datacore owns no opinion about storage, storage none about the tensor.
 type datacoreLoaderAdapter struct {
 	tpl          *template.Manager
 	sto          *storage.Manager
@@ -32,9 +30,6 @@ var datacoreSkipTypes = map[string]bool{
 	"image": true, "api": true, "button": true, "facet": true, "heading": true,
 }
 
-// Records loads every form of the template and shapes it into a datacore
-// Record. A malformed/missing form (LoadForm returns nil) is skipped rather
-// than failing the whole build, matching the query and index tolerance.
 func (a *datacoreLoaderAdapter) Records() ([]datacore.Record, error) {
 	files, err := a.sto.ListForms(a.templateFile)
 	if err != nil {
@@ -43,16 +38,14 @@ func (a *datacoreLoaderAdapter) Records() ([]datacore.Record, error) {
 	return a.load(files)
 }
 
-// LoadSubset materializes only the named forms, satisfying datacore's
-// SubsetLoader so the planner seam can ingest just the index-narrowed records
-// instead of every form. Missing ids are skipped, matching Records tolerance.
+// LoadSubset materializes only the named forms (datacore.SubsetLoader) so the
+// planner seam can ingest just the index-narrowed records instead of every form.
 func (a *datacoreLoaderAdapter) LoadSubset(ids []string) ([]datacore.Record, error) {
 	return a.load(ids)
 }
 
 // load shapes the named forms into Records, loading the template once and
-// skipping any form that fails to read (same tolerance as the query and index
-// adapters).
+// skipping any form that fails to read (same tolerance as query and index).
 func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) {
 	tpl, err := a.tpl.LoadTemplate(a.templateFile)
 	if err != nil {
@@ -72,9 +65,8 @@ func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) 
 // datacoreRecord shapes one live form into a Record. Scalars become fields;
 // tables and multi-valued fields (list/tags/multioption) become row-identity
 // tables (a multi-valued field is a one-column table whose column is "value");
-// set facets become context-keyed values. The identity is the filename, so the
-// studio (which works in filenames) can anchor the graph on the selected item;
-// the label is the template's item field, falling back to the filename.
+// set facets become context-keyed values. Identity is the filename so the
+// studio (which works in filenames) can anchor the graph on the selected item.
 func datacoreRecord(tpl *template.Template, file string, f *storage.Form) datacore.Record {
 	rec := datacore.Record{ID: file}
 	if tpl.ItemField != "" {
@@ -108,11 +100,11 @@ func datacoreRecord(tpl *template.Template, file string, f *storage.Form) dataco
 		}
 	}
 
-	// A facet that is set but unselected carries no value: blank is absence,
-	// uniformly for fields and facets (the substrate ruling). So datacore does
-	// not manufacture the index's "(unset)" bucket; this is the intended
-	// divergence settled for the stat migration (design/datacore-stat-migration.md),
-	// pinned by TestStatAdapter_FacetUnsetBucketDiverges.
+	// Set-but-unselected facet carries no value: blank is absence, uniformly
+	// for fields and facets (substrate ruling). Datacore does not manufacture
+	// the index's "(unset)" bucket; intended divergence settled for the stat
+	// migration (design/datacore-stat-migration.md), pinned by
+	// TestStatAdapter_FacetUnsetBucketDiverges.
 	for k, st := range f.Meta.Facets {
 		if st.Set && st.Selected != "" {
 			if rec.Facets == nil {
@@ -143,9 +135,8 @@ func isMultiValued(t string) bool {
 }
 
 // dcTableRows maps each table row's positional cells onto their column keys
-// (the option `value` of each column), dropping blank cells. The second return
-// is a per-row label: the first non-empty column value, used to name the row
-// node in the graph.
+// (the option `value` of each column), dropping blank cells. Second return is
+// a per-row label (first non-empty column value) naming the row node.
 func dcTableRows(fld template.Field, v any) ([]map[string]string, []string) {
 	cols := make([]string, len(fld.Options))
 	for i, opt := range fld.Options {

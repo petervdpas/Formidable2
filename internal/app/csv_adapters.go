@@ -6,10 +6,8 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// csvFormsAdapter satisfies csv.formsSource - a tiny shim so the csv
-// module can list and read forms without importing the storage package
-// directly. Export() is the only caller; Preview/Write/transforms
-// don't touch this.
+// csvFormsAdapter satisfies csv.formsSource so the csv module lists and reads
+// forms without importing storage directly. Export() is the only caller.
 type csvFormsAdapter struct {
 	sto *storage.Manager
 }
@@ -18,10 +16,9 @@ func (a *csvFormsAdapter) ListForms(tpl string) ([]string, error) {
 	return a.sto.ListForms(tpl)
 }
 
-// LoadFormData returns the .data block of a stored form, or nil when
-// the file is missing or unreadable. The csv exporter treats nil as
-// "skip this entry" so transient read failures don't blow up the
-// whole job.
+// LoadFormData returns the .data block of a stored form, or nil when the file
+// is missing or unreadable. The exporter treats nil as "skip this entry" so a
+// transient read failure doesn't blow up the whole job.
 func (a *csvFormsAdapter) LoadFormData(tpl, datafile string) map[string]any {
 	f := a.sto.LoadForm(tpl, datafile)
 	if f == nil {
@@ -30,10 +27,9 @@ func (a *csvFormsAdapter) LoadFormData(tpl, datafile string) map[string]any {
 	return f.Data
 }
 
-// csvTemplateAdapter satisfies csv.templateSource - it loads a template
-// and projects its fields into the csv module's FieldSpec shape so the
-// exporter owns excluded types, alignability, and the dotted-key contract
-// without importing the template package's full Field type.
+// csvTemplateAdapter satisfies csv.templateSource: loads a template and projects
+// its fields into FieldSpec so the exporter owns excluded types, alignability,
+// and the dotted-key contract without importing template's full Field type.
 type csvTemplateAdapter struct {
 	tpl *template.Manager
 }

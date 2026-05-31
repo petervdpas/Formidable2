@@ -7,11 +7,10 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 )
 
-// integrityStorageAdapter implements integrity.StorageWriter by
-// delegating to storage.Manager.SaveFormExact, which bypasses the
-// "preserve prev meta" merge in the everyday SaveForm path. The Fix
-// pipeline owns the meta block on writes (mint UUID, re-stamp
-// timestamps) so the exact-write variant is what we want.
+// integrityStorageAdapter implements integrity.StorageWriter via
+// storage.Manager.SaveFormExact, which bypasses the "preserve prev meta"
+// merge in the everyday SaveForm path. The Fix pipeline owns the meta block
+// on writes (mint UUID, re-stamp timestamps), so exact-write is correct.
 type integrityStorageAdapter struct {
 	sto *storage.Manager
 }

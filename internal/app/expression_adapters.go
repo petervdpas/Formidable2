@@ -6,21 +6,16 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// expressionTemplateAdapter satisfies expression.TemplateProvider so
-// the engine module never needs to import template directly. Returns
-// the sidebar expression and the list of expression-flagged field
-// keys - that field list backs the engine's narrowContext defence.
+// expressionTemplateAdapter satisfies expression.TemplateProvider so the engine
+// never imports template directly. The expression-flagged field list backs the
+// engine's narrowContext defence.
 type expressionTemplateAdapter struct {
 	tpl *template.Manager
 }
 
-// LookupExpression reads the template's sidebar_expression and the
-// list of expression-flagged fields with their option metadata.
-// The option map (value→label) backs the engine's per-record O[]
-// resolution. Empty expression maps to ErrNoExpression at the
-// engine layer; the adapter returns ("", nil, nil) on no-config so
-// the contract stays explicit (no error means "loaded fine, but
-// configured empty").
+// LookupExpression reads sidebar_expression plus the expression-flagged fields
+// with their option metadata. On no-config returns ("", nil, nil): no error
+// means "loaded fine, configured empty"; the engine maps empty to ErrNoExpression.
 func (a expressionTemplateAdapter) LookupExpression(name string) (string, []expression.ExpressionField, error) {
 	t, err := a.tpl.LoadTemplate(name)
 	if err != nil {
@@ -39,12 +34,10 @@ func (a expressionTemplateAdapter) LookupExpression(name string) (string, []expr
 	return t.SidebarExpression, fields, nil
 }
 
-// optionLabelMap normalises a template.Field's `Options []any` into
-// a value→label map for the O[] resolver. Mirrors the option-pair
-// convention used by render/api: string entries become {v:s, l:s};
-// map entries read "value" + "label" with label falling back to
-// value. Anything else stringifies. Non-option-bearing fields
-// produce an empty (nil-safe) map.
+// optionLabelMap normalises a template.Field's `Options []any` into a
+// value-to-label map for the O[] resolver. Mirrors the render/api option-pair
+// convention: string entries become {v:s, l:s}; map entries read "value" +
+// "label" with label falling back to value. Non-option fields produce nil.
 func optionLabelMap(opts []any) map[string]string {
 	if len(opts) == 0 {
 		return nil
@@ -69,10 +62,9 @@ func optionLabelMap(opts []any) map[string]string {
 	return out
 }
 
-// expressionStorageAdapter satisfies expression.StorageProvider by
-// mapping FormSummary → expression.Record. Storage already harvests
-// ExpressionItems on the list path; the adapter just renames the
-// field and drops Meta (the engine doesn't need it).
+// expressionStorageAdapter satisfies expression.StorageProvider by mapping
+// FormSummary to expression.Record. Storage already harvests ExpressionItems on
+// the list path; the adapter renames the field and drops Meta.
 type expressionStorageAdapter struct {
 	sto *storage.Manager
 }
@@ -94,7 +86,7 @@ func (a expressionStorageAdapter) ListForExpression(templateName string) ([]expr
 }
 
 // LookupForExpression is the per-record analogue used by
-// Manager.EvaluateListOne. Missing file → empty Record (matches
+// Manager.EvaluateListOne. Missing file yields an empty Record (matches
 // storage.ExtendedLoadForm's nil-on-missing posture).
 func (a expressionStorageAdapter) LookupForExpression(templateName, datafile string) (expression.Record, error) {
 	s, err := a.sto.ExtendedLoadForm(templateName, datafile)

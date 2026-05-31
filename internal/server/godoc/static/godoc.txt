@@ -1,30 +1,23 @@
 package app // import "github.com/petervdpas/formidable2/internal/app"
 
-Package app is Formidable's composition root.
-
-It constructs every domain module with its dependencies, exposes the Wails
-service list to main.go, and (later) registers the loopback HTTP routes for the
-modules that opt into them.
+Package app is Formidable's composition root. It constructs every domain module,
+exposes the Wails service list to main.go, and registers the loopback HTTP
+routes for modules that opt in.
 
 FUNCTIONS
 
 func APIAssetMiddleware(api http.Handler) func(next http.Handler) http.Handler
-    APIAssetMiddleware returns a Wails AssetServer middleware that delegates
-    `/api/*` requests to the supplied api handler and lets every other path fall
-    through to the default asset chain (the embedded Vue dist).
+    APIAssetMiddleware delegates `/api/*` to the api handler; other paths fall
+    through to the embedded Vue dist.
 
-    Why: the slideout's <img src="/api/images/<tpl>/<file>"> needs to be
-    fulfilled by the api handler regardless of whether the user has the optional
-    internal HTTP server (wiki/api over loopback) running. The asset server is
-    always up because the webview itself depends on it, so this middleware gives
-    us a consistent transport for the same route shape.
+    Why: the slideout's <img src="/api/images/<tpl>/<file>"> must resolve
+    whether or not the optional internal HTTP server is running. The asset
+    server is always up (the webview depends on it), so this gives the same
+    route shape a consistent transport.
 
-    `api` is allowed to be nil - defensive against composition-root reordering -
-    in which case the middleware is a pure pass-through.
-
-    The signature matches Wails' assetserver.Middleware type
-    (func(next http.Handler) http.Handler) so it can plug straight into
-    application.AssetOptions.Middleware without an adapter.
+    api may be nil (defensive against composition-root reordering):
+    then the middleware is a pure pass-through. The signature matches Wails'
+    assetserver.Middleware so it plugs into AssetOptions.Middleware directly.
 
 
 TYPES
@@ -69,31 +62,27 @@ type App struct {
 func New(d Deps) (*App, error)
 
 func (a *App) APIHandler() http.Handler
-    APIHandler returns the in-process api handler. main.go feeds this into the
-    Wails AssetServer middleware so /api/* requests from the in-app webview (the
-    slideout's <img src="/api/images/…">, the form view's API field lookups)
-    reach the api handler even when the optional wiki/api HTTP server is OFF.
+    APIHandler returns the in-process api handler. main.go feeds it into the
+    Wails AssetServer middleware so in-webview /api/* requests reach the handler
+    even when the optional HTTP server is OFF.
 
-    This is the in-process variant: identity stamping is wired but the
-    network-only defenses (LoopbackOnly, RequireOrigin) are NOT. Asset requests
-    originate inside the Wails webview itself - RemoteAddr is empty and there is
-    no cross-origin browser tab, so the network guards would only ever produce
-    false positives here. The loopback HTTP server uses the fully-wrapped
-    variant separately.
+    In-process variant: identity stamping is wired but the network-only defenses
+    (LoopbackOnly, RequireOrigin) are NOT, because asset requests originate
+    inside the webview itself (empty RemoteAddr, no cross-origin tab) where
+    those guards would only false-positive. The loopback server uses the
+    fully-wrapped variant.
 
 func (a *App) Logger() *slog.Logger
 
 func (a *App) SetEmit(fn EmitFunc)
-    SetEmit installs the transport that journal events (and the log broadcaster)
-    flow through. main.go calls this after building the Wails application;
-    once installed, every slog record also reaches the frontend as a "log:entry"
-    event.
+    SetEmit installs the transport journal events and the log broadcaster flow
+    through. main.go calls this after building the Wails app; once installed,
+    every slog record also reaches the frontend as a "log:entry" event.
 
 func (a *App) SetWindowOpener(fn func(url string) error)
-    SetWindowOpener installs the Wails-aware function used by
-    Wiki.OpenInternalWiki to spawn an in-app webview window. main.go calls this
-    after the Wails application is built (the application pointer doesn't exist
-    when New() runs). Pass nil to disable.
+    SetWindowOpener installs the Wails-aware function Wiki.OpenInternalWiki uses
+    to spawn an in-app webview window. main.go calls this after the Wails app is
+    built (the pointer doesn't exist when New runs). nil disables.
 
 func (a *App) WailsServices() []application.Service
     WailsServices returns the list of services to register on the application
@@ -106,9 +95,8 @@ type Deps struct {
 }
 
 type EmitFunc func(name string, data any)
-    EmitFunc bridges journal events to whatever transport the host app uses
-    (Wails, stdout, …). main.go installs the Wails-backed implementation via
-    App.SetEmit after the Wails app is built.
+    EmitFunc bridges journal events to the host transport. main.go installs the
+    Wails-backed implementation via App.SetEmit after the Wails app is built.
 
 
 

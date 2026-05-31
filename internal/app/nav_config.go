@@ -2,9 +2,8 @@ package app
 
 import "github.com/petervdpas/formidable2/internal/modules/config"
 
-// configWriter bridges *config.Manager → nav.configWriter without
-// dragging nav's types into config. UpdateUserConfig returns a *Config
-// that nav doesn't need; the adapter discards it.
+// configWriterAdapter bridges *config.Manager to nav.configWriter. nav
+// doesn't need the *Config that UpdateUserConfig returns; it's discarded.
 type configWriterAdapter struct {
 	cfg *config.Manager
 }

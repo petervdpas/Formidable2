@@ -6,12 +6,10 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// queryLoaderAdapter bridges the template + storage managers into the
-// narrow query.Loader the query module flattens from. Query reads the
-// structured form data directly (not the index), so any field is
-// queryable and table rows arrive already row-aligned. Lives in the
-// composition root for the same reason as the index adapter: query owns
-// no opinion about storage, and storage owns none about query.
+// queryLoaderAdapter bridges template + storage into the narrow query.Loader.
+// Query reads structured form data directly (not the index), so any field is
+// queryable and table rows arrive row-aligned. Lives in the composition root:
+// query owns no opinion about storage, storage none about query.
 type queryLoaderAdapter struct {
 	tpl *template.Manager
 	sto *storage.Manager
@@ -25,9 +23,8 @@ func (a *queryLoaderAdapter) Template(name string) (*template.Template, error) {
 	return a.tpl.LoadTemplate(name)
 }
 
-// Forms loads every form of the template as raw data + set facets. A
-// malformed/missing form (LoadForm returns nil) is skipped rather than
-// failing the whole query, matching the index reconcile's tolerance.
+// Forms loads every form as raw data + set facets. A malformed/missing form
+// (LoadForm returns nil) is skipped rather than failing the whole query.
 func (a *queryLoaderAdapter) Forms(name string) ([]query.FormData, error) {
 	files, err := a.sto.ListForms(name)
 	if err != nil {

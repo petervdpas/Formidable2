@@ -6,21 +6,15 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/config"
 )
 
-// defaultInternalServerPort mirrors the fallback used by wikiSvc when
-// the user's config has no explicit InternalServerPort. Kept in sync
-// here so the API origin allowlist is built against the same port the
-// wiki listener will actually bind on.
+// defaultInternalServerPort mirrors wikiSvc's fallback when config has no
+// explicit InternalServerPort, so the allowlist matches the listener's port.
 const defaultInternalServerPort = 8383
 
-// buildAPIOriginAllowlist returns the scheme+host[+port] strings the
-// auth.RequireOrigin middleware accepts on writes. Built at app boot
-// from the configured InternalServerPort: a port change mid-session
-// requires the same wiki-server restart that today's port-change flow
-// already needs, so a static allowlist is acceptable here.
-//
-// Both ports (default + configured) are included when they differ so a
-// fresh-install profile and a customised profile both work without a
-// rebuild.
+// buildAPIOriginAllowlist returns the origins auth.RequireOrigin accepts on
+// writes. Built at boot from InternalServerPort: a port change mid-session
+// needs the same wiki-server restart the port-change flow already requires,
+// so a static allowlist is acceptable. Both default + configured ports are
+// included when they differ so fresh-install and customised profiles work.
 func buildAPIOriginAllowlist(cfgM *config.Manager) []string {
 	port := defaultInternalServerPort
 	if cfgM != nil {

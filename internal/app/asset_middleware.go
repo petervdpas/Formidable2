@@ -5,24 +5,17 @@ import (
 	"strings"
 )
 
-// APIAssetMiddleware returns a Wails AssetServer middleware that
-// delegates `/api/*` requests to the supplied api handler and lets
-// every other path fall through to the default asset chain (the
-// embedded Vue dist).
+// APIAssetMiddleware delegates `/api/*` to the api handler; other paths
+// fall through to the embedded Vue dist.
 //
-// Why: the slideout's <img src="/api/images/<tpl>/<file>"> needs to be
-// fulfilled by the api handler regardless of whether the user has the
-// optional internal HTTP server (wiki/api over loopback) running. The
-// asset server is always up because the webview itself depends on it,
-// so this middleware gives us a consistent transport for the same
-// route shape.
+// Why: the slideout's <img src="/api/images/<tpl>/<file>"> must resolve
+// whether or not the optional internal HTTP server is running. The asset
+// server is always up (the webview depends on it), so this gives the same
+// route shape a consistent transport.
 //
-// `api` is allowed to be nil - defensive against composition-root
-// reordering - in which case the middleware is a pure pass-through.
-//
-// The signature matches Wails' assetserver.Middleware type
-// (func(next http.Handler) http.Handler) so it can plug straight into
-// application.AssetOptions.Middleware without an adapter.
+// api may be nil (defensive against composition-root reordering): then the
+// middleware is a pure pass-through. The signature matches Wails'
+// assetserver.Middleware so it plugs into AssetOptions.Middleware directly.
 func APIAssetMiddleware(api http.Handler) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

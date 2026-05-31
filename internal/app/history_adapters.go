@@ -27,10 +27,10 @@ func (a *navReplayAdapter) NavigateToFormidable(href string) error {
 	return nil
 }
 
-// historyPersistAdapter writes history snapshots back into user.json
-// when cfg.history.persist is on. Reading the live config each call
-// keeps history.Service oblivious to the persist toggle - flipping
-// the setting takes effect on the next mutation without a restart.
+// historyPersistAdapter writes snapshots back into user.json when
+// cfg.history.persist is on. Reading live config each call keeps
+// history.Service oblivious to the toggle: a flip takes effect on the next
+// mutation without a restart.
 type historyPersistAdapter struct{ cfg *config.Manager }
 
 func (a *historyPersistAdapter) PersistSnapshot(s history.Snapshot) {
