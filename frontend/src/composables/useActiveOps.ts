@@ -20,6 +20,7 @@ import {
 const ops: Ref<Status[]> = ref([]);
 let started = false;
 let gotEvent = false;
+let unsubscribe: (() => void) | null = null;
 
 function snapshotFrom(ev: unknown): Status[] {
   const data = (ev as { data?: unknown })?.data ?? ev;
@@ -29,7 +30,7 @@ function snapshotFrom(ev: unknown): Status[] {
 function ensureStarted(): void {
   if (started) return;
   started = true;
-  Events.On("optrack:changed", (ev: unknown) => {
+  unsubscribe = Events.On("optrack:changed", (ev: unknown) => {
     gotEvent = true;
     ops.value = snapshotFrom(ev);
   });
@@ -37,6 +38,16 @@ function ensureStarted(): void {
   // stale initial fetch never clobbers a fresher snapshot.
   void OpTrackSvc.Active().then((list) => {
     if (!gotEvent) ops.value = list ?? [];
+  });
+}
+
+// HMR: Vite re-evaluates this module on hot-swap, resetting `started` and
+// creating a fresh listener. Drop the previous one here so dev doesn't stack
+// duplicate (stale-ref) listeners. No-op in production builds.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    unsubscribe?.();
+    unsubscribe = null;
   });
 }
 
