@@ -34,6 +34,47 @@ export class ChangeFile {
 }
 
 /**
+ * ConflictFieldValue carries both candidate values of one conflicting field so the resolver UI can show
+ * "yours" vs "theirs" side by side. Values are raw JSON strings (the field is atomic).
+ */
+export class ConflictFieldValue {
+    "path": string;
+    "scope": string;
+    "key": string;
+    "yours": string;
+    "theirs": string;
+
+    /** Creates a new ConflictFieldValue instance. */
+    constructor($$source: Partial<ConflictFieldValue> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("yours" in $$source)) {
+            this["yours"] = "";
+        }
+        if (!("theirs" in $$source)) {
+            this["theirs"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConflictFieldValue instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ConflictFieldValue {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ConflictFieldValue($$parsedSource as Partial<ConflictFieldValue>);
+    }
+}
+
+/**
  * Destination is one mirror-sync target; RemoteStatus is the server's mirror view: "in_sync", "diverged", "error", or empty (never checked / invalidated).
  */
 export class Destination {
@@ -70,6 +111,71 @@ export class Destination {
     static createFrom($$source: any = {}): Destination {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new Destination($$parsedSource as Partial<Destination>);
+    }
+}
+
+/**
+ * FieldConflict is one per-field conflict the server reported for a record path (e.g. an immutable meta field).
+ */
+export class FieldConflict {
+    "scope": string;
+    "key": string;
+    "reason"?: string;
+
+    /** Creates a new FieldConflict instance. */
+    constructor($$source: Partial<FieldConflict> = {}) {
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldConflict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldConflict {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FieldConflict($$parsedSource as Partial<FieldConflict>);
+    }
+}
+
+/**
+ * FieldResolution is the user's pick for one conflicting field; Side is "mine" or "theirs".
+ */
+export class FieldResolution {
+    "path": string;
+    "scope": string;
+    "key": string;
+    "side": string;
+
+    /** Creates a new FieldResolution instance. */
+    constructor($$source: Partial<FieldResolution> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("scope" in $$source)) {
+            this["scope"] = "";
+        }
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("side" in $$source)) {
+            this["side"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FieldResolution instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FieldResolution {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FieldResolution($$parsedSource as Partial<FieldResolution>);
     }
 }
 
@@ -372,6 +478,36 @@ export class MeResponse {
 }
 
 /**
+ * PathConflict is one path the server refused to merge in a rejected commit.
+ * Fields is populated for record (meta.json) conflicts, empty for generic ones.
+ */
+export class PathConflict {
+    "path": string;
+    "field_conflicts"?: FieldConflict[];
+
+    /** Creates a new PathConflict instance. */
+    constructor($$source: Partial<PathConflict> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PathConflict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PathConflict {
+        const $$createField1_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("field_conflicts" in $$parsedSource) {
+            $$parsedSource["field_conflicts"] = $$createField1_0($$parsedSource["field_conflicts"]);
+        }
+        return new PathConflict($$parsedSource as Partial<PathConflict>);
+    }
+}
+
+/**
  * PullResult is PullLocal's success envelope: tree version, files written, files removed.
  */
 export class PullResult {
@@ -413,6 +549,13 @@ export class PushResult {
     "scanned": number;
     "noop": boolean;
 
+    /**
+     * Conflicts is non-empty when the server refused the commit because our base
+     * could not be reconciled with HEAD: nothing was pushed and the ledger is
+     * untouched. Surfaced to the user instead of clobbering or erroring opaquely.
+     */
+    "conflicts"?: PathConflict[];
+
     /** Creates a new PushResult instance. */
     constructor($$source: Partial<PushResult> = {}) {
         if (!("version" in $$source)) {
@@ -438,7 +581,11 @@ export class PushResult {
      * Creates a new PushResult instance from a string or object.
      */
     static createFrom($$source: any = {}): PushResult {
+        const $$createField5_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("conflicts" in $$parsedSource) {
+            $$parsedSource["conflicts"] = $$createField5_0($$parsedSource["conflicts"]);
+        }
         return new PushResult($$parsedSource as Partial<PushResult>);
     }
 }
@@ -506,7 +653,7 @@ export class RepoContextResponse {
     static createFrom($$source: any = {}): RepoContextResponse {
         const $$createField0_0 = $$createType3;
         const $$createField1_0 = $$createType4;
-        const $$createField2_0 = $$createType5;
+        const $$createField2_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("user" in $$parsedSource) {
             $$parsedSource["user"] = $$createField0_0($$parsedSource["user"]);
@@ -549,9 +696,9 @@ export class RepoFormidableResponse {
      * Creates a new RepoFormidableResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): RepoFormidableResponse {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType9;
-        const $$createField3_0 = $$createType11;
+        const $$createField1_0 = $$createType11;
+        const $$createField2_0 = $$createType13;
+        const $$createField3_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("marker" in $$parsedSource) {
             $$parsedSource["marker"] = $$createField1_0($$parsedSource["marker"]);
@@ -593,7 +740,7 @@ export class RepoLogResponse {
      * Creates a new RepoLogResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): RepoLogResponse {
-        const $$createField1_0 = $$createType13;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField1_0($$parsedSource["entries"]);
@@ -800,7 +947,7 @@ export class TreeResponse {
      * Creates a new TreeResponse instance from a string or object.
      */
     static createFrom($$source: any = {}): TreeResponse {
-        const $$createField1_0 = $$createType15;
+        const $$createField1_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField1_0($$parsedSource["files"]);
@@ -841,14 +988,18 @@ const $$createType1 = ChangeFile.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = User.createFrom;
 const $$createType4 = Subscription.createFrom;
-const $$createType5 = RepoContext.createFrom;
-const $$createType6 = FormidableMarkerView.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = FormidableTemplate.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = FormidableStorage.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = LogEntry.createFrom;
+const $$createType5 = FieldConflict.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = PathConflict.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = RepoContext.createFrom;
+const $$createType10 = FormidableMarkerView.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = FormidableTemplate.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = TreeEntry.createFrom;
+const $$createType14 = FormidableStorage.createFrom;
 const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = LogEntry.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = TreeEntry.createFrom;
+const $$createType19 = $Create.Array($$createType18);

@@ -17,39 +17,48 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * ConflictValues returns, per conflicting field, our value vs the server's so the resolver UI can show both. Read-only.
+ */
+export function ConflictValues(conflicts: $models.PathConflict[]): $CancellablePromise<$models.ConflictFieldValue[]> {
+    return $Call.ByID(3317579824, conflicts).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function Context(): $CancellablePromise<$models.RepoContextResponse | null> {
     return $Call.ByID(1056513675).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
 export function DestinationSync(destinationID: string): $CancellablePromise<$models.Destination | null> {
     return $Call.ByID(3661487667, destinationID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 export function Destinations(): $CancellablePromise<$models.Destination[]> {
     return $Call.ByID(287127121).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
 export function Formidable(): $CancellablePromise<$models.RepoFormidableResponse | null> {
     return $Call.ByID(1426118495).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
 export function GetFile(repoRelPath: string): $CancellablePromise<$models.FileResponse | null> {
     return $Call.ByID(2529855058, repoRelPath).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
 export function Head(): $CancellablePromise<$models.HeadResponse | null> {
     return $Call.ByID(3164529482).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -58,25 +67,25 @@ export function Head(): $CancellablePromise<$models.HeadResponse | null> {
  */
 export function LedgerSummary(): $CancellablePromise<$models.LedgerSummary | null> {
     return $Call.ByID(3722675911).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
 export function Log(limit: number, withChanges: boolean): $CancellablePromise<$models.RepoLogResponse | null> {
     return $Call.ByID(3932174922, limit, withChanges).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
 export function Me(): $CancellablePromise<$models.MeResponse | null> {
     return $Call.ByID(953749150).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
 export function Ping(): $CancellablePromise<$models.HealthResponse | null> {
     return $Call.ByID(412478704).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
@@ -85,7 +94,7 @@ export function Ping(): $CancellablePromise<$models.HealthResponse | null> {
  */
 export function PullLocal(): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2176880118).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType22($result);
     });
 }
 
@@ -94,7 +103,7 @@ export function PullLocal(): $CancellablePromise<$models.PullResult | null> {
  */
 export function PushLocal(message: string): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2354794967, message).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType24($result);
     });
 }
 
@@ -103,7 +112,18 @@ export function PushLocal(message: string): $CancellablePromise<$models.PushResu
  */
 export function Reclone(): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(477795670).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType22($result);
+    });
+}
+
+/**
+ * ResolveConflicts applies the user's per-field picks (mine/theirs) and re-pushes via the server's merge.
+ * On success it records a journal sync and announces context:reloaded (records changed on disk); a fresh
+ * conflict (a third party raced) comes back on PushResult.Conflicts, not as an error.
+ */
+export function ResolveConflicts(resolutions: $models.FieldResolution[], message: string): $CancellablePromise<$models.PushResult | null> {
+    return $Call.ByID(4134083319, resolutions, message).then(($result: any) => {
+        return $$createType24($result);
     });
 }
 
@@ -112,41 +132,43 @@ export function Reclone(): $CancellablePromise<$models.PullResult | null> {
  */
 export function Sync(message: string): $CancellablePromise<$models.SyncResult | null> {
     return $Call.ByID(3163057171, message).then(($result: any) => {
-        return $$createType24($result);
+        return $$createType26($result);
     });
 }
 
 export function Tree(): $CancellablePromise<$models.TreeResponse | null> {
     return $Call.ByID(3123842464).then(($result: any) => {
-        return $$createType26($result);
+        return $$createType28($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.RepoContextResponse.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.Destination.createFrom;
+const $$createType0 = $models.ConflictFieldValue.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.RepoContextResponse.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Array($$createType2);
-const $$createType5 = $models.RepoFormidableResponse.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $models.FileResponse.createFrom;
+const $$createType4 = $models.Destination.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $Create.Array($$createType4);
+const $$createType7 = $models.RepoFormidableResponse.createFrom;
 const $$createType8 = $Create.Nullable($$createType7);
-const $$createType9 = $models.HeadResponse.createFrom;
+const $$createType9 = $models.FileResponse.createFrom;
 const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = $models.LedgerSummary.createFrom;
+const $$createType11 = $models.HeadResponse.createFrom;
 const $$createType12 = $Create.Nullable($$createType11);
-const $$createType13 = $models.RepoLogResponse.createFrom;
+const $$createType13 = $models.LedgerSummary.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = $models.MeResponse.createFrom;
+const $$createType15 = $models.RepoLogResponse.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = $models.HealthResponse.createFrom;
+const $$createType17 = $models.MeResponse.createFrom;
 const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = $models.PullResult.createFrom;
+const $$createType19 = $models.HealthResponse.createFrom;
 const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = $models.PushResult.createFrom;
+const $$createType21 = $models.PullResult.createFrom;
 const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $models.SyncResult.createFrom;
+const $$createType23 = $models.PushResult.createFrom;
 const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = $models.TreeResponse.createFrom;
+const $$createType25 = $models.SyncResult.createFrom;
 const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = $models.TreeResponse.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);

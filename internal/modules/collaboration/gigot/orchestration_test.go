@@ -167,6 +167,11 @@ func TestPushLocal_SteadyStateCommitsChangedFile(t *testing.T) {
 			Changes: []Change{{Op: "put", Path: "templates/basic.yaml", Blob: "newsha"}},
 		})
 	})
+	// The server echoed a different blob (a merge), so the push syncs the
+	// authoritative content back; serve it.
+	h.handle("GET", "/api/repos/r/files/templates/basic.yaml", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(FileResponse{ContentB64: base64.StdEncoding.EncodeToString([]byte("updated\n"))})
+	})
 	m = NewManager(fs, WithHTTPClient(srv.Client()))
 
 	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
@@ -194,6 +199,178 @@ func TestPushLocal_SteadyStateCommitsChangedFile(t *testing.T) {
 	}
 	if rec.Files["templates/basic.yaml"] != "newsha" {
 		t.Errorf("ledger reconciled from server changes[]: %+v", rec.Files)
+	}
+}
+
+// PushLocal must send the LEDGER base version as parent_version, not the live
+// server head. The ledger records the version our diff was computed against;
+// that is the true merge base. Sending head (the old contract) makes the
+// server fast-forward-overlay our changes, silently clobbering a concurrent
+// edit instead of 3-way merging against the base.
+func TestPushLocal_BehindServer_SendsLedgerVersionAsParent(t *testing.T) {
+	ctxDir := t.TempDir()
+	writeFile(t, ctxDir, "templates/basic.yaml", "updated\n")
+
+	seed := EmptyTrackRecord()
+	seed.Version = "baseV" // what we last synced to
+	seed.Files["templates/basic.yaml"] = "oldsha"
+	fs := newFakeFS()
+	m := NewManager(fs, WithHTTPClient(nil))
+	if err := m.WriteTrackRecord(ctxDir, seed); err != nil {
+		t.Fatal(err)
+	}
+
+	var commitReq CommitRequest
+	srv, h := newOrchestrationServer(t)
+	defer srv.Close()
+	// Server has moved on since our last sync: head != ledger base.
+	h.handle("GET", "/api/repos/r/head", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(HeadResponse{Version: "serverAheadV"})
+	})
+	h.handle("POST", "/api/repos/r/commits", func(w http.ResponseWriter, r *http.Request) {
+		readJSONBody(t, r, &commitReq)
+		_ = json.NewEncoder(w).Encode(CommitResponse{
+			Version: "mergedV",
+			Changes: []Change{{Op: "put", Path: "templates/basic.yaml", Blob: "mergedsha"}},
+		})
+	})
+	// The server merged (echoed blob differs), so the push syncs the merged
+	// content back to disk; serve it.
+	h.handle("GET", "/api/repos/r/files/templates/basic.yaml", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(FileResponse{ContentB64: base64.StdEncoding.EncodeToString([]byte("updated\n"))})
+	})
+	m = NewManager(fs, WithHTTPClient(srv.Client()))
+
+	if _, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, ""); err != nil {
+		t.Fatal(err)
+	}
+	if commitReq.ParentVersion != "baseV" {
+		t.Errorf("parent_version = %q, want ledger base %q (sending head defeats the server merge)", commitReq.ParentVersion, "baseV")
+	}
+}
+
+// A server 409 (it could not reconcile our base with HEAD) must surface as a
+// structured conflict on the result, not an opaque error and not a silent
+// clobber. Nothing landed, so the ledger must not advance.
+func TestPushLocal_ServerConflictSurfacedNotClobbered(t *testing.T) {
+	ctxDir := t.TempDir()
+	writeFile(t, ctxDir, "templates/basic.yaml", "updated\n")
+
+	seed := EmptyTrackRecord()
+	seed.Version = "baseV"
+	seed.Files["templates/basic.yaml"] = "oldsha"
+	fs := newFakeFS()
+	m := NewManager(fs, WithHTTPClient(nil))
+	if err := m.WriteTrackRecord(ctxDir, seed); err != nil {
+		t.Fatal(err)
+	}
+
+	srv, h := newOrchestrationServer(t)
+	defer srv.Close()
+	h.handle("POST", "/api/repos/r/commits", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"current_version":"headV","conflicts":[{"path":"templates/basic.yaml","current_version":"headV"}]}`))
+	})
+	m = NewManager(fs, WithHTTPClient(srv.Client()))
+
+	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
+	if err != nil {
+		t.Fatalf("a conflict must be a structured result, not an error: %v", err)
+	}
+	if len(res.Conflicts) != 1 || res.Conflicts[0].Path != "templates/basic.yaml" {
+		t.Fatalf("want conflict path surfaced, got %+v", res.Conflicts)
+	}
+	if rec := ReadTrackRecord(ctxDir); rec.Version != "baseV" {
+		t.Errorf("ledger advanced to %q on a conflict; nothing landed so it must stay baseV", rec.Version)
+	}
+}
+
+// Record (meta.json) conflicts arrive in a distinct record_conflicts[] shape
+// carrying per-field detail; the client surfaces the path and its fields.
+func TestPushLocal_RecordConflictSurfacesFields(t *testing.T) {
+	ctxDir := t.TempDir()
+	writeFile(t, ctxDir, "storage/notes/a.meta.json", "{\"x\":1}\n")
+
+	seed := EmptyTrackRecord()
+	seed.Version = "baseV"
+	seed.Files["storage/notes/a.meta.json"] = "oldsha"
+	fs := newFakeFS()
+	m := NewManager(fs, WithHTTPClient(nil))
+	if err := m.WriteTrackRecord(ctxDir, seed); err != nil {
+		t.Fatal(err)
+	}
+
+	srv, h := newOrchestrationServer(t)
+	defer srv.Close()
+	h.handle("POST", "/api/repos/r/commits", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write([]byte(`{"current_version":"headV","record_conflicts":[{"path":"storage/notes/a.meta.json","field_conflicts":[{"scope":"meta","key":"created","reason":"immutable"}]}]}`))
+	})
+	m = NewManager(fs, WithHTTPClient(srv.Client()))
+
+	res, err := m.PushLocal(Connection{BaseURL: srv.URL, Token: "t", RepoName: "r"}, ctxDir, "")
+	if err != nil {
+		t.Fatalf("record conflict must be a structured result: %v", err)
+	}
+	if len(res.Conflicts) != 1 || len(res.Conflicts[0].Fields) != 1 || res.Conflicts[0].Fields[0].Key != "created" {
+		t.Fatalf("want per-field conflict surfaced, got %+v", res.Conflicts)
+	}
+}
+
+// When a push goes through the server's merge, the server canonicalizes the
+// record, so its stored blob differs byte-for-byte from our on-disk file. The
+// push must then pull that canonical content back to disk, or the record shows
+// as perpetually pending (its local hash never matches the merged blob).
+func TestPushLocal_MergeCanonicalization_SyncsDiskSoPendingClears(t *testing.T) {
+	ctxDir := t.TempDir()
+	writeFile(t, ctxDir, "storage/notes/a.meta.json", `{"data":{"name":"Yours"}}`)
+	fs := newFakeFS()
+	m0 := NewManager(fs)
+	seed := EmptyTrackRecord()
+	seed.Version = "baseV"
+	seed.Files["storage/notes/a.meta.json"] = "oldsha"
+	if err := m0.WriteTrackRecord(ctxDir, seed); err != nil {
+		t.Fatal(err)
+	}
+
+	// The server's canonical merged content differs from our on-disk bytes.
+	canonical := "{\n  \"data\": {\n    \"name\": \"Yours\"\n  }\n}"
+	canonicalSha := GitBlobSha([]byte(canonical))
+
+	srv, h := newOrchestrationServer(t)
+	defer srv.Close()
+	h.handle("POST", "/api/repos/r/commits", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(CommitResponse{
+			Version: "mergedV",
+			Changes: []Change{{Op: "put", Path: "storage/notes/a.meta.json", Blob: canonicalSha}},
+		})
+	})
+	h.handle("GET", "/api/repos/r/files/storage/notes/a.meta.json", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(FileResponse{
+			ContentB64: base64.StdEncoding.EncodeToString([]byte(canonical)),
+		})
+	})
+	m := NewManager(fs, WithHTTPClient(srv.Client()))
+
+	if _, err := m.PushLocal(conn(srv.URL), ctxDir, "msg"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Disk now holds the server's canonical bytes.
+	got, err := os.ReadFile(filepath.Join(ctxDir, "storage", "notes", "a.meta.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != canonical {
+		t.Errorf("disk not synced to canonical content:\n got %q\nwant %q", got, canonical)
+	}
+	// And so a fresh diff shows nothing pending (no "push again" loop).
+	sum, err := m.LedgerSummary(ctxDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sum.Changed) != 0 {
+		t.Errorf("expected no pending after a merge-push, got %+v", sum.Changed)
 	}
 }
 
@@ -580,4 +757,3 @@ func TestSync_PushFailureSkipsPull(t *testing.T) {
 	// Pull-side /tree should NOT have been called twice (only once for the seed).
 	// A second /tree would mean pull ran after push failed.
 }
-

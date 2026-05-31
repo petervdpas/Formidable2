@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
 import ProgressBar from "../../components/ProgressBar.vue";
+import Modal from "../../components/Modal.vue";
 import {
   FormSection,
   FormRow,
@@ -14,6 +15,7 @@ import type {
   HeadResponse,
   SyncProgress,
   Destination,
+  PathConflict,
   RepoContextResponse,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
 import { useConfig } from "../../composables/useConfig";
@@ -45,6 +47,23 @@ const pushing = ref(false);
 const pulling = ref(false);
 const mirroring = ref(false);
 const message = ref("");
+
+// Push-conflict resolver: the server couldn't reconcile our base on these
+// fields, so nothing landed. We fetch both candidate values and let the user
+// pick per field (mine/theirs), then ResolveConflicts re-pushes through the
+// server's merge. No git, no manual reconcile.
+const conflictOpen = ref(false);
+const resolving = ref(false);
+type ConflictRow = {
+  path: string;
+  scope: string;
+  key: string;
+  yours: string;
+  theirs: string;
+  side: "mine" | "theirs";
+};
+const conflictRows = ref<ConflictRow[]>([]);
+const shortField = (v: string) => (v.length > 80 ? v.slice(0, 80) + "…" : v);
 
 const destinations = ref<Destination[]>([]);
 const meRole = ref("");
@@ -246,6 +265,13 @@ async function doPush() {
   try {
     const res = await GigotSvc.PushLocal(message.value);
     if (!res) throw new Error("no response");
+    if (res.conflicts && res.conflicts.length > 0) {
+      // The server refused to reconcile these fields. Nothing landed. Open the
+      // resolver so the user picks per field instead of reconciling by hand.
+      await openResolver(res.conflicts);
+      await load(false);
+      return;
+    }
     if (res.noop) {
       toast.info("workspace.collaboration.gigot.sync.push.noop");
     } else {
@@ -262,6 +288,53 @@ async function doPush() {
   } finally {
     pushing.value = false;
     resetProgress();
+  }
+}
+
+// openResolver fetches both candidate values for every conflicting field and
+// shows the picker, defaulting each to "theirs" (the safe, non-clobber choice).
+async function openResolver(conflicts: PathConflict[]) {
+  try {
+    const vals = await GigotSvc.ConflictValues(conflicts);
+    conflictRows.value = (vals ?? []).map((v) => ({
+      path: v.path,
+      scope: v.scope,
+      key: v.key,
+      yours: v.yours,
+      theirs: v.theirs,
+      side: "theirs",
+    }));
+    conflictOpen.value = true;
+  } catch (err) {
+    toast.error("workspace.collaboration.gigot.sync.conflict.load_error", [backendErrMessage(err)]);
+  }
+}
+
+async function resolveConflicts() {
+  if (resolving.value) return;
+  resolving.value = true;
+  try {
+    const resolutions = conflictRows.value.map((r) => ({
+      path: r.path,
+      scope: r.scope,
+      key: r.key,
+      side: r.side,
+    }));
+    const res = await GigotSvc.ResolveConflicts(resolutions, message.value);
+    if (res?.conflicts && res.conflicts.length > 0) {
+      // A third party raced us while resolving; re-open with the fresh set.
+      await openResolver(res.conflicts);
+      return;
+    }
+    conflictOpen.value = false;
+    conflictRows.value = [];
+    message.value = "";
+    toast.success("workspace.collaboration.gigot.sync.conflict.resolved");
+    await load(false);
+  } catch (err) {
+    toast.error("workspace.collaboration.gigot.sync.conflict.resolve_error", [backendErrMessage(err)]);
+  } finally {
+    resolving.value = false;
   }
 }
 
@@ -443,4 +516,35 @@ async function doPull() {
       </button>
     </div>
   </template>
+
+  <Modal
+    :open="conflictOpen"
+    :title="t('workspace.collaboration.gigot.sync.conflict.title')"
+    @close="conflictOpen = false"
+  >
+    <p class="confirm-message">{{ t('workspace.collaboration.gigot.sync.conflict.intro') }}</p>
+    <div class="gigot-conflict-list">
+      <div v-for="(row, i) in conflictRows" :key="i" class="gigot-conflict-row">
+        <div class="gigot-conflict-field">{{ row.path }} → {{ row.key }}</div>
+        <label class="gigot-conflict-choice">
+          <input type="radio" value="theirs" :checked="row.side === 'theirs'" @change="row.side = 'theirs'" />
+          <span><b>{{ t('workspace.collaboration.gigot.sync.conflict.theirs') }}:</b> {{ shortField(row.theirs) }}</span>
+        </label>
+        <label class="gigot-conflict-choice">
+          <input type="radio" value="mine" :checked="row.side === 'mine'" @change="row.side = 'mine'" />
+          <span><b>{{ t('workspace.collaboration.gigot.sync.conflict.mine') }}:</b> {{ shortField(row.yours) }}</span>
+        </label>
+      </div>
+    </div>
+    <template #footer>
+      <button type="button" class="tool-btn" @click="conflictOpen = false">
+        {{ t('common.cancel') }}
+      </button>
+      <button type="button" class="tool-btn primary" :disabled="resolving" @click="resolveConflicts">
+        {{ resolving
+          ? t('workspace.collaboration.gigot.sync.conflict.resolving')
+          : t('workspace.collaboration.gigot.sync.conflict.resolve') }}
+      </button>
+    </template>
+  </Modal>
 </template>

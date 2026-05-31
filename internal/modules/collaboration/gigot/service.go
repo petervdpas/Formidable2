@@ -273,6 +273,36 @@ func (s *Service) Reclone() (*PullResult, error) {
 	return res, nil
 }
 
+// ConflictValues returns, per conflicting field, our value vs the server's so the resolver UI can show both. Read-only.
+func (s *Service) ConflictValues(conflicts []PathConflict) ([]ConflictFieldValue, error) {
+	conn, err := s.resolveConnection(true)
+	if err != nil {
+		return nil, err
+	}
+	return s.m.ConflictValues(conn, s.resolveContextFolder(), conflicts)
+}
+
+// ResolveConflicts applies the user's per-field picks (mine/theirs) and re-pushes via the server's merge.
+// On success it records a journal sync and announces context:reloaded (records changed on disk); a fresh
+// conflict (a third party raced) comes back on PushResult.Conflicts, not as an error.
+func (s *Service) ResolveConflicts(resolutions []FieldResolution, message string) (*PushResult, error) {
+	conn, err := s.resolveConnection(true)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.m.ResolveConflicts(conn, s.resolveContextFolder(), message, resolutions)
+	if err != nil {
+		return res, err
+	}
+	if res != nil && len(res.Conflicts) == 0 {
+		if s.jrnl != nil && res.Version != "" {
+			s.jrnl.RecordSync(journalBackend, res.Version, res.Pushed, 0)
+		}
+		event.Emit(s.emit, "context:reloaded", nil)
+	}
+	return res, nil
+}
+
 // Sync runs PushLocal then PullLocal at the Service layer so each half records its own journal entry; a push failure aborts before pull.
 func (s *Service) Sync(message string) (*SyncResult, error) {
 	if _, err := s.resolveConnection(true); err != nil {

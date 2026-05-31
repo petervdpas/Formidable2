@@ -8,7 +8,10 @@ export {
 
 export {
     ChangeFile,
+    ConflictFieldValue,
     Destination,
+    FieldConflict,
+    FieldResolution,
     FileResponse,
     FormidableMarkerView,
     FormidableStorage,
@@ -18,6 +21,7 @@ export {
     LedgerSummary,
     LogEntry,
     MeResponse,
+    PathConflict,
     PullResult,
     PushResult,
     RepoContext,

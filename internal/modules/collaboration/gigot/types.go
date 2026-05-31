@@ -140,7 +140,9 @@ type RepoLogResponse struct {
 	Count   int        `json:"count"`
 }
 
-// CommitRequest is the body of POST /api/repos/{repo}/commits; ParentVersion must equal HEAD or the server returns 409.
+// CommitRequest is the body of POST /api/repos/{repo}/commits. ParentVersion is the base our changes were computed against
+// (the ledger version), NOT the live HEAD: the server fast-forwards when it equals HEAD, 3-way merges when it is an ancestor,
+// and returns 409 when it cannot reconcile.
 type CommitRequest struct {
 	ParentVersion string   `json:"parent_version"`
 	Changes       []Change `json:"changes"`
@@ -196,6 +198,42 @@ type PushResult struct {
 	Deleted int    `json:"deleted"`
 	Scanned int    `json:"scanned"`
 	Noop    bool   `json:"noop"`
+	// Conflicts is non-empty when the server refused the commit because our base
+	// could not be reconciled with HEAD: nothing was pushed and the ledger is
+	// untouched. Surfaced to the user instead of clobbering or erroring opaquely.
+	Conflicts []PathConflict `json:"conflicts,omitempty"`
+}
+
+// ConflictFieldValue carries both candidate values of one conflicting field so the resolver UI can show
+// "yours" vs "theirs" side by side. Values are raw JSON strings (the field is atomic).
+type ConflictFieldValue struct {
+	Path   string `json:"path"`
+	Scope  string `json:"scope"`
+	Key    string `json:"key"`
+	Yours  string `json:"yours"`
+	Theirs string `json:"theirs"`
+}
+
+// FieldResolution is the user's pick for one conflicting field; Side is "mine" or "theirs".
+type FieldResolution struct {
+	Path  string `json:"path"`
+	Scope string `json:"scope"`
+	Key   string `json:"key"`
+	Side  string `json:"side"`
+}
+
+// FieldConflict is one per-field conflict the server reported for a record path (e.g. an immutable meta field).
+type FieldConflict struct {
+	Scope  string `json:"scope"`
+	Key    string `json:"key"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// PathConflict is one path the server refused to merge in a rejected commit.
+// Fields is populated for record (meta.json) conflicts, empty for generic ones.
+type PathConflict struct {
+	Path   string          `json:"path"`
+	Fields []FieldConflict `json:"field_conflicts,omitempty"`
 }
 
 // PullResult is PullLocal's success envelope: tree version, files written, files removed.

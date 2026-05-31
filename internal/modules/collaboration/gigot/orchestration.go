@@ -2,6 +2,7 @@ package gigot
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -55,14 +56,13 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string, message strin
 		}, nil
 	}
 
-	head, err := m.Head(conn)
-	if err != nil {
-		if isHTTPStatus(err, http.StatusConflict) {
-			return nil, ErrNoParentVersion
-		}
-		return nil, err
-	}
-	if head.Version == "" {
+	// The ledger version is the base our diff was computed against, so it is
+	// the correct parent_version. Sending the live head instead (the old
+	// "parent must equal HEAD" contract) makes the server fast-forward-overlay
+	// our changes, silently clobbering a concurrent edit. With the true base,
+	// the server 3-way merges against it (git + per-field record merge) or
+	// returns a 409 we surface.
+	if record.Version == "" {
 		return nil, ErrNoParentVersion
 	}
 
@@ -79,7 +79,7 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string, message strin
 	}
 
 	req := CommitRequest{
-		ParentVersion: head.Version,
+		ParentVersion: record.Version,
 		Changes:       changes,
 		Message:       chooseCommitMessage(message, conn, changes),
 	}
@@ -89,12 +89,28 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string, message strin
 
 	resp, err := m.Commit(conn, req)
 	if err != nil {
+		var he *HTTPError
+		if errors.As(err, &he) && he.Status == http.StatusConflict {
+			if version, paths, ok := parseCommitConflict(he.Body); ok {
+				// The server refused to reconcile our base with HEAD. Nothing
+				// landed; leave the ledger untouched and surface the paths.
+				return &PushResult{Version: version, Scanned: len(local), Conflicts: paths}, nil
+			}
+		}
 		return nil, err
 	}
 
 	reconcileLedger(&record, diff, resp)
 	record.LastSync = time.Now().UTC().Format(time.RFC3339)
 	if err := m.WriteTrackRecord(contextFolder, record); err != nil {
+		return nil, err
+	}
+
+	// A server-side merge rewrites records to canonical JSON, so the stored
+	// blob differs from our on-disk bytes. Pull that authoritative content back
+	// so disk matches the ledger; otherwise the record stays "pending" forever
+	// (its local hash never equals the merged blob).
+	if err := m.syncRewrittenRecords(conn, contextFolder, diff, resp); err != nil {
 		return nil, err
 	}
 
@@ -105,6 +121,36 @@ func (m *Manager) PushLocal(conn Connection, contextFolder string, message strin
 		Scanned: len(local),
 		Noop:    false,
 	}, nil
+}
+
+// syncRewrittenRecords pulls back any pushed record whose server blob differs
+// from what we sent (the server canonicalized it during a merge), so the local
+// file matches the ledger. Records the server stored verbatim (blob == our sha)
+// are skipped, so a plain fast-forward push does no extra fetches.
+func (m *Manager) syncRewrittenRecords(conn Connection, contextFolder string, diff DiffResult, resp *CommitResponse) error {
+	if resp == nil || len(resp.Changes) == 0 {
+		return nil
+	}
+	localSha := make(map[string]string, len(diff.Changed))
+	for _, f := range diff.Changed {
+		localSha[f.Path] = f.Sha
+	}
+	for _, c := range resp.Changes {
+		if c.Op == "delete" || c.Op == "deleted" || c.Blob == "" {
+			continue
+		}
+		if c.Blob == localSha[c.Path] {
+			continue
+		}
+		content, err := m.fetchServerRecord(conn, c.Path)
+		if err != nil {
+			return err
+		}
+		if err := m.writeContextRecord(contextFolder, c.Path, content); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // PullLocal fetches the server tree and writes any blob whose local SHA differs, deleting vanished managed paths.
@@ -297,6 +343,36 @@ func managedTreeEntries(all []TreeEntry) []TreeEntry {
 		}
 	}
 	return out
+}
+
+// parseCommitConflict extracts conflicting paths from a server 409 body. It
+// handles both the generic conflicts[] shape and the record record_conflicts[]
+// shape (§10.6, per-field detail). Returns ok=false when the body is not a
+// recognizable conflict (so the caller surfaces the raw error instead).
+func parseCommitConflict(body string) (version string, paths []PathConflict, ok bool) {
+	var raw struct {
+		CurrentVersion string `json:"current_version"`
+		Conflicts      []struct {
+			Path string `json:"path"`
+		} `json:"conflicts"`
+		RecordConflicts []struct {
+			Path   string          `json:"path"`
+			Fields []FieldConflict `json:"field_conflicts"`
+		} `json:"record_conflicts"`
+	}
+	if json.Unmarshal([]byte(body), &raw) != nil {
+		return "", nil, false
+	}
+	for _, c := range raw.Conflicts {
+		paths = append(paths, PathConflict{Path: c.Path})
+	}
+	for _, c := range raw.RecordConflicts {
+		paths = append(paths, PathConflict{Path: c.Path, Fields: c.Fields})
+	}
+	if len(paths) == 0 {
+		return "", nil, false
+	}
+	return raw.CurrentVersion, paths, true
 }
 
 // reconcileLedger updates the ledger after commit. A server-echoed changes[] is authoritative post-merge
