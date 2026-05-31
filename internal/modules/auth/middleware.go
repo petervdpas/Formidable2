@@ -10,18 +10,15 @@ import (
 )
 
 // LoopbackOnly returns a middleware that 403s any request whose
-// RemoteAddr isn't an IPv4 or IPv6 loopback address. Defense-in-depth:
-// the wiki listener already binds to 127.0.0.1, but if that bind ever
-// drifts (config, reverse proxy, tunnel) the handler layer keeps the
-// API closed by default.
+// RemoteAddr isn't a loopback address. Defense-in-depth: the listener
+// already binds to 127.0.0.1, but if that bind ever drifts (config,
+// reverse proxy, tunnel) the handler layer keeps the API closed.
 func LoopbackOnly(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
-			// Bracket-stripped IPv6 also sometimes lands here without a port.
 			host = r.RemoteAddr
 		}
-		// Trim IPv6 brackets if present.
 		host = strings.TrimPrefix(strings.TrimSuffix(host, "]"), "[")
 		ip := net.ParseIP(host)
 		if ip == nil || !ip.IsLoopback() {
@@ -33,14 +30,14 @@ func LoopbackOnly(next http.Handler) http.Handler {
 }
 
 // RequireOrigin returns a middleware that gates write methods on the
-// Origin (or, fallback, Referer) header matching one of the configured
-// allowlist URLs. GET / HEAD / OPTIONS pass through untouched - CSRF
-// only threatens state-changing methods, and forcing an Origin on safe
-// reads breaks tooling that doesn't set one (curl, scripts).
+// Origin (or Referer fallback) header matching one of the allowlist
+// URLs. GET/HEAD/OPTIONS pass through untouched: CSRF only threatens
+// state-changing methods, and forcing an Origin on safe reads breaks
+// tooling that doesn't set one (curl, scripts).
 //
-// allowedOrigins should be the scheme+host[+port] strings that the
-// wiki/API server itself serves under (e.g. "http://127.0.0.1:8080").
-// Empty allowlist denies every write - fail-closed by default.
+// allowedOrigins are the scheme+host[+port] strings the server serves
+// under (e.g. "http://127.0.0.1:8080"). Empty allowlist denies every
+// write; fail-closed by default.
 func RequireOrigin(allowedOrigins []string) func(http.Handler) http.Handler {
 	allowed := make(map[string]struct{}, len(allowedOrigins))
 	for _, o := range allowedOrigins {
@@ -54,8 +51,7 @@ func RequireOrigin(allowedOrigins []string) func(http.Handler) http.Handler {
 			}
 			origin := r.Header.Get("Origin")
 			if origin == "" {
-				// Referer fallback: many old HTTP clients omit Origin
-				// but always send Referer.
+				// Many old HTTP clients omit Origin but send Referer.
 				if ref := r.Header.Get("Referer"); ref != "" {
 					if u, err := url.Parse(ref); err == nil {
 						origin = u.Scheme + "://" + u.Host
@@ -75,15 +71,15 @@ func RequireOrigin(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
-// ResolveIdentity runs the configured Resolver and stuffs the returned
-// Identity onto the request context, so downstream handlers (and
+// ResolveIdentity runs the configured Resolver and stores the returned
+// Identity on the request context so downstream handlers (and
 // storage.SaveForm via ctx) attribute writes correctly.
 //
 // Failure modes:
 //
-//	ErrNotImplemented → 501 (subscription path not built yet)
-//	other error       → 403 (resolver rejected the caller)
-//	!Identity.Valid() → 403 (resolver buggy or token unmapped)
+//	ErrNotImplemented -> 501 (subscription path not built yet)
+//	other error       -> 403 (resolver rejected the caller)
+//	!Identity.Valid() -> 403 (resolver buggy or token unmapped)
 //
 // Fail-closed so a misconfigured resolver can't quietly elevate an
 // unauthenticated request.

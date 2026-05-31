@@ -14,7 +14,7 @@ type templateLoader interface {
 }
 
 // formStore loads a form by (template, datafile) to confirm it exists.
-// LoadForm returns nil for missing/unreadable.
+// LoadForm returns nil for missing or unreadable forms.
 type formStore interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 }
@@ -46,8 +46,7 @@ type Manager struct {
 	log       *slog.Logger
 }
 
-// NewManager constructs a nav Manager. log, emitter, and history may
-// be nil.
+// NewManager constructs a nav Manager. log, emitter, and history may be nil.
 func NewManager(t templateLoader, s formStore, c configWriter, e EventEmitter, h HistoryPusher, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
@@ -57,12 +56,8 @@ func NewManager(t templateLoader, s formStore, c configWriter, e EventEmitter, h
 
 // NavigateToFormidable parses the URL, validates that the (template,
 // datafile) pair exists, updates config so the Storage workspace's
-// reactive watchers pick up the new selection, and emits a
-// `nav:changed` event so the frontend can flip the active workspace.
-//
-// Returns a Result rather than a bare error so the frontend gets one
-// shape - Success=false carries Error for direct toast display, Target
-// is filled even on validation failure for diagnostics.
+// watchers pick up the new selection, and emits nav:changed so the
+// frontend can flip the active workspace.
 func (m *Manager) NavigateToFormidable(href string) (*Result, error) {
 	target := ParseFormidableHref(href)
 	if target == nil {
@@ -115,9 +110,9 @@ func (m *Manager) NavigateToFormidable(href string) (*Result, error) {
 	return &Result{Success: true, Target: target}, nil
 }
 
-// ResolveFormidable parses + validates without mutating state.
-// Used by the future internal HTTP server, which routes via URL
-// rewriting rather than config-driven workspace switching.
+// ResolveFormidable parses and validates without mutating state. Used
+// by the future internal HTTP server, which routes via URL rewriting
+// rather than config-driven workspace switching.
 func (m *Manager) ResolveFormidable(href string) (*Result, error) {
 	target := ParseFormidableHref(href)
 	if target == nil {

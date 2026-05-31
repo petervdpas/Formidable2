@@ -6,17 +6,12 @@ import (
 	"github.com/aymerick/raymond"
 )
 
-// registerFieldHelper binds the polymorphic {{field}} helper - the
-// largest single helper Formidable's render pipeline ships with.
-// Split out of helpers.go so the dispatch table stays readable.
-//
-// Supports both `{{field "key"}}` (mode defaults to "label") and
-// `{{field "key" "mode"}}` (explicit positional mode). The original
-// JS Handlebars supports both; raymond's strict arity rejects the
-// 2-positional call when the helper declares typed positional
-// params, so we register as options-only (see third_party/raymond/
-// CHANGES.md "options-only variadic helpers") and read positional
-// args ourselves.
+// registerFieldHelper binds the polymorphic {{field}} helper, supporting
+// both `{{field "key"}}` and `{{field "key" "mode"}}`. Raymond's strict
+// arity rejects the 2-positional call when the helper declares typed
+// params, so it registers as options-only (see third_party/raymond/
+// CHANGES.md "options-only variadic helpers") and reads positional args
+// itself.
 func registerFieldHelper(tpl *raymond.Template, opts *Options) {
 	tpl.RegisterHelper("field", func(options *raymond.Options) any {
 		params := options.Params()
@@ -31,23 +26,18 @@ func registerFieldHelper(tpl *raymond.Template, opts *Options) {
 				modeExplicit = true
 			}
 		}
-		// hash form `mode=` still wins if both forms are present -
-		// matches the JS helper's hash precedence.
+		// hash form `mode=` wins over positional, matching JS precedence.
 		if h := options.HashStr("mode"); h != "" {
 			mode = h
 			modeExplicit = true
 		}
 		mode = strings.ToLower(mode)
-		// Default mode is type-dependent:
-		//   - link fields: "default" (emit a Markdown link). The
-		//     original JS used `mode = "label"` as a function-arg
-		//     default, but handlebars.js' arity behaviour passed the
-		//     options hash into the mode slot, so unannotated calls
-		//     `{{field "k"}}` fell through to the markdown-link
-		//     branch. We emulate that intentional accident: bare
-		//     calls produce links, explicit `mode="label"` still
-		//     gives label-only.
-		//   - everything else: "label" (the documented default).
+		// Default mode is type-dependent: link fields default to
+		// "default" (Markdown link), everything else to "label". JS
+		// arity passed the options hash into the mode slot, so bare
+		// `{{field "k"}}` link calls fell through to the link branch; we
+		// reproduce that intentional accident so bare calls stay links
+		// while explicit `mode="label"` gives label-only.
 
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {

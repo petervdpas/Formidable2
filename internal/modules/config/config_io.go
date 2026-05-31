@@ -9,25 +9,13 @@ import (
 )
 
 // config_io.go owns the read/write/merge cycle for the active profile
-// JSON. Mirrors `Formidable/controls/configManager.js` loadUserConfig +
-// saveUserConfig + updateUserConfig + invalidateConfigCache, with two
-// changes from the JS:
-//
-//   - Cache invalidation lives in domain.go (already there).
-//   - The read-modify-write cycle is serialized via Manager.updateMu so
-//     concurrent UpdateUserConfig + SwitchUserProfile callers can't both
-//     read the same baseline (lost-update prevention - covered by
-//     TestUpdateUserConfig_NoLostUpdatesUnderConcurrency and
-//     TestSwitchUserProfile_SerializedAgainstUpdate).
+// JSON. The read-modify-write cycle is serialized via Manager.updateMu so
+// concurrent Update + SwitchProfile callers can't lose each other's writes.
 
-// configJSONKeys is the set of REQUIRED JSON tag names declared on
-// Config - used by parseUserConfig to detect "missing keys" →
-// changed=true. omitempty fields are skipped: by definition they may
-// be absent from a complete config (zero value), so flagging them as
-// missing would cause spurious load-time rewrites.
-//
-// Cached because reflection isn't free and this is called from
-// list-profiles in a loop.
+// configJSONKeys are the required JSON tag names on Config, used to detect
+// missing keys (changed=true). omitempty fields are skipped: absent is
+// valid for them, so flagging them would force spurious rewrites. Cached
+// because this runs per-profile in a loop.
 var configJSONKeys = func() []string {
 	var c Config
 	t := reflect.TypeOf(c)
@@ -47,8 +35,7 @@ var configJSONKeys = func() []string {
 }()
 
 // parseUserConfig decodes a profile JSON, fills missing fields with
-// defaults, and reports whether anything was filled in. Mirrors
-// `schemas/config.schema.js` sanitize.
+// defaults, and reports whether anything was filled in or clamped.
 func parseUserConfig(raw string) (Config, bool, error) {
 	var probe map[string]any
 	if err := json.Unmarshal([]byte(raw), &probe); err != nil {
@@ -67,10 +54,8 @@ func parseUserConfig(raw string) (Config, bool, error) {
 	return cfg, clampChanged, nil
 }
 
-// clampNumericSettings enforces backend bounds on numeric Config
-// fields whose UX has a fixed range (ToastTimeout). Returns true when
-// any value was coerced, so the load path can rewrite the profile and
-// the next read sees the sanitised value.
+// clampNumericSettings coerces range-bound numeric fields (ToastTimeout,
+// DecimalPrecision) into bounds, returning true if any value changed.
 func clampNumericSettings(cfg *Config) bool {
 	changed := false
 	if cfg.ToastTimeout < ToastTimeoutMin {
@@ -90,9 +75,8 @@ func clampNumericSettings(cfg *Config) bool {
 	return changed
 }
 
-// writeJSON marshals v with indentation and writes it through fs.SaveFile
-// (which goes via system.Manager.SaveFile - atomic temp+fsync+rename and
-// journal-aware). Used by every file-producing method in this module.
+// writeJSON marshals v indented and writes it through fs.SaveFile (atomic
+// temp+fsync+rename, journal-aware).
 func (m *Manager) writeJSON(path string, v any) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -101,10 +85,9 @@ func (m *Manager) writeJSON(path string, v any) error {
 	return m.fs.SaveFile(path, string(b))
 }
 
-// LoadUserConfig returns the active profile's config, loading it from
-// disk on first access (and on cache invalidation). If the on-disk
-// file has missing fields it is repaired and rewritten - same shape
-// the JS app had via schema.sanitize.
+// LoadUserConfig returns the active profile's config, loading from disk on
+// first access (and after cache invalidation). A file with missing fields
+// is repaired and rewritten.
 func (m *Manager) LoadUserConfig() (*Config, error) {
 	m.mu.RLock()
 	cached := m.cached
@@ -152,10 +135,8 @@ func (m *Manager) LoadUserConfig() (*Config, error) {
 	return &out, nil
 }
 
-// ensureContextFolder materialises the active profile's context_folder
-// on disk. Best-effort: a failure is logged but does not abort the
-// load/persist path - the user can still edit the path from the
-// Locations panel and retry. Empty folder values are skipped.
+// ensureContextFolder materialises the profile's context_folder on disk.
+// Best-effort: failures are logged, not fatal; empty values are skipped.
 func (m *Manager) ensureContextFolder(cfg *Config) {
 	if cfg == nil || strings.TrimSpace(cfg.ContextFolder) == "" {
 		return
@@ -166,13 +147,10 @@ func (m *Manager) ensureContextFolder(cfg *Config) {
 	}
 }
 
-// UpdateUserConfig merges a partial map into the active profile,
-// persists, updates cache, and re-syncs the journal. Held under
-// updateMu so concurrent updates don't lose each other's writes.
-//
-// The partial values can be primitives, JSON-tagged structs (e.g.
-// WindowBounds), or map[string]any - they are normalized through a
-// JSON round-trip so callers don't have to think about it.
+// UpdateUserConfig merges a partial map into the active profile, persists,
+// and re-syncs the journal, held under updateMu against lost updates.
+// Partial values normalize through a JSON round-trip, so primitives,
+// JSON-tagged structs, and map[string]any all work.
 func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
 	m.updateMu.Lock()
 	defer m.updateMu.Unlock()
@@ -193,11 +171,8 @@ func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
 		}
 	}
 
-	// Auto-clear SelectedTemplate when it falls outside EnabledTemplates.
-	// Runs on every Update - the cost is a single slice check, and the
-	// invariant has to hold regardless of which partial key brought the
-	// change in (the user could toggle enabled_templates, or write a new
-	// selected_template that isn't in the list, or both at once).
+	// Auto-clear SelectedTemplate when it falls outside EnabledTemplates;
+	// runs every Update since either key could break the invariant.
 	normalizeSelectedTemplate(&merged)
 
 	if err := m.persistConfig(&merged); err != nil {
@@ -207,11 +182,9 @@ func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
 	return &out, nil
 }
 
-// persistConfig writes the config to disk, swaps the cache, and re-syncs
-// the journal. If the context_folder changed, the VFS cache is also
-// dropped so the next GetVirtualStructure rebuilds against the new tree.
-//
-// Caller is expected to hold updateMu (or be inside a method that does).
+// persistConfig writes the config, swaps the cache, and re-syncs the
+// journal; a changed context_folder also drops the VFS cache. Caller holds
+// updateMu.
 func (m *Manager) persistConfig(cfg *Config) error {
 	m.mu.RLock()
 	path := m.configPath
@@ -241,10 +214,9 @@ func (m *Manager) persistConfig(cfg *Config) error {
 	return nil
 }
 
-// syncJournal forwards the relevant config fields to the journal hook.
-// No-op when no journal is wired. The journal's Configure() is the only
-// thing called - initialization and baseline seeding are the composition
-// root's responsibility (see types.go on JournalConfigurer).
+// syncJournal forwards config fields to the journal hook via Configure;
+// no-op when no journal is wired. Init/seeding is the composition root's
+// job (see JournalConfigurer in types.go).
 func (m *Manager) syncJournal(cfg *Config) {
 	if cfg == nil {
 		return

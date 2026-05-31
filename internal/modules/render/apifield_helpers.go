@@ -9,23 +9,13 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// registerAPIFieldHelpers binds the four api-field helpers
-// ({{apiCol}}, {{apiGuid}}, {{apiBlock}}, {{apiSection}}). Split out
-// of helpers.go so the api dispatch stays grouped with its support
-// functions.
-//
-// All four read the host's api Field from the current context's
-// `_fields` (so they work both at top-level and inside `{{#loop}}`
-// - the same context-walking the `{{field}}` helper relies on).
-// Each helper degrades gracefully when:
-//   - the field doesn't exist or isn't api-typed
-//   - the modelValue is missing / nil (no record picked yet)
-//   - Options.LoadTemplate is nil (apiBlock/apiSection fall back to
-//     scalar/JSON behavior - apiCol/apiGuid don't need it)
+// registerAPIFieldHelpers binds {{apiCol}}, {{apiGuid}}, {{apiBlock}},
+// {{apiSection}}. All read the host api Field from the context's `_fields`
+// (so they work inside `{{#loop}}` too) and degrade gracefully on a
+// missing/non-api field, an unpicked record, or a nil LoadTemplate.
 func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
-	// {{apiCol "fieldKey" "columnKey"}} - read one projected column.
-	// Scalar value passes through (string/number/bool); non-scalar
-	// (slice/map) renders as a compact JSON string. Inline-friendly.
+	// {{apiCol "fieldKey" "columnKey"}}: one projected column, scalar
+	// inline or compact JSON for slice/map.
 	tpl.RegisterHelper("apiCol", func(fieldKey, columnKey string, options *raymond.Options) raymond.SafeString {
 		row, _ := apiFieldRow(options.Ctx(), fieldKey)
 		if row == nil {
@@ -38,8 +28,7 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		return raymond.SafeString(scalarOrJSON(v))
 	})
 
-	// {{apiGuid "fieldKey"}} - return the picked record's guid string.
-	// Empty when no record has been picked.
+	// {{apiGuid "fieldKey"}}: the picked record's guid, or "".
 	tpl.RegisterHelper("apiGuid", func(fieldKey string, options *raymond.Options) string {
 		row, _ := apiFieldRow(options.Ctx(), fieldKey)
 		if row == nil {
@@ -51,17 +40,9 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		return ""
 	})
 
-	// {{apiBlock "fieldKey" "columnKey"}} - type-aware block render.
-	// Loads the source template via Options.LoadTemplate to read the
-	// column's source field type:
-	//   - scalar → same as apiCol
-	//   - tags   → comma-joined string
-	//   - list   → markdown bullets
-	//   - table  → markdown table with headers from the source field's
-	//     options[].label
-	//
-	// Falls back to scalarOrJSON when LoadTemplate is nil or the
-	// source can't be loaded.
+	// {{apiBlock "fieldKey" "columnKey"}}: type-aware render (tags joined,
+	// list bulleted, table as a pipe-table), per the source field's type;
+	// falls back to scalarOrJSON without a loadable source.
 	tpl.RegisterHelper("apiBlock", func(fieldKey, columnKey string, options *raymond.Options) raymond.SafeString {
 		row, hostField := apiFieldRow(options.Ctx(), fieldKey)
 		if row == nil {
@@ -75,10 +56,8 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		return raymond.SafeString(emitAPIColumnBlock(v, src))
 	})
 
-	// {{apiSection "fieldKey"}} - full embedded card markdown:
-	// "**<host label>** _(source)_" header + per-column "**<label>**:
-	// <value-or-block>" lines. The lazy "drop everything in here"
-	// helper for Report/Minimal generator output.
+	// {{apiSection "fieldKey"}}: full embedded-card markdown (header plus
+	// a line per column). The drop-everything helper for generator output.
 	tpl.RegisterHelper("apiSection", func(fieldKey string, options *raymond.Options) raymond.SafeString {
 		row, hostField := apiFieldRow(options.Ctx(), fieldKey)
 		if row == nil || hostField == nil {
@@ -88,15 +67,9 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 	})
 }
 
-// apiFieldRow looks up the host's api Field by key in the current
-// context's `_fields` slot, returns its current value (a
-// {guid, ...projected_columns} map) plus a pointer to the host Field
-// itself so callers can read its Map[]. Returns (nil, nil) when the
-// field is missing or doesn't carry a record yet.
-//
-// Loop-aware via contextMap/findField - when invoked inside `{{#loop}}`
-// the helper sees the per-iteration context; the inner api field's
-// row comes from that iteration's value.
+// apiFieldRow returns the host api field's value (a {guid, ...columns} map)
+// and the Field itself (for its Map[]); (nil, nil) when missing or unpicked.
+// Loop-aware via contextMap/findField, so it sees the per-iteration context.
 func apiFieldRow(ctx any, fieldKey string) (map[string]any, *template.Field) {
 	cm := contextMap(ctx)
 	if cm == nil {
@@ -117,10 +90,8 @@ func apiFieldRow(ctx any, fieldKey string) (map[string]any, *template.Field) {
 	return row, f
 }
 
-// scalarOrJSON returns the value as-is when it's a Handlebars-friendly
-// scalar (string/number/bool); otherwise renders a compact JSON string
-// for safe inline insertion. Mirrors the frontend's `display()` rule
-// in FormFieldAPI.vue so MD output and the in-app card stay aligned.
+// scalarOrJSON returns a string/number/bool as-is, else compact JSON for
+// safe inline insertion. Mirrors FormFieldAPI.vue's display() rule.
 func scalarOrJSON(v any) string {
 	if v == nil {
 		return ""
@@ -145,11 +116,8 @@ func scalarOrJSON(v any) string {
 	return string(b)
 }
 
-// loadSourceField resolves the source-template Field that backs one
-// of the host api field's Map[] entries. Returns nil when the loader
-// is missing, the source can't be loaded, or the column key has no
-// matching field in the source roster (e.g. user removed a field
-// after the api field's Map[] was configured).
+// loadSourceField resolves the source-template Field backing one Map[]
+// entry; nil when the loader/source/column is missing (e.g. a since-removed field).
 func loadSourceField(opts *Options, hostField *template.Field, columnKey string) *template.Field {
 	if opts == nil || opts.LoadTemplate == nil {
 		return nil
@@ -169,17 +137,9 @@ func loadSourceField(opts *Options, hostField *template.Field, columnKey string)
 	return nil
 }
 
-// emitAPIColumnBlock is the type-aware renderer for {{apiBlock}}. It
-// inspects the source field's type and dispatches:
-//
-//   - tags  → comma-joined string ("a, b, c")
-//   - list  → markdown bullet list (one item per line)
-//   - table → markdown pipe-table with header row from
-//     source.Options[].label and body rows from the value
-//   - everything else → scalarOrJSON fallback (safe in any context)
-//
-// nil source field falls back to scalarOrJSON so cross-template
-// renames don't crash the renderer.
+// emitAPIColumnBlock dispatches on the source field type: tags joined,
+// list bulleted, table as a pipe-table, else scalarOrJSON. A nil source
+// falls back to scalarOrJSON so cross-template renames don't crash.
 func emitAPIColumnBlock(v any, source *template.Field) string {
 	if source == nil {
 		return scalarOrJSON(v)
@@ -212,18 +172,10 @@ func emitAPIColumnBlock(v any, source *template.Field) string {
 	return scalarOrJSON(v)
 }
 
-// emitMarkdownTable renders a stored 2-D table value as a markdown
-// pipe-table. Headers come from `source.Options[].label` (the
-// authoritative column list also used by the in-app FormFieldTable
-// renderer) so a host's MD output and on-screen card stay in sync.
-//
-// Supports both stored shapes:
-//   - array-of-arrays (FormFieldTable's native shape): one row per
-//     entry, cells in declared column order
-//   - array-of-objects: cells indexed by source.Options[].value
-//
-// Empty headers / empty rows produce an empty string (caller decides
-// whether to wrap "No data" prose around the call).
+// emitMarkdownTable renders a stored 2-D table as a markdown pipe-table,
+// headers from source.Options[].label. Handles both stored shapes:
+// array-of-arrays (positional cells) and array-of-objects (keyed by
+// Options[].value). Empty headers or rows yield "".
 func emitMarkdownTable(rows []any, source *template.Field) string {
 	if len(rows) == 0 {
 		return ""
@@ -244,13 +196,10 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 		cols = append(cols, col{label: label, key: key})
 	}
 	if len(cols) == 0 {
-		// Source has no column metadata - bail to JSON so the user
-		// at least sees the data.
-		return scalarOrJSON(rows)
+		return scalarOrJSON(rows) // no column metadata: bail to JSON
 	}
 
 	var b strings.Builder
-	// Header
 	b.WriteString("|")
 	for _, c := range cols {
 		b.WriteString(" ")
@@ -263,12 +212,10 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 	}
 	b.WriteString("\n")
 
-	// Body rows
 	for _, raw := range rows {
 		b.WriteString("|")
 		switch r := raw.(type) {
-		case []any:
-			// Positional cells.
+		case []any: // positional cells
 			for i := range cols {
 				var cell any
 				if i < len(r) {
@@ -278,17 +225,14 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 				b.WriteString(escapePipe(scalarOrJSON(cell)))
 				b.WriteString(" |")
 			}
-		case map[string]any:
-			// Keyed cells (older / alternate shape).
+		case map[string]any: // keyed cells (alternate shape)
 			for _, c := range cols {
 				cell := r[c.key]
 				b.WriteString(" ")
 				b.WriteString(escapePipe(scalarOrJSON(cell)))
 				b.WriteString(" |")
 			}
-		default:
-			// Unrecognised row shape - emit the JSON form across all
-			// cells so the user can debug.
+		default: // unrecognised shape: JSON across all cells for debugging
 			for range cols {
 				b.WriteString(" ")
 				b.WriteString(escapePipe(scalarOrJSON(raw)))
@@ -300,23 +244,11 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// emitAPISection renders the full embedded-card markdown wrapped in
-// a `<section class="api-card">` container so the goldmark output
-// carries card chrome that formidable-prose.css can style. The blank
-// lines around the `<section>` tags hit goldmark's "type 6" HTML-
-// block rule, which leaves the inner markdown to be parsed normally
-// (same trick the loop-item wrappers rely on).
-//
-// The card body is:
-//
-//	**<host label>** _(<source filename>)_
-//
-//	- **<col label>**: <inline-or-block value>
-//	- **<col label>**: ...
-//
-// Block-shaped column values (table/list) are placed on their own
-// lines after the column header instead of inline, preserving
-// markdown table/list semantics.
+// emitAPISection renders the embedded card wrapped in `<section
+// class="api-card">`. The blank lines around the tags hit goldmark's
+// type-6 HTML-block rule so the inner markdown still parses (same trick
+// the loop-item wrappers use). Block-shaped values (table/list) go on
+// their own lines after the column header to keep their markdown semantics.
 func emitAPISection(row map[string]any, hostField *template.Field, opts *Options) string {
 	if hostField == nil {
 		return ""
@@ -327,8 +259,7 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 	}
 
 	var b strings.Builder
-	// Open card. The data-source attribute is exposed for theming /
-	// devtools and matches the in-app .api-field-card naming.
+	// data-source mirrors the in-app .api-field-card naming, for theming.
 	b.WriteString(`<section class="api-card" data-source="`)
 	b.WriteString(hostField.Collection)
 	b.WriteString("\">\n\n")
@@ -347,8 +278,7 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 		}
 		v := row[m.Key]
 		src := loadSourceField(opts, hostField, m.Key)
-		// Tables and lists need their own block - emit the header on
-		// its own line, then a blank line, then the block.
+		// Block types get the header on its own line, then the block.
 		if isAPIBlockType(src) {
 			b.WriteString("- **")
 			b.WriteString(colLabel)
@@ -357,7 +287,6 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 			b.WriteString("\n\n")
 			continue
 		}
-		// Inline value.
 		b.WriteString("- **")
 		b.WriteString(colLabel)
 		b.WriteString("**: ")
@@ -365,8 +294,7 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 		b.WriteString("\n")
 	}
 
-	// Close card with a blank-line gap so goldmark resumes block
-	// parsing cleanly after the section.
+	// Blank-line gap so goldmark resumes block parsing after the section.
 	b.WriteString("\n</section>")
 	return b.String()
 }
@@ -383,9 +311,7 @@ func isAPIBlockType(src *template.Field) bool {
 }
 
 func escapePipe(s string) string {
-	// Newlines + pipes both break a markdown table cell. Replace
-	// pipes with the HTML entity (markdown engines pass it through)
-	// and collapse newlines to a space.
+	// Pipes and newlines both break a table cell: escape the pipe, flatten newlines.
 	s = strings.ReplaceAll(s, "|", "\\|")
 	s = strings.ReplaceAll(s, "\n", " ")
 	return s

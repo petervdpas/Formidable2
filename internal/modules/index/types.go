@@ -1,8 +1,7 @@
 package index
 
-// TemplateRow is one row in the index's `templates` table. The
-// scan/reconcile pipeline produces these from on-disk YAML; the wiki
-// HTTP server reads them back through dataprovider.
+// TemplateRow is one row in the index's `templates` table, produced from
+// on-disk YAML by the scan/reconcile pipeline.
 type TemplateRow struct {
 	Filename            string // "basic.yaml"
 	Name                string
@@ -15,19 +14,18 @@ type TemplateRow struct {
 	Size                int64
 }
 
-// FormRow is one row in the index's `forms` table plus the inverted
-// tags and facets it owns. Tags and Facets are kept on the row (not a
-// separate slice elsewhere) so the reconciler can sync them in
-// lock-step with the upsert.
+// FormRow is one row in the index's `forms` table plus the inverted tags and
+// facets it owns. Tags and Facets ride on the row so the reconciler can sync
+// them in lock-step with the upsert.
 type FormRow struct {
 	Template string // "basic.yaml"
 	Filename string // "test.meta.json"
 	ID       string // GUID from the template's guid_field, may be empty
 	Title    string
 	FmTitle  string
-	// Audit identity is split across the Created / Updated AuditEntry
-	// pair on disk; the index mirrors that split so per-profile
-	// attribution survives the round-trip.
+	// Audit identity is split across the Created / Updated AuditEntry pair on
+	// disk; the index mirrors that split so per-profile attribution survives
+	// the round-trip.
 	CreatedName     string
 	CreatedEmail    string
 	UpdatedName     string
@@ -38,22 +36,19 @@ type FormRow struct {
 	Tags            []string
 	Facets          []FormFacet
 	Values          []FormValueRow
-	// SearchBody is the flattened human-readable text of every prose
-	// field, fed to the FTS5 body column. Derived at reconcile time and
-	// not stored on the forms row itself - it lives only in form_search.
+	// SearchBody is the flattened prose text fed to the FTS5 body column.
+	// Derived at reconcile time; lives only in form_search, not the forms row.
 	SearchBody string
 	Mtime      int64
 	Size       int64
 }
 
-// FormValueRow is one materialized, aggregatable value in the
-// `form_values` side table - the basis for chart statistics. A scalar
-// field (number, date, dropdown, ...) produces one row with Col nil; a
-// table field produces one row per cell, Col carrying the 0-based
-// column index. ValueType tags the cell ("number" | "date" | "text" |
-// "bool") so the stat layer picks the right aggregation without
-// re-reading the template. Num is nil when the value isn't numeric
-// (a date stores epoch seconds in Num and ISO "YYYY-MM-DD" in Text).
+// FormValueRow is one aggregatable value in the `form_values` side table, the
+// basis for chart statistics. A scalar field produces one row with Col nil; a
+// table field produces one row per cell with Col the 0-based column index.
+// ValueType ("number" | "date" | "text" | "bool") lets the stat layer pick
+// the aggregation without re-reading the template. A date stores epoch
+// seconds in Num and ISO "YYYY-MM-DD" in Text.
 type FormValueRow struct {
 	FieldKey  string
 	Col       *int
@@ -62,19 +57,18 @@ type FormValueRow struct {
 	Text      string
 }
 
-// FormFacet is one entry in the `form_facets` side table. Mirrors
-// storage.FacetState plus the facet key the entry is filed under, so
-// the index can replay the original meta.facets map at read time.
+// FormFacet is one entry in the `form_facets` side table: storage.FacetState
+// plus the facet key it is filed under, so the index can replay the original
+// meta.facets map at read time.
 type FormFacet struct {
 	Key      string
 	Set      bool
 	Selected string
 }
 
-// ImageRow is one row in the index's `images` table. We don't track
-// dimensions or size - just presence - because the wiki only needs to
-// know "does this image exist for this template?" when it rewrites
-// formidable:// links and image src attributes.
+// ImageRow is one row in the index's `images` table. Only presence is
+// tracked (not dimensions): the wiki only needs to know whether an image
+// exists for a template when it rewrites formidable:// links and src attrs.
 type ImageRow struct {
 	Template string
 	Filename string
@@ -82,9 +76,8 @@ type ImageRow struct {
 	Size     int64
 }
 
-// FormRef and ImageRef are compound keys for delete operations. They
-// exist as named structs (rather than passing two strings) so the
-// ReconcileBatch shape stays self-explanatory at call sites.
+// FormRef and ImageRef are compound keys for delete operations, named structs
+// so the ReconcileBatch shape stays self-explanatory at call sites.
 type FormRef struct {
 	Template string
 	Filename string
@@ -95,11 +88,10 @@ type ImageRef struct {
 	Filename string
 }
 
-// ReconcileBatch is a single transactional unit of work for the index.
-// All upserts/deletes are applied inside one SQLite transaction; on
-// error nothing is persisted and meta.rev is not bumped. An empty
-// batch is a no-op (does not bump rev) so the reconciler can be
-// called speculatively.
+// ReconcileBatch is a single transactional unit of work for the index. All
+// upserts/deletes apply inside one SQLite transaction; on error nothing is
+// persisted and meta.rev is not bumped. An empty batch is a no-op (rev
+// unchanged) so the reconciler can be called speculatively.
 type ReconcileBatch struct {
 	UpsertTemplates []TemplateRow
 	DeleteTemplates []string
@@ -111,22 +103,20 @@ type ReconcileBatch struct {
 	DeleteImages []ImageRef
 }
 
-// QueryOpts shapes the result of ListForms (and its tag-filter cousin).
-// Zero value = sensible defaults: no limit, no offset, sort by updated
-// DESC, no tag filter.
+// QueryOpts shapes the result of ListForms (and its tag-filter cousin). Zero
+// value = no limit, no offset, sort by updated DESC, no tag filter.
 type QueryOpts struct {
 	// Limit caps the number of rows returned. 0 = no limit.
 	Limit int
 	// Offset skips the first N rows after sorting. 0 = no skip.
 	Offset int
 	// OrderBy is one of: "updated_desc" (default), "updated_asc",
-	// "title_asc", "title_desc", "filename_asc", "filename_desc".
-	// Empty string = "updated_desc". Unknown values fall back to the
-	// default rather than failing - the wiki shouldn't 500 because of
-	// a typo in a query string.
+	// "title_asc", "title_desc", "filename_asc", "filename_desc". Unknown
+	// values fall back to the default rather than failing, so the wiki
+	// doesn't 500 on a typo in a query string.
 	OrderBy string
 	// Tags filters to forms that own EVERY listed tag (AND semantics).
-	// Empty/nil = no filter. Tags are matched case-sensitively against
-	// the indexed values; normalize at the writer side, not the reader.
+	// Empty/nil = no filter. Matched case-sensitively; normalize at the
+	// writer side, not the reader.
 	Tags []string
 }

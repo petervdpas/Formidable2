@@ -12,15 +12,12 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// nowFn is the clock used by {{today}} / {{now}}. Override in tests to
-// pin a deterministic value; production code never reassigns it.
+// nowFn is the clock used by {{today}} / {{now}}; overridden in tests.
 var nowFn = time.Now
 
-// registerHelpers binds every Handlebars helper Formidable's render
-// pipeline ships with. opts carries URL strategies; vars is a scratch
-// map for setVar/getVar - fresh per RenderMarkdown call so renders
-// can't leak state into each other (original JS used a module-level
-// store; that bug isn't ported).
+// registerHelpers binds every Handlebars helper. vars is a scratch map
+// for setVar/getVar, fresh per RenderMarkdown call so renders can't leak
+// state into each other (the original JS used a leaky module-level store).
 func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, rootFields []template.Field) {
 	if opts == nil {
 		opts = &Options{}
@@ -192,12 +189,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 			return ""
 		}
 	})
-	// imageURL resolves a field's stored filename to its target URL via
-	// Options.ImageURL. The slideout's imageURLFunc returns
-	// `/api/images/<stem>/<file>`, the wiki's returns `/storage/<stem>/
-	// images/<file>` - same helper, different transport. Returns "" for
-	// unknown fields or empty values; falls back to "images/<name>"
-	// when no ImageURL func is wired (matches emitImage's defaults).
+	// imageURL resolves a field's filename to its target URL via
+	// Options.ImageURL (slideout and wiki wire different transports). It
+	// falls back to "images/<name>" when no ImageURL func is wired.
 	tpl.RegisterHelper("imageURL", func(key string, options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -216,13 +210,10 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return "images/" + name
 	})
 
-	// imageBase64 resolves a field's stored filename to a
-	// `data:<mime>;base64,<bytes>` URL via Options.ImageBase64URL. Used
-	// by the generator's "inline" image mode for self-contained
-	// markdown exports. Returns "" when the func isn't wired or the
-	// field value is empty - distinct from imageURL's `images/<name>`
-	// fallback because there's no sensible default for an inlined byte
-	// stream.
+	// imageBase64 resolves a field's filename to a `data:...base64,...`
+	// URL via Options.ImageBase64URL, for the generator's inline image
+	// mode. It returns "" (rather than imageURL's `images/<name>`
+	// fallback) when unwired, since an inlined byte stream has no default.
 	tpl.RegisterHelper("imageBase64", func(key string, options *raymond.Options) string {
 		if opts == nil || opts.ImageBase64URL == nil {
 			return ""
@@ -246,23 +237,17 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return f.Description
 	})
 
-	// {{field}} - the big polymorphic dispatch helper.
-	// Implementation lives in helpers_field.go.
+	// {{field}}: implementation in helpers_field.go.
 	registerFieldHelper(tpl, opts)
 
-	// {{virtual-field "key"}} - renders a virtual (data-less) field's
-	// projection. Today: facet → selected label via opts.Facets.
-	// Implementation lives in helpers_virtual.go.
+	// {{virtual-field "key"}}: implementation in helpers_virtual.go.
 	registerVirtualFieldHelper(tpl, opts, rootFields)
 
 	// ── meta helpers ────────────────────────────────────────────
 	//
-	// Identity of the (template, datafile) pair being rendered. Plug
-	// these into frontmatter or markdown when the export path needs
-	// to compose anchors, slugs, or filenames from the current file
-	// (wikiwonder's `plugins.wikiwonder.path` is the canonical use
-	// case). Empty Options returns empty strings so templates render
-	// safely in contexts the meta isn't wired.
+	// Identity of the (template, datafile) pair being rendered, for
+	// composing anchors/slugs/filenames in export paths. Empty Options
+	// yields empty strings so templates stay safe when meta isn't wired.
 	tpl.RegisterHelper("templateName", func() string {
 		return opts.TemplateFilename
 	})
@@ -278,15 +263,11 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 
 	// ── loop block helper ───────────────────────────────────────
 	//
-	// Plain iterator - same shape as the original Formidable's helper.
-	// Iteration wrapping is opt-in: place {{loopItemBefore}} and
-	// {{loopItemAfter}} inside the body to wrap each iteration in
-	// `<section class="loop-item" …>`. The generator emits those calls
-	// when the user toggles "Wrap loop iterations" on.
-	//
-	// Each iteration's context carries `_loopKey` and `_loopIndex` so
-	// the before/after helpers (and {{loopKey}} / {{loopIndex}}) can
-	// read them without scanning.
+	// Plain iterator. Wrapping is opt-in: place {{loopItemBefore}} /
+	// {{loopItemAfter}} in the body to wrap each iteration in a
+	// `<section class="loop-item">`. Each iteration's context carries
+	// `_loopKey` and `_loopIndex` for the before/after and key/index
+	// helpers to read.
 	tpl.RegisterHelper("loop", func(key string, options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -297,7 +278,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 			return ""
 		}
 		groupFields := loopGroupFields(ctx, key)
-		// Append a synthetic <key>_index so {{field "<key>_index"}} works.
+		// Synthetic <key>_index so {{field "<key>_index"}} works.
 		syntheticIndex := template.Field{
 			Key:         key + "_index",
 			Type:        "number",
@@ -328,12 +309,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return strings.Join(out, "\n")
 	})
 
-	// {{loopItemBefore [extra-classes…]}} - emits the section opener
-	// for the current iteration. Variadic extras are appended after
-	// the base "loop-item" class, so the user can theme individual
-	// loops without touching the helper.
-	//
-	// Outside a loop body (no _loopKey) → empty string.
+	// {{loopItemBefore [extra-classes...]}} emits the iteration's section
+	// opener; variadic extras append after the base "loop-item" class.
+	// Empty outside a loop body.
 	tpl.RegisterHelper("loopItemBefore", func(options *raymond.Options) raymond.SafeString {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -362,9 +340,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		))
 	})
 
-	// {{loopItemAfter}} - pairs with {{loopItemBefore}}. The leading
-	// blank line is what tells goldmark to close the HTML block above
-	// and resume markdown parsing. Outside a loop → empty.
+	// {{loopItemAfter}} pairs with {{loopItemBefore}}. The leading blank
+	// line is what tells goldmark to close the HTML block above and resume
+	// markdown parsing. Empty outside a loop.
 	tpl.RegisterHelper("loopItemAfter", func(options *raymond.Options) raymond.SafeString {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -377,7 +355,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return raymond.SafeString("\n\n</section>")
 	})
 
-	// {{loopKey}} - current loop's key. Empty outside a loop body.
+	// {{loopKey}}: current loop's key, empty outside a loop body.
 	tpl.RegisterHelper("loopKey", func(options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -387,7 +365,7 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return k
 	})
 
-	// {{loopIndex}} - current iteration's 1-based index. 0 outside.
+	// {{loopIndex}}: current iteration's 1-based index, 0 outside.
 	tpl.RegisterHelper("loopIndex", func(options *raymond.Options) string {
 		ctx := contextMap(options.Ctx())
 		if ctx == nil {
@@ -404,19 +382,15 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return ""
 	})
 
-	// {{today}} - current date formatted as YYYY-MM-DD. Convenient for
-	// PDF frontmatter `date:` and similar use cases where the document
-	// should stamp itself with the export date. For other layouts use
-	// {{now "FORMAT"}} where FORMAT is a Go time layout string.
+	// {{today}}: current date as YYYY-MM-DD. For other layouts use
+	// {{now "FORMAT"}} with a Go time layout string.
 	tpl.RegisterHelper("today", func() string {
 		return nowFn().Format("2006-01-02")
 	})
 
-	// {{now [layout] [locale]}} - current time formatted with the
-	// given Go time layout, optionally translated into a locale.
-	// Empty / missing layout defaults to "2006-01-02 15:04:05".
-	// Locales registered today: en (default, no translation), nl, de,
-	// fr - see internal/modules/render/locale.go to add more.
+	// {{now [layout] [locale]}}: current time in a Go time layout
+	// (default "2006-01-02 15:04:05"), optionally translated into a
+	// locale (en/nl/de/fr; see locale.go to add more).
 	tpl.RegisterHelper("now", func(options *raymond.Options) string {
 		layout := "2006-01-02 15:04:05"
 		locale := ""
@@ -434,14 +408,10 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return translateDate(nowFn().Format(layout), locale)
 	})
 
-	// {{dateFormat value layout [locale]}} - reformat a stored date /
-	// datetime string with the given Go time layout, optionally
-	// translated into a locale. Recognised input shapes:
-	//   2006-01-02              (Formidable's `date` field storage)
-	//   2006-01-02T15:04:05Z…   (RFC 3339, with or without timezone)
-	//   2006-01-02 15:04:05     (loose timestamp)
-	// Unparseable input is returned verbatim so the template doesn't
-	// silently lose data when given an unexpected shape.
+	// {{dateFormat value layout [locale]}}: reformat a stored date with
+	// a Go time layout, optionally locale-translated. Accepts 2006-01-02,
+	// RFC 3339, and "2006-01-02 15:04:05". Unparseable input is returned
+	// verbatim so the template doesn't silently lose data.
 	tpl.RegisterHelper("dateFormat", func(options *raymond.Options) string {
 		params := options.Params()
 		if len(params) < 2 {
@@ -475,10 +445,8 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return s
 	})
 
-	// {{loopItemClass [extra1] [extra2] …}} - variadic class composer.
-	// Always emits "loop-item" as the base; each non-empty extra arg is
-	// appended space-separated. Used inside `wrap=false` bodies where
-	// the user builds their own <article>/<div>/etc. wrapper.
+	// {{loopItemClass [extra...]}}: composes a class string with
+	// "loop-item" as the base, for bodies that build their own wrapper.
 	tpl.RegisterHelper("loopItemClass", func(options *raymond.Options) string {
 		parts := []string{"loop-item"}
 		for _, p := range options.Params() {
@@ -491,9 +459,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return strings.Join(parts, " ")
 	})
 
-	// `stats` is polymorphic: `{{stats t}}` (colIndex defaults to 1) and
-	// `{{stats t 2}}` are both valid in the original JS. Options-only
-	// signature so we can default colIndex when absent.
+	// stats is polymorphic (`{{stats t}}` defaults colIndex to 1,
+	// `{{stats t 2}}` sets it). Options-only signature defaults colIndex
+	// when absent.
 	tpl.RegisterHelper("stats", func(options *raymond.Options) string {
 		params := options.Params()
 		var table any
@@ -545,10 +513,9 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	})
 
 	// ── tags ─────────────────────────────────────────────────────
-	// `tags` is polymorphic: `{{tags}}` (default array []) and
-	// `{{tags arr withHash=true}}` are both valid in the original JS.
-	// Options-only signature lets us read positional args manually
-	// (see third_party/raymond/CHANGES.md "options-only variadic").
+	// tags is polymorphic (`{{tags}}` or `{{tags arr withHash=true}}`).
+	// Options-only signature reads positional args manually (see
+	// third_party/raymond/CHANGES.md "options-only variadic").
 	tpl.RegisterHelper("tags", func(options *raymond.Options) string {
 		var arr any
 		if params := options.Params(); len(params) > 0 {
@@ -564,14 +531,10 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 	})
 
 	// ── yamlList ─────────────────────────────────────────────────
-	// `{{yamlList arr}}` emits a YAML block-sequence chunk - one
-	// `- item` per element, items 2+ optionally prefixed with an
-	// `indent=N` space pad so the helper can sit at a non-zero column
-	// inside a nested list. No trailing newline; items with YAML flow
-	// indicators or leading dashes are single-quoted. Built for the
-	// PDF `keywords:` migration path where the eisvogel-shape
-	// `{{tags … withHash=false}}` previously expanded to a comma-blob
-	// element; yamlList expands to real list items instead.
+	// {{yamlList arr}} emits a YAML block sequence, one `- item` per
+	// element, items 2+ optionally indent=N-padded for a non-zero column.
+	// Built for the PDF `keywords:` migration so tags expand to real list
+	// items rather than a comma-blob.
 	tpl.RegisterHelper("yamlList", func(options *raymond.Options) raymond.SafeString {
 		var arr any
 		if params := options.Params(); len(params) > 0 {
@@ -591,12 +554,10 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return raymond.SafeString(emitYAMLList(arr, indent))
 	})
 
-	// {{apiCol}} / {{apiBlock}} / {{apiGuid}} / {{apiSection}}.
-	// Implementations live in apifield_helpers.go.
+	// api field helpers: implementations in apifield_helpers.go.
 	registerAPIFieldHelpers(tpl, opts)
 }
 
-// linkParts unpacks string or {href,text} into (href, text).
 func linkParts(v any) (string, string) {
 	switch x := v.(type) {
 	case string:
@@ -607,8 +568,8 @@ func linkParts(v any) (string, string) {
 	return "", ""
 }
 
-// arrayIncludes checks slice membership with stringy equality so
-// `{1,2,3}.includes("2")` works the same way the JS helper did.
+// arrayIncludes checks slice membership with stringy equality, so
+// `[1,2,3]` includes "2" as the JS helper did.
 func arrayIncludes(arr, value any) bool {
 	v := reflect.ValueOf(arr)
 	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {

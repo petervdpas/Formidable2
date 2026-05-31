@@ -1,20 +1,12 @@
-// Package dataprovider is the read-only facade the wiki HTTP server
-// (and the future REST API) uses to answer page requests. It composes
-// the SQLite-backed index (fast metadata lookups) with the render
-// module (markdown + HTML), and exposes HTTP-friendly types so the
-// transport layer can JSON-encode results without further mapping.
-//
-// Writes never go through dataprovider - the in-app event hooks and
-// the post-sync RescanAll path own those. Keeping this side read-only
-// makes it easy to layer per-template access control later: every
-// method already takes a context.Context, so a future principal goes
-// in a context value and gets checked here before any data flows out.
+// Package dataprovider is the read-only facade the wiki HTTP server and
+// REST API use to answer page requests, composing the SQLite index with
+// the render module and exposing HTTP-friendly types. Writes never go
+// through here; every method takes a context.Context so per-template
+// access control can be layered on later.
 package dataprovider
 
 // TemplateSummary is the public projection of an index template row.
-// `Filename` is the YAML name (e.g. "basic.yaml"); `Stem` is the
-// extension-less form (e.g. "basic") which matches the URL slug used
-// by the original Formidable wiki ("/template/basic").
+// Filename is the YAML name ("basic.yaml"); Stem is the slug ("basic").
 type TemplateSummary struct {
 	Stem                string `json:"stem"`
 	Filename            string `json:"filename"`
@@ -26,10 +18,8 @@ type TemplateSummary struct {
 	EnableCollection    bool   `json:"enableCollection"`
 }
 
-// FormSummary mirrors the per-form data the wiki sidebar/list pages
-// need: identity (filename + optional GUID), display title, audit
-// fields, and the inverted tags. Body content is intentionally NOT
-// here - fetching that is RenderForm's job.
+// FormSummary is the per-form data the wiki list pages need: identity,
+// title, audit fields, tags. No body content; that is RenderForm's job.
 type FormSummary struct {
 	Template        string   `json:"template"`        // "basic.yaml"
 	Filename        string   `json:"filename"`        // "test.meta.json"
@@ -43,9 +33,8 @@ type FormSummary struct {
 	ExpressionItems string   `json:"expressionItems,omitempty"`
 }
 
-// RenderedPage carries the full output of the render pipeline plus
-// the title lifted out of the markdown's frontmatter (so HTTP
-// handlers don't have to re-parse it).
+// RenderedPage is the render pipeline output plus the frontmatter title
+// lifted out, so HTTP handlers don't re-parse the markdown.
 type RenderedPage struct {
 	Template string `json:"template"`
 	Filename string `json:"filename"`
@@ -54,10 +43,8 @@ type RenderedPage struct {
 	HTML     string `json:"html"`
 }
 
-// ListOpts is the read-side equivalent of index.QueryOpts. We keep a
-// separate type so dataprovider's public API isn't tied to the
-// index's internal options shape and so HTTP handlers map query
-// strings directly into this.
+// ListOpts is the read-side equivalent of index.QueryOpts, kept separate
+// so the public API isn't tied to the index's internal options shape.
 type ListOpts struct {
 	Limit   int
 	Offset  int
@@ -65,10 +52,8 @@ type ListOpts struct {
 	Tags    []string // AND semantics
 }
 
-// CollectionItem is one row in a collection listing. Mirrors the old
-// internal-server `listCollection` output: identity (guid as id),
-// filename, display title, tags, and ready-to-use HTTP links to the
-// JSON resource and the rendered HTML page.
+// CollectionItem is one row in a collection listing: identity, title,
+// tags, and ready-to-use links to the JSON resource and HTML page.
 type CollectionItem struct {
 	Template string   `json:"template"`         // stem (e.g. "recepten")
 	ID       string   `json:"id"`               // GUID
@@ -79,9 +64,8 @@ type CollectionItem struct {
 	HrefHTML string   `json:"hrefHtml"`         // /template/<stem>/form/<filename>
 }
 
-// CollectionPage is what the /api/collections/<template> endpoint
-// returns: enabled flag (false when the template doesn't opt in),
-// total before pagination, and the page's items.
+// CollectionPage is the /api/collections/<template> response: enabled
+// flag (false when the template doesn't opt in), total, and the items.
 type CollectionPage struct {
 	Enabled  bool             `json:"collectionEnabled"`
 	Template string           `json:"template,omitempty"`  // stem
@@ -91,14 +75,9 @@ type CollectionPage struct {
 	Items    []CollectionItem `json:"items"`
 }
 
-// CollectionListOpts shapes a collection listing. `Q` is a
-// case-insensitive substring filter applied to title + tags
-// (matching the wiki's old behaviour). Tags add AND filtering.
-// Facets adds per-key AND filtering against meta.facets[k].{set,selected}
-// (every entry must match a record's facet state exactly: set==true and
-// selected==value). Include selects how much per-item data the response
-// carries - summary (default) keeps it small; full would include full
-// data (deferred to a later v).
+// CollectionListOpts shapes a collection listing. Q is a case-insensitive
+// substring filter on title+tags; Tags and Facets add AND filtering.
+// A Facets entry matches only when set==true and selected==value.
 type CollectionListOpts struct {
 	Limit  int
 	Offset int

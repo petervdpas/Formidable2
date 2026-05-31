@@ -2,12 +2,11 @@ package system
 
 import "sync/atomic"
 
-// Window-close guard. The frontend mirrors the active form's dirty flag
-// into the backend via SetUnsavedChanges; the WindowClosing hook in
-// main.go consults UnsavedChanges() and vetoes an OS-driven close
-// (emitting "app:close-requested") so the SPA can show its Save /
-// Discard / Cancel dialog. ConfirmClose lifts the veto and quits once
-// the user has chosen to leave.
+// Window-close guard. The frontend mirrors the active form's dirty flag into the
+// backend via SetUnsavedChanges; the WindowClosing hook in main.go consults
+// UnsavedChanges() and vetoes an OS-driven close (emitting "app:close-requested")
+// so the SPA can show its Save/Discard/Cancel dialog. ConfirmClose lifts the
+// veto and quits once the user has chosen to leave.
 var (
 	unsavedChanges atomic.Bool
 	allowClose     atomic.Bool
@@ -21,12 +20,12 @@ func UnsavedChanges() bool { return unsavedChanges.Load() }
 // the WindowClosing hook stops vetoing.
 func AllowClose() bool { return allowClose.Load() }
 
-// SetUnsavedChanges lets the frontend keep the backend in sync with the
-// active form's dirty state. Called from a watcher in StorageWorkspace.
+// SetUnsavedChanges keeps the backend in sync with the active form's dirty
+// state. Called from a watcher in StorageWorkspace.
 func (s *Service) SetUnsavedChanges(b bool) { unsavedChanges.Store(b) }
 
-// ConfirmClose lifts the close veto and quits. The frontend calls this
-// after its unsaved-changes guard resolves to Save or Discard.
+// ConfirmClose lifts the close veto and quits, after the frontend's
+// unsaved-changes guard resolves to Save or Discard.
 func (s *Service) ConfirmClose() {
 	allowClose.Store(true)
 	s.Quit()

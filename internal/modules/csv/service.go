@@ -1,16 +1,7 @@
 package csv
 
-// Service is the api layer over Manager. Methods map to the old Electron
-// `window.api.csv.*` IPC group:
-//   - csv-preview     → Preview
-//   - csv-write       → Write
-//
-// `csv-import-row` is intentionally NOT in this module - the Electron
-// app already routed it to formManager.saveForm. Storage import (F-302)
-// will own that route.
-//
-// Wails-only: HTTP export endpoints (Epic 8 collections API) call into
-// this manager directly; no `handlers.go` lives here.
+// Service is the Wails surface over Manager. HTTP export endpoints (Epic 8
+// collections API) call the manager directly, so no handlers.go lives here.
 type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }
@@ -44,9 +35,9 @@ func (s *Service) CoercePreview(raw, fieldType string, options []any) string {
 	return CoercePreview(raw, fieldType, options)
 }
 
-// CoerceTableRows coerces a 2D string array (from a paste-data dialog
-// on a table field) into a 2D typed array matching the column specs.
-// Reuses Coerce per cell; dropdown columns match by value or label.
+// CoerceTableRows coerces a 2D string array (from a paste-data dialog on a
+// table field) into a 2D typed array matching the column specs. Dropdown
+// columns match by value or label.
 func (s *Service) CoerceTableRows(cols []TableColumn, rows [][]string) [][]any {
 	return CoerceTableRows(cols, rows)
 }
@@ -81,23 +72,20 @@ func (s *Service) FormatValue(val any, fieldType string) string {
 	return FormatValue(val, fieldType)
 }
 
-// MappableFieldsForTemplate returns the template's CSV-mappable field
-// specs (excluded types stripped), sourced backend-side so the import
-// dialog need not re-derive the exclusion rule.
+// MappableFieldsForTemplate returns the template's CSV-mappable field specs,
+// excluded types stripped backend-side.
 func (s *Service) MappableFieldsForTemplate(templateFilename string) ([]FieldSpec, error) {
 	return s.m.MappableFieldsForTemplate(templateFilename)
 }
 
-// ExportSchema returns the default column plan, alignable fields, and
-// source options for an alignment choice, all derived backend-side from
-// the template's field schema.
+// ExportSchema returns the default column plan, alignable fields, and source
+// options for an alignment choice, derived from the template's field schema.
 func (s *Service) ExportSchema(templateFilename, alignSource string) ExportSchema {
 	return s.m.ExportSchema(templateFilename, alignSource)
 }
 
-// Export is the one-call export pipeline: resolve fields, list forms,
-// load each, build the row grid. The frontend then hands Rows to
-// Write(filePath, ...).
+// Export resolves fields, lists forms, loads each, and builds the row grid.
+// The frontend then hands Rows to Write.
 func (s *Service) Export(templateFilename string, plan ExportPlan) ExportResult {
 	return s.m.Export(templateFilename, plan)
 }
@@ -108,10 +96,9 @@ func (s *Service) PreviewExport(templateFilename string, plan ExportPlan) Previe
 	return s.m.PreviewExport(templateFilename, plan)
 }
 
-// BuildImportForms reconstructs entries from parsed CSV rows, the inverse
-// of Export. An aligned plan regroups the export's multiplied rows back
-// into one entry per group with its nested list/table rebuilt; the dialog
-// then saves each returned form.
+// BuildImportForms reconstructs entries from parsed CSV rows, the inverse of
+// Export. An aligned plan regroups the export's multiplied rows back into one
+// entry per group with its nested list/table rebuilt.
 func (s *Service) BuildImportForms(plan ImportPlan, headers []string, rows [][]string, fields []FieldSpec) []ImportForm {
 	return BuildImportForms(plan, headers, rows, fields)
 }

@@ -9,15 +9,13 @@ import (
 )
 
 // formatYAML round-trips src through yaml.v3 to produce canonical
-// 2-space-indented output with key order preserved. Empty / whitespace-
-// only input passes through. Malformed YAML returns a tidy-cleaned
-// copy of the input plus ErrMalformed so the caller can surface the
-// parse error without losing the user's text.
+// 2-space-indented output with key order preserved. Malformed YAML returns a
+// tidy-cleaned copy plus ErrMalformed so the caller surfaces the parse error
+// without losing the user's text.
 //
-// Note on intent: yaml.v3 emits what it parsed. If the input is flat
-// (`cover:` followed by sibling `title:` at the same column), the
-// output is flat - this is a YAML *formatter*, not a schema repairer.
-// PDF-domain re-nesting belongs in pdf.MigrateFrontmatter.
+// yaml.v3 emits what it parsed: a flat input stays flat. This is a YAML
+// formatter, not a schema repairer; PDF-domain re-nesting belongs in
+// pdf.MigrateFrontmatter.
 func formatYAML(src string) (string, error) {
 	if strings.TrimSpace(src) == "" {
 		return src, nil

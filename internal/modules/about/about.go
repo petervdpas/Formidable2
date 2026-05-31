@@ -1,12 +1,7 @@
-// Package about exposes the application's identity (name, version,
-// tagline, author) as a small Wails-bindable service. The splash
-// window and any future "About" UI read from the same source.
+// Package about exposes the application's identity (name, version, tagline,
+// author) as a Wails-bindable service.
 package about
 
-// App identity. Version is a var (not const) so the release workflow
-// can inject the tag value at link time via
-//   -ldflags "-X github.com/petervdpas/formidable2/internal/modules/about.Version=1.2.3"
-// Local dev builds keep the "0.1.0" default.
 const (
 	Name    = "Formidable"
 	Tagline = "A System for Templates and Markdown Forms"
@@ -14,6 +9,9 @@ const (
 	Website = "https://formidable.tools"
 )
 
+// Version is a var (not const) so the release workflow can inject the tag at
+// link time via -ldflags "-X .../about.Version=1.2.3"; dev builds keep the
+// default.
 var Version = "0.1.0"
 
 // Info is the wire shape returned to the frontend.
@@ -25,25 +23,21 @@ type Info struct {
 	Website string `json:"website"`
 }
 
-// Library is one entry in the About panel's "Special thanks to" list:
-// a canonical project ID and its display name. Descriptions are
-// per-locale and live in i18n (workspace.information.about.thanks.lib.{id}.desc)
-// so we don't translate product names.
+// Library is one entry in the About panel's "Special thanks to" list: a
+// canonical project ID and its display name. Descriptions live in i18n under
+// workspace.information.about.thanks.lib.{id}.desc, so product names aren't
+// translated.
 type Library struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
-// Libraries is the curated list of load-bearing direct dependencies
-// surfaced in the About panel. Order is meaningful - items render
-// top-to-bottom as listed. Curation rule: direct deps from go.mod and
-// frontend/package.json that the app actively uses; transitive deps
-// and build-only tools (vite, tsc, prettier) are excluded.
-//
-// Adding or removing an entry here MUST be paired with the matching
-// i18n description keys: each Library.ID requires a
-// `workspace.information.about.thanks.lib.<id>.desc` string in every
-// locale. Tests catch a missing/extra ID across locales.
+// Libraries is the curated list of direct dependencies surfaced in the About
+// panel, rendered top-to-bottom in listed order. Curation rule: direct deps
+// from go.mod and frontend/package.json the app actively uses; transitive deps
+// and build-only tools are excluded. Adding or removing an entry MUST be paired
+// with a `workspace.information.about.thanks.lib.<id>.desc` string in every
+// locale (tests catch a missing/extra ID).
 var Libraries = []Library{
 	{ID: "wails", Name: "Wails 3"},
 	{ID: "vue", Name: "Vue 3"},

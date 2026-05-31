@@ -12,12 +12,12 @@ type LoaderFactory func(template string) Loader
 
 // Service is the Wails-facing, read-only layer over the tensor. Each call
 // builds a fresh tensor from the template's live forms and runs one
-// perspective over it. It is purely additive: it reads form data the same way
-// query does and changes nothing the index or stat path relies on.
+// perspective over it. It reads form data the same way query does and
+// changes nothing the index or stat path relies on.
 //
-// The optional follow argument steps one reference hop before reducing, so a
-// table or loop column is reachable (follow the loop field, then reduce its
-// rows) without a full spec language. Empty follow reduces over the root
+// The optional follow argument steps one reference hop before reducing, so
+// a table or loop column is reachable (follow the loop field, then reduce
+// its rows) without a full spec language. Empty follow reduces over root
 // records.
 type Service struct {
 	factory LoaderFactory
@@ -28,8 +28,8 @@ func NewService(factory LoaderFactory) *Service { return &Service{factory: facto
 
 // NewServiceWithPlanner wires the planner seam: narrowed reducers (the *Where
 // methods) push their predicate down to the planner (the SQLite index) so the
-// tensor only ingests the matching records. The non-narrowed methods are
-// unaffected and build from every record exactly as before.
+// tensor only ingests the matching records. The non-narrowed methods build
+// from every record as before.
 func NewServiceWithPlanner(factory LoaderFactory, planner Planner) *Service {
 	return &Service{factory: factory, planner: planner}
 }
@@ -38,9 +38,8 @@ func (s *Service) view(template, follow string) (*Perspective, error) {
 	return s.viewWhere(template, follow, Predicate{})
 }
 
-// viewWhere builds the working set, narrowing the record set through the
-// planner first when the predicate asks for it. An empty predicate is the
-// plain full build, so view delegates here with nothing to narrow.
+// viewWhere builds the working set, narrowing through the planner first when
+// the predicate asks for it. An empty predicate is the plain full build.
 func (s *Service) viewWhere(template, follow string, pred Predicate) (*Perspective, error) {
 	t, err := buildNarrowed(s.factory(template), s.planner, template, pred)
 	if err != nil {
@@ -62,9 +61,8 @@ func (s *Service) Count(template, follow string) (int, error) {
 	return v.Count(), nil
 }
 
-// CountWhere is Count over the record set narrowed by pred. The planner pushes
-// the predicate to the index, so the tensor only counts the matching records.
-// With no planner wired it falls back to narrowing in memory, same answer.
+// CountWhere is Count over the record set narrowed by pred. With no planner
+// wired it falls back to narrowing in memory, same answer.
 func (s *Service) CountWhere(template, follow string, pred Predicate) (int, error) {
 	v, err := s.viewWhere(template, follow, pred)
 	if err != nil {
@@ -73,10 +71,10 @@ func (s *Service) CountWhere(template, follow string, pred Predicate) (int, erro
 	return v.Count(), nil
 }
 
-// DistributionWhere is Distribution over the record set narrowed by pred. This
-// is the canonical seam shape: the index decides which records exist, the
+// DistributionWhere is Distribution over the record set narrowed by pred,
+// the canonical seam shape: the index decides which records exist, the
 // tensor reduces them. The result equals the full Distribution with an
-// equivalent in-memory Where, just computed over fewer ingested records.
+// equivalent in-memory Where, over fewer ingested records.
 func (s *Service) DistributionWhere(template, follow string, pred Predicate, field string) ([]Bucket, error) {
 	v, err := s.viewWhere(template, follow, pred)
 	if err != nil {
@@ -124,9 +122,9 @@ func (s *Service) DateSeries(template, follow, field, period string) (Series, er
 	return v.DateSeries(field, period), nil
 }
 
-// Graph projects the template's tensor as a node-link graph (records and loop
-// rows as nodes, refs as edges) for the visual explorer. limit caps the node
-// count (0 = no cap); roots are kept before rows and dangling edges dropped.
+// Graph projects the template's tensor as a node-link graph (records and
+// loop rows as nodes, refs as edges) for the visual explorer. limit caps
+// the node count (0 = no cap); roots kept before rows, dangling edges dropped.
 func (s *Service) Graph(template string, limit int) (Graph, error) {
 	t, err := Build(s.factory(template))
 	if err != nil {

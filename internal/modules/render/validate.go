@@ -15,8 +15,8 @@ const (
 )
 
 // Diagnostic is one finding from ValidateMarkdownTemplate. Errors are
-// fatal (template won't render); warnings flag suspicious things like
-// unknown helper names that would silently render to nothing.
+// fatal; warnings flag suspicious things like unknown helper names that
+// would silently render to nothing.
 type Diagnostic struct {
 	Severity string `json:"severity"`
 	Message  string `json:"message"`
@@ -24,16 +24,16 @@ type Diagnostic struct {
 	Helper   string `json:"helper,omitempty"`
 }
 
-// ValidationReport is the result of ValidateMarkdownTemplate. OK is
-// true exactly when no error-severity diagnostics were found.
-// Diagnostics is never nil so JS callers can iterate without a guard.
+// ValidationReport is the result of ValidateMarkdownTemplate. OK is true
+// exactly when no error-severity diagnostics were found; Diagnostics is
+// never nil so JS callers can iterate without a guard.
 type ValidationReport struct {
 	OK          bool         `json:"ok"`
 	Diagnostics []Diagnostic `json:"diagnostics"`
 }
 
-// builtinBlockHelpers names Handlebars built-ins that aren't in
-// Formidable's helper catalog but are always valid as block heads.
+// builtinBlockHelpers names Handlebars built-ins not in Formidable's
+// catalog but always valid as block heads.
 var builtinBlockHelpers = map[string]struct{}{
 	"if": {}, "unless": {}, "each": {}, "with": {}, "lookup": {},
 	"helperMissing": {}, "blockHelperMissing": {},
@@ -85,17 +85,15 @@ func knownHelperNames() map[string]struct{} {
 	return known
 }
 
-// helperLintVisitor walks the parsed AST and flags helper invocations
-// whose name is not in the known set. "Helper invocation" is conservative
-// on purpose: a bare `{{foo}}` with no params is left alone because it
-// may legitimately be a field/context lookup. We flag only when the
-// expression has params or a hash (so it can't be a passive lookup) or
-// when it heads a block (so it must dispatch to a helper).
+// helperLintVisitor flags helper invocations whose name isn't known.
+// Bare `{{foo}}` with no params is left alone (it may be a field/context
+// lookup); flagging happens only when the expression has params or a hash
+// (so it can't be a passive lookup) or when it heads a block.
 type helperLintVisitor struct {
 	known map[string]struct{}
 	diags []Diagnostic
-	// seen dedupes "unknown helper X" warnings per validation run so a
-	// typo repeated 10 times doesn't produce 10 panel rows.
+	// seen dedupes "unknown helper X" warnings so a repeated typo doesn't
+	// produce one panel row per occurrence.
 	seen map[string]struct{}
 }
 

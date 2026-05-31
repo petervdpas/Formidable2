@@ -1,11 +1,8 @@
 package sfr
 
-// Service is the api layer over Manager. Methods map 1:1 with the old
-// Electron `window.electron.sfr.*` IPC group (camelCase'd → PascalCase).
-//
-// Wails-only by design: callers supply a directory path that gets
-// joined with a base filename, so this is too generic to expose over
-// the loopback HTTP API.
+// Service is the api layer over Manager. Wails-only by design: callers supply
+// a directory path joined with a base filename, too generic to expose over the
+// loopback HTTP API.
 type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }

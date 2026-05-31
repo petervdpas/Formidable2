@@ -1,11 +1,10 @@
 package system
 
-// Service is the api layer over Manager. Methods map 1:1 with the old
-// Electron `window.api.system.*` IPC group (camelCase'd → PascalCase).
+// Service is the api layer over Manager.
 //
 // Wails-only by design: this surface includes raw filesystem and command
-// execution and must NOT be exposed via the internal HTTP server. There
-// is no handlers.go in this module on purpose.
+// execution and must NOT be exposed via the internal HTTP server. There is no
+// handlers.go in this module on purpose.
 type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }

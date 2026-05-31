@@ -5,33 +5,22 @@ import "strings"
 const scheme = "formidable://"
 
 // ParseFormidableHref parses `formidable://<template>:<datafile>[#<fragment>]`.
-//
-// Mirrors the original `parseFormidableHref` (utils/fieldRenderers.js)
-// with the same lastIndexOf-of-":" split - that split rule is
-// deliberately permissive on the datafile side because filenames can
-// in theory contain colons, but the template side never does. Callers
-// of ParseFormidableHref then validate template/datafile against the
-// real disk layout downstream.
-//
-// Returns nil for any URL that isn't well-formed: missing scheme,
-// missing colon, empty halves, traversal sequences, or path segments
-// that contain `/` or `\` (we only navigate to top-level template
-// names + datafile names, never into nested paths).
+// The template/datafile split is on the last ":" so a datafile that
+// contains a colon still parses; the template side never does. Returns
+// nil for any malformed URL (missing scheme/colon, empty halves,
+// traversal sequences, or `/`/`\` in a segment).
 func ParseFormidableHref(href string) *Target {
 	if !strings.HasPrefix(href, scheme) {
 		return nil
 	}
 	rest := href[len(scheme):]
 
-	// Split off optional #fragment - pure suffix, no extra rules.
 	var fragment string
 	if i := strings.IndexByte(rest, '#'); i >= 0 {
 		fragment = rest[i+1:]
 		rest = rest[:i]
 	}
 
-	// Template / datafile split: last ":" so weird datafiles with a
-	// colon still parse the way the JS implementation did.
 	idx := strings.LastIndexByte(rest, ':')
 	if idx <= 0 || idx == len(rest)-1 {
 		return nil
@@ -46,8 +35,8 @@ func ParseFormidableHref(href string) *Target {
 }
 
 // MakeHref builds the canonical `formidable://<template>:<datafile>`
-// URL from a Target. Inverse of ParseFormidableHref; the fragment is
-// dropped because history doesn't track scroll positions (yet).
+// URL from a Target. The fragment is dropped because history doesn't
+// track scroll positions yet.
 func MakeHref(t *Target) string {
 	if t == nil {
 		return ""
@@ -55,10 +44,9 @@ func MakeHref(t *Target) string {
 	return scheme + t.Template + ":" + t.Datafile
 }
 
-// isSafeName rejects path traversal, embedded directory separators,
-// and empty strings. The Vue + render layers already pass user-typed
-// values through, but this is the last barrier before we hand a name
-// to template.LoadTemplate / storage.LoadForm.
+// isSafeName is the last barrier before a name reaches
+// template.LoadTemplate / storage.LoadForm: rejects traversal, embedded
+// directory separators, and empty strings.
 func isSafeName(s string) bool {
 	if s == "" {
 		return false

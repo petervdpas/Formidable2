@@ -16,32 +16,29 @@ func errOrderRange(i int) error { return fmt.Errorf("query: order column %d out 
 
 // Matrix is the prepared in-memory grid: every cell a string, one column
 // per queryable source, one row per (form x unnested table entry). Type
-// is not stored - an operation reapplies it (parse to number / date) when
-// it runs, and tolerates cells that don't parse. This is the execute
-// surface; prepare builds it from the form data.
+// is not stored; an operation reapplies it (parse to number / date) when
+// it runs and tolerates cells that don't parse.
 type Matrix struct {
 	Cols []MatrixCol
 	Rows []MatrixRow
 	// FormCount is the number of source forms prepare read, regardless of
-	// filtering or how many rows each exploded into: the "N of M" total.
+	// filtering or explosion: the "N of M" total.
 	FormCount int
 }
 
-// MatrixCol describes one column. ID is the source identity
-// (sourceID(Source)); Hint is the declared type ("number" / "date" / "")
-// used only to choose the default coercion, never to gate a value.
+// MatrixCol describes one column. Hint is the declared type
+// ("number"/"date"/"") used only to choose the default coercion, never to
+// gate a value.
 type MatrixCol struct {
 	ID   string
 	Hint string
 }
 
 // MatrixRow is one exploded row: Form is the source filename (so
-// count_distinct can count forms, not rows); Cells aligns to Matrix.Cols.
-// Origins records the cartesian provenance: when a form's tables are
-// flattened, a row from table A repeated by table B's fan keeps an Origin
-// per participating table (its field key, the 0-based row index within
-// that table, and the table's row count for the form). Aggregates use it
-// to count each source row once despite the cartesian duplication.
+// count_distinct counts forms, not rows); Cells aligns to Matrix.Cols.
+// Origins records cartesian provenance, one Origin per participating
+// table, so aggregates count each source row once despite the cartesian
+// duplication.
 type MatrixRow struct {
 	Form    string
 	Origins []Origin
@@ -49,18 +46,18 @@ type MatrixRow struct {
 }
 
 // Origin links an exploded row back to one table it was fanned from. Hash
-// is a content hash of the source entry, so identity is the data (stable
-// across reorders and re-reads); Row is the positional index, kept so two
-// identical-content rows stay distinct and aggregates don't undercount.
+// makes identity the data (stable across reorders); Row is the positional
+// index, kept so two identical-content rows stay distinct and aggregates
+// don't undercount.
 type Origin struct {
-	Field string // the multi-valued field key
-	Row   int    // 0-based index within that field's entries for this form
-	Hash  string // content hash of the source entry
-	Count int    // number of entries that field had in this form
+	Field string
+	Row   int
+	Hash  string
+	Count int
 }
 
 // sourceID is the stable column key for a source, matching the frontend's
-// srcId scheme (kind|key|col) so a Spec's Source maps to a Matrix column.
+// srcId scheme (kind|key|col).
 func sourceID(s Source) string {
 	col := ""
 	if s.Col != nil {
@@ -80,8 +77,8 @@ func (m *Matrix) colIndex() map[string]int {
 	return idx
 }
 
-// parseNum coerces a cell to a number. Blank and non-numeric cells return
-// ok=false so the caller can skip them.
+// parseNum coerces a cell to a number; blank and non-numeric cells return
+// ok=false.
 func parseNum(s string) (float64, bool) {
 	t := strings.TrimSpace(s)
 	if t == "" {
@@ -94,11 +91,9 @@ func parseNum(s string) (float64, bool) {
 	return f, true
 }
 
-// Execute runs a Spec against the prepared Matrix and shapes the Result.
-// With no GroupBy it is a filtered, projected, ordered row listing
-// (Distinct collapses identical projected tuples); with GroupBy it is an
-// aggregation (group dimensions + Measures). All type handling is per-op
-// coercion over the string cells.
+// Execute runs a Spec against the prepared Matrix. Without GroupBy it is a
+// filtered, projected, ordered row listing; with GroupBy it aggregates
+// (group dimensions + Measures).
 func (m *Matrix) Execute(spec Spec) (Result, error) {
 	idx := m.colIndex()
 
@@ -119,7 +114,7 @@ func (m *Matrix) Execute(spec Spec) (Result, error) {
 	return res, nil
 }
 
-// dateLayouts mirror the index/render date formats, so the query treats a
+// dateLayouts mirror the index/render date formats so the query treats a
 // value as a valid date exactly when the rest of the app does.
 var dateLayouts = []string{
 	"2006-01-02",
@@ -138,7 +133,7 @@ func parseDate(s string) bool {
 }
 
 // referenced collects the source ids a spec touches, so anomaly scanning
-// only inspects the typed columns the query actually uses.
+// inspects only the typed columns the query uses.
 func referenced(spec Spec) map[string]bool {
 	used := map[string]bool{}
 	for _, c := range spec.Columns {
@@ -155,11 +150,9 @@ func referenced(spec Spec) map[string]bool {
 	return used
 }
 
-// anomalies scans the typed columns the query uses for cells that betray
-// their declared type. A blank cell is absence (the field was left empty),
-// not a violation, so it is skipped; any non-blank value that won't coerce
-// is reported. This is the "fishy" check: typed input should always
-// round-trip, so a failure here means corrupt stored data.
+// anomalies reports typed cells that won't coerce to their declared type.
+// A blank cell is absence, not a violation, so it is skipped; a non-blank
+// value that won't coerce means corrupt stored data.
 func (m *Matrix) anomalies(used map[string]bool) []Anomaly {
 	var out []Anomaly
 	for ci, col := range m.Cols {
@@ -187,8 +180,8 @@ func (m *Matrix) anomalies(used map[string]bool) []Anomaly {
 }
 
 // filter returns the row indices passing every filter. A filter on a
-// source the matrix doesn't carry drops all rows (the source can't be
-// satisfied), which surfaces a bad spec rather than silently ignoring it.
+// source the matrix doesn't carry drops all rows, surfacing a bad spec
+// rather than silently ignoring it.
 func (m *Matrix) filter(idx map[string]int, filters []Filter) []int {
 	out := make([]int, 0, len(m.Rows))
 	for ri, row := range m.Rows {
@@ -239,7 +232,7 @@ func passOne(cell string, f Filter) bool {
 }
 
 // list projects the spec's columns, optionally de-duplicates the tuple,
-// orders and limits.
+// then orders and limits.
 func (m *Matrix) list(idx map[string]int, kept []int, spec Spec) (Result, error) {
 	cols := make([]int, len(spec.Columns))
 	hints := make([]string, len(spec.Columns))
@@ -279,10 +272,9 @@ func (m *Matrix) list(idx map[string]int, kept []int, spec Spec) (Result, error)
 	return res, nil
 }
 
-// group aggregates the kept rows by their dimension tuple. Dimensions are
-// GroupBy indices into spec.Columns; Measures are the aggregate columns.
-// When no Measures are given but Count is set, a single count column is
-// emitted (back-compat with the old group/count shape).
+// group aggregates the kept rows by their dimension tuple. When no
+// Measures are given but Count is set, a single count column is emitted
+// (back-compat with the old group/count shape).
 func (m *Matrix) group(idx map[string]int, kept []int, spec Spec) (Result, error) {
 	dimCols := make([]int, len(spec.GroupBy))
 	dimHeaders := make([]string, len(spec.GroupBy))
@@ -371,8 +363,7 @@ func (m *Matrix) aggregate(fn string, col int, srcField string, rowIx []int) Cel
 	case "sum", "avg", "min", "max":
 		// Dedupe by the measure source's provenance so a cartesian fan
 		// from another table can't inflate sum/avg: each (form, source
-		// table row) contributes once. min/max are idempotent under
-		// duplication, so the dedupe is a no-op for them but harmless.
+		// table row) contributes once. min/max are idempotent here.
 		rowIx = m.dedupeBySource(rowIx, srcField)
 		var sum, min, max float64
 		n := 0
@@ -415,9 +406,7 @@ func needsSource(fn string) bool {
 	return fn == "sum" || fn == "avg" || fn == "min" || fn == "max"
 }
 
-// dedupeBySource keeps one row per (form, source-table row). When the
-// measure's field has an Origin, two cartesian-duplicated rows share the
-// same (form, that field's row index) and collapse to one. A scalar
+// dedupeBySource keeps one row per (form, source-table row). A scalar
 // source (no matching Origin) dedupes by form alone, so a scalar value
 // fanned by a table is summed once per form, not once per table row.
 func (m *Matrix) dedupeBySource(rowIx []int, srcField string) []int {
@@ -435,8 +424,7 @@ func (m *Matrix) dedupeBySource(rowIx []int, srcField string) []int {
 }
 
 // originRowKey is the row's identity within a field: hash plus position.
-// The hash makes it stable/linkable; the position keeps duplicate-content
-// rows distinct so a SUM counts both.
+// The position keeps duplicate-content rows distinct so a SUM counts both.
 func originRowKey(row MatrixRow, field string) string {
 	for _, o := range row.Origins {
 		if o.Field == field {
@@ -446,8 +434,8 @@ func originRowKey(row MatrixRow, field string) string {
 	return ""
 }
 
-// cellOf builds a typed Cell from a string: a number hint parses the
-// value (a non-numeric cell stays text-only); anything else is text.
+// cellOf builds a typed Cell from a string; a number hint parses the
+// value, with non-numeric cells staying text-only.
 func cellOf(s, hint string) Cell {
 	c := Cell{Text: s}
 	if hint == "number" {
@@ -471,9 +459,8 @@ func tupleKey(cells []Cell) string {
 	return strings.Join(parts, "\x1f")
 }
 
-// orderRows applies the multi-key sort. Each Sort.Column is an index into
-// the output columns; a numeric sort compares parsed numbers (unparseable
-// cells sort last). The sort is stable so equal keys keep input order.
+// orderRows applies the multi-key stable sort. A numeric sort compares
+// parsed numbers, with unparseable cells sorting last.
 func orderRows(rows [][]Cell, orderBy []Sort, ncols int) error {
 	for _, s := range orderBy {
 		if s.Column < 0 || s.Column >= ncols {
@@ -508,7 +495,7 @@ func compareCells(a, b Cell, numeric bool) int {
 		case !okA && !okB:
 			return 0
 		case !okA:
-			return 1 // unparseable sorts last
+			return 1
 		case !okB:
 			return -1
 		case na < nb:

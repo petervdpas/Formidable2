@@ -3,23 +3,23 @@ package datacore
 import "strconv"
 
 // GraphNode is one identity in the node-link view: a record (root) or a
-// sub-identity (a table/loop row, or a linked record).
+// sub-identity (a table/loop row or a linked record).
 type GraphNode struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Kind  string `json:"kind"` // "root" | "row"
 }
 
-// GraphEdge is one reference: a directed edge from Source to Target labeled by
-// the field that carries the ref (the loop field, or the link field).
+// GraphEdge is a directed edge from Source to Target labeled by the field
+// that carries the ref (the loop field or the link field).
 type GraphEdge struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
 	Field  string `json:"field"`
 }
 
-// Graph is the node-link view of the tensor's reference sub-structure: nodes
-// are identities, edges are refs. This is the tensor read as a labeled
+// Graph is the node-link view of the tensor's reference sub-structure:
+// nodes are identities, edges are refs. The tensor read as a labeled
 // directed graph rather than as a table.
 type Graph struct {
 	Nodes  []GraphNode `json:"nodes"`
@@ -27,10 +27,10 @@ type Graph struct {
 	Capped bool        `json:"capped"`
 }
 
-// Graph projects the reference sub-tensor as nodes and edges. Identities are
-// ordered roots-first so a cap keeps whole records before their rows; an edge
-// is emitted only when both endpoints survive the cap, so there are no
-// dangling edges. limit <= 0 means no cap.
+// Graph projects the reference sub-tensor as nodes and edges. Identities
+// are ordered roots-first so a cap keeps whole records before their rows;
+// an edge is emitted only when both endpoints survive the cap, so there
+// are no dangling edges. limit <= 0 means no cap.
 func (t *Tensor) Graph(limit int) Graph {
 	seen := map[sym]bool{}
 	order := make([]sym, 0)
@@ -80,7 +80,7 @@ func (t *Tensor) Graph(limit int) Graph {
 	return g
 }
 
-// GraphFrom projects the flower around one identity at a level of detail:
+// GraphFrom projects the subgraph around one identity at a level of detail:
 //
 //	level 0: the start node only
 //	level 1: + its fields (scalar/facet values as leaf nodes, and table/list/
@@ -88,10 +88,9 @@ func (t *Tensor) Graph(limit int) Graph {
 //	level 2: + the rows/targets hanging under each reference field
 //
 // A scalar field is a leaf labeled by its value; a reference field is a node
-// labeled by the field name with its rows under it (a table reads as a
-// field-with-rows). The dialog drives the base level for the record and uses a
-// per-node call to unfold a clicked row or linked record further. Empty graph
-// if rootID is unknown.
+// labeled by the field name with its rows under it. The dialog drives the
+// base level and uses a per-node call to unfold a clicked row or linked
+// record further. Empty graph if rootID is unknown.
 func (t *Tensor) GraphFrom(rootID string, level int) Graph {
 	root, ok := t.iax.lookup(rootID)
 	var g Graph
@@ -125,8 +124,8 @@ func (t *Tensor) GraphFrom(rootID string, level int) Graph {
 	}
 	rootLabel := t.iax.label(root)
 
-	// Group the start identity's cells by field, preserving first-seen order,
-	// so each field becomes one node (a value leaf, or a container for refs).
+	// Group cells by field, preserving first-seen order, so each field
+	// becomes one node (a value leaf or a container for refs).
 	type cells struct {
 		values []string
 		refs   []sym

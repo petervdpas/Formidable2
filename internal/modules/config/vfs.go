@@ -7,19 +7,16 @@ import (
 	"strings"
 )
 
-// vfs.go owns the materialised view of the on-disk Formidable layout
-// under <context_folder>. Mirrors `Formidable/controls/configManager.js`
-// buildVirtualStructure + getContextPath / getContextTemplatesPath /
-// getContextStoragePath / getTemplateStorageInfo.
+// vfs.go owns the materialised view of the on-disk Formidable layout under
+// <context_folder>.
 //
-// Reads are TTL-cached (default 2s) so per-render rescans don't ladder
-// into a thousand listdir calls. The TTL window is short enough that an
-// external edit (gigot pull, manual file drop) becomes visible within a
-// blink, and DirtyVirtualStructure() forces an immediate rebuild.
+// Reads are TTL-cached (default 2s) so per-render rescans don't ladder into
+// thousands of listdir calls. The window is short enough that an external edit
+// (gigot pull, manual file drop) shows up quickly; DirtyVirtualStructure()
+// forces an immediate rebuild.
 
-// GetVirtualStructure returns the cached VFS view, rebuilding if the
-// cache is stale or empty. Auto-creates the templates and storage
-// directories under the active context_folder on first build.
+// GetVirtualStructure returns the cached VFS view, rebuilding if stale or empty.
+// Auto-creates the templates and storage directories on first build.
 func (m *Manager) GetVirtualStructure() (*VirtualStructure, error) {
 	cfg, err := m.LoadUserConfig()
 	if err != nil {
@@ -49,11 +46,10 @@ func (m *Manager) GetVirtualStructure() (*VirtualStructure, error) {
 	return vfs, nil
 }
 
-// buildVirtualStructure walks the active context's templates folder and
-// surfaces, for each <name>.yaml, a TemplateStorageFolder with the
-// .meta.json files and image files under storage/<name>. The companion
-// storage folders (and their images/ subfolder) are auto-created so
-// later writes don't have to special-case the first-touch path.
+// buildVirtualStructure walks the templates folder and, for each <name>.yaml,
+// surfaces a TemplateStorageFolder with the .meta.json and image files under
+// storage/<name>. The companion storage folders (and images/ subfolder) are
+// auto-created so later writes don't special-case the first-touch path.
 func (m *Manager) buildVirtualStructure(cfg *Config) (*VirtualStructure, error) {
 	context := cfg.ContextFolder
 	if context == "" {
@@ -127,7 +123,7 @@ func (m *Manager) buildVirtualStructure(cfg *Config) (*VirtualStructure, error) 
 }
 
 // GetContextPath returns the absolute path of the active context folder,
-// auto-creating it if it doesn't exist yet.
+// auto-creating it if missing.
 func (m *Manager) GetContextPath() (string, error) {
 	cfg, err := m.LoadUserConfig()
 	if err != nil {
@@ -144,8 +140,7 @@ func (m *Manager) GetContextPath() (string, error) {
 	return abs, nil
 }
 
-// GetContextTemplatesPath returns the absolute path of the templates
-// folder under the active context.
+// GetContextTemplatesPath returns the absolute templates folder path.
 func (m *Manager) GetContextTemplatesPath() (string, error) {
 	vfs, err := m.GetVirtualStructure()
 	if err != nil {
@@ -154,8 +149,7 @@ func (m *Manager) GetContextTemplatesPath() (string, error) {
 	return vfs.Templates, nil
 }
 
-// GetContextStoragePath returns the absolute path of the storage folder
-// under the active context.
+// GetContextStoragePath returns the absolute storage folder path.
 func (m *Manager) GetContextStoragePath() (string, error) {
 	vfs, err := m.GetVirtualStructure()
 	if err != nil {
@@ -165,8 +159,7 @@ func (m *Manager) GetContextStoragePath() (string, error) {
 }
 
 // GetTemplateStorageInfo returns the per-template storage record for
-// templateFilename (e.g. "basic.yaml"), or nil if the template isn't
-// registered in the current VFS view.
+// templateFilename (e.g. "basic.yaml"), or nil if not in the current VFS view.
 func (m *Manager) GetTemplateStorageInfo(templateFilename string) *TemplateStorageFolder {
 	if templateFilename == "" {
 		return nil

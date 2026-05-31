@@ -2,23 +2,22 @@ package datacore
 
 import "strconv"
 
-// Record is the plain input datacore ingests. It is decoupled from storage
-// and template by design: anything that can shape a record into fields,
-// tables, and facets can feed the tensor.
+// Record is the plain input datacore ingests, decoupled from storage and
+// template: anything that can shape a record into fields, tables, and
+// facets can feed the tensor.
 type Record struct {
 	ID     string
 	Fields map[string]string
 	Tables map[string][]map[string]string
 	Facets map[string]string
-	// Links are record-to-record references: a field mapped to the
-	// identities it points at. This is the FDRM cross-record edge, the
-	// thing Unfold walks recursively.
+	// Links are record-to-record references (the FDRM cross-record edge
+	// Unfold walks recursively): a field mapped to the identities it points at.
 	Links map[string][]string
-	// Label is an optional human display name for the record (e.g. its
-	// title field), used by the graph view. Empty falls back to the ID.
+	// Label is an optional display name for the record, used by the graph
+	// view. Empty falls back to the ID.
 	Label string
 	// TableLabels gives an optional display label per table row (in row
-	// order), keyed by table field, used to label row nodes in the graph.
+	// order), keyed by table field, to label row nodes in the graph.
 	TableLabels map[string][]string
 }
 
@@ -27,8 +26,8 @@ type Record struct {
 // Scalar fields and facets land on the record identity at Universal meaning.
 // Each table row becomes its own identity, so a row keeps a first-class
 // identity instead of being flattened into the parent (the property an EAV
-// index loses and the matrix has to rebuild from provenance). The record
-// references each row under the table's field, so Follow walks record -> rows.
+// index loses and has to rebuild from provenance). The record references each
+// row under the table's field, so Follow walks record -> rows.
 func (t *Tensor) Ingest(r Record) {
 	t.markRoot(r.ID)
 	if r.Label != "" {
@@ -62,5 +61,5 @@ func (t *Tensor) Ingest(r Record) {
 
 // facetField namespaces a facet key so it cannot collide with a field label.
 // Facet keys are a legitimately open set (author-defined), so the prefix is
-// built rather than enumerated.
+// built rather than enumerated from a fixed map.
 func facetField(key string) string { return "facet:" + key }

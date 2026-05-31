@@ -11,12 +11,10 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// templateLoader is what form needs from the template module.
 type templateLoader interface {
 	LoadTemplate(name string) (*template.Template, error)
 }
 
-// formStore is what form needs from the storage module.
 type formStore interface {
 	EnsureFormDir(templateFilename string) error
 	ListForms(templateFilename string) ([]string, error)
@@ -26,21 +24,18 @@ type formStore interface {
 	DeleteForm(templateFilename, datafile string) error
 }
 
-// configReader is the config surface form needs.
 type configReader interface {
 	FormDefaults() ConfigDefaults
 }
 
 // ConfigDefaults bundles config values that affect form rendering.
-// Snapshot read once per call - these change rarely. Author identity
-// is NOT here: storage.Manager pulls it directly from its own
-// AuthorProvider so every save path (form, api, csv import, integrity)
-// gets the active profile stamped.
+// Author identity is NOT here: storage.Manager pulls it directly from its
+// own AuthorProvider so every save path stamps the active profile.
 type ConfigDefaults struct {
 	LoopStateCollapsed bool
 }
 
-// Manager owns the form-view orchestration.
+// Manager owns form-view orchestration.
 type Manager struct {
 	templates templateLoader
 	storage   formStore
@@ -48,7 +43,7 @@ type Manager struct {
 	log       *slog.Logger
 }
 
-// NewManager constructs a form Manager. log may be nil.
+// NewManager constructs a form Manager; log may be nil.
 func NewManager(t templateLoader, s formStore, c configReader, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
@@ -57,8 +52,8 @@ func NewManager(t templateLoader, s formStore, c configReader, log *slog.Logger)
 }
 
 // BuildView prepares the FormView for one (template, datafile) pair.
-// Empty datafile, or a datafile that doesn't exist, yields an unsaved
-// view with type-defaults injected so the UI has something to bind to.
+// A missing or empty datafile yields an unsaved view with type-defaults
+// injected so the UI has something to bind to.
 func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 	tpl, err := m.templates.LoadTemplate(templateName)
 	if err != nil {
@@ -81,9 +76,6 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 
 	loaded := m.storage.LoadForm(templateName, datafile)
 	if loaded == nil {
-		// Missing or unreadable - fall back to an unsaved view, keep
-		// the requested datafile so the UI can show "this is the
-		// name you chose" without erroring.
 		m.log.Warn("form: datafile not found; returning unsaved view",
 			"template", templateName, "datafile", datafile)
 		return &FormView{
@@ -96,7 +88,6 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 		}, nil
 	}
 
-	// storage.LoadForm already injected defaults via Sanitize.
 	return &FormView{
 		Template:   tpl,
 		Values:     loaded.Data,
@@ -107,9 +98,8 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 	}, nil
 }
 
-// SaveValues persists the values + meta for one (template, datafile)
-// pair, runs save-side normalizations, and returns the round-tripped
-// FormView so caller state matches disk.
+// SaveValues persists values + meta for one (template, datafile) pair and
+// returns the round-tripped FormView so caller state matches disk.
 func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormView, error) {
 	if payload.Datafile == "" {
 		return nil, errors.New("form: empty datafile")
@@ -123,13 +113,9 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 		values = map[string]any{}
 	}
 
-	// Compose the bare-payload shape storage.Sanitize expects:
-	//   {...values, _meta:{...}}
 	// Storage owns id-generation, Created/Updated stamping (via its
-	// AuthorProvider - wired to the active profile by the composition
-	// root), tags collection, and shape-coercion. We pass meta through
-	// only for fields storage doesn't otherwise know: template name +
-	// flag state. Identity stamping is no longer the form module's job.
+	// AuthorProvider), tags collection, and shape-coercion. Meta passes
+	// through only for what storage can't otherwise know (template name).
 	meta := payload.Meta
 	if meta.Template == "" {
 		meta.Template = templateName
@@ -150,7 +136,7 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 	return m.BuildView(templateName, payload.Datafile)
 }
 
-// DeleteForm removes the form's meta.json. Missing is a no-op.
+// DeleteForm removes the form's meta.json; missing is a no-op.
 func (m *Manager) DeleteForm(templateName, datafile string) error {
 	if datafile == "" {
 		return errors.New("form: empty datafile")
@@ -158,14 +144,12 @@ func (m *Manager) DeleteForm(templateName, datafile string) error {
 	return m.storage.DeleteForm(templateName, datafile)
 }
 
-// ListForms - passthrough to storage.ExtendedListForms so Vue gets the
-// title-resolved + expression-bearing rows the sidebar needs.
+// ListForms returns the title-resolved, expression-bearing summary rows.
 func (m *Manager) ListForms(templateName string) ([]storage.FormSummary, error) {
 	return m.storage.ExtendedListForms(templateName)
 }
 
-// EnsureFormDir - passthrough to storage; lets Vue create the per-
-// template folder before listing on a fresh template.
+// EnsureFormDir creates the per-template folder before listing.
 func (m *Manager) EnsureFormDir(templateName string) error {
 	return m.storage.EnsureFormDir(templateName)
 }
@@ -174,8 +158,7 @@ func (m *Manager) EnsureFormDir(templateName string) error {
 // helpers
 // ─────────────────────────────────────────────────────────────────────
 
-// configDefaults reads from the configReader once. nil-safe so the
-// composition root can pass nil during early-boot tests.
+// configDefaults is nil-safe so early-boot tests can pass a nil config.
 func (m *Manager) configDefaults() ConfigDefaults {
 	if m.config == nil {
 		return ConfigDefaults{}
@@ -183,9 +166,8 @@ func (m *Manager) configDefaults() ConfigDefaults {
 	return m.config.FormDefaults()
 }
 
-// defaultValues fills a fresh values map from each field's default
-// (or its type-default when no default is declared). Loop fields get
-// an empty array so Vue can iterate over zero entries safely.
+// defaultValues fills a fresh values map from each field's default or
+// type-default. Loop fields get an empty array.
 func defaultValues(fields []template.Field) map[string]any {
 	out := map[string]any{}
 	skip := map[string]bool{}
@@ -193,9 +175,6 @@ func defaultValues(fields []template.Field) map[string]any {
 		f := fields[i]
 		if f.Type == "loopstart" {
 			out[f.Key] = []any{}
-			// Skip every field up to matching loopstop; nested loops
-			// are handled recursively by the inner walk when Vue
-			// renders entries.
 			depth := 1
 			for j := i + 1; j < len(fields); j++ {
 				switch fields[j].Type {
@@ -243,11 +222,9 @@ func typeDefault(t string) any {
 	}
 }
 
-// metaToMap - JSON-shaped meta block, matching what storage.Sanitize
-// reads out of the bare envelope's `_meta` key. Only emits Created /
-// Updated when their At field is set - storage.SaveForm overrides
-// these from prev + provider anyway, so passing zero values would just
-// be noise.
+// metaToMap builds the `_meta` block storage.Sanitize reads. Created /
+// Updated are emitted only when set, since SaveForm overrides them from
+// prev + provider anyway.
 func metaToMap(m storage.FormMeta) map[string]any {
 	out := map[string]any{
 		"id":       m.ID,

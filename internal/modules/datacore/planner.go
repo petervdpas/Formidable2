@@ -5,10 +5,8 @@ package datacore
 // matches set facet options, Search is a full-text query. An empty Predicate
 // narrows nothing, so the tensor is built from every record.
 //
-// A predicate is a row filter the planner pushes down to the index instead of
-// the tensor selecting in memory: narrowing here is the same set as a Where on
-// each named field, just decided by the fast store. The seam's contract is
-// that the two agree (see the cross-check parity test).
+// The seam's contract: narrowing here yields the same set as a Where on each
+// named field, just decided by the fast store (see the cross-check parity test).
 type Predicate struct {
 	Equals map[string]string // field key -> exact value
 	Facets map[string]string // facet key -> selected option
@@ -28,8 +26,8 @@ type Planner interface {
 }
 
 // SubsetLoader is a Loader that can materialize only a named subset of records.
-// A plain Loader still works: loadSubset falls back to reading every record and
-// filtering by id (correct, just not accelerated).
+// A plain Loader still works: loadSubset falls back to reading every record
+// and filtering by id (correct, just not accelerated).
 type SubsetLoader interface {
 	Loader
 	LoadSubset(ids []string) ([]Record, error)
@@ -70,9 +68,9 @@ func loadSubset(l Loader, ids []string) ([]Record, error) {
 
 // buildNarrowed builds a tensor for the template, narrowed by pred when a
 // planner is wired and the predicate is non-empty and pushable. With no
-// planner, an empty predicate, or a planner that declines to narrow, it builds
-// from every record - identical to Build. This is the planner seam: the index
-// narrows which records exist, the tensor computes over them.
+// planner, an empty predicate, or a planner that declines, it builds from
+// every record (identical to Build). The planner seam: the index narrows
+// which records exist, the tensor computes over them.
 func buildNarrowed(loader Loader, planner Planner, template string, pred Predicate) (*Tensor, error) {
 	if planner == nil || pred.Empty() {
 		return Build(loader)

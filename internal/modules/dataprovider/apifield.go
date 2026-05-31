@@ -9,9 +9,8 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/index"
 )
 
-// API-field structured errors. Callers should `errors.Is` against
-// these rather than string-match. The Wails service layer maps each
-// to a stable error code in its response shape.
+// API-field structured errors; errors.Is against these, the Wails layer
+// maps each to a stable code.
 var (
 	ErrAPIFieldTemplateNotFound   = errors.New("api-field: source template not found")
 	ErrAPIFieldCollectionDisabled = errors.New("api-field: source template does not enable collection")
@@ -19,28 +18,11 @@ var (
 	ErrAPIFieldStorageMissing     = errors.New("api-field: storage adapter not wired")
 )
 
-// FetchAPIFieldRow projects one row from a source collection-enabled
-// template at picker time.
-//
-// Resolves (sourceTemplate, guid) → datafile via the index, loads the
-// form's data via storage, and returns a map keyed by columnKey
-// carrying each requested source value VERBATIM. Scalars (string /
-// bool / number) pass through; complex shapes (slices, maps) ride
-// across as themselves. The host's .meta.json is already JSON, so a
-// projected `tags: ["a","b"]` lands as a real array - not as a
-// JSON-encoded string nested inside the host JSON.
-//
-// The returned map always contains an entry for every requested
-// columnKey; absent source keys produce nil values (so callers can
-// tell "absent" apart from "explicit empty string"). An empty/nil
-// columnKeys slice yields an empty (non-nil) row.
-//
-// Errors are structured (errors.Is-able) so the Wails layer can
-// translate to stable codes:
-//   - ErrAPIFieldTemplateNotFound when the source template is unknown
-//   - ErrAPIFieldCollectionDisabled when the source isn't collection-mode
-//   - ErrAPIFieldGuidNotFound when no form in that template carries the guid
-//   - ErrAPIFieldStorageMissing when the manager wasn't wired with storage
+// FetchAPIFieldRow resolves (sourceTemplate, guid) to a datafile via the
+// index and returns each requested columnKey's source value verbatim
+// (scalars and complex shapes alike, since .meta.json is already JSON).
+// Every columnKey gets an entry; absent source keys map to nil, so callers
+// can tell absent from explicit empty.
 func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid string, columnKeys []string) (map[string]any, error) {
 	tpls, err := m.idx.ListTemplates()
 	if err != nil {
@@ -83,9 +65,7 @@ func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid str
 	}
 	form := m.sto.LoadForm(sourceTemplate, datafile)
 	if form == nil {
-		// Index has the row but storage can't find it - treat as
-		// guid-not-found so callers don't have to distinguish a stale
-		// index from a genuine miss. Logging is the storage layer's job.
+		// Stale index row: treat as guid-not-found, don't distinguish.
 		return nil, fmt.Errorf("%w: %q resolves to %q (gone from disk)",
 			ErrAPIFieldGuidNotFound, guid, datafile)
 	}
@@ -102,35 +82,25 @@ func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid str
 	return row, nil
 }
 
-// APIFieldDrift is one column where the host's stored value differs
-// from the source's current value. Stored may be nil (the column was
-// added to Map[] after the form was saved); Current may be nil (the
-// source-side field was deleted/cleared).
+// APIFieldDrift is one column where the host's stored value differs from
+// the source's current value. Either side may be nil (column added after
+// save, or source field cleared).
 type APIFieldDrift struct {
 	Key     string `json:"key"`
 	Stored  any    `json:"stored"`
 	Current any    `json:"current"`
 }
 
-// APIFieldRefetchResult bundles a fresh projected row with the diff
-// against a previously-stored row. Frontend renders Row as the new
-// truth and uses Drift to flag what changed since last save.
+// APIFieldRefetchResult is a fresh projected row plus its Drift against a
+// previously-stored row.
 type APIFieldRefetchResult struct {
 	Row   map[string]any  `json:"row"`
 	Drift []APIFieldDrift `json:"drift"`
 }
 
-// RefetchAPIFieldRow fetches the current projected row for
-// (sourceTemplate, guid, columnKeys) and compares each column against
-// stored. Returns the fresh row plus a Drift entry for every column
-// whose value differs (including columns absent from stored or absent
-// from current). A nil stored map is treated as empty (every non-nil
-// current column counts as drift from zero).
-//
-// Comparison uses host-storage equality semantics: scalars compare by
-// value, non-scalars compare by their JSON-flattened string (already
-// produced by flattenAPIValue). Same-shaped values therefore round-
-// trip cleanly even when the source's underlying type is complex.
+// RefetchAPIFieldRow fetches the current row and returns it with a Drift
+// entry per column that differs from stored. A nil stored map counts every
+// non-nil current column as drift.
 func (m *Manager) RefetchAPIFieldRow(ctx context.Context, sourceTemplate, guid string, columnKeys []string, stored map[string]any) (*APIFieldRefetchResult, error) {
 	row, err := m.FetchAPIFieldRow(ctx, sourceTemplate, guid, columnKeys)
 	if err != nil {
@@ -150,12 +120,8 @@ func (m *Manager) RefetchAPIFieldRow(ctx context.Context, sourceTemplate, guid s
 	return &APIFieldRefetchResult{Row: row, Drift: drift}, nil
 }
 
-// apiFieldValuesEqual is the per-column equality rule used by the
-// drift detector. Both stored and current values arrive as JSON-shaped
-// Go data (the host's stored value was JSON-decoded from the form's
-// .meta.json; the current value came back through Wails which round-
-// trips via JSON too). reflect.DeepEqual handles scalars, slices, and
-// maps consistently for that family.
+// apiFieldValuesEqual compares two JSON-shaped values; both sides are
+// JSON-decoded Go data, so DeepEqual handles scalars/slices/maps alike.
 func apiFieldValuesEqual(a, b any) bool {
 	return reflect.DeepEqual(a, b)
 }

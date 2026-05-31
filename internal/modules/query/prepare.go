@@ -11,23 +11,21 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// FormData is one form's raw values for prepare: its filename (the record
-// identity), the data map (field key -> value), and its set facet
-// selections (facet key -> selected option label). The app builds these
-// from storage + template; tests use a fake.
+// FormData is one form's raw values for prepare: filename (record
+// identity), data map (field key -> value), and set facet selections
+// (facet key -> selected option label).
 type FormData struct {
 	Filename string
 	Data     map[string]any
 	Facets   map[string]string
 }
 
-// Loader supplies what prepare flattens: a template and its forms.
+// Loader supplies the template and forms that prepare flattens.
 type Loader interface {
 	Template(name string) (*template.Template, error)
 	Forms(name string) ([]FormData, error)
 }
 
-// colPlan is how prepare reads one referenced source out of a form.
 type colPlan struct {
 	src   Source
 	hint  string
@@ -36,9 +34,8 @@ type colPlan struct {
 	col   int    // table column index (-1 when not a table column)
 }
 
-// referencedSources lists the distinct sources a spec touches: projected
-// columns (and thus group/order, which index into them), filters, and
-// numeric measures. Those become the matrix's columns.
+// referencedSources lists the distinct sources a spec touches (columns,
+// filters, numeric measures). Those become the matrix's columns.
 func referencedSources(spec Spec) []Source {
 	seen := map[string]bool{}
 	var out []Source
@@ -63,14 +60,13 @@ func referencedSources(spec Spec) []Source {
 	return out
 }
 
-// Prepare reads the template's forms and flattens them into a Matrix. The
-// sources a spec references become columns; scalar fields and facets fill
-// straight; referenced multi-valued fields (table columns, list/tags/
-// multioption) are cartesian-exploded with provenance, so columns of one
-// table stay aligned and two different tables produce their product. Each
-// exploded row carries a content hash per source table (stable identity)
-// and the positional index (keeps duplicates distinct). A form whose
-// referenced table is empty contributes no rows (an empty product).
+// Prepare reads the template's forms and flattens them into a Matrix.
+// Referenced multi-valued fields (table columns, list/tags/multioption)
+// are cartesian-exploded with provenance: columns of one table stay
+// aligned while two different tables produce their product. Each exploded
+// row carries a content hash per source table (stable identity) plus the
+// positional index (keeps duplicates distinct). A form whose referenced
+// table is empty contributes no rows (an empty product).
 func Prepare(spec Spec, loader Loader) (*Matrix, error) {
 	tpl, err := loader.Template(spec.Template)
 	if err != nil {
@@ -89,7 +85,7 @@ func Prepare(spec Spec, loader Loader) (*Matrix, error) {
 	}
 
 	plans := make([]colPlan, 0)
-	fanType := map[string]string{} // fan field key -> field type ("table" or list-ish)
+	fanType := map[string]string{}
 	for _, s := range referencedSources(spec) {
 		p := colPlan{src: s, col: -1}
 		switch {
@@ -188,8 +184,8 @@ func Prepare(spec Spec, loader Loader) (*Matrix, error) {
 	return m, nil
 }
 
-// advance increments the cartesian odometer (rightmost fastest). Returns
-// false when every combination has been produced.
+// advance increments the cartesian odometer (rightmost fastest),
+// returning false once every combination has been produced.
 func advance(idxs []int, entries [][]any) bool {
 	for d := len(idxs) - 1; d >= 0; d-- {
 		idxs[d]++
@@ -251,9 +247,8 @@ func colTypeHint(f template.Field, col int) string {
 	return ""
 }
 
-// hashCells is the stable content id of a source entry: a hash over its
-// cell values. Truncated to 128 bits, which is collision-safe for row
-// identity while staying compact in a large matrix.
+// hashCells is the stable content id of a source entry. Truncated to 128
+// bits: collision-safe for row identity, compact in a large matrix.
 func hashCells(cells []string) string {
 	sum := sha256.Sum256([]byte(strings.Join(cells, "\x1f")))
 	return hex.EncodeToString(sum[:16])
@@ -267,8 +262,8 @@ func stringsOf(vs []any) []string {
 	return out
 }
 
-// asText / asSlice mirror the index coercions so the matrix stringifies a
-// value exactly as the rest of the app does.
+// asText mirrors the index coercions so the matrix stringifies a value
+// exactly as the rest of the app does.
 func asText(v any) string {
 	switch x := v.(type) {
 	case nil:

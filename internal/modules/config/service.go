@@ -1,21 +1,9 @@
 package config
 
-// Service is the Wails-bound surface of the config module - what the
-// Vue SPA can actually call. Deliberately narrow:
-//
-//   - Profile config read/write (the Settings UI)
-//   - Profile management (the Profiles workspace)
-//
-// The richer Manager surface (VirtualStructure scan, per-template
-// storage info, cache invalidation hooks) is intentionally NOT exposed
-// here. Those primitives are for backend-internal consumers - most
-// notably the future opt-in internal HTTP server (wiki view + REST
-// collections API + OpenAPI), which will use Manager directly.
-//
-// The frontend covers what little it needs of the file tree through
-// the focused per-module services (template.Service.ListTemplates,
-// storage.Service.ListForms, etc.). Adding a VFS hop on top would
-// duplicate scanning and create two ways to ask the same question.
+// Service is the Wails-bound surface of the config module: profile config
+// read/write plus profile management. The richer Manager surface (VFS scan,
+// per-template storage info, cache hooks) is intentionally NOT exposed here;
+// those are backend-internal, for the future opt-in internal HTTP server.
 type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }
@@ -58,26 +46,21 @@ func (s *Service) DeleteUserProfile(profileFilename string) ProfileResult {
 
 // ─── Enabled templates (per-profile curation) ────────────────────────
 
-// ListEnabledTemplates returns the YAML filenames the active profile is
-// allowed to pick from. Empty EnabledTemplates → every template on disk
-// (the "opt-in not used" default). The backend self-heals against the
-// live templates folder before returning, so deleted templates don't
-// leak through into the picker.
+// ListEnabledTemplates returns the YAML filenames the active profile may pick
+// from. Empty EnabledTemplates means every template on disk. Self-heals against
+// the live templates folder so deleted templates don't leak into the picker.
 func (s *Service) ListEnabledTemplates() ([]string, error) {
 	return s.m.ListEnabledTemplates()
 }
 
-// IsTemplateEnabled is the single-filename gate the frontend can use
-// when it already knows the name (e.g. validating that a stored
-// SelectedTemplate is still allowed). Empty filename is never enabled.
+// IsTemplateEnabled reports whether filename is in the active profile's scope.
+// Empty filename is never enabled.
 func (s *Service) IsTemplateEnabled(filename string) bool {
 	return s.m.IsTemplateEnabled(filename)
 }
 
-// SetTemplateEnabled toggles one template in the active profile's scope
-// and returns the resulting EnabledTemplates slice. The backend owns
-// the curation logic (empty = show all, begin/extend/clear scoping); the
-// frontend calls this and renders the returned state.
+// SetTemplateEnabled toggles one template in the active profile's scope and
+// returns the resulting EnabledTemplates slice.
 func (s *Service) SetTemplateEnabled(filename string, on bool) ([]string, error) {
 	return s.m.SetTemplateEnabled(filename, on)
 }

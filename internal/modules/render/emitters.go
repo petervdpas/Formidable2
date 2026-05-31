@@ -11,14 +11,13 @@ import (
 
 var absoluteURLRe = regexp.MustCompile(`(?i)^([a-z][a-z0-9+\-.]*:)?//|^(mailto|tel):`)
 
-// isAbsoluteURL mirrors `isAbsoluteUrl` in the original renderer.
-// True for `https://`, `//cdn`, `mailto:`, `tel:`, etc.
+// isAbsoluteURL is true for `https://`, `//cdn`, `mailto:`, `tel:`, etc.
 func isAbsoluteURL(u string) bool {
 	return absoluteURLRe.MatchString(u)
 }
 
-// stringify normalizes a value to its string representation. nil → "",
-// floats render without trailing ".0" when integral.
+// stringify normalizes a value to its string representation. nil becomes
+// "", integral floats render without a trailing ".0".
 func stringify(v any) string {
 	if v == nil {
 		return ""
@@ -43,8 +42,7 @@ func stringify(v any) string {
 	}
 }
 
-// truthy mirrors JS `Boolean(v)` for the boolean emitter - non-empty
-// strings, non-zero numbers, and non-nil objects are true.
+// truthy mirrors JS `Boolean(v)` for the boolean emitter.
 func truthy(v any) bool {
 	switch x := v.(type) {
 	case nil:
@@ -64,7 +62,7 @@ func truthy(v any) bool {
 	}
 }
 
-// emitList → markdown bullet list, one item per line.
+// emitList renders a markdown bullet list, one item per line.
 func emitList(v any) string {
 	arr, ok := v.([]any)
 	if !ok || len(arr) == 0 {
@@ -77,8 +75,7 @@ func emitList(v any) string {
 	return strings.Join(out, "\n")
 }
 
-// emitTable → markdown table rows. Each row is a []any; cells are
-// stringified and wrapped in `| … |` separators.
+// emitTable renders markdown table rows from a []any of []any rows.
 func emitTable(v any) string {
 	rows, ok := v.([]any)
 	if !ok || len(rows) == 0 {
@@ -99,9 +96,8 @@ func emitTable(v any) string {
 	return strings.Join(out, "\n")
 }
 
-// optionPair extracts (value, label) from one option entry.
-// Strings become {value:s, label:s}; maps look at "value" + "label" with
-// label falling back to value. Anything else stringifies.
+// optionPair extracts (value, label) from one option entry. Label falls
+// back to value when absent.
 func optionPair(opt any) (string, string) {
 	switch x := opt.(type) {
 	case string:
@@ -119,7 +115,7 @@ func optionPair(opt any) (string, string) {
 	}
 }
 
-// emitBoolean honors `field.options[0]` (true) / `[1]` (false). Falls
+// emitBoolean honors `field.options[0]` (true) / `[1]` (false), falling
 // back to "True"/"False" when no options are declared.
 func emitBoolean(v any, f *template.Field) string {
 	b := truthy(v)
@@ -137,8 +133,8 @@ func emitBoolean(v any, f *template.Field) string {
 	return "False"
 }
 
-// emitOptionLabel - dropdown / radio / table-column lookup. Returns the
-// option label that matches v; falls back to v's stringified form.
+// emitOptionLabel returns the option label matching v, falling back to
+// v's stringified form.
 func emitOptionLabel(v any, f *template.Field) string {
 	want := stringify(v)
 	if f == nil {
@@ -153,7 +149,7 @@ func emitOptionLabel(v any, f *template.Field) string {
 	return want
 }
 
-// emitMultioption - array of selected values → comma-joined labels.
+// emitMultioption joins the selected values' labels with commas.
 func emitMultioption(v any, f *template.Field) string {
 	arr, ok := v.([]any)
 	if !ok {
@@ -166,18 +162,16 @@ func emitMultioption(v any, f *template.Field) string {
 	return strings.Join(out, ", ")
 }
 
-// kebab → lowercase + spaces collapsed to "-". Matches the original
-// `tag.toLowerCase().replace(/\s+/g, "-")`.
+// kebab lowercases s and collapses whitespace runs to "-".
 func kebab(s string) string {
 	s = strings.ToLower(s)
 	return regexp.MustCompile(`\s+`).ReplaceAllString(s, "-")
 }
 
-// emitYAMLList → `- item1\n  - item2\n  - item3` (with 2-space indent
-// for items 2+ when indent=2; no indent default). Items with YAML
-// special chars get single-quoted; internal single quotes escape via
-// the doubled-quote convention. Non-array input → empty string so
-// callers can use the helper unconditionally.
+// emitYAMLList emits a YAML block sequence, indenting items 2+ by indent
+// spaces. Items with YAML special chars get single-quoted (internal
+// quotes doubled). Non-array input returns "" so callers can use it
+// unconditionally.
 func emitYAMLList(v any, indent int) string {
 	arr, ok := v.([]any)
 	if !ok || len(arr) == 0 {
@@ -216,7 +210,7 @@ func needsYAMLListQuoting(s string) bool {
 	return false
 }
 
-// emitTags → "#kebab-tag, #other" (with hash) or "kebab, other" (without).
+// emitTags renders "#kebab-tag, #other" (withHash) or "kebab, other".
 func emitTags(v any, withHash bool) string {
 	arr, ok := v.([]any)
 	if !ok {
@@ -235,16 +229,10 @@ func emitTags(v any, withHash bool) string {
 }
 
 // resolveLinkHref decides the final href for a link field's value.
-// Three branches:
-//
-//   - `formidable://<template>:<datafile>` URLs go through the
-//     transport-specific rewriter when one is installed (wiki HTTP →
-//     /template/<stem>/form/<datafile>, future Azure/GitHub exports →
-//     their own slug schemes). nil hook = pass through untouched
-//     (slideout case - Vue click interceptor handles clicks in-app).
-//   - Absolute URLs (http/https/etc.) and `file:` URIs are passthrough.
-//   - Otherwise it's a relative path: LinkURL resolves it against
-//     template storage if provided.
+// `formidable://<tpl>:<df>` URLs go through the transport rewriter when
+// one is installed; a nil hook passes them through untouched (the
+// slideout's Vue click interceptor handles clicks in-app). Absolute and
+// `file:` URLs pass through. Relative paths resolve via LinkURL.
 func resolveLinkHref(href string, opts *Options) string {
 	if href == "" {
 		return ""
@@ -269,8 +257,8 @@ func resolveLinkHref(href string, opts *Options) string {
 }
 
 // parseFormidableURL splits `formidable://<tpl>:<df>` into its parts.
-// Returns ok=false on malformed input so the caller can fall back to
-// the original href instead of producing a half-broken URL.
+// Returns ok=false on malformed input so the caller can fall back to the
+// original href instead of producing a half-broken URL.
 func parseFormidableURL(href string) (template, datafile string, ok bool) {
 	const prefix = "formidable://"
 	if !strings.HasPrefix(href, prefix) {
@@ -284,8 +272,8 @@ func parseFormidableURL(href string) (template, datafile string, ok bool) {
 	return rest[:idx], rest[idx+1:], true
 }
 
-// emitLink accepts `string` or `{href, text}`. Returns a Markdown
-// `[label](href)`. Empty href + empty text → "".
+// emitLink accepts `string` or `{href, text}` and returns Markdown
+// `[label](href)`. Empty href and text yields "".
 func emitLink(v any, opts *Options) string {
 	var href, text string
 	switch x := v.(type) {
@@ -311,8 +299,8 @@ func emitLink(v any, opts *Options) string {
 	return "[" + label + "](" + href + ")"
 }
 
-// emitImage resolves the image filename to a URL via the configured
-// strategy. Absolute paths and `file:` URIs are passed through.
+// emitImage resolves the image filename to a URL via Options.ImageURL.
+// Absolute and `file:` URLs pass through.
 func emitImage(v any, opts *Options) string {
 	name, ok := v.(string)
 	if !ok || name == "" {
@@ -327,8 +315,8 @@ func emitImage(v any, opts *Options) string {
 	return "images/" + name
 }
 
-// emitFieldValue dispatches to the per-type emitter. Unknown types
-// fall back to plain stringify. Used by the {{field}} helper.
+// emitFieldValue dispatches to the per-type emitter, falling back to
+// stringify for unknown types.
 func emitFieldValue(v any, f *template.Field, opts *Options) string {
 	if f == nil {
 		return stringify(v)

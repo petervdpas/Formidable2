@@ -57,27 +57,13 @@ func (m *Manager) JoinPath(segments ...string) string {
 	return filepath.Join(append([]string{m.AppRoot()}, segments...)...)
 }
 
-// ResolveAbsolutePath turns a user-typed path string into a clean
-// absolute path, independent of AppRoot. Used by the path-field
-// components to coerce hand-typed input on blur so values stored in
-// form data are always full paths (matching what the OS picker
-// already returns for picked paths).
-//
-// Behavior:
-//   - empty in → empty out (never invent a path).
-//   - "~" or "~/sub" → expand to the OS user's home dir. Other
-//     tilde forms ("~someuser") are left untouched - that's shell
-//     sugar we don't reimplement.
-//   - already absolute → cleaned via filepath.Clean.
-//   - relative → resolved against the process's working dir via
-//     filepath.Abs.
+// ResolveAbsolutePath cleans a user-typed path to absolute, independent of
+// AppRoot. Empty stays empty; "~"/"~/sub" expand to home ("~someuser" is
+// left as-is); relative resolves against the working dir.
 func (m *Manager) ResolveAbsolutePath(p string) (string, error) {
 	if p == "" {
 		return "", nil
 	}
-	// Tilde-expansion: only the bare "~" and "~/" forms. Lookups for
-	// "~someuser" need an OS-specific PAM/getpwnam call we don't pull
-	// in; users wanting that can type the absolute path.
 	if p == "~" || strings.HasPrefix(p, "~/") {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -94,15 +80,10 @@ func (m *Manager) ResolveAbsolutePath(p string) (string, error) {
 	return filepath.Abs(p)
 }
 
-// MakeAppRootRelative collapses an absolute path under AppRoot to
-// the project's "./<rel>" form so config values stay portable
-// across machines that share the AppRoot convention. Paths outside
-// AppRoot are returned unchanged - relativizing them would yield
-// "../../foo"-style traversals that defeat the readability win and
-// break the "value is either ./<sub> or absolute" round-trip rule.
-//
-// Empty input passes through; already-relative input is treated as
-// trusted and returned as-is. The root itself collapses to ".".
+// MakeAppRootRelative collapses an absolute path under AppRoot to "./<rel>"
+// for portable config values. The root collapses to "."; paths outside
+// AppRoot (and already-relative input) pass through unchanged, keeping the
+// "value is either ./<sub> or absolute" invariant.
 func (m *Manager) MakeAppRootRelative(p string) string {
 	if p == "" || !filepath.IsAbs(p) {
 		return p
@@ -115,8 +96,7 @@ func (m *Manager) MakeAppRootRelative(p string) string {
 	if err != nil {
 		return p
 	}
-	// filepath.Rel returns ".." prefixes when p is outside root; we
-	// only want to relativize true descendants (and root itself).
+	// Rel returns ".." when p is outside root; relativize descendants only.
 	if rel == "." {
 		return "."
 	}
@@ -153,14 +133,9 @@ func (m *Manager) IsDir(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-// ListDir returns the names of all entries in the directory at path
-// (relative paths resolve under AppRoot; absolute paths used as-is).
-// Returns an empty slice for a missing directory rather than an
-// error - callers usually treat "no files yet" as a normal startup
-// state (e.g. the PDF module's cover scaffold runs before any user
-// files exist). Real I/O errors (permission denied, etc.) still
-// bubble up. Order is filesystem-dependent; callers that need
-// deterministic order should sort.
+// ListDir returns the entry names in path. A missing directory yields nil,
+// not an error (callers treat "no files yet" as normal); real I/O errors
+// bubble up. Order is filesystem-dependent.
 func (m *Manager) ListDir(path string) ([]string, error) {
 	full := m.ResolvePath(path)
 	entries, err := os.ReadDir(full)
@@ -203,9 +178,8 @@ func (m *Manager) SaveFile(path string, content string) error {
 	return nil
 }
 
-// AppendFile opens path in append mode (creating it if missing) and writes
-// content. Used by journal-style append-only logs. Does not emit a journal
-// op of its own - journals control their own emission policy.
+// AppendFile appends content to path (creating it if missing). Emits no
+// journal op of its own; journals control their own emission.
 func (m *Manager) AppendFile(path string, content string) error {
 	full := m.ResolvePath(path)
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {

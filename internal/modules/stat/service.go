@@ -2,12 +2,10 @@ package stat
 
 import "fmt"
 
-// StatObject is a named statistical object defined on a template: its
-// identifier, optional human label, and either a DSL (a plain object the
-// engine evaluates) or a Composite spec (a hop route referencing other
-// objects by name). Exactly one of DSL / Composite is set. Mirrors
-// template.Statistic without the template dependency, so the catalog can
-// travel to Vue and Lua via the Service.
+// StatObject is a named statistical object defined on a template: a DSL (a
+// plain object the engine evaluates), a Composite spec (a hop route), or a
+// Scaling. Exactly one is set. Mirrors template.Statistic without the template
+// dependency so the catalog can travel to Vue and Lua via the Service.
 type StatObject struct {
 	Name      string         `json:"name"`
 	Label     string         `json:"label,omitempty"`
@@ -20,9 +18,8 @@ type StatObject struct {
 }
 
 // CompositeSpec is the stored form of a composite (hop route): a parent
-// object name plus per-branch child object names. Resolved against the
-// template's other objects by ResolveComposite. Kept name-based (not
-// inlined configs) so the parent and children stay single sources of truth.
+// object name plus per-branch child object names. Name-based (not inlined
+// configs) so parent and children stay single sources of truth.
 type CompositeSpec struct {
 	Parent string              `json:"parent"`
 	Edges  []CompositeEdgeSpec `json:"edges"`
@@ -44,22 +41,18 @@ type StatisticSource interface {
 	ListStatistics(template string) ([]StatObject, error)
 }
 
-// Service is the Wails-bound facade for the stat module. Vue calls
-// these to drive the statistics dialog; each returns a chart-neutral
-// Result the frontend (or a plugin) shapes into a chart spec. The
-// service stays thin - all aggregation lives on Manager and, beneath
-// it, the index module's SQL.
-//
-// col is the table-column index for table-field stats; pass nil for a
-// scalar field. percentile is in [0,100]; pass nil to skip it. Wails
-// surfaces both as `number | null` on the TypeScript side.
+// Service is the Wails-bound facade for the stat module. Each method
+// returns a chart-neutral Grid the frontend (or a plugin) shapes into a
+// chart spec; all aggregation lives on Manager and the index module's SQL.
+// Throughout, col is the table-column index (nil for a scalar field) and
+// percentile is in [0,100] (nil to skip).
 type Service struct {
 	m   *Manager
 	src StatisticSource
 }
 
-// NewService wraps a Manager and a statistic-name resolver (for
-// EvaluateObject). src may be nil if name resolution isn't needed.
+// NewService wraps a Manager and a statistic-name resolver; src may be nil
+// when name resolution isn't needed.
 func NewService(m *Manager, src StatisticSource) *Service {
 	return &Service{m: m, src: src}
 }
@@ -93,22 +86,20 @@ func (s *Service) TimeSeries(template, fieldKey string, col *int, period string)
 }
 
 // CompileDSL serializes a StatConfig into the canonical statistical-DSL
-// string. The Statistical Insight builder dialog calls this on save; the
-// stored string is what evaluation (step 4) later parses + runs.
+// string (called by the builder dialog on save).
 func (s *Service) CompileDSL(cfg StatConfig) (string, error) {
 	return Compile(cfg)
 }
 
-// ParseDSL turns a stored statistical-DSL string back into a StatConfig
-// so the builder can re-open it for editing. Strict: an unrecognised
-// string is an error, letting the dialog show a clean "couldn't load"
-// flow rather than silently misreading.
+// ParseDSL turns a stored statistical-DSL string back into a StatConfig so
+// the builder can re-open it. Strict: an unrecognised string errors rather
+// than silently misreading.
 func (s *Service) ParseDSL(dsl string) (StatConfig, error) {
 	return Parse(dsl)
 }
 
 // BuilderMeasureOps is the measure catalog (op + input rules) the builder
-// renders its op picker from - backend owns the vocabulary, not the UI.
+// renders its op picker from.
 func (s *Service) BuilderMeasureOps() []MeasureOpDescriptor { return MeasureOps() }
 
 // BuilderBins is the date-bin catalog for the dimension binning picker.
@@ -122,11 +113,10 @@ func (s *Service) BuilderPercentBases() []PercentBase { return PercentBases() }
 // picker (op + whether its value is numeric).
 func (s *Service) BuilderFilterOps() []FilterOpDescriptor { return FilterOps() }
 
-// EvaluateDSL evaluates a raw statistical-DSL string against the index.
-// The builder uses it to preview a statistic's output before it is saved
-// (EvaluateObject needs the object persisted to resolve it by name). A
-// `scale "<name>"` clause is resolved against the template's saved objects,
-// so the referenced scaling must already exist (like composite children).
+// EvaluateDSL evaluates a raw statistical-DSL string against the index, for
+// previewing a statistic before it is saved. A `scale "<name>"` clause is
+// resolved against the template's saved objects, so the referenced scaling
+// must already exist.
 func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error) {
 	cfg, err := Parse(dsl)
 	if err != nil {
@@ -142,10 +132,8 @@ func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error) {
 	return s.evaluateResolved(template, cfg, catalog)
 }
 
-// ListObjects returns the catalog of named statistical objects defined
-// on a template (name, label, DSL). The frontend lists them and the
-// Lua binding enumerates them; either then calls EvaluateObject(name)
-// to run one. DSL is exposed for display, not required for evaluation.
+// ListObjects returns the catalog of named statistical objects defined on a
+// template. Callers then invoke EvaluateObject(name) to run one.
 func (s *Service) ListObjects(template string) ([]StatObject, error) {
 	if s.src == nil {
 		return nil, fmt.Errorf("stat: no statistic source configured")
@@ -155,8 +143,7 @@ func (s *Service) ListObjects(template string) ([]StatObject, error) {
 
 // CompositeOptions reports the composites (hop routes) buildable from the
 // template's named objects: each rank-1 parent and, per branch, the existing
-// children that can drill it. The builder renders only these, so the structure
-// gates what the author can wire. Backend steers the frontend.
+// children that can drill it. The builder renders only these.
 func (s *Service) CompositeOptions(template string) ([]CompositeOption, error) {
 	if s.src == nil {
 		return nil, fmt.Errorf("stat: no statistic source configured")
@@ -168,11 +155,9 @@ func (s *Service) CompositeOptions(template string) ([]CompositeOption, error) {
 	return CompositeOptions(objs), nil
 }
 
-// EvaluateComposite resolves a template's named composite object (a hop
-// route) and evaluates it: the parent rank-1 grid plus a child grid per
-// drilled branch (nil for solid leaves). Errors if the name is unknown or
-// is not a composite. This is the surface the sunburst/drill renderer
-// consumes; plain objects use EvaluateObject.
+// EvaluateComposite resolves a template's named composite object and
+// evaluates it: the parent rank-1 grid plus a child grid per drilled branch
+// (nil for solid leaves). Plain objects use EvaluateObject instead.
 func (s *Service) EvaluateComposite(template, name string) (*CompositeGrid, error) {
 	if s.src == nil {
 		return nil, fmt.Errorf("stat: no statistic source configured")
@@ -200,9 +185,8 @@ func (s *Service) EvaluateComposite(template, name string) (*CompositeGrid, erro
 }
 
 // EvaluateCompositeSpec evaluates an inline composite spec against the
-// template's saved objects (the parent and children, referenced by name,
-// must already exist). The builder uses it to preview a composite before the
-// composite object itself is saved, mirroring EvaluateDSL for plain objects.
+// template's saved objects (referenced parent and children must already
+// exist), for previewing a composite before it is saved.
 func (s *Service) EvaluateCompositeSpec(template string, spec CompositeSpec) (*CompositeGrid, error) {
 	if s.src == nil {
 		return nil, fmt.Errorf("stat: no statistic source configured")
@@ -222,9 +206,9 @@ func (s *Service) EvaluateCompositeSpec(template string, spec CompositeSpec) (*C
 	return s.m.EvaluateComposite(template, comp)
 }
 
-// catalogConfigs adapts a template's object catalog (name -> object) to the
-// ObjectConfigs the composite resolver needs: it parses a plain object's DSL
-// and rejects unknown names and composites (no nesting).
+// catalogConfigs adapts a template's object catalog to the ObjectConfigs the
+// composite resolver needs: it parses a plain object's DSL and rejects
+// unknown names and composites (no nesting).
 type catalogConfigs map[string]StatObject
 
 func (c catalogConfigs) Config(name string) (StatConfig, error) {
@@ -238,8 +222,6 @@ func (c catalogConfigs) Config(name string) (StatConfig, error) {
 	return Parse(o.DSL)
 }
 
-// Scaling resolves a scale-clause name to its weighting (implements
-// ScalingSource). Errors on an unknown name or an object that isn't a scaling.
 func (c catalogConfigs) Scaling(name string) (*Scaling, error) {
 	o, ok := c[name]
 	if !ok {
@@ -251,10 +233,9 @@ func (c catalogConfigs) Scaling(name string) (*Scaling, error) {
 	return o.Scaling, nil
 }
 
-// evaluateResolved evaluates a parsed config against the index, resolving an
-// optional scale-clause reference through the catalog first. The single path
-// behind EvaluateObject and the builder preview so both apply weighting the
-// same way.
+// evaluateResolved is the single path behind EvaluateObject and the builder
+// preview, resolving an optional scale-clause reference through the catalog
+// so both apply weighting the same way.
 func (s *Service) evaluateResolved(template string, cfg StatConfig, catalog catalogConfigs) (*Grid, error) {
 	if cfg.Scale == "" {
 		return s.m.Evaluate(template, cfg)

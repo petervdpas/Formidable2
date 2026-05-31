@@ -1,8 +1,8 @@
 package render
 
-// HelperCategory groups helpers into discoverable sections in the
-// frontend reference panel. Stable string constants - frontend uses
-// them as i18n key suffixes (e.g. `render.helpers.category.field`).
+// HelperCategory groups helpers into sections in the reference panel.
+// The values are stable: the frontend uses them as i18n key suffixes
+// (e.g. `render.helpers.category.field`).
 type HelperCategory string
 
 const (
@@ -23,33 +23,26 @@ const (
 	HelperCategoryMeta       HelperCategory = "meta"
 )
 
-// HelperDescriptor describes one registered Handlebars helper. The
-// shape is JSON-serialisable for the Wails service so the frontend
-// reference panel can render it directly. Fields are intentionally
-// terse - these are developer-facing reference cards, not tutorials.
+// HelperDescriptor describes one registered Handlebars helper, JSON-
+// serialised for the Wails service. Fields are terse: these are
+// reference cards, not tutorials.
 type HelperDescriptor struct {
 	// Name is the helper identifier as used in `{{<name> …}}`.
 	Name string `json:"name"`
-	// Signature is a Handlebars-shaped usage hint, e.g.
-	// `{{yamlList arr [indent=N]}}`. Square brackets mark optional args.
+	// Signature is a usage hint; square brackets mark optional args.
 	Signature string `json:"signature"`
-	// Description is a one-sentence English summary. Translation lives
-	// in vue-i18n if needed; this field is the fallback.
+	// Description is a one-sentence summary; the vue-i18n fallback.
 	Description string `json:"description"`
-	// Example is a representative invocation. Single line, copy-pasteable.
+	// Example is a single-line, copy-pasteable invocation.
 	Example string `json:"example"`
 	// Category groups the helper in the reference panel.
 	Category HelperCategory `json:"category"`
 }
 
 // builtinHelpers is the static catalog of every helper this module
-// registers on the Handlebars template. Drift-guarded by
-// TestCatalog_MatchesRegisteredHelpers, which builds a real Manager
-// and intersects this list with the template's runtime HelperNames().
-//
-// Keep entries grouped by Category and sorted alphabetically inside
-// each group. Add a new entry whenever helpers.go / helpers_field.go
-// / apifield_helpers.go gains a `tpl.RegisterHelper` call.
+// registers, drift-guarded by TestCatalog_MatchesRegisteredHelpers.
+// Keep entries grouped by Category and alphabetical within each group;
+// add one whenever a `tpl.RegisterHelper` call is added.
 var builtinHelpers = []HelperDescriptor{
 	// ── comparison ───────────────────────────────────────────────
 	{Name: "compare", Signature: `{{compare a op b}}`, Description: "True when the comparison `a <op> b` holds (`===`, `!==`, `<`, `<=`, `>`, `>=`).", Example: `{{#if (compare score ">=" 80)}}pass{{/if}}`, Category: HelperCategoryComparison},
@@ -138,10 +131,8 @@ var builtinHelpers = []HelperDescriptor{
 	{Name: "templateStem", Signature: `{{templateStem}}`, Description: "Filename of the template with the `.yaml` extension stripped - the slug form used in URLs and wiki paths.", Example: `slug: {{templateStem}}`, Category: HelperCategoryMeta},
 }
 
-// Catalog returns a copy of the static helper descriptor list. Callers
-// can mutate the returned slice freely without affecting future calls.
-// Order is grouped by Category and sorted alphabetically inside each
-// group - same order as the source slice.
+// Catalog returns a copy of the helper descriptor list; callers may
+// mutate it freely.
 func Catalog() []HelperDescriptor {
 	out := make([]HelperDescriptor, len(builtinHelpers))
 	copy(out, builtinHelpers)

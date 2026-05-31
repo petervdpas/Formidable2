@@ -1,12 +1,11 @@
-// Package logging is the Wails-facing facade over internal/log.
-// It exposes the in-memory ring buffer (Recent) and the on-disk log
-// file contents (ReadFile) so the Information→Logging panel can
-// render both a live tail and the raw text dump.
+// Package logging is the Wails-facing facade over internal/log. It
+// exposes the in-memory ring buffer (Recent) and the on-disk log file
+// (ReadFile) so the Information->Logging panel can render a live tail
+// and the raw text dump.
 //
-// WriteFromFrontend lets the SPA re-publish console.* calls through
-// the same slog pipeline as backend code - frontend lines land in
-// formidable.log AND the live tail, tagged with source=frontend so
-// they're distinguishable from backend records.
+// WriteFromFrontend re-publishes SPA console.* calls through the same
+// slog pipeline as backend code: frontend lines land in formidable.log
+// and the live tail, tagged source=frontend.
 package logging
 
 import (
@@ -25,10 +24,9 @@ type Manager struct {
 	log     *slog.Logger
 }
 
-// NewManager wraps the broadcaster, remembers the log file path, and
-// holds the *slog.Logger used by WriteFromFrontend. Any argument may
-// be nil/empty - Recent/ReadFile/WriteFromFrontend all degrade to
-// no-ops so the UI renders empty states without special-casing.
+// NewManager wraps the broadcaster, log file path, and logger used by
+// WriteFromFrontend. Any argument may be nil or empty: Recent, ReadFile,
+// and WriteFromFrontend degrade to no-ops so the UI renders empty states.
 func NewManager(bc *applog.Broadcaster, logPath string, log *slog.Logger) *Manager {
 	return &Manager{bc: bc, logPath: logPath, log: log}
 }
@@ -42,9 +40,9 @@ func (m *Manager) Recent(n int) []applog.Entry {
 	return m.bc.Recent(n)
 }
 
-// ReadFile returns the contents of the on-disk log file. Returns
-// ("", nil) when file logging is disabled or the file doesn't exist
-// yet so the UI can show "(empty)" without surfacing an error.
+// ReadFile returns the contents of the on-disk log file, or ("", nil)
+// when file logging is disabled or the file doesn't exist yet so the UI
+// shows "(empty)" without an error.
 func (m *Manager) ReadFile() (string, error) {
 	if m.logPath == "" {
 		return "", nil
@@ -59,22 +57,15 @@ func (m *Manager) ReadFile() (string, error) {
 	return string(body), nil
 }
 
-// LogPath returns the resolved log file path (empty when file logging
-// is off). Useful for the UI footer / debug.
+// LogPath returns the resolved log file path (empty when file logging is off).
 func (m *Manager) LogPath() string { return m.logPath }
 
-// WriteFromFrontend funnels a frontend console.* call through the
-// app's *slog.Logger. The record flows to every handler the logger
-// fans (text → stderr/file, broadcaster → ring + Wails event), so
-// frontend lines appear in the live tail AND in formidable.log.
-//
-// source="frontend" is always stamped and cannot be overridden by the
-// caller - the attribute is the only way the UI distinguishes
-// frontend from backend records.
-//
-// Returns no error: this is fire-and-forget. Empty/whitespace
-// messages, unknown levels, or a nil logger short-circuit silently
-// so the frontend's console-wrapper never has to think about errors.
+// WriteFromFrontend funnels a frontend console.* call through the app's
+// logger so the line appears in both the live tail and formidable.log.
+// source="frontend" is always stamped and cannot be overridden; it is
+// the only way the UI distinguishes frontend from backend records.
+// Fire-and-forget: empty messages, unknown levels, or a nil logger
+// short-circuit silently.
 func (m *Manager) WriteFromFrontend(level, msg string, fields map[string]any) {
 	if m == nil || m.log == nil {
 		return

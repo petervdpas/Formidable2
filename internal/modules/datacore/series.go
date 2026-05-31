@@ -44,12 +44,12 @@ func bucketDate(t time.Time, period string) string {
 	}
 }
 
-// DateSeries reduces along the I mode into a date histogram: each identity's
-// value at field is coerced to a date on demand and bucketed to the period
-// (year/month/day, defaulting to month). Blank cells are absence; a non-blank
-// value that will not parse as a date is surfaced as an Anomaly, not
-// truncated into a bogus bucket. Buckets are sorted (chronological for ISO
-// dates, since lexical and chronological coincide).
+// DateSeries reduces along the I mode into a date histogram: each value at
+// field is coerced to a date on demand and bucketed to the period
+// (year/month/day, defaulting to month). Blank cells are absence; a
+// non-blank value that will not parse is surfaced as an Anomaly, not
+// truncated into a bogus bucket. Buckets are sorted (lexical order on ISO
+// dates is chronological).
 func (p *Perspective) DateSeries(field, period string) Series {
 	s := Series{Period: normalizePeriod(period)}
 	f, ok := p.t.fax.lookup(field)

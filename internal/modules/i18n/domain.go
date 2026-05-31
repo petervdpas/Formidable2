@@ -16,24 +16,19 @@ const (
 	defaultLocale = "en"
 )
 
-// Manager holds parsed locale bundles in memory. Each locale lives as
-// a directory of namespace JSON files (shell.json, settings.json, …);
-// they are merged into a single flat map[string]any per locale at load
-// time. Per-call lookup is then a single map read under an RWMutex.
-//
-// Bundle values are typed as map[string]any rather than map[string]string
-// so future locale features (plural rules, nested namespaces, rich text)
-// can extend the schema without changing this signature.
+// Manager holds parsed locale bundles in memory, one flat map[string]any per
+// locale, behind an RWMutex. Values are map[string]any rather than string so
+// future locale features (plural rules, nested namespaces) can extend the
+// schema without changing this signature.
 type Manager struct {
 	log     *slog.Logger
 	mu      sync.RWMutex
 	bundles map[string]map[string]any
 }
 
-// NewManager loads every JSON file under the embedded locales/ tree.
-// Fails fast if the default locale (`en`) is missing or any namespace
-// file is malformed - both signal a build issue rather than a runtime
-// condition.
+// NewManager loads every JSON file under the embedded locales/ tree. Fails
+// fast if the default locale (`en`) is missing or any namespace file is
+// malformed, both of which signal a build issue.
 func NewManager(log *slog.Logger) (*Manager, error) {
 	sub, err := fs.Sub(embedded, localesDir)
 	if err != nil {
@@ -42,10 +37,9 @@ func NewManager(log *slog.Logger) (*Manager, error) {
 	return newManagerFromFS(sub, log)
 }
 
-// newManagerFromFS is the testable entry point - accepts an arbitrary
-// fs.FS so tests can drive the loader with fstest.MapFS to cover
-// happy + unhappy paths without touching the embedded tree. The FS is
-// expected to be rooted at the locales directory: <locale>/<file>.json.
+// newManagerFromFS is the testable entry point: the FS is rooted at the
+// locales directory (<locale>/<file>.json) so tests can drive the loader with
+// fstest.MapFS.
 func newManagerFromFS(localesFS fs.FS, log *slog.Logger) (*Manager, error) {
 	if log == nil {
 		log = slog.Default()
@@ -58,7 +52,7 @@ func newManagerFromFS(localesFS fs.FS, log *slog.Logger) (*Manager, error) {
 	}
 	for _, e := range entries {
 		if !e.IsDir() {
-			continue // stray files at the root are ignored
+			continue
 		}
 		locale := e.Name()
 		bundle, err := loadLocaleDir(localesFS, locale)
@@ -66,8 +60,6 @@ func newManagerFromFS(localesFS fs.FS, log *slog.Logger) (*Manager, error) {
 			return nil, fmt.Errorf("load locale %q: %w", locale, err)
 		}
 		if len(bundle) == 0 {
-			// A locale dir with no namespace files contributes nothing.
-			// Skipping (rather than erroring) lets the layout grow lazily.
 			continue
 		}
 		m.bundles[locale] = bundle
@@ -88,7 +80,6 @@ func loadLocaleDir(localesFS fs.FS, locale string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Sort so merge order is deterministic across filesystems.
 	names := make([]string, 0, len(entries))
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
@@ -113,9 +104,8 @@ func loadLocaleDir(localesFS fs.FS, locale string) (map[string]any, error) {
 	return out, nil
 }
 
-// LoadBundle returns the full key→value map for locale. Returns an
-// error (not a nil map) when the locale wasn't loaded - frontends can
-// fall back to the default by retrying with DefaultLocale().
+// LoadBundle returns the full key->value map for locale, erroring when the
+// locale wasn't loaded so frontends can retry with DefaultLocale().
 func (m *Manager) LoadBundle(locale string) (map[string]any, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -123,8 +113,7 @@ func (m *Manager) LoadBundle(locale string) (map[string]any, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown locale %q", locale)
 	}
-	// Copy to detach from internal state so callers can't mutate the
-	// cached bundle.
+	// Detached copy so callers can't mutate the cached bundle.
 	out := make(map[string]any, len(b))
 	maps.Copy(out, b)
 	return out, nil
@@ -142,22 +131,17 @@ func (m *Manager) AvailableLocales() []string {
 	return out
 }
 
-// LocaleDescriptor pairs a locale id with its endonym - the language's
-// own name for itself ("English", "Nederlands") - so a UI in any
-// locale can label the language picker with autonyms. The endonym
-// lives inside the locale's own bundle under `language.endonym`;
-// adding a new locale just means adding the file with that key set.
+// LocaleDescriptor pairs a locale id with its endonym (the language's own
+// name for itself, e.g. "Nederlands"), read from the locale's own bundle under
+// `language.endonym`.
 type LocaleDescriptor struct {
 	Code    string `json:"code"`
 	Endonym string `json:"endonym"`
 }
 
-// ListLocales returns a descriptor per loaded locale, sorted by Code.
-// The Endonym is read from each locale's `language.endonym` key, with
-// the raw Code as fallback when the bundle lacks the key. Powers the
-// Settings → General language picker so the dropdown is driven by the
-// backend's known locale set (one source of truth), not a hardcoded
-// Vue array.
+// ListLocales returns a descriptor per loaded locale, sorted by Code, with the
+// raw Code as Endonym fallback when the bundle lacks `language.endonym`. Drives
+// the Settings language picker from the backend's known locale set.
 func (m *Manager) ListLocales() []LocaleDescriptor {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -176,9 +160,8 @@ func (m *Manager) ListLocales() []LocaleDescriptor {
 	return out
 }
 
-// lookupEndonym pulls `language.endonym` out of a loaded bundle. The
-// bundle is flat (vue-i18n keys are dotted strings, not nested maps),
-// so a plain map read is enough. Falls back to the locale code.
+// lookupEndonym reads `language.endonym` from a loaded bundle (flat, since
+// vue-i18n keys are dotted strings not nested maps), falling back to code.
 func lookupEndonym(bundle map[string]any, code string) string {
 	if v, ok := bundle["language.endonym"]; ok {
 		if s, ok := v.(string); ok && s != "" {

@@ -8,25 +8,18 @@ import (
 	"strings"
 )
 
-// profileFilenameRE is the canonical validation rule for profile
-// filenames, mirroring the frontend's FILENAME_RE in
-// frontend/src/composables/useProfiles.ts. Keep both in sync.
+// profileFilenameRE validates profile filenames; mirrors the frontend's
+// FILENAME_RE in useProfiles.ts, keep both in sync.
 var profileFilenameRE = regexp.MustCompile(`^[a-z0-9-]+\.json$`)
 
-// IsValidProfileFilename reports whether name is a syntactically valid
-// profile filename: lowercase ASCII letters / digits / hyphens, ending
-// in ".json". Source of truth for create + import paths.
+// IsValidProfileFilename reports whether name is [a-z0-9-]+.json. Source of
+// truth for the create + import paths.
 func IsValidProfileFilename(name string) bool {
 	return profileFilenameRE.MatchString(name)
 }
 
-// profiles.go owns multi-profile management. Mirrors `Formidable/controls/
-// configManager.js` switchUserProfile + listAvailableProfiles +
-// getCurrentProfileFilename + exportUserProfile + importUserProfile +
-// deleteUserProfile + normalizeProfileFilename.
-
-// CurrentProfileFilename returns the basename of the active profile
-// JSON (e.g. "user.json"). Empty string when not yet initialized.
+// CurrentProfileFilename returns the active profile basename, or "" when
+// not yet initialized.
 func (m *Manager) CurrentProfileFilename() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -36,9 +29,8 @@ func (m *Manager) CurrentProfileFilename() string {
 	return filepath.Base(m.configPath)
 }
 
-// GitSelfCloned reports the active profile's "cloned outside
-// Formidable" flag. False when no config is loaded yet, so callers
-// don't need to special-case the early-boot window.
+// GitSelfCloned reports the active profile's "cloned outside Formidable"
+// flag; false when no config is loaded, so callers skip an early-boot case.
 func (m *Manager) GitSelfCloned() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -48,11 +40,8 @@ func (m *Manager) GitSelfCloned() bool {
 	return m.cached.GitSelfCloned
 }
 
-// IoCollectionOnly reports whether CSV Import/Export should be limited
-// to templates with enable_collection: true. False (default) means the
-// Storage workspace's Data menu is available for every template; true
-// restores the old Formidable rule. Same uncached-safe contract as
-// GitSelfCloned.
+// IoCollectionOnly reports whether CSV Import/Export is limited to
+// collection-enabled templates; false (default) allows every template.
 func (m *Manager) IoCollectionOnly() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -62,8 +51,7 @@ func (m *Manager) IoCollectionOnly() bool {
 	return m.cached.IoCollectionOnly
 }
 
-// GigotBaseURL returns the active profile's GiGot server origin
-// ("https://gigot.example") or "" when unset / no profile cached.
+// GigotBaseURL returns the active profile's GiGot server origin, or "".
 func (m *Manager) GigotBaseURL() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -73,8 +61,7 @@ func (m *Manager) GigotBaseURL() string {
 	return m.cached.GigotBaseURL
 }
 
-// GigotRepoName returns the active profile's GiGot repo handle or ""
-// when unset / no profile cached.
+// GigotRepoName returns the active profile's GiGot repo handle, or "".
 func (m *Manager) GigotRepoName() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -84,8 +71,7 @@ func (m *Manager) GigotRepoName() string {
 	return m.cached.GigotRepoName
 }
 
-// AuthorName returns the active profile's git/gigot author name, used
-// to stamp commits on the server-side audit trail. "" when unset.
+// AuthorName returns the active profile's git/gigot author name, or "".
 func (m *Manager) AuthorName() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -95,8 +81,7 @@ func (m *Manager) AuthorName() string {
 	return m.cached.AuthorName
 }
 
-// AuthorEmail mirrors AuthorName for the email half of the author
-// identity. "" when unset.
+// AuthorEmail returns the email half of the author identity, or "".
 func (m *Manager) AuthorEmail() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -106,9 +91,8 @@ func (m *Manager) AuthorEmail() string {
 	return m.cached.AuthorEmail
 }
 
-// ContextFolder returns the active profile's context-folder path
-// (where Formidable's templates/, storage/, and .formidable/ live).
-// "" when unset / no profile cached.
+// ContextFolder returns the active profile's context-folder path (root of
+// templates/, storage/, .formidable/), or "".
 func (m *Manager) ContextFolder() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -118,15 +102,11 @@ func (m *Manager) ContextFolder() string {
 	return m.cached.ContextFolder
 }
 
-// SwitchUserProfile points .boot.json at profileFilename, swaps the
-// active config path, and reloads. Held under updateMu so a concurrent
-// UpdateUserConfig can't read the old profile and persist its merge
-// into the new file.
-//
-// This is also the create entry point (switching to a missing filename
-// seeds defaults into it), so the name must pass IsValidProfileFilename:
-// lowercase [a-z0-9-]+\.json. Reserved dot-prefixed names like
-// .boot.json or .pdf-state.json fail this check.
+// SwitchUserProfile points .boot.json at profileFilename, swaps the active
+// config path, and reloads, held under updateMu against a concurrent merge
+// into the wrong file. Also the create path: a missing filename is seeded
+// with defaults, so the name must pass IsValidProfileFilename (dot-prefixed
+// names are rejected).
 func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error) {
 	if strings.HasPrefix(profileFilename, ".") {
 		return nil, fmt.Errorf("profile filename cannot start with '.': %q", profileFilename)
@@ -148,21 +128,16 @@ func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error) {
 	}
 	m.updateMu.Unlock()
 
-	// A freshly-created profile starts scoped to all templates (see
-	// SeedEnabledTemplatesIfUnset); an already-configured one is a no-op.
-	// Done after releasing updateMu because the seed persists through
-	// UpdateUserConfig, which takes the same lock.
+	// After releasing updateMu: the seed persists via UpdateUserConfig,
+	// which takes the same lock.
 	if err := m.SeedEnabledTemplatesIfUnset(); err != nil {
 		return nil, err
 	}
 	return m.LoadUserConfig()
 }
 
-// HasUserProfiles reports whether at least one user profile exists
-// under config/ (.boot.json excluded). Used by the ribbon to ghost
-// workspaces that require a profile to be meaningful (Settings).
-// Errors collapse to false - an unreadable config dir is treated
-// as "no profiles available".
+// HasUserProfiles reports whether at least one user profile exists under
+// config/ (dot-files excluded). Errors collapse to false.
 func (m *Manager) HasUserProfiles() bool {
 	profiles, err := m.ListAvailableProfiles()
 	if err != nil {
@@ -171,12 +146,9 @@ func (m *Manager) HasUserProfiles() bool {
 	return len(profiles) > 0
 }
 
-// ListAvailableProfiles enumerates *.json under config/ except
-// dot-prefixed files (.boot.json, .pdf-state.json, etc.), returning
-// {value, display} entries for the picker. Dot-files are reserved
-// for module-private state - only plain user.json-style profiles
-// belong in the picker.
-// Display falls back from profile_name → author_name → "(unnamed)".
+// ListAvailableProfiles returns {value, display} picker entries for the
+// non-dot *.json under config/ (dot-files are module-private state). Display
+// falls back profile_name, author_name, "(unnamed)".
 func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error) {
 	files, err := m.fs.ListFiles(configDirName)
 	if err != nil {
@@ -215,10 +187,8 @@ func profileDisplayName(m *Manager, filename string) string {
 	return "(unnamed)"
 }
 
-// ExportUserProfile copies a profile JSON from config/<filename> to an
-// arbitrary target path. Returns ProfileResult with .Code populated for
-// the structured error cases (matches the JS contract one-to-one so
-// frontend modal handlers don't need branching).
+// ExportUserProfile copies config/<filename> to targetPath, returning a
+// ProfileResult with .Code set on the structured error cases.
 func (m *Manager) ExportUserProfile(profileFilename, targetPath string, overwrite bool) ProfileResult {
 	if profileFilename == "" || targetPath == "" {
 		return ProfileResult{Success: false, Error: "Missing profileFilename or targetPath."}
@@ -246,12 +216,9 @@ func (m *Manager) ExportUserProfile(profileFilename, targetPath string, overwrit
 }
 
 // ImportUserProfile copies a JSON file into config/, normalising the
-// destination filename and re-saving it through parseUserConfig so any
-// missing fields are filled in (mirrors the JS sanitize-on-import).
-//
-// If profileFilename is empty, the basename of sourcePath is normalised
-// (lowercased, slugified, .json suffix). .boot.json is rejected so the
-// boot pointer can't be overwritten via the profile UI.
+// destination filename and re-saving through parseUserConfig to fill missing
+// fields. An empty profileFilename slugifies the source basename; dot-prefixed
+// names are rejected so the boot pointer can't be overwritten.
 func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrite bool) ProfileResult {
 	if sourcePath == "" {
 		return ProfileResult{Success: false, Error: "Missing sourcePath."}
@@ -304,8 +271,8 @@ func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrit
 		return ProfileResult{Success: false, Error: err.Error(), Code: "copy_failed"}
 	}
 
-	// Sanitize-on-import: read back, parse with defaults, rewrite. If
-	// the source was malformed, undo the copy and report invalid_config.
+	// Read back, parse with defaults, rewrite; a malformed source undoes
+	// the copy and reports invalid_config.
 	raw, err := m.fs.LoadFile(target)
 	if err != nil {
 		_ = m.fs.DeleteFile(target)
@@ -328,9 +295,8 @@ func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrit
 	}
 }
 
-// DeleteUserProfile removes a profile JSON. .boot.json is rejected
-// always, and the active profile is rejected to keep the manager in a
-// loadable state - switch first, then delete.
+// DeleteUserProfile removes a profile JSON. .boot.json and the active
+// profile are rejected (switch first) so the manager stays loadable.
 func (m *Manager) DeleteUserProfile(profileFilename string) ProfileResult {
 	if profileFilename == "" {
 		return ProfileResult{Success: false, Error: "Missing profileFilename.", Code: "missing_filename"}
@@ -355,12 +321,9 @@ func (m *Manager) DeleteUserProfile(profileFilename string) ProfileResult {
 	return ProfileResult{Success: true, Filename: profileFilename}
 }
 
-// normalizeProfileFilename slugifies an arbitrary string into a valid
-// profile filename: lowercase, only [a-z0-9-], hyphens collapsed and
-// trimmed, .json suffix appended. Returns "" if the result would be
-// empty (caller must treat that as an error).
-//
-// Cases covered by TestNormalizeProfileFilename - keep it in sync.
+// normalizeProfileFilename slugifies a string into a valid profile filename
+// (lowercase [a-z0-9-], collapsed/trimmed hyphens, .json suffix), or ""
+// when the result would be empty.
 func normalizeProfileFilename(name string) string {
 	if name == "" {
 		return ""

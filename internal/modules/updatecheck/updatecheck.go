@@ -1,13 +1,10 @@
-// Package updatecheck performs a best-effort "is there a newer release"
-// probe against formidable.tools on startup. The site exposes a small
-// JSON document at /api/latest (a Netlify function that proxies the
-// latest GitHub release); we fetch it, compare its version to the
-// running about.Version, and cache the verdict for the About panel.
+// Package updatecheck performs a best-effort "is there a newer release" probe
+// against formidable.tools/api/latest on startup, comparing its version to the
+// running about.Version and caching the verdict for the About panel.
 //
-// Everything here is deliberately silent: if the network is down, the
-// site is unreachable, the response is malformed, or anything else goes
-// wrong, the cached Status simply stays Checked=false and the UI shows
-// nothing. An out-of-date check must never interrupt or alarm the user.
+// Everything here is deliberately silent: on any failure the cached Status
+// stays Checked=false and the UI shows nothing. An update check must never
+// interrupt or alarm the user.
 package updatecheck
 
 import (
@@ -22,17 +19,15 @@ import (
 	"time"
 )
 
-// DefaultEndpoint is the canonical version document. One cached source
-// shared by the desktop app and the website's own download page.
+// DefaultEndpoint is the canonical version document.
 const DefaultEndpoint = "https://formidable.tools/api/latest"
 
-// RefreshTimeout bounds the startup probe. Short on purpose: a slow or
-// dead endpoint must not delay anything the user can see.
+// RefreshTimeout bounds the startup probe; short so a dead endpoint can't
+// delay anything the user sees.
 const RefreshTimeout = 6 * time.Second
 
-// devVersion is about.Version's compile-time default - present only in
-// untagged local builds. We never claim an update against it, since the
-// comparison would be meaningless noise.
+// devVersion is about.Version's compile-time default. No update is ever
+// claimed against it, since the comparison would be meaningless.
 const devVersion = "0.1.0"
 
 // Status is the wire shape the About panel reads. Checked distinguishes
@@ -54,9 +49,8 @@ type remoteRelease struct {
 	PublishedAt string `json:"published_at"`
 }
 
-// Manager owns the cached status and the HTTP probe. endpoint and
-// client are package-private so tests in this package can point them at
-// an httptest server; production always uses the defaults.
+// Manager owns the cached status and the HTTP probe. endpoint and client are
+// package-private so tests can point them at an httptest server.
 type Manager struct {
 	mu       sync.RWMutex
 	status   Status
@@ -66,10 +60,9 @@ type Manager struct {
 	enabled  func() bool
 }
 
-// NewManager builds the probe. enabled is consulted on every Refresh so
-// the user's update_check config toggle governs the feature live (a nil
-// enabled means "always on", used by tests). When disabled, Refresh
-// makes no network call and reports an unchecked status.
+// NewManager builds the probe. enabled is consulted on every Refresh so the
+// update_check config toggle governs the feature live (nil means always on).
+// When disabled, Refresh makes no network call and reports an unchecked status.
 func NewManager(current string, enabled func() bool) *Manager {
 	return &Manager{
 		client:   &http.Client{Timeout: RefreshTimeout},
@@ -85,19 +78,18 @@ func (m *Manager) Enabled() bool {
 	return m.enabled == nil || m.enabled()
 }
 
-// GetStatus returns the last cached verdict. Cheap; safe to poll.
+// GetStatus returns the last cached verdict; safe to poll.
 func (m *Manager) GetStatus() Status {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.status
 }
 
-// Refresh probes the endpoint and updates the cached status. The error
-// is returned only so a caller can log it at debug level; it must never
-// reach the user. On any failure the cached status keeps Checked=false.
+// Refresh probes the endpoint and updates the cached status. The error is
+// returned only for debug-level logging; it must never reach the user. On any
+// failure the cached status keeps Checked=false.
 func (m *Manager) Refresh(ctx context.Context) (Status, error) {
 	if !m.Enabled() {
-		// Toggle is off: never touch the network, report nothing.
 		cleared := Status{Current: m.current}
 		m.mu.Lock()
 		m.status = cleared
@@ -149,7 +141,7 @@ func (m *Manager) fetch(ctx context.Context) (remoteRelease, error) {
 		return rel, errors.New("updatecheck: endpoint returned " + strconv.Itoa(resp.StatusCode))
 	}
 
-	// Cap the read: the document is tiny, so anything large is suspect.
+	// Capped: the document is tiny, so anything large is suspect.
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 	if err != nil {
 		return rel, err

@@ -2,18 +2,11 @@ package form
 
 import "github.com/petervdpas/formidable2/internal/modules/template"
 
-// ComputeLoopGroups pairs loopstart/loopstop fields and computes the
-// derived bits Vue needs to render: depth (1 = top-level, 2 = nested),
-// the summary field key (from loopstart.summary_field), and the initial
-// collapsed state (per-loop override `loopstart.Collapsible == &true`
-// wins over the config-wide defaultCollapsed).
-//
-// Pairing is best-effort: structural problems (unmatched start/stop,
-// key mismatch) are rejected by template.Validate elsewhere; here we
-// just skip what we can't pair so a malformed template doesn't crash
-// the form view.
-//
-// Returned groups are in start-index order (outer before inner).
+// ComputeLoopGroups pairs loopstart/loopstop fields into render groups.
+// Pairing is best-effort: structural problems are rejected by
+// template.Validate elsewhere, so here we skip what we can't pair rather
+// than crash the form view. Per-loop Collapsible override wins over
+// defaultCollapsed. Returned groups are in start-index order.
 func ComputeLoopGroups(fields []template.Field, defaultCollapsed bool) []LoopGroup {
 	out := make([]LoopGroup, 0)
 	if len(fields) == 0 {
@@ -33,17 +26,13 @@ func ComputeLoopGroups(fields []template.Field, defaultCollapsed bool) []LoopGro
 			stack = append(stack, frame{field: f, index: i})
 		case "loopstop":
 			if len(stack) == 0 {
-				// stranded loopstop - skip
 				continue
 			}
 			top := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
 			if top.field.Key != f.Key {
-				// key mismatch - drop both halves
 				continue
 			}
-			// Depth = how many open frames remained AFTER popping ours.
-			// 0 remaining → top-level → depth 1; 1 remaining → depth 2.
 			depth := len(stack) + 1
 
 			collapsed := defaultCollapsed
@@ -62,7 +51,6 @@ func ComputeLoopGroups(fields []template.Field, defaultCollapsed bool) []LoopGro
 		}
 	}
 
-	// Sort by StartIndex so outer loops appear before inner.
 	for i := 0; i < len(out); i++ {
 		for j := i + 1; j < len(out); j++ {
 			if out[j].StartIndex < out[i].StartIndex {

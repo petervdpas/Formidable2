@@ -2,27 +2,11 @@ package render
 
 import "github.com/petervdpas/formidable2/internal/modules/template"
 
-// ─────────────────────────────────────────────────────────────────────
-// Context plumbing for the Handlebars helpers.
-//
 // The render context is a map[string]any built by RenderMarkdown:
-// data values + three reserved keys -
-//
-//   _fields      - []template.Field (for findField / fieldRaw / etc.)
-//   _template    - *template.Template (for the loop helper to attach
-//                  to per-iteration sub-contexts)
-//   _loopGroups  - map[string][]template.Field (per-loop body roster,
-//                  used by the loop helper to set inner _fields)
-//
-// Per-iteration sub-contexts also carry _loopKey + _loopIndex so the
-// loopItemBefore / loopItemAfter / loopKey / loopIndex helpers can
-// read them without re-deriving.
-//
-// All helpers (in helpers.go, helpers_field.go, apifield_helpers.go)
-// reach into this state through the small accessor surface below.
-// ─────────────────────────────────────────────────────────────────────
+// data values plus reserved keys (_fields, _template, _loopGroups, and
+// per-iteration _loopKey / _loopIndex). Helpers reach this state through
+// the accessors below.
 
-// contextMap normalizes raymond's Ctx() to map[string]any when possible.
 func contextMap(ctx any) map[string]any {
 	if m, ok := ctx.(map[string]any); ok {
 		return m
@@ -30,8 +14,6 @@ func contextMap(ctx any) map[string]any {
 	return nil
 }
 
-// contextFields pulls the field list from the current context's
-// `_fields` slot. Returns an empty slice if missing.
 func contextFields(ctx any) []template.Field {
 	m := contextMap(ctx)
 	if m == nil {
@@ -41,7 +23,6 @@ func contextFields(ctx any) []template.Field {
 	case []template.Field:
 		return f
 	case []any:
-		// Preserves the same shape after JSON round-trip.
 		out := make([]template.Field, 0, len(f))
 		for _, raw := range f {
 			if mm, ok := raw.(map[string]any); ok {
@@ -53,9 +34,6 @@ func contextFields(ctx any) []template.Field {
 	return nil
 }
 
-// loopIndexFromCtx coerces _loopIndex to int. Per-iteration context
-// is built by the loop helper so the value is always set; this is
-// defensive for hand-rolled callers.
 func loopIndexFromCtx(ctx map[string]any) int {
 	switch v := ctx["_loopIndex"].(type) {
 	case int:
@@ -68,8 +46,6 @@ func loopIndexFromCtx(ctx map[string]any) int {
 	return 0
 }
 
-// findField returns a pointer to the field with key in the current
-// context's `_fields` (nil if missing).
 func findField(ctx any, key string) *template.Field {
 	fields := contextFields(ctx)
 	for i := range fields {
@@ -80,9 +56,6 @@ func findField(ctx any, key string) *template.Field {
 	return nil
 }
 
-// fieldFromMap rebuilds a template.Field from a map[string]any (used
-// when context fields arrived via JSON unmarshal rather than directly
-// from the typed slice).
 func fieldFromMap(m map[string]any) template.Field {
 	f := template.Field{
 		Key:         stringify(m["key"]),
@@ -96,8 +69,6 @@ func fieldFromMap(m map[string]any) template.Field {
 	return f
 }
 
-// loopGroupFields fetches the field slice associated with the named
-// loop from `_loopGroups`. Empty when missing.
 func loopGroupFields(ctx map[string]any, key string) []template.Field {
 	switch g := ctx["_loopGroups"].(type) {
 	case map[string][]template.Field:
@@ -112,9 +83,8 @@ func loopGroupFields(ctx map[string]any, key string) []template.Field {
 	return nil
 }
 
-// buildNestedLoopGroups mirrors the original JS helper of the same
-// name: walks fields, pushes a stack on `loopstart`, pops on
-// `loopstop`, and snapshots the in-between fields per loop key.
+// buildNestedLoopGroups snapshots the fields between each loopstart and
+// loopstop, keyed by the loop's field key.
 func buildNestedLoopGroups(fields []template.Field) map[string][]template.Field {
 	out := map[string][]template.Field{}
 	type frame struct {

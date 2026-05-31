@@ -2,29 +2,13 @@ package codeformatter
 
 import "strings"
 
-// repairFlatFrontmatter re-indents children that were authored at the
-// same column as their schema-known parent. Common pattern:
+// repairFlatFrontmatter re-indents children authored at the same column as
+// their schema-known parent (per m.schemas):
 //
-//   cover:
-//   title: Hello   ← user forgot the indent
+//	cover:            cover:
+//	title: Hello  ->    title: Hello
 //
-// becomes
-//
-//   cover:
-//     title: Hello
-//
-// Algorithm:
-//   - When a line `<key>:` (empty value) at the start of a line names
-//     a known parent (per m.schemas), open a block. Track its indent.
-//   - Subsequent lines at the SAME indent that are `<key>: <value>`
-//     where the key is in the parent's child set get re-indented
-//     (+2 spaces from the parent).
-//   - Lines that don't match a child key, blank lines, or another
-//     known parent close the current block. Lines already indented
-//     past the parent (the user got it right) pass through unchanged.
-//
-// When m.schemas is empty or nil, this is a no-op - yaml.v3 alone
-// handles the trivial case.
+// No-op when m.schemas is empty.
 func (m *Manager) repairFlatFrontmatter(src string) string {
 	if len(m.schemas) == 0 {
 		return src
@@ -82,10 +66,9 @@ func (m *Manager) repairFlatFrontmatter(src string) string {
 	return strings.Join(out, "\n")
 }
 
-// parseKeyLine extracts the key from a trimmed YAML line of the form
-// `key:` or `key: value`. Returns empty key when the line is a comment,
-// a list item, or doesn't contain a `:`. hasValue is true when there
-// is anything after the `:`.
+// parseKeyLine extracts the key from a trimmed `key:` or `key: value` line.
+// Empty key for comments, list items, or no colon; hasValue if anything
+// follows the colon.
 func parseKeyLine(trimmed string) (key string, hasValue bool) {
 	if trimmed == "" || trimmed[0] == '#' || trimmed[0] == '-' {
 		return "", false

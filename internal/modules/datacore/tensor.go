@@ -2,29 +2,28 @@
 //
 // Its three modes are I (identity: which record), F (form: which field),
 // and M (meaning: which context). A coordinate (i, f, m) addresses a cell
-// holding a single value, or a reference to another identity. Storage is
+// holding a value or a reference to another identity. Storage is
 // coordinate-list (COO) sparse: parallel columns of interned mode indices
-// plus the value, so present cells iterate in cache-friendly order and a
+// plus the value, so present cells iterate in storage order and a
 // projection is a filter over columns rather than a pointer walk.
 //
-// Reading the tensor is done through perspectives: slices and reductions
-// over the modes (project a field, scope a context, follow a reference,
-// reduce along identity). Query and statistics are both perspectives over
-// the same substrate; see design/datacore-perspectives.md.
+// Reading is done through perspectives: slices and reductions over the
+// modes (project a field, scope a context, follow a reference, reduce
+// along identity). Query and statistics are both perspectives over the
+// same substrate; see design/datacore-perspectives.md.
 //
-// The module is deliberately self-contained. It ingests a plain Record and
-// imports no other module, so it can be exercised and benchmarked in
-// isolation without touching the running app.
+// The module is self-contained: it ingests a plain Record and imports no
+// other module, so it can be exercised and benchmarked in isolation.
 package datacore
 
 import "iter"
 
 // Universal is the default meaning: a value that holds in every context.
 // The M mode exists for context-varying values; ingest writes Universal
-// today and richer contexts attach later without changing the shape.
+// and richer contexts attach later without changing the shape.
 const Universal = "universal"
 
-// sym is an interned mode label. The zero value is the empty/void label.
+// sym is an interned mode label; the zero value is the empty/void label.
 type sym uint32
 
 // axis interns the labels of one mode, assigning each a stable sym.
@@ -48,8 +47,8 @@ func (a *axis) intern(label string) sym {
 func (a *axis) lookup(label string) (sym, bool) { s, ok := a.id[label]; return s, ok }
 func (a *axis) label(s sym) string              { return a.name[s] }
 
-// Cell is one present coordinate. For a value cell Ref is empty; for a
-// reference cell Ref is the target identity label and Val is empty.
+// Cell is one present coordinate. A value cell has empty Ref; a reference
+// cell has empty Val and Ref set to the target identity label.
 type Cell struct {
 	I, F, M string
 	Val     string
@@ -72,8 +71,6 @@ func New() *Tensor {
 	return &Tensor{iax: newAxis(), fax: newAxis(), max: newAxis(), rootSet: map[sym]bool{}, labels: map[sym]string{}}
 }
 
-// nodeLabel is the display label for an identity: its stored label if one was
-// set at ingest, else the identity itself.
 func (t *Tensor) nodeLabel(s sym) string {
 	if l := t.labels[s]; l != "" {
 		return l
@@ -81,10 +78,10 @@ func (t *Tensor) nodeLabel(s sym) string {
 	return t.iax.label(s)
 }
 
-// markRoot records an identity as a root: a top-level record, not a sub-
-// identity reached by reference (a table or loop row). The default
-// perspective reduces over roots, so loop rows added by Ingest don't inflate
-// a form-level count while staying reachable by Follow.
+// markRoot records an identity as a top-level record, not a sub-identity
+// reached by reference (a table or loop row). The default perspective
+// reduces over roots, so loop rows don't inflate a form-level count while
+// staying reachable by Follow.
 func (t *Tensor) markRoot(id string) {
 	s := t.iax.intern(id)
 	if !t.rootSet[s] {
@@ -137,8 +134,7 @@ func (t *Tensor) cellAt(k int) Cell {
 }
 
 // at is the point query for the (i, f, m) fiber: a full scan today, the
-// place a value index attaches later. Returns the value, the ref sym (0 if
-// a value cell), and whether the coordinate is present.
+// place a value index attaches later.
 func (t *Tensor) at(i, f, m sym) (string, sym, bool) {
 	for k := range t.is {
 		if t.is[k] == i && t.fs[k] == f && t.ms[k] == m {
@@ -148,8 +144,8 @@ func (t *Tensor) at(i, f, m sym) (string, sym, bool) {
 	return "", 0, false
 }
 
-// refsFrom returns every identity that i references under field f, in storage
-// order. Edges are structural and read regardless of meaning scope.
+// refsFrom returns every identity that i references under field f, in
+// storage order. Edges are structural: read regardless of meaning scope.
 func (t *Tensor) refsFrom(i, f sym) []sym {
 	var out []sym
 	for k := range t.is {

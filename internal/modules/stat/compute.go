@@ -1,9 +1,8 @@
-// Package stat computes chart-neutral statistics over a profile's
-// indexed form data. It owns no storage: every number comes from the
-// index module's aggregate queries (form_values / form_facets), which
-// are a derived cache of the canonical .meta.json files. Output is
-// transport- and chart-library-neutral (categories + named numeric
-// series + a scalar map); plugins shape it into a concrete chart spec.
+// Package stat computes chart-neutral statistics over a profile's indexed
+// form data. It owns no storage: every number comes from the index module's
+// aggregate queries (form_values / form_facets), a derived cache of the
+// canonical .meta.json files. Output is transport- and chart-library-neutral;
+// plugins shape it into a concrete chart spec.
 package stat
 
 import (
@@ -12,7 +11,7 @@ import (
 )
 
 // Summary is the numeric reduction of a value column. Percentile is
-// optional (nil input → omitted) so "no percentile requested" is
+// optional (nil input omits it) so "no percentile requested" is
 // distinct from "the p-value happened to be zero".
 type Summary struct {
 	Count      int      `json:"count"`

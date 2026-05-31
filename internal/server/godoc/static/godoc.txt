@@ -116,11 +116,10 @@ package log // import "github.com/petervdpas/formidable2/internal/log"
 
 Package log builds the application's structured logger.
 
-The logger always writes to stderr and (by default) tees to
-<AppRoot>/formidable.log. The log file is truncated on every New() call,
-so each app start begins with a fresh log. Level can be set programmatically via
-Options.Level or via the FORMIDABLE_LOG_LEVEL environment variable. File output
-can be disabled by setting FORMIDABLE_LOG_FILE to "0", "false", or "off".
+The logger always writes to stderr and by default tees to
+<AppRoot>/formidable.log, truncated on every New call so each app start begins
+fresh. Level comes from Options.Level or FORMIDABLE_LOG_LEVEL; file output is
+disabled by setting FORMIDABLE_LOG_FILE to "0", "false", or "off".
 
 FUNCTIONS
 
@@ -139,12 +138,11 @@ type Broadcaster struct {
     same buffer but carry their own context.
 
 func New(opts Options) (*slog.Logger, *Broadcaster)
-    New constructs a logger + Broadcaster per the options. Errors opening the
-    log file are silently swallowed and the logger falls back to stderr-only
-    - file logging must never prevent the application from starting. The
-    broadcaster is always returned and captures every record into its in-memory
-    ring; pair it with Broadcaster.SetEmitter to fan records out to a UI
-    transport.
+    New constructs a logger and Broadcaster per the options. Errors opening
+    the log file are swallowed and the logger falls back to stderr-only:
+    file logging must never prevent the app from starting. The broadcaster is
+    always returned and captures every record into its in-memory ring; pair it
+    with Broadcaster.SetEmitter to fan records out to a UI transport.
 
 func NewBroadcaster(capacity int) *Broadcaster
 
@@ -201,8 +199,7 @@ type Options struct {
 package about // import "github.com/petervdpas/formidable2/internal/modules/about"
 
 Package about exposes the application's identity (name, version, tagline,
-author) as a small Wails-bindable service. The splash window and any future
-"About" UI read from the same source.
+author) as a Wails-bindable service.
 
 CONSTANTS
 
@@ -212,13 +209,6 @@ const (
 	Author  = "Peter van de Pas"
 	Website = "https://formidable.tools"
 )
-    App identity. Version is a var (not const) so the release workflow can
-    inject the tag value at link time via
-
-        -ldflags "-X github.com/petervdpas/formidable2/internal/modules/about.Version=1.2.3"
-
-    Local dev builds keep the "0.1.0" default.
-
 
 VARIABLES
 
@@ -243,18 +233,18 @@ var Libraries = []Library{
 	{ID: "godog", Name: "cucumber/godog"},
 	{ID: "uuid", Name: "google/uuid"},
 }
-    Libraries is the curated list of load-bearing direct dependencies surfaced
-    in the About panel. Order is meaningful - items render top-to-bottom as
-    listed. Curation rule: direct deps from go.mod and frontend/package.json
-    that the app actively uses; transitive deps and build-only tools (vite, tsc,
-    prettier) are excluded.
-
-    Adding or removing an entry here MUST be paired with the
-    matching i18n description keys: each Library.ID requires a
-    `workspace.information.about.thanks.lib.<id>.desc` string in every locale.
-    Tests catch a missing/extra ID across locales.
+    Libraries is the curated list of direct dependencies surfaced in the About
+    panel, rendered top-to-bottom in listed order. Curation rule: direct deps
+    from go.mod and frontend/package.json the app actively uses; transitive
+    deps and build-only tools are excluded. Adding or removing an entry MUST be
+    paired with a `workspace.information.about.thanks.lib.<id>.desc` string in
+    every locale (tests catch a missing/extra ID).
 
 var Version = "0.1.0"
+    Version is a var (not const) so the release workflow can inject the tag at
+    link time via -ldflags "-X .../about.Version=1.2.3"; dev builds keep the
+    default.
+
 
 TYPES
 
@@ -272,9 +262,9 @@ type Library struct {
 	Name string `json:"name"`
 }
     Library is one entry in the About panel's "Special thanks to" list:
-    a canonical project ID and its display name. Descriptions are per-locale and
-    live in i18n (workspace.information.about.thanks.lib.{id}.desc) so we don't
-    translate product names.
+    a canonical project ID and its display name. Descriptions live in i18n under
+    workspace.information.about.thanks.lib.{id}.desc, so product names aren't
+    translated.
 
 type Service struct {
 	// Has unexported fields.
@@ -392,17 +382,16 @@ func File(name string) (data []byte, mime string, ok bool)
 
 package auth // import "github.com/petervdpas/formidable2/internal/modules/auth"
 
-Package auth scaffolds the request-identity + capability surface that future
-versions of Formidable will rely on for distinguishing the trusted in-process
-desktop profile from external HTTP callers.
+Package auth scaffolds the request-identity and capability surface for
+distinguishing the trusted in-process desktop profile from external HTTP
+callers.
 
 Today the desktop app is the only consumer: the wiki/api HTTP server binds
 to 127.0.0.1 and inherits the active profile's identity for every write.
-This package's job is to make that boundary explicit in code rather than
-convention, so the upcoming subscription model (per- profile API capability
-grants) and CLI server mode have a concrete seam to slot into. The Subscription,
-SubscriptionResolver, and Server mode pieces are intentionally minimal - they
-exist to document the direction, not to ship features.
+This package makes that trust boundary explicit in code rather than convention.
+The Subscription, SubscriptionResolver, and Server mode pieces are intentionally
+minimal: they document the direction (per-profile API grants, CLI server mode),
+not shipped features.
 
 CONSTANTS
 
@@ -422,8 +411,8 @@ var (
 	ErrNotImplemented = errors.New("auth: not implemented")
 
 	// ErrNoIdentity is returned by IdentityFromContext when no identity
-	// has been resolved. Middleware ordering should make this
-	// unreachable in practice - kept so handlers can fail closed.
+	// has been resolved. Middleware ordering should make this unreachable;
+	// kept so handlers can fail closed.
 	ErrNoIdentity = errors.New("auth: no identity in context")
 )
 
@@ -431,31 +420,31 @@ FUNCTIONS
 
 func LoopbackOnly(next http.Handler) http.Handler
     LoopbackOnly returns a middleware that 403s any request whose RemoteAddr
-    isn't an IPv4 or IPv6 loopback address. Defense-in-depth: the wiki listener
-    already binds to 127.0.0.1, but if that bind ever drifts (config, reverse
-    proxy, tunnel) the handler layer keeps the API closed by default.
+    isn't a loopback address. Defense-in-depth: the listener already binds to
+    127.0.0.1, but if that bind ever drifts (config, reverse proxy, tunnel) the
+    handler layer keeps the API closed.
 
 func RequireOrigin(allowedOrigins []string) func(http.Handler) http.Handler
-    RequireOrigin returns a middleware that gates write methods on the Origin
-    (or, fallback, Referer) header matching one of the configured allowlist
-    URLs. GET / HEAD / OPTIONS pass through untouched - CSRF only threatens
-    state-changing methods, and forcing an Origin on safe reads breaks tooling
-    that doesn't set one (curl, scripts).
+    RequireOrigin returns a middleware that gates write methods on the
+    Origin (or Referer fallback) header matching one of the allowlist URLs.
+    GET/HEAD/OPTIONS pass through untouched: CSRF only threatens state-changing
+    methods, and forcing an Origin on safe reads breaks tooling that doesn't set
+    one (curl, scripts).
 
-    allowedOrigins should be the scheme+host[+port] strings that the wiki/API
-    server itself serves under (e.g. "http://127.0.0.1:8080"). Empty allowlist
-    denies every write - fail-closed by default.
+    allowedOrigins are the scheme+host[+port] strings the server serves
+    under (e.g. "http://127.0.0.1:8080"). Empty allowlist denies every write;
+    fail-closed by default.
 
 func ResolveIdentity(r Resolver) func(http.Handler) http.Handler
-    ResolveIdentity runs the configured Resolver and stuffs the returned
-    Identity onto the request context, so downstream handlers (and
-    storage.SaveForm via ctx) attribute writes correctly.
+    ResolveIdentity runs the configured Resolver and stores the returned
+    Identity on the request context so downstream handlers (and storage.SaveForm
+    via ctx) attribute writes correctly.
 
     Failure modes:
 
-        ErrNotImplemented → 501 (subscription path not built yet)
-        other error       → 403 (resolver rejected the caller)
-        !Identity.Valid() → 403 (resolver buggy or token unmapped)
+        ErrNotImplemented -> 501 (subscription path not built yet)
+        other error       -> 403 (resolver rejected the caller)
+        !Identity.Valid() -> 403 (resolver buggy or token unmapped)
 
     Fail-closed so a misconfigured resolver can't quietly elevate an
     unauthenticated request.
@@ -487,12 +476,9 @@ type Identity struct {
 	ProfileID string
 }
     Identity is the resolved caller of a request. Carried through ctx so
-    storage.SaveForm can attribute writes without a global provider.
-
-    Subject is the stable id (profile name for desktop, subscription id for
-    subscription, fixed sentinel for system). Name/Email feed the audit block;
-    they default from the owning profile but may differ for system actors (e.g.
-    migration jobs).
+    storage.SaveForm can attribute writes without a global provider. Subject
+    is the stable id; Name/Email feed the audit block and may differ from the
+    owning profile for system actors (e.g. migration jobs).
 
 func IdentityFromContext(ctx context.Context) (Identity, bool)
     IdentityFromContext returns the Identity previously installed by
@@ -503,14 +489,13 @@ func IdentityFromContext(ctx context.Context) (Identity, bool)
 func (i Identity) IsZero() bool
 
 func (i Identity) Valid() bool
-    Valid returns true when Kind is recognised and Subject is non-empty.
-    The middleware uses this to reject malformed Identities before they reach
-    storage.
+    Valid reports whether Kind is recognised and Subject is non-empty.
+    The middleware uses this to reject malformed Identities before storage.
 
 type IdentityKind string
     IdentityKind classifies who is making a request. The zero value ("") means
-    "no identity resolved" - handlers should reject writes from a zero-kind
-    identity once the middleware is wired.
+    no identity resolved; handlers must reject writes from a zero-kind identity
+    once the middleware is wired.
 
 const (
 	KindDesktop      IdentityKind = "desktop"
@@ -519,8 +504,8 @@ const (
 )
 type Mode int
     Mode is the deployment posture. Desktop is the only mode that ships today;
-    Server is the directive constant for the planned CLI daemon. app.go pins
-    this to Desktop and gates server-only paths off it.
+    Server is reserved for the planned CLI daemon. app.go pins this to Desktop
+    and gates server-only paths off it.
 
 const (
 	ModeDesktop Mode = iota
@@ -549,13 +534,11 @@ type Subscription struct {
 }
     Subscription is the minimal future capability grant: a profile-bound
     allowlist of templates × methods, authenticated by a bearer-token hash.
-    Intentionally light - no rate limits, scoping rules, or revocation flow yet;
-    those land with the CLI daemon.
+    Rate limits, scoping rules, and revocation land with the CLI daemon.
 
 func (s Subscription) Allows(template, method string) bool
-    Allows returns true when the subscription's allowlists cover the given
-    template stem and HTTP method. Method comparison is case- insensitive so
-    callers don't have to normalise.
+    Allows reports whether the subscription's allowlists cover the given
+    template stem and HTTP method. Method comparison is case-insensitive.
 
 type SubscriptionResolver struct {
 	// Has unexported fields.
@@ -580,16 +563,16 @@ package codeformatter // import "github.com/petervdpas/formidable2/internal/modu
 
 Package codeformatter is the backend code-format pass the template editor calls
 instead of running prettier in the webview. Standalone: no template/pdf/render
-imports. The schemas registry is supplied at construction time (composition root
-wires pdf.Schemas() in), so codeformatter knows nothing about picoloom keys - it
-only knows how to apply a "parent → children" hint set to flat YAML.
+imports. The schemas registry is supplied at construction time (the composition
+root wires pdf.Schemas() in), so codeformatter knows nothing about picoloom
+keys; it only applies a "parent -> children" hint set to flat YAML.
 
 VARIABLES
 
 var ErrMalformed = errors.New("codeformatter: source malformed")
-    ErrMalformed wraps any parser failure surfaced by a sub-formatter.
-    errors.Is(err, ErrMalformed) distinguishes "the source is broken, leave it
-    alone" from infrastructure errors.
+    ErrMalformed wraps any parser failure surfaced by a sub-formatter, letting
+    errors.Is distinguish "source broken, leave it alone" from infrastructure
+    errors.
 
 
 TYPES
@@ -606,19 +589,17 @@ type Manager struct {
 }
 
 func NewManager(s Schemas) *Manager
-    NewManager builds a Manager with the given schema registry. Pass nil for a
+    NewManager builds a Manager with the given schema registry; nil gives a
     generic formatter with no repair pass (yaml round-trip only).
 
 func (m *Manager) Format(lang, src string) (string, error)
-    Format reformats src for the named language. Returned string is the cleaned
-    source; err is non-nil only when parsing failed - in that case the returned
-    string is still safe to display (whitespace tidy). Unknown lang values fall
-    through to tidy.
+    Format reformats src for the named language. err is non-nil only when
+    parsing failed, in which case the returned string is still safe to display.
+    Unknown lang values fall through to tidy.
 
 type Schemas map[string]map[string]bool
-    Schemas maps a top-level frontmatter key (the "parent") to the set of child
-    key names that belong under it. Used by the markdown formatter's repair pass
-    to re-nest children that were authored at the same column as their parent.
+    Schemas maps a top-level frontmatter key (the parent) to the child key names
+    that belong under it, for the markdown formatter's re-nest repair pass.
 
 type Service struct {
 	// Has unexported fields.
@@ -1806,8 +1787,9 @@ type RecordConflict struct {
 package config // import "github.com/petervdpas/formidable2/internal/modules/config"
 
 Package config owns the user configuration, boot profile, and the derived
-Virtual File System (VFS) view of the on-disk Formidable data layout. Wails-only
-- no HTTP handlers; raw config is too sensitive even for the loopback API.
+Virtual File System (VFS) view of the on-disk Formidable data layout.
+Wails-only, no HTTP handlers: raw config is too sensitive even for the loopback
+API.
 
 The package is split across several files by concern:
 
@@ -1818,7 +1800,7 @@ The package is split across several files by concern:
                   plus the JSON marshal helpers (writeJSON, syncJournal).
     vfs.go        Virtual File System view of the context folder
                   (templates + storage tree, per-template lookups).
-    profiles.go   Profile management - switch / list / current,
+    profiles.go   Profile management: switch / list / current,
                   import / export / delete + filename normalisation.
 
 Package config owns the user configuration, boot profile, and the derived
@@ -1847,9 +1829,8 @@ const (
 FUNCTIONS
 
 func IsValidProfileFilename(name string) bool
-    IsValidProfileFilename reports whether name is a syntactically valid profile
-    filename: lowercase ASCII letters / digits / hyphens, ending in ".json".
-    Source of truth for create + import paths.
+    IsValidProfileFilename reports whether name is [a-z0-9-]+.json. Source of
+    truth for the create + import paths.
 
 
 TYPES
@@ -1919,21 +1900,18 @@ type JournalConfigurer interface {
 type Manager struct {
 	// Has unexported fields.
 }
-    Manager owns config + VFS state. All exported methods are safe for
+    Manager owns config + VFS state; all exported methods are safe for
     concurrent use.
 
 func NewManager(filesystem fs, log *slog.Logger) (*Manager, error)
-    NewManager constructs and initializes the config manager. Initialization
-    resolves the boot profile, ensures config dir + user.json exist, and loads
-    the active profile into the cache.
+    NewManager constructs and initializes the config manager: resolves the boot
+    profile, ensures config dir + user.json exist, loads the active profile.
 
 func (m *Manager) AuthorEmail() string
-    AuthorEmail mirrors AuthorName for the email half of the author identity.
-    "" when unset.
+    AuthorEmail returns the email half of the author identity, or "".
 
 func (m *Manager) AuthorName() string
-    AuthorName returns the active profile's git/gigot author name, used to stamp
-    commits on the server-side audit trail. "" when unset.
+    AuthorName returns the active profile's git/gigot author name, or "".
 
 func (m *Manager) AutoEnableNewTemplate(filename string) error
     AutoEnableNewTemplate appends filename only when the profile already curates
@@ -1941,29 +1919,25 @@ func (m *Manager) AutoEnableNewTemplate(filename string) error
     silently flip the profile into curation mode. No-op on empty/present.
 
 func (m *Manager) ContextFolder() string
-    ContextFolder returns the active profile's context-folder path (where
-    Formidable's templates/, storage/, and .formidable/ live). "" when unset /
-    no profile cached.
+    ContextFolder returns the active profile's context-folder path (root of
+    templates/, storage/, .formidable/), or "".
 
 func (m *Manager) CurrentProfileFilename() string
-    CurrentProfileFilename returns the basename of the active profile JSON (e.g.
-    "user.json"). Empty string when not yet initialized.
+    CurrentProfileFilename returns the active profile basename, or "" when not
+    yet initialized.
 
 func (m *Manager) DeleteUserProfile(profileFilename string) ProfileResult
-    DeleteUserProfile removes a profile JSON. .boot.json is rejected always,
-    and the active profile is rejected to keep the manager in a loadable state -
-    switch first, then delete.
+    DeleteUserProfile removes a profile JSON. .boot.json and the active profile
+    are rejected (switch first) so the manager stays loadable.
 
 func (m *Manager) DirtyVirtualStructure()
     DirtyVirtualStructure marks the VFS stale without dropping the cached
-    config. Called by other modules after FS mutations under the context folder
-    so the next GetVirtualStructure rescans.
+    config, so the next GetVirtualStructure rescans. Called after FS mutations
+    under the context folder.
 
 func (m *Manager) ExportUserProfile(profileFilename, targetPath string, overwrite bool) ProfileResult
-    ExportUserProfile copies a profile JSON from config/<filename> to an
-    arbitrary target path. Returns ProfileResult with .Code populated for the
-    structured error cases (matches the JS contract one-to-one so frontend modal
-    handlers don't need branching).
+    ExportUserProfile copies config/<filename> to targetPath, returning a
+    ProfileResult with .Code set on the structured error cases.
 
 func (m *Manager) FilterEnabled(filenames []string) []string
     FilterEnabled returns the enabled subset of filenames, input order
@@ -1971,63 +1945,49 @@ func (m *Manager) FilterEnabled(filenames []string) []string
 
 func (m *Manager) GetContextPath() (string, error)
     GetContextPath returns the absolute path of the active context folder,
-    auto-creating it if it doesn't exist yet.
+    auto-creating it if missing.
 
 func (m *Manager) GetContextStoragePath() (string, error)
-    GetContextStoragePath returns the absolute path of the storage folder under
-    the active context.
+    GetContextStoragePath returns the absolute storage folder path.
 
 func (m *Manager) GetContextTemplatesPath() (string, error)
-    GetContextTemplatesPath returns the absolute path of the templates folder
-    under the active context.
+    GetContextTemplatesPath returns the absolute templates folder path.
 
 func (m *Manager) GetTemplateStorageInfo(templateFilename string) *TemplateStorageFolder
     GetTemplateStorageInfo returns the per-template storage record for
-    templateFilename (e.g. "basic.yaml"), or nil if the template isn't
-    registered in the current VFS view.
+    templateFilename (e.g. "basic.yaml"), or nil if not in the current VFS view.
 
 func (m *Manager) GetVirtualStructure() (*VirtualStructure, error)
-    GetVirtualStructure returns the cached VFS view, rebuilding if the cache is
-    stale or empty. Auto-creates the templates and storage directories under the
-    active context_folder on first build.
+    GetVirtualStructure returns the cached VFS view, rebuilding if stale or
+    empty. Auto-creates the templates and storage directories on first build.
 
 func (m *Manager) GigotBaseURL() string
-    GigotBaseURL returns the active profile's GiGot server origin
-    ("https://gigot.example") or "" when unset / no profile cached.
+    GigotBaseURL returns the active profile's GiGot server origin, or "".
 
 func (m *Manager) GigotRepoName() string
-    GigotRepoName returns the active profile's GiGot repo handle or "" when
-    unset / no profile cached.
+    GigotRepoName returns the active profile's GiGot repo handle, or "".
 
 func (m *Manager) GitSelfCloned() bool
-    GitSelfCloned reports the active profile's "cloned outside Formidable" flag.
-    False when no config is loaded yet, so callers don't need to special-case
-    the early-boot window.
+    GitSelfCloned reports the active profile's "cloned outside Formidable" flag;
+    false when no config is loaded, so callers skip an early-boot case.
 
 func (m *Manager) HasUserProfiles() bool
     HasUserProfiles reports whether at least one user profile exists under
-    config/ (.boot.json excluded). Used by the ribbon to ghost workspaces that
-    require a profile to be meaningful (Settings). Errors collapse to false - an
-    unreadable config dir is treated as "no profiles available".
+    config/ (dot-files excluded). Errors collapse to false.
 
 func (m *Manager) ImportUserProfile(sourcePath, profileFilename string, overwrite bool) ProfileResult
     ImportUserProfile copies a JSON file into config/, normalising the
-    destination filename and re-saving it through parseUserConfig so any missing
-    fields are filled in (mirrors the JS sanitize-on-import).
-
-    If profileFilename is empty, the basename of sourcePath is normalised
-    (lowercased, slugified, .json suffix). .boot.json is rejected so the boot
-    pointer can't be overwritten via the profile UI.
+    destination filename and re-saving through parseUserConfig to fill missing
+    fields. An empty profileFilename slugifies the source basename; dot-prefixed
+    names are rejected so the boot pointer can't be overwritten.
 
 func (m *Manager) InvalidateConfigCache()
-    InvalidateConfigCache forgets the cached config and VFS. Next access reloads
-    from disk.
+    InvalidateConfigCache forgets the cached config and VFS; next access
+    reloads.
 
 func (m *Manager) IoCollectionOnly() bool
-    IoCollectionOnly reports whether CSV Import/Export should be limited to
-    templates with enable_collection: true. False (default) means the Storage
-    workspace's Data menu is available for every template; true restores the old
-    Formidable rule. Same uncached-safe contract as GitSelfCloned.
+    IoCollectionOnly reports whether CSV Import/Export is limited to
+    collection-enabled templates; false (default) allows every template.
 
 func (m *Manager) IsTemplateEnabled(name string) bool
     IsTemplateEnabled reports whether name is in the active profile's
@@ -2035,11 +1995,9 @@ func (m *Manager) IsTemplateEnabled(name string) bool
     does not reconcile.
 
 func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error)
-    ListAvailableProfiles enumerates *.json under config/ except dot-prefixed
-    files (.boot.json, .pdf-state.json, etc.), returning {value, display}
-    entries for the picker. Dot-files are reserved for module-private state -
-    only plain user.json-style profiles belong in the picker. Display falls back
-    from profile_name → author_name → "(unnamed)".
+    ListAvailableProfiles returns {value, display} picker entries for the
+    non-dot *.json under config/ (dot-files are module-private state). Display
+    falls back profile_name, author_name, "(unnamed)".
 
 func (m *Manager) ListEnabledTemplates() ([]string, error)
     ListEnabledTemplates reconciles against the live folder, then returns
@@ -2047,10 +2005,9 @@ func (m *Manager) ListEnabledTemplates() ([]string, error)
     EnabledTemplates or no wired lister returns nil.
 
 func (m *Manager) LoadUserConfig() (*Config, error)
-    LoadUserConfig returns the active profile's config, loading it from disk
-    on first access (and on cache invalidation). If the on-disk file has
-    missing fields it is repaired and rewritten - same shape the JS app had via
-    schema.sanitize.
+    LoadUserConfig returns the active profile's config, loading from disk on
+    first access (and after cache invalidation). A file with missing fields is
+    repaired and rewritten.
 
 func (m *Manager) PruneEnabledTemplates(existing []string) ([]string, error)
     PruneEnabledTemplates drops EnabledTemplates entries not in existing,
@@ -2069,8 +2026,8 @@ func (m *Manager) SeedEnabledTemplatesIfUnset() error
     templates on disk.
 
 func (m *Manager) SetJournal(j JournalConfigurer)
-    SetJournal wires the journal hook. Safe to call before or after init;
-    nil disables journal sync. Re-applies current config to the journal.
+    SetJournal wires the journal hook (nil disables journal sync) and re-applies
+    the current config to it. Safe to call before or after init.
 
 func (m *Manager) SetNowFn(fn func() time.Time)
     SetNowFn injects a clock for tests.
@@ -2087,24 +2044,17 @@ func (m *Manager) SetTemplateLister(l TemplateLister)
     nil disables reconciliation (the read methods still work off cached config).
 
 func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error)
-    SwitchUserProfile points .boot.json at profileFilename, swaps the
-    active config path, and reloads. Held under updateMu so a concurrent
-    UpdateUserConfig can't read the old profile and persist its merge into the
-    new file.
-
-    This is also the create entry point (switching to a missing filename
-    seeds defaults into it), so the name must pass IsValidProfileFilename:
-    lowercase [a-z0-9-]+\.json. Reserved dot-prefixed names like .boot.json or
-    .pdf-state.json fail this check.
+    SwitchUserProfile points .boot.json at profileFilename, swaps the active
+    config path, and reloads, held under updateMu against a concurrent merge
+    into the wrong file. Also the create path: a missing filename is seeded with
+    defaults, so the name must pass IsValidProfileFilename (dot-prefixed names
+    are rejected).
 
 func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error)
     UpdateUserConfig merges a partial map into the active profile, persists,
-    updates cache, and re-syncs the journal. Held under updateMu so concurrent
-    updates don't lose each other's writes.
-
-    The partial values can be primitives, JSON-tagged structs (e.g.
-    WindowBounds), or map[string]any - they are normalized through a JSON
-    round-trip so callers don't have to think about it.
+    and re-syncs the journal, held under updateMu against lost updates. Partial
+    values normalize through a JSON round-trip, so primitives, JSON-tagged
+    structs, and map[string]any all work.
 
 type ProfileEntry struct {
 	Value   string `json:"value"`   // filename (e.g. "user.json")
@@ -2128,22 +2078,10 @@ type ProfileResult struct {
 type Service struct {
 	// Has unexported fields.
 }
-    Service is the Wails-bound surface of the config module - what the Vue SPA
-    can actually call. Deliberately narrow:
-
-      - Profile config read/write (the Settings UI)
-      - Profile management (the Profiles workspace)
-
-    The richer Manager surface (VirtualStructure scan, per-template storage
-    info, cache invalidation hooks) is intentionally NOT exposed here. Those
-    primitives are for backend-internal consumers - most notably the future
-    opt-in internal HTTP server (wiki view + REST collections API + OpenAPI),
-    which will use Manager directly.
-
-    The frontend covers what little it needs of the file tree through
-    the focused per-module services (template.Service.ListTemplates,
-    storage.Service.ListForms, etc.). Adding a VFS hop on top would duplicate
-    scanning and create two ways to ask the same question.
+    Service is the Wails-bound surface of the config module: profile config
+    read/write plus profile management. The richer Manager surface (VFS scan,
+    per-template storage info, cache hooks) is intentionally NOT exposed here;
+    those are backend-internal, for the future opt-in internal HTTP server.
 
 func NewService(m *Manager) *Service
 
@@ -2158,16 +2096,14 @@ func (s *Service) HasUserProfiles() bool
 func (s *Service) ImportUserProfile(sourcePath, profileFilename string, overwrite bool) ProfileResult
 
 func (s *Service) IsTemplateEnabled(filename string) bool
-    IsTemplateEnabled is the single-filename gate the frontend can use when it
-    already knows the name (e.g. validating that a stored SelectedTemplate is
-    still allowed). Empty filename is never enabled.
+    IsTemplateEnabled reports whether filename is in the active profile's scope.
+    Empty filename is never enabled.
 
 func (s *Service) ListEnabledTemplates() ([]string, error)
-    ListEnabledTemplates returns the YAML filenames the active profile is
-    allowed to pick from. Empty EnabledTemplates → every template on disk
-    (the "opt-in not used" default). The backend self-heals against the live
-    templates folder before returning, so deleted templates don't leak through
-    into the picker.
+    ListEnabledTemplates returns the YAML filenames the active profile may
+    pick from. Empty EnabledTemplates means every template on disk. Self-heals
+    against the live templates folder so deleted templates don't leak into the
+    picker.
 
 func (s *Service) ListUserProfiles() ([]ProfileEntry, error)
 
@@ -2175,9 +2111,7 @@ func (s *Service) LoadUserConfig() (*Config, error)
 
 func (s *Service) SetTemplateEnabled(filename string, on bool) ([]string, error)
     SetTemplateEnabled toggles one template in the active profile's scope and
-    returns the resulting EnabledTemplates slice. The backend owns the curation
-    logic (empty = show all, begin/extend/clear scoping); the frontend calls
-    this and renders the returned state.
+    returns the resulting EnabledTemplates slice.
 
 func (s *Service) SwitchUserProfile(profileFilename string) (*Config, error)
 
@@ -2243,13 +2177,9 @@ type WindowBounds struct {
 
 package csv // import "github.com/petervdpas/formidable2/internal/modules/csv"
 
-Package csv reads and writes CSV files for Formidable. Mirrors
-`controls/csvManager.js` semantics - header row first, RFC-4180 quoting,
-configurable delimiter, LF line endings.
-
-Wails-only: the CSV import/export endpoints in Epic 8 (collections) will use
-this module from their HTTP handlers but no routes are registered directly by
-the csv module itself.
+Package csv reads and writes CSV files for Formidable: header row first,
+RFC-4180 quoting, configurable delimiter, LF line endings. The csv module
+registers no HTTP routes; Epic 8 collections endpoints call it directly.
 
 FUNCTIONS
 
@@ -2409,7 +2339,6 @@ type Manager struct {
 	// Has unexported fields.
 }
     Manager wraps encoding/csv with Formidable's preview/write conventions.
-    Stateless beyond its dependencies.
 
 func NewManager(filesystem fs, log *slog.Logger) *Manager
     NewManager constructs a CSV manager. log may be nil. The forms dependency
@@ -2434,12 +2363,10 @@ func (m *Manager) MappableFieldsForTemplate(templateFilename string) ([]FieldSpe
     dialog uses this instead of re-deriving the excluded-type set on the client.
 
 func (m *Manager) Preview(filePath, delimiter string) (PreviewResult, error)
-    Preview reads filePath as a CSV and returns its header row plus the rest of
-    the rows. Empty delimiter falls back to comma.
-
-    Errors are reported BOTH via the returned error AND via PreviewResult.Error
-    so frontend code matching the JS shape (success-or-error in the result
-    object) keeps working. Go callers should prefer the error.
+    Preview reads filePath as CSV and returns its header row plus the rest.
+    Empty delimiter falls back to comma. Errors surface both via the returned
+    error and via PreviewResult.Error (the frontend reads the result object);
+    Go callers should prefer the error.
 
 func (m *Manager) PreviewExport(templateFilename string, plan ExportPlan) PreviewRowResult
     PreviewExport builds the single data row shown beneath each column in the
@@ -2455,12 +2382,11 @@ func (m *Manager) SetTemplate(t templateSource)
     "template unavailable" error if this was never called.
 
 func (m *Manager) Write(filePath string, rows [][]string, delimiter string) WriteResult
-    Write serializes rows (first row = headers, then data) to filePath. Empty
-    delimiter falls back to comma. Output uses LF line endings (not CRLF) to
-    match the original JS implementation. Every field is quoted (not just those
-    that strictly need it per RFC 4180): always-quoting makes the file parse
-    unambiguously in Excel regardless of the locale's delimiter, and matches the
-    original Formidable's export. Embedded quotes are escaped by doubling.
+    Write serializes rows (first row = headers, then data) to filePath.
+    Empty delimiter falls back to comma; output uses LF line endings. Every
+    field is always quoted (not just those RFC 4180 requires) so the file parses
+    unambiguously in Excel regardless of the locale's delimiter. Embedded quotes
+    are escaped by doubling.
 
 type Mode int
     Mode selects between storage-shaped output (e.g. JSON for split-table) and a
@@ -2476,9 +2402,7 @@ type PreviewResult struct {
 	RowCount int        `json:"rowCount"`
 	Error    string     `json:"error,omitempty"`
 }
-    PreviewResult is the parsed shape returned by Preview. Mirrors the JS
-    `{headers, rows, rowCount, error}` so frontend handlers don't need to branch
-    on shape.
+    PreviewResult is the parsed shape returned by Preview.
 
 type PreviewRowResult struct {
 	Cells []string `json:"cells"`
@@ -2490,17 +2414,8 @@ type PreviewRowResult struct {
 type Service struct {
 	// Has unexported fields.
 }
-    Service is the api layer over Manager. Methods map to the old Electron
-    `window.api.csv.*` IPC group:
-      - csv-preview → Preview
-      - csv-write → Write
-
-    `csv-import-row` is intentionally NOT in this module - the Electron app
-    already routed it to formManager.saveForm. Storage import (F-302) will own
-    that route.
-
-    Wails-only: HTTP export endpoints (Epic 8 collections API) call into this
-    manager directly; no `handlers.go` lives here.
+    Service is the Wails surface over Manager. HTTP export endpoints (Epic 8
+    collections API) call the manager directly, so no handlers.go lives here.
 
 func NewService(m *Manager) *Service
 
@@ -2511,16 +2426,15 @@ func (s *Service) ApplyTransform(value, rule, param, mode string) string
 func (s *Service) BuildImportForms(plan ImportPlan, headers []string, rows [][]string, fields []FieldSpec) []ImportForm
     BuildImportForms reconstructs entries from parsed CSV rows, the inverse of
     Export. An aligned plan regroups the export's multiplied rows back into one
-    entry per group with its nested list/table rebuilt; the dialog then saves
-    each returned form.
+    entry per group with its nested list/table rebuilt.
 
 func (s *Service) CoercePreview(raw, fieldType string, options []any) string
     CoercePreview returns a display-shaped string for the typed value.
 
 func (s *Service) CoerceTableRows(cols []TableColumn, rows [][]string) [][]any
     CoerceTableRows coerces a 2D string array (from a paste-data dialog on a
-    table field) into a 2D typed array matching the column specs. Reuses Coerce
-    per cell; dropdown columns match by value or label.
+    table field) into a 2D typed array matching the column specs. Dropdown
+    columns match by value or label.
 
 func (s *Service) CoerceValue(raw, fieldType string, options []any) any
     CoerceValue returns the typed value Coerce would produce for a CSV cell
@@ -2531,14 +2445,12 @@ func (s *Service) ExcludedFieldTypes() []string
     hide from the target-field dropdown.
 
 func (s *Service) Export(templateFilename string, plan ExportPlan) ExportResult
-    Export is the one-call export pipeline: resolve fields, list forms, load
-    each, build the row grid. The frontend then hands Rows to Write(filePath,
-    ...).
+    Export resolves fields, lists forms, loads each, and builds the row grid.
+    The frontend then hands Rows to Write.
 
 func (s *Service) ExportSchema(templateFilename, alignSource string) ExportSchema
-    ExportSchema returns the default column plan, alignable fields, and
-    source options for an alignment choice, all derived backend-side from the
-    template's field schema.
+    ExportSchema returns the default column plan, alignable fields, and source
+    options for an alignment choice, derived from the template's field schema.
 
 func (s *Service) FormatValue(val any, fieldType string) string
     FormatValue is the export-side counterpart to CoerceValue: turn a stored
@@ -2549,9 +2461,8 @@ func (s *Service) MappableFields(fields []FieldSpec) []FieldSpec
     mapping (image, code, api, loopstart/loopstop).
 
 func (s *Service) MappableFieldsForTemplate(templateFilename string) ([]FieldSpec, error)
-    MappableFieldsForTemplate returns the template's CSV-mappable field specs
-    (excluded types stripped), sourced backend-side so the import dialog need
-    not re-derive the exclusion rule.
+    MappableFieldsForTemplate returns the template's CSV-mappable field specs,
+    excluded types stripped backend-side.
 
 func (s *Service) Preview(filePath, delimiter string) (PreviewResult, error)
 
@@ -2611,26 +2522,25 @@ Package datacore is a sparse rank-3 data tensor over form data.
 
 Its three modes are I (identity: which record), F (form: which field),
 and M (meaning: which context). A coordinate (i, f, m) addresses a cell holding
-a single value, or a reference to another identity. Storage is coordinate-list
-(COO) sparse: parallel columns of interned mode indices plus the value,
-so present cells iterate in cache-friendly order and a projection is a filter
-over columns rather than a pointer walk.
+a value or a reference to another identity. Storage is coordinate-list (COO)
+sparse: parallel columns of interned mode indices plus the value, so present
+cells iterate in storage order and a projection is a filter over columns rather
+than a pointer walk.
 
-Reading the tensor is done through perspectives: slices and reductions over
-the modes (project a field, scope a context, follow a reference, reduce along
-identity). Query and statistics are both perspectives over the same substrate;
-see design/datacore-perspectives.md.
+Reading is done through perspectives: slices and reductions over the modes
+(project a field, scope a context, follow a reference, reduce along identity).
+Query and statistics are both perspectives over the same substrate; see
+design/datacore-perspectives.md.
 
-The module is deliberately self-contained. It ingests a plain Record and imports
-no other module, so it can be exercised and benchmarked in isolation without
-touching the running app.
+The module is self-contained: it ingests a plain Record and imports no other
+module, so it can be exercised and benchmarked in isolation.
 
 CONSTANTS
 
 const Universal = "universal"
     Universal is the default meaning: a value that holds in every context.
-    The M mode exists for context-varying values; ingest writes Universal today
-    and richer contexts attach later without changing the shape.
+    The M mode exists for context-varying values; ingest writes Universal and
+    richer contexts attach later without changing the shape.
 
 
 TYPES
@@ -2644,26 +2554,23 @@ type Aggregate struct {
 	Values    []float64
 	Anomalies []Anomaly
 }
-    Aggregate is the result of a numeric reduction over a field: the summary
-    computed in one pass over the coercible values, the raw coercible values
-    themselves, plus any value that refused to coerce. With no numeric values N
-    is 0 and Min/Max/Mean are 0.
+    Aggregate is the result of a numeric reduction over a field: the one-pass
+    summary, the raw coercible values, and any value that refused to coerce.
+    With no numeric values N is 0 and Min/Max/Mean are 0.
 
-    Values holds the coerced numbers in working-set order, so a caller can
-    run the order-independent statistics SQLite has no built-ins for (median,
-    stddev, percentile) without a second pass. It is exactly the set that
-    fed N/Sum: blanks are absence and excluded, non-coercible values go to
-    Anomalies, not here. len(Values) == N.
+    Values holds the coerced numbers in working-set order so a caller can run
+    the statistics SQLite has no built-ins for (median, stddev, percentile)
+    without a second pass. It is exactly the set that fed N/Sum: blanks are
+    excluded, non-coercible values go to Anomalies. len(Values) == N.
 
 type Anomaly struct {
 	ID    string
 	Field string
 	Value string
 }
-    Anomaly is a value present where a numeric reduction expected a number but
-    the string would not coerce. It is surfaced, not silently dropped: a value
-    that refuses the type an operation asks for is the "something fishy" signal,
-    not noise to swallow.
+    Anomaly is a value present where a reduction expected a number (or date)
+    but the string would not coerce. It is surfaced, not dropped: a value that
+    refuses the type an operation asks for is a signal, not noise.
 
 type Bucket struct {
 	Value string
@@ -2676,8 +2583,8 @@ type Cell struct {
 	Val     string
 	Ref     string
 }
-    Cell is one present coordinate. For a value cell Ref is empty; for a
-    reference cell Ref is the target identity label and Val is empty.
+    Cell is one present coordinate. A value cell has empty Ref; a reference cell
+    has empty Val and Ref set to the target identity label.
 
 type CrossCell struct {
 	Row   string
@@ -2706,16 +2613,16 @@ type Graph struct {
 	Capped bool        `json:"capped"`
 }
     Graph is the node-link view of the tensor's reference sub-structure:
-    nodes are identities, edges are refs. This is the tensor read as a labeled
-    directed graph rather than as a table.
+    nodes are identities, edges are refs. The tensor read as a labeled directed
+    graph rather than as a table.
 
 type GraphEdge struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
 	Field  string `json:"field"`
 }
-    GraphEdge is one reference: a directed edge from Source to Target labeled by
-    the field that carries the ref (the loop field, or the link field).
+    GraphEdge is a directed edge from Source to Target labeled by the field that
+    carries the ref (the loop field or the link field).
 
 type GraphNode struct {
 	ID    string `json:"id"`
@@ -2723,7 +2630,7 @@ type GraphNode struct {
 	Kind  string `json:"kind"` // "root" | "row"
 }
     GraphNode is one identity in the node-link view: a record (root) or a
-    sub-identity (a table/loop row, or a linked record).
+    sub-identity (a table/loop row or a linked record).
 
 type GridDim struct {
 	Field     string
@@ -2787,44 +2694,39 @@ type NumCell struct {
 type Perspective struct {
 	// Has unexported fields.
 }
-    A Perspective is a view of the tensor: a meaning scope plus a working set of
-    identities, read by slicing and reducing over the modes. Select narrows the
-    identities (Where), step across references (Follow), then read a shape out
-    (Project rows, Distribution buckets, Count). This is the small algebra query
-    and statistics are both spelled in.
+    A Perspective is a view of the tensor: a meaning scope plus a working set
+    of identities. Narrow with Where, step references with Follow, then read a
+    shape (Project, Distribution, Cross, Count). Query and statistics are both
+    spelled in this algebra.
 
 func (p *Perspective) Aggregate(field string) Aggregate
     Aggregate reduces a numeric field over the working set, coercing each value
-    to a number on demand: the tensor stores strings, the operation reapplies
-    the type. Blank cells are absence and skipped. A non-blank value that will
-    not parse as a number is recorded as an Anomaly (sorted by identity) rather
-    than dropped or counted as zero, so a typed field holding junk is visible.
+    on demand: the tensor stores strings, the operation reapplies the type.
+    Blank cells are absence. A non-blank value that will not parse is recorded
+    as an Anomaly (sorted by identity) rather than dropped or counted as zero,
+    so a typed field holding junk stays visible.
 
 func (p *Perspective) Count() int
     Count is the size of the working set.
 
 func (p *Perspective) Cross(rowField, colField string) CrossTab
-    Cross reduces along the I mode into a rank-2 contingency: for each (rowField
-    value, colField value) pair, the count of identities carrying both at the
-    current scope. Identities missing either value are dropped (complete-case,
-    blank = absence). Its row and column margins are the two rank-1
-    Distributions, so a cross-tab is the joint and the distributions are its
-    contractions.
+    Cross reduces along the I mode into a rank-2 contingency: per (rowField,
+    colField) value pair, the count of identities carrying both at the current
+    scope. Identities missing either value are dropped (complete-case). The row
+    and column margins are the two rank-1 Distributions.
 
 func (p *Perspective) DateSeries(field, period string) Series
-    DateSeries reduces along the I mode into a date histogram: each identity's
-    value at field is coerced to a date on demand and bucketed to the period
+    DateSeries reduces along the I mode into a date histogram: each value
+    at field is coerced to a date on demand and bucketed to the period
     (year/month/day, defaulting to month). Blank cells are absence; a non-blank
-    value that will not parse as a date is surfaced as an Anomaly, not truncated
-    into a bogus bucket. Buckets are sorted (chronological for ISO dates,
-    since lexical and chronological coincide).
+    value that will not parse is surfaced as an Anomaly, not truncated
+    into a bogus bucket. Buckets are sorted (lexical order on ISO dates is
+    chronological).
 
 func (p *Perspective) Distribution(field string) []Bucket
-    Distribution reduces along the I mode: for each distinct value of field
-    at the current scope, the count of identities carrying it. Blank values
-    are skipped (absence is not a category, matching the index distribution).
-    Buckets are sorted by value. This is the statistical "distribution" shape as
-    a reduction.
+    Distribution reduces along the I mode: per distinct value of field at the
+    current scope, the count of identities carrying it. Blank values are skipped
+    (absence is not a category, matching the index). Buckets sorted by value.
 
 func (p *Perspective) Follow(field string) *Perspective
     Follow moves the working set one hop: from the current identities to
@@ -2851,26 +2753,18 @@ func (p *Perspective) Scope(m string) *Perspective
     Scope fixes the M mode: subsequent reads see values in this context.
 
 func (p *Perspective) Summarize(linkField, valueField string) []RootSummary
-    Summarize reduces per root: for each identity in the working set it gathers
-    the sub-identities that root references under linkField and aggregates
-    valueField over only that root's rows, landing the result back on the root.
-    This is the loop-summary shape. Form X's total is computed over X's own loop
-    rows, never pooled across forms. Rows is the loop length; Agg is the numeric
-    reduction (left zero when valueField is "", i.e. a plain count summary).
-    Roots with no linked rows still appear, with Rows 0. Ordered by root.
+    Summarize reduces per root: for each identity it aggregates valueField over
+    only the rows that root references under linkField, landing the result
+    back on the root. Form X's total is computed over X's own loop rows,
+    never pooled across forms. Agg is left zero when valueField is "" (a plain
+    count summary). Roots with no rows still appear, Rows 0. Ordered by root.
 
 func (p *Perspective) Unfold(field string, maxDepth int) iter.Seq[Node]
-    Unfold lazily walks field recursively from the working set, breadth-first,
-    yielding each identity the first time it is reached. This is the flower
-    opening: each hop unfolds the sub-tensor a reference points at, so a fact
-    that lives in no single cell (a chain's end, a link-of-a-link) emerges from
-    the path.
-
-    It is bounded by maxDepth (hops from a seed; maxDepth <= 0 yields nothing)
-    and guarded by a visited set, so a reference cycle terminates. Seeds are
-    the centers, not petals: only identities reached by one or more hops are
-    yielded. The walk is lazy. Breaking out of the range stops exploration,
-    so a deep or wide closure is never fully materialized unless it is consumed.
+    Unfold walks field recursively from the working set, breadth-first, yielding
+    each identity the first time it is reached. Bounded by maxDepth (hops from
+    a seed; <= 0 yields nothing) and visited-guarded so cycles terminate. Seeds
+    themselves are not yielded, only identities reached by a hop. Lazy: breaking
+    the range stops exploration, so a wide closure is never fully materialized.
 
 func (p *Perspective) Where(field string, pred Pred) *Perspective
     Where keeps identities whose field value at the current scope passes pred.
@@ -2895,10 +2789,9 @@ type Predicate struct {
     matches set facet options, Search is a full-text query. An empty Predicate
     narrows nothing, so the tensor is built from every record.
 
-    A predicate is a row filter the planner pushes down to the index instead of
-    the tensor selecting in memory: narrowing here is the same set as a Where
-    on each named field, just decided by the fast store. The seam's contract is
-    that the two agree (see the cross-check parity test).
+    The seam's contract: narrowing here yields the same set as a Where on each
+    named field, just decided by the fast store (see the cross-check parity
+    test).
 
 func (p Predicate) Empty() bool
     Empty reports whether the predicate asks for any narrowing at all.
@@ -2908,29 +2801,28 @@ type Record struct {
 	Fields map[string]string
 	Tables map[string][]map[string]string
 	Facets map[string]string
-	// Links are record-to-record references: a field mapped to the
-	// identities it points at. This is the FDRM cross-record edge, the
-	// thing Unfold walks recursively.
+	// Links are record-to-record references (the FDRM cross-record edge
+	// Unfold walks recursively): a field mapped to the identities it points at.
 	Links map[string][]string
-	// Label is an optional human display name for the record (e.g. its
-	// title field), used by the graph view. Empty falls back to the ID.
+	// Label is an optional display name for the record, used by the graph
+	// view. Empty falls back to the ID.
 	Label string
 	// TableLabels gives an optional display label per table row (in row
-	// order), keyed by table field, used to label row nodes in the graph.
+	// order), keyed by table field, to label row nodes in the graph.
 	TableLabels map[string][]string
 }
-    Record is the plain input datacore ingests. It is decoupled from storage and
-    template by design: anything that can shape a record into fields, tables,
-    and facets can feed the tensor.
+    Record is the plain input datacore ingests, decoupled from storage and
+    template: anything that can shape a record into fields, tables, and facets
+    can feed the tensor.
 
 type RootSummary struct {
 	ID   string
 	Rows int
 	Agg  Aggregate
 }
-    RootSummary is one root's loop summary: its identity, the loop length (count
-    of sub-identities it links under the link field), and the numeric reduction
-    of a value field over only that root's rows.
+    RootSummary is one root's loop summary: its identity, the loop length
+    (sub-identities it links under the link field), and the numeric reduction of
+    a value field over only that root's rows.
 
 type Row struct {
 	ID    string
@@ -2952,21 +2844,20 @@ type Service struct {
 }
     Service is the Wails-facing, read-only layer over the tensor. Each
     call builds a fresh tensor from the template's live forms and runs one
-    perspective over it. It is purely additive: it reads form data the same way
-    query does and changes nothing the index or stat path relies on.
+    perspective over it. It reads form data the same way query does and changes
+    nothing the index or stat path relies on.
 
-    The optional follow argument steps one reference hop before reducing,
-    so a table or loop column is reachable (follow the loop field, then reduce
-    its rows) without a full spec language. Empty follow reduces over the root
-    records.
+    The optional follow argument steps one reference hop before reducing, so a
+    table or loop column is reachable (follow the loop field, then reduce its
+    rows) without a full spec language. Empty follow reduces over root records.
 
 func NewService(factory LoaderFactory) *Service
 
 func NewServiceWithPlanner(factory LoaderFactory, planner Planner) *Service
     NewServiceWithPlanner wires the planner seam: narrowed reducers (the *Where
-    methods) push their predicate down to the planner (the SQLite index) so
-    the tensor only ingests the matching records. The non-narrowed methods are
-    unaffected and build from every record exactly as before.
+    methods) push their predicate down to the planner (the SQLite index) so the
+    tensor only ingests the matching records. The non-narrowed methods build
+    from every record as before.
 
 func (s *Service) Aggregate(template, follow, field string) (Aggregate, error)
     Aggregate is the numeric reduction of field (sum/min/max/mean + anomalies),
@@ -2981,9 +2872,8 @@ func (s *Service) Count(template, follow string) (int, error)
     Count is the number of records (follow empty) or loop rows (follow set).
 
 func (s *Service) CountWhere(template, follow string, pred Predicate) (int, error)
-    CountWhere is Count over the record set narrowed by pred. The planner pushes
-    the predicate to the index, so the tensor only counts the matching records.
-    With no planner wired it falls back to narrowing in memory, same answer.
+    CountWhere is Count over the record set narrowed by pred. With no planner
+    wired it falls back to narrowing in memory, same answer.
 
 func (s *Service) Cross(template, follow, rowField, colField string) (CrossTab, error)
     Cross is the rank-2 contingency of two fields over the working set.
@@ -2997,15 +2887,15 @@ func (s *Service) Distribution(template, follow, field string) ([]Bucket, error)
     working set.
 
 func (s *Service) DistributionWhere(template, follow string, pred Predicate, field string) ([]Bucket, error)
-    DistributionWhere is Distribution over the record set narrowed by pred.
-    This is the canonical seam shape: the index decides which records exist,
-    the tensor reduces them. The result equals the full Distribution with an
-    equivalent in-memory Where, just computed over fewer ingested records.
+    DistributionWhere is Distribution over the record set narrowed by pred,
+    the canonical seam shape: the index decides which records exist, the tensor
+    reduces them. The result equals the full Distribution with an equivalent
+    in-memory Where, over fewer ingested records.
 
 func (s *Service) Graph(template string, limit int) (Graph, error)
     Graph projects the template's tensor as a node-link graph (records and loop
     rows as nodes, refs as edges) for the visual explorer. limit caps the node
-    count (0 = no cap); roots are kept before rows and dangling edges dropped.
+    count (0 = no cap); roots kept before rows, dangling edges dropped.
 
 func (s *Service) GraphFrom(template, rootID string, depth int) (Graph, error)
     GraphFrom projects the subgraph reachable from one record (rootID, a node
@@ -3043,18 +2933,17 @@ func (t *Tensor) Graph(limit int) Graph
     dangling edges. limit <= 0 means no cap.
 
 func (t *Tensor) GraphFrom(rootID string, level int) Graph
-    GraphFrom projects the flower around one identity at a level of detail:
+    GraphFrom projects the subgraph around one identity at a level of detail:
 
         level 0: the start node only
         level 1: + its fields (scalar/facet values as leaf nodes, and table/list/
                  link fields as field nodes), but no rows under the ref fields
         level 2: + the rows/targets hanging under each reference field
 
-    A scalar field is a leaf labeled by its value; a reference field is a
-    node labeled by the field name with its rows under it (a table reads as a
-    field-with-rows). The dialog drives the base level for the record and uses a
-    per-node call to unfold a clicked row or linked record further. Empty graph
-    if rootID is unknown.
+    A scalar field is a leaf labeled by its value; a reference field is a node
+    labeled by the field name with its rows under it. The dialog drives the base
+    level and uses a per-node call to unfold a clicked row or linked record
+    further. Empty graph if rootID is unknown.
 
 func (t *Tensor) Ingest(r Record)
     Ingest writes one record into the tensor.
@@ -3062,8 +2951,8 @@ func (t *Tensor) Ingest(r Record)
     Scalar fields and facets land on the record identity at Universal meaning.
     Each table row becomes its own identity, so a row keeps a first-class
     identity instead of being flattened into the parent (the property an EAV
-    index loses and the matrix has to rebuild from provenance). The record
-    references each row under the table's field, so Follow walks record -> rows.
+    index loses and has to rebuild from provenance). The record references each
+    row under the table's field, so Follow walks record -> rows.
 
 func (t *Tensor) Len() int
     Len is the number of present cells (the count of nonzero coordinates).
@@ -3079,17 +2968,10 @@ func (t *Tensor) View() *Perspective
 
 package dataprovider // import "github.com/petervdpas/formidable2/internal/modules/dataprovider"
 
-Package dataprovider is the read-only facade the wiki HTTP server (and the
-future REST API) uses to answer page requests. It composes the SQLite-backed
-index (fast metadata lookups) with the render module (markdown + HTML),
-and exposes HTTP-friendly types so the transport layer can JSON-encode results
-without further mapping.
-
-Writes never go through dataprovider - the in-app event hooks and the post-sync
-RescanAll path own those. Keeping this side read-only makes it easy to layer
-per-template access control later: every method already takes a context.Context,
-so a future principal goes in a context value and gets checked here before any
-data flows out.
+Package dataprovider is the read-only facade the wiki HTTP server and REST API
+use to answer page requests, composing the SQLite index with the render module
+and exposing HTTP-friendly types. Writes never go through here; every method
+takes a context.Context so per-template access control can be layered on later.
 
 VARIABLES
 
@@ -3099,9 +2981,8 @@ var (
 	ErrAPIFieldGuidNotFound       = errors.New("api-field: guid not found in source collection")
 	ErrAPIFieldStorageMissing     = errors.New("api-field: storage adapter not wired")
 )
-    API-field structured errors. Callers should `errors.Is` against these rather
-    than string-match. The Wails service layer maps each to a stable error code
-    in its response shape.
+    API-field structured errors; errors.Is against these, the Wails layer maps
+    each to a stable code.
 
 
 TYPES
@@ -3112,17 +2993,15 @@ type APIFieldDrift struct {
 	Current any    `json:"current"`
 }
     APIFieldDrift is one column where the host's stored value differs from the
-    source's current value. Stored may be nil (the column was added to Map[]
-    after the form was saved); Current may be nil (the source-side field was
-    deleted/cleared).
+    source's current value. Either side may be nil (column added after save,
+    or source field cleared).
 
 type APIFieldRefetchResult struct {
 	Row   map[string]any  `json:"row"`
 	Drift []APIFieldDrift `json:"drift"`
 }
-    APIFieldRefetchResult bundles a fresh projected row with the diff against a
-    previously-stored row. Frontend renders Row as the new truth and uses Drift
-    to flag what changed since last save.
+    APIFieldRefetchResult is a fresh projected row plus its Drift against a
+    previously-stored row.
 
 type APIFieldRefetchResultDTO struct {
 	Row     map[string]any  `json:"row,omitempty"`
@@ -3130,26 +3009,17 @@ type APIFieldRefetchResultDTO struct {
 	Kind    string          `json:"kind,omitempty"`
 	Message string          `json:"message,omitempty"`
 }
-    APIFieldRefetchResultDTO mirrors APIFieldRefetchResult but carries the same
-    Kind/Message error fields as APIFieldRowResult so the frontend can branch
-    uniformly. On success Row + Drift are populated; on error, both are zero and
-    Kind is non-empty.
+    APIFieldRefetchResultDTO is APIFieldRefetchResult plus the Kind/Message
+    error fields, for uniform frontend branching.
 
 type APIFieldRowResult struct {
 	Row     map[string]any `json:"row,omitempty"`
 	Kind    string         `json:"kind,omitempty"`
 	Message string         `json:"message,omitempty"`
 }
-    APIFieldRowResult is the Wails-friendly response shape for FetchAPIFieldRow.
-    Errors are surfaced as a stable Kind string so the frontend can branch
-    without parsing free-form messages.
-
-    Kinds:
-      - "" - success; Row is the projected row
-      - "template-not-found" - sourceTemplate does not exist
-      - "collection-disabled" - sourceTemplate exists but collection-mode is off
-      - "guid-not-found" - guid is not present in that collection
-      - "internal" - anything else (Message carries the detail)
+    APIFieldRowResult is the Wails response for FetchAPIFieldRow. Kind is "" on
+    success or a stable error string (see apiFieldErrorKind) so the frontend
+    branches without parsing Message.
 
 type CollectionItem struct {
 	Template string   `json:"template"` // stem (e.g. "recepten")
@@ -3160,10 +3030,8 @@ type CollectionItem struct {
 	HrefSelf string   `json:"hrefSelf"` // /api/collections/<stem>/<guid>
 	HrefHTML string   `json:"hrefHtml"` // /template/<stem>/form/<filename>
 }
-    CollectionItem is one row in a collection listing. Mirrors the old
-    internal-server `listCollection` output: identity (guid as id), filename,
-    display title, tags, and ready-to-use HTTP links to the JSON resource and
-    the rendered HTML page.
+    CollectionItem is one row in a collection listing: identity, title, tags,
+    and ready-to-use links to the JSON resource and HTML page.
 
 type CollectionListOpts struct {
 	Limit  int
@@ -3172,13 +3040,9 @@ type CollectionListOpts struct {
 	Tags   []string
 	Facets map[string]string
 }
-    CollectionListOpts shapes a collection listing. `Q` is a case-insensitive
-    substring filter applied to title + tags (matching the wiki's old
-    behaviour). Tags add AND filtering. Facets adds per-key AND filtering
-    against meta.facets[k].{set,selected} (every entry must match a record's
-    facet state exactly: set==true and selected==value). Include selects how
-    much per-item data the response carries - summary (default) keeps it small;
-    full would include full data (deferred to a later v).
+    CollectionListOpts shapes a collection listing. Q is a case-insensitive
+    substring filter on title+tags; Tags and Facets add AND filtering. A Facets
+    entry matches only when set==true and selected==value.
 
 type CollectionPage struct {
 	Enabled  bool             `json:"collectionEnabled"`
@@ -3188,9 +3052,8 @@ type CollectionPage struct {
 	Offset   int              `json:"offset"`
 	Items    []CollectionItem `json:"items"`
 }
-    CollectionPage is what the /api/collections/<template> endpoint returns:
-    enabled flag (false when the template doesn't opt in), total before
-    pagination, and the page's items.
+    CollectionPage is the /api/collections/<template> response: enabled flag
+    (false when the template doesn't opt in), total, and the items.
 
 type FormSummary struct {
 	Template        string   `json:"template"`     // "basic.yaml"
@@ -3204,10 +3067,8 @@ type FormSummary struct {
 	Tags            []string `json:"tags,omitempty"`
 	ExpressionItems string   `json:"expressionItems,omitempty"`
 }
-    FormSummary mirrors the per-form data the wiki sidebar/list pages need:
-    identity (filename + optional GUID), display title, audit fields, and the
-    inverted tags. Body content is intentionally NOT here - fetching that is
-    RenderForm's job.
+    FormSummary is the per-form data the wiki list pages need: identity, title,
+    audit fields, tags. No body content; that is RenderForm's job.
 
 type Index interface {
 	ListTemplates() ([]index.TemplateRow, error)
@@ -3224,9 +3085,8 @@ type ListOpts struct {
 	OrderBy string   // see index.orderBySQL for accepted values
 	Tags    []string // AND semantics
 }
-    ListOpts is the read-side equivalent of index.QueryOpts. We keep a separate
-    type so dataprovider's public API isn't tied to the index's internal options
-    shape and so HTTP handlers map query strings directly into this.
+    ListOpts is the read-side equivalent of index.QueryOpts, kept separate so
+    the public API isn't tied to the index's internal options shape.
 
 type Manager struct {
 	// Has unexported fields.
@@ -3248,27 +3108,11 @@ func (m *Manager) CollectionRev(_ context.Context, _ string) (int64, error)
     rev later by adding a tracked column to the templates table.
 
 func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid string, columnKeys []string) (map[string]any, error)
-    FetchAPIFieldRow projects one row from a source collection-enabled template
-    at picker time.
-
-    Resolves (sourceTemplate, guid) → datafile via the index, loads the form's
-    data via storage, and returns a map keyed by columnKey carrying each
-    requested source value VERBATIM. Scalars (string / bool / number) pass
-    through; complex shapes (slices, maps) ride across as themselves. The host's
-    .meta.json is already JSON, so a projected `tags: ["a","b"]` lands as a real
-    array - not as a JSON-encoded string nested inside the host JSON.
-
-    The returned map always contains an entry for every requested columnKey;
-    absent source keys produce nil values (so callers can tell "absent" apart
-    from "explicit empty string"). An empty/nil columnKeys slice yields an empty
-    (non-nil) row.
-
-    Errors are structured (errors.Is-able) so the Wails layer can translate to
-    stable codes:
-      - ErrAPIFieldTemplateNotFound when the source template is unknown
-      - ErrAPIFieldCollectionDisabled when the source isn't collection-mode
-      - ErrAPIFieldGuidNotFound when no form in that template carries the guid
-      - ErrAPIFieldStorageMissing when the manager wasn't wired with storage
+    FetchAPIFieldRow resolves (sourceTemplate, guid) to a datafile via the index
+    and returns each requested columnKey's source value verbatim (scalars and
+    complex shapes alike, since .meta.json is already JSON). Every columnKey
+    gets an entry; absent source keys map to nil, so callers can tell absent
+    from explicit empty.
 
 func (m *Manager) GetFormSummary(_ context.Context, template, datafile string) (*FormSummary, bool, error)
     GetFormSummary fetches the metadata-only view of a form by composite key.
@@ -3305,16 +3149,9 @@ func (m *Manager) ListTemplates(_ context.Context) ([]TemplateSummary, error)
     already does that).
 
 func (m *Manager) RefetchAPIFieldRow(ctx context.Context, sourceTemplate, guid string, columnKeys []string, stored map[string]any) (*APIFieldRefetchResult, error)
-    RefetchAPIFieldRow fetches the current projected row for (sourceTemplate,
-    guid, columnKeys) and compares each column against stored. Returns the fresh
-    row plus a Drift entry for every column whose value differs (including
-    columns absent from stored or absent from current). A nil stored map is
-    treated as empty (every non-nil current column counts as drift from zero).
-
-    Comparison uses host-storage equality semantics: scalars compare by value,
-    non-scalars compare by their JSON-flattened string (already produced by
-    flattenAPIValue). Same-shaped values therefore round- trip cleanly even when
-    the source's underlying type is complex.
+    RefetchAPIFieldRow fetches the current row and returns it with a Drift entry
+    per column that differs from stored. A nil stored map counts every non-nil
+    current column as drift.
 
 func (m *Manager) RenderForm(ctx context.Context, template, datafile string) (*RenderedPage, error)
     RenderForm wraps render.Manager.RenderForm with the small bit of
@@ -3344,9 +3181,8 @@ type RenderedPage struct {
 	Markdown string `json:"markdown"`
 	HTML     string `json:"html"`
 }
-    RenderedPage carries the full output of the render pipeline plus the title
-    lifted out of the markdown's frontmatter (so HTTP handlers don't have to
-    re-parse it).
+    RenderedPage is the render pipeline output plus the frontmatter title lifted
+    out, so HTTP handlers don't re-parse the markdown.
 
 type Renderer interface {
 	RenderForm(templateName, datafile string) (*render.Result, error)
@@ -3357,38 +3193,24 @@ type Renderer interface {
 type Service struct {
 	// Has unexported fields.
 }
-    Service is the Wails-bound facade. Today it surfaces only the api-field row
-    reader (the picker UI in FieldEditModal calls FetchAPIFieldRow when the user
-    picks a guid). The rest of dataprovider.Manager stays internal - it's read
-    by the wiki HTTP server and the api Handler directly.
-
-    The full Manager surface is intentionally NOT exposed: most of it is
-    wiki-shaped (markdown+HTML pages, collection listings with hrefs) and would
-    duplicate what the wiki server already serves. Frontend consumers that
-    need a list of records for a picker can call the existing api Handler over
-    loopback (via AssetMiddleware) or - when that's still too heavy - we add
-    narrow per-need methods here, one at a time.
+    Service is the Wails-bound facade, surfacing only the picker-side api-field
+    readers. The rest of Manager stays internal: it's wiki-shaped and the wiki
+    HTTP server and api Handler read it directly. Narrow per-need methods get
+    added here one at a time.
 
 func NewService(m *Manager) *Service
 
 func (s *Service) FetchAPIFieldRow(sourceTemplate, guid string, columnKeys []string) APIFieldRowResult
-    FetchAPIFieldRow projects one source-collection record into a flat row
-    keyed by the requested column keys. See manager method for flatten rules.
-    Always returns a non-nil result; on error, Row is nil and Kind is non-empty.
+    FetchAPIFieldRow projects one source-collection record into a flat row keyed
+    by columnKeys. On error Row is nil and Kind is non-empty.
 
 func (s *Service) ListCollectionTemplates() []TemplateSummary
-    ListCollectionTemplates returns the subset of templates that have
-    collection-mode enabled (and therefore can be referenced by an api-typed
-    field). The api-field editor populates its source-template dropdown from
-    this list.
+    ListCollectionTemplates returns the collection-enabled templates an
+    api-typed field can reference; the api-field editor's dropdown source.
 
 func (s *Service) RefetchAPIFieldRow(sourceTemplate, guid string, columnKeys []string, stored map[string]any) APIFieldRefetchResultDTO
-    RefetchAPIFieldRow re-fetches the current projected row and returns it
-    alongside the diff against `stored`. The host form should render Row as the
-    new truth; Drift carries per-column entries for anything that changed since
-    last save (including new columns added to the field's Map[]). A nil/empty
-    stored is treated as "first refetch" - every non-nil current column counts
-    as drift-from-zero.
+    RefetchAPIFieldRow re-fetches the current row and returns it with the Drift
+    against stored; a nil/empty stored counts every non-nil column as drift.
 
 type Storage interface {
 	LoadForm(template, datafile string) *storage.Form
@@ -3406,25 +3228,18 @@ type TemplateSummary struct {
 	HasMarkdownTemplate bool   `json:"hasMarkdownTemplate"`
 	EnableCollection    bool   `json:"enableCollection"`
 }
-    TemplateSummary is the public projection of an index template row.
-    `Filename` is the YAML name (e.g. "basic.yaml"); `Stem` is the
-    extension-less form (e.g. "basic") which matches the URL slug used by the
-    original Formidable wiki ("/template/basic").
+    TemplateSummary is the public projection of an index template row. Filename
+    is the YAML name ("basic.yaml"); Stem is the slug ("basic").
 
 
 
 package dialog // import "github.com/petervdpas/formidable2/internal/modules/dialog"
 
-Package dialog is a thin Wails-bound facade over the native open-file
-/ save-file pickers. The frontend triggers a dialog by calling
-Dialog.Service.ChooseFile / ChooseSaveFile; the OS picker blocks the calling
-Wails goroutine until the user commits or cancels. An empty returned path
-indicates user cancellation - callers should treat that as a no-op, not an
-error.
-
-There is no Manager type here. The module is just an adapter to the Wails dialog
-API; it has no state of its own and is therefore not unit-testable without a
-running Wails app. Behaviour is verified by hand at the Vue layer.
+Package dialog is a Wails-bound facade over the native open-file / save-file
+pickers. The OS picker blocks the calling Wails goroutine until the user commits
+or cancels; an empty returned path means cancellation, to be treated as a
+no-op rather than an error. The module is a stateless adapter with no Manager,
+verified by hand at the Vue layer.
 
 TYPES
 
@@ -3440,18 +3255,16 @@ type Service struct{}
     Service is the Wails-bound dialog surface.
 
 func NewService() *Service
-    NewService constructs a Service. No dependencies - the running Wails
-    application instance is reached via application.Get() at call time.
+    NewService constructs a Service; the Wails application instance is reached
+    via application.Get() at call time.
 
 func (s *Service) ChooseDirectory() (string, error)
-    ChooseDirectory opens a native folder picker. Used by export-to- folder
-    flows that don't need a filename. Returns "" on cancel.
+    ChooseDirectory opens a native folder picker. Returns "" on cancel.
 
 func (s *Service) ChooseFile(filters []FileFilter) (string, error)
-    ChooseFile opens a native open-file picker. When filters are supplied, the
-    picker restricts visible files to those matching (each filter becomes one
-    entry in the picker's filter dropdown). Returns the absolute selected path,
-    or "" if the user cancelled.
+    ChooseFile opens a native open-file picker, optionally restricting visible
+    files to the supplied filters. Returns the absolute selected path, or "" if
+    the user cancelled.
 
 func (s *Service) ChooseSaveFile(defaultName string, filters []FileFilter) (string, error)
     ChooseSaveFile opens a native save-file picker pre-populated with
@@ -3807,24 +3620,19 @@ type TextSource struct {
 
 package form // import "github.com/petervdpas/formidable2/internal/modules/form"
 
-Package form is Formidable's form-view orchestrator. It sits above the template
-+ storage modules and exposes the single object Vue needs to render and
-round-trip one (template, datafile) pair.
-
-Mirrors the original `modules/formRenderer.js` + `modules/formActions.js`
-pipeline, with all of the type-specific render rules pushed down into Vue
-components and only the glue (default injection, loop pairing, eventual API
-live-fetch) left in Go.
+Package form orchestrates the form view. It sits above the template + storage
+modules and exposes the single object Vue needs to render and round-trip one
+(template, datafile) pair. Type-specific render rules live in Vue; only the glue
+(default injection, loop pairing) is in Go.
 
 TYPES
 
 type ConfigDefaults struct {
 	LoopStateCollapsed bool
 }
-    ConfigDefaults bundles config values that affect form rendering. Snapshot
-    read once per call - these change rarely. Author identity is NOT here:
-    storage.Manager pulls it directly from its own AuthorProvider so every save
-    path (form, api, csv import, integrity) gets the active profile stamped.
+    ConfigDefaults bundles config values that affect form rendering.
+    Author identity is NOT here: storage.Manager pulls it directly from its own
+    AuthorProvider so every save path stamps the active profile.
 
 type FormView struct {
 	Template   *template.Template `json:"template"`
@@ -3834,11 +3642,9 @@ type FormView struct {
 	Datafile   string             `json:"datafile"`
 	Saved      bool               `json:"saved"`
 }
-    FormView is the Vue-facing payload returned by BuildView and SaveValues.
-    Vue iterates Template.Fields in order and consults LoopGroups to know when
-    a slice of fields belongs to a loopstart/loopstop block. Values is keyed by
-    field.key; loop keys hold []map[string]any (one entry per item), with inner
-    field values keyed inside.
+    FormView is the Vue-facing payload from BuildView and SaveValues. Values is
+    keyed by field.key; loop keys hold []map[string]any, one entry per item with
+    inner field values keyed inside.
 
 type LoopGroup struct {
 	Key              string `json:"key"`
@@ -3848,53 +3654,42 @@ type LoopGroup struct {
 	SummaryFieldKey  string `json:"summary_field_key"`
 	DefaultCollapsed bool   `json:"default_collapsed"`
 }
-    LoopGroup is one precomputed loopstart/loopstop pair. Vue uses
-    StartIndex/StopIndex to slice into Template.Fields and DefaultCollapsed
-    for the initial UI state. SummaryFieldKey is the field key whose value
-    is shown in the loop-item header when the item is collapsed (mirrors
+    LoopGroup is one precomputed loopstart/loopstop pair. SummaryFieldKey is the
+    field key whose value shows in the loop-item header when collapsed (mirrors
     loopstart.summary_field).
 
 func ComputeLoopGroups(fields []template.Field, defaultCollapsed bool) []LoopGroup
-    ComputeLoopGroups pairs loopstart/loopstop fields and computes the derived
-    bits Vue needs to render: depth (1 = top-level, 2 = nested), the summary
-    field key (from loopstart.summary_field), and the initial collapsed
-    state (per-loop override `loopstart.Collapsible == &true` wins over the
-    config-wide defaultCollapsed).
-
-    Pairing is best-effort: structural problems (unmatched start/stop,
-    key mismatch) are rejected by template.Validate elsewhere; here we just skip
-    what we can't pair so a malformed template doesn't crash the form view.
-
-    Returned groups are in start-index order (outer before inner).
+    ComputeLoopGroups pairs loopstart/loopstop fields into render groups.
+    Pairing is best-effort: structural problems are rejected by
+    template.Validate elsewhere, so here we skip what we can't pair rather
+    than crash the form view. Per-loop Collapsible override wins over
+    defaultCollapsed. Returned groups are in start-index order.
 
 type Manager struct {
 	// Has unexported fields.
 }
-    Manager owns the form-view orchestration.
+    Manager owns form-view orchestration.
 
 func NewManager(t templateLoader, s formStore, c configReader, log *slog.Logger) *Manager
-    NewManager constructs a form Manager. log may be nil.
+    NewManager constructs a form Manager; log may be nil.
 
 func (m *Manager) BuildView(templateName, datafile string) (*FormView, error)
-    BuildView prepares the FormView for one (template, datafile) pair. Empty
-    datafile, or a datafile that doesn't exist, yields an unsaved view with
-    type-defaults injected so the UI has something to bind to.
+    BuildView prepares the FormView for one (template, datafile) pair. A missing
+    or empty datafile yields an unsaved view with type-defaults injected so the
+    UI has something to bind to.
 
 func (m *Manager) DeleteForm(templateName, datafile string) error
-    DeleteForm removes the form's meta.json. Missing is a no-op.
+    DeleteForm removes the form's meta.json; missing is a no-op.
 
 func (m *Manager) EnsureFormDir(templateName string) error
-    EnsureFormDir - passthrough to storage; lets Vue create the per- template
-    folder before listing on a fresh template.
+    EnsureFormDir creates the per-template folder before listing.
 
 func (m *Manager) ListForms(templateName string) ([]storage.FormSummary, error)
-    ListForms - passthrough to storage.ExtendedListForms so Vue gets the
-    title-resolved + expression-bearing rows the sidebar needs.
+    ListForms returns the title-resolved, expression-bearing summary rows.
 
 func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormView, error)
-    SaveValues persists the values + meta for one (template, datafile) pair,
-    runs save-side normalizations, and returns the round-tripped FormView so
-    caller state matches disk.
+    SaveValues persists values + meta for one (template, datafile) pair and
+    returns the round-tripped FormView so caller state matches disk.
 
 type SavePayload struct {
 	Datafile string           `json:"datafile"`
@@ -3902,8 +3697,7 @@ type SavePayload struct {
 	Meta     storage.FormMeta `json:"meta"`
 }
     SavePayload is what Vue sends to SaveValues. Datafile may be empty for
-    never-persisted forms - the caller (UI) is expected to gather a filename
-    from the user (mirrors the original New-entry dialog).
+    never-persisted forms; the UI gathers a filename from the user first.
 
 type Service struct {
 	// Has unexported fields.
@@ -4108,13 +3902,11 @@ type State struct {
 
 package i18n // import "github.com/petervdpas/formidable2/internal/modules/i18n"
 
-Package i18n owns user-facing translations. Bundles live as JSON under locales/
-and are embedded into the binary at build time so the running app has zero
-filesystem dependency on the source tree.
-
-Both the Wails-bound Vue frontend and any Go-side consumers (future error
-message translation, journal labels, etc.) read from the same in-memory bundles,
-so there is exactly one source of truth for every user-facing string.
+Package i18n owns user-facing translations. Bundles live as JSON under
+locales/<locale>/<namespace>.json and are embedded into the binary at build
+time. Both the Vue frontend and any Go-side consumers read from the same
+in-memory bundles, so there is one source of truth for every user-facing string.
+Loading a locale merges its namespace files into a single flat key->value map.
 
 TYPES
 
@@ -4122,28 +3914,22 @@ type LocaleDescriptor struct {
 	Code    string `json:"code"`
 	Endonym string `json:"endonym"`
 }
-    LocaleDescriptor pairs a locale id with its endonym - the language's own
-    name for itself ("English", "Nederlands") - so a UI in any locale can label
-    the language picker with autonyms. The endonym lives inside the locale's own
-    bundle under `language.endonym`; adding a new locale just means adding the
-    file with that key set.
+    LocaleDescriptor pairs a locale id with its endonym (the language's own
+    name for itself, e.g. "Nederlands"), read from the locale's own bundle under
+    `language.endonym`.
 
 type Manager struct {
 	// Has unexported fields.
 }
-    Manager holds parsed locale bundles in memory. Each locale lives as
-    a directory of namespace JSON files (shell.json, settings.json, …);
-    they are merged into a single flat map[string]any per locale at load time.
-    Per-call lookup is then a single map read under an RWMutex.
-
-    Bundle values are typed as map[string]any rather than map[string]string
-    so future locale features (plural rules, nested namespaces, rich text) can
-    extend the schema without changing this signature.
+    Manager holds parsed locale bundles in memory, one flat map[string]any per
+    locale, behind an RWMutex. Values are map[string]any rather than string
+    so future locale features (plural rules, nested namespaces) can extend the
+    schema without changing this signature.
 
 func NewManager(log *slog.Logger) (*Manager, error)
     NewManager loads every JSON file under the embedded locales/ tree.
     Fails fast if the default locale (`en`) is missing or any namespace file is
-    malformed - both signal a build issue rather than a runtime condition.
+    malformed, both of which signal a build issue.
 
 func (m *Manager) AvailableLocales() []string
     AvailableLocales returns the sorted list of loaded locale ids.
@@ -4155,16 +3941,13 @@ func (m *Manager) HasLocale(locale string) bool
     HasLocale reports whether locale was loaded into the manager.
 
 func (m *Manager) ListLocales() []LocaleDescriptor
-    ListLocales returns a descriptor per loaded locale, sorted by Code. The
-    Endonym is read from each locale's `language.endonym` key, with the raw Code
-    as fallback when the bundle lacks the key. Powers the Settings → General
-    language picker so the dropdown is driven by the backend's known locale set
-    (one source of truth), not a hardcoded Vue array.
+    ListLocales returns a descriptor per loaded locale, sorted by Code, with
+    the raw Code as Endonym fallback when the bundle lacks `language.endonym`.
+    Drives the Settings language picker from the backend's known locale set.
 
 func (m *Manager) LoadBundle(locale string) (map[string]any, error)
-    LoadBundle returns the full key→value map for locale. Returns an error (not
-    a nil map) when the locale wasn't loaded - frontends can fall back to the
-    default by retrying with DefaultLocale().
+    LoadBundle returns the full key->value map for locale, erroring when the
+    locale wasn't loaded so frontends can retry with DefaultLocale().
 
 type Service struct {
 	// Has unexported fields.
@@ -4258,11 +4041,8 @@ type Diff struct {
 	Changed []FileEntry
 	Removed []string
 }
-    diffEntries computes the (added, changed, removed) sets between disk and
-    the index for a single bucket of files (templates, one template's forms,
-    or one template's images). Equality is defined as (mtime, size) - equal
-    mtime + different size catches sub-resolution rewrites that some filesystems
-    silently allow.
+    Diff is the (added, changed, removed) result of diffEntries for one bucket
+    of files.
 
 type EventHandler struct {
 	// Has unexported fields.
@@ -4313,18 +4093,17 @@ type FileEntry struct {
 	Mtime    int64 // unix nanoseconds
 	Size     int64
 }
-    FileEntry is the unit of comparison between disk and the index. Filename
-    is the basename only (e.g. "basic.yaml" or "test.meta.json") - paths get
-    rebuilt in scan/reconcile, never carried in the entry.
+    FileEntry is the unit of comparison between disk and the index. Filename is
+    the basename only; paths get rebuilt in scan/reconcile, never carried here.
 
 type FormFacet struct {
 	Key      string
 	Set      bool
 	Selected string
 }
-    FormFacet is one entry in the `form_facets` side table. Mirrors
-    storage.FacetState plus the facet key the entry is filed under, so the index
-    can replay the original meta.facets map at read time.
+    FormFacet is one entry in the `form_facets` side table: storage.FacetState
+    plus the facet key it is filed under, so the index can replay the original
+    meta.facets map at read time.
 
 type FormRecord struct {
 	Form  *storage.Form
@@ -4336,9 +4115,8 @@ type FormRef struct {
 	Template string
 	Filename string
 }
-    FormRef and ImageRef are compound keys for delete operations. They exist as
-    named structs (rather than passing two strings) so the ReconcileBatch shape
-    stays self-explanatory at call sites.
+    FormRef and ImageRef are compound keys for delete operations, named structs
+    so the ReconcileBatch shape stays self-explanatory at call sites.
 
 type FormRow struct {
 	Template string // "basic.yaml"
@@ -4346,9 +4124,9 @@ type FormRow struct {
 	ID       string // GUID from the template's guid_field, may be empty
 	Title    string
 	FmTitle  string
-	// Audit identity is split across the Created / Updated AuditEntry
-	// pair on disk; the index mirrors that split so per-profile
-	// attribution survives the round-trip.
+	// Audit identity is split across the Created / Updated AuditEntry pair on
+	// disk; the index mirrors that split so per-profile attribution survives
+	// the round-trip.
 	CreatedName     string
 	CreatedEmail    string
 	UpdatedName     string
@@ -4359,16 +4137,15 @@ type FormRow struct {
 	Tags            []string
 	Facets          []FormFacet
 	Values          []FormValueRow
-	// SearchBody is the flattened human-readable text of every prose
-	// field, fed to the FTS5 body column. Derived at reconcile time and
-	// not stored on the forms row itself - it lives only in form_search.
+	// SearchBody is the flattened prose text fed to the FTS5 body column.
+	// Derived at reconcile time; lives only in form_search, not the forms row.
 	SearchBody string
 	Mtime      int64
 	Size       int64
 }
     FormRow is one row in the index's `forms` table plus the inverted tags and
-    facets it owns. Tags and Facets are kept on the row (not a separate slice
-    elsewhere) so the reconciler can sync them in lock-step with the upsert.
+    facets it owns. Tags and Facets ride on the row so the reconciler can sync
+    them in lock-step with the upsert.
 
 type FormStore interface {
 	LoadForm(templateFilename, datafile string) (*FormRecord, error)
@@ -4382,13 +4159,12 @@ type FormValueRow struct {
 	Num       *float64
 	Text      string
 }
-    FormValueRow is one materialized, aggregatable value in the `form_values`
-    side table - the basis for chart statistics. A scalar field (number, date,
-    dropdown, ...) produces one row with Col nil; a table field produces one
-    row per cell, Col carrying the 0-based column index. ValueType tags the
-    cell ("number" | "date" | "text" | "bool") so the stat layer picks the right
-    aggregation without re-reading the template. Num is nil when the value isn't
-    numeric (a date stores epoch seconds in Num and ISO "YYYY-MM-DD" in Text).
+    FormValueRow is one aggregatable value in the `form_values` side table, the
+    basis for chart statistics. A scalar field produces one row with Col nil;
+    a table field produces one row per cell with Col the 0-based column index.
+    ValueType ("number" | "date" | "text" | "bool") lets the stat layer pick the
+    aggregation without re-reading the template. A date stores epoch seconds in
+    Num and ISO "YYYY-MM-DD" in Text.
 
 type ImageRef struct {
 	Template string
@@ -4401,10 +4177,9 @@ type ImageRow struct {
 	Mtime    int64
 	Size     int64
 }
-    ImageRow is one row in the index's `images` table. We don't track dimensions
-    or size - just presence - because the wiki only needs to know "does this
-    image exist for this template?" when it rewrites formidable:// links and
-    image src attributes.
+    ImageRow is one row in the index's `images` table. Only presence is tracked
+    (not dimensions): the wiki only needs to know whether an image exists for a
+    template when it rewrites formidable:// links and src attrs.
 
 type Manager struct {
 	// Has unexported fields.
@@ -4446,17 +4221,11 @@ func (m *Manager) Rev() (int64, error)
     used as an ETag; fresh DB returns 0.
 
 func (m *Manager) SearchForms(template, query string, opts QueryOpts) ([]FormRow, error)
-    SearchForms runs a full-text query over one collection (the forms of a
-    single template) and returns the matching rows ranked by FTS5 relevance,
-    with tags and facets stitched on like the other read methods. The query
-    is free user text; buildMatchQuery turns it into a safe prefix-AND MATCH
-    expression, so raw FTS5 operators in the input never reach the engine.
-    An empty/whitespace query returns no rows (not an error) - a blank search
-    box matches nothing, not everything.
-
-    opts.Limit/Offset apply; opts.OrderBy is ignored because relevance ranking
-    is the point of a search (callers wanting recency should use ListForms
-    instead).
+    SearchForms runs a full-text query over one template's forms, ranked by
+    FTS5 relevance. buildMatchQuery sanitizes the free-text query so raw FTS5
+    operators never reach the engine; an empty/whitespace query returns no rows
+    (not an error). opts.OrderBy is ignored: relevance ranking is the point of a
+    search.
 
 type QueryOpts struct {
 	// Limit caps the number of rows returned. 0 = no limit.
@@ -4464,19 +4233,17 @@ type QueryOpts struct {
 	// Offset skips the first N rows after sorting. 0 = no skip.
 	Offset int
 	// OrderBy is one of: "updated_desc" (default), "updated_asc",
-	// "title_asc", "title_desc", "filename_asc", "filename_desc".
-	// Empty string = "updated_desc". Unknown values fall back to the
-	// default rather than failing - the wiki shouldn't 500 because of
-	// a typo in a query string.
+	// "title_asc", "title_desc", "filename_asc", "filename_desc". Unknown
+	// values fall back to the default rather than failing, so the wiki
+	// doesn't 500 on a typo in a query string.
 	OrderBy string
 	// Tags filters to forms that own EVERY listed tag (AND semantics).
-	// Empty/nil = no filter. Tags are matched case-sensitively against
-	// the indexed values; normalize at the writer side, not the reader.
+	// Empty/nil = no filter. Matched case-sensitively; normalize at the
+	// writer side, not the reader.
 	Tags []string
 }
     QueryOpts shapes the result of ListForms (and its tag-filter cousin).
-    Zero value = sensible defaults: no limit, no offset, sort by updated DESC,
-    no tag filter.
+    Zero value = no limit, no offset, sort by updated DESC, no tag filter.
 
 type ReconcileBatch struct {
 	UpsertTemplates []TemplateRow
@@ -4488,10 +4255,10 @@ type ReconcileBatch struct {
 	UpsertImages []ImageRow
 	DeleteImages []ImageRef
 }
-    ReconcileBatch is a single transactional unit of work for the index. All
-    upserts/deletes are applied inside one SQLite transaction; on error nothing
-    is persisted and meta.rev is not bumped. An empty batch is a no-op (does not
-    bump rev) so the reconciler can be called speculatively.
+    ReconcileBatch is a single transactional unit of work for the index.
+    All upserts/deletes apply inside one SQLite transaction; on error nothing
+    is persisted and meta.rev is not bumped. An empty batch is a no-op (rev
+    unchanged) so the reconciler can be called speculatively.
 
 type ScanResult struct {
 	Templates []FileEntry
@@ -4499,8 +4266,8 @@ type ScanResult struct {
 	Images    map[string][]FileEntry // template-stem → image files
 }
     ScanResult is what a single disk walk produces. Forms and Images are keyed
-    by template stem (the template filename minus ".yaml") so the reconciler can
-    match disk against the index without further parsing.
+    by template stem (filename minus ".yaml") so the reconciler can match disk
+    against the index without further parsing.
 
 type Service struct {
 	// Has unexported fields.
@@ -4549,9 +4316,8 @@ type TemplateRow struct {
 	Mtime               int64
 	Size                int64
 }
-    TemplateRow is one row in the index's `templates` table. The scan/reconcile
-    pipeline produces these from on-disk YAML; the wiki HTTP server reads them
-    back through dataprovider.
+    TemplateRow is one row in the index's `templates` table, produced from
+    on-disk YAML by the scan/reconcile pipeline.
 
 
 
@@ -4923,13 +4689,12 @@ func (s *Service) RecentEntries(limit int) []Entry
 package logging // import "github.com/petervdpas/formidable2/internal/modules/logging"
 
 Package logging is the Wails-facing facade over internal/log. It exposes the
-in-memory ring buffer (Recent) and the on-disk log file contents (ReadFile) so
-the Information→Logging panel can render both a live tail and the raw text dump.
+in-memory ring buffer (Recent) and the on-disk log file (ReadFile) so the
+Information->Logging panel can render a live tail and the raw text dump.
 
-WriteFromFrontend lets the SPA re-publish console.* calls through the same
-slog pipeline as backend code - frontend lines land in formidable.log AND the
-live tail, tagged with source=frontend so they're distinguishable from backend
-records.
+WriteFromFrontend re-publishes SPA console.* calls through the same slog
+pipeline as backend code: frontend lines land in formidable.log and the live
+tail, tagged source=frontend.
 
 TYPES
 
@@ -4938,19 +4703,17 @@ type Manager struct {
 }
 
 func NewManager(bc *applog.Broadcaster, logPath string, log *slog.Logger) *Manager
-    NewManager wraps the broadcaster, remembers the log file path, and holds
-    the *slog.Logger used by WriteFromFrontend. Any argument may be nil/empty
-    - Recent/ReadFile/WriteFromFrontend all degrade to no-ops so the UI renders
-    empty states without special-casing.
+    NewManager wraps the broadcaster, log file path, and logger used by
+    WriteFromFrontend. Any argument may be nil or empty: Recent, ReadFile,
+    and WriteFromFrontend degrade to no-ops so the UI renders empty states.
 
 func (m *Manager) LogPath() string
     LogPath returns the resolved log file path (empty when file logging is off).
-    Useful for the UI footer / debug.
 
 func (m *Manager) ReadFile() (string, error)
-    ReadFile returns the contents of the on-disk log file. Returns ("",
-    nil) when file logging is disabled or the file doesn't exist yet so the UI
-    can show "(empty)" without surfacing an error.
+    ReadFile returns the contents of the on-disk log file, or ("", nil) when
+    file logging is disabled or the file doesn't exist yet so the UI shows
+    "(empty)" without an error.
 
 func (m *Manager) Recent(n int) []applog.Entry
     Recent returns up to n entries from the broadcaster's ring buffer. n<=0
@@ -4958,45 +4721,35 @@ func (m *Manager) Recent(n int) []applog.Entry
 
 func (m *Manager) WriteFromFrontend(level, msg string, fields map[string]any)
     WriteFromFrontend funnels a frontend console.* call through the app's
-    *slog.Logger. The record flows to every handler the logger fans (text →
-    stderr/file, broadcaster → ring + Wails event), so frontend lines appear in
-    the live tail AND in formidable.log.
-
-    source="frontend" is always stamped and cannot be overridden by the caller
-    - the attribute is the only way the UI distinguishes frontend from backend
-    records.
-
-    Returns no error: this is fire-and-forget. Empty/whitespace messages,
-    unknown levels, or a nil logger short-circuit silently so the frontend's
-    console-wrapper never has to think about errors.
+    logger so the line appears in both the live tail and formidable.log.
+    source="frontend" is always stamped and cannot be overridden; it is the only
+    way the UI distinguishes frontend from backend records. Fire-and-forget:
+    empty messages, unknown levels, or a nil logger short-circuit silently.
 
 type Service struct {
 	// Has unexported fields.
 }
-    Service is the Wails binding surface. Frontend uses the Logging service to
-    fetch the in-memory tail and the raw log file.
+    Service is the Wails binding surface for fetching the in-memory tail and the
+    raw log file.
 
 func NewService(mgr *Manager) *Service
 
 func (s *Service) LogFromFrontend(level, msg string, fields map[string]any) error
     LogFromFrontend re-publishes a SPA console.* call through the app's slog
-    pipeline so frontend lines appear in both formidable.log and the live tail.
-    Always tagged with source=frontend.
-
-    Level is one of "debug" | "info" | "warn" | "error"; anything else (or
-    empty) falls back to "info". Empty/whitespace msgs are dropped. Always
-    returns nil so the frontend wrapper never has to handle a reject path -
-    losing a log line is preferable to looping.
+    pipeline so frontend lines appear in both formidable.log and the live tail,
+    tagged source=frontend. Level is "debug"|"info"|"warn"|"error"; anything
+    else falls back to "info" and empty messages are dropped. Always returns nil
+    so the frontend wrapper never has a reject path.
 
 func (s *Service) LogPath() string
-    LogPath - resolved on-disk log path; "" means file logging is off.
+    LogPath returns the resolved on-disk log path; "" means file logging is off.
 
 func (s *Service) ReadFile() (string, error)
-    ReadFile - full contents of formidable.log (or "" when file logging is off /
-    the file doesn't exist yet).
+    ReadFile returns the full contents of formidable.log, or "" when file
+    logging is off or the file doesn't exist yet.
 
 func (s *Service) Recent(n int) []applog.Entry
-    Recent - up to `n` of the most-recent buffered entries. n<=0 returns
+    Recent returns up to n of the most-recent buffered entries; n<=0 returns
     whatever the ring currently holds.
 
 
@@ -5038,19 +4791,15 @@ func (s *Service) GetTopic(topic, locale string) (string, error)
 package monitor // import "github.com/petervdpas/formidable2/internal/modules/monitor"
 
 Package monitor is the generic observation surface over Formidable's internal
-event streams. One Event shape, multiple Source plug-ins (journal, app log,
-request log) - the Manager runs typed Query values against any registered source
-and returns a typed Result.
+event streams. The Manager runs typed Query values against any registered Source
+(journal, app log, request log) and returns a typed Result.
 
-Design:
   - Sources project their native records into Event{Ts, Kind, Dims, Value}.
   - Query{Filter, GroupBy, Bin, Agg} is a typed pipeline. No DSL.
-  - Result{Series, Series.Points or Series.Total} feeds chart components
-    directly and round-trips cleanly across the Wails bridge.
+  - Result feeds chart components and round-trips across the Wails bridge.
 
-New sources slot in by implementing Source - no Manager surgery, no new Wails
-methods. The HTTP handler at /api/monitor/* exposes the same Query shape as JSON
-for external consumers.
+New sources slot in by implementing Source. The HTTP handler at /api/monitor/*
+exposes the same Query shape as JSON for external consumers.
 
 VARIABLES
 
@@ -5069,9 +4818,8 @@ func NewHandler(m *Manager) http.Handler
 TYPES
 
 type Aggregator string
-    Aggregator is how the Manager reduces multiple Events with the same
-    (groupKey, binStart) into a single value. AggCount is the default and
-    ignores Event.Value entirely.
+    Aggregator reduces multiple Events with the same (groupKey, binStart) into a
+    single value. AggCount is the default and ignores Event.Value.
 
 const (
 	AggCount Aggregator = "count"
@@ -5086,11 +4834,9 @@ type Event struct {
 	Dims  map[string]string
 	Value float64
 }
-    Event is the canonical observation record. Sources project whatever they see
-    (a journal entry, a log line, an HTTP request) into this shape. Dimensions
-    are free-form key/value strings; consumers filter and group by dim names.
-    Value is the per-event numeric contribution to non-count aggregations
-    (default 1.0).
+    Event is the canonical observation record. Dims are free-form key/value
+    strings consumers filter and group by. Value is the per-event numeric
+    contribution to non-count aggregations (default 1.0).
 
 type Handler struct {
 	// Has unexported fields.
@@ -5152,7 +4898,7 @@ type Point struct {
 	Ts    time.Time `json:"ts"`
 	Value float64   `json:"value"`
 }
-    Point is one (timestamp, value) sample on a Series. Used when Query.Bin is
+    Point is one (timestamp, value) sample on a Series, used when Query.Bin is
     non-empty.
 
 type Query struct {
@@ -5166,14 +4912,14 @@ type Query struct {
 	Limit   int               `json:"limit,omitempty"`
 }
     Query is a typed pipeline against one Source. Bin is parsed via
-    time.ParseDuration ("1h", "5m", "24h") - empty/zero means "no time binning,
-    return one scalar Total per groupKey." JSON shape is used by both the Wails
-    bridge and the HTTP handler.
+    time.ParseDuration ("1h", "5m"); empty or zero means no time binning,
+    returning one scalar Total per groupKey. The JSON shape is shared by the
+    Wails bridge and the HTTP handler.
 
 type Result struct {
 	Series []Series `json:"series"`
 }
-    Result is the Run() return value. Series ordering is stable across runs
+    Result is the Run return value. Series ordering is stable across runs
     (sorted by joined Key string) so frontend tile colors don't flicker between
     refreshes.
 
@@ -5182,97 +4928,80 @@ type Series struct {
 	Points []Point           `json:"points,omitempty"`
 	Total  float64           `json:"total,omitempty"`
 }
-    Series is the per-group slice of the result. Key holds the dim values
-    that distinguish this Series; Points are populated when Query.Bin > 0;
-    Total holds the scalar aggregate when Bin == 0.
+    Series is the per-group slice of the result. Key holds the distinguishing
+    dim values; Points are populated when Query.Bin > 0, Total holds the scalar
+    aggregate when Bin == 0.
 
 type Service struct {
 	// Has unexported fields.
 }
     Service is the Wails-bound surface over Manager. The frontend calls these
     methods directly (not via /api/monitor/*) so the Monitoring page works
-    regardless of whether the loopback HTTP server is on.
-
-    External API consumers reach the same Manager through NewHandler - both
-    transports share the registered Sources and the Query/Result shapes.
+    regardless of whether the loopback HTTP server is on. External consumers
+    reach the same Manager through NewHandler.
 
 func NewService(m *Manager) *Service
-    NewService wraps a Manager. Construct one Manager, register Sources against
-    it, then build the Service for Wails and the Handler for HTTP from that
-    single instance.
+    NewService wraps a Manager.
 
 func (s *Service) ListSources() []SourceInfo
-    ListSources returns descriptors for every registered Source - used by
-    query-builder UIs to render filter and group-by pickers without hard-coding
-    dim names.
+    ListSources returns descriptors for every registered Source.
 
 func (s *Service) Run(q Query) (*Result, error)
-    Run executes a query. The Query JSON shape matches what the HTTP
-    /api/monitor/query endpoint accepts.
+    Run executes a query. The Query JSON shape matches the HTTP
+    /api/monitor/query endpoint.
 
 type Source interface {
-	// Name is the Source identifier the Query.Source field selects
-	// against. Stable; chosen at registration time.
+	// Name is the identifier Query.Source selects against. Stable.
 	Name() string
 
-	// Kind is a coarse label for the Source's event domain - used
-	// only by ListSources for UI groupings ("journal", "log", "request").
+	// Kind is a coarse label for the Source's event domain, used only
+	// by ListSources for UI groupings ("journal", "log", "request").
 	Kind() string
 
-	// Dims is the set of dimension names this Source emits. Informs
-	// query-builder UIs and the SourceInfo response. Order is stable.
+	// Dims is the set of dimension names this Source emits, in stable order.
 	Dims() []string
 
-	// Events yields events in [from, to). Implementations may stream
-	// from disk; callers must consume promptly.
+	// Events yields events in [from, to). May stream from disk; callers
+	// must consume promptly.
 	Events(from, to time.Time) []Event
 }
     Source is a stream of Events bounded by a time range. Implementations must
-    respect [from, to] inclusive-exclusive (event.Ts >= from, event.Ts < to).
-    Empty time range (zero from, zero to) means "all".
+    respect [from, to) (event.Ts >= from, event.Ts < to). A zero from and to
+    means "all".
 
 type SourceInfo struct {
 	Name string   `json:"name"`
 	Kind string   `json:"kind"`
 	Dims []string `json:"dims"`
 }
-    SourceInfo describes one registered Source. Returned by
-    Manager.ListSources() for UI builders that want to render filter and
-    group-by pickers without hard-coding dim names.
+    SourceInfo describes one registered Source. Returned by Manager.ListSources
+    for UI builders that render filter and group-by pickers without hard-coding
+    dim names.
 
 
 
 package nav // import "github.com/petervdpas/formidable2/internal/modules/nav"
 
-Package nav owns formidable:// URL routing - parsing, validation, and
-translating "follow this link" into a config-state change the rest of the app
-reacts to.
+Package nav owns formidable:// URL routing: parsing, validation, and translating
+"follow this link" into a config-state change.
 
-One source of truth so all three consumers of formidable:// links agree on shape
-and resolution:
-  - the FormFieldLink Vue component (bare-link click in the editor)
-  - the render module's HTML output (clicks inside the rendered preview)
-  - the future internal HTTP server (server-side rewrite to
-    /template/.../form/...)
-
-Mirrors `utils/linkBehavior.js` + `modules/handlers/linkHandler.js` from the
-original Formidable, with the parser regex + validation brought together so the
-HTTP server doesn't have to re-implement it.
+One source of truth so all consumers of formidable:// links agree on shape and
+resolution: the FormFieldLink Vue component, the render module's HTML output,
+and the future internal HTTP server.
 
 CONSTANTS
 
 const EventChanged = "nav:changed"
-    Wails event name. Backend emits when a navigation target has been validated
-    + config has been updated; the frontend's global listener switches the
-    active workspace. Payload is *Target.
+    EventChanged is emitted after a navigation target is validated and config
+    updated; the frontend listener switches workspace. Payload is *Target.
 
 
 FUNCTIONS
 
 func MakeHref(t *Target) string
-    MakeHref builds the canonical `formidable://<template>:<datafile>` URL from
-    a Target. Inverse of ParseFormidableHref; the fragment is dropped because
-    history doesn't track scroll positions (yet).
+    MakeHref builds the canonical `formidable://<template>:<datafile>` URL
+    from a Target. The fragment is dropped because history doesn't track scroll
+    positions yet.
 
 
 TYPES
@@ -5298,16 +5027,12 @@ func NewManager(t templateLoader, s formStore, c configWriter, e EventEmitter, h
 
 func (m *Manager) NavigateToFormidable(href string) (*Result, error)
     NavigateToFormidable parses the URL, validates that the (template, datafile)
-    pair exists, updates config so the Storage workspace's reactive watchers
-    pick up the new selection, and emits a `nav:changed` event so the frontend
-    can flip the active workspace.
-
-    Returns a Result rather than a bare error so the frontend gets one shape -
-    Success=false carries Error for direct toast display, Target is filled even
-    on validation failure for diagnostics.
+    pair exists, updates config so the Storage workspace's watchers pick up the
+    new selection, and emits nav:changed so the frontend can flip the active
+    workspace.
 
 func (m *Manager) ResolveFormidable(href string) (*Result, error)
-    ResolveFormidable parses + validates without mutating state. Used by the
+    ResolveFormidable parses and validates without mutating state. Used by the
     future internal HTTP server, which routes via URL rewriting rather than
     config-driven workspace switching.
 
@@ -5316,10 +5041,9 @@ type Result struct {
 	Target  *Target `json:"target,omitempty"`
 	Error   string  `json:"error,omitempty"`
 }
-    Result is what NavigateToFormidable returns to the frontend. Success false
-    carries Error so Vue can toast the reason without redoing the validation.
-    Target is filled even on failure when the URL parsed but the (template,
-    datafile) pair didn't resolve - useful for diagnostics.
+    Result is what NavigateToFormidable returns to the frontend. On failure
+    Error carries the reason; Target is filled even on failure when the URL
+    parsed but the pair didn't resolve, for diagnostics.
 
 type Service struct {
 	// Has unexported fields.
@@ -5346,23 +5070,15 @@ type Target struct {
 }
     Target is the parsed shape of a
     `formidable://<template>:<datafile>#<fragment>` URL. Fragment is optional
-    and not yet acted on (mirrors original); kept on the wire so future
-    scroll-to-anchor work doesn't need a migration.
+    and not yet acted on; kept on the wire so future scroll-to-anchor work
+    doesn't need a migration.
 
 func ParseFormidableHref(href string) *Target
     ParseFormidableHref parses
-    `formidable://<template>:<datafile>[#<fragment>]`.
-
-    Mirrors the original `parseFormidableHref` (utils/fieldRenderers.js)
-    with the same lastIndexOf-of-":" split - that split rule is deliberately
-    permissive on the datafile side because filenames can in theory contain
-    colons, but the template side never does. Callers of ParseFormidableHref
-    then validate template/datafile against the real disk layout downstream.
-
-    Returns nil for any URL that isn't well-formed: missing scheme, missing
-    colon, empty halves, traversal sequences, or path segments that contain
-    `/` or `\` (we only navigate to top-level template names + datafile names,
-    never into nested paths).
+    `formidable://<template>:<datafile>[#<fragment>]`. The template/datafile
+    split is on the last ":" so a datafile that contains a colon still parses;
+    the template side never does. Returns nil for any malformed URL (missing
+    scheme/colon, empty halves, traversal sequences, or `/`/`\` in a segment).
 
 
 
@@ -6902,12 +6618,11 @@ type ToastEvent struct {
 
 package query // import "github.com/petervdpas/formidable2/internal/modules/query"
 
-Package query is a constrained, read-only SELECT surface over a template's form
-data. It prepares an in-memory string matrix from the forms (one column per
-referenced source, referenced tables cartesian- exploded with provenance) and
-runs the Spec over it: project, filter, distinct, sort, group and aggregate.
-Scope is deliberately single- template: no cross-template joins, no subqueries,
-no user SQL.
+Package query is a constrained, read-only SELECT surface over a template's
+form data. It prepares an in-memory string matrix from the forms (referenced
+tables cartesian-exploded with provenance) and runs the Spec over it: project,
+filter, distinct, sort, group, aggregate. Scope is deliberately single-template:
+no cross-template joins, no subqueries, no user SQL.
 
 Package query is a constrained, read-only SELECT surface over a template's form
 data: row listings and ad-hoc group/count views. Single-template by design:
@@ -6921,7 +6636,7 @@ var AggFuncs = []string{"count", "count_distinct", "sum", "avg", "min", "max"}
 var FilterOps = []string{"eq", "ne", "lt", "le", "gt", "ge"}
     FilterOps is the comparison operators the engine accepts, in display order.
     eq/ne compare as text; lt/le/gt/ge coerce to number. Backend- owned so the
-    query panel's operator picker can't drift from the engine.
+    operator picker can't drift from the engine.
 
 
 TYPES
@@ -6966,23 +6681,21 @@ type FormData struct {
 	Data     map[string]any
 	Facets   map[string]string
 }
-    FormData is one form's raw values for prepare: its filename (the record
-    identity), the data map (field key -> value), and its set facet selections
-    (facet key -> selected option label). The app builds these from storage +
-    template; tests use a fake.
+    FormData is one form's raw values for prepare: filename (record identity),
+    data map (field key -> value), and set facet selections (facet key ->
+    selected option label).
 
 type Loader interface {
 	Template(name string) (*template.Template, error)
 	Forms(name string) ([]FormData, error)
 }
-    Loader supplies what prepare flattens: a template and its forms.
+    Loader supplies the template and forms that prepare flattens.
 
 type Manager struct {
 	// Has unexported fields.
 }
-    Manager runs a query: prepare a matrix from the template's forms (via
-    Loader), then execute the Spec over it. It owns no SQL and no persistent
-    state beyond the loader.
+    Manager prepares a matrix from the template's forms (via Loader) then
+    executes the Spec over it.
 
 func NewManager(loader Loader) *Manager
 
@@ -6994,9 +6707,7 @@ func (m *Manager) Explain(spec Spec) (string, error)
     not this string.
 
 func (m *Manager) Run(spec Spec) (Result, error)
-    Run prepares the matrix and executes the spec. A missing template, an
-    unknown source, or an out-of-range group/order column surfaces as an error
-    so the caller's toast shows the backend message.
+    Run prepares the matrix and executes the spec.
 
 func (m *Manager) Sources(templateName string) ([]SourceInfo, error)
     Sources returns the queryable sources for a template: its fields (table
@@ -7008,39 +6719,35 @@ type Matrix struct {
 	Cols []MatrixCol
 	Rows []MatrixRow
 	// FormCount is the number of source forms prepare read, regardless of
-	// filtering or how many rows each exploded into: the "N of M" total.
+	// filtering or explosion: the "N of M" total.
 	FormCount int
 }
     Matrix is the prepared in-memory grid: every cell a string, one column per
     queryable source, one row per (form x unnested table entry). Type is not
-    stored - an operation reapplies it (parse to number / date) when it runs,
-    and tolerates cells that don't parse. This is the execute surface; prepare
-    builds it from the form data.
+    stored; an operation reapplies it (parse to number / date) when it runs and
+    tolerates cells that don't parse.
 
 func Prepare(spec Spec, loader Loader) (*Matrix, error)
     Prepare reads the template's forms and flattens them into a Matrix.
-    The sources a spec references become columns; scalar fields and facets
-    fill straight; referenced multi-valued fields (table columns, list/tags/
-    multioption) are cartesian-exploded with provenance, so columns of one table
-    stay aligned and two different tables produce their product. Each exploded
-    row carries a content hash per source table (stable identity) and the
-    positional index (keeps duplicates distinct). A form whose referenced table
-    is empty contributes no rows (an empty product).
+    Referenced multi-valued fields (table columns, list/tags/multioption) are
+    cartesian-exploded with provenance: columns of one table stay aligned while
+    two different tables produce their product. Each exploded row carries
+    a content hash per source table (stable identity) plus the positional
+    index (keeps duplicates distinct). A form whose referenced table is empty
+    contributes no rows (an empty product).
 
 func (m *Matrix) Execute(spec Spec) (Result, error)
-    Execute runs a Spec against the prepared Matrix and shapes the Result.
-    With no GroupBy it is a filtered, projected, ordered row listing (Distinct
-    collapses identical projected tuples); with GroupBy it is an aggregation
-    (group dimensions + Measures). All type handling is per-op coercion over the
-    string cells.
+    Execute runs a Spec against the prepared Matrix. Without GroupBy it is a
+    filtered, projected, ordered row listing; with GroupBy it aggregates (group
+    dimensions + Measures).
 
 type MatrixCol struct {
 	ID   string
 	Hint string
 }
-    MatrixCol describes one column. ID is the source identity
-    (sourceID(Source)); Hint is the declared type ("number" / "date" / "") used
-    only to choose the default coercion, never to gate a value.
+    MatrixCol describes one column. Hint is the declared type
+    ("number"/"date"/"") used only to choose the default coercion, never to gate
+    a value.
 
 type MatrixRow struct {
 	Form    string
@@ -7048,12 +6755,9 @@ type MatrixRow struct {
 	Cells   []string
 }
     MatrixRow is one exploded row: Form is the source filename (so
-    count_distinct can count forms, not rows); Cells aligns to Matrix.Cols.
-    Origins records the cartesian provenance: when a form's tables are
-    flattened, a row from table A repeated by table B's fan keeps an Origin per
-    participating table (its field key, the 0-based row index within that table,
-    and the table's row count for the form). Aggregates use it to count each
-    source row once despite the cartesian duplication.
+    count_distinct counts forms, not rows); Cells aligns to Matrix.Cols.
+    Origins records cartesian provenance, one Origin per participating table,
+    so aggregates count each source row once despite the cartesian duplication.
 
 type Measure struct {
 	Func   string `json:"func"`
@@ -7066,15 +6770,15 @@ type Measure struct {
     outliers, the doctor stance).
 
 type Origin struct {
-	Field string // the multi-valued field key
-	Row   int    // 0-based index within that field's entries for this form
-	Hash  string // content hash of the source entry
-	Count int    // number of entries that field had in this form
+	Field string
+	Row   int
+	Hash  string
+	Count int
 }
     Origin links an exploded row back to one table it was fanned from.
-    Hash is a content hash of the source entry, so identity is the data (stable
-    across reorders and re-reads); Row is the positional index, kept so two
-    identical-content rows stay distinct and aggregates don't undercount.
+    Hash makes identity the data (stable across reorders); Row is the positional
+    index, kept so two identical-content rows stay distinct and aggregates don't
+    undercount.
 
 type Result struct {
 	Columns []string `json:"columns"`
@@ -7169,19 +6873,9 @@ type Spec struct {
 
 package render // import "github.com/petervdpas/formidable2/internal/modules/render"
 
-Package render is Formidable's two-stage Handlebars→Markdown→HTML pipeline. It
-mirrors the original `controls/markdownRenderer.js` + `controls/htmlRenderer.js`
-and is shared by the Storage workspace's "Render" button and the future internal
-HTTP server.
-
-Public surface:
-  - RenderMarkdown(values, tpl, opts) → markdown
-  - RenderHTML(md) → sanitized HTML
-  - RenderForm(values, tpl, opts) → both, in one call
-  - ParseFrontmatter / BuildFrontmatter / FilterFrontmatter
-
-The Manager wraps these for Wails consumption: it loads the template + datafile
-through narrow interfaces and returns both stages.
+Package render is Formidable's two-stage Handlebars->Markdown->HTML pipeline,
+shared by the Storage workspace's "Render" button and the internal HTTP server.
+The Manager wraps the stage functions for Wails.
 
 CONSTANTS
 
@@ -7193,15 +6887,12 @@ const (
 FUNCTIONS
 
 func BuildFrontmatter(data map[string]any, body string) string
-    BuildFrontmatter prepends a YAML frontmatter block to body. An empty or nil
-    data map returns body unchanged.
-
-    Sequences are emitted in YAML flow style (`tags: [a, b, c]`) rather
-    than the block style yaml.v3 defaults to. The plugin export use case
-    (wikiwonder + future Hugo/WordPress targets) authors `tags` as flow arrays
-    in the source template; emitting block-style output is a layout-only
-    difference but visibly diverges from what the author wrote. PDF has its own
-    BuildFrontmatter and isn't affected.
+    BuildFrontmatter prepends a YAML frontmatter block to body; empty data
+    returns body unchanged. Sequences are emitted in flow style (`tags: [a,
+    b, c]`) rather than yaml.v3's default block style, because plugin-export
+    templates author `tags` as flow arrays and block output would visibly
+    diverge from what the author wrote. PDF has its own BuildFrontmatter and
+    isn't affected.
 
 func Compare(a any, op string, b any) bool
     Compare mirrors `controls/calculator.js`. The "===" / "!==" ops are strict
@@ -7224,10 +6915,9 @@ func ParseFrontmatter(markdown string) (map[string]any, string, error)
     the original source so the caller can still render.
 
 func ProseCSS() string
-    ProseCSS returns the embedded `formidable-prose` stylesheet. Public so
-    consumers that produce their own HTML envelopes (the wiki HTTP server,
-    future export tools, …) can serve or inline the same stylesheet without
-    re-embedding the file.
+    ProseCSS returns the embedded `formidable-prose` stylesheet, for consumers
+    that produce their own HTML envelopes (wiki HTTP server, export tools) and
+    want the same CSS without re-embedding it.
 
 func RenderHTML(markdown string) (string, error)
     RenderHTML runs the markdown→HTML stage. Pipeline:
@@ -7252,26 +6942,19 @@ type Diagnostic struct {
 	Line     int    `json:"line,omitempty"`
 	Helper   string `json:"helper,omitempty"`
 }
-    Diagnostic is one finding from ValidateMarkdownTemplate. Errors are fatal
-    (template won't render); warnings flag suspicious things like unknown helper
-    names that would silently render to nothing.
+    Diagnostic is one finding from ValidateMarkdownTemplate. Errors are fatal;
+    warnings flag suspicious things like unknown helper names that would
+    silently render to nothing.
 
 type FormidableLinkURLFunc func(templateFilename, datafile string) string
-    FormidableLinkURLFunc rewrites `formidable://<template>:<datafile>` hrefs
-    into transport-specific URLs. Each export target plugs its own:
-
-      - in-app slideout: nil → keep formidable://, Vue interceptor handles
-      - internal wiki: "/template/<stem>/form/<datafile>"
-      - Azure DevOps wiki: relative `<page>.md` slug
-      - GitHub wiki: wiki page slug
-
-    Empty string return = fall back to the original formidable:// URL (lets the
-    rewriter punt on a malformed input without dropping it).
+    FormidableLinkURLFunc rewrites a formidable://<template>:<datafile> href per
+    target; nil keeps the formidable:// URL, empty-string return falls back to
+    it (punt on malformed input without dropping the link).
 
 type HelperCategory string
-    HelperCategory groups helpers into discoverable sections in the frontend
-    reference panel. Stable string constants - frontend uses them as i18n key
-    suffixes (e.g. `render.helpers.category.field`).
+    HelperCategory groups helpers into sections in the reference panel.
+    The values are stable: the frontend uses them as i18n key suffixes (e.g.
+    `render.helpers.category.field`).
 
 const (
 	HelperCategoryComparison HelperCategory = "comparison"
@@ -7293,152 +6976,97 @@ const (
 type HelperDescriptor struct {
 	// Name is the helper identifier as used in `{{<name> …}}`.
 	Name string `json:"name"`
-	// Signature is a Handlebars-shaped usage hint, e.g.
-	// `{{yamlList arr [indent=N]}}`. Square brackets mark optional args.
+	// Signature is a usage hint; square brackets mark optional args.
 	Signature string `json:"signature"`
-	// Description is a one-sentence English summary. Translation lives
-	// in vue-i18n if needed; this field is the fallback.
+	// Description is a one-sentence summary; the vue-i18n fallback.
 	Description string `json:"description"`
-	// Example is a representative invocation. Single line, copy-pasteable.
+	// Example is a single-line, copy-pasteable invocation.
 	Example string `json:"example"`
 	// Category groups the helper in the reference panel.
 	Category HelperCategory `json:"category"`
 }
-    HelperDescriptor describes one registered Handlebars helper. The shape
-    is JSON-serialisable for the Wails service so the frontend reference
-    panel can render it directly. Fields are intentionally terse - these are
-    developer-facing reference cards, not tutorials.
+    HelperDescriptor describes one registered Handlebars helper, JSON-
+    serialised for the Wails service. Fields are terse: these are reference
+    cards, not tutorials.
 
 func Catalog() []HelperDescriptor
-    Catalog returns a copy of the static helper descriptor list. Callers can
-    mutate the returned slice freely without affecting future calls. Order is
-    grouped by Category and sorted alphabetically inside each group - same order
-    as the source slice.
+    Catalog returns a copy of the helper descriptor list; callers may mutate it
+    freely.
 
 type ImageBase64URLFunc func(templateFilename, name string) string
-    ImageBase64URLFunc resolves an image filename to a
-    `data:<mime>;base64,<bytes>` URL. Wired separately from ImageURLFunc so
-    a single render.Manager can serve both `<img src="/api/images/…">` (via
-    ImageURL) and the generator's inline-image mode (via ImageBase64URL).
-    May be nil - inline-mode markdown then renders the {{imageBase64}} helper as
-    an empty string.
+    ImageBase64URLFunc resolves an image to a data: URL for inline-image mode,
+    wired separately from ImageURLFunc; nil renders {{imageBase64}} as "".
 
 type ImageURLFunc func(templateFilename, name string) string
-    ImageURLFunc resolves an image filename (under the template's images/
-    folder) to a URL. The composition root supplies this: desktop returns
-    `file:///<abs>/storage/<tpl>/images/<file>`, the future internal HTTP server
-    returns `/storage/<tpl>/images/<file>`. May be nil; the renderer falls back
-    to a relative `images/<file>` path so static markdown export still works.
+    ImageURLFunc resolves an image filename to a URL; nil falls back to a
+    relative images/<file> path so static export still works.
 
 type Manager struct {
 	// Has unexported fields.
 }
-    Manager is the entry point Vue + the wiki HTTP server use to render a
-    (template, datafile) pair to markdown + HTML. Per-target URL strategies are
-    configured at construction; one Manager per target.
+    Manager renders a (template, datafile) pair to markdown + HTML. URL
+    strategies are set at construction; one Manager per target.
 
 func NewManager(t templateLoader, s formStore, imgURL ImageURLFunc, linkURL FormidableLinkURLFunc, log *slog.Logger) *Manager
-    NewManager constructs a render Manager. log may be nil. Pass nil for either
-    URL strategy to get the unrewritten passthrough.
-
-    imageBase64URL is wired separately via SetImageBase64URL to keep the
-    constructor signature stable across consumers that don't need inline-image
-    mode (the wiki HTTP server, plain MD export, …).
+    NewManager constructs a render Manager; log may be nil, nil URL strategies
+    pass through. imageBase64URL is wired separately via SetImageBase64URL to
+    keep the signature stable for non-inline consumers.
 
 func (m *Manager) RenderForm(templateName, datafile string) (*Result, error)
-    RenderForm returns both the Handlebars-rendered markdown and the
-    goldmark+chroma-rendered HTML in one call. Empty datafile renders against
-    the template's default values (which Vue rarely needs but keeps the path
-    uniform with form.Manager.BuildView).
+    RenderForm returns both markdown and HTML in one call. Empty datafile
+    renders against the template's default values.
 
 func (m *Manager) RenderFullHTML(templateName, datafile string) (string, error)
-    RenderFullHTML returns a self-contained HTML document with:
-      - DOCTYPE + html/head/body scaffolding
-      - <title> sourced from the markdown's frontmatter "title:" key, falling
-        back to the datafile stem (or "Untitled" if datafile is empty)
-      - inlined formidable-prose stylesheet so the doc renders the same way it
-        does in the in-app preview
-      - the rendered fragment as the body, wrapped in <body
-        class="formidable-prose">
-
-    Reused by the storage workspace's "Copy HTML" action and the future internal
-    wiki HTTP server.
+    RenderFullHTML returns a self-contained HTML document: full scaffolding,
+    a <title> from frontmatter (falling back to the datafile stem, then
+    "Untitled"), the inlined prose stylesheet, and the rendered body.
 
 func (m *Manager) RenderHTMLOnly(markdown string) (string, error)
-    RenderHTMLOnly is exposed as a Wails method so Vue can re-render markdown
-    that the user edited in-place (e.g. preview pane) without going through the
-    form pipeline.
+    RenderHTMLOnly re-renders user-edited markdown (e.g. preview pane) without
+    going through the form pipeline.
 
 func (m *Manager) RenderMarkdown(templateName, datafile string) (string, error)
-    RenderMarkdown loads the template + form, then runs the Handlebars stage.
-    The HTML stage isn't called.
+    RenderMarkdown loads the template + form and runs only the Handlebars stage.
 
 func (m *Manager) SetImageBase64URL(fn ImageBase64URLFunc)
-    SetImageBase64URL wires the data-URL image strategy after construction.
-    Use this only on Managers whose consumers actually want inline-mode (today:
-    the slideout's render Manager, supplied by the composition root). Pass nil
-    to disable.
+    SetImageBase64URL wires the data-URL image strategy (inline-image mode)
+    after construction; nil disables it.
 
 type Options struct {
-	// ImageURL resolves an image filename (stored under the template's
-	// images/ folder) to a URL. Desktop returns "file:///abs/path";
-	// HTTP server returns "/storage/<tpl>/images/<file>".
-	// If nil, the emitter returns "images/<name>".
+	// ImageURL resolves an image filename to a URL; nil returns "images/<name>".
 	ImageURL func(name string) string
 
-	// ImageBase64URL resolves an image filename to a `data:<mime>;
-	// base64,<bytes>` URL. Used by the generator's "inline" mode and
-	// by self-contained-export targets. Independent of ImageURL so a
-	// single Manager can serve both `<img src="/api/images/…">` (via
-	// ImageURL) and inlined data URLs (via ImageBase64URL).
-	// If nil, the {{imageBase64}} helper returns "".
+	// ImageBase64URL resolves an image to a data: URL (generator inline mode,
+	// self-contained exports); independent of ImageURL. Nil returns "".
 	ImageBase64URL func(name string) string
 
-	// LinkURL resolves a relative link href against the template
-	// storage. Absolute URLs and `file:`/`mailto:`/`tel:` schemes are
-	// passed through unchanged before this is called. If nil, the
-	// emitter returns the href unchanged.
+	// LinkURL resolves a relative href; absolute and file:/mailto:/tel: pass
+	// through before this is called. Nil returns the href unchanged.
 	LinkURL func(href string) string
 
-	// FormidableLinkURL rewrites `formidable://<template>:<datafile>`
-	// hrefs into transport-specific URLs. The renderer parses the URL
-	// into its (template, datafile) pair before calling this; nil =
-	// keep the formidable:// URL as-is (slideout uses this - its Vue
-	// click interceptor handles the click). Empty-string return =
-	// fall back to the original formidable:// URL.
+	// FormidableLinkURL rewrites a parsed formidable://<template>:<datafile>
+	// href. Nil keeps the formidable:// URL (the slideout's Vue interceptor
+	// handles the click); empty-string return falls back to the original URL.
 	FormidableLinkURL func(templateFilename, datafile string) string
 
-	// LoadTemplate resolves a template by filename, used by api-field
-	// helpers to read the source template's field roster (column types,
-	// option-label headers for table-typed projections). Returns nil
-	// for unknown / unloadable templates; the helpers degrade gracefully
-	// (apiBlock falls back to JSON.stringify, apiSection skips type-
-	// aware blocks). May be nil on targets that don't render api fields
-	// (plain MD export); api helpers then return safe fallbacks.
+	// LoadTemplate resolves a template for api-field helpers (column types,
+	// option-label headers). Nil, or a nil return, makes the helpers degrade
+	// to JSON fallbacks; safe on targets that don't render api fields.
 	LoadTemplate func(name string) *template.Template
 
-	// TemplateFilename / Datafile identify the (template, datafile)
-	// pair being rendered. They drive the meta-category helpers
-	// ({{templateName}}, {{templateStem}}, {{datafile}}, {{datafileStem}})
-	// so authors can compose paths/anchors from the current file's
-	// identity instead of hard-coding it into frontmatter. Empty
-	// strings are tolerated - the helpers then expand to "".
+	// TemplateFilename and Datafile drive the meta-category helpers
+	// ({{templateName}}, {{datafile}}, …); empty strings expand to "".
 	TemplateFilename string
 	Datafile         string
 
-	// Facets is the per-record facet projection consumed by the
-	// {{virtual-field}} helper: map[facetKey]selectedLabel, with
-	// missing / unset entries treated as the empty string. Kept as
-	// a plain string-to-string map (rather than importing the
-	// storage.FacetState type) so the render package stays decoupled
-	// from storage - the Manager flattens loaded.Meta.Facets into
-	// this shape before calling RenderMarkdown.
+	// Facets is the per-record facetKey->selectedLabel projection for the
+	// {{virtual-field}} helper. Plain string map (not storage.FacetState) to
+	// keep render decoupled from storage; the Manager flattens it.
 	Facets map[string]string
 }
     Options carries per-render configuration. URL strategies are funcs so
-    each consumer (in-app slideout, wiki HTTP server, future Azure/GitHub wiki
-    exporters, …) can plug a different scheme without leaking transport details
-    into this package.
+    each consumer (slideout, wiki HTTP server, MD export) plugs its own scheme
+    without leaking transport details into this package.
 
 type Result struct {
 	Markdown string `json:"markdown"`
@@ -7507,7 +7135,7 @@ type ValidationReport struct {
 	Diagnostics []Diagnostic `json:"diagnostics"`
 }
     ValidationReport is the result of ValidateMarkdownTemplate. OK is true
-    exactly when no error-severity diagnostics were found. Diagnostics is never
+    exactly when no error-severity diagnostics were found; Diagnostics is never
     nil so JS callers can iterate without a guard.
 
 func ValidateMarkdownTemplate(src string) ValidationReport
@@ -7571,12 +7199,9 @@ type SaveResult struct {
 type Service struct {
 	// Has unexported fields.
 }
-    Service is the api layer over Manager. Methods map 1:1 with the old Electron
-    `window.electron.sfr.*` IPC group (camelCase'd → PascalCase).
-
-    Wails-only by design: callers supply a directory path that gets joined with
-    a base filename, so this is too generic to expose over the loopback HTTP
-    API.
+    Service is the api layer over Manager. Wails-only by design: callers supply
+    a directory path joined with a base filename, too generic to expose over the
+    loopback HTTP API.
 
 func NewService(m *Manager) *Service
 
@@ -7594,10 +7219,9 @@ package stat // import "github.com/petervdpas/formidable2/internal/modules/stat"
 
 Package stat computes chart-neutral statistics over a profile's indexed form
 data. It owns no storage: every number comes from the index module's aggregate
-queries (form_values / form_facets), which are a derived cache of the canonical
-.meta.json files. Output is transport- and chart-library-neutral (categories
-+ named numeric series + a scalar map); plugins shape it into a concrete chart
-spec.
+queries (form_values / form_facets), a derived cache of the canonical .meta.json
+files. Output is transport- and chart-library-neutral; plugins shape it into a
+concrete chart spec.
 
 FUNCTIONS
 
@@ -7664,9 +7288,9 @@ func ResolveComposite(spec CompositeSpec, src ObjectConfigs) (Composite, error)
 func (c Composite) Validate() error
     Validate checks every edge against the base+filter constraint: the child
     must carry an `eq` filter on the parent's branch dimension whose value is
-    the edge's branch. A link that fails is rejected here, never charted as the
-    wrong subset. Structural only (no data); whether the branch is a real parent
-    category is a data-time check in EvaluateComposite.
+    the edge's branch, so a bad link is rejected here rather than charted as the
+    wrong subset. Structural only; whether the branch is a real parent category
+    is a data-time check in EvaluateComposite.
 
 type CompositeEdgeOption struct {
 	Branch   string   `json:"branch"`   // a parent branch value (a child's eq-filter value on the base)
@@ -7696,37 +7320,33 @@ type CompositeOption struct {
 	Edges  []CompositeEdgeOption `json:"edges"`
 }
     CompositeOption is one composite the builder may offer: a rank-1 parent
-    object and, per branch, the existing child objects that can drill it
-    (those whose DSL already filters the parent base to that branch value).
-    The frontend renders only these, so an author can only wire links the engine
-    will accept. Backend steers; the structure is the gate.
+    object and, per branch, the existing child objects that can drill it (those
+    whose DSL already filters the parent base to that branch value).
 
 func CompositeOptions(objects []StatObject) []CompositeOption
     CompositeOptions reports the composites buildable from a template's named
     objects. A parent is any object that parses to rank-1 (one group-by); a
     child is eligible for a branch when it carries an eq filter on the parent's
     base equal to that branch value (the same constraint Composite.Validate
-    enforces). Parents with no eligible child are omitted. Unparseable DSLs are
-    skipped. Pure over the object list so the builder, Lua, and tests share one
-    rule.
+    enforces). Parents with no eligible child are omitted; unparseable DSLs are
+    skipped.
 
 type CompositeSpec struct {
 	Parent string              `json:"parent"`
 	Edges  []CompositeEdgeSpec `json:"edges"`
 }
     CompositeSpec is the stored form of a composite (hop route): a parent object
-    name plus per-branch child object names. Resolved against the template's
-    other objects by ResolveComposite. Kept name-based (not inlined configs) so
-    the parent and children stay single sources of truth.
+    name plus per-branch child object names. Name-based (not inlined configs) so
+    parent and children stay single sources of truth.
 
 type Dimension struct {
 	Source SourceRef
 	Bin    Bin
 	Top    int
 }
-    Dimension is one group-by axis: a source, optionally date-binned,
-    and optionally capped to its Top-N categories (ranked by the first measure,
-    the tail dropped). Top 0 means all categories; valid Top is 1..20.
+    Dimension is one group-by axis: a source, optionally date-binned and capped
+    to Top-N categories (ranked by the first measure). Top 0 = all, otherwise
+    1..20.
 
 type Edge struct {
 	Branch string
@@ -7734,9 +7354,8 @@ type Edge struct {
 	Scale  *Scaling
 }
     Edge attaches one parent-branch value to a child object that drills into it.
-    Scale carries the child's resolved weighting (its `scale "<name>"` clause),
-    so a drilled branch honors the same weighting it would standalone; nil when
-    the child has no scale clause.
+    Scale carries the child's resolved weighting so a drilled branch honors the
+    same weighting it would standalone; nil when the child has no scale clause.
 
 type Filter struct {
 	Source SourceRef
@@ -7835,10 +7454,10 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error)
 func (m *Manager) EvaluateComposite(template string, c Composite) (*CompositeGrid, error)
     EvaluateComposite validates the relation, evaluates the parent, and attaches
     each edge's child grid to its parent branch. Branches without an edge are
-    returned as leaves (nil child). An edge naming a branch that is not a parent
-    category is an error (catches an authoring typo). Branch values are matched
-    against the parent's axis labels; for facets and value==label sources these
-    coincide (see the design doc for the value!=label caveat).
+    leaves (nil child); an edge naming a non-category branch is an error.
+    Branch values are matched against the parent's axis labels, which coincide
+    for facets and value==label sources (see the design doc for the value!=label
+    caveat).
 
 func (m *Manager) EvaluateDSL(template, dsl string) (*Grid, error)
     EvaluateDSL parses a statistical-DSL string and evaluates it against the
@@ -7883,11 +7502,10 @@ type Measure struct {
 	Source *SourceRef // nil only for count
 	Arg    *float64   // percentile p; nil otherwise
 }
-    Measure is one cell value layer: count() (rows, no source), records()
-    (distinct contributing forms, no source), a reduce over a numeric field
-    source, or percentile(source, p). records() differs from count() only on a
-    fanned-out (table-column) source, where one form yields many rows: count()
-    tallies the rows, records() tallies the distinct forms.
+    Measure is one cell value layer: count(), records(), a reduce over a numeric
+    field source, or percentile(source, p). count() and records() diverge only
+    on a fanned table-column source: count() tallies rows, records() tallies
+    distinct forms.
 
 type MeasureOp string
     MeasureOp is the aggregation a measure applies to each cell.
@@ -7960,18 +7578,15 @@ type ScalingSource interface {
 type Service struct {
 	// Has unexported fields.
 }
-    Service is the Wails-bound facade for the stat module. Vue calls these
-    to drive the statistics dialog; each returns a chart-neutral Result the
-    frontend (or a plugin) shapes into a chart spec. The service stays thin -
-    all aggregation lives on Manager and, beneath it, the index module's SQL.
-
-    col is the table-column index for table-field stats; pass nil for a scalar
-    field. percentile is in [0,100]; pass nil to skip it. Wails surfaces both as
-    `number | null` on the TypeScript side.
+    Service is the Wails-bound facade for the stat module. Each method returns
+    a chart-neutral Grid the frontend (or a plugin) shapes into a chart spec;
+    all aggregation lives on Manager and the index module's SQL. Throughout,
+    col is the table-column index (nil for a scalar field) and percentile is in
+    [0,100] (nil to skip).
 
 func NewService(m *Manager, src StatisticSource) *Service
-    NewService wraps a Manager and a statistic-name resolver (for
-    EvaluateObject). src may be nil if name resolution isn't needed.
+    NewService wraps a Manager and a statistic-name resolver; src may be nil
+    when name resolution isn't needed.
 
 func (s *Service) BuilderBins() []Bin
     BuilderBins is the date-bin catalog for the dimension binning picker.
@@ -7982,22 +7597,20 @@ func (s *Service) BuilderFilterOps() []FilterOpDescriptor
 
 func (s *Service) BuilderMeasureOps() []MeasureOpDescriptor
     BuilderMeasureOps is the measure catalog (op + input rules) the builder
-    renders its op picker from - backend owns the vocabulary, not the UI.
+    renders its op picker from.
 
 func (s *Service) BuilderPercentBases() []PercentBase
     BuilderPercentBases is the percentage-denominator catalog for the builder's
     percent-base picker (distribution / forms / none).
 
 func (s *Service) CompileDSL(cfg StatConfig) (string, error)
-    CompileDSL serializes a StatConfig into the canonical statistical-DSL
-    string. The Statistical Insight builder dialog calls this on save;
-    the stored string is what evaluation (step 4) later parses + runs.
+    CompileDSL serializes a StatConfig into the canonical statistical-DSL string
+    (called by the builder dialog on save).
 
 func (s *Service) CompositeOptions(template string) ([]CompositeOption, error)
     CompositeOptions reports the composites (hop routes) buildable from the
     template's named objects: each rank-1 parent and, per branch, the existing
-    children that can drill it. The builder renders only these, so the structure
-    gates what the author can wire. Backend steers the frontend.
+    children that can drill it. The builder renders only these.
 
 func (s *Service) CrossTab(template, keyA, keyB string) (*Grid, error)
     CrossTab is the pair-combination matrix between two facets (rank-2).
@@ -8007,24 +7620,20 @@ func (s *Service) Distribution(template, fieldKey string, col *int) (*Grid, erro
     rank-1 Grid.
 
 func (s *Service) EvaluateComposite(template, name string) (*CompositeGrid, error)
-    EvaluateComposite resolves a template's named composite object (a hop
-    route) and evaluates it: the parent rank-1 grid plus a child grid per
-    drilled branch (nil for solid leaves). Errors if the name is unknown or is
-    not a composite. This is the surface the sunburst/drill renderer consumes;
-    plain objects use EvaluateObject.
+    EvaluateComposite resolves a template's named composite object and evaluates
+    it: the parent rank-1 grid plus a child grid per drilled branch (nil for
+    solid leaves). Plain objects use EvaluateObject instead.
 
 func (s *Service) EvaluateCompositeSpec(template string, spec CompositeSpec) (*CompositeGrid, error)
     EvaluateCompositeSpec evaluates an inline composite spec against the
-    template's saved objects (the parent and children, referenced by name,
-    must already exist). The builder uses it to preview a composite before the
-    composite object itself is saved, mirroring EvaluateDSL for plain objects.
+    template's saved objects (referenced parent and children must already
+    exist), for previewing a composite before it is saved.
 
 func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error)
-    EvaluateDSL evaluates a raw statistical-DSL string against the index.
-    The builder uses it to preview a statistic's output before it is saved
-    (EvaluateObject needs the object persisted to resolve it by name).
-    A `scale "<name>"` clause is resolved against the template's saved objects,
-    so the referenced scaling must already exist (like composite children).
+    EvaluateDSL evaluates a raw statistical-DSL string against the index,
+    for previewing a statistic before it is saved. A `scale "<name>"` clause
+    is resolved against the template's saved objects, so the referenced scaling
+    must already exist.
 
 func (s *Service) EvaluateObject(template, name string) (*Grid, error)
     EvaluateObject resolves a template's named statistical object to its DSL,
@@ -8036,18 +7645,15 @@ func (s *Service) FacetDistribution(template, facetKey string) (*Grid, error)
 
 func (s *Service) ListObjects(template string) ([]StatObject, error)
     ListObjects returns the catalog of named statistical objects defined on a
-    template (name, label, DSL). The frontend lists them and the Lua binding
-    enumerates them; either then calls EvaluateObject(name) to run one. DSL is
-    exposed for display, not required for evaluation.
+    template. Callers then invoke EvaluateObject(name) to run one.
 
 func (s *Service) NumericStats(template, fieldKey string, col *int, percentile *float64) (*Grid, error)
     NumericStats reduces a numeric field / table column to summary measures
     (min/max/sum/avg/median/stddev[/percentile]) as a rank-0 Grid.
 
 func (s *Service) ParseDSL(dsl string) (StatConfig, error)
-    ParseDSL turns a stored statistical-DSL string back into a StatConfig so
-    the builder can re-open it for editing. Strict: an unrecognised string is
-    an error, letting the dialog show a clean "couldn't load" flow rather than
+    ParseDSL turns a stored statistical-DSL string back into a StatConfig so the
+    builder can re-open it. Strict: an unrecognised string errors rather than
     silently misreading.
 
 func (s *Service) TimeSeries(template, fieldKey string, col *int, period string) (*Grid, error)
@@ -8076,29 +7682,23 @@ type SourceRef struct {
 	Key    string
 	Column string
 }
-    SourceRef references a statistical source by key: a field (optionally a
-    table column by its option value-key) or a facet. Column is "" for a scalar
-    field or a facet.
+    SourceRef references a source by key: a field (optionally a table column by
+    option value-key) or a facet. Column is "" for a scalar field or facet.
 
 type StatConfig struct {
 	Measures   []Measure
 	Dimensions []Dimension
 	Filters    []Filter
 	Percent    PercentBase // "" means PctDistribution
-	// Scale is the name of a scaling object that weights this object's
-	// count()/records() contributions per form. "" means unweighted. The
-	// referenced object owns the source + option->factor map; this only
-	// carries the reference, resolved at evaluate time (like a composite's
-	// parent/child names).
+	// Scale names a scaling object that weights count()/records() per form;
+	// "" means unweighted. Only the reference is carried, resolved at
+	// evaluate time (the referenced object owns the source + factor map).
 	Scale string
 }
-    StatConfig is the parsed statistical DSL: one or more measures (cell value
-    layers) over zero or more dimensions (axes), optionally scoped by AND-ed
-    equality filters, with a percentage base. No dimensions => a rank-0 scalar;
-    one => a 1D array; two => a 2D matrix; and so on.
-
-    Named StatConfig (not Config) to stay unambiguous inside the stat package,
-    which already carries Result/Series.
+    StatConfig is the parsed DSL: measures over zero or more dimensions,
+    optionally AND-filtered, with a percent base. Dimension count sets the
+    rank (0 = scalar, 1 = array, 2 = matrix, …). Named StatConfig, not Config,
+    to disambiguate within the stat package.
 
 func Parse(src string) (StatConfig, error)
     Parse turns a statistical-DSL string into a StatConfig. It is strict:
@@ -8116,12 +7716,10 @@ type StatObject struct {
 	// their DSL `scale "<name>"` clause.
 	Scaling *Scaling `json:"scaling,omitempty"`
 }
-    StatObject is a named statistical object defined on a template:
-    its identifier, optional human label, and either a DSL (a plain object the
-    engine evaluates) or a Composite spec (a hop route referencing other objects
-    by name). Exactly one of DSL / Composite is set. Mirrors template.Statistic
-    without the template dependency, so the catalog can travel to Vue and Lua
-    via the Service.
+    StatObject is a named statistical object defined on a template: a DSL (a
+    plain object the engine evaluates), a Composite spec (a hop route), or a
+    Scaling. Exactly one is set. Mirrors template.Statistic without the template
+    dependency so the catalog can travel to Vue and Lua via the Service.
 
 type StatisticSource interface {
 	StatisticDSL(template, name string) (dsl string, ok bool, err error)
@@ -8143,7 +7741,7 @@ type Summary struct {
 	Percentile *float64 `json:"percentile,omitempty"`
 }
     Summary is the numeric reduction of a value column. Percentile is optional
-    (nil input → omitted) so "no percentile requested" is distinct from "the
+    (nil input omits it) so "no percentile requested" is distinct from "the
     p-value happened to be zero".
 
 func Summarize(vals []float64, percentile *float64) (Summary, bool)
@@ -8156,10 +7754,10 @@ type WeightEntry struct {
 	Label  string  `json:"label"`
 	Factor float64 `json:"factor"`
 }
-    WeightEntry maps one option value to its multiplier. Label is the
-    stored value the dimension carries: a facet's selected option label,
-    or a dropdown/radio field's option value. Kept an ordered slice (not a map)
-    so the spec serialises deterministically.
+    WeightEntry maps one option value to its multiplier. Label is the stored
+    value the dimension carries: a facet's selected option label, or a
+    dropdown/radio field's option value. Ordered slice (not a map) so the spec
+    serialises deterministically.
 
 
 
@@ -8485,9 +8083,8 @@ func NewManager(appRoot string, log *slog.Logger) *Manager
 func (m *Manager) AppRoot() string
 
 func (m *Manager) AppendFile(path string, content string) error
-    AppendFile opens path in append mode (creating it if missing) and writes
-    content. Used by journal-style append-only logs. Does not emit a journal op
-    of its own - journals control their own emission policy.
+    AppendFile appends content to path (creating it if missing). Emits no
+    journal op of its own; journals control their own emission.
 
 func (m *Manager) CopyFile(from, to string, overwrite bool) error
 
@@ -8510,13 +8107,9 @@ func (m *Manager) IsDir(path string) bool
 func (m *Manager) JoinPath(segments ...string) string
 
 func (m *Manager) ListDir(path string) ([]string, error)
-    ListDir returns the names of all entries in the directory at path (relative
-    paths resolve under AppRoot; absolute paths used as-is). Returns an empty
-    slice for a missing directory rather than an error - callers usually treat
-    "no files yet" as a normal startup state (e.g. the PDF module's cover
-    scaffold runs before any user files exist). Real I/O errors (permission
-    denied, etc.) still bubble up. Order is filesystem-dependent; callers that
-    need deterministic order should sort.
+    ListDir returns the entry names in path. A missing directory yields nil,
+    not an error (callers treat "no files yet" as normal); real I/O errors
+    bubble up. Order is filesystem-dependent.
 
 func (m *Manager) ListDirectoryEntries(dir string) ([]DirEntry, error)
 
@@ -8527,33 +8120,19 @@ func (m *Manager) ListFolders(dir string) ([]string, error)
 func (m *Manager) LoadFile(path string) (string, error)
 
 func (m *Manager) MakeAppRootRelative(p string) string
-    MakeAppRootRelative collapses an absolute path under AppRoot to the
-    project's "./<rel>" form so config values stay portable across machines that
-    share the AppRoot convention. Paths outside AppRoot are returned unchanged
-    - relativizing them would yield "../../foo"-style traversals that defeat
-    the readability win and break the "value is either ./<sub> or absolute"
-    round-trip rule.
-
-    Empty input passes through; already-relative input is treated as trusted and
-    returned as-is. The root itself collapses to ".".
+    MakeAppRootRelative collapses an absolute path under AppRoot to "./<rel>"
+    for portable config values. The root collapses to "."; paths outside AppRoot
+    (and already-relative input) pass through unchanged, keeping the "value is
+    either ./<sub> or absolute" invariant.
 
 func (m *Manager) OpenExternal(target string) error
 
 func (m *Manager) ProxyFetchRemote(url string, opts FetchOptions) (*FetchResult, error)
 
 func (m *Manager) ResolveAbsolutePath(p string) (string, error)
-    ResolveAbsolutePath turns a user-typed path string into a clean absolute
-    path, independent of AppRoot. Used by the path-field components to coerce
-    hand-typed input on blur so values stored in form data are always full paths
-    (matching what the OS picker already returns for picked paths).
-
-    Behavior:
-      - empty in → empty out (never invent a path).
-      - "~" or "~/sub" → expand to the OS user's home dir. Other tilde
-        forms ("~someuser") are left untouched - that's shell sugar we don't
-        reimplement.
-      - already absolute → cleaned via filepath.Clean.
-      - relative → resolved against the process's working dir via filepath.Abs.
+    ResolveAbsolutePath cleans a user-typed path to absolute, independent of
+    AppRoot. Empty stays empty; "~"/"~/sub" expand to home ("~someuser" is left
+    as-is); relative resolves against the working dir.
 
 func (m *Manager) ResolvePath(segments ...string) string
 
@@ -8568,8 +8147,7 @@ func (m *Manager) WalkFiles(dir string) ([]string, error)
 type Service struct {
 	// Has unexported fields.
 }
-    Service is the api layer over Manager. Methods map 1:1 with the old Electron
-    `window.api.system.*` IPC group (camelCase'd → PascalCase).
+    Service is the api layer over Manager.
 
     Wails-only by design: this surface includes raw filesystem and command
     execution and must NOT be exposed via the internal HTTP server. There is no
@@ -8578,8 +8156,8 @@ type Service struct {
 func NewService(m *Manager) *Service
 
 func (s *Service) ConfirmClose()
-    ConfirmClose lifts the close veto and quits. The frontend calls this after
-    its unsaved-changes guard resolves to Save or Discard.
+    ConfirmClose lifts the close veto and quits, after the frontend's
+    unsaved-changes guard resolves to Save or Discard.
 
 func (s *Service) CopyFile(from, to string, overwrite bool) error
 
@@ -8606,33 +8184,30 @@ func (s *Service) OpenExternal(target string) error
 func (s *Service) ProxyFetchRemote(url string, opts FetchOptions) (*FetchResult, error)
 
 func (s *Service) Quit()
-    Quit is the soft-shutdown counterpart - used by future File → Quit menu
-    wiring. Exposed today so the Wails surface stays stable when the menu lands.
+    Quit is the soft-shutdown counterpart, for future File > Quit menu wiring.
 
 func (s *Service) ResolveAbsolutePath(p string) (string, error)
 
 func (s *Service) ResolvePath(segments []string) string
 
 func (s *Service) Restart() error
-    Restart spawns a fresh copy of this binary with the same arguments, then
-    quits the current process after a short grace period. Used by the "Apply
-    changes & restart" button in Settings when the user has changed a setting
-    that only takes effect at launch (today: window size).
+    Restart spawns a fresh copy of this binary with the same arguments,
+    then quits the current process after quitDelay. Used by Settings' "Apply
+    changes & restart" for settings that only take effect at launch (today:
+    window size).
 
-    On Linux/macOS the spawned child is detached from the parent's
-    terminal/process group as soon as the parent exits - Go's runtime
-    re-parents to PID 1 (init/launchd). On Windows the child gets a fresh
-    console attachment by default. Either way, no orphaned goroutines or zombie
-    processes are left behind.
+    The spawned child is detached: on Linux/macOS Go's runtime re-parents it to
+    PID 1 once the parent exits; on Windows it gets a fresh console attachment.
+    No orphaned goroutines or zombies are left behind.
 
-    Returns nil if the spawn succeeds; the actual quit happens asynchronously,
-    so callers should treat success as "restart is in progress."
+    Returns nil if the spawn succeeds; the quit happens asynchronously,
+    so success means "restart is in progress."
 
 func (s *Service) SaveFile(path string, content string) error
 
 func (s *Service) SetUnsavedChanges(b bool)
-    SetUnsavedChanges lets the frontend keep the backend in sync with the active
-    form's dirty state. Called from a watcher in StorageWorkspace.
+    SetUnsavedChanges keeps the backend in sync with the active form's dirty
+    state. Called from a watcher in StorageWorkspace.
 
 
 
@@ -9308,25 +8883,21 @@ func (e *ValidationFailedError) Error() string
 package updatecheck // import "github.com/petervdpas/formidable2/internal/modules/updatecheck"
 
 Package updatecheck performs a best-effort "is there a newer release" probe
-against formidable.tools on startup. The site exposes a small JSON document
-at /api/latest (a Netlify function that proxies the latest GitHub release);
-we fetch it, compare its version to the running about.Version, and cache the
-verdict for the About panel.
+against formidable.tools/api/latest on startup, comparing its version to the
+running about.Version and caching the verdict for the About panel.
 
-Everything here is deliberately silent: if the network is down, the site is
-unreachable, the response is malformed, or anything else goes wrong, the cached
-Status simply stays Checked=false and the UI shows nothing. An out-of-date check
-must never interrupt or alarm the user.
+Everything here is deliberately silent: on any failure the cached Status stays
+Checked=false and the UI shows nothing. An update check must never interrupt or
+alarm the user.
 
 CONSTANTS
 
 const DefaultEndpoint = "https://formidable.tools/api/latest"
-    DefaultEndpoint is the canonical version document. One cached source shared
-    by the desktop app and the website's own download page.
+    DefaultEndpoint is the canonical version document.
 
 const RefreshTimeout = 6 * time.Second
-    RefreshTimeout bounds the startup probe. Short on purpose: a slow or dead
-    endpoint must not delay anything the user can see.
+    RefreshTimeout bounds the startup probe; short so a dead endpoint can't
+    delay anything the user sees.
 
 
 TYPES
@@ -9334,26 +8905,25 @@ TYPES
 type Manager struct {
 	// Has unexported fields.
 }
-    Manager owns the cached status and the HTTP probe. endpoint and client
-    are package-private so tests in this package can point them at an httptest
-    server; production always uses the defaults.
+    Manager owns the cached status and the HTTP probe. endpoint and client are
+    package-private so tests can point them at an httptest server.
 
 func NewManager(current string, enabled func() bool) *Manager
     NewManager builds the probe. enabled is consulted on every Refresh so the
-    user's update_check config toggle governs the feature live (a nil enabled
-    means "always on", used by tests). When disabled, Refresh makes no network
-    call and reports an unchecked status.
+    update_check config toggle governs the feature live (nil means always on).
+    When disabled, Refresh makes no network call and reports an unchecked
+    status.
 
 func (m *Manager) Enabled() bool
     Enabled reports whether the update check is currently turned on.
 
 func (m *Manager) GetStatus() Status
-    GetStatus returns the last cached verdict. Cheap; safe to poll.
+    GetStatus returns the last cached verdict; safe to poll.
 
 func (m *Manager) Refresh(ctx context.Context) (Status, error)
     Refresh probes the endpoint and updates the cached status. The error is
-    returned only so a caller can log it at debug level; it must never reach the
-    user. On any failure the cached status keeps Checked=false.
+    returned only for debug-level logging; it must never reach the user.
+    On any failure the cached status keeps Checked=false.
 
 type Service struct {
 	// Has unexported fields.
@@ -9615,12 +9185,12 @@ func (n TemplateColumnNamer) ColumnKey(tplFile, fieldKey string, col int) (strin
 
 package keymu // import "github.com/petervdpas/formidable2/internal/util/keymu"
 
-Package keymu provides a keyed mutex map: a small primitive that serializes
-critical sections by string key while allowing different keys to run in
-parallel. Use it when a manager owns multiple independent resources (e.g. one
-mutex per template filename) so that editing resource A never blocks resource B.
+Package keymu provides a keyed mutex map: it serializes critical sections by
+string key while letting different keys run in parallel. Use it when a manager
+owns multiple independent resources (e.g. one mutex per template filename) so
+editing resource A never blocks B.
 
-Zero-value Map is ready to use. All methods are safe for concurrent use.
+The zero-value Map is ready to use; all methods are safe for concurrent use.
 
 TYPES
 
@@ -9641,8 +9211,8 @@ func (m *Map) Lock(key string) (unlock func())
 
 func (m *Map) WithLock(key string, fn func() error) error
     WithLock acquires the mutex for key, runs fn, and releases on return
-    (including panics). The fn return value is propagated. Use this for the
-    common read-modify-write pattern around a single resource:
+    (including panics), propagating fn's return value. Use this for the common
+    read-modify-write pattern around a single resource:
 
         err := km.WithLock(filename, func() error {
             cur, err := load(filename)

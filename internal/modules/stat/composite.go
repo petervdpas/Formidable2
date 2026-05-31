@@ -6,14 +6,11 @@ import "fmt"
 // drill into child objects. See design/statistics-composite.md. The soundness
 // constraint is the filter-on-the-base match: a child may expand a parent
 // branch only if it filters the parent's group-by dimension (the base) to that
-// exact branch value, so the child's record set equals the branch's. Composites
-// add no new aggregation - each object still evaluates its own config; this is
-// the wiring plus the relation check.
+// exact branch value, so the child's record set equals the branch's.
 
 // Edge attaches one parent-branch value to a child object that drills into it.
-// Scale carries the child's resolved weighting (its `scale "<name>"` clause), so
-// a drilled branch honors the same weighting it would standalone; nil when the
-// child has no scale clause.
+// Scale carries the child's resolved weighting so a drilled branch honors the
+// same weighting it would standalone; nil when the child has no scale clause.
 type Edge struct {
 	Branch string
 	Child  StatConfig
@@ -40,9 +37,9 @@ func (c Composite) branchDim() (SourceRef, error) {
 
 // Validate checks every edge against the base+filter constraint: the child
 // must carry an `eq` filter on the parent's branch dimension whose value is the
-// edge's branch. A link that fails is rejected here, never charted as the wrong
-// subset. Structural only (no data); whether the branch is a real parent
-// category is a data-time check in EvaluateComposite.
+// edge's branch, so a bad link is rejected here rather than charted as the
+// wrong subset. Structural only; whether the branch is a real parent category
+// is a data-time check in EvaluateComposite.
 func (c Composite) Validate() error {
 	base, err := c.branchDim()
 	if err != nil {
@@ -78,9 +75,7 @@ func hasBranchFilter(child StatConfig, base SourceRef, branch string) bool {
 
 // CompositeOption is one composite the builder may offer: a rank-1 parent
 // object and, per branch, the existing child objects that can drill it (those
-// whose DSL already filters the parent base to that branch value). The frontend
-// renders only these, so an author can only wire links the engine will accept.
-// Backend steers; the structure is the gate.
+// whose DSL already filters the parent base to that branch value).
 type CompositeOption struct {
 	Parent string                `json:"parent"` // parent object name
 	Base   string                `json:"base"`   // the base (group-by) source the children must filter
@@ -98,8 +93,7 @@ type CompositeEdgeOption struct {
 // objects. A parent is any object that parses to rank-1 (one group-by); a child
 // is eligible for a branch when it carries an eq filter on the parent's base
 // equal to that branch value (the same constraint Composite.Validate enforces).
-// Parents with no eligible child are omitted. Unparseable DSLs are skipped.
-// Pure over the object list so the builder, Lua, and tests share one rule.
+// Parents with no eligible child are omitted; unparseable DSLs are skipped.
 func CompositeOptions(objects []StatObject) []CompositeOption {
 	type parsed struct {
 		obj StatObject
@@ -115,7 +109,7 @@ func CompositeOptions(objects []StatObject) []CompositeOption {
 	var out []CompositeOption
 	for _, p := range ps {
 		if !p.ok || len(p.cfg.Dimensions) != 1 {
-			continue // only a rank-1 object can be a branch parent
+			continue
 		}
 		base := p.cfg.Dimensions[0].Source
 		byBranch := map[string][]string{}
@@ -130,12 +124,12 @@ func CompositeOptions(objects []StatObject) []CompositeOption {
 						order = append(order, f.Value)
 					}
 					byBranch[f.Value] = append(byBranch[f.Value], q.obj.Name)
-					break // one matching filter makes the child eligible
+					break
 				}
 			}
 		}
 		if len(order) == 0 {
-			continue // nothing can drill this parent
+			continue
 		}
 		edges := make([]CompositeEdgeOption, len(order))
 		for i, b := range order {
@@ -179,11 +173,9 @@ func ResolveComposite(spec CompositeSpec, src ObjectConfigs) (Composite, error) 
 	return Composite{Parent: parentCfg, ParentScale: parentScale, Edges: edges}, nil
 }
 
-// resolveScale turns a config's scale-clause name into its weighting. An empty
-// clause is no weighting (nil). A named clause needs the source to resolve
-// scalings (the Service's catalog does; a bare ObjectConfigs stub does not),
-// otherwise it is an error rather than a silent unweighted run, matching how a
-// composite never silently charts the wrong subset.
+// resolveScale turns a config's scale-clause name into its weighting; an empty
+// clause is no weighting (nil). A named clause whose source can't resolve
+// scalings is an error rather than a silent unweighted run.
 func resolveScale(src ObjectConfigs, cfg StatConfig) (*Scaling, error) {
 	if cfg.Scale == "" {
 		return nil, nil
@@ -212,10 +204,10 @@ type BranchGrid struct {
 
 // EvaluateComposite validates the relation, evaluates the parent, and attaches
 // each edge's child grid to its parent branch. Branches without an edge are
-// returned as leaves (nil child). An edge naming a branch that is not a parent
-// category is an error (catches an authoring typo). Branch values are matched
-// against the parent's axis labels; for facets and value==label sources these
-// coincide (see the design doc for the value!=label caveat).
+// leaves (nil child); an edge naming a non-category branch is an error. Branch
+// values are matched against the parent's axis labels, which coincide for
+// facets and value==label sources (see the design doc for the value!=label
+// caveat).
 func (m *Manager) EvaluateComposite(template string, c Composite) (*CompositeGrid, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err

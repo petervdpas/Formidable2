@@ -1,78 +1,43 @@
-// Package render is Formidable's two-stage Handlebars→Markdown→HTML
-// pipeline. It mirrors the original `controls/markdownRenderer.js` +
-// `controls/htmlRenderer.js` and is shared by the Storage workspace's
-// "Render" button and the future internal HTTP server.
-//
-// Public surface:
-//   - RenderMarkdown(values, tpl, opts) → markdown
-//   - RenderHTML(md) → sanitized HTML
-//   - RenderForm(values, tpl, opts) → both, in one call
-//   - ParseFrontmatter / BuildFrontmatter / FilterFrontmatter
-//
-// The Manager wraps these for Wails consumption: it loads the template
-// + datafile through narrow interfaces and returns both stages.
+// Package render is Formidable's two-stage Handlebars->Markdown->HTML
+// pipeline, shared by the Storage workspace's "Render" button and the
+// internal HTTP server. The Manager wraps the stage functions for Wails.
 package render
 
 import "github.com/petervdpas/formidable2/internal/modules/template"
 
 // Options carries per-render configuration. URL strategies are funcs so
-// each consumer (in-app slideout, wiki HTTP server, future Azure/GitHub
-// wiki exporters, …) can plug a different scheme without leaking
-// transport details into this package.
+// each consumer (slideout, wiki HTTP server, MD export) plugs its own
+// scheme without leaking transport details into this package.
 type Options struct {
-	// ImageURL resolves an image filename (stored under the template's
-	// images/ folder) to a URL. Desktop returns "file:///abs/path";
-	// HTTP server returns "/storage/<tpl>/images/<file>".
-	// If nil, the emitter returns "images/<name>".
+	// ImageURL resolves an image filename to a URL; nil returns "images/<name>".
 	ImageURL func(name string) string
 
-	// ImageBase64URL resolves an image filename to a `data:<mime>;
-	// base64,<bytes>` URL. Used by the generator's "inline" mode and
-	// by self-contained-export targets. Independent of ImageURL so a
-	// single Manager can serve both `<img src="/api/images/…">` (via
-	// ImageURL) and inlined data URLs (via ImageBase64URL).
-	// If nil, the {{imageBase64}} helper returns "".
+	// ImageBase64URL resolves an image to a data: URL (generator inline mode,
+	// self-contained exports); independent of ImageURL. Nil returns "".
 	ImageBase64URL func(name string) string
 
-	// LinkURL resolves a relative link href against the template
-	// storage. Absolute URLs and `file:`/`mailto:`/`tel:` schemes are
-	// passed through unchanged before this is called. If nil, the
-	// emitter returns the href unchanged.
+	// LinkURL resolves a relative href; absolute and file:/mailto:/tel: pass
+	// through before this is called. Nil returns the href unchanged.
 	LinkURL func(href string) string
 
-	// FormidableLinkURL rewrites `formidable://<template>:<datafile>`
-	// hrefs into transport-specific URLs. The renderer parses the URL
-	// into its (template, datafile) pair before calling this; nil =
-	// keep the formidable:// URL as-is (slideout uses this - its Vue
-	// click interceptor handles the click). Empty-string return =
-	// fall back to the original formidable:// URL.
+	// FormidableLinkURL rewrites a parsed formidable://<template>:<datafile>
+	// href. Nil keeps the formidable:// URL (the slideout's Vue interceptor
+	// handles the click); empty-string return falls back to the original URL.
 	FormidableLinkURL func(templateFilename, datafile string) string
 
-	// LoadTemplate resolves a template by filename, used by api-field
-	// helpers to read the source template's field roster (column types,
-	// option-label headers for table-typed projections). Returns nil
-	// for unknown / unloadable templates; the helpers degrade gracefully
-	// (apiBlock falls back to JSON.stringify, apiSection skips type-
-	// aware blocks). May be nil on targets that don't render api fields
-	// (plain MD export); api helpers then return safe fallbacks.
+	// LoadTemplate resolves a template for api-field helpers (column types,
+	// option-label headers). Nil, or a nil return, makes the helpers degrade
+	// to JSON fallbacks; safe on targets that don't render api fields.
 	LoadTemplate func(name string) *template.Template
 
-	// TemplateFilename / Datafile identify the (template, datafile)
-	// pair being rendered. They drive the meta-category helpers
-	// ({{templateName}}, {{templateStem}}, {{datafile}}, {{datafileStem}})
-	// so authors can compose paths/anchors from the current file's
-	// identity instead of hard-coding it into frontmatter. Empty
-	// strings are tolerated - the helpers then expand to "".
+	// TemplateFilename and Datafile drive the meta-category helpers
+	// ({{templateName}}, {{datafile}}, …); empty strings expand to "".
 	TemplateFilename string
 	Datafile         string
 
-	// Facets is the per-record facet projection consumed by the
-	// {{virtual-field}} helper: map[facetKey]selectedLabel, with
-	// missing / unset entries treated as the empty string. Kept as
-	// a plain string-to-string map (rather than importing the
-	// storage.FacetState type) so the render package stays decoupled
-	// from storage - the Manager flattens loaded.Meta.Facets into
-	// this shape before calling RenderMarkdown.
+	// Facets is the per-record facetKey->selectedLabel projection for the
+	// {{virtual-field}} helper. Plain string map (not storage.FacetState) to
+	// keep render decoupled from storage; the Manager flattens it.
 	Facets map[string]string
 }
 

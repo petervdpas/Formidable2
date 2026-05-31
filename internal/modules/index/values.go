@@ -9,9 +9,9 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// dateLayouts mirrors the formats render/dateFormat recognises, so the
-// index parses exactly what the renderer treats as a date. The first
-// match wins; "2006-01-02" is Formidable's `date` field storage.
+// dateLayouts mirrors render/dateFormat so the index parses exactly what the
+// renderer treats as a date. First match wins; "2006-01-02" is the `date`
+// field storage format.
 var dateLayouts = []string{
 	"2006-01-02",
 	time.RFC3339,
@@ -19,20 +19,14 @@ var dateLayouts = []string{
 	"2006-01-02 15:04:05",
 }
 
-// pickValues projects a (template fields, form data) pair into the
-// aggregatable rows stored in form_values. Only fields the author
-// flagged with use_in_statistics are materialised, and only types that
-// make chart sense: numeric (number, range), date, boolean, short text,
-// single-choice (dropdown, radio), multi-value (multioption / list /
-// tags, one row per entry), and selected table columns (one row per
-// cell, typed from the column's declared `type`). Textarea, guid, api
-// and image fields have no chartable shape and are skipped.
+// pickValues projects (template fields, form data) into the aggregatable rows
+// stored in form_values. Only use_in_statistics fields are materialised, and
+// only chartable types: number/range, date, boolean, short text,
+// dropdown/radio, multi-value (one row per entry), and selected table columns
+// (one row per cell). Textarea, guid, api and image fields are skipped.
 func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 	var out []FormValueRow
 	for _, fld := range fields {
-		// Opt-in: only fields the author flagged are materialised, so
-		// the index stays lean and intentional. Facets are indexed on
-		// their own path and are always included regardless of this.
 		if !fld.UseInStatistics {
 			continue
 		}
@@ -50,15 +44,10 @@ func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 		case "boolean":
 			out = append(out, boolRow(fld.Key, raw))
 		case "text", "dropdown", "radio":
-			// A short text field is opt-in only (the author flags it when
-			// its values are a meaningful category, e.g. an entity name);
-			// indexed the same as a single-choice value.
 			if s := asText(raw); s != "" {
 				out = append(out, FormValueRow{FieldKey: fld.Key, ValueType: "text", Text: s})
 			}
 		case "multioption", "list", "tags":
-			// Multi-value categorical fields (multi-option, list items,
-			// free tags) fan out one text row per non-empty entry.
 			for _, item := range asSlice(raw) {
 				if s := asText(item); s != "" {
 					out = append(out, FormValueRow{FieldKey: fld.Key, ValueType: "text", Text: s})
@@ -71,9 +60,9 @@ func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 	return out
 }
 
-// scalarRow builds a numeric scalar row. Num is nil when raw doesn't
-// parse as a number, but the row is still emitted so "count present"
-// and distribution-over-text stay possible.
+// scalarRow builds a numeric scalar row. Num is nil when raw doesn't parse
+// as a number, but the row is still emitted so "count present" and
+// distribution-over-text stay possible.
 func scalarRow(key, valueType string, raw any) FormValueRow {
 	r := FormValueRow{FieldKey: key, ValueType: valueType, Text: asText(raw)}
 	if n, ok := asNumber(raw); ok {
@@ -82,9 +71,9 @@ func scalarRow(key, valueType string, raw any) FormValueRow {
 	return r
 }
 
-// dateRow parses raw against the recognised layouts. Returns ok=false
-// when nothing parses, so the caller can skip it (an unparseable date
-// is noise, not a data point). col is carried through for table cells.
+// dateRow parses raw against the recognised layouts, returning ok=false when
+// nothing parses (an unparseable date is noise, not a data point). col is
+// carried through for table cells.
 func dateRow(key string, col *int, raw any) (FormValueRow, bool) {
 	s := strings.TrimSpace(asText(raw))
 	if s == "" {
@@ -105,8 +94,8 @@ func dateRow(key string, col *int, raw any) (FormValueRow, bool) {
 	return FormValueRow{}, false
 }
 
-// boolRow stores both representations: Text "true"/"false" for
-// distribution, Num 1/0 for sum/avg ("how many done").
+// boolRow stores both representations: Text "true"/"false" for distribution,
+// Num 1/0 for sum/avg ("how many done").
 func boolRow(key string, raw any) FormValueRow {
 	b := truthy(raw)
 	n := 0.0
@@ -118,18 +107,15 @@ func boolRow(key string, raw any) FormValueRow {
 	return FormValueRow{FieldKey: key, ValueType: "bool", Num: &n, Text: text}
 }
 
-// tableRows fans a table field's matrix into per-cell rows. Each cell's
-// type comes from the column definition at its index (field.Options[i]
-// is a {value, type, label} map); columns with no definition default to
-// text. Date cells that don't parse are dropped, matching scalar dates.
+// tableRows fans a table field's matrix into per-cell rows. Each cell's type
+// comes from the column definition at its index (field.Options[i] is a
+// {value, type, label} map); columns with no definition default to text.
+// Date cells that don't parse are dropped, matching scalar dates.
 func tableRows(fld template.Field, raw any) []FormValueRow {
 	matrix := asSlice(raw)
 	if len(matrix) == 0 {
 		return nil
 	}
-	// Only the columns the author enumerated in StatisticsColumns are
-	// indexed; an empty set means the table is flagged but no column
-	// was selected, so nothing is materialised.
 	enabled := enabledTableCols(fld.Options, fld.StatisticsColumns)
 	if len(enabled) == 0 {
 		return nil
@@ -167,10 +153,9 @@ func tableRows(fld template.Field, raw any) []FormValueRow {
 	return out
 }
 
-// enabledTableCols maps the author-selected column keys
-// (Field.StatisticsColumns, by each option's `value`) to the positional
-// column indices the index addresses. A selected key that matches no
-// column is ignored; an empty selection yields an empty set.
+// enabledTableCols maps author-selected column keys (StatisticsColumns, by
+// each option's `value`) to positional column indices. Keys matching no
+// column are ignored; an empty selection yields an empty set.
 func enabledTableCols(options []any, statColumns []string) map[int]bool {
 	if len(statColumns) == 0 {
 		return nil
@@ -192,9 +177,8 @@ func enabledTableCols(options []any, statColumns []string) map[int]bool {
 	return out
 }
 
-// tableColumnTypes extracts the declared per-column type list from a
-// table field's Options. Each option is a {value, type, label} map;
-// missing/blank type falls back to "string".
+// tableColumnTypes extracts the declared per-column type list from a table
+// field's Options. Missing/blank type falls back to "string".
 func tableColumnTypes(options []any) []string {
 	out := make([]string, 0, len(options))
 	for _, opt := range options {
@@ -265,8 +249,8 @@ func asSlice(v any) []any {
 }
 
 // truthy mirrors the boolean coercion used elsewhere: real bools pass
-// through; strings "true"/"1"/"yes"/"on" are true; numbers are true
-// when non-zero.
+// through; strings "true"/"1"/"yes"/"on" are true; numbers are true when
+// non-zero.
 func truthy(v any) bool {
 	switch x := v.(type) {
 	case bool:

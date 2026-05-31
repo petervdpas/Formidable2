@@ -1,7 +1,7 @@
-// Package config owns the user configuration, boot profile, and the
-// derived Virtual File System (VFS) view of the on-disk Formidable
-// data layout. Wails-only - no HTTP handlers; raw config is too
-// sensitive even for the loopback API.
+// Package config owns the user configuration, boot profile, and the derived
+// Virtual File System (VFS) view of the on-disk Formidable data layout.
+// Wails-only, no HTTP handlers: raw config is too sensitive even for the
+// loopback API.
 //
 // The package is split across several files by concern:
 //
@@ -12,7 +12,7 @@
 //	              plus the JSON marshal helpers (writeJSON, syncJournal).
 //	vfs.go        Virtual File System view of the context folder
 //	              (templates + storage tree, per-template lookups).
-//	profiles.go   Profile management - switch / list / current,
+//	profiles.go   Profile management: switch / list / current,
 //	              import / export / delete + filename normalisation.
 package config
 
@@ -49,7 +49,7 @@ const (
 	defaultVFSCacheTTL = 2 * time.Second
 )
 
-// Manager owns config + VFS state. All exported methods are safe for
+// Manager owns config + VFS state; all exported methods are safe for
 // concurrent use.
 type Manager struct {
 	fs        fs
@@ -65,17 +65,15 @@ type Manager struct {
 	ttl                   time.Duration
 	nowFn                 func() time.Time
 
-	// updateMu serializes the read-modify-write cycle of UpdateUserConfig
-	// AND SwitchUserProfile so concurrent callers can't both read the
-	// same baseline (or switch into a stale path) and clobber each
-	// other. Held independently of mu so cache READS stay non-blocking
-	// during a long update.
+	// updateMu serializes the read-modify-write cycle of UpdateUserConfig and
+	// SwitchUserProfile so concurrent callers can't both read the same baseline
+	// (or switch into a stale path) and clobber each other. Held independently
+	// of mu so cache reads stay non-blocking during a long update.
 	updateMu sync.Mutex
 }
 
-// NewManager constructs and initializes the config manager. Initialization
-// resolves the boot profile, ensures config dir + user.json exist, and
-// loads the active profile into the cache.
+// NewManager constructs and initializes the config manager: resolves the boot
+// profile, ensures config dir + user.json exist, loads the active profile.
 func NewManager(filesystem fs, log *slog.Logger) (*Manager, error) {
 	if log == nil {
 		log = slog.Default()
@@ -92,8 +90,8 @@ func NewManager(filesystem fs, log *slog.Logger) (*Manager, error) {
 	return m, nil
 }
 
-// SetJournal wires the journal hook. Safe to call before or after init;
-// nil disables journal sync. Re-applies current config to the journal.
+// SetJournal wires the journal hook (nil disables journal sync) and re-applies
+// the current config to it. Safe to call before or after init.
 func (m *Manager) SetJournal(j JournalConfigurer) {
 	m.mu.Lock()
 	m.journal = j
@@ -118,8 +116,7 @@ func (m *Manager) SetNowFn(fn func() time.Time) {
 	m.nowFn = fn
 }
 
-// initialize is called once by NewManager. It does not call out to the
-// journal yet - that happens lazily on first Load.
+// initialize does not touch the journal; that happens lazily on first Load.
 func (m *Manager) initialize() error {
 	if err := m.fs.EnsureDirectory(configDirName); err != nil {
 		return fmt.Errorf("ensure config dir: %w", err)
@@ -129,13 +126,11 @@ func (m *Manager) initialize() error {
 		return err
 	}
 	m.setConfigPath(profile)
-	// Eagerly seed the active profile file so listing/export works even
-	// before the first LoadUserConfig call.
+	// Seed the active profile file so listing/export works before the first Load.
 	return m.ensureUserConfigFile()
 }
 
-// InvalidateConfigCache forgets the cached config and VFS. Next access
-// reloads from disk.
+// InvalidateConfigCache forgets the cached config and VFS; next access reloads.
 func (m *Manager) InvalidateConfigCache() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -144,9 +139,9 @@ func (m *Manager) InvalidateConfigCache() {
 	m.virtualStructureBuilt = time.Time{}
 }
 
-// DirtyVirtualStructure marks the VFS stale without dropping the cached
-// config. Called by other modules after FS mutations under the context
-// folder so the next GetVirtualStructure rescans.
+// DirtyVirtualStructure marks the VFS stale without dropping the cached config,
+// so the next GetVirtualStructure rescans. Called after FS mutations under the
+// context folder.
 func (m *Manager) DirtyVirtualStructure() {
 	m.mu.Lock()
 	defer m.mu.Unlock()

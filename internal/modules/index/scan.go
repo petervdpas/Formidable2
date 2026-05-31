@@ -8,18 +8,17 @@ import (
 	"strings"
 )
 
-// FileEntry is the unit of comparison between disk and the index.
-// Filename is the basename only (e.g. "basic.yaml" or "test.meta.json")
-// - paths get rebuilt in scan/reconcile, never carried in the entry.
+// FileEntry is the unit of comparison between disk and the index. Filename is
+// the basename only; paths get rebuilt in scan/reconcile, never carried here.
 type FileEntry struct {
 	Filename string
 	Mtime    int64 // unix nanoseconds
 	Size     int64
 }
 
-// ScanResult is what a single disk walk produces. Forms and Images are
-// keyed by template stem (the template filename minus ".yaml") so the
-// reconciler can match disk against the index without further parsing.
+// ScanResult is what a single disk walk produces. Forms and Images are keyed
+// by template stem (filename minus ".yaml") so the reconciler can match disk
+// against the index without further parsing.
 type ScanResult struct {
 	Templates []FileEntry
 	Forms     map[string][]FileEntry // template-stem → *.meta.json files
@@ -27,13 +26,10 @@ type ScanResult struct {
 }
 
 // scanDisk walks <root>/templates and <root>/storage and returns the
-// canonical disk view: every .yaml under templates/, every .meta.json
-// under storage/<stem>/, every file (any extension) under
-// storage/<stem>/images/. Missing directories are not errors -
-// fresh contexts may have neither yet.
-//
-// Hidden files (".formidable", ".DS_Store", etc.) are skipped at every
-// level so platform crud doesn't sneak into the index.
+// canonical disk view: every .yaml under templates/, every .meta.json under
+// storage/<stem>/, every file under storage/<stem>/images/. Missing
+// directories are not errors (fresh contexts may have neither yet). Hidden
+// files are skipped at every level.
 func scanDisk(root string) (*ScanResult, error) {
 	res := &ScanResult{
 		Forms:  map[string][]FileEntry{},
@@ -75,17 +71,17 @@ func scanDisk(root string) (*ScanResult, error) {
 	return res, nil
 }
 
-// diffEntries computes the (added, changed, removed) sets between disk
-// and the index for a single bucket of files (templates, one
-// template's forms, or one template's images). Equality is defined as
-// (mtime, size) - equal mtime + different size catches sub-resolution
-// rewrites that some filesystems silently allow.
+// Diff is the (added, changed, removed) result of diffEntries for one bucket
+// of files.
 type Diff struct {
 	Added   []FileEntry
 	Changed []FileEntry
 	Removed []string
 }
 
+// diffEntries diffs disk against the index for one bucket. Equality is
+// (mtime, size): equal mtime + different size catches sub-resolution rewrites
+// that some filesystems silently allow.
 func diffEntries(disk, idx []FileEntry) Diff {
 	idxByName := make(map[string]FileEntry, len(idx))
 	for _, e := range idx {

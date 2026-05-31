@@ -1,11 +1,10 @@
 // Package log builds the application's structured logger.
 //
-// The logger always writes to stderr and (by default) tees to
-// <AppRoot>/formidable.log. The log file is truncated on every
-// New() call, so each app start begins with a fresh log. Level can
-// be set programmatically via Options.Level or via the
-// FORMIDABLE_LOG_LEVEL environment variable. File output can be
-// disabled by setting FORMIDABLE_LOG_FILE to "0", "false", or "off".
+// The logger always writes to stderr and by default tees to
+// <AppRoot>/formidable.log, truncated on every New call so each app
+// start begins fresh. Level comes from Options.Level or
+// FORMIDABLE_LOG_LEVEL; file output is disabled by setting
+// FORMIDABLE_LOG_FILE to "0", "false", or "off".
 package log
 
 import (
@@ -56,12 +55,12 @@ func LogPath(opts Options) string {
 	return filepath.Join(opts.AppRoot, fileName)
 }
 
-// New constructs a logger + Broadcaster per the options. Errors
-// opening the log file are silently swallowed and the logger falls
-// back to stderr-only - file logging must never prevent the
-// application from starting. The broadcaster is always returned and
-// captures every record into its in-memory ring; pair it with
-// Broadcaster.SetEmitter to fan records out to a UI transport.
+// New constructs a logger and Broadcaster per the options. Errors
+// opening the log file are swallowed and the logger falls back to
+// stderr-only: file logging must never prevent the app from starting.
+// The broadcaster is always returned and captures every record into its
+// in-memory ring; pair it with Broadcaster.SetEmitter to fan records
+// out to a UI transport.
 func New(opts Options) (*slog.Logger, *Broadcaster) {
 	level := pickLevel(opts.Level)
 	useFile := pickUseFile(opts.UseFile)
@@ -124,11 +123,10 @@ func pickUseFile(explicit *bool) bool {
 	return true
 }
 
-// openLogFile opens the log file for the current process, truncating
-// any previous content so each app start gets a fresh log. Exposed as
-// a var so tests can override file-open behaviour without touching the
-// filesystem. The mutex avoids a rare race when two New() calls hit the
-// same path concurrently (tests).
+// openLogFile opens the log file, truncating previous content so each
+// app start gets a fresh log. A var so tests can override it without
+// touching the filesystem. The mutex avoids a rare race when two New
+// calls hit the same path concurrently (tests).
 var (
 	openMu      sync.Mutex
 	openLogFile = func(path string) (*os.File, error) {

@@ -36,15 +36,12 @@ func ParseFrontmatter(markdown string) (map[string]any, string, error) {
 	return data, body, nil
 }
 
-// BuildFrontmatter prepends a YAML frontmatter block to body. An empty
-// or nil data map returns body unchanged.
-//
-// Sequences are emitted in YAML flow style (`tags: [a, b, c]`) rather
-// than the block style yaml.v3 defaults to. The plugin export use
-// case (wikiwonder + future Hugo/WordPress targets) authors `tags`
-// as flow arrays in the source template; emitting block-style output
-// is a layout-only difference but visibly diverges from what the
-// author wrote. PDF has its own BuildFrontmatter and isn't affected.
+// BuildFrontmatter prepends a YAML frontmatter block to body; empty data
+// returns body unchanged. Sequences are emitted in flow style
+// (`tags: [a, b, c]`) rather than yaml.v3's default block style, because
+// plugin-export templates author `tags` as flow arrays and block output
+// would visibly diverge from what the author wrote. PDF has its own
+// BuildFrontmatter and isn't affected.
 func BuildFrontmatter(data map[string]any, body string) string {
 	if len(data) == 0 {
 		return body
@@ -65,10 +62,9 @@ func BuildFrontmatter(data map[string]any, body string) string {
 	return "---\n" + yamlStr + "---\n\n" + body
 }
 
-// setSequenceStyle walks a yaml.Node tree and applies the given style
-// to every sequence node. Mappings and scalars are left at their
-// default style - only sequences are coerced - so `title: 'x'` stays
-// quoted as the user wrote it while `tags: [a, b]` lands inline.
+// setSequenceStyle applies style to every sequence node, leaving
+// mappings and scalars untouched so `title: 'x'` stays quoted as written
+// while `tags: [a, b]` lands inline.
 func setSequenceStyle(n *yaml.Node, style yaml.Style) {
 	if n == nil {
 		return

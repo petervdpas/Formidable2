@@ -13,15 +13,15 @@ type fs interface {
 	SaveFile(path string, content string) error
 }
 
-// formsSource is the storage surface BuildExportRows needs. Optional:
-// callers that only use Preview/Write/transforms can leave it nil.
+// formsSource is the storage surface the export side needs. Optional: callers
+// that only use Preview/Write/transforms can leave it nil.
 type formsSource interface {
 	ListForms(tpl string) ([]string, error)
 	LoadFormData(tpl, datafile string) map[string]any
 }
 
-// templateSource hands the export side a template's field schema so the
-// backend owns excluded types, alignability, and the dotted "table.column" key.
+// templateSource hands the export side a template's field schema so the backend
+// owns excluded types, alignability, and the dotted "table.column" key.
 type templateSource interface {
 	Fields(tpl string) ([]FieldSpec, error)
 }
@@ -29,7 +29,6 @@ type templateSource interface {
 const defaultDelimiter = ","
 
 // Manager wraps encoding/csv with Formidable's preview/write conventions.
-// Stateless beyond its dependencies.
 type Manager struct {
 	fs    fs
 	forms formsSource
@@ -37,9 +36,9 @@ type Manager struct {
 	log   *slog.Logger
 }
 
-// NewManager constructs a CSV manager. log may be nil. The forms
-// dependency is installed via SetForms after construction because the
-// storage manager is built later in the composition root.
+// NewManager constructs a CSV manager. log may be nil. The forms dependency
+// is installed via SetForms after construction because the storage manager is
+// built later in the composition root.
 func NewManager(filesystem fs, log *slog.Logger) *Manager {
 	if log == nil {
 		log = slog.Default()
@@ -59,12 +58,10 @@ func (m *Manager) SetTemplate(t templateSource) {
 	m.tpl = t
 }
 
-// Preview reads filePath as a CSV and returns its header row plus the
-// rest of the rows. Empty delimiter falls back to comma.
-//
-// Errors are reported BOTH via the returned error AND via PreviewResult.Error
-// so frontend code matching the JS shape (success-or-error in the result
-// object) keeps working. Go callers should prefer the error.
+// Preview reads filePath as CSV and returns its header row plus the rest.
+// Empty delimiter falls back to comma. Errors surface both via the returned
+// error and via PreviewResult.Error (the frontend reads the result object);
+// Go callers should prefer the error.
 func (m *Manager) Preview(filePath, delimiter string) (PreviewResult, error) {
 	delim := pickDelimiter(delimiter)
 	raw, err := m.fs.LoadFile(filePath)
@@ -102,12 +99,10 @@ func (m *Manager) Preview(filePath, delimiter string) (PreviewResult, error) {
 	}, nil
 }
 
-// Write serializes rows (first row = headers, then data) to filePath.
-// Empty delimiter falls back to comma. Output uses LF line endings (not
-// CRLF) to match the original JS implementation. Every field is quoted
-// (not just those that strictly need it per RFC 4180): always-quoting
-// makes the file parse unambiguously in Excel regardless of the locale's
-// delimiter, and matches the original Formidable's export. Embedded
+// Write serializes rows (first row = headers, then data) to filePath. Empty
+// delimiter falls back to comma; output uses LF line endings. Every field is
+// always quoted (not just those RFC 4180 requires) so the file parses
+// unambiguously in Excel regardless of the locale's delimiter. Embedded
 // quotes are escaped by doubling.
 func (m *Manager) Write(filePath string, rows [][]string, delimiter string) WriteResult {
 	delim := pickDelimiter(delimiter)
@@ -129,9 +124,8 @@ func (m *Manager) Write(filePath string, rows [][]string, delimiter string) Writ
 	return WriteResult{Success: true}
 }
 
-// pickDelimiter resolves an empty delimiter to the default and returns
-// the first rune. Multi-rune inputs are truncated to their first rune
-// (matches the encoding/csv API which only supports single-rune delimiters).
+// pickDelimiter resolves an empty delimiter to the default and returns the
+// first rune (encoding/csv only supports single-rune delimiters).
 func pickDelimiter(d string) rune {
 	if d == "" {
 		d = defaultDelimiter

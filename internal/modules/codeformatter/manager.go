@@ -1,9 +1,9 @@
-// Package codeformatter is the backend code-format pass the template
-// editor calls instead of running prettier in the webview. Standalone:
-// no template/pdf/render imports. The schemas registry is supplied at
-// construction time (composition root wires pdf.Schemas() in), so
-// codeformatter knows nothing about picoloom keys - it only knows how
-// to apply a "parent → children" hint set to flat YAML.
+// Package codeformatter is the backend code-format pass the template editor
+// calls instead of running prettier in the webview. Standalone: no
+// template/pdf/render imports. The schemas registry is supplied at
+// construction time (the composition root wires pdf.Schemas() in), so
+// codeformatter knows nothing about picoloom keys; it only applies a
+// "parent -> children" hint set to flat YAML.
 package codeformatter
 
 import (
@@ -19,29 +19,25 @@ const (
 	LangLua      Lang = "lua"
 )
 
-// ErrMalformed wraps any parser failure surfaced by a sub-formatter.
-// errors.Is(err, ErrMalformed) distinguishes "the source is broken,
-// leave it alone" from infrastructure errors.
+// ErrMalformed wraps any parser failure surfaced by a sub-formatter, letting
+// errors.Is distinguish "source broken, leave it alone" from infrastructure
+// errors.
 var ErrMalformed = errors.New("codeformatter: source malformed")
 
-// Schemas maps a top-level frontmatter key (the "parent") to the set
-// of child key names that belong under it. Used by the markdown
-// formatter's repair pass to re-nest children that were authored at
-// the same column as their parent.
+// Schemas maps a top-level frontmatter key (the parent) to the child key names
+// that belong under it, for the markdown formatter's re-nest repair pass.
 type Schemas map[string]map[string]bool
 
 type Manager struct {
 	schemas Schemas
 }
 
-// NewManager builds a Manager with the given schema registry. Pass
-// nil for a generic formatter with no repair pass (yaml round-trip
-// only).
+// NewManager builds a Manager with the given schema registry; nil gives a
+// generic formatter with no repair pass (yaml round-trip only).
 func NewManager(s Schemas) *Manager { return &Manager{schemas: s} }
 
-// Format reformats src for the named language. Returned string is the
-// cleaned source; err is non-nil only when parsing failed - in that
-// case the returned string is still safe to display (whitespace tidy).
+// Format reformats src for the named language. err is non-nil only when
+// parsing failed, in which case the returned string is still safe to display.
 // Unknown lang values fall through to tidy.
 func (m *Manager) Format(lang, src string) (string, error) {
 	switch Lang(lang) {
@@ -55,9 +51,9 @@ func (m *Manager) Format(lang, src string) (string, error) {
 	return tidy(src), nil
 }
 
-// tidy: trim trailing whitespace, normalize line endings to \n, collapse
-// runs of >2 blank lines, ensure exactly one trailing newline. Safe for
-// any text - never alters indentation or content.
+// tidy normalizes line endings to \n, trims trailing whitespace, collapses
+// runs of >2 blank lines, and ensures one trailing newline. Never alters
+// indentation or content.
 func tidy(src string) string {
 	out := strings.ReplaceAll(src, "\r\n", "\n")
 	out = strings.ReplaceAll(out, "\r", "\n")

@@ -5,16 +5,10 @@ import (
 	"strings"
 )
 
-// localeNames maps English month / weekday names (the words Go's
-// time.Format emits) to their translation in the named locale.
-// Adding a new locale = add one entry to this map; nothing else
-// changes. Keys cover both long ("January", "Monday") and short
-// ("Jan", "Mon") forms; "May" is intentionally one entry because the
-// full and abbreviated English forms are identical.
-//
-// Locale codes are lowercase ISO 639-1; multi-region codes ("en-GB",
-// "pt-BR") can be added when needed by registering the full code as
-// its own key.
+// localeNames maps English month / weekday names (long and short forms)
+// to their translation per locale. "May" is one entry because its full
+// and abbreviated English forms are identical. Locale codes are
+// lowercase ISO 639-1; multi-region codes can be added as their own keys.
 var localeNames = map[string]map[string]string{
 	"nl": {
 		"January": "januari", "February": "februari", "March": "maart",
@@ -63,16 +57,13 @@ var localeNames = map[string]map[string]string{
 	},
 }
 
-// localeRe matches any English month or weekday name (long forms
-// listed first so the regex engine prefers `January` over `Jan`,
-// `Monday` over `Mon`, etc.). `\b` ensures whole-word matches so
-// "January" in input doesn't trigger a "Jan" substitution.
+// localeRe matches any English month or weekday name. Long forms are
+// listed first so the engine prefers `January` over `Jan`; `\b` forces
+// whole-word matches so "January" doesn't trigger a "Jan" substitution.
 var localeRe = regexp.MustCompile(`\b(?:January|February|March|April|May|June|July|August|September|October|November|December|January|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b`)
 
-// translateDate runs a locale pass over a Go time.Format result.
-// Empty / "en" / unknown locale → passthrough (no translation). The
-// translation is a word-by-word regex replace so order in the original
-// formatted string is preserved.
+// translateDate runs a word-by-word locale pass over a time.Format
+// result. Empty, "en", or unknown locales pass through untranslated.
 func translateDate(formatted, locale string) string {
 	locale = strings.ToLower(strings.TrimSpace(locale))
 	if locale == "" || locale == "en" {

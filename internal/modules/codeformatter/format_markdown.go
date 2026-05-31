@@ -11,15 +11,11 @@ var (
 	fmCloseRe = regexp.MustCompile(`(?m)^---\s*$`)
 )
 
-// formatMarkdown formats the YAML frontmatter block (if present): first
-// applies the structural repair pass (re-nest flat children under their
-// schema-known parents), then yaml.v3 canonical re-emit. The markdown
-// body is reassembled untouched - Handlebars expressions, code fences,
-// and prose all want different rules and getting that wrong is worse
-// than doing nothing.
-//
-// No frontmatter → tidy whitespace pass on the whole source.
-// Malformed frontmatter → reassembled with the source frontmatter
+// formatMarkdown formats the YAML frontmatter block (if present): the
+// structural repair pass then yaml.v3 canonical re-emit. The markdown body is
+// reassembled untouched, since Handlebars, code fences, and prose each want
+// different rules and getting that wrong is worse than doing nothing. No
+// frontmatter tidies the whole source; malformed frontmatter is reassembled
 // verbatim plus ErrMalformed so the editor can flag it.
 func (m *Manager) formatMarkdown(src string) (string, error) {
 	open := fmOpenRe.FindStringIndex(src)

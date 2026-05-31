@@ -1,9 +1,8 @@
 package stat
 
-// Statistical DSL: the serialized form of a template's "Statistical
-// Insight" objects. This file owns the DSL value types; compile.go and
-// parse.go own the Compile/Parse round-trip; the engine (later) evaluates
-// a Config over the index into a rank-N values grid. See
+// Statistical DSL value types (the serialized form of a template's
+// "Statistical Insight" objects). compile.go/parse.go own the round-trip;
+// the engine evaluates a Config into a rank-N grid. See
 // design/statistics-dsl.md.
 //
 // Grammar:
@@ -35,9 +34,8 @@ const (
 	SourceFacet SourceKind = "facet"
 )
 
-// SourceRef references a statistical source by key: a field (optionally a
-// table column by its option value-key) or a facet. Column is "" for a
-// scalar field or a facet.
+// SourceRef references a source by key: a field (optionally a table column
+// by option value-key) or a facet. Column is "" for a scalar field or facet.
 type SourceRef struct {
 	Kind   SourceKind
 	Key    string
@@ -64,11 +62,10 @@ var reduceOps = map[MeasureOp]bool{
 	OpSum: true, OpAvg: true, OpMin: true, OpMax: true, OpMedian: true, OpStddev: true,
 }
 
-// Measure is one cell value layer: count() (rows, no source), records()
-// (distinct contributing forms, no source), a reduce over a numeric field
-// source, or percentile(source, p). records() differs from count() only on a
-// fanned-out (table-column) source, where one form yields many rows: count()
-// tallies the rows, records() tallies the distinct forms.
+// Measure is one cell value layer: count(), records(), a reduce over a
+// numeric field source, or percentile(source, p). count() and records()
+// diverge only on a fanned table-column source: count() tallies rows,
+// records() tallies distinct forms.
 type Measure struct {
 	Op     MeasureOp
 	Source *SourceRef // nil only for count
@@ -87,9 +84,9 @@ const (
 
 var validBins = map[Bin]bool{BinYear: true, BinMonth: true, BinDay: true}
 
-// Dimension is one group-by axis: a source, optionally date-binned, and
-// optionally capped to its Top-N categories (ranked by the first measure,
-// the tail dropped). Top 0 means all categories; valid Top is 1..20.
+// Dimension is one group-by axis: a source, optionally date-binned and
+// capped to Top-N categories (ranked by the first measure). Top 0 = all,
+// otherwise 1..20.
 type Dimension struct {
 	Source SourceRef
 	Bin    Bin
@@ -141,22 +138,17 @@ const (
 
 var validPercentBases = map[PercentBase]bool{PctDistribution: true, PctForms: true, PctNone: true}
 
-// StatConfig is the parsed statistical DSL: one or more measures (cell
-// value layers) over zero or more dimensions (axes), optionally scoped by
-// AND-ed equality filters, with a percentage base. No dimensions => a rank-0
-// scalar; one => a 1D array; two => a 2D matrix; and so on.
-//
-// Named StatConfig (not Config) to stay unambiguous inside the stat
-// package, which already carries Result/Series.
+// StatConfig is the parsed DSL: measures over zero or more dimensions,
+// optionally AND-filtered, with a percent base. Dimension count sets the
+// rank (0 = scalar, 1 = array, 2 = matrix, …). Named StatConfig, not
+// Config, to disambiguate within the stat package.
 type StatConfig struct {
 	Measures   []Measure
 	Dimensions []Dimension
 	Filters    []Filter
 	Percent    PercentBase // "" means PctDistribution
-	// Scale is the name of a scaling object that weights this object's
-	// count()/records() contributions per form. "" means unweighted. The
-	// referenced object owns the source + option->factor map; this only
-	// carries the reference, resolved at evaluate time (like a composite's
-	// parent/child names).
+	// Scale names a scaling object that weights count()/records() per form;
+	// "" means unweighted. Only the reference is carried, resolved at
+	// evaluate time (the referenced object owns the source + factor map).
 	Scale string
 }

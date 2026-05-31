@@ -7,29 +7,24 @@ import (
 )
 
 // boot.go owns the boot-pointer file that names the active profile.
-// Mirrors `Formidable/controls/configManager.js` resolveBootProfile +
-// setUserConfigPath + ensureConfigFile.
 
-// bootRelPath is the boot pointer file, relative to AppRoot.
 func (m *Manager) bootRelPath() string {
 	return filepath.Join(configDirName, bootFileName)
 }
 
-// legacyBootRelPath is the pre-dotfile pointer path, kept only so
-// installs that predate the rename get migrated on first read.
+// legacyBootRelPath is the pre-dotfile pointer path, kept only so installs that
+// predate the rename get migrated on first read.
 func (m *Manager) legacyBootRelPath() string {
 	return filepath.Join(configDirName, legacyBootFileName)
 }
 
-// resolveBootProfile reads (or seeds and repairs) config/.boot.json and
-// returns the active profile filename it points to.
+// resolveBootProfile reads (or seeds and repairs) config/.boot.json and returns
+// the active profile filename it points to.
 //
-// If .boot.json is missing but legacy config/boot.json exists → migrate
-// (rewrite as .boot.json, remove the legacy file) so existing installs
-// don't quietly reset to a fresh seed.
-// If .boot.json is missing and there's no legacy → seed defaults.
-// If .boot.json exists but is malformed or missing fields → repair.
-// If both exist → .boot.json wins; legacy is removed as drift.
+// Missing .boot.json but legacy config/boot.json present: migrate it, so
+// existing installs don't quietly reset to a fresh seed. Missing both: seed
+// defaults. Malformed or missing fields: repair. Both present: .boot.json wins
+// and the legacy file is removed as drift.
 func (m *Manager) resolveBootProfile() (string, error) {
 	if err := m.fs.EnsureDirectory(configDirName); err != nil {
 		return "", fmt.Errorf("ensure config dir: %w", err)
@@ -71,11 +66,10 @@ func (m *Manager) resolveBootProfile() (string, error) {
 	return boot.ActiveProfile, nil
 }
 
-// migrateLegacyBoot reads the pre-dotfile pointer, sanitizes it, writes
-// the result atomically to the new dotfile path, and removes the legacy
-// file. Order matters: the new file must be on disk before the legacy
-// is removed so a crash mid-migration leaves a recoverable state (next
-// run sees the legacy still present and retries).
+// migrateLegacyBoot rewrites the pre-dotfile pointer to the new dotfile path
+// and removes the legacy file. Order matters: the new file must be on disk
+// before the legacy is removed, so a crash mid-migration leaves a recoverable
+// state (next run sees the legacy still present and retries).
 func (m *Manager) migrateLegacyBoot(legacyPath, newPath string) error {
 	raw, err := m.fs.LoadFile(legacyPath)
 	if err != nil {
@@ -92,9 +86,8 @@ func (m *Manager) migrateLegacyBoot(legacyPath, newPath string) error {
 	return nil
 }
 
-// sanitizeBoot mirrors `schemas/boot.schema.js` - fills missing fields
-// with defaults. The bool indicates whether the input was actually
-// amended (so callers can persist iff anything changed).
+// sanitizeBoot fills missing fields with defaults. The bool reports whether the
+// input was actually amended, so callers persist only when something changed.
 func sanitizeBoot(raw string) (BootConfig, bool) {
 	def := defaultBootConfig()
 	var probe map[string]any
@@ -115,8 +108,8 @@ func sanitizeBoot(raw string) (BootConfig, bool) {
 	return got, false
 }
 
-// setConfigPath records the absolute path to the active profile JSON
-// and drops the cached config so the next access reloads from disk.
+// setConfigPath records the absolute path to the active profile JSON and drops
+// the cached config so the next access reloads from disk.
 func (m *Manager) setConfigPath(profileFilename string) {
 	abs := m.fs.ResolvePath(configDirName, profileFilename)
 	m.mu.Lock()
@@ -126,9 +119,8 @@ func (m *Manager) setConfigPath(profileFilename string) {
 	m.mu.Unlock()
 }
 
-// ensureUserConfigFile makes sure the active profile's JSON exists on
-// disk. Called once during initialize() so listing/exporting works
-// before the first LoadUserConfig.
+// ensureUserConfigFile makes sure the active profile's JSON exists on disk, so
+// listing/exporting works before the first LoadUserConfig.
 func (m *Manager) ensureUserConfigFile() error {
 	m.mu.RLock()
 	path := m.configPath

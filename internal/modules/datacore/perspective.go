@@ -6,10 +6,9 @@ import (
 )
 
 // A Perspective is a view of the tensor: a meaning scope plus a working set
-// of identities, read by slicing and reducing over the modes. Select narrows
-// the identities (Where), step across references (Follow), then read a shape
-// out (Project rows, Distribution buckets, Count). This is the small algebra
-// query and statistics are both spelled in.
+// of identities. Narrow with Where, step references with Follow, then read a
+// shape (Project, Distribution, Cross, Count). Query and statistics are both
+// spelled in this algebra.
 type Perspective struct {
 	t     *Tensor
 	scope sym
@@ -79,17 +78,11 @@ type Node struct {
 	Path  []string
 }
 
-// Unfold lazily walks field recursively from the working set, breadth-first,
-// yielding each identity the first time it is reached. This is the flower
-// opening: each hop unfolds the sub-tensor a reference points at, so a fact
-// that lives in no single cell (a chain's end, a link-of-a-link) emerges from
-// the path.
-//
-// It is bounded by maxDepth (hops from a seed; maxDepth <= 0 yields nothing)
-// and guarded by a visited set, so a reference cycle terminates. Seeds are
-// the centers, not petals: only identities reached by one or more hops are
-// yielded. The walk is lazy. Breaking out of the range stops exploration, so
-// a deep or wide closure is never fully materialized unless it is consumed.
+// Unfold walks field recursively from the working set, breadth-first, yielding
+// each identity the first time it is reached. Bounded by maxDepth (hops from a
+// seed; <= 0 yields nothing) and visited-guarded so cycles terminate. Seeds
+// themselves are not yielded, only identities reached by a hop. Lazy: breaking
+// the range stops exploration, so a wide closure is never fully materialized.
 func (p *Perspective) Unfold(field string, maxDepth int) iter.Seq[Node] {
 	return func(yield func(Node) bool) {
 		f, ok := p.t.fax.lookup(field)
@@ -163,11 +156,9 @@ type Bucket struct {
 	Count int
 }
 
-// Distribution reduces along the I mode: for each distinct value of field at
-// the current scope, the count of identities carrying it. Blank values are
-// skipped (absence is not a category, matching the index distribution).
-// Buckets are sorted by value. This is the statistical "distribution" shape
-// as a reduction.
+// Distribution reduces along the I mode: per distinct value of field at the
+// current scope, the count of identities carrying it. Blank values are skipped
+// (absence is not a category, matching the index). Buckets sorted by value.
 func (p *Perspective) Distribution(field string) []Bucket {
 	counts := map[string]int{}
 	if f, ok := p.t.fax.lookup(field); ok {
@@ -213,12 +204,10 @@ func (c CrossTab) Count(row, col string) int {
 	return 0
 }
 
-// Cross reduces along the I mode into a rank-2 contingency: for each
-// (rowField value, colField value) pair, the count of identities carrying
-// both at the current scope. Identities missing either value are dropped
-// (complete-case, blank = absence). Its row and column margins are the two
-// rank-1 Distributions, so a cross-tab is the joint and the distributions are
-// its contractions.
+// Cross reduces along the I mode into a rank-2 contingency: per (rowField,
+// colField) value pair, the count of identities carrying both at the current
+// scope. Identities missing either value are dropped (complete-case). The row
+// and column margins are the two rank-1 Distributions.
 func (p *Perspective) Cross(rowField, colField string) CrossTab {
 	rf, rok := p.t.fax.lookup(rowField)
 	cf, cok := p.t.fax.lookup(colField)

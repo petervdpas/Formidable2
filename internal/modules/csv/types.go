@@ -1,15 +1,9 @@
-// Package csv reads and writes CSV files for Formidable. Mirrors
-// `controls/csvManager.js` semantics - header row first, RFC-4180
-// quoting, configurable delimiter, LF line endings.
-//
-// Wails-only: the CSV import/export endpoints in Epic 8 (collections)
-// will use this module from their HTTP handlers but no routes are
-// registered directly by the csv module itself.
+// Package csv reads and writes CSV files for Formidable: header row first,
+// RFC-4180 quoting, configurable delimiter, LF line endings. The csv module
+// registers no HTTP routes; Epic 8 collections endpoints call it directly.
 package csv
 
-// PreviewResult is the parsed shape returned by Preview. Mirrors the JS
-// `{headers, rows, rowCount, error}` so frontend handlers don't need
-// to branch on shape.
+// PreviewResult is the parsed shape returned by Preview.
 type PreviewResult struct {
 	Headers  []string   `json:"headers"`
 	Rows     [][]string `json:"rows"`

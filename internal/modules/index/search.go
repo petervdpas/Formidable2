@@ -6,17 +6,11 @@ import (
 	"strings"
 )
 
-// SearchForms runs a full-text query over one collection (the forms of a
-// single template) and returns the matching rows ranked by FTS5
-// relevance, with tags and facets stitched on like the other read
-// methods. The query is free user text; buildMatchQuery turns it into a
-// safe prefix-AND MATCH expression, so raw FTS5 operators in the input
-// never reach the engine. An empty/whitespace query returns no rows
-// (not an error) - a blank search box matches nothing, not everything.
-//
-// opts.Limit/Offset apply; opts.OrderBy is ignored because relevance
-// ranking is the point of a search (callers wanting recency should use
-// ListForms instead).
+// SearchForms runs a full-text query over one template's forms, ranked by
+// FTS5 relevance. buildMatchQuery sanitizes the free-text query so raw FTS5
+// operators never reach the engine; an empty/whitespace query returns no
+// rows (not an error). opts.OrderBy is ignored: relevance ranking is the
+// point of a search.
 func (m *Manager) SearchForms(template, query string, opts QueryOpts) ([]FormRow, error) {
 	match := buildMatchQuery(query)
 	if match == "" {
@@ -66,9 +60,8 @@ func (m *Manager) SearchForms(template, query string, opts QueryOpts) ([]FormRow
 	return out, nil
 }
 
-// scanFormRows materializes the shared SELECT column list (used by both
-// queryForms and SearchForms) into FormRows, splitting the US-joined
-// tags back into a slice. Facet stitching is the caller's job.
+// scanFormRows scans the shared SELECT column list into FormRows, splitting
+// the US-joined tags back into a slice. Facet stitching is the caller's job.
 func scanFormRows(rows *sql.Rows) ([]FormRow, error) {
 	var (
 		out   []FormRow
@@ -113,13 +106,10 @@ func scanFormRows(rows *sql.Rows) ([]FormRow, error) {
 	return out, rows.Err()
 }
 
-// buildMatchQuery turns free user text into a safe FTS5 MATCH string:
-// each whitespace-separated run of token characters becomes a
-// double-quoted prefix term ("word"*), joined by spaces (FTS5's implicit
-// AND). Quoting neutralises every FTS5 operator (", *, (), :, ^, NEAR,
-// AND/OR) so arbitrary input can never produce a syntax error, and the
-// trailing * gives as-you-type prefix matching. Empty input (or input
-// with no token characters) returns "" so the caller can short-circuit.
+// buildMatchQuery turns free user text into a safe FTS5 MATCH string: each
+// run of token characters becomes a quoted prefix term ("word"*), joined by
+// spaces (FTS5 implicit AND). Quoting neutralises every FTS5 operator so
+// arbitrary input can never produce a syntax error. Empty input returns "".
 func buildMatchQuery(raw string) string {
 	var terms []string
 	for _, field := range strings.FieldsFunc(raw, func(r rune) bool { return !isTokenRune(r) }) {
@@ -128,9 +118,8 @@ func buildMatchQuery(raw string) string {
 	return strings.Join(terms, " ")
 }
 
-// isTokenRune reports whether r is part of a search token. We keep
-// letters and digits (Unicode-aware) and drop everything else, which
-// also strips the FTS5 operator characters before they can be quoted.
+// isTokenRune reports whether r is part of a search token. Keeping only
+// letters and digits also strips FTS5 operator characters before quoting.
 func isTokenRune(r rune) bool {
 	switch {
 	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':

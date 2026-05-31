@@ -7,38 +7,26 @@ import (
 	"strings"
 )
 
-// proseStylesheet - single-source-of-truth wiki-prose CSS, embedded
-// at build time so RenderFullHTML can produce a self-contained doc
-// without filesystem lookups. The same file is imported by Vite into
-// the SPA bundle (see frontend/src/styles/index.css), keeping the
-// preview slideout and exported HTML pixel-identical.
+// proseStylesheet is the wiki-prose CSS, embedded at build time so
+// RenderFullHTML is self-contained. The same file is imported by Vite
+// into the SPA bundle (frontend/src/styles/index.css), keeping preview
+// and exported HTML identical.
 //
-// Syntax-highlight token colors for code blocks live INSIDE this CSS
-// (the "Chroma github style" section). If html.go ever switches off
-// WithStyle("github") to another chroma style, regenerate that block
-// - there is no runtime CSS generation.
+// Syntax-highlight token colors live INSIDE this CSS ("Chroma github
+// style" section). If html.go switches off WithStyle("github"),
+// regenerate that block; there is no runtime CSS generation.
 //
 //go:embed assets/formidable-prose.css
 var proseStylesheet string
 
-// ProseCSS returns the embedded `formidable-prose` stylesheet. Public
-// so consumers that produce their own HTML envelopes (the wiki HTTP
-// server, future export tools, …) can serve or inline the same
-// stylesheet without re-embedding the file.
+// ProseCSS returns the embedded `formidable-prose` stylesheet, for
+// consumers that produce their own HTML envelopes (wiki HTTP server,
+// export tools) and want the same CSS without re-embedding it.
 func ProseCSS() string { return proseStylesheet }
 
-// RenderFullHTML returns a self-contained HTML document with:
-//   - DOCTYPE + html/head/body scaffolding
-//   - <title> sourced from the markdown's frontmatter "title:" key,
-//     falling back to the datafile stem (or "Untitled" if datafile is
-//     empty)
-//   - inlined formidable-prose stylesheet so the doc renders the same
-//     way it does in the in-app preview
-//   - the rendered fragment as the body, wrapped in
-//     <body class="formidable-prose">
-//
-// Reused by the storage workspace's "Copy HTML" action and the future
-// internal wiki HTTP server.
+// RenderFullHTML returns a self-contained HTML document: full scaffolding,
+// a <title> from frontmatter (falling back to the datafile stem, then
+// "Untitled"), the inlined prose stylesheet, and the rendered body.
 func (m *Manager) RenderFullHTML(templateName, datafile string) (string, error) {
 	tpl, err := m.templates.LoadTemplate(templateName)
 	if err != nil {
@@ -71,8 +59,7 @@ func (m *Manager) RenderFullHTML(templateName, datafile string) (string, error) 
 	return composeFullHTML(title, body), nil
 }
 
-// titleFromMarkdown returns the frontmatter title (string-typed) or
-// "" when there's no frontmatter or no title key.
+// titleFromMarkdown returns the frontmatter title, or "" when absent.
 func titleFromMarkdown(md string) string {
 	fm, _, err := ParseFrontmatter(md)
 	if err != nil || fm == nil {
@@ -84,9 +71,8 @@ func titleFromMarkdown(md string) string {
 	return ""
 }
 
-// stemOf strips a single trailing extension, then strips a `.meta`
-// suffix (so "groene-tapenade.meta.json" → "groene-tapenade"). Empty
-// input → empty result.
+// stemOf strips a trailing extension then a `.meta` suffix, so
+// "groene-tapenade.meta.json" becomes "groene-tapenade".
 func stemOf(name string) string {
 	if name == "" {
 		return ""
@@ -97,9 +83,9 @@ func stemOf(name string) string {
 	return strings.TrimSuffix(name, ".meta")
 }
 
-// composeFullHTML wraps the rendered body fragment in a document with
-// the inlined stylesheet. Title is HTML-escaped; CSS is treated as
-// trusted (it's our own embedded asset).
+// composeFullHTML wraps the body fragment in a document with the inlined
+// stylesheet. Title is HTML-escaped; CSS is trusted (our own embedded
+// asset).
 func composeFullHTML(title, body string) string {
 	var sb strings.Builder
 	sb.WriteString("<!DOCTYPE html>\n")
