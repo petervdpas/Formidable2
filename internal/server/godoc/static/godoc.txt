@@ -1936,24 +1936,9 @@ func (m *Manager) AuthorName() string
     commits on the server-side audit trail. "" when unset.
 
 func (m *Manager) AutoEnableNewTemplate(filename string) error
-    AutoEnableNewTemplate appends filename to the active profile's
-    EnabledTemplates list IFF the profile has opted into curation
-    (the list is non-empty). Wired from the composition root onto
-    template.Manager.AddCreationObserver so a newly-created template from
-    the editor becomes visible in the (filtered) editor sidebar immediately,
-    instead of being hidden until the user toggles it in Settings → Templates.
-
-    Why guarded on "opted into curation":
-      - Empty/nil EnabledTemplates means "all enabled" - adding the filename
-        would flip the profile into curation mode, which is a bigger semantic
-        change than the user asked for. Stay no-op.
-      - Populated list means the user explicitly curated. They just created a
-        new template; they want to use it. Append.
-
-    Idempotent: a duplicate entry would never appear (we check membership
-    first), so accidental re-fires from the observer chain are safe. Empty
-    filename is rejected so a programmatic caller can't pollute the list with
-    garbage.
+    AutoEnableNewTemplate appends filename only when the profile already curates
+    (non-empty list). An empty list means "all enabled", so appending would
+    silently flip the profile into curation mode. No-op on empty/present.
 
 func (m *Manager) ContextFolder() string
     ContextFolder returns the active profile's context-folder path (where
@@ -1981,9 +1966,8 @@ func (m *Manager) ExportUserProfile(profileFilename, targetPath string, overwrit
     handlers don't need branching).
 
 func (m *Manager) FilterEnabled(filenames []string) []string
-    FilterEnabled returns the subset of `filenames` that are enabled in the
-    active profile. Empty/nil EnabledTemplates → input returned unchanged (the
-    "all enabled" semantic). Preserves input order; does not dedupe.
+    FilterEnabled returns the enabled subset of filenames, input order
+    preserved. Empty EnabledTemplates returns nil (scoped to none).
 
 func (m *Manager) GetContextPath() (string, error)
     GetContextPath returns the absolute path of the active context folder,
@@ -2046,13 +2030,9 @@ func (m *Manager) IoCollectionOnly() bool
     Formidable rule. Same uncached-safe contract as GitSelfCloned.
 
 func (m *Manager) IsTemplateEnabled(name string) bool
-    IsTemplateEnabled reports whether the given template filename is in the
-    active profile's EnabledTemplates list. The list is the literal set of
-    visible templates: an empty list means none are visible. Empty name is
-    always false.
-
-    Reads cached config; does NOT reconcile. Callers wanting the post-prune
-    answer should hit ListEnabledTemplates first (or just consume that list).
+    IsTemplateEnabled reports whether name is in the active profile's
+    EnabledTemplates. Empty list means none visible. Reads cached config,
+    does not reconcile.
 
 func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error)
     ListAvailableProfiles enumerates *.json under config/ except dot-prefixed
@@ -2062,18 +2042,9 @@ func (m *Manager) ListAvailableProfiles() ([]ProfileEntry, error)
     from profile_name → author_name → "(unnamed)".
 
 func (m *Manager) ListEnabledTemplates() ([]string, error)
-    ListEnabledTemplates is the public read for the use-side picker.
-    It reconciles against the live folder first, then returns the templates the
-    user is allowed to pick from:
-
-      - Empty EnabledTemplates → no templates (the user scoped to none).
-      - Populated EnabledTemplates → intersection of live folder with the
-        (post-prune) slice, preserving the live folder's order so the picker
-        order is deterministic and matches the editor.
-
-    Without a TemplateLister wired, returns an empty slice + nil - the frontend
-    treats that as "nothing to pick from", which is the safe fallback when the
-    host hasn't wired the dependency.
+    ListEnabledTemplates reconciles against the live folder, then returns
+    the enabled templates in live-folder order (deterministic). Empty
+    EnabledTemplates or no wired lister returns nil.
 
 func (m *Manager) LoadUserConfig() (*Config, error)
     LoadUserConfig returns the active profile's config, loading it from disk
@@ -2082,35 +2053,20 @@ func (m *Manager) LoadUserConfig() (*Config, error)
     schema.sanitize.
 
 func (m *Manager) PruneEnabledTemplates(existing []string) ([]string, error)
-    PruneEnabledTemplates removes from EnabledTemplates any entry not in
-    `existing`. Persists if anything changed. Returns the slice of removed
-    filenames (for logging / future audit; current callers ignore it).
-
-    `existing` is treated as the source of truth for "what's on disk right now"
-    - passing nil prunes every entry, which is correct: nothing on disk means
-    nothing to enable. Callers must therefore pass the live template list,
-    not a possibly-stale snapshot.
-
-    Empty/nil EnabledTemplates is a no-op (nothing to prune; the "all enabled"
-    semantic doesn't carry stale entries).
+    PruneEnabledTemplates drops EnabledTemplates entries not in existing,
+    persists, and returns the removed ones. Pass the LIVE template list:
+    nil prunes every entry. No-op on empty EnabledTemplates.
 
 func (m *Manager) ReconcileEnabledTemplates() ([]string, error)
-    ReconcileEnabledTemplates reads the live template folder via the wired
-    TemplateLister and prunes EnabledTemplates against it. Returns the
-    post-prune slice; persists only if anything changed.
-
-    Without a TemplateLister this is a no-op that returns the current
-    EnabledTemplates unchanged - keeps tests + non-template contexts runnable
-    without panicking.
+    ReconcileEnabledTemplates prunes EnabledTemplates against the live folder
+    and returns the post-prune slice. Without a lister it returns the current
+    slice.
 
 func (m *Manager) SeedEnabledTemplatesIfUnset() error
-    SeedEnabledTemplatesIfUnset gives a never-configured profile a starting
-    scope of "all templates" so a fresh (or legacy, key-absent) profile shows
-    everything on the use-side. It fires only when EnabledTemplates is nil
-    - i.e. the key was never written. A profile that has been configured,
-    including one explicitly emptied to [] (scoped to none), is left untouched,
-    so "turn everything off" sticks. No-op without a wired lister or when no
-    templates exist yet.
+    SeedEnabledTemplatesIfUnset seeds a never-configured profile
+    (EnabledTemplates nil) with all templates. An explicitly-emptied [] is
+    left alone, so "turn everything off" sticks. No-op without a lister or any
+    templates on disk.
 
 func (m *Manager) SetJournal(j JournalConfigurer)
     SetJournal wires the journal hook. Safe to call before or after init;
@@ -2123,20 +2079,12 @@ func (m *Manager) SetTTL(d time.Duration)
     SetTTL overrides the virtual-structure cache TTL. Mainly for tests.
 
 func (m *Manager) SetTemplateEnabled(filename string, on bool) ([]string, error)
-    SetTemplateEnabled toggles one template's membership in the active profile's
-    scope, persists, and returns the new EnabledTemplates slice. The backend
-    owns this logic so the frontend renders state rather than computing it.
-
-    Purely literal: EnabledTemplates is the set of visible templates.
-      - on → add filename (deduped).
-      - off → remove filename. Removing the last one leaves [] = none visible
-        (which persists, since the field is not omitempty).
+    SetTemplateEnabled toggles filename's membership and returns the new slice.
+    Off-ing the last entry leaves [] (none visible), which persists.
 
 func (m *Manager) SetTemplateLister(l TemplateLister)
-    SetTemplateLister installs the live template-folder lister used for
-    self-healing the EnabledTemplates slice. Pass nil to disable reconciliation
-    - IsTemplateEnabled/FilterEnabled still work against the cached config
-    slice.
+    SetTemplateLister installs the lister used to self-heal EnabledTemplates;
+    nil disables reconciliation (the read methods still work off cached config).
 
 func (m *Manager) SwitchUserProfile(profileFilename string) (*Config, error)
     SwitchUserProfile points .boot.json at profileFilename, swaps the
@@ -2782,12 +2730,10 @@ type GridDim struct {
 	Table     string
 	DateWidth int
 }
-    GridDim is one dimension of a raw grid: a field to group by. Field is a
-    field key (or "facet:<key>" for a facet). When Table is set, the dimension
-    lives on that table's rows and the grid fans one output row per table row,
-    reading the value off the row identity; when Table is empty the value is
-    read off the root and broadcast onto every fanned row. DateWidth > 0 buckets
-    the value as a date prefix (4 = year, 10 = day, else month).
+    GridDim is one group-by dimension. Field is a field key, or "facet:<key>".
+    When Table is set the dimension lives on that table's rows (the grid fans
+    one row per table row); empty Table reads the root value, broadcast onto
+    every fanned row. DateWidth > 0 buckets a date (4 year, 10 day, else month).
 
 type GridFilter struct {
 	Field string
@@ -2801,17 +2747,15 @@ type GridNum struct {
 	Field string
 	Table string
 }
-    GridNum is one numeric measure column of a raw grid, coerced to a number
-    per row. Table follows the same rule as GridDim: empty reads off the root,
-    set reads off the fanned table row.
+    GridNum is one numeric measure, coerced per row. Table follows GridDim:
+    empty reads the root, set reads the fanned table row.
 
 type GridRow struct {
 	Form string
 	Dims []string
 	Nums []NumCell
 }
-    GridRow is one raw row of a grid: the form it came from, its dimension
-    values in order, and its numeric measures in order.
+    GridRow is one raw row: its form, dimension values, and numeric measures.
 
 type Loader interface {
 	Records() ([]Record, error)
@@ -2837,8 +2781,8 @@ type NumCell struct {
 	Value float64
 	OK    bool
 }
-    NumCell is one numeric measure value, with OK false when the row carried no
-    coercible number (the LEFT-join NULL).
+    NumCell is one numeric measure value; OK is false on a non-coercible value
+    (the LEFT-join NULL).
 
 type Perspective struct {
 	// Has unexported fields.
@@ -2888,27 +2832,16 @@ func (p *Perspective) Follow(field string) *Perspective
     cross-record link). Targets are deduplicated, keeping first-seen order.
 
 func (p *Perspective) Grid(dims []GridDim, nums []GridNum, filters []GridFilter) []GridRow
-    Grid produces the raw flattened rows that feed statistical aggregation:
-    for each root passing every filter, one or more rows carrying the form,
-    its dimension values, and its numeric measures. Dims are complete-case (a
-    row missing or blank in any dim is dropped, matching an INNER join); nums
-    are best-effort (a missing or non-numeric value leaves NumCell.OK false,
-    matching a LEFT join). The caller groups by Dims and reduces Nums, counting
-    distinct Forms.
+    Grid produces the raw flattened rows that feed aggregation: per root passing
+    every filter, one or more rows of (form, dim values, numeric measures).
+    Dims are complete-case (INNER: a row blank in any dim drops); nums are
+    best-effort (LEFT: a missing or non-numeric value leaves OK false).
 
-    When no dim or measure names a table, each root yields one row from its own
-    cells (scalar fields, facets, date-bucketed dims). When a dim or measure
-    names a table, the grid fans that table: it follows the root to the table's
-    rows and emits one row per table row, reading table-scoped values off the
-    row identity and root-scoped values off the root (broadcast). Because both
-    columns of a row are read from the SAME row identity, two columns of one
-    table stay aligned per row, where the index's same-table self-join produces
-    their cartesian. This row alignment is the divergence from the index,
-    by design.
-
-    All table-scoped dims and measures must name one table: aligning rows across
-    two tables would itself be a cartesian. A grid that names more than one
-    table is invalid and yields no rows (the Service surfaces the reason).
+    A dim or measure naming a table fans that table (one row per table row,
+    table values off the row, root values broadcast). Two columns of one table
+    thus stay aligned per row, where the index's same-table self-join would
+    cartesian them: that alignment is the intended divergence from the index.
+    Naming more than one table is invalid and yields no rows.
 
 func (p *Perspective) Project(fields ...string) []Row
     Project reads the requested fields for every identity in the working set,
@@ -4005,64 +3938,41 @@ func (s *Service) SaveValues(templateName string, payload SavePayload) (*FormVie
 
 package formwidget // import "github.com/petervdpas/formidable2/internal/modules/formwidget"
 
-Package formwidget models form widgets - the non-input slots a plugin author
-can place inside a plugin's Run-dialog form. Widgets don't capture user input;
-they DISPLAY runtime state pushed from the Lua side (formidable.run.bar,
-formidable.run.status) so the user sees what the plugin is doing while it's
-working.
-
-Widgets are intentionally a separate concept from template Fields:
-
-  - Fields appear in the templates field-type picker, hold values, and
-    round-trip through frontmatter.
-  - Widgets appear ONLY in the plugin form editor, hold no values, and exist
-    solely as live-update display slots.
-
-Keeping them in a dedicated module prevents the field-types registry
-(internal/modules/template) from picking them up, and lets plugin form storage
-own a discrete widgets.json next to the existing form.json without inflating the
-template field surface.
+Package formwidget models form widgets: non-input display slots in a plugin's
+Run-dialog form that show runtime state pushed from Lua (run.bar, run.status).
+Kept a separate concept from template Fields so the field-type registry never
+picks them up.
 
 VARIABLES
 
 var ErrWidgetInvalid = errors.New("formwidget: invalid widget")
-    ErrWidgetInvalid wraps every validation failure. Callers use errors.Is to
-    branch; the wrapped string carries the specific detail for logging / error
-    display.
+    ErrWidgetInvalid wraps every validation failure (errors.Is to branch).
 
 
 FUNCTIONS
 
 func ValidateAll(ws []Widget) error
-    ValidateAll runs Validate on every widget and additionally checks that IDs
-    are unique within the slice. Returns the first error encountered so the UI
-    can highlight a specific offender instead of a vague "list is invalid".
+    ValidateAll validates each widget and checks IDs are unique, returning the
+    first error.
 
 
 TYPES
 
 type Kind string
-    Kind identifies a widget's display role. Closed enum - adding a new widget
-    kind is a deliberate package change with a matching frontend component,
-    never an open-ended string.
+    Kind identifies a widget's display role. Closed enum: adding one is a
+    deliberate package change with a matching frontend component.
 
 const (
-	// KindProgressBar renders a progress bar fed by RunBarEvent
-	// (formidable.run.bar). Total == 0 → indeterminate animation.
+	// KindProgressBar renders a progress bar fed by RunBarEvent; Total 0 is
+	// indeterminate.
 	KindProgressBar Kind = "progressbar"
 
-	// KindStatusMessage renders a single-line text label fed by
-	// RunStatusEvent (formidable.run.status). Plugin authors
-	// typically push the current item's name/path here so the
-	// user sees "what's happening right now".
+	// KindStatusMessage renders a single-line label fed by RunStatusEvent.
 	KindStatusMessage Kind = "statusmessage"
 
-	// KindChart renders an interactive statistical chart: the widget
-	// owns a statistical-object picker (Stat.ListObjects on the active
-	// template) and a chart-shape picker (Stat.ChartShapes), runs the
-	// plugin's command with the selection as ctx, and draws the
-	// returned chart envelope. Unlike the other kinds it drives the
-	// Lua call itself rather than being fed by a run-scoped event.
+	// KindChart renders an interactive chart: it owns the stat-object and
+	// chart-shape pickers and drives the Lua call itself, unlike the
+	// event-fed kinds.
 	KindChart Kind = "chart"
 )
 type Widget struct {
@@ -4070,22 +3980,13 @@ type Widget struct {
 	Kind  Kind   `json:"kind"`
 	Label string `json:"label,omitempty"`
 }
-    Widget is one entry inside a plugin's form.json - the same list that holds
-    form Fields. The author places widgets wherever they want among the fields;
-    position in the array IS the render order. ID is a per-form stable
-    identifier the form editor uses for reordering / deletion (it does NOT route
-    Lua updates - both widget kinds are driven by a single run-scoped event
-    each). Label is optional chrome shown next to / above the widget.
-
-    Heterogeneity in form.json: Widget and template.Field share the same array.
-    Frontend dispatches by the presence of the `kind` field - Field uses `type`,
-    Widget uses `kind` - so no extra discriminator is needed in the JSON.
+    Widget is one entry in a plugin's form.json (sharing the array with template
+    Fields; the frontend dispatches on "kind" vs Field's "type"). Array position
+    is render order. ID is the editor's stable handle, not a Lua route.
 
 func (w Widget) Validate() error
-    Validate enforces shape: non-empty kind in the closed set, ID matching
-    validIDRe. Used by both load (refuses unknown widgets.json content) and
-    save (refuses corrupt UI submissions) so the failure surfaces at the same
-    boundary in both directions.
+    Validate enforces a non-empty ID matching validIDRe and a kind in the closed
+    set.
 
 
 
@@ -7008,13 +6909,9 @@ runs the Spec over it: project, filter, distinct, sort, group and aggregate.
 Scope is deliberately single- template: no cross-template joins, no subqueries,
 no user SQL.
 
-Package query is a constrained, read-only SELECT surface over the index
-module's form_values store. It is a sibling consumer of index alongside stat:
-stat turns the same datacore into chart grids, query turns it into row
-listings and ad-hoc group/count views. Query owns no SQL - it translates a
-Spec into index.ProjectRows / index.AggregateRaw calls and shapes the result.
-Scope is deliberately single-template: no cross-template joins, no subqueries,
-no user SQL. See the datacore boundary discussion in design notes.
+Package query is a constrained, read-only SELECT surface over a template's form
+data: row listings and ad-hoc group/count views. Single-template by design:
+no cross-template joins, no subqueries, no user SQL.
 
 VARIABLES
 
@@ -7041,23 +6938,20 @@ type Cell struct {
 	Text string   `json:"text"`
 	Num  *float64 `json:"num,omitempty"`
 }
-    Cell is one output value: Text is the display string; Num carries the parsed
-    number when the value had one, so the REST consumer can emit a real JSON
-    number instead of a quoted string.
+    Cell is one output value: Text plus Num when the value parsed, so a REST
+    consumer can emit a real JSON number instead of a quoted string.
 
 type Choice struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
-    Choice is one closed-set value a filter can offer as a dropdown instead of
-    free text (dropdown/radio option values, or facet option labels).
+    Choice is one closed-set value a filter can offer as a dropdown.
 
 type Column struct {
 	Header string `json:"header"`
 	Source Source `json:"source"`
 }
-    Column is one projected output column: a display Header plus the indexed
-    Source it reads.
+    Column is one projected output column: a Header plus the Source it reads.
 
 type Filter struct {
 	Source Source `json:"source"`
@@ -7065,8 +6959,7 @@ type Filter struct {
 	Value  string `json:"value"`
 }
     Filter scopes the query to rows where Source satisfies the comparison.
-    Op is eq/ne (text) or lt/le/gt/ge (numeric); validation lives in the index
-    layer so there is one definition of the comparison semantics.
+    Op is eq/ne (text) or lt/le/gt/ge (numeric).
 
 type FormData struct {
 	Filename string
@@ -7167,13 +7060,10 @@ type Measure struct {
 	Source Source `json:"source"`
 	Header string `json:"header"`
 }
-    Measure is one aggregate column in group mode: a function applied to a
-    source over the rows of each group. Func is count / count_distinct / sum /
-    avg / min / max; Source is ignored for count and count_distinct (they count
-    rows / distinct source forms). Header is the output label. Numeric measures
-    coerce each cell to a number at execute time and skip the ones that don't
-    parse, so a stray non-numeric value can't fail the whole aggregate (the
-    "doctor" stance: apply type, tolerate outliers).
+    Measure is one aggregate column in group mode. Func is count /
+    count_distinct / sum / avg / min / max; Source is ignored for the counts.
+    Numeric measures coerce each cell and skip non-numeric values (tolerate
+    outliers, the doctor stance).
 
 type Origin struct {
 	Field string // the multi-valued field key
@@ -7191,17 +7081,13 @@ type Result struct {
 	Rows    [][]Cell `json:"rows"`
 	Count   int      `json:"count"`
 	Total   int      `json:"total"`
-	// Anomalies are integrity violations found while running: a cell in a
-	// typed (number/date) column that does not coerce back to its declared
-	// type. The input form enforces field types, so a value that won't
-	// round-trip means the stored data is corrupt, not a tolerable outlier.
-	// They are surfaced, never silently dropped.
+	// Anomalies are typed-column cells that do not coerce back to their declared
+	// type. The input form enforces field types, so a non-round-tripping value
+	// means corrupt data, not a tolerable outlier. Surfaced, never dropped.
 	Anomalies []Anomaly `json:"anomalies,omitempty"`
 }
-    Result is the query output: Columns are the header strings (group
-    columns plus the count header in group mode), Rows the typed cells.
-    Count is the number of result rows; Total is the template's full form count,
-    a denominator for "N of M" context.
+    Result is the query output. Count is the result row count; Total is the
+    template's full form count, a denominator for "N of M".
 
 type Service struct {
 	// Has unexported fields.
@@ -7237,20 +7123,17 @@ type Sort struct {
 	Desc    bool `json:"desc"`
 	Numeric bool `json:"numeric"`
 }
-    Sort orders the result by a projected column (Column index into Spec
-    Columns). Numeric sorts on the parsed number, so a number column orders 2 <
-    10 rather than lexically. Honored in row-listing mode; group mode orders by
-    group key (explicit group-mode sort is a follow-up).
+    Sort orders by a projected column (index into Spec.Columns). Numeric sorts
+    on the parsed number (2 < 10, not lexical). Row-listing mode; group mode
+    orders by group key.
 
 type Source struct {
 	Kind string `json:"kind"` // "field" | "facet"
 	Key  string `json:"key"`
 	Col  *int   `json:"col,omitempty"`
 }
-    Source identifies one indexed value: a scalar field, a table column (Col
-    set to its positional form_values.col index), or a facet. Mirrors the (Kind,
-    Key, Col) shape index.ProjectCol / index.AggDim use, so the translation is
-    one-to-one.
+    Source identifies one value: a scalar field, a table column (Col =
+    positional column index), or a facet.
 
 type SourceInfo struct {
 	ID           string   `json:"id"`
@@ -7262,13 +7145,9 @@ type SourceInfo struct {
 	Aggregatable bool     `json:"aggregatable"`
 	Choices      []Choice `json:"choices,omitempty"`
 }
-    SourceInfo describes one selectable source for the query UI: its stable id,
-    a display label, the Source it maps to, and the capabilities the dialog
-    needs. The backend owns this list (derived from the template) so the
-    frontend never reimplements which fields/columns/facets exist or how
-    they behave. Fans marks a multi-valued source (a table column, or a
-    list/tags/multioption field) that explodes into rows; Aggregatable marks a
-    numeric source a sum/avg/min/max measure can target.
+    SourceInfo describes one selectable source for the query UI. Fans marks a
+    multi-valued source (table column, or list/tags/multioption) that explodes
+    into rows; Aggregatable marks a numeric source a measure can target.
 
 type Spec struct {
 	Template    string    `json:"template"`
@@ -7282,12 +7161,9 @@ type Spec struct {
 	OrderBy     []Sort    `json:"orderBy,omitempty"`
 	Limit       int       `json:"limit,omitempty"`
 }
-    Spec is a full query request. With no GroupBy it is a row listing (each
-    form/cell a row), reusing index.ProjectRows; Distinct collapses the
-    projected tuple (the flatten-list/table-and-distinct case). With GroupBy
-    it is an aggregation over index.AggregateRaw: the result carries the group
-    columns plus, when Count is set, a count of the rows contributing to each
-    group.
+    Spec is a full query request. No GroupBy is a row listing (Distinct
+    collapses the projected tuple); GroupBy aggregates, with Count adding a
+    per-group row count.
 
 
 

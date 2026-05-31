@@ -1,20 +1,7 @@
-// Package formwidget models form widgets - the non-input slots a
-// plugin author can place inside a plugin's Run-dialog form. Widgets
-// don't capture user input; they DISPLAY runtime state pushed from
-// the Lua side (formidable.run.bar, formidable.run.status) so the
-// user sees what the plugin is doing while it's working.
-//
-// Widgets are intentionally a separate concept from template Fields:
-//
-//   - Fields appear in the templates field-type picker, hold values,
-//     and round-trip through frontmatter.
-//   - Widgets appear ONLY in the plugin form editor, hold no values,
-//     and exist solely as live-update display slots.
-//
-// Keeping them in a dedicated module prevents the field-types
-// registry (internal/modules/template) from picking them up, and
-// lets plugin form storage own a discrete widgets.json next to the
-// existing form.json without inflating the template field surface.
+// Package formwidget models form widgets: non-input display slots in a plugin's
+// Run-dialog form that show runtime state pushed from Lua (run.bar, run.status).
+// Kept a separate concept from template Fields so the field-type registry never
+// picks them up.
 package formwidget
 
 import (
@@ -24,63 +11,40 @@ import (
 	"strings"
 )
 
-// Kind identifies a widget's display role. Closed enum - adding a
-// new widget kind is a deliberate package change with a matching
-// frontend component, never an open-ended string.
+// Kind identifies a widget's display role. Closed enum: adding one is a
+// deliberate package change with a matching frontend component.
 type Kind string
 
 const (
-	// KindProgressBar renders a progress bar fed by RunBarEvent
-	// (formidable.run.bar). Total == 0 → indeterminate animation.
+	// KindProgressBar renders a progress bar fed by RunBarEvent; Total 0 is
+	// indeterminate.
 	KindProgressBar Kind = "progressbar"
 
-	// KindStatusMessage renders a single-line text label fed by
-	// RunStatusEvent (formidable.run.status). Plugin authors
-	// typically push the current item's name/path here so the
-	// user sees "what's happening right now".
+	// KindStatusMessage renders a single-line label fed by RunStatusEvent.
 	KindStatusMessage Kind = "statusmessage"
 
-	// KindChart renders an interactive statistical chart: the widget
-	// owns a statistical-object picker (Stat.ListObjects on the active
-	// template) and a chart-shape picker (Stat.ChartShapes), runs the
-	// plugin's command with the selection as ctx, and draws the
-	// returned chart envelope. Unlike the other kinds it drives the
-	// Lua call itself rather than being fed by a run-scoped event.
+	// KindChart renders an interactive chart: it owns the stat-object and
+	// chart-shape pickers and drives the Lua call itself, unlike the
+	// event-fed kinds.
 	KindChart Kind = "chart"
 )
 
-// Widget is one entry inside a plugin's form.json - the same list
-// that holds form Fields. The author places widgets wherever they
-// want among the fields; position in the array IS the render order.
-// ID is a per-form stable identifier the form editor uses for
-// reordering / deletion (it does NOT route Lua updates - both
-// widget kinds are driven by a single run-scoped event each).
-// Label is optional chrome shown next to / above the widget.
-//
-// Heterogeneity in form.json: Widget and template.Field share the
-// same array. Frontend dispatches by the presence of the `kind`
-// field - Field uses `type`, Widget uses `kind` - so no extra
-// discriminator is needed in the JSON.
+// Widget is one entry in a plugin's form.json (sharing the array with template
+// Fields; the frontend dispatches on "kind" vs Field's "type"). Array position
+// is render order. ID is the editor's stable handle, not a Lua route.
 type Widget struct {
 	ID    string `json:"id"`
 	Kind  Kind   `json:"kind"`
 	Label string `json:"label,omitempty"`
 }
 
-// ErrWidgetInvalid wraps every validation failure. Callers use
-// errors.Is to branch; the wrapped string carries the specific
-// detail for logging / error display.
+// ErrWidgetInvalid wraps every validation failure (errors.Is to branch).
 var ErrWidgetInvalid = errors.New("formwidget: invalid widget")
 
-// validIDRe constrains widget IDs to a tight subset so they're safe
-// as map keys, dom IDs, and JSON keys without escaping. Same shape
-// used by the plugin module's id validator.
+// validIDRe constrains widget IDs to a safe subset (matches the plugin id validator).
 var validIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
-// Validate enforces shape: non-empty kind in the closed set, ID
-// matching validIDRe. Used by both load (refuses unknown widgets.json
-// content) and save (refuses corrupt UI submissions) so the failure
-// surfaces at the same boundary in both directions.
+// Validate enforces a non-empty ID matching validIDRe and a kind in the closed set.
 func (w Widget) Validate() error {
 	id := strings.TrimSpace(w.ID)
 	if id == "" {
@@ -91,7 +55,6 @@ func (w Widget) Validate() error {
 	}
 	switch w.Kind {
 	case KindProgressBar, KindStatusMessage, KindChart:
-		// ok
 	case "":
 		return fmt.Errorf("%w: empty kind for id %q", ErrWidgetInvalid, id)
 	default:
@@ -100,10 +63,8 @@ func (w Widget) Validate() error {
 	return nil
 }
 
-// ValidateAll runs Validate on every widget and additionally checks
-// that IDs are unique within the slice. Returns the first error
-// encountered so the UI can highlight a specific offender instead
-// of a vague "list is invalid".
+// ValidateAll validates each widget and checks IDs are unique, returning the
+// first error.
 func ValidateAll(ws []Widget) error {
 	seen := make(map[string]struct{}, len(ws))
 	for i, w := range ws {

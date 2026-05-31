@@ -1,20 +1,17 @@
 package datacore
 
-// GridDim is one dimension of a raw grid: a field to group by. Field is a field
-// key (or "facet:<key>" for a facet). When Table is set, the dimension lives on
-// that table's rows and the grid fans one output row per table row, reading the
-// value off the row identity; when Table is empty the value is read off the
-// root and broadcast onto every fanned row. DateWidth > 0 buckets the value as
-// a date prefix (4 = year, 10 = day, else month).
+// GridDim is one group-by dimension. Field is a field key, or "facet:<key>".
+// When Table is set the dimension lives on that table's rows (the grid fans one
+// row per table row); empty Table reads the root value, broadcast onto every
+// fanned row. DateWidth > 0 buckets a date (4 year, 10 day, else month).
 type GridDim struct {
 	Field     string
 	Table     string
 	DateWidth int
 }
 
-// GridNum is one numeric measure column of a raw grid, coerced to a number per
-// row. Table follows the same rule as GridDim: empty reads off the root, set
-// reads off the fanned table row.
+// GridNum is one numeric measure, coerced per row. Table follows GridDim: empty
+// reads the root, set reads the fanned table row.
 type GridNum struct {
 	Field string
 	Table string
@@ -28,42 +25,30 @@ type GridFilter struct {
 	Value string
 }
 
-// NumCell is one numeric measure value, with OK false when the row carried no
-// coercible number (the LEFT-join NULL).
+// NumCell is one numeric measure value; OK is false on a non-coercible value
+// (the LEFT-join NULL).
 type NumCell struct {
 	Value float64
 	OK    bool
 }
 
-// GridRow is one raw row of a grid: the form it came from, its dimension
-// values in order, and its numeric measures in order.
+// GridRow is one raw row: its form, dimension values, and numeric measures.
 type GridRow struct {
 	Form string
 	Dims []string
 	Nums []NumCell
 }
 
-// Grid produces the raw flattened rows that feed statistical aggregation: for
-// each root passing every filter, one or more rows carrying the form, its
-// dimension values, and its numeric measures. Dims are complete-case (a row
-// missing or blank in any dim is dropped, matching an INNER join); nums are
-// best-effort (a missing or non-numeric value leaves NumCell.OK false, matching
-// a LEFT join). The caller groups by Dims and reduces Nums, counting distinct
-// Forms.
+// Grid produces the raw flattened rows that feed aggregation: per root passing
+// every filter, one or more rows of (form, dim values, numeric measures). Dims
+// are complete-case (INNER: a row blank in any dim drops); nums are best-effort
+// (LEFT: a missing or non-numeric value leaves OK false).
 //
-// When no dim or measure names a table, each root yields one row from its own
-// cells (scalar fields, facets, date-bucketed dims). When a dim or measure
-// names a table, the grid fans that table: it follows the root to the table's
-// rows and emits one row per table row, reading table-scoped values off the row
-// identity and root-scoped values off the root (broadcast). Because both
-// columns of a row are read from the SAME row identity, two columns of one
-// table stay aligned per row, where the index's same-table self-join produces
-// their cartesian. This row alignment is the divergence from the index, by
-// design.
-//
-// All table-scoped dims and measures must name one table: aligning rows across
-// two tables would itself be a cartesian. A grid that names more than one table
-// is invalid and yields no rows (the Service surfaces the reason).
+// A dim or measure naming a table fans that table (one row per table row, table
+// values off the row, root values broadcast). Two columns of one table thus
+// stay aligned per row, where the index's same-table self-join would cartesian
+// them: that alignment is the intended divergence from the index. Naming more
+// than one table is invalid and yields no rows.
 func (p *Perspective) Grid(dims []GridDim, nums []GridNum, filters []GridFilter) []GridRow {
 	tables := fanTablesOf(dims, nums)
 	if len(tables) > 1 {
@@ -94,9 +79,6 @@ func (p *Perspective) Grid(dims []GridDim, nums []GridNum, filters []GridFilter)
 	return out
 }
 
-// gridRow assembles one output row, reading each table-scoped dim/measure off
-// rowID and each root-scoped one off root. It drops the row (ok=false) when any
-// dim is missing, blank, or an unparseable date (complete-case INNER).
 func (p *Perspective) gridRow(form string, root, rowID sym, dims []GridDim, nums []GridNum) (GridRow, bool) {
 	row := GridRow{Form: form, Dims: make([]string, len(dims)), Nums: make([]NumCell, len(nums))}
 	for di, d := range dims {
@@ -123,8 +105,6 @@ func (p *Perspective) gridRow(form string, root, rowID sym, dims []GridDim, nums
 	return row, true
 }
 
-// gridSource picks where a dim/measure reads from: the fanned table row when it
-// is table-scoped, the root otherwise.
 func gridSource(root, rowID sym, table string) sym {
 	if table != "" {
 		return rowID
@@ -132,9 +112,6 @@ func gridSource(root, rowID sym, table string) sym {
 	return root
 }
 
-// fanTablesOf returns the distinct tables named by any dim or measure, in
-// first-seen order. Empty means a plain root-level grid; one means fan that
-// table; more than one is invalid.
 func fanTablesOf(dims []GridDim, nums []GridNum) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0)

@@ -1,57 +1,42 @@
-// Package query is a constrained, read-only SELECT surface over the
-// index module's form_values store. It is a sibling consumer of index
-// alongside stat: stat turns the same datacore into chart grids, query
-// turns it into row listings and ad-hoc group/count views. Query owns no
-// SQL - it translates a Spec into index.ProjectRows / index.AggregateRaw
-// calls and shapes the result. Scope is deliberately single-template: no
-// cross-template joins, no subqueries, no user SQL. See the datacore
-// boundary discussion in design notes.
+// Package query is a constrained, read-only SELECT surface over a template's
+// form data: row listings and ad-hoc group/count views. Single-template by
+// design: no cross-template joins, no subqueries, no user SQL.
 package query
 
-// Source identifies one indexed value: a scalar field, a table column
-// (Col set to its positional form_values.col index), or a facet. Mirrors
-// the (Kind, Key, Col) shape index.ProjectCol / index.AggDim use, so the
-// translation is one-to-one.
+// Source identifies one value: a scalar field, a table column (Col = positional
+// column index), or a facet.
 type Source struct {
 	Kind string `json:"kind"` // "field" | "facet"
 	Key  string `json:"key"`
 	Col  *int   `json:"col,omitempty"`
 }
 
-// Column is one projected output column: a display Header plus the
-// indexed Source it reads.
+// Column is one projected output column: a Header plus the Source it reads.
 type Column struct {
 	Header string `json:"header"`
 	Source Source `json:"source"`
 }
 
 // Filter scopes the query to rows where Source satisfies the comparison.
-// Op is eq/ne (text) or lt/le/gt/ge (numeric); validation lives in the
-// index layer so there is one definition of the comparison semantics.
+// Op is eq/ne (text) or lt/le/gt/ge (numeric).
 type Filter struct {
 	Source Source `json:"source"`
 	Op     string `json:"op"`
 	Value  string `json:"value"`
 }
 
-// Sort orders the result by a projected column (Column index into Spec
-// Columns). Numeric sorts on the parsed number, so a number column
-// orders 2 < 10 rather than lexically. Honored in row-listing mode;
-// group mode orders by group key (explicit group-mode sort is a
-// follow-up).
+// Sort orders by a projected column (index into Spec.Columns). Numeric sorts on
+// the parsed number (2 < 10, not lexical). Row-listing mode; group mode orders
+// by group key.
 type Sort struct {
 	Column  int  `json:"column"`
 	Desc    bool `json:"desc"`
 	Numeric bool `json:"numeric"`
 }
 
-// SourceInfo describes one selectable source for the query UI: its stable
-// id, a display label, the Source it maps to, and the capabilities the
-// dialog needs. The backend owns this list (derived from the template) so
-// the frontend never reimplements which fields/columns/facets exist or how
-// they behave. Fans marks a multi-valued source (a table column, or a
-// list/tags/multioption field) that explodes into rows; Aggregatable marks
-// a numeric source a sum/avg/min/max measure can target.
+// SourceInfo describes one selectable source for the query UI. Fans marks a
+// multi-valued source (table column, or list/tags/multioption) that explodes
+// into rows; Aggregatable marks a numeric source a measure can target.
 type SourceInfo struct {
 	ID           string   `json:"id"`
 	Label        string   `json:"label"`
@@ -63,32 +48,25 @@ type SourceInfo struct {
 	Choices      []Choice `json:"choices,omitempty"`
 }
 
-// Choice is one closed-set value a filter can offer as a dropdown instead
-// of free text (dropdown/radio option values, or facet option labels).
+// Choice is one closed-set value a filter can offer as a dropdown.
 type Choice struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
 
-// Measure is one aggregate column in group mode: a function applied to a
-// source over the rows of each group. Func is count / count_distinct /
-// sum / avg / min / max; Source is ignored for count and count_distinct
-// (they count rows / distinct source forms). Header is the output label.
-// Numeric measures coerce each cell to a number at execute time and skip
-// the ones that don't parse, so a stray non-numeric value can't fail the
-// whole aggregate (the "doctor" stance: apply type, tolerate outliers).
+// Measure is one aggregate column in group mode. Func is count / count_distinct
+// / sum / avg / min / max; Source is ignored for the counts. Numeric measures
+// coerce each cell and skip non-numeric values (tolerate outliers, the doctor
+// stance).
 type Measure struct {
 	Func   string `json:"func"`
 	Source Source `json:"source"`
 	Header string `json:"header"`
 }
 
-// Spec is a full query request. With no GroupBy it is a row listing
-// (each form/cell a row), reusing index.ProjectRows; Distinct collapses
-// the projected tuple (the flatten-list/table-and-distinct case). With
-// GroupBy it is an aggregation over index.AggregateRaw: the result
-// carries the group columns plus, when Count is set, a count of the rows
-// contributing to each group.
+// Spec is a full query request. No GroupBy is a row listing (Distinct collapses
+// the projected tuple); GroupBy aggregates, with Count adding a per-group row
+// count.
 type Spec struct {
 	Template    string    `json:"template"`
 	Columns     []Column  `json:"columns"`
@@ -102,28 +80,23 @@ type Spec struct {
 	Limit       int       `json:"limit,omitempty"`
 }
 
-// Cell is one output value: Text is the display string; Num carries the
-// parsed number when the value had one, so the REST consumer can emit a
-// real JSON number instead of a quoted string.
+// Cell is one output value: Text plus Num when the value parsed, so a REST
+// consumer can emit a real JSON number instead of a quoted string.
 type Cell struct {
 	Text string   `json:"text"`
 	Num  *float64 `json:"num,omitempty"`
 }
 
-// Result is the query output: Columns are the header strings (group
-// columns plus the count header in group mode), Rows the typed cells.
-// Count is the number of result rows; Total is the template's full form
-// count, a denominator for "N of M" context.
+// Result is the query output. Count is the result row count; Total is the
+// template's full form count, a denominator for "N of M".
 type Result struct {
 	Columns []string `json:"columns"`
 	Rows    [][]Cell `json:"rows"`
 	Count   int      `json:"count"`
 	Total   int      `json:"total"`
-	// Anomalies are integrity violations found while running: a cell in a
-	// typed (number/date) column that does not coerce back to its declared
-	// type. The input form enforces field types, so a value that won't
-	// round-trip means the stored data is corrupt, not a tolerable outlier.
-	// They are surfaced, never silently dropped.
+	// Anomalies are typed-column cells that do not coerce back to their declared
+	// type. The input form enforces field types, so a non-round-tripping value
+	// means corrupt data, not a tolerable outlier. Surfaced, never dropped.
 	Anomalies []Anomaly `json:"anomalies,omitempty"`
 }
 
