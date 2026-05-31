@@ -6,25 +6,9 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Command is one user-runnable entry exposed by the plugin. `ID`
- * is referenced by Manager.Run; `Fn` is the Lua function name
- * inside main.lua that gets called. When Fn is empty the command
- * ID itself is used as the function name (so a command with
- * id="export" calls global function `export(ctx)` in Lua).
- * 
- * HideOutput and HideLog let a command opt out of showing the
- * corresponding panel in the Run dialog - useful for "fire and
- * forget" actions whose return value is irrelevant. LogAsToast
- * additionally surfaces every formidable.log.* line as a live
- * toast, useful while developing a plugin. FormButton marks the
- * command as a button to be rendered inside the plugin's form
- * (when one exists) - the form runtime reads this when wiring its
- * action bar; it's a manifest hint with no behavior yet on the
- * Run modal side.
- * 
- * All four boolean flags are written explicitly (no omitempty) so
- * hand-editors see every available option at a glance and diffs
- * stay legible (a change reads "true → false", not "added field").
+ * Command is one user-runnable entry. Fn is the Lua function name; empty Fn uses ID (id="export" calls global `export(ctx)`).
+ * HideOutput/HideLog hide the Run-dialog panels; LogAsToast mirrors log lines as live toasts; FormButton renders it in the form's action bar.
+ * The boolean flags are written explicitly (no omitempty) so diffs read "true → false", not "added field".
  */
 export class Command {
     "id": string;
@@ -36,12 +20,7 @@ export class Command {
     "form_button": boolean;
 
     /**
-     * OnChange marks the command the host runs whenever a form field
-     * changes (run_mode "form"), before any Draw button is pressed.
-     * ctx carries the current form values plus `changed` = the key of
-     * the field that changed, so the Lua can react - e.g. evaluate the
-     * picked object and steer another field's options via
-     * formidable.run.options. Not rendered as a button.
+     * OnChange runs (run_mode "form") whenever a form field changes; ctx carries the form values plus `changed` = the changed field's key, so Lua can steer other fields via formidable.run.options. Not a button.
      */
     "on_change": boolean;
 
@@ -82,10 +61,7 @@ export class Command {
 }
 
 /**
- * ExportArchiveResult describes what the export bundled. Files is the
- * list of zip-entry names (relative to the plugin folder root) so the
- * UI can render a confirmation panel and the user can spot side files
- * they didn't expect to ship.
+ * ExportArchiveResult describes the bundle; Files lists zip-entry names relative to the plugin root.
  */
 export class ExportArchiveResult {
     "id": string;
@@ -121,8 +97,7 @@ export class ExportArchiveResult {
 }
 
 /**
- * ImportArchiveResult describes what was materialised on import.
- * Overwritten flags whether an existing plugin's files were replaced.
+ * ImportArchiveResult describes the import; Overwritten flags whether an existing plugin was replaced.
  */
 export class ImportArchiveResult {
     "id": string;
@@ -158,11 +133,7 @@ export class ImportArchiveResult {
 }
 
 /**
- * ListResult is the Wails return shape for List. Manifest is the
- * full parsed plugin.json (so Vue can show name, version, command
- * labels). ID is duplicated at the top level for convenience -
- * Vue list components use it as the v-for key without digging
- * into the nested manifest.
+ * ListResult is the Wails return shape for List; ID is duplicated at top level as the Vue v-for key.
  */
 export class ListResult {
     "id": string;
@@ -194,20 +165,8 @@ export class ListResult {
 }
 
 /**
- * Manifest is the parsed plugin.json. Field names mirror the JSON
- * shape one-for-one; the `manifest_version` JSON field is required
- * and equals ManifestSchemaVersion for now.
- * 
- * Versionable surface: extra unknown fields are tolerated by
- * json.Unmarshal so plugins authored against a newer Formidable
- * don't silently break here - they just don't use the new fields.
- * 
- * RunMode controls how the user interacts with the plugin:
- *   - "" (default) / "modal" - Run modal lists each command as a
- *     card; ctx is empty for every call.
- *   - "form" - the plugin's form (form.json) is the entry point;
- *     it renders at the top of the Run modal and every command
- *     receives the current form values as ctx.
+ * Manifest is the parsed plugin.json. Unknown fields are tolerated so newer-authored plugins don't break.
+ * RunMode: "" / "modal" lists each command as a card (empty ctx); "form" makes form.json the entry point (every command receives the form values as ctx).
  */
 export class Manifest {
     "manifest_version": number;
@@ -220,38 +179,22 @@ export class Manifest {
     "requires_internal_server"?: boolean;
 
     /**
-     * Workspaces lists the workspace IDs (from the Workspace* enum
-     * in this file) where the plugin contributes a topbar menu
-     * entry. Each entry must be a known workspace ID; nil/empty
-     * means the plugin is unattached and only surfaces from the
-     * Plugins workspace's Run modal.
+     * Workspaces lists where the plugin contributes a topbar entry; nil/empty leaves it Run-modal-only.
      */
     "workspaces"?: string[];
 
     /**
-     * Templates narrows a workspace attachment to specific templates,
-     * matched by exact filename against the active selection (e.g.
-     * "books.yaml"). A non-empty list makes the plugin
-     * template-scoped: it contributes a topbar entry only while one of
-     * these templates is selected in a template-bearing workspace
-     * (storage / templates). An empty/omitted list leaves the plugin
-     * in the plain workspace channel - it shows whenever its workspace
-     * is active, regardless of selection. The two channels are
-     * orthogonal; Templates only narrows, never broadens.
+     * Templates narrows a workspace attachment to exact template filenames; non-empty makes the plugin template-scoped (shows only while a listed template is selected). It only narrows, never broadens.
      */
     "templates"?: string[];
 
     /**
-     * Debug toggles the collapsible debug/output panel at the bottom
-     * of the Run modal. Off by default - plugin authors flip it on
-     * while iterating, then turn it off when shipping.
+     * Debug toggles the collapsible debug/output panel in the Run modal.
      */
     "debug": boolean;
 
     /**
-     * Maximizable adds the expand/restore button to the plugin's run
-     * window (same control as the Import/Export dialogs). Off by
-     * default; authors of chart / wide-output plugins turn it on.
+     * Maximizable adds the expand/restore button to the run window.
      */
     "maximizable": boolean;
     "commands"?: Command[];
@@ -302,11 +245,7 @@ export class Manifest {
 }
 
 /**
- * RunResultDTO is the JSON envelope for Run. Kind is "ok" on
- * success or one of the error sentinels' kinds - Vue branches on
- * Kind, never on Message text. Toasts pass through whatever
- * formidable.toast.* emitted during the call so the workspace can
- * dispatch them to useToast.
+ * RunResultDTO is the JSON envelope for Run; Vue branches on Kind, never on Message text. Toasts pass through formidable.toast.* output.
  */
 export class RunResultDTO {
     "kind": string;
@@ -342,10 +281,7 @@ export class RunResultDTO {
 }
 
 /**
- * ToastEvent is one user-facing toast a plugin script asked the
- * frontend to show via formidable.toast.{info,success,warn,error}.
- * Collected during a Run; surfaced on RunResult.Toasts so Vue can
- * dispatch them through useToast verbatim.
+ * ToastEvent is one toast a script requested via formidable.toast.*, collected during a Run.
  */
 export class ToastEvent {
     "level": string;

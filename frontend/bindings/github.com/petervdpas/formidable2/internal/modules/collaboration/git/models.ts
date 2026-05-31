@@ -10,7 +10,7 @@ import { Create as $Create } from "@wailsio/runtime";
  */
 export class Branches {
     /**
-     * Current is the active branch name; "" when detached.
+     * Current is the active branch, "" when detached.
      */
     "current": string;
     "locals": string[];
@@ -41,13 +41,7 @@ export class Branches {
 }
 
 /**
- * ChangeFile is one row in CommitChanges' result. Status uses git's
- * standard single-letter codes:
- *   - A: added (file present in commit, absent in parent)
- *   - M: modified (different blob hash from parent)
- *   - D: deleted (file absent in commit, present in parent)
- *   - R: renamed (path changed, content the same - go-git's basic
- *     detection only; no rename/threshold heuristics)
+ * ChangeFile is one CommitChanges row; Status is a single-letter code A/M/D/R (R is exact-content rename only).
  */
 export class ChangeFile {
     "path": string;
@@ -75,18 +69,9 @@ export class ChangeFile {
 }
 
 /**
- * CloneOptions describes a clone request. URL and Dest are required;
- * Branch picks an initial checkout (empty = remote's default HEAD).
- * 
- * PAT is the Personal Access Token used as the password in HTTP Basic
- * auth (with username "x-access-token" - the GitHub-PAT convention,
- * also accepted by Gitea/GitLab/Bitbucket as long as the username is
- * non-empty). Empty PAT means anonymous (public repos / SSH).
- * 
- * IMPORTANT: PAT is read-only at the call site and never persisted by
- * the manager. The frontend keeps it transient - pasted into the
- * clone form, sent over the Wails bridge once, and discarded as soon
- * as the response returns. SSH-based auth lives in a follow-up.
+ * CloneOptions describes a clone request. URL and Dest are required; empty Branch uses remote HEAD.
+ * PAT is the HTTP Basic password (username "x-access-token"); empty means anonymous.
+ * PAT is transient: never persisted by the manager, discarded by the frontend once the response returns.
  */
 export class CloneOptions {
     "url": string;
@@ -122,12 +107,7 @@ export class CloneOptions {
 }
 
 /**
- * CloneResult is the success envelope: the worktree we cloned into,
- * the commit HEAD now points at, and the branch HEAD now sits on.
- * Branch is empty when the clone produced a detached HEAD (rare -
- * happens when the requested ref isn't a branch). The frontend uses
- * Dest to flip git_root and Branch to flip git_branch once a clone
- * completes, so Current Service reflects what was actually fetched.
+ * CloneResult is the success envelope: worktree, HEAD commit, and branch (empty on a detached-HEAD clone).
  */
 export class CloneResult {
     "dest": string;
@@ -159,8 +139,7 @@ export class CloneResult {
 }
 
 /**
- * Commit is a JSON-friendly view of a git commit. Time is RFC3339
- * in the commit author's stored offset.
+ * Commit is a JSON-friendly view of a git commit; Time is RFC3339 in the author's stored offset.
  */
 export class Commit {
     "hash": string;
@@ -204,13 +183,7 @@ export class Commit {
 }
 
 /**
- * CommitOptions describes a commit request. Path is any path inside
- * the worktree; Author/Email come from the active profile's config.
- * 
- * v1 stages every change in the worktree (modified, untracked,
- * deleted) before committing - matching the "commit everything I
- * touched in this session" mental model. Per-file selection arrives
- * in a later iteration once the UI grows checkboxes.
+ * CommitOptions describes a commit request; it stages every worktree change before committing.
  */
 export class CommitOptions {
     "path": string;
@@ -246,8 +219,7 @@ export class CommitOptions {
 }
 
 /**
- * CommitResult is the success envelope for a commit: the new commit's
- * full hash plus a 7-char short form for display.
+ * CommitResult is the success envelope: the new commit's full hash plus a 7-char short form.
  */
 export class CommitResult {
     "hash": string;
@@ -275,18 +247,8 @@ export class CommitResult {
 }
 
 /**
- * DiscardOptions targets a single worktree file for "throw away the
- * local change to this file." The semantics depend on the file's
- * current status:
- *   - tracked + modified  → worktree restored from HEAD's blob
- *   - tracked + deleted   → file recreated from HEAD's blob
- *   - staged add (no HEAD blob) → unstaged + removed from worktree
- *   - untracked           → removed from worktree
- * 
- * Path is any path inside the worktree; File is the worktree-relative
- * path of the file to discard. Path-traversal segments ("..") are
- * rejected so the frontend can pass values straight from Status()
- * without re-validating.
+ * DiscardOptions targets a single worktree file to discard its local change.
+ * File is worktree-relative; path-traversal segments ("..") are rejected.
  */
 export class DiscardOptions {
     "path": string;
@@ -314,10 +276,7 @@ export class DiscardOptions {
 }
 
 /**
- * FetchOptions describes a fetch request. Path is any path inside
- * the worktree; Remote defaults to "origin" when empty. PAT is the
- * HTTP Basic password (transient - never persisted by the manager,
- * same convention as Clone).
+ * FetchOptions describes a fetch request; empty Remote defaults to "origin", PAT is transient (see CloneOptions).
  */
 export class FetchOptions {
     "path": string;
@@ -349,9 +308,7 @@ export class FetchOptions {
 }
 
 /**
- * FetchResult signals whether the remote-tracking refs actually
- * moved. AlreadyUpToDate=true means there was nothing new to
- * pull; the UI can collapse this to "you're current."
+ * FetchResult signals whether the remote-tracking refs moved.
  */
 export class FetchResult {
     "already_up_to_date": boolean;
@@ -375,15 +332,7 @@ export class FetchResult {
 }
 
 /**
- * GraphCommit is a richer Commit shape carrying enough metadata to
- * render a per-row dot-and-line graph view (hashes for the parent
- * edges, refs for the branch-tip pills). Time is RFC3339 in the
- * commit author's stored offset, same as Commit.Time.
- * 
- * Refs is the set of local branch names whose tips point at this
- * commit, plus "HEAD" when the current head sits here. Lets the
- * frontend render branch pills next to the matching row without a
- * separate /branches lookup.
+ * GraphCommit is a Commit enriched with parent hashes (graph edges) and Refs (branch tips plus "HEAD") at this commit.
  */
 export class GraphCommit {
     "hash": string;
@@ -443,11 +392,7 @@ export class GraphCommit {
 }
 
 /**
- * OverriddenPath names a single path where the user's change was
- * silently dropped in favor of pull's content, plus the commit info
- * for whoever made the remote change so the user knows who to contact.
- * Author/Email/Time come from the most recent commit on the post-pull
- * branch that touched this path.
+ * OverriddenPath names a path where the local change was dropped for pull's content, plus the remote commit's authorship.
  */
 export class OverriddenPath {
     "path": string;
@@ -487,11 +432,7 @@ export class OverriddenPath {
 }
 
 /**
- * PullOptions describes a pull request - a fetch followed by a
- * merge of the tracking ref into the current branch. Default merge
- * strategy (no rebase). Path is any path inside the worktree;
- * Remote defaults to "origin"; PAT is the HTTPS Basic password
- * (transient, same as Clone).
+ * PullOptions describes a pull (fetch + merge, no rebase); empty Remote defaults to "origin", PAT is transient.
  */
 export class PullOptions {
     "path": string;
@@ -523,11 +464,7 @@ export class PullOptions {
 }
 
 /**
- * PullResult mirrors PushResult / FetchResult: AlreadyUpToDate=true
- * means there were no new commits to merge. NewHead is the local
- * branch's HEAD hash after the pull (== remote HEAD on success);
- * the journal cursor uses it to record "we've seen the remote at
- * this version."
+ * PullResult: NewHead is the post-pull local HEAD hash, recorded as the journal cursor version.
  */
 export class PullResult {
     "already_up_to_date": boolean;
@@ -555,9 +492,7 @@ export class PullResult {
 }
 
 /**
- * PushOptions describes a push request. The current branch's HEAD
- * is pushed to the matching ref on Remote (default "origin"); we
- * don't expose explicit refspecs in v1.
+ * PushOptions describes a push of the current branch HEAD; empty Remote defaults to "origin", PAT is transient.
  */
 export class PushOptions {
     "path": string;
@@ -589,11 +524,7 @@ export class PushOptions {
 }
 
 /**
- * PushResult signals whether the push actually advanced the remote.
- * AlreadyUpToDate=true means the remote already had every commit;
- * the UI surfaces this as info, not an error. NewHead is the local
- * branch's HEAD hash that's now on the remote (== local HEAD on
- * success); the journal records it as the post-sync cursor version.
+ * PushResult: NewHead is the local HEAD hash now on the remote, recorded as the post-sync cursor version.
  */
 export class PushResult {
     "already_up_to_date": boolean;
@@ -681,18 +612,11 @@ export class RemoteInfo {
 }
 
 /**
- * StashedPullResult is the outcome of PullWithStash. Pull is the
- * underlying merge result; Restored lists paths whose stashed content
- * we re-applied cleanly; AutoMerged lists paths where the structured
- * recmerge.Merge succeeded; Overridden lists paths where pull won and
- * the user's local change was discarded (with the post-pull commit
- * author/email/time captured so the UI can tell the user who to
- * contact).
+ * StashedPullResult is the outcome of PullWithStash: Restored re-applied cleanly, AutoMerged via recmerge,
+ * Overridden where pull won and the local change was dropped (with remote authorship captured).
  * 
- * Policy: pull always wins on disk. Auto-merge for storage/<tpl>/<n>.meta.json
- * when recmerge can reconcile; otherwise drop the user's change.
- * .changes.stash is always cleaned up - the Overridden list is the
- * only signal the user gets that something was lost.
+ * Policy: pull always wins on disk; auto-merge meta.json when recmerge reconciles, else drop the user's change.
+ * .changes.stash is always cleaned up; the Overridden list is the only signal that something was lost.
  */
 export class StashedPullResult {
     "pull": PullResult | null;
@@ -752,46 +676,24 @@ export class StashedPullResult {
 }
 
 /**
- * Status is a JSON-friendly snapshot of a repository's working tree
- * + HEAD position. Mirrors the subset of `git status` that the
- * Collaboration overview surfaces; richer info (per-file diff hunks
- * etc.) lives in dedicated calls.
+ * Status is a JSON-friendly snapshot of a repository's working tree + HEAD position.
  */
 export class Status {
     /**
-     * Branch is the current local branch name (e.g. "main").
-     * Empty when HEAD is detached.
+     * Branch is the current local branch, empty when detached.
      */
     "branch": string;
 
     /**
-     * Tracking is the configured upstream ref name (e.g.
-     * "refs/remotes/origin/main"), or "" if none / detached.
+     * Tracking is the upstream ref (e.g. "refs/remotes/origin/main"), or "" if none.
      */
     "tracking": string;
-
-    /**
-     * Detached reports HEAD-not-on-a-branch.
-     */
     "detached": boolean;
-
-    /**
-     * Clean is true when the worktree has no modifications,
-     * untracked files, or staged changes.
-     */
     "clean": boolean;
-
-    /**
-     * Ahead is the number of local commits on this branch that
-     * aren't on Tracking. 0 when there's no tracking ref.
-     */
     "ahead": number;
 
     /**
-     * Behind is the number of remote commits on Tracking that
-     * aren't on this branch. 0 when there's no tracking ref.
-     * Reflects the last-known state of Tracking - call Fetch to
-     * update the remote-tracking ref before reading this.
+     * Behind reflects the last-known Tracking state; call Fetch first to refresh it.
      */
     "behind": number;
     "modified": string[];

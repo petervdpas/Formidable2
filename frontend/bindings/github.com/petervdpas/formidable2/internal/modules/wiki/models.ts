@@ -10,10 +10,7 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as time$0 from "../../../../../../time/models.js";
 
 /**
- * ServerStatus is the live state the about workspace renders.
- * Returned by Manager.Status; safe to call when the server is idle.
- * StartedAt is the zero time when Running is false - JSON consumers
- * should gate on Running, not on the timestamp value.
+ * ServerStatus is the live state Manager.Status returns; consumers gate on Running, not StartedAt.
  */
 export class ServerStatus {
     "running": boolean;

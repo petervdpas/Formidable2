@@ -6,9 +6,7 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Config is the dialog-session state. Rules are walked top-to-bottom;
- * the first whose predicate clause holds wins. Default is the no-match
- * fallback.
+ * Config is the dialog-session state: Rules (first match wins) plus the no-match Default.
  */
 export class Config {
     "rules"?: Rule[];
@@ -58,9 +56,7 @@ export enum DateOp {
 };
 
 /**
- * DateOpDescriptor is one helper in the Date-tab picker. HasArg tells
- * the frontend whether to render the days-window number input next to
- * the helper name (true for *N and ageGt/ageLt; false for the rest).
+ * DateOpDescriptor is one Date-picker helper; HasArg gates the days-window input.
  */
 export class DateOpDescriptor {
     "op": DateOp;
@@ -102,9 +98,7 @@ export enum EnumOp {
 };
 
 /**
- * FieldOption is one entry in a dropdown/radio field's options list.
- * Compile reads it to bake fieldLabel TextSources at construction
- * time so the engine doesn't need an option-lookup helper.
+ * FieldOption is one dropdown/radio option; Compile bakes fieldLabel lookups from it.
  */
 export class FieldOption {
     "value": string;
@@ -132,10 +126,7 @@ export class FieldOption {
 }
 
 /**
- * FieldRef is the slim shape Compile needs from each template field.
- * Key is the variable name in the expression; Type lets Compile
- * validate predicates against their declared kinds; Options drives
- * fieldLabel ternary baking and is empty for non-enum fields.
+ * FieldRef is the slim per-field shape Compile needs (Key, Type for validation, Options for fieldLabel baking).
  */
 export class FieldRef {
     "key": string;
@@ -182,10 +173,7 @@ export enum NumberOp {
 };
 
 /**
- * Operator describes one selectable operator in the State-tab picker.
- * LabelKey is an i18n key, not a translated string - keeps the
- * frontend in charge of localisation while the backend remains the
- * authoritative source for which operators exist per kind.
+ * Operator is one State-picker operator; LabelKey is an i18n key, not a translated string.
  */
 export class Operator {
     "op": string;
@@ -213,19 +201,8 @@ export class Operator {
 }
 
 /**
- * Outcome is the styled chip a matching Rule (or the default)
- * produces. Text and Parts both encode the chip text:
- * 
- *   - Parts (preferred) is an ordered list of TextSources joined
- *     with `+` so a chip text can mix literals, field values, and
- *     option labels - e.g. `unit-number + " " + street`.
- *   - Text is the legacy single-source form. Compile reads Parts
- *     first; falls back to Text when Parts is empty. Parse always
- *     emits Parts (Text stays nil). Both nil/empty means the chip
- *     renders no text.
- * 
- * The remaining fields mirror the runtime Result shape minus
- * filename/error.
+ * Outcome is the styled chip a Rule (or default) produces. Parts (the preferred form) is a `+`-joined
+ * list of TextSources; Text is the legacy single-source fallback Compile reads when Parts is empty.
  */
 export class Outcome {
     "text"?: TextSource | null;
@@ -262,10 +239,7 @@ export class Outcome {
 }
 
 /**
- * Predicate is one kind-specific test against one expression_item
- * field. A Rule's match clause ANDs all its Predicates together;
- * pointer fields exist where the zero value is meaningful (a boolean
- * predicate on `false`, a number on `0`, a date arg of `0`).
+ * Predicate is one kind-specific test against one field; pointer fields are used where the zero value is meaningful.
  */
 export class Predicate {
     "kind": RuleKind;
@@ -304,9 +278,7 @@ export class Predicate {
 }
 
 /**
- * Rule is a logical AND of Predicates with one Outcome. Empty
- * Predicates always match - useful for the lone-rule case where the
- * user wants exactly one outcome regardless of state.
+ * Rule is an AND of Predicates with one Outcome; empty Predicates always match.
  */
 export class Rule {
     "id": string;
@@ -366,11 +338,7 @@ export enum TextKind {
 };
 
 /**
- * TextSource decides what the chip's text resolves to. Literal renders
- * `Value` verbatim. FieldValue emits a bare reference to FieldKey
- * (engine evaluates the live value). FieldLabel emits a baked
- * value→label ternary over the field's options, falling back to the
- * raw value when no option matches.
+ * TextSource decides the chip text: Literal is verbatim, FieldValue is the live value, FieldLabel is the option label.
  */
 export class TextSource {
     "kind": TextKind;

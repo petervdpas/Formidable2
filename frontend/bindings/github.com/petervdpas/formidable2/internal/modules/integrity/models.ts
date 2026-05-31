@@ -14,29 +14,9 @@ import * as time$0 from "../../../../../../time/models.js";
  */
 export class FixOutcome {
     "filename": string;
-
-    /**
-     * Applied is the count of issues actually repaired in this form.
-     */
     "applied": number;
-
-    /**
-     * Skipped is the count of issues left alone because Skip was
-     * chosen for their kind, the strategy couldn't apply (e.g. coerce
-     * failed), or no plan item targeted them.
-     */
     "skipped": number;
-
-    /**
-     * Saved indicates whether the form file was rewritten. False when
-     * Applied was 0 - no work means no write.
-     */
     "saved": boolean;
-
-    /**
-     * Notes carries human-readable per-form annotations: failed
-     * coercions, "form skipped because unreadable", etc.
-     */
     "notes"?: string[];
 
     /** Creates a new FixOutcome instance. */
@@ -99,9 +79,7 @@ export class FixPlan {
 }
 
 /**
- * FixPlanItem says how to repair every issue of a given kind in this
- * run. There is at most one item per kind - the UI summarises by kind
- * so the user picks one strategy for all forms in that bucket.
+ * FixPlanItem maps one issue kind to one strategy (at most one item per kind).
  */
 export class FixPlanItem {
     "kind": IssueKind;
@@ -129,10 +107,7 @@ export class FixPlanItem {
 }
 
 /**
- * FixResult is the aggregate response to a Fix call. ScannedAfter is
- * the issue count from a fresh analyze pass run after writes, so the
- * frontend can show "X repaired, Y still remain" without a second
- * round-trip.
+ * FixResult is the aggregate Fix response; ScannedAfter is a fresh analyze count so the UI can show "Y remain".
  */
 export class FixResult {
     "forms_touched": number;
@@ -177,9 +152,7 @@ export class FixResult {
 }
 
 /**
- * FixStrategy names a concrete repair action. The set is closed -
- * every kind maps to one or more strategies, and unknown strategies
- * fail Fix-time rather than at the per-issue level.
+ * FixStrategy names a concrete repair action; the set is closed and unknown strategies fail at Fix-time.
  */
 export enum FixStrategy {
     /**
@@ -188,68 +161,48 @@ export enum FixStrategy {
     $zero = "",
 
     /**
-     * FixStrip - remove the offending key from the data map. Used for
-     * extra_field. Lossless: the data was orphaned from the template.
+     * FixStrip removes an orphaned data key (extra_field).
      */
     FixStrip = "strip",
 
     /**
-     * FixFillDefault - write the per-type default for a missing field
-     * (matches storage.Sanitize's defaultForType). Used for missing_field.
+     * FixFillDefault writes the per-type default for a missing field.
      */
     FixFillDefault = "fill_default",
 
     /**
-     * FixCoerce - attempt to convert a wrong-typed value into the
-     * declared type. Used for type_mismatch and bad_date_format. Items
-     * where coercion fails are reported as "skipped" in the result and
-     * the form is left untouched.
+     * FixCoerce converts a wrong-typed value to the declared type; failures are reported skipped.
      */
     FixCoerce = "coerce",
 
     /**
-     * FixClear - wipe the value back to the per-type default. Same
-     * effect as FixFillDefault but applied to a populated-but-wrong
-     * value rather than an absent one. Used for type_mismatch /
-     * bad_date_format when the user prefers "clear and re-enter" over
-     * "attempt to coerce".
+     * FixClear wipes a populated-but-wrong value back to the per-type default.
      */
     FixClear = "clear",
 
     /**
-     * FixMintUUID - generate a fresh UUID for meta.id. Used for
-     * meta_missing on guid templates.
+     * FixMintUUID generates a fresh meta.id (meta_missing on guid templates).
      */
     FixMintUUID = "mint_uuid",
 
     /**
-     * FixSyncGuid - write meta.id into the guid data field so the two
-     * agree. Used for guid_unsynced. Lossless: the data field carried no
-     * authoritative id of its own (meta.id is canonical).
+     * FixSyncGuid writes meta.id (canonical) into the guid data field.
      */
     FixSyncGuid = "sync_guid",
 
     /**
-     * FixRestamp - overwrite a bad timestamp with time.Now().UTC().
-     * Used for meta_bad_format on meta.created and meta.updated. For
-     * meta.flag_state the same strategy clears the stale label
-     * (different concrete change, same intent: "make it valid").
+     * FixRestamp overwrites a bad timestamp with now, or clears a stale facet label (same intent: make it valid).
      */
     FixRestamp = "restamp",
 
     /**
-     * FixSkip - leave the issue alone. Used as the sentinel for kinds
-     * where no in-app repair exists (unreadable: needs the user to
-     * edit the file). Selecting Skip from the UI means "don't change
-     * anything for issues of this kind".
+     * FixSkip leaves the issue alone; the sentinel for kinds with no in-app repair (unreadable).
      */
     FixSkip = "skip",
 };
 
 /**
- * FormReport groups every issue found in one form. Filename is the
- * .meta.json basename (e.g. "x.meta.json") - the same identifier the
- * storage module uses.
+ * FormReport groups every issue in one form; Filename is the .meta.json basename.
  */
 export class FormReport {
     "filename": string;
@@ -281,9 +234,7 @@ export class FormReport {
 }
 
 /**
- * Issue is one problem in one form. Path identifies the location inside
- * data (top-level "key" or nested "loopKey[idx].field"); for meta-block
- * issues Path is the meta key ("meta.id", "meta.created", …).
+ * Issue is one problem in one form; Path is a data location ("key" / "loopKey[idx].field") or a meta key.
  */
 export class Issue {
     "kind": IssueKind;
@@ -291,18 +242,12 @@ export class Issue {
     "detail"?: string;
 
     /**
-     * Value is the offending value as a literal string, surfaced in the
-     * report so the user can see exactly what needs fixing (especially
-     * for date anomalies they must resolve by hand). Empty when there's
-     * no single meaningful value (e.g. a missing field).
+     * Value is the offending value as a literal string, for the user to see (e.g. hand-fixed date anomalies).
      */
     "value"?: string;
 
     /**
-     * Suggest is an optional resolved value the fixer should write
-     * instead of re-deriving one. Set for table date cells whose column
-     * format was inferred: it carries the conformant ISO date so Coerce
-     * is deterministic. Empty for issues the fixer resolves on its own.
+     * Suggest is a resolved value the fixer writes verbatim (e.g. the conformant ISO for an inferred date column).
      */
     "suggest"?: string;
 
@@ -325,9 +270,7 @@ export class Issue {
 }
 
 /**
- * IssueKind enumerates structural problems that can be detected in a
- * stored form. The string values are stable wire identifiers used by
- * the frontend to group/filter issues.
+ * IssueKind enumerates structural problems in a stored form; the string values are stable wire identifiers.
  */
 export enum IssueKind {
     /**
@@ -336,76 +279,55 @@ export enum IssueKind {
     $zero = "",
 
     /**
-     * IssueMissingField - the template declares Key K but the form's
-     * data has no entry for K. Sanitize would have filled a default,
-     * so this only surfaces on forms last saved before K was added.
+     * IssueMissingField: template declares a key with no data entry (form predates the field).
      */
     IssueMissingField = "missing_field",
 
     /**
-     * IssueExtraField - the form's data has Key K but the current
-     * template has no field with that key. Usually a stale entry from
-     * a field that was renamed or deleted.
+     * IssueExtraField: data has a key the template no longer declares (renamed/deleted field).
      */
     IssueExtraField = "extra_field",
 
     /**
-     * IssueTypeMismatch - the value present for Key K is not assignable
-     * to the field's declared type (e.g. a string in a boolean field).
-     * Detail describes the actual vs expected types.
+     * IssueTypeMismatch: the value isn't assignable to the field's declared type.
      */
     IssueTypeMismatch = "type_mismatch",
 
     /**
-     * IssueBadDateFormat - value is a string but doesn't parse as
-     * "YYYY-MM-DD". Distinct from IssueTypeMismatch so the UI can
-     * offer a date-specific quick-fix. For table date columns the
-     * analyzer only emits this for values that match the column's
-     * inferred dominant format; the resolved ISO value rides along in
-     * Suggest so the fixer converts deterministically (no re-guessing).
+     * IssueBadDateFormat: a non-ISO date. For table date columns only conforming values get this, with the
+     * resolved ISO in Suggest so the fixer converts deterministically (no re-guessing).
      */
     IssueBadDateFormat = "bad_date_format",
 
     /**
-     * IssueDateAnomaly - a date value inside a table date column that
-     * doesn't fit the column's inferred dominant format (different
-     * separator, contradicts the day/month order, unparseable, or the
-     * column had no decisive evidence so the format is undecidable).
-     * There's no safe automatic conversion: the doctor surfaces it for
-     * the user to fix by hand. UI offers Clear / Skip, not Coerce.
+     * IssueDateAnomaly: a table date cell that doesn't fit the column's inferred format. No safe auto-conversion:
+     * surfaced for manual fix (Clear/Skip, not Coerce).
      */
     IssueDateAnomaly = "date_anomaly",
 
     /**
-     * IssueMetaMissing - a required meta key is empty.
+     * IssueMetaMissing: a required meta key is empty.
      */
     IssueMetaMissing = "meta_missing",
 
     /**
-     * IssueMetaBadFormat - meta.created / meta.updated isn't a
-     * parseable RFC3339 timestamp.
+     * IssueMetaBadFormat: meta.created/updated isn't a parseable RFC3339 timestamp.
      */
     IssueMetaBadFormat = "meta_bad_format",
 
     /**
-     * IssueGuidUnsynced - the form declares a guid field whose data value
-     * doesn't match meta.id (typically blank, since meta.id holds the
-     * canonical guid and the data field was never mirrored). Surfaces so
-     * downstream consumers that read the data block (CSV export, the API)
-     * see the id. Suggest carries meta.id so the fix writes it verbatim.
+     * IssueGuidUnsynced: the data guid field disagrees with meta.id. Suggest carries meta.id so the fix is verbatim.
      */
     IssueGuidUnsynced = "guid_unsynced",
 
     /**
-     * IssueUnreadable - the form file couldn't be loaded or parsed.
-     * Stops further analysis of that form; emitted as the single issue.
+     * IssueUnreadable: the form file couldn't be loaded or parsed; emitted as the single issue.
      */
     IssueUnreadable = "unreadable",
 };
 
 /**
- * Report is the result of AnalyzeTemplate. Only forms with at least one
- * issue appear in Forms; IssueCount is the total across all of them.
+ * Report is the result of AnalyzeTemplate; only forms with issues appear in Forms.
  */
 export class Report {
     "template": string;

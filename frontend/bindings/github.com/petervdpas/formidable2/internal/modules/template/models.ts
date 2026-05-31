@@ -6,18 +6,8 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * APIMap is one column projected from the source template into the
- * host form's api-field row at fetch time.
- * 
- *   - Key: source-template field key (must reference a level-0 field).
- *     The same key is used as the column name in the host form's
- *     stored row. Required.
- *   - Label: optional display header for that column. When empty, the
- *     editor / wiki falls back to the source field's Label.
- * 
- * Type is intentionally absent - it is derived live from the source
- * template (`source.Fields[Key].Type`). Storing it here would invite
- * drift if the source template's field type changes.
+ * APIMap is one column projected from the source template into the host form's api-field row.
+ * Type is intentionally absent: it is derived live from the source template to avoid drift.
  */
 export class APIMap {
     "key": string;
@@ -42,11 +32,8 @@ export class APIMap {
 }
 
 /**
- * Abilities is the per-type ability vector. Each bool gates a single
- * attribute in the field-edit modal AND in backend save-time
- * enforcement. true = enabled (modal row visible, value preserved on
- * save); false = disabled (row hidden, Normalize strips, validator
- * flags any non-zero).
+ * Abilities is the per-type ability vector; each bool gates one attribute in the modal and in
+ * save-time enforcement (false: row hidden, Normalize strips, validator flags any non-zero).
  */
 export class Abilities {
     "key": boolean;
@@ -126,8 +113,7 @@ export class Abilities {
 }
 
 /**
- * Descriptor is the {name, yaml, storageLocation} bundle returned by
- * GetDescriptor. Mirrors templateManager.getTemplateDescriptor.
+ * Descriptor is the {name, yaml, storageLocation} bundle returned by GetDescriptor.
  */
 export class Descriptor {
     "name": string;
@@ -163,18 +149,8 @@ export class Descriptor {
 }
 
 /**
- * Facet is one named dimension of meta classification on a template:
- * a stable Key (used as the FormMeta.Facets map key), an Icon (a
- * FontAwesome key rendered next to the chosen pill), and a list of
- * mutually-exclusive Options to pick from on each record.
- * 
- * Each facet on a record carries a required `set` bool plus an
- * optional `selected` label - see storage.FacetState. Filter chips
- * in the storage view auto-derive from a template's facets but only
- * render when at least one record actually has `set: true` for the
- * facet's key.
- * 
- * Templates may declare up to 16 facets, each with up to 16 options.
+ * Facet is one named meta-classification dimension: a stable Key (the FormMeta.Facets map key),
+ * an Icon, and mutually-exclusive Options. Templates may declare up to 16 facets, each up to 16 options.
  */
 export class Facet {
     "key": string;
@@ -210,11 +186,7 @@ export class Facet {
 }
 
 /**
- * FacetIconSpec carries the minimal data needed to render one
- * FontAwesome glyph as inline SVG: the path's `viewBox` (icons have
- * different aspects) and the geometry in `Path`'s `d` attribute. No
- * `xmlns` and no fill - both layers (wiki + Vue) wrap this in their
- * own colour-aware shell.
+ * FacetIconSpec carries the viewBox + path d for one inline-SVG glyph; no xmlns/fill (each layer wraps its own shell).
  */
 export class FacetIconSpec {
     "viewBox": string;
@@ -242,16 +214,8 @@ export class FacetIconSpec {
 }
 
 /**
- * FacetMeta is the wire-shape returned to the frontend so it can
- * render the editor without hardcoding ANY backend constraint. The
- * frontend reads this once at boot via Service.FacetMeta and treats
- * the backend as the single source of truth for:
- *   - max counts (MaxFacets, MaxOptionsPerFacet)
- *   - palettes (Colors, Icons - ordered for display)
- *   - validation patterns (KeyPattern, LabelPattern - compiled in JS)
- * 
- * Adding a new backend-owned facet rule means extending this struct;
- * the frontend stays a thin renderer.
+ * FacetMeta is the wire shape the frontend reads once at boot so it hardcodes no backend constraint:
+ * max counts, ordered palettes, and validation patterns all come from here.
  */
 export class FacetMeta {
     "max_facets": number;
@@ -311,10 +275,7 @@ export class FacetMeta {
 }
 
 /**
- * FacetOption is one selectable label within a facet. Label is the
- * user-visible identifier (also used as the value stored in
- * FormMeta.Facets[key].Selected); Color names a token from the
- * shared 16-token palette. Colors may repeat across labels.
+ * FacetOption is one selectable label within a facet; Color names a token from the shared 16-token palette.
  */
 export class FacetOption {
     "label": string;
@@ -342,26 +303,16 @@ export class FacetOption {
 }
 
 /**
- * Field describes one input in a template. Type-specific properties
- * (run_mode, options, collection, etc.) sit alongside the common ones -
- * downstream consumers ignore irrelevant fields.
+ * Field describes one input in a template; type-specific properties sit alongside the common ones.
  */
 export class Field {
-    /**
-     * Common
-     */
     "key": string;
     "type": string;
     "label": string;
     "description": string;
 
     /**
-     * I18n is the optional base key for plugin field translation.
-     * When set, the renderer resolves `<plugin-namespace>.<I18n>.<sub>`
-     * for sub-keys `label`, `description`, `placeholder` via the
-     * active locale, falling back to the literal Label/Description
-     * on miss. Templates don't need this (user-authored labels are
-     * the literal source); it's foremost a plugin-form.json signal.
+     * I18n is the optional base key for plugin field translation (resolves <plugin-ns>.<I18n>.<sub>); templates don't need it.
      */
     "i18n"?: string;
     "summary_field"?: string;
@@ -372,12 +323,8 @@ export class Field {
     "readonly": boolean;
 
     /**
-     * UseInStatistics opts a field into the statistics index. Default
-     * false: only flagged fields are materialised into form_values, so
-     * the index stays lean and the author declares what's meaningful.
-     * For table fields it gates the field as a whole; StatisticsColumns
-     * then enumerates which columns (by their option `value` key) get
-     * indexed. Lists carry a single column, so the flag alone suffices.
+     * UseInStatistics opts a field into the statistics index (default false keeps form_values lean).
+     * For table fields it gates the field; StatisticsColumns then enumerates which columns get indexed.
      */
     "use_in_statistics": boolean;
     "statistics_columns"?: string[];
@@ -391,22 +338,13 @@ export class Field {
     "format"?: string;
 
     /**
-     * api-specific. Collection is the source template (filename or
-     * name). Map is the column list - each entry projects one
-     * level-0 source field into the host form's row at fetch time.
-     * Type is not stored; it is resolved live from the source
-     * template (`source.Fields[Map[i].Key].Type`) so a source-side
-     * rename or type change can't drift a stale cache.
+     * api-specific. Map's column types are resolved live from the source template, never stored, to avoid stale-cache drift.
      */
     "collection"?: string;
     "map"?: APIMap[];
 
     /**
-     * facet-specific. FacetKey binds a virtual facet field to one of
-     * the template's declared facets by key. Value is read/written
-     * against meta.facets[FacetKey] (FacetState{Set, Selected}),
-     * never against data. Format on a facet field carries the
-     * presentation mode ("radio" | "dropdown"; empty = radio).
+     * facet-specific. FacetKey binds a virtual field to a declared facet; value lives in meta.facets[FacetKey], not data.
      */
     "facet_key"?: string;
 
@@ -471,15 +409,9 @@ export class Field {
 }
 
 /**
- * FieldDescriptor is the per-type record. MetaOnly flags marker types
- * (looper, loopstart, loopstop) that don't carry a stored value but
- * still participate in validation. Virtual flags types that participate
- * in template layout + validation but do NOT seed a slot in
- * storage.Form.Data; their value lives elsewhere (e.g. facet → meta.facets).
- * OptionsShape is non-nil when the type's options array has a fixed
- * arity (e.g. boolean = exactly two rows for the True/False labels) -
- * the frontend's OptionsEditor gates add/remove on this and pre-fills
- * with the supplied defaults.
+ * FieldDescriptor is the per-type record. MetaOnly marks value-less marker types (loopstart/loopstop).
+ * Virtual marks types that don't seed a storage.Form.Data slot (their value lives elsewhere, e.g. meta.facets).
+ * OptionsShape is non-nil when the options array has fixed arity (e.g. boolean = two rows).
  */
 export class FieldDescriptor {
     "id": string;
@@ -524,20 +456,9 @@ export class FieldDescriptor {
 }
 
 /**
- * FieldUnit is the runtime tree shape the template editor renders.
- * It folds a matched loopstart/loopstop pair (and everything between
- * them) into a single indivisible unit so the UI cannot reorder a row
- * across the loop boundary and create an orphan marker.
- * 
- * The flat []Field shape on disk is still the source of truth; this
- * type is a view over it. BuildFieldTree produces the view,
- * FlattenFieldTree returns to the flat form. Orphan loopstart /
- * loopstop rows (no matching partner) are emitted as plain field
- * units so backend validation can still flag them - silently
- * dropping data would be worse than rendering a broken pair.
- * 
- * The struct is one shape with a Kind discriminator + nullable
- * payload fields so the Wails-generated TypeScript stays simple.
+ * FieldUnit is the editor tree view over the flat []Field source of truth: it folds a matched
+ * loopstart/loopstop pair into one indivisible unit so a row can't be reordered across the loop boundary.
+ * Orphan markers are emitted as plain field units so validation can still flag them. Kind discriminates.
  */
 export class FieldUnit {
     "kind": string;
@@ -546,8 +467,7 @@ export class FieldUnit {
     "stop"?: Field | null;
 
     /**
-     * No omitempty: an empty loop must round-trip as `"items": []` so the
-     * frontend's drag-into-loop binding mutates a persistent array.
+     * No omitempty: an empty loop must round-trip as "items": [] so the drag-into-loop binding mutates a persistent array.
      */
     "items": FieldUnit[];
 
@@ -589,12 +509,7 @@ export class FieldUnit {
 }
 
 /**
- * FixedOptionRow is one row in a FixedOptionsShape - a structurally
- * fixed slot in a field's options array (e.g. True / False rows for
- * a bool field). Defaults populate the cells when the user first
- * picks the field type or when an existing options array arrives
- * short of the configured arity. LabelKey is the i18n key for the
- * row's gutter caption.
+ * FixedOptionRow is one structurally fixed slot in a field's options array; Defaults fill cells short of the arity.
  */
 export class FixedOptionRow {
     "label_key": string;
@@ -626,11 +541,8 @@ export class FixedOptionRow {
 }
 
 /**
- * FixedOptionsShape declares the options array's fixed arity for a
- * field type. nil/empty Rows = free-form (add/remove enabled).
- * LockedColumns names the column keys the editor renders read-only
- * across every row (e.g. the structural "value" key for boolean's
- * true/false or range's min/max/step - only the label is editable).
+ * FixedOptionsShape declares an options array's fixed arity; nil/empty Rows means free-form.
+ * LockedColumns are rendered read-only across every row (e.g. the structural "value" key).
  */
 export class FixedOptionsShape {
     "rows": FixedOptionRow[];
@@ -663,26 +575,14 @@ export class FixedOptionsShape {
 }
 
 /**
- * GeneratorOptions carries the per-shape sub-choices the dialog
- * surfaces. Bag-of-bools so adding a new option doesn't require
- * signature changes throughout the call chain (Service ↔ generator ↔
- * Wails binding).
- * 
- * Defaults match the dialog's defaults: linked URL for images, auto-
- * wrapped loop iterations, lazy api-card output (one-liner per api
- * field).
+ * GeneratorOptions carries the per-shape sub-choices the dialog surfaces.
  */
 export class GeneratorOptions {
     "img_mode": ImgMode;
     "wrap_loops": boolean;
 
     /**
-     * ExpandAPI flips api-field output between two visible shapes:
-     *   false → `{{apiSection "key"}}`        (lazy one-liner)
-     *   true  → per-column `- **<label>**: {{apiBlock "key" "col"}}`
-     * Same "visible toggle" rule as ImgMode/WrapLoops - the choice
-     * must materialise in the generated source so the user can see
-     * what they picked at a glance.
+     * ExpandAPI false -> {{apiSection}} one-liner; true -> per-column blocks. Must materialise in the source.
      */
     "expand_api": boolean;
 
@@ -711,12 +611,7 @@ export class GeneratorOptions {
 }
 
 /**
- * ImgMode selects how image fields are emitted.
- * 
- * 	url    - `![Label]({{imageURL "key"}})`. Resolved at render time
- * 	         per the consumer's render.Manager (slideout, wiki, …).
- * 	inline - `![Label]({{imageBase64 "key"}})`. Bytes inlined as a
- * 	         `data:<mime>;base64,…` URL. For self-contained exports.
+ * ImgMode selects how image fields are emitted: url -> {{imageURL}}, inline -> {{imageBase64}} (self-contained).
  */
 export enum ImgMode {
     /**
@@ -729,8 +624,7 @@ export enum ImgMode {
 };
 
 /**
- * ItemField is one row in the "possible item fields" picker (top-level
- * non-loop text fields, used to choose a collection's primary identifier).
+ * ItemField is one row in the "possible item fields" picker.
  */
 export class ItemField {
     "key": string;
@@ -758,10 +652,7 @@ export class ItemField {
 }
 
 /**
- * ListItemTypeDescriptor names one entry the Edit Field modal's
- * `list` preset offers in its item-type dropdown. Same rationale as
- * TableColumnTypeDescriptor - captured here even though Go doesn't
- * interpret the strings yet, so the future home is ready.
+ * ListItemTypeDescriptor names one entry the list preset's item-type dropdown offers.
  */
 export class ListItemTypeDescriptor {
     "name": string;
@@ -790,10 +681,7 @@ export class ListItemTypeDescriptor {
 }
 
 /**
- * LoadManyResult is one slot in LoadMany's response. Template is nil
- * when the file was missing or unparseable - Error carries the
- * per-row failure message. Filename is always stamped so callers can
- * pair the result back to its input slot even when Template is nil.
+ * LoadManyResult is one slot in LoadMany's response; Template is nil on failure (Error carries why).
  */
 export class LoadManyResult {
     "filename": string;
@@ -823,14 +711,9 @@ export class LoadManyResult {
 }
 
 /**
- * PDFConfig is the per-template PDF export defaults: a theme/style
- * selector plus a cover-page block. Both are optional and feed the
- * `manifest` layer in pdf.Merge (precedence: document frontmatter >
- * form meta > template manifest > global config).
- * 
- * Style accepts the same values as picoloom's WithStyle option:
- * a built-in theme name ("default", "technical", …), a filesystem
- * path to a custom .css, or raw CSS content.
+ * PDFConfig is the per-template PDF export defaults, feeding the manifest layer in pdf.Merge
+ * (precedence: document frontmatter > form meta > template manifest > global config).
+ * Style accepts the same values as picoloom's WithStyle (theme name, .css path, or raw CSS).
  */
 export class PDFConfig {
     "style"?: string;
@@ -856,10 +739,7 @@ export class PDFConfig {
 }
 
 /**
- * PDFCoverConfig mirrors pdf.CoverFM's shape so the template manifest
- * can carry default cover values that document frontmatter can
- * override. Field tags match the document-frontmatter casing so
- * authors get one consistent vocabulary across both layers.
+ * PDFCoverConfig mirrors pdf.CoverFM; field tags match document-frontmatter casing for one vocabulary across layers.
  */
 export class PDFCoverConfig {
     "enabled"?: boolean | null;
@@ -943,10 +823,8 @@ export class ShapeInfo {
 }
 
 /**
- * StatComposite is the stored form of a composite object: a parent object
- * name and per-branch child object names. The engine resolves the names
- * against the template's other objects and checks that each child filters
- * the parent's branch dimension to its branch value.
+ * StatComposite is the stored composite: a parent name plus per-branch child names. The engine
+ * checks that each child filters the parent's branch dimension to its branch value.
  */
 export class StatComposite {
     "parent": string;
@@ -978,8 +856,7 @@ export class StatComposite {
 }
 
 /**
- * StatCompositeEdge maps one parent branch value to the child object that
- * drills it.
+ * StatCompositeEdge maps one parent branch value to the child object that drills it.
  */
 export class StatCompositeEdge {
     "branch": string;
@@ -1007,11 +884,8 @@ export class StatCompositeEdge {
 }
 
 /**
- * StatScaling is the stored form of a scaling object: a per-form categorical
- * source and an option->factor map, plus the factor for unlisted options (and
- * forms with no value). Source must be a facet or a scalar dropdown/radio
- * field (per-form), never a table column. Other objects reference it by name
- * through their DSL `scale "<name>"` clause.
+ * StatScaling is the stored scaling: a per-form categorical source plus an option->factor map and a default.
+ * Source must be a facet or scalar dropdown/radio field (per-form), never a table column.
  */
 export class StatScaling {
     "source": StatSource;
@@ -1051,8 +925,7 @@ export class StatScaling {
 }
 
 /**
- * StatSource is a serialised source reference (mirrors stat.SourceRef): a
- * field (optionally a table column by value-key) or a facet.
+ * StatSource is a serialised source reference (mirrors stat.SourceRef).
  */
 export class StatSource {
     /**
@@ -1112,13 +985,8 @@ export class StatWeightEntry {
 }
 
 /**
- * Statistic is one author-defined statistical object. It is a plain object (a
- * DSL the Statistical Engine evaluates into a rank-N grid), a Composite (a hop
- * route referencing other objects by name), or a Scaling (a reusable weighting
- * other objects reference by name); exactly one of DSL / Composite / Scaling
- * is set. Name is the identifier consumers fetch by; Label is the display
- * title. See internal/modules/stat, design/statistics-dsl.md and
- * design/statistics-composite.md.
+ * Statistic is one author-defined statistical object: exactly one of DSL / Composite / Scaling is set.
+ * See internal/modules/stat, design/statistics-dsl.md, design/statistics-composite.md.
  */
 export class Statistic {
     "name": string;
@@ -1157,13 +1025,8 @@ export class Statistic {
 }
 
 /**
- * SubRow declares an extra editor row that appears below the main
- * option row when its triggering dropdown column's current value is
- * this one. The user's input is stored as a single pipe-delimited
- * string at row[RowKey] so the form renderer's parseChoices works
- * unchanged. Either populate Entries (fixed-arity, one input per
- * entry) OR leave it nil for a free-form add/remove pair editor.
- * LabelKey + PlaceholderKey are i18n keys.
+ * SubRow declares an editor row shown below the main option row when its trigger column has this value.
+ * Input is stored pipe-delimited at row[RowKey] so parseChoices works unchanged. Entries set means fixed arity; nil means free-form.
  */
 export class SubRow {
     "row_key": string;
@@ -1195,10 +1058,7 @@ export class SubRow {
 }
 
 /**
- * SubRowEntry is one fixed slot inside a SubRow. Each entry locks a
- * canonical Value (e.g. "true" / "false" for a bool column) - the
- * user only edits the human-readable label. LabelKey is the i18n
- * key for the gutter caption shown next to the locked value.
+ * SubRowEntry is one fixed slot inside a SubRow; Value is locked (e.g. "true"/"false") so only the label is editable.
  */
 export class SubRowEntry {
     "label_key": string;
@@ -1256,12 +1116,7 @@ export class SummaryFieldOption {
 }
 
 /**
- * TableColumnTypeDescriptor names one column type the Edit Field
- * modal's `table` preset offers in its column-type dropdown. Today
- * these strings are pure UI vocabulary - the Go side does not yet
- * validate table cell data against them - but the registry lives
- * here so a future server-side validation pass has a single source
- * of truth to read.
+ * TableColumnTypeDescriptor names one column type the table preset's column-type dropdown offers.
  */
 export class TableColumnTypeDescriptor {
     "name": string;
@@ -1291,14 +1146,8 @@ export class TableColumnTypeDescriptor {
 
 /**
  * Template is the on-disk shape of a template YAML file.
- * 
- * AuthorName / AuthorEmail mirror the per-record author identity that
- * storage/<tpl>/<n>.meta.json carries in its meta envelope. They sit at
- * the YAML root (templates have no separate meta block) and are
- * auto-filled from config.author_name / config.author_email by
- * SaveTemplate when the caller leaves them empty. Purpose: PullWithStash
- * can name "who last touched this template" without walking git log,
- * matching how it identifies record overrides.
+ * AuthorName/AuthorEmail sit at the YAML root (no meta block) and are auto-filled by SaveTemplate
+ * so PullWithStash can name who last touched the template without walking git log.
  */
 export class Template {
     "name": string;

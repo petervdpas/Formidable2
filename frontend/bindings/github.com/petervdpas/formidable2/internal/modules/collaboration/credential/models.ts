@@ -6,9 +6,7 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Has-result for "is there an entry for this account" queries.
- * Wails-bindable; a bare bool would also work but a struct future-
- * proofs metadata like the timestamp of last update.
+ * LookupResult is the Has-query result.
  */
 export class LookupResult {
     "found": boolean;

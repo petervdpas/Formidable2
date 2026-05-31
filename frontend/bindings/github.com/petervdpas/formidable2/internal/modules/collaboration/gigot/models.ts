@@ -6,9 +6,7 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * ChangeFile is one per-path entry in a commit's changes list. Status
- * uses git's standard single-letter codes: A=added, M=modified,
- * D=deleted, R=renamed.
+ * ChangeFile is one per-path entry in a commit's changes list; Status is a single-letter code A/M/D/R.
  */
 export class ChangeFile {
     "path": string;
@@ -36,13 +34,7 @@ export class ChangeFile {
 }
 
 /**
- * Destination is one mirror-sync target attached to a repo. Status
- * fields carry the last attempt's outcome so the UI renders a badge
- * without polling each destination. RemoteStatus is the server's view
- * of the mirror: "in_sync" after a successful push (server marks it
- * inferred), "diverged" when ls-remote shows drift, "error" on auth/
- * network failure, or empty when never checked / invalidated by a
- * repo HEAD bump.
+ * Destination is one mirror-sync target; RemoteStatus is the server's mirror view: "in_sync", "diverged", "error", or empty (never checked / invalidated).
  */
 export class Destination {
     "id": string;
@@ -82,8 +74,7 @@ export class Destination {
 }
 
 /**
- * FileResponse is the parsed body of GET /api/repos/{repo}/files/{path}.
- * ContentB64 is the raw blob, base64-standard encoded.
+ * FileResponse is the parsed body of GET /api/repos/{repo}/files/{path}; ContentB64 is the base64-std raw blob.
  */
 export class FileResponse {
     "path": string;
@@ -113,9 +104,7 @@ export class FileResponse {
 }
 
 /**
- * FormidableMarkerView mirrors gigot's marker payload. Lets the
- * client detect scaffold-version mismatches without re-parsing
- * .formidable/context.json.
+ * FormidableMarkerView mirrors gigot's marker payload, letting the client detect scaffold-version mismatches.
  */
 export class FormidableMarkerView {
     "version": number;
@@ -141,9 +130,7 @@ export class FormidableMarkerView {
 }
 
 /**
- * FormidableStorage is one template-directory under storage/ that
- * holds at least one record. Files counts .meta.json records only -
- * images/ and other non-record paths are excluded.
+ * FormidableStorage is one storage/ template dir; Files counts .meta.json records only (images/ excluded).
  */
 export class FormidableStorage {
     "template": string;
@@ -171,9 +158,7 @@ export class FormidableStorage {
 }
 
 /**
- * FormidableTemplate is one entry under templates/ at HEAD. Path is
- * repo-relative so the client can fetch via /files/{path} without
- * re-deriving it.
+ * FormidableTemplate is one templates/ entry at HEAD; Path is repo-relative for /files/{path} fetches.
  */
 export class FormidableTemplate {
     "name": string;
@@ -201,9 +186,7 @@ export class FormidableTemplate {
 }
 
 /**
- * HeadResponse is the parsed body of GET /api/repos/{repo}/head.
- * Version is the HEAD commit hash, used as parent_version for the
- * next commit.
+ * HeadResponse is the parsed body of GET /api/repos/{repo}/head; Version is the parent_version for the next commit.
  */
 export class HeadResponse {
     "version": string;
@@ -228,9 +211,7 @@ export class HeadResponse {
 }
 
 /**
- * HealthResponse is the parsed body of GET /api/health. Optional -
- * vanilla gigot returns it for liveness checks; gated deployments may
- * require auth even for /health.
+ * HealthResponse is the parsed body of GET /api/health.
  */
 export class HealthResponse {
     "ok": boolean;
@@ -255,11 +236,7 @@ export class HealthResponse {
 }
 
 /**
- * LedgerSummary is a purely-local snapshot of the client-side track
- * record + how the on-disk context folder differs from it. Cheap to
- * compute (no HTTP) so the Sync UI can render pending state without a
- * server round-trip. The Sync UI pairs this with a Head() probe when
- * it needs an ahead/behind hint relative to the server.
+ * LedgerSummary is a purely-local snapshot of the ledger + on-disk diff (no HTTP) for the Sync UI's pending-state hints.
  */
 export class LedgerSummary {
     "version": string;
@@ -307,13 +284,7 @@ export class LedgerSummary {
 }
 
 /**
- * LogEntry is one row in a RepoLogResponse. Date is RFC3339 in the
- * commit author's stored offset. Parents and Refs are populated
- * unconditionally on the server side so graph-style UIs can render
- * branch pills + parent edges without a second request. Changes is
- * populated only when Log is called with withChanges=true (the server
- * adds one extra diff-tree call per commit) - omitted from JSON when
- * nil so the lean shape stays cheap for graph-only callers.
+ * LogEntry is one RepoLogResponse row; Changes is populated only when Log is called with withChanges=true.
  */
 export class LogEntry {
     "hash": string;
@@ -365,9 +336,7 @@ export class LogEntry {
 }
 
 /**
- * MeResponse is the parsed body of GET /api/me. Carries the caller's
- * account plus the single subscription their token represents. Used
- * by account-picker flows that don't yet know which repo to target.
+ * MeResponse is the parsed body of GET /api/me.
  */
 export class MeResponse {
     "user": User;
@@ -403,9 +372,7 @@ export class MeResponse {
 }
 
 /**
- * PullResult is what PullLocal returns on success: the tree's version,
- * how many files were written, and how many were removed because they
- * vanished from the server.
+ * PullResult is PullLocal's success envelope: tree version, files written, files removed.
  */
 export class PullResult {
     "version": string;
@@ -437,10 +404,7 @@ export class PullResult {
 }
 
 /**
- * PushResult is what PushLocal returns on success: the post-commit
- * version, how many files were put/deleted, total scanned, and a
- * "no bytes moved" flag so the UI can collapse the result to a quiet
- * "already in sync" toast.
+ * PushResult is PushLocal's success envelope; Noop means no bytes moved.
  */
 export class PushResult {
     "version": string;
@@ -480,10 +444,7 @@ export class PushResult {
 }
 
 /**
- * RepoContext is the repo-side half of /context: HEAD version + default
- * branch, the empty-repo flag, the is_formidable hint (set when the
- * server detects a .formidable/context.json marker), and a count of
- * mirror destinations so the UI can render a badge without a second call.
+ * RepoContext is the repo-side half of /context; IsFormidable is set when the server finds a .formidable/context.json marker.
  */
 export class RepoContext {
     "head"?: string;
@@ -518,8 +479,6 @@ export class RepoContext {
 
 /**
  * RepoContextResponse is the parsed body of GET /api/repos/{repo}/context.
- * Single-read bootstrap: who am I, what can I do here, what does this
- * repo offer. Renders the connect modal off this response.
  */
 export class RepoContextResponse {
     "user": User;
@@ -563,9 +522,7 @@ export class RepoContextResponse {
 }
 
 /**
- * RepoFormidableResponse mirrors gigot's same-named type at
- * internal/server/handler_repo_formidable.go. Client-side copy so the
- * gigot module doesn't import server code; align field-for-field.
+ * RepoFormidableResponse mirrors gigot's server type at internal/server/handler_repo_formidable.go; align field-for-field.
  */
 export class RepoFormidableResponse {
     "marker_present": boolean;
@@ -610,9 +567,7 @@ export class RepoFormidableResponse {
 }
 
 /**
- * RepoLogResponse is the wrapped body returned by
- * GET /api/repos/{repo}/log. Name + Count are envelope metadata; the
- * commit trail itself is in Entries.
+ * RepoLogResponse is the wrapped body of GET /api/repos/{repo}/log; the commit trail is in Entries.
  */
 export class RepoLogResponse {
     "name": string;
@@ -648,8 +603,7 @@ export class RepoLogResponse {
 }
 
 /**
- * Subscription is the per-token capability bundle: which repo, what
- * abilities. Mirrors gigot's TokenEntry shape server-side.
+ * Subscription is the per-token capability bundle, mirroring gigot's TokenEntry.
  */
 export class Subscription {
     "repo": string;
@@ -678,9 +632,7 @@ export class Subscription {
 }
 
 /**
- * SyncPhase enumerates the named steps PullLocal / Reclone walk
- * through, in the order a progress consumer can expect to see them.
- * String-valued so the Wails event payload stays JSON-friendly.
+ * SyncPhase enumerates the named steps PullLocal / Reclone emit, in order.
  */
 export enum SyncPhase {
     /**
@@ -689,50 +641,38 @@ export enum SyncPhase {
     $zero = "",
 
     /**
-     * PhaseStart fires once at the very entry of a sync op, before
-     * any HTTP. Total is 0 - the count isn't known yet. Useful for
-     * the UI to flip an indeterminate spinner on before /tree returns.
+     * PhaseStart fires once at entry, before any HTTP (Total is 0, not yet known).
      */
     PhaseStart = "start",
 
     /**
-     * PhaseWipe fires once before the local-wipe step of Reclone.
-     * Plain PullLocal never emits this.
+     * PhaseWipe fires before Reclone's local wipe; plain PullLocal never emits it.
      */
     PhaseWipe = "wipe",
 
     /**
-     * PhaseTree fires once after /tree has returned and the work plan
-     * is computed. Total is the sum of pending deletes + managed
-     * entries to inspect/fetch - the count Current ramps toward.
+     * PhaseTree fires after /tree returns; Total is pending deletes + managed entries.
      */
     PhaseTree = "tree",
 
     /**
-     * PhaseDelete fires once per locally-deleted path. Current is the
-     * running count across delete+fetch events.
+     * PhaseDelete fires once per locally-deleted path.
      */
     PhaseDelete = "delete",
 
     /**
-     * PhaseFetch fires once per managed tree entry inspected,
-     * regardless of whether bytes were actually downloaded - SHA-match
-     * short-circuits still count so the progress bar advances.
+     * PhaseFetch fires once per managed entry inspected, even when a SHA-match short-circuits the download.
      */
     PhaseFetch = "fetch",
 
     /**
-     * PhaseDone fires once at completion. Current==Total. Consumers
-     * hide their progress UI on this signal rather than racing the
-     * Manager's return.
+     * PhaseDone fires once at completion (Current==Total).
      */
     PhaseDone = "done",
 };
 
 /**
- * SyncProgress is the payload carried by gigot:sync_progress events
- * and by direct ProgressFunc callbacks. Path is non-empty only for
- * per-file phases (delete / fetch).
+ * SyncProgress is the payload for gigot:sync_progress events; Path is set only on per-file phases (delete/fetch).
  */
 export class SyncProgress {
     "phase": SyncPhase;
@@ -765,8 +705,7 @@ export class SyncProgress {
 }
 
 /**
- * SyncResult is what Sync returns on success - the combined push+pull
- * outcome. Noop is true only when both halves were quiet.
+ * SyncResult is Sync's combined push+pull outcome; Noop is true only when both halves were quiet.
  */
 export class SyncResult {
     "version": string;
@@ -810,9 +749,7 @@ export class SyncResult {
 }
 
 /**
- * TreeEntry is one blob in the tree response. Blob is the git blob
- * SHA1 (matches the value gitBlobSha computes locally); Size is the
- * blob's byte length when the server reports it.
+ * TreeEntry is one blob in the tree response; Blob is the git blob SHA1 matching GitBlobSha.
  */
 export class TreeEntry {
     "path": string;
@@ -841,9 +778,7 @@ export class TreeEntry {
 }
 
 /**
- * TreeResponse is the parsed body of GET /api/repos/{repo}/tree. A
- * recursive snapshot at Version - every blob's path + git SHA1, no
- * content. Sized so the client can warn before pulling very large blobs.
+ * TreeResponse is the parsed body of GET /api/repos/{repo}/tree: a recursive snapshot at Version (paths + SHAs, no content).
  */
 export class TreeResponse {
     "version": string;
@@ -875,8 +810,7 @@ export class TreeResponse {
 }
 
 /**
- * User identifies the gigot-side account a token belongs to. Provider
- * is the OAuth issuer ("github", "google", ...) when present.
+ * User identifies the gigot-side account a token belongs to.
  */
 export class User {
     "username": string;

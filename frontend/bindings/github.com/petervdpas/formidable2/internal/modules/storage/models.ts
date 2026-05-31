@@ -6,13 +6,8 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * AuditEntry records who did something and when. Used for both
- * FormMeta.Created and FormMeta.Updated. Symmetric to git's
- * author/committer split: Created is set once and preserved across
- * every subsequent save; Updated is re-stamped on every save with the
- * current profile's identity. On read, legacy flat `author_name` +
- * `author_email` + flat `created`/`updated` strings are migrated into
- * the AuditEntry pair; on write only the nested shape is emitted.
+ * AuditEntry records who and when, for FormMeta.Created (locked at first save) and Updated (re-stamped each save).
+ * On read, legacy flat author/timestamp fields are migrated in; on write only the nested shape is emitted.
  */
 export class AuditEntry {
     "at": string;
@@ -44,9 +39,7 @@ export class AuditEntry {
 }
 
 /**
- * FacetState is the per-record state for one facet key. Set is the
- * required "is this facet stamped on this form" bool; Selected is the
- * optional option label chosen from the template's facet options.
+ * FacetState is the per-record state for one facet: Set (stamped?) plus an optional Selected option label.
  */
 export class FacetState {
     "set": boolean;
@@ -107,11 +100,7 @@ export class Form {
 }
 
 /**
- * FormMeta carries identity + audit fields. Tags are deduped+sorted.
- * Facets is keyed by Template.Facets[i].Key; each entry's Set is
- * required (mirrors the legacy `flagged` bool) and Selected may be
- * empty (mirrors the legacy `flag_state` string - `set: true` without
- * a chosen option renders as the facet's uncolored icon).
+ * FormMeta carries identity + audit fields; Tags are deduped+sorted, Facets is keyed by Template.Facets[i].Key.
  */
 export class FormMeta {
     "id": string;
@@ -168,8 +157,7 @@ export class FormMeta {
 }
 
 /**
- * FormSummary is one row in ExtendedListForms output. Title falls back
- * to filename when item_field is unset or its value is empty.
+ * FormSummary is one ExtendedListForms row; Title falls back to filename when item_field is unset/empty.
  */
 export class FormSummary {
     "filename": string;
@@ -213,13 +201,8 @@ export class FormSummary {
 }
 
 /**
- * MigrateResult reports the outcome of MigrateTemplateMeta - a per-
- * template bulk operation that rewrites legacy meta shape (flat
- * author_name/email + string created/updated) into the AuditEntry
- * pair. Migrated files keep their original authorship intact (no
- * Updated.by restamp); already-new files are skipped without touching
- * the file (mtime preserved). Per-file errors land in Errors so the
- * caller can surface them without aborting the whole pass.
+ * MigrateResult reports the outcome of MigrateTemplateMeta; migrated files keep their original authorship,
+ * already-new files are skipped untouched, and per-file errors land in Errors without aborting the pass.
  */
 export class MigrateResult {
     "total": number;
@@ -256,7 +239,7 @@ export class MigrateResult {
 }
 
 /**
- * SaveResult mirrors the JS shape used across SFR-backed modules.
+ * SaveResult is the success/path/error shape used across SFR-backed modules.
  */
 export class SaveResult {
     "success": boolean;

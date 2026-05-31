@@ -6,9 +6,7 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Cursor is the per-backend sync watermark.
- * Ts marks "everything older has reached this backend"; Version is the
- * remote-side identifier (git commit hash, gigot version) at that ts.
+ * Cursor is the per-backend sync watermark: Ts marks "everything older has synced"; Version is the remote id at that ts.
  */
 export class Cursor {
     "ts": string;
@@ -41,8 +39,7 @@ export class Cursor {
 export type CursorMap = { [_ in string]?: Cursor };
 
 /**
- * Entry is one journal record. Sync entries fill Backend/Version/...;
- * file-op entries fill Path/Bytes. Encoded as JSONL on disk.
+ * Entry is one journal record (sync entries fill Backend/Version/...; file-op entries fill Path/Bytes). JSONL on disk.
  */
 export class Entry {
     "ts": string;
@@ -104,9 +101,7 @@ export class PendingChange {
 }
 
 /**
- * PendingResult is the shape returned by Pending() and exposed to the
- * frontend. Count is always equal to len(Paths) - kept as a convenience
- * so JS callers don't need to call paths.length.
+ * PendingResult is the shape Pending() returns; Count always equals len(Paths).
  */
 export class PendingResult {
     "count": number;

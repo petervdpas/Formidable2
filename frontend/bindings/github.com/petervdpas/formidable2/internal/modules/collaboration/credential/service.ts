@@ -3,10 +3,6 @@
 
 /**
  * Service is the Wails-bound surface of the credential Manager.
- * Same shape as Manager - the split exists for parity with other
- * modules and to give us a place to hang request-scoped concerns
- * (logging, audit trail) later without leaking them into domain
- * code.
  * @module
  */
 
@@ -19,7 +15,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * Delete removes the entry for account. Idempotent.
+ * Delete removes the entry for account.
  */
 export function Delete(account: string): $CancellablePromise<void> {
     return $Call.ByID(610615988, account);
@@ -27,8 +23,6 @@ export function Delete(account: string): $CancellablePromise<void> {
 
 /**
  * Has returns whether a non-empty secret is present for account.
- * Bound through a struct so future metadata (created_at etc.) can
- * land without breaking the Wails signature.
  */
 export function Has(account: string): $CancellablePromise<$models.LookupResult> {
     return $Call.ByID(3714933349, account).then(($result: any) => {
@@ -37,7 +31,7 @@ export function Has(account: string): $CancellablePromise<$models.LookupResult> 
 }
 
 /**
- * Set stores secret under account. Empty values are rejected.
+ * Set stores secret under account.
  */
 export function Set(account: string, secret: string): $CancellablePromise<void> {
     return $Call.ByID(227026205, account, secret);
