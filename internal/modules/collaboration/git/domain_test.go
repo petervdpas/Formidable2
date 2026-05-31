@@ -1101,6 +1101,119 @@ func TestPush_AdvancesRemote(t *testing.T) {
 	}
 }
 
+// Push must send only the current branch, mirroring `git push origin <branch>`
+// (push.default=simple). go-git's default refspec is refs/heads/*:refs/heads/*,
+// which pushes EVERY local branch; a single stale sibling that can't
+// fast-forward then rejects the whole push, blocking the branch the user is
+// actually on. That is the "push only fixable in git-cli" trap.
+func TestPush_OnlyCurrentBranch_NotStaleSiblings(t *testing.T) {
+	bare := makeBareRepo(t) // bare has master @ seed
+
+	// Give the bare a 'feature' branch ahead of master via a throwaway clone.
+	seed := t.TempDir()
+	sr, err := gogit.PlainClone(seed, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	swt, err := sr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := swt.Checkout(&gogit.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("feature"),
+		Create: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(seed, "f.txt"), []byte("f"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := swt.Add("f.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := swt.Commit("feat", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sr.Push(&gogit.PushOptions{RemoteName: "origin"}); err != nil {
+		t.Fatalf("seed feature branch: %v", err)
+	}
+
+	// The user's working clone: on master, plus a LOCAL feature branch left
+	// behind origin/feature (points at master, the older commit).
+	work := t.TempDir()
+	wr, err := gogit.PlainClone(work, false, &gogit.CloneOptions{URL: bare})
+	if err != nil {
+		t.Fatal(err)
+	}
+	masterRef, err := wr.Reference(plumbing.NewBranchReferenceName("master"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := wr.Storer.SetReference(
+		plumbing.NewHashReference(plumbing.NewBranchReferenceName("feature"), masterRef.Hash()),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	// Commit on the current branch (master).
+	if err := os.WriteFile(filepath.Join(work, "new.txt"), []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := wr.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Add("new.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := wt.Commit("local", &gogit.CommitOptions{
+		Author: &object.Signature{Name: "Test", Email: "t@example.com", When: time.Now()},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	m := NewManager()
+	res, err := m.Push(PushOptions{Path: work})
+	if err != nil {
+		t.Fatalf("push of current branch must not be blocked by a stale sibling: %v", err)
+	}
+	if res == nil || res.AlreadyUpToDate {
+		t.Fatalf("expected push to advance remote master, got %+v", res)
+	}
+
+	br, err := gogit.PlainOpen(bare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	localHead, err := wr.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	bMaster, err := br.Reference(plumbing.NewBranchReferenceName("master"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bMaster.Hash() != localHead.Hash() {
+		t.Errorf("remote master = %s, want local HEAD %s", bMaster.Hash(), localHead.Hash())
+	}
+
+	// The sibling branch must be untouched: we never asked to push it.
+	bFeat, err := br.Reference(plumbing.NewBranchReferenceName("feature"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originFeat, err := wr.Reference(plumbing.NewRemoteReferenceName("origin", "feature"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bFeat.Hash() != originFeat.Hash() {
+		t.Errorf("remote feature changed to %s; push should leave sibling branches alone (want %s)",
+			bFeat.Hash(), originFeat.Hash())
+	}
+}
+
 func TestPush_AlreadyUpToDate(t *testing.T) {
 	bare := makeBareRepo(t)
 	work := t.TempDir()

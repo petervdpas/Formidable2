@@ -502,6 +502,21 @@ Feature: Git collaboration backend
     And the journal recorded 0 syncs
     And the journal recorded 1 remote-seen for backend "git"
 
+  # Regression: self-cloned auth flows through system git, so the
+  # stash-pull's pull step must shell out too. It used to always use
+  # go-git, which needs a keychain PAT a sysgit user never stores, so it
+  # failed "authentication required" (surfaced by the commit-time guard).
+  Scenario: Toggle on with available binary - PullWithStash shells out to sysgit
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And a fake sysgit recorder marked available
+    And the self-cloned toggle is on
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And the fake sysgit recorded 1 call
+    And the journal recorded 1 remote-seen for backend "git"
+
   Scenario: Sysgit Push that errors records nothing
     Given a bare repo seeded with one commit
     And a clone of the bare repo at "client" inside temp
@@ -525,3 +540,43 @@ Feature: Git collaboration backend
     And the push NewHead is empty
     And the journal recorded 0 syncs
     And the journal recorded 0 remote-seens
+
+  # ── FetchStatus: refresh tracking ref then report position ─────────
+  # The commit-time "pull first" guard relies on a FRESH behind count.
+  # The status panel's Behind is only as fresh as the last fetch, so a
+  # user who never pulls reads behind=0 even when the remote moved.
+  # FetchStatus fetches first (no worktree change) then re-reads Status,
+  # so the guard sees reality and can offer Pull-then-commit.
+
+  Scenario: FetchStatus reports behind after the remote advances
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the bare repo gains another commit
+    When I fetch status from "client" via the service
+    Then the operation succeeded
+    And status is behind by 1
+
+  Scenario: FetchStatus reports zero behind when up-to-date
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    When I fetch status from "client" via the service
+    Then the operation succeeded
+    And status is behind by 0
+
+  Scenario: FetchStatus refreshes a stale behind count without a worktree change
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And "seed.txt" is rewritten to "user-edit" inside "client"
+    And the bare repo gains another commit
+    When I fetch status from "client" via the service
+    Then the operation succeeded
+    And status is behind by 1
+    And status is not clean
+
+  Scenario: FetchStatus errors on an empty path
+    Given a journal-recording git service
+    When I fetch status from "" via the service
+    Then the operation returned an error

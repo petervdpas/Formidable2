@@ -526,6 +526,23 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^the operation succeeded$`, func() error {
+		if w.lastErr != nil {
+			return fmt.Errorf("expected success, got %v", w.lastErr)
+		}
+		return nil
+	})
+
+	ctx.Step(`^status is behind by (\d+)$`, func(n int) error {
+		if w.status == nil {
+			return fmt.Errorf("no status captured")
+		}
+		if w.status.Behind != n {
+			return fmt.Errorf("behind = %d, want %d", w.status.Behind, n)
+		}
+		return nil
+	})
+
 	ctx.Step(`^status reports clean$`, func() error {
 		if w.status == nil || !w.status.Clean {
 			return fmt.Errorf("expected clean, got %+v", w.status)
@@ -799,6 +816,15 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I fetch from "([^"]*)" via the service$`, func(rel string) error {
 		dir := filepath.Join(w.tmp, rel)
 		w.fetch, w.lastErr = w.svc.Fetch(FetchOptions{Path: dir, Remote: "origin"})
+		return nil
+	})
+
+	ctx.Step(`^I fetch status from "([^"]*)" via the service$`, func(rel string) error {
+		path := ""
+		if rel != "" {
+			path = filepath.Join(w.tmp, rel)
+		}
+		w.status, w.lastErr = w.svc.FetchStatus(FetchOptions{Path: path, Remote: "origin"})
 		return nil
 	})
 

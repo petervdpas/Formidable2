@@ -158,6 +158,22 @@ func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 	return s.m.Fetch(opts)
 }
 
+// FetchStatus refreshes the remote-tracking refs then returns a fresh Status,
+// so Behind reflects the real remote position. The status panel's Behind is
+// only as fresh as the last fetch; a user who never pulls reads behind=0 even
+// when the remote moved. The commit-time guard calls this to decide whether to
+// offer "pull first" before a commit diverges the branch.
+//
+// Fetch is read-only against the worktree, so a dirty (about-to-commit) tree is
+// safe here. A fetch failure (offline, bad auth) propagates: the caller treats
+// any error as "cannot determine, do not block the commit".
+func (s *Service) FetchStatus(opts FetchOptions) (*Status, error) {
+	if _, err := s.Fetch(opts); err != nil {
+		return nil, err
+	}
+	return s.m.Status(opts.Path)
+}
+
 // Push sends commits to the remote; AlreadyUpToDate records remote-seen, advancing records a sync marker.
 // Tracked and guarded against a concurrent second push (covers both transports).
 func (s *Service) Push(opts PushOptions) (*PushResult, error) {
@@ -245,6 +261,22 @@ func (s *Service) pullViaSysgit(opts PullOptions) (*PullResult, error) {
 	return &PullResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
 }
 
+// sysgitStashPull is the stash-flow pull step for self-cloned mode: shell out
+// to system git (credential helper handles auth) and re-read HEAD for the
+// cursor. Unlike pullViaSysgit it records no journal/emit side effects;
+// PullWithStash applies those once around the whole flow.
+func (s *Service) sysgitStashPull(opts PullOptions) (*PullResult, error) {
+	remote := opts.Remote
+	if remote == "" {
+		remote = "origin"
+	}
+	upToDate, err := s.sys.Pull(opts.Path, remote)
+	if err != nil {
+		return nil, err
+	}
+	return &PullResult{AlreadyUpToDate: upToDate, NewHead: s.headHash(opts.Path)}, nil
+}
+
 // headHash resolves the worktree HEAD for journal recording; "" means skip the hop (an unknown version would corrupt the cursor).
 func (s *Service) headHash(path string) string {
 	r, err := s.m.open(path)
@@ -260,15 +292,23 @@ func (s *Service) headHash(path string) string {
 
 // PullWithStash is the journal-aware auto-stash variant of Pull. The pending set is narrower than `git status`
 // (only journal-dirty paths), so external edits don't get stashed; no pending degrades to a plain pull.
+//
+// The pull step honors self-cloned mode like Pull does: sysgit shells out so the credential helper authenticates,
+// go-git uses the keychain PAT. Without this parity a sysgit user (who stores no PAT) hits "authentication required".
 func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 	_, release, err := optrack.Guard(s.ops, "git:pull")
 	if err != nil {
 		return nil, err
 	}
 	defer release()
-	if opts.PAT == "" {
+
+	pull := s.m.Pull
+	if s.useSysgit() {
+		pull = s.sysgitStashPull
+	} else if opts.PAT == "" {
 		opts.PAT = s.resolvePAT(opts.Path)
 	}
+
 	pending := []StashPathPending{}
 	if s.jrnl != nil {
 		pr := s.jrnl.Pending(journalBackend)
@@ -276,10 +316,10 @@ func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 			pending = append(pending, StashPathPending{Path: p.Path, Op: p.Op})
 		}
 	}
-	res, err := s.m.PullWithStash(PullWithStashOptions{
+	res, err := s.m.pullWithStash(PullWithStashOptions{
 		PullOptions: opts,
 		Pending:     pending,
-	})
+	}, pull)
 	if err != nil {
 		return res, err
 	}

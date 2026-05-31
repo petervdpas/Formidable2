@@ -201,6 +201,15 @@ const overridePaths = ref<OverriddenPath[]>([]);
 // the user up-front instead of letting the backend error bubble.
 const pullDivergentOpen = ref(false);
 
+// Commit-time "pull first" guard. The whole point is foolproofing the
+// person who forgets to pull: the panel's behind count is only as fresh
+// as the last fetch, so we fetch-check on the commit click (checkBehind)
+// and, when the remote has moved, prompt to pull-then-commit instead of
+// letting them diverge and hit a rejected push.
+const behindGuardOpen = ref(false);
+const behindCount = ref(0);
+const checkingBehind = ref(false);
+
 async function push() {
   if (!canPush.value) return;
   pushing.value = true;
@@ -260,9 +269,15 @@ async function pull() {
 //   - some paths overridden (pull won)         → AlertDialog naming the
 //     other authors so the user can coordinate offline. Stash dir is
 //     always trashed; no manual-recovery path.
-async function pullWithStash() {
+// thenCommit drives the commit-guard continuation: after a clean pull the
+// user's edits sit on the current base, so we resume the commit they were
+// already trying to make. We do NOT auto-commit when a local change was
+// overridden (pull won) or the pull failed: surface that first so they can
+// review instead of committing a surprise.
+async function pullWithStash(thenCommit = false) {
   pullDirtyOpen.value = false;
   pulling.value = true;
+  let blocked = false;
   try {
     const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
     const result = await GitSvc.PullWithStash({ path: abs, remote: "origin", pat: "" });
@@ -273,6 +288,7 @@ async function pullWithStash() {
     if (overridden.length > 0) {
       overridePaths.value = overridden;
       overrideOpen.value = true;
+      blocked = true;
     } else if (merged.length > 0) {
       toast.success("workspace.collaboration.pull.merge_success", [String(merged.length)]);
     } else if (result?.pull?.already_up_to_date) {
@@ -283,12 +299,37 @@ async function pullWithStash() {
     await load(false);
   } catch (err) {
     toast.error("workspace.collaboration.pull.error", [backendErrMessage(err)]);
+    blocked = true;
   } finally {
     pulling.value = false;
   }
+  if (thenCommit && !blocked) {
+    await commit(true);
+  }
 }
 
-async function commit() {
+// checkBehind does a quiet fetch + status through the backend so Behind is
+// the real remote position, not the panel's last-fetch cache. Any failure
+// (offline, no remote, no auth) returns 0: we never block a commit we can't
+// reason about. The follow-up load(false) reflects the refreshed ahead/behind
+// in the status panel.
+async function checkBehind(): Promise<number> {
+  checkingBehind.value = true;
+  try {
+    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
+    const fresh = await GitSvc.FetchStatus({ path: abs, remote: "origin", pat: "" });
+    await load(false);
+    return fresh?.behind ?? 0;
+  } catch {
+    return 0;
+  } finally {
+    checkingBehind.value = false;
+  }
+}
+
+// skipBehindCheck is set on the continuation paths (pull-then-commit, or an
+// explicit "commit anyway") so we don't re-run the guard we just cleared.
+async function commit(skipBehindCheck = false) {
   if (!canCommit.value) return;
   const c = cfg.value;
   if (!c) return;
@@ -299,6 +340,18 @@ async function commit() {
   if (!isValidAuthor(c.author_name, c.author_email)) {
     authorDialogOpen.value = true;
     return;
+  }
+
+  // Foolproofing: catch the "forgot to pull" case before it diverges the
+  // branch. If the remote moved, prompt pull-then-commit instead of letting
+  // them commit on a stale base and hit a rejected push.
+  if (!skipBehindCheck) {
+    const behind = await checkBehind();
+    if (behind > 0) {
+      behindCount.value = behind;
+      behindGuardOpen.value = true;
+      return;
+    }
   }
 
   inFlight.value = true;
@@ -326,6 +379,13 @@ async function saveAuthorAndCommit(name: string, email: string) {
   await update({ author_name: name, author_email: email });
   authorDialogOpen.value = false;
   await commit();
+}
+
+// Behind-guard confirm: pull (auto-stashing the in-progress edits), then
+// resume the commit on the now-current base in one gesture.
+function confirmPullThenCommit() {
+  behindGuardOpen.value = false;
+  void pullWithStash(true);
 }
 
 // Discard flow: GitStatus emits the file path → we open a confirm
@@ -393,10 +453,14 @@ async function confirmDiscard() {
         <button
           type="button"
           class="tool-btn primary"
-          :disabled="!canCommit"
-          @click="commit"
+          :disabled="!canCommit || checkingBehind"
+          @click="commit()"
         >
-          {{ commitRunning ? t('workspace.collaboration.commit.running') : t('workspace.collaboration.commit.button') }}
+          {{ checkingBehind
+            ? t('workspace.collaboration.commit.behind_checking')
+            : commitRunning
+              ? t('workspace.collaboration.commit.running')
+              : t('workspace.collaboration.commit.button') }}
         </button>
       </div>
     </FormRow>
@@ -409,7 +473,17 @@ async function confirmDiscard() {
     :confirm-label="t('workspace.collaboration.pull.stash_button')"
     :cancel-label="t('common.cancel')"
     @cancel="pullDirtyOpen = false"
-    @confirm="pullWithStash"
+    @confirm="pullWithStash()"
+  />
+
+  <ConfirmDialog
+    :open="behindGuardOpen"
+    :title="t('workspace.collaboration.commit.behind_title')"
+    :message="t('workspace.collaboration.commit.behind_message', [String(behindCount)])"
+    :confirm-label="t('workspace.collaboration.commit.behind_pull_button')"
+    :cancel-label="t('common.cancel')"
+    @cancel="behindGuardOpen = false"
+    @confirm="confirmPullThenCommit"
   />
 
   <AlertDialog

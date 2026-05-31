@@ -616,7 +616,15 @@ func (m *Manager) Push(opts PushOptions) (*PushResult, error) {
 		remote = "origin"
 	}
 
-	pushOpts := &gogit.PushOptions{RemoteName: remote}
+	// Push only the current branch, like `git push origin <branch>`
+	// (push.default=simple). go-git's default refspec is
+	// refs/heads/*:refs/heads/*, which would push every local branch; a
+	// single stale sibling that can't fast-forward rejects the whole push.
+	branchRef := head.Name().String()
+	pushOpts := &gogit.PushOptions{
+		RemoteName: remote,
+		RefSpecs:   []config.RefSpec{config.RefSpec(branchRef + ":" + branchRef)},
+	}
 	if opts.PAT != "" {
 		pushOpts.Auth = &githttp.BasicAuth{
 			Username: "x-access-token",
@@ -703,6 +711,13 @@ const stashSubdir = ".changes.stash"
 //
 // On pull failure the reset paths stay reset and the stash dir remains for manual recovery.
 func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, error) {
+	return m.pullWithStash(opts, m.Pull)
+}
+
+// pullWithStash runs the stash orchestration with an injectable pull step, so
+// self-cloned mode can route the fetch+merge through system git while reusing
+// the journal-aware snapshot/reset/restore around it.
+func (m *Manager) pullWithStash(opts PullWithStashOptions, pull func(PullOptions) (*PullResult, error)) (*StashedPullResult, error) {
 	if strings.TrimSpace(opts.Path) == "" {
 		return nil, errors.New("git: pull-with-stash: path required")
 	}
@@ -741,8 +756,8 @@ func (m *Manager) PullWithStash(opts PullWithStashOptions) (*StashedPullResult, 
 		return nil, fmt.Errorf("git: pull-with-stash: reset: %w", err)
 	}
 
-	// Phase 3: regular Pull on the now-clean worktree.
-	pullRes, pullErr := m.Pull(opts.PullOptions)
+	// Phase 3: pull (go-git or sysgit, injected) on the now-clean worktree.
+	pullRes, pullErr := pull(opts.PullOptions)
 	if pullErr != nil {
 		// Worktree paths are reset; restore stashed content so user data isn't lost.
 		restored, _ := m.stashRestoreOnFailure(repoRoot, entries)

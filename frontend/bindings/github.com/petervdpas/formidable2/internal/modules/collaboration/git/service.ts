@@ -66,19 +66,36 @@ export function Fetch(opts: $models.FetchOptions): $CancellablePromise<$models.F
     });
 }
 
+/**
+ * FetchStatus refreshes the remote-tracking refs then returns a fresh Status,
+ * so Behind reflects the real remote position. The status panel's Behind is
+ * only as fresh as the last fetch; a user who never pulls reads behind=0 even
+ * when the remote moved. The commit-time guard calls this to decide whether to
+ * offer "pull first" before a commit diverges the branch.
+ * 
+ * Fetch is read-only against the worktree, so a dirty (about-to-commit) tree is
+ * safe here. A fetch failure (offline, bad auth) propagates: the caller treats
+ * any error as "cannot determine, do not block the commit".
+ */
+export function FetchStatus(opts: $models.FetchOptions): $CancellablePromise<$models.Status | null> {
+    return $Call.ByID(562719384, opts).then(($result: any) => {
+        return $$createType11($result);
+    });
+}
+
 export function IsGitRepo(path: string): $CancellablePromise<boolean> {
     return $Call.ByID(685777186, path);
 }
 
 export function Log(path: string, limit: number): $CancellablePromise<$models.Commit[]> {
     return $Call.ByID(3722488696, path, limit).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
 export function LogGraph(path: string, limit: number): $CancellablePromise<$models.GraphCommit[]> {
     return $Call.ByID(990960796, path, limit).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
 }
 
@@ -88,17 +105,20 @@ export function LogGraph(path: string, limit: number): $CancellablePromise<$mode
  */
 export function Pull(opts: $models.PullOptions): $CancellablePromise<$models.PullResult | null> {
     return $Call.ByID(2931175689, opts).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
 /**
  * PullWithStash is the journal-aware auto-stash variant of Pull. The pending set is narrower than `git status`
  * (only journal-dirty paths), so external edits don't get stashed; no pending degrades to a plain pull.
+ * 
+ * The pull step honors self-cloned mode like Pull does: sysgit shells out so the credential helper authenticates,
+ * go-git uses the keychain PAT. Without this parity a sysgit user (who stores no PAT) hits "authentication required".
  */
 export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$models.StashedPullResult | null> {
     return $Call.ByID(3825927834, opts).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType19($result);
     });
 }
 
@@ -108,13 +128,13 @@ export function PullWithStash(opts: $models.PullOptions): $CancellablePromise<$m
  */
 export function Push(opts: $models.PushOptions): $CancellablePromise<$models.PushResult | null> {
     return $Call.ByID(2431245618, opts).then(($result: any) => {
-        return $$createType19($result);
+        return $$createType21($result);
     });
 }
 
 export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
     return $Call.ByID(1356102196, path).then(($result: any) => {
-        return $$createType21($result);
+        return $$createType23($result);
     });
 }
 
@@ -124,7 +144,7 @@ export function RepoRoot(path: string): $CancellablePromise<string> {
 
 export function Status(path: string): $CancellablePromise<$models.Status | null> {
     return $Call.ByID(3686552508, path).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType11($result);
     });
 }
 
@@ -139,17 +159,17 @@ const $$createType6 = $models.ChangeFile.createFrom;
 const $$createType7 = $Create.Array($$createType6);
 const $$createType8 = $models.FetchResult.createFrom;
 const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = $models.Commit.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $models.GraphCommit.createFrom;
+const $$createType10 = $models.Status.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = $models.Commit.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = $models.PullResult.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = $models.StashedPullResult.createFrom;
+const $$createType14 = $models.GraphCommit.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $models.PullResult.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = $models.PushResult.createFrom;
+const $$createType18 = $models.StashedPullResult.createFrom;
 const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = $models.RemoteInfo.createFrom;
+const $$createType20 = $models.PushResult.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = $models.Status.createFrom;
+const $$createType22 = $models.RemoteInfo.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
