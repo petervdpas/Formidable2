@@ -51,6 +51,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 	"github.com/petervdpas/formidable2/internal/modules/updatecheck"
 	"github.com/petervdpas/formidable2/internal/modules/wiki"
+	"github.com/petervdpas/formidable2/internal/optrack"
 	"github.com/petervdpas/formidable2/internal/server/godoc"
 	"github.com/petervdpas/formidable2/internal/statengine"
 )
@@ -108,6 +109,7 @@ type App struct {
 	Plugin        *plugin.Service
 	Git           *git.Service
 	Gigot         *gigot.Service
+	OpTrack       *optrack.Service
 	Credential    *credential.Service
 	Monitor       *monitor.Service
 	Stat          *stat.Service
@@ -288,6 +290,7 @@ func New(d Deps) (*App, error) {
 	}
 
 	emitter := &emitterRelay{}
+	opsRegistry := optrack.NewRegistry()
 	jrnM := journal.NewManager(sysM, d.Logger, emitter)
 
 	// History: back/forward stack over formidable:// hrefs. Manager is
@@ -619,7 +622,8 @@ func New(d Deps) (*App, error) {
 		Dataprovider:      dataprovider.NewService(dpM),
 		Plugin:            plugin.NewService(pluginM),
 		Git:               newGitService(gitM, credentialM, cfgM, jrnM, sysgitR, emitter),
-		Gigot:             newGigotService(gigotM, credentialM, cfgM, jrnM, emitter),
+		Gigot:             newGigotService(gigotM, credentialM, cfgM, jrnM, emitter, opsRegistry),
+		OpTrack:           optrack.NewService(opsRegistry),
 		Credential:        credential.NewService(credentialM),
 		Monitor:           monitor.NewService(monitorM),
 		Stat:              statSvc,
@@ -670,10 +674,11 @@ func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manag
 // the App wiring stays one map literal. The emitterRelay is late-bound
 // via App.SetEmit, so progress events fired before the Wails app is built
 // no-op instead of panicking.
-func newGigotService(m *gigot.Manager, creds gigot.CredentialReader, cfg *config.Manager, jrnl journal.Journal, em *emitterRelay) *gigot.Service {
+func newGigotService(m *gigot.Manager, creds gigot.CredentialReader, cfg *config.Manager, jrnl journal.Journal, em *emitterRelay, ops *optrack.Registry) *gigot.Service {
 	svc := gigot.NewService(m, creds, cfg, cfg, jrnl)
 	gigot.AttachProgress(svc, em.Emit)
 	gigot.AttachEmitter(svc, em)
+	gigot.AttachOps(svc, ops)
 	return svc
 }
 

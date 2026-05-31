@@ -1,8 +1,11 @@
 package gigot
 
 import (
+	"errors"
+
 	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/optrack"
 )
 
 // Service is the Wails-bound surface of the gigot backend. It builds each Connection from the active profile +
@@ -17,6 +20,7 @@ type Service struct {
 	jrnl     journal.Journal
 	progress ProgressFunc
 	emit     event.Emitter
+	ops      *optrack.Registry
 }
 
 // CredentialReader resolves the GiGot subscription bearer (NOT a git PAT) for a keychain account; empty + nil means "no entry".
@@ -63,6 +67,26 @@ func AttachEmitter(s *Service, emit event.Emitter) {
 		return
 	}
 	s.emit = emit
+}
+
+// AttachOps installs the shared op registry so long ops register their state
+// (guarding "cannot run twice" and letting the frontend resume on reload).
+func AttachOps(s *Service, ops *optrack.Registry) {
+	if s == nil {
+		return
+	}
+	s.ops = ops
+}
+
+// progressCB records progress into the op handle (for the registry/frontend) and forwards
+// to the SyncProgress emit. A nil handle is a safe no-op.
+func (s *Service) progressCB(h *optrack.Handle) ProgressFunc {
+	return func(p SyncProgress) {
+		h.Note(p.Current, p.Total, p.Path)
+		if s.progress != nil {
+			s.progress(p)
+		}
+	}
 }
 
 // resolveConnection builds a per-call Connection from the active profile + keychain; requireRepo lets Ping/Me proceed without a RepoName.
@@ -229,11 +253,20 @@ func (s *Service) PullLocal() (*PullResult, error) {
 
 // Reclone wipes managed paths in the active context folder and pulls fresh; destructive (local-only edits dropped), records remote-seen on success.
 func (s *Service) Reclone() (*PullResult, error) {
+	var h *optrack.Handle
+	if s.ops != nil {
+		// Cannot run twice: reject a second reclone while one is tracked. The
+		// defer releases on success, error, or panic, so no restart is needed.
+		if h = s.ops.TryBegin("gigot:reclone"); h == nil {
+			return nil, errors.New("gigot: a reclone is already running")
+		}
+		defer h.Done()
+	}
 	conn, err := s.resolveConnection(true)
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.m.RecloneWithProgress(conn, s.resolveContextFolder(), s.progress)
+	res, err := s.m.RecloneWithProgress(conn, s.resolveContextFolder(), s.progressCB(h))
 	if err != nil {
 		return res, err
 	}

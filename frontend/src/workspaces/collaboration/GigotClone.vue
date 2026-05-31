@@ -13,6 +13,7 @@ import {
   FolderPathField,
 } from "../../components/fields";
 import { Service as GigotSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
+import { Service as OpTrackSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/optrack";
 import { Service as CredentialSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/credential";
 import type { SyncProgress } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
 import { useConfig } from "../../composables/useConfig";
@@ -157,8 +158,25 @@ onMounted(() => {
       progressCurrent.value = data.current ?? 0;
       progressTotal.value = data.total ?? 0;
       progressPath.value = data.path ?? "";
+      // The backend's done phase ends the op; clear the in-flight UI even for a
+      // panel that only resumed the op (it has no try/finally of its own).
+      if ((data.phase as string) === "done") {
+        recloning.value = false;
+        cloning.value = false;
+        resetProgress();
+      }
     },
   );
+  // SSOT: if a reclone is already running in the backend (page reload / remount),
+  // resume reflecting it instead of looking idle and letting a second start.
+  void OpTrackSvc.Active().then((ops) => {
+    const op = (ops ?? []).find((o) => o.kind === "gigot:reclone");
+    if (!op) return;
+    recloning.value = true;
+    progressCurrent.value = op.current ?? 0;
+    progressTotal.value = op.total ?? 0;
+    progressPath.value = op.label ?? "";
+  });
 });
 
 onBeforeUnmount(() => {
