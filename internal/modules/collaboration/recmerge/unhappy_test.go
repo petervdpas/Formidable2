@@ -234,15 +234,16 @@ func TestMerge_TagsUnionAndFlaggedOr(t *testing.T) {
 // restores base's value instead of dropping it. This is a bug (see suspectedBugs,
 // merge.go:78-83): the neither-side-has-key default keeps base, contradicting the
 // one-side-removal-wins rule. Asserting the real output, not the intended one.
-func TestMerge_BothSidesRemoveField_CurrentBehaviorRestoresBase(t *testing.T) {
+func TestMerge_BothSidesRemoveField_DropsField(t *testing.T) {
 	base := recordFrom(t, `{"meta":{"updated":"2025-01-01T00:00:00Z"},"data":{"gone":"x","keep":"y"}}`)
 	theirs := recordFrom(t, `{"meta":{"updated":"2025-02-01T00:00:00Z"},"data":{"keep":"y"}}`)
 	yours := recordFrom(t, `{"meta":{"updated":"2025-03-01T00:00:00Z"},"data":{"keep":"y"}}`)
 
 	res, _ := Merge("p", base, theirs, yours)
 	data := extractData(t, res.Merged)
-	if data["gone"] != "x" {
-		t.Errorf("gone = %v, want x (current base-restore behavior)", data["gone"])
+	// Both sides deliberately dropped "gone": removal wins, base is not resurrected.
+	if v, present := data["gone"]; present {
+		t.Errorf("gone = %v, want absent (both sides removed it)", v)
 	}
 	if data["keep"] != "y" {
 		t.Errorf("keep = %v, want y", data["keep"])

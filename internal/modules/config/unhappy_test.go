@@ -620,13 +620,13 @@ func TestConcurrent_SetTemplateEnabledNoCorruption(t *testing.T) {
 		}
 		seen[e] = true
 	}
-	// At least one writer must survive; an empty result would mean total loss
-	// or corruption, which is worse than the known lost-update behavior.
-	if len(seen) < 1 {
-		t.Errorf("enabled count = %d, want at least 1 surviving toggle", len(seen))
+	// Every distinct on-toggle must survive: the read-modify-write runs under
+	// updateMu, so concurrent toggles accumulate instead of overwriting.
+	if len(seen) != N {
+		t.Errorf("enabled count = %d, want %d (no lost updates)", len(seen), N)
 	}
-	if len(disk.EnabledTemplates) > N {
-		t.Errorf("on-disk slice len = %d exceeds N=%d (impossible without corruption)", len(disk.EnabledTemplates), N)
+	if len(disk.EnabledTemplates) != N {
+		t.Errorf("on-disk slice len = %d, want %d", len(disk.EnabledTemplates), N)
 	}
 	// Cache and disk must agree on the final slice regardless of how many
 	// updates were lost.

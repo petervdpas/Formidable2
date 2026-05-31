@@ -63,21 +63,17 @@ func (m *Manager) AutoEnableNewTemplate(filename string) error {
 	if filename == "" {
 		return nil
 	}
-	cfg, err := m.LoadUserConfig()
-	if err != nil {
-		return fmt.Errorf("auto-enable: load: %w", err)
-	}
-	if len(cfg.EnabledTemplates) == 0 {
-		return nil
-	}
-	if slices.Contains(cfg.EnabledTemplates, filename) {
-		return nil
-	}
-	next := append(append([]string(nil), cfg.EnabledTemplates...), filename)
-	if _, err := m.UpdateUserConfig(map[string]any{
-		"enabled_templates": next,
+	if _, err := m.mutateUserConfig(func(cfg *Config) bool {
+		if len(cfg.EnabledTemplates) == 0 {
+			return false
+		}
+		if slices.Contains(cfg.EnabledTemplates, filename) {
+			return false
+		}
+		cfg.EnabledTemplates = append(append([]string(nil), cfg.EnabledTemplates...), filename)
+		return true
 	}); err != nil {
-		return fmt.Errorf("auto-enable: persist: %w", err)
+		return fmt.Errorf("auto-enable: %w", err)
 	}
 	return nil
 }
@@ -88,23 +84,20 @@ func (m *Manager) SetTemplateEnabled(filename string, on bool) ([]string, error)
 	if filename == "" {
 		return nil, fmt.Errorf("set-enabled: empty filename")
 	}
-	cfg, err := m.LoadUserConfig()
-	if err != nil {
-		return nil, fmt.Errorf("set-enabled: load: %w", err)
-	}
-
-	current := cfg.EnabledTemplates
-	next := make([]string, 0, len(current)+1)
-	for _, f := range current {
-		if f != filename {
-			next = append(next, f)
+	var next []string
+	if _, err := m.mutateUserConfig(func(cfg *Config) bool {
+		next = make([]string, 0, len(cfg.EnabledTemplates)+1)
+		for _, f := range cfg.EnabledTemplates {
+			if f != filename {
+				next = append(next, f)
+			}
 		}
-	}
-	if on {
-		next = append(next, filename)
-	}
-
-	if _, err := m.UpdateUserConfig(map[string]any{"enabled_templates": next}); err != nil {
+		if on {
+			next = append(next, filename)
+		}
+		cfg.EnabledTemplates = next
+		return true
+	}); err != nil {
 		return nil, fmt.Errorf("set-enabled: persist: %w", err)
 	}
 	return next, nil
@@ -163,36 +156,32 @@ func normalizeSelectedTemplate(cfg *Config) bool {
 // and returns the removed ones. Pass the LIVE template list: nil prunes every
 // entry. No-op on empty EnabledTemplates.
 func (m *Manager) PruneEnabledTemplates(existing []string) ([]string, error) {
-	cfg, err := m.LoadUserConfig()
-	if err != nil {
-		return nil, fmt.Errorf("prune: load: %w", err)
-	}
-	if len(cfg.EnabledTemplates) == 0 {
-		return nil, nil
-	}
-
 	keep := make(map[string]struct{}, len(existing))
 	for _, e := range existing {
 		keep[e] = struct{}{}
 	}
 
-	pruned := make([]string, 0, len(cfg.EnabledTemplates))
 	var removed []string
-	for _, e := range cfg.EnabledTemplates {
-		if _, ok := keep[e]; ok {
-			pruned = append(pruned, e)
-		} else {
-			removed = append(removed, e)
+	if _, err := m.mutateUserConfig(func(cfg *Config) bool {
+		removed = nil
+		if len(cfg.EnabledTemplates) == 0 {
+			return false
 		}
-	}
-	if len(removed) == 0 {
-		return nil, nil
-	}
-
-	if _, err := m.UpdateUserConfig(map[string]any{
-		"enabled_templates": pruned,
+		pruned := make([]string, 0, len(cfg.EnabledTemplates))
+		for _, e := range cfg.EnabledTemplates {
+			if _, ok := keep[e]; ok {
+				pruned = append(pruned, e)
+			} else {
+				removed = append(removed, e)
+			}
+		}
+		if len(removed) == 0 {
+			return false
+		}
+		cfg.EnabledTemplates = pruned
+		return true
 	}); err != nil {
-		return nil, fmt.Errorf("prune: persist: %w", err)
+		return nil, fmt.Errorf("prune: %w", err)
 	}
 	return removed, nil
 }

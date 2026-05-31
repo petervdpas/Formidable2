@@ -39,11 +39,12 @@ func TestMerge_NilMapRecordsMergeToEmpty(t *testing.T) {
 // Several malformed JSON shapes must all wrap ErrMalformedRecord and return a zero Record.
 func TestParseRecord_MalformedVariants(t *testing.T) {
 	cases := []string{
-		`{"meta":{"x":}`,  // unterminated value
-		`not json at all`, // garbage
-		`{"meta":[]}`,     // meta is not an object
-		`{`,               // truncated
-		`[1,2,3]`,         // array root, not an envelope object
+		`{"meta":{"x":}`,     // unterminated value
+		`not json at all`,    // garbage
+		`{"meta":[]}`,        // meta is not an object
+		`{`,                  // truncated
+		`[1,2,3]`,            // array root, not an envelope object
+		`{"data":{}}{"x":1}`, // trailing object after a complete value
 	}
 	for _, in := range cases {
 		rec, err := ParseRecord([]byte(in))

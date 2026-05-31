@@ -182,6 +182,31 @@ func (m *Manager) UpdateUserConfig(partial map[string]any) (*Config, error) {
 	return &out, nil
 }
 
+// mutateUserConfig applies mutate to the live config under updateMu, so the
+// whole read-modify-write is atomic against concurrent updates (callers that
+// load, compute a slice, then UpdateUserConfig lose updates under contention).
+// mutate reports whether it changed anything; a no-op skips the write.
+func (m *Manager) mutateUserConfig(mutate func(*Config) bool) (*Config, error) {
+	m.updateMu.Lock()
+	defer m.updateMu.Unlock()
+
+	base, err := m.LoadUserConfig()
+	if err != nil {
+		return nil, err
+	}
+	merged := *base
+	if !mutate(&merged) {
+		out := *base
+		return &out, nil
+	}
+	normalizeSelectedTemplate(&merged)
+	if err := m.persistConfig(&merged); err != nil {
+		return nil, err
+	}
+	out := merged
+	return &out, nil
+}
+
 // persistConfig writes the config, swaps the cache, and re-syncs the
 // journal; a changed context_folder also drops the VFS cache. Caller holds
 // updateMu.

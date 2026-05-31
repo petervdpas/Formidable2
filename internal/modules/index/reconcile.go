@@ -26,17 +26,31 @@ func Reconcile(db *sql.DB, batch ReconcileBatch) error {
 	if err := upsertFormsWithChildren(tx, batch.UpsertForms); err != nil {
 		return err
 	}
-	if err := deleteForms(tx, batch.DeleteForms); err != nil {
+	var deleted int64
+	if n, err := deleteForms(tx, batch.DeleteForms); err != nil {
 		return err
+	} else {
+		deleted += n
 	}
-	if err := deleteImages(tx, batch.DeleteImages); err != nil {
+	if n, err := deleteImages(tx, batch.DeleteImages); err != nil {
 		return err
+	} else {
+		deleted += n
 	}
-	if err := deleteTemplates(tx, batch.DeleteTemplates); err != nil {
+	if n, err := deleteTemplates(tx, batch.DeleteTemplates); err != nil {
 		return err
+	} else {
+		deleted += n
 	}
-	if err := bumpRev(tx); err != nil {
-		return err
+	// Upserts always write; deletes only count when they hit a row. A batch of
+	// deletes that matched nothing must not churn the ETag.
+	hasUpserts := len(batch.UpsertTemplates) > 0 ||
+		len(batch.UpsertImages) > 0 ||
+		len(batch.UpsertForms) > 0
+	if hasUpserts || deleted > 0 {
+		if err := bumpRev(tx); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }
@@ -267,65 +281,86 @@ func upsertFormsWithChildren(tx *sql.Tx, rows []FormRow) error {
 	return nil
 }
 
-func deleteForms(tx *sql.Tx, refs []FormRef) error {
+// deleteForms returns the number of form rows actually removed (zero when the
+// refs matched nothing), so the caller can skip a no-op rev bump.
+func deleteForms(tx *sql.Tx, refs []FormRef) (int64, error) {
 	if len(refs) == 0 {
-		return nil
+		return 0, nil
 	}
 	// Drop the search row with a direct DELETE so its trigger fires (a bare FK cascade isn't guaranteed to).
 	clearSearch, err := tx.Prepare(`DELETE FROM form_search WHERE template = ? AND filename = ?`)
 	if err != nil {
-		return fmt.Errorf("index: prepare delete search: %w", err)
+		return 0, fmt.Errorf("index: prepare delete search: %w", err)
 	}
 	defer clearSearch.Close()
 
 	stmt, err := tx.Prepare(`DELETE FROM forms WHERE template = ? AND filename = ?`)
 	if err != nil {
-		return fmt.Errorf("index: prepare delete form: %w", err)
+		return 0, fmt.Errorf("index: prepare delete form: %w", err)
 	}
 	defer stmt.Close()
+	var affected int64
 	for _, r := range refs {
 		if _, err := clearSearch.Exec(r.Template, r.Filename); err != nil {
-			return fmt.Errorf("index: clear search %q/%q: %w", r.Template, r.Filename, err)
+			return 0, fmt.Errorf("index: clear search %q/%q: %w", r.Template, r.Filename, err)
 		}
-		if _, err := stmt.Exec(r.Template, r.Filename); err != nil {
-			return fmt.Errorf("index: delete form %q/%q: %w", r.Template, r.Filename, err)
+		res, err := stmt.Exec(r.Template, r.Filename)
+		if err != nil {
+			return 0, fmt.Errorf("index: delete form %q/%q: %w", r.Template, r.Filename, err)
 		}
+		affected += rowsAffected(res)
 	}
-	return nil
+	return affected, nil
 }
 
-func deleteImages(tx *sql.Tx, refs []ImageRef) error {
+func deleteImages(tx *sql.Tx, refs []ImageRef) (int64, error) {
 	if len(refs) == 0 {
-		return nil
+		return 0, nil
 	}
 	stmt, err := tx.Prepare(`DELETE FROM images WHERE template = ? AND filename = ?`)
 	if err != nil {
-		return fmt.Errorf("index: prepare delete image: %w", err)
+		return 0, fmt.Errorf("index: prepare delete image: %w", err)
 	}
 	defer stmt.Close()
+	var affected int64
 	for _, r := range refs {
-		if _, err := stmt.Exec(r.Template, r.Filename); err != nil {
-			return fmt.Errorf("index: delete image %q/%q: %w", r.Template, r.Filename, err)
+		res, err := stmt.Exec(r.Template, r.Filename)
+		if err != nil {
+			return 0, fmt.Errorf("index: delete image %q/%q: %w", r.Template, r.Filename, err)
 		}
+		affected += rowsAffected(res)
 	}
-	return nil
+	return affected, nil
 }
 
-func deleteTemplates(tx *sql.Tx, names []string) error {
+func deleteTemplates(tx *sql.Tx, names []string) (int64, error) {
 	if len(names) == 0 {
-		return nil
+		return 0, nil
 	}
 	stmt, err := tx.Prepare(`DELETE FROM templates WHERE filename = ?`)
 	if err != nil {
-		return fmt.Errorf("index: prepare delete template: %w", err)
+		return 0, fmt.Errorf("index: prepare delete template: %w", err)
 	}
 	defer stmt.Close()
+	var affected int64
 	for _, name := range names {
-		if _, err := stmt.Exec(name); err != nil {
-			return fmt.Errorf("index: delete template %q: %w", name, err)
+		res, err := stmt.Exec(name)
+		if err != nil {
+			return 0, fmt.Errorf("index: delete template %q: %w", name, err)
 		}
+		affected += rowsAffected(res)
 	}
-	return nil
+	return affected, nil
+}
+
+// rowsAffected reads RowsAffected, treating a driver that cannot report it as
+// "something changed" so a real delete is never silently skipped.
+func rowsAffected(res sql.Result) int64 {
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 1
+	}
+	return n
 }
 
 // bumpRev increments meta.rev (missing row treated as 0); the HTTP layer publishes it as an ETag.

@@ -113,28 +113,24 @@ func TestSaveFile_LargeContent(t *testing.T) {
 // so the cleaned path lands OUTSIDE the root. SaveFile does not clamp to
 // AppRoot. See suspectedBugs. We assert the escape so a future clamp fix
 // flips this test deliberately.
-func TestSaveFile_TraversalEscapesRoot(t *testing.T) {
+func TestSaveFile_TraversalRejected(t *testing.T) {
 	t.Parallel()
 	m, root := newTestManager(t)
 
-	if err := m.SaveFile(filepath.Join("..", "escape.txt"), "out"); err != nil {
-		t.Fatalf("SaveFile traversal: %v", err)
+	// A relative key with .. that resolves outside the app root must be rejected.
+	if err := m.SaveFile(filepath.Join("..", "escape.txt"), "out"); err == nil {
+		t.Fatal("SaveFile traversal err = nil, want rejection")
 	}
-	// File landed in the parent of root, not under root.
+	// Nothing written outside root.
 	outside := filepath.Join(filepath.Dir(root), "escape.txt")
-	got, err := os.ReadFile(outside)
-	if err != nil {
-		t.Fatalf("expected escaped file at %q: %v", outside, err)
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		_ = os.Remove(outside)
+		t.Fatalf("file escaped to %q; stat err = %v", outside, err)
 	}
-	if string(got) != "out" {
-		t.Fatalf("escaped content = %q, want %q", got, "out")
-	}
-	// And nothing of that name appeared under root.
+	// Nor inside it.
 	if _, err := os.Stat(filepath.Join(root, "escape.txt")); !os.IsNotExist(err) {
 		t.Fatalf("unexpected file under root; stat err = %v", err)
 	}
-	// Clean up the file we wrote outside the temp root.
-	_ = os.Remove(outside)
 }
 
 // TestSaveFile_ReadOnlyParentDirFails: when the target's parent directory is

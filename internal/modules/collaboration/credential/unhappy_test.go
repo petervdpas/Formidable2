@@ -74,19 +74,16 @@ func TestSet_EmptySecretErrorMessage(t *testing.T) {
 	}
 }
 
-func TestSet_WhitespaceSecretAccepted(t *testing.T) {
-	// Only "" is rejected; secret guard is == "" not TrimSpace, so " " stores.
+func TestSet_WhitespaceSecretRejected(t *testing.T) {
+	// A whitespace-only secret is treated as empty: a fat-fingered all-space PAT
+	// must not store. The guard TrimSpaces before the empty check.
 	m := NewManager()
 	const account = "https://github.com/owner/ws-secret.git"
-	if err := m.Set(account, " "); err != nil {
-		t.Fatalf("Set whitespace secret err = %v, want nil", err)
+	if err := m.Set(account, "  \t "); err == nil {
+		t.Fatal("Set whitespace-only secret err = nil, want rejection")
 	}
-	got, err := m.Get(account)
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-	if got != " " {
-		t.Errorf("stored secret length = %d, want 1 (single space)", len(got))
+	if m.Has(account) {
+		t.Error("whitespace-only secret was stored, want nothing persisted")
 	}
 }
 
@@ -190,11 +187,10 @@ func TestGet_AfterDeleteReturnsErrNotFound(t *testing.T) {
 	}
 }
 
-func TestConcurrentReads_RaceSafe(t *testing.T) {
-	// Manager adds no mutex; concurrent Set races the shared keyring backend
-	// (see suspectedBugs domain.go:27). So writes are serialized here, then
-	// reads run concurrently. The mock Get is map-read-only, which is safe
-	// once all writes have completed. Assert each read returns its own value.
+func TestConcurrentWrites_RaceSafe(t *testing.T) {
+	// Concurrent Set on distinct accounts must serialize keyring access so the
+	// shared backend map is never written by two goroutines at once. Under -race
+	// this fails without the package-level lock guarding the keyring calls.
 	m := NewManager()
 	const workers = 32
 	accounts := make([]string, workers)
@@ -202,9 +198,6 @@ func TestConcurrentReads_RaceSafe(t *testing.T) {
 	for i := 0; i < workers; i++ {
 		accounts[i] = "https://github.com/owner/conc-" + string(rune('a'+i%26)) + strings.Repeat("z", i)
 		secrets[i] = "secret-" + strings.Repeat("s", i+1)
-		if err := m.Set(accounts[i], secrets[i]); err != nil {
-			t.Fatalf("seed %d Set: %v", i, err)
-		}
 	}
 
 	var wg sync.WaitGroup
@@ -212,18 +205,22 @@ func TestConcurrentReads_RaceSafe(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			got, err := m.Get(accounts[i])
-			if err != nil {
-				t.Errorf("worker %d Get: %v", i, err)
-				return
-			}
-			if got != secrets[i] {
-				t.Errorf("worker %d secret length = %d, want %d", i, len(got), len(secrets[i]))
-			}
-			if !m.Has(accounts[i]) {
-				t.Errorf("worker %d Has = false, want true", i)
+			if err := m.Set(accounts[i], secrets[i]); err != nil {
+				t.Errorf("worker %d Set: %v", i, err)
 			}
 		}(i)
 	}
 	wg.Wait()
+
+	// Every concurrent write landed and round-trips to its own value.
+	for i := 0; i < workers; i++ {
+		got, err := m.Get(accounts[i])
+		if err != nil {
+			t.Errorf("worker %d Get: %v", i, err)
+			continue
+		}
+		if got != secrets[i] {
+			t.Errorf("worker %d secret length = %d, want %d", i, len(got), len(secrets[i]))
+		}
+	}
 }

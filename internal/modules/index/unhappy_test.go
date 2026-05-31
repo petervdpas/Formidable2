@@ -213,11 +213,11 @@ func TestRescanTemplate_UnknownTemplate(t *testing.T) {
 		t.Fatalf("RescanTemplate on unknown template errored: %v", err)
 	}
 
-	// ACTUAL behavior: the delete-of-nonexistent path still bumps rev because
-	// isEmpty checks slice lengths, not rows affected. See suspectedBugs.
+	// Reindexing a template that was never indexed deletes zero rows, so the
+	// ETag (rev) must not churn.
 	revAfter, _ := f.mgr.Rev()
-	if revAfter != revBefore+1 {
-		t.Errorf("unknown reindex rev = %d, want %d (current no-effect-delete behavior)", revAfter, revBefore+1)
+	if revAfter != revBefore {
+		t.Errorf("unknown reindex rev = %d, want %d (no-op delete must not bump)", revAfter, revBefore)
 	}
 	tpls, _ := f.mgr.ListTemplates()
 	if got := sortedTemplateFilenames(tpls); !equalStrings(got, []string{"real.yaml"}) {

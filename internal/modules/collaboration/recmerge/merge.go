@@ -76,10 +76,8 @@ func Merge(path string, base, theirs, yours Record) (MergeResult, error) {
 				}
 			}
 		default:
-			// Neither side has it but base does - keep base's value.
-			if bok {
-				mergedData[key] = bv
-			}
+			// Neither side has it. If base held it, both sides removed it:
+			// removal wins, so it stays dropped (do not resurrect base).
 		}
 	}
 

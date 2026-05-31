@@ -32,6 +32,9 @@ func ParseRecord(raw []byte) (Record, error) {
 	if err := dec.Decode(&envelope); err != nil {
 		return Record{}, fmt.Errorf("%w: %v", ErrMalformedRecord, err)
 	}
+	if dec.More() {
+		return Record{}, fmt.Errorf("%w: trailing data after record", ErrMalformedRecord)
+	}
 	if envelope.Meta != nil {
 		rec.Meta = envelope.Meta
 	}

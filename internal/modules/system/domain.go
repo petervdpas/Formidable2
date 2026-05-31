@@ -106,6 +106,18 @@ func (m *Manager) MakeAppRootRelative(p string) string {
 	return "./" + rel
 }
 
+// escapesRoot reports whether full resolves outside root via a ".." traversal.
+func escapesRoot(root, full string) bool {
+	if root == "" {
+		return false
+	}
+	rel, err := filepath.Rel(root, full)
+	if err != nil {
+		return true
+	}
+	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 func (m *Manager) ResolvePath(segments ...string) string {
 	joined := filepath.Join(segments...)
 	if filepath.IsAbs(joined) {
@@ -163,6 +175,11 @@ func (m *Manager) LoadFile(path string) (string, error) {
 
 func (m *Manager) SaveFile(path string, content string) error {
 	full := m.ResolvePath(path)
+	// A relative key must stay under AppRoot; reject ".." traversal. Absolute
+	// paths are a deliberate caller choice and pass through.
+	if !filepath.IsAbs(path) && escapesRoot(m.AppRoot(), full) {
+		return errors.New("system: path escapes the app root: " + path)
+	}
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		return err
 	}
