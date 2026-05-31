@@ -6,10 +6,9 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Result is what NavigateToFormidable returns to the frontend. Success
- * false carries Error so Vue can toast the reason without redoing the
- * validation. Target is filled even on failure when the URL parsed but
- * the (template, datafile) pair didn't resolve - useful for diagnostics.
+ * Result is what NavigateToFormidable returns to the frontend. On
+ * failure Error carries the reason; Target is filled even on failure
+ * when the URL parsed but the pair didn't resolve, for diagnostics.
  */
 export class Result {
     "success": boolean;
@@ -40,9 +39,8 @@ export class Result {
 
 /**
  * Target is the parsed shape of a `formidable://<template>:<datafile>#<fragment>`
- * URL. Fragment is optional and not yet acted on (mirrors original);
- * kept on the wire so future scroll-to-anchor work doesn't need a
- * migration.
+ * URL. Fragment is optional and not yet acted on; kept on the wire so
+ * future scroll-to-anchor work doesn't need a migration.
  */
 export class Target {
     "template": string;

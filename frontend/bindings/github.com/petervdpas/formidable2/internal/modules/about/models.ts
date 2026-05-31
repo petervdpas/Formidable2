@@ -46,10 +46,10 @@ export class Info {
 }
 
 /**
- * Library is one entry in the About panel's "Special thanks to" list:
- * a canonical project ID and its display name. Descriptions are
- * per-locale and live in i18n (workspace.information.about.thanks.lib.{id}.desc)
- * so we don't translate product names.
+ * Library is one entry in the About panel's "Special thanks to" list: a
+ * canonical project ID and its display name. Descriptions live in i18n under
+ * workspace.information.about.thanks.lib.{id}.desc, so product names aren't
+ * translated.
  */
 export class Library {
     "id": string;

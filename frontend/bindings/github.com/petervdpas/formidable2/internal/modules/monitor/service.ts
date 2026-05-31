@@ -5,10 +5,7 @@
  * Service is the Wails-bound surface over Manager. The frontend calls
  * these methods directly (not via /api/monitor/*) so the Monitoring
  * page works regardless of whether the loopback HTTP server is on.
- * 
- * External API consumers reach the same Manager through NewHandler
- * - both transports share the registered Sources and the Query/Result
- * shapes.
+ * External consumers reach the same Manager through NewHandler.
  * @module
  */
 
@@ -21,9 +18,7 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * ListSources returns descriptors for every registered Source - used
- * by query-builder UIs to render filter and group-by pickers without
- * hard-coding dim names.
+ * ListSources returns descriptors for every registered Source.
  */
 export function ListSources(): $CancellablePromise<$models.SourceInfo[]> {
     return $Call.ByID(4177113720).then(($result: any) => {
@@ -32,8 +27,8 @@ export function ListSources(): $CancellablePromise<$models.SourceInfo[]> {
 }
 
 /**
- * Run executes a query. The Query JSON shape matches what the HTTP
- * /api/monitor/query endpoint accepts.
+ * Run executes a query. The Query JSON shape matches the HTTP
+ * /api/monitor/query endpoint.
  */
 export function Run(q: $models.Query): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2422876699, q).then(($result: any) => {

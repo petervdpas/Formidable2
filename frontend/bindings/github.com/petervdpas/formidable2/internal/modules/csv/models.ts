@@ -356,9 +356,7 @@ export class ImportPlan {
 }
 
 /**
- * PreviewResult is the parsed shape returned by Preview. Mirrors the JS
- * `{headers, rows, rowCount, error}` so frontend handlers don't need
- * to branch on shape.
+ * PreviewResult is the parsed shape returned by Preview.
  */
 export class PreviewResult {
     "headers": string[];

@@ -4,12 +4,12 @@
 /**
  * Service is the Wails-facing, read-only layer over the tensor. Each call
  * builds a fresh tensor from the template's live forms and runs one
- * perspective over it. It is purely additive: it reads form data the same way
- * query does and changes nothing the index or stat path relies on.
+ * perspective over it. It reads form data the same way query does and
+ * changes nothing the index or stat path relies on.
  * 
- * The optional follow argument steps one reference hop before reducing, so a
- * table or loop column is reachable (follow the loop field, then reduce its
- * rows) without a full spec language. Empty follow reduces over the root
+ * The optional follow argument steps one reference hop before reducing, so
+ * a table or loop column is reachable (follow the loop field, then reduce
+ * its rows) without a full spec language. Empty follow reduces over root
  * records.
  * @module
  */
@@ -51,9 +51,8 @@ export function Count(template: string, follow: string): $CancellablePromise<num
 }
 
 /**
- * CountWhere is Count over the record set narrowed by pred. The planner pushes
- * the predicate to the index, so the tensor only counts the matching records.
- * With no planner wired it falls back to narrowing in memory, same answer.
+ * CountWhere is Count over the record set narrowed by pred. With no planner
+ * wired it falls back to narrowing in memory, same answer.
  */
 export function CountWhere(template: string, follow: string, pred: $models.Predicate): $CancellablePromise<number> {
     return $Call.ByID(2896119657, template, follow, pred);
@@ -89,10 +88,10 @@ export function Distribution(template: string, follow: string, field: string): $
 }
 
 /**
- * DistributionWhere is Distribution over the record set narrowed by pred. This
- * is the canonical seam shape: the index decides which records exist, the
+ * DistributionWhere is Distribution over the record set narrowed by pred,
+ * the canonical seam shape: the index decides which records exist, the
  * tensor reduces them. The result equals the full Distribution with an
- * equivalent in-memory Where, just computed over fewer ingested records.
+ * equivalent in-memory Where, over fewer ingested records.
  */
 export function DistributionWhere(template: string, follow: string, pred: $models.Predicate, field: string): $CancellablePromise<$models.Bucket[]> {
     return $Call.ByID(3093720208, template, follow, pred, field).then(($result: any) => {
@@ -101,9 +100,9 @@ export function DistributionWhere(template: string, follow: string, pred: $model
 }
 
 /**
- * Graph projects the template's tensor as a node-link graph (records and loop
- * rows as nodes, refs as edges) for the visual explorer. limit caps the node
- * count (0 = no cap); roots are kept before rows and dangling edges dropped.
+ * Graph projects the template's tensor as a node-link graph (records and
+ * loop rows as nodes, refs as edges) for the visual explorer. limit caps
+ * the node count (0 = no cap); roots kept before rows, dangling edges dropped.
  */
 export function Graph(template: string, limit: number): $CancellablePromise<$models.Graph> {
     return $Call.ByID(2962646449, template, limit).then(($result: any) => {

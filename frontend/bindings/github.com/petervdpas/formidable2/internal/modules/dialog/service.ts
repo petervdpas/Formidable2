@@ -15,18 +15,16 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * ChooseDirectory opens a native folder picker. Used by export-to-
- * folder flows that don't need a filename. Returns "" on cancel.
+ * ChooseDirectory opens a native folder picker. Returns "" on cancel.
  */
 export function ChooseDirectory(): $CancellablePromise<string> {
     return $Call.ByID(683628330);
 }
 
 /**
- * ChooseFile opens a native open-file picker. When filters are
- * supplied, the picker restricts visible files to those matching
- * (each filter becomes one entry in the picker's filter dropdown).
- * Returns the absolute selected path, or "" if the user cancelled.
+ * ChooseFile opens a native open-file picker, optionally restricting visible
+ * files to the supplied filters. Returns the absolute selected path, or "" if
+ * the user cancelled.
  */
 export function ChooseFile(filters: $models.FileFilter[]): $CancellablePromise<string> {
     return $Call.ByID(2203130501, filters);

@@ -13,11 +13,9 @@ import * as storage$0 from "../storage/models.js";
 import * as template$0 from "../template/models.js";
 
 /**
- * FormView is the Vue-facing payload returned by BuildView and SaveValues.
- * Vue iterates Template.Fields in order and consults LoopGroups to know
- * when a slice of fields belongs to a loopstart/loopstop block. Values
- * is keyed by field.key; loop keys hold []map[string]any (one entry
- * per item), with inner field values keyed inside.
+ * FormView is the Vue-facing payload from BuildView and SaveValues.
+ * Values is keyed by field.key; loop keys hold []map[string]any, one
+ * entry per item with inner field values keyed inside.
  */
 export class FormView {
     "template": template$0.Template | null;
@@ -77,11 +75,9 @@ export class FormView {
 }
 
 /**
- * LoopGroup is one precomputed loopstart/loopstop pair. Vue uses
- * StartIndex/StopIndex to slice into Template.Fields and DefaultCollapsed
- * for the initial UI state. SummaryFieldKey is the field key whose
- * value is shown in the loop-item header when the item is collapsed
- * (mirrors loopstart.summary_field).
+ * LoopGroup is one precomputed loopstart/loopstop pair. SummaryFieldKey
+ * is the field key whose value shows in the loop-item header when
+ * collapsed (mirrors loopstart.summary_field).
  */
 export class LoopGroup {
     "key": string;
@@ -125,9 +121,8 @@ export class LoopGroup {
 }
 
 /**
- * SavePayload is what Vue sends to SaveValues. Datafile may be empty
- * for never-persisted forms - the caller (UI) is expected to gather
- * a filename from the user (mirrors the original New-entry dialog).
+ * SavePayload is what Vue sends to SaveValues. Datafile may be empty for
+ * never-persisted forms; the UI gathers a filename from the user first.
  */
 export class SavePayload {
     "datafile": string;

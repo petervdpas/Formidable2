@@ -6,9 +6,8 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Kind identifies a widget's display role. Closed enum - adding a
- * new widget kind is a deliberate package change with a matching
- * frontend component, never an open-ended string.
+ * Kind identifies a widget's display role. Closed enum: adding one is a
+ * deliberate package change with a matching frontend component.
  */
 export enum Kind {
     /**
@@ -17,43 +16,28 @@ export enum Kind {
     $zero = "",
 
     /**
-     * KindProgressBar renders a progress bar fed by RunBarEvent
-     * (formidable.run.bar). Total == 0 → indeterminate animation.
+     * KindProgressBar renders a progress bar fed by RunBarEvent; Total 0 is
+     * indeterminate.
      */
     KindProgressBar = "progressbar",
 
     /**
-     * KindStatusMessage renders a single-line text label fed by
-     * RunStatusEvent (formidable.run.status). Plugin authors
-     * typically push the current item's name/path here so the
-     * user sees "what's happening right now".
+     * KindStatusMessage renders a single-line label fed by RunStatusEvent.
      */
     KindStatusMessage = "statusmessage",
 
     /**
-     * KindChart renders an interactive statistical chart: the widget
-     * owns a statistical-object picker (Stat.ListObjects on the active
-     * template) and a chart-shape picker (Stat.ChartShapes), runs the
-     * plugin's command with the selection as ctx, and draws the
-     * returned chart envelope. Unlike the other kinds it drives the
-     * Lua call itself rather than being fed by a run-scoped event.
+     * KindChart renders an interactive chart: it owns the stat-object and
+     * chart-shape pickers and drives the Lua call itself, unlike the
+     * event-fed kinds.
      */
     KindChart = "chart",
 };
 
 /**
- * Widget is one entry inside a plugin's form.json - the same list
- * that holds form Fields. The author places widgets wherever they
- * want among the fields; position in the array IS the render order.
- * ID is a per-form stable identifier the form editor uses for
- * reordering / deletion (it does NOT route Lua updates - both
- * widget kinds are driven by a single run-scoped event each).
- * Label is optional chrome shown next to / above the widget.
- * 
- * Heterogeneity in form.json: Widget and template.Field share the
- * same array. Frontend dispatches by the presence of the `kind`
- * field - Field uses `type`, Widget uses `kind` - so no extra
- * discriminator is needed in the JSON.
+ * Widget is one entry in a plugin's form.json (sharing the array with template
+ * Fields; the frontend dispatches on "kind" vs Field's "type"). Array position
+ * is render order. ID is the editor's stable handle, not a Lua route.
  */
 export class Widget {
     "id": string;

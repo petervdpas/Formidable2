@@ -10,9 +10,8 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as time$0 from "../../../../../../time/models.js";
 
 /**
- * Aggregator is how the Manager reduces multiple Events with the same
- * (groupKey, binStart) into a single value. AggCount is the default
- * and ignores Event.Value entirely.
+ * Aggregator reduces multiple Events with the same (groupKey, binStart)
+ * into a single value. AggCount is the default and ignores Event.Value.
  */
 export enum Aggregator {
     /**
@@ -28,7 +27,7 @@ export enum Aggregator {
 };
 
 /**
- * Point is one (timestamp, value) sample on a Series. Used when
+ * Point is one (timestamp, value) sample on a Series, used when
  * Query.Bin is non-empty.
  */
 export class Point {
@@ -58,9 +57,9 @@ export class Point {
 
 /**
  * Query is a typed pipeline against one Source. Bin is parsed via
- * time.ParseDuration ("1h", "5m", "24h") - empty/zero means "no time
- * binning, return one scalar Total per groupKey." JSON shape is used
- * by both the Wails bridge and the HTTP handler.
+ * time.ParseDuration ("1h", "5m"); empty or zero means no time binning,
+ * returning one scalar Total per groupKey. The JSON shape is shared by
+ * the Wails bridge and the HTTP handler.
  */
 export class Query {
     "source": string;
@@ -105,9 +104,9 @@ export class Query {
 }
 
 /**
- * Result is the Run() return value. Series ordering is stable across
- * runs (sorted by joined Key string) so frontend tile colors don't
- * flicker between refreshes.
+ * Result is the Run return value. Series ordering is stable across runs
+ * (sorted by joined Key string) so frontend tile colors don't flicker
+ * between refreshes.
  */
 export class Result {
     "series": Series[];
@@ -135,9 +134,9 @@ export class Result {
 }
 
 /**
- * Series is the per-group slice of the result. Key holds the dim
- * values that distinguish this Series; Points are populated when
- * Query.Bin > 0; Total holds the scalar aggregate when Bin == 0.
+ * Series is the per-group slice of the result. Key holds the
+ * distinguishing dim values; Points are populated when Query.Bin > 0,
+ * Total holds the scalar aggregate when Bin == 0.
  */
 export class Series {
     "key": { [_ in string]?: string };
@@ -172,8 +171,8 @@ export class Series {
 
 /**
  * SourceInfo describes one registered Source. Returned by
- * Manager.ListSources() for UI builders that want to render filter
- * and group-by pickers without hard-coding dim names.
+ * Manager.ListSources for UI builders that render filter and group-by
+ * pickers without hard-coding dim names.
  */
 export class SourceInfo {
     "name": string;

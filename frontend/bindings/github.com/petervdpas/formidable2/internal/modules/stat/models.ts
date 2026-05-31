@@ -163,9 +163,7 @@ export class CompositeGrid {
 /**
  * CompositeOption is one composite the builder may offer: a rank-1 parent
  * object and, per branch, the existing child objects that can drill it (those
- * whose DSL already filters the parent base to that branch value). The frontend
- * renders only these, so an author can only wire links the engine will accept.
- * Backend steers; the structure is the gate.
+ * whose DSL already filters the parent base to that branch value).
  */
 export class CompositeOption {
     /**
@@ -209,9 +207,8 @@ export class CompositeOption {
 
 /**
  * CompositeSpec is the stored form of a composite (hop route): a parent
- * object name plus per-branch child object names. Resolved against the
- * template's other objects by ResolveComposite. Kept name-based (not
- * inlined configs) so the parent and children stay single sources of truth.
+ * object name plus per-branch child object names. Name-based (not inlined
+ * configs) so parent and children stay single sources of truth.
  */
 export class CompositeSpec {
     "parent": string;
@@ -243,9 +240,9 @@ export class CompositeSpec {
 }
 
 /**
- * Dimension is one group-by axis: a source, optionally date-binned, and
- * optionally capped to its Top-N categories (ranked by the first measure,
- * the tail dropped). Top 0 means all categories; valid Top is 1..20.
+ * Dimension is one group-by axis: a source, optionally date-binned and
+ * capped to Top-N categories (ranked by the first measure). Top 0 = all,
+ * otherwise 1..20.
  */
 export class Dimension {
     "Source": SourceRef;
@@ -499,11 +496,10 @@ export class GridCell {
 }
 
 /**
- * Measure is one cell value layer: count() (rows, no source), records()
- * (distinct contributing forms, no source), a reduce over a numeric field
- * source, or percentile(source, p). records() differs from count() only on a
- * fanned-out (table-column) source, where one form yields many rows: count()
- * tallies the rows, records() tallies the distinct forms.
+ * Measure is one cell value layer: count(), records(), a reduce over a
+ * numeric field source, or percentile(source, p). count() and records()
+ * diverge only on a fanned table-column source: count() tallies rows,
+ * records() tallies distinct forms.
  */
 export class Measure {
     "Op": MeasureOp;
@@ -685,9 +681,8 @@ export enum SourceKind {
 };
 
 /**
- * SourceRef references a statistical source by key: a field (optionally a
- * table column by its option value-key) or a facet. Column is "" for a
- * scalar field or a facet.
+ * SourceRef references a source by key: a field (optionally a table column
+ * by option value-key) or a facet. Column is "" for a scalar field or facet.
  */
 export class SourceRef {
     "Kind": SourceKind;
@@ -719,13 +714,10 @@ export class SourceRef {
 }
 
 /**
- * StatConfig is the parsed statistical DSL: one or more measures (cell
- * value layers) over zero or more dimensions (axes), optionally scoped by
- * AND-ed equality filters, with a percentage base. No dimensions => a rank-0
- * scalar; one => a 1D array; two => a 2D matrix; and so on.
- * 
- * Named StatConfig (not Config) to stay unambiguous inside the stat
- * package, which already carries Result/Series.
+ * StatConfig is the parsed DSL: measures over zero or more dimensions,
+ * optionally AND-filtered, with a percent base. Dimension count sets the
+ * rank (0 = scalar, 1 = array, 2 = matrix, …). Named StatConfig, not
+ * Config, to disambiguate within the stat package.
  */
 export class StatConfig {
     "Measures": Measure[];
@@ -738,11 +730,9 @@ export class StatConfig {
     "Percent": PercentBase;
 
     /**
-     * Scale is the name of a scaling object that weights this object's
-     * count()/records() contributions per form. "" means unweighted. The
-     * referenced object owns the source + option->factor map; this only
-     * carries the reference, resolved at evaluate time (like a composite's
-     * parent/child names).
+     * Scale names a scaling object that weights count()/records() per form;
+     * "" means unweighted. Only the reference is carried, resolved at
+     * evaluate time (the referenced object owns the source + factor map).
      */
     "Scale": string;
 
@@ -789,12 +779,10 @@ export class StatConfig {
 }
 
 /**
- * StatObject is a named statistical object defined on a template: its
- * identifier, optional human label, and either a DSL (a plain object the
- * engine evaluates) or a Composite spec (a hop route referencing other
- * objects by name). Exactly one of DSL / Composite is set. Mirrors
- * template.Statistic without the template dependency, so the catalog can
- * travel to Vue and Lua via the Service.
+ * StatObject is a named statistical object defined on a template: a DSL (a
+ * plain object the engine evaluates), a Composite spec (a hop route), or a
+ * Scaling. Exactly one is set. Mirrors template.Statistic without the template
+ * dependency so the catalog can travel to Vue and Lua via the Service.
  */
 export class StatObject {
     "name": string;
@@ -841,8 +829,8 @@ export class StatObject {
 /**
  * WeightEntry maps one option value to its multiplier. Label is the stored
  * value the dimension carries: a facet's selected option label, or a
- * dropdown/radio field's option value. Kept an ordered slice (not a map) so
- * the spec serialises deterministically.
+ * dropdown/radio field's option value. Ordered slice (not a map) so the spec
+ * serialises deterministically.
  */
 export class WeightEntry {
     "label": string;

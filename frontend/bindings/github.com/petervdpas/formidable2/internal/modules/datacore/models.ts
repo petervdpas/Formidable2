@@ -6,16 +6,14 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Aggregate is the result of a numeric reduction over a field: the summary
- * computed in one pass over the coercible values, the raw coercible values
- * themselves, plus any value that refused to coerce. With no numeric values N
- * is 0 and Min/Max/Mean are 0.
+ * Aggregate is the result of a numeric reduction over a field: the one-pass
+ * summary, the raw coercible values, and any value that refused to coerce.
+ * With no numeric values N is 0 and Min/Max/Mean are 0.
  * 
- * Values holds the coerced numbers in working-set order, so a caller can run
- * the order-independent statistics SQLite has no built-ins for (median,
- * stddev, percentile) without a second pass. It is exactly the set that fed
- * N/Sum: blanks are absence and excluded, non-coercible values go to
- * Anomalies, not here. len(Values) == N.
+ * Values holds the coerced numbers in working-set order so a caller can run
+ * the statistics SQLite has no built-ins for (median, stddev, percentile)
+ * without a second pass. It is exactly the set that fed N/Sum: blanks are
+ * excluded, non-coercible values go to Anomalies. len(Values) == N.
  */
 export class Aggregate {
     "N": number;
@@ -71,10 +69,9 @@ export class Aggregate {
 }
 
 /**
- * Anomaly is a value present where a numeric reduction expected a number but
- * the string would not coerce. It is surfaced, not silently dropped: a value
- * that refuses the type an operation asks for is the "something fishy" signal,
- * not noise to swallow.
+ * Anomaly is a value present where a reduction expected a number (or date)
+ * but the string would not coerce. It is surfaced, not dropped: a value
+ * that refuses the type an operation asks for is a signal, not noise.
  */
 export class Anomaly {
     "ID": string;
@@ -214,8 +211,8 @@ export class CrossTab {
 }
 
 /**
- * Graph is the node-link view of the tensor's reference sub-structure: nodes
- * are identities, edges are refs. This is the tensor read as a labeled
+ * Graph is the node-link view of the tensor's reference sub-structure:
+ * nodes are identities, edges are refs. The tensor read as a labeled
  * directed graph rather than as a table.
  */
 export class Graph {
@@ -256,8 +253,8 @@ export class Graph {
 }
 
 /**
- * GraphEdge is one reference: a directed edge from Source to Target labeled by
- * the field that carries the ref (the loop field, or the link field).
+ * GraphEdge is a directed edge from Source to Target labeled by the field
+ * that carries the ref (the loop field or the link field).
  */
 export class GraphEdge {
     "source": string;
@@ -290,7 +287,7 @@ export class GraphEdge {
 
 /**
  * GraphNode is one identity in the node-link view: a record (root) or a
- * sub-identity (a table/loop row, or a linked record).
+ * sub-identity (a table/loop row or a linked record).
  */
 export class GraphNode {
     "id": string;
@@ -326,12 +323,10 @@ export class GraphNode {
 }
 
 /**
- * GridDim is one dimension of a raw grid: a field to group by. Field is a field
- * key (or "facet:<key>" for a facet). When Table is set, the dimension lives on
- * that table's rows and the grid fans one output row per table row, reading the
- * value off the row identity; when Table is empty the value is read off the
- * root and broadcast onto every fanned row. DateWidth > 0 buckets the value as
- * a date prefix (4 = year, 10 = day, else month).
+ * GridDim is one group-by dimension. Field is a field key, or "facet:<key>".
+ * When Table is set the dimension lives on that table's rows (the grid fans one
+ * row per table row); empty Table reads the root value, broadcast onto every
+ * fanned row. DateWidth > 0 buckets a date (4 year, 10 day, else month).
  */
 export class GridDim {
     "Field": string;
@@ -396,9 +391,8 @@ export class GridFilter {
 }
 
 /**
- * GridNum is one numeric measure column of a raw grid, coerced to a number per
- * row. Table follows the same rule as GridDim: empty reads off the root, set
- * reads off the fanned table row.
+ * GridNum is one numeric measure, coerced per row. Table follows GridDim: empty
+ * reads the root, set reads the fanned table row.
  */
 export class GridNum {
     "Field": string;
@@ -426,8 +420,7 @@ export class GridNum {
 }
 
 /**
- * GridRow is one raw row of a grid: the form it came from, its dimension
- * values in order, and its numeric measures in order.
+ * GridRow is one raw row: its form, dimension values, and numeric measures.
  */
 export class GridRow {
     "Form": string;
@@ -467,8 +460,8 @@ export class GridRow {
 }
 
 /**
- * NumCell is one numeric measure value, with OK false when the row carried no
- * coercible number (the LEFT-join NULL).
+ * NumCell is one numeric measure value; OK is false on a non-coercible value
+ * (the LEFT-join NULL).
  */
 export class NumCell {
     "Value": number;
@@ -501,10 +494,8 @@ export class NumCell {
  * matches set facet options, Search is a full-text query. An empty Predicate
  * narrows nothing, so the tensor is built from every record.
  * 
- * A predicate is a row filter the planner pushes down to the index instead of
- * the tensor selecting in memory: narrowing here is the same set as a Where on
- * each named field, just decided by the fast store. The seam's contract is
- * that the two agree (see the cross-check parity test).
+ * The seam's contract: narrowing here yields the same set as a Where on each
+ * named field, just decided by the fast store (see the cross-check parity test).
  */
 export class Predicate {
     /**
@@ -555,8 +546,8 @@ export class Predicate {
 }
 
 /**
- * RootSummary is one root's loop summary: its identity, the loop length (count
- * of sub-identities it links under the link field), and the numeric reduction
+ * RootSummary is one root's loop summary: its identity, the loop length
+ * (sub-identities it links under the link field), and the numeric reduction
  * of a value field over only that root's rows.
  */
 export class RootSummary {

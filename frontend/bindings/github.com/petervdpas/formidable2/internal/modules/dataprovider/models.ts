@@ -6,10 +6,9 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * APIFieldDrift is one column where the host's stored value differs
- * from the source's current value. Stored may be nil (the column was
- * added to Map[] after the form was saved); Current may be nil (the
- * source-side field was deleted/cleared).
+ * APIFieldDrift is one column where the host's stored value differs from
+ * the source's current value. Either side may be nil (column added after
+ * save, or source field cleared).
  */
 export class APIFieldDrift {
     "key": string;
@@ -41,10 +40,8 @@ export class APIFieldDrift {
 }
 
 /**
- * APIFieldRefetchResultDTO mirrors APIFieldRefetchResult but carries
- * the same Kind/Message error fields as APIFieldRowResult so the
- * frontend can branch uniformly. On success Row + Drift are populated;
- * on error, both are zero and Kind is non-empty.
+ * APIFieldRefetchResultDTO is APIFieldRefetchResult plus the Kind/Message
+ * error fields, for uniform frontend branching.
  */
 export class APIFieldRefetchResultDTO {
     "row"?: { [_ in string]?: any };
@@ -76,16 +73,9 @@ export class APIFieldRefetchResultDTO {
 }
 
 /**
- * APIFieldRowResult is the Wails-friendly response shape for
- * FetchAPIFieldRow. Errors are surfaced as a stable Kind string so
- * the frontend can branch without parsing free-form messages.
- * 
- * Kinds:
- *   - ""                     - success; Row is the projected row
- *   - "template-not-found"   - sourceTemplate does not exist
- *   - "collection-disabled"  - sourceTemplate exists but collection-mode is off
- *   - "guid-not-found"       - guid is not present in that collection
- *   - "internal"             - anything else (Message carries the detail)
+ * APIFieldRowResult is the Wails response for FetchAPIFieldRow. Kind is ""
+ * on success or a stable error string (see apiFieldErrorKind) so the
+ * frontend branches without parsing Message.
  */
 export class APIFieldRowResult {
     "row"?: { [_ in string]?: any };
@@ -113,9 +103,7 @@ export class APIFieldRowResult {
 
 /**
  * TemplateSummary is the public projection of an index template row.
- * `Filename` is the YAML name (e.g. "basic.yaml"); `Stem` is the
- * extension-less form (e.g. "basic") which matches the URL slug used
- * by the original Formidable wiki ("/template/basic").
+ * Filename is the YAML name ("basic.yaml"); Stem is the slug ("basic").
  */
 export class TemplateSummary {
     "stem": string;

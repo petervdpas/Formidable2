@@ -7,8 +7,8 @@ import { Create as $Create } from "@wailsio/runtime";
 
 /**
  * Diagnostic is one finding from ValidateMarkdownTemplate. Errors are
- * fatal (template won't render); warnings flag suspicious things like
- * unknown helper names that would silently render to nothing.
+ * fatal; warnings flag suspicious things like unknown helper names that
+ * would silently render to nothing.
  */
 export class Diagnostic {
     "severity": string;
@@ -38,9 +38,9 @@ export class Diagnostic {
 }
 
 /**
- * HelperCategory groups helpers into discoverable sections in the
- * frontend reference panel. Stable string constants - frontend uses
- * them as i18n key suffixes (e.g. `render.helpers.category.field`).
+ * HelperCategory groups helpers into sections in the reference panel.
+ * The values are stable: the frontend uses them as i18n key suffixes
+ * (e.g. `render.helpers.category.field`).
  */
 export enum HelperCategory {
     /**
@@ -66,10 +66,9 @@ export enum HelperCategory {
 };
 
 /**
- * HelperDescriptor describes one registered Handlebars helper. The
- * shape is JSON-serialisable for the Wails service so the frontend
- * reference panel can render it directly. Fields are intentionally
- * terse - these are developer-facing reference cards, not tutorials.
+ * HelperDescriptor describes one registered Handlebars helper, JSON-
+ * serialised for the Wails service. Fields are terse: these are
+ * reference cards, not tutorials.
  */
 export class HelperDescriptor {
     /**
@@ -78,19 +77,17 @@ export class HelperDescriptor {
     "name": string;
 
     /**
-     * Signature is a Handlebars-shaped usage hint, e.g.
-     * `{{yamlList arr [indent=N]}}`. Square brackets mark optional args.
+     * Signature is a usage hint; square brackets mark optional args.
      */
     "signature": string;
 
     /**
-     * Description is a one-sentence English summary. Translation lives
-     * in vue-i18n if needed; this field is the fallback.
+     * Description is a one-sentence summary; the vue-i18n fallback.
      */
     "description": string;
 
     /**
-     * Example is a representative invocation. Single line, copy-pasteable.
+     * Example is a single-line, copy-pasteable invocation.
      */
     "example": string;
 
@@ -158,9 +155,9 @@ export class Result {
 }
 
 /**
- * ValidationReport is the result of ValidateMarkdownTemplate. OK is
- * true exactly when no error-severity diagnostics were found.
- * Diagnostics is never nil so JS callers can iterate without a guard.
+ * ValidationReport is the result of ValidateMarkdownTemplate. OK is true
+ * exactly when no error-severity diagnostics were found; Diagnostics is
+ * never nil so JS callers can iterate without a guard.
  */
 export class ValidationReport {
     "ok": boolean;
