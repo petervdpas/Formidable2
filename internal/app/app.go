@@ -621,7 +621,7 @@ func New(d Deps) (*App, error) {
 		Wiki:              wikiSvc,
 		Dataprovider:      dataprovider.NewService(dpM),
 		Plugin:            plugin.NewService(pluginM),
-		Git:               newGitService(gitM, credentialM, cfgM, jrnM, sysgitR, emitter),
+		Git:               newGitService(gitM, credentialM, cfgM, jrnM, sysgitR, emitter, opsRegistry),
 		Gigot:             newGigotService(gigotM, credentialM, cfgM, jrnM, emitter, opsRegistry),
 		OpTrack:           optrack.NewService(opsRegistry),
 		Credential:        credential.NewService(credentialM),
@@ -633,11 +633,11 @@ func New(d Deps) (*App, error) {
 		History:           historySvc,
 		Integrity:         integrity.NewService(integrityM, emitter),
 		Logging:           logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
-		PDF:               pdf.NewService(pdfM),
+		PDF:               newPDFService(pdfM, opsRegistry),
 		Manual:            manual.NewService(),
 		CodeFormatter:     codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
 		UpdateCheck:       updatecheck.NewService(updateCheckM, openInDefaultBrowser),
-		Index:             index.NewService(ehM),
+		Index:             newIndexService(ehM, opsRegistry),
 		templateManager:   tplM,
 		storageManager:    stoM,
 		formManager:       formM,
@@ -663,10 +663,27 @@ func New(d Deps) (*App, error) {
 // newGitService composes git.NewService and git.AttachSysgit so the App
 // wiring stays one map literal. AttachSysgit is package-level (not a
 // method) to keep interface-typed params off the Wails-bound surface.
-func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manager, jrnl journal.Journal, sys git.Sysgit, em *emitterRelay) *git.Service {
+func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manager, jrnl journal.Journal, sys git.Sysgit, em *emitterRelay, ops *optrack.Registry) *git.Service {
 	svc := git.NewService(m, creds, cfg, jrnl)
 	git.AttachSysgit(svc, cfg, sys)
 	git.AttachEmitter(svc, em)
+	git.AttachOps(svc, ops)
+	return svc
+}
+
+// newPDFService composes pdf.NewService and pdf.AttachOps so a PDF export is
+// tracked and guarded against a concurrent second run.
+func newPDFService(m *pdf.Manager, ops *optrack.Registry) *pdf.Service {
+	svc := pdf.NewService(m)
+	pdf.AttachOps(svc, ops)
+	return svc
+}
+
+// newIndexService composes index.NewService and index.AttachOps so a reindex is
+// tracked and guarded per template.
+func newIndexService(h *index.EventHandler, ops *optrack.Registry) *index.Service {
+	svc := index.NewService(h)
+	index.AttachOps(svc, ops)
 	return svc
 }
 

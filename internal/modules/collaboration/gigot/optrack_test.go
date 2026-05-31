@@ -1,6 +1,7 @@
 package gigot
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/optrack"
@@ -14,8 +15,8 @@ func TestService_Reclone_RejectedWhileAnotherRuns(t *testing.T) {
 	AttachOps(s, reg)
 
 	reg.Begin("gigot:reclone") // pretend one is already in flight
-	if _, err := s.Reclone(); err == nil {
-		t.Fatal("reclone must be rejected while another runs")
+	if _, err := s.Reclone(); !errors.Is(err, optrack.ErrAlreadyRunning) {
+		t.Fatalf("reclone must be rejected while another runs, got %v", err)
 	}
 }
 
@@ -27,7 +28,7 @@ func TestService_Reclone_NilRegistryNotBlocked(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected a connection error, not a nil result")
 	}
-	if err.Error() == "gigot: a reclone is already running" {
+	if errors.Is(err, optrack.ErrAlreadyRunning) {
 		t.Errorf("nil registry must not block the reclone: %v", err)
 	}
 }

@@ -3,6 +3,7 @@ package git
 import (
 	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
+	"github.com/petervdpas/formidable2/internal/optrack"
 )
 
 // Service is the Wails-bound surface of the Git backend. It auto-resolves a missing PAT from the keychain
@@ -18,6 +19,7 @@ type Service struct {
 	flags   FlagReader
 	sys     Sysgit
 	emit    event.Emitter
+	ops     *optrack.Registry
 }
 
 // FlagReader exposes per-profile toggles that affect transport selection.
@@ -74,6 +76,16 @@ func AttachEmitter(s *Service, emit event.Emitter) {
 	s.emit = emit
 }
 
+// AttachOps installs the shared op registry so the long git ops register their
+// state (guarding "cannot run twice" and letting the frontend resume on reload).
+// Package-level for the same binding-generator reason as AttachSysgit.
+func AttachOps(s *Service, ops *optrack.Registry) {
+	if s == nil {
+		return
+	}
+	s.ops = ops
+}
+
 func (s *Service) useSysgit() bool {
 	if s.flags == nil || s.sys == nil {
 		return false
@@ -95,11 +107,27 @@ func (s *Service) LogGraph(path string, limit int) ([]GraphCommit, error) {
 func (s *Service) CommitChanges(path, hash string) ([]ChangeFile, error) {
 	return s.m.CommitChanges(path, hash)
 }
-func (s *Service) RemoteInfo(path string) (*RemoteInfo, error)      { return s.m.RemoteInfo(path) }
-func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) { return s.m.Commit(opts) }
+func (s *Service) RemoteInfo(path string) (*RemoteInfo, error) { return s.m.RemoteInfo(path) }
 
-// Clone brings a whole new working tree in, so it announces context:reloaded on success.
+// Commit can run long on a large worktree, so it is tracked and guarded against
+// a concurrent second commit; the guard releases when it ends.
+func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) {
+	_, release, err := optrack.Guard(s.ops, "git:commit")
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	return s.m.Commit(opts)
+}
+
+// Clone brings a whole new working tree in, so it announces context:reloaded on
+// success; tracked and guarded against a concurrent second clone.
 func (s *Service) Clone(opts CloneOptions) (*CloneResult, error) {
+	_, release, err := optrack.Guard(s.ops, "git:clone")
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	res, err := s.m.Clone(opts)
 	if err == nil {
 		event.Emit(s.emit, "context:reloaded", nil)
@@ -131,7 +159,13 @@ func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 }
 
 // Push sends commits to the remote; AlreadyUpToDate records remote-seen, advancing records a sync marker.
+// Tracked and guarded against a concurrent second push (covers both transports).
 func (s *Service) Push(opts PushOptions) (*PushResult, error) {
+	_, release, err := optrack.Guard(s.ops, "git:push")
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	if s.useSysgit() {
 		return s.pushViaSysgit(opts)
 	}
@@ -170,7 +204,13 @@ func (s *Service) pushViaSysgit(opts PushOptions) (*PushResult, error) {
 }
 
 // Pull fetches + merges the upstream branch via sysgit or go-git, recording remote-seen on success.
+// Tracked and guarded against a concurrent second pull (covers both transports).
 func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
+	_, release, err := optrack.Guard(s.ops, "git:pull")
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	if s.useSysgit() {
 		return s.pullViaSysgit(opts)
 	}

@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+
+	"github.com/petervdpas/formidable2/internal/optrack"
 )
 
 // builtinThemes is picoloom v2's bundled style set. Picoloom exposes no
@@ -23,7 +25,19 @@ var builtinThemes = []ThemeDescriptor{
 
 // Service is the Wails-bound surface over Manager. There is no HTTP
 // peer; PDF generation stays Wails-only.
-type Service struct{ m *Manager }
+type Service struct {
+	m   *Manager
+	ops *optrack.Registry
+}
+
+// AttachOps installs the shared op registry so ExportPDF registers its state
+// (guarding "cannot run twice" and letting the frontend resume on reload).
+func AttachOps(s *Service, ops *optrack.Registry) {
+	if s == nil {
+		return
+	}
+	s.ops = ops
+}
 
 // NewService wraps a Manager, panicking on nil so a composition-root
 // bug surfaces at boot.
@@ -58,8 +72,14 @@ func (s *Service) Activate(opts ActivateOpts) (Status, error) {
 // Deactivate releases the bound Chrome binary, keeping any managed download.
 func (s *Service) Deactivate() error { return s.m.Deactivate() }
 
-// ExportPDF renders the form to a PDF on disk; see Manager.Export.
+// ExportPDF renders the form to a PDF on disk; see Manager.Export. Tracked and
+// guarded against a concurrent second export, which would race the same Chrome.
 func (s *Service) ExportPDF(templateFilename, datafile string, opts ExportOpts) (Result, error) {
+	_, release, err := optrack.Guard(s.ops, "pdf:export")
+	if err != nil {
+		return Result{}, err
+	}
+	defer release()
 	return s.m.Export(templateFilename, datafile, opts)
 }
 

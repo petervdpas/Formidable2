@@ -1,8 +1,6 @@
 package gigot
 
 import (
-	"errors"
-
 	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/optrack"
@@ -253,15 +251,11 @@ func (s *Service) PullLocal() (*PullResult, error) {
 
 // Reclone wipes managed paths in the active context folder and pulls fresh; destructive (local-only edits dropped), records remote-seen on success.
 func (s *Service) Reclone() (*PullResult, error) {
-	var h *optrack.Handle
-	if s.ops != nil {
-		// Cannot run twice: reject a second reclone while one is tracked. The
-		// defer releases on success, error, or panic, so no restart is needed.
-		if h = s.ops.TryBegin("gigot:reclone"); h == nil {
-			return nil, errors.New("gigot: a reclone is already running")
-		}
-		defer h.Done()
+	h, release, err := optrack.Guard(s.ops, "gigot:reclone")
+	if err != nil {
+		return nil, err
 	}
+	defer release()
 	conn, err := s.resolveConnection(true)
 	if err != nil {
 		return nil, err
