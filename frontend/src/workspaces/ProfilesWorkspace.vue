@@ -20,6 +20,17 @@ const { t } = useI18n();
 
 const { profiles, activeFilename, refresh, activate, create, remove, exportTo, importFrom } = useProfiles();
 const { config } = useConfig();
+
+// Explicit key map (no interpolation) for the active profile's backend label.
+const BACKEND_LABEL_KEYS: Record<string, string> = {
+  none: "backend.none",
+  git: "backend.git",
+  gigot: "backend.gigot",
+};
+const remoteBackendLabel = computed(() =>
+  t(BACKEND_LABEL_KEYS[config.value?.remote_backend ?? "none"] ?? "backend.none"),
+);
+
 const { bootConfig } = useRestartGate();
 const { setActive } = useActiveWorkspace();
 const { chooseFile, chooseSaveFile } = useDialog();
@@ -376,6 +387,8 @@ setTopbarMenu(() => [
           <dd>{{ config.language || '-' }}</dd>
           <dt>{{ t('workspace.profiles.detail.context_folder') }}</dt>
           <dd><code>{{ config.context_folder || '-' }}</code></dd>
+          <dt>{{ t('settings.field.remote_backend') }}</dt>
+          <dd>{{ remoteBackendLabel }}</dd>
         </dl>
         <p v-else class="muted">
           {{ t('workspace.profiles.detail.unloaded') }}
