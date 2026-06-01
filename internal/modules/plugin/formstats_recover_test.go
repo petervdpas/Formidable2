@@ -149,6 +149,56 @@ func TestFormstats_RefreshSteersShapeOptions(t *testing.T) {
 	}
 }
 
+// TestFormstats_RefreshOnOpenFillsObjectOptions drives the on-open kick
+// (changed == "", no object yet): refresh must fill the "object" dropdown
+// from the template's named statistical objects (formidable.statistical.list),
+// so object keys are never hardcoded into form.json. The empty-label object
+// falls back to its name.
+func TestFormstats_RefreshOnOpenFillsObjectOptions(t *testing.T) {
+	manifest, main := readFormstats(t)
+	m, pluginsDir, _, options := managerWithStats(t)
+	writePlugin(t, pluginsDir, "formstats", manifest, main)
+	if err := m.Refresh(); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	res, err := m.Run("formstats", "refresh", map[string]any{
+		"template": "demo.yaml",
+		"object":   "",
+		"changed":  "",
+	})
+	if err != nil {
+		t.Fatalf("Run(refresh): %v", err)
+	}
+	if out, _ := res.Value.(map[string]any); out["ok"] != true {
+		t.Fatalf("want ok=true, got %v", res.Value)
+	}
+	if len(*options) != 1 {
+		t.Fatalf("want 1 run.options event (object), got %d: %+v", len(*options), *options)
+	}
+	ev := (*options)[0]
+	if ev.Field != "object" {
+		t.Fatalf("field = %q, want object", ev.Field)
+	}
+	// Catalog has 4 objects but one is a scaling, which must be excluded.
+	if len(ev.Options) != 3 {
+		t.Fatalf("want 3 object options (scaling excluded), got %d: %+v", len(ev.Options), ev.Options)
+	}
+	for _, o := range ev.Options {
+		om, _ := o.(map[string]any)
+		if om["value"] == "urgency-weight" {
+			t.Fatalf("scaling object must not appear in the dropdown: %+v", om)
+		}
+	}
+	first, _ := ev.Options[0].(map[string]any)
+	if first["value"] != "by-status" || first["label"] != "By status" {
+		t.Fatalf("first option = %+v, want by-status/By status", first)
+	}
+	second, _ := ev.Options[1].(map[string]any)
+	if second["value"] != "raw" || second["label"] != "raw" {
+		t.Fatalf("empty-label object must fall back to name; got %+v", second)
+	}
+}
+
 // TestFormstats_DrawNoTemplateReturnsNotOk verifies the empty-ctx path:
 // drawing with no selected template returns ok=false and pushes no
 // chart.

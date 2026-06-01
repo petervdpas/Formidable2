@@ -1503,6 +1503,7 @@ func (m *mockStatObject) ListObjects(tpl string) ([]map[string]any, error) {
 		{"name": "by-status", "label": "By status", "dsl": `count() by F["status"]`, "kind": "dsl"},
 		{"name": "raw", "label": "", "dsl": "count()", "kind": "dsl"},
 		{"name": "in-use-by-app", "label": "Drill", "dsl": "", "kind": "composite"},
+		{"name": "urgency-weight", "label": "Urgency", "dsl": "", "kind": "scaling"},
 	}, nil
 }
 
@@ -1539,7 +1540,7 @@ func TestBindings_Statistical_ListReturnsCatalog(t *testing.T) {
 		end`,
 		scriptOpts{StatObject: ms})
 	m, ok := got.Value.(map[string]any)
-	if !ok || m["n"] != float64(3) || m["first"] != "by-status" ||
+	if !ok || m["n"] != float64(4) || m["first"] != "by-status" ||
 		m["label"] != "By status" || m["dsl"] != `count() by F["status"]` {
 		t.Fatalf("return = %v", got.Value)
 	}
