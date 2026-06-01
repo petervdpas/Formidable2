@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/datacore"
+	"github.com/petervdpas/formidable2/internal/modules/expression"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -17,11 +18,12 @@ import (
 type datacoreLoaderAdapter struct {
 	tpl          *template.Manager
 	sto          *storage.Manager
+	ev           *expression.Manager
 	templateFile string
 }
 
-func newDatacoreLoaderAdapter(tpl *template.Manager, sto *storage.Manager, templateFile string) *datacoreLoaderAdapter {
-	return &datacoreLoaderAdapter{tpl: tpl, sto: sto, templateFile: templateFile}
+func newDatacoreLoaderAdapter(tpl *template.Manager, sto *storage.Manager, ev *expression.Manager, templateFile string) *datacoreLoaderAdapter {
+	return &datacoreLoaderAdapter{tpl: tpl, sto: sto, ev: ev, templateFile: templateFile}
 }
 
 // datacoreSkipTypes are field types that carry no statable value of their own
@@ -57,7 +59,9 @@ func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) 
 		if f == nil {
 			continue
 		}
-		out = append(out, datacoreRecord(tpl, file, f))
+		rec := datacoreRecord(tpl, file, f)
+		applyFormulas(a.ev, tpl, f, &rec)
+		out = append(out, rec)
 	}
 	return out, nil
 }

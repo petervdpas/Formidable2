@@ -25,6 +25,7 @@ import {
 import type {
   Field,
   Facet,
+  Formula,
   Statistic,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { backendErrMessage } from "../utils/backendError";
@@ -65,6 +66,8 @@ const props = defineProps<{
   template: string;
   fields: Field[];
   facets: Facet[];
+  /** Formula fields on the template; selectable as datacore-computed sources. */
+  formulas: Formula[];
   /** Scaling objects on the template, for the optional weighting picker. */
   scalings: Statistic[];
   /** The statistic being edited, or null to compose a new one. */
@@ -155,6 +158,19 @@ const sources = computed<SourceOpt[]>(() => {
       .filter((l) => l !== "")
       .map((l) => ({ value: l, label: l }));
     out.push({ key: srcKey(ref), ref, label: fc.key, numeric: false, date: false, text: false, choices });
+  }
+  // Formula fields are datacore-computed columns: a plain field source keyed by
+  // the formula key, so it compiles to F["key"] and resolves like any field.
+  for (const fm of props.formulas ?? []) {
+    const ref: SourceRef = { Kind: "field", Key: fm.key, Column: "" };
+    out.push({
+      key: srcKey(ref),
+      ref,
+      label: fm.label || fm.key,
+      numeric: fm.type === "number",
+      date: fm.type === "date",
+      text: fm.type === "text",
+    });
   }
   return out;
 });

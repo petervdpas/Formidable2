@@ -36,9 +36,11 @@ export interface GridAxis {
 export interface GridCell {
   coords: number[];
   values: number[];
-  // Share (0-100) of each measure's total across the grid, computed in Go so
-  // every renderer reads one figure instead of dividing in JS.
+  // Pct: share (0-100) per the object's authored base (distribution/forms/none).
+  // Share: base-independent share of the measure's total across the drawn cells.
+  // Both computed in Go so renderers read one figure instead of dividing in JS.
   pct?: number[];
+  share?: number[];
 }
 export interface Grid {
   axes: GridAxis[];
@@ -96,6 +98,18 @@ export function densePct(g: Grid, measureIdx: number): number[] {
   const out = new Array<number>(n).fill(0);
   for (const c of g.cells) {
     if (c.coords.length === 1) out[c.coords[0]] = c.pct?.[measureIdx] ?? 0;
+  }
+  return out;
+}
+
+/** Dense 1D vector of one measure's server-computed distribution share
+ *  (0-100, base-independent) aligned to axis 0's labels. Share-charts (pie,
+ *  sunburst) read this rather than the base-dependent densePct. */
+export function denseShare(g: Grid, measureIdx: number): number[] {
+  const n = g.axes[0]?.labels.length ?? 0;
+  const out = new Array<number>(n).fill(0);
+  for (const c of g.cells) {
+    if (c.coords.length === 1) out[c.coords[0]] = c.share?.[measureIdx] ?? 0;
   }
   return out;
 }

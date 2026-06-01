@@ -146,6 +146,17 @@ func (e *engine) Evaluate(src string, ctx map[string]any) (Result, error) {
 	return normalize(raw), nil
 }
 
+// EvaluateRaw is Evaluate without the Result normalisation: it returns the raw
+// typed value the expression produced (number/string/bool/...). Formula fields
+// need the scalar value, not a styled Result, so they evaluate through here.
+func (e *engine) EvaluateRaw(src string, ctx map[string]any) (any, error) {
+	prog, err := e.Compile(src)
+	if err != nil {
+		return nil, err
+	}
+	return expr.Run(prog, mergeHelpersInto(ctx, e.helpers))
+}
+
 // mergeHelpersInto combines ctx and helpers into a fresh map; ctx wins on collision (a user field shadows a helper).
 func mergeHelpersInto(ctx map[string]any, helpers map[string]any) map[string]any {
 	out := make(map[string]any, len(ctx)+len(helpers))

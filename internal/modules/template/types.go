@@ -23,8 +23,20 @@ type Template struct {
 	PDF               *PDFConfig  `yaml:"pdf,omitempty" json:"pdf,omitempty"`
 	Facets            []Facet     `yaml:"facets,omitempty" json:"facets"`
 	Statistics        []Statistic `yaml:"statistics,omitempty" json:"statistics"`
+	Formulas          []Formula   `yaml:"formulas,omitempty" json:"formulas"`
 	Fields            []Field     `yaml:"fields" json:"fields"`
 	NeedsResave       bool        `yaml:"-" json:"needs_resave"`
+}
+
+// Formula is one author-defined computed field: a named per-record expression
+// (expression-engine syntax, F["key"]) evaluated in the datacore loader, so it
+// becomes an ordinary datacore field usable as a statistics dimension/measure.
+// Type is the result coercion: "number" | "text" | "date" | "bool".
+type Formula struct {
+	Key        string `yaml:"key" json:"key"`
+	Label      string `yaml:"label,omitempty" json:"label,omitempty"`
+	Type       string `yaml:"type,omitempty" json:"type"`
+	Expression string `yaml:"expression" json:"expression"`
 }
 
 // Statistic is one author-defined statistical object: exactly one of DSL / Composite / Scaling is set.

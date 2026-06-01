@@ -116,6 +116,7 @@ type App struct {
 	Query         *query.Service
 	Datacore      *datacore.Service
 	Expression    *expression.Service
+	Formula       *FormulaService
 	History       *history.Service
 	Integrity     *integrity.Service
 	Logging       *logging.Service
@@ -354,11 +355,20 @@ func New(d Deps) (*App, error) {
 	stoM.SetIndexer(ehM)
 	stoM.SetReader(newIndexFormReader(idxM))
 
+	// Sandboxed evaluator for sidebar sub-labels and formula fields. Built
+	// before datacore so the loader can compute formula cells through it, and
+	// before the wiki handler so the form list can show subtitles.
+	expressionM := expression.NewManager(
+		expressionTemplateAdapter{tpl: tplM},
+		expressionStorageAdapter{sto: stoM},
+	)
+
 	// Datacore: read-only perspectives over a tensor built from the
 	// template's live forms. Built before stat because stat computes
-	// through it.
+	// through it. The loader adapter evaluates the template's formula fields
+	// per record via expressionM, so formulas are ordinary datacore fields.
 	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
-		return newDatacoreLoaderAdapter(tplM, stoM, tpl)
+		return newDatacoreLoaderAdapter(tplM, stoM, expressionM, tpl)
 	}, newDatacoreIndexPlanner(idxM))
 
 	// Chart-neutral statistics computed on the datacore tensor. The index's
@@ -408,13 +418,6 @@ func New(d Deps) (*App, error) {
 	// /storage/.../images/... URLs (no post-process regex). Vue calls the
 	// per-module Wails services directly, which use slideoutRender.
 	dpM := dataprovider.NewManager(idxM, wikiRender, stoM)
-
-	// Sandboxed evaluator for sidebar sub-labels. Built before the wiki
-	// handler so the wiki form list can show subtitles via the same engine.
-	expressionM := expression.NewManager(
-		expressionTemplateAdapter{tpl: tplM},
-		expressionStorageAdapter{sto: stoM},
-	)
 
 	// Integrity analyzes stored forms against the template's current field
 	// declarations. Fix commits via storage.SaveFormExact so meta mutations
@@ -631,6 +634,7 @@ func New(d Deps) (*App, error) {
 		Query:             querySvc,
 		Datacore:          datacoreSvc,
 		Expression:        expression.NewService(expressionM),
+		Formula:           NewFormulaService(tplM, stoM, expressionM),
 		History:           historySvc,
 		Integrity:         integrity.NewService(integrityM, emitter),
 		Logging:           logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),

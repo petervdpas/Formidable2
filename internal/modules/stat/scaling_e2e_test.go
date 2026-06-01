@@ -184,6 +184,52 @@ func TestEvaluateScaled_WeightsNumericSum(t *testing.T) {
 	}
 }
 
+// TestEvaluateScaled_ShareIsBaseIndependent guards the pie's figure: Share is
+// each value's distribution share regardless of the object's pct base (here
+// none), so a share-chart never reads 0 just because no pct base was chosen.
+func TestEvaluateScaled_ShareIsBaseIndependent(t *testing.T) {
+	scored := func(file, qzm string, score float64, app string) index.FormRow {
+		s := score
+		return index.FormRow{
+			Template: "samp.yaml", Filename: file, Mtime: 1,
+			Values: []index.FormValueRow{
+				{FieldKey: "app", ValueType: "text", Text: app},
+				{FieldKey: "score", ValueType: "number", Num: &s},
+			},
+			Facets: []index.FormFacet{{Key: "qzm", Set: true, Selected: qzm}},
+		}
+	}
+	forms := []index.FormRow{
+		scored("a.meta.json", "NIET ZONNIG", 100, "Alpha"), // 2*100 = 200
+		scored("b.meta.json", "ZONNIG", 80, "Beta"),        // 0.5*80 = 40
+	}
+	m := NewManager(datacoreBackend(forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"components.item": 0}})
+
+	// pct none: Pct stays unset, but Share must still carry the distribution.
+	cfg, err := Parse(`sum(F["score"]) by F["app"] pct none`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc := &Scaling{Source: SourceRef{Kind: SourceFacet, Key: "qzm"},
+		Weights: []WeightEntry{{Label: "ZONNIG", Factor: 0.5}, {Label: "NIET ZONNIG", Factor: 2}}, Default: 1}
+	g, err := m.EvaluateScaled("samp.yaml", cfg, sc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	share := map[string]float64{}
+	for _, c := range g.Cells {
+		share[g.Axes[0].Labels[c.Coords[0]]] = c.Share[0]
+	}
+	// total weighted = 240; Alpha 200/240 = 83.33%, Beta 40/240 = 16.66%
+	if v := share["Alpha"]; v < 83.3 || v > 83.4 {
+		t.Errorf("Alpha share = %v, want ~83.33", v)
+	}
+	if v := share["Beta"]; v < 16.6 || v > 16.7 {
+		t.Errorf("Beta share = %v, want ~16.67", v)
+	}
+}
+
 // TestEvaluateScaled_CountWeightedPerRow checks count() scaling sums a factor
 // per row (mentions), not per distinct form.
 func TestEvaluateScaled_CountWeightedPerRow(t *testing.T) {

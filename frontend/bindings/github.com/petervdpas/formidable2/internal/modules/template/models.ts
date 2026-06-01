@@ -575,6 +575,42 @@ export class FixedOptionsShape {
 }
 
 /**
+ * Formula is one author-defined computed field: a named per-record expression
+ * (expression-engine syntax, F["key"]) evaluated in the datacore loader, so it
+ * becomes an ordinary datacore field usable as a statistics dimension/measure.
+ * Type is the result coercion: "number" | "text" | "date" | "bool".
+ */
+export class Formula {
+    "key": string;
+    "label"?: string;
+    "type": string;
+    "expression": string;
+
+    /** Creates a new Formula instance. */
+    constructor($$source: Partial<Formula> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("expression" in $$source)) {
+            this["expression"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Formula instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Formula {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Formula($$parsedSource as Partial<Formula>);
+    }
+}
+
+/**
  * GeneratorOptions carries the per-shape sub-choices the dialog surfaces.
  */
 export class GeneratorOptions {
@@ -1161,6 +1197,7 @@ export class Template {
     "pdf"?: PDFConfig | null;
     "facets": Facet[];
     "statistics": Statistic[];
+    "formulas": Formula[];
     "fields": Field[];
     "needs_resave": boolean;
 
@@ -1190,6 +1227,9 @@ export class Template {
         if (!("statistics" in $$source)) {
             this["statistics"] = [];
         }
+        if (!("formulas" in $$source)) {
+            this["formulas"] = [];
+        }
         if (!("fields" in $$source)) {
             this["fields"] = [];
         }
@@ -1207,7 +1247,8 @@ export class Template {
         const $$createField8_0 = $$createType36;
         const $$createField9_0 = $$createType38;
         const $$createField10_0 = $$createType40;
-        const $$createField11_0 = $$createType41;
+        const $$createField11_0 = $$createType42;
+        const $$createField12_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -1218,8 +1259,11 @@ export class Template {
         if ("statistics" in $$parsedSource) {
             $$parsedSource["statistics"] = $$createField10_0($$parsedSource["statistics"]);
         }
+        if ("formulas" in $$parsedSource) {
+            $$parsedSource["formulas"] = $$createField11_0($$parsedSource["formulas"]);
+        }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField11_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField12_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }
@@ -1309,4 +1353,6 @@ const $$createType37 = Facet.createFrom;
 const $$createType38 = $Create.Array($$createType37);
 const $$createType39 = Statistic.createFrom;
 const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = $Create.Array($$createType13);
+const $$createType41 = Formula.createFrom;
+const $$createType42 = $Create.Array($$createType41);
+const $$createType43 = $Create.Array($$createType13);

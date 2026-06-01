@@ -28,14 +28,18 @@ type GridAxis struct {
 	Labels []string `json:"labels"`
 }
 
-// GridCell is one populated coordinate: indices into each axis, the value of
-// each measure (aligned to Grid.Measures), and each value's share (0-100) of
-// that measure's total across the grid. Pct is computed server-side so every
-// renderer reads the same figure instead of recomputing it.
+// GridCell is one populated coordinate: indices into each axis and the value of
+// each measure (aligned to Grid.Measures). Pct is each value's share (0-100)
+// per the object's authored percentage base (distribution / forms / none).
+// Share is always each value's share of its measure's total across the drawn
+// cells, independent of the base, so a share-chart (pie, sunburst) reads one
+// server-computed figure instead of dividing in JS. Both are computed
+// server-side so every renderer reads the same numbers.
 type GridCell struct {
 	Coords []int     `json:"coords"`
 	Values []float64 `json:"values"`
 	Pct    []float64 `json:"pct"`
+	Share  []float64 `json:"share"`
 }
 
 // EvaluateDSL parses a statistical-DSL string and evaluates it against the
@@ -451,8 +455,36 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, scs ...*Scalin
 		}
 		formsDenom = wt
 	}
+	addShares(grid)
 	addPercents(grid, cfg.Percent, formsDenom)
 	return grid, nil
+}
+
+// addShares fills each cell's Share with its value's share (0-100) of that
+// measure's total across the drawn cells, regardless of the object's pct base.
+// A pie/sunburst is intrinsically a share-of-total chart, so it reads Share
+// rather than the base-dependent Pct (which may be "none" or a count-currency
+// denominator that does not fit the slices). Computed once in Go.
+func addShares(g *Grid) {
+	nm := len(g.Measures)
+	if nm == 0 {
+		return
+	}
+	denoms := make([]float64, nm)
+	for _, c := range g.Cells {
+		for m := 0; m < nm && m < len(c.Values); m++ {
+			denoms[m] += c.Values[m]
+		}
+	}
+	for i := range g.Cells {
+		c := &g.Cells[i]
+		c.Share = make([]float64, len(c.Values))
+		for m := range c.Values {
+			if m < nm && denoms[m] != 0 {
+				c.Share[m] = c.Values[m] / denoms[m] * 100
+			}
+		}
+	}
 }
 
 // addPercents fills each cell's Pct with its share (0-100) per the authored

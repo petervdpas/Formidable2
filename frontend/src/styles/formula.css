@@ -1,0 +1,112 @@
+/* Formula fields: the Formulas-tab list and the FormulaEditorModal. Mirrors the
+   statistics catalog rows (statistics-builder.css) so the two tabs feel of a
+   piece. */
+
+.formula-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.formula-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+}
+.formula-row .dnd-handle {
+  cursor: grab;
+  color: var(--color-text-muted, #8a93a6);
+  user-select: none;
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+.formula-row-name {
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+.formula-row-type {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #888);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill, 999px);
+  padding: 1px var(--space-2);
+  flex: 0 0 auto;
+}
+.formula-row-expr {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #888);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Editor modal ─────────────────────────────────────────────────── */
+
+.formula-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.formula-editor-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+}
+.formula-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.formula-editor-field-type {
+  flex: 0 0 9rem;
+}
+.formula-editor-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.formula-editor-hint {
+  margin: 0;
+}
+.formula-editor-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.formula-ref-chip {
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 2px var(--space-2);
+  background: var(--bg-subtle, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--color-text);
+}
+.formula-ref-chip:hover {
+  border-color: var(--color-accent, var(--color-border));
+}
+.formula-editor-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+.formula-preview-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.formula-preview-error {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--danger, #c33);
+}

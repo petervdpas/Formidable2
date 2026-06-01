@@ -19,6 +19,7 @@ export {
     FieldUnit,
     FixedOptionRow,
     FixedOptionsShape,
+    Formula,
     GeneratorOptions,
     ImgMode,
     ItemField,

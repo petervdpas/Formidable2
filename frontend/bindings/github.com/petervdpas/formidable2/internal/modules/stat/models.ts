@@ -449,15 +449,19 @@ export class GridAxis {
 }
 
 /**
- * GridCell is one populated coordinate: indices into each axis, the value of
- * each measure (aligned to Grid.Measures), and each value's share (0-100) of
- * that measure's total across the grid. Pct is computed server-side so every
- * renderer reads the same figure instead of recomputing it.
+ * GridCell is one populated coordinate: indices into each axis and the value of
+ * each measure (aligned to Grid.Measures). Pct is each value's share (0-100)
+ * per the object's authored percentage base (distribution / forms / none).
+ * Share is always each value's share of its measure's total across the drawn
+ * cells, independent of the base, so a share-chart (pie, sunburst) reads one
+ * server-computed figure instead of dividing in JS. Both are computed
+ * server-side so every renderer reads the same numbers.
  */
 export class GridCell {
     "coords": number[];
     "values": number[];
     "pct": number[];
+    "share": number[];
 
     /** Creates a new GridCell instance. */
     constructor($$source: Partial<GridCell> = {}) {
@@ -470,6 +474,9 @@ export class GridCell {
         if (!("pct" in $$source)) {
             this["pct"] = [];
         }
+        if (!("share" in $$source)) {
+            this["share"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -481,6 +488,7 @@ export class GridCell {
         const $$createField0_0 = $$createType14;
         const $$createField1_0 = $$createType15;
         const $$createField2_0 = $$createType15;
+        const $$createField3_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coords" in $$parsedSource) {
             $$parsedSource["coords"] = $$createField0_0($$parsedSource["coords"]);
@@ -490,6 +498,9 @@ export class GridCell {
         }
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField2_0($$parsedSource["pct"]);
+        }
+        if ("share" in $$parsedSource) {
+            $$parsedSource["share"] = $$createField3_0($$parsedSource["share"]);
         }
         return new GridCell($$parsedSource as Partial<GridCell>);
     }

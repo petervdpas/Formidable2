@@ -26,6 +26,7 @@ func Normalize(t *Template) {
 		normalizeField(&t.Fields[i])
 	}
 	normalizeStatistics(t)
+	normalizeFormulas(t)
 	normalizeFacetFieldDefaults(t)
 	t.Fields = assignLevelScopes(t.Fields)
 	for i := range t.Fields {
@@ -168,6 +169,39 @@ func normalizeField(f *Field) {
 
 // normalizeStatisticsColumns dedupes a table field's stat-column selection and drops keys that don't name
 // a real column; it's the source of truth so manual YAML / imports / plugins can't persist dangling keys.
+// normalizeFormulas trims each formula, drops entries with no key or no
+// expression, dedups by key (first wins), and defaults a blank type to
+// "number" (the common case and the only one that aggregates numerically).
+func normalizeFormulas(t *Template) {
+	if len(t.Formulas) == 0 {
+		t.Formulas = nil
+		return
+	}
+	seen := map[string]bool{}
+	kept := make([]Formula, 0, len(t.Formulas))
+	for _, f := range t.Formulas {
+		key := strings.TrimSpace(f.Key)
+		expr := strings.TrimSpace(f.Expression)
+		if key == "" || expr == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		f.Key = key
+		f.Expression = expr
+		f.Label = strings.TrimSpace(f.Label)
+		f.Type = strings.TrimSpace(f.Type)
+		if f.Type == "" {
+			f.Type = "number"
+		}
+		kept = append(kept, f)
+	}
+	if len(kept) == 0 {
+		t.Formulas = nil
+		return
+	}
+	t.Formulas = kept
+}
+
 func normalizeStatisticsColumns(f *Field) {
 	if !f.UseInStatistics || f.Type != "table" {
 		f.StatisticsColumns = nil

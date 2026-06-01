@@ -16,13 +16,14 @@ import FacetEditorModal from "../components/FacetEditorModal.vue";
 import StatisticsBuilderModal from "../components/StatisticsBuilderModal.vue";
 import CompositeBuilderModal from "../components/CompositeBuilderModal.vue";
 import ScalingBuilderModal from "../components/ScalingBuilderModal.vue";
+import FormulaEditorModal from "../components/FormulaEditorModal.vue";
 import StatGridDialog from "../components/stat/StatGridDialog.vue";
 import { type Grid, type CompositeGrid } from "../components/stat/grid";
 import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
 import type { CompositeSpec } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat/models";
 import FacetIcon from "../components/FacetIcon.vue";
 import { useFacetMeta } from "../composables/useFacetMeta";
-import { Facet, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Facet, Formula, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import CodeEditor from "../components/CodeEditor.vue";
 import Tabs from "../components/Tabs.vue";
 import {
@@ -417,13 +418,52 @@ watch(
 );
 
 // ── Setup-info tabs (Template Code / Sidebar Expression / Facets) ───
-const setupTab = ref<"code" | "expression" | "facets" | "statistics">("code");
+const setupTab = ref<"code" | "expression" | "facets" | "statistics" | "formulas">("code");
 const setupTabItems = computed(() => [
   { id: "code", label: t("workspace.templates.setup.template_code") },
   { id: "expression", label: t("workspace.templates.setup.sidebar_expression") },
   { id: "facets", label: t("workspace.templates.setup.facets") },
   { id: "statistics", label: t("workspace.templates.setup.statistics") },
+  { id: "formulas", label: t("workspace.templates.setup.formulas") },
 ]);
+
+// ── Formula fields: named per-record computed fields (datacore-evaluated) ──
+const formulaEditorOpen = ref(false);
+const editingFormulaIndex = ref(-1);
+const editingFormula = ref<Formula | null>(null);
+
+function openAddFormula() {
+  if (!draft.value) return;
+  editingFormulaIndex.value = -1;
+  editingFormula.value = null;
+  formulaEditorOpen.value = true;
+}
+
+function openEditFormula(idx: number) {
+  if (!draft.value) return;
+  const f = draft.value.formulas?.[idx];
+  if (!f) return;
+  editingFormulaIndex.value = idx;
+  editingFormula.value = new Formula({ key: f.key, label: f.label, type: f.type, expression: f.expression });
+  formulaEditorOpen.value = true;
+}
+
+function removeFormula(idx: number) {
+  if (!draft.value) return;
+  const cur = draft.value.formulas ?? [];
+  draft.value.formulas = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
+}
+
+function applyFormula(f: Formula) {
+  if (!draft.value) return;
+  const cur = draft.value.formulas ?? [];
+  if (editingFormulaIndex.value < 0) {
+    draft.value.formulas = [...cur, f];
+  } else {
+    draft.value.formulas = cur.map((existing, i) => (i === editingFormulaIndex.value ? f : existing));
+  }
+  formulaEditorOpen.value = false;
+}
 
 // ── Statistical Engine: named statistical objects on the template ─────
 // Edits one statistic at a time via StatisticsBuilderModal. The builder
@@ -997,6 +1037,55 @@ setTopbarMenu(() => [
                   </div>
                 </div>
               </template>
+
+              <template #formulas>
+                <div class="setup-tab-pane">
+                  <p
+                    v-if="!draft.formulas || draft.formulas.length === 0"
+                    class="muted small"
+                  >
+                    {{ t('workspace.templates.formulas.empty') }}
+                  </p>
+                  <draggable
+                    v-else
+                    v-model="draft.formulas"
+                    tag="ul"
+                    class="formula-rows"
+                    handle=".dnd-handle"
+                    :animation="150"
+                    ghost-class="dnd-ghost"
+                    chosen-class="dnd-chosen"
+                    drag-class="dnd-drag"
+                    item-key="key"
+                  >
+                    <template #item="{ element: f, index: i }">
+                      <li class="formula-row">
+                        <span class="dnd-handle" aria-hidden="true">☰</span>
+                        <span class="formula-row-name">{{ f.label || f.key }}</span>
+                        <span class="formula-row-type">{{ f.type }}</span>
+                        <code class="formula-row-expr">{{ f.expression }}</code>
+                        <button
+                          class="tool-btn"
+                          type="button"
+                          :title="t('workspace.templates.formulas.edit')"
+                          @click="openEditFormula(i)"
+                        >{{ t('workspace.templates.formulas.edit') }}</button>
+                        <button
+                          class="tool-btn danger"
+                          type="button"
+                          :title="t('workspace.templates.formulas.remove')"
+                          @click="removeFormula(i)"
+                        >×</button>
+                      </li>
+                    </template>
+                  </draggable>
+                  <div class="setup-tab-actions">
+                    <button class="tool-btn" type="button" @click="openAddFormula">
+                      + {{ t('workspace.templates.formulas.add') }}
+                    </button>
+                  </div>
+                </div>
+              </template>
             </Tabs>
           </div>
 
@@ -1172,6 +1261,7 @@ setTopbarMenu(() => [
     :template="selectedFilename || ''"
     :fields="draft.fields ?? []"
     :facets="draft.facets ?? []"
+    :formulas="draft.formulas ?? []"
     :scalings="scalings"
     :initial="editingStat"
     @close="statBuilderOpen = false"
@@ -1199,6 +1289,18 @@ setTopbarMenu(() => [
     :initial="editingScaling"
     @close="scalingBuilderOpen = false"
     @apply="applyScaling"
+  />
+
+  <!-- Formula field editor: key + type + expression with a live preview -->
+  <FormulaEditorModal
+    v-if="draft"
+    :open="formulaEditorOpen"
+    :template="selectedFilename || ''"
+    :fields="draft.fields ?? []"
+    :facets="draft.facets ?? []"
+    :initial="editingFormula"
+    @close="formulaEditorOpen = false"
+    @apply="applyFormula"
   />
 
   <!-- Evaluated-statistic viewer (rank-N grid + composite sunburst) -->

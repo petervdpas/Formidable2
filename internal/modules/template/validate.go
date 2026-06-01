@@ -52,7 +52,67 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, expressionItemLevelScopeErrors(canonical)...)
 	errs = append(errs, facetsErrors(t.Facets)...)
 	errs = append(errs, facetFieldErrors(t)...)
+	errs = append(errs, formulasErrors(t)...)
 
+	return errs
+}
+
+var validFormulaTypes = map[string]bool{"number": true, "text": true, "date": true, "bool": true}
+
+// formulasErrors flags structural problems with the formula catalog: a bad or
+// empty key, an empty expression, a duplicate key, an unknown result type, or a
+// key that collides with a field or facet key (formulas share the F["key"]
+// namespace in datacore, so a collision would shadow the real field).
+func formulasErrors(t *Template) []ValidationError {
+	if t == nil || len(t.Formulas) == 0 {
+		return nil
+	}
+	fieldKeys := map[string]bool{}
+	for _, f := range t.Fields {
+		if f.Key != "" {
+			fieldKeys[f.Key] = true
+		}
+	}
+	facetKeys := map[string]bool{}
+	for _, f := range t.Facets {
+		if f.Key != "" {
+			facetKeys[f.Key] = true
+		}
+	}
+	var errs []ValidationError
+	seen := map[string]bool{}
+	for i, f := range t.Formulas {
+		if !facetKeyRe.MatchString(f.Key) {
+			errs = append(errs, ValidationError{
+				Type: "invalid-formula-key", Index: i, Key: f.Key,
+				Message: fmt.Sprintf("Formula key %q must match ^[a-z][a-z0-9_-]*$", f.Key),
+			})
+		} else if seen[f.Key] {
+			errs = append(errs, ValidationError{
+				Type: "duplicate-formula-key", Index: i, Key: f.Key,
+				Message: fmt.Sprintf("Duplicate formula key %q", f.Key),
+			})
+		} else if fieldKeys[f.Key] || facetKeys[f.Key] {
+			errs = append(errs, ValidationError{
+				Type: "formula-key-collision", Index: i, Key: f.Key,
+				Message: fmt.Sprintf("Formula key %q collides with an existing field or facet key", f.Key),
+			})
+		} else {
+			seen[f.Key] = true
+		}
+		if strings.TrimSpace(f.Expression) == "" {
+			errs = append(errs, ValidationError{
+				Type: "formula-missing-expression", Index: i, Key: f.Key,
+				Message: fmt.Sprintf("Formula %q has no expression", f.Key),
+			})
+		}
+		if f.Type != "" && !validFormulaTypes[f.Type] {
+			errs = append(errs, ValidationError{
+				Type: "invalid-formula-type", Index: i, Key: f.Key,
+				Message: fmt.Sprintf("Formula %q has unknown type %q (want number/text/date/bool)", f.Key, f.Type),
+			})
+		}
+	}
 	return errs
 }
 

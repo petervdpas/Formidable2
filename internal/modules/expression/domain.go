@@ -53,6 +53,17 @@ func (m *Manager) Evaluate(src string, ctx map[string]any) (Result, error) {
 	return m.eng.Evaluate(src, ctx)
 }
 
+// EvaluateValue runs one expression against an arbitrary context and returns
+// the raw typed value (not a styled Result). This is the typed entry point that
+// formula fields use: the datacore loader evaluates a formula per record and
+// coerces the result to the formula's declared type.
+func (m *Manager) EvaluateValue(src string, ctx map[string]any) (any, error) {
+	if ctx == nil {
+		ctx = map[string]any{}
+	}
+	return m.eng.EvaluateRaw(src, ctx)
+}
+
 // EvaluateList compiles the sidebar_expression once and runs it against every record; per-row failures
 // are isolated (the row's Error is set, Text falls back to the title) so one bad row doesn't blank the rest.
 func (m *Manager) EvaluateList(templateName string) ([]Result, error) {

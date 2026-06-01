@@ -85,7 +85,7 @@ func TestDatacoreAdapter_IngestsLiveTemplate(t *testing.T) {
 		}
 	}
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, "assets.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, "assets.yaml"))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}
