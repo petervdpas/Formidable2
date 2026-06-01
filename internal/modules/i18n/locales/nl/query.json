@@ -39,6 +39,7 @@
   "query.run": "Uitvoeren",
   "query.running": "Bezig...",
   "query.export": "Exporteer CSV...",
+  "query.quote": "Alle waarden quoten",
   "query.results": "Resultaten",
   "query.no_results": "Geen overeenkomende records.",
   "query.result_count": "{count} rijen ({total} records totaal)",

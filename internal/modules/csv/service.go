@@ -10,8 +10,8 @@ func (s *Service) Preview(filePath, delimiter string) (PreviewResult, error) {
 	return s.m.Preview(filePath, delimiter)
 }
 
-func (s *Service) Write(filePath string, rows [][]string, delimiter string) WriteResult {
-	return s.m.Write(filePath, rows, delimiter)
+func (s *Service) Write(filePath string, rows [][]string, delimiter string, quoteAll bool) WriteResult {
+	return s.m.Write(filePath, rows, delimiter, quoteAll)
 }
 
 // ApplyTransform runs one transform rule against a single cell value.

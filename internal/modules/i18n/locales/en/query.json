@@ -39,6 +39,7 @@
   "query.run": "Run",
   "query.running": "Running...",
   "query.export": "Export CSV...",
+  "query.quote": "Quote all values",
   "query.results": "Results",
   "query.no_results": "No matching records.",
   "query.result_count": "{count} rows ({total} records total)",

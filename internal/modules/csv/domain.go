@@ -100,23 +100,34 @@ func (m *Manager) Preview(filePath, delimiter string) (PreviewResult, error) {
 }
 
 // Write serializes rows (first row = headers, then data) to filePath. Empty
-// delimiter falls back to comma; output uses LF line endings. Every field is
-// always quoted (not just those RFC 4180 requires) so the file parses
-// unambiguously in Excel regardless of the locale's delimiter. Embedded
-// quotes are escaped by doubling.
-func (m *Manager) Write(filePath string, rows [][]string, delimiter string) WriteResult {
+// delimiter falls back to comma; output uses LF line endings. When quoteAll is
+// true every field is quoted (not just those RFC 4180 requires) so the file
+// parses unambiguously in Excel regardless of the locale's delimiter. When
+// false, encoding/csv applies minimal RFC-4180 quoting (only fields containing
+// the delimiter, a quote, or a newline). Embedded quotes are escaped by
+// doubling either way.
+func (m *Manager) Write(filePath string, rows [][]string, delimiter string, quoteAll bool) WriteResult {
 	delim := pickDelimiter(delimiter)
 	var out strings.Builder
-	for _, row := range rows {
-		for i, field := range row {
-			if i > 0 {
-				out.WriteRune(delim)
+	if quoteAll {
+		for _, row := range rows {
+			for i, field := range row {
+				if i > 0 {
+					out.WriteRune(delim)
+				}
+				out.WriteByte('"')
+				out.WriteString(strings.ReplaceAll(field, `"`, `""`))
+				out.WriteByte('"')
 			}
-			out.WriteByte('"')
-			out.WriteString(strings.ReplaceAll(field, `"`, `""`))
-			out.WriteByte('"')
+			out.WriteByte('\n')
 		}
-		out.WriteByte('\n')
+	} else {
+		w := stdcsv.NewWriter(&out)
+		w.Comma = delim
+		w.WriteAll(rows)
+		if err := w.Error(); err != nil {
+			return WriteResult{Success: false, Error: err.Error()}
+		}
 	}
 	if err := m.fs.SaveFile(filePath, out.String()); err != nil {
 		return WriteResult{Success: false, Error: err.Error()}

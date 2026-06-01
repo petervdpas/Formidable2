@@ -47,6 +47,8 @@ const result = ref<Result | null>(null);
 const running = ref(false);
 const errorMsg = ref("");
 const activeTab = ref("columns");
+const exportDelimiter = ref(",");
+const exportQuoteAll = ref(true);
 
 const tabItems = computed(() => [
   { id: "columns", label: t("query.columns") },
@@ -64,6 +66,8 @@ watch(
     errorMsg.value = "";
     running.value = false;
     activeTab.value = "columns";
+    exportDelimiter.value = ",";
+    exportQuoteAll.value = true;
     try {
       await builder.load();
     } catch (e) {
@@ -109,7 +113,7 @@ async function exportCsv() {
     const path = await chooseSaveFile(`${stem}-query.csv`, [{ displayName: "CSV", pattern: "*.csv" }]);
     if (!path) return;
     const rows: string[][] = [res.columns, ...res.rows.map((r) => r.map((c) => c.text))];
-    const write = await CsvSvc.Write(path, rows, ",");
+    const write = await CsvSvc.Write(path, rows, exportDelimiter.value, exportQuoteAll.value);
     if (!write.success) {
       toast.error("query.failed");
       return;
@@ -161,6 +165,18 @@ async function exportCsv() {
     <QueryResult :result="result" />
 
     <template #footer>
+      <div class="query-export-opts">
+        <label class="query-export-field">
+          {{ t('csv.delimiter') }}
+          <select v-model="exportDelimiter">
+            <option value=",">{{ t('csv.delimiter.comma') }}</option>
+            <option value=";">{{ t('csv.delimiter.semicolon') }}</option>
+            <option value="	">{{ t('csv.delimiter.tab') }}</option>
+            <option value="|">{{ t('csv.delimiter.pipe') }}</option>
+          </select>
+        </label>
+        <SwitchField v-model="exportQuoteAll" :on-label="t('query.quote')" />
+      </div>
       <button
         type="button"
         class="tool-btn"

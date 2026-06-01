@@ -154,8 +154,8 @@ export function TransformRules(): $CancellablePromise<string[]> {
     });
 }
 
-export function Write(filePath: string, rows: string[][], delimiter: string): $CancellablePromise<$models.WriteResult> {
-    return $Call.ByID(614530563, filePath, rows, delimiter).then(($result: any) => {
+export function Write(filePath: string, rows: string[][], delimiter: string, quoteAll: boolean): $CancellablePromise<$models.WriteResult> {
+    return $Call.ByID(614530563, filePath, rows, delimiter, quoteAll).then(($result: any) => {
         return $$createType13($result);
     });
 }

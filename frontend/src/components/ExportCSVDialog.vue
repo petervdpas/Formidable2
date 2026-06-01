@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
 import ExportCsvRow, { type ExportRow, type SourceOption } from "./ExportCsvRow.vue";
+import { SwitchField } from "./fields";
 import { useDialog } from "../composables/useDialog";
 import { useToast } from "../composables/useToast";
 import { backendErrMessage } from "../utils/backendError";
@@ -114,6 +115,13 @@ function removeRow(idx: number) {
 }
 
 const includedRows = computed(() => rows.value.filter((r) => r.include));
+
+// Master toggle for the Include column: on only when every row is included;
+// flipping it sets all rows at once.
+const allIncluded = computed({
+  get: () => rows.value.length > 0 && rows.value.every((r) => r.include),
+  set: (val: boolean) => rows.value.forEach((r) => (r.include = val)),
+});
 const canExport = computed(() =>
   includedRows.value.length > 0 && includedRows.value.every((r) => r.sourceKeys.length > 0),
 );
@@ -176,7 +184,7 @@ async function doExport() {
       toast.error("csv.export.failed");
       return;
     }
-    const write = await CsvSvc.Write(path, result.rows, delimiter.value);
+    const write = await CsvSvc.Write(path, result.rows, delimiter.value, true);
     if (!write.success) {
       exportError.value = write.error || t("csv.export.failed");
       toast.error("csv.export.failed");
@@ -236,7 +244,12 @@ async function doExport() {
     <table class="csv-import-table">
       <thead>
         <tr>
-          <th class="csv-export-th-narrow">{{ t('csv.export.include') }}</th>
+          <th class="csv-export-th-narrow">
+            <div class="csv-export-include-head">
+              <span>{{ t('csv.export.include') }}</span>
+              <SwitchField v-model="allIncluded" />
+            </div>
+          </th>
           <th>{{ t('csv.export.source') }}</th>
           <th>{{ t('csv.column') }}</th>
           <th class="csv-export-th-narrow">{{ t('csv.export.separator') }}</th>

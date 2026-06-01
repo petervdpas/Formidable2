@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import CsvTransformCell from "./CsvTransformCell.vue";
+import { SwitchField } from "./fields";
 
 export type ExportRow = {
   id: string;
@@ -43,7 +44,7 @@ function removeSource(idx: number) {
 <template>
   <tr>
     <td class="csv-export-td-narrow">
-      <input type="checkbox" v-model="row.include" />
+      <SwitchField v-model="row.include" />
     </td>
     <td>
       <span v-if="!row.computed" class="muted small">{{ fieldLabel(row.sourceKeys[0]) }}</span>

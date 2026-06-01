@@ -119,7 +119,7 @@ func initCsvScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I write "([^"]*)" with rows "([^"]*)" and delimiter "([^"]*)"$`, func(path, rowsSpec, delim string) error {
 		rows := decodeRows(rowsSpec)
-		w.write = w.m.Write(path, rows, delim)
+		w.write = w.m.Write(path, rows, delim, true)
 		return nil
 	})
 
@@ -133,7 +133,7 @@ func initCsvScenario(ctx *godog.ScenarioContext) {
 			}
 			rows = append(rows, strings.Split(line, "|"))
 		}
-		w.write = w.m.Write(path, rows, delim)
+		w.write = w.m.Write(path, rows, delim, true)
 		return nil
 	})
 

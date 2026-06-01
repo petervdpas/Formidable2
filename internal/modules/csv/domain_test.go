@@ -110,7 +110,7 @@ func TestWrite_QuotesNewlinesInsideCells(t *testing.T) {
 	r := m.Write("nl.csv", [][]string{
 		{"k", "v"},
 		{"poem", "line1\nline2"},
-	}, ",")
+	}, ",", true)
 	if !r.Success {
 		t.Fatalf("write: %+v", r)
 	}
@@ -127,7 +127,7 @@ func TestWrite_RoundTripPreservesData(t *testing.T) {
 		{"Alice", "Main St, 1", `She said "hi"`},
 		{"Bob", "Side Rd 2", ""},
 	}
-	r := m.Write("rt.csv", rows, ",")
+	r := m.Write("rt.csv", rows, ",", true)
 	if !r.Success {
 		t.Fatalf("write: %+v", r)
 	}
@@ -140,6 +140,32 @@ func TestWrite_RoundTripPreservesData(t *testing.T) {
 	}
 	if pr.Rows[0][1] != "Main St, 1" || pr.Rows[0][2] != `She said "hi"` {
 		t.Errorf("round-trip lost data: %v", pr.Rows[0])
+	}
+}
+
+func TestWrite_MinimalQuotingWhenNotQuoteAll(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	r := m.Write("mq.csv", [][]string{
+		{"name", "note"},
+		{"Alice", "plain"},
+		{"Bob", "has,comma"},
+	}, ",", false)
+	if !r.Success {
+		t.Fatalf("write: %+v", r)
+	}
+	body, _ := sys.LoadFile("mq.csv")
+	if strings.Contains(body, `"name"`) || strings.Contains(body, `"Alice"`) {
+		t.Errorf("plain fields should not be quoted: %q", body)
+	}
+	if !strings.Contains(body, `"has,comma"`) {
+		t.Errorf("field with delimiter must be quoted: %q", body)
+	}
+	pr, err := m.Preview("mq.csv", ",")
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if pr.RowCount != 2 || pr.Rows[1][1] != "has,comma" {
+		t.Errorf("round-trip lost data: %+v", pr.Rows)
 	}
 }
 
@@ -181,7 +207,7 @@ func TestPreview_LoadErrorPropagates(t *testing.T) {
 func TestWrite_SaveErrorPropagates(t *testing.T) {
 	stub := &stubFS{saveErr: errSaveBoom}
 	m := NewManager(stub, nil)
-	r := m.Write("x.csv", [][]string{{"a"}}, ",")
+	r := m.Write("x.csv", [][]string{{"a"}}, ",", true)
 	if r.Success {
 		t.Errorf("expected failure, got %+v", r)
 	}

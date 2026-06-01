@@ -131,6 +131,13 @@
   text-align: center;
 }
 
+.csv-export-include-head {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 .csv-export-header-input {
   width: 100%;
   min-width: 8rem;

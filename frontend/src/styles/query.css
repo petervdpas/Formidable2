@@ -145,6 +145,18 @@
   align-items: center;
   gap: 0.4rem;
 }
+
+.query-export-opts {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+}
+.query-export-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 .query-limit input {
   width: 5rem;
 }
