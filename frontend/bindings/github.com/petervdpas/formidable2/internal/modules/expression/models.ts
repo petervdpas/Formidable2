@@ -6,6 +6,45 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * FunctionDoc is one insertable item for the formula editor: a display name, the
+ * snippet inserted into the expression, a category for grouping in the UI, and a
+ * short description. The backend owns this catalog so the editor's palettes
+ * reflect the engine's real capabilities rather than a hardcoded frontend list.
+ */
+export class FunctionDoc {
+    "name": string;
+    "snippet": string;
+    "category": string;
+    "description": string;
+
+    /** Creates a new FunctionDoc instance. */
+    constructor($$source: Partial<FunctionDoc> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("snippet" in $$source)) {
+            this["snippet"] = "";
+        }
+        if (!("category" in $$source)) {
+            this["category"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FunctionDoc instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FunctionDoc {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FunctionDoc($$parsedSource as Partial<FunctionDoc>);
+    }
+}
+
+/**
  * Result is the rendered output of one expression evaluation; Items is set when the expression returns a list.
  */
 export class Result {

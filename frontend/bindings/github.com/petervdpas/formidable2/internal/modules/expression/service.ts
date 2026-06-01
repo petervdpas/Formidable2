@@ -113,11 +113,24 @@ export function BuilderParse(src: string, fields: builder$0.FieldRef[]): $Cancel
 }
 
 /**
+ * BuilderTextSources returns the field-value sources an OUTCOME text part may
+ * use: the displayable fields (by type) followed by the template's formula
+ * fields. The backend decides what is selectable; the editor renders the list.
+ * A formula compiles to F["key"] and resolves at runtime from the harvested
+ * expression context, so it is just another field-value source here.
+ */
+export function BuilderTextSources(fields: template$0.Field[], formulas: template$0.Formula[]): $CancellablePromise<builder$0.TextSourceOption[]> {
+    return $Call.ByID(1611479042, fields, formulas).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
+/**
  * Evaluate runs one expression against an arbitrary context.
  */
 export function Evaluate(src: string, ctx: { [_ in string]?: any }): $CancellablePromise<$models.Result> {
     return $Call.ByID(3315345587, src, ctx).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -126,7 +139,7 @@ export function Evaluate(src: string, ctx: { [_ in string]?: any }): $Cancellabl
  */
 export function EvaluateList(templateName: string): $CancellablePromise<$models.Result[]> {
     return $Call.ByID(3129605659, templateName).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -135,7 +148,7 @@ export function EvaluateList(templateName: string): $CancellablePromise<$models.
  */
 export function EvaluateListMany(templateName: string, datafiles: string[]): $CancellablePromise<$models.Result[]> {
     return $Call.ByID(2738239460, templateName, datafiles).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -144,7 +157,17 @@ export function EvaluateListMany(templateName: string, datafiles: string[]): $Ca
  */
 export function EvaluateListOne(templateName: string, datafile: string): $CancellablePromise<$models.Result> {
     return $Call.ByID(2616284681, templateName, datafile).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
+    });
+}
+
+/**
+ * Functions returns the formula editor's function/control catalog so the
+ * palettes reflect the engine's real capabilities.
+ */
+export function Functions(): $CancellablePromise<$models.FunctionDoc[]> {
+    return $Call.ByID(843830801).then(($result: any) => {
+        return $$createType14($result);
     });
 }
 
@@ -158,5 +181,9 @@ const $$createType5 = builder$0.FieldOption.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = builder$0.Operator.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $models.Result.createFrom;
+const $$createType9 = builder$0.TextSourceOption.createFrom;
 const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $models.Result.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $models.FunctionDoc.createFrom;
+const $$createType14 = $Create.Array($$createType13);

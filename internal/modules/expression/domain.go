@@ -64,6 +64,38 @@ func (m *Manager) EvaluateValue(src string, ctx map[string]any) (any, error) {
 	return m.eng.EvaluateRaw(src, ctx)
 }
 
+// FormulaSpec is one computed field for EvaluateFormulas: a key, a declared
+// result type (caller's concern for coercion), and its expression. Defined here
+// so callers (the datacore loader, the index harvest) need not share a struct.
+type FormulaSpec struct {
+	Key        string
+	Type       string
+	Expression string
+}
+
+// EvaluateFormulas computes specs in declared order against ctx and returns the
+// raw value per key. Each result is also written back into ctx so a later
+// formula can reference an earlier one via F["..."]. A spec that fails to
+// evaluate is skipped (absent from the result), so one bad formula doesn't
+// abort the rest. The single source of formula evaluation: both the datacore
+// loader (statistics) and the index harvest (expression engine) call this, so
+// the value a chart sees and the value the sidebar sees are computed identically.
+func (m *Manager) EvaluateFormulas(specs []FormulaSpec, ctx map[string]any) map[string]any {
+	if ctx == nil {
+		ctx = map[string]any{}
+	}
+	out := make(map[string]any, len(specs))
+	for _, s := range specs {
+		raw, err := m.eng.EvaluateRaw(s.Expression, ctx)
+		if err != nil {
+			continue
+		}
+		out[s.Key] = raw
+		ctx[s.Key] = raw
+	}
+	return out
+}
+
 // EvaluateList compiles the sidebar_expression once and runs it against every record; per-row failures
 // are isolated (the row's Error is set, Text falls back to the title) so one bad row doesn't blank the rest.
 func (m *Manager) EvaluateList(templateName string) ([]Result, error) {

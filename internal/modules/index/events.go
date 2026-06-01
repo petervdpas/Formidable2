@@ -38,7 +38,15 @@ type EventHandler struct {
 	m         *Manager
 	templates TemplateLoader
 	forms     FormStore
+	formulas  FormulaEvaluator
 	root      string
+}
+
+// FormulaEvaluator computes a form's formula fields (raw values keyed by formula
+// key) so the harvest can fold them into the expression context the sidebar
+// reads. The index owns no expression engine; the composition root supplies one.
+type FormulaEvaluator interface {
+	FormulaValues(t *template.Template, f *storage.Form) map[string]any
 }
 
 // NewEventHandler wires the writer side of the index. The composition
@@ -49,6 +57,10 @@ func NewEventHandler(m *Manager, t TemplateLoader, f FormStore) *EventHandler {
 
 // SetRoot configures the context folder RescanAll uses.
 func (h *EventHandler) SetRoot(path string) { h.root = path }
+
+// SetFormulaEvaluator wires the optional formula evaluator; nil leaves the
+// harvest as just the expression-flagged field values.
+func (h *EventHandler) SetFormulaEvaluator(fe FormulaEvaluator) { h.formulas = fe }
 
 // OnTemplateChanged re-derives the templates row AND every form row, because form columns
 // (title/expression_items/tags/facets) are projections of the template and would otherwise go stale.
@@ -73,10 +85,10 @@ func (h *EventHandler) OnTemplateChanged(filename string) error {
 			continue
 		}
 		formRows = append(formRows,
-			buildFormRow(rec.Template, formRec.Form, filename, datafile, formRec.Mtime))
+			h.buildFormRow(rec.Template, formRec.Form, filename, datafile, formRec.Mtime))
 	}
 
-	return Reconcile(h.m.DB(), ReconcileBatch{
+	return h.m.Reconcile(ReconcileBatch{
 		UpsertTemplates: []TemplateRow{buildTemplateRow(rec.Template, rec.Mtime, filename)},
 		UpsertForms:     formRows,
 	})
@@ -84,28 +96,12 @@ func (h *EventHandler) OnTemplateChanged(filename string) error {
 
 // listIndexedFormFiles returns the form basenames currently indexed under a template (from the index, not disk).
 func (h *EventHandler) listIndexedFormFiles(templateFilename string) ([]string, error) {
-	rows, err := h.m.DB().Query(
-		`SELECT filename FROM forms WHERE template = ?`,
-		templateFilename,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var f string
-		if err := rows.Scan(&f); err != nil {
-			return nil, err
-		}
-		out = append(out, f)
-	}
-	return out, rows.Err()
+	return h.m.FormFilenames(templateFilename)
 }
 
 // OnTemplateDeleted deletes the template; FK cascades wipe its forms, form_tags, and images.
 func (h *EventHandler) OnTemplateDeleted(filename string) error {
-	return Reconcile(h.m.DB(), ReconcileBatch{
+	return h.m.Reconcile(ReconcileBatch{
 		DeleteTemplates: []string{filename},
 	})
 }
@@ -123,13 +119,13 @@ func (h *EventHandler) OnFormChanged(templateFilename, datafile string) error {
 	if tplRec == nil || tplRec.Template == nil || formRec == nil || formRec.Form == nil {
 		return fmt.Errorf("index: nil load result for %q/%q", templateFilename, datafile)
 	}
-	row := buildFormRow(tplRec.Template, formRec.Form, templateFilename, datafile, formRec.Mtime)
-	return Reconcile(h.m.DB(), ReconcileBatch{UpsertForms: []FormRow{row}})
+	row := h.buildFormRow(tplRec.Template, formRec.Form, templateFilename, datafile, formRec.Mtime)
+	return h.m.Reconcile(ReconcileBatch{UpsertForms: []FormRow{row}})
 }
 
 // OnFormDeleted deletes the form; FK cascade removes its form_tags rows.
 func (h *EventHandler) OnFormDeleted(templateFilename, datafile string) error {
-	return Reconcile(h.m.DB(), ReconcileBatch{
+	return h.m.Reconcile(ReconcileBatch{
 		DeleteForms: []FormRef{{Template: templateFilename, Filename: datafile}},
 	})
 }
@@ -161,7 +157,7 @@ func buildTemplateRow(t *template.Template, mtime int64, filename string) Templa
 
 // buildFormRow projects a (template, form) pair into a FormRow; tags come only from tags_field (FormMeta.Tags
 // is intentionally ignored). templateFilename comes from the caller, not t.Filename, so the FK always matches the indexed key.
-func buildFormRow(t *template.Template, f *storage.Form, templateFilename, datafile string, mtime int64) FormRow {
+func (h *EventHandler) buildFormRow(t *template.Template, f *storage.Form, templateFilename, datafile string, mtime int64) FormRow {
 	row := FormRow{
 		Template:     templateFilename,
 		Filename:     datafile,
@@ -176,7 +172,11 @@ func buildFormRow(t *template.Template, f *storage.Form, templateFilename, dataf
 	}
 
 	guidKey, tagsKey := "", ""
-	expressionFields := []string{}
+	// Expression-item values keyed by field key. A facet field's value lives in
+	// meta.facets[facet_key], not f.Data, so it's pulled from there; otherwise
+	// the scalar from f.Data. Without this a sidebar rule keyed on a facet field
+	// never resolves (F["facet-field"] stays nil) and always hits the default.
+	exprVals := map[string]any{}
 	for _, fld := range t.Fields {
 		switch fld.Type {
 		case "guid":
@@ -188,8 +188,15 @@ func buildFormRow(t *template.Template, f *storage.Form, templateFilename, dataf
 				tagsKey = fld.Key
 			}
 		}
-		if fld.ExpressionItem {
-			expressionFields = append(expressionFields, fld.Key)
+		if !fld.ExpressionItem {
+			continue
+		}
+		if fld.Type == "facet" {
+			if st, ok := f.Meta.Facets[fld.FacetKey]; ok && st.Set && st.Selected != "" {
+				exprVals[fld.Key] = st.Selected
+			}
+		} else if v, ok := f.Data[fld.Key]; ok {
+			exprVals[fld.Key] = v
 		}
 	}
 
@@ -202,7 +209,11 @@ func buildFormRow(t *template.Template, f *storage.Form, templateFilename, dataf
 	row.Tags = pickTags(tagsKey, f.Data)
 	row.Values = pickValues(t.Fields, f.Data)
 	row.SearchBody = pickSearchBody(t.Fields, f.Data)
-	row.ExpressionItems = encodeExpressionItems(expressionFields, f.Data)
+	var formulaVals map[string]any
+	if h.formulas != nil {
+		formulaVals = h.formulas.FormulaValues(t, f)
+	}
+	row.ExpressionItems = encodeExpressionItems(exprVals, formulaVals)
 
 	return row
 }
@@ -307,14 +318,19 @@ func cleanTags(in []string) []string {
 	return out
 }
 
-// encodeExpressionItems serialises {fieldKey: value} for every expression_item field as a JSON blob.
-func encodeExpressionItems(keys []string, data map[string]any) string {
-	if len(keys) == 0 {
-		return ""
+// encodeExpressionItems serialises the expression-item field values plus the
+// computed formula values as one JSON blob. Both share the context so a sidebar
+// expression can read F["formula"] alongside F["field"]. Empty values are
+// dropped so an unset field/formula simply doesn't appear.
+func encodeExpressionItems(exprVals map[string]any, formulaVals map[string]any) string {
+	out := make(map[string]any, len(exprVals)+len(formulaVals))
+	for k, v := range exprVals {
+		if v != nil && v != "" {
+			out[k] = v
+		}
 	}
-	out := make(map[string]any, len(keys))
-	for _, k := range keys {
-		if v, ok := data[k]; ok && v != nil && v != "" {
+	for k, v := range formulaVals {
+		if v != nil && v != "" {
 			out[k] = v
 		}
 	}

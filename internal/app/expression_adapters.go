@@ -21,7 +21,7 @@ func (a expressionTemplateAdapter) LookupExpression(name string) (string, []expr
 	if err != nil {
 		return "", nil, err
 	}
-	fields := make([]expression.ExpressionField, 0, len(t.Fields))
+	fields := make([]expression.ExpressionField, 0, len(t.Fields)+len(t.Formulas))
 	for _, f := range t.Fields {
 		if !f.ExpressionItem {
 			continue
@@ -30,6 +30,12 @@ func (a expressionTemplateAdapter) LookupExpression(name string) (string, []expr
 			Key:     f.Key,
 			Options: optionLabelMap(f.Options),
 		})
+	}
+	// Formula keys are whitelisted too, so the values the harvest folded into
+	// the expression context survive narrowContext and a sidebar expression can
+	// reference F["formula"]. Formulas carry no options.
+	for _, fm := range t.Formulas {
+		fields = append(fields, expression.ExpressionField{Key: fm.Key})
 	}
 	return t.SidebarExpression, fields, nil
 }

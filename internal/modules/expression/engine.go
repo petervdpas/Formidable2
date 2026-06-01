@@ -67,6 +67,7 @@ func builtinHelpers() map[string]any {
 		"ageInDays":        ageInDays,
 		"defaultText":      defaultText,
 		"notEmpty":         notEmpty,
+		"str":              str,
 	}
 }
 

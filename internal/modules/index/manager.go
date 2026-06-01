@@ -21,8 +21,38 @@ func NewManager(path string) (*Manager, error) {
 	return &Manager{db: db}, nil
 }
 
-// DB exposes the handle so the same-package reconciler can run write transactions; callers use Reconcile.
+// DB exposes the raw handle. Low-level: tests use it for introspection and the
+// same-package reconciler runs transactions through it. Domain callers should
+// use the read/write methods below (Reconcile, ScanState, FormFilenames) so the
+// index reads as a thing you ask to do work, not a SQL handle passed around.
 func (m *Manager) DB() *sql.DB { return m.db }
+
+// Reconcile applies a write batch in one transaction (bumping the revision).
+// The domain write entry point: callers tell the Manager to reconcile rather
+// than reaching for its DB.
+func (m *Manager) Reconcile(b ReconcileBatch) error { return Reconcile(m.db, b) }
+
+// ScanState reads the indexed (template, form) digest set rescan diffs against.
+func (m *Manager) ScanState() (*indexState, error) { return scanIndexState(m.db) }
+
+// FormFilenames returns the form basenames currently indexed under a template
+// (from the index, not disk).
+func (m *Manager) FormFilenames(templateFilename string) ([]string, error) {
+	rows, err := m.db.Query(`SELECT filename FROM forms WHERE template = ?`, templateFilename)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var f string
+		if err := rows.Scan(&f); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
 
 // Close releases the underlying handle.
 func (m *Manager) Close() error { return m.db.Close() }

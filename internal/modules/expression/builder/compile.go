@@ -190,6 +190,15 @@ func textPartsExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 			}
 			pieces[i] = s
 		}
+		if len(pieces) == 1 {
+			return pieces[0], nil
+		}
+		// Multi-part: coerce each so the `+` chain is string joining, not a
+		// numeric add that raises `string + float64` when a part is a number,
+		// bool, or unset field.
+		for i := range pieces {
+			pieces[i] = strRef(pieces[i])
+		}
 		return strings.Join(pieces, " + "), nil
 	}
 	if o.Text != nil {
@@ -200,6 +209,7 @@ func textPartsExpr(o Outcome, fields map[string]FieldRef) (string, error) {
 
 // textExpr resolves a TextSource to its fragment: literal->L["text"], fieldValue->F["key"], fieldLabel->O["key"].
 // All three share a uniform accessor["arg"] shape so a concat chain parses as a flat sequence of MemberNodes.
+// In a multi-part concat each fragment is wrapped in str() by textPartsExpr; a lone part stays bare.
 func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 	switch ts.Kind {
 	case TextKindLiteral:
@@ -221,6 +231,11 @@ func textExpr(ts TextSource, fields map[string]FieldRef) (string, error) {
 		return optionLabelRef(key), nil
 	}
 	return "", fmt.Errorf("unknown text source kind %q", ts.Kind)
+}
+
+// strRef wraps a text fragment in the str() coercion helper.
+func strRef(s string) string {
+	return "str(" + s + ")"
 }
 
 func outcomeIsEmpty(o Outcome) bool {

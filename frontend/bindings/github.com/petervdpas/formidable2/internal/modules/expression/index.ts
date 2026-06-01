@@ -7,5 +7,6 @@ export {
 };
 
 export {
+    FunctionDoc,
     Result
 } from "./models.js";

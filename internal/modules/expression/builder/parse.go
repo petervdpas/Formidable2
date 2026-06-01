@@ -421,8 +421,10 @@ func parseTextChain(node ast.Node) ([]TextSource, error) {
 	return parts, nil
 }
 
-// parseTextSource reads one text part, accepting only L (literal) / F (fieldValue) / O (fieldLabel).
+// parseTextSource reads one text part, accepting only L (literal) / F (fieldValue) / O (fieldLabel),
+// each optionally wrapped in the str() coercion Compile now emits (a bare accessor is the legacy form).
 func parseTextSource(node ast.Node) (*TextSource, error) {
+	node = unwrapStr(node)
 	if v, ok := bracketAccess(node, "L"); ok {
 		return &TextSource{Kind: TextKindLiteral, Value: v}, nil
 	}
@@ -433,6 +435,20 @@ func parseTextSource(node ast.Node) (*TextSource, error) {
 		return &TextSource{Kind: TextKindFieldLabel, FieldKey: k}, nil
 	}
 	return nil, fmt.Errorf("unrecognised text source %T", node)
+}
+
+// unwrapStr peels a str(<accessor>) call back to its single argument; a node that
+// is not a str() call is returned unchanged (so legacy bare accessors still parse).
+func unwrapStr(node ast.Node) ast.Node {
+	cn, ok := node.(*ast.CallNode)
+	if !ok {
+		return node
+	}
+	id, ok := cn.Callee.(*ast.IdentifierNode)
+	if !ok || id.Value != "str" || len(cn.Arguments) != 1 {
+		return node
+	}
+	return cn.Arguments[0]
 }
 
 // flattenPlus returns the leaves of a `+` chain in source order (a non-`+` node yields one leaf).

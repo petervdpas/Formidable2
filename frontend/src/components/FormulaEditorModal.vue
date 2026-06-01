@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
-import { TextField, TextareaField, SelectField } from "./fields";
+import { TextField, SelectField } from "./fields";
 import { Formula, Facet, Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { FormulaService } from "../../bindings/github.com/petervdpas/formidable2/internal/app";
+import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
+import type { FunctionDoc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/models";
 import { backendErrMessage } from "../utils/backendError";
 
 const props = defineProps<{
@@ -27,6 +29,7 @@ const type = ref("number");
 const expression = ref("");
 const preview = ref("");
 const previewError = ref("");
+const exprArea = ref<HTMLTextAreaElement | null>(null);
 
 const typeOptions = computed(() => [
   { value: "number", label: t("workspace.templates.formulas.type.number") },
@@ -35,30 +38,65 @@ const typeOptions = computed(() => [
   { value: "bool", label: t("workspace.templates.formulas.type.bool") },
 ]);
 
-// Field/facet reference chips: clicking one appends its F["key"] token. Skip
-// presentation-only field types that carry no value (mirrors the loader skip).
-const skipTypes = new Set(["image", "api", "button", "facet", "heading"]);
+// Field/facet references, deduped, skipping presentation/structural types.
+const skipTypes = new Set([
+  "image", "api", "button", "facet", "heading", "loopstart", "loopstop",
+]);
 const refTokens = computed(() => {
   const out: { token: string; label: string }[] = [];
+  const seen = new Set<string>();
+  const add = (k: string, l: string) => {
+    if (!k || seen.has(k)) return;
+    seen.add(k);
+    out.push({ token: `F["${k}"]`, label: l });
+  };
   for (const f of props.fields ?? []) {
     if (skipTypes.has(f.type)) continue;
-    out.push({ token: `F["${f.key}"]`, label: f.label || f.key });
+    add(f.key, f.label || f.key);
   }
-  for (const fc of props.facets ?? []) {
-    out.push({ token: `F["${fc.key}"]`, label: fc.key });
-  }
+  for (const fc of props.facets ?? []) add(fc.key, fc.key);
   return out;
 });
 
-function insertToken(token: string) {
-  expression.value = expression.value ? `${expression.value} ${token}` : token;
+// Function/control catalog from the backend, so the palettes reflect the
+// engine's real capabilities rather than a hardcoded list.
+const functions = ref<FunctionDoc[]>([]);
+const fnCategoryKeys: Record<string, string> = {
+  math: "workspace.templates.formulas.fn_math",
+  date: "workspace.templates.formulas.fn_date",
+  text: "workspace.templates.formulas.fn_text",
+};
+const fnGroups = computed(() =>
+  ["math", "date", "text"].map((cat) => ({
+    label: t(fnCategoryKeys[cat]),
+    items: functions.value.filter((f) => f.category === cat),
+  })).filter((g) => g.items.length > 0),
+);
+const controlFns = computed(() => functions.value.filter((f) => f.category === "control"));
+
+// Insert text at the textarea cursor (replacing any selection), then re-focus
+// and place the caret after it, so building an expression doesn't fight you.
+function insertSnippet(text: string) {
+  const el = exprArea.value;
+  if (!el) {
+    expression.value = expression.value ? `${expression.value} ${text}` : text;
+    return;
+  }
+  const start = el.selectionStart ?? expression.value.length;
+  const end = el.selectionEnd ?? start;
+  expression.value = expression.value.slice(0, start) + text + expression.value.slice(end);
+  void nextTick(() => {
+    el.focus();
+    const pos = start + text.length;
+    el.setSelectionRange(pos, pos);
+  });
 }
 
 const canApply = computed(() => key.value.trim() !== "" && expression.value.trim() !== "");
 
 watch(
   () => props.open,
-  (open) => {
+  async (open) => {
     if (!open) return;
     key.value = props.initial?.key ?? "";
     label.value = props.initial?.label ?? "";
@@ -66,29 +104,45 @@ watch(
     expression.value = props.initial?.expression ?? "";
     preview.value = "";
     previewError.value = "";
+    evaluated.value = false;
+    if (functions.value.length === 0) {
+      try {
+        functions.value = await ExpressionSvc.Functions();
+      } catch {
+        functions.value = [];
+      }
+    }
   },
 );
 
-// Live preview against the template's first stored form. Debounced so each
-// keystroke doesn't round-trip; the backend builds the same context the chart
-// will, so this is the real value, not a client-side guess.
-let previewTimer: ReturnType<typeof setTimeout> | undefined;
-watch([expression, type], () => {
-  if (previewTimer) clearTimeout(previewTimer);
+// Preview is on demand (an Evaluate button), not live, so the dialog doesn't
+// reflow on every keystroke. The backend builds the same context the chart
+// will, so the value shown is the real one.
+const evaluating = ref(false);
+const evaluated = ref(false); // true once a run completed, so "" reads as an empty result, not "not run"
+const canEvaluate = computed(() => props.template !== "" && expression.value.trim() !== "");
+
+// Editing invalidates the shown result; revert to the hint until re-evaluated.
+watch(expression, () => {
+  evaluated.value = false;
   previewError.value = "";
-  if (!props.template || expression.value.trim() === "") {
-    preview.value = "";
-    return;
-  }
-  previewTimer = setTimeout(async () => {
-    try {
-      preview.value = await FormulaService.Preview(props.template, expression.value, type.value);
-    } catch (e) {
-      preview.value = "";
-      previewError.value = backendErrMessage(e);
-    }
-  }, 300);
 });
+
+async function evaluate() {
+  if (!canEvaluate.value) return;
+  evaluating.value = true;
+  previewError.value = "";
+  try {
+    preview.value = await FormulaService.Preview(props.template, expression.value, type.value);
+    evaluated.value = true;
+  } catch (e) {
+    preview.value = "";
+    evaluated.value = false;
+    previewError.value = backendErrMessage(e);
+  } finally {
+    evaluating.value = false;
+  }
+}
 
 function apply() {
   if (!canApply.value) return;
@@ -121,23 +175,63 @@ function apply() {
 
       <span class="formula-editor-label">{{ t('workspace.templates.formulas.expression') }}</span>
       <p class="muted small formula-editor-hint">{{ t('workspace.templates.formulas.expression_hint') }}</p>
-      <TextareaField v-model="expression" :rows="4" placeholder='F["amount"] * 0.21' />
+      <textarea
+        ref="exprArea"
+        v-model="expression"
+        class="formula-expr-input"
+        rows="4"
+        spellcheck="false"
+        placeholder='F["amount"] * 0.21'
+      ></textarea>
 
-      <div class="formula-editor-refs">
-        <button
-          v-for="r in refTokens"
-          :key="r.token"
-          type="button"
-          class="formula-ref-chip"
-          :title="r.token"
-          @click="insertToken(r.token)"
-        >{{ r.label }}</button>
+      <!-- Insert palettes: field references, functions (grouped), control. -->
+      <div class="formula-palette">
+        <span class="formula-editor-label">{{ t('workspace.templates.formulas.insert') }}</span>
+        <select
+          class="formula-palette-select"
+          :value="''"
+          @change="insertSnippet(($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+        >
+          <option value="">{{ t('workspace.templates.formulas.palette_field') }}</option>
+          <option v-for="r in refTokens" :key="r.token" :value="r.token">{{ r.label }}</option>
+        </select>
+        <select
+          class="formula-palette-select"
+          :value="''"
+          @change="insertSnippet(($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+        >
+          <option value="">{{ t('workspace.templates.formulas.palette_function') }}</option>
+          <optgroup v-for="g in fnGroups" :key="g.label" :label="g.label">
+            <option v-for="fn in g.items" :key="fn.name" :value="fn.snippet" :title="fn.description">
+              {{ fn.name }}
+            </option>
+          </optgroup>
+        </select>
+        <select
+          class="formula-palette-select"
+          :value="''"
+          @change="insertSnippet(($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''"
+        >
+          <option value="">{{ t('workspace.templates.formulas.palette_control') }}</option>
+          <option v-for="fn in controlFns" :key="fn.name" :value="fn.snippet" :title="fn.description">
+            {{ fn.name }}
+          </option>
+        </select>
       </div>
 
-      <div class="formula-editor-preview">
+      <div class="formula-editor-preview-head">
         <span class="formula-editor-label">{{ t('workspace.templates.formulas.preview') }}</span>
+        <button
+          class="tool-btn"
+          type="button"
+          :disabled="!canEvaluate || evaluating"
+          @click="evaluate"
+        >{{ t('workspace.templates.formulas.evaluate') }}</button>
+      </div>
+      <div class="formula-preview-box">
         <code v-if="previewError" class="formula-preview-error">{{ previewError }}</code>
-        <code v-else-if="preview !== ''" class="formula-preview-value">{{ preview }}</code>
+        <code v-else-if="evaluated && preview !== ''" class="formula-preview-value">{{ preview }}</code>
+        <span v-else-if="evaluated" class="muted small">{{ t('workspace.templates.formulas.preview_empty_result') }}</span>
         <span v-else class="muted small">{{ t('workspace.templates.formulas.preview_empty') }}</span>
       </div>
     </div>

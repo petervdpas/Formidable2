@@ -72,7 +72,7 @@ func TestConvert_ObservedShapes(t *testing.T) {
 		{
 			name: "pipe form with bare id AND bare string in concat",
 			in:   `[ adr_datum_beslissing | { text: "Goedgekeurd op: " + adr_datum_beslissing, classes: ["expr-text-green", "expr-bold"] } ]`,
-			want: `L["Goedgekeurd op: "] + F["adr_datum_beslissing"]`,
+			want: `str(L["Goedgekeurd op: "]) + str(F["adr_datum_beslissing"])`,
 		},
 	}
 

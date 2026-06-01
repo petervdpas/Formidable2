@@ -18,7 +18,7 @@ import Modal from "./Modal.vue";
 import ScrollList from "./ScrollList.vue";
 import PredicateRow from "./expressionBuilder/PredicateRow.vue";
 import OutcomeEditor from "./expressionBuilder/OutcomeEditor.vue";
-import type { Field, Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field, Facet, Formula } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import {
   Config,
@@ -28,6 +28,7 @@ import {
   type FieldRef,
   type Operator,
   type Rule,
+  type TextSourceOption,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
 
@@ -38,6 +39,9 @@ const props = defineProps<{
    *  fields can resolve their predicate option labels (the bound
    *  facet's option list). Defaults to []. */
   facets?: Facet[];
+  /** Template's formula fields - offered as OUTCOME text-part sources
+   *  (they resolve as F["key"] from the harvested expression context). */
+  formulas?: Formula[];
   initial?: string;
 }>();
 
@@ -82,15 +86,17 @@ async function refreshPredicateableFields() {
 // derived fields) return false so they appear only as predicates,
 // never as concatenated label parts. Mirrors the predicate refresh
 // pattern so the frontend stays a thin renderer of backend rules.
-const displayableFields = ref<Field[]>([]);
+// The OUTCOME text-part sources come fully from the backend: it filters the
+// expression fields by displayable type and appends the formula fields, each
+// tagged with a group so the picker can separate Fields from Formulas. The
+// frontend renders the list, it does not decide what is selectable.
+const textSources = ref<TextSourceOption[]>([]);
 
-async function refreshDisplayableFields() {
-  const out: Field[] = [];
-  for (const f of expressionFields.value) {
-    const ok = await ExpressionSvc.BuilderIsDisplayableFieldType(f.type || "");
-    if (ok) out.push(f);
-  }
-  displayableFields.value = out;
+async function refreshTextSources() {
+  textSources.value = await ExpressionSvc.BuilderTextSources(
+    expressionFields.value,
+    props.formulas ?? [],
+  );
 }
 
 const enumFields = computed(() =>
@@ -188,7 +194,7 @@ watch(
     await Promise.all([
       loadMetadata(),
       refreshPredicateableFields(),
-      refreshDisplayableFields(),
+      refreshTextSources(),
       refreshFieldOptions(),
     ]);
 
@@ -467,7 +473,7 @@ const canApply = computed(() => {
             </h4>
             <OutcomeEditor
               :outcome="editingOutcome"
-              :expression-fields="displayableFields"
+              :text-sources="textSources"
               :enum-fields="enumFields"
             />
           </section>

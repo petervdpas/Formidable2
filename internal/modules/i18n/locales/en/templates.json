@@ -79,6 +79,8 @@
   "workspace.templates.expression_builder.text_kind.field_label": "option label",
   "workspace.templates.expression_builder.text_kind.field_value": "field value",
   "workspace.templates.expression_builder.text_kind.literal": "literal",
+  "workspace.templates.expression_builder.text_source_group.field": "Fields",
+  "workspace.templates.expression_builder.text_source_group.formula": "Formulas",
   "workspace.templates.expression_builder.text_kind.none": "(none)",
   "workspace.templates.expression_builder.title": "Sidebar Expression Builder",
   "expression_builder.op.equals": "equals",

@@ -1238,6 +1238,7 @@ setTopbarMenu(() => [
     :open="expressionBuilderOpen"
     :fields="draft.fields ?? []"
     :facets="draft.facets ?? []"
+    :formulas="draft.formulas ?? []"
     :initial="draft.sidebar_expression"
     @close="expressionBuilderOpen = false"
     @apply="applyExpressionBuilder"

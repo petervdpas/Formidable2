@@ -96,6 +96,19 @@ func (r *indexFormReader) ListSummaries(templateFilename string) ([]storage.Form
 	return out, nil
 }
 
+// LoadSummary serves the single-form path from the same index rows the list
+// path uses, so ExtendedLoadForm carries the harvested ExpressionItems.
+func (r *indexFormReader) LoadSummary(templateFilename, datafile string) (storage.FormSummary, bool, error) {
+	row, ok, err := r.idx.GetForm(templateFilename, datafile)
+	if err != nil {
+		return storage.FormSummary{}, false, err
+	}
+	if !ok || row == nil {
+		return storage.FormSummary{}, false, nil
+	}
+	return formRowToSummary(*row), true, nil
+}
+
 // SearchSummaries orders by FTS5 relevance (SearchForms' own ranking), not
 // filename, so the most relevant matches lead.
 func (r *indexFormReader) SearchSummaries(templateFilename, query string) ([]storage.FormSummary, error) {

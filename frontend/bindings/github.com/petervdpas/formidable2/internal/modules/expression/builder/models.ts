@@ -363,6 +363,46 @@ export class TextSource {
     }
 }
 
+/**
+ * TextSourceOption is one option the OUTCOME text-part field-value picker
+ * offers: a key (the F["key"] it compiles to), a display label, and a group so
+ * the UI can separate real fields from formula fields. Assembled by the Service
+ * (it has the template) from the displayable fields plus the formula catalog,
+ * so the frontend renders the list rather than deciding what is selectable.
+ */
+export class TextSourceOption {
+    "key": string;
+    "label": string;
+
+    /**
+     * "field" | "formula"
+     */
+    "group": string;
+
+    /** Creates a new TextSourceOption instance. */
+    constructor($$source: Partial<TextSourceOption> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("group" in $$source)) {
+            this["group"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TextSourceOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TextSourceOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TextSourceOption($$parsedSource as Partial<TextSourceOption>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = Rule.createFrom;
 const $$createType1 = $Create.Array($$createType0);

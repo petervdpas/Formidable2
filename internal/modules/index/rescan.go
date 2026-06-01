@@ -65,7 +65,7 @@ func (h *EventHandler) RescanTemplate(ctx context.Context, templateFilename stri
 		}
 	}
 
-	if err := Reconcile(h.m.DB(), batch); err != nil {
+	if err := h.m.Reconcile(batch); err != nil {
 		loadErrs = append(loadErrs, err)
 	}
 	return errors.Join(loadErrs...)
@@ -83,7 +83,7 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("index: scan disk: %w", err)
 	}
-	idx, err := scanIndexState(h.m.DB())
+	idx, err := h.m.ScanState()
 	if err != nil {
 		return fmt.Errorf("index: scan db: %w", err)
 	}
@@ -170,7 +170,7 @@ func (h *EventHandler) RescanAll(ctx context.Context) error {
 		}
 	}
 
-	if err := Reconcile(h.m.DB(), batch); err != nil {
+	if err := h.m.Reconcile(batch); err != nil {
 		loadErrs = append(loadErrs, err)
 	}
 	return errors.Join(loadErrs...)
@@ -204,7 +204,7 @@ func (h *EventHandler) loadFormRow(templateFilename string, entry FileEntry) (Fo
 	if tplRec == nil || tplRec.Template == nil || formRec == nil || formRec.Form == nil {
 		return FormRow{}, fmt.Errorf("index: nil load result for %q/%q", templateFilename, entry.Filename)
 	}
-	row := buildFormRow(tplRec.Template, formRec.Form, templateFilename, entry.Filename, entry.Mtime)
+	row := h.buildFormRow(tplRec.Template, formRec.Form, templateFilename, entry.Filename, entry.Mtime)
 	row.Size = entry.Size
 	return row, nil
 }

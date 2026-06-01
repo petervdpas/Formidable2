@@ -17,6 +17,14 @@ import (
 func formulaContext(tpl *template.Template, f *storage.Form) map[string]any {
 	ctx := make(map[string]any)
 	for _, fld := range tpl.Fields {
+		// A facet field's value lives in meta.facets[facet_key]; expose it under
+		// the field key so F["facet-field"] resolves like in the sidebar.
+		if fld.Type == "facet" {
+			if st, ok := f.Meta.Facets[fld.FacetKey]; ok && st.Set && st.Selected != "" {
+				ctx[fld.Key] = st.Selected
+			}
+			continue
+		}
 		if datacoreSkipTypes[fld.Type] {
 			continue
 		}
@@ -24,6 +32,7 @@ func formulaContext(tpl *template.Template, f *storage.Form) map[string]any {
 			ctx[fld.Key] = v
 		}
 	}
+	// Also expose each set facet under its own key (F["facet-key"]).
 	for k, st := range f.Meta.Facets {
 		if st.Set && st.Selected != "" {
 			ctx[k] = st.Selected
@@ -32,39 +41,55 @@ func formulaContext(tpl *template.Template, f *storage.Form) map[string]any {
 	return ctx
 }
 
-// evalFormulas evaluates formulas in declared order against ctx, returning the
-// coerced string cells. It mutates ctx with each raw result so a later formula
-// can reference an earlier one via F["..."]. A formula that fails to evaluate,
-// or yields an empty value, is skipped (no cell), matching the loader's
-// read-tolerance.
-func evalFormulas(ev *expression.Manager, formulas []template.Formula, ctx map[string]any) map[string]string {
-	out := make(map[string]string, len(formulas))
-	for _, f := range formulas {
-		raw, err := ev.EvaluateValue(f.Expression, ctx)
-		if err != nil {
+// formulaSpecs adapts the template's formula catalog to the expression module's
+// spec shape (it owns no dependency on template).
+func formulaSpecs(formulas []template.Formula) []expression.FormulaSpec {
+	specs := make([]expression.FormulaSpec, len(formulas))
+	for i, f := range formulas {
+		specs[i] = expression.FormulaSpec{Key: f.Key, Type: f.Type, Expression: f.Expression}
+	}
+	return specs
+}
+
+// formulaValues computes a form's formula fields (raw values), the single
+// source both the datacore loader and the index harvest draw from.
+func formulaValues(ev *expression.Manager, tpl *template.Template, f *storage.Form) map[string]any {
+	if ev == nil || len(tpl.Formulas) == 0 {
+		return nil
+	}
+	return ev.EvaluateFormulas(formulaSpecs(tpl.Formulas), formulaContext(tpl, f))
+}
+
+// formulaHarvester adapts formula evaluation to index.FormulaEvaluator, so the
+// index harvest folds formula values into the expression context the sidebar
+// reads, computed by the same engine the datacore loader uses.
+type formulaHarvester struct{ ev *expression.Manager }
+
+func (h formulaHarvester) FormulaValues(t *template.Template, f *storage.Form) map[string]any {
+	return formulaValues(h.ev, t, f)
+}
+
+// applyFormulas computes the template's formulas for one form and writes each as
+// an ordinary field cell on the datacore record (string-coerced; an empty or
+// failed value is skipped, matching the loader's read-tolerance).
+func applyFormulas(ev *expression.Manager, tpl *template.Template, f *storage.Form, rec *datacore.Record) {
+	raw := formulaValues(ev, tpl, f)
+	if len(raw) == 0 {
+		return
+	}
+	for _, fm := range tpl.Formulas {
+		v, ok := raw[fm.Key]
+		if !ok {
 			continue
 		}
-		s := coerceFormula(raw, f.Type)
+		s := coerceFormula(v, fm.Type)
 		if s == "" {
 			continue
 		}
-		out[f.Key] = s
-		ctx[f.Key] = raw
-	}
-	return out
-}
-
-// applyFormulas computes the template's formulas for one form and writes each
-// as an ordinary field cell on the datacore record.
-func applyFormulas(ev *expression.Manager, tpl *template.Template, f *storage.Form, rec *datacore.Record) {
-	if ev == nil || len(tpl.Formulas) == 0 {
-		return
-	}
-	for k, v := range evalFormulas(ev, tpl.Formulas, formulaContext(tpl, f)) {
 		if rec.Fields == nil {
 			rec.Fields = map[string]string{}
 		}
-		rec.Fields[k] = v
+		rec.Fields[fm.Key] = s
 	}
 }
 
@@ -130,7 +155,7 @@ func (s *FormulaService) Preview(templateFile, exprSrc, typ string) (string, err
 		return "", nil
 	}
 	ctx := formulaContext(tpl, f)
-	evalFormulas(s.ev, tpl.Formulas, ctx) // seed saved formulas so the new one may reference them
+	s.ev.EvaluateFormulas(formulaSpecs(tpl.Formulas), ctx) // seed saved formulas so the new one may reference them
 	raw, err := s.ev.EvaluateValue(exprSrc, ctx)
 	if err != nil {
 		return "", err

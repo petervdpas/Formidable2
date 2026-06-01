@@ -37,6 +37,19 @@ func today() string {
 	return nowFn().Format("2006-01-02")
 }
 
+// str coerces any value to its display string (nil -> ""). Text concatenation
+// in the builder wraps each part in str() so mixing a number field with text
+// is plain string joining, not an `string + float64` operator error.
+func str(v any) string {
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return fmt.Sprint(v)
+}
+
 // notEmpty treats only nil and "" as empty (so 0 and false count as non-empty).
 func notEmpty(v any) bool {
 	if v == nil {

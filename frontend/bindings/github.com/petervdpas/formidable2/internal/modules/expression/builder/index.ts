@@ -15,5 +15,6 @@ export {
     Rule,
     RuleKind,
     TextKind,
-    TextSource
+    TextSource,
+    TextSourceOption
 } from "./models.js";

@@ -79,6 +79,8 @@
   "workspace.templates.expression_builder.text_kind.field_label": "optielabel",
   "workspace.templates.expression_builder.text_kind.field_value": "veldwaarde",
   "workspace.templates.expression_builder.text_kind.literal": "letterlijk",
+  "workspace.templates.expression_builder.text_source_group.field": "Velden",
+  "workspace.templates.expression_builder.text_source_group.formula": "Formules",
   "workspace.templates.expression_builder.text_kind.none": "(geen)",
   "workspace.templates.expression_builder.title": "Zijbalkexpressiebouwer",
   "expression_builder.op.equals": "is gelijk aan",

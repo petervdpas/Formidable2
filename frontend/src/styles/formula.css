@@ -76,30 +76,41 @@
 .formula-editor-hint {
   margin: 0;
 }
-.formula-editor-refs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+.formula-expr-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  resize: vertical;
+  padding: var(--space-2);
 }
-.formula-ref-chip {
-  cursor: pointer;
-  font-size: 0.78rem;
-  padding: 2px var(--space-2);
-  background: var(--bg-subtle, var(--color-surface));
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill, 999px);
-  color: var(--color-text);
-}
-.formula-ref-chip:hover {
-  border-color: var(--color-accent, var(--color-border));
-}
-.formula-editor-preview {
+.formula-palette {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.formula-palette-select {
+  flex: 1 1 8rem;
+  min-width: 7rem;
+}
+.formula-editor-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
   margin-top: var(--space-1);
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border);
+}
+/* Fixed area so a value-vs-error swap doesn't bounce the dialog height. */
+.formula-preview-box {
+  margin-top: var(--space-1);
+  min-height: 3rem;
+  max-height: 7rem;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
 }
 .formula-preview-value {
   font-family: var(--font-mono);

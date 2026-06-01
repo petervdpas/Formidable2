@@ -19,13 +19,19 @@ import {
   Outcome,
   TextKind,
   TextSource,
+  type TextSourceOption,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 
 const props = defineProps<{
   outcome: Outcome;
-  expressionFields: Field[];
+  /** Backend-assembled field-value sources (displayable fields + formulas). */
+  textSources: TextSourceOption[];
   enumFields: Field[];
 }>();
+
+// Split the backend list into Fields and Formulas for grouped <optgroup>s.
+const fieldSources = computed(() => props.textSources.filter((s) => s.group === "field"));
+const formulaSources = computed(() => props.textSources.filter((s) => s.group === "formula"));
 
 // Mirrors builder.MaxConcatParts. Wails doesn't expose Go consts so
 // we pin the value here; the backend re-checks at Compile time, so a
@@ -272,9 +278,18 @@ function classDisplayName(name: string): string {
               @change="setPartValue(i, ($event.target as HTMLSelectElement).value)"
             >
               <option value="">-</option>
-              <option v-for="f in expressionFields" :key="f.key" :value="f.key">
-                {{ f.label || f.key }}
-              </option>
+              <optgroup
+                v-if="fieldSources.length"
+                :label="t('workspace.templates.expression_builder.text_source_group.field')"
+              >
+                <option v-for="s in fieldSources" :key="s.key" :value="s.key">{{ s.label }}</option>
+              </optgroup>
+              <optgroup
+                v-if="formulaSources.length"
+                :label="t('workspace.templates.expression_builder.text_source_group.formula')"
+              >
+                <option v-for="s in formulaSources" :key="s.key" :value="s.key">{{ s.label }}</option>
+              </optgroup>
             </select>
             <select
               v-else-if="p.kind === TextKind.TextKindFieldLabel"

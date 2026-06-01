@@ -611,7 +611,7 @@ func TestCompile_PartsTwo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `{text: F["unit-number"] + F["street"]}`
+	want := `{text: str(F["unit-number"]) + str(F["street"])}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -634,7 +634,7 @@ func TestCompile_PartsThreeWithLiteralSeparator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `{text: F["unit-number"] + L[" "] + F["street"]}`
+	want := `{text: str(F["unit-number"]) + str(L[" "]) + str(F["street"])}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -658,7 +658,7 @@ func TestCompile_PartsMixedLFO(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `{text: L["size: "] + O["size"] + L[" ("] + F["size"] + L[")"]}`
+	want := `{text: str(L["size: "]) + str(O["size"]) + str(L[" ("]) + str(F["size"]) + str(L[")"])}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -712,7 +712,7 @@ func TestCompile_PartsInRuleOutcome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	want := `F["check"] ? {text: L["✓ "] + F["title"], color: "green"} : {}`
+	want := `F["check"] ? {text: str(L["✓ "]) + str(F["title"]), color: "green"} : {}`
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}

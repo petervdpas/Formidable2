@@ -742,6 +742,19 @@ func (f *fakeFormReader) ListSummaries(_ string) ([]FormSummary, error) {
 	return f.out, f.err
 }
 
+func (f *fakeFormReader) LoadSummary(_, datafile string) (FormSummary, bool, error) {
+	f.calls++
+	if f.err != nil {
+		return FormSummary{}, false, f.err
+	}
+	for _, s := range f.out {
+		if s.Filename == datafile {
+			return s, true, nil
+		}
+	}
+	return FormSummary{}, false, nil
+}
+
 func (f *fakeFormReader) SearchSummaries(_, query string) ([]FormSummary, error) {
 	f.searchCalls++
 	f.lastQuery = query

@@ -47,6 +47,10 @@ type Indexer interface {
 // FormReader is the index read-side; ListSummaries returns filename-ascending and falls back to disk on error.
 type FormReader interface {
 	ListSummaries(templateFilename string) ([]FormSummary, error)
+	// LoadSummary returns one form's summary from the index, the single source
+	// of harvested ExpressionItems (fields + facets + formulas). The per-record
+	// path (ExtendedLoadForm) reads it so it never diverges from the list path.
+	LoadSummary(templateFilename, datafile string) (FormSummary, bool, error)
 	// SearchSummaries has no disk fallback: FTS is index-only, so a missing/erroring reader surfaces as an error.
 	SearchSummaries(templateFilename, query string) ([]FormSummary, error)
 }
@@ -405,6 +409,20 @@ func (m *Manager) extendedListFormsFromDisk(templateFilename string) ([]FormSumm
 
 // ExtendedLoadForm is the single-record analogue of ExtendedListForms; nil when the file is missing.
 func (m *Manager) ExtendedLoadForm(templateFilename, datafile string) (*FormSummary, error) {
+	// Read from the index (single source) when wired, so the per-record path
+	// carries the same harvested ExpressionItems (including formulas) the list
+	// path does. Disk is the fallback when no reader, mirroring ExtendedListForms.
+	if m.reader != nil {
+		s, ok, err := m.reader.LoadSummary(templateFilename, datafile)
+		if err == nil {
+			if !ok {
+				return nil, nil
+			}
+			return &s, nil
+		}
+		m.log.Warn("storage: form reader LoadSummary failed, falling back to disk",
+			"template", templateFilename, "file", datafile, "err", err)
+	}
 	tpl, _ := m.templates.LoadTemplate(templateFilename)
 	s, ok := m.summaryFor(templateFilename, datafile, tpl)
 	if !ok {

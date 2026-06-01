@@ -30,6 +30,10 @@ func (s *Service) EvaluateListMany(templateName string, datafiles []string) ([]R
 	return s.m.EvaluateListMany(templateName, datafiles)
 }
 
+// Functions returns the formula editor's function/control catalog so the
+// palettes reflect the engine's real capabilities.
+func (s *Service) Functions() []FunctionDoc { return Functions() }
+
 // BuilderKindForFieldType reports the rule kind for a field type, or "" when it accepts no predicates.
 func (s *Service) BuilderKindForFieldType(fieldType string) string {
 	if k, ok := builder.KindForField(fieldType); ok {
@@ -41,6 +45,31 @@ func (s *Service) BuilderKindForFieldType(fieldType string) string {
 // BuilderIsDisplayableFieldType reports whether a type may appear in the display pickers; virtual types return false.
 func (s *Service) BuilderIsDisplayableFieldType(fieldType string) bool {
 	return builder.IsDisplayableFieldType(fieldType)
+}
+
+// BuilderTextSources returns the field-value sources an OUTCOME text part may
+// use: the displayable fields (by type) followed by the template's formula
+// fields. The backend decides what is selectable; the editor renders the list.
+// A formula compiles to F["key"] and resolves at runtime from the harvested
+// expression context, so it is just another field-value source here.
+func (s *Service) BuilderTextSources(fields []template.Field, formulas []template.Formula) []builder.TextSourceOption {
+	out := make([]builder.TextSourceOption, 0, len(fields)+len(formulas))
+	for _, f := range fields {
+		if builder.IsDisplayableFieldType(f.Type) {
+			out = append(out, builder.TextSourceOption{Key: f.Key, Label: labelOr(f.Label, f.Key), Group: "field"})
+		}
+	}
+	for _, fm := range formulas {
+		out = append(out, builder.TextSourceOption{Key: fm.Key, Label: labelOr(fm.Label, fm.Key), Group: "formula"})
+	}
+	return out
+}
+
+func labelOr(label, key string) string {
+	if label != "" {
+		return label
+	}
+	return key
 }
 
 // BuilderFieldOptions returns the value/label pairs the value-picker offers, resolving virtual types (facet -> labels).
