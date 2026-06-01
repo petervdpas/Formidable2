@@ -73,7 +73,7 @@
   "workspace.templates.stat_builder.pct.forms": "% of all records",
   "workspace.templates.stat_builder.pct.none": "No percentage",
   "workspace.templates.stat_builder.scale.legend": "Weighting",
-  "workspace.templates.stat_builder.scale.hint": "Weight count()/records() per record by a scaling object.",
+  "workspace.templates.stat_builder.scale.hint": "Weight count()/records() per record by one or more scaling objects. Pick several to multiply their factors (impact x urgency).",
   "workspace.templates.stat_builder.scale.none": "No weighting",
   "workspace.templates.stat_builder.bin.none": "No binning",
   "workspace.templates.stat_builder.bin.year": "By year",

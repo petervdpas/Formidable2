@@ -33,6 +33,7 @@ Feature: Statistical DSL round-trip
       | count() where F["score"] le 5                                          |
       | count() where Facet["flag"] eq "IN OMLOOP" and F["score"] gt 5        |
       | count() scale "qzm-urgency"                                           |
+      | count() by F["app"] top 10 scale "tshirt-impact" scale "qzm-urgency" |
       | count() pct forms                                                      |
       | count() pct none                                                       |
       | records() by F["components"]["item"] top 10 where Facet["flag"] eq "IN OMLOOP" scale "qzm-urgency" pct forms |

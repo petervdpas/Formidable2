@@ -9,21 +9,22 @@ import "fmt"
 // exact branch value, so the child's record set equals the branch's.
 
 // Edge attaches one parent-branch value to a child object that drills into it.
-// Scale carries the child's resolved weighting so a drilled branch honors the
-// same weighting it would standalone; nil when the child has no scale clause.
+// Scales carries the child's resolved weightings (multiplied per record) so a
+// drilled branch honors the same weighting it would standalone; empty when the
+// child has no scale clause.
 type Edge struct {
 	Branch string
 	Child  StatConfig
-	Scale  *Scaling
+	Scales []*Scaling
 }
 
 // Composite is a rank-1 parent plus per-branch drill edges. A branch with no
-// edge is a solid leaf. ParentScale is the parent's resolved weighting, nil
-// when the parent has no scale clause.
+// edge is a solid leaf. ParentScales is the parent's resolved weightings,
+// empty when the parent has no scale clause.
 type Composite struct {
-	Parent      StatConfig
-	ParentScale *Scaling
-	Edges       []Edge
+	Parent       StatConfig
+	ParentScales []*Scaling
+	Edges        []Edge
 }
 
 // branchDim returns the parent's single branch dimension. A composite parent
@@ -154,7 +155,7 @@ func ResolveComposite(spec CompositeSpec, src ObjectConfigs) (Composite, error) 
 	if err != nil {
 		return Composite{}, fmt.Errorf("stat: composite parent: %w", err)
 	}
-	parentScale, err := resolveScale(src, parentCfg)
+	parentScales, err := resolveScales(src, parentCfg)
 	if err != nil {
 		return Composite{}, fmt.Errorf("stat: composite parent scale: %w", err)
 	}
@@ -164,27 +165,35 @@ func ResolveComposite(spec CompositeSpec, src ObjectConfigs) (Composite, error) 
 		if err != nil {
 			return Composite{}, fmt.Errorf("stat: composite child for branch %q: %w", e.Branch, err)
 		}
-		sc, err := resolveScale(src, childCfg)
+		scs, err := resolveScales(src, childCfg)
 		if err != nil {
 			return Composite{}, fmt.Errorf("stat: composite child scale for branch %q: %w", e.Branch, err)
 		}
-		edges = append(edges, Edge{Branch: e.Branch, Child: childCfg, Scale: sc})
+		edges = append(edges, Edge{Branch: e.Branch, Child: childCfg, Scales: scs})
 	}
-	return Composite{Parent: parentCfg, ParentScale: parentScale, Edges: edges}, nil
+	return Composite{Parent: parentCfg, ParentScales: parentScales, Edges: edges}, nil
 }
 
-// resolveScale turns a config's scale-clause name into its weighting; an empty
-// clause is no weighting (nil). A named clause whose source can't resolve
+// resolveScales turns a config's scale-clause names into their weightings; an
+// empty clause is no weighting (nil). A named clause whose source can't resolve
 // scalings is an error rather than a silent unweighted run.
-func resolveScale(src ObjectConfigs, cfg StatConfig) (*Scaling, error) {
-	if cfg.Scale == "" {
+func resolveScales(src ObjectConfigs, cfg StatConfig) ([]*Scaling, error) {
+	if len(cfg.Scales) == 0 {
 		return nil, nil
 	}
 	ss, ok := src.(ScalingSource)
 	if !ok {
-		return nil, fmt.Errorf("scale %q requested but source cannot resolve scalings", cfg.Scale)
+		return nil, fmt.Errorf("scale %q requested but source cannot resolve scalings", cfg.Scales[0])
 	}
-	return ss.Scaling(cfg.Scale)
+	out := make([]*Scaling, 0, len(cfg.Scales))
+	for _, name := range cfg.Scales {
+		sc, err := ss.Scaling(name)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sc)
+	}
+	return out, nil
 }
 
 // CompositeGrid is the evaluated composite: the parent rank-1 grid plus, in
@@ -212,7 +221,7 @@ func (m *Manager) EvaluateComposite(template string, c Composite) (*CompositeGri
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
-	parent, err := m.EvaluateScaled(template, c.Parent, c.ParentScale)
+	parent, err := m.EvaluateScaled(template, c.Parent, c.ParentScales...)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +249,7 @@ func (m *Manager) EvaluateComposite(template string, c Composite) (*CompositeGri
 	for i, l := range labels {
 		bg := BranchGrid{Branch: l}
 		if e, ok := edgeByBranch[l]; ok {
-			cg, err := m.EvaluateScaled(template, e.Child, e.Scale)
+			cg, err := m.EvaluateScaled(template, e.Child, e.Scales...)
 			if err != nil {
 				return nil, fmt.Errorf("stat: composite child for branch %q: %w", l, err)
 			}

@@ -73,6 +73,117 @@ func TestEvaluateScaled_RecordsWeightedByFacet(t *testing.T) {
 	}
 }
 
+// TestEvaluateScaled_MultipleScalingsMultiply is the two-weight headline:
+// each record's factor is the product of two scalings (impact x urgency), so a
+// big-impact low-coverage app outscores a small-impact high-coverage one.
+func TestEvaluateScaled_MultipleScalingsMultiply(t *testing.T) {
+	twoFacet := func(file, tshirt, qzm string, apps ...string) index.FormRow {
+		f := sampForm(file, apps...)
+		f.Facets = []index.FormFacet{
+			{Key: "tshirt", Set: true, Selected: tshirt},
+			{Key: "qzm", Set: true, Selected: qzm},
+		}
+		return f
+	}
+	forms := []index.FormRow{
+		twoFacet("x.meta.json", "L", "NIET ZONNIG", "QMU"), // 3 * 2   = 6
+		twoFacet("y.meta.json", "S", "ZONNIG", "QMU"),      // 1 * 0.5 = 0.5
+	}
+	m := NewManager(datacoreBackend(forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"components.item": 0}})
+
+	cfg, _ := Parse(`records() by F["components"]["item"] top 10`)
+	impact := &Scaling{
+		Source:  SourceRef{Kind: SourceFacet, Key: "tshirt"},
+		Weights: []WeightEntry{{Label: "L", Factor: 3}, {Label: "S", Factor: 1}},
+		Default: 1,
+	}
+	urgency := &Scaling{
+		Source:  SourceRef{Kind: SourceFacet, Key: "qzm"},
+		Weights: []WeightEntry{{Label: "ZONNIG", Factor: 0.5}, {Label: "NIET ZONNIG", Factor: 2}},
+		Default: 1,
+	}
+	g, err := m.EvaluateScaled("samp.yaml", cfg, impact, urgency)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// QMU: distinct forms x (3*2=6) + y (1*0.5=0.5) = 6.5
+	if v := g.Cells[0].Values[0]; v != 6.5 {
+		t.Errorf("QMU product-weighted records = %v, want 6.5", v)
+	}
+
+	// Order independence: urgency x impact must equal impact x urgency.
+	g2, err := m.EvaluateScaled("samp.yaml", cfg, urgency, impact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g2.Cells[0].Values[0] != 6.5 {
+		t.Errorf("scaling order changed the result: %v", g2.Cells[0].Values[0])
+	}
+}
+
+// TestEvaluateScaled_WeightsNumericSum is the per-app heaviness case: weight a
+// numeric measure (a range/score field) by a categorical factor, so each
+// record contributes factor*value. sum(score) scale "urgency" per app gives
+// architectuur_factor x fcdm_dekking.
+func TestEvaluateScaled_WeightsNumericSum(t *testing.T) {
+	scored := func(file, qzm string, score float64, app string) index.FormRow {
+		s := score
+		return index.FormRow{
+			Template: "samp.yaml", Filename: file, Mtime: 1,
+			Values: []index.FormValueRow{
+				{FieldKey: "app", ValueType: "text", Text: app},
+				{FieldKey: "score", ValueType: "number", Num: &s},
+			},
+			Facets: []index.FormFacet{{Key: "qzm", Set: true, Selected: qzm}},
+		}
+	}
+	forms := []index.FormRow{
+		scored("a.meta.json", "NIET ZONNIG", 100, "Alpha"), // factor 2 * 100 = 200
+		scored("b.meta.json", "ZONNIG", 80, "Beta"),        // factor 0.5 * 80 = 40
+	}
+	m := NewManager(datacoreBackend(forms))
+	m.SetColumnResolver(fakeColResolver{idx: map[string]int{"components.item": 0}})
+
+	cfg, err := Parse(`sum(F["score"]) by F["app"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sc := &Scaling{
+		Source:  SourceRef{Kind: SourceFacet, Key: "qzm"},
+		Weights: []WeightEntry{{Label: "ZONNIG", Factor: 0.5}, {Label: "NIET ZONNIG", Factor: 2}},
+		Default: 1,
+	}
+	g, err := m.EvaluateScaled("samp.yaml", cfg, sc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]float64{}
+	for _, c := range g.Cells {
+		got[g.Axes[0].Labels[c.Coords[0]]] = c.Values[0]
+	}
+	if got["Alpha"] != 200 {
+		t.Errorf("Alpha weighted sum = %v, want 200 (2*100)", got["Alpha"])
+	}
+	if got["Beta"] != 40 {
+		t.Errorf("Beta weighted sum = %v, want 40 (0.5*80)", got["Beta"])
+	}
+
+	// Without scaling the same measure is the raw value, proving the factor is
+	// what changes it.
+	plain, err := m.Evaluate("samp.yaml", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pgot := map[string]float64{}
+	for _, c := range plain.Cells {
+		pgot[plain.Axes[0].Labels[c.Coords[0]]] = c.Values[0]
+	}
+	if pgot["Alpha"] != 100 || pgot["Beta"] != 80 {
+		t.Errorf("unscaled sums Alpha=%v Beta=%v, want 100 and 80", pgot["Alpha"], pgot["Beta"])
+	}
+}
+
 // TestEvaluateScaled_CountWeightedPerRow checks count() scaling sums a factor
 // per row (mentions), not per distinct form.
 func TestEvaluateScaled_CountWeightedPerRow(t *testing.T) {

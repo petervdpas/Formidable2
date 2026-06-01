@@ -457,7 +457,7 @@ func TestComposite_Evaluate_EdgeScaleWeightsChild(t *testing.T) {
 	}
 	cg, err := m.EvaluateComposite("samp.yaml", Composite{
 		Parent: flagParent(),
-		Edges:  []Edge{{Branch: "IN OMLOOP", Child: appChild("IN OMLOOP"), Scale: sc}},
+		Edges:  []Edge{{Branch: "IN OMLOOP", Child: appChild("IN OMLOOP"), Scales: []*Scaling{sc}}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -495,9 +495,9 @@ func TestComposite_Evaluate_ParentScaleWeightsRing(t *testing.T) {
 		Default: 1,
 	}
 	cg, err := m.EvaluateComposite("samp.yaml", Composite{
-		Parent:      flagParent(),
-		ParentScale: sc,
-		Edges:       []Edge{{Branch: "IN OMLOOP", Child: appChild("IN OMLOOP"), Scale: sc}},
+		Parent:       flagParent(),
+		ParentScales: []*Scaling{sc},
+		Edges:        []Edge{{Branch: "IN OMLOOP", Child: appChild("IN OMLOOP"), Scales: []*Scaling{sc}}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -518,7 +518,7 @@ func TestComposite_Evaluate_ParentScaleWeightsRing(t *testing.T) {
 // child's weighting to its edge.
 func TestResolveComposite_ResolvesChildScale(t *testing.T) {
 	child := appChild("IN OMLOOP")
-	child.Scale = "qzm-urgency"
+	child.Scales = []string{"qzm-urgency"}
 	cat := catalogConfigs{
 		"in-use":      {Name: "in-use", DSL: `count() by Facet["flag"]`},
 		"apps":        {Name: "apps", DSL: compileMust(t, child)},
@@ -531,7 +531,7 @@ func TestResolveComposite_ResolvesChildScale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(comp.Edges) != 1 || comp.Edges[0].Scale == nil {
+	if len(comp.Edges) != 1 || len(comp.Edges[0].Scales) != 1 {
 		t.Fatalf("edge scale not resolved: %+v", comp.Edges)
 	}
 }
@@ -541,7 +541,7 @@ func TestResolveComposite_ResolvesChildScale(t *testing.T) {
 // resolution errors rather than charting an unweighted child.
 func TestResolveComposite_ErrorsWhenSourceCannotResolveScale(t *testing.T) {
 	child := appChild("IN OMLOOP")
-	child.Scale = "qzm-urgency"
+	child.Scales = []string{"qzm-urgency"}
 	src := stubConfigs{"in-use": flagParent(), "apps": child}
 	if _, err := ResolveComposite(CompositeSpec{
 		Parent: "in-use",

@@ -24,9 +24,12 @@ categorical source. The measure becomes a weighted sum (a score).
 
 - `records()` + scale: for each group, sum one factor per **distinct form**.
 - `count()` + scale: for each group, sum one factor per **row**.
-
-Numeric reduces (`sum`, `avg`, ...) are untouched; weighting only has meaning
-for the counting measures.
+- `sum()` / `avg()` / `min()` / `max()` + scale: each record's numeric value is
+  multiplied by its factor before the reduce, so `sum(range) scale "urgency"`
+  sums `factor*value` per record. This is the per-application "heaviness" case:
+  `sum(fcdm-dekking) by F["applicatie-naam"] scale "architectuur-urgentie"`
+  gives `architectuur_factor * fcdm_dekking` per app (added 2026-06-01;
+  originally numeric reduces were left unweighted).
 
 ## Why it is its own object, not an inline map
 
@@ -169,8 +172,13 @@ the `records()` form tracking, adding one resolution hop and a multiply.
 
 - Default factor for an unlisted / unset option: 1 (neutral). The builder
   pre-fills every option at 1 so the map is explicit.
-- One scale clause per object, applying to its counting measures. Per-measure
-  weighting is unnecessary for the single-measure case and can be added later.
+- One or more scale clauses per object, applying to its counting measures.
+  Several clauses multiply their per-record factors, so a record weighted by
+  impact and urgency contributes impact*urgency. Each named scaling stays a
+  single-source reusable weighting; the product lives at the consuming object
+  (`scale "tshirt-impact" scale "architectuur-urgentie"`), not inside one
+  scaling. Per-measure weighting (a different scale per measure) is still
+  unnecessary for the single-measure case and can be added later.
 - Source restricted to per-form facet / dropdown / radio; table columns
   rejected (no single per-form weight).
 - Weights live on the scaling object (the DSL/config), never on the template's

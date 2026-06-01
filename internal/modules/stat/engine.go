@@ -81,25 +81,33 @@ func (m *Manager) Evaluate(template string, cfg StatConfig) (*Grid, error) {
 	return m.EvaluateScaled(template, cfg, nil)
 }
 
-// EvaluateScaled is Evaluate with an optional weighting: when sc is non-nil,
-// each count()/records() measure sums a per-form factor (drawn from sc's
-// source) instead of adding 1. Numeric reduces are unaffected. sc is resolved
-// by the caller (the Service, from the DSL scale name); pass nil for the plain
-// path.
-func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (*Grid, error) {
+// EvaluateScaled is Evaluate with optional weighting: when one or more
+// scalings are passed, each count()/records() measure sums a per-form factor
+// instead of adding 1. With several scalings the per-form factors multiply, so
+// a record weighted by impact and urgency contributes impact*urgency. Numeric
+// reduces are weighted too: each record's value is scaled by its factor before
+// sum/avg/min/max, so sum(range) scale "urgency" sums factor*value per record.
+// Scalings are resolved by the caller (the Service, from the DSL scale names);
+// pass none (or nil) for the plain path.
+func (m *Manager) EvaluateScaled(template string, cfg StatConfig, scs ...*Scaling) (*Grid, error) {
 	if len(cfg.Measures) == 0 {
 		return nil, fmt.Errorf("stat: config has no measures")
 	}
 
-	// Resolve the weighting up front: validate the source is per-form and
-	// build a form -> factor lookup. A second, unfiltered aggregate over the
-	// scale source gives each form's category; forms missing it fall to the
-	// default factor.
-	var weightOf func(form string) float64
-	var scaleLabels map[string]string
-	var scaleWmap map[string]float64
-	var scaleDef float64
-	if sc != nil {
+	// Resolve the weighting up front: validate each source is per-form and
+	// build a per-scaling form -> factor lookup. A separate unfiltered
+	// aggregate over each scale source gives that source's per-form category;
+	// forms missing it fall to that scaling's default factor.
+	type resolvedScale struct {
+		labels map[string]string
+		wmap   map[string]float64
+		def    float64
+	}
+	var resolved []resolvedScale
+	for _, sc := range scs {
+		if sc == nil {
+			continue
+		}
 		if err := sc.validate(); err != nil {
 			return nil, err
 		}
@@ -107,17 +115,23 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 		if err != nil {
 			return nil, err
 		}
-		scaleLabels = labels
-		scaleWmap = sc.weightMap()
-		scaleDef = sc.Default
-		weightOf = func(form string) float64 {
-			if w, ok := scaleWmap[scaleLabels[form]]; ok {
-				return w
-			}
-			return scaleDef
-		}
+		resolved = append(resolved, resolvedScale{labels: labels, wmap: sc.weightMap(), def: sc.Default})
 	}
-	needScale := weightOf != nil
+	factorOf := func(rs resolvedScale, form string) float64 {
+		if w, ok := rs.wmap[rs.labels[form]]; ok {
+			return w
+		}
+		return rs.def
+	}
+	// weightOf is the product of every scaling's per-form factor.
+	weightOf := func(form string) float64 {
+		w := 1.0
+		for i := range resolved {
+			w *= factorOf(resolved[i], form)
+		}
+		return w
+	}
+	needScale := len(resolved) > 0
 
 	// Fan-out guard: a table-column source joins one row per cell (many per
 	// form). More than one such source would multiply (cartesian) and
@@ -316,6 +330,7 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 		forms  map[string]struct{} // distinct contributing forms; nil unless tracked
 		wcount float64             // weighted row sum (scaled count); only when scaling
 		nums   [][]float64         // aligned to numKeys
+		wnums  [][]float64         // factor*value per row, aligned to numKeys; only when scaling
 	}
 	groups := map[string]*group{}
 	var order []string
@@ -331,6 +346,9 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 			if needForms {
 				g.forms = map[string]struct{}{}
 			}
+			if needScale {
+				g.wnums = make([][]float64, len(nums))
+			}
 			groups[key] = g
 			order = append(order, key)
 		}
@@ -344,6 +362,9 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 		for j := range nums {
 			if r.Nums[j].Valid {
 				g.nums[j] = append(g.nums[j], r.Nums[j].Float64)
+				if needScale {
+					g.wnums[j] = append(g.wnums[j], weightOf(r.Form)*r.Nums[j].Float64)
+				}
 			}
 		}
 	}
@@ -378,7 +399,16 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 				}
 				continue
 			}
-			vals[i] = reduceNumeric(ms, g.nums[numIdx[numKeyFor(ms.Source)]])
+			// Under scaling, each record's numeric contribution is weighted
+			// (factor*value), so sum/avg/min/max reduce over the weighted
+			// values. This is what makes "architectuur weight x fcdm range"
+			// per record well defined.
+			ni := numIdx[numKeyFor(ms.Source)]
+			if needScale {
+				vals[i] = reduceNumeric(ms, g.wnums[ni])
+			} else {
+				vals[i] = reduceNumeric(ms, g.nums[ni])
+			}
 		}
 		cells = append(cells, GridCell{Coords: g.coords, Values: vals})
 	}
@@ -399,16 +429,25 @@ func (m *Manager) EvaluateScaled(template string, cfg StatConfig, sc *Scaling) (
 	// weighted numerator over a raw denominator yields nonsense (e.g. 153%).
 	formsDenom := float64(total)
 	if needScale {
-		var wt float64
-		for _, lbl := range scaleLabels {
-			if w, ok := scaleWmap[lbl]; ok {
-				wt += w
-			} else {
-				wt += scaleDef
+		// Weighted form total: sum weightOf over every form carrying any scale
+		// source value (the union across scalings), plus the remaining forms,
+		// which carry none and so take the product of every scaling's default.
+		union := map[string]struct{}{}
+		for i := range resolved {
+			for f := range resolved[i].labels {
+				union[f] = struct{}{}
 			}
 		}
-		if missing := total - len(scaleLabels); missing > 0 {
-			wt += float64(missing) * scaleDef
+		var wt float64
+		for f := range union {
+			wt += weightOf(f)
+		}
+		defProd := 1.0
+		for i := range resolved {
+			defProd *= resolved[i].def
+		}
+		if missing := total - len(union); missing > 0 {
+			wt += float64(missing) * defProd
 		}
 		formsDenom = wt
 	}

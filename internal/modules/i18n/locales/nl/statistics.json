@@ -73,7 +73,7 @@
   "workspace.templates.stat_builder.pct.forms": "% van alle records",
   "workspace.templates.stat_builder.pct.none": "Geen percentage",
   "workspace.templates.stat_builder.scale.legend": "Weging",
-  "workspace.templates.stat_builder.scale.hint": "Weeg count()/records() per record met een wegingsobject.",
+  "workspace.templates.stat_builder.scale.hint": "Weeg count()/records() per record met een of meer wegingsobjecten. Kies er meerdere om hun factoren te vermenigvuldigen (impact x urgentie).",
   "workspace.templates.stat_builder.scale.none": "Geen weging",
   "workspace.templates.stat_builder.bin.none": "Geen groepering",
   "workspace.templates.stat_builder.bin.year": "Per jaar",

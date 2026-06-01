@@ -730,11 +730,12 @@ export class StatConfig {
     "Percent": PercentBase;
 
     /**
-     * Scale names a scaling object that weights count()/records() per form;
-     * "" means unweighted. Only the reference is carried, resolved at
-     * evaluate time (the referenced object owns the source + factor map).
+     * Scales names zero or more scaling objects that weight count()/records()
+     * per form; their per-record factors multiply. Empty means unweighted.
+     * Only the references are carried, resolved at evaluate time (each
+     * referenced object owns its source + factor map).
      */
-    "Scale": string;
+    "Scales": string[];
 
     /** Creates a new StatConfig instance. */
     constructor($$source: Partial<StatConfig> = {}) {
@@ -750,8 +751,8 @@ export class StatConfig {
         if (!("Percent" in $$source)) {
             this["Percent"] = PercentBase.$zero;
         }
-        if (!("Scale" in $$source)) {
-            this["Scale"] = "";
+        if (!("Scales" in $$source)) {
+            this["Scales"] = [];
         }
 
         Object.assign(this, $$source);
@@ -764,6 +765,7 @@ export class StatConfig {
         const $$createField0_0 = $$createType20;
         const $$createField1_0 = $$createType22;
         const $$createField2_0 = $$createType24;
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Measures" in $$parsedSource) {
             $$parsedSource["Measures"] = $$createField0_0($$parsedSource["Measures"]);
@@ -773,6 +775,9 @@ export class StatConfig {
         }
         if ("Filters" in $$parsedSource) {
             $$parsedSource["Filters"] = $$createField2_0($$parsedSource["Filters"]);
+        }
+        if ("Scales" in $$parsedSource) {
+            $$parsedSource["Scales"] = $$createField4_0($$parsedSource["Scales"]);
         }
         return new StatConfig($$parsedSource as Partial<StatConfig>);
     }

@@ -159,7 +159,7 @@ func TestCompile_Canonical(t *testing.T) {
 			cfg: StatConfig{
 				Measures:   []Measure{{Op: OpRecords}},
 				Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
-				Scale:      "qzm-urgency",
+				Scales:     []string{"qzm-urgency"},
 			},
 			want: `records() by F["components"]["item"] top 10 scale "qzm-urgency"`,
 		},
@@ -167,7 +167,7 @@ func TestCompile_Canonical(t *testing.T) {
 			name: "scale before pct (canonical order)",
 			cfg: StatConfig{
 				Measures: []Measure{{Op: OpCount}},
-				Scale:    "w",
+				Scales:   []string{"w"},
 				Percent:  PctForms,
 			},
 			want: `count() scale "w" pct forms`,
@@ -340,13 +340,19 @@ func TestRoundTrip_Identity(t *testing.T) {
 			Measures:   []Measure{{Op: OpRecords}},
 			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
 			Filters:    []Filter{{Source: SourceRef{Kind: SourceFacet, Key: "flag"}, Op: FilterEq, Value: "IN OMLOOP"}},
-			Scale:      "qzm-urgency",
+			Scales:     []string{"qzm-urgency"},
 		},
 		{
 			Measures:   []Measure{{Op: OpRecords}},
 			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "components", Column: "item"}, Top: 10}},
-			Scale:      "qzm-urgency",
+			Scales:     []string{"qzm-urgency"},
 			Percent:    PctNone,
+		},
+		{
+			Measures:   []Measure{{Op: OpCount}},
+			Dimensions: []Dimension{{Source: SourceRef{Kind: SourceField, Key: "app"}, Top: 10}},
+			Scales:     []string{"tshirt-impact", "qzm-urgency"},
+			Percent:    PctForms,
 		},
 	}
 	for i, cfg := range configs {

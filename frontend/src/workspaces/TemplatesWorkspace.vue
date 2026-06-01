@@ -943,37 +943,47 @@ setTopbarMenu(() => [
                   >
                     {{ t('workspace.templates.statistics.empty') }}
                   </p>
-                  <ul v-else class="stat-rows">
-                    <li
-                      v-for="(s, i) in draft.statistics"
-                      :key="s.name"
-                      class="stat-row"
-                    >
-                      <span class="stat-row-name">{{ s.label || s.name }}</span>
-                      <code v-if="s.composite" class="stat-row-dsl">{{ t('workspace.templates.statistics.composite_summary', [s.composite.parent, s.composite.edges.length]) }}</code>
-                      <code v-else-if="s.scaling" class="stat-row-dsl">{{ t('workspace.templates.statistics.scaling_summary', [s.scaling.source.key, s.scaling.weights.length]) }}</code>
-                      <code v-else class="stat-row-dsl">{{ s.dsl }}</code>
-                      <button
-                        v-if="!s.scaling"
-                        class="tool-btn"
-                        type="button"
-                        :title="t('workspace.templates.statistics.view')"
-                        @click="openViewStatistic(s)"
-                      >{{ t('workspace.templates.statistics.view') }}</button>
-                      <button
-                        class="tool-btn"
-                        type="button"
-                        :title="t('workspace.templates.statistics.edit')"
-                        @click="openEditStatistic(i)"
-                      >{{ t('workspace.templates.statistics.edit') }}</button>
-                      <button
-                        class="tool-btn danger"
-                        type="button"
-                        :title="t('workspace.templates.statistics.remove')"
-                        @click="removeStatistic(i)"
-                      >×</button>
-                    </li>
-                  </ul>
+                  <draggable
+                    v-else
+                    v-model="draft.statistics"
+                    tag="ul"
+                    class="stat-rows"
+                    handle=".dnd-handle"
+                    :animation="150"
+                    ghost-class="dnd-ghost"
+                    chosen-class="dnd-chosen"
+                    drag-class="dnd-drag"
+                    item-key="name"
+                  >
+                    <template #item="{ element: s, index: i }">
+                      <li class="stat-row">
+                        <span class="dnd-handle" aria-hidden="true">☰</span>
+                        <span class="stat-row-name">{{ s.label || s.name }}</span>
+                        <code v-if="s.composite" class="stat-row-dsl">{{ t('workspace.templates.statistics.composite_summary', [s.composite.parent, s.composite.edges.length]) }}</code>
+                        <code v-else-if="s.scaling" class="stat-row-dsl">{{ t('workspace.templates.statistics.scaling_summary', [s.scaling.source.key, s.scaling.weights.length]) }}</code>
+                        <code v-else class="stat-row-dsl">{{ s.dsl }}</code>
+                        <button
+                          v-if="!s.scaling"
+                          class="tool-btn"
+                          type="button"
+                          :title="t('workspace.templates.statistics.view')"
+                          @click="openViewStatistic(s)"
+                        >{{ t('workspace.templates.statistics.view') }}</button>
+                        <button
+                          class="tool-btn"
+                          type="button"
+                          :title="t('workspace.templates.statistics.edit')"
+                          @click="openEditStatistic(i)"
+                        >{{ t('workspace.templates.statistics.edit') }}</button>
+                        <button
+                          class="tool-btn danger"
+                          type="button"
+                          :title="t('workspace.templates.statistics.remove')"
+                          @click="removeStatistic(i)"
+                        >×</button>
+                      </li>
+                    </template>
+                  </draggable>
                   <div class="setup-tab-actions">
                     <button class="tool-btn" type="button" @click="openAddStatistic">
                       + {{ t('workspace.templates.statistics.add') }}

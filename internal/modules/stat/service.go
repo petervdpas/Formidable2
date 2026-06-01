@@ -122,7 +122,7 @@ func (s *Service) EvaluateDSL(template, dsl string) (*Grid, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Scale == "" {
+	if len(cfg.Scales) == 0 {
 		return s.m.Evaluate(template, cfg)
 	}
 	catalog, err := s.loadCatalog(template)
@@ -237,14 +237,18 @@ func (c catalogConfigs) Scaling(name string) (*Scaling, error) {
 // preview, resolving an optional scale-clause reference through the catalog
 // so both apply weighting the same way.
 func (s *Service) evaluateResolved(template string, cfg StatConfig, catalog catalogConfigs) (*Grid, error) {
-	if cfg.Scale == "" {
+	if len(cfg.Scales) == 0 {
 		return s.m.Evaluate(template, cfg)
 	}
-	sc, err := catalog.Scaling(cfg.Scale)
-	if err != nil {
-		return nil, err
+	scs := make([]*Scaling, 0, len(cfg.Scales))
+	for _, name := range cfg.Scales {
+		sc, err := catalog.Scaling(name)
+		if err != nil {
+			return nil, err
+		}
+		scs = append(scs, sc)
 	}
-	return s.m.EvaluateScaled(template, cfg, sc)
+	return s.m.EvaluateScaled(template, cfg, scs...)
 }
 
 // loadCatalog reads the template's objects into a name->object catalog.

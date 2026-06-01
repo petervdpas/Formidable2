@@ -206,18 +206,20 @@ func (p *dslParser) object() (StatConfig, error) {
 			cfg.Filters = append(cfg.Filters, f)
 		}
 	}
-	// Trailing config clauses (scale, pct) in any author order; each at most
-	// once. Compile emits them in a fixed order, so round-trip stays stable.
-	seen := map[string]bool{}
+	// Trailing config clauses in any author order: pct at most once, scale any
+	// number of times (factors multiply) but no duplicate name. Compile emits
+	// scales (in order) before pct, so round-trip stays stable.
+	seenPct := false
+	seenScale := map[string]bool{}
 	for p.peek().kind == tkIdent && (p.peek().val == "pct" || p.peek().val == "scale") {
 		kw := p.peek().val
-		if seen[kw] {
-			return cfg, fmt.Errorf("stat dsl: duplicate %q clause", kw)
-		}
-		seen[kw] = true
 		p.advance()
 		switch kw {
 		case "pct":
+			if seenPct {
+				return cfg, fmt.Errorf("stat dsl: duplicate %q clause", kw)
+			}
+			seenPct = true
 			bt := p.peek()
 			if bt.kind != tkIdent {
 				return cfg, fmt.Errorf("stat dsl: expected a percent base after 'pct', got %q", bt.val)
@@ -237,7 +239,11 @@ func (p *dslParser) object() (StatConfig, error) {
 			if nt.val == "" {
 				return cfg, fmt.Errorf("stat dsl: scale name must not be empty")
 			}
-			cfg.Scale = nt.val
+			if seenScale[nt.val] {
+				return cfg, fmt.Errorf("stat dsl: duplicate scale %q", nt.val)
+			}
+			seenScale[nt.val] = true
+			cfg.Scales = append(cfg.Scales, nt.val)
 		}
 	}
 	return cfg, nil

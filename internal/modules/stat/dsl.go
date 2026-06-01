@@ -147,8 +147,9 @@ type StatConfig struct {
 	Dimensions []Dimension
 	Filters    []Filter
 	Percent    PercentBase // "" means PctDistribution
-	// Scale names a scaling object that weights count()/records() per form;
-	// "" means unweighted. Only the reference is carried, resolved at
-	// evaluate time (the referenced object owns the source + factor map).
-	Scale string
+	// Scales names zero or more scaling objects that weight count()/records()
+	// per form; their per-record factors multiply. Empty means unweighted.
+	// Only the references are carried, resolved at evaluate time (each
+	// referenced object owns its source + factor map).
+	Scales []string
 }

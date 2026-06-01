@@ -13,7 +13,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import Modal from "./Modal.vue";
-import { SelectField, TextField } from "./fields";
+import { FormSwitchRow, SelectField, TextField } from "./fields";
 import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
 import {
   MeasureOp,
@@ -56,7 +56,7 @@ interface StatConfig {
   Dimensions: Dimension[];
   Filters: Filter[];
   Percent: string; // "" = distribution (default)
-  Scale: string; // "" = unweighted; else a scaling object's name
+  Scales: string[]; // [] = unweighted; else scaling object names, factors multiplied
 }
 
 const props = defineProps<{
@@ -80,7 +80,7 @@ const { t } = useI18n();
 
 const name = ref("");
 const label = ref("");
-const config = ref<StatConfig>({ Measures: [], Dimensions: [], Filters: [], Percent: "", Scale: "" });
+const config = ref<StatConfig>({ Measures: [], Dimensions: [], Filters: [], Percent: "", Scales: [] });
 const dslPreview = ref("");
 const compileError = ref("");
 const parseWarn = ref(false);
@@ -237,17 +237,19 @@ function setPercent(v: string) {
   config.value = { ...config.value, Percent: v };
 }
 
-// Scaling: an optional reusable weighting (a scaling object referenced by
-// name). The picker lists the template's scaling objects plus "none". Weighting
+// Scaling: zero or more reusable weightings (scaling objects referenced by
+// name). The picker toggles each of the template's scaling objects; selecting
+// several multiplies their per-record factors (impact x urgency). Weighting
 // only changes count()/records() values, so it's a no-op on numeric-only
 // measures, but the picker stays available either way.
-const scaleOptions = computed(() => [
-  { value: "", label: t("workspace.templates.stat_builder.scale.none") },
-  ...(props.scalings ?? []).map((s) => ({ value: s.name, label: s.label || s.name })),
-]);
 const hasScalings = computed(() => (props.scalings ?? []).length > 0);
-function setScale(v: string) {
-  config.value = { ...config.value, Scale: v };
+function scaleSelected(name: string): boolean {
+  return config.value.Scales.includes(name);
+}
+function toggleScale(name: string, on: boolean) {
+  const next = config.value.Scales.filter((n) => n !== name);
+  if (on) next.push(name);
+  config.value = { ...config.value, Scales: next };
 }
 
 function dimIsDate(d: Dimension): boolean {
@@ -463,9 +465,11 @@ function percentSummary(): string {
   return pctBaseLabelKeys[v] ? t(pctBaseLabelKeys[v]) : v;
 }
 function scaleSummary(): string {
-  if (!config.value.Scale) return t("workspace.templates.stat_builder.scale.none");
-  const s = (props.scalings ?? []).find((x) => x.name === config.value.Scale);
-  return s?.label || config.value.Scale;
+  const names = config.value.Scales;
+  if (names.length === 0) return t("workspace.templates.stat_builder.scale.none");
+  return names
+    .map((n) => (props.scalings ?? []).find((x) => x.name === n)?.label || n)
+    .join(" * ");
 }
 
 // Add-then-select wrappers, so a new block opens in the editor.
@@ -516,7 +520,7 @@ watch(config, () => void recompile(), { deep: true });
 
 // ── Open: load initial or start fresh ───────────────────────────────
 function freshConfig(): StatConfig {
-  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [], Filters: [], Percent: "", Scale: "" };
+  return { Measures: [{ Op: MeasureOp.OpCount, Source: null, Arg: null }], Dimensions: [], Filters: [], Percent: "", Scales: [] };
 }
 
 watch(
@@ -550,7 +554,7 @@ watch(
             Dimensions: (parsed.Dimensions ?? []) as Dimension[],
             Filters: (parsed.Filters ?? []) as Filter[],
             Percent: (parsed.Percent ?? "") as string,
-            Scale: (parsed.Scale ?? "") as string,
+            Scales: (parsed.Scales ?? []) as string[],
           };
         } catch {
           config.value = freshConfig();
@@ -816,10 +820,12 @@ async function onApply() {
           <template v-else-if="selected.kind === 'scale'">
             <span class="stat-builder-field-label">{{ t('workspace.templates.stat_builder.scale.legend') }}</span>
             <p class="muted small stat-builder-hint">{{ t('workspace.templates.stat_builder.scale.hint') }}</p>
-            <SelectField
-              :model-value="config.Scale"
-              :options="scaleOptions"
-              @update:model-value="setScale"
+            <FormSwitchRow
+              v-for="s in (props.scalings ?? [])"
+              :key="s.name"
+              :label="s.label || s.name"
+              :model-value="scaleSelected(s.name)"
+              @update:model-value="(on: boolean) => toggleScale(s.name, on)"
             />
           </template>
 
