@@ -182,6 +182,22 @@ function clampDecimalPrecision(n: number): number {
         :off-label="t('common.off')"
       />
     </FormRow>
+    <FormRow :label="t('settings.field.sort_data')">
+      <SwitchField
+        :model-value="cfg.show_sort_buttons"
+        @update:model-value="(v) => update({ show_sort_buttons: v })"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
+      />
+    </FormRow>
+    <FormRow :label="t('settings.field.dedup_data')">
+      <SwitchField
+        :model-value="cfg.show_dedup_buttons"
+        @update:model-value="(v) => update({ show_dedup_buttons: v })"
+        :on-label="t('common.on')"
+        :off-label="t('common.off')"
+      />
+    </FormRow>
     <FormRow :label="t('config.show_meta_section')">
       <SwitchField
         :model-value="cfg.show_meta_section"

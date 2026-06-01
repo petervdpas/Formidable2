@@ -61,6 +61,8 @@
   "settings.desc.git_self_cloned": "Use the system git binary for fetch/push/pull.",
   "settings.field.listening_port": "Listening Port",
   "settings.field.paste_data": "Paste-data on Lists/Tables",
+  "settings.field.sort_data": "Sort Lists/Tables",
+  "settings.field.dedup_data": "Deduplicate Lists/Tables",
   "settings.field.language_quick_switch": "Language Quick-Switch",
   "settings.field.reload_button": "Reload Button",
   "settings.field.remote_backend": "Remote Backend",

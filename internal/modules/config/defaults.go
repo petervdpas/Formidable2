@@ -24,6 +24,8 @@ func defaultConfig() Config {
 		ProfileName:          "Default Profile",
 		Theme:                "light",
 		ShowPasteButtons:     true,
+		ShowSortButtons:      true,
+		ShowDedupButtons:     true,
 		UseExpressions:       false,
 		ShowMetaSection:      true,
 		IoCollectionOnly:     false,

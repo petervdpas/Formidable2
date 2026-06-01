@@ -11,6 +11,8 @@ type Config struct {
 	ProfileName          string        `json:"profile_name"`
 	Theme                string        `json:"theme"`
 	ShowPasteButtons     bool          `json:"show_paste_buttons"`
+	ShowSortButtons      bool          `json:"show_sort_buttons"`
+	ShowDedupButtons     bool          `json:"show_dedup_buttons"`
 	UseExpressions       bool          `json:"use_expressions"`
 	ShowMetaSection      bool          `json:"show_meta_section"`
 	IoCollectionOnly     bool          `json:"io_collection_only"`

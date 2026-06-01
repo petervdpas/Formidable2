@@ -22,6 +22,8 @@ type formStore interface {
 	LoadForm(templateFilename, datafile string) *storage.Form
 	SaveForm(ctx context.Context, templateFilename, datafile string, data map[string]any) storage.SaveResult
 	DeleteForm(templateFilename, datafile string) error
+	SortFieldValue(templateFilename, datafile, fieldKey, column, direction string) (any, error)
+	DedupFieldValue(templateFilename, datafile, fieldKey, column string) (any, error)
 }
 
 type configReader interface {
@@ -134,6 +136,22 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 	}
 
 	return m.BuildView(templateName, payload.Datafile)
+}
+
+// SortFieldValue fetches a list/table field from the saved record (pointer:
+// template + datafile + fieldKey), sorts it, and returns the sorted value. It
+// does not persist: the frontend applies the value to its draft and the normal
+// save path writes it. For tables, column is the column key (empty = first
+// column); direction is "asc" (default) or "desc".
+func (m *Manager) SortFieldValue(templateName, datafile, fieldKey, column, direction string) (any, error) {
+	return m.storage.SortFieldValue(templateName, datafile, fieldKey, column, direction)
+}
+
+// DedupFieldValue fetches a list/table field from the saved record, removes
+// duplicates, and returns the result without persisting. For tables, column is
+// the key whose value identifies a duplicate row (empty = first column).
+func (m *Manager) DedupFieldValue(templateName, datafile, fieldKey, column string) (any, error) {
+	return m.storage.DedupFieldValue(templateName, datafile, fieldKey, column)
 }
 
 // DeleteForm removes the form's meta.json; missing is a no-op.

@@ -1,17 +1,40 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, inject, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import { TextField, SelectField } from "../fields";
 import PasteDataDialog from "../PasteDataDialog.vue";
 import { useConfig } from "../../composables/useConfig";
 import { rowsToListValues } from "../../utils/pasteData";
+import { FORM_FIELD_OPS_KEY } from "../../composables/formFieldOps";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const { t } = useI18n();
 const { config } = useConfig();
 const showPaste = computed(() => !!config.value?.show_paste_buttons);
 const pasteOpen = ref(false);
+
+// List sort + dedup run on the backend (it fetches the field from the
+// saved record, sorts/dedups, returns the value); we apply the result
+// and the normal Save persists it. Hidden when no ops context (e.g. the
+// plugin run dialog renders fields in isolation).
+const fieldOps = inject(FORM_FIELD_OPS_KEY, null);
+const showSort = computed(() => !!config.value?.show_sort_buttons && !!fieldOps);
+const showDedup = computed(() => !!config.value?.show_dedup_buttons && !!fieldOps);
+const sortDir = ref<"asc" | "desc">("asc");
+
+async function doSort() {
+  const next = await fieldOps?.sortField(props.field.key, { direction: sortDir.value });
+  if (next !== undefined) {
+    items.value = (next as unknown[]).map(String);
+    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+  }
+}
+
+async function doDedup() {
+  const next = await fieldOps?.dedupField(props.field.key);
+  if (next !== undefined) items.value = (next as unknown[]).map(String);
+}
 
 // Local narrow shape - `SelectField`'s SelectOption union also allows
 // plain strings; we always build the object form here.
@@ -238,6 +261,22 @@ function isInvalid(row: string): boolean {
         :title="t('paste.tooltip')"
         @click="pasteOpen = true"
       ><i class="fa-solid fa-paste"></i></button>
+      <button
+        v-if="showSort && items.length > 1"
+        type="button"
+        class="btn-ghost-icon"
+        :aria-label="t('workspace.storage.field.sort')"
+        :title="t('workspace.storage.field.sort')"
+        @click="doSort"
+      ><i :class="sortDir === 'asc' ? 'fa-solid fa-arrow-down-a-z' : 'fa-solid fa-arrow-up-a-z'"></i></button>
+      <button
+        v-if="showDedup && items.length > 1"
+        type="button"
+        class="btn-ghost-icon"
+        :aria-label="t('workspace.storage.field.dedup')"
+        :title="t('workspace.storage.field.dedup')"
+        @click="doDedup"
+      ><i class="fa-solid fa-broom"></i></button>
     </div>
 
     <PasteDataDialog

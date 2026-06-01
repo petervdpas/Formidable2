@@ -105,6 +105,20 @@ func (s *fakeStorage) DeleteForm(t, df string) error {
 	return nil
 }
 
+func (s *fakeStorage) SortFieldValue(t, df, fieldKey, _, _ string) (any, error) {
+	if f := s.LoadForm(t, df); f != nil {
+		return f.Data[fieldKey], nil
+	}
+	return nil, nil
+}
+
+func (s *fakeStorage) DedupFieldValue(t, df, fieldKey, _ string) (any, error) {
+	if f := s.LoadForm(t, df); f != nil {
+		return f.Data[fieldKey], nil
+	}
+	return nil, nil
+}
+
 type fakeConfig struct {
 	loopCollapsed bool
 }

@@ -32,6 +32,7 @@ import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
 import { FACET_CONTEXT_KEY } from "../composables/facetContext";
+import { FORM_FIELD_OPS_KEY } from "../composables/formFieldOps";
 import { useActiveOps } from "../composables/useActiveOps";
 import { useListKeyNav } from "../composables/useListKeyNav";
 import { setNavGuard } from "../composables/useNavGuard";
@@ -179,6 +180,38 @@ provide(FACET_CONTEXT_KEY, {
   facets,
   state: facetsStateView,
   onChange: onFacetStateChange,
+});
+
+// List/table sort + dedup. The widget hands us only its field key; we
+// send the pointer (template, datafile, field) to the backend, which
+// fetches that field from the saved record, sorts/dedups it and returns
+// the new value. We hand the value back to the widget, which applies it
+// via update:modelValue; the normal Save persists it. The sort/dedup
+// reads disk but never writes. See composables/formFieldOps.ts.
+async function runFieldOp(
+  call: (tpl: string, df: string) => Promise<unknown>,
+): Promise<unknown | undefined> {
+  const tpl = selectedTemplate.value;
+  const df = draft.value?.datafile;
+  if (!tpl || !df || draft.value?.saved !== true) {
+    toast.error("workspace.storage.fieldop.unsaved");
+    return undefined;
+  }
+  try {
+    return await call(tpl, df);
+  } catch (e) {
+    toast.error("workspace.storage.fieldop.error", [backendErrMessage(e)]);
+    return undefined;
+  }
+}
+
+provide(FORM_FIELD_OPS_KEY, {
+  sortField: (fieldKey, opts) =>
+    runFieldOp((tpl, df) =>
+      FormSvc.SortFieldValue(tpl, df, fieldKey, opts?.column ?? "", opts?.direction ?? "asc"),
+    ),
+  dedupField: (fieldKey, opts) =>
+    runFieldOp((tpl, df) => FormSvc.DedupFieldValue(tpl, df, fieldKey, opts?.column ?? "")),
 });
 
 // ── Form list (sidebar) ──────────────────────────────────────────────

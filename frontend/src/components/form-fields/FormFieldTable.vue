@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, inject, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import draggable from "vuedraggable";
 import { TextField, SelectField, SwitchField, DateInput, type SelectOption } from "../fields";
 import PasteDataDialog from "../PasteDataDialog.vue";
 import { useConfig } from "../../composables/useConfig";
+import { FORM_FIELD_OPS_KEY } from "../../composables/formFieldOps";
 import {
   Service as CsvSvc,
   TableColumn,
@@ -15,6 +16,38 @@ const { t } = useI18n();
 const { config } = useConfig();
 const showPaste = computed(() => !!config.value?.show_paste_buttons);
 const pasteOpen = ref(false);
+
+// Table sort + dedup run on the backend against the saved record and
+// always act on one chosen column (the user picks which). Hidden when
+// no ops context (e.g. the plugin run dialog renders fields in isolation).
+const fieldOps = inject(FORM_FIELD_OPS_KEY, null);
+const showSort = computed(() => !!config.value?.show_sort_buttons && !!fieldOps);
+const showDedup = computed(() => !!config.value?.show_dedup_buttons && !!fieldOps);
+const sortDir = ref<"asc" | "desc">("asc");
+const sortColumnKey = ref("");
+const selectedColumn = computed<string>({
+  get: () => sortColumnKey.value || columns.value[0]?.key || "",
+  set: (v) => { sortColumnKey.value = v; },
+});
+const columnOptions = computed<SelectOption[]>(() =>
+  columns.value.map((c) => ({ value: c.key, label: c.label })),
+);
+
+async function doSort() {
+  const next = await fieldOps?.sortField(props.field.key, {
+    column: selectedColumn.value,
+    direction: sortDir.value,
+  });
+  if (next !== undefined) {
+    emitRows(next as unknown[][]);
+    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+  }
+}
+
+async function doDedup() {
+  const next = await fieldOps?.dedupField(props.field.key, { column: selectedColumn.value });
+  if (next !== undefined) emitRows(next as unknown[][]);
+}
 
 // DnD scope - unique per component instance so drags don't cross
 // table fields when multiple are rendered (e.g. inside loop entries).
@@ -272,6 +305,33 @@ function asNumber(v: unknown): number {
         :title="t('paste.tooltip')"
         @click="pasteOpen = true"
       ><i class="fa-solid fa-paste"></i></button>
+
+      <template v-if="(showSort || showDedup) && rows.length > 1">
+        <span class="ff-table-op-sep" aria-hidden="true"></span>
+        <SelectField
+          v-model="selectedColumn"
+          class="ff-table-op-col"
+          :options="columnOptions"
+          :aria-label="t('workspace.storage.field.sort_column')"
+          :title="t('workspace.storage.field.sort_column')"
+        />
+        <button
+          v-if="showSort"
+          type="button"
+          class="btn-ghost-icon"
+          :aria-label="t('workspace.storage.field.sort')"
+          :title="t('workspace.storage.field.sort')"
+          @click="doSort"
+        ><i :class="sortDir === 'asc' ? 'fa-solid fa-arrow-down-a-z' : 'fa-solid fa-arrow-up-a-z'"></i></button>
+        <button
+          v-if="showDedup"
+          type="button"
+          class="btn-ghost-icon"
+          :aria-label="t('workspace.storage.field.dedup')"
+          :title="t('workspace.storage.field.dedup')"
+          @click="doDedup"
+        ><i class="fa-solid fa-broom"></i></button>
+      </template>
     </div>
 
     <PasteDataDialog

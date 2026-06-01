@@ -27,6 +27,22 @@ func (s *Service) DeleteForm(templateName, datafile string) error {
 	return s.m.DeleteForm(templateName, datafile)
 }
 
+// SortFieldValue fetches a list/table field from the saved record, sorts it,
+// and returns the sorted value (no persistence: the frontend applies it and
+// the normal save writes it). column is the table column key (empty = first
+// column); direction is "asc" (default) or "desc". Ignored column for lists.
+func (s *Service) SortFieldValue(templateName, datafile, fieldKey, column, direction string) (any, error) {
+	return s.m.SortFieldValue(templateName, datafile, fieldKey, column, direction)
+}
+
+// DedupFieldValue fetches a list/table field from the saved record, removes
+// duplicates, and returns the result (no persistence). column is the table
+// column key whose value marks a duplicate row (empty = first column); ignored
+// for list fields.
+func (s *Service) DedupFieldValue(templateName, datafile, fieldKey, column string) (any, error) {
+	return s.m.DedupFieldValue(templateName, datafile, fieldKey, column)
+}
+
 // ListForms returns the per-template form summaries (title + meta +
 // expression-bearing fields for the sidebar).
 func (s *Service) ListForms(templateName string) ([]storage.FormSummary, error) {
