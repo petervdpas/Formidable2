@@ -32,12 +32,8 @@ type Config struct {
 	AuthorEmail          string        `json:"author_email"`
 	Language             string        `json:"language"`
 	RemoteBackend        string        `json:"remote_backend"`
-	GitRoot              string        `json:"git_root"`
-	GitBranch            string        `json:"git_branch"`
-	GitSelfCloned        bool          `json:"git_self_cloned"`
-	GigotBaseURL         string        `json:"gigot_base_url"`
-	GigotRepoName        string        `json:"gigot_repo_name"`
-	GigotToken           string        `json:"gigot_token"`
+	Git                  GitConfig     `json:"git"`
+	Gigot                GigotConfig   `json:"gigot"`
 	EnableInternalServer bool          `json:"enable_internal_server"`
 	InternalServerPort   int           `json:"internal_server_port"`
 	WindowBounds         WindowBounds  `json:"window_bounds"`
@@ -46,6 +42,21 @@ type Config struct {
 	DecimalPrecision     int           `json:"decimal_precision"`
 	StatusButtons        StatusButtons `json:"status_buttons"`
 	History              History       `json:"history"`
+}
+
+// GitConfig holds the git backend's per-profile settings (only meaningful when
+// remote_backend == "git"). The working folder is the shared context_folder.
+type GitConfig struct {
+	Branch     string `json:"branch"`
+	SelfCloned bool   `json:"self_cloned"`
+}
+
+// GigotConfig holds the gigot backend's per-profile settings (only meaningful
+// when remote_backend == "gigot"). The working folder is the shared context_folder.
+type GigotConfig struct {
+	BaseURL  string `json:"base_url"`
+	RepoName string `json:"repo_name"`
+	Token    string `json:"token"`
 }
 
 // WindowBounds - X/Y are pointers so absent (centered) is distinguishable

@@ -12,30 +12,28 @@ import (
 // JSON. The read-modify-write cycle is serialized via Manager.updateMu so
 // concurrent Update + SwitchProfile callers can't lose each other's writes.
 
-// configJSONKeys are the required JSON tag names on Config, used to detect
-// missing keys (changed=true). omitempty fields are skipped: absent is
-// valid for them, so flagging them would force spurious rewrites. Cached
-// because this runs per-profile in a loop.
-var configJSONKeys = func() []string {
-	var c Config
-	t := reflect.TypeOf(c)
-	keys := make([]string, 0, t.NumField())
+// configFields is the single source of truth for Config's top-level JSON keys,
+// reflected once: name -> required (required == not omitempty). It drives both
+// auto-sanitize checks in parseUserConfig: a missing required key and an unknown
+// (dead) key both force a clean rewrite. Cached because parse runs per-profile.
+var configFields = func() map[string]bool {
+	t := reflect.TypeFor[Config]()
+	out := make(map[string]bool, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		tag := t.Field(i).Tag.Get("json")
 		if tag == "" || tag == "-" {
 			continue
 		}
 		name, rest, _ := strings.Cut(tag, ",")
-		if strings.Contains(rest, "omitempty") {
-			continue
-		}
-		keys = append(keys, name)
+		out[name] = !strings.Contains(rest, "omitempty")
 	}
-	return keys
+	return out
 }()
 
-// parseUserConfig decodes a profile JSON, fills missing fields with
-// defaults, and reports whether anything was filled in or clamped.
+// parseUserConfig decodes a profile JSON, fills missing fields with defaults,
+// and reports changed=true when the on-disk file should be rewritten: a missing
+// required key (fill the default), an unknown/dead key (strip it), or a clamped
+// numeric. The rewrite goes through the Config struct, so dropped fields vanish.
 func parseUserConfig(raw string) (Config, bool, error) {
 	var probe map[string]any
 	if err := json.Unmarshal([]byte(raw), &probe); err != nil {
@@ -46,12 +44,49 @@ func parseUserConfig(raw string) (Config, bool, error) {
 		return Config{}, false, err
 	}
 	clampChanged := clampNumericSettings(&cfg)
-	for _, k := range configJSONKeys {
-		if _, ok := probe[k]; !ok {
+	migrated := migrateFlatCollaboration(probe, &cfg)
+	for name, required := range configFields {
+		if _, present := probe[name]; required && !present {
 			return cfg, true, nil
 		}
 	}
-	return cfg, clampChanged, nil
+	for k := range probe {
+		if _, known := configFields[k]; !known {
+			return cfg, true, nil
+		}
+	}
+	return cfg, clampChanged || migrated, nil
+}
+
+// migrateFlatCollaboration moves legacy top-level collaboration keys
+// (git_branch, git_self_cloned, gigot_base_url, gigot_repo_name, gigot_token)
+// into the nested git/gigot blocks, so an old profile keeps its values when the
+// flat keys are stripped on the auto-sanitize rewrite. Reports whether it moved
+// anything. The dropped git_root/gigot_root carry no value to migrate.
+func migrateFlatCollaboration(probe map[string]any, cfg *Config) bool {
+	moved := false
+	str := func(k string) (string, bool) { v, ok := probe[k].(string); return v, ok }
+	if v, ok := str("git_branch"); ok {
+		cfg.Git.Branch = v
+		moved = true
+	}
+	if v, ok := probe["git_self_cloned"].(bool); ok {
+		cfg.Git.SelfCloned = v
+		moved = true
+	}
+	if v, ok := str("gigot_base_url"); ok {
+		cfg.Gigot.BaseURL = v
+		moved = true
+	}
+	if v, ok := str("gigot_repo_name"); ok {
+		cfg.Gigot.RepoName = v
+		moved = true
+	}
+	if v, ok := str("gigot_token"); ok {
+		cfg.Gigot.Token = v
+		moved = true
+	}
+	return moved
 }
 
 // clampNumericSettings coerces range-bound numeric fields (ToastTimeout,

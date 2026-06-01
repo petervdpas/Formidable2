@@ -28,8 +28,7 @@ import VisualGraph, { type GraphNode } from "../../components/VisualGraph.vue";
 import GitCommitRow from "../../components/collaboration/GitCommitRow.vue";
 import GitCommitFileList from "../../components/collaboration/GitCommitFileList.vue";
 import { Service as GitSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
-import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
-import { useConfig } from "../../composables/useConfig";
+import { useRemoteConfig } from "../../composables/useRemoteConfig";
 import { useToast } from "../../composables/useToast";
 import { useCommitGraph } from "../../composables/useCommitGraph";
 import { backendErrMessage } from "../../utils/backendError";
@@ -42,11 +41,9 @@ import { backendErrMessage } from "../../utils/backendError";
 // message without going through errorMsg / toast.
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { contextFolder } = useRemoteConfig();
 const toast = useToast();
-
-const gitRoot = computed(() => config.value?.git_root ?? "");
-const cacheKey = computed(() => gitRoot.value.trim());
+const cacheKey = computed(() => contextFolder.value.trim());
 const notARepo = ref(false);
 
 const { value, loading, errorMsg, refresh, updateValue } = useCommitGraph<GitGraphValue>({
@@ -54,19 +51,18 @@ const { value, loading, errorMsg, refresh, updateValue } = useCommitGraph<GitGra
   emptyValue: () => ({ commits: [], files: {} }),
   cache: graphCache,
   async fetch() {
-    const path = gitRoot.value.trim();
+    const path = contextFolder.value.trim();
     if (path === "") {
       notARepo.value = false;
       return { commits: [], files: {} };
     }
-    const abs = (await SystemSvc.ResolveAbsolutePath(path)) || path;
-    const isRepo = await GitSvc.IsGitRepo(abs);
+    const isRepo = await GitSvc.IsGitRepo();
     if (!isRepo) {
       notARepo.value = true;
       return { commits: [], files: {} };
     }
     notARepo.value = false;
-    const list = await GitSvc.LogGraph(abs, 100);
+    const list = await GitSvc.LogGraph(100);
     return { commits: (list ?? []) as GraphCommit[], files: {} };
   },
   onError: (err) => toast.error("workspace.collaboration.graph.error", [backendErrMessage(err)]),
@@ -91,8 +87,7 @@ async function loadCommitFiles(hash: string) {
   if (curr && curr !== "error") return;
   updateValue((v) => ({ ...v, files: { ...v.files, [hash]: "loading" } }));
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
-    const files = await GitSvc.CommitChanges(abs, hash);
+    const files = await GitSvc.CommitChanges(hash);
     updateValue((v) => ({
       ...v,
       files: { ...v.files, [hash]: (files ?? []) as ChangeFile[] },

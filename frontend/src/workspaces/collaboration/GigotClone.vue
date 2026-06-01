@@ -51,12 +51,12 @@ const contextFolder = computed({
   set: (v: string) => void update({ context_folder: v }),
 });
 const baseURL = computed({
-  get: () => config.value?.gigot_base_url ?? "",
-  set: (v: string) => void update({ gigot_base_url: v }),
+  get: () => config.value?.gigot?.base_url ?? "",
+  set: (v: string) => void update({ gigot: { base_url: v } }),
 });
 const repoName = computed({
-  get: () => config.value?.gigot_repo_name ?? "",
-  set: (v: string) => void update({ gigot_repo_name: v }),
+  get: () => config.value?.gigot?.repo_name ?? "",
+  set: (v: string) => void update({ gigot: { repo_name: v } }),
 });
 
 const token = ref("");

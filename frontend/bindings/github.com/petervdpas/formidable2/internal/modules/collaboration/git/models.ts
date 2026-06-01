@@ -186,16 +186,13 @@ export class Commit {
  * CommitOptions describes a commit request; it stages every worktree change before committing.
  */
 export class CommitOptions {
-    "path": string;
+    "path"?: string;
     "message": string;
     "author": string;
     "email": string;
 
     /** Creates a new CommitOptions instance. */
     constructor($$source: Partial<CommitOptions> = {}) {
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
         if (!("message" in $$source)) {
             this["message"] = "";
         }
@@ -251,14 +248,11 @@ export class CommitResult {
  * File is worktree-relative; path-traversal segments ("..") are rejected.
  */
 export class DiscardOptions {
-    "path": string;
+    "path"?: string;
     "file": string;
 
     /** Creates a new DiscardOptions instance. */
     constructor($$source: Partial<DiscardOptions> = {}) {
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
         if (!("file" in $$source)) {
             this["file"] = "";
         }
@@ -279,15 +273,12 @@ export class DiscardOptions {
  * FetchOptions describes a fetch request; empty Remote defaults to "origin", PAT is transient (see CloneOptions).
  */
 export class FetchOptions {
-    "path": string;
+    "path"?: string;
     "remote": string;
     "pat": string;
 
     /** Creates a new FetchOptions instance. */
     constructor($$source: Partial<FetchOptions> = {}) {
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
         if (!("remote" in $$source)) {
             this["remote"] = "";
         }
@@ -435,15 +426,12 @@ export class OverriddenPath {
  * PullOptions describes a pull (fetch + merge, no rebase); empty Remote defaults to "origin", PAT is transient.
  */
 export class PullOptions {
-    "path": string;
+    "path"?: string;
     "remote": string;
     "pat": string;
 
     /** Creates a new PullOptions instance. */
     constructor($$source: Partial<PullOptions> = {}) {
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
         if (!("remote" in $$source)) {
             this["remote"] = "";
         }
@@ -495,15 +483,12 @@ export class PullResult {
  * PushOptions describes a push of the current branch HEAD; empty Remote defaults to "origin", PAT is transient.
  */
 export class PushOptions {
-    "path": string;
+    "path"?: string;
     "remote": string;
     "pat": string;
 
     /** Creates a new PushOptions instance. */
     constructor($$source: Partial<PushOptions> = {}) {
-        if (!("path" in $$source)) {
-            this["path"] = "";
-        }
         if (!("remote" in $$source)) {
             this["remote"] = "";
         }

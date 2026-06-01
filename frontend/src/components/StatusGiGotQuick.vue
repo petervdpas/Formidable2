@@ -13,7 +13,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
-import { useConfig } from "../composables/useConfig";
+import { useRemoteConfig } from "../composables/useRemoteConfig";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useCollaborationSection } from "../composables/useCollaborationSection";
 import { confirmLeave } from "../composables/useNavGuard";
@@ -25,13 +25,9 @@ import type {
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { contextFolder, gigotBaseURL: baseURL, gigotRepoName: repoName } = useRemoteConfig();
 const { setActive: setWorkspace } = useActiveWorkspace();
 const { setActive: setSection } = useCollaborationSection();
-
-const contextFolder = computed(() => config.value?.context_folder ?? "");
-const baseURL = computed(() => config.value?.gigot_base_url ?? "");
-const repoName = computed(() => config.value?.gigot_repo_name ?? "");
 
 const configured = computed(
   () =>

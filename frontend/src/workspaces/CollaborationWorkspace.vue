@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import SplitPane from "../components/SplitPane.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import { useRestartGate } from "../composables/useRestartGate";
-import { useConfig } from "../composables/useConfig";
+import { useRemoteConfig } from "../composables/useRemoteConfig";
 import { useCredentialAccount } from "../composables/useCredentialAccount";
 import { useToast } from "../composables/useToast";
 import { setTopbarMenu } from "../composables/useTopbarMenu";
@@ -21,7 +21,7 @@ import {
 
 const { t } = useI18n();
 const { bootConfig } = useRestartGate();
-const { config } = useConfig();
+const { config, contextFolder } = useRemoteConfig();
 const { accountFor } = useCredentialAccount();
 const toast = useToast();
 
@@ -35,8 +35,6 @@ const backend = computed<CollaborationBackend | null>(() => {
   const b = config.value?.remote_backend;
   return typeof b === "string" && b.length > 0 ? b : null;
 });
-
-const gitRoot = computed(() => config.value?.git_root ?? "");
 
 // Sidebar shows backend-agnostic rows (no `backend` tag) plus rows
 // matching the active backend. Switching backend mid-session
@@ -73,10 +71,9 @@ const hasBackend = computed(() => backend.value !== null);
 // the workspace is mounted.
 
 async function resolveOriginURL(): Promise<string | null> {
-  const root = gitRoot.value.trim();
+  const root = contextFolder.value.trim();
   if (root === "") return null;
-  const abs = (await SystemSvc.ResolveAbsolutePath(root)) || root;
-  const info = await GitSvc.RemoteInfo(abs);
+  const info = await GitSvc.RemoteInfo();
   const origin = info?.remotes?.find((r) => r.name === "origin");
   return origin?.urls?.[0] ?? null;
 }
@@ -134,7 +131,7 @@ setTopbarMenu(() => {
   if (backend.value !== "git") {
     return plugins ? [plugins] : [];
   }
-  const noRoot = gitRoot.value.trim() === "";
+  const noRoot = contextFolder.value.trim() === "";
   return [
     {
       type: "group",

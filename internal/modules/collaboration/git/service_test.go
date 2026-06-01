@@ -591,6 +591,12 @@ type fakeFlags struct{ selfCloned bool }
 
 func (f *fakeFlags) GitSelfCloned() bool { return f.selfCloned }
 
+// fakeRoot is the test RootReader: the Service resolves its working folder from
+// here instead of a frontend-passed path, mirroring the real config resolver.
+type fakeRoot struct{ path string }
+
+func (f *fakeRoot) GetRemoteRootPath() (string, error) { return f.path, nil }
+
 type fakeSysgit struct {
 	available bool
 	gotPath   string

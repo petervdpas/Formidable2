@@ -18,8 +18,8 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
-export function Branches(path: string): $CancellablePromise<$models.Branches | null> {
-    return $Call.ByID(141254074, path).then(($result: any) => {
+export function Branches(): $CancellablePromise<$models.Branches | null> {
+    return $Call.ByID(141254074).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -44,8 +44,8 @@ export function Commit(opts: $models.CommitOptions): $CancellablePromise<$models
     });
 }
 
-export function CommitChanges(path: string, hash: string): $CancellablePromise<$models.ChangeFile[]> {
-    return $Call.ByID(3123667240, path, hash).then(($result: any) => {
+export function CommitChanges(hash: string): $CancellablePromise<$models.ChangeFile[]> {
+    return $Call.ByID(3123667240, hash).then(($result: any) => {
         return $$createType7($result);
     });
 }
@@ -83,18 +83,22 @@ export function FetchStatus(opts: $models.FetchOptions): $CancellablePromise<$mo
     });
 }
 
-export function IsGitRepo(path: string): $CancellablePromise<boolean> {
-    return $Call.ByID(685777186, path);
+/**
+ * IsGitRepo reports whether the active context folder is a git repo. A missing
+ * context (no root) reads as not-a-repo rather than an error.
+ */
+export function IsGitRepo(): $CancellablePromise<boolean> {
+    return $Call.ByID(685777186);
 }
 
-export function Log(path: string, limit: number): $CancellablePromise<$models.Commit[]> {
-    return $Call.ByID(3722488696, path, limit).then(($result: any) => {
+export function Log(limit: number): $CancellablePromise<$models.Commit[]> {
+    return $Call.ByID(3722488696, limit).then(($result: any) => {
         return $$createType13($result);
     });
 }
 
-export function LogGraph(path: string, limit: number): $CancellablePromise<$models.GraphCommit[]> {
-    return $Call.ByID(990960796, path, limit).then(($result: any) => {
+export function LogGraph(limit: number): $CancellablePromise<$models.GraphCommit[]> {
+    return $Call.ByID(990960796, limit).then(($result: any) => {
         return $$createType15($result);
     });
 }
@@ -132,18 +136,18 @@ export function Push(opts: $models.PushOptions): $CancellablePromise<$models.Pus
     });
 }
 
-export function RemoteInfo(path: string): $CancellablePromise<$models.RemoteInfo | null> {
-    return $Call.ByID(1356102196, path).then(($result: any) => {
+export function RemoteInfo(): $CancellablePromise<$models.RemoteInfo | null> {
+    return $Call.ByID(1356102196).then(($result: any) => {
         return $$createType23($result);
     });
 }
 
-export function RepoRoot(path: string): $CancellablePromise<string> {
-    return $Call.ByID(651993186, path);
+export function RepoRoot(): $CancellablePromise<string> {
+    return $Call.ByID(651993186);
 }
 
-export function Status(path: string): $CancellablePromise<$models.Status | null> {
-    return $Call.ByID(3686552508, path).then(($result: any) => {
+export function Status(): $CancellablePromise<$models.Status | null> {
+    return $Call.ByID(3686552508).then(($result: any) => {
         return $$createType11($result);
     });
 }

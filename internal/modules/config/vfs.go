@@ -140,6 +140,15 @@ func (m *Manager) GetContextPath() (string, error) {
 	return abs, nil
 }
 
+// GetRemoteRootPath returns the absolute working folder every remote backend
+// (none/git/gigot) operates on. The context folder is enough in all three
+// cases: it is where templates and storage live, so it is also what we sync.
+// All backends therefore resolve it the one same way, GetContextPath
+// (ResolvePath against AppRoot), instead of each carrying its own root field.
+func (m *Manager) GetRemoteRootPath() (string, error) {
+	return m.GetContextPath()
+}
+
 // GetContextTemplatesPath returns the absolute templates folder path.
 func (m *Manager) GetContextTemplatesPath() (string, error) {
 	vfs, err := m.GetVirtualStructure()

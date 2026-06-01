@@ -18,7 +18,7 @@ import VisualGraph, { type GraphNode } from "../../components/VisualGraph.vue";
 import GigotCommitRow from "../../components/collaboration/GigotCommitRow.vue";
 import GigotCommitFileList from "../../components/collaboration/GigotCommitFileList.vue";
 import { Service as GigotSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
-import { useConfig } from "../../composables/useConfig";
+import { useRemoteConfig } from "../../composables/useRemoteConfig";
 import { useToast } from "../../composables/useToast";
 import { useCommitGraph } from "../../composables/useCommitGraph";
 import { backendErrMessage } from "../../utils/backendError";
@@ -31,11 +31,9 @@ import { backendErrMessage } from "../../utils/backendError";
 // round-trip - filesFor reads from the cached entries directly.
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { gigotBaseURL: baseURL, gigotRepoName: repoName } = useRemoteConfig();
 const toast = useToast();
 
-const baseURL = computed(() => config.value?.gigot_base_url ?? "");
-const repoName = computed(() => config.value?.gigot_repo_name ?? "");
 const configured = computed(
   () => baseURL.value.trim() !== "" && repoName.value.trim() !== "",
 );

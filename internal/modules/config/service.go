@@ -12,6 +12,12 @@ func NewService(m *Manager) *Service { return &Service{m: m} }
 
 func (s *Service) LoadUserConfig() (*Config, error) { return s.m.LoadUserConfig() }
 
+// GetRemoteRootPath returns the active backend's working folder, resolved the
+// one shared way (none/git/gigot all go through ResolvePath against AppRoot).
+// The git frontend uses this instead of resolving git_root itself, so all three
+// backends resolve their root identically.
+func (s *Service) GetRemoteRootPath() (string, error) { return s.m.GetRemoteRootPath() }
+
 // ─── Writes ──────────────────────────────────────────────────────────
 
 func (s *Service) UpdateUserConfig(partial map[string]any) (*Config, error) {

@@ -669,6 +669,7 @@ func newGitService(m *git.Manager, creds git.CredentialReader, cfg *config.Manag
 	git.AttachSysgit(svc, cfg, sys)
 	git.AttachEmitter(svc, em)
 	git.AttachOps(svc, ops)
+	git.AttachRoot(svc, cfg)
 	return svc
 }
 
@@ -688,12 +689,32 @@ func newIndexService(h *index.EventHandler, ops *optrack.Registry) *index.Servic
 	return svc
 }
 
+// gigotContextResolver feeds gigot its working folder resolved through the one
+// shared resolver every backend uses: config.GetRemoteRootPath (ResolvePath
+// against AppRoot, selecting gigot_root for the gigot backend). config.Manager's
+// raw ContextFolder() would resolve against the process working directory, so a
+// relative root would diff/ledger/push a different folder than where records
+// live. Routing through GetRemoteRootPath keeps none/git/gigot identical.
+type gigotContextResolver struct{ cfg *config.Manager }
+
+func (r gigotContextResolver) GigotBaseURL() string  { return r.cfg.GigotBaseURL() }
+func (r gigotContextResolver) GigotRepoName() string { return r.cfg.GigotRepoName() }
+func (r gigotContextResolver) AuthorName() string    { return r.cfg.AuthorName() }
+func (r gigotContextResolver) AuthorEmail() string   { return r.cfg.AuthorEmail() }
+func (r gigotContextResolver) ContextFolder() string {
+	abs, err := r.cfg.GetRemoteRootPath()
+	if err != nil {
+		return ""
+	}
+	return abs
+}
+
 // newGigotService composes gigot.NewService and gigot.AttachProgress so
 // the App wiring stays one map literal. The emitterRelay is late-bound
 // via App.SetEmit, so progress events fired before the Wails app is built
 // no-op instead of panicking.
 func newGigotService(m *gigot.Manager, creds gigot.CredentialReader, cfg *config.Manager, jrnl journal.Journal, em *emitterRelay, ops *optrack.Registry) *gigot.Service {
-	svc := gigot.NewService(m, creds, cfg, cfg, jrnl)
+	svc := gigot.NewService(m, creds, cfg, gigotContextResolver{cfg: cfg}, jrnl)
 	gigot.AttachProgress(svc, em.Emit)
 	gigot.AttachEmitter(svc, em)
 	gigot.AttachOps(svc, ops)

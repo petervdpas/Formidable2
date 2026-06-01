@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
 import { FormSection, FormRow, TextField, FolderPathField } from "../fields";
 import { Service as GigotSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot";
-import { useConfig } from "../../composables/useConfig";
+import { useRemoteConfig } from "../../composables/useRemoteConfig";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
@@ -23,13 +23,10 @@ import { backendErrMessage } from "../../utils/backendError";
 // another page re-disables Sync without the user revisiting this one.
 
 const { t } = useI18n();
-const { config, update } = useConfig();
+const { config, update, gigotBaseURL: baseURL, gigotRepoName: repoName, contextFolder } = useRemoteConfig();
 const toast = useToast();
 const cfg = computed(() => config.value!);
 
-const baseURL = computed(() => cfg.value?.gigot_base_url ?? "");
-const repoName = computed(() => cfg.value?.gigot_repo_name ?? "");
-const contextFolder = computed(() => cfg.value?.context_folder ?? "");
 const configured = computed(
   () => contextFolder.value.trim() !== ""
     && baseURL.value.trim() !== ""
@@ -148,15 +145,15 @@ async function doQuickSync() {
     </FormRow>
     <FormRow :label="t('settings.field.gigot_base_url')">
       <TextField
-        :model-value="cfg.gigot_base_url"
-        @update:model-value="(v) => update({ gigot_base_url: v })"
+        :model-value="cfg.gigot?.base_url"
+        @update:model-value="(v) => update({ gigot: { base_url: v } })"
         placeholder="https://gigot.example.com"
       />
     </FormRow>
     <FormRow :label="t('settings.field.gigot_repository')">
       <TextField
-        :model-value="cfg.gigot_repo_name"
-        @update:model-value="(v) => update({ gigot_repo_name: v })"
+        :model-value="cfg.gigot?.repo_name"
+        @update:model-value="(v) => update({ gigot: { repo_name: v } })"
       />
     </FormRow>
   </FormSection>

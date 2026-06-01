@@ -1,10 +1,16 @@
 package git
 
 import (
+	"errors"
+
 	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/optrack"
 )
+
+// ErrNoContext is returned when no active context/root is configured, so the
+// git ops can't resolve the working folder they operate on.
+var ErrNoContext = errors.New("git: no context configured")
 
 // Service is the Wails-bound surface of the Git backend. It auto-resolves a missing PAT from the keychain
 // and records journal sync hops on success.
@@ -20,6 +26,15 @@ type Service struct {
 	sys     Sysgit
 	emit    event.Emitter
 	ops     *optrack.Registry
+	root    RootReader
+}
+
+// RootReader resolves the active profile's working folder (the shared context).
+// The Service operates on it, so the frontend never passes a path: the backend
+// is steered by the active profile, not the other way round. config.Manager
+// satisfies this via GetRemoteRootPath.
+type RootReader interface {
+	GetRemoteRootPath() (string, error)
 }
 
 // FlagReader exposes per-profile toggles that affect transport selection.
@@ -86,6 +101,26 @@ func AttachOps(s *Service, ops *optrack.Registry) {
 	s.ops = ops
 }
 
+// AttachRoot installs the active-profile root resolver so the Service resolves
+// its own working folder; the frontend then calls git ops with no path.
+// Package-level for the same binding-generator reason as AttachSysgit.
+func AttachRoot(s *Service, root RootReader) {
+	if s == nil {
+		return
+	}
+	s.root = root
+}
+
+// resolveRoot returns the active profile's working folder. Every bound op goes
+// through here instead of taking a path, so the backend is the single source of
+// truth for which folder it acts on.
+func (s *Service) resolveRoot() (string, error) {
+	if s.root == nil {
+		return "", ErrNoContext
+	}
+	return s.root.GetRemoteRootPath()
+}
+
 func (s *Service) useSysgit() bool {
 	if s.flags == nil || s.sys == nil {
 		return false
@@ -96,18 +131,71 @@ func (s *Service) useSysgit() bool {
 	return s.sys.Available()
 }
 
-func (s *Service) IsGitRepo(path string) bool                   { return s.m.IsGitRepo(path) }
-func (s *Service) RepoRoot(path string) (string, error)         { return s.m.RepoRoot(path) }
-func (s *Service) Status(path string) (*Status, error)          { return s.m.Status(path) }
-func (s *Service) Branches(path string) (*Branches, error)      { return s.m.Branches(path) }
-func (s *Service) Log(path string, limit int) ([]Commit, error) { return s.m.Log(path, limit) }
-func (s *Service) LogGraph(path string, limit int) ([]GraphCommit, error) {
-	return s.m.LogGraph(path, limit)
+// IsGitRepo reports whether the active context folder is a git repo. A missing
+// context (no root) reads as not-a-repo rather than an error.
+func (s *Service) IsGitRepo() bool {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return false
+	}
+	return s.m.IsGitRepo(root)
 }
-func (s *Service) CommitChanges(path, hash string) ([]ChangeFile, error) {
-	return s.m.CommitChanges(path, hash)
+
+func (s *Service) RepoRoot() (string, error) {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return "", err
+	}
+	return s.m.RepoRoot(root)
 }
-func (s *Service) RemoteInfo(path string) (*RemoteInfo, error) { return s.m.RemoteInfo(path) }
+
+func (s *Service) Status() (*Status, error) {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return nil, err
+	}
+	return s.m.Status(root)
+}
+
+func (s *Service) Branches() (*Branches, error) {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return nil, err
+	}
+	return s.m.Branches(root)
+}
+
+func (s *Service) Log(limit int) ([]Commit, error) {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return nil, err
+	}
+	return s.m.Log(root, limit)
+}
+
+func (s *Service) LogGraph(limit int) ([]GraphCommit, error) {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return nil, err
+	}
+	return s.m.LogGraph(root, limit)
+}
+
+func (s *Service) CommitChanges(hash string) ([]ChangeFile, error) {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return nil, err
+	}
+	return s.m.CommitChanges(root, hash)
+}
+
+func (s *Service) RemoteInfo() (*RemoteInfo, error) {
+	root, err := s.resolveRoot()
+	if err != nil {
+		return nil, err
+	}
+	return s.m.RemoteInfo(root)
+}
 
 // Commit can run long on a large worktree, so it is tracked and guarded against
 // a concurrent second commit; the guard releases when it ends.
@@ -117,6 +205,11 @@ func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) {
 		return nil, err
 	}
 	defer release()
+	if opts.Path == "" {
+		if opts.Path, err = s.resolveRoot(); err != nil {
+			return nil, err
+		}
+	}
 	return s.m.Commit(opts)
 }
 
@@ -137,6 +230,13 @@ func (s *Service) Clone(opts CloneOptions) (*CloneResult, error) {
 
 // Discard reverts the working tree, so it announces context:reloaded on success.
 func (s *Service) Discard(opts DiscardOptions) error {
+	if opts.Path == "" {
+		root, err := s.resolveRoot()
+		if err != nil {
+			return err
+		}
+		opts.Path = root
+	}
 	err := s.m.Discard(opts)
 	if err == nil {
 		event.Emit(s.emit, "context:reloaded", nil)
@@ -146,6 +246,13 @@ func (s *Service) Discard(opts DiscardOptions) error {
 
 // Fetch refreshes remote-tracking refs via sysgit (credential helper resolves auth) or go-git with keychain PAT.
 func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
+	if opts.Path == "" {
+		root, err := s.resolveRoot()
+		if err != nil {
+			return nil, err
+		}
+		opts.Path = root
+	}
 	if s.useSysgit() {
 		if err := s.sys.Fetch(opts.Path, opts.Remote); err != nil {
 			return nil, err
@@ -168,10 +275,17 @@ func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 // safe here. A fetch failure (offline, bad auth) propagates: the caller treats
 // any error as "cannot determine, do not block the commit".
 func (s *Service) FetchStatus(opts FetchOptions) (*Status, error) {
+	root := opts.Path
+	if root == "" {
+		var err error
+		if root, err = s.resolveRoot(); err != nil {
+			return nil, err
+		}
+	}
 	if _, err := s.Fetch(opts); err != nil {
 		return nil, err
 	}
-	return s.m.Status(opts.Path)
+	return s.m.Status(root)
 }
 
 // Push sends commits to the remote; AlreadyUpToDate records remote-seen, advancing records a sync marker.
@@ -182,6 +296,11 @@ func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 		return nil, err
 	}
 	defer release()
+	if opts.Path == "" {
+		if opts.Path, err = s.resolveRoot(); err != nil {
+			return nil, err
+		}
+	}
 	if s.useSysgit() {
 		return s.pushViaSysgit(opts)
 	}
@@ -227,6 +346,11 @@ func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 		return nil, err
 	}
 	defer release()
+	if opts.Path == "" {
+		if opts.Path, err = s.resolveRoot(); err != nil {
+			return nil, err
+		}
+	}
 	if s.useSysgit() {
 		return s.pullViaSysgit(opts)
 	}
@@ -301,6 +425,11 @@ func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 		return nil, err
 	}
 	defer release()
+	if opts.Path == "" {
+		if opts.Path, err = s.resolveRoot(); err != nil {
+			return nil, err
+		}
+	}
 
 	pull := s.m.Pull
 	if s.useSysgit() {

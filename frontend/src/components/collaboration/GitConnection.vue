@@ -27,25 +27,18 @@ const cfg = computed(() => config.value!);
         placeholder="./Examples"
       />
     </FormRow>
-    <FormRow :label="t('settings.field.git_root_directory')">
-      <FolderPathField
-        :model-value="cfg.git_root"
-        @update:model-value="(v) => update({ git_root: v })"
-        placeholder="/path/to/repo"
-      />
-    </FormRow>
     <FormRow :label="t('settings.field.git_branch')">
       <TextField
-        :model-value="cfg.git_branch"
-        @update:model-value="(v) => update({ git_branch: v })"
+        :model-value="cfg.git?.branch"
+        @update:model-value="(v) => update({ git: { branch: v } })"
         placeholder="main"
       />
     </FormRow>
     <FormSwitchRow
       :label="t('settings.field.git_self_cloned')"
       :description="t('settings.desc.git_self_cloned')"
-      :model-value="cfg.git_self_cloned"
-      @update:model-value="(v) => update({ git_self_cloned: v })"
+      :model-value="cfg.git?.self_cloned"
+      @update:model-value="(v) => update({ git: { self_cloned: v } })"
       :on-label="t('common.on')"
       :off-label="t('common.off')"
     />

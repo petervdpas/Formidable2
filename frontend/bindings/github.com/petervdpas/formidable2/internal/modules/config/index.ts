@@ -8,6 +8,8 @@ export {
 
 export {
     Config,
+    GigotConfig,
+    GitConfig,
     History,
     ProfileEntry,
     ProfileResult,

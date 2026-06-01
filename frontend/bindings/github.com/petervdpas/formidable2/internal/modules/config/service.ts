@@ -33,6 +33,16 @@ export function ExportUserProfile(profileFilename: string, targetPath: string, o
     });
 }
 
+/**
+ * GetRemoteRootPath returns the active backend's working folder, resolved the
+ * one shared way (none/git/gigot all go through ResolvePath against AppRoot).
+ * The git frontend uses this instead of resolving git_root itself, so all three
+ * backends resolve their root identically.
+ */
+export function GetRemoteRootPath(): $CancellablePromise<string> {
+    return $Call.ByID(3539707641);
+}
+
 export function HasUserProfiles(): $CancellablePromise<boolean> {
     return $Call.ByID(3861580185);
 }

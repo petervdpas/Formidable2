@@ -11,8 +11,7 @@ import {
   TextareaField,
 } from "../../components/fields";
 import { Service as GitSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
-import { Service as SystemSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
-import { useConfig } from "../../composables/useConfig";
+import { useRemoteConfig } from "../../composables/useRemoteConfig";
 import { isValidAuthor } from "../../composables/useAuthorValidation";
 import { useToast } from "../../composables/useToast";
 import { useActiveOps } from "../../composables/useActiveOps";
@@ -39,10 +38,12 @@ type Status = {
 };
 
 const { t } = useI18n();
-const { config, update } = useConfig();
+const { config, update, contextFolder } = useRemoteConfig();
 const toast = useToast();
 
-const gitRoot = computed(() => config.value?.git_root ?? "");
+// The git Service resolves its own working folder from the active profile, so
+// this view never passes a path; contextFolder only gates the initial fetch
+// (skip when no context is set yet).
 const cfg = computed(() => config.value);
 
 const status = ref<Status | null>(null);
@@ -73,7 +74,7 @@ const pullRunning = computed(() => pulling.value || isRunning("git:pull"));
 let reqId = 0;
 
 async function load(announce: boolean) {
-  const path = gitRoot.value.trim();
+  const path = contextFolder.value.trim();
   if (path === "") {
     status.value = null;
     notARepo.value = false;
@@ -85,8 +86,7 @@ async function load(announce: boolean) {
   errorMsg.value = "";
   notARepo.value = false;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(path)) || path;
-    const isRepo = await GitSvc.IsGitRepo(abs);
+    const isRepo = await GitSvc.IsGitRepo();
     if (my !== reqId) return;
     if (!isRepo) {
       status.value = null;
@@ -94,7 +94,7 @@ async function load(announce: boolean) {
       if (announce) toast.warn("workspace.collaboration.status.not_a_repo");
       return;
     }
-    const s = await GitSvc.Status(abs);
+    const s = await GitSvc.Status();
     if (my !== reqId) return;
     status.value = (s as Status | null) ?? null;
     if (announce) toast.success("workspace.collaboration.status.refreshed");
@@ -115,7 +115,7 @@ async function load(announce: boolean) {
 }
 
 onMounted(() => load(false));
-watch(gitRoot, () => load(false));
+watch(contextFolder, () => load(false));
 
 // Commit is enabled when there's something to commit, the message
 // is non-empty, and the worktree is on a branch (not detached).
@@ -142,8 +142,7 @@ async function fetchRemote() {
   if (fetching.value) return;
   fetching.value = true;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
-    const result = await GitSvc.Fetch({ path: abs, remote: "origin", pat: "" });
+    const result = await GitSvc.Fetch({ remote: "origin", pat: "" });
     if (result?.already_up_to_date) {
       toast.info("workspace.collaboration.fetch.up_to_date");
     } else {
@@ -214,8 +213,7 @@ async function push() {
   if (!canPush.value) return;
   pushing.value = true;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
-    const result = await GitSvc.Push({ path: abs, remote: "origin", pat: "" });
+    const result = await GitSvc.Push({ remote: "origin", pat: "" });
     if (result?.already_up_to_date) {
       toast.info("workspace.collaboration.push.up_to_date");
     } else {
@@ -246,8 +244,7 @@ async function pull() {
   }
   pulling.value = true;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
-    const result = await GitSvc.Pull({ path: abs, remote: "origin", pat: "" });
+    const result = await GitSvc.Pull({ remote: "origin", pat: "" });
     if (result?.already_up_to_date) {
       toast.info("workspace.collaboration.pull.up_to_date");
     } else {
@@ -279,8 +276,7 @@ async function pullWithStash(thenCommit = false) {
   pulling.value = true;
   let blocked = false;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
-    const result = await GitSvc.PullWithStash({ path: abs, remote: "origin", pat: "" });
+    const result = await GitSvc.PullWithStash({ remote: "origin", pat: "" });
 
     const overridden = (result?.overridden ?? []) as OverriddenPath[];
     const merged = (result?.auto_merged ?? []) as string[];
@@ -316,8 +312,7 @@ async function pullWithStash(thenCommit = false) {
 async function checkBehind(): Promise<number> {
   checkingBehind.value = true;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
-    const fresh = await GitSvc.FetchStatus({ path: abs, remote: "origin", pat: "" });
+    const fresh = await GitSvc.FetchStatus({ remote: "origin", pat: "" });
     await load(false);
     return fresh?.behind ?? 0;
   } catch {
@@ -356,9 +351,7 @@ async function commit(skipBehindCheck = false) {
 
   inFlight.value = true;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
     const result = await GitSvc.Commit({
-      path: abs,
       message: message.value.trim(),
       author: c.author_name,
       email: c.author_email,
@@ -406,8 +399,7 @@ async function confirmDiscard() {
   discardOpen.value = false;
   if (!file) return;
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(gitRoot.value)) || gitRoot.value;
-    await GitSvc.Discard({ path: abs, file });
+    await GitSvc.Discard({ file });
     toast.success("workspace.collaboration.status.discarded", [file]);
     await load(false);
   } catch (err) {

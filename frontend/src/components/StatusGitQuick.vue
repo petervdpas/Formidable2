@@ -14,20 +14,17 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Events } from "@wailsio/runtime";
-import { useConfig } from "../composables/useConfig";
+import { useRemoteConfig } from "../composables/useRemoteConfig";
 import { useActiveWorkspace } from "../composables/useActiveWorkspace";
 import { useCollaborationSection } from "../composables/useCollaborationSection";
 import { confirmLeave } from "../composables/useNavGuard";
 import { Service as GitSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import type { Status } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
-import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { contextFolder } = useRemoteConfig();
 const { setActive: setWorkspace } = useActiveWorkspace();
 const { setActive: setSection } = useCollaborationSection();
-
-const gitRoot = computed(() => config.value?.git_root ?? "");
 const status = ref<Status | null>(null);
 const isRepo = ref(false);
 
@@ -36,22 +33,21 @@ const isRepo = ref(false);
 let reqId = 0;
 async function load() {
   const my = ++reqId;
-  const path = gitRoot.value.trim();
+  const path = contextFolder.value.trim();
   if (!path) {
     isRepo.value = false;
     status.value = null;
     return;
   }
   try {
-    const abs = (await SystemSvc.ResolveAbsolutePath(path)) || path;
-    const ok = await GitSvc.IsGitRepo(abs);
+    const ok = await GitSvc.IsGitRepo();
     if (my !== reqId) return;
     if (!ok) {
       isRepo.value = false;
       status.value = null;
       return;
     }
-    const s = await GitSvc.Status(abs);
+    const s = await GitSvc.Status();
     if (my !== reqId) return;
     isRepo.value = true;
     status.value = (s as Status | null) ?? null;
@@ -96,7 +92,7 @@ onBeforeUnmount(() => {
   window.removeEventListener("formidable:git-refreshed", onSyncRefreshed);
 });
 
-watch(gitRoot, () => { void load(); });
+watch(contextFolder, () => { void load(); });
 
 const ahead = computed(() => status.value?.ahead ?? 0);
 const behind = computed(() => status.value?.behind ?? 0);

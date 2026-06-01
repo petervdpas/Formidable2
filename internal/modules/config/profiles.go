@@ -37,7 +37,7 @@ func (m *Manager) GitSelfCloned() bool {
 	if m.cached == nil {
 		return false
 	}
-	return m.cached.GitSelfCloned
+	return m.cached.Git.SelfCloned
 }
 
 // IoCollectionOnly reports whether CSV Import/Export is limited to
@@ -58,7 +58,7 @@ func (m *Manager) GigotBaseURL() string {
 	if m.cached == nil {
 		return ""
 	}
-	return m.cached.GigotBaseURL
+	return m.cached.Gigot.BaseURL
 }
 
 // GigotRepoName returns the active profile's GiGot repo handle, or "".
@@ -68,7 +68,7 @@ func (m *Manager) GigotRepoName() string {
 	if m.cached == nil {
 		return ""
 	}
-	return m.cached.GigotRepoName
+	return m.cached.Gigot.RepoName
 }
 
 // AuthorName returns the active profile's git/gigot author name, or "".

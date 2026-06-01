@@ -18,17 +18,13 @@ import type {
   PathConflict,
   RepoContextResponse,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/gigot/models";
-import { useConfig } from "../../composables/useConfig";
+import { useRemoteConfig } from "../../composables/useRemoteConfig";
 import { useToast } from "../../composables/useToast";
 import { backendErrMessage } from "../../utils/backendError";
 
 const { t } = useI18n();
-const { config } = useConfig();
+const { contextFolder, gigotBaseURL: baseURL, gigotRepoName: repoName } = useRemoteConfig();
 const toast = useToast();
-
-const contextFolder = computed(() => config.value?.context_folder ?? "");
-const baseURL = computed(() => config.value?.gigot_base_url ?? "");
-const repoName = computed(() => config.value?.gigot_repo_name ?? "");
 
 const configured = computed(
   () =>

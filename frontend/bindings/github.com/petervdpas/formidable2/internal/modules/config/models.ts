@@ -35,12 +35,8 @@ export class Config {
     "author_email": string;
     "language": string;
     "remote_backend": string;
-    "git_root": string;
-    "git_branch": string;
-    "git_self_cloned": boolean;
-    "gigot_base_url": string;
-    "gigot_repo_name": string;
-    "gigot_token": string;
+    "git": GitConfig;
+    "gigot": GigotConfig;
     "enable_internal_server": boolean;
     "internal_server_port": number;
     "window_bounds": WindowBounds;
@@ -124,23 +120,11 @@ export class Config {
         if (!("remote_backend" in $$source)) {
             this["remote_backend"] = "";
         }
-        if (!("git_root" in $$source)) {
-            this["git_root"] = "";
+        if (!("git" in $$source)) {
+            this["git"] = (new GitConfig());
         }
-        if (!("git_branch" in $$source)) {
-            this["git_branch"] = "";
-        }
-        if (!("git_self_cloned" in $$source)) {
-            this["git_self_cloned"] = false;
-        }
-        if (!("gigot_base_url" in $$source)) {
-            this["gigot_base_url"] = "";
-        }
-        if (!("gigot_repo_name" in $$source)) {
-            this["gigot_repo_name"] = "";
-        }
-        if (!("gigot_token" in $$source)) {
-            this["gigot_token"] = "";
+        if (!("gigot" in $$source)) {
+            this["gigot"] = (new GigotConfig());
         }
         if (!("enable_internal_server" in $$source)) {
             this["enable_internal_server"] = false;
@@ -175,23 +159,93 @@ export class Config {
      */
     static createFrom($$source: any = {}): Config {
         const $$createField19_0 = $$createType0;
-        const $$createField32_0 = $$createType1;
-        const $$createField36_0 = $$createType2;
-        const $$createField37_0 = $$createType3;
+        const $$createField24_0 = $$createType1;
+        const $$createField25_0 = $$createType2;
+        const $$createField28_0 = $$createType3;
+        const $$createField32_0 = $$createType4;
+        const $$createField33_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("enabled_templates" in $$parsedSource) {
             $$parsedSource["enabled_templates"] = $$createField19_0($$parsedSource["enabled_templates"]);
         }
+        if ("git" in $$parsedSource) {
+            $$parsedSource["git"] = $$createField24_0($$parsedSource["git"]);
+        }
+        if ("gigot" in $$parsedSource) {
+            $$parsedSource["gigot"] = $$createField25_0($$parsedSource["gigot"]);
+        }
         if ("window_bounds" in $$parsedSource) {
-            $$parsedSource["window_bounds"] = $$createField32_0($$parsedSource["window_bounds"]);
+            $$parsedSource["window_bounds"] = $$createField28_0($$parsedSource["window_bounds"]);
         }
         if ("status_buttons" in $$parsedSource) {
-            $$parsedSource["status_buttons"] = $$createField36_0($$parsedSource["status_buttons"]);
+            $$parsedSource["status_buttons"] = $$createField32_0($$parsedSource["status_buttons"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField37_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField33_0($$parsedSource["history"]);
         }
         return new Config($$parsedSource as Partial<Config>);
+    }
+}
+
+/**
+ * GigotConfig holds the gigot backend's per-profile settings (only meaningful
+ * when remote_backend == "gigot"). The working folder is the shared context_folder.
+ */
+export class GigotConfig {
+    "base_url": string;
+    "repo_name": string;
+    "token": string;
+
+    /** Creates a new GigotConfig instance. */
+    constructor($$source: Partial<GigotConfig> = {}) {
+        if (!("base_url" in $$source)) {
+            this["base_url"] = "";
+        }
+        if (!("repo_name" in $$source)) {
+            this["repo_name"] = "";
+        }
+        if (!("token" in $$source)) {
+            this["token"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GigotConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GigotConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GigotConfig($$parsedSource as Partial<GigotConfig>);
+    }
+}
+
+/**
+ * GitConfig holds the git backend's per-profile settings (only meaningful when
+ * remote_backend == "git"). The working folder is the shared context_folder.
+ */
+export class GitConfig {
+    "branch": string;
+    "self_cloned": boolean;
+
+    /** Creates a new GitConfig instance. */
+    constructor($$source: Partial<GitConfig> = {}) {
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("self_cloned" in $$source)) {
+            this["self_cloned"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new GitConfig instance from a string or object.
+     */
+    static createFrom($$source: any = {}): GitConfig {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new GitConfig($$parsedSource as Partial<GitConfig>);
     }
 }
 
@@ -374,6 +428,8 @@ export class WindowBounds {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = WindowBounds.createFrom;
-const $$createType2 = StatusButtons.createFrom;
-const $$createType3 = History.createFrom;
+const $$createType1 = GitConfig.createFrom;
+const $$createType2 = GigotConfig.createFrom;
+const $$createType3 = WindowBounds.createFrom;
+const $$createType4 = StatusButtons.createFrom;
+const $$createType5 = History.createFrom;

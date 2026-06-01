@@ -44,8 +44,9 @@ type gitWorld struct {
 
 	// Service + fakeJournal for the wiring scenarios. Nil unless a
 	// scenario opens with "a journal-recording git service".
-	svc  *Service
-	jrnl *fakeJournal
+	svc     *Service
+	jrnl    *fakeJournal
+	gitRoot *fakeRoot
 
 	// Whatever the most recent operation produced.
 	status   *Status
@@ -780,6 +781,8 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		}
 		w.jrnl = &fakeJournal{}
 		w.svc = NewService(w.m, nil, nil, w.jrnl)
+		w.gitRoot = &fakeRoot{}
+		AttachRoot(w.svc, w.gitRoot)
 		return nil
 	})
 
@@ -788,43 +791,47 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 			w.m = NewManager()
 		}
 		w.svc = NewService(w.m, nil, nil, nil)
+		w.gitRoot = &fakeRoot{}
+		AttachRoot(w.svc, w.gitRoot)
 		return nil
 	})
 
 	ctx.Step(`^I push from "([^"]*)" via the service$`, func(rel string) error {
-		dir := filepath.Join(w.tmp, rel)
-		w.push, w.lastErr = w.svc.Push(PushOptions{Path: dir})
+		w.gitRoot.path = filepath.Join(w.tmp, rel)
+		w.push, w.lastErr = w.svc.Push(PushOptions{})
 		return nil
 	})
 
 	ctx.Step(`^I push with an empty path via the service$`, func() error {
-		w.push, w.lastErr = w.svc.Push(PushOptions{Path: ""})
+		w.gitRoot.path = ""
+		w.push, w.lastErr = w.svc.Push(PushOptions{})
 		return nil
 	})
 
 	ctx.Step(`^I pull from "([^"]*)" via the service$`, func(rel string) error {
-		dir := filepath.Join(w.tmp, rel)
-		w.pull, w.lastErr = w.svc.Pull(PullOptions{Path: dir})
+		w.gitRoot.path = filepath.Join(w.tmp, rel)
+		w.pull, w.lastErr = w.svc.Pull(PullOptions{})
 		return nil
 	})
 
 	ctx.Step(`^I pull with an empty path via the service$`, func() error {
-		w.pull, w.lastErr = w.svc.Pull(PullOptions{Path: ""})
+		w.gitRoot.path = ""
+		w.pull, w.lastErr = w.svc.Pull(PullOptions{})
 		return nil
 	})
 
 	ctx.Step(`^I fetch from "([^"]*)" via the service$`, func(rel string) error {
-		dir := filepath.Join(w.tmp, rel)
-		w.fetch, w.lastErr = w.svc.Fetch(FetchOptions{Path: dir, Remote: "origin"})
+		w.gitRoot.path = filepath.Join(w.tmp, rel)
+		w.fetch, w.lastErr = w.svc.Fetch(FetchOptions{Remote: "origin"})
 		return nil
 	})
 
 	ctx.Step(`^I fetch status from "([^"]*)" via the service$`, func(rel string) error {
-		path := ""
+		w.gitRoot.path = ""
 		if rel != "" {
-			path = filepath.Join(w.tmp, rel)
+			w.gitRoot.path = filepath.Join(w.tmp, rel)
 		}
-		w.status, w.lastErr = w.svc.FetchStatus(FetchOptions{Path: path, Remote: "origin"})
+		w.status, w.lastErr = w.svc.FetchStatus(FetchOptions{Remote: "origin"})
 		return nil
 	})
 

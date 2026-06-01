@@ -87,7 +87,7 @@ type CloneResult struct {
 
 // CommitOptions describes a commit request; it stages every worktree change before committing.
 type CommitOptions struct {
-	Path    string `json:"path"`
+	Path    string `json:"path,omitempty"`
 	Message string `json:"message"`
 	Author  string `json:"author"`
 	Email   string `json:"email"`
@@ -101,7 +101,7 @@ type CommitResult struct {
 
 // FetchOptions describes a fetch request; empty Remote defaults to "origin", PAT is transient (see CloneOptions).
 type FetchOptions struct {
-	Path   string `json:"path"`
+	Path   string `json:"path,omitempty"`
 	Remote string `json:"remote"`
 	PAT    string `json:"pat"`
 }
@@ -113,7 +113,7 @@ type FetchResult struct {
 
 // PullOptions describes a pull (fetch + merge, no rebase); empty Remote defaults to "origin", PAT is transient.
 type PullOptions struct {
-	Path   string `json:"path"`
+	Path   string `json:"path,omitempty"`
 	Remote string `json:"remote"`
 	PAT    string `json:"pat"`
 }
@@ -126,7 +126,7 @@ type PullResult struct {
 
 // PushOptions describes a push of the current branch HEAD; empty Remote defaults to "origin", PAT is transient.
 type PushOptions struct {
-	Path   string `json:"path"`
+	Path   string `json:"path,omitempty"`
 	Remote string `json:"remote"`
 	PAT    string `json:"pat"`
 }
@@ -183,6 +183,6 @@ type PullWithStashOptions struct {
 // DiscardOptions targets a single worktree file to discard its local change.
 // File is worktree-relative; path-traversal segments ("..") are rejected.
 type DiscardOptions struct {
-	Path string `json:"path"`
+	Path string `json:"path,omitempty"`
 	File string `json:"file"`
 }

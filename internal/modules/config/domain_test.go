@@ -409,11 +409,10 @@ func TestUpdateUserConfig_NoLostUpdatesUnderConcurrency(t *testing.T) {
 		{"language", "nl"},
 		{"author_name", "Goro_AN"},
 		{"author_email", "goro@example.com"},
-		{"gigot_base_url", "https://goro.example/u"},
-		{"gigot_repo_name", "Goro_REPO"},
-		{"gigot_token", "Goro_TOKEN"},
-		{"git_root", "/goro/root"},
-		{"git_branch", "goro-branch"},
+		{"context_mode", "Goro_MODE"},
+		{"context_ribbon", "Goro_RIBBON"},
+		{"selected_template", "goro.yaml"},
+		{"context_folder", "/goro/root"},
 		{"remote_backend", "git"},
 		{"selected_data_file", "goro.meta.json"},
 	}
@@ -650,7 +649,7 @@ func TestSwitchUserProfile_SerializedAgainstUpdate(t *testing.T) {
 
 	// Update storm - every goroutine touches a different field so a
 	// lost merge becomes detectable as a missing field after settling.
-	tweaks := []string{"author_name", "author_email", "git_root", "gigot_repo_name"}
+	tweaks := []string{"author_name", "author_email", "context_folder", "context_mode"}
 	for i := range N {
 		wg.Go(func() {
 			_, _ = m.UpdateUserConfig(map[string]any{tweaks[i%len(tweaks)]: "v" + string(rune('A'+i%26))})
@@ -679,8 +678,8 @@ func TestSwitchUserProfile_SerializedAgainstUpdate(t *testing.T) {
 	}
 	if disk.AuthorName != cur.AuthorName ||
 		disk.AuthorEmail != cur.AuthorEmail ||
-		disk.GitRoot != cur.GitRoot ||
-		disk.GigotRepoName != cur.GigotRepoName {
+		disk.ContextFolder != cur.ContextFolder ||
+		disk.ContextMode != cur.ContextMode {
 		t.Errorf("on-disk %q diverges from cache after concurrent storm:\n disk=%+v\n  mem=%+v",
 			curName, disk, cur)
 	}
@@ -853,6 +852,43 @@ func TestIoCollectionOnly_UncachedReturnsFalse(t *testing.T) {
 // "uncached returns zero value" contract so the gigot Service can ask
 // without special-casing early-boot.
 
+// A legacy profile with flat collaboration keys migrates them into the nested
+// git/gigot blocks and flags the file for a clean rewrite, so values survive
+// and the dead flat keys are stripped.
+func TestParseUserConfig_MigratesFlatCollaborationToNested(t *testing.T) {
+	raw := `{
+		"remote_backend": "gigot",
+		"context_folder": "./Examples",
+		"git_root": "/old/git",
+		"git_branch": "main",
+		"git_self_cloned": true,
+		"gigot_root": "/old/gigot",
+		"gigot_base_url": "https://gigot.example",
+		"gigot_repo_name": "addresses",
+		"gigot_token": "secret"
+	}`
+	cfg, changed, err := parseUserConfig(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !changed {
+		t.Error("expected changed=true so the dead flat keys get rewritten away")
+	}
+	if cfg.Git.Branch != "main" || !cfg.Git.SelfCloned {
+		t.Errorf("git not migrated: %+v", cfg.Git)
+	}
+	if cfg.Gigot.BaseURL != "https://gigot.example" || cfg.Gigot.RepoName != "addresses" || cfg.Gigot.Token != "secret" {
+		t.Errorf("gigot not migrated: %+v", cfg.Gigot)
+	}
+	// The rewrite goes through the struct, so the flat/dead keys are gone.
+	out, _ := json.Marshal(cfg)
+	for _, dead := range []string{"git_root", "gigot_root", "git_branch", "gigot_base_url", "gigot_repo_name"} {
+		if strings.Contains(string(out), `"`+dead+`"`) {
+			t.Errorf("dead key %q still present after migration: %s", dead, out)
+		}
+	}
+}
+
 func TestGigotAccessors_DefaultEmpty(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	if got := m.GigotBaseURL(); got != "" {
@@ -866,8 +902,10 @@ func TestGigotAccessors_DefaultEmpty(t *testing.T) {
 func TestGigotAccessors_ReadFromCachedConfig(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	if _, err := m.UpdateUserConfig(map[string]any{
-		"gigot_base_url":  "https://gigot.example",
-		"gigot_repo_name": "addresses",
+		"gigot": map[string]any{
+			"base_url":  "https://gigot.example",
+			"repo_name": "addresses",
+		},
 	}); err != nil {
 		t.Fatal(err)
 	}
