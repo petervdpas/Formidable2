@@ -364,7 +364,10 @@ func New(d Deps) (*App, error) {
 	)
 	// The index harvest folds each form's formula values into the expression
 	// context, so a sidebar expression can read F["formula"] like any field.
+	// The same calculator backs the storage disk-read fallback, so a sidebar
+	// label still gets its formula when the index isn't the source.
 	ehM.SetFormulaEvaluator(formulaHarvester{ev: expressionM})
+	stoM.SetFormulaFiller(formulaHarvester{ev: expressionM})
 
 	// Datacore: read-only perspectives over a tensor built from the
 	// template's live forms. Built before stat because stat computes

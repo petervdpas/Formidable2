@@ -64,7 +64,16 @@ type Manager struct {
 	storageDir string // base storage path (absolute or relative to fs root)
 	indexer    Indexer
 	reader     FormReader
+	formulas   FormulaFiller
 	author     AuthorProvider
+}
+
+// FormulaFiller computes a form's formula field values, so the disk-read
+// fallback (when no index reader is wired) still produces complete expression
+// context. Storage owns no calculator; the composition root supplies one (the
+// same one the index harvest uses, so the values match).
+type FormulaFiller interface {
+	FormulaValues(t *template.Template, f *Form) map[string]any
 }
 
 // NewManager builds the manager rooted at storageDir (the composition root resolves it); log may be nil.
@@ -86,6 +95,10 @@ func NewManager(filesystem fs, sfrM *sfr.Manager, templates templateLoader, stor
 
 // SetIndexer installs the post-write hook for form save/delete (nil disables).
 func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
+
+// SetFormulaFiller installs the formula calculator for the disk-read fallback
+// (nil leaves disk reads with fields + facets only).
+func (m *Manager) SetFormulaFiller(ff FormulaFiller) { m.formulas = ff }
 
 // SetReader installs the index read-side for ExtendedListForms (nil reverts to disk reads).
 func (m *Manager) SetReader(r FormReader) { m.reader = r }
@@ -464,6 +477,15 @@ func (m *Manager) summaryFor(templateFilename, filename string, tpl *template.Te
 		}
 		if v, ok := f.Data[fld.Key]; ok && v != nil && v != "" {
 			expressionItems[fld.Key] = v
+		}
+	}
+	// Formulas need a calculator (the composition root supplies it). On the disk
+	// path this keeps F["formula"] resolving when the index isn't the source.
+	if m.formulas != nil {
+		for k, v := range m.formulas.FormulaValues(tpl, f) {
+			if v != nil && v != "" {
+				expressionItems[k] = v
+			}
 		}
 	}
 	return FormSummary{

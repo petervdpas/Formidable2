@@ -364,6 +364,53 @@ func TestFormula_SidebarViaEvaluateListMany(t *testing.T) {
 	}
 }
 
+// TestFormula_DiskFallbackComputesFormulas covers the no-index path: with no
+// reader wired (index broken/absent), ExtendedLoadForm reads from disk, and the
+// formula filler must still produce the formula value so the sidebar label is
+// complete rather than silently dropping the formula.
+func TestFormula_DiskFallbackComputesFormulas(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	tplM := template.NewManager(sys, "templates", log)
+	if err := tplM.EnsureTemplateDirectory(); err != nil {
+		t.Fatalf("EnsureTemplateDirectory: %v", err)
+	}
+	sfrM := sfr.NewManager(sys, log)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", log)
+	exprM := expression.NewManager(expressionTemplateAdapter{tpl: tplM}, expressionStorageAdapter{sto: stoM})
+	// No SetReader: the disk fallback is exercised. Install the formula filler.
+	stoM.SetFormulaFiller(formulaHarvester{ev: exprM})
+
+	tpl := &template.Template{
+		Name: "audits", Filename: "audits.yaml", ItemField: "code",
+		SidebarExpression: `{text: str(F["code"]) + str(F["sb-formula"])}`,
+		Fields: []template.Field{
+			{Key: "code", Type: "text", ExpressionItem: true},
+			{Key: "story", Type: "number"},
+		},
+		Formulas: []template.Formula{
+			{Key: "sb-formula", Type: "text", Expression: `F["story"] >= 0 ? " - " + str(F["story"]) : ""`},
+		},
+	}
+	if err := tplM.SaveTemplate("audits.yaml", tpl); err != nil {
+		t.Fatalf("SaveTemplate: %v", err)
+	}
+	if r := stoM.SaveForm(context.Background(), "audits.yaml", "x.meta.json",
+		map[string]any{"code": "CH.04", "story": float64(99641)}); !r.Success {
+		t.Fatalf("SaveForm: %s", r.Error)
+	}
+
+	results, err := exprM.EvaluateListMany("audits.yaml", []string{"x.meta.json"})
+	if err != nil {
+		t.Fatalf("EvaluateListMany: %v", err)
+	}
+	if len(results) != 1 || results[0].Text != "CH.04 - 99641" {
+		t.Errorf("disk-fallback sub-label = %q, want %q", results, "CH.04 - 99641")
+	}
+}
+
 // TestApplyFormulas_WritesCoercedCellsSkipsBad checks the app-side write path:
 // a good formula lands as a string cell on the record (coerced by type), a
 // malformed one leaves no cell, and a typed number ctx value drives arithmetic.
