@@ -511,6 +511,11 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(render.ProseCSS()))
 		return
 	}
+	if rel == "js/mermaid.min.js" {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(render.MermaidJS())
+		return
+	}
 	data, err := fs.ReadFile(staticFS, rel)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "not found")

@@ -70,3 +70,17 @@
     word-break: break-word;
     font-size: 0.85em;
 }
+
+/* A hydrated mermaid block (in any RenderedHtml surface) sheds the
+   code-block frame so the diagram shows cleanly and centred. Until
+   mermaid marks it data-processed it stays a normal code block. */
+pre.mermaid[data-processed] {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    text-align: center;
+}
+pre.mermaid[data-processed] svg {
+    max-width: 100%;
+    height: auto;
+}

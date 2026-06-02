@@ -5,6 +5,21 @@ import (
 	"testing"
 )
 
+func TestRenderHTML_MermaidFence(t *testing.T) {
+	out, err := RenderHTML("```mermaid\nflowchart TD\n  A-->B\n```")
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	// Client mode: the fence becomes a <pre class="mermaid"> block for
+	// mermaid.js to render, NOT a chroma-highlighted code block.
+	if !strings.Contains(out, `class="mermaid"`) {
+		t.Fatalf("no mermaid container in:\n%s", out)
+	}
+	if strings.Contains(out, "hljs-") {
+		t.Fatalf("mermaid fence was syntax-highlighted:\n%s", out)
+	}
+}
+
 func TestRenderHTML_Heading(t *testing.T) {
 	got, err := RenderHTML("# Hello")
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	goldhtml "github.com/yuin/goldmark/renderer/html"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	"go.abhg.dev/goldmark/mermaid"
 )
 
 // goldmarkOnce keeps a single configured Markdown engine for the
@@ -34,6 +35,10 @@ func newMarkdown() goldmark.Markdown {
 					chromahtml.ClassPrefix("hljs-"),
 				),
 			),
+			// Client mode: ```mermaid fences become <pre class="mermaid">.
+			// NoScript - each surface loads vendored mermaid.js itself
+			// (wiki/slideout render in-browser; PDF bakes via go-rod).
+			&mermaid.Extender{RenderMode: mermaid.RenderModeClient, NoScript: true},
 		),
 		goldmark.WithRendererOptions(
 			goldhtml.WithUnsafe(), // allow inline <img> from convertFileImages

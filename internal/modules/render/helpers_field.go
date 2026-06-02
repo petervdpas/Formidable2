@@ -106,6 +106,8 @@ func registerFieldHelper(tpl *raymond.Template, opts *Options) {
 			return emitOptionLabel(value, field)
 		case "textarea":
 			return raymond.SafeString(stringify(value))
+		case "mermaid":
+			return raymond.SafeString(emitMermaid(value))
 		case "image":
 			return emitImage(value, opts)
 		}

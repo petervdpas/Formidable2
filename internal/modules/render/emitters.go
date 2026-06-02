@@ -338,9 +338,23 @@ func emitFieldValue(v any, f *template.Field, opts *Options) string {
 		return emitLink(v, opts)
 	case "image":
 		return emitImage(v, opts)
+	case "mermaid":
+		return emitMermaid(v)
 	case "textarea":
 		return stringify(v)
 	default:
 		return stringify(v)
 	}
+}
+
+// emitMermaid wraps the diagram source in a ```mermaid fenced block: the
+// portable, canonical representation. Markdown export keeps it verbatim;
+// the HTML/PDF pipeline turns the fence into a rendered diagram. Empty
+// source emits nothing (no stray empty fence).
+func emitMermaid(v any) string {
+	src := strings.TrimRight(stringify(v), "\n")
+	if strings.TrimSpace(src) == "" {
+		return ""
+	}
+	return "```mermaid\n" + src + "\n```"
 }

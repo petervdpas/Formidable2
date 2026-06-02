@@ -24,6 +24,19 @@ var proseStylesheet string
 // export tools) and want the same CSS without re-embedding it.
 func ProseCSS() string { return proseStylesheet }
 
+// mermaidScript is the vendored mermaid.min.js (npm dist), embedded once
+// here so server-side surfaces share a single copy: the wiki serves it as
+// a client script, and the PDF baker injects it into go-rod. Client mode
+// only - the in-app editor/slideout use the bundled npm mermaid instead.
+//
+//go:embed assets/mermaid.min.js
+var mermaidScript []byte
+
+// MermaidJS returns the embedded mermaid.min.js bytes. The npm build
+// exposes the API as the global `__esbuild_esm_mermaid_nm.mermaid` (not
+// window.mermaid); consumers detect it there.
+func MermaidJS() []byte { return mermaidScript }
+
 // RenderFullHTML returns a self-contained HTML document: full scaffolding,
 // a <title> from frontmatter (falling back to the datafile stem, then
 // "Untitled"), the inlined prose stylesheet, and the rendered body.

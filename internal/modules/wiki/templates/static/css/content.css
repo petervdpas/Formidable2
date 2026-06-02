@@ -200,3 +200,18 @@ pre:not(.hljs) {
     background: #f7faff;
     color: #1b4fcf;
 }
+
+/* A hydrated mermaid block sheds the code-block frame so the diagram
+   shows cleanly and centred. Until mermaid marks it data-processed it
+   stays a normal <pre> code block. */
+pre.mermaid[data-processed] {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    text-align: center;
+}
+
+pre.mermaid[data-processed] svg {
+    max-width: 100%;
+    height: auto;
+}

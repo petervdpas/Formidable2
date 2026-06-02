@@ -24,6 +24,29 @@ func TestEmitList_Empty(t *testing.T) {
 	}
 }
 
+func TestEmitMermaid(t *testing.T) {
+	got := emitMermaid("flowchart TD\n  A-->B")
+	want := "```mermaid\nflowchart TD\n  A-->B\n```"
+	if got != want {
+		t.Errorf("mermaid = %q, want %q", got, want)
+	}
+}
+
+func TestEmitMermaid_Empty(t *testing.T) {
+	for _, v := range []any{nil, "", "   ", "\n\n"} {
+		if got := emitMermaid(v); got != "" {
+			t.Errorf("emitMermaid(%q) = %q, want empty", v, got)
+		}
+	}
+}
+
+func TestEmitMermaid_TrimsTrailingNewlinesBeforeFence(t *testing.T) {
+	got := emitMermaid("gantt\n")
+	if !strings.HasSuffix(got, "gantt\n```") {
+		t.Errorf("mermaid = %q, want a single trailing fence", got)
+	}
+}
+
 func TestEmitTable(t *testing.T) {
 	rows := []any{
 		[]any{"r1c1", "r1c2"},

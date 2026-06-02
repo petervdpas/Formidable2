@@ -9,6 +9,7 @@ import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import UnsavedChangesDialog from "../components/UnsavedChangesDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
+import RenderedHtml from "../components/RenderedHtml.vue";
 import ImportCSVDialog from "../components/ImportCSVDialog.vue";
 import ExportCSVDialog from "../components/ExportCSVDialog.vue";
 import ExportPDFDialog from "../components/ExportPDFDialog.vue";
@@ -1332,10 +1333,10 @@ setTopbarMenu(() => [
           button-class="right-slideout-action"
         />
       </template>
-      <div
+      <RenderedHtml
         v-if="html"
         class="preview-html formidable-prose"
-        v-html="html"
+        :html="html"
         @click="onHtmlPreviewClick"
       />
       <div v-else-if="htmlError" class="preview-error">
