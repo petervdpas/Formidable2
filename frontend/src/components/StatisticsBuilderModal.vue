@@ -26,6 +26,7 @@ import type {
   Field,
   Facet,
   Formula,
+  Scaling,
   Statistic,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { backendErrMessage } from "../utils/backendError";
@@ -69,7 +70,7 @@ const props = defineProps<{
   /** Formula fields on the template; selectable as datacore-computed sources. */
   formulas: Formula[];
   /** Scaling objects on the template, for the optional weighting picker. */
-  scalings: Statistic[];
+  scalings: Scaling[];
   /** The statistic being edited, or null to compose a new one. */
   initial: Statistic | null;
 }>();

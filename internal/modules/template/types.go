@@ -23,6 +23,7 @@ type Template struct {
 	PDF               *PDFConfig  `yaml:"pdf,omitempty" json:"pdf,omitempty"`
 	Facets            []Facet     `yaml:"facets,omitempty" json:"facets"`
 	Statistics        []Statistic `yaml:"statistics,omitempty" json:"statistics"`
+	Scalings          []Scaling   `yaml:"scalings,omitempty" json:"scalings"`
 	Formulas          []Formula   `yaml:"formulas,omitempty" json:"formulas"`
 	Fields            []Field     `yaml:"fields" json:"fields"`
 	NeedsResave       bool        `yaml:"-" json:"needs_resave"`
@@ -65,6 +66,19 @@ type StatCompositeEdge struct {
 // StatScaling is the stored scaling: a per-form categorical source plus an option->factor map and a default.
 // Source must be a facet or scalar dropdown/radio field (per-form), never a table column.
 type StatScaling struct {
+	Source  StatSource        `yaml:"source" json:"source"`
+	Weights []StatWeightEntry `yaml:"weights,omitempty" json:"weights"`
+	Default float64           `yaml:"default" json:"default"`
+}
+
+// Scaling is a reusable per-form weighting, named at the template level: a
+// per-form categorical source (a facet, or a dropdown/radio field) plus an
+// option->factor map and a default. It is exposed to the expression engine as
+// S["name"] (the per-record factor) and to the Statistical Engine through the
+// DSL scale "<name>" clause. Source must be per-form, never a table column.
+type Scaling struct {
+	Name    string            `yaml:"name" json:"name"`
+	Label   string            `yaml:"label,omitempty" json:"label,omitempty"`
 	Source  StatSource        `yaml:"source" json:"source"`
 	Weights []StatWeightEntry `yaml:"weights,omitempty" json:"weights"`
 	Default float64           `yaml:"default" json:"default"`

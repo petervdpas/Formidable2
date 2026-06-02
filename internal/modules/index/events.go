@@ -39,6 +39,7 @@ type EventHandler struct {
 	templates TemplateLoader
 	forms     FormStore
 	formulas  FormulaEvaluator
+	scales    ScaleEvaluator
 	root      string
 }
 
@@ -47,6 +48,13 @@ type EventHandler struct {
 // reads. The index owns no expression engine; the composition root supplies one.
 type FormulaEvaluator interface {
 	FormulaValues(t *template.Template, f *storage.Form) map[string]any
+}
+
+// ScaleEvaluator computes a form's scaling factors (keyed by scaling name) so
+// the harvest can fold them into the expression context under the S namespace.
+// Supplied by the composition root, like FormulaEvaluator.
+type ScaleEvaluator interface {
+	ScaleValues(t *template.Template, f *storage.Form) map[string]any
 }
 
 // NewEventHandler wires the writer side of the index. The composition
@@ -61,6 +69,10 @@ func (h *EventHandler) SetRoot(path string) { h.root = path }
 // SetFormulaEvaluator wires the optional formula evaluator; nil leaves the
 // harvest as just the expression-flagged field values.
 func (h *EventHandler) SetFormulaEvaluator(fe FormulaEvaluator) { h.formulas = fe }
+
+// SetScaleEvaluator wires the optional scaling evaluator; nil leaves the
+// harvest without an S namespace.
+func (h *EventHandler) SetScaleEvaluator(se ScaleEvaluator) { h.scales = se }
 
 // OnTemplateChanged re-derives the templates row AND every form row, because form columns
 // (title/expression_items/tags/facets) are projections of the template and would otherwise go stale.
@@ -199,6 +211,14 @@ func (h *EventHandler) buildFormRow(t *template.Template, f *storage.Form, templ
 			exprVals[fld.Key] = v
 		}
 	}
+	// Expose each set facet under its own key too (F["facet-key"]), matching the
+	// formula context, so a sidebar expression can read the raw facet value
+	// regardless of whether a facet field is flagged as an expression item.
+	for k, st := range f.Meta.Facets {
+		if st.Set && st.Selected != "" {
+			exprVals[k] = st.Selected
+		}
+	}
 
 	if guidKey != "" {
 		if v, ok := f.Data[guidKey].(string); ok {
@@ -213,7 +233,11 @@ func (h *EventHandler) buildFormRow(t *template.Template, f *storage.Form, templ
 	if h.formulas != nil {
 		formulaVals = h.formulas.FormulaValues(t, f)
 	}
-	row.ExpressionItems = encodeExpressionItems(exprVals, formulaVals)
+	var scaleVals map[string]any
+	if h.scales != nil {
+		scaleVals = h.scales.ScaleValues(t, f)
+	}
+	row.ExpressionItems = encodeExpressionItems(exprVals, formulaVals, scaleVals)
 
 	return row
 }
@@ -319,11 +343,12 @@ func cleanTags(in []string) []string {
 }
 
 // encodeExpressionItems serialises the expression-item field values plus the
-// computed formula values as one JSON blob. Both share the context so a sidebar
-// expression can read F["formula"] alongside F["field"]. Empty values are
-// dropped so an unset field/formula simply doesn't appear.
-func encodeExpressionItems(exprVals map[string]any, formulaVals map[string]any) string {
-	out := make(map[string]any, len(exprVals)+len(formulaVals))
+// computed formula values as one JSON blob, with the scaling factors nested
+// under "S". A sidebar expression reads F["formula"] alongside F["field"] and
+// S["scaling"]. Empty values are dropped so an unset field/formula simply
+// doesn't appear.
+func encodeExpressionItems(exprVals, formulaVals, scaleVals map[string]any) string {
+	out := make(map[string]any, len(exprVals)+len(formulaVals)+1)
 	for k, v := range exprVals {
 		if v != nil && v != "" {
 			out[k] = v
@@ -333,6 +358,9 @@ func encodeExpressionItems(exprVals map[string]any, formulaVals map[string]any) 
 		if v != nil && v != "" {
 			out[k] = v
 		}
+	}
+	if len(scaleVals) > 0 {
+		out["S"] = scaleVals
 	}
 	if len(out) == 0 {
 		return ""

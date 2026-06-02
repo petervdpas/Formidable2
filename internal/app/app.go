@@ -368,6 +368,10 @@ func New(d Deps) (*App, error) {
 	// label still gets its formula when the index isn't the source.
 	ehM.SetFormulaEvaluator(formulaHarvester{ev: expressionM})
 	stoM.SetFormulaFiller(formulaHarvester{ev: expressionM})
+	// Scaling factors travel the same harvest as formulas, exposed under the
+	// S["name"] namespace for both the index and the disk-read fallback.
+	ehM.SetScaleEvaluator(formulaHarvester{ev: expressionM})
+	stoM.SetScaleFiller(formulaHarvester{ev: expressionM})
 
 	// Datacore: read-only perspectives over a tensor built from the
 	// template's live forms. Built before stat because stat computes

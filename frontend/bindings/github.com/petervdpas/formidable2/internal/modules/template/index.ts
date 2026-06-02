@@ -27,6 +27,7 @@ export {
     LoadManyResult,
     PDFConfig,
     PDFCoverConfig,
+    Scaling,
     Shape,
     ShapeInfo,
     StatComposite,

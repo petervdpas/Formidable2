@@ -188,6 +188,12 @@ func (m *Manager) LoadTemplate(name string) (*Template, error) {
 	if coerceExpressionItemOffRoot(t.Fields) {
 		t.NeedsResave = true
 	}
+	// Lift legacy statistics[].scaling into the top-level scalings catalog on
+	// load, so the editor and the S["name"] calculator see the migrated shape
+	// without waiting for a save. In-memory only (sets NeedsResave to persist).
+	if migrateLegacyScalings(&t) {
+		t.NeedsResave = true
+	}
 	m.cachePut(name, &t)
 	return &t, nil
 }

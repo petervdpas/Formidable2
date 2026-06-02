@@ -130,6 +130,7 @@ func (m *Manager) EvaluateList(templateName string) ([]Result, error) {
 	for _, r := range records {
 		ctx := narrowContext(r.Context, keys)
 		ctx["O"] = optionLabelMap(fields, ctx)
+		injectScales(ctx, r.Context)
 		item, err := m.eng.Evaluate(src, ctx)
 		if err != nil {
 			out = append(out, Result{
@@ -182,6 +183,7 @@ func (m *Manager) EvaluateListOne(templateName, datafile string) (Result, error)
 	}
 	ctx := narrowContext(r.Context, keys)
 	ctx["O"] = optionLabelMap(fields, ctx)
+	injectScales(ctx, r.Context)
 	item, err := m.eng.Evaluate(src, ctx)
 	if err != nil {
 		return Result{
@@ -238,6 +240,7 @@ func (m *Manager) EvaluateListMany(templateName string, datafiles []string) ([]R
 		}
 		ctx := narrowContext(r.Context, keys)
 		ctx["O"] = optionLabelMap(fields, ctx)
+		injectScales(ctx, r.Context)
 		item, eerr := m.eng.Evaluate(src, ctx)
 		if eerr != nil {
 			out = append(out, Result{
@@ -296,4 +299,14 @@ func narrowContext(ctx map[string]any, expressionFields []string) map[string]any
 		}
 	}
 	return out
+}
+
+// injectScales copies the harvested S map (the scaling-factor namespace) from
+// the full record context into the narrowed evaluation context, so S["name"]
+// resolves. Like O[], it bypasses narrowContext's field whitelist: the engine
+// leaves S[...] member access untouched and resolves it against this map.
+func injectScales(ctx, full map[string]any) {
+	if s, ok := full["S"]; ok {
+		ctx["S"] = s
+	}
 }

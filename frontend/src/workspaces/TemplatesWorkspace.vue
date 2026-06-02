@@ -23,7 +23,7 @@ import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formida
 import type { CompositeSpec } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat/models";
 import FacetIcon from "../components/FacetIcon.vue";
 import { useFacetMeta } from "../composables/useFacetMeta";
-import { Facet, Formula, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Facet, Formula, Scaling, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import CodeEditor from "../components/CodeEditor.vue";
 import Tabs from "../components/Tabs.vue";
 import {
@@ -490,11 +490,6 @@ function openEditStatistic(idx: number) {
     compositeBuilderOpen.value = true;
     return;
   }
-  if (s.scaling) {
-    editingScaling.value = s;
-    scalingBuilderOpen.value = true;
-    return;
-  }
   editingStat.value = new Statistic({ name: s.name, label: s.label, dsl: s.dsl });
   statBuilderOpen.value = true;
 }
@@ -535,22 +530,56 @@ function applyComposite(s: Statistic) {
   compositeBuilderOpen.value = false;
 }
 
-// ── Scaling objects (reusable weightings): authored via ScalingBuilderModal.
-// A scaling has no grid of its own; plain objects reference it by name through
-// the stat builder's scale picker. Shares the statistics list + apply path.
+// ── Scaling objects (reusable weightings): a facet weighting subsystem. Each
+// facet owns a single weighting, edited inline from its row. A scaling has no
+// grid of its own; the expression engine reads it as S["name"] and the
+// Statistical Engine references it through the DSL scale "<name>" clause. Stored
+// in draft.scalings (top-level), keyed to a facet by source.
 const scalingBuilderOpen = ref(false);
-const editingScaling = ref<Statistic | null>(null);
-const scalings = computed(() => (draft.value?.statistics ?? []).filter((s) => !!s.scaling));
+const editingScalingIndex = ref(-1);
+const editingScaling = ref<Scaling | null>(null);
+const editingScalingFacet = ref<Facet | null>(null);
+const scalings = computed(() => draft.value?.scalings ?? []);
 
-function openAddScaling() {
+// The weighting whose source is this facet (each facet owns at most one).
+function scalingIndexForFacet(key: string): number {
+  return (draft.value?.scalings ?? []).findIndex(
+    (s) => s.source.kind === "facet" && s.source.key === key,
+  );
+}
+function scalingForFacet(key: string): Scaling | null {
+  const i = scalingIndexForFacet(key);
+  return i >= 0 ? (draft.value?.scalings?.[i] ?? null) : null;
+}
+
+function openFacetWeighting(facet: Facet) {
   if (!draft.value) return;
-  editingStatIndex.value = -1;
-  editingScaling.value = null;
+  const idx = scalingIndexForFacet(facet.key);
+  editingScalingIndex.value = idx;
+  editingScaling.value = idx >= 0 ? (draft.value.scalings?.[idx] ?? null) : null;
+  editingScalingFacet.value = facet;
   scalingBuilderOpen.value = true;
 }
 
-function applyScaling(s: Statistic) {
-  applyStatistic(s);
+function removeScaling(idx: number) {
+  if (!draft.value || idx < 0) return;
+  const cur = draft.value.scalings ?? [];
+  draft.value.scalings = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
+}
+
+function applyScaling(s: Scaling) {
+  if (!draft.value) return;
+  const cur = draft.value.scalings ?? [];
+  if (editingScalingIndex.value < 0) {
+    draft.value.scalings = [...cur, s];
+  } else {
+    draft.value.scalings = cur.map((existing, i) => (i === editingScalingIndex.value ? s : existing));
+  }
+  scalingBuilderOpen.value = false;
+}
+
+function onRemoveScaling() {
+  removeScaling(editingScalingIndex.value);
   scalingBuilderOpen.value = false;
 }
 
@@ -945,12 +974,24 @@ setTopbarMenu(() => [
                         <span class="muted small facet-row-summary">
                           {{ t('workspace.templates.facets.options_count', [f.options.length]) }}
                         </span>
+                        <code
+                          v-if="scalingForFacet(f.key)"
+                          class="facet-row-weighting mono"
+                          :title="t('workspace.templates.scalings.intro')"
+                        >S["{{ scalingForFacet(f.key)?.name }}"]</code>
                         <button
                           class="tool-btn"
                           type="button"
                           :title="t('workspace.templates.facets.edit')"
                           @click="openEditFacet(i)"
                         >{{ t('workspace.templates.facets.edit') }}</button>
+                        <button
+                          class="tool-btn"
+                          type="button"
+                          :class="{ 'is-active': !!scalingForFacet(f.key) }"
+                          :title="t('workspace.templates.scalings.edit')"
+                          @click="openFacetWeighting(f)"
+                        >{{ t('workspace.templates.scalings.button') }}</button>
                         <button
                           class="tool-btn danger"
                           type="button"
@@ -972,6 +1013,9 @@ setTopbarMenu(() => [
                       @click="openAddFacet"
                     >+ {{ t('workspace.templates.facets.add') }}</button>
                   </div>
+                  <p class="muted small facets-weighting-hint">
+                    {{ t('workspace.templates.scalings.intro') }}
+                  </p>
                 </div>
               </template>
 
@@ -1000,10 +1044,8 @@ setTopbarMenu(() => [
                         <span class="dnd-handle" aria-hidden="true">☰</span>
                         <span class="stat-row-name">{{ s.label || s.name }}</span>
                         <code v-if="s.composite" class="stat-row-dsl">{{ t('workspace.templates.statistics.composite_summary', [s.composite.parent, s.composite.edges.length]) }}</code>
-                        <code v-else-if="s.scaling" class="stat-row-dsl">{{ t('workspace.templates.statistics.scaling_summary', [s.scaling.source.key, s.scaling.weights.length]) }}</code>
                         <code v-else class="stat-row-dsl">{{ s.dsl }}</code>
                         <button
-                          v-if="!s.scaling"
                           class="tool-btn"
                           type="button"
                           :title="t('workspace.templates.statistics.view')"
@@ -1030,9 +1072,6 @@ setTopbarMenu(() => [
                     </button>
                     <button class="tool-btn" type="button" @click="openAddComposite">
                       + {{ t('workspace.templates.statistics.add_composite') }}
-                    </button>
-                    <button class="tool-btn" type="button" @click="openAddScaling">
-                      + {{ t('workspace.templates.statistics.add_scaling') }}
                     </button>
                   </div>
                 </div>
@@ -1281,15 +1320,15 @@ setTopbarMenu(() => [
     @apply="applyComposite"
   />
 
-  <!-- Scaling (reusable weighting) builder: per-form source + option factors -->
+  <!-- Weighting builder: a facet-locked per-option factor map -->
   <ScalingBuilderModal
     v-if="draft"
     :open="scalingBuilderOpen"
-    :fields="draft.fields ?? []"
-    :facets="draft.facets ?? []"
+    :facet="editingScalingFacet"
     :initial="editingScaling"
     @close="scalingBuilderOpen = false"
     @apply="applyScaling"
+    @remove="onRemoveScaling"
   />
 
   <!-- Formula field editor: key + type + expression with a live preview -->
@@ -1299,6 +1338,7 @@ setTopbarMenu(() => [
     :template="selectedFilename || ''"
     :fields="draft.fields ?? []"
     :facets="draft.facets ?? []"
+    :scalings="draft.scalings ?? []"
     :initial="editingFormula"
     @close="formulaEditorOpen = false"
     @apply="applyFormula"

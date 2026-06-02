@@ -53,7 +53,55 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, facetsErrors(t.Facets)...)
 	errs = append(errs, facetFieldErrors(t)...)
 	errs = append(errs, formulasErrors(t)...)
+	errs = append(errs, scalingsErrors(t)...)
 
+	return errs
+}
+
+// scalingsErrors flags structural problems with the scaling (weighting)
+// catalog: a bad or empty name, a duplicate name, a missing source key, or a
+// source that is not a per-form facet/field (a table column has no single
+// per-form weight). Scaling names live in the S["name"] namespace, separate
+// from F[], so they may match a field or facet key.
+func scalingsErrors(t *Template) []ValidationError {
+	if t == nil || len(t.Scalings) == 0 {
+		return nil
+	}
+	var errs []ValidationError
+	seen := map[string]bool{}
+	for i, s := range t.Scalings {
+		if !facetKeyRe.MatchString(s.Name) {
+			errs = append(errs, ValidationError{
+				Type: "invalid-scaling-name", Index: i, Key: s.Name,
+				Message: fmt.Sprintf("Scaling name %q must match ^[a-z][a-z0-9_-]*$", s.Name),
+			})
+		} else if seen[s.Name] {
+			errs = append(errs, ValidationError{
+				Type: "duplicate-scaling-name", Index: i, Key: s.Name,
+				Message: fmt.Sprintf("Duplicate scaling name %q", s.Name),
+			})
+		} else {
+			seen[s.Name] = true
+		}
+		if strings.TrimSpace(s.Source.Key) == "" {
+			errs = append(errs, ValidationError{
+				Type: "scaling-missing-source", Index: i, Key: s.Name,
+				Message: fmt.Sprintf("Scaling %q has no source", s.Name),
+			})
+		}
+		if s.Source.Kind != "" && s.Source.Kind != "field" && s.Source.Kind != "facet" {
+			errs = append(errs, ValidationError{
+				Type: "invalid-scaling-source", Index: i, Key: s.Name,
+				Message: fmt.Sprintf("Scaling %q source kind %q invalid (want field or facet)", s.Name, s.Source.Kind),
+			})
+		}
+		if s.Source.Column != "" {
+			errs = append(errs, ValidationError{
+				Type: "invalid-scaling-source", Index: i, Key: s.Name,
+				Message: fmt.Sprintf("Scaling %q source must be a per-form facet or scalar field, not a table column", s.Name),
+			})
+		}
+	}
 	return errs
 }
 

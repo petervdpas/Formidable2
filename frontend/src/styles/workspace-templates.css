@@ -167,6 +167,24 @@
     display: flex;
     justify-content: flex-start;
 }
+
+/* Weightings live inline on each facet row (each facet owns one weighting). */
+.facets-weighting-hint {
+    margin-top: 0.6rem;
+}
+.facet-row-weighting {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--color-text-muted, #888);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill, 999px);
+    padding: 1px var(--space-2);
+    flex: 0 0 auto;
+}
+.facet-row .tool-btn.is-active {
+    border-color: var(--color-accent, #4c8bf5);
+    color: var(--color-accent, #4c8bf5);
+}
 .template-validate-status {
     margin-top: 0.4rem;
     display: flex;

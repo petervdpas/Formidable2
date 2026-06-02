@@ -25,7 +25,9 @@ func Normalize(t *Template) {
 	for i := range t.Fields {
 		normalizeField(&t.Fields[i])
 	}
+	migrateLegacyScalings(t)
 	normalizeStatistics(t)
+	normalizeScalings(t)
 	normalizeFormulas(t)
 	normalizeFacetFieldDefaults(t)
 	t.Fields = assignLevelScopes(t.Fields)
@@ -200,6 +202,63 @@ func normalizeFormulas(t *Template) {
 		return
 	}
 	t.Formulas = kept
+}
+
+// migrateLegacyScalings lifts any scaling stored under the legacy
+// statistics[].scaling shape into the top-level t.Scalings catalog (carrying
+// the enclosing Name/Label) and removes it from t.Statistics. In-memory only:
+// it does not rewrite the user's YAML; the new scalings: shape persists on the
+// next in-app save (same posture as the facets legacy migration). Returns true
+// when it moved at least one entry, so the load path can flag a resave.
+func migrateLegacyScalings(t *Template) bool {
+	if len(t.Statistics) == 0 {
+		return false
+	}
+	moved := false
+	kept := make([]Statistic, 0, len(t.Statistics))
+	for _, s := range t.Statistics {
+		if s.Scaling != nil && strings.TrimSpace(s.Scaling.Source.Key) != "" {
+			t.Scalings = append(t.Scalings, Scaling{
+				Name:    s.Name,
+				Label:   s.Label,
+				Source:  s.Scaling.Source,
+				Weights: s.Scaling.Weights,
+				Default: s.Scaling.Default,
+			})
+			moved = true
+			continue
+		}
+		kept = append(kept, s)
+	}
+	t.Statistics = kept
+	return moved
+}
+
+// normalizeScalings trims names, drops entries with no name or no source key,
+// and dedupes by name (first wins). It does not validate the source kind or the
+// weights; Validate does that.
+func normalizeScalings(t *Template) {
+	if len(t.Scalings) == 0 {
+		t.Scalings = nil
+		return
+	}
+	seen := map[string]bool{}
+	kept := make([]Scaling, 0, len(t.Scalings))
+	for _, s := range t.Scalings {
+		name := strings.TrimSpace(s.Name)
+		if name == "" || strings.TrimSpace(s.Source.Key) == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		s.Name = name
+		s.Label = strings.TrimSpace(s.Label)
+		kept = append(kept, s)
+	}
+	if len(kept) == 0 {
+		t.Scalings = nil
+		return
+	}
+	t.Scalings = kept
 }
 
 func normalizeStatisticsColumns(f *Field) {

@@ -3,7 +3,7 @@ import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
 import { TextField, SelectField } from "./fields";
-import { Formula, Facet, Field } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Formula, Facet, Field, Scaling } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { FormulaService } from "../../bindings/github.com/petervdpas/formidable2/internal/app";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import type { FunctionDoc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/models";
@@ -14,6 +14,7 @@ const props = defineProps<{
   template: string;
   fields: Field[];
   facets: Facet[];
+  scalings: Scaling[];
   initial: Formula | null;
 }>();
 const emit = defineEmits<{
@@ -57,6 +58,12 @@ const refTokens = computed(() => {
   for (const fc of props.facets ?? []) add(fc.key, fc.key);
   return out;
 });
+
+// Scaling references live in their own namespace: S["name"] (the per-record
+// weight), so a formula can combine a field with a weighting.
+const scaleTokens = computed(() =>
+  (props.scalings ?? []).map((s) => ({ token: `S["${s.name}"]`, label: s.label || s.name })),
+);
 
 // Function/control catalog from the backend, so the palettes reflect the
 // engine's real capabilities rather than a hardcoded list.
@@ -194,6 +201,9 @@ function apply() {
         >
           <option value="">{{ t('workspace.templates.formulas.palette_field') }}</option>
           <option v-for="r in refTokens" :key="r.token" :value="r.token">{{ r.label }}</option>
+          <optgroup v-if="scaleTokens.length > 0" :label="t('workspace.templates.formulas.palette_weighting')">
+            <option v-for="r in scaleTokens" :key="r.token" :value="r.token">{{ r.label }}</option>
+          </optgroup>
         </select>
         <select
           class="formula-palette-select"

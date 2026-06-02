@@ -224,7 +224,7 @@ func (s statTemplateSource) ListStatistics(tplFile string) ([]stat.StatObject, e
 	if err != nil {
 		return nil, err
 	}
-	out := make([]stat.StatObject, 0, len(t.Statistics))
+	out := make([]stat.StatObject, 0, len(t.Statistics)+len(t.Scalings))
 	for _, st := range t.Statistics {
 		out = append(out, stat.StatObject{
 			Name:      st.Name,
@@ -232,6 +232,16 @@ func (s statTemplateSource) ListStatistics(tplFile string) ([]stat.StatObject, e
 			DSL:       st.DSL,
 			Composite: toStatComposite(st.Composite),
 			Scaling:   toStatScaling(st.Scaling),
+		})
+	}
+	// Scalings now live at the template level (a facet weighting subsystem), but
+	// the Statistical Engine still resolves the DSL scale "<name>" clause through
+	// this catalog, so surface each one as a StatObject of kind scaling.
+	for _, sc := range t.Scalings {
+		out = append(out, stat.StatObject{
+			Name:    sc.Name,
+			Label:   sc.Label,
+			Scaling: toStatScalingFromTop(sc),
 		})
 	}
 	return out, nil
@@ -256,6 +266,24 @@ func toStatScaling(sc *template.StatScaling) *stat.Scaling {
 	if sc == nil {
 		return nil
 	}
+	kind := stat.SourceField
+	if sc.Source.Kind == "facet" {
+		kind = stat.SourceFacet
+	}
+	weights := make([]stat.WeightEntry, 0, len(sc.Weights))
+	for _, w := range sc.Weights {
+		weights = append(weights, stat.WeightEntry{Label: w.Label, Factor: w.Factor})
+	}
+	return &stat.Scaling{
+		Source:  stat.SourceRef{Kind: kind, Key: sc.Source.Key, Column: sc.Source.Column},
+		Weights: weights,
+		Default: sc.Default,
+	}
+}
+
+// toStatScalingFromTop maps a top-level template.Scaling onto stat.Scaling
+// (the same shape toStatScaling produces from the legacy nested form).
+func toStatScalingFromTop(sc template.Scaling) *stat.Scaling {
 	kind := stat.SourceField
 	if sc.Source.Kind == "facet" {
 		kind = stat.SourceFacet

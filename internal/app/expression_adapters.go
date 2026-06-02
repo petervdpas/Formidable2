@@ -37,6 +37,11 @@ func (a expressionTemplateAdapter) LookupExpression(name string) (string, []expr
 	for _, fm := range t.Formulas {
 		fields = append(fields, expression.ExpressionField{Key: fm.Key})
 	}
+	// Facet keys are whitelisted so the harvested facet selected value (folded
+	// under the facet key) survives narrowContext and F["facet-key"] resolves.
+	for _, fc := range t.Facets {
+		fields = append(fields, expression.ExpressionField{Key: fc.Key})
+	}
 	return t.SidebarExpression, fields, nil
 }
 

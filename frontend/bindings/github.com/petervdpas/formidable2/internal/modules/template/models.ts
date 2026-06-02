@@ -812,6 +812,55 @@ export class PDFCoverConfig {
 }
 
 /**
+ * Scaling is a reusable per-form weighting, named at the template level: a
+ * per-form categorical source (a facet, or a dropdown/radio field) plus an
+ * option->factor map and a default. It is exposed to the expression engine as
+ * S["name"] (the per-record factor) and to the Statistical Engine through the
+ * DSL scale "<name>" clause. Source must be per-form, never a table column.
+ */
+export class Scaling {
+    "name": string;
+    "label"?: string;
+    "source": StatSource;
+    "weights": StatWeightEntry[];
+    "default": number;
+
+    /** Creates a new Scaling instance. */
+    constructor($$source: Partial<Scaling> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = (new StatSource());
+        }
+        if (!("weights" in $$source)) {
+            this["weights"] = [];
+        }
+        if (!("default" in $$source)) {
+            this["default"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Scaling instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Scaling {
+        const $$createField2_0 = $$createType24;
+        const $$createField3_0 = $$createType26;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("source" in $$parsedSource) {
+            $$parsedSource["source"] = $$createField2_0($$parsedSource["source"]);
+        }
+        if ("weights" in $$parsedSource) {
+            $$parsedSource["weights"] = $$createField3_0($$parsedSource["weights"]);
+        }
+        return new Scaling($$parsedSource as Partial<Scaling>);
+    }
+}
+
+/**
  * Shape selects an output style for the markdown-template generator.
  */
 export enum Shape {
@@ -882,7 +931,7 @@ export class StatComposite {
      * Creates a new StatComposite instance from a string or object.
      */
     static createFrom($$source: any = {}): StatComposite {
-        const $$createField1_0 = $$createType25;
+        const $$createField1_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("edges" in $$parsedSource) {
             $$parsedSource["edges"] = $$createField1_0($$parsedSource["edges"]);
@@ -947,8 +996,8 @@ export class StatScaling {
      * Creates a new StatScaling instance from a string or object.
      */
     static createFrom($$source: any = {}): StatScaling {
-        const $$createField0_0 = $$createType26;
-        const $$createField1_0 = $$createType28;
+        const $$createField0_0 = $$createType24;
+        const $$createField1_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("source" in $$parsedSource) {
             $$parsedSource["source"] = $$createField0_0($$parsedSource["source"]);
@@ -1197,6 +1246,7 @@ export class Template {
     "pdf"?: PDFConfig | null;
     "facets": Facet[];
     "statistics": Statistic[];
+    "scalings": Scaling[];
     "formulas": Formula[];
     "fields": Field[];
     "needs_resave": boolean;
@@ -1227,6 +1277,9 @@ export class Template {
         if (!("statistics" in $$source)) {
             this["statistics"] = [];
         }
+        if (!("scalings" in $$source)) {
+            this["scalings"] = [];
+        }
         if (!("formulas" in $$source)) {
             this["formulas"] = [];
         }
@@ -1248,7 +1301,8 @@ export class Template {
         const $$createField9_0 = $$createType38;
         const $$createField10_0 = $$createType40;
         const $$createField11_0 = $$createType42;
-        const $$createField12_0 = $$createType43;
+        const $$createField12_0 = $$createType44;
+        const $$createField13_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
             $$parsedSource["pdf"] = $$createField8_0($$parsedSource["pdf"]);
@@ -1259,11 +1313,14 @@ export class Template {
         if ("statistics" in $$parsedSource) {
             $$parsedSource["statistics"] = $$createField10_0($$parsedSource["statistics"]);
         }
+        if ("scalings" in $$parsedSource) {
+            $$parsedSource["scalings"] = $$createField11_0($$parsedSource["scalings"]);
+        }
         if ("formulas" in $$parsedSource) {
-            $$parsedSource["formulas"] = $$createField11_0($$parsedSource["formulas"]);
+            $$parsedSource["formulas"] = $$createField12_0($$parsedSource["formulas"]);
         }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField12_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField13_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }
@@ -1336,10 +1393,10 @@ const $$createType20 = SubRow.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
 const $$createType22 = PDFCoverConfig.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = StatCompositeEdge.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = StatSource.createFrom;
-const $$createType27 = StatWeightEntry.createFrom;
+const $$createType24 = StatSource.createFrom;
+const $$createType25 = StatWeightEntry.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = StatCompositeEdge.createFrom;
 const $$createType28 = $Create.Array($$createType27);
 const $$createType29 = StatComposite.createFrom;
 const $$createType30 = $Create.Nullable($$createType29);
@@ -1353,6 +1410,8 @@ const $$createType37 = Facet.createFrom;
 const $$createType38 = $Create.Array($$createType37);
 const $$createType39 = Statistic.createFrom;
 const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = Formula.createFrom;
+const $$createType41 = Scaling.createFrom;
 const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = $Create.Array($$createType13);
+const $$createType43 = Formula.createFrom;
+const $$createType44 = $Create.Array($$createType43);
+const $$createType45 = $Create.Array($$createType13);

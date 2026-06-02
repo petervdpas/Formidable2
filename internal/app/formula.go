@@ -38,6 +38,11 @@ func formulaContext(tpl *template.Template, f *storage.Form) map[string]any {
 			ctx[k] = st.Selected
 		}
 	}
+	// Scaling factors live in their own namespace: S["name"] (the per-record
+	// weight), so a formula can write F["fcdm-dekking"] * S["fcdm-urgency"].
+	if sv := scaleValues(tpl, f); len(sv) > 0 {
+		ctx["S"] = sv
+	}
 	return ctx
 }
 

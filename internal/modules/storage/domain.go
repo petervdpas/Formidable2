@@ -65,6 +65,7 @@ type Manager struct {
 	indexer    Indexer
 	reader     FormReader
 	formulas   FormulaFiller
+	scales     ScaleFiller
 	author     AuthorProvider
 }
 
@@ -74,6 +75,13 @@ type Manager struct {
 // same one the index harvest uses, so the values match).
 type FormulaFiller interface {
 	FormulaValues(t *template.Template, f *Form) map[string]any
+}
+
+// ScaleFiller computes a form's scaling factors (keyed by scaling name) for the
+// disk-read fallback, folded into the expression context under the S namespace.
+// Supplied by the composition root, like FormulaFiller.
+type ScaleFiller interface {
+	ScaleValues(t *template.Template, f *Form) map[string]any
 }
 
 // NewManager builds the manager rooted at storageDir (the composition root resolves it); log may be nil.
@@ -99,6 +107,10 @@ func (m *Manager) SetIndexer(i Indexer) { m.indexer = i }
 // SetFormulaFiller installs the formula calculator for the disk-read fallback
 // (nil leaves disk reads with fields + facets only).
 func (m *Manager) SetFormulaFiller(ff FormulaFiller) { m.formulas = ff }
+
+// SetScaleFiller installs the scaling calculator for the disk-read fallback
+// (nil leaves disk reads without an S namespace).
+func (m *Manager) SetScaleFiller(sf ScaleFiller) { m.scales = sf }
 
 // SetReader installs the index read-side for ExtendedListForms (nil reverts to disk reads).
 func (m *Manager) SetReader(r FormReader) { m.reader = r }
@@ -479,6 +491,13 @@ func (m *Manager) summaryFor(templateFilename, filename string, tpl *template.Te
 			expressionItems[fld.Key] = v
 		}
 	}
+	// Expose each set facet under its own key too (F["facet-key"]), matching the
+	// formula context and the index harvest.
+	for k, st := range f.Meta.Facets {
+		if st.Set && st.Selected != "" {
+			expressionItems[k] = st.Selected
+		}
+	}
 	// Formulas need a calculator (the composition root supplies it). On the disk
 	// path this keeps F["formula"] resolving when the index isn't the source.
 	if m.formulas != nil {
@@ -486,6 +505,12 @@ func (m *Manager) summaryFor(templateFilename, filename string, tpl *template.Te
 			if v != nil && v != "" {
 				expressionItems[k] = v
 			}
+		}
+	}
+	// Scaling factors are nested under S so S["name"] resolves on the disk path.
+	if m.scales != nil {
+		if sv := m.scales.ScaleValues(tpl, f); len(sv) > 0 {
+			expressionItems["S"] = sv
 		}
 	}
 	return FormSummary{
