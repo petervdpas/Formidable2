@@ -11,6 +11,7 @@ require (
 	github.com/go-git/go-git/v5 v5.19.0
 	github.com/google/uuid v1.6.0
 	github.com/pdfcpu/pdfcpu v0.12.1
+	github.com/sammcj/mermaid-check v0.0.4
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.84
 	github.com/yuin/goldmark v1.8.2
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
@@ -94,3 +95,8 @@ require (
 // and the regression test in third_party/raymond/handlebars/whitespace_test.go).
 // Kept in-repo so CI / `go build` works without external network.
 replace github.com/aymerick/raymond => ./third_party/raymond
+
+// Local fork of sammcj/mermaid-check: library packages only (cmd/ and its
+// fatih/color dep dropped), go directive lowered from a spurious 1.26.2 to 1.25.
+// Pure-stdlib Mermaid parser/validator; powers internal/modules/mermaid.
+replace github.com/sammcj/mermaid-check => ./third_party/mermaid-check

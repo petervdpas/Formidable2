@@ -38,6 +38,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/journal"
 	"github.com/petervdpas/formidable2/internal/modules/logging"
 	"github.com/petervdpas/formidable2/internal/modules/manual"
+	"github.com/petervdpas/formidable2/internal/modules/mermaid"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
 	"github.com/petervdpas/formidable2/internal/modules/pdf"
@@ -122,6 +123,7 @@ type App struct {
 	Logging       *logging.Service
 	PDF           *pdf.Service
 	Manual        *manual.Service
+	Mermaid       *mermaid.Service
 	CodeFormatter *codeformatter.Service
 	UpdateCheck   *updatecheck.Service
 	Index         *index.Service
@@ -650,6 +652,7 @@ func New(d Deps) (*App, error) {
 		Logging:           logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
 		PDF:               newPDFService(pdfM, opsRegistry),
 		Manual:            manual.NewService(),
+		Mermaid:           mermaid.NewService(),
 		CodeFormatter:     codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),
 		UpdateCheck:       updatecheck.NewService(updateCheckM, openInDefaultBrowser),
 		Index:             newIndexService(ehM, opsRegistry),

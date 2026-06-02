@@ -156,6 +156,7 @@
   "workspace.templates.field_type.looper": "Looper",
   "workspace.templates.field_type.loopstart": "Loop Start",
   "workspace.templates.field_type.loopstop": "Loop Stop",
+  "workspace.templates.field_type.mermaid": "Mermaid-diagram",
   "workspace.templates.field_type.multioption": "Meervoudige keuze",
   "workspace.templates.field_type.number": "Getal",
   "workspace.templates.field_type.radio": "Radioknoppen",

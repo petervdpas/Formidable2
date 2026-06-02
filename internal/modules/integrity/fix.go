@@ -547,7 +547,7 @@ func defaultForFieldType(t string) any {
 // coerceForFieldType fits v into the field's type; (_, false) when the conversion is unsafe (reported as skipped).
 func coerceForFieldType(fieldType string, v any) (any, bool) {
 	switch fieldType {
-	case "text", "textarea", "dropdown", "radio",
+	case "text", "textarea", "mermaid", "dropdown", "radio",
 		"file-path", "folder-path", "image", "guid":
 		return fmt.Sprint(v), true
 

@@ -46,10 +46,12 @@ type Abilities struct {
 // OptionsShape is non-nil when the options array has fixed arity (e.g. boolean = two rows).
 type FieldDescriptor struct {
 	ID           string             `json:"id"`
+	LabelKey     string             `json:"label_key"`
 	MetaOnly     bool               `json:"meta_only"`
 	Virtual      bool               `json:"virtual"`
 	Abilities    Abilities          `json:"abilities"`
 	OptionsShape *FixedOptionsShape `json:"options_shape,omitempty"`
+	DefaultValue any                `json:"default_value"`
 }
 
 // IsKnownFieldType reports whether the given type id is in the matrix.
@@ -72,6 +74,8 @@ func AllFieldTypes() []FieldDescriptor {
 		if !ok {
 			continue
 		}
+		def.LabelKey = fieldTypeLabelKeys[id]
+		def.DefaultValue = fieldTypeDefaults[id]
 		out = append(out, def)
 	}
 	return out

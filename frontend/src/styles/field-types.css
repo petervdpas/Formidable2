@@ -62,6 +62,14 @@
     --field-type-textarea-badge:  #8567b9;
     --field-type-textarea-text:   #ffffff;
 
+    /* Mermaid - Mermaid's brand pink. Owns the pink/magenta slot no other
+       type uses (nearest neighbours: link = wine-maroon, dropdown = purple,
+       radio = orange-red), so a diagram field reads at a glance. */
+    --field-type-mermaid-bg:     #c2185b;
+    --field-type-mermaid-border: #f06292;
+    --field-type-mermaid-badge:  #e91e63;
+    --field-type-mermaid-text:   #ffffff;
+
     /* Number */
     --field-type-number-bg:     #3a94e4;
     --field-type-number-border: #64b5f6;
@@ -263,6 +271,12 @@
     border-left-color: var(--field-type-textarea-border);
     color: var(--field-type-textarea-text);
     --field-row-badge-bg: var(--field-type-textarea-badge);
+}
+.field-row[data-type="mermaid"] {
+    background: var(--field-type-mermaid-bg);
+    border-left-color: var(--field-type-mermaid-border);
+    color: var(--field-type-mermaid-text);
+    --field-row-badge-bg: var(--field-type-mermaid-badge);
 }
 .field-row[data-type="number"] {
     background: var(--field-type-number-bg);

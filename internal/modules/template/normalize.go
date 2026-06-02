@@ -315,7 +315,7 @@ func coerceDefault(f *Field) {
 		f.Default = coerceArray(f.Default)
 	case "date":
 		f.Default = coerceDate(f.Default)
-	case "text", "textarea", "dropdown", "radio",
+	case "text", "textarea", "mermaid", "dropdown", "radio",
 		"file-path", "folder-path", "image":
 		// link is intentionally absent: its Default may be a {href, text} map, not just a string.
 		f.Default = coerceTextShape(f.Default)

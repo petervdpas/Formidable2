@@ -374,8 +374,9 @@ Feature: Template management
     And the registry contains "list"
     And the registry contains "table"
     And the registry contains "loopstart"
+    And the registry contains "mermaid"
     And the registry first id is "text"
-    And the registry size is 22
+    And the registry size is 23
 
   # ── Collapsible YAML round-trip ───────────────────────────────────
 

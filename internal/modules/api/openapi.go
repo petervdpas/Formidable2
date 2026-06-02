@@ -910,7 +910,7 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 	case "guid":
 		schema["type"] = "string"
 		schema["description"] = "GUID field"
-	case "text", "textarea":
+	case "text", "textarea", "mermaid":
 		schema["type"] = "string"
 	case "number":
 		schema["type"] = "number"

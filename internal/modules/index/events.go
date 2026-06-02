@@ -262,7 +262,7 @@ func pickSearchBody(fields []template.Field, data map[string]any) string {
 			continue
 		}
 		switch fld.Type {
-		case "text", "textarea", "dropdown", "radio":
+		case "text", "textarea", "mermaid", "dropdown", "radio":
 			add(asText(raw))
 		case "multioption", "list", "tags":
 			for _, item := range asSlice(raw) {

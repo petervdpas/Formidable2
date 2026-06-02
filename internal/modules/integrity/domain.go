@@ -607,7 +607,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 		return nil
 	}
 	switch fieldType {
-	case "text", "textarea", "dropdown", "radio",
+	case "text", "textarea", "mermaid", "dropdown", "radio",
 		"file-path", "folder-path", "image", "guid":
 		if _, ok := v.(string); ok {
 			return nil

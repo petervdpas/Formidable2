@@ -34,61 +34,22 @@ export interface FieldTypeDef {
   metaOnly?: boolean;
 }
 
-const LABEL_KEYS: Record<string, string> = {
-  text: "workspace.templates.field_type.text",
-  "file-path": "workspace.templates.field_type.file_path",
-  "folder-path": "workspace.templates.field_type.folder_path",
-  boolean: "workspace.templates.field_type.boolean",
-  dropdown: "workspace.templates.field_type.dropdown",
-  multioption: "workspace.templates.field_type.multioption",
-  radio: "workspace.templates.field_type.radio",
-  textarea: "workspace.templates.field_type.textarea",
-  number: "workspace.templates.field_type.number",
-  range: "workspace.templates.field_type.range",
-  date: "workspace.templates.field_type.date",
-  list: "workspace.templates.field_type.list",
-  table: "workspace.templates.field_type.table",
-  image: "workspace.templates.field_type.image",
-  link: "workspace.templates.field_type.link",
-  tags: "workspace.templates.field_type.tags",
-  api: "workspace.templates.field_type.api",
-  guid: "workspace.templates.field_type.guid",
-  facet: "workspace.templates.field_type.facet",
-  looper: "workspace.templates.field_type.looper",
-  loopstart: "workspace.templates.field_type.loopstart",
-  loopstop: "workspace.templates.field_type.loopstop",
-};
-
-const DEFAULT_FACTORY: Record<string, () => unknown> = {
-  text: () => "",
-  "file-path": () => "",
-  "folder-path": () => "",
-  boolean: () => false,
-  dropdown: () => "",
-  multioption: () => [],
-  radio: () => "",
-  textarea: () => "",
-  number: () => 0,
-  range: () => 50,
-  date: () => "",
-  list: () => [],
-  table: () => [],
-  image: () => "",
-  link: () => ({ href: "", text: "" }),
-  tags: () => [],
-  api: () => ({ id: "", overrides: {} }),
-  guid: () => "",
-};
-
 const registry: Ref<FieldTypeDef[]> = ref([]);
 let loadPromise: Promise<void> | null = null;
 
+// Label key + new-field default value are backend-owned (FieldDescriptor):
+// no hand-maintained frontend copy. The default arrives as a static value, so
+// we clone it per call to keep the factory contract (fresh array/object each
+// time). Meta types have no default (null) -> no factory.
 async function load(): Promise<void> {
   const defs = (await TemplateSvc.FieldTypes()) ?? [];
   registry.value = defs.map((d) => ({
     id: d.id,
-    labelKey: LABEL_KEYS[d.id] ?? d.id,
-    defaultValue: DEFAULT_FACTORY[d.id],
+    labelKey: d.label_key || d.id,
+    defaultValue:
+      d.default_value == null
+        ? undefined
+        : () => structuredClone(d.default_value),
     metaOnly: d.meta_only,
     abilities: d.abilities,
   }));

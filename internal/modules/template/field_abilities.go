@@ -24,6 +24,16 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			FacetKey: false,
 		},
 	},
+	"mermaid": {
+		ID: "mermaid",
+		Abilities: Abilities{
+			Key: true, Type: true, Label: true, Description: true,
+			Default: true, Options: false, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+	},
 	"number": {
 		ID: "number",
 		Abilities: Abilities{
@@ -243,10 +253,65 @@ var fieldDescriptors = map[string]FieldDescriptor{
 
 // orderedTypes is the stable iteration order so the frontend's "Type" dropdown is predictable.
 var orderedTypes = []string{
-	"text", "textarea", "number", "range", "date",
+	"text", "textarea", "mermaid", "number", "range", "date",
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
 	"api", "guid", "facet",
 	"looper", "loopstart", "loopstop",
+}
+
+// fieldTypeLabelKeys is the i18n key for each type's display label. Literal keys
+// (no interpolation) so they stay greppable, and the backend is the single
+// source of truth - the frontend reads these off the descriptor, it does not
+// keep its own copy. Every orderedTypes entry must have one (audited by test).
+var fieldTypeLabelKeys = map[string]string{
+	"text":        "workspace.templates.field_type.text",
+	"textarea":    "workspace.templates.field_type.textarea",
+	"mermaid":     "workspace.templates.field_type.mermaid",
+	"number":      "workspace.templates.field_type.number",
+	"range":       "workspace.templates.field_type.range",
+	"date":        "workspace.templates.field_type.date",
+	"boolean":     "workspace.templates.field_type.boolean",
+	"dropdown":    "workspace.templates.field_type.dropdown",
+	"multioption": "workspace.templates.field_type.multioption",
+	"radio":       "workspace.templates.field_type.radio",
+	"file-path":   "workspace.templates.field_type.file_path",
+	"folder-path": "workspace.templates.field_type.folder_path",
+	"list":        "workspace.templates.field_type.list",
+	"table":       "workspace.templates.field_type.table",
+	"image":       "workspace.templates.field_type.image",
+	"link":        "workspace.templates.field_type.link",
+	"tags":        "workspace.templates.field_type.tags",
+	"api":         "workspace.templates.field_type.api",
+	"guid":        "workspace.templates.field_type.guid",
+	"facet":       "workspace.templates.field_type.facet",
+	"looper":      "workspace.templates.field_type.looper",
+	"loopstart":   "workspace.templates.field_type.loopstart",
+	"loopstop":    "workspace.templates.field_type.loopstop",
+}
+
+// fieldTypeDefaults is the value used to seed a freshly-created field's Default
+// in the editor. Backend-owned (the frontend wraps each in a clone-factory).
+// Meta/virtual types are intentionally absent (nil default -> no seed).
+var fieldTypeDefaults = map[string]any{
+	"text":        "",
+	"textarea":    "",
+	"mermaid":     "",
+	"number":      0,
+	"range":       50,
+	"date":        "",
+	"boolean":     false,
+	"dropdown":    "",
+	"multioption": []any{},
+	"radio":       "",
+	"file-path":   "",
+	"folder-path": "",
+	"list":        []any{},
+	"table":       []any{},
+	"image":       "",
+	"link":        map[string]any{"href": "", "text": ""},
+	"tags":        []any{},
+	"api":         map[string]any{"id": "", "overrides": map[string]any{}},
+	"guid":        "",
 }

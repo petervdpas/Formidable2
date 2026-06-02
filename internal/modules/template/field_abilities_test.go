@@ -125,6 +125,16 @@ func TestAbilities_KeyAndTypeAlwaysEnabled(t *testing.T) {
 	}
 }
 
+// Every type the dropdown can show must carry a backend label key - the
+// frontend reads it off the descriptor and keeps no copy of its own.
+func TestAllFieldTypes_EveryTypeHasLabelKey(t *testing.T) {
+	for _, d := range AllFieldTypes() {
+		if d.LabelKey == "" {
+			t.Errorf("type %q has no LabelKey", d.ID)
+		}
+	}
+}
+
 // ─── helpers ─────────────────────────────────────────────────────────
 
 func stringSet(ids ...string) map[string]bool {
