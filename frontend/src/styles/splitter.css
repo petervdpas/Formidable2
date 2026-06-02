@@ -31,6 +31,32 @@ body.is-resizing-x * {
     user-select: none !important;
 }
 
+/* Generic two-pane split (SplitView.vue) - fills its parent; the first
+   pane is sized by flex-basis, the second takes the rest. Reuses
+   .split-handle for the divider. */
+.split-view {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+.split-view-pane {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+.split-view-pane--first {
+    flex: 0 0 auto;
+}
+.split-view-pane--second {
+    flex: 1 1 0;
+}
+.split-view.dragging .split-handle {
+    background: var(--color-accent);
+}
+
 /* ── Narrow-viewport overlay mode ──────────────────────────────────
    When `--narrow` is set (viewport < NARROW_BREAKPOINT from
    useViewportWidth.ts), the sidebar leaves the flex flow and slides

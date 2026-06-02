@@ -1,0 +1,72 @@
+/* Mermaid field: a compact "Open editor" trigger in the form row; the
+   source editor (left) + live preview (right) live in a dialog. */
+
+.mermaid-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.mermaid-trigger-status {
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mermaid-trigger-status.muted {
+    color: var(--color-text-muted);
+}
+
+/* In-dialog panes. The split + drag live in the generic SplitView; each
+   pane just fills its side and carries its own chrome. */
+.mermaid-pane {
+    height: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--color-bg-sunken);
+}
+
+.mermaid-pane--editor .cm-editor {
+    height: 100%;
+}
+
+.mermaid-pane--preview {
+    overflow: auto;
+    padding: var(--space-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-field-diagram {
+    width: 100%;
+}
+
+.mermaid-field-diagram svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.mermaid-field-empty {
+    color: var(--color-text-muted);
+    font-size: 0.9em;
+}
+
+.mermaid-field-error {
+    width: 100%;
+    align-self: stretch;
+    color: var(--color-error);
+    display: flex;
+    gap: var(--space-2);
+}
+
+.mermaid-field-error pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.85em;
+}

@@ -81,6 +81,24 @@
     flex: 1 1 auto;
 }
 
+/* Fill mode (Modal :fill): the body is a flex column and its single child
+   stretches to fill the dialog height, so content grows when maximized.
+   Callers give the dialog a height via dialogStyle for the un-maximized
+   case. The dialog stops scrolling; the content scrolls internally. */
+.modal-body-fill {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+.modal-body-fill > * {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.modal-dialog:has(> .modal-body-fill) {
+    overflow: hidden;
+}
+
 /* Scroll mode (Modal :scroll): the dialog itself stops scrolling and the
    body becomes a flex column. The #head and #foot slots stay pinned while
    the default slot scrolls between them. Used by long forms/tables (CSV

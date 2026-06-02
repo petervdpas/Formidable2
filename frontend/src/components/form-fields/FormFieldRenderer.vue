@@ -6,6 +6,7 @@ import FormFieldFolderPath from "./FormFieldFolderPath.vue";
 import FormFieldBoolean from "./FormFieldBoolean.vue";
 import FormFieldDropdown from "./FormFieldDropdown.vue";
 import FormFieldTextarea from "./FormFieldTextarea.vue";
+import FormFieldMermaid from "./FormFieldMermaid.vue";
 import FormFieldNumber from "./FormFieldNumber.vue";
 import FormFieldRange from "./FormFieldRange.vue";
 import FormFieldDate from "./FormFieldDate.vue";
@@ -39,6 +40,7 @@ const DISPATCH: Record<string, Component> = {
   boolean: FormFieldBoolean,
   dropdown: FormFieldDropdown,
   textarea: FormFieldTextarea,
+  mermaid: FormFieldMermaid,
   number: FormFieldNumber,
   range: FormFieldRange,
   date: FormFieldDate,

@@ -22,6 +22,10 @@ const props = withDefaults(
      *  for long forms/tables so the controls and column headers don't
      *  scroll out of view. */
     scroll?: boolean;
+    /** When true, the body is a flex column whose single child stretches
+     *  to fill the dialog height (so content grows when maximized). Give
+     *  the dialog a height via dialogStyle for the non-maximized case. */
+    fill?: boolean;
   }>(),
   {
     closeOnBackdrop: true,
@@ -29,6 +33,7 @@ const props = withDefaults(
     width: "480px",
     maximizable: false,
     scroll: false,
+    fill: false,
   },
 );
 
@@ -142,7 +147,7 @@ onBeforeUnmount(() => {
               <slot name="foot" />
             </div>
           </div>
-          <div v-else class="modal-body">
+          <div v-else class="modal-body" :class="{ 'modal-body-fill': fill }">
             <slot />
           </div>
 
