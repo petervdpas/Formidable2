@@ -181,6 +181,20 @@ export function ParseDSL(dsl: string): $CancellablePromise<$models.StatConfig> {
 }
 
 /**
+ * ParseDSLForTemplate parses like ParseDSL, then drops any `scale "<name>"`
+ * reference whose scaling no longer exists on the template (renamed or
+ * deleted). Reference resolution is the backend's job, so the builder re-opens
+ * a statistic already free of dangling weightings instead of validating names
+ * itself. With no template (a brand-new statistic) or no scale clauses it is
+ * just ParseDSL.
+ */
+export function ParseDSLForTemplate(template: string, dsl: string): $CancellablePromise<$models.StatConfig> {
+    return $Call.ByID(1011783175, template, dsl).then(($result: any) => {
+        return $$createType14($result);
+    });
+}
+
+/**
  * TimeSeries buckets a date field / column by period ("year" | "month"
  * | "day") and counts forms per bucket, as a rank-1 Grid.
  */

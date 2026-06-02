@@ -98,6 +98,40 @@ func (s *Service) ParseDSL(dsl string) (StatConfig, error) {
 	return Parse(dsl)
 }
 
+// ParseDSLForTemplate parses like ParseDSL, then drops any `scale "<name>"`
+// reference whose scaling no longer exists on the template (renamed or
+// deleted). Reference resolution is the backend's job, so the builder re-opens
+// a statistic already free of dangling weightings instead of validating names
+// itself. With no template (a brand-new statistic) or no scale clauses it is
+// just ParseDSL.
+func (s *Service) ParseDSLForTemplate(template, dsl string) (StatConfig, error) {
+	cfg, err := Parse(dsl)
+	if err != nil {
+		return StatConfig{}, err
+	}
+	if len(cfg.Scales) == 0 || template == "" || s.src == nil {
+		return cfg, nil
+	}
+	objs, err := s.src.ListStatistics(template)
+	if err != nil {
+		return StatConfig{}, err
+	}
+	known := make(map[string]bool, len(objs))
+	for _, o := range objs {
+		if o.Scaling != nil {
+			known[o.Name] = true
+		}
+	}
+	kept := make([]string, 0, len(cfg.Scales))
+	for _, n := range cfg.Scales {
+		if known[n] {
+			kept = append(kept, n)
+		}
+	}
+	cfg.Scales = kept
+	return cfg, nil
+}
+
 // BuilderMeasureOps is the measure catalog (op + input rules) the builder
 // renders its op picker from.
 func (s *Service) BuilderMeasureOps() []MeasureOpDescriptor { return MeasureOps() }

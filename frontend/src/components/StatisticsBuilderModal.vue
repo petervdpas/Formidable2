@@ -565,7 +565,10 @@ watch(
       const dsl = (props.initial.dsl || "").trim();
       if (dsl) {
         try {
-          const parsed = await StatSvc.ParseDSL(dsl);
+          // Backend-resolved parse: it drops `scale "<name>"` references whose
+          // weighting no longer exists on the template (renamed/deleted), so
+          // the builder never carries a dangling reference. Backend steers.
+          const parsed = await StatSvc.ParseDSLForTemplate(props.template, dsl);
           config.value = {
             Measures: (parsed.Measures ?? []) as Measure[],
             Dimensions: (parsed.Dimensions ?? []) as Dimension[],
