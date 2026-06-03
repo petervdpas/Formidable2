@@ -108,6 +108,10 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		// the same way; render proceeds.
 	}
 
+	// Bake ```mermaid fences to inline SVG before picoloom (which can't wait
+	// for client-side JS). Best-effort: leaves fences on failure.
+	body = m.bakeMermaidSVG(body, status.BrowserBin)
+
 	manifestFM := m.loadManifestFrontmatter(templateFilename)
 	merged := Merge(docFM, manifestFM)
 
