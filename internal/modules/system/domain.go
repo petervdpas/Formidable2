@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/petervdpas/formidable2/internal/util/proc"
 )
 
 type Manager struct {
@@ -394,6 +396,7 @@ func (m *Manager) ExecuteCommand(cmdline string) (string, error) {
 	default:
 		c = exec.Command("sh", "-c", cmdline)
 	}
+	proc.HideWindow(c) // no console flash on Windows
 	out, err := c.CombinedOutput()
 	return string(out), err
 }

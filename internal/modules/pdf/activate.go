@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/petervdpas/formidable2/internal/util/proc"
 )
 
 // versionTimeout caps how long `<bin> --version` can hang. Chrome
@@ -193,6 +195,7 @@ func (realVersions) get(path string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), versionTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, path, "--version")
+	proc.HideWindow(cmd) // no console flash on Windows
 	out, err := cmd.Output()
 	if err != nil {
 		return "", err

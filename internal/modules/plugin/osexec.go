@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+
+	"github.com/petervdpas/formidable2/internal/util/proc"
 )
 
 // OSExec is the default ExecRunner. Args pass as a slice (no shell), so plugin input can't become a shell metacharacter;
@@ -35,6 +37,7 @@ func (OSExec) Exec(cmd string, args []string, opts ExecOptions) (ExecResult, err
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout
 	c.Stderr = &stderr
+	proc.HideWindow(c) // no console flash on Windows
 
 	err := c.Run()
 	res := ExecResult{Stdout: stdout.String(), Stderr: stderr.String()}

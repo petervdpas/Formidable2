@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"os/exec"
 	"strings"
+
+	"github.com/petervdpas/formidable2/internal/util/proc"
 )
 
 // Executor runs the git binary. Both stdout and stderr are captured
@@ -30,6 +32,7 @@ func (realExecutor) Run(workdir, name string, args []string) (string, string, er
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	proc.HideWindow(cmd) // no console flash on Windows
 	err := cmd.Run()
 	return stdout.String(), stderr.String(), err
 }
