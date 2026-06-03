@@ -191,6 +191,41 @@ func (m *Manager) RecordOp(op, absPath string, meta map[string]any) {
 	m.emit(EventChanged, entry)
 }
 
+// RecordRevert appends a revert marker for absPath and drops it from every backend's pending set.
+// A discard reverts the worktree file to its committed state, so a stale pending create/update/delete
+// no longer reflects reality. The marker makes the clear durable: rebuildPending replays it as a
+// deletion, so a restart can't resurrect the entry from the earlier op. Same inert contract as RecordOp:
+// no-op outside the context, for untracked paths, or when journaling is off.
+func (m *Manager) RecordRevert(absPath string) {
+	m.mu.RLock()
+	ctx := m.contextFolder
+	backend := m.backend
+	m.mu.RUnlock()
+	if ctx == "" || backend == "" || backend == BackendNone {
+		return
+	}
+	rel, ok := relPosixUnder(ctx, absPath)
+	if !ok {
+		return
+	}
+	if !isTrackedRel(rel) {
+		return
+	}
+
+	now := m.nowFn().UTC().Format(time.RFC3339Nano)
+	entry := Entry{Ts: now, Op: OpRevert, Path: rel}
+	if err := m.appendEntry(entry); err != nil {
+		m.log.Warn("journal: append revert failed", "err", err, "path", rel)
+		return
+	}
+
+	m.mu.Lock()
+	m.applyEntryToPendingLocked(entry)
+	m.mu.Unlock()
+
+	m.emit(EventChanged, entry)
+}
+
 // RecordSync appends a sync marker, advances the backend's cursor, and clears its pending set.
 func (m *Manager) RecordSync(backend, version string, pushed, pulled int) {
 	m.mu.RLock()
@@ -504,6 +539,10 @@ func (m *Manager) rebuildPending(cursors CursorMap) (map[string]map[string]strin
 			if entry.Ts <= cur.Ts && cur.Ts != "" {
 				continue
 			}
+			if entry.Op == OpRevert {
+				delete(out[backend], entry.Path)
+				continue
+			}
 			out[backend][entry.Path] = entry.Op
 		}
 	}
@@ -517,6 +556,10 @@ func (m *Manager) applyEntryToPendingLocked(e Entry) {
 		if !ok {
 			bucket = map[string]string{}
 			m.pending[backend] = bucket
+		}
+		if e.Op == OpRevert {
+			delete(bucket, e.Path)
+			continue
 		}
 		bucket[e.Path] = e.Op
 	}
@@ -609,7 +652,7 @@ func parseLine(line string) (*Entry, error) {
 		if !knownBackends[e.Backend] {
 			return nil, nil
 		}
-	case OpCreate, OpUpdate, OpDelete, OpBaseline:
+	case OpCreate, OpUpdate, OpDelete, OpBaseline, OpRevert:
 		if e.Path == "" {
 			return nil, nil
 		}

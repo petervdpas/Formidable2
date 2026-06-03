@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import GitStatus from "../../components/collaboration/GitStatus.vue";
 import AuthorIdentityDialog from "../../components/collaboration/AuthorIdentityDialog.vue";
@@ -114,7 +114,21 @@ async function load(announce: boolean) {
   }
 }
 
-onMounted(() => load(false));
+// The backend emits context:reloaded after any working-tree change it owns
+// (discard, pull, clone, gigot sync). Re-read status so the panel's
+// modified/untracked buckets reflect disk without depending on the action's
+// own follow-up call. The reqId guard in load() dedupes the discard path's
+// explicit refresh against this one.
+function onContextReloaded() {
+  void load(false);
+}
+onMounted(() => {
+  void load(false);
+  window.addEventListener("formidable:context-reloaded", onContextReloaded);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("formidable:context-reloaded", onContextReloaded);
+});
 watch(contextFolder, () => load(false));
 
 // Commit is enabled when there's something to commit, the message

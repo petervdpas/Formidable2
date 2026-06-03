@@ -9,6 +9,7 @@ const (
 	OpDelete   = "delete"
 	OpBaseline = "baseline"
 	OpSync     = "sync"
+	OpRevert   = "revert"
 
 	BackendGit   = "git"
 	BackendGigot = "gigot"
@@ -85,10 +86,13 @@ type InitResult struct {
 	Reason  string `json:"reason"`
 }
 
-// Recorder is the surface sync backends (git, gigot) call after a Push or Pull.
+// Recorder is the surface sync backends (git, gigot) call after a Push, Pull, or discard.
 type Recorder interface {
 	RecordSync(backend, version string, pushed, pulled int)
 	RecordRemoteSeen(backend, version string)
+	// RecordRevert drops absPath from the pending set: a discard reverted the
+	// worktree file to its committed state, so its pending op is now stale.
+	RecordRevert(absPath string)
 }
 
 // Reader is the journal's read-only state surface.

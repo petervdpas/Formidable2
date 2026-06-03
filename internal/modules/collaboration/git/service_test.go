@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -30,9 +31,10 @@ type seenCall struct {
 }
 
 type fakeJournal struct {
-	mu    sync.Mutex
-	syncs []syncCall
-	seens []seenCall
+	mu      sync.Mutex
+	syncs   []syncCall
+	seens   []seenCall
+	reverts []string
 	// pending is keyed by backend → list of pending changes returned
 	// by Pending(). Tests configure this directly to drive
 	// PullWithStash's snapshot manifest. Nil/missing key returns empty.
@@ -49,6 +51,26 @@ func (f *fakeJournal) RecordRemoteSeen(backend, version string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.seens = append(f.seens, seenCall{backend, version})
+}
+
+// RecordRevert records the absolute path it was called with and drops any
+// pending entry whose Path is the trailing component of it (the godog harness
+// seeds pending with repo-relative paths like "seed.txt", while the service
+// passes the joined absolute path), so scenarios can assert the clear.
+func (f *fakeJournal) RecordRevert(absPath string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reverts = append(f.reverts, absPath)
+	abs := filepath.ToSlash(absPath)
+	for backend, paths := range f.pending {
+		kept := paths[:0:0]
+		for _, p := range paths {
+			if !strings.HasSuffix(abs, "/"+p.Path) && abs != p.Path {
+				kept = append(kept, p)
+			}
+		}
+		f.pending[backend] = kept
+	}
 }
 
 func (f *fakeJournal) Pending(backend string) journal.PendingResult {

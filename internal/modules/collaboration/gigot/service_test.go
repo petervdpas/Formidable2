@@ -25,8 +25,9 @@ type seenCall struct {
 
 type fakeJournal struct {
 	mu    sync.Mutex
-	syncs []syncCall
-	seens []seenCall
+	syncs   []syncCall
+	seens   []seenCall
+	reverts []string
 }
 
 func (f *fakeJournal) RecordSync(backend, version string, pushed, pulled int) {
@@ -39,6 +40,14 @@ func (f *fakeJournal) RecordRemoteSeen(backend, version string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.seens = append(f.seens, seenCall{backend, version})
+}
+
+// RecordRevert satisfies journal.Recorder; gigot has no discard flow, so the
+// fake just records the calls.
+func (f *fakeJournal) RecordRevert(absPath string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reverts = append(f.reverts, absPath)
 }
 
 func (f *fakeJournal) Pending(backend string) journal.PendingResult {

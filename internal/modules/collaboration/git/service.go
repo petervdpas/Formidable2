@@ -2,6 +2,7 @@ package git
 
 import (
 	"errors"
+	"path/filepath"
 
 	"github.com/petervdpas/formidable2/internal/event"
 	"github.com/petervdpas/formidable2/internal/modules/journal"
@@ -239,6 +240,12 @@ func (s *Service) Discard(opts DiscardOptions) error {
 	}
 	err := s.m.Discard(opts)
 	if err == nil {
+		// The file is back to its committed state, so its pending op is stale.
+		// Drop it from the journal before the reload so the Sync panel doesn't
+		// keep listing a change the user just threw away.
+		if s.jrnl != nil {
+			s.jrnl.RecordRevert(filepath.Join(opts.Path, opts.File))
+		}
 		event.Emit(s.emit, "context:reloaded", nil)
 	}
 	return err

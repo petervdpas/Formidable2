@@ -194,6 +194,106 @@ Feature: Git collaboration backend
     When I discard "../escape"
     Then the operation returned an error
 
+  # New (untracked) records live under a nested collection directory, the
+  # shape that surfaced the phantom-after-discard report. Discard must wipe
+  # the file from disk and leave the worktree clean so the index has nothing
+  # left to point a stale row at.
+  Scenario: Discard removes a new file in a nested collection directory
+    Given the temp dir has a commit on "README.md" with content "root"
+    And an untracked file "storage/adapters/test.meta.json" with content "{}"
+    When I check the status
+    Then status reports untracked "storage/adapters/test.meta.json"
+    When I discard "storage/adapters/test.meta.json"
+    Then file "storage/adapters/test.meta.json" does not exist
+    When I check the status
+    Then status reports clean
+
+  Scenario: Discarding one new file leaves another new file alone
+    Given the temp dir has a commit on "README.md" with content "root"
+    And an untracked file "keep.meta.json" with content "{}"
+    And an untracked file "drop.meta.json" with content "{}"
+    When I discard "drop.meta.json"
+    Then file "drop.meta.json" does not exist
+    And file "keep.meta.json" exists with content "{}"
+    When I check the status
+    Then status reports untracked "keep.meta.json"
+    And status does not report untracked "drop.meta.json"
+
+  Scenario: Discard removes a staged new file
+    Given the temp dir has a commit on "README.md" with content "root"
+    And an untracked file "new.meta.json" with content "{}"
+    And "new.meta.json" is staged
+    When I discard "new.meta.json"
+    Then file "new.meta.json" does not exist
+    When I check the status
+    Then status reports clean
+
+  Scenario: Discarding a new file leaves an unrelated modified file untouched
+    Given the temp dir has a commit on "a.txt" with content "v1"
+    And "a.txt" is rewritten to "v2"
+    And an untracked file "junk.txt" with content "x"
+    When I discard "junk.txt"
+    Then file "junk.txt" does not exist
+    And file "a.txt" exists with content "v2"
+    When I check the status
+    Then status reports modified "a.txt"
+    And status does not report untracked "junk.txt"
+
+  # The Service layer clears the journal pending entry on a successful discard,
+  # so the Sync panel stops listing a change the user just threw away (no
+  # phantom dirty path left behind).
+  Scenario: Discard via the service clears the file's pending journal entry
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the journal pending for "git" includes "seed.txt" with op "update"
+    And "seed.txt" is rewritten to "user-edit" inside "client"
+    When I discard "seed.txt" inside "client" via the service
+    Then the operation succeeded
+    And the journal recorded a revert for "seed.txt"
+    And the journal has no pending for "git"
+
+  # A failed discard (empty path) must not touch the journal: nothing was
+  # reverted, so the pending entry stays.
+  Scenario: A failed discard leaves the pending journal entry intact
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the journal pending for "git" includes "seed.txt" with op "update"
+    When I discard "" inside "client" via the service
+    Then the operation returned an error
+    And the journal has 1 pending for "git"
+
+  # ── Discard while the remote is out of sync ──────────────────────────
+  # Discard is a worktree-only operation: it must work the same whether or
+  # not the local clone has fallen behind the remote, and it must not move
+  # the ahead/behind counters.
+
+  Scenario: Discard a new file while the clone is behind the remote
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the bare repo gains another commit
+    And an untracked file "scratch.txt" with content "x" inside "client"
+    When I discard "scratch.txt" inside "client"
+    Then file "scratch.txt" inside "client" does not exist
+    When I fetch status from "client" via the service
+    Then the operation succeeded
+    And status is behind by 1
+
+  Scenario: Discard restores a modified tracked file while the clone is behind the remote
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the bare repo gains another commit
+    And "seed.txt" is rewritten to "local-edit" inside "client"
+    When I discard "seed.txt" inside "client"
+    Then file "seed.txt" inside "client" has content "seed"
+    When I fetch status from "client" via the service
+    Then the operation succeeded
+    And status is behind by 1
+    And status reports clean
+
   # ── Fetch / Push (file:// - no network) ──────────────────────────────
 
   Scenario: Push advances the remote
@@ -428,6 +528,87 @@ Feature: Git collaboration backend
     Then the pull succeeded
     And the stash result has 0 overrides
     And file "scratch.txt" inside "client" has content "untouched"
+
+  # ── Stash of a brand-new (create-op) file ────────────────────────────
+  # The OldHash=="" path: snapshot keeps the worktree bytes, reset wipes the
+  # file so pull lands clean, restore writes it back. This is the same
+  # not-in-HEAD shape that the discard bug lived in, exercised end to end.
+  Scenario: Stash-pull round-trips a new file when remote touches an unrelated file
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And an untracked file "fresh.txt" with content "local-new" inside "client"
+    And the journal pending for "git" includes "fresh.txt" with op "create"
+    And the bare repo gains another commit
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And pull is not already-up-to-date
+    And the stash result has 0 overrides
+    And the stash result restored "fresh.txt"
+    And file "fresh.txt" inside "client" has content "local-new"
+    And no stash directory exists under "client"
+
+  # ── Stash of a delete-op ─────────────────────────────────────────────
+  # Reset restores the file from HEAD so pull is not blocked by a
+  # missing-vs-HEAD path; restore re-applies the delete so the user's
+  # intent survives a pull that didn't touch the file.
+  Scenario: Stash-pull re-applies a local delete when remote touches an unrelated file
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the journal pending for "git" includes "seed.txt" with op "delete"
+    And "seed.txt" is removed from the worktree inside "client"
+    And the bare repo gains another commit
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And the stash result has 0 overrides
+    And the stash result restored "seed.txt"
+    And file "seed.txt" inside "client" does not exist
+    And no stash directory exists under "client"
+    # The re-applied delete surfaces as a pending deletion (worktree gone,
+    # not yet committed), NOT a phantom-clean state: the user's intent is
+    # preserved and ready to commit.
+    And I check the status inside "client"
+    And status reports deleted "seed.txt"
+
+  # ── Discard then stash-pull: the journal entry is now stale ──────────
+  # Discarding a new file removes it from disk but leaves a pending "create"
+  # in the journal. The next stash-pull must NOT resurrect it: shouldStash
+  # skips a create whose file is gone. This is the "stashed and discarded"
+  # interaction.
+  Scenario: A discarded new file is not resurrected by the next stash-pull
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And an untracked file "ghost.txt" with content "x" inside "client"
+    And the journal pending for "git" includes "ghost.txt" with op "create"
+    And I discard "ghost.txt" inside "client"
+    And the bare repo gains another commit
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And the stash result has 0 overrides
+    And the stash result restored 0 paths
+    And file "ghost.txt" inside "client" does not exist
+    And no stash directory exists under "client"
+
+  # Discarding a modified file reverts it to HEAD but leaves a pending
+  # "update". When the remote then advances the SAME file, the stale entry
+  # must not force a false conflict: shouldStash skips it (disk == HEAD), so
+  # the remote version applies cleanly with zero overrides.
+  Scenario: A discarded edit does not force a false conflict on the next stash-pull
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And a journal-recording git service
+    And the journal pending for "git" includes "seed.txt" with op "update"
+    And "seed.txt" is rewritten to "local-edit" inside "client"
+    And I discard "seed.txt" inside "client"
+    And the bare repo rewrites "seed.txt" to "remote-edit"
+    When I pull-with-stash from "client" via the service
+    Then the pull succeeded
+    And the stash result has 0 overrides
+    And the stash result restored 0 paths
+    And file "seed.txt" inside "client" has content "remote-edit"
+    And no stash directory exists under "client"
 
   # ── Sysgit dispatch (self-cloned mode) ────────────────────────────────
   # When the user flips the "cloned outside Formidable" toggle, the

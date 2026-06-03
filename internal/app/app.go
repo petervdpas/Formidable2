@@ -66,14 +66,25 @@ type EmitFunc func(name string, data any)
 // lifetime; the real transport is installed later because the Wails app
 // doesn't exist when journal.NewManager runs.
 type emitterRelay struct {
-	mu sync.RWMutex
-	fn EmitFunc
+	mu        sync.RWMutex
+	fn        EmitFunc
+	reconcile func()
 }
 
 func (e *emitterRelay) Emit(name string, data any) {
 	e.mu.RLock()
 	fn := e.fn
+	reconcile := e.reconcile
 	e.mu.RUnlock()
+	// A context:reloaded means the working tree changed under us (git
+	// pull/clone/discard, gigot sync). The index is a derived view, so
+	// reconcile it before the frontend re-reads: a discarded new record
+	// must drop its now-orphan index row, or the sidebar shows a phantom
+	// that fails to open. Synchronous on purpose, the op is not "done"
+	// until the index reflects disk.
+	if name == "context:reloaded" && reconcile != nil {
+		reconcile()
+	}
 	if fn != nil {
 		fn(name, data)
 	}
@@ -83,6 +94,12 @@ func (e *emitterRelay) set(fn EmitFunc) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.fn = fn
+}
+
+func (e *emitterRelay) setReconcile(fn func()) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.reconcile = fn
 }
 
 type Deps struct {
@@ -424,6 +441,16 @@ func New(d Deps) (*App, error) {
 	if err := ehM.RescanAll(context.Background()); err != nil {
 		d.Logger.Warn("index initial RescanAll failed", "err", err)
 	}
+
+	// Every later context:reloaded (git pull/clone/discard, gigot sync)
+	// runs the same reconcile before the event reaches the frontend, so a
+	// re-read never sees an index row whose file is gone. ehM is rebuilt
+	// per profile switch, so this closure always targets the live index.
+	emitter.setReconcile(func() {
+		if err := ehM.RescanAll(context.Background()); err != nil {
+			d.Logger.Warn("index reconcile on context:reloaded failed", "err", err)
+		}
+	})
 
 	// Read-only facade over index + render. Gets wikiRender so the wiki
 	// server's output already carries /template/.../form/... and

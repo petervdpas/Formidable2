@@ -263,6 +263,11 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^I check the status inside "([^"]*)"$`, func(rel string) error {
+		w.status, w.lastErr = w.m.Status(filepath.Join(w.tmp, rel))
+		return nil
+	})
+
 	ctx.Step(`^I list branches$`, func() error {
 		w.branches, w.lastErr = w.m.Branches(w.tmp)
 		return nil
@@ -326,6 +331,77 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I discard "([^"]*)"$`, func(file string) error {
 		w.lastErr = w.m.Discard(DiscardOptions{Path: w.tmp, File: file})
 		return nil
+	})
+
+	ctx.Step(`^I discard "([^"]*)" inside "([^"]*)"$`, func(file, rel string) error {
+		w.lastErr = w.m.Discard(DiscardOptions{Path: filepath.Join(w.tmp, rel), File: file})
+		return nil
+	})
+
+	ctx.Step(`^I discard "([^"]*)" inside "([^"]*)" via the service$`, func(file, rel string) error {
+		w.lastErr = w.svc.Discard(DiscardOptions{Path: filepath.Join(w.tmp, rel), File: file})
+		return nil
+	})
+
+	ctx.Step(`^the journal recorded a revert for "([^"]*)"$`, func(file string) error {
+		w.jrnl.mu.Lock()
+		defer w.jrnl.mu.Unlock()
+		for _, p := range w.jrnl.reverts {
+			if strings.HasSuffix(filepath.ToSlash(p), "/"+file) || filepath.ToSlash(p) == file {
+				return nil
+			}
+		}
+		return fmt.Errorf("reverts = %v, want one ending in %q", w.jrnl.reverts, file)
+	})
+
+	ctx.Step(`^the journal has no pending for "([^"]*)"$`, func(backend string) error {
+		if pr := w.jrnl.Pending(backend); pr.Count != 0 {
+			return fmt.Errorf("pending for %q = %+v, want empty", backend, pr)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the journal has (\d+) pending for "([^"]*)"$`, func(n int, backend string) error {
+		if pr := w.jrnl.Pending(backend); pr.Count != n {
+			return fmt.Errorf("pending for %q = %+v, want count %d", backend, pr, n)
+		}
+		return nil
+	})
+
+	// An untracked file mirrors a record created in the app but not yet
+	// committed. MkdirAll so a nested collection path (storage/adapters/...)
+	// works the same as the real layout.
+	ctx.Step(`^an untracked file "([^"]*)" with content "([^"]*)"$`, func(name, content string) error {
+		full := filepath.Join(w.tmp, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(full, []byte(content), 0o644)
+	})
+
+	ctx.Step(`^an untracked file "([^"]*)" with content "([^"]*)" inside "([^"]*)"$`, func(name, content, rel string) error {
+		full := filepath.Join(w.tmp, rel, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(full, []byte(content), 0o644)
+	})
+
+	ctx.Step(`^"([^"]*)" is removed from the worktree inside "([^"]*)"$`, func(name, rel string) error {
+		return os.Remove(filepath.Join(w.tmp, rel, name))
+	})
+
+	ctx.Step(`^"([^"]*)" is staged$`, func(name string) error {
+		repo, err := gogit.PlainOpen(w.tmp)
+		if err != nil {
+			return err
+		}
+		wt, err := repo.Worktree()
+		if err != nil {
+			return err
+		}
+		_, err = wt.Add(name)
+		return err
 	})
 
 	// ── Push / Fetch setup ───────────────────────────────────────────
@@ -582,6 +658,27 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^status does not report untracked "([^"]*)"$`, func(name string) error {
+		if contains(w.status.Untracked, name) {
+			return fmt.Errorf("Untracked = %v, want NOT to contain %q", w.status.Untracked, name)
+		}
+		return nil
+	})
+
+	ctx.Step(`^status does not report modified "([^"]*)"$`, func(name string) error {
+		if contains(w.status.Modified, name) {
+			return fmt.Errorf("Modified = %v, want NOT to contain %q", w.status.Modified, name)
+		}
+		return nil
+	})
+
+	ctx.Step(`^status reports deleted "([^"]*)"$`, func(name string) error {
+		if !contains(w.status.Deleted, name) {
+			return fmt.Errorf("Deleted = %v, want to contain %q", w.status.Deleted, name)
+		}
+		return nil
+	})
+
 	ctx.Step(`^the branches list contains "([^"]*)"$`, func(name string) error {
 		if w.branches == nil || !contains(w.branches.Locals, name) {
 			return fmt.Errorf("Locals does not contain %q: %+v", name, w.branches)
@@ -675,6 +772,17 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		}
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("stat %q: %w", name, err)
+		}
+		return nil
+	})
+
+	ctx.Step(`^file "([^"]*)" inside "([^"]*)" does not exist$`, func(name, rel string) error {
+		_, err := os.Stat(filepath.Join(w.tmp, rel, name))
+		if err == nil {
+			return fmt.Errorf("expected %q inside %q to be absent, but it exists", name, rel)
+		}
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("stat %q inside %q: %w", name, rel, err)
 		}
 		return nil
 	})
@@ -1013,6 +1121,16 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 			}
 		}
 		return fmt.Errorf("Restored = %v, want to contain %q", w.pullStash.Restored, path)
+	})
+
+	ctx.Step(`^the stash result restored (\d+) paths?$`, func(n int) error {
+		if w.pullStash == nil {
+			return fmt.Errorf("no stash result")
+		}
+		if len(w.pullStash.Restored) != n {
+			return fmt.Errorf("Restored = %v, want %d", w.pullStash.Restored, n)
+		}
+		return nil
 	})
 
 	ctx.Step(`^the stash result has (\d+) overrides?$`, func(n int) error {
