@@ -3,11 +3,14 @@
  * CharPicker - Footer "P" button + popover grid of special characters.
  *
  * Insertion strategy: capture document.activeElement on mousedown of
- * the trigger button (before focus moves to the button), restore that
- * focus and use HTMLInputElement.setRangeText to splice the glyph at
- * the saved selection range. Native <input>/<textarea> only - CodeMirror
- * has its own dispatch and is opt-out for v1 (the button greys out and
- * shows a "click into a text field first" hint).
+ * the trigger button (before focus moves to the button), then on insert
+ * restore focus and splice the glyph in. Two target kinds:
+ *   - native <input>/<textarea>: setRangeText at the saved offsets.
+ *   - contenteditable (CodeMirror 6 / md-editor-v3): restore the saved
+ *     DOM Range and execCommand("insertText"), which CM6 picks up through
+ *     its normal contentEditable input handling and folds into a
+ *     transaction (so undo and the v-model both stay in sync).
+ * Anything else shows a "click into a text field first" hint.
  *
  * The popover is closed on: outside-click, Escape, glyph insert, and
  * cleanup-on-unmount.
@@ -31,13 +34,13 @@ const recents = ref<CharEntry[]>([]);
 const RECENTS_MAX = 16;
 
 // Saved across mousedown→click so insertion targets the previously
-// focused field, not the trigger button. selectionStart/End may be
-// null on some elements (e.g. number inputs); insertion gates on that.
-type SavedTarget = {
-  el: HTMLInputElement | HTMLTextAreaElement;
-  start: number;
-  end: number;
-};
+// focused field, not the trigger button. For native fields we keep the
+// selection offsets (selectionStart/End may be null on number inputs);
+// for contenteditable we keep a cloned DOM Range so CM6 inserts at the
+// real caret regardless of focus-timing.
+type SavedTarget =
+  | { kind: "field"; el: HTMLInputElement | HTMLTextAreaElement; start: number; end: number }
+  | { kind: "editable"; el: HTMLElement; range: Range | null };
 let saved: SavedTarget | null = null;
 
 function isInsertableField(el: Element | null): el is HTMLInputElement | HTMLTextAreaElement {
@@ -50,14 +53,22 @@ function isInsertableField(el: Element | null): el is HTMLInputElement | HTMLTex
   return false;
 }
 
+function currentRange(): Range | null {
+  const sel = window.getSelection();
+  return sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+}
+
 function captureTarget() {
   const el = document.activeElement;
   if (isInsertableField(el)) {
     saved = {
+      kind: "field",
       el,
       start: el.selectionStart ?? el.value.length,
       end: el.selectionEnd ?? el.value.length,
     };
+  } else if (el instanceof HTMLElement && el.isContentEditable) {
+    saved = { kind: "editable", el, range: currentRange() };
   } else {
     saved = null;
   }
@@ -125,21 +136,39 @@ function insert(entry: CharEntry) {
     toast.warn("charpicker.no_target");
     return;
   }
-  const { el, start, end } = saved;
-  el.focus();
-  // setRangeText is the cleanest cross-browser path: it splices at the
-  // saved selection, fires the native `input` event, and updates
-  // selectionStart/End to live just after the inserted text.
-  el.setRangeText(entry.char, start, end, "end");
-  el.dispatchEvent(new Event("input", { bubbles: true }));
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-  // Refresh `saved` so a follow-up insert lands AFTER the previous one,
-  // not back at the original position.
-  saved = {
-    el,
-    start: el.selectionStart ?? start + entry.char.length,
-    end: el.selectionEnd ?? start + entry.char.length,
-  };
+  if (saved.kind === "field") {
+    const { el, start, end } = saved;
+    el.focus();
+    // setRangeText is the cleanest cross-browser path: it splices at the
+    // saved selection, fires the native `input` event, and updates
+    // selectionStart/End to live just after the inserted text.
+    el.setRangeText(entry.char, start, end, "end");
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    // Refresh `saved` so a follow-up insert lands AFTER the previous one,
+    // not back at the original position.
+    saved = {
+      kind: "field",
+      el,
+      start: el.selectionStart ?? start + entry.char.length,
+      end: el.selectionEnd ?? start + entry.char.length,
+    };
+  } else {
+    const { el, range } = saved;
+    el.focus();
+    // Restore the caret CM6 had before the popover stole focus, so the
+    // glyph lands where the user was typing. execCommand drives a real
+    // beforeinput; CM6 maps it via getTargetRanges and applies a
+    // transaction, keeping undo + v-model consistent.
+    if (range) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+    document.execCommand("insertText", false, entry.char);
+    // Re-capture the collapsed caret for the next insert.
+    saved = { kind: "editable", el, range: currentRange() };
+  }
   rememberRecent(entry);
 }
 
