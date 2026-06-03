@@ -48,7 +48,31 @@ func TestBakeMermaidSVG_NoFencesReturnsUnchanged(t *testing.T) {
 	// No fence -> early return before any browser/log use.
 	var m Manager
 	body := "# Title\n\nplain text, no diagrams"
-	if got := m.bakeMermaidSVG(body, ""); got != body {
+	if got := m.bakeMermaidSVG(body, "", 0); got != body {
 		t.Fatalf("body changed: %q", got)
+	}
+}
+
+func TestScaleSVGWidth_PinsWidthAndAspectHeight(t *testing.T) {
+	svg := `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400" style="max-width: 800px;"><g/></svg>`
+	got := scaleSVGWidth(svg, 400)
+	if !strings.Contains(got, `width="400"`) {
+		t.Fatalf("width not pinned: %q", got)
+	}
+	if !strings.Contains(got, `height="200"`) {
+		t.Fatalf("height not aspect-scaled to 200: %q", got)
+	}
+	if !strings.Contains(got, "max-width:400px") {
+		t.Fatalf("inline max-width not rewritten: %q", got)
+	}
+	if !strings.HasSuffix(got, "<g/></svg>") {
+		t.Fatalf("body mangled: %q", got)
+	}
+}
+
+func TestScaleSVGWidth_ZeroIsNoOp(t *testing.T) {
+	svg := `<svg width="800" height="400" viewBox="0 0 800 400"></svg>`
+	if got := scaleSVGWidth(svg, 0); got != svg {
+		t.Fatalf("zero width changed svg: %q", got)
 	}
 }

@@ -25,6 +25,14 @@ type Frontmatter struct {
 	Signature  *SignatureFM  `yaml:"signature,omitempty"`
 	Watermark  *WatermarkFM  `yaml:"watermark,omitempty"`
 	PageBreaks *PageBreaksFM `yaml:"pageBreaks,omitempty"`
+	Mermaid    *MermaidFM    `yaml:"mermaid,omitempty"`
+}
+
+// MermaidFM controls how baked mermaid diagrams are sized in the PDF.
+// Width is the rendered diagram width in CSS px; height follows from the
+// diagram's own aspect ratio. Zero means "leave mermaid's intrinsic size".
+type MermaidFM struct {
+	Width int `yaml:"width,omitempty"`
 }
 
 // PageFM mirrors picoloom.PageSettings.
@@ -187,7 +195,23 @@ func overlay(higher, base Frontmatter) Frontmatter {
 	out.Signature = overlaySignature(higher.Signature, base.Signature)
 	out.Watermark = overlayWatermark(higher.Watermark, base.Watermark)
 	out.PageBreaks = overlayPageBreaks(higher.PageBreaks, base.PageBreaks)
+	out.Mermaid = overlayMermaid(higher.Mermaid, base.Mermaid)
 	return out
+}
+
+func overlayMermaid(h, b *MermaidFM) *MermaidFM {
+	if h == nil {
+		return b
+	}
+	if b == nil {
+		cp := *h
+		return &cp
+	}
+	out := *b
+	if h.Width != 0 {
+		out.Width = h.Width
+	}
+	return &out
 }
 
 func overlayPage(h, b *PageFM) *PageFM {

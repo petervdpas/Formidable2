@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,7 +33,7 @@ type mermaidResult struct {
 // (picoloom sanitizes raw HTML, so an image node is the only way through, and
 // SVG stays crisp). Best-effort: whole-bake failure leaves all fences and is
 // logged. No fences -> no browser launch.
-func (m *Manager) bakeMermaidSVG(body, browserBin string) string {
+func (m *Manager) bakeMermaidSVG(body, browserBin string, width int) string {
 	locs := mermaidFenceRe.FindAllStringSubmatchIndex(body, -1)
 	if len(locs) == 0 {
 		return body
@@ -54,7 +55,7 @@ func (m *Manager) bakeMermaidSVG(body, browserBin string) string {
 		b.WriteString(body[last:loc[0]])
 		switch {
 		case i < len(results) && strings.HasPrefix(strings.TrimSpace(results[i].Svg), "<svg"):
-			writeSVGImage(&b, results[i].Svg)
+			writeSVGImage(&b, scaleSVGWidth(results[i].Svg, width))
 			baked++
 		case i < len(results) && results[i].Err != "":
 			writeSVGImage(&b, mermaidErrorSVG())
@@ -77,6 +78,51 @@ func writeSVGImage(b *strings.Builder, svg string) {
 	b.WriteString(")\n\n")
 }
 
+var (
+	svgOpenTagRe = regexp.MustCompile(`(?s)^<svg\b[^>]*>`)
+	svgViewBoxRe = regexp.MustCompile(`viewBox="\s*[\d.eE+-]+\s+[\d.eE+-]+\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s*"`)
+	svgWidthRe   = regexp.MustCompile(`\swidth="[^"]*"`)
+	svgHeightRe  = regexp.MustCompile(`\sheight="[^"]*"`)
+	svgMaxWidth  = regexp.MustCompile(`max-width:\s*[\d.]+px`)
+)
+
+// scaleSVGWidth pins a mermaid SVG to width CSS px (height follows the
+// viewBox aspect ratio) by rewriting the root tag's width/height attributes
+// and any inline max-width. width <= 0 returns the SVG unchanged. As a
+// data-URI <img> the rendered size is the root width/height, so this is the
+// only sizing knob that survives picoloom's HTML sanitizer.
+func scaleSVGWidth(svg string, width int) string {
+	if width <= 0 {
+		return svg
+	}
+	openLoc := svgOpenTagRe.FindStringIndex(svg)
+	if openLoc == nil {
+		return svg
+	}
+	tag := svg[openLoc[0]:openLoc[1]]
+
+	height := 0
+	if vb := svgViewBoxRe.FindStringSubmatch(tag); vb != nil {
+		w, errW := strconv.ParseFloat(vb[1], 64)
+		h, errH := strconv.ParseFloat(vb[2], 64)
+		if errW == nil && errH == nil && w > 0 {
+			height = int(float64(width)*h/w + 0.5)
+		}
+	}
+
+	tag = svgWidthRe.ReplaceAllString(tag, "")
+	tag = svgHeightRe.ReplaceAllString(tag, "")
+	tag = svgMaxWidth.ReplaceAllString(tag, fmt.Sprintf("max-width:%dpx", width))
+
+	attrs := fmt.Sprintf(` width="%d"`, width)
+	if height > 0 {
+		attrs += fmt.Sprintf(` height="%d"`, height)
+	}
+	tag = "<svg" + attrs + tag[len("<svg"):]
+
+	return tag + svg[openLoc[1]:]
+}
+
 // renderMermaid renders each source to its (vector) SVG via mermaid.render in
 // one headless page. Index-aligned with sources; a source that fails to parse
 // carries its Err (Svg empty).
@@ -87,7 +133,11 @@ func renderMermaid(sources []string, browserBin string) (results []mermaidResult
 		}
 	}()
 
-	l := launcher.New().Headless(true)
+	// Match picoloom's launcher: Leakless(false) avoids the leakless.exe
+	// helper, which Windows Defender quarantines (process-reaper signature) and
+	// macOS hangs on (go-rod/rod#210). Without it the launch fails on Windows
+	// and the fences fall through to picoloom as raw text.
+	l := launcher.New().Headless(true).Leakless(false).Set("disable-gpu")
 	if browserBin != "" {
 		l = l.Bin(browserBin)
 	}

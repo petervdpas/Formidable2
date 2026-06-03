@@ -108,12 +108,17 @@ func (m *Manager) Export(templateFilename, datafile string, opts ExportOpts) (Re
 		// the same way; render proceeds.
 	}
 
-	// Bake ```mermaid fences to inline SVG before picoloom (which can't wait
-	// for client-side JS). Best-effort: leaves fences on failure.
-	body = m.bakeMermaidSVG(body, status.BrowserBin)
-
 	manifestFM := m.loadManifestFrontmatter(templateFilename)
 	merged := Merge(docFM, manifestFM)
+
+	// Bake ```mermaid fences to inline SVG before picoloom (which can't wait
+	// for client-side JS). Best-effort: leaves fences on failure. Width comes
+	// from the merged `mermaid.width` directive (0 = mermaid's intrinsic size).
+	mermaidWidth := 0
+	if merged.Mermaid != nil {
+		mermaidWidth = merged.Mermaid.Width
+	}
+	body = m.bakeMermaidSVG(body, status.BrowserBin, mermaidWidth)
 
 	sourceDir := ""
 	if m.storage != nil {

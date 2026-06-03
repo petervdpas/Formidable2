@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/api/swaggerui"
+	csvmod "github.com/petervdpas/formidable2/internal/modules/csv"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -177,7 +178,7 @@ func (h *Handler) exportCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="`+stem+`-export.csv"`)
 	w.Header().Set("ETag", etag)
 	// UTF-8 BOM so spreadsheet apps detect the encoding automatically.
-	_, _ = w.Write([]byte{0xEF, 0xBB, 0xBF})
+	_, _ = w.Write([]byte(csvmod.BOM))
 
 	cw := csv.NewWriter(w)
 	_ = cw.Write([]string{"id", "filename", "title", "tags"})

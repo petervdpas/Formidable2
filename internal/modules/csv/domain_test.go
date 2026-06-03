@@ -169,6 +169,40 @@ func TestWrite_MinimalQuotingWhenNotQuoteAll(t *testing.T) {
 	}
 }
 
+func TestWrite_PrependsUTF8BOM(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	r := m.Write("bom.csv", [][]string{{"naam"}, {"geëvalueerd"}}, ",", true)
+	if !r.Success {
+		t.Fatalf("write: %+v", r)
+	}
+	body, _ := sys.LoadFile("bom.csv")
+	if !strings.HasPrefix(body, BOM) {
+		t.Errorf("missing UTF-8 BOM: %q", body[:4])
+	}
+}
+
+func TestWrite_EmptyRowsStayBOMless(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	if r := m.Write("empty.csv", nil, ",", true); !r.Success {
+		t.Fatalf("write: %+v", r)
+	}
+	if body, _ := sys.LoadFile("empty.csv"); body != "" {
+		t.Errorf("empty export should stay empty, got %q", body)
+	}
+}
+
+func TestPreview_StripsLeadingBOM(t *testing.T) {
+	m, sys, _ := newTestManager(t)
+	_ = sys.SaveFile("b.csv", BOM+"naam,plaats\nAlice,Gouda\n")
+	pr, err := m.Preview("b.csv", ",")
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if len(pr.Headers) == 0 || pr.Headers[0] != "naam" {
+		t.Errorf("BOM leaked into first header: %q", pr.Headers)
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // FS-failure path
 // ─────────────────────────────────────────────────────────────────────

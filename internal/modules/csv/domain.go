@@ -28,6 +28,13 @@ type templateSource interface {
 
 const defaultDelimiter = ","
 
+// BOM is the UTF-8 byte order mark. Prepended on write so Excel on Windows
+// detects UTF-8 (it otherwise opens .csv in the system ANSI codepage and
+// garbles accented characters); stripped on read so the mark never leaks
+// into the first header cell. Exported so other CSV producers (the api
+// handler's streaming export) emit the same mark.
+const BOM = "\uFEFF"
+
 // Manager wraps encoding/csv with Formidable's preview/write conventions.
 type Manager struct {
 	fs    fs
@@ -69,6 +76,7 @@ func (m *Manager) Preview(filePath, delimiter string) (PreviewResult, error) {
 		return PreviewResult{Headers: []string{}, Rows: [][]string{}, Error: err.Error()},
 			fmt.Errorf("csv: read %q: %w", filePath, err)
 	}
+	raw = strings.TrimPrefix(raw, BOM)
 	if strings.TrimSpace(raw) == "" {
 		return PreviewResult{Headers: []string{}, Rows: [][]string{}}, nil
 	}
@@ -129,7 +137,11 @@ func (m *Manager) Write(filePath string, rows [][]string, delimiter string, quot
 			return WriteResult{Success: false, Error: err.Error()}
 		}
 	}
-	if err := m.fs.SaveFile(filePath, out.String()); err != nil {
+	data := out.String()
+	if data != "" {
+		data = BOM + data
+	}
+	if err := m.fs.SaveFile(filePath, data); err != nil {
 		return WriteResult{Success: false, Error: err.Error()}
 	}
 	return WriteResult{Success: true}
