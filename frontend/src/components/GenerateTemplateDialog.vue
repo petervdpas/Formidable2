@@ -67,11 +67,15 @@ function onConfirm() {
     :open="open"
     :title="t('workspace.templates.generate.title')"
     width="600px"
+    scroll
     @close="emit('cancel')"
   >
-    <p class="muted small generate-intro">
-      {{ t('workspace.templates.generate.description') }}
-    </p>
+    <template #head>
+      <p class="muted small generate-intro">
+        {{ t('workspace.templates.generate.description') }}
+      </p>
+    </template>
+
 
     <p v-if="loading" class="muted small">{{ t('common.loading') }}</p>
 
