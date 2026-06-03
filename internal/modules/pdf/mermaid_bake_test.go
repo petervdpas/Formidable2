@@ -31,19 +31,16 @@ func TestMermaidFenceRe_IgnoresOtherFences(t *testing.T) {
 	}
 }
 
-func TestMermaidErrorSVG_IsValidSVGWithEscapedMessage(t *testing.T) {
-	svg := mermaidErrorSVG("Parse error: got '<x>' & 'y'")
+func TestMermaidErrorSVG_IsBombWithTitle(t *testing.T) {
+	svg := mermaidErrorSVG()
 	if !strings.HasPrefix(svg, "<svg") || !strings.HasSuffix(svg, "</svg>") {
 		t.Fatalf("not a standalone svg: %.40q…", svg)
 	}
-	if !strings.Contains(svg, "Mermaid diagram error") {
+	if !strings.Contains(svg, "Syntax error in mermaid") {
 		t.Fatalf("missing title: %q", svg)
 	}
-	if !strings.Contains(svg, "&lt;x&gt;") || !strings.Contains(svg, "&amp;") {
-		t.Fatalf("message not XML-escaped: %q", svg)
-	}
-	if strings.Contains(svg, "<x>") {
-		t.Fatalf("raw < leaked into svg: %q", svg)
+	if !strings.Contains(svg, "<path d=") {
+		t.Fatalf("missing bomb glyph: %q", svg)
 	}
 }
 
