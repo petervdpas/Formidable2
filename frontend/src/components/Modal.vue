@@ -5,6 +5,10 @@ const props = withDefaults(
   defineProps<{
     open: boolean;
     title?: string;
+    /** Close when the backdrop beside the dialog is clicked. Off by
+     *  default: a stray click (or a text-selection drag that ends outside
+     *  the dialog) shouldn't discard an open form. Esc and the × button
+     *  still close. Opt in per-modal where backdrop-dismiss is wanted. */
     closeOnBackdrop?: boolean;
     closeOnEsc?: boolean;
     /** Width override for the dialog box (CSS value, e.g. "480px"). */
@@ -28,7 +32,7 @@ const props = withDefaults(
     fill?: boolean;
   }>(),
   {
-    closeOnBackdrop: true,
+    closeOnBackdrop: false,
     closeOnEsc: true,
     width: "480px",
     maximizable: false,
