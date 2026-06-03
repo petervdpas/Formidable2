@@ -142,7 +142,7 @@ function onApply() {
         <p class="muted small stat-builder-hint">
           {{ t('workspace.templates.scaling_builder.weights_hint') }}
         </p>
-        <ScrollList max-height="34vh" class="stat-scaling-weights">
+        <ScrollList max-height="15rem" class="stat-scaling-weights">
           <div v-for="c in choices" :key="c.value" class="stat-scaling-row">
             <span class="stat-scaling-option">{{ c.label }}</span>
             <TextField
