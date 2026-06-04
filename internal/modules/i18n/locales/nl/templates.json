@@ -111,6 +111,7 @@
   "workspace.templates.field_edit.row.collapsible": "Inklapbaar",
   "workspace.templates.field_edit.row.key": "Sleutel",
   "workspace.templates.field_edit.key_required": "Een sleutel is verplicht. Elk veld heeft er een nodig om opgeslagen en aangesproken te worden.",
+  "workspace.templates.field_edit.errors_summary": "Problemen die opslaan blokkeren ({0})",
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Opties",
   "workspace.templates.field_edit.row.options_unavailable": "Opties niet beschikbaar voor dit veldtype.",

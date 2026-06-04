@@ -178,6 +178,11 @@ const keyMissing = computed<boolean>(() => (draft.value?.key ?? "").trim() === "
 // owns no validation rules of its own; the inline hints below are presentation.
 const fieldErrors = ref<ValidationError[]>([]);
 const validating = ref(false);
+// A pristine new field shouldn't shout "missing key" before the user types
+// anything. Errors surface once the draft is touched (or always when editing an
+// existing field, where pre-existing problems are worth showing immediately).
+const touched = ref(false);
+let skipNextTouch = false;
 let validateTimer: ReturnType<typeof setTimeout> | null = null;
 
 function candidateTemplate(): Template {
@@ -215,6 +220,11 @@ async function runValidation(): Promise<void> {
 watch(
   () => draft.value,
   () => {
+    if (skipNextTouch) {
+      skipNextTouch = false;
+    } else {
+      touched.value = true;
+    }
     if (validateTimer) clearTimeout(validateTimer);
     validateTimer = setTimeout(() => void runValidation(), 200);
   },
@@ -226,6 +236,12 @@ const fieldErrorMessages = computed<string[]>(() =>
     const f = formatError(e);
     return t(f.key, f.args);
   }),
+);
+
+// Show the panel only once the field has been touched (or when editing an
+// existing field); never on a freshly-opened blank new field.
+const showErrors = computed<boolean>(
+  () => fieldErrorMessages.value.length > 0 && (!props.isNew || touched.value),
 );
 
 const canConfirm = computed<boolean>(
@@ -350,7 +366,11 @@ watch(
       draft.value = emptyDraft();
     }
     // Validate the freshly-opened draft up front so Confirm starts disabled
-    // until the backend confirms the field is clean.
+    // until the backend confirms the field is clean. The draft assignment above
+    // trips the deep watch once; skip that so a pristine new field isn't marked
+    // touched (and its errors stay hidden until the user actually edits).
+    touched.value = false;
+    skipNextTouch = true;
     validating.value = true;
     void runValidation();
   },
@@ -903,11 +923,14 @@ const dialogStyle = computed<Record<string, string>>(() => {
         <APIFieldEditor :field="draft" />
       </FormSection>
 
-      <ul v-if="fieldErrorMessages.length" class="field-edit-errors">
-        <li v-for="(msg, i) in fieldErrorMessages" :key="i" class="form-error">
-          {{ msg }}
-        </li>
-      </ul>
+      <details v-if="showErrors" class="field-edit-errors">
+        <summary>
+          {{ t('workspace.templates.field_edit.errors_summary', [fieldErrorMessages.length]) }}
+        </summary>
+        <ul>
+          <li v-for="(msg, i) in fieldErrorMessages" :key="i">{{ msg }}</li>
+        </ul>
+      </details>
     </div>
 
     <template #footer>
