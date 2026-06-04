@@ -53,7 +53,7 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, expressionItemLevelScopeErrors(canonical)...)
 	errs = append(errs, facetsErrors(t.Facets)...)
 	errs = append(errs, facetFieldErrors(t)...)
-	errs = append(errs, formulaFieldErrors(t)...)
+	errs = append(errs, formulaFieldErrors(t, canonical)...)
 	errs = append(errs, formulasErrors(t)...)
 	errs = append(errs, scalingsErrors(t)...)
 
@@ -273,9 +273,11 @@ func formulaTargetAccepts(formulaType, fieldType string) bool {
 // formulaFieldErrors flags virtual formula fields with a missing/unknown source
 // formula, a missing/unknown target (the target must be a real data field, since
 // the formula's output is written into its slot), a target whose type can't hold
-// the formula's result, or a bad trigger. Empty trigger is accepted: Normalize
-// coerces it to "save", but Validate runs before Normalize on import paths.
-func formulaFieldErrors(t *Template) []ValidationError {
+// the formula's result, a target nested inside a loop (the engine evaluates
+// whole-form context only, so targets must be root/level-0), or a bad trigger.
+// Empty trigger is accepted: Normalize coerces it to "save", but Validate runs
+// before Normalize on import paths. canonical carries the assigned LevelScopes.
+func formulaFieldErrors(t *Template, canonical []Field) []ValidationError {
 	if t == nil {
 		return nil
 	}
@@ -286,7 +288,8 @@ func formulaFieldErrors(t *Template) []ValidationError {
 		}
 	}
 	dataFieldType := map[string]string{}
-	for _, f := range t.Fields {
+	dataFieldLevel := map[string]int{}
+	for _, f := range canonical {
 		if f.Key == "" || IsVirtualFieldType(f.Type) {
 			continue
 		}
@@ -294,6 +297,7 @@ func formulaFieldErrors(t *Template) []ValidationError {
 			continue
 		}
 		dataFieldType[f.Key] = f.Type
+		dataFieldLevel[f.Key] = f.LevelScope
 	}
 	var errs []ValidationError
 	for i := range t.Fields {
@@ -326,6 +330,14 @@ func formulaFieldErrors(t *Template) []ValidationError {
 				Type: "formula-field-unknown-target", Field: &ff, Index: i, Key: f.Key,
 				Detail:  map[string]any{"target_key": f.TargetKey},
 				Message: "Formula field target is not a data field: " + f.TargetKey,
+			})
+		} else if dataFieldLevel[f.TargetKey] > 0 {
+			// Formulas evaluate whole-form (top-level) context only; a looped
+			// target is an array slot a scalar result would corrupt.
+			errs = append(errs, ValidationError{
+				Type: "formula-field-target-not-root", Field: &ff, Index: i, Key: f.Key,
+				Detail:  map[string]any{"target_key": f.TargetKey, "level_scope": dataFieldLevel[f.TargetKey]},
+				Message: "Formula field target must be a top-level field, not inside a loop: " + f.TargetKey,
 			})
 		} else if sourceKnown && !formulaTargetAccepts(fType, tType) {
 			errs = append(errs, ValidationError{

@@ -134,6 +134,71 @@ func TestFormulaTargetTypes_CoversEveryFormulaType(t *testing.T) {
 	}
 }
 
+func TestValidate_FormulaFieldTargetInLoopRejected(t *testing.T) {
+	// A target nested in a loop is an array slot; the whole-form engine can't
+	// write a per-iteration scalar there, so it must be rejected.
+	tpl := &Template{
+		Formulas: []Formula{{Key: "total", Type: "number", Expression: `1`}},
+		Fields: []Field{
+			{Key: "L", Type: "loopstart"},
+			{Key: "inner", Type: "number"},
+			{Key: "L", Type: "loopstop"},
+			{Key: "f", Type: "formula", FormulaKey: "total", TargetKey: "inner", Trigger: "save"},
+		},
+	}
+	if errs := Validate(tpl); !hasErr(errs, "formula-field-target-not-root") {
+		t.Errorf("expected formula-field-target-not-root for a looped target; got %+v", errs)
+	}
+}
+
+func TestValidate_FormulaFieldRootTargetNotFlaggedNotRoot(t *testing.T) {
+	tpl := formulaTpl(
+		Field{Key: "out", Type: "number"},
+		Field{Key: "f", Type: "formula", FormulaKey: "total", TargetKey: "out", Trigger: "save"},
+	)
+	if errs := Validate(tpl); hasErr(errs, "formula-field-target-not-root") {
+		t.Errorf("a root target must not be flagged not-root; got %+v", errs)
+	}
+}
+
+func TestValidate_FormulaFieldInLoopWithRootTargetAccepted(t *testing.T) {
+	// The formula field itself is whole-form + invisible, so its own placement
+	// inside a loop is fine; only the target must be root.
+	tpl := &Template{
+		Formulas: []Formula{{Key: "total", Type: "number", Expression: `1`}},
+		Fields: []Field{
+			{Key: "out", Type: "number"},
+			{Key: "L", Type: "loopstart"},
+			{Key: "f", Type: "formula", FormulaKey: "total", TargetKey: "out", Trigger: "save"},
+			{Key: "L", Type: "loopstop"},
+		},
+	}
+	if errs := Validate(tpl); hasErr(errs, "formula-field-target-not-root") {
+		t.Errorf("formula field in a loop targeting a root field must be allowed; got %+v", errs)
+	}
+}
+
+func TestValidate_FormulaFieldLoopedTargetTakesPrecedenceOverType(t *testing.T) {
+	// A looped target that is ALSO a type mismatch reports not-root (the more
+	// fundamental problem), not incompatible-target.
+	tpl := &Template{
+		Formulas: []Formula{{Key: "name", Type: "text", Expression: `F["a"]`}},
+		Fields: []Field{
+			{Key: "L", Type: "loopstart"},
+			{Key: "n", Type: "number"},
+			{Key: "L", Type: "loopstop"},
+			{Key: "f", Type: "formula", FormulaKey: "name", TargetKey: "n", Trigger: "save"},
+		},
+	}
+	errs := Validate(tpl)
+	if !hasErr(errs, "formula-field-target-not-root") {
+		t.Errorf("expected formula-field-target-not-root; got %+v", errs)
+	}
+	if hasErr(errs, "formula-field-incompatible-target") {
+		t.Errorf("should not also report incompatible-target; got %+v", errs)
+	}
+}
+
 func TestValidate_FormulaFieldHappyPath(t *testing.T) {
 	tpl := formulaTpl(
 		Field{Key: "a", Type: "number"},

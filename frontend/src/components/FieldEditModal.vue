@@ -106,9 +106,10 @@ const selectedFormulaType = computed<string>(() => {
   return f?.type || "number";
 });
 
-// Targets are real data fields (not virtual/meta) whose type can hold the
-// formula's result, excluding the formula field itself. Built from the live
-// props so renames + formula-type changes flow through.
+// Targets are root (level 0) data fields whose type can hold the formula's
+// result, excluding the formula field itself. Looped fields are excluded: the
+// engine evaluates whole-form context, so a per-iteration target can't work.
+// Built from the live props so renames + formula-type changes flow through.
 const formulaTargetOptions = computed(() => {
   const accepted = formulaTargetFieldTypes(selectedFormulaType.value);
   return (props.availableFields ?? [])
@@ -116,6 +117,7 @@ const formulaTargetOptions = computed(() => {
       (f) =>
         f.key &&
         f.key !== draft.value?.key &&
+        (f.level_scope ?? 0) === 0 &&
         isDataField(f.type) &&
         accepted.includes(f.type),
     )
