@@ -85,6 +85,55 @@ func TestValidate_FormulaFieldEmptyTriggerAccepted(t *testing.T) {
 	}
 }
 
+func TestValidate_FormulaFieldIncompatibleTarget(t *testing.T) {
+	tpl := &Template{
+		Formulas: []Formula{{Key: "name", Type: "text", Expression: `F["a"]`}},
+		Fields: []Field{
+			{Key: "n", Type: "number"},
+			{Key: "f", Type: "formula", FormulaKey: "name", TargetKey: "n", Trigger: "save"},
+		},
+	}
+	// A text formula cannot be written into a number field.
+	if errs := Validate(tpl); !hasErr(errs, "formula-field-incompatible-target") {
+		t.Errorf("expected formula-field-incompatible-target; got %+v", errs)
+	}
+}
+
+func TestValidate_FormulaFieldCompatibleTextTarget(t *testing.T) {
+	tpl := &Template{
+		Formulas: []Formula{{Key: "name", Type: "text", Expression: `F["a"]`}},
+		Fields: []Field{
+			{Key: "full", Type: "text"},
+			{Key: "f", Type: "formula", FormulaKey: "name", TargetKey: "full", Trigger: "save"},
+		},
+	}
+	if errs := Validate(tpl); hasErr(errs, "formula-field-incompatible-target") {
+		t.Errorf("text->text must be accepted; got %+v", errs)
+	}
+}
+
+func TestValidate_FormulaFieldNumberAcceptsRange(t *testing.T) {
+	tpl := &Template{
+		Formulas: []Formula{{Key: "total", Type: "number", Expression: `1`}},
+		Fields: []Field{
+			{Key: "slider", Type: "range"},
+			{Key: "f", Type: "formula", FormulaKey: "total", TargetKey: "slider", Trigger: "save"},
+		},
+	}
+	if errs := Validate(tpl); hasErr(errs, "formula-field-incompatible-target") {
+		t.Errorf("number->range must be accepted; got %+v", errs)
+	}
+}
+
+func TestFormulaTargetTypes_CoversEveryFormulaType(t *testing.T) {
+	m := FormulaTargetTypes()
+	for _, ty := range []string{"number", "text", "date", "bool"} {
+		if len(m[ty]) == 0 {
+			t.Errorf("FormulaTargetTypes missing entries for %q", ty)
+		}
+	}
+}
+
 func TestValidate_FormulaFieldHappyPath(t *testing.T) {
 	tpl := formulaTpl(
 		Field{Key: "a", Type: "number"},

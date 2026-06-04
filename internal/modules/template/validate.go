@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -240,22 +241,51 @@ func facetFieldErrors(t *Template) []ValidationError {
 	return errs
 }
 
+// formulaTargetTypes maps a formula result type to the field types its output
+// may be written into. The single source for both validation and the editor's
+// target picker (exposed via FormulaTargetTypes). A blank formula type is
+// treated as "number" (Normalize's default), so callers normalise before lookup.
+var formulaTargetTypes = map[string][]string{
+	"number": {"number", "range"},
+	"text":   {"text", "textarea"},
+	"date":   {"date"},
+	"bool":   {"boolean"},
+}
+
+// FormulaTargetTypes returns a copy of the formula-type -> acceptable
+// field-type map, so the frontend can scope its target picker without
+// duplicating the rule.
+func FormulaTargetTypes() map[string][]string {
+	out := make(map[string][]string, len(formulaTargetTypes))
+	for k, v := range formulaTargetTypes {
+		out[k] = append([]string(nil), v...)
+	}
+	return out
+}
+
+func formulaTargetAccepts(formulaType, fieldType string) bool {
+	if formulaType == "" {
+		formulaType = "number"
+	}
+	return slices.Contains(formulaTargetTypes[formulaType], fieldType)
+}
+
 // formulaFieldErrors flags virtual formula fields with a missing/unknown source
 // formula, a missing/unknown target (the target must be a real data field, since
-// the formula's output is written into its slot), or a bad trigger. Empty trigger
-// is accepted: Normalize coerces it to "save", but Validate runs before Normalize
-// on import paths.
+// the formula's output is written into its slot), a target whose type can't hold
+// the formula's result, or a bad trigger. Empty trigger is accepted: Normalize
+// coerces it to "save", but Validate runs before Normalize on import paths.
 func formulaFieldErrors(t *Template) []ValidationError {
 	if t == nil {
 		return nil
 	}
-	formulaKeys := map[string]bool{}
+	formulaType := map[string]string{}
 	for _, f := range t.Formulas {
 		if f.Key != "" {
-			formulaKeys[f.Key] = true
+			formulaType[f.Key] = f.Type
 		}
 	}
-	dataFields := map[string]bool{}
+	dataFieldType := map[string]string{}
 	for _, f := range t.Fields {
 		if f.Key == "" || IsVirtualFieldType(f.Type) {
 			continue
@@ -263,7 +293,7 @@ func formulaFieldErrors(t *Template) []ValidationError {
 		if def, ok := fieldDescriptors[f.Type]; ok && def.MetaOnly {
 			continue
 		}
-		dataFields[f.Key] = true
+		dataFieldType[f.Key] = f.Type
 	}
 	var errs []ValidationError
 	for i := range t.Fields {
@@ -272,28 +302,36 @@ func formulaFieldErrors(t *Template) []ValidationError {
 			continue
 		}
 		ff := f
+		fType, sourceKnown := formulaType[f.FormulaKey]
 		if f.FormulaKey == "" {
 			errs = append(errs, ValidationError{
 				Type: "formula-field-missing-source", Field: &ff, Index: i, Key: f.Key,
 				Message: "Formula field is missing formula_key",
 			})
-		} else if !formulaKeys[f.FormulaKey] {
+		} else if !sourceKnown {
 			errs = append(errs, ValidationError{
 				Type: "formula-field-unknown-source", Field: &ff, Index: i, Key: f.Key,
 				Detail:  map[string]any{"formula_key": f.FormulaKey},
 				Message: "Formula field references unknown formula: " + f.FormulaKey,
 			})
 		}
+		tType, targetKnown := dataFieldType[f.TargetKey]
 		if f.TargetKey == "" {
 			errs = append(errs, ValidationError{
 				Type: "formula-field-missing-target", Field: &ff, Index: i, Key: f.Key,
 				Message: "Formula field is missing target_key",
 			})
-		} else if !dataFields[f.TargetKey] {
+		} else if !targetKnown {
 			errs = append(errs, ValidationError{
 				Type: "formula-field-unknown-target", Field: &ff, Index: i, Key: f.Key,
 				Detail:  map[string]any{"target_key": f.TargetKey},
 				Message: "Formula field target is not a data field: " + f.TargetKey,
+			})
+		} else if sourceKnown && !formulaTargetAccepts(fType, tType) {
+			errs = append(errs, ValidationError{
+				Type: "formula-field-incompatible-target", Field: &ff, Index: i, Key: f.Key,
+				Detail:  map[string]any{"formula_type": fType, "target_key": f.TargetKey, "target_type": tType},
+				Message: "Formula result type does not fit target field type: " + f.TargetKey,
 			})
 		}
 		if f.Trigger != "" && !formulaTriggers[f.Trigger] {

@@ -122,33 +122,15 @@
   color: var(--danger, #c33);
 }
 
-/* ── Inline formula field (virtual) ─────────────────────────────────
- * The formula field carries no data slot; this is a read-only projection
- * of its target field's value plus a one-line caption of what it does.
- * Sibling to .facet-field in facet-picker.css. */
-.formula-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-.formula-field-value {
-  font-family: var(--font-mono);
-  font-weight: 600;
-}
-.formula-field-value.is-empty {
-  font-weight: 400;
-  opacity: 0.7;
-}
-.formula-field-hint {
-  font-family: var(--font-mono);
-}
-.formula-field-unavailable {
-  padding: var(--space-1) 0;
-}
-.formula-field-compute {
+/* ── Live formula Compute button ────────────────────────────────────
+ * A live formula field is invisible in the rendered form; this button is
+ * rendered under its TARGET field (FormFieldRow) to (re)compute on demand.
+ * Disabled while the form is dirty/unsaved (compute reads the saved record). */
+.formula-compute-btn {
+  margin-top: var(--space-1);
   align-self: flex-start;
 }
-.formula-field-compute:disabled {
+.formula-compute-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

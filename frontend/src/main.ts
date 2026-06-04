@@ -8,7 +8,7 @@ import { Events } from "@wailsio/runtime";
 import App from "./App.vue";
 import { i18n } from "./i18n";
 import { useI18nLoader } from "./composables/useI18nLoader";
-import { ensureFieldTypesLoaded } from "./types/field-types";
+import { ensureFieldTypesLoaded, ensureFormulaTargetTypesLoaded } from "./types/field-types";
 import { ensureOptionPresetsLoaded } from "./types/option-presets";
 import { installConsoleBridge } from "./utils/consoleBridge";
 import * as PdfSvc from "../bindings/github.com/petervdpas/formidable2/internal/modules/pdf/service";
@@ -34,6 +34,7 @@ useI18nLoader();
 // is reactive, so a component that catches the empty window re-renders
 // when the load resolves.
 void ensureFieldTypesLoaded();
+void ensureFormulaTargetTypesLoaded();
 
 // Option-preset registries (TableColumnTypes / ListItemTypes) are the
 // Go single-source-of-truth (Service.TableColumnTypes / .ListItemTypes).

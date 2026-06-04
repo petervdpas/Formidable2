@@ -26,6 +26,7 @@ import { formatError } from "../utils/templateValidation";
 import {
   isRowHidden,
   isDataField,
+  formulaTargetFieldTypes,
   selectableTypes,
   type FieldEditRowId,
 } from "../types/field-types";
@@ -96,13 +97,30 @@ const formulaSourceOptions = computed(() =>
   })),
 );
 
-// Targets are real data fields (not virtual/meta), excluding the formula
-// field itself. Built from the live availableFields prop so renames flow through.
-const formulaTargetOptions = computed(() =>
-  (props.availableFields ?? [])
-    .filter((f) => f.key && f.key !== draft.value?.key && isDataField(f.type))
-    .map((f) => ({ value: f.key, label: f.label ? `${f.label} (${f.key})` : f.key })),
-);
+// The selected source formula's result type scopes which fields can be targets
+// (a text formula can't write into a number field, etc.). Default "number"
+// mirrors the backend (a blank formula type normalises to number).
+const selectedFormulaType = computed<string>(() => {
+  const key = (draft.value?.formula_key ?? "").trim();
+  const f = (props.availableFormulas ?? []).find((x) => x.key === key);
+  return f?.type || "number";
+});
+
+// Targets are real data fields (not virtual/meta) whose type can hold the
+// formula's result, excluding the formula field itself. Built from the live
+// props so renames + formula-type changes flow through.
+const formulaTargetOptions = computed(() => {
+  const accepted = formulaTargetFieldTypes(selectedFormulaType.value);
+  return (props.availableFields ?? [])
+    .filter(
+      (f) =>
+        f.key &&
+        f.key !== draft.value?.key &&
+        isDataField(f.type) &&
+        accepted.includes(f.type),
+    )
+    .map((f) => ({ value: f.key, label: f.label ? `${f.label} (${f.key})` : f.key }));
+});
 
 const formulaTriggerOptions = computed(() => [
   { value: "save", label: t("workspace.templates.field_edit.formula.trigger_save") },
@@ -130,6 +148,21 @@ const formulaTargetMissing = computed<boolean>(() => {
   if (key === "") return true;
   return !formulaTargetOptions.value.some((o) => o.value === key);
 });
+
+// Changing the source formula can change its result type, which may make the
+// picked target incompatible. Clear it so the picker doesn't carry a stale,
+// now-invalid binding through Confirm (backend validation would reject it too).
+watch(
+  () => draft.value?.formula_key,
+  () => {
+    if (!isFormulaType.value || !draft.value) return;
+    const cur = (draft.value.target_key ?? "").trim();
+    if (cur === "") return;
+    if (!formulaTargetOptions.value.some((o) => o.value === cur)) {
+      draft.value.target_key = "";
+    }
+  },
+);
 
 // Summary-field picker (loopstart only). Candidates come from the
 // backend via the parent; FieldSelector renders the list and the

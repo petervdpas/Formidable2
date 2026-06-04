@@ -17,6 +17,10 @@ func NewService(m *Manager, storageLocator func(string) string) *Service {
 // FacetMeta returns the full facet contract (max counts, palettes, validation patterns).
 func (s *Service) FacetMeta() FacetMeta { return GetFacetMeta() }
 
+// FormulaTargetTypes returns the formula-result-type -> acceptable target field
+// types map, so the editor can scope a formula field's target picker.
+func (s *Service) FormulaTargetTypes() map[string][]string { return FormulaTargetTypes() }
+
 // TemplatesDir returns the absolute path of the templates folder.
 func (s *Service) TemplatesDir() string                        { return s.m.TemplatesDir() }
 func (s *Service) ListTemplates() ([]string, error)            { return s.m.ListTemplates() }

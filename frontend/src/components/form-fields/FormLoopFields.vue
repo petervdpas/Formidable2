@@ -22,7 +22,10 @@ const props = defineProps<{
   loopGroups: LoopGroup[];
 }>();
 
-const HIDDEN: Set<string> = new Set(["guid", "loopstop"]);
+// formula is a virtual controller field: it carries no value of its own and is
+// invisible in the rendered form. Its effect (and the live Compute button) lives
+// on its target field instead.
+const HIDDEN: Set<string> = new Set(["guid", "loopstop", "formula"]);
 
 // Build [absoluteIndex → group] for O(1) lookup while walking.
 const groupByStart = computed(() => {

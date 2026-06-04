@@ -20,7 +20,6 @@ import FormFieldImage from "./FormFieldImage.vue";
 import FormFieldLink from "./FormFieldLink.vue";
 import FormFieldAPI from "./FormFieldAPI.vue";
 import FormFieldFacet from "./FormFieldFacet.vue";
-import FormFieldFormula from "./FormFieldFormula.vue";
 import FormFieldUnknown from "./FormFieldUnknown.vue";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -55,7 +54,6 @@ const DISPATCH: Record<string, Component> = {
   link: FormFieldLink,
   api: FormFieldAPI,
   facet: FormFieldFacet,
-  formula: FormFieldFormula,
 };
 
 const component = computed<Component>(

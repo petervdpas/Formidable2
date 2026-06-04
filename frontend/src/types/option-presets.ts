@@ -32,6 +32,7 @@ export const SUPPORTED_OPTION_TYPES = new Set([
   "dropdown",
   "multioption",
   "radio",
+  "number",
   "range",
   "list",
   "table",

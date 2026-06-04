@@ -71,6 +71,26 @@ export function ensureFieldTypesLoaded(): Promise<void> {
   return loadPromise;
 }
 
+// formula-result-type -> acceptable target field types (backend-owned, see
+// template.FormulaTargetTypes). Scopes a formula field's target picker so a
+// text formula can't write into a number field, etc.
+const formulaTargets: Ref<Record<string, string[]>> = ref({});
+let formulaTargetsPromise: Promise<void> | null = null;
+
+export function ensureFormulaTargetTypesLoaded(): Promise<void> {
+  if (!formulaTargetsPromise) {
+    formulaTargetsPromise = TemplateSvc.FormulaTargetTypes().then((m) => {
+      formulaTargets.value = (m as Record<string, string[]>) ?? {};
+    });
+  }
+  return formulaTargetsPromise;
+}
+
+// Acceptable target field types for a formula result type (empty until loaded).
+export function formulaTargetFieldTypes(formulaType: string): string[] {
+  return formulaTargets.value[formulaType || "number"] ?? [];
+}
+
 export const FIELD_TYPES = registry;
 
 export function getFieldTypeDef(id: string): FieldTypeDef | undefined {

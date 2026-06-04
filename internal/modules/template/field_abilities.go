@@ -38,10 +38,16 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		ID: "number",
 		Abilities: Abilities{
 			Key: true, Type: true, Label: true, Description: true,
-			Default: true, Options: false, SummaryField: false, PrimaryKey: true,
+			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: true,
 			FacetKey: false,
+		},
+		OptionsShape: &FixedOptionsShape{
+			Rows: []FixedOptionRow{
+				{LabelKey: "workspace.templates.field_edit.number.step", Defaults: map[string]any{"value": "step", "label": "1"}},
+			},
+			LockedColumns: []string{"value"},
 		},
 	},
 	"range": {

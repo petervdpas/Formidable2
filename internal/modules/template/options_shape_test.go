@@ -35,6 +35,40 @@ func TestBooleanFieldDescriptor_HasFixedOptionsShape(t *testing.T) {
 	}
 }
 
+func TestNumberFieldDescriptor_HasFixedStepRowDefaultingToOne(t *testing.T) {
+	defs := AllFieldTypes()
+	var got *FieldDescriptor
+	for i := range defs {
+		if defs[i].ID == "number" {
+			d := defs[i]
+			got = &d
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("number descriptor missing")
+	}
+	if !got.Abilities.Options {
+		t.Fatalf("number must allow Options (step row)")
+	}
+	if got.OptionsShape == nil || len(got.OptionsShape.Rows) != 1 {
+		t.Fatalf("number must advertise exactly one fixed option row (step); got %+v", got.OptionsShape)
+	}
+	row := got.OptionsShape.Rows[0]
+	if row.LabelKey != "workspace.templates.field_edit.number.step" {
+		t.Errorf("step row label key wrong: %q", row.LabelKey)
+	}
+	if row.Defaults["value"] != "step" {
+		t.Errorf("step row locked value should be 'step'; got %v", row.Defaults["value"])
+	}
+	if row.Defaults["label"] != "1" {
+		t.Errorf("step default should be '1' (integer-by-default); got %v", row.Defaults["label"])
+	}
+	if len(got.OptionsShape.LockedColumns) != 1 || got.OptionsShape.LockedColumns[0] != "value" {
+		t.Errorf("number should lock the value column; got %+v", got.OptionsShape.LockedColumns)
+	}
+}
+
 func TestRangeFieldDescriptor_HasFixedMinMaxStep(t *testing.T) {
 	defs := AllFieldTypes()
 	var got *FieldDescriptor

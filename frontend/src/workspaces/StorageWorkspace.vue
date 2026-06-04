@@ -192,6 +192,18 @@ provide(FACET_CONTEXT_KEY, {
 const formValuesView = computed<Record<string, unknown>>(() => draft.value?.values ?? {});
 const formSaved = computed<boolean>(() => view.value?.saved === true);
 
+// target field key -> live formula field key. The Compute button renders under
+// the target field; the formula field itself stays invisible in the form.
+const liveFormulaTargets = computed<Record<string, string>>(() => {
+  const out: Record<string, string> = {};
+  for (const f of draft.value?.template?.fields ?? []) {
+    if (f.type === "formula" && f.trigger === "live" && f.target_key && f.key) {
+      out[f.target_key] = f.key;
+    }
+  }
+  return out;
+});
+
 async function computeFormulaField(fieldKey: string): Promise<void> {
   const tpl = draft.value?.template?.filename;
   const df = draft.value?.datafile;
@@ -212,6 +224,7 @@ provide(FORM_VALUES_KEY, {
   values: formValuesView,
   dirty,
   saved: formSaved,
+  liveFormulaTargets,
   compute: computeFormulaField,
 });
 
