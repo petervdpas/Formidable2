@@ -145,3 +145,10 @@
 .formula-field-unavailable {
   padding: var(--space-1) 0;
 }
+.formula-field-compute {
+  align-self: flex-start;
+}
+.formula-field-compute:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

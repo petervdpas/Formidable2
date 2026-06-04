@@ -12,6 +12,25 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
+/**
+ * ComputeField resolves the live formula field named fieldKey, evaluates its
+ * bound formula against a SAVED record, and returns the target key plus value
+ * for the caller to apply. The backend owns the whole contract: the frontend
+ * names a field, not a formula/target pair. It reads the persisted form (not
+ * in-progress edits) on purpose, so the Compute button is gated on a clean form
+ * and the result matches what the user sees on disk. All formulas evaluate
+ * first so the bound one may reference earlier formulas.
+ */
+export function ComputeField(templateFile: string, datafile: string, fieldKey: string): $CancellablePromise<$models.FormulaComputeResult> {
+    return $Call.ByID(4281458414, templateFile, datafile, fieldKey).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 /**
  * Preview evaluates exprSrc against the first form of templateFile and returns
  * the value coerced to typ, or the evaluation error. Already-saved formulas are
@@ -21,3 +40,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 export function Preview(templateFile: string, exprSrc: string, typ: string): $CancellablePromise<string> {
     return $Call.ByID(2784508183, templateFile, exprSrc, typ);
 }
+
+// Private type creation functions
+const $$createType0 = $models.FormulaComputeResult.createFrom;

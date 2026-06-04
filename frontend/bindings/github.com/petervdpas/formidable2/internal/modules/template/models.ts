@@ -349,9 +349,10 @@ export class Field {
     "facet_key"?: string;
 
     /**
-     * formula-specific (virtual). The field carries no data slot of its own: on
-     * Trigger ("load" or "save") it writes the FormulaKey formula's output into
-     * the TargetKey data field's slot, so the computed value persists like a typed entry.
+     * formula-specific (virtual). The field carries no data slot of its own: it
+     * writes the FormulaKey formula's output into the TargetKey data field's slot.
+     * Trigger is "load" (on form open), "save" (on persist), or "live" (manual,
+     * via the field's Compute button). The computed value persists like a typed entry.
      */
     "formula_key"?: string;
     "target_key"?: string;

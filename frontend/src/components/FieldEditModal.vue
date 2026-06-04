@@ -107,6 +107,7 @@ const formulaTargetOptions = computed(() =>
 const formulaTriggerOptions = computed(() => [
   { value: "save", label: t("workspace.templates.field_edit.formula.trigger_save") },
   { value: "load", label: t("workspace.templates.field_edit.formula.trigger_load") },
+  { value: "live", label: t("workspace.templates.field_edit.formula.trigger_live") },
 ]);
 
 const formulaTriggerValue = computed<string>({

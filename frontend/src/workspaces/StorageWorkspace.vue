@@ -46,6 +46,7 @@ import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/form
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
+import { FormulaService as FormulaSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/app";
 import { backendErrMessage } from "../utils/backendError";
 import { scrollToActiveRow } from "../utils/scrollToActiveRow";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -185,11 +186,34 @@ provide(FACET_CONTEXT_KEY, {
 });
 
 // Bridge for inline virtual fields that project a sibling's value
-// (FormFieldFormula reads its target from here). Read-only view of the
-// live draft values; the backend writes the formula result into the
-// target on load/save, so this reflects whatever was last computed.
+// (FormFieldFormula reads its target from here). The live Compute action
+// reads the SAVED record on the backend and writes the result into the
+// target field, so it is blocked while the form is dirty or unsaved.
 const formValuesView = computed<Record<string, unknown>>(() => draft.value?.values ?? {});
-provide(FORM_VALUES_KEY, formValuesView);
+const formSaved = computed<boolean>(() => view.value?.saved === true);
+
+async function computeFormulaField(fieldKey: string): Promise<void> {
+  const tpl = draft.value?.template?.filename;
+  const df = draft.value?.datafile;
+  if (!tpl || !df || !draft.value || !draft.value.values) return;
+  if (dirty.value || !formSaved.value) {
+    toast.error("formula.field.compute_dirty");
+    return;
+  }
+  try {
+    const res = await FormulaSvc.ComputeField(tpl, df, fieldKey);
+    draft.value.values[res.target_key] = res.value;
+  } catch (e) {
+    toast.error(backendErrMessage(e));
+  }
+}
+
+provide(FORM_VALUES_KEY, {
+  values: formValuesView,
+  dirty,
+  saved: formSaved,
+  compute: computeFormulaField,
+});
 
 // List/table sort + dedup. The widget hands us only its field key; we
 // send the pointer (template, datafile, field) to the backend, which

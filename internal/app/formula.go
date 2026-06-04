@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/petervdpas/formidable2/internal/modules/datacore"
@@ -166,4 +167,52 @@ func (s *FormulaService) Preview(templateFile, exprSrc, typ string) (string, err
 		return "", err
 	}
 	return coerceFormula(raw, typ), nil
+}
+
+// FormulaComputeResult is what a live formula field's Compute button writes back:
+// the resolved target field key plus the computed value.
+type FormulaComputeResult struct {
+	TargetKey string `json:"target_key"`
+	Value     any    `json:"value"`
+}
+
+// ComputeField resolves the live formula field named fieldKey, evaluates its
+// bound formula against a SAVED record, and returns the target key plus value
+// for the caller to apply. The backend owns the whole contract: the frontend
+// names a field, not a formula/target pair. It reads the persisted form (not
+// in-progress edits) on purpose, so the Compute button is gated on a clean form
+// and the result matches what the user sees on disk. All formulas evaluate
+// first so the bound one may reference earlier formulas.
+func (s *FormulaService) ComputeField(templateFile, datafile, fieldKey string) (FormulaComputeResult, error) {
+	tpl, err := s.tpl.LoadTemplate(templateFile)
+	if err != nil {
+		return FormulaComputeResult{}, err
+	}
+	if tpl == nil {
+		return FormulaComputeResult{}, fmt.Errorf("template %q not found", templateFile)
+	}
+	var fld *template.Field
+	for i := range tpl.Fields {
+		if tpl.Fields[i].Type == "formula" && tpl.Fields[i].Key == fieldKey {
+			fld = &tpl.Fields[i]
+			break
+		}
+	}
+	if fld == nil {
+		return FormulaComputeResult{}, fmt.Errorf("formula field %q not found", fieldKey)
+	}
+	if fld.FormulaKey == "" || fld.TargetKey == "" {
+		return FormulaComputeResult{}, fmt.Errorf("formula field %q has no source/target binding", fieldKey)
+	}
+	f := s.sto.LoadForm(templateFile, datafile)
+	if f == nil {
+		return FormulaComputeResult{}, fmt.Errorf("record %q not found", datafile)
+	}
+	ctx := formulaContext(tpl, f)
+	raw := s.ev.EvaluateFormulas(formulaSpecs(tpl.Formulas), ctx)
+	v, ok := raw[fld.FormulaKey]
+	if !ok {
+		return FormulaComputeResult{}, fmt.Errorf("formula %q did not evaluate", fld.FormulaKey)
+	}
+	return FormulaComputeResult{TargetKey: fld.TargetKey, Value: v}, nil
 }

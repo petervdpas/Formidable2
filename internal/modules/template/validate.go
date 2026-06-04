@@ -300,7 +300,7 @@ func formulaFieldErrors(t *Template) []ValidationError {
 			errs = append(errs, ValidationError{
 				Type: "formula-field-bad-trigger", Field: &ff, Index: i, Key: f.Key,
 				Detail:  map[string]any{"trigger": f.Trigger},
-				Message: "Formula field trigger must be load or save; got: " + f.Trigger,
+				Message: "Formula field trigger must be load, save, or live; got: " + f.Trigger,
 			})
 		}
 	}

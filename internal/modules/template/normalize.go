@@ -20,6 +20,7 @@ var facetFormats = map[string]bool{
 var formulaTriggers = map[string]bool{
 	"load": true,
 	"save": true,
+	"live": true,
 }
 
 // Normalize coerces a Template's fields into the canonical shape the pipeline expects. Idempotent.

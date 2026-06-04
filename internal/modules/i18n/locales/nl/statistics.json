@@ -31,6 +31,8 @@
   "formula.field.missing_binding": "Dit formuleveld heeft geen doelveld ingesteld.",
   "formula.field.no_value": "(nog geen waarde)",
   "formula.field.writes": "Schrijft {formula} naar {target} bij {trigger}",
+  "formula.field.compute": "Bereken",
+  "formula.field.compute_dirty": "Sla het formulier eerst op: Bereken werkt op het opgeslagen record.",
   "workspace.templates.setup.statistics": "Statistieken",
   "workspace.templates.statistics.empty": "Geen statistieken gedefinieerd.",
   "workspace.templates.statistics.add": "Statistiek toevoegen",

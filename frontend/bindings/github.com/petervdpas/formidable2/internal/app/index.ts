@@ -5,3 +5,7 @@ import * as FormulaService from "./formulaservice.js";
 export {
     FormulaService
 };
+
+export {
+    FormulaComputeResult
+} from "./models.js";
