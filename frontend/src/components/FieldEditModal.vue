@@ -20,7 +20,8 @@ import {
   lockedColumnsFor,
   SUPPORTED_OPTION_TYPES,
 } from "../types/option-presets";
-import type { Field, Facet, Formula } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Service as TemplateSvc, Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field, Facet, Formula, ValidationError } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useToast } from "../composables/useToast";
 import { formatError } from "../utils/templateValidation";
 import {
@@ -80,12 +81,6 @@ const toast = useToast();
 // commit changes when the user clicks Confirm.
 const draft = ref<Field | null>(null);
 
-const expressionItemInvalid = computed<boolean>(() => {
-  if (!draft.value) return false;
-  const scope = draft.value.level_scope ?? 0;
-  return scope > 0 && !!draft.value.expression_item;
-});
-
 const isFacetType = computed(() => draft.value?.type === "facet");
 const isFormulaType = computed(() => draft.value?.type === "formula");
 
@@ -137,20 +132,6 @@ const formulaTriggerValue = computed<string>({
   },
 });
 
-const formulaSourceMissing = computed<boolean>(() => {
-  if (!isFormulaType.value) return false;
-  const key = (draft.value?.formula_key ?? "").trim();
-  if (key === "") return true;
-  return !(props.availableFormulas ?? []).some((f) => f.key === key);
-});
-
-const formulaTargetMissing = computed<boolean>(() => {
-  if (!isFormulaType.value) return false;
-  const key = (draft.value?.target_key ?? "").trim();
-  if (key === "") return true;
-  return !formulaTargetOptions.value.some((o) => o.value === key);
-});
-
 // Changing the source formula can change its result type, which may make the
 // picked target incompatible. Clear it so the picker doesn't carry a stale,
 // now-invalid binding through Confirm (backend validation would reject it too).
@@ -185,13 +166,70 @@ const facetBindingMissing = computed<boolean>(() => {
   return !known;
 });
 
+// Every field needs a key (its identifier / data slot). guid auto-keys to "id"
+// so it's never blocked. Without this a keyless field could be confirmed and
+// then never be addressable (e.g. a formula field's Compute button couldn't
+// find it).
+const keyMissing = computed<boolean>(() => (draft.value?.key ?? "").trim() === "");
+
+// Confirm is gated on the backend: the candidate field is validated against the
+// surrounding template + schema (duplicate/missing keys, bindings, type/level
+// rules) and may only be confirmed when that returns no errors. The frontend
+// owns no validation rules of its own; the inline hints below are presentation.
+const fieldErrors = ref<ValidationError[]>([]);
+const validating = ref(false);
+let validateTimer: ReturnType<typeof setTimeout> | null = null;
+
+function candidateTemplate(): Template {
+  return new Template({
+    fields: props.availableFields ?? [],
+    facets: props.availableFacets ?? [],
+    formulas: props.availableFormulas ?? [],
+  });
+}
+
+async function runValidation(): Promise<void> {
+  if (!draft.value) {
+    fieldErrors.value = [];
+    return;
+  }
+  validating.value = true;
+  try {
+    const originalKey = props.isNew ? "" : (props.field?.key ?? "");
+    fieldErrors.value =
+      (await TemplateSvc.ValidateField(
+        candidateTemplate(),
+        draft.value,
+        originalKey,
+        !!props.isNew,
+      )) ?? [];
+  } catch {
+    // A transport hiccup shouldn't hard-block the editor; surface nothing and
+    // let the real save re-validate authoritatively.
+    fieldErrors.value = [];
+  } finally {
+    validating.value = false;
+  }
+}
+
+watch(
+  () => draft.value,
+  () => {
+    if (validateTimer) clearTimeout(validateTimer);
+    validateTimer = setTimeout(() => void runValidation(), 200);
+  },
+  { deep: true },
+);
+
+const fieldErrorMessages = computed<string[]>(() =>
+  fieldErrors.value.map((e) => {
+    const f = formatError(e);
+    return t(f.key, f.args);
+  }),
+);
+
 const canConfirm = computed<boolean>(
-  () =>
-    !expressionItemInvalid.value &&
-    !facetBindingMissing.value &&
-    !facetDefaultMissing.value &&
-    !formulaSourceMissing.value &&
-    !formulaTargetMissing.value,
+  () => !validating.value && fieldErrors.value.length === 0,
 );
 
 const facetBindingOptions = computed(() =>
@@ -311,6 +349,10 @@ watch(
     } else {
       draft.value = emptyDraft();
     }
+    // Validate the freshly-opened draft up front so Confirm starts disabled
+    // until the backend confirms the field is clean.
+    validating.value = true;
+    void runValidation();
   },
   { immediate: true },
 );
@@ -615,6 +657,9 @@ const dialogStyle = computed<Record<string, string>>(() => {
             :readonly="draft.type === 'guid'"
             placeholder="snake_case_key"
           />
+          <p v-if="keyMissing" class="muted small">
+            {{ t('workspace.templates.field_edit.key_required') }}
+          </p>
         </FormRow>
 
         <FormRow
@@ -857,6 +902,12 @@ const dialogStyle = computed<Record<string, string>>(() => {
       >
         <APIFieldEditor :field="draft" />
       </FormSection>
+
+      <ul v-if="fieldErrorMessages.length" class="field-edit-errors">
+        <li v-for="(msg, i) in fieldErrorMessages" :key="i" class="form-error">
+          {{ msg }}
+        </li>
+      </ul>
     </div>
 
     <template #footer>

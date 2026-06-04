@@ -193,7 +193,8 @@ const formValuesView = computed<Record<string, unknown>>(() => draft.value?.valu
 const formSaved = computed<boolean>(() => view.value?.saved === true);
 
 // target field key -> live formula field key. The Compute button renders under
-// the target field; the formula field itself stays invisible in the form.
+// the target field; the formula field itself stays invisible in the form. Every
+// field is required to have a key, so the formula field's key is a safe handle.
 const liveFormulaTargets = computed<Record<string, string>>(() => {
   const out: Record<string, string> = {};
   for (const f of draft.value?.template?.fields ?? []) {

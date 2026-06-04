@@ -45,6 +45,17 @@ func (s *Service) ValidateTemplate(t *Template) []ValidationError {
 	Normalize(&clone)
 	return s.m.Validate(&clone)
 }
+// ValidateField returns only the validation errors a candidate field would
+// introduce into the template (duplicate/missing keys, bindings, type/level
+// rules), so the editor can gate its Confirm button on the backend instead of
+// duplicating rules. originalKey + isNew locate the field (replace vs append).
+func (s *Service) ValidateField(t *Template, field *Field, originalKey string, isNew bool) []ValidationError {
+	if field == nil {
+		return nil
+	}
+	return ValidateFieldDraft(t, *field, originalKey, isNew)
+}
+
 func (s *Service) GetTemplateDescriptor(name string) (Descriptor, error) {
 	return s.m.GetDescriptor(name, s.storageLocator(name))
 }

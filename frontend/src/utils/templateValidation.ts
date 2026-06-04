@@ -121,6 +121,52 @@ export function formatError(error: ValidationError): FormattedError {
         ],
       };
 
+    case "missing-field-key":
+      return {
+        key: "error.template.missing_field_key",
+        args: [error.field?.type || "?"],
+      };
+
+    case "formula-field-missing-source":
+      return { key: "error.field.formula_missing_source", args: [] };
+
+    case "formula-field-unknown-source":
+      return {
+        key: "error.field.formula_unknown_source",
+        args: [String(error.detail?.formula_key ?? "?")],
+      };
+
+    case "formula-field-missing-target":
+      return { key: "error.field.formula_missing_target", args: [] };
+
+    case "formula-field-unknown-target":
+      return {
+        key: "error.field.formula_unknown_target",
+        args: [String(error.detail?.target_key ?? "?")],
+      };
+
+    case "formula-field-target-not-root":
+      return {
+        key: "error.field.formula_target_not_root",
+        args: [String(error.detail?.target_key ?? "?")],
+      };
+
+    case "formula-field-incompatible-target":
+      return {
+        key: "error.field.formula_incompatible_target",
+        args: [
+          String(error.detail?.formula_type ?? "?"),
+          String(error.detail?.target_key ?? "?"),
+          String(error.detail?.target_type ?? "?"),
+        ],
+      };
+
+    case "formula-field-bad-trigger":
+      return {
+        key: "error.field.formula_bad_trigger",
+        args: [String(error.detail?.trigger ?? "?")],
+      };
+
     case "missing-field-type":
       return {
         key: "error.template.missing_field_type",

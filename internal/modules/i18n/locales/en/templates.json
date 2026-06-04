@@ -110,6 +110,7 @@
   "workspace.templates.field_edit.row.expression_item": "Expression field",
   "workspace.templates.field_edit.row.format": "Format",
   "workspace.templates.field_edit.row.key": "Key",
+  "workspace.templates.field_edit.key_required": "A key is required. Every field needs one to be saved and addressed.",
   "workspace.templates.field_edit.row.label": "Label",
   "workspace.templates.field_edit.row.options": "Options",
   "workspace.templates.field_edit.row.options_unavailable": "Options not available for this field type.",

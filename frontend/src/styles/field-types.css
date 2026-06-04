@@ -216,6 +216,18 @@
     border-top-color: color-mix(in oklab, currentColor 25%, transparent);
 }
 
+/* Backend validation errors blocking Confirm. On the tinted floor a fixed red
+   is unreadable, so derive from the tint text color and lean on weight. */
+.field-edit-errors {
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-3);
+    list-style: disc;
+}
+.modal-dialog.field-edit-tinted .field-edit-errors .form-error {
+    color: inherit;
+    font-weight: 600;
+}
+
 /* OptionsEditor frame - transparent, just a tone-matched outline. */
 .modal-dialog.field-edit-tinted .options-editor {
     background: color-mix(in oklab, currentColor 6%, transparent);

@@ -20,7 +20,7 @@ export interface FormValuesContext {
   /** True when the form is backed by a saved record (not a fresh draft). */
   saved: Ref<boolean>;
   /** Map of target field key -> the live formula field key that writes into it.
-   *  Drives the Compute button rendered beneath the target field. A formula
+   *  Drives the Compute button rendered beneath the target field; the formula
    *  field is otherwise invisible in the rendered form. */
   liveFormulaTargets: Ref<Record<string, string>>;
   /** Compute a live formula field by its key. The backend resolves the bound

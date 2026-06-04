@@ -47,6 +47,7 @@ func Validate(t *Template) []ValidationError {
 	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
 	errs = append(errs, apiGroupOnNonApiErrors(t.Fields)...)
+	errs = append(errs, missingKeyErrors(t.Fields)...)
 	errs = append(errs, unknownTypeErrors(t.Fields)...)
 	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
 	errs = append(errs, levelScopeMismatchErrors(t.Fields, canonical)...)
@@ -58,6 +59,78 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, scalingsErrors(t)...)
 
 	return errs
+}
+
+// missingKeyErrors flags any field with an empty key: every field needs one as
+// its identifier and (for data fields) its storage slot. guid is exempt because
+// Normalize auto-keys it to "id".
+func missingKeyErrors(fields []Field) []ValidationError {
+	var errs []ValidationError
+	for i := range fields {
+		f := fields[i]
+		if f.Type == "guid" {
+			continue
+		}
+		if strings.TrimSpace(f.Key) == "" {
+			ff := f
+			errs = append(errs, ValidationError{
+				Type:    "missing-field-key",
+				Field:   &ff,
+				Index:   i,
+				Message: fmt.Sprintf("Field #%d (type %q) is missing a key", i+1, f.Type),
+			})
+		}
+	}
+	return errs
+}
+
+// ValidateFieldDraft returns only the validation errors a candidate field would
+// introduce into tpl: it validates tpl with the field applied (replacing the
+// field keyed originalKey when editing, or appended when new) and keeps the
+// errors that concern the candidate. Empty result means the field is safe to
+// confirm. The editor gates its Confirm button on this, so the backend stays the
+// single source of validation truth (schema + template: duplicate/missing keys,
+// bindings, type/level rules).
+func ValidateFieldDraft(tpl *Template, candidate Field, originalKey string, isNew bool) []ValidationError {
+	if tpl == nil {
+		tpl = &Template{}
+	}
+	var fields []Field
+	insertedIndex := -1
+	if !isNew {
+		for _, f := range tpl.Fields {
+			if insertedIndex < 0 && f.Key == originalKey {
+				insertedIndex = len(fields)
+				fields = append(fields, candidate)
+				continue
+			}
+			fields = append(fields, f)
+		}
+	} else {
+		fields = append(fields, tpl.Fields...)
+	}
+	if insertedIndex < 0 {
+		insertedIndex = len(fields)
+		fields = append(fields, candidate)
+	}
+
+	cand := *tpl
+	cand.Fields = fields
+	var out []ValidationError
+	for _, e := range Validate(&cand) {
+		if e.Field != nil {
+			// Field-specific error: identified by the candidate's position.
+			if e.Index == insertedIndex {
+				out = append(out, e)
+			}
+			continue
+		}
+		// Template-level error (duplicate/primary keys): identified by the candidate's key.
+		if candidate.Key != "" && (e.Key == candidate.Key || slices.Contains(e.Keys, candidate.Key)) {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // scalingsErrors flags structural problems with the scaling (weighting)

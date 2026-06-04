@@ -164,6 +164,18 @@ export function TemplatesDir(): $CancellablePromise<string> {
 }
 
 /**
+ * ValidateField returns only the validation errors a candidate field would
+ * introduce into the template (duplicate/missing keys, bindings, type/level
+ * rules), so the editor can gate its Confirm button on the backend instead of
+ * duplicating rules. originalKey + isNew locate the field (replace vs append).
+ */
+export function ValidateField(t: $models.Template | null, field: $models.Field | null, originalKey: string, isNew: boolean): $CancellablePromise<$models.ValidationError[]> {
+    return $Call.ByID(1836708306, t, field, originalKey, isNew).then(($result: any) => {
+        return $$createType25($result);
+    });
+}
+
+/**
  * ValidateTemplate Normalizes a clone before validating so the FE pre-save check matches a real save
  * and disabled-attribute leftovers self-heal rather than blocking.
  */

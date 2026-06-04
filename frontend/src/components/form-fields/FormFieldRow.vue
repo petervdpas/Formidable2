@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, inject } from "vue";
+import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import FormFieldRenderer from "./FormFieldRenderer.vue";
+import FormulaComputeButton from "./FormulaComputeButton.vue";
 import { useConfig } from "../../composables/useConfig";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { fieldLabel, fieldDescription } from "../../utils/pluginI18n";
-import { FORM_VALUES_KEY } from "../../composables/formValues";
 
 // FormFieldRow - label + description (left/top) and the per-type
 // renderer (right/bottom). When `field.collapsible === true` we add
@@ -55,27 +55,6 @@ const rowCountUnitKey = computed(() =>
 function toggle() {
   collapsed.value = !collapsed.value;
 }
-
-// Live formula Compute button. A live formula field is invisible in the form;
-// the button to (re)compute it renders under its target field instead. The
-// backend reads the saved record, so it is disabled while dirty/unsaved.
-const formCtx = inject(FORM_VALUES_KEY, null);
-const liveFormulaFieldKey = computed<string | null>(
-  () => formCtx?.liveFormulaTargets.value[props.field.key] ?? null,
-);
-const canCompute = computed<boolean>(
-  () => !!formCtx && formCtx.saved.value && !formCtx.dirty.value,
-);
-const computing = ref(false);
-async function compute() {
-  if (!formCtx || !liveFormulaFieldKey.value || computing.value) return;
-  computing.value = true;
-  try {
-    await formCtx.compute(liveFormulaFieldKey.value);
-  } finally {
-    computing.value = false;
-  }
-}
 </script>
 
 <template>
@@ -108,16 +87,7 @@ async function compute() {
         :model-value="modelValue"
         @update:model-value="(v: unknown) => $emit('update:modelValue', v)"
       />
-      <button
-        v-if="liveFormulaFieldKey"
-        type="button"
-        class="tool-btn small formula-compute-btn"
-        :disabled="!canCompute || computing"
-        :title="canCompute ? t('formula.field.compute') : t('formula.field.compute_dirty')"
-        @click="compute"
-      >
-        {{ t("formula.field.compute") }}
-      </button>
+      <FormulaComputeButton :target-key="field.key" />
     </div>
   </div>
 </template>
