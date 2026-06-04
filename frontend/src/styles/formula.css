@@ -121,3 +121,27 @@
   font-size: 0.8rem;
   color: var(--danger, #c33);
 }
+
+/* ── Inline formula field (virtual) ─────────────────────────────────
+ * The formula field carries no data slot; this is a read-only projection
+ * of its target field's value plus a one-line caption of what it does.
+ * Sibling to .facet-field in facet-picker.css. */
+.formula-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.formula-field-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.formula-field-value.is-empty {
+  font-weight: 400;
+  opacity: 0.7;
+}
+.formula-field-hint {
+  font-family: var(--font-mono);
+}
+.formula-field-unavailable {
+  padding: var(--space-1) 0;
+}

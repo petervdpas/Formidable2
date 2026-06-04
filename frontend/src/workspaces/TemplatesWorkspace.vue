@@ -1144,6 +1144,7 @@ setTopbarMenu(() => [
           ref="fieldsSection"
           :fields="draft.fields ?? []"
           :facets="draft.facets ?? []"
+          :formulas="draft.formulas ?? []"
           @update="onFieldsUpdate"
         />
       </template>

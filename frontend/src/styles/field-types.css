@@ -139,6 +139,14 @@
     --field-type-facet-border: #b8992e;
     --field-type-facet-badge:  #c9a82a;
     --field-type-facet-text:   #222222;
+
+    /* Formula (virtual) - muted plum. The second virtual type; a calm dusty
+       mauve in the red-pink gap between link (dark wine) and mermaid
+       (raspberry), desaturated so it doesn't read as hot pink. White text. */
+    --field-type-formula-bg:     #8f5468;
+    --field-type-formula-border: #c391a3;
+    --field-type-formula-badge:  #a56a7e;
+    --field-type-formula-text:   #ffffff;
 }
 
 /* ── Field row in the Field Information list ─────────────────────── */
@@ -193,6 +201,14 @@
 .modal-dialog.field-edit-tinted .form-description,
 .modal-dialog.field-edit-tinted .options-unavailable {
     color: inherit;
+}
+
+/* Muted hints (empty-state notes, e.g. "no formulas yet") use a fixed grey
+   that vanishes on a saturated tint. Re-derive them from the tint text color
+   at reduced opacity so they stay legible on every floor. */
+.modal-dialog.field-edit-tinted .muted {
+    color: inherit;
+    opacity: 0.8;
 }
 
 /* Form-row dashed separator - tone-matched. */
@@ -343,6 +359,12 @@
     border-left-color: var(--field-type-facet-border);
     color: var(--field-type-facet-text);
     --field-row-badge-bg: var(--field-type-facet-badge);
+}
+.field-row[data-type="formula"] {
+    background: var(--field-type-formula-bg);
+    border-left-color: var(--field-type-formula-border);
+    color: var(--field-type-formula-text);
+    --field-row-badge-bg: var(--field-type-formula-badge);
 }
 
 .field-row[data-type="loopstart"],

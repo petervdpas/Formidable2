@@ -33,6 +33,7 @@ import { setTopbarMenu } from "../composables/useTopbarMenu";
 import { useWorkspacePluginMenu } from "../composables/useWorkspacePluginMenu";
 import { useFormidableLink } from "../composables/useFormidableLink";
 import { FACET_CONTEXT_KEY } from "../composables/facetContext";
+import { FORM_VALUES_KEY } from "../composables/formValues";
 import { FORM_FIELD_OPS_KEY } from "../composables/formFieldOps";
 import { useActiveOps } from "../composables/useActiveOps";
 import { useListKeyNav } from "../composables/useListKeyNav";
@@ -182,6 +183,13 @@ provide(FACET_CONTEXT_KEY, {
   state: facetsStateView,
   onChange: onFacetStateChange,
 });
+
+// Bridge for inline virtual fields that project a sibling's value
+// (FormFieldFormula reads its target from here). Read-only view of the
+// live draft values; the backend writes the formula result into the
+// target on load/save, so this reflects whatever was last computed.
+const formValuesView = computed<Record<string, unknown>>(() => draft.value?.values ?? {});
+provide(FORM_VALUES_KEY, formValuesView);
 
 // List/table sort + dedup. The widget hands us only its field key; we
 // send the pointer (template, datafile, field) to the backend, which

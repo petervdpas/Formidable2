@@ -20,11 +20,12 @@ import {
   lockedColumnsFor,
   SUPPORTED_OPTION_TYPES,
 } from "../types/option-presets";
-import type { Field, Facet } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import type { Field, Facet, Formula } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { useToast } from "../composables/useToast";
 import { formatError } from "../utils/templateValidation";
 import {
   isRowHidden,
+  isDataField,
   selectableTypes,
   type FieldEditRowId,
 } from "../types/field-types";
@@ -49,6 +50,15 @@ const props = defineProps<{
    *  still show but the binding picker is empty and Confirm is
    *  disabled with a hint pointing the user at the Facets tab. */
   availableFacets?: Facet[];
+  /** Formulas declared on the surrounding template draft - populate the
+   *  source picker when the user picks type "formula". Empty means "no
+   *  formulas configured": the picker is empty and Confirm is disabled
+   *  with a hint pointing the user at the Formulas tab. */
+  availableFormulas?: Formula[];
+  /** The surrounding template's fields - the candidate write targets for
+   *  a formula field (filtered to real data fields, excluding the formula
+   *  field itself). */
+  availableFields?: Field[];
   /** Loop summary-field candidates (loopstart only): the loop's direct
    *  child fields as {value,label} pairs, supplied by the parent from
    *  the backend. Feeds the Summary field picker so a loopstart can bind
@@ -76,6 +86,49 @@ const expressionItemInvalid = computed<boolean>(() => {
 });
 
 const isFacetType = computed(() => draft.value?.type === "facet");
+const isFormulaType = computed(() => draft.value?.type === "formula");
+
+// ── Formula field bindings (source formula + target data field + trigger) ──
+const formulaSourceOptions = computed(() =>
+  (props.availableFormulas ?? []).map((f) => ({
+    value: f.key,
+    label: f.label ? `${f.label} (${f.key})` : f.key,
+  })),
+);
+
+// Targets are real data fields (not virtual/meta), excluding the formula
+// field itself. Built from the live availableFields prop so renames flow through.
+const formulaTargetOptions = computed(() =>
+  (props.availableFields ?? [])
+    .filter((f) => f.key && f.key !== draft.value?.key && isDataField(f.type))
+    .map((f) => ({ value: f.key, label: f.label ? `${f.label} (${f.key})` : f.key })),
+);
+
+const formulaTriggerOptions = computed(() => [
+  { value: "save", label: t("workspace.templates.field_edit.formula.trigger_save") },
+  { value: "load", label: t("workspace.templates.field_edit.formula.trigger_load") },
+]);
+
+const formulaTriggerValue = computed<string>({
+  get: () => draft.value?.trigger || "save",
+  set: (v: string) => {
+    if (draft.value) draft.value.trigger = v;
+  },
+});
+
+const formulaSourceMissing = computed<boolean>(() => {
+  if (!isFormulaType.value) return false;
+  const key = (draft.value?.formula_key ?? "").trim();
+  if (key === "") return true;
+  return !(props.availableFormulas ?? []).some((f) => f.key === key);
+});
+
+const formulaTargetMissing = computed<boolean>(() => {
+  if (!isFormulaType.value) return false;
+  const key = (draft.value?.target_key ?? "").trim();
+  if (key === "") return true;
+  return !formulaTargetOptions.value.some((o) => o.value === key);
+});
 
 // Summary-field picker (loopstart only). Candidates come from the
 // backend via the parent; FieldSelector renders the list and the
@@ -100,7 +153,9 @@ const canConfirm = computed<boolean>(
   () =>
     !expressionItemInvalid.value &&
     !facetBindingMissing.value &&
-    !facetDefaultMissing.value,
+    !facetDefaultMissing.value &&
+    !formulaSourceMissing.value &&
+    !formulaTargetMissing.value,
 );
 
 const facetBindingOptions = computed(() =>
@@ -268,6 +323,9 @@ watch(
     if (type === "facet" && !draft.value.format) {
       draft.value.format = "radio";
     }
+    if (type === "formula" && !draft.value.trigger) {
+      draft.value.trigger = "save";
+    }
     // A guid field's key is always "id" - mirror backend Normalize
     // (template/normalize.go) so the readonly Key input shows it
     // immediately instead of an empty/stale key.
@@ -302,6 +360,16 @@ function onTypeChange(next: string) {
     if (draft.value.format !== "radio" && draft.value.format !== "dropdown") {
       draft.value.format = "radio";
     }
+  }
+  // Clear formula bindings when leaving formula; seed a trigger when entering
+  // (Normalize defaults to "save", but the UI shouldn't carry stale bindings).
+  if (prev === "formula" && next !== "formula") {
+    draft.value.formula_key = "";
+    draft.value.target_key = "";
+    draft.value.trigger = "";
+  }
+  if (next === "formula" && !draft.value.trigger) {
+    draft.value.trigger = "save";
   }
   draft.value.type = next;
 }
@@ -619,6 +687,48 @@ const dialogStyle = computed<Record<string, string>>(() => {
             :placeholder="t('workspace.templates.field_edit.facet.binding_placeholder')"
           />
         </FormRow>
+
+        <template v-if="isFormulaType">
+          <FormRow :label="t('workspace.templates.field_edit.formula.source_label')">
+            <p
+              v-if="formulaSourceOptions.length === 0"
+              class="muted small"
+            >
+              {{ t('workspace.templates.field_edit.formula.source_empty_hint') }}
+            </p>
+            <SelectField
+              v-else
+              v-model="draft.formula_key"
+              :options="formulaSourceOptions"
+              :placeholder="t('workspace.templates.field_edit.formula.source_placeholder')"
+            />
+          </FormRow>
+
+          <FormRow :label="t('workspace.templates.field_edit.formula.target_label')">
+            <p
+              v-if="formulaTargetOptions.length === 0"
+              class="muted small"
+            >
+              {{ t('workspace.templates.field_edit.formula.target_empty_hint') }}
+            </p>
+            <SelectField
+              v-else
+              v-model="draft.target_key"
+              :options="formulaTargetOptions"
+              :placeholder="t('workspace.templates.field_edit.formula.target_placeholder')"
+            />
+          </FormRow>
+
+          <FormRow
+            :label="t('workspace.templates.field_edit.formula.trigger_label')"
+            :description="t('workspace.templates.field_edit.formula.trigger_hint')"
+          >
+            <SelectField
+              v-model="formulaTriggerValue"
+              :options="formulaTriggerOptions"
+            />
+          </FormRow>
+        </template>
 
         <FormRow
           v-if="showRow('label')"

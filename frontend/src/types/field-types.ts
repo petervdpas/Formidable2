@@ -32,6 +32,7 @@ export interface FieldTypeDef {
   defaultValue?: () => unknown;
   abilities: Abilities;
   metaOnly?: boolean;
+  virtual?: boolean;
 }
 
 const registry: Ref<FieldTypeDef[]> = ref([]);
@@ -51,8 +52,18 @@ async function load(): Promise<void> {
         ? undefined
         : () => structuredClone(d.default_value),
     metaOnly: d.meta_only,
+    virtual: d.virtual,
     abilities: d.abilities,
   }));
+}
+
+// isDataField reports whether a type carries its own Form.Data slot, i.e. it can
+// be a formula field's write target. Virtual (facet/formula) and meta-only
+// (loop markers) types have no slot.
+export function isDataField(typeId: string): boolean {
+  const def = getFieldTypeDef(typeId);
+  if (!def) return false;
+  return !def.virtual && !def.metaOnly;
 }
 
 export function ensureFieldTypesLoaded(): Promise<void> {
