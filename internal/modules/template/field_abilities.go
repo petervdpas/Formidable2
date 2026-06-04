@@ -219,6 +219,16 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			FacetKey: true,
 		},
 	},
+	"formula": {
+		ID: "formula", Virtual: true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: true, Description: true,
+			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+	},
 	"looper": {
 		ID: "looper", MetaOnly: true,
 		Abilities: Abilities{
@@ -257,7 +267,7 @@ var orderedTypes = []string{
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
-	"api", "guid", "facet",
+	"api", "guid", "facet", "formula",
 	"looper", "loopstart", "loopstop",
 }
 
@@ -286,6 +296,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"api":         "workspace.templates.field_type.api",
 	"guid":        "workspace.templates.field_type.guid",
 	"facet":       "workspace.templates.field_type.facet",
+	"formula":     "workspace.templates.field_type.formula",
 	"looper":      "workspace.templates.field_type.looper",
 	"loopstart":   "workspace.templates.field_type.loopstart",
 	"loopstop":    "workspace.templates.field_type.loopstop",

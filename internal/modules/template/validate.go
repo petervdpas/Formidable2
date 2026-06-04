@@ -52,6 +52,7 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, expressionItemLevelScopeErrors(canonical)...)
 	errs = append(errs, facetsErrors(t.Facets)...)
 	errs = append(errs, facetFieldErrors(t)...)
+	errs = append(errs, formulaFieldErrors(t)...)
 	errs = append(errs, formulasErrors(t)...)
 	errs = append(errs, scalingsErrors(t)...)
 
@@ -234,6 +235,73 @@ func facetFieldErrors(t *Template) []ValidationError {
 					Message: "Facet field default " + def + " is not an option of facet " + f.FacetKey,
 				})
 			}
+		}
+	}
+	return errs
+}
+
+// formulaFieldErrors flags virtual formula fields with a missing/unknown source
+// formula, a missing/unknown target (the target must be a real data field, since
+// the formula's output is written into its slot), or a bad trigger. Empty trigger
+// is accepted: Normalize coerces it to "save", but Validate runs before Normalize
+// on import paths.
+func formulaFieldErrors(t *Template) []ValidationError {
+	if t == nil {
+		return nil
+	}
+	formulaKeys := map[string]bool{}
+	for _, f := range t.Formulas {
+		if f.Key != "" {
+			formulaKeys[f.Key] = true
+		}
+	}
+	dataFields := map[string]bool{}
+	for _, f := range t.Fields {
+		if f.Key == "" || IsVirtualFieldType(f.Type) {
+			continue
+		}
+		if def, ok := fieldDescriptors[f.Type]; ok && def.MetaOnly {
+			continue
+		}
+		dataFields[f.Key] = true
+	}
+	var errs []ValidationError
+	for i := range t.Fields {
+		f := t.Fields[i]
+		if f.Type != "formula" {
+			continue
+		}
+		ff := f
+		if f.FormulaKey == "" {
+			errs = append(errs, ValidationError{
+				Type: "formula-field-missing-source", Field: &ff, Index: i, Key: f.Key,
+				Message: "Formula field is missing formula_key",
+			})
+		} else if !formulaKeys[f.FormulaKey] {
+			errs = append(errs, ValidationError{
+				Type: "formula-field-unknown-source", Field: &ff, Index: i, Key: f.Key,
+				Detail:  map[string]any{"formula_key": f.FormulaKey},
+				Message: "Formula field references unknown formula: " + f.FormulaKey,
+			})
+		}
+		if f.TargetKey == "" {
+			errs = append(errs, ValidationError{
+				Type: "formula-field-missing-target", Field: &ff, Index: i, Key: f.Key,
+				Message: "Formula field is missing target_key",
+			})
+		} else if !dataFields[f.TargetKey] {
+			errs = append(errs, ValidationError{
+				Type: "formula-field-unknown-target", Field: &ff, Index: i, Key: f.Key,
+				Detail:  map[string]any{"target_key": f.TargetKey},
+				Message: "Formula field target is not a data field: " + f.TargetKey,
+			})
+		}
+		if f.Trigger != "" && !formulaTriggers[f.Trigger] {
+			errs = append(errs, ValidationError{
+				Type: "formula-field-bad-trigger", Field: &ff, Index: i, Key: f.Key,
+				Detail:  map[string]any{"trigger": f.Trigger},
+				Message: "Formula field trigger must be load or save; got: " + f.Trigger,
+			})
 		}
 	}
 	return errs

@@ -65,6 +65,34 @@ func TestGenerate_TableFacetUsesVirtualFieldHelper(t *testing.T) {
 	}
 }
 
+// ── Formula virtual field ────────────────────────────────────────────
+// Unlike facet, a formula field's value is written into a real data field
+// (TargetKey), so the generator projects {{field "target"}}, not virtual-field.
+
+func formulaFieldsSample() []Field {
+	return []Field{
+		{Key: "out", Type: "number", Label: "Total"},
+		{Key: "calc", Type: "formula", Label: "Calc", FormulaKey: "total", TargetKey: "out", Trigger: "save"},
+	}
+}
+
+func TestGenerate_ReportFormulaProjectsTarget(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeReport, defaultOpts(), formulaFieldsSample())
+	if !strings.Contains(got, `{{field "out"}}`) {
+		t.Errorf("formula field must project its target via {{field \"out\"}}; got:\n%s", got)
+	}
+	if strings.Contains(got, `{{virtual-field "calc"}}`) {
+		t.Errorf("formula must NOT use virtual-field (its value is in form.data); got:\n%s", got)
+	}
+}
+
+func TestGenerate_TableFormulaProjectsTarget(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeTable, defaultOpts(), formulaFieldsSample())
+	if !strings.Contains(got, `| Calc | {{field "out"}} |`) {
+		t.Errorf("table row for formula must project the target; got:\n%s", got)
+	}
+}
+
 // ── Frontmatter shape ────────────────────────────────────────────────
 
 // Facets are small string labels and DO fit a YAML metadata block, so

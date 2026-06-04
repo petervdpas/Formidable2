@@ -224,6 +224,12 @@ func renderFieldValueBlock(f Field, opts GeneratorOptions) string {
 	case "facet":
 		// Value lives in meta.facets, not form.data, so {{field}} would be empty; {{virtual-field}} projects it.
 		return fmt.Sprintf(`{{virtual-field "%s"}}`, key)
+	case "formula":
+		// The formula's output is written into the target data field, so render that slot.
+		if f.TargetKey == "" {
+			return ""
+		}
+		return fmt.Sprintf(`{{field "%s"}}`, f.TargetKey)
 	case "boolean":
 		return fmt.Sprintf(
 			"{{#if (fieldRaw \"%s\")}}\n✅ %s is checked\n{{else}}\n❌ %s is not checked\n{{/if}}",
@@ -320,6 +326,10 @@ func collectLogs(logs *[]string, key, typ string) {
 	if typ == "facet" {
 		// Virtual fields have no data slot; surface the {{virtual-field}} projection instead of fieldRaw.
 		*logs = append(*logs, fmt.Sprintf("> **%s** _(facet)_: `{{virtual-field \"%s\"}}`", key, key))
+		return
+	}
+	if typ == "formula" {
+		// Virtual: the value is written into the target field, which carries its own debug line.
 		return
 	}
 	*logs = append(*logs, fmt.Sprintf("> **%s**: `{{json (fieldRaw \"%s\")}}`", key, key))
@@ -445,6 +455,11 @@ func tableRowForField(f Field, key string, imgMode ImgMode) string {
 	switch strings.ToLower(f.Type) {
 	case "facet":
 		return fmt.Sprintf(`| %s | {{virtual-field "%s"}} |`, label, key)
+	case "formula":
+		if f.TargetKey == "" {
+			return fmt.Sprintf(`| %s |  |`, label)
+		}
+		return fmt.Sprintf(`| %s | {{field "%s"}} |`, label, f.TargetKey)
 	case "tags":
 		return fmt.Sprintf(`| %s | {{tags (fieldRaw "%s")}} |`, label, key)
 	case "image":
@@ -491,6 +506,13 @@ func generateFrontmatter(fields []Field) string {
 		// Facet has no data slot; quote-wrap so YAML parses the label as a string even if it contains a colon.
 		if t == "facet" {
 			lines = append(lines, fmt.Sprintf(`%s: '{{virtual-field "%s"}}'`, key, key))
+			continue
+		}
+		// Formula has no data slot of its own; project the target field's value (quote-wrapped for YAML safety).
+		if t == "formula" {
+			if f.TargetKey != "" {
+				lines = append(lines, fmt.Sprintf(`%s: '{{field "%s"}}'`, key, f.TargetKey))
+			}
 			continue
 		}
 		lines = append(lines, fmt.Sprintf(`%s: {{json (fieldRaw "%s")}}`, key, key))

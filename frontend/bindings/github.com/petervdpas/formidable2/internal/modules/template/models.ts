@@ -348,6 +348,15 @@ export class Field {
      */
     "facet_key"?: string;
 
+    /**
+     * formula-specific (virtual). The field carries no data slot of its own: on
+     * Trigger ("load" or "save") it writes the FormulaKey formula's output into
+     * the TargetKey data field's slot, so the computed value persists like a typed entry.
+     */
+    "formula_key"?: string;
+    "target_key"?: string;
+    "trigger"?: string;
+
     /** Creates a new Field instance. */
     constructor($$source: Partial<Field> = {}) {
         if (!("key" in $$source)) {

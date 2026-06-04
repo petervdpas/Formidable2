@@ -17,6 +17,11 @@ var facetFormats = map[string]bool{
 	"dropdown": true,
 }
 
+var formulaTriggers = map[string]bool{
+	"load": true,
+	"save": true,
+}
+
 // Normalize coerces a Template's fields into the canonical shape the pipeline expects. Idempotent.
 func Normalize(t *Template) {
 	if t == nil {
@@ -149,6 +154,12 @@ func clearProperty(f *Field, attr string) {
 func normalizeField(f *Field) {
 	coerceDefault(f)
 	normalizeStatisticsColumns(f)
+	// formula bindings are meaningless off the formula type.
+	if f.Type != "formula" {
+		f.FormulaKey = ""
+		f.TargetKey = ""
+		f.Trigger = ""
+	}
 	if f.Type == "textarea" {
 		canon := strings.ToLower(strings.TrimSpace(f.Format))
 		if !textareaFormats[canon] {
@@ -163,6 +174,15 @@ func normalizeField(f *Field) {
 			canon = "radio"
 		}
 		f.Format = canon
+		return
+	}
+	if f.Type == "formula" {
+		f.Format = ""
+		canon := strings.ToLower(strings.TrimSpace(f.Trigger))
+		if !formulaTriggers[canon] {
+			canon = "save"
+		}
+		f.Trigger = canon
 		return
 	}
 	// Format has no meaning on other types.

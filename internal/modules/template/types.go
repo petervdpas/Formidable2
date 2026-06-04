@@ -193,6 +193,13 @@ type Field struct {
 	// facet-specific. FacetKey binds a virtual field to a declared facet; value lives in meta.facets[FacetKey], not data.
 	FacetKey string `yaml:"facet_key,omitempty" json:"facet_key,omitempty"`
 
+	// formula-specific (virtual). The field carries no data slot of its own: on
+	// Trigger ("load" or "save") it writes the FormulaKey formula's output into
+	// the TargetKey data field's slot, so the computed value persists like a typed entry.
+	FormulaKey string `yaml:"formula_key,omitempty" json:"formula_key,omitempty"`
+	TargetKey  string `yaml:"target_key,omitempty" json:"target_key,omitempty"`
+	Trigger    string `yaml:"trigger,omitempty" json:"trigger,omitempty"`
+
 	// Extra preserves unknown fields verbatim (e.g. plugin metadata).
 	Extra map[string]any `yaml:",inline" json:"-"`
 }

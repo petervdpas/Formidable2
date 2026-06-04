@@ -29,7 +29,7 @@ func newDatacoreLoaderAdapter(tpl *template.Manager, sto *storage.Manager, ev *e
 // datacoreSkipTypes are field types that carry no statable value of their own
 // (presentation, actions, or cross-template lookups handled elsewhere).
 var datacoreSkipTypes = map[string]bool{
-	"image": true, "api": true, "button": true, "facet": true, "heading": true,
+	"image": true, "api": true, "button": true, "facet": true, "heading": true, "formula": true,
 }
 
 func (a *datacoreLoaderAdapter) Records() ([]datacore.Record, error) {

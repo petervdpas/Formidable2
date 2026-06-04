@@ -149,6 +149,7 @@
   "workspace.templates.field_type.facet": "Facet (virtueel)",
   "workspace.templates.field_type.file_path": "Bestandspad",
   "workspace.templates.field_type.folder_path": "Folderpad",
+  "workspace.templates.field_type.formula": "Formule (virtueel)",
   "workspace.templates.field_type.guid": "Guid",
   "workspace.templates.field_type.image": "Afbeelding",
   "workspace.templates.field_type.link": "Link",

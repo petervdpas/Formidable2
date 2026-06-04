@@ -2,16 +2,17 @@ package template
 
 import "testing"
 
-// Virtual is a new architectural concept: a field type that participates
+// Virtual is an architectural concept: a field type that participates
 // in template layout (key, label, description, validation, rendering)
-// but does NOT seed a slot in storage.Form.Data. The first virtual type
-// is `facet`, which reads/writes meta.facets[<key>] instead.
+// but does NOT seed a slot in storage.Form.Data. The virtual types are
+// `facet` (reads/writes meta.facets[<key>]) and `formula` (writes a
+// formula's output into another data field's slot, on load or on save).
 //
 // These tests pin the registry contract so storage.Sanitize (and any
 // future virtual type) can rely on a single helper.
 
-func TestIsVirtualFieldType_OnlyFacetIsVirtual(t *testing.T) {
-	virtual := stringSet("facet")
+func TestIsVirtualFieldType_FacetAndFormulaAreVirtual(t *testing.T) {
+	virtual := stringSet("facet", "formula")
 	for id := range fieldDescriptors {
 		got := IsVirtualFieldType(id)
 		want := virtual[id]
@@ -24,8 +25,8 @@ func TestIsVirtualFieldType_OnlyFacetIsVirtual(t *testing.T) {
 	}
 }
 
-func TestAbilities_Virtual_OnlyOnFacet(t *testing.T) {
-	allowed := stringSet("facet")
+func TestAbilities_Virtual_OnlyOnFacetAndFormula(t *testing.T) {
+	allowed := stringSet("facet", "formula")
 	for id, def := range fieldDescriptors {
 		got := def.Virtual
 		want := allowed[id]
@@ -52,5 +53,25 @@ func TestRegistry_FacetHasExpectedAbilities(t *testing.T) {
 	}
 	if def.Abilities != want {
 		t.Errorf("facet abilities = %+v, want %+v", def.Abilities, want)
+	}
+}
+
+func TestRegistry_FormulaHasExpectedAbilities(t *testing.T) {
+	def, ok := fieldDescriptors["formula"]
+	if !ok {
+		t.Fatal("registry is missing the formula type")
+	}
+	if !def.Virtual {
+		t.Error("formula must have Virtual: true")
+	}
+	want := Abilities{
+		Key: true, Type: true, Label: true, Description: true,
+		Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+		ExpressionItem: false, TwoColumn: true, Collapsible: false,
+		Readonly: false, Format: false, UseInStatistics: false,
+		FacetKey: false,
+	}
+	if def.Abilities != want {
+		t.Errorf("formula abilities = %+v, want %+v", def.Abilities, want)
 	}
 }

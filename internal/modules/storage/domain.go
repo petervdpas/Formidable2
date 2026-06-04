@@ -185,7 +185,47 @@ func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 	out := Sanitize(rawMap, fields, SanitizeOptions{
 		TemplateName: strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename)),
 	})
+	if tpl, err := m.templates.LoadTemplate(templateFilename); err == nil {
+		m.applyFormulaFields(tpl, &out, "load")
+	}
 	return &out
+}
+
+// applyFormulaFields writes each formula virtual field's source value into its
+// target data slot, for fields whose Trigger matches (load|save). The target is
+// an ordinary data field, so the computed value persists like a typed entry. A
+// nil FormulaFiller (or no matching field) is a no-op. The same calculator the
+// index harvest uses computes the values, so the persisted value matches what
+// charts and the sidebar see.
+func (m *Manager) applyFormulaFields(tpl *template.Template, f *Form, trigger string) {
+	if m.formulas == nil || tpl == nil || f == nil {
+		return
+	}
+	matched := false
+	for _, fld := range tpl.Fields {
+		if fld.Type == "formula" && fld.Trigger == trigger && fld.FormulaKey != "" && fld.TargetKey != "" {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return
+	}
+	vals := m.formulas.FormulaValues(tpl, f)
+	if len(vals) == 0 {
+		return
+	}
+	if f.Data == nil {
+		f.Data = map[string]any{}
+	}
+	for _, fld := range tpl.Fields {
+		if fld.Type != "formula" || fld.Trigger != trigger || fld.FormulaKey == "" || fld.TargetKey == "" {
+			continue
+		}
+		if v, ok := vals[fld.FormulaKey]; ok {
+			f.Data[fld.TargetKey] = v
+		}
+	}
 }
 
 // LoadFormRaw parses the on-disk envelope WITHOUT sanitizing, so the integrity doctor can detect a
@@ -253,6 +293,7 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 	// field default or empties (Set stays). The doctor backstops any leftover.
 	if tpl, err := m.templates.LoadTemplate(templateFilename); err == nil && tpl != nil {
 		syncFormFacets(envelope.Meta.Facets, tpl)
+		m.applyFormulaFields(tpl, &envelope, "save")
 	}
 	ordered := orderedForm{Meta: envelope.Meta, Data: orderData(envelope.Data, fields)}
 	r := m.sfr.SaveFromBase(dir, datafile, ordered, sfr.Options{})
