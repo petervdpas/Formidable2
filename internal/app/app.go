@@ -44,6 +44,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/pdf"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/query"
+	"github.com/petervdpas/formidable2/internal/modules/relation"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/stat"
@@ -133,6 +134,7 @@ type App struct {
 	Stat          *stat.Service
 	Query         *query.Service
 	Datacore      *datacore.Service
+	Relation      *relation.Service
 	Expression    *expression.Service
 	Formula       *FormulaService
 	History       *history.Service
@@ -458,6 +460,12 @@ func New(d Deps) (*App, error) {
 	// per-module Wails services directly, which use slideoutRender.
 	dpM := dataprovider.NewManager(idxM, wikiRender, stoM)
 
+	// Relations: per-template files at <context>/relations/<name>.yaml. The dir is a context
+	// sibling of templates (derived here, not owned by the VFS). The module talks to the main
+	// templates/records only through relation.Catalog, implemented by relationCatalog over dpM.
+	relationsDir := filepath.Join(filepath.Dir(templatesPath), "relations")
+	relationM := relation.NewManager(sysM, relationsDir, relationCatalog{dp: dpM})
+
 	// Integrity analyzes stored forms against the template's current field
 	// declarations. Fix commits via storage.SaveFormExact so meta mutations
 	// (mint UUID, re-stamp timestamps) land without the SaveForm "preserve
@@ -672,6 +680,7 @@ func New(d Deps) (*App, error) {
 		Stat:              statSvc,
 		Query:             querySvc,
 		Datacore:          datacoreSvc,
+		Relation:          relation.NewService(relationM),
 		Expression:        expression.NewService(expressionM),
 		Formula:           NewFormulaService(tplM, stoM, expressionM),
 		History:           historySvc,
