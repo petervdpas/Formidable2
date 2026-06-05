@@ -40,7 +40,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			Key: true, Type: true, Label: true, Description: true,
 			Default: true, Options: true, SummaryField: false, PrimaryKey: true,
 			ExpressionItem: true, TwoColumn: true, Collapsible: false,
-			Readonly: false, Format: false, UseInStatistics: true,
+			Readonly: true, Format: false, UseInStatistics: true,
 			FacetKey: false,
 		},
 		OptionsShape: &FixedOptionsShape{

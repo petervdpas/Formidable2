@@ -42,8 +42,8 @@ func TestAbilities_Format_OnlyOnTextareaAndFacet(t *testing.T) {
 	assertAbilityMatchesSet(t, "Format", allowed, func(a Abilities) bool { return a.Format })
 }
 
-func TestAbilities_Readonly_OnlyOnTextLikeAndPathTypes(t *testing.T) {
-	allowed := stringSet("text", "textarea", "file-path", "folder-path")
+func TestAbilities_Readonly_OnTextLikePathAndNumberTypes(t *testing.T) {
+	allowed := stringSet("text", "textarea", "file-path", "folder-path", "number")
 	assertAbilityMatchesSet(t, "Readonly", allowed, func(a Abilities) bool { return a.Readonly })
 }
 

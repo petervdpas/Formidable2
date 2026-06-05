@@ -183,7 +183,7 @@
 
 .form-field-row.two-column {
     display: grid;
-    grid-template-columns: minmax(180px, 28%) 1fr;
+    grid-template-columns: minmax(240px, 38%) 1fr;
     gap: var(--space-3);
     align-items: start;
 }
