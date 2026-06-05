@@ -12,13 +12,17 @@ type SubRowEntry struct {
 }
 
 // SubRow declares an editor row shown below the main option row when its trigger column has this value.
-// Input is stored pipe-delimited at row[RowKey] so parseChoices works unchanged. Entries set means fixed arity; nil means free-form.
+// Input is stored pipe-delimited at row[RowKey] so parseChoices works unchanged (pair mode). When Scalar
+// is set the row stores a single raw value at row[RowKey] instead (e.g. a number column's "step"); Default
+// is the placeholder/fallback shown when the cell is empty. Entries set means fixed arity; nil means free-form.
 type SubRow struct {
 	RowKey         string        `json:"row_key"`
 	LabelKey       string        `json:"label_key,omitempty"`
 	PlaceholderKey string        `json:"placeholder_key,omitempty"`
 	MaxEntries     int           `json:"max_entries,omitempty"`
 	Entries        []SubRowEntry `json:"entries,omitempty"`
+	Scalar         bool          `json:"scalar,omitempty"`
+	Default        string        `json:"default,omitempty"`
 }
 
 // FixedOptionRow is one structurally fixed slot in a field's options array; Defaults fill cells short of the arity.

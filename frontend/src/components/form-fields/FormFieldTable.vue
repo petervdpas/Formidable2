@@ -71,6 +71,9 @@ type Col = {
   label: string;
   type: "string" | "number" | "date" | "bool" | "dropdown";
   choices: SelectOption[];
+  // number columns only: the HTML input step ("1" = integers, "any" =
+  // decimals). Empty falls back to "1", matching the standalone number field.
+  step: string;
 };
 
 const props = defineProps<{
@@ -96,6 +99,7 @@ const columns = computed<Col[]>(() => {
         label: String(o.label ?? o.value ?? ""),
         type: (valid.includes(type) ? type : "string") as Col["type"],
         choices: parseChoices(String(o.choices ?? "")),
+        step: o.step != null ? String(o.step) : "",
       };
     });
 });
@@ -247,6 +251,7 @@ function asNumber(v: unknown): number {
                 v-else-if="col.type === 'number'"
                 type="number"
                 lazy
+                :step="col.step || '1'"
                 :model-value="asString(row[ci])"
                 @update:model-value="(v) => setCell(ri, ci, asNumber(v))"
                 :readonly="field.readonly"

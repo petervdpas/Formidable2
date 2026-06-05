@@ -17,7 +17,16 @@ type ListItemTypeDescriptor struct {
 // string-compare it against looper-entry codes and emit an anchor on match (the deferred anchor-emit pass).
 var builtinTableColumnTypes = []TableColumnTypeDescriptor{
 	{Name: "string"},
-	{Name: "number"},
+	{
+		Name: "number",
+		SubRow: &SubRow{
+			RowKey:         "step",
+			LabelKey:       "workspace.templates.options.number_subrow",
+			PlaceholderKey: "workspace.templates.options.number_step_placeholder",
+			Scalar:         true,
+			Default:        "1",
+		},
+	},
 	{Name: "date"},
 	{
 		Name: "bool",

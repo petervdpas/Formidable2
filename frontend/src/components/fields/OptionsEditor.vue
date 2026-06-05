@@ -23,6 +23,15 @@ const { t } = useI18n();
 export type SubRowVariant = {
   placeholderKey?: string;
   labelKey?: string;
+  /** Where this variant stores its value on the row. Falls back to the
+   *  parent SubRowConfig.rowKey when unset. Lets distinct column types
+   *  under one dropdown write to different keys (choices vs step). */
+  rowKey?: string;
+  /** Scalar mode: a single raw value stored verbatim at rowKey (no
+   *  value:label pair serialization). Used by a number column's step. */
+  scalar?: boolean;
+  /** Placeholder/fallback shown when a scalar cell is empty. */
+  defaultValue?: string;
   /** When set, the editor clamps the pair count to this many. */
   maxEntries?: number;
   /** When set, the widget renders one fixed row per entry. Each row
@@ -157,7 +166,7 @@ function activeSubRow(row: OptionRow, col: ColumnDef): ActiveSubRow | null {
   const current = getCell(row, col);
   const variant = col.subRow.perValue[current];
   if (!variant) return null;
-  return { rowKey: col.subRow.rowKey, variant };
+  return { rowKey: variant.rowKey ?? col.subRow.rowKey, variant };
 }
 
 function subValue(row: OptionRow, rowKey: string): string {

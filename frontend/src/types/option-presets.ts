@@ -110,8 +110,11 @@ function listColumns(): ColumnDef[] {
 // across the Wails boundary.
 function toSubRowVariant(s: BackendSubRow): SubRowVariant {
   const v: SubRowVariant = {};
+  if (s.row_key) v.rowKey = s.row_key;
   if (s.label_key) v.labelKey = s.label_key;
   if (s.placeholder_key) v.placeholderKey = s.placeholder_key;
+  if (s.scalar) v.scalar = true;
+  if (s.default) v.defaultValue = s.default;
   if (s.max_entries && s.max_entries > 0) v.maxEntries = s.max_entries;
   if (s.entries && s.entries.length > 0) {
     v.entries = s.entries.map((e) => ({
@@ -124,8 +127,9 @@ function toSubRowVariant(s: BackendSubRow): SubRowVariant {
 }
 
 // Build a SubRowConfig from the per-column-type SubRows the backend
-// advertised. Groups all triggers that share a row_key into a single
-// perValue map (the editor stores the user's input on that one key).
+// advertised. Each variant carries its own row_key (choices for
+// bool/dropdown, step for number), so distinct column types can store
+// into distinct row keys. The config-level rowKey is a fallback only.
 // Empty (no column type has a SubRow) returns undefined so the
 // dropdown ColumnDef stays sub-row-less.
 function tableTypeSubRowConfig(
@@ -136,9 +140,6 @@ function tableTypeSubRowConfig(
   for (const c of cols) {
     if (!c.sub_row) continue;
     if (!rowKey) rowKey = c.sub_row.row_key;
-    // If two column types disagree on row_key we keep the first one
-    // and skip the rest - the backend should keep them consistent.
-    if (c.sub_row.row_key !== rowKey) continue;
     perValue[c.name] = toSubRowVariant(c.sub_row);
   }
   if (!rowKey || Object.keys(perValue).length === 0) return undefined;

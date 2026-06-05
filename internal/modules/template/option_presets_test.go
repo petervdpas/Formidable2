@@ -16,6 +16,36 @@ func TestService_TableColumnTypes_CanonicalSet(t *testing.T) {
 	}
 }
 
+func TestService_TableColumnTypes_NumberHasScalarStepSubRow(t *testing.T) {
+	svc := &Service{}
+	got := svc.TableColumnTypes()
+	var number *TableColumnTypeDescriptor
+	for i := range got {
+		if got[i].Name == "number" {
+			number = &got[i]
+			break
+		}
+	}
+	if number == nil {
+		t.Fatal("number column type missing")
+	}
+	if number.SubRow == nil {
+		t.Fatal("number column type has no sub-row (step option)")
+	}
+	if !number.SubRow.Scalar {
+		t.Errorf("number sub-row must be scalar (single value, not value:label pairs)")
+	}
+	if number.SubRow.RowKey != "step" {
+		t.Errorf("RowKey = %q, want %q", number.SubRow.RowKey, "step")
+	}
+	if number.SubRow.Default != "1" {
+		t.Errorf("Default = %q, want %q", number.SubRow.Default, "1")
+	}
+	if len(number.SubRow.Entries) != 0 {
+		t.Errorf("scalar sub-row must not declare pair Entries, got %d", len(number.SubRow.Entries))
+	}
+}
+
 func TestService_ListItemTypes_CanonicalSet(t *testing.T) {
 	svc := &Service{}
 	got := svc.ListItemTypes()

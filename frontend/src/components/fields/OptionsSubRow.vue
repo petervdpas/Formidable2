@@ -88,6 +88,7 @@ const fixedPairs = computed<Pair[]>(() => {
   });
 });
 
+const isScalar = computed(() => !!props.variant.scalar);
 const isFixed = computed(() => !!(props.variant.entries && props.variant.entries.length > 0));
 const max = computed(() => props.variant.maxEntries ?? 0);
 const canAdd = computed(() => max.value <= 0 || pairs.value.length < max.value);
@@ -132,8 +133,18 @@ function removePair(idx: number): void {
     </span>
 
     <div class="options-subrow-pairs">
+      <!-- Scalar mode: a single raw value (e.g. a number column's step). -->
+      <div v-if="isScalar" class="options-subrow-pair">
+        <TextField
+          :model-value="model"
+          @update:model-value="(v) => (model = v)"
+          :placeholder="variant.defaultValue ?? ''"
+          class="options-subrow-input"
+        />
+      </div>
+
       <!-- Fixed-entries mode: one row per entry, value locked. -->
-      <template v-if="isFixed && variant.entries">
+      <template v-else-if="isFixed && variant.entries">
         <div
           v-for="(entry, ei) in variant.entries"
           :key="`fixed-${ei}`"

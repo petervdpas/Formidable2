@@ -140,7 +140,7 @@ func TestTableColumnTypes_StringHasNoSubRow(t *testing.T) {
 	// Free-form types must not carry sub-row metadata - keeps the
 	// JSON minimal and the UI prediction simple.
 	for _, d := range builtinTableColumnTypes {
-		if d.Name == "string" || d.Name == "number" || d.Name == "date" || d.Name == "reference" {
+		if d.Name == "string" || d.Name == "date" || d.Name == "reference" {
 			if d.SubRow != nil {
 				t.Fatalf("%s should not carry a SubRow; got %+v", d.Name, d.SubRow)
 			}

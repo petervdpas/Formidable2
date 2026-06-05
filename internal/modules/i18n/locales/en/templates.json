@@ -119,6 +119,8 @@
   "workspace.templates.field_edit.row.summary_field_none": "(none)",
   "workspace.templates.options.bool_subrow": "True/False options",
   "workspace.templates.options.dropdown_subrow": "Dropdown options",
+  "workspace.templates.options.number_subrow": "Step",
+  "workspace.templates.options.number_step_placeholder": "1 (integers), 'any' for decimals",
   "workspace.templates.options.bool_placeholder_true": "Yes",
   "workspace.templates.options.bool_placeholder_false": "No",
   "workspace.templates.options.dropdown_placeholder": "Option1|Option2|Option3",

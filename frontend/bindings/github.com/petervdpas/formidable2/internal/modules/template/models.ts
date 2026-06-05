@@ -1129,7 +1129,9 @@ export class Statistic {
 
 /**
  * SubRow declares an editor row shown below the main option row when its trigger column has this value.
- * Input is stored pipe-delimited at row[RowKey] so parseChoices works unchanged. Entries set means fixed arity; nil means free-form.
+ * Input is stored pipe-delimited at row[RowKey] so parseChoices works unchanged (pair mode). When Scalar
+ * is set the row stores a single raw value at row[RowKey] instead (e.g. a number column's "step"); Default
+ * is the placeholder/fallback shown when the cell is empty. Entries set means fixed arity; nil means free-form.
  */
 export class SubRow {
     "row_key": string;
@@ -1137,6 +1139,8 @@ export class SubRow {
     "placeholder_key"?: string;
     "max_entries"?: number;
     "entries"?: SubRowEntry[];
+    "scalar"?: boolean;
+    "default"?: string;
 
     /** Creates a new SubRow instance. */
     constructor($$source: Partial<SubRow> = {}) {

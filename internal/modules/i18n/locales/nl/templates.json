@@ -119,6 +119,8 @@
   "workspace.templates.field_edit.row.summary_field_none": "(geen)",
   "workspace.templates.options.bool_subrow": "True/False-opties",
   "workspace.templates.options.dropdown_subrow": "Dropdown-opties",
+  "workspace.templates.options.number_subrow": "Stap",
+  "workspace.templates.options.number_step_placeholder": "1 (gehele getallen), 'any' voor decimalen",
   "workspace.templates.options.bool_placeholder_true": "Ja",
   "workspace.templates.options.bool_placeholder_false": "Nee",
   "workspace.templates.options.dropdown_placeholder": "Optie1|Optie2|Optie3",
