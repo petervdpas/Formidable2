@@ -5,6 +5,11 @@ type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }
 
+// Cardinalities returns the valid cardinality values for the editor's picker.
+func (s *Service) Cardinalities() []Cardinality {
+	return Cardinalities()
+}
+
 // GetRelations returns the relations declared by a template.
 func (s *Service) GetRelations(template string) ([]Relation, error) {
 	return s.m.GetRelations(template)

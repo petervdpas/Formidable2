@@ -35,6 +35,10 @@ import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/form
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
+import { Service as RelationSvc, Relation, Cardinality } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation";
+import { Service as DataproviderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
+import type { TemplateSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider/models";
+import RelationEditorModal from "../components/RelationEditorModal.vue";
 import { useTemplateValidation } from "../composables/useTemplateValidation";
 import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
 import { backendErrMessage } from "../utils/backendError";
@@ -444,6 +448,94 @@ watch(
   },
   { immediate: true },
 );
+
+// ── Relations (sidecar, persisted immediately, NOT part of the draft) ──
+const relations = ref<Relation[]>([]);
+const collectionTemplates = ref<TemplateSummary[]>([]);
+const relationEditorOpen = ref(false);
+const editingRelationIndex = ref(-1);
+const editingRelation = ref<Relation>(new Relation({ to: "", cardinality: Cardinality.OneToMany }));
+
+// Cardinality display labels: explicit key map (no interpolated i18n keys).
+const CARDINALITY_LABEL_KEYS = {
+  [Cardinality.OneToOne]: "workspace.templates.relations.cardinality.one_to_one",
+  [Cardinality.OneToMany]: "workspace.templates.relations.cardinality.one_to_many",
+  [Cardinality.ManyToMany]: "workspace.templates.relations.cardinality.many_to_many",
+} as const;
+function cardinalityLabel(c: string): string {
+  const key = CARDINALITY_LABEL_KEYS[c as Cardinality];
+  return key ? t(key) : c;
+}
+function relationTargetLabel(to: string): string {
+  const s = collectionTemplates.value.find((x) => x.filename === to);
+  return s?.name || s?.stem || to;
+}
+
+async function loadRelations(fn: string | null) {
+  relations.value = [];
+  if (!fn) return;
+  try {
+    collectionTemplates.value = await DataproviderSvc.ListCollectionTemplates();
+    relations.value = (await RelationSvc.GetRelations(fn)) ?? [];
+  } catch (e) {
+    relations.value = [];
+    toast.error(backendErrMessage(e));
+  }
+}
+watch(() => selectedFilename.value, (fn) => void loadRelations(fn ?? null), { immediate: true });
+
+// Editor target options: collection templates minus targets already linked
+// (except the one being edited), so a duplicate relation can't be picked.
+const relationTargetOptions = computed(() => {
+  const used = new Set(
+    relations.value
+      .filter((_, i) => i !== editingRelationIndex.value)
+      .map((r) => r.to),
+  );
+  return collectionTemplates.value
+    .filter((s) => !used.has(s.filename))
+    .map((s) => ({ value: s.filename, label: s.name || s.stem }));
+});
+
+function openAddRelation() {
+  editingRelationIndex.value = -1;
+  editingRelation.value = new Relation({ to: "", cardinality: Cardinality.OneToMany });
+  relationEditorOpen.value = true;
+}
+function openEditRelation(idx: number) {
+  const r = relations.value[idx];
+  if (!r) return;
+  editingRelationIndex.value = idx;
+  editingRelation.value = new Relation({ to: r.to, cardinality: r.cardinality });
+  relationEditorOpen.value = true;
+}
+
+// Immediate persist: write the whole relation set to the sidecar; revert the
+// optimistic update if the backend rejects.
+async function persistRelations(next: Relation[]) {
+  const fn = selectedFilename.value;
+  if (!fn) return;
+  const prev = relations.value;
+  relations.value = next;
+  try {
+    await RelationSvc.SetRelations(fn, next);
+  } catch (e) {
+    relations.value = prev;
+    toast.error(backendErrMessage(e));
+  }
+}
+function removeRelation(idx: number) {
+  void persistRelations(relations.value.filter((_, i) => i !== idx));
+}
+function applyRelation(rel: Relation) {
+  const next =
+    editingRelationIndex.value < 0
+      ? [...relations.value, rel]
+      : relations.value.map((existing, i) =>
+          i === editingRelationIndex.value ? rel : existing,
+        );
+  void persistRelations(next);
+}
 
 // ── Formula fields: named per-record computed fields (datacore-evaluated) ──
 const formulaEditorOpen = ref(false);
@@ -1149,9 +1241,39 @@ setTopbarMenu(() => [
                   <p class="muted small setup-tab-help">
                     {{ t('workspace.templates.relations.help') }}
                   </p>
-                  <p class="muted small">
+                  <p
+                    v-if="relations.length === 0"
+                    class="muted small"
+                  >
                     {{ t('workspace.templates.relations.empty') }}
                   </p>
+                  <ul v-else class="relation-rows">
+                    <li
+                      v-for="(rel, i) in relations"
+                      :key="rel.to"
+                      class="relation-row"
+                    >
+                      <span class="relation-row-target">{{ relationTargetLabel(rel.to) }}</span>
+                      <code class="relation-row-cardinality mono">{{ cardinalityLabel(rel.cardinality) }}</code>
+                      <button
+                        class="tool-btn"
+                        type="button"
+                        :title="t('workspace.templates.relations.edit')"
+                        @click="openEditRelation(i)"
+                      >{{ t('workspace.templates.relations.edit') }}</button>
+                      <button
+                        class="tool-btn danger"
+                        type="button"
+                        :title="t('workspace.templates.relations.remove')"
+                        @click="removeRelation(i)"
+                      >×</button>
+                    </li>
+                  </ul>
+                  <div class="setup-tab-actions">
+                    <button class="tool-btn" type="button" @click="openAddRelation">
+                      + {{ t('workspace.templates.relations.add') }}
+                    </button>
+                  </div>
                 </div>
               </template>
             </Tabs>
@@ -1372,6 +1494,15 @@ setTopbarMenu(() => [
     :initial="editingFormula"
     @close="formulaEditorOpen = false"
     @apply="applyFormula"
+  />
+
+  <RelationEditorModal
+    :open="relationEditorOpen"
+    :initial="editingRelation"
+    :is-edit="editingRelationIndex >= 0"
+    :targets="relationTargetOptions"
+    @close="relationEditorOpen = false"
+    @apply="applyRelation"
   />
 
   <!-- Evaluated-statistic viewer (rank-N grid + composite sunburst) -->

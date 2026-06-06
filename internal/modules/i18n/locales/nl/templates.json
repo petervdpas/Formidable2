@@ -223,6 +223,17 @@
   "workspace.templates.setup.relations": "Relaties",
   "workspace.templates.relations.help": "Koppel deze collectie aan andere collecties.",
   "workspace.templates.relations.empty": "Nog geen relaties.",
+  "workspace.templates.relations.add": "Relatie toevoegen",
+  "workspace.templates.relations.edit": "Bewerken",
+  "workspace.templates.relations.remove": "Relatie verwijderen",
+  "workspace.templates.relations.cardinality.one_to_one": "Een op een",
+  "workspace.templates.relations.cardinality.one_to_many": "Een op veel",
+  "workspace.templates.relations.cardinality.many_to_many": "Veel op veel",
+  "workspace.templates.relations.editor.title_add": "Relatie toevoegen",
+  "workspace.templates.relations.editor.title_edit": "Relatie bewerken",
+  "workspace.templates.relations.editor.target_label": "Doelsjabloon",
+  "workspace.templates.relations.editor.target_placeholder": "Kies een doelsjabloon",
+  "workspace.templates.relations.editor.cardinality_label": "Cardinaliteit",
   "workspace.templates.sidebar_title": "Sjablonen",
   "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan."
 }

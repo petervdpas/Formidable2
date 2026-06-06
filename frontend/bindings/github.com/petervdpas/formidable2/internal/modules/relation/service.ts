@@ -22,11 +22,20 @@ export function AddEdge(template: string, to: string, edge: $models.Edge): $Canc
 }
 
 /**
+ * Cardinalities returns the valid cardinality values for the editor's picker.
+ */
+export function Cardinalities(): $CancellablePromise<$models.Cardinality[]> {
+    return $Call.ByID(2310858626).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * GetRelations returns the relations declared by a template.
  */
 export function GetRelations(template: string): $CancellablePromise<$models.Relation[]> {
     return $Call.ByID(105264407, template).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -45,5 +54,6 @@ export function SetRelations(template: string, relations: $models.Relation[]): $
 }
 
 // Private type creation functions
-const $$createType0 = $models.Relation.createFrom;
-const $$createType1 = $Create.Array($$createType0);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $models.Relation.createFrom;
+const $$createType2 = $Create.Array($$createType1);

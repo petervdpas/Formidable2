@@ -46,6 +46,19 @@ func fullCatalog() fakeCatalog {
 
 func newMgr() *Manager { return NewManager(newMemFS(), "/ctx/relations", fullCatalog()) }
 
+func TestCardinalities(t *testing.T) {
+	got := Cardinalities()
+	want := []Cardinality{OneToOne, OneToMany, ManyToMany}
+	if len(got) != len(want) {
+		t.Fatalf("got %d cardinalities, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("cardinality[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestSetGet_RoundTrip(t *testing.T) {
 	m := newMgr()
 	in := []Relation{

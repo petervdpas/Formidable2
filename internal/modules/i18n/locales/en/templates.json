@@ -223,6 +223,17 @@
   "workspace.templates.setup.relations": "Relations",
   "workspace.templates.relations.help": "Link this collection to other collections.",
   "workspace.templates.relations.empty": "No relations yet.",
+  "workspace.templates.relations.add": "Add relation",
+  "workspace.templates.relations.edit": "Edit",
+  "workspace.templates.relations.remove": "Remove relation",
+  "workspace.templates.relations.cardinality.one_to_one": "One to one",
+  "workspace.templates.relations.cardinality.one_to_many": "One to many",
+  "workspace.templates.relations.cardinality.many_to_many": "Many to many",
+  "workspace.templates.relations.editor.title_add": "Add relation",
+  "workspace.templates.relations.editor.title_edit": "Edit relation",
+  "workspace.templates.relations.editor.target_label": "Target template",
+  "workspace.templates.relations.editor.target_placeholder": "Pick a target template",
+  "workspace.templates.relations.editor.cardinality_label": "Cardinality",
   "workspace.templates.sidebar_title": "Templates",
   "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one."
 }

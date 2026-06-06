@@ -19,6 +19,12 @@ func (c Cardinality) valid() bool {
 	return false
 }
 
+// Cardinalities returns the valid cardinalities in declaration order. The
+// frontend's cardinality picker reads this so the option set has one source.
+func Cardinalities() []Cardinality {
+	return []Cardinality{OneToOne, OneToMany, ManyToMany}
+}
+
 // Edge is one record-to-record link: a source record id to a target record id (the actual
 // relating, by id, never stored in form data).
 type Edge struct {
