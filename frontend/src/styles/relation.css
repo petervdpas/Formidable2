@@ -32,6 +32,16 @@
   padding: 1px var(--space-2);
   flex: 0 0 auto;
 }
+.relation-row-inverse {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-accent, #4b8bf4);
+  border: 1px solid var(--color-accent, #4b8bf4);
+  border-radius: var(--radius-pill, 999px);
+  padding: 1px var(--space-2);
+  flex: 0 0 auto;
+}
 
 /* ── Editor modal ─────────────────────────────────────────────────── */
 

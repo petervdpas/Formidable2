@@ -1297,6 +1297,10 @@ setTopbarMenu(() => [
                       class="relation-row"
                     >
                       <span class="relation-row-target">{{ relationTargetLabel(rel.to) }}</span>
+                      <span
+                        v-if="rel.inverse"
+                        class="relation-row-inverse"
+                      >{{ t('workspace.templates.relations.editor.inverse_label') }}</span>
                       <code class="relation-row-cardinality mono">{{ cardinalityLabel(rel.cardinality) }}</code>
                       <button
                         class="tool-btn"
