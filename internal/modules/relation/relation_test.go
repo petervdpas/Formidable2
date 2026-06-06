@@ -295,6 +295,27 @@ func TestSelfRelation_RemoveEdge(t *testing.T) {
 	}
 }
 
+func TestReconcile_LeavesSelfRelationUntouched(t *testing.T) {
+	fs := newMemFS()
+	m := NewManager(fs, "/ctx/relations", fullCatalog())
+	// A self-relation with a single stored edge (no mirror, by design).
+	_ = m.saveRelationsLocked("project.yaml", []Relation{
+		{To: "project.yaml", Cardinality: ManyToOne, Edges: []Edge{{From: "p1", To: "p2"}}},
+	})
+	rep, err := m.Reconcile()
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	// Self has no counterpart to create/heal and no conflict to report.
+	if len(rep.Created) != 0 || rep.EdgesHealed != 0 || len(rep.Conflicts) != 0 {
+		t.Fatalf("self-relation should need no repair: %+v", rep)
+	}
+	got, _ := m.GetRelations("project.yaml")
+	if len(got) != 1 || len(got[0].Edges) != 1 || got[0].Edges[0] != (Edge{From: "p1", To: "p2"}) {
+		t.Fatalf("reconcile must not add a reversed edge or duplicate the self entry: %+v", got)
+	}
+}
+
 func TestReconcile_RecreatesMissingCounterpart(t *testing.T) {
 	fs := newMemFS()
 	m := NewManager(fs, "/ctx/relations", fullCatalog())

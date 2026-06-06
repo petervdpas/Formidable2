@@ -77,6 +77,26 @@ function linkedIds(r: Relation): string[] {
     .filter((e) => e.from === props.recordId)
     .map((e) => e.to);
 }
+// Self-relations store the edge once (no mirror), so a record only sees its
+// OUTGOING links via linkedIds. Show incoming edges as the inverse direction
+// so the relationship is visible from the counterpart record too. Cross-
+// template relations mirror the edge into the other file, so they don't need
+// this (the counterpart shows it through its own outgoing edges).
+function inverseLinkedIds(r: Relation): string[] {
+  if (r.to !== props.template) return [];
+  return (r.edges ?? [])
+    .filter((e) => e.to === props.recordId && e.from !== props.recordId)
+    .map((e) => e.from);
+}
+function hasLinks(r: Relation): boolean {
+  return linkedIds(r).length > 0 || inverseLinkedIds(r).length > 0;
+}
+function outEdge(id: string): Edge {
+  return new Edge({ from: props.recordId, to: id });
+}
+function inEdge(id: string): Edge {
+  return new Edge({ from: id, to: props.recordId });
+}
 function itemTitle(to: string, id: string): string {
   return (targetItems.value[to] ?? []).find((x) => x.id === id)?.title || id;
 }
@@ -110,13 +130,9 @@ async function addLink(r: Relation, targetId: string) {
     toast.error(backendErrMessage(e));
   }
 }
-async function removeLink(r: Relation, targetId: string) {
+async function removeLink(r: Relation, edge: Edge) {
   try {
-    await RelationSvc.RemoveEdge(
-      props.template,
-      r.to,
-      new Edge({ from: props.recordId, to: targetId }),
-    );
+    await RelationSvc.RemoveEdge(props.template, r.to, edge);
     await load();
   } catch (e) {
     toast.error(backendErrMessage(e));
@@ -125,12 +141,13 @@ async function removeLink(r: Relation, targetId: string) {
 
 // Removal is confirmed first; the dialog is a modal over the popover, which stays open.
 const confirmOpen = ref(false);
-const pending = ref<{ relation: Relation; id: string } | null>(null);
+const pending = ref<{ relation: Relation; edge: Edge; otherId: string } | null>(null);
 const pendingTitle = computed(() =>
-  pending.value ? itemTitle(pending.value.relation.to, pending.value.id) : "",
+  pending.value ? itemTitle(pending.value.relation.to, pending.value.otherId) : "",
 );
-function askRemove(relation: Relation, id: string) {
-  pending.value = { relation, id };
+function askRemove(relation: Relation, edge: Edge) {
+  const otherId = edge.from === props.recordId ? edge.to : edge.from;
+  pending.value = { relation, edge, otherId };
   confirmOpen.value = true;
 }
 function cancelRemove() {
@@ -141,7 +158,7 @@ async function confirmRemove() {
   const p = pending.value;
   confirmOpen.value = false;
   pending.value = null;
-  if (p) await removeLink(p.relation, p.id);
+  if (p) await removeLink(p.relation, p.edge);
 }
 </script>
 
@@ -175,16 +192,16 @@ async function confirmRemove() {
           v-else-if="r.inverse"
           class="relation-row-inverse"
         >{{ t('workspace.templates.relations.editor.inverse_label') }}</span>
-        <span class="relation-links-count">{{ linkedIds(r).length }}</span>
+        <span class="relation-links-count">{{ linkedIds(r).length + inverseLinkedIds(r).length }}</span>
       </button>
       <template v-if="isExpanded(r.to)">
         <ul
-          v-if="linkedIds(r).length"
+          v-if="hasLinks(r)"
           class="relation-links-chips"
         >
           <li
             v-for="id in linkedIds(r)"
-            :key="id"
+            :key="`out-${id}`"
             class="relation-links-chip list-card"
           >
             <span class="relation-links-chip-label">{{ itemTitle(r.to, id) }}</span>
@@ -192,7 +209,23 @@ async function confirmRemove() {
               class="tool-btn danger"
               type="button"
               :title="t('workspace.storage.relations.remove')"
-              @click="askRemove(r, id)"
+              @click="askRemove(r, outEdge(id))"
+            >×</button>
+          </li>
+          <li
+            v-for="id in inverseLinkedIds(r)"
+            :key="`in-${id}`"
+            class="relation-links-chip list-card"
+          >
+            <span
+              class="relation-row-inverse"
+            >{{ t('workspace.templates.relations.editor.inverse_label') }}</span>
+            <span class="relation-links-chip-label">{{ itemTitle(r.to, id) }}</span>
+            <button
+              class="tool-btn danger"
+              type="button"
+              :title="t('workspace.storage.relations.remove')"
+              @click="askRemove(r, inEdge(id))"
             >×</button>
           </li>
         </ul>
