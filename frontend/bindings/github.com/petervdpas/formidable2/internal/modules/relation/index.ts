@@ -8,6 +8,10 @@ export {
 
 export {
     Cardinality,
+    CardinalityOption,
+    Conflict,
+    Counterpart,
     Edge,
+    ReconcileReport,
     Relation
 } from "./models.js";

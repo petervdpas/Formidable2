@@ -36,6 +36,7 @@ import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formi
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
 import { Service as RelationSvc, Relation, Cardinality } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation";
+import type { CardinalityOption } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation/models";
 import { Service as DataproviderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
 import type { TemplateSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider/models";
 import RelationEditorModal from "../components/RelationEditorModal.vue";
@@ -456,15 +457,16 @@ const relationEditorOpen = ref(false);
 const editingRelationIndex = ref(-1);
 const editingRelation = ref<Relation>(new Relation({ to: "", cardinality: Cardinality.OneToMany }));
 
-// Cardinality display labels: explicit key map (no interpolated i18n keys).
-const CARDINALITY_LABEL_KEYS = {
-  [Cardinality.OneToOne]: "workspace.templates.relations.cardinality.one_to_one",
-  [Cardinality.OneToMany]: "workspace.templates.relations.cardinality.one_to_many",
-  [Cardinality.ManyToMany]: "workspace.templates.relations.cardinality.many_to_many",
-} as const;
+// Cardinality options come from the backend (value + label key); the label is
+// localized here. No frontend value->key mapping.
+const cardinalityChoices = ref<CardinalityOption[]>([]);
+void RelationSvc.Cardinalities().then((o) => (cardinalityChoices.value = o ?? []));
+const cardinalityOptions = computed(() =>
+  cardinalityChoices.value.map((o) => ({ value: o.value, label: t(o.label_key) })),
+);
 function cardinalityLabel(c: string): string {
-  const key = CARDINALITY_LABEL_KEYS[c as Cardinality];
-  return key ? t(key) : c;
+  const opt = cardinalityChoices.value.find((o) => o.value === c);
+  return opt ? t(opt.label_key) : c;
 }
 function relationTargetLabel(to: string): string {
   const s = collectionTemplates.value.find((x) => x.filename === to);
@@ -506,7 +508,11 @@ function openEditRelation(idx: number) {
   const r = relations.value[idx];
   if (!r) return;
   editingRelationIndex.value = idx;
-  editingRelation.value = new Relation({ to: r.to, cardinality: r.cardinality });
+  editingRelation.value = new Relation({
+    to: r.to,
+    cardinality: r.cardinality,
+    inverse: r.inverse,
+  });
   relationEditorOpen.value = true;
 }
 
@@ -1501,6 +1507,7 @@ setTopbarMenu(() => [
     :initial="editingRelation"
     :is-edit="editingRelationIndex >= 0"
     :targets="relationTargetOptions"
+    :cardinalities="cardinalityOptions"
     @close="relationEditorOpen = false"
     @apply="applyRelation"
   />

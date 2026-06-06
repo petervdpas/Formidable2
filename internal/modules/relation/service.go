@@ -5,9 +5,15 @@ type Service struct{ m *Manager }
 
 func NewService(m *Manager) *Service { return &Service{m: m} }
 
-// Cardinalities returns the valid cardinality values for the editor's picker.
-func (s *Service) Cardinalities() []Cardinality {
-	return Cardinalities()
+// Cardinalities returns the cardinality picker options (value + label key) for
+// the editor, so the frontend keeps no value->label mapping of its own.
+func (s *Service) Cardinalities() []CardinalityOption {
+	return CardinalityOptions()
+}
+
+// Reconcile runs a self-heal pass: recreate missing counterparts and report cardinality conflicts.
+func (s *Service) Reconcile() (ReconcileReport, error) {
+	return s.m.Reconcile()
 }
 
 // GetRelations returns the relations declared by a template.

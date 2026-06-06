@@ -22,11 +22,12 @@ export function AddEdge(template: string, to: string, edge: $models.Edge): $Canc
 }
 
 /**
- * Cardinalities returns the valid cardinality values for the editor's picker.
+ * Cardinalities returns the cardinality picker options (value + label key) for
+ * the editor, so the frontend keeps no value->label mapping of its own.
  */
-export function Cardinalities(): $CancellablePromise<$models.Cardinality[]> {
+export function Cardinalities(): $CancellablePromise<$models.CardinalityOption[]> {
     return $Call.ByID(2310858626).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -35,7 +36,16 @@ export function Cardinalities(): $CancellablePromise<$models.Cardinality[]> {
  */
 export function GetRelations(template: string): $CancellablePromise<$models.Relation[]> {
     return $Call.ByID(105264407, template).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
+    });
+}
+
+/**
+ * Reconcile runs a self-heal pass: recreate missing counterparts and report cardinality conflicts.
+ */
+export function Reconcile(): $CancellablePromise<$models.ReconcileReport> {
+    return $Call.ByID(2004044918).then(($result: any) => {
+        return $$createType4($result);
     });
 }
 
@@ -54,6 +64,8 @@ export function SetRelations(template: string, relations: $models.Relation[]): $
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = $models.Relation.createFrom;
-const $$createType2 = $Create.Array($$createType1);
+const $$createType0 = $models.CardinalityOption.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.Relation.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.ReconcileReport.createFrom;

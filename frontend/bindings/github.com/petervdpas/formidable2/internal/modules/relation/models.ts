@@ -16,8 +16,107 @@ export enum Cardinality {
 
     OneToOne = "one-to-one",
     OneToMany = "one-to-many",
+    ManyToOne = "many-to-one",
     ManyToMany = "many-to-many",
 };
+
+/**
+ * CardinalityOption pairs a cardinality value with its i18n label key, so the
+ * frontend never maintains its own value->key mapping (backend steers the labels
+ * too, like field-type descriptors carry label_key).
+ */
+export class CardinalityOption {
+    "value": Cardinality;
+    "label_key": string;
+
+    /** Creates a new CardinalityOption instance. */
+    constructor($$source: Partial<CardinalityOption> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = Cardinality.$zero;
+        }
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CardinalityOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CardinalityOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CardinalityOption($$parsedSource as Partial<CardinalityOption>);
+    }
+}
+
+/**
+ * Conflict is a pair stored on both sides whose cardinalities are not each other's inverse.
+ */
+export class Conflict {
+    "a": string;
+    "a_cardinality": Cardinality;
+    "b": string;
+    "b_cardinality": Cardinality;
+
+    /** Creates a new Conflict instance. */
+    constructor($$source: Partial<Conflict> = {}) {
+        if (!("a" in $$source)) {
+            this["a"] = "";
+        }
+        if (!("a_cardinality" in $$source)) {
+            this["a_cardinality"] = Cardinality.$zero;
+        }
+        if (!("b" in $$source)) {
+            this["b"] = "";
+        }
+        if (!("b_cardinality" in $$source)) {
+            this["b_cardinality"] = Cardinality.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Conflict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Conflict {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Conflict($$parsedSource as Partial<Conflict>);
+    }
+}
+
+/**
+ * Counterpart is one recreated relation half (written into Template, pointing at To).
+ */
+export class Counterpart {
+    "template": string;
+    "to": string;
+    "cardinality": Cardinality;
+
+    /** Creates a new Counterpart instance. */
+    constructor($$source: Partial<Counterpart> = {}) {
+        if (!("template" in $$source)) {
+            this["template"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("cardinality" in $$source)) {
+            this["cardinality"] = Cardinality.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Counterpart instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Counterpart {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Counterpart($$parsedSource as Partial<Counterpart>);
+    }
+}
 
 /**
  * Edge is one record-to-record link: a source record id to a target record id (the actual
@@ -49,13 +148,61 @@ export class Edge {
 }
 
 /**
+ * ReconcileReport is the outcome of a self-heal pass.
+ */
+export class ReconcileReport {
+    /**
+     * Created lists counterparts that were missing and got recreated from the surviving side.
+     */
+    "created": Counterpart[];
+
+    /**
+     * Conflicts lists pairs present on both sides whose cardinalities disagree. These are left
+     * untouched: with no owner there is no safe way to pick a winner, so they are surfaced for the
+     * user to resolve (doctor-style: heal the unambiguous, flag the outliers).
+     */
+    "conflicts": Conflict[];
+
+    /** Creates a new ReconcileReport instance. */
+    constructor($$source: Partial<ReconcileReport> = {}) {
+        if (!("created" in $$source)) {
+            this["created"] = [];
+        }
+        if (!("conflicts" in $$source)) {
+            this["conflicts"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReconcileReport instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ReconcileReport {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("created" in $$parsedSource) {
+            $$parsedSource["created"] = $$createField0_0($$parsedSource["created"]);
+        }
+        if ("conflicts" in $$parsedSource) {
+            $$parsedSource["conflicts"] = $$createField1_0($$parsedSource["conflicts"]);
+        }
+        return new ReconcileReport($$parsedSource as Partial<ReconcileReport>);
+    }
+}
+
+/**
  * Relation is one declared relation from a template to another template, plus its edges. It is
  * identified entirely by its target: the source is the owning file, and there is at most one
- * relation per from -> to pair, so no name is needed.
+ * relation per from -> to pair, so no name is needed. Inverse marks which side of the pair is the
+ * derived mirror; the two halves always carry opposite Inverse values (see the mirroring in
+ * SetRelations and Reconcile).
  */
 export class Relation {
     "to": string;
     "cardinality": Cardinality;
+    "inverse"?: boolean;
     "edges"?: Edge[];
 
     /** Creates a new Relation instance. */
@@ -74,15 +221,19 @@ export class Relation {
      * Creates a new Relation instance from a string or object.
      */
     static createFrom($$source: any = {}): Relation {
-        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("edges" in $$parsedSource) {
-            $$parsedSource["edges"] = $$createField2_0($$parsedSource["edges"]);
+            $$parsedSource["edges"] = $$createField3_0($$parsedSource["edges"]);
         }
         return new Relation($$parsedSource as Partial<Relation>);
     }
 }
 
 // Private type creation functions
-const $$createType0 = Edge.createFrom;
+const $$createType0 = Counterpart.createFrom;
 const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = Conflict.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = Edge.createFrom;
+const $$createType5 = $Create.Array($$createType4);

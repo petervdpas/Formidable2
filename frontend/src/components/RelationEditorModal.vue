@@ -1,18 +1,18 @@
 <script setup lang="ts">
 /*
  * RelationEditorModal - visual editor for ONE template-to-template relation
- * (target template + cardinality). The parent owns the relations list and
- * routes one edit at a time here; Apply emits the edited Relation.
+ * (target template + cardinality). The parent owns the relations list and the
+ * option sources, and routes one edit at a time here; Apply emits the Relation.
  *
- * Backend steers: the cardinality option set comes from Relation.Cardinalities,
- * and the target options are supplied by the parent from ListCollectionTemplates.
+ * Backend steers: both the target options and the cardinality options (value +
+ * label) are supplied by the parent from backend sources. This modal renders
+ * them and keeps no option set or label mapping of its own.
  */
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
-import { SelectField } from "./fields";
+import { SelectField, SwitchField } from "./fields";
 import {
-  Service as RelationSvc,
   Relation,
   Cardinality,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation";
@@ -23,6 +23,8 @@ const props = defineProps<{
   isEdit?: boolean;
   /** Selectable target templates as {value: filename, label: name}. */
   targets: { value: string; label: string }[];
+  /** Cardinality options as {value, label}, localized by the parent. */
+  cardinalities: { value: string; label: string }[];
 }>();
 
 const emit = defineEmits<{
@@ -32,47 +34,34 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-// Explicit key map (no interpolated i18n keys).
-const CARDINALITY_LABEL_KEYS = {
-  [Cardinality.OneToOne]: "workspace.templates.relations.cardinality.one_to_one",
-  [Cardinality.OneToMany]: "workspace.templates.relations.cardinality.one_to_many",
-  [Cardinality.ManyToMany]: "workspace.templates.relations.cardinality.many_to_many",
-} as const;
-
-const cardinalities = ref<Cardinality[]>([]);
-onMounted(async () => {
-  cardinalities.value = (await RelationSvc.Cardinalities()) ?? [];
-});
-const cardinalityOptions = computed(() =>
-  cardinalities.value.map((c) => {
-    const key = CARDINALITY_LABEL_KEYS[c];
-    return { value: c, label: key ? t(key) : c };
-  }),
-);
-
 const draftTarget = ref("");
-const draftCardinality = ref<Cardinality>(Cardinality.OneToMany);
+const draftCardinality = ref("");
+const draftInverse = ref(false);
 
 watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return;
     draftTarget.value = props.initial.to ?? "";
-    draftCardinality.value =
-      (props.initial.cardinality as Cardinality) || Cardinality.OneToMany;
+    draftCardinality.value = props.initial.cardinality ?? "";
+    draftInverse.value = props.initial.inverse ?? false;
   },
   { immediate: true },
 );
 
 const canSave = computed(
-  () => draftTarget.value !== "" && draftCardinality.value !== Cardinality.$zero,
+  () => draftTarget.value !== "" && draftCardinality.value !== "",
 );
 
 function onSave() {
   if (!canSave.value) return;
   emit(
     "apply",
-    new Relation({ to: draftTarget.value, cardinality: draftCardinality.value }),
+    new Relation({
+      to: draftTarget.value,
+      cardinality: draftCardinality.value as Cardinality,
+      inverse: draftInverse.value,
+    }),
   );
   emit("close");
 }
@@ -106,10 +95,15 @@ function onCancel() {
           {{ t('workspace.templates.relations.editor.cardinality_label') }}
         </span>
         <SelectField
-          :model-value="draftCardinality"
-          :options="cardinalityOptions"
-          @update:model-value="(v: string) => (draftCardinality = v as Cardinality)"
+          v-model="draftCardinality"
+          :options="cardinalities"
         />
+      </div>
+      <div class="relation-editor-field">
+        <span class="relation-editor-label">
+          {{ t('workspace.templates.relations.editor.inverse_label') }}
+        </span>
+        <SwitchField v-model="draftInverse" />
       </div>
     </div>
 
