@@ -6,6 +6,8 @@
   "workspace.templates.facets.add": "Add facet",
   "workspace.templates.facets.edit": "Edit facet",
   "workspace.templates.facets.remove": "Remove facet",
+  "workspace.templates.facets.remove_title": "Remove facet",
+  "workspace.templates.facets.remove_confirm": "Remove the facet “{0}”?",
   "workspace.storage.facet_filter.clear": "Clear filters",
   "workspace.storage.facet_filter.none": "none",
   "facet.picker.clear": "Not set",

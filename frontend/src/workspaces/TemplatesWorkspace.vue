@@ -566,26 +566,38 @@ function removeRelation(idx: number) {
   void persistRelations(relations.value.filter((_, i) => i !== idx));
 }
 
-// Removing a relation drops it (and its edges) from BOTH sides, so confirm first.
-const relationDeleteOpen = ref(false);
-const relationDeleteIndex = ref(-1);
-const relationDeleteLabel = computed(() => {
-  const r = relations.value[relationDeleteIndex.value];
-  return r ? relationTargetLabel(r.to) : "";
-});
+// One shared delete confirm for every setup-tab list (facets, statistics,
+// formulas, relations) - one dialog, one state machine (DRY).
+const deleteOpen = ref(false);
+const deleteTitle = ref("");
+const deleteMessage = ref("");
+const deleteLabel = ref("");
+let pendingDelete: (() => void) | null = null;
+function askDelete(title: string, message: string, confirmLabel: string, run: () => void) {
+  deleteTitle.value = title;
+  deleteMessage.value = message;
+  deleteLabel.value = confirmLabel;
+  pendingDelete = run;
+  deleteOpen.value = true;
+}
+function confirmDelete() {
+  deleteOpen.value = false;
+  const run = pendingDelete;
+  pendingDelete = null;
+  run?.();
+}
+function cancelDelete() {
+  deleteOpen.value = false;
+  pendingDelete = null;
+}
 function askRemoveRelation(idx: number) {
-  relationDeleteIndex.value = idx;
-  relationDeleteOpen.value = true;
-}
-function confirmRemoveRelation() {
-  const idx = relationDeleteIndex.value;
-  relationDeleteOpen.value = false;
-  relationDeleteIndex.value = -1;
-  if (idx >= 0) removeRelation(idx);
-}
-function cancelRemoveRelation() {
-  relationDeleteOpen.value = false;
-  relationDeleteIndex.value = -1;
+  const r = relations.value[idx];
+  askDelete(
+    t("workspace.templates.relations.remove_title"),
+    t("workspace.templates.relations.remove_confirm", [r ? relationTargetLabel(r.to) : ""]),
+    t("workspace.templates.relations.remove"),
+    () => removeRelation(idx),
+  );
 }
 function applyRelation(rel: Relation) {
   const next =
@@ -1172,7 +1184,12 @@ setTopbarMenu(() => [
                           class="tool-btn danger"
                           type="button"
                           :title="t('workspace.templates.facets.remove')"
-                          @click="removeFacet(i)"
+                          @click="askDelete(
+                            t('workspace.templates.facets.remove_title'),
+                            t('workspace.templates.facets.remove_confirm', [f.key]),
+                            t('workspace.templates.facets.remove'),
+                            () => removeFacet(i),
+                          )"
                         >×</button>
                       </li>
                     </template>
@@ -1237,7 +1254,12 @@ setTopbarMenu(() => [
                           class="tool-btn danger"
                           type="button"
                           :title="t('workspace.templates.statistics.remove')"
-                          @click="removeStatistic(i)"
+                          @click="askDelete(
+                            t('workspace.templates.statistics.remove_title'),
+                            t('workspace.templates.statistics.remove_confirm', [s.label || s.name]),
+                            t('workspace.templates.statistics.remove'),
+                            () => removeStatistic(i),
+                          )"
                         >×</button>
                       </li>
                     </template>
@@ -1289,7 +1311,12 @@ setTopbarMenu(() => [
                           class="tool-btn danger"
                           type="button"
                           :title="t('workspace.templates.formulas.remove')"
-                          @click="removeFormula(i)"
+                          @click="askDelete(
+                            t('workspace.templates.formulas.remove_title'),
+                            t('workspace.templates.formulas.remove_confirm', [f.label || f.key]),
+                            t('workspace.templates.formulas.remove'),
+                            () => removeFormula(i),
+                          )"
                         >×</button>
                       </li>
                     </template>
@@ -1577,14 +1604,14 @@ setTopbarMenu(() => [
   />
 
   <ConfirmDialog
-    :open="relationDeleteOpen"
-    :title="t('workspace.templates.relations.remove_title')"
-    :message="t('workspace.templates.relations.remove_confirm', [relationDeleteLabel])"
-    :confirm-label="t('workspace.templates.relations.remove')"
+    :open="deleteOpen"
+    :title="deleteTitle"
+    :message="deleteMessage"
+    :confirm-label="deleteLabel"
     :cancel-label="t('common.cancel')"
     variant="danger"
-    @confirm="confirmRemoveRelation"
-    @cancel="cancelRemoveRelation"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
   />
 
   <!-- Evaluated-statistic viewer (rank-N grid + composite sunburst) -->

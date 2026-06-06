@@ -6,6 +6,8 @@
   "workspace.templates.facets.add": "Facet toevoegen",
   "workspace.templates.facets.edit": "Facet bewerken",
   "workspace.templates.facets.remove": "Facet verwijderen",
+  "workspace.templates.facets.remove_title": "Facet verwijderen",
+  "workspace.templates.facets.remove_confirm": "Facet “{0}” verwijderen?",
   "workspace.storage.facet_filter.clear": "Filters wissen",
   "workspace.storage.facet_filter.none": "geen",
   "facet.picker.clear": "Niet ingesteld",
