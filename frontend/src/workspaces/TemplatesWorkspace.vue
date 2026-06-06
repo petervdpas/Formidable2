@@ -534,8 +534,9 @@ async function reconcileRelations() {
   try {
     const rep = await RelationSvc.Reconcile();
     const created = rep.created?.length ?? 0;
+    const healed = rep.edges_healed ?? 0;
     const conflicts = rep.conflicts?.length ?? 0;
-    toast.success("workspace.templates.relations.reconcile.done", [String(created), String(conflicts)]);
+    toast.success("workspace.templates.relations.reconcile.done", [String(created), String(healed), String(conflicts)]);
     if (conflicts > 0) {
       toast.error("workspace.templates.relations.reconcile.conflicts", [String(conflicts)]);
     }

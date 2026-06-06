@@ -28,12 +28,23 @@ export function FetchAPIFieldRow(sourceTemplate: string, guid: string, columnKey
 }
 
 /**
+ * ListCollectionItems returns a collection template's records (id + title +
+ * filename) for record pickers such as the relation linker. Empty when the
+ * template isn't a collection. Backend owns the list; the frontend renders it.
+ */
+export function ListCollectionItems(template: string): $CancellablePromise<$models.CollectionItem[]> {
+    return $Call.ByID(299093919, template).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * ListCollectionTemplates returns the collection-enabled templates an
  * api-typed field can reference; the api-field editor's dropdown source.
  */
 export function ListCollectionTemplates(): $CancellablePromise<$models.TemplateSummary[]> {
     return $Call.ByID(1984870392).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -43,12 +54,14 @@ export function ListCollectionTemplates(): $CancellablePromise<$models.TemplateS
  */
 export function RefetchAPIFieldRow(sourceTemplate: string, guid: string, columnKeys: string[], stored: { [_ in string]?: any }): $CancellablePromise<$models.APIFieldRefetchResultDTO> {
     return $Call.ByID(189740832, sourceTemplate, guid, columnKeys, stored).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.APIFieldRowResult.createFrom;
-const $$createType1 = $models.TemplateSummary.createFrom;
+const $$createType1 = $models.CollectionItem.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.APIFieldRefetchResultDTO.createFrom;
+const $$createType3 = $models.TemplateSummary.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.APIFieldRefetchResultDTO.createFrom;

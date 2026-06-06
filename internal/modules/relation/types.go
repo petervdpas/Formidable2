@@ -32,6 +32,14 @@ func (c Cardinality) inverse() Cardinality {
 	return c
 }
 
+// limitsFrom reports that each source record may link at most one target under this cardinality
+// (the "one" is on the source side): one-to-one and many-to-one.
+func (c Cardinality) limitsFrom() bool { return c == OneToOne || c == ManyToOne }
+
+// limitsTo reports that each target record may be linked from at most one source under this
+// cardinality (the "one" is on the target side): one-to-one and one-to-many.
+func (c Cardinality) limitsTo() bool { return c == OneToOne || c == OneToMany }
+
 // Cardinalities returns the valid cardinalities in declaration order. The
 // frontend's cardinality picker reads this so the option set has one source.
 // many-to-one exists so the inverse of a one-to-many declaration is representable.

@@ -26,12 +26,12 @@ func (s *Service) SetRelations(template string, relations []Relation) error {
 	return s.m.SetRelations(template, relations)
 }
 
-// AddEdge links two records through the relation from template to `to`.
-func (s *Service) AddEdge(template, to string, edge Edge) error {
-	return s.m.AddEdge(template, to, edge)
+// AddEdge links a source record to a target record (and mirrors the reversed edge).
+func (s *Service) AddEdge(source, target string, edge Edge) error {
+	return s.m.AddEdge(source, target, edge)
 }
 
-// RemoveEdge unlinks two records from the relation from template to `to`.
-func (s *Service) RemoveEdge(template, to string, edge Edge) error {
-	return s.m.RemoveEdge(template, to, edge)
+// RemoveEdge unlinks a source record from a target record (and removes the mirror).
+func (s *Service) RemoveEdge(source, target string, edge Edge) error {
+	return s.m.RemoveEdge(source, target, edge)
 }

@@ -102,6 +102,71 @@ export class APIFieldRowResult {
 }
 
 /**
+ * CollectionItem is one row in a collection listing: identity, title,
+ * tags, and ready-to-use links to the JSON resource and HTML page.
+ */
+export class CollectionItem {
+    /**
+     * stem (e.g. "recepten")
+     */
+    "template": string;
+
+    /**
+     * GUID
+     */
+    "id": string;
+    "filename": string;
+    "title": string;
+    "tags"?: string[];
+
+    /**
+     * /api/collections/<stem>/<guid>
+     */
+    "hrefSelf": string;
+
+    /**
+     * /template/<stem>/form/<filename>
+     */
+    "hrefHtml": string;
+
+    /** Creates a new CollectionItem instance. */
+    constructor($$source: Partial<CollectionItem> = {}) {
+        if (!("template" in $$source)) {
+            this["template"] = "";
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("filename" in $$source)) {
+            this["filename"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("hrefSelf" in $$source)) {
+            this["hrefSelf"] = "";
+        }
+        if (!("hrefHtml" in $$source)) {
+            this["hrefHtml"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CollectionItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CollectionItem {
+        const $$createField4_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField4_0($$parsedSource["tags"]);
+        }
+        return new CollectionItem($$parsedSource as Partial<CollectionItem>);
+    }
+}
+
+/**
  * TemplateSummary is the public projection of an index template row.
  * Filename is the YAML name ("basic.yaml"); Stem is the slug ("basic").
  */
@@ -149,3 +214,4 @@ export class TemplateSummary {
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
 const $$createType1 = APIFieldDrift.createFrom;
 const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $Create.Array($Create.Any);

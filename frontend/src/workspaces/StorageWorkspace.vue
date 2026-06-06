@@ -23,6 +23,8 @@ import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFacetFilter from "../components/StorageFacetFilter.vue";
 import StorageMetaBlock from "../components/StorageMetaBlock.vue";
 import StorageDataForm from "../components/StorageDataForm.vue";
+import Popup from "../components/Popup.vue";
+import RelationLinksPanel from "../components/RelationLinksPanel.vue";
 import { useRestartGate } from "../composables/useRestartGate";
 import { useTemplates } from "../composables/useTemplates";
 import { useFormView } from "../composables/useFormView";
@@ -134,6 +136,13 @@ provide("templateFilename", currentTemplateFilename);
 // longer matches.
 const selectedTemplate = computed<string>(
   () => config.value?.selected_template ?? "",
+);
+
+// Per-record relation linking (Relations popover by the STORAGE label). Only
+// available for a collection template with a record open (edges link records).
+const currentRecordId = computed<string>(() => draft.value?.meta?.id ?? "");
+const canLinkRelations = computed<boolean>(
+  () => !!currentRecordId.value && !!draft.value?.template?.enable_collection,
 );
 
 function onTemplateChange(filename: string) {
@@ -1239,7 +1248,25 @@ setTopbarMenu(() => [
 
   <SplitPane :initial="sidebarWidth" :sidebar-split="true">
     <template #sidebar>
-      <h2 class="sidebar-title">{{ t('workspace.storage.sidebar_title') }}</h2>
+      <div class="sidebar-title-row">
+        <h2 class="sidebar-title">{{ t('workspace.storage.sidebar_title') }}</h2>
+        <Popup placement="below" max-width="360px" teleport>
+          <template #trigger="{ toggle, open }">
+            <button
+              type="button"
+              class="tool-btn sidebar-relations-btn"
+              :class="{ 'is-active': open }"
+              :disabled="!canLinkRelations"
+              :title="t('workspace.storage.relations.button')"
+              @click="toggle"
+            >{{ t('workspace.storage.relations.button') }}</button>
+          </template>
+          <RelationLinksPanel
+            :template="selectedTemplate"
+            :record-id="currentRecordId"
+          />
+        </Popup>
+      </div>
 
       <div class="sidebar-section">
         <label class="sidebar-label">{{ t('workspace.storage.template_picker') }}</label>

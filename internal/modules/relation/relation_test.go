@@ -288,8 +288,128 @@ func TestReconcile_EmptyTolerant(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}
-	if len(rep.Created) != 0 || len(rep.Conflicts) != 0 {
+	if len(rep.Created) != 0 || len(rep.Conflicts) != 0 || rep.EdgesHealed != 0 {
 		t.Fatalf("empty store should yield empty report: %+v", rep)
+	}
+}
+
+func TestAddEdge_MirrorsReversedEdge(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: ManyToMany}})
+	if err := m.AddEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	src, _ := m.GetRelations("project.yaml")
+	if i := relationIndex(src, "person.yaml"); i < 0 || len(src[i].Edges) != 1 || src[i].Edges[0] != (Edge{From: "p1", To: "u1"}) {
+		t.Fatalf("source edge wrong: %+v", src)
+	}
+	mir, _ := m.GetRelations("person.yaml")
+	j := relationIndex(mir, "project.yaml")
+	if j < 0 || len(mir[j].Edges) != 1 || mir[j].Edges[0] != (Edge{From: "u1", To: "p1"}) {
+		t.Fatalf("mirror edge should be reversed u1->p1: %+v", mir)
+	}
+}
+
+func TestRemoveEdge_RemovesMirror(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: ManyToMany}})
+	_ = m.AddEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"})
+	if err := m.RemoveEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err != nil {
+		t.Fatalf("RemoveEdge: %v", err)
+	}
+	mir, _ := m.GetRelations("person.yaml")
+	j := relationIndex(mir, "project.yaml")
+	if j < 0 || len(mir[j].Edges) != 0 {
+		t.Fatalf("mirror edge should be removed: %+v", mir)
+	}
+}
+
+func TestAddEdge_EnforcesCardinality(t *testing.T) {
+	mk := func(c Cardinality) *Manager {
+		m := newMgr()
+		if err := m.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: c}}); err != nil {
+			t.Fatalf("setup %s: %v", c, err)
+		}
+		return m
+	}
+	add := func(m *Manager, from, to string) error {
+		return m.AddEdge("project.yaml", "person.yaml", Edge{From: from, To: to})
+	}
+
+	// one-to-one: at most one per source AND per target.
+	m := mk(OneToOne)
+	if err := add(m, "p1", "u1"); err != nil {
+		t.Fatalf("one-to-one first: %v", err)
+	}
+	if err := add(m, "p1", "u2"); err == nil {
+		t.Error("one-to-one must reject a second target for the same source")
+	}
+	if err := add(m, "p2", "u1"); err == nil {
+		t.Error("one-to-one must reject a second source for the same target")
+	}
+
+	// one-to-many: a source may link many targets, but a target only one source.
+	m = mk(OneToMany)
+	_ = add(m, "p1", "u1")
+	if err := add(m, "p1", "u2"); err != nil {
+		t.Errorf("one-to-many must allow a second target for the same source: %v", err)
+	}
+	if err := add(m, "p2", "u1"); err == nil {
+		t.Error("one-to-many must reject a second source for the same target")
+	}
+
+	// many-to-one: a target may be linked from many sources, but a source links one target.
+	m = mk(ManyToOne)
+	_ = add(m, "p1", "u1")
+	if err := add(m, "p2", "u1"); err != nil {
+		t.Errorf("many-to-one must allow a second source for the same target: %v", err)
+	}
+	if err := add(m, "p1", "u2"); err == nil {
+		t.Error("many-to-one must reject a second target for the same source")
+	}
+
+	// many-to-many: no limits.
+	m = mk(ManyToMany)
+	_ = add(m, "p1", "u1")
+	if err := add(m, "p1", "u2"); err != nil {
+		t.Errorf("many-to-many must allow: %v", err)
+	}
+	if err := add(m, "p2", "u1"); err != nil {
+		t.Errorf("many-to-many must allow: %v", err)
+	}
+}
+
+func TestReconcile_HealsMissingEdge(t *testing.T) {
+	fs := newMemFS()
+	m := NewManager(fs, "/ctx/relations", fullCatalog())
+	// Both declaration halves exist, but the edge is only on the project side.
+	_ = m.saveRelationsLocked("project.yaml", []Relation{{To: "person.yaml", Cardinality: ManyToMany, Edges: []Edge{{From: "p1", To: "u1"}}}})
+	_ = m.saveRelationsLocked("person.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}})
+	rep, err := m.Reconcile()
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if rep.EdgesHealed != 1 {
+		t.Fatalf("want 1 edge healed, got %d (%+v)", rep.EdgesHealed, rep)
+	}
+	mir, _ := m.GetRelations("person.yaml")
+	j := relationIndex(mir, "project.yaml")
+	if j < 0 || len(mir[j].Edges) != 1 || mir[j].Edges[0] != (Edge{From: "u1", To: "p1"}) {
+		t.Fatalf("missing reversed edge not healed: %+v", mir)
+	}
+}
+
+func TestReconcile_RecreatedCounterpartCarriesReversedEdges(t *testing.T) {
+	fs := newMemFS()
+	m := NewManager(fs, "/ctx/relations", fullCatalog())
+	_ = m.saveRelationsLocked("project.yaml", []Relation{{To: "person.yaml", Cardinality: OneToMany, Edges: []Edge{{From: "p1", To: "u1"}}}})
+	if _, err := m.Reconcile(); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	mir, _ := m.GetRelations("person.yaml")
+	j := relationIndex(mir, "project.yaml")
+	if j < 0 || len(mir[j].Edges) != 1 || mir[j].Edges[0] != (Edge{From: "u1", To: "p1"}) {
+		t.Fatalf("recreated counterpart should carry reversed edges: %+v", mir)
 	}
 }
 

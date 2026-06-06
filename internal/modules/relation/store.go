@@ -195,56 +195,119 @@ func (m *Manager) saveRelationsLocked(template string, rels []Relation) error {
 	return m.fs.SaveFile(m.path(template), buf.String())
 }
 
-// AddEdge links two records through the relation from template to `to`. Both records must exist
-// right now (hard reject): a brand-new dangling link is never allowed, even though edges can dangle
-// later.
-func (m *Manager) AddEdge(template, to string, e Edge) error {
+// AddEdge links a source record to a target record through the relation from source to target, and
+// mirrors the reversed edge into the counterpart relation on the target side (edges are stored on
+// both sides, just like the declarations). Both records must exist right now (hard reject): a
+// brand-new dangling link is never allowed, even though edges can dangle later.
+func (m *Manager) AddEdge(source, target string, e Edge) error {
 	if strings.TrimSpace(e.From) == "" || strings.TrimSpace(e.To) == "" {
 		return fmt.Errorf("relation: edge needs both from and to")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	rels, err := m.getRelationsLocked(template)
+	rels, err := m.getRelationsLocked(source)
 	if err != nil {
 		return err
 	}
-	i := relationIndex(rels, to)
+	i := relationIndex(rels, target)
 	if i < 0 {
-		return fmt.Errorf("relation: %s has no relation to %s", template, to)
+		return fmt.Errorf("relation: %s has no relation to %s", source, target)
 	}
-	if !m.cat.RecordExists(template, e.From) {
-		return fmt.Errorf("relation: source record %q not found in %s", e.From, template)
+	if !m.cat.RecordExists(source, e.From) {
+		return fmt.Errorf("relation: source record %q not found in %s", e.From, source)
 	}
-	if !m.cat.RecordExists(rels[i].To, e.To) {
-		return fmt.Errorf("relation: target record %q not found in %s", e.To, rels[i].To)
+	if !m.cat.RecordExists(target, e.To) {
+		return fmt.Errorf("relation: target record %q not found in %s", e.To, target)
 	}
 	if slices.Contains(rels[i].Edges, e) {
 		return fmt.Errorf("relation: edge %s -> %s already exists", e.From, e.To)
 	}
+	if err := checkCardinality(rels[i].Cardinality, rels[i].Edges, e); err != nil {
+		return err
+	}
 	rels[i].Edges = append(rels[i].Edges, e)
-	return m.saveRelationsLocked(template, rels)
+	if err := m.saveRelationsLocked(source, rels); err != nil {
+		return err
+	}
+	return m.upsertEdgeMirrorLocked(target, source, Edge{From: e.To, To: e.From},
+		rels[i].Cardinality.inverse(), !rels[i].Inverse)
 }
 
-// RemoveEdge unlinks two records from the relation from template to `to`. Goes through the
-// persistence floor so cleanup works even when the target template or records have since gone away
-// (the volatile case).
-func (m *Manager) RemoveEdge(template, to string, e Edge) error {
+// RemoveEdge unlinks two records and removes the reversed mirror edge from the target side. Goes
+// through the persistence floor so cleanup works even when the target template or records have since
+// gone away (the volatile case).
+func (m *Manager) RemoveEdge(source, target string, e Edge) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	rels, err := m.getRelationsLocked(template)
+	rels, err := m.getRelationsLocked(source)
 	if err != nil {
 		return err
 	}
-	i := relationIndex(rels, to)
+	i := relationIndex(rels, target)
 	if i < 0 {
-		return fmt.Errorf("relation: %s has no relation to %s", template, to)
+		return fmt.Errorf("relation: %s has no relation to %s", source, target)
 	}
 	before := len(rels[i].Edges)
 	rels[i].Edges = slices.DeleteFunc(rels[i].Edges, func(x Edge) bool { return x == e })
 	if len(rels[i].Edges) == before {
 		return fmt.Errorf("relation: edge %s -> %s not found", e.From, e.To)
 	}
-	return m.saveRelationsLocked(template, rels)
+	if err := m.saveRelationsLocked(source, rels); err != nil {
+		return err
+	}
+	return m.removeEdgeMirrorLocked(target, source, Edge{From: e.To, To: e.From})
+}
+
+// upsertEdgeMirrorLocked adds the reversed edge to the counterpart relation in target's file,
+// creating that relation half if it is missing. Idempotent on the edge. Caller holds m.mu.
+func (m *Manager) upsertEdgeMirrorLocked(target, backTo string, e Edge, card Cardinality, inverse bool) error {
+	rels, err := m.getRelationsLocked(target)
+	if err != nil {
+		return err
+	}
+	j := relationIndex(rels, backTo)
+	if j < 0 {
+		rels = append(rels, Relation{To: backTo, Cardinality: card, Inverse: inverse, Edges: []Edge{e}})
+	} else if !slices.Contains(rels[j].Edges, e) {
+		rels[j].Edges = append(rels[j].Edges, e)
+	}
+	return m.saveRelationsLocked(target, rels)
+}
+
+// removeEdgeMirrorLocked drops the reversed edge from the counterpart relation in target's file.
+// Tolerant: a missing relation or edge is fine. Caller holds m.mu.
+func (m *Manager) removeEdgeMirrorLocked(target, backTo string, e Edge) error {
+	rels, err := m.getRelationsLocked(target)
+	if err != nil {
+		return err
+	}
+	j := relationIndex(rels, backTo)
+	if j < 0 {
+		return nil
+	}
+	rels[j].Edges = slices.DeleteFunc(rels[j].Edges, func(x Edge) bool { return x == e })
+	return m.saveRelationsLocked(target, rels)
+}
+
+// checkCardinality rejects an edge that would breach the relation's cardinality: the "one" side
+// caps that endpoint at a single link. many-to-many imposes nothing. The mirror needs no separate
+// check: the flipped cardinality enforces the same constraint from the other side.
+func checkCardinality(c Cardinality, existing []Edge, e Edge) error {
+	if c.limitsFrom() {
+		for _, x := range existing {
+			if x.From == e.From {
+				return fmt.Errorf("relation: cardinality %s allows one target per source; %q is already linked", c, e.From)
+			}
+		}
+	}
+	if c.limitsTo() {
+		for _, x := range existing {
+			if x.To == e.To {
+				return fmt.Errorf("relation: cardinality %s allows one source per target; %q is already linked", c, e.To)
+			}
+		}
+	}
+	return nil
 }
 
 func relationIndex(rels []Relation, to string) int {

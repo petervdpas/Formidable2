@@ -22,6 +22,17 @@ type APIFieldRowResult struct {
 	Message string         `json:"message,omitempty"`
 }
 
+// ListCollectionItems returns a collection template's records (id + title +
+// filename) for record pickers such as the relation linker. Empty when the
+// template isn't a collection. Backend owns the list; the frontend renders it.
+func (s *Service) ListCollectionItems(template string) []CollectionItem {
+	page, err := s.m.ListCollection(context.Background(), template, CollectionListOpts{})
+	if err != nil || page == nil {
+		return []CollectionItem{}
+	}
+	return page.Items
+}
+
 // ListCollectionTemplates returns the collection-enabled templates an
 // api-typed field can reference; the api-field editor's dropdown source.
 func (s *Service) ListCollectionTemplates() []TemplateSummary {

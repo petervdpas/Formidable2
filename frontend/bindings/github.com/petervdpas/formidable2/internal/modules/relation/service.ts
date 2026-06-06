@@ -15,10 +15,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * AddEdge links two records through the relation from template to `to`.
+ * AddEdge links a source record to a target record (and mirrors the reversed edge).
  */
-export function AddEdge(template: string, to: string, edge: $models.Edge): $CancellablePromise<void> {
-    return $Call.ByID(4126420296, template, to, edge);
+export function AddEdge(source: string, target: string, edge: $models.Edge): $CancellablePromise<void> {
+    return $Call.ByID(4126420296, source, target, edge);
 }
 
 /**
@@ -50,10 +50,10 @@ export function Reconcile(): $CancellablePromise<$models.ReconcileReport> {
 }
 
 /**
- * RemoveEdge unlinks two records from the relation from template to `to`.
+ * RemoveEdge unlinks a source record from a target record (and removes the mirror).
  */
-export function RemoveEdge(template: string, to: string, edge: $models.Edge): $CancellablePromise<void> {
-    return $Call.ByID(1742361031, template, to, edge);
+export function RemoveEdge(source: string, target: string, edge: $models.Edge): $CancellablePromise<void> {
+    return $Call.ByID(1742361031, source, target, edge);
 }
 
 /**

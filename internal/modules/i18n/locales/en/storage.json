@@ -96,6 +96,11 @@
   "workspace.storage.unsaved.save": "Save",
   "workspace.storage.unsaved.discard": "Discard",
   "workspace.storage.sidebar_title": "Storage",
+  "workspace.storage.relations.button": "Relations",
+  "workspace.storage.relations.no_relations": "This template has no relations.",
+  "workspace.storage.relations.no_links": "No links yet.",
+  "workspace.storage.relations.add_link": "Add a link…",
+  "workspace.storage.relations.remove": "Remove link",
   "workspace.storage.tag_filter_placeholder": "Filter by tag(s)…",
   "workspace.storage.template_picker": "Template",
   "workspace.storage.unselected": "Pick a form from the sidebar."

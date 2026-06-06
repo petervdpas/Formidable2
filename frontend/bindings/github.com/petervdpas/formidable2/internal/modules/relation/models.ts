@@ -158,9 +158,15 @@ export class Edge {
  */
 export class ReconcileReport {
     /**
-     * Created lists counterparts that were missing and got recreated from the surviving side.
+     * Created lists relation counterparts that were missing and got recreated from the surviving
+     * side (with that side's edges reversed onto the new half).
      */
     "created": Counterpart[];
+
+    /**
+     * EdgesHealed counts reversed edges added to bring the two sides' edge sets back into agreement.
+     */
+    "edges_healed": number;
 
     /**
      * Conflicts lists pairs present on both sides whose cardinalities disagree. These are left
@@ -174,6 +180,9 @@ export class ReconcileReport {
         if (!("created" in $$source)) {
             this["created"] = [];
         }
+        if (!("edges_healed" in $$source)) {
+            this["edges_healed"] = 0;
+        }
         if (!("conflicts" in $$source)) {
             this["conflicts"] = [];
         }
@@ -186,13 +195,13 @@ export class ReconcileReport {
      */
     static createFrom($$source: any = {}): ReconcileReport {
         const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType3;
+        const $$createField2_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("created" in $$parsedSource) {
             $$parsedSource["created"] = $$createField0_0($$parsedSource["created"]);
         }
         if ("conflicts" in $$parsedSource) {
-            $$parsedSource["conflicts"] = $$createField1_0($$parsedSource["conflicts"]);
+            $$parsedSource["conflicts"] = $$createField2_0($$parsedSource["conflicts"]);
         }
         return new ReconcileReport($$parsedSource as Partial<ReconcileReport>);
     }

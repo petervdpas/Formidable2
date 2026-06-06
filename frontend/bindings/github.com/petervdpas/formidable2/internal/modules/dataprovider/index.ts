@@ -10,5 +10,6 @@ export {
     APIFieldDrift,
     APIFieldRefetchResultDTO,
     APIFieldRowResult,
+    CollectionItem,
     TemplateSummary
 } from "./models.js";

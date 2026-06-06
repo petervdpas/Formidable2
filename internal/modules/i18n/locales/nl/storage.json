@@ -96,6 +96,11 @@
   "workspace.storage.unsaved.save": "Opslaan",
   "workspace.storage.unsaved.discard": "Verwerpen",
   "workspace.storage.sidebar_title": "Opslag",
+  "workspace.storage.relations.button": "Relaties",
+  "workspace.storage.relations.no_relations": "Dit sjabloon heeft geen relaties.",
+  "workspace.storage.relations.no_links": "Nog geen koppelingen.",
+  "workspace.storage.relations.add_link": "Koppeling toevoegen…",
+  "workspace.storage.relations.remove": "Koppeling verwijderen",
   "workspace.storage.tag_filter_placeholder": "Filter op tag(s)…",
   "workspace.storage.template_picker": "Sjabloon",
   "workspace.storage.unselected": "Kies een formulier uit de zijbalk."
