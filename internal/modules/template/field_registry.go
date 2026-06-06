@@ -49,6 +49,7 @@ type FieldDescriptor struct {
 	LabelKey     string             `json:"label_key"`
 	MetaOnly     bool               `json:"meta_only"`
 	Virtual      bool               `json:"virtual"`
+	KeyReadonly  bool               `json:"key_readonly"`
 	Abilities    Abilities          `json:"abilities"`
 	OptionsShape *FixedOptionsShape `json:"options_shape,omitempty"`
 	DefaultValue any                `json:"default_value"`

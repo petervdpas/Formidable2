@@ -125,6 +125,17 @@ func TestAbilities_KeyAndTypeAlwaysEnabled(t *testing.T) {
 	}
 }
 
+// KeyReadonly marks types whose key is shown but not editable (guid: forced
+// to "id" by Normalize). The modal renders the Key row read-only off this.
+func TestDescriptor_KeyReadonly_OnlyGuid(t *testing.T) {
+	for id, def := range fieldDescriptors {
+		want := id == "guid"
+		if def.KeyReadonly != want {
+			t.Errorf("type %q KeyReadonly=%v, want %v", id, def.KeyReadonly, want)
+		}
+	}
+}
+
 // Every type the dropdown can show must carry a backend label key - the
 // frontend reads it off the descriptor and keeps no copy of its own.
 func TestAllFieldTypes_EveryTypeHasLabelKey(t *testing.T) {

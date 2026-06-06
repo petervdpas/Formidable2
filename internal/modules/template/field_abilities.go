@@ -206,7 +206,8 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 	},
 	"guid": {
-		ID: "guid",
+		ID:          "guid",
+		KeyReadonly: true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
 			Default: false, Options: false, SummaryField: false, PrimaryKey: false,

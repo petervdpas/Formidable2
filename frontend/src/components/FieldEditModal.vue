@@ -26,6 +26,7 @@ import { useToast } from "../composables/useToast";
 import { formatError } from "../utils/templateValidation";
 import {
   isRowHidden,
+  isKeyReadonly,
   isDataField,
   formulaTargetFieldTypes,
   selectableTypes,
@@ -425,7 +426,7 @@ watch(
       draft.value.trigger = "save";
     }
     // A guid field's key is always "id" - mirror backend Normalize
-    // (template/normalize.go) so the readonly Key input shows it
+    // (template/normalize.go) so the read-only Key input shows it
     // immediately instead of an empty/stale key.
     if (type === "guid") {
       draft.value.key = "id";
@@ -674,7 +675,7 @@ const dialogStyle = computed<Record<string, string>>(() => {
         >
           <TextField
             v-model="draft.key"
-            :readonly="draft.type === 'guid'"
+            :readonly="isKeyReadonly(draft.type || 'text')"
             placeholder="snake_case_key"
           />
           <p v-if="keyMissing" class="muted small">

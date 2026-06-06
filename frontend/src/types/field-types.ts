@@ -33,6 +33,7 @@ export interface FieldTypeDef {
   abilities: Abilities;
   metaOnly?: boolean;
   virtual?: boolean;
+  keyReadonly?: boolean;
 }
 
 const registry: Ref<FieldTypeDef[]> = ref([]);
@@ -53,6 +54,7 @@ async function load(): Promise<void> {
         : () => structuredClone(d.default_value),
     metaOnly: d.meta_only,
     virtual: d.virtual,
+    keyReadonly: d.key_readonly,
     abilities: d.abilities,
   }));
 }
@@ -101,6 +103,12 @@ export function isRowHidden(typeId: string, rowId: FieldEditRowId): boolean {
   const def = getFieldTypeDef(typeId);
   if (!def) return false;
   return def.abilities[rowId] === false;
+}
+
+// Whether the Key input is shown but locked for a type (guid: key is forced
+// to "id" by the backend). Backend-owned via FieldDescriptor.KeyReadonly.
+export function isKeyReadonly(typeId: string): boolean {
+  return getFieldTypeDef(typeId)?.keyReadonly === true;
 }
 
 /** Type IDs eligible to appear in the Edit modal's Type dropdown.
