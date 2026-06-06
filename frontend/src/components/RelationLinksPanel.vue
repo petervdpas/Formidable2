@@ -20,7 +20,14 @@ import { SelectField } from "./fields";
 import { backendErrMessage } from "../utils/backendError";
 import { useToast } from "../composables/useToast";
 
-const props = defineProps<{ template: string; recordId: string }>();
+const props = defineProps<{
+  template: string;
+  recordId: string;
+  /** The sidebar's currently-visible (searched + facet-filtered) records.
+   *  For a self-relation (target === template) the add picker is scoped to
+   *  this set, so the active filter governs what can be linked. */
+  sidebarItems?: CollectionItem[];
+}>();
 
 const { t } = useI18n();
 const toast = useToast();
@@ -78,7 +85,14 @@ function templateName(to: string): string {
 }
 function addOptions(r: Relation): { value: string; label: string }[] {
   const linked = new Set(linkedIds(r));
-  return (targetItems.value[r.to] ?? [])
+  // Self-relation: pick from the sidebar's filtered records. Cross-template:
+  // the full target collection. Already-linked and the open record are never
+  // re-offered.
+  const pool =
+    r.to === props.template
+      ? (props.sidebarItems ?? [])
+      : (targetItems.value[r.to] ?? []);
+  return pool
     .filter((x) => x.id && !linked.has(x.id) && x.id !== props.recordId)
     .map((x) => ({ value: x.id, label: x.title || x.id }));
 }

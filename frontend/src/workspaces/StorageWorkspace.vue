@@ -53,6 +53,7 @@ import { backendErrMessage } from "../utils/backendError";
 import { scrollToActiveRow } from "../utils/scrollToActiveRow";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { FacetState } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import { CollectionItem } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
 import type { Result as ExpressionResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 
 const { t } = useI18n();
@@ -699,6 +700,20 @@ const visibleSummaries = computed(() => {
   return out;
 });
 
+// The sidebar's filtered records, as CollectionItems, for a self-relation's
+// add picker in the Relations popover (RelationLinksPanel scopes self to this).
+const sidebarRelationItems = computed<CollectionItem[]>(() =>
+  visibleSummaries.value.map(
+    (s) =>
+      new CollectionItem({
+        template: selectedTemplate.value,
+        id: s.meta?.id ?? "",
+        filename: s.filename,
+        title: s.title,
+      }),
+  ),
+);
+
 // ── New Entry dialog ─────────────────────────────────────────────────
 const newOpen = ref(false);
 const newName = ref("");
@@ -1264,6 +1279,7 @@ setTopbarMenu(() => [
           <RelationLinksPanel
             :template="selectedTemplate"
             :record-id="currentRecordId"
+            :sidebar-items="sidebarRelationItems"
           />
         </Popup>
       </div>
