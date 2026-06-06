@@ -122,7 +122,7 @@ async function removeLink(r: Relation, targetId: string) {
         <li
           v-for="id in linkedIds(r)"
           :key="id"
-          class="relation-links-chip"
+          class="relation-links-chip list-card"
         >
           <span class="relation-links-chip-label">{{ itemTitle(r.to, id) }}</span>
           <button

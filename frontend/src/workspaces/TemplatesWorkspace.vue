@@ -1121,7 +1121,7 @@ setTopbarMenu(() => [
                     item-key="key"
                   >
                     <template #item="{ element: f, index: i }">
-                      <li class="facet-row">
+                      <li class="facet-row list-card">
                         <span class="dnd-handle" aria-hidden="true">☰</span>
                         <FacetIcon :icon="f.icon" class="facet-row-icon" />
                         <span class="facet-row-key mono">{{ f.key }}</span>
@@ -1194,7 +1194,7 @@ setTopbarMenu(() => [
                     item-key="name"
                   >
                     <template #item="{ element: s, index: i }">
-                      <li class="stat-row">
+                      <li class="stat-row list-card">
                         <span class="dnd-handle" aria-hidden="true">☰</span>
                         <span class="stat-row-name">{{ s.label || s.name }}</span>
                         <code v-if="s.composite" class="stat-row-dsl">{{ t('workspace.templates.statistics.composite_summary', [s.composite.parent, s.composite.edges.length]) }}</code>
@@ -1252,7 +1252,7 @@ setTopbarMenu(() => [
                     item-key="key"
                   >
                     <template #item="{ element: f, index: i }">
-                      <li class="formula-row">
+                      <li class="formula-row list-card">
                         <span class="dnd-handle" aria-hidden="true">☰</span>
                         <span class="formula-row-name">{{ f.label || f.key }}</span>
                         <span class="formula-row-type">{{ f.type }}</span>
@@ -1295,7 +1295,7 @@ setTopbarMenu(() => [
                     <li
                       v-for="(rel, i) in relations"
                       :key="rel.to"
-                      class="relation-row"
+                      class="relation-row list-card"
                     >
                       <span class="relation-row-target">{{ relationTargetLabel(rel.to) }}</span>
                       <span

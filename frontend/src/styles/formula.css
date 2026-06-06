@@ -10,12 +10,6 @@
   flex-direction: column;
   gap: var(--space-1);
 }
-.formula-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) 0;
-}
 .formula-row .dnd-handle {
   cursor: grab;
   color: var(--color-text-muted, #8a93a6);

@@ -1,0 +1,12 @@
+/* Shared card list item: one look for every settings list (facets, formulas,
+   template relations, storage relation-links). Single source so the lists stay
+   uniform. Drag handles, badges and buttons remain per-list. */
+.list-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}

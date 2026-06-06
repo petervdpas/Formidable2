@@ -83,6 +83,7 @@
 @import "./workspace-information.css";
 @import "./query.css";
 @import "./datacore-graph.css";
+@import "./list-card.css";
 @import "./formula.css";
 @import "./relation.css";
 @import "./mermaid-field.css";
