@@ -9,11 +9,14 @@ withDefaults(
     confirmLabel?: string;
     cancelLabel?: string;
     variant?: "default" | "danger";
+    /** Raise above popups when launched from inside a Popup. */
+    elevated?: boolean;
   }>(),
   {
     confirmLabel: "OK",
     cancelLabel: "Cancel",
     variant: "default",
+    elevated: false,
   },
 );
 
@@ -24,7 +27,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <Modal :open="open" :title="title" @close="emit('cancel')">
+  <Modal :open="open" :title="title" :elevated="elevated" @close="emit('cancel')">
     <p v-if="message" class="confirm-message">{{ message }}</p>
     <slot />
 

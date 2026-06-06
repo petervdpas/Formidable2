@@ -30,6 +30,17 @@ const targetItems = ref<Record<string, CollectionItem[]>>({});
 const templateNames = ref<Record<string, string>>({});
 const busy = ref(false);
 
+// Each relation group is collapsed by default; expanding shows its links + picker.
+const expanded = ref<Set<string>>(new Set());
+function isExpanded(to: string): boolean {
+  return expanded.value.has(to);
+}
+function toggleGroup(to: string) {
+  const next = new Set(expanded.value);
+  next.has(to) ? next.delete(to) : next.add(to);
+  expanded.value = next;
+}
+
 async function load() {
   if (!props.template || !props.recordId) return;
   busy.value = true;
@@ -130,44 +141,62 @@ async function confirmRemove() {
       :key="r.to"
       class="relation-links-group"
     >
-      <div class="relation-links-head">
+      <button
+        type="button"
+        class="relation-links-head relation-links-toggle"
+        :aria-expanded="isExpanded(r.to)"
+        @click="toggleGroup(r.to)"
+      >
+        <i
+          class="fa-solid relation-links-caret"
+          :class="isExpanded(r.to) ? 'fa-chevron-down' : 'fa-chevron-right'"
+          aria-hidden="true"
+        ></i>
         <span class="relation-links-target">{{ templateName(r.to) }}</span>
         <span
-          v-if="r.inverse"
+          v-if="r.to === template"
+          class="relation-row-inverse"
+        >{{ t('workspace.templates.relations.self_label') }}</span>
+        <span
+          v-else-if="r.inverse"
           class="relation-row-inverse"
         >{{ t('workspace.templates.relations.editor.inverse_label') }}</span>
-      </div>
-      <ul
-        v-if="linkedIds(r).length"
-        class="relation-links-chips"
-      >
-        <li
-          v-for="id in linkedIds(r)"
-          :key="id"
-          class="relation-links-chip list-card"
+        <span class="relation-links-count">{{ linkedIds(r).length }}</span>
+      </button>
+      <template v-if="isExpanded(r.to)">
+        <ul
+          v-if="linkedIds(r).length"
+          class="relation-links-chips"
         >
-          <span class="relation-links-chip-label">{{ itemTitle(r.to, id) }}</span>
-          <button
-            class="tool-btn danger"
-            type="button"
-            :title="t('workspace.storage.relations.remove')"
-            @click="askRemove(r, id)"
-          >×</button>
-        </li>
-      </ul>
-      <p v-else class="muted small">
-        {{ t('workspace.storage.relations.no_links') }}
-      </p>
-      <SelectField
-        :model-value="''"
-        :options="addOptions(r)"
-        :placeholder="t('workspace.storage.relations.add_link')"
-        @update:model-value="(v: string) => addLink(r, v)"
-      />
+          <li
+            v-for="id in linkedIds(r)"
+            :key="id"
+            class="relation-links-chip list-card"
+          >
+            <span class="relation-links-chip-label">{{ itemTitle(r.to, id) }}</span>
+            <button
+              class="tool-btn danger"
+              type="button"
+              :title="t('workspace.storage.relations.remove')"
+              @click="askRemove(r, id)"
+            >×</button>
+          </li>
+        </ul>
+        <p v-else class="muted small">
+          {{ t('workspace.storage.relations.no_links') }}
+        </p>
+        <SelectField
+          :model-value="''"
+          :options="addOptions(r)"
+          :placeholder="t('workspace.storage.relations.add_link')"
+          @update:model-value="(v: string) => addLink(r, v)"
+        />
+      </template>
     </div>
 
     <ConfirmDialog
       :open="confirmOpen"
+      elevated
       :title="t('workspace.storage.relations.remove_title')"
       :message="t('workspace.storage.relations.remove_confirm', [pendingTitle])"
       :confirm-label="t('workspace.storage.relations.remove')"

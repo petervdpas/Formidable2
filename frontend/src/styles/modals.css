@@ -11,6 +11,13 @@
     padding: var(--space-4);
 }
 
+/* A modal opened from inside a popup (z-index 1100-1200, popup.css) must
+   sit above it. Opt in via Modal's `elevated` prop; the default stays 1000
+   so popups opened inside a modal still render above their parent modal. */
+.modal-backdrop.modal-elevated {
+    z-index: 1300;
+}
+
 .modal-dialog {
     background: var(--color-bg);
     color: var(--color-text);

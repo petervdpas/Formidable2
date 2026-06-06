@@ -78,6 +78,31 @@
   align-items: center;
   gap: var(--space-2);
 }
+.relation-links-toggle {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.relation-links-caret {
+  width: 0.8em;
+  font-size: 0.8em;
+  color: var(--color-text-muted, #888);
+}
+.relation-links-count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted, #888);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 var(--space-2);
+}
 .relation-links-target {
   font-weight: 600;
 }
@@ -88,6 +113,10 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Cap at ~5 rows; the rest scrolls so a relation with many links can't
+     grow the popover unbounded. */
+  max-height: 16rem;
+  overflow-y: auto;
 }
 .relation-links-chip-label {
   flex: 1;

@@ -30,6 +30,9 @@ const props = withDefaults(
      *  to fill the dialog height (so content grows when maximized). Give
      *  the dialog a height via dialogStyle for the non-maximized case. */
     fill?: boolean;
+    /** When true, raise the backdrop above popups (popup.css 1100-1200).
+     *  Use for a dialog launched from inside a Popup so it renders over it. */
+    elevated?: boolean;
   }>(),
   {
     closeOnBackdrop: false,
@@ -38,6 +41,7 @@ const props = withDefaults(
     maximizable: false,
     scroll: false,
     fill: false,
+    elevated: false,
   },
 );
 
@@ -106,7 +110,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="open" class="modal-backdrop" @click.self="onBackdropClick">
+      <div v-if="open" class="modal-backdrop" :class="{ 'modal-elevated': elevated }" @click.self="onBackdropClick">
         <div
           ref="dialog"
           :class="['modal-dialog', dialogClass, { 'modal-scrolling': scroll }]"
