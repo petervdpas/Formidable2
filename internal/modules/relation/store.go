@@ -44,17 +44,23 @@ func NewManager(filesystem fs, relationsDir string, catalog Catalog) *Manager {
 
 func (m *Manager) path(template string) string { return filepath.Join(m.dir, template) }
 
+// A self-relation's mirror (its inverse half) lives in a self/ subfolder, the role another template's
+// file plays for a cross-template relation. This gives self-relations the same two-file redundancy and
+// self-heal: lose one of <t>.yaml / self/<t>.yaml, rebuild it from the other.
+func (m *Manager) selfDir() string                 { return filepath.Join(m.dir, "self") }
+func (m *Manager) selfPath(template string) string { return filepath.Join(m.dir, "self", template) }
+
 // GetRelations returns the relations declared by a template (nil if none). Reads tolerate whatever
-// is on disk, including edges gone stale since a record was deleted.
+// is on disk, including edges gone stale since a record was deleted. The self/ mirror is internal
+// redundancy and is NOT merged in: the forward self-relation lives in the template's own file.
 func (m *Manager) GetRelations(template string) ([]Relation, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.getRelationsLocked(template)
 }
 
-// getRelationsLocked reads + parses a template's file; caller holds m.mu.
-func (m *Manager) getRelationsLocked(template string) ([]Relation, error) {
-	p := m.path(template)
+// getRelationsAtLocked reads + parses any relations file by path; caller holds m.mu.
+func (m *Manager) getRelationsAtLocked(p string) ([]Relation, error) {
 	if !m.fs.FileExists(p) {
 		return nil, nil
 	}
@@ -64,9 +70,17 @@ func (m *Manager) getRelationsLocked(template string) ([]Relation, error) {
 	}
 	var f file
 	if err := yaml.Unmarshal([]byte(raw), &f); err != nil {
-		return nil, fmt.Errorf("relation: parse %s: %w", template, err)
+		return nil, fmt.Errorf("relation: parse %s: %w", filepath.Base(p), err)
 	}
 	return f.Relations, nil
+}
+
+func (m *Manager) getRelationsLocked(template string) ([]Relation, error) {
+	return m.getRelationsAtLocked(m.path(template))
+}
+
+func (m *Manager) getSelfMirrorLocked(template string) ([]Relation, error) {
+	return m.getRelationsAtLocked(m.selfPath(template))
 }
 
 // SetRelations declares a template's relations and keeps the relationship stored on BOTH sides:
@@ -94,12 +108,18 @@ func (m *Manager) SetRelations(template string, rels []Relation) error {
 	if err != nil {
 		return err
 	}
+	// The forward self half is never the inverse side; that flag belongs to the self/ mirror.
+	for i := range rels {
+		if rels[i].To == template {
+			rels[i].Inverse = false
+		}
+	}
 	if err := m.saveRelationsLocked(template, rels); err != nil {
 		return err
 	}
 
-	// Mirror each relation onto its target with the flipped cardinality. A self-relation
-	// (to == template) is its own mirror, so skip it to avoid clobbering its entry.
+	// Mirror each cross-template relation onto its target with the flipped cardinality. The self
+	// relation (to == template) mirrors into the self/ subfolder instead (handled below).
 	newTargets := make(map[string]Cardinality, len(rels))
 	for _, r := range rels {
 		if r.To == template {
@@ -126,7 +146,35 @@ func (m *Manager) SetRelations(template string, rels []Relation) error {
 			}
 		}
 	}
-	return nil
+
+	// Self relation: write (or clear) its inverse mirror in self/<template>.yaml.
+	var self *Relation
+	for i := range rels {
+		if rels[i].To == template {
+			self = &rels[i]
+			break
+		}
+	}
+	if self != nil {
+		mir := []Relation{{
+			To:          template,
+			Cardinality: self.Cardinality.inverse(),
+			Inverse:     true,
+			Edges:       reverseEdges(self.Edges),
+		}}
+		return m.saveSelfMirrorLocked(template, mir)
+	}
+	return m.clearSelfMirrorLocked(template)
+}
+
+// clearSelfMirrorLocked empties the self mirror file when a template no longer has a self relation.
+// No fs delete exists, so it writes an empty relations file; tolerant if there was none. Caller holds
+// m.mu.
+func (m *Manager) clearSelfMirrorLocked(template string) error {
+	if !m.fs.FileExists(m.selfPath(template)) {
+		return nil
+	}
+	return m.saveSelfMirrorLocked(template, nil)
 }
 
 // upsertMirrorLocked writes/updates the counterpart entry (to backTo, with card and inverse flag) in
@@ -162,17 +210,15 @@ func (m *Manager) removeMirrorLocked(target, backTo string) error {
 	return m.saveRelationsLocked(target, rels)
 }
 
-// saveRelationsLocked is the persistence floor: structural validation + atomic write, NO catalog
-// checks. Caller holds m.mu. Edge mutations and mirror upkeep go through it so they work even
-// against degraded state.
-func (m *Manager) saveRelationsLocked(template string, rels []Relation) error {
+// saveRelationsAtLocked is the persistence floor: structural validation + atomic write, NO catalog
+// checks. Caller holds m.mu. Edge mutations and mirror upkeep go through it so they work even against
+// degraded state. The file records `template` regardless of which folder it lands in (dir), so the
+// self/ mirror keeps the same template identity as its forward half.
+func (m *Manager) saveRelationsAtLocked(p, dir, template string, rels []Relation) error {
 	seen := make(map[string]bool, len(rels))
 	for i, r := range rels {
 		if strings.TrimSpace(r.To) == "" {
 			return fmt.Errorf("relation: #%d has no target", i+1)
-		}
-		if r.To == template {
-			rels[i].Inverse = false // a self-relation has no other side to be derived from
 		}
 		if !r.Cardinality.valid() {
 			return fmt.Errorf("relation: %s has unknown cardinality %q", r.To, r.Cardinality)
@@ -192,10 +238,18 @@ func (m *Manager) saveRelationsLocked(template string, rels []Relation) error {
 	if err := enc.Close(); err != nil {
 		return err
 	}
-	if err := m.fs.EnsureDirectory(m.dir); err != nil {
+	if err := m.fs.EnsureDirectory(dir); err != nil {
 		return err
 	}
-	return m.fs.SaveFile(m.path(template), buf.String())
+	return m.fs.SaveFile(p, buf.String())
+}
+
+func (m *Manager) saveRelationsLocked(template string, rels []Relation) error {
+	return m.saveRelationsAtLocked(m.path(template), m.dir, template, rels)
+}
+
+func (m *Manager) saveSelfMirrorLocked(template string, rels []Relation) error {
+	return m.saveRelationsAtLocked(m.selfPath(template), m.selfDir(), template, rels)
 }
 
 // AddEdge links a source record to a target record through the relation from source to target, and
@@ -236,7 +290,9 @@ func (m *Manager) AddEdge(source, target string, e Edge) error {
 		return err
 	}
 	if source == target {
-		return nil // self-relation: one stored edge; reverse is read at traversal, never mirrored
+		// Self-relation: the reversed edge goes to the self/ mirror, not another template's file.
+		return m.upsertSelfEdgeMirrorLocked(source, Edge{From: e.To, To: e.From},
+			rels[i].Cardinality.inverse())
 	}
 	return m.upsertEdgeMirrorLocked(target, source, Edge{From: e.To, To: e.From},
 		rels[i].Cardinality.inverse(), !rels[i].Inverse)
@@ -265,7 +321,7 @@ func (m *Manager) RemoveEdge(source, target string, e Edge) error {
 		return err
 	}
 	if source == target {
-		return nil // self-relation: nothing mirrored, so nothing to unmirror
+		return m.removeSelfEdgeMirrorLocked(source, Edge{From: e.To, To: e.From})
 	}
 	return m.removeEdgeMirrorLocked(target, source, Edge{From: e.To, To: e.From})
 }
@@ -299,6 +355,38 @@ func (m *Manager) removeEdgeMirrorLocked(target, backTo string, e Edge) error {
 	}
 	rels[j].Edges = slices.DeleteFunc(rels[j].Edges, func(x Edge) bool { return x == e })
 	return m.saveRelationsLocked(target, rels)
+}
+
+// upsertSelfEdgeMirrorLocked adds the reversed edge to the self mirror (self/<template>.yaml),
+// creating the mirror's single relation half if it is missing. Idempotent on the edge. Caller holds
+// m.mu.
+func (m *Manager) upsertSelfEdgeMirrorLocked(template string, e Edge, card Cardinality) error {
+	rels, err := m.getSelfMirrorLocked(template)
+	if err != nil {
+		return err
+	}
+	j := relationIndex(rels, template)
+	if j < 0 {
+		rels = append(rels, Relation{To: template, Cardinality: card, Inverse: true, Edges: []Edge{e}})
+	} else if !slices.Contains(rels[j].Edges, e) {
+		rels[j].Edges = append(rels[j].Edges, e)
+	}
+	return m.saveSelfMirrorLocked(template, rels)
+}
+
+// removeSelfEdgeMirrorLocked drops the reversed edge from the self mirror. Tolerant: a missing mirror
+// or edge is fine. Caller holds m.mu.
+func (m *Manager) removeSelfEdgeMirrorLocked(template string, e Edge) error {
+	rels, err := m.getSelfMirrorLocked(template)
+	if err != nil {
+		return err
+	}
+	j := relationIndex(rels, template)
+	if j < 0 {
+		return nil
+	}
+	rels[j].Edges = slices.DeleteFunc(rels[j].Edges, func(x Edge) bool { return x == e })
+	return m.saveSelfMirrorLocked(template, rels)
 }
 
 // checkCardinality rejects an edge that would breach the relation's cardinality: the "one" side

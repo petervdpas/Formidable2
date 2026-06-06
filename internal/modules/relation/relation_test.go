@@ -3,6 +3,7 @@ package relation
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -209,18 +210,24 @@ func TestSetRelations_SelfRelationNotClobbered(t *testing.T) {
 	}
 }
 
-func TestSelfRelation_InverseForcedOff(t *testing.T) {
+func TestSelfRelation_ForwardAndMirrorSides(t *testing.T) {
 	m := newMgr()
+	// Author with Inverse:true; the forward half (main file) is normalized to false, the self/
+	// mirror carries the inverse half (flipped cardinality, inverse=true).
 	if err := m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: OneToMany, Inverse: true}}); err != nil {
 		t.Fatalf("set: %v", err)
 	}
 	got, _ := m.GetRelations("project.yaml")
 	if len(got) != 1 || got[0].Inverse {
-		t.Fatalf("a self-relation has no other side, so it must never persist inverse: %+v", got)
+		t.Fatalf("forward self half must be non-inverse: %+v", got)
+	}
+	mir, _ := m.getSelfMirrorLocked("project.yaml")
+	if len(mir) != 1 || !mir[0].Inverse || mir[0].Cardinality != ManyToOne || mir[0].To != "project.yaml" {
+		t.Fatalf("self mirror must be the inverse half (many-to-one, inverse): %+v", mir)
 	}
 }
 
-func TestSelfRelation_AddEdgeStoresSingleEdge(t *testing.T) {
+func TestSelfRelation_AddEdgeMirrorsToSelfFolder(t *testing.T) {
 	m := newMgr()
 	if err := m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}}); err != nil {
 		t.Fatalf("set: %v", err)
@@ -229,13 +236,14 @@ func TestSelfRelation_AddEdgeStoresSingleEdge(t *testing.T) {
 		t.Fatalf("AddEdge: %v", err)
 	}
 	got, _ := m.GetRelations("project.yaml")
-	if len(got) != 1 {
-		t.Fatalf("self-relation should stay a single entry: %+v", got)
+	if len(got) != 1 || len(got[0].Edges) != 1 || got[0].Edges[0] != (Edge{From: "p1", To: "p2"}) {
+		t.Fatalf("forward edge wrong: %+v", got)
 	}
-	// The single edge is stored once. Reverse traversal reads it backward; it is never mirrored
-	// into a second {p2,p1} edge in the same list.
-	if len(got[0].Edges) != 1 || got[0].Edges[0] != (Edge{From: "p1", To: "p2"}) {
-		t.Fatalf("self edge must be stored once, not mirrored: %+v", got[0].Edges)
+	// The reversed edge lands in the self/ mirror, not in the main file's edge list.
+	mir, _ := m.getSelfMirrorLocked("project.yaml")
+	mi := relationIndex(mir, "project.yaml")
+	if mi < 0 || len(mir[mi].Edges) != 1 || mir[mi].Edges[0] != (Edge{From: "p2", To: "p1"}) {
+		t.Fatalf("self mirror should hold the reversed edge p2->p1: %+v", mir)
 	}
 }
 
@@ -282,7 +290,7 @@ func TestSelfRelation_ManyToManyAllowsBothDirections(t *testing.T) {
 	}
 }
 
-func TestSelfRelation_RemoveEdge(t *testing.T) {
+func TestSelfRelation_RemoveEdgeClearsBothSides(t *testing.T) {
 	m := newMgr()
 	_ = m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}})
 	_ = m.AddEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"})
@@ -291,28 +299,93 @@ func TestSelfRelation_RemoveEdge(t *testing.T) {
 	}
 	got, _ := m.GetRelations("project.yaml")
 	if len(got) != 1 || len(got[0].Edges) != 0 {
-		t.Fatalf("self edge should be cleanly removed, relation kept: %+v", got)
+		t.Fatalf("forward self edge should be removed, relation kept: %+v", got)
+	}
+	mir, _ := m.getSelfMirrorLocked("project.yaml")
+	mi := relationIndex(mir, "project.yaml")
+	if mi >= 0 && len(mir[mi].Edges) != 0 {
+		t.Fatalf("self mirror edge should be removed too: %+v", mir)
 	}
 }
 
-func TestReconcile_LeavesSelfRelationUntouched(t *testing.T) {
+func TestReconcile_RecreatesSelfMirrorFromForward(t *testing.T) {
 	fs := newMemFS()
 	m := NewManager(fs, "/ctx/relations", fullCatalog())
-	// A self-relation with a single stored edge (no mirror, by design).
+	// Only the forward half on disk (self/ mirror lost). Reconcile rebuilds the mirror.
 	_ = m.saveRelationsLocked("project.yaml", []Relation{
-		{To: "project.yaml", Cardinality: ManyToOne, Edges: []Edge{{From: "p1", To: "p2"}}},
+		{To: "project.yaml", Cardinality: OneToMany, Edges: []Edge{{From: "p1", To: "p2"}}},
 	})
 	rep, err := m.Reconcile()
 	if err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}
-	// Self has no counterpart to create/heal and no conflict to report.
-	if len(rep.Created) != 0 || rep.EdgesHealed != 0 || len(rep.Conflicts) != 0 {
-		t.Fatalf("self-relation should need no repair: %+v", rep)
+	if len(rep.Created) != 1 || rep.Created[0].Cardinality != ManyToOne {
+		t.Fatalf("expected the self mirror recreated (many-to-one): %+v", rep)
+	}
+	mir, _ := m.getSelfMirrorLocked("project.yaml")
+	mi := relationIndex(mir, "project.yaml")
+	if mi < 0 || !mir[mi].Inverse || mir[mi].Cardinality != ManyToOne ||
+		len(mir[mi].Edges) != 1 || mir[mi].Edges[0] != (Edge{From: "p2", To: "p1"}) {
+		t.Fatalf("recreated self mirror should carry the reversed edge: %+v", mir)
+	}
+}
+
+func TestReconcile_RecreatesSelfForwardFromMirror(t *testing.T) {
+	fs := newMemFS()
+	m := NewManager(fs, "/ctx/relations", fullCatalog())
+	// Only the self/ mirror on disk (the main file's self entry was lost). Reconcile rebuilds it.
+	_ = m.saveSelfMirrorLocked("project.yaml", []Relation{
+		{To: "project.yaml", Cardinality: ManyToOne, Inverse: true, Edges: []Edge{{From: "p2", To: "p1"}}},
+	})
+	rep, err := m.Reconcile()
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if len(rep.Created) != 1 || rep.Created[0].Cardinality != OneToMany {
+		t.Fatalf("expected the forward self half recreated (one-to-many): %+v", rep)
 	}
 	got, _ := m.GetRelations("project.yaml")
-	if len(got) != 1 || len(got[0].Edges) != 1 || got[0].Edges[0] != (Edge{From: "p1", To: "p2"}) {
-		t.Fatalf("reconcile must not add a reversed edge or duplicate the self entry: %+v", got)
+	si := relationIndex(got, "project.yaml")
+	if si < 0 || got[si].Inverse || got[si].Cardinality != OneToMany ||
+		len(got[si].Edges) != 1 || got[si].Edges[0] != (Edge{From: "p1", To: "p2"}) {
+		t.Fatalf("recreated forward self half should carry the un-reversed edge: %+v", got)
+	}
+}
+
+func TestReconcile_HealsMissingSelfMirrorEdge(t *testing.T) {
+	fs := newMemFS()
+	m := NewManager(fs, "/ctx/relations", fullCatalog())
+	// Both halves present, but the mirror is missing one reversed edge.
+	_ = m.saveRelationsLocked("project.yaml", []Relation{
+		{To: "project.yaml", Cardinality: ManyToMany, Edges: []Edge{{From: "p1", To: "p2"}, {From: "p1", To: "p3"}}},
+	})
+	_ = m.saveSelfMirrorLocked("project.yaml", []Relation{
+		{To: "project.yaml", Cardinality: ManyToMany, Inverse: true, Edges: []Edge{{From: "p2", To: "p1"}}},
+	})
+	rep, err := m.Reconcile()
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if rep.EdgesHealed != 1 {
+		t.Fatalf("want 1 self edge healed, got %d (%+v)", rep.EdgesHealed, rep)
+	}
+	mir, _ := m.getSelfMirrorLocked("project.yaml")
+	mi := relationIndex(mir, "project.yaml")
+	if mi < 0 || !slices.Contains(mir[mi].Edges, Edge{From: "p3", To: "p1"}) {
+		t.Fatalf("missing reversed self edge p3->p1 not healed: %+v", mir)
+	}
+}
+
+func TestReconcile_SelfConsistentNoChange(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: OneToMany}})
+	_ = m.AddEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"})
+	rep, err := m.Reconcile()
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if len(rep.Created) != 0 || rep.EdgesHealed != 0 || len(rep.Conflicts) != 0 {
+		t.Fatalf("a healthy self pair should need no repair: %+v", rep)
 	}
 }
 

@@ -158,7 +158,119 @@ func (m *Manager) Reconcile() (ReconcileReport, error) {
 			}
 		}
 	}
+
+	if err := m.reconcileSelfLocked(graph, &report); err != nil {
+		return ReconcileReport{}, err
+	}
 	return report, nil
+}
+
+// reconcileSelfLocked heals each self-relation against its self/ mirror, the same way cross-template
+// halves heal against each other: forward in relations/<t>.yaml, inverse in relations/self/<t>.yaml.
+// Recreate a missing side from the survivor (reversed edges), fill missing reversed edges both ways,
+// report a cardinality conflict when the two disagree. Never deletes. Caller holds m.mu.
+func (m *Manager) reconcileSelfLocked(graph map[string]map[string]Relation, report *ReconcileReport) error {
+	selfFiles, err := m.fs.ListFiles(m.selfDir())
+	if err != nil {
+		selfFiles = nil // missing self/ subfolder: only forwards to consider
+	}
+	templates := map[string]bool{}
+	for t, tos := range graph {
+		if _, ok := tos[t]; ok {
+			templates[t] = true
+		}
+	}
+	for _, f := range selfFiles {
+		if strings.HasSuffix(f, ".yaml") {
+			templates[f] = true
+		}
+	}
+
+	for _, t := range sortedStringSet(templates) {
+		fwd, hasFwd := graph[t][t]
+		mirRels, err := m.getSelfMirrorLocked(t)
+		if err != nil {
+			return err
+		}
+		mi := relationIndex(mirRels, t)
+		hasMir := mi >= 0
+
+		switch {
+		case hasFwd && !hasMir:
+			mir := []Relation{{
+				To: t, Cardinality: fwd.Cardinality.inverse(), Inverse: true, Edges: reverseEdges(fwd.Edges),
+			}}
+			if err := m.saveSelfMirrorLocked(t, mir); err != nil {
+				return err
+			}
+			report.Created = append(report.Created, Counterpart{Template: t, To: t, Cardinality: fwd.Cardinality.inverse()})
+
+		case hasMir && !hasFwd:
+			mir := mirRels[mi]
+			mainRels, err := m.getRelationsLocked(t)
+			if err != nil {
+				return err
+			}
+			mainRels = append(mainRels, Relation{
+				To: t, Cardinality: mir.Cardinality.inverse(), Inverse: false, Edges: reverseEdges(mir.Edges),
+			})
+			if err := m.saveRelationsLocked(t, mainRels); err != nil {
+				return err
+			}
+			report.Created = append(report.Created, Counterpart{Template: t, To: t, Cardinality: mir.Cardinality.inverse()})
+
+		case hasFwd && hasMir:
+			mir := mirRels[mi]
+			if mir.Cardinality != fwd.Cardinality.inverse() {
+				report.Conflicts = append(report.Conflicts, Conflict{
+					A: t, ACardinality: fwd.Cardinality, B: t, BCardinality: mir.Cardinality,
+				})
+			}
+			var addToMir, addToFwd []Edge
+			for _, e := range fwd.Edges {
+				rev := Edge{From: e.To, To: e.From}
+				if !slices.Contains(mir.Edges, rev) {
+					addToMir = append(addToMir, rev)
+				}
+			}
+			for _, e := range mir.Edges {
+				rev := Edge{From: e.To, To: e.From}
+				if !slices.Contains(fwd.Edges, rev) {
+					addToFwd = append(addToFwd, rev)
+				}
+			}
+			if len(addToMir) > 0 {
+				mirRels[mi].Edges = append(mirRels[mi].Edges, addToMir...)
+				if err := m.saveSelfMirrorLocked(t, mirRels); err != nil {
+					return err
+				}
+				report.EdgesHealed += len(addToMir)
+			}
+			if len(addToFwd) > 0 {
+				mainRels, err := m.getRelationsLocked(t)
+				if err != nil {
+					return err
+				}
+				if k := relationIndex(mainRels, t); k >= 0 {
+					mainRels[k].Edges = append(mainRels[k].Edges, addToFwd...)
+					if err := m.saveRelationsLocked(t, mainRels); err != nil {
+						return err
+					}
+					report.EdgesHealed += len(addToFwd)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func sortedStringSet(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // pairKey is an order-independent key for an unordered template pair.
