@@ -52,6 +52,9 @@ function onDocMouseDown(e: MouseEvent) {
   for (const p of panels) {
     if (p.contains(target)) return;
   }
+  // A modal dialog opened over the popup (e.g. a confirm) is "more modal" than
+  // the popup; interacting with it must not dismiss the popup behind it.
+  if ((e.target as Element)?.closest?.(".modal-backdrop")) return;
   close();
 }
 function onKeydown(e: KeyboardEvent) {

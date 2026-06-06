@@ -101,6 +101,8 @@
   "workspace.storage.relations.no_links": "No links yet.",
   "workspace.storage.relations.add_link": "Add a link…",
   "workspace.storage.relations.remove": "Remove link",
+  "workspace.storage.relations.remove_title": "Remove link",
+  "workspace.storage.relations.remove_confirm": "Remove the link to “{0}”?",
   "workspace.storage.tag_filter_placeholder": "Filter by tag(s)…",
   "workspace.storage.template_picker": "Template",
   "workspace.storage.unselected": "Pick a form from the sidebar."

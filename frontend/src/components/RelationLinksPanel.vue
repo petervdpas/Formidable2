@@ -6,8 +6,9 @@
  * the target collection's records (add). Edges persist immediately and mirror to
  * the other side via the Relation service; this is NOT part of the form draft.
  */
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import ConfirmDialog from "./ConfirmDialog.vue";
 import {
   Service as RelationSvc,
   Relation,
@@ -96,6 +97,27 @@ async function removeLink(r: Relation, targetId: string) {
     toast.error(backendErrMessage(e));
   }
 }
+
+// Removal is confirmed first; the dialog is a modal over the popover, which stays open.
+const confirmOpen = ref(false);
+const pending = ref<{ relation: Relation; id: string } | null>(null);
+const pendingTitle = computed(() =>
+  pending.value ? itemTitle(pending.value.relation.to, pending.value.id) : "",
+);
+function askRemove(relation: Relation, id: string) {
+  pending.value = { relation, id };
+  confirmOpen.value = true;
+}
+function cancelRemove() {
+  confirmOpen.value = false;
+  pending.value = null;
+}
+async function confirmRemove() {
+  const p = pending.value;
+  confirmOpen.value = false;
+  pending.value = null;
+  if (p) await removeLink(p.relation, p.id);
+}
 </script>
 
 <template>
@@ -129,7 +151,7 @@ async function removeLink(r: Relation, targetId: string) {
             class="tool-btn danger"
             type="button"
             :title="t('workspace.storage.relations.remove')"
-            @click="removeLink(r, id)"
+            @click="askRemove(r, id)"
           >×</button>
         </li>
       </ul>
@@ -143,5 +165,16 @@ async function removeLink(r: Relation, targetId: string) {
         @update:model-value="(v: string) => addLink(r, v)"
       />
     </div>
+
+    <ConfirmDialog
+      :open="confirmOpen"
+      :title="t('workspace.storage.relations.remove_title')"
+      :message="t('workspace.storage.relations.remove_confirm', [pendingTitle])"
+      :confirm-label="t('workspace.storage.relations.remove')"
+      :cancel-label="t('common.cancel')"
+      variant="danger"
+      @confirm="confirmRemove"
+      @cancel="cancelRemove"
+    />
   </div>
 </template>

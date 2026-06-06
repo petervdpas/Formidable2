@@ -226,6 +226,8 @@
   "workspace.templates.relations.add": "Add relation",
   "workspace.templates.relations.edit": "Edit",
   "workspace.templates.relations.remove": "Remove relation",
+  "workspace.templates.relations.remove_title": "Remove relation",
+  "workspace.templates.relations.remove_confirm": "Remove the relation to “{0}”? It is removed from both sides.",
   "workspace.templates.relations.cardinality.one_to_one": "One to one",
   "workspace.templates.relations.cardinality.one_to_many": "One to many",
   "workspace.templates.relations.cardinality.many_to_one": "Many to one",

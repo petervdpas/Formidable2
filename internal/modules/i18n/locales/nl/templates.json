@@ -226,6 +226,8 @@
   "workspace.templates.relations.add": "Relatie toevoegen",
   "workspace.templates.relations.edit": "Bewerken",
   "workspace.templates.relations.remove": "Relatie verwijderen",
+  "workspace.templates.relations.remove_title": "Relatie verwijderen",
+  "workspace.templates.relations.remove_confirm": "Relatie met “{0}” verwijderen? Deze wordt aan beide kanten verwijderd.",
   "workspace.templates.relations.cardinality.one_to_one": "Een op een",
   "workspace.templates.relations.cardinality.one_to_many": "Een op veel",
   "workspace.templates.relations.cardinality.many_to_one": "Veel op een",

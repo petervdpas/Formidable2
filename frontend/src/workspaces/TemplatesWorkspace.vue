@@ -565,6 +565,28 @@ async function persistRelations(next: Relation[]) {
 function removeRelation(idx: number) {
   void persistRelations(relations.value.filter((_, i) => i !== idx));
 }
+
+// Removing a relation drops it (and its edges) from BOTH sides, so confirm first.
+const relationDeleteOpen = ref(false);
+const relationDeleteIndex = ref(-1);
+const relationDeleteLabel = computed(() => {
+  const r = relations.value[relationDeleteIndex.value];
+  return r ? relationTargetLabel(r.to) : "";
+});
+function askRemoveRelation(idx: number) {
+  relationDeleteIndex.value = idx;
+  relationDeleteOpen.value = true;
+}
+function confirmRemoveRelation() {
+  const idx = relationDeleteIndex.value;
+  relationDeleteOpen.value = false;
+  relationDeleteIndex.value = -1;
+  if (idx >= 0) removeRelation(idx);
+}
+function cancelRemoveRelation() {
+  relationDeleteOpen.value = false;
+  relationDeleteIndex.value = -1;
+}
 function applyRelation(rel: Relation) {
   const next =
     editingRelationIndex.value < 0
@@ -1313,7 +1335,7 @@ setTopbarMenu(() => [
                         class="tool-btn danger"
                         type="button"
                         :title="t('workspace.templates.relations.remove')"
-                        @click="removeRelation(i)"
+                        @click="askRemoveRelation(i)"
                       >×</button>
                     </li>
                   </ul>
@@ -1552,6 +1574,17 @@ setTopbarMenu(() => [
     :cardinalities="cardinalityOptions"
     @close="relationEditorOpen = false"
     @apply="applyRelation"
+  />
+
+  <ConfirmDialog
+    :open="relationDeleteOpen"
+    :title="t('workspace.templates.relations.remove_title')"
+    :message="t('workspace.templates.relations.remove_confirm', [relationDeleteLabel])"
+    :confirm-label="t('workspace.templates.relations.remove')"
+    :cancel-label="t('common.cancel')"
+    variant="danger"
+    @confirm="confirmRemoveRelation"
+    @cancel="cancelRemoveRelation"
   />
 
   <!-- Evaluated-statistic viewer (rank-N grid + composite sunburst) -->

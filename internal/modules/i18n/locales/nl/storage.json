@@ -101,6 +101,8 @@
   "workspace.storage.relations.no_links": "Nog geen koppelingen.",
   "workspace.storage.relations.add_link": "Koppeling toevoegen…",
   "workspace.storage.relations.remove": "Koppeling verwijderen",
+  "workspace.storage.relations.remove_title": "Koppeling verwijderen",
+  "workspace.storage.relations.remove_confirm": "Koppeling met “{0}” verwijderen?",
   "workspace.storage.tag_filter_placeholder": "Filter op tag(s)…",
   "workspace.storage.template_picker": "Sjabloon",
   "workspace.storage.unselected": "Kies een formulier uit de zijbalk."
