@@ -397,9 +397,13 @@ func New(d Deps) (*App, error) {
 	// Datacore: read-only perspectives over a tensor built from the
 	// template's live forms. Built before stat because stat computes
 	// through it. The loader adapter evaluates the template's formula fields
-	// per record via expressionM, so formulas are ordinary datacore fields.
+	// per record via expressionM, so formulas are ordinary datacore fields,
+	// and reads relation edges (declared below) so they surface as Links the
+	// perspective can Follow. relationM is assigned further down; the factory
+	// runs per query, long after construction, so the late binding is safe.
+	var relationM *relation.Manager
 	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
-		return newDatacoreLoaderAdapter(tplM, stoM, expressionM, tpl)
+		return newDatacoreLoaderAdapter(tplM, stoM, expressionM, relationM, tpl)
 	}, newDatacoreIndexPlanner(idxM))
 
 	// Chart-neutral statistics computed on the datacore tensor. The index's
@@ -464,7 +468,7 @@ func New(d Deps) (*App, error) {
 	// sibling of templates (derived here, not owned by the VFS). The module talks to the main
 	// templates/records only through relation.Catalog, implemented by relationCatalog over dpM.
 	relationsDir := filepath.Join(filepath.Dir(templatesPath), "relations")
-	relationM := relation.NewManager(sysM, relationsDir, relationCatalog{dp: dpM})
+	relationM = relation.NewManager(sysM, relationsDir, relationCatalog{dp: dpM})
 
 	// Integrity analyzes stored forms against the template's current field
 	// declarations. Fix commits via storage.SaveFormExact so meta mutations

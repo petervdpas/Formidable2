@@ -7,9 +7,17 @@ import (
 
 	"github.com/petervdpas/formidable2/internal/modules/datacore"
 	"github.com/petervdpas/formidable2/internal/modules/expression"
+	"github.com/petervdpas/formidable2/internal/modules/relation"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
+
+// relationReader is the narrow seam onto declared relations + their edges, so
+// the tensor can expose them as datacore Links (followable). Satisfied by
+// *relation.Manager; kept to one method so the adapter borrows nothing else.
+type relationReader interface {
+	GetRelations(template string) ([]relation.Relation, error)
+}
 
 // datacoreLoaderAdapter bridges template + storage into datacore.Loader.
 // Reads structured form data directly (not the index), so any field is
@@ -19,11 +27,12 @@ type datacoreLoaderAdapter struct {
 	tpl          *template.Manager
 	sto          *storage.Manager
 	ev           *expression.Manager
+	rel          relationReader
 	templateFile string
 }
 
-func newDatacoreLoaderAdapter(tpl *template.Manager, sto *storage.Manager, ev *expression.Manager, templateFile string) *datacoreLoaderAdapter {
-	return &datacoreLoaderAdapter{tpl: tpl, sto: sto, ev: ev, templateFile: templateFile}
+func newDatacoreLoaderAdapter(tpl *template.Manager, sto *storage.Manager, ev *expression.Manager, rel relationReader, templateFile string) *datacoreLoaderAdapter {
+	return &datacoreLoaderAdapter{tpl: tpl, sto: sto, ev: ev, rel: rel, templateFile: templateFile}
 }
 
 // datacoreSkipTypes are field types that carry no statable value of their own
@@ -54,6 +63,8 @@ func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) 
 		return nil, err
 	}
 	out := make([]datacore.Record, 0, len(files))
+	guids := make([]string, 0, len(files))           // guid per record, parallel to out
+	guidToFile := make(map[string]string, len(files)) // edge endpoints reference records by guid
 	for _, file := range files {
 		f := a.sto.LoadForm(a.templateFile, file)
 		if f == nil {
@@ -62,8 +73,54 @@ func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) 
 		rec := datacoreRecord(tpl, file, f)
 		applyFormulas(a.ev, tpl, f, &rec)
 		out = append(out, rec)
+		guids = append(guids, f.Meta.ID)
+		if f.Meta.ID != "" {
+			guidToFile[f.Meta.ID] = file
+		}
 	}
+	a.attachLinks(out, guids, guidToFile)
 	return out, nil
+}
+
+// attachLinks turns declared relation edges into datacore Links (followable as
+// "rel:<to>"). Edges reference records by guid; the tensor addresses records by
+// filename, so only targets that resolve to a loaded record are attached. That
+// is exactly the self-relation case today (source and target share this
+// template). Cross-template edges resolve once the tensor spans more than one
+// template; until then their targets are absent and skipped, harmlessly.
+func (a *datacoreLoaderAdapter) attachLinks(recs []datacore.Record, guids []string, guidToFile map[string]string) {
+	if a.rel == nil {
+		return
+	}
+	rels, err := a.rel.GetRelations(a.templateFile)
+	if err != nil || len(rels) == 0 {
+		return
+	}
+	perRel := map[string]map[string][]string{} // "rel:<to>" -> fromGuid -> []targetFile
+	for _, r := range rels {
+		byFrom := map[string][]string{}
+		for _, e := range r.Edges {
+			if tf, ok := guidToFile[e.To]; ok {
+				byFrom[e.From] = append(byFrom[e.From], tf)
+			}
+		}
+		if len(byFrom) > 0 {
+			perRel["rel:"+r.To] = byFrom
+		}
+	}
+	if len(perRel) == 0 {
+		return
+	}
+	for i := range recs {
+		for key, byFrom := range perRel {
+			if targets := byFrom[guids[i]]; len(targets) > 0 {
+				if recs[i].Links == nil {
+					recs[i].Links = map[string][]string{}
+				}
+				recs[i].Links[key] = targets
+			}
+		}
+	}
 }
 
 // datacoreRecord shapes one live form into a Record. Scalars become fields;

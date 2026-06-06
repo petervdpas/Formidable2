@@ -7,11 +7,18 @@ import (
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/datacore"
+	"github.com/petervdpas/formidable2/internal/modules/relation"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
+
+type fakeRelReader struct{ rels map[string][]relation.Relation }
+
+func (f fakeRelReader) GetRelations(template string) ([]relation.Relation, error) {
+	return f.rels[template], nil
+}
 
 // TestDatacoreAdapter_IngestsLiveTemplate stitches the real template + storage
 // managers together, saves fixture forms, then builds a tensor through the
@@ -85,7 +92,7 @@ func TestDatacoreAdapter_IngestsLiveTemplate(t *testing.T) {
 		}
 	}
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, "assets.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "assets.yaml"))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}
@@ -116,6 +123,72 @@ func TestDatacoreAdapter_IngestsLiveTemplate(t *testing.T) {
 	if got := ct.Count("SILVER", "active"); got != 1 {
 		t.Fatalf("SILVER/active = %d, want 1", got)
 	}
+}
+
+// TestDatacoreAdapter_SelfRelationLinksAreFollowable saves three collection
+// records, declares a self-relation whose edges point each child at the parent,
+// and confirms the adapter turns those edges into a Followable "rel:<to>" link:
+// following it from every record lands on the parent. This is the seam that lets
+// datacore traverse the relation graph (the inheritance/hierarchy case).
+func TestDatacoreAdapter_SelfRelationLinksAreFollowable(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	tplM := template.NewManager(sys, "templates", log)
+	if err := tplM.EnsureTemplateDirectory(); err != nil {
+		t.Fatalf("EnsureTemplateDirectory: %v", err)
+	}
+	sfrM := sfr.NewManager(sys, log)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", log)
+
+	tpl := &template.Template{
+		Name:             "entities",
+		Filename:         "entities.yaml",
+		EnableCollection: true,
+		Fields: []template.Field{
+			{Key: "id", Type: "guid"},
+			{Key: "name", Type: "text"},
+		},
+	}
+	if err := tplM.SaveTemplate("entities.yaml", tpl); err != nil {
+		t.Fatalf("SaveTemplate: %v", err)
+	}
+
+	files := []string{"parent.meta.json", "childa.meta.json", "childb.meta.json"}
+	labels := []string{"Parent", "ChildA", "ChildB"}
+	guid := map[string]string{}
+	for i, fn := range files {
+		if r := stoM.SaveForm(context.Background(), "entities.yaml", fn, map[string]any{"name": labels[i]}); !r.Success {
+			t.Fatalf("SaveForm %s: %s", fn, r.Error)
+		}
+		f := stoM.LoadForm("entities.yaml", fn)
+		if f == nil || f.Meta.ID == "" {
+			t.Fatalf("record %s has no guid", fn)
+		}
+		guid[fn] = f.Meta.ID
+	}
+
+	// Self-relation: each child points to the parent (the base-entity / reports_to shape).
+	rel := fakeRelReader{rels: map[string][]relation.Relation{
+		"entities.yaml": {{
+			To:          "entities.yaml",
+			Cardinality: relation.ManyToOne,
+			Edges: []relation.Edge{
+				{From: guid["childa.meta.json"], To: guid["parent.meta.json"]},
+				{From: guid["childb.meta.json"], To: guid["parent.meta.json"]},
+			},
+		}},
+	}}
+
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "entities.yaml"))
+	if err != nil {
+		t.Fatalf("datacore.Build: %v", err)
+	}
+	// Following the self-relation from every record lands on the parent (deduped).
+	assertBuckets(t, "rel:entities.yaml -> name",
+		dt.View().Follow("rel:entities.yaml").Distribution("name"),
+		map[string]int{"Parent": 1})
 }
 
 func assertBuckets(t *testing.T, label string, got []datacore.Bucket, want map[string]int) {

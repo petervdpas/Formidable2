@@ -161,7 +161,7 @@ func TestScaling_ResolvesInFormulaAndStatistics(t *testing.T) {
 		}
 	}
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, exprM, "apps.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, exprM, nil, "apps.yaml"))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}
