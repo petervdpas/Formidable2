@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import draggable from "vuedraggable";
 import SplitPane from "../components/SplitPane.vue";
 import Badge from "../components/Badge.vue";
 import Modal from "../components/Modal.vue";
@@ -11,44 +10,28 @@ import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CleanupStorageDialog from "../components/CleanupStorageDialog.vue";
 import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
-import ExpressionBuilderModal from "../components/ExpressionBuilderModal.vue";
-import FacetEditorModal from "../components/FacetEditorModal.vue";
-import StatisticsBuilderModal from "../components/StatisticsBuilderModal.vue";
-import CompositeBuilderModal from "../components/CompositeBuilderModal.vue";
-import ScalingBuilderModal from "../components/ScalingBuilderModal.vue";
-import FormulaEditorModal from "../components/FormulaEditorModal.vue";
-import StatGridDialog from "../components/stat/StatGridDialog.vue";
-import { type Grid, type CompositeGrid } from "../components/stat/grid";
-import { Service as StatSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat";
-import type { CompositeSpec } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/stat/models";
-import FacetIcon from "../components/FacetIcon.vue";
-import { useFacetMeta } from "../composables/useFacetMeta";
-import { Facet, Formula, Scaling, Statistic } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import CodeEditor from "../components/CodeEditor.vue";
+import TemplateCodeTab from "../components/TemplateCodeTab.vue";
+import TemplateExpressionTab from "../components/TemplateExpressionTab.vue";
+import TemplateFacetsTab from "../components/TemplateFacetsTab.vue";
+import TemplateFormulasTab from "../components/TemplateFormulasTab.vue";
+import TemplateStatisticsTab from "../components/TemplateStatisticsTab.vue";
 import Tabs from "../components/Tabs.vue";
 import {
   Service as TemplateSvc,
   GeneratorOptions,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
-import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
-import { Service as RelationSvc, Relation, Cardinality } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation";
-import type { CardinalityOption } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation/models";
-import { Service as DataproviderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
-import type { TemplateSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider/models";
-import RelationEditorModal from "../components/RelationEditorModal.vue";
-import { useTemplateValidation } from "../composables/useTemplateValidation";
-import type { FieldRef } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression/builder";
+import { Service as RelationSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation";
+import TemplateRelationsTab from "../components/TemplateRelationsTab.vue";
 import { backendErrMessage } from "../utils/backendError";
 import {
   FormSection,
   FormRow,
   FormSwitchRow,
   TextField,
-  TextareaField,
   FieldSelector,
 } from "../components/fields";
 import { useTemplates } from "../composables/useTemplates";
@@ -331,97 +314,6 @@ async function applyGenerated(shape: string, opts: GeneratorOptions) {
   }
 }
 
-const {
-  errorDiagnostic: templateErrorDiagnostic,
-  warningDiagnostics: templateWarningDiagnostics,
-  isOK: templateValidationOK,
-} = useTemplateValidation(() => draft.value?.markdown_template ?? "");
-
-// ── Expression-builder dialog ────────────────────────────────────────
-// Visual builder for sidebar_expression. The dialog is the only way
-// to edit the source - the textarea is rendered read-only - so the
-// shape stays predictable for the strict round-trip parser. On open
-// the dialog tries to load the existing source; if parsing fails it
-// emits "clear" and we wipe the textarea so the unparseable string
-// can't survive a session.
-const expressionBuilderOpen = ref(false);
-
-function applyExpressionBuilder(source: string) {
-  expressionBuilderOpen.value = false;
-  if (!draft.value) return;
-  draft.value.sidebar_expression = source;
-}
-
-function clearExpressionSource() {
-  if (!draft.value) return;
-  draft.value.sidebar_expression = "";
-}
-
-// Inline "Convert" affordance next to the Builder button. Shows only
-// when the current sidebar_expression is non-empty AND fails the
-// strict builder Parse - i.e. it's a legacy shape (array-wrapped
-// ternary, old `|` pipe form, bare identifiers, etc.) that the
-// builder dialog can't load. Clicking Convert pipes the source
-// through the backend best-effort migrator and writes the canonical
-// result back into draft.sidebar_expression. The Builder button can
-// then load it normally.
-const expressionParseable = ref(true);
-
-function expressionFieldRefs(): FieldRef[] {
-  const fs = draft.value?.fields ?? [];
-  return fs
-    .filter((f) => {
-      if (!f.expression_item) return false;
-      const tt = (f.type || "").toLowerCase();
-      return tt !== "loopstart" && tt !== "loopstop" && tt !== "looper";
-    })
-    .map((f) => ({
-      key: f.key,
-      type: f.type || "",
-      options: ((f.options ?? []) as any[]).map((o) => ({
-        value: String(o?.value ?? ""),
-        label: String(o?.label ?? o?.value ?? ""),
-      })),
-    }));
-}
-
-async function recheckExpressionParseable() {
-  const src = (draft.value?.sidebar_expression ?? "").trim();
-  if (!src) {
-    expressionParseable.value = true;
-    return;
-  }
-  try {
-    await ExpressionSvc.BuilderParse(src, expressionFieldRefs());
-    expressionParseable.value = true;
-  } catch {
-    expressionParseable.value = false;
-  }
-}
-
-async function onInlineConvert() {
-  if (!draft.value) return;
-  const src = (draft.value.sidebar_expression ?? "").trim();
-  if (!src) return;
-  try {
-    const migrated = await ExpressionSvc.BuilderConvert(src, expressionFieldRefs());
-    draft.value.sidebar_expression = migrated;
-    toast.success("workspace.templates.expression_builder.convert_succeeded");
-  } catch (err) {
-    toast.error("workspace.templates.expression_builder.convert_failed");
-    const detail = backendErrMessage(err);
-    if (detail) toast.error(detail);
-  }
-}
-
-watch(
-  () => draft.value?.sidebar_expression,
-  () => {
-    void recheckExpressionParseable();
-  },
-  { immediate: true },
-);
-
 // ── Setup-info tabs (Template Code / Sidebar Expression / Facets) ───
 const setupTab = ref<"code" | "expression" | "facets" | "statistics" | "formulas" | "relations">("code");
 const setupTabItems = computed(() => {
@@ -450,83 +342,11 @@ watch(
   { immediate: true },
 );
 
-// ── Relations (sidecar, persisted immediately, NOT part of the draft) ──
-const relations = ref<Relation[]>([]);
-const collectionTemplates = ref<TemplateSummary[]>([]);
-const relationEditorOpen = ref(false);
-const editingRelationIndex = ref(-1);
-const editingRelation = ref<Relation>(new Relation({ to: "" }));
-
-// Cardinality options come from the backend (value + label key); the label is
-// localized here. No frontend value->key mapping.
-const cardinalityChoices = ref<CardinalityOption[]>([]);
-void RelationSvc.Cardinalities().then((o) => (cardinalityChoices.value = o ?? []));
-const cardinalityOptions = computed(() =>
-  cardinalityChoices.value.map((o) => ({ value: o.value, label: t(o.label_key) })),
-);
-// Default cardinality for a new relation comes from the backend option set.
-const defaultCardinality = computed<string>(
-  () => cardinalityChoices.value.find((o) => o.default)?.value ?? "",
-);
-function cardinalityLabel(c: string): string {
-  const opt = cardinalityChoices.value.find((o) => o.value === c);
-  return opt ? t(opt.label_key) : c;
-}
-function relationTargetLabel(to: string): string {
-  const s = collectionTemplates.value.find((x) => x.filename === to);
-  return s?.name || s?.stem || to;
-}
-
-async function loadRelations(fn: string | null) {
-  relations.value = [];
-  if (!fn) return;
-  try {
-    collectionTemplates.value = await DataproviderSvc.ListCollectionTemplates();
-    relations.value = (await RelationSvc.GetRelations(fn)) ?? [];
-  } catch (e) {
-    relations.value = [];
-    toast.error(backendErrMessage(e));
-  }
-}
-watch(() => selectedFilename.value, (fn) => void loadRelations(fn ?? null), { immediate: true });
-
-// Editor target options: collection templates minus targets already linked
-// (except the one being edited), so a duplicate relation can't be picked.
-const relationTargetOptions = computed(() => {
-  const used = new Set(
-    relations.value
-      .filter((_, i) => i !== editingRelationIndex.value)
-      .map((r) => r.to),
-  );
-  return collectionTemplates.value
-    .filter((s) => !used.has(s.filename))
-    .map((s) => ({ value: s.filename, label: s.name || s.stem }));
-});
-
-function openAddRelation() {
-  editingRelationIndex.value = -1;
-  editingRelation.value = new Relation({
-    to: "",
-    cardinality: defaultCardinality.value as Cardinality,
-  });
-  relationEditorOpen.value = true;
-}
-function openEditRelation(idx: number) {
-  const r = relations.value[idx];
-  if (!r) return;
-  editingRelationIndex.value = idx;
-  editingRelation.value = new Relation({
-    to: r.to,
-    cardinality: r.cardinality,
-    inverse: r.inverse,
-  });
-  relationEditorOpen.value = true;
-}
-
-// Reconcile (Utilities -> Reconcile Relations): an explicit self-heal pass over
-// every relation file. Recreates missing counterparts and reports cardinality
-// conflicts; only matters for damage that bypassed the app (hand-edited/deleted
-// files, restored git state). Global, so it needs no selected template.
+// ── Relations tab (extracted into TemplateRelationsTab) ──────────────
+// The tab owns its own load/persist/editor/delete; here we keep only the global
+// Reconcile (Utilities menu) and a reload signal bumped after it so an open tab
+// refreshes.
+const relationsReloadKey = ref(0);
 const reconciling = ref(false);
 async function reconcileRelations() {
   if (reconciling.value) return;
@@ -540,7 +360,7 @@ async function reconcileRelations() {
     if (conflicts > 0) {
       toast.error("workspace.templates.relations.reconcile.conflicts", [String(conflicts)]);
     }
-    await loadRelations(selectedFilename.value ?? null);
+    relationsReloadKey.value++;
   } catch (e) {
     toast.error("workspace.templates.relations.reconcile.error", [backendErrMessage(e)]);
   } finally {
@@ -548,304 +368,12 @@ async function reconcileRelations() {
   }
 }
 
-// Immediate persist: write the whole relation set to the sidecar; revert the
-// optimistic update if the backend rejects.
-async function persistRelations(next: Relation[]) {
-  const fn = selectedFilename.value;
-  if (!fn) return;
-  const prev = relations.value;
-  relations.value = next;
-  try {
-    await RelationSvc.SetRelations(fn, next);
-  } catch (e) {
-    relations.value = prev;
-    toast.error(backendErrMessage(e));
-  }
-}
-function removeRelation(idx: number) {
-  void persistRelations(relations.value.filter((_, i) => i !== idx));
-}
 
-// One shared delete confirm for every setup-tab list (facets, statistics,
-// formulas, relations) - one dialog, one state machine (DRY).
-const deleteOpen = ref(false);
-const deleteTitle = ref("");
-const deleteMessage = ref("");
-const deleteLabel = ref("");
-let pendingDelete: (() => void) | null = null;
-function askDelete(title: string, message: string, confirmLabel: string, run: () => void) {
-  deleteTitle.value = title;
-  deleteMessage.value = message;
-  deleteLabel.value = confirmLabel;
-  pendingDelete = run;
-  deleteOpen.value = true;
-}
-function confirmDelete() {
-  deleteOpen.value = false;
-  const run = pendingDelete;
-  pendingDelete = null;
-  run?.();
-}
-function cancelDelete() {
-  deleteOpen.value = false;
-  pendingDelete = null;
-}
-function askRemoveRelation(idx: number) {
-  const r = relations.value[idx];
-  askDelete(
-    t("workspace.templates.relations.remove_title"),
-    t("workspace.templates.relations.remove_confirm", [r ? relationTargetLabel(r.to) : ""]),
-    t("workspace.templates.relations.remove"),
-    () => removeRelation(idx),
-  );
-}
-function applyRelation(rel: Relation) {
-  const next =
-    editingRelationIndex.value < 0
-      ? [...relations.value, rel]
-      : relations.value.map((existing, i) =>
-          i === editingRelationIndex.value ? rel : existing,
-        );
-  void persistRelations(next);
-}
+// ── Formulas tab (extracted into TemplateFormulasTab) ───────────────
 
-// ── Formula fields: named per-record computed fields (datacore-evaluated) ──
-const formulaEditorOpen = ref(false);
-const editingFormulaIndex = ref(-1);
-const editingFormula = ref<Formula | null>(null);
+// ── Statistics tab (extracted into TemplateStatisticsTab) ────────────
 
-function openAddFormula() {
-  if (!draft.value) return;
-  editingFormulaIndex.value = -1;
-  editingFormula.value = null;
-  formulaEditorOpen.value = true;
-}
-
-function openEditFormula(idx: number) {
-  if (!draft.value) return;
-  const f = draft.value.formulas?.[idx];
-  if (!f) return;
-  editingFormulaIndex.value = idx;
-  editingFormula.value = new Formula({ key: f.key, label: f.label, type: f.type, expression: f.expression });
-  formulaEditorOpen.value = true;
-}
-
-function removeFormula(idx: number) {
-  if (!draft.value) return;
-  const cur = draft.value.formulas ?? [];
-  draft.value.formulas = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
-}
-
-function applyFormula(f: Formula) {
-  if (!draft.value) return;
-  const cur = draft.value.formulas ?? [];
-  if (editingFormulaIndex.value < 0) {
-    draft.value.formulas = [...cur, f];
-  } else {
-    draft.value.formulas = cur.map((existing, i) => (i === editingFormulaIndex.value ? f : existing));
-  }
-  formulaEditorOpen.value = false;
-}
-
-// ── Statistical Engine: named statistical objects on the template ─────
-// Edits one statistic at a time via StatisticsBuilderModal. The builder
-// round-trips the DSL string through the backend (stat.Compile/Parse).
-const statBuilderOpen = ref(false);
-const editingStatIndex = ref(-1);
-const editingStat = ref<Statistic | null>(null);
-
-function openAddStatistic() {
-  if (!draft.value) return;
-  editingStatIndex.value = -1;
-  editingStat.value = null;
-  statBuilderOpen.value = true;
-}
-
-function openEditStatistic(idx: number) {
-  if (!draft.value) return;
-  const s = draft.value.statistics?.[idx];
-  if (!s) return;
-  editingStatIndex.value = idx;
-  // Reopen each object kind in its own builder.
-  if (s.composite) {
-    editingComposite.value = s;
-    compositeBuilderOpen.value = true;
-    return;
-  }
-  editingStat.value = new Statistic({ name: s.name, label: s.label, dsl: s.dsl });
-  statBuilderOpen.value = true;
-}
-
-function removeStatistic(idx: number) {
-  if (!draft.value) return;
-  const cur = draft.value.statistics ?? [];
-  draft.value.statistics = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
-}
-
-function applyStatistic(s: Statistic) {
-  if (!draft.value) return;
-  const cur = draft.value.statistics ?? [];
-  if (editingStatIndex.value < 0) {
-    draft.value.statistics = [...cur, s];
-  } else {
-    draft.value.statistics = cur.map((existing, i) => (i === editingStatIndex.value ? s : existing));
-  }
-  statBuilderOpen.value = false;
-}
-
-// ── Composite (hop route) objects: authored via CompositeBuilderModal,
-// which is driven by the backend's CompositeOptions (only valid parent/child
-// links are offered). Shares the statistics list + apply path with the DSL
-// builder; editingStatIndex steers insert vs replace for both.
-const compositeBuilderOpen = ref(false);
-const editingComposite = ref<Statistic | null>(null);
-
-function openAddComposite() {
-  if (!draft.value) return;
-  editingStatIndex.value = -1;
-  editingComposite.value = null;
-  compositeBuilderOpen.value = true;
-}
-
-function applyComposite(s: Statistic) {
-  applyStatistic(s);
-  compositeBuilderOpen.value = false;
-}
-
-// ── Scaling objects (reusable weightings): a facet weighting subsystem. Each
-// facet owns a single weighting, edited inline from its row. A scaling has no
-// grid of its own; the expression engine reads it as S["name"] and the
-// Statistical Engine references it through the DSL scale "<name>" clause. Stored
-// in draft.scalings (top-level), keyed to a facet by source.
-const scalingBuilderOpen = ref(false);
-const editingScalingIndex = ref(-1);
-const editingScaling = ref<Scaling | null>(null);
-const editingScalingFacet = ref<Facet | null>(null);
-const scalings = computed(() => draft.value?.scalings ?? []);
-
-// The weighting whose source is this facet (each facet owns at most one).
-function scalingIndexForFacet(key: string): number {
-  return (draft.value?.scalings ?? []).findIndex(
-    (s) => s.source.kind === "facet" && s.source.key === key,
-  );
-}
-function scalingForFacet(key: string): Scaling | null {
-  const i = scalingIndexForFacet(key);
-  return i >= 0 ? (draft.value?.scalings?.[i] ?? null) : null;
-}
-
-function openFacetWeighting(facet: Facet) {
-  if (!draft.value) return;
-  const idx = scalingIndexForFacet(facet.key);
-  editingScalingIndex.value = idx;
-  editingScaling.value = idx >= 0 ? (draft.value.scalings?.[idx] ?? null) : null;
-  editingScalingFacet.value = facet;
-  scalingBuilderOpen.value = true;
-}
-
-function removeScaling(idx: number) {
-  if (!draft.value || idx < 0) return;
-  const cur = draft.value.scalings ?? [];
-  draft.value.scalings = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
-}
-
-function applyScaling(s: Scaling) {
-  if (!draft.value) return;
-  const cur = draft.value.scalings ?? [];
-  if (editingScalingIndex.value < 0) {
-    draft.value.scalings = [...cur, s];
-  } else {
-    draft.value.scalings = cur.map((existing, i) => (i === editingScalingIndex.value ? s : existing));
-  }
-  scalingBuilderOpen.value = false;
-}
-
-function onRemoveScaling() {
-  removeScaling(editingScalingIndex.value);
-  scalingBuilderOpen.value = false;
-}
-
-// View an evaluated statistic. Uses EvaluateDSL on the draft's current
-// DSL so it works on unsaved edits too (the statistic's own row need not
-// be persisted; it only reads the template's already-indexed values).
-const statViewOpen = ref(false);
-const statViewGrid = ref<Grid | CompositeGrid | null>(null);
-const statViewTitle = ref("");
-
-async function openViewStatistic(s: Statistic) {
-  const tpl = selectedFilename.value;
-  if (!tpl) return;
-  try {
-    // A composite previews its spec inline (its parent + children are
-    // already saved); a plain object evaluates its DSL.
-    const grid = s.composite
-      ? await StatSvc.EvaluateCompositeSpec(tpl, s.composite as unknown as CompositeSpec)
-      : await StatSvc.EvaluateDSL(tpl, s.dsl);
-    statViewGrid.value = grid as unknown as Grid | CompositeGrid;
-    statViewTitle.value = s.label || s.name;
-    statViewOpen.value = true;
-  } catch (e) {
-    toast.error("workspace.templates.statistics.view_failed", [backendErrMessage(e)]);
-  }
-}
-
-// ── Facet editor dialog ──────────────────────────────────────────────
-// Edits one facet at a time. editingIndex = -1 means "adding a new
-// facet"; ≥0 means "editing the facet at that index in draft.facets".
-// Limits come from the backend via useFacetMeta - no static mirrors.
-const { maxFacets, icons: facetIcons } = useFacetMeta();
-const defaultFacetIcon = computed(() => facetIcons.value[0] ?? "fa-flag");
-const facetEditorOpen = ref(false);
-const editingFacetIndex = ref(-1);
-const editingFacet = ref<Facet>(new Facet({ key: "", icon: "fa-flag", options: [] }));
-
-function openAddFacet() {
-  if (!draft.value) return;
-  if ((draft.value.facets?.length ?? 0) >= maxFacets.value) return;
-  editingFacetIndex.value = -1;
-  editingFacet.value = new Facet({
-    key: "",
-    icon: defaultFacetIcon.value,
-    options: [],
-  });
-  facetEditorOpen.value = true;
-}
-
-function openEditFacet(idx: number) {
-  if (!draft.value) return;
-  const f = draft.value.facets?.[idx];
-  if (!f) return;
-  editingFacetIndex.value = idx;
-  editingFacet.value = new Facet({
-    key: f.key,
-    icon: f.icon,
-    options: (f.options ?? []).map((o) => ({ label: o.label, color: o.color })),
-  });
-  facetEditorOpen.value = true;
-}
-
-function removeFacet(idx: number) {
-  if (!draft.value) return;
-  const cur = draft.value.facets ?? [];
-  draft.value.facets = [...cur.slice(0, idx), ...cur.slice(idx + 1)];
-}
-
-function applyFacet(f: Facet) {
-  if (!draft.value) return;
-  const cur = draft.value.facets ?? [];
-  if (editingFacetIndex.value < 0) {
-    draft.value.facets = [...cur, f];
-  } else {
-    draft.value.facets = cur.map((existing, i) => (i === editingFacetIndex.value ? f : existing));
-  }
-}
-
-const otherFacetKeys = computed(() => {
-  const cur = draft.value?.facets ?? [];
-  return cur
-    .filter((_, i) => i !== editingFacetIndex.value)
-    .map((f) => f.key);
-});
+// ── Facets tab (extracted into TemplateFacetsTab, incl. weightings) ──
 
 // ── Delete template ──────────────────────────────────────────────────
 const deleteTplOpen = ref(false);
@@ -1053,325 +581,67 @@ setTopbarMenu(() => [
           <div class="setup-tabs-block">
             <Tabs v-model="setupTab" :items="setupTabItems">
               <template #code>
-                <div class="setup-tab-pane">
-                  <CodeEditor
-                    v-model="draft.markdown_template"
-                    lang="markdown"
-                    :height="180"
-                    :title="`${draft.name || selectedFilename} • ${t('workspace.templates.setup.template_code')}`"
-                  />
-                  <div
-                    v-if="draft.markdown_template && draft.markdown_template.trim()"
-                    class="template-validate-status"
-                  >
-                    <p
-                      v-if="templateErrorDiagnostic"
-                      class="template-validate-line error"
-                    >
-                      {{
-                        templateErrorDiagnostic.line
-                          ? t('workspace.templates.setup.validate.error_line', [String(templateErrorDiagnostic.line), templateErrorDiagnostic.message])
-                          : t('workspace.templates.setup.validate.error_no_line', [templateErrorDiagnostic.message])
-                      }}
-                    </p>
-                    <p
-                      v-for="(w, i) in templateWarningDiagnostics"
-                      :key="`warn-${i}-${w.helper}`"
-                      class="template-validate-line warning"
-                    >
-                      {{ w.message }}
-                    </p>
-                    <p
-                      v-if="!templateErrorDiagnostic && templateValidationOK"
-                      class="template-validate-line ok"
-                    >
-                      {{ t('workspace.templates.setup.validate.ok') }}
-                    </p>
-                  </div>
-                  <p class="muted small setup-tab-help">
-                    {{ t('workspace.templates.setup.template_code_help') }}
-                  </p>
-                  <div
-                    v-if="!draft.markdown_template || !draft.markdown_template.trim()"
-                    class="setup-tab-actions"
-                  >
-                    <button
-                      class="tool-btn"
-                      type="button"
-                      @click="generateOpen = true"
-                    >
-                      {{ t('workspace.templates.generate.button') }}
-                    </button>
-                  </div>
-                </div>
+                <TemplateCodeTab
+                  v-if="draft"
+                  :name="draft.name ?? ''"
+                  :filename="selectedFilename ?? ''"
+                  :markdown-template="draft.markdown_template ?? ''"
+                  @update:markdown-template="(v) => { if (draft) draft.markdown_template = v; }"
+                  @generate="generateOpen = true"
+                />
               </template>
 
               <template #expression>
-                <div class="setup-tab-pane">
-                  <TextareaField
-                    v-model="draft.sidebar_expression"
-                    :rows="6"
-                    :readonly="true"
-                  />
-                  <div class="setup-tab-actions">
-                    <button
-                      class="tool-btn"
-                      type="button"
-                      @click="expressionBuilderOpen = true"
-                    >
-                      {{ t('workspace.templates.expression_builder.button') }}
-                    </button>
-                    <button
-                      v-if="!expressionParseable"
-                      class="tool-btn primary"
-                      type="button"
-                      :title="t('workspace.templates.expression_builder.convert_title')"
-                      @click="onInlineConvert"
-                    >
-                      {{ t('workspace.templates.expression_builder.convert') }}
-                    </button>
-                  </div>
-                </div>
+                <TemplateExpressionTab
+                  v-if="draft"
+                  :sidebar-expression="draft.sidebar_expression ?? ''"
+                  :fields="draft.fields ?? []"
+                  :facets="draft.facets ?? []"
+                  :formulas="draft.formulas ?? []"
+                  @update:sidebar-expression="(v) => { if (draft) draft.sidebar_expression = v; }"
+                />
               </template>
 
               <template #facets>
-                <div class="setup-tab-pane">
-                  <p
-                    v-if="!draft.facets || draft.facets.length === 0"
-                    class="muted small"
-                  >
-                    {{ t('workspace.templates.facets.summary_empty') }}
-                  </p>
-                  <draggable
-                    v-else
-                    v-model="draft.facets"
-                    tag="ul"
-                    class="facet-rows"
-                    handle=".dnd-handle"
-                    :animation="150"
-                    ghost-class="dnd-ghost"
-                    chosen-class="dnd-chosen"
-                    drag-class="dnd-drag"
-                    item-key="key"
-                  >
-                    <template #item="{ element: f, index: i }">
-                      <li class="facet-row list-card">
-                        <span class="dnd-handle" aria-hidden="true">☰</span>
-                        <FacetIcon :icon="f.icon" class="facet-row-icon" />
-                        <span class="facet-row-key mono">{{ f.key }}</span>
-                        <span class="muted small facet-row-summary">
-                          {{ t('workspace.templates.facets.options_count', [f.options.length]) }}
-                        </span>
-                        <code
-                          v-if="scalingForFacet(f.key)"
-                          class="facet-row-weighting mono"
-                          :title="t('workspace.templates.scalings.intro')"
-                        >S["{{ scalingForFacet(f.key)?.name }}"]</code>
-                        <button
-                          class="tool-btn"
-                          type="button"
-                          :title="t('workspace.templates.facets.edit')"
-                          @click="openEditFacet(i)"
-                        >{{ t('workspace.templates.facets.edit') }}</button>
-                        <button
-                          class="tool-btn"
-                          type="button"
-                          :class="{ 'is-active': !!scalingForFacet(f.key) }"
-                          :title="t('workspace.templates.scalings.edit')"
-                          @click="openFacetWeighting(f)"
-                        >{{ t('workspace.templates.scalings.button') }}</button>
-                        <button
-                          class="tool-btn danger"
-                          type="button"
-                          :title="t('workspace.templates.facets.remove')"
-                          @click="askDelete(
-                            t('workspace.templates.facets.remove_title'),
-                            t('workspace.templates.facets.remove_confirm', [f.key]),
-                            t('workspace.templates.facets.remove'),
-                            () => removeFacet(i),
-                          )"
-                        >×</button>
-                      </li>
-                    </template>
-                  </draggable>
-                  <div class="setup-tab-actions">
-                    <span class="muted small">
-                      {{ t('workspace.templates.facets.counter',
-                           [draft.facets?.length ?? 0, maxFacets]) }}
-                    </span>
-                    <button
-                      class="tool-btn"
-                      type="button"
-                      :disabled="(draft.facets?.length ?? 0) >= maxFacets"
-                      @click="openAddFacet"
-                    >+ {{ t('workspace.templates.facets.add') }}</button>
-                  </div>
-                  <p class="muted small facets-weighting-hint">
-                    {{ t('workspace.templates.scalings.intro') }}
-                  </p>
-                </div>
+                <TemplateFacetsTab
+                  v-if="draft"
+                  :facets="draft.facets ?? []"
+                  :scalings="draft.scalings ?? []"
+                  @update:facets="(v) => { if (draft) draft.facets = v; }"
+                  @update:scalings="(v) => { if (draft) draft.scalings = v; }"
+                />
               </template>
 
               <template #statistics>
-                <div class="setup-tab-pane">
-                  <p
-                    v-if="!draft.statistics || draft.statistics.length === 0"
-                    class="muted small"
-                  >
-                    {{ t('workspace.templates.statistics.empty') }}
-                  </p>
-                  <draggable
-                    v-else
-                    v-model="draft.statistics"
-                    tag="ul"
-                    class="stat-rows"
-                    handle=".dnd-handle"
-                    :animation="150"
-                    ghost-class="dnd-ghost"
-                    chosen-class="dnd-chosen"
-                    drag-class="dnd-drag"
-                    item-key="name"
-                  >
-                    <template #item="{ element: s, index: i }">
-                      <li class="stat-row list-card">
-                        <span class="dnd-handle" aria-hidden="true">☰</span>
-                        <span class="stat-row-name">{{ s.label || s.name }}</span>
-                        <code v-if="s.composite" class="stat-row-dsl">{{ t('workspace.templates.statistics.composite_summary', [s.composite.parent, s.composite.edges.length]) }}</code>
-                        <code v-else class="stat-row-dsl">{{ s.dsl }}</code>
-                        <button
-                          class="tool-btn"
-                          type="button"
-                          :title="t('workspace.templates.statistics.view')"
-                          @click="openViewStatistic(s)"
-                        >{{ t('workspace.templates.statistics.view') }}</button>
-                        <button
-                          class="tool-btn"
-                          type="button"
-                          :title="t('workspace.templates.statistics.edit')"
-                          @click="openEditStatistic(i)"
-                        >{{ t('workspace.templates.statistics.edit') }}</button>
-                        <button
-                          class="tool-btn danger"
-                          type="button"
-                          :title="t('workspace.templates.statistics.remove')"
-                          @click="askDelete(
-                            t('workspace.templates.statistics.remove_title'),
-                            t('workspace.templates.statistics.remove_confirm', [s.label || s.name]),
-                            t('workspace.templates.statistics.remove'),
-                            () => removeStatistic(i),
-                          )"
-                        >×</button>
-                      </li>
-                    </template>
-                  </draggable>
-                  <div class="setup-tab-actions">
-                    <button class="tool-btn" type="button" @click="openAddStatistic">
-                      + {{ t('workspace.templates.statistics.add') }}
-                    </button>
-                    <button class="tool-btn" type="button" @click="openAddComposite">
-                      + {{ t('workspace.templates.statistics.add_composite') }}
-                    </button>
-                  </div>
-                </div>
+                <TemplateStatisticsTab
+                  v-if="draft"
+                  :template="selectedFilename ?? ''"
+                  :statistics="draft.statistics ?? []"
+                  :fields="draft.fields ?? []"
+                  :facets="draft.facets ?? []"
+                  :formulas="draft.formulas ?? []"
+                  :scalings="draft.scalings ?? []"
+                  @update:statistics="(v) => { if (draft) draft.statistics = v; }"
+                />
               </template>
 
               <template #formulas>
-                <div class="setup-tab-pane">
-                  <p
-                    v-if="!draft.formulas || draft.formulas.length === 0"
-                    class="muted small"
-                  >
-                    {{ t('workspace.templates.formulas.empty') }}
-                  </p>
-                  <draggable
-                    v-else
-                    v-model="draft.formulas"
-                    tag="ul"
-                    class="formula-rows"
-                    handle=".dnd-handle"
-                    :animation="150"
-                    ghost-class="dnd-ghost"
-                    chosen-class="dnd-chosen"
-                    drag-class="dnd-drag"
-                    item-key="key"
-                  >
-                    <template #item="{ element: f, index: i }">
-                      <li class="formula-row list-card">
-                        <span class="dnd-handle" aria-hidden="true">☰</span>
-                        <span class="formula-row-name">{{ f.label || f.key }}</span>
-                        <span class="formula-row-type">{{ f.type }}</span>
-                        <code class="formula-row-expr">{{ f.expression }}</code>
-                        <button
-                          class="tool-btn"
-                          type="button"
-                          :title="t('workspace.templates.formulas.edit')"
-                          @click="openEditFormula(i)"
-                        >{{ t('workspace.templates.formulas.edit') }}</button>
-                        <button
-                          class="tool-btn danger"
-                          type="button"
-                          :title="t('workspace.templates.formulas.remove')"
-                          @click="askDelete(
-                            t('workspace.templates.formulas.remove_title'),
-                            t('workspace.templates.formulas.remove_confirm', [f.label || f.key]),
-                            t('workspace.templates.formulas.remove'),
-                            () => removeFormula(i),
-                          )"
-                        >×</button>
-                      </li>
-                    </template>
-                  </draggable>
-                  <div class="setup-tab-actions">
-                    <button class="tool-btn" type="button" @click="openAddFormula">
-                      + {{ t('workspace.templates.formulas.add') }}
-                    </button>
-                  </div>
-                </div>
+                <TemplateFormulasTab
+                  v-if="draft"
+                  :template="selectedFilename ?? ''"
+                  :formulas="draft.formulas ?? []"
+                  :fields="draft.fields ?? []"
+                  :facets="draft.facets ?? []"
+                  :scalings="draft.scalings ?? []"
+                  @update:formulas="(v) => { if (draft) draft.formulas = v; }"
+                />
               </template>
 
               <template #relations>
-                <div class="setup-tab-pane">
-                  <p class="muted small setup-tab-help">
-                    {{ t('workspace.templates.relations.help') }}
-                  </p>
-                  <p
-                    v-if="relations.length === 0"
-                    class="muted small"
-                  >
-                    {{ t('workspace.templates.relations.empty') }}
-                  </p>
-                  <ul v-else class="relation-rows">
-                    <li
-                      v-for="(rel, i) in relations"
-                      :key="rel.to"
-                      class="relation-row list-card"
-                    >
-                      <span class="relation-row-target">{{ relationTargetLabel(rel.to) }}</span>
-                      <span
-                        v-if="rel.inverse"
-                        class="relation-row-inverse"
-                      >{{ t('workspace.templates.relations.editor.inverse_label') }}</span>
-                      <code class="relation-row-cardinality mono">{{ cardinalityLabel(rel.cardinality) }}</code>
-                      <button
-                        class="tool-btn"
-                        type="button"
-                        :title="t('workspace.templates.relations.edit')"
-                        @click="openEditRelation(i)"
-                      >{{ t('workspace.templates.relations.edit') }}</button>
-                      <button
-                        class="tool-btn danger"
-                        type="button"
-                        :title="t('workspace.templates.relations.remove')"
-                        @click="askRemoveRelation(i)"
-                      >×</button>
-                    </li>
-                  </ul>
-                  <div class="setup-tab-actions">
-                    <button class="tool-btn" type="button" @click="openAddRelation">
-                      + {{ t('workspace.templates.relations.add') }}
-                    </button>
-                  </div>
-                </div>
+                <TemplateRelationsTab
+                  :template="selectedFilename ?? ''"
+                  :reload-key="relationsReloadKey"
+                />
               </template>
             </Tabs>
           </div>
@@ -1520,115 +790,5 @@ setTopbarMenu(() => [
     </template>
   </Modal>
 
-  <!-- Expression builder dialog: visual builder for sidebar_expression -->
-  <ExpressionBuilderModal
-    v-if="draft"
-    :open="expressionBuilderOpen"
-    :fields="draft.fields ?? []"
-    :facets="draft.facets ?? []"
-    :formulas="draft.formulas ?? []"
-    :initial="draft.sidebar_expression"
-    @close="expressionBuilderOpen = false"
-    @apply="applyExpressionBuilder"
-    @clear="clearExpressionSource"
-  />
-
-  <!-- Facet editor: edits one facet (key + icon + options) at a time -->
-  <FacetEditorModal
-    v-if="draft"
-    :open="facetEditorOpen"
-    :initial="editingFacet"
-    :existing-keys="otherFacetKeys"
-    @close="facetEditorOpen = false"
-    @apply="applyFacet"
-  />
-
-  <!-- Statistical Engine: edits one named statistical object at a time -->
-  <StatisticsBuilderModal
-    v-if="draft"
-    :open="statBuilderOpen"
-    :template="selectedFilename || ''"
-    :fields="draft.fields ?? []"
-    :facets="draft.facets ?? []"
-    :formulas="draft.formulas ?? []"
-    :scalings="scalings"
-    :initial="editingStat"
-    @close="statBuilderOpen = false"
-    @apply="applyStatistic"
-  />
-
-  <!-- Composite (hop route) builder: parent + per-branch children, driven
-       by the backend's CompositeOptions -->
-  <CompositeBuilderModal
-    v-if="draft"
-    :open="compositeBuilderOpen"
-    :template="selectedFilename || ''"
-    :statistics="draft.statistics ?? []"
-    :initial="editingComposite"
-    @close="compositeBuilderOpen = false"
-    @apply="applyComposite"
-  />
-
-  <!-- Weighting builder: a facet-locked per-option factor map -->
-  <ScalingBuilderModal
-    v-if="draft"
-    :open="scalingBuilderOpen"
-    :facet="editingScalingFacet"
-    :initial="editingScaling"
-    @close="scalingBuilderOpen = false"
-    @apply="applyScaling"
-    @remove="onRemoveScaling"
-  />
-
-  <!-- Formula field editor: key + type + expression with a live preview -->
-  <FormulaEditorModal
-    v-if="draft"
-    :open="formulaEditorOpen"
-    :template="selectedFilename || ''"
-    :fields="draft.fields ?? []"
-    :facets="draft.facets ?? []"
-    :scalings="draft.scalings ?? []"
-    :initial="editingFormula"
-    @close="formulaEditorOpen = false"
-    @apply="applyFormula"
-  />
-
-  <RelationEditorModal
-    :open="relationEditorOpen"
-    :initial="editingRelation"
-    :is-edit="editingRelationIndex >= 0"
-    :targets="relationTargetOptions"
-    :cardinalities="cardinalityOptions"
-    @close="relationEditorOpen = false"
-    @apply="applyRelation"
-  />
-
-  <ConfirmDialog
-    :open="deleteOpen"
-    :title="deleteTitle"
-    :message="deleteMessage"
-    :confirm-label="deleteLabel"
-    :cancel-label="t('common.cancel')"
-    variant="danger"
-    @confirm="confirmDelete"
-    @cancel="cancelDelete"
-  />
-
-  <!-- Evaluated-statistic viewer (rank-N grid + composite sunburst) -->
-  <StatGridDialog
-    :open="statViewOpen"
-    :title="statViewTitle"
-    :grid="statViewGrid"
-    :facets="draft?.facets ?? []"
-    @close="statViewOpen = false"
-  />
 </template>
-
-<style scoped>
-.generate-template-row {
-  margin-top: 0.5rem;
-  display: flex;
-  justify-content: flex-start;
-}
-</style>
 
