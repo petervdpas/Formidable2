@@ -72,7 +72,13 @@ const relationTargetOptions = computed(() => {
   );
   return collectionTemplates.value
     .filter((s) => !used.has(s.filename))
-    .map((s) => ({ value: s.filename, label: s.name || s.stem }));
+    .map((s) => ({
+      value: s.filename,
+      label:
+        s.filename === props.template
+          ? t("workspace.templates.relations.self_option", [s.name || s.stem])
+          : s.name || s.stem,
+    }));
 });
 
 function openAddRelation() {
@@ -155,7 +161,11 @@ function cancelRemove() {
       >
         <span class="relation-row-target">{{ relationTargetLabel(rel.to) }}</span>
         <span
-          v-if="rel.inverse"
+          v-if="rel.to === template"
+          class="relation-row-inverse"
+        >{{ t('workspace.templates.relations.self_label') }}</span>
+        <span
+          v-else-if="rel.inverse"
           class="relation-row-inverse"
         >{{ t('workspace.templates.relations.editor.inverse_label') }}</span>
         <code class="relation-row-cardinality mono">{{ cardinalityLabel(rel.cardinality) }}</code>

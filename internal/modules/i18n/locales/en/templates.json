@@ -238,6 +238,8 @@
   "workspace.templates.relations.editor.target_placeholder": "Pick a target template",
   "workspace.templates.relations.editor.cardinality_label": "Cardinality",
   "workspace.templates.relations.editor.inverse_label": "Inverse",
+  "workspace.templates.relations.self_label": "Self",
+  "workspace.templates.relations.self_option": "{0} (self)",
   "workspace.templates.relations.reconcile.done": "Relations reconciled: {0} counterpart(s) recreated, {1} edge(s) healed, {2} conflict(s).",
   "workspace.templates.relations.reconcile.conflicts": "{0} relation conflict(s) need attention (cardinalities disagree).",
   "workspace.templates.relations.reconcile.error": "Reconcile failed: {0}",

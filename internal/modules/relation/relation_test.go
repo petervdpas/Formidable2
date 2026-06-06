@@ -48,7 +48,7 @@ func fullCatalog() fakeCatalog {
 	return fakeCatalog{
 		collections: map[string]bool{"project.yaml": true, "person.yaml": true, "team.yaml": true},
 		records: map[string]map[string]bool{
-			"project.yaml": {"p1": true, "p2": true},
+			"project.yaml": {"p1": true, "p2": true, "p3": true},
 			"person.yaml":  {"u1": true, "u2": true},
 		},
 	}
@@ -206,6 +206,92 @@ func TestSetRelations_SelfRelationNotClobbered(t *testing.T) {
 	got, _ := m.GetRelations("project.yaml")
 	if len(got) != 1 || got[0].To != "project.yaml" || got[0].Cardinality != OneToMany {
 		t.Fatalf("self-relation should be left intact, not flipped: %+v", got)
+	}
+}
+
+func TestSelfRelation_InverseForcedOff(t *testing.T) {
+	m := newMgr()
+	if err := m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: OneToMany, Inverse: true}}); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	got, _ := m.GetRelations("project.yaml")
+	if len(got) != 1 || got[0].Inverse {
+		t.Fatalf("a self-relation has no other side, so it must never persist inverse: %+v", got)
+	}
+}
+
+func TestSelfRelation_AddEdgeStoresSingleEdge(t *testing.T) {
+	m := newMgr()
+	if err := m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}}); err != nil {
+		t.Fatalf("set: %v", err)
+	}
+	if err := m.AddEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	got, _ := m.GetRelations("project.yaml")
+	if len(got) != 1 {
+		t.Fatalf("self-relation should stay a single entry: %+v", got)
+	}
+	// The single edge is stored once. Reverse traversal reads it backward; it is never mirrored
+	// into a second {p2,p1} edge in the same list.
+	if len(got[0].Edges) != 1 || got[0].Edges[0] != (Edge{From: "p1", To: "p2"}) {
+		t.Fatalf("self edge must be stored once, not mirrored: %+v", got[0].Edges)
+	}
+}
+
+func TestSelfRelation_RejectsSelfLoopEdge(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}})
+	if err := m.AddEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p1"}); err == nil {
+		t.Error("a record must not link to itself")
+	}
+}
+
+func TestSelfRelation_EnforcesCardinality(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToOne}})
+	add := func(from, to string) error {
+		return m.AddEdge("project.yaml", "project.yaml", Edge{From: from, To: to})
+	}
+	if err := add("p1", "p2"); err != nil {
+		t.Fatalf("first self edge: %v", err)
+	}
+	// many-to-one: one target per source -> p1 cannot point at a second target.
+	if err := add("p1", "p3"); err == nil {
+		t.Error("many-to-one self must reject a second target for the same source")
+	}
+	// a target may still be reached from many sources.
+	if err := add("p3", "p2"); err != nil {
+		t.Errorf("many-to-one self must allow a second source for the same target: %v", err)
+	}
+}
+
+func TestSelfRelation_ManyToManyAllowsBothDirections(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}})
+	if err := m.AddEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"}); err != nil {
+		t.Fatalf("p1->p2: %v", err)
+	}
+	// p2->p1 is a distinct directed fact, not the auto-mirror of p1->p2.
+	if err := m.AddEdge("project.yaml", "project.yaml", Edge{From: "p2", To: "p1"}); err != nil {
+		t.Fatalf("p2->p1 should be a distinct edge: %v", err)
+	}
+	got, _ := m.GetRelations("project.yaml")
+	if len(got[0].Edges) != 2 {
+		t.Fatalf("both directed edges should be stored: %+v", got[0].Edges)
+	}
+}
+
+func TestSelfRelation_RemoveEdge(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}})
+	_ = m.AddEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"})
+	if err := m.RemoveEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"}); err != nil {
+		t.Fatalf("RemoveEdge: %v", err)
+	}
+	got, _ := m.GetRelations("project.yaml")
+	if len(got) != 1 || len(got[0].Edges) != 0 {
+		t.Fatalf("self edge should be cleanly removed, relation kept: %+v", got)
 	}
 }
 

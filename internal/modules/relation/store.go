@@ -171,6 +171,9 @@ func (m *Manager) saveRelationsLocked(template string, rels []Relation) error {
 		if strings.TrimSpace(r.To) == "" {
 			return fmt.Errorf("relation: #%d has no target", i+1)
 		}
+		if r.To == template {
+			rels[i].Inverse = false // a self-relation has no other side to be derived from
+		}
 		if !r.Cardinality.valid() {
 			return fmt.Errorf("relation: %s has unknown cardinality %q", r.To, r.Cardinality)
 		}
@@ -203,6 +206,9 @@ func (m *Manager) AddEdge(source, target string, e Edge) error {
 	if strings.TrimSpace(e.From) == "" || strings.TrimSpace(e.To) == "" {
 		return fmt.Errorf("relation: edge needs both from and to")
 	}
+	if source == target && e.From == e.To {
+		return fmt.Errorf("relation: a record cannot link to itself")
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	rels, err := m.getRelationsLocked(source)
@@ -229,6 +235,9 @@ func (m *Manager) AddEdge(source, target string, e Edge) error {
 	if err := m.saveRelationsLocked(source, rels); err != nil {
 		return err
 	}
+	if source == target {
+		return nil // self-relation: one stored edge; reverse is read at traversal, never mirrored
+	}
 	return m.upsertEdgeMirrorLocked(target, source, Edge{From: e.To, To: e.From},
 		rels[i].Cardinality.inverse(), !rels[i].Inverse)
 }
@@ -254,6 +263,9 @@ func (m *Manager) RemoveEdge(source, target string, e Edge) error {
 	}
 	if err := m.saveRelationsLocked(source, rels); err != nil {
 		return err
+	}
+	if source == target {
+		return nil // self-relation: nothing mirrored, so nothing to unmirror
 	}
 	return m.removeEdgeMirrorLocked(target, source, Edge{From: e.To, To: e.From})
 }
