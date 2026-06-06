@@ -20,8 +20,59 @@ type errorBody struct {
 	Error string `json:"error"`
 }
 
-// itemResponse is the body of GET /api/collections/{tpl}/{id}.
+// itemResponse is the body of GET /api/collections/{tpl}/{id}. Relations is
+// present only with ?expand=relations.
 type itemResponse struct {
+	Template  string            `json:"template"`
+	ID        string            `json:"id"`
+	Filename  string            `json:"filename"`
+	Title     string            `json:"title"`
+	Meta      map[string]any    `json:"meta"`
+	Data      map[string]any    `json:"data"`
+	Links     itemLinks         `json:"links"`
+	Rev       itemRev           `json:"rev"`
+	Relations []relationSummary `json:"relations,omitempty"`
+}
+
+type itemLinks struct {
+	Self string `json:"self"`
+	HTML string `json:"html"`
+}
+
+// relationsResponse is the body of GET /api/collections/{tpl}/{id}/relations.
+type relationsResponse struct {
+	Template  string            `json:"template"` // source stem
+	ID        string            `json:"id"`       // source GUID
+	Relations []relationSummary `json:"relations"`
+}
+
+// relationSummary is one declared relation as seen from a record: the target
+// stem, the fixed cardinality, this record's outgoing linked ids, and the
+// follow href that resolves them.
+type relationSummary struct {
+	To          string   `json:"to"`          // target template stem
+	Cardinality string   `json:"cardinality"` // one-to-one | one-to-many | many-to-one | many-to-many
+	Inverse     bool     `json:"inverse"`
+	Count       int      `json:"count"`
+	IDs         []string `json:"ids"`  // linked target GUIDs (this record's outgoing edges)
+	Href        string   `json:"href"` // /api/collections/<stem>/<id>/relations/<to>
+}
+
+// relationFollowResponse is the body of GET /api/collections/{tpl}/{id}/relations/{to}.
+type relationFollowResponse struct {
+	Template    string         `json:"template"` // source stem
+	ID          string         `json:"id"`       // source GUID
+	To          string         `json:"to"`       // target stem
+	Cardinality string         `json:"cardinality"`
+	Total       int            `json:"total"`
+	Limit       int            `json:"limit"`
+	Offset      int            `json:"offset"`
+	Items       []relationItem `json:"items"`
+}
+
+// relationItem is a followed record: the single-item shape minus the rev/etag
+// (which is per-collection, not meaningful for a followed-set member).
+type relationItem struct {
 	Template string         `json:"template"`
 	ID       string         `json:"id"`
 	Filename string         `json:"filename"`
@@ -29,12 +80,6 @@ type itemResponse struct {
 	Meta     map[string]any `json:"meta"`
 	Data     map[string]any `json:"data"`
 	Links    itemLinks      `json:"links"`
-	Rev      itemRev        `json:"rev"`
-}
-
-type itemLinks struct {
-	Self string `json:"self"`
-	HTML string `json:"html"`
 }
 
 type itemRev struct {

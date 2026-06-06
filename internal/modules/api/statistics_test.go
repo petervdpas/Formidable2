@@ -48,7 +48,7 @@ func sampleGrid() *stat.Grid {
 }
 
 func statsHandler(s *stubStats) http.Handler {
-	return NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), s, nil)
+	return NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), s, nil, nil)
 }
 
 func doJSON(t *testing.T, h http.Handler, method, path, body string) *httptest.ResponseRecorder {

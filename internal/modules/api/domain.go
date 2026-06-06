@@ -54,6 +54,29 @@ type Query interface {
 	Run(spec query.Spec) (query.Result, error)
 }
 
+// Relations is the read surface onto declared relations + their edges, kept in
+// api-local types so the module stays decoupled from the relation package (the
+// app maps relation.Relation onto these). May be nil: relation endpoints then
+// 404 / omit, the rest of the API is unaffected.
+type Relations interface {
+	GetRelations(template string) ([]RelationDef, error)
+}
+
+// RelationDef is one declared relation of a template. To is a template filename
+// (e.g. "person.yaml"); the wire presents it as a stem. Edges link record GUIDs.
+type RelationDef struct {
+	To          string
+	Cardinality string
+	Inverse     bool
+	Edges       []RelationEdgePair
+}
+
+// RelationEdgePair is one edge: From (source GUID) links To (target GUID).
+type RelationEdgePair struct {
+	From string
+	To   string
+}
+
 // Handler exposes the /api/* routes; the mux uses fully-qualified paths so no StripPrefix is needed.
 type Handler struct {
 	dp    Provider
@@ -62,10 +85,11 @@ type Handler struct {
 	tpl   Templates
 	stats Stats
 	qry   Query
+	rel   Relations
 }
 
-func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates, stats Stats, qry Query) http.Handler {
-	h := &Handler{dp: dp, st: st, wr: wr, tpl: tpl, stats: stats, qry: qry}
+func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates, stats Stats, qry Query, rel Relations) http.Handler {
+	h := &Handler{dp: dp, st: st, wr: wr, tpl: tpl, stats: stats, qry: qry, rel: rel}
 	mux := http.NewServeMux()
 	// Go 1.22+ typed patterns, registered without a method prefix: each handler branches on
 	// r.Method itself, which avoids the strict-mux ambiguity between HEAD /{tpl}/{id} and GET
@@ -79,6 +103,8 @@ func NewHandler(dp Provider, st Storage, wr Writer, tpl Templates, stats Stats, 
 	mux.HandleFunc("/api/collections/{tpl}/count", h.count)
 	mux.HandleFunc("/api/collections/{tpl}/batch", h.batch)
 	mux.HandleFunc("/api/collections/{tpl}/{id}/field/{key}", h.fieldPatch)
+	mux.HandleFunc("/api/collections/{tpl}/{id}/relations", h.itemRelations)
+	mux.HandleFunc("/api/collections/{tpl}/{id}/relations/{to}", h.itemRelationFollow)
 	// Design lives at /{tpl}/design (peer to /count), not /design/{tpl}: same path position as
 	// count avoids the Go 1.22 ambiguity where /design/{tpl} and /{tpl}/count both match equally.
 	mux.HandleFunc("/api/collections/{tpl}/design", h.design)

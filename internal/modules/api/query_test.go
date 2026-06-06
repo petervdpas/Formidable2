@@ -22,7 +22,7 @@ func (s *stubQuery) Run(spec query.Spec) (query.Result, error) {
 }
 
 func queryHandler(q Query) http.Handler {
-	return NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, q)
+	return NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, q, nil)
 }
 
 func TestQueryEndpoint_RunsAndForcesTemplateFromPath(t *testing.T) {

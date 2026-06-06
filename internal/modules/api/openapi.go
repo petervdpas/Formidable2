@@ -76,25 +76,28 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	}
 
 	schemas := map[string]any{
-		"ItemBase":        schemaItemBase(),
-		"ItemSummary":     schemaItemSummary(),
-		"FormMeta":        schemaFormMeta(),
-		"FacetState":      schemaFacetState(),
-		"FacetDefinition": schemaFacetDefinition(),
-		"FacetOption":     schemaFacetOption(),
-		"FacetsResponse":  schemaFacetsResponse(),
-		"AuditEntry":      schemaAuditEntry(),
-		"TemplateRow":     schemaTemplateRow(),
-		"CountResponse":   schemaCountResponse(),
-		"ListResponse":    schemaListResponse(),
-		"TemplateField":   schemaTemplateField(),
-		"TemplateDesign":  schemaTemplateDesign(),
-		"GUIDResponse":    schemaGUIDResponse(),
-		"FieldPatchBody":  schemaFieldPatchBody(),
-		"BatchRequest":    schemaBatchRequest(),
-		"BatchResponse":   schemaBatchResponse(),
-		"BatchResultRow":  schemaBatchResultRow(),
-		"BatchErrorRow":   schemaBatchErrorRow(),
+		"ItemBase":          schemaItemBase(),
+		"ItemSummary":       schemaItemSummary(),
+		"FormMeta":          schemaFormMeta(),
+		"FacetState":        schemaFacetState(),
+		"FacetDefinition":   schemaFacetDefinition(),
+		"FacetOption":       schemaFacetOption(),
+		"FacetsResponse":    schemaFacetsResponse(),
+		"AuditEntry":        schemaAuditEntry(),
+		"TemplateRow":       schemaTemplateRow(),
+		"CountResponse":     schemaCountResponse(),
+		"ListResponse":      schemaListResponse(),
+		"TemplateField":     schemaTemplateField(),
+		"TemplateDesign":    schemaTemplateDesign(),
+		"GUIDResponse":      schemaGUIDResponse(),
+		"FieldPatchBody":    schemaFieldPatchBody(),
+		"BatchRequest":      schemaBatchRequest(),
+		"BatchResponse":     schemaBatchResponse(),
+		"BatchResultRow":    schemaBatchResultRow(),
+		"BatchErrorRow":     schemaBatchErrorRow(),
+		"RelationSummary":   schemaRelationSummary(),
+		"RelationsResponse": schemaRelationsResponse(),
+		"RelationFollow":    schemaRelationFollow(),
 	}
 	maps.Copy(schemas, dataSchemas)
 	maps.Copy(schemas, itemSchemas)
@@ -156,6 +159,13 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 				"TemplateParam": templateParam,
 				"IdParam":       idParam,
 				"KeyParam":      keyParam,
+				"ToParam": map[string]any{
+					"name":        "to",
+					"in":          "path",
+					"required":    true,
+					"schema":      map[string]any{"type": "string", "enum": enabledStems},
+					"description": "Target template id (stem) of the relation to follow",
+				},
 			},
 			"schemas": schemas,
 		},
@@ -668,8 +678,17 @@ func pathsForReadAPI() map[string]any {
 		},
 		"/collections/{template}/{id}": map[string]any{
 			"get": map[string]any{
-				"summary":    "Fetch one item by GUID",
-				"parameters": []any{param("TemplateParam"), param("IdParam")},
+				"summary": "Fetch one item by GUID",
+				"parameters": []any{
+					param("TemplateParam"), param("IdParam"),
+					map[string]any{
+						"name":        "expand",
+						"in":          "query",
+						"required":    false,
+						"schema":      map[string]any{"type": "string", "enum": []any{"relations"}},
+						"description": "expand=relations embeds the item's relation summaries.",
+					},
+				},
 				"responses": map[string]any{
 					"200": map[string]any{
 						"description": "OK",
@@ -684,6 +703,7 @@ func pathsForReadAPI() map[string]any {
 					"404": errResp("not-found"),
 				},
 			},
+			"x-relations-note": "Follow a relation via /collections/{template}/{id}/relations.",
 			"head": map[string]any{
 				"summary":    "ETag/freshness check for one item",
 				"parameters": []any{param("TemplateParam"), param("IdParam")},
@@ -691,6 +711,34 @@ func pathsForReadAPI() map[string]any {
 					"200": map[string]any{"description": "OK (headers only)"},
 					"403": map[string]any{"description": "collection-disabled"},
 					"404": map[string]any{"description": "not-found"},
+				},
+			},
+		},
+		"/collections/{template}/{id}/relations": map[string]any{
+			"get": map[string]any{
+				"summary":     "List a record's relations",
+				"description": "The record's declared relations, each with this record's outgoing linked ids and a follow href. Cardinality is fixed per relation. inverse marks the derived (mirror) half.",
+				"parameters":  []any{param("TemplateParam"), param("IdParam")},
+				"responses": map[string]any{
+					"200": jsonOK("RelationsResponse"),
+					"403": errResp("collection-disabled"),
+					"404": errResp("not-found"),
+				},
+			},
+		},
+		"/collections/{template}/{id}/relations/{to}": map[string]any{
+			"get": map[string]any{
+				"summary":     "Follow one relation to its linked records",
+				"description": "Resolves the records this record links to through the relation to {to}, returned as full items (meta+data). Paginated via limit/offset. Cross-template relations resolve the target in its own collection.",
+				"parameters": []any{
+					param("TemplateParam"), param("IdParam"), param("ToParam"),
+					map[string]any{"name": "limit", "in": "query", "required": false, "schema": map[string]any{"type": "integer", "default": 100}},
+					map[string]any{"name": "offset", "in": "query", "required": false, "schema": map[string]any{"type": "integer", "default": 0}},
+				},
+				"responses": map[string]any{
+					"200": jsonOK("RelationFollow"),
+					"403": errResp("collection-disabled"),
+					"404": errResp("no-relation"),
 				},
 			},
 		},
@@ -1116,6 +1164,50 @@ func schemaItemSummary() map[string]any {
 			"hrefHtml": map[string]any{"type": "string"},
 		},
 		"required": []string{"id", "filename", "title"},
+	}
+}
+
+func schemaRelationSummary() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"to":          map[string]any{"type": "string", "description": "Target template stem"},
+			"cardinality": map[string]any{"type": "string", "enum": []any{"one-to-one", "one-to-many", "many-to-one", "many-to-many"}},
+			"inverse":     map[string]any{"type": "boolean"},
+			"count":       map[string]any{"type": "integer"},
+			"ids":         map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"href":        map[string]any{"type": "string"},
+		},
+		"required": []string{"to", "cardinality", "count", "ids", "href"},
+	}
+}
+
+func schemaRelationsResponse() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"template":  map[string]any{"type": "string"},
+			"id":        map[string]any{"type": "string"},
+			"relations": map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/RelationSummary"}},
+		},
+		"required": []string{"template", "id", "relations"},
+	}
+}
+
+func schemaRelationFollow() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"template":    map[string]any{"type": "string"},
+			"id":          map[string]any{"type": "string"},
+			"to":          map[string]any{"type": "string"},
+			"cardinality": map[string]any{"type": "string"},
+			"total":       map[string]any{"type": "integer"},
+			"limit":       map[string]any{"type": "integer"},
+			"offset":      map[string]any{"type": "integer"},
+			"items":       map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/ItemBase"}},
+		},
+		"required": []string{"template", "id", "to", "total", "items"},
 	}
 }
 

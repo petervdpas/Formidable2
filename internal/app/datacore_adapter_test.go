@@ -191,6 +191,79 @@ func TestDatacoreAdapter_SelfRelationLinksAreFollowable(t *testing.T) {
 		map[string]int{"Parent": 1})
 }
 
+// TestDatacoreAdapter_FollowRelationThenTable proves the composed traversal
+// table -> record -> self-relation -> record -> table is reachable in one
+// single-template tensor: from the children, follow the self-relation to the
+// parent, then descend into the parent's table. Both hops are ordinary Follow
+// calls, so they chain.
+func TestDatacoreAdapter_FollowRelationThenTable(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	tplM := template.NewManager(sys, "templates", log)
+	if err := tplM.EnsureTemplateDirectory(); err != nil {
+		t.Fatalf("EnsureTemplateDirectory: %v", err)
+	}
+	sfrM := sfr.NewManager(sys, log)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", log)
+
+	tpl := &template.Template{
+		Name:             "entities",
+		Filename:         "entities.yaml",
+		EnableCollection: true,
+		Fields: []template.Field{
+			{Key: "id", Type: "guid"},
+			{Key: "name", Type: "text"},
+			{Key: "attrs", Type: "table", Options: []any{
+				map[string]any{"value": "attr", "label": "Attr"},
+				map[string]any{"value": "kind", "label": "Kind"},
+			}},
+		},
+	}
+	if err := tplM.SaveTemplate("entities.yaml", tpl); err != nil {
+		t.Fatalf("SaveTemplate: %v", err)
+	}
+
+	saves := []struct {
+		filename string
+		data     map[string]any
+	}{
+		{"parent.meta.json", map[string]any{"name": "Parent",
+			"attrs": []any{[]any{"a1", "string"}, []any{"a2", "int"}}}},
+		{"childa.meta.json", map[string]any{"name": "ChildA",
+			"attrs": []any{[]any{"c1", "bool"}}}},
+	}
+	guid := map[string]string{}
+	for _, s := range saves {
+		if r := stoM.SaveForm(context.Background(), "entities.yaml", s.filename, s.data); !r.Success {
+			t.Fatalf("SaveForm %s: %s", s.filename, r.Error)
+		}
+		f := stoM.LoadForm("entities.yaml", s.filename)
+		if f == nil || f.Meta.ID == "" {
+			t.Fatalf("record %s has no guid", s.filename)
+		}
+		guid[s.filename] = f.Meta.ID
+	}
+
+	rel := fakeRelReader{rels: map[string][]relation.Relation{
+		"entities.yaml": {{
+			To:          "entities.yaml",
+			Cardinality: relation.ManyToOne,
+			Edges:       []relation.Edge{{From: guid["childa.meta.json"], To: guid["parent.meta.json"]}},
+		}},
+	}}
+
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "entities.yaml"))
+	if err != nil {
+		t.Fatalf("datacore.Build: %v", err)
+	}
+	// Follow the relation to the parent, then descend into the parent's attrs table.
+	assertBuckets(t, "rel -> attrs.attr",
+		dt.View().Follow("rel:entities.yaml").Follow("attrs").Distribution("attr"),
+		map[string]int{"a1": 1, "a2": 1})
+}
+
 func assertBuckets(t *testing.T, label string, got []datacore.Bucket, want map[string]int) {
 	t.Helper()
 	if len(got) != len(want) {

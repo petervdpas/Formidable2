@@ -56,3 +56,10 @@ Feature: REST API - OpenAPI spec generator
   Scenario: GUID field is required at the data schema
     When I GET "/api/openapi.json"
     Then the JSON nested "components.schemas.Data_recepten.required[0]" == "guid"
+
+  Scenario: Spec includes the relation-follow paths
+    When I GET "/api/openapi.json"
+    Then the JSON has path "/collections/{template}/{id}/relations"
+    And the spec path "/collections/{template}/{id}/relations" has method "get" with summary "List a record's relations"
+    And the JSON has path "/collections/{template}/{id}/relations/{to}"
+    And the spec path "/collections/{template}/{id}/relations/{to}" has method "get" with summary "Follow one relation to its linked records"

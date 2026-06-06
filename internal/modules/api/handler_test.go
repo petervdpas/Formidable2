@@ -362,7 +362,7 @@ func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 }
 
 func TestListCollections_OmitsNonCollectionTemplates(t *testing.T) {
-	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -389,7 +389,7 @@ func TestListCollections_OmitsNonCollectionTemplates(t *testing.T) {
 func TestListCollections_NameFromYamlOrStem(t *testing.T) {
 	sp := newStub()
 	sp.templates[1].Name = "" // recepten without yaml name
-	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rows := decode[[]TemplateRow](t, do(t, h, http.MethodGet, "/api/collections"))
 	for _, r := range rows {
 		if r.ID == "recepten" && r.Name != "recepten" {
@@ -399,7 +399,7 @@ func TestListCollections_NameFromYamlOrStem(t *testing.T) {
 }
 
 func TestCount_OK(t *testing.T) {
-	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten/count")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
@@ -411,7 +411,7 @@ func TestCount_OK(t *testing.T) {
 }
 
 func TestCount_DisabledTemplateReturns403(t *testing.T) {
-	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/basic/count")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rec.Code)
@@ -424,7 +424,7 @@ func TestCount_DisabledTemplateReturns403(t *testing.T) {
 
 func TestCount_UnknownTemplateReturns403(t *testing.T) {
 	// Unknown == disabled (don't leak existence via 404).
-	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/ghost/count")
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rec.Code)
@@ -434,7 +434,7 @@ func TestCount_UnknownTemplateReturns403(t *testing.T) {
 func TestCount_InternalErrorOnListFailure(t *testing.T) {
 	sp := newStub()
 	sp.listCollectionErr = errFake("boom")
-	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten/count")
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
@@ -448,7 +448,7 @@ func (e errFake) Error() string { return string(e) }
 // ── B1: POST + GUID endpoint ─────────────────────────────────────────
 
 func TestGUID_ReturnsFreshUUID(t *testing.T) {
-	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/guid")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
@@ -473,7 +473,7 @@ func TestPOST_AutoGeneratesGUID(t *testing.T) {
 		Name: "Recepten", Filename: "recepten.yaml", EnableCollection: true,
 		Fields: []template.Field{{Key: "guid", Type: "guid"}, {Key: "naam", Type: "text"}},
 	}
-	h := NewHandler(sp, st, wr, tpl, nil, nil)
+	h := NewHandler(sp, st, wr, tpl, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/collections/recepten",
 		strings.NewReader(`{"data":{"naam":"Pasta"}}`))
@@ -503,7 +503,7 @@ func TestPOST_RejectsExistingByDefault(t *testing.T) {
 		Name: "Recepten", Filename: "recepten.yaml", EnableCollection: true,
 		Fields: []template.Field{{Key: "guid", Type: "guid"}},
 	}
-	h := NewHandler(sp, newStubStorage(), newStubWriter(), tpl, nil, nil)
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), tpl, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/collections/recepten",
 		strings.NewReader(`{"data":{"guid":"g-abc"}}`))
@@ -525,7 +525,7 @@ func TestPOST_UpsertOverwrites(t *testing.T) {
 		Name: "Recepten", Filename: "recepten.yaml", EnableCollection: true,
 		Fields: []template.Field{{Key: "guid", Type: "guid"}, {Key: "naam", Type: "text"}},
 	}
-	h := NewHandler(sp, newStubStorage(), wr, tpl, nil, nil)
+	h := NewHandler(sp, newStubStorage(), wr, tpl, nil, nil, nil)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/collections/recepten?upsert=true",
 		strings.NewReader(`{"data":{"guid":"g-abc","naam":"Brood 2"}}`))
@@ -572,7 +572,7 @@ func newStubWithTags() *stubProvider {
 }
 
 func TestList_Default(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
@@ -593,7 +593,7 @@ func TestList_Default(t *testing.T) {
 }
 
 func TestList_Pagination(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten?limit=1&offset=1")
 	page := decode[dataprovider.CollectionPage](t, rec)
 	if page.Total != 3 || page.Limit != 1 || page.Offset != 1 || len(page.Items) != 1 {
@@ -602,7 +602,7 @@ func TestList_Pagination(t *testing.T) {
 }
 
 func TestList_QFilter(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten?q=BROOD")
 	page := decode[dataprovider.CollectionPage](t, rec)
 	if page.Total != 1 || len(page.Items) != 1 {
@@ -611,7 +611,7 @@ func TestList_QFilter(t *testing.T) {
 }
 
 func TestList_TagsAND(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten?tags=italian,wb")
 	page := decode[dataprovider.CollectionPage](t, rec)
 	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].ID != "g-5678" {
@@ -620,7 +620,7 @@ func TestList_TagsAND(t *testing.T) {
 }
 
 func TestList_IfNoneMatchReturns304(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	first := do(t, h, http.MethodGet, "/api/collections/recepten")
 	etag := first.Header().Get("ETag")
 	if etag == "" {
@@ -642,7 +642,7 @@ func TestList_IfNoneMatchReturns304(t *testing.T) {
 }
 
 func TestList_StaleIfNoneMatchReturns200(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/collections/recepten", nil)
 	req.Header.Set("If-None-Match", `W/"stale"`)
 	rec := httptest.NewRecorder()
@@ -653,7 +653,7 @@ func TestList_StaleIfNoneMatchReturns200(t *testing.T) {
 }
 
 func TestList_DisabledTemplate(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/basic")
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("status = %d, want 403", rec.Code)
@@ -661,7 +661,7 @@ func TestList_DisabledTemplate(t *testing.T) {
 }
 
 func TestList_UnknownTemplate(t *testing.T) {
-	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(newStubWithTags(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/ghost")
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("status = %d, want 403", rec.Code)
@@ -671,7 +671,7 @@ func TestList_UnknownTemplate(t *testing.T) {
 func TestList_RevErrorReturns500(t *testing.T) {
 	sp := newStubWithTags()
 	sp.collectionRevErr = errFake("rev boom")
-	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil)
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections/recepten")
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", rec.Code)

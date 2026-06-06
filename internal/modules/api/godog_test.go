@@ -49,6 +49,7 @@ type world struct {
 	stubSt  *stubStorage
 	stubWr  *stubWriter
 	stubTpl *stubTemplates
+	stubRel *stubRelations
 	handler http.Handler
 	resp    *httptest.ResponseRecorder
 
@@ -65,6 +66,17 @@ type world struct {
 
 func (w *world) reset() {
 	*w = world{}
+}
+
+// stubRelations implements the Relations port for godog. The handler holds the
+// pointer, so relation Given steps that run after handler init are still seen.
+type stubRelations struct{ rels map[string][]RelationDef }
+
+func (s *stubRelations) GetRelations(template string) ([]RelationDef, error) {
+	if s == nil {
+		return nil, nil
+	}
+	return s.rels[template], nil
 }
 
 // ensureJSON decodes w.resp.Body into w.jsonAny on demand. Returns
@@ -108,6 +120,7 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 			// indexer-hook flow without requiring real SQLite).
 			w.stubWr.st = w.stubSt
 			w.stubTpl = newStubTemplates()
+			w.stubRel = &stubRelations{rels: map[string][]RelationDef{}}
 			// Skip the header row.
 			for _, row := range table.Rows[1:] {
 				cells := row.Cells
@@ -133,7 +146,32 @@ func initAPIScenario(ctx *godog.ScenarioContext) {
 					EnableCollection: enable,
 				}
 			}
-			w.handler = NewHandler(w.stub, w.stubSt, w.stubWr, w.stubTpl, nil, nil)
+			w.handler = NewHandler(w.stub, w.stubSt, w.stubWr, w.stubTpl, nil, nil, w.stubRel)
+			return nil
+		})
+
+	ctx.Step(`^the relation store for "([^"]*)" relates to "([^"]*)" as "([^"]*)" with edges:$`,
+		func(tpl, to, card string, table *godog.Table) error {
+			if w.stubRel == nil {
+				return fmt.Errorf("stubRel not initialised")
+			}
+			def := RelationDef{To: to, Cardinality: card}
+			for _, row := range table.Rows[1:] {
+				def.Edges = append(def.Edges, RelationEdgePair{
+					From: row.Cells[0].Value,
+					To:   row.Cells[1].Value,
+				})
+			}
+			w.stubRel.rels[tpl] = append(w.stubRel.rels[tpl], def)
+			return nil
+		})
+
+	ctx.Step(`^the relation store for "([^"]*)" relates to "([^"]*)" as "([^"]*)"$`,
+		func(tpl, to, card string) error {
+			if w.stubRel == nil {
+				return fmt.Errorf("stubRel not initialised")
+			}
+			w.stubRel.rels[tpl] = append(w.stubRel.rels[tpl], RelationDef{To: to, Cardinality: card})
 			return nil
 		})
 

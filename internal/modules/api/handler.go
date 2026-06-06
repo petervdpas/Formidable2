@@ -448,9 +448,7 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("ETag", etag)
-	w.Header().Set("Cache-Control", "no-cache")
-	writeJSON(w, http.StatusOK, itemResponse{
+	resp := itemResponse{
 		Template: citem.Template,
 		ID:       citem.ID,
 		Filename: citem.Filename,
@@ -462,7 +460,18 @@ func (h *Handler) item(w http.ResponseWriter, r *http.Request) {
 			HTML: citem.HrefHTML,
 		},
 		Rev: itemRev{ETag: etag},
-	})
+	}
+	// ?expand=relations embeds this record's relation summaries (the same shape
+	// as GET .../relations); follow each via its href to resolve linked records.
+	if wantsExpand(r.URL.Query(), "relations") {
+		if sums, err := h.relationSummaries(stem, id); err == nil {
+			resp.Relations = sums
+		}
+	}
+
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "no-cache")
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // itemHead answers HEAD /api/collections/{tpl}/{id} with status + ETag only (no 304 short-circuit).

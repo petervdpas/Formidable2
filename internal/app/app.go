@@ -489,8 +489,9 @@ func New(d Deps) (*App, error) {
 	wikiHandler.SetTemplates(tplM)
 
 	// stoM appears twice: Storage (LoadForm) and Writer (SaveForm/
-	// DeleteForm). Same instance, narrow per-concern interfaces.
-	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM, statSvc, querySvc)
+	// DeleteForm). Same instance, narrow per-concern interfaces. apiRelations
+	// adapts relationM onto the api's relation port (record relations + edges).
+	apiHandlerBare := api.NewHandler(dpM, stoM, stoM, tplM, statSvc, querySvc, apiRelations{rel: relationM})
 
 	// Desktop-mode auth covering the two transports the api rides on:
 	//
