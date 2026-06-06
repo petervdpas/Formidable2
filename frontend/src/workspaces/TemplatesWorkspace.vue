@@ -433,13 +433,16 @@ const setupTabItems = computed(() => {
   return items;
 });
 
-// The Relations tab only exists while Enable Collection is on. If it gets
-// turned off while the tab is active, fall back to the code tab.
+// Default tab focus: Relations when it's available (collection enabled),
+// otherwise Template Code. Re-evaluated on template switch and when the
+// collection toggle flips. Manual tab clicks are unaffected: this only
+// fires when the selected template or the toggle actually changes.
 watch(
-  () => draft.value?.enable_collection,
-  (on) => {
-    if (!on && setupTab.value === "relations") setupTab.value = "code";
+  () => [selectedFilename.value, draft.value?.enable_collection] as const,
+  ([, on]) => {
+    setupTab.value = on ? "relations" : "code";
   },
+  { immediate: true },
 );
 
 // ── Formula fields: named per-record computed fields (datacore-evaluated) ──
