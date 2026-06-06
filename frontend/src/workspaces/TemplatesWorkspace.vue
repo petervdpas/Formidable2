@@ -523,6 +523,30 @@ function openEditRelation(idx: number) {
   relationEditorOpen.value = true;
 }
 
+// Reconcile (Utilities -> Reconcile Relations): an explicit self-heal pass over
+// every relation file. Recreates missing counterparts and reports cardinality
+// conflicts; only matters for damage that bypassed the app (hand-edited/deleted
+// files, restored git state). Global, so it needs no selected template.
+const reconciling = ref(false);
+async function reconcileRelations() {
+  if (reconciling.value) return;
+  reconciling.value = true;
+  try {
+    const rep = await RelationSvc.Reconcile();
+    const created = rep.created?.length ?? 0;
+    const conflicts = rep.conflicts?.length ?? 0;
+    toast.success("workspace.templates.relations.reconcile.done", [String(created), String(conflicts)]);
+    if (conflicts > 0) {
+      toast.error("workspace.templates.relations.reconcile.conflicts", [String(conflicts)]);
+    }
+    await loadRelations(selectedFilename.value ?? null);
+  } catch (e) {
+    toast.error("workspace.templates.relations.reconcile.error", [backendErrMessage(e)]);
+  } finally {
+    reconciling.value = false;
+  }
+}
+
 // Immediate persist: write the whole relation set to the sidecar; revert the
 // optimistic update if the backend rejects.
 async function persistRelations(next: Relation[]) {
@@ -898,6 +922,12 @@ setTopbarMenu(() => [
         labelKey: "menu.utilities.reindex",
         disabled: !selectedFilename.value || reindexBusy(selectedFilename.value),
         onClick: reindexCollection,
+      },
+      {
+        id: "reconcileRelations",
+        labelKey: "menu.utilities.reconcile_relations",
+        disabled: reconciling.value,
+        onClick: reconcileRelations,
       },
       { type: "separator", id: "utils-sep-pdf" },
       {

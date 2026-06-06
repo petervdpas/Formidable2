@@ -236,6 +236,9 @@
   "workspace.templates.relations.editor.target_placeholder": "Kies een doelsjabloon",
   "workspace.templates.relations.editor.cardinality_label": "Cardinaliteit",
   "workspace.templates.relations.editor.inverse_label": "Inverse",
+  "workspace.templates.relations.reconcile.done": "Relaties hersteld: {0} tegenhanger(s) opnieuw aangemaakt, {1} conflict(en).",
+  "workspace.templates.relations.reconcile.conflicts": "{0} relatieconflict(en) vereisen aandacht (cardinaliteiten komen niet overeen).",
+  "workspace.templates.relations.reconcile.error": "Herstellen mislukt: {0}",
   "workspace.templates.sidebar_title": "Sjablonen",
   "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan."
 }

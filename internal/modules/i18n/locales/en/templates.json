@@ -236,6 +236,9 @@
   "workspace.templates.relations.editor.target_placeholder": "Pick a target template",
   "workspace.templates.relations.editor.cardinality_label": "Cardinality",
   "workspace.templates.relations.editor.inverse_label": "Inverse",
+  "workspace.templates.relations.reconcile.done": "Relations reconciled: {0} counterpart(s) recreated, {1} conflict(s).",
+  "workspace.templates.relations.reconcile.conflicts": "{0} relation conflict(s) need attention (cardinalities disagree).",
+  "workspace.templates.relations.reconcile.error": "Reconcile failed: {0}",
   "workspace.templates.sidebar_title": "Templates",
   "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one."
 }

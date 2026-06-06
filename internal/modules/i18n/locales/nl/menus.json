@@ -25,6 +25,7 @@
   "menu.utilities": "Hulpmiddelen",
   "menu.utilities.cleanupStorage": "Opslag opschonen…",
   "menu.utilities.reindex": "Zoekindex herbouwen",
+  "menu.utilities.reconcile_relations": "Relaties herstellen",
   "menu.utilities.inject_pdf_frontmatter": "PDF-frontmatter injecteren…",
   "menu.utilities.migrate_pdf_frontmatter": "PDF-frontmatter migreren…"
 }
