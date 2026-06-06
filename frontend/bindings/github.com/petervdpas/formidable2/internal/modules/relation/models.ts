@@ -49,19 +49,17 @@ export class Edge {
 }
 
 /**
- * Relation is one declared relation from a template to another template, plus its edges.
+ * Relation is one declared relation from a template to another template, plus its edges. It is
+ * identified entirely by its target: the source is the owning file, and there is at most one
+ * relation per from -> to pair, so no name is needed.
  */
 export class Relation {
-    "name": string;
     "to": string;
     "cardinality": Cardinality;
     "edges"?: Edge[];
 
     /** Creates a new Relation instance. */
     constructor($$source: Partial<Relation> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
         if (!("to" in $$source)) {
             this["to"] = "";
         }
@@ -76,10 +74,10 @@ export class Relation {
      * Creates a new Relation instance from a string or object.
      */
     static createFrom($$source: any = {}): Relation {
-        const $$createField3_0 = $$createType1;
+        const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("edges" in $$parsedSource) {
-            $$parsedSource["edges"] = $$createField3_0($$parsedSource["edges"]);
+            $$parsedSource["edges"] = $$createField2_0($$parsedSource["edges"]);
         }
         return new Relation($$parsedSource as Partial<Relation>);
     }

@@ -15,12 +15,12 @@ func (s *Service) SetRelations(template string, relations []Relation) error {
 	return s.m.SetRelations(template, relations)
 }
 
-// AddEdge links two records through a named relation.
-func (s *Service) AddEdge(template, relationName string, edge Edge) error {
-	return s.m.AddEdge(template, relationName, edge)
+// AddEdge links two records through the relation from template to `to`.
+func (s *Service) AddEdge(template, to string, edge Edge) error {
+	return s.m.AddEdge(template, to, edge)
 }
 
-// RemoveEdge unlinks two records from a named relation.
-func (s *Service) RemoveEdge(template, relationName string, edge Edge) error {
-	return s.m.RemoveEdge(template, relationName, edge)
+// RemoveEdge unlinks two records from the relation from template to `to`.
+func (s *Service) RemoveEdge(template, to string, edge Edge) error {
+	return s.m.RemoveEdge(template, to, edge)
 }

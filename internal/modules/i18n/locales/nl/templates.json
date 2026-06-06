@@ -220,6 +220,9 @@
   "workspace.templates.setup.validate.unknown_block_helper": "Onbekende block-helper '{0}'.",
   "workspace.templates.setup.template_name": "Sjabloonnaam",
   "workspace.templates.setup.title": "Instellingen",
+  "workspace.templates.setup.relations": "Relaties",
+  "workspace.templates.relations.help": "Koppel deze collectie aan andere collecties.",
+  "workspace.templates.relations.empty": "Nog geen relaties.",
   "workspace.templates.sidebar_title": "Sjablonen",
   "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan."
 }

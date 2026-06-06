@@ -15,10 +15,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * AddEdge links two records through a named relation.
+ * AddEdge links two records through the relation from template to `to`.
  */
-export function AddEdge(template: string, relationName: string, edge: $models.Edge): $CancellablePromise<void> {
-    return $Call.ByID(4126420296, template, relationName, edge);
+export function AddEdge(template: string, to: string, edge: $models.Edge): $CancellablePromise<void> {
+    return $Call.ByID(4126420296, template, to, edge);
 }
 
 /**
@@ -31,10 +31,10 @@ export function GetRelations(template: string): $CancellablePromise<$models.Rela
 }
 
 /**
- * RemoveEdge unlinks two records from a named relation.
+ * RemoveEdge unlinks two records from the relation from template to `to`.
  */
-export function RemoveEdge(template: string, relationName: string, edge: $models.Edge): $CancellablePromise<void> {
-    return $Call.ByID(1742361031, template, relationName, edge);
+export function RemoveEdge(template: string, to: string, edge: $models.Edge): $CancellablePromise<void> {
+    return $Call.ByID(1742361031, template, to, edge);
 }
 
 /**

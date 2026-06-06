@@ -220,6 +220,9 @@
   "workspace.templates.setup.validate.unknown_block_helper": "Unknown block helper '{0}'.",
   "workspace.templates.setup.template_name": "Template Name",
   "workspace.templates.setup.title": "Setup Information",
+  "workspace.templates.setup.relations": "Relations",
+  "workspace.templates.relations.help": "Link this collection to other collections.",
+  "workspace.templates.relations.empty": "No relations yet.",
   "workspace.templates.sidebar_title": "Templates",
   "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one."
 }

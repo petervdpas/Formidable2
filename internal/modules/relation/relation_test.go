@@ -49,8 +49,8 @@ func newMgr() *Manager { return NewManager(newMemFS(), "/ctx/relations", fullCat
 func TestSetGet_RoundTrip(t *testing.T) {
 	m := newMgr()
 	in := []Relation{
-		{Name: "author", To: "person.yaml", Cardinality: ManyToMany},
-		{Name: "owner", To: "team.yaml", Cardinality: OneToMany},
+		{To: "person.yaml", Cardinality: ManyToMany},
+		{To: "team.yaml", Cardinality: OneToMany},
 	}
 	if err := m.SetRelations("project.yaml", in); err != nil {
 		t.Fatalf("set: %v", err)
@@ -59,7 +59,7 @@ func TestSetGet_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if len(got) != 2 || got[0].Name != "author" || got[1].To != "team.yaml" {
+	if len(got) != 2 || got[0].To != "person.yaml" || got[1].To != "team.yaml" {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
 }
@@ -76,7 +76,7 @@ func TestGet_MissingReturnsNil(t *testing.T) {
 
 func TestEdges_RoundTrip(t *testing.T) {
 	m := newMgr()
-	in := []Relation{{Name: "author", To: "person.yaml", Cardinality: ManyToMany, Edges: []Edge{{From: "p1", To: "u1"}}}}
+	in := []Relation{{To: "person.yaml", Cardinality: ManyToMany, Edges: []Edge{{From: "p1", To: "u1"}}}}
 	if err := m.SetRelations("project.yaml", in); err != nil {
 		t.Fatalf("set: %v", err)
 	}
@@ -88,9 +88,9 @@ func TestEdges_RoundTrip(t *testing.T) {
 
 func TestAddRemoveEdge(t *testing.T) {
 	m := newMgr()
-	_ = m.SetRelations("project.yaml", []Relation{{Name: "author", To: "person.yaml", Cardinality: ManyToMany}})
+	_ = m.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: ManyToMany}})
 
-	if err := m.AddEdge("project.yaml", "author", Edge{From: "p1", To: "u1"}); err != nil {
+	if err := m.AddEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err != nil {
 		t.Fatalf("AddEdge: %v", err)
 	}
 	got, _ := m.GetRelations("project.yaml")
@@ -98,24 +98,24 @@ func TestAddRemoveEdge(t *testing.T) {
 		t.Fatalf("edge not added: %+v", got)
 	}
 
-	if err := m.AddEdge("project.yaml", "author", Edge{From: "p1", To: "u1"}); err == nil {
+	if err := m.AddEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err == nil {
 		t.Error("expected duplicate edge rejection")
 	}
-	if err := m.AddEdge("project.yaml", "nope", Edge{From: "p1", To: "u1"}); err == nil {
+	if err := m.AddEdge("project.yaml", "nope.yaml", Edge{From: "p1", To: "u1"}); err == nil {
 		t.Error("expected unknown-relation rejection")
 	}
-	if err := m.AddEdge("project.yaml", "author", Edge{From: "", To: "u1"}); err == nil {
+	if err := m.AddEdge("project.yaml", "person.yaml", Edge{From: "", To: "u1"}); err == nil {
 		t.Error("expected empty-endpoint rejection")
 	}
 
-	if err := m.RemoveEdge("project.yaml", "author", Edge{From: "p1", To: "u1"}); err != nil {
+	if err := m.RemoveEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err != nil {
 		t.Fatalf("RemoveEdge: %v", err)
 	}
 	got, _ = m.GetRelations("project.yaml")
 	if len(got[0].Edges) != 0 {
 		t.Fatalf("edge not removed: %+v", got)
 	}
-	if err := m.RemoveEdge("project.yaml", "author", Edge{From: "p1", To: "u1"}); err == nil {
+	if err := m.RemoveEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err == nil {
 		t.Error("expected not-found on removing absent edge")
 	}
 }
@@ -123,9 +123,8 @@ func TestAddRemoveEdge(t *testing.T) {
 func TestSet_RejectsMalformed(t *testing.T) {
 	m := newMgr()
 	cases := map[string]Relation{
-		"empty name":      {Name: "", To: "person.yaml", Cardinality: OneToOne},
-		"empty target":    {Name: "x", To: "", Cardinality: OneToOne},
-		"bad cardinality": {Name: "x", To: "person.yaml", Cardinality: "loose"},
+		"empty target":    {To: "", Cardinality: OneToOne},
+		"bad cardinality": {To: "person.yaml", Cardinality: "loose"},
 	}
 	for name, rel := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -136,25 +135,36 @@ func TestSet_RejectsMalformed(t *testing.T) {
 	}
 }
 
+func TestSet_RejectsDuplicateRelation(t *testing.T) {
+	m := newMgr()
+	dup := []Relation{
+		{To: "person.yaml", Cardinality: OneToMany},
+		{To: "person.yaml", Cardinality: ManyToMany},
+	}
+	if err := m.SetRelations("project.yaml", dup); err == nil {
+		t.Error("expected rejection: duplicate relation to the same target")
+	}
+}
+
 func TestSetRelations_RejectsNonCollectionEndpoints(t *testing.T) {
 	m := newMgr()
 	// target is not a collection
-	if err := m.SetRelations("project.yaml", []Relation{{Name: "x", To: "note.yaml", Cardinality: OneToOne}}); err == nil {
+	if err := m.SetRelations("project.yaml", []Relation{{To: "note.yaml", Cardinality: OneToOne}}); err == nil {
 		t.Error("expected rejection: target not a collection")
 	}
 	// source is not a collection
-	if err := m.SetRelations("note.yaml", []Relation{{Name: "x", To: "person.yaml", Cardinality: OneToOne}}); err == nil {
+	if err := m.SetRelations("note.yaml", []Relation{{To: "person.yaml", Cardinality: OneToOne}}); err == nil {
 		t.Error("expected rejection: source not a collection")
 	}
 }
 
 func TestAddEdge_RejectsMissingRecord(t *testing.T) {
 	m := newMgr()
-	_ = m.SetRelations("project.yaml", []Relation{{Name: "author", To: "person.yaml", Cardinality: ManyToMany}})
-	if err := m.AddEdge("project.yaml", "author", Edge{From: "p1", To: "ghost"}); err == nil {
+	_ = m.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: ManyToMany}})
+	if err := m.AddEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "ghost"}); err == nil {
 		t.Error("expected rejection: target record does not exist")
 	}
-	if err := m.AddEdge("project.yaml", "author", Edge{From: "ghost", To: "u1"}); err == nil {
+	if err := m.AddEdge("project.yaml", "person.yaml", Edge{From: "ghost", To: "u1"}); err == nil {
 		t.Error("expected rejection: source record does not exist")
 	}
 }
@@ -164,8 +174,8 @@ func TestAddEdge_RejectsMissingRecord(t *testing.T) {
 func TestRemoveEdge_ToleratesDegradedTarget(t *testing.T) {
 	fs := newMemFS()
 	healthy := NewManager(fs, "/ctx/relations", fullCatalog())
-	_ = healthy.SetRelations("project.yaml", []Relation{{Name: "author", To: "person.yaml", Cardinality: ManyToMany}})
-	if err := healthy.AddEdge("project.yaml", "author", Edge{From: "p1", To: "u1"}); err != nil {
+	_ = healthy.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: ManyToMany}})
+	if err := healthy.AddEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err != nil {
 		t.Fatalf("setup AddEdge: %v", err)
 	}
 
@@ -174,7 +184,7 @@ func TestRemoveEdge_ToleratesDegradedTarget(t *testing.T) {
 		collections: map[string]bool{"project.yaml": true},
 		records:     map[string]map[string]bool{},
 	})
-	if err := degraded.RemoveEdge("project.yaml", "author", Edge{From: "p1", To: "u1"}); err != nil {
+	if err := degraded.RemoveEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err != nil {
 		t.Fatalf("RemoveEdge must tolerate a degraded target: %v", err)
 	}
 	got, _ := degraded.GetRelations("project.yaml")

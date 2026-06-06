@@ -418,14 +418,29 @@ watch(
 );
 
 // ── Setup-info tabs (Template Code / Sidebar Expression / Facets) ───
-const setupTab = ref<"code" | "expression" | "facets" | "statistics" | "formulas">("code");
-const setupTabItems = computed(() => [
-  { id: "code", label: t("workspace.templates.setup.template_code") },
-  { id: "expression", label: t("workspace.templates.setup.sidebar_expression") },
-  { id: "facets", label: t("workspace.templates.setup.facets") },
-  { id: "statistics", label: t("workspace.templates.setup.statistics") },
-  { id: "formulas", label: t("workspace.templates.setup.formulas") },
-]);
+const setupTab = ref<"code" | "expression" | "facets" | "statistics" | "formulas" | "relations">("code");
+const setupTabItems = computed(() => {
+  const items = [
+    { id: "code", label: t("workspace.templates.setup.template_code") },
+    { id: "expression", label: t("workspace.templates.setup.sidebar_expression") },
+    { id: "facets", label: t("workspace.templates.setup.facets") },
+    { id: "statistics", label: t("workspace.templates.setup.statistics") },
+    { id: "formulas", label: t("workspace.templates.setup.formulas") },
+  ];
+  if (draft.value?.enable_collection) {
+    items.unshift({ id: "relations", label: t("workspace.templates.setup.relations") });
+  }
+  return items;
+});
+
+// The Relations tab only exists while Enable Collection is on. If it gets
+// turned off while the tab is active, fall back to the code tab.
+watch(
+  () => draft.value?.enable_collection,
+  (on) => {
+    if (!on && setupTab.value === "relations") setupTab.value = "code";
+  },
+);
 
 // ── Formula fields: named per-record computed fields (datacore-evaluated) ──
 const formulaEditorOpen = ref(false);
@@ -1123,6 +1138,17 @@ setTopbarMenu(() => [
                       + {{ t('workspace.templates.formulas.add') }}
                     </button>
                   </div>
+                </div>
+              </template>
+
+              <template #relations>
+                <div class="setup-tab-pane">
+                  <p class="muted small setup-tab-help">
+                    {{ t('workspace.templates.relations.help') }}
+                  </p>
+                  <p class="muted small">
+                    {{ t('workspace.templates.relations.empty') }}
+                  </p>
                 </div>
               </template>
             </Tabs>

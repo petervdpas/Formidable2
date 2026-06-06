@@ -26,9 +26,10 @@ type Edge struct {
 	To   string `yaml:"to" json:"to"`
 }
 
-// Relation is one declared relation from a template to another template, plus its edges.
+// Relation is one declared relation from a template to another template, plus its edges. It is
+// identified entirely by its target: the source is the owning file, and there is at most one
+// relation per from -> to pair, so no name is needed.
 type Relation struct {
-	Name        string      `yaml:"name" json:"name"`
 	To          string      `yaml:"to" json:"to"`
 	Cardinality Cardinality `yaml:"cardinality" json:"cardinality"`
 	Edges       []Edge      `yaml:"edges,omitempty" json:"edges,omitempty"`

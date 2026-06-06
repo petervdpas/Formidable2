@@ -75,7 +75,7 @@ func (m *Manager) SetRelations(template string, rels []Relation) error {
 	}
 	for _, r := range rels {
 		if !m.cat.IsCollection(r.To) {
-			return fmt.Errorf("relation: target %s (relation %q) is not a collection", r.To, r.Name)
+			return fmt.Errorf("relation: target %s is not a collection", r.To)
 		}
 	}
 	return m.saveRelations(template, rels)
@@ -84,16 +84,18 @@ func (m *Manager) SetRelations(template string, rels []Relation) error {
 // saveRelations is the persistence floor: structural validation + atomic write, NO catalog checks.
 // Edge mutations and cleanup go through it so removal/persist works even against degraded state.
 func (m *Manager) saveRelations(template string, rels []Relation) error {
+	seen := make(map[string]bool, len(rels))
 	for i, r := range rels {
-		if strings.TrimSpace(r.Name) == "" {
-			return fmt.Errorf("relation: #%d has no name", i+1)
-		}
 		if strings.TrimSpace(r.To) == "" {
-			return fmt.Errorf("relation: %q has no target", r.Name)
+			return fmt.Errorf("relation: #%d has no target", i+1)
 		}
 		if !r.Cardinality.valid() {
-			return fmt.Errorf("relation: %q has unknown cardinality %q", r.Name, r.Cardinality)
+			return fmt.Errorf("relation: %s has unknown cardinality %q", r.To, r.Cardinality)
 		}
+		if seen[r.To] {
+			return fmt.Errorf("relation: duplicate relation to %s", r.To)
+		}
+		seen[r.To] = true
 	}
 	var buf bytes.Buffer
 	enc := yaml.NewEncoder(&buf)
@@ -113,9 +115,10 @@ func (m *Manager) saveRelations(template string, rels []Relation) error {
 	return m.fs.SaveFile(m.path(template), buf.String())
 }
 
-// AddEdge links two records through a named relation. Both records must exist right now (hard
-// reject): a brand-new dangling link is never allowed, even though edges can dangle later.
-func (m *Manager) AddEdge(template, relationName string, e Edge) error {
+// AddEdge links two records through the relation from template to `to`. Both records must exist
+// right now (hard reject): a brand-new dangling link is never allowed, even though edges can dangle
+// later.
+func (m *Manager) AddEdge(template, to string, e Edge) error {
 	if strings.TrimSpace(e.From) == "" || strings.TrimSpace(e.To) == "" {
 		return fmt.Errorf("relation: edge needs both from and to")
 	}
@@ -123,9 +126,9 @@ func (m *Manager) AddEdge(template, relationName string, e Edge) error {
 	if err != nil {
 		return err
 	}
-	i := relationIndex(rels, relationName)
+	i := relationIndex(rels, to)
 	if i < 0 {
-		return fmt.Errorf("relation: %s has no relation named %q", template, relationName)
+		return fmt.Errorf("relation: %s has no relation to %s", template, to)
 	}
 	if !m.cat.RecordExists(template, e.From) {
 		return fmt.Errorf("relation: source record %q not found in %s", e.From, template)
@@ -140,16 +143,17 @@ func (m *Manager) AddEdge(template, relationName string, e Edge) error {
 	return m.saveRelations(template, rels)
 }
 
-// RemoveEdge unlinks two records. Goes through the persistence floor so cleanup works even when the
-// target template or records have since gone away (the volatile case).
-func (m *Manager) RemoveEdge(template, relationName string, e Edge) error {
+// RemoveEdge unlinks two records from the relation from template to `to`. Goes through the
+// persistence floor so cleanup works even when the target template or records have since gone away
+// (the volatile case).
+func (m *Manager) RemoveEdge(template, to string, e Edge) error {
 	rels, err := m.GetRelations(template)
 	if err != nil {
 		return err
 	}
-	i := relationIndex(rels, relationName)
+	i := relationIndex(rels, to)
 	if i < 0 {
-		return fmt.Errorf("relation: %s has no relation named %q", template, relationName)
+		return fmt.Errorf("relation: %s has no relation to %s", template, to)
 	}
 	before := len(rels[i].Edges)
 	rels[i].Edges = slices.DeleteFunc(rels[i].Edges, func(x Edge) bool { return x == e })
@@ -159,9 +163,9 @@ func (m *Manager) RemoveEdge(template, relationName string, e Edge) error {
 	return m.saveRelations(template, rels)
 }
 
-func relationIndex(rels []Relation, name string) int {
+func relationIndex(rels []Relation, to string) int {
 	for i, r := range rels {
-		if r.Name == name {
+		if r.To == to {
 			return i
 		}
 	}
