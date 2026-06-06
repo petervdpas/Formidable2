@@ -74,6 +74,7 @@ func TestCardinalityOptions_CarryLabelKeys(t *testing.T) {
 	if len(opts) != len(Cardinalities()) {
 		t.Fatalf("got %d options, want %d", len(opts), len(Cardinalities()))
 	}
+	defaults := 0
 	for i, o := range opts {
 		if o.Value != Cardinalities()[i] {
 			t.Errorf("option[%d] value = %q, want %q", i, o.Value, Cardinalities()[i])
@@ -81,6 +82,15 @@ func TestCardinalityOptions_CarryLabelKeys(t *testing.T) {
 		if o.LabelKey == "" {
 			t.Errorf("option %q has no label key", o.Value)
 		}
+		if o.Default {
+			defaults++
+			if o.Value != defaultCardinality {
+				t.Errorf("default flagged on %q, want %q", o.Value, defaultCardinality)
+			}
+		}
+	}
+	if defaults != 1 {
+		t.Errorf("want exactly one default option, got %d", defaults)
 	}
 }
 

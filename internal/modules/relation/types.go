@@ -39,12 +39,13 @@ func Cardinalities() []Cardinality {
 	return []Cardinality{OneToOne, OneToMany, ManyToOne, ManyToMany}
 }
 
-// CardinalityOption pairs a cardinality value with its i18n label key, so the
-// frontend never maintains its own value->key mapping (backend steers the labels
-// too, like field-type descriptors carry label_key).
+// CardinalityOption pairs a cardinality value with its i18n label key and whether it is the default
+// pick for a NEW relation, so the frontend keeps no value->key mapping and no default of its own
+// (backend steers the labels and the default, like field-type descriptors carry their own metadata).
 type CardinalityOption struct {
 	Value    Cardinality `json:"value"`
 	LabelKey string      `json:"label_key"`
+	Default  bool        `json:"default,omitempty"`
 }
 
 var cardinalityLabelKeys = map[Cardinality]string{
@@ -54,12 +55,19 @@ var cardinalityLabelKeys = map[Cardinality]string{
 	ManyToMany: "workspace.templates.relations.cardinality.many_to_many",
 }
 
-// CardinalityOptions returns the picker options (value + label key) in order.
+// defaultCardinality is the cardinality a freshly added relation starts on.
+const defaultCardinality = OneToMany
+
+// CardinalityOptions returns the picker options (value + label key + default flag) in order.
 func CardinalityOptions() []CardinalityOption {
 	cs := Cardinalities()
 	out := make([]CardinalityOption, 0, len(cs))
 	for _, c := range cs {
-		out = append(out, CardinalityOption{Value: c, LabelKey: cardinalityLabelKeys[c]})
+		out = append(out, CardinalityOption{
+			Value:    c,
+			LabelKey: cardinalityLabelKeys[c],
+			Default:  c == defaultCardinality,
+		})
 	}
 	return out
 }

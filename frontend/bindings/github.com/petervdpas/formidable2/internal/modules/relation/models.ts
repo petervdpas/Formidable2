@@ -18,16 +18,22 @@ export enum Cardinality {
     OneToMany = "one-to-many",
     ManyToOne = "many-to-one",
     ManyToMany = "many-to-many",
+
+    /**
+     * defaultCardinality is the cardinality a freshly added relation starts on.
+     */
+    defaultCardinality = "one-to-many",
 };
 
 /**
- * CardinalityOption pairs a cardinality value with its i18n label key, so the
- * frontend never maintains its own value->key mapping (backend steers the labels
- * too, like field-type descriptors carry label_key).
+ * CardinalityOption pairs a cardinality value with its i18n label key and whether it is the default
+ * pick for a NEW relation, so the frontend keeps no value->key mapping and no default of its own
+ * (backend steers the labels and the default, like field-type descriptors carry their own metadata).
  */
 export class CardinalityOption {
     "value": Cardinality;
     "label_key": string;
+    "default"?: boolean;
 
     /** Creates a new CardinalityOption instance. */
     constructor($$source: Partial<CardinalityOption> = {}) {

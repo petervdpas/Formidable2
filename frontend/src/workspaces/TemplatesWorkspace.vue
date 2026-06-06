@@ -455,7 +455,7 @@ const relations = ref<Relation[]>([]);
 const collectionTemplates = ref<TemplateSummary[]>([]);
 const relationEditorOpen = ref(false);
 const editingRelationIndex = ref(-1);
-const editingRelation = ref<Relation>(new Relation({ to: "", cardinality: Cardinality.OneToMany }));
+const editingRelation = ref<Relation>(new Relation({ to: "" }));
 
 // Cardinality options come from the backend (value + label key); the label is
 // localized here. No frontend value->key mapping.
@@ -463,6 +463,10 @@ const cardinalityChoices = ref<CardinalityOption[]>([]);
 void RelationSvc.Cardinalities().then((o) => (cardinalityChoices.value = o ?? []));
 const cardinalityOptions = computed(() =>
   cardinalityChoices.value.map((o) => ({ value: o.value, label: t(o.label_key) })),
+);
+// Default cardinality for a new relation comes from the backend option set.
+const defaultCardinality = computed<string>(
+  () => cardinalityChoices.value.find((o) => o.default)?.value ?? "",
 );
 function cardinalityLabel(c: string): string {
   const opt = cardinalityChoices.value.find((o) => o.value === c);
@@ -501,7 +505,10 @@ const relationTargetOptions = computed(() => {
 
 function openAddRelation() {
   editingRelationIndex.value = -1;
-  editingRelation.value = new Relation({ to: "", cardinality: Cardinality.OneToMany });
+  editingRelation.value = new Relation({
+    to: "",
+    cardinality: defaultCardinality.value as Cardinality,
+  });
   relationEditorOpen.value = true;
 }
 function openEditRelation(idx: number) {
