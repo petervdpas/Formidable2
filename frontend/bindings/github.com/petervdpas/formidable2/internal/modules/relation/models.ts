@@ -29,11 +29,14 @@ export enum Cardinality {
  * CardinalityOption pairs a cardinality value with its i18n label key and whether it is the default
  * pick for a NEW relation, so the frontend keeps no value->key mapping and no default of its own
  * (backend steers the labels and the default, like field-type descriptors carry their own metadata).
+ * SourceMany is whether the source side may link many targets under this cardinality, so the
+ * api-field UI reads single-vs-multi from the backend instead of re-deriving the rule.
  */
 export class CardinalityOption {
     "value": Cardinality;
     "label_key": string;
     "default"?: boolean;
+    "source_many": boolean;
 
     /** Creates a new CardinalityOption instance. */
     constructor($$source: Partial<CardinalityOption> = {}) {
@@ -42,6 +45,9 @@ export class CardinalityOption {
         }
         if (!("label_key" in $$source)) {
             this["label_key"] = "";
+        }
+        if (!("source_many" in $$source)) {
+            this["source_many"] = false;
         }
 
         Object.assign(this, $$source);

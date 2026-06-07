@@ -464,11 +464,28 @@ func New(d Deps) (*App, error) {
 	// per-module Wails services directly, which use slideoutRender.
 	dpM := dataprovider.NewManager(idxM, wikiRender, stoM)
 
+	// api fields store only the reference id; the columns are read live at render
+	// time. Wire the same dataprovider-backed resolver into every render target.
+	refResolver := func(target, id string, cols []string) map[string]any {
+		row, err := dpM.FetchAPIFieldRow(context.Background(), target, id, cols)
+		if err != nil {
+			return nil
+		}
+		return row
+	}
+	slideoutRender.SetReferenceResolver(refResolver)
+	wikiRender.SetReferenceResolver(refResolver)
+	pdfRender.SetReferenceResolver(refResolver)
+
 	// Relations: per-template files at <context>/relations/<name>.yaml. The dir is a context
 	// sibling of templates (derived here, not owned by the VFS). The module talks to the main
 	// templates/records only through relation.Catalog, implemented by relationCatalog over dpM.
 	relationsDir := filepath.Join(filepath.Dir(templatesPath), "relations")
 	relationM = relation.NewManager(sysM, relationsDir, relationCatalog{dp: dpM})
+
+	// On save, an api-field's picks become relation edges so the graph, datacore,
+	// and REST-follow reflect them. relationM exists now, so wire the syncer here.
+	formM.SetReferenceEdgeSyncer(referenceEdgeSyncer{rel: relationM})
 
 	// Integrity analyzes stored forms against the template's current field
 	// declarations. Fix commits via storage.SaveFormExact so meta mutations

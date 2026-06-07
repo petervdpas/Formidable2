@@ -64,11 +64,10 @@ func fieldTypeCases() []fieldTypeCase {
 		// link's "legacy string" path has its own dedicated test below.
 		{fieldType: "link", happy: map[string]any{"href": "https://x", "text": "X"}, unhappy: float64(7), wantKind: IssueTypeMismatch, emptyValue: map[string]any{"href": "", "text": ""}},
 
-		// api: nil (unset) and {guid, ...} are both valid; a plain
-		// string in this column is drift from an older shape and is
-		// flagged. nil is covered separately to assert "no false
-		// positive on unset api field".
-		{fieldType: "api", happy: map[string]any{"guid": "abc-123", "name": "Row"}, unhappy: "abc-123", wantKind: IssueTypeMismatch, emptyValue: nil, skipEmpty: true},
+		// api: a reference id string (single) and a list of ids (to-many) are valid;
+		// the legacy {id|guid, ...} snapshot map is tolerated. A deeply wrong type
+		// (number/bool) is drift and is flagged. nil (unset) is covered separately.
+		{fieldType: "api", happy: "abc-123", unhappy: float64(7), wantKind: IssueTypeMismatch, emptyValue: nil, skipEmpty: true},
 	}
 }
 

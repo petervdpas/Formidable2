@@ -96,6 +96,27 @@ func TestCardinalityOptions_CarryLabelKeys(t *testing.T) {
 	}
 }
 
+func TestCardinalityOptions_SourceManyMatchesLimitsFrom(t *testing.T) {
+	// SourceMany is the single source of truth the api-field UI reads for
+	// single-vs-multi; it must equal !limitsFrom for every cardinality.
+	for _, o := range CardinalityOptions() {
+		if o.SourceMany != !o.Value.limitsFrom() {
+			t.Errorf("%q SourceMany = %v, want %v", o.Value, o.SourceMany, !o.Value.limitsFrom())
+		}
+	}
+	want := map[Cardinality]bool{
+		OneToOne:   false,
+		ManyToOne:  false,
+		OneToMany:  true,
+		ManyToMany: true,
+	}
+	for _, o := range CardinalityOptions() {
+		if o.SourceMany != want[o.Value] {
+			t.Errorf("%q SourceMany = %v, want %v", o.Value, o.SourceMany, want[o.Value])
+		}
+	}
+}
+
 func TestCardinality_Inverse(t *testing.T) {
 	cases := map[Cardinality]Cardinality{
 		OneToOne:   OneToOne,

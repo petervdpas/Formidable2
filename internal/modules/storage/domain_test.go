@@ -341,13 +341,14 @@ func TestSanitize_LinkValueShapesRoundTrip(t *testing.T) {
 }
 
 // API-field value shape: a single object {guid, ...projected_columns}.
-// Multiplicity comes from wrapping the field in a loopstart/loopstop
-// pair - the api field itself is always one record's projection.
+// Multiplicity now comes from the relation's cardinality: a to-many reference
+// stores a list of ids. A field inside a loopstart/loopstop pair still has its
+// per-iteration value preserved verbatim.
 
 func TestSanitize_ApiFieldUnsetDefaultsToNil(t *testing.T) {
 	// User hasn't picked a record yet - sanitize should produce nil
 	// (NOT empty string, which would be a type-confused stand-in and
-	// would force every consumer to guard against `""` vs `map`).
+	// would force every consumer to guard against `""` vs an id).
 	fields := []template.Field{
 		{Key: "ref", Type: "api", Collection: "people.yaml"},
 	}
@@ -357,33 +358,50 @@ func TestSanitize_ApiFieldUnsetDefaultsToNil(t *testing.T) {
 	}
 }
 
-func TestSanitize_ApiFieldObjectRoundTrip(t *testing.T) {
-	// Once the picker stamps a record, the field's value is a flat
-	// {guid, ...projected_columns} map. Sanitize must preserve it
-	// verbatim (no key reshuffle, no string-coercion).
+func TestSanitize_ApiFieldRefIDRoundTrip(t *testing.T) {
+	// A picked single reference is a bare id string; sanitize preserves it.
+	// A to-many reference is a list of id strings.
 	fields := []template.Field{
 		{Key: "ref", Type: "api", Collection: "people.yaml"},
 	}
-	value := map[string]any{
-		"guid":  "g-1",
-		"name":  "Alice",
-		"email": "alice@a.com",
+	out := Sanitize(map[string]any{"ref": "g-1"}, fields, SanitizeOptions{})
+	if got := out.Data["ref"]; got != "g-1" {
+		t.Errorf("single ref round-trip: got %#v, want %q", got, "g-1")
 	}
-	out := Sanitize(map[string]any{"ref": value}, fields, SanitizeOptions{})
-	got, ok := out.Data["ref"].(map[string]any)
-	if !ok {
-		t.Fatalf("ref not a map: %T", out.Data["ref"])
+
+	out = Sanitize(map[string]any{"ref": []any{"g-1", "g-2"}}, fields, SanitizeOptions{})
+	if got, ok := out.Data["ref"].([]any); !ok || !reflect.DeepEqual(got, []any{"g-1", "g-2"}) {
+		t.Errorf("list ref round-trip: got %#v, want [g-1 g-2]", out.Data["ref"])
 	}
-	if !reflect.DeepEqual(got, value) {
-		t.Errorf("ref round-trip: got %#v, want %#v", got, value)
+}
+
+func TestSanitize_ApiFieldHealsLegacySnapshot(t *testing.T) {
+	// The legacy {guid, ...projected_columns} snapshot heals to its id on save,
+	// so existing picks survive the move to id-only storage without a file rewrite.
+	fields := []template.Field{
+		{Key: "ref", Type: "api", Collection: "people.yaml"},
+	}
+	legacy := map[string]any{"guid": "g-1", "name": "Alice", "email": "alice@a.com"}
+	out := Sanitize(map[string]any{"ref": legacy}, fields, SanitizeOptions{})
+	if got := out.Data["ref"]; got != "g-1" {
+		t.Errorf("legacy snapshot heal: got %#v, want %q", got, "g-1")
+	}
+
+	// A legacy list of snapshots heals to a list of ids.
+	legacyList := []any{
+		map[string]any{"id": "g-1", "name": "A"},
+		map[string]any{"guid": "g-2", "name": "B"},
+	}
+	out = Sanitize(map[string]any{"ref": legacyList}, fields, SanitizeOptions{})
+	if got, ok := out.Data["ref"].([]any); !ok || !reflect.DeepEqual(got, []any{"g-1", "g-2"}) {
+		t.Errorf("legacy list heal: got %#v, want [g-1 g-2]", out.Data["ref"])
 	}
 }
 
 func TestSanitize_ApiFieldInsideLoopPreservesPerIteration(t *testing.T) {
-	// Multi-record case: the api field lives inside a loopstart/loopstop
-	// pair; each iteration carries its own {guid, ...} map. The loop
-	// preservation rule already exists for any field type - this test
-	// pins the api-shaped payload to it.
+	// The api field lives inside a loopstart/loopstop pair; each iteration carries
+	// its own reference id. The loop preservation rule already exists for any field
+	// type - this test pins the api-shaped payload to it.
 	fields := []template.Field{
 		{Key: "title", Type: "text"},
 		{Key: "addrs", Type: "loopstart"},
@@ -393,8 +411,8 @@ func TestSanitize_ApiFieldInsideLoopPreservesPerIteration(t *testing.T) {
 	raw := map[string]any{
 		"title": "X",
 		"addrs": []any{
-			map[string]any{"ref": map[string]any{"guid": "g-1", "name": "A"}},
-			map[string]any{"ref": map[string]any{"guid": "g-2", "name": "B"}},
+			map[string]any{"ref": "g-1"},
+			map[string]any{"ref": "g-2"},
 		},
 	}
 	out := Sanitize(raw, fields, SanitizeOptions{})
@@ -410,12 +428,8 @@ func TestSanitize_ApiFieldInsideLoopPreservesPerIteration(t *testing.T) {
 		if !ok {
 			t.Fatalf("iteration %d not a map: %T", i, loop[i])
 		}
-		ref, ok := iter["ref"].(map[string]any)
-		if !ok {
-			t.Fatalf("iter[%d].ref not a map: %T", i, iter["ref"])
-		}
-		if ref["guid"] != want {
-			t.Errorf("iter[%d].ref.guid = %v, want %q", i, ref["guid"], want)
+		if iter["ref"] != want {
+			t.Errorf("iter[%d].ref = %v, want %q", i, iter["ref"], want)
 		}
 	}
 	// Top-level shouldn't carry the inner key.

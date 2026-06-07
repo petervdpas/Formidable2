@@ -736,13 +736,17 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 		}}
 
 	case "api":
-		if _, ok := v.(map[string]any); ok {
+		// A reference id (single cardinality) or a list of ids (to-many). The legacy
+		// {id|guid, ...columns} snapshot map is tolerated so pre-existing data isn't
+		// flagged before a save heals it to an id.
+		switch v.(type) {
+		case string, []any, map[string]any:
 			return nil
 		}
 		return []Issue{{
 			Kind:   IssueTypeMismatch,
 			Path:   path,
-			Detail: fmt.Sprintf("expected object, got %T", v),
+			Detail: fmt.Sprintf("expected reference id or list, got %T", v),
 		}}
 	}
 

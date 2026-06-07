@@ -62,33 +62,6 @@ func (s *Service) FetchAPIFieldRow(sourceTemplate, guid string, columnKeys []str
 	return APIFieldRowResult{Kind: apiFieldErrorKind(err), Message: err.Error()}
 }
 
-// APIFieldRefetchResultDTO is APIFieldRefetchResult plus the Kind/Message
-// error fields, for uniform frontend branching.
-type APIFieldRefetchResultDTO struct {
-	Row     map[string]any  `json:"row,omitempty"`
-	Drift   []APIFieldDrift `json:"drift,omitempty"`
-	Kind    string          `json:"kind,omitempty"`
-	Message string          `json:"message,omitempty"`
-}
-
-// RefetchAPIFieldRow re-fetches the current row and returns it with the
-// Drift against stored; a nil/empty stored counts every non-nil column as drift.
-func (s *Service) RefetchAPIFieldRow(sourceTemplate, guid string, columnKeys []string, stored map[string]any) APIFieldRefetchResultDTO {
-	res, err := s.m.RefetchAPIFieldRow(context.Background(), sourceTemplate, guid, columnKeys, stored)
-	if err == nil {
-		row := res.Row
-		if row == nil {
-			row = map[string]any{}
-		}
-		drift := res.Drift
-		if drift == nil {
-			drift = []APIFieldDrift{}
-		}
-		return APIFieldRefetchResultDTO{Row: row, Drift: drift}
-	}
-	return APIFieldRefetchResultDTO{Kind: apiFieldErrorKind(err), Message: err.Error()}
-}
-
 // apiFieldErrorKind maps the structured api-field errors to the stable
 // Kind strings the frontend branches on.
 func apiFieldErrorKind(err error) string {

@@ -663,6 +663,7 @@ setTopbarMenu(() => [
           :fields="draft.fields ?? []"
           :facets="draft.facets ?? []"
           :formulas="draft.formulas ?? []"
+          :template="selectedFilename ?? ''"
           @update="onFieldsUpdate"
         />
       </template>

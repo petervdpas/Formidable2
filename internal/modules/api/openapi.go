@@ -1022,24 +1022,18 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 		schema["type"] = "array"
 		schema["items"] = map[string]any{"type": "string"}
 	case "api":
-		// Persisted selection: bare id string, or {id, ...mapped}.
-		mapped := map[string]any{}
-		for _, m := range f.Map {
-			if m.Key != "" {
-				mapped[m.Key] = map[string]any{"type": "string"}
-			}
-		}
-		mapped["id"] = map[string]any{"type": "string"}
+		// Relation reference: a single target id, or a list of ids for a to-many
+		// cardinality. The mapped columns are not stored; they are read live from
+		// the target. Follow the link via the /relations endpoints.
 		schema["oneOf"] = []any{
-			map[string]any{"type": "string", "description": "Selected item id"},
+			map[string]any{"type": "string", "description": "Selected target id"},
 			map[string]any{
-				"type":                 "object",
-				"additionalProperties": true,
-				"properties":           mapped,
-				"required":             []string{"id"},
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"description": "Selected target ids (to-many)",
 			},
 		}
-		schema["description"] = "API-linked value: either the selected id or {id, ...mapped fields}."
+		schema["description"] = "Relation reference: the selected target id, or a list of ids for a to-many relation."
 	default:
 		schema["type"] = "string"
 	}

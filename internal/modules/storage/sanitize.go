@@ -53,6 +53,11 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 				data[f.Key] = def
 			}
 		}
+		// api stores reference id(s); unwrap the legacy {id|guid, ...} snapshot to its
+		// id so old picks heal to the new shape on save.
+		if f.Type == "api" {
+			data[f.Key] = coerceAPIRef(data[f.Key])
+		}
 	}
 
 	// The data-block guid field is the identity source; meta.id mirrors it. Resolve field, then preserved
@@ -417,11 +422,54 @@ func defaultForType(t string) any {
 	case "multioption", "list", "table":
 		return []any{}
 	case "api":
-		// nil distinguishes "no record picked" from a stamped {guid, ...} map.
+		// nil = unpicked. A picked value is a reference id (single) or a list of ids (to-many).
 		return nil
 	default:
 		return ""
 	}
+}
+
+// coerceAPIRef normalises an api-field value to its reference id(s): a bare id
+// string (single cardinality) or a []any of id strings (to-many). It unwraps the
+// legacy {id|guid, ...columns} snapshot to just the id so old picks heal on save.
+// nil or an unrecognised shape becomes nil (unpicked).
+func coerceAPIRef(v any) any {
+	switch t := v.(type) {
+	case nil:
+		return nil
+	case string:
+		return t
+	case map[string]any:
+		return apiRefID(t)
+	case []any:
+		out := make([]any, 0, len(t))
+		for _, e := range t {
+			switch ev := e.(type) {
+			case string:
+				if ev != "" {
+					out = append(out, ev)
+				}
+			case map[string]any:
+				if id := apiRefID(ev); id != "" {
+					out = append(out, id)
+				}
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+// apiRefID pulls the reference id out of a legacy api snapshot map (id, then guid).
+func apiRefID(m map[string]any) string {
+	if s, ok := m["id"].(string); ok && s != "" {
+		return s
+	}
+	if s, ok := m["guid"].(string); ok && s != "" {
+		return s
+	}
+	return ""
 }
 
 func firstNonEmpty(strs ...string) string {

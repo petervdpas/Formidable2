@@ -10,17 +10,21 @@ import (
 )
 
 // registerAPIFieldHelpers binds {{apiCol}}, {{apiGuid}}, {{apiBlock}},
-// {{apiSection}}. All read the host api Field from the context's `_fields`
-// (so they work inside `{{#loop}}` too) and degrade gracefully on a
-// missing/non-api field, an unpicked record, or a nil LoadTemplate.
+// {{apiSection}}. The field stores only the reference id(s); the columns are
+// read live via Options.ResolveReference. All read the host api Field from the
+// context's `_fields` (so they work inside `{{#loop}}` too) and degrade
+// gracefully on a missing/non-api field, an unpicked record, or a nil resolver.
+// The single-value helpers act on the first referenced record; apiSection
+// renders one card per referenced record (so a to-many reference shows them all).
 func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 	// {{apiCol "fieldKey" "columnKey"}}: one projected column, scalar
 	// inline or compact JSON for slice/map.
 	tpl.RegisterHelper("apiCol", func(fieldKey, columnKey string, options *raymond.Options) raymond.SafeString {
-		row, _ := apiFieldRow(options.Ctx(), fieldKey)
-		if row == nil {
+		ids, host := apiFieldRefs(options.Ctx(), fieldKey)
+		if len(ids) == 0 {
 			return ""
 		}
+		row := apiResolve(opts, host, ids[0], []string{columnKey})
 		v, ok := row[columnKey]
 		if !ok || v == nil {
 			return ""
@@ -28,49 +32,54 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		return raymond.SafeString(scalarOrJSON(v))
 	})
 
-	// {{apiGuid "fieldKey"}}: the picked record's guid, or "".
+	// {{apiGuid "fieldKey"}}: the referenced id(s); a single id, or ids joined
+	// by ", " for a to-many reference. "" when unpicked.
 	tpl.RegisterHelper("apiGuid", func(fieldKey string, options *raymond.Options) string {
-		row, _ := apiFieldRow(options.Ctx(), fieldKey)
-		if row == nil {
-			return ""
-		}
-		if g, ok := row["guid"].(string); ok {
-			return g
-		}
-		return ""
+		ids, _ := apiFieldRefs(options.Ctx(), fieldKey)
+		return strings.Join(ids, ", ")
 	})
 
 	// {{apiBlock "fieldKey" "columnKey"}}: type-aware render (tags joined,
 	// list bulleted, table as a pipe-table), per the source field's type;
 	// falls back to scalarOrJSON without a loadable source.
 	tpl.RegisterHelper("apiBlock", func(fieldKey, columnKey string, options *raymond.Options) raymond.SafeString {
-		row, hostField := apiFieldRow(options.Ctx(), fieldKey)
-		if row == nil {
+		ids, host := apiFieldRefs(options.Ctx(), fieldKey)
+		if len(ids) == 0 {
 			return ""
 		}
+		row := apiResolve(opts, host, ids[0], []string{columnKey})
 		v, ok := row[columnKey]
 		if !ok || v == nil {
 			return ""
 		}
-		src := loadSourceField(opts, hostField, columnKey)
+		src := loadSourceField(opts, host, columnKey)
 		return raymond.SafeString(emitAPIColumnBlock(v, src))
 	})
 
-	// {{apiSection "fieldKey"}}: full embedded-card markdown (header plus
-	// a line per column). The drop-everything helper for generator output.
+	// {{apiSection "fieldKey"}}: full embedded-card markdown (header plus a line
+	// per column), one card per referenced record. The drop-everything helper.
 	tpl.RegisterHelper("apiSection", func(fieldKey string, options *raymond.Options) raymond.SafeString {
-		row, hostField := apiFieldRow(options.Ctx(), fieldKey)
-		if row == nil || hostField == nil {
+		ids, host := apiFieldRefs(options.Ctx(), fieldKey)
+		if host == nil || len(ids) == 0 {
 			return ""
 		}
-		return raymond.SafeString(emitAPISection(row, hostField, opts))
+		cols := columnKeysOf(host)
+		parts := make([]string, 0, len(ids))
+		for _, id := range ids {
+			row := apiResolve(opts, host, id, cols)
+			if row == nil {
+				continue
+			}
+			parts = append(parts, emitAPISection(row, host, opts))
+		}
+		return raymond.SafeString(strings.Join(parts, "\n\n"))
 	})
 }
 
-// apiFieldRow returns the host api field's value (a {guid, ...columns} map)
-// and the Field itself (for its Map[]); (nil, nil) when missing or unpicked.
-// Loop-aware via contextMap/findField, so it sees the per-iteration context.
-func apiFieldRow(ctx any, fieldKey string) (map[string]any, *template.Field) {
+// apiFieldRefs returns the host api field's referenced id(s) and the Field
+// itself (for its Map[]). Loop-aware via contextMap/findField, so it sees the
+// per-iteration context. (nil, field) when unpicked; (nil, nil) when missing.
+func apiFieldRefs(ctx any, fieldKey string) ([]string, *template.Field) {
 	cm := contextMap(ctx)
 	if cm == nil {
 		return nil, nil
@@ -79,15 +88,73 @@ func apiFieldRow(ctx any, fieldKey string) (map[string]any, *template.Field) {
 	if f == nil || f.Type != "api" {
 		return nil, f
 	}
-	v, ok := cm[fieldKey]
-	if !ok || v == nil {
-		return nil, f
+	return refIDsFromValue(cm[fieldKey]), f
+}
+
+// refIDsFromValue pulls the reference id(s) from an api-field value: a bare id
+// string (single), a list of id strings (to-many), or the legacy {id|guid, ...}
+// snapshot (tolerated for not-yet-healed data). Empty entries are dropped.
+func refIDsFromValue(v any) []string {
+	switch t := v.(type) {
+	case string:
+		if t != "" {
+			return []string{t}
+		}
+	case []any:
+		out := make([]string, 0, len(t))
+		for _, e := range t {
+			switch ev := e.(type) {
+			case string:
+				if ev != "" {
+					out = append(out, ev)
+				}
+			case map[string]any:
+				if id := legacyRefID(ev); id != "" {
+					out = append(out, id)
+				}
+			}
+		}
+		return out
+	case map[string]any:
+		if id := legacyRefID(t); id != "" {
+			return []string{id}
+		}
 	}
-	row, ok := v.(map[string]any)
-	if !ok {
-		return nil, f
+	return nil
+}
+
+// legacyRefID pulls the id out of a legacy api snapshot map (id, then guid).
+func legacyRefID(m map[string]any) string {
+	if s, ok := m["id"].(string); ok && s != "" {
+		return s
 	}
-	return row, f
+	if s, ok := m["guid"].(string); ok && s != "" {
+		return s
+	}
+	return ""
+}
+
+// columnKeysOf returns the host field's Map column keys (the subset to project).
+func columnKeysOf(host *template.Field) []string {
+	if host == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(host.Map))
+	for _, m := range host.Map {
+		if m.Key != "" {
+			keys = append(keys, m.Key)
+		}
+	}
+	return keys
+}
+
+// apiResolve projects one target record live into a row keyed by cols; nil when
+// the resolver, host, or id is missing, or the record is gone (volatile).
+func apiResolve(opts *Options, host *template.Field, id string, cols []string) map[string]any {
+	if opts == nil || opts.ResolveReference == nil || host == nil || host.Collection == "" || id == "" {
+		return nil
+	}
+	return opts.ResolveReference(host.Collection, id, cols)
 }
 
 // scalarOrJSON returns a string/number/bool as-is, else compact JSON for

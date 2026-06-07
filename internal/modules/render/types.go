@@ -30,6 +30,12 @@ type Options struct {
 	// to JSON fallbacks; safe on targets that don't render api fields.
 	LoadTemplate func(name string) *template.Template
 
+	// ResolveReference projects one target-collection record (by id) into a row
+	// keyed by columnKeys, read live (api fields store only the reference id, not
+	// a snapshot). Nil makes the api helpers render empty, so the field shows
+	// nothing rather than stale data on targets without a resolver wired.
+	ResolveReference func(targetTemplate, id string, columnKeys []string) map[string]any
+
 	// TemplateFilename and Datafile drive the meta-category helpers
 	// ({{templateName}}, {{datafile}}, …); empty strings expand to "".
 	TemplateFilename string

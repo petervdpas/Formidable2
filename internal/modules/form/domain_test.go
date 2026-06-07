@@ -286,6 +286,68 @@ func TestSaveValues_PersistsAndReturnsRoundTrippedView(t *testing.T) {
 	}
 }
 
+type fakeEdgeSyncer struct {
+	calls []edgeSyncCall
+	err   error
+}
+
+type edgeSyncCall struct {
+	host string
+	guid string
+	data map[string]any
+}
+
+func (f *fakeEdgeSyncer) SyncReferenceEdges(host, guid string, _ []template.Field, data map[string]any) error {
+	f.calls = append(f.calls, edgeSyncCall{host: host, guid: guid, data: data})
+	return f.err
+}
+
+func TestSaveValues_InvokesReferenceEdgeSyncerWithPersistedGuid(t *testing.T) {
+	m, tpls, _, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename: "t.yaml",
+		Fields:   []template.Field{{Key: "ref", Type: "api", Collection: "people.yaml"}},
+	}
+	sync := &fakeEdgeSyncer{}
+	m.SetReferenceEdgeSyncer(sync)
+
+	if _, err := m.SaveValues("t.yaml", SavePayload{
+		Datafile: "row.meta.json",
+		Values:   map[string]any{"ref": "p-1"},
+		Meta:     storage.FormMeta{ID: "id-1"},
+	}); err != nil {
+		t.Fatalf("SaveValues: %v", err)
+	}
+	if len(sync.calls) != 1 {
+		t.Fatalf("expected 1 sync call, got %d", len(sync.calls))
+	}
+	c := sync.calls[0]
+	if c.host != "t.yaml" || c.guid != "id-1" || c.data["ref"] != "p-1" {
+		t.Errorf("sync call = %+v, want host=t.yaml guid=id-1 ref=p-1", c)
+	}
+}
+
+func TestSaveValues_SyncerErrorDoesNotFailSave(t *testing.T) {
+	m, tpls, _, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename: "t.yaml",
+		Fields:   []template.Field{{Key: "ref", Type: "api", Collection: "people.yaml"}},
+	}
+	m.SetReferenceEdgeSyncer(&fakeEdgeSyncer{err: errors.New("boom")})
+
+	view, err := m.SaveValues("t.yaml", SavePayload{
+		Datafile: "row.meta.json",
+		Values:   map[string]any{"ref": "p-1"},
+		Meta:     storage.FormMeta{ID: "id-1"},
+	})
+	if err != nil {
+		t.Fatalf("syncer error should not fail save: %v", err)
+	}
+	if !view.Saved {
+		t.Error("view should report saved despite syncer error")
+	}
+}
+
 func TestSaveValues_EmptyDatafileIsError(t *testing.T) {
 	// Per the spec we picked: caller (UI) gathers a name from the
 	// user. SaveValues rejects empty rather than auto-generating.

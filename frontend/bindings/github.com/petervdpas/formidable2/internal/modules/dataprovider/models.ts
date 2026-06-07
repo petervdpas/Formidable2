@@ -6,73 +6,6 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * APIFieldDrift is one column where the host's stored value differs from
- * the source's current value. Either side may be nil (column added after
- * save, or source field cleared).
- */
-export class APIFieldDrift {
-    "key": string;
-    "stored": any;
-    "current": any;
-
-    /** Creates a new APIFieldDrift instance. */
-    constructor($$source: Partial<APIFieldDrift> = {}) {
-        if (!("key" in $$source)) {
-            this["key"] = "";
-        }
-        if (!("stored" in $$source)) {
-            this["stored"] = null;
-        }
-        if (!("current" in $$source)) {
-            this["current"] = null;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new APIFieldDrift instance from a string or object.
-     */
-    static createFrom($$source: any = {}): APIFieldDrift {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new APIFieldDrift($$parsedSource as Partial<APIFieldDrift>);
-    }
-}
-
-/**
- * APIFieldRefetchResultDTO is APIFieldRefetchResult plus the Kind/Message
- * error fields, for uniform frontend branching.
- */
-export class APIFieldRefetchResultDTO {
-    "row"?: { [_ in string]?: any };
-    "drift"?: APIFieldDrift[];
-    "kind"?: string;
-    "message"?: string;
-
-    /** Creates a new APIFieldRefetchResultDTO instance. */
-    constructor($$source: Partial<APIFieldRefetchResultDTO> = {}) {
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new APIFieldRefetchResultDTO instance from a string or object.
-     */
-    static createFrom($$source: any = {}): APIFieldRefetchResultDTO {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("row" in $$parsedSource) {
-            $$parsedSource["row"] = $$createField0_0($$parsedSource["row"]);
-        }
-        if ("drift" in $$parsedSource) {
-            $$parsedSource["drift"] = $$createField1_0($$parsedSource["drift"]);
-        }
-        return new APIFieldRefetchResultDTO($$parsedSource as Partial<APIFieldRefetchResultDTO>);
-    }
-}
-
-/**
  * APIFieldRowResult is the Wails response for FetchAPIFieldRow. Kind is ""
  * on success or a stable error string (see apiFieldErrorKind) so the
  * frontend branches without parsing Message.
@@ -157,7 +90,7 @@ export class CollectionItem {
      * Creates a new CollectionItem instance from a string or object.
      */
     static createFrom($$source: any = {}): CollectionItem {
-        const $$createField4_0 = $$createType3;
+        const $$createField4_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
             $$parsedSource["tags"] = $$createField4_0($$parsedSource["tags"]);
@@ -212,6 +145,4 @@ export class TemplateSummary {
 
 // Private type creation functions
 const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = APIFieldDrift.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Array($Create.Any);

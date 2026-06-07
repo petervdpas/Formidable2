@@ -400,18 +400,23 @@ func TestRenderMarkdown_LinkField_MalformedFormidable(t *testing.T) {
 	}
 }
 
-// TestRenderMarkdown_APIBlock_NilSourceTemplate covers apiBlock when the
-// source template cannot be loaded (LoadTemplate returns nil for a
-// since-removed collection). emitAPIColumnBlock falls back to scalarOrJSON,
-// here compact JSON for the slice value, rather than crashing on a nil source.
+// TestRenderMarkdown_APIBlock_NilSourceTemplate covers apiBlock when the value
+// is fetched live but the source template cannot be loaded (LoadTemplate returns
+// nil for a since-removed collection). emitAPIColumnBlock falls back to
+// scalarOrJSON, here compact JSON for the slice value, rather than crashing.
 func TestRenderMarkdown_APIBlock_NilSourceTemplate(t *testing.T) {
 	host := &template.Template{
 		MarkdownTemplate: `{{apiBlock "ref" "gone"}}`,
 		Fields: []template.Field{{Key: "ref", Type: "api", Collection: "src.yaml",
 			Map: []template.APIMap{{Key: "gone"}}}},
 	}
-	opts := &Options{LoadTemplate: func(string) *template.Template { return nil }}
-	row := map[string]any{"ref": map[string]any{"guid": "g", "gone": []any{"a", "b"}}}
+	opts := &Options{
+		LoadTemplate: func(string) *template.Template { return nil },
+		ResolveReference: func(_, _ string, _ []string) map[string]any {
+			return map[string]any{"gone": []any{"a", "b"}}
+		},
+	}
+	row := map[string]any{"ref": "g"}
 	out, err := RenderMarkdown(row, host, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

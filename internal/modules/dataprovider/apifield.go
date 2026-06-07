@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 
 	"github.com/petervdpas/formidable2/internal/modules/index"
 )
@@ -80,48 +79,4 @@ func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid str
 		row[key] = raw
 	}
 	return row, nil
-}
-
-// APIFieldDrift is one column where the host's stored value differs from
-// the source's current value. Either side may be nil (column added after
-// save, or source field cleared).
-type APIFieldDrift struct {
-	Key     string `json:"key"`
-	Stored  any    `json:"stored"`
-	Current any    `json:"current"`
-}
-
-// APIFieldRefetchResult is a fresh projected row plus its Drift against a
-// previously-stored row.
-type APIFieldRefetchResult struct {
-	Row   map[string]any  `json:"row"`
-	Drift []APIFieldDrift `json:"drift"`
-}
-
-// RefetchAPIFieldRow fetches the current row and returns it with a Drift
-// entry per column that differs from stored. A nil stored map counts every
-// non-nil current column as drift.
-func (m *Manager) RefetchAPIFieldRow(ctx context.Context, sourceTemplate, guid string, columnKeys []string, stored map[string]any) (*APIFieldRefetchResult, error) {
-	row, err := m.FetchAPIFieldRow(ctx, sourceTemplate, guid, columnKeys)
-	if err != nil {
-		return nil, err
-	}
-	drift := []APIFieldDrift{}
-	for _, key := range columnKeys {
-		var s any
-		if stored != nil {
-			s = stored[key]
-		}
-		c := row[key]
-		if !apiFieldValuesEqual(s, c) {
-			drift = append(drift, APIFieldDrift{Key: key, Stored: s, Current: c})
-		}
-	}
-	return &APIFieldRefetchResult{Row: row, Drift: drift}, nil
-}
-
-// apiFieldValuesEqual compares two JSON-shaped values; both sides are
-// JSON-decoded Go data, so DeepEqual handles scalars/slices/maps alike.
-func apiFieldValuesEqual(a, b any) bool {
-	return reflect.DeepEqual(a, b)
 }

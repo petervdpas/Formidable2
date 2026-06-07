@@ -30,6 +30,13 @@ type configReader interface {
 	FormDefaults() ConfigDefaults
 }
 
+// ReferenceEdgeSyncer reconciles a host record's api-field references into the
+// relation edge graph after a save (add new, remove orphaned). Optional: nil
+// disables edge syncing, so the form Manager stays decoupled from relations.
+type ReferenceEdgeSyncer interface {
+	SyncReferenceEdges(hostTemplate, hostGuid string, fields []template.Field, data map[string]any) error
+}
+
 // ConfigDefaults bundles config values that affect form rendering.
 // Author identity is NOT here: storage.Manager pulls it directly from its
 // own AuthorProvider so every save path stamps the active profile.
@@ -42,6 +49,7 @@ type Manager struct {
 	templates templateLoader
 	storage   formStore
 	config    configReader
+	refEdges  ReferenceEdgeSyncer
 	log       *slog.Logger
 }
 
@@ -52,6 +60,10 @@ func NewManager(t templateLoader, s formStore, c configReader, log *slog.Logger)
 	}
 	return &Manager{templates: t, storage: s, config: c, log: log}
 }
+
+// SetReferenceEdgeSyncer wires the optional api-field edge reconciler. Called
+// once at composition; safe to leave unset (edge syncing is then a no-op).
+func (m *Manager) SetReferenceEdgeSyncer(s ReferenceEdgeSyncer) { m.refEdges = s }
 
 // BuildView prepares the FormView for one (template, datafile) pair.
 // A missing or empty datafile yields an unsaved view with type-defaults
@@ -135,7 +147,21 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 		return nil, fmt.Errorf("form: save: %s", res.Error)
 	}
 
-	return m.BuildView(templateName, payload.Datafile)
+	view, err := m.BuildView(templateName, payload.Datafile)
+	if err != nil {
+		return nil, err
+	}
+
+	// Reconcile api-field references into the relation edge graph. Best-effort:
+	// the record is already persisted, and reconcile heals any miss on next save.
+	if m.refEdges != nil && view.Meta.ID != "" && view.Template != nil {
+		if err := m.refEdges.SyncReferenceEdges(templateName, view.Meta.ID, view.Template.Fields, view.Values); err != nil {
+			m.log.Warn("form: reference edge sync failed",
+				"template", templateName, "id", view.Meta.ID, "err", err)
+		}
+	}
+
+	return view, nil
 }
 
 // SortFieldValue fetches a list/table field from the saved record (pointer:

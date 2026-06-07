@@ -10,7 +10,14 @@ import {
   FormRow,
   TextareaField,
 } from "../../components/fields";
-import { Service as GitSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
+import {
+  Service as GitSvc,
+  FetchOptions,
+  PushOptions,
+  PullOptions,
+  CommitOptions,
+  DiscardOptions,
+} from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/collaboration/git";
 import { useRemoteConfig } from "../../composables/useRemoteConfig";
 import { isValidAuthor } from "../../composables/useAuthorValidation";
 import { useToast } from "../../composables/useToast";
@@ -156,7 +163,7 @@ async function fetchRemote() {
   if (fetching.value) return;
   fetching.value = true;
   try {
-    const result = await GitSvc.Fetch({ remote: "origin", pat: "" });
+    const result = await GitSvc.Fetch(FetchOptions.createFrom({ remote: "origin", pat: "" }));
     if (result?.already_up_to_date) {
       toast.info("workspace.collaboration.fetch.up_to_date");
     } else {
@@ -227,7 +234,7 @@ async function push() {
   if (!canPush.value) return;
   pushing.value = true;
   try {
-    const result = await GitSvc.Push({ remote: "origin", pat: "" });
+    const result = await GitSvc.Push(PushOptions.createFrom({ remote: "origin", pat: "" }));
     if (result?.already_up_to_date) {
       toast.info("workspace.collaboration.push.up_to_date");
     } else {
@@ -258,7 +265,7 @@ async function pull() {
   }
   pulling.value = true;
   try {
-    const result = await GitSvc.Pull({ remote: "origin", pat: "" });
+    const result = await GitSvc.Pull(PullOptions.createFrom({ remote: "origin", pat: "" }));
     if (result?.already_up_to_date) {
       toast.info("workspace.collaboration.pull.up_to_date");
     } else {
@@ -290,7 +297,7 @@ async function pullWithStash(thenCommit = false) {
   pulling.value = true;
   let blocked = false;
   try {
-    const result = await GitSvc.PullWithStash({ remote: "origin", pat: "" });
+    const result = await GitSvc.PullWithStash(PullOptions.createFrom({ remote: "origin", pat: "" }));
 
     const overridden = (result?.overridden ?? []) as OverriddenPath[];
     const merged = (result?.auto_merged ?? []) as string[];
@@ -326,7 +333,7 @@ async function pullWithStash(thenCommit = false) {
 async function checkBehind(): Promise<number> {
   checkingBehind.value = true;
   try {
-    const fresh = await GitSvc.FetchStatus({ remote: "origin", pat: "" });
+    const fresh = await GitSvc.FetchStatus(FetchOptions.createFrom({ remote: "origin", pat: "" }));
     await load(false);
     return fresh?.behind ?? 0;
   } catch {
@@ -365,11 +372,11 @@ async function commit(skipBehindCheck = false) {
 
   inFlight.value = true;
   try {
-    const result = await GitSvc.Commit({
+    const result = await GitSvc.Commit(CommitOptions.createFrom({
       message: message.value.trim(),
       author: c.author_name,
       email: c.author_email,
-    });
+    }));
     if (result?.short) {
       toast.success("workspace.collaboration.commit.success", [result.short]);
       message.value = "";
@@ -413,7 +420,7 @@ async function confirmDiscard() {
   discardOpen.value = false;
   if (!file) return;
   try {
-    await GitSvc.Discard({ file });
+    await GitSvc.Discard(DiscardOptions.createFrom({ file }));
     toast.success("workspace.collaboration.status.discarded", [file]);
     await load(false);
   } catch (err) {

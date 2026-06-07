@@ -34,6 +34,10 @@ const props = defineProps<{
    *  to FieldEditModal so the virtual `formula` field type can bind its
    *  source. Defaults to [] when the parent doesn't pass it. */
   formulas?: Formula[];
+  /** The host template's filename. Threaded down to FieldEditModal so the
+   *  api (relation reference) editor scopes its target dropdown to the
+   *  template's declared relations. */
+  template?: string;
 }>();
 
 const emit = defineEmits<{
@@ -227,6 +231,7 @@ defineExpose({ openAddField });
     :available-facets="facets ?? []"
     :available-formulas="formulas ?? []"
     :available-fields="fields ?? []"
+    :host-template="template ?? ''"
     :summary-field-options="summaryFieldOptions"
     @close="editOpen = false"
     @confirm="applyEdit"

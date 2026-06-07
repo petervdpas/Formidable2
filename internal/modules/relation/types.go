@@ -50,10 +50,13 @@ func Cardinalities() []Cardinality {
 // CardinalityOption pairs a cardinality value with its i18n label key and whether it is the default
 // pick for a NEW relation, so the frontend keeps no value->key mapping and no default of its own
 // (backend steers the labels and the default, like field-type descriptors carry their own metadata).
+// SourceMany is whether the source side may link many targets under this cardinality, so the
+// api-field UI reads single-vs-multi from the backend instead of re-deriving the rule.
 type CardinalityOption struct {
-	Value    Cardinality `json:"value"`
-	LabelKey string      `json:"label_key"`
-	Default  bool        `json:"default,omitempty"`
+	Value      Cardinality `json:"value"`
+	LabelKey   string      `json:"label_key"`
+	Default    bool        `json:"default,omitempty"`
+	SourceMany bool        `json:"source_many"`
 }
 
 var cardinalityLabelKeys = map[Cardinality]string{
@@ -72,9 +75,10 @@ func CardinalityOptions() []CardinalityOption {
 	out := make([]CardinalityOption, 0, len(cs))
 	for _, c := range cs {
 		out = append(out, CardinalityOption{
-			Value:    c,
-			LabelKey: cardinalityLabelKeys[c],
-			Default:  c == defaultCardinality,
+			Value:      c,
+			LabelKey:   cardinalityLabelKeys[c],
+			Default:    c == defaultCardinality,
+			SourceMany: !c.limitsFrom(),
 		})
 	}
 	return out

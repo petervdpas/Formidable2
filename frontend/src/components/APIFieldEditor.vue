@@ -1,17 +1,15 @@
 <script setup lang="ts">
-// Editor for the api field's two pieces of config:
-//   • collection - the SOURCE template (filename) the field references.
-//                  Restricted to collection-enabled templates so the
-//                  picker can address records by guid.
-//   • map        - the column list. Each entry projects one level-0
-//                  source field into the host form's row at fetch time.
-//                  Type is read-only (resolved live from the source
-//                  template) so a source-side rename or type change
-//                  can't drift a stale cache here.
+// Editor for the api (relation reference) field's config:
+//   • collection - the TARGET template (filename) the field references.
+//                  Restricted to templates the host has a DECLARED relation
+//                  to (the relation must pre-exist, declared in the Relations
+//                  tab); the field operates within the relations set.
+//   • map        - the subset of target fields to edit + display inline.
+//                  Type is read-only (resolved live from the target template).
 //
-// Surface intentionally narrow: no use_picker / allowed_ids /
-// id-input / map.path/mode any more - those collapsed in Slice 1
-// once the design settled on "always pick by guid".
+// Cardinality is NOT set here: it is read-only, derived from the declared
+// relation. The backend owns the value->label map and the single/multi rule
+// (CardinalityOption.source_many).
 
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -22,48 +20,77 @@ import {
   APIMap,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as DataproviderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
+import {
+  Service as RelationSvc,
+  type Relation,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation";
+import type { CardinalityOption } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation/models";
 
 const props = defineProps<{
   /** Bound field draft. We mutate `collection` and `map` directly so
    *  FieldEditModal's deep-copy-on-open / commit-on-confirm cycle
    *  Just Works without per-attribute emits. */
   field: Field;
+  /** The host template's filename, so the target dropdown can be scoped to
+   *  its declared relations. Empty disables the dropdown (no relations to
+   *  pick from). */
+  hostTemplate: string;
 }>();
 
 const { t } = useI18n();
 
-// ── Source template list (collection-enabled only) ─────────────────────
-const sources = ref<{ filename: string; name: string }[]>([]);
-const sourcesLoading = ref(false);
-const sourcesError = ref("");
+// ── Declared relations of the host template (the allowed targets) ──────
+const relations = ref<Relation[]>([]);
+const relationsLoading = ref(false);
+const relationsError = ref("");
+const templateNames = ref<Record<string, string>>({});
 
-async function loadSources() {
-  sourcesLoading.value = true;
-  sourcesError.value = "";
+async function loadRelations() {
+  if (!props.hostTemplate) {
+    relations.value = [];
+    return;
+  }
+  relationsLoading.value = true;
+  relationsError.value = "";
   try {
-    const list = (await DataproviderSvc.ListCollectionTemplates()) ?? [];
-    sources.value = list.map((s) => ({
-      filename: s.filename,
-      name: s.name || s.filename,
-    }));
+    relations.value = (await RelationSvc.GetRelations(props.hostTemplate)) ?? [];
+    const tpls = (await DataproviderSvc.ListCollectionTemplates()) ?? [];
+    const names: Record<string, string> = {};
+    for (const s of tpls) names[s.filename] = s.name || s.stem || s.filename;
+    templateNames.value = names;
   } catch (e) {
-    sourcesError.value = String((e as Error)?.message ?? e);
-    sources.value = [];
+    relationsError.value = String((e as Error)?.message ?? e);
+    relations.value = [];
   } finally {
-    sourcesLoading.value = false;
+    relationsLoading.value = false;
   }
 }
 
-void loadSources();
+watch(() => props.hostTemplate, () => void loadRelations(), { immediate: true });
 
-const sourceOptions = computed(() =>
-  sources.value.map((s) => ({ value: s.filename, label: s.name })),
+const targetOptions = computed(() =>
+  relations.value.map((r) => ({
+    value: r.to,
+    label: templateNames.value[r.to] || r.to,
+  })),
 );
 
-// ── Source template's level-0 field roster ─────────────────────────────
-//
-// Loaded whenever `field.collection` changes. Inside-loop fields are
-// excluded - Map[] entries can only project top-level fields.
+// ── Cardinality (read-only, derived from the declared relation) ────────
+const cardinalityChoices = ref<CardinalityOption[]>([]);
+void RelationSvc.Cardinalities().then((o) => (cardinalityChoices.value = o ?? []));
+
+const selectedRelation = computed<Relation | null>(
+  () => relations.value.find((r) => r.to === props.field.collection) ?? null,
+);
+
+const cardinalityLabel = computed(() => {
+  const rel = selectedRelation.value;
+  if (!rel) return "";
+  const opt = cardinalityChoices.value.find((o) => o.value === rel.cardinality);
+  return opt ? t(opt.label_key) : String(rel.cardinality);
+});
+
+// ── Target template's level-0 field roster (the Map subset source) ─────
 type SourceField = { key: string; label: string; type: string };
 const sourceFields = ref<SourceField[]>([]);
 const sourceFieldsLoading = ref(false);
@@ -78,11 +105,7 @@ async function loadSourceFields(filename: string) {
   sourceFieldsError.value = "";
   try {
     const tpl = await TemplateSvc.LoadTemplate(filename);
-    if (!tpl) {
-      sourceFields.value = [];
-      return;
-    }
-    sourceFields.value = topLevelFields(tpl.fields ?? []);
+    sourceFields.value = tpl ? topLevelFields(tpl.fields ?? []) : [];
   } catch (e) {
     sourceFieldsError.value = String((e as Error)?.message ?? e);
     sourceFields.value = [];
@@ -93,16 +116,11 @@ async function loadSourceFields(filename: string) {
 
 watch(
   () => props.field.collection,
-  (collection) => {
-    void loadSourceFields(collection ?? "");
-  },
+  (collection) => void loadSourceFields(collection ?? ""),
   { immediate: true },
 );
 
-// Walk the field roster, skipping anything between a loopstart and its
-// matching loopstop. Marker types (loopstart/loopstop/looper/guid) are
-// also excluded - guid is automatic on stamp; the loop markers are
-// containers, not projectable fields.
+// Walk the roster, skipping loop bodies and marker/automatic types.
 function topLevelFields(fields: Field[]): SourceField[] {
   const out: SourceField[] = [];
   let depth = 0;
@@ -117,11 +135,7 @@ function topLevelFields(fields: Field[]): SourceField[] {
     }
     if (depth > 0) continue;
     if (f.type === "looper" || f.type === "guid") continue;
-    out.push({
-      key: f.key,
-      label: f.label || f.key,
-      type: f.type || "text",
-    });
+    out.push({ key: f.key, label: f.label || f.key, type: f.type || "text" });
   }
   return out;
 }
@@ -137,23 +151,14 @@ function typeOf(key: string): string {
   return sourceFields.value.find((f) => f.key === key)?.type ?? "";
 }
 
-// ── Map[] mutators ─────────────────────────────────────────────────────
-//
-// The api editor mutates props.field.map directly. We keep helpers
-// here so the template stays light and the array reference stays
-// stable for Vue's reactivity.
-
+// ── Map[] mutators (direct on the draft, stable array reference) ───────
 function ensureMap(): APIMap[] {
-  if (!Array.isArray(props.field.map)) {
-    props.field.map = [];
-  }
+  if (!Array.isArray(props.field.map)) props.field.map = [];
   return props.field.map;
 }
-
 function addRow() {
   ensureMap().push(APIMap.createFrom({ key: "", label: "" }));
 }
-
 function removeRow(idx: number) {
   ensureMap().splice(idx, 1);
 }
@@ -161,43 +166,53 @@ function removeRow(idx: number) {
 
 <template>
   <div class="api-field-editor">
-    <!-- Source template -->
-    <div class="api-field-row">
-      <label class="api-field-label">
-        {{ t("workspace.templates.api_editor.source") }}
+    <!-- Target template (declared relations only) -->
+    <div class="api-field-editor-row">
+      <label class="api-field-editor-label">
+        {{ t("workspace.templates.api_editor.target") }}
       </label>
-      <div class="api-field-control">
+      <div class="api-field-editor-control">
         <SelectField
           v-model="field.collection"
-          :options="sourceOptions"
+          :options="targetOptions"
           :placeholder="
-            sourcesLoading
+            relationsLoading
               ? t('shell.common.loading')
-              : t('workspace.templates.api_editor.source_placeholder')
+              : t('workspace.templates.api_editor.target_placeholder')
           "
-          :disabled="sourcesLoading || sourceOptions.length === 0"
+          :disabled="relationsLoading || targetOptions.length === 0"
         />
         <p
-          v-if="!sourcesLoading && sourceOptions.length === 0"
+          v-if="!relationsLoading && targetOptions.length === 0"
           class="muted small"
         >
-          {{ t("workspace.templates.api_editor.no_sources") }}
+          {{ t("workspace.templates.api_editor.no_relations") }}
         </p>
-        <p v-if="sourcesError" class="error small">{{ sourcesError }}</p>
+        <p v-if="relationsError" class="error small">{{ relationsError }}</p>
       </div>
     </div>
 
-    <!-- Map[] editor -->
-    <div class="api-field-row">
-      <label class="api-field-label">
+    <!-- Cardinality (read-only, from the declared relation) -->
+    <div v-if="field.collection" class="api-field-editor-row">
+      <label class="api-field-editor-label">
+        {{ t("workspace.templates.api_editor.cardinality") }}
+      </label>
+      <div class="api-field-editor-control">
+        <span v-if="cardinalityLabel" class="api-cardinality-pill">
+          {{ cardinalityLabel }}
+        </span>
+        <span v-else class="muted small">-</span>
+      </div>
+    </div>
+
+    <!-- Map[] editor (the editable + displayed subset of target fields) -->
+    <div class="api-field-editor-row">
+      <label class="api-field-editor-label">
         {{ t("workspace.templates.api_editor.columns") }}
       </label>
-      <div class="api-field-control">
-        <p
-          v-if="!field.collection"
-          class="muted small"
-        >
-          {{ t("workspace.templates.api_editor.pick_source_first") }}
+      <div class="api-field-editor-control">
+        <p v-if="!field.collection" class="muted small">
+          {{ t("workspace.templates.api_editor.pick_target_first") }}
         </p>
         <table v-else class="api-map-table">
           <thead>
@@ -225,9 +240,7 @@ function removeRow(idx: number) {
                 />
               </td>
               <td>
-                <span class="type-pill" v-if="typeOf(row.key)">
-                  {{ typeOf(row.key) }}
-                </span>
+                <span class="type-pill" v-if="typeOf(row.key)">{{ typeOf(row.key) }}</span>
                 <span class="muted small" v-else>-</span>
               </td>
               <td>
@@ -261,67 +274,3 @@ function removeRow(idx: number) {
     </div>
   </div>
 </template>
-
-<style scoped>
-.api-field-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.api-field-row {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  align-items: start;
-  gap: 12px;
-}
-
-.api-field-label {
-  padding-top: 6px;
-  font-size: 0.9rem;
-  color: var(--form-label, currentColor);
-  opacity: 0.85;
-}
-
-.api-field-control {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.api-map-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: 0.9rem;
-}
-
-.api-map-table th,
-.api-map-table td {
-  padding: 4px 6px;
-  border-bottom: 1px solid color-mix(in oklab, currentColor 15%, transparent);
-  vertical-align: top;
-  text-align: left;
-}
-
-.api-map-table th {
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.type-pill {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in oklab, currentColor 12%, transparent);
-  font-size: 0.8rem;
-}
-
-.tool-btn.small {
-  padding: 2px 8px;
-  font-size: 0.85rem;
-}
-
-.error {
-  color: var(--color-danger, #c0392b);
-}
-</style>

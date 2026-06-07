@@ -1,0 +1,169 @@
+/* api (relation reference) field: form-side renderer + template editor.
+   External (no scoped styles) per the house rule; imported via index.css. */
+
+/* ── Form-side renderer ──────────────────────────────────────────────── */
+.api-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.api-field-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.api-field-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+.api-field-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.api-field-card {
+  border: 1px solid color-mix(in oklab, currentColor 25%, transparent);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: color-mix(in oklab, currentColor 4%, transparent);
+}
+.api-field-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.api-field-card-title {
+  font-weight: 600;
+  word-break: break-word;
+}
+.api-field-rows {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+.api-field-rows dt {
+  font-weight: 500;
+  opacity: 0.85;
+}
+.api-field-rows dd {
+  margin: 0;
+  word-break: break-word;
+}
+.api-cell-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.api-cell-tags .tag-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 14%, transparent);
+  font-size: 0.8rem;
+}
+.api-cell-list {
+  margin: 0;
+  padding-left: 18px;
+}
+.api-cell-list li {
+  list-style: disc;
+}
+.api-cell-table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  width: auto;
+}
+.api-cell-table th,
+.api-cell-table td {
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklab, currentColor 18%, transparent);
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+}
+.api-cell-table th {
+  background: color-mix(in oklab, currentColor 8%, transparent);
+  font-weight: 600;
+}
+.api-field .error {
+  color: var(--color-danger, #c0392b);
+}
+
+/* ── Template editor ─────────────────────────────────────────────────── */
+.api-field-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.api-field-editor-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: start;
+  gap: 12px;
+}
+.api-field-editor-label {
+  padding-top: 6px;
+  font-size: 0.9rem;
+  color: var(--form-label, currentColor);
+  opacity: 0.85;
+}
+.api-field-editor-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.api-cardinality-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 12%, transparent);
+  font-size: 0.85rem;
+}
+.api-map-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+.api-map-table th,
+.api-map-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 15%, transparent);
+  vertical-align: top;
+  text-align: left;
+}
+.api-map-table th {
+  font-weight: 600;
+  opacity: 0.85;
+}
+.api-map-table .type-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 12%, transparent);
+  font-size: 0.8rem;
+}
+
+/* ── Create-target dialog ────────────────────────────────────────────── */
+.api-create-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.api-create-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.api-create-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.api-create-label {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}

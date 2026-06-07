@@ -31,6 +31,11 @@ type ImageBase64URLFunc func(templateFilename, name string) string
 // back to it (punt on malformed input without dropping the link).
 type FormidableLinkURLFunc func(templateFilename, datafile string) string
 
+// ReferenceResolverFunc projects one target-collection record (by id) into a row
+// keyed by columnKeys, read live for api-field rendering. Nil renders api fields
+// empty rather than stale.
+type ReferenceResolverFunc func(targetTemplate, id string, columnKeys []string) map[string]any
+
 // Manager renders a (template, datafile) pair to markdown + HTML. URL
 // strategies are set at construction; one Manager per target.
 type Manager struct {
@@ -39,6 +44,7 @@ type Manager struct {
 	imageURL          ImageURLFunc
 	imageBase64URL    ImageBase64URLFunc
 	formidableLinkURL FormidableLinkURLFunc
+	referenceResolver ReferenceResolverFunc
 	log               *slog.Logger
 }
 
@@ -65,6 +71,15 @@ func (m *Manager) SetImageBase64URL(fn ImageBase64URLFunc) {
 		return
 	}
 	m.imageBase64URL = fn
+}
+
+// SetReferenceResolver wires the live api-field resolver after construction; nil
+// renders api fields empty. Set after the dataprovider exists at composition.
+func (m *Manager) SetReferenceResolver(fn ReferenceResolverFunc) {
+	if m == nil {
+		return
+	}
+	m.referenceResolver = fn
 }
 
 // RenderForm returns both markdown and HTML in one call. Empty datafile
@@ -152,6 +167,9 @@ func (m *Manager) optionsFor(templateName, datafile string) *Options {
 			}
 			return t
 		}
+	}
+	if m.referenceResolver != nil {
+		opts.ResolveReference = m.referenceResolver
 	}
 	return opts
 }

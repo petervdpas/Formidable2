@@ -68,6 +68,10 @@ const props = defineProps<{
    *  its collapsed-item summary to one of its own children. Empty for
    *  every non-loop field type. */
   summaryFieldOptions?: { key: string; label: string }[];
+  /** The surrounding template's filename - passed to the api (relation
+   *  reference) editor so its target dropdown is scoped to the host's
+   *  declared relations. Empty when the host filename isn't known. */
+  hostTemplate?: string;
 }>();
 
 const emit = defineEmits<{
@@ -921,7 +925,7 @@ const dialogStyle = computed<Record<string, string>>(() => {
         v-if="draft.type === 'api'"
         :title="t('workspace.templates.api_editor.section')"
       >
-        <APIFieldEditor :field="draft" />
+        <APIFieldEditor :field="draft" :host-template="hostTemplate ?? ''" />
       </FormSection>
 
       <details v-if="showErrors" class="field-edit-errors">

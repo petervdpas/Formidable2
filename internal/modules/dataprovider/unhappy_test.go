@@ -82,63 +82,6 @@ func TestFetchAPIFieldRow_StaleIndexFormGone_MapsToGuidNotFound(t *testing.T) {
 	}
 }
 
-// RefetchAPIFieldRow drift where either side is nil.
-
-func TestRefetchAPIFieldRow_SourceClearedColumnDriftsToNil(t *testing.T) {
-	// Stored has a value, the source field is now absent (current==nil):
-	// must surface one drift entry with Current==nil and Stored intact.
-	m, idx, sto := newAPIFieldWorld()
-	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
-	sto.forms["people.yaml/alice.meta.json"] = &storage.Form{
-		Data: map[string]any{"name": "Alice"},
-	}
-	stored := map[string]any{"name": "Alice", "email": "alice@a.com"}
-
-	res, err := m.RefetchAPIFieldRow(context.Background(),
-		"people.yaml", "g-1", []string{"name", "email"}, stored)
-	if err != nil {
-		t.Fatalf("RefetchAPIFieldRow: %v", err)
-	}
-	if len(res.Drift) != 1 {
-		t.Fatalf("expected 1 drift entry; got %v", res.Drift)
-	}
-	d := res.Drift[0]
-	if d.Key != "email" || d.Stored != "alice@a.com" || d.Current != nil {
-		t.Errorf("drift mismatch: %+v, want email stored=alice@a.com current=nil", d)
-	}
-	// The fresh row must carry the cleared column as nil, and name unchanged.
-	if v, ok := res.Row["email"]; !ok || v != nil {
-		t.Errorf("row email = %v present=%v, want present and nil", v, ok)
-	}
-	if res.Row["name"] != "Alice" {
-		t.Errorf("row name = %v, want Alice", res.Row["name"])
-	}
-}
-
-func TestRefetchAPIFieldRow_BothNilNoDrift(t *testing.T) {
-	// A requested column absent in both stored and source: stored[key]
-	// is nil and current is nil, so no drift entry. Other columns can
-	// drift normally.
-	m, idx, sto := newAPIFieldWorld()
-	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
-	sto.forms["people.yaml/alice.meta.json"] = &storage.Form{
-		Data: map[string]any{"name": "Alice"},
-	}
-	stored := map[string]any{"name": "Alice"}
-
-	res, err := m.RefetchAPIFieldRow(context.Background(),
-		"people.yaml", "g-1", []string{"name", "ghostcol"}, stored)
-	if err != nil {
-		t.Fatalf("RefetchAPIFieldRow: %v", err)
-	}
-	if len(res.Drift) != 0 {
-		t.Errorf("both-nil column should not drift; got %v", res.Drift)
-	}
-	if _, ok := res.Row["ghostcol"]; !ok || res.Row["ghostcol"] != nil {
-		t.Errorf("ghostcol should be present and nil; got %v", res.Row["ghostcol"])
-	}
-}
-
 // CollectionListOpts facet filter boundaries.
 
 func facetIndexFixture() *fakeIndex {
@@ -421,20 +364,20 @@ func TestListCollection_LimitBeyondResultReturnsAll(t *testing.T) {
 	}
 }
 
-// RefetchAPIFieldRow must propagate the StorageMissing sentinel from the
-// underlying fetch rather than returning a nil-but-error-free result.
-func TestRefetchAPIFieldRow_PropagatesStorageMissing(t *testing.T) {
+// FetchAPIFieldRow must propagate the StorageMissing sentinel rather than
+// returning a nil-but-error-free result when no storage adapter is wired.
+func TestFetchAPIFieldRow_PropagatesStorageMissing(t *testing.T) {
 	idx := &fakeIndex{forms: map[string][]index.FormRow{}}
 	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
 	m := NewManager(idx, &fakeRenderer{}, nil)
 
-	res, err := m.RefetchAPIFieldRow(context.Background(),
-		"people.yaml", "g-1", []string{"name"}, map[string]any{"name": "Alice"})
+	row, err := m.FetchAPIFieldRow(context.Background(),
+		"people.yaml", "g-1", []string{"name"})
 	if !errors.Is(err, ErrAPIFieldStorageMissing) {
 		t.Fatalf("err = %v; want ErrAPIFieldStorageMissing", err)
 	}
-	if res != nil {
-		t.Errorf("res = %+v, want nil on error", res)
+	if row != nil {
+		t.Errorf("row = %+v, want nil on error", row)
 	}
 }
 

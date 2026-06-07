@@ -106,6 +106,13 @@ func apiTestSetup() (*template.Template, *Options) {
 			},
 		},
 	}
+	// The live record the resolver returns for g-1; columns are read live now,
+	// not snapshotted into the host form.
+	record := map[string]any{
+		"name":   "Buckingham Palace",
+		"tagz":   []any{"a", "b", "c"},
+		"owners": []any{[]any{"Charles", "Windsor"}},
+	}
 	opts := &Options{
 		LoadTemplate: func(name string) *template.Template {
 			if name == "addresses.yaml" {
@@ -113,19 +120,23 @@ func apiTestSetup() (*template.Template, *Options) {
 			}
 			return nil
 		},
+		ResolveReference: func(tpl, id string, cols []string) map[string]any {
+			if tpl != "addresses.yaml" || id != "g-1" {
+				return nil
+			}
+			row := map[string]any{}
+			for _, c := range cols {
+				row[c] = record[c]
+			}
+			return row
+		},
 	}
 	return host, opts
 }
 
 func apiTestRow() map[string]any {
-	return map[string]any{
-		"ref": map[string]any{
-			"guid":   "g-1",
-			"name":   "Buckingham Palace",
-			"tagz":   []any{"a", "b", "c"},
-			"owners": []any{[]any{"Charles", "Windsor"}},
-		},
-	}
+	// The field stores only the reference id; the columns come from the resolver.
+	return map[string]any{"ref": "g-1"}
 }
 
 func TestRenderMarkdown_APICol_Scalar(t *testing.T) {
@@ -218,13 +229,56 @@ func TestRenderMarkdown_APIHelpers_NoRecord(t *testing.T) {
 }
 
 func TestRenderMarkdown_APIBlock_NilLoaderFallsBackToJSON(t *testing.T) {
-	host, _ := apiTestSetup()
+	host, opts := apiTestSetup()
+	// Resolver present (values fetched), but no LoadTemplate - apiBlock can't
+	// resolve the source field's type and falls back to scalarOrJSON.
+	opts.LoadTemplate = nil
 	host.MarkdownTemplate = `{{apiBlock "ref" "owners"}}`
-	// Pass an Options with no LoadTemplate - apiBlock can't resolve
-	// the source field's type and falls back to scalarOrJSON.
-	got, _ := RenderMarkdown(apiTestRow(), host, &Options{})
+	got, _ := RenderMarkdown(apiTestRow(), host, opts)
 	if !strings.HasPrefix(got, `[[`) {
 		t.Errorf("expected JSON fallback; got %q", got)
+	}
+}
+
+func TestRenderMarkdown_APIBlock_NoResolverRendersEmpty(t *testing.T) {
+	host, _ := apiTestSetup()
+	host.MarkdownTemplate = `[{{apiBlock "ref" "owners"}}]`
+	// No resolver: the id is known but no live data can be fetched -> empty.
+	got, _ := RenderMarkdown(apiTestRow(), host, &Options{})
+	if got != "[]" {
+		t.Errorf("no resolver should render empty; got %q", got)
+	}
+}
+
+func TestRenderMarkdown_APISection_ToManyRendersCardPerRecord(t *testing.T) {
+	source := &template.Template{
+		Filename: "addresses.yaml",
+		Fields:   []template.Field{{Key: "name", Type: "text", Label: "Name"}},
+	}
+	host := &template.Template{
+		Filename: "host.yaml",
+		Fields: []template.Field{
+			{Key: "refs", Type: "api", Label: "Refs", Collection: "addresses.yaml",
+				Map: []template.APIMap{{Key: "name", Label: "Name"}}},
+		},
+		MarkdownTemplate: `{{apiSection "refs"}}`,
+	}
+	names := map[string]string{"g-1": "Alpha", "g-2": "Beta"}
+	opts := &Options{
+		LoadTemplate: func(string) *template.Template { return source },
+		ResolveReference: func(_, id string, _ []string) map[string]any {
+			if n, ok := names[id]; ok {
+				return map[string]any{"name": n}
+			}
+			return nil
+		},
+	}
+	got, _ := RenderMarkdown(map[string]any{"refs": []any{"g-1", "g-2"}}, host, opts)
+	if !strings.Contains(got, "Alpha") || !strings.Contains(got, "Beta") {
+		t.Errorf("to-many should render a card per record; got:\n%s", got)
+	}
+	if strings.Count(got, `<section class="api-card"`) != 2 {
+		t.Errorf("expected 2 cards; got:\n%s", got)
 	}
 }
 

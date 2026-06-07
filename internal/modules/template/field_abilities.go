@@ -330,6 +330,6 @@ var fieldTypeDefaults = map[string]any{
 	"image":       "",
 	"link":        map[string]any{"href": "", "text": ""},
 	"tags":        []any{},
-	"api":         map[string]any{"id": "", "overrides": map[string]any{}},
+	"api":         "",
 	"guid":        "",
 }
