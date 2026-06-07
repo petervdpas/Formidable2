@@ -111,8 +111,11 @@ export function Graph(template: string, limit: number): $CancellablePromise<$mod
 }
 
 /**
- * GraphFrom projects the subgraph reachable from one record (rootID, a node
- * id) up to depth hops, for the per-record flower and click-to-unfold.
+ * GraphFrom projects the subgraph reachable from one record up to depth hops,
+ * for the per-record flower and click-to-unfold. rootID may be a bare filename
+ * (the studio's first call, which knows only template+filename) or an already
+ * composite node id handed back by a click; either resolves to the same
+ * identity, so the round-trip never double-prefixes.
  */
 export function GraphFrom(template: string, rootID: string, depth: number): $CancellablePromise<$models.Graph> {
     return $Call.ByID(3090347177, template, rootID, depth).then(($result: any) => {

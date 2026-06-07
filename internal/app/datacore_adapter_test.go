@@ -191,6 +191,45 @@ func TestDatacoreAdapter_SelfRelationLinksAreFollowable(t *testing.T) {
 		map[string]int{"Parent": 1})
 }
 
+// TestDatacoreAdapter_IdentityCarriesTemplate pins the composite-key contract at
+// the loader boundary: the loader must address records by template+filename, not
+// the bare filename. Asserted directly because the value-based Follow tests would
+// pass either way.
+func TestDatacoreAdapter_IdentityCarriesTemplate(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	tplM := template.NewManager(sys, "templates", log)
+	if err := tplM.EnsureTemplateDirectory(); err != nil {
+		t.Fatalf("EnsureTemplateDirectory: %v", err)
+	}
+	sfrM := sfr.NewManager(sys, log)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", log)
+
+	tpl := &template.Template{
+		Name: "entities", Filename: "entities.yaml", EnableCollection: true,
+		Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "name", Type: "text"}},
+	}
+	if err := tplM.SaveTemplate("entities.yaml", tpl); err != nil {
+		t.Fatalf("SaveTemplate: %v", err)
+	}
+	if r := stoM.SaveForm(context.Background(), "entities.yaml", "rec.meta.json", map[string]any{"name": "Rec"}); !r.Success {
+		t.Fatalf("SaveForm: %s", r.Error)
+	}
+
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "entities.yaml"))
+	if err != nil {
+		t.Fatalf("datacore.Build: %v", err)
+	}
+	if g := dt.GraphFrom(datacore.NewID("entities.yaml", "rec.meta.json"), 0); len(g.Nodes) != 1 {
+		t.Fatalf("composite identity not found in tensor: %+v", g.Nodes)
+	}
+	if g := dt.GraphFrom("rec.meta.json", 0); len(g.Nodes) != 0 {
+		t.Fatalf("bare filename resolved; identity must carry the template")
+	}
+}
+
 // TestDatacoreAdapter_FollowRelationThenTable proves the composed traversal
 // table -> record -> self-relation -> record -> table is reachable in one
 // single-template tensor: from the children, follow the self-relation to the

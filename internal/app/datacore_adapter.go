@@ -71,11 +71,14 @@ func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) 
 			continue
 		}
 		rec := datacoreRecord(tpl, file, f)
+		// Identity carries the template so a filename shared across templates
+		// stays distinct once the tensor spans more than one template.
+		rec.ID = datacore.NewID(a.templateFile, file)
 		applyFormulas(a.ev, tpl, f, &rec)
 		out = append(out, rec)
 		guids = append(guids, f.Meta.ID)
 		if f.Meta.ID != "" {
-			guidToFile[f.Meta.ID] = file
+			guidToFile[f.Meta.ID] = rec.ID // guid -> composite identity
 		}
 	}
 	a.attachLinks(out, guids, guidToFile)
