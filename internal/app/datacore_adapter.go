@@ -281,17 +281,23 @@ func dcTableRows(fld template.Field, v any) ([]map[string]string, []string) {
 	for _, e := range dcSlice(v) {
 		cells := dcSlice(e)
 		row := map[string]string{}
-		var parts []string
+		var parts []string // one entry per declared column, positional ("" for blanks)
+		nonEmpty := 0
 		for i, colKey := range cols {
-			if colKey == "" || i >= len(cells) {
-				continue
+			if colKey == "" {
+				continue // undefined column: not part of the row's data or label
 			}
-			if s := dcText(cells[i]); s != "" {
-				row[colKey] = s
-				parts = append(parts, s)
+			s := ""
+			if i < len(cells) {
+				s = dcText(cells[i])
 			}
+			if s != "" {
+				row[colKey] = s // data map keeps only non-empty cells
+				nonEmpty++
+			}
+			parts = append(parts, s) // label stays positional so columns align
 		}
-		if len(row) > 0 {
+		if nonEmpty > 0 {
 			rows = append(rows, row)
 			labels = append(labels, strings.Join(parts, " | "))
 		}

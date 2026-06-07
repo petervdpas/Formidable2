@@ -14,6 +14,7 @@ import { shallowRef, ref, computed, triggerRef, onBeforeUnmount, onMounted, useT
 
 interface NodeTable {
   title: string;
+  header?: string[]; // column labels, when known
   rows: string[][]; // cell columns per row
   more: number; // rows beyond the shown cap
 }
@@ -84,6 +85,20 @@ const hoverTable = computed<NodeTable | null>(() => {
   if (!hoverId.value) return null;
   const n = sim.value.find((s) => s.id === hoverId.value);
   return n?.table ?? null;
+});
+
+// Position the tooltip near the pointer but keep it inside the canvas: flip to
+// the left/top half when the cursor is past the midpoint, and cap its size to
+// the available space so it grows with the dialog instead of overflowing.
+const tipStyle = computed<Record<string, string>>(() => {
+  const s: Record<string, string> = {};
+  if (tipX.value > w.value / 2) s.right = `${Math.max(0, w.value - tipX.value + 14)}px`;
+  else s.left = `${tipX.value + 14}px`;
+  if (tipY.value > h.value / 2) s.bottom = `${Math.max(0, h.value - tipY.value + 14)}px`;
+  else s.top = `${tipY.value + 14}px`;
+  s.maxWidth = `${Math.max(200, w.value - 28)}px`;
+  s.maxHeight = `${Math.max(120, h.value - 28)}px`;
+  return s;
 });
 
 let raf = 0;
@@ -396,11 +411,16 @@ onBeforeUnmount(() => {
     <div
       v-if="hoverId && (hoverTable || hoverDetail)"
       class="force-tip"
-      :style="{ left: `${tipX + 14}px`, top: `${tipY + 14}px` }"
+      :style="tipStyle"
     >
       <template v-if="hoverTable">
         <div class="force-tip-head">{{ hoverTable.title }}</div>
         <table class="force-tip-table">
+          <thead v-if="hoverTable.header">
+            <tr>
+              <th v-for="(hd, ci) in hoverTable.header" :key="ci">{{ hd }}</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="(r, ri) in hoverTable.rows" :key="ri">
               <td v-for="(c, ci) in r" :key="ci">{{ c }}</td>

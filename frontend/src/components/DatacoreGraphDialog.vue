@@ -8,6 +8,7 @@ import {
   type GraphNode,
   type GraphEdge,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/datacore";
+import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { backendErrMessage } from "../utils/backendError";
 
 // A live node-link view of the datacore tensor rooted at the selected record.
@@ -38,6 +39,31 @@ const isolatedId = ref<string | null>(null);
 // The record the graph is rooted at (the one you opened); shown in a distinct
 // colour so it stands out from the records it relates to.
 const rootNodeId = ref<string | null>(null);
+// Column labels per table field of the focused template, so a table tooltip can
+// show a header row. Keyed by field key (the table container node's label).
+const tableHeaders = ref<Record<string, string[]>>({});
+
+async function loadHeaders() {
+  tableHeaders.value = {};
+  if (!props.templateFilename) return;
+  try {
+    const tpl = await TemplateSvc.LoadTemplate(props.templateFilename);
+    const map: Record<string, string[]> = {};
+    for (const f of tpl?.fields ?? []) {
+      if (f.type !== "table") continue;
+      const cols: string[] = [];
+      for (const o of (f.options ?? []) as any[]) {
+        const value = String(o?.value ?? "");
+        if (!value) continue; // skip undefined columns (mirrors the loader)
+        cols.push(String(o?.label ?? "") || value);
+      }
+      if (cols.length) map[f.key] = cols;
+    }
+    tableHeaders.value = map;
+  } catch {
+    tableHeaders.value = {};
+  }
+}
 const REL_PREFIX = "rel:";
 // Composite identities are "<template>\x1f<filename>" (datacore.NewID). The
 // template prefix lets us tell a cross-template related record from a
@@ -89,6 +115,7 @@ function contractRelations(ns: GraphNode[], es: GraphEdge[]): { nodes: GraphNode
 // rows/values still surface on hover even though they're not drawn.
 interface NodeTable {
   title: string;
+  header?: string[]; // column labels, when known from the template
   rows: string[][]; // cell columns per row
   more: number; // rows beyond the cap, not shown
 }
@@ -140,6 +167,7 @@ const graphInfo = computed<{
         .map((r) => r.label);
       tables.set(n.id, {
         title: `${n.label} (${rowLabels.length})`,
+        header: tableHeaders.value[n.label], // n.label is the table field key
         rows: rowLabels.slice(0, TABLE_CAP).map((l) => l.split(" | ")),
         more: Math.max(0, rowLabels.length - TABLE_CAP),
       });
@@ -273,6 +301,7 @@ async function loadRoot() {
   expanded.value = new Set();
   isolatedId.value = null;
   rootNodeId.value = null;
+  void loadHeaders();
   if (!props.record) return;
   // Backend level is 0-based: record=0, fields=1, rows=2.
   if (await fetchInto(props.record, level.value - 1)) {

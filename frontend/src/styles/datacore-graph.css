@@ -100,7 +100,8 @@
 .force-tip {
   position: absolute;
   z-index: 2;
-  max-width: 48rem;
+  /* max-width / max-height are set inline, sized to the canvas, so the tooltip
+     grows with the dialog and never overflows it. */
   padding: 0.4rem 0.6rem;
   background: var(--color-bg, #1a2230);
   color: var(--color-text, #e6e9ef);
@@ -109,6 +110,7 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   font-size: 0.8rem;
   line-height: 1.35;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -127,6 +129,14 @@
   border-collapse: collapse;
   font-size: 0.74rem;
   color: var(--color-text-muted, #b6bdc9);
+}
+.force-tip-table th {
+  padding: 1px 0.6rem 2px 0;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text, #e6e9ef);
+  border-bottom: 1px solid var(--color-border, #2a3142);
+  white-space: nowrap;
 }
 .force-tip-table td {
   padding: 1px 0.6rem 1px 0;
