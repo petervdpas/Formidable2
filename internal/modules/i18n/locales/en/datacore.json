@@ -12,5 +12,8 @@
   "datacore.count": "{nodes} nodes, {edges} edges",
   "datacore.legend_root": "Record",
   "datacore.legend_row": "Row / link",
-  "datacore.legend_field": "Field"
+  "datacore.legend_field": "Field",
+  "datacore.relations_only": "Relations only",
+  "datacore.relations_only_hint": "Show only record-to-record relations; click a record to isolate its paths.",
+  "datacore.show_all": "Show all"
 }

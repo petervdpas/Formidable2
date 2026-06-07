@@ -12,5 +12,8 @@
   "datacore.count": "{nodes} knopen, {edges} verbindingen",
   "datacore.legend_root": "Record",
   "datacore.legend_row": "Rij / koppeling",
-  "datacore.legend_field": "Veld"
+  "datacore.legend_field": "Veld",
+  "datacore.relations_only": "Alleen relaties",
+  "datacore.relations_only_hint": "Toon alleen record-naar-record relaties; klik een record om de paden te isoleren.",
+  "datacore.show_all": "Toon alles"
 }

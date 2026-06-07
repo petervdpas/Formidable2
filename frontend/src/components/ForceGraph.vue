@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { shallowRef, ref, triggerRef, onBeforeUnmount, useTemplateRef, watch } from "vue";
+import { shallowRef, ref, triggerRef, onBeforeUnmount, onMounted, useTemplateRef, watch } from "vue";
 
 // A small force-directed node-link renderer: nodes repel, edges pull like
 // springs, gravity keeps the web centered, and the simulation cools to rest.
@@ -7,6 +7,9 @@ import { shallowRef, ref, triggerRef, onBeforeUnmount, useTemplateRef, watch } f
 // unfold it. Drag empty space to pan, wheel to zoom (to the cursor). When the
 // node/edge props grow, existing positions are preserved and only new nodes
 // are seeded, so expanding doesn't reshuffle the layout. Hand-rolled SVG.
+//
+// The canvas measures its container (ResizeObserver) and lays out in that real
+// pixel box, so it grows with the dialog instead of scaling a fixed viewBox.
 
 interface InNode {
   id: string;
@@ -46,6 +49,12 @@ interface SimEdge {
 const sim = shallowRef<SimNode[]>([]);
 const links = shallowRef<SimEdge[]>([]);
 const svgRef = useTemplateRef<SVGSVGElement>("svg");
+const wrapRef = useTemplateRef<HTMLDivElement>("wrap");
+
+// Live canvas size, measured from the container; seeded from the props.
+const w = ref(props.width);
+const h = ref(props.height);
+let ro: ResizeObserver | null = null;
 
 const zoom = ref(1);
 const panX = ref(0);
@@ -73,8 +82,8 @@ const MIN_ALPHA = 0.02;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
 function merge() {
-  const cx = props.width / 2;
-  const cy = props.height / 2;
+  const cx = w.value / 2;
+  const cy = h.value / 2;
   const prev = new Map(sim.value.map((n) => [n.id, n]));
   sim.value = props.nodes.map((node, i) => {
     const ex = prev.get(node.id);
@@ -99,8 +108,8 @@ function reheat(to: number) {
 
 function step() {
   const nodes = sim.value;
-  const cx = props.width / 2;
-  const cy = props.height / 2;
+  const cx = w.value / 2;
+  const cy = h.value / 2;
 
   for (let i = 0; i < nodes.length; i++) {
     const a = nodes[i];
@@ -146,8 +155,8 @@ function step() {
     const a = nodes[i];
     a.x += a.vx * alpha;
     a.y += a.vy * alpha;
-    a.x = Math.max(12, Math.min(props.width - 12, a.x));
-    a.y = Math.max(12, Math.min(props.height - 12, a.y));
+    a.x = Math.max(12, Math.min(w.value - 12, a.x));
+    a.y = Math.max(12, Math.min(h.value - 12, a.y));
   }
 
   triggerRef(sim);
@@ -184,10 +193,10 @@ function fitView() {
   const pad = 30;
   const bw = Math.max(1, maxX - minX);
   const bh = Math.max(1, maxY - minY);
-  const z = Math.min((props.width - 2 * pad) / bw, (props.height - 2 * pad) / bh, 2.4);
+  const z = Math.min((w.value - 2 * pad) / bw, (h.value - 2 * pad) / bh, 2.4);
   zoom.value = z;
-  panX.value = props.width / 2 - ((minX + maxX) / 2) * z;
-  panY.value = props.height / 2 - ((minY + maxY) / 2) * z;
+  panX.value = w.value / 2 - ((minX + maxX) / 2) * z;
+  panY.value = h.value / 2 - ((minY + maxY) / 2) * z;
 }
 
 // Map a pointer event to graph-space coordinates, inverting pan + zoom.
@@ -195,8 +204,8 @@ function toGraph(e: PointerEvent): { x: number; y: number } {
   const svg = svgRef.value;
   if (!svg) return { x: 0, y: 0 };
   const rect = svg.getBoundingClientRect();
-  const vbx = ((e.clientX - rect.left) / rect.width) * props.width;
-  const vby = ((e.clientY - rect.top) / rect.height) * props.height;
+  const vbx = ((e.clientX - rect.left) / rect.width) * w.value;
+  const vby = ((e.clientY - rect.top) / rect.height) * h.value;
   return { x: (vbx - panX.value) / zoom.value, y: (vby - panY.value) / zoom.value };
 }
 
@@ -231,7 +240,7 @@ function onMove(e: PointerEvent) {
   }
   if (panning) {
     const svg = svgRef.value;
-    const scale = svg ? props.width / svg.getBoundingClientRect().width : 1;
+    const scale = svg ? w.value / svg.getBoundingClientRect().width : 1;
     panX.value = panOrigX + (e.clientX - panStartX) * scale;
     panY.value = panOrigY + (e.clientY - panStartY) * scale;
   }
@@ -261,13 +270,13 @@ function onWheel(e: WheelEvent) {
   const svg = svgRef.value;
   if (!svg) return;
   const rect = svg.getBoundingClientRect();
-  const vbx = ((e.clientX - rect.left) / rect.width) * props.width;
-  const vby = ((e.clientY - rect.top) / rect.height) * props.height;
+  const vbx = ((e.clientX - rect.left) / rect.width) * w.value;
+  const vby = ((e.clientY - rect.top) / rect.height) * h.value;
   zoomAt(vbx, vby, e.deltaY < 0 ? 1.12 : 1 / 1.12);
 }
 function zoomBy(factor: number) {
   autofit = false;
-  zoomAt(props.width / 2, props.height / 2, factor);
+  zoomAt(w.value / 2, h.value / 2, factor);
 }
 
 function short(label: string): string {
@@ -276,17 +285,35 @@ function short(label: string): string {
 
 watch(() => [props.nodes, props.edges], merge, { immediate: true });
 
+onMounted(() => {
+  const el = wrapRef.value;
+  if (!el || typeof ResizeObserver === "undefined") return;
+  ro = new ResizeObserver(() => {
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return;
+    const nw = Math.round(rect.width);
+    const nh = Math.round(rect.height);
+    if (nw === w.value && nh === h.value) return;
+    w.value = nw;
+    h.value = nh;
+    fitView(); // re-center the existing layout into the new box
+    reheat(0.1); // let gravity settle toward the new center
+  });
+  ro.observe(el);
+});
+
 onBeforeUnmount(() => {
   if (raf) cancelAnimationFrame(raf);
+  ro?.disconnect();
 });
 </script>
 
 <template>
-  <div class="force-graph-wrap">
+  <div ref="wrap" class="force-graph-wrap">
     <svg
       ref="svg"
       class="force-graph"
-      :viewBox="`0 0 ${width} ${height}`"
+      :viewBox="`0 0 ${w} ${h}`"
       preserveAspectRatio="xMidYMid meet"
       @pointerdown="onSvgDown"
       @pointermove="onMove"
