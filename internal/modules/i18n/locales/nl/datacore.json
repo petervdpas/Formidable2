@@ -12,6 +12,7 @@
   "datacore.count": "{nodes} knopen, {edges} verbindingen",
   "datacore.legend_focus": "In beeld",
   "datacore.legend_root": "Record",
+  "datacore.legend_cross": "Ander sjabloon",
   "datacore.legend_row": "Rij / koppeling",
   "datacore.legend_field": "Veld",
   "datacore.relations_only": "Alleen relaties",

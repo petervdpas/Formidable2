@@ -58,6 +58,10 @@
   background: var(--color-accent, #4a90e2);
 }
 
+.datacore-dot--cross {
+  background: #9b6bd4;
+}
+
 .datacore-dot--row {
   background: var(--color-text-muted, #8a93a6);
 }
@@ -91,6 +95,51 @@
   border-radius: var(--radius-md, 6px);
   touch-action: none;
   cursor: grab;
+}
+
+.force-tip {
+  position: absolute;
+  z-index: 2;
+  max-width: 48rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--color-bg, #1a2230);
+  color: var(--color-text, #e6e9ef);
+  border: 1px solid var(--color-border, #2a3142);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.force-tip-head {
+  font-weight: 600;
+}
+
+.force-tip-body {
+  margin-top: 0.2rem;
+  white-space: pre-line;
+  color: var(--color-text-muted, #b6bdc9);
+}
+
+.force-tip-table {
+  margin-top: 0.3rem;
+  border-collapse: collapse;
+  font-size: 0.74rem;
+  color: var(--color-text-muted, #b6bdc9);
+}
+.force-tip-table td {
+  padding: 1px 0.6rem 1px 0;
+  white-space: nowrap;
+  vertical-align: top;
+}
+.force-tip-table tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.03);
+}
+.force-tip-more {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #8a93a6);
 }
 
 .force-zoom {
@@ -142,6 +191,9 @@
 
 .force-node--root circle {
   fill: var(--color-accent, #4a90e2);
+}
+.force-node--related-cross circle {
+  fill: #9b6bd4;
 }
 .force-node--focus circle {
   fill: var(--color-warn, #e2a24a);

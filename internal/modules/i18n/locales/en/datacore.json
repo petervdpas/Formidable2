@@ -12,6 +12,7 @@
   "datacore.count": "{nodes} nodes, {edges} edges",
   "datacore.legend_focus": "Viewing",
   "datacore.legend_root": "Record",
+  "datacore.legend_cross": "Other template",
   "datacore.legend_row": "Row / link",
   "datacore.legend_field": "Field",
   "datacore.relations_only": "Relations only",

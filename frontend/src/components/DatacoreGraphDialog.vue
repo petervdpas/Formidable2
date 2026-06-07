@@ -30,12 +30,32 @@ const level = ref(2); // 1 = record, 2 = fields, 3 = rows
 // intermediate "rel:<to>" field node is contracted away) and drops field/row
 // nodes. In that mode clicking a record isolates its connected paths instead of
 // unfolding. isolatedId holds the focused record, or null for the whole view.
-const relationsOnly = ref(false);
+// Default to the relation web: the full tensor draws every scalar value as its
+// own node (a guid, "false", "int", a namespace), which is noise. Toggle off for
+// the structural view, which still drops those value leaves (see dropScalarValues).
+const relationsOnly = ref(true);
 const isolatedId = ref<string | null>(null);
 // The record the graph is rooted at (the one you opened); shown in a distinct
 // colour so it stands out from the records it relates to.
 const rootNodeId = ref<string | null>(null);
 const REL_PREFIX = "rel:";
+// Composite identities are "<template>\x1f<filename>" (datacore.NewID). The
+// template prefix lets us tell a cross-template related record from a
+// same-template one without a backend round-trip.
+const ID_SEP = "\u001f";
+function templateOf(id: string): string {
+  return id.split(ID_SEP)[0];
+}
+
+// prettyField turns the internal relation key "rel:fcdm-entities.yaml" into a
+// readable "fcdm-entities" for the structural-view node and edge labels; other
+// labels pass through.
+function prettyField(label: string): string {
+  if (label.startsWith(REL_PREFIX)) {
+    return label.slice(REL_PREFIX.length).replace(/\.yaml$/, "");
+  }
+  return label;
+}
 
 // contractRelations rewrites record -(rel:X)-> [field node] -> record into a
 // direct record -> record edge labelled X, keeping only record nodes.
@@ -60,6 +80,94 @@ function contractRelations(ns: GraphNode[], es: GraphEdge[]): { nodes: GraphNode
     keep.add(e.target);
   }
   return { nodes: ns.filter((n) => keep.has(n.id) && n.kind === "root"), edges: outEdges };
+}
+
+// graphInfo derives, from the FULL graph: the set of table-container field nodes
+// (a field node with table-row children), and a per-node hover detail string. A
+// record's detail lists its scalar values, table row counts, and relations; a
+// table container lists its rows. Because it reads the full graph, the gated
+// rows/values still surface on hover even though they're not drawn.
+interface NodeTable {
+  title: string;
+  rows: string[][]; // cell columns per row
+  more: number; // rows beyond the cap, not shown
+}
+const TABLE_CAP = 16;
+const graphInfo = computed<{
+  containers: Set<string>;
+  detail: Map<string, string>;
+  tables: Map<string, NodeTable>;
+}>(() => {
+  const ns = nodes.value;
+  const es = edges.value;
+  const byId = new Map(ns.map((n) => [n.id, n]));
+  const out = new Map<string, { target: string; field: string }[]>();
+  for (const e of es) {
+    const arr = out.get(e.source);
+    if (arr) arr.push({ target: e.target, field: e.field });
+    else out.set(e.source, [{ target: e.target, field: e.field }]);
+  }
+  const containers = new Set<string>();
+  for (const n of ns) {
+    if (n.kind === "field" && (out.get(n.id) ?? []).some((c) => byId.get(c.target)?.kind === "row")) {
+      containers.add(n.id);
+    }
+  }
+  const detail = new Map<string, string>();
+  const tables = new Map<string, NodeTable>();
+  for (const n of ns) {
+    if (n.kind === "root") {
+      const scalars: string[] = [];
+      const tbls: string[] = [];
+      const rels: string[] = [];
+      for (const c of out.get(n.id) ?? []) {
+        const f = byId.get(c.target);
+        if (!f) continue;
+        const fc = out.get(c.target) ?? [];
+        if (c.field.startsWith(REL_PREFIX)) {
+          rels.push(`→ ${prettyField(c.field)} (${fc.length})`);
+        } else if (containers.has(c.target)) {
+          tbls.push(`${c.field}: ${fc.length} rows`);
+        } else if (fc.length === 0) {
+          scalars.push(`${c.field}: ${f.label}`);
+        }
+      }
+      detail.set(n.id, [n.label, ...scalars, ...tbls, ...rels].join("\n"));
+    } else if (containers.has(n.id)) {
+      const rowLabels = (out.get(n.id) ?? [])
+        .map((c) => byId.get(c.target))
+        .filter((r): r is GraphNode => !!r && r.kind === "row")
+        .map((r) => r.label);
+      tables.set(n.id, {
+        title: `${n.label} (${rowLabels.length})`,
+        rows: rowLabels.slice(0, TABLE_CAP).map((l) => l.split(" | ")),
+        more: Math.max(0, rowLabels.length - TABLE_CAP),
+      });
+      detail.set(n.id, n.label);
+    } else {
+      detail.set(n.id, n.label);
+    }
+  }
+  return { containers, detail, tables };
+});
+
+// gateStructural drops table ROWS and scalar-value leaves but keeps table
+// CONTAINER nodes (one node per table) and relation field nodes, so the
+// structural view shows a record's shape without exploding every row; the rows
+// live in the container's hover tooltip.
+function gateStructural(ns: GraphNode[], es: GraphEdge[], containers: Set<string>): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const drop = new Set<string>();
+  for (const n of ns) {
+    if (n.kind === "row") {
+      drop.add(n.id);
+    } else if (n.kind === "field" && !containers.has(n.id) && !n.label.startsWith(REL_PREFIX)) {
+      drop.add(n.id);
+    }
+  }
+  return {
+    nodes: ns.filter((n) => !drop.has(n.id)),
+    edges: es.filter((e) => !drop.has(e.source) && !drop.has(e.target)),
+  };
 }
 
 // isolateAround keeps only the connected subgraph (undirected BFS) containing id.
@@ -91,20 +199,43 @@ function isolateAround(ns: GraphNode[], es: GraphEdge[], id: string): { nodes: G
   };
 }
 
-const viewGraph = computed<{ nodes: { id: string; label: string; kind: string }[]; edges: GraphEdge[] }>(() => {
+const viewGraph = computed<{
+  nodes: { id: string; label: string; kind: string; detail: string; table?: NodeTable }[];
+  edges: { source: string; target: string; field: string }[];
+}>(() => {
+  const info = graphInfo.value;
   let ns = nodes.value;
   let es = edges.value;
   if (relationsOnly.value) {
     ({ nodes: ns, edges: es } = contractRelations(ns, es));
+  } else {
+    ({ nodes: ns, edges: es } = gateStructural(ns, es, info.containers));
   }
   if (isolatedId.value && ns.some((n) => n.id === isolatedId.value)) {
     ({ nodes: ns, edges: es } = isolateAround(ns, es, isolatedId.value));
   }
-  // Re-label the graph root as "focus" (a final pass, after contraction which
-  // keeps only kind "root") so the viewed record reads in its own colour.
+  // Final pass: mark the graph root as "focus" and cross-template records as
+  // "related-cross" for colour, prettify relation labels, and attach the hover
+  // detail (computed over the full graph so gated rows/values still show).
   const focus = rootNodeId.value;
-  const out = ns.map((n) => ({ id: n.id, label: n.label, kind: n.id === focus ? "focus" : n.kind }));
-  return { nodes: out, edges: es };
+  const focusTpl = focus ? templateOf(focus) : "";
+  const out = ns.map((n) => {
+    let kind = n.kind;
+    if (n.id === focus) {
+      kind = "focus";
+    } else if (n.kind === "root" && focusTpl && templateOf(n.id) !== focusTpl) {
+      kind = "related-cross"; // a record in another template
+    }
+    return {
+      id: n.id,
+      label: prettyField(n.label),
+      kind,
+      detail: info.detail.get(n.id) ?? prettyField(n.label),
+      table: info.tables.get(n.id),
+    };
+  });
+  const outEdges = es.map((e) => ({ source: e.source, target: e.target, field: prettyField(e.field) }));
+  return { nodes: out, edges: outEdges };
 });
 
 watch(relationsOnly, () => {
@@ -226,6 +357,7 @@ watch(
         <span class="datacore-graph__legend">
           <i class="datacore-dot datacore-dot--focus"></i>{{ t('datacore.legend_focus') }}
           <i class="datacore-dot datacore-dot--root"></i>{{ t('datacore.legend_root') }}
+          <i class="datacore-dot datacore-dot--cross"></i>{{ t('datacore.legend_cross') }}
           <i class="datacore-dot datacore-dot--row"></i>{{ t('datacore.legend_row') }}
           <i class="datacore-dot datacore-dot--field"></i>{{ t('datacore.legend_field') }}
         </span>

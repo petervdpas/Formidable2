@@ -1,20 +1,28 @@
 <script setup lang="ts">
-import { shallowRef, ref, triggerRef, onBeforeUnmount, onMounted, useTemplateRef, watch } from "vue";
+import { shallowRef, ref, computed, triggerRef, onBeforeUnmount, onMounted, useTemplateRef, watch } from "vue";
 
 // A small force-directed node-link renderer: nodes repel, edges pull like
 // springs, gravity keeps the web centered, and the simulation cools to rest.
 // Drag a node to pin it; a click (no drag) emits node-click so the caller can
-// unfold it. Drag empty space to pan, wheel to zoom (to the cursor). When the
-// node/edge props grow, existing positions are preserved and only new nodes
-// are seeded, so expanding doesn't reshuffle the layout. Hand-rolled SVG.
+// unfold it. Drag empty space to pan, wheel to zoom (to the cursor). Hovering a
+// node reveals its full detail in a tooltip, so persistent labels stay short.
+// When the node/edge props grow, existing positions are preserved and only new
+// nodes are seeded, so expanding doesn't reshuffle the layout. Hand-rolled SVG.
 //
 // The canvas measures its container (ResizeObserver) and lays out in that real
 // pixel box, so it grows with the dialog instead of scaling a fixed viewBox.
 
+interface NodeTable {
+  title: string;
+  rows: string[][]; // cell columns per row
+  more: number; // rows beyond the shown cap
+}
 interface InNode {
   id: string;
   label: string;
-  kind: string; // "root" | "row" | "field"
+  kind: string; // "root" | "focus" | "related-cross" | "row" | "field"
+  detail?: string; // full info shown on hover (defaults to label)
+  table?: NodeTable; // a table container renders its rows as a grid on hover
 }
 interface InEdge {
   source: string;
@@ -59,6 +67,24 @@ let ro: ResizeObserver | null = null;
 const zoom = ref(1);
 const panX = ref(0);
 const panY = ref(0);
+
+// Hover tooltip: the node under the pointer and the cursor position (relative to
+// the wrap), so the detail panel follows the pointer.
+const hoverId = ref<string | null>(null);
+const tipX = ref(0);
+const tipY = ref(0);
+const hoverDetail = computed(() => {
+  if (!hoverId.value) return "";
+  const n = sim.value.find((s) => s.id === hoverId.value);
+  return n ? n.detail || n.label : "";
+});
+const hoverHead = computed(() => hoverDetail.value.split("\n")[0] ?? "");
+const hoverBody = computed(() => hoverDetail.value.split("\n").slice(1).join("\n"));
+const hoverTable = computed<NodeTable | null>(() => {
+  if (!hoverId.value) return null;
+  const n = sim.value.find((s) => s.id === hoverId.value);
+  return n?.table ?? null;
+});
 
 let raf = 0;
 let alpha = 0;
@@ -209,10 +235,28 @@ function toGraph(e: PointerEvent): { x: number; y: number } {
   return { x: (vbx - panX.value) / zoom.value, y: (vby - panY.value) / zoom.value };
 }
 
+function setTip(e: PointerEvent) {
+  const wrap = wrapRef.value;
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  tipX.value = e.clientX - rect.left;
+  tipY.value = e.clientY - rect.top;
+}
+
+function onNodeEnter(id: string, e: PointerEvent) {
+  if (dragging >= 0 || panning) return;
+  hoverId.value = id;
+  setTip(e);
+}
+function onNodeLeave() {
+  hoverId.value = null;
+}
+
 function onNodeDown(i: number, e: PointerEvent) {
   dragging = i;
   moved = false;
   autofit = false;
+  hoverId.value = null; // no tooltip while dragging
   downX = e.clientX;
   downY = e.clientY;
   reheat(0.4);
@@ -221,6 +265,7 @@ function onSvgDown(e: PointerEvent) {
   if (dragging >= 0) return;
   autofit = false;
   panning = true;
+  hoverId.value = null;
   panStartX = e.clientX;
   panStartY = e.clientY;
   panOrigX = panX.value;
@@ -243,7 +288,9 @@ function onMove(e: PointerEvent) {
     const scale = svg ? w.value / svg.getBoundingClientRect().width : 1;
     panX.value = panOrigX + (e.clientX - panStartX) * scale;
     panY.value = panOrigY + (e.clientY - panStartY) * scale;
+    return;
   }
+  if (hoverId.value) setTip(e); // tooltip follows the pointer
 }
 function onUp() {
   if (dragging >= 0) {
@@ -279,8 +326,9 @@ function zoomBy(factor: number) {
   zoomAt(w.value / 2, h.value / 2, factor);
 }
 
+// Short persistent label; the full text and detail come from the hover tooltip.
 function short(label: string): string {
-  return label.length > 22 ? label.slice(0, 21) + "…" : label;
+  return label.length > 16 ? label.slice(0, 15) + "…" : label;
 }
 
 watch(() => [props.nodes, props.edges], merge, { immediate: true });
@@ -330,22 +378,42 @@ onBeforeUnmount(() => {
           :y1="sim[l.a].y"
           :x2="sim[l.b].x"
           :y2="sim[l.b].y"
-        >
-          <title>{{ l.field }}</title>
-        </line>
+        />
         <g
           v-for="(node, i) in sim"
           :key="node.id"
           :class="['force-node', `force-node--${node.kind}`]"
           :transform="`translate(${node.x}, ${node.y})`"
           @pointerdown.stop="onNodeDown(i, $event)"
+          @pointerenter="onNodeEnter(node.id, $event)"
+          @pointerleave="onNodeLeave"
         >
-          <circle :r="node.kind === 'root' || node.kind === 'focus' ? 9 : node.kind === 'field' ? 4 : 5" />
+          <circle :r="node.kind === 'row' ? 5 : node.kind === 'field' ? 4 : 9" />
           <text x="11" y="4">{{ short(node.label) }}</text>
-          <title>{{ node.label }}</title>
         </g>
       </g>
     </svg>
+    <div
+      v-if="hoverId && (hoverTable || hoverDetail)"
+      class="force-tip"
+      :style="{ left: `${tipX + 14}px`, top: `${tipY + 14}px` }"
+    >
+      <template v-if="hoverTable">
+        <div class="force-tip-head">{{ hoverTable.title }}</div>
+        <table class="force-tip-table">
+          <tbody>
+            <tr v-for="(r, ri) in hoverTable.rows" :key="ri">
+              <td v-for="(c, ci) in r" :key="ci">{{ c }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="hoverTable.more" class="force-tip-more">+{{ hoverTable.more }} more</div>
+      </template>
+      <template v-else>
+        <div class="force-tip-head">{{ hoverHead }}</div>
+        <div v-if="hoverBody" class="force-tip-body">{{ hoverBody }}</div>
+      </template>
+    </div>
     <div class="force-zoom">
       <button type="button" title="Zoom in" @click="zoomBy(1.2)">+</button>
       <button type="button" title="Zoom out" @click="zoomBy(1 / 1.2)">−</button>

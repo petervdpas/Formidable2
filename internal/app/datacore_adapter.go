@@ -267,7 +267,8 @@ func isMultiValued(t string) bool {
 
 // dcTableRows maps each table row's positional cells onto their column keys
 // (the option `value` of each column), dropping blank cells. Second return is
-// a per-row label (first non-empty column value) naming the row node.
+// a per-row label: all non-empty cells joined in column order, so a row reads
+// fully (e.g. "string | bk") in the graph tooltip rather than just its first cell.
 func dcTableRows(fld template.Field, v any) ([]map[string]string, []string) {
 	cols := make([]string, len(fld.Options))
 	for i, opt := range fld.Options {
@@ -280,21 +281,19 @@ func dcTableRows(fld template.Field, v any) ([]map[string]string, []string) {
 	for _, e := range dcSlice(v) {
 		cells := dcSlice(e)
 		row := map[string]string{}
-		label := ""
+		var parts []string
 		for i, colKey := range cols {
 			if colKey == "" || i >= len(cells) {
 				continue
 			}
 			if s := dcText(cells[i]); s != "" {
 				row[colKey] = s
-				if label == "" {
-					label = s
-				}
+				parts = append(parts, s)
 			}
 		}
 		if len(row) > 0 {
 			rows = append(rows, row)
-			labels = append(labels, label)
+			labels = append(labels, strings.Join(parts, " | "))
 		}
 	}
 	return rows, labels
