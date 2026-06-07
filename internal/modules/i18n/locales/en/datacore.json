@@ -10,6 +10,7 @@
   "datacore.empty": "Nothing to graph for this record.",
   "datacore.no_record": "Select a record first.",
   "datacore.count": "{nodes} nodes, {edges} edges",
+  "datacore.legend_focus": "Viewing",
   "datacore.legend_root": "Record",
   "datacore.legend_row": "Row / link",
   "datacore.legend_field": "Field",

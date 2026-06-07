@@ -50,6 +50,10 @@
   margin-left: 0.5rem;
 }
 
+.datacore-dot--focus {
+  background: var(--color-warn, #e2a24a);
+}
+
 .datacore-dot--root {
   background: var(--color-accent, #4a90e2);
 }
@@ -138,6 +142,11 @@
 
 .force-node--root circle {
   fill: var(--color-accent, #4a90e2);
+}
+.force-node--focus circle {
+  fill: var(--color-warn, #e2a24a);
+  stroke: var(--color-text, #1a2230);
+  stroke-width: 2;
 }
 
 .force-node--row circle {

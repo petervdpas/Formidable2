@@ -32,6 +32,9 @@ const level = ref(2); // 1 = record, 2 = fields, 3 = rows
 // unfolding. isolatedId holds the focused record, or null for the whole view.
 const relationsOnly = ref(false);
 const isolatedId = ref<string | null>(null);
+// The record the graph is rooted at (the one you opened); shown in a distinct
+// colour so it stands out from the records it relates to.
+const rootNodeId = ref<string | null>(null);
 const REL_PREFIX = "rel:";
 
 // contractRelations rewrites record -(rel:X)-> [field node] -> record into a
@@ -88,7 +91,7 @@ function isolateAround(ns: GraphNode[], es: GraphEdge[], id: string): { nodes: G
   };
 }
 
-const viewGraph = computed<{ nodes: GraphNode[]; edges: GraphEdge[] }>(() => {
+const viewGraph = computed<{ nodes: { id: string; label: string; kind: string }[]; edges: GraphEdge[] }>(() => {
   let ns = nodes.value;
   let es = edges.value;
   if (relationsOnly.value) {
@@ -97,7 +100,11 @@ const viewGraph = computed<{ nodes: GraphNode[]; edges: GraphEdge[] }>(() => {
   if (isolatedId.value && ns.some((n) => n.id === isolatedId.value)) {
     ({ nodes: ns, edges: es } = isolateAround(ns, es, isolatedId.value));
   }
-  return { nodes: ns, edges: es };
+  // Re-label the graph root as "focus" (a final pass, after contraction which
+  // keeps only kind "root") so the viewed record reads in its own colour.
+  const focus = rootNodeId.value;
+  const out = ns.map((n) => ({ id: n.id, label: n.label, kind: n.id === focus ? "focus" : n.kind }));
+  return { nodes: out, edges: es };
 });
 
 watch(relationsOnly, () => {
@@ -134,9 +141,13 @@ async function loadRoot() {
   edges.value = [];
   expanded.value = new Set();
   isolatedId.value = null;
+  rootNodeId.value = null;
   if (!props.record) return;
   // Backend level is 0-based: record=0, fields=1, rows=2.
-  if (await fetchInto(props.record, level.value - 1)) expanded.value.add(props.record);
+  if (await fetchInto(props.record, level.value - 1)) {
+    expanded.value.add(props.record);
+    rootNodeId.value = nodes.value[0]?.id ?? null; // GraphFrom adds the root first
+  }
 }
 
 function setLevel(l: number) {
@@ -213,6 +224,7 @@ watch(
           {{ t('datacore.count', { nodes: viewGraph.nodes.length, edges: viewGraph.edges.length }) }}
         </span>
         <span class="datacore-graph__legend">
+          <i class="datacore-dot datacore-dot--focus"></i>{{ t('datacore.legend_focus') }}
           <i class="datacore-dot datacore-dot--root"></i>{{ t('datacore.legend_root') }}
           <i class="datacore-dot datacore-dot--row"></i>{{ t('datacore.legend_row') }}
           <i class="datacore-dot datacore-dot--field"></i>{{ t('datacore.legend_field') }}

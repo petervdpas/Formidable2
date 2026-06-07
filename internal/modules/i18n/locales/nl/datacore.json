@@ -10,6 +10,7 @@
   "datacore.empty": "Niets om te tonen voor dit record.",
   "datacore.no_record": "Selecteer eerst een record.",
   "datacore.count": "{nodes} knopen, {edges} verbindingen",
+  "datacore.legend_focus": "In beeld",
   "datacore.legend_root": "Record",
   "datacore.legend_row": "Rij / koppeling",
   "datacore.legend_field": "Veld",

@@ -340,7 +340,7 @@ onBeforeUnmount(() => {
           :transform="`translate(${node.x}, ${node.y})`"
           @pointerdown.stop="onNodeDown(i, $event)"
         >
-          <circle :r="node.kind === 'root' ? 9 : node.kind === 'field' ? 4 : 5" />
+          <circle :r="node.kind === 'root' || node.kind === 'focus' ? 9 : node.kind === 'field' ? 4 : 5" />
           <text x="11" y="4">{{ short(node.label) }}</text>
           <title>{{ node.label }}</title>
         </g>
