@@ -677,3 +677,26 @@ func TestList_RevErrorReturns500(t *testing.T) {
 		t.Errorf("status = %d, want 500", rec.Code)
 	}
 }
+
+// With a nil Relations impl, GET /relations must still return a present-but-empty
+// array, not JSON null (the OpenAPI schema requires an array).
+func TestItemRelations_NilRel_EmptyArrayNotNull(t *testing.T) {
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
+	rec := do(t, h, http.MethodGet, "/api/collections/recepten/g-1234/relations")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body=%s)", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `"relations":null`) || !strings.Contains(body, `"relations":[]`) {
+		t.Fatalf("nil rel must serialize relations as [], got %s", body)
+	}
+}
+
+// Following a relation with a nil Relations impl is a 404 no-relation.
+func TestItemRelationFollow_NilRel_404(t *testing.T) {
+	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
+	rec := do(t, h, http.MethodGet, "/api/collections/recepten/g-1234/relations/recepten")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 (body=%s)", rec.Code, rec.Body.String())
+	}
+}

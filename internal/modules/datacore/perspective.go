@@ -257,7 +257,9 @@ func (p *Perspective) Count() int { return len(p.identities()) }
 // identities returns the working set. By default it is the root identities
 // (records) in ingest order, so loop rows reached by Follow don't inflate a
 // form-level reduction. When no roots are marked (raw Put usage without
-// Ingest), it falls back to every distinct identity in first-seen order.
+// Ingest), it falls back to every distinct identity in first-seen order, but
+// never satellites: a primary template with zero records that pulls in
+// cross-template satellites must still reduce to nothing, not to the satellites.
 func (p *Perspective) identities() []sym {
 	if p.ids != nil {
 		return p.ids
@@ -268,7 +270,7 @@ func (p *Perspective) identities() []sym {
 	seen := map[sym]bool{}
 	out := make([]sym, 0)
 	for k := range p.t.is {
-		if s := p.t.is[k]; !seen[s] {
+		if s := p.t.is[k]; !seen[s] && !p.t.satSet[s] {
 			seen[s] = true
 			out = append(out, s)
 		}

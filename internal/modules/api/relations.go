@@ -40,7 +40,7 @@ func (h *Handler) itemRelations(w http.ResponseWriter, r *http.Request) {
 // with this record's linked ids filled in (empty when it links nothing yet).
 func (h *Handler) relationSummaries(stem, id string) ([]relationSummary, error) {
 	if h.rel == nil {
-		return nil, nil
+		return []relationSummary{}, nil // a present-but-empty array, never JSON null
 	}
 	defs, err := h.rel.GetRelations(stem + ".yaml")
 	if err != nil {
@@ -115,6 +115,12 @@ func (h *Handler) itemRelationFollow(w http.ResponseWriter, r *http.Request) {
 	}
 	if def == nil {
 		writeJSONError(w, http.StatusNotFound, "no-relation")
+		return
+	}
+	// A declared relation whose target collection is disabled is a misconfig:
+	// 403, not a 200 with an empty item set (which would look like all-deleted).
+	if !h.dp.IsCollectionEnabled(r.Context(), toFilename) {
+		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
 

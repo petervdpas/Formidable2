@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/petervdpas/formidable2/internal/modules/auth"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -288,6 +290,17 @@ func (m *Manager) SaveForm(ctx context.Context, templateFilename, datafile strin
 	}
 
 	envelope := Sanitize(data, fields, opts)
+	// Guard guid uniqueness within the collection: if this guid already belongs
+	// to a DIFFERENT record, mint a fresh one. A duplicate (usually a copied or
+	// imported file carrying another record's id) would make relation edges and
+	// api references ambiguous. The data guid field is the identity source;
+	// meta.id mirrors it. Best-effort; with no index reader we can't check.
+	if gk := guidFieldKey(fields); gk != "" && envelope.Meta.ID != "" &&
+		m.guidCollides(templateFilename, datafile, envelope.Meta.ID) {
+		fresh := uuid.NewString()
+		envelope.Data[gk] = fresh // source of truth
+		envelope.Meta.ID = fresh  // mirror
+	}
 	// On save the meta facets sync to the template: an undeclared facet key is
 	// dropped, and a selection that is no longer an option falls back to the
 	// field default or empties (Set stays). The doctor backstops any leftover.
@@ -575,6 +588,35 @@ func (m *Manager) TemplateStorageDir(templateFilename string) string {
 // TemplateImageDir returns the absolute path of <storage>/<template>/images/.
 func (m *Manager) TemplateImageDir(templateFilename string) string {
 	return filepath.Join(m.templateDir(templateFilename), imagesDir)
+}
+
+// guidFieldKey returns the key of the template's guid-typed field, or "".
+func guidFieldKey(fields []template.Field) string {
+	for _, f := range fields {
+		if f.Type == "guid" {
+			return f.Key
+		}
+	}
+	return ""
+}
+
+// guidCollides reports whether guid already belongs to a record other than
+// datafile in this collection. Best-effort over the index reader: a missing or
+// erroring reader returns false, so a uniqueness check never blocks a save.
+func (m *Manager) guidCollides(templateFilename, datafile, guid string) bool {
+	if m.reader == nil {
+		return false
+	}
+	sums, err := m.reader.ListSummaries(templateFilename)
+	if err != nil {
+		return false
+	}
+	for _, s := range sums {
+		if s.Meta.ID == guid && s.Filename != datafile {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) fieldsFor(templateFilename string) []template.Field {

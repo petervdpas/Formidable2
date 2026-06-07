@@ -726,3 +726,31 @@ func TestAnalyze_OrderedFormsInReport(t *testing.T) {
 			r.Forms[0].Filename, r.Forms[1].Filename)
 	}
 }
+
+func TestAnalyze_FlagsDuplicateGuid(t *testing.T) {
+	tpl := &template.Template{
+		Name: "ent", Filename: "ent.yaml",
+		Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "title", Type: "text"}},
+	}
+	forms := map[string]*storage.Form{
+		"a.meta.json": {Meta: storage.FormMeta{ID: "shared"}, Data: map[string]any{"id": "shared", "title": "A"}},
+		"b.meta.json": {Meta: storage.FormMeta{ID: "shared"}, Data: map[string]any{"id": "shared", "title": "B"}},
+	}
+	m := newM(t, tpl, forms)
+	r, err := m.AnalyzeTemplate("ent.yaml")
+	if err != nil {
+		t.Fatalf("analyze: %v", err)
+	}
+	// b is flagged (a is the alphabetically-first canonical holder).
+	findIssue(t, r, "b.meta.json", IssueDuplicateGuid, "meta.id")
+	for _, fr := range r.Forms {
+		if fr.Filename != "a.meta.json" {
+			continue
+		}
+		for _, iss := range fr.Issues {
+			if iss.Kind == IssueDuplicateGuid {
+				t.Fatalf("canonical a.meta.json must not be flagged duplicate")
+			}
+		}
+	}
+}

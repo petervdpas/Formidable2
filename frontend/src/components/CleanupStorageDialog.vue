@@ -131,6 +131,11 @@ function strategiesFor(kind: string): { id: string; labelKey: string }[] {
         { id: "sync_guid", labelKey: "workspace.cleanup.strategy.sync_guid" },
         { id: "skip",      labelKey: "workspace.cleanup.strategy.skip" },
       ];
+    case IssueKind.IssueDuplicateGuid:
+      return [
+        { id: "mint_uuid", labelKey: "workspace.cleanup.strategy.mint_uuid" },
+        { id: "skip",      labelKey: "workspace.cleanup.strategy.skip" },
+      ];
     case IssueKind.IssueFacetUnseeded:
       return [
         { id: "seed_facet", labelKey: "workspace.cleanup.strategy.seed_facet" },
@@ -261,6 +266,7 @@ function issueKindLabel(kind: string): string {
     case IssueKind.IssueDateAnomaly:     return t("workspace.cleanup.kind.date_anomaly");
     case IssueKind.IssueMetaMissing:     return t("workspace.cleanup.kind.meta_missing");
     case IssueKind.IssueMetaBadFormat:   return t("workspace.cleanup.kind.meta_bad_format");
+    case IssueKind.IssueDuplicateGuid:   return t("workspace.cleanup.kind.duplicate_guid");
     case IssueKind.IssueUnreadable:      return t("workspace.cleanup.kind.unreadable");
     case IssueKind.IssueFacetNoDefault:  return t("workspace.cleanup.kind.facet_no_default");
     case IssueKind.IssueFacetUnseeded:   return t("workspace.cleanup.kind.facet_unseeded");

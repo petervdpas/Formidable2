@@ -326,6 +326,14 @@ export enum IssueKind {
     IssueGuidUnsynced = "guid_unsynced",
 
     /**
+     * IssueDuplicateGuid: this record's guid is shared by another record in the collection (a cross-record
+     * check, not per-form). The alphabetically-first holder is canonical; the rest are flagged. Value carries
+     * the duplicated guid. The fix mints a fresh guid (meta.id + the data guid field). Edges that referenced
+     * the ambiguous guid can't be auto-reattributed, so prevention at save is the real guard; this heals drift.
+     */
+    IssueDuplicateGuid = "duplicate_guid",
+
+    /**
      * IssueUnreadable: the form file couldn't be loaded or parsed; emitted as the single issue.
      */
     IssueUnreadable = "unreadable",

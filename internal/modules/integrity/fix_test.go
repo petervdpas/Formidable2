@@ -572,3 +572,33 @@ func TestFix_LoopExtraField_StrippedInsideLoopItem(t *testing.T) {
 		t.Errorf("ghost still present inside loop item: %v", item0)
 	}
 }
+
+func TestFix_DuplicateGuid_RemintsDataAndMirrorsMeta(t *testing.T) {
+	tpl := &template.Template{
+		Name: "ent", Filename: "ent.yaml",
+		Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "title", Type: "text"}},
+	}
+	forms := map[string]*storage.Form{
+		"a.meta.json": {Meta: storage.FormMeta{ID: "shared"}, Data: map[string]any{"id": "shared", "title": "A"}},
+		"b.meta.json": {Meta: storage.FormMeta{ID: "shared"}, Data: map[string]any{"id": "shared", "title": "B"}},
+	}
+	h := newFixHarness(t, tpl, forms)
+	res := h.runPlan(FixPlanItem{Kind: IssueDuplicateGuid, Strategy: FixMintUUID})
+	if res.Applied != 1 {
+		t.Fatalf("Applied=%d, want 1: %+v", res.Applied, res)
+	}
+	// The duplicate (b) gets a fresh guid in the DATA field, with meta.id mirroring it.
+	b := h.loadSaved("b.meta.json")
+	bid, _ := b.Data["id"].(string)
+	if bid == "shared" || bid == "" {
+		t.Fatalf("duplicate data guid not re-minted: %q", bid)
+	}
+	if b.Meta.ID != bid {
+		t.Fatalf("meta.id must mirror the data guid field: meta=%q data=%q", b.Meta.ID, bid)
+	}
+	// The canonical (a) is left untouched.
+	a := h.loadSaved("a.meta.json")
+	if a.Data["id"] != "shared" || a.Meta.ID != "shared" {
+		t.Fatalf("canonical a.meta.json should be untouched: data=%v meta=%q", a.Data["id"], a.Meta.ID)
+	}
+}

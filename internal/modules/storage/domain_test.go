@@ -928,3 +928,49 @@ func TestExtendedLoadForm_MissingFileReturnsNil(t *testing.T) {
 
 // boolPtr is reused if needed in future tests
 var _ = boolPtr
+
+func TestSaveForm_RemintsCollidingGuid(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("ent.yaml", &template.Template{
+		Name: "ent", Filename: "ent.yaml", EnableCollection: true,
+		Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "name", Type: "text"}},
+	})
+	// The index already holds record a.meta.json with guid "shared".
+	m.SetReader(&fakeFormReader{out: []FormSummary{
+		{Filename: "a.meta.json", Meta: FormMeta{ID: "shared"}},
+	}})
+	// Saving a DIFFERENT record carrying the same guid must re-mint it.
+	r := m.SaveForm(context.Background(), "ent.yaml", "b.meta.json", map[string]any{"id": "shared", "name": "B"})
+	if !r.Success {
+		t.Fatalf("save: %s", r.Error)
+	}
+	got := m.LoadForm("ent.yaml", "b.meta.json")
+	if got == nil {
+		t.Fatal("load nil")
+	}
+	if got.Meta.ID == "shared" || got.Meta.ID == "" {
+		t.Fatalf("colliding guid not re-minted: %q", got.Meta.ID)
+	}
+	if got.Data["id"] != got.Meta.ID {
+		t.Fatalf("data guid field not synced with meta: data=%v meta=%q", got.Data["id"], got.Meta.ID)
+	}
+}
+
+func TestSaveForm_KeepsOwnGuidOnReSave(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("ent.yaml", &template.Template{
+		Name: "ent", Filename: "ent.yaml", EnableCollection: true,
+		Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "name", Type: "text"}},
+	})
+	// a.meta.json owns "shared"; re-saving a.meta.json itself is not a collision.
+	m.SetReader(&fakeFormReader{out: []FormSummary{
+		{Filename: "a.meta.json", Meta: FormMeta{ID: "shared"}},
+	}})
+	r := m.SaveForm(context.Background(), "ent.yaml", "a.meta.json", map[string]any{"id": "shared", "name": "A"})
+	if !r.Success {
+		t.Fatalf("save: %s", r.Error)
+	}
+	if got := m.LoadForm("ent.yaml", "a.meta.json"); got.Meta.ID != "shared" {
+		t.Fatalf("own guid changed on re-save: %q", got.Meta.ID)
+	}
+}

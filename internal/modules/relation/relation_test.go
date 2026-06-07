@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"testing"
 )
 
@@ -208,6 +209,93 @@ func TestSetRelations_SelfRelationNotClobbered(t *testing.T) {
 	if len(got) != 1 || got[0].To != "project.yaml" || got[0].Cardinality != OneToMany {
 		t.Fatalf("self-relation should be left intact, not flipped: %+v", got)
 	}
+}
+
+// Regression: editing a relation's declaration through an edge-LESS SetRelations
+// (what the editor sends) must preserve its edges and keep the mirror in sync.
+func TestSetRelations_CrossEditPreservesEdges(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: OneToMany}})
+	if err := m.AddEdge("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	if err := m.SetRelations("project.yaml", []Relation{{To: "person.yaml", Cardinality: ManyToMany}}); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	got, _ := m.GetRelations("project.yaml")
+	i := relationIndex(got, "person.yaml")
+	if i < 0 || got[i].Cardinality != ManyToMany {
+		t.Fatalf("cardinality not updated: %+v", got)
+	}
+	if len(got[i].Edges) != 1 || got[i].Edges[0] != (Edge{From: "p1", To: "u1"}) {
+		t.Fatalf("forward edges wiped by an edge-less edit: %+v", got)
+	}
+	mir, _ := m.GetRelations("person.yaml")
+	j := relationIndex(mir, "project.yaml")
+	if j < 0 || len(mir[j].Edges) != 1 || mir[j].Edges[0] != (Edge{From: "u1", To: "p1"}) {
+		t.Fatalf("mirror edges desynced from forward: %+v", mir)
+	}
+}
+
+func TestSetRelations_SelfEditPreservesEdges(t *testing.T) {
+	m := newMgr()
+	_ = m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToOne}})
+	_ = m.AddEdge("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"})
+	if err := m.SetRelations("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToMany}}); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	got, _ := m.GetRelations("project.yaml")
+	i := relationIndex(got, "project.yaml")
+	if i < 0 || len(got[i].Edges) != 1 || got[i].Edges[0] != (Edge{From: "p1", To: "p2"}) {
+		t.Fatalf("self forward edges wiped by an edge-less edit: %+v", got)
+	}
+	mir, _ := m.getSelfMirrorLocked("project.yaml")
+	mi := relationIndex(mir, "project.yaml")
+	if mi < 0 || len(mir[mi].Edges) != 1 || mir[mi].Edges[0] != (Edge{From: "p2", To: "p1"}) {
+		t.Fatalf("self mirror edges lost on edit: %+v", mir)
+	}
+}
+
+// reconcile must not mistake the self/ subfolder for a forward relation file
+// (the safety depends on ListFiles being non-recursive).
+func TestReconcile_DoesNotMisScanSelfSubfolder(t *testing.T) {
+	fs := newMemFS()
+	m := NewManager(fs, "/ctx/relations", fullCatalog())
+	_ = m.saveRelationsLocked("project.yaml", []Relation{{To: "project.yaml", Cardinality: OneToMany}})
+	_ = m.saveSelfMirrorLocked("project.yaml", []Relation{{To: "project.yaml", Cardinality: ManyToOne, Inverse: true}})
+	rep, err := m.Reconcile()
+	if err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if len(rep.Created) != 0 || len(rep.Conflicts) != 0 || rep.EdgesHealed != 0 {
+		t.Fatalf("self/ subfolder mis-scanned as a forward file: %+v", rep)
+	}
+}
+
+// Concurrent self + cross mutations serialize through the Manager mutex; run
+// under -race. Drives only the Manager API (the memFS map is protected only by
+// that mutex).
+func TestConcurrentMutations_SelfAndCross(t *testing.T) {
+	m := newMgr()
+	if err := m.SetRelations("project.yaml", []Relation{
+		{To: "person.yaml", Cardinality: ManyToMany},
+		{To: "project.yaml", Cardinality: ManyToMany},
+	}); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	var wg sync.WaitGroup
+	cycle := func(from, to string, e Edge) {
+		defer wg.Done()
+		_ = m.AddEdge(from, to, e)
+		_, _ = m.GetRelations(from)
+		_ = m.RemoveEdge(from, to, e)
+	}
+	wg.Add(4)
+	go cycle("project.yaml", "person.yaml", Edge{From: "p1", To: "u1"})
+	go cycle("project.yaml", "person.yaml", Edge{From: "p2", To: "u2"})
+	go cycle("project.yaml", "project.yaml", Edge{From: "p1", To: "p2"})
+	go func() { defer wg.Done(); _, _ = m.Reconcile() }()
+	wg.Wait()
 }
 
 func TestSelfRelation_ForwardAndMirrorSides(t *testing.T) {

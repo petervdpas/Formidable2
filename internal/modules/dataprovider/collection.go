@@ -121,6 +121,9 @@ func (m *Manager) ListCollection(ctx context.Context, template string, opts Coll
 // CollectionItem with the wiki's standard hrefs already filled.
 // Templates that don't have collection enabled always miss.
 func (m *Manager) ResolveCollectionByID(ctx context.Context, template, id string) (*CollectionItem, bool, error) {
+	if id == "" {
+		return nil, false, nil // an empty id must never match a guid-less record
+	}
 	if !m.IsCollectionEnabled(ctx, template) {
 		return nil, false, nil
 	}

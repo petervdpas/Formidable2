@@ -27,6 +27,7 @@
   "workspace.cleanup.kind.meta_missing": "Meta ontbreekt",
   "workspace.cleanup.kind.meta_bad_format": "Meta foutief formaat",
   "workspace.cleanup.kind.guid_unsynced": "Guid-veld niet gesynchroniseerd",
+  "workspace.cleanup.kind.duplicate_guid": "Dubbele guid",
   "workspace.cleanup.kind.unreadable": "Onleesbaar",
   "workspace.cleanup.kind.facet_no_default": "Facet heeft geen standaardwaarde",
   "workspace.cleanup.kind.facet_unseeded": "Facet ontbreekt op schijf",

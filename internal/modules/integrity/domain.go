@@ -58,6 +58,8 @@ func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 		TemplateIssues: checkFacetDefaults(tpl),
 	}
 
+	dupGuids := m.duplicateGuidByFile(templateFilename, tpl, filenames)
+
 	for _, fn := range filenames {
 		f := m.storage.LoadForm(templateFilename, fn)
 		var issues []Issue
@@ -67,6 +69,14 @@ func (m *Manager) AnalyzeTemplate(templateFilename string) (Report, error) {
 			issues = analyzeForm(tpl, f)
 			issues = append(issues, m.guidSyncIssues(templateFilename, fn, tpl, f.Meta, f.Data)...)
 			issues = append(issues, m.facetSeedingIssues(templateFilename, fn, tpl)...)
+			if g, ok := dupGuids[fn]; ok {
+				issues = append(issues, Issue{
+					Kind:   IssueDuplicateGuid,
+					Path:   "meta.id",
+					Value:  g,
+					Detail: fmt.Sprintf("guid %q is shared by another record; mint a fresh one", g),
+				})
+			}
 		}
 		if len(issues) > 0 {
 			report.Forms = append(report.Forms, FormReport{Filename: fn, Issues: issues})
@@ -250,12 +260,52 @@ func parseableTimestamp(s string) bool {
 }
 
 func templateHasGuid(tpl *template.Template) bool {
+	return guidFieldKeyOf(tpl) != ""
+}
+
+// guidFieldKeyOf returns the key of the template's guid-typed field, or "".
+func guidFieldKeyOf(tpl *template.Template) string {
 	for _, f := range tpl.Fields {
 		if f.Type == "guid" {
-			return true
+			return f.Key
 		}
 	}
-	return false
+	return ""
+}
+
+// duplicateGuidByFile flags every form whose identity guid is shared by another
+// form in the collection, mapping that form to the duplicated guid. The guid is
+// read from the DATA field (the identity source; meta.id only mirrors it). The
+// alphabetically-first holder is canonical and left unflagged; the rest are the
+// ones to re-mint. Returns nil when the template has no guid field.
+func (m *Manager) duplicateGuidByFile(templateFilename string, tpl *template.Template, filenames []string) map[string]string {
+	gk := guidFieldKeyOf(tpl)
+	if gk == "" {
+		return nil
+	}
+	byGuid := map[string][]string{}
+	for _, fn := range filenames {
+		f := m.storage.LoadForm(templateFilename, fn)
+		if f == nil {
+			continue
+		}
+		guid, _ := f.Data[gk].(string)
+		if guid == "" {
+			continue
+		}
+		byGuid[guid] = append(byGuid[guid], fn)
+	}
+	out := map[string]string{}
+	for guid, files := range byGuid {
+		if len(files) < 2 {
+			continue
+		}
+		sort.Strings(files)
+		for _, fn := range files[1:] {
+			out[fn] = guid
+		}
+	}
+	return out
 }
 
 func findFacet(tpl *template.Template, key string) *template.Facet {

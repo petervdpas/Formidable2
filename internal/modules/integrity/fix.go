@@ -49,6 +49,8 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 
 	result := FixResult{}
 
+	dupGuids := m.duplicateGuidByFile(templateFilename, tpl, filenames)
+
 	for _, fn := range filenames {
 		original := m.storage.LoadForm(templateFilename, fn)
 		if original == nil {
@@ -69,6 +71,9 @@ func (m *Manager) FixTemplate(templateFilename string, plan FixPlan) (FixResult,
 		issues := analyzeForm(tpl, draft)
 		issues = append(issues, m.guidSyncIssues(templateFilename, fn, tpl, draft.Meta, draft.Data)...)
 		issues = append(issues, m.facetSeedingIssues(templateFilename, fn, tpl)...)
+		if g, ok := dupGuids[fn]; ok {
+			issues = append(issues, Issue{Kind: IssueDuplicateGuid, Path: "meta.id", Value: g})
+		}
 
 		outcome := FixOutcome{Filename: fn}
 		for _, iss := range issues {
@@ -231,11 +236,25 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		return setAtPath(draft.Data, iss.Path, defaultForFieldType(f.Type))
 
 	case FixMintUUID:
-		if iss.Kind != IssueMetaMissing || iss.Path != "meta.id" {
-			return false, "mint_uuid only applies to meta.id", nil
+		switch iss.Kind {
+		case IssueMetaMissing:
+			if iss.Path != "meta.id" {
+				return false, "mint_uuid only applies to meta.id", nil
+			}
+			draft.Meta.ID = uuid.NewString()
+			return true, "", nil
+		case IssueDuplicateGuid:
+			// The data guid field is the identity source; mint there and mirror
+			// onto meta.id so the pair stays consistent.
+			fresh := uuid.NewString()
+			if gk := guidFieldKeyOf(tpl); gk != "" {
+				draft.Data[gk] = fresh
+			}
+			draft.Meta.ID = fresh
+			return true, "", nil
+		default:
+			return false, "mint_uuid only applies to meta.id / duplicate_guid", nil
 		}
-		draft.Meta.ID = uuid.NewString()
-		return true, "", nil
 
 	case FixSyncGuid:
 		if iss.Kind != IssueGuidUnsynced {

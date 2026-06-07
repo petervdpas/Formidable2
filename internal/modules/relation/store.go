@@ -108,10 +108,24 @@ func (m *Manager) SetRelations(template string, rels []Relation) error {
 	if err != nil {
 		return err
 	}
-	// The forward self half is never the inverse side; that flag belongs to the self/ mirror.
+	// Editing a relation's declaration (the editor sends cardinality/inverse with
+	// NO edges) must not wipe its edges: carry forward the existing edges for any
+	// relation whose incoming payload omits them. Edges are mutated only through
+	// AddEdge/RemoveEdge. Without this, an edge-less edit empties the forward side
+	// while the mirror keeps its edges, desyncing the pair (and reconcile would
+	// resurrect them, possibly breaching a tightened cardinality).
+	prevEdges := make(map[string][]Edge, len(prev))
+	for _, r := range prev {
+		prevEdges[r.To] = r.Edges
+	}
 	for i := range rels {
 		if rels[i].To == template {
-			rels[i].Inverse = false
+			rels[i].Inverse = false // the forward self half is never the inverse side
+		}
+		if len(rels[i].Edges) == 0 {
+			if e, ok := prevEdges[rels[i].To]; ok {
+				rels[i].Edges = e
+			}
 		}
 	}
 	if err := m.saveRelationsLocked(template, rels); err != nil {

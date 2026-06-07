@@ -27,6 +27,7 @@
   "workspace.cleanup.kind.meta_missing": "Meta missing",
   "workspace.cleanup.kind.meta_bad_format": "Meta bad format",
   "workspace.cleanup.kind.guid_unsynced": "Guid field out of sync",
+  "workspace.cleanup.kind.duplicate_guid": "Duplicate guid",
   "workspace.cleanup.kind.unreadable": "Unreadable",
   "workspace.cleanup.kind.facet_no_default": "Facet has no default",
   "workspace.cleanup.kind.facet_unseeded": "Facet missing on disk",

@@ -255,6 +255,13 @@ func TestResolveCollectionByID(t *testing.T) {
 	if ok {
 		t.Errorf("plain.yaml has no collection - should miss")
 	}
+
+	// An empty id must never resolve (so an empty relation-edge target can't
+	// match a guid-less record).
+	_, ok, _ = m.ResolveCollectionByID(context.Background(), "recepten.yaml", "")
+	if ok {
+		t.Errorf("empty id must not resolve")
+	}
 }
 
 func TestCollectionRev_BumpsWithIndexRev(t *testing.T) {

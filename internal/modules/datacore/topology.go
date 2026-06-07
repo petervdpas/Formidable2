@@ -58,7 +58,7 @@ func (t *Tensor) Graph(limit int) Graph {
 	for _, s := range order[:keep] {
 		included[s] = true
 		kind := "row"
-		if t.rootSet[s] {
+		if t.isRecord(s) {
 			kind = "root"
 		}
 		g.Nodes = append(g.Nodes, GraphNode{ID: t.iax.label(s), Label: t.nodeLabel(s), Kind: kind})
@@ -106,7 +106,7 @@ func (t *Tensor) GraphFrom(rootID string, level int) Graph {
 		}
 		nodeSeen[id] = true
 		kind := "row"
-		if t.rootSet[s] {
+		if t.isRecord(s) {
 			kind = "root"
 		}
 		g.Nodes = append(g.Nodes, GraphNode{ID: id, Label: t.nodeLabel(s), Kind: kind})

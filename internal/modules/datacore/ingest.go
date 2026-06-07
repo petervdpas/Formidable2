@@ -19,6 +19,12 @@ type Record struct {
 	// TableLabels gives an optional display label per table row (in row
 	// order), keyed by table field, to label row nodes in the graph.
 	TableLabels map[string][]string
+	// Satellite marks a record present only as a reference target (a
+	// cross-template relation's far side): its fields and tables are ingested
+	// so Follow can reach them, but it is NOT a root, so root-based reductions
+	// (Count, Distribution, Grid) over the primary template ignore it. Zero
+	// value (false) is a normal root, so existing callers are unaffected.
+	Satellite bool
 }
 
 // Ingest writes one record into the tensor.
@@ -29,7 +35,11 @@ type Record struct {
 // index loses and has to rebuild from provenance). The record references each
 // row under the table's field, so Follow walks record -> rows.
 func (t *Tensor) Ingest(r Record) {
-	t.markRoot(r.ID)
+	if r.Satellite {
+		t.satSet[t.iax.intern(r.ID)] = true // present as a reference target, not a root
+	} else {
+		t.markRoot(r.ID)
+	}
 	if r.Label != "" {
 		t.labels[t.iax.intern(r.ID)] = r.Label
 	}

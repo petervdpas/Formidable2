@@ -55,42 +55,109 @@ func (a *datacoreLoaderAdapter) LoadSubset(ids []string) ([]datacore.Record, err
 	return a.load(ids)
 }
 
-// load shapes the named forms into Records, loading the template once and
-// skipping any form that fails to read (same tolerance as query and index).
+// load builds the tensor's records: the primary template's forms as roots, plus
+// the records its cross-template relations point at, loaded as satellites so
+// Follow can reach them (and their tables) without inflating the primary root
+// set. One global guid->identity map resolves both self and cross-template edges.
 func (a *datacoreLoaderAdapter) load(files []string) ([]datacore.Record, error) {
-	tpl, err := a.tpl.LoadTemplate(a.templateFile)
+	primary, primaryGuids, err := a.loadForms(a.templateFile, files, false)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]datacore.Record, 0, len(files))
-	guids := make([]string, 0, len(files))           // guid per record, parallel to out
-	guidToFile := make(map[string]string, len(files)) // edge endpoints reference records by guid
+	guidToID := make(map[string]string, len(primaryGuids))
+	for i, g := range primaryGuids {
+		if g != "" {
+			guidToID[g] = primary[i].ID
+		}
+	}
+
+	// Cross-template relation targets become satellites. Self-relation targets
+	// are already primary roots, so crossTargets skips them.
+	var satellites []datacore.Record
+	for relTpl, want := range a.crossTargets() {
+		relFiles, err := a.sto.ListForms(relTpl)
+		if err != nil {
+			continue // a degraded / missing target template is tolerated
+		}
+		recs, guids, err := a.loadForms(relTpl, relFiles, true)
+		if err != nil {
+			continue // degraded target template (e.g. deleted): skip its satellites, keep the primary
+		}
+		for i, g := range guids {
+			if g == "" || !want[g] {
+				continue
+			}
+			guidToID[g] = recs[i].ID
+			satellites = append(satellites, recs[i])
+		}
+	}
+
+	// Attach links on the primary records (the link sources) against the global
+	// map, then append satellites. attachLinks mutates primary in place before
+	// the append copies it, so the returned records carry their links.
+	a.attachLinks(primary, primaryGuids, guidToID)
+	return append(primary, satellites...), nil
+}
+
+// loadForms shapes a template's forms into Records (composite identity, optional
+// satellite marking), loading the template once and skipping unreadable forms.
+// The returned guids are parallel to the records.
+func (a *datacoreLoaderAdapter) loadForms(templateFile string, files []string, satellite bool) ([]datacore.Record, []string, error) {
+	tpl, err := a.tpl.LoadTemplate(templateFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	recs := make([]datacore.Record, 0, len(files))
+	guids := make([]string, 0, len(files))
 	for _, file := range files {
-		f := a.sto.LoadForm(a.templateFile, file)
+		f := a.sto.LoadForm(templateFile, file)
 		if f == nil {
 			continue
 		}
 		rec := datacoreRecord(tpl, file, f)
-		// Identity carries the template so a filename shared across templates
-		// stays distinct once the tensor spans more than one template.
-		rec.ID = datacore.NewID(a.templateFile, file)
+		rec.ID = datacore.NewID(templateFile, file)
+		rec.Satellite = satellite
+		if rec.Label == "" {
+			rec.Label = file // never let the raw composite id surface as a graph label
+		}
 		applyFormulas(a.ev, tpl, f, &rec)
-		out = append(out, rec)
+		recs = append(recs, rec)
 		guids = append(guids, f.Meta.ID)
-		if f.Meta.ID != "" {
-			guidToFile[f.Meta.ID] = rec.ID // guid -> composite identity
+	}
+	return recs, guids, nil
+}
+
+// crossTargets is the set of edge-target guids per related (non-self) template,
+// the records to pull in as satellites so cross-template Follow resolves.
+func (a *datacoreLoaderAdapter) crossTargets() map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	if a.rel == nil {
+		return out
+	}
+	defs, err := a.rel.GetRelations(a.templateFile)
+	if err != nil {
+		return out
+	}
+	for _, d := range defs {
+		if d.To == a.templateFile {
+			continue // self: targets are already primary roots
+		}
+		for _, e := range d.Edges {
+			if out[d.To] == nil {
+				out[d.To] = map[string]bool{}
+			}
+			out[d.To][e.To] = true
 		}
 	}
-	a.attachLinks(out, guids, guidToFile)
-	return out, nil
+	return out
 }
 
 // attachLinks turns declared relation edges into datacore Links (followable as
 // "rel:<to>"). Edges reference records by guid; the tensor addresses records by
-// filename, so only targets that resolve to a loaded record are attached. That
-// is exactly the self-relation case today (source and target share this
-// template). Cross-template edges resolve once the tensor spans more than one
-// template; until then their targets are absent and skipped, harmlessly.
+// composite identity, so a target resolves only if its record is in the tensor:
+// self-relation targets (primary roots) and cross-template targets loaded as
+// satellites. An edge whose target is absent (deleted, or a degraded template)
+// is skipped, harmlessly.
 func (a *datacoreLoaderAdapter) attachLinks(recs []datacore.Record, guids []string, guidToFile map[string]string) {
 	if a.rel == nil {
 		return

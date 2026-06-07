@@ -64,12 +64,18 @@ type Tensor struct {
 
 	rootList []sym // top-level identities (records), in ingest order
 	rootSet  map[sym]bool
+	satSet   map[sym]bool   // satellite records: present as ref targets, not roots
 	labels   map[sym]string // optional display label per identity
 }
 
 func New() *Tensor {
-	return &Tensor{iax: newAxis(), fax: newAxis(), max: newAxis(), rootSet: map[sym]bool{}, labels: map[sym]string{}}
+	return &Tensor{iax: newAxis(), fax: newAxis(), max: newAxis(), rootSet: map[sym]bool{}, satSet: map[sym]bool{}, labels: map[sym]string{}}
 }
+
+// isRecord reports whether s is a record identity (a root or a satellite), as
+// opposed to a table/loop row. Both roots and satellites are records reached by
+// the graph and Follow; only rows are sub-identities.
+func (t *Tensor) isRecord(s sym) bool { return t.rootSet[s] || t.satSet[s] }
 
 func (t *Tensor) nodeLabel(s sym) string {
 	if l := t.labels[s]; l != "" {
