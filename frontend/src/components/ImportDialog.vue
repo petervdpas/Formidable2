@@ -178,7 +178,9 @@ watch(sheet, async () => {
 
 async function pickFile() {
   const picked = await chooseFile([
-    { displayName: "Spreadsheet (CSV, Excel)", pattern: "*.csv;*.xlsx" },
+    // GTK's glob matches case-sensitively and supports no char classes, so
+    // enumerate lower- and upper-case extensions (e.g. a ".XLSX" export).
+    { displayName: "Spreadsheet (CSV, Excel)", pattern: "*.csv;*.CSV;*.xlsx;*.XLSX" },
   ]);
   if (!picked) return;
   file.value = picked;
