@@ -11,6 +11,7 @@
 
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import APIFieldPicker from "./APIFieldPicker.vue";
 import ReferenceCreateDialog from "./ReferenceCreateDialog.vue";
 import {
@@ -146,6 +147,23 @@ watch(collection, () => void loadSourceFields(), { immediate: true });
 function emitIds(next: string[]) {
   const deduped = Array.from(new Set(next));
   emit("update:modelValue", multi.value ? deduped : (deduped[0] ?? ""));
+}
+
+// Reorder via drag/drop. Collapse state is keyed by id, so it travels with the
+// card automatically; only the id order changes.
+const draggableIds = computed<string[]>({
+  get: () => ids.value,
+  set: (next) => emitIds(next),
+});
+const dndScope = computed(() => `api-${props.field.key}`);
+
+// Block a drag attempt on an expanded card at the mousedown layer (same rule as
+// the loop: only collapsed cards drag), with a toast hint.
+function onHandleMousedown(e: MouseEvent, id: string) {
+  if (!isExpanded(id)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  toast.warn("workspace.storage.field.drag_collapse_first");
 }
 function addId(id: string) {
   if (!id) return;
@@ -315,15 +333,36 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
     </p>
 
     <template v-else>
-      <!-- Linked record cards -->
-      <div v-if="ids.length" class="api-field-cards">
+      <!-- Linked record cards (drag to reorder; only when collapsed) -->
+      <draggable
+        v-if="ids.length"
+        v-model="draggableIds"
+        tag="div"
+        class="api-field-cards"
+        :data-dnd-scope="dndScope"
+        :group="dndScope"
+        handle=".dnd-handle"
+        :animation="150"
+        ghost-class="dnd-ghost"
+        chosen-class="dnd-chosen"
+        drag-class="dnd-drag"
+        :item-key="(id: string) => id"
+      >
+        <template #item="{ element: id }">
         <section
-          v-for="id in ids"
-          :key="id"
           class="api-field-card"
           :class="{ collapsed: !isExpanded(id) }"
         >
           <header class="api-field-card-head">
+            <span
+              class="dnd-handle"
+              :class="{ disabled: isExpanded(id) }"
+              :title="isExpanded(id)
+                ? t('workspace.storage.field.drag_collapse_first')
+                : t('workspace.storage.field.drag_to_reorder')"
+              aria-hidden="true"
+              @mousedown="onHandleMousedown($event, id)"
+            >⠿</span>
             <button
               type="button"
               class="btn-ghost-icon btn-sm"
@@ -390,7 +429,8 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
             </template>
           </dl>
         </section>
-      </div>
+        </template>
+      </draggable>
 
       <!-- Add / pick controls. Single replaces; multi appends. -->
       <div class="api-field-empty">
