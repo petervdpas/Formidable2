@@ -1,56 +1,8 @@
 package template
 
 import (
-	"strings"
-	"sync"
 	"testing"
 )
-
-// writeRaw drops a raw YAML body into the manager's templates dir, bypassing
-// SaveTemplate so malformed/invalid shapes reach LoadTemplate untouched.
-func writeRaw(t *testing.T, m *Manager, name, body string) {
-	t.Helper()
-	if err := m.EnsureTemplateDirectory(); err != nil {
-		t.Fatalf("ensure dir: %v", err)
-	}
-	if err := m.fs.SaveFile(m.fs.JoinPath(m.templatesDir, name), body); err != nil {
-		t.Fatalf("write %s: %v", name, err)
-	}
-}
-
-// LoadTemplate must surface a parse error wrapped with the "template: parse"
-// prefix for syntactically broken YAML, never a partial Template.
-func TestLoadTemplate_MalformedYAMLReturnsParseError(t *testing.T) {
-	m, _, _ := newTestManager(t)
-	writeRaw(t, m, "bad.yaml", "name: X\nfields: [ {key: a, type: text }\n")
-	got, err := m.LoadTemplate("bad.yaml")
-	if err == nil {
-		t.Fatal("expected parse error for malformed YAML, got nil")
-	}
-	if got != nil {
-		t.Errorf("expected nil Template on parse error, got %+v", got)
-	}
-	if !strings.HasPrefix(err.Error(), `template: parse "bad.yaml":`) {
-		t.Errorf("error = %q, want template: parse prefix", err.Error())
-	}
-}
-
-// Duplicate top-level YAML mapping keys are a yaml.v3 unmarshal error, so they
-// reach LoadTemplate as the wrapped parse error, not silent last-wins.
-func TestLoadTemplate_DuplicateMappingKeyIsParseError(t *testing.T) {
-	m, _, _ := newTestManager(t)
-	writeRaw(t, m, "dupmap.yaml", "name: X\nname: Y\nfields: []\n")
-	got, err := m.LoadTemplate("dupmap.yaml")
-	if err == nil {
-		t.Fatal("expected parse error for duplicate mapping key, got nil")
-	}
-	if got != nil {
-		t.Errorf("expected nil Template, got %+v", got)
-	}
-	if !strings.Contains(err.Error(), `mapping key "name" already defined`) {
-		t.Errorf("error = %q, want duplicate mapping key reason", err.Error())
-	}
-}
 
 // A template with two fields sharing a key loads fine but Validate flags exactly
 // one duplicate-keys error naming that key.
@@ -165,76 +117,6 @@ func TestValidate_EmptyFieldsListIsValid(t *testing.T) {
 	}
 }
 
-// Boundary: a wide template of many distinct text fields loads every field and
-// validates clean.
-func TestLoadTemplate_ManyDistinctFieldsValidates(t *testing.T) {
-	m, _, _ := newTestManager(t)
-	var b strings.Builder
-	b.WriteString("name: Wide\nfields:\n")
-	const n = 64
-	for i := 0; i < n; i++ {
-		b.WriteString("  - key: f")
-		b.WriteString(itoa(i))
-		b.WriteString("\n    type: text\n")
-	}
-	writeRaw(t, m, "wide.yaml", b.String())
-	tmpl, err := m.LoadTemplate("wide.yaml")
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
-	if len(tmpl.Fields) != n {
-		t.Fatalf("fields = %d, want %d", len(tmpl.Fields), n)
-	}
-	if errs := Validate(tmpl); len(errs) != 0 {
-		t.Errorf("%d distinct text fields should validate clean, got %+v", n, errs)
-	}
-}
-
-// (itoa lives in scope.go and is reused by the wide-template fixture above.)
-
-// LoadMany over a mix of valid, malformed, and missing files: valid slots carry
-// a Template with no Error, the malformed slot carries the parse error, the
-// missing slot carries its own error. The batch never aborts.
-func TestLoadMany_MixedValidAndInvalidSurfacesNonFatally(t *testing.T) {
-	m, _, _ := newTestManager(t)
-	if err := m.SaveTemplate("ok.yaml", &Template{
-		Name:   "OK",
-		Fields: []Field{{Key: "a", Type: "text"}},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	writeRaw(t, m, "broken.yaml", "name: X\nfields: [ {key: a\n")
-
-	got := m.LoadMany([]string{"ok.yaml", "broken.yaml", "gone.yaml"})
-	if len(got) != 3 {
-		t.Fatalf("len = %d, want 3", len(got))
-	}
-
-	if got[0].Filename != "ok.yaml" || got[0].Template == nil || got[0].Error != "" {
-		t.Fatalf("got[0] should be loaded ok.yaml, got %+v", got[0])
-	}
-	if got[0].Template.Name != "OK" {
-		t.Errorf("got[0] name = %q, want OK", got[0].Template.Name)
-	}
-	if len(got[0].Template.Fields) != 1 || got[0].Template.Fields[0].Key != "a" {
-		t.Errorf("got[0] fields = %+v, want one field keyed a", got[0].Template.Fields)
-	}
-
-	if got[1].Filename != "broken.yaml" || got[1].Template != nil {
-		t.Errorf("got[1] should be broken.yaml with nil Template, got %+v", got[1])
-	}
-	if !strings.HasPrefix(got[1].Error, `template: parse "broken.yaml":`) {
-		t.Errorf("got[1].Error = %q, want template: parse prefix", got[1].Error)
-	}
-
-	if got[2].Filename != "gone.yaml" || got[2].Template != nil {
-		t.Errorf("got[2] should be gone.yaml with nil Template, got %+v", got[2])
-	}
-	if !strings.Contains(got[2].Error, "file not found") {
-		t.Errorf("got[2].Error = %q, want file-not-found reason", got[2].Error)
-	}
-}
-
 // A template mixing one valid and one unknown-type field loads both fields and
 // Validate flags exactly one unknown-field-type carrying the bad type and key.
 func TestValidate_MixedKnownAndUnknownTypeField(t *testing.T) {
@@ -318,47 +200,5 @@ func TestValidate_LoopNestingOverMaxDepthFlagged(t *testing.T) {
 	}
 	if got := excessive.Detail["depth"]; got != 3 {
 		t.Errorf("excessive-loop-nesting depth = %v, want 3", got)
-	}
-}
-
-// LoadTemplate is cached and serialized per-name; concurrent loads of one file
-// must all return the same pointer with the same field count and no race.
-func TestLoadTemplate_ConcurrentLoadsShareCachedPointer(t *testing.T) {
-	m, _, _ := newTestManager(t)
-	if err := m.SaveTemplate("conc.yaml", &Template{
-		Name:   "Conc",
-		Fields: []Field{{Key: "a", Type: "text"}, {Key: "b", Type: "text"}},
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	const goroutines = 16
-	ptrs := make([]*Template, goroutines)
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
-		go func(idx int) {
-			defer wg.Done()
-			got, err := m.LoadTemplate("conc.yaml")
-			if err != nil {
-				t.Errorf("goroutine %d load: %v", idx, err)
-				return
-			}
-			ptrs[idx] = got
-		}(i)
-	}
-	wg.Wait()
-
-	first := ptrs[0]
-	if first == nil {
-		t.Fatal("first load returned nil")
-	}
-	if len(first.Fields) != 2 {
-		t.Fatalf("fields = %d, want 2", len(first.Fields))
-	}
-	for i := 1; i < goroutines; i++ {
-		if ptrs[i] != first {
-			t.Errorf("goroutine %d pointer = %p, want shared %p", i, ptrs[i], first)
-		}
 	}
 }

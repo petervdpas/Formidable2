@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/petervdpas/formidable2/internal/modules/storage"
@@ -430,5 +431,140 @@ func TestRescanTemplate_RootUnset(t *testing.T) {
 	// No SetRoot.
 	if err := h.RescanTemplate(context.Background(), "doc.yaml"); err == nil {
 		t.Fatal("expected error when root is unset")
+	}
+}
+
+// TestRescanTemplate_UnknownTemplate: force-reindexing a template that was
+// never on disk and never indexed collapses to OnTemplateDeleted, which is a
+// no-op delete: no error, no template row, no rev bump.
+func TestRescanTemplate_UnknownTemplate(t *testing.T) {
+	f := newRescanFixture(t)
+	// Seed one real template so the index is non-empty and we can prove the
+	// unknown reindex leaves it untouched.
+	f.addTemplateOnDisk(t, "real", "name: Real\n", 1)
+	f.addFormOnDisk(t, "real", "r.meta.json", "x", 10)
+	f.registerTemplate("real", nil, 1)
+	f.registerForm("real", "r.meta.json", map[string]any{}, 10)
+	must(t, f.hand.RescanAll(context.Background()))
+	revBefore, _ := f.mgr.Rev()
+
+	if err := f.hand.RescanTemplate(context.Background(), "ghost.yaml"); err != nil {
+		t.Fatalf("RescanTemplate on unknown template errored: %v", err)
+	}
+
+	// Reindexing a template that was never indexed deletes zero rows, so the
+	// ETag (rev) must not churn.
+	revAfter, _ := f.mgr.Rev()
+	if revAfter != revBefore {
+		t.Errorf("unknown reindex rev = %d, want %d (no-op delete must not bump)", revAfter, revBefore)
+	}
+	tpls, _ := f.mgr.ListTemplates()
+	if got := sortedTemplateFilenames(tpls); !equalStrings(got, []string{"real.yaml"}) {
+		t.Errorf("templates after unknown reindex = %v, want [real.yaml]", got)
+	}
+	if rows, _ := f.mgr.ListForms("ghost.yaml", QueryOpts{}); len(rows) != 0 {
+		t.Errorf("ghost template gained %d form rows", len(rows))
+	}
+}
+
+// TestRescanTemplate_MissingTemplateRemovesIndexedRows: a template that WAS
+// indexed but whose YAML is now gone on disk reindexes to a delete that
+// cascades its forms away.
+func TestRescanTemplate_MissingTemplateRemovesIndexedRows(t *testing.T) {
+	f := newRescanFixture(t)
+	f.addTemplateOnDisk(t, "doc", "name: Doc\n", 1)
+	f.addFormOnDisk(t, "doc", "a.meta.json", "x", 10)
+	f.registerTemplate("doc", []template.Field{{Key: "body", Type: "text"}}, 1)
+	f.registerForm("doc", "a.meta.json", map[string]any{"body": "alpha"}, 10)
+	must(t, f.hand.RescanAll(context.Background()))
+
+	// Prove the row was indexed before we delete the YAML.
+	if _, ok, _ := f.mgr.GetForm("doc.yaml", "a.meta.json"); !ok {
+		t.Fatal("precondition: form should be indexed before YAML removal")
+	}
+
+	// YAML vanishes, but the storage subdir and indexed rows remain.
+	if err := os.Remove(filepath.Join(f.root, "templates", "doc.yaml")); err != nil {
+		t.Fatal(err)
+	}
+	must(t, f.hand.RescanTemplate(context.Background(), "doc.yaml"))
+
+	if _, ok, _ := f.mgr.GetForm("doc.yaml", "a.meta.json"); ok {
+		t.Error("form row survived a missing-template reindex (no cascade)")
+	}
+	if rows, _ := f.mgr.ListForms("doc.yaml", QueryOpts{}); len(rows) != 0 {
+		t.Errorf("forms after missing-template reindex = %d, want 0", len(rows))
+	}
+	tpls, _ := f.mgr.ListTemplates()
+	if got := sortedTemplateFilenames(tpls); len(got) != 0 {
+		t.Errorf("templates after missing-template reindex = %v, want []", got)
+	}
+}
+
+// TestConcurrentReads_DuringRescan exercises the read API from several
+// goroutines while a force-reindex runs, under -race. SQLite serializes the
+// access; the assertion is that every read returns a coherent, error-free
+// result and that the final state is exactly the reindexed collection.
+func TestConcurrentReads_DuringRescan(t *testing.T) {
+	f := newRescanFixture(t)
+	f.addTemplateOnDisk(t, "doc", "name: Doc\n", 1)
+	f.registerTemplate("doc", []template.Field{{Key: "body", Type: "text"}}, 1)
+	for _, name := range []string{"a", "b", "c", "d"} {
+		f.addFormOnDisk(t, "doc", name+".meta.json", "x", 10)
+		f.registerForm("doc", name+".meta.json", map[string]any{"body": name}, 10)
+	}
+	must(t, f.hand.RescanAll(context.Background()))
+
+	var wg sync.WaitGroup
+	errc := make(chan error, 64)
+
+	// Writer: force-reindex repeatedly.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 20; i++ {
+			if err := f.hand.RescanTemplate(context.Background(), "doc.yaml"); err != nil {
+				errc <- err
+				return
+			}
+		}
+	}()
+
+	// Readers: hammer the read paths.
+	for r := 0; r < 4; r++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 50; i++ {
+				if _, err := f.mgr.ListForms("doc.yaml", QueryOpts{}); err != nil {
+					errc <- err
+					return
+				}
+				if _, err := f.mgr.ListTemplates(); err != nil {
+					errc <- err
+					return
+				}
+				if _, err := f.mgr.SearchForms("doc.yaml", "a", QueryOpts{}); err != nil {
+					errc <- err
+					return
+				}
+				if _, _, err := f.mgr.GetForm("doc.yaml", "a.meta.json"); err != nil {
+					errc <- err
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errc)
+	for err := range errc {
+		t.Fatalf("concurrent read/reindex errored: %v", err)
+	}
+
+	// Final state: exactly the four reindexed forms remain.
+	rows, _ := f.mgr.ListForms("doc.yaml", QueryOpts{})
+	if got := sortedFormFilenames(rows); !equalStrings(got, []string{"a.meta.json", "b.meta.json", "c.meta.json", "d.meta.json"}) {
+		t.Errorf("final forms = %v, want the four seeded items", got)
 	}
 }

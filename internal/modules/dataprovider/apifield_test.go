@@ -214,3 +214,126 @@ func TestFetchAPIFieldRow_EmptyColumnsReturnsEmptyRow(t *testing.T) {
 		t.Errorf("empty columns should produce empty row; got %v", row)
 	}
 }
+
+// API-field error taxonomy: each failure mode must wrap its exact sentinel
+// so the Wails layer can errors.Is and map to a stable code.
+
+func TestFetchAPIFieldRow_TemplateNotFound_ExactSentinel(t *testing.T) {
+	m, _, _ := newAPIFieldWorld()
+	_, err := m.FetchAPIFieldRow(context.Background(),
+		"ghost.yaml", "g-1", []string{"name"})
+	if !errors.Is(err, ErrAPIFieldTemplateNotFound) {
+		t.Fatalf("err = %v; want ErrAPIFieldTemplateNotFound", err)
+	}
+	if errors.Is(err, ErrAPIFieldCollectionDisabled) ||
+		errors.Is(err, ErrAPIFieldGuidNotFound) ||
+		errors.Is(err, ErrAPIFieldStorageMissing) {
+		t.Errorf("err = %v matched a wrong sentinel", err)
+	}
+}
+
+func TestFetchAPIFieldRow_GuidFieldEmptyDisablesCollection(t *testing.T) {
+	// EnableCollection=true but GuidField=="" must NOT enable collection,
+	// so the call surfaces ErrAPIFieldCollectionDisabled.
+	m, idx, _ := newAPIFieldWorld()
+	idx.templates = append(idx.templates, index.TemplateRow{
+		Filename:         "people.yaml",
+		EnableCollection: true,
+		GuidField:        "",
+	})
+	_, err := m.FetchAPIFieldRow(context.Background(),
+		"people.yaml", "g-1", []string{"name"})
+	if !errors.Is(err, ErrAPIFieldCollectionDisabled) {
+		t.Fatalf("err = %v; want ErrAPIFieldCollectionDisabled", err)
+	}
+	if errors.Is(err, ErrAPIFieldTemplateNotFound) {
+		t.Errorf("err = %v matched TemplateNotFound; template exists", err)
+	}
+}
+
+func TestFetchAPIFieldRow_StorageMissing_ExactSentinel(t *testing.T) {
+	// Collection enabled and the guid resolves to a datafile, but no
+	// storage adapter is wired (sto==nil): must return the bare
+	// ErrAPIFieldStorageMissing sentinel.
+	idx := &fakeIndex{forms: map[string][]index.FormRow{}}
+	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
+	m := NewManager(idx, &fakeRenderer{}, nil)
+
+	_, err := m.FetchAPIFieldRow(context.Background(),
+		"people.yaml", "g-1", []string{"name"})
+	if !errors.Is(err, ErrAPIFieldStorageMissing) {
+		t.Fatalf("err = %v; want ErrAPIFieldStorageMissing", err)
+	}
+	if errors.Is(err, ErrAPIFieldGuidNotFound) {
+		t.Errorf("err = %v matched GuidNotFound; guid did resolve", err)
+	}
+}
+
+func TestFetchAPIFieldRow_StaleIndexFormGone_MapsToGuidNotFound(t *testing.T) {
+	// The index knows the guid but storage.LoadForm returns nil (file
+	// gone from disk). The facade folds this into ErrAPIFieldGuidNotFound
+	// rather than inventing a fifth code.
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
+	// Deliberately do NOT stamp the form into sto.forms.
+	_ = sto
+
+	_, err := m.FetchAPIFieldRow(context.Background(),
+		"people.yaml", "g-1", []string{"name"})
+	if !errors.Is(err, ErrAPIFieldGuidNotFound) {
+		t.Fatalf("err = %v; want ErrAPIFieldGuidNotFound", err)
+	}
+	if errors.Is(err, ErrAPIFieldStorageMissing) {
+		t.Errorf("err = %v matched StorageMissing; storage was wired", err)
+	}
+}
+
+// FetchAPIFieldRow must propagate the StorageMissing sentinel rather than
+// returning a nil-but-error-free result when no storage adapter is wired.
+func TestFetchAPIFieldRow_PropagatesStorageMissing(t *testing.T) {
+	idx := &fakeIndex{forms: map[string][]index.FormRow{}}
+	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
+	m := NewManager(idx, &fakeRenderer{}, nil)
+
+	row, err := m.FetchAPIFieldRow(context.Background(),
+		"people.yaml", "g-1", []string{"name"})
+	if !errors.Is(err, ErrAPIFieldStorageMissing) {
+		t.Fatalf("err = %v; want ErrAPIFieldStorageMissing", err)
+	}
+	if row != nil {
+		t.Errorf("row = %+v, want nil on error", row)
+	}
+}
+
+// Concurrent reads of the same row must be race-free and each return the
+// exact same projected value. Guards the read facade under -race.
+func TestFetchAPIFieldRow_ConcurrentReadsStable(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
+	sto.forms["people.yaml/alice.meta.json"] = &storage.Form{
+		Data: map[string]any{"name": "Alice", "age": 42},
+	}
+
+	const n = 32
+	errCh := make(chan error, n)
+	for i := 0; i < n; i++ {
+		go func() {
+			row, err := m.FetchAPIFieldRow(context.Background(),
+				"people.yaml", "g-1", []string{"name", "age"})
+			if err != nil {
+				errCh <- err
+				return
+			}
+			if row["name"] != "Alice" || row["age"] != 42 {
+				errCh <- errors.New("unexpected projected value")
+				return
+			}
+			errCh <- nil
+		}()
+	}
+	for i := 0; i < n; i++ {
+		if err := <-errCh; err != nil {
+			t.Fatalf("concurrent read %d: %v", i, err)
+		}
+	}
+}

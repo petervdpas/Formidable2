@@ -221,3 +221,67 @@ func TestPrepare_NilTemplateErrors(t *testing.T) {
 		t.Fatal("want error for missing template")
 	}
 }
+
+// facetTpl is a template carrying a single facet "tier" so Prepare accepts
+// a facet source.
+func facetTpl() *template.Template {
+	return &template.Template{
+		Facets: []template.Facet{{Key: "tier"}},
+		Fields: []template.Field{{Key: "team", Type: "text"}},
+	}
+}
+
+func TestPrepare_FacetUnsetVsSetEmptyBothBlank(t *testing.T) {
+	// Boundary: a form with no facet selection and a form with the facet key
+	// present but empty both flatten to a blank facet cell.
+	l := fakeLoader{
+		tpl: facetTpl(),
+		forms: []FormData{
+			{Filename: "unset.json", Data: map[string]any{"team": "A"}, Facets: map[string]string{}},
+			{Filename: "empty.json", Data: map[string]any{"team": "B"}, Facets: map[string]string{"tier": ""}},
+			{Filename: "set.json", Data: map[string]any{"team": "C"}, Facets: map[string]string{"tier": "gold"}},
+		},
+	}
+	spec := Spec{Template: "t.yaml", Columns: cols(facet("tier"))}
+	m, err := Prepare(spec, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, _ := m.Execute(spec)
+	if res.Count != 3 {
+		t.Fatalf("want 3 rows, got %d", res.Count)
+	}
+	blanks := 0
+	for _, r := range res.Rows {
+		if r[0].Text == "" {
+			blanks++
+		}
+	}
+	if blanks != 2 {
+		t.Fatalf("unset and set-empty should both be blank: want 2 blanks, got %d", blanks)
+	}
+	// Filtering for blank facet (eq "") catches exactly the two boundary rows.
+	fres, _ := m.Execute(Spec{
+		Columns: cols(facet("tier")),
+		Filters: []Filter{{Source: facet("tier"), Op: "eq", Value: ""}},
+	})
+	if fres.Count != 2 {
+		t.Fatalf("eq blank facet should match unset+empty, want 2, got %d", fres.Count)
+	}
+}
+
+func TestPrepare_UnknownFacetErrors(t *testing.T) {
+	l := fakeLoader{tpl: facetTpl()}
+	_, err := Prepare(Spec{Template: "t.yaml", Columns: cols(facet("ghost"))}, l)
+	if err == nil || err.Error() != `query: unknown facet "ghost"` {
+		t.Fatalf("want unknown facet error, got %v", err)
+	}
+}
+
+func TestPrepare_UnknownFieldErrors(t *testing.T) {
+	l := fakeLoader{tpl: appsTpl()}
+	_, err := Prepare(Spec{Template: "t.yaml", Columns: cols(scalar("nope"))}, l)
+	if err == nil || err.Error() != `query: unknown field "nope"` {
+		t.Fatalf("want unknown field error, got %v", err)
+	}
+}

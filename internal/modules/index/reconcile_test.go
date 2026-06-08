@@ -475,3 +475,19 @@ func must(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
+// TestEmptyBatchReconcile_NoRevBump pins the isEmpty short-circuit: a reconcile
+// with no upserts and no deletes must not begin a transaction or bump rev. This
+// is the contract the ghost-delete path (see suspectedBugs) fails to honor,
+// because a delete of a nonexistent template is non-empty by slice length even
+// though it changes zero rows.
+func TestEmptyBatchReconcile_NoRevBump(t *testing.T) {
+	m := newEmptyManager(t)
+	if rev, _ := m.Rev(); rev != 0 {
+		t.Fatalf("precondition rev = %d, want 0", rev)
+	}
+	must(t, Reconcile(m.DB(), ReconcileBatch{}))
+	if rev, _ := m.Rev(); rev != 0 {
+		t.Errorf("empty-batch reconcile bumped rev to %d, want 0", rev)
+	}
+}

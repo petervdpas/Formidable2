@@ -125,3 +125,16 @@ func TestFormsWithValueOp(t *testing.T) {
 		t.Error("invalid op should error")
 	}
 }
+
+// TestEmptyIndex_FormsWithValueEmpty: scalar-value lookup over an empty index
+// returns no filenames.
+func TestEmptyIndex_FormsWithValueEmpty(t *testing.T) {
+	m := newEmptyManager(t)
+	got, err := m.FormsWithValue("basic.yaml", "status", "open")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Errorf("FormsWithValue on empty index = %v, want empty", got)
+	}
+}

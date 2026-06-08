@@ -1,6 +1,7 @@
 package sfr
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -156,5 +157,128 @@ func TestDeleteFromBase_MissingIsNotAnError(t *testing.T) {
 	m, _, _ := newTestManager(t)
 	if err := m.DeleteFromBase("d", "missing", Options{}); err != nil {
 		t.Errorf("delete missing should be no-op: %v", err)
+	}
+}
+
+// fakeFS implements the sfr fs interface with per-method controllable
+// errors so each failure branch can be exercised in isolation.
+type fakeFS struct {
+	exists     bool
+	loadOut    string
+	loadErr    error
+	saveErr    error
+	deleteErr  error
+	ensureErr  error
+	listOut    []string
+	listErr    error
+	deleteSeen string
+}
+
+func (f *fakeFS) ResolvePath(segments ...string) string {
+	return filepath.Join(append([]string{"/root"}, segments...)...)
+}
+func (f *fakeFS) EnsureDirectory(string) error       { return f.ensureErr }
+func (f *fakeFS) FileExists(string) bool             { return f.exists }
+func (f *fakeFS) LoadFile(string) (string, error)    { return f.loadOut, f.loadErr }
+func (f *fakeFS) SaveFile(string, string) error      { return f.saveErr }
+func (f *fakeFS) DeleteFile(p string) error          { f.deleteSeen = p; return f.deleteErr }
+func (f *fakeFS) ListFiles(string) ([]string, error) { return f.listOut, f.listErr }
+
+func TestStoragePath_RejectsEmptyBase(t *testing.T) {
+	m := NewManager(&fakeFS{}, nil)
+	r := m.SaveFromBase("dir", "", "x", Options{})
+	if r.Success || r.Error == "" {
+		t.Errorf("empty base should fail, got %+v", r)
+	}
+}
+
+func TestStoragePath_RejectsPathSeparators(t *testing.T) {
+	m := NewManager(&fakeFS{}, nil)
+	for _, base := range []string{"a/b", `a\b`} {
+		r := m.SaveFromBase("dir", base, "x", Options{})
+		if r.Success || r.Error == "" {
+			t.Errorf("base %q with separator should fail, got %+v", base, r)
+		}
+	}
+}
+
+func TestStoragePath_RejectsDotDotTraversal(t *testing.T) {
+	m := NewManager(&fakeFS{}, nil)
+	for _, base := range []string{"..", ".", "x..y"} {
+		r := m.SaveFromBase("dir", base, "x", Options{})
+		if r.Success || r.Error == "" {
+			t.Errorf("base %q should be rejected as traversal, got %+v", base, r)
+		}
+	}
+}
+
+func TestStoragePath_EnsureDirectoryError(t *testing.T) {
+	m := NewManager(&fakeFS{ensureErr: errors.New("mkdir denied")}, nil)
+	r := m.SaveFromBase("dir", "ok", "x", Options{})
+	if r.Success || r.Error == "" {
+		t.Errorf("EnsureDirectory failure should surface, got %+v", r)
+	}
+}
+
+func TestSaveFromBase_SaveFileError(t *testing.T) {
+	m := NewManager(&fakeFS{saveErr: errors.New("disk full")}, nil)
+	r := m.SaveFromBase("dir", "ok", map[string]any{"a": 1}, Options{})
+	if r.Success || r.Error == "" {
+		t.Errorf("SaveFile failure should surface, got %+v", r)
+	}
+}
+
+func TestSaveFromBase_TextModeNonStringDataErrors(t *testing.T) {
+	no := false
+	m := NewManager(&fakeFS{}, nil)
+	r := m.SaveFromBase("dir", "ok", 42, Options{JSON: &no}) // text mode + int
+	if r.Success || r.Error == "" {
+		t.Errorf("text mode with non-string data should fail, got %+v", r)
+	}
+}
+
+func TestLoadFromBase_StoragePathError(t *testing.T) {
+	m := NewManager(&fakeFS{}, nil)
+	if _, err := m.LoadFromBase("dir", "", Options{}); err == nil {
+		t.Error("empty base should error from LoadFromBase")
+	}
+}
+
+func TestLoadFromBase_FileNotFound(t *testing.T) {
+	m := NewManager(&fakeFS{exists: false}, nil)
+	_, err := m.LoadFromBase("dir", "ok", Options{})
+	if err == nil {
+		t.Error("missing file should error")
+	}
+}
+
+func TestLoadFromBase_LoadFileError(t *testing.T) {
+	// File reports as present but the read fails: the LoadFile error path
+	// the godog suite never reaches (it only covers file-not-found).
+	m := NewManager(&fakeFS{exists: true, loadErr: errors.New("io boom")}, nil)
+	_, err := m.LoadFromBase("dir", "ok", Options{})
+	if err == nil {
+		t.Error("LoadFile failure should propagate")
+	}
+}
+
+func TestListFiles_ListError(t *testing.T) {
+	m := NewManager(&fakeFS{listErr: errors.New("list boom")}, nil)
+	if _, err := m.ListFiles("dir", ""); err == nil {
+		t.Error("ListFiles failure should propagate")
+	}
+}
+
+func TestDeleteFromBase_StoragePathError(t *testing.T) {
+	m := NewManager(&fakeFS{}, nil)
+	if err := m.DeleteFromBase("dir", "", Options{}); err == nil {
+		t.Error("empty base should error from DeleteFromBase")
+	}
+}
+
+func TestDeleteFromBase_DeleteFileError(t *testing.T) {
+	m := NewManager(&fakeFS{deleteErr: errors.New("perm denied")}, nil)
+	if err := m.DeleteFromBase("dir", "ok", Options{}); err == nil {
+		t.Error("DeleteFile failure should propagate")
 	}
 }

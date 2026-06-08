@@ -224,3 +224,99 @@ func sortedCopy(in []string) []string {
 	sort.Strings(out)
 	return out
 }
+
+// TestEmptyIndex_ListTemplatesEmpty: a fresh index has zero template rows.
+func TestEmptyIndex_ListTemplatesEmpty(t *testing.T) {
+	m := newEmptyManager(t)
+	rows, err := m.ListTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("ListTemplates on empty index = %d rows, want 0", len(rows))
+	}
+}
+
+// TestEmptyIndex_ListFormsEmpty: ListForms over an empty index returns no rows.
+func TestEmptyIndex_ListFormsEmpty(t *testing.T) {
+	m := newEmptyManager(t)
+	rows, err := m.ListForms("basic.yaml", QueryOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("ListForms on empty index = %d rows, want 0", len(rows))
+	}
+}
+
+// TestEmptyIndex_ListByTagsEmpty: tag query over an empty index returns no rows.
+func TestEmptyIndex_ListByTagsEmpty(t *testing.T) {
+	m := newEmptyManager(t)
+	rows, err := m.ListByTags([]string{"anything"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("ListByTags on empty index = %d rows, want 0", len(rows))
+	}
+}
+
+// TestEmptyIndex_ListByTagsNilNoQuery: nil tag list short-circuits to nil, nil.
+func TestEmptyIndex_ListByTagsNilNoQuery(t *testing.T) {
+	m := newEmptyManager(t)
+	rows, err := m.ListByTags(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows != nil {
+		t.Errorf("ListByTags(nil) = %v, want nil", rows)
+	}
+}
+
+// TestEmptyIndex_GetFormNotFound: GetForm on an empty index reports absent,
+// not error.
+func TestEmptyIndex_GetFormNotFound(t *testing.T) {
+	m := newEmptyManager(t)
+	row, ok, err := m.GetForm("basic.yaml", "x.meta.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok || row != nil {
+		t.Errorf("GetForm on empty index = (%v, %v), want (nil, false)", row, ok)
+	}
+}
+
+// TestEmptyIndex_RevZero: fresh index revision is 0.
+func TestEmptyIndex_RevZero(t *testing.T) {
+	m := newEmptyManager(t)
+	rev, err := m.Rev()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rev != 0 {
+		t.Errorf("fresh Rev = %d, want 0", rev)
+	}
+}
+
+// TestEmptyIndex_ListFormsPagingAndOrder: limit/offset/order shaping over a
+// zero-row index returns no rows for every variant, including an unknown
+// OrderBy that must fall back rather than fail.
+func TestEmptyIndex_ListFormsPagingAndOrder(t *testing.T) {
+	m := newEmptyManager(t)
+	for _, opts := range []QueryOpts{
+		{Limit: 10},
+		{Offset: 5},
+		{Limit: 3, Offset: 2},
+		{OrderBy: "title_asc"},
+		{OrderBy: "bogus_order_value"},
+		{Tags: []string{"a", "b"}},
+	} {
+		rows, err := m.ListForms("basic.yaml", opts)
+		if err != nil {
+			t.Fatalf("ListForms(%+v) errored: %v", opts, err)
+		}
+		if len(rows) != 0 {
+			t.Errorf("ListForms(%+v) = %d rows, want 0", opts, len(rows))
+		}
+	}
+}

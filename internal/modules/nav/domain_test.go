@@ -37,15 +37,19 @@ func (f *fakeForms) LoadForm(t, d string) *storage.Form {
 }
 
 type fakeConfig struct {
-	mu      sync.Mutex
-	updates []map[string]any
-	selTpl  string
-	selData string
+	mu        sync.Mutex
+	updates   []map[string]any
+	selTpl    string
+	selData   string
+	updateErr error
 }
 
 func (c *fakeConfig) UpdateUserConfig(p map[string]any) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.updateErr != nil {
+		return c.updateErr
+	}
 	c.updates = append(c.updates, p)
 	return nil
 }
@@ -177,6 +181,34 @@ func TestManager_NavigateToFormidable_TemplateLoadError(t *testing.T) {
 	}
 	if len(cfg.updates) != 0 {
 		t.Errorf("config should not be touched")
+	}
+}
+
+func TestManager_NavigateToFormidable_UpdateConfigError(t *testing.T) {
+	tpls := &fakeTemplates{have: map[string]*template.Template{
+		"basic.yaml": {Filename: "basic.yaml"},
+	}}
+	forms := &fakeForms{have: map[string]map[string]*storage.Form{
+		"basic.yaml": {"sane.meta.json": {}},
+	}}
+	cfg := &fakeConfig{updateErr: errors.New("config locked")}
+	emit := &captureEmitter{}
+	hist := &captureHistory{}
+	m := NewManager(tpls, forms, cfg, emit, hist, nil)
+
+	res, _ := m.NavigateToFormidable("formidable://basic.yaml:sane.meta.json")
+	if res.Success {
+		t.Error("UpdateUserConfig failure should fail the navigation")
+	}
+	if res.Error == "" {
+		t.Error("expected an error message on config update failure")
+	}
+	// Side effects after the config write must not happen on failure.
+	if len(emit.events) != 0 {
+		t.Errorf("no change event should fire when config write fails; got %v", emit.events)
+	}
+	if len(hist.pushed) != 0 {
+		t.Errorf("history must not be pushed when config write fails; got %v", hist.pushed)
 	}
 }
 

@@ -1,6 +1,7 @@
 package csv
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -255,5 +256,157 @@ func TestBuildExportRows_TableSubkeyOptionAsBareString(t *testing.T) {
 	got := BuildExportRows(plan, entries, fields)
 	if got[1][0] != "John" || got[1][1] != "Doe" {
 		t.Errorf("bare-string options not resolved: %v", got)
+	}
+}
+
+// stubForms is a controllable formsSource: ListForms can fail, and
+// LoadFormData returns whatever data map is keyed by datafile (nil for a
+// miss, exercising the skip/blank branches).
+type stubForms struct {
+	files   []string
+	listErr error
+	data    map[string]map[string]any
+}
+
+func (s stubForms) ListForms(string) ([]string, error) { return s.files, s.listErr }
+func (s stubForms) LoadFormData(_, datafile string) map[string]any {
+	if s.data == nil {
+		return nil
+	}
+	return s.data[datafile]
+}
+
+func TestExport_NoFormsDependency(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	got := m.Export("t.yaml", ExportPlan{})
+	if got.Error == "" {
+		t.Error("Export without forms dep should set Error")
+	}
+}
+
+func TestExport_TemplateDepError(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{})
+	m.SetTemplate(fakeTemplateSource{err: errors.New("no schema")})
+	got := m.Export("t.yaml", ExportPlan{})
+	if got.Error != "no schema" {
+		t.Errorf("Export Error = %q, want propagated template error", got.Error)
+	}
+}
+
+func TestExport_NilTemplateDependency(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{})
+	// No SetTemplate: fieldsFor must report the missing dependency.
+	got := m.Export("t.yaml", ExportPlan{})
+	if got.Error == "" {
+		t.Error("Export without template dep should set Error")
+	}
+}
+
+func TestExport_ListFormsError(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{listErr: errors.New("list boom")})
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	got := m.Export("t.yaml", ExportPlan{})
+	if got.Error != "list boom" {
+		t.Errorf("Export Error = %q, want list boom", got.Error)
+	}
+}
+
+func TestExport_SkipsNilFormData(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{
+		files: []string{"a.meta.json", "b.meta.json"},
+		data:  map[string]map[string]any{"a.meta.json": {"name": "Alice"}}, // b is a miss -> nil
+	})
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	plan := ExportPlan{Columns: []ExportColumn{{Header: "Name", SourceKeys: []string{"name"}}}}
+	got := m.Export("t.yaml", plan)
+	if got.Error != "" {
+		t.Fatalf("unexpected error: %q", got.Error)
+	}
+	if got.Count != 1 {
+		t.Errorf("Count = %d, want 1 (nil form data skipped)", got.Count)
+	}
+	if len(got.Rows) != 2 { // header + one data row
+		t.Errorf("Rows = %v, want header + 1", got.Rows)
+	}
+}
+
+func TestPreviewExport_NoFormsDependency(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	got := m.PreviewExport("t.yaml", ExportPlan{})
+	if got.Error == "" {
+		t.Error("PreviewExport without forms dep should set Error")
+	}
+}
+
+func TestPreviewExport_TemplateDepError(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{})
+	m.SetTemplate(fakeTemplateSource{err: errors.New("no schema")})
+	got := m.PreviewExport("t.yaml", ExportPlan{})
+	if got.Error != "no schema" {
+		t.Errorf("PreviewExport Error = %q, want propagated", got.Error)
+	}
+}
+
+func TestPreviewExport_ListFormsError(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{listErr: errors.New("list boom")})
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	got := m.PreviewExport("t.yaml", ExportPlan{})
+	if got.Error != "list boom" {
+		t.Errorf("PreviewExport Error = %q, want list boom", got.Error)
+	}
+}
+
+func TestPreviewExport_NoEntriesReturnsBlankCells(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{files: nil})
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	plan := ExportPlan{Columns: []ExportColumn{{Header: "A"}, {Header: "B"}}}
+	got := m.PreviewExport("t.yaml", plan)
+	if got.Error != "" {
+		t.Fatalf("unexpected error: %q", got.Error)
+	}
+	if len(got.Cells) != 2 {
+		t.Errorf("Cells = %v, want 2 blank cells", got.Cells)
+	}
+	for i, c := range got.Cells {
+		if c != "" {
+			t.Errorf("Cells[%d] = %q, want blank", i, c)
+		}
+	}
+}
+
+func TestPreviewExport_NilFirstFormReturnsBlankCells(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{files: []string{"a.meta.json"}, data: nil}) // LoadFormData -> nil
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	plan := ExportPlan{Columns: []ExportColumn{{Header: "A"}}}
+	got := m.PreviewExport("t.yaml", plan)
+	if got.Error != "" || len(got.Cells) != 1 || got.Cells[0] != "" {
+		t.Errorf("expected one blank cell, got %+v", got)
+	}
+}
+
+func TestPreviewExport_ReturnsSampleRow(t *testing.T) {
+	m := NewManager(nil, nil)
+	m.SetForms(stubForms{
+		files: []string{"a.meta.json"},
+		data:  map[string]map[string]any{"a.meta.json": {"name": "Alice"}},
+	})
+	m.SetTemplate(fakeTemplateSource{fields: []FieldSpec{{Key: "name", Type: "text"}}})
+	plan := ExportPlan{Columns: []ExportColumn{{Header: "Name", SourceKeys: []string{"name"}}}}
+	got := m.PreviewExport("t.yaml", plan)
+	if got.Error != "" {
+		t.Fatalf("unexpected error: %q", got.Error)
+	}
+	if len(got.Cells) != 1 || got.Cells[0] != "Alice" {
+		t.Errorf("Cells = %v, want [Alice]", got.Cells)
 	}
 }

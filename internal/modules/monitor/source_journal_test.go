@@ -1,6 +1,7 @@
 package monitor
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,15 +33,15 @@ func writeJournalLog(t *testing.T, root, body string) {
 
 func TestTemplateFromPath(t *testing.T) {
 	cases := map[string]string{
-		"templates/recepten.yaml":              "recepten",
-		"templates/people.yaml":                "people",
-		"storage/recepten/brood.meta.json":     "recepten",
-		"storage/recepten/images/photo.png":    "recepten",
-		"templates":                            "",
-		"templates/":                           "",
-		"storage":                              "",
-		"random.txt":                           "",
-		"":                                     "",
+		"templates/recepten.yaml":           "recepten",
+		"templates/people.yaml":             "people",
+		"storage/recepten/brood.meta.json":  "recepten",
+		"storage/recepten/images/photo.png": "recepten",
+		"templates":                         "",
+		"templates/":                        "",
+		"storage":                           "",
+		"random.txt":                        "",
+		"":                                  "",
 	}
 	for in, want := range cases {
 		if got := templateFromPath(in); got != want {
@@ -131,6 +132,20 @@ func TestJournalSource_NilDepsAreSafe(t *testing.T) {
 	// Source identity still works.
 	if src.Name() != "journal" {
 		t.Errorf("Name() = %q", src.Name())
+	}
+}
+
+// errFS reports the log as present but fails the read, exercising the
+// LoadFile-error branch a real filesystem rarely reaches.
+type errFS struct{ loadErr error }
+
+func (e errFS) FileExists(string) bool          { return true }
+func (e errFS) LoadFile(string) (string, error) { return "", e.loadErr }
+
+func TestJournalSource_LoadErrorReturnsNoEvents(t *testing.T) {
+	src := NewJournalSource(&fakeCtx{folder: "/ctx"}, errFS{loadErr: errors.New("read boom")})
+	if got := src.Events(time.Time{}, time.Time{}); got != nil {
+		t.Errorf("LoadFile failure should yield nil events, got %v", got)
 	}
 }
 

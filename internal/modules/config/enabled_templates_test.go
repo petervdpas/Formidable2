@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -709,5 +710,159 @@ func TestListEnabledTemplates_ListerErrorBubbles(t *testing.T) {
 	_, err := m.ListEnabledTemplates()
 	if err == nil || !strings.Contains(err.Error(), "io kaput") {
 		t.Errorf("expected lister error to bubble, got %v", err)
+	}
+}
+
+// TestIsTemplateEnabled_MalformedConfigReturnsFalse asserts the tolerant
+// read path: a load failure means "nothing is enabled" rather than a panic
+// or stale truth.
+func TestIsTemplateEnabled_MalformedConfigReturnsFalse(t *testing.T) {
+	m, _, root := newTestManager(t)
+	withEnabled(t, m, "a.yaml")
+	if !m.IsTemplateEnabled("a.yaml") {
+		t.Fatal("a.yaml should be enabled before corruption")
+	}
+	if err := os.WriteFile(filepath.Join(root, "config", "user.json"), []byte("{bad"), 0o644); err != nil {
+		t.Fatalf("corrupt: %v", err)
+	}
+	m.InvalidateConfigCache()
+	if m.IsTemplateEnabled("a.yaml") {
+		t.Error("load failure must report no template as enabled")
+	}
+}
+
+// TestFilterEnabled_MalformedConfigPassesInputThrough documents the
+// asymmetry with IsTemplateEnabled: FilterEnabled returns its input
+// unchanged on a load error (fail-open) rather than scoping to none.
+func TestFilterEnabled_MalformedConfigPassesInputThrough(t *testing.T) {
+	m, _, root := newTestManager(t)
+	withEnabled(t, m, "a.yaml")
+	if err := os.WriteFile(filepath.Join(root, "config", "user.json"), []byte("{bad"), 0o644); err != nil {
+		t.Fatalf("corrupt: %v", err)
+	}
+	m.InvalidateConfigCache()
+	in := []string{"a.yaml", "b.yaml"}
+	got := m.FilterEnabled(in)
+	if len(got) != 2 || got[0] != "a.yaml" || got[1] != "b.yaml" {
+		t.Errorf("FilterEnabled on load error = %v, want input unchanged %v", got, in)
+	}
+}
+
+func TestSetTemplateEnabled_EmptyFilenameRejected(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	_, err := m.SetTemplateEnabled("", true)
+	if err == nil {
+		t.Fatal("expected error for empty filename")
+	}
+	if !strings.Contains(err.Error(), "empty filename") {
+		t.Errorf("err = %v, want empty-filename message", err)
+	}
+}
+
+// TestConcurrent_SetTemplateEnabledNoCorruption hammers SetTemplateEnabled with
+// concurrent toggles of N distinct filenames against an explicit-empty baseline.
+//
+// CURRENT BEHAVIOR (asserted here): SetTemplateEnabled reads cfg.EnabledTemplates
+// via LoadUserConfig BEFORE taking updateMu (enabled_templates.go:91), then hands
+// the rebuilt slice to UpdateUserConfig which takes updateMu only for the write.
+// The read-modify-write is therefore NOT atomic across the lock, so concurrent
+// togglers each start from a stale baseline and overwrite each other. The final
+// count collapses to roughly 1 instead of N. See suspectedBugs.
+//
+// What the structure still guarantees, and what this test pins: the file always
+// parses, every surviving entry is a valid known filename, there are no
+// duplicates and no torn (partial) entries, and at least one toggle survives.
+// We do NOT assert len == N because that would assert a fix that does not exist.
+func TestConcurrent_SetTemplateEnabledNoCorruption(t *testing.T) {
+	t.Parallel()
+	m, _, root := newTestManager(t)
+	withEnabled(t, m) // seed an explicit empty (curation mode on)
+
+	const N = 20
+	valid := map[string]bool{}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for i := range N {
+		name := "f" + string(rune('a'+i%26)) + ".yaml"
+		mu.Lock()
+		valid[name] = true
+		mu.Unlock()
+		wg.Go(func() {
+			if _, err := m.SetTemplateEnabled(name, true); err != nil {
+				t.Errorf("SetTemplateEnabled(%s): %v", name, err)
+			}
+		})
+	}
+	wg.Wait()
+
+	raw, err := os.ReadFile(filepath.Join(root, "config", "user.json"))
+	if err != nil {
+		t.Fatalf("read user.json: %v", err)
+	}
+	var disk Config
+	if err := json.Unmarshal(raw, &disk); err != nil {
+		t.Fatalf("on-disk profile is corrupt after concurrent toggles: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, e := range disk.EnabledTemplates {
+		if !valid[e] {
+			t.Errorf("unexpected entry %q in enabled_templates", e)
+		}
+		if seen[e] {
+			t.Errorf("duplicate entry %q in enabled_templates", e)
+		}
+		seen[e] = true
+	}
+	// Every distinct on-toggle must survive: the read-modify-write runs under
+	// updateMu, so concurrent toggles accumulate instead of overwriting.
+	if len(seen) != N {
+		t.Errorf("enabled count = %d, want %d (no lost updates)", len(seen), N)
+	}
+	if len(disk.EnabledTemplates) != N {
+		t.Errorf("on-disk slice len = %d, want %d", len(disk.EnabledTemplates), N)
+	}
+	// Cache and disk must agree on the final slice regardless of how many
+	// updates were lost.
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if len(cfg.EnabledTemplates) != len(disk.EnabledTemplates) {
+		t.Errorf("cache/disk diverge: cache len=%d disk len=%d", len(cfg.EnabledTemplates), len(disk.EnabledTemplates))
+	}
+}
+
+// TestSetTemplateEnabled_SequentialAccumulatesAll proves the lost updates in the
+// concurrent test above are purely a concurrency artifact, not a logic error in
+// the toggle: run serially, every distinct on-toggle accumulates so the final
+// slice holds all N names in insertion order.
+func TestSetTemplateEnabled_SequentialAccumulatesAll(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	withEnabled(t, m)
+
+	const N = 5
+	want := make([]string, N)
+	for i := range N {
+		name := "s" + string(rune('a'+i)) + ".yaml"
+		want[i] = name
+		got, err := m.SetTemplateEnabled(name, true)
+		if err != nil {
+			t.Fatalf("SetTemplateEnabled(%s): %v", name, err)
+		}
+		if len(got) != i+1 || got[i] != name {
+			t.Fatalf("after adding %s: got %v, want %d entries ending in %s", name, got, i+1, name)
+		}
+	}
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if len(cfg.EnabledTemplates) != N {
+		t.Fatalf("final count = %d, want %d (%v)", len(cfg.EnabledTemplates), N, cfg.EnabledTemplates)
+	}
+	for i, w := range want {
+		if cfg.EnabledTemplates[i] != w {
+			t.Errorf("entry %d = %q, want %q (insertion order)", i, cfg.EnabledTemplates[i], w)
+		}
 	}
 }

@@ -264,8 +264,8 @@ func TestManager_RenderFullHTML(t *testing.T) {
 		`<html lang="en">`,
 		`<meta charset="utf-8">`,
 		"<title>Spaanse Groentenschotel</title>",
-		"<style>",                          // inlined CSS
-		".formidable-prose",                // a known selector from the embedded sheet
+		"<style>",           // inlined CSS
+		".formidable-prose", // a known selector from the embedded sheet
 		`<body class="formidable-prose">`,
 		"</body>",
 		"</html>",
@@ -345,5 +345,30 @@ func TestManager_NoStrategyFallsBackToRelativeImagesPath(t *testing.T) {
 	// render properly without a server prefix.
 	if !strings.Contains(res.HTML, `src="images/icon.png"`) {
 		t.Errorf("HTML lost relative img src: %q", res.HTML)
+	}
+}
+
+// TestRenderMarkdown_TemplateLoadError covers Manager.RenderMarkdown when the
+// template loader fails: the error is wrapped with the template name and the
+// %w sentinel from the loader is preserved for errors.Is.
+func TestRenderMarkdown_TemplateLoadError(t *testing.T) {
+	sentinel := errors.New("boom")
+	m := NewManager(
+		&fakeTemplateLoader{err: sentinel},
+		&fakeFormStore{},
+		nil, nil, nil,
+	)
+	out, err := m.RenderMarkdown("missing.yaml", "")
+	if err == nil {
+		t.Fatal("expected load error")
+	}
+	if out != "" {
+		t.Errorf("want empty output, got %q", out)
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("want wrapped sentinel via %%w, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), `render: load template "missing.yaml"`) {
+		t.Errorf("want template name in error, got %q", err.Error())
 	}
 }

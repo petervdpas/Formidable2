@@ -1,6 +1,8 @@
 package i18n
 
 import (
+	"errors"
+	"io/fs"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -45,12 +47,12 @@ func TestLoadBundle_MergesAcrossNamespaceFiles(t *testing.T) {
 	// One key from each namespace file. If merge fails, at least one
 	// is missing.
 	for _, k := range []string{
-		"ribbon.templates",      // shell.json
-		"settings.title",        // settings.json
+		"ribbon.templates",             // shell.json
+		"settings.title",               // settings.json
 		"menu.file.openTemplateFolder", // menus.json
-		"status.ready",          // status.json
-		"paste.process",         // modals.json
-		"error.template.invalid", // errors.json
+		"status.ready",                 // status.json
+		"paste.process",                // modals.json
+		"error.template.invalid",       // errors.json
 	} {
 		if _, ok := b[k]; !ok {
 			t.Errorf("merged en bundle missing key %q", k)
@@ -247,5 +249,56 @@ func TestNewManagerFromFS_LocaleDirWithNoJSONIsSkipped(t *testing.T) {
 	}
 	if !m.HasLocale("en") {
 		t.Errorf("en should be loaded")
+	}
+}
+
+// jsonDirEntry is a minimal fs.DirEntry naming a .json file so
+// loadLocaleDir lists it and then attempts to read it.
+type jsonDirEntry struct{ name string }
+
+func (e jsonDirEntry) Name() string               { return e.name }
+func (e jsonDirEntry) IsDir() bool                { return false }
+func (e jsonDirEntry) Type() fs.FileMode          { return 0 }
+func (e jsonDirEntry) Info() (fs.FileInfo, error) { return nil, nil }
+
+// brokenFS lets a test fail ReadDir or ReadFile independently. It
+// implements ReadDirFS + ReadFileFS so fs.ReadDir / fs.ReadFile
+// dispatch straight to these methods.
+type brokenFS struct {
+	entries     []fs.DirEntry
+	readDirErr  error
+	readFileErr error
+}
+
+func (b brokenFS) Open(string) (fs.File, error) { return nil, fs.ErrNotExist }
+func (b brokenFS) ReadDir(string) ([]fs.DirEntry, error) {
+	if b.readDirErr != nil {
+		return nil, b.readDirErr
+	}
+	return b.entries, nil
+}
+func (b brokenFS) ReadFile(string) ([]byte, error) {
+	if b.readFileErr != nil {
+		return nil, b.readFileErr
+	}
+	return []byte(`{}`), nil
+}
+
+func TestLoadLocaleDir_ReadDirErrorPropagates(t *testing.T) {
+	fsys := brokenFS{readDirErr: errors.New("dir unreadable")}
+	if _, err := loadLocaleDir(fsys, "en"); err == nil {
+		t.Error("ReadDir failure should propagate from loadLocaleDir")
+	}
+}
+
+func TestLoadLocaleDir_ReadFileErrorPropagates(t *testing.T) {
+	// The directory lists a .json file, but reading it fails: the
+	// ReadFile-error branch fstest.MapFS can never reach.
+	fsys := brokenFS{
+		entries:     []fs.DirEntry{jsonDirEntry{name: "shell.json"}},
+		readFileErr: errors.New("read denied"),
+	}
+	if _, err := loadLocaleDir(fsys, "en"); err == nil {
+		t.Error("ReadFile failure should propagate from loadLocaleDir")
 	}
 }

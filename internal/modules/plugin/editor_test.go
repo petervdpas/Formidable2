@@ -130,7 +130,7 @@ func TestManager_Save_RoundtripsFormJSON(t *testing.T) {
 	}
 	mf := Manifest{
 		ManifestVersion: 1, ID: "demo", Name: "Demo",
-		Version: "0.1.0",
+		Version:  "0.1.0",
 		Commands: []Command{{ID: "run", Label: "Run"}},
 	}
 	formJSON := `[{"key":"name","type":"text","label":"Name"}]`
@@ -520,3 +520,103 @@ func TestSerializeManifest_RoundTrip(t *testing.T) {
 		t.Fatal("serialized manifest must end with newline")
 	}
 }
+
+// ── I/O failure branches ─────────────────────────────────────────────
+
+// ioFailFS is an editorFS whose individual operations can be made to
+// fail, so the editor's I/O error branches (which a real filesystem
+// almost never reaches) can be exercised. exists drives FileExists so a
+// test can present a plugin dir as present or absent.
+type ioFailFS struct {
+	exists       func(path string) bool
+	ensureErr    error
+	saveErr      error
+	loadErr      error
+	delFolderErr error
+}
+
+func (f ioFailFS) EnsureDirectory(string) error { return f.ensureErr }
+func (f ioFailFS) FileExists(p string) bool {
+	if f.exists != nil {
+		return f.exists(p)
+	}
+	return true
+}
+func (f ioFailFS) IsDir(string) bool                { return true }
+func (f ioFailFS) LoadFile(string) (string, error)  { return "", f.loadErr }
+func (f ioFailFS) SaveFile(string, string) error    { return f.saveErr }
+func (f ioFailFS) DeleteFile(string) error          { return nil }
+func (f ioFailFS) DeleteFolder(string) error        { return f.delFolderErr }
+func (f ioFailFS) ListDir(string) ([]string, error) { return nil, nil }
+
+func newIOFailManager(fs editorFS) *Manager {
+	return NewManager(ManagerDeps{
+		PluginsDir: "/plugins",
+		KV:         NewKV(kvTestFS{}, "/plugins/.kv"),
+		Editor:     fs,
+	})
+}
+
+func TestManager_Create_EnsureDirectoryError(t *testing.T) {
+	fs := ioFailFS{
+		exists:    func(string) bool { return false }, // dir absent -> EnsureDirectory runs
+		ensureErr: errors.New("mkdir denied"),
+	}
+	if err := newIOFailManager(fs).Create("hello"); err == nil {
+		t.Error("Create should fail when EnsureDirectory errors")
+	}
+}
+
+func TestManager_Create_SaveFileError(t *testing.T) {
+	fs := ioFailFS{
+		exists:  func(string) bool { return false },
+		saveErr: errors.New("disk full"),
+	}
+	if err := newIOFailManager(fs).Create("hello"); err == nil {
+		t.Error("Create should fail when SaveFile errors")
+	}
+}
+
+func TestManager_Save_SaveFileError(t *testing.T) {
+	fs := ioFailFS{
+		exists:  func(string) bool { return true }, // plugin dir present
+		saveErr: errors.New("disk full"),
+	}
+	if err := newIOFailManager(fs).Save("hello", DefaultManifest("hello"), "src", ""); err == nil {
+		t.Error("Save should fail when SaveFile errors")
+	}
+}
+
+func TestManager_GetForm_LoadFileError(t *testing.T) {
+	// dir and form.json both present, but the read fails.
+	fs := ioFailFS{
+		exists:  func(string) bool { return true },
+		loadErr: errors.New("read denied"),
+	}
+	if _, err := newIOFailManager(fs).GetForm("hello"); err == nil {
+		t.Error("GetForm should propagate a LoadFile error")
+	}
+}
+
+func TestManager_GetSource_LoadFileError(t *testing.T) {
+	fs := ioFailFS{
+		exists:  func(string) bool { return true },
+		loadErr: errors.New("read denied"),
+	}
+	if _, err := newIOFailManager(fs).GetSource("hello"); err == nil {
+		t.Error("GetSource should propagate a LoadFile error")
+	}
+}
+
+func TestManager_Delete_DeleteFolderError(t *testing.T) {
+	fs := ioFailFS{
+		exists:       func(string) bool { return true },
+		delFolderErr: errors.New("perm denied"),
+	}
+	if err := newIOFailManager(fs).Delete("hello"); err == nil {
+		t.Error("Delete should fail when DeleteFolder errors")
+	}
+}
+
+// guard: ioFailFS must satisfy the editorFS contract used above.
+var _ editorFS = ioFailFS{}

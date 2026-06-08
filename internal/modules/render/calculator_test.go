@@ -170,3 +170,107 @@ func TestComputeStats_MixedValid(t *testing.T) {
 		t.Errorf("min/max = %v/%v, want 1/5", s.Min, s.Max)
 	}
 }
+
+func TestToFloat_Coercions(t *testing.T) {
+	cases := []struct {
+		name string
+		in   any
+		want float64
+	}{
+		{"nil-is-zero", nil, 0},
+		{"bool-true", true, 1},
+		{"bool-false", false, 0},
+		{"int", int(7), 7},
+		{"int64", int64(7), 7},
+		{"uint8", uint8(7), 7},
+		{"float32", float32(1.5), 1.5},
+		{"empty-string-is-zero", "", 0},
+		{"whitespace-string-is-zero", "   ", 0},
+		{"numeric-string", "3.5", 3.5},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := toFloat(c.in); got != c.want {
+				t.Errorf("toFloat(%v) = %v, want %v", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+func TestToFloat_UnsupportedTypesAreNaN(t *testing.T) {
+	// Form values that aren't numbers (a table cell slice, an object,
+	// a non-numeric string) must coerce to NaN so EvaluateMath blanks out
+	// rather than silently treating them as zero.
+	for _, in := range []any{
+		"not-a-number",
+		[]any{1, 2},
+		map[string]any{"a": 1},
+		struct{ X int }{1},
+	} {
+		if got := toFloat(in); !math.IsNaN(got) {
+			t.Errorf("toFloat(%v) = %v, want NaN", in, got)
+		}
+	}
+}
+
+func TestEvaluateMath_NaNFirstOperandBlanks(t *testing.T) {
+	if got := EvaluateMath("oops", "+", 1); got != "" {
+		t.Errorf("NaN first operand = %v, want empty string", got)
+	}
+}
+
+func TestEvaluateMath_ModByZeroBlanks(t *testing.T) {
+	for _, op := range []string{"%", "mod"} {
+		if got := EvaluateMath(10, op, 0); got != "" {
+			t.Errorf("10 %s 0 = %v, want empty string", op, got)
+		}
+	}
+}
+
+func TestEvaluateMath_PadShorterWidthReturnsAsIs(t *testing.T) {
+	// width <= len(s): the no-pad branch.
+	if got := EvaluateMath(12345, "pad", 2); got != "12345" {
+		t.Errorf("pad width<len = %v, want 12345", got)
+	}
+}
+
+func TestCompare_RelationalWithNonNumericIsFalse(t *testing.T) {
+	// toFloat → NaN on both sides; every NaN comparison is false.
+	for _, op := range []string{"<", "<=", ">", ">="} {
+		if Compare("abc", op, "def") {
+			t.Errorf("Compare(abc %s def) = true, want false (NaN)", op)
+		}
+	}
+}
+
+func TestCompare_StrictNilHandling(t *testing.T) {
+	if !Compare(nil, "===", nil) {
+		t.Error("nil === nil should be true")
+	}
+	if Compare(nil, "===", 1) {
+		t.Error("nil === 1 should be false")
+	}
+	if Compare(1, "===", nil) {
+		t.Error("1 === nil should be false")
+	}
+}
+
+func TestCompare_StrictTypeMismatch(t *testing.T) {
+	// Same printed value, different concrete type: strict rejects, loose accepts.
+	if Compare(1, "===", "1") {
+		t.Error("1 === \"1\" should be false (type mismatch)")
+	}
+	if !Compare(1, "==", "1") {
+		t.Error("1 == \"1\" should be true (loose)")
+	}
+}
+
+func TestCompare_LooseNilEquality(t *testing.T) {
+	if !Compare(nil, "==", nil) {
+		t.Error("nil == nil should be true")
+	}
+	// int vs float with equal value: loose equal is numeric.
+	if !Compare(1, "==", 1.0) {
+		t.Error("1 == 1.0 should be true (numeric loose equal)")
+	}
+}
