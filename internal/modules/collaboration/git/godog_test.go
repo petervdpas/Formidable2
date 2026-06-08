@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -49,18 +50,19 @@ type gitWorld struct {
 	gitRoot *fakeRoot
 
 	// Whatever the most recent operation produced.
-	status   *Status
-	branches *Branches
-	log      []Commit
-	clone    *CloneResult
-	commit   *CommitResult
-	push     *PushResult
-	pull     *PullResult
-	pullStash *StashedPullResult
-	fetch    *FetchResult
-	repoRoot string
-	boolRes  bool
-	lastErr  error
+	status     *Status
+	branches   *Branches
+	log        []Commit
+	clone      *CloneResult
+	commit     *CommitResult
+	push       *PushResult
+	pull       *PullResult
+	pullStash  *StashedPullResult
+	fetch      *FetchResult
+	remoteInfo *RemoteInfo
+	repoRoot   string
+	boolRes    bool
+	lastErr    error
 
 	// Bare repo path used by push/fetch scenarios.
 	bareDir string
@@ -120,6 +122,7 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		w.pull = nil
 		w.pullStash = nil
 		w.fetch = nil
+		w.remoteInfo = nil
 		w.repoRoot = ""
 		w.boolRes = false
 		w.lastErr = nil
@@ -286,6 +289,11 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I clone with an empty URL$`, func() error {
 		_, w.lastErr = w.m.Clone(CloneOptions{URL: "", Dest: filepath.Join(w.tmp, "x")})
+		return nil
+	})
+
+	ctx.Step(`^I read the remote info from "([^"]*)"$`, func(rel string) error {
+		w.remoteInfo, w.lastErr = w.m.RemoteInfo(filepath.Join(w.tmp, rel))
 		return nil
 	})
 
@@ -645,45 +653,57 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 	})
 
 	ctx.Step(`^status reports modified "([^"]*)"$`, func(name string) error {
-		if !contains(w.status.Modified, name) {
+		if !slices.Contains(w.status.Modified, name) {
 			return fmt.Errorf("Modified = %v, want to contain %q", w.status.Modified, name)
 		}
 		return nil
 	})
 
 	ctx.Step(`^status reports untracked "([^"]*)"$`, func(name string) error {
-		if !contains(w.status.Untracked, name) {
+		if !slices.Contains(w.status.Untracked, name) {
 			return fmt.Errorf("Untracked = %v, want to contain %q", w.status.Untracked, name)
 		}
 		return nil
 	})
 
 	ctx.Step(`^status does not report untracked "([^"]*)"$`, func(name string) error {
-		if contains(w.status.Untracked, name) {
+		if slices.Contains(w.status.Untracked, name) {
 			return fmt.Errorf("Untracked = %v, want NOT to contain %q", w.status.Untracked, name)
 		}
 		return nil
 	})
 
 	ctx.Step(`^status does not report modified "([^"]*)"$`, func(name string) error {
-		if contains(w.status.Modified, name) {
+		if slices.Contains(w.status.Modified, name) {
 			return fmt.Errorf("Modified = %v, want NOT to contain %q", w.status.Modified, name)
 		}
 		return nil
 	})
 
 	ctx.Step(`^status reports deleted "([^"]*)"$`, func(name string) error {
-		if !contains(w.status.Deleted, name) {
+		if !slices.Contains(w.status.Deleted, name) {
 			return fmt.Errorf("Deleted = %v, want to contain %q", w.status.Deleted, name)
 		}
 		return nil
 	})
 
 	ctx.Step(`^the branches list contains "([^"]*)"$`, func(name string) error {
-		if w.branches == nil || !contains(w.branches.Locals, name) {
+		if w.branches == nil || !slices.Contains(w.branches.Locals, name) {
 			return fmt.Errorf("Locals does not contain %q: %+v", name, w.branches)
 		}
 		return nil
+	})
+
+	ctx.Step(`^the remote info lists remote "([^"]*)"$`, func(name string) error {
+		if w.remoteInfo == nil {
+			return fmt.Errorf("no remote info captured")
+		}
+		for _, rem := range w.remoteInfo.Remotes {
+			if rem.Name == name {
+				return nil
+			}
+		}
+		return fmt.Errorf("remotes %+v do not contain %q", w.remoteInfo.Remotes, name)
 	})
 
 	ctx.Step(`^the log has (\d+) commits$`, func(n int) error {
@@ -1115,10 +1135,8 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		if w.pullStash == nil {
 			return fmt.Errorf("no stash result")
 		}
-		for _, p := range w.pullStash.Restored {
-			if p == path {
-				return nil
-			}
+		if slices.Contains(w.pullStash.Restored, path) {
+			return nil
 		}
 		return fmt.Errorf("Restored = %v, want to contain %q", w.pullStash.Restored, path)
 	})
@@ -1184,10 +1202,8 @@ func initGitScenario(ctx *godog.ScenarioContext) {
 		if w.pullStash == nil {
 			return fmt.Errorf("no stash result")
 		}
-		for _, p := range w.pullStash.AutoMerged {
-			if p == path {
-				return nil
-			}
+		if slices.Contains(w.pullStash.AutoMerged, path) {
+			return nil
 		}
 		return fmt.Errorf("AutoMerged = %v, want to contain %q", w.pullStash.AutoMerged, path)
 	})
@@ -1249,15 +1265,6 @@ func commitInRepo(dir, name, content, msg string) error {
 		},
 	})
 	return err
-}
-
-func contains(s []string, want string) bool {
-	for _, v := range s {
-		if v == want {
-			return true
-		}
-	}
-	return false
 }
 
 func safeHead(c *CloneResult) string {

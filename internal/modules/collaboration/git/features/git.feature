@@ -761,3 +761,29 @@ Feature: Git collaboration backend
     Given a journal-recording git service
     When I fetch status from "" via the service
     Then the operation returned an error
+
+  # ── RemoteInfo over a real clone ─────────────────────────────────────
+  # End-to-end: a clone wires an "origin" remote pointing at the bare
+  # repo, and RemoteInfo reads it back. The non-repo open() guard is
+  # already owned by unit tests, so only the wired-remote path lives here.
+
+  Scenario: RemoteInfo lists origin after a clone
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    When I read the remote info from "client"
+    Then the remote info lists remote "origin"
+
+  # ── Push rejected by a diverged remote ───────────────────────────────
+  # The local branch has a commit the remote never saw AND the remote
+  # advanced independently, so the push is a non-fast-forward and go-git
+  # rejects it. This is the real-world "someone pushed before you" path,
+  # distinct from the already-up-to-date and clean-success cases above,
+  # and needs a real bare remote + clone to set up.
+
+  Scenario: Push is rejected when the remote has diverged
+    Given a bare repo seeded with one commit
+    And a clone of the bare repo at "client" inside temp
+    And the bare repo gains another commit
+    And a new commit "local.txt" with content "local" in "client"
+    When I push from "client"
+    Then the operation returned an error
