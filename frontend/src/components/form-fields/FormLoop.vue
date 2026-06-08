@@ -8,6 +8,7 @@ import ConfirmDialog from "../ConfirmDialog.vue";
 import { useToast } from "../../composables/useToast";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import type { LoopGroup } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
+import { Service as DataproviderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
 
 const { t } = useI18n();
 const toast = useToast();
@@ -174,11 +175,50 @@ function onDragChange(evt: { moved?: { oldIndex: number; newIndex: number } }) {
   collapsed.value = next;
 }
 
+// When the summary field is an api (relation reference) field its value is just
+// the target id(s); resolve them to the target record's title for the collapsed
+// row, so it reads as a name rather than a raw guid.
+const summaryField = computed<Field | undefined>(() =>
+  props.innerFields.find((f) => f.key === props.group.summary_field_key),
+);
+const summaryApiCollection = computed(() =>
+  summaryField.value?.type === "api" ? (summaryField.value.collection ?? "") : "",
+);
+const refTitles = ref<Record<string, string>>({});
+
+watch(
+  summaryApiCollection,
+  async (collection) => {
+    refTitles.value = {};
+    if (!collection) return;
+    try {
+      const items = (await DataproviderSvc.ListCollectionItems(collection)) ?? [];
+      const map: Record<string, string> = {};
+      for (const it of items) if (it.id) map[it.id] = it.title || it.id;
+      refTitles.value = map;
+    } catch {
+      refTitles.value = {};
+    }
+  },
+  { immediate: true },
+);
+
+function refIds(v: unknown): string[] {
+  if (typeof v === "string") return v ? [v] : [];
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string" && x !== "");
+  return [];
+}
+
 function summaryFor(entry: Record<string, unknown>): string {
   const key = props.group.summary_field_key;
   if (!key) return "";
   const v = entry[key];
   if (v == null) return "";
+  if (summaryApiCollection.value) {
+    const ids = refIds(v);
+    if (ids.length === 0) return "";
+    return ids.map((id) => refTitles.value[id] || id).join(", ");
+  }
   if (typeof v === "string") {
     return v.split("\n")[0].trim() || "";
   }
