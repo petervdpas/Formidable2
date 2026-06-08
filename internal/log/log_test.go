@@ -80,6 +80,38 @@ func TestPickUseFile(t *testing.T) {
 	}
 }
 
+func TestLogPath(t *testing.T) {
+	t.Setenv(envLogFile, "")
+
+	if got := LogPath(Options{AppRoot: ""}); got != "" {
+		t.Errorf("LogPath(empty AppRoot) = %q, want \"\"", got)
+	}
+	if got := LogPath(Options{AppRoot: "/app", UseFile: boolPtr(false)}); got != "" {
+		t.Errorf("LogPath(file disabled) = %q, want \"\"", got)
+	}
+
+	wantDefault := filepath.Join("/app", defaultFileName)
+	if got := LogPath(Options{AppRoot: "/app"}); got != wantDefault {
+		t.Errorf("LogPath(default name) = %q, want %q", got, wantDefault)
+	}
+
+	wantCustom := filepath.Join("/app", "custom.log")
+	if got := LogPath(Options{AppRoot: "/app", FileName: "custom.log"}); got != wantCustom {
+		t.Errorf("LogPath(custom name) = %q, want %q", got, wantCustom)
+	}
+}
+
+func TestLogPath_EnvDisablesFile(t *testing.T) {
+	t.Setenv(envLogFile, "0")
+	if got := LogPath(Options{AppRoot: "/app"}); got != "" {
+		t.Errorf("LogPath(env off) = %q, want \"\"", got)
+	}
+	// Explicit UseFile=true overrides the env, mirroring pickUseFile.
+	if got := LogPath(Options{AppRoot: "/app", UseFile: boolPtr(true)}); got == "" {
+		t.Error("explicit UseFile=true should beat env=0")
+	}
+}
+
 func TestNew_WritesToFile(t *testing.T) {
 	dir := t.TempDir()
 	l, _ := New(Options{AppRoot: dir, Level: "debug"})

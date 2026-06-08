@@ -1,6 +1,8 @@
 package expression
 
 import (
+	"errors"
+
 	"github.com/petervdpas/formidable2/internal/modules/expression/builder"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -15,19 +17,33 @@ func (s *Service) Evaluate(src string, ctx map[string]any) (Result, error) {
 	return s.m.Evaluate(src, ctx)
 }
 
-// EvaluateList renders the sub-label for every record; ErrNoExpression when no sidebar_expression is configured.
+// EvaluateList renders the sub-label for every record. A template with no
+// sidebar_expression is a normal state, not a binding failure: it yields an empty
+// list with no error so Wails doesn't log it.
 func (s *Service) EvaluateList(templateName string) ([]Result, error) {
-	return s.m.EvaluateList(templateName)
+	out, err := s.m.EvaluateList(templateName)
+	if errors.Is(err, ErrNoExpression) {
+		return nil, nil
+	}
+	return out, err
 }
 
 // EvaluateListOne renders the sub-label for one record (a row refreshing itself after a save).
 func (s *Service) EvaluateListOne(templateName, datafile string) (Result, error) {
-	return s.m.EvaluateListOne(templateName, datafile)
+	out, err := s.m.EvaluateListOne(templateName, datafile)
+	if errors.Is(err, ErrNoExpression) {
+		return Result{}, nil
+	}
+	return out, err
 }
 
 // EvaluateListMany renders sub-labels for an explicit ordered list of records in one round-trip.
 func (s *Service) EvaluateListMany(templateName string, datafiles []string) ([]Result, error) {
-	return s.m.EvaluateListMany(templateName, datafiles)
+	out, err := s.m.EvaluateListMany(templateName, datafiles)
+	if errors.Is(err, ErrNoExpression) {
+		return nil, nil
+	}
+	return out, err
 }
 
 // Functions returns the formula editor's function/control catalog so the
