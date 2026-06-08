@@ -25,6 +25,7 @@ import {
   Service as TemplateSvc,
   type Field,
 } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { useConfig } from "../../composables/useConfig";
 import { useFormidableLink } from "../../composables/useFormidableLink";
 import { backendErrMessage } from "../../utils/backendError";
 import { useToast } from "../../composables/useToast";
@@ -154,9 +155,47 @@ function removeId(id: string) {
   emitIds(ids.value.filter((x) => x !== id));
 }
 
+function replaceId(oldId: string, newId: string) {
+  if (!newId) return;
+  emitIds(ids.value.map((x) => (x === oldId ? newId : x)));
+}
+
+// Per-card collapse state, keyed by id. The default (before any manual toggle)
+// follows the Auto-collapse Fields setting; a manual toggle overrides it.
+const { config } = useConfig();
+const defaultExpanded = computed(() => !(config.value?.field_state_collapsed ?? true));
+const expanded = ref<Record<string, boolean>>({});
+function isExpanded(id: string): boolean {
+  return expanded.value[id] ?? defaultExpanded.value;
+}
+function toggleCard(id: string) {
+  expanded.value = { ...expanded.value, [id]: !isExpanded(id) };
+}
+
+// When set, the next pick swaps this existing link instead of appending.
+const editingId = ref<string | null>(null);
+
+function openPicker() {
+  editingId.value = null;
+  pickerOpen.value = true;
+}
+function changeLink(id: string) {
+  editingId.value = id;
+  pickerOpen.value = true;
+}
+function closePicker() {
+  pickerOpen.value = false;
+  editingId.value = null;
+}
+
 function onPick(id: string) {
   pickerOpen.value = false;
-  addId(id);
+  if (editingId.value) {
+    replaceId(editingId.value, id);
+    editingId.value = null;
+  } else {
+    addId(id);
+  }
 }
 function onCreated(id: string) {
   addId(id);
@@ -174,6 +213,21 @@ function titleFor(id: string): string {
 function rowLabel(idx: number, key: string): string {
   return props.field.map?.[idx]?.label?.trim() || key;
 }
+
+// Footer action labels. Multi (to-many) adds another link / record; single
+// replaces the one link. Empty in either mode just reads "Link…".
+const linkLabel = computed(() => {
+  if (multi.value && ids.value.length)
+    return t("workspace.storage.api_field.link_another");
+  if (!multi.value && ids.value.length)
+    return t("workspace.storage.api_field.relink");
+  return t("workspace.storage.api_field.link");
+});
+const createLabel = computed(() =>
+  multi.value && ids.value.length
+    ? t("workspace.storage.api_field.create_another")
+    : t("workspace.storage.api_field.create"),
+);
 
 // ── Rich column rendering (mirrors the source field's type) ─────────────
 function display(v: any): string {
@@ -263,10 +317,21 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
     <template v-else>
       <!-- Linked record cards -->
       <div v-if="ids.length" class="api-field-cards">
-        <section v-for="id in ids" :key="id" class="api-field-card">
+        <section
+          v-for="id in ids"
+          :key="id"
+          class="api-field-card"
+          :class="{ collapsed: !isExpanded(id) }"
+        >
           <header class="api-field-card-head">
-            <span class="api-field-card-title">{{ titleFor(id) }}</span>
-            <span class="api-field-actions">
+            <button
+              type="button"
+              class="btn-ghost-icon btn-sm"
+              :aria-expanded="isExpanded(id)"
+              @click="toggleCard(id)"
+            >{{ isExpanded(id) ? '▼' : '▶' }}</button>
+            <span class="api-field-card-title" @click="toggleCard(id)">{{ titleFor(id) }}</span>
+            <span v-if="isExpanded(id)" class="api-field-actions">
               <button
                 type="button"
                 class="tool-btn small"
@@ -274,6 +339,14 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
                 :title="t('workspace.storage.api_field.go_to')"
               >
                 {{ t('workspace.storage.api_field.go_to') }}
+              </button>
+              <button
+                type="button"
+                class="tool-btn small"
+                @click="changeLink(id)"
+                :title="t('workspace.storage.api_field.change')"
+              >
+                {{ t('workspace.storage.api_field.change') }}
               </button>
               <button
                 type="button"
@@ -286,7 +359,7 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
             </span>
           </header>
 
-          <dl v-if="(field.map ?? []).length" class="api-field-rows">
+          <dl v-if="isExpanded(id) && (field.map ?? []).length" class="api-field-rows">
             <template v-for="(m, idx) in field.map ?? []" :key="m.key + ':' + idx">
               <dt>{{ rowLabel(idx, m.key) }}</dt>
               <dd>
@@ -327,11 +400,9 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
         <button
           type="button"
           class="tool-btn primary small"
-          @click="pickerOpen = true"
+          @click="openPicker"
         >
-          {{ ids.length && !multi
-            ? t('workspace.storage.api_field.relink')
-            : t('workspace.storage.api_field.link') }}
+          {{ linkLabel }}
         </button>
         <button
           type="button"
@@ -339,7 +410,7 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
           :disabled="!(field.map ?? []).length"
           @click="createOpen = true"
         >
-          {{ t('workspace.storage.api_field.create') }}
+          {{ createLabel }}
         </button>
       </div>
     </template>
@@ -348,7 +419,7 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
       :open="pickerOpen"
       :source-template="collection"
       :filter-spec="field.filter ?? null"
-      @close="pickerOpen = false"
+      @close="closePicker"
       @pick="onPick"
     />
     <ReferenceCreateDialog

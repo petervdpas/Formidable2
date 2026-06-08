@@ -31,23 +31,27 @@
 .api-field-card-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   margin-bottom: 6px;
 }
+.api-field-card.collapsed .api-field-card-head {
+  margin-bottom: 0;
+}
 .api-field-card-title {
+  flex: 1 1 auto;
   font-weight: 600;
   word-break: break-word;
+  cursor: pointer;
 }
 .api-field-rows {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(120px, max-content) 1fr;
   gap: 4px 12px;
   margin: 0;
 }
 .api-field-rows dt {
-  font-weight: 500;
-  opacity: 0.85;
+  font-weight: 600;
+  color: var(--color-text);
 }
 .api-field-rows dd {
   margin: 0;
