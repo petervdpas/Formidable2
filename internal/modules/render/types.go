@@ -36,6 +36,11 @@ type Options struct {
 	// nothing rather than stale data on targets without a resolver wired.
 	ResolveReference func(targetTemplate, id string, columnKeys []string) map[string]any
 
+	// ResolveReferenceLink resolves a target-collection record id to its
+	// formidable://<template>:<datafile> deep link, so api-field cards render a
+	// clickable "go to record" anchor. Nil renders cards without the link.
+	ResolveReferenceLink func(targetTemplate, id string) string
+
 	// TemplateFilename and Datafile drive the meta-category helpers
 	// ({{templateName}}, {{datafile}}, …); empty strings expand to "".
 	TemplateFilename string

@@ -16,6 +16,9 @@ import (
 // gracefully on a missing/non-api field, an unpicked record, or a nil resolver.
 // The single-value helpers act on the first referenced record; apiSection
 // renders one card per referenced record (so a to-many reference shows them all).
+// The polymorphic {{field}} helper also drives api fields: `{{field "k"}}` for
+// cards, `{{field "k" mode=table}}` for the full pipe-table, and the dotted path
+// `{{field "k.column"}}` for one projected column (see helpers_field.go).
 func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 	// {{apiCol "fieldKey" "columnKey"}}: one projected column, scalar
 	// inline or compact JSON for slice/map.
@@ -37,6 +40,35 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 	tpl.RegisterHelper("apiGuid", func(fieldKey string, options *raymond.Options) string {
 		ids, _ := apiFieldRefs(options.Ctx(), fieldKey)
 		return strings.Join(ids, ", ")
+	})
+
+	// {{apiRows "fieldKey"}}: the referenced records for `{{#each (apiRows "k")}}`.
+	// Each row is a map keyed by Map column key for named access (`{{this.term}}`
+	// or bare `{{term}}`), plus `link` (the record's formidable:// deep link,
+	// `{{this.link}}`) and `labels` (column key -> Map label, `{{this.labels.term}}`).
+	// The header row is `{{fieldMeta "fieldKey" "options"}}`.
+	tpl.RegisterHelper("apiRows", func(fieldKey string, options *raymond.Options) []any {
+		ids, host := apiFieldRefs(options.Ctx(), fieldKey)
+		if host == nil || len(ids) == 0 {
+			return nil
+		}
+		cols := columnKeysOf(host)
+		labels := apiColumnLabels(host)
+		rows := make([]any, 0, len(ids))
+		for _, id := range ids {
+			row := apiResolve(opts, host, id, cols)
+			if row == nil {
+				continue
+			}
+			m := make(map[string]any, len(row)+2)
+			for k, v := range row {
+				m[k] = v
+			}
+			m["link"] = apiRecordLink(opts, host, id)
+			m["labels"] = labels
+			rows = append(rows, m)
+		}
+		return rows
 	})
 
 	// {{apiBlock "fieldKey" "columnKey"}}: type-aware render (tags joined,
@@ -70,7 +102,7 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 			if row == nil {
 				continue
 			}
-			parts = append(parts, emitAPISection(row, host, opts))
+			parts = append(parts, emitAPISection(id, row, host, opts))
 		}
 		return raymond.SafeString(strings.Join(parts, "\n\n"))
 	})
@@ -146,6 +178,16 @@ func columnKeysOf(host *template.Field) []string {
 		}
 	}
 	return keys
+}
+
+// apiRecordLink resolves the referenced record's formidable:// deep link and
+// rewrites it per target; "" when no resolver is wired, the host has no
+// collection, or the id is empty (so the card header stays plain text).
+func apiRecordLink(opts *Options, host *template.Field, id string) string {
+	if opts == nil || opts.ResolveReferenceLink == nil || host == nil || host.Collection == "" || id == "" {
+		return ""
+	}
+	return resolveLinkHref(opts.ResolveReferenceLink(host.Collection, id), opts)
 }
 
 // apiResolve projects one target record live into a row keyed by cols; nil when
@@ -316,7 +358,9 @@ func emitMarkdownTable(rows []any, source *template.Field) string {
 // type-6 HTML-block rule so the inner markdown still parses (same trick
 // the loop-item wrappers use). Block-shaped values (table/list) go on
 // their own lines after the column header to keep their markdown semantics.
-func emitAPISection(row map[string]any, hostField *template.Field, opts *Options) string {
+// The first scalar column's value links to the referenced record (the rendered
+// "Go to record") when a link resolver is wired.
+func emitAPISection(id string, row map[string]any, hostField *template.Field, opts *Options) string {
 	if hostField == nil {
 		return ""
 	}
@@ -338,6 +382,11 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 	b.WriteString(")_")
 	b.WriteString("\n\n")
 
+	// resolveLinkHref rewrites formidable:// per target (slideout keeps it,
+	// wiki/pdf rewrite); placed on the first scalar column's value below.
+	link := apiRecordLink(opts, hostField, id)
+	linked := false
+
 	for _, m := range hostField.Map {
 		colLabel := strings.TrimSpace(m.Label)
 		if colLabel == "" {
@@ -354,10 +403,15 @@ func emitAPISection(row map[string]any, hostField *template.Field, opts *Options
 			b.WriteString("\n\n")
 			continue
 		}
+		cell := emitAPIColumnBlock(v, src)
+		if !linked && link != "" && cell != "" {
+			cell = "[" + cell + "](" + link + ")"
+			linked = true
+		}
 		b.WriteString("- **")
 		b.WriteString(colLabel)
 		b.WriteString("**: ")
-		b.WriteString(emitAPIColumnBlock(v, src))
+		b.WriteString(cell)
 		b.WriteString("\n")
 	}
 
@@ -382,4 +436,45 @@ func escapePipe(s string) string {
 	s = strings.ReplaceAll(s, "|", "\\|")
 	s = strings.ReplaceAll(s, "\n", " ")
 	return s
+}
+
+// apiColumnLabels maps each Map column key to its display label (the Map alias,
+// else the key). Shared by every {{apiRows}} row so `{{this.labels.term}}` works.
+func apiColumnLabels(host *template.Field) map[string]any {
+	if host == nil {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(host.Map))
+	for _, m := range host.Map {
+		if m.Key == "" {
+			continue
+		}
+		label := strings.TrimSpace(m.Label)
+		if label == "" {
+			label = m.Key
+		}
+		out[m.Key] = label
+	}
+	return out
+}
+
+// apiColumnOptions exposes the api field's Map columns in a table field's
+// {value,label} Options shape, so the header idiom `{{#each (fieldMeta "k"
+// "options")}}{{label}}{{/each}}` renders identically for api fields.
+func apiColumnOptions(host *template.Field) []any {
+	if host == nil {
+		return nil
+	}
+	out := make([]any, 0, len(host.Map))
+	for _, m := range host.Map {
+		if m.Key == "" {
+			continue
+		}
+		label := strings.TrimSpace(m.Label)
+		if label == "" {
+			label = m.Key
+		}
+		out = append(out, map[string]any{"value": m.Key, "label": label})
+	}
+	return out
 }

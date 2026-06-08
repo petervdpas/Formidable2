@@ -39,6 +39,8 @@ func (f *fakeForms) LoadForm(t, d string) *storage.Form {
 type fakeConfig struct {
 	mu      sync.Mutex
 	updates []map[string]any
+	selTpl  string
+	selData string
 }
 
 func (c *fakeConfig) UpdateUserConfig(p map[string]any) error {
@@ -46,6 +48,12 @@ func (c *fakeConfig) UpdateUserConfig(p map[string]any) error {
 	defer c.mu.Unlock()
 	c.updates = append(c.updates, p)
 	return nil
+}
+
+func (c *fakeConfig) CurrentSelection() (string, string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.selTpl, c.selData
 }
 
 type captureEmitter struct {
@@ -190,6 +198,50 @@ func TestManager_NavigateToFormidable_PushesHistory(t *testing.T) {
 	want := []string{"formidable://basic.yaml:sane.meta.json"}
 	if len(hist.pushed) != 1 || hist.pushed[0] != want[0] {
 		t.Fatalf("history.pushed=%v, want %v", hist.pushed, want)
+	}
+}
+
+func TestManager_NavigateToFormidable_SeedsOriginThenTarget(t *testing.T) {
+	tpls := &fakeTemplates{have: map[string]*template.Template{
+		"basic.yaml": {Filename: "basic.yaml"},
+	}}
+	forms := &fakeForms{have: map[string]map[string]*storage.Form{
+		"basic.yaml": {"sane.meta.json": {}, "origin.meta.json": {}},
+	}}
+	// User is currently on origin.meta.json (e.g. reached via the sidebar).
+	cfg := &fakeConfig{selTpl: "basic.yaml", selData: "origin.meta.json"}
+	hist := &captureHistory{}
+	m := NewManager(tpls, forms, cfg, &captureEmitter{}, hist, nil)
+
+	if _, err := m.NavigateToFormidable("formidable://basic.yaml:sane.meta.json"); err != nil {
+		t.Fatalf("Navigate: %v", err)
+	}
+	want := []string{
+		"formidable://basic.yaml:origin.meta.json", // origin seeded so Back works
+		"formidable://basic.yaml:sane.meta.json",   // then the target
+	}
+	if len(hist.pushed) != 2 || hist.pushed[0] != want[0] || hist.pushed[1] != want[1] {
+		t.Fatalf("history.pushed=%v, want %v", hist.pushed, want)
+	}
+}
+
+func TestManager_NavigateToFormidable_OriginEqualTargetNotSeeded(t *testing.T) {
+	tpls := &fakeTemplates{have: map[string]*template.Template{
+		"basic.yaml": {Filename: "basic.yaml"},
+	}}
+	forms := &fakeForms{have: map[string]map[string]*storage.Form{
+		"basic.yaml": {"sane.meta.json": {}},
+	}}
+	// Already on the target: don't seed a self-loop onto the stack.
+	cfg := &fakeConfig{selTpl: "basic.yaml", selData: "sane.meta.json"}
+	hist := &captureHistory{}
+	m := NewManager(tpls, forms, cfg, &captureEmitter{}, hist, nil)
+
+	if _, err := m.NavigateToFormidable("formidable://basic.yaml:sane.meta.json"); err != nil {
+		t.Fatalf("Navigate: %v", err)
+	}
+	if len(hist.pushed) != 1 || hist.pushed[0] != "formidable://basic.yaml:sane.meta.json" {
+		t.Fatalf("history.pushed=%v, want only the target", hist.pushed)
 	}
 }
 

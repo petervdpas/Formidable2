@@ -7,6 +7,7 @@ export {
 };
 
 export {
+    APIFieldLinkResult,
     APIFieldRowResult,
     CollectionItem,
     TemplateSummary

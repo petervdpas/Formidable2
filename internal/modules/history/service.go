@@ -105,7 +105,8 @@ func (c *Controller) Broadcast() {
 }
 
 func (c *Controller) replay(href string) error {
-	c.m.SetSuppressNextPush()
+	c.m.SetSuppress(true)
+	defer c.m.SetSuppress(false)
 	if c.nav == nil {
 		return nil
 	}

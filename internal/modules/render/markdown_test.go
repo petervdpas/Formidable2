@@ -282,6 +282,112 @@ func TestRenderMarkdown_APISection_ToManyRendersCardPerRecord(t *testing.T) {
 	}
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// api-field iteration: {{#each (apiRows "key")}} exposes the resolved
+// records (columns + _link + _labels) for author-built markup.
+// ─────────────────────────────────────────────────────────────────────
+
+func TestRenderMarkdown_APISection_FirstColumnLinksToRecord(t *testing.T) {
+	host, opts := apiTestSetup()
+	opts.ResolveReferenceLink = func(target, id string) string {
+		if target == "addresses.yaml" && id == "g-1" {
+			return "formidable://addresses.yaml:buckingham.meta.json"
+		}
+		return ""
+	}
+	host.MarkdownTemplate = `{{apiSection "ref"}}`
+	got, _ := RenderMarkdown(apiTestRow(), host, opts)
+	// First mapped column's VALUE links to the record (slideout keeps
+	// formidable:// because no FormidableLinkURL rewriter is wired here).
+	if !strings.Contains(got, "- **Name**: [Buckingham Palace](formidable://addresses.yaml:buckingham.meta.json)") {
+		t.Errorf("first column value should link to the record; got:\n%s", got)
+	}
+	// The header stays plain.
+	if strings.Contains(got, "[Ref](") {
+		t.Errorf("header should not be linked; got:\n%s", got)
+	}
+}
+
+func TestRenderMarkdown_APISection_CardHeaderPlainWithoutResolver(t *testing.T) {
+	host, opts := apiTestSetup() // no ResolveReferenceLink wired
+	host.MarkdownTemplate = `{{apiSection "ref"}}`
+	got, _ := RenderMarkdown(apiTestRow(), host, opts)
+	if strings.Contains(got, "](formidable://") {
+		t.Errorf("no resolver should leave the value plain; got:\n%s", got)
+	}
+	if !strings.Contains(got, "- **Name**: Buckingham Palace") {
+		t.Errorf("expected plain value; got:\n%s", got)
+	}
+}
+
+func TestRenderMarkdown_APIRows_NamedValueLinkAndLabels(t *testing.T) {
+	host, opts := apiTestSetup()
+	opts.ResolveReferenceLink = func(target, id string) string {
+		if target == "addresses.yaml" && id == "g-1" {
+			return "formidable://addresses.yaml:buckingham.meta.json"
+		}
+		return ""
+	}
+	// Named value, the record link, and the column label - all per row.
+	host.MarkdownTemplate = `{{#each (apiRows "ref")}}{{this.labels.name}}: [{{this.name}}]({{this.link}}){{/each}}`
+	got, _ := RenderMarkdown(apiTestRow(), host, opts)
+	want := "Name: [Buckingham Palace](formidable://addresses.yaml:buckingham.meta.json)"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestRenderMarkdown_APIRows_TableWithFieldMetaHeader(t *testing.T) {
+	source := &template.Template{
+		Filename: "nomenclature.yaml",
+		Fields: []template.Field{
+			{Key: "term", Type: "text", Label: "Term"},
+			{Key: "description", Type: "textarea", Label: "Omschrijving"},
+		},
+	}
+	host := &template.Template{
+		Filename: "host.yaml",
+		Fields: []template.Field{
+			{Key: "refs", Type: "api", Label: "Refs", Collection: "nomenclature.yaml",
+				Map: []template.APIMap{{Key: "term", Label: "Term"}, {Key: "description", Label: "Omschrijving"}}},
+		},
+		// Header from fieldMeta, rows from apiRows with named column access.
+		MarkdownTemplate: "{{#with (fieldMeta \"refs\" \"options\") as |cols|}}|{{#each cols}} {{label}} |{{/each}}\n|{{#each cols}} --- |{{/each}}\n{{/with}}{{#each (apiRows \"refs\")}}| {{this.term}} | {{this.description}} |\n{{/each}}",
+	}
+	recs := map[string]map[string]any{
+		"g-1": {"term": "Push", "description": "Het versturen"},
+		"g-2": {"term": "Pull", "description": "Het ophalen"},
+	}
+	opts := &Options{
+		LoadTemplate:     func(string) *template.Template { return source },
+		ResolveReference: func(_, id string, _ []string) map[string]any { return recs[id] },
+	}
+	got, _ := RenderMarkdown(map[string]any{"refs": []any{"g-1", "g-2"}}, host, opts)
+	for _, want := range []string{"| Term | Omschrijving |", "| Push | Het versturen |", "| Pull | Het ophalen |"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q; got:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderMarkdown_APIRows_EmptyWhenUnpicked(t *testing.T) {
+	host, opts := apiTestSetup()
+	host.MarkdownTemplate = `[{{#each (apiRows "ref")}}{{this.name}}{{/each}}]`
+	got, _ := RenderMarkdown(map[string]any{"ref": nil}, host, opts)
+	if got != "[]" {
+		t.Errorf("unpicked apiRows should iterate nothing; got %q", got)
+	}
+}
+
+func TestRenderMarkdown_APIRows_BareColumnAccess(t *testing.T) {
+	host, opts := apiTestSetup()
+	host.MarkdownTemplate = `{{#each (apiRows "ref")}}{{name}}{{/each}}`
+	got, _ := RenderMarkdown(apiTestRow(), host, opts)
+	if got != "Buckingham Palace" {
+		t.Errorf("got %q", got)
+	}
+}
+
 func TestRenderMarkdown_ParseError(t *testing.T) {
 	tpl := &template.Template{
 		MarkdownTemplate: `{{#unclosed`,

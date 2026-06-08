@@ -175,7 +175,7 @@ func TestEmitAPISection_HeaderAndRows(t *testing.T) {
 		},
 	}
 
-	got := emitAPISection(row, host, opts)
+	got := emitAPISection("g-1", row, host, opts)
 
 	// Wrapper - opens with <section class="api-card" data-source="..."> and
 	// closes with </section>. Blank lines around let goldmark fall back to
@@ -217,7 +217,7 @@ func TestEmitAPISection_FallsBackToFieldKeyWhenLabelEmpty(t *testing.T) {
 		Map:        []template.APIMap{{Key: "name"}}, // no Label → fall back to Key
 	}
 	row := map[string]any{"name": "Alice"}
-	got := emitAPISection(row, host, nil)
+	got := emitAPISection("g-1", row, host, nil)
 	// Host header falls back to Key when Label is empty.
 	if !strings.Contains(got, "**testapi**") {
 		t.Errorf("expected host fallback to key; got:\n%s", got)
@@ -229,8 +229,27 @@ func TestEmitAPISection_FallsBackToFieldKeyWhenLabelEmpty(t *testing.T) {
 }
 
 func TestEmitAPISection_NilHostFieldReturnsEmpty(t *testing.T) {
-	if got := emitAPISection(nil, nil, nil); got != "" {
+	if got := emitAPISection("", nil, nil, nil); got != "" {
 		t.Errorf("nil hostField should return empty; got %q", got)
+	}
+}
+
+func TestAPIColumnOptions_TableOptionShape(t *testing.T) {
+	host := &template.Field{Map: []template.APIMap{
+		{Key: "term", Label: "Term"},
+		{Key: "description"}, // no label -> key
+	}}
+	got := apiColumnOptions(host)
+	if len(got) != 2 {
+		t.Fatalf("want 2 columns, got %d", len(got))
+	}
+	c0 := got[0].(map[string]any)
+	if c0["value"] != "term" || c0["label"] != "Term" {
+		t.Errorf("col0 = %v", c0)
+	}
+	c1 := got[1].(map[string]any)
+	if c1["value"] != "description" || c1["label"] != "description" {
+		t.Errorf("col1 should fall back label to key: %v", c1)
 	}
 }
 

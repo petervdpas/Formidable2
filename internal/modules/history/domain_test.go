@@ -117,21 +117,25 @@ func TestBackForward_HappyPath(t *testing.T) {
 	}
 }
 
-func TestSuppressNextPush_SkipsExactlyOne(t *testing.T) {
+func TestSetSuppress_BlocksPushesWhileOpen(t *testing.T) {
 	m := NewManager(20)
 	m.Push("a")
 
-	m.SetSuppressNextPush()
+	// Window open: every push is dropped (replay may push origin + target).
+	m.SetSuppress(true)
 	m.Push("b")
+	m.Push("c")
 	if snap := m.Snapshot(); len(snap.Stack) != 1 || snap.Stack[0] != "a" {
-		t.Fatalf("suppressed push still ran: %+v", snap)
+		t.Fatalf("suppressed pushes still ran: %+v", snap)
 	}
 
+	// Window closed: pushes resume.
+	m.SetSuppress(false)
 	m.Push("b")
 	snap := m.Snapshot()
 	want := []string{"a", "b"}
 	if !reflect.DeepEqual(snap.Stack, want) || snap.Index != 1 {
-		t.Fatalf("second push didn't run: %+v", snap)
+		t.Fatalf("push after window didn't run: %+v", snap)
 	}
 }
 

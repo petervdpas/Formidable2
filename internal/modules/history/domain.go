@@ -19,11 +19,11 @@ type Snapshot struct {
 }
 
 type Manager struct {
-	mu               sync.Mutex
-	stack            []string
-	index            int
-	maxSize          int
-	suppressNextPush bool
+	mu       sync.Mutex
+	stack    []string
+	index    int
+	maxSize  int
+	suppress bool
 }
 
 func NewManager(maxSize int) *Manager {
@@ -40,8 +40,7 @@ func (m *Manager) Push(href string) {
 	if href == "" {
 		return
 	}
-	if m.suppressNextPush {
-		m.suppressNextPush = false
+	if m.suppress {
 		return
 	}
 	if m.index >= 0 && m.index < len(m.stack) && m.stack[m.index] == href {
@@ -123,8 +122,11 @@ func (m *Manager) Restore(stack []string, index int) {
 	}
 }
 
-func (m *Manager) SetSuppressNextPush() {
+// SetSuppress opens or closes a push-suppression window. Back/Forward replay
+// wraps its NavigateToFormidable call in one so the replayed navigation (which
+// may push both an origin and a target) does not re-grow the stack.
+func (m *Manager) SetSuppress(on bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.suppressNextPush = true
+	m.suppress = on
 }

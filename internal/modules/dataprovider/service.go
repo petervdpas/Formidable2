@@ -62,6 +62,25 @@ func (s *Service) FetchAPIFieldRow(sourceTemplate, guid string, columnKeys []str
 	return APIFieldRowResult{Kind: apiFieldErrorKind(err), Message: err.Error()}
 }
 
+// APIFieldLinkResult is the Wails response for ResolveAPIFieldLink. Kind is ""
+// on success (Href set) or a stable error string (see apiFieldErrorKind).
+type APIFieldLinkResult struct {
+	Href    string `json:"href,omitempty"`
+	Kind    string `json:"kind,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// ResolveAPIFieldLink returns the formidable://<template>:<datafile> deep link
+// for a referenced record, so the form-side "Go to record" uses the same backend
+// builder as the rendered card.
+func (s *Service) ResolveAPIFieldLink(sourceTemplate, guid string) APIFieldLinkResult {
+	href, err := s.m.ResolveAPIFieldLink(context.Background(), sourceTemplate, guid)
+	if err == nil {
+		return APIFieldLinkResult{Href: href}
+	}
+	return APIFieldLinkResult{Kind: apiFieldErrorKind(err), Message: err.Error()}
+}
+
 // apiFieldErrorKind maps the structured api-field errors to the stable
 // Kind strings the frontend branches on.
 func apiFieldErrorKind(err error) string {

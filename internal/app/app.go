@@ -477,6 +477,19 @@ func New(d Deps) (*App, error) {
 	wikiRender.SetReferenceResolver(refResolver)
 	pdfRender.SetReferenceResolver(refResolver)
 
+	// The card render's "go to record" anchor; the same backend builder the
+	// form-side button uses, so both agree on the formidable:// link shape.
+	refLink := func(target, id string) string {
+		href, err := dpM.ResolveAPIFieldLink(context.Background(), target, id)
+		if err != nil {
+			return ""
+		}
+		return href
+	}
+	slideoutRender.SetReferenceLinkResolver(refLink)
+	wikiRender.SetReferenceLinkResolver(refLink)
+	pdfRender.SetReferenceLinkResolver(refLink)
+
 	// Relations: per-template files at <context>/relations/<name>.yaml. The dir is a context
 	// sibling of templates (derived here, not owned by the VFS). The module talks to the main
 	// templates/records only through relation.Catalog, implemented by relationCatalog over dpM.

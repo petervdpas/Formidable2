@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/petervdpas/formidable2/internal/modules/index"
+	"github.com/petervdpas/formidable2/internal/modules/nav"
 )
 
 // API-field structured errors; errors.Is against these, the Wails layer
@@ -23,40 +24,9 @@ var (
 // Every columnKey gets an entry; absent source keys map to nil, so callers
 // can tell absent from explicit empty.
 func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid string, columnKeys []string) (map[string]any, error) {
-	tpls, err := m.idx.ListTemplates()
+	datafile, err := m.resolveAPIFieldDatafile(sourceTemplate, guid)
 	if err != nil {
-		return nil, fmt.Errorf("api-field: list templates: %w", err)
-	}
-	var found bool
-	var enableCollection bool
-	for _, t := range tpls {
-		if t.Filename == sourceTemplate {
-			found = true
-			enableCollection = t.EnableCollection && t.GuidField != ""
-			break
-		}
-	}
-	if !found {
-		return nil, fmt.Errorf("%w: %q", ErrAPIFieldTemplateNotFound, sourceTemplate)
-	}
-	if !enableCollection {
-		return nil, fmt.Errorf("%w: %q", ErrAPIFieldCollectionDisabled, sourceTemplate)
-	}
-
-	// Resolve guid → datafile via the index.
-	rows, err := m.idx.ListForms(sourceTemplate, index.QueryOpts{})
-	if err != nil {
-		return nil, fmt.Errorf("api-field: list forms: %w", err)
-	}
-	var datafile string
-	for _, r := range rows {
-		if r.ID == guid {
-			datafile = r.Filename
-			break
-		}
-	}
-	if datafile == "" {
-		return nil, fmt.Errorf("%w: %q in %q", ErrAPIFieldGuidNotFound, guid, sourceTemplate)
+		return nil, err
 	}
 
 	if m.sto == nil {
@@ -79,4 +49,50 @@ func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid str
 		row[key] = raw
 	}
 	return row, nil
+}
+
+// resolveAPIFieldDatafile validates the source collection and resolves a guid to
+// its datafile via the index. Shared by the column reader and the link builder so
+// both agree on the same collection precondition and guid->datafile mapping.
+func (m *Manager) resolveAPIFieldDatafile(sourceTemplate, guid string) (string, error) {
+	tpls, err := m.idx.ListTemplates()
+	if err != nil {
+		return "", fmt.Errorf("api-field: list templates: %w", err)
+	}
+	var found, enableCollection bool
+	for _, t := range tpls {
+		if t.Filename == sourceTemplate {
+			found = true
+			enableCollection = t.EnableCollection && t.GuidField != ""
+			break
+		}
+	}
+	if !found {
+		return "", fmt.Errorf("%w: %q", ErrAPIFieldTemplateNotFound, sourceTemplate)
+	}
+	if !enableCollection {
+		return "", fmt.Errorf("%w: %q", ErrAPIFieldCollectionDisabled, sourceTemplate)
+	}
+
+	rows, err := m.idx.ListForms(sourceTemplate, index.QueryOpts{})
+	if err != nil {
+		return "", fmt.Errorf("api-field: list forms: %w", err)
+	}
+	for _, r := range rows {
+		if r.ID == guid {
+			return r.Filename, nil
+		}
+	}
+	return "", fmt.Errorf("%w: %q in %q", ErrAPIFieldGuidNotFound, guid, sourceTemplate)
+}
+
+// ResolveAPIFieldLink resolves (sourceTemplate, guid) to the canonical
+// formidable://<template>:<datafile> deep link for the referenced record. One
+// builder shared by the Handlebars card render and the form-side "Go to record".
+func (m *Manager) ResolveAPIFieldLink(ctx context.Context, sourceTemplate, guid string) (string, error) {
+	datafile, err := m.resolveAPIFieldDatafile(sourceTemplate, guid)
+	if err != nil {
+		return "", err
+	}
+	return nav.MakeHref(&nav.Target{Template: sourceTemplate, Datafile: datafile}), nil
 }

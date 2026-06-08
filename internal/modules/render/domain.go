@@ -36,6 +36,10 @@ type FormidableLinkURLFunc func(templateFilename, datafile string) string
 // empty rather than stale.
 type ReferenceResolverFunc func(targetTemplate, id string, columnKeys []string) map[string]any
 
+// ReferenceLinkResolverFunc resolves a target-collection record id to its
+// formidable://<template>:<datafile> deep link for api-field card anchors.
+type ReferenceLinkResolverFunc func(targetTemplate, id string) string
+
 // Manager renders a (template, datafile) pair to markdown + HTML. URL
 // strategies are set at construction; one Manager per target.
 type Manager struct {
@@ -45,6 +49,7 @@ type Manager struct {
 	imageBase64URL    ImageBase64URLFunc
 	formidableLinkURL FormidableLinkURLFunc
 	referenceResolver ReferenceResolverFunc
+	referenceLink     ReferenceLinkResolverFunc
 	log               *slog.Logger
 }
 
@@ -80,6 +85,15 @@ func (m *Manager) SetReferenceResolver(fn ReferenceResolverFunc) {
 		return
 	}
 	m.referenceResolver = fn
+}
+
+// SetReferenceLinkResolver wires the formidable:// deep-link resolver for
+// api-field cards after construction; nil renders cards without the record link.
+func (m *Manager) SetReferenceLinkResolver(fn ReferenceLinkResolverFunc) {
+	if m == nil {
+		return
+	}
+	m.referenceLink = fn
 }
 
 // RenderForm returns both markdown and HTML in one call. Empty datafile
@@ -170,6 +184,9 @@ func (m *Manager) optionsFor(templateName, datafile string) *Options {
 	}
 	if m.referenceResolver != nil {
 		opts.ResolveReference = m.referenceResolver
+	}
+	if m.referenceLink != nil {
+		opts.ResolveReferenceLink = m.referenceLink
 	}
 	return opts
 }

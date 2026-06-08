@@ -48,6 +48,8 @@ func (c *recordingConfig) UpdateUserConfig(p map[string]any) error {
 	return nil
 }
 
+func (c *recordingConfig) CurrentSelection() (string, string) { return "", "" }
+
 type recordedEvent struct {
 	name string
 	data any

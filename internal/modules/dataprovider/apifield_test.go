@@ -111,6 +111,37 @@ func TestFetchAPIFieldRow_NonScalarPassesThroughNatively(t *testing.T) {
 	}
 }
 
+func TestResolveAPIFieldLink_BuildsFormidableHref(t *testing.T) {
+	m, idx, _ := newAPIFieldWorld()
+	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
+
+	href, err := m.ResolveAPIFieldLink(context.Background(), "people.yaml", "g-1")
+	if err != nil {
+		t.Fatalf("ResolveAPIFieldLink: %v", err)
+	}
+	if href != "formidable://people.yaml:alice.meta.json" {
+		t.Errorf("href: %q", href)
+	}
+}
+
+func TestResolveAPIFieldLink_GuidNotFound(t *testing.T) {
+	m, idx, _ := newAPIFieldWorld()
+	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
+
+	_, err := m.ResolveAPIFieldLink(context.Background(), "people.yaml", "missing")
+	if !errors.Is(err, ErrAPIFieldGuidNotFound) {
+		t.Errorf("err: %v, want ErrAPIFieldGuidNotFound", err)
+	}
+}
+
+func TestResolveAPIFieldLink_UnknownTemplate(t *testing.T) {
+	m, _, _ := newAPIFieldWorld()
+	_, err := m.ResolveAPIFieldLink(context.Background(), "ghost.yaml", "g-1")
+	if !errors.Is(err, ErrAPIFieldTemplateNotFound) {
+		t.Errorf("err: %v, want ErrAPIFieldTemplateNotFound", err)
+	}
+}
+
 func TestFetchAPIFieldRow_MissingColumnIsNil(t *testing.T) {
 	m, idx, sto := newAPIFieldWorld()
 	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")

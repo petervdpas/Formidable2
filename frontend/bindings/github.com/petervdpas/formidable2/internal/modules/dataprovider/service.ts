@@ -48,9 +48,21 @@ export function ListCollectionTemplates(): $CancellablePromise<$models.TemplateS
     });
 }
 
+/**
+ * ResolveAPIFieldLink returns the formidable://<template>:<datafile> deep link
+ * for a referenced record, so the form-side "Go to record" uses the same backend
+ * builder as the rendered card.
+ */
+export function ResolveAPIFieldLink(sourceTemplate: string, guid: string): $CancellablePromise<$models.APIFieldLinkResult> {
+    return $Call.ByID(2200325791, sourceTemplate, guid).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.APIFieldRowResult.createFrom;
 const $$createType1 = $models.CollectionItem.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = $models.TemplateSummary.createFrom;
 const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.APIFieldLinkResult.createFrom;

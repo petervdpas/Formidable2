@@ -220,9 +220,14 @@ function onCreated(id: string) {
 }
 
 async function goTo(id: string) {
-  const filename = items.value[id]?.filename;
-  if (!filename) return;
-  await formidableLink.follow(`formidable://${collection.value}:${filename}`);
+  // Backend builds the canonical formidable:// link (same builder the rendered
+  // card uses); follow() pushes nav history and honors the unsaved guard.
+  const res = await DataproviderSvc.ResolveAPIFieldLink(collection.value, id);
+  if (res?.kind || !res?.href) {
+    toast.error(res?.message || "status.template.load.failed");
+    return;
+  }
+  await formidableLink.follow(res.href);
 }
 
 function titleFor(id: string): string {

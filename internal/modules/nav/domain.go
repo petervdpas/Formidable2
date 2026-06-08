@@ -21,9 +21,11 @@ type formStore interface {
 }
 
 // configWriter writes selected_template, selected_data_file, and
-// context_ribbon atomically.
+// context_ribbon atomically, and reads the current selection so a
+// navigation can seed its origin onto the history stack.
 type configWriter interface {
 	UpdateUserConfig(partial map[string]any) error
+	CurrentSelection() (template, datafile string)
 }
 
 // HistoryPusher pushes the canonical href onto the back/forward stack
@@ -59,6 +61,11 @@ func (m *Manager) NavigateToFormidable(href string) (*Result, error) {
 	if target == nil {
 		return &Result{Success: false, Error: fmt.Sprintf("invalid formidable url: %q", href)}, nil
 	}
+
+	// Capture where we're leaving from BEFORE the switch, so Back can return to
+	// the record the user was on (sidebar selections never reach the stack
+	// otherwise). Pushed only after the target validates; deduped on push.
+	originHref := m.originHref(target)
 
 	tpl, err := m.templates.LoadTemplate(target.Template)
 	if err != nil {
@@ -100,10 +107,31 @@ func (m *Manager) NavigateToFormidable(href string) (*Result, error) {
 		m.emitter.Emit(EventChanged, target)
 	}
 	if m.history != nil {
+		if originHref != "" {
+			m.history.Push(originHref)
+		}
 		m.history.Push(MakeHref(target))
 	}
 
 	return &Result{Success: true, Target: target}, nil
+}
+
+// originHref builds the formidable:// href for the current selection (the record
+// being left), or "" when there's no selection, config can't be read, or it
+// equals the target (no self-loop on the stack).
+func (m *Manager) originHref(target *Target) string {
+	if m.config == nil {
+		return ""
+	}
+	tpl, df := m.config.CurrentSelection()
+	if tpl == "" || df == "" {
+		return ""
+	}
+	origin := MakeHref(&Target{Template: tpl, Datafile: df})
+	if origin == MakeHref(target) {
+		return ""
+	}
+	return origin
 }
 
 // ResolveFormidable parses and validates without mutating state. Used

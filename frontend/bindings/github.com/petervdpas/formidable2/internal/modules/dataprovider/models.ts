@@ -6,6 +6,30 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * APIFieldLinkResult is the Wails response for ResolveAPIFieldLink. Kind is ""
+ * on success (Href set) or a stable error string (see apiFieldErrorKind).
+ */
+export class APIFieldLinkResult {
+    "href"?: string;
+    "kind"?: string;
+    "message"?: string;
+
+    /** Creates a new APIFieldLinkResult instance. */
+    constructor($$source: Partial<APIFieldLinkResult> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new APIFieldLinkResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): APIFieldLinkResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new APIFieldLinkResult($$parsedSource as Partial<APIFieldLinkResult>);
+    }
+}
+
+/**
  * APIFieldRowResult is the Wails response for FetchAPIFieldRow. Kind is ""
  * on success or a stable error string (see apiFieldErrorKind) so the
  * frontend branches without parsing Message.
