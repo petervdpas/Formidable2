@@ -135,7 +135,9 @@ export function Evaluate(src: string, ctx: { [_ in string]?: any }): $Cancellabl
 }
 
 /**
- * EvaluateList renders the sub-label for every record; ErrNoExpression when no sidebar_expression is configured.
+ * EvaluateList renders the sub-label for every record. A template with no
+ * sidebar_expression is a normal state, not a binding failure: it yields an empty
+ * list with no error so Wails doesn't log it.
  */
 export function EvaluateList(templateName: string): $CancellablePromise<$models.Result[]> {
     return $Call.ByID(3129605659, templateName).then(($result: any) => {
