@@ -12,6 +12,7 @@ type fs interface {
 	LoadFile(path string) (string, error)
 	LoadBytes(path string) ([]byte, error)
 	SaveFile(path string, content string) error
+	SaveBytes(path string, content []byte) error
 }
 
 // formsSource is the storage surface the export side needs. Optional: callers

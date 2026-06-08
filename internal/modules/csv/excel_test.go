@@ -7,10 +7,12 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// bytesFS serves fixed bytes for LoadBytes; LoadFile/SaveFile are unused here.
+// bytesFS serves fixed bytes for LoadBytes and captures SaveBytes output.
 type bytesFS struct {
-	data []byte
-	err  error
+	data    []byte
+	err     error
+	saved   []byte
+	saveErr error
 }
 
 func (b *bytesFS) LoadFile(string) (string, error) { return "", nil }
@@ -21,6 +23,13 @@ func (b *bytesFS) LoadBytes(string) ([]byte, error) {
 	return b.data, nil
 }
 func (b *bytesFS) SaveFile(string, string) error { return nil }
+func (b *bytesFS) SaveBytes(_ string, content []byte) error {
+	if b.saveErr != nil {
+		return b.saveErr
+	}
+	b.saved = content
+	return nil
+}
 
 // buildWorkbook returns the bytes of a small .xlsx with one data sheet and a
 // blank second sheet, including a date-formatted cell.
@@ -137,6 +146,58 @@ func TestSheetNames_NotAWorkbook(t *testing.T) {
 	m := NewManager(&bytesFS{data: []byte("this is not xlsx")}, nil)
 	if _, err := m.SheetNames("bad.xlsx"); err == nil {
 		t.Fatal("expected error opening a non-workbook")
+	}
+}
+
+func TestWriteExcel_RoundTrip(t *testing.T) {
+	fsw := &bytesFS{}
+	m := NewManager(fsw, nil)
+	rows := [][]string{
+		{"id", "naam"},
+		{"guid-1", "Aanbestedingssysteem"},
+		{"guid-2", "Betaalsysteem"},
+	}
+	if res := m.WriteExcel("out.xlsx", rows, "Applicaties"); !res.Success {
+		t.Fatalf("WriteExcel failed: %s", res.Error)
+	}
+	if len(fsw.saved) == 0 {
+		t.Fatal("nothing written to fs")
+	}
+	// Read it back through the same module.
+	rm := NewManager(&bytesFS{data: fsw.saved}, nil)
+	names, err := rm.SheetNames("out.xlsx")
+	if err != nil || len(names) != 1 || names[0] != "Applicaties" {
+		t.Fatalf("sheet names wrong: %v (%v)", names, err)
+	}
+	pr, err := rm.PreviewSheet("out.xlsx", "Applicaties")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pr.Headers) != 2 || pr.Headers[0] != "id" || pr.RowCount != 2 {
+		t.Fatalf("round-trip mismatch: %+v", pr)
+	}
+	if pr.Rows[0][0] != "guid-1" {
+		t.Errorf("cell value lost: %v", pr.Rows[0])
+	}
+}
+
+func TestWriteExcel_DefaultSheetName(t *testing.T) {
+	fsw := &bytesFS{}
+	m := NewManager(fsw, nil)
+	if res := m.WriteExcel("out.xlsx", [][]string{{"a"}}, ""); !res.Success {
+		t.Fatalf("WriteExcel failed: %s", res.Error)
+	}
+	rm := NewManager(&bytesFS{data: fsw.saved}, nil)
+	names, _ := rm.SheetNames("out.xlsx")
+	if len(names) != 1 || names[0] != "Sheet1" {
+		t.Errorf("want fallback sheet 'Sheet1', got %v", names)
+	}
+}
+
+func TestWriteExcel_SaveError(t *testing.T) {
+	m := NewManager(&bytesFS{saveErr: errLoadBoom}, nil)
+	if res := m.WriteExcel("out.xlsx", [][]string{{"a"}}, "S"); res.Success {
+		t.Error("expected failure when fs.SaveBytes errors")
 	}
 }
 

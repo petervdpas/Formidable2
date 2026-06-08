@@ -180,6 +180,16 @@ export function Write(filePath: string, rows: string[][], delimiter: string, quo
     });
 }
 
+/**
+ * WriteExcel serializes the export grid to an .xlsx file with one sheet, the
+ * Excel-output counterpart to Write.
+ */
+export function WriteExcel(filePath: string, rows: string[][], sheet: string): $CancellablePromise<$models.WriteResult> {
+    return $Call.ByID(3855575998, filePath, rows, sheet).then(($result: any) => {
+        return $$createType13($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.ImportForm.createFrom;
 const $$createType1 = $Create.Array($$createType0);

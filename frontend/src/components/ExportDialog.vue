@@ -30,6 +30,9 @@ const { chooseSaveFile } = useDialog();
 const toast = useToast();
 
 const delimiter = ref(",");
+// Output format: "csv" (delimiter-driven text) or "xlsx" (one-sheet workbook).
+const format = ref<"csv" | "xlsx">("csv");
+const isExcelOut = computed(() => format.value === "xlsx");
 const alignSource = ref("");
 const rows = ref<ExportRow[]>([]);
 const alignable = ref<SourceOption[]>([]);
@@ -86,6 +89,7 @@ watch(
   async (isOpen) => {
     if (!isOpen) return;
     delimiter.value = ",";
+    format.value = "csv";
     alignSource.value = "";
     rows.value = [];
     previewCache.value = [];
@@ -170,8 +174,11 @@ async function doExport() {
   exportError.value = "";
   try {
     const tplStem = props.templateFilename.replace(/\.yaml$/, "");
-    const path = await chooseSaveFile(`${tplStem}-export.csv`, [
-      { displayName: "CSV", pattern: "*.csv" },
+    const ext = isExcelOut.value ? "xlsx" : "csv";
+    const path = await chooseSaveFile(`${tplStem}-export.${ext}`, [
+      isExcelOut.value
+        ? { displayName: "Excel", pattern: "*.xlsx" }
+        : { displayName: "CSV", pattern: "*.csv" },
     ]);
     if (!path) {
       exporting.value = false;
@@ -184,7 +191,9 @@ async function doExport() {
       toast.error("csv.export.failed");
       return;
     }
-    const write = await CsvSvc.Write(path, result.rows, delimiter.value, true);
+    const write = isExcelOut.value
+      ? await CsvSvc.WriteExcel(path, result.rows, tplStem)
+      : await CsvSvc.Write(path, result.rows, delimiter.value, true);
     if (!write.success) {
       exportError.value = write.error || t("csv.export.failed");
       toast.error("csv.export.failed");
@@ -219,6 +228,13 @@ async function doExport() {
 
       <div class="csv-export-toprow">
       <div class="csv-export-field-group">
+        <label class="csv-export-field-label">{{ t('csv.export.format') }}</label>
+        <select v-model="format">
+          <option value="csv">{{ t('csv.export.format.csv') }}</option>
+          <option value="xlsx">{{ t('csv.export.format.xlsx') }}</option>
+        </select>
+      </div>
+      <div v-if="!isExcelOut" class="csv-export-field-group">
         <label class="csv-export-field-label">{{ t('csv.delimiter') }}</label>
         <select v-model="delimiter">
           <option value=",">{{ t('csv.delimiter.comma') }}</option>

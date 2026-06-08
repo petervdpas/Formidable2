@@ -1,6 +1,6 @@
 {
   "menu.data": "Data",
-  "menu.data.export": "CSV exporteren...",
+  "menu.data.export": "Gegevens exporteren...",
   "menu.data.export_pdf": "PDF exporteren...",
   "menu.data.import": "Gegevens importeren...",
   "menu.data.query": "Query...",

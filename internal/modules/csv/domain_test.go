@@ -235,6 +235,12 @@ func (s *stubFS) SaveFile(path, content string) error {
 	return s.saveErr
 }
 
+func (s *stubFS) SaveBytes(path string, content []byte) error {
+	s.saveCalled = true
+	s.saved = string(content)
+	return s.saveErr
+}
+
 func TestPreview_LoadErrorPropagates(t *testing.T) {
 	stub := &stubFS{loadErr: errLoadBoom}
 	m := NewManager(stub, nil)

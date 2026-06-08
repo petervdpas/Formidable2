@@ -10,8 +10,8 @@ import ConfirmDialog from "../components/ConfirmDialog.vue";
 import UnsavedChangesDialog from "../components/UnsavedChangesDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
 import RenderedHtml from "../components/RenderedHtml.vue";
-import ImportCSVDialog from "../components/ImportCSVDialog.vue";
-import ExportCSVDialog from "../components/ExportCSVDialog.vue";
+import ImportDialog from "../components/ImportDialog.vue";
+import ExportDialog from "../components/ExportDialog.vue";
 import ExportPDFDialog from "../components/ExportPDFDialog.vue";
 import QueryDialog from "../components/QueryDialog.vue";
 import DatacoreGraphDialog from "../components/DatacoreGraphDialog.vue";
@@ -1001,28 +1001,28 @@ async function reindexCollection() {
 // rule that limited the dialog to enable_collection templates. The
 // HTTP API's bulk-write surface stays gated on enable_collection in
 // handler.go regardless of this flag.
-const importCsvOpen = ref(false);
+const importOpen = ref(false);
 const activeTemplateObj = computed(() => {
   const f = selectedTemplate.value;
   return f ? templateCache.value.get(f) ?? null : null;
 });
-const csvAllowed = computed(
+const ioAllowed = computed(
   () => !config.value?.io_collection_only || !!activeTemplateObj.value?.enable_collection,
 );
 
-function openImportCsv() {
-  if (!selectedTemplate.value || !csvAllowed.value) return;
-  importCsvOpen.value = true;
+function openImport() {
+  if (!selectedTemplate.value || !ioAllowed.value) return;
+  importOpen.value = true;
 }
 
-async function onCsvImported(count: number) {
+async function onImported(count: number) {
   if (count > 0) await refreshList();
 }
 
-const exportCsvOpen = ref(false);
-function openExportCsv() {
-  if (!selectedTemplate.value || !csvAllowed.value) return;
-  exportCsvOpen.value = true;
+const exportOpen = ref(false);
+function openExport() {
+  if (!selectedTemplate.value || !ioAllowed.value) return;
+  exportOpen.value = true;
 }
 
 const queryOpen = ref(false);
@@ -1161,16 +1161,16 @@ setTopbarMenu(() => [
     alwaysEnabled: true,
     items: [
       {
-        id: "importCsv",
+        id: "import",
         labelKey: "menu.data.import",
-        disabled: !selectedTemplate.value || !csvAllowed.value,
-        onClick: openImportCsv,
+        disabled: !selectedTemplate.value || !ioAllowed.value,
+        onClick: openImport,
       },
       {
-        id: "exportCsv",
+        id: "export",
         labelKey: "menu.data.export",
-        disabled: !selectedTemplate.value || !csvAllowed.value,
-        onClick: openExportCsv,
+        disabled: !selectedTemplate.value || !ioAllowed.value,
+        onClick: openExport,
       },
       {
         id: "query",
@@ -1497,21 +1497,21 @@ setTopbarMenu(() => [
     @cancel="resolveLeave('cancel')"
   />
 
-  <!-- Import CSV dialog -->
-  <ImportCSVDialog
-    :open="importCsvOpen"
+  <!-- Import dialog (CSV / Excel) -->
+  <ImportDialog
+    :open="importOpen"
     :template-filename="selectedTemplate"
     :template="activeTemplateObj"
-    @close="importCsvOpen = false"
-    @imported="onCsvImported"
+    @close="importOpen = false"
+    @imported="onImported"
   />
 
-  <!-- Export CSV dialog -->
-  <ExportCSVDialog
-    :open="exportCsvOpen"
+  <!-- Export dialog (CSV / Excel) -->
+  <ExportDialog
+    :open="exportOpen"
     :template-filename="selectedTemplate"
     :template="activeTemplateObj"
-    @close="exportCsvOpen = false"
+    @close="exportOpen = false"
   />
 
   <!-- Export PDF dialog -->

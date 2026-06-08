@@ -54,6 +54,44 @@ func (m *Manager) PreviewSheet(filePath, sheet string) (PreviewResult, error) {
 	return PreviewResult{Headers: headers, Rows: rows, RowCount: len(rows)}, nil
 }
 
+// WriteExcel serializes rows (first row = headers, then data) to an .xlsx file
+// with one sheet. An empty sheet name falls back to "Sheet1". Cells are written
+// as strings (the export side already formatted every value), matching CSV
+// Write's plain-text contract. The bytes go through the fs seam's atomic write.
+func (m *Manager) WriteExcel(filePath string, rows [][]string, sheet string) WriteResult {
+	if sheet == "" {
+		sheet = "Sheet1"
+	}
+	f := excelize.NewFile()
+	defer f.Close()
+	// NewFile seeds a "Sheet1"; rename it to the requested sheet so there is
+	// exactly one sheet with the right name.
+	if err := f.SetSheetName("Sheet1", sheet); err != nil {
+		return WriteResult{Error: err.Error()}
+	}
+	for r, row := range rows {
+		for c, val := range row {
+			cell, err := excelize.CoordinatesToCellName(c+1, r+1)
+			if err != nil {
+				return WriteResult{Error: err.Error()}
+			}
+			// SetCellStr keeps GUIDs and numeric-looking ids as text instead of
+			// coercing them to numbers/dates.
+			if err := f.SetCellStr(sheet, cell, val); err != nil {
+				return WriteResult{Error: err.Error()}
+			}
+		}
+	}
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return WriteResult{Error: err.Error()}
+	}
+	if err := m.fs.SaveBytes(filePath, buf.Bytes()); err != nil {
+		return WriteResult{Error: err.Error()}
+	}
+	return WriteResult{Success: true}
+}
+
 // openWorkbook reads the file through the fs seam and parses it as xlsx. The
 // caller must Close the returned file.
 func (m *Manager) openWorkbook(filePath string) (*excelize.File, error) {

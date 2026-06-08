@@ -26,6 +26,12 @@ func (s *Service) Write(filePath string, rows [][]string, delimiter string, quot
 	return s.m.Write(filePath, rows, delimiter, quoteAll)
 }
 
+// WriteExcel serializes the export grid to an .xlsx file with one sheet, the
+// Excel-output counterpart to Write.
+func (s *Service) WriteExcel(filePath string, rows [][]string, sheet string) WriteResult {
+	return s.m.WriteExcel(filePath, rows, sheet)
+}
+
 // ApplyTransform runs one transform rule against a single cell value.
 // mode is "preview" or "storage"; only meaningful for split-table.
 func (s *Service) ApplyTransform(value, rule, param, mode string) string {

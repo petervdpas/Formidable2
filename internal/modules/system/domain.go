@@ -203,6 +203,28 @@ func (m *Manager) SaveFile(path string, content string) error {
 	return nil
 }
 
+// SaveBytes writes raw bytes atomically, for binary callers (xlsx export).
+// Same root guard and journal emission as SaveFile.
+func (m *Manager) SaveBytes(path string, content []byte) error {
+	full := m.ResolvePath(path)
+	if !filepath.IsAbs(path) && escapesRoot(m.AppRoot(), full) {
+		return errors.New("system: path escapes the app root: " + path)
+	}
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		return err
+	}
+	existed := fileExists(full)
+	if err := atomicWriteFile(full, content, 0o644); err != nil {
+		return err
+	}
+	op := "create"
+	if existed {
+		op = "update"
+	}
+	m.emit(op, full, map[string]any{"bytes": len(content)})
+	return nil
+}
+
 // AppendFile appends content to path (creating it if missing). Emits no
 // journal op of its own; journals control their own emission.
 func (m *Manager) AppendFile(path string, content string) error {
