@@ -155,6 +155,52 @@ func (m *Manager) FormsWithValue(template, fieldKey, value string) ([]string, er
 	return out, rows.Err()
 }
 
+// compareSQLOps maps a comparison operator to its SQL form. Fixed strings, so the
+// op never reaches the query uninterpolated.
+var compareSQLOps = map[string]string{"gt": ">", "ge": ">=", "lt": "<", "le": "<="}
+
+// FormsWithValueOp returns filenames whose scalar value for fieldKey satisfies
+// (op, value): eq/ne compare text_value; gt/ge/lt/le compare num_value against a
+// parsed float (callers pass dates as epoch seconds, matching the value index).
+// Only scalar entries (col IS NULL) are considered. Indexed fields only
+// (use_in_statistics); a non-indexed field has no rows and yields none.
+func (m *Manager) FormsWithValueOp(template, fieldKey, op, value string) ([]string, error) {
+	var cond string
+	var arg any
+	switch op {
+	case "eq":
+		cond, arg = "text_value = ?", value
+	case "ne":
+		cond, arg = "text_value <> ?", value
+	case "gt", "ge", "lt", "le":
+		n, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err != nil {
+			return nil, fmt.Errorf("index: forms with value %q.%q: numeric %q: %w", template, fieldKey, value, err)
+		}
+		cond, arg = "num_value "+compareSQLOps[op]+" ?", n
+	default:
+		return nil, fmt.Errorf("index: forms with value %q.%q: invalid op %q", template, fieldKey, op)
+	}
+	rows, err := m.db.Query(`
+		SELECT filename
+		FROM form_values
+		WHERE template = ? AND field_key = ? AND col IS NULL AND `+cond,
+		template, fieldKey, arg)
+	if err != nil {
+		return nil, fmt.Errorf("index: forms with value op %q.%q: %w", template, fieldKey, err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var f string
+		if err := rows.Scan(&f); err != nil {
+			return nil, fmt.Errorf("index: scan filename: %w", err)
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 // formsQuerySpec is one WHERE-shape the read API needs; QueryOpts adds tag/order/limit on top.
 type formsQuerySpec interface {
 	where() (sql string, args []any)

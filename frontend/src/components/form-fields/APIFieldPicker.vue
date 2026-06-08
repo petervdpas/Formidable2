@@ -16,6 +16,9 @@ const props = defineProps<{
   open: boolean;
   /** Source template filename ("people.yaml"). */
   sourceTemplate: string;
+  /** Optional author-declared filter narrowing the list, from the field config
+   *  ({field_key, op, value}). The backend routes facet vs data fields. */
+  filterSpec?: { field_key?: string; op?: string; value?: string } | null;
 }>();
 
 const emit = defineEmits<{
@@ -50,7 +53,12 @@ async function load() {
   try {
     // /api/* is delegated by AssetMiddleware to the api Handler in-process.
     const stem = props.sourceTemplate.replace(/\.yaml$/, "");
-    const res = await fetch(`/api/collections/${encodeURIComponent(stem)}?limit=200`);
+    let url = `/api/collections/${encodeURIComponent(stem)}?limit=200`;
+    const fs = props.filterSpec;
+    if (fs?.field_key && fs.op && (fs.value ?? "") !== "") {
+      url += `&filter=${encodeURIComponent(`${fs.field_key}:${fs.op}:${fs.value}`)}`;
+    }
+    const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }

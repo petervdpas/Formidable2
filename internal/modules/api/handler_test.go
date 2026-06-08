@@ -361,6 +361,59 @@ func decode[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 	return out
 }
 
+func TestParseFieldFilter_RoutesFacetVsDataAndDate(t *testing.T) {
+	tpl := newStubTemplates()
+	tpl.by["recepten.yaml"] = &template.Template{
+		Filename: "recepten.yaml",
+		Fields: []template.Field{
+			{Key: "status", Type: "facet", FacetKey: "state"},
+			{Key: "kind", Type: "dropdown"},
+			{Key: "due", Type: "date"},
+		},
+		Facets: []template.Facet{{Key: "state"}},
+	}
+	h := &Handler{tpl: tpl}
+
+	// Data field -> opts.Filter.
+	f, fk, _, errResp := h.parseFieldFilter(httptest.NewRequest(http.MethodGet, "/?filter=kind:eq:wine", nil), "recepten.yaml")
+	if errResp != nil {
+		t.Fatalf("data filter err: %+v", errResp.body)
+	}
+	if f == nil || f.FieldKey != "kind" || f.Op != "eq" || f.Value != "wine" || fk != "" {
+		t.Errorf("data filter = %+v facetKey=%q", f, fk)
+	}
+
+	// Facet field -> facet addition (key=facetKey, label=value), no Filter.
+	f, fk, fl, errResp := h.parseFieldFilter(httptest.NewRequest(http.MethodGet, "/?filter=status:eq:Done", nil), "recepten.yaml")
+	if errResp != nil {
+		t.Fatalf("facet filter err: %+v", errResp.body)
+	}
+	if f != nil || fk != "state" || fl != "Done" {
+		t.Errorf("facet route Filter=%+v key=%q label=%q, want nil/state/Done", f, fk, fl)
+	}
+
+	// Date compare -> value converted to epoch.
+	f, _, _, errResp = h.parseFieldFilter(httptest.NewRequest(http.MethodGet, "/?filter=due:ge:2026-06-08", nil), "recepten.yaml")
+	if errResp != nil {
+		t.Fatalf("date filter err: %+v", errResp.body)
+	}
+	epoch, _ := dateToEpoch("2026-06-08")
+	if f == nil || f.Value != epoch {
+		t.Errorf("date filter value = %+v, want epoch %s", f, epoch)
+	}
+
+	// Bad op and unknown field error; empty filter is a no-op.
+	if _, _, _, e := h.parseFieldFilter(httptest.NewRequest(http.MethodGet, "/?filter=kind:contains:x", nil), "recepten.yaml"); e == nil {
+		t.Error("bad op should error")
+	}
+	if _, _, _, e := h.parseFieldFilter(httptest.NewRequest(http.MethodGet, "/?filter=ghost:eq:x", nil), "recepten.yaml"); e == nil {
+		t.Error("unknown field should error")
+	}
+	if ff, fkk, _, e := h.parseFieldFilter(httptest.NewRequest(http.MethodGet, "/", nil), "recepten.yaml"); e != nil || ff != nil || fkk != "" {
+		t.Error("absent filter should be a no-op")
+	}
+}
+
 func TestListCollections_OmitsNonCollectionTemplates(t *testing.T) {
 	h := NewHandler(newStub(), newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
 	rec := do(t, h, http.MethodGet, "/api/collections")

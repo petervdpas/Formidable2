@@ -61,3 +61,67 @@ func TestFormsWithValue(t *testing.T) {
 		t.Fatalf("missing template = %v err=%v, want empty", rows, err)
 	}
 }
+
+// TestFormsWithValueOp covers the api-field filter narrowing: eq/ne over
+// text_value and gt/ge/lt/le over num_value, scalar-only (col IS NULL).
+func TestFormsWithValueOp(t *testing.T) {
+	idxM, err := NewManager(filepath.Join(t.TempDir(), "x.db"))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	t.Cleanup(func() { idxM.Close() })
+
+	num := func(n float64) *float64 { return &n }
+	forms := []FormRow{
+		{Template: "basic.yaml", Filename: "a.meta.json", Mtime: 100, Values: []FormValueRow{
+			{FieldKey: "region", ValueType: "text", Text: "east"},
+			{FieldKey: "amount", ValueType: "number", Num: num(100), Text: "100"},
+		}},
+		{Template: "basic.yaml", Filename: "b.meta.json", Mtime: 100, Values: []FormValueRow{
+			{FieldKey: "region", ValueType: "text", Text: "west"},
+			{FieldKey: "amount", ValueType: "number", Num: num(200), Text: "200"},
+		}},
+		{Template: "basic.yaml", Filename: "c.meta.json", Mtime: 100, Values: []FormValueRow{
+			{FieldKey: "region", ValueType: "text", Text: "east"},
+			{FieldKey: "amount", ValueType: "number", Num: num(300), Text: "300"},
+		}},
+	}
+	if err := Reconcile(idxM.DB(), ReconcileBatch{
+		UpsertTemplates: []TemplateRow{{Filename: "basic.yaml", Name: "basic", Mtime: 100}},
+		UpsertForms:     forms,
+	}); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	check := func(op, field, val string, want ...string) {
+		t.Helper()
+		got, err := idxM.FormsWithValueOp("basic.yaml", field, op, val)
+		if err != nil {
+			t.Fatalf("FormsWithValueOp %s %s %s: %v", field, op, val, err)
+		}
+		sort.Strings(got)
+		sort.Strings(want)
+		if len(got) != len(want) {
+			t.Fatalf("%s %s %s = %v, want %v", field, op, val, got, want)
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				t.Fatalf("%s %s %s = %v, want %v", field, op, val, got, want)
+			}
+		}
+	}
+
+	check("eq", "region", "east", "a.meta.json", "c.meta.json")
+	check("ne", "region", "east", "b.meta.json")
+	check("ge", "amount", "200", "b.meta.json", "c.meta.json")
+	check("gt", "amount", "200", "c.meta.json")
+	check("lt", "amount", "200", "a.meta.json")
+	check("le", "amount", "100", "a.meta.json")
+
+	if _, err := idxM.FormsWithValueOp("basic.yaml", "amount", "gt", "abc"); err == nil {
+		t.Error("non-numeric compare value should error")
+	}
+	if _, err := idxM.FormsWithValueOp("basic.yaml", "region", "contains", "x"); err == nil {
+		t.Error("invalid op should error")
+	}
+}

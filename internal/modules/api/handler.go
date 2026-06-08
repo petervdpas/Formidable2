@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/petervdpas/formidable2/internal/modules/api/swaggerui"
 	csvmod "github.com/petervdpas/formidable2/internal/modules/csv"
@@ -575,6 +576,19 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	} else {
 		opts.Facets = facets
 	}
+	// One ?filter=field:op:value predicate: a facet field folds into opts.Facets
+	// (reusing the facet path); any other field becomes a data-field predicate.
+	if filter, fKey, fLabel, errResp := h.parseFieldFilter(r, tplFilename); errResp != nil {
+		writeJSON(w, errResp.status, errResp.body)
+		return
+	} else if filter != nil {
+		opts.Filter = filter
+	} else if fKey != "" {
+		if opts.Facets == nil {
+			opts.Facets = map[string]string{}
+		}
+		opts.Facets[fKey] = fLabel
+	}
 	page, err := h.dp.ListCollection(r.Context(), tplFilename, opts)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "internal-error")
@@ -699,6 +713,72 @@ func (h *Handler) parseFacetFilters(r *http.Request, tplFilename string) (map[st
 		return nil, nil
 	}
 	return out, nil
+}
+
+// apiFilterOps is the allowed operator set for the ?filter= predicate.
+var apiFilterOps = map[string]bool{
+	"eq": true, "ne": true, "gt": true, "ge": true, "lt": true, "le": true,
+}
+
+// parseFieldFilter resolves `?filter=field:op:value` against the target template
+// and routes it: a facet field becomes a facet addition (returned as key+label,
+// eq only); any other field becomes a data-field predicate (opts.Filter), with a
+// date compare value converted to the epoch the value index stores. An empty
+// value is a no-op. Splits on the first two ":" so the value may contain colons.
+func (h *Handler) parseFieldFilter(r *http.Request, tplFilename string) (filter *dataprovider.CollectionFieldFilter, facetKey, facetLabel string, errResp *facetFilterError) {
+	raw := strings.TrimSpace(r.URL.Query().Get("filter"))
+	if raw == "" {
+		return nil, "", "", nil
+	}
+	parts := strings.SplitN(raw, ":", 3)
+	if len(parts) != 3 {
+		return nil, "", "", &facetFilterError{http.StatusBadRequest, map[string]any{"error": "bad_filter"}}
+	}
+	fieldKey, op, value := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), parts[2]
+	if fieldKey == "" || value == "" {
+		return nil, "", "", nil
+	}
+	if !apiFilterOps[op] {
+		return nil, "", "", &facetFilterError{http.StatusBadRequest, map[string]any{"error": "bad_filter_op", "op": op}}
+	}
+	t, err := h.tpl.LoadTemplate(tplFilename)
+	if err != nil || t == nil {
+		return nil, "", "", &facetFilterError{http.StatusForbidden, map[string]any{"error": "collection-disabled"}}
+	}
+	var fld *template.Field
+	for i := range t.Fields {
+		if t.Fields[i].Key == fieldKey {
+			fld = &t.Fields[i]
+			break
+		}
+	}
+	if fld == nil {
+		return nil, "", "", &facetFilterError{http.StatusBadRequest, map[string]any{"error": "unknown_filter_field", "key": fieldKey}}
+	}
+	if fld.Type == "facet" && fld.FacetKey != "" {
+		if op != "eq" {
+			return nil, "", "", &facetFilterError{http.StatusBadRequest, map[string]any{"error": "facet_filter_op", "op": op}}
+		}
+		return nil, fld.FacetKey, value, nil
+	}
+	if fld.Type == "date" && op != "eq" && op != "ne" {
+		epoch, ok := dateToEpoch(value)
+		if !ok {
+			return nil, "", "", &facetFilterError{http.StatusBadRequest, map[string]any{"error": "bad_filter_date", "value": value}}
+		}
+		value = epoch
+	}
+	return &dataprovider.CollectionFieldFilter{FieldKey: fieldKey, Op: op, Value: value}, "", "", nil
+}
+
+// dateToEpoch converts a YYYY-MM-DD date to the UTC epoch-seconds string the
+// value index stores (index/values.go dateRow), for numeric date comparison.
+func dateToEpoch(s string) (string, bool) {
+	t, err := time.Parse("2006-01-02", strings.TrimSpace(s))
+	if err != nil {
+		return "", false
+	}
+	return strconv.FormatInt(t.UTC().Unix(), 10), true
 }
 
 // parseListOpts extracts list-endpoint query params; bad/empty numerics fall through to defaults.

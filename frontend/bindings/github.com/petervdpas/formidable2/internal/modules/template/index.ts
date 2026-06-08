@@ -7,6 +7,7 @@ export {
 };
 
 export {
+    APIFilter,
     APIMap,
     Abilities,
     Descriptor,

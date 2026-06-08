@@ -17,7 +17,9 @@ import { SelectField, TextField } from "./fields";
 import {
   Service as TemplateSvc,
   type Field,
+  type Template,
   APIMap,
+  APIFilter,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 import { Service as DataproviderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
 import {
@@ -95,20 +97,26 @@ type SourceField = { key: string; label: string; type: string };
 const sourceFields = ref<SourceField[]>([]);
 const sourceFieldsLoading = ref(false);
 const sourceFieldsError = ref("");
+// Full loaded target template, so the filter row can read field options,
+// use_in_statistics, and facets for eligibility + value pickers.
+const targetTpl = ref<Template | null>(null);
 
 async function loadSourceFields(filename: string) {
   if (!filename) {
     sourceFields.value = [];
+    targetTpl.value = null;
     return;
   }
   sourceFieldsLoading.value = true;
   sourceFieldsError.value = "";
   try {
     const tpl = await TemplateSvc.LoadTemplate(filename);
+    targetTpl.value = tpl ?? null;
     sourceFields.value = tpl ? topLevelFields(tpl.fields ?? []) : [];
   } catch (e) {
     sourceFieldsError.value = String((e as Error)?.message ?? e);
     sourceFields.value = [];
+    targetTpl.value = null;
   } finally {
     sourceFieldsLoading.value = false;
   }
@@ -162,6 +170,134 @@ function addRow() {
 function removeRow(idx: number) {
   ensureMap().splice(idx, 1);
 }
+
+// ── Filter (one optional predicate, backend-driven values) ─────────────
+// Eligible filter fields: facets (filtered via the facet path) + data fields
+// that are use_in_statistics (their values are indexed). Other fields can't be
+// filtered, so they're not offered; the hint explains why.
+const FILTERABLE_TYPES = new Set([
+  "text", "dropdown", "radio", "boolean", "number", "range", "date",
+]);
+
+type EligibleField = { key: string; label: string; type: string };
+const eligibleFilterFields = computed<EligibleField[]>(() => {
+  const fields = targetTpl.value?.fields ?? [];
+  const out: EligibleField[] = [];
+  let depth = 0;
+  for (const f of fields) {
+    if (f.type === "loopstart") { depth++; continue; }
+    if (f.type === "loopstop") { if (depth > 0) depth--; continue; }
+    if (depth > 0 || !f.key) continue;
+    const eligible = f.type === "facet" || (f.use_in_statistics && FILTERABLE_TYPES.has(f.type));
+    if (eligible) out.push({ key: f.key, label: f.label || f.key, type: f.type || "text" });
+  }
+  return out;
+});
+
+const filterFieldOptions = computed(() =>
+  eligibleFilterFields.value.map((f) => ({
+    value: f.key,
+    label: f.label === f.key ? f.key : `${f.label} (${f.key})`,
+  })),
+);
+
+const filterField = computed(() => props.field.filter?.field_key ?? "");
+const filterOp = computed(() => props.field.filter?.op ?? "eq");
+const filterValue = computed(() => props.field.filter?.value ?? "");
+
+function filterFieldType(key: string): string {
+  return eligibleFilterFields.value.find((f) => f.key === key)?.type ?? "";
+}
+
+// Operator sets mirror the backend's apiFilterOps; facets only support eq, and
+// numeric/date fields gain the comparisons.
+function operatorsFor(type: string): string[] {
+  switch (type) {
+    case "number":
+    case "range":
+    case "date":
+      return ["eq", "ne", "gt", "ge", "lt", "le"];
+    case "facet":
+      return ["eq"];
+    default:
+      return ["eq", "ne"];
+  }
+}
+
+const FILTER_OP_LABEL_KEYS: Record<string, string> = {
+  eq: "workspace.templates.api_editor.filter.op.eq",
+  ne: "workspace.templates.api_editor.filter.op.ne",
+  gt: "workspace.templates.api_editor.filter.op.gt",
+  ge: "workspace.templates.api_editor.filter.op.ge",
+  lt: "workspace.templates.api_editor.filter.op.lt",
+  le: "workspace.templates.api_editor.filter.op.le",
+};
+
+const operatorOptions = computed(() =>
+  operatorsFor(filterFieldType(filterField.value)).map((op) => ({
+    value: op,
+    label: t(FILTER_OP_LABEL_KEYS[op]),
+  })),
+);
+
+// Value options for the chosen field: dropdown/radio from field.options, facet
+// from the facet's option labels, boolean true/false. null = free input.
+const filterValueOptions = computed<{ value: string; label: string }[] | null>(() => {
+  const key = filterField.value;
+  if (!key) return null;
+  const fld = (targetTpl.value?.fields ?? []).find((f) => f.key === key);
+  if (!fld) return null;
+  if (fld.type === "dropdown" || fld.type === "radio") {
+    return (fld.options ?? []).map((o) => optionPair(o));
+  }
+  if (fld.type === "boolean") {
+    return [
+      { value: "true", label: t("workspace.templates.api_editor.filter.bool_true") },
+      { value: "false", label: t("workspace.templates.api_editor.filter.bool_false") },
+    ];
+  }
+  if (fld.type === "facet" && fld.facet_key) {
+    const facet = (targetTpl.value?.facets ?? []).find((fc) => fc.key === fld.facet_key);
+    return (facet?.options ?? []).map((o) => ({ value: o.label, label: o.label }));
+  }
+  return null;
+});
+
+const filterValueIsDate = computed(
+  () => filterFieldType(filterField.value) === "date",
+);
+const filterValueIsNumber = computed(() => {
+  const ty = filterFieldType(filterField.value);
+  return ty === "number" || ty === "range";
+});
+
+function optionPair(o: unknown): { value: string; label: string } {
+  if (o && typeof o === "object") {
+    const rec = o as Record<string, unknown>;
+    const value = typeof rec.value === "string" ? rec.value : String(rec.value ?? "");
+    const label = typeof rec.label === "string" && rec.label.trim() ? rec.label : value;
+    return { value, label };
+  }
+  return { value: String(o), label: String(o) };
+}
+
+function ensureFilter(): APIFilter {
+  if (!props.field.filter) {
+    props.field.filter = APIFilter.createFrom({ field_key: "", op: "eq", value: "" });
+  }
+  return props.field.filter;
+}
+function onFilterField(key: string) {
+  if (!key) { props.field.filter = null; return; }
+  const f = ensureFilter();
+  f.field_key = key;
+  const ops = operatorsFor(filterFieldType(key));
+  if (!ops.includes(f.op)) f.op = ops[0];
+  f.value = "";
+}
+function onFilterOp(op: string) { ensureFilter().op = op; }
+function onFilterValue(v: string) { ensureFilter().value = v; }
+function clearFilter() { props.field.filter = null; }
 </script>
 
 <template>
@@ -202,6 +338,71 @@ function removeRow(idx: number) {
           {{ cardinalityLabel }}
         </span>
         <span v-else class="muted small">-</span>
+      </div>
+    </div>
+
+    <!-- Filter (one optional predicate; narrows the link picker) -->
+    <div v-if="field.collection" class="api-field-editor-row">
+      <label class="api-field-editor-label">
+        {{ t("workspace.templates.api_editor.filter") }}
+      </label>
+      <div class="api-field-editor-control">
+        <p v-if="eligibleFilterFields.length === 0" class="muted small">
+          {{ t("workspace.templates.api_editor.filter.none_eligible") }}
+        </p>
+        <template v-else>
+          <div class="api-filter-row">
+            <SelectField
+              :model-value="filterField"
+              :options="filterFieldOptions"
+              :placeholder="t('workspace.templates.api_editor.filter.field_placeholder')"
+              @update:model-value="(v: string) => onFilterField(v)"
+            />
+            <SelectField
+              v-if="filterField"
+              :model-value="filterOp"
+              :options="operatorOptions"
+              @update:model-value="(v: string) => onFilterOp(v)"
+            />
+            <SelectField
+              v-if="filterField && filterValueOptions"
+              :model-value="filterValue"
+              :options="filterValueOptions"
+              :placeholder="t('workspace.templates.api_editor.filter.value_placeholder')"
+              @update:model-value="(v: string) => onFilterValue(v)"
+            />
+            <input
+              v-else-if="filterField && filterValueIsDate"
+              type="date"
+              class="api-filter-input"
+              :value="filterValue"
+              @input="(e) => onFilterValue((e.target as HTMLInputElement).value)"
+            />
+            <input
+              v-else-if="filterField && filterValueIsNumber"
+              type="number"
+              class="api-filter-input"
+              :value="filterValue"
+              @input="(e) => onFilterValue((e.target as HTMLInputElement).value)"
+            />
+            <TextField
+              v-else-if="filterField"
+              :model-value="filterValue"
+              :placeholder="t('workspace.templates.api_editor.filter.value_placeholder')"
+              @update:model-value="(v: string) => onFilterValue(v)"
+            />
+            <button
+              v-if="filterField"
+              type="button"
+              class="tool-btn small"
+              :aria-label="t('common.remove')"
+              @click="clearFilter"
+            >
+              ✕
+            </button>
+          </div>
+          <p class="muted small">{{ t("workspace.templates.api_editor.filter.hint") }}</p>
+        </template>
       </div>
     </div>
 

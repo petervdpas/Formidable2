@@ -88,6 +88,26 @@ func (m *Manager) ListCollection(ctx context.Context, template string, opts Coll
 		rows = filtered
 	}
 
+	// One data-field predicate via the value index (form_values). Facet-field
+	// filters are routed into opts.Facets by the caller, so this is data-only.
+	if opts.Filter != nil && strings.TrimSpace(opts.Filter.FieldKey) != "" {
+		names, err := m.idx.FormsWithValueOp(template, opts.Filter.FieldKey, opts.Filter.Op, opts.Filter.Value)
+		if err != nil {
+			return nil, err
+		}
+		set := make(map[string]struct{}, len(names))
+		for _, n := range names {
+			set[n] = struct{}{}
+		}
+		filtered := rows[:0:0]
+		for _, r := range rows {
+			if _, ok := set[r.Filename]; ok {
+				filtered = append(filtered, r)
+			}
+		}
+		rows = filtered
+	}
+
 	total := len(rows)
 	if opts.Offset > 0 {
 		if opts.Offset >= len(rows) {

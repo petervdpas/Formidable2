@@ -87,6 +87,73 @@ func TestValidate_ApiMapDuplicateKeysCaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestValidate_ApiFilterFieldRequired(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "ref", Type: "api", Collection: "x",
+				Filter: &APIFilter{FieldKey: "", Op: "eq", Value: "a"}},
+		},
+	})
+	found := false
+	for _, e := range errs {
+		if e.Type == "api-filter-field-required" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected api-filter-field-required; got %+v", errs)
+	}
+}
+
+func TestValidate_ApiFilterOpInvalid(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "ref", Type: "api", Collection: "x",
+				Filter: &APIFilter{FieldKey: "status", Op: "contains", Value: "a"}},
+		},
+	})
+	found := false
+	for _, e := range errs {
+		if e.Type == "api-filter-op-invalid" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected api-filter-op-invalid; got %+v", errs)
+	}
+}
+
+func TestValidate_ApiFilterValidPasses(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "ref", Type: "api", Collection: "x",
+				Filter: &APIFilter{FieldKey: "amount", Op: "ge", Value: "100"}},
+		},
+	})
+	for _, e := range errs {
+		if e.Type == "api-filter-field-required" || e.Type == "api-filter-op-invalid" {
+			t.Errorf("valid filter flagged: %+v", e)
+		}
+	}
+}
+
+func TestValidate_ApiFilterForbiddenOnNonApi(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "t", Type: "text", Filter: &APIFilter{FieldKey: "x", Op: "eq"}},
+		},
+	})
+	found := false
+	for _, e := range errs {
+		if e.Type == "forbidden-attribute" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected forbidden-attribute for filter on non-api; got %+v", errs)
+	}
+}
+
 func TestValidate_MultipleGuidFieldsFlagged(t *testing.T) {
 	errs := Validate(&Template{
 		Fields: []Field{

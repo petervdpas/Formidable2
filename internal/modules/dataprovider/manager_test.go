@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -97,6 +98,49 @@ func (f *fakeIndex) ListByTags(tags []string) ([]index.FormRow, error) {
 			}
 			if ok {
 				out = append(out, r)
+			}
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeIndex) FormsWithValueOp(template, fieldKey, op, value string) ([]string, error) {
+	var out []string
+	for _, r := range f.forms[template] {
+		for _, v := range r.Values {
+			if v.Col != nil || v.FieldKey != fieldKey {
+				continue
+			}
+			match := false
+			switch op {
+			case "eq":
+				match = v.Text == value
+			case "ne":
+				match = v.Text != value
+			case "gt", "ge", "lt", "le":
+				n, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+				if err != nil {
+					return nil, err
+				}
+				if v.Num == nil {
+					continue
+				}
+				switch op {
+				case "gt":
+					match = *v.Num > n
+				case "ge":
+					match = *v.Num >= n
+				case "lt":
+					match = *v.Num < n
+				case "le":
+					match = *v.Num <= n
+				}
+			default:
+				return nil, errors.New("fakeIndex: invalid op " + op)
+			}
+			if match {
+				out = append(out, r.Filename)
+				break
 			}
 		}
 	}

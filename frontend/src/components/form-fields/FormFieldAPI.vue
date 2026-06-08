@@ -347,6 +347,7 @@ function shapeTable(rowsIn: any[], sourceField: Field | undefined): RenderedShap
     <APIFieldPicker
       :open="pickerOpen"
       :source-template="collection"
+      :filter-spec="field.filter ?? null"
       @close="pickerOpen = false"
       @pick="onPick"
     />

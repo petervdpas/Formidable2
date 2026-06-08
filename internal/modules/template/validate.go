@@ -454,7 +454,7 @@ func apiGroupOnNonApiErrors(fields []Field) []ValidationError {
 		if f.Type == "api" {
 			continue
 		}
-		if f.Collection == "" && len(f.Map) == 0 {
+		if f.Collection == "" && len(f.Map) == 0 && f.Filter == nil {
 			continue
 		}
 		ff := f
@@ -766,8 +766,32 @@ func apiFieldErrors(fields []Field) []ValidationError {
 				seen[kl] = true
 			}
 		}
+		if f.Filter != nil {
+			if strings.TrimSpace(f.Filter.FieldKey) == "" {
+				errs = append(errs, ValidationError{
+					Type:    "api-filter-field-required",
+					Field:   &ff,
+					Key:     key,
+					Message: "API field filter requires a target field.",
+				})
+			} else if !apiFilterOps[f.Filter.Op] {
+				errs = append(errs, ValidationError{
+					Type:    "api-filter-op-invalid",
+					Field:   &ff,
+					Key:     key,
+					Detail:  map[string]any{"op": f.Filter.Op},
+					Message: fmt.Sprintf("Invalid API field filter operator: %q", f.Filter.Op),
+				})
+			}
+		}
 	}
 	return errs
+}
+
+// apiFilterOps is the allowed operator set for an api field filter (mirrors the
+// query module's FilterOps).
+var apiFilterOps = map[string]bool{
+	"eq": true, "ne": true, "gt": true, "ge": true, "lt": true, "le": true,
 }
 
 func (f Field) key() string { return f.Key }

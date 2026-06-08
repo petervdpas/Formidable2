@@ -12,6 +12,7 @@ type Index interface {
 	ListForms(template string, opts index.QueryOpts) ([]index.FormRow, error)
 	GetForm(template, datafile string) (*index.FormRow, bool, error)
 	ListByTags(tags []string) ([]index.FormRow, error)
+	FormsWithValueOp(template, fieldKey, op, value string) ([]string, error)
 	Rev() (int64, error)
 }
 

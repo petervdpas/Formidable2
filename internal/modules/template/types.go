@@ -187,8 +187,9 @@ type Field struct {
 	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 
 	// api-specific. Map's column types are resolved live from the source template, never stored, to avoid stale-cache drift.
-	Collection string   `yaml:"collection,omitempty" json:"collection,omitempty"`
-	Map        []APIMap `yaml:"map,omitempty" json:"map,omitempty"`
+	Collection string     `yaml:"collection,omitempty" json:"collection,omitempty"`
+	Map        []APIMap   `yaml:"map,omitempty" json:"map,omitempty"`
+	Filter     *APIFilter `yaml:"filter,omitempty" json:"filter,omitempty"`
 
 	// facet-specific. FacetKey binds a virtual field to a declared facet; value lives in meta.facets[FacetKey], not data.
 	FacetKey string `yaml:"facet_key,omitempty" json:"facet_key,omitempty"`
@@ -210,6 +211,16 @@ type Field struct {
 type APIMap struct {
 	Key   string `yaml:"key" json:"key"`
 	Label string `yaml:"label,omitempty" json:"label,omitempty"`
+}
+
+// APIFilter is one optional predicate that narrows the api field's target list to
+// records where FieldKey Op Value holds. Op is one of eq/ne/gt/ge/lt/le. The
+// target field must be a facet or a use_in_statistics-indexed field so the value
+// is queryable; the editor offers only eligible fields.
+type APIFilter struct {
+	FieldKey string `yaml:"field_key" json:"field_key"`
+	Op       string `yaml:"op" json:"op"`
+	Value    string `yaml:"value,omitempty" json:"value"`
 }
 
 // ValidationError is one issue found by Validate.

@@ -210,6 +210,64 @@ func TestListCollection_FacetFilter_ReadsFromFormRow(t *testing.T) {
 	}
 }
 
+func TestListCollection_FieldFilter_ViaValueIndex(t *testing.T) {
+	// opts.Filter narrows by a data field through the value index (the fake
+	// mirrors form_values: eq/ne on Text, compare on Num). Facet routing is the
+	// caller's job, so this exercises the data-field path only.
+	num := func(n float64) *float64 { return &n }
+	idx := &fakeIndex{
+		templates: []index.TemplateRow{
+			{Filename: "recepten.yaml", Name: "Recepten",
+				GuidField: "id", TagsField: "tags", ItemField: "title",
+				EnableCollection: true},
+		},
+		forms: map[string][]index.FormRow{
+			"recepten.yaml": {
+				{Template: "recepten.yaml", Filename: "a.meta.json", ID: "g-a", Title: "A",
+					Values: []index.FormValueRow{
+						{FieldKey: "status", ValueType: "text", Text: "done"},
+						{FieldKey: "amount", ValueType: "number", Num: num(100), Text: "100"},
+					}},
+				{Template: "recepten.yaml", Filename: "b.meta.json", ID: "g-b", Title: "B",
+					Values: []index.FormValueRow{
+						{FieldKey: "status", ValueType: "text", Text: "todo"},
+						{FieldKey: "amount", ValueType: "number", Num: num(300), Text: "300"},
+					}},
+			},
+		},
+	}
+	m := newManagerWithFakes(idx, nil)
+
+	// eq on a text/dropdown-style field.
+	page, err := m.ListCollection(context.Background(), "recepten.yaml",
+		CollectionListOpts{Filter: &CollectionFieldFilter{FieldKey: "status", Op: "eq", Value: "done"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 || page.Items[0].Filename != "a.meta.json" {
+		t.Errorf("status eq done got %+v, want a only", page.Items)
+	}
+
+	// numeric compare.
+	page2, err := m.ListCollection(context.Background(), "recepten.yaml",
+		CollectionListOpts{Filter: &CollectionFieldFilter{FieldKey: "amount", Op: "ge", Value: "200"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page2.Items) != 1 || page2.Items[0].Filename != "b.meta.json" {
+		t.Errorf("amount ge 200 got %+v, want b only", page2.Items)
+	}
+
+	// Unset filter leaves the list unchanged.
+	page3, err := m.ListCollection(context.Background(), "recepten.yaml", CollectionListOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page3.Items) != 2 {
+		t.Errorf("no filter got %d items, want 2", len(page3.Items))
+	}
+}
+
 func TestListCollection_LimitOffset(t *testing.T) {
 	idx := collectionsFixture()
 	m := newManagerWithFakes(idx, nil)

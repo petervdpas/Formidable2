@@ -146,6 +146,20 @@
   background: color-mix(in oklab, currentColor 12%, transparent);
   font-size: 0.8rem;
 }
+.api-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.api-filter-input {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border, color-mix(in oklab, currentColor 25%, transparent));
+  border-radius: 4px;
+  background: var(--color-input-bg, transparent);
+  color: inherit;
+  font-size: 0.9rem;
+}
 
 /* ── Create-target dialog ────────────────────────────────────────────── */
 .api-create-dialog {

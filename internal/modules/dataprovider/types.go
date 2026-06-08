@@ -84,4 +84,16 @@ type CollectionListOpts struct {
 	Q      string
 	Tags   []string
 	Facets map[string]string
+	Filter *CollectionFieldFilter
+}
+
+// CollectionFieldFilter is one data-field predicate applied via the value index
+// (form_values): Op is eq/ne/gt/ge/lt/le. For a date field a compare value must
+// be the epoch seconds the index stores. Facet-field filtering goes through
+// Facets, not here; the api handler routes facet vs data using the target
+// template, so ListCollection stays type-agnostic.
+type CollectionFieldFilter struct {
+	FieldKey string
+	Op       string
+	Value    string
 }
