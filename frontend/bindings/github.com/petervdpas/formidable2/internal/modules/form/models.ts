@@ -13,6 +13,35 @@ import * as storage$0 from "../storage/models.js";
 import * as template$0 from "../template/models.js";
 
 /**
+ * EdgePair is one source-guid -> target-guid link parsed from an import sheet's
+ * two id columns.
+ */
+export class EdgePair {
+    "from": string;
+    "to": string;
+
+    /** Creates a new EdgePair instance. */
+    constructor($$source: Partial<EdgePair> = {}) {
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EdgePair instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EdgePair {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EdgePair($$parsedSource as Partial<EdgePair>);
+    }
+}
+
+/**
  * FormView is the Vue-facing payload from BuildView and SaveValues.
  * Values is keyed by field.key; loop keys hold []map[string]any, one
  * entry per item with inner field values keyed inside.
@@ -71,6 +100,44 @@ export class FormView {
             $$parsedSource["loop_groups"] = $$createField3_0($$parsedSource["loop_groups"]);
         }
         return new FormView($$parsedSource as Partial<FormView>);
+    }
+}
+
+/**
+ * ImportRelationResult reports the outcome of ImportRelationEdges: how many
+ * source records were touched, how many links were added, and how many rows
+ * were skipped because an endpoint record did not exist.
+ */
+export class ImportRelationResult {
+    "records": number;
+    "linked": number;
+    "missingFrom": number;
+    "missingTo": number;
+
+    /** Creates a new ImportRelationResult instance. */
+    constructor($$source: Partial<ImportRelationResult> = {}) {
+        if (!("records" in $$source)) {
+            this["records"] = 0;
+        }
+        if (!("linked" in $$source)) {
+            this["linked"] = 0;
+        }
+        if (!("missingFrom" in $$source)) {
+            this["missingFrom"] = 0;
+        }
+        if (!("missingTo" in $$source)) {
+            this["missingTo"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportRelationResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportRelationResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportRelationResult($$parsedSource as Partial<ImportRelationResult>);
     }
 }
 

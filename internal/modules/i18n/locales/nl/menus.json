@@ -2,7 +2,7 @@
   "menu.data": "Data",
   "menu.data.export": "CSV exporteren...",
   "menu.data.export_pdf": "PDF exporteren...",
-  "menu.data.import": "CSV importeren...",
+  "menu.data.import": "Gegevens importeren...",
   "menu.data.query": "Query...",
   "menu.data.graph": "Grafiek...",
   "menu.data.reindex": "Zoekindex herbouwen",

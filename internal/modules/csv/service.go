@@ -10,6 +10,18 @@ func (s *Service) Preview(filePath, delimiter string) (PreviewResult, error) {
 	return s.m.Preview(filePath, delimiter)
 }
 
+// SheetNames lists the sheets of an .xlsx workbook, in workbook order, so the
+// import dialog can offer a sheet picker for Excel sources.
+func (s *Service) SheetNames(filePath string) ([]string, error) {
+	return s.m.SheetNames(filePath)
+}
+
+// PreviewSheet returns the header + rows of one .xlsx sheet in the same shape
+// as Preview, so the dialog's mapping pipeline is identical for CSV and Excel.
+func (s *Service) PreviewSheet(filePath, sheet string) (PreviewResult, error) {
+	return s.m.PreviewSheet(filePath, sheet)
+}
+
 func (s *Service) Write(filePath string, rows [][]string, delimiter string, quoteAll bool) WriteResult {
 	return s.m.Write(filePath, rows, delimiter, quoteAll)
 }

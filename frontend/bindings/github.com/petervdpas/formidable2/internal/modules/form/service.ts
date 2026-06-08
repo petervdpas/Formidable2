@@ -56,12 +56,24 @@ export function EnsureFormDir(templateName: string): $CancellablePromise<void> {
 }
 
 /**
+ * ImportRelationEdges is the relations pass of a multipass import: it writes the
+ * pairs' target ids onto the existing source records' api field, saving each so
+ * the reference-edge syncer mirrors them into the relation graph. See
+ * Manager.ImportRelationEdges.
+ */
+export function ImportRelationEdges(sourceTemplate: string, fieldKey: string, pairs: $models.EdgePair[]): $CancellablePromise<$models.ImportRelationResult> {
+    return $Call.ByID(3279465077, sourceTemplate, fieldKey, pairs).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * ListForms returns the per-template form summaries (title + meta +
  * expression-bearing fields for the sidebar).
  */
 export function ListForms(templateName: string): $CancellablePromise<storage$0.FormSummary[]> {
     return $Call.ByID(1337737659, templateName).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -89,5 +101,6 @@ export function SortFieldValue(templateName: string, datafile: string, fieldKey:
 // Private type creation functions
 const $$createType0 = $models.FormView.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = storage$0.FormSummary.createFrom;
-const $$createType3 = $Create.Array($$createType2);
+const $$createType2 = $models.ImportRelationResult.createFrom;
+const $$createType3 = storage$0.FormSummary.createFrom;
+const $$createType4 = $Create.Array($$createType3);

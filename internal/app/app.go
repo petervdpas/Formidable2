@@ -500,6 +500,16 @@ func New(d Deps) (*App, error) {
 	// and REST-follow reflect them. relationM exists now, so wire the syncer here.
 	formM.SetReferenceEdgeSyncer(referenceEdgeSyncer{rel: relationM})
 
+	// The relations pass of the importer resolves a guid to its datafile through
+	// the dataprovider, so form imports nothing extra.
+	formM.SetRecordResolver(func(tpl, guid string) (string, bool) {
+		item, ok, err := dpM.ResolveCollectionByID(context.Background(), tpl, guid)
+		if err != nil || !ok || item == nil {
+			return "", false
+		}
+		return item.Filename, true
+	})
+
 	// Integrity analyzes stored forms against the template's current field
 	// declarations. Fix commits via storage.SaveFormExact so meta mutations
 	// (mint UUID, re-stamp timestamps) land without the SaveForm "preserve

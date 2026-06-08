@@ -14,6 +14,10 @@ import {
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import type { PreviewResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
+import {
+  Service as FormSvc,
+  EdgePair,
+} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import type { Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -40,6 +44,39 @@ const filenameField = ref("");
 const concatSep = ref(" ");
 const importing = ref(false);
 const importError = ref("");
+
+// Source can be a CSV (delimiter-driven) or one sheet of an .xlsx workbook
+// (sheet picker). isExcel switches the read path; both feed the same headers
+// + rows preview so the mapping pipeline below is source-agnostic.
+const sheets = ref<string[]>([]);
+const sheet = ref("");
+const isExcel = computed(() => file.value.toLowerCase().endsWith(".xlsx"));
+
+// Two import modes. "records" is the original CSV->entry import. "relations"
+// reads two id columns (source guid, target guid) and links them through an
+// api field, writing the picks onto the existing source records so the
+// reference-edge syncer mirrors them into the relation graph. Run records
+// first (so both endpoints exist), then relations.
+type ImportMode = "records" | "relations";
+const mode = ref<ImportMode>("records");
+const relationFieldKey = ref("");
+const fromColumn = ref("");
+const toColumn = ref("");
+
+// The template's api fields are the relation targets a relations-import can
+// fill. Read straight off the loaded template (backend owns field shape).
+const apiFields = computed<SourceOption[]>(() =>
+  (props.template?.fields ?? [])
+    .filter((f) => f.type === "api")
+    .map((f) => ({
+      value: f.key,
+      label: `${f.label || f.key} -> ${f.collection || "?"}`,
+    })),
+);
+
+const headerOptions = computed<SourceOption[]>(() =>
+  (preview.value?.headers ?? []).map((h) => ({ value: h, label: h })),
+);
 
 // Reversible (aligned) import: when alignSource names a list/table field,
 // rows sharing groupKey collapse back into one entry with that field
@@ -81,6 +118,12 @@ watch(
     alignable.value = [];
     subTargets.value = [];
     groupKey.value = "";
+    sheets.value = [];
+    sheet.value = "";
+    mode.value = "records";
+    relationFieldKey.value = apiFields.value[0]?.value ?? "";
+    fromColumn.value = "";
+    toColumn.value = "";
     try {
       mappableFields.value = await CsvSvc.MappableFieldsForTemplate(props.templateFilename);
       // Default the group key to the template's guid field (the export
@@ -125,17 +168,32 @@ const targetOptions = computed<SourceOption[]>(() => {
   return [...flat, ...subTargets.value];
 });
 
-// Re-parse whenever the delimiter flips while a file is already chosen.
+// Re-parse whenever the delimiter (CSV) or sheet (Excel) changes.
 watch(delimiter, async () => {
-  if (file.value) await loadPreview();
+  if (file.value && !isExcel.value) await loadPreview();
+});
+watch(sheet, async () => {
+  if (file.value && isExcel.value) await loadPreview();
 });
 
 async function pickFile() {
   const picked = await chooseFile([
-    { displayName: "CSV", pattern: "*.csv" },
+    { displayName: "Spreadsheet (CSV, Excel)", pattern: "*.csv;*.xlsx" },
   ]);
   if (!picked) return;
   file.value = picked;
+  if (isExcel.value) {
+    try {
+      sheets.value = await CsvSvc.SheetNames(file.value);
+      sheet.value = sheets.value[0] ?? "";
+    } catch (e) {
+      importError.value = backendErrMessage(e);
+      return;
+    }
+  } else {
+    sheets.value = [];
+    sheet.value = "";
+  }
   await loadPreview();
 }
 
@@ -147,7 +205,9 @@ async function loadPreview() {
   }
   importError.value = "";
   try {
-    const pr = await CsvSvc.Preview(file.value, delimiter.value);
+    const pr = isExcel.value
+      ? await CsvSvc.PreviewSheet(file.value, sheet.value)
+      : await CsvSvc.Preview(file.value, delimiter.value);
     if (pr.error) {
       importError.value = t("csv.error.parse", [pr.error]);
       preview.value = null;
@@ -163,6 +223,9 @@ async function loadPreview() {
       param: "",
     }));
     filenameField.value = "";
+    // Default the relation columns to the first two headers as a hint.
+    fromColumn.value = pr.headers[0] ?? "";
+    toColumn.value = pr.headers[1] ?? pr.headers[0] ?? "";
   } catch (e) {
     importError.value = t("csv.error.parse", [backendErrMessage(e)]);
     preview.value = null;
@@ -206,6 +269,19 @@ watch(
 );
 
 const hasMapping = computed(() => mappings.value.some((m) => m.fieldKey));
+
+const canImport = computed(() => {
+  if (!preview.value) return false;
+  if (mode.value === "relations") {
+    return (
+      !!relationFieldKey.value &&
+      !!fromColumn.value &&
+      !!toColumn.value &&
+      fromColumn.value !== toColumn.value
+    );
+  }
+  return hasMapping.value;
+});
 
 // "Derive filename from" options: auto + any CSV header.
 const filenameOptions = computed(() => {
@@ -263,10 +339,15 @@ async function buildRowData(rowIdx: number): Promise<{ data: Record<string, unkn
 }
 
 async function doImport() {
-  if (!preview.value || !hasMapping.value) return;
+  if (!canImport.value) return;
   importing.value = true;
   importError.value = "";
   try {
+    if (mode.value === "relations") {
+      await importRelations();
+      emit("close");
+      return;
+    }
     const { success, failed } = alignSource.value
       ? await importAligned()
       : await importPerRow();
@@ -282,6 +363,34 @@ async function doImport() {
   } finally {
     importing.value = false;
   }
+}
+
+// Relations mode: read the two id columns into {from,to} pairs and let the
+// backend group them by source, union them onto each source record's api
+// field, and sync the edges. Run after the record import so both endpoints
+// already exist on disk.
+async function importRelations(): Promise<void> {
+  const pr = preview.value!;
+  const fromIdx = pr.headers.indexOf(fromColumn.value);
+  const toIdx = pr.headers.indexOf(toColumn.value);
+  const pairs: EdgePair[] = [];
+  for (const row of pr.rows) {
+    const from = (row[fromIdx] ?? "").trim();
+    const to = (row[toIdx] ?? "").trim();
+    if (from && to) pairs.push(EdgePair.createFrom({ from, to }));
+  }
+  const res = await FormSvc.ImportRelationEdges(
+    props.templateFilename,
+    relationFieldKey.value,
+    pairs,
+  );
+  const skipped = res.missingFrom + res.missingTo;
+  if (skipped > 0) {
+    toast.error("csv.import.relation.partial", [res.linked, res.records, skipped]);
+  } else {
+    toast.success("csv.import.relation.success", [res.linked, res.records]);
+  }
+  emit("imported", res.linked);
 }
 
 // Unaligned: one entry per CSV row (the original behaviour).
@@ -358,6 +467,19 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
         <span class="muted small">{{ file || t('csv.no.file') }}</span>
       </div>
       <div class="csv-import-delim">
+        <label class="muted small">{{ t('csv.import.mode') }}</label>
+        <select v-model="mode">
+          <option value="records">{{ t('csv.import.mode.records') }}</option>
+          <option value="relations">{{ t('csv.import.mode.relations') }}</option>
+        </select>
+      </div>
+      <div v-if="isExcel && sheets.length" class="csv-import-delim">
+        <label class="muted small">{{ t('csv.sheet') }}</label>
+        <select v-model="sheet">
+          <option v-for="s in sheets" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+      <div v-if="!isExcel" class="csv-import-delim">
         <label class="muted small">{{ t('csv.delimiter') }}</label>
         <select v-model="delimiter">
           <option value=",">{{ t('csv.delimiter.comma') }}</option>
@@ -366,7 +488,7 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
           <option value="|">{{ t('csv.delimiter.pipe') }}</option>
         </select>
       </div>
-      <div v-if="alignable.length" class="csv-import-delim">
+      <div v-if="mode === 'records' && alignable.length" class="csv-import-delim">
         <label class="muted small">{{ t('csv.import.align') }}</label>
         <select v-model="alignSource" @change="refreshAlign">
           <option value="">{{ t('csv.import.align.none') }}</option>
@@ -375,7 +497,7 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
           </option>
         </select>
       </div>
-      <div v-if="alignSource" class="csv-import-delim">
+      <div v-if="mode === 'records' && alignSource" class="csv-import-delim">
         <label class="muted small">{{ t('csv.import.group') }}</label>
         <select v-model="groupKey">
           <option v-for="f in mappableFields" :key="f.key" :value="f.key">
@@ -388,7 +510,7 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
     <div v-if="importError" class="form-error">{{ importError }}</div>
     </template>
 
-    <table v-if="preview && mappings.length" class="csv-import-table">
+    <table v-if="mode === 'records' && preview && mappings.length" class="csv-import-table">
       <thead>
         <tr>
           <th>{{ t('csv.column') }}</th>
@@ -410,7 +532,40 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
       </tbody>
     </table>
 
-    <template v-if="preview && mappings.length" #foot>
+    <div v-if="mode === 'relations' && preview" class="csv-import-relations">
+      <p class="muted small">{{ t('csv.import.relation.hint') }}</p>
+      <p v-if="!apiFields.length" class="form-error">
+        {{ t('csv.import.relation.none') }}
+      </p>
+      <template v-else>
+        <div class="csv-import-delim">
+          <label class="muted small">{{ t('csv.import.relation.field') }}</label>
+          <select v-model="relationFieldKey">
+            <option v-for="o in apiFields" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </option>
+          </select>
+        </div>
+        <div class="csv-import-delim">
+          <label class="muted small">{{ t('csv.import.relation.from') }}</label>
+          <select v-model="fromColumn">
+            <option v-for="o in headerOptions" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </option>
+          </select>
+        </div>
+        <div class="csv-import-delim">
+          <label class="muted small">{{ t('csv.import.relation.to') }}</label>
+          <select v-model="toColumn">
+            <option v-for="o in headerOptions" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </option>
+          </select>
+        </div>
+      </template>
+    </div>
+
+    <template v-if="mode === 'records' && preview && mappings.length" #foot>
     <div class="csv-import-bottom">
       <div class="csv-import-concat muted small">
         <span>{{ t('csv.concat.hint') }}</span>
@@ -444,7 +599,7 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
       <button
         class="tool-btn primary"
         type="button"
-        :disabled="!preview || !hasMapping || importing"
+        :disabled="!canImport || importing"
         @click="doImport"
       >
         {{ importing ? t('csv.importing') : t('csv.import') }}

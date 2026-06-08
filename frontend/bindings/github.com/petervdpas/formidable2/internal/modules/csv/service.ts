@@ -135,6 +135,26 @@ export function PreviewExport(templateFilename: string, plan: $models.ExportPlan
 }
 
 /**
+ * PreviewSheet returns the header + rows of one .xlsx sheet in the same shape
+ * as Preview, so the dialog's mapping pipeline is identical for CSV and Excel.
+ */
+export function PreviewSheet(filePath: string, sheet: string): $CancellablePromise<$models.PreviewResult> {
+    return $Call.ByID(1054972531, filePath, sheet).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
+/**
+ * SheetNames lists the sheets of an .xlsx workbook, in workbook order, so the
+ * import dialog can offer a sheet picker for Excel sources.
+ */
+export function SheetNames(filePath: string): $CancellablePromise<string[]> {
+    return $Call.ByID(2199450293, filePath).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * SuggestMappings is the auto-mapper for the import dialog. Empty
  * FieldKey in a row means "no match found".
  */

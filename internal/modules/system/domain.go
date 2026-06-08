@@ -175,6 +175,12 @@ func (m *Manager) LoadFile(path string) (string, error) {
 	return string(b), nil
 }
 
+// LoadBytes reads a file's raw bytes, for binary callers (xlsx import) that
+// must not pass through string round-tripping.
+func (m *Manager) LoadBytes(path string) ([]byte, error) {
+	return os.ReadFile(m.ResolvePath(path))
+}
+
 func (m *Manager) SaveFile(path string, content string) error {
 	full := m.ResolvePath(path)
 	// A relative key must stay under AppRoot; reject ".." traversal. Absolute

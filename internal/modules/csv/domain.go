@@ -10,6 +10,7 @@ import (
 // fs is the filesystem surface this module needs.
 type fs interface {
 	LoadFile(path string) (string, error)
+	LoadBytes(path string) ([]byte, error)
 	SaveFile(path string, content string) error
 }
 

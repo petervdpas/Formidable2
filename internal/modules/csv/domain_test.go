@@ -210,6 +210,7 @@ func TestPreview_StripsLeadingBOM(t *testing.T) {
 type stubFS struct {
 	loadCalled bool
 	loadErr    error
+	loadBytes  []byte
 	saveCalled bool
 	saveErr    error
 	saved      string
@@ -218,6 +219,14 @@ type stubFS struct {
 func (s *stubFS) LoadFile(path string) (string, error) {
 	s.loadCalled = true
 	return "", s.loadErr
+}
+
+func (s *stubFS) LoadBytes(path string) ([]byte, error) {
+	s.loadCalled = true
+	if s.loadErr != nil {
+		return nil, s.loadErr
+	}
+	return s.loadBytes, nil
 }
 
 func (s *stubFS) SaveFile(path, content string) error {

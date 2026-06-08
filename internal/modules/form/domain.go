@@ -46,11 +46,12 @@ type ConfigDefaults struct {
 
 // Manager owns form-view orchestration.
 type Manager struct {
-	templates templateLoader
-	storage   formStore
-	config    configReader
-	refEdges  ReferenceEdgeSyncer
-	log       *slog.Logger
+	templates     templateLoader
+	storage       formStore
+	config        configReader
+	refEdges      ReferenceEdgeSyncer
+	resolveRecord recordResolver
+	log           *slog.Logger
 }
 
 // NewManager constructs a form Manager; log may be nil.

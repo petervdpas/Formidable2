@@ -7,7 +7,9 @@ export {
 };
 
 export {
+    EdgePair,
     FormView,
+    ImportRelationResult,
     LoopGroup,
     SavePayload
 } from "./models.js";
