@@ -66,6 +66,36 @@ func TestParentRecordExcludesRowColumns(t *testing.T) {
 	}
 }
 
+// Count on an empty contingency (unknown axis field) is always zero.
+func TestCrossCountOnEmptyTabIsZero(t *testing.T) {
+	dt := New()
+	ingestAll(dt, sampleRecords())
+
+	empty := dt.View().Cross("team", "ghost")
+	if empty.Count("east", "x") != 0 {
+		t.Fatal("Count on empty cross must be 0")
+	}
+}
+
+// With no roots marked (raw Put usage without Ingest), the working set falls
+// back to every distinct non-satellite identity in first-seen order, never
+// satellites.
+func TestIdentitiesFallbackWhenNoRootsMarked(t *testing.T) {
+	dt := New()
+	// Put writes cells directly without marking a root (no Ingest).
+	dt.Put("x", "team", Universal, "east")
+	dt.Put("y", "team", Universal, "west")
+
+	v := dt.View()
+	if v.Count() != 2 {
+		t.Fatalf("no-roots fallback count = %d, want 2", v.Count())
+	}
+	dist := v.Distribution("team")
+	if len(dist) != 2 {
+		t.Fatalf("no-roots fallback distribution = %+v, want two buckets", dist)
+	}
+}
+
 func TestDistributionOverFollowedRows(t *testing.T) {
 	dt := New()
 	dt.Ingest(Record{

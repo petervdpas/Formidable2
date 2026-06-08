@@ -142,6 +142,41 @@ func TestGridDateDim(t *testing.T) {
 	}
 }
 
+// DateWidth 4 buckets by year, 10 by day; any other positive width by month.
+func TestGridDateDimWidthBuckets(t *testing.T) {
+	dt := New()
+	dt.Ingest(Record{ID: "a", Fields: map[string]string{"due": "2026-01-15"}})
+	dt.Ingest(Record{ID: "b", Fields: map[string]string{"due": "2026-07-15"}})
+
+	yearRows := dt.View().Grid([]GridDim{{Field: "due", DateWidth: 4}}, nil, nil)
+	for _, r := range yearRows {
+		if r.Dims[0] != "2026" {
+			t.Fatalf("year bucket = %q, want 2026", r.Dims[0])
+		}
+	}
+
+	dayRows := dt.View().Grid([]GridDim{{Field: "due", DateWidth: 10}}, nil, nil)
+	got := map[string]bool{}
+	for _, r := range dayRows {
+		got[r.Dims[0]] = true
+	}
+	if !got["2026-01-15"] || !got["2026-07-15"] {
+		t.Fatalf("day buckets = %v, want full dates", got)
+	}
+}
+
+// A dim/measure naming a table that the tensor has never seen yields no rows:
+// the fan-table lookup fails, so each root contributes nothing.
+func TestGridUnknownFanTableYieldsNoRows(t *testing.T) {
+	dt := New()
+	dt.Ingest(Record{ID: "f1", Fields: map[string]string{"region": "east"}})
+
+	rows := dt.View().Grid([]GridDim{{Field: "category", Table: "phantom"}}, nil, nil)
+	if len(rows) != 0 {
+		t.Fatalf("unknown fan table rows = %d, want 0", len(rows))
+	}
+}
+
 func TestGridDateDimDropsNonDate(t *testing.T) {
 	dt := New()
 	dt.Ingest(Record{ID: "a", Fields: map[string]string{"due": "2026-01-15"}})
@@ -289,6 +324,80 @@ func TestGridMultiTableIsInvalid(t *testing.T) {
 type staticLoader struct{ dt *Tensor }
 
 func (staticLoader) Records() ([]Record, error) { return nil, nil }
+
+// The full operator set of a grid filter, plus the unhappy branches: an
+// unknown op rejects every root, and lt/le/gt/ge against a non-numeric value
+// reject (the parse-error guard).
+func TestGridFilterOperators(t *testing.T) {
+	cases := []struct {
+		op    string
+		value string
+		want  map[string]bool
+	}{
+		{"eq", "east", map[string]bool{"a": true, "b": true}},
+		{"ne", "east", map[string]bool{"c": true, "d": true}},
+		{"lt", "20", map[string]bool{"a": true}},            // amount 10 only (b 30, c 20 out; d no amount out)
+		{"le", "20", map[string]bool{"a": true, "c": true}}, // 10 and 20
+		{"gt", "20", map[string]bool{"b": true}},            // 30 only
+		{"ge", "20", map[string]bool{"b": true, "c": true}}, // 30 and 20
+	}
+	for _, c := range cases {
+		field := "region"
+		if c.op != "eq" && c.op != "ne" {
+			field = "amount"
+		}
+		rows := gridFixture().View().Grid(
+			[]GridDim{{Field: "region"}},
+			nil,
+			[]GridFilter{{Field: field, Op: c.op, Value: c.value}},
+		)
+		got := map[string]bool{}
+		for _, r := range rows {
+			got[r.Form] = true
+		}
+		if len(got) != len(c.want) {
+			t.Fatalf("op %s value %s: forms = %v, want %v", c.op, c.value, got, c.want)
+		}
+		for f := range c.want {
+			if !got[f] {
+				t.Fatalf("op %s value %s: forms = %v, want %v", c.op, c.value, got, c.want)
+			}
+		}
+	}
+}
+
+func TestGridUnknownFilterOpRejectsAll(t *testing.T) {
+	rows := gridFixture().View().Grid(
+		[]GridDim{{Field: "region"}},
+		nil,
+		[]GridFilter{{Field: "region", Op: "contains", Value: "east"}},
+	)
+	if len(rows) != 0 {
+		t.Fatalf("unknown op rows = %d, want 0 (op rejects every root)", len(rows))
+	}
+}
+
+func TestGridNumericFilterNonNumericValueRejects(t *testing.T) {
+	// gt against a non-numeric threshold: the value parse fails, so the filter
+	// rejects every root.
+	rows := gridFixture().View().Grid(
+		[]GridDim{{Field: "region"}},
+		nil,
+		[]GridFilter{{Field: "amount", Op: "gt", Value: "lots"}},
+	)
+	if len(rows) != 0 {
+		t.Fatalf("non-numeric threshold rows = %d, want 0", len(rows))
+	}
+}
+
+// A dim naming a field absent from the tensor drops every row (complete-case on
+// an unknown column reads blank, which is dropped).
+func TestGridUnknownDimDropsAll(t *testing.T) {
+	rows := gridFixture().View().Grid([]GridDim{{Field: "ghost"}}, nil, nil)
+	if len(rows) != 0 {
+		t.Fatalf("unknown dim rows = %d, want 0", len(rows))
+	}
+}
 
 func TestGridRank0IsOneRowPerForm(t *testing.T) {
 	// No dims, no nums: a row per form (filename leads), like the index.

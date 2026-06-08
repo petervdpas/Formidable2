@@ -259,6 +259,102 @@ func TestBuildExportRows_TableSubkeyOptionAsBareString(t *testing.T) {
 	}
 }
 
+func TestBuildExportRows_AlignedObjectShapedTableItem(t *testing.T) {
+	// Legacy/foreign data: table items are objects keyed by column name
+	// rather than positional arrays. The dotted subkey indexes by key.
+	fields := []FieldSpec{
+		{Key: "owners", Type: "table", Options: []any{
+			map[string]any{"value": "first", "label": "First"},
+			map[string]any{"value": "last", "label": "Last"},
+		}},
+	}
+	plan := ExportPlan{
+		Columns: []ExportColumn{
+			{Header: "First", SourceKeys: []string{"owners.first"}},
+			{Header: "Last", SourceKeys: []string{"owners.last"}},
+		},
+		AlignSource: "owners",
+	}
+	entries := []map[string]any{
+		{"owners": []any{
+			map[string]any{"first": "John", "last": "Lennon"},
+		}},
+	}
+	got := BuildExportRows(plan, entries, fields)
+	if got[1][0] != "John" || got[1][1] != "Lennon" {
+		t.Errorf("object-shaped table item not resolved by key: %v", got)
+	}
+}
+
+func TestBuildExportRows_AlignedUnknownSubkeyIsBlank(t *testing.T) {
+	// Subkey not present in the field option list -> findOptionIndex -1 -> blank.
+	fields := []FieldSpec{
+		{Key: "owners", Type: "table", Options: []any{
+			map[string]any{"value": "first", "label": "First"},
+		}},
+	}
+	plan := ExportPlan{
+		Columns:     []ExportColumn{{Header: "Ghost", SourceKeys: []string{"owners.ghost"}}},
+		AlignSource: "owners",
+	}
+	entries := []map[string]any{
+		{"owners": []any{[]any{"John"}}},
+	}
+	got := BuildExportRows(plan, entries, fields)
+	if got[1][0] != "" {
+		t.Errorf("unknown subkey should be blank, got %q", got[1][0])
+	}
+}
+
+func TestBuildExportRows_AlignedBareRootMapItemAsJSON(t *testing.T) {
+	// Bare alignment root (no subkey) over a map-shaped item -> JSON string.
+	fields := []FieldSpec{{Key: "rows", Type: "list"}}
+	plan := ExportPlan{
+		Columns:     []ExportColumn{{Header: "Row", SourceKeys: []string{"rows"}}},
+		AlignSource: "rows",
+	}
+	entries := []map[string]any{
+		{"rows": []any{map[string]any{"k": "v"}}},
+	}
+	got := BuildExportRows(plan, entries, fields)
+	if got[1][0] != `{"k":"v"}` {
+		t.Errorf("bare map item should be JSON, got %q", got[1][0])
+	}
+}
+
+func TestBuildExportRows_AlignedNilItemIsBlank(t *testing.T) {
+	// A nil item in the aligned array yields a blank cell.
+	fields := []FieldSpec{{Key: "tags", Type: "list"}}
+	plan := ExportPlan{
+		Columns:     []ExportColumn{{Header: "Tag", SourceKeys: []string{"tags"}}},
+		AlignSource: "tags",
+	}
+	entries := []map[string]any{
+		{"tags": []any{nil, "red"}},
+	}
+	got := BuildExportRows(plan, entries, fields)
+	if got[1][0] != "" || got[2][0] != "red" {
+		t.Errorf("nil aligned item should be blank: %v", got)
+	}
+}
+
+func TestBuildExportRows_AlignedEmptyArrayHitsIndexGuard(t *testing.T) {
+	// Empty aligned array: the loop still runs once at index 0, so the
+	// alignIdx >= len(arr) guard fires and the aligned cell is blank.
+	fields := []FieldSpec{{Key: "long", Type: "list"}}
+	plan := ExportPlan{
+		Columns:     []ExportColumn{{Header: "Long", SourceKeys: []string{"long"}}},
+		AlignSource: "long",
+	}
+	entries := []map[string]any{
+		{"long": []any{}},
+	}
+	got := BuildExportRows(plan, entries, fields)
+	if len(got) != 2 || got[1][0] != "" {
+		t.Errorf("empty aligned root should emit one blank row: %v", got)
+	}
+}
+
 // stubForms is a controllable formsSource: ListForms can fail, and
 // LoadFormData returns whatever data map is keyed by datafile (nil for a
 // miss, exercising the skip/blank branches).

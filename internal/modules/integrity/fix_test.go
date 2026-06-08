@@ -573,6 +573,166 @@ func TestFix_LoopExtraField_StrippedInsideLoopItem(t *testing.T) {
 	}
 }
 
+// applyStrategy carries a guard per strategy that refuses to act when the
+// issue kind does not match. FixTemplate never feeds a mismatched pair (its
+// plan keys strategies by kind), so these defensive branches are only
+// reachable by calling applyStrategy directly.
+func TestApplyStrategy_StrategyKindMismatchGuards(t *testing.T) {
+	tpl := tplBasic()
+	cases := []struct {
+		name  string
+		iss   Issue
+		strat FixStrategy
+	}{
+		{"strip wrong kind", Issue{Kind: IssueTypeMismatch, Path: "title"}, FixStrip},
+		{"fill_default wrong kind", Issue{Kind: IssueExtraField, Path: "title"}, FixFillDefault},
+		{"mint_uuid wrong kind", Issue{Kind: IssueExtraField, Path: "title"}, FixMintUUID},
+		{"mint_uuid wrong path", Issue{Kind: IssueMetaMissing, Path: "meta.created"}, FixMintUUID},
+		{"sync_guid wrong kind", Issue{Kind: IssueExtraField, Path: "id"}, FixSyncGuid},
+		{"restamp wrong kind", Issue{Kind: IssueExtraField, Path: "meta.created"}, FixRestamp},
+		{"restamp unsupported meta path", Issue{Kind: IssueMetaBadFormat, Path: "meta.bogus"}, FixRestamp},
+		{"seed_facet wrong kind", Issue{Kind: IssueExtraField, Path: "meta.facets.flag"}, FixSeedFacet},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			draft := cloneForm(cleanForm())
+			applied, note, err := applyStrategy(tpl, draft, tc.iss, tc.strat)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if applied {
+				t.Fatalf("expected guard to refuse (applied=false), got applied=true")
+			}
+			if note == "" {
+				t.Fatalf("expected an explanatory note on the guarded skip")
+			}
+		})
+	}
+}
+
+func TestApplyStrategy_UnhandledStrategyErrors(t *testing.T) {
+	draft := cloneForm(cleanForm())
+	_, _, err := applyStrategy(tplBasic(), draft, Issue{Kind: IssueExtraField, Path: "title"}, FixStrategy("bogus"))
+	if err == nil {
+		t.Fatal("expected error for unhandled strategy")
+	}
+}
+
+func TestApplyStrategy_SyncGuid_BothEmptyIsSkipped(t *testing.T) {
+	draft := &storage.Form{
+		Meta: storage.FormMeta{Created: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}, Updated: storage.AuditEntry{At: "2026-05-11T09:00:00Z"}},
+		Data: map[string]any{"id": ""},
+	}
+	applied, note, err := applyStrategy(tplWithGuid(), draft, Issue{Kind: IssueGuidUnsynced, Path: "id"}, FixSyncGuid)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if applied || note == "" {
+		t.Fatalf("both-empty guid sync must skip with a note; applied=%v note=%q", applied, note)
+	}
+}
+
+func TestApplyStrategy_FillDefault_NoTemplateFieldIsSkipped(t *testing.T) {
+	draft := cloneForm(cleanForm())
+	applied, note, err := applyStrategy(tplBasic(), draft, Issue{Kind: IssueMissingField, Path: "ghostfield"}, FixFillDefault)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if applied || note == "" {
+		t.Fatalf("missing template field must skip with a note; applied=%v note=%q", applied, note)
+	}
+}
+
+func TestDefaultForFieldType_PerType(t *testing.T) {
+	cases := []struct {
+		typ  string
+		want any
+	}{
+		{"boolean", false},
+		{"number", float64(0)},
+		{"range", float64(50)},
+		{"multioption", []any{}},
+		{"list", []any{}},
+		{"table", []any{}},
+		{"tags", []any{}},
+		{"api", nil},
+		{"text", ""},
+		{"weird-unknown", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.typ, func(t *testing.T) {
+			got := defaultForFieldType(tc.typ)
+			if arr, ok := tc.want.([]any); ok {
+				gotArr, ok := got.([]any)
+				if !ok || len(gotArr) != len(arr) {
+					t.Fatalf("%s default = %v (%T); want empty []any", tc.typ, got, got)
+				}
+				return
+			}
+			if got != tc.want {
+				t.Fatalf("%s default = %v (%T); want %v", tc.typ, got, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestCoerceForFieldType_EdgeCases(t *testing.T) {
+	// link from a bare string becomes the canonical map.
+	if got, ok := coerceForFieldType("link", "https://x"); !ok {
+		t.Fatalf("link string coerce failed")
+	} else if m, _ := got.(map[string]any); m["href"] != "https://x" || m["text"] != "" {
+		t.Fatalf("link string coerce = %v; want {href:..,text:\"\"}", got)
+	}
+	// link map passes through.
+	in := map[string]any{"href": "a", "text": "b"}
+	if got, ok := coerceForFieldType("link", in); !ok || got.(map[string]any)["text"] != "b" {
+		t.Fatalf("link map passthrough failed: %v ok=%v", got, ok)
+	}
+	// number from int.
+	if got, ok := coerceForFieldType("number", 7); !ok || got != float64(7) {
+		t.Fatalf("number from int = %v ok=%v; want float64(7)", got, ok)
+	}
+	// boolean string variants.
+	for _, s := range []string{"yes", "1", "on", "TRUE"} {
+		if got, ok := coerceForFieldType("boolean", s); !ok || got != true {
+			t.Fatalf("boolean %q = %v ok=%v; want true", s, got, ok)
+		}
+	}
+	for _, s := range []string{"no", "0", "off"} {
+		if got, ok := coerceForFieldType("boolean", s); !ok || got != false {
+			t.Fatalf("boolean %q = %v ok=%v; want false", s, got, ok)
+		}
+	}
+	// boolean from a non-bool/non-string is unsafe.
+	if _, ok := coerceForFieldType("boolean", 1); ok {
+		t.Fatalf("boolean from int must be unsafe")
+	}
+	// date that parses no layout is unsafe; non-string date is unsafe.
+	if _, ok := coerceForFieldType("date", "not-a-date"); ok {
+		t.Fatalf("unparseable date must be unsafe")
+	}
+	if _, ok := coerceForFieldType("date", 42); ok {
+		t.Fatalf("non-string date must be unsafe")
+	}
+	// list from delimited string drops blanks and splits on , and ;.
+	if got, ok := coerceForFieldType("list", "a, ;b ;; c"); !ok {
+		t.Fatalf("list coerce failed")
+	} else if arr := got.([]any); len(arr) != 3 {
+		t.Fatalf("list coerce = %v; want 3 items", arr)
+	}
+	// list from a wrong scalar type is unsafe.
+	if _, ok := coerceForFieldType("tags", 5); ok {
+		t.Fatalf("tags from int must be unsafe")
+	}
+	// structurally rich types never auto-coerce.
+	if _, ok := coerceForFieldType("table", "[1,2]"); ok {
+		t.Fatalf("table must not auto-coerce")
+	}
+	if _, ok := coerceForFieldType("api", "x"); ok {
+		t.Fatalf("api must not auto-coerce")
+	}
+}
+
 func TestFix_DuplicateGuid_RemintsDataAndMirrorsMeta(t *testing.T) {
 	tpl := &template.Template{
 		Name: "ent", Filename: "ent.yaml",

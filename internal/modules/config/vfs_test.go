@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 )
 
 func TestGetTemplateStorageInfo_EmptyFilenameNil(t *testing.T) {
@@ -95,6 +96,53 @@ func TestGetTemplateStorageInfo_TraversalNameNil(t *testing.T) {
 	// not because the VFS was empty.
 	if info := m.GetTemplateStorageInfo("basic"); info == nil {
 		t.Error("clean stem basic must still resolve")
+	}
+}
+
+// TestGetVirtualStructure_TTLCacheHitServesStaleView pins the clock so the
+// second call lands inside the TTL window: a template added to disk after
+// the first build must NOT appear, proving the cache short-circuits the
+// rebuild rather than rescanning every call.
+func TestGetVirtualStructure_TTLCacheHitServesStaleView(t *testing.T) {
+	m, sys, _ := newTestManagerRootContext(t)
+	frozen := time.Unix(1_700_000_000, 0)
+	m.SetNowFn(func() time.Time { return frozen })
+	m.SetTTL(2 * time.Second)
+
+	if err := sys.SaveFile("templates/first.yaml", "name: First"); err != nil {
+		t.Fatalf("seed first template: %v", err)
+	}
+	m.DirtyVirtualStructure()
+	first, err := m.GetVirtualStructure()
+	if err != nil {
+		t.Fatalf("first build: %v", err)
+	}
+	if _, ok := first.TemplateStorageFolders["first"]; !ok {
+		t.Fatal("first.yaml must be present in the freshly built view")
+	}
+
+	// Add a second template, then read again WITHIN the TTL window (clock
+	// unchanged). The cached view must be returned verbatim, so the new
+	// template is absent.
+	if err := sys.SaveFile("templates/second.yaml", "name: Second"); err != nil {
+		t.Fatalf("seed second template: %v", err)
+	}
+	cached, err := m.GetVirtualStructure()
+	if err != nil {
+		t.Fatalf("cached read: %v", err)
+	}
+	if _, ok := cached.TemplateStorageFolders["second"]; ok {
+		t.Error("cache-hit must serve the stale view; second.yaml should not appear yet")
+	}
+
+	// Advance past the TTL: the rebuild now picks up second.yaml.
+	m.SetNowFn(func() time.Time { return frozen.Add(3 * time.Second) })
+	fresh, err := m.GetVirtualStructure()
+	if err != nil {
+		t.Fatalf("post-TTL rebuild: %v", err)
+	}
+	if _, ok := fresh.TemplateStorageFolders["second"]; !ok {
+		t.Error("after the TTL expires the rebuild must include second.yaml")
 	}
 }
 

@@ -151,6 +151,59 @@ func TestKV_CorruptJSONReturnsError(t *testing.T) {
 	}
 }
 
+// failingKVFS wraps kvTestFS but can fail individual operations so the
+// KV I/O error branches (ensure-dir, load, save) get exercised.
+type failingKVFS struct {
+	kvTestFS
+	ensureErr error
+	loadErr   error
+	saveErr   error
+	exists    bool
+}
+
+func (f failingKVFS) EnsureDirectory(p string) error {
+	if f.ensureErr != nil {
+		return f.ensureErr
+	}
+	return f.kvTestFS.EnsureDirectory(p)
+}
+func (f failingKVFS) FileExists(string) bool { return f.exists }
+func (f failingKVFS) LoadFile(p string) (string, error) {
+	if f.loadErr != nil {
+		return "", f.loadErr
+	}
+	return f.kvTestFS.LoadFile(p)
+}
+func (f failingKVFS) SaveFile(p, content string) error {
+	if f.saveErr != nil {
+		return f.saveErr
+	}
+	return f.kvTestFS.SaveFile(p, content)
+}
+
+func TestKV_Set_EnsureDirectoryError(t *testing.T) {
+	kv := NewKV(failingKVFS{ensureErr: errors.New("mkdir denied")}, "/kv")
+	if err := kv.Set("p", "k", "v"); err == nil {
+		t.Error("Set should fail when EnsureDirectory errors")
+	}
+}
+
+func TestKV_Set_SaveFileError(t *testing.T) {
+	kv := NewKV(failingKVFS{saveErr: errors.New("disk full")}, "/kv")
+	if err := kv.Set("p", "k", "v"); err == nil {
+		t.Error("Set should fail when SaveFile errors")
+	}
+}
+
+func TestKV_Get_LoadFileError(t *testing.T) {
+	// File reports as present but the read fails: the LoadFile error
+	// branch distinct from the corrupt-JSON (parse) branch.
+	kv := NewKV(failingKVFS{exists: true, loadErr: errors.New("read denied")}, "/kv")
+	if _, _, err := kv.Get("p", "k"); err == nil {
+		t.Error("Get should propagate a LoadFile error")
+	}
+}
+
 func TestKV_ConcurrentSetSafe(t *testing.T) {
 	// Race-detector check - mutex must serialize per-plugin writes.
 	kv := newTestKV(t)

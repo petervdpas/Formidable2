@@ -202,3 +202,89 @@ func TestValidate_LoopNestingOverMaxDepthFlagged(t *testing.T) {
 		t.Errorf("excessive-loop-nesting depth = %v, want 3", got)
 	}
 }
+
+// Two tags fields with empty keys must render as the "(no key)" placeholder in
+// the multiple-tags-fields message, not as blank entries.
+func TestValidate_MultipleTagsWithEmptyKeysUsePlaceholder(t *testing.T) {
+	errs := Validate(&Template{
+		Fields: []Field{
+			{Key: "", Type: "tags"},
+			{Key: "real", Type: "tags"},
+		},
+	})
+	var got *ValidationError
+	for i := range errs {
+		if errs[i].Type == "multiple-tags-fields" {
+			got = &errs[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("expected multiple-tags-fields; got %+v", errs)
+	}
+	if len(got.Keys) != 2 || got.Keys[0] != "(no key)" {
+		t.Errorf("empty tags key should render as placeholder; got %v", got.Keys)
+	}
+}
+
+// A facet field whose default names a label that the bound facet does NOT
+// declare must be flagged facet-field-bad-default. This exercises
+// facetHasOptionLabel's "key matched but option label absent" branch.
+func TestValidate_FacetFieldDefaultNotAnOptionFlagged(t *testing.T) {
+	errs := Validate(&Template{
+		Facets: []Facet{
+			{Key: "status", Options: []FacetOption{{Label: "DRAFT"}, {Label: "DONE"}}},
+		},
+		Fields: []Field{
+			{Key: "st", Type: "facet", FacetKey: "status", Default: "GHOST"},
+		},
+	})
+	found := false
+	for _, e := range errs {
+		if e.Type == "facet-field-bad-default" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected facet-field-bad-default for a default that is not an option; got %+v", errs)
+	}
+}
+
+// A formula field with a blank formula type writing into a "number" target must
+// validate clean: formulaTargetAccepts defaults a blank type to "number".
+func TestValidate_FormulaFieldBlankTypeDefaultsToNumberTarget(t *testing.T) {
+	errs := Validate(&Template{
+		Formulas: []Formula{{Key: "total", Expression: "1 + 1"}}, // no Type → blank
+		Fields: []Field{
+			{Key: "amount", Type: "number"},
+			{Key: "calc", Type: "formula", FormulaKey: "total", TargetKey: "amount", Trigger: "save"},
+		},
+	})
+	for _, e := range errs {
+		if e.Type == "formula-field-incompatible-target" {
+			t.Errorf("blank formula type should accept a number target; got %+v", e)
+		}
+	}
+}
+
+// The mirror of the case above: a blank formula type written into a text target
+// must be flagged incompatible (blank defaults to number, and number does not
+// fit text).
+func TestValidate_FormulaFieldBlankTypeRejectsTextTarget(t *testing.T) {
+	errs := Validate(&Template{
+		Formulas: []Formula{{Key: "total", Expression: "1 + 1"}},
+		Fields: []Field{
+			{Key: "label", Type: "text"},
+			{Key: "calc", Type: "formula", FormulaKey: "total", TargetKey: "label", Trigger: "save"},
+		},
+	})
+	found := false
+	for _, e := range errs {
+		if e.Type == "formula-field-incompatible-target" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("number-typed (blank) formula into a text target must be flagged; got %+v", errs)
+	}
+}

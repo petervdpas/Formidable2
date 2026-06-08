@@ -108,6 +108,29 @@ func TestBuildFrontmatter_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestBuildFrontmatter_SequencesEmittedFlowStyle(t *testing.T) {
+	// Sequences must land inline (tags: [a, b, c]) rather than yaml.v3's
+	// default block style. This drives setSequenceStyle's SequenceNode arm.
+	out := BuildFrontmatter(map[string]any{"tags": []any{"a", "b", "c"}}, "body\n")
+	if !strings.Contains(out, "tags: [a, b, c]") {
+		t.Errorf("sequence not in flow style: %q", out)
+	}
+	if strings.Contains(out, "- a") {
+		t.Errorf("sequence leaked block style: %q", out)
+	}
+}
+
+func TestBuildFrontmatter_NestedSequenceFlowStyle(t *testing.T) {
+	// A sequence nested under a mapping must also be flattened to flow
+	// style, covering the recursive descent in setSequenceStyle.
+	out := BuildFrontmatter(map[string]any{
+		"meta": map[string]any{"langs": []any{"go", "vue"}},
+	}, "body\n")
+	if !strings.Contains(out, "langs: [go, vue]") {
+		t.Errorf("nested sequence not in flow style: %q", out)
+	}
+}
+
 func TestFilterFrontmatter(t *testing.T) {
 	src := map[string]any{"a": 1, "b": 2, "c": 3}
 	got := FilterFrontmatter(src, []string{"a", "c", "missing"})

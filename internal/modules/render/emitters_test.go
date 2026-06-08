@@ -236,3 +236,82 @@ func TestEmitFieldValue_Unknown(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+func TestEmitFieldValue_NilFieldStringifies(t *testing.T) {
+	if got := emitFieldValue(7, nil, &Options{}); got != "7" {
+		t.Errorf("nil field should stringify, got %q", got)
+	}
+}
+
+func TestEmitFieldValue_DispatchesByType(t *testing.T) {
+	opts := &Options{}
+	cases := []struct {
+		name  string
+		field *template.Field
+		value any
+		want  string
+	}{
+		{"list", &template.Field{Type: "list"}, []any{"a", "b"}, "- a\n- b"},
+		{"boolean", &template.Field{Type: "boolean"}, true, "True"},
+		{"tags", &template.Field{Type: "tags"}, []any{"x"}, "#x"},
+		{"mermaid", &template.Field{Type: "mermaid"}, "graph TD", "```mermaid\ngraph TD\n```"},
+		{"textarea", &template.Field{Type: "textarea"}, "raw", "raw"},
+		{"multioption-nonarray", &template.Field{Type: "multioption"}, "scalar", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := emitFieldValue(c.value, c.field, opts); got != c.want {
+				t.Errorf("%s: got %q, want %q", c.name, got, c.want)
+			}
+		})
+	}
+}
+
+func TestStringify_Variants(t *testing.T) {
+	cases := []struct {
+		in   any
+		want string
+	}{
+		{nil, ""},
+		{"s", "s"},
+		{true, "true"},
+		{false, "false"},
+		{float64(1.5), "1.5"},
+		{float32(2.5), "2.5"},
+		{int64(9), "9"},
+		{uint8(3), "3"},
+		{[]string{"a"}, "[a]"},
+	}
+	for _, c := range cases {
+		if got := stringify(c.in); got != c.want {
+			t.Errorf("stringify(%#v) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestTruthy_Variants(t *testing.T) {
+	cases := []struct {
+		in   any
+		want bool
+	}{
+		{nil, false},
+		{true, true},
+		{false, false},
+		{"", false},
+		{"false", false},
+		{"0", false},
+		{"yes", true},
+		{0, false},
+		{5, true},
+		{int64(0), false},
+		{int64(2), true},
+		{float64(0), false},
+		{float64(0.1), true},
+		{[]any{}, true},
+	}
+	for _, c := range cases {
+		if got := truthy(c.in); got != c.want {
+			t.Errorf("truthy(%#v) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}

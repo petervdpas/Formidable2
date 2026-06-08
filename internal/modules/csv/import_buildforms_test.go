@@ -129,3 +129,79 @@ func TestExportThenImport_RoundTripsAlignedTable(t *testing.T) {
 		t.Errorf("round-trip mismatch:\n got = %#v\nwant = %#v", got[0].Data, original)
 	}
 }
+
+func TestBuildImportForms_AlignedList_RegroupsToListItems(t *testing.T) {
+	// A list-typed align source regroups rows by group key and rebuilds
+	// the aligned field as plain string list items (exercises listItem).
+	fields := []FieldSpec{
+		{Key: "id", Type: "guid"},
+		{Key: "name", Type: "text"},
+		{Key: "phones", Type: "list"},
+	}
+	plan := ImportPlan{
+		AlignSource: "phones",
+		GroupKey:    "id",
+		Columns: []ImportColumn{
+			{Header: "id", Target: "id"},
+			{Header: "name", Target: "name"},
+			{Header: "phone", Target: "phones"},
+		},
+	}
+	headers := []string{"id", "name", "phone"}
+	rows := [][]string{
+		{"g1", "Alice", "555-1"},
+		{"g1", "Alice", "555-2"},
+		{"g2", "Bob", "555-9"},
+	}
+	got := BuildImportForms(plan, headers, rows, fields)
+	if len(got) != 2 {
+		t.Fatalf("want 2 grouped forms, got %d", len(got))
+	}
+	if !reflect.DeepEqual(got[0].Data["phones"], []any{"555-1", "555-2"}) {
+		t.Errorf("g1 phones = %#v, want two list items", got[0].Data["phones"])
+	}
+	if !reflect.DeepEqual(got[1].Data["phones"], []any{"555-9"}) {
+		t.Errorf("g2 phones = %#v", got[1].Data["phones"])
+	}
+}
+
+func TestBuildImportForms_AlignedTable_TypedColumnsCoerced(t *testing.T) {
+	// Table column options carrying a "type" coerce their cells: number
+	// columns become float64, bool columns become bool (exercises coerceCell).
+	fields := []FieldSpec{
+		{Key: "id", Type: "guid"},
+		{Key: "tbl", Type: "table", Options: []any{
+			map[string]any{"value": "qty", "label": "Qty", "type": "number"},
+			map[string]any{"value": "active", "label": "Active", "type": "bool"},
+		}},
+	}
+	plan := ImportPlan{
+		AlignSource: "tbl",
+		GroupKey:    "id",
+		Columns: []ImportColumn{
+			{Header: "id", Target: "id"},
+			{Header: "qty", Target: "tbl.qty"},
+			{Header: "active", Target: "tbl.active"},
+		},
+	}
+	headers := []string{"id", "qty", "active"}
+	rows := [][]string{{"g1", "42", "yes"}}
+	got := BuildImportForms(plan, headers, rows, fields)
+	if len(got) != 1 {
+		t.Fatalf("want 1 form, got %d", len(got))
+	}
+	tbl, ok := got[0].Data["tbl"].([]any)
+	if !ok || len(tbl) != 1 {
+		t.Fatalf("tbl = %#v, want one row", got[0].Data["tbl"])
+	}
+	cells, ok := tbl[0].([]any)
+	if !ok || len(cells) != 2 {
+		t.Fatalf("cells = %#v, want 2", tbl[0])
+	}
+	if cells[0] != float64(42) {
+		t.Errorf("qty cell = %#v, want float64(42)", cells[0])
+	}
+	if cells[1] != true {
+		t.Errorf("active cell = %#v, want true", cells[1])
+	}
+}

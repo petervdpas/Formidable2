@@ -532,7 +532,9 @@ type ioFailFS struct {
 	ensureErr    error
 	saveErr      error
 	loadErr      error
+	deleteErr    error
 	delFolderErr error
+	listErr      error
 }
 
 func (f ioFailFS) EnsureDirectory(string) error { return f.ensureErr }
@@ -545,9 +547,9 @@ func (f ioFailFS) FileExists(p string) bool {
 func (f ioFailFS) IsDir(string) bool                { return true }
 func (f ioFailFS) LoadFile(string) (string, error)  { return "", f.loadErr }
 func (f ioFailFS) SaveFile(string, string) error    { return f.saveErr }
-func (f ioFailFS) DeleteFile(string) error          { return nil }
+func (f ioFailFS) DeleteFile(string) error          { return f.deleteErr }
 func (f ioFailFS) DeleteFolder(string) error        { return f.delFolderErr }
-func (f ioFailFS) ListDir(string) ([]string, error) { return nil, nil }
+func (f ioFailFS) ListDir(string) ([]string, error) { return nil, f.listErr }
 
 func newIOFailManager(fs editorFS) *Manager {
 	return NewManager(ManagerDeps{

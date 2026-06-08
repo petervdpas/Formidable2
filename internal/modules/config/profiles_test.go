@@ -109,6 +109,39 @@ func TestImportUserProfile_EmptySourceRejected(t *testing.T) {
 	}
 }
 
+// TestImportUserProfile_MissingSourceNotFound covers the source-existence
+// guard: a sourcePath that does not exist on disk fails with the not_found
+// code before any copy is attempted.
+func TestImportUserProfile_MissingSourceNotFound(t *testing.T) {
+	m, _, root := newTestManager(t)
+	r := m.ImportUserProfile(filepath.Join(root, "no-such-source.json"), "dest.json", false)
+	if r.Success {
+		t.Fatal("missing source import must fail")
+	}
+	if r.Code != "not_found" {
+		t.Errorf("code = %q, want not_found", r.Code)
+	}
+}
+
+// TestImportUserProfile_UnslugifiableBasenameInvalidName covers the
+// derive-empty branch: an empty profileFilename slugifies the source
+// basename, and a basename with no [a-z0-9] characters normalises to "",
+// which must surface invalid_name rather than writing a nameless profile.
+func TestImportUserProfile_UnslugifiableBasenameInvalidName(t *testing.T) {
+	m, _, root := newTestManager(t)
+	src := filepath.Join(root, "---.json")
+	if err := os.WriteFile(src, []byte(`{}`), 0o644); err != nil {
+		t.Fatalf("seed source: %v", err)
+	}
+	r := m.ImportUserProfile(src, "", false)
+	if r.Success {
+		t.Fatal("un-slugifiable basename import must fail")
+	}
+	if r.Code != "invalid_name" {
+		t.Errorf("code = %q, want invalid_name", r.Code)
+	}
+}
+
 // TestImportUserProfile_MalformedSourceUndoesCopy exercises the rollback:
 // a copied-but-unparseable source must be deleted and reported as
 // invalid_config, leaving no orphan in config/.

@@ -76,6 +76,50 @@ func TestHelper_Includes(t *testing.T) {
 	}
 }
 
+func TestHelper_IncludesNonSliceIsFalse(t *testing.T) {
+	// A non-slice first argument never includes anything.
+	got := renderWithCtx(t, `{{#if (includes items "x")}}yes{{else}}no{{/if}}`, map[string]any{
+		"items": "scalar",
+	})
+	if got != "no" {
+		t.Errorf("non-slice includes should be false, got %q", got)
+	}
+}
+
+func TestHelper_IncludesNumericStringMatch(t *testing.T) {
+	// Stringy equality: [1,2,3] includes "2".
+	got := renderWithCtx(t, `{{#if (includes nums "2")}}yes{{else}}no{{/if}}`, map[string]any{
+		"nums": []any{1, 2, 3},
+	})
+	if got != "yes" {
+		t.Errorf("numeric stringy include should match, got %q", got)
+	}
+}
+
+func TestLinkParts_Variants(t *testing.T) {
+	if h, txt := linkParts("https://x"); h != "https://x" || txt != "" {
+		t.Errorf("string linkParts = (%q,%q)", h, txt)
+	}
+	if h, txt := linkParts(map[string]any{"href": "u", "text": "t"}); h != "u" || txt != "t" {
+		t.Errorf("map linkParts = (%q,%q)", h, txt)
+	}
+	if h, txt := linkParts(42); h != "" || txt != "" {
+		t.Errorf("unsupported linkParts should be blank, got (%q,%q)", h, txt)
+	}
+}
+
+func TestArrayIncludes_NotFoundAndNonSlice(t *testing.T) {
+	if arrayIncludes([]any{"a", "b"}, "z") {
+		t.Error("missing value should report false")
+	}
+	if arrayIncludes("not-a-slice", "a") {
+		t.Error("non-slice should report false")
+	}
+	if !arrayIncludes([]int{1, 2}, "2") {
+		t.Error("int slice should match stringified value")
+	}
+}
+
 func TestHelper_PascalCamel(t *testing.T) {
 	got := renderWithCtx(t, `{{pascal "hello"}} {{camel "Hello"}}`, map[string]any{})
 	if got != "Hello hello" {
@@ -227,6 +271,101 @@ func TestHelper_FieldHashWinsOverPositional(t *testing.T) {
 	got := renderWithCtx(t, `{{field "color" "value" mode="label"}}`, ctx)
 	if got != "Red" {
 		t.Errorf("hash should win: got %q, want Red", got)
+	}
+}
+
+func TestHelper_FieldMultioptionLabels(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{
+			Key: "tags", Type: "multioption",
+			Options: []any{
+				map[string]any{"value": "r", "label": "Red"},
+				map[string]any{"value": "b", "label": "Blue"},
+			},
+		}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"tags": []any{"r", "b"}})
+	got := renderWithCtx(t, `{{field "tags"}}`, ctx)
+	if got != "Red, Blue" {
+		t.Errorf("multioption labels: got %q, want 'Red, Blue'", got)
+	}
+}
+
+func TestHelper_FieldMultioptionValueMode(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{
+			Key: "tags", Type: "multioption",
+			Options: []any{map[string]any{"value": "r", "label": "Red"}},
+		}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"tags": []any{"r"}})
+	got := renderWithCtx(t, `{{field "tags" mode="value"}}`, ctx)
+	if got != "r" {
+		t.Errorf("multioption value mode: got %q, want 'r'", got)
+	}
+}
+
+func TestHelper_FieldMultioptionNonArrayIsBlank(t *testing.T) {
+	// A multioption value that isn't an array yields an empty string.
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "tags", Type: "multioption"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"tags": "not-an-array"})
+	got := renderWithCtx(t, `{{field "tags"}}`, ctx)
+	if got != "" {
+		t.Errorf("non-array multioption should be blank, got %q", got)
+	}
+}
+
+func TestHelper_FieldTextareaIsSafeString(t *testing.T) {
+	// textarea returns its raw string as a SafeString (HTML not escaped).
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "body", Type: "textarea"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"body": "a & b <x>"})
+	got := renderWithCtx(t, `{{field "body"}}`, ctx)
+	if got != "a & b <x>" {
+		t.Errorf("textarea should pass through unescaped, got %q", got)
+	}
+}
+
+func TestHelper_FieldLinkHrefMode(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "ref", Type: "link"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"ref": map[string]any{"href": "https://example.com", "text": "Example"},
+	})
+	got := renderWithCtx(t, `{{field "ref" "href"}}`, ctx)
+	if got != "https://example.com" {
+		t.Errorf("link href mode: got %q", got)
+	}
+}
+
+func TestHelper_FieldLinkTextMode(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "ref", Type: "link"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"ref": map[string]any{"href": "https://example.com", "text": "Example"},
+	})
+	got := renderWithCtx(t, `{{field "ref" "text"}}`, ctx)
+	if got != "Example" {
+		t.Errorf("link text mode: got %q", got)
+	}
+}
+
+func TestHelper_FieldLinkTextModeFallsBackToHref(t *testing.T) {
+	// text mode with no text falls back to the href.
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "ref", Type: "link"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{
+		"ref": map[string]any{"href": "https://example.com"},
+	})
+	got := renderWithCtx(t, `{{field "ref" "text"}}`, ctx)
+	if got != "https://example.com" {
+		t.Errorf("link text mode fallback: got %q", got)
 	}
 }
 

@@ -478,6 +478,39 @@ func TestSaveForm_RejectsPathSeparatorsInDatafile(t *testing.T) {
 	}
 }
 
+func TestSaveFormExact_RejectsEmptyDatafile(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+	r := m.SaveFormExact(context.Background(), "basic.yaml", "", Form{Data: map[string]any{"title": "X"}})
+	if r.Success {
+		t.Errorf("expected failure for empty datafile, got %+v", r)
+	}
+}
+
+func TestSaveFormExact_RejectsTraversalDatafile(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml",
+		Fields: []template.Field{{Key: "title", Type: "text"}},
+	})
+	for _, df := range []string{"subdir/x", `a\b`, "../escape"} {
+		r := m.SaveFormExact(context.Background(), "basic.yaml", df, Form{Data: map[string]any{"title": "X"}})
+		if r.Success {
+			t.Errorf("expected failure for datafile %q, got %+v", df, r)
+		}
+	}
+}
+
+func TestDeleteForm_RejectsEmptyDatafile(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if err := m.DeleteForm("basic.yaml", ""); err == nil {
+		t.Errorf("expected error for empty datafile")
+	}
+}
+
 func TestTemplateImageDir_StripsYAMLExtension(t *testing.T) {
 	// newTestStack constructs the Manager with `storageDir: "storage"`
 	// (relative). The path-composition rule (strip `.yaml`, append

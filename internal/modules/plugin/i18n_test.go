@@ -498,3 +498,46 @@ func TestManager_MessagesForLocale_LocaleNotFoundIsEmpty(t *testing.T) {
 		t.Errorf("nl should be empty (no nl.json), got %v", msgs)
 	}
 }
+
+// ── I/O failure paths (ioFailFS lives in editor_test.go) ───────────────
+
+func TestManager_SaveI18nFile_EnsureDirectoryError(t *testing.T) {
+	fs := ioFailFS{
+		exists:    func(string) bool { return true }, // plugin dir present
+		ensureErr: errors.New("mkdir denied"),
+	}
+	if err := newIOFailManager(fs).SaveI18nFile("hello", "en", map[string]string{"k": "v"}); err == nil {
+		t.Error("SaveI18nFile should fail when EnsureDirectory errors")
+	}
+}
+
+func TestManager_SaveI18nFile_SaveFileError(t *testing.T) {
+	fs := ioFailFS{
+		exists:  func(string) bool { return true },
+		saveErr: errors.New("disk full"),
+	}
+	if err := newIOFailManager(fs).SaveI18nFile("hello", "en", map[string]string{"k": "v"}); err == nil {
+		t.Error("SaveI18nFile should fail when SaveFile errors")
+	}
+}
+
+func TestManager_DeleteI18nFile_DeleteFileError(t *testing.T) {
+	// plugin dir and the locale file both present, but the delete fails.
+	fs := ioFailFS{
+		exists:    func(string) bool { return true },
+		deleteErr: errors.New("perm denied"),
+	}
+	if err := newIOFailManager(fs).DeleteI18nFile("hello", "en"); err == nil {
+		t.Error("DeleteI18nFile should propagate a DeleteFile error")
+	}
+}
+
+func TestManager_ListI18nLocales_ListDirError(t *testing.T) {
+	fs := ioFailFS{
+		exists:  func(string) bool { return true },
+		listErr: errors.New("readdir denied"),
+	}
+	if _, err := newIOFailManager(fs).ListI18nLocales("hello"); err == nil {
+		t.Error("ListI18nLocales should propagate a ListDir error")
+	}
+}

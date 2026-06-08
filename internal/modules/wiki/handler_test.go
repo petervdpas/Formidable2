@@ -84,6 +84,50 @@ func (s *stubProvider) RenderForm(_ context.Context, template, datafile string) 
 	return nil, errors.New("not configured")
 }
 
+// errProvider injects provider-side errors on the read methods the handler's
+// 500 branches depend on. Any nil error field delegates to an embedded
+// stubProvider, so a test can fail exactly one call while the rest behave
+// normally.
+type errProvider struct {
+	inner            *stubProvider
+	listTemplatesErr error
+	getTemplateErr   error
+	listFormsErr     error
+	getFormErr       error
+}
+
+func (e *errProvider) ListTemplates(ctx context.Context) ([]dataprovider.TemplateSummary, error) {
+	if e.listTemplatesErr != nil {
+		return nil, e.listTemplatesErr
+	}
+	return e.inner.ListTemplates(ctx)
+}
+
+func (e *errProvider) GetTemplate(ctx context.Context, filename string) (*dataprovider.TemplateSummary, bool, error) {
+	if e.getTemplateErr != nil {
+		return nil, false, e.getTemplateErr
+	}
+	return e.inner.GetTemplate(ctx, filename)
+}
+
+func (e *errProvider) ListForms(ctx context.Context, template string, opts dataprovider.ListOpts) ([]dataprovider.FormSummary, error) {
+	if e.listFormsErr != nil {
+		return nil, e.listFormsErr
+	}
+	return e.inner.ListForms(ctx, template, opts)
+}
+
+func (e *errProvider) GetFormSummary(ctx context.Context, template, datafile string) (*dataprovider.FormSummary, bool, error) {
+	if e.getFormErr != nil {
+		return nil, false, e.getFormErr
+	}
+	return e.inner.GetFormSummary(ctx, template, datafile)
+}
+
+func (e *errProvider) RenderForm(ctx context.Context, template, datafile string) (*dataprovider.RenderedPage, error) {
+	return e.inner.RenderForm(ctx, template, datafile)
+}
+
 // stubStorage is the bytes-side counterpart to stubProvider - keeps
 // the handler tests free of disk and the storage manager.
 type stubStorage struct {
@@ -412,6 +456,117 @@ func TestForm_RenderError500(t *testing.T) {
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic/form/x.meta.json", nil))
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+// ── provider-error (500) branches ──────────────────────────────────
+
+func TestIndex_ListTemplatesError500(t *testing.T) {
+	ep := &errProvider{inner: newStubProvider(), listTemplatesErr: errors.New("db down")}
+	h := NewHandler(ep, newStubStorage(), &stubExpressioner{})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "db down") {
+		t.Errorf("body should carry the provider error; got %q", w.Body.String())
+	}
+}
+
+func TestTemplate_GetTemplateError500(t *testing.T) {
+	ep := &errProvider{inner: newStubProvider(), getTemplateErr: errors.New("db down")}
+	h := NewHandler(ep, newStubStorage(), &stubExpressioner{})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+func TestTemplate_ListFormsError500(t *testing.T) {
+	// GetTemplate succeeds (so we pass the 404 gate), but ListForms errors.
+	ep := &errProvider{inner: newStubProvider(), listFormsErr: errors.New("query failed")}
+	h := NewHandler(ep, newStubStorage(), &stubExpressioner{})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+func TestForm_GetTemplateError500(t *testing.T) {
+	ep := &errProvider{inner: newStubProvider(), getTemplateErr: errors.New("db down")}
+	h := NewHandler(ep, newStubStorage(), &stubExpressioner{})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic/form/x.meta.json", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+func TestForm_GetFormSummaryError500(t *testing.T) {
+	// Template lookup succeeds; the form-summary lookup errors.
+	ep := &errProvider{inner: newStubProvider(), getFormErr: errors.New("summary failed")}
+	h := NewHandler(ep, newStubStorage(), &stubExpressioner{})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic/form/x.meta.json", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+// ── degrade-to-nil branches (no 500, graceful) ─────────────────────
+
+// facetDefsFor returns nil (no facet UI) when LoadTemplate errors; the template
+// page must still render its form list with a 200.
+func TestTemplate_FacetLoadErrorDegradesGracefully(t *testing.T) {
+	sp := newStubProvider()
+	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
+	h.SetTemplates(&stubTemplates{err: errors.New("template read failed")})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (facet load error must degrade, not 500)", w.Code)
+	}
+	body := w.Body.String()
+	if strings.Contains(body, `class="facet-filter"`) || strings.Contains(body, `class="facet-chip`) {
+		t.Errorf("no facet UI expected when LoadTemplate errors; body=%q", body)
+	}
+	// Form list still renders.
+	if !strings.Contains(body, `href="/template/basic/form/x.meta.json"`) {
+		t.Errorf("form list missing under facet load error; body=%q", body)
+	}
+}
+
+// facetPillsFor on the index page also degrades to no pills when LoadTemplate
+// errors, with a 200.
+func TestIndex_FacetPillLoadErrorDegradesGracefully(t *testing.T) {
+	sp := newStubProvider()
+	h := NewHandler(sp, newStubStorage(), &stubExpressioner{})
+	h.SetTemplates(&stubTemplates{err: errors.New("template read failed")})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if strings.Contains(w.Body.String(), `class="facet-pill"`) {
+		t.Errorf("no facet pills expected when LoadTemplate errors; body=%q", w.Body.String())
+	}
+}
+
+// sidebarSubtitles returns nil (rows fall back to filename) when EvaluateList
+// errors, with a 200.
+func TestTemplate_ExpressionErrorFallsBackToFilename(t *testing.T) {
+	h, _ := newTestHandlerWithExpr(t, &stubExpressioner{err: errors.New("expr engine down")})
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/basic", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (expression error must degrade)", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, ">x.meta.json<") {
+		t.Errorf("filename fallback missing under expression error; body=%q", body)
 	}
 }
 

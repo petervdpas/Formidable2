@@ -268,6 +268,37 @@ func TestListCollection_FieldFilter_ViaValueIndex(t *testing.T) {
 	}
 }
 
+// TestListCollection_FieldFilterValueIndexErrorPropagates covers the
+// error return from the value-index predicate (collection.go routes a
+// failed FormsWithValueOp straight out). The fake mirrors the real index:
+// a numeric comparison op with an unparseable value errors, and ListCollection
+// must surface it rather than swallowing it into an empty page.
+func TestListCollection_FieldFilterValueIndexErrorPropagates(t *testing.T) {
+	idx := &fakeIndex{
+		templates: []index.TemplateRow{
+			{Filename: "recepten.yaml", Name: "Recepten",
+				GuidField: "id", TagsField: "tags", ItemField: "title",
+				EnableCollection: true},
+		},
+		forms: map[string][]index.FormRow{
+			"recepten.yaml": {
+				{Template: "recepten.yaml", Filename: "a.meta.json", ID: "g-a", Title: "A",
+					Values: []index.FormValueRow{
+						{FieldKey: "amount", ValueType: "number", Text: "100"},
+					}},
+			},
+		},
+	}
+	m := newManagerWithFakes(idx, nil)
+
+	_, err := m.ListCollection(context.Background(), "recepten.yaml",
+		CollectionListOpts{Filter: &CollectionFieldFilter{
+			FieldKey: "amount", Op: "ge", Value: "not-a-number"}})
+	if err == nil {
+		t.Fatal("expected error: numeric op with unparseable value must propagate")
+	}
+}
+
 func TestListCollection_LimitOffset(t *testing.T) {
 	idx := collectionsFixture()
 	m := newManagerWithFakes(idx, nil)

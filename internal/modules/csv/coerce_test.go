@@ -182,6 +182,59 @@ func TestCoercePreview_NumberInvalidShowsFallback(t *testing.T) {
 	}
 }
 
+func TestCoercePreview_DropdownResolvesLabel(t *testing.T) {
+	options := opts([2]string{"a", "Alpha"})
+	if got := CoercePreview("Alpha", "dropdown", options); got != "a" {
+		t.Errorf("CoercePreview(dropdown by label) = %q, want 'a'", got)
+	}
+	if got := CoercePreview("a", "radio", options); got != "a" {
+		t.Errorf("CoercePreview(radio by value) = %q, want 'a'", got)
+	}
+}
+
+func TestCoercePreview_RangeValidPassesThrough(t *testing.T) {
+	if got := CoercePreview("75", "range", nil); got != "75" {
+		t.Errorf("CoercePreview(valid range) = %q, want '75'", got)
+	}
+}
+
+func TestCoercePreview_DefaultPassThrough(t *testing.T) {
+	if got := CoercePreview("  plain  ", "text", nil); got != "plain" {
+		t.Errorf("CoercePreview(default) = %q, want 'plain'", got)
+	}
+}
+
+func TestAsString_Variants(t *testing.T) {
+	cases := []struct {
+		in   any
+		want string
+	}{
+		{nil, ""},
+		{"hi", "hi"},
+		{float64(42), "42"},
+		{float64(12.5), "12.5"},
+		{true, "true"},
+		{false, "false"},
+		{42, "42"},
+	}
+	for _, c := range cases {
+		if got := asString(c.in); got != c.want {
+			t.Errorf("asString(%#v) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestOptionPair_MapAnyAnyAndScalar(t *testing.T) {
+	v, l := optionPair(map[any]any{"value": "x", "label": "X"})
+	if v != "x" || l != "X" {
+		t.Errorf("optionPair(map[any]any) = (%q,%q), want (x,X)", v, l)
+	}
+	v, l = optionPair("bare")
+	if v != "bare" || l != "bare" {
+		t.Errorf("optionPair(scalar) = (%q,%q), want (bare,bare)", v, l)
+	}
+}
+
 // matchOption and parseAsList are internal helpers - tested through Coerce
 // above, but a couple of focused unit checks keep regressions obvious.
 

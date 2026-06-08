@@ -146,6 +146,17 @@ func TestBuildNarrowed_PlannerErrorPropagates(t *testing.T) {
 	}
 }
 
+// A non-SubsetLoader falls back to reading every record then filtering. When
+// that full read errors, loadSubset (and so buildNarrowed) propagates it.
+func TestBuildNarrowed_FallbackLoaderErrorPropagates(t *testing.T) {
+	boom := errors.New("full scan failed")
+	planner := &fakePlanner{ids: []string{"a"}, narrowed: true}
+
+	if _, err := buildNarrowed(failLoader{err: boom}, planner, "t", Predicate{Search: "x"}); !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want %v", err, boom)
+	}
+}
+
 // The seam contract: narrowing via the planner equals selecting the same set
 // in memory with Where over the full tensor. Here the predicate "status ==
 // active" must match an in-memory Where on the facet:status cell, then the

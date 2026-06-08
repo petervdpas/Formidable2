@@ -14,8 +14,8 @@ type memFS struct{ files map[string]string }
 
 func newMemFS() *memFS { return &memFS{files: map[string]string{}} }
 
-func (m *memFS) FileExists(path string) bool      { _, ok := m.files[path]; return ok }
-func (m *memFS) EnsureDirectory(string) error     { return nil }
+func (m *memFS) FileExists(path string) bool  { _, ok := m.files[path]; return ok }
+func (m *memFS) EnsureDirectory(string) error { return nil }
 func (m *memFS) LoadFile(path string) (string, error) {
 	return m.files[path], nil
 }
@@ -35,7 +35,7 @@ func (m *memFS) ListFiles(dir string) ([]string, error) {
 // validation passes; the syncer logic is what's under test.
 type allTrueCatalog struct{}
 
-func (allTrueCatalog) IsCollection(string) bool       { return true }
+func (allTrueCatalog) IsCollection(string) bool         { return true }
 func (allTrueCatalog) RecordExists(string, string) bool { return true }
 
 // hostEdges returns the To-ids of edges from hostGuid in host's relation to target.
@@ -186,5 +186,81 @@ func TestSyncReferenceEdges_UndeclaredTargetIsTolerated(t *testing.T) {
 	}
 	if got := hostEdges(t, rel, "book.yaml", "ghost.yaml", "b-1"); len(got) != 0 {
 		t.Errorf("edges = %v, want none for undeclared relation", got)
+	}
+}
+
+func TestSyncReferenceEdges_CardinalityBreachIsTolerated(t *testing.T) {
+	// ManyToOne limits one target per source: linking two ids breaches on the
+	// second AddEdge, which sync swallows best-effort. Exactly one edge lands and
+	// sync still returns nil (which id wins is map-order, so don't assert it).
+	s, rel := newSyncWorld(t, relation.ManyToOne)
+	fields := []template.Field{apiField("people", "person.yaml")}
+	data := map[string]any{"people": []any{"p-1", "p-2"}}
+
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, data); err != nil {
+		t.Fatalf("sync should tolerate a cardinality breach: %v", err)
+	}
+	if got := hostEdges(t, rel, "book.yaml", "person.yaml", "b-1"); len(got) != 1 {
+		t.Errorf("edges = %v, want exactly one (cardinality caps at one)", got)
+	}
+}
+
+func TestApiRelations_GetRelationsErrorPropagates(t *testing.T) {
+	// The apiRelations adapter maps relation defs to api defs; a read error from
+	// the underlying manager surfaces as nil result + error, not a partial map.
+	mfs := newMemFS()
+	mfs.files[filepath.Join("relations", "book.yaml")] = "relations: [bad : yaml : here"
+	rel := relation.NewManager(mfs, "relations", allTrueCatalog{})
+	a := apiRelations{rel: rel}
+
+	out, err := a.GetRelations("book.yaml")
+	if err == nil {
+		t.Fatal("expected a parse error to propagate, got nil")
+	}
+	if out != nil {
+		t.Errorf("expected nil result on error, got %v", out)
+	}
+}
+
+func TestApiRelations_MapsDefsAndEdges(t *testing.T) {
+	// Happy mapping: relation defs and their edges translate field-for-field into
+	// the api shape.
+	rel := relation.NewManager(newMemFS(), "relations", allTrueCatalog{})
+	if err := rel.SetRelations("book.yaml", []relation.Relation{
+		{To: "person.yaml", Cardinality: relation.ManyToMany},
+	}); err != nil {
+		t.Fatalf("SetRelations: %v", err)
+	}
+	if err := rel.AddEdge("book.yaml", "person.yaml", relation.Edge{From: "b-1", To: "p-1"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+	a := apiRelations{rel: rel}
+	out, err := a.GetRelations("book.yaml")
+	if err != nil {
+		t.Fatalf("GetRelations: %v", err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("got %d defs, want 1", len(out))
+	}
+	if out[0].To != "person.yaml" || out[0].Cardinality != string(relation.ManyToMany) {
+		t.Errorf("def = %+v, want To=person.yaml Cardinality=many-to-many", out[0])
+	}
+	if len(out[0].Edges) != 1 || out[0].Edges[0].From != "b-1" || out[0].Edges[0].To != "p-1" {
+		t.Errorf("edges = %+v, want [{b-1 p-1}]", out[0].Edges)
+	}
+}
+
+func TestSyncReferenceEdges_GetRelationsErrorPropagates(t *testing.T) {
+	// A corrupt relations file makes GetRelations fail; SyncReferenceEdges
+	// returns that error rather than swallowing it (the one fatal path).
+	mfs := newMemFS()
+	mfs.files[filepath.Join("relations", "book.yaml")] = "relations: [this is : not : valid"
+	rel := relation.NewManager(mfs, "relations", allTrueCatalog{})
+	s := referenceEdgeSyncer{rel: rel}
+
+	fields := []template.Field{apiField("author", "person.yaml")}
+	err := s.SyncReferenceEdges("book.yaml", "b-1", fields, map[string]any{"author": "p-1"})
+	if err == nil {
+		t.Fatal("expected GetRelations parse error to propagate, got nil")
 	}
 }

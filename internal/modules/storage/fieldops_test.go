@@ -205,4 +205,95 @@ func TestFieldOps_UnhappyPaths(t *testing.T) {
 	if _, err := m.SortFieldValue("ods.yaml", "rec", "procs", "ghost", "asc"); err == nil {
 		t.Fatalf("expected unknown-column error")
 	}
+
+	if _, err := m.DedupFieldValue("ods.yaml", "rec", "nope", ""); err == nil {
+		t.Fatalf("expected unknown-field error for dedup")
+	}
+	if _, err := m.DedupFieldValue("ods.yaml", "missing", "views", ""); err == nil {
+		t.Fatalf("expected missing-record error for dedup")
+	}
+	if _, err := m.DedupFieldValue("ods.yaml", "rec", "title", ""); err == nil {
+		t.Fatalf("expected not-deduplicable error for text field")
+	}
+	if _, err := m.DedupFieldValue("ods.yaml", "rec", "procs", "ghost"); err == nil {
+		t.Fatalf("expected unknown-column error for dedup")
+	}
+}
+
+func TestResolveColumn_NoColumnsErrors(t *testing.T) {
+	f := template.Field{Key: "tbl", Type: "table"} // no Options
+	if _, _, err := resolveColumn(f, ""); err == nil {
+		t.Fatalf("expected error for table field with no columns")
+	}
+	if _, _, err := resolveColumn(f, "any"); err == nil {
+		t.Fatalf("expected error for table field with no columns (named)")
+	}
+}
+
+func TestColumnHelpers_DefaultsOnBadShapes(t *testing.T) {
+	// columnKey/columnType tolerate non-map options and missing keys.
+	if got := columnKey("not-a-map"); got != "" {
+		t.Fatalf("columnKey on non-map = %q; want empty", got)
+	}
+	if got := columnType("not-a-map"); got != "string" {
+		t.Fatalf("columnType on non-map = %q; want string default", got)
+	}
+	if got := columnType(map[string]any{"value": "x"}); got != "string" {
+		t.Fatalf("columnType with no type key = %q; want string default", got)
+	}
+}
+
+func TestAsSlice_NonSliceYieldsEmpty(t *testing.T) {
+	if got := asSlice("legacy-string"); len(got) != 0 {
+		t.Fatalf("asSlice on non-slice = %v; want empty", got)
+	}
+	if got := asSlice(nil); len(got) != 0 {
+		t.Fatalf("asSlice on nil = %v; want empty", got)
+	}
+}
+
+func TestToConverters_EdgeShapes(t *testing.T) {
+	// toStr covers each scalar arm plus the default (unhandled type -> "").
+	if got := toStr(int(7)); got != "7" {
+		t.Fatalf("toStr(int) = %q; want 7", got)
+	}
+	if got := toStr(true); got != "true" {
+		t.Fatalf("toStr(true) = %q", got)
+	}
+	if got := toStr(false); got != "false" {
+		t.Fatalf("toStr(false) = %q", got)
+	}
+	if got := toStr(float64(2.5)); got != "2.5" {
+		t.Fatalf("toStr(float) = %q", got)
+	}
+	if got := toStr([]any{1}); got != "" {
+		t.Fatalf("toStr(unhandled) = %q; want empty", got)
+	}
+	// toFloat int + bad-string + unhandled.
+	if f, ok := toFloat(int(3)); !ok || f != 3 {
+		t.Fatalf("toFloat(int) = %v ok=%v", f, ok)
+	}
+	if _, ok := toFloat("nope"); ok {
+		t.Fatalf("toFloat(bad string) should fail")
+	}
+	if _, ok := toFloat(true); ok {
+		t.Fatalf("toFloat(bool) should fail")
+	}
+	// toBool float + unhandled type.
+	if !toBool(float64(1)) {
+		t.Fatalf("toBool(1.0) should be true")
+	}
+	if toBool(float64(0)) {
+		t.Fatalf("toBool(0.0) should be false")
+	}
+	if toBool([]any{}) {
+		t.Fatalf("toBool(unhandled) should be false")
+	}
+	// toTime empty + unparseable.
+	if _, ok := toTime(""); ok {
+		t.Fatalf("toTime(empty) should fail")
+	}
+	if _, ok := toTime("wibble"); ok {
+		t.Fatalf("toTime(garbage) should fail")
+	}
 }

@@ -242,6 +242,18 @@ func TestGetTemplate_FoundAndNotFound(t *testing.T) {
 	}
 }
 
+func TestGetTemplate_PropagatesListError(t *testing.T) {
+	idx := &fakeIndex{listErr: errors.New("boom")}
+	m := newManagerWithFakes(idx, nil)
+	_, ok, err := m.GetTemplate(context.Background(), "basic.yaml")
+	if err == nil {
+		t.Fatal("want error propagated from ListTemplates")
+	}
+	if ok {
+		t.Errorf("ok = true on error, want false")
+	}
+}
+
 // ── ListForms ────────────────────────────────────────────────────
 
 func TestListForms_ProjectsRows(t *testing.T) {
@@ -413,6 +425,59 @@ func TestRenderForm_FallsBackToFormTitleThenFilename(t *testing.T) {
 	got, _ = m.RenderForm(context.Background(), "basic.yaml", "x.meta.json")
 	if got.Title != "x.meta.json" {
 		t.Errorf("title = %q, want filename fallback", got.Title)
+	}
+}
+
+// TestRenderForm_NonStringFrontmatterTitleIgnored covers titleFromFrontmatter's
+// type-assertion guard: a numeric `title:` is not a string, so the frontmatter
+// title is discarded and the form-summary title wins instead.
+func TestRenderForm_NonStringFrontmatterTitleIgnored(t *testing.T) {
+	idx := &fakeIndex{
+		forms: map[string][]index.FormRow{
+			"basic.yaml": {
+				{Template: "basic.yaml", Filename: "x.meta.json", Title: "From Index"},
+			},
+		},
+	}
+	ren := &fakeRenderer{
+		markdown: "---\ntitle: 42\n---\n# body\n",
+		html:     "<h1>body</h1>",
+	}
+	m := newManagerWithFakes(idx, ren)
+
+	got, err := m.RenderForm(context.Background(), "basic.yaml", "x.meta.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "From Index" {
+		t.Errorf("title = %q, want From Index (numeric frontmatter title ignored)", got.Title)
+	}
+}
+
+// TestRenderForm_MalformedFrontmatterFallsBack covers titleFromFrontmatter's
+// parse-error branch: invalid YAML in the frontmatter block makes
+// ParseFrontmatter error, so the title resolves to "" and falls through to the
+// form-summary title.
+func TestRenderForm_MalformedFrontmatterFallsBack(t *testing.T) {
+	idx := &fakeIndex{
+		forms: map[string][]index.FormRow{
+			"basic.yaml": {
+				{Template: "basic.yaml", Filename: "x.meta.json", Title: "From Index"},
+			},
+		},
+	}
+	ren := &fakeRenderer{
+		markdown: "---\ntitle: [unterminated\n---\n# body\n",
+		html:     "<h1>body</h1>",
+	}
+	m := newManagerWithFakes(idx, ren)
+
+	got, err := m.RenderForm(context.Background(), "basic.yaml", "x.meta.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "From Index" {
+		t.Errorf("title = %q, want From Index (malformed frontmatter falls back)", got.Title)
 	}
 }
 

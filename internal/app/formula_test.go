@@ -442,3 +442,36 @@ func TestApplyFormulas_WritesCoercedCellsSkipsBad(t *testing.T) {
 		t.Errorf("bad formula should not produce a cell, got %q", rec.Fields["bad"])
 	}
 }
+
+// TestCoerceFormula_TypeBranches pins coerceFormula's per-type coercion: numbers
+// format without scientific notation, ints/int64 round-trip, a non-numeric value
+// under "number" falls back to dcText, bools render as the literal strings, a
+// non-bool under "bool" falls back, and the default branch stringifies anything.
+func TestCoerceFormula_TypeBranches(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  any
+		typ  string
+		want string
+	}{
+		{"number float64", float64(12.5), "number", "12.5"},
+		{"number large no sci notation", float64(99642), "number", "99642"},
+		{"number int", 7, "number", "7"},
+		{"number int64", int64(9), "number", "9"},
+		{"number non-numeric fallback", "n/a", "number", "n/a"},
+		{"bool true", true, "bool", "true"},
+		{"bool false", false, "bool", "false"},
+		{"bool non-bool fallback", float64(1), "bool", "1"},
+		{"text string", "hello", "text", "hello"},
+		{"text from float64", float64(3), "text", "3"},
+		{"default unknown type stringifies", float64(2), "weird", "2"},
+		{"text nil empty", nil, "text", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := coerceFormula(c.raw, c.typ); got != c.want {
+				t.Errorf("coerceFormula(%#v, %q) = %q, want %q", c.raw, c.typ, got, c.want)
+			}
+		})
+	}
+}

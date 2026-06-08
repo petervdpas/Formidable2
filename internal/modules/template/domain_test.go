@@ -16,6 +16,54 @@ func newTestManager(t *testing.T) (*Manager, *system.Manager, string) {
 	return NewManager(sys, "templates", nil), sys, root
 }
 
+// failingFS wraps a real fs but forces SaveFile, DeleteFile, or ListFiles
+// to error, so the manager's write/delete/list error branches are reachable
+// without a flaky real filesystem. A nil error field passes through to the
+// wrapped fs.
+type failingFS struct {
+	inner   fs
+	saveErr error
+	delErr  error
+	listErr error
+}
+
+func (f *failingFS) ResolvePath(segments ...string) string { return f.inner.ResolvePath(segments...) }
+func (f *failingFS) JoinPath(segments ...string) string    { return f.inner.JoinPath(segments...) }
+func (f *failingFS) EnsureDirectory(path string) error     { return f.inner.EnsureDirectory(path) }
+func (f *failingFS) FileExists(path string) bool           { return f.inner.FileExists(path) }
+func (f *failingFS) LoadFile(path string) (string, error)  { return f.inner.LoadFile(path) }
+
+func (f *failingFS) SaveFile(path string, content string) error {
+	if f.saveErr != nil {
+		return f.saveErr
+	}
+	return f.inner.SaveFile(path, content)
+}
+
+func (f *failingFS) DeleteFile(path string) error {
+	if f.delErr != nil {
+		return f.delErr
+	}
+	return f.inner.DeleteFile(path)
+}
+
+func (f *failingFS) ListFiles(dir string) ([]string, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	return f.inner.ListFiles(dir)
+}
+
+// newFailingManager builds a Manager over a failingFS wrapping a real
+// temp-dir system manager, returning both so tests can flip the error flags.
+func newFailingManager(t *testing.T) (*Manager, *failingFS) {
+	t.Helper()
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	ff := &failingFS{inner: sys}
+	return NewManager(ff, "templates", nil), ff
+}
+
 // writeRaw drops a raw YAML body into the manager's templates dir, bypassing
 // SaveTemplate so malformed/invalid shapes reach LoadTemplate untouched.
 func writeRaw(t *testing.T, m *Manager, name, body string) {
@@ -1121,6 +1169,136 @@ func TestLoadMany_MixedValidAndInvalidSurfacesNonFatally(t *testing.T) {
 	}
 	if !strings.Contains(got[2].Error, "file not found") {
 		t.Errorf("got[2].Error = %q, want file-not-found reason", got[2].Error)
+	}
+}
+
+// SaveTemplate must surface a filesystem write failure to the caller (the
+// error returns as-is, before the cache is cleared or the indexer fires).
+func TestSaveTemplate_SaveFileFailurePropagates(t *testing.T) {
+	m, ff := newFailingManager(t)
+	ff.saveErr = errors.New("disk full")
+	idx := &recordingIndexer{}
+	m.SetIndexer(idx)
+	var created []string
+	m.AddCreationObserver(CreationObserverFunc(func(n string) error {
+		created = append(created, n)
+		return nil
+	}))
+
+	err := m.SaveTemplate("x.yaml", &Template{
+		Name:   "X",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	})
+	if err == nil {
+		t.Fatal("expected write error, got nil")
+	}
+	if !strings.Contains(err.Error(), "disk full") {
+		t.Errorf("error = %q, want disk-full reason", err.Error())
+	}
+	// A failed write is not a create: no indexer hook, no creation observer.
+	if len(idx.changed) != 0 {
+		t.Errorf("indexer fired on write failure: %v", idx.changed)
+	}
+	if len(created) != 0 {
+		t.Errorf("creation observer fired on write failure: %v", created)
+	}
+}
+
+// DeleteTemplate must surface a filesystem delete failure before the cache is
+// cleared or any observer fires.
+func TestDeleteTemplate_DeleteFileFailurePropagates(t *testing.T) {
+	m, ff := newFailingManager(t)
+	if err := m.SaveTemplate("gone.yaml", &Template{
+		Name:   "Gone",
+		Fields: []Field{{Key: "a", Type: "text"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	obs := &stubObserver{}
+	m.AddObserver(obs)
+	ff.delErr = errors.New("permission denied")
+
+	err := m.DeleteTemplate("gone.yaml")
+	if err == nil {
+		t.Fatal("expected delete error, got nil")
+	}
+	if !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("error = %q, want permission-denied reason", err.Error())
+	}
+	if len(obs.calls) != 0 {
+		t.Errorf("observer fired on delete failure: %v", obs.calls)
+	}
+}
+
+// ListTemplates wraps an underlying ListFiles error with the "template: list"
+// prefix rather than returning a partial slice.
+func TestListTemplates_ListFilesErrorWrapped(t *testing.T) {
+	m, ff := newFailingManager(t)
+	// The dir must exist so ListTemplates reaches ListFiles (the missing-dir
+	// short-circuit returns an empty slice with no error).
+	if err := m.EnsureTemplateDirectory(); err != nil {
+		t.Fatal(err)
+	}
+	ff.listErr = errors.New("io error")
+	files, err := m.ListTemplates()
+	if err == nil {
+		t.Fatal("expected list error, got nil")
+	}
+	if files != nil {
+		t.Errorf("expected nil slice on error, got %v", files)
+	}
+	if !strings.HasPrefix(err.Error(), "template: list:") {
+		t.Errorf("error = %q, want template: list: prefix", err.Error())
+	}
+}
+
+// HasTemplates collapses any ListTemplates error to false rather than panicking
+// or propagating.
+func TestHasTemplates_ListErrorCollapsesToFalse(t *testing.T) {
+	m, ff := newFailingManager(t)
+	if err := m.EnsureTemplateDirectory(); err != nil {
+		t.Fatal(err)
+	}
+	ff.listErr = errors.New("io error")
+	if m.HasTemplates() {
+		t.Error("expected false when ListTemplates errors")
+	}
+}
+
+// GetDescriptor still returns the stamped descriptor when the best-effort
+// author backfill write fails: the backfill is logged, never fatal.
+func TestGetDescriptor_BackfillWriteFailureIsNonFatal(t *testing.T) {
+	m, ff := newFailingManager(t)
+	if err := ff.inner.SaveFile(ff.inner.JoinPath("templates", "x.yaml"),
+		"name: X\nfilename: x.yaml\nfields:\n  - key: a\n    type: text\n"); err != nil {
+		t.Fatal(err)
+	}
+	m.SetAuthorReader(AuthorFunc(func() (string, string) {
+		return "Alice", "alice@example.com"
+	}))
+	ff.saveErr = errors.New("disk full")
+
+	desc, err := m.GetDescriptor("x.yaml", "")
+	if err != nil {
+		t.Fatalf("GetDescriptor must succeed despite backfill write failure: %v", err)
+	}
+	// In-memory descriptor is still stamped even though the disk write failed.
+	if desc.YAML.AuthorName != "Alice" {
+		t.Errorf("descriptor not stamped in memory, got %q", desc.YAML.AuthorName)
+	}
+}
+
+// SeedBasicIfEmpty surfaces a write failure when it tries to create basic.yaml
+// into an empty templates dir.
+func TestSeedBasicIfEmpty_WriteFailurePropagates(t *testing.T) {
+	m, ff := newFailingManager(t)
+	ff.saveErr = errors.New("disk full")
+	err := m.SeedBasicIfEmpty()
+	if err == nil {
+		t.Fatal("expected write error, got nil")
+	}
+	if !strings.Contains(err.Error(), "disk full") {
+		t.Errorf("error = %q, want disk-full reason", err.Error())
 	}
 }
 

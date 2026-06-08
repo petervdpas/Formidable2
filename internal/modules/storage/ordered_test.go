@@ -158,3 +158,44 @@ func TestOrderData_AppendsOrphanKeysSorted(t *testing.T) {
 		t.Errorf("order = %v, want %v", o.keys, want)
 	}
 }
+
+func TestLoopEnd_UnpairedFallsBackToLastField(t *testing.T) {
+	// A loopstart with no matching loopstop returns the last index.
+	fields := []template.Field{
+		{Key: "rows", Type: "loopstart"},
+		{Key: "name", Type: "text"},
+	}
+	if got := loopEnd(fields, 1, "rows"); got != len(fields)-1 {
+		t.Errorf("loopEnd unpaired = %d; want %d", got, len(fields)-1)
+	}
+}
+
+func TestLoopEnd_HonoursNestedPairs(t *testing.T) {
+	fields := []template.Field{
+		{Key: "outer", Type: "loopstart"},
+		{Key: "inner", Type: "loopstart"},
+		{Key: "x", Type: "text"},
+		{Key: "inner", Type: "loopstop"},
+		{Key: "outer", Type: "loopstop"},
+	}
+	if got := loopEnd(fields, 1, "outer"); got != 4 {
+		t.Errorf("loopEnd nested = %d; want 4 (outer stop, not inner)", got)
+	}
+}
+
+func TestOrderLoopItems_NonSliceAndNonMapPassThrough(t *testing.T) {
+	inner := []template.Field{{Key: "name", Type: "text"}}
+	// A non-slice raw value is returned verbatim.
+	if got := orderLoopItems("legacy", inner); got != "legacy" {
+		t.Errorf("non-slice loop value = %v; want passthrough", got)
+	}
+	// A slice with a non-map item leaves that item untouched.
+	out := orderLoopItems([]any{"scalar", map[string]any{"name": "ok"}}, inner)
+	arr, ok := out.([]any)
+	if !ok || len(arr) != 2 {
+		t.Fatalf("orderLoopItems result = %v; want 2-element slice", out)
+	}
+	if arr[0] != "scalar" {
+		t.Errorf("non-map item mutated: %v", arr[0])
+	}
+}

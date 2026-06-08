@@ -129,6 +129,47 @@ func TestScopeMissingContextYieldsBlank(t *testing.T) {
 	}
 }
 
+// Cells iterates every stored cell, including the Ref coordinate for a link or
+// loop-row reference. A break stops the iteration early (lazy).
+func TestCellsIteratesAllCellsAndExposesRef(t *testing.T) {
+	dt := New()
+	dt.Ingest(Record{ID: "a", Fields: map[string]string{"team": "east"}, Links: map[string][]string{"owner": {"b"}}})
+	dt.Ingest(Record{ID: "b", Fields: map[string]string{"team": "west"}})
+
+	var refSeen bool
+	scalarCells := 0
+	for c := range dt.Cells() {
+		if c.Ref != "" {
+			refSeen = true
+			if c.F != "owner" || c.Ref != "b" {
+				t.Fatalf("ref cell = %+v, want owner -> b", c)
+			}
+		} else if c.Val != "" {
+			scalarCells++
+		}
+	}
+	if !refSeen {
+		t.Fatal("Cells never yielded the owner ref cell")
+	}
+	if scalarCells != 2 {
+		t.Fatalf("scalar cells = %d, want 2 (two team values)", scalarCells)
+	}
+}
+
+func TestCellsStopsOnBreak(t *testing.T) {
+	dt := New()
+	ingestAll(dt, sampleRecords())
+
+	count := 0
+	for range dt.Cells() {
+		count++
+		break
+	}
+	if count != 1 {
+		t.Fatalf("Cells break collected %d, want 1", count)
+	}
+}
+
 // A moderate deterministic corpus: the distribution must partition the
 // identities exactly, with no double counting from the columnar scan.
 func TestDistributionPartitionsLargeCorpus(t *testing.T) {
