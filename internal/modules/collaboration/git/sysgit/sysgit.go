@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/util/proc"
@@ -133,6 +134,66 @@ func (r *Runner) Pull(workdir, remote string) (alreadyUpToDate bool, err error) 
 	}
 	r.log.Info("sysgit: pull advanced", "path", workdir, "remote", remote)
 	return false, nil
+}
+
+// Restore discards local changes to one file the widely-compatible way:
+// `git checkout -- <file>` restores a tracked file from the index/HEAD, then
+// `git clean -fd -- <file>` removes it if it was untracked. The checkout step
+// fails for an untracked path ("pathspec did not match"); that is expected, so
+// only the clean step's error is fatal. Keeping discard on the system binary
+// means the index stat-data stays in the binary's format, so a later
+// `git pull` doesn't see a phantom-dirty worktree.
+func (r *Runner) Restore(workdir, file string) error {
+	if !r.Available() {
+		return errNotAvailable
+	}
+	if strings.TrimSpace(workdir) == "" {
+		return errors.New("sysgit: restore: path required")
+	}
+	clean := filepath.Clean(file)
+	if file == "" || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return errors.New("sysgit: restore: invalid file path")
+	}
+	r.log.Info("sysgit: restore", "path", workdir, "file", clean, "binary", r.binary)
+	// Tolerated: errors here mean the path is untracked, handled by clean below.
+	_, _, _ = r.exec.Run(workdir, r.binary, []string{"checkout", "--", clean})
+	_, stderr, err := r.exec.Run(workdir, r.binary, []string{"clean", "-fd", "--", clean})
+	if err != nil {
+		r.log.Warn("sysgit: restore failed", "path", workdir, "file", clean, "err", err.Error(), "stderr", strings.TrimSpace(stderr))
+		return wrapErr("restore", stderr, err)
+	}
+	return nil
+}
+
+// StatusPorcelain returns raw `git status --porcelain=v1 --branch` output for
+// the caller to parse. Reading status from the binary (not go-git) keeps the
+// dirty/ahead/behind view consistent with the same tool that does the pull.
+func (r *Runner) StatusPorcelain(workdir string) (string, error) {
+	if !r.Available() {
+		return "", errNotAvailable
+	}
+	if strings.TrimSpace(workdir) == "" {
+		return "", errors.New("sysgit: status: path required")
+	}
+	stdout, stderr, err := r.exec.Run(workdir, r.binary, []string{"status", "--porcelain=v1", "--branch"})
+	if err != nil {
+		return "", wrapErr("status", stderr, err)
+	}
+	return stdout, nil
+}
+
+// HeadHash resolves the worktree HEAD via `git rev-parse HEAD` for the journal
+// cursor; any failure (newborn repo, non-repo) returns "" so the caller skips
+// recording rather than corrupting the cursor with a bad version.
+func (r *Runner) HeadHash(workdir string) (string, error) {
+	if !r.Available() {
+		return "", errNotAvailable
+	}
+	stdout, stderr, err := r.exec.Run(workdir, r.binary, []string{"rev-parse", "HEAD"})
+	if err != nil {
+		return "", wrapErr("rev-parse", stderr, err)
+	}
+	return strings.TrimSpace(stdout), nil
 }
 
 func wrapErr(op, stderr string, err error) error {

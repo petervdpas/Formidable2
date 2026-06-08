@@ -955,7 +955,7 @@ func TestStatus_AheadBehindWithNoTracking(t *testing.T) {
 func TestStatus_AheadCountsLocalCommits(t *testing.T) {
 	dir, r := newRepo(t)
 	h := addCommit(t, dir, r, "a.txt", "v1", "first")
-	setupTrackedBranch(t, r,h)
+	setupTrackedBranch(t, r, h)
 
 	// Advance HEAD by two commits.
 	addCommit(t, dir, r, "a.txt", "v2", "second")
@@ -985,7 +985,7 @@ func TestStatus_BehindCountsRemoteCommits(t *testing.T) {
 	)); err != nil {
 		t.Fatal(err)
 	}
-	setupTrackedBranch(t, r,h3)
+	setupTrackedBranch(t, r, h3)
 
 	m := NewManager()
 	s, err := m.Status(dir)

@@ -46,6 +46,7 @@
   "workspace.collaboration.clone.running": "Bezig met klonen…",
   "workspace.collaboration.clone.success": "Repository gekloond.",
   "workspace.collaboration.clone.error": "Klonen mislukt: {0}",
+  "workspace.collaboration.clone.self_cloned_disabled": "Klonen is uitgeschakeld zolang 'zelf gekloond' aan staat. In die modus beheer je de werkkopie met systeem-git buiten Formidable.",
   "workspace.collaboration.clone.save_token": "Token bewaren voor synchronisatie",
   "workspace.collaboration.clone.save_token_help": "Slaat het token op in de OS-sleutelbos (Keychain / Credential Manager / Secret Service) zodat volgende pulls en pushes niet opnieuw vragen.",
   "workspace.collaboration.clone.save_token_error": "Token kon niet in de sleutelbos worden opgeslagen: {0}",

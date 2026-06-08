@@ -35,8 +35,14 @@ import { backendErrMessage } from "../../utils/backendError";
 // resolver - even when this form doesn't itself reuse it for the
 // clone call (clone always uses what was typed).
 const { t } = useI18n();
-const { profileFilename, update } = useConfig();
+const { config, profileFilename, update } = useConfig();
 const { accountFor } = useCredentialAccount();
+
+// Presentational only: in self-cloned mode the user manages the working copy
+// with system git, so the backend refuses Clone (ErrCloneSelfCloned). Disable
+// the action and explain why rather than letting the user hit an error toast.
+// The frontend never picks a transport; this just reflects the backend rule.
+const selfCloned = computed(() => config.value?.git?.self_cloned ?? false);
 const toast = useToast();
 
 const url = ref("");
@@ -72,7 +78,8 @@ const patStatusVariant = computed<"ok" | undefined>(
 );
 
 const canClone = () =>
-  !cloneRunning.value && url.value.trim() !== "" && dest.value.trim() !== "";
+  !cloneRunning.value && !selfCloned.value &&
+  url.value.trim() !== "" && dest.value.trim() !== "";
 
 async function clone() {
   if (!canClone()) return;
@@ -161,6 +168,10 @@ async function clone() {
       <TextField v-model="branch" placeholder="main" />
     </FormRow>
   </FormSection>
+
+  <p v-if="selfCloned" class="section-info">
+    {{ t('workspace.collaboration.clone.self_cloned_disabled') }}
+  </p>
 
   <div class="git-clone-actions">
     <button

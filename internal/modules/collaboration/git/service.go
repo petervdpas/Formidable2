@@ -13,6 +13,12 @@ import (
 // git ops can't resolve the working folder they operate on.
 var ErrNoContext = errors.New("git: no context configured")
 
+// ErrCloneSelfCloned is returned by Clone when the active profile is in
+// self-cloned mode. In that mode the user manages the working copy with system
+// git outside Formidable, so the in-process go-git Clone (which would need a
+// keychain PAT the user never stored) must not run.
+var ErrCloneSelfCloned = errors.New("git: clone is disabled in self-cloned mode; clone with system git instead")
+
 // Service is the Wails-bound surface of the Git backend. It auto-resolves a missing PAT from the keychain
 // and records journal sync hops on success.
 //
@@ -49,6 +55,9 @@ type Sysgit interface {
 	Fetch(workdir, remote string) error
 	Push(workdir, remote string) (alreadyUpToDate bool, err error)
 	Pull(workdir, remote string) (alreadyUpToDate bool, err error)
+	Restore(workdir, file string) error
+	StatusPorcelain(workdir string) (string, error)
+	HeadHash(workdir string) (string, error)
 }
 
 // CredentialReader resolves a stored secret for an HTTPS auth account.
@@ -132,6 +141,25 @@ func (s *Service) useSysgit() bool {
 	return s.sys.Available()
 }
 
+// selfCloned reports whether the active profile declares the working copy as
+// cloned outside Formidable. Unlike useSysgit it ignores binary availability:
+// the user's intent ("I manage clones myself") holds even if the git binary is
+// momentarily missing, so Clone refuses regardless.
+func (s *Service) selfCloned() bool {
+	return s.flags != nil && s.flags.GitSelfCloned()
+}
+
+// backend selects the transport for the diverging ops (Status, Discard, Fetch,
+// Push, Pull). One choice per call, so a repo is never half-driven by both
+// tools. Cross-cutting concerns (journal, emit, optrack guards, stash
+// orchestration) stay in the Service around the backend call.
+func (s *Service) backend() syncBackend {
+	if s.useSysgit() {
+		return &sysgitBackend{run: s.sys}
+	}
+	return &gogitBackend{m: s.m, creds: s.creds, profile: s.profile}
+}
+
 // IsGitRepo reports whether the active context folder is a git repo. A missing
 // context (no root) reads as not-a-repo rather than an error.
 func (s *Service) IsGitRepo() bool {
@@ -155,7 +183,7 @@ func (s *Service) Status() (*Status, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.m.Status(root)
+	return s.backend().Status(root)
 }
 
 func (s *Service) Branches() (*Branches, error) {
@@ -217,6 +245,9 @@ func (s *Service) Commit(opts CommitOptions) (*CommitResult, error) {
 // Clone brings a whole new working tree in, so it announces context:reloaded on
 // success; tracked and guarded against a concurrent second clone.
 func (s *Service) Clone(opts CloneOptions) (*CloneResult, error) {
+	if s.selfCloned() {
+		return nil, ErrCloneSelfCloned
+	}
 	_, release, err := optrack.Guard(s.ops, "git:clone")
 	if err != nil {
 		return nil, err
@@ -238,7 +269,7 @@ func (s *Service) Discard(opts DiscardOptions) error {
 		}
 		opts.Path = root
 	}
-	err := s.m.Discard(opts)
+	err := s.backend().Discard(opts)
 	if err == nil {
 		// The file is back to its committed state, so its pending op is stale.
 		// Drop it from the journal before the reload so the Sync panel doesn't
@@ -260,16 +291,7 @@ func (s *Service) Fetch(opts FetchOptions) (*FetchResult, error) {
 		}
 		opts.Path = root
 	}
-	if s.useSysgit() {
-		if err := s.sys.Fetch(opts.Path, opts.Remote); err != nil {
-			return nil, err
-		}
-		return &FetchResult{AlreadyUpToDate: false}, nil
-	}
-	if opts.PAT == "" {
-		opts.PAT = s.resolvePAT(opts.Path)
-	}
-	return s.m.Fetch(opts)
+	return s.backend().Fetch(opts)
 }
 
 // FetchStatus refreshes the remote-tracking refs then returns a fresh Status,
@@ -292,7 +314,7 @@ func (s *Service) FetchStatus(opts FetchOptions) (*Status, error) {
 	if _, err := s.Fetch(opts); err != nil {
 		return nil, err
 	}
-	return s.m.Status(root)
+	return s.backend().Status(root)
 }
 
 // Push sends commits to the remote; AlreadyUpToDate records remote-seen, advancing records a sync marker.
@@ -308,13 +330,7 @@ func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 			return nil, err
 		}
 	}
-	if s.useSysgit() {
-		return s.pushViaSysgit(opts)
-	}
-	if opts.PAT == "" {
-		opts.PAT = s.resolvePAT(opts.Path)
-	}
-	res, err := s.m.Push(opts)
+	res, err := s.backend().Push(opts)
 	if err != nil || res == nil {
 		return res, err
 	}
@@ -326,23 +342,6 @@ func (s *Service) Push(opts PushOptions) (*PushResult, error) {
 		}
 	}
 	return res, nil
-}
-
-// pushViaSysgit shells out to system git, then best-effort re-reads HEAD via go-git for the journal cursor.
-func (s *Service) pushViaSysgit(opts PushOptions) (*PushResult, error) {
-	upToDate, err := s.sys.Push(opts.Path, opts.Remote)
-	if err != nil {
-		return nil, err
-	}
-	newHead := s.headHash(opts.Path)
-	if s.jrnl != nil && newHead != "" {
-		if upToDate {
-			s.jrnl.RecordRemoteSeen(journalBackend, newHead)
-		} else {
-			s.jrnl.RecordSync(journalBackend, newHead, 1, 0)
-		}
-	}
-	return &PushResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
 }
 
 // Pull fetches + merges the upstream branch via sysgit or go-git, recording remote-seen on success.
@@ -358,13 +357,7 @@ func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 			return nil, err
 		}
 	}
-	if s.useSysgit() {
-		return s.pullViaSysgit(opts)
-	}
-	if opts.PAT == "" {
-		opts.PAT = s.resolvePAT(opts.Path)
-	}
-	res, err := s.m.Pull(opts)
+	res, err := s.backend().Pull(opts)
 	if err != nil || res == nil {
 		return res, err
 	}
@@ -375,50 +368,6 @@ func (s *Service) Pull(opts PullOptions) (*PullResult, error) {
 		event.Emit(s.emit, "context:reloaded", nil)
 	}
 	return res, nil
-}
-
-func (s *Service) pullViaSysgit(opts PullOptions) (*PullResult, error) {
-	upToDate, err := s.sys.Pull(opts.Path, opts.Remote)
-	if err != nil {
-		return nil, err
-	}
-	newHead := s.headHash(opts.Path)
-	if s.jrnl != nil && newHead != "" {
-		s.jrnl.RecordRemoteSeen(journalBackend, newHead)
-	}
-	if !upToDate {
-		event.Emit(s.emit, "context:reloaded", nil)
-	}
-	return &PullResult{AlreadyUpToDate: upToDate, NewHead: newHead}, nil
-}
-
-// sysgitStashPull is the stash-flow pull step for self-cloned mode: shell out
-// to system git (credential helper handles auth) and re-read HEAD for the
-// cursor. Unlike pullViaSysgit it records no journal/emit side effects;
-// PullWithStash applies those once around the whole flow.
-func (s *Service) sysgitStashPull(opts PullOptions) (*PullResult, error) {
-	remote := opts.Remote
-	if remote == "" {
-		remote = "origin"
-	}
-	upToDate, err := s.sys.Pull(opts.Path, remote)
-	if err != nil {
-		return nil, err
-	}
-	return &PullResult{AlreadyUpToDate: upToDate, NewHead: s.headHash(opts.Path)}, nil
-}
-
-// headHash resolves the worktree HEAD for journal recording; "" means skip the hop (an unknown version would corrupt the cursor).
-func (s *Service) headHash(path string) string {
-	r, err := s.m.open(path)
-	if err != nil {
-		return ""
-	}
-	h, err := r.Head()
-	if err != nil {
-		return ""
-	}
-	return h.Hash().String()
 }
 
 // PullWithStash is the journal-aware auto-stash variant of Pull. The pending set is narrower than `git status`
@@ -438,12 +387,9 @@ func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 		}
 	}
 
-	pull := s.m.Pull
-	if s.useSysgit() {
-		pull = s.sysgitStashPull
-	} else if opts.PAT == "" {
-		opts.PAT = s.resolvePAT(opts.Path)
-	}
+	// The pull step is the selected backend's Pull (no journal/emit; those are
+	// applied once below). go-git resolves the PAT internally; sysgit shells out.
+	pull := s.backend().Pull
 
 	pending := []StashPathPending{}
 	if s.jrnl != nil {
@@ -466,34 +412,4 @@ func (s *Service) PullWithStash(opts PullOptions) (*StashedPullResult, error) {
 		event.Emit(s.emit, "context:reloaded", nil)
 	}
 	return res, nil
-}
-
-// resolvePAT reads the keychain token for the origin remote (profile-scoped); any failure collapses to "" (anonymous attempt).
-func (s *Service) resolvePAT(path string) string {
-	if s.creds == nil || s.profile == nil {
-		return ""
-	}
-	profile := s.profile.CurrentProfileFilename()
-	if profile == "" {
-		return ""
-	}
-	info, err := s.m.RemoteInfo(path)
-	if err != nil || info == nil {
-		return ""
-	}
-	var url string
-	for _, r := range info.Remotes {
-		if r.Name == "origin" && len(r.URLs) > 0 {
-			url = r.URLs[0]
-			break
-		}
-	}
-	if url == "" {
-		return ""
-	}
-	secret, err := s.creds.Get(profile + ":git:" + url)
-	if err != nil {
-		return ""
-	}
-	return secret
 }

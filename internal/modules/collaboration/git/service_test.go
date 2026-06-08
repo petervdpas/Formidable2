@@ -1,6 +1,7 @@
 package git
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -626,6 +627,15 @@ type fakeSysgit struct {
 	err       error
 	calls     int
 	upToDate  bool
+
+	// Restore (discard) recording.
+	restoreFile  string
+	restoreCalls int
+	restoreErr   error
+
+	// StatusPorcelain canned output.
+	statusOut string
+	statusErr error
 }
 
 func (f *fakeSysgit) Available() bool { return f.available }
@@ -650,6 +660,135 @@ func (f *fakeSysgit) Pull(workdir, remote string) (bool, error) {
 	f.gotRemote = remote
 	return f.upToDate, f.err
 }
+
+func (f *fakeSysgit) Restore(workdir, file string) error {
+	f.restoreCalls++
+	f.gotPath = workdir
+	f.restoreFile = file
+	return f.restoreErr
+}
+
+func (f *fakeSysgit) StatusPorcelain(workdir string) (string, error) {
+	f.gotPath = workdir
+	if f.statusErr != nil {
+		return "", f.statusErr
+	}
+	return f.statusOut, nil
+}
+
+// HeadHash reads the real worktree HEAD via go-git so NewHead matches what the
+// system binary would report on these real test clones; "" on a non-repo path.
+// It does not bump calls: it is an internal cursor read, not an "operation".
+func (f *fakeSysgit) HeadHash(workdir string) (string, error) {
+	r, err := gogit.PlainOpen(workdir)
+	if err != nil {
+		return "", nil
+	}
+	h, err := r.Head()
+	if err != nil {
+		return "", nil
+	}
+	return h.Hash().String(), nil
+}
+
+func TestService_Clone_RefusedInSelfClonedMode(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	// Binary deliberately absent (sys nil): the guard keys off the flag,
+	// not useSysgit, so it must refuse even with no system git available.
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, nil)
+
+	dest := filepath.Join(t.TempDir(), "dst")
+	_, err := svc.Clone(CloneOptions{URL: "file:///some/source", Dest: dest})
+	if !errors.Is(err, ErrCloneSelfCloned) {
+		t.Fatalf("Clone err = %v, want ErrCloneSelfCloned", err)
+	}
+	// The guard short-circuits before go-git runs, so nothing is written.
+	if _, statErr := os.Stat(dest); !os.IsNotExist(statErr) {
+		t.Errorf("destination should not be created on refusal; stat err = %v", statErr)
+	}
+}
+
+func TestService_Clone_ProceedsWhenSelfClonedOff(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	AttachSysgit(svc, &fakeFlags{selfCloned: false}, &fakeSysgit{available: true})
+
+	// Empty URL makes go-git's own validation fire. Reaching that error
+	// (not ErrCloneSelfCloned) proves the guard let the call through.
+	_, err := svc.Clone(CloneOptions{URL: "", Dest: filepath.Join(t.TempDir(), "dst")})
+	if errors.Is(err, ErrCloneSelfCloned) {
+		t.Fatal("Clone must not be refused when self-cloned is off")
+	}
+	if err == nil {
+		t.Fatal("expected go-git URL-required error to surface")
+	}
+}
+
+func TestService_Clone_ProceedsWhenNoFlagsAttached(t *testing.T) {
+	// No AttachSysgit at all: selfCloned() must be nil-safe and false.
+	svc, _ := newServiceWithJournal(t)
+	_, err := svc.Clone(CloneOptions{URL: "", Dest: filepath.Join(t.TempDir(), "dst")})
+	if errors.Is(err, ErrCloneSelfCloned) {
+		t.Fatal("Clone must not be refused when no flags are wired")
+	}
+	if err == nil {
+		t.Fatal("expected go-git URL-required error to surface")
+	}
+}
+
+func TestService_Discard_DispatchesToSysgitWhenToggleOn(t *testing.T) {
+	svc, jrnl := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+
+	if err := svc.Discard(DiscardOptions{Path: "/repo", File: "storage/x.meta.json"}); err != nil {
+		t.Fatalf("Discard: %v", err)
+	}
+	if sys.restoreCalls != 1 || sys.restoreFile != "storage/x.meta.json" {
+		t.Fatalf("sysgit Restore calls=%d file=%q, want 1/storage/x.meta.json", sys.restoreCalls, sys.restoreFile)
+	}
+	// The journal-revert side effect still fires around the backend call.
+	if len(jrnl.reverts) != 1 {
+		t.Errorf("expected one journal revert, got %v", jrnl.reverts)
+	}
+}
+
+func TestService_Discard_UsesGogitWhenToggleOff(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true}
+	AttachSysgit(svc, &fakeFlags{selfCloned: false}, sys)
+
+	// Empty file makes go-git's own guard fire; reaching it (and NOT touching
+	// the sysgit fake) proves the go-git path was taken.
+	if err := svc.Discard(DiscardOptions{Path: "/repo", File: ""}); err == nil {
+		t.Fatal("expected go-git's file-required error")
+	}
+	if sys.restoreCalls != 0 {
+		t.Errorf("sysgit Restore must not be called in go-git mode; calls=%d", sys.restoreCalls)
+	}
+}
+
+func TestService_Status_DispatchesToSysgitWhenToggleOn(t *testing.T) {
+	svc, _ := newServiceWithJournal(t)
+	sys := &fakeSysgit{available: true, statusOut: "## main...origin/main [behind 2]\n M a.txt\n"}
+	AttachSysgit(svc, &fakeFlags{selfCloned: true}, sys)
+	AttachRoot(svc, fakedRoot{path: "/repo"})
+
+	st, err := svc.Status()
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if st.Branch != "main" || st.Behind != 2 || st.Clean {
+		t.Errorf("status not read from sysgit porcelain: %+v", st)
+	}
+	if sys.gotPath != "/repo" {
+		t.Errorf("sysgit StatusPorcelain path = %q, want /repo", sys.gotPath)
+	}
+}
+
+// fakedRoot is a minimal RootReader for the Status dispatch test.
+type fakedRoot struct{ path string }
+
+func (f fakedRoot) GetRemoteRootPath() (string, error) { return f.path, nil }
 
 func TestService_Fetch_DispatchesToSysgitWhenToggleOnAndAvailable(t *testing.T) {
 	svc, _ := newServiceWithJournal(t)

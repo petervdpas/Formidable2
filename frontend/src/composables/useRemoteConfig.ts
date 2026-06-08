@@ -21,7 +21,6 @@ export function useRemoteConfig() {
   const gigotBaseURL = computed(() => config.value?.gigot?.base_url ?? "");
   const gigotRepoName = computed(() => config.value?.gigot?.repo_name ?? "");
   const gitBranch = computed(() => config.value?.git?.branch ?? "");
-  const gitSelfCloned = computed(() => config.value?.git?.self_cloned ?? false);
 
   return {
     config,
@@ -32,6 +31,5 @@ export function useRemoteConfig() {
     gigotBaseURL,
     gigotRepoName,
     gitBranch,
-    gitSelfCloned,
   };
 }
