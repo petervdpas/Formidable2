@@ -56,13 +56,14 @@ export function EnsureFormDir(templateName: string): $CancellablePromise<void> {
 }
 
 /**
- * ImportRelationEdges is the relations pass of a multipass import: it writes the
- * pairs' target ids onto the existing source records' api field, saving each so
- * the reference-edge syncer mirrors them into the relation graph. See
- * Manager.ImportRelationEdges.
+ * ImportRelations is the relations pass of a multipass import: given a parsed
+ * sheet (headers + rows) and the two id columns, the backend extracts the
+ * {from,to} pairs and links them through fieldKey, writing the api value onto
+ * each source record so the reference-edge syncer mirrors the edges. See
+ * Manager.ImportRelationsFromColumns.
  */
-export function ImportRelationEdges(sourceTemplate: string, fieldKey: string, pairs: $models.EdgePair[]): $CancellablePromise<$models.ImportRelationResult> {
-    return $Call.ByID(3279465077, sourceTemplate, fieldKey, pairs).then(($result: any) => {
+export function ImportRelations(sourceTemplate: string, fieldKey: string, fromColumn: string, toColumn: string, headers: string[], rows: string[][]): $CancellablePromise<$models.ImportRelationResult> {
+    return $Call.ByID(247265434, sourceTemplate, fieldKey, fromColumn, toColumn, headers, rows).then(($result: any) => {
         return $$createType2($result);
     });
 }
@@ -74,6 +75,17 @@ export function ImportRelationEdges(sourceTemplate: string, fieldKey: string, pa
 export function ListForms(templateName: string): $CancellablePromise<storage$0.FormSummary[]> {
     return $Call.ByID(1337737659, templateName).then(($result: any) => {
         return $$createType4($result);
+    });
+}
+
+/**
+ * RelationFields returns the source template's api fields, the relation targets
+ * the relations-import mode can fill. The dialog's relation picker reads this
+ * instead of filtering the template client-side.
+ */
+export function RelationFields(sourceTemplate: string): $CancellablePromise<$models.RelationField[]> {
+    return $Call.ByID(336515629, sourceTemplate).then(($result: any) => {
+        return $$createType6($result);
     });
 }
 
@@ -104,3 +116,5 @@ const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.ImportRelationResult.createFrom;
 const $$createType3 = storage$0.FormSummary.createFrom;
 const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $models.RelationField.createFrom;
+const $$createType6 = $Create.Array($$createType5);

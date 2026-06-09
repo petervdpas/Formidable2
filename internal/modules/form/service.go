@@ -27,12 +27,20 @@ func (s *Service) DeleteForm(templateName, datafile string) error {
 	return s.m.DeleteForm(templateName, datafile)
 }
 
-// ImportRelationEdges is the relations pass of a multipass import: it writes the
-// pairs' target ids onto the existing source records' api field, saving each so
-// the reference-edge syncer mirrors them into the relation graph. See
-// Manager.ImportRelationEdges.
-func (s *Service) ImportRelationEdges(sourceTemplate, fieldKey string, pairs []EdgePair) (ImportRelationResult, error) {
-	return s.m.ImportRelationEdges(sourceTemplate, fieldKey, pairs)
+// RelationFields returns the source template's api fields, the relation targets
+// the relations-import mode can fill. The dialog's relation picker reads this
+// instead of filtering the template client-side.
+func (s *Service) RelationFields(sourceTemplate string) ([]RelationField, error) {
+	return s.m.RelationFields(sourceTemplate)
+}
+
+// ImportRelations is the relations pass of a multipass import: given a parsed
+// sheet (headers + rows) and the two id columns, the backend extracts the
+// {from,to} pairs and links them through fieldKey, writing the api value onto
+// each source record so the reference-edge syncer mirrors the edges. See
+// Manager.ImportRelationsFromColumns.
+func (s *Service) ImportRelations(sourceTemplate, fieldKey, fromColumn, toColumn string, headers []string, rows [][]string) (ImportRelationResult, error) {
+	return s.m.ImportRelationsFromColumns(sourceTemplate, fieldKey, fromColumn, toColumn, headers, rows)
 }
 
 // SortFieldValue fetches a list/table field from the saved record, sorts it,

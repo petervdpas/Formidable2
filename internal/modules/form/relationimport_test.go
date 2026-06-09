@@ -58,9 +58,10 @@ func TestImportRelationEdges_GroupsAndSyncs(t *testing.T) {
 	if res.Records != 2 || res.Linked != 3 {
 		t.Fatalf("want Records=2 Linked=3, got %+v", res)
 	}
-	// app-1's api value must hold both function ids, persisted.
+	// app-1's api value must hold both function ids, persisted as the JSON-shaped
+	// []any storage.Sanitize accepts (not a Go []string, which it would drop).
 	got := store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"]
-	ids, ok := got.([]string)
+	ids, ok := got.([]any)
 	if !ok || len(ids) != 2 {
 		t.Fatalf("app-1 api value wrong: %#v", got)
 	}
@@ -84,7 +85,7 @@ func TestImportRelationEdges_MergesWithExisting(t *testing.T) {
 	if res.Linked != 1 {
 		t.Fatalf("want Linked=1 (only fn-2 is new), got %+v", res)
 	}
-	ids := store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"].([]string)
+	ids := store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"].([]any)
 	if len(ids) != 2 {
 		t.Fatalf("want 2 unique ids after merge, got %v", ids)
 	}
@@ -138,6 +139,58 @@ func TestImportRelationEdges_RejectsUnknownField(t *testing.T) {
 	m, _, _ := importHarness(t)
 	if _, err := m.ImportRelationEdges("applicatie.yaml", "nope", nil); err == nil {
 		t.Error("expected error for unknown field")
+	}
+}
+
+func TestRelationFields_ReturnsApiFieldsOnly(t *testing.T) {
+	m, _, _ := importHarness(t)
+	rf, err := m.RelationFields("applicatie.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rf) != 1 || rf[0].Key != "applicatiefuncties" || rf[0].Collection != "applicatie-functie.yaml" {
+		t.Fatalf("want one api field applicatiefuncties->applicatie-functie.yaml, got %+v", rf)
+	}
+}
+
+func TestBuildEdgePairs(t *testing.T) {
+	headers := []string{"from_id", "to_id", "from_name"}
+	rows := [][]string{
+		{"a", "b", "A"},
+		{" c ", " d ", "C"}, // trimmed
+		{"", "x", "noFrom"}, // dropped
+		{"e", "", "noTo"},   // dropped
+		{"f"},               // ragged, no to -> dropped
+	}
+	pairs := buildEdgePairs(headers, rows, "from_id", "to_id")
+	if len(pairs) != 2 {
+		t.Fatalf("want 2 pairs, got %+v", pairs)
+	}
+	if pairs[0] != (EdgePair{From: "a", To: "b"}) || pairs[1] != (EdgePair{From: "c", To: "d"}) {
+		t.Fatalf("pairs wrong (trim?): %+v", pairs)
+	}
+}
+
+func TestBuildEdgePairs_UnknownColumn(t *testing.T) {
+	if p := buildEdgePairs([]string{"x", "y"}, [][]string{{"1", "2"}}, "from_id", "to_id"); p != nil {
+		t.Errorf("unknown columns must yield no pairs, got %+v", p)
+	}
+}
+
+func TestImportRelationsFromColumns_EndToEnd(t *testing.T) {
+	m, store, _ := importHarness(t)
+	headers := []string{"from_id", "to_id"}
+	rows := [][]string{{"app-1", "fn-1"}, {"app-1", "fn-2"}, {"app-2", "fn-1"}}
+	res, err := m.ImportRelationsFromColumns("applicatie.yaml", "applicatiefuncties", "from_id", "to_id", headers, rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Linked != 3 || res.Records != 2 {
+		t.Fatalf("want Linked=3 Records=2, got %+v", res)
+	}
+	ids := store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"].([]any)
+	if len(ids) != 2 {
+		t.Fatalf("app-1 should link 2, got %v", ids)
 	}
 }
 

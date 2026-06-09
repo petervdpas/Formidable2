@@ -14,10 +14,7 @@ import {
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import type { PreviewResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/csv";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
-import {
-  Service as FormSvc,
-  EdgePair,
-} from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
+import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import type { Template } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
 const props = defineProps<{
@@ -63,16 +60,10 @@ const relationFieldKey = ref("");
 const fromColumn = ref("");
 const toColumn = ref("");
 
-// The template's api fields are the relation targets a relations-import can
-// fill. Read straight off the loaded template (backend owns field shape).
-const apiFields = computed<SourceOption[]>(() =>
-  (props.template?.fields ?? [])
-    .filter((f) => f.type === "api")
-    .map((f) => ({
-      value: f.key,
-      label: `${f.label || f.key} -> ${f.collection || "?"}`,
-    })),
-);
+// The relation targets a relations-import can fill come from the backend
+// (FormSvc.RelationFields), the same one-source-of-truth pattern the records
+// pass uses for MappableFields - the dialog no longer filters the template.
+const relationFields = ref<SourceOption[]>([]);
 
 const headerOptions = computed<SourceOption[]>(() =>
   (preview.value?.headers ?? []).map((h) => ({ value: h, label: h })),
@@ -121,7 +112,8 @@ watch(
     sheets.value = [];
     sheet.value = "";
     mode.value = "records";
-    relationFieldKey.value = apiFields.value[0]?.value ?? "";
+    relationFields.value = [];
+    relationFieldKey.value = "";
     fromColumn.value = "";
     toColumn.value = "";
     try {
@@ -130,6 +122,13 @@ watch(
       // repeats it on every aligned row), falling back to the first field.
       const guid = mappableFields.value.find((f) => f.type === "guid");
       groupKey.value = guid?.key ?? mappableFields.value[0]?.key ?? "";
+      // Backend owns the relation-field list (one source of truth).
+      const rf = await FormSvc.RelationFields(props.templateFilename);
+      relationFields.value = rf.map((f) => ({
+        value: f.key,
+        label: `${f.label || f.key} -> ${f.collection || "?"}`,
+      }));
+      relationFieldKey.value = relationFields.value[0]?.value ?? "";
       await refreshAlign();
     } catch (e) {
       importError.value = backendErrMessage(e);
@@ -373,18 +372,15 @@ async function doImport() {
 // already exist on disk.
 async function importRelations(): Promise<void> {
   const pr = preview.value!;
-  const fromIdx = pr.headers.indexOf(fromColumn.value);
-  const toIdx = pr.headers.indexOf(toColumn.value);
-  const pairs: EdgePair[] = [];
-  for (const row of pr.rows) {
-    const from = (row[fromIdx] ?? "").trim();
-    const to = (row[toIdx] ?? "").trim();
-    if (from && to) pairs.push(EdgePair.createFrom({ from, to }));
-  }
-  const res = await FormSvc.ImportRelationEdges(
+  // The backend extracts {from,to} pairs from the chosen columns and links them;
+  // the dialog just hands over the parsed sheet and the column choices.
+  const res = await FormSvc.ImportRelations(
     props.templateFilename,
     relationFieldKey.value,
-    pairs,
+    fromColumn.value,
+    toColumn.value,
+    pr.headers,
+    pr.rows,
   );
   const skipped = res.missingFrom + res.missingTo;
   if (skipped > 0) {
@@ -536,14 +532,14 @@ async function importAligned(): Promise<{ success: number; failed: number }> {
 
     <div v-if="mode === 'relations' && preview" class="csv-import-relations">
       <p class="muted small">{{ t('csv.import.relation.hint') }}</p>
-      <p v-if="!apiFields.length" class="form-error">
+      <p v-if="!relationFields.length" class="form-error">
         {{ t('csv.import.relation.none') }}
       </p>
       <template v-else>
         <div class="csv-import-delim">
           <label class="muted small">{{ t('csv.import.relation.field') }}</label>
           <select v-model="relationFieldKey">
-            <option v-for="o in apiFields" :key="o.value" :value="o.value">
+            <option v-for="o in relationFields" :key="o.value" :value="o.value">
               {{ o.label }}
             </option>
           </select>

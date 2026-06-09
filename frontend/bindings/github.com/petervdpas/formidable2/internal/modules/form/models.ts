@@ -13,35 +13,6 @@ import * as storage$0 from "../storage/models.js";
 import * as template$0 from "../template/models.js";
 
 /**
- * EdgePair is one source-guid -> target-guid link parsed from an import sheet's
- * two id columns.
- */
-export class EdgePair {
-    "from": string;
-    "to": string;
-
-    /** Creates a new EdgePair instance. */
-    constructor($$source: Partial<EdgePair> = {}) {
-        if (!("from" in $$source)) {
-            this["from"] = "";
-        }
-        if (!("to" in $$source)) {
-            this["to"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new EdgePair instance from a string or object.
-     */
-    static createFrom($$source: any = {}): EdgePair {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new EdgePair($$parsedSource as Partial<EdgePair>);
-    }
-}
-
-/**
  * FormView is the Vue-facing payload from BuildView and SaveValues.
  * Values is keyed by field.key; loop keys hold []map[string]any, one
  * entry per item with inner field values keyed inside.
@@ -184,6 +155,41 @@ export class LoopGroup {
     static createFrom($$source: any = {}): LoopGroup {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new LoopGroup($$parsedSource as Partial<LoopGroup>);
+    }
+}
+
+/**
+ * RelationField is one api-field a relations import can fill: its key, label,
+ * and target collection. Backend-sourced so the dialog's relation picker has one
+ * source of truth, mirroring how the records pass gets MappableFields from the
+ * backend instead of filtering the template in Vue.
+ */
+export class RelationField {
+    "key": string;
+    "label": string;
+    "collection": string;
+
+    /** Creates a new RelationField instance. */
+    constructor($$source: Partial<RelationField> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("collection" in $$source)) {
+            this["collection"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RelationField instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RelationField {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RelationField($$parsedSource as Partial<RelationField>);
     }
 }
 

@@ -3,6 +3,7 @@ package form
 import (
 	"errors"
 	"sort"
+	"strings"
 )
 
 var (
@@ -116,12 +117,19 @@ func (m *Manager) ImportRelationEdges(sourceTemplate, fieldKey string, pairs []E
 			ids = append(ids, id)
 		}
 		sort.Strings(ids)
+		// Store as []any of strings: that is the JSON-shaped to-many api value
+		// storage.Sanitize/coerceAPIRef accepts. A []string falls through to
+		// the default branch there and is dropped to nil.
+		anyIDs := make([]any, len(ids))
+		for i, s := range ids {
+			anyIDs[i] = s
+		}
 
 		values := view.Values
 		if values == nil {
 			values = map[string]any{}
 		}
-		values[fieldKey] = ids
+		values[fieldKey] = anyIDs
 		if _, err := m.SaveValues(sourceTemplate, SavePayload{
 			Datafile: datafile,
 			Values:   values,
@@ -133,6 +141,71 @@ func (m *Manager) ImportRelationEdges(sourceTemplate, fieldKey string, pairs []E
 		res.Linked += added
 	}
 	return res, nil
+}
+
+// RelationField is one api-field a relations import can fill: its key, label,
+// and target collection. Backend-sourced so the dialog's relation picker has one
+// source of truth, mirroring how the records pass gets MappableFields from the
+// backend instead of filtering the template in Vue.
+type RelationField struct {
+	Key        string `json:"key"`
+	Label      string `json:"label"`
+	Collection string `json:"collection"`
+}
+
+// RelationFields returns a template's api fields (the relation targets a
+// relations import can populate), in declaration order.
+func (m *Manager) RelationFields(template string) ([]RelationField, error) {
+	tpl, err := m.templates.LoadTemplate(template)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RelationField, 0)
+	for _, f := range tpl.Fields {
+		if f.Type == "api" {
+			out = append(out, RelationField{Key: f.Key, Label: f.Label, Collection: f.Collection})
+		}
+	}
+	return out, nil
+}
+
+// ImportRelationsFromColumns extracts {from,to} pairs from a parsed sheet's two
+// id columns and links them through fieldKey. The pair extraction lives backend
+// side (not in the dialog) so the importer's contract is owned and tested in Go.
+func (m *Manager) ImportRelationsFromColumns(template, fieldKey, fromColumn, toColumn string, headers []string, rows [][]string) (ImportRelationResult, error) {
+	return m.ImportRelationEdges(template, fieldKey, buildEdgePairs(headers, rows, fromColumn, toColumn))
+}
+
+// buildEdgePairs reads the from/to id columns out of the parsed rows. Rows
+// missing either id are dropped; unknown column names yield no pairs.
+func buildEdgePairs(headers []string, rows [][]string, fromColumn, toColumn string) []EdgePair {
+	fi, ti := -1, -1
+	for i, h := range headers {
+		if h == fromColumn {
+			fi = i
+		}
+		if h == toColumn {
+			ti = i
+		}
+	}
+	if fi < 0 || ti < 0 {
+		return nil
+	}
+	pairs := make([]EdgePair, 0, len(rows))
+	for _, row := range rows {
+		from, to := cellAt(row, fi), cellAt(row, ti)
+		if from != "" && to != "" {
+			pairs = append(pairs, EdgePair{From: from, To: to})
+		}
+	}
+	return pairs
+}
+
+func cellAt(row []string, i int) string {
+	if i >= 0 && i < len(row) {
+		return strings.TrimSpace(row[i])
+	}
+	return ""
 }
 
 // refIDs pulls target ids from a stored api-field value: a bare id string or a
