@@ -384,6 +384,20 @@ function closeInspector() {
   inspectorNodeId.value = null;
 }
 
+// Links inside the inspector are inert: the rendered prose can contain
+// `formidable://` deep links (and external URLs), but this is a read-only peek
+// pane. The webview can't resolve formidable:// (it shows "URL can't be shown")
+// and an external link would navigate away from the app, so we swallow the
+// click. The regular HTML preview is where links are followed.
+function onInspectorLinkClick(e: MouseEvent) {
+  let el = e.target as HTMLElement | null;
+  while (el && el !== e.currentTarget) {
+    if (el.tagName === "A") break;
+    el = el.parentElement;
+  }
+  if (el && el.tagName === "A") e.preventDefault();
+}
+
 // Draggable divider between the graph and the inspector. inspectorRatio is the
 // inspector's fraction of the body width; the graph takes the rest. Reuses the
 // app-wide `.split-handle` look + `is-resizing-x` body cursor (same mechanics as
@@ -541,7 +555,12 @@ watch(
           <div class="datacore-inspector__body">
             <p v-if="inspectorLoading" class="form-description">{{ t('datacore.loading') }}</p>
             <p v-else-if="inspectorError" class="datacore-graph__error">{{ inspectorError }}</p>
-            <RenderedHtml v-else class="datacore-inspector__html formidable-prose" :html="inspectorHtml" />
+            <RenderedHtml
+              v-else
+              class="datacore-inspector__html formidable-prose"
+              :html="inspectorHtml"
+              @click="onInspectorLinkClick"
+            />
           </div>
         </aside>
       </div>

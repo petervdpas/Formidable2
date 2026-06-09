@@ -136,6 +136,11 @@
   overflow: auto;
   padding: 0.75rem 1rem;
 }
+/* Links are inert in this read-only peek pane (navigation is swallowed); the
+   default cursor signals they're not followable here. */
+.datacore-inspector__html a {
+  cursor: default;
+}
 
 .force-graph-wrap {
   position: relative;
