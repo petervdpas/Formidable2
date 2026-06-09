@@ -2,6 +2,7 @@ package expression
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 )
 
@@ -433,5 +434,85 @@ func TestEvaluateListMany_LookupErrorIsolatedPerRow(t *testing.T) {
 		if it.Error == "" {
 			t.Errorf("got[%d] should carry error from failed lookup, got %+v", i, it)
 		}
+	}
+}
+
+// countingSto records how the manager reaches storage so a test can assert
+// the access pattern, not just the result. The point lookup is the N+1 we
+// must avoid on large collections.
+type countingSto struct {
+	records []Record
+	listErr error
+	listN   int
+	lookupN int
+}
+
+func (c *countingSto) ListForExpression(string) ([]Record, error) {
+	c.listN++
+	return c.records, c.listErr
+}
+
+func (c *countingSto) LookupForExpression(_, datafile string) (Record, error) {
+	c.lookupN++
+	for _, r := range c.records {
+		if r.Filename == datafile {
+			return r, nil
+		}
+	}
+	return Record{}, nil
+}
+
+// Large-dataset path: EvaluateListMany must read the collection in one bulk
+// call and zero point lookups, regardless of how many filenames it renders.
+// A per-row LookupForExpression here is the N+1 that drags list load on
+// 1000+ record templates.
+func TestEvaluateListMany_BulkReadNoNPlusOne(t *testing.T) {
+	const n = 1000
+	recs := make([]Record, 0, n)
+	files := make([]string, 0, n)
+	for i := range n {
+		f := "rec-" + strconv.Itoa(i) + ".json"
+		recs = append(recs, Record{Filename: f, Title: f, Context: map[string]any{"name": f}})
+		files = append(files, f)
+	}
+	sto := &countingSto{records: recs}
+	m := NewManager(fakeTpl{src: `name`, fields: []string{"name"}}, sto)
+
+	got, err := m.EvaluateListMany("any", files)
+	if err != nil {
+		t.Fatalf("EvaluateListMany: %v", err)
+	}
+	if len(got) != n {
+		t.Fatalf("len = %d, want %d", len(got), n)
+	}
+	if sto.listN != 1 {
+		t.Errorf("ListForExpression called %d times, want exactly 1", sto.listN)
+	}
+	if sto.lookupN != 0 {
+		t.Errorf("LookupForExpression called %d times, want 0 (no N+1)", sto.lookupN)
+	}
+}
+
+// When the bulk read fails the manager falls back to the per-row loop so a
+// degraded reader still isolates errors per row instead of blanking the list.
+func TestEvaluateListMany_BulkErrorFallsBackToPerRow(t *testing.T) {
+	sto := &countingSto{
+		records: []Record{{Filename: "a.json", Title: "A", Context: map[string]any{"name": "alpha"}}},
+		listErr: errors.New("index unavailable"),
+	}
+	m := NewManager(fakeTpl{src: `name`, fields: []string{"name"}}, sto)
+
+	got, err := m.EvaluateListMany("any", []string{"a.json", "missing.json"})
+	if err != nil {
+		t.Fatalf("EvaluateListMany should fall back, not propagate: %v", err)
+	}
+	if sto.listN != 1 || sto.lookupN != 2 {
+		t.Errorf("want 1 bulk attempt + 2 per-row lookups, got list=%d lookup=%d", sto.listN, sto.lookupN)
+	}
+	if got[0].Text != "alpha" {
+		t.Errorf("got[0].Text = %q, want alpha", got[0].Text)
+	}
+	if got[1].Filename != "" {
+		t.Errorf("missing record should emit zero Result, got %+v", got[1])
 	}
 }

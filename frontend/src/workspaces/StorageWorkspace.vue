@@ -18,6 +18,7 @@ import DatacoreGraphDialog from "../components/DatacoreGraphDialog.vue";
 import { SelectField, SwitchField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
+import VirtualList from "../components/VirtualList.vue";
 import StorageSearch from "../components/StorageSearch.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFacetFilter from "../components/StorageFacetFilter.vue";
@@ -50,7 +51,6 @@ import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/for
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
 import { FormulaService as FormulaSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/app";
 import { backendErrMessage } from "../utils/backendError";
-import { scrollToActiveRow } from "../utils/scrollToActiveRow";
 import type { FormSummary } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { FacetState } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { CollectionItem } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/dataprovider";
@@ -493,67 +493,29 @@ watch(
 );
 
 // Scroll the active row into view exactly once per template context.
-// Two cases to handle:
-//  - In-app navigation: layout is settled, scrollToActiveRow runs
-//    once and we're done.
-//  - First startup: the splash blocks flex layout until after
-//    refreshList resolves, so the container's clientHeight reads as
-//    ~8px (just its padding). The math centers correctly only when
-//    the container has a real height, so we observe it and retry
-//    each resize until layout assigns it a sensible viewport.
-// The flag gates one successful scroll per template so save / refresh
-// / clicks don't yank the viewport, and the observer is also reset on
-// template change.
-const listScrollEl = ref<HTMLElement | null>(null);
+// VirtualList owns the settling retry (it queues the request until the
+// viewport has a real height, which on first startup is only after the
+// splash dismisses) and the index-based centering, so this just gates one
+// scroll per template so save / refresh / clicks don't yank the viewport.
+const virtualList = ref<{ scrollToKey: (k: string, o?: { center?: boolean }) => boolean } | null>(null);
 let scrolledForTemplate: string | null = null;
-let pendingScrollObserver: ResizeObserver | null = null;
-
-function cancelPendingScroll() {
-  pendingScrollObserver?.disconnect();
-  pendingScrollObserver = null;
-}
 
 watch(selectedTemplate, () => {
   scrolledForTemplate = null;
-  cancelPendingScroll();
 });
-onBeforeUnmount(cancelPendingScroll);
 
 async function scrollActiveIntoView() {
   const tpl = selectedTemplate.value;
   const df = selectedDataFile.value;
   if (!tpl || !df) return;
   if (scrolledForTemplate === tpl) return;
-  cancelPendingScroll();
 
   await nextTick();
-  const container = listScrollEl.value;
-  if (!container) return;
-
-  // Heuristic: a container shorter than two rows of expected height
-  // hasn't been sized by flex layout yet. ~140px ≈ two rows worth.
-  const SETTLED_MIN_HEIGHT = 140;
-  const attempt = (): boolean => {
-    if (container.clientHeight < SETTLED_MIN_HEIGHT) return false;
-    if (scrollToActiveRow(container, df)) {
-      scrolledForTemplate = tpl;
-      return true;
-    }
-    return false;
-  };
-
-  if (attempt()) return;
-
-  // Container not yet sized - observe and retry on each resize until
-  // layout settles (typically right after the splash dismisses).
-  const ro = new ResizeObserver(() => {
-    if (attempt()) {
-      ro.disconnect();
-      if (pendingScrollObserver === ro) pendingScrollObserver = null;
-    }
-  });
-  ro.observe(container);
-  pendingScrollObserver = ro;
+  // scrollToKey returns false (and queues internally) when the viewport
+  // isn't sized yet; mark done only once it actually centered the row.
+  if (virtualList.value?.scrollToKey(df, { center: true })) {
+    scrolledForTemplate = tpl;
+  }
 }
 
 const { follow: followFormidable } = useFormidableLink();
@@ -572,7 +534,7 @@ useListKeyNav({
   current: () => selectedDataFile.value,
   select: (filename) => { void pickForm(filename); },
   enabled: () => !!selectedTemplate.value,
-  container: () => listScrollEl.value,
+  scrollTo: (key) => { virtualList.value?.scrollToKey(key); },
 });
 
 // ── Sidebar filters ─────────────────────────────────────────────────
@@ -1333,29 +1295,34 @@ setTopbarMenu(() => [
         </div>
       </div>
 
-      <div ref="listScrollEl" class="sidebar-scroll">
+      <div v-if="!selectedTemplate || listError || visibleSummaries.length === 0" class="sidebar-scroll">
         <p v-if="!selectedTemplate" class="muted small">
           {{ t('workspace.storage.no_template_selected') }}
         </p>
         <p v-else-if="listError" class="form-error small">{{ listError }}</p>
-        <p v-else-if="visibleSummaries.length === 0" class="muted small">
+        <p v-else class="muted small">
           {{ ftsEnabled && searchResults !== null
             ? t('workspace.storage.search.empty')
             : t('workspace.storage.empty') }}
         </p>
-
-        <ul v-else class="form-list">
-          <StorageListItem
-            v-for="s in visibleSummaries"
-            :key="s.filename"
-            :summary="s"
-            :expression="sidebarItems.get(s.filename) ?? null"
-            :active="s.filename === selectedDataFile"
-            :facets="facets"
-            @pick="pickForm"
-          />
-        </ul>
       </div>
+
+      <VirtualList
+        v-else
+        ref="virtualList"
+        class="sidebar-scroll"
+        :items="visibleSummaries"
+        :item-key="(s: FormSummary) => s.filename"
+        v-slot="{ item }"
+      >
+        <StorageListItem
+          :summary="item"
+          :expression="sidebarItems.get(item.filename) ?? null"
+          :active="item.filename === selectedDataFile"
+          :facets="facets"
+          @pick="pickForm"
+        />
+      </VirtualList>
     </template>
 
     <template #main>

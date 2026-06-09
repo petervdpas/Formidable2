@@ -96,6 +96,29 @@ func (m *Manager) EvaluateFormulas(specs []FormulaSpec, ctx map[string]any) map[
 	return out
 }
 
+// evalRecord runs the compiled expression against one record's narrowed context, returning a row Result.
+// A failed evaluation is isolated into the Result (Error set, Text falls back to the title) rather than
+// failing the batch, and an empty render also falls back to the title so every row shows something.
+func (m *Manager) evalRecord(src string, fields []ExpressionField, keys []string, r Record) Result {
+	ctx := narrowContext(r.Context, keys)
+	ctx["O"] = optionLabelMap(fields, ctx)
+	injectScales(ctx, r.Context)
+	item, err := m.eng.Evaluate(src, ctx)
+	if err != nil {
+		return Result{
+			Filename: r.Filename,
+			Text:     r.Title,
+			Error:    err.Error(),
+			Classes:  []string{"expr-error"},
+		}
+	}
+	item.Filename = r.Filename
+	if item.Text == "" {
+		item.Text = r.Title
+	}
+	return item
+}
+
 // EvaluateList compiles the sidebar_expression once and runs it against every record; per-row failures
 // are isolated (the row's Error is set, Text falls back to the title) so one bad row doesn't blank the rest.
 func (m *Manager) EvaluateList(templateName string) ([]Result, error) {
@@ -128,25 +151,7 @@ func (m *Manager) EvaluateList(templateName string) ([]Result, error) {
 
 	out := make([]Result, 0, len(records))
 	for _, r := range records {
-		ctx := narrowContext(r.Context, keys)
-		ctx["O"] = optionLabelMap(fields, ctx)
-		injectScales(ctx, r.Context)
-		item, err := m.eng.Evaluate(src, ctx)
-		if err != nil {
-			out = append(out, Result{
-				Filename: r.Filename,
-				Text:     r.Title,
-				Error:    err.Error(),
-				Classes:  []string{"expr-error"},
-			})
-			continue
-		}
-		item.Filename = r.Filename
-		// Fall back to the title when the expression evaluates to "" so a row always has something to show.
-		if item.Text == "" {
-			item.Text = r.Title
-		}
-		out = append(out, item)
+		out = append(out, m.evalRecord(src, fields, keys, r))
 	}
 	return out, nil
 }
@@ -181,23 +186,7 @@ func (m *Manager) EvaluateListOne(templateName, datafile string) (Result, error)
 	for i, f := range fields {
 		keys[i] = f.Key
 	}
-	ctx := narrowContext(r.Context, keys)
-	ctx["O"] = optionLabelMap(fields, ctx)
-	injectScales(ctx, r.Context)
-	item, err := m.eng.Evaluate(src, ctx)
-	if err != nil {
-		return Result{
-			Filename: r.Filename,
-			Text:     r.Title,
-			Error:    err.Error(),
-			Classes:  []string{"expr-error"},
-		}, nil
-	}
-	item.Filename = r.Filename
-	if item.Text == "" {
-		item.Text = r.Title
-	}
-	return item, nil
+	return m.evalRecord(src, fields, keys, r), nil
 }
 
 // EvaluateListMany renders sub-labels for an explicit ordered list of records; missing files emit a zero
@@ -223,6 +212,28 @@ func (m *Manager) EvaluateListMany(templateName string, datafiles []string) ([]R
 		keys[i] = f.Key
 	}
 
+	// One bulk read keyed by filename, not a point lookup per datafile. The
+	// per-row path is an N+1 against the index (one GetForm per row) that
+	// dominates list load on large collections (1000+ records). When the bulk
+	// read fails we fall back to the per-row loop so a degraded reader still
+	// yields per-row error isolation rather than blanking the whole sidebar.
+	if records, lerr := m.sto.ListForExpression(templateName); lerr == nil {
+		byFile := make(map[string]Record, len(records))
+		for _, r := range records {
+			byFile[r.Filename] = r
+		}
+		out := make([]Result, 0, len(datafiles))
+		for _, df := range datafiles {
+			r, ok := byFile[df]
+			if !ok {
+				out = append(out, Result{})
+				continue
+			}
+			out = append(out, m.evalRecord(src, fields, keys, r))
+		}
+		return out, nil
+	}
+
 	out := make([]Result, 0, len(datafiles))
 	for _, df := range datafiles {
 		r, lerr := m.sto.LookupForExpression(templateName, df)
@@ -238,24 +249,7 @@ func (m *Manager) EvaluateListMany(templateName string, datafiles []string) ([]R
 			out = append(out, Result{})
 			continue
 		}
-		ctx := narrowContext(r.Context, keys)
-		ctx["O"] = optionLabelMap(fields, ctx)
-		injectScales(ctx, r.Context)
-		item, eerr := m.eng.Evaluate(src, ctx)
-		if eerr != nil {
-			out = append(out, Result{
-				Filename: r.Filename,
-				Text:     r.Title,
-				Error:    eerr.Error(),
-				Classes:  []string{"expr-error"},
-			})
-			continue
-		}
-		item.Filename = r.Filename
-		if item.Text == "" {
-			item.Text = r.Title
-		}
-		out = append(out, item)
+		out = append(out, m.evalRecord(src, fields, keys, r))
 	}
 	return out, nil
 }

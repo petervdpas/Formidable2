@@ -1,0 +1,23 @@
+/* VirtualList.vue - fixed-stride windowed list. The viewport carries the
+   scroll; the spacer reserves the full content height so the scrollbar
+   reflects the whole collection, and the window holds only the rendered
+   rows, shifted into place with a transform. */
+
+.virtual-list {
+    overflow-y: auto;
+    position: relative;
+}
+.virtual-list-spacer {
+    position: relative;
+    width: 100%;
+}
+.virtual-list-window {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    will-change: transform;
+}

@@ -28,6 +28,10 @@ export interface ListKeyNavOptions {
   // stamps there. Click selection has its own one-shot scroll; keyboard
   // stepping needs this because the next row is often just off-screen.
   container?: () => HTMLElement | null;
+  // Optional index-based scroll, used instead of `container` when the list
+  // is virtualized (the stepped-to row may not be in the DOM, so a
+  // `data-filename` query can't find it). Takes precedence over `container`.
+  scrollTo?: (key: string) => void;
 }
 
 const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
@@ -72,8 +76,12 @@ export function useListKeyNav(opts: ListKeyNavOptions): void {
     if (key && key !== opts.current()) {
       e.preventDefault();
       opts.select(key);
-      const el = opts.container?.();
-      if (el) void nextTick(() => scrollToActiveRow(el, key));
+      if (opts.scrollTo) {
+        void nextTick(() => opts.scrollTo!(key));
+      } else {
+        const el = opts.container?.();
+        if (el) void nextTick(() => scrollToActiveRow(el, key));
+      }
     }
   }
 
