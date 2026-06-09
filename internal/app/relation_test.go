@@ -176,6 +176,142 @@ func TestSyncReferenceEdges_ClearedFieldDrainsEdges(t *testing.T) {
 	}
 }
 
+func loopStart(key string) template.Field { return template.Field{Key: key, Type: "loopstart"} }
+func loopStop() template.Field            { return template.Field{Type: "loopstop"} }
+
+func TestSyncReferenceEdges_LoopNestedFieldAddsEdge(t *testing.T) {
+	// The api field lives inside a loop; its value is a row under the loop key,
+	// not a top-level data key. The syncer must descend into the rows.
+	s, rel := newSyncWorld(t, relation.ManyToMany)
+	fields := []template.Field{
+		loopStart("links"),
+		apiField("ref", "person.yaml"),
+		loopStop(),
+	}
+	data := map[string]any{"links": []any{
+		map[string]any{"ref": "p-1"},
+		map[string]any{"ref": "p-2"},
+	}}
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, data); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	got := hostEdges(t, rel, "book.yaml", "person.yaml", "b-1")
+	if len(got) != 2 || got[0] != "p-1" || got[1] != "p-2" {
+		t.Errorf("edges = %v, want [p-1 p-2] from loop rows", got)
+	}
+}
+
+func TestSyncReferenceEdges_LoopDuplicateGuidCollapsesToOneEdge(t *testing.T) {
+	// Same guid referenced in many loop rows: set semantics collapse it to a
+	// single host->target edge. The relation is set once for the form.
+	s, rel := newSyncWorld(t, relation.ManyToMany)
+	fields := []template.Field{loopStart("links"), apiField("ref", "person.yaml"), loopStop()}
+	data := map[string]any{"links": []any{
+		map[string]any{"ref": "p-1"},
+		map[string]any{"ref": "p-1"},
+		map[string]any{"ref": "p-1"},
+	}}
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, data); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	got := hostEdges(t, rel, "book.yaml", "person.yaml", "b-1")
+	if len(got) != 1 || got[0] != "p-1" {
+		t.Errorf("edges = %v, want exactly [p-1] (one edge for repeated refs)", got)
+	}
+}
+
+func TestSyncReferenceEdges_ClearingOneLoopRowKeepsGuidStillReferenced(t *testing.T) {
+	// Two rows reference p-1; dropping one row must NOT drain the edge because
+	// the guid still exists elsewhere in the form data.
+	s, rel := newSyncWorld(t, relation.ManyToMany)
+	fields := []template.Field{loopStart("links"), apiField("ref", "person.yaml"), loopStop()}
+
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, map[string]any{"links": []any{
+		map[string]any{"ref": "p-1"},
+		map[string]any{"ref": "p-1"},
+	}}); err != nil {
+		t.Fatalf("sync1: %v", err)
+	}
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, map[string]any{"links": []any{
+		map[string]any{"ref": "p-1"},
+	}}); err != nil {
+		t.Fatalf("sync2: %v", err)
+	}
+	got := hostEdges(t, rel, "book.yaml", "person.yaml", "b-1")
+	if len(got) != 1 || got[0] != "p-1" {
+		t.Errorf("edges = %v, want [p-1] (guid still present in remaining row)", got)
+	}
+}
+
+func TestSyncReferenceEdges_LoopDrainsOnlyWhenGuidGoneEverywhere(t *testing.T) {
+	// Removing every reference (no rows left) drains the edge; the collection is
+	// still "owned" by the field definition, so reconciliation runs and removes.
+	s, rel := newSyncWorld(t, relation.ManyToMany)
+	fields := []template.Field{loopStart("links"), apiField("ref", "person.yaml"), loopStop()}
+
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, map[string]any{"links": []any{
+		map[string]any{"ref": "p-1"},
+	}}); err != nil {
+		t.Fatalf("sync1: %v", err)
+	}
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, map[string]any{"links": []any{}}); err != nil {
+		t.Fatalf("sync2: %v", err)
+	}
+	if got := hostEdges(t, rel, "book.yaml", "person.yaml", "b-1"); len(got) != 0 {
+		t.Errorf("edges = %v, want empty once guid absent everywhere", got)
+	}
+}
+
+func TestSyncReferenceEdges_TopLevelAndLoopRefsUnion(t *testing.T) {
+	// A guid referenced both top-level and inside a loop unions into one set;
+	// distinct guids each get their own edge.
+	s, rel := newSyncWorld(t, relation.ManyToMany)
+	fields := []template.Field{
+		apiField("primary", "person.yaml"),
+		loopStart("links"),
+		apiField("ref", "person.yaml"),
+		loopStop(),
+	}
+	data := map[string]any{
+		"primary": "p-1",
+		"links": []any{
+			map[string]any{"ref": "p-1"},
+			map[string]any{"ref": "p-2"},
+		},
+	}
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, data); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	got := hostEdges(t, rel, "book.yaml", "person.yaml", "b-1")
+	if len(got) != 2 || got[0] != "p-1" || got[1] != "p-2" {
+		t.Errorf("edges = %v, want [p-1 p-2] (top-level + loop unioned)", got)
+	}
+}
+
+func TestSyncReferenceEdges_NestedLoopFieldAddsEdge(t *testing.T) {
+	// api field two loops deep: the walk recurses per row at each level.
+	s, rel := newSyncWorld(t, relation.ManyToMany)
+	fields := []template.Field{
+		loopStart("outer"),
+		loopStart("inner"),
+		apiField("ref", "person.yaml"),
+		loopStop(),
+		loopStop(),
+	}
+	data := map[string]any{"outer": []any{
+		map[string]any{"inner": []any{
+			map[string]any{"ref": "p-9"},
+		}},
+	}}
+	if err := s.SyncReferenceEdges("book.yaml", "b-1", fields, data); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	got := hostEdges(t, rel, "book.yaml", "person.yaml", "b-1")
+	if len(got) != 1 || got[0] != "p-9" {
+		t.Errorf("edges = %v, want [p-9] from nested loop", got)
+	}
+}
+
 func TestSyncReferenceEdges_UndeclaredTargetIsTolerated(t *testing.T) {
 	// No relation to ghost.yaml: AddEdge fails internally, sync swallows it.
 	s, rel := newSyncWorld(t, relation.OneToMany)

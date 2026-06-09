@@ -57,26 +57,30 @@ func (a apiRelations) GetRelations(template string) ([]api.RelationDef, error) {
 type referenceEdgeSyncer struct{ rel *relation.Manager }
 
 func (s referenceEdgeSyncer) SyncReferenceEdges(hostTemplate, hostGuid string, fields []template.Field, data map[string]any) error {
-	// Desired host->target edges, keyed by target template, unioned across every
-	// api-field. A target present with an empty set means "field cleared", which
-	// reconciliation then drains.
+	// Every api-field's target collection is "owned" so reconciliation runs for
+	// it even when nothing is referenced (a fully-cleared collection must drain
+	// its edges). The flat fields slice already contains loop-nested fields, so
+	// this captures them whatever their nesting.
 	desired := map[string]map[string]bool{}
 	for _, f := range fields {
-		if f.Type != "api" || f.Collection == "" {
-			continue
-		}
-		set := desired[f.Collection]
-		if set == nil {
-			set = map[string]bool{}
-			desired[f.Collection] = set
-		}
-		for _, id := range referenceIDs(data[f.Key]) {
-			set[id] = true
+		if f.Type == "api" && f.Collection != "" && desired[f.Collection] == nil {
+			desired[f.Collection] = map[string]bool{}
 		}
 	}
 	if len(desired) == 0 {
 		return nil
 	}
+
+	// Union every referenced guid across the whole form - top-level fields AND
+	// every loop row - into the desired set. An edge survives when its target
+	// guid is referenced anywhere in the form; it drains only when that guid is
+	// absent everywhere. Clearing one api-field instance never removes a relation
+	// while the same guid still appears elsewhere.
+	collectAPIReferences(fields, data, func(collection, id string) {
+		if set := desired[collection]; set != nil {
+			set[id] = true
+		}
+	})
 
 	rels, err := s.rel.GetRelations(hostTemplate)
 	if err != nil {
@@ -113,6 +117,52 @@ func (s referenceEdgeSyncer) SyncReferenceEdges(hostTemplate, hostGuid string, f
 		}
 	}
 	return nil
+}
+
+// collectAPIReferences walks fields alongside their data, descending into loop
+// rows, calling add(collection, id) for every api-field reference it finds. A
+// loop is a loopstart/loopstop pair whose inner fields' data lives as an array
+// under the loopstart key; each row is the data map for those inner fields,
+// which may themselves contain loops, so the walk recurses.
+func collectAPIReferences(fields []template.Field, data map[string]any, add func(collection, id string)) {
+	for i := 0; i < len(fields); i++ {
+		f := fields[i]
+		switch f.Type {
+		case "loopstart":
+			loopKey := f.Key
+			depth := 1
+			inner := []template.Field{}
+			i++
+			for i < len(fields) && depth > 0 {
+				ff := fields[i]
+				switch ff.Type {
+				case "loopstart":
+					depth++
+				case "loopstop":
+					depth--
+				}
+				if depth > 0 {
+					inner = append(inner, ff)
+				}
+				i++
+			}
+			i-- // the outer loop's i++ steps past the matching loopstop
+			rows, _ := data[loopKey].([]any)
+			for _, r := range rows {
+				if rm, ok := r.(map[string]any); ok {
+					collectAPIReferences(inner, rm, add)
+				}
+			}
+		case "loopstop":
+			// Unbalanced marker; nothing to do.
+		case "api":
+			if f.Collection != "" {
+				for _, id := range referenceIDs(data[f.Key]) {
+					add(f.Collection, id)
+				}
+			}
+		}
+	}
 }
 
 // referenceIDs pulls the target id(s) from an api-field value: a bare id string
