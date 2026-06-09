@@ -83,7 +83,7 @@
    side and share the height left under the toolbar. */
 .datacore-graph__body {
   display: flex;
-  gap: 0.5rem;
+  /* No gap: the .split-handle between the panes provides the separation. */
   flex: 1 1 auto;
   min-height: 0;
 }

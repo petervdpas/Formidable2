@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
 import ForceGraph from "./ForceGraph.vue";
@@ -384,6 +384,53 @@ function closeInspector() {
   inspectorNodeId.value = null;
 }
 
+// Draggable divider between the graph and the inspector. inspectorRatio is the
+// inspector's fraction of the body width; the graph takes the rest. Reuses the
+// app-wide `.split-handle` look + `is-resizing-x` body cursor (same mechanics as
+// SplitView, inlined here so the handle, graph, and inspector stay one markup
+// tree across the open / split / full-screen states).
+const bodyRef = ref<HTMLElement | null>(null);
+const inspectorRatio = ref(0.42);
+const inspectorPaneStyle = computed(() => ({
+  flex: `0 0 ${(inspectorRatio.value * 100).toFixed(2)}%`,
+}));
+
+function clampInspector(r: number): number {
+  return Math.max(0.2, Math.min(0.8, r));
+}
+function onInspectorDragMove(e: MouseEvent) {
+  const el = bodyRef.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  if (rect.width <= 0) return;
+  // Inspector is on the right, so its width is measured from the right edge.
+  inspectorRatio.value = clampInspector((rect.right - e.clientX) / rect.width);
+}
+function onInspectorDragUp() {
+  document.body.classList.remove("is-resizing-x");
+  window.removeEventListener("mousemove", onInspectorDragMove);
+  window.removeEventListener("mouseup", onInspectorDragUp);
+}
+function startInspectorDrag(e: MouseEvent) {
+  document.body.classList.add("is-resizing-x");
+  window.addEventListener("mousemove", onInspectorDragMove);
+  window.addEventListener("mouseup", onInspectorDragUp);
+  e.preventDefault();
+}
+function onInspectorHandleKey(e: KeyboardEvent) {
+  const step = e.shiftKey ? 0.05 : 0.02;
+  // ArrowLeft widens the inspector (it grows leftward); ArrowRight narrows it.
+  if (e.key === "ArrowLeft") {
+    inspectorRatio.value = clampInspector(inspectorRatio.value + step);
+    e.preventDefault();
+  }
+  if (e.key === "ArrowRight") {
+    inspectorRatio.value = clampInspector(inspectorRatio.value - step);
+    e.preventDefault();
+  }
+}
+onBeforeUnmount(onInspectorDragUp);
+
 watch(
   () => props.open,
   (open) => {
@@ -447,7 +494,7 @@ watch(
         </span>
       </div>
 
-      <div class="datacore-graph__body">
+      <div ref="bodyRef" class="datacore-graph__body">
         <div v-show="!inspectorFull" class="datacore-graph__canvas">
           <p v-if="!record" class="form-description">{{ t('datacore.no_record') }}</p>
           <p v-else-if="errorMsg" class="datacore-graph__error">{{ errorMsg }}</p>
@@ -456,10 +503,21 @@ watch(
           <ForceGraph v-else :nodes="viewGraph.nodes" :edges="viewGraph.edges" @node-click="onNodeClick" />
         </div>
 
+        <div
+          v-if="inspectorOpen && !inspectorFull"
+          class="split-handle"
+          role="separator"
+          aria-orientation="vertical"
+          tabindex="0"
+          @mousedown="startInspectorDrag"
+          @keydown="onInspectorHandleKey"
+        ></div>
+
         <aside
           v-if="inspectorOpen"
           class="datacore-inspector"
           :class="{ 'datacore-inspector--full': inspectorFull }"
+          :style="inspectorFull ? undefined : inspectorPaneStyle"
         >
           <header class="datacore-inspector__head">
             <span class="datacore-inspector__title">
