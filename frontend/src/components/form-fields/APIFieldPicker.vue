@@ -92,10 +92,7 @@ function pick(guid: string) {
 const filteredItems = () => {
   const q = filter.value.trim().toLowerCase();
   if (!q) return items.value;
-  return items.value.filter((it) => {
-    const hay = (it.title + " " + (it.tags ?? []).join(" ")).toLowerCase();
-    return hay.includes(q);
-  });
+  return items.value.filter((it) => it.title.toLowerCase().includes(q));
 };
 </script>
 
@@ -130,9 +127,6 @@ const filteredItems = () => {
             @click="pick(it.id)"
           >
             <span class="api-picker-title">{{ it.title || it.filename }}</span>
-            <span v-if="it.tags?.length" class="api-picker-tags">
-              <span v-for="tag in it.tags" :key="tag" class="tag-chip">{{ tag }}</span>
-            </span>
             <span class="api-picker-guid muted">{{ it.id }}</span>
           </button>
         </li>
@@ -146,73 +140,3 @@ const filteredItems = () => {
     </template>
   </Modal>
 </template>
-
-<style scoped>
-.api-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 60vh;
-  overflow: hidden;
-}
-.api-picker-search {
-  width: 100%;
-  padding: 6px 10px;
-  background: var(--input-bg, transparent);
-  color: var(--input-fg, currentColor);
-  border: 1px solid color-mix(in oklab, currentColor 25%, transparent);
-  border-radius: 6px;
-}
-.api-picker-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  max-height: 50vh;
-}
-.api-picker-row {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  gap: 2px 12px;
-  align-items: center;
-  padding: 8px 10px;
-  background: transparent;
-  color: inherit;
-  border: 0;
-  border-bottom: 1px solid color-mix(in oklab, currentColor 12%, transparent);
-  text-align: left;
-  cursor: pointer;
-}
-.api-picker-row:hover {
-  background: color-mix(in oklab, currentColor 8%, transparent);
-}
-.api-picker-title {
-  font-weight: 500;
-  grid-column: 1;
-  grid-row: 1;
-}
-.api-picker-tags {
-  grid-column: 2;
-  grid-row: 1;
-  display: inline-flex;
-  gap: 4px;
-}
-.tag-chip {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: color-mix(in oklab, currentColor 14%, transparent);
-  font-size: 0.75rem;
-}
-.api-picker-guid {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  font-size: 0.75rem;
-  font-family: ui-monospace, SFMono-Regular, monospace;
-}
-.error {
-  color: var(--color-danger, #c0392b);
-}
-</style>

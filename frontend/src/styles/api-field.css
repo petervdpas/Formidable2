@@ -185,3 +185,59 @@
   font-size: 0.9rem;
   opacity: 0.85;
 }
+
+/* ── Record picker (APIFieldPicker.vue) ──────────────────────────────── */
+.api-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+  overflow: hidden;
+}
+.api-picker-search {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--input-bg, transparent);
+  color: var(--input-fg, currentColor);
+  border: 1px solid color-mix(in oklab, currentColor 25%, transparent);
+  border-radius: 6px;
+}
+.api-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: 50vh;
+}
+.api-picker-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+  align-items: center;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 12%, transparent);
+  text-align: left;
+  cursor: pointer;
+}
+.api-picker-row:hover {
+  background: color-mix(in oklab, currentColor 8%, transparent);
+}
+.api-picker-title {
+  font-weight: 500;
+  grid-column: 1;
+  grid-row: 1;
+}
+.api-picker-guid {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+.api-picker .error {
+  color: var(--color-danger, #c0392b);
+}

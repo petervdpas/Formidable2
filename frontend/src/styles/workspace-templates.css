@@ -315,3 +315,81 @@
     font-size: var(--font-size-sm);
     border-radius: 4px;
 }
+
+/* ── Generate-template dialog (GenerateTemplateDialog.vue) ────────────── */
+.generate-intro {
+    margin: 0 0 0.75rem 0;
+}
+.generate-fieldset {
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem 0.75rem;
+    margin: 0 0 0.75rem 0;
+}
+.generate-fieldset legend {
+    padding: 0 0.4rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-color, #888);
+}
+.generate-shape-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.generate-shape-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-color, #ccc);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.generate-shape-row:hover {
+    border-color: var(--accent-color, #4a90e2);
+}
+.generate-shape-row.selected {
+    border-color: var(--accent-color, #4a90e2);
+    background: var(--accent-bg, rgba(74, 144, 226, 0.08));
+}
+.generate-shape-row input[type="radio"] {
+    margin-top: 0.2rem;
+}
+.generate-shape-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.generate-shape-label {
+    font-weight: 600;
+}
+.generate-shape-desc {
+    line-height: 1.35;
+}
+.generate-option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0.2rem;
+    border-top: 1px solid var(--border-color-faint, rgba(0, 0, 0, 0.05));
+}
+.generate-option-row:first-of-type {
+    border-top: none;
+}
+.generate-option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+.generate-option-label {
+    font-weight: 600;
+}
+.generate-option-desc {
+    line-height: 1.35;
+}
