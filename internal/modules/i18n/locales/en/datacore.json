@@ -17,5 +17,9 @@
   "datacore.legend_field": "Field",
   "datacore.relations_only": "Relations only",
   "datacore.relations_only_hint": "Show only record-to-record relations; click a record to isolate its paths.",
-  "datacore.show_all": "Show all"
+  "datacore.show_all": "Show all",
+  "datacore.inspector": "Record",
+  "datacore.inspector_not_found": "Could not render this record.",
+  "datacore.inspector_expand": "Full screen",
+  "datacore.inspector_collapse": "Exit full screen"
 }

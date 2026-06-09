@@ -3,12 +3,14 @@ import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import Modal from "./Modal.vue";
 import ForceGraph from "./ForceGraph.vue";
+import RenderedHtml from "./RenderedHtml.vue";
 import {
   Service as DatacoreSvc,
   type GraphNode,
   type GraphEdge,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/datacore";
 import { Service as TemplateSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { backendErrMessage } from "../utils/backendError";
 
 // A live node-link view of the datacore tensor rooted at the selected record.
@@ -254,12 +256,15 @@ const viewGraph = computed<{
     } else if (n.kind === "root" && focusTpl && templateOf(n.id) !== focusTpl) {
       kind = "related-cross"; // a record in another template
     }
+    // Record nodes no longer show a hover tooltip: their content lives in the
+    // inspector panel (click to open). Table/row/field nodes keep their tooltip.
+    const isRecord = n.kind === "root";
     return {
       id: n.id,
       label: prettyField(n.label),
       kind,
-      detail: info.detail.get(n.id) ?? prettyField(n.label),
-      table: info.tables.get(n.id),
+      detail: isRecord ? "" : info.detail.get(n.id) ?? prettyField(n.label),
+      table: isRecord ? undefined : info.tables.get(n.id),
     };
   });
   const outEdges = es.map((e) => ({ source: e.source, target: e.target, field: prettyField(e.field) }));
@@ -301,6 +306,7 @@ async function loadRoot() {
   expanded.value = new Set();
   isolatedId.value = null;
   rootNodeId.value = null;
+  closeInspector();
   void loadHeaders();
   if (!props.record) return;
   // Backend level is 0-based: record=0, fields=1, rows=2.
@@ -316,6 +322,11 @@ function setLevel(l: number) {
 }
 
 async function onNodeClick(id: string) {
+  const node = nodes.value.find((n) => n.id === id);
+  // A record node (raw kind "root") opens the inspector with its rendered HTML,
+  // in both modes. Field/row nodes have no HTML endpoint, so they don't.
+  if (node?.kind === "root") void openInspector(id);
+
   // In relations-only mode a click isolates the record's connected paths (click
   // the same record again, or Show all, to clear). Otherwise it unfolds.
   if (relationsOnly.value) {
@@ -323,11 +334,54 @@ async function onNodeClick(id: string) {
     return;
   }
   // Field nodes are value leaves; only rows and linked records unfold further.
-  const node = nodes.value.find((n) => n.id === id);
   if (!node || node.kind === "field") return;
   if (expanded.value.has(id)) return;
   expanded.value.add(id);
   await fetchInto(id, 2); // reveal the clicked node's fields and rows
+}
+
+// ── Inspector panel: rendered HTML of the clicked record ─────────────────
+// Backend drives this through the STUDIO render service (the same path the HTML
+// preview uses), so image URLs resolve in the webview and the prose carries the
+// shared formidable-prose styling (tables, images). A record node's composite id
+// is "<template>\x1f<datafile>" (datacore.NewID; the id part is always a
+// datafile), which we split into RenderForm's two arguments.
+const inspectorOpen = ref(false);
+const inspectorFull = ref(false);
+const inspectorLoading = ref(false);
+const inspectorError = ref("");
+const inspectorHtml = ref("");
+const inspectorTitle = ref("");
+const inspectorNodeId = ref<string | null>(null);
+
+async function openInspector(id: string) {
+  const parts = id.split(ID_SEP);
+  if (parts.length < 2 || !parts[0] || !parts[1]) return;
+  inspectorOpen.value = true;
+  inspectorNodeId.value = id;
+  inspectorLoading.value = true;
+  inspectorError.value = "";
+  inspectorHtml.value = "";
+  // The panel title is the clicked record's graph label (its record title).
+  inspectorTitle.value = nodes.value.find((n) => n.id === id)?.label ?? "";
+  try {
+    const res = await RenderSvc.RenderForm(parts[0], parts[1]);
+    if (res?.html) {
+      inspectorHtml.value = res.html;
+    } else {
+      inspectorError.value = t("datacore.inspector_not_found");
+    }
+  } catch (err) {
+    inspectorError.value = backendErrMessage(err);
+  } finally {
+    inspectorLoading.value = false;
+  }
+}
+
+function closeInspector() {
+  inspectorOpen.value = false;
+  inspectorFull.value = false;
+  inspectorNodeId.value = null;
 }
 
 watch(
@@ -337,6 +391,7 @@ watch(
     else {
       nodes.value = [];
       edges.value = [];
+      closeInspector();
     }
   },
 );
@@ -392,11 +447,46 @@ watch(
         </span>
       </div>
 
-      <p v-if="!record" class="form-description">{{ t('datacore.no_record') }}</p>
-      <p v-else-if="errorMsg" class="datacore-graph__error">{{ errorMsg }}</p>
-      <p v-else-if="!nodes.length && loading" class="form-description">{{ t('datacore.loading') }}</p>
-      <p v-else-if="!nodes.length" class="form-description">{{ t('datacore.empty') }}</p>
-      <ForceGraph v-else :nodes="viewGraph.nodes" :edges="viewGraph.edges" @node-click="onNodeClick" />
+      <div class="datacore-graph__body">
+        <div v-show="!inspectorFull" class="datacore-graph__canvas">
+          <p v-if="!record" class="form-description">{{ t('datacore.no_record') }}</p>
+          <p v-else-if="errorMsg" class="datacore-graph__error">{{ errorMsg }}</p>
+          <p v-else-if="!nodes.length && loading" class="form-description">{{ t('datacore.loading') }}</p>
+          <p v-else-if="!nodes.length" class="form-description">{{ t('datacore.empty') }}</p>
+          <ForceGraph v-else :nodes="viewGraph.nodes" :edges="viewGraph.edges" @node-click="onNodeClick" />
+        </div>
+
+        <aside
+          v-if="inspectorOpen"
+          class="datacore-inspector"
+          :class="{ 'datacore-inspector--full': inspectorFull }"
+        >
+          <header class="datacore-inspector__head">
+            <span class="datacore-inspector__title">
+              {{ inspectorTitle || t('datacore.inspector') }}
+            </span>
+            <button
+              type="button"
+              class="tool-btn"
+              :title="inspectorFull ? t('datacore.inspector_collapse') : t('datacore.inspector_expand')"
+              :aria-label="inspectorFull ? t('datacore.inspector_collapse') : t('datacore.inspector_expand')"
+              @click="inspectorFull = !inspectorFull"
+            >{{ inspectorFull ? '⤡' : '⤢' }}</button>
+            <button
+              type="button"
+              class="tool-btn"
+              :title="t('common.close')"
+              :aria-label="t('common.close')"
+              @click="closeInspector"
+            >×</button>
+          </header>
+          <div class="datacore-inspector__body">
+            <p v-if="inspectorLoading" class="form-description">{{ t('datacore.loading') }}</p>
+            <p v-else-if="inspectorError" class="datacore-graph__error">{{ inspectorError }}</p>
+            <RenderedHtml v-else class="datacore-inspector__html formidable-prose" :html="inspectorHtml" />
+          </div>
+        </aside>
+      </div>
     </div>
   </Modal>
 </template>

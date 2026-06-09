@@ -17,5 +17,9 @@
   "datacore.legend_field": "Veld",
   "datacore.relations_only": "Alleen relaties",
   "datacore.relations_only_hint": "Toon alleen record-naar-record relaties; klik een record om de paden te isoleren.",
-  "datacore.show_all": "Toon alles"
+  "datacore.show_all": "Toon alles",
+  "datacore.inspector": "Record",
+  "datacore.inspector_not_found": "Kan dit record niet weergeven.",
+  "datacore.inspector_expand": "Volledig scherm",
+  "datacore.inspector_collapse": "Volledig scherm sluiten"
 }

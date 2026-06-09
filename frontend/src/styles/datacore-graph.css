@@ -79,6 +79,64 @@
   color: var(--color-danger, #d96666);
 }
 
+/* Body row: the graph canvas and (when open) the inspector panel sit side by
+   side and share the height left under the toolbar. */
+.datacore-graph__body {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.datacore-graph__canvas {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Inspector: rendered HTML of the clicked record. Default to a side pane; the
+   full modifier grows it to fill the dialog (the canvas is hidden behind it). */
+.datacore-inspector {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 42%;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--color-border, #2a3142);
+  border-radius: var(--radius-md, 6px);
+  background: var(--color-surface-2, var(--color-surface));
+  overflow: hidden;
+}
+.datacore-inspector--full {
+  flex: 1 1 100%;
+}
+
+.datacore-inspector__head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--color-border, #2a3142);
+}
+.datacore-inspector__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.datacore-inspector__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem 1rem;
+}
+
 .force-graph-wrap {
   position: relative;
   width: 100%;
