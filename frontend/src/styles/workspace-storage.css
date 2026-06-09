@@ -30,11 +30,15 @@
     flex: 1 1 auto;
     min-width: 0;
 }
+.sidebar-filter-clear-row {
+    display: flex;
+    margin-top: 6px;
+}
 .sidebar-filter-clear {
-    flex: 0 0 auto;
-    font-size: 14px;
+    flex: 1 1 auto;
+    font-size: 13px;
     line-height: 1;
-    padding: 4px 8px;
+    padding: 5px 8px;
 }
 .sidebar-filter-clear.is-muted {
     opacity: 0.4;

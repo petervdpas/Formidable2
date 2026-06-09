@@ -1315,6 +1315,12 @@ setTopbarMenu(() => [
 
         <div v-if="hasTagsField" class="sidebar-tag-row">
           <StorageTagFilter v-model="tagFilter" />
+        </div>
+
+        <div
+          v-if="usedFacets.length > 0 || hasTagsField"
+          class="sidebar-filter-clear-row"
+        >
           <button
             type="button"
             class="tool-btn sidebar-filter-clear"
@@ -1323,7 +1329,7 @@ setTopbarMenu(() => [
             :title="t('workspace.storage.facet_filter.clear')"
             :aria-label="t('workspace.storage.facet_filter.clear')"
             @click="clearFilters"
-          >×</button>
+          >{{ t('workspace.storage.facet_filter.clear') }}</button>
         </div>
       </div>
 
