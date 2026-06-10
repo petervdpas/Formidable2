@@ -49,17 +49,20 @@ const emit = defineEmits<{ (e: "close"): void }>();
 
 const maximized = ref(false);
 
-// When maximized, ignore the caller's width / dialogStyle.height and
-// fill the available viewport space. Restoring snaps back to the
-// caller's original sizing - no animation, no half-states.
+// When maximized, fill the available viewport space but keep the caller's
+// dialogStyle (it may carry CSS custom properties the dialog class depends on,
+// e.g. the field editor's --type-bg tint); only width/height are overridden.
+// Restoring snaps back to the caller's original sizing - no animation.
 const computedStyle = computed(() => {
+  const base = { width: props.width, ...(props.dialogStyle || {}) };
   if (maximized.value) {
     return {
+      ...base,
       width: "calc(100vw - var(--space-4) * 2)",
       height: "calc(100vh - var(--space-4) * 2)",
     };
   }
-  return { width: props.width, ...(props.dialogStyle || {}) };
+  return base;
 });
 
 function toggleMax() {

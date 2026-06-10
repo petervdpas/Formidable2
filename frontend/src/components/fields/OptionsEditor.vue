@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import TextField from "./TextField.vue";
 import SelectField from "./SelectField.vue";
 import OptionsSubRow from "./OptionsSubRow.vue";
@@ -190,13 +191,27 @@ function getCell(row: OptionRow, col: ColumnDef): string {
 
 <template>
   <div class="options-editor">
-    <div class="options-rows">
-      <div
-        v-for="(row, i) in visibleRows"
-        :key="i"
-        class="options-row-group"
-      >
+    <draggable
+      :model-value="visibleRows"
+      tag="div"
+      class="options-rows"
+      handle=".dnd-handle"
+      :disabled="isFixed"
+      :animation="150"
+      ghost-class="dnd-ghost"
+      chosen-class="dnd-chosen"
+      drag-class="dnd-drag"
+      :item-key="(_e: OptionRow, i: number) => i"
+      @update:model-value="(rows: OptionRow[]) => (model = rows)"
+    >
+      <template #item="{ element: row, index: i }">
+      <div class="options-row-group">
         <div class="options-row">
+          <span
+            v-if="!isFixed"
+            class="dnd-handle"
+            aria-hidden="true"
+          >⠿</span>
           <span
             v-if="isFixed && fixedRows && fixedRows[i]"
             class="options-row-label small"
@@ -237,7 +252,8 @@ function getCell(row: OptionRow, col: ColumnDef): string {
           />
         </template>
       </div>
-    </div>
+      </template>
+    </draggable>
     <button
       v-if="!isFixed"
       type="button"

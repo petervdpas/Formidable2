@@ -172,6 +172,14 @@
     border-color: var(--type-border);
 }
 
+/* Keep the form a readable column: at the dialog's default width it fills the
+   pane, but when the dialog is maximized the content centers instead of
+   stretching its inputs edge-to-edge. */
+.field-edit {
+    max-width: 760px;
+    margin-inline: auto;
+}
+
 /* Height pinning (header/footer fixed, body scrolls) now comes from the
    shared Modal :scroll mode; only the tint stays bespoke here. */
 .modal-dialog.field-edit-tinted .modal-header,

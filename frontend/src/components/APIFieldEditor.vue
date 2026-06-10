@@ -13,6 +13,7 @@
 
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import draggable from "vuedraggable";
 import { SelectField, TextField } from "./fields";
 import {
   Service as TemplateSvc,
@@ -418,45 +419,63 @@ function clearFilter() { props.field.filter = null; }
         <table v-else class="api-map-table">
           <thead>
             <tr>
+              <th aria-label="drag"></th>
               <th>{{ t("workspace.templates.api_editor.col.key") }}</th>
               <th>{{ t("workspace.templates.api_editor.col.label") }}</th>
               <th>{{ t("workspace.templates.api_editor.col.type") }}</th>
               <th aria-label="actions"></th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="(row, idx) in field.map ?? []" :key="idx">
-              <td>
-                <SelectField
-                  v-model="row.key"
-                  :options="sourceFieldOptions"
-                  :placeholder="t('workspace.templates.api_editor.col.key_placeholder')"
-                  :disabled="sourceFieldsLoading"
-                />
-              </td>
-              <td>
-                <TextField
-                  v-model="row.label"
-                  :placeholder="t('workspace.templates.api_editor.col.label_placeholder')"
-                />
-              </td>
-              <td>
-                <span class="type-pill" v-if="typeOf(row.key)">{{ typeOf(row.key) }}</span>
-                <span class="muted small" v-else>-</span>
-              </td>
-              <td>
-                <button
-                  type="button"
-                  class="tool-btn small"
-                  @click="removeRow(idx)"
-                  :aria-label="t('common.remove')"
-                >
-                  ✕
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!(field.map ?? []).length">
-              <td colspan="4" class="muted small">
+          <draggable
+            v-if="(field.map ?? []).length"
+            :list="field.map"
+            tag="tbody"
+            handle=".dnd-handle"
+            :animation="150"
+            ghost-class="dnd-ghost"
+            chosen-class="dnd-chosen"
+            drag-class="dnd-drag"
+            :item-key="(_e: any, i: number) => i"
+          >
+            <template #item="{ element: row, index: idx }">
+              <tr>
+                <td>
+                  <span class="dnd-handle" aria-hidden="true">⠿</span>
+                </td>
+                <td>
+                  <SelectField
+                    v-model="row.key"
+                    :options="sourceFieldOptions"
+                    :placeholder="t('workspace.templates.api_editor.col.key_placeholder')"
+                    :disabled="sourceFieldsLoading"
+                  />
+                </td>
+                <td>
+                  <TextField
+                    v-model="row.label"
+                    :placeholder="t('workspace.templates.api_editor.col.label_placeholder')"
+                  />
+                </td>
+                <td>
+                  <span class="type-pill" v-if="typeOf(row.key)">{{ typeOf(row.key) }}</span>
+                  <span class="muted small" v-else>-</span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="tool-btn small"
+                    @click="removeRow(idx)"
+                    :aria-label="t('common.remove')"
+                  >
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </draggable>
+          <tbody v-else>
+            <tr>
+              <td colspan="5" class="muted small">
                 {{ t("workspace.templates.api_editor.no_columns") }}
               </td>
             </tr>
