@@ -172,12 +172,15 @@
     border-color: var(--type-border);
 }
 
-/* Keep the form a readable column: at the dialog's default width it fills the
-   pane, but when the dialog is maximized the content centers instead of
-   stretching its inputs edge-to-edge. */
+/* Keep the form a readable column at the dialog's default width. When the
+   dialog is expanded, drop the cap so the fields grow along with it. */
 .field-edit {
     max-width: 760px;
     margin-inline: auto;
+}
+
+.modal-maximized .field-edit {
+    max-width: none;
 }
 
 /* Height pinning (header/footer fixed, body scrolls) now comes from the

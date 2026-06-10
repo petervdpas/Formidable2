@@ -658,6 +658,7 @@ const dialogStyle = computed<Record<string, string>>(() => {
     dialog-class="field-edit-tinted"
     :dialog-style="dialogStyle"
     scroll
+    :maximizable="1040"
     @close="emit('close')"
   >
     <template #title>

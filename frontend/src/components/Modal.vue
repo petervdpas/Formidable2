@@ -17,10 +17,13 @@ const props = withDefaults(
     dialogClass?: string;
     /** Optional inline style merged into the dialog (e.g. CSS vars). */
     dialogStyle?: Record<string, string>;
-    /** When true, render an expand/restore button in the header that
-     *  toggles the dialog between its caller-supplied size and the
-     *  full viewport (minus the backdrop padding). */
-    maximizable?: boolean;
+    /** Render an expand/restore button in the header. Accepts:
+     *  - true / "full": expand to the full viewport (minus backdrop padding).
+     *  - a number: expand to that many px wide, height stays content-driven
+     *    (capped by the 90vh max-height). Use for dialogs that just need
+     *    more room, not a full takeover.
+     *  - false (default): no expand button. */
+    maximizable?: boolean | "full" | number;
     /** When true, the dialog body is a flex column: the #head and #foot
      *  slots stay pinned and the default slot scrolls between them. Use
      *  for long forms/tables so the controls and column headers don't
@@ -49,20 +52,30 @@ const emit = defineEmits<{ (e: "close"): void }>();
 
 const maximized = ref(false);
 
-// When maximized, fill the available viewport space but keep the caller's
-// dialogStyle (it may carry CSS custom properties the dialog class depends on,
-// e.g. the field editor's --type-bg tint); only width/height are overridden.
-// Restoring snaps back to the caller's original sizing - no animation.
+const canMaximize = computed(
+  () =>
+    props.maximizable === true ||
+    props.maximizable === "full" ||
+    typeof props.maximizable === "number",
+);
+
+// When maximized, keep the caller's dialogStyle (it may carry CSS custom
+// properties the dialog class depends on, e.g. the field editor's --type-bg
+// tint); only width/height are overridden. Restoring snaps back - no animation.
 const computedStyle = computed(() => {
   const base = { width: props.width, ...(props.dialogStyle || {}) };
-  if (maximized.value) {
-    return {
-      ...base,
-      width: "calc(100vw - var(--space-4) * 2)",
-      height: "calc(100vh - var(--space-4) * 2)",
-    };
+  if (!maximized.value) return base;
+  // A numeric maximizable grows the dialog to that px width and leaves the
+  // height content-driven (max-height 90vh still caps it); true / "full" takes
+  // over the full viewport.
+  if (typeof props.maximizable === "number") {
+    return { ...base, width: `${props.maximizable}px`, height: "auto" };
   }
-  return base;
+  return {
+    ...base,
+    width: "calc(100vw - var(--space-4) * 2)",
+    height: "calc(100vh - var(--space-4) * 2)",
+  };
 });
 
 function toggleMax() {
@@ -116,7 +129,7 @@ onBeforeUnmount(() => {
       <div v-if="open" class="modal-backdrop" :class="{ 'modal-elevated': elevated }" @click.self="onBackdropClick">
         <div
           ref="dialog"
-          :class="['modal-dialog', dialogClass, { 'modal-scrolling': scroll }]"
+          :class="['modal-dialog', dialogClass, { 'modal-scrolling': scroll, 'modal-maximized': maximized }]"
           :style="computedStyle"
           role="dialog"
           aria-modal="true"
@@ -128,7 +141,7 @@ onBeforeUnmount(() => {
               <slot name="title">{{ title }}</slot>
             </h2>
             <button
-              v-if="maximizable"
+              v-if="canMaximize"
               class="modal-max"
               type="button"
               data-modal-max
