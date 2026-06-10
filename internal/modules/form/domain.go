@@ -31,10 +31,13 @@ type configReader interface {
 }
 
 // ReferenceEdgeSyncer reconciles a host record's api-field references into the
-// relation edge graph after a save (add new, remove orphaned). Optional: nil
-// disables edge syncing, so the form Manager stays decoupled from relations.
+// relation edge graph. SyncReferenceEdges is the authoritative save reconcile (add
+// new, remove orphaned); AddReferenceEdges is the add-only load heal (create
+// missing edges, never remove). Optional: nil disables edge syncing, so the form
+// Manager stays decoupled from relations.
 type ReferenceEdgeSyncer interface {
 	SyncReferenceEdges(hostTemplate, hostGuid string, fields []template.Field, data map[string]any) error
+	AddReferenceEdges(hostTemplate, hostGuid string, fields []template.Field, data map[string]any) error
 }
 
 // ConfigDefaults bundles config values that affect form rendering.
@@ -101,6 +104,17 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 			Datafile:   datafile,
 			Saved:      false,
 		}, nil
+	}
+
+	// Add-only edge heal: create relation edges missing for the references this
+	// record carries (e.g. a target that only just got a stable guid). Never drains
+	// here, so a partially-resolved view can't strip live edges; the save path owns
+	// removal. Best-effort: the view is returned regardless.
+	if m.refEdges != nil && loaded.Meta.ID != "" {
+		if err := m.refEdges.AddReferenceEdges(templateName, loaded.Meta.ID, tpl.Fields, loaded.Data); err != nil {
+			m.log.Warn("form: reference edge add-heal failed",
+				"template", templateName, "id", loaded.Meta.ID, "err", err)
+		}
 	}
 
 	return &FormView{

@@ -295,8 +295,9 @@ func TestSaveValues_PersistsAndReturnsRoundTrippedView(t *testing.T) {
 }
 
 type fakeEdgeSyncer struct {
-	calls []edgeSyncCall
-	err   error
+	calls    []edgeSyncCall
+	addCalls []edgeSyncCall
+	err      error
 }
 
 type edgeSyncCall struct {
@@ -307,6 +308,11 @@ type edgeSyncCall struct {
 
 func (f *fakeEdgeSyncer) SyncReferenceEdges(host, guid string, _ []template.Field, data map[string]any) error {
 	f.calls = append(f.calls, edgeSyncCall{host: host, guid: guid, data: data})
+	return f.err
+}
+
+func (f *fakeEdgeSyncer) AddReferenceEdges(host, guid string, _ []template.Field, data map[string]any) error {
+	f.addCalls = append(f.addCalls, edgeSyncCall{host: host, guid: guid, data: data})
 	return f.err
 }
 
@@ -332,6 +338,51 @@ func TestSaveValues_InvokesReferenceEdgeSyncerWithPersistedGuid(t *testing.T) {
 	c := sync.calls[0]
 	if c.host != "t.yaml" || c.guid != "id-1" || c.data["ref"] != "p-1" {
 		t.Errorf("sync call = %+v, want host=t.yaml guid=id-1 ref=p-1", c)
+	}
+}
+
+func TestBuildView_HealsEdgesAddOnly(t *testing.T) {
+	m, tpls, store, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename: "t.yaml",
+		Fields:   []template.Field{{Key: "ref", Type: "api", Collection: "people.yaml"}},
+	}
+	store.forms["t.yaml"] = map[string]*storage.Form{
+		"row.meta.json": {
+			Meta: storage.FormMeta{ID: "host-1", Template: "t.yaml"},
+			Data: map[string]any{"ref": "p-1"},
+		},
+	}
+	sync := &fakeEdgeSyncer{}
+	m.SetReferenceEdgeSyncer(sync)
+
+	if _, err := m.BuildView("t.yaml", "row.meta.json"); err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	if len(sync.addCalls) != 1 {
+		t.Fatalf("expected 1 add-only heal call, got %d", len(sync.addCalls))
+	}
+	c := sync.addCalls[0]
+	if c.host != "t.yaml" || c.guid != "host-1" || c.data["ref"] != "p-1" {
+		t.Errorf("add call = %+v, want host=t.yaml guid=host-1 ref=p-1", c)
+	}
+	// Load must not run the draining save reconcile.
+	if len(sync.calls) != 0 {
+		t.Errorf("BuildView ran the draining SyncReferenceEdges %d time(s); load must be add-only", len(sync.calls))
+	}
+}
+
+func TestBuildView_UnsavedViewSkipsHeal(t *testing.T) {
+	m, tpls, _, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{Filename: "t.yaml"}
+	sync := &fakeEdgeSyncer{}
+	m.SetReferenceEdgeSyncer(sync)
+
+	if _, err := m.BuildView("t.yaml", ""); err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	if len(sync.addCalls) != 0 || len(sync.calls) != 0 {
+		t.Errorf("unsaved view must not touch edges: add=%d sync=%d", len(sync.addCalls), len(sync.calls))
 	}
 }
 
@@ -602,7 +653,7 @@ func TestSaveValues_ConcurrentDistinctFiles(t *testing.T) {
 	const n = 12
 	want := make(map[string]string, n)
 	var wg sync.WaitGroup
-	for i := 0; i < n; i++ {
+	for i := range n {
 		df := "row" + string(rune('a'+i)) + ".meta.json"
 		val := "v" + string(rune('a'+i))
 		want[df] = val
@@ -962,7 +1013,7 @@ func TestSaveValues_ConcurrentSameFileNoCorruption(t *testing.T) {
 	const n = 20
 	wanted := make(map[string]bool, n)
 	var wg sync.WaitGroup
-	for i := 0; i < n; i++ {
+	for i := range n {
 		val := "v" + string(rune('a'+i))
 		wanted[val] = true
 		wg.Add(1)

@@ -56,7 +56,22 @@ func (a apiRelations) GetRelations(template string) ([]api.RelationDef, error) {
 // (undeclared relation, cardinality breach, missing record) is skipped, not fatal.
 type referenceEdgeSyncer struct{ rel *relation.Manager }
 
+// SyncReferenceEdges is the authoritative save-time reconcile: it adds edges for
+// referenced targets and drains edges no longer referenced anywhere in the form.
 func (s referenceEdgeSyncer) SyncReferenceEdges(hostTemplate, hostGuid string, fields []template.Field, data map[string]any) error {
+	return s.reconcile(hostTemplate, hostGuid, fields, data, true)
+}
+
+// AddReferenceEdges is the load-time heal: it only creates edges missing for the
+// guids the form currently references. It never removes an edge, so loading a
+// record can heal a not-yet-synced link (e.g. a target that only just got a stable
+// guid) without risking a drain off a partially-resolved view. Draining stays on
+// the authoritative save path.
+func (s referenceEdgeSyncer) AddReferenceEdges(hostTemplate, hostGuid string, fields []template.Field, data map[string]any) error {
+	return s.reconcile(hostTemplate, hostGuid, fields, data, false)
+}
+
+func (s referenceEdgeSyncer) reconcile(hostTemplate, hostGuid string, fields []template.Field, data map[string]any, drain bool) error {
 	// Every api-field's target collection is "owned" so reconciliation runs for
 	// it even when nothing is referenced (a fully-cleared collection must drain
 	// its edges). The flat fields slice already contains loop-nested fields, so
@@ -108,6 +123,9 @@ func (s referenceEdgeSyncer) SyncReferenceEdges(hostTemplate, hostGuid string, f
 			}
 			// Tolerate: undeclared relation, cardinality, or a not-yet-saved target.
 			_ = s.rel.AddEdge(hostTemplate, target, relation.Edge{From: hostGuid, To: id})
+		}
+		if !drain {
+			continue
 		}
 		for id := range have {
 			if want[id] {
