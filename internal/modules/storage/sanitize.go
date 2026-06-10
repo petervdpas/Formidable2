@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -69,15 +70,12 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 			break
 		}
 	}
-	id := firstNonEmpty(
+	id := CanonicalGuid(guidKey != "",
 		stringOrEmpty(rawData[guidKey]),
 		opts.ID,
 		stringOrEmpty(rawMeta["id"]),
 		stringOrEmpty(injected["id"]),
 	)
-	if id == "" && guidKey != "" {
-		id = uuid.NewString()
-	}
 
 	// Mirror id back into the guid field so disk carries it in both meta.id and data (no drift for readers).
 	if id != "" && guidKey != "" {
@@ -167,6 +165,26 @@ func Sanitize(raw map[string]any, fields []template.Field, opts SanitizeOptions)
 		},
 		Data: data,
 	}
+}
+
+// CanonicalGuid is the one guid rule for the whole backend, defined here and
+// nowhere else: the data field is the identity source and meta.id mirrors it, so
+// the first non-empty data-led candidate wins. When a guid field exists but every
+// candidate is empty it mints one; without a guid field (hasGuidField false) the
+// id stays "". Callers mirror the result into both the data field and meta.id.
+// The frontend reflects this outcome, it never derives a guid itself.
+//
+// Pass candidates data-first (data field, then any preserved/injected id, then
+// meta.id last). Uniqueness handling (replacing a duplicate guid) is a separate
+// invariant and deliberately does not run through here.
+func CanonicalGuid(hasGuidField bool, candidates ...string) string {
+	if id := firstNonEmpty(candidates...); id != "" {
+		return id
+	}
+	if hasGuidField {
+		return uuid.NewString()
+	}
+	return ""
 }
 
 // seedFacetFieldDefaults seeds meta.facets[key] from a facet field's Default only when no entry exists;
@@ -297,9 +315,7 @@ func resolveFacets(optsFacets map[string]FacetState, rawMeta, injected map[strin
 
 func cloneFacets(in map[string]FacetState) map[string]FacetState {
 	out := make(map[string]FacetState, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
+	maps.Copy(out, in)
 	return out
 }
 

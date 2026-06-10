@@ -187,6 +187,18 @@ func (m *Manager) LoadForm(templateFilename, datafile string) *Form {
 	out := Sanitize(rawMap, fields, SanitizeOptions{
 		TemplateName: strings.TrimSuffix(templateFilename, filepath.Ext(templateFilename)),
 	})
+	// Autofill: the data guid field is the source of truth and meta.id mirrors it
+	// (Sanitize resolves data first, then mints when both are empty). Persist once
+	// whenever disk is out of sync with that resolved id: a freshly minted guid, a
+	// data id meta never copied, or any data/meta drift. Without this the id stays
+	// unstable, so the index, link picker, and relation edges latch onto throwaway
+	// guids that drift apart across loads, scans, and clones.
+	if gk := guidFieldKey(fields); gk != "" && out.Meta.ID != "" {
+		rawData, rawMeta := splitEnvelope(rawMap)
+		if stringOrEmpty(rawData[gk]) != out.Meta.ID || stringOrEmpty(rawMeta["id"]) != out.Meta.ID {
+			m.SaveFormExact(context.Background(), templateFilename, datafile, out)
+		}
+	}
 	if tpl, err := m.templates.LoadTemplate(templateFilename); err == nil {
 		m.applyFormulaFields(tpl, &out, "load")
 	}

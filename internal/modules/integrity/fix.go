@@ -241,11 +241,22 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 			if iss.Path != "meta.id" {
 				return false, "mint_uuid only applies to meta.id", nil
 			}
-			draft.Meta.ID = uuid.NewString()
+			// One rule (storage.CanonicalGuid): data leads, so copy an existing data
+			// id onto meta rather than minting a fresh one; mint only when both empty.
+			gk := guidFieldKeyOf(tpl)
+			dataID := ""
+			if gk != "" {
+				dataID, _ = draft.Data[gk].(string)
+			}
+			id := storage.CanonicalGuid(true, dataID, draft.Meta.ID)
+			draft.Meta.ID = id
+			if gk != "" {
+				draft.Data[gk] = id
+			}
 			return true, "", nil
 		case IssueDuplicateGuid:
-			// The data guid field is the identity source; mint there and mirror
-			// onto meta.id so the pair stays consistent.
+			// Uniqueness is a separate invariant from the canonical-guid rule: a
+			// shared guid must be replaced with a fresh one in both data and meta.
 			fresh := uuid.NewString()
 			if gk := guidFieldKeyOf(tpl); gk != "" {
 				draft.Data[gk] = fresh
@@ -260,16 +271,16 @@ func applyStrategy(tpl *template.Template, draft *storage.Form, iss Issue, strat
 		if iss.Kind != IssueGuidUnsynced {
 			return false, "sync_guid only applies to guid_unsynced", nil
 		}
-		// The guid field is the identity source; meta.id mirrors it, and only an empty field backfills from meta.id.
+		// One rule (storage.CanonicalGuid): data leads, meta mirrors it, and an empty
+		// field backfills from meta. No mint here: an unsynced issue means at least
+		// one side is set, and an all-empty pair is reported as an error.
 		field, _ := draft.Data[iss.Path].(string)
-		if field != "" {
-			draft.Meta.ID = field
-			return true, "", nil
+		id := storage.CanonicalGuid(false, field, draft.Meta.ID)
+		if id == "" {
+			return false, "guid field and meta.id are both empty", nil
 		}
-		if draft.Meta.ID != "" {
-			return setAtPath(draft.Data, iss.Path, draft.Meta.ID)
-		}
-		return false, "guid field and meta.id are both empty", nil
+		draft.Meta.ID = id
+		return setAtPath(draft.Data, iss.Path, id)
 
 	case FixRestamp:
 		if iss.Kind != IssueMetaBadFormat {
