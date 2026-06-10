@@ -107,7 +107,7 @@ func TestRelationFollow_RealIndexEndToEnd(t *testing.T) {
 
 	// Datacore cross-template Follow over the REAL loader (guid->identity map
 	// built from real LoadForm + index-resolved relations).
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, relM, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, relM, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}

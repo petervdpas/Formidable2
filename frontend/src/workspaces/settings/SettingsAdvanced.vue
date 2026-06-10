@@ -45,6 +45,14 @@ function patchButtons(partial: Record<string, unknown>) {
         :off-label="t('common.disabled')"
       />
     </FormRow>
+    <FormSwitchRow
+      :label="t('config.graph_loop_rows')"
+      :description="t('config.graph_loop_rows_hint')"
+      :model-value="cfg.graph_loop_rows"
+      @update:model-value="(v) => update({ graph_loop_rows: v })"
+      :on-label="t('common.on')"
+      :off-label="t('common.off')"
+    />
     <FormRow :label="t('config.io_collection_only')">
       <SwitchField
         :model-value="cfg.io_collection_only"

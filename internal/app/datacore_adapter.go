@@ -29,10 +29,15 @@ type datacoreLoaderAdapter struct {
 	ev           *expression.Manager
 	rel          relationReader
 	templateFile string
+	// loopRows, when set, ingests loop fields as row tables so loop rows
+	// surface as graph nodes. Off by default (config graph_loop_rows): a loop
+	// adds rows×columns cells per record, which the studio gates behind a
+	// toggle since it grows the tensor on large templates.
+	loopRows bool
 }
 
-func newDatacoreLoaderAdapter(tpl *template.Manager, sto *storage.Manager, ev *expression.Manager, rel relationReader, templateFile string) *datacoreLoaderAdapter {
-	return &datacoreLoaderAdapter{tpl: tpl, sto: sto, ev: ev, rel: rel, templateFile: templateFile}
+func newDatacoreLoaderAdapter(tpl *template.Manager, sto *storage.Manager, ev *expression.Manager, rel relationReader, templateFile string, loopRows bool) *datacoreLoaderAdapter {
+	return &datacoreLoaderAdapter{tpl: tpl, sto: sto, ev: ev, rel: rel, templateFile: templateFile, loopRows: loopRows}
 }
 
 // datacoreSkipTypes are field types that carry no statable value of their own
@@ -114,7 +119,7 @@ func (a *datacoreLoaderAdapter) loadForms(templateFile string, files []string, s
 		if f == nil {
 			continue
 		}
-		rec := datacoreRecord(tpl, file, f)
+		rec := datacoreRecord(tpl, file, f, a.loopRows)
 		rec.ID = datacore.NewID(templateFile, file)
 		rec.Satellite = satellite
 		if rec.Label == "" {
@@ -198,7 +203,7 @@ func (a *datacoreLoaderAdapter) attachLinks(recs []datacore.Record, guids []stri
 // tables (a multi-valued field is a one-column table whose column is "value");
 // set facets become context-keyed values. Identity is the filename so the
 // studio (which works in filenames) can anchor the graph on the selected item.
-func datacoreRecord(tpl *template.Template, file string, f *storage.Form) datacore.Record {
+func datacoreRecord(tpl *template.Template, file string, f *storage.Form, loopRows bool) datacore.Record {
 	rec := datacore.Record{ID: file}
 	if tpl.ItemField != "" {
 		if v, ok := f.Data[tpl.ItemField]; ok {
@@ -206,8 +211,37 @@ func datacoreRecord(tpl *template.Template, file string, f *storage.Form) dataco
 		}
 	}
 
-	for _, fld := range tpl.Fields {
-		if datacoreSkipTypes[fld.Type] {
+	for i := 0; i < len(tpl.Fields); i++ {
+		fld := tpl.Fields[i]
+		if fld.Type == "loopstart" {
+			// A loop's child fields belong to the loop (their data lives per-row
+			// under the loopstart key), not the record. Consume the whole block;
+			// ingest it as a row table only when the studio toggle enables it.
+			loopKey := fld.Key
+			depth := 1
+			inner := []template.Field{}
+			i++
+			for i < len(tpl.Fields) && depth > 0 {
+				ff := tpl.Fields[i]
+				switch ff.Type {
+				case "loopstart":
+					depth++
+				case "loopstop":
+					depth--
+				}
+				if depth > 0 {
+					inner = append(inner, ff)
+				}
+				i++
+			}
+			i-- // the for-loop's i++ steps past the matching loopstop
+			if loopRows {
+				rows, labels := dcLoopRows(inner, f.Data[loopKey])
+				addTable(&rec, loopKey, rows, labels)
+			}
+			continue
+		}
+		if fld.Type == "loopstop" || datacoreSkipTypes[fld.Type] {
 			continue
 		}
 		v, present := f.Data[fld.Key]
@@ -298,6 +332,48 @@ func dcTableRows(fld template.Field, v any) ([]map[string]string, []string) {
 			parts = append(parts, s) // label stays positional so columns align
 		}
 		if nonEmpty > 0 {
+			rows = append(rows, row)
+			labels = append(labels, strings.Join(parts, " | "))
+		}
+	}
+	return rows, labels
+}
+
+// dcLoopRows flattens a loop's row array (data under the loopstart key) into
+// row-identity table rows: each row contributes its scalar child cells keyed by
+// the child field key, dropping blanks. Nested loops/tables/multi-valued fields
+// inside a row are not expanded (the flat ingestion the studio toggle enables);
+// a row with no scalar cells is dropped. The label joins the row's cells in
+// declared order, matching dcTableRows.
+func dcLoopRows(inner []template.Field, v any) ([]map[string]string, []string) {
+	cols := make([]string, 0, len(inner))
+	for _, fld := range inner {
+		if fld.Key == "" || fld.Type == "loopstart" || fld.Type == "loopstop" {
+			continue
+		}
+		if fld.Type == "table" || isMultiValued(fld.Type) || datacoreSkipTypes[fld.Type] {
+			continue
+		}
+		cols = append(cols, fld.Key)
+	}
+	var rows []map[string]string
+	var labels []string
+	for _, e := range dcSlice(v) {
+		rm, ok := e.(map[string]any)
+		if !ok {
+			continue
+		}
+		row := map[string]string{}
+		var parts []string
+		for _, key := range cols {
+			s := dcText(rm[key])
+			if s == "" {
+				continue
+			}
+			row[key] = s
+			parts = append(parts, s)
+		}
+		if len(row) > 0 {
 			rows = append(rows, row)
 			labels = append(labels, strings.Join(parts, " | "))
 		}

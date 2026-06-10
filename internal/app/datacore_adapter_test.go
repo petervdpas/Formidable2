@@ -93,7 +93,7 @@ func TestDatacoreAdapter_IngestsLiveTemplate(t *testing.T) {
 		}
 	}
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "assets.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "assets.yaml", false))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}
@@ -124,6 +124,66 @@ func TestDatacoreAdapter_IngestsLiveTemplate(t *testing.T) {
 	if got := ct.Count("SILVER", "active"); got != 1 {
 		t.Fatalf("SILVER/active = %d, want 1", got)
 	}
+}
+
+// TestDatacoreAdapter_LoopRowsGatedByFlag confirms a loop field is ingested as a
+// row table only when loopRows is on (the graph_loop_rows config). Off, the loop
+// is absent from the tensor; on, its rows are Followable like a table's.
+func TestDatacoreAdapter_LoopRowsGatedByFlag(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	tplM := template.NewManager(sys, "templates", log)
+	if err := tplM.EnsureTemplateDirectory(); err != nil {
+		t.Fatalf("EnsureTemplateDirectory: %v", err)
+	}
+	sfrM := sfr.NewManager(sys, log)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", log)
+
+	// A loop "resources" with two scalar child fields, between loopstart/loopstop.
+	tpl := &template.Template{
+		Name:     "adapters",
+		Filename: "adapters.yaml",
+		Fields: []template.Field{
+			{Key: "title", Type: "text"},
+			{Key: "resources", Type: "loopstart"},
+			{Key: "name", Type: "text"},
+			{Key: "kind", Type: "text"},
+			{Key: "resources", Type: "loopstop"},
+		},
+	}
+	if err := tplM.SaveTemplate("adapters.yaml", tpl); err != nil {
+		t.Fatalf("SaveTemplate: %v", err)
+	}
+
+	data := map[string]any{
+		"title": "Progress",
+		"resources": []any{
+			map[string]any{"name": "plan", "kind": "app-service"},
+			map[string]any{"name": "kv", "kind": "key-vault"},
+		},
+	}
+	if r := stoM.SaveForm(context.Background(), "adapters.yaml", "x.meta.json", data); !r.Success {
+		t.Fatalf("SaveForm: %s", r.Error)
+	}
+
+	// Off: the loop is not ingested, so Follow yields nothing.
+	off, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "adapters.yaml", false))
+	if err != nil {
+		t.Fatalf("datacore.Build (off): %v", err)
+	}
+	assertBuckets(t, "resources.name (off)", off.View().Follow("resources").Distribution("name"), map[string]int{})
+
+	// On: the loop becomes a row table; its rows are Followable like a table's.
+	on, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "adapters.yaml", true))
+	if err != nil {
+		t.Fatalf("datacore.Build (on): %v", err)
+	}
+	assertBuckets(t, "resources.name (on)", on.View().Follow("resources").Distribution("name"),
+		map[string]int{"plan": 1, "kv": 1})
+	assertBuckets(t, "resources.kind (on)", on.View().Follow("resources").Distribution("kind"),
+		map[string]int{"app-service": 1, "key-vault": 1})
 }
 
 // TestDatacoreAdapter_SelfRelationLinksAreFollowable saves three collection
@@ -182,7 +242,7 @@ func TestDatacoreAdapter_SelfRelationLinksAreFollowable(t *testing.T) {
 		}},
 	}}
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "entities.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "entities.yaml", false))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}
@@ -252,7 +312,7 @@ func TestDatacoreAdapter_CrossTemplateFollowReachesTable(t *testing.T) {
 	}}
 	_ = gP
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}
@@ -330,7 +390,7 @@ func TestDatacoreAdapter_ZeroPrimaryWithSatellitesIsEmpty(t *testing.T) {
 		"project.yaml": {{To: "person.yaml", Cardinality: relation.OneToMany,
 			Edges: []relation.Edge{{From: "ghost-project", To: gA}, {From: "ghost-project", To: gB}}}},
 	}}
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -352,7 +412,7 @@ func TestDatacoreAdapter_SatelliteFilenameCollisionStaysDistinct(t *testing.T) {
 		"project.yaml": {{To: "person.yaml", Cardinality: relation.OneToMany,
 			Edges: []relation.Edge{{From: gP, To: gPerson}}}},
 	}}
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -375,7 +435,7 @@ func TestDatacoreAdapter_SatelliteDedup(t *testing.T) {
 		"project.yaml": {{To: "person.yaml", Cardinality: relation.ManyToMany,
 			Edges: []relation.Edge{{From: gP1, To: gA}, {From: gP2, To: gA}}}},
 	}}
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -393,7 +453,7 @@ func TestDatacoreAdapter_GraphSatelliteIsRecordNotRow(t *testing.T) {
 		"project.yaml": {{To: "person.yaml", Cardinality: relation.OneToMany,
 			Edges: []relation.Edge{{From: gP, To: gA}}}},
 	}}
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -427,7 +487,7 @@ func TestDatacoreAdapter_CrossTemplate_DanglingEdgeTolerated(t *testing.T) {
 		"project.yaml": {{To: "person.yaml", Cardinality: relation.OneToMany,
 			Edges: []relation.Edge{{From: gP, To: gA}, {From: gP, To: "ghost-guid"}}}},
 	}}
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("Build must tolerate a dangling edge: %v", err)
 	}
@@ -445,7 +505,7 @@ func TestDatacoreAdapter_CrossTemplate_MissingTargetTemplateTolerated(t *testing
 		"project.yaml": {{To: "gone.yaml", Cardinality: relation.OneToMany,
 			Edges: []relation.Edge{{From: gP, To: "g-x"}}}},
 	}}
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("Build must tolerate a missing target template: %v", err)
 	}
@@ -471,7 +531,7 @@ func TestDatacoreAdapter_SelfAndCrossMix(t *testing.T) {
 			{To: "person.yaml", Cardinality: relation.OneToMany, Edges: []relation.Edge{{From: gP1, To: gA}}},
 		},
 	}}
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "project.yaml", false))
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -511,7 +571,7 @@ func TestDatacoreAdapter_IdentityCarriesTemplate(t *testing.T) {
 		t.Fatalf("SaveForm: %s", r.Error)
 	}
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "entities.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, nil, "entities.yaml", false))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}
@@ -586,7 +646,7 @@ func TestDatacoreAdapter_FollowRelationThenTable(t *testing.T) {
 		}},
 	}}
 
-	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "entities.yaml"))
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, "entities.yaml", false))
 	if err != nil {
 		t.Fatalf("datacore.Build: %v", err)
 	}

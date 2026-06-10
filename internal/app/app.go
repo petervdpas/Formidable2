@@ -403,7 +403,13 @@ func New(d Deps) (*App, error) {
 	// runs per query, long after construction, so the late binding is safe.
 	var relationM *relation.Manager
 	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
-		return newDatacoreLoaderAdapter(tplM, stoM, expressionM, relationM, tpl)
+		// Loop ingestion is opt-in (config graph_loop_rows): read it per build so
+		// toggling the setting takes effect on the next graph open / refresh.
+		loopRows := false
+		if cfg, err := cfgM.LoadUserConfig(); err == nil && cfg != nil {
+			loopRows = cfg.GraphLoopRows
+		}
+		return newDatacoreLoaderAdapter(tplM, stoM, expressionM, relationM, tpl, loopRows)
 	}, newDatacoreIndexPlanner(idxM))
 
 	// Chart-neutral statistics computed on the datacore tensor. The index's

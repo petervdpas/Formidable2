@@ -6,6 +6,8 @@
   "config.enable_internal_server": "Interne server",
   "config.enable_plugins": "Plugins",
   "config.enable_full_text_search": "Volledige-tekst zoeken",
+  "config.graph_loop_rows": "Lus-rijen in grafiek",
+  "config.graph_loop_rows_hint": "Toon lus-rijen als knopen in de grafiek. Zwaarder bij grote sjablonen.",
   "config.history.enabled": "Geschiedenis",
   "config.history.max_size": "Max. Geschiedenis Grootte",
   "config.history.persist": "Bewaar Geschiedenis",

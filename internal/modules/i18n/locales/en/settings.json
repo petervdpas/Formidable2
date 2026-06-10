@@ -6,6 +6,8 @@
   "config.enable_internal_server": "Internal Server",
   "config.enable_plugins": "Plugins",
   "config.enable_full_text_search": "Full-Text Search",
+  "config.graph_loop_rows": "Loop rows in graph",
+  "config.graph_loop_rows_hint": "Show loop-field rows as graph nodes. Heavier on large templates.",
   "config.history.enabled": "History",
   "config.history.max_size": "History Max Size",
   "config.history.persist": "Persist History",
