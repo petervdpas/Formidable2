@@ -110,6 +110,29 @@ export function SortFieldValue(templateName: string, datafile: string, fieldKey:
     return $Call.ByID(2518961349, templateName, datafile, fieldKey, column, direction);
 }
 
+/**
+ * SyncRelationsForTemplate back-fills every api field on the template from
+ * existing relation edges (the "Synchronize from relations" utility), returning
+ * the summed result. See Manager.SyncRelationsForTemplate. Idempotent.
+ */
+export function SyncRelationsForTemplate(template: string): $CancellablePromise<$models.ImportRelationResult> {
+    return $Call.ByID(3884228353, template).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * SyncRelationsToField back-fills an api field from the relation edges that
+ * already exist for it (e.g. an inverse field added after the links were made),
+ * writing each host record's target ids so field, edges, and graph agree. See
+ * Manager.SyncRelationsToField. Idempotent.
+ */
+export function SyncRelationsToField(template: string, fieldKey: string): $CancellablePromise<$models.ImportRelationResult> {
+    return $Call.ByID(3579787831, template, fieldKey).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.FormView.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);

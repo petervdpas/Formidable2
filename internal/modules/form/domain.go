@@ -40,11 +40,24 @@ type ReferenceEdgeSyncer interface {
 	AddReferenceEdges(hostTemplate, hostGuid string, fields []template.Field, data map[string]any) error
 }
 
+// RelationReader returns the existing relation edges from a host template to a
+// target collection, as {from-guid, to-guid} pairs. Injected so the form Manager
+// can back-fill an api field from already-synced edges without importing the
+// relation module. Optional: nil makes SyncRelationsToField a no-op.
+type RelationReader interface {
+	RelationEdges(hostTemplate, targetCollection string) ([]EdgePair, error)
+}
+
 // ConfigDefaults bundles config values that affect form rendering.
 // Author identity is NOT here: storage.Manager pulls it directly from its
 // own AuthorProvider so every save path stamps the active profile.
 type ConfigDefaults struct {
 	LoopStateCollapsed bool
+	// RelationSyncEnabled gates the destructive "Synchronize from relations" pass
+	// (SyncRelationsToField/SyncRelationsForTemplate), which overwrites api-field
+	// values from the relation graph. Off by default: the action is a no-op guard
+	// unless the user explicitly enables it in config.
+	RelationSyncEnabled bool
 }
 
 // Manager owns form-view orchestration.
@@ -54,6 +67,7 @@ type Manager struct {
 	config        configReader
 	refEdges      ReferenceEdgeSyncer
 	resolveRecord recordResolver
+	relations     RelationReader
 	log           *slog.Logger
 }
 
@@ -68,6 +82,10 @@ func NewManager(t templateLoader, s formStore, c configReader, log *slog.Logger)
 // SetReferenceEdgeSyncer wires the optional api-field edge reconciler. Called
 // once at composition; safe to leave unset (edge syncing is then a no-op).
 func (m *Manager) SetReferenceEdgeSyncer(s ReferenceEdgeSyncer) { m.refEdges = s }
+
+// SetRelationReader wires the optional relation-edge reader used to back-fill an
+// api field from existing edges (SyncRelationsToField). Safe to leave unset.
+func (m *Manager) SetRelationReader(r RelationReader) { m.relations = r }
 
 // BuildView prepares the FormView for one (template, datafile) pair.
 // A missing or empty datafile yields an unsaved view with type-defaults

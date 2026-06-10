@@ -257,6 +257,9 @@
   "workspace.templates.relations.reconcile.done": "Relations reconciled: {0} counterpart(s) recreated, {1} edge(s) healed, {2} conflict(s).",
   "workspace.templates.relations.reconcile.conflicts": "{0} relation conflict(s) need attention (cardinalities disagree).",
   "workspace.templates.relations.reconcile.error": "Reconcile failed: {0}",
+  "workspace.templates.relations.sync.done": "Synchronized from relations: {0} record(s), {1} link(s).",
+  "workspace.templates.relations.sync.empty": "No relation edges to synchronize from.",
+  "workspace.templates.relations.sync.error": "Synchronize failed: {0}",
   "workspace.templates.sidebar_title": "Templates",
   "workspace.templates.unselected": "Pick a template from the sidebar,<br>or create a new one."
 }

@@ -43,6 +43,21 @@ func (s *Service) ImportRelations(sourceTemplate, fieldKey, fromColumn, toColumn
 	return s.m.ImportRelationsFromColumns(sourceTemplate, fieldKey, fromColumn, toColumn, headers, rows)
 }
 
+// SyncRelationsToField back-fills an api field from the relation edges that
+// already exist for it (e.g. an inverse field added after the links were made),
+// writing each host record's target ids so field, edges, and graph agree. See
+// Manager.SyncRelationsToField. Idempotent.
+func (s *Service) SyncRelationsToField(template, fieldKey string) (ImportRelationResult, error) {
+	return s.m.SyncRelationsToField(template, fieldKey)
+}
+
+// SyncRelationsForTemplate back-fills every api field on the template from
+// existing relation edges (the "Synchronize from relations" utility), returning
+// the summed result. See Manager.SyncRelationsForTemplate. Idempotent.
+func (s *Service) SyncRelationsForTemplate(template string) (ImportRelationResult, error) {
+	return s.m.SyncRelationsForTemplate(template)
+}
+
 // SortFieldValue fetches a list/table field from the saved record, sorts it,
 // and returns the sorted value (no persistence: the frontend applies it and
 // the normal save writes it). column is the table column key (empty = first

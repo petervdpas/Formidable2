@@ -143,6 +143,174 @@ func (m *Manager) ImportRelationEdges(sourceTemplate, fieldKey string, pairs []E
 	return res, nil
 }
 
+var (
+	errRelationReaderMissing = errors.New("form: relation reader not wired")
+	errRelationSyncDisabled  = errors.New("form: relation sync is disabled (enable it in config first)")
+)
+
+// relationSyncEnabled reports the config gate. The destructive sync overwrites
+// api-field values from the relation graph, so it stays off unless the user opts
+// in; this is the backend half of the guard (the menu item is also gated).
+func (m *Manager) relationSyncEnabled() bool {
+	return m.config != nil && m.config.FormDefaults().RelationSyncEnabled
+}
+
+// SyncRelationsToField makes an api field MIRROR the relation edges that exist
+// for it: each host record's value is REPLACED with the exact set of to-ids in
+// the field's relation (the entry whose target is the field's collection). This
+// is the inverse of the normal field->edges sync, so a link removed elsewhere
+// disappears from the field, and a record whose edges are now empty is cleared.
+// Records already in agreement are left untouched. Gated by config: a no-op-guard
+// error when relation sync is disabled. fieldKey must name an api field.
+func (m *Manager) SyncRelationsToField(template, fieldKey string) (ImportRelationResult, error) {
+	var res ImportRelationResult
+	if !m.relationSyncEnabled() {
+		return res, errRelationSyncDisabled
+	}
+	if m.relations == nil {
+		return res, errRelationReaderMissing
+	}
+	tpl, err := m.templates.LoadTemplate(template)
+	if err != nil {
+		return res, err
+	}
+	target := ""
+	found := false
+	for _, f := range tpl.Fields {
+		if f.Key == fieldKey {
+			if f.Type != "api" {
+				return res, errNotAPIField
+			}
+			target = f.Collection
+			found = true
+			break
+		}
+	}
+	if !found {
+		return res, errFieldNotFound
+	}
+	return m.replaceFieldFromEdges(template, fieldKey, target)
+}
+
+// replaceFieldFromEdges is the per-record mirror pass for one api field. It builds
+// the desired to-ids per host guid from the relation edges (dropping ids whose
+// target no longer exists), then walks every record and rewrites the field only
+// where its current value differs from the desired set.
+func (m *Manager) replaceFieldFromEdges(template, fieldKey, target string) (ImportRelationResult, error) {
+	var res ImportRelationResult
+	pairs, err := m.relations.RelationEdges(template, target)
+	if err != nil {
+		return res, err
+	}
+	desired := map[string]map[string]bool{}
+	for _, p := range pairs {
+		if p.From == "" || p.To == "" {
+			continue
+		}
+		if m.resolveRecord != nil {
+			if _, ok := m.resolveRecord(target, p.To); !ok {
+				res.MissingTo++
+				continue
+			}
+		}
+		set := desired[p.From]
+		if set == nil {
+			set = map[string]bool{}
+			desired[p.From] = set
+		}
+		set[p.To] = true
+	}
+
+	files, err := m.storage.ListForms(template)
+	if err != nil {
+		return res, err
+	}
+	for _, df := range files {
+		form := m.storage.LoadForm(template, df)
+		if form == nil || form.Meta.ID == "" {
+			continue
+		}
+		want := desired[form.Meta.ID]
+		have := map[string]bool{}
+		for _, id := range refIDs(form.Data[fieldKey]) {
+			have[id] = true
+		}
+		if sameStringSet(want, have) {
+			continue
+		}
+		ids := make([]string, 0, len(want))
+		for id := range want {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		anyIDs := make([]any, len(ids))
+		for i, s := range ids {
+			anyIDs[i] = s
+		}
+		values := form.Data
+		if values == nil {
+			values = map[string]any{}
+		}
+		values[fieldKey] = anyIDs
+		if _, err := m.SaveValues(template, SavePayload{
+			Datafile: df,
+			Values:   values,
+			Meta:     form.Meta,
+		}); err != nil {
+			return res, err
+		}
+		res.Records++
+		res.Linked += len(ids)
+	}
+	return res, nil
+}
+
+// sameStringSet treats nil as empty.
+func sameStringSet(a, b map[string]bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k := range a {
+		if !b[k] {
+			return false
+		}
+	}
+	return true
+}
+
+// SyncRelationsForTemplate back-fills every api field on the template from the
+// relation edges that already exist for it, summing the per-field results. This is
+// the one-click "Synchronize from relations" utility: each api field's value is
+// brought into agreement with the edges (e.g. an inverse field added after the
+// links). Idempotent. A field whose edges are empty contributes nothing.
+func (m *Manager) SyncRelationsForTemplate(template string) (ImportRelationResult, error) {
+	var total ImportRelationResult
+	if !m.relationSyncEnabled() {
+		return total, errRelationSyncDisabled
+	}
+	if m.relations == nil {
+		return total, errRelationReaderMissing
+	}
+	tpl, err := m.templates.LoadTemplate(template)
+	if err != nil {
+		return total, err
+	}
+	for _, f := range tpl.Fields {
+		if f.Type != "api" {
+			continue
+		}
+		res, err := m.SyncRelationsToField(template, f.Key)
+		if err != nil {
+			return total, err
+		}
+		total.Records += res.Records
+		total.Linked += res.Linked
+		total.MissingFrom += res.MissingFrom
+		total.MissingTo += res.MissingTo
+	}
+	return total, nil
+}
+
 // RelationField is one api-field a relations import can fill: its key, label,
 // and target collection. Backend-sourced so the dialog's relation picker has one
 // source of truth, mirroring how the records pass gets MappableFields from the

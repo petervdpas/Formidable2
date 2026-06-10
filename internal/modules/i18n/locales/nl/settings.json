@@ -8,6 +8,8 @@
   "config.enable_full_text_search": "Volledige-tekst zoeken",
   "config.graph_loop_rows": "Lus-rijen in grafiek",
   "config.graph_loop_rows_hint": "Toon lus-rijen als knopen in de grafiek. Zwaarder bij grote sjablonen.",
+  "config.enable_relation_sync": "Velden synchroniseren vanuit relaties",
+  "config.enable_relation_sync_hint": "Schakelt de Hulpmiddelen-actie in die api-veldwaarden overschrijft vanuit de relatiegraaf (verwijderde koppelingen verdwijnen ook). Destructief: standaard uit.",
   "config.history.enabled": "Geschiedenis",
   "config.history.max_size": "Max. Geschiedenis Grootte",
   "config.history.persist": "Bewaar Geschiedenis",

@@ -8,6 +8,8 @@
   "config.enable_full_text_search": "Full-Text Search",
   "config.graph_loop_rows": "Loop rows in graph",
   "config.graph_loop_rows_hint": "Show loop-field rows as graph nodes. Heavier on large templates.",
+  "config.enable_relation_sync": "Synchronize fields from relations",
+  "config.enable_relation_sync_hint": "Enables the Utilities action that overwrites api-field values from the relation graph (removed links disappear too). Destructive: off by default.",
   "config.history.enabled": "History",
   "config.history.max_size": "History Max Size",
   "config.history.persist": "Persist History",

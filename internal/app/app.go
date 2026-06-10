@@ -510,6 +510,10 @@ func New(d Deps) (*App, error) {
 	// and REST-follow reflect them. relationM exists now, so wire the syncer here.
 	formM.SetReferenceEdgeSyncer(referenceEdgeSyncer{rel: relationM})
 
+	// "Sync from relations" reads existing edges to back-fill an api field whose
+	// value lags behind them (e.g. an inverse field added after the links).
+	formM.SetRelationReader(formRelationReader{rel: relationM})
+
 	// The relations pass of the importer resolves a guid to its datafile through
 	// the dataprovider, so form imports nothing extra.
 	formM.SetRecordResolver(func(tpl, guid string) (string, bool) {

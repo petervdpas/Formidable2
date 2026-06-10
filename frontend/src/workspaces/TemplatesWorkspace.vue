@@ -25,7 +25,9 @@ import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formi
 import { Service as PdfSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/pdf";
 import { Service as IndexSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/index";
 import { Service as RelationSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/relation";
+import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import TemplateRelationsTab from "../components/TemplateRelationsTab.vue";
+import { useConfig } from "../composables/useConfig";
 import { backendErrMessage } from "../utils/backendError";
 import {
   FormSection,
@@ -368,6 +370,32 @@ async function reconcileRelations() {
   }
 }
 
+// ── Synchronize from relations (Utilities menu) ─────────────────────────
+// Mirrors every api field on the selected template FROM the relation edges:
+// each record's value is replaced with its field's edges, so removed links
+// disappear too. Destructive (edges overwrite the field), so it is gated behind
+// the enable_relation_sync config toggle and only shown when that is on.
+const { config: appConfig } = useConfig();
+const relationSyncEnabled = computed(() => !!appConfig.value?.enable_relation_sync);
+const syncingRelations = ref(false);
+async function syncRelationsFromGraph() {
+  const fn = selectedFilename.value;
+  if (!fn || syncingRelations.value) return;
+  syncingRelations.value = true;
+  try {
+    const res = await FormSvc.SyncRelationsForTemplate(fn);
+    if (!res || (res.records === 0 && res.linked === 0)) {
+      toast.info("workspace.templates.relations.sync.empty");
+    } else {
+      toast.success("workspace.templates.relations.sync.done", [String(res.records), String(res.linked)]);
+    }
+  } catch (e) {
+    toast.error("workspace.templates.relations.sync.error", [backendErrMessage(e)]);
+  } finally {
+    syncingRelations.value = false;
+  }
+}
+
 
 // ── Formulas tab (extracted into TemplateFormulasTab) ───────────────
 
@@ -492,6 +520,14 @@ setTopbarMenu(() => [
         disabled: reconciling.value,
         onClick: reconcileRelations,
       },
+      ...(relationSyncEnabled.value
+        ? [{
+            id: "syncRelations",
+            labelKey: "menu.utilities.sync_relations",
+            disabled: !selectedFilename.value || syncingRelations.value,
+            onClick: syncRelationsFromGraph,
+          }]
+        : []),
       { type: "separator", id: "utils-sep-pdf" },
       {
         id: "injectPdfFrontmatter",

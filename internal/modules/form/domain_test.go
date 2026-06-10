@@ -129,11 +129,13 @@ func (s *fakeStorage) DedupFieldValue(t, df, fieldKey, _ string) (any, error) {
 
 type fakeConfig struct {
 	loopCollapsed bool
+	relationSync  bool
 }
 
 func (c *fakeConfig) FormDefaults() ConfigDefaults {
 	return ConfigDefaults{
-		LoopStateCollapsed: c.loopCollapsed,
+		LoopStateCollapsed:  c.loopCollapsed,
+		RelationSyncEnabled: c.relationSync,
 	}
 }
 

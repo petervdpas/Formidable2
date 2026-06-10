@@ -5,6 +5,7 @@ import (
 
 	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
+	"github.com/petervdpas/formidable2/internal/modules/form"
 	"github.com/petervdpas/formidable2/internal/modules/relation"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -20,6 +21,30 @@ func (c relationCatalog) IsCollection(template string) bool {
 func (c relationCatalog) RecordExists(template, id string) bool {
 	_, ok, err := c.dp.ResolveCollectionByID(context.Background(), template, id)
 	return err == nil && ok
+}
+
+// formRelationReader adapts relationM onto form.RelationReader so the form module
+// can back-fill an api field from existing edges without importing relation. It
+// returns the edges of the host's relation whose target is the field's collection
+// as {from, to} pairs; the relation store already mirrors inverse edges, so this
+// reads correctly whichever side authored the link.
+type formRelationReader struct{ rel *relation.Manager }
+
+func (r formRelationReader) RelationEdges(hostTemplate, targetCollection string) ([]form.EdgePair, error) {
+	rels, err := r.rel.GetRelations(hostTemplate)
+	if err != nil {
+		return nil, err
+	}
+	pairs := []form.EdgePair{}
+	for _, rel := range rels {
+		if rel.To != targetCollection {
+			continue
+		}
+		for _, e := range rel.Edges {
+			pairs = append(pairs, form.EdgePair{From: e.From, To: e.To})
+		}
+	}
+	return pairs, nil
 }
 
 // apiRelations adapts relationM onto api.Relations so the api module exposes

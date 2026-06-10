@@ -36,6 +36,7 @@ func defaultConfig() Config {
 		LoggingEnabled:       false,
 		EnablePlugins:        false,
 		EnableFullTextSearch: false,
+		EnableRelationSync:   false,
 		GraphLoopRows:        false,
 		UpdateCheck:          false,
 		ContextMode:          "template",

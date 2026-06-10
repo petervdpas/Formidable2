@@ -53,6 +53,14 @@ function patchButtons(partial: Record<string, unknown>) {
       :on-label="t('common.on')"
       :off-label="t('common.off')"
     />
+    <FormSwitchRow
+      :label="t('config.enable_relation_sync')"
+      :description="t('config.enable_relation_sync_hint')"
+      :model-value="cfg.enable_relation_sync"
+      @update:model-value="(v) => update({ enable_relation_sync: v })"
+      :on-label="t('common.enabled')"
+      :off-label="t('common.disabled')"
+    />
     <FormRow :label="t('config.io_collection_only')">
       <SwitchField
         :model-value="cfg.io_collection_only"

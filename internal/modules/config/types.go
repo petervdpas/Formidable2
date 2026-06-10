@@ -23,6 +23,7 @@ type Config struct {
 	LoggingEnabled       bool          `json:"logging_enabled"`
 	EnablePlugins        bool          `json:"enable_plugins"`
 	EnableFullTextSearch bool          `json:"enable_full_text_search"`
+	EnableRelationSync   bool          `json:"enable_relation_sync"`
 	GraphLoopRows        bool          `json:"graph_loop_rows"`
 	UpdateCheck          bool          `json:"update_check"`
 	ContextMode          string        `json:"context_mode"`

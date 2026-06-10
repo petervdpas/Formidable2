@@ -11,7 +11,8 @@ import (
 // resolver over the fake storage, and a capturing edge syncer.
 func importHarness(t *testing.T) (*Manager, *fakeStorage, *fakeEdgeSyncer) {
 	t.Helper()
-	m, tpls, store, _ := newTestManager()
+	m, tpls, store, cfg := newTestManager()
+	cfg.relationSync = true // the destructive sync is config-gated; enable for tests
 	tpls.byName["applicatie.yaml"] = &template.Template{
 		Filename: "applicatie.yaml",
 		Fields: []template.Field{
@@ -26,6 +27,8 @@ func importHarness(t *testing.T) (*Manager, *fakeStorage, *fakeEdgeSyncer) {
 		"app-1.meta.json": {Meta: storage.FormMeta{ID: "app-1"}, Data: map[string]any{"id": "app-1", "naam": "A1"}},
 		"app-2.meta.json": {Meta: storage.FormMeta{ID: "app-2"}, Data: map[string]any{"id": "app-2", "naam": "A2"}},
 	}
+	// The replace sync walks every record via ListForms.
+	store.listed["applicatie.yaml"] = []string{"app-1.meta.json", "app-2.meta.json"}
 	// Target records (functions) that exist.
 	fns := map[string]string{"fn-1": "fn-1.meta.json", "fn-2": "fn-2.meta.json"}
 
@@ -202,5 +205,120 @@ func TestImportRelationEdges_ResolverNotWired(t *testing.T) {
 	}
 	if _, err := m.ImportRelationEdges("t.yaml", "ref", []EdgePair{{From: "a", To: "b"}}); err == nil {
 		t.Error("expected error when resolver not wired")
+	}
+}
+
+// fakeRelationReader returns canned edges for a host->target pair.
+type fakeRelationReader struct {
+	edges map[string][]EdgePair // keyed "host|target"
+	err   error
+}
+
+func (r *fakeRelationReader) RelationEdges(host, target string) ([]EdgePair, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.edges[host+"|"+target], nil
+}
+
+func TestSyncRelationsToField_BackfillsFromExistingEdges(t *testing.T) {
+	m, store, sync := importHarness(t)
+	m.SetRelationReader(&fakeRelationReader{edges: map[string][]EdgePair{
+		"applicatie.yaml|applicatie-functie.yaml": {
+			{From: "app-1", To: "fn-1"},
+			{From: "app-1", To: "fn-2"},
+			{From: "app-2", To: "fn-1"},
+		},
+	}})
+
+	res, err := m.SyncRelationsToField("applicatie.yaml", "applicatiefuncties")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Records != 2 || res.Linked != 3 {
+		t.Fatalf("want Records=2 Linked=3, got %+v", res)
+	}
+	ids := store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"].([]any)
+	if len(ids) != 2 {
+		t.Fatalf("app-1 should be back-filled with 2 ids, got %v", ids)
+	}
+	// Back-fill saves, so the edge syncer ran for each touched record.
+	if len(sync.calls) != 2 {
+		t.Errorf("expected 2 save-time syncs, got %d", len(sync.calls))
+	}
+}
+
+func TestSyncRelationsToField_ReaderNotWired(t *testing.T) {
+	m, _, _ := importHarness(t)
+	if _, err := m.SyncRelationsToField("applicatie.yaml", "applicatiefuncties"); err == nil {
+		t.Error("expected error when relation reader not wired")
+	}
+}
+
+func TestSyncRelationsToField_NonAPIFieldRejected(t *testing.T) {
+	m, _, _ := importHarness(t)
+	m.SetRelationReader(&fakeRelationReader{})
+	if _, err := m.SyncRelationsToField("applicatie.yaml", "naam"); err == nil {
+		t.Error("expected error syncing a non-api field")
+	}
+}
+
+func TestSyncRelationsForTemplate_AggregatesAllAPIFields(t *testing.T) {
+	m, _, _ := importHarness(t)
+	m.SetRelationReader(&fakeRelationReader{edges: map[string][]EdgePair{
+		"applicatie.yaml|applicatie-functie.yaml": {
+			{From: "app-1", To: "fn-1"},
+			{From: "app-2", To: "fn-2"},
+		},
+	}})
+
+	res, err := m.SyncRelationsForTemplate("applicatie.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Records != 2 || res.Linked != 2 {
+		t.Fatalf("want Records=2 Linked=2, got %+v", res)
+	}
+}
+
+func TestSyncRelationsToField_ConfigGateBlocks(t *testing.T) {
+	m, _, _ := importHarness(t)
+	m.config.(*fakeConfig).relationSync = false // disable the gate
+	m.SetRelationReader(&fakeRelationReader{})
+	if _, err := m.SyncRelationsToField("applicatie.yaml", "applicatiefuncties"); err == nil {
+		t.Error("expected error when relation sync is disabled by config")
+	}
+}
+
+func TestSyncRelationsToField_ReplaceClearsRemovedLink(t *testing.T) {
+	m, store, _ := importHarness(t)
+	// app-1 already holds fn-1 + fn-2 in its value, but the edges now only carry
+	// fn-1 (fn-2's link was removed elsewhere). Replace must drop fn-2.
+	store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"] = []any{"fn-1", "fn-2"}
+	m.SetRelationReader(&fakeRelationReader{edges: map[string][]EdgePair{
+		"applicatie.yaml|applicatie-functie.yaml": {{From: "app-1", To: "fn-1"}},
+	}})
+
+	if _, err := m.SyncRelationsToField("applicatie.yaml", "applicatiefuncties"); err != nil {
+		t.Fatal(err)
+	}
+	ids := store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"].([]any)
+	if len(ids) != 1 || ids[0] != "fn-1" {
+		t.Fatalf("expected [fn-1] after replace, got %v", ids)
+	}
+}
+
+func TestSyncRelationsToField_ReplaceClearsRecordWithNoEdges(t *testing.T) {
+	m, store, _ := importHarness(t)
+	store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"] = []any{"fn-1"}
+	// No edges at all: every record's field must end empty.
+	m.SetRelationReader(&fakeRelationReader{edges: map[string][]EdgePair{}})
+
+	if _, err := m.SyncRelationsToField("applicatie.yaml", "applicatiefuncties"); err != nil {
+		t.Fatal(err)
+	}
+	ids, _ := store.forms["applicatie.yaml"]["app-1.meta.json"].Data["applicatiefuncties"].([]any)
+	if len(ids) != 0 {
+		t.Fatalf("expected empty after replace with no edges, got %v", ids)
 	}
 }

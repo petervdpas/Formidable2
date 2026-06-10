@@ -257,6 +257,9 @@
   "workspace.templates.relations.reconcile.done": "Relaties hersteld: {0} tegenhanger(s) opnieuw aangemaakt, {1} edge(s) hersteld, {2} conflict(en).",
   "workspace.templates.relations.reconcile.conflicts": "{0} relatieconflict(en) vereisen aandacht (cardinaliteiten komen niet overeen).",
   "workspace.templates.relations.reconcile.error": "Herstellen mislukt: {0}",
+  "workspace.templates.relations.sync.done": "Gesynchroniseerd vanuit relaties: {0} record(s), {1} koppeling(en).",
+  "workspace.templates.relations.sync.empty": "Geen relatie-edges om vanuit te synchroniseren.",
+  "workspace.templates.relations.sync.error": "Synchroniseren mislukt: {0}",
   "workspace.templates.sidebar_title": "Sjablonen",
   "workspace.templates.unselected": "Kies een sjabloon uit de zijbalk,<br>of maak er een aan."
 }

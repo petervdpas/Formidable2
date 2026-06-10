@@ -22,6 +22,7 @@ func (a *configAdapter) FormDefaults() form.ConfigDefaults {
 		return form.ConfigDefaults{}
 	}
 	return form.ConfigDefaults{
-		LoopStateCollapsed: c.LoopStateCollapsed,
+		LoopStateCollapsed:  c.LoopStateCollapsed,
+		RelationSyncEnabled: c.EnableRelationSync,
 	}
 }
