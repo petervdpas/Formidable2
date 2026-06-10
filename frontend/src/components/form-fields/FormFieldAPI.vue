@@ -230,8 +230,28 @@ async function goTo(id: string) {
   await formidableLink.follow(res.href);
 }
 
+// Collapsed-card title: the backend derives it from the FIRST mapped column
+// (author-ordered), with the target's own title then the bare id as fallbacks.
+// Cached per id; loaded lazily as cards appear. While pending, show the id.
+const titles = ref<Record<string, string>>({});
+
+async function loadTitles() {
+  if (!collection.value) return;
+  for (const id of ids.value) {
+    if (titles.value[id]) continue;
+    try {
+      const res = await DataproviderSvc.APIFieldTitle(collection.value, id, mapKeys.value);
+      if (!res.kind) titles.value[id] = res.title || id;
+    } catch {
+      /* volatile target: fall back to the id until it resolves */
+    }
+  }
+}
+
+watch([ids, collection, mapKeys], () => void loadTitles(), { immediate: true });
+
 function titleFor(id: string): string {
-  return items.value[id]?.title || id;
+  return titles.value[id] || items.value[id]?.title || id;
 }
 function rowLabel(idx: number, key: string): string {
   return props.field.map?.[idx]?.label?.trim() || key;

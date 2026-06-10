@@ -59,6 +59,30 @@ export class APIFieldRowResult {
 }
 
 /**
+ * APIFieldTitleResult is the Wails response for APIFieldTitle. Kind is "" on
+ * success (Title set) or a stable error string (see apiFieldErrorKind).
+ */
+export class APIFieldTitleResult {
+    "title"?: string;
+    "kind"?: string;
+    "message"?: string;
+
+    /** Creates a new APIFieldTitleResult instance. */
+    constructor($$source: Partial<APIFieldTitleResult> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new APIFieldTitleResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): APIFieldTitleResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new APIFieldTitleResult($$parsedSource as Partial<APIFieldTitleResult>);
+    }
+}
+
+/**
  * CollectionItem is one row in a collection listing: identity, title,
  * tags, and ready-to-use links to the JSON resource and HTML page.
  */

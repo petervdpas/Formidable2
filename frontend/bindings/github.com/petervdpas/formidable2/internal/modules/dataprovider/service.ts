@@ -18,12 +18,23 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * APIFieldTitle returns the collapsed-card title for a referenced record: the
+ * first mapped column's value, with the collection title and guid as fallbacks.
+ * columnKeys are the api field's map keys in author order.
+ */
+export function APIFieldTitle(sourceTemplate: string, guid: string, columnKeys: string[]): $CancellablePromise<$models.APIFieldTitleResult> {
+    return $Call.ByID(648809365, sourceTemplate, guid, columnKeys).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * FetchAPIFieldRow projects one source-collection record into a flat row
  * keyed by columnKeys. On error Row is nil and Kind is non-empty.
  */
 export function FetchAPIFieldRow(sourceTemplate: string, guid: string, columnKeys: string[]): $CancellablePromise<$models.APIFieldRowResult> {
     return $Call.ByID(213094529, sourceTemplate, guid, columnKeys).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -34,7 +45,7 @@ export function FetchAPIFieldRow(sourceTemplate: string, guid: string, columnKey
  */
 export function ListCollectionItems(template: string): $CancellablePromise<$models.CollectionItem[]> {
     return $Call.ByID(299093919, template).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -44,7 +55,7 @@ export function ListCollectionItems(template: string): $CancellablePromise<$mode
  */
 export function ListCollectionTemplates(): $CancellablePromise<$models.TemplateSummary[]> {
     return $Call.ByID(1984870392).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -55,14 +66,15 @@ export function ListCollectionTemplates(): $CancellablePromise<$models.TemplateS
  */
 export function ResolveAPIFieldLink(sourceTemplate: string, guid: string): $CancellablePromise<$models.APIFieldLinkResult> {
     return $Call.ByID(2200325791, sourceTemplate, guid).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.APIFieldRowResult.createFrom;
-const $$createType1 = $models.CollectionItem.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.TemplateSummary.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.APIFieldLinkResult.createFrom;
+const $$createType0 = $models.APIFieldTitleResult.createFrom;
+const $$createType1 = $models.APIFieldRowResult.createFrom;
+const $$createType2 = $models.CollectionItem.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.TemplateSummary.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.APIFieldLinkResult.createFrom;

@@ -9,6 +9,7 @@ export {
 export {
     APIFieldLinkResult,
     APIFieldRowResult,
+    APIFieldTitleResult,
     CollectionItem,
     TemplateSummary
 } from "./models.js";

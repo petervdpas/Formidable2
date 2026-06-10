@@ -62,6 +62,25 @@ func (s *Service) FetchAPIFieldRow(sourceTemplate, guid string, columnKeys []str
 	return APIFieldRowResult{Kind: apiFieldErrorKind(err), Message: err.Error()}
 }
 
+// APIFieldTitleResult is the Wails response for APIFieldTitle. Kind is "" on
+// success (Title set) or a stable error string (see apiFieldErrorKind).
+type APIFieldTitleResult struct {
+	Title   string `json:"title,omitempty"`
+	Kind    string `json:"kind,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// APIFieldTitle returns the collapsed-card title for a referenced record: the
+// first mapped column's value, with the collection title and guid as fallbacks.
+// columnKeys are the api field's map keys in author order.
+func (s *Service) APIFieldTitle(sourceTemplate, guid string, columnKeys []string) APIFieldTitleResult {
+	title, err := s.m.APIFieldTitle(context.Background(), sourceTemplate, guid, columnKeys)
+	if err == nil {
+		return APIFieldTitleResult{Title: title}
+	}
+	return APIFieldTitleResult{Kind: apiFieldErrorKind(err), Message: err.Error()}
+}
+
 // APIFieldLinkResult is the Wails response for ResolveAPIFieldLink. Kind is ""
 // on success (Href set) or a stable error string (see apiFieldErrorKind).
 type APIFieldLinkResult struct {

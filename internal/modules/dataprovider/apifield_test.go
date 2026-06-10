@@ -111,6 +111,117 @@ func TestFetchAPIFieldRow_NonScalarPassesThroughNatively(t *testing.T) {
 	}
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// APIFieldTitle - collapsed-card title from the FIRST mapped column, with
+// the collection title and bare guid as fallbacks.
+// ─────────────────────────────────────────────────────────────────────
+
+func TestAPIFieldTitle_UsesFirstColumnValue(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "dm.yaml", "x.meta.json", "g-1")
+	idx.forms["dm.yaml"][0].Title = "collection-title"
+	sto.forms["dm.yaml/x.meta.json"] = &storage.Form{
+		Data: map[string]any{"type": "inkomend", "title": "Some Title"},
+	}
+
+	// First mapped column is "type" -> its value wins over the collection title.
+	got, err := m.APIFieldTitle(context.Background(), "dm.yaml", "g-1", []string{"type", "title"})
+	if err != nil {
+		t.Fatalf("APIFieldTitle: %v", err)
+	}
+	if got != "inkomend" {
+		t.Errorf("title = %q, want %q", got, "inkomend")
+	}
+}
+
+func TestAPIFieldTitle_EmptyFirstColumnFallsBackToCollectionTitle(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "dm.yaml", "x.meta.json", "g-1")
+	idx.forms["dm.yaml"][0].Title = "collection-title"
+	sto.forms["dm.yaml/x.meta.json"] = &storage.Form{
+		Data: map[string]any{"type": "", "title": "Some Title"},
+	}
+
+	got, err := m.APIFieldTitle(context.Background(), "dm.yaml", "g-1", []string{"type"})
+	if err != nil {
+		t.Fatalf("APIFieldTitle: %v", err)
+	}
+	if got != "collection-title" {
+		t.Errorf("title = %q, want collection-title fallback", got)
+	}
+}
+
+func TestAPIFieldTitle_NoColumnsFallsBackToCollectionTitle(t *testing.T) {
+	m, idx, _ := newAPIFieldWorld()
+	seedCollection(idx, "dm.yaml", "x.meta.json", "g-1")
+	idx.forms["dm.yaml"][0].Title = "collection-title"
+
+	got, err := m.APIFieldTitle(context.Background(), "dm.yaml", "g-1", nil)
+	if err != nil {
+		t.Fatalf("APIFieldTitle: %v", err)
+	}
+	if got != "collection-title" {
+		t.Errorf("title = %q, want collection-title", got)
+	}
+}
+
+func TestAPIFieldTitle_NestedShapeFallsBackToCollectionTitle(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "dm.yaml", "x.meta.json", "g-1")
+	idx.forms["dm.yaml"][0].Title = "collection-title"
+	sto.forms["dm.yaml/x.meta.json"] = &storage.Form{
+		Data: map[string]any{"rows": []any{map[string]any{"a": 1}}},
+	}
+
+	got, err := m.APIFieldTitle(context.Background(), "dm.yaml", "g-1", []string{"rows"})
+	if err != nil {
+		t.Fatalf("APIFieldTitle: %v", err)
+	}
+	if got != "collection-title" {
+		t.Errorf("title = %q, want collection-title for nested shape", got)
+	}
+}
+
+func TestAPIFieldTitle_JoinsScalarList(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "dm.yaml", "x.meta.json", "g-1")
+	sto.forms["dm.yaml/x.meta.json"] = &storage.Form{
+		Data: map[string]any{"tags": []any{"a", "b", "c"}},
+	}
+
+	got, err := m.APIFieldTitle(context.Background(), "dm.yaml", "g-1", []string{"tags"})
+	if err != nil {
+		t.Fatalf("APIFieldTitle: %v", err)
+	}
+	if got != "a, b, c" {
+		t.Errorf("title = %q, want \"a, b, c\"", got)
+	}
+}
+
+func TestAPIFieldTitle_NoTitleAnywhereFallsBackToGuid(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "dm.yaml", "x.meta.json", "g-1")
+	sto.forms["dm.yaml/x.meta.json"] = &storage.Form{Data: map[string]any{}}
+
+	got, err := m.APIFieldTitle(context.Background(), "dm.yaml", "g-1", []string{"type"})
+	if err != nil {
+		t.Fatalf("APIFieldTitle: %v", err)
+	}
+	if got != "g-1" {
+		t.Errorf("title = %q, want guid fallback g-1", got)
+	}
+}
+
+func TestAPIFieldTitle_GuidNotFound(t *testing.T) {
+	m, idx, _ := newAPIFieldWorld()
+	seedCollection(idx, "dm.yaml", "x.meta.json", "g-1")
+
+	_, err := m.APIFieldTitle(context.Background(), "dm.yaml", "missing", []string{"type"})
+	if !errors.Is(err, ErrAPIFieldGuidNotFound) {
+		t.Errorf("err = %v, want ErrAPIFieldGuidNotFound", err)
+	}
+}
+
 func TestResolveAPIFieldLink_BuildsFormidableHref(t *testing.T) {
 	m, idx, _ := newAPIFieldWorld()
 	seedCollection(idx, "people.yaml", "alice.meta.json", "g-1")
