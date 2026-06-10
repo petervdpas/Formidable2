@@ -57,6 +57,22 @@ type CreationObserverFunc func(filename string) error
 
 func (f CreationObserverFunc) OnTemplateCreated(name string) error { return f(name) }
 
+// UpdateObserver fires after SaveTemplate overwrites an EXISTING template,
+// receiving the previous and new template. It lets listeners react to
+// structural changes (e.g. realign record data when a table field's columns
+// change). Not fired on creation (there is no previous). Failures are logged,
+// not propagated.
+type UpdateObserver interface {
+	OnTemplateUpdated(filename string, old, updated *Template) error
+}
+
+// UpdateObserverFunc adapts a closure to UpdateObserver.
+type UpdateObserverFunc func(filename string, old, updated *Template) error
+
+func (f UpdateObserverFunc) OnTemplateUpdated(name string, old, updated *Template) error {
+	return f(name, old, updated)
+}
+
 // AuthorReader yields the active profile's identity to stamp empty Author fields; nil disables auto-fill.
 type AuthorReader interface {
 	Author() (name, email string)
@@ -77,6 +93,7 @@ type Manager struct {
 	indexer      Indexer
 	observers    []Observer
 	creationObs  []CreationObserver
+	updateObs    []UpdateObserver
 	author       AuthorReader
 
 	loadMu  keymu.Map
@@ -112,6 +129,14 @@ func (m *Manager) AddCreationObserver(o CreationObserver) {
 		return
 	}
 	m.creationObs = append(m.creationObs, o)
+}
+
+// AddUpdateObserver registers a listener fired after an existing template is overwritten; failures logged not propagated.
+func (m *Manager) AddUpdateObserver(o UpdateObserver) {
+	if o == nil {
+		return
+	}
+	m.updateObs = append(m.updateObs, o)
 }
 
 // SetAuthorReader installs the AuthorReader SaveTemplate uses to auto-fill missing Author fields (nil disables).
@@ -249,6 +274,12 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 		// Coerce nil to empty so empty creation drafts pass Validate's nil-Fields guard.
 		t.Fields = []Field{}
 	}
+	// Snapshot the pre-save template (if any) so update observers can compare
+	// structure (e.g. table column changes) against the incoming version.
+	var oldTpl *Template
+	if existing, err := m.LoadTemplate(name); err == nil {
+		oldTpl = existing
+	}
 	// Stamp author only when missing, so a template keeps its original author across sync round-trips.
 	if m.author != nil {
 		if t.AuthorName == "" || t.AuthorEmail == "" {
@@ -295,6 +326,12 @@ func (m *Manager) SaveTemplate(name string, t *Template) error {
 		for _, o := range m.creationObs {
 			if err := o.OnTemplateCreated(name); err != nil {
 				m.log.Warn("template creation observer failed", "name", name, "err", err)
+			}
+		}
+	} else if oldTpl != nil {
+		for _, o := range m.updateObs {
+			if err := o.OnTemplateUpdated(name, oldTpl, t); err != nil {
+				m.log.Warn("template update observer failed", "name", name, "err", err)
 			}
 		}
 	}

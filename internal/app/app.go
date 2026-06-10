@@ -446,6 +446,10 @@ func New(d Deps) (*App, error) {
 	tplM.AddCreationObserver(template.CreationObserverFunc(func(filename string) error {
 		return cfgM.AutoEnableNewTemplate(filename)
 	}))
+	// Realign record data when a table field's columns are reordered, inserted,
+	// or removed: cells are stored positionally, so a column change would leave
+	// existing values under the wrong header without this remap.
+	tplM.AddUpdateObserver(tableColumnMigrator{sto: stoM})
 
 	// First-boot reconcile picks up disk changes from while the app was
 	// off (gigot pull, manual edits). Best-effort: the index is derived,
