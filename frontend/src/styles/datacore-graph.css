@@ -42,6 +42,39 @@
   color: var(--color-text-muted);
 }
 
+.datacore-graph__filters {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.datacore-graph__filters-label {
+  color: var(--color-text-muted);
+}
+
+.datacore-tplchip {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid #9b6bd4;
+  color: #9b6bd4;
+  background: transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.datacore-tplchip:hover {
+  background: rgba(155, 107, 212, 0.12);
+}
+.datacore-tplchip.is-excluded {
+  border-color: var(--color-border, #ccc);
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
 .datacore-dot {
   display: inline-block;
   width: 0.7rem;

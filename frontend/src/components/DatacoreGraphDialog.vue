@@ -38,6 +38,9 @@ const level = ref(2); // 1 = record, 2 = fields, 3 = rows
 // the structural view, which still drops those value leaves (see dropScalarValues).
 const relationsOnly = ref(true);
 const isolatedId = ref<string | null>(null);
+// Origin templates the user has toggled off: their record nodes (and anything
+// left dangling) are hidden. Never includes the focus template. Reset per record.
+const excludedTemplates = ref<Set<string>>(new Set());
 // The record the graph is rooted at (the one you opened); shown in a distinct
 // colour so it stands out from the records it relates to.
 const rootNodeId = ref<string | null>(null);
@@ -73,6 +76,65 @@ const REL_PREFIX = "rel:";
 const ID_SEP = "\u001f";
 function templateOf(id: string): string {
   return id.split(ID_SEP)[0];
+}
+
+// templateChips are the OTHER templates (not the focus) whose records appear in
+// the graph, each with a display label (the GraphPrefix the labels already show,
+// else the filename stem). These drive the exclude toggles.
+function templateLabelFromNode(n: GraphNode): string {
+  const i = n.label.indexOf(": ");
+  if (i > 0) return n.label.slice(0, i);
+  return templateOf(n.id).replace(/\.yaml$/, "");
+}
+const templateChips = computed<{ value: string; label: string }[]>(() => {
+  const focusTpl = rootNodeId.value ? templateOf(rootNodeId.value) : "";
+  const byTpl = new Map<string, string>();
+  for (const n of nodes.value) {
+    if (n.kind !== "root") continue; // records only
+    const tpl = templateOf(n.id);
+    if (!tpl || tpl === focusTpl) continue; // never offer the focus template
+    if (!byTpl.has(tpl)) byTpl.set(tpl, templateLabelFromNode(n));
+  }
+  return [...byTpl.entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+});
+
+function toggleTemplate(tpl: string): void {
+  const next = new Set(excludedTemplates.value);
+  if (next.has(tpl)) next.delete(tpl);
+  else next.add(tpl);
+  excludedTemplates.value = next;
+}
+
+// reachableFrom returns the node ids connected to `start` over the (undirected)
+// edge set, so pruning an excluded record also drops its now-orphaned children.
+function reachableFrom(
+  start: string,
+  es: { source: string; target: string }[],
+): Set<string> {
+  const adj = new Map<string, string[]>();
+  const link = (a: string, b: string) => {
+    const list = adj.get(a);
+    if (list) list.push(b);
+    else adj.set(a, [b]);
+  };
+  for (const e of es) {
+    link(e.source, e.target);
+    link(e.target, e.source);
+  }
+  const seen = new Set<string>([start]);
+  const stack = [start];
+  while (stack.length) {
+    const cur = stack.pop() as string;
+    for (const nb of adj.get(cur) ?? []) {
+      if (!seen.has(nb)) {
+        seen.add(nb);
+        stack.push(nb);
+      }
+    }
+  }
+  return seen;
 }
 
 // prettyField turns the internal relation key "rel:fcdm-entities.yaml" into a
@@ -267,8 +329,27 @@ const viewGraph = computed<{
       table: isRecord ? undefined : info.tables.get(n.id),
     };
   });
-  const outEdges = es.map((e) => ({ source: e.source, target: e.target, field: prettyField(e.field) }));
-  return { nodes: out, edges: outEdges };
+  let outNodes = out;
+  let outEdges = es.map((e) => ({ source: e.source, target: e.target, field: prettyField(e.field) }));
+
+  // Template exclusion: drop record nodes from toggled-off templates (never the
+  // focus), then prune anything no longer reachable from the focus so orphaned
+  // field/row children of a removed record disappear too.
+  if (excludedTemplates.value.size > 0 && focus) {
+    const excludedIds = new Set(
+      outNodes
+        .filter((n) => n.id !== focus && excludedTemplates.value.has(templateOf(n.id)))
+        .map((n) => n.id),
+    );
+    if (excludedIds.size > 0) {
+      outNodes = outNodes.filter((n) => !excludedIds.has(n.id));
+      outEdges = outEdges.filter((e) => !excludedIds.has(e.source) && !excludedIds.has(e.target));
+      const keep = reachableFrom(focus, outEdges);
+      outNodes = outNodes.filter((n) => keep.has(n.id));
+      outEdges = outEdges.filter((e) => keep.has(e.source) && keep.has(e.target));
+    }
+  }
+  return { nodes: outNodes, edges: outEdges };
 });
 
 watch(relationsOnly, () => {
@@ -305,6 +386,7 @@ async function loadRoot() {
   edges.value = [];
   expanded.value = new Set();
   isolatedId.value = null;
+  excludedTemplates.value = new Set();
   rootNodeId.value = null;
   closeInspector();
   void loadHeaders();
@@ -506,6 +588,21 @@ watch(
           <i class="datacore-dot datacore-dot--row"></i>{{ t('datacore.legend_row') }}
           <i class="datacore-dot datacore-dot--field"></i>{{ t('datacore.legend_field') }}
         </span>
+      </div>
+
+      <!-- Per-template exclude toggles: hide records (and their dangling
+           children) from related templates. Only the focus template is fixed. -->
+      <div v-if="templateChips.length" class="datacore-graph__filters">
+        <span class="datacore-graph__filters-label">{{ t('datacore.filter_templates') }}</span>
+        <button
+          v-for="c in templateChips"
+          :key="c.value"
+          type="button"
+          class="datacore-tplchip"
+          :class="{ 'is-excluded': excludedTemplates.has(c.value) }"
+          :title="excludedTemplates.has(c.value) ? t('datacore.filter_show') : t('datacore.filter_hide')"
+          @click="toggleTemplate(c.value)"
+        >{{ c.label }}</button>
       </div>
 
       <div ref="bodyRef" class="datacore-graph__body">
