@@ -220,6 +220,51 @@ func TestRenderMarkdown_APISection_FullCard(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdown_APITable_HeaderAndRow(t *testing.T) {
+	host, opts := apiTestSetup()
+	host.MarkdownTemplate = `{{apiTable "ref"}}`
+	got, err := RenderMarkdown(apiTestRow(), host, opts)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !strings.Contains(got, "| Name | Tagz | OwnersAlias |") {
+		t.Errorf("missing header from Map columns; got:\n%s", got)
+	}
+	if !strings.Contains(got, "| --- | --- | --- |") {
+		t.Errorf("missing separator row; got:\n%s", got)
+	}
+	// One row per referenced record; scalar passes through, tags join inline.
+	if !strings.Contains(got, "Buckingham Palace") || !strings.Contains(got, "a, b, c") {
+		t.Errorf("missing data-row cells; got:\n%s", got)
+	}
+}
+
+func TestRenderMarkdown_APITable_NamedColumnsOnly(t *testing.T) {
+	host, opts := apiTestSetup()
+	// Pick only "name", and reverse-ish order is honored too.
+	host.MarkdownTemplate = `{{apiTable "ref" "name"}}`
+	got, err := RenderMarkdown(apiTestRow(), host, opts)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !strings.Contains(got, "| Name |") || !strings.Contains(got, "Buckingham Palace") {
+		t.Errorf("expected only the Name column; got:\n%s", got)
+	}
+	// Columns not named must not appear.
+	if strings.Contains(got, "Tagz") || strings.Contains(got, "OwnersAlias") {
+		t.Errorf("unnamed columns leaked into the table; got:\n%s", got)
+	}
+}
+
+func TestRenderMarkdown_APITable_NoRecordIsEmpty(t *testing.T) {
+	host, opts := apiTestSetup()
+	host.MarkdownTemplate = `[{{apiTable "ref"}}]`
+	got, _ := RenderMarkdown(map[string]any{"ref": nil}, host, opts)
+	if got != "[]" {
+		t.Errorf("unpicked ref should render empty; got %q", got)
+	}
+}
+
 func TestRenderMarkdown_APIHelpers_NoRecord(t *testing.T) {
 	host, opts := apiTestSetup()
 	host.MarkdownTemplate = `[{{apiCol "ref" "name"}}][{{apiGuid "ref"}}][{{apiSection "ref"}}]`

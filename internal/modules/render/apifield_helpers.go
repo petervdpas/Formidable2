@@ -3,22 +3,21 @@ package render
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/aymerick/raymond"
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-// registerAPIFieldHelpers binds {{apiCol}}, {{apiGuid}}, {{apiBlock}},
-// {{apiSection}}. The field stores only the reference id(s); the columns are
-// read live via Options.ResolveReference. All read the host api Field from the
-// context's `_fields` (so they work inside `{{#loop}}` too) and degrade
+// registerAPIFieldHelpers binds {{apiCol}}, {{apiGuid}}, {{apiRows}}, {{apiBlock}},
+// {{apiSection}}, {{apiTable}}. The field stores only the reference id(s); the
+// columns are read live via Options.ResolveReference. All read the host api Field
+// from the context's `_fields` (so they work inside `{{#loop}}` too) and degrade
 // gracefully on a missing/non-api field, an unpicked record, or a nil resolver.
-// The single-value helpers act on the first referenced record; apiSection
-// renders one card per referenced record (so a to-many reference shows them all).
-// The polymorphic {{field}} helper also drives api fields: `{{field "k"}}` for
-// cards, `{{field "k" mode=table}}` for the full pipe-table, and the dotted path
-// `{{field "k.column"}}` for one projected column (see helpers_field.go).
+// The single-value helpers act on the first referenced record; apiSection renders
+// one card per referenced record, and apiTable renders all of them as one
+// markdown pipe-table (header from the field's Map columns, one row per record).
 func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 	// {{apiCol "fieldKey" "columnKey"}}: one projected column, scalar
 	// inline or compact JSON for slice/map.
@@ -61,9 +60,7 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 				continue
 			}
 			m := make(map[string]any, len(row)+2)
-			for k, v := range row {
-				m[k] = v
-			}
+			maps.Copy(m, row)
 			m["link"] = apiRecordLink(opts, host, id)
 			m["labels"] = labels
 			rows = append(rows, m)
@@ -106,6 +103,100 @@ func registerAPIFieldHelpers(tpl *raymond.Template, opts *Options) {
 		}
 		return raymond.SafeString(strings.Join(parts, "\n\n"))
 	})
+
+	// {{apiTable "fieldKey"}}: all referenced records as one markdown pipe-table.
+	// Header labels come from the field's Map columns; each referenced record is a
+	// row. Cells are single-line (collections joined, newlines collapsed) so the
+	// table stays valid. "" when unpicked or no columns resolve.
+	//
+	// Extra string args name the columns to show, in that order:
+	// `{{apiTable "ref" "term" "status"}}`. With none, every Map column is shown.
+	// A named column may be any source-record key; its header is the Map alias
+	// when declared, else the key itself.
+	tpl.RegisterHelper("apiTable", func(options *raymond.Options) raymond.SafeString {
+		params := options.Params()
+		if len(params) == 0 {
+			return ""
+		}
+		fieldKey, _ := params[0].(string)
+		var picked []string
+		for _, p := range params[1:] {
+			if s, ok := p.(string); ok && s != "" {
+				picked = append(picked, s)
+			}
+		}
+
+		ids, host := apiFieldRefs(options.Ctx(), fieldKey)
+		if host == nil || len(ids) == 0 {
+			return ""
+		}
+		cols := columnKeysOf(host)
+		if len(picked) > 0 {
+			cols = picked // author-chosen subset/order; resolved live like Map columns
+		}
+		if len(cols) == 0 {
+			return ""
+		}
+		labels := apiColumnLabels(host)
+
+		var b strings.Builder
+		b.WriteString("|")
+		for _, c := range cols {
+			label := c
+			if l, ok := labels[c].(string); ok && l != "" {
+				label = l
+			}
+			b.WriteString(" ")
+			b.WriteString(escapePipe(label))
+			b.WriteString(" |")
+		}
+		b.WriteString("\n|")
+		for range cols {
+			b.WriteString(" --- |")
+		}
+		b.WriteString("\n")
+
+		for _, id := range ids {
+			row := apiResolve(opts, host, id, cols)
+			if row == nil {
+				continue
+			}
+			b.WriteString("|")
+			for _, c := range cols {
+				b.WriteString(" ")
+				b.WriteString(apiTableCell(row[c], loadSourceField(opts, host, c)))
+				b.WriteString(" |")
+			}
+			b.WriteString("\n")
+		}
+		return raymond.SafeString(strings.TrimRight(b.String(), "\n"))
+	})
+}
+
+// apiTableCell renders one api-row value as a single-line, pipe-escaped table
+// cell: a collection (tags/list/multioption) joins with ", ", everything else
+// is scalarOrJSON; newlines collapse to spaces so a textarea can't break the row.
+func apiTableCell(v any, source *template.Field) string {
+	if v == nil {
+		return ""
+	}
+	var s string
+	if source != nil && (source.Type == "tags" || source.Type == "multioption" || source.Type == "list") {
+		if arr, ok := v.([]any); ok {
+			parts := make([]string, 0, len(arr))
+			for _, item := range arr {
+				parts = append(parts, scalarOrJSON(item))
+			}
+			s = strings.Join(parts, ", ")
+		} else {
+			s = scalarOrJSON(v)
+		}
+	} else {
+		s = scalarOrJSON(v)
+	}
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return escapePipe(s)
 }
 
 // apiFieldRefs returns the host api field's referenced id(s) and the Field
