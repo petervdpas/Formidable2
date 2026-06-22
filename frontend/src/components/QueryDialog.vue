@@ -49,6 +49,8 @@ const errorMsg = ref("");
 const activeTab = ref("columns");
 const exportDelimiter = ref(",");
 const exportQuoteAll = ref(true);
+const exportFormat = ref<"csv" | "xlsx">("csv");
+const isExcelOut = computed(() => exportFormat.value === "xlsx");
 
 const tabItems = computed(() => [
   { id: "columns", label: t("query.columns") },
@@ -68,6 +70,7 @@ watch(
     activeTab.value = "columns";
     exportDelimiter.value = ",";
     exportQuoteAll.value = true;
+    exportFormat.value = "csv";
     try {
       await builder.load();
     } catch (e) {
@@ -105,15 +108,22 @@ async function run() {
   }
 }
 
-async function exportCsv() {
+async function exportData() {
   const res = result.value;
   if (!res || res.rows.length === 0) return;
   try {
     const stem = props.templateFilename.replace(/\.yaml$/, "");
-    const path = await chooseSaveFile(`${stem}-query.csv`, [{ displayName: "CSV", pattern: "*.csv" }]);
+    const ext = isExcelOut.value ? "xlsx" : "csv";
+    const path = await chooseSaveFile(`${stem}-query.${ext}`, [
+      isExcelOut.value
+        ? { displayName: "Excel", pattern: "*.xlsx" }
+        : { displayName: "CSV", pattern: "*.csv" },
+    ]);
     if (!path) return;
     const rows: string[][] = [res.columns, ...res.rows.map((r) => r.map((c) => c.text))];
-    const write = await CsvSvc.Write(path, rows, exportDelimiter.value, exportQuoteAll.value);
+    const write = isExcelOut.value
+      ? await CsvSvc.WriteExcel(path, rows, stem)
+      : await CsvSvc.Write(path, rows, exportDelimiter.value, exportQuoteAll.value);
     if (!write.success) {
       toast.error("query.failed");
       return;
@@ -167,6 +177,13 @@ async function exportCsv() {
     <template #footer>
       <div class="query-export-opts">
         <label class="query-export-field">
+          {{ t('csv.export.format') }}
+          <select v-model="exportFormat">
+            <option value="csv">{{ t('csv.export.format.csv') }}</option>
+            <option value="xlsx">{{ t('csv.export.format.xlsx') }}</option>
+          </select>
+        </label>
+        <label v-if="!isExcelOut" class="query-export-field">
           {{ t('csv.delimiter') }}
           <select v-model="exportDelimiter">
             <option value=",">{{ t('csv.delimiter.comma') }}</option>
@@ -175,13 +192,13 @@ async function exportCsv() {
             <option value="|">{{ t('csv.delimiter.pipe') }}</option>
           </select>
         </label>
-        <SwitchField v-model="exportQuoteAll" :on-label="t('query.quote')" />
+        <SwitchField v-if="!isExcelOut" v-model="exportQuoteAll" :on-label="t('query.quote')" />
       </div>
       <button
         type="button"
         class="tool-btn"
         :disabled="!result || result.rows.length === 0"
-        @click="exportCsv"
+        @click="exportData"
       >
         {{ t('query.export') }}
       </button>

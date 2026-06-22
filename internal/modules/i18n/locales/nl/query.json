@@ -38,7 +38,7 @@
   "query.limit": "Limiet",
   "query.run": "Uitvoeren",
   "query.running": "Bezig...",
-  "query.export": "Exporteer CSV...",
+  "query.export": "Exporteer...",
   "query.quote": "Alle waarden quoten",
   "query.results": "Resultaten",
   "query.no_results": "Geen overeenkomende records.",
