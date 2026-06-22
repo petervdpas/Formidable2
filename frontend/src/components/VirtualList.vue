@@ -11,11 +11,15 @@
 // always reachable) and lets scrollToKey land on a row's true position rather
 // than a synthetic stride that drifts when rows aren't uniform.
 //
+// Measurement happens in onUpdated and scroll corrections in rAF, never in a
+// watcher on the render output: heights/scrollTop feed back into the rendered
+// window, and mutating them inside the render flush corrupts Vue's block patch.
+//
 // The component IS the scroll viewport. Consumers render each row via the
 // default slot ({ item, index }) and drive centering through scrollToKey(),
 // which works by index and so does not require the target row to be mounted.
 
-import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from "vue";
+import { computed, onBeforeUnmount, onMounted, onUpdated, ref, watch } from "vue";
 
 const props = defineProps<{
   items: readonly T[];
@@ -39,8 +43,8 @@ const windowEl = ref<HTMLElement | null>(null);
 const scrollTop = ref(0);
 const viewportH = ref(0);
 
-// Per-index measured row height (0 = not measured yet). Sized to the item
-// count; reset when the item set changes (a template switch reloads entirely).
+// Per-index measured row height (0 = not measured yet). Reset when the item
+// set changes (a template switch reloads entirely).
 const heights = ref<number[]>([]);
 
 const avgKnown = computed(() => {
@@ -119,20 +123,20 @@ function readViewport() {
 }
 
 // Record the real height (top-to-top stride, so per-row margin is included)
-// of every currently rendered row. Only writes when a height actually
-// changed by more than half a pixel, so a settled list stops re-rendering.
-function measure() {
+// of every currently rendered row. Only writes when a height actually changed
+// by more than half a pixel, so a settled list stops re-rendering. Runs in
+// onUpdated, so the writes schedule a fresh render rather than re-entering the
+// current one. Returns whether anything changed.
+function measure(): boolean {
   const win = windowEl.value;
-  if (!win) return;
+  if (!win) return false;
   const kids = win.children;
   const n = kids.length;
-  if (!n) return;
+  if (!n) return false;
   const rects: DOMRect[] = [];
   for (let k = 0; k < n; k++) {
     rects.push((kids[k] as HTMLElement).getBoundingClientRect());
   }
-  // Gap between rows (margin), inferred from the first pair so the last
-  // rendered row gets a stride, not just its border-box height.
   const gap = n >= 2 ? Math.max(0, rects[1].top - rects[0].bottom) : 0;
   let changed = false;
   for (let k = 0; k < n; k++) {
@@ -143,32 +147,48 @@ function measure() {
       changed = true;
     }
   }
-  if (changed) refine();
+  return changed;
 }
 
 // A scroll target requested before the list is ready (or before the target
 // row's true position is known) is held here and re-applied as measurements
-// sharpen the offsets, until the row settles within a pixel of its goal.
+// sharpen, until the row settles within a pixel of its goal.
 let pendingKey: string | null = null;
 let pendingCenter = false;
+let rafId = 0;
 
-function refine(): boolean {
+function scheduleRefine() {
+  if (pendingKey === null || rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = 0;
+    refine();
+  });
+}
+
+function indexOfKey(key: string): number {
+  return props.items.findIndex((it) => props.itemKey(it) === key);
+}
+
+// Applied outside the render flush (rAF / scroll event), so mutating scrollTop
+// here is safe. Each pass nudges the target row toward its goal; the resulting
+// render re-measures and schedules the next pass until it settles.
+function refine() {
   const el = viewport.value;
-  if (!el || pendingKey === null) return pendingKey === null;
-  if (viewportH.value <= 0 || props.items.length === 0) return false;
-  const index = props.items.findIndex((it) => props.itemKey(it) === pendingKey);
+  if (!el || pendingKey === null) return;
+  if (viewportH.value <= 0 || props.items.length === 0) return;
+  const index = indexOfKey(pendingKey);
   if (index < 0) {
     pendingKey = null;
-    return false;
+    return;
   }
   const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
   const child = windowEl.value?.children[index - startIndex.value] as
     | HTMLElement
     | undefined;
 
-  // Target row is on screen: correct by its true pixel position so the result
-  // doesn't depend on the estimated offsets of rows above it.
   if (child) {
+    // On screen: correct by its true pixel position, independent of the
+    // estimated offsets of rows above it.
     const vp = el.getBoundingClientRect();
     const rr = child.getBoundingClientRect();
     let delta: number;
@@ -179,26 +199,22 @@ function refine(): boolean {
     } else if (rr.bottom > vp.bottom) {
       delta = rr.bottom - vp.bottom;
     } else {
-      delta = 0; // already in view
+      delta = 0;
     }
-    if (Math.abs(delta) > 1) {
-      const want = Math.max(0, Math.min(el.scrollTop + delta, maxScroll));
-      // No movement possible (clamped at an edge) means we're as close as the
-      // content allows; settle rather than spin.
-      if (Math.abs(want - el.scrollTop) <= 1) {
-        pendingKey = null;
-        return true;
-      }
+    const want = Math.max(0, Math.min(el.scrollTop + delta, maxScroll));
+    if (Math.abs(delta) <= 1 || Math.abs(want - el.scrollTop) <= 1) {
       el.scrollTop = want;
       scrollTop.value = want;
-      return true;
+      pendingKey = null; // centered, or as close as the content edge allows
+      return;
     }
-    pendingKey = null;
-    return true;
+    el.scrollTop = want;
+    scrollTop.value = want;
+    return;
   }
 
-  // Target not mounted yet: jump roughly using the offset model so it enters
-  // the window, then the on-screen branch above takes over next render.
+  // Not mounted yet: jump roughly via the offset model so it enters the
+  // window, then the on-screen branch takes over on the next render.
   const o = offsets.value;
   const h = heights.value[index] || estimate.value;
   const top = o[index] ?? index * estimate.value;
@@ -210,15 +226,14 @@ function refine(): boolean {
     el.scrollTop = want;
     scrollTop.value = want;
   }
-  return true;
 }
 
 function scrollToKey(key: string, opts?: { center?: boolean }): boolean {
-  if (!key) return false;
-  if (props.items.findIndex((it) => props.itemKey(it) === key) < 0) return false;
+  if (!key || indexOfKey(key) < 0) return false;
   pendingKey = key;
   pendingCenter = !!opts?.center;
-  return refine();
+  scheduleRefine();
+  return viewportH.value > 0;
 }
 
 let ro: ResizeObserver | null = null;
@@ -226,31 +241,24 @@ onMounted(() => {
   readViewport();
   ro = new ResizeObserver(() => {
     readViewport();
-    void nextTick(() => {
-      measure();
-      refine();
-    });
+    scheduleRefine();
   });
   if (viewport.value) ro.observe(viewport.value);
 });
 onBeforeUnmount(() => {
   ro?.disconnect();
   ro = null;
+  if (rafId) cancelAnimationFrame(rafId);
 });
 
-// Re-measure and re-apply any pending scroll after each render (the window
-// moved, new rows mounted). flush:'post' guarantees the DOM is up to date.
-watch(
-  rendered,
-  () => {
-    measure();
-    refine();
-  },
-  { immediate: true, flush: "post" },
-);
+// Measure after every render and keep a pending scroll converging. Lifecycle
+// hook (post-patch), so height writes schedule a new render safely.
+onUpdated(() => {
+  measure();
+  if (pendingKey !== null) scheduleRefine();
+});
 
-// A fresh item set (template switch, filter) invalidates the cached heights;
-// drop them and resync scrollTop from the live element.
+// A fresh item set (template switch, filter) invalidates the cached heights.
 watch(
   () => props.items,
   () => {
@@ -269,11 +277,11 @@ watch(
   () => {
     if (didInitial || !props.activeKey) return;
     if (viewportH.value <= 0 || props.items.length === 0) return;
-    if (props.items.findIndex((it) => props.itemKey(it) === props.activeKey) < 0) return;
+    if (indexOfKey(props.activeKey) < 0) return;
     didInitial = true;
     scrollToKey(props.activeKey, { center: true });
   },
-  { immediate: true, flush: "post" },
+  { immediate: true },
 );
 
 defineExpose({ scrollToKey, el: viewport });
