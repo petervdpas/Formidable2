@@ -50,6 +50,51 @@ func TestExtendedListForms_SortByItemField(t *testing.T) {
 	}
 }
 
+// Flipping the flag on one template must not change another template's order:
+// sortSummaries reads each template's own flag, so the two lists diverge.
+func TestExtendedListForms_PerTemplateIsolation(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	ctx := context.Background()
+
+	sorted := &template.Template{
+		Name: "Sorted", Filename: "sorted.yaml", ItemField: "title",
+		SortByItemField: true,
+		Fields:          []template.Field{{Key: "title", Type: "text"}},
+	}
+	plain := &template.Template{
+		Name: "Plain", Filename: "plain.yaml", ItemField: "title",
+		SortByItemField: false,
+		Fields:          []template.Field{{Key: "title", Type: "text"}},
+	}
+	if err := tplM.SaveTemplate("sorted.yaml", sorted); err != nil {
+		t.Fatal(err)
+	}
+	if err := tplM.SaveTemplate("plain.yaml", plain); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tpl := range []string{"sorted.yaml", "plain.yaml"} {
+		m.SaveForm(ctx, tpl, "a.meta.json", map[string]any{"title": "Zebra"})
+		m.SaveForm(ctx, tpl, "z.meta.json", map[string]any{"title": "Apple"})
+	}
+
+	gotSorted, err := m.ExtendedListForms("sorted.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := titles(gotSorted); s[0] != "Apple" || s[1] != "Zebra" {
+		t.Fatalf("sorted.yaml = %v; want title order [Apple Zebra]", s)
+	}
+
+	gotPlain, err := m.ExtendedListForms("plain.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := titles(gotPlain); s[0] != "Zebra" || s[1] != "Apple" {
+		t.Fatalf("plain.yaml = %v; want filename order [Zebra Apple] (unaffected by the other template)", s)
+	}
+}
+
 func TestExtendedListForms_DefaultFilenameOrder(t *testing.T) {
 	m, _, tplM, _ := newTestStack(t)
 	saveSortTemplate(t, tplM, false) // toggle off = filename order
