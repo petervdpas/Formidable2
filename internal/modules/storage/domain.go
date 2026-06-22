@@ -622,6 +622,13 @@ func (m *Manager) TemplateStorageDir(templateFilename string) string {
 	return m.templateDir(templateFilename)
 }
 
+// LoadTemplate exposes the parsed template by filename. The dataprovider needs
+// field types to route api columns: a facet field's value lives in meta.facets,
+// not data, so the column resolver must know which keys are virtual facets.
+func (m *Manager) LoadTemplate(name string) (*template.Template, error) {
+	return m.templates.LoadTemplate(name)
+}
+
 // TemplateImageDir returns the absolute path of <storage>/<template>/images/.
 func (m *Manager) TemplateImageDir(templateFilename string) string {
 	return filepath.Join(m.templateDir(templateFilename), imagesDir)

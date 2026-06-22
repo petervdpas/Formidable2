@@ -4,6 +4,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // Index is what dataprovider needs from the index module.
@@ -23,9 +24,11 @@ type Renderer interface {
 }
 
 // Storage is what dataprovider needs to read raw form data. Returns nil
-// for missing forms.
+// for missing forms. LoadTemplate gives the source field types so the api
+// column resolver can route a virtual facet field to meta.facets.
 type Storage interface {
-	LoadForm(template, datafile string) *storage.Form
+	LoadForm(templateName, datafile string) *storage.Form
+	LoadTemplate(name string) (*template.Template, error)
 }
 
 // Manager is the dataprovider's only stateful object. It holds the

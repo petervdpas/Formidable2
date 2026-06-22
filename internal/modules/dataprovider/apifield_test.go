@@ -7,6 +7,7 @@ import (
 
 	"github.com/petervdpas/formidable2/internal/modules/index"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 // ─────────────────────────────────────────────────────────────────────
@@ -21,20 +22,28 @@ import (
 // fakeStorage is the minimal storage adapter dataprovider needs for
 // api-field reads. Tests stash forms keyed by (template, datafile).
 type fakeStorage struct {
-	forms map[string]*storage.Form // "<template>/<datafile>" → form
+	forms map[string]*storage.Form      // "<template>/<datafile>" → form
+	tpls  map[string]*template.Template // template filename → parsed template
 }
 
-func (f *fakeStorage) LoadForm(template, datafile string) *storage.Form {
+func (f *fakeStorage) LoadForm(templateName, datafile string) *storage.Form {
 	if f.forms == nil {
 		return nil
 	}
-	return f.forms[template+"/"+datafile]
+	return f.forms[templateName+"/"+datafile]
+}
+
+func (f *fakeStorage) LoadTemplate(name string) (*template.Template, error) {
+	if f.tpls == nil {
+		return nil, nil
+	}
+	return f.tpls[name], nil
 }
 
 // newAPIFieldWorld wires a Manager with the new Storage dependency.
 func newAPIFieldWorld() (*Manager, *fakeIndex, *fakeStorage) {
 	idx := &fakeIndex{forms: map[string][]index.FormRow{}}
-	sto := &fakeStorage{forms: map[string]*storage.Form{}}
+	sto := &fakeStorage{forms: map[string]*storage.Form{}, tpls: map[string]*template.Template{}}
 	m := NewManager(idx, &fakeRenderer{}, sto)
 	return m, idx, sto
 }
@@ -77,6 +86,59 @@ func TestFetchAPIFieldRow_ScalarsPassThrough(t *testing.T) {
 	}
 	if row["age"] != 42 {
 		t.Errorf("age: %v", row["age"])
+	}
+}
+
+func TestFetchAPIFieldRow_FacetColumnReadsFromMeta(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "surf.yaml", "ctrl.meta.json", "g-1")
+	// The facet field is virtual: its value is in meta.facets[FacetKey], not data.
+	sto.tpls["surf.yaml"] = &template.Template{
+		Filename: "surf.yaml",
+		Fields: []template.Field{
+			{Key: "nba-id", Type: "text"},
+			{Key: "control-status", Type: "facet", FacetKey: "status"},
+		},
+	}
+	sto.forms["surf.yaml/ctrl.meta.json"] = &storage.Form{
+		Meta: storage.FormMeta{
+			Facets: map[string]storage.FacetState{
+				"status": {Set: true, Selected: "Compliant"},
+			},
+		},
+		Data: map[string]any{"nba-id": "1.2"},
+	}
+
+	row, err := m.FetchAPIFieldRow(context.Background(),
+		"surf.yaml", "g-1", []string{"nba-id", "control-status"})
+	if err != nil {
+		t.Fatalf("FetchAPIFieldRow: %v", err)
+	}
+	if row["nba-id"] != "1.2" {
+		t.Errorf("data column nba-id = %v; want 1.2", row["nba-id"])
+	}
+	if row["control-status"] != "Compliant" {
+		t.Errorf("facet column = %v; want the selected option %q", row["control-status"], "Compliant")
+	}
+}
+
+func TestFetchAPIFieldRow_FacetColumnUnsetIsNil(t *testing.T) {
+	m, idx, sto := newAPIFieldWorld()
+	seedCollection(idx, "surf.yaml", "ctrl.meta.json", "g-1")
+	sto.tpls["surf.yaml"] = &template.Template{
+		Filename: "surf.yaml",
+		Fields:   []template.Field{{Key: "control-status", Type: "facet", FacetKey: "status"}},
+	}
+	// No facet selection on this record.
+	sto.forms["surf.yaml/ctrl.meta.json"] = &storage.Form{Data: map[string]any{}}
+
+	row, err := m.FetchAPIFieldRow(context.Background(),
+		"surf.yaml", "g-1", []string{"control-status"})
+	if err != nil {
+		t.Fatalf("FetchAPIFieldRow: %v", err)
+	}
+	if row["control-status"] != nil {
+		t.Errorf("unset facet column = %v; want nil", row["control-status"])
 	}
 }
 

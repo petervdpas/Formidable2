@@ -40,8 +40,28 @@ func (m *Manager) FetchAPIFieldRow(ctx context.Context, sourceTemplate, guid str
 			ErrAPIFieldGuidNotFound, guid, datafile)
 	}
 
+	// A facet field is virtual: its value lives in meta.facets[FacetKey], never
+	// in data. Map each such column key to its facet key so the column resolves
+	// to the record's selected option instead of an empty cell.
+	facetKeyByField := map[string]string{}
+	if tpl, err := m.sto.LoadTemplate(sourceTemplate); err == nil && tpl != nil {
+		for _, f := range tpl.Fields {
+			if f.Type == "facet" && f.FacetKey != "" {
+				facetKeyByField[f.Key] = f.FacetKey
+			}
+		}
+	}
+
 	row := make(map[string]any, len(columnKeys))
 	for _, key := range columnKeys {
+		if fk, isFacet := facetKeyByField[key]; isFacet {
+			if st, ok := form.Meta.Facets[fk]; ok && st.Selected != "" {
+				row[key] = st.Selected
+			} else {
+				row[key] = nil
+			}
+			continue
+		}
 		raw, ok := form.Data[key]
 		if !ok {
 			row[key] = nil
