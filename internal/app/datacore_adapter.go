@@ -125,6 +125,12 @@ func (a *datacoreLoaderAdapter) loadForms(templateFile string, files []string, s
 		if rec.Label == "" {
 			rec.Label = file // never let the raw composite id surface as a graph label
 		}
+		// A graph-prefix string prepends a per-template qualifier to the label,
+		// so records that share an item field (e.g. an audit-control code) read
+		// distinctly across collections in the graph: "Toetsingskader: CH.02".
+		if tpl.GraphPrefixField != "" {
+			rec.Label = tpl.GraphPrefixField + ": " + rec.Label
+		}
 		applyFormulas(a.ev, tpl, f, &rec)
 		recs = append(recs, rec)
 		guids = append(guids, f.Meta.ID)

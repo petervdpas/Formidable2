@@ -614,6 +614,15 @@ setTopbarMenu(() => [
               :empty-label="t('workspace.templates.item_field_none')"
             />
           </FormRow>
+          <FormRow
+            :label="t('workspace.templates.setup.graph_prefix')"
+            :description="t('workspace.templates.setup.graph_prefix_hint')"
+          >
+            <TextField
+              v-model="draft.graph_prefix_field"
+              :placeholder="t('workspace.templates.graph_prefix_placeholder')"
+            />
+          </FormRow>
           <div class="setup-tabs-block">
             <Tabs v-model="setupTab" :items="setupTabItems">
               <template #code>

@@ -17,6 +17,7 @@ type Template struct {
 	AuthorName        string      `yaml:"author_name,omitempty" json:"author_name,omitempty"`
 	AuthorEmail       string      `yaml:"author_email,omitempty" json:"author_email,omitempty"`
 	ItemField         string      `yaml:"item_field,omitempty" json:"item_field"`
+	GraphPrefixField  string      `yaml:"graph_prefix_field,omitempty" json:"graph_prefix_field"`
 	MarkdownTemplate  string      `yaml:"markdown_template,omitempty" json:"markdown_template"`
 	SidebarExpression string      `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
 	EnableCollection  bool        `yaml:"enable_collection,omitempty" json:"enable_collection"`

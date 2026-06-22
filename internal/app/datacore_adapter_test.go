@@ -656,6 +656,99 @@ func TestDatacoreAdapter_FollowRelationThenTable(t *testing.T) {
 		map[string]int{"a1": 1, "a2": 1})
 }
 
+// A template's GraphPrefixField is a free-text origin short-code prepended to
+// its graph node labels, so records from different collections that share an
+// item-field value (e.g. an audit-control code) read distinctly by origin:
+// "TK: CH.02" vs "PRC: CH.02". Without it they collapse onto the shared code
+// (the bug this fixes).
+func TestDatacoreAdapter_GraphPrefixLabelsRelatedNodes(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tplM := template.NewManager(sys, "templates", log)
+	if err := tplM.EnsureTemplateDirectory(); err != nil {
+		t.Fatalf("EnsureTemplateDirectory: %v", err)
+	}
+	sfrM := sfr.NewManager(sys, log)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", log)
+
+	// A control collection linked to three satellite collections, each with its
+	// own origin short-code; every record carries the same item-field code.
+	type tdef struct{ file, code string }
+	focusT := tdef{"control.yaml", "CTRL"}
+	satT := []tdef{{"toets.yaml", "TK"}, {"proces.yaml", "PRC"}, {"richtlijn.yaml", "RL"}}
+	saveTpls := func(withPrefix bool) {
+		for _, d := range append([]tdef{focusT}, satT...) {
+			prefix := ""
+			if withPrefix {
+				prefix = d.code
+			}
+			tpl := &template.Template{
+				Name: d.file, Filename: d.file, EnableCollection: true,
+				ItemField: "code", GraphPrefixField: prefix,
+				Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "code", Type: "text"}},
+			}
+			if err := tplM.SaveTemplate(d.file, tpl); err != nil {
+				t.Fatalf("SaveTemplate %s: %v", d.file, err)
+			}
+		}
+	}
+	saveTpls(true)
+
+	gC := saveGuid(t, stoM, focusT.file, "c.meta.json", map[string]any{"code": "CH.02"})
+	satIDs := map[string]bool{}
+	rels := make([]relation.Relation, 0, len(satT))
+	for _, d := range satT {
+		g := saveGuid(t, stoM, d.file, "r.meta.json", map[string]any{"code": "CH.02"})
+		rels = append(rels, relation.Relation{To: d.file, Cardinality: relation.OneToMany,
+			Edges: []relation.Edge{{From: gC, To: g}}})
+		satIDs[datacore.NewID(d.file, "r.meta.json")] = true
+	}
+	rel := fakeRelReader{rels: map[string][]relation.Relation{focusT.file: rels}}
+
+	focus := datacore.NewID(focusT.file, "c.meta.json")
+	graphLabels := func() (string, map[string]bool) {
+		dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, focusT.file, false))
+		if err != nil {
+			t.Fatalf("Build: %v", err)
+		}
+		g := dt.GraphFrom(focus, 2)
+		focusLabel := ""
+		sats := map[string]bool{}
+		for i := range g.Nodes {
+			n := g.Nodes[i]
+			if n.ID == focus {
+				focusLabel = n.Label
+			} else if satIDs[n.ID] {
+				sats[n.Label] = true
+			}
+		}
+		return focusLabel, sats
+	}
+
+	// With origin short-codes, focus and every satellite read distinctly by
+	// origin, the shared code still on the tail.
+	focusLabel, sats := graphLabels()
+	if focusLabel != "CTRL: CH.02" {
+		t.Fatalf("focus label = %q, want %q", focusLabel, "CTRL: CH.02")
+	}
+	for _, want := range []string{"TK: CH.02", "PRC: CH.02", "RL: CH.02"} {
+		if !sats[want] {
+			t.Fatalf("satellite label %q missing; got %v", want, sats)
+		}
+	}
+	if len(sats) != 3 {
+		t.Fatalf("satellite labels = %v, want 3 distinct origins", sats)
+	}
+
+	// Without prefixes, the item field (shared code) labels them all - the
+	// collapse this feature fixes.
+	saveTpls(false)
+	if _, collapsed := graphLabels(); len(collapsed) != 1 || !collapsed["CH.02"] {
+		t.Fatalf("without prefix, satellite labels = %v, want all %q", collapsed, "CH.02")
+	}
+}
+
 func assertBuckets(t *testing.T, label string, got []datacore.Bucket, want map[string]int) {
 	t.Helper()
 	if len(got) != len(want) {

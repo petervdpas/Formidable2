@@ -995,7 +995,7 @@ function openQuery() {
 
 const graphOpen = ref(false);
 function openGraph() {
-  if (!selectedTemplate.value) return;
+  if (!selectedTemplate.value || !view.value) return;
   graphOpen.value = true;
 }
 
@@ -1143,7 +1143,7 @@ setTopbarMenu(() => [
       {
         id: "graph",
         labelKey: "menu.data.graph",
-        disabled: !selectedTemplate.value,
+        disabled: !selectedTemplate.value || !view.value,
         onClick: openGraph,
       },
       { type: "separator", id: "data-sep-reindex" },
