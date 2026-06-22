@@ -177,6 +177,19 @@ function onFieldsUpdate(flat: Field[]) {
   draft.value.fields = flat;
 }
 
+// ── Field-key rename → keep item_field pointed at the renamed key ───
+// Renaming a field's key is the one reference the editor fixes automatically:
+// item_field is a single exact key reference, so syncing it is reliable and
+// stops the display field from silently blanking. Other references (handlebars,
+// expressions) stay author-visible work; record data is moved via Cleanup
+// Storage's "move data between keys".
+function onFieldRename(oldKey: string, newKey: string) {
+  if (!draft.value) return;
+  if (draft.value.item_field === oldKey) {
+    draft.value.item_field = newKey;
+  }
+}
+
 // ── Generate-template dialog ─────────────────────────────────────────
 const generateOpen = ref(false);
 
@@ -710,6 +723,7 @@ setTopbarMenu(() => [
           :formulas="draft.formulas ?? []"
           :template="selectedFilename ?? ''"
           @update="onFieldsUpdate"
+          @rename="onFieldRename"
         />
       </template>
     </template>

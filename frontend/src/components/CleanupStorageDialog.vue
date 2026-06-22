@@ -13,6 +13,8 @@ import {
 import type {
   Report,
   FixResult,
+  MigrateResult as KeyMoveResult,
+  RenameCandidates,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/integrity";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { MigrateResult } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
@@ -30,10 +32,18 @@ const { t } = useI18n();
 const loading = ref(false);
 const repairing = ref(false);
 const migrating = ref(false);
+const renaming = ref(false);
 const report = ref<Report | null>(null);
+const candidates = ref<RenameCandidates | null>(null);
 const lastFixResult = ref<FixResult | null>(null);
 const lastMigrateResult = ref<MigrateResult | null>(null);
+const lastRenameResult = ref<KeyMoveResult | null>(null);
 const error = ref<string>("");
+
+// Key-rename ("move data") selections: an orphaned data key (move from) and the
+// declared field key the data should move to.
+const migrateFrom = ref<string>("");
+const migrateTo = ref<string>("");
 
 // Per-kind UI state: which kinds the user wants to repair + the
 // strategy picked for each. Resets on every fresh analyze run.
@@ -47,8 +57,12 @@ watch(
   (isOpen) => {
     if (!isOpen) return;
     report.value = null;
+    candidates.value = null;
     lastFixResult.value = null;
     lastMigrateResult.value = null;
+    lastRenameResult.value = null;
+    migrateFrom.value = "";
+    migrateTo.value = "";
     error.value = "";
     for (const k of Object.keys(kindUI)) delete kindUI[k];
   },
@@ -61,10 +75,14 @@ async function analyze() {
   lastFixResult.value = null;
   try {
     report.value = await IntegritySvc.Analyze(props.templateFilename);
+    // Orphan detection for the rename tool reads RAW forms, so a top-level
+    // renamed key (which a sanitized analyze would drop) still surfaces.
+    candidates.value = await IntegritySvc.RenameCandidates(props.templateFilename);
     rebuildKindUI();
   } catch (e) {
     error.value = backendErrMessage(e);
     report.value = null;
+    candidates.value = null;
   } finally {
     loading.value = false;
   }
@@ -232,6 +250,50 @@ async function migrate() {
   }
 }
 
+// ── key rename / move data ──────────────────────────────────────────
+// A renamed field key leaves the old value orphaned (extra_field) while the
+// new field reads empty (missing_field). Moving the value across is friendlier
+// than strip + fill-default, which would discard the data.
+
+// From = orphaned data keys (raw-scanned, top-level + loop); To = declared
+// field keys. Both come from the backend so detection isn't blinded by the
+// sanitized analyze pass.
+const fromKeys = computed<string[]>(() => candidates.value?.orphan_keys ?? []);
+const toKeys = computed<string[]>(() => candidates.value?.field_keys ?? []);
+
+// Show the move tool only when an orphaned key exists: that is the rename
+// leftover this repairs.
+const canRename = computed(() => fromKeys.value.length > 0);
+
+const canMove = computed(
+  () =>
+    !!migrateFrom.value &&
+    !!migrateTo.value &&
+    migrateFrom.value !== migrateTo.value &&
+    !renaming.value,
+);
+
+async function moveKey() {
+  if (!props.templateFilename || !canMove.value) return;
+  renaming.value = true;
+  error.value = "";
+  try {
+    lastRenameResult.value = await IntegritySvc.MigrateFieldKey(
+      props.templateFilename,
+      migrateFrom.value,
+      migrateTo.value,
+    );
+    migrateFrom.value = "";
+    migrateTo.value = "";
+    // Re-analyze so the moved key drops out of both extra and missing lists.
+    await analyze();
+  } catch (e) {
+    error.value = backendErrMessage(e);
+  } finally {
+    renaming.value = false;
+  }
+}
+
 async function repair() {
   if (!props.templateFilename) return;
   repairing.value = true;
@@ -322,12 +384,20 @@ function issueKindClass(kind: string): string {
             [lastMigrateResult.migrated, lastMigrateResult.total, lastMigrateResult.skipped]) }}
     </div>
 
-    <div v-if="hasReport && !error" class="cleanup-summary" :class="{ clean }">
+    <div v-if="lastRenameResult" class="cleanup-fixresult" role="status">
+      {{ t('workspace.cleanup.rename.result',
+           [lastRenameResult.keys_moved, lastRenameResult.forms_saved]) }}
+    </div>
+
+    <div v-if="hasReport && !error" class="cleanup-summary" :class="{ clean: clean && !canRename }">
       <strong>
         {{ clean
           ? t('workspace.cleanup.summary_clean', [report?.form_count ?? 0])
           : t('workspace.cleanup.summary_issues', [report?.issue_count ?? 0, report?.form_count ?? 0]) }}
       </strong>
+      <span v-if="clean && canRename" class="cleanup-summary-orphans">
+        {{ t('workspace.cleanup.rename.orphans_note', [fromKeys.length]) }}
+      </span>
     </div>
 
     <!-- Template-level notes: informational, not repairable. Shown even when
@@ -395,6 +465,43 @@ function issueKindClass(kind: string): string {
       </tbody>
     </table>
 
+    <!-- Move data between keys: pair an orphaned (extra) key with a missing
+         field so a rename moves the value instead of stripping + defaulting. -->
+    <!-- Independent of the drift summary: a top-level renamed key is an orphan
+         the sanitized analyze reports as "clean", so this must show on canRename
+         alone, not !clean. -->
+    <div v-if="hasReport && !error && canRename" class="cleanup-rename">
+      <strong class="cleanup-rename-title">{{ t('workspace.cleanup.rename.title') }}</strong>
+      <p class="muted small cleanup-rename-hint">{{ t('workspace.cleanup.rename.hint') }}</p>
+      <div class="cleanup-rename-row">
+        <label class="cleanup-rename-field">
+          <span class="cleanup-rename-label">{{ t('workspace.cleanup.rename.from') }}</span>
+          <select v-model="migrateFrom" :disabled="renaming">
+            <option value="" disabled>{{ t('workspace.cleanup.rename.from_placeholder') }}</option>
+            <option v-for="k in fromKeys" :key="k" :value="k">{{ k }}</option>
+          </select>
+        </label>
+        <span class="cleanup-rename-arrow" aria-hidden="true">&rarr;</span>
+        <label class="cleanup-rename-field">
+          <span class="cleanup-rename-label">{{ t('workspace.cleanup.rename.to') }}</span>
+          <select v-model="migrateTo" :disabled="renaming">
+            <option value="" disabled>{{ t('workspace.cleanup.rename.to_placeholder') }}</option>
+            <option v-for="k in toKeys" :key="k" :value="k">{{ k }}</option>
+          </select>
+        </label>
+        <button
+          class="tool-btn"
+          type="button"
+          :disabled="!canMove || loading || repairing || migrating"
+          @click="moveKey"
+        >
+          {{ renaming
+            ? t('workspace.cleanup.rename.moving')
+            : t('workspace.cleanup.rename.move') }}
+        </button>
+      </div>
+    </div>
+
     <!-- Per-form drill-down (unchanged from phase 1; still useful for
          the "1 issue across 3 forms" cases the summary collapses). -->
     <div v-if="hasReport && !clean && !error" class="cleanup-forms">
@@ -433,7 +540,7 @@ function issueKindClass(kind: string): string {
       <button
         class="tool-btn"
         type="button"
-        :disabled="!templateFilename || loading || repairing || migrating"
+        :disabled="!templateFilename || loading || repairing || migrating || renaming"
         :title="t('workspace.cleanup.migrate.description')"
         @click="migrate"
       >
@@ -444,7 +551,7 @@ function issueKindClass(kind: string): string {
       <button
         class="tool-btn"
         type="button"
-        :disabled="loading || !templateFilename || repairing || migrating"
+        :disabled="loading || !templateFilename || repairing || migrating || renaming"
         @click="analyze"
       >
         {{ loading
@@ -454,7 +561,7 @@ function issueKindClass(kind: string): string {
       <button
         class="tool-btn primary"
         type="button"
-        :disabled="!repairBtnEnabled || migrating"
+        :disabled="!repairBtnEnabled || migrating || renaming"
         @click="repair"
       >
         {{ repairing

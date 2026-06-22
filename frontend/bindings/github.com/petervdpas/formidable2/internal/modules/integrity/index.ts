@@ -15,5 +15,7 @@ export {
     FormReport,
     Issue,
     IssueKind,
+    MigrateResult,
+    RenameCandidates,
     Report
 } from "./models.js";

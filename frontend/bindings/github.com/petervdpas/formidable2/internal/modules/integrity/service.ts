@@ -33,6 +33,29 @@ export function Fix(templateFilename: string, plan: $models.FixPlan): $Cancellab
     });
 }
 
+/**
+ * MigrateFieldKey renames a data key from oldKey to newKey across the template's
+ * forms, moving each value rather than dropping it. Emits storage:changed when
+ * it rewrites forms so the frontend reloads the migrated data.
+ */
+export function MigrateFieldKey(templateFilename: string, oldKey: string, newKey: string): $CancellablePromise<$models.MigrateResult> {
+    return $Call.ByID(2582948721, templateFilename, oldKey, newKey).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * RenameCandidates returns the orphaned data keys and declared field keys that
+ * populate the doctor's "move data between keys" pickers.
+ */
+export function RenameCandidates(templateFilename: string): $CancellablePromise<$models.RenameCandidates> {
+    return $Call.ByID(1435716917, templateFilename).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.Report.createFrom;
 const $$createType1 = $models.FixResult.createFrom;
+const $$createType2 = $models.MigrateResult.createFrom;
+const $$createType3 = $models.RenameCandidates.createFrom;

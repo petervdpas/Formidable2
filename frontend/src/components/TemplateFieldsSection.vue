@@ -42,6 +42,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   update: [flat: Field[]];
+  // Fired when an existing field/loop key is renamed, so the parent can offer
+  // to migrate stored data from the old key to the new one after saving.
+  rename: [oldKey: string, newKey: string];
 }>();
 
 const { t } = useI18n();
@@ -110,7 +113,16 @@ function openAddField() {
   editOpen.value = true;
 }
 
-function applyEdit(updated: Field) {
+function applyEdit(updated: Field, originalKey: string) {
+  // An existing field/loop whose key changed: tell the parent so it can offer
+  // a data migration once the template is saved. New fields never carry data.
+  if (!editIsNew.value) {
+    const newKey = (updated.key || "").trim();
+    const oldKey = (originalKey || "").trim();
+    if (oldKey && newKey && oldKey !== newKey) {
+      emit("rename", oldKey, newKey);
+    }
+  }
   if (editIsNew.value) {
     // Looper synth: picking "looper" materialises as a loop unit
     // with a paired loopstart/loopstop sharing the same key/label.

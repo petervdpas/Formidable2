@@ -353,6 +353,77 @@ export enum IssueKind {
 };
 
 /**
+ * MigrateResult summarizes a field-key rename run across a template's forms.
+ */
+export class MigrateResult {
+    "forms_touched": number;
+    "forms_saved": number;
+    "keys_moved": number;
+
+    /** Creates a new MigrateResult instance. */
+    constructor($$source: Partial<MigrateResult> = {}) {
+        if (!("forms_touched" in $$source)) {
+            this["forms_touched"] = 0;
+        }
+        if (!("forms_saved" in $$source)) {
+            this["forms_saved"] = 0;
+        }
+        if (!("keys_moved" in $$source)) {
+            this["keys_moved"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MigrateResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MigrateResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MigrateResult($$parsedSource as Partial<MigrateResult>);
+    }
+}
+
+/**
+ * RenameCandidates lists the choices for a doctor "move data between keys" run:
+ * OrphanKeys are data keys the template no longer declares (move FROM), and
+ * FieldKeys are the template's declared field keys (move TO). Both are read off
+ * the RAW forms so a top-level orphan a sanitized load would drop still appears.
+ */
+export class RenameCandidates {
+    "orphan_keys": string[];
+    "field_keys": string[];
+
+    /** Creates a new RenameCandidates instance. */
+    constructor($$source: Partial<RenameCandidates> = {}) {
+        if (!("orphan_keys" in $$source)) {
+            this["orphan_keys"] = [];
+        }
+        if (!("field_keys" in $$source)) {
+            this["field_keys"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RenameCandidates instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RenameCandidates {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("orphan_keys" in $$parsedSource) {
+            $$parsedSource["orphan_keys"] = $$createField0_0($$parsedSource["orphan_keys"]);
+        }
+        if ("field_keys" in $$parsedSource) {
+            $$parsedSource["field_keys"] = $$createField1_0($$parsedSource["field_keys"]);
+        }
+        return new RenameCandidates($$parsedSource as Partial<RenameCandidates>);
+    }
+}
+
+/**
  * Report is the result of AnalyzeTemplate; only forms with issues appear in Forms.
  * TemplateIssues are template-level, informational findings (not per-form drift) and
  * are kept out of IssueCount so a clean-forms template isn't reported dirty.

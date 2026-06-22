@@ -24,3 +24,20 @@ func (s *Service) Fix(templateFilename string, plan FixPlan) (FixResult, error) 
 	}
 	return res, err
 }
+
+// MigrateFieldKey renames a data key from oldKey to newKey across the template's
+// forms, moving each value rather than dropping it. Emits storage:changed when
+// it rewrites forms so the frontend reloads the migrated data.
+func (s *Service) MigrateFieldKey(templateFilename, oldKey, newKey string) (MigrateResult, error) {
+	res, err := s.m.MigrateFieldKey(templateFilename, oldKey, newKey)
+	if err == nil && res.FormsSaved > 0 {
+		event.Emit(s.emit, "storage:changed", templateFilename)
+	}
+	return res, err
+}
+
+// RenameCandidates returns the orphaned data keys and declared field keys that
+// populate the doctor's "move data between keys" pickers.
+func (s *Service) RenameCandidates(templateFilename string) (RenameCandidates, error) {
+	return s.m.RenameCandidates(templateFilename)
+}

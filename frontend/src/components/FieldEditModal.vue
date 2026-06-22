@@ -76,7 +76,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "confirm", field: Field): void;
+  // originalKey is the field's key before editing ("" for a new field), so the
+  // parent can detect a key rename and offer to migrate stored data.
+  (e: "confirm", field: Field, originalKey: string): void;
 }>();
 
 const { t } = useI18n();
@@ -615,7 +617,7 @@ function addStatColumn(): void {
 function submit() {
   if (!draft.value) return;
   if (!canConfirm.value) return;
-  emit("confirm", draft.value);
+  emit("confirm", draft.value, props.isNew ? "" : (props.field?.key ?? ""));
 }
 
 // The loop pair (loopstart / loopstop) shares the single `looper` color
