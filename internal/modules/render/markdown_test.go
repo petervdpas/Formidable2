@@ -876,10 +876,8 @@ func TestRenderMarkdown_ConcurrentSetVarScratch(t *testing.T) {
 	const n = 32
 	var wg sync.WaitGroup
 	errs := make(chan string, n)
-	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range n {
+		wg.Go(func() {
 			out, err := RenderMarkdown(map[string]any{}, tpl, &Options{})
 			if err != nil {
 				errs <- err.Error()
@@ -888,7 +886,7 @@ func TestRenderMarkdown_ConcurrentSetVarScratch(t *testing.T) {
 			if out != "[v]" {
 				errs <- out
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)
