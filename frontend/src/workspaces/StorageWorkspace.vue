@@ -1313,6 +1313,7 @@ setTopbarMenu(() => [
         class="sidebar-scroll"
         :items="visibleSummaries"
         :item-key="(s: FormSummary) => s.filename"
+        :active-key="selectedDataFile"
         v-slot="{ item }"
       >
         <StorageListItem
