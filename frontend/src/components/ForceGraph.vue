@@ -104,6 +104,9 @@ const tipStyle = computed<Record<string, string>>(() => {
 let raf = 0;
 let alpha = 0;
 let autofit = true;
+// The focus (Viewing) node defaults to a pinned hub at centre so the spokes
+// fan out evenly; dragging it releases the pin, so the user keeps full control.
+let focusPinned = true;
 let dragging = -1;
 let downX = 0;
 let downY = 0;
@@ -114,10 +117,10 @@ let panStartY = 0;
 let panOrigX = 0;
 let panOrigY = 0;
 
-const REPULSION = 2600;
+const REPULSION = 6500;
 const SPRING = 0.02;
-const REST = 90;
-const GRAVITY = 0.015;
+const REST = 140;
+const GRAVITY = 0.012;
 const FRICTION = 0.85;
 const MIN_ALPHA = 0.02;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -129,7 +132,11 @@ function merge() {
   sim.value = props.nodes.map((node, i) => {
     const ex = prev.get(node.id);
     if (ex) return { ...node, x: ex.x, y: ex.y, vx: ex.vx, vy: ex.vy };
-    const rad = 30 + (i % 9) * 7;
+    // Seed on a wide ring (not a tight central spiral) so the simulation
+    // starts already spread out and settles to an even distribution rather
+    // than an off-centre clump. The golden angle keeps the angular spacing even.
+    const ring = Math.min(w.value, h.value) * 0.38;
+    const rad = ring * (0.55 + 0.45 * ((i % 6) / 5));
     const ang = i * GOLDEN;
     return { ...node, x: cx + rad * Math.cos(ang), y: cy + rad * Math.sin(ang), vx: 0, vy: 0 };
   });
@@ -194,6 +201,15 @@ function step() {
   for (let i = 0; i < nodes.length; i++) {
     if (i === dragging) continue;
     const a = nodes[i];
+    // Keep the hub pinned at centre until the user drags it (it still repels
+    // others, just doesn't move on its own).
+    if (a.kind === "focus" && focusPinned) {
+      a.x = cx;
+      a.y = cy;
+      a.vx = 0;
+      a.vy = 0;
+      continue;
+    }
     a.x += a.vx * alpha;
     a.y += a.vy * alpha;
     a.x = Math.max(12, Math.min(w.value - 12, a.x));
@@ -271,6 +287,8 @@ function onNodeDown(i: number, e: PointerEvent) {
   dragging = i;
   moved = false;
   autofit = false;
+  if (sim.value[i]?.kind === "focus") focusPinned = false; // hand the hub over
+
   hoverId.value = null; // no tooltip while dragging
   downX = e.clientX;
   downY = e.clientY;
