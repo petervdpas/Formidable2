@@ -17,6 +17,9 @@ type Template struct {
 	AuthorName        string      `yaml:"author_name,omitempty" json:"author_name,omitempty"`
 	AuthorEmail       string      `yaml:"author_email,omitempty" json:"author_email,omitempty"`
 	ItemField         string      `yaml:"item_field,omitempty" json:"item_field"`
+	// SortByItemField orders the storage record list by the item-field value
+	// (its display title) instead of the default filename order.
+	SortByItemField   bool        `yaml:"sort_by_item_field,omitempty" json:"sort_by_item_field"`
 	GraphPrefixField  string      `yaml:"graph_prefix_field,omitempty" json:"graph_prefix_field"`
 	MarkdownTemplate  string      `yaml:"markdown_template,omitempty" json:"markdown_template"`
 	SidebarExpression string      `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -463,12 +464,36 @@ func (m *Manager) ExtendedListForms(templateFilename string) ([]FormSummary, err
 	if m.reader != nil {
 		out, err := m.reader.ListSummaries(templateFilename)
 		if err == nil {
+			m.sortSummaries(templateFilename, out)
 			return out, nil
 		}
 		m.log.Warn("storage: form reader failed, falling back to disk",
 			"template", templateFilename, "err", err)
 	}
-	return m.extendedListFormsFromDisk(templateFilename)
+	out, err := m.extendedListFormsFromDisk(templateFilename)
+	if err != nil {
+		return nil, err
+	}
+	m.sortSummaries(templateFilename, out)
+	return out, nil
+}
+
+// sortSummaries reorders the list by the item-field value (Title) when the
+// template opts in via SortByItemField; otherwise the reader/disk filename
+// order is left untouched. Title falls back to the filename, so empty item
+// fields still sort stably. Case-insensitive, filename as tie-breaker.
+func (m *Manager) sortSummaries(templateFilename string, out []FormSummary) {
+	tpl, err := m.templates.LoadTemplate(templateFilename)
+	if err != nil || tpl == nil || !tpl.SortByItemField {
+		return
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		ti, tj := strings.ToLower(out[i].Title), strings.ToLower(out[j].Title)
+		if ti != tj {
+			return ti < tj
+		}
+		return out[i].Filename < out[j].Filename
+	})
 }
 
 // SearchForms returns full-text matches ranked by relevance, backed entirely by the FTS index;

@@ -6,6 +6,7 @@ import Badge from "../components/Badge.vue";
 import Modal from "../components/Modal.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import TemplateFieldsSection from "../components/TemplateFieldsSection.vue";
+import TemplateListSort from "../components/TemplateListSort.vue";
 import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CleanupStorageDialog from "../components/CleanupStorageDialog.vue";
 import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog.vue";
@@ -627,6 +628,7 @@ setTopbarMenu(() => [
               :empty-label="t('workspace.templates.item_field_none')"
             />
           </FormRow>
+          <TemplateListSort v-model="draft.sort_by_item_field" />
           <FormRow
             :label="t('workspace.templates.setup.graph_prefix')"
             :description="t('workspace.templates.setup.graph_prefix_hint')"

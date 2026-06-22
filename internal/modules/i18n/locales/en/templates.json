@@ -225,6 +225,8 @@
   "workspace.templates.setup.enable_collection": "Enable Collection",
   "workspace.templates.setup.enable_collection_needs_guid": "Add a field of type 'guid' to enable Collection mode.",
   "workspace.templates.setup.item_field": "Item Field",
+  "workspace.templates.setup.sort_by_item_field": "Sort list by item field",
+  "workspace.templates.setup.sort_by_item_field_hint": "Order the storage record list by the item-field value (its title) instead of the filename. Off keeps filename order.",
   "workspace.templates.setup.graph_prefix": "Graph prefix",
   "workspace.templates.setup.graph_prefix_hint": "Short origin code prefixed to this template's node labels in the datacore graph (e.g. “TK: CH.02”), so you can tell which template a node came from. Leave empty for no prefix.",
   "workspace.templates.setup.sidebar_expression": "Sidebar Expression",
