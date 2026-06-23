@@ -385,22 +385,35 @@ export class MigrateResult {
 }
 
 /**
- * RenameCandidates lists the choices for a doctor "move data between keys" run:
- * OrphanKeys are data keys the template no longer declares (move FROM), and
- * FieldKeys are the template's declared field keys (move TO). Both are read off
- * the RAW forms so a top-level orphan a sanitized load would drop still appears.
+ * RenameCandidates lists the choices for a doctor "move data between keys" run,
+ * scoped to TOP-LEVEL keys. The classification is deterministic, from the
+ * sanitization invariant (a declared field is present in every record):
+ * 
+ *   - Orphans (move FROM): a key the template does NOT declare that is present
+ *     in 100% of records. That can only be a renamed field - the template
+ *     changed but the records were not re-sanitized, so all still carry the old
+ *     key. A key below 100% presence is a removed field (sanitize already
+ *     dropped it from the re-saved records) and is left for Strip, never moved.
+ *   - Targets (move TO): a real data field (never a virtual facet/formula, never
+ *     a loop) that holds no data in ANY record - the untouched destination a
+ *     rename leaves behind. A field with data anywhere is live; moving onto it
+ *     would overwrite, so it is never a target.
+ * 
+ * Both sides anchor on the template; data is only counted (presence, emptiness,
+ * shape). Read off RAW forms: a sanitized load fills defaults and drops
+ * top-level orphans, hiding both signals.
  */
 export class RenameCandidates {
-    "orphan_keys": string[];
-    "field_keys": string[];
+    "orphans": RenameKey[];
+    "targets": RenameKey[];
 
     /** Creates a new RenameCandidates instance. */
     constructor($$source: Partial<RenameCandidates> = {}) {
-        if (!("orphan_keys" in $$source)) {
-            this["orphan_keys"] = [];
+        if (!("orphans" in $$source)) {
+            this["orphans"] = [];
         }
-        if (!("field_keys" in $$source)) {
-            this["field_keys"] = [];
+        if (!("targets" in $$source)) {
+            this["targets"] = [];
         }
 
         Object.assign(this, $$source);
@@ -410,16 +423,46 @@ export class RenameCandidates {
      * Creates a new RenameCandidates instance from a string or object.
      */
     static createFrom($$source: any = {}): RenameCandidates {
-        const $$createField0_0 = $$createType0;
-        const $$createField1_0 = $$createType0;
+        const $$createField0_0 = $$createType8;
+        const $$createField1_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("orphan_keys" in $$parsedSource) {
-            $$parsedSource["orphan_keys"] = $$createField0_0($$parsedSource["orphan_keys"]);
+        if ("orphans" in $$parsedSource) {
+            $$parsedSource["orphans"] = $$createField0_0($$parsedSource["orphans"]);
         }
-        if ("field_keys" in $$parsedSource) {
-            $$parsedSource["field_keys"] = $$createField1_0($$parsedSource["field_keys"]);
+        if ("targets" in $$parsedSource) {
+            $$parsedSource["targets"] = $$createField1_0($$parsedSource["targets"]);
         }
         return new RenameCandidates($$parsedSource as Partial<RenameCandidates>);
+    }
+}
+
+/**
+ * RenameKey is one rename endpoint with its storage shape ("string" | "number"
+ * | "boolean" | "array" | "object"). A rename preserves the field type, so the
+ * frontend only pairs an orphan with a target of the same shape.
+ */
+export class RenameKey {
+    "key": string;
+    "kind": string;
+
+    /** Creates a new RenameKey instance. */
+    constructor($$source: Partial<RenameKey> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RenameKey instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RenameKey {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RenameKey($$parsedSource as Partial<RenameKey>);
     }
 }
 
@@ -458,7 +501,7 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType8;
+        const $$createField4_0 = $$createType10;
         const $$createField5_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
@@ -479,5 +522,7 @@ const $$createType3 = FixOutcome.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = Issue.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = FormReport.createFrom;
+const $$createType7 = RenameKey.createFrom;
 const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = FormReport.createFrom;
+const $$createType10 = $Create.Array($$createType9);

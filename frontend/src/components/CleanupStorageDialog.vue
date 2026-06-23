@@ -255,15 +255,40 @@ async function migrate() {
 // new field reads empty (missing_field). Moving the value across is friendlier
 // than strip + fill-default, which would discard the data.
 
-// From = orphaned data keys (raw-scanned, top-level + loop); To = declared
-// field keys. Both come from the backend so detection isn't blinded by the
-// sanitized analyze pass.
-const fromKeys = computed<string[]>(() => candidates.value?.orphan_keys ?? []);
-const toKeys = computed<string[]>(() => candidates.value?.field_keys ?? []);
+// Orphans (move FROM) and targets (move TO) come typed from the backend
+// ({key, kind}). A rename preserves the field type and never overwrites data,
+// so the backend only lists targets that are real, empty-everywhere fields, and
+// here we only pair same-shape keys: FROM lists orphans that have a same-shape
+// target; TO lists targets matching the chosen orphan's shape.
+const orphans = computed(() => candidates.value?.orphans ?? []);
+const targets = computed(() => candidates.value?.targets ?? []);
 
-// Show the move tool only when an orphaned key exists: that is the rename
-// leftover this repairs.
+function orphanKind(key: string): string {
+  return orphans.value.find((o) => o.key === key)?.kind ?? "";
+}
+
+const fromKeys = computed<string[]>(() =>
+  orphans.value
+    .filter((o) => targets.value.some((t) => t.kind === o.kind))
+    .map((o) => o.key),
+);
+const toKeys = computed<string[]>(() => {
+  const k = orphanKind(migrateFrom.value);
+  if (!k) return [];
+  return targets.value.filter((t) => t.kind === k).map((t) => t.key);
+});
+
+// Show the move tool only when some orphan has a same-type, empty target. A pure
+// removal, a field-replaced-by-facet, or a type-mismatch leaves nothing to pair,
+// so the tool stays hidden and the orphan is just stripped.
 const canRename = computed(() => fromKeys.value.length > 0);
+
+// Switching FROM can invalidate the TO selection (different shape); clear it.
+watch(migrateFrom, () => {
+  if (migrateTo.value && !toKeys.value.includes(migrateTo.value)) {
+    migrateTo.value = "";
+  }
+});
 
 const canMove = computed(
   () =>

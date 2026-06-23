@@ -17,19 +17,36 @@ type MigrateResult struct {
 	KeysMoved    int `json:"keys_moved"`
 }
 
-// RenameCandidates lists the choices for a doctor "move data between keys" run:
-// OrphanKeys are data keys the template no longer declares (move FROM), and
-// FieldKeys are the template's declared field keys (move TO). Both are read off
-// the RAW forms so a top-level orphan a sanitized load would drop still appears.
-type RenameCandidates struct {
-	OrphanKeys []string `json:"orphan_keys"`
-	FieldKeys  []string `json:"field_keys"`
+// RenameKey is one rename endpoint with its storage shape ("string" | "number"
+// | "boolean" | "array" | "object"). A rename preserves the field type, so the
+// frontend only pairs an orphan with a target of the same shape.
+type RenameKey struct {
+	Key  string `json:"key"`
+	Kind string `json:"kind"`
 }
 
-// RenameCandidates scans every form's raw data for keys the template no longer
-// declares (structure-aware via analyzeForm, so loop nesting is handled and
-// link/api value-objects are not mistaken for fields), and pairs them with the
-// template's declared field keys.
+// RenameCandidates lists the choices for a doctor "move data between keys" run,
+// scoped to TOP-LEVEL keys. The classification is deterministic, from the
+// sanitization invariant (a declared field is present in every record):
+//
+//   - Orphans (move FROM): a key the template does NOT declare that is present
+//     in 100% of records. That can only be a renamed field - the template
+//     changed but the records were not re-sanitized, so all still carry the old
+//     key. A key below 100% presence is a removed field (sanitize already
+//     dropped it from the re-saved records) and is left for Strip, never moved.
+//   - Targets (move TO): a real data field (never a virtual facet/formula, never
+//     a loop) that holds no data in ANY record - the untouched destination a
+//     rename leaves behind. A field with data anywhere is live; moving onto it
+//     would overwrite, so it is never a target.
+//
+// Both sides anchor on the template; data is only counted (presence, emptiness,
+// shape). Read off RAW forms: a sanitized load fills defaults and drops
+// top-level orphans, hiding both signals.
+type RenameCandidates struct {
+	Orphans []RenameKey `json:"orphans"`
+	Targets []RenameKey `json:"targets"`
+}
+
 func (m *Manager) RenameCandidates(templateFilename string) (RenameCandidates, error) {
 	tpl, err := m.templates.LoadTemplate(templateFilename)
 	if err != nil {
@@ -40,8 +57,35 @@ func (m *Manager) RenameCandidates(templateFilename string) (RenameCandidates, e
 		return RenameCandidates{}, fmt.Errorf("integrity: list forms for %q: %w", templateFilename, err)
 	}
 
+	// Template = source of truth. Walk its top-level fields once: declaredKeys is
+	// every top-level key it declares (so anything else in data is an orphan), and
+	// targetType is the real data fields a rename could land on (type by key).
+	declaredKeys := map[string]bool{}
+	targetType := map[string]string{}
+	for i := 0; i < len(tpl.Fields); i++ {
+		fld := tpl.Fields[i]
+		switch fld.Type {
+		case "loopstart":
+			declaredKeys[fld.Key] = true                // the loop array is a top-level key
+			i = matchLoopstop(tpl.Fields, i+1, fld.Key) // jump past the loop body (inner fields aren't top-level)
+		case "loopstop", "looper":
+			// markers, not data
+		default:
+			if fld.Key == "" {
+				continue
+			}
+			declaredKeys[fld.Key] = true
+			if !template.IsVirtualFieldType(fld.Type) { // facet/formula hold no data of their own
+				targetType[fld.Key] = fld.Type
+			}
+		}
+	}
+
 	rawReader, _ := m.storage.(RawFormReader)
-	orphans := map[string]struct{}{}
+	total := 0                         // records actually read
+	orphanShape := map[string]string{} // orphan key -> shape ("" until a value reveals it)
+	orphanPresent := map[string]int{}  // orphan key -> records the key appears in
+	occupied := map[string]bool{}      // declared field that holds data in at least one record
 	for _, fn := range filenames {
 		var f *storage.Form
 		if rawReader != nil {
@@ -53,37 +97,99 @@ func (m *Manager) RenameCandidates(templateFilename string) (RenameCandidates, e
 		if f == nil {
 			continue
 		}
-		for _, iss := range analyzeForm(tpl, f) {
-			if iss.Kind == IssueExtraField {
-				if k := pathLeaf(iss.Path); k != "" {
-					orphans[k] = struct{}{}
+		total++
+		for k, v := range f.Data {
+			if !declaredKeys[k] {
+				orphanPresent[k]++
+				if _, seen := orphanShape[k]; !seen {
+					orphanShape[k] = ""
 				}
+				if orphanShape[k] == "" {
+					if sh := shapeOfValue(v); sh != "" {
+						orphanShape[k] = sh
+					}
+				}
+				continue
+			}
+			if _, isTarget := targetType[k]; isTarget && isNonEmptyValue(v) {
+				occupied[k] = true
 			}
 		}
 	}
 
-	out := make([]string, 0, len(orphans))
-	for k := range orphans {
-		out = append(out, k)
+	// A Move source is an undeclared key present in EVERY record (100%): that is
+	// the sanitization signature of a renamed field (template changed, records
+	// not yet re-sanitized, so all still carry the old key). Below 100% is a
+	// removed field (sanitize already dropped it from the re-saved records) and
+	// gets stripped, never moved.
+	orphans := make([]RenameKey, 0, len(orphanShape))
+	for k, sh := range orphanShape {
+		if total > 0 && orphanPresent[k] == total {
+			orphans = append(orphans, RenameKey{Key: k, Kind: sh})
+		}
 	}
-	sort.Strings(out)
-	return RenameCandidates{OrphanKeys: out, FieldKeys: declaredFieldKeys(tpl)}, nil
+	targets := []RenameKey{}
+	for k, typ := range targetType {
+		if occupied[k] {
+			continue // holds data somewhere: a live field, never a rename target
+		}
+		targets = append(targets, RenameKey{Key: k, Kind: shapeOfFieldType(typ)})
+	}
+	sort.Slice(orphans, func(i, j int) bool { return orphans[i].Key < orphans[j].Key })
+	sort.Slice(targets, func(i, j int) bool { return targets[i].Key < targets[j].Key })
+	return RenameCandidates{Orphans: orphans, Targets: targets}, nil
 }
 
-// declaredFieldKeys lists the template's data-bearing field keys (loop keys and
-// loop-inner fields included), excluding the loopstop/looper markers, sorted.
-func declaredFieldKeys(tpl *template.Template) []string {
-	seen := map[string]bool{}
-	out := []string{}
-	for _, f := range tpl.Fields {
-		if f.Type == "loopstop" || f.Type == "looper" || f.Key == "" || seen[f.Key] {
-			continue
-		}
-		seen[f.Key] = true
-		out = append(out, f.Key)
+// shapeOfValue maps a stored JSON value to its storage shape; "" for nil/unknown.
+func shapeOfValue(v any) string {
+	switch v.(type) {
+	case string:
+		return "string"
+	case bool:
+		return "boolean"
+	case float64, float32, int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64:
+		return "number"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
 	}
-	sort.Strings(out)
-	return out
+	return ""
+}
+
+// shapeOfFieldType maps a declared field type to the same storage shapes, so a
+// target field can be compared against an orphan value's shape.
+func shapeOfFieldType(t string) string {
+	switch t {
+	case "number", "range":
+		return "number"
+	case "boolean":
+		return "boolean"
+	case "list", "tags", "multioption", "table":
+		return "array"
+	case "link", "api":
+		return "object"
+	default: // text, textarea, date, dropdown, radio, guid, image, *-path, mermaid
+		return "string"
+	}
+}
+
+// isNonEmptyValue reports whether a stored value counts as data (so a field is a
+// live field, not an empty rename target). Absent (nil), "", and empty
+// array/map are empty; a present scalar (number, bool) counts as data.
+func isNonEmptyValue(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return false
+	case string:
+		return strings.TrimSpace(x) != ""
+	case []any:
+		return len(x) > 0
+	case map[string]any:
+		return len(x) > 0
+	}
+	return true
 }
 
 // MigrateFieldKey renames a data key from oldKey to newKey across every form

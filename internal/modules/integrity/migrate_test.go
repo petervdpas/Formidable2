@@ -102,24 +102,117 @@ func TestMigrate_TopLevelRename_SurvivesSanitizeViaRawRead(t *testing.T) {
 	}
 }
 
-func TestRenameCandidates_FindsTopLevelOrphanAndFieldKeys(t *testing.T) {
+// A genuine rename: old key orphaned (string), new key declared and empty in
+// every record (the destination). The "naam" field holds data, so it's a live
+// field, not a target.
+func TestRenameCandidates_PairsOrphanWithEmptyTypedTarget(t *testing.T) {
 	fields := []template.Field{
 		{Key: "audit-control-identifier", Type: "text"},
 		{Key: "naam", Type: "text"},
 	}
 	m, _ := newSanitizingManager(t, fields, map[string]map[string]any{
-		"r1.meta.json": {"audit-control-id": "CH.02", "naam": "X"},
+		"r1.meta.json": {"audit-control-id": "CH.02", "naam": "Some name"},
 	})
 
 	cand, err := m.RenameCandidates("a.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cand.OrphanKeys) != 1 || cand.OrphanKeys[0] != "audit-control-id" {
-		t.Fatalf("orphan keys=%v; want [audit-control-id]", cand.OrphanKeys)
+	if len(cand.Orphans) != 1 || cand.Orphans[0].Key != "audit-control-id" || cand.Orphans[0].Kind != "string" {
+		t.Fatalf("orphans=%+v; want [{audit-control-id string}]", cand.Orphans)
 	}
-	if got := cand.FieldKeys; len(got) != 2 || got[0] != "audit-control-identifier" || got[1] != "naam" {
-		t.Fatalf("field keys=%v; want [audit-control-identifier naam]", got)
+	if len(cand.Targets) != 1 || cand.Targets[0].Key != "audit-control-identifier" || cand.Targets[0].Kind != "string" {
+		t.Fatalf("targets=%+v; want only the empty new key {audit-control-identifier string}", cand.Targets)
+	}
+}
+
+// A field that holds data in any record is a live field: moving onto it would
+// overwrite, so it must NOT be offered as a target (the data-loss guard).
+func TestRenameCandidates_OccupiedFieldIsNotTarget(t *testing.T) {
+	fields := []template.Field{{Key: "heading", Type: "text"}}
+	m, _ := newSanitizingManager(t, fields, map[string]map[string]any{
+		"r1.meta.json": {"old-note": "a"},                 // orphan present in both (100%)
+		"r2.meta.json": {"old-note": "b", "heading": "x"}, // heading holds data -> occupied
+	})
+
+	cand, err := m.RenameCandidates("a.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cand.Orphans) != 1 || cand.Orphans[0].Key != "old-note" {
+		t.Fatalf("orphans=%+v; want one 100%%-present orphan old-note", cand.Orphans)
+	}
+	if len(cand.Targets) != 0 {
+		t.Fatalf("targets=%+v; want none (heading holds data, so it is not a rename target)", cand.Targets)
+	}
+}
+
+// The deterministic core: a renamed field's old key is present in 100% of
+// records (records not yet re-sanitized), while a removed field's leftover is
+// present in only some (sanitize already dropped it from the re-saved ones). So
+// only the 100%-present key is a Move source; the partial one is strip-only.
+func TestRenameCandidates_OnlyFullPresenceKeyIsMoveSource(t *testing.T) {
+	fields := []template.Field{{Key: "naam", Type: "text"}} // declared, empty everywhere -> target
+	m, _ := newSanitizingManager(t, fields, map[string]map[string]any{
+		// "titel" in all 4 (100% -> renamed); "type" in 1 of 4 (removed leftover).
+		"r1.meta.json": {"titel": "A"},
+		"r2.meta.json": {"titel": "B"},
+		"r3.meta.json": {"titel": "C", "type": "doel_adapter"},
+		"r4.meta.json": {"titel": "D"},
+	})
+
+	cand, err := m.RenameCandidates("a.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cand.Orphans) != 1 || cand.Orphans[0].Key != "titel" {
+		t.Fatalf("orphans=%+v; want only the 100%%-present key [titel] (type is a removed field)", cand.Orphans)
+	}
+	if len(cand.Targets) != 1 || cand.Targets[0].Key != "naam" {
+		t.Fatalf("targets=%+v; want [naam]", cand.Targets)
+	}
+}
+
+// A facet field is virtual (value lives in meta, not data), so it is never a
+// rename target - this is the field-replaced-by-facet case.
+func TestRenameCandidates_FacetFieldIsNotTarget(t *testing.T) {
+	fields := []template.Field{{Key: "status", Type: "facet", FacetKey: "st"}}
+	m, _ := newSanitizingManager(t, fields, map[string]map[string]any{
+		"r1.meta.json": {"old-status": "open"},
+	})
+
+	cand, err := m.RenameCandidates("a.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cand.Orphans) != 1 || cand.Orphans[0].Key != "old-status" {
+		t.Fatalf("orphans=%+v; want one orphan old-status", cand.Orphans)
+	}
+	if len(cand.Targets) != 0 {
+		t.Fatalf("targets=%+v; want none (a facet is virtual, not a data target)", cand.Targets)
+	}
+}
+
+// Different shapes are not a rename (type must match): a string orphan and a
+// number target are listed with their own shapes so the frontend won't pair them.
+func TestRenameCandidates_TypeShapesAreReported(t *testing.T) {
+	fields := []template.Field{{Key: "amount", Type: "number"}}
+	m, _ := newSanitizingManager(t, fields, map[string]map[string]any{
+		"r1.meta.json": {"old-note": "hello"}, // string orphan; amount empty everywhere
+	})
+
+	cand, err := m.RenameCandidates("a.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cand.Orphans) != 1 || cand.Orphans[0].Kind != "string" {
+		t.Fatalf("orphans=%+v; want one string orphan", cand.Orphans)
+	}
+	if len(cand.Targets) != 1 || cand.Targets[0].Kind != "number" {
+		t.Fatalf("targets=%+v; want one number target", cand.Targets)
+	}
+	if cand.Orphans[0].Kind == cand.Targets[0].Kind {
+		t.Fatal("string orphan and number target must not share a shape")
 	}
 }
 

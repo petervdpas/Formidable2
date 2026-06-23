@@ -17,5 +17,6 @@ export {
     IssueKind,
     MigrateResult,
     RenameCandidates,
+    RenameKey,
     Report
 } from "./models.js";
