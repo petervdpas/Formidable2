@@ -14,9 +14,9 @@
 }
 
 /* When .formidable-prose lives inside a slideout panel, give it a
-   little surface chrome so the wiki "page" reads as a card. */
+   little surface chrome so the wiki "page" reads as a card. The light
+   background is intrinsic to .formidable-prose; this only adds framing. */
 .preview-html {
-    background: #f9f9f9;
     padding: 1.25rem 1.5rem;
     border-radius: var(--radius-sm);
 }

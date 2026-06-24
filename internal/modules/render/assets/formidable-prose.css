@@ -7,11 +7,15 @@
 
    Container styling stays minimal so callers control padding/sizing
    from outside (the wiki page wraps its own header; the slideout
-   wraps in its own panel chrome). */
+   wraps in its own panel chrome). The light surface IS intrinsic: the
+   prose colors below assume a light page (text #333), so the background
+   lives here rather than being re-declared by every caller that shows it
+   on a dark theme panel. */
 
 .formidable-prose {
     font-family: system-ui, sans-serif;
     color: #333;
+    background: #f9f9f9;
     line-height: 1.6;
 }
 
