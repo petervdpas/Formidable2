@@ -48,8 +48,11 @@ func WithHTTPClient(c *http.Client) ManagerOption {
 // NewManager builds a Manager bound to fs (required: ledger writes always go through it for atomicity).
 func NewManager(fs Filesystem, opts ...ManagerOption) *Manager {
 	m := &Manager{
-		fs:     fs,
-		client: &http.Client{Timeout: 30 * time.Second},
+		fs: fs,
+		// A multi-file push uploads every changed file in one commit body, so
+		// the old 30s ceiling could trip on a large context. 120s leaves the
+		// server's own 60s commit deadline room to return a clean error first.
+		client: &http.Client{Timeout: 120 * time.Second},
 	}
 	for _, opt := range opts {
 		opt(m)
