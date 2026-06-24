@@ -160,22 +160,38 @@ function prettyField(label: string): string {
 function contractRelations(ns: GraphNode[], es: GraphEdge[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const byId = new Map(ns.map((n) => [n.id, n]));
   // A "rel:" edge points record -> relation-field-node; capture that owner+label.
+  // Only when the target is a FIELD node (the flower shape); a "rel:" edge that
+  // already points record -> record (the multi-hop web from GraphFromDepth) is
+  // not a field-node hop and is passed through directly below.
   const relField = new Map<string, { from: string; label: string }>();
   for (const e of es) {
-    if (e.field.startsWith(REL_PREFIX)) {
+    if (e.field.startsWith(REL_PREFIX) && byId.get(e.target)?.kind !== "root") {
       relField.set(e.target, { from: e.source, label: e.field });
     }
   }
   const outEdges: GraphEdge[] = [];
+  const seen = new Set<string>();
   const keep = new Set<string>();
+  const push = (source: string, target: string, field: string) => {
+    const k = `${source}\x1f${target}\x1f${field}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    outEdges.push({ source, target, field });
+    keep.add(source);
+    keep.add(target);
+  };
   for (const e of es) {
-    const rf = relField.get(e.source); // e.source is a relation-field node
-    if (!rf) continue;
-    const target = byId.get(e.target);
-    if (!target || target.kind !== "root") continue;
-    outEdges.push({ source: rf.from, target: e.target, field: rf.label });
-    keep.add(rf.from);
-    keep.add(e.target);
+    // (a) flower: contract record -(rel:X)-> field-node -> record.
+    const rf = relField.get(e.source);
+    if (rf) {
+      const target = byId.get(e.target);
+      if (target?.kind === "root") push(rf.from, e.target, rf.label);
+      continue;
+    }
+    // (b) web: a direct record -> record edge is already a relation; keep it.
+    if (byId.get(e.source)?.kind === "root" && byId.get(e.target)?.kind === "root") {
+      push(e.source, e.target, e.field);
+    }
   }
   return { nodes: ns.filter((n) => keep.has(n.id) && n.kind === "root"), edges: outEdges };
 }
