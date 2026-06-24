@@ -2,6 +2,7 @@
   "datacore.graph_title": "Datacore-grafiek",
   "datacore.click_hint": "Klik op een knoop om de koppelingen uit te vouwen; sleep om te herschikken.",
   "datacore.detail": "Detail",
+  "datacore.hops": "Sprongen",
   "datacore.level_root": "Record",
   "datacore.level_fields": "Velden",
   "datacore.level_rows": "Rijen",

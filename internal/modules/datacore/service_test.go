@@ -246,3 +246,35 @@ func TestServiceLoaderErrorPropagates(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceGraphFromDepthDelegates(t *testing.T) {
+	// A -> B -> C chain; from A, one hop reaches B, two hops reach C.
+	recs := []Record{
+		{ID: "A", Links: map[string][]string{"next": {"B"}}},
+		{ID: "B", Links: map[string][]string{"next": {"C"}}},
+		{ID: "C"},
+	}
+	svc := NewService(func(string) Loader { return &sliceLoader{recs: recs} })
+
+	roots := func(g Graph) map[string]bool {
+		m := map[string]bool{}
+		for _, n := range g.Nodes {
+			if n.Kind == "root" {
+				m[n.ID] = true
+			}
+		}
+		return m
+	}
+
+	g1, err := svc.GraphFromDepth("", "A", 1, 0)
+	if err != nil {
+		t.Fatalf("GraphFromDepth err = %v", err)
+	}
+	if r := roots(g1); !r["A"] || !r["B"] || r["C"] {
+		t.Fatalf("hops=1 = %v, want A,B only", r)
+	}
+	g2, _ := svc.GraphFromDepth("", "A", 2, 0)
+	if r := roots(g2); !r["A"] || !r["B"] || !r["C"] {
+		t.Fatalf("hops=2 = %v, want A,B,C", r)
+	}
+}

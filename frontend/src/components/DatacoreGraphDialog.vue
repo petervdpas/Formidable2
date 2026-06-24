@@ -29,6 +29,14 @@ const loading = ref(false);
 const errorMsg = ref("");
 const level = ref(2); // 1 = record, 2 = fields, 3 = rows
 
+// Hop depth fans the view out over the record relation web: 1 = the focused
+// record's own flower (the Detail levels above), >1 = every record within N
+// reference-hops of it, both directions, fetched in one backend call. A node cap
+// keeps a dense web from exploding.
+const MAX_HOPS = 4;
+const HOP_CAP = 300;
+const hopDepth = ref(1);
+
 // Relations-only collapses the graph to record-to-record relation edges (the
 // intermediate "rel:<to>" field node is contracted away) and drops field/row
 // nodes. In that mode clicking a record isolates its connected paths instead of
@@ -391,15 +399,49 @@ async function loadRoot() {
   closeInspector();
   void loadHeaders();
   if (!props.record) return;
-  // Backend level is 0-based: record=0, fields=1, rows=2.
-  if (await fetchInto(props.record, level.value - 1)) {
+  // Hop depth > 1 loads the multi-hop record web in one call; depth 1 keeps the
+  // single-record flower (its detail driven by the Detail level).
+  const ok =
+    hopDepth.value > 1
+      ? await fetchDepth()
+      : // Backend level is 0-based: record=0, fields=1, rows=2.
+        await fetchInto(props.record, level.value - 1);
+  if (ok) {
     expanded.value.add(props.record);
-    rootNodeId.value = nodes.value[0]?.id ?? null; // GraphFrom adds the root first
+    rootNodeId.value = nodes.value[0]?.id ?? null; // root is added first
+  }
+}
+
+// fetchDepth replaces the view with the record relation web within hopDepth
+// reference-hops of the focus, in both directions (backend GraphFromDepth).
+async function fetchDepth(): Promise<boolean> {
+  loading.value = true;
+  errorMsg.value = "";
+  try {
+    const g = await DatacoreSvc.GraphFromDepth(
+      props.templateFilename,
+      props.record,
+      hopDepth.value,
+      HOP_CAP,
+    );
+    nodes.value = g.nodes ?? [];
+    edges.value = g.edges ?? [];
+    return true;
+  } catch (err) {
+    errorMsg.value = backendErrMessage(err);
+    return false;
+  } finally {
+    loading.value = false;
   }
 }
 
 function setLevel(l: number) {
   level.value = Math.min(3, Math.max(1, l));
+  loadRoot();
+}
+
+function setHopDepth(h: number) {
+  hopDepth.value = Math.min(MAX_HOPS, Math.max(1, h));
   loadRoot();
 }
 
@@ -554,9 +596,15 @@ watch(
       <div class="datacore-graph__bar">
         <span class="datacore-graph__detail">
           {{ t('datacore.detail') }}
-          <button type="button" class="tool-btn" :disabled="loading || level <= 1" @click="setLevel(level - 1)">−</button>
+          <button type="button" class="tool-btn" :disabled="loading || hopDepth > 1 || level <= 1" @click="setLevel(level - 1)">−</button>
           <span class="datacore-graph__level">{{ levelName }}</span>
-          <button type="button" class="tool-btn" :disabled="loading || level >= 3" @click="setLevel(level + 1)">+</button>
+          <button type="button" class="tool-btn" :disabled="loading || hopDepth > 1 || level >= 3" @click="setLevel(level + 1)">+</button>
+        </span>
+        <span class="datacore-graph__detail">
+          {{ t('datacore.hops') }}
+          <button type="button" class="tool-btn" :disabled="loading || hopDepth <= 1" @click="setHopDepth(hopDepth - 1)">−</button>
+          <span class="datacore-graph__level">{{ hopDepth }}</span>
+          <button type="button" class="tool-btn" :disabled="loading || hopDepth >= MAX_HOPS" @click="setHopDepth(hopDepth + 1)">+</button>
         </span>
         <button type="button" class="tool-btn" :disabled="loading || !record" @click="loadRoot">
           {{ t('datacore.reset') }}

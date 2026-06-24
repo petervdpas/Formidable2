@@ -111,14 +111,26 @@ export function Graph(template: string, limit: number): $CancellablePromise<$mod
 }
 
 /**
- * GraphFrom projects the subgraph reachable from one record up to depth hops,
- * for the per-record flower and click-to-unfold. rootID may be a bare filename
- * (the studio's first call, which knows only template+filename) or an already
- * composite node id handed back by a click; either resolves to the same
- * identity, so the round-trip never double-prefixes.
+ * GraphFrom projects one record's flower at a detail level (0 = record, 1 =
+ * fields, 2 = rows/linked records), for the per-record view and click-to-unfold.
+ * rootID may be a bare filename (the studio's first call, which knows only
+ * template+filename) or an already composite node id handed back by a click;
+ * either resolves to the same identity, so the round-trip never double-prefixes.
  */
-export function GraphFrom(template: string, rootID: string, depth: number): $CancellablePromise<$models.Graph> {
-    return $Call.ByID(3090347177, template, rootID, depth).then(($result: any) => {
+export function GraphFrom(template: string, rootID: string, detail: number): $CancellablePromise<$models.Graph> {
+    return $Call.ByID(3090347177, template, rootID, detail).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * GraphFromDepth projects the record relation web within `hops` reference-hops
+ * of one record, following refs in both directions (the auto-depth fan-out).
+ * rootID resolution mirrors GraphFrom (bare or composite). limit caps the node
+ * count (0 = no cap); the returned Graph's Capped flag marks a truncated view.
+ */
+export function GraphFromDepth(template: string, rootID: string, hops: number, limit: number): $CancellablePromise<$models.Graph> {
+    return $Call.ByID(2669221614, template, rootID, hops, limit).then(($result: any) => {
         return $$createType7($result);
     });
 }

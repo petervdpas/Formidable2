@@ -195,3 +195,80 @@ func TestGraphEmptyTensor(t *testing.T) {
 		t.Fatalf("empty graph = %+v, want zero", g)
 	}
 }
+
+// chainFixture: A -> B -> C -> D, each linking the next via field "next".
+func chainFixture() *Tensor {
+	dt := New()
+	dt.Ingest(Record{ID: "A", Fields: map[string]string{"title": "Alpha"}, Links: map[string][]string{"next": {"B"}}})
+	dt.Ingest(Record{ID: "B", Fields: map[string]string{"title": "Beta"}, Links: map[string][]string{"next": {"C"}}})
+	dt.Ingest(Record{ID: "C", Fields: map[string]string{"title": "Gamma"}, Links: map[string][]string{"next": {"D"}}})
+	dt.Ingest(Record{ID: "D", Fields: map[string]string{"title": "Delta"}})
+	return dt
+}
+
+func recordIDs(g Graph) map[string]bool {
+	m := map[string]bool{}
+	for _, n := range g.Nodes {
+		if n.Kind == "root" {
+			m[n.ID] = true
+		}
+	}
+	return m
+}
+
+func TestGraphFromDepthWalksRecordHops(t *testing.T) {
+	dt := chainFixture()
+
+	r1 := recordIDs(dt.GraphFromDepth("A", 1, 0))
+	if !r1["A"] || !r1["B"] || r1["C"] || r1["D"] {
+		t.Fatalf("hops=1 records = %v, want A,B only", r1)
+	}
+	r2 := recordIDs(dt.GraphFromDepth("A", 2, 0))
+	if !r2["A"] || !r2["B"] || !r2["C"] || r2["D"] {
+		t.Fatalf("hops=2 records = %v, want A,B,C", r2)
+	}
+	r3 := recordIDs(dt.GraphFromDepth("A", 3, 0))
+	if !(r3["A"] && r3["B"] && r3["C"] && r3["D"]) {
+		t.Fatalf("hops=3 records = %v, want A,B,C,D", r3)
+	}
+}
+
+func TestGraphFromDepthIsBidirectional(t *testing.T) {
+	// From B, one hop reaches A (incoming) and C (outgoing).
+	r := recordIDs(chainFixture().GraphFromDepth("B", 1, 0))
+	if !r["A"] || !r["B"] || !r["C"] {
+		t.Fatalf("from B hops=1 = %v, want A,B,C (both directions)", r)
+	}
+}
+
+func TestGraphFromDepthHopsBelowOneActsAsOne(t *testing.T) {
+	a := recordIDs(chainFixture().GraphFromDepth("A", 0, 0))
+	b := recordIDs(chainFixture().GraphFromDepth("A", 1, 0))
+	if len(a) != len(b) || !a["A"] || !a["B"] || a["C"] {
+		t.Fatalf("hops<1 = %v, want same as hops=1 (%v)", a, b)
+	}
+}
+
+func TestGraphFromDepthUnknownRoot(t *testing.T) {
+	if g := chainFixture().GraphFromDepth("nope", 3, 0); len(g.Nodes) != 0 {
+		t.Fatalf("unknown root = %d nodes, want 0", len(g.Nodes))
+	}
+}
+
+func TestGraphFromDepthCaps(t *testing.T) {
+	g := chainFixture().GraphFromDepth("A", 10, 3)
+	if !g.Capped {
+		t.Fatal("Capped = false, want true at limit 3")
+	}
+	if len(g.Nodes) > 3 {
+		t.Fatalf("capped nodes = %d, want <= 3", len(g.Nodes))
+	}
+}
+
+func TestGraphFromDepthRootLeads(t *testing.T) {
+	// From C, the root must be the first node even though A/B precede it in ingest order.
+	g := chainFixture().GraphFromDepth("C", 3, 0)
+	if len(g.Nodes) == 0 || g.Nodes[0].ID != "C" {
+		t.Fatalf("first node = %+v, want root C first", g.Nodes)
+	}
+}

@@ -2,6 +2,7 @@
   "datacore.graph_title": "Datacore graph",
   "datacore.click_hint": "Click a node to unfold its links; drag to rearrange.",
   "datacore.detail": "Detail",
+  "datacore.hops": "Hops",
   "datacore.level_root": "Record",
   "datacore.level_fields": "Fields",
   "datacore.level_rows": "Rows",

@@ -133,12 +133,12 @@ func (s *Service) Graph(template string, limit int) (Graph, error) {
 	return t.Graph(limit), nil
 }
 
-// GraphFrom projects the subgraph reachable from one record up to depth hops,
-// for the per-record flower and click-to-unfold. rootID may be a bare filename
-// (the studio's first call, which knows only template+filename) or an already
-// composite node id handed back by a click; either resolves to the same
-// identity, so the round-trip never double-prefixes.
-func (s *Service) GraphFrom(template, rootID string, depth int) (Graph, error) {
+// GraphFrom projects one record's flower at a detail level (0 = record, 1 =
+// fields, 2 = rows/linked records), for the per-record view and click-to-unfold.
+// rootID may be a bare filename (the studio's first call, which knows only
+// template+filename) or an already composite node id handed back by a click;
+// either resolves to the same identity, so the round-trip never double-prefixes.
+func (s *Service) GraphFrom(template, rootID string, detail int) (Graph, error) {
 	t, err := Build(s.factory(template))
 	if err != nil {
 		return Graph{}, err
@@ -147,7 +147,23 @@ func (s *Service) GraphFrom(template, rootID string, depth int) (Graph, error) {
 	if !isCompositeID(id) {
 		id = NewID(template, id)
 	}
-	return t.GraphFrom(id, depth), nil
+	return t.GraphFrom(id, detail), nil
+}
+
+// GraphFromDepth projects the record relation web within `hops` reference-hops
+// of one record, following refs in both directions (the auto-depth fan-out).
+// rootID resolution mirrors GraphFrom (bare or composite). limit caps the node
+// count (0 = no cap); the returned Graph's Capped flag marks a truncated view.
+func (s *Service) GraphFromDepth(template, rootID string, hops, limit int) (Graph, error) {
+	t, err := Build(s.factory(template))
+	if err != nil {
+		return Graph{}, err
+	}
+	id := rootID
+	if !isCompositeID(id) {
+		id = NewID(template, id)
+	}
+	return t.GraphFromDepth(id, hops, limit), nil
 }
 
 // AggregateRaw produces the raw grid rows (form + dim values + numeric

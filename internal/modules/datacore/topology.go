@@ -175,3 +175,103 @@ func (t *Tensor) GraphFrom(rootID string, level int) Graph {
 	}
 	return g
 }
+
+// neighborRecords returns the record identities one reference-hop from s in
+// either direction: records s links to (outgoing refs) and records that link to
+// s (incoming refs). Row sub-identities are skipped; only records are returned.
+func (t *Tensor) neighborRecords(s sym) []sym {
+	seen := map[sym]bool{}
+	var out []sym
+	add := func(x sym) {
+		if x != 0 && x != s && t.isRecord(x) && !seen[x] {
+			seen[x] = true
+			out = append(out, x)
+		}
+	}
+	for k := range t.is {
+		if t.ref[k] == 0 {
+			continue
+		}
+		if t.is[k] == s {
+			add(t.ref[k])
+		}
+		if t.ref[k] == s {
+			add(t.is[k])
+		}
+	}
+	return out
+}
+
+// GraphFromDepth is the record relation web within `hops` reference-hops of the
+// root, following refs in BOTH directions. Nodes are the reachable records;
+// edges are the direct record-to-record refs among them (the field/row detail of
+// any single record stays the job of GraphFrom). hops < 1 is treated as 1, so the
+// result always contains the root and its immediate relations. Records are kept
+// roots-first then satellites in ingest order, so a cap keeps whole records
+// deterministically; limit <= 0 means no cap, and Capped marks a truncated view.
+// Empty graph if rootID is unknown.
+func (t *Tensor) GraphFromDepth(rootID string, hops, limit int) Graph {
+	root, ok := t.iax.lookup(rootID)
+	if !ok {
+		return Graph{}
+	}
+	if hops < 1 {
+		hops = 1
+	}
+
+	included := map[sym]bool{root: true}
+	frontier := []sym{root}
+	for d := 0; d < hops && len(frontier) > 0; d++ {
+		var next []sym
+		for _, r := range frontier {
+			for _, nb := range t.neighborRecords(r) {
+				if !included[nb] {
+					included[nb] = true
+					next = append(next, nb)
+				}
+			}
+		}
+		frontier = next
+	}
+
+	order := make([]sym, 0, len(included))
+	seen := map[sym]bool{root: true}
+	order = append(order, root) // root leads, so callers can read it as nodes[0]
+	for _, r := range t.rootList {
+		if included[r] && !seen[r] {
+			seen[r] = true
+			order = append(order, r)
+		}
+	}
+	for _, s := range t.is {
+		if included[s] && !seen[s] {
+			seen[s] = true
+			order = append(order, s)
+		}
+	}
+
+	var g Graph
+	kept := map[sym]bool{}
+	for _, s := range order {
+		if limit > 0 && len(g.Nodes) >= limit {
+			g.Capped = true
+			break
+		}
+		kept[s] = true
+		kind := "row"
+		if t.isRecord(s) {
+			kind = "root"
+		}
+		g.Nodes = append(g.Nodes, GraphNode{ID: t.iax.label(s), Label: t.nodeLabel(s), Kind: kind})
+	}
+	for k := range t.is {
+		if t.ref[k] == 0 {
+			continue
+		}
+		src, tgt := t.is[k], t.ref[k]
+		if kept[src] && kept[tgt] {
+			g.Edges = append(g.Edges, GraphEdge{Source: t.iax.label(src), Target: t.iax.label(tgt), Field: t.fax.label(t.fs[k])})
+		}
+	}
+	return g
+}
