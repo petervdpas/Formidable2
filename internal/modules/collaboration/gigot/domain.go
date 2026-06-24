@@ -81,7 +81,7 @@ func GitBlobSha(data []byte) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// IsFormidablePath reports whether a repo-relative path is Formidable-managed (templates/, storage/, or an allowlisted root file).
+// IsFormidablePath reports whether a repo-relative path is Formidable-managed (templates/, relations/, storage/, or an allowlisted root file).
 // Rejects ".." traversal so callers can pass server tree paths without re-validating.
 func IsFormidablePath(repoRelPath string) bool {
 	if repoRelPath == "" {
@@ -92,6 +92,9 @@ func IsFormidablePath(repoRelPath string) bool {
 		return false
 	}
 	if strings.HasPrefix(clean, "templates/") {
+		return true
+	}
+	if strings.HasPrefix(clean, "relations/") {
 		return true
 	}
 	if strings.HasPrefix(clean, "storage/") {
@@ -161,7 +164,7 @@ func (m *Manager) WriteTrackRecord(contextFolder string, rec TrackRecord) error 
 	return m.fs.SaveFile(target, string(raw))
 }
 
-// CollectFormidableFiles returns every managed file (templates/ flat *.yaml, storage/ recursive, allowlisted root files), each with its bytes + git blob SHA.
+// CollectFormidableFiles returns every managed file (templates/ + relations/ flat *.yaml, storage/ recursive, allowlisted root files), each with its bytes + git blob SHA.
 func CollectFormidableFiles(contextFolder string) ([]LocalFile, error) {
 	if contextFolder == "" {
 		return nil, ErrMissingContext
@@ -169,24 +172,15 @@ func CollectFormidableFiles(contextFolder string) ([]LocalFile, error) {
 	root := filepath.Clean(contextFolder)
 	var out []LocalFile
 
-	templatesDir := filepath.Join(root, "templates")
-	entries, err := os.ReadDir(templatesDir)
-	if err != nil && !os.IsNotExist(err) {
+	if err := collectFlatYAML(root, "templates", &out); err != nil {
 		return nil, err
 	}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if !strings.HasSuffix(name, ".yaml") {
-			continue
-		}
-		f, err := readLocalFile(filepath.Join(templatesDir, name), "templates/"+name)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, f)
+	// relations/ nests a self/<template>.yaml mirror for self-relations, so it
+	// is walked recursively; IsFormidablePath already matches relations/ at any
+	// depth, and a flat walk here would push the forward half but never the
+	// self/ mirror, leaving the remote half of a self-relation behind.
+	if err := collectYAMLTree(root, "relations", &out); err != nil {
+		return nil, err
 	}
 
 	storageDir := filepath.Join(root, "storage")
@@ -213,6 +207,79 @@ func CollectFormidableFiles(contextFolder string) ([]LocalFile, error) {
 
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil
+}
+
+// collectFlatYAML appends every top-level *.yaml file under <root>/<sub> to out,
+// tagged with the "<sub>/<name>" repo-relative path. templates/ and relations/
+// are both flat directories of yaml documents; a missing directory is not an error.
+func collectFlatYAML(root, sub string, out *[]LocalFile) error {
+	dir := filepath.Join(root, sub)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasSuffix(name, ".yaml") {
+			continue
+		}
+		f, err := readLocalFile(filepath.Join(dir, name), sub+"/"+name)
+		if err != nil {
+			return err
+		}
+		*out = append(*out, f)
+	}
+	return nil
+}
+
+// collectYAMLTree appends every *.yaml file under <root>/<sub> at any depth,
+// tagged with its repo-relative path. Used for relations/, which (unlike the
+// flat templates/ directory) nests a self/ subfolder of self-relation mirrors.
+func collectYAMLTree(root, sub string, out *[]LocalFile) error {
+	base := filepath.Join(root, sub)
+	info, err := os.Stat(base)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if !info.IsDir() {
+		return nil
+	}
+	return walkYAMLTree(base, sub, out)
+}
+
+func walkYAMLTree(absDir, relDir string, out *[]LocalFile) error {
+	entries, err := os.ReadDir(absDir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		abs := filepath.Join(absDir, e.Name())
+		rel := relDir + "/" + e.Name()
+		if e.IsDir() {
+			if err := walkYAMLTree(abs, rel, out); err != nil {
+				return err
+			}
+			continue
+		}
+		if !strings.HasSuffix(e.Name(), ".yaml") {
+			continue
+		}
+		f, err := readLocalFile(abs, rel)
+		if err != nil {
+			return err
+		}
+		*out = append(*out, f)
+	}
+	return nil
 }
 
 func walkStorage(absDir, relDir string, out *[]LocalFile) error {

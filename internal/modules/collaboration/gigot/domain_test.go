@@ -79,6 +79,12 @@ func TestIsFormidablePath_StorageNested(t *testing.T) {
 	}
 }
 
+func TestIsFormidablePath_RelationsYaml(t *testing.T) {
+	if !IsFormidablePath("relations/applicatie.yaml") {
+		t.Fatal("relations/applicatie.yaml should be Formidable-managed")
+	}
+}
+
 func TestIsFormidablePath_RootAllowlist(t *testing.T) {
 	for _, p := range []string{"README.md", ".gitignore"} {
 		if !IsFormidablePath(p) {
@@ -247,6 +253,9 @@ func TestCollectFormidableFiles_PicksTemplatesStorageRootAllowlist(t *testing.T)
 	dir := t.TempDir()
 	writeFile(t, dir, "templates/basic.yaml", "name: basic")
 	writeFile(t, dir, "templates/notes.yaml", "name: notes")
+	writeFile(t, dir, "relations/applicatie.yaml", "from: x")
+	writeFile(t, dir, "relations/data-object.yaml", "from: y")
+	writeFile(t, dir, "relations/self/applicatie.yaml", "from: z")
 	writeFile(t, dir, "storage/addresses/oak.meta.json", `{"meta":{}}`)
 	writeFile(t, dir, "storage/addresses/images/photo.jpg", "binary")
 	writeFile(t, dir, "README.md", "# Hi")
@@ -255,6 +264,7 @@ func TestCollectFormidableFiles_PicksTemplatesStorageRootAllowlist(t *testing.T)
 	// Distractors that must not appear.
 	writeFile(t, dir, "templates/README.md", "ignored - non-yaml")
 	writeFile(t, dir, "templates/images/oops.png", "ignored - non-yaml")
+	writeFile(t, dir, "relations/notes.txt", "ignored - non-yaml")
 	writeFile(t, dir, "notes.txt", "ignored - not allowlisted")
 	writeFile(t, dir, ".formidable/sync.json", `{"version":""}`)
 	writeFile(t, dir, ".formidable/context.json", `{"version":1}`)
@@ -265,12 +275,15 @@ func TestCollectFormidableFiles_PicksTemplatesStorageRootAllowlist(t *testing.T)
 	}
 
 	want := map[string]bool{
-		"templates/basic.yaml":                  true,
-		"templates/notes.yaml":                  true,
-		"storage/addresses/oak.meta.json":       true,
-		"storage/addresses/images/photo.jpg":    true,
-		"README.md":                             true,
-		".gitignore":                            true,
+		"templates/basic.yaml":               true,
+		"templates/notes.yaml":               true,
+		"relations/applicatie.yaml":          true,
+		"relations/data-object.yaml":         true,
+		"relations/self/applicatie.yaml":     true,
+		"storage/addresses/oak.meta.json":    true,
+		"storage/addresses/images/photo.jpg": true,
+		"README.md":                          true,
+		".gitignore":                         true,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("walker returned %d files, want %d: %+v", len(got), len(want), pathsOf(got))
