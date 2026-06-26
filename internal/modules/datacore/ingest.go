@@ -16,6 +16,11 @@ type Record struct {
 	// Label is an optional display name for the record, used by the graph
 	// view. Empty falls back to the ID.
 	Label string
+	// Color is an optional per-record node color (a CSS color string) used by
+	// the graph view to tint this record's node. Empty leaves the node at its
+	// default kind-based color. Carried per record because the loader sources
+	// it from the record's template, so one template colors all its records.
+	Color string
 	// TableLabels gives an optional display label per table row (in row
 	// order), keyed by table field, to label row nodes in the graph.
 	TableLabels map[string][]string
@@ -42,6 +47,9 @@ func (t *Tensor) Ingest(r Record) {
 	}
 	if r.Label != "" {
 		t.labels[t.iax.intern(r.ID)] = r.Label
+	}
+	if r.Color != "" {
+		t.colors[t.iax.intern(r.ID)] = r.Color
 	}
 	for f, v := range r.Fields {
 		t.Put(r.ID, f, Universal, v)

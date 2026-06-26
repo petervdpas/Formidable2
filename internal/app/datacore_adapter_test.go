@@ -749,6 +749,64 @@ func TestDatacoreAdapter_GraphPrefixLabelsRelatedNodes(t *testing.T) {
 	}
 }
 
+func TestDatacoreAdapter_GraphColorTintsTemplateNodes(t *testing.T) {
+	root := t.TempDir()
+	sys := system.NewManager(root, nil)
+	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	tplM := template.NewManager(sys, "templates", log)
+	if err := tplM.EnsureTemplateDirectory(); err != nil {
+		t.Fatalf("EnsureTemplateDirectory: %v", err)
+	}
+	sfrM := sfr.NewManager(sys, log)
+	stoM := storage.NewManager(sys, sfrM, tplM, "storage", log)
+
+	// A colored focus collection linked to one colored satellite and one with no
+	// color, so the per-template color rides through to the node and an unset
+	// color leaves the node default.
+	focusFile, satFile, plainFile := "control.yaml", "toets.yaml", "proces.yaml"
+	colors := map[string]string{focusFile: "#4a90e2", satFile: "#e84e4e", plainFile: ""}
+	for file, color := range colors {
+		tpl := &template.Template{
+			Name: file, Filename: file, EnableCollection: true,
+			ItemField: "code", GraphColor: color,
+			Fields: []template.Field{{Key: "id", Type: "guid"}, {Key: "code", Type: "text"}},
+		}
+		if err := tplM.SaveTemplate(file, tpl); err != nil {
+			t.Fatalf("SaveTemplate %s: %v", file, err)
+		}
+	}
+
+	gC := saveGuid(t, stoM, focusFile, "c.meta.json", map[string]any{"code": "CH.02"})
+	gS := saveGuid(t, stoM, satFile, "s.meta.json", map[string]any{"code": "TK.01"})
+	gP := saveGuid(t, stoM, plainFile, "p.meta.json", map[string]any{"code": "PR.01"})
+	rels := []relation.Relation{
+		{To: satFile, Cardinality: relation.OneToMany, Edges: []relation.Edge{{From: gC, To: gS}}},
+		{To: plainFile, Cardinality: relation.OneToMany, Edges: []relation.Edge{{From: gC, To: gP}}},
+	}
+	rel := fakeRelReader{rels: map[string][]relation.Relation{focusFile: rels}}
+
+	focus := datacore.NewID(focusFile, "c.meta.json")
+	dt, err := datacore.Build(newDatacoreLoaderAdapter(tplM, stoM, nil, rel, focusFile, false))
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	g := dt.GraphFrom(focus, 2)
+
+	color := map[string]string{}
+	for i := range g.Nodes {
+		color[g.Nodes[i].ID] = g.Nodes[i].Color
+	}
+	if got := color[focus]; got != "#4a90e2" {
+		t.Fatalf("focus node color = %q, want %q", got, "#4a90e2")
+	}
+	if got := color[datacore.NewID(satFile, "s.meta.json")]; got != "#e84e4e" {
+		t.Fatalf("satellite node color = %q, want %q", got, "#e84e4e")
+	}
+	if got := color[datacore.NewID(plainFile, "p.meta.json")]; got != "" {
+		t.Fatalf("uncolored template node color = %q, want empty", got)
+	}
+}
+
 func assertBuckets(t *testing.T, label string, got []datacore.Bucket, want map[string]int) {
 	t.Helper()
 	if len(got) != len(want) {

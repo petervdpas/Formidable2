@@ -22,6 +22,8 @@
 @import "./menus.css";
 @import "./popup.css";
 @import "./swatch.css";
+@import "./color-field.css";
+@import "./graph-style-row.css";
 @import "./toasts.css";
 @import "./status-bar.css";
 @import "./char-picker.css";

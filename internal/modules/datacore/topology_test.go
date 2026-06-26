@@ -272,3 +272,55 @@ func TestGraphFromDepthRootLeads(t *testing.T) {
 		t.Fatalf("first node = %+v, want root C first", g.Nodes)
 	}
 }
+
+func nodeColorByID(g Graph) map[string]string {
+	m := map[string]string{}
+	for _, n := range g.Nodes {
+		m[n.ID] = n.Color
+	}
+	return m
+}
+
+// An ingested per-record color surfaces on its node across all three graph
+// builders; records without a color (and non-record nodes like loop rows) stay
+// uncolored, so the tint is opt-in per record.
+func TestGraphNodeColorSurfaces(t *testing.T) {
+	dt := New()
+	dt.Ingest(Record{
+		ID:     "A",
+		Color:  "#e84e4e",
+		Fields: map[string]string{"title": "Alpha"},
+		Tables: map[string][]map[string]string{"items": {{"name": "disk"}}},
+		Links:  map[string][]string{"owner": {"B"}},
+	})
+	dt.Ingest(Record{ID: "B", Fields: map[string]string{"title": "Beta"}}) // no color
+
+	full := nodeColorByID(dt.Graph(0))
+	if full["A"] != "#e84e4e" {
+		t.Fatalf("Graph: A color = %q, want %q", full["A"], "#e84e4e")
+	}
+	if full["B"] != "" {
+		t.Fatalf("Graph: B color = %q, want empty (no color set)", full["B"])
+	}
+	for id, c := range full {
+		if id != "A" && id != "B" && c != "" {
+			t.Fatalf("Graph: non-record node %q colored %q, want empty", id, c)
+		}
+	}
+
+	from := nodeColorByID(dt.GraphFrom("A", 2))
+	if from["A"] != "#e84e4e" {
+		t.Fatalf("GraphFrom: A color = %q, want %q", from["A"], "#e84e4e")
+	}
+	if from["B"] != "" {
+		t.Fatalf("GraphFrom: B color = %q, want empty", from["B"])
+	}
+
+	depth := nodeColorByID(dt.GraphFromDepth("A", 2, 0))
+	if depth["A"] != "#e84e4e" {
+		t.Fatalf("GraphFromDepth: A color = %q, want %q", depth["A"], "#e84e4e")
+	}
+	if depth["B"] != "" {
+		t.Fatalf("GraphFromDepth: B color = %q, want empty", depth["B"])
+	}
+}

@@ -316,7 +316,7 @@ function isolateAround(ns: GraphNode[], es: GraphEdge[], id: string): { nodes: G
 }
 
 const viewGraph = computed<{
-  nodes: { id: string; label: string; kind: string; detail: string; table?: NodeTable }[];
+  nodes: { id: string; label: string; kind: string; color?: string; detail: string; table?: NodeTable }[];
   edges: { source: string; target: string; field: string }[];
 }>(() => {
   const info = graphInfo.value;
@@ -349,6 +349,7 @@ const viewGraph = computed<{
       id: n.id,
       label: prettyField(n.label),
       kind,
+      color: n.color,
       detail: isRecord ? "" : info.detail.get(n.id) ?? prettyField(n.label),
       table: isRecord ? undefined : info.tables.get(n.id),
     };

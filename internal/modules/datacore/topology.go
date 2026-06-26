@@ -7,7 +7,8 @@ import "strconv"
 type GraphNode struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
-	Kind  string `json:"kind"` // "root" | "row"
+	Kind  string `json:"kind"`            // "root" | "row"
+	Color string `json:"color,omitempty"` // per-template node tint, empty = default
 }
 
 // GraphEdge is a directed edge from Source to Target labeled by the field
@@ -61,7 +62,7 @@ func (t *Tensor) Graph(limit int) Graph {
 		if t.isRecord(s) {
 			kind = "root"
 		}
-		g.Nodes = append(g.Nodes, GraphNode{ID: t.iax.label(s), Label: t.nodeLabel(s), Kind: kind})
+		g.Nodes = append(g.Nodes, GraphNode{ID: t.iax.label(s), Label: t.nodeLabel(s), Kind: kind, Color: t.nodeColor(s)})
 	}
 
 	for k := range t.is {
@@ -109,7 +110,7 @@ func (t *Tensor) GraphFrom(rootID string, level int) Graph {
 		if t.isRecord(s) {
 			kind = "root"
 		}
-		g.Nodes = append(g.Nodes, GraphNode{ID: id, Label: t.nodeLabel(s), Kind: kind})
+		g.Nodes = append(g.Nodes, GraphNode{ID: id, Label: t.nodeLabel(s), Kind: kind, Color: t.nodeColor(s)})
 	}
 	addNode := func(id, label, kind string) {
 		if nodeSeen[id] {
@@ -262,7 +263,7 @@ func (t *Tensor) GraphFromDepth(rootID string, hops, limit int) Graph {
 		if t.isRecord(s) {
 			kind = "root"
 		}
-		g.Nodes = append(g.Nodes, GraphNode{ID: t.iax.label(s), Label: t.nodeLabel(s), Kind: kind})
+		g.Nodes = append(g.Nodes, GraphNode{ID: t.iax.label(s), Label: t.nodeLabel(s), Kind: kind, Color: t.nodeColor(s)})
 	}
 	for k := range t.is {
 		if t.ref[k] == 0 {

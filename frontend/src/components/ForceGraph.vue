@@ -24,6 +24,7 @@ interface InNode {
   kind: string; // "root" | "focus" | "related-cross" | "row" | "field"
   detail?: string; // full info shown on hover (defaults to label)
   table?: NodeTable; // a table container renders its rows as a grid on hover
+  color?: string; // per-template tint; overrides the kind-based fill when set
 }
 interface InEdge {
   source: string;
@@ -421,7 +422,10 @@ onBeforeUnmount(() => {
           @pointerenter="onNodeEnter(node.id, $event)"
           @pointerleave="onNodeLeave"
         >
-          <circle :r="node.kind === 'row' ? 5 : node.kind === 'field' ? 4 : 9" />
+          <circle
+            :r="node.kind === 'row' ? 5 : node.kind === 'field' ? 4 : 9"
+            :style="node.color ? { fill: node.color } : undefined"
+          />
           <text x="11" y="4">{{ short(node.label) }}</text>
         </g>
       </g>

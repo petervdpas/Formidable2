@@ -66,10 +66,11 @@ type Tensor struct {
 	rootSet  map[sym]bool
 	satSet   map[sym]bool   // satellite records: present as ref targets, not roots
 	labels   map[sym]string // optional display label per identity
+	colors   map[sym]string // optional node color per identity (graph view)
 }
 
 func New() *Tensor {
-	return &Tensor{iax: newAxis(), fax: newAxis(), max: newAxis(), rootSet: map[sym]bool{}, satSet: map[sym]bool{}, labels: map[sym]string{}}
+	return &Tensor{iax: newAxis(), fax: newAxis(), max: newAxis(), rootSet: map[sym]bool{}, satSet: map[sym]bool{}, labels: map[sym]string{}, colors: map[sym]string{}}
 }
 
 // isRecord reports whether s is a record identity (a root or a satellite), as
@@ -83,6 +84,10 @@ func (t *Tensor) nodeLabel(s sym) string {
 	}
 	return t.iax.label(s)
 }
+
+// nodeColor is the optional node color for identity s (empty if none was set
+// at ingest), so the graph view can tint a record's node by its template.
+func (t *Tensor) nodeColor(s sym) string { return t.colors[s] }
 
 // markRoot records an identity as a top-level record, not a sub-identity
 // reached by reference (a table or loop row). The default perspective

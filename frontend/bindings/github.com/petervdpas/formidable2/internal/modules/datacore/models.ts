@@ -298,6 +298,11 @@ export class GraphNode {
      */
     "kind": string;
 
+    /**
+     * per-template node tint, empty = default
+     */
+    "color"?: string;
+
     /** Creates a new GraphNode instance. */
     constructor($$source: Partial<GraphNode> = {}) {
         if (!("id" in $$source)) {

@@ -17,6 +17,7 @@ import TemplateFacetsTab from "../components/TemplateFacetsTab.vue";
 import TemplateFormulasTab from "../components/TemplateFormulasTab.vue";
 import TemplateStatisticsTab from "../components/TemplateStatisticsTab.vue";
 import Tabs from "../components/Tabs.vue";
+import TemplateGraphStyleRow from "../components/TemplateGraphStyleRow.vue";
 import {
   Service as TemplateSvc,
   GeneratorOptions,
@@ -629,15 +630,10 @@ setTopbarMenu(() => [
             />
           </FormRow>
           <TemplateListSort v-model="draft.sort_by_item_field" />
-          <FormRow
-            :label="t('workspace.templates.setup.graph_prefix')"
-            :description="t('workspace.templates.setup.graph_prefix_hint')"
-          >
-            <TextField
-              v-model="draft.graph_prefix_field"
-              :placeholder="t('workspace.templates.graph_prefix_placeholder')"
-            />
-          </FormRow>
+          <TemplateGraphStyleRow
+            v-model:prefix="draft.graph_prefix_field"
+            v-model:color="draft.graph_color"
+          />
           <div class="setup-tabs-block">
             <Tabs v-model="setupTab" :items="setupTabItems">
               <template #code>

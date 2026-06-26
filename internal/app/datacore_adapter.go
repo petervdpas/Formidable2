@@ -131,6 +131,10 @@ func (a *datacoreLoaderAdapter) loadForms(templateFile string, files []string, s
 		if tpl.GraphPrefixField != "" {
 			rec.Label = tpl.GraphPrefixField + ": " + rec.Label
 		}
+		// A graph color tints every node of this template, so a record reads by
+		// its template's color in the graph (sourced once per template, applied
+		// per record).
+		rec.Color = tpl.GraphColor
 		applyFormulas(a.ev, tpl, f, &rec)
 		recs = append(recs, rec)
 		guids = append(guids, f.Meta.ID)

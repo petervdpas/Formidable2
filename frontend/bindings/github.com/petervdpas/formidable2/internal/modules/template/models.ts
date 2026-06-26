@@ -1313,6 +1313,12 @@ export class Template {
      */
     "sort_by_item_field": boolean;
     "graph_prefix_field": string;
+
+    /**
+     * GraphColor tints this template's record nodes in the datacore graph (a CSS
+     * color string). Empty leaves them at the default kind-based color.
+     */
+    "graph_color": string;
     "markdown_template": string;
     "sidebar_expression": string;
     "enable_collection": boolean;
@@ -1340,6 +1346,9 @@ export class Template {
         }
         if (!("graph_prefix_field" in $$source)) {
             this["graph_prefix_field"] = "";
+        }
+        if (!("graph_color" in $$source)) {
+            this["graph_color"] = "";
         }
         if (!("markdown_template" in $$source)) {
             this["markdown_template"] = "";
@@ -1376,30 +1385,30 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField10_0 = $$createType38;
-        const $$createField11_0 = $$createType40;
-        const $$createField12_0 = $$createType42;
-        const $$createField13_0 = $$createType44;
-        const $$createField14_0 = $$createType46;
-        const $$createField15_0 = $$createType47;
+        const $$createField11_0 = $$createType38;
+        const $$createField12_0 = $$createType40;
+        const $$createField13_0 = $$createType42;
+        const $$createField14_0 = $$createType44;
+        const $$createField15_0 = $$createType46;
+        const $$createField16_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
-            $$parsedSource["pdf"] = $$createField10_0($$parsedSource["pdf"]);
+            $$parsedSource["pdf"] = $$createField11_0($$parsedSource["pdf"]);
         }
         if ("facets" in $$parsedSource) {
-            $$parsedSource["facets"] = $$createField11_0($$parsedSource["facets"]);
+            $$parsedSource["facets"] = $$createField12_0($$parsedSource["facets"]);
         }
         if ("statistics" in $$parsedSource) {
-            $$parsedSource["statistics"] = $$createField12_0($$parsedSource["statistics"]);
+            $$parsedSource["statistics"] = $$createField13_0($$parsedSource["statistics"]);
         }
         if ("scalings" in $$parsedSource) {
-            $$parsedSource["scalings"] = $$createField13_0($$parsedSource["scalings"]);
+            $$parsedSource["scalings"] = $$createField14_0($$parsedSource["scalings"]);
         }
         if ("formulas" in $$parsedSource) {
-            $$parsedSource["formulas"] = $$createField14_0($$parsedSource["formulas"]);
+            $$parsedSource["formulas"] = $$createField15_0($$parsedSource["formulas"]);
         }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField15_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField16_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }

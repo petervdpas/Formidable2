@@ -1,0 +1,18 @@
+/*
+ * graph-style-row - the combined "Graph node" setup row: a label-prefix text
+ * field and a color field side by side, so the two graph-styling controls
+ * share one form row instead of stacking into two.
+ */
+
+.graph-style-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* The prefix is a short code, so it takes a modest width and lets the color
+   field sit right beside it rather than filling the row. */
+.graph-style-row__prefix {
+  flex: 0 1 200px;
+}

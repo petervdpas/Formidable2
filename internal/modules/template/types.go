@@ -21,6 +21,9 @@ type Template struct {
 	// (its display title) instead of the default filename order.
 	SortByItemField   bool        `yaml:"sort_by_item_field,omitempty" json:"sort_by_item_field"`
 	GraphPrefixField  string      `yaml:"graph_prefix_field,omitempty" json:"graph_prefix_field"`
+	// GraphColor tints this template's record nodes in the datacore graph (a CSS
+	// color string). Empty leaves them at the default kind-based color.
+	GraphColor        string      `yaml:"graph_color,omitempty" json:"graph_color"`
 	MarkdownTemplate  string      `yaml:"markdown_template,omitempty" json:"markdown_template"`
 	SidebarExpression string      `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
 	EnableCollection  bool        `yaml:"enable_collection,omitempty" json:"enable_collection"`
