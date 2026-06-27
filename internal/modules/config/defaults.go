@@ -28,6 +28,7 @@ func defaultConfig() Config {
 		ShowDedupButtons:     false,
 		UseExpressions:       false,
 		ShowMetaSection:      true,
+		ShowCopyButton:       true,
 		IoCollectionOnly:     false,
 		LoopStateCollapsed:   false,
 		FieldStateCollapsed:  false,

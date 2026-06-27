@@ -15,6 +15,7 @@ type Config struct {
 	ShowDedupButtons     bool          `json:"show_dedup_buttons"`
 	UseExpressions       bool          `json:"use_expressions"`
 	ShowMetaSection      bool          `json:"show_meta_section"`
+	ShowCopyButton       bool          `json:"show_copy_button"`
 	IoCollectionOnly     bool          `json:"io_collection_only"`
 	LoopStateCollapsed   bool          `json:"loop_state_collapsed"`
 	FieldStateCollapsed  bool          `json:"field_state_collapsed"`

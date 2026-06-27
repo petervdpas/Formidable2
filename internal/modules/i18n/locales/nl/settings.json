@@ -20,6 +20,7 @@
   "config.update_check_hint": "Controleer bij het opstarten op formidable.tools of er een nieuwere versie is. Standaard uit. Mislukt stil zonder verbinding.",
   "config.profile_name": "Profielnaam",
   "config.show_meta_section": "Toon Meta Sectie",
+  "config.show_copy_button": "Toon Kopieerknop",
   "config.theme": "Thema",
   "config.use_expressions": "Expressies",
   "settings.advanced.info": "Geavanceerde systeemopties. Gebruik met voorzichtigheid.",

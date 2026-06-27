@@ -836,6 +836,46 @@ func TestIoCollectionOnly_DefaultFalseAndPersists(t *testing.T) {
 	}
 }
 
+// ShowCopyButton gates the storage "Make Copy" toolbar button. It defaults
+// to true (the button is visible out of the box), survives a round-trip when
+// toggled off, and a legacy profile missing the key gets the default filled.
+func TestShowCopyButton_DefaultTrueAndPersists(t *testing.T) {
+	m, _, _ := newTestManager(t)
+	cfg, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if !cfg.ShowCopyButton {
+		t.Errorf("default Config.ShowCopyButton = false, want true")
+	}
+
+	if _, err := m.UpdateUserConfig(map[string]any{"show_copy_button": false}); err != nil {
+		t.Fatalf("UpdateUserConfig: %v", err)
+	}
+	m.InvalidateConfigCache()
+	cfg2, err := m.LoadUserConfig()
+	if err != nil {
+		t.Fatalf("LoadUserConfig: %v", err)
+	}
+	if cfg2.ShowCopyButton {
+		t.Errorf("show_copy_button=false did not round-trip on disk")
+	}
+}
+
+func TestParseUserConfig_ShowCopyButtonDefaultsTrueWhenMissing(t *testing.T) {
+	raw := `{"theme":"dark"}`
+	cfg, changed, err := parseUserConfig(raw)
+	if err != nil {
+		t.Fatalf("parseUserConfig: %v", err)
+	}
+	if !changed {
+		t.Error("expected changed=true for partial input missing show_copy_button")
+	}
+	if !cfg.ShowCopyButton {
+		t.Errorf("missing show_copy_button should default to true, got false")
+	}
+}
+
 // TestIoCollectionOnly_UncachedReturnsFalse mirrors GitSelfCloned's
 // early-boot guarantee: callers that hit the accessor before the first
 // LoadUserConfig must see false, not panic.

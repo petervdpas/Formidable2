@@ -20,6 +20,7 @@
   "config.update_check_hint": "On launch, check formidable.tools for a newer release. Off by default. Fails silently when offline.",
   "config.profile_name": "Profile Name",
   "config.show_meta_section": "Show Meta Section",
+  "config.show_copy_button": "Show Copy Button",
   "config.theme": "Theme",
   "config.use_expressions": "Expressions",
   "settings.advanced.info": "Advanced system options. Use with caution.",

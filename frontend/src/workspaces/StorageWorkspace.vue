@@ -1209,6 +1209,7 @@ setTopbarMenu(() => [
         {{ t('workspace.storage.delete') }}
       </button>
       <button
+        v-if="config?.show_copy_button ?? true"
         class="tool-btn"
         :disabled="!view || !view.saved"
         @click="openCopy"

@@ -206,5 +206,13 @@ function clampDecimalPrecision(n: number): number {
         :off-label="t('common.hide')"
       />
     </FormRow>
+    <FormRow :label="t('config.show_copy_button')">
+      <SwitchField
+        :model-value="cfg.show_copy_button"
+        @update:model-value="(v) => update({ show_copy_button: v })"
+        :on-label="t('common.show')"
+        :off-label="t('common.hide')"
+      />
+    </FormRow>
   </FormSection>
 </template>
