@@ -197,6 +197,59 @@ func (m *Manager) SaveValues(templateName string, payload SavePayload) (*FormVie
 	return view, nil
 }
 
+// CopyForm duplicates an existing record into newDatafile. Every field value,
+// tag and facet is carried over verbatim; only the identity is reset. The guid
+// data field and meta.id are cleared so the normal save path mints a fresh GUID
+// (storage.CanonicalGuid) and stamps fresh Created/Updated (newDatafile means
+// prev == nil in storage.SaveForm). Routing through SaveValues also reconciles
+// the copy's api references into the relation edge graph under its new id.
+func (m *Manager) CopyForm(templateName, sourceDatafile, newDatafile string) (*FormView, error) {
+	if sourceDatafile == "" {
+		return nil, errors.New("form: empty source datafile")
+	}
+	if newDatafile == "" {
+		return nil, errors.New("form: empty datafile")
+	}
+	if sourceDatafile == newDatafile {
+		return nil, errors.New("form: copy target must differ from source")
+	}
+	tpl, err := m.templates.LoadTemplate(templateName)
+	if err != nil {
+		return nil, fmt.Errorf("form: load template %q: %w", templateName, err)
+	}
+	src := m.storage.LoadForm(templateName, sourceDatafile)
+	if src == nil {
+		return nil, fmt.Errorf("form: source %q not found", sourceDatafile)
+	}
+	if m.storage.LoadForm(templateName, newDatafile) != nil {
+		return nil, fmt.Errorf("form: %q already exists", newDatafile)
+	}
+
+	// Clone the data and strip the guid field, the deterministic half of the
+	// reset: with the data field empty CanonicalGuid mints a fresh id rather than
+	// preserving the source's. (The guidCollides guard is best-effort backup, not
+	// the rule.)
+	values := maps.Clone(src.Data)
+	for _, f := range tpl.Fields {
+		if f.Type == "guid" {
+			delete(values, f.Key)
+			break
+		}
+	}
+
+	// Keep tags + facets; drop id and audit so storage stamps the copy fresh.
+	meta := src.Meta
+	meta.ID = ""
+	meta.Created = storage.AuditEntry{}
+	meta.Updated = storage.AuditEntry{}
+
+	return m.SaveValues(templateName, SavePayload{
+		Datafile: newDatafile,
+		Values:   values,
+		Meta:     meta,
+	})
+}
+
 // SortFieldValue fetches a list/table field from the saved record (pointer:
 // template + datafile + fieldKey), sorts it, and returns the sorted value. It
 // does not persist: the frontend applies the value to its draft and the normal

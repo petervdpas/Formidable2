@@ -1,4 +1,9 @@
 {
+  "entry_name.label": "Filename",
+  "entry_name.append_date": "Append date (YYYYMMDD)",
+  "entry_name.error.required": "Filename is required.",
+  "entry_name.error.invalid_chars": "Invalid filename. Use only a-z, 0-9, dashes, dots and underscores.",
+  "entry_name.error.exists": "A form with that filename already exists.",
   "paste.list.subtitle": "First column of each pasted row is added as a new list item.",
   "paste.placeholder": "Paste here (Ctrl+V) and click Process.",
   "paste.process": "Process",

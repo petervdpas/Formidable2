@@ -60,6 +60,16 @@ Feature: Form lifecycle
     And I delete form "to-delete.meta.json" under "basic.yaml"
     Then reopening "to-delete.meta.json" returns an unsaved view
 
+  Scenario: Copy creates a new record with a fresh id but identical contents
+    Given a template "copyable.yaml" with a guid field "id" and a text field "title"
+    When I save form "orig.meta.json" under "copyable.yaml" with values:
+      | key   | value    |
+      | title | Original |
+    And I copy form "orig.meta.json" to "dup.meta.json" under "copyable.yaml"
+    Then the copy has a fresh id
+    And the copy value "title" is "Original"
+    And the original "orig.meta.json" under "copyable.yaml" keeps its id
+
   Scenario: ListForms returns an entry per saved form
     Given a template "basic.yaml" with a text field "title"
     When I save form "one.meta.json" under "basic.yaml" with values:

@@ -35,6 +35,8 @@ type formWorld struct {
 	view    *FormView
 	saved   *FormView
 	saveErr error
+	copied  *FormView
+	copyErr error
 }
 
 func initFormScenario(ctx *godog.ScenarioContext) {
@@ -86,6 +88,14 @@ func initFormScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^a template "([^"]*)" with a date field "([^"]*)"$`, func(file, key string) error {
 		return saveTpl(file, []template.Field{{Key: key, Type: "date"}})
 	})
+
+	ctx.Step(`^a template "([^"]*)" with a guid field "([^"]*)" and a text field "([^"]*)"$`,
+		func(file, guidKey, textKey string) error {
+			return saveTpl(file, []template.Field{
+				{Key: guidKey, Type: "guid"},
+				{Key: textKey, Type: "text"},
+			})
+		})
 
 	ctx.Step(`^a template "([^"]*)" with a loop "([^"]*)" containing field "([^"]*)" of type "([^"]*)"$`,
 		func(file, loopKey, innerKey, innerType string) error {
@@ -172,6 +182,16 @@ func initFormScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I delete form "([^"]*)" under "([^"]*)"$`, func(datafile, tpl string) error {
 		return w.m.DeleteForm(tpl, datafile)
 	})
+
+	ctx.Step(`^I copy form "([^"]*)" to "([^"]*)" under "([^"]*)"$`,
+		func(src, dst, tpl string) error {
+			v, err := w.m.CopyForm(tpl, src, dst)
+			w.copyErr = err
+			if err == nil {
+				w.copied = v
+			}
+			return nil
+		})
 
 	// ── Thens ─────────────────────────────────────────────────────────
 
@@ -286,6 +306,47 @@ func initFormScenario(ctx *godog.ScenarioContext) {
 			}
 			if got := fmt.Sprintf("%v", entry["name"]); got != want {
 				return fmt.Errorf("entry[%d].name = %q, want %q", idx, got, want)
+			}
+			return nil
+		})
+
+	ctx.Step(`^the copy has a fresh id$`, func() error {
+		if w.copied == nil {
+			return fmt.Errorf("no copied view (copyErr=%v)", w.copyErr)
+		}
+		if w.copied.Meta.ID == "" {
+			return fmt.Errorf("copy has no id")
+		}
+		if w.saved == nil {
+			return fmt.Errorf("no source view to compare against")
+		}
+		if w.copied.Meta.ID == w.saved.Meta.ID {
+			return fmt.Errorf("copy id %q must differ from source id", w.copied.Meta.ID)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the copy value "([^"]*)" is "([^"]*)"$`, func(key, want string) error {
+		if w.copied == nil {
+			return fmt.Errorf("no copied view (copyErr=%v)", w.copyErr)
+		}
+		if got := fmt.Sprintf("%v", w.copied.Values[key]); got != want {
+			return fmt.Errorf("copy %q = %q, want %q", key, got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the original "([^"]*)" under "([^"]*)" keeps its id$`,
+		func(datafile, tpl string) error {
+			if w.saved == nil {
+				return fmt.Errorf("no source view captured")
+			}
+			v, err := w.m.BuildView(tpl, datafile)
+			if err != nil {
+				return err
+			}
+			if v.Meta.ID != w.saved.Meta.ID {
+				return fmt.Errorf("original id changed: %q -> %q", w.saved.Meta.ID, v.Meta.ID)
 			}
 			return nil
 		})

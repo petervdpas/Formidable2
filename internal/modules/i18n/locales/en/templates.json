@@ -30,7 +30,6 @@
   "workspace.templates.create.exists": "A template with that filename already exists.",
   "workspace.templates.create.help": "Lowercase letters, digits and dashes only. Must end in “.yaml”.",
   "workspace.templates.create.invalid": "Invalid filename. Use only a-z, 0-9, and dashes, ending with .yaml.",
-  "workspace.templates.create.label": "Filename",
   "workspace.templates.create.placeholder": "e.g. recipe.yaml",
   "workspace.templates.create.success": "Created template “{0}”.",
   "workspace.templates.create.title": "New Template",

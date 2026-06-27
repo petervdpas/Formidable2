@@ -136,10 +136,10 @@ async function ensureLoaded(): Promise<void> {
   if (!loaded) await refresh();
 }
 
-const FILENAME_RE = /^[a-z0-9-]+\.yaml$/;
-export function isValidTemplateFilename(name: string): boolean {
-  return FILENAME_RE.test(name);
-}
+// A valid template filename: lowercase letters, digits and hyphens, ending in
+// .yaml. Shared with EntryNameDialog so the create flow validates against a
+// single source of truth.
+export const TEMPLATE_FILENAME_RE = /^[a-z0-9-]+\.yaml$/;
 
 const selectedTemplate = computed<Template | null>(() => {
   if (!selectedFilename.value) return null;

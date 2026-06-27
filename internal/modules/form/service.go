@@ -27,6 +27,13 @@ func (s *Service) DeleteForm(templateName, datafile string) error {
 	return s.m.DeleteForm(templateName, datafile)
 }
 
+// CopyForm duplicates sourceDatafile into newDatafile with a fresh identity (new
+// GUID, new Created/Updated), keeping every field value, tag and facet. Returns
+// the saved view of the new record, ready for the editor to open.
+func (s *Service) CopyForm(templateName, sourceDatafile, newDatafile string) (*FormView, error) {
+	return s.m.CopyForm(templateName, sourceDatafile, newDatafile)
+}
+
 // RelationFields returns the source template's api fields, the relation targets
 // the relations-import mode can fill. The dialog's relation picker reads this
 // instead of filtering the template client-side.

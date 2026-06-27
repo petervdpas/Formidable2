@@ -5,7 +5,7 @@ import { Events } from "@wailsio/runtime";
 import SplitPane from "../components/SplitPane.vue";
 import Badge from "../components/Badge.vue";
 import CopyButton from "../components/CopyButton.vue";
-import Modal from "../components/Modal.vue";
+import EntryNameDialog from "../components/EntryNameDialog.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import UnsavedChangesDialog from "../components/UnsavedChangesDialog.vue";
 import RightSlideout from "../components/RightSlideout.vue";
@@ -15,7 +15,7 @@ import ExportDialog from "../components/ExportDialog.vue";
 import ExportPDFDialog from "../components/ExportPDFDialog.vue";
 import QueryDialog from "../components/QueryDialog.vue";
 import DatacoreGraphDialog from "../components/DatacoreGraphDialog.vue";
-import { SelectField, SwitchField } from "../components/fields";
+import { SelectField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
 import VirtualList from "../components/VirtualList.vue";
@@ -676,55 +676,50 @@ const sidebarRelationItems = computed<CollectionItem[]>(() =>
   ),
 );
 
-// ── New Entry dialog ─────────────────────────────────────────────────
+// ── New Entry / Copy dialogs ─────────────────────────────────────────
+// Both reuse EntryNameDialog (filename input + append-date + validation);
+// the existing filenames feed its duplicate guard.
 const newOpen = ref(false);
-const newName = ref("");
-const newError = ref("");
-const newAppendDate = ref(false);
+const copyOpen = ref(false);
+const copyInitial = ref("");
+const existingFilenames = computed(() => summaries.value.map((s) => s.filename));
 
 function openNew() {
   if (!selectedTemplate.value) return;
-  newName.value = "";
-  newError.value = "";
-  newAppendDate.value = false;
   newOpen.value = true;
 }
 
-// "YYYYMMDD" suffix from today's date (local time - matches the
-// original Formidable, which also uses local-zone date for filenames).
-function todayYYYYMMDD(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}${m}${day}`;
-}
-
-async function submitNew() {
-  const raw = newName.value.trim();
-  if (!raw) {
-    newError.value = t("workspace.storage.new.invalid");
-    return;
-  }
-  const stem = raw.endsWith(".meta.json")
-    ? raw.slice(0, -".meta.json".length)
-    : raw;
-  const dated = newAppendDate.value ? `${stem}-${todayYYYYMMDD()}` : stem;
-  const filename = `${dated}.meta.json`;
-  if (!/^[a-zA-Z0-9._-]+\.meta\.json$/.test(filename)) {
-    newError.value = t("workspace.storage.new.invalid_chars");
-    return;
-  }
-  if (summaries.value.some((s) => s.filename === filename)) {
-    newError.value = t("workspace.storage.new.exists");
-    return;
-  }
+async function submitNew(filename: string) {
   // Open an unsaved view, set selection - persist happens on first Save.
   selectedDataFile.value = filename;
   await open(selectedTemplate.value, filename);
   newOpen.value = false;
   toast.success("workspace.storage.new.opened", [filename]);
   statusBar.setCreated(filename);
+}
+
+function openCopy() {
+  if (!view.value?.saved) return;
+  const stem = (view.value.datafile ?? "").replace(/\.meta\.json$/, "");
+  copyInitial.value = stem ? `${stem}-copy` : "";
+  copyOpen.value = true;
+}
+
+// Copy persists immediately (the point is to duplicate the file with a fresh
+// id), then opens the new record. The backend owns the id/audit reset.
+async function submitCopy(filename: string) {
+  if (!selectedTemplate.value || !view.value?.datafile) return;
+  try {
+    await FormSvc.CopyForm(selectedTemplate.value, view.value.datafile, filename);
+    selectedDataFile.value = filename;
+    await open(selectedTemplate.value, filename);
+    await refreshList();
+    copyOpen.value = false;
+    toast.success("workspace.storage.copy.copied", [filename]);
+    statusBar.setCreated(filename);
+  } catch (e) {
+    toast.error("workspace.storage.copy.error", [backendErrMessage(e)]);
+  }
 }
 
 // ── Save / Reset / Delete ────────────────────────────────────────────
@@ -1214,6 +1209,13 @@ setTopbarMenu(() => [
         {{ t('workspace.storage.delete') }}
       </button>
       <button
+        class="tool-btn"
+        :disabled="!view || !view.saved"
+        @click="openCopy"
+      >
+        + {{ t('workspace.storage.copy') }}
+      </button>
+      <button
         class="tool-btn primary"
         :disabled="!selectedTemplate"
         @click="openNew"
@@ -1411,39 +1413,27 @@ setTopbarMenu(() => [
   </template>
 
   <!-- New entry dialog -->
-  <Modal
+  <EntryNameDialog
     :open="newOpen"
     :title="t('workspace.storage.new.title')"
-    @close="newOpen = false"
-  >
-    <div class="dialog-grid">
-      <label class="dialog-grid-label" for="new-entry-name">
-        {{ t('workspace.storage.new.label') }}
-      </label>
-      <input
-        id="new-entry-name"
-        class="field-input"
-        v-model="newName"
-        :placeholder="t('workspace.storage.new.placeholder')"
-        @keydown.enter="submitNew"
-      />
+    :confirm-label="t('workspace.storage.new_entry')"
+    :placeholder="t('workspace.storage.new.placeholder')"
+    :existing-names="existingFilenames"
+    @cancel="newOpen = false"
+    @submit="submitNew"
+  />
 
-      <span class="dialog-grid-label">
-        {{ t('workspace.storage.new.append_date') }}
-      </span>
-      <SwitchField v-model="newAppendDate" />
-    </div>
-    <p v-if="newError" class="form-error">{{ newError }}</p>
-
-    <template #footer>
-      <button class="tool-btn" type="button" @click="newOpen = false">
-        {{ t('common.cancel') }}
-      </button>
-      <button class="tool-btn primary" type="button" @click="submitNew">
-        {{ t('workspace.storage.new_entry') }}
-      </button>
-    </template>
-  </Modal>
+  <!-- Copy entry dialog -->
+  <EntryNameDialog
+    :open="copyOpen"
+    :title="t('workspace.storage.copy.title')"
+    :confirm-label="t('workspace.storage.copy')"
+    :placeholder="t('workspace.storage.copy.placeholder')"
+    :existing-names="existingFilenames"
+    :initial-name="copyInitial"
+    @cancel="copyOpen = false"
+    @submit="submitCopy"
+  />
 
   <!-- Delete confirm -->
   <ConfirmDialog

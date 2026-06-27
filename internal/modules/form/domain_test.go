@@ -1152,3 +1152,96 @@ func TestSaveValues_ResaveKeepsCreatedBumpsValue(t *testing.T) {
 		t.Errorf("id must be stable across resave: %q -> %q", id, second.Meta.ID)
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// CopyForm
+// ─────────────────────────────────────────────────────────────────────
+
+func TestCopyForm_CopiesValuesAndStripsIdentity(t *testing.T) {
+	m, tpls, store, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename: "t.yaml",
+		Fields: []template.Field{
+			{Key: "id", Type: "guid"},
+			{Key: "title", Type: "text"},
+		},
+	}
+	store.forms["t.yaml"] = map[string]*storage.Form{
+		"src.meta.json": {
+			Meta: storage.FormMeta{ID: "old-guid", Template: "t.yaml", Tags: []string{"a", "b"}},
+			Data: map[string]any{"id": "old-guid", "title": "Hello"},
+		},
+	}
+
+	view, err := m.CopyForm("t.yaml", "src.meta.json", "dst.meta.json")
+	if err != nil {
+		t.Fatalf("CopyForm: %v", err)
+	}
+	if view.Datafile != "dst.meta.json" {
+		t.Errorf("datafile = %q, want dst.meta.json", view.Datafile)
+	}
+	if view.Values["title"] != "Hello" {
+		t.Errorf("title not copied: %v", view.Values["title"])
+	}
+
+	last := store.saves[len(store.saves)-1]
+	if last.Datafile != "dst.meta.json" {
+		t.Fatalf("save datafile = %q", last.Datafile)
+	}
+	if _, ok := last.Data["id"]; ok {
+		t.Errorf("guid field must be stripped from the copy payload, got %v", last.Data["id"])
+	}
+	meta, _ := last.Data["_meta"].(map[string]any)
+	if meta["id"] != "" {
+		t.Errorf("meta.id must be cleared so storage mints fresh, got %v", meta["id"])
+	}
+	if got, _ := store.forms["t.yaml"]["src.meta.json"].Data["id"].(string); got != "old-guid" {
+		t.Errorf("source guid was mutated: %q", got)
+	}
+}
+
+func TestCopyForm_RefusesOverwrite(t *testing.T) {
+	m, tpls, store, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename: "t.yaml",
+		Fields:   []template.Field{{Key: "title", Type: "text"}},
+	}
+	store.forms["t.yaml"] = map[string]*storage.Form{
+		"src.meta.json": {Data: map[string]any{"title": "A"}},
+		"dst.meta.json": {Data: map[string]any{"title": "EXISTING"}},
+	}
+
+	if _, err := m.CopyForm("t.yaml", "src.meta.json", "dst.meta.json"); err == nil {
+		t.Fatal("expected overwrite to be refused")
+	}
+	if got := store.forms["t.yaml"]["dst.meta.json"].Data["title"]; got != "EXISTING" {
+		t.Errorf("target must not be mutated, got %v", got)
+	}
+	if len(store.saves) != 0 {
+		t.Errorf("no save should have happened, got %d", len(store.saves))
+	}
+}
+
+func TestCopyForm_MissingSource(t *testing.T) {
+	m, tpls, _, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename: "t.yaml",
+		Fields:   []template.Field{{Key: "title", Type: "text"}},
+	}
+	if _, err := m.CopyForm("t.yaml", "ghost.meta.json", "dst.meta.json"); err == nil {
+		t.Fatal("expected error for missing source")
+	}
+}
+
+func TestCopyForm_GuardsEmptyAndEqual(t *testing.T) {
+	m, _, _, _ := newTestManager()
+	if _, err := m.CopyForm("t.yaml", "", "dst.meta.json"); err == nil {
+		t.Error("expected error for empty source datafile")
+	}
+	if _, err := m.CopyForm("t.yaml", "src.meta.json", ""); err == nil {
+		t.Error("expected error for empty target datafile")
+	}
+	if _, err := m.CopyForm("t.yaml", "same.meta.json", "same.meta.json"); err == nil {
+		t.Error("expected error when target equals source")
+	}
+}

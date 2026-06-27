@@ -31,6 +31,17 @@ export function BuildView(templateName: string, datafile: string): $CancellableP
 }
 
 /**
+ * CopyForm duplicates sourceDatafile into newDatafile with a fresh identity (new
+ * GUID, new Created/Updated), keeping every field value, tag and facet. Returns
+ * the saved view of the new record, ready for the editor to open.
+ */
+export function CopyForm(templateName: string, sourceDatafile: string, newDatafile: string): $CancellablePromise<$models.FormView | null> {
+    return $Call.ByID(781894739, templateName, sourceDatafile, newDatafile).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * DedupFieldValue fetches a list/table field from the saved record, removes
  * duplicates, and returns the result (no persistence). column is the table
  * column key whose value marks a duplicate row (empty = first column); ignored

@@ -1,14 +1,15 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { isValidTemplateFilename, useTemplates } from "./useTemplates";
+import { useTemplates } from "./useTemplates";
 import { useToast } from "./useToast";
 import { useStatusBar } from "./useStatusBar";
 
 // useTemplateCreate
-// Owns the "+ New template" modal: input, error message, and the
-// submit pipeline that validates the filename, calls the templates
-// store's create(), toasts on success, and surfaces the right error
-// key on failure (filename collision vs other backend error).
+// Owns the "+ New template" modal state: open flag, error message, and
+// the submit pipeline that calls the templates store's create(), toasts
+// on success, and surfaces the right error key on failure (filename
+// collision vs other backend error). The filename itself is gathered and
+// format-validated by the shared EntryNameDialog, which emits it here.
 //
 // Module dependencies (toast/statusBar/templates) are pulled directly
 // instead of being injected. They're all singleton-scoped composables
@@ -20,36 +21,29 @@ export function useTemplateCreate() {
   const { create } = useTemplates();
 
   const open = ref(false);
-  const input = ref("");
   const error = ref("");
 
   function openCreate() {
-    input.value = "";
     error.value = "";
     open.value = true;
   }
 
-  async function submitCreate() {
-    const name = input.value.trim();
-    if (!isValidTemplateFilename(name)) {
-      error.value = t("workspace.templates.create.invalid");
-      return;
-    }
-    const result = await create(name);
+  async function submitCreate(filename: string) {
+    error.value = "";
+    const result = await create(filename);
     if (!result.ok) {
       error.value = result.code === "exists"
         ? t("workspace.templates.create.exists")
         : t("workspace.templates.create.error", [result.message ?? "?"]);
       return;
     }
-    toast.success("workspace.templates.create.success", [name]);
-    statusBar.setCreated(name);
+    toast.success("workspace.templates.create.success", [filename]);
+    statusBar.setCreated(filename);
     open.value = false;
   }
 
   return {
     open,
-    input,
     error,
     openCreate,
     submitCreate,

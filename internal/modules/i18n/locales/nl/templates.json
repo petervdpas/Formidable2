@@ -30,7 +30,6 @@
   "workspace.templates.create.exists": "Er bestaat al een sjabloon met die bestandsnaam.",
   "workspace.templates.create.help": "Kleine letters, cijfers en streepjes. Moet eindigen op “.yaml”.",
   "workspace.templates.create.invalid": "Ongeldige bestandsnaam. Gebruik alleen a-z, 0-9 en streepjes, eindigend op .yaml.",
-  "workspace.templates.create.label": "Bestandsnaam",
   "workspace.templates.create.placeholder": "bv. recipe.yaml",
   "workspace.templates.create.success": "Sjabloon “{0}” aangemaakt.",
   "workspace.templates.create.title": "Nieuw sjabloon",

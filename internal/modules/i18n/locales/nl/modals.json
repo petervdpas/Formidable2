@@ -1,4 +1,9 @@
 {
+  "entry_name.label": "Bestandsnaam",
+  "entry_name.append_date": "Datum toevoegen (JJJJMMDD)",
+  "entry_name.error.required": "Bestandsnaam is verplicht.",
+  "entry_name.error.invalid_chars": "Ongeldige bestandsnaam. Gebruik alleen a-z, 0-9, streepjes, punten en underscores.",
+  "entry_name.error.exists": "Er bestaat al een formulier met die bestandsnaam.",
   "paste.list.subtitle": "De eerste kolom van elke geplakte rij wordt als nieuw item toegevoegd.",
   "paste.placeholder": "Plak hier (Ctrl+V) en klik op Verwerken.",
   "paste.process": "Verwerken",

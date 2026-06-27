@@ -11,6 +11,7 @@ import GenerateTemplateDialog from "../components/GenerateTemplateDialog.vue";
 import CleanupStorageDialog from "../components/CleanupStorageDialog.vue";
 import InjectPDFFrontmatterDialog from "../components/InjectPDFFrontmatterDialog.vue";
 import TemplateListItem from "../components/TemplateListItem.vue";
+import EntryNameDialog from "../components/EntryNameDialog.vue";
 import TemplateCodeTab from "../components/TemplateCodeTab.vue";
 import TemplateExpressionTab from "../components/TemplateExpressionTab.vue";
 import TemplateFacetsTab from "../components/TemplateFacetsTab.vue";
@@ -38,7 +39,7 @@ import {
   TextField,
   FieldSelector,
 } from "../components/fields";
-import { useTemplates } from "../composables/useTemplates";
+import { useTemplates, TEMPLATE_FILENAME_RE } from "../composables/useTemplates";
 import { useTemplateCreate } from "../composables/useTemplateCreate";
 import { useTemplateSelection } from "../composables/useTemplateSelection";
 import { useListKeyNav } from "../composables/useListKeyNav";
@@ -156,7 +157,6 @@ const collectionToggleDisabled = computed(() => {
 
 const {
   open: createOpen,
-  input: createInput,
   error: createError,
   openCreate,
   submitCreate,
@@ -728,34 +728,21 @@ setTopbarMenu(() => [
   </SplitPane>
 
   <!-- Create modal -->
-  <Modal
+  <EntryNameDialog
     :open="createOpen"
     :title="t('workspace.templates.create.title')"
-    @close="createOpen = false"
-  >
-    <label class="dialog-row">
-      <span class="dialog-row-label">{{ t('workspace.templates.create.label') }}</span>
-      <input
-        class="field-input"
-        v-model="createInput"
-        :placeholder="t('workspace.templates.create.placeholder')"
-        @keydown.enter="submitCreate"
-      />
-    </label>
-    <p class="muted small dialog-row-help">
-      {{ t('workspace.templates.create.help') }}
-    </p>
-    <p v-if="createError" class="form-error">{{ createError }}</p>
-
-    <template #footer>
-      <button class="tool-btn" type="button" @click="createOpen = false">
-        {{ t('common.cancel') }}
-      </button>
-      <button class="tool-btn primary" type="button" @click="submitCreate">
-        {{ t('workspace.templates.new_template') }}
-      </button>
-    </template>
-  </Modal>
+    :confirm-label="t('workspace.templates.new_template')"
+    :placeholder="t('workspace.templates.create.placeholder')"
+    :existing-names="filenames"
+    extension=""
+    :show-append-date="false"
+    :pattern="TEMPLATE_FILENAME_RE"
+    :invalid-chars-message="t('workspace.templates.create.invalid')"
+    :help="t('workspace.templates.create.help')"
+    :error="createError"
+    @cancel="createOpen = false"
+    @submit="submitCreate"
+  />
 
   <!-- Delete-template confirm -->
   <ConfirmDialog
