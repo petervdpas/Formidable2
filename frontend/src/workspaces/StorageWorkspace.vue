@@ -1261,7 +1261,7 @@ setTopbarMenu(() => [
       <div class="sidebar-section">
         <div class="sidebar-section-head">
           <span class="sidebar-label">{{ t('workspace.storage.forms_heading') }}</span>
-          <FilteredCount :visible="visibleSummaries.length" :total="baseSummaries.length" />
+          <FilteredCount :visible="visibleSummaries.length" :total="summaries.length" />
         </div>
 
         <div v-if="ftsEnabled" class="sidebar-section">
