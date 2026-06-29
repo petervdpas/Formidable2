@@ -573,6 +573,17 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return raymond.SafeString(emitYAMLList(arr, indent))
 	})
 
+	// yamlString encodes a scalar as a quoted YAML value for frontmatter, as a
+	// SafeString so raymond doesn't HTML-escape it (`&` -> `&amp;`). The YAML
+	// counterpart to yamlList for single values like `title:`.
+	tpl.RegisterHelper("yamlString", func(options *raymond.Options) raymond.SafeString {
+		var v any
+		if params := options.Params(); len(params) > 0 {
+			v = params[0]
+		}
+		return raymond.SafeString(emitYAMLString(v))
+	})
+
 	// api field helpers: implementations in apifield_helpers.go.
 	registerAPIFieldHelpers(tpl, opts)
 }

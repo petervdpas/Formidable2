@@ -103,8 +103,8 @@ func TestGenerate_FrontmatterFacetIncluded(t *testing.T) {
 	if !strings.Contains(got, `status_inline:`) {
 		t.Errorf("frontmatter must emit a key for the facet field; got:\n%s", got)
 	}
-	if !strings.Contains(got, `{{virtual-field "status_inline"}}`) {
-		t.Errorf("frontmatter value must come from virtual-field helper; got:\n%s", got)
+	if !strings.Contains(got, `{{yamlString (virtual-field "status_inline")}}`) {
+		t.Errorf("frontmatter value must come from virtual-field, YAML-encoded; got:\n%s", got)
 	}
 	if strings.Contains(got, `(fieldRaw "status_inline")`) {
 		t.Errorf("frontmatter must NOT read fieldRaw for a virtual field; got:\n%s", got)

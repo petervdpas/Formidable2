@@ -118,6 +118,7 @@ var builtinHelpers = []HelperDescriptor{
 	// ── tags / lists ─────────────────────────────────────────────
 	{Name: "tags", Signature: `{{tags arr [withHash=true]}}`, Description: "Render an array as comma-joined kebab-cased labels (`#audit, #governance`). Pass `withHash=false` to drop the leading hash.", Example: `Topics: {{tags (fieldRaw "topics") withHash=false}}`, Category: HelperCategoryTags},
 	{Name: "yamlList", Signature: `{{yamlList arr [indent=N]}}`, Description: "Emit a YAML block-sequence chunk (`- a\\n- b\\n…`) from an array. Use at column 0 inside a `keys:` block - see PDF frontmatter `keywords:` for the canonical case.", Example: `{{yamlList (fieldRaw "adapter-tags")}}`, Category: HelperCategoryTags},
+	{Name: "yamlString", Signature: `{{yamlString value}}`, Description: "Encode a scalar as a quoted YAML string for a frontmatter value, so `&`, `:`, `#` and quotes survive instead of being HTML-escaped (`&amp;`) by a bare `{{field}}`. Always quotes, so numeric- or boolean-looking values stay strings. The single-value counterpart to `yamlList`.", Example: `title: {{yamlString (fieldRaw "name")}}`, Category: HelperCategoryTags},
 
 	// ── api fields ───────────────────────────────────────────────
 	{Name: "apiBlock", Signature: `{{apiBlock "fieldKey" "columnKey"}}`, Description: "Type-aware block render for one column of an api-field's first referenced record (scalar passthrough; tags joined; lists as markdown bullets; tables as pipe-tables).", Example: `{{apiBlock "ref" "lineItems"}}`, Category: HelperCategoryAPI},

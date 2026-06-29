@@ -622,6 +622,76 @@ func TestHelper_YamlList_StringifiesNonStringItems(t *testing.T) {
 	}
 }
 
+func TestHelper_YamlString_Ampersand(t *testing.T) {
+	// The canonical bug: a bare `{{field}}` HTML-escapes `&` to `&amp;` in a
+	// frontmatter title. yamlString returns a SafeString single-quoted scalar
+	// so the ampersand survives verbatim.
+	got := renderWithCtx(t, `title: {{yamlString v}}`, map[string]any{
+		"v": "R&D division",
+	})
+	if got != `title: 'R&D division'` {
+		t.Errorf("got %q", got)
+	}
+	if strings.Contains(got, "&amp;") {
+		t.Errorf("ampersand was HTML-escaped: %q", got)
+	}
+}
+
+func TestHelper_YamlString_QuotesSpecialChars(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlString v}}`, map[string]any{
+		"v": "has: colon # and hash",
+	})
+	if got != `'has: colon # and hash'` {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_YamlString_EscapesSingleQuotes(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlString v}}`, map[string]any{
+		"v": "it's mine",
+	})
+	if got != `'it''s mine'` {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestHelper_YamlString_Empty(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlString v}}`, map[string]any{"v": ""})
+	if got != `''` {
+		t.Errorf("got %q, want ''", got)
+	}
+}
+
+func TestHelper_YamlString_ZeroArg(t *testing.T) {
+	got := renderWithCtx(t, `{{yamlString}}`, map[string]any{})
+	if got != `''` {
+		t.Errorf("got %q, want ''", got)
+	}
+}
+
+func TestHelper_YamlString_ForcesStringForScalars(t *testing.T) {
+	// The name says String: a numeric- or boolean-looking value stays a
+	// quoted string so YAML never reinterprets a title like "42" as a number.
+	if got := renderWithCtx(t, `{{yamlString v}}`, map[string]any{"v": 42}); got != `'42'` {
+		t.Errorf("int: got %q", got)
+	}
+	if got := renderWithCtx(t, `{{yamlString v}}`, map[string]any{"v": true}); got != `'true'` {
+		t.Errorf("bool: got %q", got)
+	}
+}
+
+func TestHelper_YamlString_MultilineUsesDoubleQuotes(t *testing.T) {
+	// A newline can't sit in a single-line single-quoted scalar; switch to
+	// double-quoted style with escapes so the value stays on one line.
+	got := renderWithCtx(t, `{{yamlString v}}`, map[string]any{
+		"v": "line1\nline2\twith\\backslash and \"quote\"",
+	})
+	want := `"line1\nline2\twith\\backslash and \"quote\""`
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestHelper_IsSelected(t *testing.T) {
 	got := renderWithCtx(t, `{{#isSelected items "x"}}yes{{else}}no{{/isSelected}}`, map[string]any{
 		"items": []any{"a", "x"},

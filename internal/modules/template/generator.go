@@ -510,15 +510,15 @@ func generateFrontmatter(fields []Field) string {
 			continue
 		}
 		seen[key] = true
-		// Facet has no data slot; quote-wrap so YAML parses the label as a string even if it contains a colon.
+		// Facet has no data slot; yamlString encodes the label as a YAML string so a colon or & survives.
 		if t == "facet" {
-			lines = append(lines, fmt.Sprintf(`%s: '{{virtual-field "%s"}}'`, key, key))
+			lines = append(lines, fmt.Sprintf(`%s: {{yamlString (virtual-field "%s")}}`, key, key))
 			continue
 		}
-		// Formula has no data slot of its own; project the target field's value (quote-wrapped for YAML safety).
+		// Formula has no data slot of its own; project the target field's value, YAML-encoded.
 		if t == "formula" {
 			if f.TargetKey != "" {
-				lines = append(lines, fmt.Sprintf(`%s: '{{field "%s"}}'`, key, f.TargetKey))
+				lines = append(lines, fmt.Sprintf(`%s: {{yamlString (field "%s")}}`, key, f.TargetKey))
 			}
 			continue
 		}

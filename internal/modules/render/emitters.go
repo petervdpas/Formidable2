@@ -196,6 +196,41 @@ func emitYAMLList(v any, indent int) string {
 	return strings.Join(parts, "\n")
 }
 
+// emitYAMLString encodes v as a quoted YAML scalar, safe to drop into a
+// frontmatter value position (`title: {{yamlString …}}`). Frontmatter is YAML,
+// not HTML, so the value must be YAML-encoded, not entity-escaped: a bare
+// `{{field}}` returns a plain string that raymond HTML-escapes (`&` -> `&amp;`),
+// which then reaches the PDF literally. This always quotes (single-quoted by
+// default, apostrophes doubled), so a numeric- or colon-bearing value stays a
+// string; values carrying a newline, carriage return or tab switch to
+// double-quoted style with the matching escapes to stay on one line.
+func emitYAMLString(v any) string {
+	s := stringify(v)
+	if strings.ContainsAny(s, "\n\r\t") {
+		var b strings.Builder
+		b.WriteByte('"')
+		for _, r := range s {
+			switch r {
+			case '\\':
+				b.WriteString(`\\`)
+			case '"':
+				b.WriteString(`\"`)
+			case '\n':
+				b.WriteString(`\n`)
+			case '\r':
+				b.WriteString(`\r`)
+			case '\t':
+				b.WriteString(`\t`)
+			default:
+				b.WriteRune(r)
+			}
+		}
+		b.WriteByte('"')
+		return b.String()
+	}
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
 func needsYAMLListQuoting(s string) bool {
 	if s == "" {
 		return true
