@@ -18,6 +18,8 @@ defineProps<{
   offLabel?: string;
   disabled?: boolean;
   id?: string;
+  // Forwarded to SwitchField: opt into the controlled (:checked) checkbox.
+  controlled?: boolean;
 }>();
 </script>
 
@@ -32,6 +34,7 @@ defineProps<{
         :off-label="offLabel"
         :disabled="disabled"
         :id="id"
+        :controlled="controlled"
       />
     </div>
     <p v-if="description" class="form-switch-row-description">

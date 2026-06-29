@@ -10,12 +10,6 @@ const { t } = useI18n();
 const { config, reload } = useConfig();
 const { filenames, cache, refreshEnabled } = useTemplates();
 
-// Bumped after every toggle so the rows remount and re-read their
-// authoritative state from the reloaded config. Without it a row whose
-// computed state doesn't change (the last-enabled row going to "all
-// shown") keeps its optimistic switch position and desyncs.
-const rev = ref(0);
-
 const cfg = computed(() => config.value!);
 
 // Search-box state - narrows the visible rows only. Empty string shows
@@ -62,11 +56,11 @@ function displayName(filename: string): string {
 }
 
 async function refreshAfterToggle() {
-  // Re-read the authoritative config + use-side picker, then remount the
-  // rows so each switch reflects backend state (no optimistic drift).
+  // Re-read the authoritative config + use-side picker. The rows are keyed
+  // by filename only and the switches are controlled (:checked), so each
+  // reflects backend state without a remount - the list keeps its scroll.
   await reload();
   await refreshEnabled();
-  rev.value++;
 }
 
 async function setTemplateEnabled(filename: string, on: boolean) {
@@ -112,7 +106,8 @@ async function toggleAllVisible(on: boolean) {
   <template v-else>
     <FormSection class="settings-templates-master">
       <FormSwitchRow
-        :key="`__all__:${rev}`"
+        key="__all__"
+        controlled
         :label="t('settings.templates.toggle_all')"
         :description="t('settings.templates.toggle_all_desc')"
         :model-value="allVisibleOn"
@@ -125,7 +120,8 @@ async function toggleAllVisible(on: boolean) {
     <FormSection>
       <FormSwitchRow
         v-for="f in visibleFilenames"
-        :key="`${f}:${rev}`"
+        :key="f"
+        controlled
         :label="displayName(f)"
         :description="f"
         :model-value="isEnabled(f)"
