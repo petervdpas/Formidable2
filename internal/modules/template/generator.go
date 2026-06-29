@@ -295,6 +295,13 @@ _No tags specified_
 			"{{#if (fieldRaw \"%s\")}}\n![%s](%s)\n{{else}}\n_No image uploaded for %s_\n{{/if}}",
 			key, label, imageHelperCall(key, imgMode), label,
 		)
+	case "mermaid":
+		// Dedicated {{mermaid}} accessor (parallels image's helper). Guard the
+		// empty state so a blank field doesn't emit a stray empty fence.
+		return fmt.Sprintf(
+			"{{#if (fieldRaw \"%s\")}}\n{{mermaid \"%s\"}}\n{{else}}\n_No diagram for %s_\n{{/if}}",
+			key, key, label,
+		)
 	case "api":
 		// ExpandAPI on emits per-column "header paragraph + blank line + {{apiBlock}}" blocks: the blank
 		// line is what goldmark needs to lift a multi-line table/list out of the surrounding paragraph;

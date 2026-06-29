@@ -101,6 +101,25 @@ func TestGenerate_ReportBooleanUsesIfElse(t *testing.T) {
 	}
 }
 
+func TestGenerate_ReportMermaidUsesDedicatedHelper(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeReport, defaultOpts(),
+		[]Field{{Key: "flow", Type: "mermaid", Label: "Flow"}})
+	if !strings.Contains(got, `{{mermaid "flow"}}`) {
+		t.Errorf("mermaid must use the dedicated {{mermaid}} helper; got:\n%s", got)
+	}
+	if !strings.Contains(got, `{{#if (fieldRaw "flow")}}`) {
+		t.Errorf("mermaid must guard the empty state with if/else; got:\n%s", got)
+	}
+}
+
+func TestGenerate_MinimalMermaidUsesDedicatedHelper(t *testing.T) {
+	got := GenerateMarkdownTemplate(ShapeMinimal, defaultOpts(),
+		[]Field{{Key: "flow", Type: "mermaid", Label: "Flow"}})
+	if !strings.Contains(got, `{{mermaid "flow"}}`) {
+		t.Errorf("minimal mermaid must use {{mermaid}}; got:\n%s", got)
+	}
+}
+
 func TestGenerate_ReportImageURLMode(t *testing.T) {
 	got := GenerateMarkdownTemplate(ShapeReport,
 		GeneratorOptions{ImgMode: ImgURL, WrapLoops: true},
