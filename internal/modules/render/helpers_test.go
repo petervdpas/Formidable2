@@ -329,6 +329,39 @@ func TestHelper_FieldTextareaIsSafeString(t *testing.T) {
 	}
 }
 
+func TestHelper_Mermaid(t *testing.T) {
+	// {{mermaid "key"}} wraps the field's diagram source in a fenced
+	// ```mermaid block (SafeString, not HTML-escaped) - the dedicated
+	// accessor mirroring imageURL/imageBase64 for image fields.
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "flow", Type: "mermaid"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"flow": "flowchart TD\n  A-->B"})
+	got := renderWithCtx(t, `{{mermaid "flow"}}`, ctx)
+	want := "```mermaid\nflowchart TD\n  A-->B\n```"
+	if got != want {
+		t.Errorf("mermaid helper: got %q, want %q", got, want)
+	}
+}
+
+func TestHelper_MermaidEmptyIsBlank(t *testing.T) {
+	tpl := &template.Template{
+		Fields: []template.Field{{Key: "flow", Type: "mermaid"}},
+	}
+	ctx := ctxFromTemplate(tpl, map[string]any{"flow": "  "})
+	if got := renderWithCtx(t, `{{mermaid "flow"}}`, ctx); got != "" {
+		t.Errorf("empty mermaid source should emit nothing, got %q", got)
+	}
+}
+
+func TestHelper_MermaidUnknownKeyIsBlank(t *testing.T) {
+	tpl := &template.Template{Fields: []template.Field{}}
+	ctx := ctxFromTemplate(tpl, map[string]any{})
+	if got := renderWithCtx(t, `{{mermaid "missing"}}`, ctx); got != "" {
+		t.Errorf("unknown key should emit nothing, got %q", got)
+	}
+}
+
 func TestHelper_FieldLinkHrefMode(t *testing.T) {
 	tpl := &template.Template{
 		Fields: []template.Field{{Key: "ref", Type: "link"}},

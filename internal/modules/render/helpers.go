@@ -243,6 +243,19 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		return f.Description
 	})
 
+	// mermaid emits a mermaid field's diagram source as a fenced
+	// ```mermaid block - the dedicated accessor for the mermaid field
+	// type, mirroring imageURL/imageBase64 for image fields. Same output
+	// as `{{field "key"}}` on a mermaid field, but discoverable by name.
+	// Empty / missing source emits nothing (no stray empty fence).
+	tpl.RegisterHelper("mermaid", func(key string, options *raymond.Options) any {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		return raymond.SafeString(emitMermaid(ctx[key]))
+	})
+
 	// {{field}}: implementation in helpers_field.go.
 	registerFieldHelper(tpl, opts)
 
