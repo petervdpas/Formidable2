@@ -18,8 +18,38 @@
     color: var(--color-text-muted);
 }
 
-/* In-dialog panes. The split + drag live in the generic SplitView; each
-   pane just fills its side and carries its own chrome. */
+/* In-dialog tabs. Edit and View are separate tabs (not split panes), so only
+   one is in the layout at a time and nothing can distort a splitter. The wrapper
+   fills the modal body; the active tab pane fills the wrapper. */
+.mermaid-tabs {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.mermaid-tabs .tabs-container--horizontal {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.mermaid-tabs .tabs {
+    flex: 0 0 auto;
+}
+
+/* The mermaid pane carries its own frame, so shed the generic tab-pane chrome
+   and let it fill the remaining height. */
+.mermaid-tabs .tab-pane {
+    flex: 1 1 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+/* Each pane fills its side and carries its own chrome. */
 .mermaid-pane {
     height: 100%;
     border: 1px solid var(--color-border);
@@ -32,12 +62,33 @@
     height: 100%;
 }
 
+/* The preview pane only positions: all its content (iframe, toolbar,
+   empty/error) is absolutely placed, so the pane has no in-flow content to
+   leak an intrinsic width into the SplitView and distort the splitter. */
 .mermaid-pane--preview {
-    overflow: auto;
-    padding: var(--space-3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+.mermaid-pane--preview.is-pannable {
+    cursor: grab;
+}
+
+.mermaid-pane--preview.is-panning {
+    cursor: grabbing;
+    user-select: none;
+}
+
+/* Isolated diagram view: its own iframe document handles render + pan/zoom,
+   so it can't bleed into or be affected by the surrounding layout. */
+.mermaid-frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: var(--color-bg-sunken);
 }
 
 .mermaid-field-diagram {
@@ -52,15 +103,22 @@
 }
 
 .mermaid-field-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--color-text-muted);
     font-size: 0.9em;
 }
 
 .mermaid-field-error {
-    width: 100%;
-    align-self: stretch;
+    position: absolute;
+    inset: 0;
+    padding: var(--space-3);
     color: var(--color-error);
     display: flex;
+    align-items: flex-start;
     gap: var(--space-2);
 }
 
@@ -69,6 +127,28 @@
     white-space: pre-wrap;
     word-break: break-word;
     font-size: 0.85em;
+}
+
+/* Floating zoom controls, top-right of the preview pane. */
+.mermaid-zoom-toolbar {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.mermaid-zoom-level {
+    min-width: 3.5em;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
 }
 
 /* A hydrated mermaid block (in any RenderedHtml surface) sheds the
