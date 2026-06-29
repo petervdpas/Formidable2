@@ -215,3 +215,62 @@ pre.mermaid[data-processed] svg {
     max-width: 100%;
     height: auto;
 }
+
+/* Click an image or a rendered diagram to open it full-screen (lightbox.js). */
+.page-wrap img,
+pre.mermaid[data-processed] svg {
+    cursor: zoom-in;
+}
+
+.lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5vh 2.5vw;
+    background: rgba(0, 0, 0, 0.82);
+    cursor: zoom-out;
+}
+
+.lightbox-overlay[hidden] {
+    display: none;
+}
+
+.lightbox-overlay img,
+.lightbox-overlay svg {
+    margin: 0;
+    max-width: 95vw;
+    max-height: 95vh;
+    cursor: grab;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    transition: none;
+    will-change: transform;
+    touch-action: none;
+}
+
+.lightbox-overlay .is-grabbing {
+    cursor: grabbing;
+}
+
+.lightbox-close {
+    position: fixed;
+    top: 1rem;
+    right: 1.25rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
