@@ -32,6 +32,7 @@
   "error.template.multiple_tags_fields": "Only one 'tags' field is allowed per template (found: {0}).",
   "error.template.sequence_needs_collection": "A `sequence` field requires `Enable Collection`. Enable collection mode or remove the sequence field.",
   "error.template.multiple_sequence_fields": "Only one 'sequence' field is allowed per template (found: {0}).",
+  "error.template.multiple_slide_fields": "Only one 'slide' field is allowed per template (found: {0}).",
   "error.template.presentation_needs_sequence": "`Presentation` requires a `sequence` field to order the slides. Add one or turn presentation off.",
   "error.template.reserved_key": "Key \"{0}\" is reserved for the \"{1}\" field type.",
   "error.template.nested_loop_not_allowed": "Only 1 loop level allowed. Found nested loop with key: \"{0}\".",

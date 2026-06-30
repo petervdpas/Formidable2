@@ -108,6 +108,8 @@ func registerFieldHelper(tpl *raymond.Template, opts *Options) {
 			return raymond.SafeString(stringify(value))
 		case "mermaid":
 			return raymond.SafeString(emitMermaid(value))
+		case "slide":
+			return raymond.SafeString(renderSlide(value, opts))
 		case "image":
 			return emitImage(value, opts)
 		}

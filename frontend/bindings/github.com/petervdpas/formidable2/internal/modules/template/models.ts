@@ -976,6 +976,35 @@ export class ShapeInfo {
 }
 
 /**
+ * SlideBlockKindDescriptor names one kind the block palette offers. Name is the
+ * field-type id used to edit and render the block; LabelKey is its i18n label.
+ */
+export class SlideBlockKindDescriptor {
+    "name": string;
+    "label_key": string;
+
+    /** Creates a new SlideBlockKindDescriptor instance. */
+    constructor($$source: Partial<SlideBlockKindDescriptor> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SlideBlockKindDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SlideBlockKindDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SlideBlockKindDescriptor($$parsedSource as Partial<SlideBlockKindDescriptor>);
+    }
+}
+
+/**
  * StatComposite is the stored composite: a parent name plus per-branch child names. The engine
  * checks that each child filters the parent's branch dimension to its branch value.
  */

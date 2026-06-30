@@ -49,6 +49,10 @@ func Normalize(t *Template) {
 		if t.Fields[i].Type == "sequence" {
 			t.Fields[i].Key = "sequence"
 		}
+		// A slide is the third singleton: one canvas per record, forced key.
+		if t.Fields[i].Type == "slide" {
+			t.Fields[i].Key = "slide"
+		}
 		stripDisabledAttributes(&t.Fields[i])
 	}
 }

@@ -139,11 +139,21 @@ export function SeedBasicIfEmpty(): $CancellablePromise<void> {
 }
 
 /**
+ * SlideBlockKinds returns the canonical slide block-kind palette; the canvas
+ * editor reads it instead of hardcoding the set.
+ */
+export function SlideBlockKinds(): $CancellablePromise<$models.SlideBlockKindDescriptor[]> {
+    return $Call.ByID(3465565653).then(($result: any) => {
+        return $$createType21($result);
+    });
+}
+
+/**
  * SummaryFieldCandidates lists the loop's direct child fields as Summary-picker options.
  */
 export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string): $CancellablePromise<$models.SummaryFieldOption[]> {
     return $Call.ByID(2530304310, fields, loopKey).then(($result: any) => {
-        return $$createType21($result);
+        return $$createType23($result);
     });
 }
 
@@ -152,7 +162,7 @@ export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string)
  */
 export function TableColumnTypes(): $CancellablePromise<$models.TableColumnTypeDescriptor[]> {
     return $Call.ByID(3301892111).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType25($result);
     });
 }
 
@@ -171,7 +181,7 @@ export function TemplatesDir(): $CancellablePromise<string> {
  */
 export function ValidateField(t: $models.Template | null, field: $models.Field | null, originalKey: string, isNew: boolean): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1836708306, t, field, originalKey, isNew).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
@@ -181,7 +191,7 @@ export function ValidateField(t: $models.Template | null, field: $models.Field |
  */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
@@ -206,9 +216,11 @@ const $$createType16 = $models.LoadManyResult.createFrom;
 const $$createType17 = $Create.Array($$createType16);
 const $$createType18 = $models.Template.createFrom;
 const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = $models.SummaryFieldOption.createFrom;
+const $$createType20 = $models.SlideBlockKindDescriptor.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = $models.TableColumnTypeDescriptor.createFrom;
+const $$createType22 = $models.SummaryFieldOption.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = $models.ValidationError.createFrom;
+const $$createType24 = $models.TableColumnTypeDescriptor.createFrom;
 const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = $models.ValidationError.createFrom;
+const $$createType27 = $Create.Array($$createType26);

@@ -448,6 +448,9 @@ watch(
     if (type === "sequence") {
       draft.value.key = "sequence";
     }
+    if (type === "slide") {
+      draft.value.key = "slide";
+    }
   },
 );
 

@@ -32,6 +32,7 @@
   "error.template.multiple_tags_fields": "Slechts één 'tags'-veld is toegestaan per sjabloon (gevonden: {0}).",
   "error.template.sequence_needs_collection": "Een `sequence`-veld vereist `Verzameling inschakelen`. Schakel verzamelmodus in of verwijder het sequence-veld.",
   "error.template.multiple_sequence_fields": "Slechts één 'sequence'-veld is toegestaan per sjabloon (gevonden: {0}).",
+  "error.template.multiple_slide_fields": "Slechts één 'slide'-veld is toegestaan per sjabloon (gevonden: {0}).",
   "error.template.presentation_needs_sequence": "`Presentatie` vereist een `sequence`-veld om de dia's te ordenen. Voeg er een toe of schakel presentatie uit.",
   "error.template.reserved_key": "Sleutel \"{0}\" is gereserveerd voor het veldtype \"{1}\".",
   "error.template.nested_loop_not_allowed": "Slechts 1 lusniveau toegestaan. Geneste lus gevonden met sleutel: \"{0}\".",

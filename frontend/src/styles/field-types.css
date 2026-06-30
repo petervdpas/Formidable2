@@ -84,6 +84,13 @@
     --field-type-sequence-badge:  #7c88d4;
     --field-type-sequence-text:   #ffffff;
 
+    /* Slide (canvas) - a content surface; its own plum/violet slot, distinct
+       from the indigo sequence and the pink mermaid. */
+    --field-type-slide-bg:     #6d4aa7;
+    --field-type-slide-border: #b39ddb;
+    --field-type-slide-badge:  #9575cd;
+    --field-type-slide-text:   #ffffff;
+
     /* Range */
     --field-type-range-bg:     #3c3f77;
     --field-type-range-border: #7986cb;
@@ -356,6 +363,12 @@
     border-left-color: var(--field-type-sequence-border);
     color: var(--field-type-sequence-text);
     --field-row-badge-bg: var(--field-type-sequence-badge);
+}
+.field-row[data-type="slide"] {
+    background: var(--field-type-slide-bg);
+    border-left-color: var(--field-type-slide-border);
+    color: var(--field-type-slide-text);
+    --field-row-badge-bg: var(--field-type-slide-badge);
 }
 .field-row[data-type="range"] {
     background: var(--field-type-range-bg);

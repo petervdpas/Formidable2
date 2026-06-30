@@ -31,6 +31,7 @@ export {
     Scaling,
     Shape,
     ShapeInfo,
+    SlideBlockKindDescriptor,
     StatComposite,
     StatCompositeEdge,
     StatScaling,

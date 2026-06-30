@@ -68,6 +68,20 @@ func fieldTypeCases() []fieldTypeCase {
 		// the legacy {id|guid, ...} snapshot map is tolerated. A deeply wrong type
 		// (number/bool) is drift and is flagged. nil (unset) is covered separately.
 		{fieldType: "api", happy: "abc-123", unhappy: float64(7), wantKind: IssueTypeMismatch, emptyValue: nil, skipEmpty: true},
+
+		// slide: an object with a blocks array; each block is an existing-typed
+		// value plus geometry. A deeply wrong type (number) is drift; the empty
+		// value is the {blocks:[]} Sanitize seeds.
+		{
+			fieldType: "slide",
+			happy: map[string]any{"blocks": []any{
+				map[string]any{"id": "b1", "kind": "textarea", "content": "hi",
+					"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
+			}},
+			unhappy:    float64(7),
+			wantKind:   IssueTypeMismatch,
+			emptyValue: map[string]any{"blocks": []any{}},
+		},
 	}
 }
 

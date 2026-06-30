@@ -51,6 +51,9 @@ func Validate(t *Template) []ValidationError {
 	if e := singleSequenceError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
+	if e := singleSlideError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
 	if e := presentationSequenceError(t); e != nil {
 		errs = append(errs, *e)
 	}
@@ -77,6 +80,7 @@ func Validate(t *Template) []ValidationError {
 var reservedKeys = map[string]string{
 	"id":       "guid",
 	"sequence": "sequence",
+	"slide":    "slide",
 }
 
 // reservedKeyErrors flags a field using a reserved key but not the type that
@@ -781,6 +785,28 @@ func sequenceCollectionError(t *Template) *ValidationError {
 		Type:    "sequence-needs-collection",
 		Message: "A `sequence` field needs `Enable Collection`. Enable collection mode or remove the sequence field.",
 	}
+}
+
+// singleSlideError flags more than one slide field; a record has one canvas.
+func singleSlideError(fields []Field) *ValidationError {
+	var keys []string
+	for _, f := range fields {
+		if f.Type == "slide" {
+			k := f.Key
+			if k == "" {
+				k = "(no key)"
+			}
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) > 1 {
+		return &ValidationError{
+			Type:    "multiple-slide-fields",
+			Keys:    keys,
+			Message: fmt.Sprintf("Only one 'slide' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
+		}
+	}
+	return nil
 }
 
 // presentationSequenceError flags presentation mode without a sequence field.

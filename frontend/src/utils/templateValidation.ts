@@ -86,6 +86,12 @@ export function formatError(error: ValidationError): FormattedError {
         args: [(error.keys ?? []).join(", ")],
       };
 
+    case "multiple-slide-fields":
+      return {
+        key: "error.template.multiple_slide_fields",
+        args: [(error.keys ?? []).join(", ")],
+      };
+
     case "presentation-needs-sequence":
       return { key: "error.template.presentation_needs_sequence", args: [] };
 

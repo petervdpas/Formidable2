@@ -82,6 +82,20 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			FacetKey: false,
 		},
 	},
+	"slide": {
+		// A singleton content canvas like guid/sequence: minimal modal (only Key +
+		// Type), forced read-only key. Its value editor is the canvas in the form
+		// view, not the Edit Field modal. Independent of collection.
+		ID:          "slide",
+		KeyReadonly: true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: false, Description: false,
+			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+	},
 	"date": {
 		ID: "date",
 		Abilities: Abilities{
@@ -284,7 +298,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 
 // orderedTypes is the stable iteration order so the frontend's "Type" dropdown is predictable.
 var orderedTypes = []string{
-	"text", "textarea", "mermaid", "number", "range", "sequence", "date",
+	"text", "textarea", "mermaid", "number", "range", "sequence", "slide", "date",
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
@@ -303,6 +317,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"number":      "workspace.templates.field_type.number",
 	"range":       "workspace.templates.field_type.range",
 	"sequence":    "workspace.templates.field_type.sequence",
+	"slide":       "workspace.templates.field_type.slide",
 	"date":        "workspace.templates.field_type.date",
 	"boolean":     "workspace.templates.field_type.boolean",
 	"dropdown":    "workspace.templates.field_type.dropdown",

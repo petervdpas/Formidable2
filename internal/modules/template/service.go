@@ -80,6 +80,10 @@ func (s *Service) ListItemTypes() []ListItemTypeDescriptor {
 	return out
 }
 
+// SlideBlockKinds returns the canonical slide block-kind palette; the canvas
+// editor reads it instead of hardcoding the set.
+func (s *Service) SlideBlockKinds() []SlideBlockKindDescriptor { return SlideBlockKinds() }
+
 // GeneratorShapes returns the catalog for the "Generate Template" dialog's shape picker.
 func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }
 

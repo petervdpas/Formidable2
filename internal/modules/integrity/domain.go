@@ -748,10 +748,60 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 			Path:   path,
 			Detail: fmt.Sprintf("expected reference id or list, got %T", v),
 		}}
+
+	case "slide":
+		m, ok := v.(map[string]any)
+		if !ok {
+			if s, ok := v.(string); ok && s == "" {
+				return nil // legacy unset sentinel
+			}
+			return []Issue{{
+				Kind:   IssueTypeMismatch,
+				Path:   path,
+				Detail: fmt.Sprintf("expected slide object, got %T", v),
+			}}
+		}
+		return checkSlideBlocks(m, path)
 	}
 
 	// Unknown field type: permissive. Template validation owns the bogus-type check.
 	return nil
+}
+
+// checkSlideBlocks validates a slide document: each block must have a known
+// kind, a non-degenerate geometry, and content valid for its kind. The kind is
+// a field-type id, so the content check recurses through checkValueType - a
+// table block validates its 2D array, a mermaid block its string, and so on.
+func checkSlideBlocks(m map[string]any, path string) []Issue {
+	doc, err := template.ParseSlideDoc(m)
+	if err != nil {
+		return []Issue{{
+			Kind:   IssueTypeMismatch,
+			Path:   path,
+			Detail: fmt.Sprintf("malformed slide document: %v", err),
+		}}
+	}
+	var out []Issue
+	for i, b := range doc.Blocks {
+		bp := fmt.Sprintf("%s.blocks[%d]", path, i)
+		if !template.IsSlideBlockKind(b.Kind) {
+			out = append(out, Issue{
+				Kind:   IssueTypeMismatch,
+				Path:   bp,
+				Detail: fmt.Sprintf("unknown slide block kind %q", b.Kind),
+			})
+			continue
+		}
+		if b.W <= 0 || b.H <= 0 || b.X < 0 || b.Y < 0 {
+			out = append(out, Issue{
+				Kind:   IssueTypeMismatch,
+				Path:   bp,
+				Detail: fmt.Sprintf("invalid block geometry (x=%d y=%d w=%d h=%d)", b.X, b.Y, b.W, b.H),
+			})
+		}
+		out = append(out, checkValueType(b.Kind, b.Content, bp)...)
+	}
+	return out
 }
 
 func isNumeric(v any) bool {

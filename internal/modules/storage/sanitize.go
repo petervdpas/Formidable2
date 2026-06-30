@@ -437,6 +437,10 @@ func defaultForType(t string) any {
 		return 50
 	case "multioption", "list", "table":
 		return []any{}
+	case "slide":
+		// Object-shaped (not an array) so slide-level options can be added later;
+		// Sanitize preserves it verbatim.
+		return map[string]any{"blocks": []any{}}
 	case "api":
 		// nil = unpicked. A picked value is a reference id (single) or a list of ids (to-many).
 		return nil

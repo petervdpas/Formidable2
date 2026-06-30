@@ -467,3 +467,18 @@
 .formidable-prose .api-card th {
     background: color-mix(in oklab, currentColor 5%, transparent);
 }
+
+/* Slide field: a fixed 1280x720 canvas of absolutely-positioned content
+   blocks. Each block's geometry comes from inline styles; these rules add the
+   frame and clip overflow so a slide reads as one composed surface. Faithful
+   fit-to-viewport scaling is the deck viewer's job (it scales the whole
+   canvas); here the canvas renders at its true size. */
+.formidable-prose .slide-canvas {
+    margin: 1em auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    overflow: hidden;
+}
+.formidable-prose .slide-block { overflow: hidden; }
+.formidable-prose .slide-block > :first-child { margin-top: 0; }
+.formidable-prose .slide-block > :last-child { margin-bottom: 0; }
