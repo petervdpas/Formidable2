@@ -76,6 +76,14 @@
     --field-type-number-badge:  #5aaae9;
     --field-type-number-text:   #ffffff;
 
+    /* Sequence (order) - a structural integer like guid, given its own
+       indigo slot so it reads distinctly from number (bright blue) and the
+       grey guid row. */
+    --field-type-sequence-bg:     #515da7;
+    --field-type-sequence-border: #97a0e0;
+    --field-type-sequence-badge:  #7c88d4;
+    --field-type-sequence-text:   #ffffff;
+
     /* Range */
     --field-type-range-bg:     #3c3f77;
     --field-type-range-border: #7986cb;
@@ -342,6 +350,12 @@
     border-left-color: var(--field-type-number-border);
     color: var(--field-type-number-text);
     --field-row-badge-bg: var(--field-type-number-badge);
+}
+.field-row[data-type="sequence"] {
+    background: var(--field-type-sequence-bg);
+    border-left-color: var(--field-type-sequence-border);
+    color: var(--field-type-sequence-text);
+    --field-row-badge-bg: var(--field-type-sequence-badge);
 }
 .field-row[data-type="range"] {
     background: var(--field-type-range-bg);

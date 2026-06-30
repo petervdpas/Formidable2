@@ -96,6 +96,12 @@ func (r *indexFormReader) ListSummaries(templateFilename string) ([]storage.Form
 	return out, nil
 }
 
+// MaxValue serves the greatest scalar numeric value for a field from the index,
+// backing sequence auto-assign. Index-only, like the rest of the reader.
+func (r *indexFormReader) MaxValue(templateFilename, fieldKey string) (float64, bool, error) {
+	return r.idx.MaxValue(templateFilename, fieldKey)
+}
+
 // LoadSummary serves the single-form path from the same index rows the list
 // path uses, so ExtendedLoadForm carries the harvested ExpressionItems.
 func (r *indexFormReader) LoadSummary(templateFilename, datafile string) (storage.FormSummary, bool, error) {

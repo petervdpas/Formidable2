@@ -24,6 +24,7 @@ type formStore interface {
 	DeleteForm(templateFilename, datafile string) error
 	SortFieldValue(templateFilename, datafile, fieldKey, column, direction string) (any, error)
 	DedupFieldValue(templateFilename, datafile, fieldKey, column string) (any, error)
+	MaxFieldValue(templateFilename, fieldKey string) (float64, bool)
 }
 
 type configReader interface {
@@ -100,9 +101,11 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 	groups := ComputeLoopGroups(tpl.Fields, defaults.LoopStateCollapsed)
 
 	if datafile == "" {
+		values := defaultValues(tpl.Fields)
+		m.seedSequence(templateName, tpl, values)
 		return &FormView{
 			Template:   tpl,
-			Values:     defaultValues(tpl.Fields),
+			Values:     values,
 			Meta:       storage.FormMeta{Template: templateName},
 			LoopGroups: groups,
 			Datafile:   "",
@@ -114,9 +117,11 @@ func (m *Manager) BuildView(templateName, datafile string) (*FormView, error) {
 	if loaded == nil {
 		m.log.Warn("form: datafile not found; returning unsaved view",
 			"template", templateName, "datafile", datafile)
+		values := defaultValues(tpl.Fields)
+		m.seedSequence(templateName, tpl, values)
 		return &FormView{
 			Template:   tpl,
-			Values:     defaultValues(tpl.Fields),
+			Values:     values,
 			Meta:       storage.FormMeta{Template: templateName},
 			LoopGroups: groups,
 			Datafile:   datafile,
@@ -294,6 +299,33 @@ func (m *Manager) configDefaults() ConfigDefaults {
 		return ConfigDefaults{}
 	}
 	return m.config.FormDefaults()
+}
+
+// seedSequence gives a brand-new record its starting position in the
+// collection: max(existing sequence) + step, so records auto-number 10, 20, 30
+// without manual entry. No-op unless the template is a collection carrying a
+// sequence field. Best-effort: with no siblings yet (or no index) the first
+// record gets one step.
+func (m *Manager) seedSequence(templateName string, tpl *template.Template, values map[string]any) {
+	if tpl == nil || !tpl.EnableCollection {
+		return
+	}
+	var seq *template.Field
+	for i := range tpl.Fields {
+		if tpl.Fields[i].Type == "sequence" {
+			seq = &tpl.Fields[i]
+			break
+		}
+	}
+	if seq == nil {
+		return
+	}
+	step := template.SequenceStep(*seq)
+	base := 0
+	if max, ok := m.storage.MaxFieldValue(templateName, seq.Key); ok {
+		base = int(max)
+	}
+	values[seq.Key] = base + step
 }
 
 // defaultValues fills a fresh values map from each field's default or

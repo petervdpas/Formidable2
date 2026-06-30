@@ -782,6 +782,13 @@ type fakeFormReader struct {
 	searchErr   error
 	searchCalls int
 	lastQuery   string
+	maxVal      float64
+	maxOK       bool
+	maxErr      error
+}
+
+func (f *fakeFormReader) MaxValue(_, _ string) (float64, bool, error) {
+	return f.maxVal, f.maxOK, f.maxErr
 }
 
 func (f *fakeFormReader) ListSummaries(_ string) ([]FormSummary, error) {

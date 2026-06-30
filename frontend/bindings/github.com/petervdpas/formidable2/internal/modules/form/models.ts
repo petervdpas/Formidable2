@@ -194,6 +194,41 @@ export class RelationField {
 }
 
 /**
+ * ReorderResult reports what a sequence reorder wrote. Normalized is true when
+ * no gap was left to slot the moved record so the whole collection was
+ * re-spread to step spacing; Written lists the datafiles whose sequence value
+ * actually changed (records already at their target are never rewritten).
+ */
+export class ReorderResult {
+    "normalized": boolean;
+    "written": string[];
+
+    /** Creates a new ReorderResult instance. */
+    constructor($$source: Partial<ReorderResult> = {}) {
+        if (!("normalized" in $$source)) {
+            this["normalized"] = false;
+        }
+        if (!("written" in $$source)) {
+            this["written"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ReorderResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ReorderResult {
+        const $$createField1_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("written" in $$parsedSource) {
+            $$parsedSource["written"] = $$createField1_0($$parsedSource["written"]);
+        }
+        return new ReorderResult($$parsedSource as Partial<ReorderResult>);
+    }
+}
+
+/**
  * SavePayload is what Vue sends to SaveValues. Datafile may be empty for
  * never-persisted forms; the UI gathers a filename from the user first.
  */
@@ -241,3 +276,4 @@ const $$createType2 = $Create.Map($Create.Any, $Create.Any);
 const $$createType3 = storage$0.FormMeta.createFrom;
 const $$createType4 = LoopGroup.createFrom;
 const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $Create.Array($Create.Any);

@@ -439,11 +439,14 @@ watch(
     if (type === "formula" && !draft.value.trigger) {
       draft.value.trigger = "save";
     }
-    // A guid field's key is always "id" - mirror backend Normalize
-    // (template/normalize.go) so the read-only Key input shows it
+    // guid and sequence are singletons with a forced key - mirror backend
+    // Normalize (template/normalize.go) so the read-only Key input shows it
     // immediately instead of an empty/stale key.
     if (type === "guid") {
       draft.value.key = "id";
+    }
+    if (type === "sequence") {
+      draft.value.key = "sequence";
     }
   },
 );

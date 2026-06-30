@@ -39,6 +39,7 @@ type fakeStorage struct {
 	forms     map[string]map[string]*storage.Form // template → datafile → form
 	listed    map[string][]string                 // template → files
 	summaries map[string][]storage.FormSummary
+	maxValues map[string]float64 // template\x00fieldKey → max sequence value
 	deleted   []string
 	saves     []saveCall
 }
@@ -63,6 +64,11 @@ func (s *fakeStorage) ListForms(t string) ([]string, error) { return s.listed[t]
 
 func (s *fakeStorage) ExtendedListForms(t string) ([]storage.FormSummary, error) {
 	return s.summaries[t], nil
+}
+
+func (s *fakeStorage) MaxFieldValue(t, fieldKey string) (float64, bool) {
+	v, ok := s.maxValues[t+"\x00"+fieldKey]
+	return v, ok
 }
 
 func (s *fakeStorage) LoadForm(t, df string) *storage.Form {
@@ -182,6 +188,69 @@ func TestBuildView_UnsavedFormGivesEmptyValuesAndDefaults(t *testing.T) {
 	}
 	if got := view.Values["active"]; got != false {
 		t.Errorf("boolean default: want false, got %v", got)
+	}
+}
+
+func TestBuildView_SeedsSequenceFromSiblings(t *testing.T) {
+	m, tpls, store, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename:         "t.yaml",
+		EnableCollection: true,
+		Fields: []template.Field{
+			{Key: "id", Type: "guid"},
+			{Key: "pos", Type: "sequence"},
+		},
+	}
+	// Three saved records, the greatest sequence being 30 -> next is 40 (+step 10).
+	store.maxValues = map[string]float64{"t.yaml\x00pos": 30}
+
+	view, err := m.BuildView("t.yaml", "")
+	if err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	if got := view.Values["pos"]; got != 40 {
+		t.Errorf("sequence seed: want 40 (max 30 + step 10), got %v", got)
+	}
+}
+
+func TestBuildView_SeedsFirstSequenceToStep(t *testing.T) {
+	m, tpls, _, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename:         "t.yaml",
+		EnableCollection: true,
+		Fields: []template.Field{
+			{Key: "id", Type: "guid"},
+			{Key: "pos", Type: "sequence",
+				Options: []any{map[string]any{"value": "step", "label": "10"}}},
+		},
+	}
+	// No siblings (empty maxValues) -> first record gets one step.
+	view, err := m.BuildView("t.yaml", "")
+	if err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	if got := view.Values["pos"]; got != 10 {
+		t.Errorf("first sequence seed: want 10 (step), got %v", got)
+	}
+}
+
+func TestBuildView_NoSequenceSeedWithoutCollection(t *testing.T) {
+	m, tpls, store, _ := newTestManager()
+	tpls.byName["t.yaml"] = &template.Template{
+		Filename: "t.yaml", // collection OFF
+		Fields: []template.Field{
+			{Key: "pos", Type: "sequence"},
+		},
+	}
+	store.maxValues = map[string]float64{"t.yaml\x00pos": 30}
+
+	view, err := m.BuildView("t.yaml", "")
+	if err != nil {
+		t.Fatalf("BuildView: %v", err)
+	}
+	// Falls back to the plain type-default; auto-assign only runs on collections.
+	if got := view.Values["pos"]; got != 0 {
+		t.Errorf("sequence without collection should not auto-assign: got %v", got)
 	}
 }
 

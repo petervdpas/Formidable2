@@ -155,6 +155,25 @@ const collectionToggleDisabled = computed(() => {
   return !hasGuidField.value && !draft.value?.enable_collection;
 });
 
+const hasSequenceField = computed(() => {
+  const fields = draft.value?.fields ?? [];
+  return fields.some((f: Field) => f.type === "sequence");
+});
+// presentation lives on Template; read/write defensively until the bindings
+// regen adds it to the generated type. Object.assign deserialization + whole-
+// object SaveTemplate already round-trip it at runtime.
+const presentationDraft = computed<boolean>({
+  get: () => !!(draft.value as { presentation?: boolean } | null)?.presentation,
+  set: (v) => {
+    if (draft.value) (draft.value as { presentation?: boolean }).presentation = v;
+  },
+});
+// Mirrors the collection gate: can't turn ON without a sequence field, but can
+// always turn OFF (recovery if the field was removed).
+const presentationToggleDisabled = computed(() => {
+  return !hasSequenceField.value && !presentationDraft.value;
+});
+
 const {
   open: createOpen,
   error: createError,
@@ -711,6 +730,17 @@ setTopbarMenu(() => [
             :on-label="t('common.on')"
             :off-label="t('common.off')"
             :disabled="collectionToggleDisabled"
+          />
+
+          <FormSwitchRow
+            v-model="presentationDraft"
+            :label="t('workspace.templates.setup.presentation')"
+            :description="presentationToggleDisabled
+              ? t('workspace.templates.setup.presentation_needs_sequence')
+              : t('workspace.templates.setup.presentation_desc')"
+            :on-label="t('common.on')"
+            :off-label="t('common.off')"
+            :disabled="presentationToggleDisabled"
           />
         </FormSection>
 

@@ -69,20 +69,17 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 	},
 	"sequence": {
+		// A structural singleton like guid: only Key + Type rows in the modal, no
+		// label/description/options. Step is fixed at the sparse default (10).
 		ID:                 "sequence",
 		RequiresCollection: true,
+		KeyReadonly:        true,
 		Abilities: Abilities{
-			Key: true, Type: true, Label: true, Description: true,
-			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
-			ExpressionItem: false, TwoColumn: true, Collapsible: false,
+			Key: true, Type: true, Label: false, Description: false,
+			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
 			FacetKey: false,
-		},
-		OptionsShape: &FixedOptionsShape{
-			Rows: []FixedOptionRow{
-				{LabelKey: "workspace.templates.field_edit.number.step", Defaults: map[string]any{"value": "step", "label": "10"}},
-			},
-			LockedColumns: []string{"value"},
 		},
 	},
 	"date": {

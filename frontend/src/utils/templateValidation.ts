@@ -77,6 +77,27 @@ export function formatError(error: ValidationError): FormattedError {
         args: [(error.keys ?? []).join(", ")],
       };
 
+    case "sequence-needs-collection":
+      return { key: "error.template.sequence_needs_collection", args: [] };
+
+    case "multiple-sequence-fields":
+      return {
+        key: "error.template.multiple_sequence_fields",
+        args: [(error.keys ?? []).join(", ")],
+      };
+
+    case "presentation-needs-sequence":
+      return { key: "error.template.presentation_needs_sequence", args: [] };
+
+    case "reserved-key":
+      return {
+        key: "error.template.reserved_key",
+        args: [
+          String(error.detail?.key ?? error.key ?? "?"),
+          String(error.detail?.owner ?? "?"),
+        ],
+      };
+
     case "invalid-template":
       return { key: "error.template.invalid", args: [error.message || ""] };
 

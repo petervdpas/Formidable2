@@ -1328,6 +1328,13 @@ export class Template {
     "markdown_template": string;
     "sidebar_expression": string;
     "enable_collection": boolean;
+
+    /**
+     * Presentation turns the collection's record list into an ordered slide deck:
+     * the studio list sorts by the sequence field and gains drag-to-reorder.
+     * Requires a sequence field (which in turn requires collection mode).
+     */
+    "presentation": boolean;
     "pdf"?: PDFConfig | null;
     "facets": Facet[];
     "statistics": Statistic[];
@@ -1365,6 +1372,9 @@ export class Template {
         if (!("enable_collection" in $$source)) {
             this["enable_collection"] = false;
         }
+        if (!("presentation" in $$source)) {
+            this["presentation"] = false;
+        }
         if (!("facets" in $$source)) {
             this["facets"] = [];
         }
@@ -1391,30 +1401,30 @@ export class Template {
      * Creates a new Template instance from a string or object.
      */
     static createFrom($$source: any = {}): Template {
-        const $$createField11_0 = $$createType38;
-        const $$createField12_0 = $$createType40;
-        const $$createField13_0 = $$createType42;
-        const $$createField14_0 = $$createType44;
-        const $$createField15_0 = $$createType46;
-        const $$createField16_0 = $$createType47;
+        const $$createField12_0 = $$createType38;
+        const $$createField13_0 = $$createType40;
+        const $$createField14_0 = $$createType42;
+        const $$createField15_0 = $$createType44;
+        const $$createField16_0 = $$createType46;
+        const $$createField17_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pdf" in $$parsedSource) {
-            $$parsedSource["pdf"] = $$createField11_0($$parsedSource["pdf"]);
+            $$parsedSource["pdf"] = $$createField12_0($$parsedSource["pdf"]);
         }
         if ("facets" in $$parsedSource) {
-            $$parsedSource["facets"] = $$createField12_0($$parsedSource["facets"]);
+            $$parsedSource["facets"] = $$createField13_0($$parsedSource["facets"]);
         }
         if ("statistics" in $$parsedSource) {
-            $$parsedSource["statistics"] = $$createField13_0($$parsedSource["statistics"]);
+            $$parsedSource["statistics"] = $$createField14_0($$parsedSource["statistics"]);
         }
         if ("scalings" in $$parsedSource) {
-            $$parsedSource["scalings"] = $$createField14_0($$parsedSource["scalings"]);
+            $$parsedSource["scalings"] = $$createField15_0($$parsedSource["scalings"]);
         }
         if ("formulas" in $$parsedSource) {
-            $$parsedSource["formulas"] = $$createField15_0($$parsedSource["formulas"]);
+            $$parsedSource["formulas"] = $$createField16_0($$parsedSource["formulas"]);
         }
         if ("fields" in $$parsedSource) {
-            $$parsedSource["fields"] = $$createField16_0($$parsedSource["fields"]);
+            $$parsedSource["fields"] = $$createField17_0($$parsedSource["fields"]);
         }
         return new Template($$parsedSource as Partial<Template>);
     }

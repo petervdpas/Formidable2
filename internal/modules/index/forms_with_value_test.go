@@ -62,6 +62,52 @@ func TestFormsWithValue(t *testing.T) {
 	}
 }
 
+// TestMaxValue covers the auto-assign read: the greatest scalar num_value for a
+// field, ok=false when there are none, scalar-only (a table-column cell with a
+// larger number must not win through the col guard).
+func TestMaxValue(t *testing.T) {
+	idxM, err := NewManager(filepath.Join(t.TempDir(), "x.db"))
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	t.Cleanup(func() { idxM.Close() })
+
+	num := func(n float64) *float64 { return &n }
+	col0 := 0
+	forms := []FormRow{
+		{Template: "deck.yaml", Filename: "a.meta.json", Mtime: 100, Values: []FormValueRow{
+			{FieldKey: "pos", ValueType: "number", Num: num(10), Text: "10"},
+		}},
+		{Template: "deck.yaml", Filename: "b.meta.json", Mtime: 100, Values: []FormValueRow{
+			{FieldKey: "pos", ValueType: "number", Num: num(30), Text: "30"},
+			// A table-column cell with a bigger number must not win (col IS NULL guard).
+			{FieldKey: "pos", Col: &col0, ValueType: "number", Num: num(999), Text: "999"},
+		}},
+		{Template: "deck.yaml", Filename: "c.meta.json", Mtime: 100, Values: []FormValueRow{
+			{FieldKey: "pos", ValueType: "number", Num: num(20), Text: "20"},
+		}},
+	}
+	if err := Reconcile(idxM.DB(), ReconcileBatch{
+		UpsertTemplates: []TemplateRow{{Filename: "deck.yaml", Name: "deck", Mtime: 100}},
+		UpsertForms:     forms,
+	}); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	got, ok, err := idxM.MaxValue("deck.yaml", "pos")
+	if err != nil || !ok {
+		t.Fatalf("MaxValue pos: got=%v ok=%v err=%v", got, ok, err)
+	}
+	if got != 30 {
+		t.Errorf("MaxValue pos = %v, want 30 (scalar max, not the 999 table cell)", got)
+	}
+
+	// A field with no rows yields ok=false, not an error.
+	if v, ok, err := idxM.MaxValue("deck.yaml", "nosuch"); err != nil || ok {
+		t.Errorf("MaxValue missing field = %v ok=%v err=%v, want ok=false", v, ok, err)
+	}
+}
+
 // TestFormsWithValueOp covers the api-field filter narrowing: eq/ne over
 // text_value and gt/ge/lt/le over num_value, scalar-only (col IS NULL).
 func TestFormsWithValueOp(t *testing.T) {

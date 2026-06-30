@@ -27,6 +27,10 @@ type Template struct {
 	MarkdownTemplate  string      `yaml:"markdown_template,omitempty" json:"markdown_template"`
 	SidebarExpression string      `yaml:"sidebar_expression,omitempty" json:"sidebar_expression"`
 	EnableCollection  bool        `yaml:"enable_collection,omitempty" json:"enable_collection"`
+	// Presentation turns the collection's record list into an ordered slide deck:
+	// the studio list sorts by the sequence field and gains drag-to-reorder.
+	// Requires a sequence field (which in turn requires collection mode).
+	Presentation      bool        `yaml:"presentation,omitempty" json:"presentation"`
 	PDF               *PDFConfig  `yaml:"pdf,omitempty" json:"pdf,omitempty"`
 	Facets            []Facet     `yaml:"facets,omitempty" json:"facets"`
 	Statistics        []Statistic `yaml:"statistics,omitempty" json:"statistics"`

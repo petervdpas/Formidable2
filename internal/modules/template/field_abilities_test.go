@@ -19,7 +19,7 @@ func TestAbilities_ExpressionItem_OnlyOnScalarValueTypes(t *testing.T) {
 
 func TestAbilities_Options_OnlyOnChoiceAndCollectionTypes(t *testing.T) {
 	allowed := stringSet(
-		"boolean", "number", "range", "sequence",
+		"boolean", "number", "range",
 		"dropdown", "multioption", "radio",
 		"list", "table",
 		"file-path",
@@ -125,11 +125,12 @@ func TestAbilities_KeyAndTypeAlwaysEnabled(t *testing.T) {
 	}
 }
 
-// KeyReadonly marks types whose key is shown but not editable (guid: forced
-// to "id" by Normalize). The modal renders the Key row read-only off this.
-func TestDescriptor_KeyReadonly_OnlyGuid(t *testing.T) {
+// KeyReadonly marks singleton types whose key is shown but not editable and
+// forced by Normalize: guid -> "id", sequence -> "sequence".
+func TestDescriptor_KeyReadonly_OnlySingletons(t *testing.T) {
+	readonly := stringSet("guid", "sequence")
 	for id, def := range fieldDescriptors {
-		want := id == "guid"
+		want := readonly[id]
 		if def.KeyReadonly != want {
 			t.Errorf("type %q KeyReadonly=%v, want %v", id, def.KeyReadonly, want)
 		}

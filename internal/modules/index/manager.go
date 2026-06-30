@@ -201,6 +201,26 @@ func (m *Manager) FormsWithValueOp(template, fieldKey, op, value string) ([]stri
 	return out, rows.Err()
 }
 
+// MaxValue returns the greatest scalar num_value for fieldKey across a
+// template's records (col IS NULL = scalar only). ok=false when the field has
+// no numeric rows yet (empty collection, or values that never parsed). Backs
+// sequence auto-assign: the next record starts at MaxValue + step.
+func (m *Manager) MaxValue(template, fieldKey string) (float64, bool, error) {
+	var max sql.NullFloat64
+	err := m.db.QueryRow(`
+		SELECT MAX(num_value)
+		FROM form_values
+		WHERE template = ? AND field_key = ? AND col IS NULL
+	`, template, fieldKey).Scan(&max)
+	if err != nil {
+		return 0, false, fmt.Errorf("index: max value %q.%q: %w", template, fieldKey, err)
+	}
+	if !max.Valid {
+		return 0, false, nil
+	}
+	return max.Float64, true, nil
+}
+
 // formsQuerySpec is one WHERE-shape the read API needs; QueryOpts adds tag/order/limit on top.
 type formsQuerySpec interface {
 	where() (sql string, args []any)

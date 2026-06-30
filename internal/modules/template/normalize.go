@@ -44,6 +44,11 @@ func Normalize(t *Template) {
 		if t.Fields[i].Type == "guid" {
 			t.Fields[i].Key = "id"
 		}
+		// A sequence is a singleton like guid: one per collection, so its key is
+		// forced to a canonical name rather than author-chosen.
+		if t.Fields[i].Type == "sequence" {
+			t.Fields[i].Key = "sequence"
+		}
 		stripDisabledAttributes(&t.Fields[i])
 	}
 }

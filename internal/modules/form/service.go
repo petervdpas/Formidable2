@@ -87,6 +87,25 @@ func (s *Service) ListForms(templateName string) ([]storage.FormSummary, error) 
 	return s.m.ListForms(templateName)
 }
 
+// SequenceOrder returns the collection's datafiles in sequence order, so the
+// studio list can render a presentation template as an ordered deck.
+func (s *Service) SequenceOrder(templateName string) ([]string, error) {
+	return s.m.SequenceOrder(templateName)
+}
+
+// ReorderSequence moves one record to its new position (drag-to-reorder),
+// writing only the moved record's sequence value unless the gaps force a
+// renumber. See Manager.ReorderSequence.
+func (s *Service) ReorderSequence(templateName, movedDatafile string, orderedDatafiles []string) (ReorderResult, error) {
+	return s.m.ReorderSequence(templateName, movedDatafile, orderedDatafiles)
+}
+
+// NormalizeSequence re-spreads the collection to clean step spacing (the
+// "Normalize" action). See Manager.NormalizeSequence.
+func (s *Service) NormalizeSequence(templateName string) (ReorderResult, error) {
+	return s.m.NormalizeSequence(templateName)
+}
+
 // EnsureFormDir creates the per-template storage folder. Vue calls
 // this on first list against a freshly-created template.
 func (s *Service) EnsureFormDir(templateName string) error {

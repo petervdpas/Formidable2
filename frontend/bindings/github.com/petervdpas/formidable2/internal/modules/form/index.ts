@@ -11,5 +11,6 @@ export {
     ImportRelationResult,
     LoopGroup,
     RelationField,
+    ReorderResult,
     SavePayload
 } from "./models.js";

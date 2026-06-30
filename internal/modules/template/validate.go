@@ -51,9 +51,13 @@ func Validate(t *Template) []ValidationError {
 	if e := singleSequenceError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
+	if e := presentationSequenceError(t); e != nil {
+		errs = append(errs, *e)
+	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
 	errs = append(errs, apiGroupOnNonApiErrors(t.Fields)...)
 	errs = append(errs, missingKeyErrors(t.Fields)...)
+	errs = append(errs, reservedKeyErrors(t.Fields)...)
 	errs = append(errs, unknownTypeErrors(t.Fields)...)
 	errs = append(errs, forbiddenAttributeErrors(t.Fields)...)
 	errs = append(errs, levelScopeMismatchErrors(t.Fields, canonical)...)
@@ -64,6 +68,38 @@ func Validate(t *Template) []ValidationError {
 	errs = append(errs, formulasErrors(t)...)
 	errs = append(errs, scalingsErrors(t)...)
 
+	return errs
+}
+
+// reservedKeys maps a key owned by exactly one field type to that type. guid is
+// keyed "id" and sequence is keyed "sequence" (Normalize forces both), so no
+// other field may claim those keys.
+var reservedKeys = map[string]string{
+	"id":       "guid",
+	"sequence": "sequence",
+}
+
+// reservedKeyErrors flags a field using a reserved key but not the type that
+// owns it (e.g. a text field keyed "id", or any non-sequence field keyed
+// "sequence"). Keeps the structural singletons' keys exclusive.
+func reservedKeyErrors(fields []Field) []ValidationError {
+	var errs []ValidationError
+	for i := range fields {
+		f := fields[i]
+		owner, reserved := reservedKeys[f.Key]
+		if !reserved || f.Type == owner {
+			continue
+		}
+		ff := f
+		errs = append(errs, ValidationError{
+			Type:    "reserved-key",
+			Key:     f.Key,
+			Field:   &ff,
+			Index:   i,
+			Message: fmt.Sprintf("Key %q is reserved for the %q field type", f.Key, owner),
+			Detail:  map[string]any{"key": f.Key, "owner": owner},
+		})
+	}
 	return errs
 }
 
@@ -744,6 +780,25 @@ func sequenceCollectionError(t *Template) *ValidationError {
 	return &ValidationError{
 		Type:    "sequence-needs-collection",
 		Message: "A `sequence` field needs `Enable Collection`. Enable collection mode or remove the sequence field.",
+	}
+}
+
+// presentationSequenceError flags presentation mode without a sequence field.
+// A presentation is an ordered deck, and the order lives in the sequence field;
+// the field's own rule then requires collection mode, so the whole ladder holds.
+// The gate is asymmetric: turning presentation off needs nothing.
+func presentationSequenceError(t *Template) *ValidationError {
+	if !t.Presentation {
+		return nil
+	}
+	for _, f := range t.Fields {
+		if f.Type == "sequence" {
+			return nil
+		}
+	}
+	return &ValidationError{
+		Type:    "presentation-needs-sequence",
+		Message: "`Presentation` needs a `sequence` field to order the slides. Add one or turn presentation off.",
 	}
 }
 

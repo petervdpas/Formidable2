@@ -19,6 +19,7 @@ import { SelectField } from "../components/fields";
 import FilteredCount from "../components/FilteredCount.vue";
 import StorageListItem from "../components/StorageListItem.vue";
 import VirtualList from "../components/VirtualList.vue";
+import draggable from "vuedraggable";
 import StorageSearch from "../components/StorageSearch.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFacetFilter from "../components/StorageFacetFilter.vue";
@@ -344,6 +345,9 @@ async function refreshList() {
   try {
     await FormSvc.EnsureFormDir(selectedTemplate.value);
     summaries.value = await FormSvc.ListForms(selectedTemplate.value);
+    if (presentationMode.value) {
+      await applySequenceOrder();
+    }
     // Drop a stale `selected_data_file` if it doesn't exist in the
     // current template's storage. Without this, switching templates
     // (or coming back later after the form was deleted on disk by
@@ -362,6 +366,64 @@ async function refreshList() {
     listError.value = String(err);
     summaries.value = [];
     sidebarItems.value = new Map();
+  }
+}
+
+// applySequenceOrder reorders the fetched summaries to match the backend's
+// sequence order (the index can't ORDER BY a data field, so the form service
+// does it in Go). Best-effort: on error the backend list order stands.
+async function applySequenceOrder() {
+  if (!selectedTemplate.value) return;
+  try {
+    const order = await FormSvc.SequenceOrder(selectedTemplate.value);
+    const pos = new Map(order.map((f, i) => [f, i] as const));
+    summaries.value = [...summaries.value].sort(
+      (a, b) =>
+        (pos.get(a.filename) ?? Number.MAX_SAFE_INTEGER) -
+        (pos.get(b.filename) ?? Number.MAX_SAFE_INTEGER),
+    );
+  } catch {
+    // keep the backend's order
+  }
+}
+
+// onReorderChange handles a drag-drop within the presentation list. The moved
+// record gets a fresh sequence value (the backend writes only that record, or
+// renumbers when no gap is left); the optimistic local reorder keeps the row in
+// place until the refresh reconciles against what the backend actually wrote.
+async function onReorderChange(evt: {
+  moved?: { element: FormSummary; oldIndex: number; newIndex: number };
+}) {
+  const moved = evt.moved;
+  if (!moved || !selectedTemplate.value) return;
+  const files = visibleSummaries.value.map((s) => s.filename);
+  const [m] = files.splice(moved.oldIndex, 1);
+  files.splice(moved.newIndex, 0, m);
+  const byFile = new Map(summaries.value.map((s) => [s.filename, s] as const));
+  summaries.value = files
+    .map((f) => byFile.get(f))
+    .filter((s): s is FormSummary => !!s);
+  try {
+    await FormSvc.ReorderSequence(
+      selectedTemplate.value,
+      moved.element.filename,
+      files,
+    );
+  } catch (e) {
+    toast.error(backendErrMessage(e));
+  }
+  await refreshList();
+}
+
+// normalizeSequence re-spreads the deck to clean 10/20/30 spacing (the cleanup
+// for when many minimal-write moves have shrunk the gaps).
+async function normalizeSequence() {
+  if (!selectedTemplate.value) return;
+  try {
+    await FormSvc.NormalizeSequence(selectedTemplate.value);
+    await refreshList();
+  } catch (e) {
+    toast.error(backendErrMessage(e));
   }
 }
 
@@ -967,6 +1029,17 @@ const ioAllowed = computed(
   () => !config.value?.io_collection_only || !!activeTemplateObj.value?.enable_collection,
 );
 
+// Presentation mode: the record list is an ordered deck. Drag-to-reorder is
+// only offered when nothing is filtering the list (a filtered subset would make
+// "the order" ambiguous); the list still renders in sequence order either way.
+const presentationMode = computed(() => !!activeTemplateObj.value?.presentation);
+const reorderEnabled = computed(
+  () =>
+    presentationMode.value &&
+    !hasActiveFilters.value &&
+    searchResults.value === null,
+);
+
 function openImport() {
   if (!selectedTemplate.value || !ioAllowed.value) return;
   importOpen.value = true;
@@ -1262,6 +1335,13 @@ setTopbarMenu(() => [
         <div class="sidebar-section-head">
           <span class="sidebar-label">{{ t('workspace.storage.forms_heading') }}</span>
           <FilteredCount :visible="visibleSummaries.length" :total="summaries.length" />
+          <button
+            v-if="presentationMode"
+            type="button"
+            class="tool-btn sidebar-normalize"
+            :title="t('workspace.storage.presentation.normalize_hint')"
+            @click="normalizeSequence"
+          >{{ t('workspace.storage.presentation.normalize') }}</button>
         </div>
 
         <div v-if="ftsEnabled" class="sidebar-section">
@@ -1309,6 +1389,36 @@ setTopbarMenu(() => [
             : t('workspace.storage.empty') }}
         </p>
       </div>
+
+      <draggable
+        v-else-if="reorderEnabled"
+        class="sidebar-scroll"
+        :model-value="visibleSummaries"
+        :item-key="(s: FormSummary) => s.filename"
+        handle=".dnd-handle"
+        ghost-class="dnd-ghost"
+        chosen-class="dnd-chosen"
+        drag-class="dnd-drag"
+        :animation="150"
+        @change="onReorderChange"
+      >
+        <template #item="{ element: item }">
+          <div class="sidebar-reorder-row">
+            <span
+              class="dnd-handle"
+              :title="t('workspace.storage.field.drag_to_reorder')"
+              @click.stop
+            >⠿</span>
+            <StorageListItem
+              :summary="item"
+              :expression="sidebarItems.get(item.filename) ?? null"
+              :active="item.filename === selectedDataFile"
+              :facets="facets"
+              @pick="pickForm"
+            />
+          </div>
+        </template>
+      </draggable>
 
       <VirtualList
         v-else

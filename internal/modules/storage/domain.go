@@ -56,6 +56,10 @@ type FormReader interface {
 	LoadSummary(templateFilename, datafile string) (FormSummary, bool, error)
 	// SearchSummaries has no disk fallback: FTS is index-only, so a missing/erroring reader surfaces as an error.
 	SearchSummaries(templateFilename, query string) ([]FormSummary, error)
+	// MaxValue returns the greatest scalar numeric value for fieldKey across the
+	// template's records (ok=false when none yet). Backs sequence auto-assign;
+	// index-only, no disk fallback.
+	MaxValue(templateFilename, fieldKey string) (float64, bool, error)
 }
 
 // Manager owns CRUD over the per-template storage tree.
@@ -642,6 +646,21 @@ func guidFieldKey(fields []template.Field) string {
 		}
 	}
 	return ""
+}
+
+// MaxFieldValue returns the greatest scalar numeric value for fieldKey across
+// the collection, best-effort over the index reader (no reader or an error
+// yields ok=false, treated by callers as "no siblings yet"). Mirrors
+// guidCollides: an index read must never block the caller.
+func (m *Manager) MaxFieldValue(templateFilename, fieldKey string) (float64, bool) {
+	if m.reader == nil {
+		return 0, false
+	}
+	v, ok, err := m.reader.MaxValue(templateFilename, fieldKey)
+	if err != nil {
+		return 0, false
+	}
+	return v, ok
 }
 
 // guidCollides reports whether guid already belongs to a record other than

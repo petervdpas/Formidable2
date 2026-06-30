@@ -132,3 +132,18 @@
     margin-top: var(--space-3);
     grid-column: 1 / -1;
 }
+
+/* Presentation-mode reorder row: a drag handle beside the record row, so the
+   storage list can be dragged into slide order. Reuses the global dnd kit. */
+.sidebar-reorder-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+.sidebar-reorder-row > .sidebar-row {
+    flex: 1;
+    min-width: 0;
+}
+.sidebar-normalize {
+    margin-left: auto;
+}

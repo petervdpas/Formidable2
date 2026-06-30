@@ -90,13 +90,34 @@ export function ListForms(templateName: string): $CancellablePromise<storage$0.F
 }
 
 /**
+ * NormalizeSequence re-spreads the collection to clean step spacing (the
+ * "Normalize" action). See Manager.NormalizeSequence.
+ */
+export function NormalizeSequence(templateName: string): $CancellablePromise<$models.ReorderResult> {
+    return $Call.ByID(1224904886, templateName).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * RelationFields returns the source template's api fields, the relation targets
  * the relations-import mode can fill. The dialog's relation picker reads this
  * instead of filtering the template client-side.
  */
 export function RelationFields(sourceTemplate: string): $CancellablePromise<$models.RelationField[]> {
     return $Call.ByID(336515629, sourceTemplate).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
+    });
+}
+
+/**
+ * ReorderSequence moves one record to its new position (drag-to-reorder),
+ * writing only the moved record's sequence value unless the gaps force a
+ * renumber. See Manager.ReorderSequence.
+ */
+export function ReorderSequence(templateName: string, movedDatafile: string, orderedDatafiles: string[]): $CancellablePromise<$models.ReorderResult> {
+    return $Call.ByID(1423545710, templateName, movedDatafile, orderedDatafiles).then(($result: any) => {
+        return $$createType5($result);
     });
 }
 
@@ -108,6 +129,16 @@ export function RelationFields(sourceTemplate: string): $CancellablePromise<$mod
 export function SaveValues(templateName: string, payload: $models.SavePayload): $CancellablePromise<$models.FormView | null> {
     return $Call.ByID(3432782407, templateName, payload).then(($result: any) => {
         return $$createType1($result);
+    });
+}
+
+/**
+ * SequenceOrder returns the collection's datafiles in sequence order, so the
+ * studio list can render a presentation template as an ordered deck.
+ */
+export function SequenceOrder(templateName: string): $CancellablePromise<string[]> {
+    return $Call.ByID(1461479659, templateName).then(($result: any) => {
+        return $$createType8($result);
     });
 }
 
@@ -150,5 +181,7 @@ const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.ImportRelationResult.createFrom;
 const $$createType3 = storage$0.FormSummary.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.RelationField.createFrom;
-const $$createType6 = $Create.Array($$createType5);
+const $$createType5 = $models.ReorderResult.createFrom;
+const $$createType6 = $models.RelationField.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Array($Create.Any);
