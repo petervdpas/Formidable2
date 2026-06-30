@@ -19,7 +19,7 @@ func TestAbilities_ExpressionItem_OnlyOnScalarValueTypes(t *testing.T) {
 
 func TestAbilities_Options_OnlyOnChoiceAndCollectionTypes(t *testing.T) {
 	allowed := stringSet(
-		"boolean", "number", "range",
+		"boolean", "number", "range", "sequence",
 		"dropdown", "multioption", "radio",
 		"list", "table",
 		"file-path",

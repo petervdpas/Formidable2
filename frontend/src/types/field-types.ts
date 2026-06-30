@@ -34,6 +34,10 @@ export interface FieldTypeDef {
   metaOnly?: boolean;
   virtual?: boolean;
   keyReadonly?: boolean;
+  /** Backend-owned (FieldDescriptor.RequiresCollection): the type only
+   *  means something on a collection, so the Type dropdown hides it until
+   *  Enable Collection is on. Currently just `sequence`. */
+  requiresCollection?: boolean;
 }
 
 const registry: Ref<FieldTypeDef[]> = ref([]);
@@ -55,6 +59,11 @@ async function load(): Promise<void> {
     metaOnly: d.meta_only,
     virtual: d.virtual,
     keyReadonly: d.key_readonly,
+    // Read defensively: the generated FieldDescriptor type gains this field on
+    // the next bindings regen, but Object.assign in createFrom already carries
+    // the value through at runtime today.
+    requiresCollection:
+      (d as { requires_collection?: boolean }).requires_collection === true,
     abilities: d.abilities,
   }));
 }
@@ -117,14 +126,25 @@ export function isKeyReadonly(typeId: string): boolean {
  *    loopstart/loopstop pair on confirm); hide loopstart/loopstop.
  *  - For existing loopstart/loopstop: lock to that same type - the
  *    user can't "convert" half of a pair into something else.
- *  - For other existing fields: hide `looper`, `loopstart`, `loopstop`. */
-export function selectableTypes(currentType: string, isNew = false): FieldTypeDef[] {
+ *  - For other existing fields: hide `looper`, `loopstart`, `loopstop`.
+ *  - Collection-only types (sequence) are hidden unless `enableCollection`
+ *    is on, except when the field already is that type - switching an
+ *    existing sequence field away is fine, but it must not vanish from its
+ *    own dropdown (and the backend still flags the invalid combination). */
+export function selectableTypes(
+  currentType: string,
+  isNew = false,
+  enableCollection = false,
+): FieldTypeDef[] {
   return registry.value.filter((t) => {
     if (t.id === "loopstart" || t.id === "loopstop") {
       return t.id === currentType;
     }
     if (t.id === "looper") {
       return isNew;
+    }
+    if (t.requiresCollection && !enableCollection) {
+      return t.id === currentType;
     }
     return true;
   });

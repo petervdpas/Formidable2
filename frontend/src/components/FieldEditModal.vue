@@ -47,6 +47,10 @@ const props = defineProps<{
    *  so workflow-irrelevant types (image, list, api, …) are
    *  hidden from the dropdown. */
   allowedTypes?: string[];
+  /** Whether the surrounding template has Enable Collection on. Gates
+   *  collection-only field types (sequence) in the Type dropdown. Backend
+   *  owns which types require it (FieldDescriptor.RequiresCollection). */
+  enableCollection?: boolean;
   /** Facets declared on the surrounding template - used to populate
    *  the facet_key binding dropdown when the user picks type "facet".
    *  Empty (the default) means "no facets configured": the facet rows
@@ -386,7 +390,11 @@ watch(
 
 const typeOptions = computed(() => {
   if (!draft.value) return [];
-  let types = selectableTypes(draft.value.type || "text", props.isNew);
+  let types = selectableTypes(
+    draft.value.type || "text",
+    props.isNew,
+    props.enableCollection ?? false,
+  );
   if (props.allowedTypes && props.allowedTypes.length > 0) {
     const allow = new Set(props.allowedTypes);
     // Always keep the current type even if it's outside the

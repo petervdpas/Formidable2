@@ -12,7 +12,7 @@ func KindForField(fieldType string) (RuleKind, bool) {
 		return KindBoolean, true
 	case "dropdown", "radio", "facet":
 		return KindEnum, true
-	case "number", "range":
+	case "number", "range", "sequence":
 		return KindNumber, true
 	case "date":
 		return KindDate, true

@@ -191,6 +191,7 @@
   "workspace.templates.field_type.number": "Number",
   "workspace.templates.field_type.radio": "Radio Buttons",
   "workspace.templates.field_type.range": "Range Slider",
+  "workspace.templates.field_type.sequence": "Sequence (order)",
   "workspace.templates.field_type.table": "Table",
   "workspace.templates.field_type.tags": "Tags",
   "workspace.templates.field_type.text": "Text",

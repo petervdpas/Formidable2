@@ -44,15 +44,18 @@ type Abilities struct {
 // FieldDescriptor is the per-type record. MetaOnly marks value-less marker types (loopstart/loopstop).
 // Virtual marks types that don't seed a storage.Form.Data slot (their value lives elsewhere, e.g. meta.facets).
 // OptionsShape is non-nil when the options array has fixed arity (e.g. boolean = two rows).
+// RequiresCollection marks types that only mean something on a collection (sequence orders a record
+// set); the editor's type dropdown hides them until Enable Collection is on, matching the validator.
 type FieldDescriptor struct {
-	ID           string             `json:"id"`
-	LabelKey     string             `json:"label_key"`
-	MetaOnly     bool               `json:"meta_only"`
-	Virtual      bool               `json:"virtual"`
-	KeyReadonly  bool               `json:"key_readonly"`
-	Abilities    Abilities          `json:"abilities"`
-	OptionsShape *FixedOptionsShape `json:"options_shape,omitempty"`
-	DefaultValue any                `json:"default_value"`
+	ID                 string             `json:"id"`
+	LabelKey           string             `json:"label_key"`
+	MetaOnly           bool               `json:"meta_only"`
+	Virtual            bool               `json:"virtual"`
+	KeyReadonly        bool               `json:"key_readonly"`
+	RequiresCollection bool               `json:"requires_collection"`
+	Abilities          Abilities          `json:"abilities"`
+	OptionsShape       *FixedOptionsShape `json:"options_shape,omitempty"`
+	DefaultValue       any                `json:"default_value"`
 }
 
 // IsKnownFieldType reports whether the given type id is in the matrix.

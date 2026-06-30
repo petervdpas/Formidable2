@@ -962,6 +962,8 @@ func fieldToProperty(f template.Field) (string, map[string]any) {
 		schema["type"] = "string"
 	case "number":
 		schema["type"] = "number"
+	case "sequence":
+		schema["type"] = "integer"
 	case "boolean":
 		schema["type"] = "boolean"
 	case "date":

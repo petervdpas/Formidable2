@@ -462,6 +462,8 @@ export class Field {
  * FieldDescriptor is the per-type record. MetaOnly marks value-less marker types (loopstart/loopstop).
  * Virtual marks types that don't seed a storage.Form.Data slot (their value lives elsewhere, e.g. meta.facets).
  * OptionsShape is non-nil when the options array has fixed arity (e.g. boolean = two rows).
+ * RequiresCollection marks types that only mean something on a collection (sequence orders a record
+ * set); the editor's type dropdown hides them until Enable Collection is on, matching the validator.
  */
 export class FieldDescriptor {
     "id": string;
@@ -469,6 +471,7 @@ export class FieldDescriptor {
     "meta_only": boolean;
     "virtual": boolean;
     "key_readonly": boolean;
+    "requires_collection": boolean;
     "abilities": Abilities;
     "options_shape"?: FixedOptionsShape | null;
     "default_value": any;
@@ -490,6 +493,9 @@ export class FieldDescriptor {
         if (!("key_readonly" in $$source)) {
             this["key_readonly"] = false;
         }
+        if (!("requires_collection" in $$source)) {
+            this["requires_collection"] = false;
+        }
         if (!("abilities" in $$source)) {
             this["abilities"] = (new Abilities());
         }
@@ -504,14 +510,14 @@ export class FieldDescriptor {
      * Creates a new FieldDescriptor instance from a string or object.
      */
     static createFrom($$source: any = {}): FieldDescriptor {
-        const $$createField5_0 = $$createType12;
-        const $$createField6_0 = $$createType14;
+        const $$createField6_0 = $$createType12;
+        const $$createField7_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("abilities" in $$parsedSource) {
-            $$parsedSource["abilities"] = $$createField5_0($$parsedSource["abilities"]);
+            $$parsedSource["abilities"] = $$createField6_0($$parsedSource["abilities"]);
         }
         if ("options_shape" in $$parsedSource) {
-            $$parsedSource["options_shape"] = $$createField6_0($$parsedSource["options_shape"]);
+            $$parsedSource["options_shape"] = $$createField7_0($$parsedSource["options_shape"]);
         }
         return new FieldDescriptor($$parsedSource as Partial<FieldDescriptor>);
     }

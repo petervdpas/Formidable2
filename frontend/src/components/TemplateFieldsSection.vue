@@ -38,6 +38,10 @@ const props = defineProps<{
    *  api (relation reference) editor scopes its target dropdown to the
    *  template's declared relations. */
   template?: string;
+  /** Whether the host template has Enable Collection on. Threaded down to
+   *  FieldEditModal so collection-only field types (sequence) are gated in
+   *  the Type dropdown. */
+  enableCollection?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -240,6 +244,7 @@ defineExpose({ openAddField });
     :open="editOpen"
     :field="editField"
     :is-new="editIsNew"
+    :enable-collection="enableCollection ?? false"
     :available-facets="facets ?? []"
     :available-formulas="formulas ?? []"
     :available-fields="fields ?? []"

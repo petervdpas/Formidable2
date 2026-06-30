@@ -37,7 +37,7 @@ func FormatValue(val any, fieldType string) string {
 		}
 		return ""
 
-	case "number", "range":
+	case "number", "range", "sequence":
 		return asString(val)
 
 	case "multioption", "tags", "list":

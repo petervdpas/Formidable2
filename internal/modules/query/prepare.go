@@ -222,7 +222,7 @@ func isMultiField(t string) bool {
 
 func scalarHint(t string) string {
 	switch t {
-	case "number", "range":
+	case "number", "range", "sequence":
 		return "number"
 	case "date":
 		return "date"

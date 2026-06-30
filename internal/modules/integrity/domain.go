@@ -711,7 +711,7 @@ func checkValueType(fieldType string, v any, path string) []Issue {
 			Detail: fmt.Sprintf("expected bool, got %T", v),
 		}}
 
-	case "number", "range":
+	case "number", "range", "sequence":
 		if isNumeric(v) {
 			return nil
 		}

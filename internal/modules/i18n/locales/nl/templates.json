@@ -191,6 +191,7 @@
   "workspace.templates.field_type.number": "Getal",
   "workspace.templates.field_type.radio": "Radioknoppen",
   "workspace.templates.field_type.range": "Schuifregelaar",
+  "workspace.templates.field_type.sequence": "Volgorde (sequence)",
   "workspace.templates.field_type.table": "Tabel",
   "workspace.templates.field_type.tags": "Tags",
   "workspace.templates.field_type.text": "Tekst",

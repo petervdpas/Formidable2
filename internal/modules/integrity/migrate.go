@@ -162,7 +162,7 @@ func shapeOfValue(v any) string {
 // target field can be compared against an orphan value's shape.
 func shapeOfFieldType(t string) string {
 	switch t {
-	case "number", "range":
+	case "number", "range", "sequence":
 		return "number"
 	case "boolean":
 		return "boolean"

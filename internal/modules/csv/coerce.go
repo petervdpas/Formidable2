@@ -21,7 +21,7 @@ func Coerce(raw, fieldType string, options []any) any {
 		}
 		return false
 
-	case "number":
+	case "number", "sequence":
 		if n, err := strconv.ParseFloat(val, 64); err == nil {
 			return n
 		}
@@ -79,7 +79,7 @@ func CoercePreview(raw, fieldType string, options []any) string {
 		}
 		return "false"
 
-	case "number":
+	case "number", "sequence":
 		if _, err := strconv.ParseFloat(val, 64); err == nil {
 			return val
 		}

@@ -720,6 +720,7 @@ setTopbarMenu(() => [
           :facets="draft.facets ?? []"
           :formulas="draft.formulas ?? []"
           :template="selectedFilename ?? ''"
+          :enable-collection="!!draft.enable_collection"
           @update="onFieldsUpdate"
           @rename="onFieldRename"
         />

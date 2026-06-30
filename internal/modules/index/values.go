@@ -27,7 +27,10 @@ var dateLayouts = []string{
 func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 	var out []FormValueRow
 	for _, fld := range fields {
-		if !fld.UseInStatistics {
+		// sequence is always materialised: it orders the collection, so its
+		// value must be queryable (max-sibling, deck sort) regardless of the
+		// author's use_in_statistics choice.
+		if !fld.UseInStatistics && fld.Type != "sequence" {
 			continue
 		}
 		raw, ok := data[fld.Key]
@@ -35,7 +38,7 @@ func pickValues(fields []template.Field, data map[string]any) []FormValueRow {
 			continue
 		}
 		switch fld.Type {
-		case "number", "range":
+		case "number", "range", "sequence":
 			out = append(out, scalarRow(fld.Key, "number", raw))
 		case "date":
 			if r, ok := dateRow(fld.Key, nil, raw); ok {

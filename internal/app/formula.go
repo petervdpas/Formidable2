@@ -104,7 +104,7 @@ func applyFormulas(ev *expression.Manager, tpl *template.Template, f *storage.Fo
 // notation so the numeric aggregate coerces them back cleanly.
 func coerceFormula(raw any, typ string) string {
 	switch typ {
-	case "number":
+	case "number", "sequence":
 		switch n := raw.(type) {
 		case float64:
 			return strconv.FormatFloat(n, 'f', -1, 64)

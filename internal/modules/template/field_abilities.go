@@ -68,6 +68,23 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			LockedColumns: []string{"value"},
 		},
 	},
+	"sequence": {
+		ID:                 "sequence",
+		RequiresCollection: true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: true, Description: true,
+			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: true, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+		OptionsShape: &FixedOptionsShape{
+			Rows: []FixedOptionRow{
+				{LabelKey: "workspace.templates.field_edit.number.step", Defaults: map[string]any{"value": "step", "label": "10"}},
+			},
+			LockedColumns: []string{"value"},
+		},
+	},
 	"date": {
 		ID: "date",
 		Abilities: Abilities{
@@ -270,7 +287,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 
 // orderedTypes is the stable iteration order so the frontend's "Type" dropdown is predictable.
 var orderedTypes = []string{
-	"text", "textarea", "mermaid", "number", "range", "date",
+	"text", "textarea", "mermaid", "number", "range", "sequence", "date",
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
@@ -288,6 +305,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"mermaid":     "workspace.templates.field_type.mermaid",
 	"number":      "workspace.templates.field_type.number",
 	"range":       "workspace.templates.field_type.range",
+	"sequence":    "workspace.templates.field_type.sequence",
 	"date":        "workspace.templates.field_type.date",
 	"boolean":     "workspace.templates.field_type.boolean",
 	"dropdown":    "workspace.templates.field_type.dropdown",

@@ -431,7 +431,7 @@ func defaultForType(t string) any {
 	switch t {
 	case "boolean":
 		return false
-	case "number":
+	case "number", "sequence":
 		return 0
 	case "range":
 		return 50

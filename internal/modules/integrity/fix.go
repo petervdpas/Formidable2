@@ -561,7 +561,7 @@ func defaultForFieldType(t string) any {
 	switch t {
 	case "boolean":
 		return false
-	case "number":
+	case "number", "sequence":
 		return float64(0)
 	case "range":
 		return float64(50)
@@ -614,7 +614,7 @@ func coerceForFieldType(fieldType string, v any) (any, bool) {
 		}
 		return nil, false
 
-	case "number", "range":
+	case "number", "range", "sequence":
 		switch x := v.(type) {
 		case float64:
 			return x, true

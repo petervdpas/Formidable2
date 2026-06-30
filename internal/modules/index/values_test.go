@@ -54,6 +54,24 @@ func TestPickValues_NumberField(t *testing.T) {
 	}
 }
 
+// A sequence field orders the collection, so its value must be materialised
+// for the max-sibling and deck-sort queries even though the author never marks
+// it use_in_statistics. This is the invariant that makes ordering queryable.
+func TestPickValues_SequenceAlwaysIndexed(t *testing.T) {
+	fields := []template.Field{{Key: "pos", Type: "sequence"}} // UseInStatistics deliberately false
+	rows := pickValues(fields, map[string]any{"pos": float64(20)})
+	got := findValue(rows, "pos", -1)
+	if got == nil {
+		t.Fatal("sequence value must be indexed even without use_in_statistics")
+	}
+	if got.ValueType != "number" {
+		t.Errorf("value_type = %q, want number", got.ValueType)
+	}
+	if got.Num == nil || *got.Num != 20 {
+		t.Errorf("num = %v, want 20", got.Num)
+	}
+}
+
 func TestPickValues_NumberFromString(t *testing.T) {
 	fields := []template.Field{{Key: "amount", Type: "number", UseInStatistics: true}}
 	rows := pickValues(fields, map[string]any{"amount": "3.5"})

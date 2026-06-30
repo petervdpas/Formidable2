@@ -45,6 +45,12 @@ func Validate(t *Template) []ValidationError {
 	if e := singleGuidError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
+	if e := sequenceCollectionError(t); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := singleSequenceError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
 	errs = append(errs, apiFieldErrors(t.Fields)...)
 	errs = append(errs, apiGroupOnNonApiErrors(t.Fields)...)
 	errs = append(errs, missingKeyErrors(t.Fields)...)
@@ -714,6 +720,51 @@ func singleGuidError(fields []Field) *ValidationError {
 			Type:    "multiple-guid-fields",
 			Keys:    keys,
 			Message: fmt.Sprintf("Only one 'guid' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
+		}
+	}
+	return nil
+}
+
+// sequenceCollectionError flags a sequence field on a non-collection template.
+// A sequence orders a set of records, so it only means something once the
+// template is a collection (the guid -> collection -> sequence ladder). The
+// gate is asymmetric: turning collection off while a sequence field exists
+// surfaces here so the author re-enables collection or drops the field.
+func sequenceCollectionError(t *Template) *ValidationError {
+	hasSequence := false
+	for _, f := range t.Fields {
+		if f.Type == "sequence" {
+			hasSequence = true
+			break
+		}
+	}
+	if !hasSequence || t.EnableCollection {
+		return nil
+	}
+	return &ValidationError{
+		Type:    "sequence-needs-collection",
+		Message: "A `sequence` field needs `Enable Collection`. Enable collection mode or remove the sequence field.",
+	}
+}
+
+// singleSequenceError flags more than one sequence field; a collection has one
+// authored order, so two sequences would make "the order" ambiguous.
+func singleSequenceError(fields []Field) *ValidationError {
+	var keys []string
+	for _, f := range fields {
+		if f.Type == "sequence" {
+			k := f.Key
+			if k == "" {
+				k = "(no key)"
+			}
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) > 1 {
+		return &ValidationError{
+			Type:    "multiple-sequence-fields",
+			Keys:    keys,
+			Message: fmt.Sprintf("Only one 'sequence' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
 		}
 	}
 	return nil
