@@ -111,6 +111,13 @@
     overflow: hidden;
     pointer-events: none;
 }
+/* Media (video, and video-as-iframe for YouTube/Vimeo) fills its block. */
+.slide-block-box-content iframe,
+.slide-block-box-content video {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
 .slide-block-box-content.formidable-prose {
     background: transparent;
     max-width: none;

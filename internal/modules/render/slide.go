@@ -4,10 +4,44 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	neturl "net/url"
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
+
+// videoEmbedURL maps a YouTube/Vimeo watch or share URL to its embeddable player
+// URL, so a video block can host those (a bare <video> can only play direct
+// media). Returns "" for anything else (kept as a <video src>).
+func videoEmbedURL(raw string) string {
+	u, err := neturl.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(strings.TrimPrefix(u.Hostname(), "www."))
+	switch host {
+	case "youtu.be":
+		if id := strings.Trim(u.Path, "/"); id != "" {
+			return "https://www.youtube-nocookie.com/embed/" + id
+		}
+	case "youtube.com", "m.youtube.com", "youtube-nocookie.com":
+		if u.Path == "/watch" {
+			if id := u.Query().Get("v"); id != "" {
+				return "https://www.youtube-nocookie.com/embed/" + id
+			}
+		}
+		if strings.HasPrefix(u.Path, "/embed/") {
+			return raw
+		}
+	case "vimeo.com":
+		if id := strings.Trim(u.Path, "/"); id != "" && !strings.Contains(id, "/") {
+			return "https://player.vimeo.com/video/" + id
+		}
+	case "player.vimeo.com":
+		return raw
+	}
+	return ""
+}
 
 // RevealDeck is what the reveal.js viewer needs: the deck body (one <section>
 // per slide) and the authored canvas size so the frontend sizes reveal to the
@@ -141,11 +175,16 @@ func emitSlideBlock(kind string, content any, lang string, opts *Options) string
 		// LaTeX with KaTeX. Raw HTML survives goldmark (WithUnsafe) verbatim.
 		return `<pre class="katex-math">` + html.EscapeString(src) + `</pre>`
 	case "video":
-		url := strings.TrimSpace(stringify(content))
-		if url == "" {
+		src := strings.TrimSpace(stringify(content))
+		if src == "" {
 			return ""
 		}
-		return `<video controls data-autoplay src="` + url + `"></video>`
+		// A YouTube/Vimeo page URL can't play in a bare <video> (that needs a
+		// direct .mp4/.webm); host those in the platform's iframe player instead.
+		if embed := videoEmbedURL(src); embed != "" {
+			return `<iframe src="` + html.EscapeString(embed) + `" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+		}
+		return `<video src="` + html.EscapeString(src) + `" controls playsinline preload="metadata" muted data-autoplay></video>`
 	case "embed":
 		url := strings.TrimSpace(stringify(content))
 		if url == "" {
