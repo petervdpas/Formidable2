@@ -71,10 +71,17 @@ export function canvasSize(field: Field): { w: number; h: number } {
 }
 
 // parseSlideDoc coerces a stored value into a SlideDoc; anything unexpected is
-// an empty doc so the editor always has a blocks array to work with.
+// an empty doc so the editor always has a blocks array to work with. The
+// slide-level attrs (background/transition/notes) round-trip too, so committing
+// them does not wipe them on the next re-parse.
 export function parseSlideDoc(v: unknown): SlideDoc {
   if (v && typeof v === "object" && Array.isArray((v as { blocks?: unknown }).blocks)) {
-    return { blocks: (v as { blocks: SlideBlock[] }).blocks };
+    const o = v as Record<string, unknown>;
+    const doc: SlideDoc = { blocks: o.blocks as SlideBlock[] };
+    if (typeof o.background === "string") doc.background = o.background;
+    if (typeof o.transition === "string") doc.transition = o.transition;
+    if (typeof o.notes === "string") doc.notes = o.notes;
+    return doc;
   }
   return { blocks: [] };
 }
@@ -104,68 +111,18 @@ export function newBlock(kind: string, index: number): SlideBlock {
   };
 }
 
-// tableColumns derives string columns from a table block's data width so the
-// FormFieldTable editor has columns to render without the block storing its own
-// column config (min 2).
-function tableColumns(content: unknown): unknown[] {
-  let cols = 2;
-  if (Array.isArray(content)) {
-    for (const row of content) {
-      if (Array.isArray(row)) cols = Math.max(cols, row.length);
-    }
-  }
-  return Array.from({ length: cols }, (_, i) => ({
-    value: `c${i}`,
-    label: `Col ${i + 1}`,
-    type: "string",
-  }));
-}
-
-// Reveal element kinds whose content is edited by an existing field component
-// (the genuine reuse: a table IS a table). Text-like kinds (text/quote/math/
-// code) are edited inline on the canvas; video/embed use a URL input.
-const KIND_FIELD_TYPE: Record<string, string> = {
-  image: "image",
-  table: "table",
-  list: "list",
-  mermaid: "mermaid",
-};
-
 // Kinds edited by typing directly on the slide (contenteditable-style), the way
-// slides.com works. Their content is plain text (markdown / latex / code).
+// slides.com works. Their content is plain text (markdown / latex / code). The
+// editor uses this to auto-enter inline edit on add and to gate double-click.
 export const INLINE_TEXT_KINDS = new Set(["text", "quote", "math", "code"]);
 
-// fieldForBlock builds the synthetic Field a reuse-kind block binds to, or null
-// for kinds with a bespoke editor.
-export function fieldForBlock(b: SlideBlock): Field | null {
-  const ft = KIND_FIELD_TYPE[b.kind];
-  if (!ft) return null;
-  const base: Record<string, unknown> = {
-    key: b.id,
-    type: ft,
-    label: "",
-    options: [],
-    readonly: false,
-  };
-  if (b.kind === "text" || b.kind === "quote") base.format = "markdown";
-  if (ft === "table") base.options = tableColumns(b.content);
-  return base as unknown as Field;
-}
-
-// blockSummary is the short label shown on a block box in the canvas (the full
-// content is edited in the inspector).
-export function blockSummary(b: SlideBlock): string {
-  switch (b.kind) {
-    case "image":
-      return typeof b.content === "string" && b.content ? b.content : "(no image)";
-    case "table":
-      return Array.isArray(b.content) ? `${b.content.length} rows` : "table";
-    case "list":
-      return Array.isArray(b.content) ? `${b.content.length} items` : "list";
-    default: {
-      const s = typeof b.content === "string" ? b.content.trim() : "";
-      const first = s.split("\n")[0] ?? "";
-      return first.length > 48 ? first.slice(0, 48) + "…" : first || "(empty)";
-    }
-  }
+// syntheticField builds the throwaway Field a reuse-kind slide component binds
+// its existing FormField* editor to (image/list/mermaid). The block id is the
+// key so nested editors stay isolated.
+export function syntheticField(
+  id: string,
+  type: string,
+  extra: Record<string, unknown> = {},
+): Field {
+  return { key: id, type, label: "", options: [], readonly: false, ...extra } as unknown as Field;
 }

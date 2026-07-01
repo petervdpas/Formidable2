@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, watch, type ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
-import FormFieldRenderer from "./FormFieldRenderer.vue";
-import RenderedHtml from "../RenderedHtml.vue";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
+import { slideBlockComponent, SlideSettings, SlideElementTransition } from "./slide-blocks";
 import {
   ensureSlideBlockKindsLoaded,
   slideBlockKinds,
   parseSlideDoc,
   newBlock,
-  fieldForBlock,
   INLINE_TEXT_KINDS,
   SLIDE_CANVAS_W,
   SLIDE_CANVAS_H,
@@ -35,12 +33,6 @@ const KIND_ICON: Record<string, string> = {
   table: "fa-table", list: "fa-list-ul", quote: "fa-quote-right", mermaid: "fa-diagram-project",
 };
 const iconFor = (kind: string) => KIND_ICON[kind] ?? "fa-square";
-const FRAGMENT_OPTIONS = [
-  "", "fade-in", "fade-up", "fade-down", "fade-left", "fade-right",
-  "grow", "shrink", "strike", "highlight-red", "highlight-green", "highlight-blue",
-];
-const TRANSITION_OPTIONS = ["", "none", "fade", "slide", "convex", "concave", "zoom"];
-const URL_KINDS = new Set(["video", "embed"]);
 
 // ── doc state ─────────────────────────────────────────────────────────
 const parsed = parseSlideDoc(props.modelValue);
@@ -113,19 +105,14 @@ function removeSelected() {
 }
 
 const selected = computed(() => blocks.value.find((b) => b.id === selectedId.value) ?? null);
-const selectedField = computed(() => (selected.value ? fieldForBlock(selected.value) : null));
+const blockComp = (kind: string) => slideBlockComponent(kind);
 
-function setContent(v: unknown) {
-  if (selected.value) {
-    selected.value.content = v;
-    renderBlock(selected.value);
-    commit();
-  }
-}
-// inline typing on the canvas
-function setInline(b: SlideBlock, v: string) {
-  b.content = v;
-  renderBlock(b);
+// Every element edit (content, lang, style) arrives as a block patch; the
+// components own their own property controls, this just merges and re-renders.
+function applyPatch(b: SlideBlock | null, p: Partial<SlideBlock>) {
+  if (!b) return;
+  Object.assign(b, p);
+  if ("content" in p || "lang" in p) renderBlock(b);
   commit();
 }
 function startEdit(b: SlideBlock) {
@@ -134,23 +121,10 @@ function startEdit(b: SlideBlock) {
   editingId.value = b.id;
 }
 
-// ── per-element style (stored in the blob, applied inline) ──────────────
-function styleVal(prop: string): string {
-  return selected.value?.style?.[prop] ?? "";
-}
-function setStyle(prop: string, val: string) {
-  if (!selected.value) return;
-  const s = { ...(selected.value.style ?? {}) };
-  if (val) s[prop] = val;
-  else delete s[prop];
-  selected.value.style = s;
-  commit();
-}
-const fontSize = computed(() => parseInt(styleVal("font-size"), 10) || 40);
-const isBold = computed(() => styleVal("font-weight") === "bold");
-function blockContentStyle(b: SlideBlock) {
-  return (b.style ?? {}) as Record<string, string>;
-}
+// ── slide-level settings ───────────────────────────────────────────────
+function setBackground(v: string) { background.value = v; commit(); }
+function setTransition(v: string) { transition.value = v; commit(); }
+function setNotes(v: string) { notes.value = v; commit(); }
 
 // ── stage scaling ─────────────────────────────────────────────────────
 const stageWrap = ref<HTMLElement | null>(null);
@@ -244,20 +218,15 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               @pointerdown="startDrag(b, $event)"
               @dblclick="startEdit(b)"
             >
-              <textarea
-                v-if="b.id === editingId"
-                class="slide-inline-edit"
-                :style="blockContentStyle(b)"
-                :value="String(b.content ?? '')"
-                :ref="(el) => { if (el) (el as HTMLTextAreaElement).focus(); }"
-                @input="setInline(b, ($event.target as HTMLTextAreaElement).value)"
-                @blur="editingId = null"
-                @pointerdown.stop
-                @dblclick.stop
-              ></textarea>
-              <div v-else class="slide-block-box-content formidable-prose" :style="blockContentStyle(b)">
-                <RenderedHtml :html="blockHtml[b.id] ?? ''" />
-              </div>
+              <component
+                :is="blockComp(b.kind)"
+                surface="canvas"
+                :block="b"
+                :html="blockHtml[b.id] ?? ''"
+                :editing="b.id === editingId"
+                @patch="applyPatch(b, $event)"
+                @end-edit="editingId = null"
+              />
               <span v-if="b.fragment" class="slide-block-box-frag">{{ b.fragment }}</span>
               <span v-if="b.id === selectedId" class="slide-block-box-dim">{{ b.w }} × {{ b.h }}</span>
               <div class="slide-block-box-resize" @pointerdown="startResize(b, $event)"></div>
@@ -279,80 +248,32 @@ function startResize(b: SlideBlock, e: PointerEvent) {
             <label>H<input type="number" v-model.number="selected.h" @change="commit" /></label>
           </div>
 
-          <!-- content: specialised editors for structured kinds; text-like kinds
-               are typed inline on the canvas (double-click). -->
+          <!-- content + type-specific properties: each element owns its editor -->
           <div class="slide-inspector-content">
-            <FormFieldRenderer
-              v-if="selectedField"
-              :field="selectedField" :model-value="selected.content"
-              @update:model-value="setContent"
+            <component
+              :is="blockComp(selected.kind)"
+              surface="inspector"
+              :block="selected"
+              @patch="applyPatch(selected, $event)"
             />
-            <input
-              v-else-if="URL_KINDS.has(selected.kind)" type="text" class="slide-url-input"
-              placeholder="https://…" :value="String(selected.content ?? '')"
-              @input="setContent(($event.target as HTMLInputElement).value)"
-            />
-            <template v-else-if="INLINE_TEXT_KINDS.has(selected.kind)">
-              <input
-                v-if="selected.kind === 'code'" type="text" class="slide-lang-input"
-                :placeholder="t('workspace.storage.slide.code_lang')" :value="selected.lang ?? ''"
-                @input="selected.lang = ($event.target as HTMLInputElement).value; commit()"
-              />
-              <textarea
-                class="slide-prop-text" rows="6"
-                :class="{ 'is-mono': selected.kind === 'code' }"
-                :value="String(selected.content ?? '')"
-                @input="setContent(($event.target as HTMLTextAreaElement).value)"
-              ></textarea>
-              <p class="muted small">{{ t('workspace.storage.slide.edit_inline') }}</p>
-            </template>
           </div>
 
-          <!-- per-element style, stored in the block -->
-          <div class="slide-style-grid">
-            <label>{{ t('workspace.storage.slide.font_size') }}
-              <input type="number" min="8" :value="fontSize" @input="setStyle('font-size', (($event.target as HTMLInputElement).value || '40') + 'px')" />
-            </label>
-            <label>{{ t('workspace.storage.slide.color') }}
-              <input type="color" :value="styleVal('color') || '#000000'" @input="setStyle('color', ($event.target as HTMLInputElement).value)" />
-            </label>
-            <div class="slide-style-align">
-              <button type="button" :class="{ active: styleVal('text-align') === 'left' }" @click="setStyle('text-align', 'left')"><i class="fa-solid fa-align-left"></i></button>
-              <button type="button" :class="{ active: styleVal('text-align') === 'center' }" @click="setStyle('text-align', 'center')"><i class="fa-solid fa-align-center"></i></button>
-              <button type="button" :class="{ active: styleVal('text-align') === 'right' }" @click="setStyle('text-align', 'right')"><i class="fa-solid fa-align-right"></i></button>
-              <button type="button" :class="{ active: isBold }" @click="setStyle('font-weight', isBold ? '' : 'bold')"><i class="fa-solid fa-bold"></i></button>
-            </div>
-          </div>
-
-          <label class="slide-inspector-row">
-            {{ t('workspace.storage.slide.fragment') }}
-            <select :value="selected.fragment ?? ''" @change="selected.fragment = ($event.target as HTMLSelectElement).value; commit()">
-              <option v-for="f in FRAGMENT_OPTIONS" :key="f" :value="f">{{ f || '—' }}</option>
-            </select>
-          </label>
+          <SlideElementTransition :block="selected" @patch="applyPatch(selected, $event)" />
 
           <button type="button" class="tool-btn danger" @click="removeSelected">
             {{ t('workspace.storage.slide.delete_block') }}
           </button>
         </template>
-        <p v-else class="muted small">{{ t('workspace.storage.slide.no_selection') }}</p>
 
-        <hr class="slide-inspector-sep" />
-        <div class="slide-inspector-head">{{ t('workspace.storage.slide.slide_settings') }}</div>
-        <label class="slide-inspector-row">
-          {{ t('workspace.storage.slide.background') }}
-          <input type="color" :value="background || '#ffffff'" @input="background = ($event.target as HTMLInputElement).value; commit()" />
-        </label>
-        <label class="slide-inspector-row">
-          {{ t('workspace.storage.slide.transition') }}
-          <select :value="transition" @change="transition = ($event.target as HTMLSelectElement).value; commit()">
-            <option v-for="tr in TRANSITION_OPTIONS" :key="tr" :value="tr">{{ tr || '—' }}</option>
-          </select>
-        </label>
-        <label class="slide-inspector-col">
-          {{ t('workspace.storage.slide.notes') }}
-          <textarea rows="3" :value="notes" @input="notes = ($event.target as HTMLTextAreaElement).value; commit()"></textarea>
-        </label>
+        <!-- No element selected: the panel edits the slide itself. -->
+        <template v-else>
+          <p class="muted small">{{ t('workspace.storage.slide.no_selection') }}</p>
+          <hr class="slide-inspector-sep" />
+          <SlideSettings
+            :background="background" :transition="transition" :notes="notes"
+            @update:background="setBackground" @update:transition="setTransition" @update:notes="setNotes"
+          />
+        </template>
       </aside>
     </div>
   </div>
