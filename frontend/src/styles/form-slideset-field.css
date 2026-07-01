@@ -1,0 +1,35 @@
+/* The slideset field is a compact deck-selector widget (a small chip), not a
+   full-width dropdown: it picks one deck, so it reads like the sequence chip. */
+.slideset-widget {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 4px 8px;
+    border: 1px solid var(--field-type-slideset-border, #6fc9bb);
+    border-radius: var(--radius-md, 6px);
+    background: rgba(31, 122, 109, 0.12);
+    background: color-mix(in srgb, var(--field-type-slideset-bg, #1f7a6d) 12%, transparent);
+}
+.slideset-widget > i {
+    color: var(--field-type-slideset-badge, #3fa595);
+    font-size: 0.9em;
+}
+.slideset-widget-label {
+    font-weight: 600;
+    color: var(--field-type-slideset-badge, #3fa595);
+    text-transform: capitalize;
+}
+.slideset-widget-input {
+    min-width: 160px;
+}
+
+/* The label lives inside the widget, so the row drops its own label cell and
+   collapses to a single compact line (mirrors the sequence field). */
+.form-field-row[data-type="slideset"] {
+    flex-direction: row;
+    align-items: center;
+    padding: var(--space-2, 8px) 0;
+}
+.form-field-row[data-type="slideset"] .form-field-label-cell {
+    display: none;
+}

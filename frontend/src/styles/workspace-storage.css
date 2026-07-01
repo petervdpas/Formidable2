@@ -85,11 +85,23 @@
 
 /* ── Main panel: form fields container + meta block ──────────────── */
 .form-fields {
-    /* Single column, full panel width, in template order. Each
-       FormFieldRow lays out label/input itself. */
+    /* Full panel width in template order. Each FormFieldRow lays out its own
+       label/input and takes a full-width line by default; the compact singleton
+       widgets (sequence, slideset) opt out below so they sit side by side. */
     display: flex;
-    flex-direction: column;
+    flex-flow: row wrap;
+    align-items: flex-start;
+    column-gap: var(--space-3);
     margin: 0 0 var(--space-3);
+}
+.form-fields > * {
+    flex: 1 1 100%;
+    min-width: 0;
+}
+.form-fields > .form-field-row[data-type="sequence"],
+.form-fields > .form-field-row[data-type="slideset"] {
+    flex: 0 0 auto;
+    border-top: none;
 }
 
 .meta-grid {

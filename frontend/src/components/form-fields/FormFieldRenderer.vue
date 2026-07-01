@@ -10,6 +10,7 @@ import FormFieldMermaid from "./FormFieldMermaid.vue";
 import FormFieldSlide from "./FormFieldSlide.vue";
 import FormFieldNumber from "./FormFieldNumber.vue";
 import FormFieldSequence from "./FormFieldSequence.vue";
+import FormFieldSlideset from "./FormFieldSlideset.vue";
 import FormFieldRange from "./FormFieldRange.vue";
 import FormFieldDate from "./FormFieldDate.vue";
 import FormFieldMultioption from "./FormFieldMultioption.vue";
@@ -41,7 +42,7 @@ const DISPATCH: Record<string, Component> = {
   "folder-path": FormFieldFolderPath,
   boolean: FormFieldBoolean,
   dropdown: FormFieldDropdown,
-  slideset: FormFieldDropdown,
+  slideset: FormFieldSlideset,
   textarea: FormFieldTextarea,
   mermaid: FormFieldMermaid,
   slide: FormFieldSlide,
