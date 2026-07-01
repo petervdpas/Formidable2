@@ -52,11 +52,47 @@ type RevealDeck struct {
 	Height int    `json:"height"`
 }
 
-// BuildDeck renders an ordered set of records into reveal.js slide sections.
+// BuildDeck renders an ordered set of records into reveal.js slide sections
+// (see buildDeck), memoized by (template, datafiles) and keyed on the collection
+// revision when SetRevFunc is wired: a cache hit reuses the HTML, any write bumps
+// the rev and rebuilds. Without a rev source it always builds fresh.
+func (m *Manager) BuildDeck(templateName string, datafiles []string) (RevealDeck, error) {
+	if m.revFn == nil {
+		return m.buildDeck(templateName, datafiles)
+	}
+	rev, err := m.revFn()
+	if err != nil {
+		// Can't establish the invalidation key: build fresh, don't cache.
+		return m.buildDeck(templateName, datafiles)
+	}
+	key := templateName + "\x00" + strings.Join(datafiles, "\x00")
+
+	m.deckMu.Lock()
+	if e, ok := m.deckCache[key]; ok && e.rev == rev {
+		deck := e.deck
+		m.deckMu.Unlock()
+		return deck, nil
+	}
+	m.deckMu.Unlock()
+
+	deck, err := m.buildDeck(templateName, datafiles)
+	if err != nil {
+		return deck, err
+	}
+	m.deckMu.Lock()
+	if m.deckCache == nil {
+		m.deckCache = map[string]cachedDeck{}
+	}
+	m.deckCache[key] = cachedDeck{rev: rev, deck: deck}
+	m.deckMu.Unlock()
+	return deck, nil
+}
+
+// buildDeck renders an ordered set of records into reveal.js slide sections.
 // Each record's slide field becomes one <section> holding the positioned canvas
 // plus reveal's per-slide attributes (background/transition) and speaker notes.
 // datafiles must already be in deck order (form.DeckOrder / SequenceOrder).
-func (m *Manager) BuildDeck(templateName string, datafiles []string) (RevealDeck, error) {
+func (m *Manager) buildDeck(templateName string, datafiles []string) (RevealDeck, error) {
 	tpl, err := m.templates.LoadTemplate(templateName)
 	if err != nil {
 		return RevealDeck{}, fmt.Errorf("render: load template %q: %w", templateName, err)

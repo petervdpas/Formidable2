@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -51,6 +52,24 @@ type Manager struct {
 	referenceResolver ReferenceResolverFunc
 	referenceLink     ReferenceLinkResolverFunc
 	log               *slog.Logger
+
+	// Deck cache: BuildDeck output memoized by (template, datafiles), keyed on a
+	// collection revision so any write invalidates it (invariant, not a TTL). Off
+	// until SetRevFunc wires a revision source. Per-Manager, since each target's
+	// image/link URLs make the deck HTML differ.
+	revFn     RevFunc
+	deckMu    sync.Mutex
+	deckCache map[string]cachedDeck
+}
+
+// RevFunc returns the current collection revision (from the index). A change in
+// the returned value invalidates cached decks. Nil disables deck caching.
+type RevFunc func() (int64, error)
+
+// cachedDeck is one memoized BuildDeck result plus the revision it was built at.
+type cachedDeck struct {
+	rev  int64
+	deck RevealDeck
 }
 
 // NewManager constructs a render Manager; log may be nil, nil URL
@@ -76,6 +95,15 @@ func (m *Manager) SetImageBase64URL(fn ImageBase64URLFunc) {
 		return
 	}
 	m.imageBase64URL = fn
+}
+
+// SetRevFunc wires the collection-revision source that keys the deck cache
+// (nil disables caching). Set to the index Rev so any write invalidates decks.
+func (m *Manager) SetRevFunc(fn RevFunc) {
+	if m == nil {
+		return
+	}
+	m.revFn = fn
 }
 
 // SetReferenceResolver wires the live api-field resolver after construction; nil

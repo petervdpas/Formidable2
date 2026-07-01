@@ -34,13 +34,14 @@
 {{end}}
 {{if .Presentations}}
 <h2 class="presentations-heading">Presentations</h2>
-<ul class="template-list presentation-list">
+<ul class="template-list">
   {{range .Presentations}}
-  <li class="template-item presentation-item">
-    <span class="form-link-title">{{.Name}}</span>
-    <span class="deck-links">
-      {{range .Decks}}<a class="deck-link" href="{{.Href}}">▶ {{.Label}}</a>{{end}}
-    </span>
+  <li class="template-item">
+    <a href="{{.Href}}">
+      <span class="template-link-row">
+        <span class="form-link-title">▶ {{.Label}}</span>
+      </span>
+    </a>
   </li>
   {{end}}
 </ul>

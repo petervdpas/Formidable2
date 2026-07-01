@@ -199,19 +199,14 @@ func jsonString(s string) template.JS {
 }
 
 type indexView struct {
-	Title         string
-	Templates     []indexTemplateRow
-	Presentations []presentationRow
+	Title     string
+	Templates []indexTemplateRow
+	// Presentations is a FLAT list of playable decks across all presentation
+	// templates (one row per set, wiki-list style), each labelled "<template> :
+	// <deck>".
+	Presentations []deckLink
 }
 
-// presentationRow is one presentation template on the index, with its deck play
-// links (one per authored deck, or a single "Open" link for a single-deck
-// presentation).
-type presentationRow struct {
-	Name  string
-	Stem  string
-	Decks []deckLink
-}
 type deckLink struct {
 	Label string
 	Href  string
@@ -311,10 +306,11 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 	// Presentation templates are surfaced separately (deck play links), not as a
 	// browsable form list; keep them out of the normal Templates section.
 	rows := make([]indexTemplateRow, 0, len(tps))
-	presos := make([]presentationRow, 0)
+	presos := make([]deckLink, 0)
 	for _, t := range tps {
 		if h.isPresentation(t.Filename) {
-			presos = append(presos, h.presentationRowFor(t))
+			// Flatten each presentation's non-empty decks into their own rows.
+			presos = append(presos, h.presentationLinks(t)...)
 			continue
 		}
 		rows = append(rows, indexTemplateRow{
@@ -341,23 +337,34 @@ func (h *Handler) isPresentation(filename string) bool {
 	return err == nil && t != nil && t.Presentation
 }
 
-// presentationRowFor projects a presentation into its index row: one deck play
-// link per authored deck, or a single "Open" link for a single-deck presentation.
-func (h *Handler) presentationRowFor(t dataprovider.TemplateSummary) presentationRow {
-	row := presentationRow{Name: pickName(t), Stem: t.Stem}
+// presentationLinks projects a presentation into its playable deck rows: one link
+// per deck that ACTUALLY HAS slides (empty decks omitted), labelled "<template> :
+// <deck>" so each set is identifiable on its own row (no separate name label). A
+// single-deck presentation (no slideset) yields one link labelled by the template.
+func (h *Handler) presentationLinks(t dataprovider.TemplateSummary) []deckLink {
+	if h.decks == nil {
+		return nil
+	}
+	name := pickName(t)
 	base := "/template/" + t.Stem + "/slides"
-	var decks []DeckList
-	if h.decks != nil {
-		decks, _ = h.decks.Decks(t.Filename)
-	}
+	decks, _ := h.decks.Decks(t.Filename)
 	if len(decks) == 0 {
-		row.Decks = []deckLink{{Label: "Open", Href: base}}
-		return row
+		// Single-deck presentation: the whole sequence is the deck; show it only
+		// when it has slides.
+		if order, err := h.decks.SequenceOrder(t.Filename); err == nil && len(order) > 0 {
+			return []deckLink{{Label: name, Href: base}}
+		}
+		return nil
 	}
+	var out []deckLink
 	for _, d := range decks {
-		row.Decks = append(row.Decks, deckLink{Label: d.Label, Href: base + "/" + d.Value})
+		order, err := h.decks.DeckOrder(t.Filename, d.Value)
+		if err != nil || len(order) == 0 {
+			continue // only sets with actual slides
+		}
+		out = append(out, deckLink{Label: name + " : " + d.Label, Href: base + "/" + d.Value})
 	}
-	return row
+	return out
 }
 
 func (h *Handler) template(w http.ResponseWriter, r *http.Request) {

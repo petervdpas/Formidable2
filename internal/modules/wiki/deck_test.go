@@ -74,6 +74,10 @@ func TestIndex_PresentationsSeparateFromTemplates(t *testing.T) {
 		!strings.Contains(body, `href="/template/talk/slides/deep"`) {
 		t.Errorf("index missing per-deck play links; body:\n%s", body)
 	}
+	// Each set is labelled "<template> : <deck>" (no separate name row).
+	if !strings.Contains(body, "Talk 2026 : Intro") || !strings.Contains(body, "Talk 2026 : Deep dive") {
+		t.Errorf("deck rows should be labelled 'Template : Set'; body:\n%s", body)
+	}
 	// The presentation must NOT appear in the normal template list (that link has
 	// no /slides suffix).
 	if strings.Contains(body, `href="/template/talk"`) {
@@ -82,6 +86,37 @@ func TestIndex_PresentationsSeparateFromTemplates(t *testing.T) {
 	// A normal template is still listed normally.
 	if !strings.Contains(body, `href="/template/basic"`) {
 		t.Error("normal template missing from Templates list")
+	}
+}
+
+func TestIndex_HidesDecksWithoutSlides(t *testing.T) {
+	d := &fakeDeckProvider{
+		decks:    []DeckList{{Value: "full", Label: "Full"}, {Value: "empty", Label: "Empty"}},
+		orderFor: map[string][]string{"full": {"s1.meta.json"}}, // "empty" -> no slides
+	}
+	h := newDeckHandler(t, d)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	body := w.Body.String()
+	if !strings.Contains(body, `href="/template/talk/slides/full"`) {
+		t.Error("deck with slides should be listed")
+	}
+	if strings.Contains(body, `href="/template/talk/slides/empty"`) {
+		t.Error("deck without slides should be hidden")
+	}
+}
+
+func TestDeck_KeepsTopbarForBackNav(t *testing.T) {
+	h := newDeckHandler(t, twoDecks())
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/talk/slides/intro", nil))
+
+	body := w.Body.String()
+	for _, want := range []string{`id="topbar"`, "history.back()", `href="/"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("deck page missing topbar element %q (needed to return to the list)", want)
+		}
 	}
 }
 

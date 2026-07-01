@@ -366,6 +366,12 @@ func New(d Deps) (*App, error) {
 		return nil, fmt.Errorf("init index: open %q: %w", indexDBPath, err)
 	}
 
+	// Cache rendered decks (in-app previewer + wiki) keyed on the index revision,
+	// which bumps on every write, so any edit invalidates. Both render targets
+	// cache independently (their image/link URLs make the HTML differ).
+	slideoutRender.SetRevFunc(idxM.Rev)
+	wikiRender.SetRevFunc(idxM.Rev)
+
 	// EventHandler bridges template/storage save+delete into the index;
 	// the loader adapter adds the stat() call the index needs for mtime/
 	// size tracking.
