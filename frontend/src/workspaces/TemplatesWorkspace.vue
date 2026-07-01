@@ -357,9 +357,13 @@ const setupTabItems = computed(() => {
     { id: "code", label: t("workspace.templates.setup.template_code") },
     { id: "expression", label: t("workspace.templates.setup.sidebar_expression") },
     { id: "facets", label: t("workspace.templates.setup.facets") },
-    { id: "statistics", label: t("workspace.templates.setup.statistics") },
     { id: "formulas", label: t("workspace.templates.setup.formulas") },
   ];
+  // Presentation records are slides: statistics has no use for them (backend
+  // refuses too), so the tab is omitted for presentation templates.
+  if (!draft.value?.presentation) {
+    items.splice(3, 0, { id: "statistics", label: t("workspace.templates.setup.statistics") });
+  }
   if (draft.value?.enable_collection) {
     items.unshift({ id: "relations", label: t("workspace.templates.setup.relations") });
   }
@@ -371,7 +375,7 @@ const setupTabItems = computed(() => {
 // collection toggle flips. Manual tab clicks are unaffected: this only
 // fires when the selected template or the toggle actually changes.
 watch(
-  () => [selectedFilename.value, draft.value?.enable_collection] as const,
+  () => [selectedFilename.value, draft.value?.enable_collection, draft.value?.presentation] as const,
   ([, on]) => {
     setupTab.value = on ? "relations" : "code";
   },

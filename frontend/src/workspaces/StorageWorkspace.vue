@@ -1287,13 +1287,14 @@ setTopbarMenu(() => [
       {
         id: "query",
         labelKey: "menu.data.query",
-        disabled: !selectedTemplate.value,
+        // Presentation records are slides, not queryable data (backend refuses too).
+        disabled: !selectedTemplate.value || presentationMode.value,
         onClick: openQuery,
       },
       {
         id: "graph",
         labelKey: "menu.data.graph",
-        disabled: !selectedTemplate.value || !view.value,
+        disabled: !selectedTemplate.value || !view.value || presentationMode.value,
         onClick: openGraph,
       },
       { type: "separator", id: "data-sep-reindex" },

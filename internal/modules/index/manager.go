@@ -78,7 +78,7 @@ func (m *Manager) Rev() (int64, error) {
 func (m *Manager) ListTemplates() ([]TemplateRow, error) {
 	rows, err := m.db.Query(`
 		SELECT filename, name, item_field, guid_field, tags_field,
-		       has_markdown_template, enable_collection, mtime, size
+		       has_markdown_template, enable_collection, presentation, mtime, size
 		FROM templates
 		ORDER BY filename ASC
 	`)
@@ -90,15 +90,16 @@ func (m *Manager) ListTemplates() ([]TemplateRow, error) {
 	var out []TemplateRow
 	for rows.Next() {
 		var r TemplateRow
-		var hasMD, enableCol int
+		var hasMD, enableCol, presentation int
 		if err := rows.Scan(
 			&r.Filename, &r.Name, &r.ItemField, &r.GuidField, &r.TagsField,
-			&hasMD, &enableCol, &r.Mtime, &r.Size,
+			&hasMD, &enableCol, &presentation, &r.Mtime, &r.Size,
 		); err != nil {
 			return nil, fmt.Errorf("index: scan template: %w", err)
 		}
 		r.HasMarkdownTemplate = hasMD != 0
 		r.EnableCollection = enableCol != 0
+		r.Presentation = presentation != 0
 		out = append(out, r)
 	}
 	return out, rows.Err()

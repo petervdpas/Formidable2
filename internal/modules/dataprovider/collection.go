@@ -20,6 +20,18 @@ func (m *Manager) IsCollectionEnabled(ctx context.Context, template string) bool
 	return t.EnableCollection && t.GuidField != ""
 }
 
+// IsCollectionExposed is IsCollectionEnabled minus presentation templates: a
+// presentation is a collection but its records are slides, so the REST api must
+// not surface it. This is the gate the api uses; IsCollectionEnabled stays
+// truthful for internal cross-references (api-field syncer, record resolver).
+func (m *Manager) IsCollectionExposed(ctx context.Context, template string) bool {
+	t, ok, err := m.GetTemplate(ctx, template)
+	if err != nil || !ok {
+		return false
+	}
+	return t.EnableCollection && t.GuidField != "" && !t.Presentation
+}
+
 // ListCollection returns a paginated, optionally q/tags-filtered view
 // of forms for a collection-enabled template. Mirrors the original
 // `listCollection` shape so the wiki HTTP routes can return JSON

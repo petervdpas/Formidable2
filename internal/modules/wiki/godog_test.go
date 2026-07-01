@@ -303,6 +303,35 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^a wiki handler with a presentation template "([^"]*)" named "([^"]*)" with decks:$`,
+		func(filename, name string, table *godog.Table) error {
+			stem := strings.TrimSuffix(filename, ".yaml")
+			w.stub = newStubProvider()
+			w.stub.forms = map[string][]dataprovider.FormSummary{}
+			w.stub.templates = append(w.stub.templates, dataprovider.TemplateSummary{
+				Stem: stem, Filename: filename, Name: name,
+			})
+			w.stubSt = newStubStorage()
+			w.stubEx = &stubExpressioner{items: map[string][]expression.Result{}}
+			w.stubTpl = &stubTemplates{byName: map[string]*tpl.Template{
+				filename: {Filename: filename, Presentation: true},
+			}}
+			decks := &fakeDeckProvider{orderFor: map[string][]string{}}
+			for _, row := range table.Rows {
+				if len(row.Cells) < 2 || strings.TrimSpace(row.Cells[0].Value) == "value" {
+					continue // header / malformed
+				}
+				v := strings.TrimSpace(row.Cells[0].Value)
+				l := strings.TrimSpace(row.Cells[1].Value)
+				decks.decks = append(decks.decks, DeckList{Value: v, Label: l})
+				decks.orderFor[v] = []string{v + "-1.meta.json"}
+			}
+			w.handler = NewHandler(w.stub, w.stubSt, w.stubEx)
+			w.handler.SetTemplates(w.stubTpl)
+			w.handler.SetDecks(decks)
+			return nil
+		})
+
 	// ── Facets - Templates + storage facet state ─────────────────────
 
 	ctx.Step(`^the template "([^"]*)" declares facets:$`,

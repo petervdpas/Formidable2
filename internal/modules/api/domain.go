@@ -14,7 +14,7 @@ import (
 // Provider is the read surface the API needs from the dataprovider.
 type Provider interface {
 	ListTemplates(ctx context.Context) ([]dataprovider.TemplateSummary, error)
-	IsCollectionEnabled(ctx context.Context, template string) bool
+	IsCollectionExposed(ctx context.Context, template string) bool
 	ListCollection(ctx context.Context, template string, opts dataprovider.CollectionListOpts) (*dataprovider.CollectionPage, error)
 	CollectionRev(ctx context.Context, template string) (int64, error)
 	ResolveCollectionByID(ctx context.Context, template, id string) (*dataprovider.CollectionItem, bool, error)

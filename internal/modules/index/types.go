@@ -10,6 +10,7 @@ type TemplateRow struct {
 	TagsField           string
 	HasMarkdownTemplate bool
 	EnableCollection    bool
+	Presentation        bool
 	Mtime               int64
 	Size                int64
 }

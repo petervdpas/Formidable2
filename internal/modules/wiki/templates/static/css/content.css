@@ -274,3 +274,30 @@ pre.mermaid[data-processed] svg {
 .lightbox-close:hover {
     background: rgba(255, 255, 255, 0.3);
 }
+/* Presentations section on the index: deck play links per presentation. */
+.presentations-heading {
+    margin-top: 2rem;
+}
+.presentation-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.deck-links {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.deck-link {
+    padding: 0.15rem 0.6rem;
+    border: 1px solid var(--border, #d0d0d0);
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+.deck-link:hover {
+    background: var(--hover, #f0f0f0);
+}

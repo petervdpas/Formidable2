@@ -19,6 +19,9 @@ func (m *Manager) Explain(spec Spec) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if tpl != nil && tpl.Presentation {
+		return "", ErrPresentationExcluded
+	}
 	name := spec.Template
 	label := map[string]string{}
 	numeric := map[string]bool{}

@@ -7,9 +7,15 @@
 package query
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrPresentationExcluded is returned when a query targets a presentation
+// template. A presentation's records are slides, not queryable data, so the
+// query surface refuses them (mirrors the api's IsCollectionExposed).
+var ErrPresentationExcluded = errors.New("query: not available for presentation templates")
 
 // Manager prepares a matrix from the template's forms (via Loader) then
 // executes the Spec over it.

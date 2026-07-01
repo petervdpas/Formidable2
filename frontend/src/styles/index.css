@@ -42,6 +42,9 @@
 @import "./field-edit-modal.css";
 @import "./field-types.css";
 @import "./slide-editor.css";
+/* Shared deck-content rules (Go embed) - same file the wiki deck page serves,
+   so the previewer and the wiki render slides identically. */
+@import "../../../internal/modules/render/assets/deck.css";
 @import "./deck-preview.css";
 @import "./form-loop.css";
 @import "./form-list-field.css";

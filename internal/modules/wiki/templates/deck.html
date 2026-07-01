@@ -1,0 +1,26 @@
+{{- /* Standalone full-screen reveal.js deck page (no wiki topbar/search chrome).
+       Body is the render.BuildDeck output (one <section> per slide); deck-init.js
+       boots reveal and hydrates KaTeX + mermaid. All client libs are served by
+       the wiki under /_/ (self-contained, no CDN). */ -}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}} - Formidable Slides</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="/_/img/logo.png">
+  <link rel="stylesheet" href="/_/css/reveal.css">
+  <link rel="stylesheet" href="/_/katex/katex.min.css">
+  <link rel="stylesheet" href="/_/css/formidable-prose.css">
+  <link rel="stylesheet" href="/_/css/deck.css">
+</head>
+<body>
+  <div class="reveal" data-width="{{.Width}}" data-height="{{.Height}}">
+    <div class="slides formidable-prose">{{safeHTML .Body}}</div>
+  </div>
+  <script src="/_/js/reveal.js"></script>
+  <script src="/_/katex/katex.min.js"></script>
+  <script src="/_/js/mermaid.min.js"></script>
+  <script src="/_/js/deck-init.js"></script>
+</body>
+</html>

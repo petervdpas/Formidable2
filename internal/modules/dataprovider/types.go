@@ -16,6 +16,10 @@ type TemplateSummary struct {
 	TagsField           string `json:"tagsField,omitempty"`
 	HasMarkdownTemplate bool   `json:"hasMarkdownTemplate"`
 	EnableCollection    bool   `json:"enableCollection"`
+	// Presentation marks a slide-deck template: a collection whose records are
+	// slides. Data surfaces (api/query/datacore/stat) exclude it via
+	// IsCollectionExposed; it stays editable everywhere else.
+	Presentation bool `json:"presentation"`
 }
 
 // FormSummary is the per-form data the wiki list pages need: identity,

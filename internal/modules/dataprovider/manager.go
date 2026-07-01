@@ -136,6 +136,7 @@ func templateRowToSummary(r index.TemplateRow) TemplateSummary {
 		TagsField:           r.TagsField,
 		HasMarkdownTemplate: r.HasMarkdownTemplate,
 		EnableCollection:    r.EnableCollection,
+		Presentation:        r.Presentation,
 	}
 }
 

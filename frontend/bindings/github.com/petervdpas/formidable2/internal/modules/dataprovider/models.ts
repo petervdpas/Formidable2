@@ -161,6 +161,13 @@ export class TemplateSummary {
     "hasMarkdownTemplate": boolean;
     "enableCollection": boolean;
 
+    /**
+     * Presentation marks a slide-deck template: a collection whose records are
+     * slides. Data surfaces (api/query/datacore/stat) exclude it via
+     * IsCollectionExposed; it stays editable everywhere else.
+     */
+    "presentation": boolean;
+
     /** Creates a new TemplateSummary instance. */
     constructor($$source: Partial<TemplateSummary> = {}) {
         if (!("stem" in $$source)) {
@@ -177,6 +184,9 @@ export class TemplateSummary {
         }
         if (!("enableCollection" in $$source)) {
             this["enableCollection"] = false;
+        }
+        if (!("presentation" in $$source)) {
+            this["presentation"] = false;
         }
 
         Object.assign(this, $$source);

@@ -71,8 +71,8 @@ func upsertTemplates(tx *sql.Tx, rows []TemplateRow) error {
 	stmt, err := tx.Prepare(`
 		INSERT INTO templates
 		    (filename, name, item_field, guid_field, tags_field,
-		     has_markdown_template, enable_collection, rev, mtime, size)
-		VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT rev FROM templates WHERE filename = ?), 0) + 1, ?, ?)
+		     has_markdown_template, enable_collection, presentation, rev, mtime, size)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT rev FROM templates WHERE filename = ?), 0) + 1, ?, ?)
 		ON CONFLICT(filename) DO UPDATE SET
 		    name = excluded.name,
 		    item_field = excluded.item_field,
@@ -80,6 +80,7 @@ func upsertTemplates(tx *sql.Tx, rows []TemplateRow) error {
 		    tags_field = excluded.tags_field,
 		    has_markdown_template = excluded.has_markdown_template,
 		    enable_collection = excluded.enable_collection,
+		    presentation = excluded.presentation,
 		    rev = templates.rev + 1,
 		    mtime = excluded.mtime,
 		    size = excluded.size
@@ -92,7 +93,7 @@ func upsertTemplates(tx *sql.Tx, rows []TemplateRow) error {
 	for _, r := range rows {
 		if _, err := stmt.Exec(
 			r.Filename, r.Name, r.ItemField, r.GuidField, r.TagsField,
-			boolToInt(r.HasMarkdownTemplate), boolToInt(r.EnableCollection),
+			boolToInt(r.HasMarkdownTemplate), boolToInt(r.EnableCollection), boolToInt(r.Presentation),
 			r.Filename, r.Mtime, r.Size,
 		); err != nil {
 			return fmt.Errorf("index: upsert template %q: %w", r.Filename, err)

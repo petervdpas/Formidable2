@@ -50,7 +50,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tplFilename := stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), tplFilename) {
+	if !h.dp.IsCollectionExposed(r.Context(), tplFilename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -134,7 +134,7 @@ func (h *Handler) itemPut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tplFilename := stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), tplFilename) {
+	if !h.dp.IsCollectionExposed(r.Context(), tplFilename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -580,7 +580,7 @@ func (h *Handler) writeGuard(w http.ResponseWriter, r *http.Request) (string, st
 		return "", "", nil, false
 	}
 	tplFilename := stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), tplFilename) {
+	if !h.dp.IsCollectionExposed(r.Context(), tplFilename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return "", "", nil, false
 	}

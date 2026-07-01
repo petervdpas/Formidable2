@@ -15,7 +15,7 @@ import (
 )
 
 // schemaVersion is the version this binary writes; a higher stamped version is rejected (no downgrade).
-const schemaVersion = 4
+const schemaVersion = 5
 
 // migrations apply in order, each bumping meta.version on success; index 0 is an unused placeholder.
 var migrations = []string{
@@ -24,6 +24,7 @@ var migrations = []string{
 	migrationV2,
 	migrationV3,
 	migrationV4,
+	migrationV5,
 }
 
 // migrationV1 is the initial schema.
@@ -161,6 +162,14 @@ CREATE TRIGGER form_search_au AFTER UPDATE ON form_search BEGIN
 END;
 
 DELETE FROM forms;
+`
+
+// migrationV5 records whether a template is a presentation (slide deck). It is a
+// data-facing exclusion flag: presentation templates are collections but their
+// records are slides, so the api/query/datacore/stat surfaces skip them. An
+// additive templates column backfilled on the next reconcile (no forms rebuild).
+const migrationV5 = `
+ALTER TABLE templates ADD COLUMN presentation INTEGER NOT NULL DEFAULT 0;
 `
 
 // openIndexDB opens (or creates) the SQLite file and migrates to schemaVersion. FKs are enabled so the

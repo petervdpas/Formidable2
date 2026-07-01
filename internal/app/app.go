@@ -402,7 +402,7 @@ func New(d Deps) (*App, error) {
 	// perspective can Follow. relationM is assigned further down; the factory
 	// runs per query, long after construction, so the late binding is safe.
 	var relationM *relation.Manager
-	datacoreSvc := datacore.NewServiceWithPlanner(func(tpl string) datacore.Loader {
+	datacoreSvc := datacore.NewService(func(tpl string) datacore.Loader {
 		// Loop ingestion is opt-in (config graph_loop_rows): read it per build so
 		// toggling the setting takes effect on the next graph open / refresh.
 		loopRows := false
@@ -410,7 +410,17 @@ func New(d Deps) (*App, error) {
 			loopRows = cfg.GraphLoopRows
 		}
 		return newDatacoreLoaderAdapter(tplM, stoM, expressionM, relationM, tpl, loopRows)
-	}, newDatacoreIndexPlanner(idxM))
+	},
+		datacore.WithPlanner(newDatacoreIndexPlanner(idxM)),
+		// Presentation templates hold slides, not analysable data: exclude them from
+		// every datacore view + graph. Because the stat engine computes on this same
+		// tensor (statengine over datacoreSvc), this also keeps presentations out of
+		// statistics. api + query exclude presentations at their own gates.
+		datacore.WithExclusion(func(tpl string) bool {
+			t, err := tplM.LoadTemplate(tpl)
+			return err == nil && t != nil && t.Presentation
+		}),
+	)
 
 	// Chart-neutral statistics computed on the datacore tensor. The index's
 	// aggregate methods survive only as the parity-test oracle; runtime no
@@ -541,6 +551,10 @@ func New(d Deps) (*App, error) {
 	// Per-template facet definitions drive the index pills and template
 	// filter strip.
 	wikiHandler.SetTemplates(tplM)
+	// Presentation decks: the index lists presentation templates separately and
+	// /template/{tpl}/slides serves a full-screen reveal deck. Ordering from
+	// formM, building from wikiRender (same BuildDeck the in-app previewer uses).
+	wikiHandler.SetDecks(wikiDeckAdapter{form: formM, ren: wikiRender})
 
 	// stoM appears twice: Storage (LoadForm) and Writer (SaveForm/
 	// DeleteForm). Same instance, narrow per-concern interfaces. apiRelations

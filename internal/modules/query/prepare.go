@@ -75,6 +75,9 @@ func Prepare(spec Spec, loader Loader) (*Matrix, error) {
 	if tpl == nil {
 		return nil, fmt.Errorf("query: template %q not found", spec.Template)
 	}
+	if tpl.Presentation {
+		return nil, ErrPresentationExcluded
+	}
 	byKey := map[string]template.Field{}
 	for _, f := range tpl.Fields {
 		byKey[f.Key] = f

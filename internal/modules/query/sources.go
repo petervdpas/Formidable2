@@ -19,6 +19,9 @@ func (m *Manager) Sources(templateName string) ([]SourceInfo, error) {
 	if tpl == nil {
 		return nil, fmt.Errorf("query: template %q not found", templateName)
 	}
+	if tpl.Presentation {
+		return nil, ErrPresentationExcluded
+	}
 	return deriveSources(tpl), nil
 }
 

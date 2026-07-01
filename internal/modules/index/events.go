@@ -150,6 +150,7 @@ func buildTemplateRow(t *template.Template, mtime int64, filename string) Templa
 		ItemField:           t.ItemField,
 		HasMarkdownTemplate: t.MarkdownTemplate != "",
 		EnableCollection:    t.EnableCollection,
+		Presentation:        t.Presentation,
 		Mtime:               mtime,
 	}
 	for _, f := range t.Fields {

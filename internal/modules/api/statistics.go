@@ -160,7 +160,7 @@ func (h *Handler) statTemplate(w http.ResponseWriter, r *http.Request) (string, 
 		return "", false
 	}
 	filename := stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), filename) {
+	if !h.dp.IsCollectionExposed(r.Context(), filename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return "", false
 	}

@@ -1,14 +1,26 @@
 package datacore
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// ErrPresentationExcluded is returned when a datacore view or graph targets a
+// presentation template. Its records are slides, not analysable data, so the
+// datacore surface (including the graph) refuses them. Installed via WithExclusion.
+var ErrPresentationExcluded = errors.New("datacore: not available for presentation templates")
 
 // LoaderFactory builds a Loader for one template. The composition root wires
 // it to whatever holds the live data (template + storage), so the service
 // stays dependency-free.
 type LoaderFactory func(template string) Loader
+
+// ExclusionFunc reports whether a template is refused by datacore (e.g. a
+// presentation, whose records are slides not data). Named (not an inline func
+// field) so the Wails binding generator handles it like LoaderFactory rather
+// than warning on an anonymous function type.
+type ExclusionFunc func(template string) bool
 
 // Service is the Wails-facing, read-only layer over the tensor. Each call
 // builds a fresh tensor from the template's live forms and runs one
@@ -20,18 +32,46 @@ type LoaderFactory func(template string) Loader
 // its rows) without a full spec language. Empty follow reduces over root
 // records.
 type Service struct {
-	factory LoaderFactory
-	planner Planner // optional; nil = never narrow, always build from every record
+	factory  LoaderFactory
+	planner  Planner       // optional; nil = never narrow, always build from every record
+	excluded ExclusionFunc // optional; true = refuse (e.g. presentation templates)
 }
 
-func NewService(factory LoaderFactory) *Service { return &Service{factory: factory} }
+// Option configures a Service at construction. Options (not setter methods) so
+// func-typed dependencies (planner is an interface, exclusion is a func) never
+// appear on a Wails-bound method signature - the binding generator rejects func
+// parameters. Package funcs like these are not bound; only Service methods are.
+type Option func(*Service)
 
-// NewServiceWithPlanner wires the planner seam: narrowed reducers (the *Where
-// methods) push their predicate down to the planner (the SQLite index) so the
-// tensor only ingests the matching records. The non-narrowed methods build
-// from every record as before.
+// WithPlanner installs the planner seam: narrowed reducers (the *Where methods)
+// push their predicate down to the planner (the SQLite index) so the tensor only
+// ingests matching records. The non-narrowed methods build from every record.
+func WithPlanner(p Planner) Option { return func(s *Service) { s.planner = p } }
+
+// WithExclusion installs a predicate that refuses templates before any view or
+// graph is built. The composition root wires it to the presentation flag so
+// slide decks are excluded from datacore (and, via the shared tensor, stats).
+func WithExclusion(f ExclusionFunc) Option { return func(s *Service) { s.excluded = f } }
+
+func NewService(factory LoaderFactory, opts ...Option) *Service {
+	s := &Service{factory: factory}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
+}
+
+// NewServiceWithPlanner is a thin alias kept for existing callers.
 func NewServiceWithPlanner(factory LoaderFactory, planner Planner) *Service {
-	return &Service{factory: factory, planner: planner}
+	return NewService(factory, WithPlanner(planner))
+}
+
+// checkExcluded reports the exclusion error when the predicate refuses template.
+func (s *Service) checkExcluded(template string) error {
+	if s.excluded != nil && s.excluded(template) {
+		return ErrPresentationExcluded
+	}
+	return nil
 }
 
 func (s *Service) view(template, follow string) (*Perspective, error) {
@@ -41,6 +81,9 @@ func (s *Service) view(template, follow string) (*Perspective, error) {
 // viewWhere builds the working set, narrowing through the planner first when
 // the predicate asks for it. An empty predicate is the plain full build.
 func (s *Service) viewWhere(template, follow string, pred Predicate) (*Perspective, error) {
+	if err := s.checkExcluded(template); err != nil {
+		return nil, err
+	}
 	t, err := buildNarrowed(s.factory(template), s.planner, template, pred)
 	if err != nil {
 		return nil, err
@@ -126,6 +169,9 @@ func (s *Service) DateSeries(template, follow, field, period string) (Series, er
 // loop rows as nodes, refs as edges) for the visual explorer. limit caps
 // the node count (0 = no cap); roots kept before rows, dangling edges dropped.
 func (s *Service) Graph(template string, limit int) (Graph, error) {
+	if err := s.checkExcluded(template); err != nil {
+		return Graph{}, err
+	}
 	t, err := Build(s.factory(template))
 	if err != nil {
 		return Graph{}, err
@@ -139,6 +185,9 @@ func (s *Service) Graph(template string, limit int) (Graph, error) {
 // template+filename) or an already composite node id handed back by a click;
 // either resolves to the same identity, so the round-trip never double-prefixes.
 func (s *Service) GraphFrom(template, rootID string, detail int) (Graph, error) {
+	if err := s.checkExcluded(template); err != nil {
+		return Graph{}, err
+	}
 	t, err := Build(s.factory(template))
 	if err != nil {
 		return Graph{}, err
@@ -155,6 +204,9 @@ func (s *Service) GraphFrom(template, rootID string, detail int) (Graph, error) 
 // rootID resolution mirrors GraphFrom (bare or composite). limit caps the node
 // count (0 = no cap); the returned Graph's Capped flag marks a truncated view.
 func (s *Service) GraphFromDepth(template, rootID string, hops, limit int) (Graph, error) {
+	if err := s.checkExcluded(template); err != nil {
+		return Graph{}, err
+	}
 	t, err := Build(s.factory(template))
 	if err != nil {
 		return Graph{}, err
@@ -170,6 +222,9 @@ func (s *Service) GraphFromDepth(template, rootID string, hops, limit int) (Grap
 // measures) that feed statistical aggregation, over root fields, facets, and
 // date-bucketed dims. The caller groups and reduces.
 func (s *Service) AggregateRaw(template string, dims []GridDim, nums []GridNum, filters []GridFilter) ([]GridRow, error) {
+	if err := s.checkExcluded(template); err != nil {
+		return nil, err
+	}
 	if tables := fanTablesOf(dims, nums); len(tables) > 1 {
 		return nil, fmt.Errorf("datacore: aggregate raw: table-column dims and measures must share one table, got %s", strings.Join(tables, ", "))
 	}
@@ -183,6 +238,9 @@ func (s *Service) AggregateRaw(template string, dims []GridDim, nums []GridNum, 
 // Summarize lands a per-record loop summary on each root: linkField's rows
 // reduced by valueField (empty valueField gives a plain count summary).
 func (s *Service) Summarize(template, linkField, valueField string) ([]RootSummary, error) {
+	if err := s.checkExcluded(template); err != nil {
+		return nil, err
+	}
 	t, err := Build(s.factory(template))
 	if err != nil {
 		return nil, err

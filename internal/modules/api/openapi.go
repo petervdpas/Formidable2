@@ -23,7 +23,9 @@ func buildOpenAPISpec(ctx context.Context, dp Provider, tpl Templates) (map[stri
 	// Per-stem facets, used to emit typed facet.<key> params on per-template paths; lean (no entry when empty).
 	templateFacets := map[string][]template.Facet{}
 	for _, t := range tps {
-		if !t.EnableCollection || t.GuidField == "" {
+		// Presentation collections are excluded from the REST surface, so keep them
+		// out of the spec too (mirrors listCollections / IsCollectionExposed).
+		if !t.EnableCollection || t.GuidField == "" || t.Presentation {
 			continue
 		}
 		full, err := tpl.LoadTemplate(t.Filename)

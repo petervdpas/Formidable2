@@ -40,10 +40,10 @@ func (s *stubProvider) ListTemplates(_ context.Context) ([]dataprovider.Template
 	return s.templates, nil
 }
 
-func (s *stubProvider) IsCollectionEnabled(_ context.Context, template string) bool {
+func (s *stubProvider) IsCollectionExposed(_ context.Context, template string) bool {
 	for _, t := range s.templates {
 		if t.Filename == template {
-			return t.EnableCollection && t.GuidField != ""
+			return t.EnableCollection && t.GuidField != "" && !t.Presentation
 		}
 	}
 	return false
@@ -53,7 +53,7 @@ func (s *stubProvider) ListCollection(_ context.Context, template string, opts d
 	if s.listCollectionErr != nil {
 		return nil, s.listCollectionErr
 	}
-	if !s.IsCollectionEnabled(context.Background(), template) {
+	if !s.IsCollectionExposed(context.Background(), template) {
 		return &dataprovider.CollectionPage{Enabled: false}, nil
 	}
 	rows := s.forms[template]
@@ -181,7 +181,7 @@ func (s *stubProvider) CollectionRev(_ context.Context, _ string) (int64, error)
 }
 
 func (s *stubProvider) ResolveCollectionByID(_ context.Context, template, id string) (*dataprovider.CollectionItem, bool, error) {
-	if !s.IsCollectionEnabled(context.Background(), template) {
+	if !s.IsCollectionExposed(context.Background(), template) {
 		return nil, false, nil
 	}
 	stem := strings.TrimSuffix(template, ".yaml")
@@ -436,6 +436,38 @@ func TestListCollections_OmitsNonCollectionTemplates(t *testing.T) {
 	}
 	if _, ok := ids["leeg"]; !ok {
 		t.Errorf("leeg missing")
+	}
+}
+
+func TestPresentationCollection_ExcludedFromREST(t *testing.T) {
+	sp := newStub()
+	// A presentation collection: EnableCollection + guid, but Presentation=true.
+	sp.templates = append(sp.templates, dataprovider.TemplateSummary{
+		Stem: "talk", Filename: "talk.yaml", Name: "Talk",
+		EnableCollection: true, GuidField: "guid", Presentation: true,
+	})
+	sp.forms["talk.yaml"] = []dataprovider.FormSummary{
+		{Template: "talk.yaml", Filename: "s1.meta.json", ID: "g-1", Title: "Slide 1"},
+	}
+	h := NewHandler(sp, newStubStorage(), newStubWriter(), newStubTemplates(), nil, nil, nil)
+
+	// Not in the discovery list.
+	rows := decode[[]TemplateRow](t, do(t, h, http.MethodGet, "/api/collections"))
+	for _, r := range rows {
+		if r.ID == "talk" {
+			t.Error("presentation template listed in /api/collections")
+		}
+	}
+	// Per-template routes 403 (collection-disabled), not 200.
+	for _, path := range []string{
+		"/api/collections/talk",
+		"/api/collections/talk/count",
+		"/api/collections/talk/g-1",
+	} {
+		rec := do(t, h, http.MethodGet, path)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("GET %s: status = %d, want 403", path, rec.Code)
+		}
 	}
 }
 

@@ -46,6 +46,24 @@ type Expressioner interface {
 	EvaluateList(templateName string) ([]expression.Result, error)
 }
 
+// DeckList is one authored deck of a presentation template (the slideset field's
+// option value + label). A single-deck presentation reports no decks.
+type DeckList struct {
+	Value string
+	Label string
+}
+
+// DeckProvider is the presentation surface: the deck list, per-deck (or whole-
+// sequence) datafile ordering, and the reveal deck build. Nil hides all
+// presentations. Deck ordering + building live in form/render; this just adapts
+// them onto the wiki.
+type DeckProvider interface {
+	Decks(templateName string) ([]DeckList, error)
+	DeckOrder(templateName, deck string) ([]string, error)
+	SequenceOrder(templateName string) ([]string, error)
+	BuildDeck(templateName string, datafiles []string) (render.RevealDeck, error)
+}
+
 // EnabledTemplateFilter hides templates disabled per-profile in Settings.
 // Nil shows every template.
 type EnabledTemplateFilter interface {
@@ -60,6 +78,7 @@ type Handler struct {
 	expr   Expressioner
 	tpl    Templates
 	filter EnabledTemplateFilter
+	decks  DeckProvider
 	mux    *http.ServeMux
 }
 
@@ -70,6 +89,10 @@ func NewHandler(dp Provider, st Storage, expr Expressioner) *Handler {
 	mux.HandleFunc("GET /{$}", h.index)
 	mux.HandleFunc("GET /template/{tpl}", h.template)
 	mux.HandleFunc("GET /template/{tpl}/form/{datafile}", h.form)
+	// Presentation decks (separate from the per-form pages): a full-screen reveal
+	// slideshow. Empty {deck} plays the first/only deck.
+	mux.HandleFunc("GET /template/{tpl}/slides", h.deck)
+	mux.HandleFunc("GET /template/{tpl}/slides/{deck}", h.deck)
 	mux.HandleFunc("GET /storage/{tpl}/images/{name}", h.image)
 	// /_/css/formidable-prose.css streams render.ProseCSS() so wiki bodies and the in-app
 	// slideout share one stylesheet (single source of truth; see render/fulldoc.go).
@@ -92,6 +115,12 @@ func (h *Handler) SetTemplates(t Templates) {
 	h.tpl = t
 }
 
+// SetDecks installs (or clears with nil) the presentation deck provider. Nil
+// hides the Presentations section and 404s the /slides routes.
+func (h *Handler) SetDecks(d DeckProvider) {
+	h.decks = d
+}
+
 // templateEnabled gates the detail views; missing filter or empty enabled list passes everything.
 func (h *Handler) templateEnabled(filename string) bool {
 	if h.filter == nil {
@@ -112,7 +141,7 @@ var staticFS = func() fs.FS {
 	return sub
 }()
 
-//go:embed templates/layout.html templates/index.html templates/template.html templates/form.html
+//go:embed templates/layout.html templates/index.html templates/template.html templates/form.html templates/deck.html
 var tplFiles embed.FS
 
 // templateFuncs: safeHTML trusts goldmark-rendered bodies past auto-escape; jsonString emits a JSON-quoted literal.
@@ -132,6 +161,10 @@ var (
 	tplIndex    = parsePage("index")
 	tplTemplate = parsePage("template")
 	tplForm     = parsePage("form")
+	// deck.html is a standalone full-screen reveal page (no wiki chrome), so it
+	// is parsed without layout.html.
+	tplDeck = template.Must(template.New("deck.html").Funcs(templateFuncs).
+		ParseFS(tplFiles, "templates/deck.html"))
 )
 
 // jsonString produces a JSON-quoted string literal (hand-rolled to avoid encoding/json's trailing newline).
@@ -166,8 +199,31 @@ func jsonString(s string) template.JS {
 }
 
 type indexView struct {
-	Title     string
-	Templates []indexTemplateRow
+	Title         string
+	Templates     []indexTemplateRow
+	Presentations []presentationRow
+}
+
+// presentationRow is one presentation template on the index, with its deck play
+// links (one per authored deck, or a single "Open" link for a single-deck
+// presentation).
+type presentationRow struct {
+	Name  string
+	Stem  string
+	Decks []deckLink
+}
+type deckLink struct {
+	Label string
+	Href  string
+}
+
+// deckView drives the standalone reveal page: the built section bodies plus the
+// authored canvas size (so deck-init sizes reveal to the same aspect).
+type deckView struct {
+	Title  string
+	Body   string
+	Width  int
+	Height int
 }
 type indexTemplateRow struct {
 	Stem   string
@@ -252,8 +308,15 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		}
 		tps = kept
 	}
+	// Presentation templates are surfaced separately (deck play links), not as a
+	// browsable form list; keep them out of the normal Templates section.
 	rows := make([]indexTemplateRow, 0, len(tps))
+	presos := make([]presentationRow, 0)
 	for _, t := range tps {
+		if h.isPresentation(t.Filename) {
+			presos = append(presos, h.presentationRowFor(t))
+			continue
+		}
 		rows = append(rows, indexTemplateRow{
 			Stem:   t.Stem,
 			Name:   pickName(t),
@@ -262,9 +325,39 @@ func (h *Handler) index(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeHTML(w, tplIndex, indexView{
-		Title:     "Wiki",
-		Templates: rows,
+		Title:         "Wiki",
+		Templates:     rows,
+		Presentations: presos,
 	})
+}
+
+// isPresentation reports whether a template renders as a slide deck. Requires the
+// deck provider (nothing to play without it) and the template source.
+func (h *Handler) isPresentation(filename string) bool {
+	if h.decks == nil || h.tpl == nil {
+		return false
+	}
+	t, err := h.tpl.LoadTemplate(filename)
+	return err == nil && t != nil && t.Presentation
+}
+
+// presentationRowFor projects a presentation into its index row: one deck play
+// link per authored deck, or a single "Open" link for a single-deck presentation.
+func (h *Handler) presentationRowFor(t dataprovider.TemplateSummary) presentationRow {
+	row := presentationRow{Name: pickName(t), Stem: t.Stem}
+	base := "/template/" + t.Stem + "/slides"
+	var decks []DeckList
+	if h.decks != nil {
+		decks, _ = h.decks.Decks(t.Filename)
+	}
+	if len(decks) == 0 {
+		row.Decks = []deckLink{{Label: "Open", Href: base}}
+		return row
+	}
+	for _, d := range decks {
+		row.Decks = append(row.Decks, deckLink{Label: d.Label, Href: base + "/" + d.Value})
+	}
+	return row
 }
 
 func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
@@ -499,6 +592,74 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// deck renders a presentation template as a full-screen reveal slideshow. The
+// {deck} segment selects one deck of a multi-deck (slideset) presentation; empty
+// plays the first deck, or the whole sequence for a single-deck presentation.
+func (h *Handler) deck(w http.ResponseWriter, r *http.Request) {
+	stem := r.PathValue("tpl")
+	deck := r.PathValue("deck")
+	if !validSegment(stem) || (deck != "" && !validSegment(deck)) {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	filename := stem + ".yaml"
+	if !h.templateEnabled(filename) {
+		writeError(w, http.StatusNotFound, "template not found")
+		return
+	}
+	if h.decks == nil || !h.isPresentation(filename) {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	decks, err := h.decks.Decks(filename)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var datafiles []string
+	label := ""
+	if len(decks) == 0 {
+		// Single-deck presentation: the whole sequence is the deck.
+		datafiles, err = h.decks.SequenceOrder(filename)
+	} else {
+		sel := deck
+		if sel == "" {
+			sel = decks[0].Value
+		}
+		for _, d := range decks {
+			if d.Value == sel {
+				label = d.Label
+			}
+		}
+		datafiles, err = h.decks.DeckOrder(filename, sel)
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	built, err := h.decks.BuildDeck(filename, datafiles)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	title := stem
+	if t, ok, _ := h.dp.GetTemplate(r.Context(), filename); ok && t != nil {
+		title = pickName(*t)
+	}
+	if label != "" {
+		title = title + " - " + label
+	}
+	writeHTML(w, tplDeck, deckView{
+		Title:  title,
+		Body:   built.HTML,
+		Width:  built.Width,
+		Height: built.Height,
+	})
+}
+
 // static serves the embedded chrome assets at /_/, special-casing /_/css/formidable-prose.css to stream render.ProseCSS.
 func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 	rel := r.PathValue("path")
@@ -514,6 +675,38 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 	if rel == "js/mermaid.min.js" {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(render.MermaidJS())
+		return
+	}
+	// Deck client libs, vendored in the render module (served here so the wiki is
+	// self-contained; see render/deckassets.go).
+	switch rel {
+	case "js/reveal.js":
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(render.RevealJS())
+		return
+	case "css/reveal.css":
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = w.Write([]byte(render.RevealCSS()))
+		return
+	case "css/deck.css":
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = w.Write([]byte(render.DeckCSS()))
+		return
+	case "js/deck-init.js":
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		_, _ = w.Write(render.DeckInitJS())
+		return
+	}
+	// KaTeX dist (css + js + fonts) under one prefix so katex.min.css's relative
+	// `fonts/` URLs resolve.
+	if sub, ok := strings.CutPrefix(rel, "katex/"); ok {
+		data, err := fs.ReadFile(render.KatexFS(), sub)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "not found")
+			return
+		}
+		w.Header().Set("Content-Type", staticMIME(sub))
+		_, _ = w.Write(data)
 		return
 	}
 	data, err := fs.ReadFile(staticFS, rel)
@@ -538,6 +731,12 @@ func staticMIME(rel string) string {
 		return "image/svg+xml"
 	case ".ico":
 		return "image/x-icon"
+	case ".woff2":
+		return "font/woff2"
+	case ".woff":
+		return "font/woff"
+	case ".ttf":
+		return "font/ttf"
 	default:
 		return "application/octet-stream"
 	}

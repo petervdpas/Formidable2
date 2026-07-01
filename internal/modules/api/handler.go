@@ -42,7 +42,9 @@ func (h *Handler) listCollections(w http.ResponseWriter, r *http.Request) {
 	}
 	rows := make([]TemplateRow, 0, len(tps))
 	for _, t := range tps {
-		if !t.EnableCollection || t.GuidField == "" {
+		// Presentation collections hold slides, not queryable data: keep them off
+		// the REST surface (mirrors IsCollectionExposed).
+		if !t.EnableCollection || t.GuidField == "" || t.Presentation {
 			continue
 		}
 		rows = append(rows, TemplateRow{
@@ -200,7 +202,7 @@ func alwaysQuote(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
 
-// exportPath captures and validates {tpl}, gating on IsCollectionEnabled; ok=false means response already written.
+// exportPath captures and validates {tpl}, gating on IsCollectionExposed (presentation templates excluded); ok=false means response already written.
 func (h *Handler) exportPath(w http.ResponseWriter, r *http.Request) (stem, tplFilename string, ok bool) {
 	stem = r.PathValue("tpl")
 	if !validStem(stem) {
@@ -208,7 +210,7 @@ func (h *Handler) exportPath(w http.ResponseWriter, r *http.Request) (stem, tplF
 		return "", "", false
 	}
 	tplFilename = stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), tplFilename) {
+	if !h.dp.IsCollectionExposed(r.Context(), tplFilename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return "", "", false
 	}
@@ -249,7 +251,7 @@ func (h *Handler) design(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "template-not-found")
 		return
 	}
-	if !t.EnableCollection {
+	if !t.EnableCollection || t.Presentation {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -296,7 +298,7 @@ func (h *Handler) facets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filename := stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), filename) {
+	if !h.dp.IsCollectionExposed(r.Context(), filename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -511,7 +513,7 @@ func (h *Handler) itemPath(w http.ResponseWriter, r *http.Request) (stem, id str
 		writeStatusForMethod(w, r, http.StatusForbidden, "collection-disabled")
 		return "", "", false
 	}
-	if !h.dp.IsCollectionEnabled(r.Context(), stem+".yaml") {
+	if !h.dp.IsCollectionExposed(r.Context(), stem+".yaml") {
 		writeStatusForMethod(w, r, http.StatusForbidden, "collection-disabled")
 		return "", "", false
 	}
@@ -552,7 +554,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tplFilename := stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), tplFilename) {
+	if !h.dp.IsCollectionExposed(r.Context(), tplFilename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}
@@ -620,7 +622,7 @@ func (h *Handler) count(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tplFilename := stem + ".yaml"
-	if !h.dp.IsCollectionEnabled(r.Context(), tplFilename) {
+	if !h.dp.IsCollectionExposed(r.Context(), tplFilename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}

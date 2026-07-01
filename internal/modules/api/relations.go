@@ -119,7 +119,7 @@ func (h *Handler) itemRelationFollow(w http.ResponseWriter, r *http.Request) {
 	}
 	// A declared relation whose target collection is disabled is a misconfig:
 	// 403, not a 200 with an empty item set (which would look like all-deleted).
-	if !h.dp.IsCollectionEnabled(r.Context(), toFilename) {
+	if !h.dp.IsCollectionExposed(r.Context(), toFilename) {
 		writeJSONError(w, http.StatusForbidden, "collection-disabled")
 		return
 	}

@@ -1,5 +1,7 @@
-/* Deck previewer: the embedded reveal.js stage fills the maximized dialog on a
-   neutral backdrop (each slide carries its own authored background). */
+/* Deck previewer dialog chrome. The shared slide-content rules live in the Go
+   embed `internal/modules/render/assets/deck.css` (imported in index.css, also
+   served by the wiki deck page); this file keeps only what is specific to the
+   in-app dialog: the backdrop and fitting the stage into the maximized modal. */
 .deck-preview {
     display: flex;
     align-items: center;
@@ -18,52 +20,4 @@
     max-height: 100%;
     background: #1b1b1f;
     border-radius: var(--radius-md, 6px);
-}
-/* Slides carry their own background; keep reveal's default text dark-on-light
-   readable by defaulting slide text to near-black (our canvas is white). */
-.deck-reveal.reveal .slides {
-    color: #111;
-    text-align: left;
-}
-/* Our slide value is a fixed-size positioned canvas, so each reveal section must
-   sit at the slide's top-left: neutralise reveal's vertical-centering top offset
-   and default section padding so the canvas maps 1:1 (matching the editor).
-   Do NOT force the section height - reveal sizes it to the slide (1280x720) and
-   scales the whole thing to fit; overriding the height breaks that fit. */
-.deck-reveal.reveal .slides > section {
-    top: 0 !important;
-    padding: 0 !important;
-}
-.deck-reveal.reveal .slide-canvas {
-    margin: 0;
-}
-/* formidable-prose paints a light page background + gives the canvas a 1em
-   margin and a 1px border (its lines are the top/bottom "lines"). In the deck
-   reveal owns the per-slide background, and the canvas must fill the slide
-   top-left for true WYSIWYG, so strip all three. */
-.deck-reveal.reveal .slides.formidable-prose {
-    background: transparent !important;
-}
-.deck-reveal.reveal .formidable-prose .slide-canvas {
-    background: transparent !important;
-    border: none !important;
-    margin: 0 !important;
-}
-/* Block media fills its positioned block, same as the editor (the deck markup
-   uses reveal's lazy data-src iframes, which otherwise show at native size). */
-.deck-reveal.reveal .slide-block iframe,
-.deck-reveal.reveal .slide-block video {
-    width: 100%;
-    height: 100%;
-    border: 0;
-}
-.deck-reveal.reveal .slide-block img {
-    max-width: 100%;
-    max-height: 100%;
-}
-/* Mermaid: no override - use the same global `pre.mermaid svg { max-width:100%;
-   height:auto }` the editor uses, so the diagram renders at its natural size
-   (not stretched to the block width, which blew it up and clipped the boxes). */
-.deck-reveal.reveal .slide-block pre.mermaid {
-    margin: 0;
 }
