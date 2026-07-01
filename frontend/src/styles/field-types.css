@@ -91,6 +91,13 @@
     --field-type-slide-badge:  #9575cd;
     --field-type-slide-text:   #ffffff;
 
+    /* Slide set (decks) - the deck selector; a teal slot near the slide violet
+       but distinct, so a deck field reads apart from the canvas it groups. */
+    --field-type-slideset-bg:     #1f7a6d;
+    --field-type-slideset-border: #6fc9bb;
+    --field-type-slideset-badge:  #3fa595;
+    --field-type-slideset-text:   #ffffff;
+
     /* Range */
     --field-type-range-bg:     #3c3f77;
     --field-type-range-border: #7986cb;
@@ -369,6 +376,12 @@
     border-left-color: var(--field-type-slide-border);
     color: var(--field-type-slide-text);
     --field-row-badge-bg: var(--field-type-slide-badge);
+}
+.field-row[data-type="slideset"] {
+    background: var(--field-type-slideset-bg);
+    border-left-color: var(--field-type-slideset-border);
+    color: var(--field-type-slideset-text);
+    --field-row-badge-bg: var(--field-type-slideset-badge);
 }
 .field-row[data-type="range"] {
     background: var(--field-type-range-bg);

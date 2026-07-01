@@ -104,6 +104,23 @@ var fieldDescriptors = map[string]FieldDescriptor{
 			LockedColumns: []string{"value"},
 		},
 	},
+	"slideset": {
+		// A singleton deck selector: forced read-only key like slide/sequence, but
+		// with a free-form author-editable option list (value/label) whose entries
+		// ARE the decks. A record's value picks one deck; sequence ordering and
+		// reorder become per-deck. Requires a collection.
+		ID:                 "slideset",
+		RequiresCollection: true,
+		RequiresSlide:      true,
+		KeyReadonly:        true,
+		Abilities: Abilities{
+			Key: true, Type: true, Label: false, Description: false,
+			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
+			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			Readonly: false, Format: false, UseInStatistics: false,
+			FacetKey: false,
+		},
+	},
 	"date": {
 		ID: "date",
 		Abilities: Abilities{
@@ -306,7 +323,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 
 // orderedTypes is the stable iteration order so the frontend's "Type" dropdown is predictable.
 var orderedTypes = []string{
-	"text", "textarea", "mermaid", "number", "range", "sequence", "slide", "date",
+	"text", "textarea", "mermaid", "number", "range", "sequence", "slide", "slideset", "date",
 	"boolean", "dropdown", "multioption", "radio",
 	"file-path", "folder-path",
 	"list", "table", "image", "link", "tags",
@@ -326,6 +343,7 @@ var fieldTypeLabelKeys = map[string]string{
 	"range":       "workspace.templates.field_type.range",
 	"sequence":    "workspace.templates.field_type.sequence",
 	"slide":       "workspace.templates.field_type.slide",
+	"slideset":    "workspace.templates.field_type.slideset",
 	"date":        "workspace.templates.field_type.date",
 	"boolean":     "workspace.templates.field_type.boolean",
 	"dropdown":    "workspace.templates.field_type.dropdown",

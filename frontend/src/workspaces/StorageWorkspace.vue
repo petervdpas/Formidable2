@@ -23,6 +23,7 @@ import draggable from "vuedraggable";
 import StorageSearch from "../components/StorageSearch.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFacetFilter from "../components/StorageFacetFilter.vue";
+import StorageDeckFilter from "../components/StorageDeckFilter.vue";
 import StorageMetaBlock from "../components/StorageMetaBlock.vue";
 import StorageDataForm from "../components/StorageDataForm.vue";
 import Popup from "../components/Popup.vue";
@@ -44,7 +45,7 @@ import { useListKeyNav } from "../composables/useListKeyNav";
 import { setNavGuard } from "../composables/useNavGuard";
 import { usePDFActivation } from "../composables/usePDFActivation";
 import { Service as ExpressionSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/expression";
-import { Service as FormSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
+import { Service as FormSvc, DeckOption } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { Service as RenderSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { Service as StorageSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import { Service as SystemSvc } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/system";
@@ -347,6 +348,8 @@ async function refreshList() {
     summaries.value = await FormSvc.ListForms(selectedTemplate.value);
     if (presentationMode.value) {
       await applySequenceOrder();
+      await refreshDecks();
+      await refreshDeckOrder();
     }
     // Drop a stale `selected_data_file` if it doesn't exist in the
     // current template's storage. Without this, switching templates
@@ -396,13 +399,23 @@ async function onReorderChange(evt: {
 }) {
   const moved = evt.moved;
   if (!moved || !selectedTemplate.value) return;
+  // The backend reorders within the visible (possibly deck-scoped) file list.
   const files = visibleSummaries.value.map((s) => s.filename);
   const [m] = files.splice(moved.oldIndex, 1);
   files.splice(moved.newIndex, 0, m);
-  const byFile = new Map(summaries.value.map((s) => [s.filename, s] as const));
-  summaries.value = files
-    .map((f) => byFile.get(f))
-    .filter((s): s is FormSummary => !!s);
+  // Optimistic local update: move only the dragged record, keeping records that
+  // are outside the visible subset (e.g. other decks) in place.
+  const arr = [...summaries.value];
+  const from = arr.findIndex((s) => s.filename === moved.element.filename);
+  if (from >= 0) {
+    const [el] = arr.splice(from, 1);
+    const nextFile = files[files.indexOf(el.filename) + 1];
+    const to = nextFile
+      ? Math.max(0, arr.findIndex((s) => s.filename === nextFile))
+      : arr.length;
+    arr.splice(to < 0 ? arr.length : to, 0, el);
+    summaries.value = arr;
+  }
   try {
     await FormSvc.ReorderSequence(
       selectedTemplate.value,
@@ -420,7 +433,11 @@ async function onReorderChange(evt: {
 async function normalizeSequence() {
   if (!selectedTemplate.value) return;
   try {
-    await FormSvc.NormalizeSequence(selectedTemplate.value);
+    if (deckFilter.value) {
+      await FormSvc.NormalizeDeck(selectedTemplate.value, deckFilter.value);
+    } else {
+      await FormSvc.NormalizeSequence(selectedTemplate.value);
+    }
     await refreshList();
   } catch (e) {
     toast.error(backendErrMessage(e));
@@ -606,6 +623,42 @@ useListKeyNav({
 const facetFilters = ref<Record<string, string>>({});
 const tagFilter = ref("");
 
+// ── Deck scoping (multi-deck presentation templates) ────────────────
+// A slideset field declares decks; the list can scope to one deck, and
+// sequence/reorder are per-deck. decks is backend-owned (FormSvc.Decks);
+// deckFilter "" = all decks; deckOrder holds the selected deck's ordered files.
+const decks = ref<DeckOption[]>([]);
+const deckFilter = ref("");
+const deckOrder = ref<string[]>([]);
+const isMultiDeck = computed(() => decks.value.length > 0);
+
+async function refreshDecks() {
+  if (!selectedTemplate.value || !presentationMode.value) {
+    decks.value = [];
+    return;
+  }
+  try {
+    decks.value = (await FormSvc.Decks(selectedTemplate.value)) ?? [];
+  } catch {
+    decks.value = [];
+  }
+}
+
+async function refreshDeckOrder() {
+  if (!selectedTemplate.value || !deckFilter.value) {
+    deckOrder.value = [];
+    return;
+  }
+  try {
+    deckOrder.value =
+      (await FormSvc.DeckOrder(selectedTemplate.value, deckFilter.value)) ?? [];
+  } catch {
+    deckOrder.value = [];
+  }
+}
+
+watch(deckFilter, () => { void refreshDeckOrder(); });
+
 // ── Full-text search (opt-in via config.enable_full_text_search) ─────
 // When enabled, the sidebar grows a search box that queries the FTS
 // index for this collection. searchResults holds the backend's ranked
@@ -650,6 +703,9 @@ function clearSearch() {
 // collection shouldn't carry over.
 watch(selectedTemplate, () => {
   facetFilters.value = {};
+  deckFilter.value = "";
+  decks.value = [];
+  deckOrder.value = [];
   clearSearch();
 });
 
@@ -699,6 +755,18 @@ const baseSummaries = computed(() =>
 
 const visibleSummaries = computed(() => {
   let out = baseSummaries.value;
+  // Deck scoping: narrow to the selected deck's records, in that deck's
+  // per-deck sequence order (facet/tag filters below still refine on top).
+  if (deckFilter.value) {
+    const pos = new Map(deckOrder.value.map((f, i) => [f, i] as const));
+    out = out
+      .filter((s) => pos.has(s.filename))
+      .sort(
+        (a, b) =>
+          (pos.get(a.filename) ?? Number.MAX_SAFE_INTEGER) -
+          (pos.get(b.filename) ?? Number.MAX_SAFE_INTEGER),
+      );
+  }
   const active = Object.entries(facetFilters.value).filter(([, v]) => v !== "");
   if (active.length > 0) {
     out = out.filter((s) => {
@@ -1033,12 +1101,16 @@ const ioAllowed = computed(
 // only offered when nothing is filtering the list (a filtered subset would make
 // "the order" ambiguous); the list still renders in sequence order either way.
 const presentationMode = computed(() => !!activeTemplateObj.value?.presentation);
-const reorderEnabled = computed(
-  () =>
-    presentationMode.value &&
-    !hasActiveFilters.value &&
-    searchResults.value === null,
-);
+const reorderEnabled = computed(() => {
+  if (!presentationMode.value || searchResults.value !== null) return false;
+  // Multi-deck: ordering is per-deck, so a single deck must be selected (and no
+  // facet/tag filter narrowing it further). Single-deck: reorder whenever
+  // nothing is filtering the list, as before.
+  if (isMultiDeck.value) {
+    return !!deckFilter.value && !hasActiveFilters.value;
+  }
+  return !hasActiveFilters.value;
+});
 
 function openImport() {
   if (!selectedTemplate.value || !ioAllowed.value) return;
@@ -1346,6 +1418,10 @@ setTopbarMenu(() => [
 
         <div v-if="ftsEnabled" class="sidebar-section">
           <StorageSearch v-model="searchQuery" />
+        </div>
+
+        <div v-if="isMultiDeck" class="sidebar-toolbar">
+          <StorageDeckFilter v-model="deckFilter" :decks="decks" />
         </div>
 
         <div v-if="usedFacets.length > 0" class="sidebar-toolbar">

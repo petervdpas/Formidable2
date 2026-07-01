@@ -13,6 +13,35 @@ import * as storage$0 from "../storage/models.js";
 import * as template$0 from "../template/models.js";
 
 /**
+ * DeckOption is one authored deck: the slideset field's option value (stored on
+ * each record that belongs to the deck) plus its display label.
+ */
+export class DeckOption {
+    "value": string;
+    "label": string;
+
+    /** Creates a new DeckOption instance. */
+    constructor($$source: Partial<DeckOption> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeckOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DeckOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeckOption($$parsedSource as Partial<DeckOption>);
+    }
+}
+
+/**
  * FormView is the Vue-facing payload from BuildView and SaveValues.
  * Values is keyed by field.key; loop keys hold []map[string]any, one
  * entry per item with inner field values keyed inside.

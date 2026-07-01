@@ -106,6 +106,24 @@ func (s *Service) NormalizeSequence(templateName string) (ReorderResult, error) 
 	return s.m.NormalizeSequence(templateName)
 }
 
+// Decks returns the presentation template's authored decks (from the slideset
+// field's options), or empty for a single-deck template. See Manager.Decks.
+func (s *Service) Decks(templateName string) ([]DeckOption, error) {
+	return s.m.Decks(templateName)
+}
+
+// DeckOrder returns one deck's datafiles in per-deck sequence order, so the
+// studio list can render a single deck. See Manager.DeckOrder.
+func (s *Service) DeckOrder(templateName, deck string) ([]string, error) {
+	return s.m.DeckOrder(templateName, deck)
+}
+
+// NormalizeDeck re-spreads one deck to clean step spacing, independent of the
+// other decks. See Manager.NormalizeDeck.
+func (s *Service) NormalizeDeck(templateName, deck string) (ReorderResult, error) {
+	return s.m.NormalizeDeck(templateName, deck)
+}
+
 // EnsureFormDir creates the per-template storage folder. Vue calls
 // this on first list against a freshly-created template.
 func (s *Service) EnsureFormDir(templateName string) error {

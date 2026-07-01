@@ -35,6 +35,7 @@ export const SUPPORTED_OPTION_TYPES = new Set([
   "number",
   "range",
   "slide",
+  "slideset",
   "list",
   "table",
   // file-path uses options to declare allowed extension filters

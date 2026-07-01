@@ -193,6 +193,7 @@
   "workspace.templates.field_type.range": "Schuifregelaar",
   "workspace.templates.field_type.sequence": "Volgorde (sequence)",
   "workspace.templates.field_type.slide": "Dia (canvas)",
+  "workspace.templates.field_type.slideset": "Diaset",
   "workspace.templates.slide.canvas_width": "Canvasbreedte (px)",
   "workspace.templates.slide.canvas_height": "Canvashoogte (px)",
   "workspace.templates.slide.kind.text": "Tekst",

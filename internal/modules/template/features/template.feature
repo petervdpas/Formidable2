@@ -377,9 +377,10 @@ Feature: Template management
     And the registry contains "mermaid"
     And the registry contains "sequence"
     And the registry contains "slide"
+    And the registry contains "slideset"
     And the registry contains "formula"
     And the registry first id is "text"
-    And the registry size is 26
+    And the registry size is 27
 
   # ── Collapsible YAML round-trip ───────────────────────────────────
 

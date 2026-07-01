@@ -41,6 +41,7 @@ const DISPATCH: Record<string, Component> = {
   "folder-path": FormFieldFolderPath,
   boolean: FormFieldBoolean,
   dropdown: FormFieldDropdown,
+  slideset: FormFieldDropdown,
   textarea: FormFieldTextarea,
   mermaid: FormFieldMermaid,
   slide: FormFieldSlide,

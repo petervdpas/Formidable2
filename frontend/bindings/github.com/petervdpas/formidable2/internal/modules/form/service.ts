@@ -42,6 +42,26 @@ export function CopyForm(templateName: string, sourceDatafile: string, newDatafi
 }
 
 /**
+ * DeckOrder returns one deck's datafiles in per-deck sequence order, so the
+ * studio list can render a single deck. See Manager.DeckOrder.
+ */
+export function DeckOrder(templateName: string, deck: string): $CancellablePromise<string[]> {
+    return $Call.ByID(2836467807, templateName, deck).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * Decks returns the presentation template's authored decks (from the slideset
+ * field's options), or empty for a single-deck template. See Manager.Decks.
+ */
+export function Decks(templateName: string): $CancellablePromise<$models.DeckOption[]> {
+    return $Call.ByID(2385180218, templateName).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * DedupFieldValue fetches a list/table field from the saved record, removes
  * duplicates, and returns the result (no persistence). column is the table
  * column key whose value marks a duplicate row (empty = first column); ignored
@@ -75,7 +95,7 @@ export function EnsureFormDir(templateName: string): $CancellablePromise<void> {
  */
 export function ImportRelations(sourceTemplate: string, fieldKey: string, fromColumn: string, toColumn: string, headers: string[], rows: string[][]): $CancellablePromise<$models.ImportRelationResult> {
     return $Call.ByID(247265434, sourceTemplate, fieldKey, fromColumn, toColumn, headers, rows).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType5($result);
     });
 }
 
@@ -85,7 +105,17 @@ export function ImportRelations(sourceTemplate: string, fieldKey: string, fromCo
  */
 export function ListForms(templateName: string): $CancellablePromise<storage$0.FormSummary[]> {
     return $Call.ByID(1337737659, templateName).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType7($result);
+    });
+}
+
+/**
+ * NormalizeDeck re-spreads one deck to clean step spacing, independent of the
+ * other decks. See Manager.NormalizeDeck.
+ */
+export function NormalizeDeck(templateName: string, deck: string): $CancellablePromise<$models.ReorderResult> {
+    return $Call.ByID(1750829138, templateName, deck).then(($result: any) => {
+        return $$createType8($result);
     });
 }
 
@@ -95,7 +125,7 @@ export function ListForms(templateName: string): $CancellablePromise<storage$0.F
  */
 export function NormalizeSequence(templateName: string): $CancellablePromise<$models.ReorderResult> {
     return $Call.ByID(1224904886, templateName).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType8($result);
     });
 }
 
@@ -106,7 +136,7 @@ export function NormalizeSequence(templateName: string): $CancellablePromise<$mo
  */
 export function RelationFields(sourceTemplate: string): $CancellablePromise<$models.RelationField[]> {
     return $Call.ByID(336515629, sourceTemplate).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType10($result);
     });
 }
 
@@ -117,7 +147,7 @@ export function RelationFields(sourceTemplate: string): $CancellablePromise<$mod
  */
 export function ReorderSequence(templateName: string, movedDatafile: string, orderedDatafiles: string[]): $CancellablePromise<$models.ReorderResult> {
     return $Call.ByID(1423545710, templateName, movedDatafile, orderedDatafiles).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType8($result);
     });
 }
 
@@ -138,7 +168,7 @@ export function SaveValues(templateName: string, payload: $models.SavePayload): 
  */
 export function SequenceOrder(templateName: string): $CancellablePromise<string[]> {
     return $Call.ByID(1461479659, templateName).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType2($result);
     });
 }
 
@@ -159,7 +189,7 @@ export function SortFieldValue(templateName: string, datafile: string, fieldKey:
  */
 export function SyncRelationsForTemplate(template: string): $CancellablePromise<$models.ImportRelationResult> {
     return $Call.ByID(3884228353, template).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType5($result);
     });
 }
 
@@ -171,17 +201,19 @@ export function SyncRelationsForTemplate(template: string): $CancellablePromise<
  */
 export function SyncRelationsToField(template: string, fieldKey: string): $CancellablePromise<$models.ImportRelationResult> {
     return $Call.ByID(3579787831, template, fieldKey).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType5($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.FormView.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $models.ImportRelationResult.createFrom;
-const $$createType3 = storage$0.FormSummary.createFrom;
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $models.DeckOption.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $models.ReorderResult.createFrom;
-const $$createType6 = $models.RelationField.createFrom;
+const $$createType5 = $models.ImportRelationResult.createFrom;
+const $$createType6 = storage$0.FormSummary.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Array($Create.Any);
+const $$createType8 = $models.ReorderResult.createFrom;
+const $$createType9 = $models.RelationField.createFrom;
+const $$createType10 = $Create.Array($$createType9);

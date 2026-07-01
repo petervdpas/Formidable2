@@ -390,10 +390,14 @@ watch(
 
 const typeOptions = computed(() => {
   if (!draft.value) return [];
+  const hasSlideField = (props.availableFields ?? []).some(
+    (f) => f.type === "slide",
+  );
   let types = selectableTypes(
     draft.value.type || "text",
     props.isNew,
     props.enableCollection ?? false,
+    hasSlideField,
   );
   if (props.allowedTypes && props.allowedTypes.length > 0) {
     const allow = new Set(props.allowedTypes);
@@ -450,6 +454,9 @@ watch(
     }
     if (type === "slide") {
       draft.value.key = "slide";
+    }
+    if (type === "slideset") {
+      draft.value.key = "slideset";
     }
   },
 );

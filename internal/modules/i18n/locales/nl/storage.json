@@ -83,6 +83,7 @@
   "workspace.storage.slide.background": "Achtergrond",
   "workspace.storage.slide.transition": "Overgang",
   "workspace.storage.slide.notes": "Sprekersnotities",
+  "workspace.storage.deck.all": "Alle diasets",
   "workspace.storage.presentation.normalize": "Normaliseren",
   "workspace.storage.presentation.normalize_hint": "Herverdeel de diavolgorde gelijkmatig (10, 20, 30…).",
   "workspace.storage.search.placeholder": "Records zoeken…",

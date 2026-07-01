@@ -54,6 +54,15 @@ func Validate(t *Template) []ValidationError {
 	if e := singleSlideError(t.Fields); e != nil {
 		errs = append(errs, *e)
 	}
+	if e := slidesetCollectionError(t); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := slidesetSlideError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
+	if e := singleSlidesetError(t.Fields); e != nil {
+		errs = append(errs, *e)
+	}
 	if e := presentationSequenceError(t); e != nil {
 		errs = append(errs, *e)
 	}
@@ -81,6 +90,7 @@ var reservedKeys = map[string]string{
 	"id":       "guid",
 	"sequence": "sequence",
 	"slide":    "slide",
+	"slideset": "slideset",
 }
 
 // reservedKeyErrors flags a field using a reserved key but not the type that
@@ -804,6 +814,71 @@ func singleSlideError(fields []Field) *ValidationError {
 			Type:    "multiple-slide-fields",
 			Keys:    keys,
 			Message: fmt.Sprintf("Only one 'slide' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
+		}
+	}
+	return nil
+}
+
+// slidesetCollectionError flags a slideset field on a non-collection template.
+// Decks group a collection's records, so the field is meaningless without one
+// (same asymmetric gate as sequenceCollectionError).
+func slidesetCollectionError(t *Template) *ValidationError {
+	hasSlideset := false
+	for _, f := range t.Fields {
+		if f.Type == "slideset" {
+			hasSlideset = true
+			break
+		}
+	}
+	if !hasSlideset || t.EnableCollection {
+		return nil
+	}
+	return &ValidationError{
+		Type:    "slideset-needs-collection",
+		Message: "A `slideset` field needs `Enable Collection`. Enable collection mode or remove the slideset field.",
+	}
+}
+
+// slidesetSlideError flags a slideset field without a slide field. Decks group
+// slides, so the deck selector is meaningless unless the template has a slide
+// canvas. Asymmetric gate: no slideset field, no requirement.
+func slidesetSlideError(fields []Field) *ValidationError {
+	hasSlideset, hasSlide := false, false
+	for _, f := range fields {
+		switch f.Type {
+		case "slideset":
+			hasSlideset = true
+		case "slide":
+			hasSlide = true
+		}
+	}
+	if !hasSlideset || hasSlide {
+		return nil
+	}
+	return &ValidationError{
+		Type:    "slideset-needs-slide",
+		Message: "A `slideset` field needs a `slide` field to group into decks. Add a slide field or remove the slideset field.",
+	}
+}
+
+// singleSlidesetError flags more than one slideset field; a template has one
+// deck selector, so two would make "which deck" ambiguous.
+func singleSlidesetError(fields []Field) *ValidationError {
+	var keys []string
+	for _, f := range fields {
+		if f.Type == "slideset" {
+			k := f.Key
+			if k == "" {
+				k = "(no key)"
+			}
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) > 1 {
+		return &ValidationError{
+			Type:    "multiple-slideset-fields",
+			Keys:    keys,
+			Message: fmt.Sprintf("Only one 'slideset' field is allowed per template (found: %s)", strings.Join(keys, ", ")),
 		}
 	}
 	return nil

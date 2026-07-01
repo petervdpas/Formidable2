@@ -83,6 +83,7 @@
   "workspace.storage.slide.background": "Background",
   "workspace.storage.slide.transition": "Transition",
   "workspace.storage.slide.notes": "Speaker notes",
+  "workspace.storage.deck.all": "All decks",
   "workspace.storage.presentation.normalize": "Normalize",
   "workspace.storage.presentation.normalize_hint": "Re-space the slide order evenly (10, 20, 30…).",
   "workspace.storage.search.placeholder": "Search records…",

@@ -193,6 +193,7 @@
   "workspace.templates.field_type.range": "Range Slider",
   "workspace.templates.field_type.sequence": "Sequence (order)",
   "workspace.templates.field_type.slide": "Slide (canvas)",
+  "workspace.templates.field_type.slideset": "Slide set (decks)",
   "workspace.templates.slide.canvas_width": "Canvas width (px)",
   "workspace.templates.slide.canvas_height": "Canvas height (px)",
   "workspace.templates.slide.kind.text": "Text",

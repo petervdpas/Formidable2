@@ -53,6 +53,10 @@ func Normalize(t *Template) {
 		if t.Fields[i].Type == "slide" {
 			t.Fields[i].Key = "slide"
 		}
+		// A slideset is the deck selector singleton: one per template, forced key.
+		if t.Fields[i].Type == "slideset" {
+			t.Fields[i].Key = "slideset"
+		}
 		stripDisabledAttributes(&t.Fields[i])
 	}
 }

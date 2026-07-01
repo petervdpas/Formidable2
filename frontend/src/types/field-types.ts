@@ -38,6 +38,10 @@ export interface FieldTypeDef {
    *  means something on a collection, so the Type dropdown hides it until
    *  Enable Collection is on. Currently just `sequence`. */
   requiresCollection?: boolean;
+  /** Backend-owned (FieldDescriptor.RequiresSlide): the type needs a slide
+   *  field on the template, so the Type dropdown hides it until one exists.
+   *  Currently just `slideset` (decks group slides). */
+  requiresSlide?: boolean;
 }
 
 const registry: Ref<FieldTypeDef[]> = ref([]);
@@ -64,6 +68,8 @@ async function load(): Promise<void> {
     // the value through at runtime today.
     requiresCollection:
       (d as { requires_collection?: boolean }).requires_collection === true,
+    requiresSlide:
+      (d as { requires_slide?: boolean }).requires_slide === true,
     abilities: d.abilities,
   }));
 }
@@ -135,6 +141,7 @@ export function selectableTypes(
   currentType: string,
   isNew = false,
   enableCollection = false,
+  hasSlideField = false,
 ): FieldTypeDef[] {
   return registry.value.filter((t) => {
     if (t.id === "loopstart" || t.id === "loopstop") {
@@ -144,6 +151,11 @@ export function selectableTypes(
       return isNew;
     }
     if (t.requiresCollection && !enableCollection) {
+      return t.id === currentType;
+    }
+    // A slideset needs a slide field on the template (decks group slides), so
+    // hide it until one exists - except when the field already is that type.
+    if (t.requiresSlide && !hasSlideField) {
       return t.id === currentType;
     }
     return true;
