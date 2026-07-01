@@ -36,10 +36,23 @@ const tabItems = computed<TabItem[]>(() => [
 ]);
 
 const status = computed(() => {
-  const first = value.value.split("\n").find((l) => l.trim()) ?? "";
-  const trimmed = first.trim();
-  if (!trimmed) return "";
-  return trimmed.length > 60 ? `${trimmed.slice(0, 60)}…` : trimmed;
+  const lines = value.value.split("\n").map((l) => l.trim());
+  let body = lines;
+  // Skip a leading YAML frontmatter block (--- … ---); prefer its title so the
+  // status reads "Animal example" instead of the bare "---" delimiter.
+  if (lines[0] === "---") {
+    const end = lines.indexOf("---", 1);
+    if (end > 0) {
+      const titleLine = lines.slice(1, end).find((l) => l.startsWith("title:"));
+      if (titleLine) {
+        const title = titleLine.slice("title:".length).trim().replace(/^["']|["']$/g, "");
+        if (title) return title.length > 60 ? `${title.slice(0, 60)}…` : title;
+      }
+      body = lines.slice(end + 1);
+    }
+  }
+  const first = body.find((l) => l) ?? "";
+  return first.length > 60 ? `${first.slice(0, 60)}…` : first;
 });
 const modalTitle = computed(
   () => props.field.label || t("workspace.storage.field.mermaid.title"),

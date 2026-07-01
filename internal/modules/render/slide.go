@@ -137,7 +137,9 @@ func emitSlideBlock(kind string, content any, lang string, opts *Options) string
 		if src == "" {
 			return ""
 		}
-		return `\[` + src + `\]` // reveal's math plugin renders this
+		// A hydratable block (mirrors pre.mermaid): the frontend renders the
+		// LaTeX with KaTeX. Raw HTML survives goldmark (WithUnsafe) verbatim.
+		return `<pre class="katex-math">` + html.EscapeString(src) + `</pre>`
 	case "video":
 		url := strings.TrimSpace(stringify(content))
 		if url == "" {

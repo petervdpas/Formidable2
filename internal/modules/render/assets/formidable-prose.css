@@ -74,6 +74,18 @@
 }
 .formidable-prose pre.hljs-chroma code { background: transparent; padding: 0; }
 
+/* Math block: KaTeX renders into this <pre>, so drop the code-block chrome and
+   let it lay out as centred math (editor, deck, and HTML export all share it). */
+.formidable-prose pre.katex-math {
+    background: none;
+    border: none;
+    margin: 0;
+    padding: 0;
+    white-space: normal;
+    text-align: center;
+    font-family: inherit;
+}
+
 /* Chroma "github" style token colors. Generated once via
    chroma's WriteCSS - keep in lock-step with html.go's
    highlighting.WithStyle("github"). The same rules are also

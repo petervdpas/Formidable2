@@ -49,7 +49,10 @@ watch(
   <Modal
     :open="open"
     :title="t('workspace.storage.deck.preview.title')"
+    width="900px"
+    :dialog-style="{ height: '80vh' }"
     maximizable="full"
+    fill
     :close-on-esc="true"
     @close="emit('close')"
   >

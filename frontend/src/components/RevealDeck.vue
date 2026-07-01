@@ -8,6 +8,7 @@ import { ref, watch, nextTick, onBeforeUnmount, computed } from "vue";
 import Reveal from "reveal.js";
 import "reveal.js/reveal.css";
 import { useTheme } from "../composables/useTheme";
+import { hydrateKatex } from "../utils/mathHydrate";
 
 const props = withDefaults(
   defineProps<{ html: string; width?: number; height?: number }>(),
@@ -42,6 +43,12 @@ function relayout() {
       /* not initialised yet */
     }
   });
+}
+
+async function hydrateSlide(scope?: HTMLElement | null) {
+  const el = scope ?? (deck?.getCurrentSlide?.() as HTMLElement | undefined) ?? revealEl.value;
+  await hydrateKatex(el);
+  await hydrateMermaid(el);
 }
 
 async function hydrateMermaid(scope?: HTMLElement | null) {
@@ -99,9 +106,9 @@ async function initReveal() {
     keyboardCondition: "focused",
   });
   await deck.initialize();
-  await hydrateMermaid();
+  await hydrateSlide();
   deck.on("slidechanged", (ev) => {
-    void hydrateMermaid((ev as { currentSlide?: HTMLElement }).currentSlide).then(relayout);
+    void hydrateSlide((ev as { currentSlide?: HTMLElement }).currentSlide).then(relayout);
   });
   ro = new ResizeObserver(relayout);
   ro.observe(revealEl.value);

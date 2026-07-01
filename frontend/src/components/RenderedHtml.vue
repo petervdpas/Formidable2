@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onBeforeUnmount } from "vue";
 import { useTheme } from "../composables/useTheme";
+import { hydrateKatex } from "../utils/mathHydrate";
 
 // Renders backend-produced HTML and hydrates any `<pre class="mermaid">`
 // blocks (emitted by the goldmark client-mode extension) into diagrams.
@@ -50,7 +51,10 @@ async function hydrate() {
 watch(
   () => [props.html, theme.value],
   () => {
-    void nextTick(hydrate);
+    void nextTick(() => {
+      void hydrate();
+      void hydrateKatex(root.value);
+    });
   },
   { immediate: true },
 );
