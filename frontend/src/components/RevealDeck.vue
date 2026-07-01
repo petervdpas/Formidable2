@@ -9,6 +9,7 @@ import Reveal from "reveal.js";
 import "reveal.js/reveal.css";
 import { useTheme } from "../composables/useTheme";
 import { hydrateKatex } from "../utils/mathHydrate";
+import { hydrateMermaid } from "../utils/mermaidHydrate";
 
 const props = withDefaults(
   defineProps<{ html: string; width?: number; height?: number }>(),
@@ -26,14 +27,6 @@ let deck: InstanceType<typeof Reveal> | null = null;
 let ro: ResizeObserver | null = null;
 let rafId = 0;
 
-// Mermaid blocks arrive as static `<pre class="mermaid">`; hydrate lazily.
-type MermaidAPI = (typeof import("mermaid"))["default"];
-let mermaidPromise: Promise<MermaidAPI> | null = null;
-function loadMermaid() {
-  if (!mermaidPromise) mermaidPromise = import("mermaid").then((m) => m.default);
-  return mermaidPromise;
-}
-
 function relayout() {
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(() => {
@@ -46,44 +39,11 @@ function relayout() {
 }
 
 async function hydrateSlide(scope?: HTMLElement | null) {
-  const el = scope ?? (deck?.getCurrentSlide?.() as HTMLElement | undefined) ?? revealEl.value;
-  await hydrateKatex(el);
-  await hydrateMermaid(el);
-}
-
-let mermaidSeq = 0;
-async function hydrateMermaid(scope?: HTMLElement | null) {
   // Only the visible slide can be measured; a mermaid block on a display:none
   // slide renders broken, so hydrate per-slide as each becomes current.
   const el = scope ?? (deck?.getCurrentSlide?.() as HTMLElement | undefined) ?? revealEl.value;
-  if (!el) return;
-  const nodes = Array.from(el.querySelectorAll<HTMLElement>(".mermaid"));
-  if (nodes.length === 0) return;
-  const mermaid = await loadMermaid();
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "strict",
-    theme: theme.value === "light" ? "default" : "dark",
-  });
-  // Use render(), NOT run(): render() builds the SVG in mermaid's own
-  // body-attached container (a clean, untransformed context), so text is
-  // measured correctly. run() renders in place inside reveal's scaled +
-  // perspective-transformed .slides, where getBBox mis-measures and node text
-  // clips. Inject the finished, self-contained SVG into the block.
-  for (const n of nodes) {
-    if (n.getAttribute("data-processed")) continue;
-    if (n.dataset.mmsrc === undefined) n.dataset.mmsrc = n.textContent ?? "";
-    const src = n.dataset.mmsrc;
-    n.setAttribute("data-processed", "true");
-    try {
-      const out = await mermaid.render(`fmd-mermaid-${mermaidSeq++}`, src);
-      n.innerHTML = out.svg;
-      out.bindFunctions?.(n);
-    } catch {
-      n.removeAttribute("data-processed");
-      n.textContent = src; // parse error: keep source
-    }
-  }
+  await hydrateKatex(el);
+  await hydrateMermaid(el, theme.value === "light" ? "default" : "dark");
 }
 
 function destroyReveal() {

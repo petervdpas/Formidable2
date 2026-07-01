@@ -38,12 +38,14 @@
     }
   }
 
-  // Hydrate mermaid on the CURRENT slide only (a diagram on a display:none slide
-  // can't be measured). Use mermaid.render(), NOT run(): render() builds the SVG
-  // in mermaid's own body-attached container - a clean, untransformed context -
-  // so text is measured correctly. run() renders in place, inside reveal's scaled
-  // + perspective-transformed .slides, where getBBox mis-measures and node text
-  // clips. We then inject the finished, self-contained SVG into the block.
+  // Mirror of frontend/src/utils/mermaidHydrate.ts (kept in lock-step; the wiki is
+  // a separate plain-JS runtime so it can't import the TS module). Two isolation
+  // guarantees: (1) mermaid.render() builds each diagram in a clean off-DOM
+  // container so text is measured right regardless of reveal's scaled/perspective
+  // slide; (2) the produced SVG is pinned to mermaid's own font ON THE SVG, so no
+  // host CSS (formidable-prose, a video block on the same slide) can shift the
+  // text off its measured boxes.
+  var MERMAID_FONT = '"trebuchet ms", verdana, arial, sans-serif';
   var mermaidSeq = 0;
   function hydrateMermaid(scope) {
     if (!scope) return;
@@ -55,23 +57,28 @@
       m.initialize({ startOnLoad: false, securityLevel: "strict", theme: "default" });
       mermaidReady = true;
     }
-    for (var i = 0; i < nodes.length; i++) {
-      (function (n) {
-        if (n.getAttribute("data-processed")) return;
-        if (n.dataset.mmsrc === undefined) n.dataset.mmsrc = n.textContent || "";
-        var src = n.dataset.mmsrc;
-        n.setAttribute("data-processed", "true");
-        m.render("fmd-mermaid-" + mermaidSeq++, src)
-          .then(function (out) {
-            n.innerHTML = out.svg;
-            if (out.bindFunctions) out.bindFunctions(n);
-          })
-          .catch(function () {
-            n.removeAttribute("data-processed");
-            n.textContent = src; // parse error: keep source
-          });
-      })(nodes[i]);
-    }
+    var fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    fontsReady.then(function () {
+      for (var i = 0; i < nodes.length; i++) {
+        (function (n) {
+          if (n.getAttribute("data-processed")) return;
+          if (n.dataset.mmsrc === undefined) n.dataset.mmsrc = n.textContent || "";
+          var src = n.dataset.mmsrc;
+          n.setAttribute("data-processed", "true");
+          m.render("fmd-mermaid-" + mermaidSeq++, src)
+            .then(function (out) {
+              n.innerHTML = out.svg;
+              var svg = n.querySelector("svg");
+              if (svg) svg.style.setProperty("--mermaid-font-family", MERMAID_FONT);
+              if (out.bindFunctions) out.bindFunctions(n);
+            })
+            .catch(function () {
+              n.removeAttribute("data-processed");
+              n.textContent = src; // parse error: keep source
+            });
+        })(nodes[i]);
+      }
+    });
   }
 
   function hydrate(scope) {
