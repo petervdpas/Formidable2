@@ -2,14 +2,20 @@
    neutral backdrop (each slide carries its own authored background). */
 .deck-preview {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     height: 100%;
-    min-height: 0;
-}
-.deck-reveal.reveal {
-    flex: 1;
     min-height: 480px;
-    height: 100%;
+    background: #1b1b1f;
+}
+/* The stage is constrained to the canvas aspect (set inline from the slide
+   dimensions), so reveal fills it edge-to-edge - the slide maps 1:1 like the
+   editor instead of being pillarboxed. Letterbox space (if the dialog is a
+   different shape) is the dark backdrop, not slide margin. */
+.deck-reveal.reveal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100%;
     background: #1b1b1f;
     border-radius: var(--radius-md, 6px);
 }
@@ -20,15 +26,44 @@
     text-align: left;
 }
 /* Our slide value is a fixed-size positioned canvas, so each reveal section must
-   fill the slide from the top-left: neutralise reveal's vertical-centering top
-   offset and default section padding so the canvas maps 1:1 (matching the
-   editor). */
+   sit at the slide's top-left: neutralise reveal's vertical-centering top offset
+   and default section padding so the canvas maps 1:1 (matching the editor).
+   Do NOT force the section height - reveal sizes it to the slide (1280x720) and
+   scales the whole thing to fit; overriding the height breaks that fit. */
 .deck-reveal.reveal .slides > section {
     top: 0 !important;
-    height: 100% !important;
     padding: 0 !important;
-    box-sizing: border-box;
 }
 .deck-reveal.reveal .slide-canvas {
+    margin: 0;
+}
+/* formidable-prose paints a light page background + gives the canvas a 1em
+   margin and a 1px border (its lines are the top/bottom "lines"). In the deck
+   reveal owns the per-slide background, and the canvas must fill the slide
+   top-left for true WYSIWYG, so strip all three. */
+.deck-reveal.reveal .slides.formidable-prose {
+    background: transparent !important;
+}
+.deck-reveal.reveal .formidable-prose .slide-canvas {
+    background: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+}
+/* Block media fills its positioned block, same as the editor (the deck markup
+   uses reveal's lazy data-src iframes, which otherwise show at native size). */
+.deck-reveal.reveal .slide-block iframe,
+.deck-reveal.reveal .slide-block video {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.deck-reveal.reveal .slide-block img {
+    max-width: 100%;
+    max-height: 100%;
+}
+/* Mermaid: no override - use the same global `pre.mermaid svg { max-width:100%;
+   height:auto }` the editor uses, so the diagram renders at its natural size
+   (not stretched to the block width, which blew it up and clipped the boxes). */
+.deck-reveal.reveal .slide-block pre.mermaid {
     margin: 0;
 }
