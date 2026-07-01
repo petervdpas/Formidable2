@@ -115,10 +115,12 @@
     max-width: none;
     padding: 4px 6px;
     margin: 0;
-    /* Slide-scale base type: text should read as a slide, not a document. Per-
-       block style (font-size, color, align) overrides this inline. */
+    /* Slide-scale base type on a white slide, so text defaults to black (not the
+       app theme's text color). Per-block style (font-size, color, align)
+       overrides this inline. */
     font-size: 40px;
     line-height: 1.2;
+    color: #111;
 }
 .slide-block-box-dim {
     position: absolute;
@@ -248,8 +250,18 @@
     font-family: inherit;
     font-size: 40px;
     line-height: 1.2;
+    color: #111;
     pointer-events: auto;
     z-index: 2;
+}
+.slide-prop-text {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 120px;
+    resize: vertical;
+}
+.slide-prop-text.is-mono {
+    font-family: var(--font-mono, monospace);
 }
 
 /* Per-element style controls */

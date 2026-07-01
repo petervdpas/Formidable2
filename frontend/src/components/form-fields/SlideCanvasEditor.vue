@@ -292,14 +292,20 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               placeholder="https://…" :value="String(selected.content ?? '')"
               @input="setContent(($event.target as HTMLInputElement).value)"
             />
-            <input
-              v-else-if="selected.kind === 'code'" type="text" class="slide-lang-input"
-              :placeholder="t('workspace.storage.slide.code_lang')" :value="selected.lang ?? ''"
-              @input="selected.lang = ($event.target as HTMLInputElement).value; commit()"
-            />
-            <p v-if="INLINE_TEXT_KINDS.has(selected.kind)" class="muted small">
-              {{ t('workspace.storage.slide.edit_inline') }}
-            </p>
+            <template v-else-if="INLINE_TEXT_KINDS.has(selected.kind)">
+              <input
+                v-if="selected.kind === 'code'" type="text" class="slide-lang-input"
+                :placeholder="t('workspace.storage.slide.code_lang')" :value="selected.lang ?? ''"
+                @input="selected.lang = ($event.target as HTMLInputElement).value; commit()"
+              />
+              <textarea
+                class="slide-prop-text" rows="6"
+                :class="{ 'is-mono': selected.kind === 'code' }"
+                :value="String(selected.content ?? '')"
+                @input="setContent(($event.target as HTMLTextAreaElement).value)"
+              ></textarea>
+              <p class="muted small">{{ t('workspace.storage.slide.edit_inline') }}</p>
+            </template>
           </div>
 
           <!-- per-element style, stored in the block -->
