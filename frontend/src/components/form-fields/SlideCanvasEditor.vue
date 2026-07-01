@@ -10,6 +10,7 @@ import {
   parseSlideDoc,
   newBlock,
   fieldForBlock,
+  INLINE_TEXT_KINDS,
   SLIDE_CANVAS_W,
   SLIDE_CANVAS_H,
   type SlideBlock,
@@ -28,26 +29,16 @@ const templateFilename = inject<ComputedRef<string>>(
   computed(() => ""),
 );
 
-// ── reveal vocabulary ─────────────────────────────────────────────────
 const KIND_ICON: Record<string, string> = {
-  text: "fa-paragraph",
-  image: "fa-image",
-  video: "fa-video",
-  embed: "fa-window-maximize",
-  code: "fa-code",
-  math: "fa-square-root-variable",
-  table: "fa-table",
-  list: "fa-list-ul",
-  quote: "fa-quote-right",
-  mermaid: "fa-diagram-project",
+  text: "fa-paragraph", image: "fa-image", video: "fa-video",
+  embed: "fa-window-maximize", code: "fa-code", math: "fa-square-root-variable",
+  table: "fa-table", list: "fa-list-ul", quote: "fa-quote-right", mermaid: "fa-diagram-project",
 };
 const iconFor = (kind: string) => KIND_ICON[kind] ?? "fa-square";
-// Reveal fragment animations (empty = the element is always shown).
 const FRAGMENT_OPTIONS = [
   "", "fade-in", "fade-up", "fade-down", "fade-left", "fade-right",
   "grow", "shrink", "strike", "highlight-red", "highlight-green", "highlight-blue",
 ];
-// Reveal per-slide transitions.
 const TRANSITION_OPTIONS = ["", "none", "fade", "slide", "convex", "concave", "zoom"];
 const URL_KINDS = new Set(["video", "embed"]);
 
@@ -58,6 +49,7 @@ const background = ref(parsed.background ?? "");
 const transition = ref(parsed.transition ?? "");
 const notes = ref(parsed.notes ?? "");
 const selectedId = ref<string | null>(null);
+const editingId = ref<string | null>(null); // block being edited inline on the canvas
 
 const blockHtml = ref<Record<string, string>>({});
 const renderTimers: Record<string, ReturnType<typeof setTimeout>> = {};
@@ -66,16 +58,13 @@ function renderBlock(b: SlideBlock) {
   clearTimeout(renderTimers[b.id]);
   renderTimers[b.id] = setTimeout(async () => {
     blockHtml.value[b.id] = await RenderSvc.RenderSlideBlockHTML(
-      templateFilename.value,
-      b.kind,
-      b.content,
+      templateFilename.value, b.kind, b.content,
     );
   }, 150);
 }
 function renderAll() {
   for (const b of blocks.value) renderBlock(b);
 }
-
 onMounted(() => {
   void ensureSlideBlockKindsLoaded();
   renderAll();
@@ -97,9 +86,7 @@ watch(
 );
 
 function commit() {
-  const doc: Record<string, unknown> = {
-    blocks: JSON.parse(JSON.stringify(blocks.value)),
-  };
+  const doc: Record<string, unknown> = { blocks: JSON.parse(JSON.stringify(blocks.value)) };
   if (background.value) doc.background = background.value;
   if (transition.value) doc.transition = transition.value;
   if (notes.value) doc.notes = notes.value;
@@ -108,19 +95,20 @@ function commit() {
 
 // ── palette ───────────────────────────────────────────────────────────
 const kinds = computed(() => slideBlockKinds());
-const labelFor = (kind: string) =>
-  t(kinds.value.find((k) => k.name === kind)?.label_key ?? kind);
+const labelFor = (kind: string) => t(kinds.value.find((k) => k.name === kind)?.label_key ?? kind);
 
 function addBlock(kind: string) {
   const b = newBlock(kind, blocks.value.length);
   blocks.value.push(b);
   selectedId.value = b.id;
+  if (INLINE_TEXT_KINDS.has(kind)) editingId.value = b.id;
   renderBlock(b);
   commit();
 }
 function removeSelected() {
   blocks.value = blocks.value.filter((b) => b.id !== selectedId.value);
   selectedId.value = null;
+  editingId.value = null;
   commit();
 }
 
@@ -133,6 +121,35 @@ function setContent(v: unknown) {
     renderBlock(selected.value);
     commit();
   }
+}
+// inline typing on the canvas
+function setInline(b: SlideBlock, v: string) {
+  b.content = v;
+  renderBlock(b);
+  commit();
+}
+function startEdit(b: SlideBlock) {
+  if (!INLINE_TEXT_KINDS.has(b.kind)) return;
+  selectedId.value = b.id;
+  editingId.value = b.id;
+}
+
+// ── per-element style (stored in the blob, applied inline) ──────────────
+function styleVal(prop: string): string {
+  return selected.value?.style?.[prop] ?? "";
+}
+function setStyle(prop: string, val: string) {
+  if (!selected.value) return;
+  const s = { ...(selected.value.style ?? {}) };
+  if (val) s[prop] = val;
+  else delete s[prop];
+  selected.value.style = s;
+  commit();
+}
+const fontSize = computed(() => parseInt(styleVal("font-size"), 10) || 40);
+const isBold = computed(() => styleVal("font-weight") === "bold");
+function blockContentStyle(b: SlideBlock) {
+  return (b.style ?? {}) as Record<string, string>;
 }
 
 // ── stage scaling ─────────────────────────────────────────────────────
@@ -163,7 +180,7 @@ function blockStyle(b: SlideBlock) {
 
 // ── drag / resize ─────────────────────────────────────────────────────
 function startDrag(b: SlideBlock, e: PointerEvent) {
-  if (e.button !== 0) return;
+  if (e.button !== 0 || editingId.value === b.id) return;
   selectedId.value = b.id;
   const sx = b.x, sy = b.y, px = e.clientX, py = e.clientY;
   const el = e.currentTarget as HTMLElement;
@@ -208,12 +225,8 @@ function startResize(b: SlideBlock, e: PointerEvent) {
       <div class="slide-toolrail">
         <span class="slide-toolrail-label">{{ t('workspace.storage.slide.add') }}</span>
         <button
-          v-for="k in kinds"
-          :key="k.name"
-          type="button"
-          class="slide-tool"
-          :title="t(k.label_key)"
-          @click="addBlock(k.name)"
+          v-for="k in kinds" :key="k.name" type="button" class="slide-tool"
+          :title="t(k.label_key)" @click="addBlock(k.name)"
         >
           <i class="fa-solid" :class="iconFor(k.name)" aria-hidden="true"></i>
           <span>{{ t(k.label_key) }}</span>
@@ -222,16 +235,27 @@ function startResize(b: SlideBlock, e: PointerEvent) {
 
       <div ref="stageWrap" class="slide-stage-wrap">
         <div class="slide-stage-spacer" :style="wrapSpacerStyle">
-          <div class="slide-stage" :style="stageStyle">
+          <div class="slide-stage" :style="stageStyle" @pointerdown.self="selectedId = null; editingId = null">
             <div
-              v-for="b in blocks"
-              :key="b.id"
+              v-for="b in blocks" :key="b.id"
               class="slide-block-box"
-              :class="{ selected: b.id === selectedId }"
+              :class="{ selected: b.id === selectedId, editing: b.id === editingId }"
               :style="blockStyle(b)"
               @pointerdown="startDrag(b, $event)"
+              @dblclick="startEdit(b)"
             >
-              <div class="slide-block-box-content formidable-prose">
+              <textarea
+                v-if="b.id === editingId"
+                class="slide-inline-edit"
+                :style="blockContentStyle(b)"
+                :value="String(b.content ?? '')"
+                :ref="(el) => { if (el) (el as HTMLTextAreaElement).focus(); }"
+                @input="setInline(b, ($event.target as HTMLTextAreaElement).value)"
+                @blur="editingId = null"
+                @pointerdown.stop
+                @dblclick.stop
+              ></textarea>
+              <div v-else class="slide-block-box-content formidable-prose" :style="blockContentStyle(b)">
                 <RenderedHtml :html="blockHtml[b.id] ?? ''" />
               </div>
               <span v-if="b.fragment" class="slide-block-box-frag">{{ b.fragment }}</span>
@@ -255,36 +279,43 @@ function startResize(b: SlideBlock, e: PointerEvent) {
             <label>H<input type="number" v-model.number="selected.h" @change="commit" /></label>
           </div>
 
+          <!-- content: specialised editors for structured kinds; text-like kinds
+               are typed inline on the canvas (double-click). -->
           <div class="slide-inspector-content">
             <FormFieldRenderer
               v-if="selectedField"
-              :field="selectedField"
-              :model-value="selected.content"
+              :field="selectedField" :model-value="selected.content"
               @update:model-value="setContent"
             />
             <input
-              v-else-if="URL_KINDS.has(selected.kind)"
-              type="text"
-              class="slide-url-input"
-              :placeholder="'https://…'"
-              :value="String(selected.content ?? '')"
+              v-else-if="URL_KINDS.has(selected.kind)" type="text" class="slide-url-input"
+              placeholder="https://…" :value="String(selected.content ?? '')"
               @input="setContent(($event.target as HTMLInputElement).value)"
             />
-            <template v-else-if="selected.kind === 'code'">
-              <input
-                type="text"
-                class="slide-lang-input"
-                :placeholder="t('workspace.storage.slide.code_lang')"
-                :value="selected.lang ?? ''"
-                @input="selected.lang = ($event.target as HTMLInputElement).value; commit()"
-              />
-              <textarea
-                class="slide-code-input"
-                rows="8"
-                :value="String(selected.content ?? '')"
-                @input="setContent(($event.target as HTMLTextAreaElement).value)"
-              ></textarea>
-            </template>
+            <input
+              v-else-if="selected.kind === 'code'" type="text" class="slide-lang-input"
+              :placeholder="t('workspace.storage.slide.code_lang')" :value="selected.lang ?? ''"
+              @input="selected.lang = ($event.target as HTMLInputElement).value; commit()"
+            />
+            <p v-if="INLINE_TEXT_KINDS.has(selected.kind)" class="muted small">
+              {{ t('workspace.storage.slide.edit_inline') }}
+            </p>
+          </div>
+
+          <!-- per-element style, stored in the block -->
+          <div class="slide-style-grid">
+            <label>{{ t('workspace.storage.slide.font_size') }}
+              <input type="number" min="8" :value="fontSize" @input="setStyle('font-size', (($event.target as HTMLInputElement).value || '40') + 'px')" />
+            </label>
+            <label>{{ t('workspace.storage.slide.color') }}
+              <input type="color" :value="styleVal('color') || '#000000'" @input="setStyle('color', ($event.target as HTMLInputElement).value)" />
+            </label>
+            <div class="slide-style-align">
+              <button type="button" :class="{ active: styleVal('text-align') === 'left' }" @click="setStyle('text-align', 'left')"><i class="fa-solid fa-align-left"></i></button>
+              <button type="button" :class="{ active: styleVal('text-align') === 'center' }" @click="setStyle('text-align', 'center')"><i class="fa-solid fa-align-center"></i></button>
+              <button type="button" :class="{ active: styleVal('text-align') === 'right' }" @click="setStyle('text-align', 'right')"><i class="fa-solid fa-align-right"></i></button>
+              <button type="button" :class="{ active: isBold }" @click="setStyle('font-weight', isBold ? '' : 'bold')"><i class="fa-solid fa-bold"></i></button>
+            </div>
           </div>
 
           <label class="slide-inspector-row">
@@ -301,7 +332,6 @@ function startResize(b: SlideBlock, e: PointerEvent) {
         <p v-else class="muted small">{{ t('workspace.storage.slide.no_selection') }}</p>
 
         <hr class="slide-inspector-sep" />
-
         <div class="slide-inspector-head">{{ t('workspace.storage.slide.slide_settings') }}</div>
         <label class="slide-inspector-row">
           {{ t('workspace.storage.slide.background') }}

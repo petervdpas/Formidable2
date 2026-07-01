@@ -33,6 +33,21 @@ func TestSlideFieldDescriptor_IsSingletonWithDeckOptions(t *testing.T) {
 	}
 }
 
+func TestSlideBlock_InlineStyle(t *testing.T) {
+	b := SlideBlock{Style: map[string]string{
+		"font-size": "48px", "color": "#c00", "text-align": "center",
+		"evil": "expression(x)", // not allowlisted -> dropped
+	}}
+	got := b.InlineStyle()
+	want := "font-size:48px;color:#c00;text-align:center;"
+	if got != want {
+		t.Errorf("InlineStyle = %q, want %q", got, want)
+	}
+	if (SlideBlock{}).InlineStyle() != "" {
+		t.Errorf("no style should render empty")
+	}
+}
+
 func TestSlideCanvasSize_DefaultsAndCustom(t *testing.T) {
 	// No options -> the fixed 1280x720 default.
 	if w, h := SlideCanvasSize(Field{Type: "slide"}); w != 1280 || h != 720 {

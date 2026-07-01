@@ -20,6 +20,7 @@ export interface SlideBlock {
   h: number;
   fragment?: string; // reveal fragment animation ("" / undefined = none)
   lang?: string; // code block language
+  style?: Record<string, string>; // per-element inline CSS (font-size, color, …)
 }
 
 export interface SlideDoc {
@@ -121,17 +122,18 @@ function tableColumns(content: unknown): unknown[] {
 }
 
 // Reveal element kinds whose content is edited by an existing field component
-// (the genuine reuse: a table IS a table). The rest (video, embed, code) get
-// bespoke inspector editors and return null here.
+// (the genuine reuse: a table IS a table). Text-like kinds (text/quote/math/
+// code) are edited inline on the canvas; video/embed use a URL input.
 const KIND_FIELD_TYPE: Record<string, string> = {
-  text: "textarea",
-  quote: "textarea",
-  math: "textarea",
   image: "image",
   table: "table",
   list: "list",
   mermaid: "mermaid",
 };
+
+// Kinds edited by typing directly on the slide (contenteditable-style), the way
+// slides.com works. Their content is plain text (markdown / latex / code).
+export const INLINE_TEXT_KINDS = new Set(["text", "quote", "math", "code"]);
 
 // fieldForBlock builds the synthetic Field a reuse-kind block binds to, or null
 // for kinds with a bespoke editor.

@@ -33,8 +33,8 @@ func renderSlide(v any, f *template.Field, opts *Options) string {
 			cls += " fragment " + b.Fragment
 		}
 		fmt.Fprintf(&sb,
-			`<div class="%s" style="position:absolute;left:%dpx;top:%dpx;width:%dpx;height:%dpx">%s</div>`,
-			cls, b.X, b.Y, b.W, b.H, inner)
+			`<div class="%s" style="position:absolute;left:%dpx;top:%dpx;width:%dpx;height:%dpx;%s">%s</div>`,
+			cls, b.X, b.Y, b.W, b.H, b.InlineStyle(), inner)
 	}
 	sb.WriteString("</div>")
 	return sb.String()

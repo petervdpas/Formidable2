@@ -478,6 +478,9 @@
     background: #fff;
     border: 1px solid #ddd;
     overflow: hidden;
+    /* Slide-scale base type; per-block inline style overrides. */
+    font-size: 40px;
+    line-height: 1.2;
 }
 .formidable-prose .slide-block { overflow: hidden; }
 .formidable-prose .slide-block > :first-child { margin-top: 0; }

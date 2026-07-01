@@ -26,15 +26,42 @@ const (
 // ("" = none) that steps the element in; Lang is the language of a code block.
 // Z-order is the block's index in SlideDoc.Blocks.
 type SlideBlock struct {
-	ID       string `json:"id"`
-	Kind     string `json:"kind"`
-	Content  any    `json:"content"`
-	X        int    `json:"x"`
-	Y        int    `json:"y"`
-	W        int    `json:"w"`
-	H        int    `json:"h"`
-	Fragment string `json:"fragment,omitempty"`
-	Lang     string `json:"lang,omitempty"`
+	ID       string            `json:"id"`
+	Kind     string            `json:"kind"`
+	Content  any               `json:"content"`
+	X        int               `json:"x"`
+	Y        int               `json:"y"`
+	W        int               `json:"w"`
+	H        int               `json:"h"`
+	Fragment string            `json:"fragment,omitempty"`
+	Lang     string            `json:"lang,omitempty"`
+	Style    map[string]string `json:"style,omitempty"` // per-element CSS (font-size, color, text-align, …)
+}
+
+// styleKeyOrder is the deterministic order CSS declarations are emitted in, so a
+// block's inline style is stable across renders. Only these known properties are
+// emitted (a fixed allowlist, not arbitrary CSS).
+var styleKeyOrder = []string{
+	"font-size", "font-weight", "font-style", "color", "text-align",
+	"line-height", "letter-spacing", "background", "padding",
+}
+
+// InlineStyle renders a block's Style map as a CSS declaration string in a
+// stable order, keeping only allowlisted properties.
+func (b SlideBlock) InlineStyle() string {
+	if len(b.Style) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	for _, k := range styleKeyOrder {
+		if v := strings.TrimSpace(b.Style[k]); v != "" {
+			sb.WriteString(k)
+			sb.WriteString(":")
+			sb.WriteString(v)
+			sb.WriteString(";")
+		}
+	}
+	return sb.String()
 }
 
 // SlideDoc is the stored value of a slide field: the per-slide reveal content.
