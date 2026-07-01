@@ -1,0 +1,175 @@
+/* Slide canvas editor. The trigger + status mirror the mermaid field's
+   in-form affordance; the editor is a fixed 1280x720 stage scaled to fit, with
+   a left tool rail, absolutely-positioned WYSIWYG block boxes (each showing the
+   same rendered content the deck will show), and a content inspector. */
+
+.slide-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+}
+.slide-trigger-status {
+    font-size: 0.85em;
+    color: var(--color-text, #333);
+}
+.slide-trigger-status.muted {
+    opacity: 0.6;
+}
+
+.slide-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.slide-editor-body {
+    display: flex;
+    gap: var(--space-2, 8px);
+    flex: 1;
+    min-height: 0;
+}
+
+/* Left tool rail: vertical palette of block kinds. */
+.slide-toolrail {
+    width: 92px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 4px);
+    overflow: auto;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 6px);
+    padding: var(--space-1, 4px);
+}
+.slide-toolrail-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    opacity: 0.7;
+    margin-bottom: 2px;
+}
+.slide-tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    font-size: 11px;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--color-surface, #fff);
+    color: var(--color-text, #333);
+    cursor: pointer;
+}
+.slide-tool:hover {
+    background: var(--list-hover-bg, #f0f0f0);
+}
+.slide-tool i {
+    font-size: 16px;
+}
+
+.slide-stage-wrap {
+    flex: 1;
+    min-width: 0;
+    overflow: auto;
+    background: var(--color-surface-2, #eaeaea);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 6px);
+    padding: var(--space-2, 8px);
+}
+.slide-stage-spacer {
+    position: relative;
+}
+.slide-stage {
+    position: relative;
+    background: #fff;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+
+.slide-block-box {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed transparent;
+    overflow: hidden;
+    cursor: move;
+    user-select: none;
+}
+.slide-block-box:hover {
+    border-color: var(--field-type-slide-badge, #9575cd);
+}
+.slide-block-box.selected {
+    border: 1px solid var(--field-type-slide-bg, #6d4aa7);
+    box-shadow: 0 0 0 2px var(--field-type-slide-badge, #9575cd);
+}
+/* The rendered content fills the box but never intercepts pointer events, so a
+   click or drag anywhere on the box moves it (editing is via the inspector). */
+.slide-block-box-content {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+.slide-block-box-content.formidable-prose {
+    background: transparent;
+    max-width: none;
+    padding: 4px 6px;
+    margin: 0;
+    font-size: 15px;
+}
+.slide-block-box-dim {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    font-size: 11px;
+    padding: 1px 5px;
+    background: var(--field-type-slide-bg, #6d4aa7);
+    color: #fff;
+    pointer-events: none;
+}
+.slide-block-box-resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, var(--field-type-slide-bg, #6d4aa7) 50%);
+}
+
+.slide-inspector {
+    width: 340px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+    overflow: auto;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 6px);
+    padding: var(--space-2, 8px);
+}
+.slide-inspector-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+}
+.slide-inspector-geo {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-1, 4px);
+}
+.slide-inspector-geo label {
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+    gap: 2px;
+}
+.slide-inspector-geo input {
+    width: 100%;
+    box-sizing: border-box;
+}
+.slide-inspector-content {
+    flex: 1;
+    min-height: 0;
+}

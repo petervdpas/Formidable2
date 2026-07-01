@@ -2,9 +2,10 @@ package template
 
 import "testing"
 
-// slide is the third structural singleton (guid, sequence, slide): minimal
-// modal, forced read-only key, one per template, reserved key.
-func TestSlideFieldDescriptor_IsMinimalSingleton(t *testing.T) {
+// slide is the third structural singleton (guid, sequence, slide): forced
+// read-only key, one per template, reserved key. Unlike guid/sequence it does
+// carry options - deck-wide config (canvas size).
+func TestSlideFieldDescriptor_IsSingletonWithDeckOptions(t *testing.T) {
 	got, ok := fieldDescriptors["slide"]
 	if !ok {
 		t.Fatalf("slide descriptor missing")
@@ -13,15 +14,37 @@ func TestSlideFieldDescriptor_IsMinimalSingleton(t *testing.T) {
 	if !a.Key || !a.Type {
 		t.Errorf("slide must keep Key + Type")
 	}
-	if a.Label || a.Description || a.Options || a.TwoColumn || a.Default ||
+	if a.Label || a.Description || a.TwoColumn || a.Default ||
 		a.PrimaryKey || a.ExpressionItem || a.UseInStatistics {
-		t.Errorf("slide modal must be minimal; got %+v", a)
+		t.Errorf("slide modal must stay lean apart from options; got %+v", a)
+	}
+	if !a.Options || got.OptionsShape == nil || len(got.OptionsShape.Rows) != 2 {
+		t.Fatalf("slide must advertise canvas width/height option rows; got %+v", got.OptionsShape)
+	}
+	if got.OptionsShape.Rows[0].Defaults["value"] != "canvas_width" ||
+		got.OptionsShape.Rows[1].Defaults["value"] != "canvas_height" {
+		t.Errorf("slide option rows should be canvas_width/canvas_height; got %+v", got.OptionsShape.Rows)
 	}
 	if !got.KeyReadonly {
 		t.Errorf("slide key must be read-only (forced singleton)")
 	}
 	if got.RequiresCollection {
 		t.Errorf("slide is independent of collection")
+	}
+}
+
+func TestSlideCanvasSize_DefaultsAndCustom(t *testing.T) {
+	// No options -> the fixed 1280x720 default.
+	if w, h := SlideCanvasSize(Field{Type: "slide"}); w != 1280 || h != 720 {
+		t.Errorf("default canvas = %dx%d, want 1280x720", w, h)
+	}
+	// Authored size is honoured.
+	f := Field{Type: "slide", Options: []any{
+		map[string]any{"value": "canvas_width", "label": "1920"},
+		map[string]any{"value": "canvas_height", "label": "1080"},
+	}}
+	if w, h := SlideCanvasSize(f); w != 1920 || h != 1080 {
+		t.Errorf("custom canvas = %dx%d, want 1920x1080", w, h)
 	}
 }
 

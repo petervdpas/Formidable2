@@ -193,6 +193,8 @@
   "workspace.templates.field_type.range": "Range Slider",
   "workspace.templates.field_type.sequence": "Sequence (order)",
   "workspace.templates.field_type.slide": "Slide (canvas)",
+  "workspace.templates.slide.canvas_width": "Canvas width (px)",
+  "workspace.templates.slide.canvas_height": "Canvas height (px)",
   "workspace.templates.slide.kind.markdown": "Markdown",
   "workspace.templates.slide.kind.mermaid": "Mermaid",
   "workspace.templates.slide.kind.image": "Image",

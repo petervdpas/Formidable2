@@ -63,6 +63,15 @@ export function RenderMarkdown(templateName: string, datafile: string): $Cancell
 }
 
 /**
+ * RenderSlideBlockHTML renders one slide block's content to HTML, so the canvas
+ * editor shows the same output the deck will render. content is the block's
+ * value (string, 2D array, etc.); templateName scopes image URLs.
+ */
+export function RenderSlideBlockHTML(templateName: string, kind: string, content: any): $CancellablePromise<string> {
+    return $Call.ByID(4009042845, templateName, kind, content);
+}
+
+/**
  * ValidateMarkdownTemplate parses the given Handlebars source and
  * reports parse errors plus helper-name warnings. Cheap enough to call
  * on every keystroke (debounced from the frontend).

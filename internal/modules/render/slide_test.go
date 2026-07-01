@@ -3,6 +3,8 @@ package render
 import (
 	"strings"
 	"testing"
+
+	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
 func TestRenderSlide_PositionsAndBlockKinds(t *testing.T) {
@@ -18,7 +20,7 @@ func TestRenderSlide_PositionsAndBlockKinds(t *testing.T) {
 			"x":       float64(700), "y": float64(400), "w": float64(500), "h": float64(200)},
 	}}
 	opts := &Options{ImageURL: func(name string) string { return "/img/" + name }}
-	html := renderSlide(doc, opts)
+	html := renderSlide(doc, nil, opts)
 
 	for _, want := range []string{
 		`class="slide-canvas"`,
@@ -36,10 +38,25 @@ func TestRenderSlide_PositionsAndBlockKinds(t *testing.T) {
 }
 
 func TestRenderSlide_EmptyIsBlank(t *testing.T) {
-	if got := renderSlide(map[string]any{"blocks": []any{}}, &Options{}); got != "" {
+	if got := renderSlide(map[string]any{"blocks": []any{}}, nil, &Options{}); got != "" {
 		t.Errorf("empty slide should render nothing, got %q", got)
 	}
-	if got := renderSlide(nil, &Options{}); got != "" {
+	if got := renderSlide(nil, nil, &Options{}); got != "" {
 		t.Errorf("nil slide should render nothing, got %q", got)
+	}
+}
+
+func TestRenderSlide_HonorsCanvasSizeOption(t *testing.T) {
+	doc := map[string]any{"blocks": []any{
+		map[string]any{"id": "b", "kind": "textarea", "content": "hi",
+			"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
+	}}
+	f := &template.Field{Type: "slide", Options: []any{
+		map[string]any{"value": "canvas_width", "label": "1920"},
+		map[string]any{"value": "canvas_height", "label": "1080"},
+	}}
+	html := renderSlide(doc, f, &Options{})
+	if !strings.Contains(html, "width:1920px;height:1080px") {
+		t.Errorf("expected authored canvas size 1920x1080\n%s", html)
 	}
 }

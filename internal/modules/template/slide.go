@@ -1,6 +1,11 @@
 package template
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // The slide field's value is a free-positioned canvas of typed content blocks.
 // A block is "an existing-field-typed value plus a position": its Kind is a
@@ -31,6 +36,30 @@ type SlideBlock struct {
 // without changing the shape.
 type SlideDoc struct {
 	Blocks []SlideBlock `json:"blocks"`
+}
+
+// SlideCanvasSize reads the deck's authored canvas size from the slide field's
+// options (deck-wide config, shared by every slide), defaulting to the fixed
+// 1280x720. These dimensions drive the editor stage, the rendered slide, and
+// (later) reveal's width/height at init.
+func SlideCanvasSize(f Field) (w, h int) {
+	return optionInt(f, "canvas_width", SlideCanvasWidth), optionInt(f, "canvas_height", SlideCanvasHeight)
+}
+
+func optionInt(f Field, key string, def int) int {
+	for _, opt := range f.Options {
+		m, ok := opt.(map[string]any)
+		if !ok {
+			continue
+		}
+		if v, _ := m["value"].(string); v != key {
+			continue
+		}
+		if n, err := strconv.Atoi(strings.TrimSpace(fmt.Sprint(m["label"]))); err == nil && n > 0 {
+			return n
+		}
+	}
+	return def
 }
 
 // SlideBlockKindDescriptor names one kind the block palette offers. Name is the

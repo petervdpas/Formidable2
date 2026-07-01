@@ -11,16 +11,21 @@ import (
 // rendered by the same emitter its kind uses everywhere else (DRY): markdown
 // through goldmark, mermaid to a fenced diagram, image/table/list to their
 // markup. Each block's HTML is wrapped in an absolutely-positioned box on the
-// fixed canvas; z-order is the block's order in the document. Empty doc -> "".
-func renderSlide(v any, opts *Options) string {
+// canvas (size from the field's deck-wide options); z-order is the block's
+// order in the document. Empty doc -> "".
+func renderSlide(v any, f *template.Field, opts *Options) string {
 	doc, err := template.ParseSlideDoc(v)
 	if err != nil || len(doc.Blocks) == 0 {
 		return ""
 	}
+	w, h := template.SlideCanvasWidth, template.SlideCanvasHeight
+	if f != nil {
+		w, h = template.SlideCanvasSize(*f)
+	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb,
 		`<div class="slide-canvas" style="position:relative;width:%dpx;height:%dpx">`,
-		template.SlideCanvasWidth, template.SlideCanvasHeight)
+		w, h)
 	for _, b := range doc.Blocks {
 		inner, _ := RenderHTML(emitSlideBlock(b.Kind, b.Content, opts))
 		fmt.Fprintf(&sb,
@@ -29,6 +34,15 @@ func renderSlide(v any, opts *Options) string {
 	}
 	sb.WriteString("</div>")
 	return sb.String()
+}
+
+// RenderSlideBlockHTML renders one block's content to HTML using the same
+// per-kind emitter the full slide uses, so the canvas editor previews exactly
+// what the deck will render. templateName scopes image URLs.
+func (m *Manager) RenderSlideBlockHTML(templateName, kind string, content any) string {
+	opts := m.optionsFor(templateName, "")
+	html, _ := RenderHTML(emitSlideBlock(kind, content, opts))
+	return html
 }
 
 // emitSlideBlock renders one block's content to markdown, dispatching on kind to

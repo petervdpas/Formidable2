@@ -376,7 +376,7 @@ func emitFieldValue(v any, f *template.Field, opts *Options) string {
 	case "mermaid":
 		return emitMermaid(v)
 	case "slide":
-		return renderSlide(v, opts)
+		return renderSlide(v, f, opts)
 	case "textarea":
 		return stringify(v)
 	default:

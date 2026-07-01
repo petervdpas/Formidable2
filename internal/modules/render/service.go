@@ -23,6 +23,13 @@ func (s *Service) RenderHTML(markdown string) (string, error) {
 	return s.m.RenderHTMLOnly(markdown)
 }
 
+// RenderSlideBlockHTML renders one slide block's content to HTML, so the canvas
+// editor shows the same output the deck will render. content is the block's
+// value (string, 2D array, etc.); templateName scopes image URLs.
+func (s *Service) RenderSlideBlockHTML(templateName, kind string, content any) string {
+	return s.m.RenderSlideBlockHTML(templateName, kind, content)
+}
+
 // RenderFullHTML - self-contained HTML document (DOCTYPE + head + body)
 // with the formidable-prose stylesheet inlined. Used by the storage
 // workspace's "Copy HTML" action so what the user pastes into a .html

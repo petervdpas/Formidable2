@@ -83,17 +83,25 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 	},
 	"slide": {
-		// A singleton content canvas like guid/sequence: minimal modal (only Key +
-		// Type), forced read-only key. Its value editor is the canvas in the form
-		// view, not the Edit Field modal. Independent of collection.
+		// A singleton content canvas like guid/sequence: forced read-only key, its
+		// value editor is the canvas in the form view. Independent of collection.
+		// Options carry deck-wide config (canvas size now; reveal theme/transition
+		// later) since the field is defined once per template.
 		ID:          "slide",
 		KeyReadonly: true,
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
-			Default: false, Options: false, SummaryField: false, PrimaryKey: false,
+			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
 			ExpressionItem: false, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
 			FacetKey: false,
+		},
+		OptionsShape: &FixedOptionsShape{
+			Rows: []FixedOptionRow{
+				{LabelKey: "workspace.templates.slide.canvas_width", Defaults: map[string]any{"value": "canvas_width", "label": "1280"}},
+				{LabelKey: "workspace.templates.slide.canvas_height", Defaults: map[string]any{"value": "canvas_height", "label": "720"}},
+			},
+			LockedColumns: []string{"value"},
 		},
 	},
 	"date": {
