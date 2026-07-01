@@ -229,6 +229,19 @@ func TestStatic_DeckAssets(t *testing.T) {
 	}
 }
 
+func TestStatic_AuthoredDeckAssetsNoStore(t *testing.T) {
+	// deck.css + deck-init.js are re-embedded every build; they must not be cached
+	// by the webview, or a rebuilt binary is shadowed by a stale copy.
+	h := newDeckHandler(t, twoDecks())
+	for _, path := range []string{"/_/css/deck.css", "/_/js/deck-init.js"} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if got := w.Header().Get("Cache-Control"); got != "no-store" {
+			t.Errorf("%s: Cache-Control = %q, want no-store", path, got)
+		}
+	}
+}
+
 func TestStatic_KatexTraversalBlocked(t *testing.T) {
 	h := newDeckHandler(t, twoDecks())
 	w := httptest.NewRecorder()

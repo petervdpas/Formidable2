@@ -33,18 +33,26 @@ async function hydrate() {
     securityLevel: "strict",
     theme: theme.value === "light" ? "default" : "dark",
   });
-  // Stash the source once, then reset each block so re-runs (theme
-  // switch, content change) re-render from source rather than from the
-  // already-injected SVG.
-  for (const n of nodes) {
+  // Render each block via render(), NOT run(): render() builds the SVG in a
+  // clean off-DOM container, so text is measured correctly regardless of any CSS
+  // transform/scale on the host (the editor's scaled stage, reveal's transformed
+  // slides). run() renders in place and mis-measures there, clipping node text;
+  // it also shares mutable global state with render(), so mixing the two APIs
+  // across surfaces corrupts each other. One API everywhere = one clean path.
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
     if (n.dataset.mmsrc === undefined) n.dataset.mmsrc = n.textContent ?? "";
-    n.removeAttribute("data-processed");
-    n.textContent = n.dataset.mmsrc;
-  }
-  try {
-    await mermaid.run({ nodes });
-  } catch {
-    // On a parse error the block keeps its source text; nothing to do.
+    const src = n.dataset.mmsrc;
+    try {
+      const out = await mermaid.render(`rh-mermaid-${mine}-${i}`, src);
+      if (mine !== seq) return; // superseded by a newer hydrate mid-flight
+      n.innerHTML = out.svg;
+      n.setAttribute("data-processed", "true");
+      out.bindFunctions?.(n);
+    } catch {
+      // Parse error: keep the source text.
+      n.textContent = src;
+    }
   }
 }
 

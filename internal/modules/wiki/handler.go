@@ -696,10 +696,14 @@ func (h *Handler) static(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(render.RevealCSS()))
 		return
 	case "css/deck.css":
+		// no-store: this authored asset is re-embedded on every build; a webview
+		// caching the old copy across rebuilds would serve stale deck styling/JS.
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		_, _ = w.Write([]byte(render.DeckCSS()))
 		return
 	case "js/deck-init.js":
+		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		_, _ = w.Write(render.DeckInitJS())
 		return

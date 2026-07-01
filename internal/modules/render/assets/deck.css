@@ -52,3 +52,21 @@
 .reveal .slide-block pre.mermaid {
     margin: 0;
 }
+/* A hydrated mermaid sheds the code-block chrome that `.formidable-prose pre`
+   applies (#eee background, padding, radius) so the diagram shows cleanly on the
+   slide, matching the editor + in-app preview (which get it from the SPA CSS) and
+   the wiki form pages (content.css). Deck-served pages don't load content.css, so
+   this shared rule is where the parity lives. */
+.reveal .slide-block pre.mermaid[data-processed] {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+/* Constrain the diagram to the block width, aspect intact. The SPA gets this from
+   mermaid-field.css (a global `pre.mermaid[data-processed] svg` rule); the wiki
+   deck doesn't load that file, so without this the SVG renders at a mismatched
+   size and clips node text. Serve the parity from here. */
+.reveal .slide-block pre.mermaid[data-processed] svg {
+    max-width: 100%;
+    height: auto;
+}

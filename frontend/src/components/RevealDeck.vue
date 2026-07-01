@@ -51,6 +51,7 @@ async function hydrateSlide(scope?: HTMLElement | null) {
   await hydrateMermaid(el);
 }
 
+let mermaidSeq = 0;
 async function hydrateMermaid(scope?: HTMLElement | null) {
   // Only the visible slide can be measured; a mermaid block on a display:none
   // slide renders broken, so hydrate per-slide as each becomes current.
@@ -64,15 +65,24 @@ async function hydrateMermaid(scope?: HTMLElement | null) {
     securityLevel: "strict",
     theme: theme.value === "light" ? "default" : "dark",
   });
+  // Use render(), NOT run(): render() builds the SVG in mermaid's own
+  // body-attached container (a clean, untransformed context), so text is
+  // measured correctly. run() renders in place inside reveal's scaled +
+  // perspective-transformed .slides, where getBBox mis-measures and node text
+  // clips. Inject the finished, self-contained SVG into the block.
   for (const n of nodes) {
+    if (n.getAttribute("data-processed")) continue;
     if (n.dataset.mmsrc === undefined) n.dataset.mmsrc = n.textContent ?? "";
-    n.removeAttribute("data-processed");
-    n.textContent = n.dataset.mmsrc;
-  }
-  try {
-    await mermaid.run({ nodes });
-  } catch {
-    /* parse error: keep source text */
+    const src = n.dataset.mmsrc;
+    n.setAttribute("data-processed", "true");
+    try {
+      const out = await mermaid.render(`fmd-mermaid-${mermaidSeq++}`, src);
+      n.innerHTML = out.svg;
+      out.bindFunctions?.(n);
+    } catch {
+      n.removeAttribute("data-processed");
+      n.textContent = src; // parse error: keep source
+    }
   }
 }
 
