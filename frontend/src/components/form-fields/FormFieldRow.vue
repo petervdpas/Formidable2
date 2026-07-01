@@ -59,6 +59,7 @@ function toggle() {
 
 <template>
   <div
+    :data-type="field.type"
     :class="[
       'form-field-row',
       { 'two-column': field.two_column, 'collapsible-field': isCollapsible, 'collapsed': isCollapsible && collapsed },

@@ -24,6 +24,7 @@
 }
 
 .slide-editor-body {
+    position: relative;
     display: flex;
     gap: var(--space-2, 8px);
     flex: 1;
@@ -140,6 +141,26 @@
     height: 14px;
     cursor: nwse-resize;
     background: linear-gradient(135deg, transparent 50%, var(--field-type-slide-bg, #6d4aa7) 50%);
+}
+
+/* A thin always-present rail toggles the inspector. The inspector itself stays
+   in flow (collapses out when closed, so the canvas takes full width) rather
+   than overlaying, which is robust inside the form's scroll container. */
+.slide-inspector-rail {
+    flex: none;
+    width: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 12px;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 6px);
+    background: var(--color-surface, #fff);
+    color: var(--color-text, #333);
+    cursor: pointer;
+}
+.slide-inspector-rail:hover {
+    background: var(--list-hover-bg, #f0f0f0);
 }
 
 .slide-inspector {
@@ -294,11 +315,14 @@
     margin-bottom: var(--space-1, 4px);
 }
 
-/* Editor rendered directly on the form (not in a dialog). */
+/* Editor rendered directly on the form (not in a dialog). Keep clear of the
+   window's right border so the inspector/rail don't sit flush to the edge. */
 .slide-field-inline {
     height: 72vh;
     min-height: 460px;
     width: 100%;
+    box-sizing: border-box;
+    padding-right: var(--space-4, 16px);
 }
 
 /* Inline text editing on the canvas (slides.com style): type directly on the

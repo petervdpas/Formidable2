@@ -1,0 +1,35 @@
+/* The sequence field is a compact ordering widget (a small numeric pill), not a
+   full-width input: it holds one integer slide position, so it reads as a chip. */
+.sequence-widget {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 4px 8px;
+    border: 1px solid var(--field-type-sequence-border, #97a0e0);
+    border-radius: var(--radius-md, 6px);
+    background: rgba(81, 93, 167, 0.12);
+    background: color-mix(in srgb, var(--field-type-sequence-bg, #515da7) 12%, transparent);
+}
+.sequence-widget > i {
+    color: var(--field-type-sequence-badge, #7c88d4);
+    font-size: 0.9em;
+}
+.sequence-widget-label {
+    font-weight: 600;
+    color: var(--field-type-sequence-badge, #7c88d4);
+    text-transform: capitalize;
+}
+.sequence-widget-input {
+    width: 84px;
+}
+
+/* The label lives inside the widget, so the row drops its own label cell and
+   collapses to a single compact line. */
+.form-field-row[data-type="sequence"] {
+    flex-direction: row;
+    align-items: center;
+    padding: var(--space-2, 8px) 0;
+}
+.form-field-row[data-type="sequence"] .form-field-label-cell {
+    display: none;
+}

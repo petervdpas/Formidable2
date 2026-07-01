@@ -67,6 +67,7 @@
   "workspace.storage.slide.add": "Toevoegen",
   "workspace.storage.slide.blocks_count": "{0} blokken",
   "workspace.storage.slide.no_selection": "Geen element geselecteerd. Deze instellingen gelden voor de hele dia.",
+  "workspace.storage.slide.properties": "Eigenschappen",
   "workspace.storage.slide.delete_block": "Blok verwijderen",
   "workspace.storage.slide.edit_inline": "Dubbelklik op het blok om de tekst te bewerken.",
   "workspace.storage.slide.font_size": "Grootte",

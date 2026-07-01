@@ -37,5 +37,12 @@ const step = computed<string>(() => {
 </script>
 
 <template>
-  <TextField type="number" :step="step" lazy v-model="value" :readonly="field.readonly" />
+  <div class="sequence-widget">
+    <i class="fa-solid fa-arrow-down-1-9" aria-hidden="true"></i>
+    <span class="sequence-widget-label">{{ field.label || field.key }}</span>
+    <TextField
+      class="sequence-widget-input"
+      type="number" :step="step" lazy v-model="value" :readonly="field.readonly"
+    />
+  </div>
 </template>

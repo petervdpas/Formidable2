@@ -42,6 +42,8 @@ const transition = ref(parsed.transition ?? "");
 const notes = ref(parsed.notes ?? "");
 const selectedId = ref<string | null>(null);
 const editingId = ref<string | null>(null); // block being edited inline on the canvas
+const inspectorOpen = ref(false); // right slideout; auto-opens on selection
+watch(selectedId, (id) => { if (id) inspectorOpen.value = true; });
 
 const blockHtml = ref<Record<string, string>>({});
 const renderTimers: Record<string, ReturnType<typeof setTimeout>> = {};
@@ -235,7 +237,14 @@ function startResize(b: SlideBlock, e: PointerEvent) {
         </div>
       </div>
 
-      <aside class="slide-inspector">
+      <button
+        type="button" class="slide-inspector-rail"
+        :title="t('workspace.storage.slide.properties')"
+        @click="inspectorOpen = !inspectorOpen"
+      >
+        <i class="fa-solid" :class="inspectorOpen ? 'fa-chevron-right' : 'fa-chevron-left'" aria-hidden="true"></i>
+      </button>
+      <aside v-show="inspectorOpen" class="slide-inspector">
         <template v-if="selected">
           <div class="slide-inspector-head">
             <i class="fa-solid" :class="iconFor(selected.kind)" aria-hidden="true"></i>
