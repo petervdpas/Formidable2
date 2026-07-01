@@ -11,5 +11,6 @@ export {
     HelperCategory,
     HelperDescriptor,
     Result,
+    RevealDeck,
     ValidationReport
 } from "./models.js";

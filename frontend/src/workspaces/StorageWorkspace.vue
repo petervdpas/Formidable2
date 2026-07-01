@@ -24,6 +24,7 @@ import StorageSearch from "../components/StorageSearch.vue";
 import StorageTagFilter from "../components/StorageTagFilter.vue";
 import StorageFacetFilter from "../components/StorageFacetFilter.vue";
 import StorageDeckFilter from "../components/StorageDeckFilter.vue";
+import DeckPreviewDialog from "../components/DeckPreviewDialog.vue";
 import StorageMetaBlock from "../components/StorageMetaBlock.vue";
 import StorageDataForm from "../components/StorageDataForm.vue";
 import Popup from "../components/Popup.vue";
@@ -658,6 +659,15 @@ async function refreshDeckOrder() {
 }
 
 watch(deckFilter, () => { void refreshDeckOrder(); });
+
+// ── Deck preview (reveal.js in a dialog) ────────────────────────────
+const deckPreviewOpen = ref(false);
+const deckPreviewFiles = ref<string[]>([]);
+function openDeckPreview() {
+  // Present exactly what's visible, in the order shown (deck scoping + filters).
+  deckPreviewFiles.value = visibleSummaries.value.map((s) => s.filename);
+  deckPreviewOpen.value = true;
+}
 
 // ── Full-text search (opt-in via config.enable_full_text_search) ─────
 // When enabled, the sidebar grows a search box that queries the FTS
@@ -1310,6 +1320,30 @@ setTopbarMenu(() => [
         : []),
     ],
   },
+  // Slides menu: only for presentation templates (deck preview + normalize).
+  ...(presentationMode.value
+    ? [
+        {
+          type: "group" as const,
+          id: "slides",
+          labelKey: "menu.slides",
+          alwaysEnabled: true,
+          items: [
+            {
+              id: "deck-preview",
+              labelKey: "workspace.storage.deck.preview.button",
+              disabled: visibleSummaries.value.length === 0,
+              onClick: openDeckPreview,
+            },
+            {
+              id: "deck-normalize",
+              labelKey: "workspace.storage.presentation.normalize",
+              onClick: normalizeSequence,
+            },
+          ],
+        },
+      ]
+    : []),
   ...(buildPluginsMenu() ? [buildPluginsMenu()!] : []),
 ]);
 </script>
@@ -1407,13 +1441,6 @@ setTopbarMenu(() => [
         <div class="sidebar-section-head">
           <span class="sidebar-label">{{ t('workspace.storage.forms_heading') }}</span>
           <FilteredCount :visible="visibleSummaries.length" :total="summaries.length" />
-          <button
-            v-if="presentationMode"
-            type="button"
-            class="tool-btn sidebar-normalize"
-            :title="t('workspace.storage.presentation.normalize_hint')"
-            @click="normalizeSequence"
-          >{{ t('workspace.storage.presentation.normalize') }}</button>
         </div>
 
         <div v-if="ftsEnabled" class="sidebar-section">
@@ -1687,6 +1714,14 @@ setTopbarMenu(() => [
     :template-filename="selectedTemplate"
     :record="view?.datafile ?? ''"
     @close="graphOpen = false"
+  />
+
+  <!-- Reveal.js deck previewer (presentation templates) -->
+  <DeckPreviewDialog
+    :open="deckPreviewOpen"
+    :template="selectedTemplate"
+    :datafiles="deckPreviewFiles"
+    @close="deckPreviewOpen = false"
   />
 </template>
 

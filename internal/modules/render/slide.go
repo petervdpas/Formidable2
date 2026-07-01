@@ -1,11 +1,73 @@
 package render
 
 import (
+	"errors"
 	"fmt"
+	"html"
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
+
+// RevealDeck is what the reveal.js viewer needs: the deck body (one <section>
+// per slide) and the authored canvas size so the frontend sizes reveal to the
+// same aspect ratio the editor used.
+type RevealDeck struct {
+	HTML   string `json:"html"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+}
+
+// BuildDeck renders an ordered set of records into reveal.js slide sections.
+// Each record's slide field becomes one <section> holding the positioned canvas
+// plus reveal's per-slide attributes (background/transition) and speaker notes.
+// datafiles must already be in deck order (form.DeckOrder / SequenceOrder).
+func (m *Manager) BuildDeck(templateName string, datafiles []string) (RevealDeck, error) {
+	tpl, err := m.templates.LoadTemplate(templateName)
+	if err != nil {
+		return RevealDeck{}, fmt.Errorf("render: load template %q: %w", templateName, err)
+	}
+	var slide *template.Field
+	for i := range tpl.Fields {
+		if tpl.Fields[i].Type == "slide" {
+			slide = &tpl.Fields[i]
+			break
+		}
+	}
+	if slide == nil {
+		return RevealDeck{}, errors.New("render: template has no slide field")
+	}
+	w, h := template.SlideCanvasSize(*slide)
+	var sb strings.Builder
+	for _, df := range datafiles {
+		loaded := m.storage.LoadForm(templateName, df)
+		if loaded == nil {
+			continue
+		}
+		opts := m.optionsFor(templateName, df)
+		sb.WriteString(m.slideSection(loaded.Data[slide.Key], slide, opts))
+	}
+	return RevealDeck{HTML: sb.String(), Width: w, Height: h}, nil
+}
+
+// slideSection wraps one slide doc as a reveal <section>: the positioned canvas,
+// per-slide background/transition attributes, and a speaker-notes aside.
+func (m *Manager) slideSection(v any, f *template.Field, opts *Options) string {
+	doc, _ := template.ParseSlideDoc(v)
+	var attrs strings.Builder
+	if doc.Background != "" {
+		fmt.Fprintf(&attrs, ` data-background-color="%s"`, html.EscapeString(doc.Background))
+	}
+	if doc.Transition != "" {
+		fmt.Fprintf(&attrs, ` data-transition="%s"`, html.EscapeString(doc.Transition))
+	}
+	notes := ""
+	if strings.TrimSpace(doc.Notes) != "" {
+		nh, _ := RenderHTML(doc.Notes)
+		notes = `<aside class="notes">` + nh + `</aside>`
+	}
+	return "<section" + attrs.String() + ">" + renderSlide(v, f, opts) + notes + "</section>"
+}
 
 // renderSlide turns a slide document into positioned HTML. Each block is
 // rendered by the same emitter its kind uses everywhere else (DRY): markdown

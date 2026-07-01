@@ -16,6 +16,16 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * BuildDeck renders ordered records into reveal.js slide sections for the deck
+ * previewer. datafiles come from form.DeckOrder / SequenceOrder (deck order).
+ */
+export function BuildDeck(templateName: string, datafiles: string[]): $CancellablePromise<$models.RevealDeck> {
+    return $Call.ByID(4200783279, templateName, datafiles).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * ListHelpers - the catalog of every Handlebars helper this module
  * registers, for the Information panel's "Render helpers reference".
  * Static data (no Manager state read); returned as a fresh slice the
@@ -23,7 +33,7 @@ import * as $models from "./models.js";
  */
 export function ListHelpers(): $CancellablePromise<$models.HelperDescriptor[]> {
     return $Call.ByID(3874415751).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -33,7 +43,7 @@ export function ListHelpers(): $CancellablePromise<$models.HelperDescriptor[]> {
  */
 export function RenderForm(templateName: string, datafile: string): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(679525684, templateName, datafile).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -78,13 +88,14 @@ export function RenderSlideBlockHTML(templateName: string, kind: string, content
  */
 export function ValidateMarkdownTemplate(src: string): $CancellablePromise<$models.ValidationReport> {
     return $Call.ByID(1954975287, src).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.HelperDescriptor.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.Result.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.ValidationReport.createFrom;
+const $$createType0 = $models.RevealDeck.createFrom;
+const $$createType1 = $models.HelperDescriptor.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.Result.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $models.ValidationReport.createFrom;

@@ -107,6 +107,7 @@ export default defineConfig({
             "@codemirror/theme-one-dark",
           ],
           mdEditor: ["md-editor-v3"],
+          reveal: ["reveal.js"],
           fontawesome: ["@fortawesome/fontawesome-free"],
           dnd: ["vuedraggable"],
           datepicker: ["@vuepic/vue-datepicker", "date-fns"],

@@ -155,6 +155,40 @@ export class Result {
 }
 
 /**
+ * RevealDeck is what the reveal.js viewer needs: the deck body (one <section>
+ * per slide) and the authored canvas size so the frontend sizes reveal to the
+ * same aspect ratio the editor used.
+ */
+export class RevealDeck {
+    "html": string;
+    "width": number;
+    "height": number;
+
+    /** Creates a new RevealDeck instance. */
+    constructor($$source: Partial<RevealDeck> = {}) {
+        if (!("html" in $$source)) {
+            this["html"] = "";
+        }
+        if (!("width" in $$source)) {
+            this["width"] = 0;
+        }
+        if (!("height" in $$source)) {
+            this["height"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RevealDeck instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RevealDeck {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RevealDeck($$parsedSource as Partial<RevealDeck>);
+    }
+}
+
+/**
  * ValidationReport is the result of ValidateMarkdownTemplate. OK is true
  * exactly when no error-severity diagnostics were found; Diagnostics is
  * never nil so JS callers can iterate without a guard.

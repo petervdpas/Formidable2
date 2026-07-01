@@ -30,6 +30,12 @@ func (s *Service) RenderSlideBlockHTML(templateName, kind string, content any) s
 	return s.m.RenderSlideBlockHTML(templateName, kind, content)
 }
 
+// BuildDeck renders ordered records into reveal.js slide sections for the deck
+// previewer. datafiles come from form.DeckOrder / SequenceOrder (deck order).
+func (s *Service) BuildDeck(templateName string, datafiles []string) (RevealDeck, error) {
+	return s.m.BuildDeck(templateName, datafiles)
+}
+
 // RenderFullHTML - self-contained HTML document (DOCTYPE + head + body)
 // with the formidable-prose stylesheet inlined. Used by the storage
 // workspace's "Copy HTML" action so what the user pastes into a .html
