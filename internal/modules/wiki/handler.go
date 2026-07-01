@@ -213,12 +213,14 @@ type deckLink struct {
 }
 
 // deckView drives the standalone reveal page: the built section bodies plus the
-// authored canvas size (so deck-init sizes reveal to the same aspect).
+// authored canvas size (so deck-init sizes reveal to the same aspect). Assets is
+// a content hash appended to the authored asset URLs (?v=) for cache-busting.
 type deckView struct {
 	Title  string
 	Body   string
 	Width  int
 	Height int
+	Assets string
 }
 type indexTemplateRow struct {
 	Stem   string
@@ -664,6 +666,7 @@ func (h *Handler) deck(w http.ResponseWriter, r *http.Request) {
 		Body:   built.HTML,
 		Width:  built.Width,
 		Height: built.Height,
+		Assets: render.DeckAssetsHash(),
 	})
 }
 

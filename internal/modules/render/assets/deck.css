@@ -51,6 +51,14 @@
    width blows it up and clips). Only drop the default block margin. */
 .reveal .slide-block pre.mermaid {
     margin: 0;
+    /* mermaid renders text with `font-family: var(--mermaid-font-family)` and
+       measures node boxes against it (default: trebuchet stack). It defines that
+       variable via a <style> it injects at render time, which does NOT travel
+       with the transplanted SVG - so on a page without the app's CSS (the wiki
+       deck) the text falls back to the prose font, which is wider than the boxes
+       were sized for, and clips. Pin the variable to mermaid's own default so
+       display matches measurement on every surface. */
+    --mermaid-font-family: "trebuchet ms", verdana, arial, sans-serif;
 }
 /* A hydrated mermaid sheds the code-block chrome that `.formidable-prose pre`
    applies (#eee background, padding, radius) so the diagram shows cleanly on the

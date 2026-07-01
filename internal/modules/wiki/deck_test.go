@@ -229,6 +229,20 @@ func TestStatic_DeckAssets(t *testing.T) {
 	}
 }
 
+func TestDeck_AuthoredAssetsAreCacheBusted(t *testing.T) {
+	// The authored assets carry a ?v=<hash> so a changed asset gets a fresh URL and
+	// a webview can never serve a stale copy across rebuilds.
+	h := newDeckHandler(t, twoDecks())
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/template/talk/slides", nil))
+	body := w.Body.String()
+	for _, want := range []string{"/_/js/deck-init.js?v=", "/_/css/deck.css?v="} {
+		if !strings.Contains(body, want) {
+			t.Errorf("deck page missing cache-busted asset %q", want)
+		}
+	}
+}
+
 func TestStatic_AuthoredDeckAssetsNoStore(t *testing.T) {
 	// deck.css + deck-init.js are re-embedded every build; they must not be cached
 	// by the webview, or a rebuilt binary is shadowed by a stale copy.

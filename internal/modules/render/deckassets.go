@@ -3,7 +3,9 @@ package render
 import (
 	"embed"
 	_ "embed"
+	"hash/fnv"
 	"io/fs"
+	"strconv"
 )
 
 // Deck client assets, vendored and embedded so server-side surfaces (the wiki
@@ -43,6 +45,17 @@ func DeckCSS() string { return deckStylesheet }
 
 // DeckInitJS returns the plain-JS reveal bootstrap (init + KaTeX/mermaid hydration).
 func DeckInitJS() []byte { return deckInitScript }
+
+// DeckAssetsHash returns a short content hash of the authored deck assets
+// (deck-init.js + deck.css). The wiki appends it as a `?v=` cache-buster to those
+// asset URLs so a changed asset always gets a fresh URL - a webview can never
+// serve a stale copy across rebuilds. Stable for identical bytes.
+func DeckAssetsHash() string {
+	h := fnv.New32a()
+	_, _ = h.Write(deckInitScript)
+	_, _ = h.Write([]byte(deckStylesheet))
+	return strconv.FormatUint(uint64(h.Sum32()), 16)
+}
 
 // KatexFS returns the vendored katex dist rooted at its own directory, so a
 // consumer serving it at `/prefix/` keeps katex.min.css's relative `fonts/` URLs
