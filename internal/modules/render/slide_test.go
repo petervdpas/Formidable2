@@ -9,7 +9,7 @@ import (
 
 func TestRenderSlide_PositionsAndBlockKinds(t *testing.T) {
 	doc := map[string]any{"blocks": []any{
-		map[string]any{"id": "b1", "kind": "textarea", "content": "## Hello",
+		map[string]any{"id": "b1", "kind": "text", "content": "## Hello",
 			"x": float64(40), "y": float64(60), "w": float64(600), "h": float64(200)},
 		map[string]any{"id": "b2", "kind": "mermaid", "content": "graph TD; A-->B",
 			"x": float64(700), "y": float64(60), "w": float64(500), "h": float64(300)},
@@ -48,7 +48,7 @@ func TestRenderSlide_EmptyIsBlank(t *testing.T) {
 
 func TestRenderSlide_HonorsCanvasSizeOption(t *testing.T) {
 	doc := map[string]any{"blocks": []any{
-		map[string]any{"id": "b", "kind": "textarea", "content": "hi",
+		map[string]any{"id": "b", "kind": "text", "content": "hi",
 			"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
 	}}
 	f := &template.Field{Type: "slide", Options: []any{

@@ -23,24 +23,45 @@ const emit = defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
 const { t } = useI18n();
 
-// The template's YAML filename, provided by StorageWorkspace - scopes block
-// image URLs when rendering.
 const templateFilename = inject<ComputedRef<string>>(
   "templateFilename",
   computed(() => ""),
 );
 
-const blocks = ref<SlideBlock[]>(parseSlideDoc(props.modelValue).blocks);
+// ── reveal vocabulary ─────────────────────────────────────────────────
+const KIND_ICON: Record<string, string> = {
+  text: "fa-paragraph",
+  image: "fa-image",
+  video: "fa-video",
+  embed: "fa-window-maximize",
+  code: "fa-code",
+  math: "fa-square-root-variable",
+  table: "fa-table",
+  list: "fa-list-ul",
+  quote: "fa-quote-right",
+  mermaid: "fa-diagram-project",
+};
+const iconFor = (kind: string) => KIND_ICON[kind] ?? "fa-square";
+// Reveal fragment animations (empty = the element is always shown).
+const FRAGMENT_OPTIONS = [
+  "", "fade-in", "fade-up", "fade-down", "fade-left", "fade-right",
+  "grow", "shrink", "strike", "highlight-red", "highlight-green", "highlight-blue",
+];
+// Reveal per-slide transitions.
+const TRANSITION_OPTIONS = ["", "none", "fade", "slide", "convex", "concave", "zoom"];
+const URL_KINDS = new Set(["video", "embed"]);
+
+// ── doc state ─────────────────────────────────────────────────────────
+const parsed = parseSlideDoc(props.modelValue);
+const blocks = ref<SlideBlock[]>(parsed.blocks);
+const background = ref(parsed.background ?? "");
+const transition = ref(parsed.transition ?? "");
+const notes = ref(parsed.notes ?? "");
 const selectedId = ref<string | null>(null);
 
-// Rendered HTML per block, so each box shows its real content (the same output
-// the deck will render). Kept in a map keyed by block id.
 const blockHtml = ref<Record<string, string>>({});
 const renderTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
-// renderBlock re-renders one block's content, debounced so typing in the
-// inspector doesn't spam the backend. Geometry changes (drag/resize) never call
-// this - the box and its content just move via CSS.
 function renderBlock(b: SlideBlock) {
   clearTimeout(renderTimers[b.id]);
   renderTimers[b.id] = setTimeout(async () => {
@@ -51,7 +72,6 @@ function renderBlock(b: SlideBlock) {
     );
   }, 150);
 }
-
 function renderAll() {
   for (const b of blocks.value) renderBlock(b);
 }
@@ -61,37 +81,35 @@ onMounted(() => {
   renderAll();
 });
 
-// External resets (undo, reload) replace the local blocks; guarded by a JSON
-// compare so our own commits don't bounce back through here.
 watch(
   () => props.modelValue,
   (v) => {
-    const incoming = parseSlideDoc(v).blocks;
-    if (JSON.stringify(incoming) !== JSON.stringify(blocks.value)) {
-      blocks.value = incoming;
+    const p = parseSlideDoc(v);
+    if (JSON.stringify(p.blocks) !== JSON.stringify(blocks.value)) {
+      blocks.value = p.blocks;
       if (!blocks.value.some((b) => b.id === selectedId.value)) selectedId.value = null;
       renderAll();
     }
+    background.value = p.background ?? "";
+    transition.value = p.transition ?? "";
+    notes.value = p.notes ?? "";
   },
 );
 
 function commit() {
-  emit("update:modelValue", { blocks: JSON.parse(JSON.stringify(blocks.value)) });
+  const doc: Record<string, unknown> = {
+    blocks: JSON.parse(JSON.stringify(blocks.value)),
+  };
+  if (background.value) doc.background = background.value;
+  if (transition.value) doc.transition = transition.value;
+  if (notes.value) doc.notes = notes.value;
+  emit("update:modelValue", doc);
 }
 
 // ── palette ───────────────────────────────────────────────────────────
 const kinds = computed(() => slideBlockKinds());
 const labelFor = (kind: string) =>
   t(kinds.value.find((k) => k.name === kind)?.label_key ?? kind);
-
-const KIND_ICON: Record<string, string> = {
-  textarea: "fa-paragraph",
-  mermaid: "fa-diagram-project",
-  image: "fa-image",
-  table: "fa-table",
-  list: "fa-list-ul",
-};
-const iconFor = (kind: string) => KIND_ICON[kind] ?? "fa-square";
 
 function addBlock(kind: string) {
   const b = newBlock(kind, blocks.value.length);
@@ -100,7 +118,6 @@ function addBlock(kind: string) {
   renderBlock(b);
   commit();
 }
-
 function removeSelected() {
   blocks.value = blocks.value.filter((b) => b.id !== selectedId.value);
   selectedId.value = null;
@@ -129,23 +146,22 @@ onMounted(() => {
   });
   ro.observe(stageWrap.value);
 });
-
 const stageStyle = computed(() => ({
   width: `${props.canvasW}px`,
   height: `${props.canvasH}px`,
   transform: `scale(${scale.value})`,
   transformOrigin: "top left",
+  background: background.value || "#fff",
 }));
 const wrapSpacerStyle = computed(() => ({
   width: `${props.canvasW * scale.value}px`,
   height: `${props.canvasH * scale.value}px`,
 }));
-
 function blockStyle(b: SlideBlock) {
   return { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` };
 }
 
-// ── drag / resize (pixel space, deltas scaled back to canvas units) ─────
+// ── drag / resize ─────────────────────────────────────────────────────
 function startDrag(b: SlideBlock, e: PointerEvent) {
   if (e.button !== 0) return;
   selectedId.value = b.id;
@@ -165,7 +181,6 @@ function startDrag(b: SlideBlock, e: PointerEvent) {
   el.addEventListener("pointermove", move);
   el.addEventListener("pointerup", up);
 }
-
 function startResize(b: SlideBlock, e: PointerEvent) {
   if (e.button !== 0) return;
   e.stopPropagation();
@@ -219,9 +234,8 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               <div class="slide-block-box-content formidable-prose">
                 <RenderedHtml :html="blockHtml[b.id] ?? ''" />
               </div>
-              <span v-if="b.id === selectedId" class="slide-block-box-dim">
-                {{ b.w }} × {{ b.h }}
-              </span>
+              <span v-if="b.fragment" class="slide-block-box-frag">{{ b.fragment }}</span>
+              <span v-if="b.id === selectedId" class="slide-block-box-dim">{{ b.w }} × {{ b.h }}</span>
               <div class="slide-block-box-resize" @pointerdown="startResize(b, $event)"></div>
             </div>
           </div>
@@ -229,7 +243,7 @@ function startResize(b: SlideBlock, e: PointerEvent) {
       </div>
 
       <aside class="slide-inspector">
-        <template v-if="selected && selectedField">
+        <template v-if="selected">
           <div class="slide-inspector-head">
             <i class="fa-solid" :class="iconFor(selected.kind)" aria-hidden="true"></i>
             <span>{{ labelFor(selected.kind) }}</span>
@@ -240,18 +254,69 @@ function startResize(b: SlideBlock, e: PointerEvent) {
             <label>W<input type="number" v-model.number="selected.w" @change="commit" /></label>
             <label>H<input type="number" v-model.number="selected.h" @change="commit" /></label>
           </div>
+
           <div class="slide-inspector-content">
             <FormFieldRenderer
+              v-if="selectedField"
               :field="selectedField"
               :model-value="selected.content"
               @update:model-value="setContent"
             />
+            <input
+              v-else-if="URL_KINDS.has(selected.kind)"
+              type="text"
+              class="slide-url-input"
+              :placeholder="'https://…'"
+              :value="String(selected.content ?? '')"
+              @input="setContent(($event.target as HTMLInputElement).value)"
+            />
+            <template v-else-if="selected.kind === 'code'">
+              <input
+                type="text"
+                class="slide-lang-input"
+                :placeholder="t('workspace.storage.slide.code_lang')"
+                :value="selected.lang ?? ''"
+                @input="selected.lang = ($event.target as HTMLInputElement).value; commit()"
+              />
+              <textarea
+                class="slide-code-input"
+                rows="8"
+                :value="String(selected.content ?? '')"
+                @input="setContent(($event.target as HTMLTextAreaElement).value)"
+              ></textarea>
+            </template>
           </div>
+
+          <label class="slide-inspector-row">
+            {{ t('workspace.storage.slide.fragment') }}
+            <select :value="selected.fragment ?? ''" @change="selected.fragment = ($event.target as HTMLSelectElement).value; commit()">
+              <option v-for="f in FRAGMENT_OPTIONS" :key="f" :value="f">{{ f || '—' }}</option>
+            </select>
+          </label>
+
           <button type="button" class="tool-btn danger" @click="removeSelected">
             {{ t('workspace.storage.slide.delete_block') }}
           </button>
         </template>
         <p v-else class="muted small">{{ t('workspace.storage.slide.no_selection') }}</p>
+
+        <hr class="slide-inspector-sep" />
+
+        <div class="slide-inspector-head">{{ t('workspace.storage.slide.slide_settings') }}</div>
+        <label class="slide-inspector-row">
+          {{ t('workspace.storage.slide.background') }}
+          <input type="color" :value="background || '#ffffff'" @input="background = ($event.target as HTMLInputElement).value; commit()" />
+        </label>
+        <label class="slide-inspector-row">
+          {{ t('workspace.storage.slide.transition') }}
+          <select :value="transition" @change="transition = ($event.target as HTMLSelectElement).value; commit()">
+            <option v-for="tr in TRANSITION_OPTIONS" :key="tr" :value="tr">{{ tr || '—' }}</option>
+          </select>
+        </label>
+        <label class="slide-inspector-col">
+          {{ t('workspace.storage.slide.notes') }}
+          <textarea rows="3" :value="notes" @input="notes = ($event.target as HTMLTextAreaElement).value; commit()"></textarea>
+        </label>
       </aside>
     </div>
   </div>

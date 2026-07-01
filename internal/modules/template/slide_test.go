@@ -78,7 +78,7 @@ func TestValidate_SlideReservedKey(t *testing.T) {
 
 func TestSlideBlockKinds_RegistryAndMembership(t *testing.T) {
 	kinds := SlideBlockKinds()
-	want := []string{"textarea", "mermaid", "image", "table", "list"}
+	want := []string{"text", "image", "video", "embed", "code", "math", "table", "list", "quote", "mermaid"}
 	if len(kinds) != len(want) {
 		t.Fatalf("got %d kinds, want %d", len(kinds), len(want))
 	}
@@ -98,7 +98,7 @@ func TestSlideBlockKinds_RegistryAndMembership(t *testing.T) {
 	}
 	// Defensive copy: mutating the result must not affect the registry.
 	kinds[0].Name = "mutated"
-	if SlideBlockKinds()[0].Name != "textarea" {
+	if SlideBlockKinds()[0].Name != "text" {
 		t.Errorf("SlideBlockKinds must return a defensive copy")
 	}
 }

@@ -41,7 +41,7 @@ func block(kind string, content any) map[string]any {
 
 func TestSlide_GoodDocumentHasNoIssues(t *testing.T) {
 	doc := map[string]any{"blocks": []any{
-		block("textarea", "## Title"),
+		block("text", "## Title"),
 		block("mermaid", "graph TD; A-->B"),
 		block("table", []any{[]any{"a", "b"}, []any{"c", "d"}}),
 	}}
@@ -57,7 +57,7 @@ func TestSlide_UnknownKindFlagged(t *testing.T) {
 }
 
 func TestSlide_BadGeometryFlagged(t *testing.T) {
-	bad := block("textarea", "hi")
+	bad := block("text", "hi")
 	bad["w"] = float64(0) // zero width is degenerate
 	doc := map[string]any{"blocks": []any{bad}}
 	r := analyzeSlide(t, doc)

@@ -976,8 +976,8 @@ export class ShapeInfo {
 }
 
 /**
- * SlideBlockKindDescriptor names one kind the block palette offers. Name is the
- * field-type id used to edit and render the block; LabelKey is its i18n label.
+ * SlideBlockKindDescriptor names one reveal element the block palette offers.
+ * Name is the reveal element kind; LabelKey is its i18n label.
  */
 export class SlideBlockKindDescriptor {
     "name": string;

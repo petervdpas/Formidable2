@@ -12,16 +12,21 @@ import {
 
 export interface SlideBlock {
   id: string;
-  kind: string;
+  kind: string; // reveal element type
   content: unknown;
   x: number;
   y: number;
   w: number;
   h: number;
+  fragment?: string; // reveal fragment animation ("" / undefined = none)
+  lang?: string; // code block language
 }
 
 export interface SlideDoc {
   blocks: SlideBlock[];
+  background?: string; // reveal per-slide background (color)
+  transition?: string; // reveal per-slide transition override
+  notes?: string; // reveal speaker notes
 }
 
 // The fixed authoring stage (matches the Go SlideCanvasWidth/Height).
@@ -115,19 +120,33 @@ function tableColumns(content: unknown): unknown[] {
   }));
 }
 
-// fieldForBlock builds the synthetic Field a block's content editor binds to.
-// The block's kind IS a field-type id, so FormFieldRenderer dispatches to the
-// existing editor for that type.
-export function fieldForBlock(b: SlideBlock): Field {
+// Reveal element kinds whose content is edited by an existing field component
+// (the genuine reuse: a table IS a table). The rest (video, embed, code) get
+// bespoke inspector editors and return null here.
+const KIND_FIELD_TYPE: Record<string, string> = {
+  text: "textarea",
+  quote: "textarea",
+  math: "textarea",
+  image: "image",
+  table: "table",
+  list: "list",
+  mermaid: "mermaid",
+};
+
+// fieldForBlock builds the synthetic Field a reuse-kind block binds to, or null
+// for kinds with a bespoke editor.
+export function fieldForBlock(b: SlideBlock): Field | null {
+  const ft = KIND_FIELD_TYPE[b.kind];
+  if (!ft) return null;
   const base: Record<string, unknown> = {
     key: b.id,
-    type: b.kind,
+    type: ft,
     label: "",
     options: [],
     readonly: false,
   };
-  if (b.kind === "textarea") base.format = "markdown";
-  if (b.kind === "table") base.options = tableColumns(b.content);
+  if (b.kind === "text" || b.kind === "quote") base.format = "markdown";
+  if (ft === "table") base.options = tableColumns(b.content);
   return base as unknown as Field;
 }
 

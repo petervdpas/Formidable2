@@ -7,9 +7,11 @@ import (
 	"strings"
 )
 
-// The slide field's value is a free-positioned canvas of typed content blocks.
-// A block is "an existing-field-typed value plus a position": its Kind is a
-// field-type id, so the same renderer/editor used elsewhere handles its Content.
+// The slide field's value is a free-positioned canvas of reveal.js content
+// elements. A block's Kind is a reveal element type (text, image, video, embed,
+// code, math, table, list, quote, mermaid); the editor and renderer map each to
+// the right editor and reveal-appropriate markup. It compiles to a reveal
+// <section>, so backgrounds/fragments/transitions/notes come from reveal.
 
 // SlideCanvasWidth/Height is the fixed authoring stage; block positions are
 // pixels within it. The editor scales this to fit; rendering uses it 1:1.
@@ -18,24 +20,31 @@ const (
 	SlideCanvasHeight = 720
 )
 
-// SlideBlock is one positioned content block. Kind is a field-type id
-// (textarea=markdown, mermaid, image, table, list); Content is that type's
-// value. Z-order is the block's index in SlideDoc.Blocks.
+// SlideBlock is one positioned reveal.js content element. Kind is a reveal
+// element type (text, image, video, embed, code, math, table, list, quote,
+// mermaid), not a form field type. Fragment is a reveal fragment animation
+// ("" = none) that steps the element in; Lang is the language of a code block.
+// Z-order is the block's index in SlideDoc.Blocks.
 type SlideBlock struct {
-	ID      string `json:"id"`
-	Kind    string `json:"kind"`
-	Content any    `json:"content"`
-	X       int    `json:"x"`
-	Y       int    `json:"y"`
-	W       int    `json:"w"`
-	H       int    `json:"h"`
+	ID       string `json:"id"`
+	Kind     string `json:"kind"`
+	Content  any    `json:"content"`
+	X        int    `json:"x"`
+	Y        int    `json:"y"`
+	W        int    `json:"w"`
+	H        int    `json:"h"`
+	Fragment string `json:"fragment,omitempty"`
+	Lang     string `json:"lang,omitempty"`
 }
 
-// SlideDoc is the stored value of a slide field. It is an object (not a bare
-// array) so slide-level options (background, transition) can be added later
-// without changing the shape.
+// SlideDoc is the stored value of a slide field: the per-slide reveal content.
+// Blocks are the elements; Background/Transition/Notes are reveal's per-slide
+// attributes (background color/image, transition override, speaker notes).
 type SlideDoc struct {
-	Blocks []SlideBlock `json:"blocks"`
+	Blocks     []SlideBlock `json:"blocks"`
+	Background string       `json:"background,omitempty"`
+	Transition string       `json:"transition,omitempty"`
+	Notes      string       `json:"notes,omitempty"`
 }
 
 // SlideCanvasSize reads the deck's authored canvas size from the slide field's
@@ -62,22 +71,27 @@ func optionInt(f Field, key string, def int) int {
 	return def
 }
 
-// SlideBlockKindDescriptor names one kind the block palette offers. Name is the
-// field-type id used to edit and render the block; LabelKey is its i18n label.
+// SlideBlockKindDescriptor names one reveal element the block palette offers.
+// Name is the reveal element kind; LabelKey is its i18n label.
 type SlideBlockKindDescriptor struct {
 	Name     string `json:"name"`
 	LabelKey string `json:"label_key"`
 }
 
-// builtinSlideBlockKinds is the canonical palette; display order is significant.
-// Each Name is an existing field type, so blocks reuse that type's FormField
-// component (edit) and emitter (render). Markdown blocks use the textarea type.
+// builtinSlideBlockKinds is the reveal.js element palette; display order is
+// significant. These are reveal content types, not form field types - the
+// editor and renderer map each to the right editor/markup.
 var builtinSlideBlockKinds = []SlideBlockKindDescriptor{
-	{Name: "textarea", LabelKey: "workspace.templates.slide.kind.markdown"},
-	{Name: "mermaid", LabelKey: "workspace.templates.slide.kind.mermaid"},
+	{Name: "text", LabelKey: "workspace.templates.slide.kind.text"},
 	{Name: "image", LabelKey: "workspace.templates.slide.kind.image"},
+	{Name: "video", LabelKey: "workspace.templates.slide.kind.video"},
+	{Name: "embed", LabelKey: "workspace.templates.slide.kind.embed"},
+	{Name: "code", LabelKey: "workspace.templates.slide.kind.code"},
+	{Name: "math", LabelKey: "workspace.templates.slide.kind.math"},
 	{Name: "table", LabelKey: "workspace.templates.slide.kind.table"},
 	{Name: "list", LabelKey: "workspace.templates.slide.kind.list"},
+	{Name: "quote", LabelKey: "workspace.templates.slide.kind.quote"},
+	{Name: "mermaid", LabelKey: "workspace.templates.slide.kind.mermaid"},
 }
 
 // SlideBlockKinds returns a defensive copy of the block palette (Wails-exposed

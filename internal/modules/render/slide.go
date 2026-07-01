@@ -27,10 +27,14 @@ func renderSlide(v any, f *template.Field, opts *Options) string {
 		`<div class="slide-canvas" style="position:relative;width:%dpx;height:%dpx">`,
 		w, h)
 	for _, b := range doc.Blocks {
-		inner, _ := RenderHTML(emitSlideBlock(b.Kind, b.Content, opts))
+		inner, _ := RenderHTML(emitSlideBlock(b.Kind, b.Content, b.Lang, opts))
+		cls := "slide-block"
+		if b.Fragment != "" {
+			cls += " fragment " + b.Fragment
+		}
 		fmt.Fprintf(&sb,
-			`<div class="slide-block" style="position:absolute;left:%dpx;top:%dpx;width:%dpx;height:%dpx">%s</div>`,
-			b.X, b.Y, b.W, b.H, inner)
+			`<div class="%s" style="position:absolute;left:%dpx;top:%dpx;width:%dpx;height:%dpx">%s</div>`,
+			cls, b.X, b.Y, b.W, b.H, inner)
 	}
 	sb.WriteString("</div>")
 	return sb.String()
@@ -41,16 +45,15 @@ func renderSlide(v any, f *template.Field, opts *Options) string {
 // what the deck will render. templateName scopes image URLs.
 func (m *Manager) RenderSlideBlockHTML(templateName, kind string, content any) string {
 	opts := m.optionsFor(templateName, "")
-	html, _ := RenderHTML(emitSlideBlock(kind, content, opts))
+	html, _ := RenderHTML(emitSlideBlock(kind, content, "", opts))
 	return html
 }
 
-// emitSlideBlock renders one block's content to markdown, dispatching on kind to
-// the correct per-type emitter. Markdown blocks (textarea) pass through to
-// goldmark; mermaid/image/table/list reuse their emitters with the small fixups
-// a standalone block needs (image -> markdown image, table -> GFM with a header
-// delimiter so goldmark builds a real <table>).
-func emitSlideBlock(kind string, content any, opts *Options) string {
+// emitSlideBlock renders one reveal block's content to markdown/HTML, dispatching
+// on the reveal element kind. text renders as markdown; code/math/quote map to
+// their markdown/reveal forms; video/embed emit reveal media elements; image/
+// table/list/mermaid reuse the shared emitters. lang is the code language.
+func emitSlideBlock(kind string, content any, lang string, opts *Options) string {
 	switch kind {
 	case "mermaid":
 		return emitMermaid(content)
@@ -63,9 +66,45 @@ func emitSlideBlock(kind string, content any, opts *Options) string {
 		return slideTableMarkdown(content)
 	case "list":
 		return emitList(content)
-	default: // textarea (markdown) and anything else
+	case "quote":
+		return blockquoteMarkdown(stringify(content))
+	case "code":
+		return "```" + strings.TrimSpace(lang) + "\n" + stringify(content) + "\n```"
+	case "math":
+		src := strings.TrimSpace(stringify(content))
+		if src == "" {
+			return ""
+		}
+		return `\[` + src + `\]` // reveal's math plugin renders this
+	case "video":
+		url := strings.TrimSpace(stringify(content))
+		if url == "" {
+			return ""
+		}
+		return `<video controls data-autoplay src="` + url + `"></video>`
+	case "embed":
+		url := strings.TrimSpace(stringify(content))
+		if url == "" {
+			return ""
+		}
+		return `<iframe data-src="` + url + `" allowfullscreen></iframe>`
+	default: // text (markdown) and anything else
 		return stringify(content)
 	}
+}
+
+// blockquoteMarkdown prefixes every line with "> " so goldmark builds a real
+// blockquote (reveal styles it as a quote).
+func blockquoteMarkdown(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	for i, ln := range lines {
+		lines[i] = "> " + ln
+	}
+	return strings.Join(lines, "\n")
 }
 
 // slideTableMarkdown renders a table block's 2D array as a GFM table, treating

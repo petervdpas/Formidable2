@@ -75,7 +75,7 @@ func fieldTypeCases() []fieldTypeCase {
 		{
 			fieldType: "slide",
 			happy: map[string]any{"blocks": []any{
-				map[string]any{"id": "b1", "kind": "textarea", "content": "hi",
+				map[string]any{"id": "b1", "kind": "text", "content": "hi",
 					"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
 			}},
 			unhappy:    float64(7),
