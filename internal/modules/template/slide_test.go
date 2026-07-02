@@ -67,6 +67,16 @@ func TestSlideCanvasSize_DefaultsAndCustom(t *testing.T) {
 	if w, h := SlideCanvasSize(legacy); w != 1024 || h != 768 {
 		t.Errorf("legacy canvas = %dx%d, want 1024x768", w, h)
 	}
+	// Migration glitch: the format label landed on the legacy canvas_width row.
+	// The format is still read wherever its label sits (both integers), not the
+	// stale canvas_height row - so the aspect ratio stays correct.
+	mangled := Field{Type: "slide", Options: []any{
+		map[string]any{"value": "canvas_width", "label": "1920 x 1080 (16:9)"},
+		map[string]any{"value": "canvas_height", "label": "720"},
+	}}
+	if w, h := SlideCanvasSize(mangled); w != 1920 || h != 1080 {
+		t.Errorf("mangled canvas = %dx%d, want 1920x1080", w, h)
+	}
 }
 
 func TestNormalize_ForcesSlideKey(t *testing.T) {

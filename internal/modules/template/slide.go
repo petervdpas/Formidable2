@@ -79,10 +79,18 @@ type SlideDoc struct {
 // 1280x720. These dimensions drive the editor stage, the rendered slide, and
 // (later) reveal's width/height at init.
 func SlideCanvasSize(f Field) (w, h int) {
-	// A preset format ("1280 x 720 (16:9)") is the current shape; fall back to the
-	// legacy canvas_width/canvas_height rows so older templates keep rendering.
-	if cw, ch, ok := parseCanvasFormat(optionLabel(f, "canvas_format")); ok {
-		return cw, ch
+	// Any option whose label carries two integers is a format ("1920 x 1080
+	// (16:9)"), wherever it sits - a clean canvas_format row, or (from an earlier
+	// migration glitch) the legacy canvas_width row. Fall back to the separate
+	// canvas_width/canvas_height rows for genuinely old templates.
+	for _, opt := range f.Options {
+		m, ok := opt.(map[string]any)
+		if !ok {
+			continue
+		}
+		if cw, ch, ok := parseCanvasFormat(fmt.Sprint(m["label"])); ok {
+			return cw, ch
+		}
 	}
 	return optionInt(f, "canvas_width", SlideCanvasWidth), optionInt(f, "canvas_height", SlideCanvasHeight)
 }
@@ -113,18 +121,6 @@ func parseCanvasFormat(label string) (w, h int, ok bool) {
 	return 0, 0, false
 }
 
-func optionLabel(f Field, key string) string {
-	for _, opt := range f.Options {
-		m, ok := opt.(map[string]any)
-		if !ok {
-			continue
-		}
-		if v, _ := m["value"].(string); v == key {
-			return fmt.Sprint(m["label"])
-		}
-	}
-	return ""
-}
 
 func optionInt(f Field, key string, def int) int {
 	for _, opt := range f.Options {

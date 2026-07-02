@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, ref, watch, type ComputedRef } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { slideBlockComponent, SlideSettings, SlideElementTransition, SlideElementOrder } from "./slide-blocks";
@@ -190,27 +190,112 @@ function setBackground(v: string) { background.value = v; commit(); }
 function setTransition(v: string) { transition.value = v; commit(); }
 function setNotes(v: string) { notes.value = v; commit(); }
 
-// ── stage scaling ─────────────────────────────────────────────────────
+// ── zoom + pan viewport ────────────────────────────────────────────────
+// The stage is a fixed viewport; the canvas is translated + scaled inside it. It
+// fits-to-width by default, but the user can zoom (Ctrl/Cmd + wheel, anchored at
+// the cursor) and pan (Space-drag or middle-mouse-drag); "Fit" resets both. This
+// keeps a large canvas (e.g. 1920x1080) workable instead of shrunk to nothing.
 const stageWrap = ref<HTMLElement | null>(null);
-const scale = ref(1);
+const ZOOM_MIN = 0.1, ZOOM_MAX = 4;
+const fitScale = ref(1);
+const zoom = ref(1);
+const pan = ref({ x: 0, y: 0 });
+const userAdjusted = ref(false); // once the user zooms/pans, stop auto-fitting on resize
+const spaceDown = ref(false);
+
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+// The viewport is a fixed working area (CSS height, independent of the canvas);
+// the slide fits inside it on BOTH axes and is centred, so switching canvas
+// format (16:9 <-> 4:3) never resizes the editor.
+function computeFit() {
+  const el = stageWrap.value;
+  const w = (el?.clientWidth ?? props.canvasW) - 24;
+  const h = (el?.clientHeight ?? props.canvasH) - 24;
+  fitScale.value = Math.max(ZOOM_MIN, Math.min(1, w / props.canvasW, h / props.canvasH));
+}
+function centeredPan(z: number): { x: number; y: number } {
+  const el = stageWrap.value;
+  return {
+    x: ((el?.clientWidth ?? 0) - props.canvasW * z) / 2,
+    y: ((el?.clientHeight ?? 0) - props.canvasH * z) / 2,
+  };
+}
+// Zoom to a target scale keeping the viewport point (vx,vy) over the same canvas
+// point, so zooming stays anchored where the cursor is.
+function zoomAt(target: number, vx: number, vy: number) {
+  const k = target / zoom.value;
+  pan.value = { x: vx - (vx - pan.value.x) * k, y: vy - (vy - pan.value.y) * k };
+  zoom.value = target;
+  userAdjusted.value = true;
+}
+function zoomBy(dir: number) {
+  const rect = stageWrap.value?.getBoundingClientRect();
+  zoomAt(clampZoom(zoom.value * (dir > 0 ? 1.2 : 1 / 1.2)), (rect?.width ?? 0) / 2, (rect?.height ?? 0) / 2);
+}
+function fitToView() {
+  computeFit();
+  zoom.value = fitScale.value;
+  pan.value = centeredPan(fitScale.value);
+  userAdjusted.value = false;
+}
+function onWheel(e: WheelEvent) {
+  if (!e.ctrlKey && !e.metaKey) return; // otherwise let the page scroll normally
+  e.preventDefault();
+  const rect = stageWrap.value?.getBoundingClientRect();
+  if (!rect) return;
+  zoomAt(clampZoom(zoom.value * (e.deltaY < 0 ? 1.1 : 1 / 1.1)), e.clientX - rect.left, e.clientY - rect.top);
+}
+function startPan(e: PointerEvent) {
+  if (!spaceDown.value && e.button !== 1) return; // pan only with Space or middle-mouse
+  e.preventDefault();
+  const sx = pan.value.x, sy = pan.value.y, px = e.clientX, py = e.clientY;
+  const move = (ev: PointerEvent) => { pan.value = { x: sx + (ev.clientX - px), y: sy + (ev.clientY - py) }; };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  userAdjusted.value = true;
+}
+function isTypingTarget(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+}
+function onKeyDown(e: KeyboardEvent) {
+  if (e.code === "Space" && !isTypingTarget(e.target)) spaceDown.value = true;
+}
+function onKeyUp(e: KeyboardEvent) {
+  if (e.code === "Space") spaceDown.value = false;
+}
 onMounted(() => {
-  if (!stageWrap.value) return;
-  const ro = new ResizeObserver(() => {
-    const w = (stageWrap.value?.clientWidth ?? props.canvasW) - 24;
-    scale.value = Math.min(1, w / props.canvasW);
-  });
-  ro.observe(stageWrap.value);
+  if (stageWrap.value) {
+    const ro = new ResizeObserver(() => {
+      computeFit();
+      if (!userAdjusted.value) { zoom.value = fitScale.value; pan.value = centeredPan(fitScale.value); }
+    });
+    ro.observe(stageWrap.value);
+    fitToView();
+    // Non-passive so preventDefault holds; otherwise a Ctrl-zoom also scrolls.
+    stageWrap.value.addEventListener("wheel", onWheel, { passive: false });
+  }
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
 });
+onBeforeUnmount(() => {
+  stageWrap.value?.removeEventListener("wheel", onWheel);
+  window.removeEventListener("keydown", onKeyDown);
+  window.removeEventListener("keyup", onKeyUp);
+});
+// Refit (and recentre) when the canvas format changes, so a new aspect ratio
+// lands centred in the same fixed viewport instead of clipped or off-corner.
+watch(() => [props.canvasW, props.canvasH], () => fitToView());
 const stageStyle = computed(() => ({
   width: `${props.canvasW}px`,
   height: `${props.canvasH}px`,
-  transform: `scale(${scale.value})`,
+  transform: `translate(${pan.value.x}px, ${pan.value.y}px) scale(${zoom.value})`,
   transformOrigin: "top left",
   background: background.value || "#fff",
-}));
-const wrapSpacerStyle = computed(() => ({
-  width: `${props.canvasW * scale.value}px`,
-  height: `${props.canvasH * scale.value}px`,
 }));
 // The box is exactly the stored geometry; content sits inside it. z-index is the
 // array index (matching render.renderSlide), so editor and deck stack identically.
@@ -271,14 +356,14 @@ function clearGuides() {
 
 // ── drag / resize ─────────────────────────────────────────────────────
 function startDrag(b: SlideBlock, e: PointerEvent) {
-  if (e.button !== 0 || editingId.value === b.id) return;
+  if (e.button !== 0 || editingId.value === b.id || spaceDown.value) return; // Space-drag pans instead
   selectedId.value = b.id;
   const sx = b.x, sy = b.y, px = e.clientX, py = e.clientY;
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture(e.pointerId);
   const move = (ev: PointerEvent) => {
-    const rawX = sx + (ev.clientX - px) / scale.value;
-    const rawY = sy + (ev.clientY - py) / scale.value;
+    const rawX = sx + (ev.clientX - px) / zoom.value;
+    const rawY = sy + (ev.clientY - py) / zoom.value;
     const snX = snapBox(rawX, b.w, targetsX(b.id));
     const snY = snapBox(rawY, b.h, targetsY(b.id));
     b.x = Math.max(0, snX.guide !== null ? Math.round(snX.value) : toGrid(rawX));
@@ -304,7 +389,7 @@ function startResize(b: SlideBlock, e: PointerEvent) {
   // Image frames are aspect-locked to the image: width leads, height follows.
   const ratio = b.kind === "image" ? imgRatio.value[b.id] : undefined;
   const move = (ev: PointerEvent) => {
-    const rawRight = b.x + Math.max(40, sw + (ev.clientX - px) / scale.value);
+    const rawRight = b.x + Math.max(40, sw + (ev.clientX - px) / zoom.value);
     const snR = snapPoint(rawRight, targetsX(b.id));
     const right = snR.guide !== null ? Math.round(snR.value) : toGrid(rawRight);
     const nw = Math.max(40, right - b.x);
@@ -313,7 +398,7 @@ function startResize(b: SlideBlock, e: PointerEvent) {
       b.h = Math.max(40, Math.round(nw / ratio));
       guides.value = { x: snR.guide !== null ? [snR.guide] : [], y: [] };
     } else {
-      const rawBottom = b.y + Math.max(40, sh + (ev.clientY - py) / scale.value);
+      const rawBottom = b.y + Math.max(40, sh + (ev.clientY - py) / zoom.value);
       const snB = snapPoint(rawBottom, targetsY(b.id));
       const bottom = snB.guide !== null ? Math.round(snB.value) : toGrid(rawBottom);
       b.w = nw;
@@ -356,9 +441,11 @@ function startResize(b: SlideBlock, e: PointerEvent) {
         </button>
       </div>
 
-      <div ref="stageWrap" class="slide-stage-wrap">
-        <div class="slide-stage-spacer" :style="wrapSpacerStyle">
-          <div class="slide-stage" :style="stageStyle" @pointerdown.self="selectedId = null; editingId = null">
+      <div
+        ref="stageWrap" class="slide-stage-wrap" :class="{ panning: spaceDown }"
+        @pointerdown="startPan"
+      >
+        <div class="slide-stage" :style="stageStyle" @pointerdown.self="selectedId = null; editingId = null">
             <div
               v-if="showGrid" class="slide-grid"
               :style="{ backgroundSize: `${GRID}px ${GRID}px` }"
@@ -392,7 +479,17 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               v-for="gy in guides.y" :key="`gy${gy}`"
               class="slide-guide slide-guide-h" :style="{ top: `${gy}px` }"
             ></div>
-          </div>
+        </div>
+        <div class="slide-zoombar">
+          <button type="button" class="slide-zoom-btn" :title="t('workspace.storage.slide.zoom_out')" @click="zoomBy(-1)">
+            <i class="fa-solid fa-minus" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="slide-zoom-btn slide-zoom-fit" :title="t('workspace.storage.slide.zoom_fit')" @click="fitToView">
+            {{ Math.round(zoom * 100) }}%
+          </button>
+          <button type="button" class="slide-zoom-btn" :title="t('workspace.storage.slide.zoom_in')" @click="zoomBy(1)">
+            <i class="fa-solid fa-plus" aria-hidden="true"></i>
+          </button>
         </div>
       </div>
 

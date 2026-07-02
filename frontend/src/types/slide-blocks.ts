@@ -55,25 +55,31 @@ export function slideBlockKinds(): SlideBlockKindDescriptor[] {
 // options (deck-wide config), defaulting to 1280x720. Mirrors the Go
 // SlideCanvasSize.
 export function canvasSize(field: Field): { w: number; h: number } {
-  const label = (key: string): string => {
-    for (const opt of field.options ?? []) {
-      if (opt && typeof opt === "object") {
-        const o = opt as Record<string, unknown>;
-        if (String(o.value ?? "") === key) return String(o.label ?? "");
+  const opts = field.options ?? [];
+  // Any option whose label carries two integers is a format ("1920 x 1080
+  // (16:9)"), wherever it sits - a clean canvas_format row, or (from an earlier
+  // migration glitch) the legacy canvas_width row. Mirrors Go SlideCanvasSize.
+  for (const opt of opts) {
+    if (opt && typeof opt === "object") {
+      const nums = String((opt as Record<string, unknown>).label ?? "").match(/\d+/g);
+      if (nums && nums.length >= 2) {
+        const w = parseInt(nums[0], 10), h = parseInt(nums[1], 10);
+        if (w > 0 && h > 0) return { w, h };
       }
     }
-    return "";
-  };
-  // A preset format ("1280 x 720 (16:9)") is the current shape; its first two
-  // integers are width/height. Fall back to the legacy canvas_width/height rows.
-  const fmt = label("canvas_format").match(/\d+/g);
-  if (fmt && fmt.length >= 2) {
-    const w = parseInt(fmt[0], 10), h = parseInt(fmt[1], 10);
-    if (w > 0 && h > 0) return { w, h };
   }
+  // Genuinely old templates: separate canvas_width/canvas_height rows.
   const num = (key: string, def: number) => {
-    const n = parseInt(label(key), 10);
-    return Number.isFinite(n) && n > 0 ? n : def;
+    for (const opt of opts) {
+      if (opt && typeof opt === "object") {
+        const o = opt as Record<string, unknown>;
+        if (String(o.value ?? "") === key) {
+          const n = parseInt(String(o.label ?? ""), 10);
+          if (Number.isFinite(n) && n > 0) return n;
+        }
+      }
+    }
+    return def;
   };
   return { w: num("canvas_width", SLIDE_CANVAS_W), h: num("canvas_height", SLIDE_CANVAS_H) };
 }

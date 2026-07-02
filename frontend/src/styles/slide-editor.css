@@ -26,6 +26,7 @@
 .slide-editor-body {
     position: relative;
     display: flex;
+    align-items: stretch; /* toolrail | stage | inspector all share one height */
     gap: var(--space-2, 8px);
     flex: 1;
     min-height: 0;
@@ -70,22 +71,61 @@
     font-size: 16px;
 }
 
+/* A fixed working area: its size is independent of the canvas (a stable height,
+   not derived from the slide), so switching canvas format never resizes the
+   editor. The stage is translated + scaled inside it (zoom/pan), fit-and-centred,
+   and overflow is clipped so a zoomed-in canvas is panned rather than scrolled. */
 .slide-stage-wrap {
     flex: 1;
     min-width: 0;
-    overflow: auto;
+    min-height: 300px; /* floor only; height comes from the shared row (element bar) */
+    position: relative;
+    overflow: hidden;
     background: var(--color-surface-2, #eaeaea);
     border: 1px solid var(--color-border, #ddd);
     border-radius: var(--radius-md, 6px);
-    padding: var(--space-2, 8px);
 }
-.slide-stage-spacer {
-    position: relative;
+.slide-stage-wrap.panning {
+    cursor: grab;
 }
+/* Out of flow so its untransformed size never drives the layout; the transform
+   (translate + scale) places and sizes it within the fixed viewport. */
 .slide-stage {
-    position: relative;
+    position: absolute;
+    top: 0;
+    left: 0;
     background: #fff;
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+}
+.slide-zoombar {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 20;
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+.slide-zoom-btn {
+    border: none;
+    background: transparent;
+    color: var(--color-text, #333);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm, 4px);
+    font-size: 13px;
+    min-width: 28px;
+}
+.slide-zoom-btn:hover {
+    background: var(--list-hover-bg, #f0f0f0);
+}
+.slide-zoom-fit {
+    min-width: 52px;
+    font-variant-numeric: tabular-nums;
 }
 /* Optional snapping grid, painted behind the blocks; never intercepts pointers.
    background-size is set inline from the JS grid step so the two stay in sync. */
