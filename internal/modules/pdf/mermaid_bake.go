@@ -70,11 +70,28 @@ func (m *Manager) bakeMermaidSVG(body, browserBin string, width int) string {
 	return b.String()
 }
 
+// voidElementRe matches HTML void elements that mermaid emits inside its
+// foreignObject HTML labels (notably `<br>` from a note's `<br>` line breaks).
+var voidElementRe = regexp.MustCompile(`(?i)<(br|hr|wbr|img|input|area|base|col|embed|source|track)\b([^>]*?)\s*/?>`)
+
+// xmlSafeSVG self-closes bare void HTML elements so the SVG is well-formed XML.
+// A data-URI `<img src="data:image/svg+xml,...">` is parsed as STRICT XML, where
+// an unclosed `<br>` is fatal and fails the whole image (the diagram renders fine
+// inline in HTML, parsed leniently - that's why this only bites the PDF path).
+// Primary sanitisation happens in the browser (renderMermaid re-serialises the
+// SVG via XMLSerializer, covering ALL foreignObject HTML); this is the cheap
+// fallback for the error path where that round-trip is skipped and mermaid's raw
+// HTML string survives. Normalises both `<br>` and `<br/>` to `<br/>`.
+func xmlSafeSVG(svg string) string {
+	return voidElementRe.ReplaceAllString(svg, "<$1$2/>")
+}
+
 // writeSVGImage emits an SVG as a base64 data-URI markdown image, padded with
-// blank lines so picoloom's markdown parser treats it as a block.
+// blank lines so picoloom's markdown parser treats it as a block. The SVG is
+// XML-sanitised first so a data-URI <img> (strict XML) can render it.
 func writeSVGImage(b *strings.Builder, svg string) {
 	b.WriteString("\n\n![diagram](data:image/svg+xml;base64,")
-	b.WriteString(base64.StdEncoding.EncodeToString([]byte(svg)))
+	b.WriteString(base64.StdEncoding.EncodeToString([]byte(xmlSafeSVG(svg))))
 	b.WriteString(")\n\n")
 }
 
@@ -182,7 +199,18 @@ async (sources) => {
   for (let i = 0; i < sources.length; i++) {
     try {
       const r = await m.render("mmbake" + i, sources[i]);
-      out.push({ svg: r.svg, err: "" });
+      // mermaid returns an HTML-serialized SVG: foreignObject HTML labels carry
+      // bare void tags (<br>) and unescaped entities - fine inline in a browser,
+      // but a data-URI <img> parses the SVG as STRICT XML and rejects them. Round-
+      // trip through the browser's own serializer to emit well-formed XML for the
+      // whole foreignObject, not just a <br> patch.
+      let svg = r.svg;
+      try {
+        const doc = new DOMParser().parseFromString(r.svg, "text/html");
+        const el = doc.querySelector("svg");
+        if (el) svg = new XMLSerializer().serializeToString(el);
+      } catch (_) { /* keep mermaid's string */ }
+      out.push({ svg, err: "" });
     } catch (e) {
       out.push({ svg: "", err: String((e && e.message) || e) });
     }

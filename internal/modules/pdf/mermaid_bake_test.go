@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"encoding/xml"
 	"strings"
 	"testing"
 )
@@ -74,5 +75,41 @@ func TestScaleSVGWidth_ZeroIsNoOp(t *testing.T) {
 	svg := `<svg width="800" height="400" viewBox="0 0 800 400"></svg>`
 	if got := scaleSVGWidth(svg, 0); got != svg {
 		t.Fatalf("zero width changed svg: %q", got)
+	}
+}
+
+func TestXMLSafeSVG_SelfClosesVoidElements(t *testing.T) {
+	// mermaid emits bare <br> inside foreignObject HTML labels (a note's <br>
+	// line breaks). A data-URI <img> is parsed as strict XML, where an unclosed
+	// <br> is fatal - so the baked SVG must self-close it.
+	in := `<svg><foreignObject><div><p>a<br>b<br>c</p></div></foreignObject></svg>`
+	got := xmlSafeSVG(in)
+	if strings.Contains(got, "<br>") {
+		t.Errorf("bare <br> survived: %q", got)
+	}
+	if strings.Count(got, "<br/>") != 2 {
+		t.Errorf("want 2 self-closed <br/>, got %q", got)
+	}
+	if err := xml.Unmarshal([]byte(got), new(struct{ XMLName xml.Name })); err != nil {
+		t.Errorf("sanitised SVG is not valid XML: %v", err)
+	}
+	// Raw input is invalid XML (proves the fix is load-bearing).
+	if err := xml.Unmarshal([]byte(in), new(struct{ XMLName xml.Name })); err == nil {
+		t.Error("expected raw <br> SVG to be invalid XML")
+	}
+}
+
+func TestXMLSafeSVG_LeavesSelfClosedAndOtherTags(t *testing.T) {
+	// Already-closed void tags aren't double-slashed; normal tags untouched.
+	in := `<svg><br/><hr /><text>x</text><img src="a"></svg>`
+	got := xmlSafeSVG(in)
+	if strings.Contains(got, "//") {
+		t.Errorf("double-slashed a tag: %q", got)
+	}
+	if !strings.Contains(got, "<text>x</text>") {
+		t.Errorf("mangled a normal element: %q", got)
+	}
+	if !strings.Contains(got, `<img src="a"/>`) {
+		t.Errorf("did not self-close <img>: %q", got)
 	}
 }
