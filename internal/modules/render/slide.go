@@ -158,15 +158,15 @@ func renderSlide(v any, f *template.Field, opts *Options) string {
 	fmt.Fprintf(&sb,
 		`<div class="slide-canvas" style="position:relative;width:%dpx;height:%dpx">`,
 		w, h)
-	for _, b := range doc.Blocks {
+	for i, b := range doc.Blocks {
 		inner, _ := RenderHTML(emitSlideBlock(b.Kind, b.Content, b.Lang, opts))
 		cls := "slide-block slide-block-" + b.Kind
 		if b.Fragment != "" {
 			cls += " fragment " + b.Fragment
 		}
 		fmt.Fprintf(&sb,
-			`<div class="%s" style="position:absolute;left:%dpx;top:%dpx;width:%dpx;height:%dpx;%s"><div class="slide-fit">%s</div></div>`,
-			cls, b.X, b.Y, b.W, b.H, b.InlineStyle(), inner)
+			`<div class="%s" style="position:absolute;left:%dpx;top:%dpx;width:%dpx;height:%dpx;z-index:%d;%s"><div class="slide-fit">%s</div></div>`,
+			cls, b.X, b.Y, b.W, b.H, i, b.InlineStyle(), inner)
 	}
 	sb.WriteString("</div>")
 	return sb.String()

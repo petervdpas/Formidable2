@@ -2,7 +2,7 @@
 import { computed, inject, onMounted, ref, watch, type ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
-import { slideBlockComponent, SlideSettings, SlideElementTransition } from "./slide-blocks";
+import { slideBlockComponent, SlideSettings, SlideElementTransition, SlideElementOrder } from "./slide-blocks";
 import {
   ensureSlideBlockKindsLoaded,
   slideBlockKinds,
@@ -138,6 +138,23 @@ function removeSelected() {
   editingId.value = null;
   commit();
 }
+// z-order: blocks paint in array order, so swapping a block with its neighbour
+// moves it one step forward (later, on top) or backward. The render (slide.go)
+// and canvas both honour array order, so this is the single source of z-order.
+function reorder(b: SlideBlock | null, dir: "forward" | "backward") {
+  if (!b) return;
+  const arr = blocks.value;
+  const i = arr.indexOf(b);
+  const j = dir === "forward" ? i + 1 : i - 1;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  const tmp = arr[i];
+  arr[i] = arr[j];
+  arr[j] = tmp;
+  commit();
+}
+const selectedIndex = computed(() =>
+  selected.value ? blocks.value.indexOf(selected.value) : -1,
+);
 
 const selected = computed(() => blocks.value.find((b) => b.id === selectedId.value) ?? null);
 const blockComp = (kind: string) => slideBlockComponent(kind);
@@ -195,9 +212,10 @@ const wrapSpacerStyle = computed(() => ({
   width: `${props.canvasW * scale.value}px`,
   height: `${props.canvasH * scale.value}px`,
 }));
-// The box is exactly the stored geometry; content sits inside it.
-function blockStyle(b: SlideBlock) {
-  return { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` };
+// The box is exactly the stored geometry; content sits inside it. z-index is the
+// array index (matching render.renderSlide), so editor and deck stack identically.
+function blockStyle(b: SlideBlock, i: number) {
+  return { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px`, zIndex: i };
 }
 
 // ── grid + smart guides ───────────────────────────────────────────────
@@ -346,10 +364,10 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               :style="{ backgroundSize: `${GRID}px ${GRID}px` }"
             ></div>
             <div
-              v-for="b in blocks" :key="b.id"
+              v-for="(b, i) in blocks" :key="b.id"
               class="slide-block-box"
               :class="[`slide-block-${b.kind}`, { selected: b.id === selectedId, editing: b.id === editingId }]"
-              :style="blockStyle(b)"
+              :style="blockStyle(b, i)"
               @pointerdown="startDrag(b, $event)"
               @dblclick="startEdit(b)"
             >
@@ -409,6 +427,13 @@ function startResize(b: SlideBlock, e: PointerEvent) {
           </div>
 
           <SlideElementTransition :block="selected" @patch="applyPatch(selected, $event)" />
+
+          <SlideElementOrder
+            :can-forward="selectedIndex >= 0 && selectedIndex < blocks.length - 1"
+            :can-backward="selectedIndex > 0"
+            @forward="reorder(selected, 'forward')"
+            @backward="reorder(selected, 'backward')"
+          />
 
           <button type="button" class="tool-btn danger" @click="removeSelected">
             {{ t('workspace.storage.slide.delete_block') }}

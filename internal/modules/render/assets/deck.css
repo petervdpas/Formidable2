@@ -18,6 +18,10 @@
 .reveal .slides > section {
     top: 0 !important;
     padding: 0 !important;
+    /* Clip each slide to its own bounds. Reveal's ESC overview only clips the
+       whole grid, not each section, so without this a slide's overflow bled
+       across neighbours (worse when slides pack tight in a small window). */
+    overflow: hidden !important;
 }
 
 /* formidable-prose paints a light page background and gives the canvas a 1em
@@ -40,6 +44,12 @@
    editor: nothing renders outside its box or beyond the slide. */
 .reveal .slide-canvas {
     overflow: hidden;
+    /* Reveal puts each section in a 3D context (transform-style:preserve-3d) for
+       its transitions, and inside a 3D context the browser paints children by 3D
+       depth - DOM order and z-index are ignored, so block stacking came out
+       differently from the editor. Flatten the canvas back to 2D so our blocks
+       stack by their z-index (set per block from array order in render.go). */
+    transform-style: flat;
 }
 .reveal .slide-block {
     overflow: hidden;

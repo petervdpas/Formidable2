@@ -33,3 +33,4 @@ export function slideBlockComponent(kind: string): Component {
 
 export { default as SlideSettings } from "./SlideSettings.vue";
 export { default as SlideElementTransition } from "./SlideElementTransition.vue";
+export { default as SlideElementOrder } from "./SlideElementOrder.vue";

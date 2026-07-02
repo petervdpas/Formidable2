@@ -102,7 +102,7 @@
    the canvas edge/centre (PowerPoint-style). */
 .slide-guide {
     position: absolute;
-    z-index: 5;
+    z-index: 9999; /* above every block (blocks carry z-index = their array index) */
     pointer-events: none;
     background: var(--field-type-slide-bg, #6d4aa7);
 }
@@ -120,6 +120,14 @@
     background: var(--field-type-slide-bg, #6d4aa7);
     border-color: var(--field-type-slide-bg, #6d4aa7);
     color: #fff;
+}
+.slide-order {
+    align-items: center;
+    justify-content: space-between;
+}
+.slide-order-btns {
+    display: flex;
+    gap: var(--space-1, 4px);
 }
 
 .slide-block-box {
