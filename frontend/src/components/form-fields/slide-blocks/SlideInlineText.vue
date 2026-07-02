@@ -8,14 +8,21 @@ import RenderedHtml from "../../RenderedHtml.vue";
 import SlideStyleControls from "./SlideStyleControls.vue";
 import type { SlideBlock } from "../../../types/slide-blocks";
 
-defineProps<{
-  block: SlideBlock;
-  surface: "canvas" | "inspector";
-  html?: string;
-  editing?: boolean;
-  mono?: boolean;
-  hintKey?: string;
-}>();
+withDefaults(
+  defineProps<{
+    block: SlideBlock;
+    surface: "canvas" | "inspector";
+    html?: string;
+    editing?: boolean;
+    mono?: boolean;
+    hintKey?: string;
+    // Text alignment / bold are meaningless for preformatted code, so a kind can
+    // switch them off; on by default for text/quote/math.
+    align?: boolean;
+    bold?: boolean;
+  }>(),
+  { align: true, bold: true },
+);
 const emit = defineEmits<{
   (e: "patch", p: Partial<SlideBlock>): void;
   (e: "end-edit"): void;
@@ -51,6 +58,6 @@ const { t } = useI18n();
       @input="emit('patch', { content: ($event.target as HTMLTextAreaElement).value })"
     ></textarea>
     <p v-if="hintKey" class="muted small">{{ t(hintKey) }}</p>
-    <SlideStyleControls :block="block" @patch="emit('patch', $event)" />
+    <SlideStyleControls :block="block" :align="align" :bold="bold" @patch="emit('patch', $event)" />
   </template>
 </template>

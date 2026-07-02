@@ -79,6 +79,8 @@
   "workspace.storage.slide.edit_inline": "Double-click the block to edit its text.",
   "workspace.storage.slide.font_size": "Size",
   "workspace.storage.slide.color": "Color",
+  "workspace.storage.slide.no_color": "Transparent / no color",
+  "workspace.storage.slide.align": "Align",
   "workspace.storage.slide.element_transition": "Transition",
   "workspace.storage.slide.code_lang": "language (e.g. js)",
   "workspace.storage.slide.add_column": "Add column",

@@ -91,6 +91,13 @@
     margin: 0;
     text-align: inherit; /* follow the block's alignment, not KaTeX's forced centering */
 }
+/* A code block's frame carries the syntax theme's own background, which would
+   cover the author's block background. In a slide the block background should
+   win, so make the highlighter frame transparent and let it (or the slide) show
+   through. More specific than the prose rule, so it applies in editor + deck. */
+.slide-block-code .slide-fit pre.hljs-chroma {
+    background: transparent;
+}
 .reveal .slide-block-video .slide-fit video,
 .reveal .slide-block-video .slide-fit iframe,
 .reveal .slide-block-embed .slide-fit iframe {

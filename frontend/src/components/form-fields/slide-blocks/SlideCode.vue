@@ -22,7 +22,7 @@ const { t } = useI18n();
       @input="emit('patch', { lang: ($event.target as HTMLInputElement).value })"
     />
     <SlideInlineText
-      :block="block" surface="inspector" :mono="true"
+      :block="block" surface="inspector" :mono="true" :align="false" :bold="false"
       hint-key="workspace.storage.slide.edit_inline"
       @patch="emit('patch', $event)"
     />

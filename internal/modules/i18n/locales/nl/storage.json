@@ -79,6 +79,8 @@
   "workspace.storage.slide.edit_inline": "Dubbelklik op het blok om de tekst te bewerken.",
   "workspace.storage.slide.font_size": "Grootte",
   "workspace.storage.slide.color": "Kleur",
+  "workspace.storage.slide.no_color": "Transparant / geen kleur",
+  "workspace.storage.slide.align": "Uitlijning",
   "workspace.storage.slide.element_transition": "Overgang",
   "workspace.storage.slide.code_lang": "taal (bijv. js)",
   "workspace.storage.slide.add_column": "Kolom toevoegen",

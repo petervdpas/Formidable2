@@ -468,23 +468,43 @@
     font-family: var(--font-mono, monospace);
 }
 
-/* Per-element style controls */
+/* Per-element style controls: one per row (Size, Color, Background, Alignment)
+   stacked vertically, label on the left and control(s) on the right - so they
+   read as one list with the Transition and Order rows below. */
 .slide-style-grid {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: var(--space-2, 8px);
     font-size: 12px;
 }
-.slide-style-grid > label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-.slide-style-grid input[type="number"] { width: 56px; }
+.slide-style-grid > label,
+.slide-style-color,
 .slide-style-align {
     display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.slide-style-grid > label input,
+.slide-style-color input[type="color"],
+.slide-style-align-btns {
+    margin-left: auto;
+}
+.slide-style-align-btns {
+    display: flex;
     gap: 2px;
+}
+.slide-style-grid input[type="number"] { width: 56px; }
+.slide-style-clear {
+    padding: 4px 7px;
+    border: 1px solid var(--color-border, #ccc);
+    background: var(--color-surface, #fff);
+    color: var(--color-text, #333);
+    cursor: pointer;
+}
+.slide-style-clear.active {
+    background: var(--field-type-slide-badge, #9575cd);
+    color: #fff;
 }
 .slide-style-align button {
     padding: 4px 7px;
