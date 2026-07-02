@@ -48,22 +48,27 @@ export const SUPPORTED_OPTION_TYPES = new Set([
 // builtinTableColumnTypes / builtinListItemTypes in Go.
 let _tableColumnTypes: TableColumnTypeDescriptor[] = [];
 let _listItemTypes: string[] = ["fixed", "custom"];
+let _slideFormats: string[] = ["1280 x 720 (16:9)", "1920 x 1080 (16:9)", "1024 x 768 (4:3)"];
 let _fieldDescriptors: Record<string, FieldDescriptor> = {};
 
 let loadPromise: Promise<void> | null = null;
 
 async function load(): Promise<void> {
   try {
-    const [tcols, ltypes, ftypes] = await Promise.all([
+    const [tcols, ltypes, ftypes, sfmts] = await Promise.all([
       TemplateSvc.TableColumnTypes(),
       TemplateSvc.ListItemTypes(),
       TemplateSvc.FieldTypes(),
+      TemplateSvc.SlideFormats(),
     ]);
     if (tcols && tcols.length > 0) {
       _tableColumnTypes = tcols;
     }
     if (ltypes && ltypes.length > 0) {
       _listItemTypes = ltypes.map((d) => d.name);
+    }
+    if (sfmts && sfmts.length > 0) {
+      _slideFormats = sfmts;
     }
     if (ftypes && ftypes.length > 0) {
       _fieldDescriptors = {};
@@ -175,6 +180,21 @@ const FILE_PATH_COLUMNS: ColumnDef[] = [
   { key: "pattern", type: "text", placeholder: "*.json" },
 ];
 
+// The slide field's single canvas_format row: value is locked, and its label
+// cell is a dropdown of the backend-owned format presets (aspect ratio + size).
+function slideColumns(): ColumnDef[] {
+  return [
+    { key: "value", type: "text", placeholder: "value" },
+    {
+      key: "label",
+      type: "dropdown",
+      options: [..._slideFormats],
+      defaultValue: _slideFormats[0] ?? "1280 x 720 (16:9)",
+      placeholder: "format",
+    },
+  ];
+}
+
 export function columnsFor(typeId: string): ColumnDef[] | null {
   if (!SUPPORTED_OPTION_TYPES.has(typeId)) return null;
   switch (typeId) {
@@ -184,6 +204,8 @@ export function columnsFor(typeId: string): ColumnDef[] | null {
       return tableColumns();
     case "file-path":
       return FILE_PATH_COLUMNS;
+    case "slide":
+      return slideColumns();
     default:
       return DEFAULT_COLUMNS;
   }

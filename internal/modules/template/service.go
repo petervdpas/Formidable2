@@ -80,6 +80,10 @@ func (s *Service) ListItemTypes() []ListItemTypeDescriptor {
 	return out
 }
 
+// SlideFormats returns the allowed slide canvas formats (aspect ratio + size)
+// for the field editor's Format dropdown; the frontend must not duplicate it.
+func (s *Service) SlideFormats() []string { return SlideFormats() }
+
 // SlideBlockKinds returns the canonical slide block-kind palette; the canvas
 // editor reads it instead of hardcoding the set.
 func (s *Service) SlideBlockKinds() []SlideBlockKindDescriptor { return SlideBlockKinds() }

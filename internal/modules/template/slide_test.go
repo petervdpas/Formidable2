@@ -18,12 +18,11 @@ func TestSlideFieldDescriptor_IsSingletonWithDeckOptions(t *testing.T) {
 		a.PrimaryKey || a.ExpressionItem || a.UseInStatistics {
 		t.Errorf("slide modal must stay lean apart from options; got %+v", a)
 	}
-	if !a.Options || got.OptionsShape == nil || len(got.OptionsShape.Rows) != 2 {
-		t.Fatalf("slide must advertise canvas width/height option rows; got %+v", got.OptionsShape)
+	if !a.Options || got.OptionsShape == nil || len(got.OptionsShape.Rows) != 1 {
+		t.Fatalf("slide must advertise a single canvas_format option row; got %+v", got.OptionsShape)
 	}
-	if got.OptionsShape.Rows[0].Defaults["value"] != "canvas_width" ||
-		got.OptionsShape.Rows[1].Defaults["value"] != "canvas_height" {
-		t.Errorf("slide option rows should be canvas_width/canvas_height; got %+v", got.OptionsShape.Rows)
+	if got.OptionsShape.Rows[0].Defaults["value"] != "canvas_format" {
+		t.Errorf("slide option row should be canvas_format; got %+v", got.OptionsShape.Rows)
 	}
 	if !got.KeyReadonly {
 		t.Errorf("slide key must be read-only (forced singleton)")
@@ -53,13 +52,20 @@ func TestSlideCanvasSize_DefaultsAndCustom(t *testing.T) {
 	if w, h := SlideCanvasSize(Field{Type: "slide"}); w != 1280 || h != 720 {
 		t.Errorf("default canvas = %dx%d, want 1280x720", w, h)
 	}
-	// Authored size is honoured.
-	f := Field{Type: "slide", Options: []any{
-		map[string]any{"value": "canvas_width", "label": "1920"},
-		map[string]any{"value": "canvas_height", "label": "1080"},
+	// A preset format is parsed to its first two integers.
+	fmtField := Field{Type: "slide", Options: []any{
+		map[string]any{"value": "canvas_format", "label": "1920 x 1080 (16:9)"},
 	}}
-	if w, h := SlideCanvasSize(f); w != 1920 || h != 1080 {
-		t.Errorf("custom canvas = %dx%d, want 1920x1080", w, h)
+	if w, h := SlideCanvasSize(fmtField); w != 1920 || h != 1080 {
+		t.Errorf("format canvas = %dx%d, want 1920x1080", w, h)
+	}
+	// Legacy canvas_width/canvas_height still honoured (older templates).
+	legacy := Field{Type: "slide", Options: []any{
+		map[string]any{"value": "canvas_width", "label": "1024"},
+		map[string]any{"value": "canvas_height", "label": "768"},
+	}}
+	if w, h := SlideCanvasSize(legacy); w != 1024 || h != 768 {
+		t.Errorf("legacy canvas = %dx%d, want 1024x768", w, h)
 	}
 }
 

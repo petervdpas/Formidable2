@@ -79,7 +79,51 @@ type SlideDoc struct {
 // 1280x720. These dimensions drive the editor stage, the rendered slide, and
 // (later) reveal's width/height at init.
 func SlideCanvasSize(f Field) (w, h int) {
+	// A preset format ("1280 x 720 (16:9)") is the current shape; fall back to the
+	// legacy canvas_width/canvas_height rows so older templates keep rendering.
+	if cw, ch, ok := parseCanvasFormat(optionLabel(f, "canvas_format")); ok {
+		return cw, ch
+	}
 	return optionInt(f, "canvas_width", SlideCanvasWidth), optionInt(f, "canvas_height", SlideCanvasHeight)
+}
+
+// SlideFormats is the allowed set of canvas formats (aspect ratio + resolution),
+// the single source of truth for the field editor's Format dropdown and the
+// dimensions parsed from a chosen preset. Backend-owned, like ListItemTypes.
+func SlideFormats() []string {
+	return []string{
+		"1280 x 720 (16:9)",
+		"1920 x 1080 (16:9)",
+		"1024 x 768 (4:3)",
+	}
+}
+
+// parseCanvasFormat pulls the first two integers out of a format label, so
+// "1280 x 720 (16:9)" -> 1280, 720 (the ratio digits after are ignored).
+func parseCanvasFormat(label string) (w, h int, ok bool) {
+	nums := strings.FieldsFunc(label, func(r rune) bool { return r < '0' || r > '9' })
+	if len(nums) < 2 {
+		return 0, 0, false
+	}
+	w, _ = strconv.Atoi(nums[0])
+	h, _ = strconv.Atoi(nums[1])
+	if w > 0 && h > 0 {
+		return w, h, true
+	}
+	return 0, 0, false
+}
+
+func optionLabel(f Field, key string) string {
+	for _, opt := range f.Options {
+		m, ok := opt.(map[string]any)
+		if !ok {
+			continue
+		}
+		if v, _ := m["value"].(string); v == key {
+			return fmt.Sprint(m["label"])
+		}
+	}
+	return ""
 }
 
 func optionInt(f Field, key string, def int) int {

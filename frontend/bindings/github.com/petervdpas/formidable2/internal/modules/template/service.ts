@@ -149,6 +149,16 @@ export function SlideBlockKinds(): $CancellablePromise<$models.SlideBlockKindDes
 }
 
 /**
+ * SlideFormats returns the allowed slide canvas formats (aspect ratio + size)
+ * for the field editor's Format dropdown; the frontend must not duplicate it.
+ */
+export function SlideFormats(): $CancellablePromise<string[]> {
+    return $Call.ByID(5121219).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
  * SummaryFieldCandidates lists the loop's direct child fields as Summary-picker options.
  */
 export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string): $CancellablePromise<$models.SummaryFieldOption[]> {

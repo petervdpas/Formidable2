@@ -55,19 +55,27 @@ export function slideBlockKinds(): SlideBlockKindDescriptor[] {
 // options (deck-wide config), defaulting to 1280x720. Mirrors the Go
 // SlideCanvasSize.
 export function canvasSize(field: Field): { w: number; h: number } {
-  const read = (key: string, def: number) => {
+  const label = (key: string): string => {
     for (const opt of field.options ?? []) {
       if (opt && typeof opt === "object") {
         const o = opt as Record<string, unknown>;
-        if (String(o.value ?? "") === key) {
-          const n = parseInt(String(o.label ?? ""), 10);
-          if (Number.isFinite(n) && n > 0) return n;
-        }
+        if (String(o.value ?? "") === key) return String(o.label ?? "");
       }
     }
-    return def;
+    return "";
   };
-  return { w: read("canvas_width", SLIDE_CANVAS_W), h: read("canvas_height", SLIDE_CANVAS_H) };
+  // A preset format ("1280 x 720 (16:9)") is the current shape; its first two
+  // integers are width/height. Fall back to the legacy canvas_width/height rows.
+  const fmt = label("canvas_format").match(/\d+/g);
+  if (fmt && fmt.length >= 2) {
+    const w = parseInt(fmt[0], 10), h = parseInt(fmt[1], 10);
+    if (w > 0 && h > 0) return { w, h };
+  }
+  const num = (key: string, def: number) => {
+    const n = parseInt(label(key), 10);
+    return Number.isFinite(n) && n > 0 ? n : def;
+  };
+  return { w: num("canvas_width", SLIDE_CANVAS_W), h: num("canvas_height", SLIDE_CANVAS_H) };
 }
 
 // parseSlideDoc coerces a stored value into a SlideDoc; anything unexpected is

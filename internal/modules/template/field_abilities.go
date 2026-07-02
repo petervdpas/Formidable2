@@ -98,8 +98,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 		OptionsShape: &FixedOptionsShape{
 			Rows: []FixedOptionRow{
-				{LabelKey: "workspace.templates.slide.canvas_width", Defaults: map[string]any{"value": "canvas_width", "label": "1280"}},
-				{LabelKey: "workspace.templates.slide.canvas_height", Defaults: map[string]any{"value": "canvas_height", "label": "720"}},
+				{LabelKey: "workspace.templates.slide.canvas_format", Defaults: map[string]any{"value": "canvas_format", "label": "1280 x 720 (16:9)"}},
 			},
 			LockedColumns: []string{"value"},
 		},

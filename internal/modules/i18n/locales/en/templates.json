@@ -196,6 +196,7 @@
   "workspace.templates.field_type.slideset": "Slide set (decks)",
   "workspace.templates.slide.canvas_width": "Canvas width (px)",
   "workspace.templates.slide.canvas_height": "Canvas height (px)",
+  "workspace.templates.slide.canvas_format": "Canvas format",
   "workspace.templates.slide.kind.text": "Text",
   "workspace.templates.slide.kind.image": "Image",
   "workspace.templates.slide.kind.video": "Video",
