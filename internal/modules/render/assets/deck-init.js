@@ -21,7 +21,7 @@
   var mermaidReady = false;
 
   // Hydrate KaTeX: each <pre class="katex-math"> holds raw LaTeX; render it in
-  // place. Idempotent via data-tex so re-entry on slidechanged is a no-op.
+  // place. Idempotent via data-tex so re-hydration is a no-op.
   function hydrateKatex(scope) {
     if (typeof katex === "undefined" || !scope) return;
     var nodes = scope.querySelectorAll(".katex-math");
@@ -98,9 +98,8 @@
     hash: true,
   });
   deck.initialize().then(function () {
-    hydrate(deck.getCurrentSlide());
-  });
-  deck.on("slidechanged", function (ev) {
-    hydrate(ev.currentSlide);
+    // mermaid.render builds diagrams off-DOM, so hydrate every slide up front:
+    // overview (ESC) then shows real content, not raw code blocks.
+    hydrate(el);
   });
 })();

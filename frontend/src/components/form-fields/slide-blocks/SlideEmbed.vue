@@ -13,13 +13,15 @@ const { t } = useI18n();
 
 <template>
   <div v-if="surface === 'canvas'" class="slide-block-box-content formidable-prose" :style="block.style ?? {}">
-    <iframe
-      v-if="block.content" class="slide-embed-preview"
-      :src="String(block.content)" referrerpolicy="no-referrer"
-    ></iframe>
-    <div v-else class="slide-embed-fallback">
-      <i class="fa-solid fa-window-maximize" aria-hidden="true"></i>
-      <span>{{ t('workspace.storage.slide.embed_empty') }}</span>
+    <div class="slide-fit">
+      <iframe
+        v-if="block.content" class="slide-embed-preview"
+        :src="String(block.content)" referrerpolicy="no-referrer"
+      ></iframe>
+      <div v-else class="slide-embed-fallback">
+        <i class="fa-solid fa-window-maximize" aria-hidden="true"></i>
+        <span>{{ t('workspace.storage.slide.embed_empty') }}</span>
+      </div>
     </div>
   </div>
   <input

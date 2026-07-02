@@ -39,9 +39,9 @@ function relayout() {
 }
 
 async function hydrateSlide(scope?: HTMLElement | null) {
-  // Only the visible slide can be measured; a mermaid block on a display:none
-  // slide renders broken, so hydrate per-slide as each becomes current.
-  const el = scope ?? (deck?.getCurrentSlide?.() as HTMLElement | undefined) ?? revealEl.value;
+  // mermaid.render builds each diagram off-DOM, so slides need not be visible to
+  // hydrate; passing the whole deck renders every slide (incl. overview) up front.
+  const el = scope ?? revealEl.value;
   await hydrateKatex(el);
   await hydrateMermaid(el, theme.value === "light" ? "default" : "dark");
 }

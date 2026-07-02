@@ -33,17 +33,63 @@
     margin: 0 !important;
 }
 
-/* Block media fills its positioned block, same as the editor (the deck markup
-   uses reveal's lazy data-src iframes, which otherwise show at native size). */
-.reveal .slide-block iframe,
-.reveal .slide-block video {
+/* Clip each block to the box the author sized, and the canvas to the slide
+   bounds. The editor already clips (.slide-block-box is overflow:hidden), so
+   without this the deck let content spill outside its box and off the slide -
+   visible as broken tiles in reveal's ESC overview. Now the deck matches the
+   editor: nothing renders outside its box or beyond the slide. */
+.reveal .slide-canvas {
+    overflow: hidden;
+}
+.reveal .slide-block {
+    overflow: hidden;
+}
+
+/* .slide-fit wraps a block's content and fills the box the author sized. Media
+   fills it; other content sits at its natural size inside the box. */
+.reveal .slide-block .slide-fit {
+    position: absolute;
+    inset: 0;
+}
+/* Media fills its block edge-to-edge. Absolute positioning makes the block box
+   the only input - identical on every engine (goldmark wraps `![](url)` in a <p>
+   whose auto height otherwise broke height:100% / max-height:100%, which sized
+   images wrong on Windows' WebView2). Images keep aspect (contain); video/embed
+   fill. Scoped per kind so an inline image inside a text block is untouched. */
+.reveal .slide-block-image .slide-fit img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    margin: 0;
+}
+/* ONE uniform contract for every block's content, shared by the editor, the
+   in-app deck and the wiki deck (all render into .slide-fit, and the frontend
+   imports this file). Content sits at the top-left of the box the author sized,
+   at its natural/authored size, with no renderer-default margin or centering
+   leaking in. text, headings, lists, quotes, code, tables and math all obey this
+   - no per-element special-casing, and a new element type inherits it for free. */
+.slide-fit :first-child {
+    margin-top: 0;
+}
+.slide-fit :last-child {
+    margin-bottom: 0;
+}
+.slide-fit .katex-display {
+    margin: 0;
+    text-align: inherit; /* follow the block's alignment, not KaTeX's forced centering */
+}
+.reveal .slide-block-video .slide-fit video,
+.reveal .slide-block-video .slide-fit iframe,
+.reveal .slide-block-embed .slide-fit iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     border: 0;
-}
-.reveal .slide-block img {
-    max-width: 100%;
-    max-height: 100%;
 }
 
 /* Mermaid: no size override - the global `pre.mermaid svg { max-width:100%;

@@ -65,6 +65,7 @@
   "workspace.storage.slide.title": "Slide editor",
   "workspace.storage.slide.edit": "Edit slide",
   "workspace.storage.slide.add": "Add",
+  "workspace.storage.slide.snap_grid": "Snap to grid",
   "workspace.storage.slide.blocks_count": "{0} blocks",
   "workspace.storage.slide.no_selection": "No element selected. These settings apply to the whole slide.",
   "workspace.storage.slide.properties": "Properties",

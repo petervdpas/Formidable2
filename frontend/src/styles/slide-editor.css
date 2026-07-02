@@ -87,6 +87,40 @@
     background: #fff;
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
 }
+/* Optional snapping grid, painted behind the blocks; never intercepts pointers.
+   background-size is set inline from the JS grid step so the two stay in sync. */
+.slide-grid {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(to right, rgba(109, 74, 167, 0.14) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(109, 74, 167, 0.14) 1px, transparent 1px);
+}
+/* Smart-guide line shown while a block's edge/centre snaps to another block or
+   the canvas edge/centre (PowerPoint-style). */
+.slide-guide {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    background: var(--field-type-slide-bg, #6d4aa7);
+}
+.slide-guide-v {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+}
+.slide-guide-h {
+    left: 0;
+    right: 0;
+    height: 1px;
+}
+.slide-tool-toggle.active {
+    background: var(--field-type-slide-bg, #6d4aa7);
+    border-color: var(--field-type-slide-bg, #6d4aa7);
+    color: #fff;
+}
 
 .slide-block-box {
     position: absolute;
@@ -111,13 +145,6 @@
     overflow: hidden;
     pointer-events: none;
 }
-/* Media (video, and video-as-iframe for YouTube/Vimeo) fills its block. */
-.slide-block-box-content iframe,
-.slide-block-box-content video {
-    width: 100%;
-    height: 100%;
-    border: 0;
-}
 .slide-block-box-content.formidable-prose {
     background: transparent;
     max-width: none;
@@ -129,6 +156,36 @@
     font-size: 40px;
     line-height: 1.2;
     color: #111;
+}
+/* .slide-fit wraps a block's content and fills the box (shared with the deck,
+   render/assets/deck.css). Media fills it; other content sits at natural size. */
+.slide-fit {
+    position: absolute;
+    inset: 0;
+}
+/* Media fills its frame edge-to-edge. Absolute positioning ignores the auto-
+   height wrapper RenderedHtml inserts (which otherwise collapses height:100%),
+   so the box is the only input - deterministic across webview engines. Images
+   keep aspect (contain); video/embed fill. Scoped per kind so an inline image
+   inside a text block is untouched. */
+.slide-block-image .slide-fit img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    margin: 0;
+}
+.slide-block-video .slide-fit video,
+.slide-block-video .slide-fit iframe,
+.slide-block-embed .slide-fit iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
 }
 .slide-block-box-dim {
     position: absolute;

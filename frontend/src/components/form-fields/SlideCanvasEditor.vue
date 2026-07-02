@@ -48,12 +48,45 @@ watch(selectedId, (id) => { if (id) inspectorOpen.value = true; });
 const blockHtml = ref<Record<string, string>>({});
 const renderTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
+// Image blocks are aspect-locked: the frame follows the image's natural ratio so
+// the image fills it edge-to-edge (no letterbox). imgRatio caches naturalWidth/
+// naturalHeight per block for resize; pendingSnap marks blocks whose frame should
+// re-fit after the NEXT render - i.e. the user just picked/replaced an image.
+// Loading a slide only probes the ratio (snap=false), so opening one never
+// rewrites its frames or dirties the form.
+const imgRatio = ref<Record<string, number>>({});
+const pendingSnap = new Set<string>();
+
+function probeImage(b: SlideBlock, snap: boolean) {
+  const m = /<img[^>]+src="([^"]*)"/i.exec(blockHtml.value[b.id] ?? "");
+  if (!m || !m[1]) return;
+  const probe = new Image();
+  probe.onload = () => {
+    const nw = probe.naturalWidth, nh = probe.naturalHeight;
+    if (!nw || !nh) return;
+    imgRatio.value[b.id] = nw / nh;
+    if (snap) {
+      const h = Math.max(40, Math.round((b.w * nh) / nw));
+      if (h !== b.h) {
+        b.h = h;
+        commit();
+      }
+    }
+  };
+  probe.src = m[1];
+}
+
 function renderBlock(b: SlideBlock) {
   clearTimeout(renderTimers[b.id]);
   renderTimers[b.id] = setTimeout(async () => {
     blockHtml.value[b.id] = await RenderSvc.RenderSlideBlockHTML(
       templateFilename.value, b.kind, b.content,
     );
+    if (b.kind === "image") {
+      const snap = pendingSnap.has(b.id);
+      pendingSnap.delete(b.id);
+      probeImage(b, snap);
+    }
   }, 150);
 }
 function renderAll() {
@@ -114,7 +147,19 @@ const blockComp = (kind: string) => slideBlockComponent(kind);
 function applyPatch(b: SlideBlock | null, p: Partial<SlideBlock>) {
   if (!b) return;
   Object.assign(b, p);
+  if ("content" in p && b.kind === "image") pendingSnap.add(b.id);
   if ("content" in p || "lang" in p) renderBlock(b);
+  commit();
+}
+
+// Inspector W/H edits keep the image's aspect: change one, the other follows.
+function onGeoResize(b: SlideBlock | null, axis: "w" | "h") {
+  if (!b) return;
+  const ratio = b.kind === "image" ? imgRatio.value[b.id] : undefined;
+  if (ratio) {
+    if (axis === "w") b.h = Math.max(40, Math.round(b.w / ratio));
+    else b.w = Math.max(40, Math.round(b.h * ratio));
+  }
   commit();
 }
 function startEdit(b: SlideBlock) {
@@ -150,8 +195,60 @@ const wrapSpacerStyle = computed(() => ({
   width: `${props.canvasW * scale.value}px`,
   height: `${props.canvasH * scale.value}px`,
 }));
+// The box is exactly the stored geometry; content sits inside it.
 function blockStyle(b: SlideBlock) {
   return { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` };
+}
+
+// ── grid + smart guides ───────────────────────────────────────────────
+// PowerPoint-style: free placement, but the editor is aware of the other blocks
+// and the canvas. While dragging/resizing, an edge or centre that lines up with
+// another block (or the canvas edge/centre) snaps to it and a guide line shows
+// the match. A grid toggle adds plain grid snapping as a fallback.
+const GRID = 20; // canvas px
+const SNAP = 6; // snap threshold in canvas px
+const showGrid = ref(false);
+const guides = ref<{ x: number[]; y: number[] }>({ x: [], y: [] });
+
+// Candidate snap lines: the canvas edges + centre, plus every OTHER block's
+// near / centre / far edge on that axis.
+function targetsX(selfId: string): number[] {
+  const t = [0, props.canvasW / 2, props.canvasW];
+  for (const o of blocks.value) if (o.id !== selfId) t.push(o.x, o.x + o.w / 2, o.x + o.w);
+  return t;
+}
+function targetsY(selfId: string): number[] {
+  const t = [0, props.canvasH / 2, props.canvasH];
+  for (const o of blocks.value) if (o.id !== selfId) t.push(o.y, o.y + o.h / 2, o.y + o.h);
+  return t;
+}
+// Snap a box (its near/centre/far edges) to the nearest target; returns the
+// snapped leading-edge value and the guide line, or null guide if nothing hit.
+function snapBox(lead: number, size: number, targets: number[]): { value: number; guide: number | null } {
+  const edges = [lead, lead + size / 2, lead + size];
+  const offset = [0, size / 2, size];
+  let bestD = SNAP, value = lead, guide: number | null = null;
+  for (const t of targets)
+    for (let i = 0; i < 3; i++) {
+      const d = Math.abs(edges[i] - t);
+      if (d < bestD) { bestD = d; value = t - offset[i]; guide = t; }
+    }
+  return { value, guide };
+}
+// Snap a single moving point (a resize edge) to the nearest target.
+function snapPoint(v: number, targets: number[]): { value: number; guide: number | null } {
+  let bestD = SNAP, value = v, guide: number | null = null;
+  for (const t of targets) {
+    const d = Math.abs(v - t);
+    if (d < bestD) { bestD = d; value = t; guide = t; }
+  }
+  return { value, guide };
+}
+function toGrid(v: number): number {
+  return showGrid.value ? Math.round(v / GRID) * GRID : Math.round(v);
+}
+function clearGuides() {
+  guides.value = { x: [], y: [] };
 }
 
 // ── drag / resize ─────────────────────────────────────────────────────
@@ -162,13 +259,19 @@ function startDrag(b: SlideBlock, e: PointerEvent) {
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture(e.pointerId);
   const move = (ev: PointerEvent) => {
-    b.x = Math.max(0, Math.round(sx + (ev.clientX - px) / scale.value));
-    b.y = Math.max(0, Math.round(sy + (ev.clientY - py) / scale.value));
+    const rawX = sx + (ev.clientX - px) / scale.value;
+    const rawY = sy + (ev.clientY - py) / scale.value;
+    const snX = snapBox(rawX, b.w, targetsX(b.id));
+    const snY = snapBox(rawY, b.h, targetsY(b.id));
+    b.x = Math.max(0, snX.guide !== null ? Math.round(snX.value) : toGrid(rawX));
+    b.y = Math.max(0, snY.guide !== null ? Math.round(snY.value) : toGrid(rawY));
+    guides.value = { x: snX.guide !== null ? [snX.guide] : [], y: snY.guide !== null ? [snY.guide] : [] };
   };
   const up = (ev: PointerEvent) => {
     el.releasePointerCapture(ev.pointerId);
     el.removeEventListener("pointermove", move);
     el.removeEventListener("pointerup", up);
+    clearGuides();
     commit();
   };
   el.addEventListener("pointermove", move);
@@ -180,14 +283,31 @@ function startResize(b: SlideBlock, e: PointerEvent) {
   const sw = b.w, sh = b.h, px = e.clientX, py = e.clientY;
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture(e.pointerId);
+  // Image frames are aspect-locked to the image: width leads, height follows.
+  const ratio = b.kind === "image" ? imgRatio.value[b.id] : undefined;
   const move = (ev: PointerEvent) => {
-    b.w = Math.max(40, Math.round(sw + (ev.clientX - px) / scale.value));
-    b.h = Math.max(40, Math.round(sh + (ev.clientY - py) / scale.value));
+    const rawRight = b.x + Math.max(40, sw + (ev.clientX - px) / scale.value);
+    const snR = snapPoint(rawRight, targetsX(b.id));
+    const right = snR.guide !== null ? Math.round(snR.value) : toGrid(rawRight);
+    const nw = Math.max(40, right - b.x);
+    if (ratio) {
+      b.w = nw;
+      b.h = Math.max(40, Math.round(nw / ratio));
+      guides.value = { x: snR.guide !== null ? [snR.guide] : [], y: [] };
+    } else {
+      const rawBottom = b.y + Math.max(40, sh + (ev.clientY - py) / scale.value);
+      const snB = snapPoint(rawBottom, targetsY(b.id));
+      const bottom = snB.guide !== null ? Math.round(snB.value) : toGrid(rawBottom);
+      b.w = nw;
+      b.h = Math.max(40, bottom - b.y);
+      guides.value = { x: snR.guide !== null ? [snR.guide] : [], y: snB.guide !== null ? [snB.guide] : [] };
+    }
   };
   const up = (ev: PointerEvent) => {
     el.releasePointerCapture(ev.pointerId);
     el.removeEventListener("pointermove", move);
     el.removeEventListener("pointerup", up);
+    clearGuides();
     commit();
   };
   el.addEventListener("pointermove", move);
@@ -199,6 +319,15 @@ function startResize(b: SlideBlock, e: PointerEvent) {
   <div class="slide-editor">
     <div class="slide-editor-body">
       <div class="slide-toolrail">
+        <button
+          type="button" class="slide-tool slide-tool-toggle"
+          :class="{ active: showGrid }" :aria-pressed="showGrid"
+          :title="t('workspace.storage.slide.snap_grid')"
+          @click="showGrid = !showGrid"
+        >
+          <i class="fa-solid fa-border-all" aria-hidden="true"></i>
+          <span>{{ t('workspace.storage.slide.snap_grid') }}</span>
+        </button>
         <span class="slide-toolrail-label">{{ t('workspace.storage.slide.add') }}</span>
         <button
           v-for="k in kinds" :key="k.name" type="button" class="slide-tool"
@@ -213,9 +342,13 @@ function startResize(b: SlideBlock, e: PointerEvent) {
         <div class="slide-stage-spacer" :style="wrapSpacerStyle">
           <div class="slide-stage" :style="stageStyle" @pointerdown.self="selectedId = null; editingId = null">
             <div
+              v-if="showGrid" class="slide-grid"
+              :style="{ backgroundSize: `${GRID}px ${GRID}px` }"
+            ></div>
+            <div
               v-for="b in blocks" :key="b.id"
               class="slide-block-box"
-              :class="{ selected: b.id === selectedId, editing: b.id === editingId }"
+              :class="[`slide-block-${b.kind}`, { selected: b.id === selectedId, editing: b.id === editingId }]"
               :style="blockStyle(b)"
               @pointerdown="startDrag(b, $event)"
               @dblclick="startEdit(b)"
@@ -233,6 +366,14 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               <span v-if="b.id === selectedId" class="slide-block-box-dim">{{ b.w }} × {{ b.h }}</span>
               <div class="slide-block-box-resize" @pointerdown="startResize(b, $event)"></div>
             </div>
+            <div
+              v-for="gx in guides.x" :key="`gx${gx}`"
+              class="slide-guide slide-guide-v" :style="{ left: `${gx}px` }"
+            ></div>
+            <div
+              v-for="gy in guides.y" :key="`gy${gy}`"
+              class="slide-guide slide-guide-h" :style="{ top: `${gy}px` }"
+            ></div>
           </div>
         </div>
       </div>
@@ -253,8 +394,8 @@ function startResize(b: SlideBlock, e: PointerEvent) {
           <div class="slide-inspector-geo">
             <label>X<input type="number" v-model.number="selected.x" @change="commit" /></label>
             <label>Y<input type="number" v-model.number="selected.y" @change="commit" /></label>
-            <label>W<input type="number" v-model.number="selected.w" @change="commit" /></label>
-            <label>H<input type="number" v-model.number="selected.h" @change="commit" /></label>
+            <label>W<input type="number" v-model.number="selected.w" @change="onGeoResize(selected, 'w')" /></label>
+            <label>H<input type="number" v-model.number="selected.h" @change="onGeoResize(selected, 'h')" /></label>
           </div>
 
           <!-- content + type-specific properties: each element owns its editor -->

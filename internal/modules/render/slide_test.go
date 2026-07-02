@@ -25,7 +25,8 @@ func TestRenderSlide_PositionsAndBlockKinds(t *testing.T) {
 	for _, want := range []string{
 		`class="slide-canvas"`,
 		`width:1280px;height:720px`,
-		`left:40px;top:60px;width:600px;height:200px`, // markdown block geometry
+		`class="slide-block slide-block-image"`, // per-kind class drives media sizing
+		`left:40px;top:60px;width:600px;height:200px`, // block geometry from stored values
 		`<h2`,                  // markdown rendered through goldmark
 		`<pre class="mermaid"`, // mermaid block
 		`/img/pic.png`,         // image resolved via ImageURL

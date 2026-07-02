@@ -39,7 +39,7 @@ const { t } = useI18n();
       @dblclick.stop
     ></textarea>
     <div v-else class="slide-block-box-content formidable-prose" :style="block.style ?? {}">
-      <RenderedHtml :html="html ?? ''" />
+      <div class="slide-fit"><RenderedHtml :html="html ?? ''" /></div>
     </div>
   </template>
 

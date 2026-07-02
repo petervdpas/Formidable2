@@ -10,6 +10,6 @@ defineProps<{ block: SlideBlock; html?: string }>();
 
 <template>
   <div class="slide-block-box-content formidable-prose" :style="block.style ?? {}">
-    <RenderedHtml :html="html ?? ''" />
+    <div class="slide-fit"><RenderedHtml :html="html ?? ''" /></div>
   </div>
 </template>
