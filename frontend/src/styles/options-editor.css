@@ -42,9 +42,24 @@
    Sits to the left of the cells; same vertical alignment as the
    row's TextFields. */
 .options-row-label {
-    flex: 0 0 auto;
-    min-width: 60px;
+    flex: 0 0 150px;
+    text-align: right;
+    padding-right: 6px;
+    white-space: nowrap;
     font-weight: 600;
+}
+/* Native inputs used by fixed-row per-cell overrides (colour, number) match the
+   TextField/SelectField sizing so the column stays aligned and tidy. */
+.options-editor input.options-cell {
+    height: 32px;
+    box-sizing: border-box;
+    border: 1px solid var(--color-border, #ccc);
+    border-radius: var(--radius-sm, 4px);
+    padding: 0 8px;
+}
+.options-editor input.options-color {
+    padding: 2px;
+    cursor: pointer;
 }
 
 /* Sub-row group: a primary row plus zero or more sub-rows. The

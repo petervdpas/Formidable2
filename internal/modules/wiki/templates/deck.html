@@ -26,7 +26,8 @@
     </div>
   </header>
   <main class="deck-stage">
-    <div class="reveal" data-width="{{.Width}}" data-height="{{.Height}}">
+    <div class="reveal{{if .Accent}} deck-accented{{end}}" data-width="{{.Width}}" data-height="{{.Height}}"
+         style="--deck-progress-h:{{.Progress}}px;{{if .Accent}}--deck-accent:{{.Accent}};{{end}}">
       <div class="slides formidable-prose">{{safeHTML .Body}}</div>
     </div>
   </main>

@@ -18,11 +18,14 @@ func TestSlideFieldDescriptor_IsSingletonWithDeckOptions(t *testing.T) {
 		a.PrimaryKey || a.ExpressionItem || a.UseInStatistics {
 		t.Errorf("slide modal must stay lean apart from options; got %+v", a)
 	}
-	if !a.Options || got.OptionsShape == nil || len(got.OptionsShape.Rows) != 1 {
-		t.Fatalf("slide must advertise a single canvas_format option row; got %+v", got.OptionsShape)
+	if !a.Options || got.OptionsShape == nil || len(got.OptionsShape.Rows) != 3 {
+		t.Fatalf("slide must advertise canvas_format + accent + progress option rows; got %+v", got.OptionsShape)
 	}
-	if got.OptionsShape.Rows[0].Defaults["value"] != "canvas_format" {
-		t.Errorf("slide option row should be canvas_format; got %+v", got.OptionsShape.Rows)
+	wantRows := []string{"canvas_format", "accent_color", "progress_height"}
+	for i, w := range wantRows {
+		if got.OptionsShape.Rows[i].Defaults["value"] != w {
+			t.Errorf("slide option row %d should be %q; got %+v", i, w, got.OptionsShape.Rows[i])
+		}
 	}
 	if !got.KeyReadonly {
 		t.Errorf("slide key must be read-only (forced singleton)")

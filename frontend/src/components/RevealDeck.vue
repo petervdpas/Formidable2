@@ -12,11 +12,22 @@ import { hydrateKatex } from "../utils/mathHydrate";
 import { hydrateMermaid } from "../utils/mermaidHydrate";
 
 const props = withDefaults(
-  defineProps<{ html: string; width?: number; height?: number }>(),
-  { width: 1280, height: 720 },
+  defineProps<{ html: string; width?: number; height?: number; accent?: string; progress?: number }>(),
+  { width: 1280, height: 720, accent: "", progress: 3 },
 );
 
 const { theme } = useTheme();
+
+// Deck chrome vars (progress thickness + accent); accent gated by a class so
+// reveal's adaptive arrow colour stays when none is set (mirrors deck.css).
+const chromeStyle = computed(() => {
+  const s: Record<string, string> = {
+    aspectRatio: aspect.value,
+    "--deck-progress-h": `${props.progress || 3}px`,
+  };
+  if (props.accent) s["--deck-accent"] = props.accent;
+  return s;
+});
 
 // Constrain the stage to the canvas aspect so reveal fills it edge-to-edge (like
 // the editor) instead of pillarboxing the slide inside the dialog.
@@ -71,7 +82,7 @@ async function initReveal() {
     margin: 0,
     center: false,
     controls: true,
-    progress: false,
+    progress: true,
     hash: false,
     keyboardCondition: "focused",
   });
@@ -97,7 +108,7 @@ onBeforeUnmount(destroyReveal);
 </script>
 
 <template>
-  <div ref="revealEl" class="reveal deck-reveal" :style="{ aspectRatio: aspect }">
+  <div ref="revealEl" class="reveal deck-reveal" :class="{ 'deck-accented': !!accent }" :style="chromeStyle">
     <!-- formidable-prose gives the deck the SAME typographic context as the
          editor, overriding reveal's own base font-size (20pt) that otherwise
          cascades into the slide content (e.g. blowing up mermaid text). -->

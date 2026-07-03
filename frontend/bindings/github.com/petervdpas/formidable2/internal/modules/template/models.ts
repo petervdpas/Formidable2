@@ -582,10 +582,13 @@ export class FieldUnit {
 
 /**
  * FixedOptionRow is one structurally fixed slot in a field's options array; Defaults fill cells short of the arity.
+ * Input overrides how the row's editable (label) cell renders in the editor:
+ * "format" (a preset dropdown), "color" (a colour picker), "number", else text.
  */
 export class FixedOptionRow {
     "label_key": string;
     "defaults": { [_ in string]?: any };
+    "input"?: string;
 
     /** Creates a new FixedOptionRow instance. */
     constructor($$source: Partial<FixedOptionRow> = {}) {

@@ -180,21 +180,6 @@ const FILE_PATH_COLUMNS: ColumnDef[] = [
   { key: "pattern", type: "text", placeholder: "*.json" },
 ];
 
-// The slide field's single canvas_format row: value is locked, and its label
-// cell is a dropdown of the backend-owned format presets (aspect ratio + size).
-function slideColumns(): ColumnDef[] {
-  return [
-    { key: "value", type: "text", placeholder: "value" },
-    {
-      key: "label",
-      type: "dropdown",
-      options: [..._slideFormats],
-      defaultValue: _slideFormats[0] ?? "1280 x 720 (16:9)",
-      placeholder: "format",
-    },
-  ];
-}
-
 export function columnsFor(typeId: string): ColumnDef[] | null {
   if (!SUPPORTED_OPTION_TYPES.has(typeId)) return null;
   switch (typeId) {
@@ -204,8 +189,8 @@ export function columnsFor(typeId: string): ColumnDef[] | null {
       return tableColumns();
     case "file-path":
       return FILE_PATH_COLUMNS;
-    case "slide":
-      return slideColumns();
+    // slide uses the default value/label columns; per-row `input` (from the
+    // fixed-shape rows) makes each label cell a format dropdown / colour / number.
     default:
       return DEFAULT_COLUMNS;
   }
@@ -220,10 +205,18 @@ export function fixedRowsFor(typeId: string): FixedRowConfig[] | null {
   const def = _fieldDescriptors[typeId];
   const shape = def?.options_shape as FixedOptionsShape | null | undefined;
   if (!shape || !shape.rows || shape.rows.length === 0) return null;
-  return shape.rows.map((r) => ({
-    labelKey: r.label_key,
-    defaults: (r.defaults ?? {}) as OptionRow,
-  }));
+  return shape.rows.map((r) => {
+    const cfg: FixedRowConfig = {
+      labelKey: r.label_key,
+      defaults: (r.defaults ?? {}) as OptionRow,
+    };
+    const input = (r as { input?: string }).input;
+    if (input) {
+      cfg.input = input;
+      if (input === "format") cfg.choices = [..._slideFormats];
+    }
+    return cfg;
+  });
 }
 
 // Column keys the editor renders read-only for a fixed-shape type

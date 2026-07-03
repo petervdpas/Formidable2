@@ -77,6 +77,10 @@ export type OptionRow = Record<string, unknown>;
 export type FixedRowConfig = {
   labelKey: string;
   defaults: OptionRow;
+  /** Overrides how this row's editable (label) cell renders: "format" (a
+   *  dropdown of `choices`), "color" (a picker), "number", else text. */
+  input?: string;
+  choices?: string[];
 };
 
 const props = defineProps<{
@@ -217,8 +221,41 @@ function getCell(row: OptionRow, col: ColumnDef): string {
             class="options-row-label small"
           >{{ t(fixedRows[i].labelKey) }}</span>
           <template v-for="col in columns" :key="col.key">
+            <!-- Fixed shapes hide the locked structural cell (its snake_case value
+                 key is redundant with the gutter label), leaving label + control. -->
+            <template v-if="isFixed && isLocked(col.key)"></template>
+            <!-- Per-row input override (fixed shapes): the editable "label" cell
+                 can be a colour picker / number / preset dropdown per row. -->
+            <template v-else-if="isFixed && fixedRows && fixedRows[i] && fixedRows[i].input && col.key === 'label'">
+              <input
+                v-if="fixedRows[i].input === 'color'"
+                type="color" class="options-cell options-color"
+                :value="getCell(row, col) || '#000000'"
+                @input="setCell(i, col, ($event.target as HTMLInputElement).value)"
+              />
+              <input
+                v-else-if="fixedRows[i].input === 'number'"
+                type="number" min="0" class="options-cell"
+                :value="getCell(row, col)"
+                @input="setCell(i, col, ($event.target as HTMLInputElement).value)"
+              />
+              <SelectField
+                v-else-if="fixedRows[i].input === 'format'"
+                :model-value="getCell(row, col)"
+                @update:model-value="(v) => setCell(i, col, v)"
+                :options="(fixedRows[i].choices ?? []).map((o) => ({ value: o, label: o }))"
+                class="options-cell"
+              />
+              <TextField
+                v-else
+                :model-value="getCell(row, col)"
+                @update:model-value="(v) => setCell(i, col, v)"
+                :placeholder="col.placeholder"
+                class="options-cell"
+              />
+            </template>
             <TextField
-              v-if="col.type === 'text'"
+              v-else-if="col.type === 'text'"
               :model-value="getCell(row, col)"
               @update:model-value="(v) => setCell(i, col, v)"
               :placeholder="col.placeholder"

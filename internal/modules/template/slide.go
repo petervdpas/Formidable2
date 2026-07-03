@@ -138,6 +138,24 @@ func optionInt(f Field, key string, def int) int {
 	return def
 }
 
+// SlideAccent is the deck-wide accent colour (progress bar fill + nav arrows),
+// or "" to leave reveal's defaults. Deck-wide config on the slide field.
+func SlideAccent(f Field) string {
+	for _, opt := range f.Options {
+		if m, ok := opt.(map[string]any); ok {
+			if v, _ := m["value"].(string); v == "accent_color" {
+				return strings.TrimSpace(fmt.Sprint(m["label"]))
+			}
+		}
+	}
+	return ""
+}
+
+// SlideProgressHeight is the reveal progress bar thickness in px (default 3).
+func SlideProgressHeight(f Field) int {
+	return optionInt(f, "progress_height", 3)
+}
+
 // SlideBlockKindDescriptor names one reveal element the block palette offers.
 // Name is the reveal element kind; LabelKey is its i18n label.
 type SlideBlockKindDescriptor struct {

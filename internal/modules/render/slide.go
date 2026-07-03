@@ -50,6 +50,10 @@ type RevealDeck struct {
 	HTML   string `json:"html"`
 	Width  int    `json:"width"`
 	Height int    `json:"height"`
+	// Deck-wide chrome from the slide field: accent colour (progress bar + nav
+	// arrows) and progress bar thickness in px. Accent "" means reveal defaults.
+	Accent   string `json:"accent"`
+	Progress int    `json:"progress"`
 }
 
 // BuildDeck renders an ordered set of records into reveal.js slide sections
@@ -117,7 +121,13 @@ func (m *Manager) buildDeck(templateName string, datafiles []string) (RevealDeck
 		opts := m.optionsFor(templateName, df)
 		sb.WriteString(m.slideSection(loaded.Data[slide.Key], slide, opts))
 	}
-	return RevealDeck{HTML: sb.String(), Width: w, Height: h}, nil
+	return RevealDeck{
+		HTML:     sb.String(),
+		Width:    w,
+		Height:   h,
+		Accent:   template.SlideAccent(*slide),
+		Progress: template.SlideProgressHeight(*slide),
+	}, nil
 }
 
 // slideSection wraps one slide doc as a reveal <section>: the positioned canvas,

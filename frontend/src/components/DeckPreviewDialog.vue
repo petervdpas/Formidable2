@@ -18,7 +18,7 @@ const emit = defineEmits<{ (e: "close"): void }>();
 
 const { t } = useI18n();
 
-const built = ref<{ html: string; width: number; height: number } | null>(null);
+const built = ref<{ html: string; width: number; height: number; accent: string; progress: number } | null>(null);
 const error = ref("");
 
 async function build() {
@@ -30,7 +30,10 @@ async function build() {
   }
   try {
     const d = await RenderSvc.BuildDeck(props.template, props.datafiles);
-    built.value = { html: d.html || "", width: d.width || 1280, height: d.height || 720 };
+    built.value = {
+      html: d.html || "", width: d.width || 1280, height: d.height || 720,
+      accent: d.accent || "", progress: d.progress || 3,
+    };
   } catch (e) {
     error.value = backendErrMessage(e);
   }
@@ -63,6 +66,8 @@ watch(
         :html="built.html"
         :width="built.width"
         :height="built.height"
+        :accent="built.accent"
+        :progress="built.progress"
       />
     </div>
   </Modal>

@@ -164,6 +164,13 @@ export class RevealDeck {
     "width": number;
     "height": number;
 
+    /**
+     * Deck-wide chrome from the slide field: accent colour (progress bar + nav
+     * arrows) and progress bar thickness in px. Accent "" means reveal defaults.
+     */
+    "accent": string;
+    "progress": number;
+
     /** Creates a new RevealDeck instance. */
     constructor($$source: Partial<RevealDeck> = {}) {
         if (!("html" in $$source)) {
@@ -174,6 +181,12 @@ export class RevealDeck {
         }
         if (!("height" in $$source)) {
             this["height"] = 0;
+        }
+        if (!("accent" in $$source)) {
+            this["accent"] = "";
+        }
+        if (!("progress" in $$source)) {
+            this["progress"] = 0;
         }
 
         Object.assign(this, $$source);

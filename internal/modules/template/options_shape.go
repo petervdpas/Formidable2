@@ -26,9 +26,12 @@ type SubRow struct {
 }
 
 // FixedOptionRow is one structurally fixed slot in a field's options array; Defaults fill cells short of the arity.
+// Input overrides how the row's editable (label) cell renders in the editor:
+// "format" (a preset dropdown), "color" (a colour picker), "number", else text.
 type FixedOptionRow struct {
 	LabelKey string         `json:"label_key"`
 	Defaults map[string]any `json:"defaults"`
+	Input    string         `json:"input,omitempty"`
 }
 
 // FixedOptionsShape declares an options array's fixed arity; nil/empty Rows means free-form.

@@ -11,6 +11,21 @@
     text-align: left;
 }
 
+/* Deck chrome themed per-deck from the slide field (accent colour + progress bar
+   thickness), delivered as CSS vars on the .reveal element. Progress height is
+   always applied (its default matches reveal, so it's harmless); the accent is
+   gated on `deck-accented` so reveal's background-adaptive arrow colour is kept
+   when no accent is set. Both the progress fill and the arrows use `color`. */
+.reveal .progress {
+    height: var(--deck-progress-h, 3px) !important;
+}
+.reveal.deck-accented .progress span {
+    background-color: var(--deck-accent) !important;
+}
+.reveal.deck-accented .controls {
+    color: var(--deck-accent) !important;
+}
+
 /* Our slide value is a fixed-size positioned canvas, so each section sits at the
    slide's top-left: neutralise reveal's vertical-centering offset and default
    section padding so the canvas maps 1:1 (matching the editor). Do NOT force the

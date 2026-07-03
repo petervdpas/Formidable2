@@ -98,7 +98,9 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		},
 		OptionsShape: &FixedOptionsShape{
 			Rows: []FixedOptionRow{
-				{LabelKey: "workspace.templates.slide.canvas_format", Defaults: map[string]any{"value": "canvas_format", "label": "1280 x 720 (16:9)"}},
+				{LabelKey: "workspace.templates.slide.canvas_format", Input: "format", Defaults: map[string]any{"value": "canvas_format", "label": "1280 x 720 (16:9)"}},
+				{LabelKey: "workspace.templates.slide.accent_color", Input: "color", Defaults: map[string]any{"value": "accent_color", "label": ""}},
+				{LabelKey: "workspace.templates.slide.progress_height", Input: "number", Defaults: map[string]any{"value": "progress_height", "label": "3"}},
 			},
 			LockedColumns: []string{"value"},
 		},
