@@ -169,6 +169,25 @@
     --field-type-formula-border: #c391a3;
     --field-type-formula-badge:  #a56a7e;
     --field-type-formula-text:   #ffffff;
+
+    /* Plugin form widgets - a Formidable-blue family. Widgets are display
+       chrome (progress bar, status message, chart), a different species from
+       data fields, so they share the brand accent (#2563eb) in three shades
+       kept distinct from the field-blues (text #1565c0, number #3a94e4). */
+    --field-type-progressbar-bg:     #2563eb;
+    --field-type-progressbar-border: #60a5fa;
+    --field-type-progressbar-badge:  #3b82f6;
+    --field-type-progressbar-text:   #ffffff;
+
+    --field-type-statusmessage-bg:     #1e3a8a;
+    --field-type-statusmessage-border: #3b82f6;
+    --field-type-statusmessage-badge:  #2563eb;
+    --field-type-statusmessage-text:   #ffffff;
+
+    --field-type-chart-bg:     #0369a1;
+    --field-type-chart-border: #38bdf8;
+    --field-type-chart-badge:  #0284c7;
+    --field-type-chart-text:   #ffffff;
 }
 
 /* ── Field row in the Field Information list ─────────────────────── */
@@ -457,4 +476,24 @@
     border-left-color: var(--field-type-looper-border);
     color: var(--field-type-looper-text);
     --field-row-badge-bg: var(--field-type-looper-badge);
+}
+
+/* Plugin form widgets (data-type = widget kind) */
+.field-row[data-type="progressbar"] {
+    background: var(--field-type-progressbar-bg);
+    border-left-color: var(--field-type-progressbar-border);
+    color: var(--field-type-progressbar-text);
+    --field-row-badge-bg: var(--field-type-progressbar-badge);
+}
+.field-row[data-type="statusmessage"] {
+    background: var(--field-type-statusmessage-bg);
+    border-left-color: var(--field-type-statusmessage-border);
+    color: var(--field-type-statusmessage-text);
+    --field-row-badge-bg: var(--field-type-statusmessage-badge);
+}
+.field-row[data-type="chart"] {
+    background: var(--field-type-chart-bg);
+    border-left-color: var(--field-type-chart-border);
+    color: var(--field-type-chart-text);
+    --field-row-badge-bg: var(--field-type-chart-badge);
 }

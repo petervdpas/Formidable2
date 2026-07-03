@@ -18,6 +18,7 @@
   "workspace.plugins.templates.empty": "Geen sjablonen beschikbaar.",
   "workspace.plugins.commands.add": "Commando toevoegen",
   "workspace.plugins.commands.delete": "Verwijderen",
+  "workspace.plugins.commands.edit": "Bewerken",
   "workspace.plugins.commands.empty": "Nog geen commando's gedefinieerd. Voeg er een toe om deze plugin uitvoerbaar te maken.",
   "workspace.plugins.commands.fn": "Lua-functie",
   "workspace.plugins.commands.fn_placeholder": "(standaard: id)",

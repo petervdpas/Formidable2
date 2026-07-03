@@ -18,6 +18,7 @@
   "workspace.plugins.templates.empty": "No templates available.",
   "workspace.plugins.commands.add": "Add command",
   "workspace.plugins.commands.delete": "Delete",
+  "workspace.plugins.commands.edit": "Edit",
   "workspace.plugins.commands.empty": "No commands defined yet. Add one to make this plugin runnable.",
   "workspace.plugins.commands.fn": "Lua function",
   "workspace.plugins.commands.fn_placeholder": "(defaults to id)",

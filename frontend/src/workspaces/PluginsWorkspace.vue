@@ -592,6 +592,40 @@ const widgetEditKind = computed<WidgetKind | "">(() => {
   return e && isWidget(e) ? e.kind : "";
 });
 
+// Tint the widget-edit dialog with the widget kind's color, mirroring the
+// field-edit modal. These are plugin-form-builder widgets (progressbar /
+// statusmessage / chart), not data fields, but they reuse the same
+// --field-type-<kind>-* tokens and the .field-edit-tinted floor. Explicit
+// map (not interpolation) so the literal token names stay greppable.
+const WIDGET_DIALOG_TINT: Partial<Record<WidgetKind, Record<string, string>>> = {
+  [WidgetKind.KindProgressBar]: {
+    "--type-bg":     "var(--field-type-progressbar-bg)",
+    "--type-text":   "var(--field-type-progressbar-text)",
+    "--type-border": "var(--field-type-progressbar-border)",
+  },
+  [WidgetKind.KindStatusMessage]: {
+    "--type-bg":     "var(--field-type-statusmessage-bg)",
+    "--type-text":   "var(--field-type-statusmessage-text)",
+    "--type-border": "var(--field-type-statusmessage-border)",
+  },
+  [WidgetKind.KindChart]: {
+    "--type-bg":     "var(--field-type-chart-bg)",
+    "--type-text":   "var(--field-type-chart-text)",
+    "--type-border": "var(--field-type-chart-border)",
+  },
+};
+
+const NEUTRAL_DIALOG_TINT: Record<string, string> = {
+  "--type-bg":     "var(--color-bg)",
+  "--type-text":   "var(--color-text)",
+  "--type-border": "var(--color-border)",
+};
+
+const widgetDialogStyle = computed<Record<string, string>>(() => {
+  const kind = widgetEditKind.value;
+  return (kind && WIDGET_DIALOG_TINT[kind]) || NEUTRAL_DIALOG_TINT;
+});
+
 function openWidgetEdit(idx: number) {
   const entry = draftForm.value[idx];
   if (!entry || !isWidget(entry)) return;
@@ -980,7 +1014,7 @@ setTopbarMenu(() => [
                     class="field-action-btn edit"
                     @click="openWidgetEdit(i)"
                   >
-                    Edit
+                    {{ t('workspace.plugins.commands.edit') }}
                   </button>
                   <button
                     type="button"
@@ -1006,7 +1040,7 @@ setTopbarMenu(() => [
                     class="field-action-btn edit"
                     @click="openFieldEdit(i)"
                   >
-                    Edit
+                    {{ t('workspace.plugins.commands.edit') }}
                   </button>
                   <button
                     type="button"
@@ -1145,6 +1179,8 @@ setTopbarMenu(() => [
     :open="widgetEditOpen"
     :title="t('workspace.plugins.widget.edit_title', [widgetEditKind])"
     width="480px"
+    dialog-class="field-edit-tinted"
+    :dialog-style="widgetDialogStyle"
     @close="cancelWidgetEdit"
   >
     <label class="dialog-row">
