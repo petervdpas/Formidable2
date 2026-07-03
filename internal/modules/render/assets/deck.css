@@ -98,6 +98,19 @@
 .slide-block-code .slide-fit pre.hljs-chroma {
     background: transparent;
 }
+
+/* Reveal's highlight fragments only recolour the .fragment element (the block
+   box). Our text sits a few levels down and usually carries its own colour (a
+   heading, or an authored text colour), which won - so the highlight appeared to
+   do nothing. Force the highlight colour onto the whole block's text (incl. an
+   inline colour, hence !important) when the fragment is active, so highlight-*
+   actually recolours the text on advance. Matches reveal's own hues. */
+.reveal .slide-block.fragment.highlight-red.visible,
+.reveal .slide-block.fragment.highlight-red.visible * { color: #ff2c2d !important; }
+.reveal .slide-block.fragment.highlight-green.visible,
+.reveal .slide-block.fragment.highlight-green.visible * { color: #17ff2e !important; }
+.reveal .slide-block.fragment.highlight-blue.visible,
+.reveal .slide-block.fragment.highlight-blue.visible * { color: #1b91ff !important; }
 .reveal .slide-block-video .slide-fit video,
 .reveal .slide-block-video .slide-fit iframe,
 .reveal .slide-block-embed .slide-fit iframe {
