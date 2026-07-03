@@ -112,6 +112,16 @@ Section
 
     !insertmacro wails.files
 
+    # Formidable keeps its writable data (config, index/<profile>.db,
+    # plugins, formidable.log) inside its install folder = AppRoot. Under
+    # $PROGRAMFILES64 that folder is read-only for standard users, so the
+    # app can't write config or the index and fails to start. Grant the
+    # built-in Users group Modify rights on $INSTDIR, with object +
+    # container inheritance so the subfolders and files created on first
+    # run inherit write access. The SID S-1-5-32-545 is used instead of
+    # the name "Users" so this works on non-English Windows too.
+    nsExec::ExecToLog 'icacls "$INSTDIR" /grant "*S-1-5-32-545:(OI)(CI)M" /T /C'
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 
