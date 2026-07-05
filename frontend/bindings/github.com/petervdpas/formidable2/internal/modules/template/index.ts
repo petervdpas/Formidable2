@@ -34,6 +34,7 @@ export {
     SlideBlockKindDescriptor,
     SlideFontDescriptor,
     SlideShadowDescriptor,
+    SlideShadowDirDescriptor,
     StatComposite,
     StatCompositeEdge,
     StatScaling,

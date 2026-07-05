@@ -185,6 +185,19 @@ func TestSlideShadows_RegistryAndClass(t *testing.T) {
 	}
 }
 
+func TestSlideShadowDirections_RegistryAndClass(t *testing.T) {
+	dirs := SlideShadowDirections()
+	if len(dirs) < 8 || dirs[0].Value != "" {
+		t.Fatalf("expected 8 directions starting with the down default, got %+v", dirs)
+	}
+	if SlideShadowDirClass("down-right") != "slide-shadow-dir-down-right" {
+		t.Errorf("down-right class = %q", SlideShadowDirClass("down-right"))
+	}
+	if SlideShadowDirClass("") != "" || SlideShadowDirClass("sideways") != "" {
+		t.Errorf("default (down) and unknown directions must yield no class")
+	}
+}
+
 func TestParseSlideDoc_RoundTripsNestedContent(t *testing.T) {
 	raw := map[string]any{
 		"blocks": []any{

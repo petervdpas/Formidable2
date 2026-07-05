@@ -9,6 +9,7 @@ import {
   type SlideBlockKindDescriptor,
   type SlideFontDescriptor,
   type SlideShadowDescriptor,
+  type SlideShadowDirDescriptor,
   type Field,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -24,6 +25,7 @@ export interface SlideBlock {
   lang?: string; // code block language
   style?: Record<string, string>; // per-element inline CSS (font-size, color, …)
   shadow?: string; // shadow preset (soft/medium/strong); "" / undefined = none
+  shadowDir?: string; // shadow direction; "" / undefined = down
 }
 
 export interface SlideDoc {
@@ -86,6 +88,23 @@ export function ensureSlideShadowsLoaded(): Promise<void> {
 
 export function slideShadows(): SlideShadowDescriptor[] {
   return shadows.value;
+}
+
+const shadowDirs: Ref<SlideShadowDirDescriptor[]> = ref([]);
+let shadowDirsPromise: Promise<void> | null = null;
+
+// ensureSlideShadowDirectionsLoaded fetches the backend shadow direction vocabulary once.
+export function ensureSlideShadowDirectionsLoaded(): Promise<void> {
+  if (!shadowDirsPromise) {
+    shadowDirsPromise = TemplateSvc.SlideShadowDirections().then((d) => {
+      shadowDirs.value = d ?? [];
+    });
+  }
+  return shadowDirsPromise;
+}
+
+export function slideShadowDirections(): SlideShadowDirDescriptor[] {
+  return shadowDirs.value;
 }
 
 // canvasSize reads the deck's authored canvas size from the slide field's

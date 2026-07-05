@@ -35,8 +35,9 @@ type SlideBlock struct {
 	H        int               `json:"h"`
 	Fragment string            `json:"fragment,omitempty"`
 	Lang     string            `json:"lang,omitempty"`
-	Style    map[string]string `json:"style,omitempty"`  // per-element CSS (font-size, color, text-align, …)
-	Shadow   string            `json:"shadow,omitempty"` // shadow preset (soft/medium/strong); "" = none
+	Style     map[string]string `json:"style,omitempty"`     // per-element CSS (font-size, color, text-align, …)
+	Shadow    string            `json:"shadow,omitempty"`    // shadow preset (soft/medium/strong); "" = none
+	ShadowDir string            `json:"shadowDir,omitempty"` // shadow direction; "" = down
 }
 
 // styleKeyOrder is the deterministic order CSS declarations are emitted in, so a
@@ -270,6 +271,46 @@ func SlideShadows() []SlideShadowDescriptor {
 func SlideShadowClass(preset string) string {
 	if slideShadowPresets[preset] {
 		return "slide-shadow-" + preset
+	}
+	return ""
+}
+
+// SlideShadowDirDescriptor names one shadow direction (the offset the shadow
+// falls toward). "" is the default (down); the rest set the --sdx/--sdy unit
+// vector via a class, scaled by the preset's distance in CSS.
+type SlideShadowDirDescriptor struct {
+	Value    string `json:"value"`
+	LabelKey string `json:"label_key"`
+}
+
+var builtinSlideShadowDirs = []SlideShadowDirDescriptor{
+	{Value: "", LabelKey: "workspace.storage.slide.shadow_dir.down"},
+	{Value: "down-right", LabelKey: "workspace.storage.slide.shadow_dir.down_right"},
+	{Value: "right", LabelKey: "workspace.storage.slide.shadow_dir.right"},
+	{Value: "up-right", LabelKey: "workspace.storage.slide.shadow_dir.up_right"},
+	{Value: "up", LabelKey: "workspace.storage.slide.shadow_dir.up"},
+	{Value: "up-left", LabelKey: "workspace.storage.slide.shadow_dir.up_left"},
+	{Value: "left", LabelKey: "workspace.storage.slide.shadow_dir.left"},
+	{Value: "down-left", LabelKey: "workspace.storage.slide.shadow_dir.down_left"},
+}
+
+var slideShadowDirs = map[string]bool{
+	"down-right": true, "right": true, "up-right": true, "up": true,
+	"up-left": true, "left": true, "down-left": true,
+}
+
+// SlideShadows directions vocabulary (defensive copy).
+func SlideShadowDirections() []SlideShadowDirDescriptor {
+	out := make([]SlideShadowDirDescriptor, len(builtinSlideShadowDirs))
+	copy(out, builtinSlideShadowDirs)
+	return out
+}
+
+// SlideShadowDirClass returns the CSS class for a shadow direction, or "" for
+// the default (down) and unknown values.
+func SlideShadowDirClass(dir string) string {
+	if slideShadowDirs[dir] {
+		return "slide-shadow-dir-" + dir
 	}
 	return ""
 }

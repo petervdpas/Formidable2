@@ -1075,6 +1075,36 @@ export class SlideShadowDescriptor {
 }
 
 /**
+ * SlideShadowDirDescriptor names one shadow direction (the offset the shadow
+ * falls toward). "" is the default (down); the rest set the --sdx/--sdy unit
+ * vector via a class, scaled by the preset's distance in CSS.
+ */
+export class SlideShadowDirDescriptor {
+    "value": string;
+    "label_key": string;
+
+    /** Creates a new SlideShadowDirDescriptor instance. */
+    constructor($$source: Partial<SlideShadowDirDescriptor> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SlideShadowDirDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SlideShadowDirDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SlideShadowDirDescriptor($$parsedSource as Partial<SlideShadowDirDescriptor>);
+    }
+}
+
+/**
  * StatComposite is the stored composite: a parent name plus per-branch child names. The engine
  * checks that each child filters the parent's branch dimension to its branch value.
  */

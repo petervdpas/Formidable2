@@ -194,6 +194,9 @@ func renderSlide(v any, f *template.Field, opts *Options) string {
 		cls := "slide-block slide-block-" + b.Kind
 		if sc := template.SlideShadowClass(b.Shadow); sc != "" {
 			cls += " " + sc
+			if dc := template.SlideShadowDirClass(b.ShadowDir); dc != "" {
+				cls += " " + dc
+			}
 		}
 		if b.Fragment != "" {
 			cls += " fragment " + b.Fragment

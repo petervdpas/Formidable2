@@ -95,6 +95,9 @@ func (s *Service) SlideFonts() []SlideFontDescriptor { return SlideFonts() }
 // SlideShadows returns the shadow preset vocabulary for slide blocks.
 func (s *Service) SlideShadows() []SlideShadowDescriptor { return SlideShadows() }
 
+// SlideShadowDirections returns the shadow direction vocabulary for slide blocks.
+func (s *Service) SlideShadowDirections() []SlideShadowDirDescriptor { return SlideShadowDirections() }
+
 // GeneratorShapes returns the catalog for the "Generate Template" dialog's shape picker.
 func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }
 
