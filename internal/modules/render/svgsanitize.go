@@ -39,7 +39,40 @@ func sanitizeSVG(raw string) (string, bool) {
 	if svgHasActiveContent(raw) {
 		return "", false
 	}
-	return raw, true
+	return ensureSVGIntrinsicSize(raw), true
+}
+
+var svgOpenTagRe = regexp.MustCompile(`(?is)<svg\b[^>]*>`)
+var svgWidthAttrRe = regexp.MustCompile(`(?i)\swidth\s*=`)   // leading space avoids matching stroke-width=
+var svgHeightAttrRe = regexp.MustCompile(`(?i)\sheight\s*=`) // (no other -height attr in SVG)
+var svgViewBoxRe = regexp.MustCompile(`(?i)\sviewbox\s*=\s*["']([^"']*)["']`)
+
+// ensureSVGIntrinsicSize adds width/height to the root <svg> when it has a
+// viewBox but neither dimension, so the file has an intrinsic size for an <img>
+// probe (some engines report a zero natural size otherwise). It is additive and
+// touches only the opening tag; a sized or viewBox-less SVG is returned as is,
+// so the sanitizer stays otherwise verbatim.
+func ensureSVGIntrinsicSize(svg string) string {
+	loc := svgOpenTagRe.FindStringIndex(svg)
+	if loc == nil {
+		return svg
+	}
+	tag := svg[loc[0]:loc[1]]
+	if svgWidthAttrRe.MatchString(tag) || svgHeightAttrRe.MatchString(tag) {
+		return svg // already carries a dimension; leave it alone
+	}
+	m := svgViewBoxRe.FindStringSubmatch(tag)
+	if m == nil {
+		return svg // nothing to derive a size from
+	}
+	nums := strings.FieldsFunc(m[1], func(r rune) bool {
+		return r == ' ' || r == ',' || r == '\t' || r == '\n' || r == '\r'
+	})
+	if len(nums) != 4 {
+		return svg
+	}
+	newTag := "<svg width=\"" + nums[2] + "\" height=\"" + nums[3] + "\"" + tag[len("<svg"):]
+	return svg[:loc[0]] + newTag + svg[loc[1]:]
 }
 
 // svgHasActiveContent reports whether the markup contains a script-execution
