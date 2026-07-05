@@ -60,6 +60,14 @@ func (h *Handler) imageBytes(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.Header().Set("Content-Type", mime)
 		w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
+		// Honor the declared type (don't sniff), and for SVG neutralize the
+		// direct-navigation vector: an <img>/mask reference is already sandboxed,
+		// but opening the file URL in a tab treats it as a live document, so deny
+		// everything except inline styles it needs to paint.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if mime == "image/svg+xml" {
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+		}
 		if r.Method == http.MethodHead {
 			return
 		}

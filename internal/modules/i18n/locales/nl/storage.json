@@ -111,6 +111,8 @@
   "workspace.storage.slide.shape.remove_svg": "SVG verwijderen",
   "workspace.storage.slide.shape.svg_imported": "SVG geïmporteerd",
   "workspace.storage.slide.shape.svg_invalid": "Geen geldig SVG-bestand.",
+  "workspace.storage.slide.shape.tint": "Tint",
+  "workspace.storage.slide.shape.tint_original": "Originele kleuren",
   "workspace.storage.deck.all": "Alle diasets",
   "workspace.storage.deck.preview.button": "Voorbeeld",
   "workspace.storage.deck.preview.title": "Diaset-voorbeeld",

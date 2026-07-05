@@ -157,6 +157,18 @@
     object-fit: contain;
     margin: 0;
 }
+/* A tinted (recoloured) SVG: the SVG is a mask over a solid fill, so its alpha
+   takes the chosen colour. Aspect kept via mask-size:contain. */
+.reveal .slide-block-shape .slide-fit .slide-shape-tint {
+    position: absolute;
+    inset: 0;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
 
 /* Mermaid: no size override - the global `pre.mermaid svg { max-width:100%;
    height:auto }` renders the diagram at its natural size (stretching to the block

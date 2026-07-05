@@ -136,6 +136,32 @@ func TestRenderSlide_ImportedSVGRendersAsImage(t *testing.T) {
 	}
 }
 
+func TestRenderSlide_TintedSVGUsesMask(t *testing.T) {
+	// A tinted (single-colour) SVG recolours via a CSS mask over a solid fill,
+	// not an <img>, so the whole shape takes the chosen colour.
+	doc := map[string]any{"blocks": []any{
+		map[string]any{"id": "s1", "kind": "shape",
+			"content": map[string]any{"svgFile": "icon.svg", "tint": "#ff0000"},
+			"x":       float64(0), "y": float64(0), "w": float64(80), "h": float64(80)},
+	}}
+	opts := &Options{ImageURL: func(name string) string { return "/api/images/tpl/" + name }}
+	html := renderSlide(doc, nil, opts)
+	for _, want := range []string{`class="slide-shape-tint"`, "background-color:#ff0000", "mask-image:url(/api/images/tpl/icon.svg)"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("tinted SVG render missing %q\n%s", want, html)
+		}
+	}
+	// A rejected tint colour falls back to the plain <img>.
+	doc2 := map[string]any{"blocks": []any{
+		map[string]any{"id": "s2", "kind": "shape",
+			"content": map[string]any{"svgFile": "icon.svg", "tint": `"><script>`},
+			"x":       float64(0), "y": float64(0), "w": float64(80), "h": float64(80)},
+	}}
+	if h := renderSlide(doc2, nil, opts); strings.Contains(h, "slide-shape-tint") || strings.Contains(h, "script") {
+		t.Errorf("hostile tint must be rejected, falling back to <img>\n%s", h)
+	}
+}
+
 func TestEmitShape_TriangleAndNoFill(t *testing.T) {
 	// Triangle is a filled polygon; fill="none" gives an outline-only shape.
 	got := emitShape(map[string]any{"shape": "triangle", "fill": "none", "stroke": "#000000"})

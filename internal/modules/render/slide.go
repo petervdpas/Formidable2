@@ -245,10 +245,19 @@ func emitSlideBlock(kind string, content any, lang string, opts *Options) string
 		// sandboxes an img-loaded SVG). A primitive shape renders inline instead.
 		if m, ok := content.(map[string]any); ok {
 			if fn, _ := m["svgFile"].(string); strings.TrimSpace(fn) != "" {
-				if url := emitImage(fn, opts); url != "" {
-					return "![](" + url + ")"
+				url := emitImage(fn, opts)
+				if url == "" {
+					return ""
 				}
-				return ""
+				// A tint recolours a (monochrome) SVG: use it as a CSS mask over a
+				// solid fill so its alpha takes the chosen colour. As safe as an
+				// <img> (the SVG is a mask image, never executed).
+				if tint := sanitizeColor(strings.TrimSpace(stringify(m["tint"])), ""); tint != "" {
+					u := html.EscapeString(url)
+					return `<div class="slide-shape-tint" style="background-color:` + tint +
+						`;-webkit-mask-image:url(` + u + `);mask-image:url(` + u + `)"></div>`
+				}
+				return "![](" + url + ")"
 			}
 		}
 		return emitShape(content)

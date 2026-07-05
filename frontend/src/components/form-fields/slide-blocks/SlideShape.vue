@@ -46,6 +46,7 @@ interface ShapeContent {
   strokeWidth: number;
   direction: string;
   svgFile: string;
+  tint: string;
 }
 
 const cur = computed<ShapeContent>(() => {
@@ -58,6 +59,7 @@ const cur = computed<ShapeContent>(() => {
     strokeWidth: Number.isFinite(width) ? width : SHAPE_DEFAULT.strokeWidth,
     direction: typeof c.direction === "string" ? c.direction : "horizontal",
     svgFile: typeof c.svgFile === "string" ? c.svgFile : "",
+    tint: typeof c.tint === "string" ? c.tint : "",
   };
 });
 
@@ -131,7 +133,7 @@ async function removeSvg() {
       // Best-effort: clear the reference even if the file delete fails.
     }
   }
-  update({ svgFile: "" });
+  update({ svgFile: "", tint: "" });
 }
 </script>
 
@@ -140,6 +142,17 @@ async function removeSvg() {
   <template v-else>
     <template v-if="hasSvg">
       <div class="muted small">{{ t('workspace.storage.slide.shape.svg_imported') }}</div>
+      <div class="slide-style-color">
+        <span>{{ t('workspace.storage.slide.shape.tint') }}</span>
+        <input
+          type="color" :value="cur.tint || '#000000'"
+          @input="update({ tint: ($event.target as HTMLInputElement).value })"
+        />
+        <button
+          type="button" class="slide-style-clear" :class="{ active: !cur.tint }"
+          :title="t('workspace.storage.slide.shape.tint_original')" @click="update({ tint: '' })"
+        ><i class="fa-solid fa-ban" aria-hidden="true"></i></button>
+      </div>
       <button type="button" class="tool-btn danger" @click="removeSvg">
         <i class="fa-solid fa-trash-can" aria-hidden="true"></i> {{ t('workspace.storage.slide.shape.remove_svg') }}
       </button>

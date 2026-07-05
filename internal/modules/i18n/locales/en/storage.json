@@ -111,6 +111,8 @@
   "workspace.storage.slide.shape.remove_svg": "Remove SVG",
   "workspace.storage.slide.shape.svg_imported": "SVG imported",
   "workspace.storage.slide.shape.svg_invalid": "Not a valid SVG file.",
+  "workspace.storage.slide.shape.tint": "Tint",
+  "workspace.storage.slide.shape.tint_original": "Original colours",
   "workspace.storage.deck.all": "All decks",
   "workspace.storage.deck.preview.button": "Preview",
   "workspace.storage.deck.preview.title": "Deck preview",
