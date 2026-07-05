@@ -60,7 +60,14 @@ type Manager struct {
 	revFn     RevFunc
 	deckMu    sync.Mutex
 	deckCache map[string]cachedDeck
+
+	// fontFace supplies @font-face rules for user-uploaded fonts; nil = none.
+	fontFace func() (string, error)
 }
+
+// SetFontFaceProvider wires the source of @font-face CSS for user fonts (the
+// fonts module). Nil leaves decks without extra font faces.
+func (m *Manager) SetFontFaceProvider(fn func() (string, error)) { m.fontFace = fn }
 
 // RevFunc returns the current collection revision (from the index). A change in
 // the returned value invalidates cached decks. Nil disables deck caching.

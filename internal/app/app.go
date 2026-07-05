@@ -41,6 +41,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/mermaid"
 	"github.com/petervdpas/formidable2/internal/modules/monitor"
 	"github.com/petervdpas/formidable2/internal/modules/nav"
+	"github.com/petervdpas/formidable2/internal/modules/fonts"
 	"github.com/petervdpas/formidable2/internal/modules/pdf"
 	"github.com/petervdpas/formidable2/internal/modules/plugin"
 	"github.com/petervdpas/formidable2/internal/modules/query"
@@ -141,6 +142,7 @@ type App struct {
 	Integrity     *integrity.Service
 	Logging       *logging.Service
 	PDF           *pdf.Service
+	Fonts         *fonts.Service
 	Manual        *manual.Service
 	Mermaid       *mermaid.Service
 	CodeFormatter *codeformatter.Service
@@ -732,6 +734,14 @@ func New(d Deps) (*App, error) {
 		pdfM.SetAssetServer(as)
 	}
 
+	// User-supplied slide fonts under <AppRoot>/fonts/. Scaffold restores any
+	// factory (embedded) font missing from disk so a deleted seed reappears.
+	fontsM := fonts.NewManager(sysM)
+	if err := fontsM.Scaffold(); err != nil {
+		d.Logger.Warn("fonts: scaffold failed", "err", err)
+	}
+	renderM.SetFontFaceProvider(fontsM.FontFaceCSS)
+
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
 	return &App{
@@ -766,6 +776,7 @@ func New(d Deps) (*App, error) {
 		Integrity:         integrity.NewService(integrityM, emitter),
 		Logging:           logging.NewService(logging.NewManager(d.LogBroadcaster, applog.LogPath(applog.Options{AppRoot: d.AppRoot}), d.Logger)),
 		PDF:               newPDFService(pdfM, opsRegistry),
+		Fonts:             fonts.NewService(fontsM),
 		Manual:            manual.NewService(),
 		Mermaid:           mermaid.NewService(),
 		CodeFormatter:     codeformatter.NewService(codeformatter.NewManager(pdf.Schemas())),

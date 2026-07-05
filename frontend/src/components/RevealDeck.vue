@@ -12,8 +12,8 @@ import { hydrateKatex } from "../utils/mathHydrate";
 import { hydrateMermaid } from "../utils/mermaidHydrate";
 
 const props = withDefaults(
-  defineProps<{ html: string; width?: number; height?: number; accent?: string; progress?: number }>(),
-  { width: 1280, height: 720, accent: "", progress: 3 },
+  defineProps<{ html: string; width?: number; height?: number; accent?: string; progress?: number; fontFaceCss?: string }>(),
+  { width: 1280, height: 720, accent: "", progress: 3, fontFaceCss: "" },
 );
 
 const { theme } = useTheme();
@@ -109,6 +109,9 @@ onBeforeUnmount(destroyReveal);
 
 <template>
   <div ref="revealEl" class="reveal deck-reveal" :class="{ 'deck-accented': !!accent }" :style="chromeStyle">
+    <!-- @font-face rules for user-uploaded fonts (data: URIs from render.BuildDeck).
+         v-text inserts the CSS as text so nothing is HTML-parsed. -->
+    <component v-if="fontFaceCss" :is="'style'" v-text="fontFaceCss" />
     <!-- formidable-prose gives the deck the SAME typographic context as the
          editor, overriding reveal's own base font-size (20pt) that otherwise
          cascades into the slide content (e.g. blowing up mermaid text). -->

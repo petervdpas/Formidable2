@@ -2,6 +2,7 @@
 import { computed, inject, onBeforeUnmount, onMounted, ref, watch, type ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
+import { Service as FontsSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/fonts";
 import { slideBlockComponent, SlideSettings, SlideElementTransition, SlideElementOrder } from "./slide-blocks";
 import {
   ensureSlideBlockKindsLoaded,
@@ -93,8 +94,13 @@ function renderBlock(b: SlideBlock) {
 function renderAll() {
   for (const b of blocks.value) renderBlock(b);
 }
+// @font-face rules for user-uploaded fonts, so a picked upload renders on the
+// canvas (web-safe fonts need no face). Refetched on mount, which covers a font
+// added in the Information panel before returning to the editor.
+const fontFaceCss = ref("");
 onMounted(() => {
   void ensureSlideBlockKindsLoaded();
+  void FontsSvc.FontFaceCSS().then((css) => { fontFaceCss.value = css ?? ""; });
   renderAll();
 });
 
@@ -421,6 +427,7 @@ function startResize(b: SlideBlock, e: PointerEvent) {
 
 <template>
   <div class="slide-editor">
+    <component v-if="fontFaceCss" :is="'style'" v-text="fontFaceCss" />
     <div class="slide-editor-body">
       <div class="slide-toolrail">
         <button

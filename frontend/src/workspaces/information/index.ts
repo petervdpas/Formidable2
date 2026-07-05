@@ -8,6 +8,7 @@ import InformationJournalFeed from "./InformationJournalFeed.vue";
 import InformationLogging from "./InformationLogging.vue";
 import InformationPDFExport from "./InformationPDFExport.vue";
 import InformationPDFCovers from "./InformationPDFCovers.vue";
+import InformationFonts from "./InformationFonts.vue";
 import InformationRenderHelpers from "./InformationRenderHelpers.vue";
 import InformationFrontmatterDirectives from "./InformationFrontmatterDirectives.vue";
 import InformationManualTopic from "./InformationManualTopic.vue";
@@ -46,6 +47,7 @@ export const INFORMATION_CATEGORIES: InformationCategory[] = [
       { id: "pdf-covers", labelKey: "workspace.information.section.pdf_covers", component: InformationPDFCovers },
     ],
   },
+  { id: "fonts", labelKey: "workspace.information.section.fonts", component: InformationFonts },
   {
     id: "help",
     labelKey: "workspace.information.section.help",

@@ -1319,3 +1319,117 @@
   padding: 4px 8px;
   font-size: var(--font-size-sm);
 }
+
+/* Fonts panel: mirrors the cover-images resource, previewing each family in its
+   own face instead of an image thumbnail. */
+.fonts-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fonts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.fonts-header h4 {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.fonts-header-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.fonts-file-input {
+  display: none;
+}
+
+.fonts-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+
+.fonts-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.fonts-tile.seed {
+  border-color: color-mix(in oklab, var(--color-accent) 35%, var(--color-border));
+}
+
+.fonts-preview {
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  font-size: 1.6rem;
+  line-height: 1.2;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  overflow: hidden;
+}
+
+.fonts-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+}
+
+.fonts-family {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.fonts-name {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-sm);
+  word-break: break-all;
+  color: var(--color-text-muted);
+}
+
+.fonts-size {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.fonts-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7em;
+  font-weight: 600;
+  background: color-mix(in oklab, var(--color-accent) 18%, var(--color-surface));
+  color: var(--color-accent);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 30%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.fonts-action {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: 4px 8px;
+  font-size: var(--font-size-sm);
+}

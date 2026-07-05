@@ -56,6 +56,9 @@ type RevealDeck struct {
 	// arrows) and progress bar thickness in px. Accent "" means reveal defaults.
 	Accent   string `json:"accent"`
 	Progress int    `json:"progress"`
+	// FontFaceCSS holds @font-face rules for user-uploaded fonts (each font inlined
+	// as a data: URI). The viewer injects it into a <style> so those fonts render.
+	FontFaceCSS string `json:"fontFaceCss"`
 }
 
 // BuildDeck renders an ordered set of records into reveal.js slide sections
@@ -63,6 +66,22 @@ type RevealDeck struct {
 // revision when SetRevFunc is wired: a cache hit reuses the HTML, any write bumps
 // the rev and rebuilds. Without a rev source it always builds fresh.
 func (m *Manager) BuildDeck(templateName string, datafiles []string) (RevealDeck, error) {
+	deck, err := m.resolveDeck(templateName, datafiles)
+	if err != nil {
+		return deck, err
+	}
+	// Font-face CSS is added outside the deck cache so an uploaded/removed font
+	// takes effect on the next build without waiting for a collection write.
+	if m.fontFace != nil {
+		if css, ferr := m.fontFace(); ferr == nil {
+			deck.FontFaceCSS = css
+		}
+	}
+	return deck, nil
+}
+
+// resolveDeck is the cached deck build (see BuildDeck).
+func (m *Manager) resolveDeck(templateName string, datafiles []string) (RevealDeck, error) {
 	if m.revFn == nil {
 		return m.buildDeck(templateName, datafiles)
 	}

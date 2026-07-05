@@ -171,6 +171,12 @@ export class RevealDeck {
     "accent": string;
     "progress": number;
 
+    /**
+     * FontFaceCSS holds @font-face rules for user-uploaded fonts (each font inlined
+     * as a data: URI). The viewer injects it into a <style> so those fonts render.
+     */
+    "fontFaceCss": string;
+
     /** Creates a new RevealDeck instance. */
     constructor($$source: Partial<RevealDeck> = {}) {
         if (!("html" in $$source)) {
@@ -187,6 +193,9 @@ export class RevealDeck {
         }
         if (!("progress" in $$source)) {
             this["progress"] = 0;
+        }
+        if (!("fontFaceCss" in $$source)) {
+            this["fontFaceCss"] = "";
         }
 
         Object.assign(this, $$source);

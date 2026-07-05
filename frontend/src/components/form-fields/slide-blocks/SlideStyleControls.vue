@@ -2,8 +2,12 @@
 // Per-element typographic properties (size, colour, alignment, bold), stored in
 // the block's style map and applied inline on the slide. Included only by the
 // element types where text styling is meaningful (text/quote/math/code/table).
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  Service as FontsSvc,
+  type FontInfo,
+} from "../../../../bindings/github.com/petervdpas/formidable2/internal/modules/fonts";
 import {
   ensureSlideFontsLoaded,
   slideFonts,
@@ -18,8 +22,26 @@ const emit = defineEmits<{ (e: "patch", p: Partial<SlideBlock>): void }>();
 
 const { t } = useI18n();
 
-const fonts = computed(() => slideFonts());
-onMounted(() => void ensureSlideFontsLoaded());
+// The picker merges two backend-owned lists: the built-in web-safe families and
+// the user-uploaded fonts (each becomes a "<Family>", sans-serif stack).
+const userFonts = ref<FontInfo[]>([]);
+onMounted(() => {
+  void ensureSlideFontsLoaded();
+  void FontsSvc.ListFonts().then((f) => { userFonts.value = f ?? []; });
+});
+const fonts = computed(() => {
+  const builtin = slideFonts().map((f) => ({
+    value: f.value,
+    label: f.label ?? "",
+    label_key: f.label_key ?? "",
+  }));
+  const user = userFonts.value.map((f) => ({
+    value: `"${f.family}", sans-serif`,
+    label: f.family,
+    label_key: "",
+  }));
+  return [...builtin, ...user];
+});
 
 function styleVal(prop: string): string {
   return props.block.style?.[prop] ?? "";

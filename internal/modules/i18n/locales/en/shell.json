@@ -97,6 +97,7 @@
   "workspace.information.section.pdf": "PDF",
   "workspace.information.section.pdf_export": "PDF Export",
   "workspace.information.section.pdf_covers": "PDF Covers",
+  "workspace.information.section.fonts": "Fonts",
   "workspace.information.section.help": "Help",
   "workspace.information.section.render_helpers": "Render Helpers",
   "workspace.information.section.frontmatter_directives": "Frontmatter Directives",
