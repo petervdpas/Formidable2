@@ -170,6 +170,45 @@
     mask-size: contain;
 }
 
+/* Per-block shadow presets (shared with the editor, slide-editor.css). The block
+   kind decides the flavour: image/shape/mermaid/math -> drop-shadow (alpha),
+   table/code/video/embed -> box-shadow (card), text/quote/list -> text-shadow. */
+.reveal .slide-block-image.slide-shadow-soft .slide-fit,
+.reveal .slide-block-shape.slide-shadow-soft .slide-fit,
+.reveal .slide-block-mermaid.slide-shadow-soft .slide-fit,
+.reveal .slide-block-math.slide-shadow-soft .slide-fit { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.30)); }
+.reveal .slide-block-table.slide-shadow-soft .slide-fit,
+.reveal .slide-block-code.slide-shadow-soft .slide-fit,
+.reveal .slide-block-video.slide-shadow-soft .slide-fit,
+.reveal .slide-block-embed.slide-shadow-soft .slide-fit { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22); }
+.reveal .slide-block-text.slide-shadow-soft .slide-fit,
+.reveal .slide-block-quote.slide-shadow-soft .slide-fit,
+.reveal .slide-block-list.slide-shadow-soft .slide-fit { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.40); }
+
+.reveal .slide-block-image.slide-shadow-medium .slide-fit,
+.reveal .slide-block-shape.slide-shadow-medium .slide-fit,
+.reveal .slide-block-mermaid.slide-shadow-medium .slide-fit,
+.reveal .slide-block-math.slide-shadow-medium .slide-fit { filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.40)); }
+.reveal .slide-block-table.slide-shadow-medium .slide-fit,
+.reveal .slide-block-code.slide-shadow-medium .slide-fit,
+.reveal .slide-block-video.slide-shadow-medium .slide-fit,
+.reveal .slide-block-embed.slide-shadow-medium .slide-fit { box-shadow: 0 5px 16px rgba(0, 0, 0, 0.32); }
+.reveal .slide-block-text.slide-shadow-medium .slide-fit,
+.reveal .slide-block-quote.slide-shadow-medium .slide-fit,
+.reveal .slide-block-list.slide-shadow-medium .slide-fit { text-shadow: 0 2px 5px rgba(0, 0, 0, 0.50); }
+
+.reveal .slide-block-image.slide-shadow-strong .slide-fit,
+.reveal .slide-block-shape.slide-shadow-strong .slide-fit,
+.reveal .slide-block-mermaid.slide-shadow-strong .slide-fit,
+.reveal .slide-block-math.slide-shadow-strong .slide-fit { filter: drop-shadow(0 9px 22px rgba(0, 0, 0, 0.50)); }
+.reveal .slide-block-table.slide-shadow-strong .slide-fit,
+.reveal .slide-block-code.slide-shadow-strong .slide-fit,
+.reveal .slide-block-video.slide-shadow-strong .slide-fit,
+.reveal .slide-block-embed.slide-shadow-strong .slide-fit { box-shadow: 0 11px 30px rgba(0, 0, 0, 0.45); }
+.reveal .slide-block-text.slide-shadow-strong .slide-fit,
+.reveal .slide-block-quote.slide-shadow-strong .slide-fit,
+.reveal .slide-block-list.slide-shadow-strong .slide-fit { text-shadow: 0 3px 8px rgba(0, 0, 0, 0.60); }
+
 /* Mermaid: no size override - the global `pre.mermaid svg { max-width:100%;
    height:auto }` renders the diagram at its natural size (stretching to the block
    width blows it up and clips). Only drop the default block margin. */

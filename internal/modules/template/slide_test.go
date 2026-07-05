@@ -163,6 +163,28 @@ func TestInlineStyle_EmitsFontFamily(t *testing.T) {
 	}
 }
 
+func TestSlideShadows_RegistryAndClass(t *testing.T) {
+	sh := SlideShadows()
+	if len(sh) != 4 || sh[0].Value != "" {
+		t.Fatalf("expected 4 presets starting with none, got %+v", sh)
+	}
+	for _, s := range sh {
+		if s.LabelKey == "" {
+			t.Errorf("shadow %q missing label key", s.Value)
+		}
+	}
+	if SlideShadowClass("soft") != "slide-shadow-soft" {
+		t.Errorf("soft class = %q", SlideShadowClass("soft"))
+	}
+	if SlideShadowClass("") != "" || SlideShadowClass("bogus") != "" {
+		t.Errorf("none/unknown must yield no class")
+	}
+	sh[0].Value = "mutated"
+	if SlideShadows()[0].Value != "" {
+		t.Errorf("SlideShadows must return a defensive copy")
+	}
+}
+
 func TestParseSlideDoc_RoundTripsNestedContent(t *testing.T) {
 	raw := map[string]any{
 		"blocks": []any{

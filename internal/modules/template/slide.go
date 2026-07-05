@@ -35,7 +35,8 @@ type SlideBlock struct {
 	H        int               `json:"h"`
 	Fragment string            `json:"fragment,omitempty"`
 	Lang     string            `json:"lang,omitempty"`
-	Style    map[string]string `json:"style,omitempty"` // per-element CSS (font-size, color, text-align, …)
+	Style    map[string]string `json:"style,omitempty"`  // per-element CSS (font-size, color, text-align, …)
+	Shadow   string            `json:"shadow,omitempty"` // shadow preset (soft/medium/strong); "" = none
 }
 
 // styleKeyOrder is the deterministic order CSS declarations are emitted in, so a
@@ -236,6 +237,41 @@ func SlideFonts() []SlideFontDescriptor {
 	out := make([]SlideFontDescriptor, len(builtinSlideFonts))
 	copy(out, builtinSlideFonts)
 	return out
+}
+
+// SlideShadowDescriptor names one shadow preset for a slide block. Value is the
+// preset token stored on the block; LabelKey is its i18n label. The preset maps
+// to the right CSS shadow per block kind in the stylesheet (drop-shadow for
+// image/shape/mermaid/math, box-shadow for table/code/video/embed, text-shadow
+// for text/quote/list), so this stays a small author-facing vocabulary.
+type SlideShadowDescriptor struct {
+	Value    string `json:"value"`
+	LabelKey string `json:"label_key"`
+}
+
+var builtinSlideShadows = []SlideShadowDescriptor{
+	{Value: "", LabelKey: "workspace.storage.slide.shadow.none"},
+	{Value: "soft", LabelKey: "workspace.storage.slide.shadow.soft"},
+	{Value: "medium", LabelKey: "workspace.storage.slide.shadow.medium"},
+	{Value: "strong", LabelKey: "workspace.storage.slide.shadow.strong"},
+}
+
+var slideShadowPresets = map[string]bool{"soft": true, "medium": true, "strong": true}
+
+// SlideShadows returns a defensive copy of the shadow preset vocabulary.
+func SlideShadows() []SlideShadowDescriptor {
+	out := make([]SlideShadowDescriptor, len(builtinSlideShadows))
+	copy(out, builtinSlideShadows)
+	return out
+}
+
+// SlideShadowClass returns the CSS class for a shadow preset, or "" for none or
+// an unknown value (so bad data can't inject a class).
+func SlideShadowClass(preset string) string {
+	if slideShadowPresets[preset] {
+		return "slide-shadow-" + preset
+	}
+	return ""
 }
 
 // SlideBlockKinds returns a defensive copy of the block palette (Wails-exposed

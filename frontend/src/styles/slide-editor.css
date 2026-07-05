@@ -268,6 +268,47 @@
     -webkit-mask-size: contain;
     mask-size: contain;
 }
+
+/* Per-block shadow presets. The block kind decides the shadow flavour: an
+   image/shape/mermaid/math casts a drop-shadow (follows the alpha silhouette), a
+   table/code/video/embed a box-shadow (card), and text/quote/list a text-shadow
+   (glyphs). Strength is the preset (soft/medium/strong). Applied to .slide-fit so
+   the editor's selection chrome isn't shadowed. Shared with the deck (deck.css). */
+.slide-block-image.slide-shadow-soft .slide-fit,
+.slide-block-shape.slide-shadow-soft .slide-fit,
+.slide-block-mermaid.slide-shadow-soft .slide-fit,
+.slide-block-math.slide-shadow-soft .slide-fit { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.30)); }
+.slide-block-table.slide-shadow-soft .slide-fit,
+.slide-block-code.slide-shadow-soft .slide-fit,
+.slide-block-video.slide-shadow-soft .slide-fit,
+.slide-block-embed.slide-shadow-soft .slide-fit { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22); }
+.slide-block-text.slide-shadow-soft .slide-fit,
+.slide-block-quote.slide-shadow-soft .slide-fit,
+.slide-block-list.slide-shadow-soft .slide-fit { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.40); }
+
+.slide-block-image.slide-shadow-medium .slide-fit,
+.slide-block-shape.slide-shadow-medium .slide-fit,
+.slide-block-mermaid.slide-shadow-medium .slide-fit,
+.slide-block-math.slide-shadow-medium .slide-fit { filter: drop-shadow(0 5px 12px rgba(0, 0, 0, 0.40)); }
+.slide-block-table.slide-shadow-medium .slide-fit,
+.slide-block-code.slide-shadow-medium .slide-fit,
+.slide-block-video.slide-shadow-medium .slide-fit,
+.slide-block-embed.slide-shadow-medium .slide-fit { box-shadow: 0 5px 16px rgba(0, 0, 0, 0.32); }
+.slide-block-text.slide-shadow-medium .slide-fit,
+.slide-block-quote.slide-shadow-medium .slide-fit,
+.slide-block-list.slide-shadow-medium .slide-fit { text-shadow: 0 2px 5px rgba(0, 0, 0, 0.50); }
+
+.slide-block-image.slide-shadow-strong .slide-fit,
+.slide-block-shape.slide-shadow-strong .slide-fit,
+.slide-block-mermaid.slide-shadow-strong .slide-fit,
+.slide-block-math.slide-shadow-strong .slide-fit { filter: drop-shadow(0 9px 22px rgba(0, 0, 0, 0.50)); }
+.slide-block-table.slide-shadow-strong .slide-fit,
+.slide-block-code.slide-shadow-strong .slide-fit,
+.slide-block-video.slide-shadow-strong .slide-fit,
+.slide-block-embed.slide-shadow-strong .slide-fit { box-shadow: 0 11px 30px rgba(0, 0, 0, 0.45); }
+.slide-block-text.slide-shadow-strong .slide-fit,
+.slide-block-quote.slide-shadow-strong .slide-fit,
+.slide-block-list.slide-shadow-strong .slide-fit { text-shadow: 0 3px 8px rgba(0, 0, 0, 0.60); }
 .slide-block-box-dim {
     position: absolute;
     right: 0;

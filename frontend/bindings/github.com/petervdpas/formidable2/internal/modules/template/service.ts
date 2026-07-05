@@ -169,11 +169,20 @@ export function SlideFormats(): $CancellablePromise<string[]> {
 }
 
 /**
+ * SlideShadows returns the shadow preset vocabulary for slide blocks.
+ */
+export function SlideShadows(): $CancellablePromise<$models.SlideShadowDescriptor[]> {
+    return $Call.ByID(3194954982).then(($result: any) => {
+        return $$createType25($result);
+    });
+}
+
+/**
  * SummaryFieldCandidates lists the loop's direct child fields as Summary-picker options.
  */
 export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string): $CancellablePromise<$models.SummaryFieldOption[]> {
     return $Call.ByID(2530304310, fields, loopKey).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
@@ -182,7 +191,7 @@ export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string)
  */
 export function TableColumnTypes(): $CancellablePromise<$models.TableColumnTypeDescriptor[]> {
     return $Call.ByID(3301892111).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -201,7 +210,7 @@ export function TemplatesDir(): $CancellablePromise<string> {
  */
 export function ValidateField(t: $models.Template | null, field: $models.Field | null, originalKey: string, isNew: boolean): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1836708306, t, field, originalKey, isNew).then(($result: any) => {
-        return $$createType29($result);
+        return $$createType31($result);
     });
 }
 
@@ -211,7 +220,7 @@ export function ValidateField(t: $models.Template | null, field: $models.Field |
  */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType29($result);
+        return $$createType31($result);
     });
 }
 
@@ -240,9 +249,11 @@ const $$createType20 = $models.SlideBlockKindDescriptor.createFrom;
 const $$createType21 = $Create.Array($$createType20);
 const $$createType22 = $models.SlideFontDescriptor.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = $models.SummaryFieldOption.createFrom;
+const $$createType24 = $models.SlideShadowDescriptor.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = $models.TableColumnTypeDescriptor.createFrom;
+const $$createType26 = $models.SummaryFieldOption.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = $models.ValidationError.createFrom;
+const $$createType28 = $models.TableColumnTypeDescriptor.createFrom;
 const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = $models.ValidationError.createFrom;
+const $$createType31 = $Create.Array($$createType30);

@@ -1043,6 +1043,38 @@ export class SlideFontDescriptor {
 }
 
 /**
+ * SlideShadowDescriptor names one shadow preset for a slide block. Value is the
+ * preset token stored on the block; LabelKey is its i18n label. The preset maps
+ * to the right CSS shadow per block kind in the stylesheet (drop-shadow for
+ * image/shape/mermaid/math, box-shadow for table/code/video/embed, text-shadow
+ * for text/quote/list), so this stays a small author-facing vocabulary.
+ */
+export class SlideShadowDescriptor {
+    "value": string;
+    "label_key": string;
+
+    /** Creates a new SlideShadowDescriptor instance. */
+    constructor($$source: Partial<SlideShadowDescriptor> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+        if (!("label_key" in $$source)) {
+            this["label_key"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SlideShadowDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SlideShadowDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SlideShadowDescriptor($$parsedSource as Partial<SlideShadowDescriptor>);
+    }
+}
+
+/**
  * StatComposite is the stored composite: a parent name plus per-branch child names. The engine
  * checks that each child filters the parent's branch dimension to its branch value.
  */

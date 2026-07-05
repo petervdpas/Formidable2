@@ -8,6 +8,7 @@ import {
   Service as TemplateSvc,
   type SlideBlockKindDescriptor,
   type SlideFontDescriptor,
+  type SlideShadowDescriptor,
   type Field,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -22,6 +23,7 @@ export interface SlideBlock {
   fragment?: string; // reveal fragment animation ("" / undefined = none)
   lang?: string; // code block language
   style?: Record<string, string>; // per-element inline CSS (font-size, color, …)
+  shadow?: string; // shadow preset (soft/medium/strong); "" / undefined = none
 }
 
 export interface SlideDoc {
@@ -67,6 +69,23 @@ export function ensureSlideFontsLoaded(): Promise<void> {
 
 export function slideFonts(): SlideFontDescriptor[] {
   return fonts.value;
+}
+
+const shadows: Ref<SlideShadowDescriptor[]> = ref([]);
+let shadowsPromise: Promise<void> | null = null;
+
+// ensureSlideShadowsLoaded fetches the backend shadow preset vocabulary once.
+export function ensureSlideShadowsLoaded(): Promise<void> {
+  if (!shadowsPromise) {
+    shadowsPromise = TemplateSvc.SlideShadows().then((s) => {
+      shadows.value = s ?? [];
+    });
+  }
+  return shadowsPromise;
+}
+
+export function slideShadows(): SlideShadowDescriptor[] {
+  return shadows.value;
 }
 
 // canvasSize reads the deck's authored canvas size from the slide field's

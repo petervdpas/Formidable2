@@ -3,7 +3,7 @@ import { computed, inject, onBeforeUnmount, onMounted, ref, watch, type Computed
 import { useI18n } from "vue-i18n";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { Service as FontsSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/fonts";
-import { slideBlockComponent, SlideSettings, SlideElementTransition, SlideElementOrder } from "./slide-blocks";
+import { slideBlockComponent, SlideSettings, SlideElementTransition, SlideElementShadow, SlideElementOrder } from "./slide-blocks";
 import {
   ensureSlideBlockKindsLoaded,
   slideBlockKinds,
@@ -461,7 +461,7 @@ function startResize(b: SlideBlock, e: PointerEvent) {
             <div
               v-for="(b, i) in blocks" :key="b.id"
               class="slide-block-box"
-              :class="[`slide-block-${b.kind}`, { selected: b.id === selectedId, editing: b.id === editingId }]"
+              :class="[`slide-block-${b.kind}`, b.shadow ? `slide-shadow-${b.shadow}` : '', { selected: b.id === selectedId, editing: b.id === editingId }]"
               :style="blockStyle(b, i)"
               @pointerdown="startDrag(b, $event)"
               @dblclick="startEdit(b)"
@@ -530,6 +530,8 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               @patch="applyPatch(selected, $event)"
             />
           </div>
+
+          <SlideElementShadow :block="selected" @patch="applyPatch(selected, $event)" />
 
           <SlideElementTransition :block="selected" @patch="applyPatch(selected, $event)" />
 

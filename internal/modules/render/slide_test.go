@@ -38,6 +38,22 @@ func TestRenderSlide_PositionsAndBlockKinds(t *testing.T) {
 	}
 }
 
+func TestRenderSlide_ShadowPresetClass(t *testing.T) {
+	doc := map[string]any{"blocks": []any{
+		map[string]any{"id": "b1", "kind": "image", "content": "pic.png", "shadow": "soft",
+			"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
+		map[string]any{"id": "b2", "kind": "text", "content": "hi", "shadow": "bogus",
+			"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
+	}}
+	html := renderSlide(doc, nil, &Options{ImageURL: func(n string) string { return "/i/" + n }})
+	if !strings.Contains(html, "slide-block slide-block-image slide-shadow-soft") {
+		t.Errorf("image block should carry slide-shadow-soft\n%s", html)
+	}
+	if strings.Contains(html, "slide-shadow-bogus") {
+		t.Errorf("unknown shadow preset must not inject a class\n%s", html)
+	}
+}
+
 func TestRenderSlide_EmptyIsBlank(t *testing.T) {
 	if got := renderSlide(map[string]any{"blocks": []any{}}, nil, &Options{}); got != "" {
 		t.Errorf("empty slide should render nothing, got %q", got)

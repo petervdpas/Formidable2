@@ -92,6 +92,9 @@ func (s *Service) SlideBlockKinds() []SlideBlockKindDescriptor { return SlideBlo
 // controls read it instead of hardcoding a font list.
 func (s *Service) SlideFonts() []SlideFontDescriptor { return SlideFonts() }
 
+// SlideShadows returns the shadow preset vocabulary for slide blocks.
+func (s *Service) SlideShadows() []SlideShadowDescriptor { return SlideShadows() }
+
 // GeneratorShapes returns the catalog for the "Generate Template" dialog's shape picker.
 func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }
 
