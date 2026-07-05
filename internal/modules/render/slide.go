@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"html"
 	neturl "net/url"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/template"
@@ -237,8 +239,125 @@ func emitSlideBlock(kind string, content any, lang string, opts *Options) string
 			return ""
 		}
 		return `<iframe data-src="` + url + `" allowfullscreen></iframe>`
+	case "shape":
+		// An imported SVG is stored as a file in the template's images folder and
+		// rendered as an <img> (one clean line goldmark passes, and the browser
+		// sandboxes an img-loaded SVG). A primitive shape renders inline instead.
+		if m, ok := content.(map[string]any); ok {
+			if fn, _ := m["svgFile"].(string); strings.TrimSpace(fn) != "" {
+				if url := emitImage(fn, opts); url != "" {
+					return "![](" + url + ")"
+				}
+				return ""
+			}
+		}
+		return emitShape(content)
 	default: // text (markdown) and anything else
 		return stringify(content)
+	}
+}
+
+// shapeProps is a shape block's rendered look, read from its content map.
+// The block's box (x/y/w/h) gives position and size; these give the variant
+// (rectangle/ellipse/line/arrow) and paint.
+type shapeProps struct {
+	shape       string
+	fill        string
+	stroke      string
+	strokeWidth string
+	direction   string // line/arrow only: horizontal|vertical|diagonal-down|diagonal-up
+}
+
+var shapeVariants = map[string]bool{
+	"rectangle": true, "ellipse": true, "triangle": true, "line": true, "arrow": true,
+}
+
+var lineDirections = map[string]bool{
+	"horizontal": true, "vertical": true, "diagonal-down": true, "diagonal-up": true,
+}
+
+// lineEndpoints maps a direction to the two endpoints (in the 0..100 viewBox)
+// the line/arrow spans. The box then stretches that to its size: a horizontal
+// line runs across the box's vertical centre, a vertical line down its centre,
+// diagonals corner to corner. An arrow points toward the second endpoint.
+func lineEndpoints(dir string) (x1, y1, x2, y2 string) {
+	switch dir {
+	case "vertical":
+		return "50", "0", "50", "100"
+	case "diagonal-down":
+		return "0", "0", "100", "100"
+	case "diagonal-up":
+		return "0", "100", "100", "0"
+	default: // horizontal
+		return "0", "50", "100", "50"
+	}
+}
+
+// colorToken keeps a user-supplied SVG paint only if it is a simple, safe token
+// (hex, rgb()/rgba(), a bare CSS color name, or none/transparent). Anything else
+// falls back, so a crafted color string can't break out of the attribute.
+var colorToken = regexp.MustCompile(`^(#[0-9a-fA-F]{3,8}|[a-zA-Z]+|rgba?\([0-9.,%\s]+\)|none|transparent)$`)
+
+// nonIDChars strips everything but [A-Za-z0-9] so a color can seed a valid,
+// collision-stable marker id (arrows of different colors get different markers).
+var nonIDChars = regexp.MustCompile(`[^A-Za-z0-9]`)
+
+func sanitizeColor(s, fallback string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || !colorToken.MatchString(s) {
+		return fallback
+	}
+	return s
+}
+
+func readShapeProps(content any) shapeProps {
+	p := shapeProps{shape: "rectangle", fill: "#3b82f6", stroke: "#1e3a8a", strokeWidth: "2", direction: "horizontal"}
+	m, ok := content.(map[string]any)
+	if !ok {
+		return p
+	}
+	if s, _ := m["shape"].(string); shapeVariants[s] {
+		p.shape = s
+	}
+	if d, _ := m["direction"].(string); lineDirections[d] {
+		p.direction = d
+	}
+	p.fill = sanitizeColor(stringify(m["fill"]), p.fill)
+	p.stroke = sanitizeColor(stringify(m["stroke"]), p.stroke)
+	if n, err := strconv.ParseFloat(strings.TrimSpace(stringify(m["strokeWidth"])), 64); err == nil && n >= 0 && n <= 100 {
+		p.strokeWidth = strconv.FormatFloat(n, 'f', -1, 64)
+	}
+	return p
+}
+
+// emitShape renders a shape block as inline SVG that fills its box. The viewBox
+// is a unit square stretched to the box (preserveAspectRatio="none"); strokes
+// use vector-effect="non-scaling-stroke" so they stay an even pixel width under
+// that non-uniform scale, and overflow:visible keeps edge strokes from clipping.
+// A line/arrow spans the box diagonal (the two-corner model). Raw SVG survives
+// goldmark (WithUnsafe) like the math block's raw <pre>.
+func emitShape(content any) string {
+	p := readShapeProps(content)
+	const open = `<svg class="slide-shape" viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;overflow:visible">`
+	switch p.shape {
+	case "ellipse":
+		return open + fmt.Sprintf(`<ellipse cx="50" cy="50" rx="50" ry="50" fill="%s" stroke="%s" stroke-width="%s" vector-effect="non-scaling-stroke"/></svg>`,
+			p.fill, p.stroke, p.strokeWidth)
+	case "triangle":
+		return open + fmt.Sprintf(`<polygon points="50,0 100,100 0,100" fill="%s" stroke="%s" stroke-width="%s" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`,
+			p.fill, p.stroke, p.strokeWidth)
+	case "line":
+		x1, y1, x2, y2 := lineEndpoints(p.direction)
+		return open + fmt.Sprintf(`<line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="%s" vector-effect="non-scaling-stroke"/></svg>`,
+			x1, y1, x2, y2, p.stroke, p.strokeWidth)
+	case "arrow":
+		x1, y1, x2, y2 := lineEndpoints(p.direction)
+		mid := "fmt-arrow-" + nonIDChars.ReplaceAllString(p.stroke, "")
+		return open + fmt.Sprintf(`<defs><marker id="%s" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,3 L0,6 Z" fill="%s"/></marker></defs><line x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="%s" marker-end="url(#%s)" vector-effect="non-scaling-stroke"/></svg>`,
+			mid, p.stroke, x1, y1, x2, y2, p.stroke, p.strokeWidth, mid)
+	default: // rectangle
+		return open + fmt.Sprintf(`<rect x="0" y="0" width="100" height="100" fill="%s" stroke="%s" stroke-width="%s" vector-effect="non-scaling-stroke"/></svg>`,
+			p.fill, p.stroke, p.strokeWidth)
 	}
 }
 

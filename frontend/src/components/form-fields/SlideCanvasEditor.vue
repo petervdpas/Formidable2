@@ -31,6 +31,7 @@ const KIND_ICON: Record<string, string> = {
   text: "fa-paragraph", image: "fa-image", video: "fa-video",
   embed: "fa-window-maximize", code: "fa-code", math: "fa-square-root-variable",
   table: "fa-table", list: "fa-list-ul", quote: "fa-quote-right", mermaid: "fa-diagram-project",
+  shape: "fa-shapes",
 };
 const iconFor = (kind: string) => KIND_ICON[kind] ?? "fa-square";
 

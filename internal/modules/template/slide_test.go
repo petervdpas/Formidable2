@@ -112,7 +112,7 @@ func TestValidate_SlideReservedKey(t *testing.T) {
 
 func TestSlideBlockKinds_RegistryAndMembership(t *testing.T) {
 	kinds := SlideBlockKinds()
-	want := []string{"text", "image", "video", "embed", "code", "math", "table", "list", "quote", "mermaid"}
+	want := []string{"text", "image", "video", "embed", "code", "math", "table", "list", "quote", "mermaid", "shape"}
 	if len(kinds) != len(want) {
 		t.Fatalf("got %d kinds, want %d", len(kinds), len(want))
 	}

@@ -12,6 +12,7 @@ import SlideTable from "./SlideTable.vue";
 import SlideList from "./SlideList.vue";
 import SlideQuote from "./SlideQuote.vue";
 import SlideMermaid from "./SlideMermaid.vue";
+import SlideShape from "./SlideShape.vue";
 
 export const SLIDE_BLOCK_COMPONENTS: Record<string, Component> = {
   text: SlideText,
@@ -24,6 +25,7 @@ export const SLIDE_BLOCK_COMPONENTS: Record<string, Component> = {
   list: SlideList,
   quote: SlideQuote,
   mermaid: SlideMermaid,
+  shape: SlideShape,
 };
 
 // slideBlockComponent resolves a kind to its component, falling back to text.

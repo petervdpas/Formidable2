@@ -12,7 +12,7 @@ func TestAbilities_ExpressionItem_OnlyOnScalarValueTypes(t *testing.T) {
 	allowed := stringSet(
 		"text", "number", "range", "date",
 		"boolean", "dropdown", "radio",
-		"facet",
+		"facet", "slideset",
 	)
 	assertAbilityMatchesSet(t, "ExpressionItem", allowed, func(a Abilities) bool { return a.ExpressionItem })
 }

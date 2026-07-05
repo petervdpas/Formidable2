@@ -177,6 +177,7 @@ var builtinSlideBlockKinds = []SlideBlockKindDescriptor{
 	{Name: "list", LabelKey: "workspace.templates.slide.kind.list"},
 	{Name: "quote", LabelKey: "workspace.templates.slide.kind.quote"},
 	{Name: "mermaid", LabelKey: "workspace.templates.slide.kind.mermaid"},
+	{Name: "shape", LabelKey: "workspace.templates.slide.kind.shape"},
 }
 
 // SlideBlockKinds returns a defensive copy of the block palette (Wails-exposed

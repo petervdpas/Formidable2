@@ -30,6 +30,20 @@ func (s *Service) RenderSlideBlockHTML(templateName, kind string, content any) s
 	return s.m.RenderSlideBlockHTML(templateName, kind, content)
 }
 
+// SanitizeSVG cleans imported SVG markup (e.g. an Inkscape export) into the safe
+// subset a slide shape block renders: script/foreignObject/event-handlers and
+// external references are stripped, geometry and safe styling kept. Returns ""
+// when the input is empty, too large, or not valid SVG. The same sanitizer runs
+// again at render time, so this is for storing clean data and previewing on
+// import.
+func (s *Service) SanitizeSVG(raw string) string {
+	clean, ok := sanitizeSVG(raw)
+	if !ok {
+		return ""
+	}
+	return clean
+}
+
 // BuildDeck renders ordered records into reveal.js slide sections for the deck
 // previewer. datafiles come from form.DeckOrder / SequenceOrder (deck order).
 func (s *Service) BuildDeck(templateName string, datafiles []string) (RevealDeck, error) {

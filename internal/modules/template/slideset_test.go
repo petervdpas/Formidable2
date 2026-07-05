@@ -21,8 +21,11 @@ func TestSlidesetFieldDescriptor_IsSingletonWithFreeOptions(t *testing.T) {
 		t.Errorf("slideset options are free-form (no fixed shape); got %+v", got.OptionsShape)
 	}
 	if a.Label || a.Description || a.TwoColumn || a.Default ||
-		a.PrimaryKey || a.ExpressionItem || a.UseInStatistics {
+		a.PrimaryKey || a.UseInStatistics {
 		t.Errorf("slideset modal must stay lean apart from options; got %+v", a)
+	}
+	if !a.ExpressionItem {
+		t.Errorf("slideset value (the selected deck) is a scalar usable as an expression input")
 	}
 	if !got.KeyReadonly {
 		t.Errorf("slideset key must be read-only (forced singleton)")

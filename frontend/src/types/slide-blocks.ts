@@ -100,11 +100,22 @@ export function parseSlideDoc(v: unknown): SlideDoc {
   return { blocks: [] };
 }
 
+// Default fill/stroke seed a fresh shape; kept in sync with the Go
+// readShapeProps defaults so the first render matches before any edit.
+export const SHAPE_DEFAULT = {
+  shape: "rectangle",
+  fill: "#3b82f6",
+  stroke: "#1e3a8a",
+  strokeWidth: 2,
+} as const;
+
 function defaultContent(kind: string): unknown {
   switch (kind) {
     case "table":
     case "list":
       return [];
+    case "shape":
+      return { ...SHAPE_DEFAULT };
     default:
       return "";
   }

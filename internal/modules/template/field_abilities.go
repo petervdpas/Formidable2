@@ -117,7 +117,7 @@ var fieldDescriptors = map[string]FieldDescriptor{
 		Abilities: Abilities{
 			Key: true, Type: true, Label: false, Description: false,
 			Default: false, Options: true, SummaryField: false, PrimaryKey: false,
-			ExpressionItem: false, TwoColumn: false, Collapsible: false,
+			ExpressionItem: true, TwoColumn: false, Collapsible: false,
 			Readonly: false, Format: false, UseInStatistics: false,
 			FacetKey: false,
 		},

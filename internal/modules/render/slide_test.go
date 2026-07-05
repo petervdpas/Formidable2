@@ -61,3 +61,92 @@ func TestRenderSlide_HonorsCanvasSizeOption(t *testing.T) {
 		t.Errorf("expected authored canvas size 1920x1080\n%s", html)
 	}
 }
+
+func TestRenderSlide_ShapeBlockEmitsSVG(t *testing.T) {
+	doc := map[string]any{"blocks": []any{
+		map[string]any{"id": "s1", "kind": "shape",
+			"content": map[string]any{"shape": "ellipse", "fill": "#ff0000", "stroke": "#00ff00", "strokeWidth": float64(4)},
+			"x":       float64(10), "y": float64(10), "w": float64(200), "h": float64(120)},
+	}}
+	html := renderSlide(doc, nil, &Options{})
+	for _, want := range []string{
+		`class="slide-block slide-block-shape"`, // per-kind CSS hook
+		`<svg class="slide-shape"`,              // raw SVG survives goldmark
+		`<ellipse`,                              // chosen variant
+		`fill="#ff0000"`, `stroke="#00ff00"`, `stroke-width="4"`,
+		`vector-effect="non-scaling-stroke"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("shape render missing %q\n---\n%s", want, html)
+		}
+	}
+}
+
+func TestEmitShape_SanitizesAndDefaults(t *testing.T) {
+	// Unknown variant + hostile color + out-of-range stroke fall back to defaults;
+	// a rectangle is the default variant.
+	got := emitShape(map[string]any{
+		"shape": "banana", "fill": `"><script>`, "stroke": "red", "strokeWidth": float64(999),
+	})
+	if !strings.Contains(got, "<rect") {
+		t.Errorf("unknown variant should fall back to rectangle\n%s", got)
+	}
+	if strings.Contains(got, "<script") || strings.Contains(got, "script>") {
+		t.Errorf("hostile color must not survive into the SVG\n%s", got)
+	}
+	if !strings.Contains(got, `fill="#3b82f6"`) {
+		t.Errorf("rejected fill should fall back to default\n%s", got)
+	}
+	if !strings.Contains(got, `stroke="red"`) {
+		t.Errorf("a bare CSS color name should be accepted\n%s", got)
+	}
+	if !strings.Contains(got, `stroke-width="2"`) {
+		t.Errorf("out-of-range stroke width should fall back to default\n%s", got)
+	}
+}
+
+func TestEmitShape_LineDirection(t *testing.T) {
+	// A line with no direction defaults to horizontal (across the box centre),
+	// not the box diagonal.
+	if got := emitShape(map[string]any{"shape": "line"}); !strings.Contains(got, `x1="0" y1="50" x2="100" y2="50"`) {
+		t.Errorf("default line should be horizontal\n%s", got)
+	}
+	if got := emitShape(map[string]any{"shape": "line", "direction": "vertical"}); !strings.Contains(got, `x1="50" y1="0" x2="50" y2="100"`) {
+		t.Errorf("vertical line endpoints wrong\n%s", got)
+	}
+	// An arrow honors direction and keeps its marker.
+	got := emitShape(map[string]any{"shape": "arrow", "direction": "diagonal-up"})
+	if !strings.Contains(got, `x1="0" y1="100" x2="100" y2="0"`) || !strings.Contains(got, "marker-end") {
+		t.Errorf("diagonal-up arrow wrong\n%s", got)
+	}
+}
+
+func TestRenderSlide_ImportedSVGRendersAsImage(t *testing.T) {
+	// An imported SVG is stored as a file and rendered as an <img> through the
+	// image URL resolver, not as inline markup.
+	doc := map[string]any{"blocks": []any{
+		map[string]any{"id": "s1", "kind": "shape",
+			"content": map[string]any{"svgFile": "shape-1.svg"},
+			"x":       float64(0), "y": float64(0), "w": float64(200), "h": float64(120)},
+	}}
+	opts := &Options{ImageURL: func(name string) string { return "/api/images/tpl/" + name }}
+	html := renderSlide(doc, nil, opts)
+	if !strings.Contains(html, `<img`) || !strings.Contains(html, "/api/images/tpl/shape-1.svg") {
+		t.Errorf("imported SVG should render as an <img> to the images route\n%s", html)
+	}
+}
+
+func TestEmitShape_TriangleAndNoFill(t *testing.T) {
+	// Triangle is a filled polygon; fill="none" gives an outline-only shape.
+	got := emitShape(map[string]any{"shape": "triangle", "fill": "none", "stroke": "#000000"})
+	if !strings.Contains(got, "<polygon") {
+		t.Errorf("triangle should be a polygon\n%s", got)
+	}
+	if !strings.Contains(got, `fill="none"`) {
+		t.Errorf("no-fill triangle should keep fill=none\n%s", got)
+	}
+	// A rectangle can also be outline-only.
+	if r := emitShape(map[string]any{"shape": "rectangle", "fill": "none"}); !strings.Contains(r, `fill="none"`) {
+		t.Errorf("no-fill rectangle should keep fill=none\n%s", r)
+	}
+}

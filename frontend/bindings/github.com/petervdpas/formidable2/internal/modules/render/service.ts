@@ -82,6 +82,18 @@ export function RenderSlideBlockHTML(templateName: string, kind: string, content
 }
 
 /**
+ * SanitizeSVG cleans imported SVG markup (e.g. an Inkscape export) into the safe
+ * subset a slide shape block renders: script/foreignObject/event-handlers and
+ * external references are stripped, geometry and safe styling kept. Returns ""
+ * when the input is empty, too large, or not valid SVG. The same sanitizer runs
+ * again at render time, so this is for storing clean data and previewing on
+ * import.
+ */
+export function SanitizeSVG(raw: string): $CancellablePromise<string> {
+    return $Call.ByID(2699263733, raw);
+}
+
+/**
  * ValidateMarkdownTemplate parses the given Handlebars source and
  * reports parse errors plus helper-name warnings. Cheap enough to call
  * on every keystroke (debounced from the frontend).
