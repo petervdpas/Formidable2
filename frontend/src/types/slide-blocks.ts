@@ -7,6 +7,7 @@ import { ref, type Ref } from "vue";
 import {
   Service as TemplateSvc,
   type SlideBlockKindDescriptor,
+  type SlideFontDescriptor,
   type Field,
 } from "../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
 
@@ -49,6 +50,23 @@ export function ensureSlideBlockKindsLoaded(): Promise<void> {
 
 export function slideBlockKinds(): SlideBlockKindDescriptor[] {
   return kinds.value;
+}
+
+const fonts: Ref<SlideFontDescriptor[]> = ref([]);
+let fontsPromise: Promise<void> | null = null;
+
+// ensureSlideFontsLoaded fetches the backend font vocabulary once.
+export function ensureSlideFontsLoaded(): Promise<void> {
+  if (!fontsPromise) {
+    fontsPromise = TemplateSvc.SlideFonts().then((f) => {
+      fonts.value = f ?? [];
+    });
+  }
+  return fontsPromise;
+}
+
+export function slideFonts(): SlideFontDescriptor[] {
+  return fonts.value;
 }
 
 // canvasSize reads the deck's authored canvas size from the slide field's

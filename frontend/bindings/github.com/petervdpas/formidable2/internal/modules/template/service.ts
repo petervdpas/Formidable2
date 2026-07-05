@@ -149,6 +149,16 @@ export function SlideBlockKinds(): $CancellablePromise<$models.SlideBlockKindDes
 }
 
 /**
+ * SlideFonts returns the font vocabulary for slide text blocks; the style
+ * controls read it instead of hardcoding a font list.
+ */
+export function SlideFonts(): $CancellablePromise<$models.SlideFontDescriptor[]> {
+    return $Call.ByID(1056300937).then(($result: any) => {
+        return $$createType23($result);
+    });
+}
+
+/**
  * SlideFormats returns the allowed slide canvas formats (aspect ratio + size)
  * for the field editor's Format dropdown; the frontend must not duplicate it.
  */
@@ -163,7 +173,7 @@ export function SlideFormats(): $CancellablePromise<string[]> {
  */
 export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string): $CancellablePromise<$models.SummaryFieldOption[]> {
     return $Call.ByID(2530304310, fields, loopKey).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType25($result);
     });
 }
 
@@ -172,7 +182,7 @@ export function SummaryFieldCandidates(fields: $models.Field[], loopKey: string)
  */
 export function TableColumnTypes(): $CancellablePromise<$models.TableColumnTypeDescriptor[]> {
     return $Call.ByID(3301892111).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
@@ -191,7 +201,7 @@ export function TemplatesDir(): $CancellablePromise<string> {
  */
 export function ValidateField(t: $models.Template | null, field: $models.Field | null, originalKey: string, isNew: boolean): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1836708306, t, field, originalKey, isNew).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -201,7 +211,7 @@ export function ValidateField(t: $models.Template | null, field: $models.Field |
  */
 export function ValidateTemplate(t: $models.Template | null): $CancellablePromise<$models.ValidationError[]> {
     return $Call.ByID(1604219816, t).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -228,9 +238,11 @@ const $$createType18 = $models.Template.createFrom;
 const $$createType19 = $Create.Nullable($$createType18);
 const $$createType20 = $models.SlideBlockKindDescriptor.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = $models.SummaryFieldOption.createFrom;
+const $$createType22 = $models.SlideFontDescriptor.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = $models.TableColumnTypeDescriptor.createFrom;
+const $$createType24 = $models.SummaryFieldOption.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = $models.ValidationError.createFrom;
+const $$createType26 = $models.TableColumnTypeDescriptor.createFrom;
 const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = $models.ValidationError.createFrom;
+const $$createType29 = $Create.Array($$createType28);

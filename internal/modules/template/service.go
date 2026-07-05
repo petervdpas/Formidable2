@@ -88,6 +88,10 @@ func (s *Service) SlideFormats() []string { return SlideFormats() }
 // editor reads it instead of hardcoding the set.
 func (s *Service) SlideBlockKinds() []SlideBlockKindDescriptor { return SlideBlockKinds() }
 
+// SlideFonts returns the font vocabulary for slide text blocks; the style
+// controls read it instead of hardcoding a font list.
+func (s *Service) SlideFonts() []SlideFontDescriptor { return SlideFonts() }
+
 // GeneratorShapes returns the catalog for the "Generate Template" dialog's shape picker.
 func (s *Service) GeneratorShapes() []ShapeInfo { return Shapes() }
 

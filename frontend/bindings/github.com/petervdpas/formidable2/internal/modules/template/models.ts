@@ -1012,6 +1012,37 @@ export class SlideBlockKindDescriptor {
 }
 
 /**
+ * SlideFontDescriptor names one font choice for a slide text block. Value is the
+ * CSS font-family stack stored in the block's style. A generic family carries an
+ * i18n LabelKey (translatable); a named font carries a literal Label (a proper
+ * noun). Every stack ends in a generic family, so a named font degrades to it
+ * where the actual face is absent (e.g. the headless-Chrome PDF baker), never to
+ * a missing-glyph box.
+ */
+export class SlideFontDescriptor {
+    "value": string;
+    "label"?: string;
+    "label_key"?: string;
+
+    /** Creates a new SlideFontDescriptor instance. */
+    constructor($$source: Partial<SlideFontDescriptor> = {}) {
+        if (!("value" in $$source)) {
+            this["value"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SlideFontDescriptor instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SlideFontDescriptor {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SlideFontDescriptor($$parsedSource as Partial<SlideFontDescriptor>);
+    }
+}
+
+/**
  * StatComposite is the stored composite: a parent name plus per-branch child names. The engine
  * checks that each child filters the parent's branch dimension to its branch value.
  */

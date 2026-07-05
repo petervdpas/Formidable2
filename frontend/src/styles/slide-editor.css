@@ -519,6 +519,7 @@
     gap: 6px;
 }
 .slide-style-grid > label input,
+.slide-style-grid > label select,
 .slide-style-color input[type="color"],
 .slide-style-align-btns {
     margin-left: auto;

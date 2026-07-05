@@ -137,6 +137,32 @@ func TestSlideBlockKinds_RegistryAndMembership(t *testing.T) {
 	}
 }
 
+func TestSlideFonts_RegistryAndDefensiveCopy(t *testing.T) {
+	fonts := SlideFonts()
+	if len(fonts) < 2 {
+		t.Fatalf("expected several fonts, got %d", len(fonts))
+	}
+	if fonts[0].Value != "" {
+		t.Errorf("first font must be the default (empty value = inherit), got %q", fonts[0].Value)
+	}
+	for _, f := range fonts {
+		if f.Label == "" && f.LabelKey == "" {
+			t.Errorf("font %q needs a label or a label key", f.Value)
+		}
+	}
+	fonts[0].Value = "mutated"
+	if SlideFonts()[0].Value != "" {
+		t.Errorf("SlideFonts must return a defensive copy")
+	}
+}
+
+func TestInlineStyle_EmitsFontFamily(t *testing.T) {
+	b := SlideBlock{Style: map[string]string{"font-family": "Georgia, serif", "font-size": "40px"}}
+	if got := b.InlineStyle(); got != "font-family:Georgia, serif;font-size:40px;" {
+		t.Errorf("InlineStyle should emit font-family first, got %q", got)
+	}
+}
+
 func TestParseSlideDoc_RoundTripsNestedContent(t *testing.T) {
 	raw := map[string]any{
 		"blocks": []any{

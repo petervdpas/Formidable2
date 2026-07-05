@@ -42,7 +42,7 @@ type SlideBlock struct {
 // block's inline style is stable across renders. Only these known properties are
 // emitted (a fixed allowlist, not arbitrary CSS).
 var styleKeyOrder = []string{
-	"font-size", "font-weight", "font-style", "color", "text-align",
+	"font-family", "font-size", "font-weight", "font-style", "color", "text-align",
 	"line-height", "letter-spacing", "background", "padding",
 }
 
@@ -178,6 +178,64 @@ var builtinSlideBlockKinds = []SlideBlockKindDescriptor{
 	{Name: "quote", LabelKey: "workspace.templates.slide.kind.quote"},
 	{Name: "mermaid", LabelKey: "workspace.templates.slide.kind.mermaid"},
 	{Name: "shape", LabelKey: "workspace.templates.slide.kind.shape"},
+}
+
+// SlideFontDescriptor names one font choice for a slide text block. Value is the
+// CSS font-family stack stored in the block's style. A generic family carries an
+// i18n LabelKey (translatable); a named font carries a literal Label (a proper
+// noun). Every stack ends in a generic family, so a named font degrades to it
+// where the actual face is absent (e.g. the headless-Chrome PDF baker), never to
+// a missing-glyph box.
+type SlideFontDescriptor struct {
+	Value    string `json:"value"`
+	Label    string `json:"label,omitempty"`
+	LabelKey string `json:"label_key,omitempty"`
+}
+
+var builtinSlideFonts = []SlideFontDescriptor{
+	// Generic families (translatable) first, then the standard web-safe named
+	// fonts grouped sans / serif / monospace / cursive / display.
+	{Value: "", LabelKey: "workspace.storage.slide.font.default"},
+	{Value: "sans-serif", LabelKey: "workspace.storage.slide.font.sans"},
+	{Value: "serif", LabelKey: "workspace.storage.slide.font.serif"},
+	{Value: "monospace", LabelKey: "workspace.storage.slide.font.mono"},
+
+	{Value: "Arial, Helvetica, sans-serif", Label: "Arial"},
+	{Value: `"Arial Black", Gadget, sans-serif`, Label: "Arial Black"},
+	{Value: `"Helvetica Neue", Helvetica, Arial, sans-serif`, Label: "Helvetica Neue"},
+	{Value: "Verdana, Geneva, sans-serif", Label: "Verdana"},
+	{Value: "Tahoma, Geneva, sans-serif", Label: "Tahoma"},
+	{Value: `"Trebuchet MS", Helvetica, sans-serif`, Label: "Trebuchet MS"},
+	{Value: `"Gill Sans", "Gill Sans MT", Calibri, sans-serif`, Label: "Gill Sans"},
+	{Value: `"Segoe UI", system-ui, sans-serif`, Label: "Segoe UI"},
+	{Value: "Geneva, Tahoma, sans-serif", Label: "Geneva"},
+	{Value: `"Lucida Sans", "Lucida Grande", sans-serif`, Label: "Lucida Sans"},
+	{Value: `"Century Gothic", AppleGothic, sans-serif`, Label: "Century Gothic"},
+
+	{Value: "Georgia, serif", Label: "Georgia"},
+	{Value: `"Times New Roman", Times, serif`, Label: "Times New Roman"},
+	{Value: "Garamond, serif", Label: "Garamond"},
+	{Value: `"Palatino Linotype", "Book Antiqua", Palatino, serif`, Label: "Palatino"},
+	{Value: `Baskerville, "Baskerville Old Face", serif`, Label: "Baskerville"},
+	{Value: "Cambria, Georgia, serif", Label: "Cambria"},
+
+	{Value: `"Courier New", Courier, monospace`, Label: "Courier New"},
+	{Value: `Consolas, "Courier New", monospace`, Label: "Consolas"},
+	{Value: `"Lucida Console", Monaco, monospace`, Label: "Lucida Console"},
+	{Value: "Monaco, Consolas, monospace", Label: "Monaco"},
+
+	{Value: `"Comic Sans MS", "Comic Sans", cursive`, Label: "Comic Sans MS"},
+	{Value: `"Brush Script MT", cursive`, Label: "Brush Script MT"},
+
+	{Value: `Impact, "Arial Black", sans-serif`, Label: "Impact"},
+	{Value: `Copperplate, "Copperplate Gothic Light", fantasy`, Label: "Copperplate"},
+}
+
+// SlideFonts returns a defensive copy of the slide text font vocabulary.
+func SlideFonts() []SlideFontDescriptor {
+	out := make([]SlideFontDescriptor, len(builtinSlideFonts))
+	copy(out, builtinSlideFonts)
+	return out
 }
 
 // SlideBlockKinds returns a defensive copy of the block palette (Wails-exposed

@@ -2,9 +2,13 @@
 // Per-element typographic properties (size, colour, alignment, bold), stored in
 // the block's style map and applied inline on the slide. Included only by the
 // element types where text styling is meaningful (text/quote/math/code/table).
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import type { SlideBlock } from "../../../types/slide-blocks";
+import {
+  ensureSlideFontsLoaded,
+  slideFonts,
+  type SlideBlock,
+} from "../../../types/slide-blocks";
 
 const props = withDefaults(
   defineProps<{ block: SlideBlock; align?: boolean; bold?: boolean }>(),
@@ -13,6 +17,9 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: "patch", p: Partial<SlideBlock>): void }>();
 
 const { t } = useI18n();
+
+const fonts = computed(() => slideFonts());
+onMounted(() => void ensureSlideFontsLoaded());
 
 function styleVal(prop: string): string {
   return props.block.style?.[prop] ?? "";
@@ -29,6 +36,11 @@ const isBold = computed(() => styleVal("font-weight") === "bold");
 
 <template>
   <div class="slide-style-grid">
+    <label>{{ t('workspace.storage.slide.font') }}
+      <select :value="styleVal('font-family')" @change="setStyle('font-family', ($event.target as HTMLSelectElement).value)">
+        <option v-for="f in fonts" :key="f.value" :value="f.value">{{ f.label_key ? t(f.label_key) : f.label }}</option>
+      </select>
+    </label>
     <label>{{ t('workspace.storage.slide.font_size') }}
       <input type="number" min="8" :value="fontSize" @input="setStyle('font-size', (($event.target as HTMLInputElement).value || '40') + 'px')" />
     </label>
