@@ -59,8 +59,27 @@ const renderTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 const imgRatio = ref<Record<string, number>>({});
 const pendingSnap = new Set<string>();
 
+// A shape block holding an imported SVG (renders as an <img> or a tinted mask).
+function isSvgShape(b: SlideBlock): boolean {
+  const c = b.content as { svgFile?: unknown } | null;
+  return b.kind === "shape" && typeof c?.svgFile === "string" && c.svgFile !== "";
+}
+// Blocks whose frame follows a natural aspect ratio: an image, or a shape with an
+// imported SVG. Primitive shapes stretch to the box, so they're excluded.
+function aspectLocked(b: SlideBlock): boolean {
+  return b.kind === "image" || isSvgShape(b);
+}
+function naturalRatio(b: SlideBlock): number | undefined {
+  return aspectLocked(b) ? imgRatio.value[b.id] : undefined;
+}
+function svgFileOf(b: SlideBlock): string {
+  return (b.content as { svgFile?: string } | null)?.svgFile ?? "";
+}
+
 function probeImage(b: SlideBlock, snap: boolean) {
-  const m = /<img[^>]+src="([^"]*)"/i.exec(blockHtml.value[b.id] ?? "");
+  const html = blockHtml.value[b.id] ?? "";
+  // <img src> for a photo or untinted SVG; mask-image:url() for a tinted SVG.
+  const m = /<img[^>]+src="([^"]*)"/i.exec(html) ?? /mask-image:url\(([^)]+)\)/i.exec(html);
   if (!m || !m[1]) return;
   const probe = new Image();
   probe.onload = () => {
@@ -84,7 +103,7 @@ function renderBlock(b: SlideBlock) {
     blockHtml.value[b.id] = await RenderSvc.RenderSlideBlockHTML(
       templateFilename.value, b.kind, b.content,
     );
-    if (b.kind === "image") {
+    if (aspectLocked(b)) {
       const snap = pendingSnap.has(b.id);
       pendingSnap.delete(b.id);
       probeImage(b, snap);
@@ -170,8 +189,14 @@ const blockComp = (kind: string) => slideBlockComponent(kind);
 // components own their own property controls, this just merges and re-renders.
 function applyPatch(b: SlideBlock | null, p: Partial<SlideBlock>) {
   if (!b) return;
+  const prevSvg = svgFileOf(b);
   Object.assign(b, p);
-  if ("content" in p && b.kind === "image") pendingSnap.add(b.id);
+  if ("content" in p) {
+    // Snap the frame to the natural ratio on picking an image, or on importing/
+    // replacing a shape's SVG (not on a tint/variant change, which keeps the size).
+    if (b.kind === "image") pendingSnap.add(b.id);
+    else if (isSvgShape(b) && svgFileOf(b) !== prevSvg) pendingSnap.add(b.id);
+  }
   if ("content" in p || "lang" in p) renderBlock(b);
   commit();
 }
@@ -179,7 +204,7 @@ function applyPatch(b: SlideBlock | null, p: Partial<SlideBlock>) {
 // Inspector W/H edits keep the image's aspect: change one, the other follows.
 function onGeoResize(b: SlideBlock | null, axis: "w" | "h") {
   if (!b) return;
-  const ratio = b.kind === "image" ? imgRatio.value[b.id] : undefined;
+  const ratio = naturalRatio(b);
   if (ratio) {
     if (axis === "w") b.h = Math.max(40, Math.round(b.w / ratio));
     else b.w = Math.max(40, Math.round(b.h * ratio));
@@ -393,8 +418,8 @@ function startResize(b: SlideBlock, e: PointerEvent) {
   const sw = b.w, sh = b.h, px = e.clientX, py = e.clientY;
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture(e.pointerId);
-  // Image frames are aspect-locked to the image: width leads, height follows.
-  const ratio = b.kind === "image" ? imgRatio.value[b.id] : undefined;
+  // Aspect-locked frames (image, imported SVG): width leads, height follows.
+  const ratio = naturalRatio(b);
   const move = (ev: PointerEvent) => {
     const rawRight = b.x + Math.max(40, sw + (ev.clientX - px) / zoom.value);
     const snR = snapPoint(rawRight, targetsX(b.id));

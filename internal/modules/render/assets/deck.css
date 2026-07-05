@@ -209,6 +209,13 @@
 .reveal .slide-block-quote.slide-shadow-strong .slide-fit,
 .reveal .slide-block-list.slide-shadow-strong .slide-fit { text-shadow: calc(var(--sdx, 0) * 3px) calc(var(--sdy, 1) * 3px) 8px rgba(0, 0, 0, 0.60); }
 
+/* A shadowed block must not clip its shadow (blocks are overflow:hidden by
+   default so content stays in its box). The slide canvas still clips to its
+   bounds, so shadows never render off-slide. */
+.reveal .slide-block[class*="slide-shadow-"] {
+    overflow: visible;
+}
+
 /* Shadow direction: the offset unit vector (--sdx,--sdy), default 0,1 = down. */
 .reveal .slide-shadow-dir-down-right { --sdx: 1; --sdy: 1; }
 .reveal .slide-shadow-dir-right { --sdx: 1; --sdy: 0; }

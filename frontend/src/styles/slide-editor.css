@@ -310,6 +310,15 @@
 .slide-block-quote.slide-shadow-strong .slide-fit,
 .slide-block-list.slide-shadow-strong .slide-fit { text-shadow: calc(var(--sdx, 0) * 3px) calc(var(--sdy, 1) * 3px) 8px rgba(0, 0, 0, 0.60); }
 
+/* A shadow renders outside the block box, so a shadowed block must not clip it.
+   The box + content wrapper are overflow:hidden by default (content stays in its
+   box); scoping overflow:visible to shadowed blocks keeps that clipping
+   everywhere else. The stage still clips to the canvas, so shadows stay on-slide. */
+.slide-block-box[class*="slide-shadow-"],
+.slide-block-box[class*="slide-shadow-"] .slide-block-box-content {
+    overflow: visible;
+}
+
 /* Shadow direction: the offset unit vector (--sdx,--sdy), default 0,1 = down. */
 .slide-shadow-dir-down-right { --sdx: 1; --sdy: 1; }
 .slide-shadow-dir-right { --sdx: 1; --sdy: 0; }
