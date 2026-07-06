@@ -37,3 +37,4 @@ export { default as SlideSettings } from "./SlideSettings.vue";
 export { default as SlideElementTransition } from "./SlideElementTransition.vue";
 export { default as SlideElementShadow } from "./SlideElementShadow.vue";
 export { default as SlideElementOrder } from "./SlideElementOrder.vue";
+export { default as SlideElementRotation } from "./SlideElementRotation.vue";

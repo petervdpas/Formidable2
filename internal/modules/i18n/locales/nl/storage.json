@@ -78,6 +78,8 @@
   "workspace.storage.slide.zoom_in": "Inzoomen (Ctrl + scroll)",
   "workspace.storage.slide.zoom_out": "Uitzoomen (Ctrl + scroll)",
   "workspace.storage.slide.zoom_fit": "Passend maken",
+  "workspace.storage.slide.rotation": "Rotatie",
+  "workspace.storage.slide.rotation_reset": "Rotatie herstellen",
   "workspace.storage.slide.order": "Volgorde",
   "workspace.storage.slide.bring_forward": "Naar voren",
   "workspace.storage.slide.send_backward": "Naar achteren",

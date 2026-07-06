@@ -50,6 +50,25 @@ func TestSlideBlock_InlineStyle(t *testing.T) {
 	}
 }
 
+func TestSlideBlock_TransformStyle(t *testing.T) {
+	cases := []struct {
+		deg  int
+		want string
+	}{
+		{0, ""},
+		{360, ""},   // whole turn collapses to none
+		{-360, ""},  // whole turn (negative) collapses to none
+		{45, "transform:rotate(45deg);"},
+		{-30, "transform:rotate(-30deg);"},
+		{450, "transform:rotate(90deg);"}, // normalised into (-360, 360)
+	}
+	for _, c := range cases {
+		if got := (SlideBlock{Rotation: c.deg}).TransformStyle(); got != c.want {
+			t.Errorf("TransformStyle(%d) = %q, want %q", c.deg, got, c.want)
+		}
+	}
+}
+
 func TestSlideCanvasSize_DefaultsAndCustom(t *testing.T) {
 	// No options -> the fixed 1280x720 default.
 	if w, h := SlideCanvasSize(Field{Type: "slide"}); w != 1280 || h != 720 {

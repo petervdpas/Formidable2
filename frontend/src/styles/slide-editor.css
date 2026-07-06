@@ -169,6 +169,23 @@
     display: flex;
     gap: var(--space-1, 4px);
 }
+.slide-rotation {
+    align-items: center;
+    justify-content: space-between;
+}
+.slide-rotation-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+}
+.slide-rotation-controls input[type="range"] {
+    flex: 1 1 auto;
+    min-width: 60px;
+}
+.slide-rotation-controls input[type="number"] {
+    flex: none;
+    width: 56px;
+}
 
 .slide-block-box {
     position: absolute;
@@ -184,6 +201,10 @@
 .slide-block-box.selected {
     border: 1px solid var(--field-type-slide-bg, #6d4aa7);
     box-shadow: 0 0 0 2px var(--field-type-slide-badge, #9575cd);
+    /* The rotate grip floats above the frame; content stays clipped by its own
+       .slide-block-box-content wrapper, so letting the selected box overflow only
+       reveals the handles. */
+    overflow: visible;
 }
 /* The rendered content fills the box but never intercepts pointer events, so a
    click or drag anywhere on the box moves it (editing is via the inspector). */
@@ -351,6 +372,33 @@
     height: 14px;
     cursor: nwse-resize;
     background: linear-gradient(135deg, transparent 50%, var(--field-type-slide-bg, #6d4aa7) 50%);
+}
+.slide-block-box-rotate {
+    position: absolute;
+    left: 50%;
+    top: -22px;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    border-radius: 50%;
+    box-sizing: border-box;
+    background: var(--field-type-slide-bg, #6d4aa7);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px var(--field-type-slide-badge, #9575cd);
+    cursor: grab;
+}
+.slide-block-box-rotate::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 1px;
+    height: 9px;
+    margin-left: -0.5px;
+    background: var(--field-type-slide-badge, #9575cd);
+}
+.slide-block-box-rotate:active {
+    cursor: grabbing;
 }
 
 /* A thin always-present rail toggles the inspector. The inspector itself stays

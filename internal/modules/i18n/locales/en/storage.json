@@ -78,6 +78,8 @@
   "workspace.storage.slide.zoom_in": "Zoom in (Ctrl + scroll)",
   "workspace.storage.slide.zoom_out": "Zoom out (Ctrl + scroll)",
   "workspace.storage.slide.zoom_fit": "Fit to view",
+  "workspace.storage.slide.rotation": "Rotation",
+  "workspace.storage.slide.rotation_reset": "Reset rotation",
   "workspace.storage.slide.order": "Order",
   "workspace.storage.slide.bring_forward": "Bring forward",
   "workspace.storage.slide.send_backward": "Send backward",

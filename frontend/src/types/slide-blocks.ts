@@ -27,6 +27,7 @@ export interface SlideBlock {
   shadow?: string; // shadow preset (soft/medium/strong); "" / undefined = none
   shadowDir?: string; // shadow direction; "" / undefined = down
   ordered?: boolean; // list block: numbered (1, a, …) vs bulleted
+  rotation?: number; // clockwise rotation in degrees; 0 / undefined = none
 }
 
 export interface SlideDoc {

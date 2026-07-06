@@ -71,6 +71,22 @@ func TestRenderSlide_ShadowDirectionOnlyWithShadow(t *testing.T) {
 	}
 }
 
+func TestRenderSlide_RotationTransform(t *testing.T) {
+	doc := map[string]any{"blocks": []any{
+		map[string]any{"id": "b1", "kind": "text", "content": "tilt", "rotation": float64(30),
+			"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
+		map[string]any{"id": "b2", "kind": "text", "content": "flat", "rotation": float64(0),
+			"x": float64(0), "y": float64(0), "w": float64(100), "h": float64(80)},
+	}}
+	html := renderSlide(doc, nil, &Options{})
+	if !strings.Contains(html, "transform:rotate(30deg);") {
+		t.Errorf("rotated block should carry the transform\n%s", html)
+	}
+	if strings.Count(html, "transform:rotate") != 1 {
+		t.Errorf("only the rotated block should emit a transform\n%s", html)
+	}
+}
+
 func TestRenderSlide_EmptyIsBlank(t *testing.T) {
 	if got := renderSlide(map[string]any{"blocks": []any{}}, nil, &Options{}); got != "" {
 		t.Errorf("empty slide should render nothing, got %q", got)

@@ -3,7 +3,7 @@ import { computed, inject, onBeforeUnmount, onMounted, ref, watch, type Computed
 import { useI18n } from "vue-i18n";
 import { Service as RenderSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { Service as FontsSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/fonts";
-import { slideBlockComponent, SlideSettings, SlideElementTransition, SlideElementShadow, SlideElementOrder } from "./slide-blocks";
+import { slideBlockComponent, SlideSettings, SlideElementTransition, SlideElementShadow, SlideElementOrder, SlideElementRotation } from "./slide-blocks";
 import {
   ensureSlideBlockKindsLoaded,
   slideBlockKinds,
@@ -332,7 +332,11 @@ const stageStyle = computed(() => ({
 // The box is exactly the stored geometry; content sits inside it. z-index is the
 // array index (matching render.renderSlide), so editor and deck stack identically.
 function blockStyle(b: SlideBlock, i: number) {
-  return { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px`, zIndex: i };
+  const style: Record<string, string | number> = {
+    left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px`, zIndex: i,
+  };
+  if (b.rotation) style.transform = `rotate(${b.rotation}deg)`;
+  return style;
 }
 
 // ── grid + smart guides ───────────────────────────────────────────────
@@ -393,9 +397,18 @@ function startDrag(b: SlideBlock, e: PointerEvent) {
   const sx = b.x, sy = b.y, px = e.clientX, py = e.clientY;
   const el = e.currentTarget as HTMLElement;
   el.setPointerCapture(e.pointerId);
+  // A rotated block's stored box is axis-aligned but drawn tilted, so snapping
+  // its bounding edges to other blocks would line up the wrong lines; drag it by
+  // plain translation (grid/round only) instead.
+  const rotated = !!b.rotation;
   const move = (ev: PointerEvent) => {
     const rawX = sx + (ev.clientX - px) / zoom.value;
     const rawY = sy + (ev.clientY - py) / zoom.value;
+    if (rotated) {
+      b.x = Math.max(0, toGrid(rawX));
+      b.y = Math.max(0, toGrid(rawY));
+      return;
+    }
     const snX = snapBox(rawX, b.w, targetsX(b.id));
     const snY = snapBox(rawY, b.h, targetsY(b.id));
     b.x = Math.max(0, snX.guide !== null ? Math.round(snX.value) : toGrid(rawX));
@@ -420,6 +433,38 @@ function startResize(b: SlideBlock, e: PointerEvent) {
   el.setPointerCapture(e.pointerId);
   // Aspect-locked frames (image, imported SVG): width leads, height follows.
   const ratio = naturalRatio(b);
+  // A rotated block resizes in its own (unrotated) axes: the cursor delta is
+  // mapped into the box's local frame so the handle grows the box's real right/
+  // bottom edge, and the opposite (top-left) corner is pinned in place by
+  // compensating x/y for the centre shift rotation introduces. Snapping to other
+  // blocks' axis-aligned edges is meaningless here, so it is skipped.
+  const rad = ((b.rotation ?? 0) * Math.PI) / 180;
+  if (rad !== 0) {
+    const sx = b.x, sy = b.y, cos = Math.cos(rad), sin = Math.sin(rad);
+    const p0x = sx + sw / 2 - (sw / 2) * cos + (sh / 2) * sin;
+    const p0y = sy + sh / 2 - (sw / 2) * sin - (sh / 2) * cos;
+    const move = (ev: PointerEvent) => {
+      const dx = (ev.clientX - px) / zoom.value;
+      const dy = (ev.clientY - py) / zoom.value;
+      const nw = Math.max(40, Math.round(sw + dx * cos + dy * sin));
+      const nh = ratio
+        ? Math.max(40, Math.round(nw / ratio))
+        : Math.max(40, Math.round(sh - dx * sin + dy * cos));
+      b.w = nw;
+      b.h = nh;
+      b.x = Math.round(p0x - nw / 2 + (nw / 2) * cos - (nh / 2) * sin);
+      b.y = Math.round(p0y - nh / 2 + (nw / 2) * sin + (nh / 2) * cos);
+    };
+    const up = (ev: PointerEvent) => {
+      el.releasePointerCapture(ev.pointerId);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      commit();
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    return;
+  }
   const move = (ev: PointerEvent) => {
     const rawRight = b.x + Math.max(40, sw + (ev.clientX - px) / zoom.value);
     const snR = snapPoint(rawRight, targetsX(b.id));
@@ -447,6 +492,36 @@ function startResize(b: SlideBlock, e: PointerEvent) {
   };
   el.addEventListener("pointermove", move);
   el.addEventListener("pointerup", up);
+}
+
+// The rotate grip above the frame: dragging it spins the block about its centre.
+// The centre is the box's bounding-box centre (rotation about the centre keeps
+// that point fixed), so the angle is just the cursor's bearing from it, offset so
+// the grip's "up" position reads as 0. Hold Shift to snap to 15° steps.
+function startRotate(b: SlideBlock, e: PointerEvent) {
+  if (e.button !== 0) return;
+  e.stopPropagation();
+  selectedId.value = b.id;
+  const handle = e.currentTarget as HTMLElement;
+  const box = handle.closest(".slide-block-box") as HTMLElement | null;
+  if (!box) return;
+  handle.setPointerCapture(e.pointerId);
+  const move = (ev: PointerEvent) => {
+    const r = box.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    let deg = (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI + 90;
+    deg = (((deg % 360) + 540) % 360) - 180; // normalise to [-180, 180)
+    deg = ev.shiftKey ? Math.round(deg / 15) * 15 : Math.round(deg);
+    b.rotation = deg === 0 ? undefined : deg;
+  };
+  const up = (ev: PointerEvent) => {
+    handle.releasePointerCapture(ev.pointerId);
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", up);
+    commit();
+  };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", up);
 }
 </script>
 
@@ -502,6 +577,11 @@ function startResize(b: SlideBlock, e: PointerEvent) {
               />
               <span v-if="b.fragment" class="slide-block-box-frag">{{ b.fragment }}</span>
               <span v-if="b.id === selectedId" class="slide-block-box-dim">{{ b.w }} × {{ b.h }}</span>
+              <div
+                v-if="b.id === selectedId" class="slide-block-box-rotate"
+                :title="t('workspace.storage.slide.rotation')"
+                @pointerdown="startRotate(b, $event)"
+              ></div>
               <div class="slide-block-box-resize" @pointerdown="startResize(b, $event)"></div>
             </div>
             <div
@@ -545,6 +625,8 @@ function startResize(b: SlideBlock, e: PointerEvent) {
             <label>W<input type="number" v-model.number="selected.w" @change="onGeoResize(selected, 'w')" /></label>
             <label>H<input type="number" v-model.number="selected.h" @change="onGeoResize(selected, 'h')" /></label>
           </div>
+
+          <SlideElementRotation :block="selected" @patch="applyPatch(selected, $event)" />
 
           <!-- content + type-specific properties: each element owns its editor -->
           <div class="slide-inspector-content">

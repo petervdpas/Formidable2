@@ -39,6 +39,19 @@ type SlideBlock struct {
 	Shadow    string            `json:"shadow,omitempty"`    // shadow preset (soft/medium/strong); "" = none
 	ShadowDir string            `json:"shadowDir,omitempty"` // shadow direction; "" = down
 	Ordered   bool              `json:"ordered,omitempty"`   // list block: numbered (1, a, …) vs bulleted
+	Rotation  int               `json:"rotation,omitempty"`  // clockwise rotation in degrees; 0 = none
+}
+
+// TransformStyle renders the block's rotation as a CSS transform declaration
+// (rotating about the box centre, the default transform-origin), or "" for no
+// rotation. The angle is normalised into (-360, 360) so stored junk can't emit
+// an absurd value, and a whole-turn multiple collapses to none.
+func (b SlideBlock) TransformStyle() string {
+	deg := b.Rotation % 360
+	if deg == 0 {
+		return ""
+	}
+	return "transform:rotate(" + strconv.Itoa(deg) + "deg);"
 }
 
 // styleKeyOrder is the deterministic order CSS declarations are emitted in, so a
