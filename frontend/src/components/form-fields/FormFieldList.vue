@@ -26,14 +26,14 @@ const sortDir = ref<"asc" | "desc">("asc");
 async function doSort() {
   const next = await fieldOps?.sortField(props.field.key, { direction: sortDir.value });
   if (next !== undefined) {
-    items.value = (next as unknown[]).map(String);
+    rows.value = (next as unknown[]).map(parseRow);
     sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
   }
 }
 
 async function doDedup() {
   const next = await fieldOps?.dedupField(props.field.key);
-  if (next !== undefined) items.value = (next as unknown[]).map(String);
+  if (next !== undefined) rows.value = (next as unknown[]).map(parseRow);
 }
 
 // Local narrow shape - `SelectField`'s SelectOption union also allows
@@ -73,34 +73,79 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (e: "update:modelValue", v: unknown): void }>();
 
-// ── Items (always a string[]) ────────────────────────────────────────
-const items = computed<string[]>({
-  get: () => {
-    const v = props.modelValue;
-    if (Array.isArray(v)) return v.map(String);
-    return [];
-  },
-  set: (v) => emit("update:modelValue", v),
+// ── Rows: text + indent per item ─────────────────────────────────────
+// Storage stays a flat array. A row is a plain string (indent 0, unchanged) or a
+// {text, indent} object (an indented row). Indent 0 serialises back to a plain
+// string, so a list you never indent stays a pure string[] on disk and nothing
+// downstream breaks.
+type Row = { text: string; indent: number };
+const MAX_INDENT = 6;
+
+function parseRow(v: unknown): Row {
+  if (v && typeof v === "object" && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    const raw = typeof o.indent === "number" ? o.indent : 0;
+    return {
+      text: String(o.text ?? o.value ?? ""),
+      indent: Math.max(0, Math.min(MAX_INDENT, Math.round(raw))),
+    };
+  }
+  return { text: String(v ?? ""), indent: 0 };
+}
+
+function serializeRow(r: Row): unknown {
+  return r.indent > 0 ? { text: r.text, indent: r.indent } : r.text;
+}
+
+// Invariant: the first row is flush (indent 0) and a row can be at most one level
+// deeper than the row above it. Enforced on every write, so an orphan indent
+// (first row indented, or a jumped level) is impossible, not just discouraged.
+function normalizeIndents(rs: Row[]): Row[] {
+  let prev = -1;
+  return rs.map((r, i) => {
+    const max = Math.min(MAX_INDENT, i === 0 ? 0 : prev + 1);
+    const indent = Math.max(0, Math.min(r.indent, max));
+    prev = indent;
+    return r.indent === indent ? r : { ...r, indent };
+  });
+}
+
+// The deepest indent this row may take, given the row above it.
+function maxIndentFor(i: number): number {
+  return Math.min(MAX_INDENT, i === 0 ? 0 : rows.value[i - 1].indent + 1);
+}
+
+const rows = computed<Row[]>({
+  get: () => (Array.isArray(props.modelValue) ? props.modelValue.map(parseRow) : []),
+  set: (rs) => emit("update:modelValue", normalizeIndents(rs).map(serializeRow)),
 });
 
-function setItem(i: number, value: string) {
-  const next = items.value.slice();
-  next[i] = value;
-  items.value = next;
+function setItem(i: number, text: string) {
+  const next = rows.value.slice();
+  next[i] = { ...next[i], text };
+  rows.value = next;
+}
+
+// Indent/outdent one row, clamped to [0, MAX_INDENT]. Default 0 = flush left.
+function setIndent(i: number, delta: number) {
+  const next = rows.value.slice();
+  const indent = Math.max(0, Math.min(MAX_INDENT, next[i].indent + delta));
+  next[i] = { ...next[i], indent };
+  rows.value = next;
 }
 
 function add(initial = "") {
-  items.value = [...items.value, initial];
+  rows.value = [...rows.value, { text: initial, indent: 0 }];
 }
 
 function remove(i: number) {
-  items.value = items.value.filter((_, j) => j !== i);
+  rows.value = rows.value.filter((_, j) => j !== i);
 }
 
-function onPasteProcess(rows: string[][]) {
-  const values = rowsToListValues(rows);
+function onPasteProcess(pasted: string[][]) {
+  const values = rowsToListValues(pasted);
   if (values.length > 0) {
-    items.value = [...items.value, ...values];
+    rows.value = [...rows.value, ...values.map((v) => ({ text: v, indent: 0 }))];
   }
   pasteOpen.value = false;
 }
@@ -183,7 +228,7 @@ function isInvalid(row: string): boolean {
 <template>
   <div class="list-field" :data-dnd-scope="dndScope">
     <draggable
-      v-model="items"
+      v-model="rows"
       tag="div"
       class="list-rows"
       :group="dndScope"
@@ -192,16 +237,16 @@ function isInvalid(row: string): boolean {
       ghost-class="dnd-ghost"
       chosen-class="dnd-chosen"
       drag-class="dnd-drag"
-      :item-key="(_e: string, i: number) => i"
+      :item-key="(_e: Row, i: number) => i"
     >
       <template #item="{ index: i, element: item }">
-        <div class="list-row">
+        <div class="list-row" :style="{ marginInlineStart: item.indent * 1.5 + 'rem' }">
           <span class="dnd-handle" :title="t('workspace.storage.field.drag_to_reorder')" aria-hidden="true">⠿</span>
 
           <!-- Free text (no options OR custom-only) -->
           <TextField
             v-if="mode === 'free'"
-            :model-value="item"
+            :model-value="item.text"
             @update:model-value="(v) => setItem(i, v)"
             :placeholder="customPlaceholder"
             :readonly="field.readonly"
@@ -211,15 +256,15 @@ function isInvalid(row: string): boolean {
                fixed set (user picked Custom or pasted something custom). -->
           <template v-else-if="mode === 'dropdown'">
             <TextField
-              v-if="isCustom(item)"
-              :model-value="item"
+              v-if="isCustom(item.text)"
+              :model-value="item.text"
               @update:model-value="(v) => setItem(i, v)"
               :placeholder="customPlaceholder"
               :readonly="field.readonly"
             />
             <SelectField
               v-else
-              :model-value="item"
+              :model-value="item.text"
               @update:model-value="(v) => onSelect(i, v)"
               :options="selectOptions"
             />
@@ -228,11 +273,28 @@ function isInvalid(row: string): boolean {
           <!-- Fixed-only - locked to the allowed set. -->
           <SelectField
             v-else
-            :model-value="item"
+            :model-value="item.text"
             @update:model-value="(v) => setItem(i, v)"
             :options="selectOptions"
-            :class="{ invalid: isInvalid(item) }"
+            :class="{ invalid: isInvalid(item.text) }"
           />
+
+          <button
+            v-if="!field.readonly"
+            type="button"
+            class="btn-ghost-icon"
+            :disabled="item.indent === 0"
+            :title="t('workspace.storage.field.outdent')"
+            @click="setIndent(i, -1)"
+          ><i class="fa-solid fa-outdent" aria-hidden="true"></i></button>
+          <button
+            v-if="!field.readonly"
+            type="button"
+            class="btn-ghost-icon"
+            :disabled="item.indent >= maxIndentFor(i)"
+            :title="t('workspace.storage.field.indent')"
+            @click="setIndent(i, 1)"
+          ><i class="fa-solid fa-indent" aria-hidden="true"></i></button>
 
           <button
             v-if="!field.readonly"
@@ -262,7 +324,7 @@ function isInvalid(row: string): boolean {
         @click="pasteOpen = true"
       ><i class="fa-solid fa-paste"></i></button>
       <button
-        v-if="showSort && items.length > 1"
+        v-if="showSort && rows.length > 1"
         type="button"
         class="btn-ghost-icon"
         :aria-label="t('workspace.storage.field.sort')"
@@ -270,7 +332,7 @@ function isInvalid(row: string): boolean {
         @click="doSort"
       ><i :class="sortDir === 'asc' ? 'fa-solid fa-arrow-down-a-z' : 'fa-solid fa-arrow-up-a-z'"></i></button>
       <button
-        v-if="showDedup && items.length > 1"
+        v-if="showDedup && rows.length > 1"
         type="button"
         class="btn-ghost-icon"
         :aria-label="t('workspace.storage.field.dedup')"

@@ -69,8 +69,19 @@ func emitList(v any) string {
 		return ""
 	}
 	out := make([]string, 0, len(arr))
+	prev := -1 // clamps the first row to 0 (no orphan indent)
 	for _, item := range arr {
-		out = append(out, "- "+stringify(item))
+		// Two spaces per indent level nests the item under the row above it
+		// (CommonMark aligns a sub-item with its parent's content). Indent is
+		// clamped to prev+1 so a row can't jump levels or indent with no parent;
+		// an indent-0 row is a plain string, so a flat list emits as before.
+		ind := template.ListItemIndent(item)
+		if ind > prev+1 {
+			ind = prev + 1
+		}
+		prev = ind
+		prefix := strings.Repeat("  ", ind)
+		out = append(out, prefix+"- "+template.ListItemText(item))
 	}
 	return strings.Join(out, "\n")
 }
@@ -183,7 +194,7 @@ func emitYAMLList(v any, indent int) string {
 	}
 	parts := make([]string, 0, len(arr))
 	for i, item := range arr {
-		s := stringify(item)
+		s := template.ListItemText(item)
 		if needsYAMLListQuoting(s) {
 			s = "'" + strings.ReplaceAll(s, "'", "''") + "'"
 		}

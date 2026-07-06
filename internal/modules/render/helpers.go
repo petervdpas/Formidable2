@@ -165,7 +165,20 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		if ctx == nil {
 			return ""
 		}
-		return ctx[key]
+		v := ctx[key]
+		// A list field's items may be {text,indent} objects (indented rows). Expose
+		// the flat texts so {{#each (fieldRaw "k")}}{{this}} keeps rendering strings
+		// (the list reads as unindented here); indent nesting is {{field}}'s job.
+		if f := findField(options.Ctx(), key); f != nil && f.Type == "list" {
+			if arr, ok := v.([]any); ok {
+				out := make([]any, len(arr))
+				for i, item := range arr {
+					out[i] = template.ListItemText(item)
+				}
+				return out
+			}
+		}
+		return v
 	})
 	tpl.RegisterHelper("fieldMeta", func(key, prop string, options *raymond.Options) any {
 		f := findField(options.Ctx(), key)

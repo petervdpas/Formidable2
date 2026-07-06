@@ -15,6 +15,33 @@ func TestEmitList(t *testing.T) {
 	}
 }
 
+func TestEmitList_Indented(t *testing.T) {
+	// A flat list is unchanged; an indented row nests via a 2-space-per-level prefix.
+	got := emitList([]any{
+		"parent",
+		map[string]any{"text": "child", "indent": float64(1)},
+		map[string]any{"text": "grandchild", "indent": float64(2)},
+		"back to root",
+	})
+	want := "- parent\n  - child\n    - grandchild\n- back to root"
+	if got != want {
+		t.Errorf("indented list = %q, want %q", got, want)
+	}
+}
+
+func TestEmitList_ClampsOrphanIndent(t *testing.T) {
+	// A first row can't be indented, and a row can't jump levels: both clamp to
+	// prev+1 so the rendered nesting is always valid.
+	got := emitList([]any{
+		map[string]any{"text": "a", "indent": float64(3)},
+		map[string]any{"text": "b", "indent": float64(5)},
+	})
+	want := "- a\n  - b"
+	if got != want {
+		t.Errorf("clamped list = %q, want %q", got, want)
+	}
+}
+
 func TestEmitList_Empty(t *testing.T) {
 	if got := emitList(nil); got != "" {
 		t.Errorf("nil list = %q, want empty", got)

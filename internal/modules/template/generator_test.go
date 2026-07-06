@@ -144,11 +144,13 @@ func TestGenerate_ReportImageInlineMode(t *testing.T) {
 	}
 }
 
-func TestGenerate_ReportListEachBlock(t *testing.T) {
+func TestGenerate_ReportListUsesFieldHelper(t *testing.T) {
+	// Lists render via {{field}} so an indented row nests (emitList); the old flat
+	// {{#each (fieldRaw)}}- {{this}} pattern could not nest.
 	got := GenerateMarkdownTemplate(ShapeReport, defaultOpts(),
 		[]Field{{Key: "items", Type: "list"}})
-	if !strings.Contains(got, `{{#each (fieldRaw "items")}}`) {
-		t.Errorf("list must use #each; got:\n%s", got)
+	if !strings.Contains(got, `{{field "items"}}`) {
+		t.Errorf("list must render via the field helper; got:\n%s", got)
 	}
 }
 

@@ -218,6 +218,13 @@ func resolveSourceValue(entry map[string]any, sourceKey string, fields map[strin
 		if item == nil {
 			return ""
 		}
+		// An indented list row is a {text,indent} object; export its text. Plain
+		// strings and foreign object items fall through to the logic below.
+		if rootField.Type == "list" {
+			if s, ok := indentedRowText(item); ok {
+				return s
+			}
+		}
 		if sub != "" {
 			// Table cell: positional array - resolve sub → column index
 			// via the field's option list.

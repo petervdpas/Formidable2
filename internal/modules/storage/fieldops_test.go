@@ -85,6 +85,25 @@ func TestDedupList(t *testing.T) {
 	}
 }
 
+func TestSortDedupList_HandlesIndentedItems(t *testing.T) {
+	// Mixed plain + indented ({text,indent}) items sort and dedup by their text,
+	// not the object shape (toStr would have returned "" for the objects).
+	in := []any{
+		map[string]any{"text": "b", "indent": float64(1)},
+		"a",
+		map[string]any{"text": "a", "indent": float64(2)}, // same text as "a"
+	}
+	sorted := sortList(in, false)
+	if template.ListItemText(sorted[0]) != "a" ||
+		template.ListItemText(sorted[1]) != "a" ||
+		template.ListItemText(sorted[2]) != "b" {
+		t.Fatalf("sort by item text failed: %v", sorted)
+	}
+	if ded := dedupList(in); len(ded) != 2 {
+		t.Fatalf("dedup by text should drop the duplicate 'a', got %d: %v", len(ded), ded)
+	}
+}
+
 func TestDedupTableByColumnKeepsFirst(t *testing.T) {
 	rows := []any{
 		[]any{"ReadEumAccountAll", "Direct"},

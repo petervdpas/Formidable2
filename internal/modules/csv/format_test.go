@@ -46,6 +46,17 @@ func TestFormatValue_TagsListMultioption_Array(t *testing.T) {
 	}
 }
 
+func TestFormatValue_ListDropsIndent(t *testing.T) {
+	// An indented row ({text,indent}) exports as its text; a foreign object item
+	// is still JSON-encoded (unchanged).
+	in := []any{"a", map[string]any{"text": "child", "indent": float64(2)}, map[string]any{"foo": "bar"}}
+	got := FormatValue(in, "list")
+	want := `["a","child",{"foo":"bar"}]`
+	if got != want {
+		t.Errorf("FormatValue(list) = %q, want %q", got, want)
+	}
+}
+
 func TestFormatValue_TagsListMultioption_ScalarFallback(t *testing.T) {
 	// Stored as a bare string (legacy data) - return as-is.
 	for _, ty := range []string{"tags", "list", "multioption"} {

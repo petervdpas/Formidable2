@@ -46,6 +46,8 @@
   "workspace.storage.field.loop.expand_all": "Expand all items",
   "workspace.storage.field.loop_empty": "(No entries, click + to add one)",
   "workspace.storage.field.remove_item": "Remove item",
+  "workspace.storage.field.indent": "Indent",
+  "workspace.storage.field.outdent": "Outdent",
   "workspace.storage.field.remove_item.title": "Remove loop item",
   "workspace.storage.field.remove_row": "Remove row",
   "workspace.storage.field.renderer_pending": "Renderer pending. Value preserved.",

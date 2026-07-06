@@ -265,9 +265,10 @@ Tags(without #): {{tags (fieldRaw "%s") withHash=false}}
 _No tags specified_
 {{/if}}`, key, key, key, key)
 	case "list":
-		return fmt.Sprintf(`{{#each (fieldRaw "%s")}}
-- {{this}}
-{{/each}}`, key)
+		// {{field}} renders the list via emitList, which nests indented rows into
+		// a proper sub-list. The old {{#each (fieldRaw)}}- {{this}} pattern was flat
+		// by construction (the "- " sits at column 0), so it could never nest.
+		return fmt.Sprintf(`{{field "%s"}}`, key)
 	case "table":
 		return fmt.Sprintf(`{{#if (fieldRaw "%s")}}
 

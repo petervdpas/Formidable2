@@ -46,6 +46,8 @@
   "workspace.storage.field.loop.expand_all": "Alle items uitklappen",
   "workspace.storage.field.loop_empty": "(Nog geen items, klik op + om er een toe te voegen)",
   "workspace.storage.field.remove_item": "Item verwijderen",
+  "workspace.storage.field.indent": "Inspringen",
+  "workspace.storage.field.outdent": "Uitspringen",
   "workspace.storage.field.remove_item.title": "Lus-item verwijderen",
   "workspace.storage.field.remove_row": "Rij verwijderen",
   "workspace.storage.field.renderer_pending": "Renderer in voorbereiding. Waarde behouden.",

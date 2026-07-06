@@ -141,7 +141,7 @@ func cellAt(row any, idx int) any {
 func sortList(items []any, desc bool) []any {
 	out := append([]any(nil), items...)
 	sort.SliceStable(out, func(i, j int) bool {
-		c := naturalCompare(toStr(out[i]), toStr(out[j]))
+		c := naturalCompare(template.ListItemText(out[i]), template.ListItemText(out[j]))
 		if desc {
 			return c > 0
 		}
@@ -169,7 +169,7 @@ func dedupList(items []any) []any {
 	seen := make(map[string]struct{}, len(items))
 	out := make([]any, 0, len(items))
 	for _, it := range items {
-		k := toStr(it)
+		k := template.ListItemText(it)
 		if _, ok := seen[k]; ok {
 			continue
 		}
