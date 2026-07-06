@@ -183,6 +183,7 @@
     padding-left: 2em;
 }
 .formidable-prose ol ol { list-style: lower-alpha; margin-top: 0.5em; }
+.formidable-prose ol ol ol { list-style: lower-roman; }
 .formidable-prose ul li,
 .formidable-prose ol li { margin-bottom: 0.5em; }
 

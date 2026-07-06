@@ -273,6 +273,7 @@
    at the top level, lower-alpha nested (1, then a). Unset stays bulleted. */
 .slide-block-list.slide-list-ordered .slide-fit ul { list-style-type: decimal; }
 .slide-block-list.slide-list-ordered .slide-fit ul ul { list-style-type: lower-alpha; }
+.slide-block-list.slide-list-ordered .slide-fit ul ul ul { list-style-type: lower-roman; }
 
 /* Per-block shadow presets. The block kind decides the shadow flavour: an
    image/shape/mermaid/math casts a drop-shadow (follows the alpha silhouette), a
