@@ -207,6 +207,13 @@
     font-weight: 600;
 }
 .btn-ghost-icon:hover { background: var(--color-surface-2); }
+/* A disabled ghost-icon (e.g. indent on the first list row, which can't go
+   deeper) reads as muted and inert rather than looking clickable. */
+.btn-ghost-icon:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.btn-ghost-icon:disabled:hover { background: var(--color-bg); }
 
 .btn-ghost-icon.btn-sm {
     width: 24px;
