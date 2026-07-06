@@ -462,6 +462,90 @@ func (m *Manager) ImageFileExists(templateFilename, name string) bool {
 	return m.fs.FileExists(full)
 }
 
+// ListImageFiles returns the image assets in a template's images folder,
+// sorted, so the field can offer them as a reusable library. A missing folder
+// yields an empty list. Non-image files (by extension) are skipped.
+func (m *Manager) ListImageFiles(templateFilename string) ([]string, error) {
+	dir := filepath.Join(m.templateDir(templateFilename), imagesDir)
+	if !m.fs.FileExists(dir) {
+		return []string{}, nil
+	}
+	names, err := m.fs.ListFiles(dir)
+	if err != nil {
+		return nil, fmt.Errorf("storage: list images %q: %w", templateFilename, err)
+	}
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if imageMIMEFromName(n) != "application/octet-stream" {
+			out = append(out, n)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// replaceStringDeep rewrites every string value equal to old with newVal, at any
+// depth (maps, slices), mutating in place. Returns whether anything changed.
+func replaceStringDeep(v any, old, newVal string) (any, bool) {
+	switch t := v.(type) {
+	case string:
+		if t == old {
+			return newVal, true
+		}
+		return t, false
+	case map[string]any:
+		changed := false
+		for k, val := range t {
+			nv, c := replaceStringDeep(val, old, newVal)
+			if c {
+				t[k] = nv
+				changed = true
+			}
+		}
+		return t, changed
+	case []any:
+		changed := false
+		for i, val := range t {
+			nv, c := replaceStringDeep(val, old, newVal)
+			if c {
+				t[i] = nv
+				changed = true
+			}
+		}
+		return t, changed
+	default:
+		return v, false
+	}
+}
+
+// RenameImageAcrossForms renames a library image and rewrites every reference to
+// it across the template's forms, so a shared image stays consistent. It moves
+// the file first, then updates each form whose data mentions the old filename,
+// returning how many forms were rewritten.
+func (m *Manager) RenameImageAcrossForms(ctx context.Context, templateFilename, oldName, newName string) (int, error) {
+	if err := m.RenameImageFile(templateFilename, oldName, newName); err != nil {
+		return 0, err
+	}
+	forms, err := m.ListForms(templateFilename)
+	if err != nil {
+		return 0, err
+	}
+	updated := 0
+	for _, df := range forms {
+		f := m.LoadForm(templateFilename, df)
+		if f == nil {
+			continue
+		}
+		if _, changed := replaceStringDeep(f.Data, oldName, newName); !changed {
+			continue
+		}
+		if r := m.SaveForm(ctx, templateFilename, df, f.Data); r.Success {
+			updated++
+		}
+	}
+	return updated, nil
+}
+
 // RenameImageFile moves an image asset from oldName to newName within the same
 // template's images folder. Same name is a no-op; a missing source or an
 // occupied target is an error so the caller can pick a free name first.

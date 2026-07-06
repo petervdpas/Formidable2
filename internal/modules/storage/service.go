@@ -68,9 +68,20 @@ func (s *Service) ImageFileExists(templateFilename, name string) bool {
 	return s.m.ImageFileExists(templateFilename, name)
 }
 
+// ListImageFiles returns the template's image assets (the reusable library), sorted.
+func (s *Service) ListImageFiles(templateFilename string) ([]string, error) {
+	return s.m.ListImageFiles(templateFilename)
+}
+
 // RenameImageFile moves an image asset to a new name within the same template.
 func (s *Service) RenameImageFile(templateFilename, oldName, newName string) error {
 	return s.m.RenameImageFile(templateFilename, oldName, newName)
+}
+
+// RenameImageAcrossForms renames a library image and rewrites references to it
+// across the template's forms, returning how many forms were updated.
+func (s *Service) RenameImageAcrossForms(templateFilename, oldName, newName string) (int, error) {
+	return s.m.RenameImageAcrossForms(context.Background(), templateFilename, oldName, newName)
 }
 
 // ImportCsvRow stores one pre-parsed CSV row as a form.

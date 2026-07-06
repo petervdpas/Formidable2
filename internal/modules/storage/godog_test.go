@@ -45,6 +45,8 @@ type storageWorld struct {
 	lastTpl      string
 	lastDatafile string
 	migrateRes   MigrateResult
+	imageList    []string
+	renameCount  int
 }
 
 // rawFormPath is the on-disk meta.json path for a template/datafile pair.
@@ -95,6 +97,8 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		w.saveImageRes = SaveResult{}
 		w.extendedList = nil
 		w.capturedID = ""
+		w.imageList = nil
+		w.renameCount = 0
 		return ctx, nil
 	})
 
@@ -269,6 +273,51 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^a basic template with an "([^"]*)" image field$`, func(key string) error {
+		w.tpl = &template.Template{
+			Name:     "basic",
+			Filename: "basic.yaml",
+			Fields: []template.Field{
+				{Key: "title", Type: "text"},
+				{Key: key, Type: "image"},
+			},
+		}
+		return w.tplM.SaveTemplate(w.tpl.Filename, w.tpl)
+	})
+
+	ctx.Step(`^I list images for "([^"]*)"$`, func(tmplFile string) error {
+		out, err := w.m.ListImageFiles(tmplFile)
+		if err != nil {
+			return err
+		}
+		w.imageList = out
+		return nil
+	})
+
+	ctx.Step(`^the image list is "([^"]*)"$`, func(want string) error {
+		got := strings.Join(w.imageList, ",")
+		if got != want {
+			return fmt.Errorf("image list = %q, want %q", got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I rename image "([^"]*)" to "([^"]*)" across forms of "([^"]*)"$`, func(oldName, newName, tmplFile string) error {
+		n, err := w.m.RenameImageAcrossForms(context.Background(), tmplFile, oldName, newName)
+		if err != nil {
+			return err
+		}
+		w.renameCount = n
+		return nil
+	})
+
+	ctx.Step(`^the rename rewrote (\d+) forms$`, func(want int) error {
+		if w.renameCount != want {
+			return fmt.Errorf("rewrote %d forms, want %d", w.renameCount, want)
+		}
+		return nil
+	})
+
 	ctx.Step(`^I request the extended list for "([^"]*)"$`, func(tmplFile string) error {
 		out, err := w.m.ExtendedListForms(tmplFile)
 		if err != nil {
@@ -383,6 +432,13 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the file "([^"]*)" exists$`, func(path string) error {
 		if _, err := os.Stat(filepath.Join(w.tmp, path)); err != nil {
 			return fmt.Errorf("expected %q to exist: %v", path, err)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the file "([^"]*)" does not exist$`, func(path string) error {
+		if _, err := os.Stat(filepath.Join(w.tmp, path)); err == nil {
+			return fmt.Errorf("expected %q to be gone", path)
 		}
 		return nil
 	})

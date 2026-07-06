@@ -813,6 +813,73 @@ func TestRenameImageFile_RejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestListImageFiles_SortedAndFiltered(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	m.SaveImageFile("basic.yaml", "zebra.png", []byte{0x89})
+	m.SaveImageFile("basic.yaml", "apple.jpg", []byte{0xFF})
+	m.SaveImageFile("basic.yaml", "notes.txt", []byte("hi")) // non-image, skipped
+	got, err := m.ListImageFiles("basic.yaml")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	want := []string{"apple.jpg", "zebra.png"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestListImageFiles_MissingFolderIsEmpty(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	got, err := m.ListImageFiles("basic.yaml")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("expected empty, got %v", got)
+	}
+}
+
+func TestRenameImageAcrossForms_RewritesEveryReference(t *testing.T) {
+	m, _, tplM, _ := newTestStack(t)
+	_ = tplM.SaveTemplate("basic.yaml", &template.Template{
+		Name: "basic", Filename: "basic.yaml",
+		Fields: []template.Field{{Key: "pic", Type: "image"}},
+	})
+	ctx := context.Background()
+	m.SaveImageFile("basic.yaml", "old.png", []byte{0x89})
+	// Two forms reference the shared image, a third does not.
+	m.SaveForm(ctx, "basic.yaml", "a.meta.json", map[string]any{"pic": "old.png"})
+	m.SaveForm(ctx, "basic.yaml", "b.meta.json", map[string]any{"pic": "old.png"})
+	m.SaveForm(ctx, "basic.yaml", "c.meta.json", map[string]any{"pic": "keep.png"})
+
+	n, err := m.RenameImageAcrossForms(ctx, "basic.yaml", "old.png", "new.png")
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("expected 2 forms rewritten, got %d", n)
+	}
+	if !m.ImageFileExists("basic.yaml", "new.png") || m.ImageFileExists("basic.yaml", "old.png") {
+		t.Errorf("file was not moved")
+	}
+	for _, df := range []string{"a.meta.json", "b.meta.json"} {
+		f := m.LoadForm("basic.yaml", df)
+		if f == nil || f.Data["pic"] != "new.png" {
+			t.Errorf("%s not rewritten: %v", df, f)
+		}
+	}
+	if f := m.LoadForm("basic.yaml", "c.meta.json"); f == nil || f.Data["pic"] != "keep.png" {
+		t.Errorf("unrelated form should be untouched: %v", f)
+	}
+}
+
+func TestRenameImageAcrossForms_MissingFileIsError(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if _, err := m.RenameImageAcrossForms(context.Background(), "basic.yaml", "ghost.png", "x.png"); err == nil {
+		t.Errorf("expected error when the image file is missing")
+	}
+}
+
 func TestLoadForm_MissingTemplateStillReadsRawData(t *testing.T) {
 	// Even with no template, LoadForm should not blow up - Sanitize
 	// runs with nil fields (everything stays raw).

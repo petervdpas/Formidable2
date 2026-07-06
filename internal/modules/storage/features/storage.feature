@@ -66,6 +66,33 @@ Feature: Form storage
     Then the file "storage/basic/images/pic.png" exists
     And the saved image result is success
 
+  Scenario: The images folder is a reusable library, listed sorted
+    When I save image bytes "89" to "basic.yaml" as "zebra.png"
+    And I save image bytes "ff" to "basic.yaml" as "apple.jpg"
+    And I save image bytes "hi" to "basic.yaml" as "notes.txt"
+    And I list images for "basic.yaml"
+    Then the image list is "apple.jpg,zebra.png"
+
+  Scenario: Renaming a library image rewrites every form that references it
+    Given a basic template with an "pic" image field
+    And I save image bytes "89" to "basic.yaml" as "old.png"
+    When I save a form "basic.yaml" / "a" with data:
+      | key | value   |
+      | pic | old.png |
+    And I save a form "basic.yaml" / "b" with data:
+      | key | value   |
+      | pic | old.png |
+    And I save a form "basic.yaml" / "c" with data:
+      | key | value    |
+      | pic | keep.png |
+    And I rename image "old.png" to "new.png" across forms of "basic.yaml"
+    Then the rename rewrote 2 forms
+    And the file "storage/basic/images/new.png" exists
+    And the file "storage/basic/images/old.png" does not exist
+    And loading "basic.yaml" / "a" returns data field "pic" equal to "new.png"
+    And loading "basic.yaml" / "b" returns data field "pic" equal to "new.png"
+    And loading "basic.yaml" / "c" returns data field "pic" equal to "keep.png"
+
   Scenario: SaveForm preserves a previously-set id across edits
     Given the template "basic" has no forms yet
     When I save a form "basic.yaml" / "form-1" with data:

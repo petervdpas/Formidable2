@@ -57,6 +57,15 @@ export function ListForms(templateFilename: string): $CancellablePromise<string[
     });
 }
 
+/**
+ * ListImageFiles returns the template's image assets (the reusable library), sorted.
+ */
+export function ListImageFiles(templateFilename: string): $CancellablePromise<string[]> {
+    return $Call.ByID(4095618031, templateFilename).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 export function LoadForm(templateFilename: string, datafile: string): $CancellablePromise<$models.Form | null> {
     return $Call.ByID(1569422289, templateFilename, datafile).then(($result: any) => {
         return $$createType5($result);
@@ -78,6 +87,14 @@ export function MigrateTemplateMeta(templateFilename: string): $CancellablePromi
     return $Call.ByID(53088703, templateFilename).then(($result: any) => {
         return $$createType6($result);
     });
+}
+
+/**
+ * RenameImageAcrossForms renames a library image and rewrites references to it
+ * across the template's forms, returning how many forms were updated.
+ */
+export function RenameImageAcrossForms(templateFilename: string, oldName: string, newName: string): $CancellablePromise<number> {
+    return $Call.ByID(4113251142, templateFilename, oldName, newName);
 }
 
 /**

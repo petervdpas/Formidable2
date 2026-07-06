@@ -3,8 +3,11 @@ import { computed, inject, ref, watch, type ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
 import ImageLightbox from "../ImageLightbox.vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import ImageLibraryDialog from "../ImageLibraryDialog.vue";
 import { Service as StorageSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import type { Field } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/template";
+import { safeFileStem, extensionOf } from "../../utils/imageName";
+import { backendErrMessage } from "../../utils/backendError";
 
 // FormFieldImage - picker + preview + clear.
 //
@@ -122,6 +125,84 @@ async function onFileChosen(evt: Event) {
   }
 }
 
+// ── Library (pick an existing image, no upload) ──────────────────────
+const libraryOpen = ref(false);
+function openLibrary() {
+  pickError.value = "";
+  if (!templateFilename.value) {
+    pickError.value = t("workspace.storage.field.image_no_template");
+    return;
+  }
+  libraryOpen.value = true;
+}
+function onLibraryPick(name: string) {
+  libraryOpen.value = false;
+  // Reuse by reference: the file already exists, just point the field at it.
+  filename.value = name;
+}
+
+// ── Rename (moves the file + rewrites references across the template) ──
+const renaming = ref(false);
+const renameDraft = ref("");
+
+function startRename() {
+  if (!filename.value || props.field.readonly || busy.value) return;
+  pickError.value = "";
+  renameDraft.value = filename.value.slice(
+    0,
+    filename.value.length - extensionOf(filename.value).length,
+  );
+  renaming.value = true;
+}
+
+function cancelRename() {
+  renaming.value = false;
+}
+
+// Find a filename not already taken. `keep` is the name we already own (renaming
+// onto our own file is free, not a collision).
+async function freeName(desired: string, keep: string): Promise<string> {
+  if (desired === keep) return desired;
+  const ext = extensionOf(desired);
+  const stem = ext ? desired.slice(0, desired.length - ext.length) : desired;
+  let candidate = desired;
+  let n = 1;
+  while (
+    candidate !== keep &&
+    (await StorageSvc.ImageFileExists(templateFilename.value, candidate))
+  ) {
+    candidate = `${stem}-${n}${ext}`;
+    n += 1;
+  }
+  return candidate;
+}
+
+async function commitRename() {
+  const stem = safeFileStem(renameDraft.value);
+  const old = filename.value;
+  if (!stem || !old || !templateFilename.value) {
+    renaming.value = false;
+    return;
+  }
+  const desired = `${stem}${extensionOf(old)}`;
+  if (desired === old) {
+    renaming.value = false;
+    return;
+  }
+  busy.value = true;
+  pickError.value = "";
+  try {
+    const target = await freeName(desired, old);
+    await StorageSvc.RenameImageAcrossForms(templateFilename.value, old, target);
+    filename.value = target;
+    renaming.value = false;
+  } catch (err) {
+    pickError.value = backendErrMessage(err) || t("workspace.storage.field.image_rename_failed");
+  } finally {
+    busy.value = false;
+  }
+}
+
 // ── Clear ────────────────────────────────────────────────────────────
 // Encode a Uint8Array as base64 - Wails' []byte parameters expect
 // the wire shape to be a base64 string. btoa() handles latin-1 input
@@ -195,7 +276,34 @@ async function confirmClear() {
     </div>
 
     <div class="image-field-actions">
-      <span v-if="filename" class="image-field-filename">{{ filename }}</span>
+      <template v-if="filename && renaming">
+        <input
+          v-model="renameDraft"
+          type="text"
+          class="image-field-rename"
+          @keydown.enter.prevent="commitRename"
+          @keydown.esc.prevent="cancelRename"
+        />
+        <button type="button" class="tool-btn" :disabled="busy" @click="commitRename">
+          {{ t("common.save") }}
+        </button>
+        <button type="button" class="tool-btn" :disabled="busy" @click="cancelRename">
+          {{ t("common.cancel") }}
+        </button>
+      </template>
+      <template v-else>
+        <span v-if="filename" class="image-field-filename">{{ filename }}</span>
+        <button
+          v-if="filename && !field.readonly"
+          type="button"
+          class="btn-ghost-icon"
+          :disabled="busy"
+          :title="t('workspace.storage.field.image_rename')"
+          @click="startRename"
+        >
+          <i class="fa-solid fa-pen" aria-hidden="true"></i>
+        </button>
+      </template>
       <button
         v-if="!field.readonly"
         type="button"
@@ -206,6 +314,15 @@ async function confirmClear() {
         {{ filename
           ? t("workspace.storage.field.image_replace")
           : t("workspace.storage.field.image_choose") }}
+      </button>
+      <button
+        v-if="!field.readonly"
+        type="button"
+        class="tool-btn"
+        :disabled="busy"
+        @click="openLibrary"
+      >
+        {{ t("workspace.storage.field.image_library") }}
       </button>
       <button
         v-if="filename && !field.readonly"
@@ -226,6 +343,14 @@ async function confirmClear() {
       :src="dataUrl"
       :alt="filename"
       @close="lightboxOpen = false"
+    />
+
+    <ImageLibraryDialog
+      :open="libraryOpen"
+      :template-filename="templateFilename"
+      :current="filename"
+      @pick="onLibraryPick"
+      @close="libraryOpen = false"
     />
 
     <ConfirmDialog

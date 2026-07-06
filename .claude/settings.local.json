@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Read(//home/peter/Projects/Formidable/**)",
-      "Bash(go test *)"
+      "Bash(go test *)",
+      "Bash(npx vue-tsc *)",
+      "Bash(echo \"tsc exit: $?\")"
     ]
   }
 }

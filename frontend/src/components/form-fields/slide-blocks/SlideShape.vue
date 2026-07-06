@@ -12,6 +12,7 @@ import { Service as RenderSvc } from "../../../../bindings/github.com/petervdpas
 import { Service as StorageSvc } from "../../../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import SlideRenderedPreview from "./SlideRenderedPreview.vue";
 import { SHAPE_DEFAULT, type SlideBlock } from "../../../types/slide-blocks";
+import { safeFileStem } from "../../../utils/imageName";
 
 const props = defineProps<{ block: SlideBlock; surface: "canvas" | "inspector"; html?: string }>();
 const emit = defineEmits<{ (e: "patch", p: Partial<SlideBlock>): void }>();
@@ -90,18 +91,6 @@ function pickFile() {
 // The editable base name (without the .svg extension) shown in the inspector.
 const nameStem = computed(() => cur.value.svgFile.replace(/\.svg$/i, ""));
 
-// Reduce any user- or file-supplied text to a safe filename stem: strip the
-// path and extension, keep letters/digits/space/dash/underscore, collapse runs.
-function safeStem(raw: string): string {
-  const noPath = raw.split(/[\\/]/).pop() ?? "";
-  const noExt = noPath.replace(/\.[^.]+$/, "");
-  return noExt
-    .replace(/[^A-Za-z0-9 _-]+/g, "-")
-    .replace(/[-\s]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .trim();
-}
-
 // Find a filename not already taken in the images folder. `keep` is the name we
 // already own (a re-import/rename onto our own file is free, not a collision).
 async function freeName(desired: string, keep: string): Promise<string> {
@@ -150,7 +139,7 @@ async function onFile(e: Event) {
   // Name after the source file (falling back to the block id), uniquified so a
   // second block importing a same-named SVG never clobbers the first.
   const old = cur.value.svgFile;
-  const stem = safeStem(file.name) || `shape-${props.block.id}`;
+  const stem = safeFileStem(file.name) || `shape-${props.block.id}`;
   const name = await freeName(`${stem}.svg`, old);
   const b64 = bytesToBase64(new TextEncoder().encode(clean));
   const result = await StorageSvc.SaveImageFile(templateFilename.value, name, b64);
@@ -172,7 +161,7 @@ async function onFile(e: Event) {
 // move the stored asset. Empty or unchanged input is ignored (keeps the file).
 async function commitName(raw: string) {
   renameError.value = false;
-  const stem = safeStem(raw);
+  const stem = safeFileStem(raw);
   const old = cur.value.svgFile;
   if (!stem || !old || !templateFilename.value) return;
   const desired = `${stem}.svg`;
