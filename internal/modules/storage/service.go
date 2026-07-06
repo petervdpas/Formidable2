@@ -68,6 +68,13 @@ func (s *Service) ImageFileExists(templateFilename, name string) bool {
 	return s.m.ImageFileExists(templateFilename, name)
 }
 
+// SlugifyEntryName turns a freely-typed name into a valid datafile stem (the
+// backend-owned filename rule). The frontend calls this instead of slugging
+// client-side, so the rule lives in one place.
+func (s *Service) SlugifyEntryName(raw string) string {
+	return SlugifyDatafileStem(raw)
+}
+
 // ListImageFiles returns the template's image assets (the reusable library), sorted.
 func (s *Service) ListImageFiles(templateFilename string) ([]string, error) {
 	return s.m.ListImageFiles(templateFilename)

@@ -66,6 +66,21 @@ Feature: Form storage
     Then the file "storage/basic/images/pic.png" exists
     And the saved image result is success
 
+  Scenario Outline: Freely-typed entry names slug to a valid datafile stem
+    Then slugging the entry name "<typed>" yields "<stem>"
+
+    Examples:
+      | typed           | stem            |
+      | My Great Slide  | My-Great-Slide  |
+      | note 2026-05-05 | note-2026-05-05 |
+      | weird@#name!    | weirdname       |
+      | a/../b          | a.b             |
+
+  Scenario: A slugged name saves and round-trips as a real form
+    Given the template "basic" has no forms yet
+    When saving a form named "My Great Slide" succeeds
+    Then the form list for "basic.yaml" contains "My-Great-Slide.meta.json"
+
   Scenario: The images folder is a reusable library, listed sorted
     When I save image bytes "89" to "basic.yaml" as "zebra.png"
     And I save image bytes "ff" to "basic.yaml" as "apple.jpg"

@@ -318,6 +318,22 @@ func initStorageScenario(ctx *godog.ScenarioContext) {
 		return nil
 	})
 
+	ctx.Step(`^slugging the entry name "([^"]*)" yields "([^"]*)"$`, func(raw, want string) error {
+		if got := SlugifyDatafileStem(raw); got != want {
+			return fmt.Errorf("slug %q = %q, want %q", raw, got, want)
+		}
+		return nil
+	})
+
+	ctx.Step(`^saving a form named "([^"]*)" succeeds$`, func(rawName string) error {
+		stem := SlugifyDatafileStem(rawName)
+		w.saveResult = w.m.SaveForm(context.Background(), "basic.yaml", stem, map[string]any{"title": rawName})
+		if !w.saveResult.Success {
+			return fmt.Errorf("save %q (stem %q) failed: %s", rawName, stem, w.saveResult.Error)
+		}
+		return nil
+	})
+
 	ctx.Step(`^I request the extended list for "([^"]*)"$`, func(tmplFile string) error {
 		out, err := w.m.ExtendedListForms(tmplFile)
 		if err != nil {

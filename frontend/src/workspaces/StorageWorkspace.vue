@@ -829,6 +829,12 @@ function openNew() {
   newOpen.value = true;
 }
 
+// The datafile-name rule is backend-owned; the dialog calls this to slug a
+// freely-typed entry name into a valid stem.
+function slugEntryName(raw: string): Promise<string> {
+  return StorageSvc.SlugifyEntryName(raw);
+}
+
 async function submitNew(filename: string) {
   // Open an unsaved view, set selection - persist happens on first Save.
   selectedDataFile.value = filename;
@@ -1634,6 +1640,7 @@ setTopbarMenu(() => [
     :confirm-label="t('workspace.storage.new_entry')"
     :placeholder="t('workspace.storage.new.placeholder')"
     :existing-names="existingFilenames"
+    :slug-fn="slugEntryName"
     @cancel="newOpen = false"
     @submit="submitNew"
   />
@@ -1646,6 +1653,7 @@ setTopbarMenu(() => [
     :placeholder="t('workspace.storage.copy.placeholder')"
     :existing-names="existingFilenames"
     :initial-name="copyInitial"
+    :slug-fn="slugEntryName"
     @cancel="copyOpen = false"
     @submit="submitCopy"
   />

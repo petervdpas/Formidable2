@@ -129,6 +129,15 @@ export function SearchForms(templateFilename: string, query: string): $Cancellab
 }
 
 /**
+ * SlugifyEntryName turns a freely-typed name into a valid datafile stem (the
+ * backend-owned filename rule). The frontend calls this instead of slugging
+ * client-side, so the rule lives in one place.
+ */
+export function SlugifyEntryName(raw: string): $CancellablePromise<string> {
+    return $Call.ByID(3851081421, raw);
+}
+
+/**
  * TemplateStorageDir returns the absolute path of this template's storage folder.
  */
 export function TemplateStorageDir(templateFilename: string): $CancellablePromise<string> {

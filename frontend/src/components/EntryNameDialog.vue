@@ -26,6 +26,11 @@ const props = withDefaults(
     pattern?: RegExp;
     /** Override the invalid-characters message for context-specific rules. */
     invalidCharsMessage?: string;
+    /** Let the user type freely (spaces, punctuation): `slugFn` (a backend call)
+     * reduces the stem to the allowed charset before validating, and a live
+     * preview shows the resulting filename. When absent, the name is validated
+     * as typed. The rule lives in the backend, not here. */
+    slugFn?: (raw: string) => Promise<string>;
     /** Help text shown under the input. */
     help?: string;
     /** Parent-controlled error (e.g. a backend failure), shown in the dialog. */
@@ -38,6 +43,29 @@ const props = withDefaults(
     pattern: () => /^[a-zA-Z0-9._-]+$/,
   },
 );
+
+// The typed value with any trailing extension stripped, leaving the bare stem.
+function typedStem(): string {
+  const raw = name.value.trim();
+  const ext = props.extension;
+  return ext && raw.endsWith(ext) ? raw.slice(0, -ext.length) : raw;
+}
+
+// The stem as it will be stored: slugged by the backend when slugFn is set,
+// otherwise the typed stem verbatim.
+async function resolveStem(): Promise<string> {
+  const stem = typedStem();
+  if (!stem || !props.slugFn) return stem;
+  return props.slugFn(stem);
+}
+
+function withDateAndExt(stem: string): string {
+  const dated =
+    props.showAppendDate && appendDate.value
+      ? `${stem}-${todayYYYYMMDD()}`
+      : stem;
+  return props.pattern.test(dated) ? `${dated}${props.extension}` : "";
+}
 
 const emit = defineEmits<{
   (e: "cancel"): void;
@@ -74,25 +102,35 @@ function todayYYYYMMDD(): string {
   return `${y}${m}${day}`;
 }
 
-function onSubmit(): void {
+// Live "Saved as: …" preview (slugging only), recomputed via the backend as the
+// user types or toggles the date. Kept in a ref because the slug is async.
+const preview = ref("");
+watch(
+  [name, appendDate, () => props.open],
+  async () => {
+    if (!props.slugFn || !name.value.trim()) {
+      preview.value = "";
+      return;
+    }
+    const typed = name.value; // guard against a stale async resolve
+    const filename = withDateAndExt(await resolveStem());
+    if (name.value === typed) preview.value = filename;
+  },
+  { immediate: true },
+);
+
+async function onSubmit(): Promise<void> {
   localError.value = "";
-  const raw = name.value.trim();
-  if (!raw) {
+  if (!name.value.trim()) {
     localError.value = t("entry_name.error.required");
     return;
   }
-  const ext = props.extension;
-  const stem = ext && raw.endsWith(ext) ? raw.slice(0, -ext.length) : raw;
-  const dated =
-    props.showAppendDate && appendDate.value
-      ? `${stem}-${todayYYYYMMDD()}`
-      : stem;
-  if (!props.pattern.test(dated)) {
+  const filename = withDateAndExt(await resolveStem());
+  if (!filename) {
     localError.value =
       props.invalidCharsMessage ?? t("entry_name.error.invalid_chars");
     return;
   }
-  const filename = `${dated}${ext}`;
   if (props.existingNames.includes(filename)) {
     localError.value = t("entry_name.error.exists");
     return;
@@ -122,6 +160,7 @@ function onSubmit(): void {
         <SwitchField v-model="appendDate" />
       </template>
     </div>
+    <p v-if="preview" class="muted small">{{ t('entry_name.preview', [preview]) }}</p>
     <p v-if="help" class="muted small">{{ help }}</p>
     <p v-if="shownError" class="form-error">{{ shownError }}</p>
 
