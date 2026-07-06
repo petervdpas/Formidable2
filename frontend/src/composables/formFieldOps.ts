@@ -28,4 +28,6 @@ export interface FormFieldOps {
   ) => Promise<unknown | undefined>;
 }
 
-export const FORM_FIELD_OPS_KEY: InjectionKey<FormFieldOps> = Symbol("formFieldOps");
+// Nullable so a synthetic context (e.g. a slide list block, which isn't a saved
+// record field) can provide null to suppress the backend sort/dedup ops.
+export const FORM_FIELD_OPS_KEY: InjectionKey<FormFieldOps | null> = Symbol("formFieldOps");
