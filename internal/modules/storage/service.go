@@ -63,6 +63,16 @@ func (s *Service) DeleteImageFile(templateFilename, name string) error {
 	return s.m.DeleteImageFile(templateFilename, name)
 }
 
+// ImageFileExists reports whether an image asset already exists (for name uniquifying).
+func (s *Service) ImageFileExists(templateFilename, name string) bool {
+	return s.m.ImageFileExists(templateFilename, name)
+}
+
+// RenameImageFile moves an image asset to a new name within the same template.
+func (s *Service) RenameImageFile(templateFilename, oldName, newName string) error {
+	return s.m.RenameImageFile(templateFilename, oldName, newName)
+}
+
 // ImportCsvRow stores one pre-parsed CSV row as a form.
 func (s *Service) ImportCsvRow(templateFilename, datafile string, data map[string]any) SaveResult {
 	return s.m.SaveForm(context.Background(), templateFilename, datafile, data)

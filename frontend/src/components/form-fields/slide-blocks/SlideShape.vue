@@ -80,10 +80,43 @@ function update(p: Partial<ShapeContent>) {
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const importError = ref(false);
+const renameError = ref(false);
 
 function pickFile() {
   importError.value = false;
   fileInput.value?.click();
+}
+
+// The editable base name (without the .svg extension) shown in the inspector.
+const nameStem = computed(() => cur.value.svgFile.replace(/\.svg$/i, ""));
+
+// Reduce any user- or file-supplied text to a safe filename stem: strip the
+// path and extension, keep letters/digits/space/dash/underscore, collapse runs.
+function safeStem(raw: string): string {
+  const noPath = raw.split(/[\\/]/).pop() ?? "";
+  const noExt = noPath.replace(/\.[^.]+$/, "");
+  return noExt
+    .replace(/[^A-Za-z0-9 _-]+/g, "-")
+    .replace(/[-\s]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .trim();
+}
+
+// Find a filename not already taken in the images folder. `keep` is the name we
+// already own (a re-import/rename onto our own file is free, not a collision).
+async function freeName(desired: string, keep: string): Promise<string> {
+  if (desired === keep) return desired;
+  const stem = desired.replace(/\.svg$/i, "");
+  let candidate = desired;
+  let n = 1;
+  while (
+    candidate !== keep &&
+    (await StorageSvc.ImageFileExists(templateFilename.value, candidate))
+  ) {
+    candidate = `${stem}-${n}.svg`;
+    n += 1;
+  }
+  return candidate;
 }
 
 // Wails marshals Go []byte as a base64 string; chunk to dodge the call-stack
@@ -114,14 +147,44 @@ async function onFile(e: Event) {
     importError.value = true;
     return;
   }
-  const name = `shape-${props.block.id}.svg`;
+  // Name after the source file (falling back to the block id), uniquified so a
+  // second block importing a same-named SVG never clobbers the first.
+  const old = cur.value.svgFile;
+  const stem = safeStem(file.name) || `shape-${props.block.id}`;
+  const name = await freeName(`${stem}.svg`, old);
   const b64 = bytesToBase64(new TextEncoder().encode(clean));
   const result = await StorageSvc.SaveImageFile(templateFilename.value, name, b64);
   if (!result?.success) {
     importError.value = true;
     return;
   }
+  if (old && old !== name) {
+    try {
+      await StorageSvc.DeleteImageFile(templateFilename.value, old);
+    } catch {
+      // Best-effort: the reference already points at the new file.
+    }
+  }
   update({ svgFile: name });
+}
+
+// Commit a new base name from the inspector: sanitize, add .svg, uniquify, then
+// move the stored asset. Empty or unchanged input is ignored (keeps the file).
+async function commitName(raw: string) {
+  renameError.value = false;
+  const stem = safeStem(raw);
+  const old = cur.value.svgFile;
+  if (!stem || !old || !templateFilename.value) return;
+  const desired = `${stem}.svg`;
+  if (desired === old) return;
+  const target = await freeName(desired, old);
+  try {
+    await StorageSvc.RenameImageFile(templateFilename.value, old, target);
+  } catch {
+    renameError.value = true;
+    return;
+  }
+  update({ svgFile: target });
 }
 
 async function removeSvg() {
@@ -142,6 +205,14 @@ async function removeSvg() {
   <template v-else>
     <template v-if="hasSvg">
       <div class="muted small">{{ t('workspace.storage.slide.shape.svg_imported') }}</div>
+      <label class="slide-inspector-row">
+        {{ t('workspace.storage.slide.shape.svg_name') }}
+        <input
+          type="text" :value="nameStem"
+          @change="commitName(($event.target as HTMLInputElement).value)"
+        />
+      </label>
+      <div v-if="renameError" class="error small">{{ t('workspace.storage.slide.shape.rename_failed') }}</div>
       <div class="slide-style-color">
         <span>{{ t('workspace.storage.slide.shape.tint') }}</span>
         <input

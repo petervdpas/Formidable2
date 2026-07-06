@@ -431,25 +431,73 @@ func imageMIMEFromName(name string) string {
 	}
 }
 
-// DeleteImageFile removes an image (missing file is a no-op).
-func (m *Manager) DeleteImageFile(templateFilename, name string) error {
+// validImageName rejects empty names and anything that could escape the images
+// folder (path separators or "..").
+func validImageName(name string) error {
 	if name == "" {
 		return errors.New("storage: empty image name")
 	}
 	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
 		return fmt.Errorf("storage: invalid image name %q", name)
 	}
+	return nil
+}
+
+// DeleteImageFile removes an image (missing file is a no-op).
+func (m *Manager) DeleteImageFile(templateFilename, name string) error {
+	if err := validImageName(name); err != nil {
+		return err
+	}
 	full := filepath.Join(m.templateDir(templateFilename), imagesDir, name)
 	return m.fs.DeleteFile(full)
 }
 
+// ImageFileExists reports whether an image asset is already present. Invalid
+// names yield false (nothing to collide with), so callers can uniquify safely.
+func (m *Manager) ImageFileExists(templateFilename, name string) bool {
+	if validImageName(name) != nil {
+		return false
+	}
+	full := filepath.Join(m.templateDir(templateFilename), imagesDir, name)
+	return m.fs.FileExists(full)
+}
+
+// RenameImageFile moves an image asset from oldName to newName within the same
+// template's images folder. Same name is a no-op; a missing source or an
+// occupied target is an error so the caller can pick a free name first.
+func (m *Manager) RenameImageFile(templateFilename, oldName, newName string) error {
+	if err := validImageName(oldName); err != nil {
+		return err
+	}
+	if err := validImageName(newName); err != nil {
+		return err
+	}
+	if oldName == newName {
+		return nil
+	}
+	dir := filepath.Join(m.templateDir(templateFilename), imagesDir)
+	from := filepath.Join(dir, oldName)
+	to := filepath.Join(dir, newName)
+	if !m.fs.FileExists(from) {
+		return fmt.Errorf("storage: image %q not found", oldName)
+	}
+	if m.fs.FileExists(to) {
+		return fmt.Errorf("storage: image %q already exists", newName)
+	}
+	raw, err := m.fs.LoadFile(from)
+	if err != nil {
+		return fmt.Errorf("storage: read image %q: %w", oldName, err)
+	}
+	if err := m.fs.SaveFile(to, raw); err != nil {
+		return fmt.Errorf("storage: write image %q: %w", newName, err)
+	}
+	return m.fs.DeleteFile(from)
+}
+
 // SaveImageFile writes raw bytes to the template's images folder, returning the absolute path on success.
 func (m *Manager) SaveImageFile(templateFilename, name string, content []byte) SaveResult {
-	if name == "" {
-		return SaveResult{Success: false, Error: "empty image name"}
-	}
-	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
-		return SaveResult{Success: false, Error: fmt.Sprintf("invalid image name %q", name)}
+	if err := validImageName(name); err != nil {
+		return SaveResult{Success: false, Error: err.Error()}
 	}
 	dir := filepath.Join(m.templateDir(templateFilename), imagesDir)
 	if err := m.fs.EnsureDirectory(dir); err != nil {

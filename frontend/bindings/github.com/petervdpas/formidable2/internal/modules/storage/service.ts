@@ -36,6 +36,13 @@ export function ExtendedListForms(templateFilename: string): $CancellablePromise
 }
 
 /**
+ * ImageFileExists reports whether an image asset already exists (for name uniquifying).
+ */
+export function ImageFileExists(templateFilename: string, name: string): $CancellablePromise<boolean> {
+    return $Call.ByID(661139158, templateFilename, name);
+}
+
+/**
  * ImportCsvRow stores one pre-parsed CSV row as a form.
  */
 export function ImportCsvRow(templateFilename: string, datafile: string, data: { [_ in string]?: any }): $CancellablePromise<$models.SaveResult> {
@@ -71,6 +78,13 @@ export function MigrateTemplateMeta(templateFilename: string): $CancellablePromi
     return $Call.ByID(53088703, templateFilename).then(($result: any) => {
         return $$createType6($result);
     });
+}
+
+/**
+ * RenameImageFile moves an image asset to a new name within the same template.
+ */
+export function RenameImageFile(templateFilename: string, oldName: string, newName: string): $CancellablePromise<void> {
+    return $Call.ByID(3914325336, templateFilename, oldName, newName);
 }
 
 /**

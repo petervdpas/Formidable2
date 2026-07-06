@@ -732,6 +732,87 @@ func TestDeleteImageFile_RejectsEmptyName(t *testing.T) {
 	}
 }
 
+func TestImageFileExists_TrueOnlyAfterSave(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if m.ImageFileExists("basic.yaml", "logo.svg") {
+		t.Fatalf("should not exist before save")
+	}
+	if r := m.SaveImageFile("basic.yaml", "logo.svg", []byte("<svg/>")); !r.Success {
+		t.Fatalf("save: %v", r.Error)
+	}
+	if !m.ImageFileExists("basic.yaml", "logo.svg") {
+		t.Errorf("should exist after save")
+	}
+}
+
+func TestImageFileExists_InvalidNameIsFalse(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if m.ImageFileExists("basic.yaml", "../escape.svg") {
+		t.Errorf("traversal name must report absent, not collide")
+	}
+}
+
+func TestRenameImageFile_MovesContent(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	body := []byte("<svg>reactor</svg>")
+	if r := m.SaveImageFile("basic.yaml", "shape-abc.svg", body); !r.Success {
+		t.Fatalf("save: %v", r.Error)
+	}
+	if err := m.RenameImageFile("basic.yaml", "shape-abc.svg", "reactor.svg"); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if m.ImageFileExists("basic.yaml", "shape-abc.svg") {
+		t.Errorf("old name should be gone")
+	}
+	url, err := m.LoadImageFile("basic.yaml", "reactor.svg")
+	if err != nil {
+		t.Fatalf("load new: %v", err)
+	}
+	if url == "" {
+		t.Errorf("renamed file lost its content")
+	}
+}
+
+func TestRenameImageFile_SameNameIsNoOp(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if r := m.SaveImageFile("basic.yaml", "a.svg", []byte("<svg/>")); !r.Success {
+		t.Fatalf("save: %v", r.Error)
+	}
+	if err := m.RenameImageFile("basic.yaml", "a.svg", "a.svg"); err != nil {
+		t.Errorf("same-name rename should be no-op, got %v", err)
+	}
+	if !m.ImageFileExists("basic.yaml", "a.svg") {
+		t.Errorf("no-op rename must not remove the file")
+	}
+}
+
+func TestRenameImageFile_RejectsOccupiedTarget(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	m.SaveImageFile("basic.yaml", "a.svg", []byte("<svg>a</svg>"))
+	m.SaveImageFile("basic.yaml", "b.svg", []byte("<svg>b</svg>"))
+	if err := m.RenameImageFile("basic.yaml", "a.svg", "b.svg"); err == nil {
+		t.Errorf("expected error when target already exists")
+	}
+	if !m.ImageFileExists("basic.yaml", "a.svg") {
+		t.Errorf("failed rename must leave the source intact")
+	}
+}
+
+func TestRenameImageFile_MissingSourceIsError(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	if err := m.RenameImageFile("basic.yaml", "ghost.svg", "x.svg"); err == nil {
+		t.Errorf("expected error when source is missing")
+	}
+}
+
+func TestRenameImageFile_RejectsTraversal(t *testing.T) {
+	m, _, _, _ := newTestStack(t)
+	m.SaveImageFile("basic.yaml", "a.svg", []byte("<svg/>"))
+	if err := m.RenameImageFile("basic.yaml", "a.svg", "../escape.svg"); err == nil {
+		t.Errorf("expected error on traversal target")
+	}
+}
+
 func TestLoadForm_MissingTemplateStillReadsRawData(t *testing.T) {
 	// Even with no template, LoadForm should not blow up - Sanitize
 	// runs with nil fields (everything stays raw).
