@@ -45,6 +45,8 @@
   "workspace.storage.field.image_library": "From library…",
   "workspace.storage.field.image_library.title": "Image library",
   "workspace.storage.field.image_library.empty": "No images in this template's library yet.",
+  "workspace.storage.field.image_library.zoom_in": "Larger thumbnails",
+  "workspace.storage.field.image_library.zoom_out": "Smaller thumbnails",
   "workspace.storage.field.image_rename": "Rename image",
   "workspace.storage.field.image_rename_failed": "Could not rename the image.",
   "workspace.storage.field.loop.collapse_all": "Collapse all items",

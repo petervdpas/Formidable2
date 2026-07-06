@@ -66,6 +66,20 @@ watch(
 function choose(name: string) {
   emit("pick", name);
 }
+
+// Tile zoom: the grid's column min-width (px) driven through a CSS variable, so
+// the user can scale thumbnails up to read a busy diagram or down to scan many.
+const TILE_MIN = 90;
+const TILE_MAX = 340;
+const TILE_STEP = 50;
+const tileSize = ref(120);
+
+function zoomIn() {
+  tileSize.value = Math.min(TILE_MAX, tileSize.value + TILE_STEP);
+}
+function zoomOut() {
+  tileSize.value = Math.max(TILE_MIN, tileSize.value - TILE_STEP);
+}
 </script>
 
 <template>
@@ -78,12 +92,28 @@ function choose(name: string) {
     close-on-esc
     @close="emit('close')"
   >
+    <template #head>
+      <div class="image-library-toolbar">
+        <button
+          type="button" class="btn-ghost-icon"
+          :disabled="tileSize <= TILE_MIN"
+          :title="t('workspace.storage.field.image_library.zoom_out')"
+          @click="zoomOut"
+        ><i class="fa-solid fa-magnifying-glass-minus" aria-hidden="true"></i></button>
+        <button
+          type="button" class="btn-ghost-icon"
+          :disabled="tileSize >= TILE_MAX"
+          :title="t('workspace.storage.field.image_library.zoom_in')"
+          @click="zoomIn"
+        ><i class="fa-solid fa-magnifying-glass-plus" aria-hidden="true"></i></button>
+      </div>
+    </template>
     <div v-if="loading" class="muted small">{{ t('common.loading') }}</div>
     <p v-else-if="loadError" class="form-error small">{{ loadError }}</p>
     <p v-else-if="items.length === 0" class="muted small">
       {{ t('workspace.storage.field.image_library.empty') }}
     </p>
-    <div v-else class="image-library-grid">
+    <div v-else class="image-library-grid" :style="{ '--lib-tile': `${tileSize}px` }">
       <button
         v-for="item in items"
         :key="item.name"

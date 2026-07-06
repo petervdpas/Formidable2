@@ -307,22 +307,24 @@ async function confirmClear() {
       <button
         v-if="!field.readonly"
         type="button"
-        class="tool-btn"
+        class="btn-ghost-icon"
         :disabled="busy"
+        :title="filename
+          ? t('workspace.storage.field.image_replace')
+          : t('workspace.storage.field.image_choose')"
         @click="openPicker"
       >
-        {{ filename
-          ? t("workspace.storage.field.image_replace")
-          : t("workspace.storage.field.image_choose") }}
+        <i class="fa-solid fa-upload" aria-hidden="true"></i>
       </button>
       <button
         v-if="!field.readonly"
         type="button"
-        class="tool-btn"
+        class="btn-ghost-icon"
         :disabled="busy"
+        :title="t('workspace.storage.field.image_library')"
         @click="openLibrary"
       >
-        {{ t("workspace.storage.field.image_library") }}
+        <i class="fa-solid fa-images" aria-hidden="true"></i>
       </button>
       <button
         v-if="filename && !field.readonly"
