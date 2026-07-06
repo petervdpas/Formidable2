@@ -13,6 +13,9 @@ const props = defineProps<{
   open: boolean;
   templateFilename: string;
   current: string;
+  // Optional lowercased extension allow-list (e.g. [".svg"]). When set, only
+  // matching assets are shown, so a shape can browse just its SVGs.
+  extensions?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -36,7 +39,11 @@ async function load() {
   loadError.value = "";
   items.value = [];
   try {
-    const names = await StorageSvc.ListImageFiles(props.templateFilename);
+    let names = await StorageSvc.ListImageFiles(props.templateFilename);
+    if (props.extensions && props.extensions.length > 0) {
+      const allow = props.extensions;
+      names = names.filter((n) => allow.some((ext) => n.toLowerCase().endsWith(ext)));
+    }
     const loaded: LibraryItem[] = [];
     for (const name of names) {
       let url = "";

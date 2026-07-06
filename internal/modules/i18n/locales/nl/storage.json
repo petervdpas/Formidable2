@@ -143,6 +143,7 @@
   "workspace.storage.slide.shape.svg_imported": "SVG geïmporteerd",
   "workspace.storage.slide.shape.svg_invalid": "Geen geldig SVG-bestand.",
   "workspace.storage.slide.shape.svg_name": "Naam",
+  "workspace.storage.slide.shape.from_library": "Uit bibliotheek…",
   "workspace.storage.slide.shape.rename_failed": "Bestand kon niet worden hernoemd.",
   "workspace.storage.slide.shape.tint": "Tint",
   "workspace.storage.slide.shape.tint_original": "Originele kleuren",

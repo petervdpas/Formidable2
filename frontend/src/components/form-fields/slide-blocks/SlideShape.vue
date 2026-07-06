@@ -11,6 +11,7 @@ import { useI18n } from "vue-i18n";
 import { Service as RenderSvc } from "../../../../bindings/github.com/petervdpas/formidable2/internal/modules/render";
 import { Service as StorageSvc } from "../../../../bindings/github.com/petervdpas/formidable2/internal/modules/storage";
 import SlideRenderedPreview from "./SlideRenderedPreview.vue";
+import ImageLibraryDialog from "../../ImageLibraryDialog.vue";
 import { SHAPE_DEFAULT, type SlideBlock } from "../../../types/slide-blocks";
 import { safeFileStem } from "../../../utils/imageName";
 
@@ -137,22 +138,15 @@ async function onFile(e: Event) {
     return;
   }
   // Name after the source file (falling back to the block id), uniquified so a
-  // second block importing a same-named SVG never clobbers the first.
-  const old = cur.value.svgFile;
+  // second block importing a same-named SVG never clobbers the first. The old
+  // reference is left in the images library (a shared asset, not block-owned).
   const stem = safeFileStem(file.name) || `shape-${props.block.id}`;
-  const name = await freeName(`${stem}.svg`, old);
+  const name = await freeName(`${stem}.svg`, cur.value.svgFile);
   const b64 = bytesToBase64(new TextEncoder().encode(clean));
   const result = await StorageSvc.SaveImageFile(templateFilename.value, name, b64);
   if (!result?.success) {
     importError.value = true;
     return;
-  }
-  if (old && old !== name) {
-    try {
-      await StorageSvc.DeleteImageFile(templateFilename.value, old);
-    } catch {
-      // Best-effort: the reference already points at the new file.
-    }
   }
   update({ svgFile: name });
 }
@@ -176,16 +170,20 @@ async function commitName(raw: string) {
   update({ svgFile: target });
 }
 
-async function removeSvg() {
-  const name = cur.value.svgFile;
-  if (name && templateFilename.value) {
-    try {
-      await StorageSvc.DeleteImageFile(templateFilename.value, name);
-    } catch {
-      // Best-effort: clear the reference even if the file delete fails.
-    }
-  }
+// Removing only drops this block's reference; the SVG stays in the images
+// library so other blocks (or a later pick) can still use it.
+function removeSvg() {
   update({ svgFile: "", tint: "" });
+}
+
+// Pick an existing SVG from the template's image library (no upload).
+const libraryOpen = ref(false);
+function openLibrary() {
+  if (templateFilename.value) libraryOpen.value = true;
+}
+function onLibraryPick(name: string) {
+  libraryOpen.value = false;
+  update({ svgFile: name, tint: "" });
 }
 </script>
 
@@ -213,6 +211,9 @@ async function removeSvg() {
           :title="t('workspace.storage.slide.shape.tint_original')" @click="update({ tint: '' })"
         ><i class="fa-solid fa-ban" aria-hidden="true"></i></button>
       </div>
+      <button type="button" class="tool-btn" @click="openLibrary">
+        <i class="fa-solid fa-images" aria-hidden="true"></i> {{ t('workspace.storage.slide.shape.from_library') }}
+      </button>
       <button type="button" class="tool-btn danger" @click="removeSvg">
         <i class="fa-solid fa-trash-can" aria-hidden="true"></i> {{ t('workspace.storage.slide.shape.remove_svg') }}
       </button>
@@ -262,8 +263,19 @@ async function removeSvg() {
       <button type="button" class="tool-btn" @click="pickFile">
         <i class="fa-solid fa-file-import" aria-hidden="true"></i> {{ t('workspace.storage.slide.shape.import_svg') }}
       </button>
+      <button type="button" class="tool-btn" @click="openLibrary">
+        <i class="fa-solid fa-images" aria-hidden="true"></i> {{ t('workspace.storage.slide.shape.from_library') }}
+      </button>
       <div v-if="importError" class="error small">{{ t('workspace.storage.slide.shape.svg_invalid') }}</div>
     </template>
     <input ref="fileInput" type="file" accept=".svg,image/svg+xml" hidden @change="onFile" />
+    <ImageLibraryDialog
+      :open="libraryOpen"
+      :template-filename="templateFilename"
+      :current="cur.svgFile"
+      :extensions="['.svg']"
+      @pick="onLibraryPick"
+      @close="libraryOpen = false"
+    />
   </template>
 </template>

@@ -143,6 +143,7 @@
   "workspace.storage.slide.shape.svg_imported": "SVG imported",
   "workspace.storage.slide.shape.svg_invalid": "Not a valid SVG file.",
   "workspace.storage.slide.shape.svg_name": "Name",
+  "workspace.storage.slide.shape.from_library": "From library…",
   "workspace.storage.slide.shape.rename_failed": "Could not rename the file.",
   "workspace.storage.slide.shape.tint": "Tint",
   "workspace.storage.slide.shape.tint_original": "Original colours",
