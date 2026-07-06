@@ -35,14 +35,21 @@ func newTestManager(t *testing.T) (*Manager, *system.Manager, string) {
 
 func TestIsTrackedRel(t *testing.T) {
 	cases := map[string]bool{
-		"templates":            true,
-		"templates/basic.yaml": true,
-		"storage":              true,
-		"storage/basic/x.json": true,
-		"config/user.json":     false,
-		"notes.md":             false,
-		"":                     false,
-		"templatesx/foo":       false,
+		"templates":                 true,
+		"templates/basic.yaml":      true,
+		"storage":                   true,
+		"storage/basic/x.json":      true,
+		"relations":                 true,
+		"relations/datastroom.yaml": true,
+		"relations/self/x.yaml":     true,
+		"README.md":                 true,
+		".gitignore":                true,
+		"config/user.json":          false,
+		"notes.md":                  false,
+		"":                          false,
+		"templatesx/foo":            false,
+		"relationsx/foo":            false,
+		"docs/README.md":            false,
 	}
 	for in, want := range cases {
 		if got := isTrackedRel(in); got != want {
@@ -185,6 +192,50 @@ func TestRecordRemoteSeen_NoOpOnMissingArgs(t *testing.T) {
 	m.RecordRemoteSeen("git", "")
 	if c := m.ReadCursor(); len(c) != 0 {
 		t.Errorf("invalid args mutated cursor: %+v", c)
+	}
+}
+
+// A relations/*.yaml write must land in the pending set, so PullWithStash
+// stashes it before merging. Regression: previously only templates/ and storage/
+// were tracked, so a dirty relations file was left unstashed and the pull aborted
+// with "local changes would be overwritten".
+func TestRecordOp_TracksRelations(t *testing.T) {
+	m, _, root := newTestManager(t)
+	if err := m.Configure(root, "git"); err != nil {
+		t.Fatal(err)
+	}
+	m.RecordOp("update", filepath.Join(root, "relations/datastroom.yaml"), nil)
+	m.RecordOp("update", filepath.Join(root, "relations/self/x.yaml"), nil)
+
+	if got := pendingOp(m.Pending("git"), "relations/datastroom.yaml"); got != "update" {
+		t.Errorf("relations file not pending: got %q, want update (%+v)", got, m.Pending("git"))
+	}
+	if got := pendingOp(m.Pending("git"), "relations/self/x.yaml"); got != "update" {
+		t.Errorf("relations mirror not pending: got %q, want update", got)
+	}
+}
+
+// The context-root files git commits (README.md, .gitignore) must journal too,
+// so pull-with-stash stashes a locally-dirty one instead of aborting the merge.
+// Matches the gigot managed rootAllowlist.
+func TestRecordOp_TracksRootFiles(t *testing.T) {
+	m, _, root := newTestManager(t)
+	if err := m.Configure(root, "git"); err != nil {
+		t.Fatal(err)
+	}
+	m.RecordOp("update", filepath.Join(root, "README.md"), nil)
+	m.RecordOp("update", filepath.Join(root, ".gitignore"), nil)
+	// A nested README.md is NOT a root file and stays untracked.
+	m.RecordOp("update", filepath.Join(root, "docs/README.md"), nil)
+
+	if got := pendingOp(m.Pending("git"), "README.md"); got != "update" {
+		t.Errorf("README.md not pending: got %q, want update (%+v)", got, m.Pending("git"))
+	}
+	if got := pendingOp(m.Pending("git"), ".gitignore"); got != "update" {
+		t.Errorf(".gitignore not pending: got %q, want update", got)
+	}
+	if pr := m.Pending("git"); pr.Count != 2 {
+		t.Errorf("nested docs/README.md leaked into pending: count = %d, want 2 (%+v)", pr.Count, pr)
 	}
 }
 

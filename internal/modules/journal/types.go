@@ -23,6 +23,7 @@ const (
 
 	templatesDir = "templates"
 	storageDir   = "storage"
+	relationsDir = "relations"
 
 	// findGitMaxDepth caps the upward .git walk so detached mounts can't walk to the FS root forever.
 	findGitMaxDepth = 10
@@ -32,6 +33,16 @@ const (
 var gitignorePatterns = []string{
 	".changes.*",
 	"**/.changes.*",
+}
+
+// rootTrackedFiles are context-root files that travel with the synced repo (git
+// commits them; gigot lists them in its managed allowlist) but sit outside the
+// templates/storage/relations trees. Journaling them keeps git's pull-with-stash
+// able to stash a locally-dirty one before merging. Keep in sync with the gigot
+// rootAllowlist.
+var rootTrackedFiles = map[string]bool{
+	"README.md":  true,
+	".gitignore": true,
 }
 
 // knownBackends validates sync entries from disk.

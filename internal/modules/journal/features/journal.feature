@@ -45,10 +45,27 @@ Feature: Change journal
     And pending for backend "git" includes "templates/basic.yaml" with op "create"
     And pending for backend "git" includes "storage/basic/form-1.meta.json" with op "update"
 
+  Scenario: RecordOp tracks relation paths so pull-with-stash can stash them
+    When I configure the journal with backend "git"
+    And I record op "update" for "relations/datastroom.yaml"
+    And I record op "update" for "relations/self/technisch-ontwerp.yaml"
+    Then pending for backend "git" contains 2 entries
+    And pending for backend "git" includes "relations/datastroom.yaml" with op "update"
+    And pending for backend "git" includes "relations/self/technisch-ontwerp.yaml" with op "update"
+
+  Scenario: RecordOp tracks context-root files so pull-with-stash can stash them
+    When I configure the journal with backend "git"
+    And I record op "update" for "README.md"
+    And I record op "update" for ".gitignore"
+    Then pending for backend "git" contains 2 entries
+    And pending for backend "git" includes "README.md" with op "update"
+    And pending for backend "git" includes ".gitignore" with op "update"
+
   Scenario: RecordOp ignores paths outside tracked dirs
     When I configure the journal with backend "git"
     And I record op "create" for "notes/random.md"
     And I record op "create" for "config/user.json"
+    And I record op "create" for "docs/README.md"
     Then pending for backend "git" contains 0 entries
 
   Scenario: Pending dedupes by path (latest op wins)

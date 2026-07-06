@@ -143,7 +143,9 @@ func (m *Manager) Init() InitResult {
 	return InitResult{Created: true, Entries: len(files)}
 }
 
-// RecordOp appends a file mutation; absPath outside context/templates/storage is a silent no-op.
+// RecordOp appends a file mutation; absPath outside the tracked trees
+// (templates/, storage/, relations/) or root files (README.md, .gitignore) is a
+// silent no-op.
 // In local-only mode (backend "" or "none") the journal is inert.
 func (m *Manager) RecordOp(op, absPath string, meta map[string]any) {
 	m.mu.RLock()
@@ -579,14 +581,21 @@ func (m *Manager) collectTrackedFiles() []string {
 		}
 	}
 
-	// storage/** (recursive)
-	storagePath := filepath.Join(ctx, storageDir)
-	if files, err := m.fs.WalkFiles(storagePath); err == nil {
-		for _, abs := range files {
-			rel, ok := relPosixUnder(ctx, abs)
-			if ok {
-				out = append(out, rel)
+	// storage/** and relations/** (recursive)
+	for _, dir := range []string{storageDir, relationsDir} {
+		if files, err := m.fs.WalkFiles(filepath.Join(ctx, dir)); err == nil {
+			for _, abs := range files {
+				if rel, ok := relPosixUnder(ctx, abs); ok {
+					out = append(out, rel)
+				}
 			}
+		}
+	}
+
+	// Context-root files that travel with the repo (README.md, .gitignore).
+	for name := range rootTrackedFiles {
+		if m.fs.FileExists(filepath.Join(ctx, name)) {
+			out = append(out, name)
 		}
 	}
 
@@ -610,8 +619,11 @@ func (m *Manager) emit(name string, data any) {
 func isTrackedRel(rel string) bool {
 	return rel == templatesDir ||
 		rel == storageDir ||
+		rel == relationsDir ||
+		rootTrackedFiles[rel] ||
 		strings.HasPrefix(rel, templatesDir+"/") ||
-		strings.HasPrefix(rel, storageDir+"/")
+		strings.HasPrefix(rel, storageDir+"/") ||
+		strings.HasPrefix(rel, relationsDir+"/")
 }
 
 // relPosixUnder returns absPath relative to base with forward slashes; ("", false) when it escapes base.
