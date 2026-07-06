@@ -180,6 +180,24 @@ func registerHelpers(tpl *raymond.Template, opts *Options, vars map[string]any, 
 		}
 		return v
 	})
+	// {{list "key" ordered=true}} (or mode="ordered") renders a list field as
+	// Markdown, bulleted by default or numbered when ordered; indented rows nest
+	// either way. Note Handlebars treats a bare `ordered` as a variable, so the
+	// string form must be quoted (`mode="ordered"`); the boolean `ordered=true` is
+	// the idiomatic unquoted flag.
+	tpl.RegisterHelper("list", func(key string, options *raymond.Options) string {
+		ctx := contextMap(options.Ctx())
+		if ctx == nil {
+			return ""
+		}
+		ordered := strings.EqualFold(options.HashStr("mode"), "ordered")
+		if raw := options.HashProp("ordered"); raw != nil {
+			if b, ok := raw.(bool); ok && b {
+				ordered = true
+			}
+		}
+		return emitListMode(ctx[key], ordered)
+	})
 	tpl.RegisterHelper("fieldMeta", func(key, prop string, options *raymond.Options) any {
 		f := findField(options.Ctx(), key)
 		if f == nil {

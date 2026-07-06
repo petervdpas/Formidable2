@@ -63,25 +63,32 @@ func truthy(v any) bool {
 }
 
 // emitList renders a markdown bullet list, one item per line.
-func emitList(v any) string {
+func emitList(v any) string { return emitListMode(v, false) }
+
+// emitListMode renders a list value as Markdown, bulleted (ordered=false) or
+// numbered (ordered=true). Numbers are emitted as "1." on every item; goldmark
+// renumbers each list sequentially. Nested rows indent by the marker width
+// (2 spaces for "- ", 3 for "1. ") so CommonMark nests them under their parent;
+// indent is clamped to prev+1 so a row can't jump levels or orphan-indent.
+func emitListMode(v any, ordered bool) string {
 	arr, ok := v.([]any)
 	if !ok || len(arr) == 0 {
 		return ""
 	}
+	marker, step := "- ", 2
+	if ordered {
+		marker, step = "1. ", 3
+	}
 	out := make([]string, 0, len(arr))
-	prev := -1 // clamps the first row to 0 (no orphan indent)
+	prev := -1
 	for _, item := range arr {
-		// Two spaces per indent level nests the item under the row above it
-		// (CommonMark aligns a sub-item with its parent's content). Indent is
-		// clamped to prev+1 so a row can't jump levels or indent with no parent;
-		// an indent-0 row is a plain string, so a flat list emits as before.
 		ind := template.ListItemIndent(item)
 		if ind > prev+1 {
 			ind = prev + 1
 		}
 		prev = ind
-		prefix := strings.Repeat("  ", ind)
-		out = append(out, prefix+"- "+template.ListItemText(item))
+		prefix := strings.Repeat(" ", step*ind)
+		out = append(out, prefix+marker+template.ListItemText(item))
 	}
 	return strings.Join(out, "\n")
 }

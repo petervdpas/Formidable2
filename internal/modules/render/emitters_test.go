@@ -29,6 +29,23 @@ func TestEmitList_Indented(t *testing.T) {
 	}
 }
 
+func TestEmitListMode_Ordered(t *testing.T) {
+	// Ordered lists emit "1." (goldmark renumbers) and nest with 3-space steps.
+	got := emitListMode([]any{
+		"first",
+		map[string]any{"text": "sub", "indent": float64(1)},
+		"second",
+	}, true)
+	want := "1. first\n   1. sub\n1. second"
+	if got != want {
+		t.Errorf("ordered list = %q, want %q", got, want)
+	}
+	// Unordered is the default 2-space "- " form.
+	if got := emitListMode([]any{"a"}, false); got != "- a" {
+		t.Errorf("unordered list = %q, want %q", got, "- a")
+	}
+}
+
 func TestEmitList_ClampsOrphanIndent(t *testing.T) {
 	// A first row can't be indented, and a row can't jump levels: both clamp to
 	// prev+1 so the rendered nesting is always valid.
