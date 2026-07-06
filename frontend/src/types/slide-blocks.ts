@@ -26,6 +26,7 @@ export interface SlideBlock {
   style?: Record<string, string>; // per-element inline CSS (font-size, color, …)
   shadow?: string; // shadow preset (soft/medium/strong); "" / undefined = none
   shadowDir?: string; // shadow direction; "" / undefined = down
+  ordered?: boolean; // list block: numbered (1, a, …) vs bulleted
 }
 
 export interface SlideDoc {

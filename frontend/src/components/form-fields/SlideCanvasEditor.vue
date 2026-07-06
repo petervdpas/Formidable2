@@ -486,7 +486,7 @@ function startResize(b: SlideBlock, e: PointerEvent) {
             <div
               v-for="(b, i) in blocks" :key="b.id"
               class="slide-block-box"
-              :class="[`slide-block-${b.kind}`, b.shadow ? `slide-shadow-${b.shadow}` : '', b.shadow && b.shadowDir ? `slide-shadow-dir-${b.shadowDir}` : '', { selected: b.id === selectedId, editing: b.id === editingId }]"
+              :class="[`slide-block-${b.kind}`, b.shadow ? `slide-shadow-${b.shadow}` : '', b.shadow && b.shadowDir ? `slide-shadow-dir-${b.shadowDir}` : '', b.ordered ? 'slide-list-ordered' : '', { selected: b.id === selectedId, editing: b.id === editingId }]"
               :style="blockStyle(b, i)"
               @pointerdown="startDrag(b, $event)"
               @dblclick="startEdit(b)"

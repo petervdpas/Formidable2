@@ -192,6 +192,9 @@ func renderSlide(v any, f *template.Field, opts *Options) string {
 	for i, b := range doc.Blocks {
 		inner, _ := RenderHTML(emitSlideBlock(b.Kind, b.Content, b.Lang, opts))
 		cls := "slide-block slide-block-" + b.Kind
+		if b.Ordered {
+			cls += " slide-list-ordered"
+		}
 		if sc := template.SlideShadowClass(b.Shadow); sc != "" {
 			cls += " " + sc
 			if dc := template.SlideShadowDirClass(b.ShadowDir); dc != "" {

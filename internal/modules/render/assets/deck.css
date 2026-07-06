@@ -170,6 +170,11 @@
     mask-size: contain;
 }
 
+/* A numbered slide list matches the prose renderer: decimal at the top level,
+   lower-alpha nested (1, then a). Unset stays bulleted. */
+.reveal .slide-block-list.slide-list-ordered .slide-fit ul { list-style-type: decimal; }
+.reveal .slide-block-list.slide-list-ordered .slide-fit ul ul { list-style-type: lower-alpha; }
+
 /* Per-block shadow presets (shared with the editor, slide-editor.css). The block
    kind decides the flavour: image/shape/mermaid/math -> drop-shadow (alpha),
    table/code/video/embed -> box-shadow (card), text/quote/list -> text-shadow. */

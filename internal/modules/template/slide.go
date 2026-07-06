@@ -38,6 +38,7 @@ type SlideBlock struct {
 	Style     map[string]string `json:"style,omitempty"`     // per-element CSS (font-size, color, text-align, …)
 	Shadow    string            `json:"shadow,omitempty"`    // shadow preset (soft/medium/strong); "" = none
 	ShadowDir string            `json:"shadowDir,omitempty"` // shadow direction; "" = down
+	Ordered   bool              `json:"ordered,omitempty"`   // list block: numbered (1, a, …) vs bulleted
 }
 
 // styleKeyOrder is the deterministic order CSS declarations are emitted in, so a
