@@ -45,6 +45,13 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          # GitHub's hosted ubuntu runners ship Microsoft apt repos
+          # (packages.microsoft.com) whose InRelease signing periodically
+          # breaks server-side (NOSPLIT / "no longer signed"), failing the
+          # whole apt-get update. The GTK/WebKit build deps come from the
+          # Ubuntu archive, not Microsoft, so drop any source pointing at
+          # packages.microsoft.com before updating.
+          grep -rlE 'packages\.microsoft\.com' /etc/apt/sources.list.d/ 2>/dev/null | sudo xargs -r rm -f || true
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
@@ -262,6 +269,13 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          # GitHub's hosted ubuntu runners ship Microsoft apt repos
+          # (packages.microsoft.com) whose InRelease signing periodically
+          # breaks server-side (NOSPLIT / "no longer signed"), failing the
+          # whole apt-get update. The GTK/WebKit build deps come from the
+          # Ubuntu archive, not Microsoft, so drop any source pointing at
+          # packages.microsoft.com before updating.
+          grep -rlE 'packages\.microsoft\.com' /etc/apt/sources.list.d/ 2>/dev/null | sudo xargs -r rm -f || true
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
@@ -376,6 +390,13 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          # GitHub's hosted ubuntu runners ship Microsoft apt repos
+          # (packages.microsoft.com) whose InRelease signing periodically
+          # breaks server-side (NOSPLIT / "no longer signed"), failing the
+          # whole apt-get update. The GTK/WebKit build deps come from the
+          # Ubuntu archive, not Microsoft, so drop any source pointing at
+          # packages.microsoft.com before updating.
+          grep -rlE 'packages\.microsoft\.com' /etc/apt/sources.list.d/ 2>/dev/null | sudo xargs -r rm -f || true
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
