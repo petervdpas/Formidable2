@@ -156,6 +156,10 @@ var landingHTML = `<!doctype html>
     <p>Drop a Formidable export (<kbd>.zip</kbd>) here to view it offline.</p>
     <p class="hint">No bundle is open.</p>
   </div>
+  <!-- Wails serves its runtime at /wails/runtime.js but does not auto-inject
+       it. Native file drops are dispatched through window._wails, so the page
+       must load the runtime for drop-to-open to work. -->
+  <script type="module" src="/wails/runtime.js"></script>
 </body>
 </html>
 `
