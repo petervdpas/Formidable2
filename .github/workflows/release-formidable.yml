@@ -207,6 +207,18 @@ jobs:
           Copy-Item "bin/Formidable-amd64-installer.exe" "dist/Formidable-windows-amd64-installer.exe"
           Compress-Archive -Path "bin/Formidable.exe" -DestinationPath "dist/Formidable-windows-amd64.zip"
 
+      - name: Build viewer (portable)
+        shell: pwsh
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          go build -tags production -trimpath -buildvcs=false `
+            -ldflags="-s -w -buildid= -H windowsgui" `
+            -o bin/FormidableViewer.exe ./cmd/formidable-viewer
+          Compress-Archive -Path "bin/FormidableViewer.exe" -DestinationPath "dist/FormidableViewer-windows-amd64.zip"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -306,6 +318,21 @@ jobs:
           # produces Formidable_*.deb, nfpm yaml's lowercase produces formidable_*.deb).
           mv bin/*.deb dist/Formidable-linux-amd64.deb
 
+      - name: Build viewer (portable)
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+        run: |
+          go build -tags production -trimpath -buildvcs=false \
+            -ldflags="-s -w -buildid=" \
+            -o bin/FormidableViewer ./cmd/formidable-viewer
+          STAGE="$(mktemp -d)/FormidableViewer-linux-amd64"
+          mkdir -p "$STAGE"
+          cp bin/FormidableViewer "$STAGE/"
+          [ -f README.md ] && cp README.md "$STAGE/"
+          tar -C "$(dirname "$STAGE")" -czf dist/FormidableViewer-linux-amd64.tar.gz "$(basename "$STAGE")"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -400,6 +427,21 @@ jobs:
           [ -f README.md ] && cp README.md "$STAGE/"
           tar -C "$(dirname "$STAGE")" -czf dist/Formidable-linux-arm64.tar.gz "$(basename "$STAGE")"
           mv bin/*.deb dist/Formidable-linux-arm64.deb
+
+      - name: Build viewer (portable)
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          CGO_ENABLED: "1"
+        run: |
+          go build -tags production -trimpath -buildvcs=false \
+            -ldflags="-s -w -buildid=" \
+            -o bin/FormidableViewer ./cmd/formidable-viewer
+          STAGE="$(mktemp -d)/FormidableViewer-linux-arm64"
+          mkdir -p "$STAGE"
+          cp bin/FormidableViewer "$STAGE/"
+          [ -f README.md ] && cp README.md "$STAGE/"
+          tar -C "$(dirname "$STAGE")" -czf dist/FormidableViewer-linux-arm64.tar.gz "$(basename "$STAGE")"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -574,6 +616,33 @@ jobs:
           mv bin/Formidable "$APP/Contents/MacOS/"
           cp build/darwin/Info.plist "$APP/Contents/"
           codesign --force --deep --sign - "$APP"
+
+      - name: Build viewer (portable)
+        env:
+          CGO_ENABLED: "1"
+          MACOSX_DEPLOYMENT_TARGET: "12.0"
+          CGO_CFLAGS: "-mmacosx-version-min=12.0"
+          CGO_LDFLAGS: "-mmacosx-version-min=12.0"
+        run: |
+          mkdir -p dist
+          GOOS=darwin GOARCH=amd64 \
+            go build -tags production -trimpath -buildvcs=false \
+              -ldflags="-s -w -buildid=" \
+              -o bin/FormidableViewer-amd64 ./cmd/formidable-viewer
+          GOOS=darwin GOARCH=arm64 \
+            go build -tags production -trimpath -buildvcs=false \
+              -ldflags="-s -w -buildid=" \
+              -o bin/FormidableViewer-arm64 ./cmd/formidable-viewer
+          lipo -create -output bin/FormidableViewer bin/FormidableViewer-amd64 bin/FormidableViewer-arm64
+          rm bin/FormidableViewer-amd64 bin/FormidableViewer-arm64
+          VAPP="bin/Formidable Viewer.app"
+          mkdir -p "$VAPP/Contents/MacOS" "$VAPP/Contents/Resources"
+          cp build/darwin/icons.icns "$VAPP/Contents/Resources/"
+          mv bin/FormidableViewer "$VAPP/Contents/MacOS/"
+          cp build/darwin/Info.viewer.plist "$VAPP/Contents/Info.plist"
+          codesign --force --deep --sign - "$VAPP"
+          ( cd bin && ditto -c -k --keepParent "Formidable Viewer.app" "$GITHUB_WORKSPACE/dist/FormidableViewer-macos-universal.zip" )
+          rm -rf "$VAPP"
 
       - name: Free disk before dmg
         run: |

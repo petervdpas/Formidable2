@@ -57,6 +57,17 @@ tasks:
     cmds:
       - task: common:setup:docker
 
+  viewer:build:
+    summary: Builds the standalone Formidable Viewer binary for the host platform
+    cmds:
+      - go build -tags production -trimpath -o "{{.BIN_DIR}}/formidable-viewer" ./cmd/formidable-viewer
+
+  viewer:run:
+    summary: 'Builds and runs the viewer (open a bundle: task viewer:run -- /path/to/export.zip)'
+    cmds:
+      - task: viewer:build
+      - "{{.BIN_DIR}}/formidable-viewer {{.CLI_ARGS}}"
+
   build:server:
     summary: Builds the application in server mode (no GUI, HTTP server only)
     cmds:
