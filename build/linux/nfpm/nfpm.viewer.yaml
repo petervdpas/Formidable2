@@ -1,0 +1,37 @@
+name: "formidable-viewer"
+arch: ${GOARCH}
+platform: "linux"
+version: "1.0.0"
+section: "default"
+priority: "extra"
+maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
+description: "Offline viewer for Formidable exports"
+vendor: "Peter van de Pas"
+homepage: "https://formidable.tools"
+license: "MIT"
+release: "1"
+
+contents:
+  - src: "./bin/FormidableViewer"
+    dst: "/usr/local/bin/FormidableViewer"
+  - src: "./build/linux/FormidableViewer.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/FormidableViewer.png"
+  - src: "./build/linux/FormidableViewer.desktop"
+    dst: "/usr/share/applications/FormidableViewer.desktop"
+
+depends:
+  - libgtk-3-0
+  - libwebkit2gtk-4.1-0
+
+overrides:
+  rpm:
+    depends:
+      - gtk3
+      - webkit2gtk4.1
+  archlinux:
+    depends:
+      - gtk3
+      - webkit2gtk-4.1
+
+scripts:
+  postinstall: "./build/linux/nfpm/scripts/postinstall.sh"

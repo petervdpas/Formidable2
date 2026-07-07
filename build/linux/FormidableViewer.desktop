@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Formidable Viewer
+Comment=Offline viewer for Formidable exports
+Exec=FormidableViewer %f
+Icon=FormidableViewer
+Categories=Utility;Viewer;
+Terminal=false
+Keywords=formidable;viewer;offline;
+Version=1.0
+StartupNotify=false

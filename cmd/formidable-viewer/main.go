@@ -12,6 +12,7 @@
 package main
 
 import (
+	_ "embed"
 	"log"
 	"os"
 
@@ -20,6 +21,9 @@ import (
 )
 
 const appName = "Formidable Viewer"
+
+//go:embed appicon.png
+var appIcon []byte
 
 func windowTitle(srv *viewer.Server) string {
 	if b := srv.Current(); b != nil {
@@ -44,6 +48,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        appName,
 		Description: "Offline viewer for Formidable exports",
+		Icon:        appIcon,
 		Assets:      application.AssetOptions{Handler: srv},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
@@ -57,6 +62,7 @@ func main() {
 		MinWidth:         720,
 		MinHeight:        560,
 		BackgroundColour: application.NewRGB(27, 30, 36),
+		Linux:            application.LinuxWindow{Icon: appIcon},
 		URL:              "/",
 	})
 

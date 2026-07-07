@@ -13,6 +13,8 @@ build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 # __VERSION__ marker) by both Actions and `wails3 task windows:render:resources`.
 build/windows/wails.exe.manifest
 build/windows/info.json
+build/windows/wails.viewer.manifest
+build/windows/info.viewer.json
 
 # Runtime user data: lives under context_folder which defaults to ./Examples
 # in dev. The Examples/ tree is dev-only sample data and never tracked.

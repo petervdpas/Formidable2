@@ -214,17 +214,43 @@ jobs:
           Copy-Item "bin/Formidable-amd64-installer.exe" "dist/Formidable-windows-amd64-installer.exe"
           Compress-Archive -Path "bin/Formidable.exe" -DestinationPath "dist/Formidable-windows-amd64.zip"
 
-      - name: Build viewer (portable)
+      - name: Build viewer + installer (Windows)
         shell: pwsh
-        env:
-          GOOS: windows
-          GOARCH: amd64
-          CGO_ENABLED: "0"
         run: |
+          $ver = "${{ steps.version.outputs.VERSION }}"
+          if ($ver -match '^\d+(\.\d+)*$') { $parts = $ver -split '\.' } else { $parts = @('0','0','0') }
+          while ($parts.Count -lt 3) { $parts += '0' }
+          $ver3 = ($parts[0..2]) -join '.'
+
+          # Render the viewer's PE resource templates at the release version.
+          (Get-Content "build/windows/wails.viewer.manifest.tmpl" -Raw) -replace '__VERSION__', $ver3 |
+            Set-Content "build/windows/wails.viewer.manifest" -NoNewline
+          (Get-Content "build/windows/info.viewer.json.tmpl" -Raw) -replace '__VERSION__', $ver3 |
+            Set-Content "build/windows/info.viewer.json" -NoNewline
+
+          # Embed the feather icon + version resource into the viewer exe via a
+          # .syso placed in the viewer's main package dir.
+          Push-Location build
+          wails3 generate syso -arch amd64 -icon windows/icon.viewer.ico -manifest windows/wails.viewer.manifest -info windows/info.viewer.json -out ../cmd/formidable-viewer/wails_windows_amd64.syso
+          Pop-Location
+
+          $env:GOOS = "windows"; $env:GOARCH = "amd64"; $env:CGO_ENABLED = "0"
           go build -tags production -trimpath -buildvcs=false `
             -ldflags="-s -w -buildid= -H windowsgui" `
             -o bin/FormidableViewer.exe ./cmd/formidable-viewer
+          Remove-Item cmd/formidable-viewer/*.syso
+
+          # Portable zip.
           Compress-Archive -Path "bin/FormidableViewer.exe" -DestinationPath "dist/FormidableViewer-windows-amd64.zip"
+
+          # NSIS installer. The WebView2 bootstrapper was already generated into
+          # build/windows/nsis by the app's installer step above.
+          Push-Location build/windows/nsis
+          makensis "/DINFO_PRODUCTVERSION=$ver3" `
+            "/DARG_WAILS_AMD64_BINARY=..\..\..\bin\FormidableViewer.exe" `
+            project.viewer.nsi
+          Pop-Location
+          Copy-Item "bin/FormidableViewer-amd64-installer.exe" "dist/FormidableViewer-windows-amd64-installer.exe"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -332,7 +358,7 @@ jobs:
           # produces Formidable_*.deb, nfpm yaml's lowercase produces formidable_*.deb).
           mv bin/*.deb dist/Formidable-linux-amd64.deb
 
-      - name: Build viewer (portable)
+      - name: Build viewer + installer (Debian)
         env:
           GOOS: linux
           GOARCH: amd64
@@ -346,6 +372,10 @@ jobs:
           cp bin/FormidableViewer "$STAGE/"
           [ -f README.md ] && cp README.md "$STAGE/"
           tar -C "$(dirname "$STAGE")" -czf dist/FormidableViewer-linux-amd64.tar.gz "$(basename "$STAGE")"
+          # .deb installer.
+          sed -i "s/^version:.*/version: \"${{ steps.version.outputs.VERSION }}\"/" build/linux/nfpm/nfpm.viewer.yaml
+          GOARCH=amd64 wails3 tool package -name "FormidableViewer" -format deb -config ./build/linux/nfpm/nfpm.viewer.yaml -out bin
+          mv bin/*.deb dist/FormidableViewer-linux-amd64.deb
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -449,7 +479,7 @@ jobs:
           tar -C "$(dirname "$STAGE")" -czf dist/Formidable-linux-arm64.tar.gz "$(basename "$STAGE")"
           mv bin/*.deb dist/Formidable-linux-arm64.deb
 
-      - name: Build viewer (portable)
+      - name: Build viewer + installer (Raspberry Pi)
         env:
           GOOS: linux
           GOARCH: arm64
@@ -463,6 +493,10 @@ jobs:
           cp bin/FormidableViewer "$STAGE/"
           [ -f README.md ] && cp README.md "$STAGE/"
           tar -C "$(dirname "$STAGE")" -czf dist/FormidableViewer-linux-arm64.tar.gz "$(basename "$STAGE")"
+          # .deb installer.
+          sed -i "s/^version:.*/version: \"${{ steps.version.outputs.VERSION }}\"/" build/linux/nfpm/nfpm.viewer.yaml
+          GOARCH=arm64 wails3 tool package -name "FormidableViewer" -format deb -config ./build/linux/nfpm/nfpm.viewer.yaml -out bin
+          mv bin/*.deb dist/FormidableViewer-linux-arm64.deb
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -535,6 +569,15 @@ jobs:
 
           mkdir -p dist
           mv bin/*.rpm dist/Formidable-linux-amd64.rpm
+
+          # Standalone viewer rpm.
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
+            go build -tags production -trimpath -buildvcs=false \
+              -ldflags="-s -w -buildid=" \
+              -o bin/FormidableViewer ./cmd/formidable-viewer
+          sed -i "s/^version:.*/version: \"${VERSION}\"/" build/linux/nfpm/nfpm.viewer.yaml
+          GOARCH=amd64 wails3 tool package -name "FormidableViewer" -format rpm -config ./build/linux/nfpm/nfpm.viewer.yaml -out bin
+          mv bin/*.rpm dist/FormidableViewer-linux-amd64.rpm
           BUILDEOF
 
           docker run --rm \
@@ -638,7 +681,7 @@ jobs:
           cp build/darwin/Info.plist "$APP/Contents/"
           codesign --force --deep --sign - "$APP"
 
-      - name: Build viewer (portable)
+      - name: Build viewer + installer (macOS)
         env:
           CGO_ENABLED: "1"
           MACOSX_DEPLOYMENT_TARGET: "12.0"
@@ -656,14 +699,38 @@ jobs:
               -o bin/FormidableViewer-arm64 ./cmd/formidable-viewer
           lipo -create -output bin/FormidableViewer bin/FormidableViewer-amd64 bin/FormidableViewer-arm64
           rm bin/FormidableViewer-amd64 bin/FormidableViewer-arm64
+
+          # Build the feather .icns from the committed master PNG using the
+          # native toolchain (sips + iconutil), so the dock icon is real.
+          ICONSET="$(mktemp -d)/FormidableViewer.iconset"
+          mkdir -p "$ICONSET"
+          for s in 16 32 128 256 512; do
+            sips -z $s $s build/darwin/icon.viewer.png --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+            d=$((s * 2))
+            sips -z $d $d build/darwin/icon.viewer.png --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+          done
+          iconutil -c icns "$ICONSET" -o bin/icons.viewer.icns
+
           VAPP="bin/Formidable Viewer.app"
           mkdir -p "$VAPP/Contents/MacOS" "$VAPP/Contents/Resources"
-          cp build/darwin/icons.icns "$VAPP/Contents/Resources/"
+          cp bin/icons.viewer.icns "$VAPP/Contents/Resources/icons.icns"
           mv bin/FormidableViewer "$VAPP/Contents/MacOS/"
           cp build/darwin/Info.viewer.plist "$VAPP/Contents/Info.plist"
           codesign --force --deep --sign - "$VAPP"
+
+          # Portable zip.
           ( cd bin && ditto -c -k --keepParent "Formidable Viewer.app" "$GITHUB_WORKSPACE/dist/FormidableViewer-macos-universal.zip" )
-          rm -rf "$VAPP"
+
+          # .dmg installer (drag to Applications).
+          mkdir -p bin/viewer-dmg
+          cp -R "$VAPP" bin/viewer-dmg/
+          ln -sf /Applications bin/viewer-dmg/Applications
+          hdiutil create \
+            -volname "Formidable Viewer" \
+            -srcfolder bin/viewer-dmg \
+            -ov -format UDZO \
+            dist/FormidableViewer-macos-universal.dmg
+          rm -rf bin/viewer-dmg "$VAPP"
 
       - name: Free disk before dmg
         run: |
