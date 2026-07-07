@@ -1,6 +1,7 @@
 package viewer
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"testing"
@@ -116,6 +117,33 @@ func TestServiceRecentsFlagsMissing(t *testing.T) {
 	}
 	if byPath["/no/such/bundle.zip"] {
 		t.Errorf("bogus bundle flagged as existing")
+	}
+}
+
+func TestServiceOpenBytes(t *testing.T) {
+	s := newService(t)
+	swapped := 0
+	s.SetSwapHook(func() { swapped++ })
+
+	zb := makeZip(t, map[string]string{"index.html": "<h1>DROPPED</h1>"})
+	b64 := base64.StdEncoding.EncodeToString(zb)
+
+	info, err := s.OpenBytes("dropped.zip", b64)
+	if err != nil {
+		t.Fatalf("OpenBytes: %v", err)
+	}
+	if !info.Loaded || info.Name != "dropped.zip" {
+		t.Fatalf("info = %+v, want loaded dropped.zip", info)
+	}
+	if swapped != 1 {
+		t.Fatalf("swap hook fired %d times, want 1", swapped)
+	}
+}
+
+func TestServiceOpenBytesBadBase64(t *testing.T) {
+	s := newService(t)
+	if _, err := s.OpenBytes("x.zip", "!!!not base64!!!"); err == nil {
+		t.Fatal("OpenBytes with invalid base64 = nil error, want failure")
 	}
 }
 

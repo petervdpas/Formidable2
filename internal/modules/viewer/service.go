@@ -1,6 +1,7 @@
 package viewer
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -152,6 +153,27 @@ func (s *Service) OpenPath(path string) (BundleInfo, error) {
 		_ = prev.Close()
 	}
 	_ = s.store.AddRecent(path)
+	if s.onSwap != nil {
+		s.onSwap()
+	}
+	return s.Current(), nil
+}
+
+// OpenBytes opens a bundle from raw zip bytes (base64-encoded), for the shell's
+// HTML5 file drop, where the webview exposes file contents but not a path. No
+// recents entry is recorded because there is no path to reopen later.
+func (s *Service) OpenBytes(name string, dataB64 string) (BundleInfo, error) {
+	data, err := base64.StdEncoding.DecodeString(dataB64)
+	if err != nil {
+		return s.Current(), err
+	}
+	b, err := BundleFromBytes(data, name)
+	if err != nil {
+		return s.Current(), err
+	}
+	if prev := s.server.SetBundle(b); prev != nil {
+		_ = prev.Close()
+	}
 	if s.onSwap != nil {
 		s.onSwap()
 	}

@@ -122,19 +122,22 @@ func main() {
 	})
 	svc.SetSwapHook(func() {
 		win.SetTitle(windowTitle(bundleServer))
-		app.Event.Emit(viewer.BundleChangedEventName, nil)
+		// Poke the Vue shell to re-read the current bundle and switch its view.
+		// A direct call is reliable where the custom event was not, and avoids a
+		// full webview reload (which lands on a raw 301 page).
+		win.ExecJS("window.__viewerRefresh && window.__viewerRefresh()")
 	})
 
 	// Native drop: load the first .zip through the service so recents record
 	// and the swap hook fires (the shell reacts to the event).
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
-		files := e.Context().DroppedFiles()
-		log.Printf("%s: files dropped: %v", appName, files)
-		for _, f := range files {
+		for _, f := range e.Context().DroppedFiles() {
 			if strings.EqualFold(filepath.Ext(f), ".zip") {
 				if _, err := svc.OpenPath(f); err != nil {
 					log.Printf("%s: cannot open %q: %v", appName, f, err)
 				}
+				// OpenPath fires the swap hook, which pokes the Vue shell to
+				// switch its view. No reload needed.
 				return
 			}
 		}

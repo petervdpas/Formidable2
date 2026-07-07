@@ -3,7 +3,6 @@ import { ref } from "vue";
 // Shared, visible diagnostics so a failing bound-service call or event never
 // fails silently (the viewer has no devtools by default).
 export const lastError = ref<string>("");
-export const lastEvent = ref<string>("");
 
 // Live bundle zoom, shared so a Settings change rescales the iframe instantly.
 export const bundleZoom = ref<number>(1);
@@ -17,8 +16,4 @@ export function reportError(e: unknown): void {
 
 export function clearError(): void {
   lastError.value = "";
-}
-
-export function noteEvent(name: string): void {
-  lastEvent.value = name;
 }

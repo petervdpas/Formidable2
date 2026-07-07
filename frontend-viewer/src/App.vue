@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from "vue";
 import { Events } from "@wailsio/runtime";
 import { api, BundleChangedEvent, type BundleInfo } from "./api";
-import { lastError, lastEvent, bundleZoom, clearError, noteEvent, reportError } from "./state";
+import { lastError, bundleZoom, clearError, reportError } from "./state";
 import { applyTheme } from "./theme";
 import HomeScreen from "./components/HomeScreen.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
@@ -17,6 +17,10 @@ const frameKey = ref(0);
 const bundleUrl = ref("/bundle/");
 // Bumped to remount the home screen so its recents reload (e.g. after clear).
 const homeKey = ref(0);
+// Drag overlay so a file dropped anywhere (including over the iframe) lands on
+// the shell instead of the cross-origin bundle frame.
+const dragging = ref(false);
+let dragDepth = 0;
 
 async function refresh(): Promise<void> {
   try {
@@ -27,6 +31,49 @@ async function refresh(): Promise<void> {
     }
   } catch (e) {
     reportError(e);
+  }
+}
+
+function bufToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function hasFiles(e: DragEvent): boolean {
+  return Array.from(e.dataTransfer?.types ?? []).includes("Files");
+}
+
+function onDragEnter(e: DragEvent): void {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  dragDepth++;
+  dragging.value = true;
+}
+function onDragOver(e: DragEvent): void {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); // required to allow a drop
+}
+function onDragLeave(): void {
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dragging.value = false;
+}
+async function onDrop(e: DragEvent): Promise<void> {
+  e.preventDefault();
+  dragDepth = 0;
+  dragging.value = false;
+  const file = e.dataTransfer?.files?.[0];
+  if (!file || !file.name.toLowerCase().endsWith(".zip")) return;
+  try {
+    const b64 = bufToBase64(await file.arrayBuffer());
+    const info = await api.openBytes(file.name, b64);
+    if (info.loaded) await refresh();
+  } catch (err) {
+    reportError(err);
   }
 }
 
@@ -41,12 +88,19 @@ onMounted(async () => {
     reportError(e);
   }
   await refresh();
+  // Let the backend trigger the view switch after a native file drop directly,
+  // so it flows through Vue's own refresh (not a full webview reload).
+  (window as unknown as { __viewerRefresh?: () => void }).__viewerRefresh = () => {
+    void refresh();
+  };
   off = Events.On(BundleChangedEvent, () => {
-    noteEvent(`${BundleChangedEvent} @ ${new Date().toLocaleTimeString()}`);
     void refresh();
   });
 });
-onBeforeUnmount(() => off?.());
+onBeforeUnmount(() => {
+  off?.();
+  delete (window as unknown as { __viewerRefresh?: () => void }).__viewerRefresh;
+});
 
 function goHome(): void {
   view.value = "home";
@@ -61,7 +115,13 @@ function closeSettings(): void {
 </script>
 
 <template>
-  <div class="shell">
+  <div
+    class="shell"
+    @dragenter="onDragEnter"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
+  >
     <div v-if="lastError" class="err-banner">
       <span class="err-text">{{ lastError }}</span>
       <button class="err-close" @click="clearError">×</button>
@@ -94,8 +154,10 @@ function closeSettings(): void {
       </div>
     </div>
 
-    <SettingsDialog v-if="showSettings" @close="closeSettings" />
+    <div v-if="dragging" class="drop-overlay">
+      {{ $t("home.drop_hint") }}
+    </div>
 
-    <div v-if="lastEvent" class="debug-line">evt: {{ lastEvent }}</div>
+    <SettingsDialog v-if="showSettings" @close="closeSettings" />
   </div>
 </template>

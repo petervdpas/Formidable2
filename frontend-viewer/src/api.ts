@@ -46,6 +46,7 @@ export const api = {
   recents: () => call<RecentInfo[]>("Recents"),
   openDialog: () => call<BundleInfo>("OpenDialog"),
   openPath: (p: string) => call<BundleInfo>("OpenPath", p),
+  openBytes: (name: string, dataB64: string) => call<BundleInfo>("OpenBytes", name, dataB64),
   current: () => call<BundleInfo>("Current"),
   serverStatus: () => call<ServerStatus>("ServerStatus"),
   bundleURL: () => call<string>("BundleURL"),
