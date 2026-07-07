@@ -1,6 +1,7 @@
 package viewer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -18,6 +19,11 @@ type RecentInfo struct {
 	Exists bool   `json:"exists"` // file still present on disk
 }
 
+// BundleChangedEventName is emitted from the composition root whenever the open
+// bundle changes; the Vue shell listens for it to refresh. Must stay in sync
+// with the frontend's BundleChangedEvent constant.
+const BundleChangedEventName = "viewer:bundle-changed"
+
 // ServerStatus reflects the optional LAN HTTP server.
 type ServerStatus struct {
 	Running bool     `json:"running"`
@@ -33,6 +39,7 @@ type Service struct {
 	store  *ConfigStore
 	server *Server
 	http   *HTTPServer
+	frame  *HTTPServer            // always-on loopback server the iframe loads from
 	open   func() (string, error) // native open-file dialog; "" == cancelled
 	onSwap func()                 // called after a bundle swaps
 }
@@ -48,6 +55,23 @@ func (s *Service) SetOpenFunc(f func() (string, error)) { s.open = f }
 
 // SetSwapHook injects the after-swap callback (retitle + reload the webview).
 func (s *Service) SetSwapHook(f func()) { s.onSwap = f }
+
+// SetFrameServer wires the loopback server the shell's iframe loads the bundle
+// from. Serving over a real http:// origin avoids the WebKitGTK limitation
+// where the app's custom URI scheme will not render inside a sub-frame.
+func (s *Service) SetFrameServer(h *HTTPServer) { s.frame = h }
+
+// BundleURL is the URL the shell points its iframe at. It is the loopback frame
+// server's address, falling back to the in-app /bundle/ mount if that server is
+// not running.
+func (s *Service) BundleURL() string {
+	if s.frame != nil {
+		if p := s.frame.Port(); p != 0 {
+			return fmt.Sprintf("http://127.0.0.1:%d/", p)
+		}
+	}
+	return "/bundle/"
+}
 
 // GetConfig returns the persisted config.
 func (s *Service) GetConfig() Config { return s.store.Load() }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -31,11 +32,17 @@ func NewHTTPServer(handler http.Handler) *HTTPServer {
 // background. If already running it is restarted on the new port, so callers
 // can treat Start as "(re)bind here". A port of 0 binds an ephemeral port.
 func (s *HTTPServer) Start(port int) error {
+	return s.StartOn("", port)
+}
+
+// StartOn binds host:port (host "" means all interfaces; "127.0.0.1" keeps it
+// loopback-only) and serves in the background. Restarts if already running.
+func (s *HTTPServer) StartOn(host string, port int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.stopLocked()
 
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	ln, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 	if err != nil {
 		return err
 	}

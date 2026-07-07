@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Formidable Viewer</title>
+    <!-- The Wails runtime <script> is injected at build time by the
+         viewer:wails-runtime vite plugin (see vite.config.ts), so Rollup does
+         not try to bundle the runtime-served /wails/runtime.js. -->
+  </head>
+  <body data-file-drop-target>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

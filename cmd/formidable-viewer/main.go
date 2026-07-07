@@ -1,23 +1,27 @@
-// Command formidable-viewer is the standalone Formidable Viewer: a small
-// Wails app that opens a Formidable offline export (.zip) and renders it in a
-// native window, straight from the archive with no unpacking and no running
-// Formidable instance.
+// Command formidable-viewer is the standalone Formidable Viewer: a small Wails
+// app that opens a Formidable offline export (.zip) and renders it in a native
+// window, straight from the archive with no unpacking and no running Formidable
+// instance.
 //
-// It ships and installs separately from the main Formidable app. Its only job
-// is to serve a bundle's already-rendered pages to a webview, so it carries no
-// Vue frontend of its own: the bundle IS the frontend.
-//
-// A bundle opens two ways: a path passed as the first argument (file
-// association / "open with"), or dropping a .zip onto the window.
+// It ships and installs separately from the main Formidable app. A small Vue
+// shell provides the home screen and settings; the open bundle is served under
+// /bundle/ and shown in an iframe. A bundle opens by dropping a .zip onto the
+// window, from the shell's Open button, or as the first argument.
 package main
 
 import (
 	_ "embed"
+	"io"
+	"io/fs"
 	"log"
+	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	viewerui "github.com/petervdpas/formidable2/frontend-viewer"
+	"github.com/petervdpas/formidable2/internal/modules/system"
 	"github.com/petervdpas/formidable2/internal/modules/viewer"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -36,30 +40,60 @@ func windowTitle(srv *viewer.Server) string {
 }
 
 func main() {
-	srv := viewer.NewServer()
+	spaFS, err := fs.Sub(viewerui.Assets, "dist")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	// A bundle path arriving as the first argument (file association /
-	// "open with") loads immediately so the window opens onto content.
+	bundleServer := viewer.NewServer()       // serves the open bundle (or landing)
+	lan := viewer.NewHTTPServer(bundleServer) // optional LAN server over the same handler
+
+	// Always-on loopback server the shell's iframe loads the bundle from. A real
+	// http:// origin renders inside the sub-frame, which the app's custom URI
+	// scheme does not on WebKitGTK.
+	frame := viewer.NewHTTPServer(bundleServer)
+	if err := frame.StartOn("127.0.0.1", 0); err != nil {
+		log.Printf("%s: frame server: %v", appName, err)
+	}
+
+	cfgPath, err := viewer.ConfigPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Atomic config writes via the shared system writer (quiet logger).
+	sysM := system.NewManager(filepath.Dir(cfgPath), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	store := viewer.NewConfigStore(cfgPath, sysM.SaveBytes)
+
+	svc := viewer.NewService(store, bundleServer, lan)
+	svc.SetFrameServer(frame)
+
+	// Initial bundle from argv (file association / "open with").
 	if len(os.Args) > 1 {
-		if b, err := viewer.OpenBundle(os.Args[1]); err == nil {
-			srv.SetBundle(b)
-		} else {
+		if _, err := svc.OpenPath(os.Args[1]); err != nil {
 			log.Printf("%s: cannot open %q: %v", appName, os.Args[1], err)
 		}
 	}
+
+	// Asset handler: the Vue shell at /, the open bundle under /bundle/.
+	mux := http.NewServeMux()
+	mux.Handle("/bundle/", http.StripPrefix("/bundle", bundleServer))
+	mux.Handle("/", application.AssetFileServerFS(spaFS))
+
+	cfg := store.Load()
 
 	app := application.New(application.Options{
 		Name:        appName,
 		Description: "Offline viewer for Formidable exports",
 		Icon:        appIcon,
-		Assets:      application.AssetOptions{Handler: srv},
+		Services:    []application.Service{application.NewService(svc)},
+		Assets:      application.AssetOptions{Handler: mux},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
 
-	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            windowTitle(srv),
+	winOpts := application.WebviewWindowOptions{
+		Title:            windowTitle(bundleServer),
 		Width:            1100,
 		Height:           820,
 		MinWidth:         720,
@@ -68,29 +102,61 @@ func main() {
 		EnableFileDrop:   true,
 		Linux:            application.LinuxWindow{Icon: appIcon},
 		URL:              "/",
+	}
+	if cfg.RememberSize && cfg.WindowWidth > 0 && cfg.WindowHeight > 0 {
+		winOpts.Width = cfg.WindowWidth
+		winOpts.Height = cfg.WindowHeight
+	}
+	win := app.Window.NewWithOptions(winOpts)
+
+	if cfg.DefaultZoom > 0 {
+		win.SetZoom(cfg.DefaultZoom)
+	}
+
+	// Inject the Wails-side behavior the service needs.
+	svc.SetOpenFunc(func() (string, error) {
+		return app.Dialog.OpenFile().
+			SetTitle("Open Formidable export").
+			AddFilter("Formidable export (*.zip)", "*.zip").
+			PromptForSingleSelection()
+	})
+	svc.SetSwapHook(func() {
+		win.SetTitle(windowTitle(bundleServer))
+		app.Event.Emit(viewer.BundleChangedEventName, nil)
 	})
 
-	// No native menu bar: it looked out of place next to the main app's
-	// chrome. A bundle opens by dropping a .zip anywhere on the window; the
-	// first .zip in the drop wins and swaps the current bundle.
+	// Native drop: load the first .zip through the service so recents record
+	// and the swap hook fires (the shell reacts to the event).
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
-		for _, f := range e.Context().DroppedFiles() {
-			if !strings.EqualFold(filepath.Ext(f), ".zip") {
-				continue
-			}
-			b, err := viewer.OpenBundle(f)
-			if err != nil {
-				log.Printf("%s: cannot open %q: %v", appName, f, err)
+		files := e.Context().DroppedFiles()
+		log.Printf("%s: files dropped: %v", appName, files)
+		for _, f := range files {
+			if strings.EqualFold(filepath.Ext(f), ".zip") {
+				if _, err := svc.OpenPath(f); err != nil {
+					log.Printf("%s: cannot open %q: %v", appName, f, err)
+				}
 				return
 			}
-			if prev := srv.SetBundle(b); prev != nil {
-				_ = prev.Close()
-			}
-			win.SetTitle(windowTitle(srv))
-			win.Reload()
-			return
 		}
 	})
+
+	// Persist window size on close when enabled.
+	win.RegisterHook(events.Common.WindowClosing, func(*application.WindowEvent) {
+		c := store.Load()
+		if !c.RememberSize {
+			return
+		}
+		w, h := win.Size()
+		if w > 0 && h > 0 {
+			c.WindowWidth, c.WindowHeight = w, h
+			_ = store.Save(c)
+		}
+	})
+
+	// Reflect persisted config (starts the LAN server if enabled).
+	if err := svc.Apply(); err != nil {
+		log.Printf("%s: apply config: %v", appName, err)
+	}
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)

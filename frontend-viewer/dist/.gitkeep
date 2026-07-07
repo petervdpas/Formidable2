@@ -1,0 +1,1 @@
+# keep dist present for //go:embed before first build

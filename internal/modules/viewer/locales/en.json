@@ -3,6 +3,7 @@
     "drop_hint": "Drop a Formidable export (.zip) here to view it offline.",
     "no_bundle": "No bundle is open.",
     "open_button": "Open bundle",
+    "resume": "Resume",
     "recents_title": "Recent bundles",
     "recent_missing": "missing"
   },
@@ -28,7 +29,8 @@
     "server_off": "Server is off.",
     "clear_recents": "Clear recent bundles",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "close": "Close"
   },
   "toast": {
     "open_failed": "Could not open bundle: {error}",

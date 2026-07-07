@@ -6,6 +6,9 @@ bin
 frontend/dist/*
 !frontend/dist/.gitkeep
 frontend/node_modules
+frontend-viewer/dist/*
+!frontend-viewer/dist/.gitkeep
+frontend-viewer/node_modules
 build/linux/appimage/build
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 

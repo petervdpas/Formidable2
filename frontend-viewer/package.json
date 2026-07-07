@@ -1,0 +1,21 @@
+{
+  "name": "frontend-viewer",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build --mode production"
+  },
+  "dependencies": {
+    "@wailsio/runtime": "latest",
+    "vue": "^3.5.33",
+    "vue-i18n": "^11.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.6",
+    "typescript": "^6.0.3",
+    "vite": "^5.0.0",
+    "vue-tsc": "^3.2.8"
+  }
+}

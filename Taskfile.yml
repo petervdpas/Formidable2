@@ -58,8 +58,9 @@ tasks:
       - task: common:setup:docker
 
   viewer:build:
-    summary: Builds the standalone Formidable Viewer binary for the host platform
+    summary: Builds the standalone Formidable Viewer (Vue shell + binary) for the host platform
     cmds:
+      - "cd frontend-viewer && npm ci && npm run build"
       - go build -tags production -trimpath -o "{{.BIN_DIR}}/formidable-viewer" ./cmd/formidable-viewer
 
   viewer:run:
