@@ -1,0 +1,39 @@
+{
+  "home": {
+    "drop_hint": "Drop a Formidable export (.zip) here to view it offline.",
+    "no_bundle": "No bundle is open.",
+    "open_button": "Open bundle",
+    "recents_title": "Recent bundles",
+    "recent_missing": "missing"
+  },
+  "toolbar": {
+    "home": "Home",
+    "open": "Open bundle",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "language_system": "System",
+    "theme": "Theme",
+    "theme_system": "System",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "zoom": "Default zoom",
+    "remember_size": "Remember window size",
+    "serve_http": "Serve bundle over HTTP",
+    "serve_http_help": "Also expose the open bundle on your network so it can be viewed in a browser or on another device.",
+    "port": "Port",
+    "lan_urls": "Reachable at",
+    "server_off": "Server is off.",
+    "clear_recents": "Clear recent bundles",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "toast": {
+    "open_failed": "Could not open bundle: {error}",
+    "server_started": "Serving on port {port}",
+    "server_stopped": "Server stopped",
+    "server_failed": "Could not start server: {error}"
+  }
+}

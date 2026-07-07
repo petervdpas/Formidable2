@@ -7,17 +7,20 @@
 // is to serve a bundle's already-rendered pages to a webview, so it carries no
 // Vue frontend of its own: the bundle IS the frontend.
 //
-// A bundle path may be passed as the first argument (file association or
-// "open with"); otherwise use File > Open Bundle.
+// A bundle opens two ways: a path passed as the first argument (file
+// association / "open with"), or dropping a .zip onto the window.
 package main
 
 import (
 	_ "embed"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/petervdpas/formidable2/internal/modules/viewer"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 const appName = "Formidable Viewer"
@@ -62,64 +65,34 @@ func main() {
 		MinWidth:         720,
 		MinHeight:        560,
 		BackgroundColour: application.NewRGB(27, 30, 36),
+		EnableFileDrop:   true,
 		Linux:            application.LinuxWindow{Icon: appIcon},
 		URL:              "/",
 	})
 
-	openBundle := func() {
-		path, err := app.Dialog.OpenFile().
-			SetTitle("Open Formidable export").
-			AddFilter("Formidable export (*.zip)", "*.zip").
-			PromptForSingleSelection()
-		if err != nil || path == "" {
+	// No native menu bar: it looked out of place next to the main app's
+	// chrome. A bundle opens by dropping a .zip anywhere on the window; the
+	// first .zip in the drop wins and swaps the current bundle.
+	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
+		for _, f := range e.Context().DroppedFiles() {
+			if !strings.EqualFold(filepath.Ext(f), ".zip") {
+				continue
+			}
+			b, err := viewer.OpenBundle(f)
+			if err != nil {
+				log.Printf("%s: cannot open %q: %v", appName, f, err)
+				return
+			}
+			if prev := srv.SetBundle(b); prev != nil {
+				_ = prev.Close()
+			}
+			win.SetTitle(windowTitle(srv))
+			win.Reload()
 			return
 		}
-		b, err := viewer.OpenBundle(path)
-		if err != nil {
-			app.Dialog.Error().
-				SetTitle("Could not open bundle").
-				SetMessage(err.Error()).
-				Show()
-			return
-		}
-		if prev := srv.SetBundle(b); prev != nil {
-			_ = prev.Close()
-		}
-		win.SetTitle(windowTitle(srv))
-		win.Reload()
-	}
-
-	app.Menu.SetApplicationMenu(buildMenu(openBundle))
+	})
 
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func buildMenu(openBundle func()) *application.Menu {
-	menu := application.NewMenu()
-	menu.AddRole(application.AppMenu)
-
-	file := menu.AddSubmenu("File")
-	file.Add("Open Bundle...").
-		SetAccelerator("CmdOrCtrl+O").
-		OnClick(func(*application.Context) { openBundle() })
-	file.AddSeparator()
-	file.AddRole(application.CloseWindow)
-	file.AddRole(application.Quit)
-
-	menu.AddRole(application.EditMenu)
-
-	view := menu.AddSubmenu("View")
-	view.AddRole(application.Reload)
-	view.AddRole(application.ForceReload)
-	view.AddSeparator()
-	view.AddRole(application.ResetZoom)
-	view.AddRole(application.ZoomIn)
-	view.AddRole(application.ZoomOut)
-	view.AddSeparator()
-	view.AddRole(application.ToggleFullscreen)
-
-	menu.AddRole(application.WindowMenu)
-	return menu
 }

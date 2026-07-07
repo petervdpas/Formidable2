@@ -1,0 +1,39 @@
+{
+  "home": {
+    "drop_hint": "Sleep hier een Formidable-export (.zip) naartoe om deze offline te bekijken.",
+    "no_bundle": "Er is geen bundel geopend.",
+    "open_button": "Bundel openen",
+    "recents_title": "Recente bundels",
+    "recent_missing": "ontbreekt"
+  },
+  "toolbar": {
+    "home": "Start",
+    "open": "Bundel openen",
+    "settings": "Instellingen"
+  },
+  "settings": {
+    "title": "Instellingen",
+    "language": "Taal",
+    "language_system": "Systeem",
+    "theme": "Thema",
+    "theme_system": "Systeem",
+    "theme_light": "Licht",
+    "theme_dark": "Donker",
+    "zoom": "Standaardzoom",
+    "remember_size": "Venstergrootte onthouden",
+    "serve_http": "Bundel via HTTP delen",
+    "serve_http_help": "Stel de geopende bundel ook beschikbaar op je netwerk, zodat deze in een browser of op een ander apparaat te bekijken is.",
+    "port": "Poort",
+    "lan_urls": "Bereikbaar op",
+    "server_off": "Server is uit.",
+    "clear_recents": "Recente bundels wissen",
+    "save": "Opslaan",
+    "cancel": "Annuleren"
+  },
+  "toast": {
+    "open_failed": "Kon bundel niet openen: {error}",
+    "server_started": "Actief op poort {port}",
+    "server_stopped": "Server gestopt",
+    "server_failed": "Kon server niet starten: {error}"
+  }
+}

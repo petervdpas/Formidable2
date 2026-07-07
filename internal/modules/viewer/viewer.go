@@ -142,17 +142,19 @@ var landingHTML = `<!doctype html>
   body{display:flex;align-items:center;justify-content:center;
        font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
        background:#1b1e24;color:#e7e9ee}
-  .card{text-align:center;max-width:32rem;padding:2rem}
-  h1{font-size:1.4rem;font-weight:600;margin:0 0 .5rem}
-  p{margin:.25rem 0;color:#aab1bd;line-height:1.5}
+  .card{text-align:center;max-width:34rem;padding:2.5rem 3rem;border:2px dashed #3a414d;
+        border-radius:1rem;background:#20242c}
+  h1{font-size:1.4rem;font-weight:600;margin:0 0 .75rem}
+  p{margin:.35rem 0;color:#aab1bd;line-height:1.5}
+  .hint{margin-top:1rem;font-size:.9rem;color:#7f8794}
   kbd{background:#2a2f38;border-radius:.3rem;padding:.1rem .4rem;font-size:.85em}
 </style>
 </head>
-<body>
-  <div class="card">
+<body data-file-drop-target>
+  <div class="card" data-file-drop-target>
     <h1>` + landingTitle + `</h1>
-    <p>No bundle is open.</p>
-    <p>Open a Formidable export (<kbd>.zip</kbd>) to view it offline.</p>
+    <p>Drop a Formidable export (<kbd>.zip</kbd>) here to view it offline.</p>
+    <p class="hint">No bundle is open.</p>
   </div>
 </body>
 </html>
