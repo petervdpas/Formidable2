@@ -1433,3 +1433,78 @@
   padding: 4px 8px;
   font-size: var(--font-size-sm);
 }
+
+/* Offline Wiki Export panel: compact left-aligned template picker. Toggle left,
+   name, muted filename right; a selected slideset expands into an inset deck
+   group. Uses the raw SwitchField (not FormSwitchRow) so rows stay compact. */
+.wiki-export-search {
+  margin: var(--space-3) 0 var(--space-2);
+  max-width: 420px;
+}
+
+.wiki-export-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.wiki-export-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1, 4px) 0;
+  border-bottom: 1px solid var(--color-border-subtle, var(--color-border, #e5e7eb));
+}
+
+.wiki-export-name {
+  font-weight: 500;
+  min-width: 0;
+}
+
+.wiki-export-file {
+  margin-left: auto;
+  padding-left: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  white-space: nowrap;
+}
+
+.wiki-export-decks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 var(--space-2) var(--space-6, 32px);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-border, #ced4da);
+}
+
+.wiki-export-decks-title {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: var(--space-1, 4px) 0 2px;
+}
+
+.wiki-export-deck-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 0;
+}
+
+.wiki-export-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+
+.wiki-export-spacer {
+  flex: 1;
+}
+
+.wiki-export-count {
+  white-space: nowrap;
+}

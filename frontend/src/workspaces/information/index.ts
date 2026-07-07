@@ -3,6 +3,7 @@ import type { Config } from "../../composables/useConfig";
 import InformationAbout from "./InformationAbout.vue";
 import InformationShortcuts from "./InformationShortcuts.vue";
 import InformationInternalServer from "./InformationInternalServer.vue";
+import InformationWikiExport from "./InformationWikiExport.vue";
 import InformationMonitoring from "./InformationMonitoring.vue";
 import InformationJournalFeed from "./InformationJournalFeed.vue";
 import InformationLogging from "./InformationLogging.vue";
@@ -37,6 +38,7 @@ export interface InformationCategory {
 export const INFORMATION_CATEGORIES: InformationCategory[] = [
   { id: "about",           labelKey: "workspace.information.section.about",           component: InformationAbout },
   { id: "internal-server", labelKey: "workspace.information.section.internal_server", component: InformationInternalServer },
+  { id: "wiki-export",     labelKey: "workspace.information.section.wiki_export",     component: InformationWikiExport },
   { id: "monitoring",      labelKey: "workspace.information.section.monitoring",      component: InformationMonitoring },
   { id: "journal-feed",    labelKey: "workspace.information.section.journal_feed",    component: InformationJournalFeed },
   {

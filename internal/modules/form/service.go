@@ -112,6 +112,12 @@ func (s *Service) Decks(templateName string) ([]DeckOption, error) {
 	return s.m.Decks(templateName)
 }
 
+// PlayableDecks returns only the decks that contain slides, for the offline
+// export picker (which must not offer empty decks). See Manager.PlayableDecks.
+func (s *Service) PlayableDecks(templateName string) ([]DeckOption, error) {
+	return s.m.PlayableDecks(templateName)
+}
+
 // DeckOrder returns one deck's datafiles in per-deck sequence order, so the
 // studio list can render a single deck. See Manager.DeckOrder.
 func (s *Service) DeckOrder(templateName, deck string) ([]string, error) {

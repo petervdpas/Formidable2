@@ -48,6 +48,7 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/relation"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 	"github.com/petervdpas/formidable2/internal/modules/sfr"
+	"github.com/petervdpas/formidable2/internal/modules/standalone"
 	"github.com/petervdpas/formidable2/internal/modules/stat"
 	"github.com/petervdpas/formidable2/internal/modules/storage"
 	"github.com/petervdpas/formidable2/internal/modules/system"
@@ -123,8 +124,10 @@ type App struct {
 	I18n          *i18n.Service
 	Dialog        *dialog.Service
 	Render        *render.Service
+	Standalone    *standalone.Service
 	Nav           *nav.Service
 	Wiki          *wiki.Service
+	WikiExport    *wiki.ExportService
 	Dataprovider  *dataprovider.Service
 	Plugin        *plugin.Service
 	Git           *git.Service
@@ -304,6 +307,12 @@ func New(d Deps) (*App, error) {
 	// {{imageURL}} on the PDF target.
 	pdfRender.SetImageBase64URL(pdfImageDataURL)
 
+	// Fourth per-target render.Manager: the self-contained HTML/slides export.
+	// Images inline as data URLs (both strategies) so the single file opens
+	// offline with no server. Reuses the PDF data-URL image loader.
+	standaloneRender := render.NewManager(tplM, stoM, pdfImageDataURL, nil /*linkURL*/, d.Logger)
+	standaloneRender.SetImageBase64URL(pdfImageDataURL)
+
 	// renderM is the slideout-context manager the Render Wails service
 	// binds to; most code below references it.
 	renderM := slideoutRender
@@ -373,6 +382,7 @@ func New(d Deps) (*App, error) {
 	// cache independently (their image/link URLs make the HTML differ).
 	slideoutRender.SetRevFunc(idxM.Rev)
 	wikiRender.SetRevFunc(idxM.Rev)
+	standaloneRender.SetRevFunc(idxM.Rev)
 
 	// EventHandler bridges template/storage save+delete into the index;
 	// the loader adapter adds the stat() call the index needs for mtime/
@@ -504,6 +514,7 @@ func New(d Deps) (*App, error) {
 	slideoutRender.SetReferenceResolver(refResolver)
 	wikiRender.SetReferenceResolver(refResolver)
 	pdfRender.SetReferenceResolver(refResolver)
+	standaloneRender.SetReferenceResolver(refResolver)
 
 	// The card render's "go to record" anchor; the same backend builder the
 	// form-side button uses, so both agree on the formidable:// link shape.
@@ -517,6 +528,7 @@ func New(d Deps) (*App, error) {
 	slideoutRender.SetReferenceLinkResolver(refLink)
 	wikiRender.SetReferenceLinkResolver(refLink)
 	pdfRender.SetReferenceLinkResolver(refLink)
+	standaloneRender.SetReferenceLinkResolver(refLink)
 
 	// Relations: per-template files at <context>/relations/<name>.yaml. The dir is a context
 	// sibling of templates (derived here, not owned by the VFS). The module talks to the main
@@ -741,6 +753,8 @@ func New(d Deps) (*App, error) {
 		d.Logger.Warn("fonts: scaffold failed", "err", err)
 	}
 	renderM.SetFontFaceProvider(fontsM.FontFaceCSS)
+	// The standalone deck export inlines user fonts too (@font-face data URIs).
+	standaloneRender.SetFontFaceProvider(fontsM.FontFaceCSS)
 
 	d.Logger.Info("formidable starting", "appRoot", d.AppRoot)
 
@@ -757,8 +771,10 @@ func New(d Deps) (*App, error) {
 		I18n:              i18n.NewService(i18nM),
 		Dialog:            dialog.NewService(),
 		Render:            render.NewService(renderM),
+		Standalone:        standalone.NewService(standaloneRender, standaloneSource{tpl: tplM, form: formM, sto: stoM}),
 		Nav:               nav.NewService(navM),
 		Wiki:              wikiSvc,
+		WikiExport:        wiki.NewExportService(wikiHandler, sysM),
 		Dataprovider:      dataprovider.NewService(dpM),
 		Plugin:            plugin.NewService(pluginM),
 		Git:               newGitService(gitM, credentialM, cfgM, jrnM, sysgitR, emitter, opsRegistry),

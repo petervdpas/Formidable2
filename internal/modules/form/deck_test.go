@@ -52,6 +52,21 @@ func TestDecks_FromSlidesetOptions(t *testing.T) {
 	}
 }
 
+func TestPlayableDecks_OnlyDecksWithSlides(t *testing.T) {
+	m, store := deckManager(t)
+	// intro has two slides; deep has none.
+	seedDeckRecord(store, "s1.meta.json", 10, "intro")
+	seedDeckRecord(store, "s2.meta.json", 20, "intro")
+
+	decks, err := m.PlayableDecks("deck.yaml")
+	if err != nil {
+		t.Fatalf("PlayableDecks: %v", err)
+	}
+	if len(decks) != 1 || decks[0].Value != "intro" {
+		t.Errorf("playable decks = %+v, want only intro", decks)
+	}
+}
+
 func TestDecks_EmptyWhenNoSlidesetField(t *testing.T) {
 	m, tpls, _, _ := newTestManager()
 	tpls.byName["plain.yaml"] = &template.Template{

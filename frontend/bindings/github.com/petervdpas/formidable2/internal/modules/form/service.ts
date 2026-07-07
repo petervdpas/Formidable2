@@ -130,6 +130,16 @@ export function NormalizeSequence(templateName: string): $CancellablePromise<$mo
 }
 
 /**
+ * PlayableDecks returns only the decks that contain slides, for the offline
+ * export picker (which must not offer empty decks). See Manager.PlayableDecks.
+ */
+export function PlayableDecks(templateName: string): $CancellablePromise<$models.DeckOption[]> {
+    return $Call.ByID(3514129896, templateName).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * RelationFields returns the source template's api fields, the relation targets
  * the relations-import mode can fill. The dialog's relation picker reads this
  * instead of filtering the template client-side.

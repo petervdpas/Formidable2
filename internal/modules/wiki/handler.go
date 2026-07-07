@@ -383,22 +383,36 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "template not found")
 		return
 	}
-	t, ok, err := h.dp.GetTemplate(r.Context(), filename)
+	view, ok, err := h.templateViewFor(r.Context(), filename, stem)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if !ok || t == nil {
+	if !ok {
 		writeError(w, http.StatusNotFound, "template not found")
 		return
 	}
+	writeHTML(w, tplTemplate, view)
+}
+
+// templateViewFor builds the collection card-list view for one template, or
+// (_, false, nil) when the template is missing. Shared by the HTTP handler and
+// the offline exporter. Card hrefs and image URLs are the live-server absolute
+// forms; the exporter rewrites them.
+func (h *Handler) templateViewFor(ctx context.Context, filename, stem string) (templateView, bool, error) {
+	t, ok, err := h.dp.GetTemplate(ctx, filename)
+	if err != nil {
+		return templateView{}, false, err
+	}
+	if !ok || t == nil {
+		return templateView{}, false, nil
+	}
 	// filename_asc to match the storage workspace order (both views stay consistent).
-	forms, err := h.dp.ListForms(r.Context(), filename, dataprovider.ListOpts{
+	forms, err := h.dp.ListForms(ctx, filename, dataprovider.ListOpts{
 		OrderBy: "filename_asc",
 	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+		return templateView{}, false, err
 	}
 	subtitles := h.sidebarSubtitles(filename)
 
@@ -427,13 +441,13 @@ func (h *Handler) template(w http.ResponseWriter, r *http.Request) {
 		}
 		rows = append(rows, row)
 	}
-	writeHTML(w, tplTemplate, templateView{
+	return templateView{
 		Title:   pickName(*t),
 		Stem:    stem,
 		Name:    pickName(*t),
 		Forms:   rows,
 		Filters: facetFiltersFromDefs(facetDefs),
-	})
+	}, true, nil
 }
 
 // facetDefsFor returns the template's facet definitions, or nil when unwired / load fails / none declared.
@@ -569,38 +583,49 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 404 fast on missing template/form: render is expensive, gate on cheap SQLite checks first.
-	if _, ok, err := h.dp.GetTemplate(r.Context(), filename); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	} else if !ok {
-		writeError(w, http.StatusNotFound, "template not found")
-		return
-	}
-	if _, ok, err := h.dp.GetFormSummary(r.Context(), filename, datafile); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	} else if !ok {
-		writeError(w, http.StatusNotFound, "form not found")
-		return
-	}
-
-	page, err := h.dp.RenderForm(r.Context(), filename, datafile)
+	view, ok, err := h.formViewFor(r.Context(), filename, stem, datafile)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if !ok {
+		writeError(w, http.StatusNotFound, "form not found")
+		return
+	}
+	writeHTML(w, tplForm, view)
+}
+
+// formViewFor renders one record's page view, or (_, false, nil) when the
+// template or record is missing. Shared by the HTTP handler and the offline
+// exporter. Body carries live-server image/link URLs; the exporter rewrites them.
+func (h *Handler) formViewFor(ctx context.Context, filename, stem, datafile string) (formView, bool, error) {
+	// 404 fast on missing template/form: render is expensive, gate on cheap SQLite checks first.
+	if _, ok, err := h.dp.GetTemplate(ctx, filename); err != nil {
+		return formView{}, false, err
+	} else if !ok {
+		return formView{}, false, nil
+	}
+	if _, ok, err := h.dp.GetFormSummary(ctx, filename, datafile); err != nil {
+		return formView{}, false, err
+	} else if !ok {
+		return formView{}, false, nil
+	}
+
+	page, err := h.dp.RenderForm(ctx, filename, datafile)
+	if err != nil {
+		return formView{}, false, err
 	}
 	title := page.Title
 	if title == "" {
 		title = datafile
 	}
 	// page.HTML already carries wiki hrefs (the render.Manager's FormidableLinkURL rewrites at the source).
-	writeHTML(w, tplForm, formView{
+	return formView{
 		Title:    title,
 		Stem:     stem,
 		Filename: datafile,
 		Body:     page.HTML,
-	})
+	}, true, nil
 }
 
 // deck renders a presentation template as a full-screen reveal slideshow. The

@@ -45,6 +45,28 @@ func (m *Manager) Decks(templateName string) ([]DeckOption, error) {
 	return out, nil
 }
 
+// PlayableDecks returns the presentation's decks that actually contain slides
+// (their DeckOrder is non-empty), for pickers that must not offer empty decks.
+// Empty for a single-deck presentation (no slideset field): the caller treats
+// the whole sequence as one deck.
+func (m *Manager) PlayableDecks(templateName string) ([]DeckOption, error) {
+	decks, err := m.Decks(templateName)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]DeckOption, 0, len(decks))
+	for _, d := range decks {
+		order, err := m.DeckOrder(templateName, d.Value)
+		if err != nil {
+			return nil, err
+		}
+		if len(order) > 0 {
+			out = append(out, d)
+		}
+	}
+	return out, nil
+}
+
 // DeckOrder returns one deck's datafiles in sequence order: SequenceOrder
 // filtered to records whose slideset value equals deck. Sequence numbering is
 // per-deck, so two decks may share values; this scopes the order to one deck.
