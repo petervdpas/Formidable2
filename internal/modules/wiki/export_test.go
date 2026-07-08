@@ -299,6 +299,52 @@ func TestExportPack_PlainIsBrandedNotRawZip(t *testing.T) {
 	}
 }
 
+type fakePacker struct {
+	db  []byte
+	got []string
+}
+
+func (f *fakePacker) BuildDataDB(_ context.Context, filenames []string) ([]byte, error) {
+	f.got = append([]string(nil), filenames...)
+	return f.db, nil
+}
+
+func TestExportBundle_EmbedsDataDB(t *testing.T) {
+	h := NewHandler(exportProvider(), newStubStorage(), &stubExpressioner{})
+	fp := &fakePacker{db: []byte("SQLITE-IMAGE-BYTES")}
+	h.SetDataPacker(fp)
+
+	res, err := h.ExportBundle(context.Background(), map[string][]string{"basic.yaml": nil})
+	if err != nil {
+		t.Fatalf("ExportBundle: %v", err)
+	}
+	files := unzipMap(t, res.Zip)
+	if string(files["_/data.db"]) != "SQLITE-IMAGE-BYTES" {
+		t.Fatalf("_/data.db missing or wrong: %q", files["_/data.db"])
+	}
+	// The packer is handed the selected templates (it filters to collections).
+	found := false
+	for _, fn := range fp.got {
+		if fn == "basic.yaml" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("packer got %v, want it to include basic.yaml", fp.got)
+	}
+}
+
+func TestExportBundle_NoPackerNoDataDB(t *testing.T) {
+	h := NewHandler(exportProvider(), newStubStorage(), &stubExpressioner{})
+	res, err := h.ExportBundle(context.Background(), map[string][]string{"basic.yaml": nil})
+	if err != nil {
+		t.Fatalf("ExportBundle: %v", err)
+	}
+	if _, ok := unzipMap(t, res.Zip)["_/data.db"]; ok {
+		t.Error("no data.db should be packed without a DataPacker")
+	}
+}
+
 func TestExportBundle_EmptyPresentationSkipped(t *testing.T) {
 	sp := &stubProvider{
 		templates: []dataprovider.TemplateSummary{{Stem: "deck", Filename: "deck.yaml", Name: "Deck"}},

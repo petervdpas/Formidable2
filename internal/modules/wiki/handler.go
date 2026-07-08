@@ -71,6 +71,15 @@ type EnabledTemplateFilter interface {
 	FilterEnabled(filenames []string) []string
 }
 
+// DataPacker builds the bundle's queryable data image: a SQLite database of the
+// collection-template records among the given selection, for the Viewer's agent
+// API. The packer decides which filenames are exposed collections; the rest are
+// ignored. An empty result adds no data entry. Nil packer = no data image (the
+// bundle is HTML only).
+type DataPacker interface {
+	BuildDataDB(ctx context.Context, templateFilenames []string) ([]byte, error)
+}
+
 // Handler owns the read-path routes; the concrete return type lets the composition root call optional setters.
 type Handler struct {
 	dp     Provider
@@ -80,6 +89,7 @@ type Handler struct {
 	filter EnabledTemplateFilter
 	decks  DeckProvider
 	deps   DependencyGraph
+	data   DataPacker
 	mux    *http.ServeMux
 }
 
@@ -127,6 +137,12 @@ func (h *Handler) SetDecks(d DeckProvider) {
 // includes exactly the templates it is handed (no auto-inclusion).
 func (h *Handler) SetDependencyGraph(g DependencyGraph) {
 	h.deps = g
+}
+
+// SetDataPacker installs (or clears with nil) the builder of the bundle's
+// queryable data image. With none, the bundle carries HTML only.
+func (h *Handler) SetDataPacker(d DataPacker) {
+	h.data = d
 }
 
 // Dependencies expands an explicit set of template picks into the full set the
