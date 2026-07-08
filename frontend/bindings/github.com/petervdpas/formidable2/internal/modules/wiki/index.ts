@@ -10,5 +10,6 @@ export {
 
 export {
     DependencyResult,
+    ExportMeta,
     ServerStatus
 } from "./models.js";

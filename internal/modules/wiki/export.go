@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/petervdpas/formidable2/internal/modules/bundle"
 	"github.com/petervdpas/formidable2/internal/modules/render"
 )
 
@@ -115,6 +116,23 @@ func (h *Handler) ExportBundle(ctx context.Context, selections map[string][]stri
 		return ExportResult{}, err
 	}
 	return ExportResult{Zip: zipBytes, Skipped: skipped}, nil
+}
+
+// ExportPack renders the selections into the offline-wiki zip and wraps it as a
+// branded .bundle: a cleartext manifest plus the payload. A non-empty password
+// seals the payload (Argon2id + AES-256-GCM); an empty password stores it
+// plainly but still branded, so a bundle is always a Viewer artifact rather than
+// a loose zip. Returns the packed bytes and the skipped stems.
+func (h *Handler) ExportPack(ctx context.Context, selections map[string][]string, password string, meta bundle.Manifest) ([]byte, []string, error) {
+	res, err := h.ExportBundle(ctx, selections)
+	if err != nil {
+		return nil, nil, err
+	}
+	packed, err := bundle.Pack(meta, res.Zip, password)
+	if err != nil {
+		return nil, nil, err
+	}
+	return packed, res.Skipped, nil
 }
 
 // exportDocument writes a document template's collection page + record pages and

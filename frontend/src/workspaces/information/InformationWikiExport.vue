@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { SwitchField, TextField } from "../../components/fields";
-import { ExportService as WikiExportSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/wiki";
+import { FormRow, SwitchField, TextareaField, TextField } from "../../components/fields";
+import {
+  ExportService as WikiExportSvc,
+  ExportMeta,
+} from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/wiki";
 import { Service as FormSvc } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import type { DeckOption } from "../../../bindings/github.com/petervdpas/formidable2/internal/modules/form";
 import { useTemplates } from "../../composables/useTemplates";
@@ -23,6 +26,13 @@ const selectedDecks = ref<Map<string, Set<string>>>(new Map());
 const decksFor = ref<Map<string, DeckOption[]>>(new Map());
 const exporting = ref(false);
 const search = ref("");
+
+// Output settings. bundleName names the .bundle file (and its manifest title).
+// password, when non-empty, encrypts the payload so it opens only with that
+// password; empty leaves the bundle unencrypted.
+const bundleName = ref("wiki-export");
+const bundleDescription = ref("");
+const password = ref("");
 
 // Dependency closure: templates the current picks link to (via relations and api
 // fields) are pulled into the bundle so every link resolves to a page inside the
@@ -187,15 +197,27 @@ const selectedCount = computed(() => {
 const autoCount = computed(() => autoIncluded.value.size);
 const canExport = computed(() => selectedCount.value > 0 && !exporting.value);
 
+function safeName(): string {
+  const n = bundleName.value.trim();
+  return n || "wiki-export";
+}
+
 async function doExport() {
   if (!canExport.value) return;
-  const path = await chooseSaveFile("wiki-export.zip", [
-    { displayName: "Zip archive", pattern: "*.zip" },
+  const name = safeName();
+  const path = await chooseSaveFile(name + ".bundle", [
+    { displayName: "Formidable bundle", pattern: "*.bundle" },
   ]);
   if (!path) return;
+  const meta = new ExportMeta({
+    title: name,
+    description: bundleDescription.value.trim(),
+    created: new Date().toISOString().slice(0, 10),
+    kind: "wiki",
+  });
   exporting.value = true;
   try {
-    const skipped = await WikiExportSvc.ExportBundle(selections.value, path);
+    const skipped = await WikiExportSvc.ExportPack(selections.value, path, password.value, meta);
     toast.success("workspace.information.wiki_export.toast_success");
     if (skipped && skipped.length) {
       toast.warn("workspace.information.wiki_export.toast_skipped", [skipped.join(", ")]);
@@ -270,6 +292,42 @@ async function doExport() {
   <p v-if="missingDeps.length" class="wiki-export-missing small">
     {{ t('workspace.information.wiki_export.missing_warning', [missingDeps.join(', ')]) }}
   </p>
+
+  <div class="wiki-export-options">
+    <FormRow :label="t('workspace.information.wiki_export.name_label')" label-for="wiki-export-name">
+      <TextField
+        id="wiki-export-name"
+        v-model="bundleName"
+        type="text"
+        :placeholder="t('workspace.information.wiki_export.name_placeholder')"
+      />
+    </FormRow>
+    <FormRow
+      :label="t('workspace.information.wiki_export.description_label')"
+      :description="t('workspace.information.wiki_export.description_hint')"
+      label-for="wiki-export-description"
+    >
+      <TextareaField
+        id="wiki-export-description"
+        v-model="bundleDescription"
+        :rows="2"
+        :placeholder="t('workspace.information.wiki_export.description_placeholder')"
+      />
+    </FormRow>
+    <FormRow
+      :label="t('workspace.information.wiki_export.password_label')"
+      :description="t('workspace.information.wiki_export.password_hint')"
+      label-for="wiki-export-password"
+    >
+      <TextField
+        id="wiki-export-password"
+        v-model="password"
+        type="password"
+        autocomplete="new-password"
+        :placeholder="t('workspace.information.wiki_export.password_placeholder')"
+      />
+    </FormRow>
+  </div>
 
   <div class="wiki-export-actions">
     <span class="wiki-export-count muted small">

@@ -83,6 +83,48 @@ export class DependencyResult {
 }
 
 /**
+ * ExportMeta is the author-supplied descriptor for a bundle, carried into the
+ * cleartext manifest so the Viewer can show what the pack is before unlocking.
+ * It holds no key material; the password does the protecting.
+ */
+export class ExportMeta {
+    "title": string;
+    "description": string;
+    "author": string;
+    "created": string;
+    "kind": string;
+
+    /** Creates a new ExportMeta instance. */
+    constructor($$source: Partial<ExportMeta> = {}) {
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("created" in $$source)) {
+            this["created"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ExportMeta instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ExportMeta {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ExportMeta($$parsedSource as Partial<ExportMeta>);
+    }
+}
+
+/**
  * ServerStatus is the live state Manager.Status returns; consumers gate on Running, not StartedAt.
  */
 export class ServerStatus {

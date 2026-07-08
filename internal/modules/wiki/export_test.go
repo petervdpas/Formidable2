@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/petervdpas/formidable2/internal/modules/bundle"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
 	tpl "github.com/petervdpas/formidable2/internal/modules/template"
 )
@@ -228,6 +229,73 @@ func TestExportBundle_NoGraphNoAutoInclude(t *testing.T) {
 	files := unzipMap(t, res.Zip)
 	if _, ok := files["template-controls.html"]; ok {
 		t.Errorf("controls must not appear without a dependency graph")
+	}
+}
+
+func TestExportPack_EncryptedRoundTrips(t *testing.T) {
+	h := NewHandler(exportProvider(), newStubStorage(), &stubExpressioner{})
+	meta := bundle.Manifest{Title: "Basic Pack", Author: "Peter", Kind: "wiki"}
+
+	packed, skipped, err := h.ExportPack(context.Background(), map[string][]string{"basic.yaml": nil}, "s3cret", meta)
+	if err != nil {
+		t.Fatalf("ExportPack: %v", err)
+	}
+	if len(skipped) != 0 {
+		t.Errorf("nothing should be skipped, got %v", skipped)
+	}
+
+	man, err := bundle.ReadManifest(packed)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if !man.Encrypted || man.Title != "Basic Pack" || man.Author != "Peter" {
+		t.Fatalf("manifest wrong: %+v", man)
+	}
+
+	if _, err := bundle.Unpack(packed, "wrong"); err == nil {
+		t.Error("wrong password must not unpack")
+	}
+
+	zipBytes, err := bundle.Unpack(packed, "s3cret")
+	if err != nil {
+		t.Fatalf("Unpack: %v", err)
+	}
+	files := unzipMap(t, zipBytes)
+	for _, want := range []string{"index.html", "template-basic.html", "form-basic-x-meta-json.html"} {
+		if _, ok := files[want]; !ok {
+			t.Errorf("decrypted bundle missing %q", want)
+		}
+	}
+}
+
+func TestExportPack_PlainIsBrandedNotRawZip(t *testing.T) {
+	h := NewHandler(exportProvider(), newStubStorage(), &stubExpressioner{})
+
+	packed, _, err := h.ExportPack(context.Background(), map[string][]string{"basic.yaml": nil}, "", bundle.Manifest{Title: "Open Pack"})
+	if err != nil {
+		t.Fatalf("ExportPack: %v", err)
+	}
+
+	// A plain bundle leads with the brand marker, not the zip magic: the file
+	// identifies as a Formidable bundle. This is branding, not protection (a
+	// prefix-tolerant zip tool can still read the payload); only a password
+	// protects. The manifest reads and the payload unpacks.
+	if bytes.HasPrefix(packed, []byte("PK\x03\x04")) {
+		t.Error("plain bundle should lead with the brand marker, not the zip magic")
+	}
+	man, err := bundle.ReadManifest(packed)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if man.Encrypted {
+		t.Error("no-password bundle should report not encrypted")
+	}
+	zipBytes, err := bundle.Unpack(packed, "")
+	if err != nil {
+		t.Fatalf("Unpack: %v", err)
+	}
+	if _, ok := unzipMap(t, zipBytes)["index.html"]; !ok {
+		t.Error("plain bundle payload should unzip to the wiki")
 	}
 }
 

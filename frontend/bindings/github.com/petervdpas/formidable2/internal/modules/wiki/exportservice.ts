@@ -17,13 +17,15 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * ExportBundle builds a self-contained offline-wiki zip and writes it to path.
- * selections maps a template filename to the deck values to include (empty = all
- * decks for a presentation; ignored for a document). Returns the stems skipped
- * (a template that failed to load, or a presentation with no exportable decks).
+ * ExportPack builds the offline-wiki bundle, wraps it as a branded .bundle
+ * (manifest + payload, sealed with password when non-empty), and writes it to
+ * path. selections maps a template filename to the deck values to include
+ * (empty = all decks for a presentation; ignored for a document). Returns the
+ * stems skipped (a template that failed to load, or a presentation with no
+ * exportable decks).
  */
-export function ExportBundle(selections: { [_ in string]?: string[] }, path: string): $CancellablePromise<string[]> {
-    return $Call.ByID(2561693330, selections, path).then(($result: any) => {
+export function ExportPack(selections: { [_ in string]?: string[] }, path: string, password: string, meta: $models.ExportMeta): $CancellablePromise<string[]> {
+    return $Call.ByID(49834387, selections, path, password, meta).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -32,7 +34,7 @@ export function ExportBundle(selections: { [_ in string]?: string[] }, path: str
  * ResolveDependencies expands the given template picks into the full set the
  * bundle needs (the picks plus every template they link to, transitively) so the
  * frontend can auto-toggle the related templates on and explain why. The backend
- * also applies this expansion at export time (ExportBundle), so a bundle is
+ * also applies this expansion at export time (ExportPack), so a bundle is
  * self-contained even if the caller skips this call; this just surfaces it to the
  * UI ahead of the export.
  */
