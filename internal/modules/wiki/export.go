@@ -47,6 +47,11 @@ type exportDeck struct {
 // Every absolute server URL is rewritten to a relative path and images are
 // inlined as data URIs, so the zip opens from disk with no server.
 func (h *Handler) ExportBundle(ctx context.Context, selections map[string][]string) (ExportResult, error) {
+	// Pull in related templates so the bundle is self-contained: a link a reader
+	// clicks must resolve to a page inside the zip. This runs regardless of what
+	// the caller sent, so the guarantee does not depend on the frontend.
+	selections = h.expandSelections(selections)
+
 	filenames := make([]string, 0, len(selections))
 	for fn := range selections {
 		if fn != "" {

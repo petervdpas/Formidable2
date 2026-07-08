@@ -38,3 +38,13 @@ func (s *ExportService) ExportBundle(selections map[string][]string, path string
 	}
 	return res.Skipped, nil
 }
+
+// ResolveDependencies expands the given template picks into the full set the
+// bundle needs (the picks plus every template they link to, transitively) so the
+// frontend can auto-toggle the related templates on and explain why. The backend
+// also applies this expansion at export time (ExportBundle), so a bundle is
+// self-contained even if the caller skips this call; this just surfaces it to the
+// UI ahead of the export.
+func (s *ExportService) ResolveDependencies(selected []string) (DependencyResult, error) {
+	return s.h.Dependencies(selected)
+}

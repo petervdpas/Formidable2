@@ -9,5 +9,6 @@ export {
 };
 
 export {
+    DependencyResult,
     ServerStatus
 } from "./models.js";

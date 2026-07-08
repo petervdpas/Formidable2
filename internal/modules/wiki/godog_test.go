@@ -1,12 +1,15 @@
 package wiki
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 
@@ -104,6 +107,11 @@ type world struct {
 	browserURL      string
 	windowURL       string
 	actionErr       error
+
+	// Offline-export dependency closure
+	depGraph    *fakeGraph
+	depResult   DependencyResult
+	exportFiles map[string][]byte
 }
 
 func (w *world) reset() {
@@ -702,4 +710,143 @@ func initWikiScenario(ctx *godog.ScenarioContext) {
 		}
 		return nil
 	})
+
+	// ── Offline export dependency closure ────────────────────────────
+
+	ctx.Step(`^a wiki handler with a template dependency graph$`, func() error {
+		w.stub = newStubProvider()
+		w.stub.forms = map[string][]dataprovider.FormSummary{}
+		w.stub.templates = nil
+		w.stubSt = newStubStorage()
+		w.stubEx = &stubExpressioner{items: map[string][]expression.Result{}}
+		w.handler = NewHandler(w.stub, w.stubSt, w.stubEx)
+		w.depGraph = &fakeGraph{edges: map[string][]string{}, known: map[string]bool{}}
+		w.handler.SetDependencyGraph(w.depGraph)
+		return nil
+	})
+
+	ctx.Step(`^template "([^"]*)" links to "([^"]*)"$`, func(from, to string) error {
+		w.depGraph.edges[from] = append(w.depGraph.edges[from], to)
+		w.depGraph.known[from] = true
+		w.depGraph.known[to] = true
+		return nil
+	})
+
+	ctx.Step(`^template "([^"]*)" links to unknown "([^"]*)"$`, func(from, to string) error {
+		w.depGraph.edges[from] = append(w.depGraph.edges[from], to)
+		w.depGraph.known[from] = true // 'to' left unknown on purpose (dangling)
+		return nil
+	})
+
+	ctx.Step(`^I resolve export dependencies for "([^"]*)"$`, func(csv string) error {
+		res, err := w.handler.Dependencies(splitList(csv))
+		if err != nil {
+			return err
+		}
+		w.depResult = res
+		return nil
+	})
+
+	ctx.Step(`^the required templates are "([^"]*)"$`, func(csv string) error {
+		return sameList("required", w.depResult.Required, splitList(csv))
+	})
+
+	ctx.Step(`^the added templates are "([^"]*)"$`, func(csv string) error {
+		return sameList("added", w.depResult.Added, splitList(csv))
+	})
+
+	ctx.Step(`^no templates are added$`, func() error {
+		if len(w.depResult.Added) != 0 {
+			return fmt.Errorf("added = %v, want none", w.depResult.Added)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the missing templates are "([^"]*)"$`, func(csv string) error {
+		return sameList("missing", w.depResult.Missing, splitList(csv))
+	})
+
+	ctx.Step(`^"([^"]*)" is included because of "([^"]*)"$`, func(dep, csv string) error {
+		return sameList("because["+dep+"]", w.depResult.Because[dep], splitList(csv))
+	})
+
+	ctx.Step(`^a document template "([^"]*)" with one record$`, func(fn string) error {
+		stem := strings.TrimSuffix(fn, ".yaml")
+		w.stub.templates = append(w.stub.templates, dataprovider.TemplateSummary{
+			Stem: stem, Filename: fn, Name: stem,
+		})
+		w.stub.forms[fn] = []dataprovider.FormSummary{{Template: fn, Filename: "r.meta.json", Title: "R"}}
+		if w.stub.render == nil {
+			w.stub.render = func(_, datafile string) (*dataprovider.RenderedPage, error) {
+				return &dataprovider.RenderedPage{Title: datafile, HTML: "<p>" + datafile + "</p>"}, nil
+			}
+		}
+		w.depGraph.known[fn] = true
+		return nil
+	})
+
+	ctx.Step(`^I export the bundle selecting "([^"]*)"$`, func(csv string) error {
+		sel := map[string][]string{}
+		for _, fn := range splitList(csv) {
+			sel[fn] = nil
+		}
+		res, err := w.handler.ExportBundle(context.Background(), sel)
+		if err != nil {
+			return err
+		}
+		files, err := unzipBytes(res.Zip)
+		if err != nil {
+			return err
+		}
+		w.exportFiles = files
+		return nil
+	})
+
+	ctx.Step(`^the bundle contains "([^"]*)"$`, func(name string) error {
+		if _, ok := w.exportFiles[name]; !ok {
+			return fmt.Errorf("bundle missing %q; has %d entries", name, len(w.exportFiles))
+		}
+		return nil
+	})
+}
+
+// splitList parses a comma-separated step argument into a trimmed, non-empty slice.
+func splitList(csv string) []string {
+	out := []string{}
+	for _, p := range strings.Split(csv, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// sameList compares two lists as sorted sets, returning a labelled error on mismatch.
+func sameList(label string, got, want []string) error {
+	g := append([]string(nil), got...)
+	w := append([]string(nil), want...)
+	sort.Strings(g)
+	sort.Strings(w)
+	if strings.Join(g, ",") != strings.Join(w, ",") {
+		return fmt.Errorf("%s = %v, want %v", label, g, w)
+	}
+	return nil
+}
+
+func unzipBytes(b []byte) (map[string][]byte, error) {
+	zr, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]byte{}
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			return nil, err
+		}
+		data, _ := io.ReadAll(rc)
+		rc.Close()
+		out[f.Name] = data
+	}
+	return out, nil
 }

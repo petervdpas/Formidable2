@@ -575,6 +575,9 @@ func New(d Deps) (*App, error) {
 	// /template/{tpl}/slides serves a full-screen reveal deck. Ordering from
 	// formM, building from wikiRender (same BuildDeck the in-app previewer uses).
 	wikiHandler.SetDecks(wikiDeckAdapter{form: formM, ren: wikiRender})
+	// Offline export closure: pull templates a selection links to (relations +
+	// api fields) into the bundle so it opens self-contained.
+	wikiHandler.SetDependencyGraph(exportDependencyGraph{rel: relationM, tpl: tplM, dp: dpM})
 
 	// stoM appears twice: Storage (LoadForm) and Writer (SaveForm/
 	// DeleteForm). Same instance, narrow per-concern interfaces. apiRelations

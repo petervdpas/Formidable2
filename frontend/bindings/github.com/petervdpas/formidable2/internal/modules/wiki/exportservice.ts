@@ -12,6 +12,10 @@
 // @ts-ignore: Unused imports
 import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * ExportBundle builds a self-contained offline-wiki zip and writes it to path.
  * selections maps a template filename to the deck values to include (empty = all
@@ -24,5 +28,20 @@ export function ExportBundle(selections: { [_ in string]?: string[] }, path: str
     });
 }
 
+/**
+ * ResolveDependencies expands the given template picks into the full set the
+ * bundle needs (the picks plus every template they link to, transitively) so the
+ * frontend can auto-toggle the related templates on and explain why. The backend
+ * also applies this expansion at export time (ExportBundle), so a bundle is
+ * self-contained even if the caller skips this call; this just surfaces it to the
+ * UI ahead of the export.
+ */
+export function ResolveDependencies(selected: string[]): $CancellablePromise<$models.DependencyResult> {
+    return $Call.ByID(2103155701, selected).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $models.DependencyResult.createFrom;

@@ -10,6 +10,79 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as time$0 from "../../../../../../time/models.js";
 
 /**
+ * DependencyResult is the outcome of expanding a user's explicit template picks
+ * into the full set an offline bundle needs for uninterrupted reading.
+ */
+export class DependencyResult {
+    /**
+     * Required is the full closure (the picks plus every transitive
+     * dependency), sorted and deduped. The export must include exactly this.
+     */
+    "required": string[];
+
+    /**
+     * Added is Required minus the explicit picks, sorted: the templates the
+     * export pulls in on the author's behalf. The frontend force-toggles these.
+     */
+    "added": string[];
+
+    /**
+     * Because maps each added filename to the explicit picks that pulled it in
+     * (sorted), so the UI can explain why a switch is locked on.
+     */
+    "because": { [_ in string]?: string[] };
+
+    /**
+     * Missing lists referenced filenames that are not known templates (dangling
+     * relation/api targets), sorted. They are left out of Required, never
+     * fabricated.
+     */
+    "missing": string[];
+
+    /** Creates a new DependencyResult instance. */
+    constructor($$source: Partial<DependencyResult> = {}) {
+        if (!("required" in $$source)) {
+            this["required"] = [];
+        }
+        if (!("added" in $$source)) {
+            this["added"] = [];
+        }
+        if (!("because" in $$source)) {
+            this["because"] = {};
+        }
+        if (!("missing" in $$source)) {
+            this["missing"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DependencyResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DependencyResult {
+        const $$createField0_0 = $$createType0;
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("required" in $$parsedSource) {
+            $$parsedSource["required"] = $$createField0_0($$parsedSource["required"]);
+        }
+        if ("added" in $$parsedSource) {
+            $$parsedSource["added"] = $$createField1_0($$parsedSource["added"]);
+        }
+        if ("because" in $$parsedSource) {
+            $$parsedSource["because"] = $$createField2_0($$parsedSource["because"]);
+        }
+        if ("missing" in $$parsedSource) {
+            $$parsedSource["missing"] = $$createField3_0($$parsedSource["missing"]);
+        }
+        return new DependencyResult($$parsedSource as Partial<DependencyResult>);
+    }
+}
+
+/**
  * ServerStatus is the live state Manager.Status returns; consumers gate on Running, not StartedAt.
  */
 export class ServerStatus {
@@ -40,3 +113,7 @@ export class ServerStatus {
         return new ServerStatus($$parsedSource as Partial<ServerStatus>);
     }
 }
+
+// Private type creation functions
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Map($Create.Any, $$createType0);

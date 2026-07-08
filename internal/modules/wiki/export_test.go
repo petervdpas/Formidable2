@@ -174,6 +174,63 @@ func TestExportBundle_DocOnlyOmitsDeckAssets(t *testing.T) {
 	}
 }
 
+// twoDocProvider serves two document templates so the closure can pull the
+// second into a bundle that only selected the first.
+func twoDocProvider() *stubProvider {
+	return &stubProvider{
+		templates: []dataprovider.TemplateSummary{
+			{Stem: "aanpak", Filename: "aanpak.yaml", Name: "Aanpak"},
+			{Stem: "controls", Filename: "controls.yaml", Name: "Controls"},
+		},
+		forms: map[string][]dataprovider.FormSummary{
+			"aanpak.yaml":   {{Template: "aanpak.yaml", Filename: "a.meta.json", Title: "A"}},
+			"controls.yaml": {{Template: "controls.yaml", Filename: "c.meta.json", Title: "C"}},
+		},
+		render: func(_, datafile string) (*dataprovider.RenderedPage, error) {
+			return &dataprovider.RenderedPage{Title: "T-" + datafile, HTML: `<p>body ` + datafile + `</p>`}, nil
+		},
+	}
+}
+
+// Selecting only aanpak still bundles controls, because aanpak links to it. The
+// zip must open self-contained: the related template's collection and record
+// pages are present even though the caller never picked it.
+func TestExportBundle_PullsInRelatedTemplate(t *testing.T) {
+	h := NewHandler(twoDocProvider(), newStubStorage(), &stubExpressioner{})
+	h.SetDependencyGraph(newFakeGraph(map[string][]string{"aanpak.yaml": {"controls.yaml"}}))
+
+	res, err := h.ExportBundle(context.Background(), map[string][]string{"aanpak.yaml": nil})
+	if err != nil {
+		t.Fatalf("ExportBundle: %v", err)
+	}
+	files := unzipMap(t, res.Zip)
+	for _, want := range []string{
+		"template-aanpak.html", "form-aanpak-a-meta-json.html",
+		"template-controls.html", "form-controls-c-meta-json.html",
+	} {
+		if _, ok := files[want]; !ok {
+			t.Errorf("missing zip entry %q (closure should have added controls)", want)
+		}
+	}
+	if !strings.Contains(string(files["index.html"]), "template-controls.html") {
+		t.Errorf("index should list the auto-included related template")
+	}
+}
+
+// With no dependency graph wired, the export includes exactly what was selected
+// (identity), so behavior is unchanged for callers that opt out.
+func TestExportBundle_NoGraphNoAutoInclude(t *testing.T) {
+	h := NewHandler(twoDocProvider(), newStubStorage(), &stubExpressioner{})
+	res, err := h.ExportBundle(context.Background(), map[string][]string{"aanpak.yaml": nil})
+	if err != nil {
+		t.Fatalf("ExportBundle: %v", err)
+	}
+	files := unzipMap(t, res.Zip)
+	if _, ok := files["template-controls.html"]; ok {
+		t.Errorf("controls must not appear without a dependency graph")
+	}
+}
+
 func TestExportBundle_EmptyPresentationSkipped(t *testing.T) {
 	sp := &stubProvider{
 		templates: []dataprovider.TemplateSummary{{Stem: "deck", Filename: "deck.yaml", Name: "Deck"}},

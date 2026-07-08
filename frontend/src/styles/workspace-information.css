@@ -1460,6 +1460,26 @@
   min-width: 0;
 }
 
+/* Auto-included (dependency) rows: the switch is locked on and a note explains
+   which pick pulled the template in. */
+.wiki-export-row.is-auto .wiki-export-name {
+  color: var(--color-text-muted);
+}
+
+.wiki-export-auto {
+  font-size: var(--font-size-sm);
+  color: var(--color-accent, #3b82f6);
+  white-space: nowrap;
+}
+
+.wiki-export-missing {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-warning-bg, rgba(234, 179, 8, 0.12));
+  color: var(--color-warning-text, var(--color-text));
+}
+
 .wiki-export-file {
   margin-left: auto;
   padding-left: var(--space-3);

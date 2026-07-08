@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sort"
 
 	"github.com/petervdpas/formidable2/internal/modules/api"
 	"github.com/petervdpas/formidable2/internal/modules/dataprovider"
@@ -45,6 +46,56 @@ func (r formRelationReader) RelationEdges(hostTemplate, targetCollection string)
 		}
 	}
 	return pairs, nil
+}
+
+// exportDependencyGraph reports a template's outgoing dependencies for the
+// offline-wiki export: the union of its declared non-inverse relation targets
+// and its api-field target collections, all named by template filename. It backs
+// wiki.DependencyGraph so the exporter can pull related templates into the bundle
+// (making it self-contained) without the wiki module importing relation/template.
+// Only non-inverse relations are followed: a bundle needs what a template links
+// TO, not every template that links to it (the store mirrors both sides).
+type exportDependencyGraph struct {
+	rel *relation.Manager
+	tpl *template.Manager
+	dp  *dataprovider.Manager
+}
+
+func (g exportDependencyGraph) DirectDeps(filename string) ([]string, error) {
+	out := map[string]bool{}
+
+	rels, err := g.rel.GetRelations(filename)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range rels {
+		if !r.Inverse && r.To != "" && r.To != filename {
+			out[r.To] = true
+		}
+	}
+
+	// api-field targets. The flat Fields slice already contains loop-nested
+	// fields, so this captures api fields at any nesting. A load failure is
+	// tolerated: relation targets alone still expand the closure.
+	if t, err := g.tpl.LoadTemplate(filename); err == nil && t != nil {
+		for _, f := range t.Fields {
+			if f.Type == "api" && f.Collection != "" && f.Collection != filename {
+				out[f.Collection] = true
+			}
+		}
+	}
+
+	deps := make([]string, 0, len(out))
+	for d := range out {
+		deps = append(deps, d)
+	}
+	sort.Strings(deps)
+	return deps, nil
+}
+
+func (g exportDependencyGraph) TemplateExists(filename string) bool {
+	_, ok, err := g.dp.GetTemplate(context.Background(), filename)
+	return err == nil && ok
 }
 
 // apiRelations adapts relationM onto api.Relations so the api module exposes

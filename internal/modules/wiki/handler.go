@@ -79,6 +79,7 @@ type Handler struct {
 	tpl    Templates
 	filter EnabledTemplateFilter
 	decks  DeckProvider
+	deps   DependencyGraph
 	mux    *http.ServeMux
 }
 
@@ -119,6 +120,34 @@ func (h *Handler) SetTemplates(t Templates) {
 // hides the Presentations section and 404s the /slides routes.
 func (h *Handler) SetDecks(d DeckProvider) {
 	h.decks = d
+}
+
+// SetDependencyGraph installs (or clears with nil) the template dependency
+// graph used to make an offline bundle self-contained. Nil means the export
+// includes exactly the templates it is handed (no auto-inclusion).
+func (h *Handler) SetDependencyGraph(g DependencyGraph) {
+	h.deps = g
+}
+
+// Dependencies expands an explicit set of template picks into the full set the
+// bundle needs. With no graph wired it is the identity (each pick carries only
+// itself), so the surface is always callable.
+func (h *Handler) Dependencies(selected []string) (DependencyResult, error) {
+	if h.deps == nil {
+		req := map[string]bool{}
+		for _, s := range selected {
+			if s != "" {
+				req[s] = true
+			}
+		}
+		return DependencyResult{
+			Required: sortedKeys(req),
+			Added:    []string{},
+			Because:  map[string][]string{},
+			Missing:  []string{},
+		}, nil
+	}
+	return resolveDeps(selected, h.deps)
 }
 
 // templateEnabled gates the detail views; missing filter or empty enabled list passes everything.
