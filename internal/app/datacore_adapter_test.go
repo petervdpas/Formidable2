@@ -15,7 +15,9 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/template"
 )
 
-type fakeRelReader struct{ rels map[string][]relation.Relation }
+type fakeRelReader struct {
+	rels map[string][]relation.Relation
+}
 
 func (f fakeRelReader) GetRelations(template string) ([]relation.Relation, error) {
 	return f.rels[template], nil

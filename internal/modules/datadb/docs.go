@@ -145,6 +145,19 @@ func baseOpenAPISpec() map[string]any {
 		"servers":  []any{map[string]any{"url": "/"}},
 		"security": []any{map[string]any{"ApiKeyAuth": []any{}}},
 		"paths": map[string]any{
+			"/api/context": map[string]any{
+				"get": map[string]any{
+					"summary":     "Agent context primer",
+					"description": "Markdown explaining how to read this bundle's data model and API. Public (no key).",
+					"security":    []any{}, // overrides the global requirement: open
+					"responses": map[string]any{
+						"200": map[string]any{
+							"description": "Markdown primer",
+							"content":     map[string]any{"text/markdown": map[string]any{"schema": map[string]any{"type": "string"}}},
+						},
+					},
+				},
+			},
 			"/api/templates": map[string]any{
 				"get": map[string]any{
 					"summary":     "List templates",

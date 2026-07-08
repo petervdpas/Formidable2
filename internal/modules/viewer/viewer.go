@@ -18,12 +18,12 @@ import (
 	"github.com/petervdpas/formidable2/internal/modules/datadb"
 )
 
-// dataEntry is the archive path of the pack's queryable data image, and
-// specEntry the OpenAPI document describing it (both written by the exporter
-// under the assets folder).
+// Archive paths of the pack's queryable data and its discovery artifacts, all
+// written by the exporter under the assets folder.
 const (
-	dataEntry = "_/data.db"
-	specEntry = "_/openapi.json"
+	dataEntry    = "_/data.db"
+	specEntry    = "_/openapi.json"
+	contextEntry = "_/context.md"
 )
 
 // Bundle is a read-only view over one opened pack: the decrypted payload archive
@@ -56,7 +56,10 @@ func BundleFromBytes(b []byte, name string) (*Bundle, error) {
 	bnd := newBundle(name, zr)
 	if db, err := openData(zr); err == nil && db != nil {
 		bnd.data = db
-		bnd.api = datadb.Handler(db, readEntry(zr, specEntry))
+		bnd.api = datadb.Handler(db, datadb.Docs{
+			OpenAPI: readEntry(zr, specEntry),
+			Context: readEntry(zr, contextEntry),
+		})
 	}
 	return bnd, nil
 }

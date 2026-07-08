@@ -16,25 +16,36 @@ import (
 //	GET /api/templates/{tpl}      records of one template (guid + title)
 //	GET /api/records/{guid}       one record with its full payload
 //	GET /api/search?q=            full-text search across records
+//	GET /api/context              agent primer: how to read this bundle
+//	GET /api/openapi.json         machine-readable schema
+//	GET /api/docs/                interactive Swagger UI
 //
-// openAPI is the packed per-collection spec; when nil the generic spec is
-// served instead.
-func Handler(db *DB, openAPI []byte) http.Handler {
+// docs carries the packed per-bundle spec and context; either may be nil, in
+// which case a generic version is served.
+func Handler(db *DB, docs Docs) http.Handler {
 	mux := http.NewServeMux()
 
-	// Discovery: /api/ opens the interactive docs; the spec and UI assets sit
-	// beside it so an agent (or a human) can explore the API offline.
+	// Discovery: /api/ opens the interactive docs; the spec, context, and UI
+	// assets sit beside it so an agent (or a human) can orient offline.
 	mux.HandleFunc("/api/{$}", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/api/docs/", http.StatusFound)
 	})
 	mux.HandleFunc("/api/docs/", serveDocs)
 	mux.HandleFunc("/api/openapi.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if len(openAPI) > 0 {
-			_, _ = w.Write(openAPI)
+		if len(docs.OpenAPI) > 0 {
+			_, _ = w.Write(docs.OpenAPI)
 			return
 		}
 		_ = json.NewEncoder(w).Encode(baseOpenAPISpec())
+	})
+	mux.HandleFunc("/api/context", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		if len(docs.Context) > 0 {
+			_, _ = w.Write(docs.Context)
+			return
+		}
+		_, _ = w.Write(BuildContext(nil))
 	})
 
 	mux.HandleFunc("/api/templates", func(w http.ResponseWriter, r *http.Request) {
@@ -84,15 +95,24 @@ func getOnly(next http.Handler) http.Handler {
 	})
 }
 
+// Docs are the packed, per-bundle discovery artifacts served alongside the
+// data: the OpenAPI spec and the agent-context primer. Either may be empty, in
+// which case a generic version is served.
+type Docs struct {
+	OpenAPI []byte
+	Context []byte
+}
+
 // RequiresAuth reports whether an /api path serves protected data. Discovery
-// (the docs UI, the OpenAPI spec, the /api/ redirect) is public so an agent can
-// find the API and authorize; the data endpoints are gated. The token itself is
-// enforced by the Viewer, which holds it; this only classifies the path.
+// (the docs UI, the OpenAPI spec, the context primer, the /api/ redirect) is
+// public so an agent can orient and authorize; the data endpoints are gated.
+// The token itself is enforced by the Viewer, which holds it; this only
+// classifies the path.
 func RequiresAuth(path string) bool {
 	switch {
 	case path == "/api" || path == "/api/":
 		return false
-	case path == "/api/openapi.json":
+	case path == "/api/openapi.json", path == "/api/context":
 		return false
 	case strings.HasPrefix(path, "/api/docs"):
 		return false

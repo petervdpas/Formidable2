@@ -66,7 +66,11 @@ func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string)
 	if err != nil {
 		return wiki.DataPack{}, err
 	}
-	return wiki.DataPack{DB: db, OpenAPI: datadb.BuildOpenAPI(specs)}, nil
+	return wiki.DataPack{
+		DB:      db,
+		OpenAPI: datadb.BuildOpenAPI(specs),
+		Context: datadb.BuildContext(specs),
+	}, nil
 }
 
 // templateSpec describes one collection template for the OpenAPI document: its

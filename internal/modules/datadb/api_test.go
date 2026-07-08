@@ -10,7 +10,7 @@ import (
 
 func apiServer(t *testing.T) http.Handler {
 	t.Helper()
-	return Handler(openSample(t), nil)
+	return Handler(openSample(t), Docs{})
 }
 
 func getJSON(t *testing.T, h http.Handler, path string, into any) int {
@@ -128,11 +128,38 @@ func TestBuildOpenAPIEnrichesFromTemplates(t *testing.T) {
 
 func TestAPIServesPackedSpec(t *testing.T) {
 	packed := BuildOpenAPI([]TemplateSpec{{Filename: "z.yaml", Name: "Zed"}})
-	h := Handler(openSample(t), packed)
+	h := Handler(openSample(t), Docs{OpenAPI: packed})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/openapi.json", nil))
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "z.yaml") {
 		t.Fatalf("packed spec not served: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAPIContext(t *testing.T) {
+	// Generic (unpacked) context still describes the data model.
+	h := apiServer(t)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/context", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("context status %d", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/markdown") {
+		t.Fatalf("context content-type = %q", ct)
+	}
+	for _, want := range []string{"Formidable", "guid", "/api/search", "relations"} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("generic context missing %q", want)
+		}
+	}
+
+	// Packed context lists the bundle's own collections.
+	packed := BuildContext([]TemplateSpec{{Filename: "kostenplaats.yaml", Name: "Kostenplaats", Fields: []FieldSpec{{Key: "code", Type: "string"}}}})
+	h2 := Handler(openSample(t), Docs{Context: packed})
+	rec2 := httptest.NewRecorder()
+	h2.ServeHTTP(rec2, httptest.NewRequest(http.MethodGet, "/api/context", nil))
+	if !strings.Contains(rec2.Body.String(), "kostenplaats.yaml") || !strings.Contains(rec2.Body.String(), "Collections in this bundle") {
+		t.Fatalf("packed context not served: %s", rec2.Body.String())
 	}
 }
 

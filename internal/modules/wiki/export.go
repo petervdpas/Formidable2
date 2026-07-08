@@ -125,6 +125,9 @@ func (h *Handler) ExportBundle(ctx context.Context, selections map[string][]stri
 		if len(pack.OpenAPI) > 0 {
 			entries = append(entries, exportEntry{name: "_/openapi.json", data: pack.OpenAPI})
 		}
+		if len(pack.Context) > 0 {
+			entries = append(entries, exportEntry{name: "_/context.md", data: pack.Context})
+		}
 	}
 
 	zipBytes, err := zipEntries(entries)

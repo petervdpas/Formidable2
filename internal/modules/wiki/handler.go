@@ -72,11 +72,13 @@ type EnabledTemplateFilter interface {
 }
 
 // DataPack is the queryable half of a bundle: a SQLite image of the collection
-// records (DB) and the OpenAPI document describing them (OpenAPI). Either may be
-// empty, in which case that entry is not written.
+// records (DB), the OpenAPI document describing them (OpenAPI), and an
+// agent-context primer (Context). Any part may be empty, in which case that
+// entry is not written.
 type DataPack struct {
 	DB      []byte
 	OpenAPI []byte
+	Context []byte
 }
 
 // DataPacker builds the DataPack for the collection templates among the given
