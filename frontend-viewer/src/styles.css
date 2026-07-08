@@ -354,34 +354,3 @@ body {
   margin-top: 1.1rem;
 }
 
-/* Diagnostics */
-.err-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.8rem;
-  background: #4a1f24;
-  color: #ffd7dc;
-  border-bottom: 1px solid var(--danger);
-  font-size: 0.85rem;
-}
-
-.err-text {
-  flex: 1;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.err-close {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  font-size: 1.1rem;
-  cursor: pointer;
-}
-

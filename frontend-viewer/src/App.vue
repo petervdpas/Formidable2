@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from "vue";
 import { Events } from "@wailsio/runtime";
 import { api, BundleChangedEvent, type BundleInfo } from "./api";
-import { lastError, bundleZoom, clearError, reportError } from "./state";
+import { bundleZoom, reportError } from "./state";
 import { applyTheme } from "./theme";
 import HomeScreen from "./components/HomeScreen.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
@@ -122,11 +122,6 @@ function closeSettings(): void {
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <div v-if="lastError" class="err-banner">
-      <span class="err-text">{{ lastError }}</span>
-      <button class="err-close" @click="clearError">×</button>
-    </div>
-
     <HomeScreen
       v-if="view === 'home'"
       :key="homeKey"

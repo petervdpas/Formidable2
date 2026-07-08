@@ -45,7 +45,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	bundleServer := viewer.NewServer()       // serves the open bundle (or landing)
+	bundleServer := viewer.NewServer()        // serves the open bundle (or landing)
 	lan := viewer.NewHTTPServer(bundleServer) // optional LAN server over the same handler
 
 	// Always-on loopback server the shell's iframe loads the bundle from. A real

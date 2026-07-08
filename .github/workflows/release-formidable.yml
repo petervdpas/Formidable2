@@ -222,6 +222,9 @@ jobs:
           while ($parts.Count -lt 3) { $parts += '0' }
           $ver3 = ($parts[0..2]) -join '.'
 
+          # Build the viewer's Vue shell (embedded by the Go binary).
+          Push-Location frontend-viewer; npm ci; npm run build; Pop-Location
+
           # Render the viewer's PE resource templates at the release version.
           (Get-Content "build/windows/wails.viewer.manifest.tmpl" -Raw) -replace '__VERSION__', $ver3 |
             Set-Content "build/windows/wails.viewer.manifest" -NoNewline
@@ -364,6 +367,8 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: "1"
         run: |
+          # Build the viewer's Vue shell (embedded by the Go binary).
+          (cd frontend-viewer && npm ci && npm run build)
           go build -tags production -trimpath -buildvcs=false \
             -ldflags="-s -w -buildid=" \
             -o bin/FormidableViewer ./cmd/formidable-viewer
@@ -485,6 +490,8 @@ jobs:
           GOARCH: arm64
           CGO_ENABLED: "1"
         run: |
+          # Build the viewer's Vue shell (embedded by the Go binary).
+          (cd frontend-viewer && npm ci && npm run build)
           go build -tags production -trimpath -buildvcs=false \
             -ldflags="-s -w -buildid=" \
             -o bin/FormidableViewer ./cmd/formidable-viewer
@@ -570,7 +577,8 @@ jobs:
           mkdir -p dist
           mv bin/*.rpm dist/Formidable-linux-amd64.rpm
 
-          # Standalone viewer rpm.
+          # Standalone viewer rpm. Build its Vue shell first (embedded by Go).
+          (cd frontend-viewer && npm ci && npm run build)
           GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
             go build -tags production -trimpath -buildvcs=false \
               -ldflags="-s -w -buildid=" \
@@ -689,6 +697,8 @@ jobs:
           CGO_LDFLAGS: "-mmacosx-version-min=12.0"
         run: |
           mkdir -p dist
+          # Build the viewer's Vue shell (embedded by the Go binary).
+          (cd frontend-viewer && npm ci && npm run build)
           GOOS=darwin GOARCH=amd64 \
             go build -tags production -trimpath -buildvcs=false \
               -ldflags="-s -w -buildid=" \
