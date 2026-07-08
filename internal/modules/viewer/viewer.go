@@ -12,15 +12,19 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
+
+	"github.com/petervdpas/formidable2/internal/modules/bundle"
 )
 
 // Bundle is a read-only view over one offline export. The zip stays sealed;
 // entries are read on demand through the archive's random-access reader.
+// manifest carries the pack's cleartext metadata (empty for a legacy bare zip).
 type Bundle struct {
-	name   string
-	reader *zip.Reader
-	closer io.Closer // non-nil when opened from a file on disk
-	h      http.Handler
+	name     string
+	reader   *zip.Reader
+	closer   io.Closer // non-nil when opened from a file on disk
+	h        http.Handler
+	manifest bundle.Manifest
 }
 
 func newBundle(name string, zr *zip.Reader, closer io.Closer) *Bundle {

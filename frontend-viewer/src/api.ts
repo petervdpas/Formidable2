@@ -19,6 +19,18 @@ export interface Config {
 export interface BundleInfo {
   loaded: boolean;
   name: string;
+  title: string;
+  description: string;
+  author: string;
+  created: string;
+  encrypted: boolean;
+}
+
+export interface OpenResult {
+  info: BundleInfo;
+  needsPassword: boolean;
+  wrongPassword: boolean;
+  path: string;
 }
 
 export interface RecentInfo {
@@ -44,9 +56,11 @@ export const api = {
   effectiveLanguage: () => call<string>("EffectiveLanguage"),
   messages: (lang: string) => call<Record<string, string>>("Messages", lang),
   recents: () => call<RecentInfo[]>("Recents"),
-  openDialog: () => call<BundleInfo>("OpenDialog"),
-  openPath: (p: string) => call<BundleInfo>("OpenPath", p),
-  openBytes: (name: string, dataB64: string) => call<BundleInfo>("OpenBytes", name, dataB64),
+  openDialog: () => call<OpenResult>("OpenDialog"),
+  openPath: (p: string, password: string) => call<OpenResult>("OpenPath", p, password),
+  openBytes: (name: string, dataB64: string, password: string) =>
+    call<OpenResult>("OpenBytes", name, dataB64, password),
+  takePendingOpen: () => call<string>("TakePendingOpen"),
   current: () => call<BundleInfo>("Current"),
   serverStatus: () => call<ServerStatus>("ServerStatus"),
   bundleURL: () => call<string>("BundleURL"),

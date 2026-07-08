@@ -1,11 +1,19 @@
 {
   "home": {
-    "drop_hint": "Sleep hier een Formidable-export (.zip) naartoe om deze offline te bekijken.",
+    "drop_hint": "Sleep hier een Formidable-bundel (.bundle of .zip) naartoe om deze offline te bekijken.",
     "no_bundle": "Er is geen bundel geopend.",
     "open_button": "Bundel openen",
     "resume": "Hervatten",
     "recents_title": "Recente bundels",
     "recent_missing": "ontbreekt"
+  },
+  "unlock": {
+    "title": "Wachtwoord invoeren",
+    "hint": "Deze bundel is versleuteld. Voer het wachtwoord in om te openen.",
+    "password_placeholder": "Wachtwoord",
+    "submit": "Ontgrendelen",
+    "cancel": "Annuleren",
+    "wrong": "Onjuist wachtwoord. Probeer opnieuw."
   },
   "toolbar": {
     "home": "Start",

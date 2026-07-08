@@ -11,6 +11,7 @@ package main
 
 import (
 	_ "embed"
+	"encoding/json"
 	"io"
 	"io/fs"
 	"log"
@@ -37,6 +38,23 @@ func windowTitle(srv *viewer.Server) string {
 		return b.Name() + " - " + appName
 	}
 	return appName
+}
+
+// promptUnlock pokes the Vue shell to open its password prompt for an encrypted
+// pack dropped natively, seeding it with the path and cleartext manifest so the
+// prompt can name the pack. The shell retries the open with the password.
+func promptUnlock(win *application.WebviewWindow, res viewer.OpenResult) {
+	payload, err := json.Marshal(map[string]any{
+		"path":        res.Path,
+		"name":        res.Info.Name,
+		"title":       res.Info.Title,
+		"description": res.Info.Description,
+		"wrong":       res.WrongPassword,
+	})
+	if err != nil {
+		return
+	}
+	win.ExecJS("window.__viewerUnlock && window.__viewerUnlock(" + string(payload) + ")")
 }
 
 func main() {
@@ -67,11 +85,10 @@ func main() {
 	svc := viewer.NewService(store, bundleServer, lan)
 	svc.SetFrameServer(frame)
 
-	// Initial bundle from argv (file association / "open with").
+	// Initial bundle from argv (file association / "open with"). Routed through
+	// the UI so an encrypted pack prompts for its password on mount.
 	if len(os.Args) > 1 {
-		if _, err := svc.OpenPath(os.Args[1]); err != nil {
-			log.Printf("%s: cannot open %q: %v", appName, os.Args[1], err)
-		}
+		svc.SetPendingOpen(os.Args[1])
 	}
 
 	// Asset handler: the Vue shell at /, the open bundle under /bundle/.
@@ -116,8 +133,8 @@ func main() {
 	// Inject the Wails-side behavior the service needs.
 	svc.SetOpenFunc(func() (string, error) {
 		return app.Dialog.OpenFile().
-			SetTitle("Open Formidable export").
-			AddFilter("Formidable export (*.zip)", "*.zip").
+			SetTitle("Open Formidable bundle").
+			AddFilter("Formidable bundle (*.bundle, *.zip)", "*.bundle;*.zip").
 			PromptForSingleSelection()
 	})
 	svc.SetSwapHook(func() {
@@ -128,16 +145,24 @@ func main() {
 		win.ExecJS("window.__viewerRefresh && window.__viewerRefresh()")
 	})
 
-	// Native drop: load the first .zip through the service so recents record
-	// and the swap hook fires (the shell reacts to the event).
+	// Native drop: load the first .bundle/.zip through the service so recents
+	// record and the swap hook fires (the shell reacts to the event). An
+	// encrypted pack that needs a password pokes the shell to open the unlock
+	// prompt instead of loading.
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
 		for _, f := range e.Context().DroppedFiles() {
-			if strings.EqualFold(filepath.Ext(f), ".zip") {
-				if _, err := svc.OpenPath(f); err != nil {
+			ext := strings.ToLower(filepath.Ext(f))
+			if ext == ".bundle" || ext == ".zip" {
+				res, err := svc.OpenPath(f, "")
+				if err != nil {
 					log.Printf("%s: cannot open %q: %v", appName, f, err)
+					return
 				}
-				// OpenPath fires the swap hook, which pokes the Vue shell to
-				// switch its view. No reload needed.
+				if res.NeedsPassword || res.WrongPassword {
+					promptUnlock(win, res)
+				}
+				// A successful open fires the swap hook, which pokes the Vue
+				// shell to switch its view. No reload needed.
 				return
 			}
 		}

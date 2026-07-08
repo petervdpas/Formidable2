@@ -2,15 +2,37 @@ package viewer
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/petervdpas/formidable2/internal/modules/bundle"
 )
 
-// BundleInfo summarizes the currently-open bundle for the UI.
+// BundleInfo summarizes a bundle for the UI. When Loaded is false but Name is
+// set, it describes a pack that has been peeked (manifest read) but not opened,
+// e.g. an encrypted one awaiting its password.
 type BundleInfo struct {
-	Loaded bool   `json:"loaded"`
-	Name   string `json:"name"`
+	Loaded      bool   `json:"loaded"`
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Author      string `json:"author"`
+	Created     string `json:"created"`
+	Encrypted   bool   `json:"encrypted"`
+}
+
+// OpenResult is the outcome of an open attempt. When the pack is encrypted and
+// no (or a wrong) password was supplied, Info describes it from the cleartext
+// manifest (so the UI can title the unlock prompt) and the flags say what to do;
+// Path is the file to retry with the password (empty for a byte drop). On
+// success Info.Loaded is true and the bundle is serving.
+type OpenResult struct {
+	Info          BundleInfo `json:"info"`
+	NeedsPassword bool       `json:"needsPassword"`
+	WrongPassword bool       `json:"wrongPassword"`
+	Path          string     `json:"path"`
 }
 
 // RecentInfo is a remembered bundle path with display metadata.
@@ -37,12 +59,13 @@ type ServerStatus struct {
 // Wails-specific behavior (the native open dialog, retitle + reload after a
 // swap) is injected from the composition root so this stays testable.
 type Service struct {
-	store  *ConfigStore
-	server *Server
-	http   *HTTPServer
-	frame  *HTTPServer            // always-on loopback server the iframe loads from
-	open   func() (string, error) // native open-file dialog; "" == cancelled
-	onSwap func()                 // called after a bundle swaps
+	store   *ConfigStore
+	server  *Server
+	http    *HTTPServer
+	frame   *HTTPServer            // always-on loopback server the iframe loads from
+	open    func() (string, error) // native open-file dialog; "" == cancelled
+	onSwap  func()                 // called after a bundle swaps
+	pending string                 // argv "open with" path, claimed once by the UI
 }
 
 // NewService wires the store, the current-bundle server, and the optional LAN
@@ -56,6 +79,19 @@ func (s *Service) SetOpenFunc(f func() (string, error)) { s.open = f }
 
 // SetSwapHook injects the after-swap callback (retitle + reload the webview).
 func (s *Service) SetSwapHook(f func()) { s.onSwap = f }
+
+// SetPendingOpen records an argv / "open with" path to be opened once the UI is
+// ready. The shell claims it on mount (TakePendingOpen) so the open, and any
+// password prompt for an encrypted pack, flows through the normal UI path.
+func (s *Service) SetPendingOpen(path string) { s.pending = path }
+
+// TakePendingOpen returns the pending argv path and clears it, so it opens only
+// once. Empty when there is none.
+func (s *Service) TakePendingOpen() string {
+	p := s.pending
+	s.pending = ""
+	return p
+}
 
 // SetFrameServer wires the loopback server the shell's iframe loads the bundle
 // from. Serving over a real http:// origin avoids the WebKitGTK limitation
@@ -129,55 +165,113 @@ func (s *Service) Recents() []RecentInfo {
 	return out
 }
 
-// OpenDialog shows the native file picker and opens the chosen bundle. A
-// cancelled dialog leaves the current bundle unchanged.
-func (s *Service) OpenDialog() (BundleInfo, error) {
+// OpenDialog shows the native file picker and opens the chosen pack with no
+// password. If the pack is encrypted the result says so (NeedsPassword) and
+// carries its Path, and the UI re-calls OpenPath with the password. A cancelled
+// dialog leaves the current bundle unchanged.
+func (s *Service) OpenDialog() (OpenResult, error) {
 	if s.open == nil {
-		return s.Current(), nil
+		return OpenResult{Info: s.Current()}, nil
 	}
 	path, err := s.open()
 	if err != nil || path == "" {
-		return s.Current(), err
+		return OpenResult{Info: s.Current()}, err
 	}
-	return s.OpenPath(path)
+	return s.OpenPath(path, "")
 }
 
-// OpenPath opens the bundle at path, swaps it in, records it as recent, and
-// fires the swap hook. Used by the Open dialog, recents, and file drops.
-func (s *Service) OpenPath(path string) (BundleInfo, error) {
-	b, err := OpenBundle(path)
+// OpenPath opens the pack at path with the given password (empty for an
+// unencrypted pack). On success it swaps the bundle in, records the path as
+// recent, and fires the swap hook. When the pack is encrypted and the password
+// is missing or wrong, nothing is loaded and the result flags say so. The
+// password is used only to decrypt; it is never stored (recents hold the path
+// only, so reopening re-prompts).
+func (s *Service) OpenPath(path string, password string) (OpenResult, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return s.Current(), err
+		return OpenResult{}, err
 	}
-	if prev := s.server.SetBundle(b); prev != nil {
-		_ = prev.Close()
-	}
-	_ = s.store.AddRecent(path)
-	if s.onSwap != nil {
-		s.onSwap()
-	}
-	return s.Current(), nil
+	return s.openRaw(raw, filepath.Base(path), path, password)
 }
 
-// OpenBytes opens a bundle from raw zip bytes (base64-encoded), for the shell's
-// HTML5 file drop, where the webview exposes file contents but not a path. No
-// recents entry is recorded because there is no path to reopen later.
-func (s *Service) OpenBytes(name string, dataB64 string) (BundleInfo, error) {
+// OpenBytes opens a pack from raw bytes (base64-encoded), for the shell's HTML5
+// file drop, where the webview exposes file contents but not a path. No recents
+// entry is recorded because there is no path to reopen later; on a wrong or
+// missing password the UI retries by re-submitting the same bytes.
+func (s *Service) OpenBytes(name string, dataB64 string, password string) (OpenResult, error) {
 	data, err := base64.StdEncoding.DecodeString(dataB64)
 	if err != nil {
-		return s.Current(), err
+		return OpenResult{}, err
 	}
-	b, err := BundleFromBytes(data, name)
+	return s.openRaw(data, name, "", password)
+}
+
+// openRaw is the shared open path: decode raw file bytes into a servable zip and
+// its manifest (transparently handling encrypted .bundle, plain .bundle, and a
+// legacy bare .zip), then swap the bundle in. path is "" for byte drops.
+func (s *Service) openRaw(raw []byte, name, path, password string) (OpenResult, error) {
+	zipBytes, man, needPw, wrongPw, err := decodeBundle(raw, password)
 	if err != nil {
-		return s.Current(), err
+		return OpenResult{}, err
 	}
+	if needPw || wrongPw {
+		info := infoFromManifest(name, man)
+		return OpenResult{Info: info, NeedsPassword: needPw, WrongPassword: wrongPw, Path: path}, nil
+	}
+
+	b, err := BundleFromBytes(zipBytes, name)
+	if err != nil {
+		return OpenResult{}, err
+	}
+	b.manifest = man
 	if prev := s.server.SetBundle(b); prev != nil {
 		_ = prev.Close()
+	}
+	if path != "" {
+		_ = s.store.AddRecent(path)
 	}
 	if s.onSwap != nil {
 		s.onSwap()
 	}
-	return s.Current(), nil
+	return OpenResult{Info: s.Current()}, nil
+}
+
+// decodeBundle resolves raw file bytes to the servable zip plus its manifest. A
+// legacy bare zip (no bundle container) is served as-is with an empty manifest.
+// An encrypted bundle with a missing password sets needPw; a wrong password
+// sets wrongPw. Neither is treated as a hard error, so the UI can prompt.
+func decodeBundle(raw []byte, password string) (zipBytes []byte, man bundle.Manifest, needPw, wrongPw bool, err error) {
+	man, mErr := bundle.ReadManifest(raw)
+	if errors.Is(mErr, bundle.ErrNotBundle) {
+		return raw, bundle.Manifest{}, false, false, nil // legacy bare .zip
+	}
+	if mErr != nil {
+		return nil, bundle.Manifest{}, false, false, mErr
+	}
+	if man.Encrypted && password == "" {
+		return nil, man, true, false, nil
+	}
+	zipBytes, uErr := bundle.Unpack(raw, password)
+	switch {
+	case errors.Is(uErr, bundle.ErrEmptyPassword):
+		return nil, man, true, false, nil
+	case errors.Is(uErr, bundle.ErrDecrypt):
+		return nil, man, false, true, nil
+	case uErr != nil:
+		return nil, man, false, false, uErr
+	}
+	return zipBytes, man, false, false, nil
+}
+
+func infoFromManifest(name string, man bundle.Manifest) BundleInfo {
+	return BundleInfo{
+		Name:        name,
+		Title:       man.Title,
+		Description: man.Description,
+		Author:      man.Author,
+		Created:     man.Created,
+		Encrypted:   man.Encrypted,
+	}
 }
 
 // Current returns the open-bundle summary.
@@ -186,7 +280,9 @@ func (s *Service) Current() BundleInfo {
 	if b == nil {
 		return BundleInfo{}
 	}
-	return BundleInfo{Loaded: true, Name: b.Name()}
+	info := infoFromManifest(b.Name(), b.manifest)
+	info.Loaded = true
+	return info
 }
 
 // ServerStatus reports the LAN server state.
