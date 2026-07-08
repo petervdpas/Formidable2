@@ -16,6 +16,7 @@ import (
 //	GET /api/templates/{tpl}      records of one template (guid + title)
 //	GET /api/records/{guid}       one record with its full payload
 //	GET /api/search?q=            full-text search across records
+//	GET /api/graph                the record-relations graph (nodes + edges)
 //	GET /api/context              agent primer: how to read this bundle
 //	GET /api/openapi.json         machine-readable schema
 //	GET /api/docs/                interactive Swagger UI
@@ -71,6 +72,10 @@ func Handler(db *DB, docs Docs) http.Handler {
 	mux.HandleFunc("/api/search", func(w http.ResponseWriter, r *http.Request) {
 		hits, err := db.Search(r.URL.Query().Get("q"))
 		respond(w, hits, err)
+	})
+	mux.HandleFunc("/api/graph", func(w http.ResponseWriter, r *http.Request) {
+		g, err := db.Graph()
+		respond(w, g, err)
 	})
 
 	return getOnly(mux)

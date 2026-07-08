@@ -195,6 +195,15 @@ func baseOpenAPISpec() map[string]any {
 					},
 				},
 			},
+			"/api/graph": map[string]any{
+				"get": map[string]any{
+					"summary":     "Relations graph",
+					"description": "Every record as a node and every relation as an edge.",
+					"responses": map[string]any{
+						"200": jsonResponse("The record-relations graph", ref("Graph")),
+					},
+				},
+			},
 		},
 		"components": map[string]any{
 			"securitySchemes": map[string]any{
@@ -218,6 +227,33 @@ func baseOpenAPISpec() map[string]any {
 						"template": map[string]any{"type": "string"},
 						"guid":     map[string]any{"type": "string"},
 						"title":    map[string]any{"type": "string"},
+					},
+				},
+				"Graph": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"nodes": map[string]any{
+							"type": "array",
+							"items": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"guid":     map[string]any{"type": "string"},
+									"template": map[string]any{"type": "string"},
+									"title":    map[string]any{"type": "string"},
+									"page":     map[string]any{"type": "string", "description": "Bundle HTML page for this record"},
+								},
+							},
+						},
+						"edges": map[string]any{
+							"type": "array",
+							"items": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"from": map[string]any{"type": "string"},
+									"to":   map[string]any{"type": "string"},
+								},
+							},
+						},
 					},
 				},
 				"RecordFull": map[string]any{

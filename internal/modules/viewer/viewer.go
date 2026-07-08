@@ -92,6 +92,12 @@ func readEntry(zr *zip.Reader, name string) []byte {
 // HasData reports whether the bundle carries a queryable data image.
 func (b *Bundle) HasData() bool { return b.data != nil }
 
+// Graph returns the bundle's record-relations graph. Callers must check HasData.
+func (b *Bundle) Graph() (datadb.Graph, error) { return b.data.Graph() }
+
+// Record returns one record by guid. Callers must check HasData.
+func (b *Bundle) Record(guid string) (datadb.RecordFull, bool, error) { return b.data.Record(guid) }
+
 // ServeAPI serves the read-only agent API over the bundle's data image. It must
 // only be called when HasData is true.
 func (b *Bundle) ServeAPI(w http.ResponseWriter, r *http.Request) { b.api.ServeHTTP(w, r) }

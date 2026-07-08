@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/petervdpas/formidable2/internal/modules/bundle"
+	"github.com/petervdpas/formidable2/internal/modules/datadb"
 )
 
 // BundleInfo summarizes a bundle for the UI. When Loaded is false but Name is
@@ -317,6 +318,28 @@ func infoFromManifest(name string, man bundle.Manifest) BundleInfo {
 		Created:     man.Created,
 		Encrypted:   man.Encrypted,
 	}
+}
+
+// Graph returns the open bundle's record-relations graph, read straight from
+// the bundle (no agent API or token needed: this is the recipient viewing their
+// own open bundle). Empty when nothing with data is open.
+func (s *Service) Graph() (datadb.Graph, error) {
+	b := s.server.Current()
+	if b == nil || !b.HasData() {
+		return datadb.Graph{Nodes: []datadb.GraphNode{}, Edges: []datadb.GraphEdge{}}, nil
+	}
+	return b.Graph()
+}
+
+// GraphRecord returns one record's detail for the graph's side panel. An unknown
+// guid (or no open data) yields an empty record, not an error.
+func (s *Service) GraphRecord(guid string) (datadb.RecordFull, error) {
+	b := s.server.Current()
+	if b == nil || !b.HasData() {
+		return datadb.RecordFull{}, nil
+	}
+	r, _, err := b.Record(guid)
+	return r, err
 }
 
 // Current returns the open-bundle summary.

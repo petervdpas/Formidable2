@@ -312,6 +312,104 @@ body {
   margin-top: 0.4rem;
 }
 
+/* Relations graph */
+.graph-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.graph-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.graph-ctl {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.graph-select {
+  width: auto;
+  min-width: 140px;
+  height: 28px;
+}
+.graph-hops {
+  min-width: 1ch;
+  text-align: center;
+  color: var(--text);
+}
+.graph-root {
+  color: var(--text);
+  font-weight: 600;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graph-spacer {
+  flex: 1;
+}
+.graph-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.graph-canvas {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel);
+}
+.graph-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+.graph-splitter {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--border);
+}
+.graph-splitter:hover {
+  background: var(--accent);
+}
+.graph-detail {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+  border-left: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.graph-detail-head {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.graph-detail-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+.graph-detail-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  padding: 1rem;
+  text-align: center;
+}
+
 
 .switch-row {
   display: flex;
@@ -383,3 +481,154 @@ body {
   margin-top: 1.1rem;
 }
 
+.force-graph-wrap {
+  position: relative;
+  width: 100%;
+  /* Fill the remaining dialog height under the toolbar; the graph self-sizes. */
+  flex: 1 1 auto;
+  min-height: 16rem;
+}
+
+.force-graph {
+  width: 100%;
+  height: 100%;
+  background: var(--color-surface-2, var(--color-surface));
+  border: 1px solid var(--color-border, #2a3142);
+  border-radius: var(--radius-md, 6px);
+  touch-action: none;
+  cursor: grab;
+}
+
+.force-tip {
+  position: absolute;
+  z-index: 2;
+  /* max-width / max-height are set inline, sized to the canvas, so the tooltip
+     grows with the dialog and never overflows it. */
+  padding: 0.4rem 0.6rem;
+  background: var(--color-bg, #1a2230);
+  color: var(--color-text, #e6e9ef);
+  border: 1px solid var(--color-border, #2a3142);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.force-tip-head {
+  font-weight: 600;
+}
+
+.force-tip-body {
+  margin-top: 0.2rem;
+  white-space: pre-line;
+  color: var(--color-text-muted, #b6bdc9);
+}
+
+.force-tip-table {
+  margin-top: 0.3rem;
+  border-collapse: collapse;
+  font-size: 0.74rem;
+  color: var(--color-text-muted, #b6bdc9);
+}
+.force-tip-table th {
+  padding: 1px 0.6rem 2px 0;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text, #e6e9ef);
+  border-bottom: 1px solid var(--color-border, #2a3142);
+  white-space: nowrap;
+}
+.force-tip-table td {
+  padding: 1px 0.6rem 1px 0;
+  white-space: nowrap;
+  vertical-align: top;
+}
+.force-tip-table tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.03);
+}
+.force-tip-more {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--color-text-muted, #8a93a6);
+}
+
+.force-zoom {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.force-zoom button {
+  width: 1.8rem;
+  height: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text, #d7dce5);
+  background: var(--color-surface, #1c2230);
+  border: 1px solid var(--color-border, #2a3142);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+}
+
+.force-zoom button:hover {
+  background: var(--color-surface-2, #232a3a);
+}
+
+.force-edge {
+  stroke: var(--color-border-strong, #5b6377);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.force-node {
+  cursor: grab;
+}
+
+.force-node:active {
+  cursor: grabbing;
+}
+
+.force-node circle {
+  stroke: var(--color-surface, #1c2230);
+  stroke-width: 1.5;
+}
+
+.force-node--root circle {
+  fill: var(--color-accent, #4a90e2);
+}
+.force-node--related-cross circle {
+  fill: #9b6bd4;
+}
+.force-node--focus circle {
+  fill: var(--color-warn, #e2a24a);
+  stroke: var(--color-text, #1a2230);
+  stroke-width: 2;
+}
+
+.force-node--row circle {
+  fill: var(--color-text-muted, #8a93a6);
+}
+
+.force-node--field circle {
+  fill: var(--color-success, #5fc37a);
+}
+
+.force-node--field text {
+  font-size: 10px;
+  fill: var(--color-text-muted, #b6bdc9);
+}
+
+.force-node text {
+  font-size: 11px;
+  fill: var(--color-text, #d7dce5);
+  pointer-events: none;
+  user-select: none;
+}

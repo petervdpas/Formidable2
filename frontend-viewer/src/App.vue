@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { Events } from "@wailsio/runtime";
 import { api, BundleChangedEvent, type BundleInfo, type OpenResult } from "./api";
 import { reportError } from "./state";
@@ -7,6 +7,7 @@ import { applyTheme } from "./theme";
 import HomeScreen from "./components/HomeScreen.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import UnlockDialog from "./components/UnlockDialog.vue";
+import GraphView from "./components/GraphView.vue";
 
 const emptyBundle: BundleInfo = {
   loaded: false,
@@ -34,7 +35,7 @@ const unlock = ref<{
   busy: boolean;
   retry: Retry;
 }>({ show: false, name: "", title: "", description: "", wrong: false, busy: false, retry: async () => ({ info: emptyBundle, needsPassword: false, wrongPassword: false, path: "" }) });
-const view = ref<"home" | "bundle">("home");
+const view = ref<"home" | "bundle" | "graph">("home");
 const showSettings = ref(false);
 // Bumped to force the iframe to reload when the bundle swaps.
 const frameKey = ref(0);
@@ -47,6 +48,16 @@ const homeKey = ref(0);
 // the shell instead of the cross-origin bundle frame.
 const dragging = ref(false);
 let dragDepth = 0;
+
+// The bundle page currently shown in the frame, reported by the page's own
+// script (postMessage). The relations graph is opened FROM a record, rooted
+// there, so its button only appears on a record page.
+const currentPage = ref("");
+const isRecordPage = computed(() => currentPage.value.startsWith("form-"));
+function onFrameMessage(e: MessageEvent): void {
+  const p = (e.data as { formidablePage?: unknown } | null)?.formidablePage;
+  if (typeof p === "string") currentPage.value = p;
+}
 
 async function refresh(): Promise<void> {
   try {
@@ -199,9 +210,11 @@ onMounted(async () => {
   off = Events.On(BundleChangedEvent, () => {
     void refresh();
   });
+  window.addEventListener("message", onFrameMessage);
 });
 onBeforeUnmount(() => {
   off?.();
+  window.removeEventListener("message", onFrameMessage);
   delete (window as unknown as { __viewerRefresh?: () => void }).__viewerRefresh;
   delete (window as unknown as { __viewerUnlock?: unknown }).__viewerUnlock;
 });
@@ -236,6 +249,13 @@ function closeSettings(): void {
       @open-settings="showSettings = true"
     />
 
+    <GraphView
+      v-else-if="view === 'graph'"
+      :bundle-url="bundleUrl"
+      :root-page="currentPage"
+      @close="view = 'bundle'"
+    />
+
     <div v-else class="frame-wrap">
       <iframe
         :key="frameKey"
@@ -246,6 +266,14 @@ function closeSettings(): void {
       <div class="frame-controls">
         <button class="fc-btn" :title="$t('toolbar.home')" @click="goHome">
           <span class="fc-glyph">⌂</span>
+        </button>
+        <button
+          v-if="bundle.hasData && isRecordPage"
+          class="fc-btn"
+          :title="$t('graph.open')"
+          @click="view = 'graph'"
+        >
+          <span class="fc-glyph">◉</span>
         </button>
         <button class="fc-btn" :title="$t('toolbar.settings')" @click="showSettings = true">
           <span class="fc-glyph">⚙</span>

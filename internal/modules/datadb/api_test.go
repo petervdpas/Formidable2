@@ -58,6 +58,17 @@ func TestAPIRecordByGUID(t *testing.T) {
 	}
 }
 
+func TestAPIGraph(t *testing.T) {
+	h := apiServer(t)
+	var g Graph
+	if code := getJSON(t, h, "/api/graph", &g); code != http.StatusOK {
+		t.Fatalf("graph status %d", code)
+	}
+	if len(g.Nodes) != 3 || len(g.Edges) != 2 {
+		t.Fatalf("graph = %d nodes, %d edges; want 3, 2", len(g.Nodes), len(g.Edges))
+	}
+}
+
 func TestAPIRecordMissing404(t *testing.T) {
 	if code := getJSON(t, apiServer(t), "/api/records/nope", nil); code != http.StatusNotFound {
 		t.Fatalf("missing record status = %d, want 404", code)

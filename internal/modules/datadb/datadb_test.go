@@ -13,6 +13,7 @@ func sampleRecords() []Record {
 			Title:    "Marketing",
 			Payload:  map[string]any{"code": "MKT", "budget": 1000},
 			Text:     "Marketing MKT budget afdeling",
+			Links:    []Link{{To: "a-1", ToTemplate: "afdeling.yaml"}},
 		},
 		{
 			Template: "kostenplaats.yaml",
@@ -20,6 +21,7 @@ func sampleRecords() []Record {
 			Title:    "Engineering",
 			Payload:  map[string]any{"code": "ENG", "budget": 5000},
 			Text:     "Engineering ENG budget afdeling",
+			Links:    []Link{{To: "a-1", ToTemplate: "afdeling.yaml"}, {To: "ghost", ToTemplate: "afdeling.yaml"}},
 		},
 		{
 			Template: "afdeling.yaml",
@@ -131,6 +133,26 @@ func TestSearchEmptyAndPunctuation(t *testing.T) {
 	// Punctuation must not break the FTS syntax.
 	if _, err := db.Search(`"quoted" AND (weird)`); err != nil {
 		t.Fatalf("punctuation search errored: %v", err)
+	}
+}
+
+func TestGraph(t *testing.T) {
+	db := openSample(t)
+	g, err := db.Graph()
+	if err != nil {
+		t.Fatalf("Graph: %v", err)
+	}
+	if len(g.Nodes) != 3 {
+		t.Fatalf("want 3 nodes, got %d", len(g.Nodes))
+	}
+	// k-1->a-1 and k-2->a-1 are kept; k-2->ghost is dropped (no such record).
+	if len(g.Edges) != 2 {
+		t.Fatalf("want 2 edges (dangling dropped), got %d: %+v", len(g.Edges), g.Edges)
+	}
+	for _, e := range g.Edges {
+		if e.To != "a-1" {
+			t.Fatalf("unexpected edge target %q", e.To)
+		}
 	}
 }
 

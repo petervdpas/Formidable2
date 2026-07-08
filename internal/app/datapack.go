@@ -50,13 +50,15 @@ func (p exportDataPacker) BuildDataPack(ctx context.Context, filenames []string)
 				Template: fn,
 				GUID:     guid,
 				Title:    fs.Title,
+				Page:     wiki.RecordPageName(strings.TrimSuffix(fn, ".yaml"), fs.Filename),
 				Payload: map[string]any{
 					"fields":    form.Data,
 					"facets":    form.Meta.Facets,
 					"tags":      form.Meta.Tags,
 					"relations": edges[guid],
 				},
-				Text: flattenText(fs.Title, form),
+				Text:  flattenText(fs.Title, form),
+				Links: links(edges[guid]),
 			})
 		}
 	}
@@ -149,6 +151,21 @@ func collectStrings(b *strings.Builder, v any) {
 			collectStrings(b, vv)
 		}
 	}
+}
+
+// links flattens a record's outgoing edges (target template -> [guids]) into the
+// flat Link list datadb stores for the graph.
+func links(byTarget map[string][]string) []datadb.Link {
+	if len(byTarget) == 0 {
+		return nil
+	}
+	var out []datadb.Link
+	for target, tos := range byTarget {
+		for _, to := range tos {
+			out = append(out, datadb.Link{To: to, ToTemplate: target})
+		}
+	}
+	return out
 }
 
 func uniqueSorted(in []string) []string {

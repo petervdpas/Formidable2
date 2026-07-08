@@ -20,6 +20,15 @@
     "open": "Bundel openen",
     "settings": "Instellingen"
   },
+  "graph": {
+    "open": "Relatiegrafiek",
+    "back": "← Terug",
+    "fit": "Passend",
+    "hops": "Sprongen",
+    "select_node": "Selecteer een knoop om de pagina te bekijken",
+    "no_root": "Open de grafiek vanaf een recordpagina.",
+    "empty": "Deze bundel heeft geen relaties om te tonen."
+  },
   "settings": {
     "title": "Instellingen",
     "language": "Taal",

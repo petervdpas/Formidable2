@@ -14,12 +14,48 @@ import (
 func dataImage(t *testing.T) []byte {
 	t.Helper()
 	img, err := datadb.Build([]datadb.Record{
-		{Template: "t.yaml", GUID: "g1", Title: "One", Payload: map[string]any{"a": 1}, Text: "one alpha"},
+		{Template: "t.yaml", GUID: "g1", Title: "One", Payload: map[string]any{"a": 1}, Text: "one alpha",
+			Links: []datadb.Link{{To: "g2", ToTemplate: "t.yaml"}}},
+		{Template: "t.yaml", GUID: "g2", Title: "Two", Payload: map[string]any{"a": 2}, Text: "two beta"},
 	})
 	if err != nil {
 		t.Fatalf("datadb.Build: %v", err)
 	}
 	return img
+}
+
+func TestServiceGraphReadsOpenBundle(t *testing.T) {
+	s := newService(t)
+	packed, err := bundle.Pack(bundle.Manifest{Title: "P"}, zipWithData(t), "")
+	if err != nil {
+		t.Fatalf("pack: %v", err)
+	}
+	// No agent API enabled, no token: the in-app graph reads the bundle directly.
+	if _, err := s.OpenBytes("p.bundle", base64.StdEncoding.EncodeToString(packed), ""); err != nil {
+		t.Fatalf("OpenBytes: %v", err)
+	}
+	g, err := s.Graph()
+	if err != nil {
+		t.Fatalf("Graph: %v", err)
+	}
+	if len(g.Nodes) != 2 || len(g.Edges) != 1 {
+		t.Fatalf("graph = %d nodes, %d edges; want 2, 1", len(g.Nodes), len(g.Edges))
+	}
+	r, err := s.GraphRecord("g1")
+	if err != nil || r.Title != "One" {
+		t.Fatalf("GraphRecord g1 = %+v err=%v", r, err)
+	}
+}
+
+func TestServiceGraphEmptyWhenNoBundle(t *testing.T) {
+	s := newService(t)
+	g, err := s.Graph()
+	if err != nil {
+		t.Fatalf("Graph: %v", err)
+	}
+	if len(g.Nodes) != 0 || len(g.Edges) != 0 {
+		t.Fatalf("empty graph expected, got %+v", g)
+	}
 }
 
 // zipWithData is an export zip carrying a data image alongside the home page.

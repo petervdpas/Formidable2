@@ -321,6 +321,11 @@ func slug(s string) string {
 func collectionFile(stem string) string       { return "template-" + stem + ".html" }
 func recordFile(stem, datafile string) string { return "form-" + stem + "-" + slug(datafile) + ".html" }
 
+// RecordPageName is the bundle's HTML page filename for a record, matching what
+// ExportBundle writes. Exported so the data packer can link each graph node to
+// its page for the Viewer's detail panel.
+func RecordPageName(stem, datafile string) string { return recordFile(stem, datafile) }
+
 func deckFile(stem, deck string) string {
 	if deck == "" {
 		return "deck-" + stem + ".html"
@@ -425,6 +430,13 @@ const offlineCrumbsJS = `(function () {
   document.addEventListener('keydown', function (e) {
     if (e.key === '/' && q && !q.disabled && document.activeElement !== q) { e.preventDefault(); q.focus(); }
   });
+  // Tell the Viewer shell which bundle page is showing, so it can root the
+  // relations graph at the record you are on (harmless outside the Viewer).
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ formidablePage: location.pathname.replace(/^\/+/, '') }, '*');
+    }
+  } catch (e) {}
 })();`
 
 // offlineAssets gathers the chrome assets into the _/ folder: the wiki CSS (with

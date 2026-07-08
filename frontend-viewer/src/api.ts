@@ -48,6 +48,32 @@ export interface RecentInfo {
   exists: boolean;
 }
 
+export interface GraphNode {
+  guid: string;
+  template: string;
+  title: string;
+  page: string;
+}
+export interface GraphEdge {
+  from: string;
+  to: string;
+}
+export interface Graph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+export interface RecordFull {
+  template: string;
+  guid: string;
+  title: string;
+  payload: {
+    fields?: Record<string, unknown>;
+    facets?: Record<string, unknown>;
+    tags?: string[];
+    relations?: Record<string, string[]>;
+  };
+}
+
 export interface ServerStatus {
   running: boolean;
   port: number;
@@ -74,6 +100,8 @@ export const api = {
   serverStatus: () => call<ServerStatus>("ServerStatus"),
   apiStatus: () => call<APIStatus>("APIStatus"),
   regenerateAPIToken: () => call<APIStatus>("RegenerateAPIToken"),
+  graph: () => call<Graph>("Graph"),
+  graphRecord: (guid: string) => call<RecordFull>("GraphRecord", guid),
   bundleURL: () => call<string>("BundleURL"),
 };
 

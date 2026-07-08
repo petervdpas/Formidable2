@@ -20,6 +20,15 @@
     "open": "Open bundle",
     "settings": "Settings"
   },
+  "graph": {
+    "open": "Relations graph",
+    "back": "← Back",
+    "fit": "Fit",
+    "hops": "Hops",
+    "select_node": "Select a node to view its page",
+    "no_root": "Open the graph from a record page.",
+    "empty": "This bundle has no relations to graph."
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",

@@ -26,22 +26,38 @@ CREATE TABLE records (
   template TEXT NOT NULL,
   guid     TEXT NOT NULL,
   title    TEXT NOT NULL DEFAULT '',
+  page     TEXT NOT NULL DEFAULT '',
   payload  TEXT NOT NULL,
   PRIMARY KEY (template, guid)
 );
 CREATE INDEX idx_records_template ON records(template);
+CREATE TABLE edges (
+  from_guid   TEXT NOT NULL,
+  to_guid     TEXT NOT NULL,
+  to_template TEXT NOT NULL
+);
+CREATE INDEX idx_edges_from ON edges(from_guid);
 CREATE VIRTUAL TABLE records_fts USING fts5(guid UNINDEXED, template UNINDEXED, title, body);
 `
 
 // Record is one collection-template record destined for the pack. Payload is the
 // record's full field data (returned verbatim by the API); Text is the flattened
-// searchable text (the full-text index body).
+// searchable text (the full-text index body); Links are the record's outgoing
+// relations, which feed the graph.
 type Record struct {
 	Template string
 	GUID     string
 	Title    string
+	Page     string // bundle HTML page filename, for the graph detail panel
 	Payload  map[string]any
 	Text     string
+	Links    []Link
+}
+
+// Link is one outgoing relation edge from a record to a target record.
+type Link struct {
+	To         string // target record guid
+	ToTemplate string // target template filename
 }
 
 // TemplateCount is a template filename and how many records it holds.
@@ -93,14 +109,24 @@ func Build(records []Record) ([]byte, error) {
 			return nil, fmt.Errorf("datadb: marshal %s/%s: %w", r.Template, r.GUID, err)
 		}
 		if _, err := conn.ExecContext(ctx,
-			`INSERT INTO records(template, guid, title, payload) VALUES(?, ?, ?, ?)`,
-			r.Template, r.GUID, r.Title, string(payload)); err != nil {
+			`INSERT INTO records(template, guid, title, page, payload) VALUES(?, ?, ?, ?, ?)`,
+			r.Template, r.GUID, r.Title, r.Page, string(payload)); err != nil {
 			return nil, fmt.Errorf("datadb: insert %s/%s: %w", r.Template, r.GUID, err)
 		}
 		if _, err := conn.ExecContext(ctx,
 			`INSERT INTO records_fts(guid, template, title, body) VALUES(?, ?, ?, ?)`,
 			r.GUID, r.Template, r.Title, r.Text); err != nil {
 			return nil, fmt.Errorf("datadb: index %s/%s: %w", r.Template, r.GUID, err)
+		}
+		for _, l := range r.Links {
+			if l.To == "" {
+				continue
+			}
+			if _, err := conn.ExecContext(ctx,
+				`INSERT INTO edges(from_guid, to_guid, to_template) VALUES(?, ?, ?)`,
+				r.GUID, l.To, l.ToTemplate); err != nil {
+				return nil, fmt.Errorf("datadb: edge %s->%s: %w", r.GUID, l.To, err)
+			}
 		}
 	}
 
@@ -221,6 +247,68 @@ func (d *DB) Search(query string) ([]RecordRef, error) {
 	}
 	defer rows.Close()
 	return scanRefs(rows)
+}
+
+// GraphNode is one record in the relations graph. Page is its bundle HTML page,
+// which the Viewer loads in the detail panel.
+type GraphNode struct {
+	GUID     string `json:"guid"`
+	Template string `json:"template"`
+	Title    string `json:"title"`
+	Page     string `json:"page"`
+}
+
+// GraphEdge is one relation link between two records in the graph.
+type GraphEdge struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// Graph is the whole relations graph of the bundle: every record as a node and
+// every relation as an edge (deduplicated, and only where both ends exist).
+type Graph struct {
+	Nodes []GraphNode `json:"nodes"`
+	Edges []GraphEdge `json:"edges"`
+}
+
+// Graph returns the record-relations graph for the bundle.
+func (d *DB) Graph() (Graph, error) {
+	g := Graph{Nodes: []GraphNode{}, Edges: []GraphEdge{}}
+
+	nrows, err := d.sql.Query(`SELECT guid, template, title, page FROM records ORDER BY template, title, guid`)
+	if err != nil {
+		return g, err
+	}
+	defer nrows.Close()
+	for nrows.Next() {
+		var n GraphNode
+		if err := nrows.Scan(&n.GUID, &n.Template, &n.Title, &n.Page); err != nil {
+			return g, err
+		}
+		g.Nodes = append(g.Nodes, n)
+	}
+	if err := nrows.Err(); err != nil {
+		return g, err
+	}
+
+	// Only edges whose target is a known record, deduplicated.
+	erows, err := d.sql.Query(`
+		SELECT DISTINCT e.from_guid, e.to_guid
+		FROM edges e
+		JOIN records r ON r.guid = e.to_guid
+		ORDER BY e.from_guid, e.to_guid`)
+	if err != nil {
+		return g, err
+	}
+	defer erows.Close()
+	for erows.Next() {
+		var e GraphEdge
+		if err := erows.Scan(&e.From, &e.To); err != nil {
+			return g, err
+		}
+		g.Edges = append(g.Edges, e)
+	}
+	return g, erows.Err()
 }
 
 func scanRefs(rows *sql.Rows) ([]RecordRef, error) {
