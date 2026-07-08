@@ -149,9 +149,7 @@ async function onDrop(e: DragEvent): Promise<void> {
   dragDepth = 0;
   dragging.value = false;
   const file = e.dataTransfer?.files?.[0];
-  if (!file) return;
-  const lower = file.name.toLowerCase();
-  if (!lower.endsWith(".bundle") && !lower.endsWith(".zip")) return;
+  if (!file || !file.name.toLowerCase().endsWith(".bundle")) return;
   try {
     const b64 = bufToBase64(await file.arrayBuffer());
     const res = await api.openBytes(file.name, b64, "");

@@ -1,8 +1,8 @@
-// Package viewer serves a Formidable offline export (.zip) directly from
-// the archive, without ever extracting it to disk. It is the core of the
-// standalone Formidable Viewer app: point an http.Handler at a bundle and
-// the webview loads its already-rendered pages, images, and assets straight
-// out of the zip.
+// Package viewer serves a Formidable bundle (.bundle) directly from its
+// decrypted archive in memory, without ever extracting it to disk. It is the
+// core of the standalone Formidable Viewer app: point an http.Handler at a
+// bundle and the webview loads its already-rendered pages, images, and assets
+// straight out of the archive.
 package viewer
 
 import (
@@ -10,50 +10,33 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"path/filepath"
 	"sync"
 
 	"github.com/petervdpas/formidable2/internal/modules/bundle"
 )
 
-// Bundle is a read-only view over one offline export. The zip stays sealed;
-// entries are read on demand through the archive's random-access reader.
-// manifest carries the pack's cleartext metadata (empty for a legacy bare zip).
+// Bundle is a read-only view over one opened pack: the decrypted payload archive
+// plus its cleartext manifest. Entries are read on demand through the archive's
+// random-access reader; nothing is written to disk.
 type Bundle struct {
 	name     string
 	reader   *zip.Reader
-	closer   io.Closer // non-nil when opened from a file on disk
 	h        http.Handler
 	manifest bundle.Manifest
 }
 
-func newBundle(name string, zr *zip.Reader, closer io.Closer) *Bundle {
-	return &Bundle{
-		name:   name,
-		reader: zr,
-		closer: closer,
-		h:      http.FileServerFS(zr),
-	}
+func newBundle(name string, zr *zip.Reader) *Bundle {
+	return &Bundle{name: name, reader: zr, h: http.FileServerFS(zr)}
 }
 
-// OpenBundle opens a .zip export from disk. The underlying file handle is
-// kept open (returned by Close) so entries are served without unpacking.
-func OpenBundle(path string) (*Bundle, error) {
-	rc, err := zip.OpenReader(path)
-	if err != nil {
-		return nil, err
-	}
-	return newBundle(filepath.Base(path), &rc.Reader, rc), nil
-}
-
-// BundleFromBytes wraps an in-memory .zip (e.g. one just produced by the
-// exporter, opened without a round-trip through disk).
+// BundleFromBytes wraps an in-memory archive (the decrypted bundle payload, or a
+// zip just produced by the exporter) with no round-trip through disk.
 func BundleFromBytes(b []byte, name string) (*Bundle, error) {
 	zr, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
 		return nil, err
 	}
-	return newBundle(name, zr, nil), nil
+	return newBundle(name, zr), nil
 }
 
 // Name is the bundle's display name (its file base name, or the name given
@@ -75,14 +58,10 @@ func (b *Bundle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b.h.ServeHTTP(w, r)
 }
 
-// Close releases the on-disk file handle. It is a no-op for byte-backed
-// bundles.
-func (b *Bundle) Close() error {
-	if b.closer != nil {
-		return b.closer.Close()
-	}
-	return nil
-}
+// Close releases any resources held by the bundle. Bundles are byte-backed and
+// hold none, so it is a no-op; it exists so the server can uniformly close the
+// previous bundle on a swap.
+func (b *Bundle) Close() error { return nil }
 
 // Server serves whichever Bundle is currently loaded, or a landing page when
 // none is. It is safe for concurrent use so the loaded bundle can be swapped
@@ -157,7 +136,7 @@ var landingHTML = `<!doctype html>
 <body data-file-drop-target>
   <div class="card" data-file-drop-target>
     <h1>` + landingTitle + `</h1>
-    <p>Drop a Formidable export (<kbd>.zip</kbd>) here to view it offline.</p>
+    <p>Drop a Formidable bundle (<kbd>.bundle</kbd>) here to view it offline.</p>
     <p class="hint">No bundle is open.</p>
   </div>
   <!-- Wails serves its runtime at /wails/runtime.js but does not auto-inject

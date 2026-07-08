@@ -1,6 +1,6 @@
 {
   "home": {
-    "drop_hint": "Drop a Formidable bundle (.bundle or .zip) here to view it offline.",
+    "drop_hint": "Drop a Formidable bundle (.bundle) here to view it offline.",
     "no_bundle": "No bundle is open.",
     "open_button": "Open bundle",
     "resume": "Resume",

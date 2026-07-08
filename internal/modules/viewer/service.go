@@ -236,15 +236,13 @@ func (s *Service) openRaw(raw []byte, name, path, password string) (OpenResult, 
 	return OpenResult{Info: s.Current()}, nil
 }
 
-// decodeBundle resolves raw file bytes to the servable zip plus its manifest. A
-// legacy bare zip (no bundle container) is served as-is with an empty manifest.
-// An encrypted bundle with a missing password sets needPw; a wrong password
-// sets wrongPw. Neither is treated as a hard error, so the UI can prompt.
+// decodeBundle resolves raw file bytes to the servable zip plus its manifest.
+// The Viewer opens Formidable bundles only: a file without the bundle container
+// (ErrNotBundle) is rejected, not served as a bare zip. An encrypted bundle with
+// a missing password sets needPw; a wrong password sets wrongPw. Neither is a
+// hard error, so the UI can prompt.
 func decodeBundle(raw []byte, password string) (zipBytes []byte, man bundle.Manifest, needPw, wrongPw bool, err error) {
 	man, mErr := bundle.ReadManifest(raw)
-	if errors.Is(mErr, bundle.ErrNotBundle) {
-		return raw, bundle.Manifest{}, false, false, nil // legacy bare .zip
-	}
 	if mErr != nil {
 		return nil, bundle.Manifest{}, false, false, mErr
 	}

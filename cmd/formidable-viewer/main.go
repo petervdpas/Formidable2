@@ -126,15 +126,16 @@ func main() {
 	}
 	win := app.Window.NewWithOptions(winOpts)
 
-	if cfg.DefaultZoom > 0 {
-		win.SetZoom(cfg.DefaultZoom)
-	}
+	// Zoom is applied by the shell as CSS zoom on the bundle iframe alone (see
+	// bundleZoom in App.vue), so it scales the document being read, not the app
+	// chrome. Applying it here too (win.SetZoom) would double it at startup and
+	// diverge from the live Settings control, so it is intentionally not set.
 
 	// Inject the Wails-side behavior the service needs.
 	svc.SetOpenFunc(func() (string, error) {
 		return app.Dialog.OpenFile().
 			SetTitle("Open Formidable bundle").
-			AddFilter("Formidable bundle (*.bundle, *.zip)", "*.bundle;*.zip").
+			AddFilter("Formidable bundle (*.bundle)", "*.bundle").
 			PromptForSingleSelection()
 	})
 	svc.SetSwapHook(func() {
@@ -145,14 +146,13 @@ func main() {
 		win.ExecJS("window.__viewerRefresh && window.__viewerRefresh()")
 	})
 
-	// Native drop: load the first .bundle/.zip through the service so recents
-	// record and the swap hook fires (the shell reacts to the event). An
-	// encrypted pack that needs a password pokes the shell to open the unlock
-	// prompt instead of loading.
+	// Native drop: load the first .bundle through the service so recents record
+	// and the swap hook fires (the shell reacts to the event). An encrypted pack
+	// that needs a password pokes the shell to open the unlock prompt instead of
+	// loading.
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
 		for _, f := range e.Context().DroppedFiles() {
-			ext := strings.ToLower(filepath.Ext(f))
-			if ext == ".bundle" || ext == ".zip" {
+			if strings.EqualFold(filepath.Ext(f), ".bundle") {
 				res, err := svc.OpenPath(f, "")
 				if err != nil {
 					log.Printf("%s: cannot open %q: %v", appName, f, err)

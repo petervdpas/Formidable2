@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -121,41 +119,15 @@ func TestBundleName(t *testing.T) {
 	}
 }
 
-func TestOpenBundleFromDiskAndClose(t *testing.T) {
-	zb := makeZip(t, map[string]string{"index.html": "<h1>DISK</h1>"})
-	path := filepath.Join(t.TempDir(), "export.zip")
-	if err := os.WriteFile(path, zb, 0o644); err != nil {
-		t.Fatalf("write temp zip: %v", err)
-	}
-	b, err := OpenBundle(path)
-	if err != nil {
-		t.Fatalf("OpenBundle: %v", err)
-	}
-	if b.Name() != "export.zip" {
-		t.Fatalf("Name = %q, want export.zip", b.Name())
-	}
-	res, body := get(t, b, "/")
-	if res.StatusCode != http.StatusOK || !strings.Contains(body, "DISK") {
-		t.Fatalf("GET / = %d %q", res.StatusCode, body)
-	}
-	if err := b.Close(); err != nil {
-		t.Fatalf("Close: %v", err)
-	}
-}
-
 func TestBundleFromBytesCloseIsNoop(t *testing.T) {
 	if err := sampleBundle(t).Close(); err != nil {
 		t.Fatalf("Close on byte bundle = %v, want nil", err)
 	}
 }
 
-func TestOpenBundleBadZip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "bad.zip")
-	if err := os.WriteFile(path, []byte("not a zip"), 0o644); err != nil {
-		t.Fatalf("write: %v", err)
-	}
-	if _, err := OpenBundle(path); err == nil {
-		t.Fatal("OpenBundle on garbage = nil error, want failure")
+func TestBundleFromBytesBadArchive(t *testing.T) {
+	if _, err := BundleFromBytes([]byte("not a zip"), "bad.bundle"); err == nil {
+		t.Fatal("BundleFromBytes on garbage = nil error, want failure")
 	}
 }
 

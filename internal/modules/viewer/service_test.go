@@ -47,13 +47,13 @@ func TestServiceOpenPathSwapsRecordsAndHooks(t *testing.T) {
 	swapped := 0
 	s.SetSwapHook(func() { swapped++ })
 
-	path := writeZipFile(t, "deck.zip")
+	path := writeBundleFile(t, "deck.bundle", "")
 	res, err := s.OpenPath(path, "")
 	if err != nil {
 		t.Fatalf("OpenPath: %v", err)
 	}
-	if !res.Info.Loaded || res.Info.Name != "deck.zip" {
-		t.Fatalf("bundle info = %+v, want loaded deck.zip", res.Info)
+	if !res.Info.Loaded || res.Info.Name != "deck.bundle" {
+		t.Fatalf("bundle info = %+v, want loaded deck.bundle", res.Info)
 	}
 	if swapped != 1 {
 		t.Fatalf("swap hook fired %d times, want 1", swapped)
@@ -65,14 +65,14 @@ func TestServiceOpenPathSwapsRecordsAndHooks(t *testing.T) {
 
 func TestServiceOpenDialogUsesInjectedPicker(t *testing.T) {
 	s := newService(t)
-	path := writeZipFile(t, "picked.zip")
+	path := writeBundleFile(t, "picked.bundle", "")
 	s.SetOpenFunc(func() (string, error) { return path, nil })
 
 	res, err := s.OpenDialog()
 	if err != nil {
 		t.Fatalf("OpenDialog: %v", err)
 	}
-	if !res.Info.Loaded || res.Info.Name != "picked.zip" {
+	if !res.Info.Loaded || res.Info.Name != "picked.bundle" {
 		t.Fatalf("dialog open = %+v", res.Info)
 	}
 }
@@ -118,12 +118,12 @@ func TestServiceSetConfigTogglesLANServer(t *testing.T) {
 
 func TestServiceRecentsFlagsMissing(t *testing.T) {
 	s := newService(t)
-	path := writeZipFile(t, "present.zip")
+	path := writeBundleFile(t, "present.bundle", "")
 	if _, err := s.OpenPath(path, ""); err != nil {
 		t.Fatalf("OpenPath: %v", err)
 	}
 	// Record a bogus path directly so it survives as "missing".
-	if err := s.store.AddRecent("/no/such/bundle.zip"); err != nil {
+	if err := s.store.AddRecent("/no/such/bundle.bundle"); err != nil {
 		t.Fatalf("AddRecent: %v", err)
 	}
 	rec := s.Recents()
@@ -134,8 +134,17 @@ func TestServiceRecentsFlagsMissing(t *testing.T) {
 	if !byPath[path] {
 		t.Errorf("present bundle flagged missing")
 	}
-	if byPath["/no/such/bundle.zip"] {
+	if byPath["/no/such/bundle.bundle"] {
 		t.Errorf("bogus bundle flagged as existing")
+	}
+}
+
+func TestServiceOpenBareZipRejected(t *testing.T) {
+	s := newService(t)
+	path := writeZipFile(t, "legacy.zip")
+	// The Viewer opens .bundle files only; a bare zip has no container.
+	if _, err := s.OpenPath(path, ""); err == nil {
+		t.Fatal("a bare zip must be rejected, not served")
 	}
 }
 
@@ -145,14 +154,18 @@ func TestServiceOpenBytes(t *testing.T) {
 	s.SetSwapHook(func() { swapped++ })
 
 	zb := makeZip(t, map[string]string{"index.html": "<h1>DROPPED</h1>"})
-	b64 := base64.StdEncoding.EncodeToString(zb)
+	packed, err := bundle.Pack(bundle.Manifest{Title: "Dropped"}, zb, "")
+	if err != nil {
+		t.Fatalf("pack: %v", err)
+	}
+	b64 := base64.StdEncoding.EncodeToString(packed)
 
-	res, err := s.OpenBytes("dropped.zip", b64, "")
+	res, err := s.OpenBytes("dropped.bundle", b64, "")
 	if err != nil {
 		t.Fatalf("OpenBytes: %v", err)
 	}
-	if !res.Info.Loaded || res.Info.Name != "dropped.zip" {
-		t.Fatalf("info = %+v, want loaded dropped.zip", res.Info)
+	if !res.Info.Loaded || res.Info.Name != "dropped.bundle" {
+		t.Fatalf("info = %+v, want loaded dropped.bundle", res.Info)
 	}
 	if swapped != 1 {
 		t.Fatalf("swap hook fired %d times, want 1", swapped)
